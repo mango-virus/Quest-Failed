@@ -16,10 +16,9 @@ import { Balance }  from '../config/balance.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
-// LPC sheets ship at 64×64 per frame; render at half-size so adventurers fit
-// roughly within a 32×32 dungeon tile (still slightly taller than wide is
-// expected for top-down humanoids).
-const LPC_SCALE = 0.5
+// LPC sheets ship at 64×64 per frame; render at 0.75 so adventurers come in
+// at ~48px tall — about 1.5 dungeon tiles, a readable size for top-down view.
+const LPC_SCALE = 0.75
 // Map adventurer movement vector → LPC direction key.
 function _dirFromVelocity(dx, dy) {
   if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left'
