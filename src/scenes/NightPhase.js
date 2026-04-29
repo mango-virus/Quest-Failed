@@ -781,12 +781,33 @@ export class NightPhase extends Phaser.Scene {
       this._preview.lineStyle(1, color, 0.9)
       this._preview.strokeRect(wx, wy, ww, wh)
 
-      // Door position markers so the player can see where connections land
+      // Door markers — every doorway is widened to 2 tiles in DungeonGrid
+      // (extra door slid toward whichever side has more wall space). Mirror
+      // that rule here so the preview shows the actual 2-tile extent rather
+      // than a single dot.
       this._preview.fillStyle(color, 0.9)
+      const rw = rotDef.width, rh = rotDef.height
       for (const cp of rotDef.connectionPoints ?? []) {
-        const dx = (placeTx + cp.x) * TS + TS / 2
-        const dy = (placeTy + cp.y) * TS + TS / 2
-        this._preview.fillRect(dx - 3, dy - 3, 6, 6)
+        const onTopOrBot = (cp.y === 0 || cp.y === rh - 1)
+        const onLftOrRgt = (cp.x === 0 || cp.x === rw - 1)
+        let ddx = 0, ddy = 0
+        if (onTopOrBot && !onLftOrRgt) {
+          ddx = (((rw - 1) - cp.x) >= cp.x) ? 1 : -1
+        } else if (onLftOrRgt && !onTopOrBot) {
+          ddy = (((rh - 1) - cp.y) >= cp.y) ? 1 : -1
+        }
+        const cx0 = (placeTx + cp.x) * TS + TS / 2
+        const cy0 = (placeTy + cp.y) * TS + TS / 2
+        if (ddx !== 0) {
+          const minX = Math.min(cx0, cx0 + ddx * TS)
+          this._preview.fillRect(minX - 3, cy0 - 3, TS + 6, 6)
+        } else if (ddy !== 0) {
+          const minY = Math.min(cy0, cy0 + ddy * TS)
+          this._preview.fillRect(cx0 - 3, minY - 3, 6, TS + 6)
+        } else {
+          // Corner cp (skipped by widener) — fall back to a single dot.
+          this._preview.fillRect(cx0 - 3, cy0 - 3, 6, 6)
+        }
       }
 
       // Rotation angle label — top-left corner of the preview rect, world space
