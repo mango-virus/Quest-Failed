@@ -73,6 +73,33 @@ const MINION_IDS = [
   'vampire_minion1', 'vampire_minion2',
   'zombie1', 'zombie2', 'zombie3',
 ]
+// LPC adventurer roster — every class with baked variants under
+// assets/sprites/adventurers/<class>/v01.png … v50.png. Texture keys are
+// `adv-<class>-vNN`. Animation rows per sheet come from layout.json.
+const ADVENTURER_CLASS_IDS = [
+  'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
+  'twitch_streamer', 'beast_master', 'barbarian', 'monk', 'bard',
+]
+const ADVENTURER_VARIANTS_PER_CLASS = 50
+
+// LPC sheets store directions in N / W / S / E row order within each
+// animation block. Map them to the down/up/left/right convention the rest of
+// the game uses.
+const ADVENTURER_DIRS = ['up', 'left', 'down', 'right']
+
+// Per-animation playback metadata. Frame counts come from layout.json at
+// runtime, not hardcoded here.
+const ADVENTURER_ANIM_META = {
+  spellcast: { frameRate: 12, repeat: 0  },
+  thrust:    { frameRate: 14, repeat: 0  },
+  walk:      { frameRate: 10, repeat: -1 },
+  slash:     { frameRate: 18, repeat: 0  },
+  shoot:     { frameRate: 14, repeat: 0  },
+  hurt:      { frameRate: 12, repeat: 0  },
+  idle:      { frameRate: 4,  repeat: -1 },
+  run:       { frameRate: 14, repeat: -1 },
+}
+
 const MINION_SHEET_STATES = [
   { file: 'idle',   key: 'idle',   frameRate: 6,  repeat: -1 },
   { file: 'walk',   key: 'walk',   frameRate: 10, repeat: -1 },
@@ -215,11 +242,30 @@ export class Preload extends Phaser.Scene {
         this.load.spritesheet(`minion-${id}-${s.key}`, folder + `${s.file}.png`, { frameWidth: fs, frameHeight: fs })
       }
     }
+
+    // ── LPC adventurer spritesheets ──────────────────────────────────────────
+    // 50 baked variants per class × 11 classes = 550 sheets. Each is 832×1856
+    // RGBA with 64×64 frames in a 13-col × 29-row grid containing 8 animations
+    // (spellcast / thrust / walk / slash / shoot / hurt / idle / run). Layout
+    // offsets live in layout.json and per-variant trait picks in manifest.json
+    // (used by AdventurerRenderer to decide which variant a given adventurer
+    // renders as, save-stable via adv.spriteVariant).
+    this.load.json('adventurerManifest', 'assets/sprites/adventurers/manifest.json')
+    this.load.json('adventurerLayout',   'assets/sprites/adventurers/layout.json')
+    for (const id of ADVENTURER_CLASS_IDS) {
+      for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+        const v = `v${String(i).padStart(2, '0')}`
+        this.load.spritesheet(`adv-${id}-${v}`,
+          `assets/sprites/adventurers/${id}/${v}.png`,
+          { frameWidth: 64, frameHeight: 64 })
+      }
+    }
   }
 
   create() {
     this._registerBossAnimations()
     this._registerMinionAnimations()
+    this._registerAdventurerAnimations()
     this.scene.start('MainMenu')
   }
 
@@ -254,6 +300,58 @@ export class Preload extends Phaser.Scene {
             frameRate: s.frameRate,
             repeat:    s.repeat,
           })
+        }
+      }
+    }
+  }
+
+  // LPC adventurer animations — each sheet is 13 cols × 29 rows of 64×64
+  // frames. Animation row blocks come from layout.json. For each variant ×
+  // animation × direction we register one anim keyed
+  // `adv-<class>-<vNN>-<anim>-<dir>` (or `adv-<class>-<vNN>-hurt-down` for
+  // the single-direction hurt block).
+  _registerAdventurerAnimations() {
+    const layout = this.cache.json.get('adventurerLayout')
+    if (!layout) return
+    const cols = Math.floor(layout.width / layout.frame) // 13
+    for (const id of ADVENTURER_CLASS_IDS) {
+      for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+        const v = `v${String(i).padStart(2, '0')}`
+        const key = `adv-${id}-${v}`
+        if (!this.textures.exists(key)) continue
+        const tex = this.textures.get(key)
+        if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+
+        for (const row of layout.rows) {
+          const meta = ADVENTURER_ANIM_META[row.anim]
+          if (!meta) continue
+          const baseRow = Math.floor(row.y / layout.frame)
+          if (row.dirRows === 1) {
+            // hurt — single south-facing strip
+            const start = baseRow * cols
+            const end   = start + row.frames - 1
+            const animKey = `${key}-${row.anim}-down`
+            if (this.anims.exists(animKey)) continue
+            this.anims.create({
+              key: animKey,
+              frames: this.anims.generateFrameNumbers(key, { start, end }),
+              frameRate: meta.frameRate,
+              repeat: meta.repeat,
+            })
+            continue
+          }
+          for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
+            const start = (baseRow + d) * cols
+            const end   = start + row.frames - 1
+            const animKey = `${key}-${row.anim}-${ADVENTURER_DIRS[d]}`
+            if (this.anims.exists(animKey)) continue
+            this.anims.create({
+              key: animKey,
+              frames: this.anims.generateFrameNumbers(key, { start, end }),
+              frameRate: meta.frameRate,
+              repeat: meta.repeat,
+            })
+          }
         }
       }
     }

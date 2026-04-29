@@ -1,13 +1,30 @@
 // Renders all active adventurers as world-space markers.
-// Phase 4: a colored circle + sigil letter per adventurer (placeholder for sprites).
-// Each frame, the marker reads the adventurer's worldX/worldY (set by AISystem) and updates.
-// Click-to-inspect is wired here — emits ADVENTURER_CLICKED on EventBus.
+//
+// Original look: a colored circle + sigil letter per adventurer.
+// Now: if the manifest at assets/sprites/adventurers/manifest.json is loaded
+// AND the class has at least one baked LPC variant, the renderer swaps in a
+// proper Phaser sprite driven by LPC walk/idle/run/slash/thrust/shoot/cast/
+// hurt animations. Each adventurer is assigned a save-stable spriteVariant
+// (e.g. 'knight/v07') the first time we render it.
+//
+// Each frame, the marker reads the adventurer's worldX/worldY (set by
+// AISystem) and updates. Click-to-inspect is wired here — emits
+// ADVENTURER_CLICKED on EventBus.
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
+// LPC sheets ship at 64×64 per frame; render at half-size so adventurers fit
+// roughly within a 32×32 dungeon tile (still slightly taller than wide is
+// expected for top-down humanoids).
+const LPC_SCALE = 0.5
+// Map adventurer movement vector → LPC direction key.
+function _dirFromVelocity(dx, dy) {
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left'
+  return dy >= 0 ? 'down' : 'up'
+}
 
 export class AdventurerRenderer {
   constructor(scene, gameState) {
@@ -20,6 +37,18 @@ export class AdventurerRenderer {
     // (CharacterEditor edits) when creating sprites.
     const defs = scene.cache.json.get('adventurerClasses') ?? []
     this._defMap = Object.fromEntries(defs.map(d => [d.id, d]))
+
+    // LPC manifest — list of baked variant ids per class. Used for save-stable
+    // random assignment in _ensureSpriteVariant. If the manifest didn't load
+    // (older builds, missing assets), we transparently fall back to the
+    // procedural circle marker.
+    const manifest = scene.cache.json.get('adventurerManifest')
+    this._lpcVariantsByClass = {}
+    if (manifest?.variants) {
+      for (const [classId, list] of Object.entries(manifest.variants)) {
+        this._lpcVariantsByClass[classId] = list.map((v) => v.id)
+      }
+    }
 
     EventBus.on('ADVENTURER_DIED',     this._onRemove,   this)
     EventBus.on('ADVENTURER_FLED',     this._onRemove,   this)
@@ -36,12 +65,21 @@ export class AdventurerRenderer {
       seen.add(adv.instanceId)
       let s = this._sprites[adv.instanceId]
       if (!s) s = this._createSprite(adv)
+      // Track movement direction for the LPC sprite — derived from the
+      // last frame's worldX/Y delta. Stored on adv (transient, save-safe).
+      const prevX = adv._lastWorldX ?? adv.worldX
+      const prevY = adv._lastWorldY ?? adv.worldY
+      const dx = adv.worldX - prevX, dy = adv.worldY - prevY
+      adv._lastWorldX = adv.worldX
+      adv._lastWorldY = adv.worldY
+      if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) adv._lpcDir = _dirFromVelocity(dx, dy)
       s.container.setPosition(adv.worldX, adv.worldY)
       const hpFrac = adv.resources.maxHp > 0
         ? Math.max(0, adv.resources.hp / adv.resources.maxHp) : 0
       s.hp.width = Math.max(0, hpFrac * (RADIUS * 2))
       this._updateBubbleState(s, adv)
       this._tickBuilderAnim(s, adv, dt)
+      this._tickLpcAnim(s, adv)
     }
 
     // Clean up sprites whose adventurers are no longer active
@@ -85,6 +123,42 @@ export class AdventurerRenderer {
         s.builder.image.setTexture(f.key)
         s.builder.image.setFlipX(!!f.flipX)
       }
+    }
+  }
+
+  // Pick an LPC animation+direction based on AI state and play it on the
+  // adventurer's sprite. Idempotent — only triggers a play() when the desired
+  // (anim, dir) actually changed, so Phaser doesn't restart the animation
+  // every frame.
+  _tickLpcAnim(s, adv) {
+    if (!s.lpc) return
+    const dir = adv._lpcDir ?? 'down'
+    let anim = 'idle'
+    const cls = this._defMap?.[adv.classId]
+    const tags = new Set(cls?.tags ?? [])
+    if (adv.resources?.hp <= 0) {
+      anim = 'hurt'
+    } else if (adv.aiState === 'fighting') {
+      // Pick the swing style that matches the class's combat flavor.
+      if (tags.has('spellcaster') || tags.has('healer'))    anim = 'spellcast'
+      else if (tags.has('ranged') && (cls?.id === 'ranger' || cls?.id === 'bard'))  anim = 'shoot'
+      else if (cls?.id === 'monk' || cls?.id === 'beast_master')                    anim = 'thrust'
+      else                                                                          anim = 'slash'
+    } else if (adv.aiState === 'fleeing' || adv.goal?.type === 'FLEE') {
+      anim = 'run'
+    } else if (adv.aiState === 'walking' || adv.aiState === 'searching') {
+      anim = 'walk'
+    } else {
+      anim = 'idle'
+    }
+
+    // Hurt sheet only has a south-facing strip; force `down` for that anim.
+    const targetDir = anim === 'hurt' ? 'down' : dir
+    const wantKey = `${s.lpc.textureKey}-${anim}-${targetDir}`
+    if (s.lpc.lastAnim === wantKey) return
+    s.lpc.lastAnim = wantKey
+    if (this._scene.anims.exists(wantKey)) {
+      s.lpc.image.anims.play(wantKey, true)
     }
   }
 
@@ -218,8 +292,46 @@ export class AdventurerRenderer {
       sprite.builder = { image: img, state: 'idle', idx: 0, accum: 0 }
     }
 
+    // LPC sprite — preferred over the procedural circle when a baked variant
+    // is available for this adventurer's class. Picks a save-stable variant
+    // the first time, then renders + animates from the LPC sheet.
+    const lpc = this._buildLpcSprite(adv)
+    if (lpc) {
+      // LPC sprite is positioned slightly above center so the feet sit on
+      // the tile, then origin-anchored at (0.5, 0.85) so the bottom is the
+      // movement reference point.
+      lpc.image.setOrigin(0.5, 0.85)
+      lpc.image.setScale(LPC_SCALE)
+      // Insert below all existing children (ring/body/label) so the HP bar +
+      // thought bubble float above the sprite.
+      c.addAt(lpc.image, 0)
+      // Hide the procedural circle when LPC is in play.
+      body.setVisible(false)
+      ring.setVisible(false)
+      label.setVisible(false)
+      sprite.lpc = lpc
+    }
+
     this._sprites[adv.instanceId] = sprite
     return sprite
+  }
+
+  // Pick (or fetch the previously-picked) LPC variant for this adventurer
+  // and instantiate a Phaser sprite for it. Returns null if the manifest
+  // isn't loaded or this class has no baked variants.
+  _buildLpcSprite(adv) {
+    const variants = this._lpcVariantsByClass[adv.classId]
+    if (!variants || variants.length === 0) return null
+    // Save-stable: assign once, persist on adv for save/load identity.
+    if (!adv.spriteVariant) {
+      const picked = variants[Math.floor(Math.random() * variants.length)]
+      adv.spriteVariant = `${adv.classId}/${picked}`
+    }
+    const [cls, vId] = adv.spriteVariant.split('/')
+    const textureKey = `adv-${cls}-${vId}`
+    if (!this._scene.textures.exists(textureKey)) return null
+    const image = this._scene.add.sprite(0, 0, textureKey, 0)
+    return { image, textureKey, lastAnim: null }
   }
 
   _destroySprite(id) {
