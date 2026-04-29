@@ -1,0 +1,63 @@
+{
+  "frame": 64,
+  "width": 832,
+  "rows": [
+    {
+      "anim": "spellcast",
+      "file": "spellcast.png",
+      "frames": 7,
+      "dirRows": 4,
+      "y": 0
+    },
+    {
+      "anim": "thrust",
+      "file": "thrust.png",
+      "frames": 8,
+      "dirRows": 4,
+      "y": 256
+    },
+    {
+      "anim": "walk",
+      "file": "walk.png",
+      "frames": 9,
+      "dirRows": 4,
+      "y": 512
+    },
+    {
+      "anim": "slash",
+      "file": "slash.png",
+      "frames": 6,
+      "dirRows": 4,
+      "y": 768
+    },
+    {
+      "anim": "shoot",
+      "file": "shoot.png",
+      "frames": 13,
+      "dirRows": 4,
+      "y": 1024
+    },
+    {
+      "anim": "hurt",
+      "file": "hurt.png",
+      "frames": 6,
+      "dirRows": 1,
+      "y": 1280
+    },
+    {
+      "anim": "idle",
+      "file": "idle.png",
+      "frames": 2,
+      "dirRows": 4,
+      "y": 1344
+    },
+    {
+      "anim": "run",
+      "file": "run.png",
+      "frames": 8,
+      "dirRows": 4,
+      "y": 1600
+    }
+  ],
+  "height": 1856
+}

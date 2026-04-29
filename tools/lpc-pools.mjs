@@ -17,14 +17,22 @@
 //   - weaponPair: when picked, force-add a paired layer (Crystal on Diamond/Loop staff)
 //   - alwaysShield: true → Knight always gets a shield layer
 //   - barehanded:   true → no weapon layer ever
+//   - shirtlessTorso: extra torso items only used when bodyType is in
+//                     `shirtlessFor` (typically male/muscular). Used by Monk
+//                     and Barbarian so only their male/muscular variants can
+//                     have bare-chested Sleeveless / Original Sleeveless / Obi.
+//                     Female variants of those classes still get full shirts.
+//   - clothColorPool: override list for cloth recolor palettes (e.g. necromancer
+//                     restricted to dark colors).
 
 export const COMMON = {
   bodyTypes: ['male', 'muscular', 'female'],
-  humanHeads: [
-    'Human Male', 'Human Female',
-    'Human Male Plump', 'Human Male Gaunt', 'Human Male Small',
-    'Human Male Elderly', 'Human Female Elderly', 'Human Female Small',
-  ],
+  // Heads keyed by body type — sampler must pick from the matching list.
+  humanHeadsByBody: {
+    male:      ['Human Male', 'Human Male Plump', 'Human Male Gaunt', 'Human Male Small', 'Human Male Elderly'],
+    muscular:  ['Human Male', 'Human Male Plump'],
+    female:    ['Human Female', 'Human Female Elderly', 'Human Female Small'],
+  },
   noses: ['Big nose', 'Button nose', 'Elderly nose', 'Large nose', 'Straight nose'],
   eyebrows: ['Thick Eyebrows', 'Thin Eyebrows'],
 };
@@ -37,7 +45,7 @@ export const CRYSTAL_RULE = { staves: STAFF_WITH_CRYSTAL, colors: CRYSTAL_COLORS
 export const POOLS = {
   knight: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.4,
     torso: ['Plate'],
@@ -45,11 +53,14 @@ export const POOLS = {
     feet: ['Plated Toe', 'Thick Plated Toe', 'Basic Boots', 'Folded Rim Boots', 'Revised Boots', 'Rimmed Boots'],
     arms: { items: ['Pauldrons', 'Epaulets', 'Mantal', 'Gloves'], chance: 0.85 },
     headwear: {
+      // Excluded: Crest / Plumage / Centurion Crest / Centurion Plumage /
+      // Helmet wings — these are decoration accessories that need a base helm.
       items: [
         'Greathelm', 'Close helm', 'Norman helm', 'Bascinet', 'Round bascinet',
-        'Pointed helm', 'Sugarloaf greathelm', 'Helmet wings', 'Spangenhelm',
-        'Crest', 'Plumage', 'Centurion Crest', 'Centurion Plumage',
+        'Pointed helm', 'Sugarloaf greathelm', 'Spangenhelm',
         'Pigface bascinet', 'Pigface visor', 'Maximus', 'Mail',
+        'Armet', 'Simple Armet', 'Barbuta', 'Simple barbuta', 'Kettle helm',
+        'Morion',
       ],
       chance: 1.0,
     },
@@ -62,11 +73,11 @@ export const POOLS = {
 
   rogue: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.15,
-    torso: ['TShirt', 'TShirt Buttoned', 'Sleeveless 2', 'Sleeveless 2 Buttoned', 'Shortsleeve', 'Shortsleeve Polo'],
-    legs: ['Pants', 'Cuffed Pants', 'Shorts'],
+    torso: ['TShirt', 'TShirt Buttoned', 'TShirt Scoop', 'TShirt VNeck', 'Shortsleeve', 'Shortsleeve Polo', 'Longsleeve', 'Longsleeve 2'],
+    legs: ['Pants', 'Cuffed Pants'],
     feet: ['Basic Shoes', 'Revised Shoes', 'Sara Shoes', 'Ghillies', 'Ankle Socks', 'Slippers'],
     arms: { items: ['Gloves', 'Cuffs', 'Lace Cuffs', 'Stud Ring'], chance: 0.5 },
     headwear: {
@@ -86,10 +97,10 @@ export const POOLS = {
 
   mage: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.45, // wizards are bearded often
-    torso: ['Longsleeve', 'Longsleeve 2', 'Longsleeve 2 Scoop', 'Longsleeves 2 Overlay', 'Cuffed Longsleeves Overlay'],
+    torso: ['Longsleeve', 'Longsleeve 2', 'Longsleeve 2 Scoop', 'Longsleeve 2 Buttoned', 'Longsleeve 2 VNeck'],
     legs: ['Long Pants', 'Hose'],
     feet: ['Slippers', 'Sandals', 'Basic Shoes'],
     arms: { items: ['Lace Cuffs', 'Cuffs'], chance: 0.4 },
@@ -110,20 +121,16 @@ export const POOLS = {
 
   cleric: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.3,
-    torso: ['Longsleeve Polo', 'Longsleeve 2 VNeck', 'Cuffed Longsleeves Overlay', 'Sleeveless 2 Cardigan'],
+    torso: ['Longsleeve Polo', 'Longsleeve 2 VNeck', 'Longsleeve', 'Longsleeve 2', 'Longsleeve 2 Buttoned', 'Longsleeve 2 Scoop'],
     legs: ['Long Pants', 'Hose', 'Pantaloons'],
     feet: ['Sandals', 'Basic Shoes', 'Revised Shoes', 'Slippers'],
     arms: { items: ['Cuffs', 'Gloves'], chance: 0.3 },
     headwear: {
       items: ['Hood', 'Sack Cloth Hood', 'Tiara', 'Crown', 'Hijab'],
       chance: 0.6,
-    },
-    accessory: {
-      items: ['Cross amulet', 'Dangling amulet', 'Spider amulet', 'Star amulet'],
-      chance: 0.5,
     },
     weapon: {
       items: ['Mace', 'Loop staff', 'Simple staff'],
@@ -133,10 +140,10 @@ export const POOLS = {
 
   necromancer: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.4,
-    torso: ['Longsleeves 2 Overlay', 'Cuffed Longsleeves Overlay', 'Longsleeve 2'],
+    torso: ['Longsleeve 2', 'Longsleeve', 'Longsleeve 2 Buttoned', 'Longsleeve 2 Scoop', 'Longsleeve 2 VNeck'],
     legs: ['Long Pants', 'Hose'],
     feet: ['Slippers', 'Sandals'],
     arms: { items: ['Stud Ring', 'Gloves'], chance: 0.3 },
@@ -144,10 +151,8 @@ export const POOLS = {
       items: ['Sack Cloth Hood', 'Hood', 'Skull Bandana Overlay'],
       chance: 0.95,
     },
-    accessory: {
-      items: ['Spider amulet', 'Star amulet'],
-      chance: 0.5,
-    },
+    // Dark / sinister cloth palette only (12 of 24 cloth options).
+    clothColorPool: ['brown', 'leather', 'walnut', 'maroon', 'purple', 'navy', 'forest', 'slate', 'gray', 'black', 'charcoal', 'bluegray'],
     weapon: {
       items: ['Scythe', 'Gnarled staff', 'S staff', 'Loop staff'],
       chance: 1.0,
@@ -156,10 +161,10 @@ export const POOLS = {
 
   ranger: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.35,
-    torso: ['Sleeveless 2', 'Shortsleeve', 'Cuffed Longsleeves Overlay', 'Suspenders'],
+    torso: ['Shortsleeve', 'Shortsleeve Polo', 'Longsleeve', 'Longsleeve 2', 'TShirt', 'TShirt Buttoned'],
     legs: ['Long Pants', 'Cuffed Pants', 'Pants'],
     feet: ['Basic Boots', 'Folded Rim Boots', 'Revised Boots', 'Ghillies'],
     arms: { items: ['Cuffs', 'Gloves'], chance: 0.4 },
@@ -175,13 +180,13 @@ export const POOLS = {
 
   twitch_streamer: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.25,
     torso: [
       'TShirt', 'TShirt Buttoned', 'TShirt Scoop', 'TShirt VNeck',
       'Shortsleeve Polo', 'Cardigan', 'Shortsleeve Cardigan',
-      'Longsleeve', 'Longsleeve 2', 'Cuffed Longsleeves Overlay',
+      'Longsleeve', 'Longsleeve 2', 'Longsleeve Polo',
     ],
     legs: ['Pants', 'Cuffed Pants', 'Long Pants', 'Shorts', 'Short Shorts', 'Pantaloons', 'Striped Formal Pants'],
     feet: ['Basic Shoes', 'Revised Shoes', 'Sara Shoes', 'Slippers', 'Basic Boots'],
@@ -197,13 +202,13 @@ export const POOLS = {
     },
     accessory: {
       // chaos accessories — wings + tails (full anim) and necklaces/charms (vanish on run)
+      // Amulets removed per user request.
       items: [
         // wings
         'Bat Wings', 'Feathered Wings', 'Lizard Wings', 'Lizard Wings (Alt Colors)', 'Batlike Lizard Wings',
         // tails
         'Cat Tail', 'Wolf Tail', 'Fluffy Wolf Tail', 'Lizard tail', 'Lizard Tail (Alt Colors)',
-        // jewelry
-        'Cross amulet', 'Dangling amulet', 'Spider amulet', 'Star amulet',
+        // charms / gems / necklaces
         'Box Charm', 'Oval Charm', 'Ring Charm', 'Star Charm',
         'Emerald cut Gem', 'Marquise cut Gem', 'Natural cut Gem', 'Pear cut Gem',
         'Pearl Gem', 'Princess cut Gem', 'Round cut Gem', 'Trilliant cut Gem',
@@ -230,10 +235,10 @@ export const POOLS = {
 
   beast_master: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.4,
-    torso: ['Sleeveless 2', 'Shortsleeve', 'Suspenders', 'Cuffed Longsleeves Overlay'],
+    torso: ['Shortsleeve', 'Shortsleeve Polo', 'Longsleeve', 'Longsleeve 2', 'TShirt', 'TShirt Buttoned'],
     legs: ['Pants', 'Long Pants', 'Cuffed Pants', 'Fur Pants'],
     feet: ['Basic Boots', 'Ghillies', 'Sandals'],
     arms: { items: ['Cuffs', 'Gloves'], chance: 0.4 },
@@ -249,18 +254,24 @@ export const POOLS = {
 
   barbarian: {
     bodyTypes: ['male', 'muscular'], // barbarians lean muscular
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.7,
-    torso: ['Original Sleeveless', 'Sleeveless 2', 'Sleeveless 2 Buttoned'],
+    // Female-bodied (none in pool today) and any future gentler variants would
+    // get a TShirt-style shirt here. Male/muscular bodies pull from
+    // shirtlessTorso for the iconic bare-chested barbarian look.
+    torso: ['TShirt Buttoned', 'Shortsleeve'],
+    shirtlessTorso: ['Original Sleeveless', 'Sleeveless 2', 'Sleeveless 2 Buttoned'],
+    shirtlessFor: ['male', 'muscular'],
     legs: ['Fur Pants', 'Pantaloons', 'Hose', 'Pants'],
     feet: ['Basic Boots', 'Folded Rim Boots', 'Sandals'],
     arms: { items: ['Pauldrons', 'Mantal', 'Stud Ring'], chance: 0.6 },
     headwear: {
+      // Excluded: Helmet wings / Upward Horns / Downward Horns / Short Horns /
+      // Backwards Horns — these are decoration accessories that need a base helm.
       items: [
         'Barbarian', 'Barbarian nasal', 'Barbarian Viking',
-        'Horned helmet', 'Horned visor', 'Viking spangenhelm', 'Helmet wings',
-        'Upward Horns', 'Downward Horns', 'Short Horns', 'Backwards Horns',
+        'Horned helmet', 'Horned visor', 'Viking spangenhelm',
       ],
       chance: 0.7, // some go bare-headed
     },
@@ -272,10 +283,14 @@ export const POOLS = {
 
   monk: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.3,
-    torso: ['Obi', 'Obi Knot Left', 'Obi Knot Right', 'Sleeveless 2', 'Original Sleeveless'],
+    // Female monks get full shirts; male monks pull from shirtlessTorso for
+    // the bare-chested obi look (the LPC obi alone leaves the chest exposed).
+    torso: ['Longsleeve', 'Longsleeve 2', 'Shortsleeve', 'TShirt'],
+    shirtlessTorso: ['Obi', 'Obi Knot Left', 'Obi Knot Right', 'Sleeveless 2', 'Original Sleeveless'],
+    shirtlessFor: ['male', 'muscular'],
     legs: ['Pantaloons', 'Long Pants', 'Pants'],
     feet: ['Tabi Socks', 'Sandals', 'Slippers'],
     arms: { items: ['Cuffs'], chance: 0.2 },
@@ -288,10 +303,10 @@ export const POOLS = {
 
   bard: {
     bodyTypes: COMMON.bodyTypes,
-    heads: COMMON.humanHeads,
+    heads: 'auto_human',
     hair: 'all_human_hair',
     beardChance: 0.25,
-    torso: ['Cuffed Longsleeves Overlay', 'Longsleeve 2 Buttoned', 'Cardigan', 'Shortsleeve Cardigan', 'Sleeveless 2 Cardigan', 'Shortsleeve Polo'],
+    torso: ['Longsleeve 2 Buttoned', 'Cardigan', 'Shortsleeve Cardigan', 'Shortsleeve Polo', 'Longsleeve', 'Longsleeve 2', 'TShirt Buttoned', 'Longsleeve Polo'],
     legs: ['Cuffed Pants', 'Pantaloons', 'Striped Formal Pants', 'Formal Pants'],
     feet: ['Folded Rim Boots', 'Basic Shoes', 'Revised Shoes'],
     arms: { items: ['Cuffs', 'Lace Cuffs', 'Gloves'], chance: 0.6 },

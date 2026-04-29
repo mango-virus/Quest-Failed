@@ -82,8 +82,9 @@ function checkPool(className, slot, pool, mode = 'full') {
   else if (typeof pool === 'object' && Array.isArray(pool.items)) checkList(className, slot, pool.items, mode);
 }
 
-// Common
-checkList('common', 'heads', COMMON.humanHeads);
+// Common — all heads from every body-type list, deduped
+const allHeads = [...new Set(Object.values(COMMON.humanHeadsByBody).flat())];
+checkList('common', 'heads', allHeads);
 checkList('common', 'noses', COMMON.noses);
 checkList('common', 'eyebrows', COMMON.eyebrows);
 
