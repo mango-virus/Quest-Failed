@@ -108,5 +108,72 @@
     "rarity": "rare",
     "description": "Streams the run live. Decisions polled to chat in real time. Their death produces a clip that summons more adventurers tomorrow.",
     "flavorText": "PogChamp the chest! PogChamp the chest!"
+  },
+  {
+    "id": "beast_master",
+    "name": "Beast Master",
+    "color": "0xa37c52",
+    "baseStats": {
+      "hp": 35,
+      "attack": 7,
+      "defense": 3,
+      "speed": 1.7
+    },
+    "startingResources": { "potions": 2 },
+    "tags": ["beast_tamer", "support", "pet_class"],
+    "abilities": ["tame_minion", "command_beast"],
+    "unlockLevel": 6,
+    "rarity": "rare",
+    "description": "Trained handler. Tames a single hostile minion mid-fight; the tamed beast follows and fights for them. Only one companion at a time — if it dies, they tame a replacement.",
+    "flavorText": "Every beast was a person once, in their head."
+  },
+  {
+    "id": "barbarian",
+    "name": "Barbarian",
+    "color": "0xb33a2a",
+    "baseStats": {
+      "hp": 60,
+      "attack": 10,
+      "defense": 3,
+      "speed": 1.8
+    },
+    "startingResources": { "potions": 1 },
+    "tags": ["melee", "rage", "fearless"],
+    "abilities": ["rage_scaling", "unstoppable"],
+    "description": "Rage-fueled brawler. Damage scales as HP drops (up to 2x at near-death). Immune to fear and flee triggers — never retreats.",
+    "flavorText": "Pain is just bad weather. You walk through it."
+  },
+  {
+    "id": "monk",
+    "name": "Monk",
+    "color": "0xeac57a",
+    "baseStats": {
+      "hp": 32,
+      "attack": 8,
+      "defense": 2,
+      "speed": 2.5
+    },
+    "startingResources": { "potions": 2, "ki": 20 },
+    "tags": ["melee", "evader", "unarmored"],
+    "abilities": ["dodge_chance", "armor_pierce"],
+    "dodgeChance": 0.3,
+    "description": "Unarmored, lightning-fast. ~30% chance to dodge incoming hits including traps. Strikes ignore half of minion defense.",
+    "flavorText": "Be the wind around the blade."
+  },
+  {
+    "id": "bard",
+    "name": "Bard",
+    "color": "0xe34dd9",
+    "baseStats": {
+      "hp": 28,
+      "attack": 5,
+      "defense": 2,
+      "speed": 1.7
+    },
+    "startingResources": { "potions": 2, "mana": 20 },
+    "tags": ["support", "buffer", "ranged_low"],
+    "abilities": ["inspire_party", "song_of_speed"],
+    "description": "Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. Aura ends the moment they fall.",
+    "flavorText": "Every chord, a small kindness."
   }
 ]

@@ -412,30 +412,6 @@
     "description": "Idolizes a specific minion class. Won't attack them, may even try to befriend them. The minion's class is rolled at spawn."
   },
   {
-    "id": "beast_tamer",
-    "name": "Beast Tamer",
-    "tags": ["beast_tamer", "tame_attempt", "support"],
-    "behaviorWeights": {
-      "lootPriority": 0.3,
-      "fleeThreshold": 0.4,
-      "trapCaution": 0.5,
-      "partyCooperation": 0.6,
-      "explorationDrive": 0.55,
-      "aggressionLevel": 0.45,
-      "riskTolerance": 0.55,
-      "healPriority": 0.6
-    },
-    "decisionOverrides": [
-      { "trigger": "tameable_minion_present", "action": "attempt_tame", "priority": 90 }
-    ],
-    "reactions": [],
-    "unlockLevel": 2,
-    "rarity": "rare",
-    "icon": "T",
-    "iconColor": "0x88cc44",
-    "description": "Tries to tame minions instead of killing them. Tamed minions defect and fight for the party."
-  },
-  {
     "id": "echo",
     "name": "Echo",
     "tags": ["echo", "mimic_path", "cautious"],

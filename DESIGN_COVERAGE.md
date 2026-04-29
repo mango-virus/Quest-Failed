@@ -14,7 +14,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 3. If anything tagged for this phase is still PENDING or PARTIAL, fix it or explicitly defer with the user's approval before marking the phase complete.
 4. Update statuses in this file whenever a row's state changes.
 
-**Last full audit**: 2026-04-26 (Final gap sweep — prison_block detain (30% chance, 5s freeze), torch_trap (requires Eternal Night active), locked-doors actual pathfinder block (cost 9999 in KnowledgeSystem), 5 more boss archetypes (archivist/hivemind/alchemist/jester/sleepless = 15 total), underdog_cleric_fan combo amplification (1.5× extra XP), martyr_vulture combo (vulture refuses combat while martyr taunts), all other combo entries closed via component effects. Truly remaining: pixel-art tilesets + sprite sheets + tilemap renderer (external — user is sourcing), Supabase leaderboard (external). Plus 7 💭 OPEN intentional content-depth rows.)
+**Last full audit**: 2026-04-29 (Class pool expansion — Beast Tamer personality promoted to a Class ("Beast Master", rare, single-companion mechanic). 3 additional new classes added: Barbarian (rage scaling + fearless), Monk (dodge + armor pierce), Bard (party aura). All 4 new classes ⏳ PENDING data + behavior wiring. Phase 5 reopened as 5b for the expansion; Phase 5 base is still complete.) Previous audit 2026-04-26: Final gap sweep — prison_block detain (30% chance, 5s freeze), torch_trap (requires Eternal Night active), locked-doors actual pathfinder block (cost 9999 in KnowledgeSystem), 5 more boss archetypes (archivist/hivemind/alchemist/jester/sleepless = 15 total), underdog_cleric_fan combo amplification (1.5× extra XP), martyr_vulture combo (vulture refuses combat while martyr taunts), all other combo entries closed via component effects. Truly remaining: pixel-art tilesets + sprite sheets + tilemap renderer (external — user is sourcing), Supabase leaderboard (external). Plus 7 💭 OPEN intentional content-depth rows.
 
 ---
 
@@ -77,11 +77,11 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | the_fan | The Fan | 5 | ✅ DONE | data + spare-idol (6d — picks random minion class to refuse to attack at spawn) |
 | coward | Coward | 5 | ✅ DONE | data + flee-on-enemy (6c) + knowledge spread on flee (8 — KNOWLEDGE_COWARD_PARTIAL accuracy) |
 | overconfident | Overconfident | 5 | ✅ DONE | low fleeThreshold (0.2) in behaviorWeights makes them stay too long — design intent satisfied without explicit override |
-| beast_tamer | Beast Tamer | 5 | ✅ DONE | data + tame attempt (6d — 40% chance per swing, defects minion to adventurer faction) |
+| beast_tamer | Beast Tamer | 5 | 🚫 REMOVED 2026-04-29 | Promoted to a Class ("Beast Master") in §3 with single-companion mechanic; personality entry deleted from personalities.json. Old saves with this personality will fail to load (acceptable for jam). |
 
 ---
 
-## 3. Adventurer classes (target: 5 from design)
+## 3. Adventurer classes (target: 5 from design + class pool expansion)
 
 | ID | Name | Phase | Status | Notes |
 |---|---|---|---|---|
@@ -92,6 +92,10 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | twitch_streamer | Twitch Streamer | 5 | ✅ DONE | Phase 10b: AISystem chat_poll redirects to random unvisited room every ~10s |
 | rogue | Rogue (bonus, not in design) | 4 | ✅ DONE | extra class on top of design — confirm with user if to keep |
 | ranger | Ranger | 6e | ✅ DONE — class data + arrow consumption per shot + melee fallback + flee on empty quiver |
+| beast_master | Beast Master | 5b | 🟡 PARTIAL — class data added 2026-04-29 (rare, unlock lvl 6) | Behavior pending: single-companion slot on adventurer state, `tame_minion` ability locked while companion alive, defection of tamed minion to adventurer faction, `command_beast` directing the active companion. Replaces removed beast_tamer personality. |
+| barbarian | Barbarian | 5b | ⏳ PENDING — class data added 2026-04-29 | Behavior pending: rage damage scaling (× (1 + (1 − hpFrac)) up to 2× at 1 HP); `unstoppable` flag suppresses fleeThreshold and any future Fear/panic effects. |
+| monk | Monk | 5b | ⏳ PENDING — class data added 2026-04-29 | Behavior pending: `dodgeChance` 0.3 evaluated by CombatSystem on incoming damage AND by TrapSystem on trap step (miss → no damage, no trap consume); `armor_pierce` halves minion DEF on monk strikes. |
+| bard | Bard | 5b | ⏳ PENDING — class data added 2026-04-29 | Behavior pending: aura grants +15% ATK and +15% SPD to nearby same-party adventurers while bard is alive; aura ends on bard death/flee. AISystem should treat bard as priority threat for minion targeting. |
 
 ---
 
@@ -515,6 +519,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | 3 — Build Phase | DayPhase stub, EssenceSystem, more rooms, removal/undo | ✅ DONE |
 | 4 — Adventurer AI | Adventurer entity, Pathfinder, AISystem, day cycle | ✅ DONE |
 | 5 — Personality System | All 18 personalities, 6 classes, 13 combos, thought bubbles, party formation | ✅ DONE |
+| 5b — Class pool expansion (2026-04-29) | beast_tamer personality promoted to "Beast Master" class; +3 new classes (Barbarian, Monk, Bard). Class data landed; behavior wiring (rage scaling, fearless, dodge, armor_pierce, party aura, single-companion taming) ⏳ PENDING. | 🟡 PARTIAL |
 | 6 — Combat (kernel) | Minion entity + 5 types, placement UI, CombatSystem, MinionAISystem (guard/patrol + same-room engage), adventurer FLEE goal + flee threshold, barracks-distance validation, mid-dungeon death, minion respawn at night | ✅ DONE |
 | 6b — Combat enrichment (traps + UI) | Trap entity + system + renderer, 5 traps (spike/arrow/pitfall/patience/speed) + placement UI, trap upkeep, combat log overlay, last words, chat bubbles, wider thought bubble states | ✅ DONE |
 | 6c — Combat enrichment (abilities + behavior) | Mage mana drain, cleric heal_ally + smite_undead, HEAL goal (potion sip), martyr taunt, coward flee-on-enemy, paranoid slow-in-unfamiliar, mercy trap | ✅ DONE |

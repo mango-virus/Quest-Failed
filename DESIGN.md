@@ -87,7 +87,7 @@ I want adventures to have different personalitys and class types that sway how t
 15. **the fan** — Idolizes a specific class of minion (e.g., "dragon stans"). Will attempt to spare or even befriend that minion type instead of fighting.
 16. **coward** — Runs from every fight. If they escape, they carrying knowledge of every room they entered in the dungeon without killing anything. Maddeningly effective scout who never threatens you — but the intel they provide is priceless.
 17. **overconfident** — Ignores all party warnings and runs ahead alone. Usually dies first in spectacularly stupid ways. But on rare occasions survives long enough to accidentally reveal a path, making their sacrifice unintentionally useful.
-18. **Beast tamer** — will try to tame monsters in the dungeon to have them fight by their side
+18. **Beast tamer** — will try to tame monsters in the dungeon to have them fight by their side  *(deviation noted 2026-04-29: promoted to its own Class as "Beast Master" with single-companion mechanic; removed from the personality pool. See "Class additions" section below.)*
 19. **mage** — long rage fighter that uses spells
 20. **cleric** — can heal other adventures and deal extra damage to undead monsters/minions
 21. **knight** — close combat fighter that tries to protect other adventures
@@ -95,6 +95,20 @@ I want adventures to have different personalitys and class types that sway how t
 23. **twitch streamer** — a rare late game adventurer type with extra features. they enters the dungeon live, with thousands of viewers watching. Their behavior is constantly influenced by chat, making them wildly unpredictable and socially contagious. Their chat votes on decisions in real time as they explore the dungeon. A fork in the path, a suspicious chest, a tough enemy — a poll appears over their head and they follow the majority vote, even if it's obviously suicidal. "PogChamp the chest! PogChamp the chest!" and suddenly a paranoid/streamer type opens a mimic because 60% of chat said so. When they die, chat goes absolutely feral — and their death clip spreads. The next day, a larger party shows up specifically because they saw the stream and want to attempt the dungeon themselves. If they survive, they share a full recorded run — more detailed than even the Cartographer's map, since viewers also spotted things the adventurer missed. These adventurers also have special streamer-like names.
 
 **I want a large amount of different personalitys and class types like these.**
+
+---
+
+## Class additions (2026-04-29)
+
+Added during development as the class pool was expanded beyond the original sheet. Personalities (greedy, paranoid, etc.) layer on top of any of these classes.
+
+1. **Beast Master** *(rare, unlock lvl 6 — like Twitch Streamer)* — Trained handler. Tames a single hostile minion mid-fight; the tamed beast follows and fights for them. Only one companion at a time — if the companion dies, they can tame a new one to replace it. Mono-type minion strategies become dangerous; variety is a defense. *(replaces the "Beast tamer" personality entry above.)*
+
+2. **Barbarian** — Rage-fueled brawler. Damage output scales as HP drops (up to 2× at near-death). Immune to fear and flee triggers — never retreats. Counters fear-based plans (e.g. Wraith's Fear Meter) and any "soft-lock with weak minions to stall" tactic, since softening them sharpens them.
+
+3. **Monk** — Unarmored, lightning-fast. ~30% chance to dodge incoming hits including traps. Strikes ignore half of minion defense. Counters trap-heavy and Golem-style fortress builds; forces the boss toward wide-AOE answers.
+
+4. **Bard** — Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. The aura ends the moment they fall — making them a priority kill target during combat planning.
 
 ---
 
