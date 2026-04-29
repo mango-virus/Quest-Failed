@@ -1,0 +1,112 @@
+[
+  {
+    "id": "knight",
+    "name": "Knight",
+    "color": "0xaaccdd",
+    "baseStats": {
+      "hp": 50,
+      "attack": 8,
+      "defense": 5,
+      "speed": 1.4
+    },
+    "startingResources": { "potions": 2 },
+    "description": "Stout, well-armored, predictable. Walks straight at the boss.",
+    "flavorText": "Honour first. Survival second."
+  },
+  {
+    "id": "rogue",
+    "name": "Rogue",
+    "color": "0xddaa44",
+    "baseStats": {
+      "hp": 30,
+      "attack": 10,
+      "defense": 2,
+      "speed": 2.4
+    },
+    "startingResources": { "potions": 1 },
+    "description": "Fast, fragile, fond of shortcuts and locked things.",
+    "flavorText": "If they catch me, I deserved it."
+  },
+  {
+    "id": "mage",
+    "name": "Mage",
+    "color": "0xaa88ff",
+    "baseStats": {
+      "hp": 25,
+      "attack": 12,
+      "defense": 1,
+      "speed": 1.7
+    },
+    "startingResources": { "potions": 1, "mana": 30 },
+    "tags": ["ranged", "spellcaster"],
+    "description": "Glass cannon. Big spells, brittle bones.",
+    "flavorText": "Fireball solves most problems. Survival is a different one."
+  },
+  {
+    "id": "cleric",
+    "name": "Cleric",
+    "color": "0xddee99",
+    "baseStats": {
+      "hp": 40,
+      "attack": 6,
+      "defense": 4,
+      "speed": 1.5
+    },
+    "startingResources": { "potions": 3, "mana": 25 },
+    "tags": ["ranged", "healer", "anti_undead", "support"],
+    "abilities": ["heal_ally", "smite_undead"],
+    "description": "Heals party members and deals bonus damage to undead minions. Cancels Loot Curse.",
+    "flavorText": "Faith is a weapon, and a bandage."
+  },
+  {
+    "id": "necromancer",
+    "name": "Necromancer",
+    "color": "0x6644aa",
+    "baseStats": {
+      "hp": 28,
+      "attack": 10,
+      "defense": 2,
+      "speed": 1.6
+    },
+    "startingResources": { "potions": 1, "mana": 35 },
+    "tags": ["spellcaster", "minion_raiser", "dark"],
+    "abilities": ["raise_corpse", "soul_bolt"],
+    "description": "Raises defeated minions to fight for the party. Lich-archetype dungeons may turn raised minions hostile mid-fight.",
+    "flavorText": "Death is a waste of perfectly good labour."
+  },
+  {
+    "id": "ranger",
+    "name": "Ranger",
+    "color": "0x88aa44",
+    "baseStats": {
+      "hp": 35,
+      "attack": 9,
+      "defense": 3,
+      "speed": 1.9,
+      "attackRange": 4
+    },
+    "startingResources": { "potions": 2, "arrows": 18 },
+    "tags": ["ranged", "scout"],
+    "abilities": ["volley", "track"],
+    "description": "Ranged combatant. Fires arrows from a distance — runs out and has to leave to resupply.",
+    "flavorText": "First arrow. Second arrow. Third arrow. Out."
+  },
+  {
+    "id": "twitch_streamer",
+    "name": "Twitch Streamer",
+    "color": "0x9146ff",
+    "baseStats": {
+      "hp": 35,
+      "attack": 8,
+      "defense": 3,
+      "speed": 1.8
+    },
+    "startingResources": { "potions": 2, "mana": 15 },
+    "tags": ["chaotic", "chat_driven", "viral"],
+    "abilities": ["chat_poll", "viewer_drop"],
+    "unlockLevel": 6,
+    "rarity": "rare",
+    "description": "Streams the run live. Decisions polled to chat in real time. Their death produces a clip that summons more adventurers tomorrow.",
+    "flavorText": "PogChamp the chest! PogChamp the chest!"
+  }
+]

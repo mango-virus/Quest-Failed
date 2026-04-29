@@ -1,0 +1,68 @@
+{
+  "byClass": {
+    "knight": [
+      "Stay sharp.",
+      "Hold the line.",
+      "I've seen worse dungeons.",
+      "Where's the boss?",
+      "For glory."
+    ],
+    "rogue": [
+      "Quiet now...",
+      "Lockpicks ready.",
+      "Smells like trouble.",
+      "I'll just take this.",
+      "Plenty of shadows here."
+    ],
+    "mage": [
+      "I sense magic.",
+      "My spells are limited.",
+      "Save mana for the boss.",
+      "Hmm, interesting masonry.",
+      "This place reeks of necromancy."
+    ],
+    "cleric": [
+      "Light guide us.",
+      "I shall heal the wounded.",
+      "Undead. I felt it.",
+      "Pray with me, friends.",
+      "Faith is our shield."
+    ],
+    "necromancer": [
+      "The dead remember.",
+      "I could use that corpse.",
+      "Death is a tool.",
+      "Patience...",
+      "These bones know me."
+    ],
+    "twitch_streamer": [
+      "Chat what do we do",
+      "POG",
+      "Did you see that subscriber count?",
+      "Like and subscribe!",
+      "MaxLOL",
+      "Imagine if we win this."
+    ],
+    "default": [
+      "Onward.",
+      "Steady...",
+      "Hmm.",
+      "Move carefully."
+    ]
+  },
+  "byPersonality": {
+    "greedy":        ["Anything shiny?", "Loot first.", "Cha-CHING.", "I see gold."],
+    "paranoid":      ["Wait — is that a trap?", "Don't move yet.", "Suspicious...", "I don't trust this."],
+    "speed_runner":  ["Faster.", "Don't stop.", "Skip the chest!", "PB attempt."],
+    "completionist": ["I think there's another room.", "Have we cleared this one?", "I want to map this."],
+    "cartographer":  ["Marking this on the map.", "Three exits, noted.", "I'll remember this.", "North, then east..."],
+    "martyr":        ["I'll cover you.", "Save yourself.", "I can take a hit."],
+    "coward":        ["Maybe we should leave.", "I don't like this.", "Was that a sound?", "Going home..."],
+    "overconfident": ["Easy.", "Watch this.", "I got it I got it.", "Pfft, traps."],
+    "vandal":        ["I'll disable that one.", "Easy fix.", "Wires cut."],
+    "vulture":       ["Let them go first.", "I'll wait.", "After the fight."],
+    "the_fan":       ["Wait — is that a... oh wow.", "Don't hurt them!", "I LOVE this minion."],
+    "raid_leader":   ["On me.", "Form up.", "Stay close.", "Hold position."],
+    "solo":          ["I'll go ahead.", "Don't follow me.", "Faster solo.", "Catch up later."]
+  }
+}

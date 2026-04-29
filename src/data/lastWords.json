@@ -1,0 +1,42 @@
+{
+  "byClassAndKiller": {
+    "knight": {
+      "spike_trap":   ["For honour... ungh.", "I should've watched the floor.", "Damn spikes!"],
+      "arrow_trap":   ["A coward's weapon...", "From the wall? Truly?", "I never saw it."],
+      "pitfall_trap": ["Aaaah—", "Why is there a—"],
+      "patience_trap":["I knew I should've kept moving.", "The dungeon hates patience."],
+      "speed_trap":   ["Too eager. Always too eager.", "Slow down, they said..."],
+      "minion":       ["For the realm!", "I die unbroken!", "Tell my brother — gngh."],
+      "boss":         ["At least I made it.", "Not today...", "Avenge me!"],
+      "default":      ["Ahhh!", "By the gods—", "I'm sorry, master..."]
+    },
+    "mage": {
+      "spike_trap":   ["My robes! Ah—", "I—I was going to memorize that one.", "Fireball... too late..."],
+      "arrow_trap":   ["I felt the wind too late.", "A simple arrow. A simple end."],
+      "minion":       ["Extra mana would have been nice.", "Ugh, melee.", "The spell almost—"],
+      "boss":         ["The boss... was real...", "Such power..."],
+      "default":      ["This isn't in the book.", "I—", "My research..."]
+    },
+    "rogue": {
+      "spike_trap":   ["Sloppy.", "One bad step.", "Knew I should've checked."],
+      "arrow_trap":   ["From the WALL?", "Cheap.", "Heh. Caught me."],
+      "minion":       ["Oh, you're fast.", "Should've stuck to the shadows.", "—n-no fair."],
+      "default":      ["Pft. Whatever.", "Nice run, all things considered.", "Tell Marcus..."]
+    },
+    "cleric": {
+      "minion":       ["The light... fades.", "Heal one more, please.", "Bless this..."],
+      "default":      ["My faith... was true.", "At peace.", "I forgive—"]
+    },
+    "necromancer": {
+      "minion":       ["Death cannot... claim... me.", "I'll come back.", "Mark my words..."],
+      "default":      ["Reanimate me.", "I expected this.", "Witness."]
+    },
+    "twitch_streamer": {
+      "minion":       ["Chat, did you see that? CHAT!", "F in the chat...", "RIP my run, FeelsBadMan."],
+      "default":      ["Clip it!", "MaxLOL", "...gg, dungeon."]
+    },
+    "default": {
+      "default":      ["Aaargh!", "Tell my family.", "Ungh.", "Not like this..."]
+    }
+  }
+}

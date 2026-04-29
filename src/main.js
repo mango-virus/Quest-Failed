@@ -1,0 +1,97 @@
+import { Boot }            from './scenes/Boot.js'
+import { Preload }         from './scenes/Preload.js'
+import { MainMenu }        from './scenes/MainMenu.js'
+import { ArchetypeSelect } from './scenes/ArchetypeSelect.js'
+import { Game }            from './scenes/Game.js'
+import { NightPhase }      from './scenes/NightPhase.js'
+import { DayPhase }        from './scenes/DayPhase.js'
+import { EndOfDay }        from './scenes/EndOfDay.js'
+import { GameOver }        from './scenes/GameOver.js'
+import { Graveyard }       from './scenes/Graveyard.js'
+import { HudScene }        from './scenes/HudScene.js'
+import { KnowledgeScreen } from './scenes/KnowledgeScreen.js'
+import { CornerEditor }    from './scenes/CornerEditor.js'
+
+// Future scenes registered here as they are built in later phases:
+// import { BossFight }     from './scenes/BossFight.js'
+
+// Phaser handles canvas + camera + input mapping natively in Scale.RESIZE
+// mode. We let it own those concerns and layer two enhancements on top:
+//   1. Text resolution bump — small fonts stay crisp on any display.
+//   2. Window-resize listener — restarts UI scenes so their create() can
+//      re-run applyUiCamera and rebuild layouts for the new viewport.
+const config = {
+  type: Phaser.AUTO,
+  width:  window.innerWidth,
+  height: window.innerHeight,
+  parent: 'game-container',
+  backgroundColor: '#0a0514',
+  scene: [
+    Boot,
+    Preload,
+    MainMenu,
+    ArchetypeSelect,
+    Game,
+    NightPhase,
+    DayPhase,
+    HudScene,   // above gameplay scenes, below result/menu screens
+    EndOfDay,
+    GameOver,
+    Graveyard,
+    KnowledgeScreen,
+    CornerEditor,
+  ],
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER,
+  },
+  render: {
+    antialias:   true,
+    roundPixels: true,
+  },
+}
+
+// Bump the default Text resolution. Phaser renders each Text to an off-screen
+// glyph texture sized in fontSize × resolution pixels. When the camera zoom is
+// < 1 (which happens any time logical design space is wider than the canvas),
+// that texture gets downsampled; if it started at resolution=1, fonts soften.
+// resolution=3 gives the GPU enough source detail to stay crisp through the
+// camera-zoom + browser-downscale + DPR pipeline.
+const TEXT_RESOLUTION = 3
+const _origText = Phaser.GameObjects.GameObjectFactory.prototype.text
+Phaser.GameObjects.GameObjectFactory.prototype.text = function (x, y, text, style) {
+  const merged = style ? Object.assign({}, style) : {}
+  if (merged.resolution == null) merged.resolution = TEXT_RESOLUTION
+  return _origText.call(this, x, y, text, merged)
+}
+
+window.__game = new Phaser.Game(config)
+
+// On window resize, debounce a layout pass — UI scenes get restarted so their
+// create() can re-run applyUiCamera and rebuild element positions for the new
+// dimensions. Scenes that hold unsaved user edits (CornerEditor) are skipped
+// so a resize doesn't blow away in-progress work; their layouts may look
+// slightly off until the user navigates away and back, which is the right
+// trade for not losing paint strokes. Game scene is also skipped (it owns
+// runtime state); Phaser's own RESIZE handling already resized its camera.
+const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'CornerEditor'])
+let _resizeTimer = null
+window.__game.scale.on('resize', () => {
+  clearTimeout(_resizeTimer)
+  _resizeTimer = setTimeout(() => {
+    const game = window.__game
+    if (!game) return
+    for (const s of game.scene.scenes) {
+      if (!s.scene.isActive()) continue
+      if (NON_LAYOUT_SCENES.has(s.scene.key)) continue
+      s.scene.restart()
+    }
+  }, 200)
+})
+
+// Suppress the browser right-click context menu game-wide. Right-click is
+// used for drag-pan in Game and to remove rooms/traps in NightPhase, and
+// having the menu pop up over the canvas is just noise everywhere else
+// (MainMenu, ArchetypeSelect, EndOfDay, GameOver, Graveyard). One canvas-
+// level listener catches every scene without per-scene plumbing.
+window.__game.canvas?.addEventListener('contextmenu', (e) => e.preventDefault())

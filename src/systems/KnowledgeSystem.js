@@ -1,0 +1,487 @@
+// Reworked knowledge system.
+//
+// CORE RULES
+//   - Knowledge is per-adventurer, gained only through personal interaction:
+//       entering a room     → room type knowledge
+//       sighting a minion   → enemy type knowledge for that room
+//       seeing floor loot   → loot position knowledge
+//       springing a trap    → trap placement knowledge
+//   - Death: personal knowledge permanently destroyed, nothing transfers.
+//   - Escape: knowledge saved to survivor registry, merged into
+//       gameState.knowledge.sharedPool (union of ALL survivors ever).
+//   - Next day's party: every fresh adventurer starts with the full sharedPool.
+//   - Veteran survivors always return the next day; their knowledge accumulates
+//       run over run (personal knowledge merged on each escape).
+//   - Full party wipe (zero escapes this run): sharedPool + survivor list cleared.
+//
+// STALENESS
+//   - Dungeon mutations (ROOM_PLACED/REMOVED, TRAP_PLACED/REMOVED, MINION_PLACED/
+//     DIED, LOOT_PICKED_UP, LOOT_SCAVENGED) mark affected entries stale=true.
+//   - Stale entries are shown in UI with distinct styling but still influence
+//     adventurer routing (at reduced weight).
+//   - Re-interacting with a stale entry flips it back to confirmed.
+//
+// PATHFINDER
+//   - costMultiplierForTile: confirmed trap → KNOWLEDGE_TRAP_COST_MULTIPLIER,
+//     stale trap → multiplier * KNOWLEDGE_STALE_FACTOR.
+
+import { EventBus } from './EventBus.js'
+import { Balance }  from '../config/balance.js'
+
+export class KnowledgeSystem {
+  constructor(scene, gameState, dungeonGrid) {
+    this._scene = scene
+    this._gs    = gameState
+    this._grid  = dungeonGrid
+
+    _ensureState(gameState)
+
+    EventBus.on('TRAP_TRIGGERED', this._onTrapTriggered, this)
+    EventBus.on('ADVENTURER_FLED', this._onAdventurerFled, this)
+    EventBus.on('ROOM_PLACED',    this._onRoomMutated,   this)
+    EventBus.on('ROOM_REMOVED',   this._onRoomMutated,   this)
+    EventBus.on('TRAP_PLACED',    this._onTrapMutated,   this)
+    EventBus.on('TRAP_REMOVED',   this._onTrapMutated,   this)
+    EventBus.on('MINION_PLACED',  this._onMinionMutated, this)
+    EventBus.on('MINION_DIED',    this._onMinionMutated, this)
+    EventBus.on('LOOT_PICKED_UP', this._onLootRemoved,  this)
+    EventBus.on('LOOT_SCAVENGED', this._onLootRemoved,  this)
+  }
+
+  destroy() {
+    EventBus.off('TRAP_TRIGGERED', this._onTrapTriggered, this)
+    EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
+    EventBus.off('ROOM_PLACED',    this._onRoomMutated,   this)
+    EventBus.off('ROOM_REMOVED',   this._onRoomMutated,   this)
+    EventBus.off('TRAP_PLACED',    this._onTrapMutated,   this)
+    EventBus.off('TRAP_REMOVED',   this._onTrapMutated,   this)
+    EventBus.off('MINION_PLACED',  this._onMinionMutated, this)
+    EventBus.off('MINION_DIED',    this._onMinionMutated, this)
+    EventBus.off('LOOT_PICKED_UP', this._onLootRemoved,  this)
+    EventBus.off('LOOT_SCAVENGED', this._onLootRemoved,  this)
+  }
+
+  // ── Survivor access (used by DayPhase for spawning) ───────────────────────
+
+  getSurvivors() {
+    return this._gs.knowledge.survivors
+  }
+
+  // ── Observation API — called each tick / event by AISystem ───────────────
+
+  observeCurrentRoom(adv) {
+    const room = this._grid.getRoomAtTile(adv.tileX, adv.tileY)
+    if (!room) return
+    _ensureAdvKnowledge(adv)
+    const today = this._gs.meta.dayNumber
+    const entry = adv.knowledge.rooms[room.instanceId]
+
+    if (!entry) {
+      adv.knowledge.rooms[room.instanceId] = {
+        roomType:        room.definitionId,
+        confirmed:       true,
+        stale:           false,
+        visitCount:      1,
+        firstVisitedDay: today,
+        lastVisitedDay:  today,
+      }
+      EventBus.emit('ROOM_OBSERVED', { adventurer: adv, roomId: room.instanceId, firstVisit: true })
+    } else {
+      if (entry.stale) { entry.stale = false; entry.confirmed = true }
+      if (entry.lastVisitedDay !== today) {
+        entry.visitCount++
+        entry.lastVisitedDay = today
+        EventBus.emit('ROOM_OBSERVED', { adventurer: adv, roomId: room.instanceId, firstVisit: false })
+      }
+    }
+
+    // Observe floor loot visible in this room
+    for (const item of this._gs.loot?.dungeon ?? []) {
+      if (item.tileX == null) continue
+      const itemRoom = this._grid.getRoomAtTile(item.tileX, item.tileY)
+      if (itemRoom?.instanceId === room.instanceId) this.observeLoot(adv, item)
+    }
+  }
+
+  observeMinion(adv, minion) {
+    if (!adv || !minion) return
+    _ensureAdvKnowledge(adv)
+    const today  = this._gs.meta.dayNumber
+    const roomId = minion.assignedRoomId ??
+      this._grid.getRoomAtTile(minion.tileX ?? 0, minion.tileY ?? 0)?.instanceId
+    if (!roomId) return
+
+    const list = adv.knowledge.enemiesPerRoom[roomId] ??= []
+    const existing = list.find(e => e.minionType === minion.definitionId)
+    if (!existing) {
+      list.push({ minionType: minion.definitionId, confirmed: true, stale: false, dayLearned: today })
+    } else if (existing.stale) {
+      existing.stale = false; existing.confirmed = true
+    }
+  }
+
+  observeLoot(adv, lootItem) {
+    if (!adv || !lootItem || lootItem.tileX == null) return
+    _ensureAdvKnowledge(adv)
+    const today  = this._gs.meta.dayNumber
+    const roomId = lootItem.dungeonRoomId ??
+      this._grid.getRoomAtTile(lootItem.tileX, lootItem.tileY)?.instanceId
+    const existing = adv.knowledge.loot[lootItem.instanceId]
+    if (!existing) {
+      adv.knowledge.loot[lootItem.instanceId] = {
+        tileX:     lootItem.tileX,
+        tileY:     lootItem.tileY,
+        roomId,
+        itemType:  lootItem.definitionId,
+        confirmed: true,
+        stale:     false,
+        dayLearned: today,
+      }
+    } else if (existing.stale) {
+      existing.stale = false; existing.confirmed = true
+      existing.tileX = lootItem.tileX; existing.tileY = lootItem.tileY
+    }
+  }
+
+  // ── Trap awareness ────────────────────────────────────────────────────────
+
+  _onTrapTriggered({ trap, roomId }) {
+    if (!trap) return
+    const today = this._gs.meta.dayNumber
+    for (const adv of this._gs.adventurers.active) {
+      if (!this._inRoom(adv, roomId)) continue
+      _ensureAdvKnowledge(adv)
+      adv.knowledge.traps[trap.instanceId] = {
+        type:      trap.definitionId,
+        tileX:     trap.tileX,
+        tileY:     trap.tileY,
+        confirmed: true,
+        stale:     false,
+        dayLearned: today,
+      }
+    }
+    trap.isKnownToAdventurers = true
+  }
+
+  // ── Survivor handling ─────────────────────────────────────────────────────
+
+  _onAdventurerFled({ adventurer }) {
+    if (!adventurer) return
+    _ensureAdvKnowledge(adventurer)
+    this._updateSurvivorRecord(adventurer)
+    this._rebuildSharedPool()
+    EventBus.emit('KNOWLEDGE_SURVIVOR_SAVED', {
+      adventurerId: adventurer.instanceId,
+      name:         adventurer.name,
+    })
+  }
+
+  _updateSurvivorRecord(adv) {
+    const survivors = this._gs.knowledge.survivors
+    const idx  = survivors.findIndex(s => s.instanceId === adv.instanceId)
+    const today = this._gs.meta.dayNumber
+
+    if (idx === -1) {
+      survivors.push({
+        instanceId:    adv.instanceId,
+        name:          adv.name,
+        classId:       adv.classId,
+        personalityIds: [...(adv.personalityIds ?? [])],
+        sigil:         adv.sigil,
+        classColor:    adv.classColor,
+        runCount:      1,
+        knowledge:     _deepCopy(adv.knowledge),
+        pathHistory:   [...(adv.pathHistory ?? [])],
+        lastSeenDay:   today,
+      })
+    } else {
+      const rec = survivors[idx]
+      rec.runCount++
+      rec.lastSeenDay  = today
+      rec.pathHistory  = [...(adv.pathHistory ?? [])]
+      rec.knowledge    = _mergeKnowledge(rec.knowledge, adv.knowledge)
+    }
+  }
+
+  _rebuildSharedPool() {
+    const pool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} }
+    for (const s of this._gs.knowledge.survivors) {
+      const k = s.knowledge
+      for (const [id, e] of Object.entries(k.rooms ?? {})) {
+        if (!pool.rooms[id] || (!e.stale && pool.rooms[id].stale)) pool.rooms[id] = { ...e }
+      }
+      for (const [id, e] of Object.entries(k.traps ?? {})) {
+        if (!pool.traps[id] || (!e.stale && pool.traps[id].stale)) pool.traps[id] = { ...e }
+      }
+      for (const [roomId, list] of Object.entries(k.enemiesPerRoom ?? {})) {
+        pool.enemiesPerRoom[roomId] ??= []
+        for (const e of list) {
+          const ex = pool.enemiesPerRoom[roomId].find(x => x.minionType === e.minionType)
+          if (!ex) pool.enemiesPerRoom[roomId].push({ ...e })
+          else if (!e.stale && ex.stale) { ex.stale = false; ex.confirmed = true }
+        }
+      }
+      for (const [id, e] of Object.entries(k.loot ?? {})) {
+        if (!pool.loot[id] || (!e.stale && pool.loot[id].stale)) pool.loot[id] = { ...e }
+      }
+    }
+    this._gs.knowledge.sharedPool = pool
+  }
+
+  // ── End-of-day (called by DayPhase._endDay before transitioning) ──────────
+
+  processEndOfDay() {
+    const today = this._gs.meta.dayNumber
+    const hadSurvivors = this._gs.knowledge.survivors.some(s => s.lastSeenDay === today)
+    if (!hadSurvivors) {
+      this._gs.knowledge.sharedPool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} }
+      this._gs.knowledge.survivors  = []
+      EventBus.emit('KNOWLEDGE_PARTY_WIPED')
+    }
+  }
+
+  // ── Knowledge initialization (called by DayPhase on spawn) ───────────────
+
+  // Fresh adventurer gets the full shared pool (complete, not fractional).
+  initKnowledgeForSpawn(adv) {
+    adv.knowledge = _deepCopy(this._gs.knowledge.sharedPool)
+  }
+
+  // Returning veteran: restore accumulated knowledge + flag as veteran.
+  initKnowledgeForSurvivor(adv, survivorRecord) {
+    adv.knowledge        = _deepCopy(survivorRecord.knowledge)
+    adv.flags           ??= {}
+    adv.flags.returningVeteran = true
+    adv.flags.runsCompleted    = survivorRecord.runCount
+  }
+
+  // ── Dungeon mutation → stale knowledge ────────────────────────────────────
+
+  _onRoomMutated({ room }) {
+    if (!room?.instanceId) return
+    _setStaleInPool(this._gs.knowledge, 'rooms', room.instanceId)
+    for (const s of this._gs.knowledge.survivors) {
+      if (s.knowledge?.rooms?.[room.instanceId]) s.knowledge.rooms[room.instanceId].stale = true
+    }
+  }
+
+  _onTrapMutated({ trap }) {
+    if (!trap?.instanceId) return
+    _setStaleInPool(this._gs.knowledge, 'traps', trap.instanceId)
+    for (const s of this._gs.knowledge.survivors) {
+      if (s.knowledge?.traps?.[trap.instanceId]) s.knowledge.traps[trap.instanceId].stale = true
+    }
+  }
+
+  _onMinionMutated({ minion }) {
+    const roomId = minion?.assignedRoomId
+    if (!roomId) return
+    for (const e of this._gs.knowledge.sharedPool?.enemiesPerRoom?.[roomId] ?? []) {
+      if (!minion.definitionId || e.minionType === minion.definitionId) e.stale = true
+    }
+    for (const s of this._gs.knowledge.survivors) {
+      for (const e of s.knowledge?.enemiesPerRoom?.[roomId] ?? []) {
+        if (!minion.definitionId || e.minionType === minion.definitionId) e.stale = true
+      }
+    }
+  }
+
+  _onLootRemoved({ item }) {
+    const id = item?.instanceId
+    if (!id) return
+    _setStaleInPool(this._gs.knowledge, 'loot', id)
+    for (const s of this._gs.knowledge.survivors) {
+      if (s.knowledge?.loot?.[id]) s.knowledge.loot[id].stale = true
+    }
+  }
+
+  // ── Pathfinder hook ───────────────────────────────────────────────────────
+
+  costMultiplierForTile(adv, tx, ty) {
+    if (!adv?.knowledge) return 1
+
+    // Locked-door block (unchanged from old system)
+    const room = this._grid.getRoomAtTile(tx, ty)
+    if (room?.locked) {
+      const dungeonLoot = this._gs.loot?.dungeon ?? []
+      const hasKey = (adv.gear ?? []).some(id => {
+        const item = dungeonLoot.find(i => i.instanceId === id)
+        return item?.type === 'key' || item?.definitionId === 'iron_key'
+      })
+      if (!hasKey) return 9999
+    }
+
+    for (const t of Object.values(adv.knowledge.traps ?? {})) {
+      if (!t || t.tileX !== tx || t.tileY !== ty) continue
+      return t.stale
+        ? Balance.KNOWLEDGE_TRAP_COST_MULTIPLIER * Balance.KNOWLEDGE_STALE_FACTOR
+        : Balance.KNOWLEDGE_TRAP_COST_MULTIPLIER
+    }
+    return 1
+  }
+
+  // ── Stats API for KnowledgeScreen UI ─────────────────────────────────────
+
+  computeKnowledgeStats() {
+    const pool     = this._gs.knowledge?.sharedPool ?? {}
+    const allRooms = this._gs.dungeon.rooms ?? []
+    let confirmed = 0, stale = 0, confirmedTraps = 0, staleTraps = 0
+    let confirmedLoot = 0, confirmedEnemyRooms = 0
+
+    for (const r of allRooms) {
+      const e = pool.rooms?.[r.instanceId]
+      if (!e) continue
+      e.stale ? stale++ : confirmed++
+    }
+    for (const t of Object.values(pool.traps ?? {})) t.stale ? staleTraps++ : confirmedTraps++
+    for (const l of Object.values(pool.loot ?? {})) { if (!l.stale) confirmedLoot++ }
+    for (const list of Object.values(pool.enemiesPerRoom ?? {})) {
+      if (list.some(e => !e.stale)) confirmedEnemyRooms++
+    }
+
+    const total = allRooms.length
+    return {
+      percentage:          total > 0 ? Math.round(100 * (confirmed + stale) / total) : 0,
+      confirmedRooms:      confirmed,
+      staleRooms:          stale,
+      totalRooms:          total,
+      confirmedTraps,      staleTraps,
+      confirmedLoot,       confirmedEnemyRooms,
+    }
+  }
+
+  // 'confirmed' | 'stale' | 'unknown'
+  getRoomKnowledgeState(roomId) {
+    const e = this._gs.knowledge?.sharedPool?.rooms?.[roomId]
+    if (!e) return 'unknown'
+    return e.stale ? 'stale' : 'confirmed'
+  }
+
+  getRoomKnowledgeDetails(roomId) {
+    const pool = this._gs.knowledge?.sharedPool ?? {}
+    const room = this._gs.dungeon.rooms.find(r => r.instanceId === roomId)
+    const traps = room
+      ? Object.values(pool.traps ?? {}).filter(t =>
+          t.tileX >= room.gridX && t.tileX < room.gridX + room.width &&
+          t.tileY >= room.gridY && t.tileY < room.gridY + room.height)
+      : []
+    return {
+      room:    pool.rooms?.[roomId] ?? null,
+      traps,
+      enemies: pool.enemiesPerRoom?.[roomId] ?? [],
+      loot:    Object.values(pool.loot ?? {}).filter(l => l.roomId === roomId),
+    }
+  }
+
+  // ── Legacy compat kept for EternalNightOverlay / KnowledgeOverlay ─────────
+
+  computeKnowledgeMap() {
+    const heat = {}
+    const pool = this._gs.knowledge?.sharedPool ?? {}
+    for (const [roomId, e] of Object.entries(pool.rooms ?? {})) {
+      heat[roomId] = e.stale ? 0.5 : 1.0
+    }
+    return heat
+  }
+
+  hasVisitedRoom(adv, roomId) {
+    return !!(adv?.knowledge?.rooms?.[roomId])
+  }
+
+  isEternalNightActive() {
+    return !!(this._gs.dungeon?.activeMechanics?.includes?.('eternal_night') ||
+              this._gs.activeMechanics?.includes?.('eternal_night'))
+  }
+
+  visibleRoomIds(adv) {
+    if (!adv) return []
+    const here = this._grid.getRoomAtTile(adv.tileX, adv.tileY)
+    if (!here) return []
+    if (!this.isEternalNightActive()) return this._gs.dungeon.rooms.map(r => r.instanceId)
+    const range = Balance.ETERNAL_NIGHT_VISION_ROOMS ?? 1
+    const vis   = new Set([here.instanceId])
+    for (const other of this._gs.dungeon.rooms) {
+      if (other.instanceId !== here.instanceId && _bboxGap(here, other) <= range) {
+        vis.add(other.instanceId)
+      }
+    }
+    return [...vis]
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  _inRoom(adv, roomId) {
+    const room = this._gs.dungeon.rooms.find(r => r.instanceId === roomId)
+    if (!room) return false
+    return adv.tileX >= room.gridX && adv.tileX < room.gridX + room.width &&
+           adv.tileY >= room.gridY && adv.tileY < room.gridY + room.height
+  }
+}
+
+// ── Module-level helpers ──────────────────────────────────────────────────────
+
+function _ensureState(gs) {
+  gs.knowledge ??= {
+    sharedPool: { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} },
+    survivors:  [],
+    partyWipeOccurred: false,
+  }
+  gs.knowledge.sharedPool ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} }
+  gs.knowledge.survivors  ??= []
+}
+
+function _ensureAdvKnowledge(adv) {
+  adv.knowledge ??= {}
+  adv.knowledge.rooms          ??= {}
+  adv.knowledge.traps          ??= {}
+  adv.knowledge.enemiesPerRoom ??= {}
+  adv.knowledge.loot           ??= {}
+}
+
+function _deepCopy(obj) {
+  return JSON.parse(JSON.stringify(obj ?? {}))
+}
+
+function _mergeKnowledge(base, incoming) {
+  const merged = _deepCopy(base)
+  _ensureAdvKnowledge(merged)
+
+  for (const [id, e] of Object.entries(incoming.rooms ?? {})) {
+    if (!merged.rooms[id] || (!e.stale && merged.rooms[id].stale)) {
+      merged.rooms[id] = { ...e }
+    } else if (merged.rooms[id]) {
+      merged.rooms[id].visitCount    = (merged.rooms[id].visitCount ?? 0) + (e.visitCount ?? 0)
+      merged.rooms[id].lastVisitedDay = Math.max(merged.rooms[id].lastVisitedDay ?? 0, e.lastVisitedDay ?? 0)
+      if (!e.stale) merged.rooms[id].stale = false
+    }
+  }
+  for (const [id, e] of Object.entries(incoming.traps ?? {})) {
+    if (!merged.traps[id] || (!e.stale && merged.traps[id].stale)) merged.traps[id] = { ...e }
+  }
+  for (const [roomId, list] of Object.entries(incoming.enemiesPerRoom ?? {})) {
+    merged.enemiesPerRoom[roomId] ??= []
+    for (const e of list) {
+      const ex = merged.enemiesPerRoom[roomId].find(x => x.minionType === e.minionType)
+      if (!ex) merged.enemiesPerRoom[roomId].push({ ...e })
+      else if (!e.stale && ex.stale) { ex.stale = false; ex.confirmed = true }
+    }
+  }
+  for (const [id, e] of Object.entries(incoming.loot ?? {})) {
+    if (!merged.loot[id] || (!e.stale && merged.loot[id].stale)) merged.loot[id] = { ...e }
+  }
+  return merged
+}
+
+function _setStaleInPool(knowledge, category, id) {
+  if (knowledge?.sharedPool?.[category]?.[id]) {
+    knowledge.sharedPool[category][id].stale = true
+  }
+}
+
+function _bboxGap(a, b) {
+  const ax2 = a.gridX + a.width  - 1, ay2 = a.gridY + a.height - 1
+  const bx2 = b.gridX + b.width  - 1, by2 = b.gridY + b.height - 1
+  const dx = Math.max(0, Math.max(a.gridX - bx2, b.gridX - ax2))
+  const dy = Math.max(0, Math.max(a.gridY - by2, b.gridY - ay2))
+  return Math.max(dx, dy)
+}

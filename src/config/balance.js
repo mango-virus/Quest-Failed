@@ -1,0 +1,170 @@
+// All tunable game numbers live here.
+// Change these to balance the game without touching logic.
+
+export const Balance = {
+  // --- Grid ---
+  TILE_SIZE: 32,
+  STARTING_GRID_WIDTH: 30,
+  STARTING_GRID_HEIGHT: 30,
+  GRID_EXPANSION_PER_UNLOCK: 10,
+  MAX_GRID_SIZE: 100,
+
+  // --- Starting currencies (new run) ---
+  STARTING_SOUL_ESSENCE: 100,
+  STARTING_DARK_POWER: 0,
+
+  // --- Earn rates per adventurer kill ---
+  SOUL_ESSENCE_PER_KILL: 10,
+  DARK_POWER_PER_KILL: 2,
+
+  // --- Camera ---
+  CAMERA_ZOOM_MIN: 0.25,
+  CAMERA_ZOOM_MAX: 2.0,
+  CAMERA_ZOOM_DEFAULT: 1.0,
+  CAMERA_SCROLL_SPEED: 8,
+
+  // --- Dungeon progression ---
+  DUNGEON_LEVEL_XP_BASE: 100,
+  DUNGEON_LEVEL_XP_SCALE: 1.5,
+
+  // --- Boss ---
+  BOSS_DEFEATS_TO_GAME_OVER: 3,
+
+  // --- Minions ---
+  MINION_RESPAWN_COST_SOUL_ESSENCE: 5,
+
+  // --- Upkeep enforcement ---
+  // When essence runs out, rooms shut off newest-first until the bill is met.
+  UPKEEP_SHUTDOWN_ORDER: 'newest_first',
+
+  // --- Day phase time controls ---
+  TIME_SCALE_PAUSED: 0,
+  TIME_SCALE_NORMAL: 1,
+  TIME_SCALE_FAST: 2,
+  TIME_SCALE_FASTEST: 4,
+
+  // --- Adventurers ---
+  ADVENTURERS_PER_DAY_BASE: 1,        // adds +1 every 2 days
+  ADVENTURER_BASE_TILES_PER_SEC: 1.5, // multiplied by class.speed
+
+  // --- Combat (Phase 6 kernel) ---
+  ATTACK_INTERVAL_MS:        900,     // base time between attacks (scales by 1/speed)
+  MELEE_RANGE_TILES:         1.5,     // adventurer or minion in melee range
+  AGGRO_RANGE_TILES:         5,       // minion engages within this many tiles in same room
+  ENGAGE_REQUIRES_SAME_ROOM: true,    // Phase 6 kernel: minions don't chase outside home room
+  MINION_BARRACKS_DISTANCE:  3,       // architectural rule: barracks within N rooms
+
+  // --- Adventurer flee ---
+  FLEE_BUFFER:               0.05,    // hysteresis on fleeThreshold so adventurers don't oscillate
+
+  // --- Class abilities (Phase 6c) ---
+  MAGE_SPELL_COST:           5,       // mana per spell
+  MAGE_MANA_REGEN_PER_SEC:   0.5,     // when standing still (Phase 7+)
+  CLERIC_HEAL_MANA_COST:     4,
+  CLERIC_HEAL_AMOUNT:        12,
+  CLERIC_HEAL_TARGET_THRESHOLD: 0.7,  // heal an ally below this HP fraction
+  HEAL_RANGE_TILES:          2,       // cleric heal-ally / potion sip range
+  POTION_HEAL_AMOUNT:        15,
+  POTION_HEAL_THRESHOLD:     0.4,     // adventurer drinks potion when HP below this fraction
+  MARTYR_TAUNT_HP_FRACTION:  0.3,     // martyr triggers taunt at this HP%
+  PARANOID_SPEED_MULTIPLIER: 0.55,    // paranoid moves this much slower in unfamiliar rooms
+
+  // --- Defection mechanics (Phase 6d) ---
+  NECROMANCER_RAISES_PER_DAY:    2,
+  NECROMANCER_RAISE_RANGE:       3,    // tiles
+  NECROMANCER_RAISE_MANA_COST:   10,
+  NECROMANCER_RAISE_HP_FRACTION: 0.4,  // raised minion comes back at this HP fraction
+  TAME_SUCCESS_RATE:             0.40,
+  TAME_MANA_COST:                6,
+  TAME_RANGE_TILES:              1.5,  // melee attempt
+  TAME_COOLDOWN_MS:              1500,
+  ECHO_MINE_FOOTSTEP_THRESHOLD:  2,    // step count at which it fires (2 = follower)
+  CURSE_BRAND_DURATION_MS:       30000, // mark lasts 30s of game time
+
+  // --- Minion XP / leveling / evolution (Phase 7) ---
+  MINION_XP_PER_KILL:            10,    // base XP awarded per adventurer kill
+  MINION_XP_LEVEL_BASE:          25,    // XP to reach lv2
+  MINION_XP_LEVEL_SCALE:         1.5,   // XP_for_lv_n = BASE * SCALE^(n-1)
+  MINION_LEVEL_HP_BONUS:         5,     // hp added per level
+  MINION_LEVEL_ATTACK_BONUS:     1,     // attack added per level
+  MINION_LEVEL_DEFENSE_BONUS:    1,     // defense added per level (every other level)
+
+  // --- Loot (Phase 7) ---
+  LOOT_DROP_ROLLS_PER_DEATH:     2,     // try to drop up to N pieces from victim
+  LOOT_TIER_BY_DUNGEON_LEVEL:    3,     // every N dungeon levels, max tier ++
+  LOOT_AUTOPICKUP_BY_VULTURE:    true,  // (vulture loot-stealing — Phase 7b)
+
+  // --- Bounty (Phase 7) ---
+  BOUNTY_KILL_THRESHOLD:         3,     // minion's kill count that triggers bounty
+
+  // --- Knowledge system (Phase 8) ---
+  KNOWLEDGE_STALE_FACTOR:          0.5,    // stale trap cost = KNOWLEDGE_TRAP_COST_MULTIPLIER * this
+  KNOWLEDGE_TRAP_COST_MULTIPLIER:  6.0,    // path cost multiplier for tiles with known triggered/known traps
+  KNOWLEDGE_DANGER_ROOM_MULT:      1.8,    // path cost mult for rooms known dangerous (deaths happened)
+  KNOWLEDGE_INHERIT_FRACTION:      0.5,    // fraction of shared pool a new adventurer inherits
+  KNOWLEDGE_INHERIT_ACCURACY:      0.7,    // accuracy of inherited intel (rumour vs witnessed)
+  KNOWLEDGE_RETURN_CHANCE:         0.35,   // chance a fled adventurer returns next day with their party
+  KNOWLEDGE_RETURN_PARTY_SIZE_MIN: 2,
+  KNOWLEDGE_RETURN_PARTY_SIZE_MAX: 4,
+  KNOWLEDGE_CARTOGRAPHER_BOOST:    1.0,    // cartographers share at full accuracy (multiplier on accuracy)
+  KNOWLEDGE_COWARD_PARTIAL:        0.85,   // cowards share with mild degradation
+  KNOWLEDGE_TRAUMATIZED_PARTIAL:   1.0,    // traumatized share full intel
+
+  // --- Room behaviors (Phase 6e) ---
+  HEALING_FOUNTAIN_HP_PER_SEC:     4,
+  ECHOES_ALERT_DURATION_MS:        8000,
+  HERALD_ALERT_DURATION_MS:        5000,
+  MOURNER_DAMAGE_BUFF_PER_DEATH:   2,      // attack stat gain per nearby ally death
+  ENGINEER_TRAP_DAMAGE_BUFF:       1.25,
+  SLEEP_HP_PER_SEC:                3,
+  SLEEP_REQUIRES_NO_HOSTILES:      true,
+
+  // --- Dungeon level progression (Phase 7b) ---
+  DUNGEON_LEVEL_KILLS_BASE:        5,     // kills needed for lv 1 → 2
+  DUNGEON_LEVEL_KILLS_SCALE:       1.4,   // kills_for_lv_n = BASE * SCALE^(n-1)
+  DUNGEON_LEVEL_MAX:               20,
+  ADVENTURER_HP_PER_DUNGEON_LV:    0.10,   // +10% maxHp per dungeon level above 1
+  ADVENTURER_ATK_PER_DUNGEON_LV:   0.07,   // +7% attack per dungeon level above 1
+  UNDERDOG_XP_MULT:                2.0,    // adventurer XP multiplier for underdog tag
+
+  // --- Mini-boss / vendetta / vulture / wraith ---
+  MINIBOSS_HP_MULT:                3.0,
+  MINIBOSS_ATTACK_MULT:            1.6,
+  MINIBOSS_GUARANTEED_DROP:        true,
+  VENDETTA_TRIGGER_CHANCE:         0.4,    // chance dropped gear creates a vendetta on kill
+  VULTURE_LOOT_STEAL_RANGE:        2,      // tiles from corpse vulture can grab loot from
+  WRAITH_RESPAWN_THRESHOLD:        3,      // times killed before vengeful_wraith fires
+
+  // --- Knowledge polish (Phase 8b) ---
+  REPLAY_PATH_SAMPLE_MS:           500,    // ms between path samples per adventurer
+  REPLAY_PATH_MAX_SAMPLES:         60,     // cap on stored samples per run
+  REPLAY_GHOST_FADE_MS:            8000,   // ghost trail fade duration after return spawn
+  MIRROR_MAZE_KNOWLEDGE_ACCURACY:  0.4,    // accuracy of knowledge gained in mirror maze
+  VANDAL_DISARM_DAMAGE:            0,      // vandals take 0 damage when disarming
+  RETURNING_GEAR_BONUS_HP:         8,      // bonus HP from "between-run shopping"
+  RETURNING_GEAR_BONUS_ATK:        2,
+  ETERNAL_NIGHT_VISION_ROOMS:      1,      // vision range when Eternal Night mechanic active
+
+  // --- Knowledge ---
+  // Fraction of knowledge degraded by Memory Fog mechanic
+  MEMORY_FOG_FORGET_FRACTION: 0.5,
+
+  // --- Reputation ---
+  REPUTATION_PER_KILL: 1,
+  REPUTATION_PER_DAY_SURVIVED: 5,
+
+  // --- Dungeon mechanics (Phase 9) ---
+  MECHANIC_OFFER_COUNT:                   3,      // cards shown at end-of-day
+  MECHANIC_HUNGER_TICK_INTERVAL_MS:       30000,  // 30s of game time per HP drain tick
+  MECHANIC_HUNGER_DAMAGE_PER_TICK:        1,
+  MECHANIC_TAXATION_HP_FRACTION:          0.05,   // 5% maxHP loss per new room
+  MECHANIC_TAXATION_ESSENCE_PENALTY:      0.7,    // soul essence multiplier (less per kill)
+  MECHANIC_CURSED_FOUNTAIN_DAMAGE_PER_SEC: 4,     // mirror of HEALING_FOUNTAIN_HP_PER_SEC
+  MECHANIC_BLOODBOUND_DAMAGE_MULT:        1.5,
+  MECHANIC_KNOWLEDGE_PAIN_BONUS:          0.10,   // +10% damage in already-cleared rooms
+  MECHANIC_MIMICRY_CHEST_RATE:            0.2,    // 20% of chests become mimics
+  MECHANIC_GRAV_PROJECTILE_MULT:          0.5,    // ranged speed/dmg modifier
+  MECHANIC_GRAV_MELEE_DAMAGE_MULT:        1.2,
+  MECHANIC_LOOT_CURSE_DEBUFF_PER_DAY:     1,      // hidden -1 attack per day held
+  MECHANIC_MEMORY_FOG_FORGET_FRACTION:    0.5,
+}

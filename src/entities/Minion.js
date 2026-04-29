@@ -1,0 +1,99 @@
+// Runtime minion entity factory.
+// Plain JS objects so they serialize via SaveSystem.
+// Each minion is "homed" to a room (assignedRoomId) — its patrol/guard radius
+// is centred on that room. CombatSystem reads stats; MinionAISystem reads
+// behaviorType + assignedRoomId; MinionRenderer reads tile/world pos + hp.
+
+import { Balance } from '../config/balance.js'
+
+const TS = Balance.TILE_SIZE
+
+function _uid() {
+  return `min_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+function _parseColor(c) {
+  if (typeof c === 'number') return c
+  if (typeof c === 'string') {
+    const s = c.startsWith('0x') || c.startsWith('0X') ? c.slice(2) : c
+    const n = parseInt(s, 16)
+    if (!Number.isNaN(n)) return n
+  }
+  return 0xbbbbbb
+}
+
+export function createMinion(typeDef, tile, assignedRoomId) {
+  const baseStats = typeDef.baseStats ?? {}
+  const colorInt  = _parseColor(typeDef.color)
+
+  return {
+    instanceId:    _uid(),
+    definitionId:  typeDef.id,
+    name:          null,                 // populated on first level-up (Phase 7)
+    color:         colorInt,
+    sigil:         typeDef.id[0]?.toUpperCase() ?? 'M',
+
+    // Position
+    tileX:   tile.x,
+    tileY:   tile.y,
+    worldX:  tile.x * TS + TS / 2,
+    worldY:  tile.y * TS + TS / 2,
+    homeTileX: tile.x,
+    homeTileY: tile.y,
+
+    // Identity / lineage
+    assignedRoomId,
+    behaviorType:  typeDef.behaviorType ?? 'guard',
+    upkeepCost:    typeDef.upkeepCost ?? 0,
+    tags:          typeDef.tags ?? [],
+    damageType:    baseStats.damageType ?? 'physical',
+    attackRange:   baseStats.attackRange ?? 1,  // 1 = melee, >1 = ranged
+
+    // Phase 6d: faction (defection mechanics)
+    //   'dungeon'    = loyal to player; attacks adventurers and 'adventurer' minions
+    //   'adventurer' = defected; attacks 'dungeon' minions, follows nearest adventurer
+    faction:       'dungeon',
+    factionExpiresOn: null,    // day number when temp-defection ends (null = permanent)
+    raisedByAdvId: null,       // necromancer who raised this corpse, if any
+    tamedByAdvId:  null,       // beast_tamer who tamed this minion, if any
+
+    // Phase 7b: mini-boss flag — set when placed in a treasure room.
+    // Boosts stats and guarantees a high-tier drop on death.
+    isMiniBoss:    false,
+
+    // Stats (cloned from definition)
+    stats: {
+      hp:      baseStats.hp ?? 20,
+      attack:  baseStats.attack ?? 5,
+      defense: baseStats.defense ?? 0,
+      speed:   baseStats.speed ?? 1.0,
+      abilities: [...(baseStats.abilities ?? [])],
+    },
+
+    resources: {
+      hp:    baseStats.hp ?? 20,
+      maxHp: baseStats.hp ?? 20,
+    },
+
+    // Progression
+    level:           1,
+    xp:              0,
+    evolutionHistory: [],
+    killHistory:     [],
+
+    // Equipment + bounty (Phase 7+)
+    equippedGear:     [],
+    hasBounty:        false,
+    bountyKillCount:  0,
+
+    // Transient AI / combat state
+    aiState:         'idle',   // 'idle' | 'engaging' | 'returning' | 'dead'
+    currentTargetId: null,
+    lastAttackAt:    0,        // timestamp of last attack (for cooldown)
+    deathDay:        null,     // day number when it last died (respawn at next night)
+
+    // Path state for chasing
+    path:       null,
+    pathIndex:  0,
+  }
+}
