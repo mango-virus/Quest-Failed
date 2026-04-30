@@ -890,9 +890,9 @@ export class ClassAbilitySystem {
         // Apply alpha to the LPC sprite via AdventurerRenderer.
         const ar = this._scene.adventurerRenderer
         const s = ar?._sprites?.[adv.instanceId]
-        if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.4)
-        if (s?.body)        AbilityVfx.alphaSet(s.body, 0.4)
-        if (s?.label)       AbilityVfx.alphaSet(s.label, 0.4)
+        if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.15)
+        if (s?.body)        AbilityVfx.alphaSet(s.body, 0.15)
+        if (s?.label)       AbilityVfx.alphaSet(s.label, 0.15)
         AbilityVfx.particleBurst(this._scene, adv.worldX, adv.worldY, { color: 0xaaaaaa, count: 12, durationMs: 600, speed: 80 })
         AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, 'VANISH', { color: '#cccccc' })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'invisibility', message: `${adv.name} vanished from sight.` })
@@ -940,7 +940,7 @@ export class ClassAbilitySystem {
       { id: 'def_down', apply: () => { adv._twitchDefBonus = -2; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'DEF −2', { color: '#cc8866' }) }, label: 'DEF DOWN' },
       { id: 'teleport', apply: () => { const rooms = this._gameState.dungeon?.rooms ?? []; if (rooms.length) { const r = rooms[Math.floor(Math.random() * rooms.length)]; adv.tileX = r.gridX + Math.floor(r.width/2); adv.tileY = r.gridY + Math.floor(r.height/2); adv.worldX = adv.tileX * Balance.TILE_SIZE + Balance.TILE_SIZE/2; adv.worldY = adv.tileY * Balance.TILE_SIZE + Balance.TILE_SIZE/2; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'TELEPORTED', { color: '#cc99ff' }) } }, label: 'TELEPORT' },
       { id: 'poison',   apply: () => { adv._twitchPoisonUntil = now + 6000; adv._twitchEffectUntil = now + 6000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'POISONED', { color: '#88cc44' }) }, label: 'POISON' },
-      { id: 'invis',    apply: () => { adv._invisibilityUntil = now + 10000; adv._invisible = true; const s = this._scene.adventurerRenderer?._sprites?.[adv.instanceId]; if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.4); AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'INVIS 10s', { color: '#cccccc' }) }, label: 'INVIS' },
+      { id: 'invis',    apply: () => { adv._invisibilityUntil = now + 10000; adv._invisible = true; const s = this._scene.adventurerRenderer?._sprites?.[adv.instanceId]; if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.15); AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'INVIS 10s', { color: '#cccccc' }) }, label: 'INVIS' },
     ]
     const pick = EFFECTS[Math.floor(Math.random() * EFFECTS.length)]
     // Slot animation — quick cycle of labels above the streamer's head.
