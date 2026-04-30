@@ -174,7 +174,9 @@ export class MinionRenderer {
 
   _createAnimatedSprite(m, def, idleKey) {
     const s = this._scene
-    const c = s.add.container(m.worldX, m.worldY).setDepth(7)
+    // Depth 10 — above the dungeon overhead/door graphics (9 / 9.5) so the
+    // sprite isn't hidden when the minion stands in a doorway tile.
+    const c = s.add.container(m.worldX, m.worldY).setDepth(10)
 
     const sprite = s.add.sprite(0, 0, idleKey, 0)
       .setOrigin(0.5)
@@ -236,7 +238,9 @@ export class MinionRenderer {
   _createPlaceholder(m) {
     const s = this._scene
     const SIZE = PLACEHOLDER_SIZE
-    const c = s.add.container(m.worldX, m.worldY).setDepth(7)
+    // Depth 10 — above the dungeon overhead/door graphics (9 / 9.5) so the
+    // sprite isn't hidden when the minion stands in a doorway tile.
+    const c = s.add.container(m.worldX, m.worldY).setDepth(10)
 
     const body = s.add.rectangle(0, 0, SIZE, SIZE, 0x0a0e16, 1)
     body.setStrokeStyle(2, m.color, 1)

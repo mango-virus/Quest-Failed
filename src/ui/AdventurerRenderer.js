@@ -52,6 +52,31 @@ export class AdventurerRenderer {
     EventBus.on('ADVENTURER_DIED',     this._onRemove,   this)
     EventBus.on('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAll,   this)
+    // Replay the attack animation on every swing — without this, the
+    // attack anim only plays once when aiState first flips to 'fighting'
+    // and then sits on its last frame for repeat hits against the same
+    // target.
+    EventBus.on('COMBAT_HIT',          this._onCombatHit, this)
+  }
+
+  _onCombatHit({ sourceId }) {
+    const adv = this._gameState.adventurers?.active?.find(a => a.instanceId === sourceId)
+    if (!adv) return
+    const s = this._sprites[adv.instanceId]
+    if (!s?.lpc) return
+    const cls = this._defMap?.[adv.classId]
+    const tags = new Set(cls?.tags ?? [])
+    let anim
+    if (tags.has('spellcaster') || tags.has('healer'))                              anim = 'spellcast'
+    else if (tags.has('ranged') && (cls?.id === 'ranger' || cls?.id === 'bard'))    anim = 'shoot'
+    else if (cls?.id === 'monk' || cls?.id === 'beast_master')                      anim = 'thrust'
+    else                                                                            anim = 'slash'
+    const dir = adv._lpcDir ?? 'down'
+    const wantKey = `${s.lpc.textureKey}-${anim}-${dir}`
+    if (!this._scene.anims.exists(wantKey)) return
+    s.lpc.image.anims.play(wantKey, true)
+    // Force the per-tick guard to re-pick on the next idle/walk transition.
+    s.lpc.lastAnim = wantKey
   }
 
   // Called every Game.update() frame
@@ -205,13 +230,16 @@ export class AdventurerRenderer {
     EventBus.off('ADVENTURER_DIED',     this._onRemove,   this)
     EventBus.off('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAll,   this)
+    EventBus.off('COMBAT_HIT',          this._onCombatHit, this)
     this._clearAll()
   }
 
   // ── Internals ──────────────────────────────────────────────────────────────
 
   _createSprite(adv) {
-    const c = this._scene.add.container(adv.worldX, adv.worldY).setDepth(8)
+    // Depth 11 — above the dungeon overhead/door graphics (9 / 9.5) so the
+    // sprite isn't hidden when the adventurer steps into a doorway tile.
+    const c = this._scene.add.container(adv.worldX, adv.worldY).setDepth(11)
 
     // Outer ring (faction/colour glow)
     const ring = this._scene.add.circle(0, 0, RADIUS + 3, adv.classColor, 0.25)
