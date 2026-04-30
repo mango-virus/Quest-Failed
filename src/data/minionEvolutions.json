@@ -1,0 +1,25 @@
+{
+  "_comment": "Maps each starter minion id to its evolution chain. Only ids in `chain[0]` are placeable in the NightPhase palette. After 2 kills, a minion's definitionId mutates to the next id in its chain. Death sets a `_pendingEvolutionReset` flag; the minion reverts to chain[0] at the next NIGHT_PHASE_STARTED. Final-form ids that should render with a boss sprite carry a `bossSkinId` on their minionTypes.json entry.",
+
+  "beholder1":      { "chain": ["beholder1", "beholder2", "beholder_tyrant"] },
+  "demon1":         { "chain": ["demon1", "demon2", "demon_lord"] },
+  "ent1":           { "chain": ["ent1", "ent2", "ent3"] },
+  "ghost1":         { "chain": ["ghost1", "ghost2", "dark_wraith"] },
+  "gnoll1":         { "chain": ["gnoll1", "gnoll2", "gnoll_alpha"] },
+  "goblin1":        { "chain": ["goblin1", "goblin2", "goblin3"] },
+  "golem1":         { "chain": ["golem1", "golem2", "golem_warden"] },
+  "imp1":           { "chain": ["imp1", "imp2", "imp3"] },
+  "lich1":          { "chain": ["lich1", "lich2", "elder_lich"] },
+  "lizardman1":     { "chain": ["lizardman1", "lizardman2", "serpent_captain"] },
+  "mushroom1":      { "chain": ["mushroom1", "mushroom2", "myconid_stalker"] },
+  "orc1":           { "chain": ["orc1", "orc2", "orc_veteran"] },
+  "plant1":         { "chain": ["plant1", "plant2", "plant3"] },
+  "rat1":           { "chain": ["rat1", "rat2", "rat3"] },
+  "skeleton1":      { "chain": ["skeleton1", "skeleton2", "skeleton3"] },
+  "vampire_minion1":{ "chain": ["vampire_minion1", "vampire_minion2", "vampire_sovereign"] },
+  "zombie1":        { "chain": ["zombie1", "zombie2", "zombie3"] },
+
+  "slime3":         { "chain": ["slime3", "slime7", "slime8", "elder_slime1"] },
+  "slime2":         { "chain": ["slime2", "slime9", "slime1", "elder_slime2"] },
+  "slime4":         { "chain": ["slime4", "slime5", "slime6", "elder_slime3"] }
+}

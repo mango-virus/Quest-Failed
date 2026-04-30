@@ -6,6 +6,7 @@
 import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
+import { TILE }             from './DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -111,6 +112,28 @@ export class AISystem {
     return !!id && id !== selfAdv.instanceId
   }
 
+  // World-space center of the entry hall's north-facing door rect.
+  // Mirrors AdventurerRenderer._entryDoorWorldCenter / DungeonRenderer
+  // _cpDoorRect: 2-tile width slid into the side with more wall space,
+  // WALL_THICKNESS-tile height starting at the top row.  Used so leave-
+  // fade snaps the adv to the same spot the spawn-fade snaps to.
+  _entryDoorWorldCenter(entry) {
+    if (!entry) return null
+    const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
+    if (!cp) {
+      const x = entry.gridX + Math.floor(entry.width / 2)
+      return { tileX: x, tileY: entry.gridY, worldX: x * TS + TS / 2, worldY: entry.gridY * TS + TS / 2 }
+    }
+    const WT      = 2
+    const alongDx = ((entry.width - 1) - cp.x) >= cp.x ? 1 : -1
+    const xStart  = Math.min(cp.x, cp.x + alongDx)
+    const tileX   = entry.gridX + xStart
+    const tileY   = entry.gridY
+    const worldX  = tileX * TS + TS
+    const worldY  = tileY * TS + (WT * TS) / 2
+    return { tileX, tileY, worldX, worldY }
+  }
+
   // ── Per-adventurer tick ─────────────────────────────────────────────────────
 
   _tickAdventurer(adv, delta, idx) {
@@ -123,6 +146,12 @@ export class AISystem {
     // in the doorway. Skip movement, pathing, goal switches, and combat
     // checks until AdventurerRenderer clears the fade flags.
     if (adv._spawnFadeEnd != null && (this._scene?.time?.now ?? 0) < adv._spawnFadeEnd) {
+      return
+    }
+    // Mirror — while the leave fade-out is running, the adv idles in
+    // the doorway center until the fade completes (handled below near
+    // the FLEE → atNorthEdge splice).  Same skip semantics as spawn.
+    if (adv._leaveFadeEnd != null && (this._scene?.time?.now ?? 0) < adv._leaveFadeEnd) {
       return
     }
     // AT_BOSS adventurers are owned by BossSystem.  Skip every other AI
@@ -158,8 +187,26 @@ export class AISystem {
       adv.tileX >= entry.gridX && adv.tileX < entry.gridX + entry.width
 
     // If fleeing and physically RETURNING to the north edge of entry_hall
-    // (must have left at some point), leave the dungeon.
+    // (must have left at some point), leave the dungeon.  Mirrors the
+    // entry flow: snap to the doorway center, idle while fading out,
+    // then splice + emit ADVENTURER_FLED when the fade completes.
     if (adv.goal?.type === 'FLEE' && atNorthEdge && adv._leftEntry) {
+      const now = this._scene?.time?.now ?? 0
+      if (adv._leaveFadeEnd == null) {
+        const door = this._entryDoorWorldCenter(entry)
+        if (door) {
+          adv.tileX  = door.tileX
+          adv.tileY  = door.tileY
+          adv.worldX = door.worldX
+          adv.worldY = door.worldY
+        }
+        adv.path = null
+        adv.aiState = 'leaving'
+        adv._leaveFadeStart = now
+        adv._leaveFadeEnd   = now + 600
+        return
+      }
+      if (now < adv._leaveFadeEnd) return
       adv.aiState = 'fled'
       this._gameState.adventurers.active.splice(idx, 1)
       EventBus.emit('ADVENTURER_FLED', {
@@ -176,6 +223,24 @@ export class AISystem {
     if (adv.goal?.type === 'FLEE' && inEntry && !adv._leftEntry) {
       adv._stuckInEntryMs = (adv._stuckInEntryMs ?? 0) + delta
       if (adv._stuckInEntryMs > 3000) {
+        // Match the normal-leave flow — snap to doorway center and run
+        // the fade-out so we never see an instant disappear.
+        const now = this._scene?.time?.now ?? 0
+        if (adv._leaveFadeEnd == null) {
+          const door = this._entryDoorWorldCenter(entry)
+          if (door) {
+            adv.tileX  = door.tileX
+            adv.tileY  = door.tileY
+            adv.worldX = door.worldX
+            adv.worldY = door.worldY
+          }
+          adv.path = null
+          adv.aiState = 'leaving'
+          adv._leaveFadeStart = now
+          adv._leaveFadeEnd   = now + 600
+          return
+        }
+        if (now < adv._leaveFadeEnd) return
         adv.aiState = 'fled'
         this._gameState.adventurers.active.splice(idx, 1)
         EventBus.emit('ADVENTURER_FLED', {
@@ -187,14 +252,21 @@ export class AISystem {
     } else if (adv._stuckInEntryMs) {
       adv._stuckInEntryMs = 0
     }
-    // Engage the boss as soon as we step into the chamber instead of waiting
-    // for SEEK_BOSS pathfinding to land us at the room centre.  Mirrors the
-    // fleeing-in-entry pattern above — the room boundary is the trigger.
+    // Engage the boss only once we're past the wall thickness on a true
+    // INTERIOR floor tile of the chamber.  If we flipped on the bounding
+    // rect, the doorway tiles would qualify and BossSystem's interior
+    // clamp would snap the adv several tiles into the room — the
+    // visible "teleport to the boss" the player kept seeing.  Letting
+    // SEEK_BOSS keep control through the doorway lane means AISystem
+    // walks them naturally into the room; once they hit the first real
+    // floor tile we hand off to BossSystem and the `dash` action runs
+    // them at 7 tiles/sec to their orbit slot.
     if (adv.goal?.type === 'SEEK_BOSS') {
       const bossRoom = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
+      const WT = Balance.WALL_THICKNESS
       if (bossRoom &&
-          adv.tileX >= bossRoom.gridX && adv.tileX < bossRoom.gridX + bossRoom.width &&
-          adv.tileY >= bossRoom.gridY && adv.tileY < bossRoom.gridY + bossRoom.height) {
+          adv.tileX >= bossRoom.gridX + WT && adv.tileX < bossRoom.gridX + bossRoom.width  - WT &&
+          adv.tileY >= bossRoom.gridY + WT && adv.tileY < bossRoom.gridY + bossRoom.height - WT) {
         adv.goal    = { type: 'AT_BOSS' }
         adv.path    = null
         adv.aiState = 'fighting'
@@ -425,13 +497,16 @@ export class AISystem {
       const limit = Math.min(adv.path.length - 1, adv.pathIndex + MAX_LOOKAHEAD)
       for (let i = adv.pathIndex + 1; i <= limit; i++) {
         const wp2 = adv.path[i]
-        // Stop smoothing AT a closed-door cell so the adventurer's `wp`
-        // targets the door tile (or the last cell before it) — the door
-        // pause check below then fires and holds them while it animates.
-        // Without this, LOS smoothing would skip straight through the door
-        // and the pause check (looking at wp) would miss it.
-        const cpHere = this._dungeonGrid.getCpForDoorTile?.(wp2.x, wp2.y)
-        if (cpHere && !cpHere.cp.open) break
+        // Stop smoothing the moment a candidate target enters the
+        // doorway corridor (canonical lane tile OR the floor approach
+        // tile flanking it).  Forces cardinal stepping through the
+        // entire entry → lane → exit sequence so the lateral
+        // alignment to the seam happens BEFORE the entity touches
+        // the corridor, not while passing the door.
+        if (this._dungeonGrid.isLaneOrApproach?.(wp2.x, wp2.y)) break
+        // Once committed to the corridor, every step must be cardinal
+        // — break if the SOURCE position is in the corridor too.
+        if (this._dungeonGrid.isLaneOrApproach?.(adv.tileX, adv.tileY)) break
         const tx2 = wp2.x * TS + TS / 2
         const ty2 = wp2.y * TS + TS / 2
         if (this._losClear(adv.worldX, adv.worldY, tx2, ty2, tilesGrid)) wpIndex = i
@@ -439,10 +514,15 @@ export class AISystem {
       }
     }
 
-    // Move toward smoothed waypoint
+    // Move toward smoothed waypoint.  For canonical doorway lane tiles
+    // (and the floor approach/exit tiles flanking them) the target is
+    // shifted ½-tile along the along-axis so the entity walks through
+    // the visual CENTRE of the 2-wide doorway opening (the seam between
+    // the two door tiles), not through one column's tile centre.
     const wp = adv.path[wpIndex]
-    const targetWX = wp.x * TS + TS / 2
-    const targetWY = wp.y * TS + TS / 2
+    const laneCenter = this._dungeonGrid.getLaneCenterWorld?.(wp.x, wp.y)
+    const targetWX = laneCenter ? laneCenter.worldX : (wp.x * TS + TS / 2)
+    const targetWY = laneCenter ? laneCenter.worldY : (wp.y * TS + TS / 2)
     const dx = targetWX - adv.worldX
     const dy = targetWY - adv.worldY
     const dist = Math.hypot(dx, dy)
@@ -532,14 +612,68 @@ export class AISystem {
         this._onGoalReached(adv, idx)
       }
     } else {
-      adv.worldX += (dx / dist) * stepPx
-      adv.worldY += (dy / dist) * stepPx
+      // Doorway-corridor L-shape motion.  Inside the corridor (lane
+      // tile or approach/exit floor) the entity may move ONLY along
+      // the lane (forward) axis — no lateral drift while passing
+      // through the door shadow.  Entering the corridor from outside
+      // applies lateral correction first (so the seam-align happens
+      // BEFORE the doorway).  Exiting the corridor applies forward
+      // first (so the seam-undo happens AFTER the entity is fully
+      // out of the door shadow).  Outside the corridor, regular
+      // proportional diagonal motion as before.
+      const advLane = this._dungeonGrid.isLaneOrApproach?.(adv.tileX, adv.tileY)
+      const wpLane  = this._dungeonGrid.isLaneOrApproach?.(wp.x, wp.y)
+      const laneAxis = advLane || wpLane
+      const ALIGN_EPS = 0.5
+      let moved = false
+      if (laneAxis === 'y' || laneAxis === 'x') {
+        const forwardD = laneAxis === 'y' ? dy : dx
+        const lateralD = laneAxis === 'y' ? dx : dy
+        const forwardKey = laneAxis === 'y' ? 'worldY' : 'worldX'
+        const lateralKey = laneAxis === 'y' ? 'worldX' : 'worldY'
+        const inside    = !!advLane && !!wpLane
+        const entering  = !advLane && !!wpLane
+        const exiting   = !!advLane && !wpLane
+        const moveAxis = (key, d) => {
+          adv[key] += Math.sign(d) * Math.min(Math.abs(d), stepPx)
+          moved = true
+        }
+        if (inside) {
+          // Pure forward only inside the corridor.
+          if (Math.abs(forwardD) > ALIGN_EPS) moveAxis(forwardKey, forwardD)
+        } else if (entering) {
+          // Lateral first (while still outside the corridor), then forward.
+          if (Math.abs(lateralD) > ALIGN_EPS)      moveAxis(lateralKey, lateralD)
+          else if (Math.abs(forwardD) > ALIGN_EPS) moveAxis(forwardKey, forwardD)
+        } else if (exiting) {
+          // Forward first (out of the corridor), then lateral.
+          if (Math.abs(forwardD) > ALIGN_EPS)      moveAxis(forwardKey, forwardD)
+          else if (Math.abs(lateralD) > ALIGN_EPS) moveAxis(lateralKey, lateralD)
+        }
+      }
+      // Fallback — if the L-shape branch declined to move (both axes
+      // within the alignment epsilon, or laneAxis was null), use the
+      // ordinary proportional diagonal so the entity never freezes
+      // mid-segment.
+      if (!moved) {
+        adv.worldX += (dx / dist) * stepPx
+        adv.worldY += (dy / dist) * stepPx
+      }
       // Sync tile coords each frame from world position so room-membership,
       // combat-range, and occupancy checks see the actual location while
       // traversing a smoothed (multi-tile) segment.
       const newTileX = Math.floor(adv.worldX / TS)
       const newTileY = Math.floor(adv.worldY / TS)
-      if (newTileX !== adv.tileX || newTileY !== adv.tileY) {
+      // Doorway-seam guard: when worldX/Y sits on the seam between the
+      // canonical and secondary doorway tiles (because lane centring
+      // shifted the target ½-tile), floor() can briefly resolve to the
+      // secondary tile.  That tile is pathfinder-blocked, so latching
+      // tileX onto it would corrupt the next path call and trigger the
+      // snap-back below.  Skip the sync; the explicit commit at line
+      // 587-588 will set tileX once the entity reaches the wp.
+      if (this._dungeonGrid.isDoorBlocked?.(newTileX, newTileY)) {
+        // intentionally skip tile sync this frame
+      } else if (newTileX !== adv.tileX || newTileY !== adv.tileY) {
         // Defensive: if smoothing/precision somehow puts us in a non-walkable
         // tile, snap back to the last good tile center and force a re-path.
         // Prevents the "stuck in walls" state when an LOS edge case slips
@@ -1326,7 +1460,12 @@ export class AISystem {
 
   _lookupKillerName(killerId) {
     if (!killerId) return 'Unknown'
-    if (killerId === 'boss') return 'The Boss'
+    if (killerId === 'boss') {
+      const archId = this._gameState.player?.bossArchetypeId
+      const arch   = this._scene.cache.json.get('bossArchetypes')
+        ?.find(a => a.id === archId)
+      return arch?.name ?? 'The Boss'
+    }
     // Trap?
     const trap = this._gameState.dungeon?.traps?.find(t => t.instanceId === killerId)
     if (trap) {

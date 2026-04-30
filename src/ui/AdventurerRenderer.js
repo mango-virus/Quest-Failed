@@ -137,6 +137,18 @@ export class AdventurerRenderer {
     return Math.max(0, Math.min(1, (now - adv._spawnFadeStart) / span))
   }
 
+  // Mirror of _spawnAlpha for the leave-fade: while AISystem holds the
+  // adv at the entry doorway and runs the fade-out clock, return an
+  // alpha that ramps from 1 → 0.  AISystem splices the adv off `active`
+  // the tick after the fade ends, so we never see alpha 0 lingering.
+  _leaveAlpha(adv) {
+    if (adv._leaveFadeEnd == null) return 1
+    const now = this._scene?.time?.now ?? 0
+    const span = Math.max(1, adv._leaveFadeEnd - adv._leaveFadeStart)
+    const t = Math.max(0, Math.min(1, (now - adv._leaveFadeStart) / span))
+    return 1 - t
+  }
+
   _onCombatHit({ sourceId }) {
     const adv = this._gameState.adventurers?.active?.find(a => a.instanceId === sourceId)
     if (!adv) return
@@ -175,6 +187,17 @@ export class AdventurerRenderer {
       adv._lastWorldX = adv.worldX
       adv._lastWorldY = adv.worldY
       if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) adv._lpcDir = _dirFromVelocity(dx, dy)
+      // While locked into the boss fight, always face the boss — even
+      // when the adv is stationary mid-swing. Skipped while moving (so
+      // run-away / reposition animations still use the velocity-derived
+      // facing).
+      const boss = this._gameState.boss
+      if (adv.aiState === 'fighting' &&
+          adv.goal?.type === 'AT_BOSS' &&
+          boss && boss.worldX !== undefined &&
+          Math.abs(dx) <= 0.05 && Math.abs(dy) <= 0.05) {
+        adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
+      }
       s.container.setPosition(adv.worldX, adv.worldY)
       const hpFrac = adv.resources.maxHp > 0
         ? Math.max(0, adv.resources.hp / adv.resources.maxHp) : 0
@@ -187,13 +210,16 @@ export class AdventurerRenderer {
       this._tickBuilderAnim(s, adv, dt)
       this._tickLpcAnim(s, adv)
 
-      // Spawn fade-in: until the fade window finishes, scale the entire
-      // container's alpha so the sprite, HP bar, etc. all fade together.
-      // Invisibility (Rogue) takes precedence — when invisible the alpha
-      // override is already 0.15, applied directly to the LPC sprite.
+      // Spawn fade-in / leave fade-out: the smaller of the two alphas
+      // wins (so an adv re-leaving while still spawning would still
+      // fade out). Container alpha covers the sprite, HP bar, labels.
+      // Invisibility (Rogue) takes precedence — when invisible the
+      // alpha override is already 0.15, applied directly to the LPC
+      // sprite below.
       const spawnA = this._spawnAlpha(adv)
-      if (s.container && spawnA < 1) s.container.setAlpha(spawnA)
-      else if (s.container) s.container.setAlpha(1)
+      const leaveA = this._leaveAlpha(adv)
+      const fadeA  = Math.min(spawnA, leaveA)
+      if (s.container) s.container.setAlpha(fadeA)
     }
 
     // Clean up sprites whose adventurers are no longer active
@@ -252,6 +278,10 @@ export class AdventurerRenderer {
     const tags = new Set(cls?.tags ?? [])
     if (adv.resources?.hp <= 0) {
       anim = 'hurt'
+    } else if (adv.aiState === 'leaving') {
+      // Standing in the doorway during the exit fade — idle, not run,
+      // so the adv visibly stops before they vanish.
+      anim = 'idle'
     } else if (adv.aiState === 'fighting') {
       // Pick the swing style that matches the class's combat flavor.
       if (tags.has('spellcaster') || tags.has('healer'))    anim = 'spellcast'

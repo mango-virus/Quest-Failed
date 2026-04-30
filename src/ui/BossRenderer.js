@@ -3,7 +3,10 @@
 // just samples that state and picks the right animation each frame.
 //
 // State priority (highest first):
-//   death  — latched once on BOSS_DEFEATED_FINAL; sprite freezes on last frame
+//   death  — latched once on BOSS_DEFEATED_FINAL; sprite freezes on last frame.
+//            Also triggered (non-latched) on BOSS_FIGHT_RESOLVED winner='party'
+//            so each life loss plays the death anim during the result overlay,
+//            cleared on the next BOSS_FIGHT_INCOMING.
 //   hurt   — one-shot ~300 ms whenever boss.hp drops vs last sample
 //   attack — while fighting and BossSystem._bossState.action is lunge/slam
 //   idle   — default; played both when stationary and while wandering
@@ -53,6 +56,7 @@ export class BossRenderer {
     this._lastHp      = null
     this._hurtUntil   = 0
     this._dead        = false        // latched on BOSS_DEFEATED_FINAL
+    this._playingDeath = false       // one-shot per life loss; cleared on next fight
     // Position sample for walk detection — see WALK_SAMPLE_MS comment above.
     this._sampleX     = null
     this._sampleY     = null
@@ -60,7 +64,35 @@ export class BossRenderer {
     this._isMoving    = false
 
     this._onFinalDeath = () => { this._dead = true }
+    this._onFightResolved = ({ winner, bossHpRemaining, deathsRemaining }) => {
+      // Only play death anim when the boss actually died this round
+      // (hp drained to 0).  Other code paths can resolve the fight in
+      // the party's favour while the boss still has hp — e.g. the
+      // 24-round stalemate cap that picks a winner by hp fraction —
+      // and showing the death anim there is the bug the player
+      // reported ("playing death animation when it still has health").
+      if (winner === 'party' && (bossHpRemaining ?? 1) <= 0) {
+        this._playingDeath = true
+        // Auto-revive the sprite after the 4 s linger when this isn't
+        // the final death — keeps render and BossSystem's wander gate
+        // (also 4 s) in sync so the boss collapses, stays planted on
+        // the last frame, then springs back up to idle for the next
+        // party.  Final death (deathsRemaining <= 0) latches via
+        // `_dead` and overrides _playingDeath, so no auto-clear.
+        const isFinal = (deathsRemaining ?? 0) <= 0
+        if (!isFinal) {
+          this._scene.time.delayedCall(4000, () => {
+            // Guard against a fight starting inside the linger window
+            // (BOSS_FIGHT_INCOMING already cleared the flag).
+            if (this._playingDeath) this._playingDeath = false
+          })
+        }
+      }
+    }
+    this._onFightIncoming = () => { this._playingDeath = false }
     EventBus.on('BOSS_DEFEATED_FINAL', this._onFinalDeath)
+    EventBus.on('BOSS_FIGHT_RESOLVED', this._onFightResolved)
+    EventBus.on('BOSS_FIGHT_INCOMING', this._onFightIncoming)
   }
 
   update() {
@@ -119,13 +151,15 @@ export class BossRenderer {
 
   destroy() {
     EventBus.off('BOSS_DEFEATED_FINAL', this._onFinalDeath)
+    EventBus.off('BOSS_FIGHT_RESOLVED', this._onFightResolved)
+    EventBus.off('BOSS_FIGHT_INCOMING', this._onFightIncoming)
     this._container?.destroy()
     this._container = null
     this._sprite    = null
   }
 
   _pickState() {
-    if (this._dead) return 'death'
+    if (this._dead || this._playingDeath) return 'death'
     if (this._scene.time.now < this._hurtUntil) return 'hurt'
     const action = this._scene.bossSystem?._bossState?.action
     if (action === 'lunge' || action === 'slam') return 'attack'

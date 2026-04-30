@@ -143,12 +143,19 @@ export class Preload extends Phaser.Scene {
     this.load.json('personalityCombos', 'src/data/personalityCombos.json')
     this.load.json('dungeonMechanics',  'src/data/dungeonMechanics.json')
     this.load.json('minionTypes',       'src/data/minionTypes.json')
+    this.load.json('minionEvolutions',  'src/data/minionEvolutions.json')
     this.load.json('trapTypes',         'src/data/trapTypes.json')
     this.load.json('lootDefinitions',   'src/data/lootDefinitions.json')
     this.load.json('adventurerClasses', 'src/data/adventurerClasses.json')
     this.load.json('lastWords',         'src/data/lastWords.json')
     this.load.json('chatLines',         'src/data/chatLines.json')
     this.load.json('bossAbilities',     'src/data/bossAbilities.json')
+
+    // ── Audio ────────────────────────────────────────────────────────────
+    // Title-screen / boss-picker loop.  Lives across MainMenu and
+    // ArchetypeSelect (see Audio helpers in those scenes); stops when
+    // the player commits to a run and Game starts.
+    this.load.audio('title_music', 'assets/audio/title_music.mp3')
 
     // Dungeon tile sprites — loaded per named tileset.
     // The default tileset is 'room' and uses the un-namespaced keys
@@ -183,6 +190,13 @@ export class Preload extends Phaser.Scene {
     // Add more tilesets here as art lands:
     // loadTileset('cave',  'assets/tiles/cave/')
     // loadTileset('boss',  'assets/tiles/boss/')
+
+    // Theme manifest — describes every user-uploaded tile sprite + per-theme
+    // slot assignments. Optional: if the file is absent (404), the loader
+    // emits 'loaderror' and the game runs without themes (procedural look
+    // only). When present, _loadThemesAndStart() in create() reads it and
+    // queues a second loader pass for each referenced PNG.
+    this.load.json('themes-manifest', 'assets/themes/manifest.json')
 
     // ── Bestiary book UI (boss-select screen) ──────────────────────────────
     // Pack: Craftpix bestiary-book-pixel-art-asset-pack. Each animation sheet
@@ -266,7 +280,56 @@ export class Preload extends Phaser.Scene {
     this._registerBossAnimations()
     this._registerMinionAnimations()
     this._registerAdventurerAnimations()
-    this.scene.start('MainMenu')
+    // Themes load asynchronously (second loader pass for sprite PNGs); kick
+    // off MainMenu once that's done. If no manifest exists, this resolves
+    // immediately and the game runs with the procedural-only look.
+    this._loadThemesAndStart()
+  }
+
+  // Read the themes manifest (if present), queue every referenced sprite PNG
+  // for load, then seed ThemeManager state and transition to MainMenu. The
+  // manifest itself was queued in preload() — its absence is silently
+  // tolerated (cache.json.get returns undefined). Sprites that fail to load
+  // (deleted file, etc.) trigger Phaser 'loaderror' and are simply absent at
+  // render time; DungeonRenderer falls back to procedural for any cell whose
+  // sprite texture isn't registered.
+  async _loadThemesAndStart() {
+    const startMain = () => this.scene.start('MainMenu')
+    let ThemeManager
+    try {
+      ThemeManager = (await import('../systems/ThemeManager.js')).ThemeManager
+    } catch (err) {
+      console.warn('[Preload] ThemeManager import failed:', err)
+      return startMain()
+    }
+
+    const manifest = this.cache.json.get('themes-manifest')
+    if (!manifest) return startMain()
+
+    // Queue every referenced PNG. Phaser keys must match the convention used
+    // by editors: `themesprite-<id>` so the same key works in TilesetEditor,
+    // RoomTileEditor, and DungeonRenderer.
+    let queued = 0
+    if (manifest.sprites && typeof manifest.sprites === 'object') {
+      for (const [id, meta] of Object.entries(manifest.sprites)) {
+        const key = `themesprite-${id}`
+        if (this.textures.exists(key)) continue
+        const file = meta?.file || `assets/themes/sprites/${id}.png`
+        this.load.image(key, file)
+        queued++
+      }
+    }
+
+    if (queued > 0) {
+      await new Promise(resolve => {
+        const done = () => { this.load.off('complete', done); resolve() }
+        this.load.on('complete', done)
+        this.load.start()
+      })
+    }
+
+    ThemeManager.load(manifest)
+    startMain()
   }
 
   // Phaser anims are global, so define once here. Each sheet has 4 rows

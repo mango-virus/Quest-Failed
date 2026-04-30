@@ -286,6 +286,18 @@ function pickColorVariant(rng, animSubdir) {
   return path.join(animSubdir, pick(rng, files));
 }
 
+// Anim-fallback table — for layers whose source folder is missing certain
+// animations, fall back to a related anim that does exist.  Only used for
+// the Shadow layer right now: LPC ships shadow PNGs for walk/slash/thrust/
+// spellcast/shoot/hurt but not for idle/run.  Both reuse the walk shadow
+// (idle = standing pose ≈ first walk frame; run uses the same foot-cycle
+// shape) so adventurers always cast a shadow regardless of state.  The
+// frame-count mismatch is handled by repeated tiling further below.
+const ANIM_FALLBACK = {
+  'shadow/adult': { idle: 'walk', run: 'walk' },
+  'shadow/child': { idle: 'walk', run: 'walk' },
+};
+
 function resolveLayerSourceForAnim(rng, layerSourceDir, animFile, animName, lockedColor) {
   // Try `<dir>/<animFile>` first (single-color item).
   const direct = path.join(ssRoot, layerSourceDir, animFile);
@@ -298,6 +310,18 @@ function resolveLayerSourceForAnim(rng, layerSourceDir, animFile, animName, lock
       if (fs.existsSync(locked)) return locked;
     }
     return pickColorVariant(rng, subdir);
+  }
+  // Anim fallback — e.g. Shadow's idle/run reuse walk.  The composite
+  // step copies the source PNG straight into the row (top-left aligned),
+  // and the renderer only samples the first N frames per row, so the
+  // larger walk-shadow strip overflowing into unused sheet space is
+  // harmless.
+  const fallback = ANIM_FALLBACK[layerSourceDir]?.[animName];
+  if (fallback) {
+    const fbSubdir = path.join(ssRoot, layerSourceDir, fallback);
+    if (fs.existsSync(fbSubdir) && fs.statSync(fbSubdir).isDirectory()) {
+      return pickColorVariant(rng, fbSubdir);
+    }
   }
   return null;
 }
@@ -349,6 +373,13 @@ function buildLayerManifest(variant) {
   };
 
   // Order matches z-position; we sort numerically afterwards. Add everything.
+  // Shadow layer (zPos 0) — LPC's drop-shadow sheet, baked under every
+  // body so adventurers cast a small ground shadow that aligns with
+  // their per-frame foot positions.  Walk / slash / thrust / spellcast /
+  // shoot / hurt all have matching shadow PNGs in the LPC pack; idle
+  // and run fall back to the walk shadow via the resolver's anim-fallback
+  // (see resolveLayerSourceForAnim).
+  add('Shadow');
   add('Body Color');
   add(variant.head);
   add(variant.nose);

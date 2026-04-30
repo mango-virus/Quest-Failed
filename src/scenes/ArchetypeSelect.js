@@ -21,6 +21,7 @@
 
 import { createGameState } from '../state/GameState.js'
 import { SaveSystem }      from '../systems/SaveSystem.js'
+import { TitleMusic }      from '../systems/TitleMusic.js'
 import { applyUiCamera }   from '../ui/UIKit.js'
 import { UIEditor }        from '../ui/UIEditor.js'
 
@@ -79,6 +80,12 @@ export class ArchetypeSelect extends Phaser.Scene {
   }
 
   create() {
+    // Title-screen music continues playing through the boss picker.
+    // ensurePlaying is a no-op when already running (e.g. arrived from
+    // MainMenu), and starts the loop fresh if the player jumped here
+    // directly via a save state somehow.
+    TitleMusic.ensurePlaying(this)
+
     const { width: W, height: H } = applyUiCamera(this)
     this._W = W
     this._H = H
@@ -601,8 +608,13 @@ export class ArchetypeSelect extends Phaser.Scene {
 
   _beginRun() {
     if (!this._selectedId) return
-    const state = createGameState(this._selectedId)
+    // Pass the rooms cache so createGameState picks up `theme` + `tileLayout`
+    // edits the user authored in the Room Editor onto the boss chamber.
+    const rooms = this.cache.json.get('rooms')
+    const state = createGameState(this._selectedId, rooms)
     SaveSystem.save(state)
+    // Title music carries through into the dungeon; Game.create() ducks
+    // it to a quieter background level via TitleMusic.duckForGameplay.
     this.scene.start('Game', { gameState: state })
   }
 }

@@ -322,8 +322,69 @@ export class KnowledgeSystem {
 
   // ── Stats API for KnowledgeScreen UI ─────────────────────────────────────
 
+  // Build a UI-facing pool that's the union of the persisted
+  // sharedPool (survivor-derived, only refreshed at day end) AND every
+  // currently-active adventurer's in-progress per-adv knowledge.  This
+  // is what lets the Knowledge overlay / Threat Assessment screen
+  // reflect exploration in real time — without this union, the UI
+  // would only ever show what last day's survivors learned, even
+  // while today's party is actively walking through new rooms.
+  //
+  // Persisted state is NOT mutated here.  This method builds a fresh
+  // union object each call.  The data set is small (handful of rooms /
+  // traps / loot per adv × small party), so the cost is trivial.
+  //
+  // Merge rule for staleness: the freshest observation wins.  If any
+  // adv (or the shared pool) has a non-stale entry, the union entry
+  // is non-stale.  This matches the "any party member who confirmed
+  // it just now overrides any stale memory" behaviour the player
+  // expects from a live feed.
+  _livePool() {
+    const sp = this._gs.knowledge?.sharedPool ?? {}
+    const pool = {
+      rooms:          { ...(sp.rooms          ?? {}) },
+      traps:          { ...(sp.traps          ?? {}) },
+      enemiesPerRoom: {},
+      loot:           { ...(sp.loot           ?? {}) },
+    }
+    // Deep-copy the per-room enemy lists since we mutate them below.
+    for (const [roomId, list] of Object.entries(sp.enemiesPerRoom ?? {})) {
+      pool.enemiesPerRoom[roomId] = list.map(e => ({ ...e }))
+    }
+    const advs = this._gs.adventurers?.active ?? []
+    for (const adv of advs) {
+      const k = adv?.knowledge
+      if (!k) continue
+      // Rooms — overwrite stale entries with non-stale; otherwise add.
+      for (const [id, e] of Object.entries(k.rooms ?? {})) {
+        const ex = pool.rooms[id]
+        if (!ex || (!e.stale && ex.stale)) pool.rooms[id] = { ...e }
+      }
+      // Traps — same merge rule.
+      for (const [id, e] of Object.entries(k.traps ?? {})) {
+        const ex = pool.traps[id]
+        if (!ex || (!e.stale && ex.stale)) pool.traps[id] = { ...e }
+      }
+      // Per-room enemy sightings — append unique types, refresh stale.
+      for (const [roomId, list] of Object.entries(k.enemiesPerRoom ?? {})) {
+        const dest = pool.enemiesPerRoom[roomId] ??= []
+        for (const e of list) {
+          const ex = dest.find(x => x.minionType === e.minionType)
+          if (!ex) dest.push({ ...e })
+          else if (!e.stale && ex.stale) { ex.stale = false; ex.confirmed = true }
+        }
+      }
+      // Loot — same merge rule.
+      for (const [id, e] of Object.entries(k.loot ?? {})) {
+        const ex = pool.loot[id]
+        if (!ex || (!e.stale && ex.stale)) pool.loot[id] = { ...e }
+      }
+    }
+    return pool
+  }
+
   computeKnowledgeStats() {
-    const pool     = this._gs.knowledge?.sharedPool ?? {}
+    const pool     = this._livePool()
     const allRooms = this._gs.dungeon.rooms ?? []
     let confirmed = 0, stale = 0, confirmedTraps = 0, staleTraps = 0
     let confirmedLoot = 0, confirmedEnemyRooms = 0
@@ -352,13 +413,13 @@ export class KnowledgeSystem {
 
   // 'confirmed' | 'stale' | 'unknown'
   getRoomKnowledgeState(roomId) {
-    const e = this._gs.knowledge?.sharedPool?.rooms?.[roomId]
+    const e = this._livePool().rooms?.[roomId]
     if (!e) return 'unknown'
     return e.stale ? 'stale' : 'confirmed'
   }
 
   getRoomKnowledgeDetails(roomId) {
-    const pool = this._gs.knowledge?.sharedPool ?? {}
+    const pool = this._livePool()
     const room = this._gs.dungeon.rooms.find(r => r.instanceId === roomId)
     const traps = room
       ? Object.values(pool.traps ?? {}).filter(t =>
@@ -377,7 +438,7 @@ export class KnowledgeSystem {
 
   computeKnowledgeMap() {
     const heat = {}
-    const pool = this._gs.knowledge?.sharedPool ?? {}
+    const pool = this._livePool()
     for (const [roomId, e] of Object.entries(pool.rooms ?? {})) {
       heat[roomId] = e.stale ? 0.5 : 1.0
     }

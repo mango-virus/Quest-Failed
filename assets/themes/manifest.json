@@ -1,0 +1,104 @@
+{
+  "sprites": {
+    "corner": {
+      "file": "assets/themes/sprites/corner.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "pillar1_l": {
+      "file": "assets/themes/sprites/pillar1_l.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "pillar2_l": {
+      "file": "assets/themes/sprites/pillar2_l.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "pillar3_r": {
+      "file": "assets/themes/sprites/pillar3_r.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "pillar4_r": {
+      "file": "assets/themes/sprites/pillar4_r.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "wall_l": {
+      "file": "assets/themes/sprites/wall_l.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "wall_r": {
+      "file": "assets/themes/sprites/wall_r.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "door_open_r": {
+      "file": "assets/themes/sprites/door_open_r.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "door_open_l": {
+      "file": "assets/themes/sprites/door_open_l.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "door_closed_l": {
+      "file": "assets/themes/sprites/door_closed_l.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "door_closed_r": {
+      "file": "assets/themes/sprites/door_closed_r.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "door_locked_r": {
+      "file": "assets/themes/sprites/door_locked_r.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "door_locked_l": {
+      "file": "assets/themes/sprites/door_locked_l.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "wall_c": {
+      "file": "assets/themes/sprites/wall_c.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    }
+  },
+  "themes": {},
+  "active": null
+}

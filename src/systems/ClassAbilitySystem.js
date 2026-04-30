@@ -18,10 +18,12 @@
 // Cooldowns + per-day budgets live on adv.cooldowns / adv.usesLeftToday
 // per the AbilitySystem contract.
 
-import { EventBus }       from './EventBus.js'
-import { AbilitySystem }  from './AbilitySystem.js'
-import { AbilityVfx }     from '../ui/AbilityVfx.js'
-import { Balance }        from '../config/balance.js'
+import { EventBus }         from './EventBus.js'
+import { AbilitySystem }    from './AbilitySystem.js'
+import { AbilityVfx }       from '../ui/AbilityVfx.js'
+import { Balance }          from '../config/balance.js'
+import { PathfinderSystem } from './PathfinderSystem.js'
+import { TILE }             from './DungeonGrid.js'
 
 // Ability defs. Cooldown buckets are: small 5–8s, medium 12–18s, large 30–60s.
 export const ABILITY_DEFS = {
@@ -112,6 +114,13 @@ export class ClassAbilitySystem {
     adv.cooldowns = {}
     adv.usesLeftToday = {}
     AbilitySystem.resetForNewDay(adv, Object.values(ABILITY_DEFS))
+    // Necromancer can't cast Summon Undead for 3 s after entering the
+    // dungeon — gives the player a brief window to react before the
+    // necro pops a meat-shield wall the moment they appear.
+    if (adv.classId === 'necromancer') {
+      const now = this._scene?.time?.now ?? 0
+      adv._summonGateUntil = now + 3000
+    }
   }
 
   _onAdventurerRemoved(payload) {
@@ -626,6 +635,13 @@ export class ClassAbilitySystem {
       falling._lastHitType   = null
       // Clear damage-window flags that might still gate behavior.
       falling._stuckInEntryMs = 0
+      // Drop any BossSystem fight state — if they died in the boss room,
+      // BossSystem flagged fs.action='dying' before this revive ran.
+      // Without clearing it, the next BossSystem tick keeps them frozen
+      // in the dying pose (no motion + _killAdv re-fire after actionDur).
+      // Deleting the entry lets _syncFightParty re-conscript them with a
+      // fresh `approach` action when they next land on an interior tile.
+      this._scene.bossSystem?._fightStates?.delete(falling.instanceId)
       // Pick a fresh goal so they walk again instead of sitting on the old
       // (probably-dead-target) goal.
       this._scene.aiSystem?.pickInitialGoal?.(falling)
@@ -678,8 +694,12 @@ export class ClassAbilitySystem {
     // amount AND a hostile minion is close (replenish mid-combat).
     const summonDef    = ABILITY_DEFS.necro_summon
     const summonTarget = summonDef.summonCount ?? 2
-    const shouldSummon = undeadCount === 0
-                      || (undeadCount < summonTarget && this._hostileMinionWithin(adv, 5))
+    // 3 s entry delay before the first Summon Undead can fire — see
+    // _resetAbilitiesOnEntry where _summonGateUntil is stamped.
+    const gated = adv._summonGateUntil != null && now < adv._summonGateUntil
+    const shouldSummon = !gated && (
+                         undeadCount === 0
+                      || (undeadCount < summonTarget && this._hostileMinionWithin(adv, 5)))
     if (shouldSummon) {
       const ready = AbilitySystem.canUse(adv, summonDef, now)
       if (ready.ready) {
@@ -716,19 +736,28 @@ export class ClassAbilitySystem {
     const undeadTypes = types.filter((t) => /^(skeleton|zombie)/.test(t.id))
     if (undeadTypes.length === 0) return 0
     let summoned = 0
-    const room = this._scene.dungeonGrid?.getRoomAtTile(necro.tileX, necro.tileY)
+    const grid = this._scene.dungeonGrid
+    const room = grid?.getRoomAtTile(necro.tileX, necro.tileY)
     const today = this._gameState.meta?.dayNumber ?? 1
+    // Pre-compute walkable adjacent tiles so summons spawn ON the floor
+    // (not inside a wall or void).  Without this, a necro near a wall
+    // would drop summons that immediately get stuck because A* can't
+    // path from a non-walkable tile.  Falls back to the necro's tile
+    // (always walkable since they're standing on it) when no neighbour
+    // is free.
+    const candidates = this._walkableAdjacentTiles(necro.tileX, necro.tileY, grid)
     for (let i = 0; i < count; i++) {
       const type = undeadTypes[Math.floor(Math.random() * undeadTypes.length)]
-      // Drop the summon at an adjacent free-ish tile.
-      const tx = necro.tileX + (i % 2 === 0 ? 1 : -1)
-      const ty = necro.tileY + (i < 2 ? 0 : 1)
-      const minion = this._createSummonedUndead(type, tx, ty, room?.instanceId, necro)
+      const slot = candidates[i % Math.max(1, candidates.length)]
+        ?? { x: necro.tileX, y: necro.tileY }
+      const minion = this._createSummonedUndead(type, slot.x, slot.y, room?.instanceId, necro)
       if (!minion) continue
       // Full HP, 70% ATK — tanky-ish summons that survive a few hits.
       // (User feedback: half-HP undead were dying too fast.)
       minion.resources.hp    = minion.resources.maxHp
       minion.stats.attack    = Math.max(1, Math.floor(minion.stats.attack * 0.7))
+      // Match the necro's speed so summons keep up while following.
+      minion.stats.speed     = necro.stats?.speed ?? minion.stats.speed
       minion.faction = 'adventurer'
       minion.factionExpiresOn = today + 1   // despawn at next day-end
       minion.raisedByAdvId = necro.instanceId
@@ -762,6 +791,31 @@ export class ClassAbilitySystem {
       level: 1, xp: 0,
       aiState: 'idle', currentTargetId: null, deathDay: null, killHistory: [],
     }
+  }
+
+  // Return up to 8 walkable tiles adjacent (including diagonals) to
+  // (cx, cy), ordered cardinals-first then diagonals so the closest
+  // orthogonal floor wins.  Used to land Necromancer summons on real
+  // floor tiles instead of inside walls.
+  _walkableAdjacentTiles(cx, cy, grid) {
+    if (!grid) return []
+    const offsets = [
+      [ 1,  0], [-1,  0], [ 0,  1], [ 0, -1],
+      [ 1,  1], [ 1, -1], [-1,  1], [-1, -1],
+    ]
+    const out = []
+    for (const [dx, dy] of offsets) {
+      const tx = cx + dx, ty = cy + dy
+      const t = grid.getTileType?.(tx, ty)
+      if (t == null) continue
+      if (!PathfinderSystem.isWalkable(t)) continue
+      // Skip doorway tiles entirely so summons don't park inside the
+      // single-file lane (they'd block other entities and look like
+      // they spawned in the wall).
+      if (t === TILE.DOOR) continue
+      out.push({ x: tx, y: ty })
+    }
+    return out
   }
 
   _countOwnUndead(necro) {

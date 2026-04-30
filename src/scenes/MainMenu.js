@@ -14,7 +14,9 @@
 // Phaser Graphics primitives, no shared UIKit helpers. Custom cursor (a
 // claw tip) tracks the pointer.
 
-import { SaveSystem } from '../systems/SaveSystem.js'
+import { SaveSystem }   from '../systems/SaveSystem.js'
+import { TitleMusic }   from '../systems/TitleMusic.js'
+import { AudioControls } from '../ui/AudioControls.js'
 
 const COLORS = {
   voidDeep:   0x040206,
@@ -56,7 +58,9 @@ const RUNES = [
   { id: 'corner',    label: 'CORNER EDITOR',     x: 300,  y: 470, size: 0.9 },
   { id: 'graveyard', label: 'THE GRAVEYARD',     x: 980,  y: 470, size: 0.9 },
   // Mid row — supporting actions
+  { id: 'roomedit',  label: 'ROOM EDITOR',       x: 170,  y: 530, size: 1.0 },
   { id: 'continue',  label: 'RESUME',            x: 460,  y: 530, size: 1.0 },
+  { id: 'tileset',   label: 'TILESET EDITOR',    x: 820,  y: 530, size: 1.0 },
   // Front centre — primary action, biggest, closest to camera
   { id: 'descent',   label: 'BEGIN DESCENT',     x: 640,  y: 600, size: 1.2 },
 ]
@@ -74,6 +78,14 @@ export class MainMenu extends Phaser.Scene {
   }
 
   create() {
+    // Title-screen music — every entry to MainMenu restarts the song
+    // from the beginning (per design).  The forward flow MainMenu →
+    // ArchetypeSelect → Game still carries the music seamlessly
+    // (those scenes use ensurePlaying / duckForGameplay), but any
+    // path that lands BACK on MainMenu (back button from the boss
+    // picker, or from an editor) hard-restarts the loop.
+    TitleMusic.restart(this)
+
     this._setupCamera()
     // Defensive re-apply: Phaser sometimes settles canvas size a tick after
     // create() (font load, scrollbar appearance, post-load layout shifts).
@@ -551,6 +563,27 @@ export class MainMenu extends Phaser.Scene {
         g.strokePath()
         g.strokeRect(cx - r * 0.4, cy - r * 0.4, r * 0.8, r * 0.8)
         break
+      case 'roomedit':
+        // Room outline with one filled cell inside — a "painted tile within
+        // a room" suggestion.
+        g.strokeRect(cx - r * 0.7, cy - r * 0.55, r * 1.4, r * 1.1)
+        g.fillStyle(COLORS.fire, 0.35)
+        g.fillRect(cx - r * 0.18, cy - r * 0.18, r * 0.36, r * 0.36)
+        g.strokeRect(cx - r * 0.18, cy - r * 0.18, r * 0.36, r * 0.36)
+        break
+      case 'tileset':
+        // 3×3 tile-grid glyph — small squares laid out in a grid suggest
+        // sprite tiles being placed.
+        {
+          const cell = r * 0.42
+          const off  = cell + 2
+          for (let row = -1; row <= 1; row++) {
+            for (let col = -1; col <= 1; col++) {
+              g.strokeRect(cx + col * off - cell / 2, cy + row * off - cell / 2, cell, cell)
+            }
+          }
+        }
+        break
       case 'graveyard':
         g.beginPath()
         g.arc(cx, cy, r * 0.7, Math.PI, 0)
@@ -583,8 +616,10 @@ export class MainMenu extends Phaser.Scene {
 
   _fireRune(id) {
     if      (id === 'descent')   this._beginDescent()
-    else if (id === 'continue')  this._continueRun()
-    else if (id === 'corner')    this.scene.start('CornerEditor')
+    else if (id === 'continue')  this._continueRun()    // music carries into Game (ducked there)
+    else if (id === 'corner')    { TitleMusic.stop(); this.scene.start('CornerEditor') }
+    else if (id === 'tileset')   { TitleMusic.stop(); this.scene.start('TilesetEditor') }
+    else if (id === 'roomedit')  { TitleMusic.stop(); this.scene.start('RoomTileEditor') }
   }
 
   // ─── Atmosphere ───────────────────────────────────────────────────────
@@ -796,6 +831,11 @@ export class MainMenu extends Phaser.Scene {
       fontSize: '11px', color: COLORS.textDim, fontFamily: 'serif',
     }).setOrigin(1, 1)
     this._cChrome.add(v)
+
+    // Audio controls — bottom-LEFT, away from the version label so the
+    // two pieces of corner chrome don't fight for the same anchor.
+    // Width 130, height 24 (see AudioControls).  16 px from each edge.
+    new AudioControls(this, 16, H - 16 - 24, { depth: 30 })
   }
 
   // ─── Menu actions ─────────────────────────────────────────────────────

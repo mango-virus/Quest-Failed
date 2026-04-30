@@ -4,15 +4,15 @@ import { DungeonGrid } from '../systems/DungeonGrid.js'
 // Boss chamber definition (must match src/data/rooms.json)
 const BOSS_CHAMBER_DEF = {
   id: 'boss_chamber',
-  width: 12,
-  height: 12,
-  connectionPoints: [{ x: 5, y: 0, direction: 'N' }],
+  width: 14,
+  height: 14,
+  connectionPoints: [{ x: 6, y: 0, direction: 'N' }],
   upkeepCost: 0,
   placementRules: { fixed: false, maxPerDungeon: 1 }, // fixed:false so _writeTiles runs
   tags: ['boss', 'special', 'fixed'],
 }
 
-export function createGameState(bossArchetypeId = 'the_lich') {
+export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
   const gw = Balance.STARTING_GRID_WIDTH
   const gh = Balance.STARTING_GRID_HEIGHT
 
@@ -27,11 +27,25 @@ export function createGameState(bossArchetypeId = 'the_lich') {
     expansions: [],
   }
 
-  // Pre-place boss chamber at grid center
+  // Pre-place boss chamber at grid center. Pull `theme` + `tileLayout` from
+  // the rooms.json cache (if the caller passed it) so per-cell paints made
+  // in the Room Editor land on the boss chamber too. Other fields stay
+  // pinned to BOSS_CHAMBER_DEF — we don't want a stale/empty
+  // connectionPoints from rooms.json overriding the bootstrap value.
   const grid = new DungeonGrid(dungeon)
-  const bx = Math.floor((gw - BOSS_CHAMBER_DEF.width) / 2)
-  const by = Math.floor((gh - BOSS_CHAMBER_DEF.height) / 2)
-  const bossRoom = grid.placeRoom(BOSS_CHAMBER_DEF, bx, by,
+  const cacheBoss = Array.isArray(roomDefs)
+    ? roomDefs.find(r => r.id === 'boss_chamber')
+    : null
+  const def = { ...BOSS_CHAMBER_DEF }
+  if (cacheBoss) {
+    if (typeof cacheBoss.theme === 'string') def.theme = cacheBoss.theme
+    if (Array.isArray(cacheBoss.tileLayout) && cacheBoss.tileLayout.length) {
+      def.tileLayout = cacheBoss.tileLayout
+    }
+  }
+  const bx = Math.floor((gw - def.width) / 2)
+  const by = Math.floor((gh - def.height) / 2)
+  const bossRoom = grid.placeRoom(def, bx, by,
     { noSnap: true, allowFixed: true, allowDisconnected: true })
   if (bossRoom) {
     bossRoom.definitionId = 'boss_chamber' // ensure correct id

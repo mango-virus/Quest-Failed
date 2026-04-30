@@ -18,13 +18,20 @@ export class PathfinderSystem {
    * (e.g. KnowledgeSystem.costMultiplierForTile so adventurers route around
    * traps they know about).
    *
+   * `jitter` (>0) adds a stable per-tile random multiplier in [1, 1+jitter] so
+   * paths between equivalent routes vary across calls — adventurers stop
+   * marching down the same straight line every time. Values are cached per
+   * tile within a single call so the resulting path is internally consistent.
+   * Pass 0 (default) for deterministic shortest-path behavior.
+   *
    * @param {{x:number,y:number}} start
    * @param {{x:number,y:number}} end
    * @param {DungeonGrid} dungeonGrid
    * @param {(tx:number, ty:number) => number} [costFn] returns multiplier (default 1)
+   * @param {number} [jitter=0] random per-tile cost noise amplitude
    * @returns {Array<{x:number,y:number}> | null}
    */
-  static findPath(start, end, dungeonGrid, costFn = null) {
+  static findPath(start, end, dungeonGrid, costFn = null, jitter = 0) {
     if (start.x === end.x && start.y === end.y) return []
 
     const tiles = dungeonGrid.getTiles()
@@ -40,6 +47,7 @@ export class PathfinderSystem {
     const fScore = { [sKey]: _h(start, end) }
     const cameFrom = {}
     const open = new Set([sKey])
+    const jitterCache = jitter > 0 ? new Map() : null
 
     while (open.size > 0) {
       let currKey = null
@@ -60,8 +68,22 @@ export class PathfinderSystem {
         if (!this._inBounds(nx, ny, gw, gh)) continue
         const nKey = _k(nx, ny)
         if (nKey !== eKey && !WALKABLE.has(tiles[ny][nx])) continue
+        // Doorway lane gate — keep all doorway crossings on the
+        // canonical column/row so entities visibly walk straight
+        // through the centre instead of diagonal-skimming the 2-tile
+        // opening.  Allowed for the goal tile (so something parked on
+        // the secondary column is still reachable).
+        if (nKey !== eKey && dungeonGrid.isDoorBlocked?.(nx, ny)) continue
 
-        const tileCost = costFn ? Math.max(1, costFn(nx, ny)) : 1
+        let tileCost = costFn ? Math.max(1, costFn(nx, ny)) : 1
+        if (jitterCache) {
+          let mul = jitterCache.get(nKey)
+          if (mul === undefined) {
+            mul = 1 + Math.random() * jitter
+            jitterCache.set(nKey, mul)
+          }
+          tileCost *= mul
+        }
         const tentativeG = (gScore[currKey] ?? Infinity) + tileCost
         if (tentativeG < (gScore[nKey] ?? Infinity)) {
           cameFrom[nKey] = currKey

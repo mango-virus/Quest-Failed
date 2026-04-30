@@ -206,9 +206,7 @@
       "riskTolerance": 0.4,
       "healPriority": 0.7
     },
-    "decisionOverrides": [
-      { "trigger": "ally_low_hp", "action": "share_potion", "priority": 90 }
-    ],
+    "decisionOverrides": [],
     "reactions": [],
     "unlockLevel": 1,
     "rarity": "common",

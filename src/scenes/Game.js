@@ -8,6 +8,7 @@ import { MinionAISystem }     from '../systems/MinionAISystem.js'
 import { TrapSystem }         from '../systems/TrapSystem.js'
 import { LootSystem }         from '../systems/LootSystem.js'
 import { EvolutionSystem }    from '../systems/EvolutionSystem.js'
+import { MinionEvolutionSystem } from '../systems/MinionEvolutionSystem.js'
 import { ClassAbilitySystem } from '../systems/ClassAbilitySystem.js'
 import { KnowledgeSystem }    from '../systems/KnowledgeSystem.js'
 import { DungeonMechanicSystem } from '../systems/DungeonMechanicSystem.js'
@@ -32,6 +33,7 @@ import { EternalNightOverlay } from '../ui/EternalNightOverlay.js'
 import { ParanoiaIndicator }   from '../ui/ParanoiaIndicator.js'
 import { BossFightOverlay }    from '../ui/BossFightOverlay.js'
 import { BossRenderer }       from '../ui/BossRenderer.js'
+import { TitleMusic }         from '../systems/TitleMusic.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -70,6 +72,12 @@ export class Game extends Phaser.Scene {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   create() {
+    // Title-screen music carries through into the dungeon at a quieter
+    // background level — only ducks if it was actually playing (e.g.
+    // resuming a save without ever passing through MainMenu means there
+    // was no music to duck and this is a no-op).
+    TitleMusic.duckForGameplay(this)
+
     this.dungeonGrid         = new DungeonGrid(this.gameState.dungeon)
 
     // Re-apply current room definitions to every placed room so tile grids are
@@ -96,6 +104,7 @@ export class Game extends Phaser.Scene {
     this.lootSystem.loadDefinitions()
     this.evolutionSystem     = new EvolutionSystem(this, this.gameState)
     this.evolutionSystem.loadDefinitions()
+    this.minionEvolutionSystem = new MinionEvolutionSystem(this, this.gameState)
     this.dungeonMechanicSystem = new DungeonMechanicSystem(this, this.gameState)
     this.dungeonMechanicSystem.loadDefinitions()
     this.newspaperSystem     = new NewspaperSystem(this, this.gameState)
@@ -133,6 +142,8 @@ export class Game extends Phaser.Scene {
     EventBus.on('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     // Re-clamp zoom whenever the dungeon grid expands so min zoom tracks map size
     EventBus.on('GRID_EXPANDED',        this._onGridExpanded,  this)
+    // Dungeon levels up → expand the grid (+5 tiles each axis, capped 100×100).
+    EventBus.on('DUNGEON_LEVELED_UP',   this._onDungeonLeveledUp, this)
     // Room Builder saved a room def — rewrite tile grids for all placed
     // instances so structural changes appear immediately without remove + re-place.
     EventBus.on('ROOM_DEF_SAVED',       this._onRoomDefSaved,   this)
@@ -144,6 +155,10 @@ export class Game extends Phaser.Scene {
     EventBus.on('ADVENTURER_FLED',      this._onAdvRemoved,   this)
     EventBus.on('ADVENTURERS_SPAWNED',  this._onAdvsSpawned,  this)
     EventBus.on('DAY_PHASE_ENDED',      this._onDayEnded,     this)
+    // Day-cycle hooks for the entrance door — animate-open at day start,
+    // hard-close at day end so it re-animates next day.
+    EventBus.on('DAY_PHASE_STARTED',    this._onDayStartedDoors, this)
+    EventBus.on('DAY_PHASE_ENDED',      this._onDayEndedDoors,   this)
 
     this._setupCamera()
     this._setupInput()
@@ -163,6 +178,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
     EventBus.off('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     EventBus.off('GRID_EXPANDED',        this._onGridExpanded,  this)
+    EventBus.off('DUNGEON_LEVELED_UP',   this._onDungeonLeveledUp, this)
     EventBus.off('ROOM_DEF_SAVED',       this._onRoomDefSaved,  this)
     EventBus.off('ROOMS_ALL_RESET',      this._onRoomsAllReset, this)
     EventBus.off('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
@@ -170,6 +186,8 @@ export class Game extends Phaser.Scene {
     EventBus.off('ADVENTURER_FLED',      this._onAdvRemoved,   this)
     EventBus.off('ADVENTURERS_SPAWNED',  this._onAdvsSpawned,  this)
     EventBus.off('DAY_PHASE_ENDED',      this._onDayEnded,     this)
+    EventBus.off('DAY_PHASE_STARTED',    this._onDayStartedDoors, this)
+    EventBus.off('DAY_PHASE_ENDED',      this._onDayEndedDoors,   this)
     this.scene.stop('HudScene')
     this._dungeonRenderer?.destroy()
     this.adventurerRenderer?.destroy()
@@ -252,6 +270,9 @@ export class Game extends Phaser.Scene {
   }
 
   _onNightStart() {
+    // Apply evolution resets BEFORE respawn so the starter def's stats are
+    // in place when respawnAll full-heals dead minions to maxHp.
+    this.minionEvolutionSystem?.applyResets()
     this.minionAiSystem?.respawnAll()
     this.trapSystem?.resetAll()
   }
@@ -282,6 +303,41 @@ export class Game extends Phaser.Scene {
   _onDayEnded() {
     // Clear follow state silently — DayPhase UI is already tearing down.
     this._followId = null
+    // The intel/knowledge heat map button lives on DayPhase, which is
+    // shutting down. The overlay graphics live on this (Game) scene and
+    // would otherwise stay visible into the night. Force-off here so the
+    // map clears and the next day starts with the toggle off.
+    this.knowledgeOverlay?.setEnabled(false)
+  }
+
+  // Day-start: animate-open every external cp (currently just entry_hall's
+  // north entrance) so the dungeon's doorway swings open as adventurers
+  // arrive. cps that aren't external are left in whatever state they're in
+  // (closed for the first run, retained-open after first traversal).
+  _onDayStartedDoors() {
+    const r = this._dungeonRenderer
+    if (!r) return
+    for (const room of this.gameState.dungeon.rooms ?? []) {
+      for (const cp of room.connectionPoints ?? []) {
+        if (cp.external) r.openDoor(cp)
+      }
+    }
+  }
+
+  // Day-end: hard-close every cp (no animation) so the next day starts
+  // with a fresh dungeon.  External doors re-animate open at day-start
+  // (see _onDayStartedDoors), and internal doors swing open again the
+  // first time an adventurer steps onto them — same as the very first
+  // day.  Without this reset, internal doors stayed open forever after
+  // first traversal.
+  _onDayEndedDoors() {
+    const r = this._dungeonRenderer
+    if (!r) return
+    for (const room of this.gameState.dungeon.rooms ?? []) {
+      for (const cp of room.connectionPoints ?? []) {
+        r.closeDoor(cp)
+      }
+    }
   }
 
   _setFollow(id) {
@@ -321,6 +377,20 @@ export class Game extends Phaser.Scene {
     // out further). If the camera happens to be below the new minimum, clamp up.
     const minZoom = this._computeMinZoom()
     if (this._cam.zoom < minZoom) this._cam.setZoom(minZoom)
+  }
+
+  _onDungeonLeveledUp() {
+    // Each dungeon level adds 5 tiles in each axis, capped at 100×100. Existing
+    // rooms stay where they are — expandGrid only grows the map to the right
+    // and bottom, filling new tiles with VOID for future room placement.
+    const cap = 100
+    const grow = 5
+    const oldW = this.gameState.dungeon.gridWidth
+    const oldH = this.gameState.dungeon.gridHeight
+    const newW = Math.min(cap, oldW + grow)
+    const newH = Math.min(cap, oldH + grow)
+    if (newW === oldW && newH === oldH) return
+    this.dungeonGrid.expandGrid(newW, newH)
   }
 
   _setupCamera() {
@@ -436,6 +506,11 @@ export class Game extends Phaser.Scene {
         this._setFollow(null)
       }
     }
+
+    // Door open/close animations always tick at real time — the visual
+    // shouldn't depend on time scale (and the entry-hall door auto-opens at
+    // night→day transition where time scale isn't yet applied).
+    this._dungeonRenderer?.update(delta)
 
     // Boss wander always runs at real time (cosmetic, independent of sim speed)
     this.bossSystem?.update(delta)

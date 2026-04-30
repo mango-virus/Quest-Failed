@@ -11,6 +11,8 @@ import { Graveyard }       from './scenes/Graveyard.js'
 import { HudScene }        from './scenes/HudScene.js'
 import { KnowledgeScreen } from './scenes/KnowledgeScreen.js'
 import { CornerEditor }    from './scenes/CornerEditor.js'
+import { TilesetEditor }   from './scenes/TilesetEditor.js'
+import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
 
 // Future scenes registered here as they are built in later phases:
 // import { BossFight }     from './scenes/BossFight.js'
@@ -40,6 +42,8 @@ const config = {
     Graveyard,
     KnowledgeScreen,
     CornerEditor,
+    TilesetEditor,
+    RoomTileEditor,
   ],
   scale: {
     mode: Phaser.Scale.RESIZE,
@@ -74,7 +78,7 @@ window.__game = new Phaser.Game(config)
 // slightly off until the user navigates away and back, which is the right
 // trade for not losing paint strokes. Game scene is also skipped (it owns
 // runtime state); Phaser's own RESIZE handling already resized its camera.
-const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'CornerEditor'])
+const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'CornerEditor', 'TilesetEditor', 'RoomTileEditor'])
 let _resizeTimer = null
 window.__game.scale.on('resize', () => {
   clearTimeout(_resizeTimer)

@@ -41,6 +41,15 @@ export class BossSystem {
     this._bossRoom     = null
     this._wanderTarget = null
     this._wanderAccum  = 1500   // start wandering after ~1.5 s
+    // Death-pose timestamp.  When > scene.time.now the boss skips its
+    // wander tick and stays planted on its last position so the death
+    // animation freezes on its last frame.  Set on _endFight('party')
+    // when boss.hp dropped to 0.  Lasts 4 s for a non-final life loss
+    // (so the player visibly sees the boss collapse before the next
+    // run starts), and Infinity for the final death.  Cleared on
+    // BOSS_FIGHT_INCOMING (next adv party arrives) and on
+    // NIGHT_PHASE_STARTED (day flip resets everything).
+    this._deathPoseUntil = 0
 
     this._init()
     this._wire()
@@ -136,6 +145,11 @@ export class BossSystem {
       this._tickFightAnim(delta)
       return
     }
+    // Death-pose freeze — boss collapsed at the end of the last fight
+    // and is lingering on the last frame of its death animation.
+    // Skip wander, advance the on-screen sprite stays planted.
+    const now = this._scene.time?.now ?? 0
+    if (this._deathPoseUntil > now) return
 
     const TS       = Balance.TILE_SIZE
     const SPEED    = 1.2    // tiles / second
@@ -235,21 +249,33 @@ export class BossSystem {
   // list each tick, so late arrivals slot into the dance and dead/fled
   // combatants are pruned without leaving stale entries behind.
   _syncFightParty() {
-    // 1) Conscript anyone in/adjacent to the boss chamber who isn't already
-    //    AT_BOSS.  AISystem only flips the one adventurer that crossed the
-    //    threshold; without this conscription, party-mates already standing
-    //    inside the room (or right next to it) just watch.
+    // 1) Conscript anyone on an INTERIOR FLOOR tile of the boss chamber
+    //    who isn't already AT_BOSS.  Critically — exclude tiles that
+    //    sit inside the wall thickness (the doorway block).  When a
+    //    party member is still on a doorway tile they're at the room
+    //    edge, but BossSystem's room-interior clamp (clampX/clampY)
+    //    only allows positions past the wall thickness, so as soon as
+    //    BossSystem starts ticking them their worldX/Y gets snapped
+    //    several tiles into the room — a visible "teleport to the
+    //    boss".  Waiting for them to walk fully through the doorway
+    //    onto a real interior tile lets AISystem path them through
+    //    the lane naturally; BossSystem's fast `dash` action then
+    //    carries them smoothly from interior-edge to their orbit slot.
     //
     //    Critically — never re-conscript an adventurer who's already
-    //    fleeing.  Without that guard, the moment _beginFlee sets goal to
-    //    FLEE, this pass would yank them straight back into AT_BOSS on
-    //    the same frame because they're still standing in the room.
+    //    fleeing.  Without that guard, the moment _beginFlee sets goal
+    //    to FLEE, this pass would yank them straight back into AT_BOSS
+    //    on the same frame because they're still standing in the room.
     const room = this._bossRoom
     if (room) {
+      const WT = Balance.WALL_THICKNESS
       for (const a of this._gameState.adventurers.active) {
         if (a.aiState === 'dead' || a.aiState === 'fled' || a.aiState === 'fleeing') continue
         if (a.goal?.type === 'AT_BOSS' || a.goal?.type === 'FLEE') continue
-        if (!_inOrAdjacentToRoom(a, room)) continue
+        const inInterior =
+          a.tileX >= room.gridX + WT && a.tileX < room.gridX + room.width  - WT &&
+          a.tileY >= room.gridY + WT && a.tileY < room.gridY + room.height - WT
+        if (!inInterior) continue
         a.goal    = { type: 'AT_BOSS' }
         a.path    = null
         a.aiState = 'fighting'
@@ -262,15 +288,23 @@ export class BossSystem {
     //          chamber — we want the boss to keep hitting them with round
     //          damage / slam AOE while they're in reach.  Once they
     //          actually leave the room they get pruned and are safe.
+    //
+    //    Important — a non-fleeing, non-AT_BOSS adventurer who's only
+    //    in the room because they're still pathing through the doorway
+    //    must NOT get a fight state here.  If they did, BossSystem
+    //    would start ticking them (dash action + interior clamp) and
+    //    snap them past the wall thickness — the same teleport fix as
+    //    block 1 above.
     const classes   = this._scene.cache.json.get('adventurerClasses') ?? []
     const activeIds = new Set()
     for (const a of this._gameState.adventurers.active) {
       if (a.aiState === 'dead' || a.aiState === 'fled') continue
       const isAtBoss = a.goal?.type === 'AT_BOSS'
-      const isInRoom = !!room &&
+      const isFleeingInRoom = !!room &&
+        a.aiState === 'fleeing' &&
         a.tileX >= room.gridX && a.tileX < room.gridX + room.width &&
         a.tileY >= room.gridY && a.tileY < room.gridY + room.height
-      if (!isAtBoss && !isInRoom) continue
+      if (!isAtBoss && !isFleeingInRoom) continue
       activeIds.add(a.instanceId)
       if (this._fightStates.has(a.instanceId)) continue
       // New combatant — homeAngle spread relative to existing population.
@@ -281,9 +315,14 @@ export class BossSystem {
       const isRanged = !!classDef?.tags?.includes('ranged')
       this._fightStates.set(a.instanceId, {
         adv:        a,
-        action:     isRanged ? 'reposition' : 'dash',
+        // Initial action — `approach` walks the new combatant from the
+        // boss-room doorway to their orbit slot at the adventurer's
+        // OWN walk speed, so they visibly run across the room instead
+        // of insta-warping via a dash/reposition lerp.  Once they
+        // arrive, _pickAdvAction transitions to the regular dance.
+        action:     'approach',
         actionT:    0,
-        actionDur:  0.3 + Math.random() * 0.2,
+        actionDur:  4.0,    // long enough for any room; terminates on arrival
         homeAngle:  phase,
         vx: 0, vy: 0,
         strikeEmitted: false,
@@ -590,6 +629,23 @@ export class BossSystem {
       adv.worldY += (dy / d) * step
     }
     switch (fs.action) {
+      case 'approach': {
+        // Initial walk from the boss-room doorway to the orbit slot.
+        // Uses the adventurer's own movement speed (typically 1.4–2.4
+        // tiles/sec from adventurerClasses.json) so they visibly run
+        // to the boss instead of dash-warping in.  Terminates early
+        // (forces _pickAdvAction next tick) once within ~0.1 tile of
+        // the orbit slot — at which point the regular combat dance
+        // (dash/strike/reposition/cast) takes over.
+        const RANGE = fs.isRanged ? RANGE_RANGED : 1.05 * TS
+        const tx = boss.worldX + Math.cos(fs.homeAngle) * RANGE
+        const ty = boss.worldY + Math.sin(fs.homeAngle) * RANGE
+        const walk = (adv.stats?.speed ?? 1.5) * TS
+        stepToward(tx, ty, walk)
+        const d = Math.hypot(tx - adv.worldX, ty - adv.worldY)
+        if (d < 0.1 * TS) fs.actionT = fs.actionDur
+        break
+      }
       case 'dash': {
         const RANGE = 1.05 * TS
         stepToward(
@@ -960,9 +1016,18 @@ export class BossSystem {
 
   _wire() {
     const onIncoming = (payload) => this._onIncoming(payload)
+    // Clear death-pose freeze whenever the world resets around the
+    // boss — next adv party arriving (BOSS_FIGHT_INCOMING) replaces
+    // the dead-pose with the prefight banner; night phase resets
+    // run-state for the next day's party.
+    const onClearPose = () => { this._deathPoseUntil = 0 }
     EventBus.on('BOSS_FIGHT_INCOMING', onIncoming)
+    EventBus.on('BOSS_FIGHT_INCOMING', onClearPose)
+    EventBus.on('NIGHT_PHASE_STARTED', onClearPose)
     this._listeners = [
       ['BOSS_FIGHT_INCOMING', onIncoming],
+      ['BOSS_FIGHT_INCOMING', onClearPose],
+      ['NIGHT_PHASE_STARTED', onClearPose],
     ]
   }
 
@@ -1275,6 +1340,18 @@ export class BossSystem {
 
     if (winner === 'party' && boss) {
       boss.deathsRemaining = Math.max(0, boss.deathsRemaining - 1)
+    }
+
+    // Death-pose freeze — only when the boss actually died this round
+    // (hp drained to 0; the 24-round stalemate cap can resolve in the
+    // party's favour without killing the boss, and that path should
+    // NOT play death anim or freeze the boss).  Final death lingers
+    // forever; non-final lasts 4 s so the player sees the collapse
+    // before the boss respawns wandering for the next party.
+    if (winner === 'party' && boss && boss.hp <= 0) {
+      const now = this._scene.time?.now ?? 0
+      const isFinal = boss.deathsRemaining <= 0
+      this._deathPoseUntil = isFinal ? Infinity : now + 4000
     }
 
     EventBus.emit('BOSS_FIGHT_RESOLVED', {

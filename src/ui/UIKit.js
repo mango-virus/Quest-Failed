@@ -244,12 +244,30 @@ export function spawnEmbers(scene, count = 24, opts = {}) {
 export function applyUiCamera(scene, designW = 1280, designH = 720) {
   const sw  = scene.scale.width
   const sh  = scene.scale.height
+  // Defensive: if the scale manager hasn't laid out yet (sw/sh of 0 or 1
+  // happens during scene transitions and in throttled tabs), bail out
+  // and let the next-tick re-apply or the resize event finish the job.
+  // Without this guard we'd compute zoom = 1/1280 and the scene renders
+  // into a 1-pixel viewport — invisible but technically still "rendered".
+  if (sw < 32 || sh < 32) {
+    // Set sane fallback ui values so dependent code (DOM positioning etc.)
+    // doesn't get NaN. The next-tick re-apply will overwrite these once
+    // the canvas size settles.
+    scene.uiW  = designW
+    scene.uiH  = designH
+    scene.uiSf = 1
+    return { width: designW, height: designH }
+  }
   const sf  = Math.min(sw / designW, sh / designH)
   // Phaser's camera zoom pivots on the viewport CENTER (origin 0.5, 0.5), so
   // scroll (0,0) at zoom>1 leaves the world origin off-canvas to the left.
   // Compensate by scrolling so world (0,0) lands on canvas (0,0): the visible
   // world then spans 0..(sw/sf) in x, 0..(sh/sf) in y, which is what uiW/uiH
   // describe.
+  // Reset viewport to the full canvas — some scenes (e.g. MainMenu) call
+  // setViewport on their own camera, and although cameras are per-scene,
+  // having this be explicit hedges against any future shared-camera path.
+  scene.cameras.main.setViewport(0, 0, sw, sh)
   scene.cameras.main.setZoom(sf)
   scene.cameras.main.setScroll(
     (sw / 2) * (1 / sf - 1),

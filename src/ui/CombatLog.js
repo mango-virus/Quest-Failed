@@ -38,22 +38,7 @@ export class CombatLog {
       this._addLine(`${adventurer.name} (${adventurer.classId}) enters the dungeon.`, 0xaaccdd)
     })
     on('TRAP_TRIGGERED', ({ trap, def, adventurer, damage }) => {
-      const hpFrac = adventurer.resources.maxHp > 0
-        ? Math.max(0, adventurer.resources.hp / adventurer.resources.maxHp) : 0
-      const tail = damage > 0 ? `→ ${damage} dmg (${this._hpStr(adventurer)})` : ''
-      this._addLine(`${this._shortName(adventurer)} sprung ${def.name}. ${tail}`, 0xddaa44)
-    })
-    on('COMBAT_HIT', ({ sourceId, targetId, damage, isCritical }) => {
-      // Only log adventurer-to-minion hits (minion-to-adv is shown via TRAP/COMBAT_KILL/FLEE flows already)
-      const target = this._gameState.minions.find(m => m.instanceId === targetId)
-      const source = this._gameState.adventurers.active.find(a => a.instanceId === sourceId)
-      if (target && source) {
-        const tag = isCritical ? ' (CRIT)' : ''
-        this._addLine(
-          `${this._shortName(source)} hit ${this._minionName(target)} for ${damage}${tag}.`,
-          0x88ccdd
-        )
-      }
+      this._addLine(`${this._shortName(adventurer)} sprung ${def.name}.`, 0xddaa44)
     })
     on('ADVENTURER_DIED', ({ adventurer, killerName }) => {
       this._addLine(`✕  ${adventurer.name} (${adventurer.classId}) killed by ${killerName}.`, 0xcc4422)

@@ -64,7 +64,7 @@ export class ParanoiaIndicator {
     for (const room of this._gameState.dungeon.rooms ?? []) {
       if (!PARANOID_ROOM_TYPES.has(room.definitionId)) continue
       const cx = (room.gridX + room.width / 2) * TS
-      const cy = (room.gridY + 1) * TS
+      const cy = (room.gridY + Balance.WALL_THICKNESS) * TS
       const t = this._scene.add.text(cx, cy, '⚠ 10%', {
         fontSize: '10px', color: '#ffaa44', fontFamily: 'monospace', fontStyle: 'bold',
         stroke: '#1a0a04', strokeThickness: 2,

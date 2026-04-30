@@ -109,6 +109,9 @@ export class MinionAISystem {
   _tickMinion(minion, delta, idx) {
     if (minion.aiState === 'dead') return
 
+    // Player is dragging this minion to a new tile — suspend AI until drop.
+    if (minion._heldByPlayer) return
+
     if (minion.resources.hp <= 0) {
       this._die(minion, idx)
       return
@@ -503,8 +506,14 @@ export class MinionAISystem {
   // ── Movement ──────────────────────────────────────────────────────────────
 
   _moveToward(minion, targetTile, delta) {
-    const targetWX = targetTile.x * TS + TS / 2
-    const targetWY = targetTile.y * TS + TS / 2
+    // Lane-centred world target — see DungeonGrid.getLaneCenterWorld.
+    // Canonical doorway lane tiles + their floor approach/exit tiles
+    // shift ½-tile so minions and summons walk through the geometric
+    // centre of the 2-wide doorway opening.  Falls back to the regular
+    // tile centre for everything else.
+    const lc = this._dungeonGrid?.getLaneCenterWorld?.(targetTile.x, targetTile.y)
+    const targetWX = lc ? lc.worldX : (targetTile.x * TS + TS / 2)
+    const targetWY = lc ? lc.worldY : (targetTile.y * TS + TS / 2)
     const dx = targetWX - minion.worldX
     const dy = targetWY - minion.worldY
     const dist = Math.hypot(dx, dy)
@@ -514,13 +523,58 @@ export class MinionAISystem {
       minion.worldX = targetWX
       minion.worldY = targetWY
     } else {
-      minion.worldX += (dx / dist) * stepPx
-      minion.worldY += (dy / dist) * stepPx
+      // Doorway-corridor L-shape motion (mirrors AISystem) — see
+      // DungeonGrid.isLaneOrApproach.  Inside the corridor: pure
+      // forward only.  Entering: lateral first.  Exiting: forward
+      // first.  Outside: regular diagonal proportional motion.
+      const advLane = this._dungeonGrid?.isLaneOrApproach?.(minion.tileX, minion.tileY)
+      const wpLane  = this._dungeonGrid?.isLaneOrApproach?.(targetTile.x, targetTile.y)
+      const laneAxis = advLane || wpLane
+      const ALIGN_EPS = 0.5
+      let moved = false
+      if (laneAxis === 'y' || laneAxis === 'x') {
+        const forwardD = laneAxis === 'y' ? dy : dx
+        const lateralD = laneAxis === 'y' ? dx : dy
+        const forwardKey = laneAxis === 'y' ? 'worldY' : 'worldX'
+        const lateralKey = laneAxis === 'y' ? 'worldX' : 'worldY'
+        const inside    = !!advLane && !!wpLane
+        const entering  = !advLane && !!wpLane
+        const exiting   = !!advLane && !wpLane
+        const moveAxis = (key, d) => {
+          minion[key] += Math.sign(d) * Math.min(Math.abs(d), stepPx)
+          moved = true
+        }
+        if (inside) {
+          if (Math.abs(forwardD) > ALIGN_EPS) moveAxis(forwardKey, forwardD)
+        } else if (entering) {
+          if (Math.abs(lateralD) > ALIGN_EPS)      moveAxis(lateralKey, lateralD)
+          else if (Math.abs(forwardD) > ALIGN_EPS) moveAxis(forwardKey, forwardD)
+        } else if (exiting) {
+          if (Math.abs(forwardD) > ALIGN_EPS)      moveAxis(forwardKey, forwardD)
+          else if (Math.abs(lateralD) > ALIGN_EPS) moveAxis(lateralKey, lateralD)
+        }
+      }
+      if (!moved) {
+        minion.worldX += (dx / dist) * stepPx
+        minion.worldY += (dy / dist) * stepPx
+      }
     }
     // Always sync tile coords from world position so distance + room checks
-    // reflect actual location (otherwise tiles only update at waypoints).
-    minion.tileX = Math.floor(minion.worldX / TS)
-    minion.tileY = Math.floor(minion.worldY / TS)
+    // reflect actual location.  Doorway-seam guard: when worldX/Y sits on
+    // the seam between the canonical and secondary doorway tiles (because
+    // lane centring shifted the target ½-tile), floor() can briefly
+    // resolve to the secondary (pathfinder-blocked) tile.  When that
+    // happens, snap tileX/tileY to the explicit target tile instead so
+    // path computation never starts from a blocked tile.
+    const ntx = Math.floor(minion.worldX / TS)
+    const nty = Math.floor(minion.worldY / TS)
+    if (this._dungeonGrid?.isDoorBlocked?.(ntx, nty)) {
+      minion.tileX = targetTile.x
+      minion.tileY = targetTile.y
+    } else {
+      minion.tileX = ntx
+      minion.tileY = nty
+    }
   }
 
   _atHome(m) {

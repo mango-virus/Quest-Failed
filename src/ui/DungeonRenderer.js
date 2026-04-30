@@ -16,6 +16,7 @@ import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../scenes/CornerEditor.js'
+import { ThemeManager, FLOOR_SLOT, spriteCoverage, readCellEntry } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
 // overlay) into any Phaser-Graphics-shaped target. The renderer's drawing
@@ -264,6 +265,11 @@ function _tileHash(x, y) {
   return h
 }
 
+// Phaser texture key for a theme sprite. Must match the convention used by
+// TilesetEditor + RoomTileEditor + Preload (the second-pass loader queues
+// every manifest sprite under this same key).
+function _themeTextureKey(id) { return `themesprite-${id}` }
+
 
 export class DungeonRenderer {
   /**
@@ -280,6 +286,16 @@ export class DungeonRenderer {
     this._gGrid      = scene.add.graphics().setDepth(0.5)
     this._showGrid   = false
     this._gTiles     = scene.add.graphics().setDepth(1)
+    // Theme-driven sprite tiles. When a placed room has a theme assigned (or
+    // a per-cell override in tileLayout), every floor + wall cell in that
+    // room is rendered as a 32×32 sprite Image laid into this container,
+    // suppressing the procedural draw on _gTiles for the same cell. Cells
+    // without a resolved sprite fall back to procedural so partially-themed
+    // rooms render coherently. Span sprites (64×64 → 2×2, 128×128 → 4×4)
+    // anchor at their top-left covered cell and skip-fill from neighbours.
+    // Sits between _gTiles (1) and _gTints (1.2) so category tints still
+    // wash over a sprite-rendered floor.
+    this._cTileSprites = scene.add.container(0, 0).setDepth(1.1)
     this._gTints     = scene.add.graphics().setDepth(1.2)
     this._gOverlay   = scene.add.graphics().setDepth(3)
     this._gCollision = scene.add.graphics().setDepth(3.2)
@@ -289,22 +305,24 @@ export class DungeonRenderer {
     // visually frames entities passing underneath. The dark passage floor
     // and threshold stay on _gTiles (depth 1) so entities walk over them.
     this._gOverhead  = scene.add.graphics().setDepth(9)
-    // Dedicated door-overlay layer drawn just above _gOverhead. Animates
-    // independently of the main wall art so opening doors don't force a
-    // full redraw. Cleared + repainted by _redrawDoors() on every animation
-    // frame (see update()).
-    // Depth 6.5 — BELOW characters (minion 7, adventurer 8) so an entity
-    // standing in a doorway is rendered in front of the door panel instead
-    // of being hidden by it. Wall jambs + capstones are still on _gOverhead
-    // (depth 9, above characters), so the framing of the doorway still
-    // occludes entities passing under it as designed.
-    this._gDoors     = scene.add.graphics().setDepth(6.5)
     // Passage shadow — the dark "underpass" gradient inside an open
-    // doorway. Renders BEHIND the door panel (which is at 6.5) and behind
-    // characters, but above the floor tiles. Used to live on _gOverhead
-    // (depth 9) which made the shadow draw on top of the door slab and on
-    // top of characters, both incorrect after the door layer was lowered.
-    this._gPassageShadow = scene.add.graphics().setDepth(5.5)
+    // doorway. Renders ABOVE characters (minion 7, adventurer 8) so
+    // anyone standing in / walking through a doorway is partially
+    // swallowed by the shadow gradient (sells the recessed depth of
+    // the passage), but BELOW the door panel (8.8) so the door slab
+    // still visibly overlaps the gradient when closed. Sits below the
+    // wall capstone overhead (9) and the void mask (12) so wall
+    // framing and void-area occlusion still win.
+    this._gPassageShadow = scene.add.graphics().setDepth(8.7)
+    // Dedicated door-overlay layer drawn just above the passage shadow.
+    // Animates independently of the main wall art so opening doors
+    // don't force a full redraw. Cleared + repainted by _redrawDoors()
+    // on every animation frame (see update()).
+    // Depth 8.8 — ABOVE the passage shadow (8.7) so a closed/swinging
+    // door panel always overlaps the shadow gradient cleanly. Still
+    // below the wall capstone overhead (9) and void mask (12) so wall
+    // tops and void gaps occlude the panel as designed.
+    this._gDoors     = scene.add.graphics().setDepth(8.8)
     // Door jambs (the stone posts framing each opening). Sit BELOW
     // characters so an adventurer standing in or walking through a
     // doorway appears in front of the jamb stones rather than peeking
@@ -326,7 +344,7 @@ export class DungeonRenderer {
     this._cornerPattern = loadCornerPattern()
 
     EventBus.on('ROOM_PLACED',           this.redraw, this)
-    EventBus.on('ROOM_PLACED',           this._burstCarveDust, this)
+    EventBus.on('ROOM_PLACED',           this._playCarveAnimation, this)
     EventBus.on('ROOM_REMOVED',          this.redraw, this)
     EventBus.on('GRID_EXPANDED',         this.redraw, this)
     EventBus.on('DEBUG_OVERLAY_CHANGED', this.redraw, this)
@@ -340,6 +358,7 @@ export class DungeonRenderer {
     this._gBg.clear()
     this._gGrid.clear()
     this._gTiles.clear()
+    this._cTileSprites.removeAll(true)
     this._gTints.clear()
     this._gOverlay.clear()
     this._gIcon.clear()
@@ -426,13 +445,14 @@ export class DungeonRenderer {
 
   destroy() {
     EventBus.off('ROOM_PLACED',           this.redraw, this)
-    EventBus.off('ROOM_PLACED',           this._burstCarveDust, this)
+    EventBus.off('ROOM_PLACED',           this._playCarveAnimation, this)
     EventBus.off('ROOM_REMOVED',          this.redraw, this)
     EventBus.off('GRID_EXPANDED',         this.redraw, this)
     EventBus.off('DEBUG_OVERLAY_CHANGED', this.redraw, this)
     this._gBg.destroy()
     this._gGrid.destroy()
     this._gTiles.destroy()
+    this._cTileSprites.destroy(true)
     this._gTints.destroy()
     this._gOverlay.destroy()
     this._gCollision.destroy()
@@ -450,11 +470,37 @@ export class DungeonRenderer {
     const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
     const g = this._gTiles
 
+    // Build the cell→room lookup once per redraw. Used by the sprite path
+    // to find each cell's owning room (and through that, its theme +
+    // tileLayout overrides).
+    this._cellRoomMap = this._buildCellRoomMap()
+    // Cells covered by some span-sprite anchor in a room's tileLayout.
+    // The anchor itself is NOT in the set; only the other cov*cov - 1
+    // covered cells. Iteration in `_drawTiles` skips covered cells so the
+    // anchor's larger image shows through unobstructed.
+    this._spanCoveredSet = this._buildSpanCoveredSet()
+    // Door cell lookup — for each TILE.DOOR cell that belongs to a cp's 2×2
+    // door block, records { room, cp, axis, sub, state, renderable }. A door
+    // is "renderable" when all 4 sub-cells will resolve to a sprite (theme
+    // variant or per-cell override); otherwise the entire 2×2 falls back to
+    // procedural so we never see a half-themed door.
+    this._doorCellMap = this._buildDoorCellMap()
+
     for (let y = 0; y < gh; y++) {
       const row = tiles[y]
       if (!row) continue
       for (let x = 0; x < gw; x++) {
+        // Cells covered by a span-sprite anchor at a neighbouring cell:
+        // skip both sprite path AND procedural — the anchor's image
+        // already paints across this cell.
+        if (this._spanCoveredSet.has(`${x},${y}`)) continue
+
         const t = row[x]
+        // Try the sprite path. For DOOR cells, the resolver only returns
+        // a sprite when the door is fully renderable (all 4 sub-cells); a
+        // partial mismatch falls back to procedural for visual consistency.
+        if (this._renderTileSprite(x, y, t)) continue
+
         if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) {
           this._drawFloorCell(g, x, y)
         } else if (t === TILE.WALL || t === TILE.BOSS_WALL) {
@@ -467,6 +513,287 @@ export class DungeonRenderer {
         }
       }
     }
+  }
+
+  // Pre-pass: walk every room's tileLayout, find override cells whose
+  // sprite has coverage > 1, and add the cov×cov - 1 non-anchor cells to
+  // the covered set. The renderer skips drawing on those cells (sprite
+  // AND procedural) so the anchor's larger image shows through cleanly.
+  _buildSpanCoveredSet() {
+    const set = new Set()
+    for (const room of this._gameState.dungeon.rooms ?? []) {
+      const layout = room.tileLayout
+      if (!Array.isArray(layout) || layout.length === 0) continue
+      for (let dy = 0; dy < room.height; dy++) {
+        for (let dx = 0; dx < room.width; dx++) {
+          const entry = readCellEntry(layout[dy]?.[dx])
+          if (!entry) continue
+          const sprite = ThemeManager.getSprite(entry.id)
+          const cov = spriteCoverage(sprite)
+          if (cov <= 1) continue
+          const wx = room.gridX + dx
+          const wy = room.gridY + dy
+          for (let oy = 0; oy < cov; oy++) {
+            for (let ox = 0; ox < cov; ox++) {
+              if (ox === 0 && oy === 0) continue
+              set.add(`${wx + ox},${wy + oy}`)
+            }
+          }
+        }
+      }
+    }
+    return set
+  }
+
+  // ── Theme sprite path ──────────────────────────────────────────────────────
+
+  // Build a (x,y) → placed-room map covering every cell within every room's
+  // bounding box.  Last write wins on the (impossible per game rules)
+  // overlap case.  Used by the sprite-resolver to find the room a cell
+  // belongs to.
+  _buildCellRoomMap() {
+    const m = new Map()
+    for (const room of this._gameState.dungeon.rooms) {
+      const { gridX: rx, gridY: ry, width: rw, height: rh } = room
+      for (let dy = 0; dy < rh; dy++) {
+        for (let dx = 0; dx < rw; dx++) m.set(`${rx + dx},${ry + dy}`, room)
+      }
+    }
+    return m
+  }
+
+  // Find the room that "owns" cell (x, y, t) for theme purposes. WALL_CAP
+  // cells sit in the row above their room (not in the room's bounding box),
+  // so we check the cell directly below them.
+  _roomForCell(x, y, t) {
+    if (t === TILE.WALL_CAP) return this._cellRoomMap.get(`${x},${y + 1}`) || null
+    return this._cellRoomMap.get(`${x},${y}`) || null
+  }
+
+  // Map a cell's tile type + wall orientation to a ThemeManager slot id.
+  // Returns null for cells with no sprite slot (e.g. DOOR, void).
+  _slotForCell(x, y, t) {
+    if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) return FLOOR_SLOT
+    if (t === TILE.WALL_CAP)                       return 'wall_cap'
+    if (t === TILE.WALL || t === TILE.BOSS_WALL) {
+      const o = this._wallOrient.get(`${x},${y}`)
+      if (!o) return null
+      if (o.kind === 'top') return 'wall'
+      if (o.kind === 'bot') return 'wall_bottom'
+      if (o.kind === 'lft') return 'wall_left'
+      if (o.kind === 'rgt') return 'wall_right'
+      if (o.kind === 'corner') {
+        if (o.role === 'outer') return 'wall_corner_' + o.side
+        // Sub-cells of a WT×WT corner block.  Map their visual character to
+        // the closest straight wall slot so the corner block reads as a
+        // continuous run when the sprite art is consistent.
+        if (o.role === 'h-arm') return (o.side === 'tl' || o.side === 'tr') ? 'wall' : 'wall_bottom'
+        if (o.role === 'v-arm') return (o.side === 'tl' || o.side === 'bl') ? 'wall_left' : 'wall_right'
+        // 'inner' diagonal cell + rare 'mid' (WT > 2): fall back to the
+        // adjacent top/bottom wall slot.
+        return (o.side === 'tl' || o.side === 'tr') ? 'wall' : 'wall_bottom'
+      }
+    }
+    return null
+  }
+
+  // Resolve the sprite id (and metadata) to render at (x, y, t).  Returns
+  // null when no sprite applies (no theme, no override, slot has no
+  // variants, or the texture didn't load).  Per-cell overrides in the
+  // owning room's tileLayout win over the theme default.
+  _resolveCellSprite(x, y, t) {
+    // Door cells take a special path — the door cell map already encodes
+    // the owning room/cp + the per-cell sub-position + whether the cp's
+    // door is "renderable as sprite" (all 4 sub-cells resolve). Cells whose
+    // cp isn't fully renderable fall through to the procedural overlay.
+    if (t === TILE.DOOR) {
+      const door = this._doorCellMap.get(`${x},${y}`)
+      if (!door || !door.renderable) return null
+      return this._resolveDoorCellSprite(door, x, y)
+    }
+
+    const room = this._roomForCell(x, y, t)
+    if (!room) return null
+
+    // Per-cell override (paints any cell, even ones with no slot mapping).
+    // Cell entries are either a sprite-id string (rot 0) or { id, rot }.
+    if (Array.isArray(room.tileLayout) && room.tileLayout.length) {
+      const rx = x - room.gridX
+      const ry = y - room.gridY
+      const entry = readCellEntry(room.tileLayout[ry]?.[rx])
+      if (entry) {
+        const sprite = ThemeManager.getSprite(entry.id)
+        if (sprite && this._scene.textures.exists(_themeTextureKey(entry.id))) {
+          return { id: entry.id, sprite, rot: entry.rot }
+        }
+      }
+    }
+
+    // Theme default — pick a variant for this cell's slot. Theme variants
+    // are never rotated (rotation is a per-cell-override feature only).
+    if (!room.theme) return null
+    const slot = this._slotForCell(x, y, t)
+    if (!slot) return null
+    const id = ThemeManager.pickVariant(slot, x, y, room.theme)
+    if (!id) return null
+    const sprite = ThemeManager.getSprite(id)
+    if (!sprite || !this._scene.textures.exists(_themeTextureKey(id))) return null
+    return { id, sprite, rot: 0 }
+  }
+
+  // Resolve sprite for a door cell whose cp is renderable. Override on the
+  // owning room's tileLayout wins; otherwise pick a variant from the
+  // door_<state>_<axis>_<sub> slot. Renderable was pre-checked, so unless
+  // a Phaser texture went missing between map-build and render, this
+  // succeeds.
+  _resolveDoorCellSprite(door, x, y) {
+    const { room, axis, sub, state } = door
+    if (Array.isArray(room.tileLayout) && room.tileLayout.length) {
+      const rx = x - room.gridX
+      const ry = y - room.gridY
+      const entry = readCellEntry(room.tileLayout[ry]?.[rx])
+      if (entry) {
+        const sprite = ThemeManager.getSprite(entry.id)
+        if (sprite && this._scene.textures.exists(_themeTextureKey(entry.id))) {
+          return { id: entry.id, sprite, rot: entry.rot }
+        }
+      }
+    }
+    if (!room.theme) return null
+    const slot = `door_${state}_${axis}_${sub}`
+    const id = ThemeManager.pickVariant(slot, x, y, room.theme)
+    if (!id) return null
+    const sprite = ThemeManager.getSprite(id)
+    if (!sprite || !this._scene.textures.exists(_themeTextureKey(id))) return null
+    return { id, sprite, rot: 0 }
+  }
+
+  // ── Door geometry helpers ──────────────────────────────────────────────────
+
+  // Cells covered by a cp's door block, in (col, row) order tl/tr/bl/br.
+  // Returns null for cps that don't sit on a single edge (corner/interior).
+  // Block size is always 2 × WALL_THICKNESS along the wall × through the
+  // wall — for the default WT=2 this is a 2×2 block.
+  _doorBlockCells(room, cp) {
+    const WT = Balance.WALL_THICKNESS
+    const onTop = cp.y === 0
+    const onBot = cp.y === room.height - 1
+    const onLft = cp.x === 0
+    const onRgt = cp.x === room.width - 1
+    if ((onTop || onBot) && (onLft || onRgt)) return null
+    if (!onTop && !onBot && !onLft && !onRgt)  return null
+
+    if (onTop || onBot) {
+      const alongDx = (cp.alongDx === 1 || cp.alongDx === -1) ? cp.alongDx
+        : (((room.width - 1) - cp.x) >= cp.x ? 1 : -1)
+      const xStart = Math.min(cp.x, cp.x + alongDx)
+      const yStart = onTop ? 0 : room.height - WT
+      return { x0: room.gridX + xStart, y0: room.gridY + yStart, w: 2,  h: WT, axis: 'h' }
+    }
+    const alongDy = (cp.alongDy === 1 || cp.alongDy === -1) ? cp.alongDy
+      : (((room.height - 1) - cp.y) >= cp.y ? 1 : -1)
+    const yStart = Math.min(cp.y, cp.y + alongDy)
+    const xStart = onLft ? 0 : room.width - WT
+    return { x0: room.gridX + xStart, y0: room.gridY + yStart, w: WT, h: 2,  axis: 'v' }
+  }
+
+  // Logical state of a cp at draw time:
+  //   'open'   when cp.open === true
+  //   'locked' when cp.locked === true (Phase 10 hidden-keys feature)
+  //   'closed' otherwise (incl. mid-opening animation — sprite shows the
+  //            closed art; the procedural panel layer still draws on top
+  //            with the swing animation when present)
+  _doorStateFor(cp) {
+    if (cp.locked === true) return 'locked'
+    if (cp.open === true)   return 'open'
+    return 'closed'
+  }
+
+  // Build the cell→door-info lookup for this redraw. Caches the per-cp
+  // "renderable" decision so we don't repeat the 4-cell variant check
+  // per cell.
+  _buildDoorCellMap() {
+    const map = new Map()
+    const SUB = ['tl', 'tr', 'bl', 'br']  // ordered (col, row) row-major in a 2×2
+    for (const room of this._gameState.dungeon.rooms ?? []) {
+      for (const cp of room.connectionPoints ?? []) {
+        const block = this._doorBlockCells(room, cp)
+        if (!block || block.w !== 2 || block.h !== 2) continue
+        const state = this._doorStateFor(cp)
+        // Pre-check: every sub-cell must resolve to either a per-cell
+        // override OR a theme variant for the matching door slot. If any
+        // gap, mark non-renderable so the whole cp falls back to procedural.
+        let renderable = true
+        if (!room.theme && !this._anyTileLayoutCells(room, block)) {
+          renderable = false
+        } else {
+          for (let i = 0; i < 4; i++) {
+            const dx = i % 2, dy = (i / 2) | 0
+            const wx = block.x0 + dx, wy = block.y0 + dy
+            const rx = wx - room.gridX, ry = wy - room.gridY
+            const overrideId = room.tileLayout?.[ry]?.[rx]
+            if (overrideId && typeof overrideId === 'string'
+                && ThemeManager.getSprite(overrideId)
+                && this._scene.textures.exists(_themeTextureKey(overrideId))) continue
+            if (!room.theme) { renderable = false; break }
+            const slot = `door_${state}_${block.axis}_${SUB[i]}`
+            const variants = ThemeManager.getTheme(room.theme)?.slots[slot] || []
+            // We don't pick yet (pickVariant caches per-cell choice); just
+            // confirm at least one variant exists with a loaded texture.
+            const ok = variants.some(id => {
+              const s = ThemeManager.getSprite(id)
+              return s && this._scene.textures.exists(_themeTextureKey(id))
+            })
+            if (!ok) { renderable = false; break }
+          }
+        }
+        for (let i = 0; i < 4; i++) {
+          const dx = i % 2, dy = (i / 2) | 0
+          const wx = block.x0 + dx, wy = block.y0 + dy
+          map.set(`${wx},${wy}`, {
+            room, cp, axis: block.axis, sub: SUB[i], state, renderable,
+          })
+        }
+      }
+    }
+    return map
+  }
+
+  // True when room.tileLayout has any string entry at any cell of the door
+  // block — used as a fast-path so a fully-overridden door doesn't need a
+  // theme to render.
+  _anyTileLayoutCells(room, block) {
+    if (!Array.isArray(room.tileLayout) || !room.tileLayout.length) return false
+    for (let dy = 0; dy < block.h; dy++) {
+      for (let dx = 0; dx < block.w; dx++) {
+        const rx = block.x0 + dx - room.gridX
+        const ry = block.y0 + dy - room.gridY
+        if (typeof room.tileLayout[ry]?.[rx] === 'string') return true
+      }
+    }
+    return false
+  }
+
+  // Render the sprite for cell (x, y, t).  Returns true if a draw was
+  // performed (or intentionally suppressed for a span-sprite non-anchor
+  // cell, which should stay blank to let the anchor's larger image show
+  // through), false to fall back to procedural.
+  _renderTileSprite(x, y, t) {
+    const resolved = this._resolveCellSprite(x, y, t)
+    if (!resolved) return false
+    const { id, sprite, rot } = resolved
+    const key = _themeTextureKey(id)
+    // Anchor-from-override: this cell IS the anchor. Coverage > 1 sprites
+    // span cov×cov starting here; the pre-pass `_spanCoveredSet` ensures
+    // neighbour cells skip rendering so the anchor's image shows through.
+    const cov = spriteCoverage(sprite)
+    const size = cov * TS
+    const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
+      .setOrigin(0.5)
+    img.setDisplaySize(size, size)
+    if (rot) img.setAngle(rot)
+    this._cTileSprites.add(img)
+    return true
   }
 
   // Floor: hashed stipple over a base fill. Hash buckets:
@@ -971,6 +1298,54 @@ export class DungeonRenderer {
     else if (outerSide === 'right')  fr(x, y, 1, h)
   }
 
+  // Capstone fill for a gap-stub door tile (the 1-tile passage between two
+  // adjacent rooms, after auto-connect placed paired cps). Detects whether
+  // the walkway runs vertically (rooms above + below) or horizontally
+  // (rooms left + right) and orients the seams + accents to continue the
+  // adjacent rooms' capstone bands seamlessly. The gap-facing edges get no
+  // highlight/shadow because the neighbour walls' caps already provide the
+  // visual line on those sides — accents only paint on edges facing void.
+  _drawGapStubCap(g, px, py, tx, ty) {
+    const tiles = this._gameState.dungeon.tiles
+    const get = (cx, cy) => tiles?.[cy]?.[cx] ?? TILE.VOID
+    const isWallish = (t) => t === TILE.WALL || t === TILE.BOSS_WALL || t === TILE.DOOR || t === TILE.WALL_CAP
+    const wallN = isWallish(get(tx,     ty - 1))
+    const wallS = isWallish(get(tx,     ty + 1))
+    const wallW = isWallish(get(tx - 1, ty))
+    const wallE = isWallish(get(tx + 1, ty))
+    const vertical = (wallN && wallS) || (!wallW && !wallE)   // default to vertical when ambiguous
+
+    // Base fill.
+    g.fillStyle(CAPSTONE_BASE, 1)
+    g.fillRect(px, py, TS, TS)
+
+    // Seams oriented along the walkway axis — vertical seams for vertical
+    // walkway, horizontal seams for horizontal walkway. Anchored to global
+    // coords so they line up across the gap and the neighbour walls.
+    g.fillStyle(CAPSTONE_SEAM, 0.7)
+    const SP = CAPSTONE_SEAM_SPACING
+    if (vertical) {
+      const first = Math.ceil(px / SP) * SP
+      for (let wx = first; wx < px + TS; wx += SP) {
+        if (wx > px) g.fillRect(wx, py, 1, TS)
+      }
+    } else {
+      const first = Math.ceil(py / SP) * SP
+      for (let wy = first; wy < py + TS; wy += SP) {
+        if (wy > py) g.fillRect(px, wy, TS, 1)
+      }
+    }
+
+    // Edge accents only on void-facing sides (skip wall-facing sides — the
+    // neighbouring wall's cap already paints its highlight/shadow there).
+    g.fillStyle(CAPSTONE_HIGHLIGHT, 0.7)
+    if (!wallN) g.fillRect(px, py, TS, 1)
+    if (!wallW) g.fillRect(px, py, 1, TS)
+    g.fillStyle(CAPSTONE_SHADOW, 0.85)
+    if (!wallS) g.fillRect(px, py + TS - 1, TS, 1)
+    if (!wallE) g.fillRect(px + TS - 1, py, 1, TS)
+  }
+
   // L-shaped capstone for a corner tile — two perpendicular bands that meet
   // at the outer corner. The second call overdraws the elbow square but
   // that's harmless (same colour, same alpha 1).
@@ -1388,7 +1763,9 @@ export class DungeonRenderer {
     if (!room) {
       // Gap stub: paint the whole cell as wall-cap surface so the gap reads
       // as a continuation of the capstone band running over both walls.
-      this._drawCapstoneBand(over, null, px, py, TS, TS, 'top')
+      // Orientation matches the walkway axis so seams + edge accents line
+      // up with the neighbour rooms' capstones on either side.
+      this._drawGapStubCap(over, px, py, x, y)
       return
     }
     // For DOOR cells in a room's OUTER wall ring, repaint the outward
@@ -1429,8 +1806,8 @@ export class DungeonRenderer {
         // walk in FRONT of the door-frame stones, not behind them.
         this._drawDoorJambs(jambs, rect, pal)
         this._drawDoorThreshold(tiles, rect, pal)
-        // Passage shadow on _gPassageShadow (depth 5.5) — behind door
-        // panel and characters but above floor tiles.
+        // Passage shadow on _gPassageShadow (depth 8.7) — ABOVE
+        // characters so doorway shadow swallows anyone passing through.
         this._drawPassageShadow(passage, rect)
       }
     }
@@ -1552,11 +1929,29 @@ export class DungeonRenderer {
         if (cp.open) continue                 // fully open — nothing to draw
         const rect = this._cpDoorRect(room, cp)
         if (!rect) continue
+        // If the sprite path will paint all 4 cells of this cp's door for
+        // the current state, skip the procedural panel — otherwise the
+        // panel (depth 8.8) would overlay our sprite (depth 1.1).
+        if (this._doorCpRenderable(room, cp)) continue
         const style    = this._effectiveDoorStyle(room, cp)
         const progress = cp.openProgress || 0
         this._drawClosedDoor(g, rect, style, progress)
       }
     }
+  }
+
+  // Lightweight wrapper: does the door cell map already say this cp is
+  // renderable? Built fresh each `_drawTiles`; `_drawClosedDoors` runs
+  // afterwards in `redraw()` so the map is current. Also called from
+  // `_redrawDoors` (animation tick) which doesn't rebuild the map — so
+  // we read whatever the last full redraw computed (correct: an in-flight
+  // animation can't change which sprites the theme has).
+  _doorCpRenderable(room, cp) {
+    if (!this._doorCellMap) return false
+    const block = this._doorBlockCells(room, cp)
+    if (!block) return false
+    const entry = this._doorCellMap.get(`${block.x0},${block.y0}`)
+    return !!(entry && entry.cp === cp && entry.renderable)
   }
 
   // Per-frame animation tick. Advances any cp.opening progress and triggers
@@ -1566,6 +1961,7 @@ export class DungeonRenderer {
     if (!this._gameState?.dungeon?.rooms) return
     const dt = (deltaMs || 0) / 1000
     let changed = false
+    let stateFlipped = false
     for (const room of this._gameState.dungeon.rooms) {
       for (const cp of room.connectionPoints ?? []) {
         if (!cp.opening) continue
@@ -1575,11 +1971,17 @@ export class DungeonRenderer {
           cp.opening      = false
           cp.open         = true
           cp.openProgress = 1
+          stateFlipped = true
           EventBus.emit('DOOR_OPENED', { roomId: room.instanceId, cp })
         }
       }
     }
     if (changed) this._redrawDoors()
+    // When a cp.open transitions, the sprite path needs a fresh slot pick
+    // (door_closed_* → door_open_*). Full redraw rebuilds _doorCellMap and
+    // re-rolls variants. Costly but only fires once per transition (not
+    // every animation frame).
+    if (stateFlipped) this.redraw()
   }
 
   // Public helper — kicks an opening animation on this cp. Idempotent: a
@@ -1598,10 +2000,15 @@ export class DungeonRenderer {
   // hook to reset entry-hall external doors so they re-animate next day.
   closeDoor(cp) {
     if (!cp) return
+    const wasOpenOrAnimating = cp.open || cp.opening
     cp.open         = false
     cp.opening      = false
     cp.openProgress = 0
     this._redrawDoors()
+    // If we just closed an open door, the sprite path needs to swap
+    // door_open_* art for door_closed_*. (Going from "already closed" to
+    // "closed" is a no-op, so skip the redraw in that case.)
+    if (wasOpenOrAnimating) this.redraw()
   }
 
   _redrawDoors() {
@@ -1624,7 +2031,12 @@ export class DungeonRenderer {
     let rect
     if (onTop || onBot) {
       // Horizontal wall — door block is 2 cells wide × WT cells tall.
-      const alongDx = ((room.width - 1) - cp.x) >= cp.x ? 1 : -1
+      // Auto-connect cps store an explicit alongDx so paired rooms agree on
+      // which two cells the door occupies; fall back to the widen heuristic
+      // for hand-authored cps.
+      const alongDx = (cp.alongDx === 1 || cp.alongDx === -1)
+        ? cp.alongDx
+        : (((room.width - 1) - cp.x) >= cp.x ? 1 : -1)
       const xStart  = Math.min(cp.x, cp.x + alongDx)
       const yStart  = onTop ? 0 : room.height - WT
       rect = {
@@ -1637,7 +2049,9 @@ export class DungeonRenderer {
       }
     } else {
       // Vertical wall — door block is WT cells wide × 2 cells tall.
-      const alongDy = ((room.height - 1) - cp.y) >= cp.y ? 1 : -1
+      const alongDy = (cp.alongDy === 1 || cp.alongDy === -1)
+        ? cp.alongDy
+        : (((room.height - 1) - cp.y) >= cp.y ? 1 : -1)
       const yStart  = Math.min(cp.y, cp.y + alongDy)
       const xStart  = onLft ? 0 : room.width - WT
       rect = {
@@ -2187,6 +2601,93 @@ export class DungeonRenderer {
         if (isVoid(x1, ty)) this._stampHalo(g, x1, ty, 'right', isInsideRoom)
       }
     }
+  }
+
+  // Dramatic placement animation. Sequence (~900ms):
+  //   1. Camera shake + outline flash (impact)
+  //   2. Stone-cover overlay hides the just-rendered room
+  //   3. Cover cells "shatter" outward in a wave from edges → center,
+  //      revealing the room beneath; chunks of stone fly into the void
+  //   4. Existing dust settles
+  // All elements live as scene-level GameObjects with tween-onComplete
+  // cleanup, so the animation runs above _gOverhead/_gDoors and never
+  // pollutes the renderer's redraw cycle.
+  _playCarveAnimation(payload) {
+    const room = payload?.room
+    if (!room) return
+    const scene  = this._scene
+    const px = room.gridX * TS, py = room.gridY * TS
+    const pw = room.width  * TS, ph = room.height * TS
+    const cx = px + pw / 2, cy = py + ph / 2
+
+    // 1) Brief camera shake to sell the impact
+    scene.cameras.main.shake(180, 0.0035)
+
+    // 2) Bright outline flash that fades over ~280ms
+    const flashG = scene.add.graphics().setDepth(9.9)
+    flashG.lineStyle(4, 0xfff2a0, 1).strokeRect(px - 1, py - 1, pw + 2, ph + 2)
+    scene.tweens.add({
+      targets: flashG, alpha: 0, duration: 280, ease: 'Quad.Out',
+      onComplete: () => flashG.destroy(),
+    })
+
+    // 3) Stone-cover cells — one rectangle per tile in the room, layered
+    //    above the renderer's _gDoors (9.5) so the room is hidden beneath.
+    //    Cells fade + scale outward starting from the edges; delay grows
+    //    with distance from the nearest edge so the carve front sweeps
+    //    inward like a chisel knocking off perimeter chunks first.
+    const SHATTER_BASE_DURATION = 260
+    const PER_RING_DELAY = 55
+    for (let dy = 0; dy < room.height; dy++) {
+      for (let dx = 0; dx < room.width; dx++) {
+        const distToEdge = Math.min(dx, dy, room.width - 1 - dx, room.height - 1 - dy)
+        const delay = distToEdge * PER_RING_DELAY + Math.random() * 50
+        const cell = scene.add.rectangle(
+          px + dx * TS + TS / 2,
+          py + dy * TS + TS / 2,
+          TS, TS, STONE_BASE, 1,
+        ).setDepth(9.7)
+        // Subtle pre-shake before shatter — tiny x/y wobble for ~80ms
+        scene.tweens.add({
+          targets: cell, x: cell.x + (Math.random() - 0.5) * 2, y: cell.y + (Math.random() - 0.5) * 2,
+          delay: Math.max(0, delay - 80), duration: 80, yoyo: true, repeat: 1,
+        })
+        scene.tweens.add({
+          targets: cell, alpha: 0, scaleX: 1.35, scaleY: 1.35,
+          delay, duration: SHATTER_BASE_DURATION, ease: 'Cubic.Out',
+          onComplete: () => cell.destroy(),
+        })
+      }
+    }
+
+    // 4) Stone chunk burst — heavier than the dust, with rotation + slight
+    //    gravity so they read as physical debris, not just particles.
+    const chunkColors = [0x4a3e30, 0x6a5a48, 0x8a7a60, 0x3a2e22]
+    const chunkCount  = Math.min(28, Math.floor((pw + ph) / 12))
+    for (let i = 0; i < chunkCount; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const sR    = Math.min(pw, ph) * (0.15 + Math.random() * 0.25)
+      const sx    = cx + Math.cos(angle) * sR
+      const sy    = cy + Math.sin(angle) * sR
+      const size  = 3 + Math.floor(Math.random() * 4)
+      const chunk = scene.add.rectangle(sx, sy, size, size,
+        chunkColors[(Math.random() * chunkColors.length) | 0], 1).setDepth(9.86)
+      chunk.setRotation(Math.random() * Math.PI * 2)
+      const dist = 30 + Math.random() * 50
+      scene.tweens.add({
+        targets: chunk,
+        x: sx + Math.cos(angle) * dist,
+        y: sy + Math.sin(angle) * dist + 18,   // gravity drop
+        alpha: 0,
+        angle: 360 * (Math.random() > 0.5 ? 1 : -1),
+        delay: Math.random() * 120,
+        duration: 600 + Math.random() * 250, ease: 'Quad.Out',
+        onComplete: () => chunk.destroy(),
+      })
+    }
+
+    // 5) Dust settles last (existing burst layered on top of the new effects)
+    this._burstCarveDust(payload)
   }
 
   // Spawn a short dust burst around a freshly-placed room — sells the

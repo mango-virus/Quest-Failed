@@ -63,7 +63,6 @@ export function createAdventurer(classDef, spawnTile, dungeonLevel = 1) {
       hp:      baseStats.hp ?? 30,
       maxHp:   baseStats.hp ?? 30,
       arrows:  classDef.startingResources?.arrows  ?? null,
-      potions: classDef.startingResources?.potions ?? 0,
     },
 
     // Per-instance ability cooldowns + per-day usage budgets.

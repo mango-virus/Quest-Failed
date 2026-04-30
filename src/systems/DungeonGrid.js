@@ -67,13 +67,40 @@ export class DungeonGrid {
       height: definition.height,
       isActive: true,
       upkeepCost: definition.upkeepCost ?? 0,
-      connectionPoints: (definition.connectionPoints ?? []).map(cp => ({ ...cp })),
+      // Sprite-tiling fields copied from the room template — DungeonRenderer
+      // reads these at draw time to overlay theme sprites on top of the
+      // procedural wall/floor art. Both default to safe empty values when
+      // the template has no theme assigned (most rooms today). See
+      // RoomTileEditor for how these are authored.
+      theme:      typeof definition.theme === 'string' ? definition.theme : null,
+      tileLayout: Array.isArray(definition.tileLayout) ? definition.tileLayout : [],
+      // Each cp gets `open: false` by default — doors start closed and
+      // become open when adventurers walk through (or, for the entry_hall's
+      // external cp, automatically at day-start). `style` defaults to
+      // 'regular' if not specified in the room def. `external` cps don't
+      // pair with other rooms (they face "outside the dungeon").
+      // `opening` + `openProgress` drive the split animation: when
+      // `opening=true`, openProgress ramps 0→1 and DungeonRenderer.update
+      // flips `open=true` once it lands on 1.
+      connectionPoints: (definition.connectionPoints ?? []).map(cp => ({
+        style: 'regular',
+        external: false,
+        ...cp,
+        open: false,
+        opening: false,
+        openProgress: 0,
+      })),
       state: {},
     }
 
     this._writeTiles(room, definition)
     this._d.rooms.push(room)
     this._indexRoom(room)
+    // Auto-connect: scan adjacent rooms for valid overlaps and create
+    // matching cps + doors at the centre of each overlap. Skipped for
+    // rooms loaded with pre-authored cps (e.g. entry_hall's external N).
+    this._autoConnect(room)
+    this._writeGapDoors(room)
 
     EventBus.emit('ROOM_PLACED', { room })
     return room
@@ -84,12 +111,76 @@ export class DungeonGrid {
     if (idx === -1) return false
     const room = this._d.rooms[idx]
 
+    // Strip paired cps from every neighbour and re-paint their wall tiles
+    // so the door visually disappears. Without this, removing a room would
+    // leave dangling doors on its neighbours, and re-placing into the same
+    // slot would skip _autoConnect because the wall is "already used".
+    this._unpairNeighbourCps(room)
+
     this._eraseTiles(room)
+    this._eraseGapDoorsFor(room)
     this._d.rooms.splice(idx, 1)
     this._rebuildLookup()
 
     EventBus.emit('ROOM_REMOVED', { room })
     return true
+  }
+
+  _unpairNeighbourCps(room) {
+    for (const cp of room.connectionPoints ?? []) {
+      const v = DIR_VEC[cp.direction]
+      if (!v || cp.external) continue
+      const ox = room.gridX + cp.x + v.dx * 2
+      const oy = room.gridY + cp.y + v.dy * 2
+      const other = this.getRoomAtTile(ox, oy)
+      if (!other || other.instanceId === room.instanceId) continue
+      const oppDir = OPPOSITE_DIR[cp.direction]
+      const oIdx = (other.connectionPoints ?? []).findIndex(ocp =>
+        !ocp.external &&
+        ocp.direction === oppDir &&
+        other.gridX + ocp.x === ox &&
+        other.gridY + ocp.y === oy)
+      if (oIdx === -1) continue
+      const ocp = other.connectionPoints[oIdx]
+      other.connectionPoints.splice(oIdx, 1)
+      this._unstampCpDoor(other, ocp)
+    }
+  }
+
+  // Inverse of _stampCpDoor — repaints the 2 × WT door block as plain wall.
+  _unstampCpDoor(room, cp) {
+    const WT = Balance.WALL_THICKNESS
+    const wallTile = (room.definitionId === 'boss_chamber') ? TILE.BOSS_WALL : TILE.WALL
+    const onTop = (cp.y === 0)
+    const onBot = (cp.y === room.height - 1)
+    const onLft = (cp.x === 0)
+    const onRgt = (cp.x === room.width  - 1)
+    const onTopOrBot = onTop || onBot
+    const onLftOrRgt = onLft || onRgt
+    if (onTopOrBot && onLftOrRgt) return
+    if (!onTopOrBot && !onLftOrRgt) return
+
+    if (onTopOrBot) {
+      const { alongDx } = this._cpAlong(room, cp)
+      const yStart  = onTop ? 0 : room.height - WT
+      const yEnd    = onTop ? WT - 1 : room.height - 1
+      for (let iy = yStart; iy <= yEnd; iy++) {
+        for (const ix of [cp.x, cp.x + alongDx]) {
+          if (ix < 0 || ix >= room.width) continue
+          this._d.tiles[room.gridY + iy][room.gridX + ix] = wallTile
+        }
+      }
+    } else {
+      const { alongDy } = this._cpAlong(room, cp)
+      const xStart  = onLft ? 0 : room.width - WT
+      const xEnd    = onLft ? WT - 1 : room.width - 1
+      for (let ix = xStart; ix <= xEnd; ix++) {
+        for (const iy of [cp.y, cp.y + alongDy]) {
+          if (iy < 0 || iy >= room.height) continue
+          this._d.tiles[room.gridY + iy][room.gridX + ix] = wallTile
+        }
+      }
+    }
   }
 
   validatePlacement(definition, gridX, gridY, opts = {}) {
@@ -123,6 +214,39 @@ export class DungeonGrid {
       }
     }
 
+    // 1-tile gap requirement — the candidate's perimeter must not sit
+    // directly against another room's wall/floor. Doorway alignment is the
+    // ONLY allowed exception: a tile one step outward from a connection
+    // point may be a doorway-gap stub, which we'll stamp as DOOR after the
+    // room writes. Anywhere else, the immediate-neighbour tile must be VOID.
+    if (!violations.length && this._d.rooms.length > 0) {
+      const cps = definition.connectionPoints ?? []
+      const allowedGap = new Set()
+      for (const cp of cps) {
+        const v = DIR_VEC[cp.direction]
+        if (!v) continue
+        // The doorway gap stub is the tile one step OUTWARD from the cp.
+        allowedGap.add(`${gridX + cp.x + v.dx},${gridY + cp.y + v.dy}`)
+      }
+      const checkPad = (tx, ty) => {
+        if (tx < 0 || tx >= gw || ty < 0 || ty >= gh) return true
+        if (this._d.tiles[ty][tx] === TILE.VOID) return true
+        return allowedGap.has(`${tx},${ty}`)
+      }
+      let gapOk = true
+      // Top + bottom rows
+      for (let tx = gridX; tx < gridX + w && gapOk; tx++) {
+        if (!checkPad(tx, gridY - 1)) gapOk = false
+        if (!checkPad(tx, gridY + h)) gapOk = false
+      }
+      // Left + right columns
+      for (let ty = gridY; ty < gridY + h && gapOk; ty++) {
+        if (!checkPad(gridX - 1,     ty)) gapOk = false
+        if (!checkPad(gridX + w, ty)) gapOk = false
+      }
+      if (!gapOk) violations.push('Need 1-tile gap from adjacent rooms')
+    }
+
     // Max per dungeon
     const max = definition.placementRules?.maxPerDungeon
     if (max !== null && max !== undefined) {
@@ -140,65 +264,18 @@ export class DungeonGrid {
       }
     }
 
-    // Doorway connection requirement — every player-placed room must have
-    // at least one doorway pair aligned with an existing room. Otherwise
-    // it would be unreachable in a corridor-free dungeon. Boss chamber
-    // skips this since it's the seed room.
-    if (!violations.length && !opts.allowDisconnected && this._d.rooms.length > 0) {
-      const candidate = { gridX, gridY, width: w, height: h, connectionPoints: definition.connectionPoints ?? [] }
-      if (!this._hasDoorwayLink(candidate)) {
-        violations.push('Doorway must align with an existing room')
-      }
-    }
+    // Connectivity is now a SOFT constraint — placement is allowed even
+    // when the new room is an island. The "Begin Day" gate (see Game.js)
+    // blocks day-start until every room is reachable from entry_hall.
 
     return { valid: violations.length === 0, violations }
   }
 
-  // Try to nudge (gridX, gridY) so that a doorway on the placed room sits
-  // facing a doorway on an existing room. Returns { gridX, gridY } if a
-  // snap is found within SNAP_RADIUS, else null. The first matching pair
-  // wins — multiple aligned doorways still all count as connections, this
-  // just picks where to anchor the room.
-  findSnap(definition, gridX, gridY) {
-    const cps = definition.connectionPoints ?? []
-    if (cps.length === 0) return null
-
-    let best = null
-    let bestDist = Infinity
-
-    for (const cp of cps) {
-      const v = DIR_VEC[cp.direction]
-      if (!v) continue
-      // Where this candidate doorway would land on the dungeon grid for
-      // the proposed (gridX, gridY).
-      for (const other of this._d.rooms) {
-        for (const ocp of other.connectionPoints ?? []) {
-          if (ocp.direction !== OPPOSITE_DIR[cp.direction]) continue
-          // Other room's doorway in dungeon coords:
-          const ox = other.gridX + ocp.x
-          const oy = other.gridY + ocp.y
-          // The placed room's doorway must sit one cell INWARD from the
-          // other room's doorway along its outward direction.
-          //   placed cp tile = (ox + v_other.dx, oy + v_other.dy)
-          // (v_other points outward from `other` → that's the cell next
-          // to it which the new room's doorway should occupy.)
-          const ov = DIR_VEC[ocp.direction]
-          const targetX = ox + ov.dx
-          const targetY = oy + ov.dy
-          // Solve for the room's gridX/gridY so its cp lands on target.
-          const candX = targetX - cp.x
-          const candY = targetY - cp.y
-          const dx = candX - gridX
-          const dy = candY - gridY
-          const dist = Math.abs(dx) + Math.abs(dy)
-          if (dist <= SNAP_RADIUS && dist < bestDist) {
-            bestDist = dist
-            best = { gridX: candX, gridY: candY, viaDoorway: cp, otherDoorway: ocp, otherRoomId: other.instanceId }
-          }
-        }
-      }
-    }
-    return best
+  // Free placement — rooms no longer snap. Doors are auto-created at
+  // adjacency time (see _autoConnect). Kept as a no-op for callers that
+  // still ask for a snap; they all handle null cleanly.
+  findSnap(_definition, _gridX, _gridY) {
+    return null
   }
 
   getRoomAtTile(tileX, tileY) {
@@ -206,9 +283,176 @@ export class DungeonGrid {
     return id ? this._d.rooms.find(r => r.instanceId === id) ?? null : null
   }
 
+  // Find the connection point that owns a DOOR tile. Returns { room, cp } or
+  // null. Used by AISystem to trigger the open animation when an adventurer
+  // first walks onto a closed door's 2 × WALL_THICKNESS block.
+  getCpForDoorTile(tileX, tileY) {
+    const room = this.getRoomAtTile(tileX, tileY)
+    if (!room) return null
+    for (const cp of room.connectionPoints ?? []) {
+      if (this._isTileInCpDoorBlock(room, cp, tileX, tileY)) return { room, cp }
+    }
+    return null
+  }
+
+  // Resolve the along-axis widen direction for a cp. Auto-connect cps store
+  // an explicit `alongDx` / `alongDy` so paired rooms agree on which two
+  // cells make up the door. Hand-authored cps (e.g. entry_hall's external
+  // N) fall back to the "widen toward the longer half of the wall" rule.
+  _cpAlong(room, cp) {
+    const onTopOrBot = (cp.y === 0 || cp.y === room.height - 1)
+    if (onTopOrBot) {
+      const alongDx = (cp.alongDx === 1 || cp.alongDx === -1)
+        ? cp.alongDx
+        : (((room.width - 1) - cp.x) >= cp.x ? 1 : -1)
+      return { alongDx, alongDy: 0 }
+    }
+    const alongDy = (cp.alongDy === 1 || cp.alongDy === -1)
+      ? cp.alongDy
+      : (((room.height - 1) - cp.y) >= cp.y ? 1 : -1)
+    return { alongDx: 0, alongDy }
+  }
+
+  _isTileInCpDoorBlock(room, cp, tx, ty) {
+    const WT = Balance.WALL_THICKNESS
+    const onTop = cp.y === 0
+    const onBot = cp.y === room.height - 1
+    const onLft = cp.x === 0
+    const onRgt = cp.x === room.width - 1
+    if ((onTop || onBot) && (onLft || onRgt)) return false
+    if (!onTop && !onBot && !onLft && !onRgt)  return false
+    const lx = tx - room.gridX, ly = ty - room.gridY
+
+    if (onTop || onBot) {
+      const { alongDx } = this._cpAlong(room, cp)
+      const xMin = Math.min(cp.x, cp.x + alongDx)
+      const xMax = xMin + 1
+      const yMin = onTop ? 0 : room.height - WT
+      const yMax = onTop ? WT - 1 : room.height - 1
+      return lx >= xMin && lx <= xMax && ly >= yMin && ly <= yMax
+    }
+    const { alongDy } = this._cpAlong(room, cp)
+    const yMin = Math.min(cp.y, cp.y + alongDy)
+    const yMax = yMin + 1
+    const xMin = onLft ? 0 : room.width - WT
+    const xMax = onLft ? WT - 1 : room.width - 1
+    return lx >= xMin && lx <= xMax && ly >= yMin && ly <= yMax
+  }
+
   getTileType(tileX, tileY) {
     if (tileX < 0 || tileY < 0 || tileX >= this._d.gridWidth || tileY >= this._d.gridHeight) return TILE.VOID
     return this._d.tiles[tileY][tileX]
+  }
+
+  // Lane axis for a TILE.DOOR tile.  Returns 'y' (vertical travel —
+  // top/bot wall) or 'x' (horizontal travel — left/right wall), or
+  // null for non-door tiles or genuinely ambiguous cases.  Shared by
+  // isDoorBlocked + getLaneCenterWorld so they agree.
+  _doorwayLaneAxisAt(tx, ty) {
+    if (this.getTileType(tx, ty) !== TILE.DOOR) return null
+    const isFloor = (t) => t === TILE.FLOOR || t === TILE.BOSS_FLOOR
+    // Doorways now span up to 2 × WT walls + 1 gap stub (so the gap-stub
+    // DOOR tile between two rooms sits 2*WT+1 cells from the nearest
+    // floor). Search that full depth so gap tiles still resolve a lane
+    // axis — otherwise isDoorBlocked, getLaneCenterWorld, and the L-shape
+    // lane gating in AISystem all fail at the gap, and adventurers stop
+    // mid-corridor.
+    const MAX_DEPTH = 2 * Balance.WALL_THICKNESS + 1
+    for (let d = 1; d <= MAX_DEPTH; d++) {
+      if (isFloor(this.getTileType(tx, ty - d)) || isFloor(this.getTileType(tx, ty + d))) return 'y'
+      if (isFloor(this.getTileType(tx - d, ty)) || isFloor(this.getTileType(tx + d, ty))) return 'x'
+    }
+    return null
+  }
+
+  // Doorway-lane gating used by PathfinderSystem.
+  //
+  // Doors are stamped as a 2-tile-wide × WT-deep block (see _stampCpDoor).
+  // Without any restriction, A* may diagonal-skim through the secondary
+  // column and entities don't visibly traverse the doorway centre.  We
+  // want every doorway crossing to look the same: walk straight through
+  // the canonical lane (single file).
+  //
+  // Convention: the canonical lane is the column/row with the lower
+  // along-axis coord — leftmost x for top/bot doorways, topmost y for
+  // left/right doorways.  Both rooms sharing the doorway agree because
+  // the choice is in world-tile space.  The OTHER column/row stays
+  // visually a TILE.DOOR (so the opening still looks 2-wide), but the
+  // pathfinder treats it as blocked.
+  //
+  // Returns false for non-DOOR tiles so the caller can use this as an
+  // additional gate alongside isWalkable.
+  isDoorBlocked(tx, ty) {
+    const axis = this._doorwayLaneAxisAt(tx, ty)
+    if (!axis) return false
+    if (axis === 'y') return this.getTileType(tx - 1, ty) === TILE.DOOR
+    return this.getTileType(tx, ty - 1) === TILE.DOOR
+  }
+
+  // Returns the lane-axis ('x' or 'y') if (tx, ty) is part of a doorway
+  // CORRIDOR — meaning either a canonical lane DOOR tile or a floor
+  // tile cardinally adjacent to one (the approach/exit tile flanking
+  // the doorway).  Returns null otherwise.  Movement systems use this
+  // to enforce L-shape motion: lateral correction happens BEFORE the
+  // corridor (entering) and AFTER the corridor (exiting), so the
+  // entire traversal through the doorway shadow is on a single
+  // straight line along the lane axis.
+  isLaneOrApproach(tx, ty) {
+    const t = this.getTileType(tx, ty)
+    if (t === TILE.DOOR) {
+      if (this.isDoorBlocked(tx, ty)) return null
+      return this._doorwayLaneAxisAt(tx, ty)
+    }
+    if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) {
+      const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      for (const [dx, dy] of NB) {
+        const nx = tx + dx, ny = ty + dy
+        if (this.getTileType(nx, ny) !== TILE.DOOR) continue
+        if (this.isDoorBlocked(nx, ny)) continue
+        const axis = this._doorwayLaneAxisAt(nx, ny)
+        if (axis) return axis
+      }
+    }
+    return null
+  }
+
+  // World-coords target for an entity stepping onto (tx, ty).  Normally
+  // this is the tile centre, but when (tx, ty) is the canonical lane
+  // tile of a 2-wide doorway, the target is shifted ½-tile along the
+  // along-axis so the entity walks through the GEOMETRIC CENTRE of the
+  // doorway opening (the seam between the two visible door tiles).
+  // Approach/exit floor tiles immediately adjacent to a canonical lane
+  // tile get the same shift so the entire single-file traversal —
+  // approach → lane → exit — is collinear and entry/exit happens via a
+  // single ½-tile lateral adjustment one tile before/after the lane.
+  getLaneCenterWorld(tx, ty) {
+    const TS = Balance.TILE_SIZE
+    let cx = tx * TS + TS / 2
+    let cy = ty * TS + TS / 2
+    const t = this.getTileType(tx, ty)
+    let axis = null
+    if (t === TILE.DOOR) {
+      // Only canonical lane tiles get the shift — secondary tiles are
+      // pathfinder-blocked and shouldn't be on any path anyway.
+      if (!this.isDoorBlocked(tx, ty)) axis = this._doorwayLaneAxisAt(tx, ty)
+    } else if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) {
+      // Approach/exit tile = floor tile cardinally adjacent to a
+      // canonical lane tile (its only legal entry/exit point given the
+      // pathfinder lane gate).
+      const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      for (const [dx, dy] of NB) {
+        const nx = tx + dx, ny = ty + dy
+        if (this.getTileType(nx, ny) !== TILE.DOOR) continue
+        if (this.isDoorBlocked(nx, ny)) continue
+        axis = this._doorwayLaneAxisAt(nx, ny)
+        if (axis) break
+      }
+    }
+    // Shift toward the seam between the canonical and secondary tiles.
+    // Canonical = lower along-coord, so the shift is always +TS/2.
+    if (axis === 'y')      cx += TS / 2   // top/bot doorway → shift x
+    else if (axis === 'x') cy += TS / 2   // left/right doorway → shift y
+    return { worldX: cx, worldY: cy }
   }
 
   // Direct access to the 2D tile array (used by PathfinderSystem for hot loops)
@@ -244,9 +488,10 @@ export class DungeonGrid {
   }
 
   // Two rooms are neighbours iff they have a pair of facing doorways
-  // (e.g. one E-facing and one W-facing) one tile apart. Walks every
-  // doorway on `room` and checks whether the cell directly outside it
-  // is owned by another room with an opposite-facing doorway.
+  // separated by a 1-tile doorway-gap stub (Option-B Zelda separation).
+  // Walks every doorway on `room` and checks whether the cell two steps
+  // outward is owned by another room with an opposite-facing doorway.
+  // (One step out is the gap door tile itself, not part of either room.)
   getNeighborRooms(roomId) {
     const room = this._d.rooms.find(r => r.instanceId === roomId)
     if (!room) return []
@@ -255,13 +500,15 @@ export class DungeonGrid {
     for (const cp of room.connectionPoints ?? []) {
       const v = DIR_VEC[cp.direction]
       if (!v) continue
-      const ox = room.gridX + cp.x + v.dx
-      const oy = room.gridY + cp.y + v.dy
+      if (cp.external) continue   // entrance cps face outside, no neighbour
+      const ox = room.gridX + cp.x + v.dx * 2
+      const oy = room.gridY + cp.y + v.dy * 2
       const other = this.getRoomAtTile(ox, oy)
       if (!other || other.instanceId === roomId) continue
       // The other room's doorway must face back at us.
       const oppDir = OPPOSITE_DIR[cp.direction]
       const matched = (other.connectionPoints ?? []).some(ocp =>
+        !ocp.external &&
         ocp.direction === oppDir &&
         other.gridX + ocp.x === ox &&
         other.gridY + ocp.y === oy)
@@ -288,6 +535,26 @@ export class DungeonGrid {
       }
     }
     return Infinity
+  }
+
+  // Reachability gate for Begin Day. Returns the list of rooms NOT
+  // reachable from entry_hall via the doorway graph. Empty array == fully
+  // connected. Boss chamber counts as disconnected if no path exists; the
+  // player must place rooms bridging entry_hall to it.
+  getDisconnectedRooms() {
+    const entry = this._d.rooms.find(r => r.definitionId === 'entry_hall')
+    if (!entry) return [...this._d.rooms]
+    const reachable = new Set([entry.instanceId])
+    const queue = [entry.instanceId]
+    while (queue.length) {
+      const id = queue.shift()
+      for (const n of this.getNeighborRooms(id)) {
+        if (reachable.has(n.instanceId)) continue
+        reachable.add(n.instanceId)
+        queue.push(n.instanceId)
+      }
+    }
+    return this._d.rooms.filter(r => !reachable.has(r.instanceId))
   }
 
   expandGrid(newWidth, newHeight) {
@@ -327,6 +594,7 @@ export class DungeonGrid {
     const isBoss = definition.id === 'boss_chamber'
     const floorTile = isBoss ? TILE.BOSS_FLOOR : TILE.FLOOR
     const wallTile  = isBoss ? TILE.BOSS_WALL  : TILE.WALL
+    const WT        = Balance.WALL_THICKNESS
 
     if (Array.isArray(definition.tiles) && definition.tiles.length === room.height) {
       // Override path — paint the exact TILE values authored in Room Builder.
@@ -341,48 +609,188 @@ export class DungeonGrid {
         }
       }
     } else {
-      // Default — perimeter wall + interior floor.
+      // Default — WT-thick perimeter wall + interior floor.
       for (let dy = 0; dy < room.height; dy++) {
         for (let dx = 0; dx < room.width; dx++) {
-          const isEdge = dy === 0 || dy === room.height - 1 || dx === 0 || dx === room.width - 1
+          const isEdge = dy < WT || dy >= room.height - WT || dx < WT || dx >= room.width - WT
           this._d.tiles[room.gridY + dy][room.gridX + dx] = isEdge ? wallTile : floorTile
         }
       }
     }
 
-    // Connection points always map to DOOR tiles, regardless of source.
-    for (const cp of room.connectionPoints) {
-      this._d.tiles[room.gridY + cp.y][room.gridX + cp.x] = TILE.DOOR
-    }
+    // Stamp doorways. See _stampCpDoor.
+    for (const cp of room.connectionPoints) this._stampCpDoor(room, cp)
+  }
 
-    // Widen every doorway to 2 tiles. The extra door tile sits adjacent to
-    // the connection point along the wall axis, on whichever side has more
-    // wall remaining. Skipped if the connection point sits in a corner or
-    // if the chosen neighbour isn't a wall (e.g. another door is already
-    // there from an adjacent connection point).
-    for (const cp of room.connectionPoints) {
-      const onTopOrBot = (cp.y === 0 || cp.y === room.height - 1)
-      const onLftOrRgt = (cp.x === 0 || cp.x === room.width  - 1)
-      let dx = 0, dy = 0
-      if (onTopOrBot && !onLftOrRgt) {
-        // Horizontal wall — extend along X.
-        const leftSpace  = cp.x
-        const rightSpace = (room.width - 1) - cp.x
-        dx = (rightSpace >= leftSpace) ? 1 : -1
-      } else if (onLftOrRgt && !onTopOrBot) {
-        // Vertical wall — extend along Y.
-        const upSpace   = cp.y
-        const downSpace = (room.height - 1) - cp.y
-        dy = (downSpace >= upSpace) ? 1 : -1
+  // Stamp the 2 × WT door block for one cp. 2 cells along the wall axis,
+  // WT cells through the wall. Along-axis widening picks the side with
+  // more wall space. Corner / interior cps are silently skipped.
+  _stampCpDoor(room, cp) {
+    const WT = Balance.WALL_THICKNESS
+    const onTop = (cp.y === 0)
+    const onBot = (cp.y === room.height - 1)
+    const onLft = (cp.x === 0)
+    const onRgt = (cp.x === room.width  - 1)
+    const onTopOrBot = onTop || onBot
+    const onLftOrRgt = onLft || onRgt
+    if (onTopOrBot && onLftOrRgt) return
+    if (!onTopOrBot && !onLftOrRgt) return
+
+    if (onTopOrBot) {
+      const { alongDx } = this._cpAlong(room, cp)
+      const yStart  = onTop ? 0 : room.height - WT
+      const yEnd    = onTop ? WT - 1 : room.height - 1
+      for (let iy = yStart; iy <= yEnd; iy++) {
+        for (const ix of [cp.x, cp.x + alongDx]) {
+          if (ix < 0 || ix >= room.width) continue
+          this._d.tiles[room.gridY + iy][room.gridX + ix] = TILE.DOOR
+        }
+      }
+    } else {
+      const { alongDy } = this._cpAlong(room, cp)
+      const xStart  = onLft ? 0 : room.width - WT
+      const xEnd    = onLft ? WT - 1 : room.width - 1
+      for (let ix = xStart; ix <= xEnd; ix++) {
+        for (const iy of [cp.y, cp.y + alongDy]) {
+          if (iy < 0 || iy >= room.height) continue
+          this._d.tiles[room.gridY + iy][room.gridX + ix] = TILE.DOOR
+        }
+      }
+    }
+  }
+
+  // Auto-create paired cps + doors between `newRoom` and any existing
+  // room sharing a wall with a 1-tile gap. Constraints:
+  //   - max 1 door per room per wall (so 4 max per regular room)
+  //   - boss_chamber gets max 1 door total
+  //   - overlap must be >= 2 cells along the shared axis (so the 2-wide
+  //     door fits); smaller overlaps are silently allowed-without-door
+  // The cp position is anchored so the door pair sits centred on the
+  // overlap range, using the existing widen-toward-larger-half rule.
+  _autoConnect(newRoom) {
+    const isBossNew = newRoom.definitionId === 'boss_chamber'
+    const usedWallsNew = new Set(newRoom.connectionPoints.map(c => c.direction))
+    const newDoorCount = () => newRoom.connectionPoints.length
+
+    for (const other of this._d.rooms) {
+      if (other.instanceId === newRoom.instanceId) continue
+      const isBossOther = other.definitionId === 'boss_chamber'
+      if (isBossNew && newDoorCount() >= 1) break
+      if (isBossOther && other.connectionPoints.length >= 1) continue
+
+      // Detect 1-tile-gap adjacency on each side of `newRoom` and the
+      // overlap range along the shared axis.
+      // newRoom edges in dungeon coords:
+      const nL = newRoom.gridX, nR = newRoom.gridX + newRoom.width  - 1
+      const nT = newRoom.gridY, nB = newRoom.gridY + newRoom.height - 1
+      const oL = other.gridX,    oR = other.gridX   + other.width   - 1
+      const oT = other.gridY,    oB = other.gridY   + other.height  - 1
+
+      let dirNew = null   // direction the new room's wall faces toward `other`
+      let oxRange = null  // [start, end] along X (for N/S adjacency)
+      let oyRange = null  // [start, end] along Y (for E/W adjacency)
+      if (oB + 2 === nT) {                       // other is NORTH of new
+        dirNew = 'N'
+        oxRange = [Math.max(nL, oL), Math.min(nR, oR)]
+      } else if (oT - 2 === nB) {                 // other is SOUTH of new
+        dirNew = 'S'
+        oxRange = [Math.max(nL, oL), Math.min(nR, oR)]
+      } else if (oR + 2 === nL) {                 // other is WEST of new
+        dirNew = 'W'
+        oyRange = [Math.max(nT, oT), Math.min(nB, oB)]
+      } else if (oL - 2 === nR) {                 // other is EAST of new
+        dirNew = 'E'
+        oyRange = [Math.max(nT, oT), Math.min(nB, oB)]
+      } else continue
+
+      if (usedWallsNew.has(dirNew)) continue
+      const dirOther = OPPOSITE_DIR[dirNew]
+      if ((other.connectionPoints ?? []).some(c => c.direction === dirOther)) continue
+
+      // Both cps anchor on the SAME dungeon cell (the lower-coord cell of
+      // the door pair). To avoid stamping doors into either room's corner
+      // zone (the WT × WT area at each rect corner), wcenter is clamped to
+      // the intersection of:
+      //   - the overlap range minus 1 (so wcenter+1 stays in overlap)
+      //   - newRoom's mid-wall band [gridY|X+WT, gridY|X+size-WT-2]
+      //   - other's mid-wall band
+      // If the intersection is empty, the rooms only graze each other near
+      // the corners and no door is created (still allowed by validation —
+      // they place as a doorless adjacency).
+      const range = oxRange || oyRange
+      if (range[1] - range[0] + 1 < 2) continue
+      const WT = Balance.WALL_THICKNESS
+      let lo, hi
+      if (oxRange) {
+        lo = Math.max(range[0],
+                      newRoom.gridX + WT,
+                      other.gridX   + WT)
+        hi = Math.min(range[1] - 1,
+                      newRoom.gridX + newRoom.width - WT - 2,
+                      other.gridX   + other.width   - WT - 2)
       } else {
-        continue   // corner or interior — leave alone
+        lo = Math.max(range[0],
+                      newRoom.gridY + WT,
+                      other.gridY   + WT)
+        hi = Math.min(range[1] - 1,
+                      newRoom.gridY + newRoom.height - WT - 2,
+                      other.gridY   + other.height   - WT - 2)
       }
-      const tx = room.gridX + cp.x + dx
-      const ty = room.gridY + cp.y + dy
-      const cur = this._d.tiles[ty]?.[tx]
-      if (cur === TILE.WALL || cur === TILE.BOSS_WALL || cur === TILE.WALL_CAP) {
-        this._d.tiles[ty][tx] = TILE.DOOR
+      if (lo > hi) continue
+      // Boss connection — the boss chamber's one allowed door must sit at
+      // the exact centre of one of its four walls (no off-centre doors).
+      // Force wcenter to the midpoint of the boss wall and skip the pair
+      // entirely if that midpoint isn't reachable from the other room (i.e.
+      // the rooms are offset such that the boss wall centre falls outside
+      // the overlap or outside the other room's mid-wall band).
+      const bossRoom = isBossNew ? newRoom : (isBossOther ? other : null)
+      let wcenter
+      if (bossRoom) {
+        const sz     = oxRange ? bossRoom.width  : bossRoom.height
+        const origin = oxRange ? bossRoom.gridX  : bossRoom.gridY
+        wcenter = origin + Math.floor((sz - 2) / 2)
+        if (wcenter < lo || wcenter > hi) continue
+      } else {
+        wcenter = Math.floor((lo + hi) / 2)
       }
+
+      let cpNew, cpOther
+      if (oxRange) {
+        const cpyNew   = (dirNew   === 'N') ? 0 : newRoom.height - 1
+        const cpyOther = (dirOther === 'N') ? 0 : other.height   - 1
+        const cpxNew   = wcenter - newRoom.gridX
+        const cpxOther = wcenter - other.gridX
+        cpNew   = { x: cpxNew,   y: cpyNew,   direction: dirNew,   alongDx:  1, alongDy: 0 }
+        cpOther = { x: cpxOther, y: cpyOther, direction: dirOther, alongDx:  1, alongDy: 0 }
+      } else {
+        const cpxNew   = (dirNew   === 'W') ? 0 : newRoom.width - 1
+        const cpxOther = (dirOther === 'W') ? 0 : other.width   - 1
+        const cpyNew   = wcenter - newRoom.gridY
+        const cpyOther = wcenter - other.gridY
+        cpNew   = { x: cpxNew, y: cpyNew,   direction: dirNew,   alongDx: 0, alongDy: 1 }
+        cpOther = { x: cpxOther, y: cpyOther, direction: dirOther, alongDx: 0, alongDy: 1 }
+      }
+
+      // Style propagation: boss-room cps render with the boss style.
+      const styleNew   = isBossNew   ? 'boss' : 'regular'
+      const styleOther = isBossOther ? 'boss' : 'regular'
+
+      const fullNew = {
+        style: styleNew, external: false, ...cpNew,
+        open: false, opening: false, openProgress: 0,
+      }
+      const fullOther = {
+        style: styleOther, external: false, ...cpOther,
+        open: false, opening: false, openProgress: 0,
+      }
+      newRoom.connectionPoints.push(fullNew)
+      other.connectionPoints.push(fullOther)
+      usedWallsNew.add(dirNew)
+
+      this._stampCpDoor(newRoom, fullNew)
+      this._stampCpDoor(other,   fullOther)
+
+      if (isBossNew && newDoorCount() >= 1) break
     }
   }
 
@@ -394,25 +802,61 @@ export class DungeonGrid {
     }
   }
 
-  // ── Doorway adjacency check (placement validation) ─────────────────────────
-
-  _hasDoorwayLink(candidate) {
-    const cps = candidate.connectionPoints ?? []
+  // Stamp doorway-gap DOOR tiles for every cp on `room` whose match lands on
+  // another room's cp two cells outward. The gap tile is the cell one step
+  // outward from this cp (i.e. between the two rooms). If the room's door
+  // was widened (see _writeTiles), the gap door is widened to match so the
+  // 2-wide doorway carries through the gap.
+  _writeGapDoors(room) {
+    const cps = room.connectionPoints ?? []
     for (const cp of cps) {
       const v = DIR_VEC[cp.direction]
       if (!v) continue
-      const ox = candidate.gridX + cp.x + v.dx
-      const oy = candidate.gridY + cp.y + v.dy
-      const other = this.getRoomAtTile(ox, oy)
+      if (cp.external) continue   // entrance cps don't pair with another room
+      // Verify there's a matching cp on a neighbour 2 cells outward.
+      const matchX = room.gridX + cp.x + v.dx * 2
+      const matchY = room.gridY + cp.y + v.dy * 2
+      const other  = this.getRoomAtTile(matchX, matchY)
       if (!other) continue
       const oppDir = OPPOSITE_DIR[cp.direction]
       const matched = (other.connectionPoints ?? []).some(ocp =>
+        !ocp.external &&
         ocp.direction === oppDir &&
-        other.gridX + ocp.x === ox &&
-        other.gridY + ocp.y === oy)
-      if (matched) return true
+        other.gridX + ocp.x === matchX &&
+        other.gridY + ocp.y === matchY)
+      if (!matched) continue
+
+      // Primary gap tile (one step outward from the cp).
+      const gx = room.gridX + cp.x + v.dx
+      const gy = room.gridY + cp.y + v.dy
+      if (this._d.tiles[gy]?.[gx] === TILE.VOID) this._d.tiles[gy][gx] = TILE.DOOR
+
+      // Mirror the doorway-widening direction from _stampCpDoor so the gap
+      // tile widens on the same side the room's door pair widens to.
+      const { alongDx, alongDy } = this._cpAlong(room, cp)
+      const gx2 = gx + alongDx, gy2 = gy + alongDy
+      if (this._d.tiles[gy2]?.[gx2] === TILE.VOID) this._d.tiles[gy2][gx2] = TILE.DOOR
     }
-    return false
+  }
+
+  // After erasing a room, any DOOR tile in the just-vacated gap region
+  // becomes orphaned (no longer between two rooms). Walk this room's gap
+  // candidates and clear any DOOR that's no longer connected to two rooms.
+  _eraseGapDoorsFor(room) {
+    const cps = room.connectionPoints ?? []
+    for (const cp of cps) {
+      const v = DIR_VEC[cp.direction]
+      if (!v) continue
+      // Same outward-1 + widening tiles as _writeGapDoors.
+      const { alongDx, alongDy } = this._cpAlong(room, cp)
+      const cells = [
+        [room.gridX + cp.x + v.dx,            room.gridY + cp.y + v.dy],
+        [room.gridX + cp.x + v.dx + alongDx,  room.gridY + cp.y + v.dy + alongDy],
+      ]
+      for (const [gx, gy] of cells) {
+        if (this._d.tiles[gy]?.[gx] === TILE.DOOR) this._d.tiles[gy][gx] = TILE.VOID
+      }
+    }
   }
 
   // ── Lookup helpers ───────────────────────────────────────────────────────────

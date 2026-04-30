@@ -18,7 +18,7 @@ CC-BY-SA 3.0, GPL 3.0, and/or OGA-BY 3.0.
 - **Daniel Eddeland (daneeklu)** — 3 layer source(s)
 - **DarkwallLKE** — 1 layer source(s)
 - **Dr. Jamgo** — 1 layer source(s)
-- **drjamgo@hotmail.com** — 1 layer source(s)
+- **drjamgo@hotmail.com** — 2 layer source(s)
 - **Durrani** — 6 layer source(s)
 - **Eliza Wyatt (ElizaWy)** — 6 layer source(s)
 - **ElizaWy** — 90 layer source(s)

@@ -17,6 +17,7 @@
 // All behaviors are no-ops when their host room doesn't exist.
 
 import { EventBus } from './EventBus.js'
+import { Balance }  from '../config/balance.js'
 
 export class RoomBehaviorSystem {
   constructor(scene, gameState) {
@@ -194,7 +195,7 @@ export class RoomBehaviorSystem {
     const TS = 32
 
     for (let i = 0; i < 3; i++) {
-      const x = room.gridX + 1 + i
+      const x = room.gridX + Balance.WALL_THICKNESS + i
       const y = room.gridY + Math.floor(room.height / 2)
       const m = {
         instanceId:    `colo_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 4)}`,

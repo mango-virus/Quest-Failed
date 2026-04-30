@@ -448,6 +448,33 @@ A persistent screen outside of the main dungeon view that shows every adventurer
 
 ---
 
+## Sprite-based dungeon tiling
+
+I want to be able to upload sprite tiles and place them over the current dungeon walls, doors, and floors. This means a tileset editor where I can drop in PNG sprite tiles I've already made (no slicing — they're individual files), build named **themes** out of them, and apply different themes per room.
+
+**Sprite library — what I can upload:**
+- 32×32, 64×64, and 128×128 PNG tiles. Each tile gets a per-sprite **scale-down vs span** toggle: scale-down means the sprite shrinks to fit one 32×32 cell; span means a 64×64 covers a 2×2 block, a 128×128 covers a 4×4 block (useful for doorframes, statues, oversized features).
+- Multiple variants per slot. The renderer rolls a random pick per cell at dungeon-build time so floors and walls don't all look identical.
+
+**Theme — slot vocabulary:**
+- Floor (variants)
+- Wall variants per autotile slot: top, bottom, left, right, four outer corners, wall cap (10 wall slots, each with variants)
+- **Doors — 24 slots per theme**: 3 states (closed / open / locked) × 2 orientations (vertical / horizontal) × 4 tiles per door (since doors are a 2×2 block in this game)
+
+**Per-room editing:**
+- Edit room **templates** in `rooms.json` — each Foyer everywhere gets the same tile arrangement, baked in.
+- Theme is assigned per-room (every room template can pick its own theme).
+- Per-cell overrides on top of the theme — paint individual 32×32 cells in a room template with a specific sprite from the library.
+- **Per-cell rotation** — when painting a cell, the user can rotate the brush in 90° steps (0 / 90 / 180 / 270). The same sprite can be painted at any of the four rotations across different cells of the same room. Cell entries in `tileLayout` are either a plain sprite-id string (= 0°) or an object `{ id, rot }`.
+
+**Persistence:**
+- Themes and sprites ship with the game. Editor writes PNGs and JSON manifests directly to the project folder via the browser's File System Access API (one-time folder pick per session). Per-room overrides save back to `src/data/rooms.json`.
+
+**Theme presets:**
+- Multiple named themes co-exist (e.g. stone-crypt, mossy-cave, hellfire). Switching a room's theme swaps its sprites without touching layout.
+
+---
+
 ## Other ideas
 
 1. Random guilds can attempt the dungeon with full raid teams.

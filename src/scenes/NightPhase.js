@@ -65,8 +65,16 @@ export class NightPhase extends Phaser.Scene {
       this._gameState.unlocks.rooms.includes(r.id) && !r.placementRules?.fixed
     )
     const allMinions = this.cache.json.get('minionTypes') ?? []
+    // Only the starter (chain[0]) of each evolution chain is placeable —
+    // higher tiers are reached by killing 2 adventurers without dying.
+    const evolutions = this.cache.json.get('minionEvolutions') ?? {}
+    const starterIds = new Set(
+      Object.values(evolutions)
+        .filter(v => Array.isArray(v?.chain))
+        .map(v => v.chain[0])
+    )
     this._minionDefs = allMinions.filter(m =>
-      this._gameState.unlocks.minionTypes?.includes(m.id)
+      this._gameState.unlocks.minionTypes?.includes(m.id) && starterIds.has(m.id)
     )
     const allTraps = this.cache.json.get('trapTypes') ?? []
     const blockedTraps = this._gameState.player?.archetypeModifiers?.blockedTrapTypes ?? []
@@ -642,6 +650,7 @@ export class NightPhase extends Phaser.Scene {
       this._selected = null
       this._selectedKind = null
       this._clearPreview()
+      this._updateGridVisibility()
       return
     }
 
@@ -649,6 +658,14 @@ export class NightPhase extends Phaser.Scene {
     this._selectedKind = kind
     const card = this._paletteCards.find(c => c.def === def)
     if (card) this._resetCard(card.cg, card.px, card.py, card.CARD_W, card.CARD_H, card.catColor, true)
+    this._updateGridVisibility()
+  }
+
+  // Show the dungeon grid lines while a placement is active so the player
+  // can gauge alignment; hide them otherwise so the bedrock reads cleanly.
+  _updateGridVisibility() {
+    const gameScene = this.scene.get('Game')
+    gameScene?._dungeonRenderer?.setGridVisible?.(this._selected != null)
   }
 
   _clearPreview() {
@@ -678,10 +695,7 @@ export class NightPhase extends Phaser.Scene {
         const rotDef = this._getRotatedDef(this._selected)
         tx = Math.round(wp.x / TS - rotDef.width  / 2)
         ty = Math.round(wp.y / TS - rotDef.height / 2)
-        // Auto-snap: if a doorway on this room aligns with an existing
-        // room's facing doorway, the preview jumps to the snapped slot.
-        const snap = this._dungeonGrid.findSnap(rotDef, tx, ty)
-        if (snap) { tx = snap.gridX; ty = snap.gridY }
+        // Free placement — no snap. Doors auto-create at adjacency time.
       } else {
         tx = Math.floor(wp.x / TS)
         ty = Math.floor(wp.y / TS)
@@ -693,8 +707,22 @@ export class NightPhase extends Phaser.Scene {
       }
     })
 
-    this.input.on('pointerdown', (p) => {
+    this.input.on('pointerdown', (p, gameObjects) => {
       if (p.middleButtonDown()) return
+
+      // Skip room-pickup when the click is over a minion. The minion sprite
+      // lives in Game scene, but NightPhase's input plugin actually runs
+      // before Game's (it was launched on top), so cross-scene flags arrive
+      // too late. Easier to check `gameState.minions` directly: if any
+      // alive minion is within ~half a tile of the cursor's world point,
+      // assume the click is for the minion and let MinionRenderer handle it.
+      const wp = cam.getWorldPoint(p.x, p.y)
+      const minionHitR = TS * 0.55
+      const overMinion = (this._gameState.minions ?? []).some(m => {
+        if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
+        return Math.hypot(wp.x - m.worldX, wp.y - m.worldY) <= minionHitR
+      })
+      if (overMinion) return
 
       if (p.rightButtonDown()) {
         // Right-click while a placement candidate is held → cancel the
@@ -841,6 +869,8 @@ export class NightPhase extends Phaser.Scene {
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     if (!room) {
       if (violations.length === 0) violations.push('Not inside any room')
+    } else if (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall') {
+      violations.push("Can't place minions here")
     } else {
       const isBarracksRoom = room.definitionId === 'starter_barracks' || room.definitionId === 'crypt'
       if (!isBarracksRoom &&
@@ -912,6 +942,28 @@ export class NightPhase extends Phaser.Scene {
 
     const room = this._dungeonGrid.placeRoom(rotDef, placeTx, placeTy)
     if (room) {
+      // Re-anchor any minions that were inside this room before pickup so
+      // they ride along to the new position. Offsets are pre-rotation; if
+      // the player rotated the room the layout may not match — orphaned
+      // minions on void tiles will be cleaned up by AI on next tick.
+      if (this._heldRoomMinions?.length) {
+        for (const { minion, offX, offY } of this._heldRoomMinions) {
+          const nx = room.gridX + offX
+          const ny = room.gridY + offY
+          minion.tileX  = nx
+          minion.tileY  = ny
+          minion.worldX = nx * TS + TS / 2
+          minion.worldY = ny * TS + TS / 2
+          minion.homeTileX = nx
+          minion.homeTileY = ny
+          minion.assignedRoomId = room.instanceId
+          minion._heldByPlayer = false
+          minion._patrolTarget = null
+          minion._patrolAccum  = 0
+          minion._chasePath    = null
+        }
+        this._heldRoomMinions = null
+      }
       this._lastPlaced = { kind: 'room', entity: room, essenceCost: cost }
       const max = def.placementRules?.maxPerDungeon
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
@@ -1103,6 +1155,19 @@ export class NightPhase extends Phaser.Scene {
 
     if (this._lastPlaced?.entity?.instanceId === room.instanceId) this._lastPlaced = null
 
+    // Capture minions inside the room so they travel with it on placement.
+    // Offsets are room-relative tile coords; we re-anchor them after placeRoom
+    // succeeds. AI is paused via `_heldByPlayer` until then.
+    const heldMinions = []
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead') continue
+      if (m.tileX < room.gridX || m.tileX >= room.gridX + room.width)  continue
+      if (m.tileY < room.gridY || m.tileY >= room.gridY + room.height) continue
+      heldMinions.push({ minion: m, offX: m.tileX - room.gridX, offY: m.tileY - room.gridY })
+      m._heldByPlayer = true
+    }
+    this._heldRoomMinions = heldMinions
+
     this._dungeonGrid.removeRoom(room.instanceId)
     this._rotation = 0
 
@@ -1139,11 +1204,20 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _cancelSelection() {
+    // If we'd grabbed minions during a room pickup, release the AI lock so
+    // they're not frozen forever. Their tiles are now VOID (the room is
+    // gone) — AISystem.stuck-in-wall guard will snap them to a walkable
+    // neighbour on next tick.
+    if (this._heldRoomMinions?.length) {
+      for (const { minion } of this._heldRoomMinions) minion._heldByPlayer = false
+      this._heldRoomMinions = null
+    }
     this._selected = null
     this._selectedKind = null
     this._rotation = 0
     this._paletteCards.forEach(c => this._resetCard(c.cg, c.px, c.py, c.CARD_W, c.CARD_H, c.catColor, false))
     this._clearPreview()
+    this._updateGridVisibility()
   }
 
   // ── Begin Day ─────────────────────────────────────────────────────────────
@@ -1158,18 +1232,14 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
-    // Doorway-snap placement enforces room↔room links at drop time, so by
-    // the time we reach Begin Day every placed room is reachable from the
-    // boss via the doorway graph. Defensively re-check anyway in case of
-    // a future code path that bypasses validatePlacement.
-    const disconnected = dungeon.rooms.filter(r => {
-      if (r.definitionId === 'boss_chamber') return false
-      return !Number.isFinite(this._dungeonGrid.getDepthFromBoss(r.instanceId))
-    })
+    // Free placement allows islands, so verify connectivity at day-start.
+    // Every placed room — including the boss — must be reachable from the
+    // entry_hall via the doorway graph.
+    const disconnected = this._dungeonGrid.getDisconnectedRooms()
     if (disconnected.length > 0) {
       const names = disconnected.slice(0, 2).map(r => r.definitionId.replace(/_/g, ' ')).join(', ')
       const extra = disconnected.length > 2 ? ` +${disconnected.length - 2} more` : ''
-      this._showPlacementError(`Disconnected: ${names}${extra} — re-place via doorway alignment`)
+      this._showPlacementError(`Disconnected: ${names}${extra} — place rooms adjacent to existing ones`)
       return
     }
 

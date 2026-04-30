@@ -3,12 +3,325 @@
     "id": "boss_chamber",
     "name": "Boss Chamber",
     "category": "special",
-    "width": 12,
-    "height": 12,
-    "tileLayout": [],
-    "connectionPoints": [
-      { "x": 5, "y": 0, "direction": "N" }
+    "width": 14,
+    "height": 14,
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "pillar1_l",
+        null,
+        "pillar2_l",
+        null,
+        "wall_c",
+        null,
+        "pillar3_r",
+        null,
+        "pillar4_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar4_r",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor_corner2",
+          "rot": 270
+        },
+        null,
+        "floor1",
+        null,
+        "floor30",
+        null,
+        "floor4",
+        null,
+        "floor_corner2",
+        null,
+        {
+          "id": "pillar1_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar3_r",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor4",
+          "rot": 270
+        },
+        null,
+        "floor5",
+        null,
+        "floor6",
+        null,
+        "floor7",
+        null,
+        {
+          "id": "floor1",
+          "rot": 90
+        },
+        null,
+        {
+          "id": "pillar2_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_c",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor30",
+          "rot": 270
+        },
+        null,
+        "floor11",
+        null,
+        "floor31",
+        null,
+        "floor8",
+        null,
+        {
+          "id": "floor30",
+          "rot": 90
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar2_l",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor1",
+          "rot": 270
+        },
+        null,
+        "floor12",
+        null,
+        "floor13",
+        null,
+        "floor14",
+        null,
+        {
+          "id": "floor4",
+          "rot": 90
+        },
+        null,
+        {
+          "id": "pillar3_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar1_l",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor_corner2",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "floor4",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "floor30",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "floor1",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "floor_corner2",
+          "rot": 90
+        },
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar3_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar2_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar1_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
     ],
+    "connectionPoints": [],
     "upkeepCost": 0,
     "essenceCostToPlace": 0,
     "powerCostToUnlock": 0,
@@ -19,22 +332,24 @@
       "maxPerDungeon": 1,
       "fixed": true
     },
-    "tags": ["boss", "special", "fixed"],
+    "tags": [
+      "boss",
+      "special",
+      "fixed"
+    ],
     "onAdventurerEnter": "bossChamber_onEnter",
     "description": "Your lair. The final room. This is where it ends — for them or for you.",
-    "flavorText": "Every dungeon has a heart. This is yours."
+    "flavorText": "Every dungeon has a heart. This is yours.",
+    "theme": null
   },
   {
     "id": "starter_barracks",
     "name": "Barracks",
     "category": "starter",
-    "width": 8,
-    "height": 6,
+    "width": 10,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 3, "y": 0, "direction": "N" },
-      { "x": 3, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 0,
     "essenceCostToPlace": 0,
     "powerCostToUnlock": 0,
@@ -44,22 +359,24 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["starter", "minion_home", "free"],
+    "tags": [
+      "starter",
+      "minion_home",
+      "free"
+    ],
     "onNightStart": "barracks_respawnMinions",
     "description": "Where your minions sleep between patrols. Minions assigned here respawn here overnight.",
-    "flavorText": "Free to upkeep. The bones rest cheap."
+    "flavorText": "Free to upkeep. The bones rest cheap.",
+    "theme": null
   },
   {
     "id": "starter_corridor",
     "name": "Corridor",
     "category": "starter",
-    "width": 4,
-    "height": 8,
+    "width": 6,
+    "height": 10,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 1, "y": 0, "direction": "N" },
-      { "x": 1, "y": 7, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 0,
     "essenceCostToPlace": 0,
     "powerCostToUnlock": 0,
@@ -69,23 +386,23 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["starter", "corridor", "free"],
+    "tags": [
+      "starter",
+      "corridor",
+      "free"
+    ],
     "description": "A basic connecting passage. Place between rooms to link them.",
-    "flavorText": "Every dungeon starts with a hallway."
+    "flavorText": "Every dungeon starts with a hallway.",
+    "theme": null
   },
   {
     "id": "starter_guard_post",
     "name": "Guard Post",
     "category": "starter",
-    "width": 6,
-    "height": 6,
+    "width": 8,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 2, "y": 5, "direction": "S" },
-      { "x": 0, "y": 2, "direction": "W" },
-      { "x": 5, "y": 2, "direction": "E" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 0,
     "essenceCostToPlace": 0,
     "powerCostToUnlock": 0,
@@ -95,21 +412,23 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["starter", "combat", "free"],
+    "tags": [
+      "starter",
+      "combat",
+      "free"
+    ],
     "description": "A small crossroads room. Guards wait here and can cover four corridors.",
-    "flavorText": "Four doors. One choice."
+    "flavorText": "Four doors. One choice.",
+    "theme": null
   },
   {
     "id": "trap_room",
     "name": "Trap Room",
     "category": "trap",
-    "width": 8,
-    "height": 8,
+    "width": 10,
+    "height": 10,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 3, "y": 0, "direction": "N" },
-      { "x": 3, "y": 7, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 8,
     "essenceCostToPlace": 25,
     "powerCostToUnlock": 0,
@@ -119,20 +438,22 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["trap", "hazard"],
+    "tags": [
+      "trap",
+      "hazard"
+    ],
     "description": "A room built to kill. Requires Soul Essence upkeep to keep mechanisms primed.",
-    "flavorText": "They always think the worst is behind them."
+    "flavorText": "They always think the worst is behind them.",
+    "theme": null
   },
   {
     "id": "treasure_room",
     "name": "Treasure Room",
     "category": "treasure",
-    "width": 8,
-    "height": 8,
+    "width": 10,
+    "height": 10,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 3, "y": 0, "direction": "N" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 15,
     "essenceCostToPlace": 50,
     "powerCostToUnlock": 0,
@@ -142,21 +463,23 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["treasure", "loot", "bait"],
+    "tags": [
+      "treasure",
+      "loot",
+      "bait"
+    ],
     "description": "Lures adventurers deeper in. Holds valuable gear — if they take it, they come back stronger.",
-    "flavorText": "The best bait is something they actually want."
+    "flavorText": "The best bait is something they actually want.",
+    "theme": null
   },
   {
     "id": "healing_fountain",
     "name": "Healing Fountain",
     "category": "utility",
-    "width": 6,
-    "height": 6,
+    "width": 8,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 2, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 5,
     "essenceCostToPlace": 20,
     "powerCostToUnlock": 0,
@@ -166,23 +489,31 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["rest_point", "healing", "vulnerable"],
+    "tags": [
+      "rest_point",
+      "healing",
+      "vulnerable"
+    ],
     "onAdventurerEnter": "healingFountain_onEnter",
     "description": "Adventurers stop to heal here, leaving them vulnerable to patrolling minions.",
-    "flavorText": "Comfort is a trap with no mechanism."
+    "flavorText": "Comfort is a trap with no mechanism.",
+    "theme": null
   },
   {
     "id": "entry_hall",
     "name": "Entry Hall",
     "category": "starter",
-    "width": 10,
-    "height": 6,
+    "width": 12,
+    "height": 8,
     "tileLayout": [],
     "connectionPoints": [
-      { "x": 4, "y": 0, "direction": "N" },
-      { "x": 4, "y": 5, "direction": "S" },
-      { "x": 0, "y": 2, "direction": "W" },
-      { "x": 9, "y": 2, "direction": "E" }
+      {
+        "x": 5,
+        "y": 0,
+        "direction": "N",
+        "external": true,
+        "style": "entrance"
+      }
     ],
     "upkeepCost": 0,
     "essenceCostToPlace": 0,
@@ -193,21 +524,25 @@
       "maxPerDungeon": 1,
       "fixed": false
     },
-    "tags": ["starter", "entrance", "crossroads", "free", "required"],
+    "tags": [
+      "starter",
+      "entrance",
+      "crossroads",
+      "free",
+      "required"
+    ],
     "description": "REQUIRED — adventurers always enter the dungeon through this room. Only one allowed. Place it first, connect it to the boss chamber.",
-    "flavorText": "Every journey into darkness starts somewhere."
+    "flavorText": "Every journey into darkness starts somewhere.",
+    "theme": null
   },
   {
     "id": "crypt",
     "name": "Crypt",
     "category": "combat",
-    "width": 6,
-    "height": 8,
+    "width": 8,
+    "height": 10,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 2, "y": 7, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 4,
     "essenceCostToPlace": 15,
     "powerCostToUnlock": 0,
@@ -217,23 +552,24 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["combat", "undead", "minion_home"],
+    "tags": [
+      "combat",
+      "undead",
+      "minion_home"
+    ],
     "onNightStart": "crypt_spawnUndead",
     "description": "Ancient sarcophagi line the walls. Undead minions spawn here each night.",
-    "flavorText": "They always come back. That's the point."
+    "flavorText": "They always come back. That's the point.",
+    "theme": null
   },
   {
     "id": "armory",
     "name": "Armory",
     "category": "utility",
-    "width": 6,
-    "height": 6,
+    "width": 8,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 0, "y": 2, "direction": "W" },
-      { "x": 5, "y": 2, "direction": "E" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 6,
     "essenceCostToPlace": 18,
     "powerCostToUnlock": 0,
@@ -243,21 +579,23 @@
       "maxPerDungeon": 2,
       "fixed": false
     },
-    "tags": ["utility", "buff", "minion_support"],
+    "tags": [
+      "utility",
+      "buff",
+      "minion_support"
+    ],
     "description": "Minions patrolling adjacent rooms gain +2 attack while the armory is active.",
-    "flavorText": "A well-armed skeleton is a happy skeleton."
+    "flavorText": "A well-armed skeleton is a happy skeleton.",
+    "theme": null
   },
   {
     "id": "prison_block",
     "name": "Prison Block",
     "category": "combat",
-    "width": 10,
-    "height": 6,
+    "width": 12,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 4, "y": 0, "direction": "N" },
-      { "x": 4, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 5,
     "essenceCostToPlace": 20,
     "powerCostToUnlock": 0,
@@ -267,22 +605,24 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["combat", "capture", "detention"],
+    "tags": [
+      "combat",
+      "capture",
+      "detention"
+    ],
     "onAdventurerEnter": "prison_onEnter",
     "description": "Iron cells line the walls. Adventurers who linger risk being captured by patrolling guards.",
-    "flavorText": "The bars aren't to keep things in. They're to keep hope out."
+    "flavorText": "The bars aren't to keep things in. They're to keep hope out.",
+    "theme": null
   },
   {
     "id": "serpent_pit",
     "name": "Serpent Pit",
     "category": "trap",
-    "width": 8,
-    "height": 8,
+    "width": 10,
+    "height": 10,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 3, "y": 0, "direction": "N" },
-      { "x": 3, "y": 7, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 10,
     "essenceCostToPlace": 30,
     "powerCostToUnlock": 0,
@@ -292,22 +632,24 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["trap", "poison", "hazard"],
+    "tags": [
+      "trap",
+      "poison",
+      "hazard"
+    ],
     "onAdventurerEnter": "serpentPit_onEnter",
     "description": "The floor writhes. Adventurers take poison damage each turn spent inside.",
-    "flavorText": "They hear the hissing. They still go in."
+    "flavorText": "They hear the hissing. They still go in.",
+    "theme": null
   },
   {
     "id": "hall_of_echoes",
     "name": "Hall of Echoes",
     "category": "special",
-    "width": 10,
-    "height": 6,
+    "width": 12,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 4, "y": 0, "direction": "N" },
-      { "x": 4, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 10,
     "essenceCostToPlace": 35,
     "powerCostToUnlock": 0,
@@ -317,22 +659,24 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["special", "alert", "ambush"],
+    "tags": [
+      "special",
+      "alert",
+      "ambush"
+    ],
     "onAdventurerEnter": "hallOfEchoes_alertAdjacent",
     "description": "Any sound in this room alerts minions in adjacent rooms. Perfect for ambushes against Speed Runners.",
-    "flavorText": "Sound travels further than screams in here."
+    "flavorText": "Sound travels further than screams in here.",
+    "theme": null
   },
   {
     "id": "mirror_maze",
     "name": "Mirror Maze",
     "category": "special",
-    "width": 8,
-    "height": 8,
+    "width": 10,
+    "height": 10,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 3, "y": 0, "direction": "N" },
-      { "x": 3, "y": 7, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 8,
     "essenceCostToPlace": 30,
     "powerCostToUnlock": 0,
@@ -342,22 +686,24 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["special", "knowledge", "anti_cartographer"],
+    "tags": [
+      "special",
+      "knowledge",
+      "anti_cartographer"
+    ],
     "onAdventurerEnter": "mirrorMaze_onEnter",
     "description": "Reflections confuse intruders. Cartographers map this room with garbled accuracy — their intel becomes unreliable rumour.",
-    "flavorText": "Which way did the corridor go again?"
+    "flavorText": "Which way did the corridor go again?",
+    "theme": null
   },
   {
     "id": "lava_floor",
     "name": "Lava Floor",
     "category": "hazard",
-    "width": 6,
-    "height": 6,
+    "width": 8,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 2, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 12,
     "essenceCostToPlace": 40,
     "powerCostToUnlock": 0,
@@ -367,21 +713,23 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["hazard", "fire", "passive_damage"],
+    "tags": [
+      "hazard",
+      "fire",
+      "passive_damage"
+    ],
     "description": "Searing lava cracks across the floor. Adventurers take continuous fire damage while inside.",
-    "flavorText": "Some traps don't need triggers. Heat always finds a foot."
+    "flavorText": "Some traps don't need triggers. Heat always finds a foot.",
+    "theme": null
   },
   {
     "id": "collapsing_pillars",
     "name": "Collapsing Pillars",
     "category": "hazard",
-    "width": 8,
-    "height": 6,
+    "width": 10,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 3, "y": 0, "direction": "N" },
-      { "x": 3, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 10,
     "essenceCostToPlace": 35,
     "powerCostToUnlock": 0,
@@ -391,21 +739,23 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["hazard", "physical", "burst_damage"],
+    "tags": [
+      "hazard",
+      "physical",
+      "burst_damage"
+    ],
     "description": "Pillars buckle and drop chunks of stone every several seconds. Random burst physical damage.",
-    "flavorText": "Architectural integrity is a suggestion."
+    "flavorText": "Architectural integrity is a suggestion.",
+    "theme": null
   },
   {
     "id": "obelisk_room",
     "name": "Obelisk Room",
     "category": "special",
-    "width": 6,
-    "height": 6,
+    "width": 8,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 2, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 6,
     "essenceCostToPlace": 22,
     "powerCostToUnlock": 0,
@@ -415,21 +765,22 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["special", "dual_state"],
+    "tags": [
+      "special",
+      "dual_state"
+    ],
     "description": "An obelisk pulses between two states every 6 seconds. HEAL: regenerates 2 HP/sec. CHARGE: empowers the next attack with +50% damage. Adventurers learn to time their visits — and bosses learn to ambush during the wait.",
-    "flavorText": "Tick. Tock. Heal. Strike."
+    "flavorText": "Tick. Tock. Heal. Strike.",
+    "theme": null
   },
   {
     "id": "secret_passage",
     "name": "Secret Passage",
     "category": "special",
-    "width": 5,
-    "height": 5,
+    "width": 7,
+    "height": 7,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 2, "y": 4, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 4,
     "essenceCostToPlace": 18,
     "powerCostToUnlock": 0,
@@ -440,20 +791,23 @@
       "fixed": false,
       "secret": true
     },
-    "tags": ["special", "secret", "hidden"],
+    "tags": [
+      "special",
+      "secret",
+      "hidden"
+    ],
     "description": "Invisible to most adventurers. Only Cartographer and Completionist personalities (or anyone who's already been here) can see it on the map.",
-    "flavorText": "Some doors don't exist until you know to look."
+    "flavorText": "Some doors don't exist until you know to look.",
+    "theme": null
   },
   {
     "id": "power_core",
     "name": "Power Core",
     "category": "utility",
-    "width": 4,
-    "height": 4,
+    "width": 6,
+    "height": 6,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 1, "y": 0, "direction": "N" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 4,
     "essenceCostToPlace": 25,
     "powerCostToUnlock": 0,
@@ -463,21 +817,23 @@
       "maxPerDungeon": null,
       "fixed": false
     },
-    "tags": ["utility", "core", "infrastructure"],
+    "tags": [
+      "utility",
+      "core",
+      "infrastructure"
+    ],
     "description": "Powers nearby high-tier traps (curse_brand_trap, echo_mine, mercy_trap). Without a Core in the dungeon, those traps refuse to fire.",
-    "flavorText": "Magic costs energy. Energy comes from somewhere."
+    "flavorText": "Magic costs energy. Energy comes from somewhere.",
+    "theme": null
   },
   {
     "id": "necropolis_wing",
     "name": "Necropolis Wing",
     "category": "special",
-    "width": 8,
-    "height": 6,
+    "width": 10,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 3, "y": 0, "direction": "N" },
-      { "x": 3, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 10,
     "essenceCostToPlace": 35,
     "powerCostToUnlock": 0,
@@ -487,22 +843,24 @@
       "maxPerDungeon": 1,
       "fixed": false
     },
-    "tags": ["special", "undead", "conversion"],
+    "tags": [
+      "special",
+      "undead",
+      "conversion"
+    ],
     "onNightStart": "necropolis_convertCorpses",
     "description": "Each night, raises the most recently fallen adventurer from the graveyard as a free skeleton warrior assigned to this room. Corpses are reusable.",
-    "flavorText": "Recruitment, the old-fashioned way."
+    "flavorText": "Recruitment, the old-fashioned way.",
+    "theme": null
   },
   {
     "id": "colosseum",
     "name": "Colosseum",
     "category": "special",
-    "width": 10,
-    "height": 8,
+    "width": 12,
+    "height": 10,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 4, "y": 0, "direction": "N" },
-      { "x": 4, "y": 7, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 14,
     "essenceCostToPlace": 50,
     "powerCostToUnlock": 0,
@@ -512,22 +870,24 @@
       "maxPerDungeon": 1,
       "fixed": false
     },
-    "tags": ["special", "wave_spawn", "combat"],
+    "tags": [
+      "special",
+      "wave_spawn",
+      "combat"
+    ],
     "onAdventurerEnter": "colosseum_lockGates",
     "description": "Gates lock when adventurers enter. A wave of skeleton warriors spawns to greet them; survivors face a second, larger wave. Excellent training ground for your minions.",
-    "flavorText": "Two ways out: through the door, or through the floor."
+    "flavorText": "Two ways out: through the door, or through the floor.",
+    "theme": null
   },
   {
     "id": "false_exit",
     "name": "The False Exit",
     "category": "special",
-    "width": 6,
-    "height": 6,
+    "width": 8,
+    "height": 8,
     "tileLayout": [],
-    "connectionPoints": [
-      { "x": 2, "y": 0, "direction": "N" },
-      { "x": 2, "y": 5, "direction": "S" }
-    ],
+    "connectionPoints": [],
     "upkeepCost": 12,
     "essenceCostToPlace": 40,
     "powerCostToUnlock": 0,
@@ -537,9 +897,14 @@
       "maxPerDungeon": 1,
       "fixed": false
     },
-    "tags": ["special", "teleport", "deception"],
+    "tags": [
+      "special",
+      "teleport",
+      "deception"
+    ],
     "onAdventurerEnter": "falseExit_teleport",
     "description": "Looks like the dungeon entrance. Isn't. Adventurers who flee through this room are silently teleported to a random room near the boss chamber instead.",
-    "flavorText": "They thought they were getting out. They were getting in."
+    "flavorText": "They thought they were getting out. They were getting in.",
+    "theme": null
   }
 ]

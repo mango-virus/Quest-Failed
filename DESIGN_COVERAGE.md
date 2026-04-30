@@ -538,6 +538,27 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 
 ---
 
+## 30. Sprite-based dungeon tiling — themes + tileset editor + room template editor
+
+> See DESIGN.md → "Sprite-based dungeon tiling" for the full spec.
+> Three-phase build (A → B → C). Each row "data + UI + persistence + game wiring".
+
+| ID | Item | Phase | Status | Notes |
+|---|---|---|---|---|
+| theme-schema | Theme JSON schema (slots: floor, 10 wall slots, 24 door slots; per-slot variant arrays) | 30A | ⏳ PENDING | locked design 2026-04-30 — 24 door slots = 3 states × 2 orientations × 4 tiles |
+| sprite-library | Sprite library (PNGs + per-sprite metadata: srcSize 32/64/128, mode scale\|span, tags) | 30A | ⏳ PENDING | individual PNGs only, no sheet slicing |
+| variant-pick | Random pick per cell at dungeon-build time, persisted in dungeon state (no per-frame flicker) | 30A | ⏳ PENDING | rolled once when room is stamped |
+| fs-handle | File System Access API wrapper (pick project root once, persist handle in IndexedDB, write PNGs + JSON) | 30A | ⏳ PENDING | Chrome/Edge primary, Firefox falls back to download |
+| tileset-editor | TilesetEditor scene: sprite library panel, slot grid w/ variants, scale/span toggle, live preview, save theme | 30A | ⏳ PENDING | accessed from MainMenu rune |
+| theme-per-room | Each room template in rooms.json gets a `theme: "<name>"` field | 30A | ⏳ PENDING | renderer reads at place time |
+| room-tile-editor | RoomTileEditor scene: load any room template, paint cells with library sprites, save tileLayout back to rooms.json | 30B | ✅ DONE | uses existing `tileLayout` field on rooms.json |
+| room-tile-rotation | Per-cell rotation in RoomTileEditor: R-key / UI button cycles brush 0/90/180/270; cell entries become `string \| { id, rot }`; renderer applies setAngle | 30B+ | ⏳ PENDING | scope (1) only — per-variant rotation in TilesetEditor not yet planned |
+| renderer-sprite-path | DungeonRenderer adds sprite-based tile path; consumes active theme + per-cell overrides; falls back to procedural when no theme | 30C | ⏳ PENDING | replaces graphics-primitive walls/floors/doors when theme present |
+| span-rendering | Renderer honors span sprites: 64 covers 2×2 anchor, 128 covers 4×4; covered cells skipped | 30C | ⏳ PENDING | anchor cell paints, neighbours skip |
+| mainmenu-runes | MainMenu gets TILESET EDITOR + ROOM EDITOR runes | 30A/B | ⏳ PENDING | A adds tileset rune, B adds room editor rune |
+
+---
+
 ## How to keep this file honest
 
 - **At every phase exit**: update statuses for items tagged in that phase. If a row is still PENDING or PARTIAL when the phase ends, either fix it or get explicit user approval to defer.
