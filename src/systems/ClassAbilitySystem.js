@@ -39,11 +39,32 @@ export class ClassAbilitySystem {
 
     // At day start, refresh per-day budgets for every active adventurer.
     EventBus.on('NEW_DAY_STARTED', this._onNewDay, this)
+    // When an adventurer dies or flees, immediately end their buffs and
+    // tear down any sustained VFX so we don't leave rings on the ground.
+    EventBus.on('ADVENTURER_DIED', this._onAdventurerRemoved, this)
+    EventBus.on('ADVENTURER_FLED', this._onAdventurerRemoved, this)
+    EventBus.on('NIGHT_PHASE_STARTED', this._clearAllSustained, this)
   }
 
   destroy() {
     EventBus.off('NEW_DAY_STARTED', this._onNewDay, this)
+    EventBus.off('ADVENTURER_DIED', this._onAdventurerRemoved, this)
+    EventBus.off('ADVENTURER_FLED', this._onAdventurerRemoved, this)
+    EventBus.off('NIGHT_PHASE_STARTED', this._clearAllSustained, this)
     this._clearAllSustained()
+  }
+
+  _onAdventurerRemoved({ adventurer }) {
+    if (!adventurer) return
+    // Cancel any active buffs.
+    adventurer._auraActiveUntil  = null
+    adventurer._tauntActiveUntil = null
+    // Clean up any sustained VFX (e.g. the Knight's aura ring).
+    const map = this._sustainedFx.get(adventurer.instanceId)
+    if (map) {
+      for (const slot of Object.keys(map)) this._endSustainedFx(adventurer.instanceId, slot)
+      this._sustainedFx.delete(adventurer.instanceId)
+    }
   }
 
   update(_delta) {
@@ -78,7 +99,8 @@ export class ClassAbilitySystem {
     const obj = map[slot]
     if (!obj) return
     if (obj.tween && obj.tween.isPlaying()) obj.tween.stop()
-    if (obj.gfx && obj.gfx.destroy) obj.gfx.destroy()
+    if (typeof obj.cleanup === 'function') obj.cleanup()
+    if (obj.gfx && obj.gfx.active && obj.gfx.destroy) obj.gfx.destroy()
     delete map[slot]
   }
 
@@ -168,40 +190,34 @@ export class ClassAbilitySystem {
 
   _fireAuraVfx(adv, durationMs) {
     const x = adv.worldX, y = adv.worldY
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xffe066, fromR: 8, toR: 48, durationMs: 500, alpha: 0.95 })
-    AbilityVfx.particleBurst(this._scene, x, y, { color: 0xffe066, count: 14, durationMs: 700, speed: 80 })
-    AbilityVfx.floatingText(this._scene, x, y - 28, 'AURA', { color: '#ffe066' })
+    // Single quick ring on activation — no particles, no floating text.
+    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xffe066, fromR: 8, toR: 26, durationMs: 350, alpha: 0.7 })
 
-    // Sustained ring under the Knight while aura is active. Pulses gently
-    // so the player can read "this Knight is protecting nearby allies."
-    const ring = this._scene.add.circle(x, y, 22, 0xffe066, 0.0)
-    ring.setStrokeStyle(2, 0xffe066, 0.65).setDepth(7)
-    const tween = this._scene.tweens.add({
-      targets: ring,
-      radius: 28,
-      alpha: 0.4,
-      duration: 700,
-      yoyo: true,
-      repeat: Math.floor(durationMs / 1400),
-      ease: 'Sine.easeInOut',
-    })
-    // Track the world position each frame so it follows the Knight.
+    // Sustained ring under the Knight while aura is active. Thin, soft,
+    // doesn't pulse — just a quiet halo that says "this Knight is protecting
+    // nearby allies." Auto-cleans on duration end OR ADVENTURER_DIED/FLED.
+    const ring = this._scene.add.circle(x, y, 18, 0xffe066, 0.0)
+    ring.setStrokeStyle(1, 0xffe066, 0.35).setDepth(7)
     const followUpdate = () => {
       if (!ring.active) return
-      ring.setPosition(adv.worldX, adv.worldY)
+      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
     }
     this._scene.events.on('update', followUpdate)
+    // Auto-fade just before duration ends so it doesn't pop off harshly.
+    this._scene.tweens.add({
+      targets: ring,
+      alpha: 0,
+      duration: 400,
+      delay: Math.max(0, durationMs - 400),
+      onComplete: () => {
+        this._scene.events.off('update', followUpdate)
+        if (ring.active) ring.destroy()
+      },
+    })
     this._setSustainedFx(adv.instanceId, 'aura', {
       gfx: ring,
-      tween,
       cleanup: () => this._scene.events.off('update', followUpdate),
     })
-    // Hook destruction cleanup so the update listener is removed.
-    const origDestroy = ring.destroy.bind(ring)
-    ring.destroy = (...args) => {
-      this._scene.events.off('update', followUpdate)
-      return origDestroy(...args)
-    }
   }
 
   _fireTauntVfx(adv) {
