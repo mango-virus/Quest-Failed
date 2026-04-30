@@ -616,7 +616,7 @@ export class DungeonRenderer {
     if (!room) return null
 
     // Per-cell override (paints any cell, even ones with no slot mapping).
-    // Cell entries are either a sprite-id string (rot 0) or { id, rot }.
+    // Cell entries can be a sprite-id string OR { id, rot?, flipH?, flipV? }.
     if (Array.isArray(room.tileLayout) && room.tileLayout.length) {
       const rx = x - room.gridX
       const ry = y - room.gridY
@@ -624,13 +624,13 @@ export class DungeonRenderer {
       if (entry) {
         const sprite = ThemeManager.getSprite(entry.id)
         if (sprite && this._scene.textures.exists(_themeTextureKey(entry.id))) {
-          return { id: entry.id, sprite, rot: entry.rot }
+          return { id: entry.id, sprite, rot: entry.rot, flipH: entry.flipH, flipV: entry.flipV }
         }
       }
     }
 
     // Theme default — pick a variant for this cell's slot. Theme variants
-    // are never rotated (rotation is a per-cell-override feature only).
+    // are never rotated/flipped (those are per-cell-override features only).
     if (!room.theme) return null
     const slot = this._slotForCell(x, y, t)
     if (!slot) return null
@@ -638,7 +638,7 @@ export class DungeonRenderer {
     if (!id) return null
     const sprite = ThemeManager.getSprite(id)
     if (!sprite || !this._scene.textures.exists(_themeTextureKey(id))) return null
-    return { id, sprite, rot: 0 }
+    return { id, sprite, rot: 0, flipH: false, flipV: false }
   }
 
   // Resolve sprite for a door cell whose cp is renderable. Override on the
@@ -655,7 +655,7 @@ export class DungeonRenderer {
       if (entry) {
         const sprite = ThemeManager.getSprite(entry.id)
         if (sprite && this._scene.textures.exists(_themeTextureKey(entry.id))) {
-          return { id: entry.id, sprite, rot: entry.rot }
+          return { id: entry.id, sprite, rot: entry.rot, flipH: entry.flipH, flipV: entry.flipV }
         }
       }
     }
@@ -665,7 +665,7 @@ export class DungeonRenderer {
     if (!id) return null
     const sprite = ThemeManager.getSprite(id)
     if (!sprite || !this._scene.textures.exists(_themeTextureKey(id))) return null
-    return { id, sprite, rot: 0 }
+    return { id, sprite, rot: 0, flipH: false, flipV: false }
   }
 
   // ── Door geometry helpers ──────────────────────────────────────────────────
@@ -781,7 +781,7 @@ export class DungeonRenderer {
   _renderTileSprite(x, y, t) {
     const resolved = this._resolveCellSprite(x, y, t)
     if (!resolved) return false
-    const { id, sprite, rot } = resolved
+    const { id, sprite, rot, flipH, flipV } = resolved
     const key = _themeTextureKey(id)
     // Anchor-from-override: this cell IS the anchor. Coverage > 1 sprites
     // span cov×cov starting here; the pre-pass `_spanCoveredSet` ensures
@@ -792,6 +792,8 @@ export class DungeonRenderer {
       .setOrigin(0.5)
     img.setDisplaySize(size, size)
     if (rot) img.setAngle(rot)
+    if (flipH) img.flipX = true
+    if (flipV) img.flipY = true
     this._cTileSprites.add(img)
     return true
   }

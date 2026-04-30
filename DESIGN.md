@@ -466,6 +466,7 @@ I want to be able to upload sprite tiles and place them over the current dungeon
 - Theme is assigned per-room (every room template can pick its own theme).
 - Per-cell overrides on top of the theme — paint individual 32×32 cells in a room template with a specific sprite from the library.
 - **Per-cell rotation** — when painting a cell, the user can rotate the brush in 90° steps (0 / 90 / 180 / 270). The same sprite can be painted at any of the four rotations across different cells of the same room. Cell entries in `tileLayout` are either a plain sprite-id string (= 0°) or an object `{ id, rot }`.
+- **Per-cell mirroring** — independent horizontal and vertical flip toggles on the brush. The painted tile reflects across the chosen axis (or both). Combines freely with rotation. Stored on the cell entry as `flipH` / `flipV` booleans (omitted from the entry when false).
 
 **Persistence:**
 - Themes and sprites ship with the game. Editor writes PNGs and JSON manifests directly to the project folder via the browser's File System Access API (one-time folder pick per session). Per-room overrides save back to `src/data/rooms.json`.

@@ -182,10 +182,13 @@ export class RoomTileEditor extends Phaser.Scene {
     // Re-use the prior draft session if it still matches the cache shape.
     // Otherwise initialize a fresh session from the cache.
     let freshSession = false
-    // Migrate older sessions that predate viewRot — they otherwise read as
-    // `undefined` through the property accessor, which would default-match
-    // the rotation switch but break the cycle button's modulus.
+    // Migrate older sessions that predate viewRot / flipH / flipV — they
+    // otherwise read as `undefined` through property accessors, which would
+    // default-match the rotation switch but break the cycle button's
+    // modulus and the boolean toggles.
     if (_session && _session.viewRot == null) _session.viewRot = 0
+    if (_session && _session.flipH   == null) _session.flipH   = false
+    if (_session && _session.flipV   == null) _session.flipV   = false
     if (!_matchesCache(_session, roomsFromCache)) {
       const rooms = structuredClone(roomsFromCache)
       rooms.forEach(r => this._ensureRoomShape(r))
@@ -195,6 +198,8 @@ export class RoomTileEditor extends Phaser.Scene {
         activeSpriteId: null,
         activeRot:      0,
         viewRot:        0,   // 0/90/180/270 — rotates the canvas only
+        flipH:          false, // brush horizontal mirror
+        flipV:          false, // brush vertical mirror
         eraserMode:     false,
         zoomIdx:        2,   // 1×
       }
@@ -210,6 +215,8 @@ export class RoomTileEditor extends Phaser.Scene {
     Object.defineProperty(this, '_activeSpriteId', _propAccessor(_session, 'activeSpriteId'))
     Object.defineProperty(this, '_activeRot',      _propAccessor(_session, 'activeRot'))
     Object.defineProperty(this, '_viewRot',        _propAccessor(_session, 'viewRot'))
+    Object.defineProperty(this, '_flipH',          _propAccessor(_session, 'flipH'))
+    Object.defineProperty(this, '_flipV',          _propAccessor(_session, 'flipV'))
     Object.defineProperty(this, '_eraserMode',     _propAccessor(_session, 'eraserMode'))
     Object.defineProperty(this, '_zoomIdx',        _propAccessor(_session, 'zoomIdx'))
 
@@ -425,21 +432,28 @@ export class RoomTileEditor extends Phaser.Scene {
 
     // Brush rotation cycle (0 → 90 → 180 → 270 → 0). Also bound to the R key.
     bx += 6
-    mkBtn(`TILE ${this._activeRot}°`, 76, () => this._cycleRotation(+1),
+    mkBtn(`TILE ${this._activeRot}°`, 70, () => this._cycleRotation(+1),
       this._activeRot ? { fill: 0x4a2a80, hover: 0x6a4ab0 } : {})
 
     // View rotation (rotates the displayed canvas; paint coords + brush
     // rotation are auto-translated). Bound to V key as well.
-    mkBtn(`VIEW ${this._viewRot}°`, 76, () => this._cycleViewRotation(+1),
+    mkBtn(`VIEW ${this._viewRot}°`, 70, () => this._cycleViewRotation(+1),
       this._viewRot ? { fill: 0x2a5078, hover: 0x4a78a0 } : {})
+
+    // Mirror toggles. ⇆/⇅ glyphs show direction of the flip; checkmark
+    // when active.
+    mkBtn(this._flipH ? 'FLIP-H ✓' : 'FLIP-H', 70, () => { this._flipH = !this._flipH; this._buildTopBar() },
+      this._flipH ? { fill: 0x4a2a80, hover: 0x6a4ab0 } : {})
+    mkBtn(this._flipV ? 'FLIP-V ✓' : 'FLIP-V', 70, () => { this._flipV = !this._flipV; this._buildTopBar() },
+      this._flipV ? { fill: 0x4a2a80, hover: 0x6a4ab0 } : {})
 
     // Eraser toggle
     mkBtn(this._eraserMode ? 'ERASE✓' : 'ERASE',
-      66, () => { this._eraserMode = !this._eraserMode; this._buildTopBar() },
+      60, () => { this._eraserMode = !this._eraserMode; this._buildTopBar() },
       this._eraserMode ? { fill: 0x6a0008, hover: 0x9a1010 } : {})
 
     // Clear all
-    mkBtn('CLEAR', 56, () => this._clearAllOverrides())
+    mkBtn('CLEAR', 50, () => this._clearAllOverrides())
 
     // Project root indicator + reset button (right). Truncate long folder
     // names so the right-side cluster stays bounded; RESET button anchored
@@ -698,6 +712,8 @@ export class RoomTileEditor extends Phaser.Scene {
     const sprite = spriteId ? ThemeManager.getSprite(spriteId) : null
     const cov = spriteCoverage(sprite)
     const storedRot = override?.rot || 0
+    const flipH = !!override?.flipH
+    const flipV = !!override?.flipV
 
     // View-space top-left for the cov×cov block (in room space starting at
     // (rx, ry)). For cov=1 this is just roomToView(rx, ry).
@@ -721,6 +737,8 @@ export class RoomTileEditor extends Phaser.Scene {
     img.setDisplaySize(size, size)
     const angle = (storedRot + viewRot) % 360
     if (angle) img.setAngle(angle)
+    if (flipH) img.flipX = true
+    if (flipV) img.flipY = true
     this._paintContainer.add(img)
   }
 
@@ -779,7 +797,13 @@ export class RoomTileEditor extends Phaser.Scene {
     // render formula in _renderViewCell is `displayed = stored + viewRot`,
     // so for displayed = activeRot we need stored = activeRot - viewRot.
     const stored = ((this._activeRot - viewRot) % 360 + 360) % 360
-    room.tileLayout[minRy][minRx] = writeCellEntry(this._activeSpriteId, stored)
+    // Mirrors are stored in canonical room frame (no view-rotation
+    // transform). With view rotation in play, the user's "horizontal"
+    // axis may correspond to the room's vertical axis, so flips and view
+    // rotation interact at display time. For v1 we keep this simple —
+    // power users can experiment with combinations.
+    room.tileLayout[minRy][minRx] = writeCellEntry(
+      this._activeSpriteId, stored, this._flipH, this._flipV)
   }
 
   // Legacy entry point — paint at room cell (x, y) at active brush

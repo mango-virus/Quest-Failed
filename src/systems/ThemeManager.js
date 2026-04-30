@@ -152,27 +152,37 @@ export function spriteCoverage(sprite) {
 }
 
 // Per-cell tileLayout entries can be either:
-//   - a plain sprite id string (rotation 0°)         → "floor1"
-//   - an object with optional rotation               → { id: "floor1", rot: 90 }
-// readCellEntry normalizes both shapes to { id, rot } | null. writeCellEntry
-// chooses the compact form (string) when rot is 0 so an unrotated paint
-// doesn't bloat rooms.json.
+//   - a plain sprite id string (rot 0°, no flips)    → "floor1"
+//   - an object with optional rotation + flips       → { id, rot?, flipH?, flipV? }
+// readCellEntry normalizes both shapes to a fully-populated object. Missing
+// rot defaults to 0; missing flipH/V default to false. writeCellEntry picks
+// the compact string form when rot is 0 AND no flips are set, so an
+// unmodified paint doesn't bloat rooms.json.
 export const VALID_ROTATIONS = [0, 90, 180, 270]
 
 export function readCellEntry(entry) {
   if (!entry) return null
-  if (typeof entry === 'string') return { id: entry, rot: 0 }
+  if (typeof entry === 'string') return { id: entry, rot: 0, flipH: false, flipV: false }
   if (typeof entry === 'object' && typeof entry.id === 'string') {
     const rot = VALID_ROTATIONS.includes(entry.rot) ? entry.rot : 0
-    return { id: entry.id, rot }
+    return {
+      id:    entry.id,
+      rot,
+      flipH: !!entry.flipH,
+      flipV: !!entry.flipV,
+    }
   }
   return null
 }
 
-export function writeCellEntry(id, rot) {
+export function writeCellEntry(id, rot, flipH = false, flipV = false) {
   if (!id) return null
   const r = VALID_ROTATIONS.includes(rot) ? rot : 0
-  return r === 0 ? id : { id, rot: r }
+  if (r === 0 && !flipH && !flipV) return id
+  const out = { id, rot: r }
+  if (flipH) out.flipH = true
+  if (flipV) out.flipV = true
+  return out
 }
 
 // ── In-memory state ────────────────────────────────────────────────────────

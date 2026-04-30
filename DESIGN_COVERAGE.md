@@ -552,7 +552,8 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | tileset-editor | TilesetEditor scene: sprite library panel, slot grid w/ variants, scale/span toggle, live preview, save theme | 30A | ⏳ PENDING | accessed from MainMenu rune |
 | theme-per-room | Each room template in rooms.json gets a `theme: "<name>"` field | 30A | ⏳ PENDING | renderer reads at place time |
 | room-tile-editor | RoomTileEditor scene: load any room template, paint cells with library sprites, save tileLayout back to rooms.json | 30B | ✅ DONE | uses existing `tileLayout` field on rooms.json |
-| room-tile-rotation | Per-cell rotation in RoomTileEditor: R-key / UI button cycles brush 0/90/180/270; cell entries become `string \| { id, rot }`; renderer applies setAngle | 30B+ | ⏳ PENDING | scope (1) only — per-variant rotation in TilesetEditor not yet planned |
+| room-tile-rotation | Per-cell rotation in RoomTileEditor: R-key / UI button cycles brush 0/90/180/270; cell entries become `string \| { id, rot }`; renderer applies setAngle | 30B+ | ✅ DONE | scope (1) only — per-variant rotation in TilesetEditor not yet planned |
+| room-tile-mirror | Per-cell horizontal + vertical mirror toggles on the brush. Cell entries gain optional `flipH`, `flipV` booleans; renderer applies image.flipX / flipY. Composes with rotation. | 30B+ | ⏳ PENDING | brush state persists across MainMenu round-trips like rotation does |
 | renderer-sprite-path | DungeonRenderer adds sprite-based tile path; consumes active theme + per-cell overrides; falls back to procedural when no theme | 30C | ⏳ PENDING | replaces graphics-primitive walls/floors/doors when theme present |
 | span-rendering | Renderer honors span sprites: 64 covers 2×2 anchor, 128 covers 4×4; covered cells skipped | 30C | ⏳ PENDING | anchor cell paints, neighbours skip |
 | mainmenu-runes | MainMenu gets TILESET EDITOR + ROOM EDITOR runes | 30A/B | ⏳ PENDING | A adds tileset rune, B adds room editor rune |
