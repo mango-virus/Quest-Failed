@@ -253,13 +253,7 @@ export class AISystem {
       this._setFleeGoal(adv, 'out_of_arrows')
     }
 
-    // Phase 6c: HEAL goal — drink potion to recover HP
-    if (this._shouldDrinkPotion(adv)) {
-      this._drinkPotion(adv)
-      return
-    }
-
-    // Phase 6e: SLEEP goal — if HP is moderate-low, no potions, no enemies in room,
+    // Phase 6e: SLEEP goal — if HP is moderate-low and no enemies in room,
     // sleep here to slowly heal back to full. Vulnerable while sleeping.
     if (this._shouldSleep(adv)) {
       this._sleep(adv, delta)
@@ -379,8 +373,12 @@ export class AISystem {
       const costFn = useKnowledgeCost
         ? (tx, ty) => this._knowledgeSystem.costMultiplierForTile(adv, tx, ty)
         : null
+      // Add path jitter for non-flee goals so adventurers don't all march the
+      // same straight line — they pick varied routes between rooms each repath.
+      // Fleeing advs skip jitter (panic = beeline home).
+      const pathJitter = adv.goal?.type === 'FLEE' ? 0 : 0.6
       const path = PathfinderSystem.findPath(
-        { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn,
+        { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
       )
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
@@ -408,8 +406,28 @@ export class AISystem {
       adv.pathTarget = target
     }
 
-    // Move toward next waypoint
-    const wp = adv.path[adv.pathIndex]
+    // Path smoothing — pick the furthest waypoint with a clear straight-line
+    // walkable corridor from current world position. The pathfinder returns
+    // tile-by-tile axis-aligned waypoints; without smoothing advs march only
+    // N/S/E/W between tile centers and look grid-locked. With it, they cut
+    // diagonals across open rooms at any angle (matching how the boss
+    // wanders its room).
+    let wpIndex = adv.pathIndex
+    const tilesGrid = this._dungeonGrid.getTiles?.()
+    if (tilesGrid) {
+      const MAX_LOOKAHEAD = 16
+      const limit = Math.min(adv.path.length - 1, adv.pathIndex + MAX_LOOKAHEAD)
+      for (let i = adv.pathIndex + 1; i <= limit; i++) {
+        const wp2 = adv.path[i]
+        const tx2 = wp2.x * TS + TS / 2
+        const ty2 = wp2.y * TS + TS / 2
+        if (this._losClear(adv.worldX, adv.worldY, tx2, ty2, tilesGrid)) wpIndex = i
+        else break
+      }
+    }
+
+    // Move toward smoothed waypoint
+    const wp = adv.path[wpIndex]
     const targetWX = wp.x * TS + TS / 2
     const targetWY = wp.y * TS + TS / 2
     const dx = targetWX - adv.worldX
@@ -458,10 +476,10 @@ export class AISystem {
     // Without knowledge system (Phase 8) we just slow them whenever they're
     // not in a barracks/starter room — proxy for "unfamiliar".
     const speedMul = this._paranoidSpeedMultiplier(adv)
-    // Fleeing adventurers sprint — 1.5× their normal pace.  Sells the
+    // Fleeing adventurers sprint — 1.1× their normal pace.  Sells the
     // "running away in panic" feel and helps unlucky lost-flee wanderers find
     // the entry hall faster.
-    const fleeMul  = adv.aiState === 'fleeing' ? 1.5 : 1
+    const fleeMul  = adv.aiState === 'fleeing' ? 1.1 : 1
     // Phase 5c — Bard Song of Speed: same-party advs within 2 tiles of a
     // speed-song-active Bard move 20% faster.
     const songMul  = this._songOfSpeedMul(adv)
@@ -477,7 +495,8 @@ export class AISystem {
       adv.tileX  = wp.x
       adv.tileY  = wp.y
       if (this._occupancy) this._occupancy[`${wp.x},${wp.y}`] = adv.instanceId
-      adv.pathIndex++
+      // Advance past every waypoint we collapsed via LOS smoothing.
+      adv.pathIndex = wpIndex + 1
 
       if (adv.pathIndex >= adv.path.length) {
         adv.path = null
@@ -486,7 +505,82 @@ export class AISystem {
     } else {
       adv.worldX += (dx / dist) * stepPx
       adv.worldY += (dy / dist) * stepPx
+      // Sync tile coords each frame from world position so room-membership,
+      // combat-range, and occupancy checks see the actual location while
+      // traversing a smoothed (multi-tile) segment.
+      const newTileX = Math.floor(adv.worldX / TS)
+      const newTileY = Math.floor(adv.worldY / TS)
+      if (newTileX !== adv.tileX || newTileY !== adv.tileY) {
+        // Defensive: if smoothing/precision somehow puts us in a non-walkable
+        // tile, snap back to the last good tile center and force a re-path.
+        // Prevents the "stuck in walls" state when an LOS edge case slips
+        // through.
+        const tilesGuard = this._dungeonGrid.getTiles?.()
+        const guardRow   = tilesGuard?.[newTileY]
+        if (!guardRow || !PathfinderSystem.isWalkable(guardRow[newTileX])) {
+          adv.worldX = adv.tileX * TS + TS / 2
+          adv.worldY = adv.tileY * TS + TS / 2
+          adv.path = null
+          return
+        }
+        const oldKey = `${adv.tileX},${adv.tileY}`
+        if (this._occupancy?.[oldKey] === adv.instanceId) delete this._occupancy[oldKey]
+        adv.tileX = newTileX
+        adv.tileY = newTileY
+        if (this._occupancy) this._occupancy[`${newTileX},${newTileY}`] = adv.instanceId
+      }
     }
+  }
+
+  // Walkable line-of-sight check — Amanatides-Woo grid traversal that visits
+  // every tile the line from (sx,sy) to (tx,ty) actually crosses, plus both
+  // neighbors at exact corner grazes. Returns false if any visited tile is
+  // non-walkable so path smoothing never cuts through wall corners or clips
+  // diagonals through 1-tile-wide walls (the bug a naive sampled LOS hits).
+  _losClear(sx, sy, tx, ty, tiles) {
+    const x0 = sx / TS, y0 = sy / TS
+    const x1 = tx / TS, y1 = ty / TS
+    const dx = x1 - x0, dy = y1 - y0
+    if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return true
+
+    const stepX = dx > 0 ? 1 : (dx < 0 ? -1 : 0)
+    const stepY = dy > 0 ? 1 : (dy < 0 ? -1 : 0)
+    const tDeltaX = stepX === 0 ? Infinity : Math.abs(1 / dx)
+    const tDeltaY = stepY === 0 ? Infinity : Math.abs(1 / dy)
+    let cx = Math.floor(x0), cy = Math.floor(y0)
+    const endCx = Math.floor(x1), endCy = Math.floor(y1)
+    let tMaxX = stepX === 0 ? Infinity
+      : ((stepX > 0 ? Math.floor(x0) + 1 : Math.floor(x0)) - x0) / dx
+    let tMaxY = stepY === 0 ? Infinity
+      : ((stepY > 0 ? Math.floor(y0) + 1 : Math.floor(y0)) - y0) / dy
+
+    const walkable = (x, y) => {
+      const row = tiles[y]
+      return !!row && PathfinderSystem.isWalkable(row[x])
+    }
+    if (!walkable(cx, cy)) return false
+
+    // Bound iterations so a degenerate input can't loop forever.
+    const maxSteps = Math.abs(endCx - cx) + Math.abs(endCy - cy) + 4
+    for (let i = 0; i < maxSteps; i++) {
+      if (cx === endCx && cy === endCy) return true
+      if (Math.abs(tMaxX - tMaxY) < 1e-9) {
+        // Exact corner graze — both diagonal neighbors of the corner must
+        // be walkable, otherwise the line clips a wall corner.
+        if (!walkable(cx + stepX, cy)) return false
+        if (!walkable(cx, cy + stepY)) return false
+        cx += stepX; cy += stepY
+        tMaxX += tDeltaX; tMaxY += tDeltaY
+      } else if (tMaxX < tMaxY) {
+        cx += stepX
+        tMaxX += tDeltaX
+      } else {
+        cy += stepY
+        tMaxY += tDeltaY
+      }
+      if (!walkable(cx, cy)) return false
+    }
+    return true
   }
 
   // ── Combat / Flee helpers ──────────────────────────────────────────────────
@@ -516,13 +610,24 @@ export class AISystem {
     // has fleeThreshold 0.95) the threshold + FLEE_BUFFER otherwise
     // exceeds 1.0 and triggers every tick at spawn, freezing them at
     // entry where their flee target == their current tile.
-    if (adv.resources.hp >= adv.resources.maxHp) return
+    if (adv.resources.hp >= adv.resources.maxHp) {
+      adv._fleeRolled = false
+      return
+    }
     const hpFrac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
     const threshold = this._personalitySystem
       ? (this._personalitySystem.getWeights(adv).fleeThreshold ?? 0.5)
       : 0.3
     if (hpFrac <= threshold + Balance.FLEE_BUFFER) {
+      // 50% chance to ignore the trigger — roll once per threshold crossing,
+      // not every tick (otherwise repeated rolls converge to ~100% flee).
+      // Flag clears when HP recovers above threshold so a future drop re-rolls.
+      if (adv._fleeRolled) return
+      adv._fleeRolled = true
+      if (Math.random() < 0.5) return
       this._setFleeGoal(adv)
+    } else {
+      adv._fleeRolled = false
     }
   }
 
@@ -536,7 +641,7 @@ export class AISystem {
 
   // Phase 6e: SLEEP goal — adventurer naps in a safe room to recover HP slowly.
   // Triggered when:
-  //   - HP fraction is low (≤ POTION_HEAL_THRESHOLD) AND no potions left
+  //   - HP fraction is low (≤ LOW_HP_THRESHOLD)
   //   - No hostile minions in same room (SLEEP_REQUIRES_NO_HOSTILES)
   //   - HP < maxHp
   // While sleeping, aiState='sleeping', they don't move/attack. Damage from any
@@ -545,8 +650,7 @@ export class AISystem {
     if (adv.aiState === 'fleeing') return false
     if (adv.resources.hp >= adv.resources.maxHp) return false
     const hpFrac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
-    if (hpFrac > Balance.POTION_HEAL_THRESHOLD) return false
-    if ((adv.resources.potions ?? 0) > 0) return false   // prefer potions if available
+    if (hpFrac > Balance.LOW_HP_THRESHOLD) return false
     if (Balance.SLEEP_REQUIRES_NO_HOSTILES && this._anyHostileMinionInRoom(adv)) return false
     return true
   }
@@ -709,36 +813,18 @@ export class AISystem {
     if (adv.aiState === 'fleeing') return false
     const tags = this._personalitySystem?.getTags(adv) ?? new Set()
     if (!tags.has('coward')) return false
-    const room = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
-    if (!room) return false
-    return this._gameState.minions.some(m =>
-      m.aiState !== 'dead' && m.assignedRoomId === room.instanceId
-    )
-  }
-
-  // HEAL goal: when HP fraction <= POTION_HEAL_THRESHOLD and adventurer has potions,
-  // sip a potion (instant) instead of fleeing immediately.
-  _shouldDrinkPotion(adv) {
-    if (adv.aiState === 'fleeing') return false
-    const potions = adv.resources?.potions ?? 0
-    if (potions <= 0) return false
-    const hpFrac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
-    return hpFrac <= Balance.POTION_HEAL_THRESHOLD && hpFrac > 0
-  }
-
-  _drinkPotion(adv) {
-    adv.resources.potions = Math.max(0, (adv.resources.potions ?? 0) - 1)
-    const before = adv.resources.hp
-    adv.resources.hp = Math.min(
-      adv.resources.maxHp,
-      adv.resources.hp + Balance.POTION_HEAL_AMOUNT,
-    )
-    adv.aiState = 'healing'
-    EventBus.emit('ALLY_HEALED', {
-      sourceId: adv.instanceId,   // self-heal — counts as a heal action for mercy_trap
-      targetId: adv.instanceId,
-      amount:   adv.resources.hp - before,
-      roomId:   this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId ?? null,
+    // Phase 5c — proximity-based instead of "any minion in this room."
+    // Previously cowards bolted the moment they spawned into a room that
+    // happened to contain a placed minion (even one tile away in a 14×14
+    // chamber). Now they only flee when a hostile minion is genuinely
+    // within sight (≤ 4 tiles), so they at least walk a few tiles before
+    // panicking.
+    const SIGHT = 4
+    return this._gameState.minions.some(m => {
+      if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
+      if (m.faction === 'adventurer') return false   // friendly defectors don't scare them
+      const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
+      return d <= SIGHT
     })
   }
 
