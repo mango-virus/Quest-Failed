@@ -618,7 +618,7 @@ export class NightPhase extends Phaser.Scene {
 
   _buildHints(W, H) {
     this.add.text(W - 8, H - BOTTOM_H - 6,
-      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate room / ESC to cancel  ·  left-click room to pick up  ·  right-click to remove  ·  Ctrl+Z to undo  ·  HALLS tab: left=draw  right=erase',
+      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate room / ESC or right-click to cancel pick  ·  left-click room to pick up  ·  right-click empty room to remove  ·  Ctrl+Z to undo  ·  HALLS tab: left=draw  right=erase',
       { fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace' }
     ).setOrigin(1, 1).setDepth(11)
   }
@@ -697,7 +697,14 @@ export class NightPhase extends Phaser.Scene {
       if (p.middleButtonDown()) return
 
       if (p.rightButtonDown()) {
-        if (!this._selected) this._tryRemoveRoom(p, cam)
+        // Right-click while a placement candidate is held → cancel the
+        // selection (matches the existing ESC behavior). With no selection
+        // active, right-click falls through to "remove placed room".
+        if (this._selected) {
+          this._cancelSelection()
+          return
+        }
+        this._tryRemoveRoom(p, cam)
         return
       }
 
@@ -781,12 +788,14 @@ export class NightPhase extends Phaser.Scene {
       this._preview.lineStyle(1, color, 0.9)
       this._preview.strokeRect(wx, wy, ww, wh)
 
-      // Door markers — every doorway is widened to 2 tiles in DungeonGrid
-      // (extra door slid toward whichever side has more wall space). Mirror
-      // that rule here so the preview shows the actual 2-tile extent rather
-      // than a single dot.
+      // Door markers — every doorway is 2 tiles wide along the wall axis
+      // (DungeonGrid widens toward whichever side has more wall) AND under
+      // Option-B separation extends 1 tile outward into the inter-room
+      // gap stub. Show the full L of tiles each connection point occupies
+      // so the player sees the actual doorway footprint pre-placement.
       this._preview.fillStyle(color, 0.9)
       const rw = rotDef.width, rh = rotDef.height
+      const DIR_VEC_PREV = { N: { dx: 0, dy: -1 }, S: { dx: 0, dy: 1 }, E: { dx: 1, dy: 0 }, W: { dx: -1, dy: 0 } }
       for (const cp of rotDef.connectionPoints ?? []) {
         const onTopOrBot = (cp.y === 0 || cp.y === rh - 1)
         const onLftOrRgt = (cp.x === 0 || cp.x === rw - 1)
@@ -796,17 +805,21 @@ export class NightPhase extends Phaser.Scene {
         } else if (onLftOrRgt && !onTopOrBot) {
           ddy = (((rh - 1) - cp.y) >= cp.y) ? 1 : -1
         }
-        const cx0 = (placeTx + cp.x) * TS + TS / 2
-        const cy0 = (placeTy + cp.y) * TS + TS / 2
-        if (ddx !== 0) {
-          const minX = Math.min(cx0, cx0 + ddx * TS)
-          this._preview.fillRect(minX - 3, cy0 - 3, TS + 6, 6)
-        } else if (ddy !== 0) {
-          const minY = Math.min(cy0, cy0 + ddy * TS)
-          this._preview.fillRect(cx0 - 3, minY - 3, 6, TS + 6)
-        } else {
-          // Corner cp (skipped by widener) — fall back to a single dot.
-          this._preview.fillRect(cx0 - 3, cy0 - 3, 6, 6)
+        // Outward direction (toward the neighbour through the gap).
+        const v = DIR_VEC_PREV[cp.direction] ?? { dx: 0, dy: 0 }
+        // Mark every tile in the door footprint: the two cp/widened tiles
+        // plus their outward gap stubs. Drawn as small dots so the player
+        // can see the L-shape extent.
+        const tiles = [
+          [cp.x,        cp.y],         // primary doorway tile
+          [cp.x + ddx,  cp.y + ddy],   // widened doorway tile
+          [cp.x + v.dx, cp.y + v.dy],  // gap stub (primary)
+          [cp.x + ddx + v.dx, cp.y + ddy + v.dy], // gap stub (widened)
+        ]
+        for (const [tx, ty] of tiles) {
+          const cx = (placeTx + tx) * TS + TS / 2
+          const cy = (placeTy + ty) * TS + TS / 2
+          this._preview.fillRect(cx - 3, cy - 3, 6, 6)
         }
       }
 
