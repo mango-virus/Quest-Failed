@@ -183,8 +183,14 @@ export class MinionRenderer {
     const hpBarW      = Math.round(displaySize * 0.55)
     // HP bar sits just above the sprite's top edge (a few pixels of gap so
     // it reads clearly without feeling detached). Frame size varies by
-    // minion (64 vs 128) so this auto-scales.
-    const hpY         = -displaySize / 2 - 4
+    // minion (64 vs 128) so the base auto-scales.
+    //
+    // Per-minion tuning: if `def.hpBarYOffset` is set in minionTypes.json
+    // it nudges the bar Y. Positive values move it DOWN (use this when a
+    // sprite's art only fills the bottom of its frame, like the
+    // plant/mushroom/coconut minions where the default would float far
+    // above the visible character).
+    const hpY         = -displaySize / 2 - 4 + (def.hpBarYOffset ?? 0)
 
     const hpBg = s.add.rectangle(0,            hpY, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5)
     const hp   = s.add.rectangle(-hpBarW / 2,  hpY, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5)
