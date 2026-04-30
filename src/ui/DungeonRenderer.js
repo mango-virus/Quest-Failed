@@ -45,7 +45,7 @@ const WALL_BASE        = 0x1e3248
 const WALL_HIGHLIGHT   = 0x32485e
 const WALL_SHADOW      = 0x121f30
 const MORTAR           = 0x0a1420
-const BRICK_W          = 16
+const BRICK_W          = 32
 const BRICK_H          = 8
 const ROWS_PER_TILE    = TS / BRICK_H   // 4
 
@@ -64,7 +64,7 @@ const CAPSTONE_SEAM_SPACING = 24    // px between capstone-block seams
 // Px the brick zone is shifted toward the capstone. 1 leaves the smallest
 // brick row half-visible above the baseboard and gives the largest brick
 // row most of its height above the capstone overlap.
-const BRICK_ZONE_SHIFT = 1
+const BRICK_ZONE_SHIFT = 0
 
 // Cornerstone — distinct CORNERSTONE_W × CORNERSTONE_W block at the room's
 // outer corner of every corner tile, slightly darker than the capstone band
@@ -107,13 +107,37 @@ const PILLAR_H_W_MIN        = 2    // H-side mirror width at floor end
 const PILLAR_EDGE_HIGHLIGHT = 0x8aa0c0
 const PILLAR_EDGE_ALPHA     = 0.85
 
-// Brick-size taper rescaled to the inner brick zone (TS - CAPSTONE_W = 23 px).
-// Sum of each array is 23. Same convention as before: "tall/wide" end faces
-// away from the floor.
-const ROW_HEIGHTS_TALLTOP  = [8, 6, 5, 4]
-const ROW_HEIGHTS_TALLBOT  = [4, 5, 6, 8]
-const COL_WIDTHS_WIDELEFT  = [8, 6, 5, 4]
-const COL_WIDTHS_WIDERIGHT = [4, 5, 6, 8]
+// Brick-size taper. Outer + inner ring brick zones together span 55 px
+// (outer 23 px + inner 32 px) and read as ONE continuous wall: bricks
+// shrink monotonically from the outer face toward the floor.
+// Combined sequence (outermost → innermost): 12, 11, 11, 11, 10.
+//
+// 4-row inner-ring designs with bricks ≥ 9 are infeasible (4×9 = 36 > 32),
+// so the inner ring uses 3 rows here, dropping the wall total to 5 rows.
+//
+// Outer ring (2 rows, sum 23). The "tall/wide" end is the outer face (next
+// to the capstone), where bricks are largest.
+const ROW_HEIGHTS_TALLTOP  = [12, 11]
+const ROW_HEIGHTS_TALLBOT  = [11, 12]
+const COL_WIDTHS_WIDELEFT  = [12, 11]
+const COL_WIDTHS_WIDERIGHT = [11, 12]
+
+// Inner ring (3 rows, sum 32, full TS height — no capstone reserved).
+// Plateau at 11 then a single 1-px drop to 10 at the floor edge. Used by
+// _drawWallH/V when fullHeight=true.
+const ROW_HEIGHTS_FULL_TALLTOP  = [11, 11, 10]
+const ROW_HEIGHTS_FULL_TALLBOT  = [10, 11, 11]
+const COL_WIDTHS_FULL_WIDELEFT  = [11, 11, 10]
+const COL_WIDTHS_FULL_WIDERIGHT = [10, 11, 11]
+
+// Brick row/col counts per ring. Used by the dispatcher to compute a
+// "globalRowOffset" / "globalColOffset" that ensures the brick stagger
+// alternates correctly across the seam between the outer and inner rings,
+// regardless of how many rows live in each ring.
+const OUTER_ROW_COUNT = ROW_HEIGHTS_TALLTOP.length
+const INNER_ROW_COUNT = ROW_HEIGHTS_FULL_TALLTOP.length
+const OUTER_COL_COUNT = COL_WIDTHS_WIDELEFT.length
+const INNER_COL_COUNT = COL_WIDTHS_FULL_WIDELEFT.length
 
 // Doorway palette — stone jambs (capstone-toned), dark passage interior,
 // and a worn threshold slab at the floor-side edge.
@@ -123,6 +147,100 @@ const DOOR_THRESHOLD      = 0x4a5868    // worn stone sill where doorway meets f
 const DOOR_THRESHOLD_HI   = 0x6a7888    // 1-px highlight along the threshold
 const DOOR_KEYSTONE_HI    = 0x8a98a8    // brighter wedge above the opening
 const DOOR_ARCH_INNER     = 0x2a3548    // thin arched-shadow line under capstone
+
+// Door-open animation duration (seconds). Each cp's openProgress ramps
+// from 0 (closed) to 1 (fully open) over this interval, with a quadratic
+// ease-out for a slightly punchy slide.
+const DOOR_OPEN_DURATION_S = 0.5
+
+// Doorway architecture — jambs (frame stones flanking the opening),
+// threshold (worn slab at the floor-side edge), and an inner bevel that
+// sells "the passage is recessed". Drawn whether the door is open or closed
+// (door fits within the frame). Jambs go on _gOverhead so adventurers
+// passing through the doorway visually walk UNDER them; threshold + bevel
+// go on _gTiles so adventurers walk ON them at floor level.
+const JAMB_W      = 3
+const THRESHOLD_W = 4
+const ARCH_STYLES = {
+  regular: {
+    jamb:        0x6a7888,    // light stone
+    jambHi:      0x8a98a8,    // bright stone bevel
+    jambShadow:  0x4a5868,    // inner shadow at jamb edge
+    threshold:   0x4a5868,    // worn stone slab
+    thresholdHi: 0x6a7888,    // top edge highlight
+    bevel:       0x121826,    // dark recess at passage edge
+  },
+  entrance: {
+    jamb:        0x8a8a4a,    // brass-iron framing
+    jambHi:      0xb0a060,    // bright brass
+    jambShadow:  0x5a5a2a,
+    threshold:   0x6a5a3a,    // weathered bronze sill
+    thresholdHi: 0x9a8a4a,
+    bevel:       0x121826,
+  },
+  boss: {
+    jamb:        0x3a1414,    // dark crimson stone
+    jambHi:      0x6a2020,    // blood red bevel
+    jambShadow:  0x1a0808,
+    threshold:   0x2a0a0a,    // black-blood sill
+    thresholdHi: 0x4a1010,
+    bevel:       0x080000,
+  },
+}
+
+// Stone bedrock palette — warm gray-brown, deliberately contrasting with the
+// blue-gray brick walls so the player reads the empty grid as "uncarved
+// rock" rather than just background. Used by _drawBackground +
+// _drawVoidStoneTexture for per-cell variation, plus _drawCarveHalo for
+// the freshly-chiseled rim around each room.
+const STONE_BASE   = 0x2a221c
+const STONE_DARK   = 0x1a1410
+const STONE_LIGHT  = 0x3a322a
+const STONE_VEIN   = 0x4a4238
+const STONE_HALO   = 0x4a3e30   // 1-tile rim around rooms (lighter, "freshly carved")
+const STONE_HALO_HI = 0x6a5a48  // 1-px highlight on the inside edge of the halo
+
+// Direction-vector lookup for cp-pairing (mirror of DungeonGrid's private
+// DIR_VEC). Used by the closed-door overlay to find a doorway's partner room
+// without round-tripping through DungeonGrid.
+const DIR_VECS = {
+  N: { dx:  0, dy: -1 },
+  S: { dx:  0, dy:  1 },
+  E: { dx:  1, dy:  0 },
+  W: { dx: -1, dy:  0 },
+}
+
+// Closed-door overlay styles. Each connection point in rooms.json may carry
+// `style: 'regular'|'entrance'|'boss'`; the renderer also escalates a paired
+// cp to 'boss' if its mate sits in the boss chamber. Doors render on
+// _gOverhead so they cover both the dark passage and any adventurer
+// underneath them.
+const DOOR_STYLES = {
+  regular: {
+    base:    0x2e1f12,    // dark walnut wood
+    grain:   0x4a341e,    // lighter wood streak
+    edge:    0x6a4a2c,    // bevel highlight on outer rim
+    band:    0x1a1410,    // iron banding
+    bandHi:  0x5a4a3a,    // bronze highlight on band
+    split:   0x080404,    // dark seam where the two halves meet
+  },
+  entrance: {
+    base:    0x4a4a52,    // weathered stone gray
+    grain:   0x5a5a62,    // lighter stone speckle
+    edge:    0x7a7a82,    // bright stone bevel
+    band:    0x2a2a32,    // dark iron framing
+    bandHi:  0x9a8a4a,    // brass sigil / studs
+    split:   0x080808,    // pure-dark center seam
+  },
+  boss: {
+    base:    0x1a0a0a,    // near-black charred wood
+    grain:   0x3a1010,    // dark blood-red streak
+    edge:    0x4a1010,    // crimson rim
+    band:    0x080404,    // matte black banding
+    bandHi:  0xc83030,    // glowing red rivets
+    split:   0xc83030,    // glowing red seam
+  },
+}
 
 // Wall cap (when explicitly authored by Room Builder).
 const WALL_CAP_FILL = 0x3a4a64
@@ -157,11 +275,30 @@ export class DungeonRenderer {
     this._gameState = gameState
 
     this._gBg        = scene.add.graphics().setDepth(0)
+    // Grid lines live on their own layer so NightPhase can toggle them
+    // (placement-preview hover) without redrawing the bedrock.
+    this._gGrid      = scene.add.graphics().setDepth(0.5)
+    this._showGrid   = false
     this._gTiles     = scene.add.graphics().setDepth(1)
     this._gTints     = scene.add.graphics().setDepth(1.2)
     this._gOverlay   = scene.add.graphics().setDepth(3)
     this._gCollision = scene.add.graphics().setDepth(3.2)
     this._gIcon      = scene.add.graphics().setDepth(4)
+    // Overhead layer — drawn ABOVE entities (adv ~depth 8, minion ~7) so
+    // doorway architecture (capstone band, jambs, keystone, arch shadow)
+    // visually frames entities passing underneath. The dark passage floor
+    // and threshold stay on _gTiles (depth 1) so entities walk over them.
+    this._gOverhead  = scene.add.graphics().setDepth(9)
+    // Dedicated door-overlay layer drawn just above _gOverhead. Animates
+    // independently of the main wall art so opening doors don't force a
+    // full redraw. Cleared + repainted by _redrawDoors() on every animation
+    // frame (see update()).
+    // Depth 6.5 — BELOW characters (minion 7, adventurer 8) so an entity
+    // standing in a doorway is rendered in front of the door panel instead
+    // of being hidden by it. Wall jambs + capstones are still on _gOverhead
+    // (depth 9, above characters), so the framing of the doorway still
+    // occludes entities passing under it as designed.
+    this._gDoors     = scene.add.graphics().setDepth(6.5)
 
     // User-painted corner override (sparse 32×32 array of hex/null). When
     // set, _drawWallCorner overlays it on top of the procedural draw with
@@ -170,6 +307,7 @@ export class DungeonRenderer {
     this._cornerPattern = loadCornerPattern()
 
     EventBus.on('ROOM_PLACED',           this.redraw, this)
+    EventBus.on('ROOM_PLACED',           this._burstCarveDust, this)
     EventBus.on('ROOM_REMOVED',          this.redraw, this)
     EventBus.on('GRID_EXPANDED',         this.redraw, this)
     EventBus.on('DEBUG_OVERLAY_CHANGED', this.redraw, this)
@@ -181,11 +319,14 @@ export class DungeonRenderer {
 
   redraw() {
     this._gBg.clear()
+    this._gGrid.clear()
     this._gTiles.clear()
     this._gTints.clear()
     this._gOverlay.clear()
     this._gIcon.clear()
     this._gCollision.clear()
+    this._gOverhead.clear()
+    this._gDoors.clear()
 
     this._wallOrient = this._buildWallOrientation()
     // Pick up any newly saved corner pattern from the editor.
@@ -194,51 +335,87 @@ export class DungeonRenderer {
     this._drawBackground()
     this._drawGrid()
     this._drawTiles()
+    if (Balance.WALL_THICKNESS > 1) this._drawCornerBlockOverlays()
     this._drawCategoryTints()
     this._drawRoomOverlays()
+    this._drawDoorwayArchitecture()
+    this._drawClosedDoors()
     if (DebugOverlay.showCollision) this._drawCollisionOverlay()
   }
 
-  // Tag every wall cell with one of:
-  //   'hT'  — horizontal bricks, top wall    (taper smaller toward bottom)
-  //   'hB'  — horizontal bricks, bottom wall (taper smaller toward top)
-  //   'vL'  — vertical bricks,   left wall   (taper smaller toward right)
-  //   'vR'  — vertical bricks,   right wall  (taper smaller toward left)
-  //   'cTL' — top-left corner    (diagonal seam TL→BR)
-  //   'cTR' — top-right corner   (TR→BL)
-  //   'cBL' — bottom-left corner (BL→TR)
-  //   'cBR' — bottom-right corner (BR→TL)
+  // Tag every wall cell with a rich orientation object describing its role:
+  //
+  //   { kind: 'top'|'bot'|'lft'|'rgt', depth }
+  //     — straight wall in the WALL_THICKNESS-deep ring; depth=0 is the
+  //       outermost layer (faces void), depth=WT-1 is the innermost (faces
+  //       floor). Outer cells get a capstone band, inner cells a baseboard.
+  //
+  //   { kind: 'corner', side, role }
+  //     — cell inside a WT×WT corner block at the named room corner
+  //       ('tl'|'tr'|'bl'|'br'). role is one of:
+  //         'outer'  — the very outer corner (capstone L)
+  //         'h-arm'  — outer-layer cell on the horizontal arm of the corner
+  //         'v-arm'  — outer-layer cell on the vertical arm of the corner
+  //         'inner'  — innermost cell of the corner block (baseboard L
+  //                    wrapping the room's interior corner)
+  //         'mid'    — interior of the corner block (only when WT > 2)
   _buildWallOrientation() {
     const orient = new Map()
+    const WT = Balance.WALL_THICKNESS
     for (const room of this._gameState.dungeon.rooms) {
       const { gridX: rx, gridY: ry, width: rw, height: rh } = room
-      for (let dx = 1; dx < rw - 1; dx++) {
-        orient.set(`${rx + dx},${ry}`, 'hT')
-        orient.set(`${rx + dx},${ry + rh - 1}`, 'hB')
+      for (let dy = 0; dy < rh; dy++) {
+        for (let dx = 0; dx < rw; dx++) {
+          const dt = dy
+          const db = rh - 1 - dy
+          const dl = dx
+          const dr = rw - 1 - dx
+          const inTop = dt < WT, inBot = db < WT
+          const inLft = dl < WT, inRgt = dr < WT
+          if (!inTop && !inBot && !inLft && !inRgt) continue   // floor
+
+          let tag
+          if ((inTop || inBot) && (inLft || inRgt)) {
+            // Corner block. Compute distance from outer corner along each axis.
+            const side = (inTop && inLft) ? 'tl'
+                       : (inTop && inRgt) ? 'tr'
+                       : (inBot && inLft) ? 'bl' : 'br'
+            const ax = inLft ? dl : dr
+            const ay = inTop ? dt : db
+            let role
+            if (ax === 0 && ay === 0)                     role = 'outer'
+            else if (ay === 0)                            role = 'h-arm'
+            else if (ax === 0)                            role = 'v-arm'
+            else if (ax === WT - 1 && ay === WT - 1)      role = 'inner'
+            else                                          role = 'mid'
+            tag = { kind: 'corner', side, role, ax, ay }
+          } else if (inTop) tag = { kind: 'top', depth: dt }
+          else if (inBot)   tag = { kind: 'bot', depth: db }
+          else if (inLft)   tag = { kind: 'lft', depth: dl }
+          else              tag = { kind: 'rgt', depth: dr }
+
+          orient.set(`${rx + dx},${ry + dy}`, tag)
+        }
       }
-      for (let dy = 1; dy < rh - 1; dy++) {
-        orient.set(`${rx},${ry + dy}`, 'vL')
-        orient.set(`${rx + rw - 1},${ry + dy}`, 'vR')
-      }
-      orient.set(`${rx},${ry}`,                 'cTL')
-      orient.set(`${rx + rw - 1},${ry}`,        'cTR')
-      orient.set(`${rx},${ry + rh - 1}`,        'cBL')
-      orient.set(`${rx + rw - 1},${ry + rh - 1}`, 'cBR')
     }
     return orient
   }
 
   destroy() {
     EventBus.off('ROOM_PLACED',           this.redraw, this)
+    EventBus.off('ROOM_PLACED',           this._burstCarveDust, this)
     EventBus.off('ROOM_REMOVED',          this.redraw, this)
     EventBus.off('GRID_EXPANDED',         this.redraw, this)
     EventBus.off('DEBUG_OVERLAY_CHANGED', this.redraw, this)
     this._gBg.destroy()
+    this._gGrid.destroy()
     this._gTiles.destroy()
     this._gTints.destroy()
     this._gOverlay.destroy()
     this._gCollision.destroy()
     this._gIcon.destroy()
+    this._gOverhead.destroy()
+    this._gDoors.destroy()
   }
 
   // ── Tile fills ─────────────────────────────────────────────────────────────
@@ -255,14 +432,7 @@ export class DungeonRenderer {
         if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) {
           this._drawFloorCell(g, x, y)
         } else if (t === TILE.WALL || t === TILE.BOSS_WALL) {
-          const o = this._wallOrient.get(`${x},${y}`)
-          if      (o === 'cTL' || o === 'cTR' || o === 'cBL' || o === 'cBR') {
-            this._drawWallCorner(g, x, y, o)
-          }
-          else if (o === 'vL') this._drawWallV(g, x, y, null, true)
-          else if (o === 'vR') this._drawWallV(g, x, y, null, false)
-          else if (o === 'hB') this._drawWallH(g, x, y, null, false)
-          else                 this._drawWallH(g, x, y, null, true)   // 'hT' or unknown
+          this._drawWallCellByTag(g, x, y, this._wallOrient.get(`${x},${y}`))
         } else if (t === TILE.DOOR) {
           this._drawDoorCell(g, x, y)
         } else if (t === TILE.WALL_CAP) {
@@ -305,31 +475,42 @@ export class DungeonRenderer {
   // brick pattern. Per row we paint: optional per-brick tint + pock mark +
   // crack, top mortar, top highlight, bottom shadow, then vertical mortar
   // at brick edges.
-  _drawWallH(g, x, y, fillFn, tallTop = true, drawCapstone = true, drawBaseboard = true) {
+  _drawWallH(g, x, y, fillFn, tallTop = true, drawCapstone = true, drawBaseboard = true, fullHeight = false, globalRowOffset = 0, brickW = BRICK_W) {
     const px = x * TS, py = y * TS
     const fr = fillFn ?? ((rx, ry, rw, rh) => g.fillRect(rx, ry, rw, rh))
-    const rowHeights = tallTop ? ROW_HEIGHTS_TALLTOP : ROW_HEIGHTS_TALLBOT
+    // fullHeight=true: bricks span the full TS without reserving a capstone
+    // band. Used by inner-ring straight walls (the outer-ring above/below
+    // already supplies the capstone).
+    const rowHeights = fullHeight
+      ? (tallTop ? ROW_HEIGHTS_FULL_TALLTOP : ROW_HEIGHTS_FULL_TALLBOT)
+      : (tallTop ? ROW_HEIGHTS_TALLTOP      : ROW_HEIGHTS_TALLBOT)
 
     // Brick zone is shifted toward the capstone by BASEBOARD_W so the smallest
     // brick row at the room-facing edge stays fully visible (not swallowed by
     // the baseboard). The capstone is drawn AFTER bricks and overlaps the
     // outermost BASEBOARD_W px of the largest brick row instead.
-    const brickY = tallTop ? py + CAPSTONE_W - BRICK_ZONE_SHIFT : py + BRICK_ZONE_SHIFT
-    const brickH = TS - CAPSTONE_W
+    const brickY = fullHeight
+      ? py
+      : (tallTop ? py + CAPSTONE_W - BRICK_ZONE_SHIFT : py + BRICK_ZONE_SHIFT)
+    const brickH = fullHeight ? TS : TS - CAPSTONE_W
     g.fillStyle(WALL_BASE, 1)
     fr(px, brickY, TS, brickH)
 
     let by = brickY
-    for (let row = 0; row < ROWS_PER_TILE; row++) {
+    for (let row = 0; row < rowHeights.length; row++) {
       const rh       = rowHeights[row]
-      const worldRow = y * ROWS_PER_TILE + row
-      const offsetX  = (worldRow & 1) ? BRICK_W / 2 : 0
+      // worldRow drives the brick-stagger parity. Using a wall-relative
+      // offset (instead of y * ROWS_PER_TILE) keeps the offset alternating
+      // across the outer/inner ring seam even when the two rings have
+      // different row counts.
+      const worldRow = globalRowOffset + row
+      const offsetX  = (worldRow & 1) ? brickW / 2 : 0
 
-      const firstBrickX = Math.floor((px - offsetX) / BRICK_W) * BRICK_W + offsetX
+      const firstBrickX = Math.floor((px - offsetX) / brickW) * brickW + offsetX
 
-      for (let bx = firstBrickX; bx < px + TS; bx += BRICK_W) {
+      for (let bx = firstBrickX; bx < px + TS; bx += brickW) {
         const x0 = Math.max(bx, px)
-        const x1 = Math.min(bx + BRICK_W, px + TS)
+        const x1 = Math.min(bx + brickW, px + TS)
         const w  = x1 - x0
         if (w <= 0) continue
         const h          = _tileHash(bx, by)
@@ -386,10 +567,14 @@ export class DungeonRenderer {
       g.fillStyle(WALL_SHADOW, 0.45)
       fr(px, by + rh - 1, TS, 1)
 
-      // Vertical mortar at brick edges that fall inside the tile, height rh.
+      // Vertical mortar at brick edges. Drawn at each tile's LEFT edge (and
+      // any interior brick boundaries), inclusive of the tile origin and
+      // exclusive of the right edge. The next tile draws its own left-edge
+      // mortar — drawing on the right edge would be clobbered by that tile's
+      // _fillWallBase pre-fill.
       g.fillStyle(MORTAR, 0.85)
-      for (let bx = firstBrickX; bx <= px + TS; bx += BRICK_W) {
-        if (bx > px && bx < px + TS) {
+      for (let bx = firstBrickX; bx <= px + TS; bx += brickW) {
+        if (bx >= px && bx < px + TS) {
           fr(bx, by, 1, rh)
         }
       }
@@ -429,25 +614,32 @@ export class DungeonRenderer {
   // Mortar/highlight/shadow stripes flip to be column-aligned (vertical
   // full-tile-height stripes per column) instead of row-aligned. Used for
   // left/right walls and corners — sells the 2.5D enclosed-room feel.
-  _drawWallV(g, x, y, fillFn, wideLeft = true, drawCapstone = true, drawBaseboard = true) {
+  _drawWallV(g, x, y, fillFn, wideLeft = true, drawCapstone = true, drawBaseboard = true, fullHeight = false, globalColOffset = 0, brickW = BRICK_W) {
     const px = x * TS, py = y * TS
-    const VH = BRICK_W        // 16 — brick height in vertical orientation (fixed)
+    const VH = brickW        // brick "height" (vertical-orientation long axis)
     const COLS_PER_TILE = 4
-    const colWidths = wideLeft ? COL_WIDTHS_WIDELEFT : COL_WIDTHS_WIDERIGHT
+    const colWidths = fullHeight
+      ? (wideLeft ? COL_WIDTHS_FULL_WIDELEFT : COL_WIDTHS_FULL_WIDERIGHT)
+      : (wideLeft ? COL_WIDTHS_WIDELEFT      : COL_WIDTHS_WIDERIGHT)
     const fr = fillFn ?? ((rx, ry, rw, rh) => g.fillRect(rx, ry, rw, rh))
 
     // Brick zone shifted toward the capstone by BASEBOARD_W so the smallest
     // brick column stays visible past the baseboard; capstone (drawn last)
     // covers the outermost BASEBOARD_W px of the widest brick column.
-    const brickX = wideLeft ? px + CAPSTONE_W - BRICK_ZONE_SHIFT : px + BRICK_ZONE_SHIFT
-    const brickW = TS - CAPSTONE_W
+    const brickX = fullHeight
+      ? px
+      : (wideLeft ? px + CAPSTONE_W - BRICK_ZONE_SHIFT : px + BRICK_ZONE_SHIFT)
+    const zoneW = fullHeight ? TS : TS - CAPSTONE_W
     g.fillStyle(WALL_BASE, 1)
-    fr(brickX, py, brickW, TS)
+    fr(brickX, py, zoneW, TS)
 
     let bx = brickX
-    for (let col = 0; col < COLS_PER_TILE; col++) {
+    for (let col = 0; col < colWidths.length; col++) {
       const cw       = colWidths[col]
-      const worldCol = x * COLS_PER_TILE + col
+      // worldCol drives the brick-stagger parity. Using a wall-relative
+      // offset keeps the stagger alternating across the outer/inner ring
+      // seam even when the two rings have different column counts.
+      const worldCol = globalColOffset + col
       const offsetY  = (worldCol & 1) ? VH / 2 : 0
       const firstBrickY = Math.floor((py - offsetY) / VH) * VH + offsetY
 
@@ -511,10 +703,13 @@ export class DungeonRenderer {
       g.fillStyle(WALL_SHADOW, 0.45)
       fr(bx + cw - 1, py, 1, TS)
 
-      // Horizontal mortar at brick row boundaries within this column, cw wide.
+      // Horizontal mortar at brick row boundaries. Drawn at each tile's TOP
+      // edge (and any interior boundaries), inclusive of the top and
+      // exclusive of the bottom — matches the left-edge convention in
+      // _drawWallH so the mortar isn't clobbered by the next tile's pre-fill.
       g.fillStyle(MORTAR, 0.85)
       for (let by = firstBrickY; by <= py + TS; by += VH) {
-        if (by > py && by < py + TS) {
+        if (by >= py && by < py + TS) {
           fr(bx, by, cw, 1)
         }
       }
@@ -557,7 +752,7 @@ export class DungeonRenderer {
   // Per-row clipping is applied to every fillRect via a closure. That keeps
   // the brick logic in _drawWallH/V completely shared — corners just invoke
   // those methods with a different fill function.
-  _drawWallCorner(g, x, y, kind) {
+  _drawWallCorner(g, x, y, kind, drawBaseboard = true, suppressCornerArt = false, globalRowOffset = 0, globalColOffset = 0) {
     const tilePx = x * TS, tilePy = y * TS
 
     // Map kind → (H clip mode, V clip mode, diag direction, taper directions).
@@ -584,9 +779,23 @@ export class DungeonRenderer {
     // diagonal's extreme rows. drawCapstone=false / drawBaseboard=false on
     // both calls because the corner draws its own L-shaped capstone and
     // baseboard at the end (running through the room's outer/inner corners).
-    this._drawWallH(g, x, y, this._cornerFill(g, tilePx, tilePy, hMode), tallTop, false, false)
-    this._drawWallV(g, x, y, this._cornerFill(g, tilePx, tilePy, vMode), wideLeft, false, false)
+    // Override brick width to 16 for corner cells. With BRICK_W=32 globally,
+    // a corner's diagonal-clipped half-tile only contains at most one brick
+    // edge per row, leaving the H side reading as a flat stripe. Halving
+    // the brick width here gives the corner enough vertical mortar lines to
+    // read as bricks without changing the long bricks on straight walls.
+    const CORNER_BRICK_W = 16
+    this._drawWallH(g, x, y, this._cornerFill(g, tilePx, tilePy, hMode), tallTop, false, false, false, globalRowOffset, CORNER_BRICK_W)
+    this._drawWallV(g, x, y, this._cornerFill(g, tilePx, tilePy, vMode), wideLeft, false, false, false, globalColOffset, CORNER_BRICK_W)
     this._drawCapstoneL(g, tilePx, tilePy, kind)
+    // suppressCornerArt: 2-thick wall blocks render the cornerstone + shadow
+    // + pillar at block scale via _drawCornerBlockOverlays(); skip the small
+    // single-tile versions that would sit underneath.
+    if (suppressCornerArt) {
+      // Bricks + capstone L only — exit before cornerstone/shadow/pillar.
+      if (this._cornerPattern) this._drawCornerOverlay(g, tilePx, tilePy, kind)
+      return
+    }
     // Shadow before cornerstone so the (larger) cornerstone overdraws the
     // shadow band where they overlap, leaving a clean cornerstone edge.
     this._drawCapstoneShadowL(g, tilePx, tilePy, kind)
@@ -660,8 +869,10 @@ export class DungeonRenderer {
 
     // Baseboard L on top of everything, wrapping the inner corner (the room
     // corner). Drawn last so it caps the pillar where it would have exited
-    // into the room's interior corner.
-    this._drawBaseboardL(g, tilePx, tilePy, kind)
+    // into the room's interior corner. Skipped when the corner cell's inward
+    // neighbours are themselves walls (WALL_THICKNESS > 1) — the inner-corner
+    // sub-cell handles the baseboard L for the room's interior corner.
+    if (drawBaseboard) this._drawBaseboardL(g, tilePx, tilePy, kind)
 
     // User-painted overlay (CornerEditor). The user paints the cTL pattern;
     // we mirror it across kinds so all 4 corners stay consistent. Drawn
@@ -700,6 +911,7 @@ export class DungeonRenderer {
   // Used by both straight-wall draws (single band) and corner draws
   // (two bands forming an L).
   _drawCapstoneBand(g, fr, x, y, w, h, outerSide) {
+    fr = fr || ((rx, ry, rw, rh) => g.fillRect(rx, ry, rw, rh))
     g.fillStyle(CAPSTONE_BASE, 1)
     fr(x, y, w, h)
 
@@ -827,6 +1039,241 @@ export class DungeonRenderer {
     else if (innerSide === 'left')   fr(x + w - 1, y, 1, h)
   }
 
+  // Post-pass that overlays a block-scale cornerstone + capstone-shadow L +
+  // pillar on every WT×WT corner block. The per-cell pass (run by
+  // _drawTiles) already painted bricks + capstone L bands continuously
+  // across the block; this pass adds the larger structural-corner art so
+  // the corner reads as one big stone elbow instead of a small chip stuck
+  // at the outer sub-cell. The OUTER sub-cell's _drawWallCorner call is
+  // invoked with suppressCornerArt=true so its small versions don't show
+  // through underneath.
+  _drawCornerBlockOverlays() {
+    const WT  = Balance.WALL_THICKNESS
+    const g   = this._gTiles
+    const BS  = WT * TS
+    // csW is capped at TS - CAPSTONE_W so the big cornerstone never covers
+    // the entire outer sub-cell — leaves room for the brick face to read
+    // through underneath. CORNERSTONE_W * WT would be 36 for WT=2, which
+    // would eat the whole 32-px-wide outer cell.
+    const csW = Math.min(CORNERSTONE_W * WT, TS - CAPSTONE_W)
+    for (const room of this._gameState.dungeon.rooms) {
+      const { gridX: rx, gridY: ry, width: rw, height: rh } = room
+      const corners = [
+        { kind: 'cTL', bx: rx * TS,             by: ry * TS              },
+        { kind: 'cTR', bx: (rx + rw - WT) * TS, by: ry * TS              },
+        { kind: 'cBL', bx: rx * TS,             by: (ry + rh - WT) * TS  },
+        { kind: 'cBR', bx: (rx + rw - WT) * TS, by: (ry + rh - WT) * TS  },
+      ]
+      for (const c of corners) {
+        this._drawBigCapstoneShadowL(g, c.bx, c.by, c.kind, BS)
+        this._drawBigCornerstone   (g, c.bx, c.by, c.kind, BS, csW)
+        this._drawBigPillar        (g, c.bx, c.by, c.kind, BS, csW)
+      }
+    }
+  }
+
+  // Block-scale cornerstone (csW × csW) at the outermost pixel-corner of a
+  // WT×WT corner block. Same fill / seam-highlight pattern as the single-tile
+  // version, just bigger; the per-cell capstone L bands meet flush against
+  // its outer edges so the corner reads as one large structural elbow.
+  _drawBigCornerstone(g, bx, by, kind, BS, csW) {
+    let cx, cy, innerSideX, innerSideY
+    switch (kind) {
+      case 'cTL': cx = bx;            cy = by;            innerSideX = 'right'; innerSideY = 'bottom'; break
+      case 'cTR': cx = bx + BS - csW; cy = by;            innerSideX = 'left';  innerSideY = 'bottom'; break
+      case 'cBL': cx = bx;            cy = by + BS - csW; innerSideX = 'right'; innerSideY = 'top';    break
+      case 'cBR': cx = bx + BS - csW; cy = by + BS - csW; innerSideX = 'left';  innerSideY = 'top';    break
+    }
+    g.fillStyle(CORNERSTONE_BASE, 1)
+    g.fillRect(cx, cy, csW, csW)
+    g.fillStyle(CAPSTONE_SEAM, 0.85)
+    if (innerSideX === 'right') g.fillRect(cx + csW - 1, cy, 1, csW)
+    else                        g.fillRect(cx,           cy, 1, csW)
+    if (innerSideY === 'bottom') g.fillRect(cx, cy + csW - 1, csW, 1)
+    else                         g.fillRect(cx, cy,           csW, 1)
+    g.fillStyle(CAPSTONE_HIGHLIGHT, 0.7)
+    if (innerSideX === 'right') g.fillRect(cx,           cy, 1, csW)
+    else                        g.fillRect(cx + csW - 1, cy, 1, csW)
+    if (innerSideY === 'bottom') g.fillRect(cx, cy,           csW, 1)
+    else                         g.fillRect(cx, cy + csW - 1, csW, 1)
+  }
+
+  // Block-scale capstone overhang shadow — two perpendicular semi-transparent
+  // bands tracing the inner edge of the capstone L across the whole block.
+  _drawBigCapstoneShadowL(g, bx, by, kind, BS) {
+    g.fillStyle(OVERHANG_SHADOW_COLOR, OVERHANG_SHADOW_ALPHA)
+    const inner = BS - CAPSTONE_W
+    const W = OVERHANG_SHADOW_W
+    switch (kind) {
+      case 'cTL':
+        g.fillRect(bx + CAPSTONE_W, by + CAPSTONE_W, inner, W)
+        g.fillRect(bx + CAPSTONE_W, by + CAPSTONE_W, W, inner)
+        break
+      case 'cTR':
+        g.fillRect(bx,                       by + CAPSTONE_W, inner, W)
+        g.fillRect(bx + BS - CAPSTONE_W - W, by + CAPSTONE_W, W, inner)
+        break
+      case 'cBL':
+        g.fillRect(bx + CAPSTONE_W, by + BS - CAPSTONE_W - W, inner, W)
+        g.fillRect(bx + CAPSTONE_W, by,                       W, inner)
+        break
+      case 'cBR':
+        g.fillRect(bx,                       by + BS - CAPSTONE_W - W, inner, W)
+        g.fillRect(bx + BS - CAPSTONE_W - W, by,                       W, inner)
+        break
+    }
+  }
+
+  // Block-scale pillar — diagonal MORTAR band running from the inner edge of
+  // the bigger cornerstone to the inner-pixel-corner of the WT×WT block.
+  // Mirrors the per-tile pillar geometry in _drawWallCorner but with TS→BS
+  // and CORNERSTONE_W→csW.
+  _drawBigPillar(g, bx, by, kind, BS, csW) {
+    const isMainDiag = (kind === 'cTL' || kind === 'cBR')
+    const pillarLen  = BS - csW
+    for (let i = 0; i < BS; i++) {
+      const dx = isMainDiag ? i : (BS - 1 - i)
+      let skip = false, distFromStone = 0, bulgeSign = +1
+      switch (kind) {
+        case 'cTL': skip = i < csW;       distFromStone = i - csW;            bulgeSign = -1; break
+        case 'cTR': skip = i < csW;       distFromStone = i - csW;            bulgeSign = +1; break
+        case 'cBL': skip = i >= BS - csW; distFromStone = (BS - csW - 1) - i; bulgeSign = -1; break
+        case 'cBR': skip = i >= BS - csW; distFromStone = (BS - csW - 1) - i; bulgeSign = +1; break
+      }
+      if (skip) continue
+      const t  = distFromStone / Math.max(1, pillarLen - 1)
+      const wV = Math.round(PILLAR_V_W_MAX - t * (PILLAR_V_W_MAX - PILLAR_V_W_MIN))
+      const wH = Math.round(PILLAR_H_W_MAX - t * (PILLAR_H_W_MAX - PILLAR_H_W_MIN))
+      g.fillStyle(PILLAR_EDGE_HIGHLIGHT, PILLAR_EDGE_ALPHA)
+      if (dx >= 0 && dx < BS) g.fillRect(bx + dx, by + i, 1, 1)
+      g.fillStyle(MORTAR, 0.95)
+      for (let j = 1; j < wV; j++) {
+        const pxV = dx + j * bulgeSign
+        if (pxV >= 0 && pxV < BS) g.fillRect(bx + pxV, by + i, 1, 1)
+      }
+      for (let j = 1; j < wH; j++) {
+        const pxH = dx - j * bulgeSign
+        if (pxH >= 0 && pxH < BS) g.fillRect(bx + pxH, by + i, 1, 1)
+      }
+    }
+  }
+
+  // Dispatch a WALL/BOSS_WALL cell to the right draw method based on its rich
+  // orientation tag (see _buildWallOrientation). Handles both straight walls
+  // (outer/inner ring) and corner-block sub-cells. Pre-fills WALL_BASE so the
+  // few-pixel gaps left by drawCapstone=false / drawBaseboard=false never
+  // show through to the void background.
+  _drawWallCellByTag(g, x, y, o) {
+    if (!o) {
+      // Fallback — wall not in any room rect. Render as a plain top wall.
+      return this._drawWallH(g, x, y, null, true, true, true)
+    }
+    if (o.kind === 'corner') {
+      if (o.role === 'outer') {
+        // Outermost corner of the room — capstone L wraps two outward faces.
+        // Skip the baseboard L; the inner-corner sub-cell paints it instead.
+        // For WT > 1, also suppress the small cornerstone + pillar + capstone
+        // shadow; _drawCornerBlockOverlays() will overlay block-scale versions
+        // that span the full WT×WT corner block.
+        const kind = 'c' + o.side.toUpperCase()
+        const suppress = Balance.WALL_THICKNESS > 1
+        // Outer corner is the outermost cell of both its H and V wall runs.
+        const rowOff = (o.side === 'tl' || o.side === 'tr') ? 0 : INNER_ROW_COUNT
+        const colOff = (o.side === 'tl' || o.side === 'bl') ? 0 : INNER_COL_COUNT
+        return this._drawWallCorner(g, x, y, kind, false, suppress, rowOff, colOff)
+      }
+      if (o.role === 'inner') {
+        return this._drawInnerCornerCell(g, x, y, o.side)
+      }
+      if (o.role === 'h-arm') {
+        // Outer-row cell on the horizontal arm of the corner block — looks
+        // like a straight outer top/bottom wall (capstone, no baseboard).
+        const tallTop = (o.side === 'tl' || o.side === 'tr')
+        const rowOff  = tallTop ? 0 : INNER_ROW_COUNT
+        this._fillWallBase(g, x, y)
+        return this._drawWallH(g, x, y, null, tallTop, true, false, false, rowOff)
+      }
+      if (o.role === 'v-arm') {
+        const wideLeft = (o.side === 'tl' || o.side === 'bl')
+        const colOff   = wideLeft ? 0 : INNER_COL_COUNT
+        this._fillWallBase(g, x, y)
+        return this._drawWallV(g, x, y, null, wideLeft, true, false, false, colOff)
+      }
+      // 'mid' (only with WT > 2) — flat WALL_BASE fill.
+      return this._fillWallBase(g, x, y)
+    }
+    // Straight wall (top/bot/lft/rgt). depth=0 is the outermost ring,
+    // depth=WT-1 the innermost. Outer cells get a capstone band on their
+    // outward face; inner cells fill the full tile with bricks (so the
+    // brick pattern continues seamlessly from the outer ring) and add a
+    // baseboard on their room-facing face. globalRow/ColOffset puts each
+    // cell's brick rows in the right slot of a wall-wide stagger sequence
+    // (visual top→bottom for H walls, left→right for V walls).
+    const WT = Balance.WALL_THICKNESS
+    const isOuter = (o.depth === 0)
+    const isInner = (o.depth === WT - 1)
+    const fullHeight = !isOuter   // inner / mid layers fill the full tile
+    let rowOff = 0, colOff = 0
+    if      (o.kind === 'top') rowOff = isOuter ? 0 : OUTER_ROW_COUNT
+    else if (o.kind === 'bot') rowOff = isOuter ? INNER_ROW_COUNT : 0
+    else if (o.kind === 'lft') colOff = isOuter ? 0 : OUTER_COL_COUNT
+    else if (o.kind === 'rgt') colOff = isOuter ? INNER_COL_COUNT : 0
+    this._fillWallBase(g, x, y)
+    if (o.kind === 'top') return this._drawWallH(g, x, y, null, true,  isOuter, isInner, fullHeight, rowOff)
+    if (o.kind === 'bot') return this._drawWallH(g, x, y, null, false, isOuter, isInner, fullHeight, rowOff)
+    if (o.kind === 'lft') return this._drawWallV(g, x, y, null, true,  isOuter, isInner, fullHeight, colOff)
+    if (o.kind === 'rgt') return this._drawWallV(g, x, y, null, false, isOuter, isInner, fullHeight, colOff)
+  }
+
+  _fillWallBase(g, x, y) {
+    g.fillStyle(WALL_BASE, 1)
+    g.fillRect(x * TS, y * TS, TS, TS)
+  }
+
+  // Inner-corner sub-cell of a WALL_THICKNESS-deep corner block. Sits at the
+  // room-facing diagonal of the corner block, where two perpendicular
+  // inner-ring runs (e.g. inner-top-wall and inner-left-wall for TL block)
+  // meet. Renders with the same diagonal-split brick pattern as the outer
+  // corner of the same `side` (since the geometry is congruent), but
+  // full-height (no capstone reserved) and without the cornerstone / pillar
+  // / capstone-shadow art. Closes with a baseboard L at the room-facing
+  // pixel-corner so the floor side reads as a finished room corner.
+  //   side: 'tl'|'tr'|'bl'|'br' — which room corner this block sits at; the
+  //         baseboard L is drawn at the pixel-corner that faces the room
+  //         interior (BR for tl, BL for tr, TR for bl, TL for br).
+  _drawInnerCornerCell(g, x, y, side) {
+    const px = x * TS, py = y * TS
+    // Pre-fill so any unfilled stripes show wall base, not void.
+    g.fillStyle(WALL_BASE, 1)
+    g.fillRect(px, py, TS, TS)
+
+    // Diagonal-split brick fill. Mode mapping matches the outer corner of
+    // the same side — the inner sub-cell's edges align so that "H bricks
+    // on this half" / "V bricks on this half" are continuous with the
+    // adjacent h-arm / v-arm / inner-ring straight cells.
+    let hMode, vMode, tallTop, wideLeft
+    switch (side) {
+      case 'tl': hMode = 'A'; vMode = 'B'; tallTop = true;  wideLeft = true;  break
+      case 'tr': hMode = 'C'; vMode = 'D'; tallTop = true;  wideLeft = false; break
+      case 'bl': hMode = 'D'; vMode = 'C'; tallTop = false; wideLeft = true;  break
+      case 'br': hMode = 'B'; vMode = 'A'; tallTop = false; wideLeft = false; break
+    }
+    // globalRow/ColOffset matches the inner ring of the corresponding wall
+    // direction — keeps the brick stagger continuous with the adjacent
+    // straight inner-ring cells.
+    const rowOff = (side === 'tl' || side === 'tr') ? OUTER_ROW_COUNT : 0
+    const colOff = (side === 'tl' || side === 'bl') ? OUTER_COL_COUNT : 0
+
+    // fullHeight=true (inner ring), drawCapstone=false, drawBaseboard=false —
+    // we skip both so the cell is just bricks + the L baseboard below.
+    this._drawWallH(g, x, y, this._cornerFill(g, px, py, hMode), tallTop, false, false, true, rowOff)
+    this._drawWallV(g, x, y, this._cornerFill(g, px, py, vMode), wideLeft, false, false, true, colOff)
+
+    // Baseboard L at the room-facing pixel-corner.
+    const kind = 'c' + side.toUpperCase()
+    this._drawBaseboardL(g, px, py, kind)
+  }
+
   // Baseboard wraparound for a corner tile. The corner tile's inner edges
   // face OTHER wall tiles (not floor), so no continuous strip along them
   // makes sense. Instead we paint a single BASEBOARD_W × BASEBOARD_W block
@@ -888,21 +1335,486 @@ export class DungeonRenderer {
     }
   }
 
-  // Arched stone doorway. The door tile sits inside the wall ring; we detect
-  // its orientation (N-S passage vs E-W passage) and which side faces outside
-  // by looking at the four cardinal neighbours, then draw matching capstone
-  // header, two stone jambs framing the opening, a dark passage interior,
-  // and a worn threshold slab where the doorway meets the room floor.
+  // Per-cell door render. With 2-thick walls every connection point paints a
+  // 2×WALL_THICKNESS block of DOOR cells (and the inter-room gap stamps a
+  // 2×1 strip), so the per-cell archway + jamb composition that worked for
+  // 1-thick walls would draw 4 overlapping arches per doorway. Phase 2 first
+  // pass: paint a flat dark-passage floor on every DOOR cell — the wall ring
+  // around the door already frames the opening, and the player reads the
+  // 2×2 dark patch as a clear passage. The legacy arch helpers
+  // (_drawDoorEW/_drawDoorNS/_drawDoorGap) are kept intact for a future
+  // multi-cell-aware rework but no longer dispatched.
   _drawDoorCell(g, x, y) {
     const px = x * TS, py = y * TS
-    const ctx = this._detectDoorContext(x, y)
-
-    // Floor base under everything (covers any spillover at the inner end).
-    g.fillStyle(FLOOR_BASE, 1)
+    // Passage floor is intentionally darker than the room floor so the
+    // doorway reads as a recessed underpass. The graduated shadow added by
+    // _drawPassageShadow (above entities) deepens this further toward the
+    // outward face, so adventurers visually emerge from darkness as they
+    // reach the threshold.
+    g.fillStyle(DOOR_PASSAGE_DARK, 1)
     g.fillRect(px, py, TS, TS)
+    const over = this._gOverhead
+    // Find which room (if any) contains this cell. Gap-stub cells between
+    // two rooms aren't in any room rect — they get the full wall-cap look.
+    const room = (this._gameState.dungeon.rooms ?? []).find(r =>
+      x >= r.gridX && x < r.gridX + r.width &&
+      y >= r.gridY && y < r.gridY + r.height)
+    if (!room) {
+      // Gap stub: paint the whole cell as wall-cap surface so the gap reads
+      // as a continuation of the capstone band running over both walls.
+      this._drawCapstoneBand(over, null, px, py, TS, TS, 'top')
+      return
+    }
+    // For DOOR cells in a room's OUTER wall ring, repaint the outward
+    // strip with a capstone band — keeps the wall-cap line continuous
+    // across the doorway and lets the closed door sit underneath it.
+    const dt = y - room.gridY
+    const db = (room.gridY + room.height - 1) - y
+    const dl = x - room.gridX
+    const dr = (room.gridX + room.width  - 1) - x
+    if      (dt === 0) this._drawCapstoneBand(over, null, px, py, TS, CAPSTONE_W, 'top')
+    else if (db === 0) this._drawCapstoneBand(over, null, px, py + TS - CAPSTONE_W, TS, CAPSTONE_W, 'bottom')
+    else if (dl === 0) this._drawCapstoneBand(over, null, px, py, CAPSTONE_W, TS, 'left')
+    else if (dr === 0) this._drawCapstoneBand(over, null, px + TS - CAPSTONE_W, py, CAPSTONE_W, TS, 'right')
+  }
 
-    if (ctx.axis === 'EW') this._drawDoorEW(g, px, py, ctx)
-    else                   this._drawDoorNS(g, px, py, ctx)
+  // Closed-door overlays. Walks every room's connection points and stamps a
+  // 2 × WALL_THICKNESS door visual on the door layer for each cp whose
+  // `open` flag is false. Style is taken from cp.style (or 'regular' default),
+  // upgraded to 'boss' if the doorway pairs with the boss chamber. Drawn on
+  // _gDoors (depth 9.5) so adventurers walking under the doorway pass
+  // visually behind the closed door.
+  // Doorway architecture (jambs + threshold + inner bevel) — drawn for
+  // every cp regardless of door state, so the frame is visible whether the
+  // door is closed, animating, or fully open. Jambs sit on _gOverhead
+  // (above entities, so adventurers pass under the frame); threshold and
+  // bevel go on _gTiles (below entities, so adventurers walk on/over them).
+  _drawDoorwayArchitecture() {
+    const overhead = this._gOverhead
+    const tiles    = this._gTiles
+    for (const room of this._gameState.dungeon.rooms ?? []) {
+      for (const cp of room.connectionPoints ?? []) {
+        const rect = this._cpDoorRect(room, cp)
+        if (!rect) continue
+        const style = this._effectiveDoorStyle(room, cp)
+        const pal   = ARCH_STYLES[style] || ARCH_STYLES.regular
+        this._drawDoorJambs(overhead, rect, pal)
+        this._drawDoorThreshold(tiles, rect, pal)
+        this._drawPassageShadow(overhead, rect)
+      }
+    }
+  }
+
+  // Graduated dark overlay on _gOverhead, inset between the jambs, fading
+  // from heavy darkness at the outward face (the "deep underpass beyond
+  // the door") to nearly transparent at the threshold. Renders above
+  // adventurers — they appear to emerge from shadow as they cross the
+  // doorway. Stays out of the threshold strip so the floor-side stays clean.
+  _drawPassageShadow(g, rect) {
+    const ALPHAS = [0.9, 0.7, 0.5, 0.25]
+    const { px, py, pw, ph, axis, outerSide } = rect
+
+    if (axis === 'h') {
+      const sx = px + JAMB_W
+      const sw = pw - 2 * JAMB_W
+      // Carve the threshold strip out of the shadow zone.
+      const sy = (outerSide === 'top') ? py : py + THRESHOLD_W
+      const sh = ph - THRESHOLD_W
+      const stripeH = Math.max(1, Math.floor(sh / ALPHAS.length))
+      for (let i = 0; i < ALPHAS.length; i++) {
+        g.fillStyle(0x000000, ALPHAS[i])
+        // i=0 is the heaviest stripe; place it at the outward face.
+        const sy_i = (outerSide === 'top')
+          ? sy + i * stripeH
+          : sy + sh - (i + 1) * stripeH
+        const sh_i = (i === ALPHAS.length - 1)
+          ? Math.max(0, sh - i * stripeH)
+          : stripeH
+        if (sw > 0 && sh_i > 0) g.fillRect(sx, sy_i, sw, sh_i)
+      }
+    } else {
+      const sy = py + JAMB_W
+      const sh = ph - 2 * JAMB_W
+      const sx = (outerSide === 'left') ? px : px + THRESHOLD_W
+      const sw = pw - THRESHOLD_W
+      const stripeW = Math.max(1, Math.floor(sw / ALPHAS.length))
+      for (let i = 0; i < ALPHAS.length; i++) {
+        g.fillStyle(0x000000, ALPHAS[i])
+        const sx_i = (outerSide === 'left')
+          ? sx + i * stripeW
+          : sx + sw - (i + 1) * stripeW
+        const sw_i = (i === ALPHAS.length - 1)
+          ? Math.max(0, sw - i * stripeW)
+          : stripeW
+        if (sw_i > 0 && sh > 0) g.fillRect(sx_i, sy, sw_i, sh)
+      }
+    }
+  }
+
+  // Two stone strips flanking the passage. For h-axis doorways (top/bottom
+  // walls) jambs are vertical at the left and right edges of the rect; for
+  // v-axis (left/right walls) they're horizontal at the top and bottom.
+  // Each jamb is JAMB_W px thick with a bright outer-edge highlight and a
+  // 1-px shadow on its inner edge for depth.
+  _drawDoorJambs(g, rect, pal) {
+    const { px, py, pw, ph, axis } = rect
+    if (axis === 'h') {
+      g.fillStyle(pal.jamb, 1)
+      g.fillRect(px,             py, JAMB_W, ph)              // left jamb
+      g.fillRect(px + pw - JAMB_W, py, JAMB_W, ph)            // right jamb
+      g.fillStyle(pal.jambHi, 0.85)
+      g.fillRect(px,             py, 1, ph)                   // outer left highlight
+      g.fillRect(px + pw - 1,    py, 1, ph)                   // outer right highlight
+      g.fillStyle(pal.jambShadow, 0.7)
+      g.fillRect(px + JAMB_W - 1,    py, 1, ph)               // inner left shadow
+      g.fillRect(px + pw - JAMB_W,   py, 1, ph)               // inner right shadow
+      g.fillStyle(pal.bevel, 0.55)
+      g.fillRect(px + JAMB_W,        py, 1, ph)               // recess bevel
+      g.fillRect(px + pw - JAMB_W - 1, py, 1, ph)
+    } else {
+      g.fillStyle(pal.jamb, 1)
+      g.fillRect(px, py,                   pw, JAMB_W)
+      g.fillRect(px, py + ph - JAMB_W,     pw, JAMB_W)
+      g.fillStyle(pal.jambHi, 0.85)
+      g.fillRect(px, py,                   pw, 1)
+      g.fillRect(px, py + ph - 1,          pw, 1)
+      g.fillStyle(pal.jambShadow, 0.7)
+      g.fillRect(px, py + JAMB_W - 1,      pw, 1)
+      g.fillRect(px, py + ph - JAMB_W,     pw, 1)
+      g.fillStyle(pal.bevel, 0.55)
+      g.fillRect(px, py + JAMB_W,          pw, 1)
+      g.fillRect(px, py + ph - JAMB_W - 1, pw, 1)
+    }
+  }
+
+  // Worn-stone slab at the floor-facing edge of the doorway opening, with a
+  // bright top-edge highlight and a 1-px dark bevel on its passage-facing
+  // edge (inner shadow that sells "the passage is recessed").
+  _drawDoorThreshold(g, rect, pal) {
+    const { px, py, pw, ph, outerSide } = rect
+    let tx, ty, tw, th, hiSide, bevelSide
+    switch (outerSide) {
+      case 'top':    tx = px;            ty = py + ph - THRESHOLD_W; tw = pw;          th = THRESHOLD_W; hiSide = 'bottom'; bevelSide = 'top';    break
+      case 'bottom': tx = px;            ty = py;                    tw = pw;          th = THRESHOLD_W; hiSide = 'top';    bevelSide = 'bottom'; break
+      case 'left':   tx = px + pw - THRESHOLD_W; ty = py;            tw = THRESHOLD_W; th = ph;          hiSide = 'right';  bevelSide = 'left';   break
+      case 'right':  tx = px;            ty = py;                    tw = THRESHOLD_W; th = ph;          hiSide = 'left';   bevelSide = 'right';  break
+      default: return
+    }
+    g.fillStyle(pal.threshold, 1)
+    g.fillRect(tx, ty, tw, th)
+    g.fillStyle(pal.thresholdHi, 0.85)
+    if      (hiSide === 'bottom') g.fillRect(tx, ty + th - 1, tw, 1)
+    else if (hiSide === 'top')    g.fillRect(tx, ty,          tw, 1)
+    else if (hiSide === 'right')  g.fillRect(tx + tw - 1, ty, 1, th)
+    else if (hiSide === 'left')   g.fillRect(tx,          ty, 1, th)
+    g.fillStyle(pal.bevel, 0.6)
+    if      (bevelSide === 'top')    g.fillRect(tx, ty - 1,        tw, 1)
+    else if (bevelSide === 'bottom') g.fillRect(tx, ty + th,       tw, 1)
+    else if (bevelSide === 'left')   g.fillRect(tx - 1,        ty, 1, th)
+    else if (bevelSide === 'right')  g.fillRect(tx + tw,       ty, 1, th)
+  }
+
+  _drawClosedDoors() {
+    const g = this._gDoors
+    for (const room of this._gameState.dungeon.rooms ?? []) {
+      for (const cp of room.connectionPoints ?? []) {
+        if (cp.open) continue                 // fully open — nothing to draw
+        const rect = this._cpDoorRect(room, cp)
+        if (!rect) continue
+        const style    = this._effectiveDoorStyle(room, cp)
+        const progress = cp.openProgress || 0
+        this._drawClosedDoor(g, rect, style, progress)
+      }
+    }
+  }
+
+  // Per-frame animation tick. Advances any cp.opening progress and triggers
+  // a partial redraw of the door overlay layer when a door's state changed
+  // (without redrawing the whole dungeon). Game.update() must call this.
+  update(deltaMs) {
+    if (!this._gameState?.dungeon?.rooms) return
+    const dt = (deltaMs || 0) / 1000
+    let changed = false
+    for (const room of this._gameState.dungeon.rooms) {
+      for (const cp of room.connectionPoints ?? []) {
+        if (!cp.opening) continue
+        cp.openProgress = Math.min(1, (cp.openProgress || 0) + dt / DOOR_OPEN_DURATION_S)
+        changed = true
+        if (cp.openProgress >= 1) {
+          cp.opening      = false
+          cp.open         = true
+          cp.openProgress = 1
+          EventBus.emit('DOOR_OPENED', { roomId: room.instanceId, cp })
+        }
+      }
+    }
+    if (changed) this._redrawDoors()
+  }
+
+  // Public helper — kicks an opening animation on this cp. Idempotent: a
+  // cp already open or already opening doesn't restart. Used by the
+  // adventurer step-on trigger and the day-start hook.
+  openDoor(cp) {
+    if (!cp || cp.open || cp.opening) return false
+    cp.opening      = true
+    cp.openProgress = 0
+    EventBus.emit('DOOR_OPENING', { cp })
+    this._redrawDoors()
+    return true
+  }
+
+  // Force a cp back to closed state (no animation). Used by the day-end
+  // hook to reset entry-hall external doors so they re-animate next day.
+  closeDoor(cp) {
+    if (!cp) return
+    cp.open         = false
+    cp.opening      = false
+    cp.openProgress = 0
+    this._redrawDoors()
+  }
+
+  _redrawDoors() {
+    this._gDoors.clear()
+    this._drawClosedDoors()
+  }
+
+  // Pixel rect of the 2 × WALL_THICKNESS DOOR block belonging to this cp.
+  // Returns null for a cp that doesn't sit on the room's edge (corner /
+  // interior cps don't paint a door block — see DungeonGrid._writeTiles).
+  _cpDoorRect(room, cp) {
+    const WT = Balance.WALL_THICKNESS
+    const onTop = cp.y === 0
+    const onBot = cp.y === room.height - 1
+    const onLft = cp.x === 0
+    const onRgt = cp.x === room.width - 1
+    if ((onTop || onBot) && (onLft || onRgt)) return null
+    if (!onTop && !onBot && !onLft && !onRgt)  return null
+
+    let rect
+    if (onTop || onBot) {
+      // Horizontal wall — door block is 2 cells wide × WT cells tall.
+      const alongDx = ((room.width - 1) - cp.x) >= cp.x ? 1 : -1
+      const xStart  = Math.min(cp.x, cp.x + alongDx)
+      const yStart  = onTop ? 0 : room.height - WT
+      rect = {
+        px: (room.gridX + xStart) * TS,
+        py: (room.gridY + yStart) * TS,
+        pw: 2 * TS,
+        ph: WT * TS,
+        axis: 'h',
+        outerSide: onTop ? 'top' : 'bottom',
+      }
+    } else {
+      // Vertical wall — door block is WT cells wide × 2 cells tall.
+      const alongDy = ((room.height - 1) - cp.y) >= cp.y ? 1 : -1
+      const yStart  = Math.min(cp.y, cp.y + alongDy)
+      const xStart  = onLft ? 0 : room.width - WT
+      rect = {
+        px: (room.gridX + xStart) * TS,
+        py: (room.gridY + yStart) * TS,
+        pw: WT * TS,
+        ph: 2 * TS,
+        axis: 'v',
+        outerSide: onLft ? 'left' : 'right',
+      }
+    }
+    // Shrink by CAPSTONE_W on the outward side so the wall cap (drawn on
+    // each DOOR cell by _drawDoorCell) shows above the closed door.
+    switch (rect.outerSide) {
+      case 'top':    rect.py += CAPSTONE_W; rect.ph -= CAPSTONE_W; break
+      case 'bottom': rect.ph -= CAPSTONE_W; break
+      case 'left':   rect.px += CAPSTONE_W; rect.pw -= CAPSTONE_W; break
+      case 'right':  rect.pw -= CAPSTONE_W; break
+    }
+    return rect
+  }
+
+  // Effective style for the door: cp.style verbatim unless the doorway
+  // partners with the boss chamber, in which case both sides render boss.
+  _effectiveDoorStyle(room, cp) {
+    const own = cp.style || 'regular'
+    if (own === 'boss')                         return 'boss'
+    if (room.definitionId === 'boss_chamber')   return 'boss'
+    if (cp.external)                            return own
+    // Find the paired room by tracing 2 cells outward (matches the snap
+    // model — rooms share a 1-cell gap between their outer wall rings).
+    const v = DIR_VECS[cp.direction]
+    if (!v) return own
+    const matchX = room.gridX + cp.x + v.dx * 2
+    const matchY = room.gridY + cp.y + v.dy * 2
+    for (const other of this._gameState.dungeon.rooms ?? []) {
+      if (other.instanceId === room.instanceId)            continue
+      if (matchX < other.gridX || matchX >= other.gridX + other.width)  continue
+      if (matchY < other.gridY || matchY >= other.gridY + other.height) continue
+      if (other.definitionId === 'boss_chamber')           return 'boss'
+      break
+    }
+    return own
+  }
+
+  // Paint a single closed door over the given rect. `progress` (0..1) drives
+  // the split-aside animation: 0 = fully closed (full art), 1 = fully open
+  // (nothing drawn). Mid-progress: the two door halves shrink toward the
+  // walls on either side, sliding the doorway open.
+  _drawClosedDoor(g, rect, style, progress = 0) {
+    if (progress >= 1) return
+    const pal = DOOR_STYLES[style] || DOOR_STYLES.regular
+    // Inset the closed-door art by JAMB_W on each lateral side so the
+    // doorway jambs (drawn separately by _drawDoorwayArchitecture) are
+    // visible as a frame around the door.
+    const baseRect = rect
+    const axis = baseRect.axis
+    let px = baseRect.px, py = baseRect.py, pw = baseRect.pw, ph = baseRect.ph
+    if (axis === 'h') { px += JAMB_W; pw -= 2 * JAMB_W }
+    else              { py += JAMB_W; ph -= 2 * JAMB_W }
+
+    // Mid-animation: render simplified shrinking halves and bail before the
+    // detailed (closed-state) art. Quadratic ease-out so the door starts
+    // moving fast and settles open.
+    if (progress > 0) {
+      const eased = 1 - (1 - progress) * (1 - progress)
+      if (axis === 'h') {
+        const halfW = pw / 2
+        const visW  = Math.max(0, Math.round(halfW * (1 - eased)))
+        if (visW > 0) {
+          g.fillStyle(pal.base, 1)
+          g.fillRect(px,                    py, visW, ph)   // left half
+          g.fillRect(px + pw - visW,        py, visW, ph)   // right half
+          // Inner edge (the half's sliding edge) gets a 1-px split-seam
+          // accent so the moving edge reads as the door's seam.
+          g.fillStyle(pal.split, 1)
+          g.fillRect(px + visW - 1,         py, 1, ph)
+          g.fillRect(px + pw - visW,        py, 1, ph)
+        }
+      } else {
+        const halfH = ph / 2
+        const visH  = Math.max(0, Math.round(halfH * (1 - eased)))
+        if (visH > 0) {
+          g.fillStyle(pal.base, 1)
+          g.fillRect(px, py,                pw, visH)       // top half
+          g.fillRect(px, py + ph - visH,    pw, visH)       // bottom half
+          g.fillStyle(pal.split, 1)
+          g.fillRect(px, py + visH - 1,     pw, 1)
+          g.fillRect(px, py + ph - visH,    pw, 1)
+        }
+      }
+      return
+    }
+
+    // Base fill — covers the entire door block.
+    g.fillStyle(pal.base, 1)
+    g.fillRect(px, py, pw, ph)
+
+    // Wood-grain / stone-grain streaks. For a horizontal wall (axis 'h') the
+    // door's "long axis" runs left-right (the passage opens N-S); for a
+    // vertical wall the long axis runs top-bottom. Streaks run along the
+    // long axis so the door visually reads like planks set into the doorway.
+    g.fillStyle(pal.grain, 0.45)
+    if (axis === 'h') {
+      // 2 horizontal streaks at 1/3 and 2/3 of the door height.
+      g.fillRect(px + 2, py + Math.floor(ph / 3),     pw - 4, 1)
+      g.fillRect(px + 2, py + Math.floor(2 * ph / 3), pw - 4, 1)
+    } else {
+      g.fillRect(px + Math.floor(pw / 3),     py + 2, 1, ph - 4)
+      g.fillRect(px + Math.floor(2 * pw / 3), py + 2, 1, ph - 4)
+    }
+
+    // Outer bevel — 1-px highlight on the side that faces "up" (the lit
+    // edge), darker shadow on the opposite side. Sells the doorway as set
+    // into the wall ring rather than floating on top.
+    g.fillStyle(pal.edge, 0.7)
+    if (axis === 'h') {
+      g.fillRect(px, py,            pw, 1)             // top edge highlight
+      g.fillRect(px, py + ph - 1,   pw, 1)             // bottom edge
+    } else {
+      g.fillRect(px,            py, 1, ph)
+      g.fillRect(px + pw - 1,   py, 1, ph)
+    }
+
+    // Banding — 2 perpendicular bands across the door (iron straps for
+    // regular/boss, brass framing for entrance). Drawn at 1/4 and 3/4 of
+    // the perpendicular axis so they read as sturdy hardware.
+    g.fillStyle(pal.band, 0.85)
+    if (axis === 'h') {
+      const bandH = 3
+      g.fillRect(px, py + Math.floor(ph / 4)     - 1, pw, bandH)
+      g.fillRect(px, py + Math.floor(3 * ph / 4) - 1, pw, bandH)
+    } else {
+      const bandW = 3
+      g.fillRect(px + Math.floor(pw / 4)     - 1, py, bandW, ph)
+      g.fillRect(px + Math.floor(3 * pw / 4) - 1, py, bandW, ph)
+    }
+
+    // Rivets — small 2x2 highlight squares near the band ends. For boss
+    // doors these glow red; for entrance, brass studs.
+    g.fillStyle(pal.bandHi, 0.9)
+    if (axis === 'h') {
+      const yA = py + Math.floor(ph / 4)
+      const yB = py + Math.floor(3 * ph / 4)
+      for (const ry of [yA, yB]) {
+        g.fillRect(px + 4,        ry, 2, 2)
+        g.fillRect(px + pw - 6,   ry, 2, 2)
+        g.fillRect(px + Math.floor(pw / 2) - 1, ry, 2, 2)
+      }
+    } else {
+      const xA = px + Math.floor(pw / 4)
+      const xB = px + Math.floor(3 * pw / 4)
+      for (const rx of [xA, xB]) {
+        g.fillRect(rx, py + 4,        2, 2)
+        g.fillRect(rx, py + ph - 6,   2, 2)
+        g.fillRect(rx, py + Math.floor(ph / 2) - 1, 2, 2)
+      }
+    }
+
+    // Split seam — 2-px line down the centre of the wall axis. Animation
+    // (Phase B) will tween the two halves apart from this seam.
+    g.fillStyle(pal.split, 1)
+    if (axis === 'h') {
+      g.fillRect(px + Math.floor(pw / 2) - 1, py, 2, ph)
+    } else {
+      g.fillRect(px, py + Math.floor(ph / 2) - 1, pw, 2)
+    }
+
+    // Style-specific extras.
+    if (style === 'entrance') {
+      // Decorative sigil — a small cross at the centre of the door block.
+      g.fillStyle(pal.bandHi, 1)
+      const cx = px + Math.floor(pw / 2)
+      const cy = py + Math.floor(ph / 2)
+      g.fillRect(cx - 4, cy,     9, 1)
+      g.fillRect(cx,     cy - 4, 1, 9)
+    } else if (style === 'boss') {
+      // Glowing eyes — 2 red dots above the centre, suggesting "watching".
+      g.fillStyle(pal.bandHi, 1)
+      const cx = px + Math.floor(pw / 2)
+      const cy = py + Math.floor(ph / 2)
+      if (axis === 'h') {
+        g.fillRect(cx - 8, cy - Math.floor(ph / 6), 2, 2)
+        g.fillRect(cx + 6, cy - Math.floor(ph / 6), 2, 2)
+      } else {
+        g.fillRect(cx - Math.floor(pw / 6), cy - 8, 2, 2)
+        g.fillRect(cx - Math.floor(pw / 6), cy + 6, 2, 2)
+      }
+    }
+  }
+
+  // Plain dark-passage render for the 1-tile gap between two adjacent
+  // rooms' doorways. No jambs, capstone, or threshold — the framing belongs
+  // to the room walls on either end. The gap IS the doorway interior, so
+  // it renders on the overhead layer (above entities) — entities passing
+  // through visually disappear under the archway between the two rooms.
+  _drawDoorGap(_gFloor, px, py, ctx) {
+    const gOver = this._gOverhead
+    gOver.fillStyle(DOOR_PASSAGE_DARK, 1)
+    gOver.fillRect(px, py, TS, TS)
+    gOver.fillStyle(DOOR_PASSAGE_LIGHT, 0.45)
+    if (ctx.NisDoor && ctx.SisDoor) {
+      // N–S passage gap — vertical footpath stripe.
+      gOver.fillRect(px + Math.floor((TS - 4) / 2), py, 4, TS)
+    } else {
+      // E–W passage gap — horizontal stripe.
+      gOver.fillRect(px, py + Math.floor((TS - 4) / 2), TS, 4)
+    }
   }
 
   // Detect doorway orientation and which side faces "outside" the room.
@@ -958,6 +1870,7 @@ export class DungeonRenderer {
   // edge with a brighter keystone wedge above the opening.
   _drawDoorNS(g, px, py, ctx) {
     const outer = ctx.outer
+    const gOver = this._gOverhead   // architectural elements go above entities
     const JAMB_W   = 9
     // For widened doorways the inner-seam jamb is suppressed so the pair
     // reads as a single wide opening. Outer jambs (away from the seam) stay.
@@ -969,21 +1882,9 @@ export class DungeonRenderer {
     const openYTop = py + CAPSTONE_W                 // brick-face start
     const openYBot = py + TS - BASEBOARD_W           // brick-face end (above baseboard area)
 
-    // Capstone band runs the full width — seamless with adjacent wall tiles.
-    const capY = (outer === 'S') ? py + TS - CAPSTONE_W : py
-    const capSide = (outer === 'S') ? 'bottom' : 'top'
-    const fr = (rx, ry, rw, rh) => g.fillRect(rx, ry, rw, rh)
-    this._drawCapstoneBand(g, fr, px, capY, TS, CAPSTONE_W, capSide)
-
-    if (drawLeftJamb)  this._drawDoorJamb(g, px,                openYTop, JAMB_W, openYBot - openYTop, 'left')
-    if (drawRightJamb) this._drawDoorJamb(g, px + TS - JAMB_W,  openYTop, JAMB_W, openYBot - openYTop, 'right')
-
-    // Dark passage interior — spans the full opening width.
+    // ── FLOOR LAYER (g, under entities) — passage, footpath, threshold ──
     g.fillStyle(DOOR_PASSAGE_DARK, 1)
     g.fillRect(openX, openYTop, openW, openYBot - openYTop)
-    // Worn-footpath centre stripe. For widened doorways the "centre" sits
-    // over the seam between tiles; only the leftmost tile of the pair
-    // (no door to its W) needs to draw it, and it spans both halves.
     if (!ctx.WisDoor) {
       const stripeOriginX = openX + (ctx.EisDoor ? Math.floor((openW * 2 - 4) / 2)
                                                  : Math.floor((openW - 4) / 2))
@@ -993,25 +1894,6 @@ export class DungeonRenderer {
       g.fillStyle(DOOR_PASSAGE_LIGHT, 0.55)
       g.fillRect(stripeX, openYTop, stripeW, openYBot - openYTop)
     }
-
-    // Arch shadow — 1-px line under the capstone above the opening.
-    g.fillStyle(DOOR_ARCH_INNER, 0.85)
-    if (outer !== 'S') g.fillRect(openX, openYTop, openW, 1)
-    else               g.fillRect(openX, openYBot - 1, openW, 1)
-
-    // Keystone wedge — brighter trapezoid in the capstone above the opening.
-    // For widened doorways draw it once over the seam (only the leftmost tile
-    // of the pair places it). Single-tile doorways draw it locally as before.
-    if (!ctx.WisDoor) {
-      const keyOpenW = ctx.EisDoor ? openW * 2 : openW
-      const keyOpenX = openX
-      const keyX = keyOpenX + Math.floor((keyOpenW - 5) / 2)
-      g.fillStyle(DOOR_KEYSTONE_HI, 0.70)
-      if (outer === 'S') g.fillRect(keyX, py + TS - CAPSTONE_W + 1, 5, CAPSTONE_W - 2)
-      else               g.fillRect(keyX, py + 1,                    5, CAPSTONE_W - 2)
-    }
-
-    // Threshold slab — full opening width, worn stone with highlight stripe.
     if (outer === 'S') {
       g.fillStyle(DOOR_THRESHOLD, 1)
       g.fillRect(openX, openYTop, openW, 4)
@@ -1023,6 +1905,25 @@ export class DungeonRenderer {
       g.fillStyle(DOOR_THRESHOLD_HI, 0.6)
       g.fillRect(openX, openYBot - 1, openW, 1)
     }
+
+    // ── OVERHEAD LAYER (gOver, above entities) — capstone, jambs, keystone ──
+    const capY = (outer === 'S') ? py + TS - CAPSTONE_W : py
+    const capSide = (outer === 'S') ? 'bottom' : 'top'
+    const frOver = (rx, ry, rw, rh) => gOver.fillRect(rx, ry, rw, rh)
+    this._drawCapstoneBand(gOver, frOver, px, capY, TS, CAPSTONE_W, capSide)
+    if (drawLeftJamb)  this._drawDoorJamb(gOver, px,                openYTop, JAMB_W, openYBot - openYTop, 'left')
+    if (drawRightJamb) this._drawDoorJamb(gOver, px + TS - JAMB_W,  openYTop, JAMB_W, openYBot - openYTop, 'right')
+    gOver.fillStyle(DOOR_ARCH_INNER, 0.85)
+    if (outer !== 'S') gOver.fillRect(openX, openYTop, openW, 1)
+    else               gOver.fillRect(openX, openYBot - 1, openW, 1)
+    if (!ctx.WisDoor) {
+      const keyOpenW = ctx.EisDoor ? openW * 2 : openW
+      const keyOpenX = openX
+      const keyX = keyOpenX + Math.floor((keyOpenW - 5) / 2)
+      gOver.fillStyle(DOOR_KEYSTONE_HI, 0.70)
+      if (outer === 'S') gOver.fillRect(keyX, py + TS - CAPSTONE_W + 1, 5, CAPSTONE_W - 2)
+      else               gOver.fillRect(keyX, py + 1,                    5, CAPSTONE_W - 2)
+    }
   }
 
   // E–W passage doorway (door sits in a left or right wall). Mirrored layout
@@ -1030,6 +1931,7 @@ export class DungeonRenderer {
   // down the outer side.
   _drawDoorEW(g, px, py, ctx) {
     const outer = ctx.outer
+    const gOver = this._gOverhead
     const JAMB_H   = 9
     const drawTopJamb = !ctx.NisDoor
     const drawBotJamb = !ctx.SisDoor
@@ -1039,14 +1941,7 @@ export class DungeonRenderer {
     const openXLft = px + CAPSTONE_W
     const openXRgt = px + TS - BASEBOARD_W
 
-    const capX = (outer === 'E') ? px + TS - CAPSTONE_W : px
-    const capSide = (outer === 'E') ? 'right' : 'left'
-    const fr = (rx, ry, rw, rh) => g.fillRect(rx, ry, rw, rh)
-    this._drawCapstoneBand(g, fr, capX, py, CAPSTONE_W, TS, capSide)
-
-    if (drawTopJamb) this._drawDoorJamb(g, openXLft, py,               openXRgt - openXLft, JAMB_H, 'top')
-    if (drawBotJamb) this._drawDoorJamb(g, openXLft, py + TS - JAMB_H, openXRgt - openXLft, JAMB_H, 'bottom')
-
+    // ── FLOOR LAYER ──
     g.fillStyle(DOOR_PASSAGE_DARK, 1)
     g.fillRect(openXLft, openY, openXRgt - openXLft, openH)
     if (!ctx.NisDoor) {
@@ -1057,19 +1952,6 @@ export class DungeonRenderer {
       g.fillStyle(DOOR_PASSAGE_LIGHT, 0.55)
       g.fillRect(openXLft, stripeYC, openXRgt - openXLft, 4)
     }
-
-    g.fillStyle(DOOR_ARCH_INNER, 0.85)
-    if (outer !== 'E') g.fillRect(openXLft, openY, 1, openH)
-    else               g.fillRect(openXRgt - 1, openY, 1, openH)
-
-    if (!ctx.NisDoor) {
-      const keyOpenH = ctx.SisDoor ? openH * 2 : openH
-      const keyY = openY + Math.floor((keyOpenH - 5) / 2)
-      g.fillStyle(DOOR_KEYSTONE_HI, 0.70)
-      if (outer === 'E') g.fillRect(px + TS - CAPSTONE_W + 1, keyY, CAPSTONE_W - 2, 5)
-      else               g.fillRect(px + 1,                   keyY, CAPSTONE_W - 2, 5)
-    }
-
     if (outer === 'E') {
       g.fillStyle(DOOR_THRESHOLD, 1)
       g.fillRect(openXLft, openY, 4, openH)
@@ -1080,6 +1962,24 @@ export class DungeonRenderer {
       g.fillRect(openXRgt - 4, openY, 4, openH)
       g.fillStyle(DOOR_THRESHOLD_HI, 0.6)
       g.fillRect(openXRgt - 1, openY, 1, openH)
+    }
+
+    // ── OVERHEAD LAYER ──
+    const capX = (outer === 'E') ? px + TS - CAPSTONE_W : px
+    const capSide = (outer === 'E') ? 'right' : 'left'
+    const frOver = (rx, ry, rw, rh) => gOver.fillRect(rx, ry, rw, rh)
+    this._drawCapstoneBand(gOver, frOver, capX, py, CAPSTONE_W, TS, capSide)
+    if (drawTopJamb) this._drawDoorJamb(gOver, openXLft, py,               openXRgt - openXLft, JAMB_H, 'top')
+    if (drawBotJamb) this._drawDoorJamb(gOver, openXLft, py + TS - JAMB_H, openXRgt - openXLft, JAMB_H, 'bottom')
+    gOver.fillStyle(DOOR_ARCH_INNER, 0.85)
+    if (outer !== 'E') gOver.fillRect(openXLft, openY, 1, openH)
+    else               gOver.fillRect(openXRgt - 1, openY, 1, openH)
+    if (!ctx.NisDoor) {
+      const keyOpenH = ctx.SisDoor ? openH * 2 : openH
+      const keyY = openY + Math.floor((keyOpenH - 5) / 2)
+      gOver.fillStyle(DOOR_KEYSTONE_HI, 0.70)
+      if (outer === 'E') gOver.fillRect(px + TS - CAPSTONE_W + 1, keyY, CAPSTONE_W - 2, 5)
+      else               gOver.fillRect(px + 1,                   keyY, CAPSTONE_W - 2, 5)
     }
   }
 
@@ -1139,15 +2039,174 @@ export class DungeonRenderer {
     const W = gw * TS
     const H = gh * TS
 
-    this._gBg.fillStyle(PALETTE.void, 1)
+    // Stone bedrock base — warm gray-brown across the entire grid. Rooms
+    // get overpainted on top by _drawTiles. The empty grid reads as "rock
+    // we haven't carved yet" instead of dark void.
+    this._gBg.fillStyle(STONE_BASE, 1)
     this._gBg.fillRect(0, 0, W, H)
-    this._gBg.fillStyle(0x0a1530, 0.18)
-    this._gBg.fillEllipse(W / 2, H / 2, W * 1.1, H * 1.1)
+    // Soft central darkening — the further you get from the dungeon's
+    // center, the gloomier the rock; gives the grid a slight vignette.
+    this._gBg.fillStyle(0x000000, 0.18)
+    this._gBg.fillEllipse(W / 2, H / 2, W * 1.4, H * 1.4)
+    // Per-cell hash texture — speckles, pock marks, rare cracks/veins.
+    this._drawVoidStoneTexture()
+    // Lighter halo immediately around each placed room — "freshly chiseled
+    // edge" effect. Drawn after texture so the halo isn't speckled over.
+    this._drawCarveHalo()
   }
 
-  _drawGrid() {
-    const { gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
+  // Per-cell stone-texture pass. Walks every TILE.VOID cell and stamps a
+  // few hash-driven detail bits — light speckles, dark pock marks, the
+  // occasional vein streak — so the empty grid doesn't read as a flat
+  // fill. Only paints VOID cells; floor/wall cells get their own art
+  // from _drawTiles.
+  _drawVoidStoneTexture() {
+    const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
     const g = this._gBg
+    for (let y = 0; y < gh; y++) {
+      const row = tiles[y]
+      if (!row) continue
+      for (let x = 0; x < gw; x++) {
+        if (row[x] !== TILE.VOID) continue
+        const h  = _tileHash(x, y)
+        const px = x * TS, py = y * TS
+        // Bucket 0..255 → light/dark/vein/clean
+        const tint = h & 0xff
+        if (tint < 32) {
+          // Heavier shadow patch — covers most of the cell.
+          g.fillStyle(STONE_DARK, 0.55)
+          g.fillRect(px + ((h >>> 8) & 0x0f), py + ((h >>> 12) & 0x0f), 14, 14)
+        } else if (tint < 80) {
+          // Single dark pock.
+          g.fillStyle(STONE_DARK, 0.7)
+          g.fillRect(px + ((h >>> 8) & 0x1f) % (TS - 4), py + ((h >>> 13) & 0x1f) % (TS - 4), 2, 2)
+        } else if (tint > 220) {
+          // Lighter speckle.
+          g.fillStyle(STONE_LIGHT, 0.55)
+          g.fillRect(px + ((h >>> 8) & 0x1f) % (TS - 6), py + ((h >>> 13) & 0x1f) % (TS - 6), 4, 3)
+        } else if (tint > 196) {
+          // Tiny highlight chip.
+          g.fillStyle(STONE_LIGHT, 0.45)
+          g.fillRect(px + ((h >>> 8) & 0x1f) % (TS - 2), py + ((h >>> 13) & 0x1f) % (TS - 2), 1, 1)
+        }
+        // Rare vein — diagonal streak crossing the cell.
+        if (((h >>> 16) & 0xff) > 246) {
+          g.fillStyle(STONE_VEIN, 0.45)
+          const len = 8 + ((h >>> 24) & 0x07)
+          const dir = (h >>> 20) & 1 ? 1 : -1
+          const sx  = px + 4 + ((h >>> 21) & 0x07)
+          const sy  = py + 4 + ((h >>> 18) & 0x07)
+          for (let i = 0; i < len; i++) {
+            const cx = sx + i * dir
+            const cy = sy + i
+            if (cx >= px && cx < px + TS && cy >= py && cy < py + TS) {
+              g.fillRect(cx, cy, 1, 1)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Lighter rim around every placed room — frames the rooms against the
+  // deep bedrock so they read as "carved out". For each VOID cell that
+  // sits 1 tile outside any room's outer perimeter, paint a soft lighter
+  // stone wash with a 1-px brighter edge on the side facing the room.
+  _drawCarveHalo() {
+    const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
+    const g = this._gBg
+    const isVoid = (tx, ty) =>
+      tx >= 0 && ty >= 0 && tx < gw && ty < gh && tiles[ty]?.[tx] === TILE.VOID
+    const isInsideRoom = (tx, ty) => {
+      if (tx < 0 || ty < 0 || tx >= gw || ty >= gh) return false
+      const t = tiles[ty]?.[tx]
+      return t != null && t !== TILE.VOID
+    }
+    for (const room of this._gameState.dungeon.rooms ?? []) {
+      const x0 = room.gridX - 1, x1 = room.gridX + room.width
+      const y0 = room.gridY - 1, y1 = room.gridY + room.height
+      // Top & bottom rows of the halo (full width including corners).
+      for (let tx = x0; tx <= x1; tx++) {
+        if (isVoid(tx, y0)) this._stampHalo(g, tx, y0, 'top', isInsideRoom)
+        if (isVoid(tx, y1)) this._stampHalo(g, tx, y1, 'bottom', isInsideRoom)
+      }
+      // Left & right columns (excluding corners already done).
+      for (let ty = y0 + 1; ty < y1; ty++) {
+        if (isVoid(x0, ty)) this._stampHalo(g, x0, ty, 'left',  isInsideRoom)
+        if (isVoid(x1, ty)) this._stampHalo(g, x1, ty, 'right', isInsideRoom)
+      }
+    }
+  }
+
+  // Spawn a short dust burst around a freshly-placed room — sells the
+  // "I just chiseled this out of bedrock" feel. Particles drift outward
+  // from the room's center and fade over ~0.5s. Each is its own scene-level
+  // GameObject so they live OUTSIDE the renderer's redraw cycle and clean
+  // themselves up via tween onComplete.
+  _burstCarveDust(payload) {
+    const room = payload?.room
+    if (!room) return
+    const scene = this._scene
+    const cx = (room.gridX + room.width  / 2) * TS
+    const cy = (room.gridY + room.height / 2) * TS
+    const Wp = room.width  * TS
+    const Hp = room.height * TS
+    const PERIM = 2 * (Wp + Hp)
+    const COUNT = 30
+    const COLORS = [0x6a5a48, 0x8a7a60, 0x4a3e30]
+    for (let i = 0; i < COUNT; i++) {
+      // Walk perimeter at evenly-spaced offsets (with random jitter so the
+      // particles don't fall on a uniform grid).
+      const t = ((i + Math.random()) / COUNT) * PERIM
+      let x, y
+      if (t < Wp)               { x = room.gridX * TS + t;             y = room.gridY * TS }
+      else if (t < Wp + Hp)     { x = room.gridX * TS + Wp;            y = room.gridY * TS + (t - Wp) }
+      else if (t < 2 * Wp + Hp) { x = room.gridX * TS + (2 * Wp + Hp - t); y = room.gridY * TS + Hp }
+      else                       { x = room.gridX * TS;                 y = room.gridY * TS + (2 * (Wp + Hp) - t) }
+
+      const jx = (Math.random() - 0.5) * 6
+      const jy = (Math.random() - 0.5) * 6
+      const color = COLORS[(Math.random() * COLORS.length) | 0]
+      const size  = 2 + Math.floor(Math.random() * 3)   // 2–4 px
+      const dust = scene.add.rectangle(x + jx, y + jy, size, size, color, 0.9).setDepth(4.5)
+
+      // Drift OUTWARD from the room center so dust flies into the void.
+      const dx = (x - cx), dy = (y - cy)
+      const len = Math.hypot(dx, dy) || 1
+      const drift = 10 + Math.random() * 14
+      scene.tweens.add({
+        targets:  dust,
+        x:        dust.x + (dx / len) * drift,
+        y:        dust.y + (dy / len) * drift,
+        alpha:    0,
+        scale:    0.3,
+        duration: 350 + Math.random() * 300,
+        ease:     'Quad.Out',
+        onComplete: () => dust.destroy(),
+      })
+    }
+  }
+
+  // Paint a single carve-halo cell. `side` indicates which face of the
+  // cell touches the room (so the highlight goes there).
+  _stampHalo(g, tx, ty, side, isInsideRoom) {
+    const px = tx * TS, py = ty * TS
+    g.fillStyle(STONE_HALO, 0.55)
+    g.fillRect(px, py, TS, TS)
+    g.fillStyle(STONE_HALO_HI, 0.8)
+    if      (side === 'top'    && isInsideRoom(tx, ty + 1)) g.fillRect(px, py + TS - 1, TS, 1)
+    else if (side === 'bottom' && isInsideRoom(tx, ty - 1)) g.fillRect(px, py,           TS, 1)
+    else if (side === 'left'   && isInsideRoom(tx + 1, ty)) g.fillRect(px + TS - 1, py, 1, TS)
+    else if (side === 'right'  && isInsideRoom(tx - 1, ty)) g.fillRect(px,          py, 1, TS)
+  }
+
+  // Grid lines render on a dedicated layer so they can be toggled without
+  // re-rendering the bedrock. Hidden by default; NightPhase shows them
+  // while a room placement preview is active (see setGridVisible).
+  _drawGrid() {
+    if (!this._showGrid) return
+    const { gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
+    const g = this._gGrid
 
     g.lineStyle(1, PALETTE.gridLine, 0.35)
     for (let tx = 0; tx <= gw; tx++) {
@@ -1163,6 +2222,16 @@ export class DungeonRenderer {
     for (let ty = 0; ty <= gh; ty += 5) {
       g.beginPath(); g.moveTo(0, ty * TS); g.lineTo(gw * TS, ty * TS); g.strokePath()
     }
+  }
+
+  // Public toggle — NightPhase calls setGridVisible(true) when a placement
+  // is active and false on cancel/place. Triggers a redraw of just the
+  // grid layer (no full dungeon redraw needed).
+  setGridVisible(visible) {
+    if (this._showGrid === visible) return
+    this._showGrid = visible
+    this._gGrid.clear()
+    this._drawGrid()
   }
 
   // ── Room overlays (connection dots / inactive tint) ────────────────────────
