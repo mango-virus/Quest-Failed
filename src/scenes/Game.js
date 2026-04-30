@@ -201,7 +201,10 @@ export class Game extends Phaser.Scene {
   }
 
   _onBossFinal() {
-    // Stop everything, transition to GameOver
+    // Stop everything, transition to GameOver. HudScene was launched in
+    // parallel — explicitly stop it BEFORE we transition so the Boss HP
+    // panel doesn't linger over the GameOver / ArchetypeSelect screens.
+    this.scene.stop('HudScene')
     this.scene.stop('NightPhase')
     this.scene.stop('DayPhase')
     this.scene.stop('EndOfDay')
