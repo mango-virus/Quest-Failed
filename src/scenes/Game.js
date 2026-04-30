@@ -8,7 +8,6 @@ import { MinionAISystem }     from '../systems/MinionAISystem.js'
 import { TrapSystem }         from '../systems/TrapSystem.js'
 import { LootSystem }         from '../systems/LootSystem.js'
 import { EvolutionSystem }    from '../systems/EvolutionSystem.js'
-import { AbilitySystem }      from '../systems/AbilitySystem.js'
 import { ClassAbilitySystem } from '../systems/ClassAbilitySystem.js'
 import { KnowledgeSystem }    from '../systems/KnowledgeSystem.js'
 import { DungeonMechanicSystem } from '../systems/DungeonMechanicSystem.js'
@@ -408,24 +407,6 @@ export class Game extends Phaser.Scene {
     })
 
     this._keys = this.input.keyboard.addKeys('W,A,S,D')
-
-    // Phase 5b — Ctrl+Shift+C toggles ability insta-cooldown for testing.
-    // When on, every ability's cooldown is clamped to 1 second so the user
-    // can see the full set of class abilities trigger in a single dungeon
-    // run without waiting out the real timers.
-    this.input.keyboard.on('keydown-C', (e) => {
-      if (!e.ctrlKey || !e.shiftKey) return
-      const next = !AbilitySystem.isDebugInstaCooldown()
-      AbilitySystem.debugInstaCooldown(next)
-      // Surface the toggle so the user sees confirmation in-game.
-      const cam = this.cameras.main
-      const txt = this.add.text(cam.midPoint.x, cam.midPoint.y - 80,
-        `Ability insta-cooldown: ${next ? 'ON' : 'OFF'}`,
-        { fontSize: '18px', color: next ? '#66ff99' : '#ff6677', fontFamily: 'monospace', fontStyle: 'bold',
-          stroke: '#000000', strokeThickness: 3 })
-        .setOrigin(0.5).setScrollFactor(0).setDepth(9999)
-      this.tweens.add({ targets: txt, alpha: 0, y: txt.y - 30, duration: 1500, onComplete: () => txt.destroy() })
-    })
   }
 
   update(_time, delta) {

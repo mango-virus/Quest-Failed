@@ -9,7 +9,6 @@
 //   - canUse(adv, abilityId, defs):           ready check (cooldown + budget)
 //   - markUsed(adv, abilityId, cdMs, defs):   start cooldown, decrement budget
 //   - resetForNewDay(adv, defs):              refill per-day budgets
-//   - debugInstaCooldown(true|false):         drop CDs to 1s for testing (Ctrl+Shift+C)
 //
 // Each ability definition (passed in `defs` or read off classDef) shapes:
 //   {
@@ -24,16 +23,7 @@
 
 import { EventBus } from './EventBus.js'
 
-let _debugInstaCd = false
-
 export const AbilitySystem = {
-  // Set true to bypass cooldowns for testing. Toggled by Ctrl+Shift+C in Game.js.
-  debugInstaCooldown(on) {
-    _debugInstaCd = !!on
-    EventBus.emit('ABILITY_DEBUG_TOGGLED', { instaCooldown: _debugInstaCd })
-  },
-  isDebugInstaCooldown() { return _debugInstaCd },
-
   // Returns { ready: bool, reason?: 'cooldown' | 'no_uses_left' }.
   canUse(adv, abilityDef, nowMs) {
     if (!adv || !abilityDef) return { ready: false, reason: 'invalid' }
@@ -46,7 +36,7 @@ export const AbilitySystem = {
     // Cooldown check
     if (abilityDef.cooldownMs != null) {
       const ready = adv.cooldowns?.[id] ?? 0
-      if (!_debugInstaCd && nowMs < ready) return { ready: false, reason: 'cooldown' }
+      if (nowMs < ready) return { ready: false, reason: 'cooldown' }
     }
     return { ready: true }
   },
@@ -56,9 +46,8 @@ export const AbilitySystem = {
     if (!adv || !abilityDef) return
     const id = abilityDef.id
     if (abilityDef.cooldownMs != null) {
-      const cd = _debugInstaCd ? 1000 : abilityDef.cooldownMs
       adv.cooldowns ??= {}
-      adv.cooldowns[id] = nowMs + cd
+      adv.cooldowns[id] = nowMs + abilityDef.cooldownMs
     }
     if (abilityDef.usesPerDay != null || abilityDef.usesPerDayPerLevel) {
       adv.usesLeftToday ??= {}
