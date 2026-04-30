@@ -112,10 +112,12 @@ export class MinionRenderer {
       if (m.isMimic && m.hiddenAsLoot) alpha = 0
       s.container.setAlpha(isDead ? 0 : alpha)
 
-      // HP bar
-      const hpFrac = (m.resources?.maxHp ?? 0) > 0
-        ? Math.max(0, curHp / m.resources.maxHp) : 0
-      s.hp.width = Math.max(0, Math.round(hpFrac * s.hpBarW))
+      // HP bars hidden for minions per user request — bar+bg are still
+      // created (so any other code that pokes `s.hp` still works) but the
+      // per-tick width update is skipped and they're set invisible at
+      // creation time. To restore: remove the setVisible(false) calls in
+      // _createSprite + _createPlaceholderSprite and uncomment the line:
+      // s.hp.width = Math.max(0, Math.round(((m.resources?.maxHp ?? 0) > 0 ? curHp / m.resources.maxHp : 0) * s.hpBarW))
 
       // Faction-flip stroke colour (defected minions get a green outline).
       // Only meaningful on the placeholder rect; sprite-rendered minions
@@ -192,8 +194,8 @@ export class MinionRenderer {
     // above the visible character).
     const hpY         = -displaySize / 2 - 4 + (def.hpBarYOffset ?? 0)
 
-    const hpBg = s.add.rectangle(0,            hpY, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5)
-    const hp   = s.add.rectangle(-hpBarW / 2,  hpY, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5)
+    const hpBg = s.add.rectangle(0,            hpY, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5).setVisible(false)
+    const hp   = s.add.rectangle(-hpBarW / 2,  hpY, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5).setVisible(false)
 
     const lvLabel = s.add.text(displaySize / 2 - 1, displaySize / 2 - 2, '', {
       fontSize: '7px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
@@ -246,8 +248,8 @@ export class MinionRenderer {
     const hpBarW = SIZE
     // Placeholder path mirrors the sprite path: HP bar just above the body.
     const hpYP = -SIZE / 2 - 4
-    const hpBg = s.add.rectangle(0,           hpYP, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5)
-    const hp   = s.add.rectangle(-SIZE / 2,   hpYP, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5)
+    const hpBg = s.add.rectangle(0,           hpYP, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5).setVisible(false)
+    const hp   = s.add.rectangle(-SIZE / 2,   hpYP, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5).setVisible(false)
 
     const lvLabel = s.add.text(SIZE / 2 - 1, SIZE / 2 - 2, '', {
       fontSize: '7px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
