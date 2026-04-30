@@ -42,7 +42,11 @@ export class CombatSystem {
 
     const damage     = this._computeDamage(attacker, target)
     const isCritical = Math.random() < 0.10
-    const finalDmg   = isCritical ? Math.floor(damage * 1.5) : damage
+    let   finalDmg   = isCritical ? Math.floor(damage * 1.5) : damage
+
+    // Phase 5c — Knight Protective Aura: party allies (and the Knight himself)
+    // within auraRangeTiles of an aura-active Knight take 25% less damage.
+    finalDmg = this._applyProtectiveAura(target, finalDmg)
 
     target.resources.hp = Math.max(0, target.resources.hp - finalDmg)
 
@@ -209,6 +213,30 @@ export class CombatSystem {
       if (Math.max(dx, dy) <= 2) return true
     }
     return false
+  }
+
+  // Phase 5c — apply Knight Protective Aura damage reduction.
+  // If `target` is an adventurer AND there's a same-party Knight with an
+  // active aura within `auraRangeTiles` (default 1), reduce damage by 25%.
+  // The Knight himself is also covered (he stands in his own aura).
+  _applyProtectiveAura(target, dmg) {
+    if (!target || dmg <= 0) return dmg
+    if (target.aiState === undefined) return dmg              // minion target — skip
+    if (target.classId === undefined) return dmg              // not an adventurer
+    const advs = this._gameState.adventurers?.active ?? []
+    const now  = this._scene.time.now
+    for (const knight of advs) {
+      if (knight.classId !== 'knight') continue
+      if (!knight._auraActiveUntil || now >= knight._auraActiveUntil) continue
+      // Same-party check: solo Knights only protect themselves.
+      if (knight !== target) {
+        if (!knight.partyId || knight.partyId !== target.partyId) continue
+      }
+      const d = Math.hypot(target.tileX - knight.tileX, target.tileY - knight.tileY)
+      if (d > 1.01) continue
+      return Math.max(1, Math.floor(dmg * 0.75))
+    }
+    return dmg
   }
 
   _inferMethod(attacker, damageType) {

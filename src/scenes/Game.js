@@ -9,6 +9,7 @@ import { TrapSystem }         from '../systems/TrapSystem.js'
 import { LootSystem }         from '../systems/LootSystem.js'
 import { EvolutionSystem }    from '../systems/EvolutionSystem.js'
 import { AbilitySystem }      from '../systems/AbilitySystem.js'
+import { ClassAbilitySystem } from '../systems/ClassAbilitySystem.js'
 import { KnowledgeSystem }    from '../systems/KnowledgeSystem.js'
 import { DungeonMechanicSystem } from '../systems/DungeonMechanicSystem.js'
 import { NewspaperSystem }    from '../systems/NewspaperSystem.js'
@@ -104,6 +105,7 @@ export class Game extends Phaser.Scene {
     this.reputationSystem    = new ReputationSystem(this, this.gameState)
     this.bossSystem          = new BossSystem(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
+    this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
     this.adventurerRenderer  = new AdventurerRenderer(this, this.gameState)
     this.minionRenderer      = new MinionRenderer(this, this.gameState)
@@ -181,6 +183,7 @@ export class Game extends Phaser.Scene {
     this.trapSystem?.destroy()
     this.lootSystem?.destroy()
     this.evolutionSystem?.destroy()
+    this.classAbilitySystem?.destroy()
     this.knowledgeSystem?.destroy()
     this.knowledgeOverlay?.destroy()
     this.wantedPoster?.destroy()
@@ -462,6 +465,7 @@ export class Game extends Phaser.Scene {
         this.trapSystem?.update(scaled)
         this.dungeonMechanicSystem?.tickDay(scaled)
         this.lootGreedSystem?.update(scaled)
+        this.classAbilitySystem?.update(scaled)
       }
       this.adventurerRenderer?.update()
       this.minionRenderer?.update()

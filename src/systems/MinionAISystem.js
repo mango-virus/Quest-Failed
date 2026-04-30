@@ -510,6 +510,12 @@ function _pointInRoom(tx, ty, room) {
 //   - Martyr at low HP (taunting)                             → priority 2
 //   - Default                                                  → priority 0
 function _adventurerPriority(adv) {
+  // Phase 5c — Knight Taunt: highest priority while taunt buff is active.
+  // ClassAbilitySystem stamps `_tauntActiveUntil` (game-time ms) on the
+  // Knight when Taunt fires. We don't have direct scene-time access here,
+  // so we accept "any non-zero future timestamp" as active and rely on
+  // ClassAbilitySystem._tickActiveBuffs to clear it on expiry.
+  if (adv._tauntActiveUntil && adv._tauntActiveUntil > 0) return 4
   if (adv.flags?.cursedBrand) return 3
   if (adv.personalityIds?.includes('martyr')) {
     const frac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1

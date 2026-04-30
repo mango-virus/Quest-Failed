@@ -92,6 +92,10 @@ export class CombatLog {
     on('MINION_DIED', ({ minion }) => {
       this._addLine(`☠  ${this._minionName(minion)} cut down.`, 0xaa5566)
     })
+    // Phase 5c — class ability activations
+    on('ABILITY_TRIGGERED', ({ message }) => {
+      if (message) this._addLine(`✦  ${message}`, 0xffd966)
+    })
     on('DAY_PHASE_ENDED', () => {
       this._fadeAll()
     })
