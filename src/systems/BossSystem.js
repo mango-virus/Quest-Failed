@@ -179,10 +179,11 @@ export class BossSystem {
     if (this._wanderAccum < INTERVAL) return
 
     // Pick a random interior tile (1 tile inset from walls)
-    const x0 = room.gridX + 1
-    const y0 = room.gridY + 1
-    const x1 = room.gridX + room.width  - 2
-    const y1 = room.gridY + room.height - 2
+    const w = Balance.WALL_THICKNESS
+    const x0 = room.gridX + w
+    const y0 = room.gridY + w
+    const x1 = room.gridX + room.width  - w - 1
+    const y1 = room.gridY + room.height - w - 1
     if (x1 < x0 || y1 < y0) return   // room too small to wander
 
     const tx = x0 + Math.floor(Math.random() * (x1 - x0 + 1))
@@ -299,7 +300,13 @@ export class BossSystem {
     const TS   = Balance.TILE_SIZE
     const boss = this._gameState.boss
     const bs   = this._bossState
-    const { clampX, clampY } = this._roomClamp()
+    // Phase 5c — if the boss is chasing and its current target is fleeing,
+    // expand the clamp past the boss-room door so the boss can pursue them
+    // a few tiles into the corridor before they escape.
+    const targetFs = bs.targetId ? this._fightStates.get(bs.targetId) : null
+    const pursuingFleer = bs.action === 'chase'
+      && targetFs && targetFs.adv?.aiState === 'fleeing'
+    const { clampX, clampY } = this._roomClamp(pursuingFleer)
     bs.actionT += dt
     if (bs.actionT >= bs.actionDur) this._pickBossAction(bs)
 
@@ -802,13 +809,27 @@ export class BossSystem {
     fs.homeAngle += (Math.random() - 0.5) * Math.PI * 0.6
   }
 
-  _roomClamp() {
+  _roomClamp(extendForDoor = false) {
     const TS   = Balance.TILE_SIZE
+    const w    = Balance.WALL_THICKNESS
     const room = this._bossRoom
-    const minX = (room.gridX + 1) * TS + TS / 2
-    const maxX = (room.gridX + room.width  - 2) * TS + TS / 2
-    const minY = (room.gridY + 1) * TS + TS / 2
-    const maxY = (room.gridY + room.height - 2) * TS + TS / 2
+    let minX = (room.gridX + w) * TS + TS / 2
+    let maxX = (room.gridX + room.width  - w - 1) * TS + TS / 2
+    let minY = (room.gridY + w) * TS + TS / 2
+    let maxY = (room.gridY + room.height - w - 1) * TS + TS / 2
+
+    // Phase 5c — when chasing a fleeing target, extend the clamp past the
+    // boss room's door so the boss can pursue out into the corridor up to
+    // PURSUIT_TILES away. Direction comes from the room's connectionPoint;
+    // boss_chamber.json has door at (6, 0, N), so extension is upward.
+    if (extendForDoor && room.connectionPoints?.length) {
+      const PURSUIT_TILES = 4
+      const cp = room.connectionPoints[0]
+      if      (cp.direction === 'N') minY -= PURSUIT_TILES * TS
+      else if (cp.direction === 'S') maxY += PURSUIT_TILES * TS
+      else if (cp.direction === 'W') minX -= PURSUIT_TILES * TS
+      else if (cp.direction === 'E') maxX += PURSUIT_TILES * TS
+    }
     return {
       clampX: (x) => Math.max(minX, Math.min(maxX, x)),
       clampY: (y) => Math.max(minY, Math.min(maxY, y)),
@@ -1315,9 +1336,11 @@ function _summonAddsNearBoss(scene, gameState, bossRoom, count) {
   const def = minionTypes.find(d => d.id === 'skeleton1') ?? minionTypes[0]
   if (!def) return
   const TS = 32
+  const w = Balance.WALL_THICKNESS
+  const innerW = Math.max(1, bossRoom.width - 2 * w)
   for (let i = 0; i < count; i++) {
-    const x = bossRoom.gridX + 1 + (i % bossRoom.width)
-    const y = bossRoom.gridY + 1
+    const x = bossRoom.gridX + w + (i % innerW)
+    const y = bossRoom.gridY + w
     const m = {
       instanceId:    `boss_add_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 4)}`,
       definitionId:  def.id,
