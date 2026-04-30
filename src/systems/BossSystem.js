@@ -300,13 +300,7 @@ export class BossSystem {
     const TS   = Balance.TILE_SIZE
     const boss = this._gameState.boss
     const bs   = this._bossState
-    // Phase 5c — if the boss is chasing and its current target is fleeing,
-    // expand the clamp past the boss-room door so the boss can pursue them
-    // a few tiles into the corridor before they escape.
-    const targetFs = bs.targetId ? this._fightStates.get(bs.targetId) : null
-    const pursuingFleer = bs.action === 'chase'
-      && targetFs && targetFs.adv?.aiState === 'fleeing'
-    const { clampX, clampY } = this._roomClamp(pursuingFleer)
+    const { clampX, clampY } = this._roomClamp()
     bs.actionT += dt
     if (bs.actionT >= bs.actionDur) this._pickBossAction(bs)
 
@@ -466,6 +460,18 @@ export class BossSystem {
       bs.action    = 'chase'
       bs.actionT   = 0
       bs.actionDur = 0.5
+      return
+    }
+    // Phase 5c — if the highest-aggro target is fleeing, force chase so the
+    // boss actually pursues toward them rather than wasting a beat on a
+    // stationary slam/lunge while they cross the room. Boss is still
+    // clamped to the room boundary so it stops at the doorway.
+    const fleeingTarget = this._highestAggroFightState()
+    if (fleeingTarget && fleeingTarget.adv?.aiState === 'fleeing') {
+      bs.action    = 'chase'
+      bs.actionT   = 0
+      bs.actionDur = 0.4 + Math.random() * 0.3
+      bs.targetId  = fleeingTarget.adv.instanceId
       return
     }
     const partyCount = this._fightStates.size
@@ -809,27 +815,27 @@ export class BossSystem {
     fs.homeAngle += (Math.random() - 0.5) * Math.PI * 0.6
   }
 
-  _roomClamp(extendForDoor = false) {
+  // Phase 5c — returns the fight-state with the highest aggro (or just the
+  // first non-dying/dodging entry if no aggro is tracked yet). Used by
+  // _pickBossAction to detect "the target I should be focused on is running."
+  _highestAggroFightState() {
+    let best = null, bestAggro = -Infinity
+    for (const fs of this._fightStates.values()) {
+      if (fs.action === 'dying' || fs.action === 'dodge') continue
+      const a = fs.aggro ?? 0
+      if (a > bestAggro) { bestAggro = a; best = fs }
+    }
+    return best
+  }
+
+  _roomClamp() {
     const TS   = Balance.TILE_SIZE
     const w    = Balance.WALL_THICKNESS
     const room = this._bossRoom
-    let minX = (room.gridX + w) * TS + TS / 2
-    let maxX = (room.gridX + room.width  - w - 1) * TS + TS / 2
-    let minY = (room.gridY + w) * TS + TS / 2
-    let maxY = (room.gridY + room.height - w - 1) * TS + TS / 2
-
-    // Phase 5c — when chasing a fleeing target, extend the clamp past the
-    // boss room's door so the boss can pursue out into the corridor up to
-    // PURSUIT_TILES away. Direction comes from the room's connectionPoint;
-    // boss_chamber.json has door at (6, 0, N), so extension is upward.
-    if (extendForDoor && room.connectionPoints?.length) {
-      const PURSUIT_TILES = 4
-      const cp = room.connectionPoints[0]
-      if      (cp.direction === 'N') minY -= PURSUIT_TILES * TS
-      else if (cp.direction === 'S') maxY += PURSUIT_TILES * TS
-      else if (cp.direction === 'W') minX -= PURSUIT_TILES * TS
-      else if (cp.direction === 'E') maxX += PURSUIT_TILES * TS
-    }
+    const minX = (room.gridX + w) * TS + TS / 2
+    const maxX = (room.gridX + room.width  - w - 1) * TS + TS / 2
+    const minY = (room.gridY + w) * TS + TS / 2
+    const maxY = (room.gridY + room.height - w - 1) * TS + TS / 2
     return {
       clampX: (x) => Math.max(minX, Math.min(maxX, x)),
       clampY: (y) => Math.max(minY, Math.min(maxY, y)),
