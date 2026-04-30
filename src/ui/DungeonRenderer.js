@@ -299,6 +299,12 @@ export class DungeonRenderer {
     // (depth 9, above characters), so the framing of the doorway still
     // occludes entities passing under it as designed.
     this._gDoors     = scene.add.graphics().setDepth(6.5)
+    // Passage shadow — the dark "underpass" gradient inside an open
+    // doorway. Renders BEHIND the door panel (which is at 6.5) and behind
+    // characters, but above the floor tiles. Used to live on _gOverhead
+    // (depth 9) which made the shadow draw on top of the door slab and on
+    // top of characters, both incorrect after the door layer was lowered.
+    this._gPassageShadow = scene.add.graphics().setDepth(5.5)
 
     // User-painted corner override (sparse 32×32 array of hex/null). When
     // set, _drawWallCorner overlays it on top of the procedural draw with
@@ -327,6 +333,7 @@ export class DungeonRenderer {
     this._gCollision.clear()
     this._gOverhead.clear()
     this._gDoors.clear()
+    this._gPassageShadow.clear()
 
     this._wallOrient = this._buildWallOrientation()
     // Pick up any newly saved corner pattern from the editor.
@@ -416,6 +423,7 @@ export class DungeonRenderer {
     this._gIcon.destroy()
     this._gOverhead.destroy()
     this._gDoors.destroy()
+    this._gPassageShadow.destroy()
   }
 
   // ── Tile fills ─────────────────────────────────────────────────────────────
@@ -1392,6 +1400,7 @@ export class DungeonRenderer {
   _drawDoorwayArchitecture() {
     const overhead = this._gOverhead
     const tiles    = this._gTiles
+    const passage  = this._gPassageShadow
     for (const room of this._gameState.dungeon.rooms ?? []) {
       for (const cp of room.connectionPoints ?? []) {
         const rect = this._cpDoorRect(room, cp)
@@ -1400,7 +1409,10 @@ export class DungeonRenderer {
         const pal   = ARCH_STYLES[style] || ARCH_STYLES.regular
         this._drawDoorJambs(overhead, rect, pal)
         this._drawDoorThreshold(tiles, rect, pal)
-        this._drawPassageShadow(overhead, rect)
+        // Passage shadow now sits on its own depth-5.5 layer so it
+        // renders BEHIND the door panel (depth 6.5) and behind any
+        // character standing in the doorway. Was on _gOverhead at 9.
+        this._drawPassageShadow(passage, rect)
       }
     }
   }
