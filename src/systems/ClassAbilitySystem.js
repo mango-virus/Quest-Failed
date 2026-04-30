@@ -283,8 +283,8 @@ export class ClassAbilitySystem {
     const last = adv._innerPeaceLastTick ?? 0
     if (now - last < 1000) return
     adv._innerPeaceLastTick = now
-    adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + 1)
-    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 10, '+1', { color: '#a4ffb0', fontSize: '10px', durationMs: 500, driftY: -16 })
+    adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + 2)
+    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 10, '+2', { color: '#a4ffb0', fontSize: '10px', durationMs: 500, driftY: -16 })
   }
 
   _endSustainedFx(instanceId, slot) {
@@ -331,7 +331,12 @@ export class ClassAbilitySystem {
         if (ellipse.active) ellipse.destroy()
         return
       }
-      ellipse.setPosition(adv.worldX ?? 0, (adv.worldY ?? 0) + (opts.yOffset ?? 18))
+      // Skip the position update if worldX/Y aren't valid — the next
+      // active-list check or buff-end will tear this down. Avoids briefly
+      // flashing the halo at world (0, 0) in the upper-left corner.
+      if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) {
+        ellipse.setPosition(adv.worldX, adv.worldY + (opts.yOffset ?? 18))
+      }
     }
     this._scene.events.on('update', followUpdate)
     const fadeTween = this._scene.tweens.add({
@@ -372,10 +377,11 @@ export class ClassAbilitySystem {
     }
 
     // Taunt — fire when there's a hostile minion close enough to threaten
-    // the party. MinionAISystem priority bumps the Knight to top target
-    // for the duration so allies get breathing room.
+    // the party, OR when a wounded party ally (<50% HP) is fighting within
+    // 5 tiles (priority taunt to save them). MinionAISystem bumps the Knight
+    // to top target for the duration so allies get breathing room.
     const tauntDef = ABILITY_DEFS.knight_taunt
-    if (this._hostileMinionWithin(adv, 4)) {
+    if (this._hostileMinionWithin(adv, 4) || this._woundedAllyEngagedNearby(adv, 5)) {
       const ready = AbilitySystem.canUse(adv, tauntDef, now)
       if (ready.ready) {
         AbilitySystem.markUsed(adv, tauntDef, now)
@@ -388,6 +394,20 @@ export class ClassAbilitySystem {
         })
       }
     }
+  }
+
+  _woundedAllyEngagedNearby(knight, rangeTiles) {
+    if (!knight.partyId) return false
+    for (const adv of this._gameState.adventurers.active) {
+      if (adv === knight || adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
+      if (adv.partyId !== knight.partyId) continue
+      if (adv.aiState !== 'fighting') continue
+      const frac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
+      if (frac > 0.5) continue
+      const d = Math.hypot(adv.tileX - knight.tileX, adv.tileY - knight.tileY)
+      if (d <= rangeTiles + 0.01) return true
+    }
+    return false
   }
 
   _allyInDangerNearby(knight, rangeTiles) {
@@ -528,7 +548,7 @@ export class ClassAbilitySystem {
         AbilitySystem.markUsed(adv, ipDef, now)
         adv._innerPeaceUntil = now + ipDef.durationMs
         adv._innerPeaceLastTick = now
-        this._fireInnerPeaceVfx(adv, ipDef.durationMs)
+        // No ground-halo VFX — only the +2 floating text on each tick.
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'inner_peace', message: `${adv.name} found Inner Peace.` })
       }
     }
@@ -536,10 +556,6 @@ export class ClassAbilitySystem {
 
   _fireFocusVfx(adv, durationMs) {
     this._createGroundHalo(adv, 'focus', 0xeeeeff, durationMs)
-  }
-
-  _fireInnerPeaceVfx(adv, durationMs) {
-    this._createGroundHalo(adv, 'inner_peace', 0xa4ffb0, durationMs)
   }
 
   // ── Cleric ────────────────────────────────────────────────────────────────
@@ -655,9 +671,16 @@ export class ClassAbilitySystem {
   // ── Necromancer ──────────────────────────────────────────────────────────
 
   _considerNecromancer(adv, now) {
-    // Summon Undead — fire when a hostile minion is within 5 tiles.
-    const summonDef = ABILITY_DEFS.necro_summon
-    if (this._hostileMinionWithin(adv, 5)) {
+    const undeadCount = this._countOwnUndead(adv)
+
+    // Summon Undead — fire whenever the necro has no undead (priority: necro
+    // should always have a meatshield up), or when count is below the per-cast
+    // amount AND a hostile minion is close (replenish mid-combat).
+    const summonDef    = ABILITY_DEFS.necro_summon
+    const summonTarget = summonDef.summonCount ?? 2
+    const shouldSummon = undeadCount === 0
+                      || (undeadCount < summonTarget && this._hostileMinionWithin(adv, 5))
+    if (shouldSummon) {
       const ready = AbilitySystem.canUse(adv, summonDef, now)
       if (ready.ready) {
         AbilitySystem.markUsed(adv, summonDef, now)
@@ -672,7 +695,6 @@ export class ClassAbilitySystem {
     // Bone Armor — fire when at least 1 player-faction undead exists nearby
     // (necro currently has summons up). Buff scales with current count.
     const armorDef = ABILITY_DEFS.necro_bone_armor
-    const undeadCount = this._countOwnUndead(adv)
     if (undeadCount > 0 && !adv._boneArmorUntil) {
       const ready = AbilitySystem.canUse(adv, armorDef, now)
       if (ready.ready) {
@@ -818,14 +840,21 @@ export class ClassAbilitySystem {
         }
       }
     }
-    // Scout Ahead — fires once per day, when companion is alive AND adv hasn't
-    // entered a deeper room yet. We just transfer knowledge of all rooms in
-    // the dungeon to the BM (simulated scout).
+    // Scout Ahead — fires once per day, when companion is alive AND the
+    // BM "decides" to scout (40% chance, rolled once per day so the choice
+    // is sticky — they either send the beast scouting that day, or keep it
+    // by their side).
     const scoutDef = ABILITY_DEFS.bm_scout_ahead
     const companion = this._beastMasterCompanion(adv)
+    const dayNum = this._gameState.meta?.dayNumber ?? 1
     if (companion) {
       const ready = AbilitySystem.canUse(adv, scoutDef, now)
       if (ready.ready) {
+        if (adv._scoutDecisionDay !== dayNum) {
+          adv._scoutDecisionDay = dayNum
+          adv._scoutWillFire    = Math.random() < 0.4
+        }
+        if (!adv._scoutWillFire) return
         AbilitySystem.markUsed(adv, scoutDef, now)
         // Transfer knowledge of all rooms — simplest possible "scout" sim.
         const ks = this._scene.knowledgeSystem
@@ -878,10 +907,12 @@ export class ClassAbilitySystem {
   _considerRogue(adv, now) {
     // Lockpick — dormant until locked doors land.
 
-    // Invisibility — fire when a hostile minion is within 3 tiles AND the
-    // rogue isn't already invisible. Buffs sprite alpha + dodges target lock.
+    // Invisibility — fire when a hostile minion is within 6 tiles AND the
+    // rogue isn't already invisible. Wider radius lets the rogue cloak
+    // proactively to scout/sneak past enemies, not just at point-blank
+    // combat range. Buffs sprite alpha + dodges target lock.
     const invisDef = ABILITY_DEFS.rogue_invisibility
-    if (this._hostileMinionWithin(adv, 3) && !adv._invisibilityUntil) {
+    if (this._hostileMinionWithin(adv, 6) && !adv._invisibilityUntil) {
       const ready = AbilitySystem.canUse(adv, invisDef, now)
       if (ready.ready) {
         AbilitySystem.markUsed(adv, invisDef, now)
@@ -958,7 +989,19 @@ export class ClassAbilitySystem {
     let cycles = 0
     const total = 8
     const interval = 70
-    const followUpdate = () => { if (txt.active) txt.setPosition(adv.worldX ?? 0, (adv.worldY ?? 0) - 38) }
+    const followUpdate = () => {
+      if (!txt.active) return
+      // Self-destruct if the streamer leaves the active list — prevents
+      // the slot text snapping to world (0, 0) (upper-left corner).
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (txt.active) txt.destroy()
+        return
+      }
+      if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) {
+        txt.setPosition(adv.worldX, adv.worldY - 38)
+      }
+    }
     this._scene.events.on('update', followUpdate)
     const tick = () => {
       if (!txt.active) { this._scene.events.off('update', followUpdate); return }

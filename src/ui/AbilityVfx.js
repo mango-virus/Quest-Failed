@@ -21,8 +21,19 @@ const DEFAULTS = {
   tint:    { color: 0xffffff, durationMs: 200 },
 }
 
+// Phase 5c — defensive guard. If a caller passes undefined/null/NaN
+// coordinates (most often because the source adv has been removed from
+// the active list and its worldX/Y is now undefined), the underlying
+// Phaser draw silently lands at world (0, 0) which manifests as black
+// VFX shapes flashing in the upper-left corner of the dungeon. Skip the
+// draw entirely instead.
+function _validXY(x, y) {
+  return Number.isFinite(x) && Number.isFinite(y)
+}
+
 export const AbilityVfx = {
   pulseRing(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
     const o = { ...DEFAULTS.ring, ...opts }
     const ring = scene.add.circle(x, y, o.fromR, 0x000000, 0)
     ring.setStrokeStyle(2, o.color, o.alpha)
@@ -39,6 +50,7 @@ export const AbilityVfx = {
   },
 
   particleBurst(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
     const o = { ...DEFAULTS.particles, ...opts }
     const created = []
     for (let i = 0; i < o.count; i++) {
@@ -61,6 +73,7 @@ export const AbilityVfx = {
   },
 
   floatingText(scene, x, y, str, opts = {}) {
+    if (!_validXY(x, y)) return null
     const o = { ...DEFAULTS.text, ...opts }
     const txt = scene.add.text(x, y, str, {
       fontSize: o.fontSize,
