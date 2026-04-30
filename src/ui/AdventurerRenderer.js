@@ -219,10 +219,15 @@ export class AdventurerRenderer {
       fontSize: '12px', color: '#f0f4ff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5)
 
-    // HP bar floats above
-    const hpBg = this._scene.add.rectangle(0, -RADIUS - 6, RADIUS * 2, 3, 0x220a06, 0.9)
+    // HP bar — positioned above the LPC sprite's head. The LPC sprite is
+    // 64×64 rendered at 0.75 scale with origin (0.5, 0.85), so the sprite's
+    // head sits at roughly y = -41 from container center. HP bar at y = -48
+    // lands just above the head with a small gap, no longer covering the
+    // chest area.
+    const HP_BAR_Y = -48
+    const hpBg = this._scene.add.rectangle(0, HP_BAR_Y, RADIUS * 2, 3, 0x220a06, 0.9)
       .setOrigin(0.5)
-    const hp   = this._scene.add.rectangle(-RADIUS, -RADIUS - 6, RADIUS * 2, 3, 0x33cc77, 1)
+    const hp   = this._scene.add.rectangle(-RADIUS, HP_BAR_Y, RADIUS * 2, 3, 0x33cc77, 1)
       .setOrigin(0, 0.5)
 
     // Phase 5c — personality icon bubble removed (was clutter above heads).
@@ -231,10 +236,11 @@ export class AdventurerRenderer {
     // Phase 5c — combo badge removed (personality combos retired entirely).
     let comboBadge = null
 
-    // Veteran badge — shown for returning survivors
+    // Veteran badge — shown for returning survivors. Sits just above the HP
+    // bar so it's clearly readable.
     let veteranBadge = null
     if (adv.flags?.returningVeteran) {
-      veteranBadge = this._scene.add.text(-(RADIUS + 4), -RADIUS - 4,
+      veteranBadge = this._scene.add.text(-(RADIUS + 4), HP_BAR_Y - 8,
         `↩${adv.flags.runsCompleted ?? ''}`, {
           fontSize: '9px', color: '#ff6644', fontFamily: 'monospace', fontStyle: 'bold',
           stroke: '#000000', strokeThickness: 2,
