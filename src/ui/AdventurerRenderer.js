@@ -237,9 +237,12 @@ export class AdventurerRenderer {
   // ── Internals ──────────────────────────────────────────────────────────────
 
   _createSprite(adv) {
-    // Depth 11 — above the dungeon overhead/door graphics (9 / 9.5) so the
-    // sprite isn't hidden when the adventurer steps into a doorway tile.
-    const c = this._scene.add.container(adv.worldX, adv.worldY).setDepth(11)
+    // Depth 8 — below the dungeon overhead (9) and doors (9.5) so the
+    // adventurer walks UNDER wall caps + closed doors, matching the design
+    // intent. (Bumped to 11 briefly during a doorway-visibility debugging
+    // pass — that turned out to be an invisible-rogue alpha issue, not a
+    // depth issue.)
+    const c = this._scene.add.container(adv.worldX, adv.worldY).setDepth(8)
 
     // Outer ring (faction/colour glow)
     const ring = this._scene.add.circle(0, 0, RADIUS + 3, adv.classColor, 0.25)
