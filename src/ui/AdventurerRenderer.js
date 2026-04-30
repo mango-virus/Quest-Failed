@@ -76,6 +76,10 @@ export class AdventurerRenderer {
       const hpFrac = adv.resources.maxHp > 0
         ? Math.max(0, adv.resources.hp / adv.resources.maxHp) : 0
       s.hp.width = Math.max(0, hpFrac * (RADIUS * 2))
+      // Hide the HP bar entirely when at full health — only show damage state.
+      const hpVisible = hpFrac < 0.999
+      s.hp.setVisible(hpVisible)
+      s.hpBg.setVisible(hpVisible)
       this._updateBubbleState(s, adv)
       this._tickBuilderAnim(s, adv, dt)
       this._tickLpcAnim(s, adv)
