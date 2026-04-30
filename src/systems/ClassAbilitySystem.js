@@ -72,6 +72,16 @@ export class ClassAbilitySystem {
 
     // At day start, refresh per-day budgets for every active adventurer.
     EventBus.on('NEW_DAY_STARTED', this._onNewDay, this)
+    // Phase 5c — when any adventurer ENTERS the dungeon (initial spawn,
+    // returning leader, vendetta hunter, guild raid, etc.) explicitly clear
+    // their per-instance ability state so all abilities are ready to fire
+    // immediately. Cooldowns only begin counting after each ability is used
+    // for the first time. This belt-and-suspenders the createAdventurer
+    // initialization (which already sets cooldowns: {} / usesLeftToday: {})
+    // — guarantees a fresh slate even for any code path that mutates an adv
+    // entity's cooldown map before they reach the dungeon.
+    this._onAdvEntered = (payload) => this._resetAbilitiesOnEntry(payload?.adventurer)
+    EventBus.on('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     // When an adventurer dies or flees, immediately end their buffs and
     // tear down any sustained VFX so we don't leave rings on the ground.
     // Death and flee are split so we can fire Bard's Encore on death only.
@@ -85,11 +95,23 @@ export class ClassAbilitySystem {
 
   destroy() {
     EventBus.off('NEW_DAY_STARTED', this._onNewDay, this)
+    EventBus.off('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     EventBus.off('ADVENTURER_DIED', this._onDied, this)
     EventBus.off('ADVENTURER_FLED', this._onFled, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAllSustained, this)
     EventBus.off('DAY_PHASE_ENDED', this._clearAllSustained, this)
     this._clearAllSustained()
+  }
+
+  // Reset the cooldown registry for an adventurer the moment they enter the
+  // dungeon. usesLeftToday is also pre-filled to the full per-day budget per
+  // ability def so canUse returns ready instead of relying on undefined-as-
+  // unused (which works but is implicit and easy to misread).
+  _resetAbilitiesOnEntry(adv) {
+    if (!adv) return
+    adv.cooldowns = {}
+    adv.usesLeftToday = {}
+    AbilitySystem.resetForNewDay(adv, Object.values(ABILITY_DEFS))
   }
 
   _onAdventurerRemoved(payload) {
