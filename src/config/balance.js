@@ -16,8 +16,13 @@ export const Balance = {
   MAX_GRID_SIZE: 100,
 
   // --- Starting currencies (new run) ---
-  STARTING_SOUL_ESSENCE: 100,
-  STARTING_DARK_POWER: 0,
+  STARTING_SOUL_ESSENCE: 999999,
+  STARTING_DARK_POWER: 999999,
+
+  // DEV: when true, spending essence (placing rooms / minions / traps,
+  // and daily upkeep) is a no-op so the player can freely test all
+  // content. Toggle back to `false` to restore normal economy.
+  DEV_INFINITE_ESSENCE: true,
 
   // --- Earn rates per adventurer kill ---
   SOUL_ESSENCE_PER_KILL: 10,
@@ -67,10 +72,9 @@ export const Balance = {
   // Note: mana system removed in Phase 5b cooldown rework. Abilities are now
   // gated by per-instance cooldowns (see AbilitySystem) and per-day budgets.
   CLERIC_HEAL_AMOUNT:        12,
-  CLERIC_HEAL_TARGET_THRESHOLD: 0.7,  // heal an ally below this HP fraction
-  HEAL_RANGE_TILES:          2,       // cleric heal-ally / potion sip range
-  POTION_HEAL_AMOUNT:        15,
-  POTION_HEAL_THRESHOLD:     0.4,     // adventurer drinks potion when HP below this fraction
+  CLERIC_HEAL_TARGET_THRESHOLD: 0.8,  // heal an ally below this HP fraction
+  HEAL_RANGE_TILES:          2,       // cleric heal-ally range
+  LOW_HP_THRESHOLD:          0.4,     // adventurer triggers sleep / low-hp behavior below this fraction
   MARTYR_TAUNT_HP_FRACTION:  0.3,     // martyr triggers taunt at this HP%
   PARANOID_SPEED_MULTIPLIER: 0.55,    // paranoid moves this much slower in unfamiliar rooms
 

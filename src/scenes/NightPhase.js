@@ -902,7 +902,7 @@ export class NightPhase extends Phaser.Scene {
     const arch = this._gameState.player?.archetypeModifiers
     const roomMul = arch?.roomCostMultiplier ?? 1
     const cost = Math.round((def.essenceCostToPlace ?? 0) * roomMul)
-    if (cost > 0) {
+    if (cost > 0 && !Balance.DEV_INFINITE_ESSENCE) {
       if (this._gameState.player.soulEssence < cost) {
         this._showPlacementError(`Need ${cost} essence (you have ${this._gameState.player.soulEssence})`)
         return
@@ -930,7 +930,7 @@ export class NightPhase extends Phaser.Scene {
     }
 
     const cost = def.essenceCostToPlace ?? 0
-    if (cost > 0) this._gameState.player.soulEssence -= cost
+    if (cost > 0 && !Balance.DEV_INFINITE_ESSENCE) this._gameState.player.soulEssence -= cost
 
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     const minion = createMinion(def, { x: tx, y: ty }, room?.instanceId ?? null)
@@ -970,7 +970,7 @@ export class NightPhase extends Phaser.Scene {
     }
 
     const cost = def.essenceCostToPlace ?? 0
-    if (cost > 0) this._gameState.player.soulEssence -= cost
+    if (cost > 0 && !Balance.DEV_INFINITE_ESSENCE) this._gameState.player.soulEssence -= cost
 
     const trap = createTrap(def, { x: tx, y: ty })
     this._gameState.dungeon.traps.push(trap)

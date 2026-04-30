@@ -1,4 +1,5 @@
 import { EventBus } from './EventBus.js'
+import { Balance }  from '../config/balance.js'
 
 export class EssenceSystem {
   // Total daily upkeep cost across all active rooms + alive minions + un-triggered traps.
@@ -19,6 +20,10 @@ export class EssenceSystem {
   // Deducts upkeep from Soul Essence; shuts off rooms newest-first if essence goes negative.
   // Returns { paid, shortfall, deactivated[] }
   static enforceUpkeep(gameState) {
+    // DEV: skip upkeep entirely so the player can place every minion/room
+    // for testing without bleeding essence each night.
+    if (Balance.DEV_INFINITE_ESSENCE) return { paid: 0, shortfall: 0, deactivated: [] }
+
     const upkeep = this.calculateDailyUpkeep(gameState)
     if (upkeep === 0) return { paid: 0, shortfall: 0, deactivated: [] }
 
