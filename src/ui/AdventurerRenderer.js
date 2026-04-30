@@ -225,19 +225,8 @@ export class AdventurerRenderer {
     const hp   = this._scene.add.rectangle(-RADIUS, -RADIUS - 6, RADIUS * 2, 3, 0x33cc77, 1)
       .setOrigin(0, 0.5)
 
-    // Thought bubble — primary personality icon floating above the HP bar.
-    // Phase 5: shows the dominant personality as a small coloured glyph.
-    const ps = this._scene.personalitySystem ?? this._scene.scene.get('Game')?.personalitySystem
-    const primaryDef = ps?.getDefinition(adv.personalityIds?.[0])
+    // Phase 5c — personality icon bubble removed (was clutter above heads).
     let bubble = null, bubbleLabel = null
-    if (primaryDef) {
-      const tint = parseInt(primaryDef.iconColor ?? '0xaaaabb', 16) || 0xaaaabb
-      bubble = this._scene.add.circle(0, -RADIUS - 16, 7, tint, 0.85)
-      bubble.setStrokeStyle(1, 0x000000, 0.4)
-      bubbleLabel = this._scene.add.text(0, -RADIUS - 16, primaryDef.icon ?? '?', {
-        fontSize: '9px', color: '#0a0a14', fontFamily: 'monospace', fontStyle: 'bold',
-      }).setOrigin(0.5)
-    }
 
     // Phase 5c — combo badge removed (personality combos retired entirely).
     let comboBadge = null

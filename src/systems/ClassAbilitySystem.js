@@ -164,7 +164,8 @@ export class ClassAbilitySystem {
     }
     if (healedCount > 0) {
       AbilityVfx.pulseRing(this._scene, bard.worldX, bard.worldY, { color: 0xff66bb, fromR: 8, toR: 64, durationMs: 700, alpha: 0.85 })
-      AbilityVfx.floatingText(this._scene, bard.worldX, bard.worldY - 28, 'ENCORE', { color: '#ff99cc', fontSize: '14px' })
+      // Phase 5c — ENCORE label removed; the per-ally `+N` heal numbers above
+      // each saved party member already make the moment readable.
     }
     EventBus.emit('ABILITY_TRIGGERED', {
       adventurer: bard,
@@ -262,7 +263,8 @@ export class ClassAbilitySystem {
     if (now - last < 1000) return
     adv._innerPeaceLastTick = now
     adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + 1)
-    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 10, '+1', { color: '#a4ffb0', fontSize: '10px', durationMs: 500, driftY: -16 })
+    // Phase 5c — silent regen tick; the green ground halo (Inner Peace) and
+    // HP bar already show the effect.
   }
 
   _endSustainedFx(instanceId, slot) {
@@ -574,15 +576,24 @@ export class ClassAbilitySystem {
       if (!ready.ready) continue
       // Spend the use.
       AbilitySystem.markUsed(cleric, ABILITY_DEFS.cleric_resurrection, this._scene.time.now)
-      // Revive at 30% HP.
-      falling.resources.hp = Math.max(1, Math.floor(falling.resources.maxHp * 0.30))
-      falling.aiState = 'walking'
-      // VFX — pillar-of-light pulse + floating text, both on the saved adv
-      // and the cleric who saved them.
-      AbilityVfx.pulseRing(this._scene, falling.worldX, falling.worldY, { color: 0xffffaa, fromR: 8, toR: 56, durationMs: 700, alpha: 0.95 })
-      AbilityVfx.particleBurst(this._scene, falling.worldX, falling.worldY, { color: 0xffffaa, count: 16, durationMs: 800, speed: 90 })
-      AbilityVfx.floatingText(this._scene, falling.worldX, falling.worldY - 30, 'REVIVED', { color: '#ffffaa', fontSize: '14px' })
-      AbilityVfx.pulseRing(this._scene, cleric.worldX, cleric.worldY, { color: 0xffffaa, fromR: 6, toR: 22, durationMs: 400, alpha: 0.7 })
+      // Revive at 30% HP and FULLY reset transient AI state so the adv
+      // doesn't freeze on stale path/goal/target left over from the moment
+      // they died. Without this, the resurrected adv often stood still.
+      falling.resources.hp   = Math.max(1, Math.floor(falling.resources.maxHp * 0.30))
+      falling.aiState        = 'walking'
+      falling.path           = null
+      falling.pathIndex      = 0
+      falling.pathTarget     = null
+      falling.currentTargetId = null
+      falling.lastAttackAt   = 0
+      falling._lastHitBy     = null
+      falling._lastHitType   = null
+      // Clear damage-window flags that might still gate behavior.
+      falling._stuckInEntryMs = 0
+      // Pick a fresh goal so they walk again instead of sitting on the old
+      // (probably-dead-target) goal.
+      this._scene.aiSystem?.pickInitialGoal?.(falling)
+      AbilityVfx.pulseRing(this._scene, falling.worldX, falling.worldY, { color: 0xffffaa, fromR: 4, toR: 22, durationMs: 400, alpha: 0.7 })
       EventBus.emit('ABILITY_TRIGGERED', { adventurer: cleric, abilityId: 'resurrection', message: `${cleric.name} revived ${this._shortName(falling)}.` })
       return true
     }
@@ -593,10 +604,11 @@ export class ClassAbilitySystem {
 
   _considerMage(adv, now) {
     // Make sure Elemental Affinity is rolled (passive trait set on first sight).
+    // Phase 5c — no above-head icon or combat-log emit; the element only
+    // surfaces through bonus damage on vulnerable minions.
     if (!adv._element) {
       const ELEMENTS = ['fire', 'ice', 'lightning', 'wind']
       adv._element = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)]
-      EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'elemental_affinity', message: `${adv.name} channels ${adv._element}.` })
     }
     // Arcane Burst — fire when in combat or hostile minion is within 3 tiles
     // (mage will then make their next attack AoE).
@@ -609,7 +621,7 @@ export class ClassAbilitySystem {
         const x = adv.worldX, y = adv.worldY
         AbilityVfx.pulseRing(this._scene, x, y, { color: this._elementColor(adv._element), fromR: 8, toR: 30, durationMs: 400, alpha: 0.85 })
         AbilityVfx.particleBurst(this._scene, x, y, { color: this._elementColor(adv._element), count: 12, durationMs: 600, speed: 70 })
-        AbilityVfx.floatingText(this._scene, x, y - 28, 'ARCANE BURST', { color: '#cc99ff', fontSize: '12px' })
+        // Phase 5c — "ARCANE BURST" label removed; the AoE pulse is the cue.
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'arcane_burst', message: `${adv.name} charges an Arcane Burst.` })
       }
     }
@@ -632,7 +644,7 @@ export class ClassAbilitySystem {
         const x = adv.worldX, y = adv.worldY
         AbilityVfx.pulseRing(this._scene, x, y, { color: 0xaa66cc, fromR: 8, toR: 36, durationMs: 500, alpha: 0.85 })
         AbilityVfx.particleBurst(this._scene, x, y, { color: 0x884499, count: 16, durationMs: 700, speed: 100 })
-        AbilityVfx.floatingText(this._scene, x, y - 30, 'SUMMON', { color: '#cc99ff' })
+        // Phase 5c — "SUMMON" label removed; the spawned skeletons are visible.
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'summon_undead', message: `${adv.name} summoned ${summoned} undead.` })
       }
     }
@@ -670,10 +682,10 @@ export class ClassAbilitySystem {
       const ty = necro.tileY + (i < 2 ? 0 : 1)
       const minion = this._createSummonedUndead(type, tx, ty, room?.instanceId, necro)
       if (!minion) continue
-      // Half HP/ATK to make them disposable summons.
-      minion.resources.hp = Math.max(2, Math.floor(minion.resources.maxHp * 0.5))
-      minion.resources.maxHp = minion.resources.hp
-      minion.stats.attack = Math.max(1, Math.floor(minion.stats.attack * 0.5))
+      // Full HP, 70% ATK — tanky-ish summons that survive a few hits.
+      // (User feedback: half-HP undead were dying too fast.)
+      minion.resources.hp    = minion.resources.maxHp
+      minion.stats.attack    = Math.max(1, Math.floor(minion.stats.attack * 0.7))
       minion.faction = 'adventurer'
       minion.factionExpiresOn = today + 1   // despawn at next day-end
       minion.raisedByAdvId = necro.instanceId
@@ -739,7 +751,7 @@ export class ClassAbilitySystem {
       AbilitySystem.markUsed(adv, teDef, now)
       if (Math.random() < (teDef.failChance ?? 0.2)) {
         // Failure — trigger the trap on the ranger.
-        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'FUMBLE!', { color: '#ff6644' })
+        // Phase 5c — "FUMBLE!" label removed; trap firing on the ranger is the cue.
         EventBus.emit('TRAP_DISARM_FAILED', { trap, adventurer: adv })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'trap_expert', message: `${adv.name} fumbled a trap.` })
         // Manually fire the trap effect via TrapSystem if possible.
@@ -747,7 +759,7 @@ export class ClassAbilitySystem {
       } else {
         trap._disabledThisDay = true
         AbilityVfx.pulseRing(this._scene, trap.tileX * Balance.TILE_SIZE + Balance.TILE_SIZE/2, trap.tileY * Balance.TILE_SIZE + Balance.TILE_SIZE/2, { color: 0xaaffaa, fromR: 8, toR: 22, durationMs: 400, alpha: 0.85 })
-        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'DISARMED', { color: '#aaffaa' })
+        // Phase 5c — "DISARMED" label removed; the green ring on the trap is the cue.
         EventBus.emit('TRAP_DISARMED', { trap, adventurer: adv })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'trap_expert', message: `${adv.name} disarmed a trap.` })
       }
@@ -775,11 +787,11 @@ export class ClassAbilitySystem {
             target.currentTargetId = null
             adv.companionId = target.instanceId
             AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color: 0xff99cc, fromR: 8, toR: 28, durationMs: 500, alpha: 0.85 })
-            AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 22, 'TAMED', { color: '#ff99cc' })
+            // Phase 5c — "TAMED" label removed; faction flip + sprite tint is enough.
             EventBus.emit('MINION_TAMED', { minion: target, tamer: adv })
             EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'tame_beast', message: `${adv.name} tamed a beast.` })
           } else {
-            AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'tame failed', { color: '#999999', fontSize: '10px' })
+            // Phase 5c — "tame failed" label removed.
             EventBus.emit('TAME_FAILED', { minion: target, tamer: adv })
           }
         }
@@ -805,7 +817,7 @@ export class ClassAbilitySystem {
         // To keep it simple, we just tag a flag and bring it back in 1s.
         companion._scoutingUntil = now + 1000
         AbilityVfx.pulseRing(this._scene, adv.worldX, adv.worldY, { color: 0x88ccff, fromR: 6, toR: 30, durationMs: 500, alpha: 0.85 })
-        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, 'SCOUT', { color: '#88ccff' })
+        // Phase 5c — "SCOUT" label removed; the knowledge transfer is silent now.
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'scout_ahead', message: `${adv.name} sent a beast scouting.` })
       }
     }
@@ -861,7 +873,7 @@ export class ClassAbilitySystem {
         if (s?.body)        AbilityVfx.alphaSet(s.body, 0.4)
         if (s?.label)       AbilityVfx.alphaSet(s.label, 0.4)
         AbilityVfx.particleBurst(this._scene, adv.worldX, adv.worldY, { color: 0xaaaaaa, count: 12, durationMs: 600, speed: 80 })
-        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, 'VANISH', { color: '#cccccc' })
+        // Phase 5c — "VANISH" label removed; sprite alpha drop is the visual cue.
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'invisibility', message: `${adv.name} vanished from sight.` })
       }
     }
@@ -900,14 +912,17 @@ export class ClassAbilitySystem {
 
   _fireViewersChoice(adv, now) {
     const EFFECTS = [
-      { id: 'heal',           apply: () => { const h = Math.floor((adv.resources.maxHp || 0) * 0.25); adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + h); AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, `+${h} HEAL`, { color: '#88ff88' }) }, label: 'HEAL' },
-      { id: 'atk_up',         apply: () => { adv._twitchAtkMul = 1.20; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'ATK +20%', { color: '#ff7777' }) }, label: 'ATK UP' },
-      { id: 'atk_down',       apply: () => { adv._twitchAtkMul = 0.80; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'ATK −20%', { color: '#888888' }) }, label: 'ATK DOWN' },
-      { id: 'def_up',         apply: () => { adv._twitchDefBonus = 2; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'DEF +2', { color: '#88aaff' }) }, label: 'DEF UP' },
-      { id: 'def_down',       apply: () => { adv._twitchDefBonus = -2; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'DEF −2', { color: '#cc8866' }) }, label: 'DEF DOWN' },
-      { id: 'teleport',       apply: () => { const rooms = this._gameState.dungeon?.rooms ?? []; if (rooms.length) { const r = rooms[Math.floor(Math.random() * rooms.length)]; adv.tileX = r.gridX + Math.floor(r.width/2); adv.tileY = r.gridY + Math.floor(r.height/2); adv.worldX = adv.tileX * Balance.TILE_SIZE + Balance.TILE_SIZE/2; adv.worldY = adv.tileY * Balance.TILE_SIZE + Balance.TILE_SIZE/2; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'TELEPORTED', { color: '#cc99ff' }) } }, label: 'TELEPORT' },
-      { id: 'poison',         apply: () => { adv._twitchPoisonUntil = now + 6000; adv._twitchEffectUntil = now + 6000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'POISONED', { color: '#88cc44' }) }, label: 'POISON' },
-      { id: 'invis',          apply: () => { adv._invisibilityUntil = now + 10000; adv._invisible = true; const s = this._scene.adventurerRenderer?._sprites?.[adv.instanceId]; if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.4); AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'INVIS 10s', { color: '#cccccc' }) }, label: 'INVIS' },
+      // Phase 5c — slot machine already shows the result label above the
+      // streamer's head; no need to duplicate it as floating text. Heal
+      // keeps the +N number since that conveys actual HP gained.
+      { id: 'heal',     apply: () => { const h = Math.floor((adv.resources.maxHp || 0) * 0.25); adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + h); AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, `+${h}`, { color: '#88ff88' }) }, label: 'HEAL' },
+      { id: 'atk_up',   apply: () => { adv._twitchAtkMul = 1.20; adv._twitchEffectUntil = now + 10000 }, label: 'ATK UP' },
+      { id: 'atk_down', apply: () => { adv._twitchAtkMul = 0.80; adv._twitchEffectUntil = now + 10000 }, label: 'ATK DOWN' },
+      { id: 'def_up',   apply: () => { adv._twitchDefBonus = 2;  adv._twitchEffectUntil = now + 10000 }, label: 'DEF UP' },
+      { id: 'def_down', apply: () => { adv._twitchDefBonus = -2; adv._twitchEffectUntil = now + 10000 }, label: 'DEF DOWN' },
+      { id: 'teleport', apply: () => { const rooms = this._gameState.dungeon?.rooms ?? []; if (rooms.length) { const r = rooms[Math.floor(Math.random() * rooms.length)]; adv.tileX = r.gridX + Math.floor(r.width/2); adv.tileY = r.gridY + Math.floor(r.height/2); adv.worldX = adv.tileX * Balance.TILE_SIZE + Balance.TILE_SIZE/2; adv.worldY = adv.tileY * Balance.TILE_SIZE + Balance.TILE_SIZE/2 } }, label: 'TELEPORT' },
+      { id: 'poison',   apply: () => { adv._twitchPoisonUntil = now + 6000; adv._twitchEffectUntil = now + 6000 }, label: 'POISON' },
+      { id: 'invis',    apply: () => { adv._invisibilityUntil = now + 10000; adv._invisible = true; const s = this._scene.adventurerRenderer?._sprites?.[adv.instanceId]; if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.4) }, label: 'INVIS' },
     ]
     const pick = EFFECTS[Math.floor(Math.random() * EFFECTS.length)]
     // Slot animation — quick cycle of labels above the streamer's head.
@@ -962,7 +977,8 @@ export class ClassAbilitySystem {
       const target = this._nearestHostileMinion(adv, 6)
       if (target) adv.currentTargetId = target.instanceId
     }
-    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 28, pick.label, { color: '#cc99ff', fontSize: '11px', durationMs: 1000 })
+    // Phase 5c — Chat Decides label removed; the goal change is observable
+    // (the streamer changes direction) and the combat log shows the call.
     EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'chat_decides', message: `Chat told ${adv.name}: ${pick.label}` })
   }
 
@@ -980,7 +996,8 @@ export class ClassAbilitySystem {
     const x = adv.worldX, y = adv.worldY
     AbilityVfx.pulseRing(this._scene, x, y, { color: 0xff4444, fromR: 10, toR: 70, durationMs: 600, alpha: 0.95 })
     AbilityVfx.pulseRing(this._scene, x, y, { color: 0xffaa66, fromR: 8, toR: 50, durationMs: 800, alpha: 0.7 })
-    AbilityVfx.floatingText(this._scene, x, y - 28, 'TAUNT!', { color: '#ff8866', fontSize: '14px' })
+    // Phase 5c — TAUNT! label removed; the red pulse rings + minion target
+    // shift convey the effect.
   }
 
   // ── Day-start hook ────────────────────────────────────────────────────────
