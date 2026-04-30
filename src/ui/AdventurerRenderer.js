@@ -52,11 +52,45 @@ export class AdventurerRenderer {
     EventBus.on('ADVENTURER_DIED',     this._onRemove,   this)
     EventBus.on('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAll,   this)
+    // Stagger fade-in so a party of N spawns one-by-one through the door
+    // instead of all popping in at once. _spawnQueueNextAt tracks the next
+    // free slot in scene-time ms; each new adv starts fading at that time.
+    this._spawnQueueNextAt = 0
+    EventBus.on('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     // Replay the attack animation on every swing — without this, the
     // attack anim only plays once when aiState first flips to 'fighting'
     // and then sits on its last frame for repeat hits against the same
     // target.
     EventBus.on('COMBAT_HIT',          this._onCombatHit, this)
+  }
+
+  // ADVENTURER_ENTERED_DUNGEON handler — schedules a staggered fade-in.
+  // Each adv reserves the next slot in the queue; when their fade finishes
+  // the next adv (if any) starts. _spawnQueueNextAt is reset on every
+  // night phase via _clearAll so a new day starts with an empty queue.
+  _onAdvEntered({ adventurer }) {
+    if (!adventurer) return
+    const now = this._scene?.time?.now ?? 0
+    const FADE_MS    = 600
+    const STAGGER_MS = 700  // gap between each adv's fade start
+    const start = Math.max(now, this._spawnQueueNextAt)
+    adventurer._spawnFadeStart = start
+    adventurer._spawnFadeEnd   = start + FADE_MS
+    this._spawnQueueNextAt = start + STAGGER_MS
+  }
+
+  // Returns the alpha (0..1) the sprite should render at right now given
+  // any active spawn-fade window. Returns 1 once the fade has completed.
+  _spawnAlpha(adv) {
+    if (adv._spawnFadeEnd == null) return 1
+    const now = this._scene?.time?.now ?? 0
+    if (now >= adv._spawnFadeEnd) {
+      adv._spawnFadeStart = null
+      adv._spawnFadeEnd = null
+      return 1
+    }
+    const span = Math.max(1, adv._spawnFadeEnd - adv._spawnFadeStart)
+    return Math.max(0, Math.min(1, (now - adv._spawnFadeStart) / span))
   }
 
   _onCombatHit({ sourceId }) {
@@ -108,6 +142,14 @@ export class AdventurerRenderer {
       this._updateBubbleState(s, adv)
       this._tickBuilderAnim(s, adv, dt)
       this._tickLpcAnim(s, adv)
+
+      // Spawn fade-in: until the fade window finishes, scale the entire
+      // container's alpha so the sprite, HP bar, etc. all fade together.
+      // Invisibility (Rogue) takes precedence — when invisible the alpha
+      // override is already 0.15, applied directly to the LPC sprite.
+      const spawnA = this._spawnAlpha(adv)
+      if (s.container && spawnA < 1) s.container.setAlpha(spawnA)
+      else if (s.container) s.container.setAlpha(1)
     }
 
     // Clean up sprites whose adventurers are no longer active
@@ -230,6 +272,7 @@ export class AdventurerRenderer {
     EventBus.off('ADVENTURER_DIED',     this._onRemove,   this)
     EventBus.off('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAll,   this)
+    EventBus.off('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     EventBus.off('COMBAT_HIT',          this._onCombatHit, this)
     this._clearAll()
   }
@@ -369,5 +412,7 @@ export class AdventurerRenderer {
 
   _clearAll() {
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
+    // Reset the spawn-fade stagger queue so the next day starts fresh.
+    this._spawnQueueNextAt = 0
   }
 }
