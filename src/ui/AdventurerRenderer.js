@@ -219,12 +219,12 @@ export class AdventurerRenderer {
       fontSize: '12px', color: '#f0f4ff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5)
 
-    // HP bar — positioned above the LPC sprite's head. The LPC sprite is
-    // 64×64 rendered at 0.75 scale with origin (0.5, 0.85), so the sprite's
-    // head sits at roughly y = -41 from container center. HP bar at y = -48
-    // lands just above the head with a small gap, no longer covering the
-    // chest area.
-    const HP_BAR_Y = -48
+    // HP bar — positioned just above the LPC sprite's head. The LPC sprite
+    // is 64×64 rendered at 0.75 scale with origin (0.5, 0.85), so the
+    // sprite's head sits at roughly y = -41 from container center. HP bar
+    // at y = -38 sits just at hairline height — readable without floating
+    // off into space.
+    const HP_BAR_Y = -38
     const hpBg = this._scene.add.rectangle(0, HP_BAR_Y, RADIUS * 2, 3, 0x220a06, 0.9)
       .setOrigin(0.5)
     const hp   = this._scene.add.rectangle(-RADIUS, HP_BAR_Y, RADIUS * 2, 3, 0x33cc77, 1)
