@@ -92,9 +92,18 @@ export class CombatLog {
     on('MINION_DIED', ({ minion }) => {
       this._addLine(`☠  ${this._minionName(minion)} cut down.`, 0xaa5566)
     })
-    // Phase 5c — class ability activations
-    on('ABILITY_TRIGGERED', ({ message }) => {
-      if (message) this._addLine(`✦  ${message}`, 0xffd966)
+    // Phase 5c — class ability activations. Throttled per (adv, abilityId)
+    // so insta-cooldown testing (Ctrl+Shift+C) doesn't flood the log with
+    // the same ability firing every second.
+    this._abilityLogThrottle = new Map() // key: `${advId}|${abilityId}` → last log time
+    on('ABILITY_TRIGGERED', ({ message, adventurer, abilityId }) => {
+      if (!message) return
+      const now = this.scene?.time?.now ?? Date.now()
+      const key = `${adventurer?.instanceId ?? '?'}|${abilityId ?? '?'}`
+      const last = this._abilityLogThrottle.get(key) ?? 0
+      if (now - last < 4000) return
+      this._abilityLogThrottle.set(key, now)
+      this._addLine(`✦  ${message}`, 0xffd966)
     })
     on('DAY_PHASE_ENDED', () => {
       this._fadeAll()

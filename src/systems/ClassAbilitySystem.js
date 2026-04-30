@@ -415,7 +415,18 @@ export class ClassAbilitySystem {
     // Sustained quiet ring (red-pink) while inspire is active.
     const ring = this._scene.add.circle(x, y, 26, 0xff5577, 0.0)
     ring.setStrokeStyle(1, 0xff5577, 0.32).setDepth(7)
-    const followUpdate = () => { if (ring.active) ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0) }
+    const followUpdate = () => {
+      if (!ring.active) return
+      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
+      // active list (died/fled before sustained-fx cleanup ran for any
+      // reason), kill the ring immediately so it doesn't sit on the ground.
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (ring.active) ring.destroy()
+        return
+      }
+      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
+    }
     this._scene.events.on('update', followUpdate)
     this._scene.tweens.add({
       targets: ring, alpha: 0, duration: 400,
@@ -432,7 +443,18 @@ export class ClassAbilitySystem {
     AbilityVfx.pulseRing(this._scene, x, y, { color: 0x66ccff, fromR: 8, toR: 30, durationMs: 350, alpha: 0.7 })
     const ring = this._scene.add.circle(x, y, 30, 0x66ccff, 0.0)
     ring.setStrokeStyle(1, 0x66ccff, 0.32).setDepth(7)
-    const followUpdate = () => { if (ring.active) ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0) }
+    const followUpdate = () => {
+      if (!ring.active) return
+      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
+      // active list (died/fled before sustained-fx cleanup ran for any
+      // reason), kill the ring immediately so it doesn't sit on the ground.
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (ring.active) ring.destroy()
+        return
+      }
+      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
+    }
     this._scene.events.on('update', followUpdate)
     this._scene.tweens.add({
       targets: ring, alpha: 0, duration: 400,
@@ -503,7 +525,18 @@ export class ClassAbilitySystem {
     AbilityVfx.pulseRing(this._scene, x, y, { color: 0xeeeeff, fromR: 8, toR: 26, durationMs: 350, alpha: 0.7 })
     const ring = this._scene.add.circle(x, y, 22, 0xeeeeff, 0.0)
     ring.setStrokeStyle(1, 0xeeeeff, 0.32).setDepth(7)
-    const followUpdate = () => { if (ring.active) ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0) }
+    const followUpdate = () => {
+      if (!ring.active) return
+      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
+      // active list (died/fled before sustained-fx cleanup ran for any
+      // reason), kill the ring immediately so it doesn't sit on the ground.
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (ring.active) ring.destroy()
+        return
+      }
+      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
+    }
     this._scene.events.on('update', followUpdate)
     this._scene.tweens.add({
       targets: ring, alpha: 0, duration: 400, delay: Math.max(0, durationMs - 400),
@@ -517,7 +550,18 @@ export class ClassAbilitySystem {
     AbilityVfx.pulseRing(this._scene, x, y, { color: 0xa4ffb0, fromR: 6, toR: 24, durationMs: 350, alpha: 0.7 })
     const ring = this._scene.add.circle(x, y, 22, 0xa4ffb0, 0.0)
     ring.setStrokeStyle(1, 0xa4ffb0, 0.30).setDepth(7)
-    const followUpdate = () => { if (ring.active) ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0) }
+    const followUpdate = () => {
+      if (!ring.active) return
+      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
+      // active list (died/fled before sustained-fx cleanup ran for any
+      // reason), kill the ring immediately so it doesn't sit on the ground.
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (ring.active) ring.destroy()
+        return
+      }
+      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
+    }
     this._scene.events.on('update', followUpdate)
     this._scene.tweens.add({
       targets: ring, alpha: 0, duration: 400, delay: Math.max(0, durationMs - 400),
@@ -657,7 +701,18 @@ export class ClassAbilitySystem {
         AbilityVfx.pulseRing(this._scene, x, y, { color: 0xddccaa, fromR: 8, toR: 28, durationMs: 400, alpha: 0.8 })
         const ring = this._scene.add.circle(x, y, 24, 0xddccaa, 0.0)
         ring.setStrokeStyle(1, 0xddccaa, 0.35).setDepth(7)
-        const followUpdate = () => { if (ring.active) ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0) }
+        const followUpdate = () => {
+      if (!ring.active) return
+      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
+      // active list (died/fled before sustained-fx cleanup ran for any
+      // reason), kill the ring immediately so it doesn't sit on the ground.
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (ring.active) ring.destroy()
+        return
+      }
+      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
+    }
         this._scene.events.on('update', followUpdate)
         this._scene.tweens.add({
           targets: ring, alpha: 0, duration: 400, delay: Math.max(0, armorDef.durationMs - 400),
@@ -671,7 +726,10 @@ export class ClassAbilitySystem {
 
   _summonUndead(necro, count) {
     const types = this._scene.cache.json.get('minionTypes') ?? []
-    const undeadTypes = types.filter((t) => (t.tags || []).includes('undead'))
+    // Only skeletons + zombies — they're the visually-canonical Necromancer
+    // summons AND the only undead types with full sprite coverage in the
+    // existing minion sheets (ghosts/liches/vampires would look weird).
+    const undeadTypes = types.filter((t) => /^(skeleton|zombie)/.test(t.id))
     if (undeadTypes.length === 0) return 0
     let summoned = 0
     const room = this._scene.dungeonGrid?.getRoomAtTile(necro.tileX, necro.tileY)
@@ -847,7 +905,18 @@ export class ClassAbilitySystem {
       const x = adv.worldX, y = adv.worldY
       const ring = this._scene.add.circle(x, y, 24, 0xff3333, 0.0)
       ring.setStrokeStyle(2, 0xff3333, 0.35).setDepth(7)
-      const followUpdate = () => { if (ring.active) ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0) }
+      const followUpdate = () => {
+      if (!ring.active) return
+      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
+      // active list (died/fled before sustained-fx cleanup ran for any
+      // reason), kill the ring immediately so it doesn't sit on the ground.
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (ring.active) ring.destroy()
+        return
+      }
+      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
+    }
       this._scene.events.on('update', followUpdate)
       const tween = this._scene.tweens.add({
         targets: ring, alpha: { from: 0.25, to: 0.6 }, duration: 600,
