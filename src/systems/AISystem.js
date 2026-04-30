@@ -634,9 +634,61 @@ export class AISystem {
   _setFleeGoal(adv, reason = 'low_hp_retreat') {
     // Phase 5c — Barbarian Unstoppable: immune to ALL flee triggers.
     if (adv.classId === 'barbarian') return
+
+    // Phase 5c — partial-retreat option. For "soft" panic reasons
+    // (coward_panic, low_hp_retreat) there's a 50% chance the adv pulls
+    // back to a known safer room and resumes exploring from there instead
+    // of bolting all the way to the entry hall. Hard panics (raid leader
+    // fell, traumatized sole survivor, out of arrows, goal_unreachable)
+    // still go straight for the door.
+    const SOFT_PANIC = reason === 'coward_panic' || reason === 'low_hp_retreat'
+    if (SOFT_PANIC && Math.random() < 0.5) {
+      const safe = this._findSafeRetreatRoom(adv)
+      if (safe) {
+        adv.goal = { type: 'TACTICAL_RETREAT', roomId: safe.instanceId, fromReason: reason }
+        adv.aiState = 'walking'
+        adv.path = null
+        return
+      }
+    }
+
     adv.goal = { type: 'FLEE', reason }
     adv.aiState = 'fleeing'
     adv.path = null
+  }
+
+  // Phase 5c — pick a "safer" already-visited room to fall back to. "Safer"
+  // means no hostile minions within 4 tiles of the room center AND the room
+  // isn't the one the adv currently stands in. Prefers rooms farthest from
+  // the current threat. Returns null if nothing qualifies.
+  _findSafeRetreatRoom(adv) {
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    const visited = adv.visitedRooms ?? []
+    const currentRoom = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
+    let best = null, bestDist = -1
+    for (const room of rooms) {
+      if (currentRoom && room.instanceId === currentRoom.instanceId) continue
+      // Only retreat to rooms we've actually been to before — fleeing into
+      // the unknown defeats the point of "tactical retreat."
+      if (!visited.includes(room.instanceId)) continue
+      // Don't retreat to entry_hall — that's just normal flee with extra steps.
+      if (room.definitionId === 'entry_hall') continue
+      const cx = room.gridX + Math.floor(room.width  / 2)
+      const cy = room.gridY + Math.floor(room.height / 2)
+      // Reject rooms with a hostile minion close to the center.
+      const tooClose = (this._gameState.minions ?? []).some(m => {
+        if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
+        if (m.faction === 'adventurer') return false
+        const d = Math.hypot(m.tileX - cx, m.tileY - cy)
+        return d <= 4
+      })
+      if (tooClose) continue
+      // Prefer rooms farthest from the current adv tile (more space between
+      // them and whatever spooked them).
+      const dist = Math.hypot(adv.tileX - cx, adv.tileY - cy)
+      if (dist > bestDist) { best = room; bestDist = dist }
+    }
+    return best
   }
 
   // Phase 6e: SLEEP goal — adventurer naps in a safe room to recover HP slowly.
@@ -974,6 +1026,21 @@ export class AISystem {
       if (!entry) return null
       return _entryNorthTile(entry)
     }
+    if (adv.goal.type === 'TACTICAL_RETREAT') {
+      // Phase 5c — head to the chosen safer visited room. If the room was
+      // removed mid-retreat (player undo, etc.) fall back to FLEE so the
+      // adv at least heads home.
+      const room = dungeon.rooms.find(r => r.instanceId === adv.goal.roomId)
+      if (!room) {
+        adv.goal = { type: 'FLEE', reason: adv.goal.fromReason ?? 'retreat_room_gone' }
+        adv.aiState = 'fleeing'
+        return this._goalToTile(adv)
+      }
+      return {
+        x: room.gridX + Math.floor(room.width  / 2),
+        y: room.gridY + Math.floor(room.height / 2),
+      }
+    }
     return null
   }
 
@@ -1021,6 +1088,22 @@ export class AISystem {
       // splice on arrival.  Just clear the path so the next tick picks a
       // fresh route if we ended up somewhere other than entry.
       adv.path = null
+      return
+    }
+
+    if (adv.goal.type === 'TACTICAL_RETREAT') {
+      // Phase 5c — arrived at the safer room. Mark it visited (it should be
+      // already), then resume normal exploration from here. The next
+      // _pickNextGoal will pick an unvisited room or SEEK_BOSS depending on
+      // personality / state.
+      adv.visitedRooms ??= []
+      if (!adv.visitedRooms.includes(adv.goal.roomId)) {
+        adv.visitedRooms.push(adv.goal.roomId)
+      }
+      adv.aiState = 'walking'
+      adv.path = null
+      adv.goal = this._pickNextGoal(adv)
+      EventBus.emit('ADVENTURER_TACTICAL_RETREAT_DONE', { adventurer: adv })
       return
     }
 
