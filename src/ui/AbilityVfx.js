@@ -14,9 +14,10 @@
 // Each returns the created object so callers can chain or cancel if needed.
 
 const DEFAULTS = {
-  ring:    { color: 0xffe066, fromR: 6, toR: 32, alpha: 0.85, durationMs: 500, depth: 9 },
-  particles: { color: 0xffe066, count: 8, durationMs: 600, depth: 9, speed: 60 },
-  text:    { color: '#ffe066', fontSize: '12px', driftY: -28, durationMs: 800, depth: 11 },
+  // Tuned 2026-04-30: rings dialed way down so they don't cover LPC sprites.
+  ring:    { color: 0xffe066, fromR: 4, toR: 18, alpha: 0.55, durationMs: 300, depth: 6 },
+  particles: { color: 0xffe066, count: 6, durationMs: 450, depth: 6, speed: 45 },
+  text:    { color: '#ffe066', fontSize: '11px', driftY: -22, durationMs: 700, depth: 11 },
   tint:    { color: 0xffffff, durationMs: 200 },
 }
 

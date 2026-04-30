@@ -35,7 +35,8 @@
       "hp": 25,
       "attack": 12,
       "defense": 1,
-      "speed": 1.7
+      "speed": 1.7,
+      "attackRange": 4
     },
     "startingResources": { "potions": 1 },
     "tags": ["ranged", "spellcaster"],
@@ -50,7 +51,8 @@
       "hp": 40,
       "attack": 6,
       "defense": 4,
-      "speed": 1.5
+      "speed": 1.5,
+      "attackRange": 3
     },
     "startingResources": { "potions": 3 },
     "tags": ["ranged", "healer", "anti_undead", "support"],
@@ -66,7 +68,8 @@
       "hp": 28,
       "attack": 10,
       "defense": 2,
-      "speed": 1.6
+      "speed": 1.6,
+      "attackRange": 5
     },
     "startingResources": { "potions": 1 },
     "tags": ["spellcaster", "minion_raiser", "dark"],
@@ -168,7 +171,8 @@
       "hp": 28,
       "attack": 5,
       "defense": 2,
-      "speed": 1.7
+      "speed": 1.7,
+      "attackRange": 4
     },
     "startingResources": { "potions": 2 },
     "tags": ["support", "buffer", "ranged_low"],

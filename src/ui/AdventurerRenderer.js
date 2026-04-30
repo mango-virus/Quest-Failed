@@ -239,15 +239,8 @@ export class AdventurerRenderer {
       }).setOrigin(0.5)
     }
 
-    // Phase QW — combo icon: a small ★ to the right of the head when this
-    // adventurer is part of an active personality combo.
+    // Phase 5c — combo badge removed (personality combos retired entirely).
     let comboBadge = null
-    if ((adv.activeCombos ?? []).length > 0) {
-      comboBadge = this._scene.add.text(RADIUS + 4, -RADIUS - 4, '★', {
-        fontSize: '10px', color: '#ffeeaa', fontFamily: 'monospace', fontStyle: 'bold',
-        stroke: '#000000', strokeThickness: 2,
-      }).setOrigin(0, 0.5)
-    }
 
     // Veteran badge — shown for returning survivors
     let veteranBadge = null

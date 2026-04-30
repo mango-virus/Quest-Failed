@@ -418,11 +418,7 @@ export class DayPhase extends Phaser.Scene {
       `Visited    ${adv.visitedRooms?.length ?? 0} rooms`,
       `Party      ${adv.partyId ? adv.partyId.slice(0, 14) : 'solo'}`,
     ]
-    if (adv.activeCombos?.length) {
-      const comboNames = adv.activeCombos
-        .map(cid => ps?.getComboDefinition(cid)?.name ?? cid).join(', ')
-      lines.push('', `Combos     ${comboNames}`)
-    }
+    // Phase 5c — combos retired; row removed.
     i.body.setText(lines.join('\n'))
     ;[i.g, i.heading, i.subtitle, i.body, i.closeBtn].forEach(o => o.setVisible(true))
   }

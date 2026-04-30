@@ -304,18 +304,9 @@ export class AISystem {
       }
     }
 
-    // Phase 6c: cleric heal — when an ally is below threshold, heal instead of fight
-    if (adv.classId === 'cleric' && adv.aiState !== 'fleeing' && this._combatSystem) {
-      const ally = this._findHealTarget(adv)
-      if (ally) {
-        adv.aiState = 'healing'
-        adv.path = null
-        this._combatSystem.tryHeal(adv, ally, {
-          roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
-        })
-        return
-      }
-    }
+    // Phase 5c — Cleric heal moved to ClassAbilitySystem._considerCleric
+    // (cooldown-driven, no mana). The legacy unconditional-heal-every-tick
+    // block here was deleted to avoid double-firing.
 
     // Engage hostile minion in melee range
     if (adv.aiState !== 'fleeing' && this._combatSystem) {
@@ -501,7 +492,10 @@ export class AISystem {
   // ── Combat / Flee helpers ──────────────────────────────────────────────────
 
   _findEngageableMinion(adv) {
-    const reach = Balance.MELEE_RANGE_TILES
+    // Phase 5c — ranged classes (Mage / Cleric / Necromancer / Ranger / Bard)
+    // engage at their declared attackRange instead of melee. Falls back to
+    // MELEE_RANGE_TILES (1.5) for melee classes.
+    const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
     let best = null, bestDist = Infinity
     for (const m of this._gameState.minions) {
       if (m.aiState === 'dead' || m.resources.hp <= 0) continue

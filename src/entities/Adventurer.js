@@ -53,6 +53,12 @@ export function createAdventurer(classDef, spawnTile, dungeonLevel = 1) {
     // Stats (cloned from definition)
     stats: { ...baseStats },
 
+    // Top-level attack range — read by AISystem._findEngageableMinion and
+    // CombatSystem.tryAttack. Mirrors Minion entity convention. Mage / Cleric /
+    // Necromancer / Bard / Ranger are ranged via baseStats.attackRange in
+    // adventurerClasses.json; everyone else defaults to 1 tile (melee).
+    attackRange: baseStats.attackRange ?? 1,
+
     resources: {
       hp:      baseStats.hp ?? 30,
       maxHp:   baseStats.hp ?? 30,

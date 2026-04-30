@@ -80,6 +80,7 @@ export class ClassAbilitySystem {
     EventBus.on('ADVENTURER_DIED', this._onDied, this)
     EventBus.on('ADVENTURER_FLED', this._onFled, this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAllSustained, this)
+    EventBus.on('DAY_PHASE_ENDED', this._clearAllSustained, this)
   }
 
   destroy() {
@@ -87,6 +88,7 @@ export class ClassAbilitySystem {
     EventBus.off('ADVENTURER_DIED', this._onDied, this)
     EventBus.off('ADVENTURER_FLED', this._onFled, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAllSustained, this)
+    EventBus.off('DAY_PHASE_ENDED', this._clearAllSustained, this)
     this._clearAllSustained()
   }
 
@@ -269,6 +271,7 @@ export class ClassAbilitySystem {
     const obj = map[slot]
     if (!obj) return
     if (obj.tween && obj.tween.isPlaying()) obj.tween.stop()
+    if (obj.fadeTween && obj.fadeTween.isPlaying?.()) obj.fadeTween.stop()
     if (typeof obj.cleanup === 'function') obj.cleanup()
     if (obj.gfx && obj.gfx.active && obj.gfx.destroy) obj.gfx.destroy()
     delete map[slot]
@@ -285,6 +288,44 @@ export class ClassAbilitySystem {
       for (const slot of Object.keys(map)) this._endSustainedFx(id, slot)
     }
     this._sustainedFx.clear()
+  }
+
+  // Phase 5c — sustained "ground halo" helper. Renders a thin, low-opacity
+  // ellipse at the adventurer's feet (depth 5, below the character at depth 8)
+  // so it reads as a ground glow without covering the sprite. Auto-fades over
+  // the last 400ms of duration and follows the adv around. Self-destructs if
+  // the adv leaves the active list (covers death/flee/scene-end).
+  _createGroundHalo(adv, slot, color, durationMs, opts = {}) {
+    const x = adv.worldX, y = (adv.worldY ?? 0) + (opts.yOffset ?? 18)
+    const w = opts.width  ?? 28
+    const h = opts.height ?? 9
+    const alpha = opts.alpha ?? 0.22
+    const ellipse = this._scene.add.ellipse(x, y, w, h, color, alpha)
+    ellipse.setDepth(5)
+    const followUpdate = () => {
+      if (!ellipse.active) return
+      if (!this._gameState.adventurers.active.includes(adv)) {
+        this._scene.events.off('update', followUpdate)
+        if (ellipse.active) ellipse.destroy()
+        return
+      }
+      ellipse.setPosition(adv.worldX ?? 0, (adv.worldY ?? 0) + (opts.yOffset ?? 18))
+    }
+    this._scene.events.on('update', followUpdate)
+    const fadeTween = this._scene.tweens.add({
+      targets: ellipse, alpha: 0, duration: 400,
+      delay: Math.max(0, durationMs - 400),
+      onComplete: () => {
+        this._scene.events.off('update', followUpdate)
+        if (ellipse.active) ellipse.destroy()
+      },
+    })
+    this._setSustainedFx(adv.instanceId, slot, {
+      gfx: ellipse,
+      fadeTween,
+      cleanup: () => this._scene.events.off('update', followUpdate),
+    })
+    return ellipse
   }
 
   // ── Knight ────────────────────────────────────────────────────────────────
@@ -410,60 +451,11 @@ export class ClassAbilitySystem {
   }
 
   _fireInspireVfx(adv, durationMs) {
-    const x = adv.worldX, y = adv.worldY
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xff5577, fromR: 8, toR: 30, durationMs: 350, alpha: 0.7 })
-    // Sustained quiet ring (red-pink) while inspire is active.
-    const ring = this._scene.add.circle(x, y, 26, 0xff5577, 0.0)
-    ring.setStrokeStyle(1, 0xff5577, 0.32).setDepth(7)
-    const followUpdate = () => {
-      if (!ring.active) return
-      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
-      // active list (died/fled before sustained-fx cleanup ran for any
-      // reason), kill the ring immediately so it doesn't sit on the ground.
-      if (!this._gameState.adventurers.active.includes(adv)) {
-        this._scene.events.off('update', followUpdate)
-        if (ring.active) ring.destroy()
-        return
-      }
-      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
-    }
-    this._scene.events.on('update', followUpdate)
-    this._scene.tweens.add({
-      targets: ring, alpha: 0, duration: 400,
-      delay: Math.max(0, durationMs - 400),
-      onComplete: () => { this._scene.events.off('update', followUpdate); if (ring.active) ring.destroy() },
-    })
-    this._setSustainedFx(adv.instanceId, 'inspire', {
-      gfx: ring, cleanup: () => this._scene.events.off('update', followUpdate),
-    })
+    this._createGroundHalo(adv, 'inspire', 0xff5577, durationMs)
   }
 
   _fireSpeedSongVfx(adv, durationMs) {
-    const x = adv.worldX, y = adv.worldY
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0x66ccff, fromR: 8, toR: 30, durationMs: 350, alpha: 0.7 })
-    const ring = this._scene.add.circle(x, y, 30, 0x66ccff, 0.0)
-    ring.setStrokeStyle(1, 0x66ccff, 0.32).setDepth(7)
-    const followUpdate = () => {
-      if (!ring.active) return
-      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
-      // active list (died/fled before sustained-fx cleanup ran for any
-      // reason), kill the ring immediately so it doesn't sit on the ground.
-      if (!this._gameState.adventurers.active.includes(adv)) {
-        this._scene.events.off('update', followUpdate)
-        if (ring.active) ring.destroy()
-        return
-      }
-      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
-    }
-    this._scene.events.on('update', followUpdate)
-    this._scene.tweens.add({
-      targets: ring, alpha: 0, duration: 400,
-      delay: Math.max(0, durationMs - 400),
-      onComplete: () => { this._scene.events.off('update', followUpdate); if (ring.active) ring.destroy() },
-    })
-    this._setSustainedFx(adv.instanceId, 'song_speed', {
-      gfx: ring, cleanup: () => this._scene.events.off('update', followUpdate),
-    })
+    this._createGroundHalo(adv, 'song_speed', 0x66ccff, durationMs)
   }
 
   _hostileMinionWithin(adv, rangeTiles) {
@@ -521,53 +513,11 @@ export class ClassAbilitySystem {
   }
 
   _fireFocusVfx(adv, durationMs) {
-    const x = adv.worldX, y = adv.worldY
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xeeeeff, fromR: 8, toR: 26, durationMs: 350, alpha: 0.7 })
-    const ring = this._scene.add.circle(x, y, 22, 0xeeeeff, 0.0)
-    ring.setStrokeStyle(1, 0xeeeeff, 0.32).setDepth(7)
-    const followUpdate = () => {
-      if (!ring.active) return
-      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
-      // active list (died/fled before sustained-fx cleanup ran for any
-      // reason), kill the ring immediately so it doesn't sit on the ground.
-      if (!this._gameState.adventurers.active.includes(adv)) {
-        this._scene.events.off('update', followUpdate)
-        if (ring.active) ring.destroy()
-        return
-      }
-      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
-    }
-    this._scene.events.on('update', followUpdate)
-    this._scene.tweens.add({
-      targets: ring, alpha: 0, duration: 400, delay: Math.max(0, durationMs - 400),
-      onComplete: () => { this._scene.events.off('update', followUpdate); if (ring.active) ring.destroy() },
-    })
-    this._setSustainedFx(adv.instanceId, 'focus', { gfx: ring, cleanup: () => this._scene.events.off('update', followUpdate) })
+    this._createGroundHalo(adv, 'focus', 0xeeeeff, durationMs)
   }
 
   _fireInnerPeaceVfx(adv, durationMs) {
-    const x = adv.worldX, y = adv.worldY
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xa4ffb0, fromR: 6, toR: 24, durationMs: 350, alpha: 0.7 })
-    const ring = this._scene.add.circle(x, y, 22, 0xa4ffb0, 0.0)
-    ring.setStrokeStyle(1, 0xa4ffb0, 0.30).setDepth(7)
-    const followUpdate = () => {
-      if (!ring.active) return
-      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
-      // active list (died/fled before sustained-fx cleanup ran for any
-      // reason), kill the ring immediately so it doesn't sit on the ground.
-      if (!this._gameState.adventurers.active.includes(adv)) {
-        this._scene.events.off('update', followUpdate)
-        if (ring.active) ring.destroy()
-        return
-      }
-      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
-    }
-    this._scene.events.on('update', followUpdate)
-    this._scene.tweens.add({
-      targets: ring, alpha: 0, duration: 400, delay: Math.max(0, durationMs - 400),
-      onComplete: () => { this._scene.events.off('update', followUpdate); if (ring.active) ring.destroy() },
-    })
-    this._setSustainedFx(adv.instanceId, 'inner_peace', { gfx: ring, cleanup: () => this._scene.events.off('update', followUpdate) })
+    this._createGroundHalo(adv, 'inner_peace', 0xa4ffb0, durationMs)
   }
 
   // ── Cleric ────────────────────────────────────────────────────────────────
@@ -697,28 +647,7 @@ export class ClassAbilitySystem {
         adv._boneArmorUntil = now + armorDef.durationMs
         adv._boneArmorAtk = undeadCount * armorDef.perUndeadAtk
         adv._boneArmorDef = undeadCount * armorDef.perUndeadDef
-        const x = adv.worldX, y = adv.worldY
-        AbilityVfx.pulseRing(this._scene, x, y, { color: 0xddccaa, fromR: 8, toR: 28, durationMs: 400, alpha: 0.8 })
-        const ring = this._scene.add.circle(x, y, 24, 0xddccaa, 0.0)
-        ring.setStrokeStyle(1, 0xddccaa, 0.35).setDepth(7)
-        const followUpdate = () => {
-      if (!ring.active) return
-      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
-      // active list (died/fled before sustained-fx cleanup ran for any
-      // reason), kill the ring immediately so it doesn't sit on the ground.
-      if (!this._gameState.adventurers.active.includes(adv)) {
-        this._scene.events.off('update', followUpdate)
-        if (ring.active) ring.destroy()
-        return
-      }
-      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
-    }
-        this._scene.events.on('update', followUpdate)
-        this._scene.tweens.add({
-          targets: ring, alpha: 0, duration: 400, delay: Math.max(0, armorDef.durationMs - 400),
-          onComplete: () => { this._scene.events.off('update', followUpdate); if (ring.active) ring.destroy() },
-        })
-        this._setSustainedFx(adv.instanceId, 'bone_armor', { gfx: ring, cleanup: () => this._scene.events.off('update', followUpdate) })
+        this._createGroundHalo(adv, 'bone_armor', 0xddccaa, armorDef.durationMs)
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'bone_armor', message: `${adv.name} clad in Bone Armor (+${adv._boneArmorAtk} ATK / +${adv._boneArmorDef} DEF).` })
       }
     }
@@ -898,31 +827,14 @@ export class ClassAbilitySystem {
     // Break Door — dormant until locked doors land. Until then, no trigger.
     // (Code path will live here when we wire up locked_door tile types.)
 
-    // Rage Scaling VFX — when below 30% HP, kick on a faint red sustained
-    // ring so the player can read "this barbarian is enraged."
+    // Rage Scaling VFX — when below 50% HP, kick on a faint red ground halo
+    // so the player can read "this barbarian is enraged." The halo is
+    // permanent (no auto-fade) — it sticks until HP recovers above 50%.
     const frac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
     if (frac < 0.5 && !this._sustainedFx.get(adv.instanceId)?.rage) {
-      const x = adv.worldX, y = adv.worldY
-      const ring = this._scene.add.circle(x, y, 24, 0xff3333, 0.0)
-      ring.setStrokeStyle(2, 0xff3333, 0.35).setDepth(7)
-      const followUpdate = () => {
-      if (!ring.active) return
-      // Phase 5c — bulletproof self-destruct: if the adv is no longer in the
-      // active list (died/fled before sustained-fx cleanup ran for any
-      // reason), kill the ring immediately so it doesn't sit on the ground.
-      if (!this._gameState.adventurers.active.includes(adv)) {
-        this._scene.events.off('update', followUpdate)
-        if (ring.active) ring.destroy()
-        return
-      }
-      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
-    }
-      this._scene.events.on('update', followUpdate)
-      const tween = this._scene.tweens.add({
-        targets: ring, alpha: { from: 0.25, to: 0.6 }, duration: 600,
-        yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
-      })
-      this._setSustainedFx(adv.instanceId, 'rage', { gfx: ring, tween, cleanup: () => this._scene.events.off('update', followUpdate) })
+      // 99-second-ish duration so the auto-fade doesn't kick in during play;
+      // we explicitly remove the halo when HP recovers below.
+      this._createGroundHalo(adv, 'rage', 0xff3333, 99000, { width: 30, alpha: 0.28 })
     } else if (frac >= 0.5 && this._sustainedFx.get(adv.instanceId)?.rage) {
       this._endSustainedFx(adv.instanceId, 'rage')
     }
@@ -1061,35 +973,7 @@ export class ClassAbilitySystem {
   // ── VFX ───────────────────────────────────────────────────────────────────
 
   _fireAuraVfx(adv, durationMs) {
-    const x = adv.worldX, y = adv.worldY
-    // Single quick ring on activation — no particles, no floating text.
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xffe066, fromR: 8, toR: 26, durationMs: 350, alpha: 0.7 })
-
-    // Sustained ring under the Knight while aura is active. Thin, soft,
-    // doesn't pulse — just a quiet halo that says "this Knight is protecting
-    // nearby allies." Auto-cleans on duration end OR ADVENTURER_DIED/FLED.
-    const ring = this._scene.add.circle(x, y, 18, 0xffe066, 0.0)
-    ring.setStrokeStyle(1, 0xffe066, 0.35).setDepth(7)
-    const followUpdate = () => {
-      if (!ring.active) return
-      ring.setPosition(adv.worldX ?? 0, adv.worldY ?? 0)
-    }
-    this._scene.events.on('update', followUpdate)
-    // Auto-fade just before duration ends so it doesn't pop off harshly.
-    this._scene.tweens.add({
-      targets: ring,
-      alpha: 0,
-      duration: 400,
-      delay: Math.max(0, durationMs - 400),
-      onComplete: () => {
-        this._scene.events.off('update', followUpdate)
-        if (ring.active) ring.destroy()
-      },
-    })
-    this._setSustainedFx(adv.instanceId, 'aura', {
-      gfx: ring,
-      cleanup: () => this._scene.events.off('update', followUpdate),
-    })
+    this._createGroundHalo(adv, 'aura', 0xffe066, durationMs)
   }
 
   _fireTauntVfx(adv) {

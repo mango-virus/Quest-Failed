@@ -178,11 +178,10 @@ export class PersonalitySystem {
   // ── Combo activation event ────────────────────────────────────────────────
 
   emitCombosForParty(party, partyId) {
-    const combos = this.checkCombos(party)
-    for (const combo of combos) {
-      EventBus.emit('PERSONALITY_COMBO_ACTIVATED', { combo, partyId, party })
-    }
-    return combos
+    // Phase 5c — personality combos retired entirely. Method kept for
+    // backward compatibility with existing call sites (DayPhase) but no
+    // longer fires events. personalityCombos.json is also empty.
+    return []
   }
 }
 
