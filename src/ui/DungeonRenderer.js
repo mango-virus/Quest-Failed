@@ -305,6 +305,17 @@ export class DungeonRenderer {
     // (depth 9) which made the shadow draw on top of the door slab and on
     // top of characters, both incorrect after the door layer was lowered.
     this._gPassageShadow = scene.add.graphics().setDepth(5.5)
+    // Door jambs (the stone posts framing each opening). Sit BELOW
+    // characters so an adventurer standing in or walking through a
+    // doorway appears in front of the jamb stones rather than peeking
+    // out from behind them. Capstones / wall tops still go on
+    // _gOverhead (depth 9) above characters.
+    this._gJambs = scene.add.graphics().setDepth(6)
+    // Void / wall-top mask. Re-paints VOID tile fills on a layer ABOVE
+    // characters so an adventurer whose tall LPC sprite intrudes into a
+    // wall or void tile is properly occluded by the dark gap. Same
+    // colour family as _gBg so the void looks continuous.
+    this._gVoidMask = scene.add.graphics().setDepth(8.5)
 
     // User-painted corner override (sparse 32×32 array of hex/null). When
     // set, _drawWallCorner overlays it on top of the procedural draw with
@@ -334,6 +345,8 @@ export class DungeonRenderer {
     this._gOverhead.clear()
     this._gDoors.clear()
     this._gPassageShadow.clear()
+    this._gJambs.clear()
+    this._gVoidMask.clear()
 
     this._wallOrient = this._buildWallOrientation()
     // Pick up any newly saved corner pattern from the editor.
@@ -346,6 +359,7 @@ export class DungeonRenderer {
     this._drawCategoryTints()
     this._drawRoomOverlays()
     this._drawDoorwayArchitecture()
+    this._drawVoidMask()
     this._drawClosedDoors()
     if (DebugOverlay.showCollision) this._drawCollisionOverlay()
   }
@@ -424,6 +438,8 @@ export class DungeonRenderer {
     this._gOverhead.destroy()
     this._gDoors.destroy()
     this._gPassageShadow.destroy()
+    this._gJambs.destroy()
+    this._gVoidMask.destroy()
   }
 
   // ── Tile fills ─────────────────────────────────────────────────────────────
@@ -1398,20 +1414,21 @@ export class DungeonRenderer {
   // (above entities, so adventurers pass under the frame); threshold and
   // bevel go on _gTiles (below entities, so adventurers walk on/over them).
   _drawDoorwayArchitecture() {
-    const overhead = this._gOverhead
     const tiles    = this._gTiles
     const passage  = this._gPassageShadow
+    const jambs    = this._gJambs
     for (const room of this._gameState.dungeon.rooms ?? []) {
       for (const cp of room.connectionPoints ?? []) {
         const rect = this._cpDoorRect(room, cp)
         if (!rect) continue
         const style = this._effectiveDoorStyle(room, cp)
         const pal   = ARCH_STYLES[style] || ARCH_STYLES.regular
-        this._drawDoorJambs(overhead, rect, pal)
+        // Jambs now on _gJambs (depth 6, below characters) so adventurers
+        // walk in FRONT of the door-frame stones, not behind them.
+        this._drawDoorJambs(jambs, rect, pal)
         this._drawDoorThreshold(tiles, rect, pal)
-        // Passage shadow now sits on its own depth-5.5 layer so it
-        // renders BEHIND the door panel (depth 6.5) and behind any
-        // character standing in the doorway. Was on _gOverhead at 9.
+        // Passage shadow on _gPassageShadow (depth 5.5) — behind door
+        // panel and characters but above floor tiles.
         this._drawPassageShadow(passage, rect)
       }
     }
@@ -2045,6 +2062,26 @@ export class DungeonRenderer {
   }
 
   // ── Background & grid ──────────────────────────────────────────────────────
+
+  // Re-paint VOID tiles on _gVoidMask (depth 8.5, ABOVE characters at 7-8)
+  // so any sprite intruding into a void cell — typically the upper portion
+  // of a tall LPC adventurer (64x64 frame) whose head extends into the
+  // wall/void tile north of their feet — is properly hidden by the gap.
+  // Solid STONE_BASE fill matches the _gBg base so the void looks
+  // continuous; per-cell texture stays on _gBg.
+  _drawVoidMask() {
+    const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
+    const g = this._gVoidMask
+    g.fillStyle(STONE_BASE, 1)
+    for (let y = 0; y < gh; y++) {
+      const row = tiles[y]
+      if (!row) continue
+      for (let x = 0; x < gw; x++) {
+        if (row[x] !== TILE.VOID) continue
+        g.fillRect(x * TS, y * TS, TS, TS)
+      }
+    }
+  }
 
   _drawBackground() {
     const { gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
