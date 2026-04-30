@@ -31,36 +31,10 @@ export class LootSystem {
     EventBus.off('MINION_DIED',     this._onMinionDied,    this)
   }
 
-  // Phase 7b: when a mini-boss dies, guarantee a high-tier loot drop
-  _onMinionDied({ minion }) {
-    if (!minion?.isMiniBoss) return
-    if (!this._loaded) this.loadDefinitions()
-
-    const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
-    const maxTier = 1 + Math.floor((dungeonLevel - 1) / Balance.LOOT_TIER_BY_DUNGEON_LEVEL)
-    // Prefer the highest available tier — mini-boss drops are special
-    const pool = this.allDefinitions().filter(def => def.tier === Math.min(maxTier, 3))
-    const fallbackPool = pool.length ? pool : this.allDefinitions().filter(def => def.tier <= maxTier)
-    const candidate = fallbackPool[Math.floor(Math.random() * fallbackPool.length)]
-    if (!candidate) return
-
-    const room = this._dungeonGrid.getRoomAtTile(minion.tileX, minion.tileY)
-    const provenance = {
-      type:        'crafted',
-      entityName:  minion.name ?? 'Mini-Boss',
-      entityClass: minion.definitionId,
-      roomId:      room?.instanceId ?? null,
-      day:         this._gameState.meta.dayNumber,
-      flavorText:  `dropped by ${minion.name ?? minion.definitionId} (mini-boss) in ${room?.definitionId ?? 'unknown'}`,
-    }
-    const item = createLootItem(candidate, provenance, { tileX: minion.tileX, tileY: minion.tileY })
-    this._gameState.loot.dungeon.push(item)
-    EventBus.emit('GEAR_DROPPED', {
-      item,
-      roomId:    room?.instanceId ?? null,
-      droppedBy: minion.instanceId,
-    })
-  }
+  // Phase 5c — loot drops disabled. The user removed the loot mechanic;
+  // nothing is generated on minion death anymore. Listener kept as a stub
+  // so the EventBus subscription remains symmetrical with destroy().
+  _onMinionDied(_payload) { /* loot mechanic removed */ }
 
   loadDefinitions() {
     if (this._loaded) return
@@ -69,10 +43,10 @@ export class LootSystem {
     this._loaded = true
   }
 
-  _onAdventurerDied({ adventurer, killerId, killerName }) {
-    if (!this._loaded) this.loadDefinitions()
-    this.dropFromAdventurer(adventurer, killerId, killerName)
-  }
+  // Phase 5c — loot drops disabled. Adventurers no longer drop their gear
+  // on death. The dropFromAdventurer method is preserved below for any
+  // future re-enable, but is no longer wired to ADVENTURER_DIED.
+  _onAdventurerDied(_payload) { /* loot mechanic removed */ }
 
   getDefinition(id) { return this._defs[id] ?? null }
   allDefinitions() { return Object.values(this._defs) }
