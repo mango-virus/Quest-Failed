@@ -81,27 +81,45 @@ export class AdventurerRenderer {
     adventurer._spawnFadeEnd   = start + FADE_MS
     this._spawnQueueNextAt     = start + STAGGER_MS
 
-    // Snap to the entry-hall north-doorway center so all spawning advs
-    // appear in the same tile (the door) instead of fanning out.
-    const door = this._entryDoorTile()
+    // Snap to the geometric center of the entry-hall doorway opening (the
+    // 2-tile-wide × WALL_THICKNESS-tile-tall door rect). All spawning
+    // advs appear stacked in the same spot — visibly "right in the
+    // doorway" — until their fade ends and AI walks them in.
+    const door = this._entryDoorWorldCenter()
     if (door) {
-      adventurer.tileX  = door.x
-      adventurer.tileY  = door.y
-      adventurer.worldX = door.x * TS + TS / 2
-      adventurer.worldY = door.y * TS + TS / 2
+      adventurer.tileX  = door.tileX
+      adventurer.tileY  = door.tileY
+      adventurer.worldX = door.worldX
+      adventurer.worldY = door.worldY
     }
   }
 
-  // Compute the entry hall's north-doorway tile (cached for the lifetime
-  // of this scene since the entry hall doesn't move). Returns null if the
-  // entry hall is missing.
-  _entryDoorTile() {
+  // Compute the world-space center of the entry hall's north-facing door
+  // rect. Cached for the day. Doorways are 2 cells wide (along the wall
+  // axis) × WALL_THICKNESS cells across, with the extra cell slid toward
+  // whichever side has more wall — so the center isn't simply the cp tile.
+  _entryDoorWorldCenter() {
     if (this._entryDoorCache) return this._entryDoorCache
     const entry = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'entry_hall')
     if (!entry) return null
     const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
-    const localX = cp ? cp.x : Math.floor(entry.width / 2)
-    this._entryDoorCache = { x: entry.gridX + localX, y: entry.gridY }
+    if (!cp) {
+      // Fallback — center of top wall row.
+      const x = entry.gridX + Math.floor(entry.width / 2)
+      this._entryDoorCache = { tileX: x, tileY: entry.gridY, worldX: x * TS + TS / 2, worldY: entry.gridY * TS + TS / 2 }
+      return this._entryDoorCache
+    }
+    // Match DungeonRenderer._cpDoorRect: 2-tile width slid into the side
+    // with more wall space; WALL_THICKNESS-tile height starting at top row.
+    const WT      = 2
+    const alongDx = ((entry.width - 1) - cp.x) >= cp.x ? 1 : -1
+    const xStart  = Math.min(cp.x, cp.x + alongDx)
+    const tileX   = entry.gridX + xStart
+    const tileY   = entry.gridY
+    // Center of the 2 × WT tile rect.
+    const worldX = tileX * TS + TS              // center of 2-tile width
+    const worldY = tileY * TS + (WT * TS) / 2   // center of WT-tile height
+    this._entryDoorCache = { tileX, tileY, worldX, worldY }
     return this._entryDoorCache
   }
 
