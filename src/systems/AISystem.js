@@ -478,7 +478,10 @@ export class AISystem {
     // "running away in panic" feel and helps unlucky lost-flee wanderers find
     // the entry hall faster.
     const fleeMul  = adv.aiState === 'fleeing' ? 1.5 : 1
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * TS * delta) / 1000
+    // Phase 5c — Bard Song of Speed: same-party advs within 2 tiles of a
+    // speed-song-active Bard move 20% faster.
+    const songMul  = this._songOfSpeedMul(adv)
+    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -805,6 +808,25 @@ export class AISystem {
     // "Familiar" rooms = the starter set
     const isFamiliar = (room.definitionId ?? '').startsWith('starter_')
     return isFamiliar ? 1 : Balance.PARANOID_SPEED_MULTIPLIER
+  }
+
+  // Phase 5c — Bard Song of Speed: returns 1.20 if a same-party Bard within
+  // 2 tiles has an active speed-song buff, else 1. The Bard themselves get
+  // the buff while their own song is active.
+  _songOfSpeedMul(adv) {
+    const advs = this._gameState.adventurers?.active ?? []
+    const now  = this._scene.time.now
+    for (const bard of advs) {
+      if (bard.classId !== 'bard') continue
+      if (!bard._songSpeedActiveUntil || now >= bard._songSpeedActiveUntil) continue
+      if (bard !== adv) {
+        if (!bard.partyId || bard.partyId !== adv.partyId) continue
+      }
+      const d = Math.hypot(adv.tileX - bard.tileX, adv.tileY - bard.tileY)
+      if (d > 2.01) continue
+      return 1.20
+    }
+    return 1
   }
 
   // ── Goal handling ──────────────────────────────────────────────────────────

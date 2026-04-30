@@ -133,6 +133,10 @@ export class CombatSystem {
   _computeDamage(attacker, target) {
     let raw = attacker.stats?.attack ?? 1
 
+    // Phase 5c — Bard Inspire Party: same-party advs within 2 tiles of an
+    // inspire-active Bard get +15% attack damage.
+    raw = this._applyInspireBuff(attacker, raw)
+
     // Phase QW — Echo minion mimics the last-seen adventurer's class. We
     // route damage flavor through that class for free.
     const cls = attacker.mimickedClassId ?? attacker.classId
@@ -237,6 +241,26 @@ export class CombatSystem {
       return Math.max(1, Math.floor(dmg * 0.75))
     }
     return dmg
+  }
+
+  // Phase 5c — Bard Inspire: if attacker is an adventurer and a same-party
+  // Bard within 2 tiles has _inspireActiveUntil > now, multiply damage by 1.15.
+  _applyInspireBuff(attacker, raw) {
+    if (!attacker || raw <= 0) return raw
+    if (attacker.classId === undefined) return raw  // minion attacker
+    const advs = this._gameState.adventurers?.active ?? []
+    const now  = this._scene.time.now
+    for (const bard of advs) {
+      if (bard.classId !== 'bard') continue
+      if (!bard._inspireActiveUntil || now >= bard._inspireActiveUntil) continue
+      if (bard !== attacker) {
+        if (!bard.partyId || bard.partyId !== attacker.partyId) continue
+      }
+      const d = Math.hypot(attacker.tileX - bard.tileX, attacker.tileY - bard.tileY)
+      if (d > 2.01) continue
+      return Math.max(1, Math.floor(raw * 1.15))
+    }
+    return raw
   }
 
   _inferMethod(attacker, damageType) {
