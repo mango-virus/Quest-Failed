@@ -181,10 +181,10 @@ export class MinionRenderer {
     const fs          = def.frameSize ?? 64
     const displaySize = fs * MINION_SCALE
     const hpBarW      = Math.round(displaySize * 0.55)
-    // HP bar sits BELOW the sprite (at the feet) instead of at the head —
-    // matches the adventurer convention of putting status above the
-    // character body and keeps the head/torso clean for the sprite art.
-    const hpY         = displaySize / 2 + 4
+    // HP bar sits just above the sprite's top edge (a few pixels of gap so
+    // it reads clearly without feeling detached). Frame size varies by
+    // minion (64 vs 128) so this auto-scales.
+    const hpY         = -displaySize / 2 - 4
 
     const hpBg = s.add.rectangle(0,            hpY, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5)
     const hp   = s.add.rectangle(-hpBarW / 2,  hpY, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5)
@@ -194,8 +194,8 @@ export class MinionRenderer {
       stroke: '#0a0e16', strokeThickness: 2,
     }).setOrigin(1, 1).setVisible(false)
 
-    // Bounty star sits just above the HP bar (still below the sprite).
-    const bountyMark = s.add.text(0, hpY + 7, '★', {
+    // Bounty star sits just above the HP bar.
+    const bountyMark = s.add.text(0, hpY - 7, '★', {
       fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setVisible(false)
 
@@ -238,8 +238,8 @@ export class MinionRenderer {
     }).setOrigin(0.5)
 
     const hpBarW = SIZE
-    // Placeholder path mirrors the sprite path: HP bar sits below the body.
-    const hpYP = SIZE / 2 + 5
+    // Placeholder path mirrors the sprite path: HP bar just above the body.
+    const hpYP = -SIZE / 2 - 4
     const hpBg = s.add.rectangle(0,           hpYP, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5)
     const hp   = s.add.rectangle(-SIZE / 2,   hpYP, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5)
 
@@ -248,7 +248,7 @@ export class MinionRenderer {
       stroke: '#0a0e16', strokeThickness: 2,
     }).setOrigin(1, 1).setVisible(false)
 
-    const bountyMark = s.add.text(0, hpYP + 7, '★', {
+    const bountyMark = s.add.text(0, hpYP - 7, '★', {
       fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setVisible(false)
 
