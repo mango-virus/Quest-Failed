@@ -7,8 +7,9 @@
 //
 // Triggered traps stay marked until NIGHT_PHASE_STARTED, when `resetAll()` clears them.
 
-import { EventBus } from './EventBus.js'
-import { Balance }  from '../config/balance.js'
+import { EventBus }   from './EventBus.js'
+import { Balance }    from '../config/balance.js'
+import { AbilityVfx } from '../ui/AbilityVfx.js'
 
 const STAND_STILL_MS_PATIENCE = 3000   // 3 seconds for patience trigger
 const FAST_SPEED_THRESHOLD    = 2.0    // tiles/sec threshold for moved_too_fast
@@ -65,6 +66,7 @@ export class TrapSystem {
 
     for (const trap of traps) {
       if (trap.isTriggered) continue
+      if (trap._disabledThisDay) continue   // Phase 5c — Trap Expert
       const def = this._defs[trap.definitionId]
       if (!def) continue
       this._evaluateTrap(trap, def)
@@ -127,6 +129,8 @@ export class TrapSystem {
       trap.isTriggered = false
       trap.repairProgress = 0
       trap.state = {}
+      // Phase 5c — Trap Expert disabled-this-day flag clears at night.
+      trap._disabledThisDay = false
     }
   }
 
@@ -192,6 +196,13 @@ export class TrapSystem {
   }
 
   _fireTrap(trap, def, adv) {
+    // Phase 5c — Monk Focus: 30% chance to dodge the trap entirely. Trap is
+    // NOT consumed — it stays armed for the next adventurer.
+    if (adv?._focusActiveUntil && this._scene.time.now < adv._focusActiveUntil && Math.random() < 0.30) {
+      AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 18, 'DODGED', { color: '#eeeeff' })
+      EventBus.emit('TRAP_DODGED', { trap, def, adventurer: adv })
+      return
+    }
     // Phase QW — requiresPowerSource: trap silently fails if no power_core room is built.
     if (def.requiresPowerSource && !this._hasPowerCore()) {
       EventBus.emit('TRAP_FAILED_NO_POWER', { trap, def, adventurer: adv })

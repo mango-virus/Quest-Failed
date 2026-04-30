@@ -518,7 +518,25 @@ export class DayPhase extends Phaser.Scene {
     if (classes.length === 0) return
 
     const day   = this._gameState.meta.dayNumber
-    const baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+    let baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+    // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
+    // count from yesterday's death-clip-going-viral roll.
+    const subBonus = this._gameState.player?.subscriberRevengeBonus ?? 0
+    if (subBonus > 0) {
+      baseCount += subBonus
+      this._gameState.player.subscriberRevengeBonus = 0
+      // Visible banner so the player notices the extra spawn
+      const cam = this.scene.get('Game')?.cameras?.main
+      if (cam) {
+        const txt = this.scene.get('Game').add.text(cam.midPoint.x, cam.midPoint.y - 100,
+          `Streamer's death clip went viral!\n+${subBonus} adventurers today`,
+          { fontSize: '18px', color: '#9146ff', fontFamily: 'monospace', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3, align: 'center' })
+          .setOrigin(0.5).setScrollFactor(0).setDepth(9999)
+        this.scene.get('Game').tweens.add({ targets: txt, alpha: 0, y: txt.y - 30, duration: 3500, onComplete: () => txt.destroy() })
+      }
+      EventBus.emit('SUBSCRIBER_REVENGE_SPAWN', { bonus: subBonus, day })
+    }
     const partyId   = `party_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     const spawned   = []
 

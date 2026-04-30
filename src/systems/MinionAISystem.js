@@ -369,6 +369,9 @@ export class MinionAISystem {
     // Default 'dungeon' faction: attack adventurers, plus any 'adventurer'-faction minions
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
+      // Phase 5c — Rogue Invisibility: minions ignore invisible advs.
+      // (Boss can still target — that's BossSystem's responsibility.)
+      if (adv._invisible) continue
 
       if (requireSameRoom) {
         if (!_pointInRoom(adv.tileX, adv.tileY, homeRoom)) continue

@@ -347,16 +347,9 @@ export class AISystem {
           }
         }
 
-        // Beast tamer: attempt tame on cooldown instead of attacking
-        const tags = this._personalitySystem?.getTags(adv) ?? new Set()
-        if (tags.has('beast_tamer')) {
-          const attempted = this._tryTame(adv, enemy)
-          if (attempted) {
-            adv.aiState = 'fighting'  // visually "engaged"
-            adv.path = null
-            return
-          }
-        }
+        // Phase 5c — Beast Master tame logic moved to ClassAbilitySystem.
+        // The legacy tag-based tame attempt is gone; tame is now a proper
+        // cooldown ability with single-companion enforcement.
 
         adv.aiState = 'fighting'
         adv.path = null
@@ -540,6 +533,8 @@ export class AISystem {
   }
 
   _setFleeGoal(adv, reason = 'low_hp_retreat') {
+    // Phase 5c — Barbarian Unstoppable: immune to ALL flee triggers.
+    if (adv.classId === 'barbarian') return
     adv.goal = { type: 'FLEE', reason }
     adv.aiState = 'fleeing'
     adv.path = null
@@ -1050,6 +1045,12 @@ export class AISystem {
   // ── Death / despawn ────────────────────────────────────────────────────────
 
   _kill(adv, idx, killerHint) {
+    // Phase 5c — Cleric Resurrection: if a same-party Cleric still has the
+    // ability today, revive the falling adv at 30% HP and skip death.
+    if (this._scene.classAbilitySystem?.attemptClericResurrect?.(adv)) {
+      EventBus.emit('ADVENTURER_RESURRECTED', { adventurer: adv })
+      return
+    }
     adv.aiState = 'dead'
     adv.resources.hp = 0
 

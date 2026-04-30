@@ -7,7 +7,8 @@
 // Death cleanup (splice from active, push to graveyard, award essence) is the
 // AI system's responsibility — CombatSystem only mutates HP and emits events.
 
-import { EventBus } from './EventBus.js'
+import { EventBus }   from './EventBus.js'
+import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { Balance }  from '../config/balance.js'
 
 const TS = Balance.TILE_SIZE
@@ -41,12 +42,41 @@ export class CombatSystem {
     attacker._lastAttackTarget = target
 
     const damage     = this._computeDamage(attacker, target)
-    const isCritical = Math.random() < 0.10
+    // Phase 5c — Rogue Invisibility: if attacker is an invisible Rogue,
+    // their attack is a guaranteed crit AND immediately reveals them.
+    const rogueInvisCrit = attacker.classId === 'rogue' && attacker._invisible
+    const isCritical = rogueInvisCrit ? true : Math.random() < 0.10
     let   finalDmg   = isCritical ? Math.floor(damage * 1.5) : damage
+
+    if (rogueInvisCrit) {
+      // Reveal the rogue.
+      attacker._invisible = false
+      attacker._invisibilityUntil = null
+      this._scene.classAbilitySystem?._endInvisibility?.(attacker)
+    }
+
+    // Phase 5c — Monk Focus: 30% chance to dodge incoming damage entirely.
+    // Only applies when target is the focused adventurer (this is the
+    // defender, not the attacker — so we read target._focusActiveUntil).
+    if (target._focusActiveUntil && now < target._focusActiveUntil && Math.random() < 0.30) {
+      // Dodge VFX
+      AbilityVfx.floatingText(this._scene, target.worldX ?? 0, (target.worldY ?? 0) - 18, 'MISS', { color: '#eeeeff' })
+      // No damage applied, no kill.
+      EventBus.emit('COMBAT_HIT', {
+        sourceId: attacker.instanceId, targetId: target.instanceId,
+        damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false,
+      })
+      return { hit: false, dodged: true }
+    }
 
     // Phase 5c — Knight Protective Aura: party allies (and the Knight himself)
     // within auraRangeTiles of an aura-active Knight take 25% less damage.
     finalDmg = this._applyProtectiveAura(target, finalDmg)
+
+    // Phase 5c — Twitch DEF buff: target's _twitchDefBonus subtracts from damage.
+    if (target._twitchDefBonus && target._twitchEffectUntil && now < target._twitchEffectUntil) {
+      finalDmg = Math.max(1, finalDmg - target._twitchDefBonus)
+    }
 
     target.resources.hp = Math.max(0, target.resources.hp - finalDmg)
 
@@ -62,6 +92,47 @@ export class CombatSystem {
       damageType,
       isCritical,
     })
+
+    // Phase 5c — Mage Arcane Burst: if queued, deal AoE damage to all enemies
+    // within 1 tile of the primary target, then consume the flag.
+    if (attacker.classId === 'mage' && attacker._arcaneBurstQueued) {
+      attacker._arcaneBurstQueued = false
+      const aoeColor = (attacker._element === 'fire' ? 0xff6633 : attacker._element === 'ice' ? 0x66ddff : attacker._element === 'lightning' ? 0xffff66 : 0xaaffff)
+      AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color: aoeColor, fromR: 12, toR: 64, durationMs: 500, alpha: 0.85 })
+      AbilityVfx.particleBurst(this._scene, target.worldX, target.worldY, { color: aoeColor, count: 14, durationMs: 600, speed: 100 })
+      const aoeDamage = Math.max(1, Math.floor(finalDmg * 0.6))
+      for (const m of this._gameState.minions ?? []) {
+        if (m === target) continue
+        if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
+        if (m.faction === 'adventurer') continue
+        const d = Math.hypot(m.tileX - target.tileX, m.tileY - target.tileY)
+        if (d > 1.01) continue
+        m.resources.hp = Math.max(0, m.resources.hp - aoeDamage)
+        EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: m.instanceId, damage: aoeDamage, damageType, isCritical: false })
+      }
+    }
+
+    // Phase 5c — Ranger Volley: every 5th attack fires at 2 extra targets in
+    // a cone toward the primary target (within 2 tiles of the primary).
+    if (attacker.classId === 'ranger') {
+      attacker._shotCount = (attacker._shotCount ?? 0) + 1
+      if (attacker._shotCount % 5 === 0) {
+        AbilityVfx.pulseRing(this._scene, attacker.worldX, attacker.worldY, { color: 0xaaffaa, fromR: 6, toR: 24, durationMs: 350, alpha: 0.7 })
+        AbilityVfx.floatingText(this._scene, attacker.worldX, attacker.worldY - 22, 'VOLLEY', { color: '#aaffaa' })
+        let extraHits = 0
+        for (const m of this._gameState.minions ?? []) {
+          if (m === target) continue
+          if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
+          if (m.faction === 'adventurer') continue
+          const d = Math.hypot(m.tileX - target.tileX, m.tileY - target.tileY)
+          if (d > 2.01) continue
+          m.resources.hp = Math.max(0, m.resources.hp - finalDmg)
+          EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: m.instanceId, damage: finalDmg, damageType, isCritical: false })
+          if (++extraHits >= 2) break
+        }
+        EventBus.emit('ABILITY_TRIGGERED', { adventurer: attacker, abilityId: 'volley', message: `${attacker.name} loosed a volley.` })
+      }
+    }
 
     const killed = target.resources.hp <= 0
     if (killed) {
@@ -142,11 +213,38 @@ export class CombatSystem {
     const cls = attacker.mimickedClassId ?? attacker.classId
 
     // Mage: free-casting now (mana removed in Phase 5b cooldown rework). Spells
-    // get a 10% damage bump over mundane attacks; Elemental Affinity will
-    // multiply this further against vulnerable minions when the Mage class
-    // ability lands.
+    // get a 10% damage bump over mundane attacks. Elemental Affinity (passive)
+    // adds a further 50% if the target's vulnerableToElements list includes
+    // the mage's rolled element. Arcane Burst (cooldown ability) flags the
+    // next spell as AoE — the AoE pass is handled below in tryAttack.
     if (cls === 'mage') {
       raw = Math.floor(raw * 1.1)
+      const el = attacker._element
+      const vulns = target.tags ?? target.stats?.tags ?? target.def?.vulnerableToElements ?? []
+      const minionDef = this._minionDefFor(target)
+      const targetVulns = minionDef?.vulnerableToElements ?? []
+      if (el && targetVulns.includes(el)) {
+        raw = Math.floor(raw * 1.5)
+      }
+    }
+
+    // Phase 5c — Barbarian Rage Scaling: damage = base × (1 + (1 − hpFrac))
+    // up to 2× at 1 HP. Always-on passive.
+    if (cls === 'barbarian') {
+      const frac = attacker.resources?.maxHp > 0
+        ? attacker.resources.hp / attacker.resources.maxHp : 1
+      raw = Math.floor(raw * (1 + (1 - frac)))
+    }
+
+    // Phase 5c — Twitch ATK buff/debuff window from Viewers Choice.
+    if (attacker._twitchAtkMul && attacker._twitchEffectUntil && this._scene.time.now < attacker._twitchEffectUntil) {
+      raw = Math.max(1, Math.floor(raw * attacker._twitchAtkMul))
+    }
+
+    // Phase 5c — Necromancer Bone Armor: +N ATK while active (N = current
+    // raised undead count at activation time, captured on the entity).
+    if (cls === 'necromancer' && attacker._boneArmorUntil && this._scene.time.now < attacker._boneArmorUntil) {
+      raw += attacker._boneArmorAtk ?? 0
     }
 
     // Cleric: smite_undead — +50% damage versus undead-tagged targets (passive
@@ -155,8 +253,11 @@ export class CombatSystem {
       raw = Math.floor(raw * 1.5)
     }
 
-    // Ranger: each shot consumes an arrow; out of arrows → weak melee dagger
-    if (cls === 'ranger') {
+    // Ranger: arrows removed in 5c rework. Free-shooting now; Volley proc
+    // and Trap Expert ability replace the resource gating. Each 5th shot
+    // becomes a Volley — see tryAttack for the multi-target dispatch.
+    // Below stub kept for compatibility but no longer applies arrow logic.
+    if (false && cls === 'ranger') {
       const arrows = attacker.resources?.arrows ?? 0
       if (arrows > 0) {
         attacker.resources.arrows = arrows - 1
@@ -261,6 +362,18 @@ export class CombatSystem {
       return Math.max(1, Math.floor(raw * 1.15))
     }
     return raw
+  }
+
+  // Phase 5c — minion definition lookup (for vulnerableToElements checks).
+  _minionDefFor(target) {
+    if (!target?.definitionId) return null
+    const defs = this._minionDefsCache ?? (this._minionDefsCache = (() => {
+      const arr = this._scene?.cache?.json?.get('minionTypes') ?? []
+      const map = {}
+      for (const m of arr) map[m.id] = m
+      return map
+    })())
+    return defs[target.definitionId]
   }
 
   _inferMethod(attacker, damageType) {
