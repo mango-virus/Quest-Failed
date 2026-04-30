@@ -64,19 +64,45 @@ export class AdventurerRenderer {
     EventBus.on('COMBAT_HIT',          this._onCombatHit, this)
   }
 
-  // ADVENTURER_ENTERED_DUNGEON handler — schedules a staggered fade-in.
-  // Each adv reserves the next slot in the queue; when their fade finishes
+  // ADVENTURER_ENTERED_DUNGEON handler — snaps the adv to the center of
+  // the entry-hall doorway tile and schedules a staggered fade-in. Each
+  // adv reserves the next slot in the queue; when their fade finishes
   // the next adv (if any) starts. _spawnQueueNextAt is reset on every
   // night phase via _clearAll so a new day starts with an empty queue.
+  // While `_spawnFadeEnd` is in the future, AISystem skips the per-tick
+  // motion/goal logic so the adv stays put and idles in the doorway.
   _onAdvEntered({ adventurer }) {
     if (!adventurer) return
     const now = this._scene?.time?.now ?? 0
     const FADE_MS    = 600
-    const STAGGER_MS = 700  // gap between each adv's fade start
+    const STAGGER_MS = 700
     const start = Math.max(now, this._spawnQueueNextAt)
     adventurer._spawnFadeStart = start
     adventurer._spawnFadeEnd   = start + FADE_MS
-    this._spawnQueueNextAt = start + STAGGER_MS
+    this._spawnQueueNextAt     = start + STAGGER_MS
+
+    // Snap to the entry-hall north-doorway center so all spawning advs
+    // appear in the same tile (the door) instead of fanning out.
+    const door = this._entryDoorTile()
+    if (door) {
+      adventurer.tileX  = door.x
+      adventurer.tileY  = door.y
+      adventurer.worldX = door.x * TS + TS / 2
+      adventurer.worldY = door.y * TS + TS / 2
+    }
+  }
+
+  // Compute the entry hall's north-doorway tile (cached for the lifetime
+  // of this scene since the entry hall doesn't move). Returns null if the
+  // entry hall is missing.
+  _entryDoorTile() {
+    if (this._entryDoorCache) return this._entryDoorCache
+    const entry = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'entry_hall')
+    if (!entry) return null
+    const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
+    const localX = cp ? cp.x : Math.floor(entry.width / 2)
+    this._entryDoorCache = { x: entry.gridX + localX, y: entry.gridY }
+    return this._entryDoorCache
   }
 
   // Returns the alpha (0..1) the sprite should render at right now given
@@ -414,5 +440,8 @@ export class AdventurerRenderer {
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
     // Reset the spawn-fade stagger queue so the next day starts fresh.
     this._spawnQueueNextAt = 0
+    // Drop the cached doorway tile in case the player rebuilt the entry
+    // hall between days.
+    this._entryDoorCache = null
   }
 }

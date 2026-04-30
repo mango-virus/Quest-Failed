@@ -311,11 +311,13 @@ export class DungeonRenderer {
     // out from behind them. Capstones / wall tops still go on
     // _gOverhead (depth 9) above characters.
     this._gJambs = scene.add.graphics().setDepth(6)
-    // Void / wall-top mask. Re-paints VOID tile fills on a layer ABOVE
-    // characters so an adventurer whose tall LPC sprite intrudes into a
-    // wall or void tile is properly occluded by the dark gap. Same
-    // colour family as _gBg so the void looks continuous.
-    this._gVoidMask = scene.add.graphics().setDepth(8.5)
+    // Void mask — re-paints VOID tile fills on a layer ABOVE characters
+    // (which sit at depth 7-8) so any sprite whose head intrudes into a
+    // void cell gets occluded by the gap. Same colour family as _gBg so
+    // the void looks continuous. Depth 12 puts it above the wall
+    // capstone overhead (9) and door-frame overlays as well, so the
+    // void truly always wins occlusion.
+    this._gVoidMask = scene.add.graphics().setDepth(12)
 
     // User-painted corner override (sparse 32×32 array of hex/null). When
     // set, _drawWallCorner overlays it on top of the procedural draw with

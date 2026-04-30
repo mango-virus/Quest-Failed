@@ -119,6 +119,12 @@ export class AISystem {
       this._kill(adv, idx, adv._lastHitBy ?? 'unknown')
       return
     }
+    // Phase 5c — while the spawn fade-in is still running, the adv idles
+    // in the doorway. Skip movement, pathing, goal switches, and combat
+    // checks until AdventurerRenderer clears the fade flags.
+    if (adv._spawnFadeEnd != null && (this._scene?.time?.now ?? 0) < adv._spawnFadeEnd) {
+      return
+    }
     // AT_BOSS adventurers are owned by BossSystem.  Skip every other AI
     // branch and free our occupancy entry so the 4th party member can
     // path through the doorway tile this one used to hold.  Without the
@@ -419,6 +425,13 @@ export class AISystem {
       const limit = Math.min(adv.path.length - 1, adv.pathIndex + MAX_LOOKAHEAD)
       for (let i = adv.pathIndex + 1; i <= limit; i++) {
         const wp2 = adv.path[i]
+        // Stop smoothing AT a closed-door cell so the adventurer's `wp`
+        // targets the door tile (or the last cell before it) — the door
+        // pause check below then fires and holds them while it animates.
+        // Without this, LOS smoothing would skip straight through the door
+        // and the pause check (looking at wp) would miss it.
+        const cpHere = this._dungeonGrid.getCpForDoorTile?.(wp2.x, wp2.y)
+        if (cpHere && !cpHere.cp.open) break
         const tx2 = wp2.x * TS + TS / 2
         const ty2 = wp2.y * TS + TS / 2
         if (this._losClear(adv.worldX, adv.worldY, tx2, ty2, tilesGrid)) wpIndex = i
@@ -433,6 +446,21 @@ export class AISystem {
     const dx = targetWX - adv.worldX
     const dy = targetWY - adv.worldY
     const dist = Math.hypot(dx, dy)
+
+    // Door pause: if the next waypoint sits on a closed connection-point
+    // door, hold position until the split-open animation finishes. We
+    // trigger the opening here (idempotent) so the animation starts the
+    // moment the adventurer reaches the door rather than after they walk
+    // through it.
+    const enteringDoor = this._dungeonGrid.getCpForDoorTile?.(wp.x, wp.y)
+    if (enteringDoor && !enteringDoor.cp.open) {
+      if (!enteringDoor.cp.opening) {
+        enteringDoor.cp.opening = true
+        enteringDoor.cp.openProgress = 0
+        EventBus.emit('DOOR_OPENING', { cp: enteringDoor.cp })
+      }
+      return
+    }
 
     // Yield-on-overlap: if the tile we're walking into is currently held by
     // another active adventurer, hold position this tick. They'll move along
@@ -495,6 +523,7 @@ export class AISystem {
       adv.tileX  = wp.x
       adv.tileY  = wp.y
       if (this._occupancy) this._occupancy[`${wp.x},${wp.y}`] = adv.instanceId
+      this._maybeOpenDoorAt(wp.x, wp.y)
       // Advance past every waypoint we collapsed via LOS smoothing.
       adv.pathIndex = wpIndex + 1
 
@@ -528,8 +557,23 @@ export class AISystem {
         adv.tileX = newTileX
         adv.tileY = newTileY
         if (this._occupancy) this._occupancy[`${newTileX},${newTileY}`] = adv.instanceId
+        this._maybeOpenDoorAt(newTileX, newTileY)
       }
     }
+  }
+
+  // Trigger the split-open animation when an adventurer first steps onto a
+  // DOOR cell whose connection point is still closed. Idempotent — a cp
+  // already opening or open is left alone. The animation tick in
+  // DungeonRenderer.update advances the progress and flips cp.open=true.
+  _maybeOpenDoorAt(tx, ty) {
+    const found = this._dungeonGrid.getCpForDoorTile?.(tx, ty)
+    if (!found) return
+    const { cp } = found
+    if (cp.open || cp.opening) return
+    cp.opening = true
+    cp.openProgress = 0
+    EventBus.emit('DOOR_OPENING', { cp })
   }
 
   // Walkable line-of-sight check — Amanatides-Woo grid traversal that visits
@@ -701,6 +745,9 @@ export class AISystem {
   _shouldSleep(adv) {
     if (adv.aiState === 'fleeing') return false
     if (adv.resources.hp >= adv.resources.maxHp) return false
+    // Inner Peace already regenerates the Monk; layering Sleep on top freezes
+    // them in place ("stuck while inner peace is active").
+    if (adv._innerPeaceUntil && this._scene.time.now < adv._innerPeaceUntil) return false
     const hpFrac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
     if (hpFrac > Balance.LOW_HP_THRESHOLD) return false
     if (Balance.SLEEP_REQUIRES_NO_HOSTILES && this._anyHostileMinionInRoom(adv)) return false
