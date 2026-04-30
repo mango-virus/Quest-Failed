@@ -114,11 +114,12 @@ export class MinionAISystem {
       return
     }
 
-    // Phase QW — Patrol behavior: idle minions with `behaviorType: 'patrol'`
-    // wander to a random tile in their home room when no hostiles are in
-    // sight. Walks via `_moveToward` so patrol is visible motion (previously
-    // teleport-snapped every 3s). Picks a new target every ~3s after arriving.
-    if (minion.behaviorType === 'patrol' && minion.aiState === 'idle' && minion.faction === 'dungeon') {
+    // Idle wander: any non-utility dungeon minion explores its assigned room
+    // when no hostiles are in sight. Picks a random tile in the home room,
+    // walks there via `_moveToward`, then idles ~3s before picking a new
+    // target. Originally gated on `behaviorType === 'patrol'`; opened up to
+    // guards too so the dungeon feels alive everywhere.
+    if (minion.behaviorType !== 'utility' && minion.aiState === 'idle' && minion.faction === 'dungeon') {
       if (minion._patrolTarget) {
         if (minion.tileX === minion._patrolTarget.x && minion.tileY === minion._patrolTarget.y) {
           minion._patrolTarget = null
@@ -200,14 +201,33 @@ export class MinionAISystem {
       return
     }
 
-    // No target — return home / patrol
+    // No target — summons trail their summoner; everyone else returns home / patrols.
     minion.currentTargetId = null
+    if (minion.raisedByAdvId) {
+      const summoner = this._gameState.adventurers.active.find(
+        a => a.instanceId === minion.raisedByAdvId && a.aiState !== 'dead'
+      )
+      if (summoner) {
+        const dist = Math.hypot(summoner.tileX - minion.tileX, summoner.tileY - minion.tileY)
+        if (dist > 1.4) {
+          minion.aiState = 'following'
+          // Pathfind to the summoner so we don't clip through walls between
+          // rooms. _walkAlongPath caches and reuses paths.
+          this._walkAlongPath(minion, { x: summoner.tileX, y: summoner.tileY }, delta)
+        } else {
+          minion.aiState = 'idle'
+        }
+        return
+      }
+      // Summoner gone (fled/died) — fall through to home behavior.
+    }
     if (this._atHome(minion)) {
       minion.aiState = 'idle'
       // Patrol = small drift around home (Phase 6b will improve)
     } else {
       minion.aiState = 'returning'
-      this._moveToward(minion, { x: minion.homeTileX, y: minion.homeTileY }, delta)
+      // Pathfind back home rather than straight-lining through walls.
+      this._walkAlongPath(minion, { x: minion.homeTileX, y: minion.homeTileY }, delta)
     }
   }
 
@@ -433,13 +453,17 @@ export class MinionAISystem {
     // walkable tiles (through doorways) instead of straight-lining
     // through walls. The previous straight-line _moveToward made
     // cross-room engagements look like teleports.
-    this._chaseAlongPath(minion, { x: target.tileX, y: target.tileY }, delta)
+    this._walkAlongPath(minion, { x: target.tileX, y: target.tileY }, delta)
   }
 
-  // Walk one step toward `targetTile` following an A* path. Caches the path
-  // on the minion until the target tile changes or the minion reaches the
-  // current waypoint — avoids running A* every frame for the same chase.
-  _chaseAlongPath(minion, targetTile, delta) {
+  // Generalised pathfinding walker. One step per call toward `targetTile`,
+  // following an A* path that's cached on the minion (`_chasePath` for
+  // legacy reasons) and refreshed when the target changes or every ~600ms.
+  // Used for: chasing combat targets, following the summoner (raised
+  // necromancer minions), and returning to the home tile. Replaces the
+  // straight-line `_moveToward(target)` so minions don't clip through
+  // walls between rooms.
+  _walkAlongPath(minion, targetTile, delta) {
     const cache = minion._chasePath
     const sameTarget = cache &&
       cache.targetX === targetTile.x &&
