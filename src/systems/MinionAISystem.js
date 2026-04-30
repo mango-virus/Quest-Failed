@@ -115,20 +115,27 @@ export class MinionAISystem {
     }
 
     // Phase QW — Patrol behavior: idle minions with `behaviorType: 'patrol'`
-    // shuffle to a random walkable tile in their home room every ~3s when no
-    // hostiles are in sight. Cosmetic but makes the dungeon feel alive.
+    // wander to a random tile in their home room when no hostiles are in
+    // sight. Walks via `_moveToward` so patrol is visible motion (previously
+    // teleport-snapped every 3s). Picks a new target every ~3s after arriving.
     if (minion.behaviorType === 'patrol' && minion.aiState === 'idle' && minion.faction === 'dungeon') {
-      minion._patrolAccum = (minion._patrolAccum ?? 0) + delta
-      if (minion._patrolAccum >= 3000) {
-        minion._patrolAccum = 0
-        const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
-        if (home) {
-          const rx = home.gridX + Math.floor(Math.random() * home.width)
-          const ry = home.gridY + Math.floor(Math.random() * home.height)
-          minion.tileX = rx; minion.tileY = ry
-          const TS = 32
-          minion.worldX = rx * TS + TS / 2
-          minion.worldY = ry * TS + TS / 2
+      if (minion._patrolTarget) {
+        if (minion.tileX === minion._patrolTarget.x && minion.tileY === minion._patrolTarget.y) {
+          minion._patrolTarget = null
+          minion._patrolAccum  = 0
+        } else {
+          this._moveToward(minion, minion._patrolTarget, delta)
+        }
+      } else {
+        minion._patrolAccum = (minion._patrolAccum ?? 0) + delta
+        if (minion._patrolAccum >= 3000) {
+          minion._patrolAccum = 0
+          const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
+          if (home) {
+            const rx = home.gridX + Math.floor(Math.random() * home.width)
+            const ry = home.gridY + Math.floor(Math.random() * home.height)
+            minion._patrolTarget = { x: rx, y: ry }
+          }
         }
       }
     }
@@ -422,8 +429,51 @@ export class MinionAISystem {
       })
       return
     }
-    // Out of range — chase one tile at a time
-    this._moveToward(minion, { x: target.tileX, y: target.tileY }, delta)
+    // Out of range — chase along an A* path so the minion follows
+    // walkable tiles (through doorways) instead of straight-lining
+    // through walls. The previous straight-line _moveToward made
+    // cross-room engagements look like teleports.
+    this._chaseAlongPath(minion, { x: target.tileX, y: target.tileY }, delta)
+  }
+
+  // Walk one step toward `targetTile` following an A* path. Caches the path
+  // on the minion until the target tile changes or the minion reaches the
+  // current waypoint — avoids running A* every frame for the same chase.
+  _chaseAlongPath(minion, targetTile, delta) {
+    const cache = minion._chasePath
+    const sameTarget = cache &&
+      cache.targetX === targetTile.x &&
+      cache.targetY === targetTile.y &&
+      cache.path && cache.path.length > 0
+    let path = sameTarget ? cache.path : null
+
+    // Recompute when stale (no path, target changed, or every ~600ms).
+    const now = this._scene.time?.now ?? 0
+    const stale = !path || (cache && now - cache.computedAt > 600)
+    if (stale) {
+      const fresh = PathfinderSystem.findPath(
+        { x: minion.tileX, y: minion.tileY },
+        targetTile,
+        this._dungeonGrid,
+      )
+      if (fresh && fresh.length > 0) {
+        path = fresh
+        minion._chasePath = { targetX: targetTile.x, targetY: targetTile.y, path, computedAt: now }
+      } else {
+        // No path exists (target unreachable or in a sealed room) — stand
+        // still rather than straight-line through walls.
+        minion._chasePath = null
+        return
+      }
+    }
+
+    // Walk toward the next waypoint; advance when reached.
+    const next = path[0]
+    this._moveToward(minion, next, delta)
+    if (minion.tileX === next.x && minion.tileY === next.y) {
+      path.shift()
+      if (path.length === 0) minion._chasePath = null
+    }
   }
 
   // ── Movement ──────────────────────────────────────────────────────────────
