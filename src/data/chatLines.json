@@ -59,7 +59,6 @@
     "martyr":        ["I'll cover you.", "Save yourself.", "I can take a hit."],
     "coward":        ["Maybe we should leave.", "I don't like this.", "Was that a sound?", "Going home..."],
     "overconfident": ["Easy.", "Watch this.", "I got it I got it.", "Pfft, traps."],
-    "vandal":        ["I'll disable that one.", "Easy fix.", "Wires cut."],
     "vulture":       ["Let them go first.", "I'll wait.", "After the fight."],
     "the_fan":       ["Wait — is that a... oh wow.", "Don't hurt them!", "I LOVE this minion."],
     "raid_leader":   ["On me.", "Form up.", "Stay close.", "Hold position."],

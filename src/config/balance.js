@@ -4,8 +4,14 @@
 export const Balance = {
   // --- Grid ---
   TILE_SIZE: 32,
-  STARTING_GRID_WIDTH: 30,
-  STARTING_GRID_HEIGHT: 30,
+  // Thickness (in tiles) of the wall ring around every procedurally-painted
+  // room. Doors paint as a WALL_THICKNESS × 2 block (2 along the wall axis,
+  // WALL_THICKNESS through the wall) so adventurers can pass through both
+  // wall layers. Room outer width/height in rooms.json is sized to include
+  // both wall layers; floor area = outer − 2*WALL_THICKNESS in each dim.
+  WALL_THICKNESS: 2,
+  STARTING_GRID_WIDTH: 40,
+  STARTING_GRID_HEIGHT: 40,
   GRID_EXPANSION_PER_UNLOCK: 10,
   MAX_GRID_SIZE: 100,
 
@@ -58,9 +64,8 @@ export const Balance = {
   FLEE_BUFFER:               0.05,    // hysteresis on fleeThreshold so adventurers don't oscillate
 
   // --- Class abilities (Phase 6c) ---
-  MAGE_SPELL_COST:           5,       // mana per spell
-  MAGE_MANA_REGEN_PER_SEC:   0.5,     // when standing still (Phase 7+)
-  CLERIC_HEAL_MANA_COST:     4,
+  // Note: mana system removed in Phase 5b cooldown rework. Abilities are now
+  // gated by per-instance cooldowns (see AbilitySystem) and per-day budgets.
   CLERIC_HEAL_AMOUNT:        12,
   CLERIC_HEAL_TARGET_THRESHOLD: 0.7,  // heal an ally below this HP fraction
   HEAL_RANGE_TILES:          2,       // cleric heal-ally / potion sip range
@@ -69,13 +74,11 @@ export const Balance = {
   MARTYR_TAUNT_HP_FRACTION:  0.3,     // martyr triggers taunt at this HP%
   PARANOID_SPEED_MULTIPLIER: 0.55,    // paranoid moves this much slower in unfamiliar rooms
 
-  // --- Defection mechanics (Phase 6d) ---
+  // --- Defection mechanics (Phase 6d, partly superseded by ability rework) ---
   NECROMANCER_RAISES_PER_DAY:    2,
   NECROMANCER_RAISE_RANGE:       3,    // tiles
-  NECROMANCER_RAISE_MANA_COST:   10,
   NECROMANCER_RAISE_HP_FRACTION: 0.4,  // raised minion comes back at this HP fraction
   TAME_SUCCESS_RATE:             0.40,
-  TAME_MANA_COST:                6,
   TAME_RANGE_TILES:              1.5,  // melee attempt
   TAME_COOLDOWN_MS:              1500,
   ECHO_MINE_FOOTSTEP_THRESHOLD:  2,    // step count at which it fires (2 = follower)

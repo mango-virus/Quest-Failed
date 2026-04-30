@@ -112,6 +112,34 @@ Added during development as the class pool was expanded beyond the original shee
 
 ---
 
+## Class ability rework (2026-04-29)
+
+Approved overhaul of every adventurer class. Mana system removed entirely — abilities are now gated by a uniform per-instance cooldown system plus per-day usage budgets where appropriate. Each class gets exactly two active abilities (or three for Twitch Streamer's chaos design); some classes also keep a passive trait. Each ability ships with a small, non-overwhelming visual effect so the player can read what's happening.
+
+**Vandal personality is removed** — the trap-disarm role is now exclusive to the Ranger's Trap Expert ability.
+
+**Removed abilities** (replaced or scrapped): `heal_ally`, `smite_undead` (becomes passive), `raise_corpse` (replaced by Summon Undead), `chat_poll` (replaced by Chat Decides), Ranger arrow consumption, `soul_bolt`, `command_beast`, `volley` (rebuilt), `track`, `viewer_drop`, `dodge_chance` (rebuilt as Focus), `armor_pierce`, `inspire_party` (rebuilt), `song_of_speed` (rebuilt), `rage_scaling` (kept as passive), `unstoppable` (kept as passive).
+
+**Per-class ability spec:**
+
+1. **Knight** — *Protective Aura* (set duration, large CD; party allies within 1 tile take 25% less damage). *Taunt* (medium CD; forces minion/boss aggro onto Knight).
+2. **Rogue** — *Lockpick* (1–5/day by level, 20% fail; opens locked doors silently — dormant until locked-doors land). *Invisibility* (set duration, large CD; sprite α=0.4; minions ignore Rogue but boss does not; attack while invis = guaranteed crit + immediate reveal).
+3. **Mage** — *Elemental Affinity* (passive trait; rolled element on spawn from {fire, ice, lightning, wind}; 1.5× damage vs minions vulnerable to that element). *Arcane Burst* (cooldown ~20s; activate → next spell hits 1-tile AoE).
+4. **Cleric** — *Resurrection* (1/run; revive a fallen party member at 30% HP). *Heal* (medium CD ~10s; targets lowest-HP ally <70% in range). Passive: 1.5× damage vs undead minions.
+5. **Necromancer** — *Summon Undead* (large CD; spawns 2 fresh low-HP/low-ATK skeletons or zombies on adventurer faction). *Bone Armor* (active, large CD; +ATK/+DEF buff for set duration, scales with currently-living summons).
+6. **Ranger** — *Volley* (every-5th-shot proc; fires a 3-arrow cone). *Trap Expert* (1–5/day by level, 20% fail-then-trigger; disabled traps stay disabled until day end). Arrow consumption removed.
+7. **Twitch Streamer** — *Viewers Choice* (random auto-trigger; slot-machine UI; RNG buff/debuff: heal, ATK ±20% 10s, DEF ±2 10s, random teleport, slow poison, invis 10s, etc). *Chat Decides* (random ~15s interval; chat picks one of: investigate-trap / fight-engaged-enemy / abandon-current-goal / charge-boss-room). Passive: *Subscriber Revenge* — on death, 50% chance next day's spawn count gets +3, with arrival notifier.
+8. **Beast Master** — *Tame Beast* (50% success; single companion enforced). *Scout Ahead* (1/day; companion leaves to scout, knowledge transfers back to BM, BM is companion-less while scouting).
+9. **Barbarian** — *Break Door* (active; opens locked doors but alerts neighbor rooms — dormant until doors land). *Unstoppable* (passive; immune to all flee triggers). Passive: *Rage Scaling* (damage = base × (1 + (1−hpFrac)) up to 2× at 1 HP; VFX kicks in at high rage).
+10. **Monk** — *Focus* (medium CD; 30% dodge vs damage AND traps for set duration). *Inner Peace* (large CD; +1 HP/sec for set duration).
+11. **Bard** — *Inspire Party* (medium CD; 2-tile, +15% ATK during set duration). *Song of Speed* (medium CD; 2-tile, +20% SPD during set duration). Passive: *Encore* — when Bard dies, all party members heal 25% as a final flourish.
+
+Cooldown buckets: short = 5–8s, medium = 12–18s, large = 30–60s. Per-day budgets refilled at day start. Debug toggle (Ctrl+Shift+C) clamps every cooldown to 1 second so all abilities can be visually verified within a single dungeon run.
+
+**Element vulnerabilities** added to `minionTypes.json` as `vulnerableToElements: [...]`. Distribution is uneven (rough first pass; will retune as Mage feels off).
+
+---
+
 ## Personality combos
 
 Also there should be combos with different adventures when they come as a party that cause new things to happen with them. For example:

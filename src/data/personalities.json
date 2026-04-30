@@ -267,30 +267,6 @@
     "description": "Coordinates the party. If they die, the rest of the party scatters or loses cohesion."
   },
   {
-    "id": "vandal",
-    "name": "Vandal",
-    "tags": ["vandal", "trap_breaker", "thorough"],
-    "behaviorWeights": {
-      "lootPriority": 0.3,
-      "fleeThreshold": 0.4,
-      "trapCaution": 0.85,
-      "partyCooperation": 0.6,
-      "explorationDrive": 0.5,
-      "aggressionLevel": 0.4,
-      "riskTolerance": 0.4,
-      "healPriority": 0.5
-    },
-    "decisionOverrides": [
-      { "trigger": "trap_in_room", "action": "disarm_without_triggering", "priority": 95 }
-    ],
-    "reactions": [],
-    "unlockLevel": 1,
-    "rarity": "uncommon",
-    "icon": "x",
-    "iconColor": "0xcc6622",
-    "description": "Disarms traps without springing them. Turns your traps into clutter for the rest of the day."
-  },
-  {
     "id": "underdog",
     "name": "Underdog",
     "tags": ["underdog", "scaling", "persistent"],

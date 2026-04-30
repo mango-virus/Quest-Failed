@@ -41,48 +41,11 @@ export class AISystem {
     this._checkFleeTrigger(adv)
   }
 
-  // When a minion dies, see if a nearby necromancer can raise it.
-  _onMinionDied({ minion }) {
-    if (!minion) return
-    if (minion.faction === 'adventurer') return  // don't raise an already-defected corpse
-
-    const room = this._dungeonGrid.getRoomAtTile(minion.tileX, minion.tileY)
-    if (!room) return
-
-    const today = this._gameState.meta.dayNumber
-
-    for (const adv of this._gameState.adventurers.active) {
-      if (adv.classId !== 'necromancer') continue
-      if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
-      if (!_pointInRoom(adv.tileX, adv.tileY, room)) continue
-      // (helper defined at bottom of file)
-      const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-      if (d > Balance.NECROMANCER_RAISE_RANGE) continue
-      // Daily quota
-      if (adv._raisesUsedDay !== today) {
-        adv._raisesUsedDay = today
-        adv._raisesUsedCount = 0
-      }
-      if (adv._raisesUsedCount >= Balance.NECROMANCER_RAISES_PER_DAY) continue
-      // Mana check
-      if ((adv.resources.mana ?? 0) < Balance.NECROMANCER_RAISE_MANA_COST) continue
-
-      // Resurrect on the adventurer's faction
-      adv.resources.mana -= Balance.NECROMANCER_RAISE_MANA_COST
-      adv._raisesUsedCount = (adv._raisesUsedCount ?? 0) + 1
-
-      minion.faction          = 'adventurer'
-      minion.factionExpiresOn = today
-      minion.raisedByAdvId    = adv.instanceId
-      minion.resources.hp     = Math.max(1, Math.floor(minion.resources.maxHp * Balance.NECROMANCER_RAISE_HP_FRACTION))
-      minion.aiState          = 'idle'
-      minion.deathDay         = null
-      minion.currentTargetId  = null
-
-      EventBus.emit('MINION_RAISED', { minion, raiser: adv })
-      return
-    }
-  }
+  // (Stub) Necromancer's old raise-on-minion-death behavior has been retired.
+  // The new Summon Undead ability (cooldown-driven, summons fresh skeletons
+  // from nothing rather than raising corpses) will be wired in the
+  // Necromancer class-rework pass.
+  _onMinionDied({ minion }) { /* intentionally empty after Phase 5b rework */ }
 
   // Detect PARTY_WIPED — fires when the last living party member dies AND any
   // surviving traumatized member should panic-flee (sole survivor scenario).
@@ -277,19 +240,17 @@ export class AISystem {
     // Phase 6e: passive room effects (healing fountain heal-on-stand)
     this._applyRoomEffects(adv, delta)
 
-    // Phase 6d: mage mana regen while standing still (or in idle states)
-    this._regenManaIfIdle(adv, delta)
-
     // Phase 6c: detect coward seeing enemies — flee before engaging
     if (this._cowardShouldFlee(adv)) {
       this._setFleeGoal(adv, 'coward_panic')
     }
 
-    // Phase 6e: resource depletion — mage out of mana or ranger out of arrows
-    // decides to leave the dungeon to resupply.
+    // Phase 6e: resource-depletion flee. Mana removed in 5b rework, so this
+    // now only fires for rangers running out of arrows. Ranger arrow logic is
+    // itself slated for removal when the Volley/Trap-Expert ability rework
+    // ships, but until then the flee trigger remains valid.
     if (this._resourceExhaustedShouldFlee(adv)) {
-      this._setFleeGoal(adv,
-        adv.classId === 'mage' ? 'out_of_mana' : 'out_of_arrows')
+      this._setFleeGoal(adv, 'out_of_arrows')
     }
 
     // Phase 6c: HEAL goal — drink potion to recover HP
@@ -723,16 +684,11 @@ export class AISystem {
   }
 
   // Phase 6e: resource depletion → leave dungeon.
-  // Mages with no mana stop fleeing only if they have nothing left to do here;
-  // rangers without arrows have no offensive option.
+  // Rangers without arrows have no offensive option (until the Volley/Trap-
+  // Expert rework removes arrow consumption). Mage flee-on-empty-mana removed
+  // along with the mana system in Phase 5b.
   _resourceExhaustedShouldFlee(adv) {
     if (adv.aiState === 'fleeing') return false
-    if (adv.classId === 'mage') {
-      const mana = adv.resources?.mana ?? 0
-      // Only flee if BOTH mana is empty AND there's a hostile minion in the room
-      // (so they don't flee from a peaceful build with idle mana).
-      if (mana <= 0 && this._anyHostileMinionInRoom(adv)) return true
-    }
     if (adv.classId === 'ranger') {
       const arrows = adv.resources?.arrows ?? 0
       if (arrows <= 0 && this._anyHostileMinionInRoom(adv)) return true
@@ -811,35 +767,20 @@ export class AISystem {
     return best
   }
 
-  // Mana regen while idle (standing on the same tile and not in combat).
-  // Mages regen at MAGE_MANA_REGEN_PER_SEC; other classes don't.
-  _regenManaIfIdle(adv, delta) {
-    if (adv.classId !== 'mage') return
-    if (adv.aiState === 'fighting' || adv.aiState === 'fleeing') return
-    if (adv.resources.mana == null) return
-    const max = adv.resources.maxMana ?? 30
-    if (adv.resources.mana >= max) return
-    // Standing still requirement: same tile two consecutive ticks
-    if (adv._prevTileX === adv.tileX && adv._prevTileY === adv.tileY) {
-      adv.resources.mana = Math.min(max,
-        adv.resources.mana + (Balance.MAGE_MANA_REGEN_PER_SEC * delta) / 1000
-      )
-    }
-  }
-
   // Beast tamer attempt: returns true if the attempt was made (success OR fail uses the turn).
-  // Returns false when on cooldown or out of mana — in that case AI falls through to standard attack.
+  // Returns false when on cooldown — in that case AI falls through to standard attack.
+  // Note: this remains tag-driven for now; the Beast Master class rework will
+  // replace it with the new ability-system Tame Beast (50% success, single
+  // companion enforcement).
   _tryTame(adv, target) {
     const now = this._scene.time.now
     const last = adv._lastTameAt ?? 0
     if (now - last < Balance.TAME_COOLDOWN_MS) return false
-    if ((adv.resources.mana ?? 0) < Balance.TAME_MANA_COST) return false
     if (target.faction === 'adventurer') return false  // already tamed
     const dist = Math.hypot(target.tileX - adv.tileX, target.tileY - adv.tileY)
     if (dist > Balance.TAME_RANGE_TILES + 0.01) return false
 
     adv._lastTameAt = now
-    adv.resources.mana -= Balance.TAME_MANA_COST
 
     if (Math.random() < Balance.TAME_SUCCESS_RATE) {
       // Success — defect

@@ -67,44 +67,8 @@ export class TrapSystem {
       if (trap.isTriggered) continue
       const def = this._defs[trap.definitionId]
       if (!def) continue
-      // Phase 8b: vandals disarm before normal evaluation
-      if (this._tryVandalDisarm(trap, def)) continue
       this._evaluateTrap(trap, def)
     }
-  }
-
-  // Phase 8b — Vandal disarm action.
-  // If a vandal-tagged adventurer occupies the trap tile, the trap is neutralised
-  // for the rest of the day. The vandal takes VANDAL_DISARM_DAMAGE (0 by default).
-  // We mark trap.isTriggered = true so it's "consumed", set disarmedByVandalId
-  // for renderer differentiation, and emit TRAP_DISARMED. resetAll() at night
-  // re-arms the trap as normal.
-  _tryVandalDisarm(trap, def) {
-    const personality = this._scene.personalitySystem
-    if (!personality) return false
-    for (const adv of this._gameState.adventurers.active) {
-      if (adv.aiState === 'dead') continue
-      if (!this._adventurerOnTrap(adv, trap)) continue
-      const tags = personality.getTags(adv)
-      if (!tags.has('vandal') && !tags.has('trap_breaker')) continue
-
-      // Disarm — no damage, no fire effect, but the trap is spent for the day
-      trap.isTriggered = true
-      trap.disarmedByVandalId = adv.instanceId
-      const dmg = Balance.VANDAL_DISARM_DAMAGE ?? 0
-      if (dmg > 0) {
-        adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
-      }
-
-      const roomId = this._dungeonGrid.getRoomAtTile(trap.tileX, trap.tileY)?.instanceId ?? null
-      EventBus.emit('TRAP_DISARMED', { trap, def, adventurer: adv, roomId })
-      // Surface this to KnowledgeSystem so the room marks the trap as known/sprung.
-      EventBus.emit('TRAP_TRIGGERED', {
-        trap, def, adventurer: adv, damage: 0, roomId, disarmed: true,
-      })
-      return true
-    }
-    return false
   }
 
   // Phase QW — Greed trap fires when an adventurer picks up loot in the same room.

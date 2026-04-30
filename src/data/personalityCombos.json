@@ -81,15 +81,6 @@
     "icon": "icon_tension"
   },
   {
-    "id": "vandal_speedrunner",
-    "name": "Demolition Dash",
-    "requiresTags": [["vandal"], ["speed_runner"]],
-    "effect": "trap_disarm_chain",
-    "description": "The vandal disarms traps as the speedrunner blasts through. Your trap network is gutted in one run.",
-    "visibleToPlayer": true,
-    "icon": "icon_tension"
-  },
-  {
     "id": "underdog_cleric_fan",
     "name": "Believer's Boost",
     "requiresTags": [["underdog"], ["fan"]],

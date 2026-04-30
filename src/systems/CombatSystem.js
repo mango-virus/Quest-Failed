@@ -86,7 +86,9 @@ export class CombatSystem {
   }
 
   // Cleric heal action: targets an ally adventurer instead of an enemy.
-  // Heals for `amount` HP (default 12), costs the cleric `manaCost` (default 4).
+  // Heals for `amount` HP (default 12). Cooldown gating now lives in the new
+  // AbilitySystem (Phase 5b); this method is invoked by the Cleric Heal
+  // ability handler, which has already verified its cooldown is ready.
   // Emits ALLY_HEALED so traps (mercy_trap) and other systems can react.
   tryHeal(healer, target, opts = {}) {
     if (!healer || !target) return null
@@ -97,16 +99,11 @@ export class CombatSystem {
     const cooldown = this._cooldownFor(healer)
     if (now - (healer.lastAttackAt ?? 0) < cooldown) return null
 
-    const manaCost = opts.manaCost ?? Balance.CLERIC_HEAL_MANA_COST
-    const mana = healer.resources?.mana ?? 0
-    if (mana < manaCost) return null
-
     // Range check (heal needs to be next to or near target)
     const dist = Math.hypot(target.tileX - healer.tileX, target.tileY - healer.tileY)
     if (dist > Balance.HEAL_RANGE_TILES + 0.01) return null
 
     healer.lastAttackAt = now
-    healer.resources.mana = mana - manaCost
 
     const amount = opts.amount ?? Balance.CLERIC_HEAL_AMOUNT
     const before = target.resources.hp
@@ -136,19 +133,16 @@ export class CombatSystem {
     // route damage flavor through that class for free.
     const cls = attacker.mimickedClassId ?? attacker.classId
 
-    // Mage: spells cost 5 mana; out of mana → weak staff melee (½ attack).
+    // Mage: free-casting now (mana removed in Phase 5b cooldown rework). Spells
+    // get a 10% damage bump over mundane attacks; Elemental Affinity will
+    // multiply this further against vulnerable minions when the Mage class
+    // ability lands.
     if (cls === 'mage') {
-      const mana = attacker.resources?.mana ?? 0
-      if (mana >= Balance.MAGE_SPELL_COST) {
-        attacker.resources.mana = mana - Balance.MAGE_SPELL_COST
-        // Spells go through defenses better than mundane swings
-        raw = Math.floor(raw * 1.1)
-      } else {
-        raw = Math.max(1, Math.floor(raw * 0.5))  // tired-mage stick whack
-      }
+      raw = Math.floor(raw * 1.1)
     }
 
-    // Cleric: smite_undead — +50% damage versus undead-tagged targets (most skeletons).
+    // Cleric: smite_undead — +50% damage versus undead-tagged targets (passive
+    // class trait; not an ability slot anymore).
     if (cls === 'cleric' && _isUndead(target)) {
       raw = Math.floor(raw * 1.5)
     }

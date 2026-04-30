@@ -56,11 +56,16 @@ export function createAdventurer(classDef, spawnTile, dungeonLevel = 1) {
     resources: {
       hp:      baseStats.hp ?? 30,
       maxHp:   baseStats.hp ?? 30,
-      mana:    classDef.startingResources?.mana    ?? null,
-      maxMana: classDef.startingResources?.mana    ?? null,   // regen caps here
       arrows:  classDef.startingResources?.arrows  ?? null,
       potions: classDef.startingResources?.potions ?? 0,
     },
+
+    // Per-instance ability cooldowns + per-day usage budgets.
+    // Format: cooldowns[abilityId] = nextReadyAt (game-time ms);
+    //         usesLeftToday[abilityId] = number remaining (refilled at day start).
+    // AbilitySystem reads/writes these. Save-stable plain objects.
+    cooldowns:     {},
+    usesLeftToday: {},
 
     // Knowledge (Phase 8 will fill this in)
     knowledge: { rooms: {}, traps: {}, minions: {} },

@@ -128,7 +128,7 @@ export class NewspaperSystem {
       const dis   = disarms.length
       const parts = []
       if (fired > 0) parts.push(`${fired} trap${_s(fired)} fired`)
-      if (dis   > 0) parts.push(`${dis} ${_s(dis) === '' ? 'was' : 'were'} disarmed by a vandal who clearly enjoys their work`)
+      if (dis   > 0) parts.push(`${dis} ${_s(dis) === '' ? 'was' : 'were'} disarmed by a meddling adventurer`)
       body.push(`Trap report: ${parts.join('; ')}.`)
     }
 

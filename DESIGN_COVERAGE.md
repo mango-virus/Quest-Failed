@@ -14,7 +14,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 3. If anything tagged for this phase is still PENDING or PARTIAL, fix it or explicitly defer with the user's approval before marking the phase complete.
 4. Update statuses in this file whenever a row's state changes.
 
-**Last full audit**: 2026-04-29 (Class pool expansion — Beast Tamer personality promoted to a Class ("Beast Master", rare, single-companion mechanic). 3 additional new classes added: Barbarian (rage scaling + fearless), Monk (dodge + armor pierce), Bard (party aura). All 4 new classes ⏳ PENDING data + behavior wiring. Phase 5 reopened as 5b for the expansion; Phase 5 base is still complete.) Previous audit 2026-04-26: Final gap sweep — prison_block detain (30% chance, 5s freeze), torch_trap (requires Eternal Night active), locked-doors actual pathfinder block (cost 9999 in KnowledgeSystem), 5 more boss archetypes (archivist/hivemind/alchemist/jester/sleepless = 15 total), underdog_cleric_fan combo amplification (1.5× extra XP), martyr_vulture combo (vulture refuses combat while martyr taunts), all other combo entries closed via component effects. Truly remaining: pixel-art tilesets + sprite sheets + tilemap renderer (external — user is sourcing), Supabase leaderboard (external). Plus 7 💭 OPEN intentional content-depth rows.
+**Last full audit**: 2026-04-29 (Class ability rework foundation — mana system removed end-to-end; Vandal personality retired in favor of Ranger's upcoming Trap Expert; new AbilitySystem (cooldown + per-day budget) and AbilityVfx primitives landed; Ctrl+Shift+C debug toggle for testing; vulnerableToElements field seeded on every minion in minionTypes.json. All 11 classes now ⏳ PENDING ability re-implementation per the per-class spec in DESIGN.md → "Class ability rework". Existing wired abilities — heal_ally / smite_undead / raise_corpse / chat_poll / Ranger arrow / beast tame mana — are reset to PENDING since they get rebuilt on the new framework. Phase reopened as 5c.) Previous audit 2026-04-29 (earlier): Class pool expansion — Beast Master class promotion + Barbarian/Monk/Bard added.
 
 ---
 
@@ -68,7 +68,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | raid_leader | Raid Leader | QW | ✅ DONE | AISystem._onAdventurerDied cascades flee to all surviving party-mates when a raid_leader falls (RAID_LEADER_FELL event) |
 | completionist | Completionist | 5 | ✅ DONE | data + EXPLORE_ROOM steering |
 | cartographer | Cartographer | 5 | ✅ DONE | data + full-accuracy map share on flee (8 — KNOWLEDGE_CARTOGRAPHER_BOOST) |
-| vandal | Vandal | 5 | ✅ DONE | Phase 8b: TrapSystem._tryVandalDisarm consumes trap on step, no damage |
+| vandal | Vandal | — | 🚫 REMOVED 2026-04-29 | Personality scrapped during Phase 5c ability rework. Trap-disarm role is now exclusive to Ranger's Trap Expert ability. JSON entry deleted from personalities.json + personalityCombos.json (vandal_speedrunner combo gone) + chatLines.json. TrapSystem._tryVandalDisarm logic removed. Old saves with vandal personality may fail to load (acceptable for jam). |
 | martyr | Martyr | 5 | ✅ DONE | data + taunt at low HP (6c — redirects minion aggro) |
 | underdog | Underdog | 5 | ✅ DONE | data + 2× adventurer XP per kill (7b — adventurer XP/level system added) |
 | inquisitor | Inquisitor | 5 | ✅ DONE | Phase 9b: InquisitorSystem dispels random active mechanic 8s after entry, restores on flee/death/day-end |
@@ -507,6 +507,8 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | Minion sprite sheets | (opportunistic) | ⏳ PENDING |
 | Trap / room decoration sprites | (opportunistic) | ⏳ PENDING |
 | Tilemap-based renderer (replaces Graphics-based wireframe) | (opportunistic) | ⏳ PENDING |
+| 2-thick wall ring + 2×2 doors (geometry change, Phase 1) | QW | ✅ DONE — `Balance.WALL_THICKNESS=2`, `DungeonGrid._writeTiles` paints WT-thick walls and 2×WT door blocks; rooms.json bumped (+2 in each dim) and cps shifted accordingly |
+| 2-thick wall ring — procedural renderer rework (Phase 2) | QW | ✅ DONE — `_buildWallOrientation` produces rich tags (`{kind, depth}` for straight walls, `{kind:'corner', side, role}` for corner blocks); `_drawWallCellByTag` dispatcher: outer-ring straight cells get capstone+brick face, inner-ring cells get bricks+baseboard, outer corners use existing `_drawWallCorner` with new `drawBaseboard=false`, h/v-arm sub-cells render as straight outer walls, inner-corner sub-cell uses new `_drawInnerCornerCell` (flat WALL_BASE + baseboard L wrapping room interior). Doors simplified to flat FLOOR_BASE per cell (legacy arch helpers preserved but unused — multi-cell-aware arch is a future polish item). |
 
 ---
 

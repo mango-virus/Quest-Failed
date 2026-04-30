@@ -37,7 +37,7 @@
       "defense": 1,
       "speed": 1.7
     },
-    "startingResources": { "potions": 1, "mana": 30 },
+    "startingResources": { "potions": 1 },
     "tags": ["ranged", "spellcaster"],
     "description": "Glass cannon. Big spells, brittle bones.",
     "flavorText": "Fireball solves most problems. Survival is a different one."
@@ -52,7 +52,7 @@
       "defense": 4,
       "speed": 1.5
     },
-    "startingResources": { "potions": 3, "mana": 25 },
+    "startingResources": { "potions": 3 },
     "tags": ["ranged", "healer", "anti_undead", "support"],
     "abilities": ["heal_ally", "smite_undead"],
     "description": "Heals party members and deals bonus damage to undead minions. Cancels Loot Curse.",
@@ -68,7 +68,7 @@
       "defense": 2,
       "speed": 1.6
     },
-    "startingResources": { "potions": 1, "mana": 35 },
+    "startingResources": { "potions": 1 },
     "tags": ["spellcaster", "minion_raiser", "dark"],
     "abilities": ["raise_corpse", "soul_bolt"],
     "description": "Raises defeated minions to fight for the party. Lich-archetype dungeons may turn raised minions hostile mid-fight.",
@@ -101,7 +101,7 @@
       "defense": 3,
       "speed": 1.8
     },
-    "startingResources": { "potions": 2, "mana": 15 },
+    "startingResources": { "potions": 2 },
     "tags": ["chaotic", "chat_driven", "viral"],
     "abilities": ["chat_poll", "viewer_drop"],
     "unlockLevel": 6,
@@ -153,7 +153,7 @@
       "defense": 2,
       "speed": 2.5
     },
-    "startingResources": { "potions": 2, "ki": 20 },
+    "startingResources": { "potions": 2 },
     "tags": ["melee", "evader", "unarmored"],
     "abilities": ["dodge_chance", "armor_pierce"],
     "dodgeChance": 0.3,
@@ -170,7 +170,7 @@
       "defense": 2,
       "speed": 1.7
     },
-    "startingResources": { "potions": 2, "mana": 20 },
+    "startingResources": { "potions": 2 },
     "tags": ["support", "buffer", "ranged_low"],
     "abilities": ["inspire_party", "song_of_speed"],
     "description": "Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. Aura ends the moment they fall.",
