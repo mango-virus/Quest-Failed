@@ -1,15 +1,40 @@
-import { MiniMap }        from '../ui/MiniMap.js'
-import { BossHpPanel }    from '../ui/BossHpPanel.js'
-import { AudioControls, audioControlsWidth } from '../ui/AudioControls.js'
-import { applyUiCamera }  from '../ui/UIKit.js'
-import { GameplayMusic }  from '../systems/GameplayMusic.js'
+// Phase 31C — HUD scene composes the persistent HUD chrome on top of
+// gameplay scenes (NightPhase / DayPhase). Owns:
+//
+//   - BossTopBar    — top strip (boss avatar + day + resources)
+//   - MiniMap       — left column, just below top bar
+//   - BuildMenu     — left column, below mini-map (visible only in night phase)
+//   - KnowledgePin  — right column, top
+//   - DungeonLog    — right column, below knowledge pin
+//   - ActionBar     — bottom strip (rotate / move / sell / roster /
+//                     phase-toggle / knowledge / adv-intel / menu)
+//
+// Stays active across phase transitions so chrome never flashes. NightPhase
+// and DayPhase listen for ActionBar / BuildMenu events instead of rendering
+// their own UI. AudioControls and the old BossHpPanel were removed — pause
+// menu (31G) will re-surface audio.
+
+import { MiniMap }       from '../ui/MiniMap.js'
+import { applyUiCamera } from '../ui/UIKit.js'
+import { BossTopBar, BOSS_TOP_BAR_HEIGHT } from '../ui/BossTopBar.js'
+import { ActionBar, ACTION_BAR_HEIGHT }    from '../ui/ActionBar.js'
+import { KnowledgePin, KNOWLEDGE_PIN_WIDTH } from '../ui/KnowledgePin.js'
+import { DungeonLog }    from '../ui/DungeonLog.js'
+import { BuildMenu, BUILD_MENU_WIDTH } from '../ui/BuildMenu.js'
+import { EventBus }      from '../systems/EventBus.js'
+
+const COL_PAD = 12
 
 export class HudScene extends Phaser.Scene {
   constructor() {
     super({ key: 'HudScene', active: false })
-    this._miniMap      = null
-    this._bossHpPanel  = null
-    this._audioControls = null
+    this._miniMap     = null
+    this._topBar      = null
+    this._actionBar   = null
+    this._knowPin     = null
+    this._dungeonLog  = null
+    this._buildMenu   = null
+    this._listeners   = []
   }
 
   init(data) {
@@ -19,25 +44,78 @@ export class HudScene extends Phaser.Scene {
 
   create() {
     if (!this._gameScene || !this._gameState) return
-    const { width: W } = applyUiCamera(this)
-    this._miniMap     = new MiniMap(this, this._gameState, this._gameScene)
-    this._bossHpPanel = new BossHpPanel(this, this._gameState)
-    // Audio controls — top-right corner, clear of the boss HP panel
-    // (top-centre) and the mini-map (top-left).  Includes the
-    // gameplay-playlist transport buttons (prev / next track).
-    const audioOpts = { depth: 60, playlist: GameplayMusic }
-    const aw = audioControlsWidth(audioOpts)
-    this._audioControls = new AudioControls(this, W - aw - 12, 12, audioOpts)
+    applyUiCamera(this)
+
+    const W = this.uiW
+    const H = this.uiH
+
+    // ── Top bar ──
+    this._topBar = new BossTopBar(this, this._gameState, { depth: 60 })
+
+    // ── Mini-map (existing component, now under the top bar) ──
+    this._miniMap = new MiniMap(this, this._gameState, this._gameScene)
+    // MiniMap positions itself; nothing further to do here.
+
+    // ── Build menu (left column, below mini-map) ──
+    // Mini-map sits roughly 80–270 in y when default-positioned; place build
+    // menu just below it.
+    const buildMenuY = BOSS_TOP_BAR_HEIGHT + 8 + 200 + 8   // top bar + minimap area
+    this._buildMenu = new BuildMenu(this, this._gameState, {
+      depth: 60,
+      x:     COL_PAD,
+      y:     buildMenuY,
+      h:     H - buildMenuY - ACTION_BAR_HEIGHT - COL_PAD,
+    })
+    this._buildMenu.setVisible(this._gameState.meta?.phase === 'night')
+
+    // ── Knowledge Pin (right column, top) ──
+    const knowX = W - KNOWLEDGE_PIN_WIDTH - COL_PAD
+    const knowY = BOSS_TOP_BAR_HEIGHT + 8
+    this._knowPin = new KnowledgePin(this, this._gameState, {
+      depth: 60, x: knowX, y: knowY,
+    })
+
+    // ── Dungeon Log (right column, fills below pin) ──
+    const logY = knowY + 200    // KnowledgePin's natural height ~ 200
+    this._dungeonLog = new DungeonLog(this, this._gameState, {
+      depth: 60,
+      x:     knowX,
+      y:     logY,
+      w:     KNOWLEDGE_PIN_WIDTH,
+      h:     H - logY - ACTION_BAR_HEIGHT - COL_PAD,
+    })
+
+    // ── Action bar (bottom strip) ──
+    this._actionBar = new ActionBar(this, this._gameState, { depth: 60 })
+
+    // Listen for phase change to toggle build menu visibility
+    const onPhaseChange = () => {
+      const isNight = this._gameState.meta?.phase === 'night'
+      this._buildMenu?.setVisible(isNight)
+    }
+    EventBus.on('NIGHT_PHASE_BEGAN', onPhaseChange)
+    EventBus.on('DAY_PHASE_BEGAN',   onPhaseChange)
+    this._listeners.push(['NIGHT_PHASE_BEGAN', onPhaseChange])
+    this._listeners.push(['DAY_PHASE_BEGAN',   onPhaseChange])
   }
 
   update() {
     this._miniMap?.update()
-    this._bossHpPanel?.update()
+    this._topBar?.update()
+    this._actionBar?.update()
+    this._knowPin?.update()
+    this._dungeonLog?.update()
+    this._buildMenu?.update()
   }
 
   shutdown() {
-    this._miniMap?.destroy();      this._miniMap      = null
-    this._bossHpPanel?.destroy();  this._bossHpPanel  = null
-    this._audioControls?.destroy(); this._audioControls = null
+    for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
+    this._listeners = []
+    this._miniMap?.destroy();    this._miniMap     = null
+    this._topBar?.destroy();     this._topBar      = null
+    this._actionBar?.destroy();  this._actionBar   = null
+    this._knowPin?.destroy();    this._knowPin     = null
+    this._dungeonLog?.destroy(); this._dungeonLog  = null
+    this._buildMenu?.destroy();  this._buildMenu   = null
   }
 }

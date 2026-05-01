@@ -33,24 +33,28 @@ export class DayPhase extends Phaser.Scene {
 
   create() {
     const { width: W, height: H } = applyUiCamera(this)
-    this._buildTopBar(W)
-    this._buildBottomBar(W, H)
-    this._buildStatsRow(W)
-    this._buildFollowIndicator(W)
+    // Phase 31C — top bar / stats row / follow indicator / bottom bar +
+    // CombatLog all moved to HudScene (BossTopBar / DungeonLog / ActionBar).
+    // The legacy methods stay on the class as dead code; their internal
+    // stores (e.g., this._statsTexts) are never populated, so _refreshStats
+    // and _refreshEndDayButton early-return.
     this._buildInspectorTemplate(W, H)
     this._setTimeScale(Balance.TIME_SCALE_NORMAL)
 
     this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
-
-    this._combatLog = new CombatLog(this, this._gameState, {
-      x: 16,
-      yBottom: H - 70,
-    })
+    // Time-scale keyboard shortcuts (replaces the bottom-bar buttons that
+    // were removed with the chrome strip). Numeric digits work without modifiers.
+    this.input.keyboard?.on('keydown-SPACE', () => this._setTimeScale(Balance.TIME_SCALE_PAUSED))
+    this.input.keyboard?.on('keydown-ONE',   () => this._setTimeScale(Balance.TIME_SCALE_NORMAL))
+    this.input.keyboard?.on('keydown-TWO',   () => this._setTimeScale(Balance.TIME_SCALE_FAST))
+    this.input.keyboard?.on('keydown-FOUR',  () => this._setTimeScale(Balance.TIME_SCALE_FASTEST))
 
     this._dossierPanel = new DossierPanel(this, this._gameState)
 
     this._wireEvents()
+    this._wireHudEvents()
     EventBus.emit('DAY_PHASE_STARTED')
+    EventBus.emit('DAY_PHASE_BEGAN')   // Phase 31C — HudScene listens to toggle build menu off
 
     const spawned = this._spawnDailyAdventurers() ?? []
     this._refreshStats()
@@ -133,6 +137,10 @@ export class DayPhase extends Phaser.Scene {
     this.time.timeScale = 1
     this._allOutTimer?.remove(false)
     this._unwireEvents()
+    if (this._hudListeners) {
+      for (const [evt, fn] of this._hudListeners) EventBus.off(evt, fn, this)
+      this._hudListeners = []
+    }
     this._combatLog?.destroy()
     this._dossierPanel?.destroy()
     EventBus.emit('DAY_PHASE_ENDED')
@@ -752,20 +760,34 @@ export class DayPhase extends Phaser.Scene {
   // ── Stats refresh ──────────────────────────────────────────────────────────
 
   _refreshStats() {
+    // Phase 31C — UI moved to HudScene. We keep this method because it
+    // also drives the all-adventurers-out → end-day auto-timer, but every
+    // text update is null-guarded so we no-op on the missing legacy chrome.
     const s = this._gameState
-    this._statsTexts.topRight?.setText(
+    this._statsTexts?.topRight?.setText(
       `Essence: ${s.player.soulEssence}  ·  Power: ${s.player.darkPower}  ·  Kills: ${s.player.totalKills}`
     )
     const n = s.adventurers.active.length
     if (n === 0 && this._allOutTimer == null) {
-      this._statsTexts.activeCount.setText('All adventurers out — day ends shortly')
+      this._statsTexts?.activeCount?.setText('All adventurers out — day ends shortly')
       this._allOutTimer = this.time.delayedCall(1500, () => this._endDay(), [], this)
     } else if (n > 0) {
-      this._statsTexts.activeCount.setText(`Adventurers in dungeon: ${n}`)
+      this._statsTexts?.activeCount?.setText(`Adventurers in dungeon: ${n}`)
     }
     // Sync END DAY button state — locked while live adventurers remain,
     // unlocked the instant the dungeon clears.
     this._refreshEndDayButton()
+  }
+
+  // Phase 31C — HUD chrome moved to HudScene. We listen for the action-bar
+  // events (PHASE_TOGGLE_REQUEST → _endDay) and let HudScene own the rest.
+  _wireHudEvents() {
+    this._hudListeners = []
+    const on = (event, fn) => {
+      EventBus.on(event, fn, this)
+      this._hudListeners.push([event, fn])
+    }
+    on('PHASE_TOGGLE_REQUEST', () => this._endDay())
   }
 
   // ── Event wiring ───────────────────────────────────────────────────────────

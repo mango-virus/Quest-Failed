@@ -97,6 +97,7 @@ export class NightPhase extends Phaser.Scene {
     this._buildUI()
     this._buildPreview()
     this._setupInput()
+    this._wireHudEvents()
 
     // Show deactivation notice if rooms were shut off
     if (result.deactivated.length > 0) {
@@ -104,7 +105,29 @@ export class NightPhase extends Phaser.Scene {
     }
 
     EventBus.emit('NIGHT_PHASE_STARTED')
+    EventBus.emit('NIGHT_PHASE_BEGAN')   // Phase 31C — HudScene listens to toggle build menu
     SaveSystem.save(this._gameState)
+  }
+
+  // Phase 31C — HUD chrome moved to HudScene. We listen for the build/tool
+  // events that the new ActionBar + BuildMenu emit, fold them into the
+  // existing _selectItem / _beginDay flows. Tool-mode events (rotate / move /
+  // sell) currently no-op here; full wiring lands in 31D.
+  _wireHudEvents() {
+    this._hudListeners = []
+    const on = (event, fn) => {
+      EventBus.on(event, fn, this)
+      this._hudListeners.push([event, fn])
+    }
+    on('BUILD_SELECT', ({ def, kind }) => {
+      // Translate kind values used by BuildMenu (room/minion/trap/item) into
+      // NightPhase's existing kinds (room/minion/trap). Items are no-op.
+      if (kind === 'item') return
+      this._selectItem(def, kind)
+    })
+    on('PHASE_TOGGLE_REQUEST', () => {
+      if (this._gameState.meta?.phase === 'night') this._beginDay()
+    })
   }
 
   shutdown() {
@@ -113,20 +136,25 @@ export class NightPhase extends Phaser.Scene {
     this._preview = null
     this._rotLabel?.destroy()
     this._rotLabel = null
+    if (this._hudListeners) {
+      for (const [evt, fn] of this._hudListeners) EventBus.off(evt, fn, this)
+      this._hudListeners = []
+    }
   }
 
   // ── UI construction ───────────────────────────────────────────────────────
 
   _buildUI() {
-    const W = this.uiW
-    const H = this.uiH
-
-    // Subtle ember atmosphere (very sparse — not distracting in build mode)
+    // Phase 31C — HUD chrome relocated to HudScene (BossTopBar / BuildMenu /
+    // ActionBar / KnowledgePin / DungeonLog). NightPhase no longer renders
+    // its own left palette, bottom bar, or hint strip. The legacy
+    // _buildLeftPanel / _buildBottomBar / _buildHints / _buildPalette /
+    // _refreshStats methods stay on the class as dead code (callers like
+    // _confirmPlacement still hit _refreshStats and _renderActivePalette;
+    // those now no-op via early returns at their tops).
+    //
+    // The ember atmosphere stays — it's set-dressing, not chrome.
     this._destroyEmbers = spawnEmbers(this, 8, { depth: 5, colors: [0x9b32d4, 0x0088cc] })
-
-    this._buildLeftPanel(W, H)
-    this._buildBottomBar(W, H)
-    this._buildHints(W, H)
   }
 
   // ── Left palette panel ────────────────────────────────────────────────────
@@ -206,6 +234,9 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _refreshStats() {
+    // Phase 31C — chrome moved to HudScene; bail when the legacy stats
+    // panel hasn't been built (which is now the case on every load).
+    if (!this._statsTexts || !this._statsTexts.day) return
     const s = this._gameState
     const totalUpkeep = EssenceSystem.calculateDailyUpkeep(s)
     const canAfford   = s.player.soulEssence >= totalUpkeep
@@ -329,6 +360,9 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _renderActivePalette() {
+    // Phase 31C — palette chrome moved to HudScene's BuildMenu. Bail unless
+    // the legacy palette container exists (which it doesn't post-overhaul).
+    if (this._paletteContentY == null) return
     // Tear down existing palette objects
     this._paletteObjects.forEach(o => o.destroy?.())
     this._paletteObjects = []
