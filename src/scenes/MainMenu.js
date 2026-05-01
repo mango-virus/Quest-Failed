@@ -498,10 +498,10 @@ export class MainMenu extends Phaser.Scene {
     pixelPanel(panelG, px, py, PW, PH)
 
     const t1 = this.add.text(W / 2, py + 50, 'ABANDON CURRENT RUN?', {
-      fontFamily: FONT_HEAD, fontSize: '14px', color: CRYPT.accentCss,
+      fontFamily: FONT_HEAD, fontSize: '12px', color: CRYPT.accentCss, letterSpacing: 2,
     }).setOrigin(0.5).setDepth(72)
-    const t2 = this.add.text(W / 2, py + 86, 'Your dungeon will be lost forever.', {
-      fontFamily: FONT_BODY, fontSize: '15px', color: CRYPT.inkDim,
+    const t2 = this.add.text(W / 2, py + 86, 'YOUR DUNGEON WILL BE LOST FOREVER.', {
+      fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
     }).setOrigin(0.5).setDepth(72)
 
     let btnAbandon, btnCancel

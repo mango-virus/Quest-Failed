@@ -237,14 +237,6 @@ export class BuildMenu {
       }
     }
 
-    // If we're not currently visible (day phase), don't show any of the
-    // just-created slot objects. Re-renders triggered by ROOM_PLACED /
-    // MINION_DIED etc. fire even during day phase, and without this guard
-    // they'd flash visible on top of the day HUD.
-    if (!this._visible) {
-      this._slotObjects.forEach(o => o?.setVisible?.(false))
-    }
-
     // Scrollbar hint: a small dim bar on the right edge if there's overflow.
     const visibleH = this._slotsBotY - this._slotsTopY
     if (this._contentH > visibleH) {
@@ -257,6 +249,15 @@ export class BuildMenu {
       sbG.fillStyle(CRYPT.accent2, 1)
       sbG.fillRect(sbX, sbY, 2, sbH)
       this._slotObjects.push(sbG)
+    }
+
+    // If we're not currently visible (day phase), hide every slot object
+    // we just created — the scrollbar hint included. Has to run AFTER the
+    // scrollbar push so it catches that graphic too. Re-renders triggered
+    // by ROOM_PLACED / MINION_DIED fire during day phase as well, and
+    // without this guard they'd flash visible on top of the day HUD.
+    if (!this._visible) {
+      this._slotObjects.forEach(o => o?.setVisible?.(false))
     }
   }
 
