@@ -31,7 +31,7 @@ export class PathfinderSystem {
    * @param {number} [jitter=0] random per-tile cost noise amplitude
    * @returns {Array<{x:number,y:number}> | null}
    */
-  static findPath(start, end, dungeonGrid, costFn = null, jitter = 0) {
+  static findPath(start, end, dungeonGrid, costFn = null, jitter = 0, blockedTiles = null) {
     if (start.x === end.x && start.y === end.y) return []
 
     const tiles = dungeonGrid.getTiles()
@@ -74,6 +74,10 @@ export class PathfinderSystem {
         // opening.  Allowed for the goal tile (so something parked on
         // the secondary column is still reachable).
         if (nKey !== eKey && dungeonGrid.isDoorBlocked?.(nx, ny)) continue
+        // Mimic chests + any other dynamic blockers the caller wants
+        // to route around (chest mimics on the floor, etc.). Goal tile
+        // is exempt — the only way to reveal a chest is to walk onto it.
+        if (nKey !== eKey && blockedTiles?.has?.(nKey)) continue
 
         let tileCost = costFn ? Math.max(1, costFn(nx, ny)) : 1
         if (jitterCache) {

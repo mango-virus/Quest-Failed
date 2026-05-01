@@ -112,6 +112,39 @@ export class AISystem {
     return !!id && id !== selfAdv.instanceId
   }
 
+  // Tiles occupied by a mimic that's currently disguised (or mid-state-
+  // change involving the chest sprite). Adventurers route AROUND these
+  // because, in fiction, they look like solid loot containers blocking
+  // the floor. The reveal flow is owned separately by SEEK_LOOT, which
+  // makes the chest tile a goal target and exempt from this block.
+  _buildChestBlockSet() {
+    const set = new Set()
+    for (const m of this._gameState.minions ?? []) {
+      if (!m.isMimic) continue
+      if (m.aiState === 'dead') continue
+      if (m.mimicState === 'chest' ||
+          m.mimicState === 'revealing' ||
+          m.mimicState === 'redisguising') {
+        set.add(`${m.tileX},${m.tileY}`)
+      }
+    }
+    return set
+  }
+
+  _isChestMimicAt(tx, ty) {
+    for (const m of this._gameState.minions ?? []) {
+      if (!m.isMimic) continue
+      if (m.aiState === 'dead') continue
+      if (m.tileX !== tx || m.tileY !== ty) continue
+      if (m.mimicState === 'chest' ||
+          m.mimicState === 'revealing' ||
+          m.mimicState === 'redisguising') {
+        return true
+      }
+    }
+    return false
+  }
+
   // World-space center of the entry hall's north-facing door rect.
   // Mirrors AdventurerRenderer._entryDoorWorldCenter / DungeonRenderer
   // _cpDoorRect: 2-tile width slid into the side with more wall space,
@@ -531,8 +564,12 @@ export class AISystem {
       // same straight line — they pick varied routes between rooms each repath.
       // Fleeing advs skip jitter (panic = beeline home).
       const pathJitter = adv.goal?.type === 'FLEE' ? 0 : 0.6
+      // Mimic chests aren't walkable — adventurers route AROUND them.
+      // The goal tile is exempt by the pathfinder so SEEK_LOOT can still
+      // target a chest directly to trigger the reveal.
+      const blockedTiles = this._buildChestBlockSet()
       const path = PathfinderSystem.findPath(
-        { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
+        { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter, blockedTiles,
       )
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
@@ -629,6 +666,25 @@ export class AISystem {
     // current one — i.e. we're about to commit to entering it. This prevents
     // self-deadlock where an adventurer's own occupancy entry blocks them.
     const enteringNewTile = (wp.x !== adv.tileX || wp.y !== adv.tileY)
+    // Mimic chest block — even if a stale path is heading into a chest
+    // tile, refuse to commit. Goal-pickup is exempt: when this very adv
+    // is targeting that chest via SEEK_LOOT, we let them step onto it
+    // so the reveal handshake can fire. Same wait-then-replan pattern
+    // as the adv-vs-adv block below.
+    if (enteringNewTile && this._isChestMimicAt(wp.x, wp.y)) {
+      const seekTargetIsHere = adv.goal?.type === 'SEEK_LOOT'
+        && (this._gameState.loot?.dungeon ?? []).some(i =>
+          i.instanceId === adv.goal.itemId && i.tileX === wp.x && i.tileY === wp.y
+        )
+      if (!seekTargetIsHere) {
+        adv._waitMs = (adv._waitMs ?? 0) + delta
+        if (adv._waitMs > 1200) {
+          adv.path = null
+          adv._waitMs = 0
+        }
+        return
+      }
+    }
     if (enteringNewTile && this._tileOccupiedByOtherAdv(wp.x, wp.y, adv)) {
       // Head-on swap escape valve: if the blocker is *also* trying to enter
       // our current tile (i.e. we're walking straight at each other in a

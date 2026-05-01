@@ -10,6 +10,7 @@
 import { EventBus }   from './EventBus.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { Balance }  from '../config/balance.js'
+import { TILE }      from './DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -34,6 +35,16 @@ export class CombatSystem {
       target.mimicState === 'revealing' ||
       target.mimicState === 'redisguising'
     )) return null
+
+    // Doorway gate — combat only resolves when BOTH attacker and target
+    // are fully in a room. An entity standing on a TILE.DOOR tile is
+    // mid-passage and untouchable; the swinger has to wait for them to
+    // step onto floor.
+    const grid = this._scene?.dungeonGrid
+    if (grid?.getTileType) {
+      if (grid.getTileType(attacker.tileX, attacker.tileY) === TILE.DOOR) return null
+      if (grid.getTileType(target.tileX,   target.tileY)   === TILE.DOOR) return null
+    }
 
     const now = this._scene.time.now
     const cooldown = this._cooldownFor(attacker)
