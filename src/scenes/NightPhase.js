@@ -71,6 +71,9 @@ export class NightPhase extends Phaser.Scene {
     this._paletteScrollY = 0
     this._lastPlaced   = null
     this._rotation     = 0
+    // Phase 31D — action-bar tool mode: 'sell' | 'move' | 'rotate' | null.
+    // When armed, the next click on a placed room executes the action.
+    this._toolMode     = null
   }
 
   create() {
@@ -138,11 +141,30 @@ export class NightPhase extends Phaser.Scene {
       // Translate kind values used by BuildMenu (room/minion/trap/item) into
       // NightPhase's existing kinds (room/minion/trap). Items are no-op.
       if (kind === 'item') return
+      // Selecting a build slot cancels any armed tool — they're mutually
+      // exclusive interaction modes.
+      this._setToolMode(null)
       this._selectItem(def, kind)
     })
     on('PHASE_TOGGLE_REQUEST', () => {
       if (this._gameState.meta?.phase === 'night') this._beginDay()
     })
+    on('TOOL_ROTATE', () => this._setToolMode('rotate'))
+    on('TOOL_MOVE',   () => this._setToolMode('move'))
+    on('TOOL_SELL',   () => this._setToolMode('sell'))
+  }
+
+  // Phase 31D — arm/cancel a build-mode tool. Clicking the action-bar tool
+  // button toggles the mode; the next pointer click on a placed room
+  // executes the action. Right-click / Esc / picking another build slot
+  // all cancel the tool. Re-clicking the same tool also cancels.
+  _setToolMode(mode) {
+    const next = (this._toolMode === mode) ? null : mode
+    if (next === this._toolMode) return
+    this._toolMode = next
+    // Selecting a tool cancels any pending placement.
+    if (next) this._cancelSelection()
+    EventBus.emit('TOOL_MODE_CHANGED', { mode: next })
   }
 
   shutdown() {
@@ -856,14 +878,21 @@ export class NightPhase extends Phaser.Scene {
       if (overMinion) return
 
       if (p.rightButtonDown()) {
-        // Right-click while a placement candidate is held → cancel the
-        // selection. With no selection active, right-click falls through
-        // to "remove placed room".
-        if (this._selected) {
-          this._cancelSelection()
-          return
-        }
+        // Right-click cancels: armed tool → release; placement candidate →
+        // drop; otherwise fall through to "remove placed room".
+        if (this._toolMode) { this._setToolMode(null); return }
+        if (this._selected) { this._cancelSelection(); return }
         this._tryRemoveRoom(p, cam)
+        return
+      }
+
+      // Phase 31D — action-bar tool intercepts left-click on placed rooms.
+      if (this._toolMode) {
+        const tx = Math.floor(wp.x / TS)
+        const ty = Math.floor(wp.y / TS)
+        if (this._toolMode === 'sell')   this._executeSellAt(tx, ty)
+        if (this._toolMode === 'move')   this._executeMoveAt(tx, ty)
+        if (this._toolMode === 'rotate') this._executeRotateAt(tx, ty)
         return
       }
 
@@ -883,7 +912,11 @@ export class NightPhase extends Phaser.Scene {
         this._cancelSelection()
       }
     })
-    this.input.keyboard.on('keydown-ESC', () => PauseManager.toggle(this))
+    this.input.keyboard.on('keydown-ESC', () => {
+      // Esc cancels an armed tool first; only opens pause if no tool armed.
+      if (this._toolMode) { this._setToolMode(null); return }
+      PauseManager.toggle(this)
+    })
     this.input.keyboard.on('keydown-Z',   (e) => {
       if (e.ctrlKey || e.metaKey) this._undoLastPlacement()
     })
@@ -1285,6 +1318,168 @@ export class NightPhase extends Phaser.Scene {
 
     EventBus.emit('TRAP_PLACED', { trap })
     this._refreshStats()
+  }
+
+  // Phase 31D — Sell tool. Removes a placed room AND every minion inside
+  // it, refunding 50% of the gold spent on the room + each minion's
+  // essence cost. Boss chamber + fixed rooms are immune.
+  _executeSellAt(tx, ty) {
+    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    if (!room) return
+    if (room.definitionId === 'boss_chamber') {
+      this._showPlacementError('Cannot sell the boss chamber')
+      return
+    }
+    const allRooms   = this.cache.json.get('rooms')       ?? []
+    const allMinions = this.cache.json.get('minionTypes') ?? []
+    const def = allRooms.find(d => d.id === room.definitionId)
+    if (def?.placementRules?.fixed) {
+      this._showPlacementError('Cannot sell a fixed room')
+      return
+    }
+
+    // Find all minions whose tiles fall inside the room footprint.
+    const minionsInside = (this._gameState.minions ?? []).filter(m => {
+      if (m.aiState === 'dead') return false
+      return m.tileX >= room.gridX && m.tileX < room.gridX + room.width
+          && m.tileY >= room.gridY && m.tileY < room.gridY + room.height
+    })
+
+    let refund = Math.floor((def?.essenceCostToPlace ?? 0) * 0.5)
+    for (const m of minionsInside) {
+      const mDef = allMinions.find(d => d.id === m.definitionId)
+      refund += Math.floor((mDef?.essenceCostToPlace ?? 0) * 0.5)
+    }
+    if (refund > 0) this._gameState.player.soulEssence += refund
+
+    // Remove the minions first so MINION_REMOVED fires before ROOM_REMOVED.
+    for (const m of minionsInside) {
+      const idx = this._gameState.minions.findIndex(x => x.instanceId === m.instanceId)
+      if (idx >= 0) this._gameState.minions.splice(idx, 1)
+      EventBus.emit('MINION_REMOVED', { minion: m })
+    }
+
+    if (this._lastPlaced?.entity?.instanceId === room.instanceId) {
+      this._lastPlaced = null
+    }
+    this._dungeonGrid.removeRoom(room.instanceId)
+    this._renderActivePalette()
+    this._refreshStats()
+    this._setToolMode(null)
+  }
+
+  // Phase 31D — Move tool. Reuses the existing pickup logic so minions
+  // inside come along with the room. Player drops the room with a
+  // second click (handled by the regular placement flow).
+  _executeMoveAt(tx, ty) {
+    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    if (!room) return
+    if (room.definitionId === 'boss_chamber') {
+      this._showPlacementError('Cannot move the boss chamber')
+      return
+    }
+    const allRooms = this.cache.json.get('rooms') ?? []
+    const def = allRooms.find(d => d.id === room.definitionId)
+    if (def?.placementRules?.fixed) {
+      this._showPlacementError('Cannot move a fixed room')
+      return
+    }
+    // Disarm before delegating to the existing pickup path so the second
+    // click (drop) doesn't get re-intercepted by the tool branch.
+    this._setToolMode(null)
+    // Synthesize a pointer-like object for _tryPickupRoom — it only reads
+    // .x/.y for camera unproject, but we already have world tile coords.
+    // Skip the real path and inline what we need.
+    const cost  = Math.round((def?.essenceCostToPlace ?? 0) * 1)
+    if (cost > 0) this._gameState.player.soulEssence += cost  // full refund — re-charged on drop
+
+    const heldMinions = []
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead') continue
+      if (m.tileX < room.gridX || m.tileX >= room.gridX + room.width)  continue
+      if (m.tileY < room.gridY || m.tileY >= room.gridY + room.height) continue
+      heldMinions.push({ minion: m, offX: m.tileX - room.gridX, offY: m.tileY - room.gridY })
+      m._heldByPlayer = true
+    }
+    this._heldRoomMinions = heldMinions
+    this._dungeonGrid.removeRoom(room.instanceId)
+    this._rotation = 0
+    this._selectItem(def, 'room')
+    this._refreshStats()
+  }
+
+  // Phase 31D — Rotate tool. Rotates a placed room 90° CW in place,
+  // re-anchored at the same gridX/gridY. Validates the new footprint;
+  // rejects on collision and leaves the room untouched. Minions inside
+  // travel with the rotation.
+  _executeRotateAt(tx, ty) {
+    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    if (!room) return
+    if (room.definitionId === 'boss_chamber') {
+      this._showPlacementError('Cannot rotate the boss chamber')
+      return
+    }
+    const allRooms = this.cache.json.get('rooms') ?? []
+    const def = allRooms.find(d => d.id === room.definitionId)
+    if (!def || def.placementRules?.fixed) {
+      this._showPlacementError('Cannot rotate this room')
+      return
+    }
+
+    // Compute rotated definition (90° CW): width<->height, connectionPoints
+    // remapped (x,y → height-1-y, x).
+    const rotDef = {
+      ...def,
+      width:  def.height,
+      height: def.width,
+      connectionPoints: (def.connectionPoints ?? []).map(cp => ({
+        ...cp,
+        x: def.height - 1 - cp.y,
+        y: cp.x,
+      })),
+    }
+
+    // Capture minions inside so we can re-anchor them after the swap.
+    const heldMinions = []
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead') continue
+      if (m.tileX < room.gridX || m.tileX >= room.gridX + room.width)  continue
+      if (m.tileY < room.gridY || m.tileY >= room.gridY + room.height) continue
+      heldMinions.push({
+        minion: m,
+        // Original room-relative offset → rotated room-relative offset.
+        offX:   room.height - 1 - (m.tileY - room.gridY),
+        offY:   m.tileX - room.gridX,
+      })
+    }
+
+    // Swap: remove old, attempt rotated. placeRoom validates internally and
+    // returns null on collision; restore the original on failure.
+    const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
+    this._dungeonGrid.removeRoom(room.instanceId)
+    const placed = this._dungeonGrid.placeRoom(
+      rotDef, room.gridX, room.gridY,
+      { noSnap: true, allowDisconnected: true, dungeonLevel },
+    )
+    if (!placed) {
+      this._showPlacementError('Rotation blocked by another room')
+      this._dungeonGrid.placeRoom(def, room.gridX, room.gridY,
+        { noSnap: true, allowDisconnected: true, dungeonLevel })
+      return
+    }
+
+    // Re-position minions to their new room-relative tiles.
+    for (const { minion, offX, offY } of heldMinions) {
+      minion.tileX = placed.gridX + offX
+      minion.tileY = placed.gridY + offY
+      minion.worldX = minion.tileX * TS + TS / 2
+      minion.worldY = minion.tileY * TS + TS / 2
+      minion.homeTileX = minion.tileX
+      minion.homeTileY = minion.tileY
+      minion.assignedRoomId = placed.instanceId
+    }
+    this._refreshStats()
+    this._setToolMode(null)
   }
 
   _tryRemoveRoom(p, cam) {

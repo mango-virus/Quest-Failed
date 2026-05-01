@@ -49,7 +49,35 @@ export class ActionBar {
       this._listeners.push([event, fn])
     }
     on('DAY_PHASE_ENDED',   () => { this._speedIdx = 0 })
-    on('NIGHT_PHASE_BEGAN', () => { this._speedIdx = 0 })
+    on('NIGHT_PHASE_BEGAN', () => { this._speedIdx = 0; this._setArmedTool(null) })
+    on('TOOL_MODE_CHANGED', ({ mode }) => this._setArmedTool(mode))
+  }
+
+  // Phase 31D — visual feedback for the armed action-bar tool. Adds a
+  // bright accent border to the active tool button so the player can see
+  // which mode they're in. Only one tool is armed at a time.
+  _setArmedTool(mode) {
+    this._armedTool = mode
+    const accentH = ['rotate', 'move', 'sell', 'roster'].reduce((acc, k) => {
+      const btn = this._buttons[k]
+      if (!btn) return acc
+      const isArmed = (k === mode)
+      // Toggle visibility of the armed accent ring (drawn on top of the
+      // button's own bevel).
+      if (isArmed && !btn._armedRing) {
+        const ring = this._scene.add.graphics().setDepth(this._depth + 8)
+        ring.lineStyle(2, CRYPT.accent2, 1)
+        ring.strokeRect(btn.hit.x - 1, btn.hit.y - 1, btn.hit.width + 2, btn.hit.height + 2)
+        ring.lineStyle(1, CRYPT.accent, 1)
+        ring.strokeRect(btn.hit.x - 3, btn.hit.y - 3, btn.hit.width + 6, btn.hit.height + 6)
+        btn._armedRing = ring
+        this._objects.push(ring)
+      } else if (!isArmed && btn._armedRing) {
+        btn._armedRing.destroy()
+        btn._armedRing = null
+      }
+      return acc
+    }, null)
   }
 
   _build() {
