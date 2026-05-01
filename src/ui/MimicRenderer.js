@@ -63,11 +63,16 @@ export class MimicRenderer {
     const c = this._scene.add.container(m.worldX, m.worldY).setDepth(5)
 
     // Static chest image (only visible while state === 'chest')
-    const image = this._scene.add.image(0, 0, 'mimic-chest').setOrigin(0.5)
+    // Bottom-anchored — the artist sits the chest at the bottom of the
+    // frame so its base lines up with the tile floor instead of floating
+    // half-below it.
+    const image = this._scene.add.image(0, 0, 'mimic-chest').setOrigin(0.5, 1)
     image.setScale(CHEST_SIZE / 99)
 
     // Animated sprite (only visible while state !== 'chest')
-    const sprite = this._scene.add.sprite(0, 0, 'mimic-idle_right', 0).setOrigin(0.5)
+    // Same bottom-anchor reason — every mimic frame draws the creature
+    // sitting on the bottom edge.
+    const sprite = this._scene.add.sprite(0, 0, 'mimic-idle_right', 0).setOrigin(0.5, 1)
     sprite.setScale(DISPLAY_SIZE / 102)
     sprite.setVisible(false)
 
