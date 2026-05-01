@@ -2008,9 +2008,9 @@
     "sigil": "$",
     "description": "Disguised as a chest. Sprung when an unsuspecting adventurer tries to open it. Re-disguises when the room is quiet.",
     "baseStats": {
-      "hp": 40,
-      "attack": 9,
-      "defense": 4,
+      "hp": 60,
+      "attack": 22,
+      "defense": 5,
       "speed": 0.6,
       "damageType": "physical",
       "attackRange": 2,
