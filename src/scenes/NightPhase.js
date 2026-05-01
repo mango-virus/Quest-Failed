@@ -1180,6 +1180,32 @@ export class NightPhase extends Phaser.Scene {
     // [Removed 2026-04-30] treasure_room mini-boss auto-promotion. The
     // Throne Room handler in RoomBehaviorSystem now owns mini-boss spawns.
 
+    // Mimic: seed the state-machine fields + spawn the paired disguise
+    // loot item so adventurers can target the chest via SEEK_LOOT and
+    // trigger the reveal exactly like a Mimic Vault spawn.
+    if (def.id === 'mimic') {
+      minion.isMimic              = true
+      minion.mimicState           = 'chest'
+      minion.mimicFacing          = 'right'
+      minion.mimicLastAdvNearbyAt = 0
+      this._gameState.loot ??= { dungeon: [] }
+      this._gameState.loot.dungeon ??= []
+      this._gameState.loot.dungeon.push({
+        instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+        definitionId: 'treasury_chest',
+        _treasuryChest: true,
+        _isMimicVaultDisguise: true,
+        _mimicMinionId: minion.instanceId,
+        _essenceValue: 0,
+        _sourceTreasuryId: room?.instanceId ?? null,
+        tileX: tx, tileY: ty,
+        worldX: tx * TS + TS / 2, worldY: ty * TS + TS / 2,
+        dungeonRoomId: room?.instanceId ?? null,
+        isMimicSpawn: true,
+        provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
+      })
+    }
+
     this._gameState.minions.push(minion)
     this._lastPlaced = { kind: 'minion', entity: minion, essenceCost: cost }
 
