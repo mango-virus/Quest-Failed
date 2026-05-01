@@ -168,6 +168,11 @@ export class AISystem {
       return
     }
 
+    // Hall of Madness — clear stale frenzy state up front (target dead /
+    // left the room / adv left the Hall). When this returns true the goal
+    // was just restored, so we let the rest of the tick recompute paths.
+    this._maybeClearMadness(adv)
+
     // Track whether the adventurer has ever been outside the entry hall.
     // Without this, advs that get a FLEE goal immediately on spawn (e.g.
     // their first pathfind failed and we converted to FLEE) would auto-
@@ -395,6 +400,26 @@ export class AISystem {
     // Phase 5c — Cleric heal moved to ClassAbilitySystem._considerCleric
     // (cooldown-driven, no mana). The legacy unconditional-heal-every-tick
     // block here was deleted to avoid double-firing.
+
+    // Hall of Madness: frenzied advs swing at their locked-on ally if in
+    // melee range. Bypass the normal _findEngageableMinion flow because
+    // that scopes to dungeon-faction targets.
+    if (adv.flags?.madnessTargetId && this._combatSystem && adv.aiState !== 'fleeing') {
+      const ally = this._gameState.adventurers.active.find(a => a.instanceId === adv.flags.madnessTargetId)
+      if (ally && ally.aiState !== 'dead' && (ally.resources?.hp ?? 0) > 0) {
+        const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+        const d = Math.hypot(ally.tileX - adv.tileX, ally.tileY - adv.tileY)
+        if (d <= reach + 0.01) {
+          adv.aiState = 'fighting'
+          adv.path = null
+          this._combatSystem.tryAttack(adv, ally, {
+            roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
+            method: 'madness',
+          })
+          return
+        }
+      }
+    }
 
     // Engage hostile minion in melee range
     if (adv.aiState !== 'fleeing' && this._combatSystem) {
@@ -943,45 +968,68 @@ export class AISystem {
     // These rooms were retired in the Room redesign — see DESIGN.md for
     // the replacement set.
 
-    // Room redesign 2026-04-30 — Hall of Madness: while inside, ~25%/sec
-    // chance to lash out at a random other adventurer in the room. Single
-    // strike per roll; the lashing adventurer keeps moving toward their
-    // goal otherwise. Implementation note: full friendly-fire AI state was
-    // deferred for scope — this v1 is "occasional madness slaps" which
-    // captures the spirit (party self-destructs in this room) without a
-    // new goal type.
+    // Room redesign 2026-04-30 — Hall of Madness: on first entry, roll 60%
+    // for sustained frenzy. A frenzied adventurer locks onto a random
+    // party-mate in the room as their ATTACK_ALLY target — they
+    // pathfind to and swing at the ally until either side dies, the
+    // target leaves the room, or the frenzy adv themselves leaves.
+    // Combat resolves through CombatSystem.tryAttack so all existing
+    // damage modifiers (Marked, armor adjacency, etc.) apply. When the
+    // condition breaks the adv's previous goal is restored.
     if (room.definitionId === 'hall_of_madness') {
-      const ratePerSec = 0.25
-      if (Math.random() < (ratePerSec * delta) / 1000) {
-        const others = this._gameState.adventurers.active.filter(o =>
-          o !== adv &&
-          o.aiState !== 'dead' &&
-          (o.resources?.hp ?? 0) > 0 &&
-          this._dungeonGrid.getRoomAtTile(o.tileX, o.tileY)?.instanceId === room.instanceId
-        )
-        if (others.length > 0) {
-          const victim = others[Math.floor(Math.random() * others.length)]
-          const cs = this._scene?.combatSystem
-          const dmg = cs?._computeDamage?.(adv, victim) ?? Math.max(1, (adv.stats?.attack ?? 5) - (victim.stats?.defense ?? 0))
-          victim.resources.hp = Math.max(0, victim.resources.hp - dmg)
-          victim._lastHitBy = adv.instanceId
-          victim._lastHitType = 'madness'
-          EventBus.emit('COMBAT_HIT', {
-            sourceId: adv.instanceId,
-            targetId: victim.instanceId,
-            damage: dmg,
-            damageType: 'madness',
-            isCritical: false,
-          })
-          EventBus.emit('HALL_OF_MADNESS_LASHOUT', {
-            attacker: adv,
-            victim,
-            roomId: room.instanceId,
-            damage: dmg,
-          })
+      adv.flags ??= {}
+      if (adv.flags._madnessEntryRoom !== room.instanceId) {
+        adv.flags._madnessEntryRoom = room.instanceId
+        if (!adv.flags.madnessTargetId && Math.random() < 0.60) {
+          const others = this._gameState.adventurers.active.filter(o =>
+            o !== adv && o.aiState !== 'dead' && (o.resources?.hp ?? 0) > 0 &&
+            this._dungeonGrid.getRoomAtTile(o.tileX, o.tileY)?.instanceId === room.instanceId
+          )
+          if (others.length > 0) {
+            const victim = others[Math.floor(Math.random() * others.length)]
+            adv.flags.madnessTargetId   = victim.instanceId
+            adv.flags.madnessSavedGoal  = adv.goal ? { ...adv.goal } : null
+            adv.goal = { type: 'ATTACK_ALLY', allyId: victim.instanceId, source: 'hall_of_madness' }
+            adv.path = null
+            EventBus.emit('HALL_OF_MADNESS_FRENZY_BEGIN', {
+              attacker: adv, victim, roomId: room.instanceId,
+            })
+          }
         }
       }
+    } else if (adv.flags?._madnessEntryRoom) {
+      // Left the Hall — clear the entry-roll flag so a re-entry rolls again
+      adv.flags._madnessEntryRoom = null
     }
+  }
+
+  // Frenzy housekeeping: called at the top of _tickAdventurer to clear stale
+  // madness state (target dead, target left the room, or frenzied adv left
+  // the Hall). Returns true when the goal was just restored to the saved
+  // goal so the caller can recompute path on this tick.
+  _maybeClearMadness(adv) {
+    const targetId = adv.flags?.madnessTargetId
+    if (!targetId) return false
+    const target = this._gameState.adventurers.active.find(a => a.instanceId === targetId)
+    const advRoom = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
+    const stillInHall = advRoom?.definitionId === 'hall_of_madness'
+    const targetRoom = target ? this._dungeonGrid.getRoomAtTile(target.tileX, target.tileY) : null
+    const targetInSameRoom = !!(target && targetRoom && advRoom && targetRoom.instanceId === advRoom.instanceId)
+    const targetAlive = target && target.aiState !== 'dead' && (target.resources?.hp ?? 0) > 0
+    if (stillInHall && targetInSameRoom && targetAlive) return false
+    // Conditions broken — restore goal + clear flags.
+    EventBus.emit('HALL_OF_MADNESS_FRENZY_END', {
+      attacker: adv, targetId,
+      reason: !stillInHall ? 'left_hall' : !targetAlive ? 'target_dead' : 'target_left',
+    })
+    const saved = adv.flags?.madnessSavedGoal
+    adv.flags.madnessTargetId = null
+    adv.flags.madnessSavedGoal = null
+    if (adv.goal?.type === 'ATTACK_ALLY' && adv.goal?.source === 'hall_of_madness') {
+      adv.goal = saved ?? this._pickNextGoal(adv)
+      adv.path = null
+    }
+    return true
   }
 
   // Phase 6e: resource depletion → leave dungeon.
@@ -1159,6 +1207,14 @@ export class AISystem {
         return this._goalToTile(adv)
       }
       return { x: leader.tileX, y: leader.tileY }
+    }
+    if (adv.goal.type === 'ATTACK_ALLY') {
+      // Room redesign 2026-04-30 — Hall of Madness frenzy. Pathfind to a
+      // fellow adventurer; engagement happens through the engage block
+      // when in melee range.
+      const target = this._gameState.adventurers.active.find(a => a.instanceId === adv.goal.allyId)
+      if (!target || target.aiState === 'dead') return null
+      return { x: target.tileX, y: target.tileY }
     }
     if (adv.goal.type === 'DEFEND_ALLY') {
       // Phase QW — party_loyal: stand on/next to the wounded ally
