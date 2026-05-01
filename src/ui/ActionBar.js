@@ -49,6 +49,10 @@ export class ActionBar {
       this._listeners.push([event, fn])
     }
     on('DAY_PHASE_ENDED',   () => { this._speedIdx = 0 })
+    // Clear the armed tool when transitioning to day phase so the ring
+    // doesn't persist across phases (NightPhase._beginDay also clears
+    // its toolMode; this just keeps the visual in sync).
+    on('DAY_PHASE_BEGAN',   () => this._setArmedTool(null))
     on('NIGHT_PHASE_BEGAN', () => { this._speedIdx = 0; this._setArmedTool(null) })
     on('TOOL_MODE_CHANGED', ({ mode }) => this._setArmedTool(mode))
   }

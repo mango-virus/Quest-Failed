@@ -889,8 +889,24 @@ export class NightPhase extends Phaser.Scene {
       if (this._toolMode) {
         const tx = Math.floor(wp.x / TS)
         const ty = Math.floor(wp.y / TS)
-        if (this._toolMode === 'sell') this._executeSellAt(tx, ty)
-        if (this._toolMode === 'move') this._executeMoveAt(tx, ty)
+        if (this._toolMode === 'sell') {
+          this._executeSellAt(tx, ty)
+          return
+        }
+        if (this._toolMode === 'move') {
+          // Move is sticky — stays armed until the player clicks the MOVE
+          // button again or BEGIN DAY fires. While holding a room, the
+          // next click drops it; otherwise the click picks up the room
+          // under the cursor (if any).
+          if (this._selected) {
+            if (this._previewTileX >= 0) {
+              this._confirmPlacement(this._previewTileX, this._previewTileY)
+            }
+          } else {
+            this._executeMoveAt(tx, ty)
+          }
+          return
+        }
         return
       }
 
@@ -1381,12 +1397,12 @@ export class NightPhase extends Phaser.Scene {
       this._showPlacementError('Cannot move a fixed room')
       return
     }
-    // Disarm before delegating to the existing pickup path so the second
-    // click (drop) doesn't get re-intercepted by the tool branch.
-    this._setToolMode(null)
-    // Synthesize a pointer-like object for _tryPickupRoom — it only reads
-    // .x/.y for camera unproject, but we already have world tile coords.
-    // Skip the real path and inline what we need.
+    // Move tool stays armed (sticky mode) — the pointerdown handler
+    // detects the held-room state and routes the next click to drop +
+    // re-pickup transparently. Tool clears on MOVE re-click or
+    // BEGIN DAY.
+    // Inline pickup body (rather than calling _tryPickupRoom which expects
+    // a pointer): we already have the room + def + tile coords.
     const cost  = Math.round((def?.essenceCostToPlace ?? 0) * 1)
     if (cost > 0) this._gameState.player.soulEssence += cost  // full refund — re-charged on drop
 
@@ -1608,6 +1624,9 @@ export class NightPhase extends Phaser.Scene {
   // ── Begin Day ─────────────────────────────────────────────────────────────
 
   _beginDay() {
+    // Clear any sticky tool mode so the action bar's armed ring + the
+    // next-night reset stay clean.
+    this._setToolMode(null)
     this._cancelSelection()
 
     const dungeon = this._gameState.dungeon
