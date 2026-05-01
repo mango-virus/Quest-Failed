@@ -86,21 +86,30 @@ export class MiniMapPanel {
     })
     this._objects.push(innerG)
 
-    // Legend strip at the bottom
+    // Legend strip at the bottom — color swatch + label per entity type.
     const legendY = y + h - LEGEND_H - 4
-    this._legendT = this._scene.add.text(x + PADDING + 4, legendY + LEGEND_H / 2,
-      this._legendText(), {
-      fontFamily: FONT_BODY, fontSize: '8px', color: CRYPT.ink, letterSpacing: 1,
-    }).setOrigin(0, 0.5).setDepth(D + 2)
-    this._objects.push(this._legendT)
+    const legendItems = [
+      { color: CRYPT.accent2, label: 'BOSS' },
+      { color: CRYPT.soul,    label: 'ADVS' },
+      { color: CRYPT.green,   label: 'MINIONS' },
+    ]
+    const legendInnerW = w - PADDING * 2 - 8
+    const colW = Math.floor(legendInnerW / legendItems.length)
+    legendItems.forEach((it, i) => {
+      const lx = x + PADDING + 4 + i * colW
+      const ly = legendY + LEGEND_H / 2
+      const sw = this._scene.add.graphics().setDepth(D + 2)
+      sw.fillStyle(it.color, 1)
+      sw.fillRect(lx, ly - 4, 8, 8)
+      this._objects.push(sw)
+      const lt = this._scene.add.text(lx + 12, ly, it.label, {
+        fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.ink, letterSpacing: 1,
+      }).setOrigin(0, 0.5).setDepth(D + 2)
+      this._objects.push(lt)
+    })
 
     // Render rooms initially
     this._renderRooms()
-  }
-
-  _legendText() {
-    const advs = this._gameState.adventurers?.active?.length ?? 0
-    return `Advs ${advs}  Boss  Loot`
   }
 
   _renderRooms() {
@@ -163,9 +172,9 @@ export class MiniMapPanel {
     const minionSize = 3
     const bossSize   = 6
 
-    // Boss — accent red
+    // Boss — bright accent2 red so it pops against rooms
     const bossG = this._scene.add.graphics().setDepth(D + 2)
-    bossG.fillStyle(CRYPT.accent, 1)
+    bossG.fillStyle(CRYPT.accent2, 1)
     const boss = this._gameState.boss
     let bossDX = null, bossDY = null
     if (boss && boss.tileX != null) {
@@ -186,9 +195,9 @@ export class MiniMapPanel {
     }
     this._dynObjects.push(bossG)
 
-    // Minions — soft warning yellow so they read distinct from advs.
+    // Minions — green so they read distinct from boss (red) + advs (cyan).
     const minG = this._scene.add.graphics().setDepth(D + 2)
-    minG.fillStyle(CRYPT.warn, 1)
+    minG.fillStyle(CRYPT.green, 1)
     for (const m of (this._gameState.minions ?? [])) {
       if (m.aiState === 'dead' || (m.resources?.hp ?? 1) <= 0) continue
       const dx = baseX + Math.round((m.tileX ?? 0) * sx)
@@ -236,8 +245,6 @@ export class MiniMapPanel {
       this._renderRooms()
       this._levelT?.setText(`L${this._gameState.meta?.dungeonLevel ?? 1}`)
     }
-    // legend reflects live adv count even when positions don't change-detect
-    this._legendT?.setText(this._legendText())
   }
 
   destroy() {

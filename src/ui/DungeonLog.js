@@ -13,11 +13,11 @@ import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelDiamond } from './UIKit.j
 
 const HEADER_H        = 22
 // Press Start 2P at 7px renders ~11-12px tall (font metrics include extra
-// line space). 16 px row + 2 px gap clears it and matches the design's
-// dense-log feel.
+// line space). Bumped row gap so consecutive entries breathe — the dense
+// version was visually smashed.
 const ROW_H           = 16
 const ROW_PAD_X       = 8
-const ROW_GAP         = 2
+const ROW_GAP         = 6
 const PADDING         = 8
 const MAX_ROWS        = 64        // ring-buffer cap; UI shows the visible slice
 const ROW_BORDER_W    = 2

@@ -12,7 +12,7 @@ const DEFAULT_PANEL_W = 280
 const HEADER_H      = 22
 const ROW_H         = 20         // Press Start 2P at 8px renders ~14px tall; 20 gives safe row height
 const ROW_GAP       = 3
-const FACT_LIMIT    = 4
+const FACT_LIMIT    = 6
 const PADDING       = 8
 
 export class KnowledgePin {

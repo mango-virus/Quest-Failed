@@ -70,56 +70,55 @@ export class ActionBar {
     this._objects.push(bg)
 
     const btnY = y + (BAR_H - BTN_H) / 2
-    const cx   = W / 2     // true screen center; phase indicator + clusters anchor here
 
-    // Layout strategy (matches design): symmetric clusters around the center.
-    // Left cluster grows leftward from `cx - centerGap`; right cluster grows
-    // rightward from `cx + centerGap`. The phase indicator floats over the
-    // gap.
-    const centerGap = 90
+    // Layout strategy: equal padding from the panel edges so the cluster
+    // looks balanced inside the bar. Left cluster anchored to panel-left
+    // + sideMargin; right cluster anchored to panel-right - sideMargin.
+    // The phase indicator floats in whatever gap remains.
+    const sideMargin = 24
 
-    // ── Left cluster (build tools), right-anchored toward the center ──
     const leftDefs = [
-      { key: 'rotate',  w: 86, label: 'ROTATE', glyph: '↻', event: 'TOOL_ROTATE' },
-      { key: 'move',    w: 76, label: 'MOVE',   glyph: '◇', event: 'TOOL_MOVE'   },
-      { key: 'sell',    w: 76, label: 'SELL',   glyph: '✕', event: 'TOOL_SELL', danger: true },
-      { key: 'roster',  w: 86, label: 'ROSTER', glyph: '☰', event: 'OPEN_MINION_ROSTER' },
+      { key: 'rotate',  w: 86, label: 'ROTATE', event: 'TOOL_ROTATE' },
+      { key: 'move',    w: 76, label: 'MOVE',   event: 'TOOL_MOVE'   },
+      { key: 'sell',    w: 76, label: 'SELL',   event: 'TOOL_SELL', danger: true },
+      { key: 'roster',  w: 86, label: 'ROSTER', event: 'OPEN_MINION_ROSTER' },
     ]
-    const leftTotal = leftDefs.reduce((s, d) => s + d.w, 0) + BTN_PAD * (leftDefs.length - 1)
-    let lx = cx - centerGap - leftTotal
+    const rightDefs = [
+      // Primary button — onPrimary delegates to a method that branches on
+      // phase: BEGIN DAY at night, speed cycle during day.
+      { key: 'phaseToggle', w: 124, label: this._primaryLabel(), onPrimary: true, primary: true },
+      { key: 'knowledge',   w:  98, label: 'KNOWLEDGE', event: 'OPEN_KNOWLEDGE_MAP' },
+      { key: 'advIntel',    w: 110, label: 'ADV INTEL', event: 'OPEN_ADV_INTEL' },
+      { key: 'menu',        w:  74, label: 'MENU',      event: 'OPEN_PAUSE_MENU' },
+    ]
+    const leftTotal  = leftDefs.reduce((s, d) => s + d.w, 0)  + BTN_PAD * (leftDefs.length - 1)
+    const rightTotal = rightDefs.reduce((s, d) => s + d.w, 0) + BTN_PAD * (rightDefs.length - 1)
+
+    // Left cluster — placed at panel-left + sideMargin
+    let lx = this._panelX + sideMargin
     for (const d of leftDefs) {
       this._buttons[d.key] = this._addButton(d.key, lx, btnY, d.w, d.label, d)
       lx += d.w + BTN_PAD
     }
+    const leftClusterEnd = this._panelX + sideMargin + leftTotal
 
-    // ── Right cluster, left-anchored from the center ──
-    // The primary slot is adaptive: night phase => BEGIN DAY (advances
-    // to day), day phase => SPEED cycle (1x → 2x → 4x → 1x). END WAVE
-    // is gone — day ends automatically when no adventurers remain.
-    const rightDefs = [
-      // Primary button — onPrimary delegates to a method that branches on
-      // phase, so the same button does BEGIN DAY at night and time-scale
-      // cycle during day.
-      { key: 'phaseToggle', w: 124, label: this._primaryLabel(), glyph: this._primaryGlyph(), onPrimary: true, primary: true },
-      { key: 'knowledge',   w:  98, label: 'KNOWLEDGE', glyph: '❖', event: 'OPEN_KNOWLEDGE_MAP' },
-      { key: 'advIntel',    w: 110, label: 'ADV INTEL', glyph: '👁', event: 'OPEN_ADV_INTEL' },
-      { key: 'menu',        w:  74, label: 'MENU',      glyph: '≡', event: 'OPEN_PAUSE_MENU' },
-    ]
-    let rx = cx + centerGap
+    // Right cluster — anchored at panel-right - sideMargin
+    const rightClusterStart = this._panelX + this._panelW - sideMargin - rightTotal
+    let rx = rightClusterStart
     for (const d of rightDefs) {
       this._buttons[d.key] = this._addButton(d.key, rx, btnY, d.w, d.label, d)
       rx += d.w + BTN_PAD
     }
 
-    // ── Center phase indicator (vertical stack matching the design) ──
-    // Caption "PHASE" up top, then a 4-line stacked body with the moon /
-    // phase name / em-dash / build-or-invasion mode.
-    this._phaseCaption = this._scene.add.text(cx, y + 8, 'PHASE', {
+    // Phase indicator floats in the middle of the gap between the clusters.
+    const phaseX = Math.round((leftClusterEnd + rightClusterStart) / 2)
+
+    this._phaseCaption = this._scene.add.text(phaseX, y + 8, 'PHASE', {
       fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 2,
     }).setOrigin(0.5, 0).setDepth(D + TEXT_DEPTH)
     this._objects.push(this._phaseCaption)
 
-    this._phaseStatus = this._scene.add.text(cx, y + 22, this._phaseStatusText(), {
+    this._phaseStatus = this._scene.add.text(phaseX, y + 22, this._phaseStatusText(), {
       fontFamily: FONT_HEAD, fontSize: '9px',
       color: this._gameState.meta?.phase === 'day' ? CRYPT.accent2Css : CRYPT.soulCss,
       letterSpacing: 1,

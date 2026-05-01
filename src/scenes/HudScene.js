@@ -15,7 +15,7 @@
 //
 // Stays active across phase transitions so chrome never flashes.
 
-import { applyUiCamera } from '../ui/UIKit.js'
+import { applyUiCamera, CRYPT } from '../ui/UIKit.js'
 import { BossTopBar, BOSS_TOP_BAR_HEIGHT } from '../ui/BossTopBar.js'
 import { ActionBar,  ACTION_BAR_HEIGHT  } from '../ui/ActionBar.js'
 import { KnowledgePin } from '../ui/KnowledgePin.js'
@@ -55,6 +55,28 @@ export class HudScene extends Phaser.Scene {
     const W = this.uiW
     const H = this.uiH
     const TOP_Y = BOSS_TOP_BAR_HEIGHT + 6
+
+    // ── Side chrome (dark backing) ──
+    // The dungeon view is rendered by the Game scene one layer below us.
+    // Without these solid fills the dungeon shows through the gaps
+    // between the side panels and along the action bar's left/right
+    // margins. They sit at depth 50 — below the panels (60) but above
+    // the world camera. The top bar is its own panel, so we only need
+    // left/right side strips and a full-width bottom strip here.
+    this._chrome = []
+    const chromeColor = CRYPT.bgDeep
+    const leftChromeW = LEFT_COL_W + COL_PAD * 2
+    const rightChromeW = RIGHT_COL_W + COL_PAD * 2
+    const sideTop = BOSS_TOP_BAR_HEIGHT
+    const sideBottom = H - ACTION_BAR_HEIGHT
+
+    const leftBg = this.add.rectangle(0, sideTop, leftChromeW, sideBottom - sideTop, chromeColor)
+      .setOrigin(0).setDepth(50)
+    const rightBg = this.add.rectangle(W - rightChromeW, sideTop, rightChromeW, sideBottom - sideTop, chromeColor)
+      .setOrigin(0).setDepth(50)
+    const bottomBg = this.add.rectangle(0, sideBottom, W, ACTION_BAR_HEIGHT, chromeColor)
+      .setOrigin(0).setDepth(50)
+    this._chrome.push(leftBg, rightBg, bottomBg)
 
     // ── Top bar ──
     this._topBar = new BossTopBar(this, this._gameState, { depth: 60 })
@@ -96,7 +118,9 @@ export class HudScene extends Phaser.Scene {
     this._knowPin = new KnowledgePin(this, this._gameState, {
       depth: 60, x: knowX, y: knowY, w: RIGHT_COL_W,
     })
-    const knowPinH = 192   // KnowledgePin's measured height
+    // KnowledgePin natural height: HEADER_H(22) + 6 + FACT_LIMIT(6) * (ROW_H 20 + ROW_GAP 3) + 4 + 14 + 8 + PADDING(8) ≈ 200
+    // With FACT_LIMIT=6 (was 4), need ~46 more vertical px.
+    const knowPinH = 246
 
     // ── Dungeon Log (right column, fills below pin) ──
     const logY = knowY + knowPinH + 8
@@ -145,5 +169,9 @@ export class HudScene extends Phaser.Scene {
     this._dungeonLog?.destroy();   this._dungeonLog    = null
     this._buildMenu?.destroy();    this._buildMenu     = null
     this._audioControls?.destroy(); this._audioControls = null
+    if (this._chrome) {
+      this._chrome.forEach(o => o?.destroy?.())
+      this._chrome = []
+    }
   }
 }

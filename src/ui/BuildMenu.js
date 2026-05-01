@@ -42,6 +42,7 @@ export class BuildMenu {
     this._activeTab   = 'rooms'
     this._scrollY     = 0      // vertical scroll offset within the slot grid
     this._contentH    = 0      // total slot grid content height (for clamping)
+    this._visible     = true   // honoured by setVisible + post-event re-renders
 
     this._defsByKind = {
       room:   () => this._roomDefs(),
@@ -91,7 +92,7 @@ export class BuildMenu {
     this._tabs = pixelTabs(this._scene, x + 2, tabsY, w - 4, TABS_H,
       TABS.map(t => t.label), {
         depth: D + 2,
-        fontSize: 7,
+        fontSize: 6,
         activeIdx: TABS.findIndex(t => t.key === this._activeTab),
         onChange: (idx) => this._switchTab(TABS[idx].key),
       })
@@ -234,6 +235,14 @@ export class BuildMenu {
         if (o?.type === 'Zone') continue
         o?.setMask?.(this._slotMask)
       }
+    }
+
+    // If we're not currently visible (day phase), don't show any of the
+    // just-created slot objects. Re-renders triggered by ROOM_PLACED /
+    // MINION_DIED etc. fire even during day phase, and without this guard
+    // they'd flash visible on top of the day HUD.
+    if (!this._visible) {
+      this._slotObjects.forEach(o => o?.setVisible?.(false))
     }
 
     // Scrollbar hint: a small dim bar on the right edge if there's overflow.
@@ -420,6 +429,7 @@ export class BuildMenu {
   }
 
   setVisible(v) {
+    this._visible = !!v
     this._objects.forEach(o => o?.setVisible?.(v))
     this._slotObjects.forEach(o => o?.setVisible?.(v))
     if (this._tabs) {
