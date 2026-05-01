@@ -44,6 +44,30 @@ export class DungeonGrid {
     this._rebuildLookup()
   }
 
+  // Room redesign 2026-04-30 — boss-level gating helpers. Pure (no class
+  // state) so callers from other modules can reuse without an instance.
+  static isUnlocked(definition, dungeonLevel = 1) {
+    return (definition.unlockLevel ?? 1) <= dungeonLevel
+  }
+
+  // Returns the cap for `definition` at the given `dungeonLevel`, or null
+  // for unlimited. Prefers placementRules.maxPerDungeonByBossLevel when
+  // present (a sparse {level: cap} table); falls back to the static
+  // maxPerDungeon for legacy rooms.
+  static effectiveMaxPerDungeon(definition, dungeonLevel = 1) {
+    const byLevel = definition.placementRules?.maxPerDungeonByBossLevel
+    if (byLevel != null) {
+      // Walk down to find the highest unlocked entry <= dungeonLevel.
+      // Tables ship dense, but defensive in case future rooms skip levels.
+      let cap = null
+      for (let l = 1; l <= dungeonLevel; l++) {
+        if (byLevel[l] != null) cap = byLevel[l]
+      }
+      return cap
+    }
+    return definition.placementRules?.maxPerDungeon ?? null
+  }
+
   // ── Public API ──────────────────────────────────────────────────────────────
 
   // Place a room at (gridX, gridY). Returns the placed room or null.
@@ -221,8 +245,14 @@ export class DungeonGrid {
     // are fine. Auto-connect (see _autoConnect) creates paired doors at
     // the wall midpoint when rooms share a sufficiently long edge.
 
-    // Max per dungeon
-    const max = definition.placementRules?.maxPerDungeon
+    // Boss-level gating (Room redesign 2026-04-30)
+    const dungeonLevel = opts.dungeonLevel ?? 1
+    if (!DungeonGrid.isUnlocked(definition, dungeonLevel)) {
+      violations.push(`Unlocks at dungeon level ${definition.unlockLevel}`)
+    }
+    // Max per dungeon — uses maxPerDungeonByBossLevel when present, falls
+    // back to static maxPerDungeon for legacy rooms.
+    const max = DungeonGrid.effectiveMaxPerDungeon(definition, dungeonLevel)
     if (max !== null && max !== undefined) {
       const count = this._d.rooms.filter(r => r.definitionId === definition.id).length
       if (count >= max) violations.push(`Max ${max} allowed`)

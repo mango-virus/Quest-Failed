@@ -1,7 +1,7 @@
 import { EventBus }      from '../systems/EventBus.js'
 import { SaveSystem }    from '../systems/SaveSystem.js'
 import { EssenceSystem } from '../systems/EssenceSystem.js'
-import { TILE }          from '../systems/DungeonGrid.js'
+import { TILE, DungeonGrid as DungeonGridClass } from '../systems/DungeonGrid.js'
 import { createMinion }  from '../entities/Minion.js'
 import { createTrap }    from '../entities/Trap.js'
 import { Balance }       from '../config/balance.js'
@@ -63,8 +63,14 @@ export class NightPhase extends Phaser.Scene {
     this._dungeonGrid = gameScene.dungeonGrid
 
     const allRooms = this.cache.json.get('rooms') ?? []
+    const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
+    // Room redesign 2026-04-30 — palette gated by both the unlocks
+    // allowlist (archetype/blacklist) AND the room's unlockLevel <=
+    // current dungeonLevel.
     this._roomDefs = allRooms.filter(r =>
-      this._gameState.unlocks.rooms.includes(r.id) && !r.placementRules?.fixed
+      this._gameState.unlocks.rooms.includes(r.id) &&
+      !r.placementRules?.fixed &&
+      DungeonGridClass.isUnlocked(r, dungeonLevel)
     )
     const allMinions = this.cache.json.get('minionTypes') ?? []
     // Only the starter (chain[0]) of each evolution chain is placeable —
@@ -173,12 +179,13 @@ export class NightPhase extends Phaser.Scene {
       y += 14
     }
 
-    row('Day',           'day',     PALETTE.textDim)
-    row('Soul Essence',  'essence', PALETTE.textCyan)
-    row('Dark Power',    'power',   PALETTE.textAccent)
-    row('Rooms placed',  'rooms',   PALETTE.textDim)
-    row('Roster',        'roster',  PALETTE.textDim)
-    row('Upkeep/day',    'upkeep',  PALETTE.textDim)
+    row('Day',            'day',     PALETTE.textDim)
+    row('Dungeon Level',  'dlevel',  PALETTE.textAccent)
+    row('Soul Essence',   'essence', PALETTE.textCyan)
+    row('Dark Power',     'power',   PALETTE.textAccent)
+    row('Rooms placed',   'rooms',   PALETTE.textDim)
+    row('Roster',         'roster',  PALETTE.textDim)
+    row('Upkeep/day',     'upkeep',  PALETTE.textDim)
 
     // Separator
     g.lineStyle(1, PALETTE.panelBorder, 0.5)
@@ -204,6 +211,7 @@ export class NightPhase extends Phaser.Scene {
     const canAfford   = s.player.soulEssence >= totalUpkeep
 
     this._statsTexts.day?.setText(`Day ${s.meta.dayNumber}`)
+    this._statsTexts.dlevel?.setText(`${s.meta.dungeonLevel ?? 1} / 10`)
     this._statsTexts.essence?.setText(`${s.player.soulEssence}`)
     this._statsTexts.power?.setText(`${s.player.darkPower}`)
     this._statsTexts.rooms?.setText(`${s.dungeon.rooms.length}`)
@@ -348,8 +356,10 @@ export class NightPhase extends Phaser.Scene {
     const gap    = 4
 
     // Filter out room types that have hit their placement cap
+    // (Room redesign 2026-04-30: cap honors per-boss-level scaling.)
+    const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
     const availableDefs = this._roomDefs.filter(def => {
-      const max = def.placementRules?.maxPerDungeon
+      const max = DungeonGridClass.effectiveMaxPerDungeon(def, dungeonLevel)
       if (max == null) return true
       return this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length < max
     })
@@ -818,7 +828,7 @@ export class NightPhase extends Phaser.Scene {
     const check =
       this._selectedKind === 'minion' ? this._validateMinionPlacement(def, tx, ty)
       : this._selectedKind === 'trap'   ? this._validateTrapPlacement(def, tx, ty)
-      : this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy)
+      : this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.meta.dungeonLevel ?? 1 })
     this._previewValid = check.valid
 
     const color = check.valid ? 0x00cc66 : 0xcc2222
@@ -1031,7 +1041,7 @@ export class NightPhase extends Phaser.Scene {
     // tx/ty already the top-left corner (set in pointermove via Math.round centering)
     const placeTx = tx
     const placeTy = ty
-    const result  = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy)
+    const result  = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.meta.dungeonLevel ?? 1 })
     if (!result.valid) {
       this._showPlacementError(result.violations[0] ?? 'Invalid placement')
       return
@@ -1075,7 +1085,7 @@ export class NightPhase extends Phaser.Scene {
         this._heldRoomMinions = null
       }
       this._lastPlaced = { kind: 'room', entity: room, essenceCost: cost }
-      const max = def.placementRules?.maxPerDungeon
+      const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.meta.dungeonLevel ?? 1)
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
       this._cancelSelection()
       if (atCap) this._renderActivePalette()
