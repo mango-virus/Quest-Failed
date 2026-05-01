@@ -17,6 +17,7 @@ import { PALETTE, glowPanel } from '../ui/UIKit.js'
 import { Balance }            from '../config/balance.js'
 import { SaveSystem }          from '../systems/SaveSystem.js'
 import { PauseManager }        from '../systems/PauseManager.js'
+import { EventBus }            from '../systems/EventBus.js'
 
 export class EndOfDay extends Phaser.Scene {
   constructor() {
@@ -233,6 +234,13 @@ export class EndOfDay extends Phaser.Scene {
 
   _chooseMechanic(def, sys) {
     sys.activate(def.id)
+    // Phase 31I — RunHistorySystem appends to gameState.history.pacts so the
+    // Game Over timeline + Boss Overview "Active Pacts" panel can read them.
+    // `rarity` may not exist on all mechanic defs yet; default to 'common'.
+    EventBus.emit('PACT_SEALED', {
+      mechanicId: def.id,
+      rarity:     def.rarity ?? 'common',
+    })
     this._proceed()
   }
 

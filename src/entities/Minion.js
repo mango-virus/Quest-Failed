@@ -84,6 +84,11 @@ export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
     evolutionHistory: [],
     killHistory:     [],
 
+    // Lifetime stats (Phase 31I — UI overhaul). killHistory.length tracks the
+    // same kill count, but a flat counter is cheaper for HUD/Roster reads and
+    // damageDealt has no other home.
+    lifetime: { kills: 0, damageDealt: 0 },
+
     // Equipment + bounty (Phase 7+)
     equippedGear:     [],
     hasBounty:        false,

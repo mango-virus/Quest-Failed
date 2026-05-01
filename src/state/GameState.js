@@ -87,6 +87,30 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
     history: {
       days: [],
       events: [],
+      // Per-day Dark Pact picks. Populated by EndOfDay when a mechanic seals.
+      // Shape: [{ day, mechanicId, rarity }]. Game Over (Phase 31H) timeline reads this.
+      pacts: [],
+    },
+    // Run-wide rolling counters. RunHistorySystem updates these as events fire;
+    // Game Over / Post-Wave Summary screens read them. Plain integers so the
+    // whole gameState stays JSON-serializable.
+    run: {
+      startedAt: Date.now(),
+      totals: {
+        kills:            0,   // adventurers slain by anything in the dungeon
+        dmgDealt:         0,   // damage minions/traps/boss inflicted on advs
+        dmgTaken:         0,   // damage advs inflicted on minions/boss
+        advsKilled:       0,   // alias of kills, kept distinct in case mimics start counting separately
+        advsEscaped:      0,
+        gold:             0,   // cumulative soul-essence (gold) earned across the run
+        souls:            0,   // cumulative dark-power gained across the run
+        roomsBuilt:       0,
+        roomsDestroyed:   0,
+        minionsSummoned:  0,
+        minionsLost:      0,
+        trapsPlaced:      0,
+        trapsDisarmed:    0,
+      },
     },
     knowledge: {
       sharedPool: { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} },

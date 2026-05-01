@@ -1781,9 +1781,19 @@ export class AISystem {
     // Phase 9: Taxation of Souls reduces essence yield (already-weakened victim)
     const flags = this._gameState._mechanicFlags ?? {}
     if (flags.taxationOfSouls) essMul *= Balance.MECHANIC_TAXATION_ESSENCE_PENALTY
-    this._gameState.player.soulEssence += Math.round(Balance.SOUL_ESSENCE_PER_KILL * essMul)
+    const essenceGained = Math.round(Balance.SOUL_ESSENCE_PER_KILL * essMul)
+    this._gameState.player.soulEssence += essenceGained
     this._gameState.player.darkPower   += Balance.DARK_POWER_PER_KILL
     this._gameState.player.totalKills++
+
+    // Phase 31I — emit resource gain so RunHistorySystem can fold it into
+    // gameState.run.totals. Field naming follows the new HUD's terminology
+    // (gold = soul-essence display rename; souls = the dark-power resource).
+    EventBus.emit('RESOURCES_AWARDED', {
+      gold:  essenceGained,
+      souls: Balance.DARK_POWER_PER_KILL,
+      reason: 'adventurer_kill',
+    })
 
     // Phase 7b: dungeon level progression — check whether the new kill total
     // crossed the next-level threshold.

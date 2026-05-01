@@ -18,6 +18,7 @@ import { LootGreedSystem }    from '../systems/LootGreedSystem.js'
 import { BossSystem }         from '../systems/BossSystem.js'
 import { ReputationSystem }   from '../systems/ReputationSystem.js'
 import { RoomBehaviorSystem } from '../systems/RoomBehaviorSystem.js'
+import { RunHistorySystem }   from '../systems/RunHistorySystem.js'
 import { Balance }            from '../config/balance.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
@@ -118,6 +119,9 @@ export class Game extends Phaser.Scene {
     this.bossSystem          = new BossSystem(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
     this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
+    // Phase 31I — passive run-history aggregator. Subscribes to event bus
+    // and folds counts into gameState.run.totals + history.pacts. No gameplay.
+    this.runHistorySystem    = new RunHistorySystem(this, this.gameState)
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
     this.adventurerRenderer  = new AdventurerRenderer(this, this.gameState)
     this.minionRenderer      = new MinionRenderer(this, this.gameState)
@@ -207,6 +211,7 @@ export class Game extends Phaser.Scene {
     this.lootSystem?.destroy()
     this.evolutionSystem?.destroy()
     this.classAbilitySystem?.destroy()
+    this.runHistorySystem?.destroy()
     this.knowledgeSystem?.destroy()
     this.knowledgeOverlay?.destroy()
     this.wantedPoster?.destroy()

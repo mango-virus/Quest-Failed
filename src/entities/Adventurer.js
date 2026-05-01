@@ -93,6 +93,13 @@ export function createAdventurer(classDef, spawnTile, dungeonLevel = 1) {
 
     flags:      {},
 
+    // Lifetime escape count for this *named identity* (Phase 31I — UI overhaul).
+    // Per-instance starting value; RunHistorySystem reconciles to the
+    // gameState.adventurers.known entry on flee so a returning adventurer
+    // accumulates across visits. Game Over's "biggest leak" panel reads
+    // the known-list value, not this one.
+    escapeCount: 0,
+
     // Render hint — replaced by sprite in tileset phase
     sigil: classDef.id[0].toUpperCase(),
   }
