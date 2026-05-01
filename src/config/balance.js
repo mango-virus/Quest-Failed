@@ -118,8 +118,8 @@ export const Balance = {
   KNOWLEDGE_TRAUMATIZED_PARTIAL:   1.0,    // traumatized share full intel
 
   // --- Room behaviors (Phase 6e) ---
-  HEALING_FOUNTAIN_HP_PER_SEC:     4,
-  ECHOES_ALERT_DURATION_MS:        8000,
+  // [Removed 2026-04-30] HEALING_FOUNTAIN_HP_PER_SEC + ECHOES_ALERT_DURATION_MS
+  // (healing_fountain and hall_of_echoes rooms retired in the Room redesign).
   HERALD_ALERT_DURATION_MS:        5000,
   MOURNER_DAMAGE_BUFF_PER_DEATH:   2,      // attack stat gain per nearby ally death
   ENGINEER_TRAP_DAMAGE_BUFF:       1.25,
@@ -146,7 +146,7 @@ export const Balance = {
   REPLAY_PATH_SAMPLE_MS:           500,    // ms between path samples per adventurer
   REPLAY_PATH_MAX_SAMPLES:         60,     // cap on stored samples per run
   REPLAY_GHOST_FADE_MS:            8000,   // ghost trail fade duration after return spawn
-  MIRROR_MAZE_KNOWLEDGE_ACCURACY:  0.4,    // accuracy of knowledge gained in mirror maze
+  // [Removed 2026-04-30] MIRROR_MAZE_KNOWLEDGE_ACCURACY (room retired).
   VANDAL_DISARM_DAMAGE:            0,      // vandals take 0 damage when disarming
   RETURNING_GEAR_BONUS_HP:         8,      // bonus HP from "between-run shopping"
   RETURNING_GEAR_BONUS_ATK:        2,
@@ -166,7 +166,7 @@ export const Balance = {
   MECHANIC_HUNGER_DAMAGE_PER_TICK:        1,
   MECHANIC_TAXATION_HP_FRACTION:          0.05,   // 5% maxHP loss per new room
   MECHANIC_TAXATION_ESSENCE_PENALTY:      0.7,    // soul essence multiplier (less per kill)
-  MECHANIC_CURSED_FOUNTAIN_DAMAGE_PER_SEC: 4,     // mirror of HEALING_FOUNTAIN_HP_PER_SEC
+  // [Removed 2026-04-30] MECHANIC_CURSED_FOUNTAIN_DAMAGE_PER_SEC (healing_fountain retired).
   MECHANIC_BLOODBOUND_DAMAGE_MULT:        1.5,
   MECHANIC_KNOWLEDGE_PAIN_BONUS:          0.10,   // +10% damage in already-cleared rooms
   MECHANIC_MIMICRY_CHEST_RATE:            0.2,    // 20% of chests become mimics

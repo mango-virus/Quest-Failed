@@ -150,33 +150,20 @@ export function drawRoomIcon(g, cx, cy, roomId, color) {
       g.fillRect(cx - s, cy - 1, s * 2, 2)
       break
 
-    case 'trap_room':
-      // Exclamation triangle
-      g.fillTriangle(cx, cy - s, cx - s, cy + s, cx + s, cy + s)
+    case 'trap_factory':
+      // Gear: square with cross-hatch
+      g.fillRect(cx - s, cy - s, s * 2, s * 2)
       g.fillStyle(PALETTE.void, 1)
-      g.fillRect(cx - 1, cy - 3, 2, 6)
-      g.fillRect(cx - 1, cy + 5, 2, 2)
+      g.fillRect(cx - 1, cy - s, 2, s * 2)
+      g.fillRect(cx - s, cy - 1, s * 2, 2)
       break
 
-    case 'treasure_room':
+    case 'treasury':
       // Chest outline
       g.fillRect(cx - s, cy - 2, s * 2, s + 2)
       g.fillRect(cx - s, cy - s, s * 2, s - 2)
       g.fillStyle(PALETTE.void, 1)
       g.fillRect(cx - 1, cy - 2, 2, 4)
-      break
-
-    case 'healing_fountain':
-      // Plus / cross
-      g.fillRect(cx - 1, cy - s, 2, s * 2)
-      g.fillRect(cx - s, cy - 1, s * 2, 2)
-      break
-
-    case 'hall_of_echoes':
-      // Sound wave arcs (three dots on a line)
-      for (let i = -1; i <= 1; i++) {
-        g.fillRect(cx + i * 4 - 1, cy - s, 2, s * 2)
-      }
       break
 
     default:

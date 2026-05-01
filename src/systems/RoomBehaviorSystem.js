@@ -396,60 +396,16 @@ export class RoomBehaviorSystem {
       }
     }
 
-    // Phase QW — Necropolis Wing — corpse-to-minion conversion at night.
-    const necros = (this._gameState.dungeon.rooms ?? []).filter(r =>
-      r.definitionId === 'necropolis_wing' && r.isActive !== false
-    )
-    if (necros.length === 0) return
-
-    for (const room of necros) {
-      const corpse = (this._gameState.adventurers.graveyard ?? []).find(g =>
-        !g.collected && !g.raisedAsMinion
-      )
-      if (!corpse) continue
-      corpse.raisedAsMinion = true
-
-      const x = room.gridX + Math.floor(room.width / 2)
-      const y = room.gridY + Math.floor(room.height / 2)
-      const m = {
-        instanceId:    `necro_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        definitionId:  baseDef.id,
-        name:          `Risen ${corpse.name ?? 'Adventurer'}`,
-        faction:       'dungeon',
-        isRaisedFromCorpse: true,
-        raisedFromAdvId: corpse.instanceId,
-        assignedRoomId: room.instanceId,
-        homeTileX: x, homeTileY: y,
-        tileX: x, tileY: y,
-        worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
-        stats: { ...(baseDef.baseStats ?? { hp: 30, attack: 8, defense: 4, speed: 1 }) },
-        resources: {
-          hp:    baseDef.baseStats?.hp ?? 30,
-          maxHp: baseDef.baseStats?.hp ?? 30,
-        },
-        aiState: 'idle', level: 1, xp: 0,
-        tags: [...(baseDef.tags ?? []), 'undead'],
-        equippedGear: [],
-        killHistory: [], evolutionHistory: [],
-        timesKilledAndRespawned: 0,
-        lastAttackAt: 0, currentTargetId: null,
-      }
-      this._gameState.minions ??= []
-      this._gameState.minions.push(m)
-      EventBus.emit('CORPSE_RAISED', { minion: m, fromCorpse: corpse, roomId: room.instanceId })
-    }
+    // [Removed 2026-04-30] Necropolis Wing corpse-to-minion conversion.
+    // Catacombs now fills the corpse-spawn role (see AISystem._kill).
   }
 
-  // ── Colosseum + False Exit — react on room change ────────────────────────
+  // ── False Exit + room redesign hooks — react on room change ──────────────
 
   _onRoomChanged({ adventurer, fromRoomId, toRoomId }) {
     if (!adventurer || !toRoomId) return
     const room = this._gameState.dungeon.rooms.find(r => r.instanceId === toRoomId)
     if (!room) return
-
-    if (room.definitionId === 'colosseum') {
-      this._lockColosseumGates(room, adventurer)
-    }
 
     if (room.definitionId === 'false_exit') {
       // Only "trigger" when the adventurer is fleeing — i.e. their goal type
@@ -627,38 +583,7 @@ export class RoomBehaviorSystem {
     }
   }
 
-  _lockColosseumGates(room, adventurer) {
-    if (room._wavesSpawned) return    // one wave per day
-    room._wavesSpawned = true
-    const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
-    const def = minionTypes.find(d => d.id === 'skeleton_warrior') ?? minionTypes[0]
-    if (!def) return
-    const TS = 32
-
-    for (let i = 0; i < 3; i++) {
-      const x = room.gridX + Balance.WALL_THICKNESS + i
-      const y = room.gridY + Math.floor(room.height / 2)
-      const m = {
-        instanceId:    `colo_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 4)}`,
-        definitionId:  def.id,
-        name:          'Colosseum Champion',
-        faction:       'dungeon',
-        isColosseumWave: true,
-        assignedRoomId: room.instanceId,
-        homeTileX: x, homeTileY: y, tileX: x, tileY: y,
-        worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
-        stats: { ...(def.baseStats ?? { hp: 30, attack: 8, defense: 4, speed: 1 }) },
-        resources: { hp: def.baseStats?.hp ?? 30, maxHp: def.baseStats?.hp ?? 30 },
-        aiState: 'idle', level: 1, xp: 0,
-        tags: [...(def.tags ?? [])],
-        equippedGear: [], killHistory: [], evolutionHistory: [],
-        timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
-      }
-      this._gameState.minions ??= []
-      this._gameState.minions.push(m)
-    }
-    EventBus.emit('COLOSSEUM_WAVE_SPAWNED', { roomId: room.instanceId, count: 3 })
-  }
+  // [Removed 2026-04-30] _lockColosseumGates — colosseum room retired.
 
   _teleportToNearBoss(adv) {
     const boss = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')

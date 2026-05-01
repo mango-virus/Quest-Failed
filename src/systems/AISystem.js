@@ -550,11 +550,12 @@ export class AISystem {
     // through it.
     const enteringDoor = this._dungeonGrid.getCpForDoorTile?.(wp.x, wp.y)
     if (enteringDoor && !enteringDoor.cp.open) {
-      if (!enteringDoor.cp.opening) {
-        enteringDoor.cp.opening = true
-        enteringDoor.cp.openProgress = 0
-        EventBus.emit('DOOR_OPENING', { cp: enteringDoor.cp })
-      }
+      // Route through DungeonRenderer.openDoor so the sprite path swaps
+      // to the open swatch immediately (full redraw). Setting cp.opening
+      // directly only updates the procedural panel layer, leaving the
+      // painted door sprite stuck on closed art until the animation
+      // completes.
+      this._scene?._dungeonRenderer?.openDoor(enteringDoor.cp)
       return
     }
 
@@ -714,16 +715,14 @@ export class AISystem {
 
   // Trigger the split-open animation when an adventurer first steps onto a
   // DOOR cell whose connection point is still closed. Idempotent — a cp
-  // already opening or open is left alone. The animation tick in
-  // DungeonRenderer.update advances the progress and flips cp.open=true.
+  // already opening or open is left alone. Routed through
+  // DungeonRenderer.openDoor so the sprite path swaps to the open swatch
+  // immediately (full redraw); the animation tick in DungeonRenderer.update
+  // advances cp.openProgress and flips cp.open=true at the end.
   _maybeOpenDoorAt(tx, ty) {
     const found = this._dungeonGrid.getCpForDoorTile?.(tx, ty)
     if (!found) return
-    const { cp } = found
-    if (cp.open || cp.opening) return
-    cp.opening = true
-    cp.openProgress = 0
-    EventBus.emit('DOOR_OPENING', { cp })
+    this._scene?._dungeonRenderer?.openDoor(found.cp)
   }
 
   // Walkable line-of-sight check — Amanatides-Woo grid traversal that visits
@@ -939,93 +938,10 @@ export class AISystem {
     const room = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
     if (!room || room.isActive === false) return
 
-    // Phase QW — Prison Block: 30% chance on first entry to "detain" the
-    // adventurer (frozen for 5s of game-time). Heralded by ADVENTURER_DETAINED
-    // so combat log can mention it. Once detained, they sit until expiry.
-    if (room.definitionId === 'prison_block') {
-      adv.flags = adv.flags ?? {}
-      const enteredKey = `_prisonChecked_${room.instanceId}`
-      if (!adv.flags[enteredKey]) {
-        adv.flags[enteredKey] = true
-        if (Math.random() < 0.3) {
-          adv.flags.detainedUntil = this._scene.time.now + 5000
-          EventBus.emit('ADVENTURER_DETAINED', { adventurer: adv, roomId: room.instanceId })
-        }
-      }
-      // While detained, freeze movement
-      if (adv.flags.detainedUntil && this._scene.time.now < adv.flags.detainedUntil) {
-        adv.path = null
-        adv.aiState = 'detained'
-        return
-      } else if (adv.flags.detainedUntil) {
-        adv.flags.detainedUntil = null
-      }
-    }
-
-    // Phase QW — Serpent Pit: 2 HP/sec poison while standing in it
-    if (room.definitionId === 'serpent_pit') {
-      const dmg = (2 * delta) / 1000
-      adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
-      adv._lastHitType = 'poison'
-      return
-    }
-
-    // Phase QW — Obelisk Room: alternates between HEAL and CHARGE states every 6 s.
-    // We store the toggle on the room itself so all advs see the same phase.
-    if (room.definitionId === 'obelisk_room') {
-      room._obeliskAccum = (room._obeliskAccum ?? 0) + delta
-      if (room._obeliskAccum >= 6000) {
-        room._obeliskAccum = 0
-        room._obeliskState = (room._obeliskState === 'charge') ? 'heal' : 'charge'
-      }
-      const state = room._obeliskState ?? 'heal'
-      if (state === 'heal' && adv.aiState !== 'fighting' && adv.resources.hp < adv.resources.maxHp) {
-        adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + (2 * delta) / 1000)
-      } else if (state === 'charge') {
-        adv.flags = adv.flags ?? {}
-        adv.flags.obeliskChargedNextAttack = true
-      }
-      return
-    }
-
-    // Phase 10b — Lava Floor: 3 HP/sec passive fire damage
-    if (room.definitionId === 'lava_floor') {
-      const dmg = (3 * delta) / 1000
-      adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
-      adv._lastHitType = 'fire'
-      return
-    }
-
-    // Phase 10b — Collapsing Pillars: every ~4 s, hit one random adventurer in the room for 8 dmg
-    if (room.definitionId === 'collapsing_pillars') {
-      adv._collapseAccum = (adv._collapseAccum ?? 0) + delta
-      if (adv._collapseAccum >= 4000) {
-        adv._collapseAccum = 0
-        if (Math.random() < 0.5) {
-          adv.resources.hp = Math.max(0, adv.resources.hp - 8)
-          adv._lastHitType = 'physical'
-          EventBus.emit('PILLAR_FALLEN', { adventurer: adv, roomId: room.instanceId })
-        }
-      }
-      return
-    }
-
-    if (room.definitionId === 'healing_fountain') {
-      const flags = this._gameState._mechanicFlags ?? {}
-      if (flags.cursedFountains) {
-        // Phase 9: Cursed Fountains — healing fountain damages instead
-        const rate = Balance.MECHANIC_CURSED_FOUNTAIN_DAMAGE_PER_SEC ?? 4
-        const dmg = (rate * delta) / 1000
-        adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
-        adv._lastHitType = 'curse'
-      } else if (adv.aiState !== 'fighting' && adv.resources.hp < adv.resources.maxHp) {
-        const rate = Balance.HEALING_FOUNTAIN_HP_PER_SEC ?? 4
-        adv.resources.hp = Math.min(
-          adv.resources.maxHp,
-          adv.resources.hp + (rate * delta) / 1000
-        )
-      }
-    }
+    // [Removed 2026-04-30] Per-room blocks for prison_block, serpent_pit,
+    // obelisk_room, lava_floor, collapsing_pillars, healing_fountain.
+    // These rooms were retired in the Room redesign — see DESIGN.md for
+    // the replacement set.
 
     // Room redesign 2026-04-30 — Hall of Madness: while inside, ~25%/sec
     // chance to lash out at a random other adventurer in the room. Single
@@ -1432,15 +1348,10 @@ export class AISystem {
       const item = dungeonLoot.find(i => i.instanceId === id)
       return item?.type === 'key' || item?.definitionId === 'iron_key'
     })
-    // Phase QW — secret rooms are invisible to most advs. Cartographers,
-    // completionists, and anyone who's already visited can see them.
-    const canSeeSecrets = tags.has('mapper') || tags.has('completionist')
     const unvisited = this._gameState.dungeon.rooms.filter(r =>
       !visited.has(r.instanceId) && r.definitionId !== 'boss_chamber' &&
       // Phase 10: skip locked rooms unless adventurer has a key
-      (!r.locked || hasKey) &&
-      // Phase QW: skip secret rooms unless adv is cartographer/completionist
-      (r.definitionId !== 'secret_passage' || canSeeSecrets)
+      (!r.locked || hasKey)
     )
     // Phase 7b: include floor loot for SEEK_LOOT goal evaluation
     let floorLoot = (this._gameState.loot?.dungeon ?? []).filter(i => i.tileX != null)

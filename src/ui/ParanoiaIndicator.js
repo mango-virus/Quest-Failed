@@ -16,9 +16,12 @@ import { Balance }  from '../config/balance.js'
 const TS = Balance.TILE_SIZE
 const REFRESH_MS = 1000
 
+// [Updated 2026-04-30] healing_fountain + treasure_room retired in the
+// Room redesign. Treasury is the closest equivalent (valuable loot
+// stop) so it inherits the paranoia overlay; if more rooms feel
+// "too tempting" later, add them here.
 const PARANOID_ROOM_TYPES = new Set([
-  'healing_fountain',
-  'treasure_room',
+  'treasury',
 ])
 
 export class ParanoiaIndicator {

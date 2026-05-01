@@ -55,8 +55,8 @@ export class MinionAISystem {
     this._alertedRooms.clear()
   }
 
-  // Combat in a barracks wakes everyone there. Combat in a hall_of_echoes
-  // alerts minions in adjacent rooms (they'll cross-room engage briefly).
+  // Combat in a barracks wakes everyone there.
+  // [Removed 2026-04-30] Hall of Echoes cross-room alert — room retired.
   _onCombatHit({ sourceId, targetId, roomId: hintRoomId }) {
     const source = this._gameState.adventurers.active.find(a => a.instanceId === sourceId)
                  ?? this._gameState.minions.find(m => m.instanceId === sourceId)
@@ -70,13 +70,6 @@ export class MinionAISystem {
     // Wake barracks-style rooms on first combat
     if (room.definitionId === 'starter_barracks' || room.definitionId === 'barracks') {
       this._wokenRooms.add(room.instanceId)
-    }
-
-    // Hall of Echoes — propagate alert to adjacent rooms
-    if (room.definitionId === 'hall_of_echoes') {
-      const expiresAt = (this._scene.time?.now ?? 0) + 8000  // 8s alert window
-      const neighbors = this._dungeonGrid.getNeighborRooms(room.instanceId)
-      for (const n of neighbors) this._alertedRooms.set(n.instanceId, expiresAt)
     }
   }
 
@@ -321,7 +314,9 @@ export class MinionAISystem {
   }
 
   // Phase QW — Scavenger: drags unclaimed loot in its room toward the
-  // nearest treasure_room, removing it from adventurer reach.
+  // nearest Treasury, removing it from adventurer reach.
+  // [Updated 2026-04-30] Repointed treasure_room → treasury after the
+  // Room redesign.
   _tickScavenger(scav, delta) {
     scav._scavAccum = (scav._scavAccum ?? 0) + delta
     if (scav._scavAccum < 4000) return
@@ -330,16 +325,18 @@ export class MinionAISystem {
     const room = this._gameState.dungeon.rooms.find(r => r.instanceId === scav.assignedRoomId)
     if (!room) return
     const item = (this._gameState.loot?.dungeon ?? []).find(i =>
-      i.tileX != null && i.dungeonRoomId === room.instanceId
+      i.tileX != null &&
+      i.dungeonRoomId === room.instanceId &&
+      !i._treasuryChest   // never drag chests — they belong to their Treasury
     )
     if (!item) return
 
-    const treasure = this._gameState.dungeon.rooms.find(r => r.definitionId === 'treasure_room')
-    if (!treasure) return
-    item.tileX = treasure.gridX + Math.floor(treasure.width / 2)
-    item.tileY = treasure.gridY + Math.floor(treasure.height / 2)
-    item.dungeonRoomId = treasure.instanceId
-    EventBus.emit('LOOT_SCAVENGED', { item, by: scav, toRoomId: treasure.instanceId })
+    const treasury = this._gameState.dungeon.rooms.find(r => r.definitionId === 'treasury')
+    if (!treasury) return
+    item.tileX = treasury.gridX + Math.floor(treasury.width / 2)
+    item.tileY = treasury.gridY + Math.floor(treasury.height / 2)
+    item.dungeonRoomId = treasury.instanceId
+    EventBus.emit('LOOT_SCAVENGED', { item, by: scav, toRoomId: treasury.instanceId })
   }
 
   _tickSapper(sapper, delta) {

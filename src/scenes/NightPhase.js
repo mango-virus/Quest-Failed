@@ -1146,14 +1146,8 @@ export class NightPhase extends Phaser.Scene {
       minion.resources.hp    = minion.resources.maxHp
     }
 
-    // Phase 7b: auto-promote to mini-boss when placed in a treasure room
-    if (room?.definitionId === 'treasure_room') {
-      minion.isMiniBoss = true
-      minion.stats.attack    = Math.round(minion.stats.attack * Balance.MINIBOSS_ATTACK_MULT)
-      minion.resources.maxHp = Math.round(minion.resources.maxHp * Balance.MINIBOSS_HP_MULT)
-      minion.resources.hp    = minion.resources.maxHp
-      EventBus.emit('MINIBOSS_PROMOTED', { minion, room })
-    }
+    // [Removed 2026-04-30] treasure_room mini-boss auto-promotion. The
+    // Throne Room handler in RoomBehaviorSystem now owns mini-boss spawns.
 
     this._gameState.minions.push(minion)
     this._lastPlaced = { kind: 'minion', entity: minion, essenceCost: cost }

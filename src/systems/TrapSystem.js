@@ -203,11 +203,8 @@ export class TrapSystem {
       EventBus.emit('TRAP_DODGED', { trap, def, adventurer: adv })
       return
     }
-    // Phase QW — requiresPowerSource: trap silently fails if no power_core room is built.
-    if (def.requiresPowerSource && !this._hasPowerCore()) {
-      EventBus.emit('TRAP_FAILED_NO_POWER', { trap, def, adventurer: adv })
-      return
-    }
+    // [Removed 2026-04-30] requiresPowerSource gate — power_core room
+    // retired in the Room redesign; Trap Factory is the new gateway.
     // Phase QW — requiresEternalNight: torch_trap only fires while the
     // Eternal Night dungeon mechanic is active.
     if (def.requiresEternalNight && !this._isEternalNightActive()) {
@@ -260,13 +257,6 @@ export class TrapSystem {
         day:        this._gameState.meta.dayNumber,
       })
     }
-  }
-
-  // Phase QW — does the dungeon have any active Power Core room?
-  _hasPowerCore() {
-    return (this._gameState.dungeon.rooms ?? []).some(r =>
-      r.definitionId === 'power_core' && r.isActive !== false
-    )
   }
 
   // Phase QW — Eternal Night mechanic active?
