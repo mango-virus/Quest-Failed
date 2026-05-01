@@ -58,7 +58,7 @@ export class ActionBar {
   // which mode they're in. Only one tool is armed at a time.
   _setArmedTool(mode) {
     this._armedTool = mode
-    const accentH = ['rotate', 'move', 'sell', 'roster'].reduce((acc, k) => {
+    const accentH = ['move', 'sell', 'roster'].reduce((acc, k) => {
       const btn = this._buttons[k]
       if (!btn) return acc
       const isArmed = (k === mode)
@@ -105,11 +105,13 @@ export class ActionBar {
     // The phase indicator floats in whatever gap remains.
     const sideMargin = 24
 
+    // Phase 31D — Rotate dropped from the action bar; rotation now happens
+    // via the R key while a room is held in MOVE mode (or during initial
+    // placement from the build menu).
     const leftDefs = [
-      { key: 'rotate',  w: 86, label: 'ROTATE', event: 'TOOL_ROTATE' },
-      { key: 'move',    w: 76, label: 'MOVE',   event: 'TOOL_MOVE'   },
-      { key: 'sell',    w: 76, label: 'SELL',   event: 'TOOL_SELL', danger: true },
-      { key: 'roster',  w: 86, label: 'ROSTER', event: 'OPEN_MINION_ROSTER' },
+      { key: 'move',    w: 86, label: 'MOVE',   event: 'TOOL_MOVE'   },
+      { key: 'sell',    w: 86, label: 'SELL',   event: 'TOOL_SELL', danger: true },
+      { key: 'roster',  w: 96, label: 'ROSTER', event: 'OPEN_MINION_ROSTER' },
     ]
     const rightDefs = [
       // Primary button — onPrimary delegates to a method that branches on
