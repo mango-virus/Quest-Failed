@@ -884,13 +884,17 @@ export class AISystem {
 
     // A tile is "walkable" for line-of-sight if its type allows movement
     // AND nothing dynamic is sitting on it. Mimics (in any state) count
-    // as solid — without this guard, path-smoothing happily greenlights
-    // a diagonal that visually crosses a chest tile even when the
-    // planned path correctly routes around it. That manifested as
-    // "adventurers walking through mimics" in playtest.
+    // as solid for INTERMEDIATE tiles — without this guard,
+    // path-smoothing happily greenlights a diagonal that visually crosses
+    // a chest tile even when the planned path correctly routes around it.
+    // The adv's own start tile is exempt from the mimic check (they can't
+    // be standing on a mimic, but float-edge cases shouldn't lock them
+    // in place if they are).
+    const startCx = Math.floor(x0), startCy = Math.floor(y0)
     const walkable = (x, y) => {
       const row = tiles[y]
       if (!row || !PathfinderSystem.isWalkable(row[x])) return false
+      if (x === startCx && y === startCy) return true
       if (this._isChestMimicAt(x, y)) return false
       return true
     }
