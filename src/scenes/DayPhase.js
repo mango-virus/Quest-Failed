@@ -61,13 +61,11 @@ export class DayPhase extends Phaser.Scene {
 
     // Phase 9b: show dossier of today's callers briefly
     if (spawned.length > 0) {
-      this.time.delayedCall(300, () => this._dossierPanel?.show(spawned))
-      // Center the world camera on the entry_hall for a beat so the player
-      // can actually see the arrivals materialise + walk in. Without this
-      // the camera stays wherever the user was looking during build mode
-      // and a single Day-1 adventurer can vanish into the corner unseen.
+      // Phase 31C — old DossierPanel + ARRIVAL banner are legacy chrome
+      // that conflicted visually with the new HUD. The Adventurer Intel
+      // popup (31E) replaces the dossier; the banner just spammed across
+      // the new top bar. Camera focus on entry_hall stays.
       this._focusCameraOnEntry()
-      this._showArrivalBanner(spawned)
     }
   }
 

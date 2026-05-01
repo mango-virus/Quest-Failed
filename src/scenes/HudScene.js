@@ -66,23 +66,27 @@ export class HudScene extends Phaser.Scene {
       w: LEFT_COL_W, h: MINIMAP_PANEL_HEIGHT,
     })
 
-    // ── Build menu (left column, below mini-map) ──
+    // ── Build menu (left column, fills down to the action bar) ──
+    // The audio strip moved INTO the action bar's left margin, so the
+    // build menu reclaims that vertical space.
     const buildMenuY = TOP_Y + MINIMAP_PANEL_HEIGHT + 8
-    // Reserve room for the AudioControls strip just above the action bar.
-    const audioStripH = 32
     this._buildMenu = new BuildMenu(this, this._gameState, {
       depth: 60,
       x:     COL_PAD,
       y:     buildMenuY,
       w:     LEFT_COL_W,
-      h:     H - buildMenuY - ACTION_BAR_HEIGHT - audioStripH - COL_PAD,
+      h:     H - buildMenuY - ACTION_BAR_HEIGHT - 6,
     })
     this._buildMenu.setVisible(this._gameState.meta?.phase === 'night')
 
-    // ── Audio controls (bottom-left, above the action bar) ──
+    // ── Audio controls — sit in the action bar's left empty margin
+    //    (the bar is now a centered ~1020 px panel, so the left ~130 px
+    //    of canvas next to it is free space). Vertically centered on the
+    //    action bar so the volume slider lines up with the buttons.
+    const actionBarTop = H - ACTION_BAR_HEIGHT
     this._audioControls = new AudioControls(this,
       COL_PAD,
-      H - ACTION_BAR_HEIGHT - audioStripH + 4,
+      actionBarTop + 12,
       { depth: 80, playlist: GameplayMusic },
     )
 
@@ -107,10 +111,14 @@ export class HudScene extends Phaser.Scene {
     // ── Action bar (bottom strip) ──
     this._actionBar = new ActionBar(this, this._gameState, { depth: 60 })
 
-    // Listen for phase change to toggle build menu visibility
+    // Listen for phase change: toggle build menu visibility, AND clear any
+    // lingering BuildMenu selection so day-2+ placement works cleanly. The
+    // BuildMenu lives in HudScene (persistent), but NightPhase re-init
+    // starts with no selected def — keep them in sync.
     const onPhaseChange = () => {
       const isNight = this._gameState.meta?.phase === 'night'
       this._buildMenu?.setVisible(isNight)
+      EventBus.emit('BUILD_DESELECT')
     }
     EventBus.on('NIGHT_PHASE_BEGAN', onPhaseChange)
     EventBus.on('DAY_PHASE_BEGAN',   onPhaseChange)

@@ -157,26 +157,32 @@ export class MiniMapPanel {
     this._dynObjects.push(g)
 
     // Live entity dots — boss / minions / adventurers. Each colour gets
-    // its own graphics object so we can blink the whole layer with a
-    // single tween rather than tweening individual fills.
-    const dotSize = 3
+    // its own graphics object so the boss + adv layers can blink in sync.
+    // Sizes are big enough to read at the small minimap scale.
+    const advSize    = 4
+    const minionSize = 3
+    const bossSize   = 6
 
     // Boss — accent red
     const bossG = this._scene.add.graphics().setDepth(D + 2)
     bossG.fillStyle(CRYPT.accent, 1)
     const boss = this._gameState.boss
+    let bossDX = null, bossDY = null
     if (boss && boss.tileX != null) {
-      const dx = baseX + Math.round(boss.tileX * sx)
-      const dy = baseY + Math.round(boss.tileY * sy)
-      bossG.fillRect(dx - 2, dy - 2, dotSize + 1, dotSize + 1)
+      bossDX = baseX + Math.round(boss.tileX * sx)
+      bossDY = baseY + Math.round(boss.tileY * sy)
     } else {
-      // Boss tile unknown — fall back to the boss room centre.
       const bossRoom = (dungeon.rooms ?? []).find(r => r.definitionId === 'boss_chamber')
       if (bossRoom) {
-        const dx = baseX + Math.round((bossRoom.gridX + bossRoom.width  / 2) * sx)
-        const dy = baseY + Math.round((bossRoom.gridY + bossRoom.height / 2) * sy)
-        bossG.fillRect(dx - 2, dy - 2, dotSize + 1, dotSize + 1)
+        bossDX = baseX + Math.round((bossRoom.gridX + bossRoom.width  / 2) * sx)
+        bossDY = baseY + Math.round((bossRoom.gridY + bossRoom.height / 2) * sy)
       }
+    }
+    if (bossDX != null) {
+      bossG.fillRect(bossDX - Math.floor(bossSize / 2), bossDY - Math.floor(bossSize / 2), bossSize, bossSize)
+      // White inner pixel for contrast — reads as "alive" at small scale.
+      bossG.fillStyle(0xffffff, 1)
+      bossG.fillRect(bossDX - 1, bossDY - 1, 2, 2)
     }
     this._dynObjects.push(bossG)
 
@@ -187,7 +193,7 @@ export class MiniMapPanel {
       if (m.aiState === 'dead' || (m.resources?.hp ?? 1) <= 0) continue
       const dx = baseX + Math.round((m.tileX ?? 0) * sx)
       const dy = baseY + Math.round((m.tileY ?? 0) * sy)
-      minG.fillRect(dx - 1, dy - 1, dotSize, dotSize)
+      minG.fillRect(dx - 1, dy - 1, minionSize, minionSize)
     }
     this._dynObjects.push(minG)
 
@@ -197,16 +203,17 @@ export class MiniMapPanel {
     for (const adv of (this._gameState.adventurers?.active ?? [])) {
       const dx = baseX + Math.round((adv.tileX ?? 0) * sx)
       const dy = baseY + Math.round((adv.tileY ?? 0) * sy)
-      advG.fillRect(dx - 1, dy - 1, dotSize, dotSize)
+      advG.fillRect(dx - 2, dy - 2, advSize, advSize)
     }
     this._dynObjects.push(advG)
 
-    // Blink the boss + adventurer layers together — minions stay solid so
-    // there's a stable "patrol" reference. 2-step alpha tween at ~0.9 s.
+    // Blink the boss + adventurer layers together. Min alpha 0.6 so the
+    // dots never flat-out disappear — the user reads them as "alive"
+    // even mid-blink.
     this._blinkTween = this._scene.tweens.add({
       targets: [bossG, advG],
-      alpha:   { from: 1, to: 0.35 },
-      duration: 450, yoyo: true, repeat: -1,
+      alpha:   { from: 1, to: 0.6 },
+      duration: 480, yoyo: true, repeat: -1,
     })
   }
 

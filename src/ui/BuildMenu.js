@@ -91,7 +91,7 @@ export class BuildMenu {
     this._tabs = pixelTabs(this._scene, x + 2, tabsY, w - 4, TABS_H,
       TABS.map(t => t.label), {
         depth: D + 2,
-        fontSize: 8,
+        fontSize: 7,
         activeIdx: TABS.findIndex(t => t.key === this._activeTab),
         onChange: (idx) => this._switchTab(TABS[idx].key),
       })
@@ -118,6 +118,16 @@ export class BuildMenu {
     // Slot grid area
     this._slotsTopY  = tabsY + TABS_H + PADDING
     this._slotsBotY  = footerY - PADDING
+
+    // Geometry mask covering exactly the visible slot rect — applied to
+    // every slot object so partially-scrolled slots get clipped at the
+    // viewport edge instead of being hidden entirely.
+    const maskShape = this._scene.make.graphics({ x: 0, y: 0, add: false })
+    maskShape.fillStyle(0xffffff, 1)
+    maskShape.fillRect(x + PADDING, this._slotsTopY,
+      this._w - PADDING * 2, this._slotsBotY - this._slotsTopY)
+    this._slotMask = maskShape.createGeometryMask()
+
     this._renderActive()
 
     // Mouse wheel scroll inside the slot grid area.
@@ -209,13 +219,22 @@ export class BuildMenu {
       const row = Math.floor(i / SLOT_COLS)
       const sx = x + col * (slotW + SLOT_GAP)
       const sy = y + row * (slotH + SLOT_GAP) - this._scrollY
-      // Skip slots that don't fully fit in the viewport — partial rows
-      // were the source of the "Entry Hall bleeds out the bottom" bug.
+      // Skip only fully-offscreen slots; partial slots render and are
+      // clipped by the geometry mask applied in _renderSlot.
       if (sy + slotH < this._slotsTopY) return
-      if (sy + slotH > this._slotsBotY) return
-      if (sy < this._slotsTopY) return
+      if (sy > this._slotsBotY) return
       this._renderSlot(def, kind, sx, sy, slotW, slotH)
     })
+
+    // Apply the slot-area geometry mask to every just-created object.
+    // Hit zones aren't masked — clicks should still register on partially
+    // visible slots, just visuals are clipped.
+    if (this._slotMask) {
+      for (const o of this._slotObjects) {
+        if (o?.type === 'Zone') continue
+        o?.setMask?.(this._slotMask)
+      }
+    }
 
     // Scrollbar hint: a small dim bar on the right edge if there's overflow.
     const visibleH = this._slotsBotY - this._slotsTopY

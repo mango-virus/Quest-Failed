@@ -38,6 +38,18 @@ export class ActionBar {
     this._speedIdx = 0   // index into SPEED_STEPS, only used in day phase
 
     this._build()
+    this._wireResetEvents()
+  }
+
+  // Reset to 1× speed whenever a day ends so the next day starts normal.
+  _wireResetEvents() {
+    this._listeners = []
+    const on = (event, fn) => {
+      EventBus.on(event, fn, this)
+      this._listeners.push([event, fn])
+    }
+    on('DAY_PHASE_ENDED',   () => { this._speedIdx = 0 })
+    on('NIGHT_PHASE_BEGAN', () => { this._speedIdx = 0 })
   }
 
   _build() {
@@ -129,21 +141,23 @@ export class ActionBar {
       danger:   !!opts.danger,
       onClick,
     })
-    btn.label.setText('') // we draw glyph + label separately for tighter spacing
+    btn.label.setText('') // we draw the label ourselves so it stays in sync
+                          // with phase/speed updates without recreating the
+                          // whole button.
 
-    const glyphT = this._scene.add.text(x + 12, y + BTN_H / 2, opts.glyph ?? '·', {
-      fontFamily: FONT_HEAD, fontSize: '12px',
-      color: opts.primary ? '#ffffff' : opts.danger ? CRYPT.accent2Css : CRYPT.accent2Css,
-    }).setOrigin(0, 0.5).setDepth(D + 1)
-
-    const labelT = this._scene.add.text(x + w / 2 + 8, y + BTN_H / 2, label, {
+    // No glyph — Press Start 2P doesn't carry the unicode arrows / eyes /
+    // crystals the design used, so they were rendering in a fallback font
+    // at the wrong baseline. Just a centered label keeps it clean.
+    const labelT = this._scene.add.text(x + w / 2, y + BTN_H / 2, label, {
       fontFamily: FONT_HEAD, fontSize: '9px',
       color: opts.primary ? '#ffffff' : opts.danger ? CRYPT.accent2Css : CRYPT.ink,
       letterSpacing: 1,
     }).setOrigin(0.5).setDepth(D + 1)
 
-    this._objects.push(btn.bg, btn.hit, glyphT, labelT)
-    btn._extras = [glyphT, labelT]
+    this._objects.push(btn.bg, btn.hit, labelT)
+    // Keep the array shape compatible with update() — extras[1] is the
+    // label that gets text-swapped when the phase or speed changes.
+    btn._extras = [null, labelT]
     return btn
   }
 
@@ -192,14 +206,16 @@ export class ActionBar {
     if (this._buttons.phaseToggle) {
       const extras   = this._buttons.phaseToggle._extras
       const newLabel = this._primaryLabel()
-      const newGlyph = this._primaryGlyph()
-      // extras[0] = glyph, extras[1] = label (per _addButton ordering)
-      if (extras && extras[0] && extras[0].text !== newGlyph) extras[0].setText(newGlyph)
+      // extras[1] = label text (extras[0] reserved for glyph, no longer used)
       if (extras && extras[1] && extras[1].text !== newLabel) extras[1].setText(newLabel)
     }
   }
 
   destroy() {
+    if (this._listeners) {
+      for (const [evt, fn] of this._listeners) EventBus.off(evt, fn, this)
+      this._listeners = []
+    }
     this._objects.forEach(o => o?.destroy?.())
     Object.values(this._buttons).forEach(b => b?.destroy?.())
     this._objects = []

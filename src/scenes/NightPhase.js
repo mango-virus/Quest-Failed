@@ -56,6 +56,21 @@ export class NightPhase extends Phaser.Scene {
 
   init(data) {
     this._gameState = data?.gameState
+    // Reset transient placement state — Phaser scene constructors only run
+    // once (when the Game boots), so per-instance state from the previous
+    // night phase carries over and breaks placement on day 2+.
+    this._selected     = null
+    this._selectedKind = null
+    this._preview      = null
+    this._previewValid = false
+    this._previewTileX = -1
+    this._previewTileY = -1
+    this._paletteCards = []
+    this._paletteObjects = []
+    this._paletteTab   = 'rooms'
+    this._paletteScrollY = 0
+    this._lastPlaced   = null
+    this._rotation     = 0
   }
 
   create() {

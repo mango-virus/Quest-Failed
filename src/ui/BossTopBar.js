@@ -196,16 +196,13 @@ export class BossTopBar {
     // user request so the day-progress is more visually present.
     const barW = Math.min(w - 32, 300)
     const barX = cx - barW / 2
-    const barY = 38
-    this._survivalBar = pixelBar(this._scene, barX, barY, barW, 8,
+    const barY = 36
+    // Bar height bumped to 14 so the white label inside reads cleanly.
+    this._survivalBar = pixelBar(this._scene, barX, barY, barW, 14,
       this._dayEscaped, Math.max(1, this._daySpawned),
-      { color: 'cyan', label: null, depth: D, fontSize: 7 })
+      { color: 'cyan', label: this._survivalText(), depth: D, fontSize: 7 })
     this._objects.push(this._survivalBar.g)
-
-    this._survivalLabel = this._scene.add.text(cx, barY + 16, this._survivalText(), {
-      fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 1,
-    }).setOrigin(0.5).setDepth(D)
-    this._objects.push(this._survivalLabel)
+    if (this._survivalBar.txt) this._objects.push(this._survivalBar.txt)
   }
 
   _buildRightCol(x, w) {
@@ -284,9 +281,12 @@ export class BossTopBar {
     if (this._levelT)   this._levelT.setText(this._levelText())
     if (this._dayBigT)  this._dayBigT.setText(this._dayBigText())
     if (this._survivalBar) {
-      this._survivalBar.update(this._dayEscaped, Math.max(1, this._daySpawned))
+      this._survivalBar.update(
+        this._dayEscaped,
+        Math.max(1, this._daySpawned),
+        this._survivalText(),
+      )
     }
-    if (this._survivalLabel) this._survivalLabel.setText(this._survivalText())
     for (const r of (this._resTexts ?? [])) {
       r.value.setText(this._formatNumber(r.getter()))
     }
