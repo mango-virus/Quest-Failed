@@ -1,7 +1,8 @@
 import { MiniMap }        from '../ui/MiniMap.js'
 import { BossHpPanel }    from '../ui/BossHpPanel.js'
-import { AudioControls }  from '../ui/AudioControls.js'
+import { AudioControls, audioControlsWidth } from '../ui/AudioControls.js'
 import { applyUiCamera }  from '../ui/UIKit.js'
+import { GameplayMusic }  from '../systems/GameplayMusic.js'
 
 export class HudScene extends Phaser.Scene {
   constructor() {
@@ -22,8 +23,11 @@ export class HudScene extends Phaser.Scene {
     this._miniMap     = new MiniMap(this, this._gameState, this._gameScene)
     this._bossHpPanel = new BossHpPanel(this, this._gameState)
     // Audio controls — top-right corner, clear of the boss HP panel
-    // (top-centre) and the mini-map (top-left).  130 wide × 24 tall.
-    this._audioControls = new AudioControls(this, W - 130 - 12, 12, { depth: 60 })
+    // (top-centre) and the mini-map (top-left).  Includes the
+    // gameplay-playlist transport buttons (prev / next track).
+    const audioOpts = { depth: 60, playlist: GameplayMusic }
+    const aw = audioControlsWidth(audioOpts)
+    this._audioControls = new AudioControls(this, W - aw - 12, 12, audioOpts)
   }
 
   update() {

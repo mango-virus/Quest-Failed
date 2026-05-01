@@ -6,6 +6,8 @@ import { createMinion }  from '../entities/Minion.js'
 import { createTrap }    from '../entities/Trap.js'
 import { Balance }       from '../config/balance.js'
 import { PALETTE, glowPanel, glowRect, makeBar, drawRoomIcon, spawnEmbers, applyUiCamera } from '../ui/UIKit.js'
+import { ThemeManager, spriteCoverage } from '../systems/ThemeManager.js'
+import { PauseManager }   from '../systems/PauseManager.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -463,11 +465,10 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
-    const TRAP_COLOR = {
-      spike_trap: 0xcc4422, pitfall_trap: 0x885533,
-      arrow_trap: 0xddaa44, patience_trap: 0xaa66cc,
-      speed_trap: 0x44ccaa, default: 0x888888,
-    }
+    // Per-trap-id palette card colour. Add an entry per new trap or it
+    // falls back to `default`. Kept tiny on purpose — we'll grow it as
+    // new traps land.
+    const TRAP_COLOR = { default: 0x888888 }
 
     this._trapDefs.forEach((def, i) => {
       const cx = PANEL_W / 2
@@ -626,7 +627,7 @@ export class NightPhase extends Phaser.Scene {
 
   _buildHints(W, H) {
     this.add.text(W - 8, H - BOTTOM_H - 6,
-      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate room / ESC or right-click to cancel pick  ·  left-click room to pick up  ·  right-click empty room to remove  ·  Ctrl+Z to undo  ·  HALLS tab: left=draw  right=erase',
+      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate room / right-click to cancel pick  ·  left-click room to pick up  ·  right-click empty room to remove  ·  Ctrl+Z to undo  ·  ESC = pause  ·  HALLS tab: left=draw  right=erase',
       { fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace' }
     ).setOrigin(1, 1).setDepth(11)
   }
@@ -726,8 +727,8 @@ export class NightPhase extends Phaser.Scene {
 
       if (p.rightButtonDown()) {
         // Right-click while a placement candidate is held → cancel the
-        // selection (matches the existing ESC behavior). With no selection
-        // active, right-click falls through to "remove placed room".
+        // selection. With no selection active, right-click falls through
+        // to "remove placed room".
         if (this._selected) {
           this._cancelSelection()
           return
@@ -752,7 +753,7 @@ export class NightPhase extends Phaser.Scene {
         this._cancelSelection()
       }
     })
-    this.input.keyboard.on('keydown-ESC', () => this._cancelSelection())
+    this.input.keyboard.on('keydown-ESC', () => PauseManager.toggle(this))
     this.input.keyboard.on('keydown-Z',   (e) => {
       if (e.ctrlKey || e.metaKey) this._undoLastPlacement()
     })
@@ -821,33 +822,36 @@ export class NightPhase extends Phaser.Scene {
       // Option-B separation extends 1 tile outward into the inter-room
       // gap stub. Show the full L of tiles each connection point occupies
       // so the player sees the actual doorway footprint pre-placement.
-      this._preview.fillStyle(color, 0.9)
       const rw = rotDef.width, rh = rotDef.height
-      const DIR_VEC_PREV = { N: { dx: 0, dy: -1 }, S: { dx: 0, dy: 1 }, E: { dx: 1, dy: 0 }, W: { dx: -1, dy: 0 } }
+      this._preview.fillStyle(color, 0.9)
       for (const cp of rotDef.connectionPoints ?? []) {
-        const onTopOrBot = (cp.y === 0 || cp.y === rh - 1)
-        const onLftOrRgt = (cp.x === 0 || cp.x === rw - 1)
-        let ddx = 0, ddy = 0
-        if (onTopOrBot && !onLftOrRgt) {
-          ddx = (((rw - 1) - cp.x) >= cp.x) ? 1 : -1
-        } else if (onLftOrRgt && !onTopOrBot) {
-          ddy = (((rh - 1) - cp.y) >= cp.y) ? 1 : -1
+        this._stampDoorFootprint(this._preview, cp, placeTx, placeTy, rw, rh)
+      }
+
+      // Predicted auto-connect doors — runs the dry-run pairing against
+      // existing rooms and highlights every cp that would be auto-created
+      // (one on the new room, one on the existing neighbour). Drawn in a
+      // distinct gold so the player can tell at a glance "yes, placing
+      // here will give me a door" vs "no door, just a doorless adjacency."
+      // Skipped on invalid placements (already-red preview).
+      if (check.valid) {
+        const candidate = {
+          gridX: placeTx, gridY: placeTy,
+          width: rw, height: rh,
+          definitionId: def.id,
+          connectionPoints: rotDef.connectionPoints ?? [],
         }
-        // Outward direction (toward the neighbour through the gap).
-        const v = DIR_VEC_PREV[cp.direction] ?? { dx: 0, dy: 0 }
-        // Mark every tile in the door footprint: the two cp/widened tiles
-        // plus their outward gap stubs. Drawn as small dots so the player
-        // can see the L-shape extent.
-        const tiles = [
-          [cp.x,        cp.y],         // primary doorway tile
-          [cp.x + ddx,  cp.y + ddy],   // widened doorway tile
-          [cp.x + v.dx, cp.y + v.dy],  // gap stub (primary)
-          [cp.x + ddx + v.dx, cp.y + ddy + v.dy], // gap stub (widened)
-        ]
-        for (const [tx, ty] of tiles) {
-          const cx = (placeTx + tx) * TS + TS / 2
-          const cy = (placeTy + ty) * TS + TS / 2
-          this._preview.fillRect(cx - 3, cy - 3, 6, 6)
+        const pairs = this._dungeonGrid.computeAutoConnectPairs?.(candidate) ?? []
+        if (pairs.length > 0) {
+          this._preview.fillStyle(0xffd870, 0.95)
+          this._preview.lineStyle(2, 0xffd870, 0.95)
+          for (const { newCp, otherRoom, otherCp } of pairs) {
+            // New-room door footprint (in candidate-local coords).
+            this._stampDoorFootprint(this._preview, newCp, placeTx, placeTy, rw, rh)
+            // Existing neighbour's door footprint (in dungeon coords).
+            this._stampDoorFootprint(this._preview, otherCp,
+              otherRoom.gridX, otherRoom.gridY, otherRoom.width, otherRoom.height)
+          }
         }
       }
 
@@ -857,6 +861,57 @@ export class NightPhase extends Phaser.Scene {
         this._rotLabel.setPosition(wx + 2, wy + 2)
         this._rotLabel.setVisible(true)
       }
+    }
+  }
+
+  // Highlight the tiles a single cp's door occupies — 2 cells along the
+  // wall axis × WT cells through the wall. Respects an explicit
+  // alongDx/Dy if present (auto-connect cps) and falls back to the
+  // widen-toward-larger-half heuristic for hand-authored cps. With no
+  // inter-room gap, the cp's footprint stops at the room's wall ring;
+  // the matching cp on the neighbour paints its own cells on the far
+  // side of the seam.
+  _stampDoorFootprint(g, cp, gridX, gridY, width, height) {
+    const WT = Balance.WALL_THICKNESS
+    const onTop = cp.y === 0
+    const onBot = cp.y === height - 1
+    const onLft = cp.x === 0
+    const onRgt = cp.x === width  - 1
+    const onTopOrBot = onTop || onBot
+    const onLftOrRgt = onLft || onRgt
+    if ((onTopOrBot && onLftOrRgt) || (!onTopOrBot && !onLftOrRgt)) return
+
+    let alongDx = 0, alongDy = 0
+    if (onTopOrBot) {
+      alongDx = (cp.alongDx === 1 || cp.alongDx === -1)
+        ? cp.alongDx
+        : (((width - 1) - cp.x) >= cp.x ? 1 : -1)
+    } else {
+      alongDy = (cp.alongDy === 1 || cp.alongDy === -1)
+        ? cp.alongDy
+        : (((height - 1) - cp.y) >= cp.y ? 1 : -1)
+    }
+
+    const cells = []
+    if (onTopOrBot) {
+      const yStart = onTop ? 0 : height - WT
+      const yEnd   = onTop ? WT - 1 : height - 1
+      for (let iy = yStart; iy <= yEnd; iy++) {
+        cells.push([cp.x,           iy])
+        cells.push([cp.x + alongDx, iy])
+      }
+    } else {
+      const xStart = onLft ? 0 : width - WT
+      const xEnd   = onLft ? WT - 1 : width - 1
+      for (let ix = xStart; ix <= xEnd; ix++) {
+        cells.push([ix, cp.y])
+        cells.push([ix, cp.y + alongDy])
+      }
+    }
+    for (const [lx, ly] of cells) {
+      const px = (gridX + lx) * TS
+      const py = (gridY + ly) * TS
+      g.fillRect(px + 4, py + 4, TS - 8, TS - 8)
     }
   }
 
@@ -942,6 +997,7 @@ export class NightPhase extends Phaser.Scene {
 
     const room = this._dungeonGrid.placeRoom(rotDef, placeTx, placeTy)
     if (room) {
+      this._playBuildSfx()
       // Re-anchor any minions that were inside this room before pickup so
       // they ride along to the new position. Offsets are pre-rotation; if
       // the player rotated the room the layout may not match — orphaned
@@ -1009,8 +1065,14 @@ export class NightPhase extends Phaser.Scene {
     this._gameState.minions.push(minion)
     this._lastPlaced = { kind: 'minion', entity: minion, essenceCost: cost }
 
+    this._playMinionPlaceSfx()
     EventBus.emit('MINION_PLACED', { minion })
     this._refreshStats()
+  }
+
+  _playMinionPlaceSfx() {
+    if (!this.cache?.audio?.exists?.('sfx-minion-place')) return
+    try { this.sound.play('sfx-minion-place', { volume: 0.7 }) } catch {}
   }
 
   _confirmTrapPlacement(tx, ty) {
@@ -1132,7 +1194,13 @@ export class NightPhase extends Phaser.Scene {
     const connectionPoints = (def.connectionPoints ?? []).map(cp =>
       _rotateCP(cp, def.width, def.height, steps)
     )
-    return { ...def, width: w, height: h, connectionPoints }
+    let layout = Array.isArray(def.tileLayout) ? def.tileLayout : []
+    let lw = def.width, lh = def.height
+    for (let i = 0; i < steps; i++) {
+      layout = _rotateTileLayoutCW(layout, lw, lh)
+      const tmp = lw; lw = lh; lh = tmp
+    }
+    return { ...def, width: w, height: h, connectionPoints, tileLayout: layout }
   }
 
   _tryPickupRoom(p, cam) {
@@ -1282,6 +1350,13 @@ export class NightPhase extends Phaser.Scene {
   // Show a transient banner when a placement attempt fails, with the
   // specific reason ("Out of bounds", "Need 25 essence", "Must be 3 rooms
   // from boss", etc.) so the player knows why their click did nothing.
+  _playBuildSfx() {
+    const keys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3']
+    const key = keys[Math.floor(Math.random() * keys.length)]
+    if (!this.cache?.audio?.exists?.(key)) return
+    try { this.sound.play(key, { volume: 0.7 }) } catch {}
+  }
+
   _showPlacementError(message) {
     // If a previous error banner is still on screen, clear it first
     if (this._placementErrorObjs?.length) {
@@ -1314,6 +1389,51 @@ export class NightPhase extends Phaser.Scene {
       })
     })
   }
+}
+
+// Rotate a tileLayout 2D array 90° clockwise. layout is indexed [ry][rx]
+// for a room of (oldW × oldH); the result is indexed for (oldH × oldW).
+// Cell entries (string or {id, rot, flipH, flipV}) get their per-cell rot
+// incremented by 90° so the painted sprite turns with the room.
+//
+// Sprites with coverage > 1 anchor at the top-left of a cov×cov block; the
+// other cov*cov - 1 cells are null. CW rotation moves the block such that
+// the original (ox, oy) anchor's new TL is at (newX = oldH - cov - oy,
+// newY = ox). We walk the source layout and place each anchor at its new
+// TL — non-anchor null cells in the source need no work since the result
+// grid starts fully null.
+function _rotateTileLayoutCW(layout, oldW, oldH) {
+  const newW = oldH
+  const newH = oldW
+  const out = Array.from({ length: newH }, () => new Array(newW).fill(null))
+  for (let oy = 0; oy < oldH; oy++) {
+    const row = Array.isArray(layout?.[oy]) ? layout[oy] : null
+    if (!row) continue
+    for (let ox = 0; ox < oldW; ox++) {
+      const cell = row[ox]
+      if (cell == null) continue
+      const id  = (typeof cell === 'string') ? cell : cell.id
+      const cov = Math.max(1, spriteCoverage(ThemeManager.getSprite(id)) || 1)
+      const newX = oldH - cov - oy
+      const newY = ox
+      if (newY < 0 || newY >= newH || newX < 0 || newX >= newW) continue
+      out[newY][newX] = _rotateCellEntryCW(cell)
+    }
+  }
+  return out
+}
+
+function _rotateCellEntryCW(cell) {
+  if (cell == null) return null
+  if (typeof cell === 'string') return { id: cell, rot: 90 }
+  if (typeof cell === 'object' && typeof cell.id === 'string') {
+    const rot = (((cell.rot ?? 0) + 90) % 360 + 360) % 360
+    const out = { id: cell.id, rot }
+    if (cell.flipH) out.flipH = true
+    if (cell.flipV) out.flipV = true
+    return out
+  }
+  return null
 }
 
 // Rotate connection point (cx,cy,direction) by `steps` × 90° clockwise

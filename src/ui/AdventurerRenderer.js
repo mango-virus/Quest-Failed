@@ -199,6 +199,8 @@ export class AdventurerRenderer {
         adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
       }
       s.container.setPosition(adv.worldX, adv.worldY)
+      // Y-sort against the boss + minions: larger worldY draws on top.
+      s.container.setDepth(7 + adv.worldY * 0.0005)
       const hpFrac = adv.resources.maxHp > 0
         ? Math.max(0, adv.resources.hp / adv.resources.maxHp) : 0
       s.hp.width = Math.max(0, hpFrac * (RADIUS * 2))
@@ -216,9 +218,16 @@ export class AdventurerRenderer {
       // Invisibility (Rogue) takes precedence — when invisible the
       // alpha override is already 0.15, applied directly to the LPC
       // sprite below.
+      // Doorway shadow dim: standing on a doorway INNER (threshold) cell
+      // dims the adv to 0.55, so they look like they're stepping into the
+      // dark of the underpass. Multiplies with spawn/leave alpha.
       const spawnA = this._spawnAlpha(adv)
       const leaveA = this._leaveAlpha(adv)
-      const fadeA  = Math.min(spawnA, leaveA)
+      const tx = (adv.worldX / TS) | 0
+      const ty = (adv.worldY / TS) | 0
+      const inDoorwayShadow = this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)
+      const shadowA = inDoorwayShadow ? 0.55 : 1
+      const fadeA  = Math.min(spawnA, leaveA) * shadowA
       if (s.container) s.container.setAlpha(fadeA)
     }
 

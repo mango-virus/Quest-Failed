@@ -5,6 +5,7 @@ import { createAdventurer } from '../entities/Adventurer.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
 import { CombatLog }      from '../ui/CombatLog.js'
 import { DossierPanel }   from '../ui/DossierPanel.js'
+import { PauseManager }   from '../systems/PauseManager.js'
 
 const TOP_H    = 48
 const BOTTOM_H = 56
@@ -38,6 +39,8 @@ export class DayPhase extends Phaser.Scene {
     this._buildFollowIndicator(W)
     this._buildInspectorTemplate(W, H)
     this._setTimeScale(Balance.TIME_SCALE_NORMAL)
+
+    this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
 
     this._combatLog = new CombatLog(this, this._gameState, {
       x: 16,

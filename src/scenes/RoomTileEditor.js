@@ -28,6 +28,7 @@
 
 import { applyUiCamera } from '../ui/UIKit.js'
 import { FsHandle }      from '../systems/FsHandle.js'
+import { EventBus }      from '../systems/EventBus.js'
 import {
   ThemeManager, FLOOR_SLOT, spriteCoverage,
   readCellEntry, writeCellEntry, VALID_ROTATIONS,
@@ -189,6 +190,7 @@ export class RoomTileEditor extends Phaser.Scene {
     if (_session && _session.viewRot == null) _session.viewRot = 0
     if (_session && _session.flipH   == null) _session.flipH   = false
     if (_session && _session.flipV   == null) _session.flipV   = false
+    if (_session && _session.paintMode == null) _session.paintMode = 'room'
     if (!_matchesCache(_session, roomsFromCache)) {
       const rooms = structuredClone(roomsFromCache)
       rooms.forEach(r => this._ensureRoomShape(r))
@@ -202,6 +204,7 @@ export class RoomTileEditor extends Phaser.Scene {
         flipV:          false, // brush vertical mirror
         eraserMode:     false,
         zoomIdx:        2,   // 1×
+        paintMode:      'room',  // 'room' | 'door-closed' | 'door-open' | 'door-locked'
       }
       freshSession = true
     }
@@ -219,6 +222,7 @@ export class RoomTileEditor extends Phaser.Scene {
     Object.defineProperty(this, '_flipV',          _propAccessor(_session, 'flipV'))
     Object.defineProperty(this, '_eraserMode',     _propAccessor(_session, 'eraserMode'))
     Object.defineProperty(this, '_zoomIdx',        _propAccessor(_session, 'zoomIdx'))
+    Object.defineProperty(this, '_paintMode',      _propAccessor(_session, 'paintMode'))
 
     this._gBg     = this.add.graphics().setDepth(0)
     this._gPanels = this.add.graphics().setDepth(1)
@@ -280,6 +284,7 @@ export class RoomTileEditor extends Phaser.Scene {
   // ── Room shape normalization ─────────────────────────────────────────────
   _ensureRoomShape(room) {
     if (typeof room.theme !== 'string') room.theme = null
+    if (typeof room.doorTheme !== 'string') room.doorTheme = null
     const w = room.width  | 0
     const h = room.height | 0
     if (!Array.isArray(room.tileLayout) || !Array.isArray(room.tileLayout[0])
@@ -296,6 +301,26 @@ export class RoomTileEditor extends Phaser.Scene {
         grid.push(row)
       }
       room.tileLayout = grid
+    }
+    // Door tile painting — three states (closed/open/locked), each a
+    // 2-row × 4-col grid of cell entries (sprite-id string or
+    // {id, rot?, flipH?, flipV?} or null).
+    //
+    // Layout (canonical = door on this room's South wall, viewed from above):
+    //   col 0 = LEFT JAMB (wall cell adjacent to the door pair)
+    //   col 1 = DOOR (left half of the 2-wide door)
+    //   col 2 = DOOR (right half)
+    //   col 3 = RIGHT JAMB
+    //   row 0 = INNER (closer to this room's interior)
+    //   row 1 = OUTER (closer to the wall's outer face / neighbour)
+    // The whole 4×2 painting auto-rotates per cp direction at render time.
+    if (!room.doorTiles || typeof room.doorTiles !== 'object') room.doorTiles = {}
+    for (const state of ['closed', 'open', 'locked']) {
+      const cur = room.doorTiles[state]
+      if (!Array.isArray(cur) || cur.length !== 2 ||
+          !cur.every(r => Array.isArray(r) && r.length === 4)) {
+        room.doorTiles[state] = [[null, null, null, null], [null, null, null, null]]
+      }
     }
   }
 
@@ -396,12 +421,12 @@ export class RoomTileEditor extends Phaser.Scene {
     }).setOrigin(0, 0.5))
 
     // Theme picker for current room
-    const themeLblX = 460
+    const themeLblX = 360
     this._cTop.add(_text(this, themeLblX, TOP_H / 2, 'Theme:', {
       fontSize: '13px', color: COL_TEXT_DIM,
     }).setOrigin(0, 0.5))
     const ddX = themeLblX + 46
-    const ddW = 150
+    const ddW = 130
     const ddH = 28
     const ddY = (TOP_H - ddH) / 2
     const themeName = room?.theme || '(none)'
@@ -409,14 +434,35 @@ export class RoomTileEditor extends Phaser.Scene {
       .setStrokeStyle(1, COL_BORDER, 1).setInteractive({ useHandCursor: true })
     dd.on('pointerover', () => dd.setFillStyle(COL_BTN_HOVER, 1))
     dd.on('pointerout',  () => dd.setFillStyle(COL_BTN, 1))
-    dd.on('pointerdown', () => this._openThemeDropdown(ddX, ddY + ddH))
+    dd.on('pointerdown', () => this._openThemeDropdown(ddX, ddY + ddH, 'theme'))
     this._cTop.add(dd)
     this._cTop.add(_text(this, ddX + 8, ddY + ddH / 2, themeName + '  ▾', {
       fontSize: '13px', color: room?.theme ? COL_TEXT : COL_TEXT_DIM,
     }).setOrigin(0, 0.5))
 
+    // Door theme picker — overrides which theme's door slots are used when
+    // doors get stamped on this room's walls. Defaults to "(use room theme)"
+    // which falls through to room.theme. Lets the player give specific rooms
+    // a different door look (e.g. iron portcullis on the Treasury, wooden
+    // planks elsewhere) without changing the rest of the room's tiles.
+    const doorLblX = ddX + ddW + 16
+    this._cTop.add(_text(this, doorLblX, TOP_H / 2, 'Door:', {
+      fontSize: '13px', color: COL_TEXT_DIM,
+    }).setOrigin(0, 0.5))
+    const dddX = doorLblX + 38
+    const dddName = room?.doorTheme || '(default)'
+    const ddd = this.add.rectangle(dddX, ddY, ddW, ddH, COL_BTN, 1).setOrigin(0, 0)
+      .setStrokeStyle(1, COL_BORDER, 1).setInteractive({ useHandCursor: true })
+    ddd.on('pointerover', () => ddd.setFillStyle(COL_BTN_HOVER, 1))
+    ddd.on('pointerout',  () => ddd.setFillStyle(COL_BTN, 1))
+    ddd.on('pointerdown', () => this._openThemeDropdown(dddX, ddY + ddH, 'doorTheme'))
+    this._cTop.add(ddd)
+    this._cTop.add(_text(this, dddX + 8, ddY + ddH / 2, dddName + '  ▾', {
+      fontSize: '13px', color: room?.doorTheme ? COL_TEXT : COL_TEXT_DIM,
+    }).setOrigin(0, 0.5))
+
     // Zoom controls
-    const zX = ddX + ddW + 16
+    const zX = dddX + ddW + 16
     let bx = zX
     const mkBtn = (label, w, onClick, opts = {}) => {
       const b = this._mkButton(bx, ddY, w, ddH, label, onClick, opts.fill, opts.hover)
@@ -429,6 +475,19 @@ export class RoomTileEditor extends Phaser.Scene {
     }).setOrigin(0.5))
     bx += 44
     mkBtn('+', 26, () => this._setZoom(this._zoomIdx + 1))
+
+    // Paint-mode cycle: ROOM → DOOR-CLOSED → DOOR-OPEN → DOOR-LOCKED → ROOM.
+    // ROOM mode paints room.tileLayout (the full room template). Door modes
+    // paint a 2×4 doorway swatch into room.doorTiles[state]. The renderer
+    // applies the swatch to any door stamped on this room's wall, rotated
+    // per cp direction.
+    bx += 6
+    const modeLabel = ({
+      room: 'ROOM', 'door-closed': 'DOOR-CLOSED', 'door-open': 'DOOR-OPEN', 'door-locked': 'DOOR-LOCKED',
+    })[this._paintMode] || 'ROOM'
+    const modeIsDoor = this._paintMode !== 'room'
+    mkBtn(modeLabel, 110, () => this._cyclePaintMode(),
+      modeIsDoor ? { fill: 0x804a14, hover: 0xa06a24 } : { fill: 0x14502a, hover: 0x247a44 })
 
     // Brush rotation cycle (0 → 90 → 180 → 270 → 0). Also bound to the R key.
     bx += 6
@@ -482,9 +541,14 @@ export class RoomTileEditor extends Phaser.Scene {
     }
   }
 
-  _openThemeDropdown(x, y) {
+  // `targetField` — 'theme' (room background theme) or 'doorTheme' (door
+  // sprite override). The "none" slot label changes per field: "(none)"
+  // for theme (no theming applied at all) vs "(default)" for doorTheme
+  // (fall through to the room's main theme).
+  _openThemeDropdown(x, y, targetField = 'theme') {
     if (this._ddOverlay) this._ddOverlay.destroy()
-    const themes = ['(none)', ...ThemeManager.listThemes()]
+    const noneLabel = targetField === 'doorTheme' ? '(default)' : '(none)'
+    const themes = [noneLabel, ...ThemeManager.listThemes()]
     const itemH = 26
     const w = 200
     const h = Math.max(itemH, themes.length * itemH)
@@ -504,13 +568,13 @@ export class RoomTileEditor extends Phaser.Scene {
       row.on('pointerout',  () => row.setFillStyle(COL_PANEL, 0))
       row.on('pointerdown', () => {
         const room = this._activeRoom()
-        if (room) room.theme = (name === '(none)' ? null : name)
+        if (room) room[targetField] = (name === noneLabel ? null : name)
         this._ddOverlay?.destroy(); this._ddOverlay = null
         ThemeManager.resetRolls()
         this._refreshAll()
       })
       const lbl = _text(this, x + 10, ry + itemH / 2, name, {
-        fontSize: '13px', color: name === '(none)' ? COL_TEXT_DIM : COL_TEXT,
+        fontSize: '13px', color: name === noneLabel ? COL_TEXT_DIM : COL_TEXT,
       }).setOrigin(0, 0.5)
       this._ddOverlay.add([row, lbl])
     })
@@ -612,6 +676,10 @@ export class RoomTileEditor extends Phaser.Scene {
         '(no room selected)', { fontSize: '14px', color: COL_TEXT_DIM }).setOrigin(0.5))
       return
     }
+    if (this._paintMode !== 'room') {
+      this._populateDoorCanvas(room)
+      return
+    }
 
     const zoom = ZOOM_LEVELS[this._zoomIdx]
     const cell = TILE_PX * zoom
@@ -693,6 +761,182 @@ export class RoomTileEditor extends Phaser.Scene {
           this._populateRoomsList()
         })
         this._paintContainer.add(hit)
+      }
+    }
+  }
+
+  // ── Door swatch canvas (door paint modes) ────────────────────────────────
+  // Renders the 2-row × 4-col door swatch for the active state. Canonical
+  // orientation = door on this room's South wall, viewed from above:
+  //   col 0 = LEFT JAMB   (wall cell adjacent to door, gets a sprite override)
+  //   col 1 = DOOR (left)
+  //   col 2 = DOOR (right)
+  //   col 3 = RIGHT JAMB
+  //   row 0 = INNER (closer to room interior)
+  //   row 1 = OUTER (closer to wall's outer face)
+  // All 8 cells live inside THIS room's wall ring (no neighbour cells).
+  // The whole swatch auto-rotates per cp direction at render time so the
+  // same painting works on every wall the door can land on.
+  _populateDoorCanvas(room) {
+    const state = this._paintMode.replace('door-', '')   // 'closed' | 'open' | 'locked'
+    const grid  = room.doorTiles?.[state]
+                  ?? [[null, null, null, null], [null, null, null, null]]
+    const zoom  = ZOOM_LEVELS[this._zoomIdx]
+    const cell  = TILE_PX * Math.max(2, zoom * 3)   // door swatch always renders large
+    const cols = 4, rows = 2
+    const totalW = cols * cell
+    const totalH = rows * cell
+
+    // Centred in the paint area, leaving room for the row labels on the left.
+    const labelW = 110
+    const ox = this._paintArea.x + Math.max(8 + labelW, (this._paintArea.w - totalW + labelW) / 2)
+    const oy = this._paintArea.y + Math.max(36, (this._paintArea.h - totalH) / 2)
+
+    // Title — current state.
+    this._paintContainer.add(_text(this,
+      this._paintArea.x + this._paintArea.w / 2,
+      this._paintArea.y + 6,
+      `DOOR · ${state.toUpperCase()}  (${room.name || room.id})`, {
+        fontSize: '14px', color: COL_TEXT_HI, fontStyle: 'bold',
+      }).setOrigin(0.5, 0))
+
+    // Backdrop
+    const backdrop = this.add.rectangle(ox - 1, oy - 1, totalW + 2, totalH + 2, 0x000000, 1)
+      .setOrigin(0, 0).setStrokeStyle(1, COL_BORDER, 1)
+    this._paintContainer.add(backdrop)
+
+    // Row labels — OUTER (toward outer face / seam) on top, INNER on bottom.
+    const rowLabels = ['Outer (this room)', 'Inner (this room)']
+    for (let r = 0; r < rows; r++) {
+      const ly = oy + r * cell + cell / 2
+      this._paintContainer.add(_text(this, ox - 8, ly, rowLabels[r], {
+        fontSize: '11px', color: COL_TEXT,
+      }).setOrigin(1, 0.5))
+    }
+
+    // Column labels above the swatch.
+    const colLabels = ['L Jamb', 'Door', 'Door', 'R Jamb']
+    const colColors = [COL_TEXT_DIM, COL_TEXT_HI, COL_TEXT_HI, COL_TEXT_DIM]
+    for (let c = 0; c < cols; c++) {
+      this._paintContainer.add(_text(this, ox + c * cell + cell / 2, oy - 16,
+        colLabels[c], { fontSize: '11px', color: colColors[c] }).setOrigin(0.5, 1))
+    }
+
+    // Vertical dividers separating the door cols from the jambs.
+    const divG = this.add.graphics()
+    divG.lineStyle(2, COL_BORDER_HI, 0.85)
+    divG.lineBetween(ox + 1 * cell, oy - 4, ox + 1 * cell, oy + totalH + 4)
+    divG.lineBetween(ox + 3 * cell, oy - 4, ox + 3 * cell, oy + totalH + 4)
+    this._paintContainer.add(divG)
+
+    // Pre-pass: gather cells covered by span (cov>1) anchors so we don't
+    // render redundant per-cell art over them. The anchor itself renders
+    // at cov×cov size; the other cells in its block stay blank.
+    const covered = new Set()
+    for (let rr = 0; rr < rows; rr++) {
+      for (let cc = 0; cc < cols; cc++) {
+        const e = readCellEntry(grid[rr]?.[cc])
+        if (!e) continue
+        const cov = spriteCoverage(ThemeManager.getSprite(e.id))
+        if (cov <= 1) continue
+        for (let dy = 0; dy < cov; dy++) {
+          for (let dx = 0; dx < cov; dx++) {
+            if (dx === 0 && dy === 0) continue
+            covered.add(`${cc + dx},${rr + dy}`)
+          }
+        }
+      }
+    }
+
+    // Render painted cells + click targets.
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const px = ox + c * cell
+        const py = oy + r * cell
+        const entry = covered.has(`${c},${r}`) ? null : readCellEntry(grid[r]?.[c])
+        const isJamb = (c === 0 || c === 3)
+
+        // Distinguish jamb tiles visually with a slightly darker default tint.
+        const tint = entry ? COL_OVERRIDE_BG : (isJamb ? 0x080612 : COL_DEFAULT_BG)
+        const bg = this.add.rectangle(px, py, cell, cell, tint, 0.55).setOrigin(0, 0)
+        this._paintContainer.add(bg)
+
+        if (entry?.id) {
+          const sprite = ThemeManager.getSprite(entry.id)
+          const tex = _textureKey(entry.id)
+          const cov = spriteCoverage(sprite)
+          if (sprite && this.textures.exists(tex)) {
+            const size = cell * cov
+            const img = this.add.image(px + size / 2, py + size / 2, tex).setOrigin(0.5)
+            img.setDisplaySize(size, size)
+            if (entry.rot)   img.setAngle(entry.rot)
+            if (entry.flipH) img.flipX = true
+            if (entry.flipV) img.flipY = true
+            this._paintContainer.add(img)
+          }
+        }
+
+        const hit = this.add.rectangle(px, py, cell, cell, 0xffffff, 0).setOrigin(0, 0)
+          .setStrokeStyle(1, COL_BORDER, 0.35)
+          .setInteractive({ useHandCursor: true })
+        hit.on('pointerover', () => hit.setStrokeStyle(2, COL_PAINT_HOVER, 0.9))
+        hit.on('pointerout',  () => hit.setStrokeStyle(1, COL_BORDER, 0.35))
+        const cr = r, cc = c
+        hit.on('pointerdown', (pointer, lx, ly, ev) => {
+          ev?.stopPropagation?.()
+          const isClear = pointer.rightButtonDown() || pointer.event?.shiftKey || this._eraserMode
+          if (isClear) {
+            this._eraseDoorCell(grid, cc, cr)
+          } else if (this._activeSpriteId) {
+            const sp  = ThemeManager.getSprite(this._activeSpriteId)
+            const cov = spriteCoverage(sp)
+            if (cc + cov > cols || cr + cov > rows) {
+              this._toast(`Sprite is ${cov}×${cov} — too close to edge to fit`, true); return
+            }
+            // Clear the cov×cov area so prior overrides don't conflict,
+            // then stamp the anchor at (cc, cr).
+            for (let dy = 0; dy < cov; dy++) {
+              for (let dx = 0; dx < cov; dx++) {
+                if (grid[cr + dy]) grid[cr + dy][cc + dx] = null
+              }
+            }
+            grid[cr][cc] = writeCellEntry(this._activeSpriteId, this._activeRot, this._flipH, this._flipV)
+          } else {
+            this._toast('Pick a sprite at right first', true); return
+          }
+          if (!room.doorTiles) room.doorTiles = {}
+          room.doorTiles[state] = grid
+          this._populatePaintCanvas()
+          this._populateRoomsList()
+        })
+        this._paintContainer.add(hit)
+      }
+    }
+
+    // Hint at bottom of the panel.
+    const hintY = this._paintArea.y + this._paintArea.h - 14
+    const hint  = _text(this, this._paintArea.x + this._paintArea.w / 2, hintY,
+      'Cols 1–2 are the door; cols 0/3 are jamb tiles overlaid on the wall next to the door.', {
+        fontSize: '11px', color: COL_TEXT_DIM,
+      }).setOrigin(0.5)
+    this._paintContainer.add(hint)
+  }
+
+  // Erase the door swatch cell at (col, row). If the cell itself has an
+  // anchor, clear it. Otherwise walk up-left within the swatch to find an
+  // anchor whose cov×cov span covers (col, row) and clear THAT anchor —
+  // mirrors the room-canvas _eraseAt behaviour.
+  _eraseDoorCell(grid, col, row) {
+    if (grid[row]?.[col]) { grid[row][col] = null; return }
+    const MAX_BACK = 3
+    for (let dy = 0; dy <= MAX_BACK && row - dy >= 0; dy++) {
+      for (let dx = 0; dx <= MAX_BACK && col - dx >= 0; dx++) {
+        if (dx === 0 && dy === 0) continue
+        const ax = col - dx, ay = row - dy
+        const entry = readCellEntry(grid[ay]?.[ax])
+        if (!entry) continue
+        const cov = spriteCoverage(ThemeManager.getSprite(entry.id))
+        if (cov > Math.max(dx, dy)) { grid[ay][ax] = null; return }
       }
     }
   }
@@ -973,6 +1217,16 @@ export class RoomTileEditor extends Phaser.Scene {
     this._buildSpritesPanel()
   }
 
+  // Cycle the paint mode: room → door-closed → door-open → door-locked → room.
+  // Each door mode swaps the centre canvas to a 2×4 doorway swatch editor.
+  _cyclePaintMode() {
+    const order = ['room', 'door-closed', 'door-open', 'door-locked']
+    const i = order.indexOf(this._paintMode)
+    this._paintMode = order[(i + 1) % order.length]
+    this._buildTopBar()
+    this._populatePaintCanvas()
+  }
+
   // Cycle the view rotation. Repaints the paint canvas with the new
   // orientation; existing room data is untouched.
   _cycleViewRotation(dir) {
@@ -1017,12 +1271,16 @@ export class RoomTileEditor extends Phaser.Scene {
       })
       await FsHandle.writeJson('src/data/rooms.json', out)
       // Mirror change into the live cache so other systems see updated
-      // theme + tileLayout fields without a reload.
+      // theme + tileLayout + doorTiles fields without a reload.
       const live = this.cache.json.get('rooms')
       if (Array.isArray(live)) {
         live.length = 0
         for (const r of out) live.push(structuredClone(r))
       }
+      // Tell the running Game scene to re-apply every room's def so the
+      // edits show up in the dungeon view without restarting. ROOMS_ALL_RESET
+      // covers theme/doorTheme/tileLayout/doorTiles in one event.
+      EventBus.emit('ROOMS_ALL_RESET')
       this._toast('Saved.')
       this._buildTopBar()
     } catch (err) {

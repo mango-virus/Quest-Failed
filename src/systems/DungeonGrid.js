@@ -69,11 +69,14 @@ export class DungeonGrid {
       upkeepCost: definition.upkeepCost ?? 0,
       // Sprite-tiling fields copied from the room template — DungeonRenderer
       // reads these at draw time to overlay theme sprites on top of the
-      // procedural wall/floor art. Both default to safe empty values when
-      // the template has no theme assigned (most rooms today). See
-      // RoomTileEditor for how these are authored.
-      theme:      typeof definition.theme === 'string' ? definition.theme : null,
+      // procedural wall/floor art. All default to safe empty values when
+      // the template has no theme/painting assigned (most rooms today).
+      // See RoomTileEditor for how these are authored.
+      theme:      typeof definition.theme     === 'string' ? definition.theme     : null,
+      doorTheme:  typeof definition.doorTheme === 'string' ? definition.doorTheme : null,
       tileLayout: Array.isArray(definition.tileLayout) ? definition.tileLayout : [],
+      doorTiles:  (definition.doorTiles && typeof definition.doorTiles === 'object')
+                    ? definition.doorTiles : null,
       // Each cp gets `open: false` by default — doors start closed and
       // become open when adventurers walk through (or, for the entry_hall's
       // external cp, automatically at day-start). `style` defaults to
@@ -100,7 +103,6 @@ export class DungeonGrid {
     // matching cps + doors at the centre of each overlap. Skipped for
     // rooms loaded with pre-authored cps (e.g. entry_hall's external N).
     this._autoConnect(room)
-    this._writeGapDoors(room)
 
     EventBus.emit('ROOM_PLACED', { room })
     return room
@@ -118,7 +120,6 @@ export class DungeonGrid {
     this._unpairNeighbourCps(room)
 
     this._eraseTiles(room)
-    this._eraseGapDoorsFor(room)
     this._d.rooms.splice(idx, 1)
     this._rebuildLookup()
 
@@ -130,8 +131,8 @@ export class DungeonGrid {
     for (const cp of room.connectionPoints ?? []) {
       const v = DIR_VEC[cp.direction]
       if (!v || cp.external) continue
-      const ox = room.gridX + cp.x + v.dx * 2
-      const oy = room.gridY + cp.y + v.dy * 2
+      const ox = room.gridX + cp.x + v.dx
+      const oy = room.gridY + cp.y + v.dy
       const other = this.getRoomAtTile(ox, oy)
       if (!other || other.instanceId === room.instanceId) continue
       const oppDir = OPPOSITE_DIR[cp.direction]
@@ -214,38 +215,11 @@ export class DungeonGrid {
       }
     }
 
-    // 1-tile gap requirement — the candidate's perimeter must not sit
-    // directly against another room's wall/floor. Doorway alignment is the
-    // ONLY allowed exception: a tile one step outward from a connection
-    // point may be a doorway-gap stub, which we'll stamp as DOOR after the
-    // room writes. Anywhere else, the immediate-neighbour tile must be VOID.
-    if (!violations.length && this._d.rooms.length > 0) {
-      const cps = definition.connectionPoints ?? []
-      const allowedGap = new Set()
-      for (const cp of cps) {
-        const v = DIR_VEC[cp.direction]
-        if (!v) continue
-        // The doorway gap stub is the tile one step OUTWARD from the cp.
-        allowedGap.add(`${gridX + cp.x + v.dx},${gridY + cp.y + v.dy}`)
-      }
-      const checkPad = (tx, ty) => {
-        if (tx < 0 || tx >= gw || ty < 0 || ty >= gh) return true
-        if (this._d.tiles[ty][tx] === TILE.VOID) return true
-        return allowedGap.has(`${tx},${ty}`)
-      }
-      let gapOk = true
-      // Top + bottom rows
-      for (let tx = gridX; tx < gridX + w && gapOk; tx++) {
-        if (!checkPad(tx, gridY - 1)) gapOk = false
-        if (!checkPad(tx, gridY + h)) gapOk = false
-      }
-      // Left + right columns
-      for (let ty = gridY; ty < gridY + h && gapOk; ty++) {
-        if (!checkPad(gridX - 1,     ty)) gapOk = false
-        if (!checkPad(gridX + w, ty)) gapOk = false
-      }
-      if (!gapOk) violations.push('Need 1-tile gap from adjacent rooms')
-    }
+    // No gap required between rooms — direct wall-to-wall adjacency is
+    // allowed. The overlap check above already ensures the candidate's
+    // footprint doesn't overlap another room's tiles, so touching walls
+    // are fine. Auto-connect (see _autoConnect) creates paired doors at
+    // the wall midpoint when rooms share a sufficiently long edge.
 
     // Max per dungeon
     const max = definition.placementRules?.maxPerDungeon
@@ -487,11 +461,10 @@ export class DungeonGrid {
     return false
   }
 
-  // Two rooms are neighbours iff they have a pair of facing doorways
-  // separated by a 1-tile doorway-gap stub (Option-B Zelda separation).
-  // Walks every doorway on `room` and checks whether the cell two steps
-  // outward is owned by another room with an opposite-facing doorway.
-  // (One step out is the gap door tile itself, not part of either room.)
+  // Two rooms are neighbours iff they have a pair of facing doorways at
+  // their shared wall edge. Walks every doorway on `room` and checks
+  // whether the cell directly outward (1 step, no gap) is owned by
+  // another room with an opposite-facing doorway whose anchor lines up.
   getNeighborRooms(roomId) {
     const room = this._d.rooms.find(r => r.instanceId === roomId)
     if (!room) return []
@@ -501,8 +474,8 @@ export class DungeonGrid {
       const v = DIR_VEC[cp.direction]
       if (!v) continue
       if (cp.external) continue   // entrance cps face outside, no neighbour
-      const ox = room.gridX + cp.x + v.dx * 2
-      const oy = room.gridY + cp.y + v.dy * 2
+      const ox = room.gridX + cp.x + v.dx
+      const oy = room.gridY + cp.y + v.dy
       const other = this.getRoomAtTile(ox, oy)
       if (!other || other.instanceId === roomId) continue
       // The other room's doorway must face back at us.
@@ -668,15 +641,41 @@ export class DungeonGrid {
   // The cp position is anchored so the door pair sits centred on the
   // overlap range, using the existing widen-toward-larger-half rule.
   _autoConnect(newRoom) {
+    const pairs = this._computeAutoConnectPairs(newRoom)
+    for (const { newCp, otherRoom, otherCp } of pairs) {
+      newRoom.connectionPoints.push(newCp)
+      otherRoom.connectionPoints.push(otherCp)
+      this._stampCpDoor(newRoom, newCp)
+      this._stampCpDoor(otherRoom, otherCp)
+    }
+  }
+
+  // Pure (no mutation) version of the auto-connect pairing logic. Returns
+  // an array of `{ newCp, otherRoom, otherCp }` entries describing every
+  // door pair that *would* be created if `candidate` were placed. Used by
+  // _autoConnect to do the work, and by NightPhase's placement preview to
+  // show the player which doors will appear before they click.
+  //
+  // `candidate` must expose: gridX, gridY, width, height, definitionId,
+  // connectionPoints (array; usually [] for fresh placements, but may
+  // contain pre-authored cps like entry_hall's external N entrance).
+  computeAutoConnectPairs(candidate) {
+    return this._computeAutoConnectPairs(candidate)
+  }
+
+  _computeAutoConnectPairs(newRoom) {
+    const out = []
     const isBossNew = newRoom.definitionId === 'boss_chamber'
-    const usedWallsNew = new Set(newRoom.connectionPoints.map(c => c.direction))
-    const newDoorCount = () => newRoom.connectionPoints.length
+    const seedCps   = (newRoom.connectionPoints ?? [])
+    const usedWallsNew = new Set(seedCps.map(c => c.direction))
+    let   newDoorCount = seedCps.length
 
     for (const other of this._d.rooms) {
-      if (other.instanceId === newRoom.instanceId) continue
+      // Skip self when called from placeRoom (newRoom is in _d.rooms).
+      if (other.instanceId && other.instanceId === newRoom.instanceId) continue
       const isBossOther = other.definitionId === 'boss_chamber'
-      if (isBossNew && newDoorCount() >= 1) break
-      if (isBossOther && other.connectionPoints.length >= 1) continue
+      if (isBossNew && newDoorCount >= 1) break
+      if (isBossOther && (other.connectionPoints ?? []).length >= 1) continue
 
       // Detect 1-tile-gap adjacency on each side of `newRoom` and the
       // overlap range along the shared axis.
@@ -689,16 +688,16 @@ export class DungeonGrid {
       let dirNew = null   // direction the new room's wall faces toward `other`
       let oxRange = null  // [start, end] along X (for N/S adjacency)
       let oyRange = null  // [start, end] along Y (for E/W adjacency)
-      if (oB + 2 === nT) {                       // other is NORTH of new
+      if (oB + 1 === nT) {                       // other is NORTH of new
         dirNew = 'N'
         oxRange = [Math.max(nL, oL), Math.min(nR, oR)]
-      } else if (oT - 2 === nB) {                 // other is SOUTH of new
+      } else if (oT - 1 === nB) {                 // other is SOUTH of new
         dirNew = 'S'
         oxRange = [Math.max(nL, oL), Math.min(nR, oR)]
-      } else if (oR + 2 === nL) {                 // other is WEST of new
+      } else if (oR + 1 === nL) {                 // other is WEST of new
         dirNew = 'W'
         oyRange = [Math.max(nT, oT), Math.min(nB, oB)]
-      } else if (oL - 2 === nR) {                 // other is EAST of new
+      } else if (oL - 1 === nR) {                 // other is EAST of new
         dirNew = 'E'
         oyRange = [Math.max(nT, oT), Math.min(nB, oB)]
       } else continue
@@ -783,78 +782,19 @@ export class DungeonGrid {
         style: styleOther, external: false, ...cpOther,
         open: false, opening: false, openProgress: 0,
       }
-      newRoom.connectionPoints.push(fullNew)
-      other.connectionPoints.push(fullOther)
+      out.push({ newCp: fullNew, otherRoom: other, otherCp: fullOther })
       usedWallsNew.add(dirNew)
+      newDoorCount++
 
-      this._stampCpDoor(newRoom, fullNew)
-      this._stampCpDoor(other,   fullOther)
-
-      if (isBossNew && newDoorCount() >= 1) break
+      if (isBossNew && newDoorCount >= 1) break
     }
+    return out
   }
 
   _eraseTiles(room) {
     for (let dy = 0; dy < room.height; dy++) {
       for (let dx = 0; dx < room.width; dx++) {
         this._d.tiles[room.gridY + dy][room.gridX + dx] = TILE.VOID
-      }
-    }
-  }
-
-  // Stamp doorway-gap DOOR tiles for every cp on `room` whose match lands on
-  // another room's cp two cells outward. The gap tile is the cell one step
-  // outward from this cp (i.e. between the two rooms). If the room's door
-  // was widened (see _writeTiles), the gap door is widened to match so the
-  // 2-wide doorway carries through the gap.
-  _writeGapDoors(room) {
-    const cps = room.connectionPoints ?? []
-    for (const cp of cps) {
-      const v = DIR_VEC[cp.direction]
-      if (!v) continue
-      if (cp.external) continue   // entrance cps don't pair with another room
-      // Verify there's a matching cp on a neighbour 2 cells outward.
-      const matchX = room.gridX + cp.x + v.dx * 2
-      const matchY = room.gridY + cp.y + v.dy * 2
-      const other  = this.getRoomAtTile(matchX, matchY)
-      if (!other) continue
-      const oppDir = OPPOSITE_DIR[cp.direction]
-      const matched = (other.connectionPoints ?? []).some(ocp =>
-        !ocp.external &&
-        ocp.direction === oppDir &&
-        other.gridX + ocp.x === matchX &&
-        other.gridY + ocp.y === matchY)
-      if (!matched) continue
-
-      // Primary gap tile (one step outward from the cp).
-      const gx = room.gridX + cp.x + v.dx
-      const gy = room.gridY + cp.y + v.dy
-      if (this._d.tiles[gy]?.[gx] === TILE.VOID) this._d.tiles[gy][gx] = TILE.DOOR
-
-      // Mirror the doorway-widening direction from _stampCpDoor so the gap
-      // tile widens on the same side the room's door pair widens to.
-      const { alongDx, alongDy } = this._cpAlong(room, cp)
-      const gx2 = gx + alongDx, gy2 = gy + alongDy
-      if (this._d.tiles[gy2]?.[gx2] === TILE.VOID) this._d.tiles[gy2][gx2] = TILE.DOOR
-    }
-  }
-
-  // After erasing a room, any DOOR tile in the just-vacated gap region
-  // becomes orphaned (no longer between two rooms). Walk this room's gap
-  // candidates and clear any DOOR that's no longer connected to two rooms.
-  _eraseGapDoorsFor(room) {
-    const cps = room.connectionPoints ?? []
-    for (const cp of cps) {
-      const v = DIR_VEC[cp.direction]
-      if (!v) continue
-      // Same outward-1 + widening tiles as _writeGapDoors.
-      const { alongDx, alongDy } = this._cpAlong(room, cp)
-      const cells = [
-        [room.gridX + cp.x + v.dx,            room.gridY + cp.y + v.dy],
-        [room.gridX + cp.x + v.dx + alongDx,  room.gridY + cp.y + v.dy + alongDy],
-      ]
-      for (const [gx, gy] of cells) {
-        if (this._d.tiles[gy]?.[gx] === TILE.DOOR) this._d.tiles[gy][gx] = TILE.VOID
       }
     }
   }
@@ -900,11 +840,9 @@ export class DungeonGrid {
 // ── Module-level helpers ──────────────────────────────────────────────────────
 
 function _rectsAdjacent(a, b) {
-  // True if rects share an edge OR are exactly tile-touching (the new
-  // doorway-snap layout puts neighbouring rooms wall-to-wall, no gap).
-  const gap = 1
-  return !(a.gridX + a.width + gap < b.gridX ||
-           b.gridX + b.width + gap < a.gridX ||
-           a.gridY + a.height + gap < b.gridY ||
-           b.gridY + b.height + gap < a.gridY)
+  // True if rects share an edge (rooms now place wall-to-wall with no gap).
+  return !(a.gridX + a.width  - 1 < b.gridX ||
+           b.gridX + b.width  - 1 < a.gridX ||
+           a.gridY + a.height - 1 < b.gridY ||
+           b.gridY + b.height - 1 < a.gridY)
 }

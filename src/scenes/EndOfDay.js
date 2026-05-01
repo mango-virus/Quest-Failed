@@ -16,6 +16,7 @@
 import { PALETTE, glowPanel } from '../ui/UIKit.js'
 import { Balance }            from '../config/balance.js'
 import { SaveSystem }          from '../systems/SaveSystem.js'
+import { PauseManager }        from '../systems/PauseManager.js'
 
 export class EndOfDay extends Phaser.Scene {
   constructor() {
@@ -48,6 +49,8 @@ export class EndOfDay extends Phaser.Scene {
     this._renderNewspaper(W, H)
     this._renderOfferings(W, H)
     this._renderSkip(W, H)
+
+    this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
   }
 
   shutdown() {

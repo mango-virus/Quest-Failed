@@ -34,6 +34,8 @@ import { ParanoiaIndicator }   from '../ui/ParanoiaIndicator.js'
 import { BossFightOverlay }    from '../ui/BossFightOverlay.js'
 import { BossRenderer }       from '../ui/BossRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
+import { GameplayMusic }      from '../systems/GameplayMusic.js'
+import { PauseManager }       from '../systems/PauseManager.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -72,11 +74,11 @@ export class Game extends Phaser.Scene {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   create() {
-    // Title-screen music carries through into the dungeon at a quieter
-    // background level — only ducks if it was actually playing (e.g.
-    // resuming a save without ever passing through MainMenu means there
-    // was no music to duck and this is a no-op).
-    TitleMusic.duckForGameplay(this)
+    // Title music belongs to MainMenu / ArchetypeSelect only — kill
+    // it on the way into the dungeon and hand off to the gameplay
+    // playlist (shuffled in-run soundtrack).
+    TitleMusic.stop()
+    GameplayMusic.start(this)
 
     this.dungeonGrid         = new DungeonGrid(this.gameState.dungeon)
 
@@ -243,9 +245,21 @@ export class Game extends Phaser.Scene {
       // Sync the room instance's connectionPoints with the updated def so
       // doorway positions stay accurate for neighbour lookups.
       room.connectionPoints = (def.connectionPoints ?? []).map(cp => ({ ...cp }))
+      this._refreshRoomFromDef(room, def)
       this.dungeonGrid.reapplyRoomDef(room, def)
     }
     this._dungeonRenderer?.redraw()
+  }
+
+  // Pull the editor-authored sprite/painting fields from the def onto the
+  // live room instance. Without this, edits made in RoomTileEditor save to
+  // rooms.json + the cache but never reach the runtime room object, so
+  // DungeonRenderer keeps drawing the OLD doorTiles/theme/tileLayout.
+  _refreshRoomFromDef(room, def) {
+    if ('theme'      in def) room.theme      = typeof def.theme      === 'string' ? def.theme      : null
+    if ('doorTheme'  in def) room.doorTheme  = typeof def.doorTheme  === 'string' ? def.doorTheme  : null
+    if ('tileLayout' in def) room.tileLayout = Array.isArray(def.tileLayout) ? def.tileLayout : []
+    if ('doorTiles'  in def) room.doorTiles  = (def.doorTiles && typeof def.doorTiles === 'object') ? def.doorTiles : null
   }
 
   // Room Builder reset ALL rooms — reapply every placed room's tile grid
@@ -265,6 +279,7 @@ export class Game extends Phaser.Scene {
       const def = defMap[room.definitionId]
       if (!def) continue
       room.connectionPoints = (def.connectionPoints ?? []).map(cp => ({ ...cp }))
+      this._refreshRoomFromDef(room, def)
       this.dungeonGrid.reapplyRoomDef(room, def)
     }
   }
@@ -480,6 +495,11 @@ export class Game extends Phaser.Scene {
     })
 
     this._keys = this.input.keyboard.addKeys('W,A,S,D')
+
+    // ESC opens the pause menu. Wired here as a fallback for when neither
+    // NightPhase nor DayPhase has keyboard focus (e.g. during the
+    // BossFightOverlay cinematic, which lives inside this scene).
+    this.input.keyboard.on('keydown-ESC', () => PauseManager.toggle(this))
   }
 
   update(_time, delta) {

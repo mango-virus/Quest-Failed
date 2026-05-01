@@ -157,6 +157,26 @@ export class Preload extends Phaser.Scene {
     // the player commits to a run and Game starts.
     this.load.audio('title_music', 'assets/audio/title_music.mp3')
 
+    // Room-placement SFX — one is picked at random when the player
+    // places a room during NightPhase.
+    this.load.audio('sfx-build-1', 'assets/audio/build1.wav')
+    this.load.audio('sfx-build-2', 'assets/audio/build2.wav')
+    this.load.audio('sfx-build-3', 'assets/audio/build3.wav')
+
+    // Minion pickup / drop SFX — single sample, plays on both actions.
+    this.load.audio('sfx-minion-place', 'assets/audio/pickup and drop.wav')
+
+    // Gameplay-music playlist — shuffled by GameplayMusic.js once the
+    // player drops into a run.  Keys here must match the TRACKS array
+    // in src/systems/GameplayMusic.js.
+    this.load.audio('gpm-chupasangre',         'assets/audio/chupasangre_music.mp3')
+    this.load.audio('gpm-clockwork-castle',    'assets/audio/clockwork castle.mp3')
+    this.load.audio('gpm-catacombs',           'assets/audio/catacombs.mp3')
+    this.load.audio('gpm-wallachian-waltz',    'assets/audio/Wallachian Waltz.mp3')
+    this.load.audio('gpm-midnight-masquerade', 'assets/audio/midnight masquerade.mp3')
+    this.load.audio('gpm-endless-accent',      'assets/audio/endless accent.mp3')
+    this.load.audio('gpm-suck-em-dry',         'assets/audio/suck em dry.mp3')
+
     // Dungeon tile sprites — loaded per named tileset.
     // The default tileset is 'room' and uses the un-namespaced keys
     // (tile-FLOOR, tile-WALL, …) so existing room defs don't need changes.

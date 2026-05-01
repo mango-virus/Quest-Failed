@@ -101,8 +101,12 @@ export class BossRenderer {
 
     if (!this._container) this._build(boss)
 
-    // Position
+    // Position + Y-sort against adventurers/minions.  Larger worldY
+    // (further down the screen) draws on top.  Factor stays small
+    // enough that all entities live below DungeonRenderer's overhead
+    // layer (depth 8.7+).
     this._container.setPosition(boss.worldX, boss.worldY)
+    this._container.setDepth(7 + boss.worldY * 0.0005)
 
     // Facing — snap to cardinal based on movement delta this frame.
     if (this._lastWorldX !== null) {

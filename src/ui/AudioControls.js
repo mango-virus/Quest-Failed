@@ -4,13 +4,20 @@
 //   [♪/—] [───•──────────]
 //    mute   slider
 //
-// Consumed by:
-//   - MainMenu (bottom-right, beside the version label)
-//   - HudScene (top-right, away from the mini-map / boss HP bar)
+// When mounted with a `playlist` option (a GameplayMusic-shaped module
+// exposing previous() / next() / isActive()), two extra transport
+// buttons appear:
 //
-// Stays in sync across scenes via TitleMusic.onChange — opening the
-// HudScene control with a particular slider position will reflect
-// any changes made on the MainMenu control later (and vice versa).
+//   [♪/—] [<<] [>>] [───•──────────]
+//          prev next
+//
+// Volume + mute always drive TitleMusic (the source of truth for the
+// shared music preference).  GameplayMusic mirrors via TitleMusic.onChange,
+// so the slider drives both modules simultaneously.
+//
+// Consumed by:
+//   - MainMenu (bottom-right, beside the version label) — no playlist
+//   - HudScene (top-right, away from the mini-map / boss HP bar) — playlist enabled
 
 import { TitleMusic } from '../systems/TitleMusic.js'
 
@@ -24,16 +31,24 @@ const COL = {
   iconOn:    '#ffd0a0',
   iconOff:   '#6a4a30',
   iconHover: '#ffe0b0',
+  btnDisabled: '#4a3020',
 }
 
-const W      = 130
-const H      = 24
-const ICON_W = 28
-const SLIDER_X = ICON_W + 4
-const SLIDER_W = W - SLIDER_X - 6
+const H        = 24
+const ICON_W   = 28
+const BTN_W    = 22
 const TRACK_H  = 4
 const THUMB_W  = 6
 const THUMB_H  = 12
+const SLIDER_W_DEFAULT = 130 - (ICON_W + 4) - 6  // = 92, original slider width
+
+// Compute total widget width given options, so callers can position
+// the widget against a screen edge before the constructor runs.
+export function audioControlsWidth(opts = {}) {
+  const hasPlaylist = !!opts.playlist
+  const buttonsW = hasPlaylist ? (BTN_W * 2 + 4) : 0
+  return ICON_W + buttonsW + 4 + SLIDER_W_DEFAULT + 6
+}
 
 export class AudioControls {
   // x/y = top-left corner.  depth defaults high so it floats above
@@ -41,7 +56,11 @@ export class AudioControls {
   constructor(scene, x, y, opts = {}) {
     this._scene = scene
     this._depth = opts.depth ?? 100
+    this._playlist = opts.playlist ?? null
     this._dragging = false
+
+    const W = audioControlsWidth(opts)
+    this._W = W
 
     this._container = scene.add.container(x, y).setDepth(this._depth)
 
@@ -70,29 +89,42 @@ export class AudioControls {
     this._muteHit.on('pointerout',  () => this._muteIcon.setColor(this._iconRestColor()))
     this._muteHit.on('pointerdown', () => TitleMusic.toggleMuted())
 
+    // ─── Optional transport buttons (prev/next track) ────────────────
+    let cursorX = ICON_W + 2
+    if (this._playlist) {
+      this._prevBtn = this._makeTransportButton(cursorX, '<<', () => {
+        this._playlist.previous(this._scene)
+      })
+      cursorX += BTN_W + 2
+
+      this._nextBtn = this._makeTransportButton(cursorX, '>>', () => {
+        this._playlist.next(this._scene)
+      })
+      cursorX += BTN_W + 2
+    }
+
     // ─── Volume slider ──────────────────────────────────────────────
-    // Track background
+    const sliderX = cursorX + 2
+    const sliderW = SLIDER_W_DEFAULT
+    this._sliderX = sliderX
+    this._sliderW = sliderW
+
     const trackY = H / 2
-    scene.add.existing(
-      this._track = scene.add.rectangle(SLIDER_X, trackY, SLIDER_W, TRACK_H, COL.trackBg)
-        .setOrigin(0, 0.5),
-    )
+    this._track = scene.add.rectangle(sliderX, trackY, sliderW, TRACK_H, COL.trackBg)
+      .setOrigin(0, 0.5)
     this._track.setStrokeStyle(1, 0x1a0a1a, 0.8)
     this._container.add(this._track)
 
-    // Track fill (scales with volume)
-    this._fill = scene.add.rectangle(SLIDER_X, trackY, 1, TRACK_H, COL.trackFill)
+    this._fill = scene.add.rectangle(sliderX, trackY, 1, TRACK_H, COL.trackFill)
       .setOrigin(0, 0.5)
     this._container.add(this._fill)
 
-    // Thumb (visual only — interactive zone is the track-wide hit rect)
-    this._thumb = scene.add.rectangle(SLIDER_X, trackY, THUMB_W, THUMB_H, COL.thumb)
+    this._thumb = scene.add.rectangle(sliderX, trackY, THUMB_W, THUMB_H, COL.thumb)
       .setOrigin(0.5)
     this._thumb.setStrokeStyle(1, 0x6a3010, 1)
     this._container.add(this._thumb)
 
-    // Wide hit rect over the slider for forgiving click + drag
-    this._sliderHit = scene.add.rectangle(SLIDER_X, 0, SLIDER_W, H, 0xffffff, 0.001)
+    this._sliderHit = scene.add.rectangle(sliderX, 0, sliderW, H, 0xffffff, 0.001)
       .setOrigin(0, 0).setInteractive({ useHandCursor: true })
     this._container.add(this._sliderHit)
 
@@ -132,12 +164,31 @@ export class AudioControls {
 
   // ─── Internals ─────────────────────────────────────────────────────
 
+  _makeTransportButton(x, label, onClick) {
+    const hit = this._scene.add.rectangle(x, 0, BTN_W, H, 0xffffff, 0.001)
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true })
+    this._container.add(hit)
+
+    const txt = this._scene.add.text(x + BTN_W / 2, H / 2, label, {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: COL.iconOn,
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setResolution(2)
+    this._container.add(txt)
+
+    hit.on('pointerover', () => { txt.setColor(COL.iconHover); this._drawBg(true) })
+    hit.on('pointerout',  () => { txt.setColor(COL.iconOn);    this._drawBg(false) })
+    hit.on('pointerdown', () => onClick())
+    return { hit, txt }
+  }
+
   _drawBg(hover) {
     this._bg.clear()
     this._bg.fillStyle(hover ? COL.bgHover : COL.bg, 0.85)
-    this._bg.fillRoundedRect(0, 0, W, H, 4)
+    this._bg.fillRoundedRect(0, 0, this._W, H, 4)
     this._bg.lineStyle(1, COL.border, 0.6)
-    this._bg.strokeRoundedRect(0, 0, W, H, 4)
+    this._bg.strokeRoundedRect(0, 0, this._W, H, 4)
   }
 
   _iconChar() {
@@ -152,10 +203,14 @@ export class AudioControls {
   }
 
   _setFromPointer(p) {
-    // p.x is in scene/world space; the container also lives in scene
-    // space, so we convert to local x within the container.
-    const local = this._container.getLocalPoint(p.x, p.y)
-    const t = (local.x - SLIDER_X) / SLIDER_W
+    // The container lives in world space, so we need the pointer's world
+    // coords (camera-transformed). Phaser's `p.x/p.y` is screen pixels —
+    // wrong when the scene's camera zoom != 1 (which applyUiCamera sets
+    // on every UI scene). `p.worldX/p.worldY` accounts for zoom + scroll.
+    const wx = (p.worldX != null) ? p.worldX : p.x
+    const wy = (p.worldY != null) ? p.worldY : p.y
+    const local = this._container.getLocalPoint(wx, wy)
+    const t = (local.x - this._sliderX) / this._sliderW
     const v = Math.max(0, Math.min(1, t))
     TitleMusic.setVolume(v)
     // Setting volume while muted would hide the change; auto-unmute so
@@ -175,10 +230,10 @@ export class AudioControls {
     const v = TitleMusic.getVolume()
     const muted = TitleMusic.isMuted()
     // Slider visuals
-    const fillW = Math.max(1, SLIDER_W * v)
+    const fillW = Math.max(1, this._sliderW * v)
     this._fill.width = fillW
     this._fill.setFillStyle(muted ? 0x333333 : COL.trackFill)
-    this._thumb.x = SLIDER_X + fillW
+    this._thumb.x = this._sliderX + fillW
     this._thumb.setFillStyle(muted ? 0x666666 : COL.thumb)
     // Mute icon
     this._muteIcon.setText(this._iconChar())

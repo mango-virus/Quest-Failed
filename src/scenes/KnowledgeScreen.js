@@ -18,6 +18,7 @@
 
 import { PALETTE, glowPanel, makeBar, applyUiCamera } from '../ui/UIKit.js'
 import { Balance } from '../config/balance.js'
+import { PauseManager } from '../systems/PauseManager.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -111,13 +112,14 @@ export class KnowledgeScreen extends Phaser.Scene {
 
     // ── Footer ─────────────────────────────────────────────────────────────
     this.add.text(W / 2, H - FOOTER_H / 2,
-      'ESC — close  ·  hover room for details  ·  updates live as the dungeon is explored', {
+      '✕ — close  ·  hover room for details  ·  ESC = pause  ·  updates live as the dungeon is explored', {
         fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace',
       }).setOrigin(0.5).setDepth(5)
 
     // ── Input ──────────────────────────────────────────────────────────────
-    this._escKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
-    this._escKey?.on('down', () => this._close())
+    // ESC opens the pause menu (consistent with all other gameplay scenes).
+    // The ✕ button in the header strip is the dedicated close affordance.
+    this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
 
     // ── Real-time refresh seed ─────────────────────────────────────────────
     // Snapshot current stats / room states so the first refresh tick
@@ -129,8 +131,6 @@ export class KnowledgeScreen extends Phaser.Scene {
   }
 
   update() {
-    if (Phaser.Input.Keyboard.JustDown(this._escKey)) this._close()
-
     // Throttled real-time refresh — see REFRESH_MS.  Polling rather than
     // event-driven because the data set is small (handful of rooms /
     // traps / minions), and the work is bounded.

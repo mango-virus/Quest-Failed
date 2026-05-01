@@ -8,18 +8,10 @@ import { Balance }  from '../config/balance.js'
 
 const TS = Balance.TILE_SIZE
 
+// Per-trap-id visual style. Add an entry per new trap, or it falls back
+// to `default`. Kept tiny on purpose — we'll grow it as new traps land.
 const TRAP_STYLES = {
-  spike_trap:    { color: 0xcc4422, glyph: '^' },
-  pitfall_trap:  { color: 0x553311, glyph: 'O' },
-  arrow_trap:    { color: 0xddaa44, glyph: '>' },
-  patience_trap: { color: 0xaa66cc, glyph: 'x' },
-  speed_trap:    { color: 0x44ccaa, glyph: '~' },
-  greed_trap:    { color: 0xeeaa22, glyph: '$' },
-  mercy_trap:    { color: 0xff66bb, glyph: '+' },
-  echo_mine:     { color: 0xcc6688, glyph: '*' },
-  memory_trap:   { color: 0x6688cc, glyph: '?' },
-  curse_brand_trap: { color: 0x884466, glyph: '!' },
-  default:       { color: 0x888888, glyph: '?' },
+  default: { color: 0x888888, glyph: '?' },
 }
 
 export class TrapRenderer {

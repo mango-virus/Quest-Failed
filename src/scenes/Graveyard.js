@@ -11,6 +11,7 @@
 // Click an entry to show inline details; ESC or "BACK" returns.
 
 import { PALETTE, glowPanel } from '../ui/UIKit.js'
+import { PauseManager }       from '../systems/PauseManager.js'
 
 export class Graveyard extends Phaser.Scene {
   constructor() {
@@ -62,6 +63,8 @@ export class Graveyard extends Phaser.Scene {
       this._scrollY = Phaser.Math.Clamp(this._scrollY + dy * 0.5, 0, this._maxScroll)
       this._refreshScroll()
     })
+
+    this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
   }
 
   _renderList(x, y, w, h) {

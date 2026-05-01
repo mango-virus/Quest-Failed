@@ -16,6 +16,7 @@
 
 import { SaveSystem }   from '../systems/SaveSystem.js'
 import { TitleMusic }   from '../systems/TitleMusic.js'
+import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { AudioControls } from '../ui/AudioControls.js'
 
 const COLORS = {
@@ -84,6 +85,7 @@ export class MainMenu extends Phaser.Scene {
     // (those scenes use ensurePlaying / duckForGameplay), but any
     // path that lands BACK on MainMenu (back button from the boss
     // picker, or from an editor) hard-restarts the loop.
+    GameplayMusic.stop()
     TitleMusic.restart(this)
 
     this._setupCamera()

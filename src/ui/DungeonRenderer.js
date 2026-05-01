@@ -296,6 +296,31 @@ export class DungeonRenderer {
     // Sits between _gTiles (1) and _gTints (1.2) so category tints still
     // wash over a sprite-rendered floor.
     this._cTileSprites = scene.add.container(0, 0).setDepth(1.1)
+    // Doorway swatch sprites are split into TWO containers with masks so
+    // characters walking through a doorway pass OVER the threshold cells
+    // (Inner side — closer to each room's interior) but UNDER the door
+    // panel / arch cells (Outer side — at the seam). Each cov>1 sprite
+    // straddles both Inner and Outer rows; a GeometryMask on each
+    // container clips it to just the cells that should appear at that
+    // depth.
+    //   - Low depth (1.15): Inner cells (rows 1, 3 in extended canonical).
+    //     Drawn under characters (~7-8) → chars walk over the threshold.
+    //   - High depth (9):   Outer cells (rows 0, 2). Drawn above
+    //     characters → chars walk under the door panel / archway.
+    this._cDoorSpritesLow  = scene.add.container(0, 0).setDepth(1.15)
+    this._cDoorSpritesHigh = scene.add.container(0, 0).setDepth(9)
+    this._innerCellMaskG = scene.make.graphics({ x: 0, y: 0, add: false })
+    this._outerCellMaskG = scene.make.graphics({ x: 0, y: 0, add: false })
+    this._cDoorSpritesLow.setMask(this._innerCellMaskG.createGeometryMask())
+    this._cDoorSpritesHigh.setMask(this._outerCellMaskG.createGeometryMask())
+    // Set of "x,y" tile keys for ALL doorway cells (Inner threshold +
+    // Outer panel). AdventurerRenderer / MinionRenderer dim entities
+    // standing on any of these cells to sell stepping into the doorway
+    // shadow. Inner-only would let chars pop back to full alpha while
+    // walking across the Outer cells (they're hidden by the door art
+    // there but can briefly peek through at sub-tile fractional
+    // positions), so we dim across the entire 4×2 doorway zone.
+    this._doorwayShadowCells = new Set()
     this._gTints     = scene.add.graphics().setDepth(1.2)
     this._gOverlay   = scene.add.graphics().setDepth(3)
     this._gCollision = scene.add.graphics().setDepth(3.2)
@@ -359,6 +384,11 @@ export class DungeonRenderer {
     this._gGrid.clear()
     this._gTiles.clear()
     this._cTileSprites.removeAll(true)
+    this._cDoorSpritesLow.removeAll(true)
+    this._cDoorSpritesHigh.removeAll(true)
+    this._innerCellMaskG.clear()
+    this._outerCellMaskG.clear()
+    this._doorwayShadowCells.clear()
     this._gTints.clear()
     this._gOverlay.clear()
     this._gIcon.clear()
@@ -453,6 +483,10 @@ export class DungeonRenderer {
     this._gGrid.destroy()
     this._gTiles.destroy()
     this._cTileSprites.destroy(true)
+    this._cDoorSpritesLow.destroy(true)
+    this._cDoorSpritesHigh.destroy(true)
+    this._innerCellMaskG.destroy()
+    this._outerCellMaskG.destroy()
     this._gTints.destroy()
     this._gOverlay.destroy()
     this._gCollision.destroy()
@@ -485,6 +519,14 @@ export class DungeonRenderer {
     // variant or per-cell override); otherwise the entire 2×2 falls back to
     // procedural so we never see a half-themed door.
     this._doorCellMap = this._buildDoorCellMap()
+    // Re-exempt every doorway anchor (cell with a doorway spanRender) from
+    // the spanCoveredSet so its iteration draws the doorway sprite. The
+    // doorway sprite goes to _cDoorSprites (higher depth) and visually
+    // overlays any wall-template tileLayout sprite that would also paint
+    // this cell.
+    for (const [k, v] of this._doorCellMap.entries()) {
+      if (v.spanRender) this._spanCoveredSet.delete(k)
+    }
 
     for (let y = 0; y < gh; y++) {
       const row = tiles[y]
@@ -496,6 +538,10 @@ export class DungeonRenderer {
         if (this._spanCoveredSet.has(`${x},${y}`)) continue
 
         const t = row[x]
+        // For DOOR cells, paint the underlying wall sprite first so the
+        // door sprite (drawn next) visually overlays the wall instead
+        // of replacing it.  No-op when the cell has no room / theme.
+        if (t === TILE.DOOR) this._renderWallSpriteUnderDoor(x, y)
         // Try the sprite path. For DOOR cells, the resolver only returns
         // a sprite when the door is fully renderable (all 4 sub-cells); a
         // partial mismatch falls back to procedural for visual consistency.
@@ -519,6 +565,11 @@ export class DungeonRenderer {
   // sprite has coverage > 1, and add the cov×cov - 1 non-anchor cells to
   // the covered set. The renderer skips drawing on those cells (sprite
   // AND procedural) so the anchor's larger image shows through cleanly.
+  //
+  // Doorway anchor cells get RE-EXEMPTED from this set after
+  // `_buildDoorCellMap` runs (in `_drawTiles`), so they iterate and
+  // render the doorway sprite — which goes to a higher-depth container
+  // and visually overlays whatever wall sprite was painting that cell.
   _buildSpanCoveredSet() {
     const set = new Set()
     for (const room of this._gameState.dungeon.rooms ?? []) {
@@ -543,6 +594,55 @@ export class DungeonRenderer {
       }
     }
     return set
+  }
+
+  // True when the cell is the anchor of a cov>1 tileLayout sprite that
+  // should still render despite a doorway projection covering this cell
+  // — i.e. the anchor needs to render its sprite to fill its OTHER
+  // coverage cells (typically corner/pillar art adjacent to a doorway).
+  //
+  // Returns false for TILE.DOOR cells: those are inside the door zone
+  // and we explicitly want the doorway sprite to fill them, not the
+  // leftover wall-template tileLayout entry from the room author.
+  _isTileLayoutSpanAnchor(x, y) {
+    const tile = this._gameState.dungeon.tiles[y]?.[x]
+    if (tile === TILE.DOOR) return false
+    const room = this._cellRoomMap?.get(`${x},${y}`)
+    if (!room || !Array.isArray(room.tileLayout) || !room.tileLayout.length) return false
+    const rx = x - room.gridX, ry = y - room.gridY
+    const entry = readCellEntry(room.tileLayout[ry]?.[rx])
+    if (!entry) return false
+    const sprite = ThemeManager.getSprite(entry.id)
+    return spriteCoverage(sprite) > 1
+  }
+
+  // Build the set of cells covered by every cp's 4×2 doorway swatch
+  // zone (door cells + adjacent jamb cells, on this room's wall slab
+  // only — paired room contributes its own cps). This is the region
+  // where the doorway swatch should win over wall-template tileLayout
+  // sprites.
+  _buildDoorwayZoneSet() {
+    const zone = new Set()
+    for (const room of this._gameState.dungeon.rooms ?? []) {
+      for (const cp of room.connectionPoints ?? []) {
+        const block = this._doorBlockCells(room, cp)
+        if (!block || block.w !== 2 || block.h !== 2) continue
+        let zx0, zy0, zx1, zy1
+        if (block.axis === 'h') {
+          zx0 = block.x0 - 1; zy0 = block.y0
+          zx1 = block.x0 + 2; zy1 = block.y0 + block.h - 1
+        } else {
+          zx0 = block.x0;     zy0 = block.y0 - 1
+          zx1 = block.x0 + block.w - 1; zy1 = block.y0 + 2
+        }
+        for (let y = zy0; y <= zy1; y++) {
+          for (let x = zx0; x <= zx1; x++) {
+            zone.add(`${x},${y}`)
+          }
+        }
+      }
+    }
+    return zone
   }
 
   // ── Theme sprite path ──────────────────────────────────────────────────────
@@ -608,8 +708,20 @@ export class DungeonRenderer {
     // cp isn't fully renderable fall through to the procedural overlay.
     if (t === TILE.DOOR) {
       const door = this._doorCellMap.get(`${x},${y}`)
-      if (!door || !door.renderable) return null
+      if (!door || door.kind !== 'door' || !door.renderable) return null
       return this._resolveDoorCellSprite(door, x, y)
+    }
+
+    // Wall cells adjacent to a doorway can be overridden by the cp's jamb
+    // painting (cols 0 / 3 of room.doorTiles[state]). Unset jamb cells
+    // fall through to the normal wall-slot logic below.
+    if (t === TILE.WALL || t === TILE.BOSS_WALL) {
+      const jamb = this._doorCellMap.get(`${x},${y}`)
+      if (jamb && jamb.kind === 'jamb') {
+        const sprite = this._resolveJambCellSprite(jamb, x, y)
+        if (sprite) return sprite
+        // No painted jamb — continue to default wall rendering below.
+      }
     }
 
     const room = this._roomForCell(x, y, t)
@@ -641,31 +753,244 @@ export class DungeonRenderer {
     return { id, sprite, rot: 0, flipH: false, flipV: false }
   }
 
-  // Resolve sprite for a door cell whose cp is renderable. Override on the
-  // owning room's tileLayout wins; otherwise pick a variant from the
-  // door_<state>_<axis>_<sub> slot. Renderable was pre-checked, so unless
-  // a Phaser texture went missing between map-build and render, this
-  // succeeds.
+  // Resolve sprite for a door cell whose cp is renderable. Resolution order:
+  //   1. Per-cell tileLayout override on the owning room (cell-precise).
+  //   2. Owning room's doorTiles[state] painting (per-room door swatch).
+  //   3. doorTheme/theme variant for the door_<state>_<axis>_<sub> slot.
+  // (Option B / cross-seam fall-through dropped — every painted cell now
+  // sits inside the room's own wall ring, so no cross-seam ambiguity.)
   _resolveDoorCellSprite(door, x, y) {
-    const { room, axis, sub, state } = door
+    const { room, axis, sub, state, isOwner } = door
+    // (0) Pre-resolved span anchor from a cov>1 sprite in the swatch.
+    if (door.spanRender) return door.spanRender
+
+    // (1) Per-cell tileLayout override. Skip cov>1 entries — those are
+    // typically wall-template art baked at room-author time (e.g. a
+    // wall_c span that the door now sits on top of). The doorTiles
+    // swatch should paint instead.
     if (Array.isArray(room.tileLayout) && room.tileLayout.length) {
       const rx = x - room.gridX
       const ry = y - room.gridY
       const entry = readCellEntry(room.tileLayout[ry]?.[rx])
       if (entry) {
         const sprite = ThemeManager.getSprite(entry.id)
-        if (sprite && this._scene.textures.exists(_themeTextureKey(entry.id))) {
+        const cov = spriteCoverage(sprite)
+        if (cov <= 1 && sprite && this._scene.textures.exists(_themeTextureKey(entry.id))) {
           return { id: entry.id, sprite, rot: entry.rot, flipH: entry.flipH, flipV: entry.flipV }
         }
       }
     }
-    if (!room.theme) return null
+
+    // (2) This room's doorTiles painting — owner only. Non-owner cps defer
+    // to the paired (= owner) room so the doorway reads as one painted unit.
+    if (isOwner !== false) {
+      const ownPaint = this._lookupDoorTilePainted(room, door.cp, state, x, y)
+      if (ownPaint) return ownPaint
+    }
+
+    // (3) Paired room's painting (used by non-owner cps to render the
+    // owner's swatch on this side of the seam).
+    if (door.pairedRoom && door.pairedCp) {
+      const pairPaint = this._lookupDoorTilePainted(door.pairedRoom, door.pairedCp, state, x, y)
+      if (pairPaint) return pairPaint
+    }
+
+    // (4) Theme variant.
+    const doorTheme = room.doorTheme || room.theme
+    if (!doorTheme) return null
     const slot = `door_${state}_${axis}_${sub}`
-    const id = ThemeManager.pickVariant(slot, x, y, room.theme)
+    const id = ThemeManager.pickVariant(slot, x, y, doorTheme)
     if (!id) return null
     const sprite = ThemeManager.getSprite(id)
     if (!sprite || !this._scene.textures.exists(_themeTextureKey(id))) return null
     return { id, sprite, rot: 0, flipH: false, flipV: false }
+  }
+
+  // Resolve sprite for a JAMB cell — a wall cell adjacent to a doorway,
+  // overlaid with the jamb columns (0 / 3) of this room's doorTiles
+  // painting. Returns null when the painting cell at this position is
+  // unset, in which case the caller falls through to normal wall
+  // rendering.
+  _resolveJambCellSprite(jamb, x, y) {
+    // Pre-resolved span anchor wins (a cov>1 sprite extending into this
+    // jamb cell from the door region uses this same code path).
+    if (jamb.spanRender) return jamb.spanRender
+    // If this cell is a tileLayout cov>1 anchor (corner / pillar at the
+    // jamb position), defer so the user's wall art renders. The doorway
+    // sprite at higher depth will overlay where they overlap.
+    if (this._isTileLayoutSpanAnchor(x, y)) return null
+    // Owner paints its own jambs; non-owner defers to paired (= owner).
+    if (jamb.isOwner !== false) {
+      const own = this._lookupDoorTilePainted(jamb.room, jamb.cp, jamb.state, x, y)
+      if (own) return own
+    }
+    if (jamb.pairedRoom && jamb.pairedCp) {
+      return this._lookupDoorTilePainted(jamb.pairedRoom, jamb.pairedCp, jamb.state, x, y)
+    }
+    return null
+  }
+
+  // Returns true if room.doorTiles[state] has at least one non-null cell —
+  // i.e. this room has a painted swatch for this state. Used to decide
+  // whether the paired room's painting should "spill over" Option-B-style.
+  _roomHasDoorTilesFor(room, state) {
+    const grid = room.doorTiles?.[state]
+    if (!Array.isArray(grid)) return false
+    for (const row of grid) {
+      if (!Array.isArray(row)) continue
+      for (const v of row) if (v) return true
+    }
+    return false
+  }
+
+  // Map a dungeon cell (x, y) sitting inside a cp's 8-cell doorway back to
+  // the painted (col, row) within the cp's room.doorTiles canonical 4×2
+  // grid. Returns the resolved sprite + per-direction sprite rotation, or
+  // null if the cell isn't covered by this cp's doorway or the painting
+  // has nothing for that cell. Span anchors with cov>1: only the dungeon
+  // cell that maps to the canonical anchor (paintedCol, paintedRow) gets
+  // the sprite — the other cov×cov - 1 cells are recorded in
+  // _spanCoveredSet so the cell-iteration in _drawTiles skips them.
+  _lookupDoorTilePainted(room, cp, state, x, y) {
+    const cellInfo = this._paintingCellForDoorCell(room, cp, x, y)
+    if (!cellInfo) return null
+    const grid = room.doorTiles?.[state]
+    if (!Array.isArray(grid)) return null
+    // Rows 2..3 of the extended canonical sit in the PAIRED room's wall.
+    // Mirror them back to rows 0..1 of THIS room's painting (so the door
+    // looks symmetric across the seam) and flip the sprite vertically.
+    // With the row 0 = Outer / row 1 = Inner convention, distance-paired
+    // mapping is: paintedRow 2 (paired Outer) ↔ row 0 (own Outer);
+    // paintedRow 3 (paired Inner) ↔ row 1 (own Inner). lookupRow = paintedRow - 2.
+    const isMirror = cellInfo.paintedRow >= 2
+    const lookupRow = isMirror ? (cellInfo.paintedRow - 2) : cellInfo.paintedRow
+    // Direct hit? Use the sprite at this painted cell.
+    let entry = readCellEntry(grid[lookupRow]?.[cellInfo.paintedCol])
+    if (!entry) {
+      // No direct entry — walk up-left in the painting looking for a span
+      // anchor that covers this painted cell. Coverage can be 1 or 2 (with
+      // the 4×2 grid). Walks the LOOKUP row (mirrored when isMirror=true).
+      const MAX_BACK = 3
+      for (let dy = 0; dy <= MAX_BACK && lookupRow - dy >= 0; dy++) {
+        for (let dx = 0; dx <= MAX_BACK && cellInfo.paintedCol - dx >= 0; dx++) {
+          if (dx === 0 && dy === 0) continue
+          const ax = cellInfo.paintedCol - dx, ay = lookupRow - dy
+          const candidate = readCellEntry(grid[ay]?.[ax])
+          if (!candidate) continue
+          const cov = spriteCoverage(ThemeManager.getSprite(candidate.id))
+          if (cov > Math.max(dx, dy)) {
+            // The anchor at (ax, ay) covers this cell, but THIS cell is a
+            // non-anchor spancell — return null so it stays blank; the
+            // dungeon cell that maps to (ax, ay) will render the sprite.
+            return null
+          }
+        }
+      }
+      return null
+    }
+    const sprite = ThemeManager.getSprite(entry.id)
+    if (!sprite || !this._scene.textures.exists(_themeTextureKey(entry.id))) return null
+    // Stack rotations: per-cell user rot + per-direction auto-rotate.
+    // Under the row 0 = Outer / row 1 = Inner convention with the new
+    // row math, paired-row lookup already maps to the right swatch entry
+    // (lookupRow = paintedRow - 2), and the rendering position already
+    // lands at the correct paired cell — so no extra V-flip is needed
+    // for the mirror case. cov>1 anchors found via direct lookup get the
+    // own-projection flipV treatment (image-top = source row 0 needs to
+    // land at MAX-y outer cell for forward directions).
+    const rot = ((entry.rot || 0) + cellInfo.rotDeg) % 360
+    const cov = spriteCoverage(sprite)
+    const flipV = (cov > 1 && !isMirror) ? !entry.flipV : !!entry.flipV
+    return { id: entry.id, sprite, rot, flipH: !!entry.flipH, flipV }
+  }
+
+  // Geometry helper: which painted (col, row) of the canonical 4×2 swatch
+  // (4 cols along the wall, 2 rows through the wall depth) does dungeon
+  // cell (x, y) correspond to, viewed through this cp's direction?
+  // Returns { paintedCol, paintedRow, rotDeg } or null when (x, y) is
+  // outside the cp's 8-cell doorway footprint.
+  //
+  // Canonical orientation = cp.direction 'S':
+  //   col 0 = LEFT JAMB, col 1/2 = DOOR, col 3 = RIGHT JAMB
+  //   row 0 = OUTER (toward outer wall face / seam)
+  //   row 1 = INNER (toward room interior)
+  // Extended row range 0..3:
+  //   row 2 = paired room's OUTER (across the seam)
+  //   row 3 = paired room's INNER (deeper into paired)
+  // For other directions the whole swatch rotates as a unit (cell positions
+  // remap AND sprite rotation applied).
+  _paintingCellForDoorCell(room, cp, x, y) {
+    const block = this._doorBlockCells(room, cp)
+    if (!block) return null
+    // Convert axial offset (own=0 inner, own=1 outer/seam, beyond=paired's
+    // wall) to swatch row: 0 outer, 1 inner, 2 paired-outer, 3 paired-inner.
+    const offsetToRow = (offset) =>
+      offset === 0 ? 1
+      : offset === 1 ? 0
+      : offset >= 2 ? offset
+      : null   // negative = past own's interior, not a doorway cell
+    let paintedCol, paintedRow, rotDeg
+    switch (cp.direction) {
+      case 'S': {
+        paintedCol = x - block.x0 + 1
+        paintedRow = offsetToRow(y - block.y0)
+        rotDeg = 0
+        break
+      }
+      case 'N': {
+        // For N, axial offset goes the other way: own outer is at y=block.y0
+        // (top of wall, north face). Paired's wall is north of that, so
+        // negative dungeon offsets map to extended rows.
+        const dy = y - block.y0
+        paintedCol = (block.x0 + 2) - x
+        paintedRow = dy >= 0 ? offsetToRow(1 - dy)   // dy=0→outer(0), dy=1→inner(1)
+                             : (1 - dy)              // dy=-1→2, dy=-2→3
+        rotDeg = 180
+        break
+      }
+      case 'E': {
+        paintedCol = y - block.y0 + 1
+        paintedRow = offsetToRow(x - block.x0)
+        rotDeg = 270
+        break
+      }
+      case 'W': {
+        const dx = x - block.x0
+        paintedCol = (block.y0 + 2) - y
+        paintedRow = dx >= 0 ? offsetToRow(1 - dx)
+                             : (1 - dx)
+        rotDeg = 90
+        break
+      }
+      default:
+        return null
+    }
+    if (paintedRow == null) return null
+    if (paintedCol < 0 || paintedCol > 3) return null
+    if (paintedRow < 0 || paintedRow > 3) return null
+    return { paintedCol, paintedRow, rotDeg }
+  }
+
+  // Find the cp on the room across the seam that pairs with this cp.
+  // Returns { pairedRoom, pairedCp } or null for external/unpaired cps.
+  // With no inter-room gap, the paired cp's room sits 1 cell outward from
+  // this cp; the matching cp anchors on the same dungeon coord.
+  _findPairedCp(room, cp) {
+    if (!cp || cp.external) return null
+    const v = ({ N: { dx: 0, dy: -1 }, S: { dx: 0, dy: 1 }, E: { dx: 1, dy: 0 }, W: { dx: -1, dy: 0 } })[cp.direction]
+    if (!v) return null
+    const ox = room.gridX + cp.x + v.dx
+    const oy = room.gridY + cp.y + v.dy
+    const otherRoom = this._cellRoomMap?.get(`${ox},${oy}`) ||
+      (this._gameState.dungeon.rooms ?? []).find(r =>
+        ox >= r.gridX && ox < r.gridX + r.width && oy >= r.gridY && oy < r.gridY + r.height)
+    if (!otherRoom || otherRoom === room) return null
+    const opp = ({ N: 'S', S: 'N', E: 'W', W: 'E' })[cp.direction]
+    const pairedCp = (otherRoom.connectionPoints ?? []).find(o =>
+      !o.external && o.direction === opp &&
+      otherRoom.gridX + o.x === ox && otherRoom.gridY + o.y === oy)
+    if (!pairedCp) return null
+    return { pairedRoom: otherRoom, pairedCp }
   }
 
   // ── Door geometry helpers ──────────────────────────────────────────────────
@@ -698,64 +1023,259 @@ export class DungeonRenderer {
   }
 
   // Logical state of a cp at draw time:
-  //   'open'   when cp.open === true
+  //   'open'   when cp.open === true OR cp.opening === true (the sprite
+  //            path swaps to the open swatch as soon as the opening
+  //            animation starts, so the adventurer doesn't see "closed"
+  //            art while walking through the half-open doorway. The
+  //            procedural panel still uses cp.openProgress for its split
+  //            animation independently.)
   //   'locked' when cp.locked === true (Phase 10 hidden-keys feature)
-  //   'closed' otherwise (incl. mid-opening animation — sprite shows the
-  //            closed art; the procedural panel layer still draws on top
-  //            with the swing animation when present)
+  //   'closed' otherwise
   _doorStateFor(cp) {
-    if (cp.locked === true) return 'locked'
-    if (cp.open === true)   return 'open'
+    if (cp.locked === true)            return 'locked'
+    if (cp.open === true || cp.opening) return 'open'
     return 'closed'
   }
 
-  // Build the cell→door-info lookup for this redraw. Caches the per-cp
-  // "renderable" decision so we don't repeat the 4-cell variant check
-  // per cell.
+  // Forward-map a canonical (col, row) of room.doorTiles back into a dungeon
+  // cell, given a cp's door block and direction. Inverse of
+  // _paintingCellForDoorCell. Used by _buildDoorCellMap to project span
+  // anchors (cov>1 sprites in the swatch) onto the right dungeon cells.
+  //
+  // Row convention: 0 = OUTER (own seam-side), 1 = INNER (own interior-side),
+  // 2 = paired OUTER (across seam), 3 = paired INNER.
+  _doorPaintedToDungeon(block, direction, col, row) {
+    // axial offset for "outward" directions (S, E): 0 inner, 1 outer, 2/3 paired.
+    const offsetForward = row === 0 ? 1 : row === 1 ? 0 : row
+    // axial offset for "inward" directions (N, W): 0 outer, 1 inner, -1/-2 paired.
+    const offsetReverse = row === 0 ? 0 : row === 1 ? 1 : -(row - 1)
+    switch (direction) {
+      case 'S': return { x: block.x0 + col - 1,        y: block.y0 + offsetForward }
+      case 'N': return { x: block.x0 + 2 - col,        y: block.y0 + offsetReverse }
+      case 'E': return { x: block.x0 + offsetForward,  y: block.y0 + col - 1 }
+      case 'W': return { x: block.x0 + offsetReverse,  y: block.y0 + 2 - col }
+      default:  return null
+    }
+  }
+
+  // Per-direction sprite rotation that the auto-rotated swatch applies on
+  // top of any user-set rotation per painted cell. Calibrated for the
+  // row 0 = Outer / row 1 = Inner convention so source (col=0, row=0)
+  // lands at the dungeon "Outer + L Jamb" position for each direction.
+  _doorPaintedRotDeg(direction) {
+    return ({ S: 0, N: 180, E: 90, W: 270 })[direction] ?? 0
+  }
+
+  // Build the cell→door-info lookup for this redraw. Three passes:
+  //   1. Stamp door + jamb entries from every cp (so cross-seam writes in
+  //      pass 2 land on already-existing entries).
+  //   2. Project span anchors. For shared doorways, exactly one cp owns
+  //      the seam and projects its swatch onto BOTH halves (own wall +
+  //      mirrored across into paired wall). The non-owner skips. This
+  //      makes the doorway read as one coherent painted door instead of
+  //      two halves stamped at 180° relative orientations.
+  //   3. Renderability check per cp.
+  //
+  // Owner rule: cp.direction in {'S', 'E'} owns. The user's swatches are
+  // authored in the canonical 'S' orientation (Inner row at top, Outer
+  // row at bottom), so picking the upper/left room as owner means the
+  // canonical swatch lands upright in the dungeon and is mirrored into
+  // the lower/right half via flipV.
   _buildDoorCellMap() {
     const map = new Map()
     const SUB = ['tl', 'tr', 'bl', 'br']  // ordered (col, row) row-major in a 2×2
+    const cpInfos = []
+
+    // ── Pass 1: stamp door + jamb entries for every cp.
     for (const room of this._gameState.dungeon.rooms ?? []) {
       for (const cp of room.connectionPoints ?? []) {
         const block = this._doorBlockCells(room, cp)
         if (!block || block.w !== 2 || block.h !== 2) continue
         const state = this._doorStateFor(cp)
-        // Pre-check: every sub-cell must resolve to either a per-cell
-        // override OR a theme variant for the matching door slot. If any
-        // gap, mark non-renderable so the whole cp falls back to procedural.
-        let renderable = true
-        if (!room.theme && !this._anyTileLayoutCells(room, block)) {
-          renderable = false
-        } else {
-          for (let i = 0; i < 4; i++) {
-            const dx = i % 2, dy = (i / 2) | 0
-            const wx = block.x0 + dx, wy = block.y0 + dy
-            const rx = wx - room.gridX, ry = wy - room.gridY
-            const overrideId = room.tileLayout?.[ry]?.[rx]
-            if (overrideId && typeof overrideId === 'string'
-                && ThemeManager.getSprite(overrideId)
-                && this._scene.textures.exists(_themeTextureKey(overrideId))) continue
-            if (!room.theme) { renderable = false; break }
-            const slot = `door_${state}_${block.axis}_${SUB[i]}`
-            const variants = ThemeManager.getTheme(room.theme)?.slots[slot] || []
-            // We don't pick yet (pickVariant caches per-cell choice); just
-            // confirm at least one variant exists with a loaded texture.
-            const ok = variants.some(id => {
-              const s = ThemeManager.getSprite(id)
-              return s && this._scene.textures.exists(_themeTextureKey(id))
-            })
-            if (!ok) { renderable = false; break }
-          }
+        const pair = this._findPairedCp(room, cp)
+        const pairedRoom = pair?.pairedRoom || null
+        const pairedCp   = pair?.pairedCp   || null
+        const isOwner = !pairedRoom || cp.direction === 'S' || cp.direction === 'E'
+
+        // Mark a doorway cell into the inner / outer mask graphics so the
+        // split-depth doorway containers know which cells they should
+        // make visible. Inner = swatch row 1 or 3 (closer to room
+        // interior), Outer = row 0 or 2 (closer to seam / outer face).
+        // Also record Inner cells in `_doorwayInnerCells` so the
+        // AdventurerRenderer / MinionRenderer can dim entities standing
+        // on the threshold (they're rendered ABOVE the door art at low
+        // depth, so dimming sells "stepping into the doorway shadow").
+        const markMaskCell = (wx, wy) => {
+          const cellInfo = this._paintingCellForDoorCell(room, cp, wx, wy)
+          if (!cellInfo) return
+          const isInner = (cellInfo.paintedRow % 2) === 1
+          const target = isInner ? this._innerCellMaskG : this._outerCellMaskG
+          target.fillStyle(0xffffff, 1)
+          target.fillRect(wx * TS, wy * TS, TS, TS)
+          this._doorwayShadowCells.add(`${wx},${wy}`)
         }
+
         for (let i = 0; i < 4; i++) {
           const dx = i % 2, dy = (i / 2) | 0
           const wx = block.x0 + dx, wy = block.y0 + dy
           map.set(`${wx},${wy}`, {
-            room, cp, axis: block.axis, sub: SUB[i], state, renderable,
+            kind: 'door',
+            room, cp, axis: block.axis, sub: SUB[i], state, renderable: false,
+            pairedRoom, pairedCp, isOwner,
           })
+          markMaskCell(wx, wy)
+        }
+
+        const jambCells = (block.axis === 'h')
+          ? [[block.x0 - 1, block.y0], [block.x0 - 1, block.y0 + 1],
+             [block.x0 + 2, block.y0], [block.x0 + 2, block.y0 + 1]]
+          : [[block.x0,     block.y0 - 1], [block.x0 + 1, block.y0 - 1],
+             [block.x0,     block.y0 + 2], [block.x0 + 1, block.y0 + 2]]
+        for (const [wx, wy] of jambCells) {
+          if (!map.has(`${wx},${wy}`)) {
+            map.set(`${wx},${wy}`, { kind: 'jamb', room, cp, state, pairedRoom, pairedCp, isOwner })
+          }
+          markMaskCell(wx, wy)
+        }
+
+        cpInfos.push({ room, cp, block, state, pairedRoom, pairedCp, isOwner })
+      }
+    }
+
+    // ── Pass 2: project span anchors. Owner-only.
+    for (const info of cpInfos) {
+      if (!info.isOwner) continue
+      const { room, cp, block, state, pairedRoom } = info
+      const swatch = room.doorTiles?.[state]
+      if (!Array.isArray(swatch)) continue
+      const dirRot = this._doorPaintedRotDeg(cp.direction)
+      const projectMirror = !!pairedRoom
+
+      for (let cr = 0; cr < swatch.length; cr++) {
+        for (let cc = 0; cc < (swatch[cr]?.length || 0); cc++) {
+          const e = readCellEntry(swatch[cr]?.[cc])
+          if (!e) continue
+          const sprite = ThemeManager.getSprite(e.id)
+          if (!sprite || !this._scene.textures.exists(_themeTextureKey(e.id))) continue
+          const cov = spriteCoverage(sprite)
+          if (cov <= 1) continue
+
+          const projectAt = (anchorRow, mirror) => {
+            const dCells = []
+            let okSpan = true
+            for (let dy = 0; dy < cov && okSpan; dy++) {
+              for (let dx = 0; dx < cov; dx++) {
+                const dxy = this._doorPaintedToDungeon(
+                  block, cp.direction, cc + dx, anchorRow + dy)
+                if (!dxy) { okSpan = false; break }
+                dCells.push(dxy)
+              }
+            }
+            if (!okSpan) return
+            let minX = Infinity, minY = Infinity
+            for (const c of dCells) { if (c.x < minX) minX = c.x; if (c.y < minY) minY = c.y }
+            const tlEntry = map.get(`${minX},${minY}`)
+            if (tlEntry) {
+              // Under the row 0 = Outer / row 1 = Inner convention, the
+              // sprite IMAGE (authored with image-top = swatch row 0
+              // visually) needs `flipV` applied in these cases so
+              // source-row-0 content lands at the dungeon's outer-face cell:
+              //
+              //   - S/N OWNER projection (own wall, no mirror): the wall
+              //     is horizontal, perpendicular axis is Y. Rotation 0°/180°
+              //     alone leaves source-top at the interior cell. flipV
+              //     swaps it to the outer cell. (N applies for external
+              //     cps like entry_hall's entrance — N is normally a
+              //     non-owner, but external cps are always owners.)
+              //
+              //   - E OWNER MIRROR projection: rotation is 90° CW which
+              //     normally maps source rows → display columns. To get
+              //     the transpose mapping needed for paired's wall
+              //     (source(col,row) → display(row,col)), we need
+              //     flipV + 90°CW = transpose.
+              //
+              // The other cases (S/N mirror, E/W own) need no flip — the
+              // rotation alone already yields the correct mapping.
+              const dir = cp.direction
+              const needsFlipV = mirror
+                ? dir === 'E'
+                : (dir === 'S' || dir === 'N')
+              tlEntry.spanRender = {
+                id: e.id, sprite,
+                rot: ((e.rot || 0) + dirRot) % 360,
+                flipV: needsFlipV ? !e.flipV : !!e.flipV,
+                flipH: !!e.flipH,
+              }
+            }
+            for (const c of dCells) {
+              if (c.x === minX && c.y === minY) continue
+              // Don't span-cover a tileLayout cov>1 anchor — its sprite
+              // still needs to iterate and render so its OTHER coverage
+              // cells (outside the doorway zone) aren't left blank. The
+              // doorway sprite at higher depth will overlay where they
+              // overlap.
+              if (this._isTileLayoutSpanAnchor(c.x, c.y)) continue
+              this._spanCoveredSet?.add(`${c.x},${c.y}`)
+            }
+          }
+
+          // Own wall (canonical rows cr..cr+cov-1).
+          projectAt(cr, false)
+          // Mirrored across the seam into the paired room's wall. Distance-
+          // preserving pairing under the row 0 = Outer / row 1 = Inner
+          // convention: own row 0 ↔ paired row 2, own row 1 ↔ paired row 3.
+          // mirrorAnchorRow = cr + 2 (which keeps cov>1 spans aligned).
+          if (projectMirror) {
+            const mirrorAnchorRow = cr + 2
+            projectAt(mirrorAnchorRow, true)
+          }
         }
       }
     }
+
+    // ── Pass 3: renderability check per cp.
+    for (const info of cpInfos) {
+      const { room, cp, block, state, pairedRoom, pairedCp, isOwner } = info
+      const doorTheme = room.doorTheme || room.theme
+      let renderable = true
+      for (let i = 0; i < 4; i++) {
+        const dx = i % 2, dy = (i / 2) | 0
+        const wx = block.x0 + dx, wy = block.y0 + dy
+        const rx = wx - room.gridX, ry = wy - room.gridY
+        const cellKey = `${wx},${wy}`
+
+        const overrideId = room.tileLayout?.[ry]?.[rx]
+        if (overrideId && typeof overrideId === 'string'
+            && ThemeManager.getSprite(overrideId)
+            && this._scene.textures.exists(_themeTextureKey(overrideId))) continue
+
+        const doorEntry = map.get(cellKey)
+        if (doorEntry?.spanRender) continue
+        if (this._spanCoveredSet?.has(cellKey)) continue
+
+        // Direct-painted (cov=1) lookups. Owner checks own first; non-owner
+        // skips own and goes straight to the paired (= owner) swatch.
+        if (isOwner && this._lookupDoorTilePainted(room, cp, state, wx, wy)) continue
+        if (pairedRoom && pairedCp &&
+            this._lookupDoorTilePainted(pairedRoom, pairedCp, state, wx, wy)) continue
+
+        if (!doorTheme) { renderable = false; break }
+        const slot = `door_${state}_${block.axis}_${SUB[i]}`
+        const variants = ThemeManager.getTheme(doorTheme)?.slots[slot] || []
+        const ok = variants.some(id => {
+          const s = ThemeManager.getSprite(id)
+          return s && this._scene.textures.exists(_themeTextureKey(id))
+        })
+        if (!ok) { renderable = false; break }
+      }
+      for (let i = 0; i < 4; i++) {
+        const dx = i % 2, dy = (i / 2) | 0
+        const wx = block.x0 + dx, wy = block.y0 + dy
+        const entry = map.get(`${wx},${wy}`)
+        if (entry && entry.kind === 'door') entry.renderable = renderable
+      }
+    }
+
     return map
   }
 
@@ -788,12 +1308,76 @@ export class DungeonRenderer {
     // neighbour cells skip rendering so the anchor's image shows through.
     const cov = spriteCoverage(sprite)
     const size = cov * TS
+
+    const buildImg = () => {
+      const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
+        .setOrigin(0.5)
+      img.setDisplaySize(size, size)
+      if (rot) img.setAngle(rot)
+      if (flipH) img.flipX = true
+      if (flipV) img.flipY = true
+      return img
+    }
+
+    // Decide which container this sprite goes into. Three cases:
+    //   1. The cell is a door-projection ANCHOR (spanRender set): this
+    //      IS a doorway sprite — route to BOTH door containers (low +
+    //      high), masks clip each copy to Inner / Outer cells.
+    //   2. The cell is in the doorway zone (door or jamb) AND the
+    //      resolved sprite came from a wall-template tileLayout cov>1
+    //      anchor (corner, pillar, etc. that happens to overlap the
+    //      doorway): treat as a wall sprite — route to _cTileSprites
+    //      so it renders at low depth across its full 2×2 footprint.
+    //      Door sprites at depth 1.15+ overlay it where they overlap.
+    //   3. Doorway-zone cell with neither spanRender nor a tileLayout
+    //      anchor: cov=1 painted jamb art via _lookupDoorTilePainted —
+    //      route to BOTH door containers.
+    //   4. Non-doorway cell: route to _cTileSprites (wall / floor art).
+    const doorEntry = this._doorCellMap?.get(`${x},${y}`)
+    const isDoorwayCell = !!doorEntry && (doorEntry.kind === 'door' || doorEntry.kind === 'jamb')
+    const isTileLayoutWall = !doorEntry?.spanRender && this._isTileLayoutSpanAnchor(x, y)
+    if (isDoorwayCell && !isTileLayoutWall) {
+      this._cDoorSpritesLow.add(buildImg())
+      this._cDoorSpritesHigh.add(buildImg())
+    } else {
+      this._cTileSprites.add(buildImg())
+    }
+    return true
+  }
+
+  // Paint the wall sprite that *would* exist at a DOOR cell, so the
+  // door sprite drawn afterwards visually overlaps the wall instead of
+  // replacing it.  The wall slot is picked from the cell's position
+  // within its owning room (top/bottom/left/right edge).  No-op when:
+  //   - the cell isn't inside any room (gap stub between two rooms),
+  //   - the room has no theme / no variant for the slot,
+  //   - or the resolved texture failed to load.
+  _renderWallSpriteUnderDoor(x, y) {
+    const room = this._cellRoomMap.get(`${x},${y}`)
+    if (!room) return false
+    const dt = y - room.gridY
+    const db = (room.gridY + room.height - 1) - y
+    const dl = x - room.gridX
+    const dr = (room.gridX + room.width  - 1) - x
+    let slot = null
+    if      (dt === 0) slot = 'wall'
+    else if (db === 0) slot = 'wall_bottom'
+    else if (dl === 0) slot = 'wall_left'
+    else if (dr === 0) slot = 'wall_right'
+    if (!slot) return false
+    const theme = room.theme
+    if (!theme) return false
+    const id = ThemeManager.pickVariant(slot, x, y, theme)
+    if (!id) return false
+    const sprite = ThemeManager.getSprite(id)
+    if (!sprite) return false
+    const key = _themeTextureKey(id)
+    if (!this._scene.textures.exists(key)) return false
+    const cov  = spriteCoverage(sprite)
+    const size = cov * TS
     const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
       .setOrigin(0.5)
     img.setDisplaySize(size, size)
-    if (rot) img.setAngle(rot)
-    if (flipH) img.flipX = true
-    if (flipV) img.flipY = true
     this._cTileSprites.add(img)
     return true
   }
@@ -1802,6 +2386,13 @@ export class DungeonRenderer {
       for (const cp of room.connectionPoints ?? []) {
         const rect = this._cpDoorRect(room, cp)
         if (!rect) continue
+        // When the door (and its 4 surrounding jamb cells) are fully
+        // resolved by sprite art — either via the swatch painting or via
+        // the theme's door slots — the painted sprites already supply the
+        // jamb / threshold / shadow look. Drawing the procedural arch on
+        // top would overlay our sprites with a red panel + dark stripes,
+        // hiding the user's painting.
+        if (this._doorCpRenderable(room, cp)) continue
         const style = this._effectiveDoorStyle(room, cp)
         const pal   = ARCH_STYLES[style] || ARCH_STYLES.regular
         // Jambs now on _gJambs (depth 6, below characters) so adventurers
@@ -1963,7 +2554,6 @@ export class DungeonRenderer {
     if (!this._gameState?.dungeon?.rooms) return
     const dt = (deltaMs || 0) / 1000
     let changed = false
-    let stateFlipped = false
     for (const room of this._gameState.dungeon.rooms) {
       for (const cp of room.connectionPoints ?? []) {
         if (!cp.opening) continue
@@ -1973,17 +2563,26 @@ export class DungeonRenderer {
           cp.opening      = false
           cp.open         = true
           cp.openProgress = 1
-          stateFlipped = true
           EventBus.emit('DOOR_OPENED', { roomId: room.instanceId, cp })
         }
       }
     }
     if (changed) this._redrawDoors()
-    // When a cp.open transitions, the sprite path needs a fresh slot pick
-    // (door_closed_* → door_open_*). Full redraw rebuilds _doorCellMap and
-    // re-rolls variants. Costly but only fires once per transition (not
-    // every animation frame).
-    if (stateFlipped) this.redraw()
+    // The sprite-path state ('open' vs 'closed') already flipped to
+    // 'open' inside openDoor() (which fires a full redraw at animation
+    // start), so the openProgress=1 completion doesn't need another
+    // redraw — the door_open_* swatch is already on screen. Only the
+    // procedural panel + cp.open boolean transition matter at this
+    // point, and _redrawDoors() above handles the procedural layer.
+  }
+
+  // Public — true if (tileX, tileY) is ANY doorway cell (Inner threshold
+  // OR Outer panel). Used by AdventurerRenderer / MinionRenderer to dim
+  // entities walking through the doorway, selling the illusion of
+  // stepping into the underpass shadow for the entire crossing — not
+  // just the threshold cells. Rebuilt every redraw.
+  isDoorwayShadowCell(tileX, tileY) {
+    return this._doorwayShadowCells?.has(`${tileX},${tileY}`) ?? false
   }
 
   // Public helper — kicks an opening animation on this cp. Idempotent: a
@@ -1994,7 +2593,10 @@ export class DungeonRenderer {
     cp.opening      = true
     cp.openProgress = 0
     EventBus.emit('DOOR_OPENING', { cp })
-    this._redrawDoors()
+    // Full redraw so the sprite path picks up the new state (closed →
+    // open) immediately. The procedural panel layer's split-aside
+    // animation still uses cp.openProgress per-frame via _redrawDoors().
+    this.redraw()
     return true
   }
 

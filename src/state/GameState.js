@@ -123,7 +123,7 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
         'vampire_minion1', 'vampire_minion2',
         'zombie1', 'zombie2', 'zombie3',
       ],
-      trapTypes: ['spike_trap', 'arrow_trap', 'pitfall_trap', 'patience_trap', 'speed_trap', 'mercy_trap', 'echo_mine', 'curse_brand_trap', 'greed_trap', 'whisper_trap', 'torch_trap'],
+      trapTypes: [],
       dungeonMechanics: [],
       bossAbilities: [],
       archetypes: ['the_lich', 'the_architect', 'the_beast_lord', 'the_trickster', 'the_tyrant'],

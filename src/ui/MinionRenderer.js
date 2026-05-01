@@ -99,8 +99,12 @@ export class MinionRenderer {
       const curHp = m.resources?.hp ?? 0
       const isDead = m.aiState === 'dead' || curHp <= 0
 
-      // Position
+      // Position + Y-sort against the boss + adventurers (larger
+      // worldY draws on top).  Skipped while held — the held minion
+      // keeps its fixed depth-100 lift so it stays above everything
+      // until dropped.
       s.container.setPosition(m.worldX, m.worldY)
+      if (!m._heldByPlayer) s.container.setDepth(7 + m.worldY * 0.0005)
 
       // Facing — snap to cardinal based on per-frame movement delta.
       if (s.lastX !== null) {
@@ -159,10 +163,15 @@ export class MinionRenderer {
 
       // Visibility — spectral minions translucent; hidden mimics fully invisible;
       // dead minions hidden (death anim is loaded but the existing flow snaps
-      // dead minions to alpha 0 immediately on death).
+      // dead minions to alpha 0 immediately on death). Doorway shadow dim:
+      // standing on a doorway INNER (threshold) cell multiplies alpha by 0.55
+      // to sell stepping into the underpass shadow.
       let alpha = 1
       if (m.isSpectral) alpha = 0.55
       if (m.isMimic && m.hiddenAsLoot) alpha = 0
+      const tx = (m.worldX / TS) | 0
+      const ty = (m.worldY / TS) | 0
+      if (this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)) alpha *= 0.55
       s.container.setAlpha(isDead ? 0 : alpha)
 
       // HP bars hidden for minions per user request — bar+bg are still
@@ -260,7 +269,14 @@ export class MinionRenderer {
     m._heldByPlayer = true
     const rec = this._sprites[m.instanceId]
     if (rec) rec.container.setDepth(100)   // float above walls/doors while carried
+    this._playPickupDropSfx()
     EventBus.emit('MINION_PICKED_UP', { minion: m })
+  }
+
+  _playPickupDropSfx() {
+    const s = this._scene
+    if (!s?.cache?.audio?.exists?.('sfx-minion-place')) return
+    try { s.sound.play('sfx-minion-place', { volume: 0.7 }) } catch {}
   }
 
   // Snap to the cursor's tile (centered) and re-anchor home + room. Drops on
@@ -298,6 +314,7 @@ export class MinionRenderer {
     const rec = this._sprites[m.instanceId]
     if (rec) rec.container.setDepth(7)
     this._heldMinion = null
+    this._playPickupDropSfx()
     EventBus.emit('MINION_PLACED', { minion: m })
   }
 
