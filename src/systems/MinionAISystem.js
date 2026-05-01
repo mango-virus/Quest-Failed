@@ -884,6 +884,43 @@ export class MinionAISystem {
       m.aiState = 'idle'
       m.currentTargetId = null
       m.deathDay = null
+
+      // Mimic-specific reset: re-disguise as chest and re-spawn the
+      // paired disguise loot (which gets stripped in _die so revealed
+      // mimics can't be re-targeted mid-day). Without this, after a
+      // mimic respawns adventurers see a chest sprite but SEEK_LOOT has
+      // nothing to target.
+      if (m.isMimic) {
+        m.mimicState           = 'chest'
+        m.mimicFacing          = m.mimicFacing ?? 'right'
+        m.mimicStateUntil      = 0
+        m.mimicDeathFadeAt     = null
+        m.mimicDespawnAt       = null
+        m.mimicLastAdvNearbyAt = 0
+        m._mimicHurtFlashAt    = 0
+        // Avoid duplicate disguises if one somehow survived.
+        const existingDisguise = (this._gameState.loot?.dungeon ?? []).find(
+          i => i._mimicMinionId === m.instanceId
+        )
+        if (!existingDisguise) {
+          this._gameState.loot ??= { dungeon: [] }
+          this._gameState.loot.dungeon ??= []
+          this._gameState.loot.dungeon.push({
+            instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_resp`,
+            definitionId: 'treasury_chest',
+            _treasuryChest: true,
+            _isMimicVaultDisguise: true,
+            _mimicMinionId: m.instanceId,
+            _essenceValue: 0,
+            _sourceTreasuryId: m.assignedRoomId ?? null,
+            tileX: m.tileX, tileY: m.tileY,
+            worldX: m.worldX, worldY: m.worldY,
+            dungeonRoomId: m.assignedRoomId ?? null,
+            isMimicSpawn: true,
+            provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
+          })
+        }
+      }
     }
   }
 }

@@ -262,9 +262,17 @@ export class MimicRenderer {
       s.sprite.clearTint()
     }
 
-    // Dying linger handled by MinionAISystem — when state stays 'dying'
-    // past the death anim end, it reads m.mimicStateUntil and despawns.
-    s.container.setAlpha(state === 'dying' && now > (m.mimicDeathFadeAt ?? Infinity) ? 0.4 : 1)
+    // Death visibility:
+    //   - alive          → full alpha
+    //   - dying          → fade to 0.4 once mimicDeathFadeAt passes (during the linger phase)
+    //   - dead (post-linger, awaiting night-respawn) → alpha 0 so the corpse despawns visually
+    if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) {
+      s.container.setAlpha(0)
+    } else if (state === 'dying' && now > (m.mimicDeathFadeAt ?? Infinity)) {
+      s.container.setAlpha(0.4)
+    } else {
+      s.container.setAlpha(1)
+    }
   }
 
   _onMinionDied({ minion }) {
