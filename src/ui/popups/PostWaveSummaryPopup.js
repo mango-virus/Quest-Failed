@@ -79,43 +79,82 @@ export class PostWaveSummaryPopup {
     const card = this._scene.add.graphics().setDepth(D)
     pixelPanel(card, x, y, w, h, { fill: CRYPT.bgStone1 })
     addChild(card)
-    this._sectionHeader(x, y, w, 'CASUALTIES', D, addChild)
 
     const day = (this._gameState.meta?.dayNumber ?? 1) - 1
-    const grave   = this._gameState.adventurers?.graveyard ?? []
+    const grave    = this._gameState.adventurers?.graveyard ?? []
     const sliceFrom = this._snapshot?.graveyardLen ?? 0
-    const today  = grave.slice(sliceFrom).filter(a => (a.diedOnDay ?? day) === day)
+    const killedToday = grave.slice(sliceFrom).filter(a => (a.diedOnDay ?? day) === day)
+    // Adventurers who fled alive today: gameState.adventurers.known is
+    // updated by RunHistorySystem on ADVENTURER_FLED with lastEscapedDay.
+    const known = this._gameState.adventurers?.known ?? []
+    const escapedToday = known.filter(k => (k.lastEscapedDay ?? -1) === day)
 
-    if (today.length === 0) {
-      addChild(this._scene.add.text(x + w / 2, y + h / 2, '— NO KILLS TODAY —', {
+    this._sectionHeader(x, y, w,
+      `ADVENTURERS · ${killedToday.length} SLAIN · ${escapedToday.length} ESCAPED`,
+      D, addChild)
+
+    if (killedToday.length === 0 && escapedToday.length === 0) {
+      addChild(this._scene.add.text(x + w / 2, y + h / 2, '— NO ARRIVALS TODAY —', {
         fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 2,
       }).setOrigin(0.5).setDepth(D + 2))
       return
     }
 
     let yy = y + 36
-    const rowH = 60
+    const rowH = 56
     const visibleH = h - 36 - 8
     const maxRows  = Math.max(1, Math.floor(visibleH / rowH))
-    today.slice(0, maxRows).forEach(adv => {
-      const rowG = this._scene.add.graphics().setDepth(D + 1)
-      pixelPanel(rowG, x + 8, yy, w - 16, rowH - 4, {
-        fill: CRYPT.bgStone2, edgeH: CRYPT.panelEdgeS, edgeS: CRYPT.panelEdgeH, inset: true,
-      })
-      addChild(rowG)
-      addChild(this._scene.add.text(x + 16, yy + 6, adv.name ?? '?', {
-        fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.ink, letterSpacing: 1,
-      }).setDepth(D + 3))
-      addChild(this._scene.add.text(x + 16, yy + 22,
-        `${(adv.classId ?? '?').toUpperCase()} · slain by ${adv.killerName ?? '???'}`, {
-        fontFamily: FONT_BODY, fontSize: '8px', color: CRYPT.inkDim, letterSpacing: 1,
-        wordWrap: { width: w - 32, useAdvancedWrap: true },
-      }).setDepth(D + 3))
-      addChild(this._scene.add.text(x + 16, yy + 40, '+ GOLD', {
-        fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.goldCss, letterSpacing: 1,
-      }).setDepth(D + 3))
+    let rendered = 0
+
+    // Slain rows first (red accent border).
+    for (const adv of killedToday) {
+      if (rendered >= maxRows) break
+      this._renderAdvRow(adv, x, yy, w, rowH - 4, /* escaped */ false, D, addChild)
       yy += rowH
+      rendered++
+    }
+    // Then escaped rows (warn-colored border).
+    for (const k of escapedToday) {
+      if (rendered >= maxRows) break
+      this._renderAdvRow(k, x, yy, w, rowH - 4, /* escaped */ true, D, addChild)
+      yy += rowH
+      rendered++
+    }
+  }
+
+  _renderAdvRow(adv, x, yy, w, h, escaped, D, addChild) {
+    const rowG = this._scene.add.graphics().setDepth(D + 1)
+    pixelPanel(rowG, x + 8, yy, w - 16, h, {
+      fill: CRYPT.bgStone2, edgeH: CRYPT.panelEdgeS, edgeS: CRYPT.panelEdgeH, inset: true,
     })
+    addChild(rowG)
+
+    // Coloured left bar — red for slain, warn-orange for escaped — gives a
+    // quick visual sort even when the column is dense.
+    const bar = this._scene.add.graphics().setDepth(D + 2)
+    bar.fillStyle(escaped ? CRYPT.warn : CRYPT.accent, 1)
+    bar.fillRect(x + 8, yy, 3, h)
+    addChild(bar)
+
+    const headColor   = escaped ? CRYPT.warnCss   : CRYPT.ink
+    const headText    = (adv.name ?? '?')
+    const detailColor = escaped ? CRYPT.warnCss   : CRYPT.inkDim
+    const detailText  = escaped
+      ? `${(adv.classId ?? '?').toUpperCase()} · ESCAPED ALIVE`
+      : `${(adv.classId ?? '?').toUpperCase()} · slain by ${adv.killerName ?? '???'}`
+    const tagColor    = escaped ? CRYPT.soulCss   : CRYPT.goldCss
+    const tagText     = escaped ? '+ KNOWLEDGE LEAK' : '+ GOLD'
+
+    addChild(this._scene.add.text(x + 18, yy + 6, headText, {
+      fontFamily: FONT_HEAD, fontSize: '10px', color: headColor, letterSpacing: 1,
+    }).setDepth(D + 3))
+    addChild(this._scene.add.text(x + 18, yy + 22, detailText, {
+      fontFamily: FONT_BODY, fontSize: '8px', color: detailColor, letterSpacing: 1,
+      wordWrap: { width: w - 32, useAdvancedWrap: true },
+    }).setDepth(D + 3))
+    addChild(this._scene.add.text(x + 18, yy + 38, tagText, {
+      fontFamily: FONT_HEAD, fontSize: '7px', color: tagColor, letterSpacing: 1,
+    }).setDepth(D + 3))
   }
 
   _renderResources(x, y, w, h, D, addChild) {
