@@ -145,6 +145,31 @@ export class AISystem {
     return false
   }
 
+  // Pick the closest walkable cardinal neighbor of (tx, ty) — used by
+  // SEEK_LOOT for chest items so the adv ends up beside the chest, not
+  // on top of it. `adv` is just for distance tie-breaking. Returns null
+  // if the chest is fully boxed in (caller falls back to the chest tile
+  // so the goal isn't dead).
+  _findAdjacentWalkableTile(tx, ty, adv) {
+    const tiles = this._dungeonGrid.getTiles?.()
+    if (!tiles) return null
+    const gh = tiles.length
+    const gw = tiles[0]?.length ?? 0
+    const candidates = []
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = tx + dx, ny = ty + dy
+      if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue
+      if (!PathfinderSystem.isWalkable(tiles[ny][nx])) continue
+      // Don't pick a tile that's itself a chest mimic.
+      if (this._isChestMimicAt(nx, ny)) continue
+      const d = Math.hypot(nx - adv.tileX, ny - adv.tileY)
+      candidates.push({ x: nx, y: ny, d })
+    }
+    if (candidates.length === 0) return null
+    candidates.sort((a, b) => a.d - b.d)
+    return { x: candidates[0].x, y: candidates[0].y }
+  }
+
   // World-space center of the entry hall's north-facing door rect.
   // Mirrors AdventurerRenderer._entryDoorWorldCenter / DungeonRenderer
   // _cpDoorRect: 2-tile width slid into the side with more wall space,
@@ -1279,6 +1304,14 @@ export class AISystem {
         // Loot already picked up or vanished — fall back to boss
         adv.goal = { type: 'SEEK_BOSS' }
         return this._goalToTile(adv)
+      }
+      // Chests are interacted with from an adjacent tile — adventurers
+      // pause "opening" the chest from beside it rather than standing on
+      // it. Plain floor loot still routes onto the item tile so picking
+      // it up looks like stepping over it.
+      if (item._treasuryChest) {
+        const adj = this._findAdjacentWalkableTile(item.tileX, item.tileY, adv)
+        if (adj) return adj
       }
       return { x: item.tileX, y: item.tileY }
     }
