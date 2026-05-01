@@ -10,12 +10,12 @@
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
-const PANEL_W       = 250
+const DEFAULT_PANEL_W = 230
 const HEADER_H      = 22
-const TABS_H        = 24
-const FOOTER_H      = 38
+const TABS_H        = 22
+const FOOTER_H      = 36
 const PADDING       = 6
-const SLOT_GAP      = 6
+const SLOT_GAP      = 5
 const SLOT_COLS     = 2
 
 const TABS = [
@@ -32,6 +32,7 @@ export class BuildMenu {
     this._depth     = opts.depth ?? 60
     this._x         = opts.x ?? 12
     this._y         = opts.y ?? 280
+    this._w         = opts.w ?? DEFAULT_PANEL_W
     this._h         = opts.h ?? ((scene.uiH ?? 720) - this._y - 56 - 12)
 
     this._objects     = []
@@ -54,7 +55,7 @@ export class BuildMenu {
 
   _build() {
     const D = this._depth
-    const x = this._x, y = this._y, w = PANEL_W, h = this._h
+    const x = this._x, y = this._y, w = this._w, h = this._h
 
     const bg = this._scene.add.graphics().setDepth(D)
     pixelPanel(bg, x, y, w, h)
@@ -147,17 +148,17 @@ export class BuildMenu {
 
     const x = this._x + PADDING
     const y = this._slotsTopY
-    const w = PANEL_W - PADDING * 2
+    const w = this._w - PADDING * 2
     const slotW = Math.floor((w - SLOT_GAP) / SLOT_COLS)
     const slotH = 60
 
     if (defs.length === 0) {
-      const t = this._scene.add.text(this._x + PANEL_W / 2, y + 40,
+      const t = this._scene.add.text(this._x + this._w / 2, y + 40,
         'COMING SOON', {
         fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.inkMute, letterSpacing: 2,
       }).setOrigin(0.5).setDepth(this._depth + 2)
       this._slotObjects.push(t)
-      const t2 = this._scene.add.text(this._x + PANEL_W / 2, y + 60,
+      const t2 = this._scene.add.text(this._x + this._w / 2, y + 60,
         '— no definitions yet —', {
         fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkMute, letterSpacing: 1,
       }).setOrigin(0.5).setDepth(this._depth + 2)
@@ -317,4 +318,4 @@ export class BuildMenu {
   }
 }
 
-export const BUILD_MENU_WIDTH = PANEL_W
+export const BUILD_MENU_WIDTH = DEFAULT_PANEL_W

@@ -1,40 +1,46 @@
 // Phase 31C — HUD scene composes the persistent HUD chrome on top of
 // gameplay scenes (NightPhase / DayPhase). Owns:
 //
-//   - BossTopBar    — top strip (boss avatar + day + resources)
-//   - MiniMap       — left column, just below top bar
-//   - BuildMenu     — left column, below mini-map (visible only in night phase)
-//   - KnowledgePin  — right column, top
-//   - DungeonLog    — right column, below knowledge pin
-//   - ActionBar     — bottom strip (rotate / move / sell / roster /
-//                     phase-toggle / knowledge / adv-intel / menu)
+//   - BossTopBar     — top strip (boss avatar + day + survival bar +
+//                      gold + dark power)
+//   - MiniMapPanel   — left column, just below top bar (Crypt-styled
+//                      replacement for the old MiniMap)
+//   - BuildMenu      — left column, below mini-map (visible only in
+//                      night phase)
+//   - AudioControls  — bottom-left, just above the action bar
+//   - KnowledgePin   — right column, top
+//   - DungeonLog     — right column, below knowledge pin
+//   - ActionBar      — bottom strip (rotate / move / sell / roster /
+//                      phase-toggle / knowledge / adv-intel / menu)
 //
-// Stays active across phase transitions so chrome never flashes. NightPhase
-// and DayPhase listen for ActionBar / BuildMenu events instead of rendering
-// their own UI. AudioControls and the old BossHpPanel were removed — pause
-// menu (31G) will re-surface audio.
+// Stays active across phase transitions so chrome never flashes.
 
-import { MiniMap }       from '../ui/MiniMap.js'
 import { applyUiCamera } from '../ui/UIKit.js'
 import { BossTopBar, BOSS_TOP_BAR_HEIGHT } from '../ui/BossTopBar.js'
-import { ActionBar, ACTION_BAR_HEIGHT }    from '../ui/ActionBar.js'
-import { KnowledgePin, KNOWLEDGE_PIN_WIDTH } from '../ui/KnowledgePin.js'
-import { DungeonLog }    from '../ui/DungeonLog.js'
-import { BuildMenu, BUILD_MENU_WIDTH } from '../ui/BuildMenu.js'
+import { ActionBar,  ACTION_BAR_HEIGHT  } from '../ui/ActionBar.js'
+import { KnowledgePin } from '../ui/KnowledgePin.js'
+import { DungeonLog }   from '../ui/DungeonLog.js'
+import { BuildMenu }    from '../ui/BuildMenu.js'
+import { MiniMapPanel, MINIMAP_PANEL_HEIGHT } from '../ui/MiniMapPanel.js'
+import { AudioControls } from '../ui/AudioControls.js'
+import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { EventBus }      from '../systems/EventBus.js'
 
-const COL_PAD = 12
+const COL_PAD     = 12
+const LEFT_COL_W  = 230
+const RIGHT_COL_W = 250
 
 export class HudScene extends Phaser.Scene {
   constructor() {
     super({ key: 'HudScene', active: false })
-    this._miniMap     = null
-    this._topBar      = null
-    this._actionBar   = null
-    this._knowPin     = null
-    this._dungeonLog  = null
-    this._buildMenu   = null
-    this._listeners   = []
+    this._miniMap      = null
+    this._topBar       = null
+    this._actionBar    = null
+    this._knowPin      = null
+    this._dungeonLog   = null
+    this._buildMenu    = null
+    this._audioControls = null
+    this._listeners    = []
   }
 
   init(data) {
@@ -48,29 +54,37 @@ export class HudScene extends Phaser.Scene {
 
     const W = this.uiW
     const H = this.uiH
-    const COL_W      = 240             // both side columns same width
-    const RIGHT_COL_W = 280            // right column slightly wider for log readability
-    const TOP_Y      = BOSS_TOP_BAR_HEIGHT + 8
+    const TOP_Y = BOSS_TOP_BAR_HEIGHT + 6
 
     // ── Top bar ──
     this._topBar = new BossTopBar(this, this._gameState, { depth: 60 })
 
     // ── Mini-map (left column, top) ──
-    // MiniMap is 180×180; left-anchored inside the left column.
-    this._miniMap = new MiniMap(this, this._gameState, this._gameScene, {
+    this._miniMap = new MiniMapPanel(this, this._gameState, {
+      depth: 60,
       x: COL_PAD, y: TOP_Y,
+      w: LEFT_COL_W, h: MINIMAP_PANEL_HEIGHT,
     })
-    const miniMapH = 180   // matches MAP_H constant inside MiniMap.js
 
     // ── Build menu (left column, below mini-map) ──
-    const buildMenuY = TOP_Y + miniMapH + 12
+    const buildMenuY = TOP_Y + MINIMAP_PANEL_HEIGHT + 8
+    // Reserve room for the AudioControls strip just above the action bar.
+    const audioStripH = 32
     this._buildMenu = new BuildMenu(this, this._gameState, {
       depth: 60,
       x:     COL_PAD,
       y:     buildMenuY,
-      h:     H - buildMenuY - ACTION_BAR_HEIGHT - COL_PAD,
+      w:     LEFT_COL_W,
+      h:     H - buildMenuY - ACTION_BAR_HEIGHT - audioStripH - COL_PAD,
     })
     this._buildMenu.setVisible(this._gameState.meta?.phase === 'night')
+
+    // ── Audio controls (bottom-left, above the action bar) ──
+    this._audioControls = new AudioControls(this,
+      COL_PAD,
+      H - ACTION_BAR_HEIGHT - audioStripH + 4,
+      { depth: 80, playlist: GameplayMusic },
+    )
 
     // ── Knowledge Pin (right column, top) ──
     const knowX = W - RIGHT_COL_W - COL_PAD
@@ -78,10 +92,10 @@ export class HudScene extends Phaser.Scene {
     this._knowPin = new KnowledgePin(this, this._gameState, {
       depth: 60, x: knowX, y: knowY, w: RIGHT_COL_W,
     })
-    const knowPinH = 192   // KnowledgePin's measured height (header + 4 rows + exposure)
+    const knowPinH = 192   // KnowledgePin's measured height
 
     // ── Dungeon Log (right column, fills below pin) ──
-    const logY = knowY + knowPinH + 12
+    const logY = knowY + knowPinH + 8
     this._dungeonLog = new DungeonLog(this, this._gameState, {
       depth: 60,
       x:     knowX,
@@ -116,11 +130,12 @@ export class HudScene extends Phaser.Scene {
   shutdown() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
-    this._miniMap?.destroy();    this._miniMap     = null
-    this._topBar?.destroy();     this._topBar      = null
-    this._actionBar?.destroy();  this._actionBar   = null
-    this._knowPin?.destroy();    this._knowPin     = null
-    this._dungeonLog?.destroy(); this._dungeonLog  = null
-    this._buildMenu?.destroy();  this._buildMenu   = null
+    this._miniMap?.destroy();      this._miniMap       = null
+    this._topBar?.destroy();       this._topBar        = null
+    this._actionBar?.destroy();    this._actionBar     = null
+    this._knowPin?.destroy();      this._knowPin       = null
+    this._dungeonLog?.destroy();   this._dungeonLog    = null
+    this._buildMenu?.destroy();    this._buildMenu     = null
+    this._audioControls?.destroy(); this._audioControls = null
   }
 }

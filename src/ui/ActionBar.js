@@ -16,10 +16,14 @@
 import { CRYPT, FONT_HEAD, pixelPanel, pixelButton } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
-const BAR_H        = 56
-const BTN_H        = 36
-const BTN_PAD      = 6
+const BAR_H        = 48
+const BTN_H        = 32
+const BTN_PAD      = 4
 const TEXT_DEPTH   = 12
+
+// Day-phase speed cycle steps. Tap the primary action button while in
+// day phase to cycle through these values; index 0 = 1x is the default.
+const SPEED_STEPS = [1, 2, 4]
 
 export class ActionBar {
   constructor(scene, gameState, opts = {}) {
@@ -31,6 +35,7 @@ export class ActionBar {
 
     this._W = scene.uiW ?? 1280
     this._H = scene.uiH ?? 720
+    this._speedIdx = 0   // index into SPEED_STEPS, only used in day phase
 
     this._build()
   }
@@ -70,11 +75,17 @@ export class ActionBar {
     }
 
     // ── Right cluster, left-anchored from the center ──
+    // The primary slot is adaptive: night phase => BEGIN DAY (advances
+    // to day), day phase => SPEED cycle (1x → 2x → 4x → 1x). END WAVE
+    // is gone — day ends automatically when no adventurers remain.
     const rightDefs = [
-      { key: 'phaseToggle', w: 130, label: this._phaseLabel(), glyph: '⏵', event: 'PHASE_TOGGLE_REQUEST', primary: true },
-      { key: 'knowledge',   w: 100, label: 'KNOWLEDGE',        glyph: '❖', event: 'OPEN_KNOWLEDGE_MAP' },
-      { key: 'advIntel',    w: 116, label: 'ADV INTEL',        glyph: '👁', event: 'OPEN_ADV_INTEL' },
-      { key: 'menu',        w:  80, label: 'MENU',             glyph: '≡', event: 'OPEN_PAUSE_MENU' },
+      // Primary button — onPrimary delegates to a method that branches on
+      // phase, so the same button does BEGIN DAY at night and time-scale
+      // cycle during day.
+      { key: 'phaseToggle', w: 124, label: this._primaryLabel(), glyph: this._primaryGlyph(), onPrimary: true, primary: true },
+      { key: 'knowledge',   w:  98, label: 'KNOWLEDGE', glyph: '❖', event: 'OPEN_KNOWLEDGE_MAP' },
+      { key: 'advIntel',    w: 110, label: 'ADV INTEL', glyph: '👁', event: 'OPEN_ADV_INTEL' },
+      { key: 'menu',        w:  74, label: 'MENU',      glyph: '≡', event: 'OPEN_PAUSE_MENU' },
     ]
     let rx = cx + centerGap
     for (const d of rightDefs) {
@@ -98,12 +109,15 @@ export class ActionBar {
 
   _addButton(key, x, y, w, label, opts = {}) {
     const D = this._depth + 5
+    const onClick = opts.onPrimary
+      ? () => this._onPrimaryClick()
+      : () => EventBus.emit(opts.event ?? `ACTION_${key.toUpperCase()}`)
     const btn = pixelButton(this._scene, x, y, w, BTN_H, label, {
       depth:    D,
       fontSize: 9,
       primary:  !!opts.primary,
       danger:   !!opts.danger,
-      onClick:  () => EventBus.emit(opts.event ?? `ACTION_${key.toUpperCase()}`),
+      onClick,
     })
     btn.label.setText('') // we draw glyph + label separately for tighter spacing
 
@@ -123,9 +137,32 @@ export class ActionBar {
     return btn
   }
 
-  _phaseLabel() {
+  _speedLabel() {
+    return `${SPEED_STEPS[this._speedIdx]}× SPEED`
+  }
+
+  _primaryLabel() {
     const ph = this._gameState.meta?.phase ?? 'night'
-    return ph === 'night' ? 'BEGIN DAY' : 'END WAVE'
+    return ph === 'night' ? 'BEGIN DAY' : this._speedLabel()
+  }
+
+  _primaryGlyph() {
+    const ph = this._gameState.meta?.phase ?? 'night'
+    return ph === 'night' ? '⏵' : '»'
+  }
+
+  _onPrimaryClick() {
+    const ph = this._gameState.meta?.phase ?? 'night'
+    if (ph === 'night') {
+      // Night → day transition. NightPhase listens.
+      EventBus.emit('PHASE_TOGGLE_REQUEST')
+    } else {
+      // Day phase: cycle through 1× / 2× / 4× speed. DayPhase listens for
+      // TIME_SCALE_SET and applies. End-of-day is auto-triggered when no
+      // adventurers remain — there is no manual end-wave button.
+      this._speedIdx = (this._speedIdx + 1) % SPEED_STEPS.length
+      EventBus.emit('TIME_SCALE_SET', { scale: SPEED_STEPS[this._speedIdx] })
+    }
   }
 
   _phaseStatusText() {
@@ -142,12 +179,12 @@ export class ActionBar {
       this._phaseStatus.setColor(isDay ? CRYPT.accent2Css : CRYPT.soulCss)
     }
     if (this._buttons.phaseToggle) {
-      const newLabel = this._phaseLabel()
       const extras   = this._buttons.phaseToggle._extras
-      // Rewrite the action-label text (extras[1] is the label text)
-      if (extras && extras[1] && extras[1].text !== newLabel) {
-        extras[1].setText(newLabel)
-      }
+      const newLabel = this._primaryLabel()
+      const newGlyph = this._primaryGlyph()
+      // extras[0] = glyph, extras[1] = label (per _addButton ordering)
+      if (extras && extras[0] && extras[0].text !== newGlyph) extras[0].setText(newGlyph)
+      if (extras && extras[1] && extras[1].text !== newLabel) extras[1].setText(newLabel)
     }
   }
 

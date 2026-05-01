@@ -779,15 +779,20 @@ export class DayPhase extends Phaser.Scene {
     this._refreshEndDayButton()
   }
 
-  // Phase 31C — HUD chrome moved to HudScene. We listen for the action-bar
-  // events (PHASE_TOGGLE_REQUEST → _endDay) and let HudScene own the rest.
+  // Phase 31C — HUD chrome moved to HudScene. The day phase has no manual
+  // "end wave" trigger — it auto-ends via the all-out timer in
+  // _refreshStats once no adventurers remain. The primary action-bar
+  // button instead cycles time scale (1× / 2× / 4×) during day phase
+  // and emits TIME_SCALE_SET, which we apply via _setTimeScale.
   _wireHudEvents() {
     this._hudListeners = []
     const on = (event, fn) => {
       EventBus.on(event, fn, this)
       this._hudListeners.push([event, fn])
     }
-    on('PHASE_TOGGLE_REQUEST', () => this._endDay())
+    on('TIME_SCALE_SET', ({ scale }) => {
+      if (typeof scale === 'number') this._setTimeScale(scale)
+    })
   }
 
   // ── Event wiring ───────────────────────────────────────────────────────────
