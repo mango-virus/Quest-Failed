@@ -714,13 +714,26 @@ export class AISystem {
           i.instanceId === adv.goal.itemId && i.tileX === wp.x && i.tileY === wp.y
         )
       if (!seekTargetIsHere) {
+        adv._mimicStuckMs = (adv._mimicStuckMs ?? 0) + delta
         adv._waitMs = (adv._waitMs ?? 0) + delta
         if (adv._waitMs > 1200) {
           adv.path = null
           adv._waitMs = 0
         }
+        // Escalation — if the adv has spent more than 3 s repeatedly
+        // bouncing off chest tiles (replan→stop→replan loop), give up on
+        // the route-around and shove through. This catches edge cases the
+        // pathfinder fallback misses (e.g. the unblocked path also failed
+        // for an unrelated reason, or path planning thinks it has a route
+        // but every actual step lands on a chest).
+        if (adv._mimicStuckMs > 3000) {
+          adv._pathIgnoresMimics = true
+          adv._mimicStuckMs = 0
+        }
         return
       }
+    } else if (adv._mimicStuckMs) {
+      adv._mimicStuckMs = 0
     }
     if (enteringNewTile && this._tileOccupiedByOtherAdv(wp.x, wp.y, adv)) {
       // Head-on swap escape valve: if the blocker is *also* trying to enter
