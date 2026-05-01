@@ -97,6 +97,16 @@ export class MinionAISystem {
     return true
   }
 
+  // Room redesign 2026-04-30 — true if `roomId` shares a door with any
+  // active Sanctum room. Used to extend the barracks-style HP regen
+  // aura to door-connected neighbors.
+  _isAdjacentToSanctum(roomId) {
+    const neighbors = this._dungeonGrid.getNeighborRooms(roomId) ?? []
+    return neighbors.some(n =>
+      n.definitionId === 'sanctum' && n.isActive !== false
+    )
+  }
+
   update(delta) {
     const minions = this._gameState.minions
     for (let i = 0; i < minions.length; i++) {
@@ -148,19 +158,26 @@ export class MinionAISystem {
     // starter_barracks regen 0.5 HP/sec when no adventurers are visible.
     // When an adventurer enters their home room they wake up immediately
     // (the targeting block below picks up the threat).
+    //
+    // Room redesign 2026-04-30 — Sanctum aura: same regen applies to
+    // minions whose home room is directly door-connected to a Sanctum.
     if (minion.aiState === 'idle' &&
         minion.resources.hp < minion.resources.maxHp &&
         minion.faction === 'dungeon') {
       const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
-      if (home && home.definitionId === 'starter_barracks') {
-        const anyHostileNearby = this._gameState.adventurers.active.some(a =>
-          a.aiState !== 'dead' && _pointInRoom(a.tileX, a.tileY, home)
-        )
-        if (!anyHostileNearby) {
-          minion.resources.hp = Math.min(
-            minion.resources.maxHp,
-            minion.resources.hp + (0.5 * delta) / 1000
+      if (home) {
+        const isBarracks = home.definitionId === 'starter_barracks'
+        const isSanctumAura = !isBarracks && this._isAdjacentToSanctum(home.instanceId)
+        if (isBarracks || isSanctumAura) {
+          const anyHostileNearby = this._gameState.adventurers.active.some(a =>
+            a.aiState !== 'dead' && _pointInRoom(a.tileX, a.tileY, home)
           )
+          if (!anyHostileNearby) {
+            minion.resources.hp = Math.min(
+              minion.resources.maxHp,
+              minion.resources.hp + (0.5 * delta) / 1000
+            )
+          }
         }
       }
     }

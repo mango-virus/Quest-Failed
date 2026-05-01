@@ -1133,6 +1133,21 @@ export class BossSystem {
       boss.hp = Math.max(0, boss.hp - dmgToBoss)
       this._roundLog.push({ side: 'party', damage: dmgToBoss })
 
+      // Room redesign 2026-04-30 — Sanctum: boss regenerates between fight
+      // rounds (8 HP per round per active Sanctum). Caps at maxHp.
+      if (boss.hp > 0) {
+        const sanctumCount = (this._gameState.dungeon.rooms ?? [])
+          .filter(r => r.definitionId === 'sanctum' && r.isActive !== false).length
+        if (sanctumCount > 0) {
+          const regen = 8 * sanctumCount
+          const before = boss.hp
+          boss.hp = Math.min(boss.maxHp, boss.hp + regen)
+          if (boss.hp > before) {
+            this._roundLog.push({ side: 'boss', regen: boss.hp - before, source: 'sanctum' })
+          }
+        }
+      }
+
       if (!this._secondWindUsed && owned.has('second_wind') && boss.hp > 0 && boss.hp < boss.maxHp * 0.2) {
         boss.hp = Math.min(boss.maxHp, boss.hp + 30)
         this._secondWindUsed = true

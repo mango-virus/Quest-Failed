@@ -61,13 +61,16 @@ export class LootRenderer {
 
   _createSprite(item) {
     const def = this._scene.cache.json.get('lootDefinitions')?.find(d => d.id === item.definitionId)
-    const color = RARITY_COLOR[def?.rarity] ?? RARITY_COLOR.common
-    const glyph = TYPE_GLYPH[def?.type] ?? TYPE_GLYPH.default
+    // Room redesign 2026-04-30 — Treasury chests aren't loot defs; render
+    // as gold $ in a slightly larger ring to read as 'pick this up to steal'.
+    const isChest = !!item._treasuryChest
+    const color = isChest ? 0xeeaa44 : (RARITY_COLOR[def?.rarity] ?? RARITY_COLOR.common)
+    const glyph = isChest ? '$' : (TYPE_GLYPH[def?.type] ?? TYPE_GLYPH.default)
 
     const c = this._scene.add.container(item.worldX, item.worldY).setDepth(5)
 
     // Soft glow ring (hint at rarity)
-    const ring = this._scene.add.circle(0, 0, 9, color, 0.20)
+    const ring = this._scene.add.circle(0, 0, isChest ? 11 : 9, color, isChest ? 0.30 : 0.20)
     const body = this._scene.add.rectangle(0, 0, 12, 12, 0x0a0e16, 0.85)
     body.setStrokeStyle(1, color, 1)
 

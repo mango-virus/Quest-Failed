@@ -184,6 +184,16 @@ export class NightPhase extends Phaser.Scene {
     g.lineStyle(1, PALETTE.panelBorder, 0.5)
     g.beginPath(); g.moveTo(12, y + 2); g.lineTo(PANEL_W - 12, y + 2); g.strokePath()
 
+    // Library of Whispers forecast — title + multi-line body. Hidden when
+    // no forecast (no Library room or fresh game). Updated in _refreshStats.
+    this._whispersTitle = this.add.text(x, y + 8, '', {
+      fontSize: '9px', color: PALETTE.textAccent, fontFamily: 'monospace', fontStyle: 'bold',
+    }).setDepth(11).setVisible(false)
+    this._whispersBody = this.add.text(x, y + 22, '', {
+      fontSize: '9px', color: PALETTE.textNormal, fontFamily: 'monospace', lineSpacing: 2,
+      wordWrap: { width: PANEL_W - 24 },
+    }).setDepth(11).setVisible(false)
+
     this._statsY = y + 8
     this._refreshStats()
   }
@@ -211,6 +221,22 @@ export class NightPhase extends Phaser.Scene {
         ? Math.min(1, totalUpkeep / s.player.soulEssence)
         : 1
       this._upkeepBar.update(fraction)
+    }
+
+    // Library forecast (Room redesign 2026-04-30)
+    const forecast = s.meta.nextPartyPreview
+    if (forecast && forecast.size > 0 && this._whispersTitle) {
+      this._whispersTitle.setText('WHISPERS').setVisible(true)
+      const breakdown = Object.entries(forecast.classCounts ?? {})
+        .sort((a, b) => b[1] - a[1])
+        .map(([id, n]) => `${n} ${id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`)
+        .join(', ')
+      this._whispersBody.setText(
+        `Day ${forecast.day}: ${forecast.size} adventurer${forecast.size === 1 ? '' : 's'}\n${breakdown}`
+      ).setVisible(true)
+    } else if (this._whispersTitle) {
+      this._whispersTitle.setVisible(false)
+      this._whispersBody.setVisible(false)
     }
   }
 

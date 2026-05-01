@@ -85,6 +85,94 @@ export class RoomBehaviorSystem {
       }
     }
 
+    // Room redesign 2026-04-30 — Treasury: spawn / refill chests, pay daily
+    // stipend (+5 essence per active Treasury). Chests refill to 4 each
+    // night; daily stipend is independent of chest theft. Chests with
+    // `_treasuryChest: true` are intercepted in AISystem on pickup so they
+    // attach to the carrier rather than equipping like normal loot.
+    const treasuries = (this._gameState.dungeon.rooms ?? []).filter(r =>
+      r.definitionId === 'treasury' && r.isActive !== false
+    )
+    if (treasuries.length > 0) {
+      const stipend = 5 * treasuries.length
+      this._gameState.player.soulEssence = (this._gameState.player.soulEssence ?? 0) + stipend
+      EventBus.emit('TREASURY_STIPEND', { amount: stipend, treasuryCount: treasuries.length })
+
+      this._gameState.loot ??= { dungeon: [] }
+      this._gameState.loot.dungeon ??= []
+      for (const room of treasuries) {
+        const existing = this._gameState.loot.dungeon.filter(i =>
+          i._treasuryChest && i._sourceTreasuryId === room.instanceId
+        ).length
+        const toSpawn = Math.max(0, 4 - existing)
+        // Place chests on a small grid inside the room, biased to corners.
+        const inner = {
+          x0: room.gridX + Balance.WALL_THICKNESS,
+          y0: room.gridY + Balance.WALL_THICKNESS,
+          x1: room.gridX + room.width  - Balance.WALL_THICKNESS - 1,
+          y1: room.gridY + room.height - Balance.WALL_THICKNESS - 1,
+        }
+        const slots = [
+          [inner.x0,     inner.y0],
+          [inner.x1,     inner.y0],
+          [inner.x0,     inner.y1],
+          [inner.x1,     inner.y1],
+        ]
+        // Skip slots that already have a chest there.
+        const occupied = new Set(
+          this._gameState.loot.dungeon
+            .filter(i => i._treasuryChest && i._sourceTreasuryId === room.instanceId)
+            .map(i => `${i.tileX},${i.tileY}`)
+        )
+        let spawned = 0
+        for (const [x, y] of slots) {
+          if (spawned >= toSpawn) break
+          if (occupied.has(`${x},${y}`)) continue
+          this._gameState.loot.dungeon.push({
+            instanceId:     `chest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${spawned}`,
+            definitionId:   'treasury_chest',
+            _treasuryChest: true,
+            _essenceValue:  10,
+            _sourceTreasuryId: room.instanceId,
+            tileX: x, tileY: y,
+            worldX: x * 32 + 16, worldY: y * 32 + 16,
+            dungeonRoomId: room.instanceId,
+            provenance: [{ kind: 'treasury_spawn', day: this._gameState.meta.dayNumber, roomId: room.instanceId }],
+            statModifiers: [],
+            curseLevel: 0,
+            currentEquippedBy: null,
+          })
+          spawned++
+        }
+      }
+    }
+
+    // Room redesign 2026-04-30 — Library of Whispers: forecast next day's
+    // base party composition so the player can plan ahead. Tier scales with
+    // boss level (L4 size+classes baseline; L6 +personalities, L8 +stats,
+    // L10 +route — those tiers ship with boss-level gating later).
+    const hasLibrary = (this._gameState.dungeon.rooms ?? []).some(r =>
+      r.definitionId === 'library_of_whispers' && r.isActive !== false
+    )
+    if (hasLibrary) {
+      const allClasses = this._scene.cache.json.get('adventurerClasses') ?? []
+      const dungeonLv = this._gameState.meta.dungeonLevel ?? 1
+      const classes = allClasses.filter(c => (c.unlockLevel ?? 1) <= dungeonLv)
+      const day = this._gameState.meta.dayNumber
+      const baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+      const size = Math.max(0, Math.min(baseCount, classes.length * 2))
+      const classCounts = {}
+      for (let i = 0; i < size && classes.length; i++) {
+        const cls = classes[Math.floor(Math.random() * classes.length)]
+        classCounts[cls.id] = (classCounts[cls.id] ?? 0) + 1
+      }
+      this._gameState.meta.nextPartyPreview = { day, size, classCounts }
+      EventBus.emit('LIBRARY_FORECAST', this._gameState.meta.nextPartyPreview)
+    } else if (this._gameState.meta.nextPartyPreview) {
+      // No Library this night — clear stale forecast so the panel hides.
+      this._gameState.meta.nextPartyPreview = null
+    }
+
     const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
     const baseDef = minionTypes.find(d => d.id === 'skeleton1') ?? minionTypes[0]
     if (!baseDef) return

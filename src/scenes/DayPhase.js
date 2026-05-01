@@ -518,6 +518,11 @@ export class DayPhase extends Phaser.Scene {
 
     const day   = this._gameState.meta.dayNumber
     let baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+    // Room redesign 2026-04-30 — Treasury attracts greedy adventurers:
+    // each active Treasury room adds +1 to the daily party size.
+    const treasuryCount = (this._gameState.dungeon.rooms ?? [])
+      .filter(r => r.definitionId === 'treasury' && r.isActive !== false).length
+    if (treasuryCount > 0) baseCount += treasuryCount
     // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
     // count from yesterday's death-clip-going-viral roll.
     const subBonus = this._gameState.player?.subscriberRevengeBonus ?? 0

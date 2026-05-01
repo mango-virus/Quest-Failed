@@ -208,6 +208,22 @@ export class AISystem {
       }
       if (now < adv._leaveFadeEnd) return
       adv.aiState = 'fled'
+      // Room redesign 2026-04-30 — Treasury theft resolves on alive exit.
+      // If the adventurer made it to the door carrying a chest, deduct the
+      // chest's value from the player's Soul Essence. Death (handled
+      // elsewhere in _die) clears carriedChest with no deduction.
+      if (adv.carriedChest) {
+        const value = adv.carriedChest.value ?? 0
+        this._gameState.player.soulEssence = Math.max(0,
+          (this._gameState.player.soulEssence ?? 0) - value
+        )
+        EventBus.emit('TREASURY_CHEST_STOLEN', {
+          adventurer: adv,
+          value,
+          sourceTreasuryId: adv.carriedChest.sourceTreasuryId,
+        })
+        adv.carriedChest = null
+      }
       this._gameState.adventurers.active.splice(idx, 1)
       EventBus.emit('ADVENTURER_FLED', {
         adventurer: adv,
@@ -1296,6 +1312,24 @@ export class AISystem {
       if (lootIdx >= 0) {
         const item = lootList[lootIdx]
         lootList.splice(lootIdx, 1)
+        // Room redesign 2026-04-30 — Treasury chest: don't equip, attach
+        // as carriedChest. Adventurer must escape alive to actually steal
+        // the essence (resolved in the FLEE/atNorthEdge block above).
+        if (item._treasuryChest) {
+          adv.carriedChest = {
+            value:             item._essenceValue ?? 0,
+            sourceTreasuryId:  item._sourceTreasuryId ?? null,
+            grabbedDay:        this._gameState.meta.dayNumber,
+          }
+          EventBus.emit('TREASURY_CHEST_GRABBED', {
+            adventurer: adv,
+            chest: item,
+            value: adv.carriedChest.value,
+          })
+          // Force a flee — they got what they came for; head for the door.
+          adv.goal = { type: 'FLEE', reason: 'chest_grabbed' }
+          return
+        }
         adv.gear ??= []
         adv.gear.push(item.instanceId)
         item.currentEquippedBy = adv.instanceId
@@ -1397,6 +1431,18 @@ export class AISystem {
     }
     adv.aiState = 'dead'
     adv.resources.hp = 0
+
+    // Room redesign 2026-04-30 — Treasury chest reclaimed on death. The
+    // adventurer never made it out; player keeps the essence. Chest itself
+    // is gone; refill happens at next Night Phase.
+    if (adv.carriedChest) {
+      EventBus.emit('TREASURY_CHEST_RECLAIMED', {
+        adventurer: adv,
+        value: adv.carriedChest.value,
+        sourceTreasuryId: adv.carriedChest.sourceTreasuryId,
+      })
+      adv.carriedChest = null
+    }
 
     // Death attribution: prefer the most-recent combat-hit source, fall back to hint
     const killerId   = adv._lastHitBy ?? killerHint
