@@ -14,7 +14,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 3. If anything tagged for this phase is still PENDING or PARTIAL, fix it or explicitly defer with the user's approval before marking the phase complete.
 4. Update statuses in this file whenever a row's state changes.
 
-**Last full audit**: 2026-04-29 (Class ability rework foundation — mana system removed end-to-end; Vandal personality retired in favor of Ranger's upcoming Trap Expert; new AbilitySystem (cooldown + per-day budget) and AbilityVfx primitives landed; Ctrl+Shift+C debug toggle for testing; vulnerableToElements field seeded on every minion in minionTypes.json. All 11 classes now ⏳ PENDING ability re-implementation per the per-class spec in DESIGN.md → "Class ability rework". Existing wired abilities — heal_ally / smite_undead / raise_corpse / chat_poll / Ranger arrow / beast tame mana — are reset to PENDING since they get rebuilt on the new framework. Phase reopened as 5c.) Previous audit 2026-04-29 (earlier): Class pool expansion — Beast Master class promotion + Barbarian/Monk/Bard added.
+**Last full audit**: 2026-04-30 (Section 6 only — Room redesign 2026-04-30 spec landed: 21-room roster locked, gateway/cap/scaling rules added, 14 existing rooms marked 🚫 REMOVED with handler-cleanup deferred. Section 6 status reset; rest of file unchanged from prior audit.) Previous audit 2026-04-29 (Class ability rework foundation — mana system removed end-to-end; Vandal personality retired in favor of Ranger's upcoming Trap Expert; new AbilitySystem (cooldown + per-day budget) and AbilityVfx primitives landed; Ctrl+Shift+C debug toggle for testing; vulnerableToElements field seeded on every minion in minionTypes.json. All 11 classes now ⏳ PENDING ability re-implementation per the per-class spec in DESIGN.md → "Class ability rework". Existing wired abilities — heal_ally / smite_undead / raise_corpse / chat_poll / Ranger arrow / beast tame mana — are reset to PENDING since they get rebuilt on the new framework. Phase reopened as 5c.) Previous audit 2026-04-29 (earlier): Class pool expansion — Beast Master class promotion + Barbarian/Monk/Bard added.
 
 ---
 
@@ -138,39 +138,78 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 
 ## 6. Dungeon room types
 
-### 6a. Design list (target: 9 from design)
+**Note (2026-04-30):** The original 9-room design list and the Phase-2/QW additions were **superseded by the Room redesign 2026-04-30** in DESIGN.md. The new spec defines 21 rooms organized around gateway/cap/scaling rules. Existing handler code for removed rooms remains in place as orphaned no-ops; cleanup is a follow-up phase.
+
+### 6a. Required / Fixed
+
+| ID | Name | Cap | Unlock | Phase | Status | Notes |
+|---|---|---|---|---|---|---|
+| boss_chamber | Boss Chamber | 1 (fixed) | Start | 2 | ✅ DONE | fixed centerpiece, kept |
+| entry_hall | Entry Hall | 1 | Start | 3 | ✅ DONE | required entrance, kept |
+
+### 6b. Starter (free, L1)
+
+| ID | Name | Cap | Unlock | Phase | Status | Notes |
+|---|---|---|---|---|---|---|
+| starter_corridor | Corridor | scales 2→20 (+2/level) | L1, free | 2 | 🟡 PARTIAL | Data restored 2026-04-30; cap-scaling-by-level pending implementation |
+| starter_barracks | Barracks | scales 1→5 | L1, free | 2 | 🟡 PARTIAL | Data exists with sneakable behavior; cap=1 currently, scaling 1→5 + roster minion slot system pending |
+| starter_guard_post | Guard Post | unlimited | L1 | TBD | ⏳ PENDING | Currently no behavior; needs door-connected hunt-and-return logic |
+
+### 6c. New rooms — Room redesign 2026-04-30
+
+| ID | Name | Cap | Unlock | Phase | Status | Notes |
+|---|---|---|---|---|---|---|
+| crypt | Crypt | 3 | L2 | TBD | 🟡 PARTIAL | Data exists; needs rework to spawn 4 garrison Risen Bones (room-bound, refill nightly) |
+| trap_factory | Trap Factory | scales 1→5 | L3 | TBD | ⏳ PENDING | Gateway: each Factory adds +5 trap slots to global pool; no upgrade tree |
+| treasury | Treasury | scales 1→5 | L3 | TBD | ⏳ PENDING | Daily essence stipend + 4 chests (alive-exit-required theft); raises adventurer arrival rate |
+| armory | Armory | scales 1→3 | L3 | 🟡 PARTIAL | Data + adjacent-buff exists; needs cap-scaling |
+| library_of_whispers | Library of Whispers | 1 | L4 | TBD | ⏳ PENDING | Tier scales: L4 size+classes, L6 +personalities, L8 +stats/equipment, L10 +planned route |
+| watchtower | Watchtower | 2 | L5 | TBD | ⏳ PENDING | Adjacent rooms get first-strike on adventurer entry |
+| wandering_gate | Wandering Gate | 1 | L6 | TBD | ⏳ PENDING | Teleport on entry: 60% nearby room / 35% any built room / 5% Boss Chamber |
+| veil_of_forgetting | Veil of Forgetting | 1 | L6 | TBD | ⏳ PENDING | Each Night Phase erases adventurer intel of door-connected rooms |
+| catacombs | Catacombs | 2 | L7 | TBD | ⏳ PENDING | Reactive: adventurer death-here spawns Tier-2 Revenant (garrison); cap 2 alive in room |
+| mimic_vault | Mimic Vault | 1 | L7 | TBD | ⏳ PENDING | Disguised as Treasury; 2 Mimics (garrison) + 1 false chest that steals from grabber |
+| hall_of_trials | Hall of Trials | scales 1→3 | L7 | TBD | ⏳ PENDING | Random T2 evolved minion (garrison) spawns nightly if none alive |
+| wishing_well | Wishing Well | 1 | L8 | TBD | ⏳ PENDING | Coin flip on entry: heads buff adv / tails Marked debuff (+50% dmg from minions, skull icon) |
+| false_exit | False Exit | 1 | L8 | QW | 🟡 PARTIAL | Data exists with teleport behavior; needs rework: own entry door + flee-target bias + teleport-on-leave to random built room |
+| hall_of_madness | Hall of Madness | 1 | L9 | TBD | ⏳ PENDING | % chance for adventurers to attack each other; needs new AI state (heavy lift) |
+| throne_room | Throne Room | scales 1→2 | L9 | TBD | ⏳ PENDING | 1 Mini-Boss (garrison, room-bound) per room; scales T1→T2→T3; no other minions allowed |
+| sanctum | Sanctum | 1 | L10 (capstone) | TBD | ⏳ PENDING | Boss HP regen between fights; aura regens minions in door-connected rooms |
+
+### 6d. Top-level rules (Room redesign 2026-04-30)
+
+| Rule | Phase | Status | Notes |
+|---|---|---|---|
+| Roster vs Garrison minion split | TBD | ⏳ PENDING | Barracks → roster (count to cap, mobile). Every other spawner → garrison (room-bound, no cap). Needs minion-class flag + AI gating |
+| "Adjacent / connected" = direct shared door | TBD | ⏳ PENDING | Not transitive through corridors; many room effects depend on this |
+| Alive-exit-required for chest/loot theft | TBD | ⏳ PENDING | Treasury + Mimic Vault: adventurer must escape with the chest or it returns |
+| Cap scaling by boss level | TBD | ⏳ PENDING | Per the cap-scaling table in DESIGN.md → Room redesign |
+| Boss level cap = 10 | TBD | ⏳ PENDING | Existing system caps differently; needs realignment |
+
+### 6e. Removed (data deletion 2026-04-30, handler cleanup deferred)
 
 | ID | Name | Phase | Status | Notes |
 |---|---|---|---|---|
-| hall_of_echoes | Hall of Echoes | 3 | ✅ DONE — data + sound-alert (6e — combat alerts adjacent rooms' minions for 8s) |
-| false_exit | The False Exit | QW | ✅ DONE | RoomBehaviorSystem teleports fleeing adventurers next to boss chamber on entry |
-| treasure_room | Treasure Room | 3 | ✅ DONE | data; loot-spawn + raid-pull in Phase 7 |
-| healing_fountain | Healing Fountain | 3 | ✅ DONE — data + heal-on-stand (6e — 4 HP/sec out of combat) |
-| necropolis_wing | Necropolis Wing | QW | ✅ DONE | RoomBehaviorSystem._onNightStart raises one uncollected corpse per wing as a free skeleton minion |
-| colosseum | Colosseum | QW | ✅ DONE | RoomBehaviorSystem._lockColosseumGates spawns 3 skeleton warriors when adventurer enters |
-| mirror_maze | Mirror Maze | 8b | ✅ DONE | rooms.json + KnowledgeSystem rolls MIRROR_MAZE_KNOWLEDGE_ACCURACY (0.4) on first observation |
-| obelisk_room | Obelisk Room | QW | ✅ DONE | AISystem._applyRoomEffects toggles heal/charge state every 6s; charge grants +50% next attack via attacker.flags.obeliskChargedNextAttack |
-| starter_barracks | Barracks | 2 | ✅ DONE — data + sneakable (6e — minions sleep until first combat hit in the room) |
+| hall_of_echoes | Hall of Echoes | 3 | 🚫 REMOVED 2026-04-30 | data deleted; AISystem sound-alert handler orphaned, cleanup later |
+| treasure_room | Treasure Room | 3 | 🚫 REMOVED 2026-04-30 | superseded by Treasury; loot/raid logic orphaned |
+| healing_fountain | Healing Fountain | 3 | 🚫 REMOVED 2026-04-30 | data deleted; heal-on-stand handler orphaned |
+| necropolis_wing | Necropolis Wing | QW | 🚫 REMOVED 2026-04-30 | user explicitly removed from spec; RoomBehaviorSystem._onNightStart corpse-raise orphaned |
+| colosseum | Colosseum | QW | 🚫 REMOVED 2026-04-30 | gate-lock + wave-spawn handler orphaned |
+| mirror_maze | Mirror Maze | 8b | 🚫 REMOVED 2026-04-30 | KnowledgeSystem MIRROR_MAZE_KNOWLEDGE_ACCURACY orphaned |
+| obelisk_room | Obelisk Room | QW | 🚫 REMOVED 2026-04-30 | heal/charge dual-state handler orphaned |
+| trap_room | Trap Room | 3 | 🚫 REMOVED 2026-04-30 | superseded by Trap Factory + slot model |
+| prison_block | Prison Block | QW | 🚫 REMOVED 2026-04-30 | detain handler orphaned |
+| serpent_pit | Serpent Pit | QW | 🚫 REMOVED 2026-04-30 | poison-tick handler orphaned; may return as a trap |
+| lava_floor | Lava Floor | 6+ | 🚫 REMOVED 2026-04-30 | hazard rooms dropped; revisit as trap later |
+| collapsing_pillars | Collapsing Pillars | 6+ | 🚫 REMOVED 2026-04-30 | hazard rooms dropped; revisit as trap later |
+| secret_passage | Secret Passage | 6+ | 🚫 REMOVED 2026-04-30 | not in new spec |
+| power_core | Power Core | 6+ | 🚫 REMOVED 2026-04-30 | superseded by per-Trap-Factory slot model |
 
-### 6b. Existing additional rooms (kept beyond design)
-
-| ID | Name | Phase | Status | Notes |
-|---|---|---|---|---|
-| boss_chamber | Boss Chamber | 2 | ✅ DONE | fixed centerpiece |
-| starter_corridor | Corridor | 2 | ❌ REMOVED | Corridors removed; rooms now auto-snap directly through doorways. See DESIGN.md core concept. |
-| starter_guard_post | Guard Post | 2 | ✅ DONE | |
-| trap_room | Trap Room | 3 | ✅ DONE | trap firing in Phase 6 |
-| entry_hall | Entry Hall | 3 | ✅ DONE | crossroads starter |
-| crypt | Crypt | QW | ✅ DONE | RoomBehaviorSystem._onNightStart spawns 1 free skeleton per crypt (cap 2) |
-| armory | Armory | QW | ✅ DONE | CombatSystem._isAdjacentToActiveArmory grants +2 attack to dungeon minions in/adjacent to active Armory rooms |
-| prison_block | Prison Block | QW | ✅ DONE | AISystem._applyRoomEffects: 30% chance on first entry to detain adventurer for 5 s (frozen, aiState='detained'); ADVENTURER_DETAINED event emitted |
-| serpent_pit | Serpent Pit | QW | ✅ DONE | AISystem._applyRoomEffects deals 2 HP/sec poison while in room |
-
-### 6c. Open-ended
+### 6f. Open-ended
 
 | Item | Phase | Status |
 |---|---|---|
-| 💭 Many more room types | 6–10 | 💭 OPEN |
+| 💭 More room types beyond the 21 | 6–10+ | 💭 OPEN |
 
 ---
 

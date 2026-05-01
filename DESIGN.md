@@ -202,6 +202,122 @@ Different types of dungeon room ideas for example:
 
 ---
 
+## Room redesign 2026-04-30 (replaces the room set above)
+
+A full reset of the room roster, organized around three principles:
+
+1. **Gateway rooms (max 1, or scaling-1)** — each gateway is the ONLY way to access a content category (Barracks → roster minions, Trap Factory → traps, Library → intel, Treasury → economy, etc.). Players can only afford a few, so every dungeon specializes.
+2. **Roster vs Garrison minions** — Barracks produces *roster* minions (count toward cap, can patrol/follow/be assigned). Every other minion-spawning room produces *garrison* minions (room-bound, cannot leave, do not count toward cap).
+3. **Per-level cap scaling** — multi-instance rooms (Barracks, Trap Factory, Treasury, Armory, Hall of Trials, Throne Room, Corridor) start at a low cap and scale with boss level, capping at 10.
+
+Top-level rules:
+
+- **"Adjacent / connected"** = directly through a shared door. Not transitive through corridors.
+- **All chest/loot theft requires alive exit** to the dungeon entrance; deaths return the loot.
+- **Boss level cap is 10.** Rooms unlock progressively across all 10 levels.
+- **Hazard rooms** (Lava Floor, Serpent Pit, Collapsing Pillars) are removed — to be revisited as traps in a later pass.
+
+### Final room roster (21 rooms)
+
+#### Required / Fixed
+
+| Room | Cap | Unlock | Effect |
+|---|---|---|---|
+| **Boss Chamber** | 1 (fixed) | Start | The boss's lair. Game ends here. |
+| **Entry Hall** | 1 | Start | Adventurers always enter through this. Required to play. |
+
+#### Starter — free, available L1
+
+| Room | Cap | Unlock | Effect |
+|---|---|---|---|
+| **Corridor** | scales 2 → 20 (+2/level) | L1, free | No effect. Connects rooms. |
+| **Barracks** | scales 1 → 5 | L1, free | Each Barracks adds **+5 roster minion slots**. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without one, no roster minions. |
+| **Guard Post** | unlimited | L1 | Minions placed here leave to hunt adventurers in any **directly door-connected** room. They return after the kill. |
+
+#### L2 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Crypt** | 3 | Spawns up to **4 Risen Bones (garrison, room-bound)**. Refills to 4 each Night Phase. Does not count toward Barracks cap. |
+
+#### L3 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Trap Factory** | scales 1 → 5 | Each Factory adds **+5 trap slots** to your global trap pool. Gateway: without one, no traps. No upgrade tree. |
+| **Treasury** | scales 1 → 5 | Generates a small Soul Essence stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the essence (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft. |
+| **Armory** | scales 1 → 3 | Minions in **directly door-connected** rooms get +ATK while this is active. |
+
+#### L4 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Library of Whispers** | 1 | Reveals next party intel the night before. Tier scales with boss level: **L4** size + classes; **L6** + personalities; **L8** + stats & equipment; **L10** + planned dungeon route. |
+
+#### L5 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Watchtower** | 2 | Minions in directly door-connected rooms get a **first-strike** hit when adventurers enter. Counters Speed Runners. |
+
+#### L6 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Wandering Gate** | 1 | On entry, % chance to teleport adventurer: **60%** nearby room, **35%** any built room, **5%** Boss Chamber. |
+| **Veil of Forgetting** | 1 | Each Night Phase, erases adventurer intel of all rooms **directly door-connected** to this one. |
+
+#### L7 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Catacombs** | 2 | Reactive: when an adventurer dies in this room, a **Tier-2 Revenant (garrison, room-bound)** rises in their place. Max 2 Revenants alive in the room at once; do not respawn if killed. |
+| **Mimic Vault** | 1 | Looks identical to a Treasury on the map. Spawns **2 Mimics (garrison, room-bound)** that respawn nightly, plus 1 false chest — if grabbed, it steals essence from the adventurer. |
+| **Hall of Trials** | scales 1 → 3 | Spawns a **random Tier-2 evolved minion (garrison, room-bound)** at Night Phase if none are alive in the room. If killed, does not respawn that night. |
+
+#### L8 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Wishing Well** | 1 | On entry, coin flip. **Heads:** adventurer gains +ATK and +HP buff. **Tails:** adventurer gains "Marked" (skull icon, takes +50% damage from minions for the rest of the day). |
+| **False Exit** | 1 | Has its own entry door. Adventurers fleeing the dungeon have a chance to flee here instead of the Entry Hall. Trying to leave teleports them to a random built room. |
+
+#### L9 unlocks
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Hall of Madness** | 1 | Adventurers in this room have a % chance to attack each other instead of moving on. (Heavy implementation lift — needs new AI state.) |
+| **Throne Room** | scales 1 → 2 | Spawns 1 **Mini-Boss (garrison, room-bound)** that scales with boss level (T1→T2→T3 mechanics). No other minions may be placed in this room. Respawns nightly. |
+
+#### L10 unlocks (capstone)
+
+| Room | Cap | Effect |
+|---|---|---|
+| **Sanctum** | 1 | Passive: boss regenerates HP between fights. Aura: minions in directly door-connected rooms also regen. |
+
+### Cap scaling table
+
+| Level | Corridor | Barracks | Trap Factory | Treasury | Armory | Hall of Trials | Throne Room |
+|---|---|---|---|---|---|---|---|
+| L1 | 2 | 1 | — | — | — | — | — |
+| L2 | 4 | 1 | — | — | — | — | — |
+| L3 | 6 | 2 | 1 | 1 | 1 | — | — |
+| L4 | 8 | 2 | 1 | 1 | 1 | — | — |
+| L5 | 10 | 3 | 2 | 2 | 1 | — | — |
+| L6 | 12 | 3 | 2 | 2 | 2 | — | — |
+| L7 | 14 | 4 | 3 | 3 | 2 | 1 | — |
+| L8 | 16 | 4 | 3 | 3 | 2 | 1 | — |
+| L9 | 18 | 5 | 4 | 4 | 3 | 2 | 1 |
+| L10 | 20 | 5 | 5 | 5 | 3 | 3 | 2 |
+
+### Removed from the original room list
+
+The original 9-room list above (Hall of Echoes, Healing Fountain, Necropolis Wing, Colosseum, Mirror Maze, Obelisk Room, Treasure Room, plus the existing additions Trap Room, Prison Block, Serpent Pit, Power Core, Secret Passage, Lava Floor, Collapsing Pillars) is **superseded by this redesign**. Their behavior either (a) maps onto a new room, (b) becomes a trap in a future Trap Factory pass, or (c) is dropped. The existing handler code remains in place as orphaned no-ops until a follow-up cleanup phase removes it.
+
+The False Exit, Crypt, Armory, Barracks, Guard Post, Entry Hall, Boss Chamber, and Corridor are kept (with reworked behavior where noted).
+
+---
+
 ## Minion types
 
 Different types of minions/monsters should be placeable in my dungeon. minions/monsters that patrol certain areas, guard rooms, or hunt for adventurers themselves.

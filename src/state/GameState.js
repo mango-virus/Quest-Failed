@@ -94,13 +94,20 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
       partyWipeOccurred: false,
     },
     unlocks: {
+      // Synced with src/data/rooms.json (Room redesign 2026-04-30).
+      // Boss-level gating via room.unlockLevel is a separate phase — for now everything is in the allowlist.
       rooms: [
-        'boss_chamber',
-        'starter_barracks', 'starter_corridor', 'starter_guard_post', 'entry_hall',
-        'crypt', 'trap_room', 'healing_fountain', 'armory', 'prison_block', 'serpent_pit',
-        'hall_of_echoes', 'mirror_maze', 'lava_floor', 'collapsing_pillars',
-        'obelisk_room', 'secret_passage', 'power_core',
-        'necropolis_wing', 'colosseum', 'false_exit',
+        'boss_chamber', 'entry_hall',
+        'starter_corridor', 'starter_barracks', 'starter_guard_post',
+        'crypt',
+        'trap_factory', 'treasury', 'armory',
+        'library_of_whispers',
+        'watchtower',
+        'wandering_gate', 'veil_of_forgetting',
+        'catacombs', 'mimic_vault', 'hall_of_trials',
+        'wishing_well', 'false_exit',
+        'hall_of_madness', 'throne_room',
+        'sanctum',
       ],
       minionTypes: [
         'beholder1', 'beholder2',

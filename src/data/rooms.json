@@ -47,18 +47,23 @@
           "rot": 270
         },
         null,
+        "floor2",
+        null,
         {
-          "id": "floor_corner2",
-          "rot": 270
+          "id": "floor3",
+          "rot": 0,
+          "flipH": true
         },
         null,
-        "floor1",
+        "floor8",
         null,
-        "floor30",
+        "floor3",
         null,
-        "floor4",
-        null,
-        "floor_corner2",
+        {
+          "id": "floor2",
+          "rot": 0,
+          "flipH": true
+        },
         null,
         {
           "id": "pillar1_l",
@@ -89,19 +94,27 @@
         },
         null,
         {
-          "id": "floor4",
+          "id": "floor3",
           "rot": 270
         },
-        null,
-        "floor5",
-        null,
-        "floor6",
         null,
         "floor7",
         null,
         {
-          "id": "floor1",
+          "id": "floor7",
+          "rot": 0,
+          "flipH": true
+        },
+        null,
+        {
+          "id": "floor7",
           "rot": 90
+        },
+        null,
+        {
+          "id": "floor3",
+          "rot": 90,
+          "flipH": true
         },
         null,
         {
@@ -133,18 +146,26 @@
         },
         null,
         {
-          "id": "floor30",
+          "id": "floor8",
           "rot": 270
         },
         null,
-        "floor11",
+        {
+          "id": "floor7",
+          "rot": 90,
+          "flipV": true
+        },
         null,
-        "floor31",
-        null,
-        "floor8",
+        "floor1",
         null,
         {
-          "id": "floor30",
+          "id": "floor7",
+          "rot": 90,
+          "flipH": true
+        },
+        null,
+        {
+          "id": "floor8",
           "rot": 90
         },
         null,
@@ -177,18 +198,33 @@
         },
         null,
         {
-          "id": "floor1",
-          "rot": 270
+          "id": "floor3",
+          "rot": 270,
+          "flipH": true
         },
         null,
-        "floor12",
-        null,
-        "floor13",
-        null,
-        "floor14",
+        {
+          "id": "floor7",
+          "rot": 90,
+          "flipH": true,
+          "flipV": true
+        },
         null,
         {
-          "id": "floor4",
+          "id": "floor7",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "floor7",
+          "rot": 0,
+          "flipH": true,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "floor3",
           "rot": 90
         },
         null,
@@ -221,28 +257,35 @@
         },
         null,
         {
-          "id": "floor_corner2",
-          "rot": 180
+          "id": "floor2",
+          "rot": 0,
+          "flipV": true
         },
         null,
         {
-          "id": "floor4",
-          "rot": 180
+          "id": "floor3",
+          "rot": 0,
+          "flipH": true,
+          "flipV": true
         },
         null,
         {
-          "id": "floor30",
-          "rot": 180
+          "id": "floor8",
+          "rot": 0,
+          "flipV": true
         },
         null,
         {
-          "id": "floor1",
-          "rot": 180
+          "id": "floor3",
+          "rot": 0,
+          "flipV": true
         },
         null,
         {
-          "id": "floor_corner2",
-          "rot": 90
+          "id": "floor2",
+          "rot": 0,
+          "flipH": true,
+          "flipV": true
         },
         null,
         {
@@ -338,166 +381,54 @@
       "fixed"
     ],
     "onAdventurerEnter": "bossChamber_onEnter",
-    "description": "Your lair. The final room. This is where it ends — for them or for you.",
+    "description": "Your lair. The final room. Fixed at game start.",
     "flavorText": "Every dungeon has a heart. This is yours.",
-    "theme": null
-  },
-  {
-    "id": "starter_barracks",
-    "name": "Barracks",
-    "category": "starter",
-    "width": 10,
-    "height": 8,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 1,
-    "placementRules": {
-      "minDepthFromBoss": 0,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "starter",
-      "minion_home",
-      "free"
-    ],
-    "onNightStart": "barracks_respawnMinions",
-    "description": "Where your minions sleep between patrols. Minions assigned here respawn here overnight.",
-    "flavorText": "Free to upkeep. The bones rest cheap.",
-    "theme": null
-  },
-  {
-    "id": "starter_corridor",
-    "name": "Corridor",
-    "category": "starter",
-    "width": 6,
-    "height": 10,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 1,
-    "placementRules": {
-      "minDepthFromBoss": 0,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "starter",
-      "corridor",
-      "free"
-    ],
-    "description": "A basic connecting passage. Place between rooms to link them.",
-    "flavorText": "Every dungeon starts with a hallway.",
-    "theme": null
-  },
-  {
-    "id": "starter_guard_post",
-    "name": "Guard Post",
-    "category": "starter",
-    "width": 8,
-    "height": 8,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 1,
-    "placementRules": {
-      "minDepthFromBoss": 0,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "starter",
-      "combat",
-      "free"
-    ],
-    "description": "A small crossroads room. Guards wait here and can cover four corridors.",
-    "flavorText": "Four doors. One choice.",
-    "theme": null
-  },
-  {
-    "id": "trap_room",
-    "name": "Trap Room",
-    "category": "trap",
-    "width": 10,
-    "height": 10,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 8,
-    "essenceCostToPlace": 25,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 1,
-    "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "trap",
-      "hazard"
-    ],
-    "description": "A room built to kill. Requires Soul Essence upkeep to keep mechanisms primed.",
-    "flavorText": "They always think the worst is behind them.",
-    "theme": null
-  },
-  {
-    "id": "treasure_room",
-    "name": "Treasure Room",
-    "category": "treasure",
-    "width": 10,
-    "height": 10,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 15,
-    "essenceCostToPlace": 50,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 2,
-    "placementRules": {
-      "minDepthFromBoss": 3,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "treasure",
-      "loot",
-      "bait"
-    ],
-    "description": "Lures adventurers deeper in. Holds valuable gear — if they take it, they come back stronger.",
-    "flavorText": "The best bait is something they actually want.",
-    "theme": null
-  },
-  {
-    "id": "healing_fountain",
-    "name": "Healing Fountain",
-    "category": "utility",
-    "width": 8,
-    "height": 8,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 5,
-    "essenceCostToPlace": 20,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 1,
-    "placementRules": {
-      "minDepthFromBoss": 0,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "rest_point",
-      "healing",
-      "vulnerable"
-    ],
-    "onAdventurerEnter": "healingFountain_onEnter",
-    "description": "Adventurers stop to heal here, leaving them vulnerable to patrolling minions.",
-    "flavorText": "Comfort is a trap with no mechanism.",
-    "theme": null
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
     "id": "entry_hall",
@@ -505,7 +436,184 @@
     "category": "starter",
     "width": 12,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_l",
+        null,
+        "wall_r",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 0,
+          "flipH": true
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor9",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "floor15",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "floor15",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "floor9",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        "floor9",
+        null,
+        {
+          "id": "floor15",
+          "rot": 0,
+          "flipH": true
+        },
+        null,
+        {
+          "id": "floor15",
+          "rot": 0,
+          "flipH": true
+        },
+        null,
+        {
+          "id": "floor9",
+          "rot": 0,
+          "flipH": true
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 0,
+          "flipH": true,
+          "flipV": true
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [
       {
         "x": 5,
@@ -531,9 +639,555 @@
       "free",
       "required"
     ],
-    "description": "REQUIRED — adventurers always enter the dungeon through this room. Only one allowed. Place it first, connect it to the boss chamber.",
+    "description": "REQUIRED — adventurers always enter the dungeon through this room. Only one allowed.",
     "flavorText": "Every journey into darkness starts somewhere.",
-    "theme": null
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "starter_corridor",
+    "name": "Corridor",
+    "category": "starter",
+    "width": 6,
+    "height": 10,
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_c",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        "floor11",
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_c",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor7",
+          "rot": 0,
+          "flipH": true,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor11",
+          "rot": 0,
+          "flipH": true,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
+    "connectionPoints": [],
+    "upkeepCost": 0,
+    "essenceCostToPlace": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 1,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 2,
+      "fixed": false,
+      "maxPerDungeonByBossLevel": {
+        "1": 2,
+        "2": 4,
+        "3": 6,
+        "4": 8,
+        "5": 10,
+        "6": 12,
+        "7": 14,
+        "8": 16,
+        "9": 18,
+        "10": 20
+      }
+    },
+    "tags": [
+      "starter",
+      "corridor",
+      "free"
+    ],
+    "description": "A basic connecting passage. Place between rooms to link them. Cap scales with boss level.",
+    "flavorText": "Every dungeon starts with a hallway.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "starter_barracks",
+    "name": "Barracks",
+    "category": "starter",
+    "width": 10,
+    "height": 8,
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_c",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        "floor16",
+        null,
+        "floor17",
+        null,
+        "floor16",
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "floor16",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "floor17",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "floor16",
+          "rot": 0,
+          "flipV": true
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
+    "connectionPoints": [],
+    "upkeepCost": 0,
+    "essenceCostToPlace": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 1,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 1,
+      "fixed": false,
+      "maxPerDungeonByBossLevel": {
+        "1": 1,
+        "2": 1,
+        "3": 2,
+        "4": 2,
+        "5": 3,
+        "6": 3,
+        "7": 4,
+        "8": 4,
+        "9": 5,
+        "10": 5
+      }
+    },
+    "tags": [
+      "starter",
+      "minion_home",
+      "gateway",
+      "roster_source",
+      "free"
+    ],
+    "onNightStart": "barracks_respawnMinions",
+    "description": "Each Barracks adds +5 roster minion slots. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without a Barracks, no roster minions. Cap scales with boss level.",
+    "flavorText": "Free to upkeep. The bones rest cheap.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "starter_guard_post",
+    "name": "Guard Post",
+    "category": "starter",
+    "width": 8,
+    "height": 8,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 0,
+    "essenceCostToPlace": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 1,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": null,
+      "fixed": false
+    },
+    "tags": [
+      "starter",
+      "combat",
+      "patrol_anchor",
+      "free"
+    ],
+    "description": "Minions placed here leave to hunt adventurers in any directly door-connected room. They return to the Guard Post after the kill.",
+    "flavorText": "Four doors. One choice.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
     "id": "crypt",
@@ -546,21 +1200,230 @@
     "upkeepCost": 4,
     "essenceCostToPlace": 15,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 2,
     "placementRules": {
       "minDepthFromBoss": 0,
-      "maxPerDungeon": null,
+      "maxPerDungeon": 3,
       "fixed": false
     },
     "tags": [
       "combat",
       "undead",
-      "minion_home"
+      "garrison_spawner"
     ],
     "onNightStart": "crypt_spawnUndead",
-    "description": "Ancient sarcophagi line the walls. Undead minions spawn here each night.",
+    "description": "Spawns up to 4 Risen Bones (garrison, room-bound). Refills to 4 each Night Phase. Garrison minions cannot leave this room and do not count toward the Barracks cap.",
     "flavorText": "They always come back. That's the point.",
-    "theme": null
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "trap_factory",
+    "name": "Trap Factory",
+    "category": "utility",
+    "width": 10,
+    "height": 10,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 8,
+    "essenceCostToPlace": 30,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 3,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 1,
+      "maxPerDungeonByBossLevel": {
+        "3": 1,
+        "4": 1,
+        "5": 2,
+        "6": 2,
+        "7": 3,
+        "8": 3,
+        "9": 4,
+        "10": 5
+      },
+      "fixed": false
+    },
+    "tags": [
+      "utility",
+      "gateway",
+      "trap_source"
+    ],
+    "description": "Each Trap Factory adds +5 trap slots to your global trap pool. Gateway: without a Trap Factory, no traps can be placed.",
+    "flavorText": "Mechanisms. So many mechanisms.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "treasury",
+    "name": "Treasury",
+    "category": "utility",
+    "width": 10,
+    "height": 8,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 6,
+    "essenceCostToPlace": 35,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 3,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 1,
+      "maxPerDungeonByBossLevel": {
+        "3": 1,
+        "4": 1,
+        "5": 2,
+        "6": 2,
+        "7": 3,
+        "8": 3,
+        "9": 4,
+        "10": 5
+      },
+      "fixed": false
+    },
+    "tags": [
+      "utility",
+      "economy",
+      "loot_source",
+      "bait"
+    ],
+    "onNightStart": "treasury_refillChests",
+    "description": "Generates a small Soul Essence stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the essence (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft.",
+    "flavorText": "The shinier it gets, the louder it sings.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
     "id": "armory",
@@ -573,10 +1436,20 @@
     "upkeepCost": 6,
     "essenceCostToPlace": 18,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 3,
     "placementRules": {
       "minDepthFromBoss": 0,
-      "maxPerDungeon": 2,
+      "maxPerDungeon": 1,
+      "maxPerDungeonByBossLevel": {
+        "3": 1,
+        "4": 1,
+        "5": 1,
+        "6": 2,
+        "7": 2,
+        "8": 2,
+        "9": 3,
+        "10": 3
+      },
       "fixed": false
     },
     "tags": [
@@ -584,260 +1457,210 @@
       "buff",
       "minion_support"
     ],
-    "description": "Minions patrolling adjacent rooms gain +2 attack while the armory is active.",
+    "description": "Minions in directly door-connected rooms get +ATK while this Armory is active. Cap scales with boss level.",
     "flavorText": "A well-armed skeleton is a happy skeleton.",
-    "theme": null
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
-    "id": "prison_block",
-    "name": "Prison Block",
-    "category": "combat",
-    "width": 12,
-    "height": 8,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 5,
-    "essenceCostToPlace": 20,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 1,
-    "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "combat",
-      "capture",
-      "detention"
-    ],
-    "onAdventurerEnter": "prison_onEnter",
-    "description": "Iron cells line the walls. Adventurers who linger risk being captured by patrolling guards.",
-    "flavorText": "The bars aren't to keep things in. They're to keep hope out.",
-    "theme": null
-  },
-  {
-    "id": "serpent_pit",
-    "name": "Serpent Pit",
-    "category": "trap",
+    "id": "library_of_whispers",
+    "name": "Library of Whispers",
+    "category": "utility",
     "width": 10,
-    "height": 10,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 10,
-    "essenceCostToPlace": 30,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 1,
-    "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "trap",
-      "poison",
-      "hazard"
-    ],
-    "onAdventurerEnter": "serpentPit_onEnter",
-    "description": "The floor writhes. Adventurers take poison damage each turn spent inside.",
-    "flavorText": "They hear the hissing. They still go in.",
-    "theme": null
-  },
-  {
-    "id": "hall_of_echoes",
-    "name": "Hall of Echoes",
-    "category": "special",
-    "width": 12,
     "height": 8,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 10,
-    "essenceCostToPlace": 35,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 2,
-    "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "special",
-      "alert",
-      "ambush"
-    ],
-    "onAdventurerEnter": "hallOfEchoes_alertAdjacent",
-    "description": "Any sound in this room alerts minions in adjacent rooms. Perfect for ambushes against Speed Runners.",
-    "flavorText": "Sound travels further than screams in here.",
-    "theme": null
-  },
-  {
-    "id": "mirror_maze",
-    "name": "Mirror Maze",
-    "category": "special",
-    "width": 10,
-    "height": 10,
     "tileLayout": [],
     "connectionPoints": [],
     "upkeepCost": 8,
-    "essenceCostToPlace": 30,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 2,
-    "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "special",
-      "knowledge",
-      "anti_cartographer"
-    ],
-    "onAdventurerEnter": "mirrorMaze_onEnter",
-    "description": "Reflections confuse intruders. Cartographers map this room with garbled accuracy — their intel becomes unreliable rumour.",
-    "flavorText": "Which way did the corridor go again?",
-    "theme": null
-  },
-  {
-    "id": "lava_floor",
-    "name": "Lava Floor",
-    "category": "hazard",
-    "width": 8,
-    "height": 8,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 12,
     "essenceCostToPlace": 40,
     "powerCostToUnlock": 0,
-    "unlockLevel": 3,
+    "unlockLevel": 4,
     "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 1,
       "fixed": false
     },
     "tags": [
-      "hazard",
-      "fire",
-      "passive_damage"
+      "utility",
+      "gateway",
+      "intel"
     ],
-    "description": "Searing lava cracks across the floor. Adventurers take continuous fire damage while inside.",
-    "flavorText": "Some traps don't need triggers. Heat always finds a foot.",
-    "theme": null
+    "onNightStart": "library_revealNextParty",
+    "description": "Reveals next party intel the night before. Tier scales with boss level: L4 size + classes; L6 + personalities; L8 + stats & equipment; L10 + planned route.",
+    "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
-    "id": "collapsing_pillars",
-    "name": "Collapsing Pillars",
-    "category": "hazard",
-    "width": 10,
-    "height": 8,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 10,
-    "essenceCostToPlace": 35,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 3,
-    "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "hazard",
-      "physical",
-      "burst_damage"
-    ],
-    "description": "Pillars buckle and drop chunks of stone every several seconds. Random burst physical damage.",
-    "flavorText": "Architectural integrity is a suggestion.",
-    "theme": null
-  },
-  {
-    "id": "obelisk_room",
-    "name": "Obelisk Room",
-    "category": "special",
+    "id": "watchtower",
+    "name": "Watchtower",
+    "category": "utility",
     "width": 8,
     "height": 8,
     "tileLayout": [],
     "connectionPoints": [],
     "upkeepCost": 6,
-    "essenceCostToPlace": 22,
+    "essenceCostToPlace": 30,
     "powerCostToUnlock": 0,
-    "unlockLevel": 2,
+    "unlockLevel": 5,
     "placementRules": {
       "minDepthFromBoss": 0,
-      "maxPerDungeon": null,
-      "fixed": false
-    },
-    "tags": [
-      "special",
-      "dual_state"
-    ],
-    "description": "An obelisk pulses between two states every 6 seconds. HEAL: regenerates 2 HP/sec. CHARGE: empowers the next attack with +50% damage. Adventurers learn to time their visits — and bosses learn to ambush during the wait.",
-    "flavorText": "Tick. Tock. Heal. Strike.",
-    "theme": null
-  },
-  {
-    "id": "secret_passage",
-    "name": "Secret Passage",
-    "category": "special",
-    "width": 7,
-    "height": 7,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 4,
-    "essenceCostToPlace": 18,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 2,
-    "placementRules": {
-      "minDepthFromBoss": 1,
-      "maxPerDungeon": null,
-      "fixed": false,
-      "secret": true
-    },
-    "tags": [
-      "special",
-      "secret",
-      "hidden"
-    ],
-    "description": "Invisible to most adventurers. Only Cartographer and Completionist personalities (or anyone who's already been here) can see it on the map.",
-    "flavorText": "Some doors don't exist until you know to look.",
-    "theme": null
-  },
-  {
-    "id": "power_core",
-    "name": "Power Core",
-    "category": "utility",
-    "width": 6,
-    "height": 6,
-    "tileLayout": [],
-    "connectionPoints": [],
-    "upkeepCost": 4,
-    "essenceCostToPlace": 25,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 2,
-    "placementRules": {
-      "minDepthFromBoss": 0,
-      "maxPerDungeon": null,
+      "maxPerDungeon": 2,
       "fixed": false
     },
     "tags": [
       "utility",
-      "core",
-      "infrastructure"
+      "first_strike",
+      "minion_support"
     ],
-    "description": "Powers nearby high-tier traps (curse_brand_trap, echo_mine, mercy_trap). Without a Core in the dungeon, those traps refuse to fire.",
-    "flavorText": "Magic costs energy. Energy comes from somewhere.",
-    "theme": null
+    "description": "Minions in directly door-connected rooms get a first-strike hit when adventurers enter. Counters Speed Runners and surprise tactics.",
+    "flavorText": "We see them before they see themselves.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
-    "id": "necropolis_wing",
-    "name": "Necropolis Wing",
+    "id": "wandering_gate",
+    "name": "Wandering Gate",
     "category": "special",
-    "width": 10,
+    "width": 8,
     "height": 8,
     "tileLayout": [],
     "connectionPoints": [],
     "upkeepCost": 10,
     "essenceCostToPlace": 35,
     "powerCostToUnlock": 0,
-    "unlockLevel": 3,
+    "unlockLevel": 6,
     "placementRules": {
       "minDepthFromBoss": 1,
       "maxPerDungeon": 1,
@@ -845,40 +1668,427 @@
     },
     "tags": [
       "special",
-      "undead",
-      "conversion"
+      "teleport",
+      "chaos"
     ],
-    "onNightStart": "necropolis_convertCorpses",
-    "description": "Each night, raises the most recently fallen adventurer from the graveyard as a free skeleton warrior assigned to this room. Corpses are reusable.",
-    "flavorText": "Recruitment, the old-fashioned way.",
-    "theme": null
+    "onAdventurerEnter": "wanderingGate_teleport",
+    "description": "On entry, % chance to teleport adventurer: 60% nearby room, 35% any built room, 5% Boss Chamber.",
+    "flavorText": "Step in. Step out. Hopefully not the same room.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
-    "id": "colosseum",
-    "name": "Colosseum",
+    "id": "veil_of_forgetting",
+    "name": "Veil of Forgetting",
     "category": "special",
+    "width": 8,
+    "height": 8,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 8,
+    "essenceCostToPlace": 30,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 6,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 1,
+      "fixed": false
+    },
+    "tags": [
+      "special",
+      "anti_intel",
+      "knowledge"
+    ],
+    "onNightStart": "veil_eraseAdjacentIntel",
+    "description": "Each Night Phase, erases adventurer intel of all rooms directly door-connected to this one.",
+    "flavorText": "What was here? Nothing. Nothing was ever here.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "catacombs",
+    "name": "Catacombs",
+    "category": "combat",
+    "width": 10,
+    "height": 8,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 8,
+    "essenceCostToPlace": 35,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 7,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 2,
+      "fixed": false
+    },
+    "tags": [
+      "combat",
+      "undead",
+      "garrison_spawner",
+      "reactive"
+    ],
+    "onAdventurerEnter": "catacombs_onDeath_raiseRevenant",
+    "description": "Reactive: when an adventurer dies in this room, a Tier-2 Revenant (garrison, room-bound) rises in their place. Max 2 Revenants alive in the room at once; do not respawn if killed.",
+    "flavorText": "Old bones don't die. They just wait their turn.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "mimic_vault",
+    "name": "Mimic Vault",
+    "category": "trap",
+    "width": 10,
+    "height": 8,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 10,
+    "essenceCostToPlace": 40,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 7,
+    "placementRules": {
+      "minDepthFromBoss": 1,
+      "maxPerDungeon": 1,
+      "fixed": false
+    },
+    "tags": [
+      "trap",
+      "deception",
+      "garrison_spawner",
+      "looks_like_treasury"
+    ],
+    "onAdventurerEnter": "mimicVault_onEnter",
+    "onNightStart": "mimicVault_respawnMimics",
+    "description": "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) that respawn nightly, plus 1 false chest — if grabbed, it steals essence from the adventurer.",
+    "flavorText": "It even has the right sparkle.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "hall_of_trials",
+    "name": "Hall of Trials",
+    "category": "combat",
     "width": 12,
     "height": 10,
     "tileLayout": [],
     "connectionPoints": [],
-    "upkeepCost": 14,
-    "essenceCostToPlace": 50,
+    "upkeepCost": 12,
+    "essenceCostToPlace": 45,
     "powerCostToUnlock": 0,
-    "unlockLevel": 4,
+    "unlockLevel": 7,
     "placementRules": {
       "minDepthFromBoss": 1,
+      "maxPerDungeon": 1,
+      "maxPerDungeonByBossLevel": {
+        "7": 1,
+        "8": 1,
+        "9": 2,
+        "10": 3
+      },
+      "fixed": false
+    },
+    "tags": [
+      "combat",
+      "garrison_spawner",
+      "elite"
+    ],
+    "onNightStart": "hallOfTrials_spawnElite",
+    "description": "Spawns a random Tier-2 evolved minion (garrison, room-bound) at Night Phase if none are alive in the room. If killed, does not respawn that night. Cap scales with boss level.",
+    "flavorText": "Only the proven walk these stones.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "wishing_well",
+    "name": "Wishing Well",
+    "category": "special",
+    "width": 8,
+    "height": 8,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 8,
+    "essenceCostToPlace": 35,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 8,
+    "placementRules": {
+      "minDepthFromBoss": 0,
       "maxPerDungeon": 1,
       "fixed": false
     },
     "tags": [
       "special",
-      "wave_spawn",
-      "combat"
+      "rng",
+      "buff_or_debuff"
     ],
-    "onAdventurerEnter": "colosseum_lockGates",
-    "description": "Gates lock when adventurers enter. A wave of skeleton warriors spawns to greet them; survivors face a second, larger wave. Excellent training ground for your minions.",
-    "flavorText": "Two ways out: through the door, or through the floor.",
-    "theme": null
+    "onAdventurerEnter": "wishingWell_coinFlip",
+    "description": "On entry, coin flip. Heads: adventurer gains +ATK and +HP buff. Tails: adventurer gains 'Marked' (skull icon, takes +50% damage from minions for the rest of the day).",
+    "flavorText": "Wish carefully. The well listens to one in two.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   },
   {
     "id": "false_exit",
@@ -891,7 +2101,7 @@
     "upkeepCost": 12,
     "essenceCostToPlace": 40,
     "powerCostToUnlock": 0,
-    "unlockLevel": 4,
+    "unlockLevel": 8,
     "placementRules": {
       "minDepthFromBoss": 1,
       "maxPerDungeon": 1,
@@ -900,11 +2110,278 @@
     "tags": [
       "special",
       "teleport",
-      "deception"
+      "deception",
+      "flee_target"
     ],
     "onAdventurerEnter": "falseExit_teleport",
-    "description": "Looks like the dungeon entrance. Isn't. Adventurers who flee through this room are silently teleported to a random room near the boss chamber instead.",
+    "description": "Has its own entry door. Adventurers fleeing the dungeon have a chance to flee here instead of the Entry Hall. Trying to leave teleports them to a random built room.",
     "flavorText": "They thought they were getting out. They were getting in.",
-    "theme": null
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "hall_of_madness",
+    "name": "Hall of Madness",
+    "category": "special",
+    "width": 10,
+    "height": 10,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 12,
+    "essenceCostToPlace": 50,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 9,
+    "placementRules": {
+      "minDepthFromBoss": 1,
+      "maxPerDungeon": 1,
+      "fixed": false
+    },
+    "tags": [
+      "special",
+      "psychological",
+      "friendly_fire"
+    ],
+    "onAdventurerEnter": "hallOfMadness_friendlyFireRoll",
+    "description": "Adventurers in this room have a % chance to attack each other instead of moving on. (Heavy implementation lift — needs new AI state.)",
+    "flavorText": "He looked at me and I saw the rest of them looking back.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "throne_room",
+    "name": "Throne Room",
+    "category": "combat",
+    "width": 12,
+    "height": 10,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 16,
+    "essenceCostToPlace": 60,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 9,
+    "placementRules": {
+      "minDepthFromBoss": 1,
+      "maxPerDungeon": 1,
+      "maxPerDungeonByBossLevel": {
+        "9": 1,
+        "10": 2
+      },
+      "fixed": false
+    },
+    "tags": [
+      "combat",
+      "miniboss_anchor",
+      "garrison_spawner",
+      "no_other_minions"
+    ],
+    "onNightStart": "throneRoom_spawnMiniBoss",
+    "description": "Spawns 1 Mini-Boss (garrison, room-bound) that scales with boss level (T1 → T2 → T3). No other minions may be placed in this room. Respawns nightly. Cap scales with boss level.",
+    "flavorText": "Every kingdom has a deputy. Mine has teeth.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "id": "sanctum",
+    "name": "Sanctum",
+    "category": "utility",
+    "width": 8,
+    "height": 8,
+    "tileLayout": [],
+    "connectionPoints": [],
+    "upkeepCost": 14,
+    "essenceCostToPlace": 60,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 10,
+    "placementRules": {
+      "minDepthFromBoss": 0,
+      "maxPerDungeon": 1,
+      "fixed": false
+    },
+    "tags": [
+      "utility",
+      "boss_buff",
+      "regen_aura",
+      "capstone"
+    ],
+    "description": "Passive: boss regenerates HP between fights. Aura: minions in directly door-connected rooms also regen.",
+    "flavorText": "Even the dark needs a quiet place.",
+    "theme": null,
+    "doorTheme": null,
+    "doorTiles": {
+      "closed": [
+        [
+          "door_closed_l",
+          null,
+          "door_closed_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "open": [
+        [
+          "door_open_l",
+          null,
+          "door_open_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "locked": [
+        [
+          "door_locked_l",
+          null,
+          "door_locked_r",
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
   }
 ]
