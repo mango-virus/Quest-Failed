@@ -25,6 +25,10 @@ import { MiniMapPanel, MINIMAP_PANEL_HEIGHT } from '../ui/MiniMapPanel.js'
 import { AudioControls } from '../ui/AudioControls.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { EventBus }      from '../systems/EventBus.js'
+import { BossOverviewPopup }    from '../ui/popups/BossOverviewPopup.js'
+import { MinionRosterPopup }    from '../ui/popups/MinionRosterPopup.js'
+import { KnowledgeMapPopup }    from '../ui/popups/KnowledgeMapPopup.js'
+import { AdventurerIntelPopup } from '../ui/popups/AdventurerIntelPopup.js'
 
 const COL_PAD     = 12
 const LEFT_COL_W  = 200
@@ -40,6 +44,7 @@ export class HudScene extends Phaser.Scene {
     this._dungeonLog   = null
     this._buildMenu    = null
     this._audioControls = null
+    this._popups       = {}      // { boss, roster, knowledge, intel } — set in create()
     this._listeners    = []
   }
 
@@ -143,11 +148,54 @@ export class HudScene extends Phaser.Scene {
       const isNight = this._gameState.meta?.phase === 'night'
       this._buildMenu?.setVisible(isNight)
       EventBus.emit('BUILD_DESELECT')
+      // Phase transitions auto-close any open popup so they don't linger
+      // on top of the new phase view.
+      this._closeAllPopups()
     }
     EventBus.on('NIGHT_PHASE_BEGAN', onPhaseChange)
     EventBus.on('DAY_PHASE_BEGAN',   onPhaseChange)
     this._listeners.push(['NIGHT_PHASE_BEGAN', onPhaseChange])
     this._listeners.push(['DAY_PHASE_BEGAN',   onPhaseChange])
+
+    // ── Phase 31E popups ──
+    this._popups = {
+      boss:      new BossOverviewPopup(this, this._gameState),
+      roster:    new MinionRosterPopup(this, this._gameState),
+      knowledge: new KnowledgeMapPopup(this, this._gameState),
+      intel:     new AdventurerIntelPopup(this, this._gameState),
+    }
+    const togglePopup = (key) => {
+      // Re-clicking the action-bar button closes the popup. Opening a
+      // different popup auto-closes any currently-open one so only one is
+      // ever on screen at a time.
+      if (this._popups[key].isOpen?.() ?? this._isPopupOpen(key)) {
+        this._popups[key].close()
+        return
+      }
+      this._closeAllPopups()
+      this._popups[key].open()
+    }
+    const wirePopup = (event, key) => {
+      const fn = () => togglePopup(key)
+      EventBus.on(event, fn)
+      this._listeners.push([event, fn])
+    }
+    wirePopup('OPEN_BOSS_OVERVIEW', 'boss')
+    wirePopup('OPEN_MINION_ROSTER', 'roster')
+    wirePopup('OPEN_KNOWLEDGE_MAP', 'knowledge')
+    wirePopup('OPEN_ADV_INTEL',     'intel')
+  }
+
+  _isPopupOpen(key) {
+    const p = this._popups[key]
+    return p?._frame?.isOpen?.() ?? false
+  }
+
+  _closeAllPopups() {
+    if (!this._popups) return
+    for (const k of Object.keys(this._popups)) {
+      this._popups[k]?.close?.()
+    }
   }
 
   update() {
@@ -169,6 +217,10 @@ export class HudScene extends Phaser.Scene {
     this._dungeonLog?.destroy();   this._dungeonLog    = null
     this._buildMenu?.destroy();    this._buildMenu     = null
     this._audioControls?.destroy(); this._audioControls = null
+    if (this._popups) {
+      for (const k of Object.keys(this._popups)) this._popups[k]?.destroy?.()
+      this._popups = {}
+    }
     if (this._chrome) {
       this._chrome.forEach(o => o?.destroy?.())
       this._chrome = []
