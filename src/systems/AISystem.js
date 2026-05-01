@@ -260,40 +260,63 @@ export class AISystem {
     // was just restored, so we let the rest of the tick recompute paths.
     this._maybeClearMadness(adv)
 
-    // General stuck detector — if the adv has been on the same tile for
-    // more than 2 s without being in a freeze-by-design state, assume
-    // something (most likely a mimic-block edge case) is keeping them in
-    // place and force the mimic-bypass flag so they shove through. The
-    // flag clears on next successful blocked path replan.
+    // General stuck detector — if the adv hasn't made meaningful progress
+    // (either tile change OR ~half-tile of world movement) for >1.5s and
+    // they're not in a freeze-by-design state, assume something (usually
+    // a mimic-block edge case) is locking them in place and force the
+    // mimic-bypass flag so they shove through next plan. The flag clears
+    // on the next successful blocked replan.
     //
-    // 'fighting' is intentionally NOT exempt: if combat keeps the adv
-    // glued to one tile for 2 s it's almost always because their target
-    // is unreachable (e.g. across a chest blockade or behind a wall);
-    // forcing a bypass replan dissolves that.
+    // 'fighting' is intentionally NOT exempt: if combat freezes them on
+    // one tile for >1.5s it's almost always because the target is
+    // unreachable (across a chest blockade or behind a wall) and forcing
+    // a bypass replan resolves that.
+    //
+    // World-position tracking catches a case the tile-based variant
+    // missed: an adv whose worldX/Y oscillates around a tile boundary
+    // (so tileX/Y flickers between two adjacent values each tick) was
+    // resetting the detector every frame.
     const stuckExempt = adv.aiState === 'dead' ||
                         adv.aiState === 'opening_chest' ||
                         adv.goal?.type === 'AT_BOSS' ||
                         adv._leaveFadeEnd != null ||
                         adv._spawnFadeEnd != null
     if (!stuckExempt) {
-      const tileKey = `${adv.tileX},${adv.tileY}`
-      if (adv._lastTileKey === tileKey) {
+      const STUCK_MS = 1500
+      const PROGRESS_PX = TS / 2     // ~half-tile counts as moved
+      const lastWX = adv._lastWorldX ?? adv.worldX
+      const lastWY = adv._lastWorldY ?? adv.worldY
+      const moved = Math.hypot(adv.worldX - lastWX, adv.worldY - lastWY) >= PROGRESS_PX
+      if (moved) {
+        adv._lastWorldX = adv.worldX
+        adv._lastWorldY = adv.worldY
+        adv._tileStuckMs = 0
+      } else {
         adv._tileStuckMs = (adv._tileStuckMs ?? 0) + delta
-        if (adv._tileStuckMs > 2000) {
+        if (adv._tileStuckMs > STUCK_MS) {
           adv._pathIgnoresMimics = true
-          adv.path = null    // force a fresh plan with the bypass flag set
+          adv.path = null
           adv._tileStuckMs = 0
           adv._waitMs = 0
           adv._mimicStuckMs = 0
+          adv._lastWorldX = adv.worldX
+          adv._lastWorldY = adv.worldY
           EventBus.emit('ADVENTURER_UNSTUCK', {
-            adventurer: adv,
-            tile: { x: adv.tileX, y: adv.tileY },
-            goal: adv.goal?.type ?? null,
+            adventurer:    adv,
+            tile:          { x: adv.tileX, y: adv.tileY },
+            goal:          adv.goal?.type ?? null,
+            aiState:       adv.aiState,
+            nearbyMimics:  (this._gameState.minions ?? [])
+              .filter(m => m.isMimic && m.aiState !== 'dead' &&
+                Math.abs(m.tileX - adv.tileX) <= 2 && Math.abs(m.tileY - adv.tileY) <= 2)
+              .map(m => ({ id: m.instanceId, x: m.tileX, y: m.tileY, state: m.mimicState })),
           })
+          // Light diagnostic so playtesters can see it in the console
+          // without enabling extra logging.
+          // eslint-disable-next-line no-console
+          console.log('[stuck-unstuck] adv', adv.instanceId, 'at', adv.tileX, adv.tileY,
+            'goal:', adv.goal?.type, 'state:', adv.aiState)
         }
-      } else {
-        adv._lastTileKey = tileKey
-        adv._tileStuckMs = 0
       }
     }
 
