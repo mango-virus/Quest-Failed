@@ -18,7 +18,7 @@
 import { applyUiCamera, CRYPT } from '../ui/UIKit.js'
 import { BossTopBar, BOSS_TOP_BAR_HEIGHT } from '../ui/BossTopBar.js'
 import { ActionBar,  ACTION_BAR_HEIGHT  } from '../ui/ActionBar.js'
-import { KnowledgePin } from '../ui/KnowledgePin.js'
+import { KnowledgePin, KNOWLEDGE_PIN_HEIGHT } from '../ui/KnowledgePin.js'
 import { DungeonLog }   from '../ui/DungeonLog.js'
 import { BuildMenu }    from '../ui/BuildMenu.js'
 import { MiniMapPanel, MINIMAP_PANEL_HEIGHT } from '../ui/MiniMapPanel.js'
@@ -118,9 +118,9 @@ export class HudScene extends Phaser.Scene {
     this._knowPin = new KnowledgePin(this, this._gameState, {
       depth: 60, x: knowX, y: knowY, w: RIGHT_COL_W,
     })
-    // KnowledgePin natural height: HEADER_H(22) + 6 + FACT_LIMIT(6) * (ROW_H 20 + ROW_GAP 3) + 4 + 14 + 8 + PADDING(8) ≈ 200
-    // With FACT_LIMIT=6 (was 4), need ~46 more vertical px.
-    const knowPinH = 246
+    // Use the panel's actual rendered height so the Dungeon Log seats
+    // flush against it without leaving a gap.
+    const knowPinH = KNOWLEDGE_PIN_HEIGHT
 
     // ── Dungeon Log (right column, fills below pin) ──
     const logY = knowY + knowPinH + 8

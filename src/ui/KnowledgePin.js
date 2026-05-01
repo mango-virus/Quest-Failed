@@ -245,3 +245,10 @@ export class KnowledgePin {
 }
 
 export const KNOWLEDGE_PIN_WIDTH = DEFAULT_PANEL_W
+
+// Actual rendered height — kept in sync with _panelHeight() so HudScene
+// can stack the Dungeon Log directly underneath without leaving a gap.
+// Formula matches _panelHeight: HEADER_H + 6 + FACT_LIMIT*(ROW_H+ROW_GAP)
+//                              + 4 + 14 + 8 + PADDING
+export const KNOWLEDGE_PIN_HEIGHT =
+  22 + 6 + FACT_LIMIT * (20 + 3) + 4 + 14 + 8 + 8
