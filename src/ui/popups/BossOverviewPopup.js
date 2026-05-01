@@ -54,14 +54,27 @@ export class BossOverviewPopup {
     })
     addChild(portraitG)
 
-    const portraitKey = `bestiary-portrait-${arch?.id ?? this._gameState.player?.bossArchetypeId}`
-    if (this._scene.textures.exists(portraitKey)) {
-      const img = this._scene.add.image(x + w / 2, y + 14 + portraitH / 2, portraitKey)
+    // Use the boss's idle-down sprite (frame 0 of the idle sheet — row 0
+    // is 'down' per Preload's DEFAULT_ROW_DIRS) instead of the small
+    // bestiary bust. Falls back to the bestiary portrait, then to a
+    // crown glyph, if neither texture is loaded.
+    const bossId    = arch?.id ?? this._gameState.player?.bossArchetypeId
+    const idleKey   = `${bossId}-idle`
+    const portKey   = `bestiary-portrait-${bossId}`
+    const cxImg     = x + w / 2
+    const cyImg     = y + 14 + portraitH / 2
+    if (this._scene.textures.exists(idleKey)) {
+      const img = this._scene.add.image(cxImg, cyImg, idleKey, 0)
+        .setDisplaySize(portraitH - 32, portraitH - 32)
+        .setDepth(D + 2)
+      addChild(img)
+    } else if (this._scene.textures.exists(portKey)) {
+      const img = this._scene.add.image(cxImg, cyImg, portKey)
         .setDisplaySize(portraitH - 32, portraitH - 32)
         .setDepth(D + 2)
       addChild(img)
     } else {
-      addChild(this._scene.add.text(x + w / 2, y + 14 + portraitH / 2, '♛', {
+      addChild(this._scene.add.text(cxImg, cyImg, '♛', {
         fontFamily: FONT_HEAD, fontSize: '64px', color: CRYPT.accent2Css,
       }).setOrigin(0.5).setDepth(D + 2))
     }

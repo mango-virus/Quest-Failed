@@ -50,7 +50,7 @@ export class MinionRosterPopup {
     list.sort((a, b) => {
       switch (this._sortKey) {
         case 'name':  return (a.name ?? a.definitionId).localeCompare(b.name ?? b.definitionId)
-        case 'class': return (a.definitionId ?? '').localeCompare(b.definitionId ?? '')
+        case 'tier':  return this._tierFor(b) - this._tierFor(a)
         case 'hp':    return (b.resources?.hp ?? 0) - (a.resources?.hp ?? 0)
         case 'level': return (b.level ?? 0) - (a.level ?? 0)
         case 'kills':
@@ -60,18 +60,30 @@ export class MinionRosterPopup {
     return list
   }
 
+  // Evolution tier: parsed from the trailing digit of the def id. Falls
+  // back to 1 if the id has no digit (e.g., 'mimic'). Tiers cap at 4 in
+  // the current minionEvolutions chains.
+  _tierFor(m) {
+    const id = m.definitionId ?? ''
+    const match = id.match(/(\d+)$/)
+    return match ? parseInt(match[1], 10) : 1
+  }
+
   _renderList(x, y, w, h, D, addChild) {
     const card = this._scene.add.graphics().setDepth(D)
     pixelPanel(card, x, y, w, h, { fill: CRYPT.bgStone1 })
     addChild(card)
 
-    // Column headers — also act as sort buttons
+    // Column headers — also act as sort buttons. 'TIER' replaces the old
+    // 'CLASS' column and shows each minion's evolution tier (1-4) parsed
+    // from the trailing digit of the definition id (skeleton1 -> 1,
+    // skeleton2 -> 2, etc.).
     const cols = [
       { key: 'name',  label: 'NAME',  x: 14,    w: 120 },
-      { key: 'class', label: 'CLASS', x: 138,  w: 100 },
-      { key: 'hp',    label: 'HP',    x: 246,  w: 130 },
-      { key: 'level', label: 'LV',    x: 384,  w: 30  },
-      { key: 'kills', label: 'KILLS', x: 426,  w: 60  },
+      { key: 'tier',  label: 'TIER',  x: 138,  w: 80  },
+      { key: 'hp',    label: 'HP',    x: 230,  w: 140 },
+      { key: 'level', label: 'LV',    x: 380,  w: 30  },
+      { key: 'kills', label: 'KILLS', x: 422,  w: 60  },
     ]
     const headerY = y + 12
     for (const col of cols) {
@@ -128,15 +140,17 @@ export class MinionRosterPopup {
 
     const def = this._minionDef(m.definitionId)
     const name = m.name ?? def?.name ?? m.definitionId ?? '?'
-    const cls  = (def?.name ?? m.definitionId ?? '?').toUpperCase().slice(0, 9)
+    const tier = this._tierFor(m)
     const hp   = m.resources?.hp ?? 0
     const max  = m.resources?.maxHp ?? 1
 
     addChild(this._scene.add.text(x + cols[0].x, y + h / 2, this._truncate(name, 14), {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.ink, letterSpacing: 1,
     }).setOrigin(0, 0.5).setDepth(D + 3))
-    addChild(this._scene.add.text(x + cols[1].x, y + h / 2, cls, {
-      fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.accent2Css, letterSpacing: 1,
+    // Tier rendered as 'T{N}' in gold so it reads as a rank (matches the
+    // 'L{N}' unlock badge styling on locked build slots).
+    addChild(this._scene.add.text(x + cols[1].x, y + h / 2, `T${tier}`, {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.goldCss, letterSpacing: 1,
     }).setOrigin(0, 0.5).setDepth(D + 3))
     const bar = pixelBar(this._scene, x + cols[2].x, y + h / 2 - 5, cols[2].w, 10, hp, max,
       { color: m.aiState === 'dead' ? 'red' : 'cyan',

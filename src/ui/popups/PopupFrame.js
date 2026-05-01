@@ -50,9 +50,14 @@ export function makePopupFrame(opts) {
   let escHandler = null
   let backdropZone = null
 
-  function addChild(obj) {
-    children.push(obj)
-    return obj
+  // Accept a rest list so callers can register multiple objects in one
+  // shot (e.g. `addChild(btn.bg, btn.label, btn.hit)` from pixelButton,
+  // or `addChild(bar.g, bar.txt)` from pixelBar). Previously this only
+  // pushed the first arg, leaving the rest as orphans that survived
+  // close() — the source of the "X" / number leftovers.
+  function addChild(...objs) {
+    for (const o of objs) if (o) children.push(o)
+    return objs[0]
   }
 
   function close() {

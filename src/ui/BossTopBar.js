@@ -121,18 +121,40 @@ export class BossTopBar {
     this._objects.push(avSym)
     this._avSym = avSym
 
-    // Click zone
+    // Click zone — same press-down feedback as the action-bar buttons:
+    // panel + sprite shift 1 px on pointerdown, snap back on pointerup.
     const hit = this._scene.add.zone(cx, cy, avatarSize, avatarSize)
       .setOrigin(0).setDepth(D + 2).setInteractive({ useHandCursor: true })
+    let pressed = false
+    const repaintAvatar = (offset) => {
+      avG.clear()
+      pixelPanel(avG, cx + offset, cy + offset, avatarSize, avatarSize, {
+        fill: CRYPT.bgStone2,
+        edgeH: pressed ? CRYPT.panelEdgeS : CRYPT.panelEdgeH,
+        edgeS: pressed ? CRYPT.panelEdgeH : CRYPT.panelEdgeS,
+        inset: pressed,
+      })
+      if (avSym.setOrigin && typeof avSym.x === 'number') {
+        avSym.setPosition(cx + avatarSize / 2 + offset, cy + avatarSize / 2 + offset)
+      }
+    }
     hit.on('pointerover', () => {
       if (avSym.setColor) avSym.setColor('#ffffff')
       else avSym.setTint?.(0xffffff)
     })
     hit.on('pointerout',  () => {
+      pressed = false
+      repaintAvatar(0)
       if (avSym.setColor) avSym.setColor(CRYPT.accent2Css)
       else avSym.clearTint?.()
     })
-    hit.on('pointerup',   () => EventBus.emit('OPEN_BOSS_OVERVIEW'))
+    hit.on('pointerdown', () => { pressed = true;  repaintAvatar(1) })
+    hit.on('pointerup',   () => {
+      const wasPressed = pressed
+      pressed = false
+      repaintAvatar(0)
+      if (wasPressed) EventBus.emit('OPEN_BOSS_OVERVIEW')
+    })
     this._objects.push(hit)
 
     // Caption row: "{CLASS} · DAY {N}" on the left, "LV {dungeonLevel}"
