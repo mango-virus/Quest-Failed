@@ -1,42 +1,31 @@
-// PauseMenu — full-screen overlay launched by PauseManager. Phaser pauses
-// every gameplay scene when this opens, so we don't need to gate timers /
-// animations / AI ourselves; the entire game freezes behind the panel.
+// Phase 31G — Pause Menu, redesigned in the Crypt visual system.
 //
-// Internal screens: 'root' | 'settings' | 'howto'. Switching wipes the
-// content container and rebuilds — simple state machine, no panel reuse.
-// ESC toggles back through the screens (sub-screen → root → close).
+// Same screen state machine as before (root | settings | howto). PauseManager
+// pauses every gameplay scene when this opens, so timers / animations / AI
+// freeze behind the panel. ESC steps back: sub-screen → root → close.
 
-import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
+import {
+  CRYPT, FONT_HEAD, FONT_BODY,
+  pixelPanel, pixelButton, pixelDiamond, applyUiCamera,
+} from '../ui/UIKit.js'
 import { AudioControls }                     from '../ui/AudioControls.js'
 import { PauseManager }                      from '../systems/PauseManager.js'
 
-const PANEL_W = 480
-const PANEL_H = 520
-const BTN_W   = 320
-const BTN_H   = 56
-const BTN_GAP = 14
-
-const COL = {
-  dimOverlay:  0x000000,
-  panelFill:   0x070d1a,
-  panelBorder: 0x0088cc,
-  panelGlow:   0x004488,
-  btnFill:     0x0e1729,
-  btnFillHvr:  0x142340,
-  btnBorder:   0x4a78b0,
-  btnBorderHvr:0x88c0ff,
-  textBright:  '#f0f4ff',
-  textNormal:  '#aabbcc',
-  textDim:     '#4a5a6a',
-  title:       '#c64bff',
-}
+const PANEL_W   = 520
+const PANEL_H   = 540
+const TITLE_H   = 36
+const PADDING   = 18
+const BTN_W     = 360
+const BTN_H     = 46
+const BTN_GAP   = 10
 
 export class PauseMenu extends Phaser.Scene {
   constructor() {
     super('PauseMenu')
     this._gameState = null
     this._screen    = 'root'
-    this._content   = null
+    this._objects   = []
+    this._buttons   = []
     this._audio     = null
   }
 
@@ -46,59 +35,70 @@ export class PauseMenu extends Phaser.Scene {
   }
 
   create() {
-    const { width: W, height: H } = applyUiCamera(this)
+    applyUiCamera(this)
+    const W = this.uiW
+    const H = this.uiH
 
-    // Dimmed full-screen backdrop. Not interactive — Phaser's hit-test
-    // would otherwise route pointerdown to this full-screen rect instead
-    // of the AudioControls slider sitting on top of it. The scenes below
-    // are paused anyway, so clicks can't fall through.
-    this._dim = this.add.rectangle(0, 0, W, H, COL.dimOverlay, 0.72)
+    // Dim backdrop — non-interactive so the AudioControls slider still
+    // receives clicks (PauseManager already pauses the gameplay scenes,
+    // so clicks can't fall through to anything below).
+    this._dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.78)
       .setOrigin(0).setDepth(0)
 
-    // Centered panel container holds title + (root buttons | sub-screen content)
-    this._panel = this.add.container(W / 2, H / 2).setDepth(10)
-    const bg = this.add.graphics()
-    glowPanel(bg, -PANEL_W / 2, -PANEL_H / 2, PANEL_W, PANEL_H, {
-      fill: COL.panelFill, border: COL.panelBorder, glow: COL.panelGlow,
-    })
-    this._panel.add(bg)
+    // Centered pixel panel
+    const px = Math.round((W - PANEL_W) / 2)
+    const py = Math.round((H - PANEL_H) / 2)
+    this._panelX = px
+    this._panelY = py
 
-    // Title — repositions per screen in _renderScreen
-    this._title = this.add.text(0, -PANEL_H / 2 + 36, '', {
-      fontSize: '28px', color: COL.title, fontFamily: 'monospace',
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setResolution(2)
-    this._panel.add(this._title)
+    const frameG = this.add.graphics().setDepth(1)
+    pixelPanel(frameG, px, py, PANEL_W, PANEL_H)
 
-    // Content container — wiped + rebuilt on every screen change
-    this._content = this.add.container(0, 0)
-    this._panel.add(this._content)
+    // Title bar strip with diamond + label
+    const titleG = this.add.graphics().setDepth(2)
+    titleG.fillStyle(CRYPT.panel2, 1)
+    titleG.fillRect(px + 2, py + 2, PANEL_W - 4, TITLE_H)
+    titleG.fillStyle(CRYPT.panelEdgeS, 1)
+    titleG.fillRect(px + 2, py + 2 + TITLE_H, PANEL_W - 4, 1)
+
+    const dia = this.add.graphics().setDepth(3)
+    pixelDiamond(dia, px + PADDING, py + 2 + TITLE_H / 2, 4, CRYPT.accent)
+
+    this._titleT = this.add.text(px + PADDING + 14, py + 2 + TITLE_H / 2, '', {
+      fontFamily: FONT_HEAD, fontSize: '12px', color: CRYPT.ink, letterSpacing: 3,
+    }).setOrigin(0, 0.5).setDepth(3)
+
+    this._objects.push(this._dim, frameG, titleG, dia, this._titleT)
 
     this._renderScreen()
 
-    // ESC toggles: from a sub-screen go back to root; from root close pause.
+    // ESC steps back: sub-screen → root → close pause.
     this.input.keyboard.on('keydown-ESC', () => {
       if (this._screen !== 'root') this._setScreen('root')
       else                          PauseManager.close()
     })
 
-    // Resize → re-center
     this.scale.on('resize', this._onResize, this)
     this.events.once('shutdown', () => {
       this.scale.off('resize', this._onResize, this)
-      this._audio?.destroy()
-      this._audio = null
+      this._clearScreen()
+      this._objects.forEach(o => o?.destroy?.())
+      this._objects = []
     })
   }
 
   _onResize() {
-    if (!this._panel) return
-    const { width: W, height: H } = applyUiCamera(this)
+    if (!this._dim) return
+    applyUiCamera(this)
+    const W = this.uiW, H = this.uiH
     this._dim.setSize(W, H)
-    this._panel.setPosition(W / 2, H / 2)
-    // Sub-screens that mount scene-space widgets (AudioControls is positioned
-    // absolute, not parented to _panel) need a re-layout pass.
-    if (this._screen === 'settings') this._renderScreen()
+    // Recompute panel anchor + redraw everything for the new viewport.
+    this._panelX = Math.round((W - PANEL_W) / 2)
+    this._panelY = Math.round((H - PANEL_H) / 2)
+    // Lazy: shutdown + reboot the panel chrome.
+    this._objects.forEach(o => o?.destroy?.())
+    this._objects = []
+    this.create()
   }
 
   _setScreen(name) {
@@ -106,157 +106,144 @@ export class PauseMenu extends Phaser.Scene {
     this._renderScreen()
   }
 
-  _renderScreen() {
-    this._content.removeAll(true)
+  _clearScreen() {
     if (this._audio) { this._audio.destroy(); this._audio = null }
+    this._buttons.forEach(b => b?.destroy?.())
+    this._buttons = []
+    if (this._screenObjects) {
+      this._screenObjects.forEach(o => o?.destroy?.())
+    }
+    this._screenObjects = []
+  }
 
+  _renderScreen() {
+    this._clearScreen()
     if      (this._screen === 'root')     this._renderRoot()
     else if (this._screen === 'settings') this._renderSettings()
     else if (this._screen === 'howto')    this._renderHowTo()
   }
 
   // ── Root menu ─────────────────────────────────────────────────────────────
-
   _renderRoot() {
-    this._title.setText('PAUSED')
+    this._titleT.setText('PAUSED')
 
     const items = [
-      { label: 'Resume',              onClick: () => PauseManager.close() },
-      { label: 'Save & Exit to Menu', onClick: () => PauseManager.saveAndExitToMenu(this._gameState) },
-      { label: 'Settings',            onClick: () => this._setScreen('settings') },
-      { label: 'How to Play',         onClick: () => this._setScreen('howto') },
+      { label: 'RESUME',              onClick: () => PauseManager.close(), primary: true },
+      { label: 'SETTINGS',            onClick: () => this._setScreen('settings') },
+      { label: 'HOW TO PLAY',         onClick: () => this._setScreen('howto') },
+      { label: 'SAVE & EXIT TO MENU', onClick: () => PauseManager.saveAndExitToMenu(this._gameState), danger: true },
     ]
 
     const totalH = items.length * BTN_H + (items.length - 1) * BTN_GAP
-    let y = -totalH / 2 + BTN_H / 2 + 30  // nudge below title
+    const px = this._panelX
+    const py = this._panelY
+    let y = py + TITLE_H + 60 + 0    // start below title with breathing room
+    // Actually center vertically within the remaining panel space.
+    const innerTop = py + TITLE_H + PADDING
+    const innerH   = PANEL_H - TITLE_H - PADDING * 2
+    y = innerTop + Math.round((innerH - totalH) / 2)
 
     for (const item of items) {
-      this._content.add(this._makeButton(0, y, BTN_W, BTN_H, item.label, item.onClick))
+      const x = px + (PANEL_W - BTN_W) / 2
+      const btn = pixelButton(this, x, y, BTN_W, BTN_H, item.label, {
+        depth: 4, fontSize: 11,
+        primary: !!item.primary,
+        danger:  !!item.danger,
+        onClick: item.onClick,
+      })
+      this._buttons.push(btn)
       y += BTN_H + BTN_GAP
     }
   }
 
   // ── Settings sub-screen ───────────────────────────────────────────────────
-
   _renderSettings() {
-    this._title.setText('SETTINGS')
+    this._titleT.setText('SETTINGS')
 
-    // "Volume" label + AudioControls slider
-    const volY = -PANEL_H / 2 + 110
-    this._content.add(this.add.text(-PANEL_W / 2 + 40, volY, 'Volume', {
-      fontSize: '16px', color: COL.textBright, fontFamily: 'monospace',
-      fontStyle: 'bold',
-    }).setOrigin(0, 0.5).setResolution(2))
+    const px = this._panelX
+    const py = this._panelY
+    const innerX = px + PADDING
+    const innerW = PANEL_W - PADDING * 2
 
-    // AudioControls is a constructed widget that lives at scene-space coords.
-    // We mount it offset from the panel center; it positions itself absolute
-    // to the scene, so we compute design-space x/y from the panel position.
-    const W = this.uiW, H = this.uiH
-    const audioX = W / 2 - PANEL_W / 2 + 130
-    const audioY = H / 2 + volY - 12
-    this._audio = new AudioControls(this, audioX, audioY, { depth: 20 })
+    // Volume label
+    let yy = py + TITLE_H + 28
+    this._screenObjects.push(this.add.text(innerX, yy, 'VOLUME', {
+      fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.inkMute, letterSpacing: 3,
+    }).setDepth(4))
+    yy += 18
 
-    // Fullscreen toggle
-    const fsY = volY + 60
-    this._content.add(this.add.text(-PANEL_W / 2 + 40, fsY, 'Fullscreen', {
-      fontSize: '16px', color: COL.textBright, fontFamily: 'monospace',
-      fontStyle: 'bold',
-    }).setOrigin(0, 0.5).setResolution(2))
+    // Audio controls — scene-space widget. Keep it inside the panel.
+    this._audio = new AudioControls(this, innerX, yy, { depth: 5 })
+    yy += 36
 
+    // Fullscreen toggle row
+    yy += 16
+    this._screenObjects.push(this.add.text(innerX, yy, 'FULLSCREEN', {
+      fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.inkMute, letterSpacing: 3,
+    }).setDepth(4))
+    yy += 18
     const isFs = this.scale.isFullscreen
-    const fsBtn = this._makeButton(
-      PANEL_W / 2 - 100, fsY, 140, 36,
-      isFs ? 'ON' : 'OFF',
-      () => {
+    const fsBtn = pixelButton(this, innerX, yy, 140, 32, isFs ? 'ON' : 'OFF', {
+      depth: 5, fontSize: 10,
+      primary: isFs,
+      onClick: () => {
         if (this.scale.isFullscreen) this.scale.stopFullscreen()
         else                          this.scale.startFullscreen()
-        // Re-render so the button label updates. The browser fullscreen
-        // change is async; setTimeout 0 lands us after the transition.
+        // Re-render so the button label updates after the async transition.
         setTimeout(() => this._setScreen('settings'), 0)
       },
-    )
-    this._content.add(fsBtn)
+    })
+    this._buttons.push(fsBtn)
 
-    // Back button
-    this._content.add(this._makeButton(
-      0, PANEL_H / 2 - 50, 200, 44, 'Back', () => this._setScreen('root'),
-    ))
+    // Back button at the bottom
+    const backY = py + PANEL_H - PADDING - BTN_H
+    const backX = px + (PANEL_W - 200) / 2
+    this._buttons.push(pixelButton(this, backX, backY, 200, BTN_H, 'BACK', {
+      depth: 5, fontSize: 11,
+      onClick: () => this._setScreen('root'),
+    }))
   }
 
   // ── How to Play sub-screen ────────────────────────────────────────────────
-
   _renderHowTo() {
-    this._title.setText('HOW TO PLAY')
+    this._titleT.setText('HOW TO PLAY')
+
+    const px = this._panelX
+    const py = this._panelY
+    const innerX = px + PADDING
+    const innerW = PANEL_W - PADDING * 2
 
     const body =
       'OBJECTIVE\n' +
-      '  You are the dungeon Boss. Adventurers come to kill you. Build a\n' +
-      '  deadly lair and survive long enough to defeat them all.\n' +
-      '\n' +
+      '  You are the dungeon Boss. Adventurers come to kill\n' +
+      '  you. Build a deadly lair to defeat them all.\n\n' +
       'CURRENCIES\n' +
-      '  Gold — spent during NIGHT to place rooms, traps, and\n' +
-      '    minions. Earned from kills during the day.\n' +
-      '  Dark Power — long-term resource for unlocks and upgrades.\n' +
-      '\n' +
+      '  Gold — spent at NIGHT to place rooms, traps, minions.\n' +
+      '         Earned from kills during the day.\n' +
+      '  Dark Power — long-term resource for unlocks.\n\n' +
       'DAY / NIGHT CYCLE\n' +
-      '  NIGHT: free-build phase. Place rooms, set traps, summon minions.\n' +
-      '  DAY:   adventurers raid. Watch the simulation and learn from it.\n' +
-      '         Click an adventurer to follow them.\n' +
-      '\n' +
+      '  NIGHT: free-build phase. Place rooms, set traps,\n' +
+      '         summon minions.\n' +
+      '  DAY:   adventurers raid. Watch the simulation and\n' +
+      '         learn for tomorrow.\n\n' +
       'BOSS FIGHT\n' +
-      '  Survivors who reach your chamber trigger a one-on-one boss fight.\n' +
-      '  Lose all 3 lives and the run ends.\n' +
-      '\n' +
-      'EVOLUTION\n' +
-      '  Minions earn XP from kills. They level up between days, gaining\n' +
-      '  stats and eventually evolving into stronger forms.\n' +
-      '\n' +
+      '  Survivors who reach your chamber trigger a fight.\n' +
+      '  Lose all 3 lives and the run ends.\n\n' +
       'KNOWLEDGE\n' +
-      '  Adventurers gather intel as they explore. Open the Threat\n' +
-      '  Assessment screen to see what they have learned about your\n' +
-      '  dungeon — and plan your next night accordingly.'
+      '  Adventurers gather intel as they explore. Open the\n' +
+      '  Knowledge Map to see what they know.'
 
-    const txt = this.add.text(-PANEL_W / 2 + 30, -PANEL_H / 2 + 80, body, {
-      fontSize: '12px', color: COL.textNormal, fontFamily: 'monospace',
-      lineSpacing: 4, wordWrap: { width: PANEL_W - 60 },
-    }).setOrigin(0, 0).setResolution(2)
-    this._content.add(txt)
+    const txt = this.add.text(innerX, py + TITLE_H + 16, body, {
+      fontFamily: FONT_BODY, fontSize: '10px', color: CRYPT.ink, letterSpacing: 1,
+      lineSpacing: 4, wordWrap: { width: innerW, useAdvancedWrap: true },
+    }).setDepth(4)
+    this._screenObjects.push(txt)
 
-    this._content.add(this._makeButton(
-      0, PANEL_H / 2 - 50, 200, 44, 'Back', () => this._setScreen('root'),
-    ))
-  }
-
-  // ── Button factory ────────────────────────────────────────────────────────
-
-  _makeButton(x, y, w, h, label, onClick) {
-    const c = this.add.container(x, y)
-    const g = this.add.graphics()
-    const draw = (hover) => {
-      g.clear()
-      g.fillStyle(hover ? COL.btnFillHvr : COL.btnFill, 1)
-      g.fillRoundedRect(-w / 2, -h / 2, w, h, 6)
-      g.lineStyle(2, hover ? COL.btnBorderHvr : COL.btnBorder, 1)
-      g.strokeRoundedRect(-w / 2, -h / 2, w, h, 6)
-    }
-    draw(false)
-    const txt = this.add.text(0, 0, label, {
-      fontSize: '18px', color: COL.textBright, fontFamily: 'monospace',
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setResolution(2)
-
-    const hit = this.add.rectangle(0, 0, w, h, 0xffffff, 0.001)
-      .setOrigin(0.5).setInteractive({ useHandCursor: true })
-    hit.on('pointerover', () => { draw(true);  txt.setColor('#ffffff') })
-    hit.on('pointerout',  () => { draw(false); txt.setColor(COL.textBright) })
-    hit.on('pointerdown', () => {
-      // Click flash — a quick visual confirm before the click handler runs
-      draw(true)
-      txt.setScale(0.97)
-      this.time.delayedCall(70, () => { txt.setScale(1); onClick() })
-    })
-
-    c.add([g, txt, hit])
-    return c
+    const backY = py + PANEL_H - PADDING - BTN_H
+    const backX = px + (PANEL_W - 200) / 2
+    this._buttons.push(pixelButton(this, backX, backY, 200, BTN_H, 'BACK', {
+      depth: 5, fontSize: 11,
+      onClick: () => this._setScreen('root'),
+    }))
   }
 }

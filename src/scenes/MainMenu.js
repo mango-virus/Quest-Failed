@@ -459,9 +459,8 @@ export class MainMenu extends Phaser.Scene {
   }
 
   _actOptions() {
-    // Options scene lands in 31G of the UI overhaul. Until then, a brief
-    // toast acknowledges the click without taking the user anywhere broken.
-    this._toast('Options menu coming soon')
+    TitleMusic.stop()
+    this.scene.start('Options')
   }
 
   _actQuit() {
