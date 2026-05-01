@@ -38,8 +38,11 @@ export class CombatSystem {
     if (dist > reach + 0.01) return null
 
     attacker.lastAttackAt = now
-    // Phase QW — track target for _inferMethod backstab detection
-    attacker._lastAttackTarget = target
+    // Phase QW — track target id for _inferMethod backstab detection.
+    // Stored as id (not the object) so SaveSystem.JSON.stringify doesn't
+    // hit a circular reference once adv-vs-adv combat (Hall of Madness)
+    // leaves both parties alive in gameState across a save.
+    attacker._lastAttackTargetId = target.instanceId
 
     const damage     = this._computeDamage(attacker, target)
     // Phase 5c — Rogue Invisibility: if attacker is an invisible Rogue,
@@ -396,7 +399,11 @@ export class CombatSystem {
       // Phase QW — Rogues striking a target that hasn't engaged them yet count as backstab.
       // Drives the Shadow Stalker minion-evolution path which requires killMethod=backstab.
       if (attacker.classId === 'rogue') {
-        const target = attacker._lastAttackTarget
+        const tid = attacker._lastAttackTargetId
+        const target = tid && (
+          this._gameState.minions?.find(m => m.instanceId === tid) ||
+          this._gameState.adventurers?.active?.find(a => a.instanceId === tid)
+        )
         if (target && target.aiState !== 'engaging' && target.aiState !== 'fighting') {
           return 'backstab'
         }

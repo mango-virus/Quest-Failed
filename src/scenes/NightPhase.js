@@ -1250,6 +1250,9 @@ export class NightPhase extends Phaser.Scene {
     }
 
     this._dungeonGrid.removeRoom(room.instanceId)
+    // Re-render the palette so any max-1 rooms that were filtered out
+    // reappear immediately (otherwise they only re-show on next scroll).
+    this._renderActivePalette()
     this._refreshStats()
   }
 
@@ -1298,6 +1301,9 @@ export class NightPhase extends Phaser.Scene {
       EventBus.emit('TRAP_REMOVED', { trap: entity })
     } else {
       this._dungeonGrid.removeRoom(entity.instanceId)
+      // Same reason as _tryRemoveRoom: re-show max-1 rooms that were
+      // filtered out of the palette while at-cap.
+      this._renderActivePalette()
     }
     this._gameState.player.soulEssence += essenceCost
     this._lastPlaced = null
