@@ -603,3 +603,146 @@ I want to be able to upload sprite tiles and place them over the current dungeon
 7. Adventurer last words / dying screams that reference what killed them ("I should've listened to Marcus...").
 8. Lots of personality interactions between adventurers.
 9. A leaderboard that keeps track of all players gameplay progress with information like: what level did the dungeon get to, how many adventurers killed, what archetype were you playing, and more.
+
+---
+
+## UI / HUD overhaul (2026-05-01)
+
+A full visual reskin of the user interface, locked from a Claude Design handoff bundle (`Quest Failed.html` prototype, Crypt theme variant). Gameplay is unchanged except for three new build-mode actions (Sell / Move / Rotate) and minor data plumbing for run history. The bestiary boss picker (ArchetypeSelect) is **not** touched.
+
+### Visual system
+
+- **Theme: Crypt** — cold stone grays, blood-red accent (`#b03a48`), soul-cyan (`#6fd8d8`), bone-white ink (`#d8d2c2`). The previously-reverted Dark Codex used parchment/gold; this is intentionally distinct (cool stone, not warm parchment).
+- **Fonts:** "Press Start 2P" for headings/labels, "VT323" for body text and numbers. Both loaded from Google Fonts.
+- **Pixel chrome:** hard 2px bevels (highlight on top/left, shadow on bottom/right) with a 2px black outer outline. No gradients. 4px pixel grid. `image-rendering: pixelated`.
+- **Tabs / buttons / build slots / bars** all share the bevel system. Selected build-slot has accent-coloured outline at 2px-out + 2px black-out-out.
+
+### Title screen — split-screen, run-state-aware
+
+- 1.4:1 split layout. **Left:** cinematic dungeon scene (faint, scaled, scanline overlay) with giant `QUEST / FAILED` title stack at bottom-left and an `EARLY BUILD · v0.x.x` corner stamp.
+- **Right:** dark menu panel showing the current run's boss name + class + run readout ("Day 7 · Wave 3 / 10 · 47 kills · 4 escaped"), then a 6-button menu, then a flavor quote, then a version footer.
+- **Menu actions** (top to bottom):
+  - `CONTINUE` — resume the active run (primary). Subtitle "Resume Day N".
+  - `NEW EVIL` — opens the bestiary boss picker (existing ArchetypeSelect screen, unchanged).
+  - `DUNGEON ARCHIVE` — leaderboard (stub for now, button does nothing).
+  - `OPTIONS` — opens new Options scene.
+  - `QUIT` — closes game.
+  - The design's "Bestiary" entry is dropped (ArchetypeSelect already serves that role).
+
+### Main HUD layout (replaces current chrome)
+
+The HUD is laid out as a single grid:
+
+- **Top bar (3 columns):**
+  - Left: boss avatar + class/day caption + boss name + boss HP bar. Clicking the avatar opens the **Boss Overview** popup.
+  - Center: `WAVE n / N` caption + wave-progress bar. (No "QUEST FAILED" branding text — redundant in-game.)
+  - Right: resource readouts. **Two resources** — Gold and Dark Power. ("Gold" replaces "Soul Essence" in name only; same underlying field.)
+- **Left column:**
+  - Mini-map panel (top).
+  - Build menu (below): tabs `ROOMS / MINIONS / TRAPS / ITEMS`, 2-col slot grid. ITEMS tab renders an empty grid with "Coming soon" caption.
+- **Center:** dungeon scene (existing renderer). Overlay strip top-left shows LEVEL / ROOMS / MINIONS counts. Bottom-left "PLACING …" caption appears when a build slot is selected.
+- **Right column:**
+  - Knowledge Pin panel (top, always visible) — top 3–4 leaked facts + EXPOSURE bar.
+  - **Dungeon Log** (renamed from Combat Log, always visible, takes remaining space) — type-coded entries (kill / dmg / warn / know).
+- **Action bar (bottom):**
+  - `Rotate` — click button, then click a placed room to rotate it 90°. Free.
+  - `Move` — click button, then click a placed room to pick it up and re-place it. Minions inside stay assigned to that room as it moves. Free.
+  - `Sell` — click button, then click a placed room. Refunds 50% of gold spent on the room AND the minions inside it.
+  - `Roster` — opens the **Minion Roster** popup (replaces the design's "Repair" button — repair is not a feature).
+  - Phase indicator (center) — current phase label.
+  - `Begin Day` (primary, right side) — toggles night→day. During day phase, becomes `End Wave` (existing behavior).
+  - `Knowledge` — opens the **Knowledge Map** popup.
+  - `Adventurer Intel` — opens the **Adventurer Intel** popup (formerly "Pre-Wave Prep").
+  - `Menu` (≡) — opens the redesigned **Pause Menu**.
+
+Build menu is locked to the **left side** (no left/right toggle).
+
+### New build-mode actions: Sell / Move / Rotate
+
+These are gameplay additions, kept minimal:
+
+- **Click the action button**, then **click the target room**. Acting button is the active "tool" until cancelled (right-click / Esc cancels).
+- **Sell** — refunds 50% of the gold spent on the room and on every minion currently assigned to it. Removes the room and its minions from the dungeon. No undo.
+- **Move** — picks up a room. Cursor follows; click a valid empty area to drop. Minions inside the room stay assigned to that room and travel with it. No cost.
+- **Rotate** — rotates the selected room 90° clockwise in place. Minions stay. If the rotated footprint collides with another room, the action is rejected with a flash/warning. No cost.
+
+### Adventurer Intel popup (replaces design's "Pre-Wave Prep")
+
+A popup overlay (in-scene UI group), opened from a HUD button at any time during night or day phase. Title text reads `ADVENTURER INTEL`.
+
+- **During day phase:** shows full intel on the adventurers currently in the dungeon (class, level, HP, knowledge tags).
+- **During night phase:** shows the next day's incoming party. Detailed fields are masked as `???` unless the player has built a **Library** room — the Library reveals adventurer names, classes, levels, HP, and knowledge tags for the upcoming wave. (This is the Library's intel-providing role.)
+- Includes the adventurers' **knowledge map** (what they know about your dungeon) — replaces the design's "Predicted Route" panel.
+- Footer: a single `Close` button (no "Keep Building" / "Summon Dawn" — players use the existing Begin Day flow on the action bar).
+
+### Boss Overview popup
+
+In-scene popup, opened by **clicking the boss avatar** in the top bar.
+
+- Boss card: portrait, name, class, HP bar, Dark Power bar, run stats (kills, damage dealt, waves survived, escaped advs, current day).
+- **Boss unique ability** — displays the boss's signature ability (per `bossAbilities.json`). Pending full implementation per archetype, but the slot exists.
+- **Active Pacts** (dungeon mechanics chosen this run): grid of cards with name, glyph, short description.
+- **Dungeon Census:** counts of rooms / minions / traps / items / doors / paths with breakdowns.
+
+### Minion Roster popup
+
+In-scene popup, opened from the **Roster button** on the action bar (replaces design's "Repair" slot).
+
+- Information-only — no Summon, Heal All, Reassign, or Dismiss buttons.
+- **Sortable list** (left): name, class, HP bar, level, kills.
+- **Detail panel** (right): selected minion's portrait, class, name, assigned room, HP bar, kill / damage / armor / speed stats, traits.
+
+### Knowledge Map popup
+
+In-scene popup, opened from the **Knowledge button** on the action bar. Replaces full-screen `KnowledgeScreen`.
+
+- Full dungeon map with room overlays color-coded `FULL / PARTIAL / RUMOR / UNKNOWN`.
+- **Intel Ledger** sidebar: one row per known fact, showing the fact + the adventurer who leaked it (`via {adventurerName} (esc Day N)`) + accuracy level.
+- Legend at bottom showing the four accuracy tiers.
+- No "Misinformation" or "Burn Intel" actions (not implemented).
+
+### Post-Wave Summary popup
+
+In-scene popup shown immediately after the last adventurer leaves on a given day. Splits the existing `EndOfDay` newspaper-only.
+
+- Header: "DAY N CONCLUDED · QUEST · FAILED".
+- Three panels: **Casualties** (per-adventurer slain-by + soul reward), **Resources Earned** (gold/souls/dark-power deltas, repair costs, net), **Dungeon Performance** (most lethal minion, most lethal trap, minions lost, traps triggered, avg adv survival, boss damage taken, new intel leaked).
+- Footer: `View Combat Log` button (stub for now or links to log filter), `Continue ⏵` button.
+- After Continue:
+  - **If the boss leveled up that day** → opens **Dark Pact** popup.
+  - **Else** → returns to night phase directly.
+
+### Dark Pact popup (level-gated)
+
+In-scene popup shown after Post-Wave Summary, **only when the boss leveled up on that day**. Replaces the unconditional EndOfDay mechanic-card screen.
+
+- Header: "NIGHTFALL · CHOOSE ONE / DARK · PACT".
+- **Three cards** (existing `DungeonMechanicSystem.getOfferings(3, ...)`), each showing glyph, rarity tag (Common/Rare/Epic/Legendary), name, description, flavor text.
+- Buttons: `⟳ Reroll All (1×)` — rerolls the three cards once per night, then becomes disabled. `Seal the Pact ⏵` — confirms selected card. **No skip option.**
+
+### Pause Menu redesign
+
+The pause menu (currently bound to ESC) is moved to the action bar `≡ Menu` button (ESC still triggers it). Redesigned in the new pixel-bevel style — same options as today, new chrome.
+
+### Options scene
+
+A new full-screen scene reachable from `OPTIONS` on the title menu. Initial slate: audio volumes (master / music / SFX), graphics toggles (TBD), keyboard shortcuts reference. Skeleton ships even if some controls are stubs — door for future settings.
+
+### Game Over screen
+
+Rewrite of `GameOver.js`. Headline reads **"DUNGEON FALLEN"** (boss-perspective) instead of the design's "QUEST · WON".
+
+- Three panels: **Final Tally**, **Pacts Sealed** (per-day timeline), **Built · Lost**.
+- Footer: `View Combat Log` (stub or filter), `↻ New Evil`, `Main Menu`. (No Export Run.)
+- **Animation:** content populates one element at a time, with numbers counting up. Sequence: header fade-in (~1.5s) → Final Tally rows fade in one-by-one with per-row count-up (~120ms between rows, ~600ms count-up) → Pacts Sealed timeline (~200ms per row) → Built / Lost (same as Final Tally) → footer buttons fade in. Total ~6–8s. **Pressing any key skips** to fully populated state. Sound hook reserved per row for future SFX.
+
+### Run history plumbing (data-only, no behavior change)
+
+To make the Game Over screen and Pacts panels meaningful, gamestate gains:
+
+- `gameState.history.pacts: [{ day, mechanicId, rarity }]` — appended in EndOfDay when a pact seals.
+- Per-minion: `lifetime: { kills, damageDealt }` if not already tracked.
+- Per-adventurer: `escapeCount` (so we can name "biggest leak").
+- Per-day rolling counters on `gameState.run.totals`: kills, dmgDealt, dmgTaken, advsKilled, advsEscaped, gold, souls, roomsBuilt, roomsDestroyed, minionsSummoned, minionsLost, trapsPlaced, trapsDisarmed.
+
+Existing fields are reused where they exist; only missing fields are added. SaveSystem must serialize them.

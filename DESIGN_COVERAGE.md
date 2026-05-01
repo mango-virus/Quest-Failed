@@ -599,6 +599,68 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 
 ---
 
+## 31. UI / HUD overhaul (2026-05-01)
+
+> See DESIGN.md → "UI / HUD overhaul (2026-05-01)" for the full spec.
+> Net new visual system + scene rework + data plumbing for run history. Bestiary boss picker (ArchetypeSelect) is intentionally untouched. All popups land as in-scene UI groups on HudScene, not separate Phaser scenes.
+
+| ID | Item | Phase | Status | Notes |
+|---|---|---|---|---|
+| ui-fonts | Press Start 2P + VT323 fonts loaded (Google Fonts) | 31A | ⏳ PENDING | Boot.js / index.html link tag |
+| ui-theme | Crypt theme palette constants in UIKit (cool stone gray + blood red `#b03a48` + soul cyan `#6fd8d8`) | 31A | ⏳ PENDING | distinct from reverted Dark Codex parchment/gold |
+| ui-pixel-panel | Pixel-bevel panel primitive (2px hl/sh + 2px black outer outline, hard pixels) | 31A | ⏳ PENDING | extends UIKit alongside existing glowPanel; added not replaced during overhaul |
+| ui-pixel-button | Pixel button primitive incl. primary variant + hover/active states | 31A | ⏳ PENDING | UIKit |
+| ui-build-slot | BuildSlot card component (icon + name + cost, selected ring) | 31A | ⏳ PENDING | UIKit |
+| ui-bar | Themed pixel HP/progress bar w/ inset highlights + label overlay | 31A | ⏳ PENDING | UIKit |
+| ui-tabs | 4-tab strip primitive (active accent fill) | 31A | ⏳ PENDING | UIKit |
+| ui-log-row | Type-coded log row (kill/dmg/warn/know border + color) | 31A | ⏳ PENDING | extends CombatLog |
+| title-screen | MainMenu rewrite — split-screen Variant A: cinematic dungeon left, run-readout menu panel right, 6-button menu | 31B | ⏳ PENDING | replaces ~911 lines |
+| title-continue | CONTINUE menu action — resume active run | 31B | ⏳ PENDING | wires existing save load |
+| title-new-evil | NEW EVIL menu action — opens existing ArchetypeSelect (bestiary) | 31B | ⏳ PENDING | preserves ArchetypeSelect untouched |
+| title-archive | DUNGEON ARCHIVE — leaderboard stub button, no-op | 31B | ⏳ PENDING | future leaderboard hook |
+| title-options | OPTIONS — opens new Options scene | 31B | ⏳ PENDING | depends on options-scene |
+| title-quit | QUIT — closes the game | 31B | ⏳ PENDING | |
+| hud-topbar | HUD top bar: boss avatar + class/day + HP bar (left), wave counter + bar (center), Gold + Dark Power resources (right) | 31C | ⏳ PENDING | replaces BossHpPanel; clicking avatar opens Boss Overview |
+| hud-resources | "Gold" rename of Soul Essence (display only) + Dark Power readout | 31C | ⏳ PENDING | display rename only — field stays as-is |
+| hud-minimap | Mini-map panel — restyled with pixel chrome (data layer unchanged) | 31C | ⏳ PENDING | reuses MiniMap |
+| hud-build-menu | Build menu (left column, locked): tabs Rooms/Minions/Traps/Items, 2-col grid | 31C | ⏳ PENDING | replaces existing NightPhase palette |
+| hud-build-items-stub | ITEMS tab renders empty grid + "Coming soon" caption | 31C | ⏳ PENDING | placeholder |
+| hud-knowledge-pin | Knowledge Pin panel (right column, always visible): top 3–4 leaks + EXPOSURE bar | 31C | ⏳ PENDING | summary view of existing KnowledgeSystem data |
+| hud-dungeon-log | Dungeon Log (renamed from Combat Log, right column, always visible) — type-coded entries | 31C | ⏳ PENDING | rename + type tags on existing CombatLog |
+| hud-action-bar | Bottom action bar: Rotate / Move / Sell / Roster / phase indicator / Begin Day / Knowledge / Adventurer Intel / Menu | 31C | ⏳ PENDING | replaces design "Repair" with "Roster" |
+| hud-overlay-strip | Dungeon scene overlay top-left: LEVEL / ROOMS / MINIONS counts | 31C | ⏳ PENDING | |
+| hud-placing-caption | Bottom-left "PLACING …" caption when build slot selected | 31C | ⏳ PENDING | |
+| build-action-rotate | Rotate action: button → click room → 90° rotate, minions stay, free, rejected on collision | 31D | ⏳ PENDING | new gameplay action |
+| build-action-move | Move action: button → click room → cursor-follow → click drop, minions stay, free | 31D | ⏳ PENDING | new gameplay action |
+| build-action-sell | Sell action: button → click room → 50% gold refund (room cost + minion costs in room), removes room + minions | 31D | ⏳ PENDING | new gameplay action |
+| popup-adv-intel | Adventurer Intel popup — opened from HUD button any phase, shows current/incoming party | 31E | ⏳ PENDING | renamed from "Pre-Wave Prep" |
+| popup-adv-intel-library | Library room masks `???` fields on incoming party UNLESS Library room exists in dungeon | 31E | ⏳ PENDING | new Library role; gates intel reveal |
+| popup-adv-intel-knowmap | Adventurer Intel shows the adventurers' knowledge map (replaces design's predicted route) | 31E | ⏳ PENDING | reuses KnowledgeSystem |
+| popup-boss-overview | Boss Overview popup — opened by clicking boss avatar in top bar | 31E | ⏳ PENDING | new |
+| popup-boss-ability | Boss Overview displays the boss's unique ability (per `bossAbilities.json`) | 31E | ⏳ PENDING | UI slot only — full ability impl deferred per archetype |
+| popup-boss-pacts | Active Pacts grid in Boss Overview | 31E | ⏳ PENDING | depends on pact-history field |
+| popup-boss-census | Dungeon Census tile in Boss Overview (rooms/minions/traps/items/doors/paths) | 31E | ⏳ PENDING | counts derived live from gameState |
+| popup-minion-roster | Minion Roster popup — opened from action-bar Roster button, info-only (no summon/heal/reassign) | 31E | ⏳ PENDING | new |
+| popup-minion-detail | Roster detail pane — selected minion sprite + class + name + assignment + HP + kills/dmg/armor/speed + traits | 31E | ⏳ PENDING | |
+| popup-knowledge-map | Knowledge Map popup — opened from action-bar Knowledge button, replaces full-screen KnowledgeScreen | 31E | ⏳ PENDING | UI rewrite, data layer reused |
+| popup-knowledge-leaker | Intel Ledger shows `via {adventurerName} (esc Day N)` per fact | 31E | ⏳ PENDING | requires KnowledgeSystem to surface leaker per fact |
+| popup-postwave | Post-Wave Summary popup: Casualties + Resources Earned + Dungeon Performance, Continue button | 31F | ⏳ PENDING | splits existing EndOfDay |
+| popup-darkpact | Dark Pact popup — 3 cards, Reroll All (1×) + Seal the Pact, no skip | 31F | ⏳ PENDING | level-gated |
+| popup-darkpact-gating | Dark Pact only shown when boss leveled up that day; otherwise skip to night | 31F | ⏳ PENDING | new gating rule |
+| popup-darkpact-reroll | Reroll All button replaces all 3 offerings once, then disables | 31F | ⏳ PENDING | extends DungeonMechanicSystem |
+| pause-menu-redesign | PauseMenu redesigned in pixel-bevel style; entry point moved to action-bar Menu (ESC still works) | 31G | ⏳ PENDING | restyled, same options |
+| options-scene | New Options scene — audio volumes (master/music/SFX), graphics toggles, keyboard ref. Skeleton ships even with stubs. | 31G | ⏳ PENDING | reachable from title menu OPTIONS |
+| gameover-rewrite | Game Over rewrite: header "DUNGEON FALLEN" + Final Tally + Pacts Sealed + Built · Lost panels | 31H | ⏳ PENDING | replaces existing GameOver.js |
+| gameover-anim | Game Over animation: staggered fade-in + integer count-up per row, ~6–8s total, any key skips | 31H | ⏳ PENDING | sound hook reserved |
+| history-pacts | `gameState.history.pacts: [{day, mechanicId, rarity}]` — appended on Dark Pact seal | 31I | ⏳ PENDING | new gamestate field |
+| history-minion-lifetime | Per-minion `lifetime: { kills, damageDealt }` | 31I | ⏳ PENDING | grep first; add only if missing |
+| history-adv-escapecount | Per-adventurer `escapeCount` to derive "biggest leak" | 31I | ⏳ PENDING | grep first; add only if missing |
+| history-run-totals | Per-day `gameState.run.totals` rolling counters: kills, dmgDealt, dmgTaken, advsKilled, advsEscaped, gold, souls, roomsBuilt, roomsDestroyed, minionsSummoned, minionsLost, trapsPlaced, trapsDisarmed | 31I | ⏳ PENDING | SaveSystem serializes |
+| save-compat | SaveSystem rehydrates the new history fields cleanly on old saves (defaults to empty arrays / 0s) | 31I | ⏳ PENDING | back-compat |
+| design-handoff-bundle | Local copy of design bundle preserved in `qf_design_temp/` for reference during build | — | ✅ DONE | unzipped from Claude Design handoff |
+
+---
+
 ## How to keep this file honest
 
 - **At every phase exit**: update statuses for items tagged in that phase. If a row is still PENDING or PARTIAL when the phase ends, either fix it or get explicit user approval to defer.
