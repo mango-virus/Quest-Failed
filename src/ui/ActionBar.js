@@ -44,11 +44,17 @@ export class ActionBar {
     const W = this._W
     const H = this._H
     const D = this._depth
-    const y = H - BAR_H
+    const y = H - BAR_H - 6     // 6 px bottom margin so the panel feels seated
 
-    // Background panel running full width
+    // Centered panel — full width was too sparse with 8 buttons + a phase
+    // pill. The design's bar is condensed: a single wide pixel panel
+    // hugging the cluster.
+    const panelW = Math.min(W - 24, 1020)
+    const panelX = (W - panelW) / 2
+    this._panelX = panelX
+    this._panelW = panelW
     const bg = this._scene.add.graphics().setDepth(D)
-    pixelPanel(bg, 0, y, W, BAR_H)
+    pixelPanel(bg, panelX, y, panelW, BAR_H)
     this._objects.push(bg)
 
     const btnY = y + (BAR_H - BTN_H) / 2
@@ -58,7 +64,7 @@ export class ActionBar {
     // Left cluster grows leftward from `cx - centerGap`; right cluster grows
     // rightward from `cx + centerGap`. The phase indicator floats over the
     // gap.
-    const centerGap = 110
+    const centerGap = 90
 
     // ── Left cluster (build tools), right-anchored toward the center ──
     const leftDefs = [
@@ -196,4 +202,5 @@ export class ActionBar {
   }
 }
 
-export const ACTION_BAR_HEIGHT = BAR_H
+// Includes the 6-px bottom margin so HudScene reserves the right space.
+export const ACTION_BAR_HEIGHT = BAR_H + 6

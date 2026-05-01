@@ -135,31 +135,44 @@ export class BossTopBar {
     hit.on('pointerup',   () => EventBus.emit('OPEN_BOSS_OVERVIEW'))
     this._objects.push(hit)
 
-    // Caption: "{CLASS} · DAY {N}"
-    this._captionT = this._scene.add.text(cx + avatarSize + 10, cy + 4,
+    // Caption row: "{CLASS} · DAY {N}" on the left, "LV {dungeonLevel}"
+    // tag pinned to the right of the boss name. Provides the boss-level
+    // readout the user wants without taking another full row.
+    this._captionT = this._scene.add.text(cx + avatarSize + 10, cy + 2,
       this._captionText(), {
         fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 1,
       }).setDepth(D)
     this._objects.push(this._captionT)
 
     // Boss name
-    this._nameT = this._scene.add.text(cx + avatarSize + 10, cy + 16,
+    this._nameT = this._scene.add.text(cx + avatarSize + 10, cy + 14,
       this._bossName, {
         fontFamily: FONT_HEAD, fontSize: '11px', color: CRYPT.ink, letterSpacing: 1,
       }).setDepth(D)
     this._objects.push(this._nameT)
 
+    // LV badge — anchored at the right edge of the left column
+    this._levelT = this._scene.add.text(x + w - PADDING_X, cy + 2,
+      this._levelText(), {
+        fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.goldCss, letterSpacing: 1,
+      }).setOrigin(1, 0).setDepth(D)
+    this._objects.push(this._levelT)
+
     // HP bar
     const barX = cx + avatarSize + 10
-    const barY = cy + 32
+    const barY = cy + 30
     const barW = w - (barX - x) - PADDING_X
     const boss = this._gameState.boss
     const hp   = boss?.hp ?? 100
     const max  = boss?.maxHp ?? 100
-    this._hpBar = pixelBar(this._scene, barX, barY, barW, 12, hp, max, {
+    this._hpBar = pixelBar(this._scene, barX, barY, barW, 11, hp, max, {
       color: 'red', label: `${hp} / ${max}`, depth: D, fontSize: 8,
     })
     this._objects.push(this._hpBar.g, this._hpBar.txt)
+  }
+
+  _levelText() {
+    return `LV ${this._gameState.meta?.dungeonLevel ?? 1}`
   }
 
   _buildCenterCol(x, w) {
@@ -179,8 +192,9 @@ export class BossTopBar {
 
     // Survival bar — fills cyan as adventurers leave the dungeon alive
     // (escaped). Cap of max(spawned, 1) to avoid empty-divide; while
-    // spawnedToday=0 the bar reads 0/0 and renders empty.
-    const barW = Math.min(w - 32, 200)
+    // spawnedToday=0 the bar reads 0/0 and renders empty. 50% wider per
+    // user request so the day-progress is more visually present.
+    const barW = Math.min(w - 32, 300)
     const barX = cx - barW / 2
     const barY = 38
     this._survivalBar = pixelBar(this._scene, barX, barY, barW, 8,
@@ -264,6 +278,7 @@ export class BossTopBar {
       this._hpBar.update(boss.hp ?? 0, boss.maxHp ?? 100, `${boss.hp ?? 0} / ${boss.maxHp ?? 0}`)
     }
     if (this._captionT) this._captionT.setText(this._captionText())
+    if (this._levelT)   this._levelT.setText(this._levelText())
     if (this._dayBigT)  this._dayBigT.setText(this._dayBigText())
     if (this._survivalBar) {
       this._survivalBar.update(this._dayEscaped, Math.max(1, this._daySpawned))

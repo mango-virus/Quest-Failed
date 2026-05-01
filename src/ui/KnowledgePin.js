@@ -48,7 +48,11 @@ export class KnowledgePin {
     headerG.fillRect(x + 2, y + 2 + HEADER_H, this._w - 4, 1)
     this._objects.push(headerG)
 
-    const hdr = this._scene.add.text(x + PADDING, y + HEADER_H / 2 + 2,
+    const dia = this._scene.add.text(x + PADDING, y + HEADER_H / 2 + 2, '◆', {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css,
+    }).setOrigin(0, 0.5).setDepth(D + 2)
+    this._objects.push(dia)
+    const hdr = this._scene.add.text(x + PADDING + 14, y + HEADER_H / 2 + 2,
       'ADVENTURER INTEL', {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.ink, letterSpacing: 2,
     }).setOrigin(0, 0.5).setDepth(D + 2)
@@ -73,9 +77,11 @@ export class KnowledgePin {
       this._objects.push(rowG)
 
       const fact = facts[i]
+      // Reserve ~52px on the right for the FULL/PARTIAL/RUMOR tag so the
+      // fact label never overlaps it.
       const factT = this._scene.add.text(x + PADDING + 4, ry + ROW_H / 2,
-        fact ? this._truncate(fact.label, 22) : '—', {
-        fontFamily: FONT_BODY, fontSize: '9px',
+        fact ? this._truncate(fact.label, 14) : '—', {
+        fontFamily: FONT_BODY, fontSize: '8px',
         color: fact ? CRYPT.ink : CRYPT.inkMute, letterSpacing: 1,
       }).setOrigin(0, 0.5).setDepth(D + 2)
 
@@ -123,24 +129,51 @@ export class KnowledgePin {
 
   _topFacts() {
     // Pull a flat list of leaked facts from gameState.knowledge.sharedPool.
-    // Each room/trap/minion entry's keys are facts; values track confidence.
-    // For now, just produce a synthetic list from the shared pool keys —
-    // KnowledgeSystem will gain a proper accessor in 31E.
-    const pool = this._gameState.knowledge?.sharedPool ?? {}
+    // Pool keys are room *instance* IDs (`room_177766...`), not names — we
+    // look up the placed room and resolve to its definition's display name
+    // via the rooms.json cache. Same idea for traps via trapTypes.
+    const pool   = this._gameState.knowledge?.sharedPool ?? {}
+    const rooms  = this._gameState.dungeon?.rooms ?? []
+    const traps  = this._gameState.dungeon?.traps ?? []
+    const roomDefs  = this._scene.cache.json.get('rooms')      ?? []
+    const trapDefs  = this._scene.cache.json.get('trapTypes')  ?? []
+    const minionDefs = this._scene.cache.json.get('minionTypes') ?? []
+
+    const lookupRoomName = (instanceId) => {
+      const r = rooms.find(x => x.instanceId === instanceId)
+      const d = roomDefs.find(x => x.id === r?.definitionId)
+      return d?.name ?? r?.definitionId ?? instanceId
+    }
+    const lookupTrapName = (instanceId) => {
+      const t = traps.find(x => x.instanceId === instanceId)
+      const d = trapDefs.find(x => x.id === t?.definitionId)
+      return d?.name ?? t?.definitionId ?? instanceId
+    }
+
     const out = []
     for (const k of Object.keys(pool.rooms ?? {})) {
-      out.push({ label: `Room: ${k}`,    lvl: this._levelFor(pool.rooms[k]) })
+      out.push({ label: lookupRoomName(k), lvl: this._levelFor(pool.rooms[k]) })
     }
     for (const k of Object.keys(pool.traps ?? {})) {
-      out.push({ label: `Trap: ${k}`,    lvl: this._levelFor(pool.traps[k]) })
+      out.push({ label: lookupTrapName(k), lvl: this._levelFor(pool.traps[k]) })
     }
     for (const k of Object.keys(pool.enemiesPerRoom ?? {})) {
-      out.push({ label: `Enemy: ${k}`,   lvl: this._levelFor(pool.enemiesPerRoom[k]) })
+      // enemiesPerRoom is keyed by room instance ID + minion data
+      const roomName = lookupRoomName(k)
+      out.push({ label: `Enemies in ${roomName}`, lvl: this._levelFor(pool.enemiesPerRoom[k]) })
+    }
+    // De-dup by label (same room can show up via both rooms + enemies channels)
+    const seen = new Set()
+    const unique = []
+    for (const f of out) {
+      if (seen.has(f.label)) continue
+      seen.add(f.label)
+      unique.push(f)
     }
     // Sort: FULL > PARTIAL > RUMOR
     const order = { FULL: 0, PARTIAL: 1, RUMOR: 2 }
-    out.sort((a, b) => (order[a.lvl] ?? 9) - (order[b.lvl] ?? 9))
-    return out.slice(0, FACT_LIMIT)
+    unique.sort((a, b) => (order[a.lvl] ?? 9) - (order[b.lvl] ?? 9))
+    return unique.slice(0, FACT_LIMIT)
   }
 
   _levelFor(entry) {
@@ -194,7 +227,7 @@ export class KnowledgePin {
       const r = this._rowTexts[i]
       const f = facts[i]
       if (!r) continue
-      r.factT.setText(f ? this._truncate(f.label, 22) : '—')
+      r.factT.setText(f ? this._truncate(f.label, 14) : '—')
       r.factT.setColor(f ? CRYPT.ink : CRYPT.inkMute)
       r.lvlT.setText(f ? f.lvl : '')
       if (f) r.lvlT.setColor(this._lvlColor(f.lvl))

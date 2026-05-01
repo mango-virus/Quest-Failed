@@ -40,6 +40,8 @@ export class BuildMenu {
     this._slots       = []     // metadata for hit-testing: { def, kind, x, y, w, h }
     this._selectedKey = null   // `${kind}:${id}` for selected highlight
     this._activeTab   = 'rooms'
+    this._scrollY     = 0      // vertical scroll offset within the slot grid
+    this._contentH    = 0      // total slot grid content height (for clamping)
 
     this._defsByKind = {
       room:   () => this._roomDefs(),
@@ -69,7 +71,11 @@ export class BuildMenu {
     headerG.fillRect(x + 2, y + 2 + HEADER_H, w - 4, 1)
     this._objects.push(headerG)
 
-    const hdr = this._scene.add.text(x + PADDING + 4, y + HEADER_H / 2 + 2,
+    const dia = this._scene.add.text(x + PADDING + 4, y + HEADER_H / 2 + 2, '◆', {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css,
+    }).setOrigin(0, 0.5).setDepth(D + 2)
+    this._objects.push(dia)
+    const hdr = this._scene.add.text(x + PADDING + 18, y + HEADER_H / 2 + 2,
       'CONSTRUCTION', {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.ink, letterSpacing: 2,
     }).setOrigin(0, 0.5).setDepth(D + 2)
@@ -114,6 +120,20 @@ export class BuildMenu {
     this._slotsTopY  = tabsY + TABS_H + PADDING
     this._slotsBotY  = footerY - PADDING
     this._renderActive()
+
+    // Mouse wheel scroll inside the slot grid area.
+    this._scene.input.on('wheel', this._onWheel, this)
+  }
+
+  _onWheel(pointer, _objs, _dx, dy) {
+    // Only respond when the pointer is within our slot grid rect.
+    const px = pointer.x, py = pointer.y
+    if (px < this._x || px > this._x + this._w) return
+    if (py < this._slotsTopY || py > this._slotsBotY) return
+    const visibleH = this._slotsBotY - this._slotsTopY
+    const maxScroll = Math.max(0, this._contentH - visibleH)
+    this._scrollY = Math.max(0, Math.min(maxScroll, this._scrollY + dy * 0.5))
+    this._renderActive()
   }
 
   _wireEvents() {
@@ -144,7 +164,18 @@ export class BuildMenu {
 
     const tabDef = TABS.find(t => t.key === this._activeTab)
     const kind = tabDef.kind
-    const defs = this._defsByKind[kind]() ?? []
+    const allDefs = this._defsByKind[kind]() ?? []
+
+    // Filter out items at placement cap (placed >= max). Locked items
+    // stay visible — their L{N} badge is part of the design.
+    const dungeonLevel = this._gameState.meta?.dungeonLevel ?? 1
+    const defs = allDefs.filter(def => {
+      const cap = this._capFor(def, kind, dungeonLevel)
+      if (cap == null) return true
+      const used = this._usedFor(def, kind)
+      const isLocked = (def.unlockLevel ?? 1) > dungeonLevel
+      return isLocked || used < cap
+    })
 
     const x = this._x + PADDING
     const y = this._slotsTopY
@@ -159,22 +190,74 @@ export class BuildMenu {
       }).setOrigin(0.5).setDepth(this._depth + 2)
       this._slotObjects.push(t)
       const t2 = this._scene.add.text(this._x + this._w / 2, y + 60,
-        '— no definitions yet —', {
+        '— nothing to place —', {
         fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkMute, letterSpacing: 1,
       }).setOrigin(0.5).setDepth(this._depth + 2)
       this._slotObjects.push(t2)
+      this._contentH = 0
       return
     }
+
+    // Total content height — used for scroll clamping.
+    const rowCount = Math.ceil(defs.length / SLOT_COLS)
+    this._contentH = rowCount * (slotH + SLOT_GAP)
 
     defs.forEach((def, i) => {
       const col = i % SLOT_COLS
       const row = Math.floor(i / SLOT_COLS)
       const sx = x + col * (slotW + SLOT_GAP)
-      const sy = y + row * (slotH + SLOT_GAP)
-      // Skip slots that would overflow the available area
-      if (sy + slotH > this._slotsBotY) return
+      const sy = y + row * (slotH + SLOT_GAP) - this._scrollY
+      // Skip slots that fall outside the visible viewport (scroll clip).
+      if (sy + slotH < this._slotsTopY) return
+      if (sy > this._slotsBotY) return
       this._renderSlot(def, kind, sx, sy, slotW, slotH)
     })
+
+    // Scrollbar hint: a small dim bar on the right edge if there's overflow.
+    const visibleH = this._slotsBotY - this._slotsTopY
+    if (this._contentH > visibleH) {
+      const sbX = this._x + this._w - PADDING + 1
+      const sbH = Math.max(20, visibleH * (visibleH / this._contentH))
+      const sbY = this._slotsTopY + (this._scrollY / this._contentH) * visibleH
+      const sbG = this._scene.add.graphics().setDepth(this._depth + 4)
+      sbG.fillStyle(CRYPT.panelEdgeS, 1)
+      sbG.fillRect(sbX, this._slotsTopY, 2, visibleH)
+      sbG.fillStyle(CRYPT.accent2, 1)
+      sbG.fillRect(sbX, sbY, 2, sbH)
+      this._slotObjects.push(sbG)
+    }
+  }
+
+  // Placement cap helpers — mirror NightPhase logic without importing it.
+  _capFor(def, kind, dungeonLevel) {
+    if (kind === 'room') {
+      const byLevel = def.placementRules?.maxPerDungeonByBossLevel
+      if (byLevel) {
+        const keys = Object.keys(byLevel).map(k => parseInt(k, 10)).sort((a, b) => a - b)
+        let cap = byLevel[keys[0]]
+        for (const k of keys) if (dungeonLevel >= k) cap = byLevel[k]
+        return cap === 0 ? null : cap     // 0 = unlimited
+      }
+      const m = def.placementRules?.maxPerDungeon
+      return (m === 0 || m == null) ? null : m
+    }
+    // Minions and traps don't expose cap info on the def directly; fall
+    // back to "unlimited" for now (NightPhase enforces global roster + trap
+    // caps separately, which the slot-disable logic doesn't surface).
+    return null
+  }
+
+  _usedFor(def, kind) {
+    if (kind === 'room') {
+      return (this._gameState.dungeon?.rooms ?? []).filter(r => r.definitionId === def.id).length
+    }
+    if (kind === 'minion') {
+      return (this._gameState.minions ?? []).filter(m => m.definitionId === def.id).length
+    }
+    if (kind === 'trap') {
+      return (this._gameState.dungeon?.traps ?? []).filter(t => t.definitionId === def.id).length
+    }
+    return 0
   }
 
   _renderSlot(def, kind, sx, sy, sw, sh) {
@@ -231,6 +314,21 @@ export class BuildMenu {
       fontFamily: FONT_BODY, fontSize: '9px', color: costColor, letterSpacing: 1,
     }).setOrigin(0.5).setDepth(D + 1)
     this._slotObjects.push(costT)
+
+    // Placement cap badge — top-right corner. Only shown when the def has
+    // a finite cap. Hidden defs are filtered out earlier; this is the live
+    // "X/Y" readout for the survivors.
+    const dungeonLevel = this._gameState.meta?.dungeonLevel ?? 1
+    const cap = this._capFor(def, kind, dungeonLevel)
+    if (cap != null) {
+      const used = this._usedFor(def, kind)
+      const capT = this._scene.add.text(sx + sw - 4, sy + 4, `${used}/${cap}`, {
+        fontFamily: FONT_HEAD, fontSize: '7px',
+        color: used >= cap ? CRYPT.accent2Css : CRYPT.inkMute,
+        letterSpacing: 1,
+      }).setOrigin(1, 0).setDepth(D + 1)
+      this._slotObjects.push(capT)
+    }
 
     // Hit zone
     const hit = this._scene.add.zone(sx, sy, sw, sh)
@@ -309,6 +407,7 @@ export class BuildMenu {
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
+    this._scene.input.off('wheel', this._onWheel, this)
     this._slotObjects.forEach(o => o?.destroy?.())
     this._slotObjects = []
     this._objects.forEach(o => o?.destroy?.())

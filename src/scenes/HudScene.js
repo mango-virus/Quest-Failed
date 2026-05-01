@@ -27,8 +27,8 @@ import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { EventBus }      from '../systems/EventBus.js'
 
 const COL_PAD     = 12
-const LEFT_COL_W  = 230
-const RIGHT_COL_W = 250
+const LEFT_COL_W  = 200
+const RIGHT_COL_W = 220
 
 export class HudScene extends Phaser.Scene {
   constructor() {
