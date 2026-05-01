@@ -177,6 +177,7 @@ export class NightPhase extends Phaser.Scene {
     row('Soul Essence',  'essence', PALETTE.textCyan)
     row('Dark Power',    'power',   PALETTE.textAccent)
     row('Rooms placed',  'rooms',   PALETTE.textDim)
+    row('Roster',        'roster',  PALETTE.textDim)
     row('Upkeep/day',    'upkeep',  PALETTE.textDim)
 
     // Separator
@@ -196,6 +197,12 @@ export class NightPhase extends Phaser.Scene {
     this._statsTexts.essence?.setText(`${s.player.soulEssence}`)
     this._statsTexts.power?.setText(`${s.player.darkPower}`)
     this._statsTexts.rooms?.setText(`${s.dungeon.rooms.length}`)
+    const rosterCap  = this._rosterCap()
+    const rosterUsed = this._rosterUsed()
+    const rosterFull = rosterCap > 0 && rosterUsed >= rosterCap
+    const rosterEmpty = rosterCap === 0
+    this._statsTexts.roster?.setText(`${rosterUsed}/${rosterCap}`)
+      .setStyle({ color: rosterFull || rosterEmpty ? PALETTE.textRed : PALETTE.textDim })
     this._statsTexts.upkeep?.setText(`${totalUpkeep}`)
       .setStyle({ color: canAfford ? PALETTE.textDim : PALETTE.textRed })
 
