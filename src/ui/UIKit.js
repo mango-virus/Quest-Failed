@@ -266,8 +266,11 @@ export const CRYPT = {
 }
 
 // Font families. Loaded via the Google Fonts <link> in index.html.
+// Both head and body use Press Start 2P for a uniform pixel look — the
+// design's VT323 body was abandoned (2026-05-01) per user feedback that
+// only the chunky 8-bit pixel font should appear in the new UI.
 export const FONT_HEAD = '"Press Start 2P", monospace'
-export const FONT_BODY = '"VT323", monospace'
+export const FONT_BODY = '"Press Start 2P", monospace'
 
 // ── Pixel-bevel panel ─────────────────────────────────────────────────────────
 // Draws a hard-edged 2px-bevel panel onto the given Graphics object.
@@ -409,7 +412,7 @@ export function pixelBar(scene, x, y, w, h, value, max = 100, opts = {}) {
     color    = 'red',
     label    = null,
     depth    = 100,
-    fontSize = 12,
+    fontSize = 9,
   } = opts
 
   const fillCol = {

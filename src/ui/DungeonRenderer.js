@@ -15,7 +15,7 @@ import { Balance }      from '../config/balance.js'
 import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
-import { loadCornerPattern } from '../scenes/CornerEditor.js'
+import { loadCornerPattern } from '../data/cornerPattern.js'
 import { ThemeManager, FLOOR_SLOT, spriteCoverage, readCellEntry } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user

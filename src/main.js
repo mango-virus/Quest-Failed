@@ -10,7 +10,6 @@ import { GameOver }        from './scenes/GameOver.js'
 import { Graveyard }       from './scenes/Graveyard.js'
 import { HudScene }        from './scenes/HudScene.js'
 import { KnowledgeScreen } from './scenes/KnowledgeScreen.js'
-import { CornerEditor }    from './scenes/CornerEditor.js'
 import { TilesetEditor }   from './scenes/TilesetEditor.js'
 import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
 import { PauseMenu }       from './scenes/PauseMenu.js'
@@ -42,7 +41,6 @@ const config = {
     GameOver,
     Graveyard,
     KnowledgeScreen,
-    CornerEditor,
     TilesetEditor,
     RoomTileEditor,
     PauseMenu,   // overlay above any active gameplay scene when paused
@@ -75,12 +73,12 @@ window.__game = new Phaser.Game(config)
 
 // On window resize, debounce a layout pass — UI scenes get restarted so their
 // create() can re-run applyUiCamera and rebuild element positions for the new
-// dimensions. Scenes that hold unsaved user edits (CornerEditor) are skipped
-// so a resize doesn't blow away in-progress work; their layouts may look
-// slightly off until the user navigates away and back, which is the right
-// trade for not losing paint strokes. Game scene is also skipped (it owns
-// runtime state); Phaser's own RESIZE handling already resized its camera.
-const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'CornerEditor', 'TilesetEditor', 'RoomTileEditor', 'PauseMenu'])
+// dimensions. Scenes that hold unsaved user edits are skipped so a resize
+// doesn't blow away in-progress work; their layouts may look slightly off
+// until the user navigates away and back, which is the right trade for not
+// losing paint strokes. Game scene is also skipped (it owns runtime state);
+// Phaser's own RESIZE handling already resized its camera.
+const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'TilesetEditor', 'RoomTileEditor', 'PauseMenu'])
 let _resizeTimer = null
 window.__game.scale.on('resize', () => {
   clearTimeout(_resizeTimer)

@@ -58,7 +58,6 @@ export class MainMenu extends Phaser.Scene {
     this._drawTitleStack()
     this._drawCornerStamp()
     this._drawRightPanel()
-    this._drawDevCluster()
     this._drawAudio()
 
     if (this._save) {
@@ -288,12 +287,12 @@ export class MainMenu extends Phaser.Scene {
     y += 28
 
     const subline = this._save
-      ? `Day ${this._save.meta?.dayNumber ?? 1} · ${this._save.player?.totalKills ?? 0} kills`
-      : 'No save data — begin a new run.'
+      ? `Day ${this._save.meta?.dayNumber ?? 1} - ${this._save.player?.totalKills ?? 0} kills`
+      : 'No save data - begin a new run.'
     this._objects.push(this.add.text(innerX, y, subline, {
-      fontFamily: FONT_BODY, fontSize: '15px', color: CRYPT.inkDim,
+      fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
     }).setDepth(22))
-    y += 50
+    y += 40
 
     // Menu buttons
     const btnDefs = [
@@ -313,14 +312,26 @@ export class MainMenu extends Phaser.Scene {
       },
       {
         label: 'DUNGEON ARCHIVE',
-        sub:   'Past runs · stats',
+        sub:   'Past runs - stats',
         glyph: '❖',
         enabled: false,             // leaderboard not implemented yet
         action: null,
       },
       {
+        label: 'ROOM EDITOR',
+        sub:   'Edit room layouts',
+        glyph: '▤',
+        action: () => { TitleMusic.stop(); this.scene.start('RoomTileEditor') },
+      },
+      {
+        label: 'TILESET EDITOR',
+        sub:   'Author tile themes',
+        glyph: '▦',
+        action: () => { TitleMusic.stop(); this.scene.start('TilesetEditor') },
+      },
+      {
         label: 'OPTIONS',
-        sub:   'Audio · controls',
+        sub:   'Audio - controls',
         glyph: '⚙',
         action: () => this._actOptions(),
       },
@@ -331,8 +342,8 @@ export class MainMenu extends Phaser.Scene {
         action: () => this._actQuit(),
       },
     ]
-    const BTN_H = 52
-    const BTN_GAP = 10
+    const BTN_H = 46
+    const BTN_GAP = 8
     for (const b of btnDefs) {
       const btn = this._wideMenuButton(innerX, y, innerW, BTN_H, b)
       this._buttons.push(btn)
@@ -341,9 +352,9 @@ export class MainMenu extends Phaser.Scene {
 
     // Press-Z blinker (only when CONTINUE is available)
     if (this._save) {
-      const blinkY = H - 140
+      const blinkY = H - 130
       const blink = this.add.text(innerX, blinkY, '▸ PRESS Z TO CONTINUE', {
-        fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 3,
+        fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.accent2Css, letterSpacing: 3,
       }).setDepth(22)
       this._objects.push(blink)
       this._tweens.push(this.tweens.add({
@@ -353,10 +364,10 @@ export class MainMenu extends Phaser.Scene {
     }
 
     // Flavor quote
-    const quote = this.add.text(innerX, H - 110,
+    const quote = this.add.text(innerX, H - 100,
       '"The fools come bearing torches and prayers.\nThey will leave bearing nothing."', {
-      fontFamily: FONT_BODY, fontSize: '13px', color: CRYPT.inkMute,
-      lineSpacing: 2,
+      fontFamily: FONT_BODY, fontSize: '8px', color: CRYPT.inkMute,
+      lineSpacing: 6,
     }).setDepth(22)
     this._objects.push(quote)
 
@@ -396,14 +407,14 @@ export class MainMenu extends Phaser.Scene {
     const subColor   = def.primary ? '#e8c8cf' : CRYPT.inkMute
     const glyphColor = def.primary ? '#ffffff' : CRYPT.accent2Css
 
-    const glyphT = this.add.text(x + 18, y + h / 2, def.glyph, {
-      fontFamily: FONT_HEAD, fontSize: '14px', color: glyphColor,
+    const glyphT = this.add.text(x + 16, y + h / 2, def.glyph, {
+      fontFamily: FONT_HEAD, fontSize: '13px', color: glyphColor,
     }).setOrigin(0, 0.5).setDepth(23)
-    const labelT = this.add.text(x + 50, y + h / 2 - 3, def.label, {
-      fontFamily: FONT_HEAD, fontSize: '11px', color: labelColor, letterSpacing: 1,
+    const labelT = this.add.text(x + 44, y + h / 2 - 4, def.label, {
+      fontFamily: FONT_HEAD, fontSize: '10px', color: labelColor, letterSpacing: 1,
     }).setOrigin(0, 1).setDepth(23)
-    const subT = this.add.text(x + 50, y + h / 2 + 5, def.sub, {
-      fontFamily: FONT_BODY, fontSize: '13px', color: subColor,
+    const subT = this.add.text(x + 44, y + h / 2 + 4, def.sub, {
+      fontFamily: FONT_BODY, fontSize: '8px', color: subColor, letterSpacing: 1,
     }).setOrigin(0, 0).setDepth(23)
 
     if (!enabled) {
@@ -420,34 +431,8 @@ export class MainMenu extends Phaser.Scene {
     return btn
   }
 
-  // ─── Bottom-left dev cluster: editors + graveyard ──────────────────────
-  _drawDevCluster() {
-    const items = [
-      { label: 'GRAVEYARD',     scene: 'Graveyard'      },
-      { label: 'ROOM EDITOR',   scene: 'RoomTileEditor' },
-      { label: 'TILESET ED.',   scene: 'TilesetEditor'  },
-      { label: 'CORNER ED.',    scene: 'CornerEditor'   },
-    ]
-    let x = 16
-    const y = H - 92
-
-    const lbl = this.add.text(x, y - 14, 'DEV / SECONDARY', {
-      fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 2,
-    }).setDepth(40)
-    this._objects.push(lbl)
-
-    for (const it of items) {
-      const btn = pixelButton(this, x, y, 110, 26, it.label, {
-        depth: 40, fontSize: 7,
-        onClick: () => { TitleMusic.stop(); this.scene.start(it.scene) },
-      })
-      this._buttons.push(btn)
-      x += 116
-    }
-  }
-
   _drawAudio() {
-    // Audio controls — bottom-left corner, beside the dev cluster
+    // Audio controls — bottom-left corner of the design rect.
     new AudioControls(this, 16, H - 32, { depth: 50 })
     // AudioControls owns its own teardown via scene shutdown; nothing to push.
   }
