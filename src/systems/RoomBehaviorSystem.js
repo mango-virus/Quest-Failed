@@ -173,6 +173,40 @@ export class RoomBehaviorSystem {
       this._gameState.meta.nextPartyPreview = null
     }
 
+    // Room redesign 2026-04-30 — Veil of Forgetting: scrub adventurer
+    // intel of all rooms directly door-connected to each Veil. Only the
+    // shared rumour pool is touched; per-adv knowledge is on the dead.
+    const veils = (this._gameState.dungeon.rooms ?? []).filter(r =>
+      r.definitionId === 'veil_of_forgetting' && r.isActive !== false
+    )
+    if (veils.length > 0 && this._scene?.dungeonGrid && this._gameState.knowledge?.sharedPool) {
+      const pool = this._gameState.knowledge.sharedPool
+      const erased = new Set()
+      for (const veil of veils) {
+        const neighbors = this._scene.dungeonGrid.getNeighborRooms(veil.instanceId) ?? []
+        for (const n of neighbors) {
+          if (n.definitionId === 'boss_chamber' || n.definitionId === 'entry_hall') continue
+          delete pool.rooms?.[n.instanceId]
+          delete pool.enemiesPerRoom?.[n.instanceId]
+          // Trap and loot intel are keyed by item id but stamped with a roomId — wipe matching entries.
+          if (pool.traps) {
+            for (const tid of Object.keys(pool.traps)) {
+              if (pool.traps[tid]?.roomId === n.instanceId) delete pool.traps[tid]
+            }
+          }
+          if (pool.loot) {
+            for (const lid of Object.keys(pool.loot)) {
+              if (pool.loot[lid]?.roomId === n.instanceId) delete pool.loot[lid]
+            }
+          }
+          erased.add(n.instanceId)
+        }
+      }
+      if (erased.size > 0) {
+        EventBus.emit('VEIL_ERASED_INTEL', { roomIds: [...erased] })
+      }
+    }
+
     const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
     const baseDef = minionTypes.find(d => d.id === 'skeleton1') ?? minionTypes[0]
     if (!baseDef) return
@@ -278,6 +312,81 @@ export class RoomBehaviorSystem {
       if (adventurer.goal?.type === 'FLEE') {
         this._teleportToNearBoss(adventurer)
       }
+    }
+
+    // Room redesign 2026-04-30 — Wandering Gate: weighted teleport on entry.
+    // Cooldown prevents the teleport-induced ROOM_CHANGED from re-triggering.
+    if (room.definitionId === 'wandering_gate') {
+      const today = this._gameState.meta.dayNumber
+      if (adventurer._wanderingGateCooldownDay !== today) {
+        adventurer._wanderingGateCooldownDay = today
+        this._teleportFromWanderingGate(adventurer, room)
+      }
+    }
+
+    // Room redesign 2026-04-30 — Wishing Well: coin flip once per day per adv.
+    if (room.definitionId === 'wishing_well') {
+      const today = this._gameState.meta.dayNumber
+      adventurer.flags ??= {}
+      if (adventurer.flags.wishingWellRolledOnDay !== today) {
+        adventurer.flags.wishingWellRolledOnDay = today
+        this._rollWishingWell(adventurer)
+      }
+    }
+  }
+
+  _teleportFromWanderingGate(adv, gateRoom) {
+    const rooms = (this._gameState.dungeon.rooms ?? []).filter(r =>
+      r.isActive !== false && r.definitionId !== 'wandering_gate'
+    )
+    const boss = rooms.find(r => r.definitionId === 'boss_chamber')
+    const neighbors = (this._scene?.dungeonGrid?.getNeighborRooms?.(gateRoom.instanceId) ?? [])
+      .filter(r => r.definitionId !== 'wandering_gate' && r.isActive !== false)
+    const anyBuilt = rooms.filter(r => r.definitionId !== 'boss_chamber')
+
+    const roll = Math.random()
+    let target = null
+    if (roll < 0.60 && neighbors.length > 0) {
+      target = neighbors[Math.floor(Math.random() * neighbors.length)]
+    } else if (roll < 0.95 && anyBuilt.length > 0) {
+      target = anyBuilt[Math.floor(Math.random() * anyBuilt.length)]
+    } else if (boss) {
+      target = boss
+    }
+    // Fallbacks if buckets were empty (very small dungeons)
+    if (!target && anyBuilt.length > 0) target = anyBuilt[Math.floor(Math.random() * anyBuilt.length)]
+    if (!target) return
+
+    const tx = target.gridX + Math.floor(target.width / 2)
+    const ty = target.gridY + Math.floor(target.height / 2)
+    const TS = 32
+    adv.tileX = tx; adv.tileY = ty
+    adv.worldX = tx * TS + TS / 2
+    adv.worldY = ty * TS + TS / 2
+    adv.path = null
+    EventBus.emit('WANDERING_GATE_TELEPORTED', {
+      adventurer: adv,
+      destinationRoomId: target.instanceId,
+      destinationDefId: target.definitionId,
+    })
+  }
+
+  _rollWishingWell(adv) {
+    const heads = Math.random() < 0.5
+    if (heads) {
+      // Buff: +3 ATK, +20 maxHp, full heal
+      adv.stats ??= {}
+      adv.stats.attack = (adv.stats.attack ?? 0) + 3
+      adv.resources ??= { hp: 0, maxHp: 0 }
+      adv.resources.maxHp = (adv.resources.maxHp ?? 0) + 20
+      adv.resources.hp = adv.resources.maxHp
+      EventBus.emit('WISHING_WELL_BOON', { adventurer: adv })
+    } else {
+      // Tails: Marked — +50% damage from minions for the rest of the day.
+      adv.flags ??= {}
+      adv.flags.marked = true
+      adv.flags.markedExpiresOnDay = this._gameState.meta.dayNumber
+      EventBus.emit('WISHING_WELL_CURSE', { adventurer: adv })
     }
   }
 

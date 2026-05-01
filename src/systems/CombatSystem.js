@@ -281,6 +281,16 @@ export class CombatSystem {
       }
     }
 
+    // Room redesign 2026-04-30 — Wishing Well "Marked" debuff: dungeon
+    // minions deal +50% damage to a Marked adventurer for the rest of
+    // that day.
+    const today = this._gameState?.meta?.dayNumber
+    if (attacker.faction === 'dungeon' &&
+        target.flags?.marked &&
+        target.flags.markedExpiresOnDay === today) {
+      raw = Math.floor(raw * 1.5)
+    }
+
     const def = target.stats?.defense ?? 0
     let mit = Math.max(1, raw - def)
 

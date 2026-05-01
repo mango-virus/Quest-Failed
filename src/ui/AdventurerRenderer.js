@@ -408,10 +408,21 @@ export class AdventurerRenderer {
         }).setOrigin(1, 0.5)
     }
 
+    // Room redesign 2026-04-30 — Wishing Well "Marked" badge.
+    let markedBadge = null
+    const today = this._gameState?.meta?.dayNumber
+    if (adv.flags?.marked && adv.flags?.markedExpiresOnDay === today) {
+      markedBadge = this._scene.add.text(RADIUS + 4, HP_BAR_Y - 8, '☠', {
+        fontSize: '11px', color: '#cc3322', fontFamily: 'monospace', fontStyle: 'bold',
+        stroke: '#000000', strokeThickness: 2,
+      }).setOrigin(0, 0.5)
+    }
+
     const children = [ring, body, label, hpBg, hp]
     if (bubble) children.push(bubble, bubbleLabel)
     if (comboBadge) children.push(comboBadge)
     if (veteranBadge) children.push(veteranBadge)
+    if (markedBadge) children.push(markedBadge)
     c.add(children)
 
     // Click-to-inspect
