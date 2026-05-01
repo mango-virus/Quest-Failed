@@ -218,6 +218,375 @@ export function spawnEmbers(scene, count = 24, opts = {}) {
   return () => embers.forEach(e => e.destroy())
 }
 
+// ── Crypt theme (UI overhaul, see DESIGN.md → "UI / HUD overhaul (2026-05-01)") ──
+// Cool stone grays + blood-red accent + soul-cyan + bone-white ink.
+// Distinct from the reverted Dark Codex parchment/gold palette.
+export const CRYPT = {
+  // Backgrounds
+  bgDeep:      0x0a0d12,
+  bgStone1:    0x1a1d23,
+  bgStone2:    0x242830,
+  bgStone3:    0x2f343d,
+  bgFloor:     0x3a3a44,
+  bgFloor2:    0x44444f,
+
+  // Panels
+  panel:       0x14171c,
+  panel2:      0x1d2128,
+  panelEdgeH:  0x4a5260,   // top/left highlight
+  panelEdgeS:  0x06080b,   // bottom/right shadow
+  outline:     0x000000,
+
+  // Ink (numbers below are CSS strings for Phaser text style.color)
+  ink:         '#d8d2c2',
+  inkDim:      '#8a8678',
+  inkMute:     '#5a5648',
+  inkHex:      0xd8d2c2,
+  inkDimHex:   0x8a8678,
+  inkMuteHex:  0x5a5648,
+
+  // Accents (numbers + matching CSS strings)
+  accent:      0xb03a48,   // blood red
+  accent2:     0xd24858,
+  accentCss:   '#b03a48',
+  accent2Css:  '#d24858',
+  soul:        0x6fd8d8,   // soul cyan
+  soulCss:     '#6fd8d8',
+  gold:        0xe8c34a,
+  goldCss:     '#e8c34a',
+  green:       0x6fa84a,
+  greenCss:    '#6fa84a',
+  warn:        0xd8893a,
+  warnCss:     '#d8893a',
+
+  // Dungeon-tile colours
+  wall:        0x6a6a78,
+  wallEdge:    0x2c2e36,
+  door:        0x7a5a3a,
+}
+
+// Font families. Loaded via the Google Fonts <link> in index.html.
+export const FONT_HEAD = '"Press Start 2P", monospace'
+export const FONT_BODY = '"VT323", monospace'
+
+// ── Pixel-bevel panel ─────────────────────────────────────────────────────────
+// Draws a hard-edged 2px-bevel panel onto the given Graphics object.
+// Top/left edges get the highlight colour, bottom/right get the shadow,
+// wrapped in a 2px black outer outline. No gradients — pure pixel chrome.
+//
+// g       : Phaser.GameObjects.Graphics (already added to scene)
+// x, y, w, h : pixel rect (this is the body rect; the outer black outline
+//              extends 2px beyond it on every side).
+// opts.fill   : body fill colour (default CRYPT.panel)
+// opts.edgeH  : top/left highlight colour (default CRYPT.panelEdgeH)
+// opts.edgeS  : bottom/right shadow colour (default CRYPT.panelEdgeS)
+// opts.inset  : if true, swap highlight↔shadow (recessed look)
+// opts.outline: outer outline colour (default black; pass null to skip)
+export function pixelPanel(g, x, y, w, h, opts = {}) {
+  const {
+    fill    = CRYPT.panel,
+    edgeH   = CRYPT.panelEdgeH,
+    edgeS   = CRYPT.panelEdgeS,
+    inset   = false,
+    outline = CRYPT.outline,
+  } = opts
+
+  // 2px black outer outline
+  if (outline !== null) {
+    g.fillStyle(outline, 1)
+    g.fillRect(x - 2, y - 2, w + 4, h + 4)
+  }
+
+  // Body fill
+  g.fillStyle(fill, 1)
+  g.fillRect(x, y, w, h)
+
+  const top   = inset ? edgeS : edgeH
+  const left  = inset ? edgeS : edgeH
+  const bot   = inset ? edgeH : edgeS
+  const right = inset ? edgeH : edgeS
+
+  // Bevel bands — top/bottom run full width, left/right run between them
+  g.fillStyle(top, 1);   g.fillRect(x,         y,         w, 2)
+  g.fillStyle(bot, 1);   g.fillRect(x,         y + h - 2, w, 2)
+  g.fillStyle(left, 1);  g.fillRect(x,         y + 2,     2, h - 4)
+  g.fillStyle(right, 1); g.fillRect(x + w - 2, y + 2,     2, h - 4)
+}
+
+// ── Pixel button ──────────────────────────────────────────────────────────────
+// Beveled button with hover/active states + click handler.
+// Returns { bg, label, hit, setEnabled(bool), setLabel(str), on(event,fn), destroy() }.
+//
+// scene   : Phaser.Scene
+// x, y    : top-left of the button rect
+// w, h    : button size
+// text    : initial label string
+// opts.primary  : primary (accent-filled) variant if true
+// opts.danger   : danger variant (dim red bg, accent2 text) if true
+// opts.fontSize : label font size px (default 10 for primary, 10 for normal)
+// opts.depth    : base depth (default 100)
+// opts.onClick  : convenience pointer-up handler (optional, can also use .on('pointerup', fn))
+export function pixelButton(scene, x, y, w, h, text, opts = {}) {
+  const {
+    primary  = false,
+    danger   = false,
+    fontSize = 10,
+    depth    = 100,
+    onClick  = null,
+  } = opts
+
+  let enabled = true
+  let hover   = false
+  let pressed = false
+
+  const bg = scene.add.graphics().setDepth(depth)
+  const label = scene.add.text(x + w / 2, y + h / 2, text.toUpperCase(), {
+    fontFamily: FONT_HEAD,
+    fontSize:   `${fontSize}px`,
+    color:      primary ? '#ffffff' : danger ? CRYPT.accent2Css : CRYPT.ink,
+    align:      'center',
+  }).setOrigin(0.5).setDepth(depth + 1)
+
+  const hit = scene.add.zone(x, y, w, h).setOrigin(0).setDepth(depth + 2)
+    .setInteractive({ useHandCursor: true })
+
+  function repaint() {
+    bg.clear()
+    if (!enabled) {
+      // Disabled: dim panel, no bevel-flip on press
+      pixelPanel(bg, x, y, w, h, {
+        fill: CRYPT.panel2, edgeH: CRYPT.panelEdgeS, edgeS: CRYPT.panelEdgeS,
+      })
+      label.setAlpha(0.45)
+      return
+    }
+    label.setAlpha(1)
+    const fill = primary
+      ? (pressed ? 0x7a242e : hover ? 0xc8404f : CRYPT.accent)
+      : danger
+        ? (pressed ? 0x2a0e0e : hover ? 0x4a1818 : 0x3a1414)
+        : (pressed ? CRYPT.bgStone1 : hover ? CRYPT.bgStone2 : CRYPT.panel2)
+    pixelPanel(bg, x + (pressed ? 1 : 0), y + (pressed ? 1 : 0), w, h, {
+      fill,
+      edgeH: primary ? 0xe06474 : CRYPT.panelEdgeH,
+      edgeS: primary ? 0x6a1c24 : CRYPT.panelEdgeS,
+      inset: pressed,
+    })
+    label.setPosition(x + w / 2 + (pressed ? 1 : 0), y + h / 2 + (pressed ? 1 : 0))
+  }
+
+  hit.on('pointerover', () => { hover = true; if (enabled) repaint() })
+  hit.on('pointerout',  () => { hover = false; pressed = false; if (enabled) repaint() })
+  hit.on('pointerdown', () => { pressed = true; if (enabled) repaint() })
+  hit.on('pointerup',   (...args) => {
+    const wasPressed = pressed
+    pressed = false
+    if (enabled) repaint()
+    if (enabled && wasPressed && hover && onClick) onClick(...args)
+  })
+
+  repaint()
+
+  return {
+    bg, label, hit,
+    setEnabled(v) { enabled = !!v; hit.input.enabled = enabled; repaint() },
+    setLabel(s)   { label.setText(s.toUpperCase()) },
+    on(ev, fn)    { hit.on(ev, fn); return this },
+    destroy()     { bg.destroy(); label.destroy(); hit.destroy() },
+  }
+}
+
+// ── Pixel bar ─────────────────────────────────────────────────────────────────
+// A pixel-bevel HP/progress bar with optional centered label.
+// Returns { update(value, max?, label?), destroy() }.
+//
+// opts.color  : 'red' (default) | 'cyan' | 'gold' | 'green'
+// opts.label  : initial centered label string (omit for no label)
+// opts.depth  : base depth (default 100)
+// opts.fontSize : label font px (default 12)
+export function pixelBar(scene, x, y, w, h, value, max = 100, opts = {}) {
+  const {
+    color    = 'red',
+    label    = null,
+    depth    = 100,
+    fontSize = 12,
+  } = opts
+
+  const fillCol = {
+    red:   CRYPT.accent,
+    cyan:  CRYPT.soul,
+    gold:  CRYPT.gold,
+    green: CRYPT.green,
+  }[color] ?? CRYPT.accent
+
+  const hiCol = {
+    red:   CRYPT.accent2,
+    cyan:  0xa8eaea,
+    gold:  0xf4dd7a,
+    green: 0x9bc878,
+  }[color] ?? CRYPT.accent2
+
+  const loCol = {
+    red:   0x5a1a22,
+    cyan:  0x355c5c,
+    gold:  0x6f5a1d,
+    green: 0x355020,
+  }[color] ?? 0x5a1a22
+
+  const g = scene.add.graphics().setDepth(depth)
+  const txt = label !== null
+    ? scene.add.text(x + w / 2, y + h / 2 + 1, label, {
+        fontFamily: FONT_BODY,
+        fontSize:   `${fontSize}px`,
+        color:      '#ffffff',
+        stroke:     '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(depth + 2)
+    : null
+
+  let curValue = value
+  let curMax   = Math.max(1, max)
+  let curLabel = label
+
+  function repaint() {
+    g.clear()
+    // Black inset track
+    g.fillStyle(CRYPT.outline, 1)
+    g.fillRect(x - 2, y - 2, w + 4, h + 4)
+    g.fillStyle(0x000000, 1)
+    g.fillRect(x, y, w, h)
+    // Inset shadow ring
+    g.fillStyle(CRYPT.panelEdgeS, 1)
+    g.fillRect(x, y, w, 2)
+    g.fillRect(x, y + h - 2, w, 2)
+    g.fillRect(x, y, 2, h)
+    g.fillRect(x + w - 2, y, 2, h)
+
+    const frac = Phaser.Math.Clamp(curValue / curMax, 0, 1)
+    const fillW = Math.floor((w - 4) * frac)
+    if (fillW > 0) {
+      // Body
+      g.fillStyle(fillCol, 1)
+      g.fillRect(x + 2, y + 2, fillW, h - 4)
+      // Top highlight stripe
+      g.fillStyle(hiCol, 1)
+      g.fillRect(x + 2, y + 2, fillW, 2)
+      // Bottom shadow stripe
+      g.fillStyle(loCol, 1)
+      g.fillRect(x + 2, y + h - 5, fillW, 3)
+    }
+    if (txt) txt.setText(curLabel ?? '')
+  }
+
+  repaint()
+
+  return {
+    g, txt,
+    update(value, max, label) {
+      if (value !== undefined) curValue = value
+      if (max   !== undefined) curMax   = Math.max(1, max)
+      if (label !== undefined) curLabel = label
+      repaint()
+    },
+    destroy() { g.destroy(); txt?.destroy() },
+  }
+}
+
+// ── Pixel tabs ────────────────────────────────────────────────────────────────
+// Horizontal tab strip. Active tab gets accent fill.
+// Returns { setActive(idx), on(idx,'click',fn) shortcut via opts.onChange, destroy() }.
+//
+// scene  : Phaser.Scene
+// x, y   : top-left of the strip
+// w, h   : strip size; tabs split width equally
+// labels : array of strings
+// opts.activeIdx : initial active tab (default 0)
+// opts.onChange  : (idx, label) => void
+// opts.depth     : base depth (default 100)
+// opts.fontSize  : label font px (default 9)
+export function pixelTabs(scene, x, y, w, h, labels, opts = {}) {
+  const {
+    activeIdx = 0,
+    onChange  = null,
+    depth     = 100,
+    fontSize  = 9,
+  } = opts
+
+  const n = labels.length
+  const tabW = Math.floor(w / n)
+  let active = activeIdx
+  const hovers = labels.map(() => false)
+
+  const bg = scene.add.graphics().setDepth(depth)
+  const texts = labels.map((l, i) =>
+    scene.add.text(x + tabW * i + tabW / 2, y + h / 2, l.toUpperCase(), {
+      fontFamily: FONT_HEAD,
+      fontSize:   `${fontSize}px`,
+      color:      i === active ? '#ffffff' : CRYPT.inkDim,
+    }).setOrigin(0.5).setDepth(depth + 1))
+  const zones = labels.map((_, i) =>
+    scene.add.zone(x + tabW * i, y, tabW, h).setOrigin(0).setDepth(depth + 2)
+      .setInteractive({ useHandCursor: true }))
+
+  function repaint() {
+    bg.clear()
+    bg.fillStyle(CRYPT.outline, 1)
+    bg.fillRect(x - 2, y - 2, w + 4, h + 4)
+    for (let i = 0; i < n; i++) {
+      const isActive = i === active
+      const isHover  = hovers[i]
+      const tx = x + tabW * i
+      const fill = isActive
+        ? CRYPT.accent
+        : isHover ? CRYPT.bgStone2 : CRYPT.panel2
+      bg.fillStyle(fill, 1)
+      bg.fillRect(tx, y, tabW, h)
+      if (isActive) {
+        bg.fillStyle(0xc8404f, 1)
+        bg.fillRect(tx, y, tabW, 2)
+        bg.fillStyle(0x6a1c24, 1)
+        bg.fillRect(tx, y + h - 2, tabW, 2)
+      }
+      // separator
+      if (i < n - 1) {
+        bg.fillStyle(CRYPT.outline, 1)
+        bg.fillRect(tx + tabW - 1, y, 2, h)
+      }
+      texts[i].setColor(isActive ? '#ffffff' : isHover ? CRYPT.ink : CRYPT.inkDim)
+    }
+  }
+
+  zones.forEach((z, i) => {
+    z.on('pointerover', () => { hovers[i] = true;  repaint() })
+    z.on('pointerout',  () => { hovers[i] = false; repaint() })
+    z.on('pointerup',   () => {
+      if (active !== i) {
+        active = i
+        repaint()
+        if (onChange) onChange(i, labels[i])
+      }
+    })
+  })
+
+  repaint()
+
+  return {
+    bg, texts, zones,
+    setActive(i) {
+      if (i >= 0 && i < n && i !== active) {
+        active = i
+        repaint()
+      }
+    },
+    getActive() { return active },
+    destroy() {
+      bg.destroy()
+      texts.forEach(t => t.destroy())
+      zones.forEach(z => z.destroy())
+    },
+  }
+}
+
 // ── UI camera normaliser ───────────────────────────────────────────────────────
 // Scale.RESIZE gives a canvas that matches the physical window so there is no
 // CSS upscaling and text is always sharp.  We zoom the scene camera so a
