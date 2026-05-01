@@ -21,7 +21,8 @@
 import { EventBus } from '../systems/EventBus.js'
 
 const TS              = 32
-const DISPLAY_SIZE    = 64    // ~2 tiles tall; sprite frames are 102x102 native
+const DISPLAY_SIZE    = 128   // ~4 tiles tall; sprite frames are 102x102 native
+const CHEST_SIZE      = 96    // ~3 tiles wide; chest static is 99x102 native
 const HURT_FLASH_MS   = 200
 const PLACEHOLDER_COL = 0xb88844
 
@@ -63,9 +64,7 @@ export class MimicRenderer {
 
     // Static chest image (only visible while state === 'chest')
     const image = this._scene.add.image(0, 0, 'mimic-chest').setOrigin(0.5)
-    // Scale chest to ~half the active sprite (the artist drew it smaller)
-    const chestScale = (DISPLAY_SIZE * 0.6) / 102
-    image.setScale(chestScale)
+    image.setScale(CHEST_SIZE / 99)
 
     // Animated sprite (only visible while state !== 'chest')
     const sprite = this._scene.add.sprite(0, 0, 'mimic-idle_right', 0).setOrigin(0.5)
