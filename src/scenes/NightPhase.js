@@ -63,15 +63,14 @@ export class NightPhase extends Phaser.Scene {
     this._dungeonGrid = gameScene.dungeonGrid
 
     const allRooms = this.cache.json.get('rooms') ?? []
-    const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
-    // Room redesign 2026-04-30 — palette gated by both the unlocks
-    // allowlist (archetype/blacklist) AND the room's unlockLevel <=
-    // current dungeonLevel.
+    // Room redesign 2026-04-30 — palette filter is now allowlist + non-fixed.
+    // Locked rooms (unlockLevel > current dungeonLevel) DO appear in the
+    // palette but render with a 'L{N}' badge and reject selection — see
+    // _renderRoomCards. Sorted by unlockLevel so unlocked rooms float up.
     this._roomDefs = allRooms.filter(r =>
       this._gameState.unlocks.rooms.includes(r.id) &&
-      !r.placementRules?.fixed &&
-      DungeonGridClass.isUnlocked(r, dungeonLevel)
-    )
+      !r.placementRules?.fixed
+    ).sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
     const allMinions = this.cache.json.get('minionTypes') ?? []
     // Only the starter (chain[0]) of each evolution chain is placeable —
     // higher tiers are reached by killing 2 adventurers without dying.
@@ -362,10 +361,11 @@ export class NightPhase extends Phaser.Scene {
     const startY = this._paletteContentY - this._paletteScrollY
     const gap    = 4
 
-    // Filter out room types that have hit their placement cap
-    // (Room redesign 2026-04-30: cap honors per-boss-level scaling.)
+    // Hide cap-hit rooms; locked rooms stay visible with a 'L{N}' badge.
+    // Cap honors per-boss-level scaling (Room redesign 2026-04-30).
     const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
     const availableDefs = this._roomDefs.filter(def => {
+      if (!DungeonGridClass.isUnlocked(def, dungeonLevel)) return true   // locked rooms shown for visibility
       const max = DungeonGridClass.effectiveMaxPerDungeon(def, dungeonLevel)
       if (max == null) return true
       return this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length < max
@@ -378,32 +378,51 @@ export class NightPhase extends Phaser.Scene {
       const px = 10
       const py = startY + i * (CARD_H + gap)
       const catColor = CAT_COLOR[def.category] ?? CAT_COLOR.default
+      const isLocked = !DungeonGridClass.isUnlocked(def, dungeonLevel)
+      const titleAlpha = isLocked ? 0.45 : 1
 
       const cg = this.add.graphics().setDepth(10)
       glowPanel(cg, px, py, CARD_W, CARD_H, {
-        fill: 0x060c18, border: 0x0d1e30, glow: catColor,
+        fill: isLocked ? 0x040810 : 0x060c18,
+        border: isLocked ? 0x1a1a24 : 0x0d1e30,
+        glow:   isLocked ? 0x444466 : catColor,
       })
-      cg.fillStyle(catColor, 0.5)
+      cg.fillStyle(catColor, isLocked ? 0.18 : 0.5)
       cg.fillRect(px, py, CARD_W, 3)
 
       const iconG = this.add.graphics().setDepth(11)
-      drawRoomIcon(iconG, px + 20, py + CARD_H / 2, def.id, catColor)
+      drawRoomIcon(iconG, px + 20, py + CARD_H / 2, def.id, isLocked ? 0x6a6a7a : catColor)
+      iconG.setAlpha(titleAlpha)
 
       const nameTxt = this.add.text(px + 38, py + 8, def.name.toUpperCase(), {
-        fontSize: '10px', color: PALETTE.textNormal, fontFamily: 'monospace', fontStyle: 'bold',
-      }).setDepth(11)
+        fontSize: '10px',
+        color: isLocked ? PALETTE.textDim : PALETTE.textNormal,
+        fontFamily: 'monospace', fontStyle: 'bold',
+      }).setDepth(11).setAlpha(titleAlpha)
 
       const costStr   = def.essenceCostToPlace > 0 ? `${def.essenceCostToPlace} essence` : 'FREE'
-      const costColor = def.essenceCostToPlace > 0 ? PALETTE.textCyan : PALETTE.textGreen
+      const costColor = isLocked ? PALETTE.textDim
+                      : def.essenceCostToPlace > 0 ? PALETTE.textCyan
+                      : PALETTE.textGreen
       const sizeTxt = this.add.text(px + 38, py + 22, `${def.width}×${def.height}  ·  ${costStr}`, {
         fontSize: '8px', color: costColor, fontFamily: 'monospace',
-      }).setDepth(11)
+      }).setDepth(11).setAlpha(titleAlpha)
 
       const desc = (def.description ?? '').slice(0, 48) + ((def.description?.length ?? 0) > 48 ? '…' : '')
       const descTxt = this.add.text(px + 6, py + 38, desc, {
         fontSize: '7px', color: PALETTE.textDim, fontFamily: 'monospace',
         wordWrap: { width: CARD_W - 12 },
-      }).setDepth(11)
+      }).setDepth(11).setAlpha(titleAlpha)
+
+      // Locked badge — small "🔒 L{N}" tag in the top-right of the card.
+      let lockBadge = null
+      if (isLocked) {
+        lockBadge = this.add.text(px + CARD_W - 6, py + 6,
+          `🔒 L${def.unlockLevel ?? '?'}`, {
+            fontSize: '9px', color: '#ff8866', fontFamily: 'monospace', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 2,
+          }).setOrigin(1, 0).setDepth(12)
+      }
 
       const hit = this.add.rectangle(cx, cy, CARD_W, CARD_H, 0x000000, 0)
         .setDepth(12).setInteractive({ useHandCursor: true })
@@ -411,17 +430,29 @@ export class NightPhase extends Phaser.Scene {
       hit.on('pointerover', () => {
         if (this._selected !== def) {
           cg.clear()
-          glowPanel(cg, px, py, CARD_W, CARD_H, { fill: 0x0a1525, border: catColor, glow: catColor })
-          cg.fillStyle(catColor, 0.5); cg.fillRect(px, py, CARD_W, 3)
+          glowPanel(cg, px, py, CARD_W, CARD_H, {
+            fill: isLocked ? 0x080812 : 0x0a1525,
+            border: isLocked ? 0x442233 : catColor,
+            glow:   isLocked ? 0x664455 : catColor,
+          })
+          cg.fillStyle(catColor, isLocked ? 0.18 : 0.5); cg.fillRect(px, py, CARD_W, 3)
         }
       })
       hit.on('pointerout', () => {
         if (this._selected !== def) this._resetCard(cg, px, py, CARD_W, CARD_H, catColor, false)
       })
-      hit.on('pointerdown', (p) => { if (!p.rightButtonDown()) this._selectItem(def, 'room') })
+      hit.on('pointerdown', (p) => {
+        if (p.rightButtonDown()) return
+        if (isLocked) {
+          this._showPlacementError(`${def.name} unlocks at dungeon level ${def.unlockLevel}`)
+          return
+        }
+        this._selectItem(def, 'room')
+      })
 
-      this._paletteCards.push({ def, kind: 'room', cg, px, py, CARD_W, CARD_H, catColor })
+      this._paletteCards.push({ def, kind: 'room', cg, px, py, CARD_W, CARD_H, catColor, isLocked })
       this._paletteObjects.push(cg, iconG, nameTxt, sizeTxt, descTxt, hit)
+      if (lockBadge) this._paletteObjects.push(lockBadge)
     })
   }
 
