@@ -469,6 +469,16 @@ export class RoomBehaviorSystem {
       }
     }
 
+    // Room redesign 2026-04-30 — Watchtower aura: minions in any room
+    // door-connected to an active Watchtower get a first-strike hit when
+    // an adventurer enters the room (counters Speed Runners). Bypasses
+    // attack range/cooldown — pure ambush damage. Each entry triggers
+    // once.
+    const watchAura = this._isAdjacentToActiveWatchtower(room.instanceId)
+    if (watchAura) {
+      this._fireWatchtowerStrike(adventurer, room)
+    }
+
     // Room redesign 2026-04-30 — Wishing Well: coin flip once per day per adv.
     if (room.definitionId === 'wishing_well') {
       const today = this._gameState.meta.dayNumber
@@ -513,6 +523,52 @@ export class RoomBehaviorSystem {
       adventurer: adv,
       destinationRoomId: target.instanceId,
       destinationDefId: target.definitionId,
+    })
+  }
+
+  _isAdjacentToActiveWatchtower(roomId) {
+    const neighbors = this._scene?.dungeonGrid?.getNeighborRooms?.(roomId) ?? []
+    return neighbors.some(n =>
+      n.definitionId === 'watchtower' && n.isActive !== false
+    )
+  }
+
+  // Watchtower first-strike: each alive dungeon-faction minion in the
+  // entered room gets one free hit on the adventurer, bypassing range and
+  // cooldown. Damage runs through CombatSystem._computeDamage so existing
+  // modifiers (Marked, armory adjacency, etc.) still apply.
+  _fireWatchtowerStrike(adv, room) {
+    const cs = this._scene?.combatSystem
+    if (!cs) return
+    const strikers = (this._gameState.minions ?? []).filter(m =>
+      m.assignedRoomId === room.instanceId &&
+      m.faction === 'dungeon' &&
+      m.aiState !== 'dead' &&
+      (m.resources?.hp ?? 0) > 0 &&
+      !(m.isMimic && m.hiddenAsLoot)   // disguised mimics don't tip their hand
+    )
+    if (strikers.length === 0) return
+    let totalDmg = 0
+    for (const m of strikers) {
+      if ((adv.resources?.hp ?? 0) <= 0) break
+      const dmg = cs._computeDamage(m, adv)
+      adv.resources.hp = Math.max(0, (adv.resources?.hp ?? 0) - dmg)
+      totalDmg += dmg
+      EventBus.emit('COMBAT_HIT', {
+        sourceId: m.instanceId,
+        targetId: adv.instanceId,
+        damage: dmg,
+        damageType: m.damageType ?? 'physical',
+        isCritical: false,
+      })
+      adv._lastHitBy = m.instanceId
+      adv._lastHitType = m.damageType ?? 'physical'
+    }
+    EventBus.emit('WATCHTOWER_FIRST_STRIKE', {
+      adventurer: adv,
+      roomId: room.instanceId,
+      strikerCount: strikers.length,
+      totalDamage: totalDmg,
     })
   }
 

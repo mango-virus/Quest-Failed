@@ -1026,6 +1026,46 @@ export class AISystem {
         )
       }
     }
+
+    // Room redesign 2026-04-30 — Hall of Madness: while inside, ~25%/sec
+    // chance to lash out at a random other adventurer in the room. Single
+    // strike per roll; the lashing adventurer keeps moving toward their
+    // goal otherwise. Implementation note: full friendly-fire AI state was
+    // deferred for scope — this v1 is "occasional madness slaps" which
+    // captures the spirit (party self-destructs in this room) without a
+    // new goal type.
+    if (room.definitionId === 'hall_of_madness') {
+      const ratePerSec = 0.25
+      if (Math.random() < (ratePerSec * delta) / 1000) {
+        const others = this._gameState.adventurers.active.filter(o =>
+          o !== adv &&
+          o.aiState !== 'dead' &&
+          (o.resources?.hp ?? 0) > 0 &&
+          this._dungeonGrid.getRoomAtTile(o.tileX, o.tileY)?.instanceId === room.instanceId
+        )
+        if (others.length > 0) {
+          const victim = others[Math.floor(Math.random() * others.length)]
+          const cs = this._scene?.combatSystem
+          const dmg = cs?._computeDamage?.(adv, victim) ?? Math.max(1, (adv.stats?.attack ?? 5) - (victim.stats?.defense ?? 0))
+          victim.resources.hp = Math.max(0, victim.resources.hp - dmg)
+          victim._lastHitBy = adv.instanceId
+          victim._lastHitType = 'madness'
+          EventBus.emit('COMBAT_HIT', {
+            sourceId: adv.instanceId,
+            targetId: victim.instanceId,
+            damage: dmg,
+            damageType: 'madness',
+            isCritical: false,
+          })
+          EventBus.emit('HALL_OF_MADNESS_LASHOUT', {
+            attacker: adv,
+            victim,
+            roomId: room.instanceId,
+            damage: dmg,
+          })
+        }
+      }
+    }
   }
 
   // Phase 6e: resource depletion → leave dungeon.
