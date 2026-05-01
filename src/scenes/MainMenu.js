@@ -101,44 +101,54 @@ export class MainMenu extends Phaser.Scene {
     this._hasSave = SaveSystem.hasSave()
 
     // Layered render groups — depth ordered front-to-back of the scene.
-    this._gVoid       = this.add.graphics().setDepth(0)
-    this._gWalls      = this.add.graphics().setDepth(1)
-    this._gDoorBack   = this.add.graphics().setDepth(2)
-    this._gDoorGlow   = this.add.graphics().setDepth(3)
-    this._gFloor      = this.add.graphics().setDepth(4)
-    this._gTorchGlow  = this.add.graphics().setDepth(5)
+    // The procedural throne-room art (void / walls / doorway / floor /
+    // torches / skulls / throne / claws / dust motes / kill loop) was
+    // retired 2026-05-01 in favour of a random Gemini-generated backdrop
+    // picked per visit. Containers we no longer populate are still
+    // created so leftover code paths that reference them stay no-ops
+    // instead of crashing.
     this._cRunes      = this.add.container(0, 0).setDepth(6)
     this._cActors     = this.add.container(0, 0).setDepth(7)
-    this._gFlame      = this.add.graphics().setDepth(8)
-    this._cMotes      = this.add.container(0, 0).setDepth(9)
-    this._gSkulls     = this.add.graphics().setDepth(11)
-    this._gThrone     = this.add.graphics().setDepth(12)
-    this._gClaws      = this.add.graphics().setDepth(13)
     this._cStamps     = this.add.container(0, 0).setDepth(15)
     this._cChrome     = this.add.container(0, 0).setDepth(17)
     this._gEyelid     = this.add.graphics().setDepth(20)
     this._gCursor     = this.add.graphics().setDepth(30)
 
     // Static composition.
-    this._drawVoid()
-    this._drawWalls()
-    this._drawDoorway()
-    this._drawFloor()
-    this._drawTorches()
-    this._drawSkulls()
-    this._drawThroneAndClaws()
+    this._drawBackgroundImage()
     this._buildRunes()
     this._drawTitle()
     this._drawChrome()
 
     // Live atmosphere.
-    this._tickFlame()
-    this._spawnDustMotes()
     this._setupCursor()
 
-    // Intro wipe (eyes opening) + first kill.
+    // Intro wipe (eyes opening).
     this._eyelidIntro()
-    this._scheduleNextKill(2200)
+  }
+
+  // ─── Random background image ──────────────────────────────────────────
+  // Picks one of the title-screen images registered by Preload and
+  // stretches it to cover the 1280×720 design rect. Falls back to a
+  // solid void colour if no images registered (manifest empty / failed
+  // to load). Re-runs on every entry to MainMenu so each visit is a
+  // different scene.
+  _drawBackgroundImage() {
+    const keys = this.registry.get('titleBgKeys') ?? []
+    const valid = keys.filter(k => this.textures.exists(k))
+    if (!valid.length) {
+      this.add.rectangle(0, 0, W, H, COLORS.voidDeep, 1).setOrigin(0).setDepth(0)
+      return
+    }
+    const key = valid[Math.floor(Math.random() * valid.length)]
+    const img = this.add.image(W / 2, H / 2, key).setDepth(0).setOrigin(0.5)
+    // Cover the design rect — preserve aspect, crop overflow.
+    const tex = this.textures.get(key).getSourceImage()
+    const sw  = tex.width  || W
+    const sh  = tex.height || H
+    const scale = Math.max(W / sw, H / sh)
+    img.setScale(scale)
+    this._bgImage = img
   }
 
   _setupCamera() {

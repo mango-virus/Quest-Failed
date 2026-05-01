@@ -223,6 +223,13 @@
       "mode": "span",
       "coverage": 2,
       "tags": []
+    },
+    "wall_hole": {
+      "file": "assets/themes/sprites/wall_hole.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
     }
   },
   "themes": {},

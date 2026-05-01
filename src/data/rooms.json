@@ -1123,7 +1123,115 @@
     "category": "starter",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 0,
     "essenceCostToPlace": 0,
@@ -1195,7 +1303,141 @@
     "category": "combat",
     "width": 8,
     "height": 10,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_c",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_c",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 4,
     "essenceCostToPlace": 15,
@@ -1267,7 +1509,164 @@
     "category": "utility",
     "width": 10,
     "height": 10,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_c",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_hole",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_hole",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 8,
     "essenceCostToPlace": 30,
@@ -1348,7 +1747,134 @@
     "category": "utility",
     "width": 10,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_c",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 6,
     "essenceCostToPlace": 35,
@@ -1431,7 +1957,115 @@
     "category": "utility",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "pillar3_r",
+        null,
+        "pillar2_l",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar2_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "pillar3_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar3_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "pillar2_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "pillar2_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar3_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 6,
     "essenceCostToPlace": 18,
@@ -1512,7 +2146,134 @@
     "category": "utility",
     "width": 10,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_hole",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 8,
     "essenceCostToPlace": 40,
@@ -1584,7 +2345,115 @@
     "category": "utility",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "pillar1_l",
+        null,
+        "pillar4_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar4_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "pillar1_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar1_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar1_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 6,
     "essenceCostToPlace": 30,
@@ -1655,7 +2524,115 @@
     "category": "special",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_c",
+        null,
+        "wall_c",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_c",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_c",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_c",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_c",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 10,
     "essenceCostToPlace": 35,
@@ -1727,7 +2704,115 @@
     "category": "special",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_r",
+        null,
+        "wall_l",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 8,
     "essenceCostToPlace": 30,
@@ -1799,7 +2884,134 @@
     "category": "combat",
     "width": 10,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_hole",
+        null,
+        "wall_hole",
+        null,
+        "wall_hole",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_hole",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_hole",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_hole",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 8,
     "essenceCostToPlace": 35,
@@ -1872,7 +3084,134 @@
     "category": "trap",
     "width": 10,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_c",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_c",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 10,
     "essenceCostToPlace": 40,
@@ -1946,7 +3285,187 @@
     "category": "combat",
     "width": 12,
     "height": 10,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "pillar1_l",
+        null,
+        "pillar2_l",
+        null,
+        "pillar3_r",
+        null,
+        "pillar4_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_c",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_c",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar3_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar2_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar1_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 12,
     "essenceCostToPlace": 45,
@@ -2024,7 +3543,115 @@
     "category": "special",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_hole",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_hole",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 8,
     "essenceCostToPlace": 35,
@@ -2096,7 +3723,115 @@
     "category": "special",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 12,
     "essenceCostToPlace": 40,
@@ -2169,7 +3904,164 @@
     "category": "special",
     "width": 10,
     "height": 10,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_r",
+        null,
+        "pillar3_r",
+        null,
+        "pillar4_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar4_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "pillar3_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "pillar3_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar3_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 12,
     "essenceCostToPlace": 50,
@@ -2241,7 +4133,187 @@
     "category": "combat",
     "width": 12,
     "height": 10,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "pillar1_l",
+        null,
+        "pillar4_r",
+        null,
+        "pillar1_l",
+        null,
+        "pillar4_r",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_r",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_c",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_c",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar1_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar4_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "pillar1_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 16,
     "essenceCostToPlace": 60,
@@ -2318,7 +4390,115 @@
     "category": "utility",
     "width": 8,
     "height": 8,
-    "tileLayout": [],
+    "tileLayout": [
+      [
+        "corner",
+        null,
+        "wall_l",
+        null,
+        "wall_hole",
+        null,
+        {
+          "id": "corner",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_hole",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_l",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "wall_l",
+          "rot": 270
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "id": "wall_hole",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "wall_hole",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "wall_l",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "corner",
+          "rot": 180
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
     "connectionPoints": [],
     "upkeepCost": 14,
     "essenceCostToPlace": 60,

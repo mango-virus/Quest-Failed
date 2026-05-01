@@ -2588,16 +2588,42 @@ export class DungeonRenderer {
   // Public helper — kicks an opening animation on this cp. Idempotent: a
   // cp already open or already opening doesn't restart. Used by the
   // adventurer step-on trigger and the day-start hook.
+  //
+  // When the cp is paired (a normal inter-room doorway), this ALSO opens
+  // the partner cp. The sprite path projects from the OWNER cp only
+  // (S/E direction), so triggering only the non-owner side (N/W) would
+  // leave the owner's state stuck on 'closed' and the sprite wouldn't
+  // swap to the open swatch until the adventurer crossed the seam.
+  // Opening both keeps owner + paired in sync regardless of entry side.
   openDoor(cp) {
-    if (!cp || cp.open || cp.opening) return false
-    cp.opening      = true
-    cp.openProgress = 0
-    EventBus.emit('DOOR_OPENING', { cp })
+    if (!cp) return false
+    const pairedCp = this._findPairedCpForCp(cp)
+    let didOpen = false
+    for (const target of [cp, pairedCp]) {
+      if (!target || target.open || target.opening) continue
+      target.opening      = true
+      target.openProgress = 0
+      EventBus.emit('DOOR_OPENING', { cp: target })
+      didOpen = true
+    }
+    if (!didOpen) return false
     // Full redraw so the sprite path picks up the new state (closed →
     // open) immediately. The procedural panel layer's split-aside
     // animation still uses cp.openProgress per-frame via _redrawDoors().
     this.redraw()
     return true
+  }
+
+  // Helper: locate the paired cp for a given cp without requiring the
+  // caller to know the room. Walks the rooms list to find the cp's owner
+  // room, then delegates to _findPairedCp. Returns null for external or
+  // unpaired cps.
+  _findPairedCpForCp(cp) {
+    if (!cp || cp.external) return null
+    const room = (this._gameState?.dungeon?.rooms ?? [])
+      .find(r => (r.connectionPoints ?? []).includes(cp))
+    if (!room) return null
+    return this._findPairedCp(room, cp)?.pairedCp || null
   }
 
   // Force a cp back to closed state (no animation). Used by the day-end
