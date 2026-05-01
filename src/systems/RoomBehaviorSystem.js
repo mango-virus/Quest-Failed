@@ -251,17 +251,17 @@ export class RoomBehaviorSystem {
       }
     }
 
-    // Room redesign 2026-04-30 — Mimic Vault: spawn 2 hidden-as-loot
-    // mimics + 1 false chest each night. The mimics disguise as Treasury
-    // chests; stepping on them reveals the minion (existing
-    // MinionAISystem.isMimic + hiddenAsLoot path). The false chest
-    // damages whoever grabs it (intercepted in AISystem SEEK_LOOT block).
+    // Room redesign 2026-04-30 — Mimic Vault: spawn 2 mimic creatures (in
+    // the chest disguise state) + 1 false chest each night. Mimics use the
+    // dedicated `mimic` minion def with its own state machine and renderer
+    // (see MinionAISystem._tickMimic + MimicRenderer). The disguising loot
+    // item is paired to the mimic via `_mimicMinionId` so AISystem's
+    // SEEK_LOOT pickup can trigger the reveal.
     const vaults = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'mimic_vault' && r.isActive !== false
     )
     if (vaults.length > 0) {
-      // Use a base T2 def for the mimic minion stats; named "Mimic" for flavor.
-      const mimicBase = minionTypes.find(d => d.id === 'zombie2') ?? baseDef
+      const mimicDef = minionTypes.find(d => d.id === 'mimic') ?? baseDef
       this._gameState.loot ??= { dungeon: [] }
       this._gameState.loot.dungeon ??= []
       for (const room of vaults) {
@@ -281,31 +281,34 @@ export class RoomBehaviorSystem {
         for (const [x, y] of mimicSlots) {
           if (aliveMimics + mimicSpawned >= 2) break
           if (occupiedTiles.has(`${x},${y}`)) continue
-          // Disguising loot item — visually a chest, but holds the mimic ref.
-          const disguise = {
+          const m = this._makeGarrison(mimicDef, room, {
+            tileX: x, tileY: y,
+            namePrefix: 'Mimic',
+            extra: {
+              isMimic: true,
+              isMimicVaultSpawn: true,
+              mimicState:  'chest',
+              mimicFacing: 'right',
+              mimicLastAdvNearbyAt: 0,
+            },
+          })
+          this._gameState.minions.push(m)
+          // Disguising loot item — visible to adventurers as a Treasury
+          // chest. Carries _mimicMinionId so the SEEK_LOOT pickup branch
+          // can find the right mimic to wake up on interaction.
+          this._gameState.loot.dungeon.push({
             instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2,6)}_${mimicSpawned}`,
             definitionId: 'treasury_chest',
             _treasuryChest: true,
             _isMimicVaultDisguise: true,
+            _mimicMinionId: m.instanceId,
             _essenceValue: 0,
             _sourceTreasuryId: room.instanceId,
             tileX: x, tileY: y, worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
             dungeonRoomId: room.instanceId,
             isMimicSpawn: true,
             provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
-          }
-          this._gameState.loot.dungeon.push(disguise)
-          const m = this._makeGarrison(mimicBase, room, {
-            tileX: x, tileY: y,
-            namePrefix: 'Mimic',
-            extra: {
-              isMimic: true,
-              hiddenAsLoot: true,
-              disguisedItemId: disguise.instanceId,
-              isMimicVaultSpawn: true,
-            },
           })
-          this._gameState.minions.push(m)
           mimicSpawned++
         }
         // 1 false chest at room center

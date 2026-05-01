@@ -129,6 +129,7 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
         'slime1', 'slime2', 'slime3', 'slime4', 'slime5', 'slime6', 'slime7', 'slime8', 'slime9',
         'vampire_minion1', 'vampire_minion2',
         'zombie1', 'zombie2', 'zombie3',
+        'mimic',
       ],
       trapTypes: [],
       dungeonMechanics: [],

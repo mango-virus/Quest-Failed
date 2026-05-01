@@ -22,6 +22,7 @@ import { Balance }            from '../config/balance.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
 import { MinionRenderer }     from '../ui/MinionRenderer.js'
+import { MimicRenderer }      from '../ui/MimicRenderer.js'
 import { TrapRenderer }       from '../ui/TrapRenderer.js'
 import { LootRenderer }       from '../ui/LootRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
@@ -54,6 +55,7 @@ export class Game extends Phaser.Scene {
     this.knowledgeSystem     = null
     this.adventurerRenderer  = null
     this.minionRenderer      = null
+    this.mimicRenderer       = null
     this.trapRenderer        = null
     this.lootRenderer        = null
     this.minionInspector     = null
@@ -119,6 +121,7 @@ export class Game extends Phaser.Scene {
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
     this.adventurerRenderer  = new AdventurerRenderer(this, this.gameState)
     this.minionRenderer      = new MinionRenderer(this, this.gameState)
+    this.mimicRenderer       = new MimicRenderer(this, this.gameState)
     this.trapRenderer        = new TrapRenderer(this, this.gameState)
     this.lootRenderer        = new LootRenderer(this, this.gameState)
     this.minionInspector     = new MinionInspector(this, this.gameState, this.lootSystem)
@@ -194,6 +197,7 @@ export class Game extends Phaser.Scene {
     this._dungeonRenderer?.destroy()
     this.adventurerRenderer?.destroy()
     this.minionRenderer?.destroy()
+    this.mimicRenderer?.destroy()
     this.trapRenderer?.destroy()
     this.lootRenderer?.destroy()
     this.minionInspector?.destroy()
@@ -548,6 +552,7 @@ export class Game extends Phaser.Scene {
       }
       this.adventurerRenderer?.update()
       this.minionRenderer?.update()
+      this.mimicRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
       this.lootRenderer?.update()
@@ -557,6 +562,7 @@ export class Game extends Phaser.Scene {
       this.paranoiaIndicator?.update()
     } else {
       this.minionRenderer?.update()
+      this.mimicRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
       this.lootRenderer?.update()

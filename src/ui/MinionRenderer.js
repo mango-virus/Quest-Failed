@@ -82,6 +82,9 @@ export class MinionRenderer {
     const seen    = new Set()
 
     for (const m of minions) {
+      // Mimics are owned by MimicRenderer (different sprite pipeline +
+      // state machine). Skip here so we don't double-render.
+      if (m.isMimic) continue
       seen.add(m.instanceId)
       let s = this._sprites[m.instanceId]
       if (!s) s = this._createSprite(m)

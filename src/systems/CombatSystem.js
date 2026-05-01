@@ -26,6 +26,15 @@ export class CombatSystem {
     if (!attacker || !target) return null
     if (target.resources.hp <= 0) return null
 
+    // Mimic invulnerability — the chest disguise and the reveal animation
+    // both block damage. The mimic only becomes a valid target once it
+    // enters idle / walking / attacking / hurt.
+    if (target.isMimic && (
+      target.mimicState === 'chest' ||
+      target.mimicState === 'revealing' ||
+      target.mimicState === 'redisguising'
+    )) return null
+
     const now = this._scene.time.now
     const cooldown = this._cooldownFor(attacker)
     if (now - (attacker.lastAttackAt ?? 0) < cooldown) return null

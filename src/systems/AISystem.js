@@ -168,6 +168,41 @@ export class AISystem {
       return
     }
 
+    // Room redesign 2026-04-30 — Chest-opening pause. Adventurers freeze
+    // in place while opening a chest (treasury or mimic disguise). When
+    // the timer expires:
+    //   - treasury → attach as carriedChest, switch goal to FLEE
+    //   - mimic    → resume normal AI (the now-revealed mimic is a target)
+    if (adv.flags?.openingChest) {
+      const oc  = adv.flags.openingChest
+      const now = this._scene?.time?.now ?? 0
+      if (now < oc.until) {
+        adv.path = null
+        return
+      }
+      // Timer elapsed — resolve.
+      adv.flags.openingChest = null
+      if (oc.kind === 'treasury') {
+        adv.carriedChest = {
+          value:            oc.value ?? 0,
+          sourceTreasuryId: oc.sourceTreasuryId ?? null,
+          grabbedDay:       this._gameState.meta.dayNumber,
+        }
+        EventBus.emit('TREASURY_CHEST_GRABBED', {
+          adventurer: adv,
+          value: adv.carriedChest.value,
+        })
+        adv.goal    = { type: 'FLEE', reason: 'chest_grabbed' }
+        adv.path    = null
+        adv.aiState = 'walking'
+        return
+      }
+      // Mimic — fall through to normal AI; engagement picks up the
+      // now-revealed mimic. Goal is whatever it was; a re-pick is safe.
+      adv.aiState = 'walking'
+      adv.goal    = this._pickNextGoal(adv)
+    }
+
     // Hall of Madness — clear stale frenzy state up front (target dead /
     // left the room / adv left the Hall). When this returns true the goal
     // was just restored, so we let the rest of the tick recompute paths.
@@ -813,6 +848,10 @@ export class AISystem {
       if (m.aiState === 'dead' || m.resources.hp <= 0) continue
       if (m.faction === 'adventurer') continue
       if (adv.flags?.idolizedMinionClass === m.definitionId) continue
+      // Mimics are untargetable while disguised or mid-reveal — adventurers
+      // see a chest, not a hostile minion. The reveal handshake is owned
+      // by the SEEK_LOOT chest pickup branch, not the engage flow.
+      if (m.isMimic && (m.mimicState === 'chest' || m.mimicState === 'revealing' || m.mimicState === 'redisguising')) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d > reach + 0.01) continue
       // Phase 8: any minion within engagement range is also "observed"
@@ -1342,22 +1381,48 @@ export class AISystem {
           adv.goal = this._pickNextGoal(adv)
           return
         }
-        // Room redesign 2026-04-30 — Treasury chest: don't equip, attach
-        // as carriedChest. Adventurer must escape alive to actually steal
-        // the essence (resolved in the FLEE/atNorthEdge block above).
-        if (item._treasuryChest) {
-          adv.carriedChest = {
-            value:             item._essenceValue ?? 0,
-            sourceTreasuryId:  item._sourceTreasuryId ?? null,
-            grabbedDay:        this._gameState.meta.dayNumber,
+        // Room redesign 2026-04-30 — Mimic Vault disguise: trigger the
+        // mimic's reveal animation and freeze the adventurer in place
+        // for the full reveal duration (they think they're opening a
+        // chest). After the pause, normal combat resumes — the now-
+        // revealed mimic is a valid target via _findEngageableMinion.
+        if (item._isMimicVaultDisguise && item._mimicMinionId) {
+          const mimic = this._gameState.minions?.find(m =>
+            m.instanceId === item._mimicMinionId
+          )
+          const now = this._scene?.time?.now ?? 0
+          const REVEAL_MS = 1900
+          if (mimic && mimic.mimicState === 'chest') {
+            mimic.mimicState      = 'revealing'
+            mimic.mimicStateUntil = now + REVEAL_MS
+            mimic.mimicLastAdvNearbyAt = now
+            EventBus.emit('MIMIC_REVEAL_TRIGGERED', { mimic, adventurer: adv })
           }
-          EventBus.emit('TREASURY_CHEST_GRABBED', {
-            adventurer: adv,
-            chest: item,
-            value: adv.carriedChest.value,
-          })
-          // Force a flee — they got what they came for; head for the door.
-          adv.goal = { type: 'FLEE', reason: 'chest_grabbed' }
+          adv.flags ??= {}
+          adv.flags.openingChest = { kind: 'mimic', until: now + REVEAL_MS }
+          adv.aiState = 'opening_chest'
+          adv.path    = null
+          // Don't pick next goal yet — the per-tick gate (top of
+          // _tickAdventurer) will hold them in place until the timer
+          // expires, then re-route organically (combat or flee).
+          return
+        }
+        // Room redesign 2026-04-30 — Treasury chest: open-pause then
+        // attach as carriedChest. Adventurer must escape alive to actually
+        // steal the essence (resolved in the FLEE/atNorthEdge block above).
+        if (item._treasuryChest) {
+          const now = this._scene?.time?.now ?? 0
+          const TREASURY_OPEN_MS = 600
+          adv.flags ??= {}
+          adv.flags.openingChest = {
+            kind: 'treasury',
+            until: now + TREASURY_OPEN_MS,
+            value: item._essenceValue ?? 0,
+            sourceTreasuryId: item._sourceTreasuryId ?? null,
+          }
+          adv.aiState = 'opening_chest'
+          adv.path    = null
+          EventBus.emit('TREASURY_CHEST_GRAB_STARTED', { adventurer: adv })
           return
         }
         adv.gear ??= []

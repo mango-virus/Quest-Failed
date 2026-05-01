@@ -1683,14 +1683,26 @@
     "color": "0xff44cc",
     "sigil": "◉",
     "description": "Tyrant eye. Sees every plan, breaks every will.",
-    "baseStats": { "hp": 40, "attack": 9, "defense": 3, "speed": 1.0, "damageType": "psychic", "abilities": [] },
+    "baseStats": {
+      "hp": 40,
+      "attack": 9,
+      "defense": 3,
+      "speed": 1,
+      "damageType": "psychic",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["aberration", "miniboss"],
-    "vulnerableToElements": ["lightning"]
+    "tags": [
+      "aberration",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "lightning"
+    ]
   },
   {
     "id": "demon_lord",
@@ -1703,14 +1715,27 @@
     "color": "0xaa1133",
     "sigil": "♆",
     "description": "Crowned devil. Burns in three colors.",
-    "baseStats": { "hp": 60, "attack": 16, "defense": 7, "speed": 0.8, "damageType": "fire", "abilities": [] },
+    "baseStats": {
+      "hp": 60,
+      "attack": 16,
+      "defense": 7,
+      "speed": 0.8,
+      "damageType": "fire",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["fiend", "melee", "miniboss"],
-    "vulnerableToElements": ["ice"]
+    "tags": [
+      "fiend",
+      "melee",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "ice"
+    ]
   },
   {
     "id": "dark_wraith",
@@ -1723,14 +1748,27 @@
     "color": "0x335577",
     "sigil": "✧",
     "description": "Sovereign of sorrow. Phases through grief and stone alike.",
-    "baseStats": { "hp": 38, "attack": 11, "defense": 3, "speed": 1.1, "damageType": "shadow", "abilities": [] },
+    "baseStats": {
+      "hp": 38,
+      "attack": 11,
+      "defense": 3,
+      "speed": 1.1,
+      "damageType": "shadow",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["undead", "phasing", "miniboss"],
-    "vulnerableToElements": ["holy"]
+    "tags": [
+      "undead",
+      "phasing",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "holy"
+    ]
   },
   {
     "id": "gnoll_alpha",
@@ -1743,13 +1781,24 @@
     "color": "0x995522",
     "sigil": "♕",
     "description": "Pack alpha. Three teeth on the necklace, three more in your shoulder.",
-    "baseStats": { "hp": 55, "attack": 14, "defense": 5, "speed": 1.2, "damageType": "physical", "abilities": [] },
+    "baseStats": {
+      "hp": 55,
+      "attack": 14,
+      "defense": 5,
+      "speed": 1.2,
+      "damageType": "physical",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["beastfolk", "melee", "miniboss"],
+    "tags": [
+      "beastfolk",
+      "melee",
+      "miniboss"
+    ],
     "vulnerableToElements": []
   },
   {
@@ -1763,14 +1812,27 @@
     "color": "0x776655",
     "sigil": "▣",
     "description": "Bound construct sentinel. Slow. Patient. Inevitable.",
-    "baseStats": { "hp": 90, "attack": 15, "defense": 11, "speed": 0.6, "damageType": "physical", "abilities": [] },
+    "baseStats": {
+      "hp": 90,
+      "attack": 15,
+      "defense": 11,
+      "speed": 0.6,
+      "damageType": "physical",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["construct", "tank", "miniboss"],
-    "vulnerableToElements": ["lightning"]
+    "tags": [
+      "construct",
+      "tank",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "lightning"
+    ]
   },
   {
     "id": "elder_lich",
@@ -1783,14 +1845,27 @@
     "color": "0xddccff",
     "sigil": "♅",
     "description": "Phylactery-bound archmage. Already dead, still annoyed.",
-    "baseStats": { "hp": 50, "attack": 16, "defense": 4, "speed": 0.9, "damageType": "necrotic", "abilities": [] },
+    "baseStats": {
+      "hp": 50,
+      "attack": 16,
+      "defense": 4,
+      "speed": 0.9,
+      "damageType": "necrotic",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["undead", "caster", "miniboss"],
-    "vulnerableToElements": ["holy"]
+    "tags": [
+      "undead",
+      "caster",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "holy"
+    ]
   },
   {
     "id": "serpent_captain",
@@ -1803,14 +1878,27 @@
     "color": "0x55aa55",
     "sigil": "♉",
     "description": "Cold-blooded warband captain. The blade is sharper than the tongue.",
-    "baseStats": { "hp": 55, "attack": 14, "defense": 6, "speed": 1.1, "damageType": "physical", "abilities": [] },
+    "baseStats": {
+      "hp": 55,
+      "attack": 14,
+      "defense": 6,
+      "speed": 1.1,
+      "damageType": "physical",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["reptilian", "melee", "miniboss"],
-    "vulnerableToElements": ["ice"]
+    "tags": [
+      "reptilian",
+      "melee",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "ice"
+    ]
   },
   {
     "id": "myconid_stalker",
@@ -1823,14 +1911,27 @@
     "color": "0xaa55aa",
     "sigil": "♣",
     "description": "Sentient spore-keeper. Walks where the moss already remembers you.",
-    "baseStats": { "hp": 50, "attack": 12, "defense": 5, "speed": 0.9, "damageType": "poison", "abilities": [] },
+    "baseStats": {
+      "hp": 50,
+      "attack": 12,
+      "defense": 5,
+      "speed": 0.9,
+      "damageType": "poison",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["plant", "ranged", "miniboss"],
-    "vulnerableToElements": ["fire"]
+    "tags": [
+      "plant",
+      "ranged",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "fire"
+    ]
   },
   {
     "id": "orc_veteran",
@@ -1843,13 +1944,24 @@
     "color": "0x553311",
     "sigil": "♆",
     "description": "Old-blood warlord. Survived a hundred raids. Made the hundred-and-first personal.",
-    "baseStats": { "hp": 65, "attack": 17, "defense": 6, "speed": 0.9, "damageType": "physical", "abilities": [] },
+    "baseStats": {
+      "hp": 65,
+      "attack": 17,
+      "defense": 6,
+      "speed": 0.9,
+      "damageType": "physical",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["greenskin", "melee", "miniboss"],
+    "tags": [
+      "greenskin",
+      "melee",
+      "miniboss"
+    ],
     "vulnerableToElements": []
   },
   {
@@ -1863,13 +1975,59 @@
     "color": "0x440011",
     "sigil": "♥",
     "description": "Old blood, older title. Charms with one hand, opens veins with the other.",
-    "baseStats": { "hp": 60, "attack": 15, "defense": 5, "speed": 1.1, "damageType": "physical", "abilities": [] },
+    "baseStats": {
+      "hp": 60,
+      "attack": 15,
+      "defense": 5,
+      "speed": 1.1,
+      "damageType": "physical",
+      "abilities": []
+    },
     "essenceCostToPlace": 0,
     "upkeepCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
-    "tags": ["undead", "vampiric", "miniboss"],
-    "vulnerableToElements": ["holy"]
+    "tags": [
+      "undead",
+      "vampiric",
+      "miniboss"
+    ],
+    "vulnerableToElements": [
+      "holy"
+    ]
+  },
+  {
+    "id": "mimic",
+    "name": "Mimic",
+    "spriteKey": "mimic",
+    "frameSize": 102,
+    "category": "combat",
+    "behaviorType": "patrol",
+    "color": "0xb88844",
+    "sigil": "$",
+    "description": "Disguised as a chest. Sprung when an unsuspecting adventurer tries to open it. Re-disguises when the room is quiet.",
+    "baseStats": {
+      "hp": 40,
+      "attack": 9,
+      "defense": 4,
+      "speed": 0.6,
+      "damageType": "physical",
+      "attackRange": 2,
+      "abilities": []
+    },
+    "essenceCostToPlace": 0,
+    "upkeepCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 7,
+    "evolutionPaths": [],
+    "tags": [
+      "mimic",
+      "beast",
+      "ambush"
+    ],
+    "vulnerableToElements": [
+      "fire"
+    ]
   }
 ]

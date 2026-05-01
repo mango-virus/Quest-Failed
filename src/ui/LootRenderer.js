@@ -39,6 +39,9 @@ export class LootRenderer {
 
     for (const item of items) {
       if (item.tileX == null || item.tileY == null) continue
+      // Mimic vault disguise items — MimicRenderer draws the chest sprite
+      // for these directly. Skip here so we don't double-stack icons.
+      if (item._isMimicVaultDisguise) continue
       seen.add(item.instanceId)
       let s = this._sprites[item.instanceId]
       if (!s) s = this._createSprite(item)

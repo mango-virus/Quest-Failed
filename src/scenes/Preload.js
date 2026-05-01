@@ -157,6 +157,27 @@ export class Preload extends Phaser.Scene {
     // the player commits to a run and Game starts.
     this.load.audio('title_music', 'assets/audio/title_music.mp3')
 
+    // Title-screen background images. MainMenu picks one at random per
+    // visit. Add new files by dropping them into assets/title-screen/
+    // and listing them here.
+    const TITLE_BACKGROUNDS = [
+      'Gemini_Generated_Image_1l7d3f1l7d3f1l7d.png',
+      'Gemini_Generated_Image_5zo1l45zo1l45zo1.png',
+      'Gemini_Generated_Image_77yfph77yfph77yf.png',
+      'Gemini_Generated_Image_7j1nj67j1nj67j1n.png',
+      'Gemini_Generated_Image_85xlhl85xlhl85xl.png',
+      'Gemini_Generated_Image_daftk2daftk2daft.png',
+      'Gemini_Generated_Image_lbja7blbja7blbja.png',
+      'Gemini_Generated_Image_m6r33um6r33um6r3.png',
+      'Gemini_Generated_Image_qlsz2fqlsz2fqlsz.png',
+      'Gemini_Generated_Image_r1iihlr1iihlr1ii.png',
+      'Gemini_Generated_Image_wvfuiawvfuiawvfu.png',
+    ]
+    TITLE_BACKGROUNDS.forEach((file, i) => {
+      this.load.image(`title-bg-${i}`, `assets/title-screen/${file}`)
+    })
+    this.registry.set('titleBgKeys', TITLE_BACKGROUNDS.map((_, i) => `title-bg-${i}`))
+
     // Room-placement SFX — one is picked at random when the player
     // places a room during NightPhase.
     this.load.audio('sfx-build-1', 'assets/audio/build1.wav')
@@ -277,6 +298,33 @@ export class Preload extends Phaser.Scene {
       }
     }
 
+    // Mimic creature sprite sheets — separate pipeline because the mimic
+    // has a state machine (chest → reveal → idle/walk/attack → re-disguise)
+    // and side-only facing (no down/up rows). 102×102 frames per sheet,
+    // chest is a single static 99×102 image. Rendered by MimicRenderer
+    // and animated by MinionAISystem._tickMimic. Texture keys are
+    // `mimic-<state>` and the static chest is `mimic-chest`.
+    const mimicDir = 'assets/sprites/mimic/'
+    this.load.image('mimic-chest', mimicDir + 'chest.png')
+    const MIMIC_SHEETS = [
+      { key: 'reveal',           file: 'Reveal.png',         frames: 15 },
+      { key: 'turn_into_chest',  file: 'turn into chest.png', frames: 10 },
+      { key: 'death',            file: 'Death.png',          frames: 13 },
+      { key: 'idle_left',        file: 'Idle_left.png',       frames: 12 },
+      { key: 'idle_right',       file: 'Idle_right.png',      frames: 12 },
+      { key: 'walk_left',        file: 'walk_left.png',       frames: 10 },
+      { key: 'walk_right',       file: 'walk_right.png',      frames: 10 },
+      { key: 'attack1_left',     file: 'Attack1_left.png',    frames: 12 },
+      { key: 'attack1_right',    file: 'Attack1_right.png',   frames: 12 },
+      { key: 'attack2_left',     file: 'Attack2_left.png',    frames: 10 },
+      { key: 'attack2_right',    file: 'Attack2_right.png',   frames: 10 },
+      { key: 'hurt_left',        file: 'Hurt_left.png',       frames: 7 },
+      { key: 'hurt_right',       file: 'Hurt_right.png',      frames: 7 },
+    ]
+    for (const sh of MIMIC_SHEETS) {
+      this.load.spritesheet(`mimic-${sh.key}`, mimicDir + sh.file, { frameWidth: 102, frameHeight: 102 })
+    }
+
     // ── LPC adventurer spritesheets ──────────────────────────────────────────
     // 50 baked variants per class × 11 classes = 550 sheets. Each is 832×1856
     // RGBA with 64×64 frames in a 13-col × 29-row grid containing 8 animations
@@ -299,6 +347,7 @@ export class Preload extends Phaser.Scene {
   create() {
     this._registerBossAnimations()
     this._registerMinionAnimations()
+    this._registerMimicAnimations()
     this._registerAdventurerAnimations()
     // Themes load asynchronously (second loader pass for sprite PNGs); kick
     // off MainMenu once that's done. If no manifest exists, this resolves
@@ -467,5 +516,48 @@ export class Preload extends Phaser.Scene {
         }
       }
     }
+  }
+
+  // Mimic animations — single-row sheets (no directional rows). One anim
+  // per loaded sheet; key = `mimic-<state>`. Frame counts derive from
+  // sheet width / 102 so the configured frames in the loader can drift
+  // without breaking the registration. The chest is a static image and
+  // doesn't need an anim.
+  _registerMimicAnimations() {
+    const FRAME_SIZE = 102
+    const MIMIC_ANIM_CFG = [
+      { key: 'reveal',          fps: 8,  repeat: 0 },
+      { key: 'turn_into_chest', fps: 8,  repeat: 0 },
+      { key: 'death',           fps: 8,  repeat: 0 },
+      { key: 'idle_left',       fps: 6,  repeat: -1 },
+      { key: 'idle_right',      fps: 6,  repeat: -1 },
+      { key: 'walk_left',       fps: 10, repeat: -1 },
+      { key: 'walk_right',      fps: 10, repeat: -1 },
+      { key: 'attack1_left',    fps: 12, repeat: 0 },
+      { key: 'attack1_right',   fps: 12, repeat: 0 },
+      { key: 'attack2_left',    fps: 12, repeat: 0 },
+      { key: 'attack2_right',   fps: 12, repeat: 0 },
+      { key: 'hurt_left',       fps: 12, repeat: 0 },
+      { key: 'hurt_right',      fps: 12, repeat: 0 },
+    ]
+    for (const cfg of MIMIC_ANIM_CFG) {
+      const sheetKey = `mimic-${cfg.key}`
+      if (!this.textures.exists(sheetKey)) continue
+      const texture = this.textures.get(sheetKey)
+      if (texture.setFilter) texture.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      const tex = texture.source[0]
+      const frameCount = Math.max(1, Math.floor(tex.width / FRAME_SIZE))
+      const animKey = sheetKey
+      if (this.anims.exists(animKey)) continue
+      this.anims.create({
+        key:       animKey,
+        frames:    this.anims.generateFrameNumbers(sheetKey, { start: 0, end: frameCount - 1 }),
+        frameRate: cfg.fps,
+        repeat:    cfg.repeat,
+      })
+    }
+    // Static chest image — apply NEAREST filter so it stays crisp at any zoom.
+    const chestTex = this.textures.exists('mimic-chest') ? this.textures.get('mimic-chest') : null
+    if (chestTex?.setFilter) chestTex.setFilter(Phaser.Textures.FilterMode.NEAREST)
   }
 }
