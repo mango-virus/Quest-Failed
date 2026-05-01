@@ -151,6 +151,17 @@ export class NightPhase extends Phaser.Scene {
     })
     on('TOOL_MOVE',   () => this._setToolMode('move'))
     on('TOOL_SELL',   () => this._setToolMode('sell'))
+    // Phase 31D — any other action-bar button click also disarms a sticky
+    // tool. The button's own effect still fires (whichever scene listens
+    // for the OPEN_* / TIME_SCALE_SET event); we just make sure MOVE / SELL
+    // don't linger after the player moves on.
+    const clearTool = () => this._setToolMode(null)
+    on('OPEN_MINION_ROSTER', clearTool)
+    on('OPEN_KNOWLEDGE_MAP', clearTool)
+    on('OPEN_ADV_INTEL',     clearTool)
+    on('OPEN_BOSS_OVERVIEW', clearTool)
+    on('OPEN_PAUSE_MENU',    clearTool)
+    on('TIME_SCALE_SET',     clearTool)
   }
 
   // Phase 31D — arm/cancel a build-mode tool. Clicking the action-bar tool

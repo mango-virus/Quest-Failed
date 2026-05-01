@@ -62,7 +62,8 @@ export class ActionBar {
   // which mode they're in. Only one tool is armed at a time.
   _setArmedTool(mode) {
     this._armedTool = mode
-    const accentH = ['move', 'sell', 'roster'].reduce((acc, k) => {
+    // Only MOVE / SELL are arm-able tools; the rest are one-shot actions.
+    const accentH = ['move', 'sell'].reduce((acc, k) => {
       const btn = this._buttons[k]
       if (!btn) return acc
       const isArmed = (k === mode)
