@@ -12,7 +12,10 @@ import { EventBus }                 from '../systems/EventBus.js'
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel } from './UIKit.js'
 
 const HEADER_H        = 22
-const ROW_H           = 16
+// Press Start 2P at 8px renders ~12-14px tall in Phaser (font metrics include
+// extra line space). 22 px row gives clearance and matches the design's
+// per-row block height — anything tighter caused row N to overlap row N+1.
+const ROW_H           = 22
 const ROW_PAD_X       = 8
 const ROW_GAP         = 2
 const PADDING         = 8
@@ -144,25 +147,33 @@ export class DungeonLog {
     const startY = this._y + HEADER_H + PADDING
     const innerW = this._w - PADDING * 2
 
+    // How many characters fit in the body slot? Press Start 2P at 8px is
+    // about 8px wide per glyph (with letterSpacing it's 9). Use a per-render
+    // truncation length so wider panels show more of each line.
+    const bodyX     = startX + ROW_BORDER_W + 28
+    const bodyMaxPx = (this._w - PADDING - 4) - bodyX + this._x
+    const charPx    = 9
+    const maxChars  = Math.max(8, Math.floor(bodyMaxPx / charPx))
+
     const visible = this._rows.slice(-this._maxVisible)
     visible.forEach((r, i) => {
       const ry = startY + i * (ROW_H + ROW_GAP)
       // Type-coded left border
       const border = this._scene.add.graphics().setDepth(D + 2)
       border.fillStyle(this._colorHex(r.type), 1)
-      border.fillRect(startX, ry, ROW_BORDER_W, ROW_H)
+      border.fillRect(startX, ry, ROW_BORDER_W, ROW_H - 2)
       this._rowObjects.push(border)
 
       // Time prefix
-      const tT = this._scene.add.text(startX + ROW_BORDER_W + 4, ry + ROW_H / 2,
+      const tT = this._scene.add.text(startX + ROW_BORDER_W + 6, ry + ROW_H / 2 - 1,
         r.t, {
         fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 1,
       }).setOrigin(0, 0.5).setDepth(D + 3)
       this._rowObjects.push(tT)
 
       // Body
-      const body = this._scene.add.text(startX + ROW_BORDER_W + 26, ry + ROW_H / 2,
-        this._truncate(r.text, 30), {
+      const body = this._scene.add.text(bodyX, ry + ROW_H / 2 - 1,
+        this._truncate(r.text, maxChars), {
         fontFamily: FONT_BODY, fontSize: '8px', color: COLOR_FOR[r.type] ?? COLOR_FOR.info, letterSpacing: 1,
       }).setOrigin(0, 0.5).setDepth(D + 3)
       this._rowObjects.push(body)

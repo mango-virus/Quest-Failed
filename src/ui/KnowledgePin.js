@@ -8,9 +8,9 @@
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
-const PANEL_W       = 250
+const DEFAULT_PANEL_W = 280
 const HEADER_H      = 22
-const ROW_H         = 18
+const ROW_H         = 20         // Press Start 2P at 8px renders ~14px tall; 20 gives safe row height
 const ROW_GAP       = 3
 const FACT_LIMIT    = 4
 const PADDING       = 8
@@ -20,7 +20,8 @@ export class KnowledgePin {
     this._scene     = scene
     this._gameState = gameState
     this._depth     = opts.depth ?? 60
-    this._x         = opts.x ?? (scene.uiW ?? 1280) - PANEL_W - 12
+    this._w         = opts.w ?? DEFAULT_PANEL_W
+    this._x         = opts.x ?? (scene.uiW ?? 1280) - this._w - 12
     this._y         = opts.y ?? 80
     this._objects   = []
     this._rowTexts  = []
@@ -36,15 +37,15 @@ export class KnowledgePin {
     const h = this._panelHeight()
 
     const bg = this._scene.add.graphics().setDepth(D)
-    pixelPanel(bg, x, y, PANEL_W, h)
+    pixelPanel(bg, x, y, this._w, h)
     this._objects.push(bg)
 
     // Header strip
     const headerG = this._scene.add.graphics().setDepth(D + 1)
     headerG.fillStyle(CRYPT.panel2, 1)
-    headerG.fillRect(x + 2, y + 2, PANEL_W - 4, HEADER_H)
+    headerG.fillRect(x + 2, y + 2, this._w - 4, HEADER_H)
     headerG.fillStyle(CRYPT.panelEdgeS, 1)
-    headerG.fillRect(x + 2, y + 2 + HEADER_H, PANEL_W - 4, 1)
+    headerG.fillRect(x + 2, y + 2 + HEADER_H, this._w - 4, 1)
     this._objects.push(headerG)
 
     const hdr = this._scene.add.text(x + PADDING, y + HEADER_H / 2 + 2,
@@ -53,7 +54,7 @@ export class KnowledgePin {
     }).setOrigin(0, 0.5).setDepth(D + 2)
     this._objects.push(hdr)
 
-    this._countT = this._scene.add.text(x + PANEL_W - PADDING, y + HEADER_H / 2 + 2,
+    this._countT = this._scene.add.text(x + this._w - PADDING, y + HEADER_H / 2 + 2,
       this._countText(), {
       fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.soulCss, letterSpacing: 1,
     }).setOrigin(1, 0.5).setDepth(D + 2)
@@ -66,9 +67,9 @@ export class KnowledgePin {
       const ry = rowsTop + i * (ROW_H + ROW_GAP)
       const rowG = this._scene.add.graphics().setDepth(D + 1)
       rowG.fillStyle(CRYPT.bgStone1, 1)
-      rowG.fillRect(x + PADDING, ry, PANEL_W - PADDING * 2, ROW_H)
+      rowG.fillRect(x + PADDING, ry, this._w - PADDING * 2, ROW_H)
       rowG.fillStyle(CRYPT.panelEdgeS, 1)
-      rowG.fillRect(x + PADDING, ry + ROW_H - 1, PANEL_W - PADDING * 2, 1)
+      rowG.fillRect(x + PADDING, ry + ROW_H - 1, this._w - PADDING * 2, 1)
       this._objects.push(rowG)
 
       const fact = facts[i]
@@ -78,7 +79,7 @@ export class KnowledgePin {
         color: fact ? CRYPT.ink : CRYPT.inkMute, letterSpacing: 1,
       }).setOrigin(0, 0.5).setDepth(D + 2)
 
-      const lvlT = this._scene.add.text(x + PANEL_W - PADDING - 4, ry + ROW_H / 2,
+      const lvlT = this._scene.add.text(x + this._w - PADDING - 4, ry + ROW_H / 2,
         fact ? fact.lvl : '', {
         fontFamily: FONT_HEAD, fontSize: '7px',
         color: fact ? this._lvlColor(fact.lvl) : CRYPT.inkMute, letterSpacing: 1,
@@ -97,20 +98,20 @@ export class KnowledgePin {
     this._objects.push(expLbl)
 
     const expVal = this._exposurePct()
-    this._exposurePctT = this._scene.add.text(x + PANEL_W - PADDING, expY,
+    this._exposurePctT = this._scene.add.text(x + this._w - PADDING, expY,
       `${expVal}%`, {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css, letterSpacing: 1,
     }).setOrigin(1, 0).setDepth(D + 2)
     this._objects.push(this._exposurePctT)
 
     this._exposureBar = pixelBar(this._scene, x + PADDING, expY + 14,
-      PANEL_W - PADDING * 2, 8, expVal, 100, {
+      this._w - PADDING * 2, 8, expVal, 100, {
         color: 'red', label: null, depth: D + 2,
       })
     this._objects.push(this._exposureBar.g)
 
     // Whole-panel hit zone — opens Knowledge Map popup
-    const hit = this._scene.add.zone(x, y, PANEL_W, h)
+    const hit = this._scene.add.zone(x, y, this._w, h)
       .setOrigin(0).setDepth(D + 10).setInteractive({ useHandCursor: true })
     hit.on('pointerup', () => EventBus.emit('OPEN_KNOWLEDGE_MAP'))
     this._objects.push(hit)
@@ -211,4 +212,4 @@ export class KnowledgePin {
   }
 }
 
-export const KNOWLEDGE_PIN_WIDTH = PANEL_W
+export const KNOWLEDGE_PIN_WIDTH = DEFAULT_PANEL_W

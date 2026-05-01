@@ -81,16 +81,33 @@ export class BossTopBar {
     })
     this._objects.push(avG)
 
-    const avSym = this._scene.add.text(cx + avatarSize / 2, cy + avatarSize / 2, '♛', {
-      fontFamily: FONT_HEAD, fontSize: '22px', color: CRYPT.accent2Css,
-    }).setOrigin(0.5).setDepth(D + 1)
+    // Boss portrait — 22×22 pixel-art bust loaded as 'bestiary-portrait-{id}'.
+    // Falls back to a crown glyph if the boss doesn't have a portrait asset.
+    const portraitKey = `bestiary-portrait-${this._gameState.player?.bossArchetypeId}`
+    let avSym
+    if (this._scene.textures.exists(portraitKey)) {
+      avSym = this._scene.add.image(cx + avatarSize / 2, cy + avatarSize / 2, portraitKey)
+        .setDisplaySize(avatarSize - 6, avatarSize - 6)
+        .setDepth(D + 1)
+    } else {
+      avSym = this._scene.add.text(cx + avatarSize / 2, cy + avatarSize / 2, '♛', {
+        fontFamily: FONT_HEAD, fontSize: '22px', color: CRYPT.accent2Css,
+      }).setOrigin(0.5).setDepth(D + 1)
+    }
     this._objects.push(avSym)
+    this._avSym = avSym
 
     // Click zone
     const hit = this._scene.add.zone(cx, cy, avatarSize, avatarSize)
       .setOrigin(0).setDepth(D + 2).setInteractive({ useHandCursor: true })
-    hit.on('pointerover', () => avSym.setColor('#ffffff'))
-    hit.on('pointerout',  () => avSym.setColor(CRYPT.accent2Css))
+    hit.on('pointerover', () => {
+      if (avSym.setColor) avSym.setColor('#ffffff')
+      else avSym.setTint?.(0xffffff)
+    })
+    hit.on('pointerout',  () => {
+      if (avSym.setColor) avSym.setColor(CRYPT.accent2Css)
+      else avSym.clearTint?.()
+    })
     hit.on('pointerup',   () => EventBus.emit('OPEN_BOSS_OVERVIEW'))
     this._objects.push(hit)
 

@@ -48,18 +48,22 @@ export class HudScene extends Phaser.Scene {
 
     const W = this.uiW
     const H = this.uiH
+    const COL_W      = 240             // both side columns same width
+    const RIGHT_COL_W = 280            // right column slightly wider for log readability
+    const TOP_Y      = BOSS_TOP_BAR_HEIGHT + 8
 
     // ── Top bar ──
     this._topBar = new BossTopBar(this, this._gameState, { depth: 60 })
 
-    // ── Mini-map (existing component, now under the top bar) ──
-    this._miniMap = new MiniMap(this, this._gameState, this._gameScene)
-    // MiniMap positions itself; nothing further to do here.
+    // ── Mini-map (left column, top) ──
+    // MiniMap is 180×180; left-anchored inside the left column.
+    this._miniMap = new MiniMap(this, this._gameState, this._gameScene, {
+      x: COL_PAD, y: TOP_Y,
+    })
+    const miniMapH = 180   // matches MAP_H constant inside MiniMap.js
 
     // ── Build menu (left column, below mini-map) ──
-    // Mini-map sits roughly 80–270 in y when default-positioned; place build
-    // menu just below it.
-    const buildMenuY = BOSS_TOP_BAR_HEIGHT + 8 + 200 + 8   // top bar + minimap area
+    const buildMenuY = TOP_Y + miniMapH + 12
     this._buildMenu = new BuildMenu(this, this._gameState, {
       depth: 60,
       x:     COL_PAD,
@@ -69,19 +73,20 @@ export class HudScene extends Phaser.Scene {
     this._buildMenu.setVisible(this._gameState.meta?.phase === 'night')
 
     // ── Knowledge Pin (right column, top) ──
-    const knowX = W - KNOWLEDGE_PIN_WIDTH - COL_PAD
-    const knowY = BOSS_TOP_BAR_HEIGHT + 8
+    const knowX = W - RIGHT_COL_W - COL_PAD
+    const knowY = TOP_Y
     this._knowPin = new KnowledgePin(this, this._gameState, {
-      depth: 60, x: knowX, y: knowY,
+      depth: 60, x: knowX, y: knowY, w: RIGHT_COL_W,
     })
+    const knowPinH = 192   // KnowledgePin's measured height (header + 4 rows + exposure)
 
     // ── Dungeon Log (right column, fills below pin) ──
-    const logY = knowY + 200    // KnowledgePin's natural height ~ 200
+    const logY = knowY + knowPinH + 12
     this._dungeonLog = new DungeonLog(this, this._gameState, {
       depth: 60,
       x:     knowX,
       y:     logY,
-      w:     KNOWLEDGE_PIN_WIDTH,
+      w:     RIGHT_COL_W,
       h:     H - logY - ACTION_BAR_HEIGHT - COL_PAD,
     })
 

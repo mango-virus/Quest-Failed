@@ -46,60 +46,50 @@ export class ActionBar {
     pixelPanel(bg, 0, y, W, BAR_H)
     this._objects.push(bg)
 
-    // Left cluster — build tools
-    let x = 12
     const btnY = y + (BAR_H - BTN_H) / 2
+    const cx   = W / 2     // true screen center; phase indicator + clusters anchor here
 
-    this._buttons.rotate = this._addButton('rotate', x, btnY, 88, 'ROTATE', {
-      glyph: '↻', event: 'TOOL_ROTATE',
-    })
-    x += 88 + BTN_PAD
+    // Layout strategy (matches design): symmetric clusters around the center.
+    // Left cluster grows leftward from `cx - centerGap`; right cluster grows
+    // rightward from `cx + centerGap`. The phase indicator floats over the
+    // gap.
+    const centerGap = 110
 
-    this._buttons.move = this._addButton('move', x, btnY, 78, 'MOVE', {
-      glyph: '◇', event: 'TOOL_MOVE',
-    })
-    x += 78 + BTN_PAD
+    // ── Left cluster (build tools), right-anchored toward the center ──
+    const leftDefs = [
+      { key: 'rotate',  w: 86, label: 'ROTATE', glyph: '↻', event: 'TOOL_ROTATE' },
+      { key: 'move',    w: 76, label: 'MOVE',   glyph: '◇', event: 'TOOL_MOVE'   },
+      { key: 'sell',    w: 76, label: 'SELL',   glyph: '✕', event: 'TOOL_SELL', danger: true },
+      { key: 'roster',  w: 86, label: 'ROSTER', glyph: '☰', event: 'OPEN_MINION_ROSTER' },
+    ]
+    const leftTotal = leftDefs.reduce((s, d) => s + d.w, 0) + BTN_PAD * (leftDefs.length - 1)
+    let lx = cx - centerGap - leftTotal
+    for (const d of leftDefs) {
+      this._buttons[d.key] = this._addButton(d.key, lx, btnY, d.w, d.label, d)
+      lx += d.w + BTN_PAD
+    }
 
-    this._buttons.sell = this._addButton('sell', x, btnY, 78, 'SELL', {
-      glyph: '✕', event: 'TOOL_SELL', danger: true,
-    })
-    x += 78 + BTN_PAD
+    // ── Right cluster, left-anchored from the center ──
+    const rightDefs = [
+      { key: 'phaseToggle', w: 130, label: this._phaseLabel(), glyph: '⏵', event: 'PHASE_TOGGLE_REQUEST', primary: true },
+      { key: 'knowledge',   w: 100, label: 'KNOWLEDGE',        glyph: '❖', event: 'OPEN_KNOWLEDGE_MAP' },
+      { key: 'advIntel',    w: 116, label: 'ADV INTEL',        glyph: '👁', event: 'OPEN_ADV_INTEL' },
+      { key: 'menu',        w:  80, label: 'MENU',             glyph: '≡', event: 'OPEN_PAUSE_MENU' },
+    ]
+    let rx = cx + centerGap
+    for (const d of rightDefs) {
+      this._buttons[d.key] = this._addButton(d.key, rx, btnY, d.w, d.label, d)
+      rx += d.w + BTN_PAD
+    }
 
-    this._buttons.roster = this._addButton('roster', x, btnY, 88, 'ROSTER', {
-      glyph: '☰', event: 'OPEN_MINION_ROSTER',
-    })
-    x += 88 + BTN_PAD
-
-    // Right cluster — phase + popups, anchored from right
-    let rx = W - 12
-    rx -= 80
-    this._buttons.menu = this._addButton('menu', rx, btnY, 80, 'MENU', {
-      glyph: '≡', event: 'OPEN_PAUSE_MENU',
-    })
-    rx -= BTN_PAD + 138
-    this._buttons.advIntel = this._addButton('advIntel', rx, btnY, 138, 'ADV INTEL', {
-      glyph: '👁', event: 'OPEN_ADV_INTEL',
-    })
-    rx -= BTN_PAD + 110
-    this._buttons.knowledge = this._addButton('knowledge', rx, btnY, 110, 'KNOWLEDGE', {
-      glyph: '❖', event: 'OPEN_KNOWLEDGE_MAP',
-    })
-    rx -= BTN_PAD + 130
-    this._buttons.phaseToggle = this._addButton('phaseToggle', rx, btnY, 130, this._phaseLabel(), {
-      glyph: '⏵', event: 'PHASE_TOGGLE_REQUEST', primary: true,
-    })
-
-    // Center phase indicator (between left tools and right cluster)
-    const cxLeft  = (12 + 88 + BTN_PAD + 78 + BTN_PAD + 78 + BTN_PAD + 88 + BTN_PAD)
-    const cxRight = rx - BTN_PAD
-    const cx = (cxLeft + cxRight) / 2
+    // ── Center phase indicator ──
     this._phaseCaption = this._scene.add.text(cx, y + 18, 'PHASE', {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 2,
     }).setOrigin(0.5).setDepth(D + TEXT_DEPTH)
     this._objects.push(this._phaseCaption)
 
-    this._phaseStatus = this._scene.add.text(cx, y + 32, this._phaseStatusText(), {
-      fontFamily: FONT_HEAD, fontSize: '12px',
+    this._phaseStatus = this._scene.add.text(cx, y + 36, this._phaseStatusText(), {
+      fontFamily: FONT_HEAD, fontSize: '11px',
       color: this._gameState.meta?.phase === 'day' ? CRYPT.accent2Css : CRYPT.soulCss,
       letterSpacing: 1,
     }).setOrigin(0.5).setDepth(D + TEXT_DEPTH)

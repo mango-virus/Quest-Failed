@@ -38,15 +38,17 @@ export class MiniMap {
    * @param {Phaser.Scene} gameScene - the Game scene whose world camera we
    *                                    read for the viewport indicator
    */
-  constructor(hudScene, gameState, gameScene) {
+  constructor(hudScene, gameState, gameScene, opts = {}) {
     this._scene     = hudScene
     this._gameState = gameState
     this._cam       = gameScene.cameras.main   // world camera (zoom-aware)
 
     const W = hudScene.uiW
     const H = hudScene.uiH
-    this._mx = W - MAP_W - PADDING
-    this._my = H - MAP_H - BOTTOM_UI_CLEARANCE
+    // Phase 31C — caller can override the default bottom-right anchor with
+    // explicit x/y opts (HudScene now positions us in the left column).
+    this._mx = opts.x ?? (W - MAP_W - PADDING)
+    this._my = opts.y ?? (H - MAP_H - BOTTOM_UI_CLEARANCE)
     const mx = this._mx
     const my = this._my
 
