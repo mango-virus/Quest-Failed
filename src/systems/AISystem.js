@@ -882,9 +882,17 @@ export class AISystem {
     let tMaxY = stepY === 0 ? Infinity
       : ((stepY > 0 ? Math.floor(y0) + 1 : Math.floor(y0)) - y0) / dy
 
+    // A tile is "walkable" for line-of-sight if its type allows movement
+    // AND nothing dynamic is sitting on it. Mimics (in any state) count
+    // as solid — without this guard, path-smoothing happily greenlights
+    // a diagonal that visually crosses a chest tile even when the
+    // planned path correctly routes around it. That manifested as
+    // "adventurers walking through mimics" in playtest.
     const walkable = (x, y) => {
       const row = tiles[y]
-      return !!row && PathfinderSystem.isWalkable(row[x])
+      if (!row || !PathfinderSystem.isWalkable(row[x])) return false
+      if (this._isChestMimicAt(x, y)) return false
+      return true
     }
     if (!walkable(cx, cy)) return false
 
