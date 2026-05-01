@@ -25,12 +25,22 @@ const DISPLAY_SIZE    = 128   // ~4 tiles tall; sprite frames are 102x102 native
 const CHEST_SIZE      = 96    // ~3 tiles wide; chest static is 99x102 native
 const HURT_FLASH_MS   = 200
 const PLACEHOLDER_COL = 0xb88844
+// Hit-zone size for left-click pickup / right-click remove. Sized to the
+// rendered chest/sprite footprint so the cursor only triggers when actually
+// over the visible art.
+const HIT_W = CHEST_SIZE
+const HIT_H = CHEST_SIZE
 
 export class MimicRenderer {
   constructor(scene, gameState) {
     this._scene     = scene
     this._gameState = gameState
-    this._sprites   = {}    // instanceId → { container, image, sprite, _state, _facing, _hurtFlashUntil }
+    this._sprites   = {}    // instanceId → { container, image, sprite, hit, ... }
+    // Pickup state — while non-null the held mimic's container tracks the
+    // cursor each frame; second click drops it at the cursor tile.
+    this._heldMimic = null
+    this._onScenePointerDown = this._onScenePointerDown.bind(this)
+    scene.input.on('pointerdown', this._onScenePointerDown)
 
     EventBus.on('NIGHT_PHASE_STARTED', this._refreshAll, this)
     EventBus.on('MINION_DIED',         this._onMinionDied, this)
@@ -39,10 +49,25 @@ export class MimicRenderer {
   destroy() {
     EventBus.off('NIGHT_PHASE_STARTED', this._refreshAll, this)
     EventBus.off('MINION_DIED',         this._onMinionDied, this)
+    this._scene?.input?.off?.('pointerdown', this._onScenePointerDown)
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
   }
 
   update() {
+    // Held mimic tracks the cursor tile (mirrors MinionRenderer's pickup
+    // pattern). Snapping to floor tiles uses the same tile-floor math.
+    if (this._heldMimic) {
+      const ptr = this._scene.input.activePointer
+      const cam = this._scene.cameras.main
+      const wp  = cam.getWorldPoint(ptr.x, ptr.y)
+      this._heldMimic.worldX = wp.x
+      this._heldMimic.worldY = wp.y
+      this._heldMimic.tileX  = Math.floor(wp.x / TS)
+      this._heldMimic.tileY  = Math.floor(wp.y / TS)
+      this._heldMimic.homeTileX = this._heldMimic.tileX
+      this._heldMimic.homeTileY = this._heldMimic.tileY
+    }
+
     const minions = this._gameState.minions ?? []
     const seen = new Set()
 
@@ -84,14 +109,96 @@ export class MimicRenderer {
     sprite.y = -(92 - 51) * spriteScale
     sprite.setVisible(false)
 
-    c.add([image, sprite])
+    // Click hit zone — sized to the chest art so the cursor only triggers
+    // when actually over the visible mimic. Left-click toggles pickup;
+    // right-click removes the placed mimic (with refund).
+    const hit = this._scene.add.rectangle(0, image.y, HIT_W, HIT_H, 0x000000, 0)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+    hit.on('pointerdown', (pointer, _x, _y, event) => {
+      event?.stopPropagation?.()
+      pointer._consumedByMinion = true
+      if (pointer.rightButtonDown()) this._removeMimic(m)
+      else                            this._handleClick(m)
+    })
+
+    c.add([image, sprite, hit])
 
     const rec = {
-      container: c, image, sprite,
+      container: c, image, sprite, hit,
       _animKey: null, _hurtFlashUntil: 0, _deathLingerUntil: 0,
     }
     this._sprites[m.instanceId] = rec
     return rec
+  }
+
+  // Toggle held state. First click picks up; second click drops.
+  _handleClick(m) {
+    if (this._heldMimic === m) {
+      this._dropMimic()
+    } else if (!this._heldMimic) {
+      this._heldMimic = m
+      m._heldByPlayer = true
+    }
+  }
+
+  _dropMimic() {
+    if (!this._heldMimic) return
+    const m = this._heldMimic
+    m._heldByPlayer = false
+    // Snap to the tile center.
+    m.worldX = m.tileX * TS + TS / 2
+    m.worldY = m.tileY * TS + TS / 2
+    m.homeTileX = m.tileX
+    m.homeTileY = m.tileY
+    // Move the paired disguise loot with the chest so the SEEK_LOOT
+    // target points at the new tile, not the old one.
+    const disguise = (this._gameState.loot?.dungeon ?? []).find(
+      i => i._mimicMinionId === m.instanceId
+    )
+    if (disguise) {
+      disguise.tileX  = m.tileX
+      disguise.tileY  = m.tileY
+      disguise.worldX = m.worldX
+      disguise.worldY = m.worldY
+      const room = this._scene.dungeonGrid?.getRoomAtTile?.(m.tileX, m.tileY)
+      disguise.dungeonRoomId   = room?.instanceId ?? null
+      disguise._sourceTreasuryId = room?.instanceId ?? disguise._sourceTreasuryId
+      m.assignedRoomId = room?.instanceId ?? m.assignedRoomId
+    }
+    this._heldMimic = null
+    EventBus.emit('MIMIC_REPOSITIONED', { minion: m })
+  }
+
+  // Right-click delete with essence refund. Mirrors MinionRenderer._removeMinion.
+  _removeMimic(m) {
+    if (!m) return
+    const defs = this._scene.cache.json.get('minionTypes') ?? []
+    const def = defs.find(d => d.id === m.definitionId)
+    const refund = def?.essenceCostToPlace ?? 0
+    if (refund > 0 && this._gameState.player) {
+      this._gameState.player.soulEssence = (this._gameState.player.soulEssence ?? 0) + refund
+    }
+    if (this._heldMimic === m) this._heldMimic = null
+    // Yank paired disguise loot too.
+    if (this._gameState.loot?.dungeon) {
+      this._gameState.loot.dungeon = this._gameState.loot.dungeon.filter(
+        i => i._mimicMinionId !== m.instanceId
+      )
+    }
+    const minions = this._gameState.minions ?? []
+    const idx = minions.findIndex(x => x.instanceId === m.instanceId)
+    if (idx !== -1) minions.splice(idx, 1)
+    this._destroySprite(m.instanceId)
+    EventBus.emit('MINION_REMOVED', { minion: m, refund })
+  }
+
+  // Empty-space click drops the held mimic (mirrors MinionRenderer.
+  // _onScenePointerDown). Sprite-level pointerdown handlers run first
+  // and stop propagation, so this only fires on bare-floor clicks.
+  _onScenePointerDown(pointer) {
+    if (!this._heldMimic) return
+    this._dropMimic()
   }
 
   _tick(m, s) {

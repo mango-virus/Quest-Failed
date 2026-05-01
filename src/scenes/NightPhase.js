@@ -1455,9 +1455,16 @@ export class NightPhase extends Phaser.Scene {
     // entry_hall via the doorway graph.
     const disconnected = this._dungeonGrid.getDisconnectedRooms()
     if (disconnected.length > 0) {
-      const names = disconnected.slice(0, 2).map(r => r.definitionId.replace(/_/g, ' ')).join(', ')
+      // Use the room's display name from the def cache when available so
+      // 'mimic_vault' surfaces as 'Mimic Vault' (and reads as a ROOM, not
+      // the placeable Mimic minion that shares the prefix).
+      const allRooms = this.cache.json.get('rooms') ?? []
+      const labelFor = r => allRooms.find(d => d.id === r.definitionId)?.name
+        ?? r.definitionId.replace(/_/g, ' ')
+      const names = disconnected.slice(0, 2).map(labelFor).join(', ')
       const extra = disconnected.length > 2 ? ` +${disconnected.length - 2} more` : ''
-      this._showPlacementError(`Disconnected: ${names}${extra} — place rooms adjacent to existing ones`)
+      const noun = disconnected.length === 1 ? 'room' : 'rooms'
+      this._showPlacementError(`Disconnected ${noun}: ${names}${extra} — place adjacent to existing rooms`)
       return
     }
 
