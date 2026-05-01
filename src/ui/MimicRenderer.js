@@ -62,18 +62,26 @@ export class MimicRenderer {
   _create(m) {
     const c = this._scene.add.container(m.worldX, m.worldY).setDepth(5)
 
-    // Static chest image (only visible while state === 'chest')
-    // Bottom-anchored — the artist sits the chest at the bottom of the
-    // frame so its base lines up with the tile floor instead of floating
-    // half-below it.
-    const image = this._scene.add.image(0, 0, 'mimic-chest').setOrigin(0.5, 1)
-    image.setScale(CHEST_SIZE / 99)
+    // Static chest image (only visible while state === 'chest').
+    // The artist puts the chest at the BOTTOM of the 99x102 canvas
+    // (opaque bbox is roughly y=83..101). With a center origin the
+    // canvas center sits on the tile, but the visible chest is ~41
+    // source-pixels below that — looks off-center. Shift the image up
+    // by (visible-center − canvas-center) * scale so the actual chest
+    // centers on the tile point.
+    const image = this._scene.add.image(0, 0, 'mimic-chest').setOrigin(0.5)
+    const chestScale = CHEST_SIZE / 99
+    image.setScale(chestScale)
+    image.y = -(92 - 51) * chestScale   // -41 source-px → upward in display-px
 
-    // Animated sprite (only visible while state !== 'chest')
-    // Same bottom-anchor reason — every mimic frame draws the creature
-    // sitting on the bottom edge.
-    const sprite = this._scene.add.sprite(0, 0, 'mimic-idle_right', 0).setOrigin(0.5, 1)
-    sprite.setScale(DISPLAY_SIZE / 102)
+    // Animated sprite (only visible while state !== 'chest'). Same
+    // convention — every active frame is drawn with the creature low
+    // in the 102x102 canvas. Use the same vertical offset proportion as
+    // the chest so the body centers on the tile too.
+    const sprite = this._scene.add.sprite(0, 0, 'mimic-idle_right', 0).setOrigin(0.5)
+    const spriteScale = DISPLAY_SIZE / 102
+    sprite.setScale(spriteScale)
+    sprite.y = -(92 - 51) * spriteScale
     sprite.setVisible(false)
 
     c.add([image, sprite])
