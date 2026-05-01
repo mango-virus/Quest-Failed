@@ -260,6 +260,35 @@ export class AISystem {
     // was just restored, so we let the rest of the tick recompute paths.
     this._maybeClearMadness(adv)
 
+    // General stuck detector — if the adv has been on the same tile for
+    // more than 3 s without being in a freeze-by-design state (boss
+    // chamber, opening chest, dead, leave-fade, fight), assume something
+    // (most likely a mimic-block edge case) is keeping them in place and
+    // force the mimic-bypass flag so they shove through whatever's
+    // blocking. The flag clears on next successful blocked path replan.
+    const stuckExempt = adv.aiState === 'dead' ||
+                        adv.aiState === 'opening_chest' ||
+                        adv.aiState === 'fighting' ||
+                        adv.goal?.type === 'AT_BOSS' ||
+                        adv._leaveFadeEnd != null ||
+                        adv._spawnFadeEnd != null
+    if (!stuckExempt) {
+      const tileKey = `${adv.tileX},${adv.tileY}`
+      if (adv._lastTileKey === tileKey) {
+        adv._tileStuckMs = (adv._tileStuckMs ?? 0) + delta
+        if (adv._tileStuckMs > 3000) {
+          adv._pathIgnoresMimics = true
+          adv.path = null    // force a fresh plan with the bypass flag set
+          adv._tileStuckMs = 0
+          adv._waitMs = 0
+          adv._mimicStuckMs = 0
+        }
+      } else {
+        adv._lastTileKey = tileKey
+        adv._tileStuckMs = 0
+      }
+    }
+
     // Track whether the adventurer has ever been outside the entry hall.
     // Without this, advs that get a FLEE goal immediately on spawn (e.g.
     // their first pathfind failed and we converted to FLEE) would auto-
