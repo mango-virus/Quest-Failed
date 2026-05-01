@@ -90,36 +90,43 @@ export class RoomBehaviorSystem {
     if (!baseDef) return
     const TS = 32
 
-    // Phase QW — Crypt rooms spawn one fresh undead each night (free!).
-    // Caps at 1 per crypt to avoid runaway numbers.
+    // Room redesign 2026-04-30 — Crypt spawns up to 4 garrison Risen Bones,
+    // refilling each Night Phase. Garrison minions are room-bound (cannot
+    // patrol or chase outside the Crypt) and do NOT count toward the
+    // Barracks roster cap.
     const crypts = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'crypt' && r.isActive !== false
     )
     for (const room of crypts) {
       const alreadyHere = (this._gameState.minions ?? [])
         .filter(m => m.assignedRoomId === room.instanceId && m.isCryptSpawn).length
-      if (alreadyHere >= 2) continue   // soft cap so it doesn't snowball
-      const x = room.gridX + Math.floor(room.width / 2)
-      const y = room.gridY + Math.floor(room.height / 2)
-      const m = {
-        instanceId:    `crypt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        definitionId:  baseDef.id,
-        name:          'Risen Skeleton',
-        faction:       'dungeon',
-        isCryptSpawn:  true,
-        assignedRoomId: room.instanceId,
-        homeTileX: x, homeTileY: y, tileX: x, tileY: y,
-        worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
-        stats: { ...(baseDef.baseStats ?? { hp: 30, attack: 8, defense: 4, speed: 1 }) },
-        resources: { hp: baseDef.baseStats?.hp ?? 30, maxHp: baseDef.baseStats?.hp ?? 30 },
-        aiState: 'idle', level: 1, xp: 0,
-        tags: [...(baseDef.tags ?? []), 'undead'],
-        equippedGear: [], killHistory: [], evolutionHistory: [],
-        timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
+      const toSpawn = Math.max(0, 4 - alreadyHere)
+      for (let i = 0; i < toSpawn; i++) {
+        // Spread the spawn points so they don't all stack on one tile.
+        const x = room.gridX + Balance.WALL_THICKNESS + (i % Math.max(1, room.width - 2 * Balance.WALL_THICKNESS))
+        const y = room.gridY + Math.floor(room.height / 2)
+        const m = {
+          instanceId:    `crypt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
+          definitionId:  baseDef.id,
+          name:          'Risen Bones',
+          faction:       'dungeon',
+          class:         'garrison',
+          isCryptSpawn:  true,
+          assignedRoomId: room.instanceId,
+          behaviorType:  baseDef.behaviorType ?? 'patrol',
+          homeTileX: x, homeTileY: y, tileX: x, tileY: y,
+          worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
+          stats: { ...(baseDef.baseStats ?? { hp: 30, attack: 8, defense: 4, speed: 1 }) },
+          resources: { hp: baseDef.baseStats?.hp ?? 30, maxHp: baseDef.baseStats?.hp ?? 30 },
+          aiState: 'idle', level: 1, xp: 0,
+          tags: [...(baseDef.tags ?? []), 'undead'],
+          equippedGear: [], killHistory: [], evolutionHistory: [],
+          timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
+        }
+        this._gameState.minions ??= []
+        this._gameState.minions.push(m)
+        EventBus.emit('CRYPT_SPAWNED', { minion: m, roomId: room.instanceId })
       }
-      this._gameState.minions ??= []
-      this._gameState.minions.push(m)
-      EventBus.emit('CRYPT_SPAWNED', { minion: m, roomId: room.instanceId })
     }
 
     // Phase QW — Necropolis Wing — corpse-to-minion conversion at night.

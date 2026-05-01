@@ -927,16 +927,37 @@ export class NightPhase extends Phaser.Scene {
     } else if (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall') {
       violations.push("Can't place minions here")
     } else {
-      const isBarracksRoom = room.definitionId === 'starter_barracks' || room.definitionId === 'crypt'
+      // Room redesign 2026-04-30 — Barracks is the only roster source.
+      // Crypt is no longer a barracks-equivalent for placement proximity.
+      const isBarracksRoom = room.definitionId === 'starter_barracks'
       if (!isBarracksRoom &&
           !this._dungeonGrid.hasBarracksWithinDistance(room.instanceId, Balance.MINION_BARRACKS_DISTANCE)) {
         violations.push(`Need barracks within ${Balance.MINION_BARRACKS_DISTANCE} rooms`)
       }
     }
+    // Room redesign 2026-04-30 — roster cap: each Barracks adds +5 slots.
+    // Garrison minions (Crypt et al.) do not count toward this cap.
+    const cap = this._rosterCap()
+    const used = this._rosterUsed()
+    if (used >= cap) {
+      violations.push(`Roster full (${used}/${cap}) — build another Barracks for +5 slots`)
+    }
     if ((def.essenceCostToPlace ?? 0) > this._gameState.player.soulEssence) {
       violations.push('Insufficient essence')
     }
     return { valid: violations.length === 0, violations }
+  }
+
+  _rosterCap() {
+    const barracksCount = (this._gameState.dungeon.rooms ?? [])
+      .filter(r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
+    return barracksCount * 5
+  }
+
+  _rosterUsed() {
+    return (this._gameState.minions ?? [])
+      .filter(m => (m.class ?? 'roster') === 'roster' && m.aiState !== 'dead')
+      .length
   }
 
   _validateTrapPlacement(def, tx, ty) {

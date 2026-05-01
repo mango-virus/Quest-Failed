@@ -382,7 +382,11 @@ export class MinionAISystem {
     // (no same-room restriction). Useful for boss-add adds and aggressive
     // archetype unlocks. Patrol/guard/ambush still respect same-room rule.
     const isHunter = minion.behaviorType === 'hunt'
-    const requireSameRoom = Balance.ENGAGE_REQUIRES_SAME_ROOM && !isAlerted && !isHunter
+    // Room redesign 2026-04-30 — garrison minions (Crypt et al.) are
+    // strictly room-bound: alerts and hunt-behavior overrides do not apply.
+    const isGarrison = minion.class === 'garrison'
+    const requireSameRoom = isGarrison ||
+      (Balance.ENGAGE_REQUIRES_SAME_ROOM && !isAlerted && !isHunter)
 
     if (minion.faction === 'adventurer') {
       // Defected minions hunt dungeon-faction minions (and skip adventurers)
@@ -424,7 +428,7 @@ export class MinionAISystem {
     for (const m of this._gameState.minions) {
       if (m === minion || m.aiState === 'dead' || m.resources.hp <= 0) continue
       if (m.faction !== 'adventurer') continue
-      if (Balance.ENGAGE_REQUIRES_SAME_ROOM &&
+      if ((isGarrison || Balance.ENGAGE_REQUIRES_SAME_ROOM) &&
           !_pointInRoom(m.tileX, m.tileY, homeRoom)) continue
       const d = Math.hypot(m.tileX - minion.tileX, m.tileY - minion.tileY)
       if (d > aggro) continue

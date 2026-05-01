@@ -22,7 +22,7 @@ function _parseColor(c) {
   return 0xbbbbbb
 }
 
-export function createMinion(typeDef, tile, assignedRoomId) {
+export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
   const baseStats = typeDef.baseStats ?? {}
   const colorInt  = _parseColor(typeDef.color)
 
@@ -43,6 +43,9 @@ export function createMinion(typeDef, tile, assignedRoomId) {
 
     // Identity / lineage
     assignedRoomId,
+    // 'roster' = produced by Barracks; counts toward Barracks cap; can patrol/follow.
+    // 'garrison' = produced by Crypt/Catacombs/etc; room-bound; does NOT count toward cap.
+    class:         options.class ?? 'roster',
     behaviorType:  typeDef.behaviorType ?? 'guard',
     upkeepCost:    typeDef.upkeepCost ?? 0,
     tags:          typeDef.tags ?? [],
