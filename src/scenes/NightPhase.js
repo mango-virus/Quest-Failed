@@ -185,6 +185,7 @@ export class NightPhase extends Phaser.Scene {
     row('Dark Power',     'power',   PALETTE.textAccent)
     row('Rooms placed',   'rooms',   PALETTE.textDim)
     row('Roster',         'roster',  PALETTE.textDim)
+    row('Traps',          'traps',   PALETTE.textDim)
     row('Upkeep/day',     'upkeep',  PALETTE.textDim)
 
     // Separator
@@ -221,6 +222,12 @@ export class NightPhase extends Phaser.Scene {
     const rosterEmpty = rosterCap === 0
     this._statsTexts.roster?.setText(`${rosterUsed}/${rosterCap}`)
       .setStyle({ color: rosterFull || rosterEmpty ? PALETTE.textRed : PALETTE.textDim })
+    const trapCap  = this._trapCap()
+    const trapUsed = this._trapUsed()
+    const trapFull = trapCap > 0 && trapUsed >= trapCap
+    const trapEmpty = trapCap === 0
+    this._statsTexts.traps?.setText(`${trapUsed}/${trapCap}`)
+      .setStyle({ color: trapFull || trapEmpty ? PALETTE.textRed : PALETTE.textDim })
     this._statsTexts.upkeep?.setText(`${totalUpkeep}`)
       .setStyle({ color: canAfford ? PALETTE.textDim : PALETTE.textRed })
 
@@ -1018,10 +1025,29 @@ export class NightPhase extends Phaser.Scene {
     if (this._gameState.minions.some(m => m.tileX === tx && m.tileY === ty)) {
       violations.push('Tile occupied by a minion')
     }
+    // Room redesign 2026-04-30 — Trap Factory is the gateway: each Factory
+    // adds +5 trap slots. Without a Factory, no traps at all.
+    const cap = this._trapCap()
+    const used = this._trapUsed()
+    if (cap === 0) {
+      violations.push('Build a Trap Factory to unlock traps')
+    } else if (used >= cap) {
+      violations.push(`Trap pool full (${used}/${cap}) — build another Trap Factory for +5 slots`)
+    }
     if ((def.essenceCostToPlace ?? 0) > this._gameState.player.soulEssence) {
       violations.push('Insufficient essence')
     }
     return { valid: violations.length === 0, violations }
+  }
+
+  _trapCap() {
+    const factoryCount = (this._gameState.dungeon.rooms ?? [])
+      .filter(r => r.definitionId === 'trap_factory' && r.isActive !== false).length
+    return factoryCount * 5
+  }
+
+  _trapUsed() {
+    return (this._gameState.dungeon.traps ?? []).length
   }
 
   _confirmPlacement(tx, ty) {
