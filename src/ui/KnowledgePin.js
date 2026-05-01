@@ -5,7 +5,7 @@
 // shared pool has accumulated. Click opens the full Knowledge Map popup
 // (31E) — emits OPEN_KNOWLEDGE_MAP via EventBus.
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar, pixelDiamond } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const DEFAULT_PANEL_W = 280
@@ -48,9 +48,8 @@ export class KnowledgePin {
     headerG.fillRect(x + 2, y + 2 + HEADER_H, this._w - 4, 1)
     this._objects.push(headerG)
 
-    const dia = this._scene.add.text(x + PADDING, y + HEADER_H / 2 + 2, '◆', {
-      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css,
-    }).setOrigin(0, 0.5).setDepth(D + 2)
+    const dia = this._scene.add.graphics().setDepth(D + 2)
+    pixelDiamond(dia, x + PADDING + 4, y + HEADER_H / 2 + 2, 4, CRYPT.accent)
     this._objects.push(dia)
     const hdr = this._scene.add.text(x + PADDING + 14, y + HEADER_H / 2 + 2,
       'ADVENTURER INTEL', {

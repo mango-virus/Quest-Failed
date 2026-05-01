@@ -272,6 +272,31 @@ export const CRYPT = {
 export const FONT_HEAD = '"Press Start 2P", monospace'
 export const FONT_BODY = '"Press Start 2P", monospace'
 
+// ── Pixel diamond icon ────────────────────────────────────────────────────────
+// Draws a small rotated-square diamond (the "◆" panel-header ornament). The
+// Unicode ◆ glyph isn't part of Press Start 2P's char set so the text-based
+// version falls back to a monospace font and looks misaligned next to the
+// header label. Drawing it as a primitive keeps it crisp + on-baseline.
+//
+// g  : Phaser.GameObjects.Graphics
+// cx, cy : centre point in pixels
+// size   : half-diagonal in pixels (default 4 → 8x8 bounding diamond)
+// color  : fill colour (default CRYPT.accent)
+export function pixelDiamond(g, cx, cy, size = 4, color = CRYPT.accent) {
+  g.fillStyle(color, 1)
+  // Diagonal stripes from top to bottom — at each row Y, draw a horizontal
+  // strip of width that grows toward the middle then shrinks. This mimics
+  // how a pixel-art diamond is built.
+  for (let i = 0; i <= size; i++) {
+    const w = 1 + i * 2
+    g.fillRect(cx - i, cy - size + i, w, 1)
+  }
+  for (let i = 0; i < size; i++) {
+    const w = 1 + (size - 1 - i) * 2
+    g.fillRect(cx - (size - 1 - i), cy + 1 + i, w, 1)
+  }
+}
+
 // ── Pixel-bevel panel ─────────────────────────────────────────────────────────
 // Draws a hard-edged 2px-bevel panel onto the given Graphics object.
 // Top/left edges get the highlight colour, bottom/right get the shadow,

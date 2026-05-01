@@ -7,7 +7,7 @@
 //
 // Visible only during night phase — HudScene calls setVisible(false) on day.
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs, pixelDiamond } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const DEFAULT_PANEL_W = 230
@@ -71,11 +71,10 @@ export class BuildMenu {
     headerG.fillRect(x + 2, y + 2 + HEADER_H, w - 4, 1)
     this._objects.push(headerG)
 
-    const dia = this._scene.add.text(x + PADDING + 4, y + HEADER_H / 2 + 2, '◆', {
-      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css,
-    }).setOrigin(0, 0.5).setDepth(D + 2)
+    const dia = this._scene.add.graphics().setDepth(D + 2)
+    pixelDiamond(dia, x + PADDING + 6, y + HEADER_H / 2 + 2, 4, CRYPT.accent)
     this._objects.push(dia)
-    const hdr = this._scene.add.text(x + PADDING + 18, y + HEADER_H / 2 + 2,
+    const hdr = this._scene.add.text(x + PADDING + 16, y + HEADER_H / 2 + 2,
       'CONSTRUCTION', {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.ink, letterSpacing: 2,
     }).setOrigin(0, 0.5).setDepth(D + 2)
@@ -126,8 +125,11 @@ export class BuildMenu {
   }
 
   _onWheel(pointer, _objs, _dx, dy) {
-    // Only respond when the pointer is within our slot grid rect.
-    const px = pointer.x, py = pointer.y
+    // pointer.x/y are canvas pixels; HudScene's camera zoom maps them to
+    // design-space coords. getWorldPoint applies the inverse zoom + scroll.
+    const cam = this._scene.cameras.main
+    const wp  = cam.getWorldPoint(pointer.x, pointer.y)
+    const px = wp.x, py = wp.y
     if (px < this._x || px > this._x + this._w) return
     if (py < this._slotsTopY || py > this._slotsBotY) return
     const visibleH = this._slotsBotY - this._slotsTopY
@@ -207,9 +209,11 @@ export class BuildMenu {
       const row = Math.floor(i / SLOT_COLS)
       const sx = x + col * (slotW + SLOT_GAP)
       const sy = y + row * (slotH + SLOT_GAP) - this._scrollY
-      // Skip slots that fall outside the visible viewport (scroll clip).
+      // Skip slots that don't fully fit in the viewport — partial rows
+      // were the source of the "Entry Hall bleeds out the bottom" bug.
       if (sy + slotH < this._slotsTopY) return
-      if (sy > this._slotsBotY) return
+      if (sy + slotH > this._slotsBotY) return
+      if (sy < this._slotsTopY) return
       this._renderSlot(def, kind, sx, sy, slotW, slotH)
     })
 
@@ -287,21 +291,26 @@ export class BuildMenu {
 
     // Glyph (top half)
     const glyph = def._glyph ?? this._glyphFor(def, kind)
-    const g = this._scene.add.text(sx + sw / 2, sy + 18, glyph, {
-      fontFamily: FONT_HEAD, fontSize: '14px',
+    const g = this._scene.add.text(sx + sw / 2, sy + 14, glyph, {
+      fontFamily: FONT_HEAD, fontSize: '12px',
       color: locked ? CRYPT.inkMuteHex : (isSelected ? CRYPT.accent2Css : CRYPT.ink),
     }).setOrigin(0.5).setDepth(D + 1)
     this._slotObjects.push(g)
 
-    // Name
+    // Name — Press Start 2P 7px with word-wrap onto two lines so
+    // 'TRAP FACTORY' / 'WANDERING GATE' fit without ellipsis.
     const name = (def.name ?? def.id ?? '?').toUpperCase()
-    const nameT = this._scene.add.text(sx + sw / 2, sy + 36, this._truncate(name, 11), {
+    const nameT = this._scene.add.text(sx + sw / 2, sy + 28, name, {
       fontFamily: FONT_HEAD, fontSize: '7px',
       color: locked ? CRYPT.inkMute : CRYPT.ink, letterSpacing: 1,
-    }).setOrigin(0.5).setDepth(D + 1)
+      align: 'center',
+      lineSpacing: 3,
+      wordWrap: { width: sw - 6, useAdvancedWrap: true },
+    }).setOrigin(0.5, 0).setDepth(D + 1)
     this._slotObjects.push(nameT)
 
-    // Cost (or "L{N}" if locked)
+    // Cost (or "L{N}" if locked) — anchored near the bottom regardless of
+    // the name's wrap height.
     let costStr, costColor
     if (locked) {
       costStr   = `L${def.unlockLevel}`
@@ -310,9 +319,9 @@ export class BuildMenu {
       costStr   = `${cost}`
       costColor = affordable ? CRYPT.goldCss : CRYPT.accent2Css
     }
-    const costT = this._scene.add.text(sx + sw / 2, sy + 50, costStr, {
-      fontFamily: FONT_BODY, fontSize: '9px', color: costColor, letterSpacing: 1,
-    }).setOrigin(0.5).setDepth(D + 1)
+    const costT = this._scene.add.text(sx + sw / 2, sy + sh - 6, costStr, {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: costColor, letterSpacing: 1,
+    }).setOrigin(0.5, 1).setDepth(D + 1)
     this._slotObjects.push(costT)
 
     // Placement cap badge — top-right corner. Only shown when the def has

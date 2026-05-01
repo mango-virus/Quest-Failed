@@ -9,7 +9,7 @@
 // renders into a fixed panel rather than a fading stack.
 
 import { EventBus }                 from '../systems/EventBus.js'
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelDiamond } from './UIKit.js'
 
 const HEADER_H        = 22
 // Press Start 2P at 7px renders ~11-12px tall (font metrics include extra
@@ -67,9 +67,8 @@ export class DungeonLog {
     headerG.fillRect(x + 2, y + 2 + HEADER_H, w - 4, 1)
     this._objects.push(headerG)
 
-    const dia = this._scene.add.text(x + PADDING, y + HEADER_H / 2 + 2, '◆', {
-      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css,
-    }).setOrigin(0, 0.5).setDepth(D + 2)
+    const dia = this._scene.add.graphics().setDepth(D + 2)
+    pixelDiamond(dia, x + PADDING + 4, y + HEADER_H / 2 + 2, 4, CRYPT.accent)
     this._objects.push(dia)
     const hdr = this._scene.add.text(x + PADDING + 14, y + HEADER_H / 2 + 2,
       'DUNGEON LOG', {
@@ -151,44 +150,38 @@ export class DungeonLog {
     const startY = this._y + HEADER_H + PADDING
     const innerW = this._w - PADDING * 2
 
-    // Body fills the full inside width (no day prefix) and wraps onto
-    // additional lines when the text is too long instead of getting cut
-    // off with an ellipsis. Each row's height grows with its line count
-    // and rows below it shift down accordingly.
+    // Top-down render: newest at the top, older below, oldest fall off
+    // the bottom. Word-wraps multi-line — each row's height grows with
+    // its line count.
     const bodyX     = startX + ROW_BORDER_W + 6
     const bodyMaxPx = (this._x + this._w - PADDING - 4) - bodyX
-    const lineH     = 11    // per-line height for 7px Press Start 2P + 2px lineSpacing
+    const lineH     = 11
 
-    // Walk newest -> oldest, stopping once we run out of vertical space.
-    const allRows = [...this._rows].reverse()
-    let cursorY = (this._y + this._h - PADDING)
-    const minY  = startY
-    for (const r of allRows) {
-      // Probe text height by creating it with wordWrap, then position it
-      // bottom-aligned. Skip rows that no longer fit above the panel top.
-      const body = this._scene.add.text(bodyX, 0, r.text, {
+    const newest = [...this._rows].reverse()   // newest first
+    let cursorY  = startY
+    const maxY   = this._y + this._h - PADDING
+    for (const r of newest) {
+      const body = this._scene.add.text(bodyX, cursorY, r.text, {
         fontFamily: FONT_BODY, fontSize: '7px',
         color: COLOR_FOR[r.type] ?? COLOR_FOR.info,
         letterSpacing: 1,
         lineSpacing: 2,
         wordWrap: { width: bodyMaxPx, useAdvancedWrap: true },
-      }).setOrigin(0, 1).setDepth(D + 3)
+      }).setOrigin(0, 0).setDepth(D + 3)
       const blockH = Math.max(lineH, body.height)
-      const ry     = cursorY - blockH
-      if (ry < minY) {
+      if (cursorY + blockH > maxY) {
         body.destroy()
         break
       }
-      body.setY(cursorY)
       this._rowObjects.push(body)
 
-      // Type-coded left border
+      // Type-coded left border, full row height
       const border = this._scene.add.graphics().setDepth(D + 2)
       border.fillStyle(this._colorHex(r.type), 1)
-      border.fillRect(startX, ry, ROW_BORDER_W, blockH - 2)
+      border.fillRect(startX, cursorY, ROW_BORDER_W, blockH - 2)
       this._rowObjects.push(border)
 
-      cursorY -= blockH + ROW_GAP
+      cursorY += blockH + ROW_GAP
     }
   }
 

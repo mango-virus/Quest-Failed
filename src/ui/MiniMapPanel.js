@@ -8,7 +8,7 @@
 // Pure read-only viewer — no click-to-pan (the dungeon view itself is
 // large enough for direct interaction). Polls gameState every frame; cheap.
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelDiamond } from './UIKit.js'
 import { Balance } from '../config/balance.js'
 
 const HEADER_H = 22
@@ -59,10 +59,10 @@ export class MiniMapPanel {
     headerG.fillRect(x + 2, y + 2 + HEADER_H, w - 4, 1)
     this._objects.push(headerG)
 
-    this._scene.add.text(x + PADDING + 4, y + HEADER_H / 2 + 2, '◆', {
-      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css,
-    }).setOrigin(0, 0.5).setDepth(D + 2)
-    this._scene.add.text(x + PADDING + 18, y + HEADER_H / 2 + 2, 'DUNGEON MAP', {
+    const dia = this._scene.add.graphics().setDepth(D + 2)
+    pixelDiamond(dia, x + PADDING + 6, y + HEADER_H / 2 + 2, 4, CRYPT.accent)
+    this._objects.push(dia)
+    this._scene.add.text(x + PADDING + 16, y + HEADER_H / 2 + 2, 'DUNGEON MAP', {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.ink, letterSpacing: 2,
     }).setOrigin(0, 0.5).setDepth(D + 2)
 
@@ -114,27 +114,37 @@ export class MiniMapPanel {
     if (!dungeon) return
     const gw = dungeon.gridWidth ?? Balance.STARTING_GRID_WIDTH
     const gh = dungeon.gridHeight ?? Balance.STARTING_GRID_HEIGHT
-    const sx = this._mapW / gw
-    const sy = this._mapH / gh
+    // Single uniform scale so square dungeon tiles render as squares on
+    // the panel — using mapW/gw and mapH/gh independently squashed boss
+    // chambers into rectangles.
+    const scale = Math.min(this._mapW / gw, this._mapH / gh)
+    const sx = scale
+    const sy = scale
+    // Center the grid within the map area when the panel aspect doesn't
+    // match the dungeon aspect.
+    const offsetX = Math.round((this._mapW - gw * scale) / 2)
+    const offsetY = Math.round((this._mapH - gh * scale) / 2)
+    const baseX = this._mapX + offsetX
+    const baseY = this._mapY + offsetY
 
     // Faint grid lines (every 4 tiles) — subtle pattern matching the design.
     const grid = this._scene.add.graphics().setDepth(D - 1)
     grid.lineStyle(1, 0xffffff, 0.04)
     for (let i = 4; i < gw; i += 4) {
-      const lx = this._mapX + Math.round(i * sx)
-      grid.lineBetween(lx, this._mapY, lx, this._mapY + this._mapH)
+      const lx = baseX + Math.round(i * sx)
+      grid.lineBetween(lx, baseY, lx, baseY + gh * scale)
     }
     for (let j = 4; j < gh; j += 4) {
-      const ly = this._mapY + Math.round(j * sy)
-      grid.lineBetween(this._mapX, ly, this._mapX + this._mapW, ly)
+      const ly = baseY + Math.round(j * sy)
+      grid.lineBetween(baseX, ly, baseX + gw * scale, ly)
     }
     this._dynObjects.push(grid)
 
     // Room blocks — wall-colored with thin 1-px outline.
     const g = this._scene.add.graphics().setDepth(D)
     for (const room of (dungeon.rooms ?? [])) {
-      const px = this._mapX + Math.round(room.gridX * sx)
-      const py = this._mapY + Math.round(room.gridY * sy)
+      const px = baseX + Math.round(room.gridX * sx)
+      const py = baseY + Math.round(room.gridY * sy)
       const pw = Math.max(2, Math.round(room.width * sx))
       const ph = Math.max(2, Math.round(room.height * sy))
 
@@ -156,15 +166,15 @@ export class MiniMapPanel {
     bossG.fillStyle(CRYPT.accent, 1)
     const boss = this._gameState.boss
     if (boss && boss.tileX != null) {
-      const dx = this._mapX + Math.round(boss.tileX * sx)
-      const dy = this._mapY + Math.round(boss.tileY * sy)
+      const dx = baseX + Math.round(boss.tileX * sx)
+      const dy = baseY + Math.round(boss.tileY * sy)
       bossG.fillRect(dx - 2, dy - 2, dotSize + 1, dotSize + 1)
     } else {
       // Boss tile unknown — fall back to the boss room centre.
       const bossRoom = (dungeon.rooms ?? []).find(r => r.definitionId === 'boss_chamber')
       if (bossRoom) {
-        const dx = this._mapX + Math.round((bossRoom.gridX + bossRoom.width  / 2) * sx)
-        const dy = this._mapY + Math.round((bossRoom.gridY + bossRoom.height / 2) * sy)
+        const dx = baseX + Math.round((bossRoom.gridX + bossRoom.width  / 2) * sx)
+        const dy = baseY + Math.round((bossRoom.gridY + bossRoom.height / 2) * sy)
         bossG.fillRect(dx - 2, dy - 2, dotSize + 1, dotSize + 1)
       }
     }
@@ -175,8 +185,8 @@ export class MiniMapPanel {
     minG.fillStyle(CRYPT.warn, 1)
     for (const m of (this._gameState.minions ?? [])) {
       if (m.aiState === 'dead' || (m.resources?.hp ?? 1) <= 0) continue
-      const dx = this._mapX + Math.round((m.tileX ?? 0) * sx)
-      const dy = this._mapY + Math.round((m.tileY ?? 0) * sy)
+      const dx = baseX + Math.round((m.tileX ?? 0) * sx)
+      const dy = baseY + Math.round((m.tileY ?? 0) * sy)
       minG.fillRect(dx - 1, dy - 1, dotSize, dotSize)
     }
     this._dynObjects.push(minG)
@@ -185,8 +195,8 @@ export class MiniMapPanel {
     const advG = this._scene.add.graphics().setDepth(D + 3)
     advG.fillStyle(CRYPT.soul, 1)
     for (const adv of (this._gameState.adventurers?.active ?? [])) {
-      const dx = this._mapX + Math.round((adv.tileX ?? 0) * sx)
-      const dy = this._mapY + Math.round((adv.tileY ?? 0) * sy)
+      const dx = baseX + Math.round((adv.tileX ?? 0) * sx)
+      const dy = baseY + Math.round((adv.tileY ?? 0) * sy)
       advG.fillRect(dx - 1, dy - 1, dotSize, dotSize)
     }
     this._dynObjects.push(advG)

@@ -10,7 +10,7 @@
 // Phase 31E (until then, the click is a harmless no-op except for the
 // event emission).
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar, pixelDiamond } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const BAR_H        = 56
@@ -212,8 +212,11 @@ export class BossTopBar {
     const D = this._depth + TEXT_DEPTH
     const startX = x + PADDING_X
 
-    // Header
-    const hdr = this._scene.add.text(startX, 8, 'TREASURY', {
+    // Header — diamond + label, matches the other panels' ornament style
+    const dia = this._scene.add.graphics().setDepth(D)
+    pixelDiamond(dia, startX + 4, 12, 4, CRYPT.accent)
+    this._objects.push(dia)
+    const hdr = this._scene.add.text(startX + 14, 8, 'TREASURY', {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 2,
     }).setDepth(D)
     this._objects.push(hdr)

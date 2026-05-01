@@ -16,8 +16,8 @@
 import { CRYPT, FONT_HEAD, pixelPanel, pixelButton } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
-const BAR_H        = 48
-const BTN_H        = 32
+const BAR_H        = 76
+const BTN_H        = 36
 const BTN_PAD      = 4
 const TEXT_DEPTH   = 12
 
@@ -99,17 +99,21 @@ export class ActionBar {
       rx += d.w + BTN_PAD
     }
 
-    // ── Center phase indicator ──
-    this._phaseCaption = this._scene.add.text(cx, y + 18, 'PHASE', {
-      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 2,
-    }).setOrigin(0.5).setDepth(D + TEXT_DEPTH)
+    // ── Center phase indicator (vertical stack matching the design) ──
+    // Caption "PHASE" up top, then a 4-line stacked body with the moon /
+    // phase name / em-dash / build-or-invasion mode.
+    this._phaseCaption = this._scene.add.text(cx, y + 8, 'PHASE', {
+      fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 2,
+    }).setOrigin(0.5, 0).setDepth(D + TEXT_DEPTH)
     this._objects.push(this._phaseCaption)
 
-    this._phaseStatus = this._scene.add.text(cx, y + 36, this._phaseStatusText(), {
-      fontFamily: FONT_HEAD, fontSize: '11px',
+    this._phaseStatus = this._scene.add.text(cx, y + 22, this._phaseStatusText(), {
+      fontFamily: FONT_HEAD, fontSize: '9px',
       color: this._gameState.meta?.phase === 'day' ? CRYPT.accent2Css : CRYPT.soulCss,
       letterSpacing: 1,
-    }).setOrigin(0.5).setDepth(D + TEXT_DEPTH)
+      align: 'center',
+      lineSpacing: 4,
+    }).setOrigin(0.5, 0).setDepth(D + TEXT_DEPTH)
     this._objects.push(this._phaseStatus)
   }
 
@@ -173,7 +177,8 @@ export class ActionBar {
 
   _phaseStatusText() {
     const ph = this._gameState.meta?.phase ?? 'night'
-    return ph === 'night' ? '◐ NIGHT — BUILD' : '☀ DAY — INVASION'
+    if (ph === 'night') return '◐\nNIGHT\n—\nBUILD'
+    return '☀\nDAY\n—\nINVASION'
   }
 
   // Called every frame from HudScene.update (~60fps). Cheap reads.
