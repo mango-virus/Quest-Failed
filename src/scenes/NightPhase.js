@@ -976,6 +976,9 @@ export class NightPhase extends Phaser.Scene {
       if (violations.length === 0) violations.push('Not inside any room')
     } else if (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall') {
       violations.push("Can't place minions here")
+    } else if (room.definitionId === 'throne_room') {
+      // Room redesign 2026-04-30 — Throne Room hosts only its mini-boss.
+      violations.push("Throne Room only houses its mini-boss")
     } else {
       // Room redesign 2026-04-30 — Barracks is the only roster source.
       // Crypt is no longer a barracks-equivalent for placement proximity.

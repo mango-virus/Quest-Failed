@@ -1312,6 +1312,24 @@ export class AISystem {
       if (lootIdx >= 0) {
         const item = lootList[lootIdx]
         lootList.splice(lootIdx, 1)
+        // Room redesign 2026-04-30 — Mimic Vault false chest: instead of
+        // letting them carry, immediately deal damage. The chest itself is
+        // already removed from loot.dungeon (splice above). Death routes
+        // through the normal damage path.
+        if (item._isFalseChest) {
+          const dmg = item._falseChestDamage ?? 30
+          adv.resources.hp = Math.max(0, (adv.resources?.hp ?? 0) - dmg)
+          EventBus.emit('MIMIC_VAULT_FALSE_CHEST_TRIGGERED', {
+            adventurer: adv,
+            damage: dmg,
+            sourceTreasuryId: item._sourceTreasuryId,
+          })
+          // Don't switch goal here — let the next tick reroute organically
+          // (e.g., flee on low HP). If the hit killed them, _kill runs
+          // separately on the next combat tick.
+          adv.goal = this._pickNextGoal(adv)
+          return
+        }
         // Room redesign 2026-04-30 — Treasury chest: don't equip, attach
         // as carriedChest. Adventurer must escape alive to actually steal
         // the essence (resolved in the FLEE/atNorthEdge block above).
@@ -1448,6 +1466,47 @@ export class AISystem {
     const killerId   = adv._lastHitBy ?? killerHint
     const killerName = this._lookupKillerName(killerId)
     const damageType = adv._lastHitType ?? 'physical'
+
+    // Room redesign 2026-04-30 — Catacombs: if the adv died in a Catacombs
+    // room and there are <2 alive Revenants there, raise one Tier-2 garrison.
+    const deathRoom = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+    if (deathRoom?.definitionId === 'catacombs') {
+      const aliveRevenants = (this._gameState.minions ?? []).filter(m =>
+        m.assignedRoomId === deathRoom.instanceId && m.isCatacombsRevenant && m.aiState !== 'dead'
+      ).length
+      if (aliveRevenants < 2) {
+        const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
+        const revenantDef = minionTypes.find(d => d.id === 'skeleton2') ?? minionTypes[0]
+        if (revenantDef) {
+          const TS = 32
+          const tx = adv.tileX, ty = adv.tileY
+          const baseStats = revenantDef.baseStats ?? { hp: 50, attack: 10, defense: 5, speed: 1 }
+          this._gameState.minions ??= []
+          this._gameState.minions.push({
+            instanceId:    `revenant_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            definitionId:  revenantDef.id,
+            name:          'Revenant',
+            faction:       'dungeon',
+            class:         'garrison',
+            isCatacombsRevenant: true,
+            assignedRoomId: deathRoom.instanceId,
+            behaviorType:  revenantDef.behaviorType ?? 'patrol',
+            homeTileX: tx, homeTileY: ty, tileX: tx, tileY: ty,
+            worldX: tx * TS + TS / 2, worldY: ty * TS + TS / 2,
+            stats: { ...baseStats },
+            resources: { hp: baseStats.hp ?? 50, maxHp: baseStats.hp ?? 50 },
+            aiState: 'idle', level: 1, xp: 0,
+            tags: [...(revenantDef.tags ?? []), 'undead'],
+            equippedGear: [], killHistory: [], evolutionHistory: [],
+            timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
+          })
+          EventBus.emit('CATACOMBS_REVENANT_RAISED', {
+            roomId: deathRoom.instanceId,
+            fromAdv: adv.instanceId,
+          })
+        }
+      }
+    }
 
     this._gameState.adventurers.active.splice(idx, 1)
     this._gameState.adventurers.graveyard.push({

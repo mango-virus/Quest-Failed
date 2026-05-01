@@ -251,6 +251,151 @@ export class RoomBehaviorSystem {
       }
     }
 
+    // Room redesign 2026-04-30 — Mimic Vault: spawn 2 hidden-as-loot
+    // mimics + 1 false chest each night. The mimics disguise as Treasury
+    // chests; stepping on them reveals the minion (existing
+    // MinionAISystem.isMimic + hiddenAsLoot path). The false chest
+    // damages whoever grabs it (intercepted in AISystem SEEK_LOOT block).
+    const vaults = (this._gameState.dungeon.rooms ?? []).filter(r =>
+      r.definitionId === 'mimic_vault' && r.isActive !== false
+    )
+    if (vaults.length > 0) {
+      // Use a base T2 def for the mimic minion stats; named "Mimic" for flavor.
+      const mimicBase = minionTypes.find(d => d.id === 'zombie2') ?? baseDef
+      this._gameState.loot ??= { dungeon: [] }
+      this._gameState.loot.dungeon ??= []
+      for (const room of vaults) {
+        const aliveMimics = (this._gameState.minions ?? []).filter(m =>
+          m.assignedRoomId === room.instanceId && m.isMimic && m.aiState !== 'dead'
+        ).length
+        const mimicSlots = [
+          [room.gridX + Balance.WALL_THICKNESS, room.gridY + Balance.WALL_THICKNESS],
+          [room.gridX + room.width - Balance.WALL_THICKNESS - 1, room.gridY + room.height - Balance.WALL_THICKNESS - 1],
+        ]
+        const occupiedTiles = new Set(
+          (this._gameState.minions ?? [])
+            .filter(m => m.assignedRoomId === room.instanceId && m.isMimic && m.aiState !== 'dead')
+            .map(m => `${m.tileX},${m.tileY}`)
+        )
+        let mimicSpawned = 0
+        for (const [x, y] of mimicSlots) {
+          if (aliveMimics + mimicSpawned >= 2) break
+          if (occupiedTiles.has(`${x},${y}`)) continue
+          // Disguising loot item — visually a chest, but holds the mimic ref.
+          const disguise = {
+            instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2,6)}_${mimicSpawned}`,
+            definitionId: 'treasury_chest',
+            _treasuryChest: true,
+            _isMimicVaultDisguise: true,
+            _essenceValue: 0,
+            _sourceTreasuryId: room.instanceId,
+            tileX: x, tileY: y, worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
+            dungeonRoomId: room.instanceId,
+            isMimicSpawn: true,
+            provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
+          }
+          this._gameState.loot.dungeon.push(disguise)
+          const m = this._makeGarrison(mimicBase, room, {
+            tileX: x, tileY: y,
+            namePrefix: 'Mimic',
+            extra: {
+              isMimic: true,
+              hiddenAsLoot: true,
+              disguisedItemId: disguise.instanceId,
+              isMimicVaultSpawn: true,
+            },
+          })
+          this._gameState.minions.push(m)
+          mimicSpawned++
+        }
+        // 1 false chest at room center
+        const cx = room.gridX + Math.floor(room.width / 2)
+        const cy = room.gridY + Math.floor(room.height / 2)
+        const hasFalseChest = this._gameState.loot.dungeon.some(i =>
+          i._isFalseChest && i._sourceTreasuryId === room.instanceId
+        )
+        if (!hasFalseChest) {
+          this._gameState.loot.dungeon.push({
+            instanceId: `falsechest_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+            definitionId: 'treasury_chest',
+            _treasuryChest: true,
+            _isFalseChest: true,
+            _falseChestDamage: 30,
+            _essenceValue: 0,
+            _sourceTreasuryId: room.instanceId,
+            tileX: cx, tileY: cy, worldX: cx * TS + TS / 2, worldY: cy * TS + TS / 2,
+            dungeonRoomId: room.instanceId,
+            provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
+          })
+        }
+      }
+    }
+
+    // Room redesign 2026-04-30 — Hall of Trials: at Night Phase, if no
+    // garrison alive in this Hall, spawn one random T2 evolved minion.
+    const trialHalls = (this._gameState.dungeon.rooms ?? []).filter(r =>
+      r.definitionId === 'hall_of_trials' && r.isActive !== false
+    )
+    if (trialHalls.length > 0) {
+      const tier2Pool = minionTypes.filter(d =>
+        /[a-z_]+2$/.test(d.id) && d.id !== 'beholder2'  // exclude super-rare or boss-tier
+      )
+      for (const room of trialHalls) {
+        const aliveHere = (this._gameState.minions ?? []).filter(m =>
+          m.assignedRoomId === room.instanceId && m.isHallOfTrialsSpawn && m.aiState !== 'dead'
+        ).length
+        if (aliveHere > 0) continue
+        const def = tier2Pool[Math.floor(Math.random() * tier2Pool.length)]
+        if (!def) continue
+        const cx = room.gridX + Math.floor(room.width / 2)
+        const cy = room.gridY + Math.floor(room.height / 2)
+        const m = this._makeGarrison(def, room, {
+          tileX: cx, tileY: cy,
+          extra: { isHallOfTrialsSpawn: true },
+        })
+        this._gameState.minions.push(m)
+        EventBus.emit('HALL_OF_TRIALS_SPAWNED', { minion: m, roomId: room.instanceId })
+      }
+    }
+
+    // Room redesign 2026-04-30 — Throne Room: spawn 1 mini-boss per Throne
+    // Room nightly. Stats scale with current dungeonLevel. Mini-boss is a
+    // garrison minion (room-bound) and the only minion allowed in the room.
+    const thrones = (this._gameState.dungeon.rooms ?? []).filter(r =>
+      r.definitionId === 'throne_room' && r.isActive !== false
+    )
+    if (thrones.length > 0) {
+      const baseMini = minionTypes.find(d => d.id === 'skeleton3') ?? minionTypes.find(d => d.id === 'skeleton2') ?? baseDef
+      const dungeonLv = this._gameState.meta.dungeonLevel ?? 1
+      // Stats multiplier scales with level. 1.0 at L9, 1.4 at L10.
+      const mult = 1 + 0.1 * Math.max(0, dungeonLv - 8)
+      for (const room of thrones) {
+        const aliveHere = (this._gameState.minions ?? []).filter(m =>
+          m.assignedRoomId === room.instanceId && m.isThroneMiniBoss && m.aiState !== 'dead'
+        ).length
+        if (aliveHere > 0) continue
+        const cx = room.gridX + Math.floor(room.width / 2)
+        const cy = room.gridY + Math.floor(room.height / 2)
+        const baseStats = baseMini.baseStats ?? { hp: 60, attack: 12, defense: 6, speed: 1 }
+        const m = this._makeGarrison(baseMini, room, {
+          tileX: cx, tileY: cy,
+          namePrefix: 'Mini-Boss',
+          extra: {
+            isThroneMiniBoss: true,
+            isMiniBoss: true,
+          },
+          statsOverride: {
+            hp: Math.floor((baseStats.hp ?? 60) * mult),
+            attack: Math.floor((baseStats.attack ?? 12) * mult),
+            defense: Math.floor((baseStats.defense ?? 6) * mult),
+            speed: baseStats.speed ?? 1,
+          },
+        })
+        this._gameState.minions.push(m)
+        EventBus.emit('THRONE_MINIBOSS_SPAWNED', { minion: m, roomId: room.instanceId, dungeonLv })
+      }
+    }
+
     // Phase QW — Necropolis Wing — corpse-to-minion conversion at night.
     const necros = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'necropolis_wing' && r.isActive !== false
@@ -369,6 +514,42 @@ export class RoomBehaviorSystem {
       destinationRoomId: target.instanceId,
       destinationDefId: target.definitionId,
     })
+  }
+
+  // Room redesign 2026-04-30 — shared garrison-minion factory used by
+  // Mimic Vault, Hall of Trials, Throne Room. Mirrors the inline Crypt
+  // shape (kept inline for back-compat) but with a fixed class:'garrison'
+  // and the standard book-keeping fields. opts:
+  //   tileX, tileY (required) — spawn tile (also home tile)
+  //   namePrefix (optional)   — overrides the def's display name
+  //   extra (optional)        — extra fields merged onto the result
+  //   statsOverride (optional) — replaces baseStats for stat scaling
+  _makeGarrison(def, room, opts = {}) {
+    const TS = 32
+    const stats = opts.statsOverride ?? def.baseStats ?? { hp: 30, attack: 8, defense: 4, speed: 1 }
+    const tileX = opts.tileX
+    const tileY = opts.tileY
+    const m = {
+      instanceId:    `garr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      definitionId:  def.id,
+      name:          opts.namePrefix ?? def.name ?? def.id,
+      faction:       'dungeon',
+      class:         'garrison',
+      assignedRoomId: room.instanceId,
+      behaviorType:  def.behaviorType ?? 'patrol',
+      homeTileX: tileX, homeTileY: tileY,
+      tileX, tileY,
+      worldX: tileX * TS + TS / 2, worldY: tileY * TS + TS / 2,
+      stats: { ...stats },
+      resources: { hp: stats.hp ?? 30, maxHp: stats.hp ?? 30 },
+      aiState: 'idle', level: 1, xp: 0,
+      tags: [...(def.tags ?? [])],
+      equippedGear: [], killHistory: [], evolutionHistory: [],
+      timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
+      ...(opts.extra ?? {}),
+    }
+    this._gameState.minions ??= []
+    return m
   }
 
   _rollWishingWell(adv) {
