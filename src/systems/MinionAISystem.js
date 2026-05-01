@@ -539,10 +539,14 @@ export class MinionAISystem {
     const now = this._scene.time?.now ?? 0
     const stale = !path || (cache && now - cache.computedAt > 600)
     if (stale) {
+      // Mimic chests block any minion's path the same way they block
+      // adventurers — disguised mimics aren't walkable terrain.
+      const blockedTiles = this._buildChestBlockSet(minion)
       const fresh = PathfinderSystem.findPath(
         { x: minion.tileX, y: minion.tileY },
         targetTile,
         this._dungeonGrid,
+        null, 0, blockedTiles,
       )
       if (fresh && fresh.length > 0) {
         path = fresh
@@ -564,9 +568,46 @@ export class MinionAISystem {
     }
   }
 
+  // Tiles occupied by ANY alive mimic (any mimicState). Both the
+  // pathfinder (planning) and per-frame _moveToward (committing) consult
+  // this so non-mimic minions can't clip through disguised OR revealed
+  // mimics. `selfMinion` is excluded so a mimic doesn't block its own
+  // tick. Adventurers use AISystem's mirror of this set.
+  _buildChestBlockSet(selfMinion) {
+    const set = new Set()
+    for (const m of this._gameState.minions ?? []) {
+      if (!m.isMimic) continue
+      if (m === selfMinion) continue
+      if (m.aiState === 'dead') continue
+      set.add(`${m.tileX},${m.tileY}`)
+    }
+    return set
+  }
+
+  _isChestMimicAt(tx, ty, selfMinion) {
+    for (const m of this._gameState.minions ?? []) {
+      if (!m.isMimic) continue
+      if (m === selfMinion) continue
+      if (m.aiState === 'dead') continue
+      if (m.tileX !== tx || m.tileY !== ty) continue
+      return true
+    }
+    return false
+  }
+
   // ── Movement ──────────────────────────────────────────────────────────────
 
   _moveToward(minion, targetTile, delta) {
+    // Mimic-chest block — patrol movement uses straight-line _moveToward
+    // without the pathfinder, so a chest mimic in the same room would
+    // otherwise be walked through. Refuse to commit a step into a
+    // chest tile (and clear any cached chase path so the mimic gets
+    // routed around on the next replan).
+    if (this._isChestMimicAt(targetTile.x, targetTile.y, minion)) {
+      minion._chasePath = null
+      minion._patrolTarget = null
+      return
+    }
     // Lane-centred world target — see DungeonGrid.getLaneCenterWorld.
     // Canonical doorway lane tiles + their floor approach/exit tiles
     // shift ½-tile so minions and summons walk through the geometric

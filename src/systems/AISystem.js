@@ -112,21 +112,19 @@ export class AISystem {
     return !!id && id !== selfAdv.instanceId
   }
 
-  // Tiles occupied by a mimic that's currently disguised (or mid-state-
-  // change involving the chest sprite). Adventurers route AROUND these
-  // because, in fiction, they look like solid loot containers blocking
-  // the floor. The reveal flow is owned separately by SEEK_LOOT, which
-  // makes the chest tile a goal target and exempt from this block.
+  // Tiles occupied by ANY alive mimic — adventurers route AROUND them
+  // regardless of whether the mimic is disguised, mid-reveal, or fully
+  // active. SEEK_LOOT now targets the tile ADJACENT to a chest (see the
+  // SEEK_LOOT branch of _goalToTile), so we don't need a goal-tile
+  // exemption here; the chest tile stays blocked and the adv stops
+  // beside it. Active mimics still trigger combat via _findEngageableMinion
+  // — that engagement halts movement before this block matters.
   _buildChestBlockSet() {
     const set = new Set()
     for (const m of this._gameState.minions ?? []) {
       if (!m.isMimic) continue
       if (m.aiState === 'dead') continue
-      if (m.mimicState === 'chest' ||
-          m.mimicState === 'revealing' ||
-          m.mimicState === 'redisguising') {
-        set.add(`${m.tileX},${m.tileY}`)
-      }
+      set.add(`${m.tileX},${m.tileY}`)
     }
     return set
   }
@@ -136,11 +134,7 @@ export class AISystem {
       if (!m.isMimic) continue
       if (m.aiState === 'dead') continue
       if (m.tileX !== tx || m.tileY !== ty) continue
-      if (m.mimicState === 'chest' ||
-          m.mimicState === 'revealing' ||
-          m.mimicState === 'redisguising') {
-        return true
-      }
+      return true
     }
     return false
   }
