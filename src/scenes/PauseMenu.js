@@ -11,13 +11,13 @@ import {
 import { AudioControls }                     from '../ui/AudioControls.js'
 import { PauseManager }                      from '../systems/PauseManager.js'
 
-const PANEL_W   = 520
-const PANEL_H   = 540
-const TITLE_H   = 36
-const PADDING   = 18
-const BTN_W     = 360
-const BTN_H     = 46
-const BTN_GAP   = 10
+const PANEL_W   = 380
+const PANEL_H   = 296
+const TITLE_H   = 30
+const PADDING   = 16
+const BTN_W     = 320
+const BTN_H     = 38
+const BTN_GAP   = 8
 
 export class PauseMenu extends Phaser.Scene {
   constructor() {
@@ -213,29 +213,22 @@ export class PauseMenu extends Phaser.Scene {
     const innerX = px + PADDING
     const innerW = PANEL_W - PADDING * 2
 
+    // Compact reference card — the long version lived elsewhere; here we
+    // just want a cheat-sheet that fits in the tightened panel.
     const body =
-      'OBJECTIVE\n' +
-      '  You are the dungeon Boss. Adventurers come to kill\n' +
-      '  you. Build a deadly lair to defeat them all.\n\n' +
+      'OBJECTIVE  Build a deadly dungeon. Survive the raids.\n\n' +
       'CURRENCIES\n' +
-      '  Gold — spent at NIGHT to place rooms, traps, minions.\n' +
-      '         Earned from kills during the day.\n' +
-      '  Dark Power — long-term resource for unlocks.\n\n' +
-      'DAY / NIGHT CYCLE\n' +
-      '  NIGHT: free-build phase. Place rooms, set traps,\n' +
-      '         summon minions.\n' +
-      '  DAY:   adventurers raid. Watch the simulation and\n' +
-      '         learn for tomorrow.\n\n' +
-      'BOSS FIGHT\n' +
-      '  Survivors who reach your chamber trigger a fight.\n' +
-      '  Lose all 3 lives and the run ends.\n\n' +
-      'KNOWLEDGE\n' +
-      '  Adventurers gather intel as they explore. Open the\n' +
-      '  Knowledge Map to see what they know.'
+      '  Gold       Spent at night on rooms / traps / minions.\n' +
+      '  Dark Power Long-term resource for unlocks.\n\n' +
+      'CYCLE\n' +
+      '  Night  Build undisturbed. Click BEGIN DAY when ready.\n' +
+      '  Day    Adventurers raid; watch and adapt.\n\n' +
+      'BOSS FIGHT  Survivors who reach you trigger a duel.\n' +
+      'KNOWLEDGE   Open the Knowledge Map to see what they know.'
 
-    const txt = this.add.text(innerX, py + TITLE_H + 16, body, {
-      fontFamily: FONT_BODY, fontSize: '10px', color: CRYPT.ink, letterSpacing: 1,
-      lineSpacing: 4, wordWrap: { width: innerW, useAdvancedWrap: true },
+    const txt = this.add.text(innerX, py + TITLE_H + 14, body, {
+      fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.ink, letterSpacing: 1,
+      lineSpacing: 3, wordWrap: { width: innerW, useAdvancedWrap: true },
     }).setDepth(4)
     this._screenObjects.push(txt)
 

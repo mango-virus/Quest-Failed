@@ -25,6 +25,7 @@ import { MiniMapPanel, MINIMAP_PANEL_HEIGHT } from '../ui/MiniMapPanel.js'
 import { AudioControls } from '../ui/AudioControls.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { EventBus }      from '../systems/EventBus.js'
+import { PauseManager }  from '../systems/PauseManager.js'
 import { BossOverviewPopup }    from '../ui/popups/BossOverviewPopup.js'
 import { MinionRosterPopup }    from '../ui/popups/MinionRosterPopup.js'
 import { KnowledgeMapPopup }    from '../ui/popups/KnowledgeMapPopup.js'
@@ -205,6 +206,15 @@ export class HudScene extends Phaser.Scene {
     EventBus.on('SHOW_DARK_PACT',         onShowDarkPact)
     this._listeners.push(['SHOW_POST_WAVE_SUMMARY', onShowPostWave])
     this._listeners.push(['SHOW_DARK_PACT',         onShowDarkPact])
+
+    // Phase 31G — action-bar MENU button opens the pause menu. Esc still
+    // works via PauseManager's keyboard hook in NightPhase / DayPhase.
+    const onOpenPause = () => {
+      this._closeAllPopups()
+      PauseManager.toggle(this)
+    }
+    EventBus.on('OPEN_PAUSE_MENU', onOpenPause)
+    this._listeners.push(['OPEN_PAUSE_MENU', onOpenPause])
   }
 
   _isPopupOpen(key) {

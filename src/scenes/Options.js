@@ -18,10 +18,10 @@ import { TitleMusic }    from '../systems/TitleMusic.js'
 const W = 1280
 const H = 720
 
-const PANEL_W = 760
-const PANEL_H = 520
-const TITLE_H = 36
-const PADDING = 24
+const PANEL_W = 560
+const PANEL_H = 380
+const TITLE_H = 30
+const PADDING = 18
 
 export class Options extends Phaser.Scene {
   constructor() {
@@ -108,9 +108,9 @@ export class Options extends Phaser.Scene {
     let yy = py + TITLE_H + 20
 
     yy = this._sectionAudio(innerX, innerW, yy)
-    yy += 22
+    yy += 14
     yy = this._sectionDisplay(innerX, innerW, yy)
-    yy += 22
+    yy += 14
     yy = this._sectionKeyboard(innerX, innerW, yy)
 
     // Back button — anchored to bottom of the panel
