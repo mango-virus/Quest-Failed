@@ -29,6 +29,8 @@ import { BossOverviewPopup }    from '../ui/popups/BossOverviewPopup.js'
 import { MinionRosterPopup }    from '../ui/popups/MinionRosterPopup.js'
 import { KnowledgeMapPopup }    from '../ui/popups/KnowledgeMapPopup.js'
 import { AdventurerIntelPopup } from '../ui/popups/AdventurerIntelPopup.js'
+import { PostWaveSummaryPopup } from '../ui/popups/PostWaveSummaryPopup.js'
+import { DarkPactPopup }        from '../ui/popups/DarkPactPopup.js'
 
 const COL_PAD     = 12
 const LEFT_COL_W  = 200
@@ -157,12 +159,14 @@ export class HudScene extends Phaser.Scene {
     this._listeners.push(['NIGHT_PHASE_BEGAN', onPhaseChange])
     this._listeners.push(['DAY_PHASE_BEGAN',   onPhaseChange])
 
-    // ── Phase 31E popups ──
+    // ── Phase 31E + 31F popups ──
     this._popups = {
       boss:      new BossOverviewPopup(this, this._gameState),
       roster:    new MinionRosterPopup(this, this._gameState),
       knowledge: new KnowledgeMapPopup(this, this._gameState),
       intel:     new AdventurerIntelPopup(this, this._gameState),
+      postwave:  new PostWaveSummaryPopup(this, this._gameState),
+      darkpact:  new DarkPactPopup(this, this._gameState),
     }
     const togglePopup = (key) => {
       // Re-clicking the action-bar button closes the popup. Opening a
@@ -184,6 +188,23 @@ export class HudScene extends Phaser.Scene {
     wirePopup('OPEN_MINION_ROSTER', 'roster')
     wirePopup('OPEN_KNOWLEDGE_MAP', 'knowledge')
     wirePopup('OPEN_ADV_INTEL',     'intel')
+
+    // 31F end-of-day chain — EndOfDay scene drives these events; we just
+    // open / close the corresponding popup.
+    const onShowPostWave = ({ snapshot }) => {
+      this._closeAllPopups()
+      this._popups.postwave.setSnapshot(snapshot)
+      this._popups.postwave.open()
+    }
+    const onShowDarkPact = () => {
+      this._closeAllPopups()
+      this._popups.darkpact.refreshOffers()
+      this._popups.darkpact.open()
+    }
+    EventBus.on('SHOW_POST_WAVE_SUMMARY', onShowPostWave)
+    EventBus.on('SHOW_DARK_PACT',         onShowDarkPact)
+    this._listeners.push(['SHOW_POST_WAVE_SUMMARY', onShowPostWave])
+    this._listeners.push(['SHOW_DARK_PACT',         onShowDarkPact])
   }
 
   _isPopupOpen(key) {

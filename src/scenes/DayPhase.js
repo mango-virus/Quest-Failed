@@ -27,6 +27,23 @@ export class DayPhase extends Phaser.Scene {
 
   init(data) {
     this._gameState = data?.gameState ?? this.scene.get('Game')?.gameState
+    // Phase 31F — snapshot day-start state so PostWaveSummary can compute
+    // per-day deltas (resources earned, minions lost, etc.) and the
+    // Dark-Pact gate can detect a boss level-up that happened during the
+    // day. All values are primitives or shallow clones — JSON-safe.
+    const gs = this._gameState
+    if (gs) {
+      this._daySnapshot = {
+        soulEssence:  gs.player?.soulEssence  ?? 0,
+        darkPower:    gs.player?.darkPower    ?? 0,
+        totalKills:   gs.player?.totalKills   ?? 0,
+        dungeonLevel: gs.meta?.dungeonLevel    ?? 1,
+        totals:       { ...(gs.run?.totals ?? {}) },
+        graveyardLen: gs.adventurers?.graveyard?.length ?? 0,
+      }
+    } else {
+      this._daySnapshot = null
+    }
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -941,7 +958,13 @@ export class DayPhase extends Phaser.Scene {
     this._gameState.player.totalDaysElapsed++
     SaveSystem.save(this._gameState)
     EventBus.emit('DAY_PHASE_ENDED')
-    // Phase 9: route through EndOfDay before night
-    this.scene.start('EndOfDay', { gameState: this._gameState })
+    // Phase 31F — pass the day-start snapshot through to EndOfDay so the
+    // PostWaveSummary popup can compute per-day deltas + so EndOfDay
+    // can detect a boss level-up that happened during the day and
+    // gate the Dark Pact popup on it.
+    this.scene.start('EndOfDay', {
+      gameState:    this._gameState,
+      daySnapshot:  this._daySnapshot,
+    })
   }
 }
