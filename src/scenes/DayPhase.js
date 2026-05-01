@@ -3,7 +3,7 @@ import { SaveSystem }     from '../systems/SaveSystem.js'
 import { Balance }        from '../config/balance.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
-import { CombatLog }      from '../ui/CombatLog.js'
+// CombatLog removed in Phase 31C — DungeonLog (HudScene right column) replaces it.
 import { DossierPanel }   from '../ui/DossierPanel.js'
 import { PauseManager }   from '../systems/PauseManager.js'
 
@@ -21,7 +21,6 @@ export class DayPhase extends Phaser.Scene {
     this._inspectedId = null
     this._allOutTimer = null
     this._listeners   = []
-    this._combatLog   = null
     this._followText  = null
   }
 
@@ -156,7 +155,6 @@ export class DayPhase extends Phaser.Scene {
       for (const [evt, fn] of this._hudListeners) EventBus.off(evt, fn, this)
       this._hudListeners = []
     }
-    this._combatLog?.destroy()
     this._dossierPanel?.destroy()
     EventBus.emit('DAY_PHASE_ENDED')
   }
