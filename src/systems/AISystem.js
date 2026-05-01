@@ -261,14 +261,17 @@ export class AISystem {
     this._maybeClearMadness(adv)
 
     // General stuck detector — if the adv has been on the same tile for
-    // more than 3 s without being in a freeze-by-design state (boss
-    // chamber, opening chest, dead, leave-fade, fight), assume something
-    // (most likely a mimic-block edge case) is keeping them in place and
-    // force the mimic-bypass flag so they shove through whatever's
-    // blocking. The flag clears on next successful blocked path replan.
+    // more than 2 s without being in a freeze-by-design state, assume
+    // something (most likely a mimic-block edge case) is keeping them in
+    // place and force the mimic-bypass flag so they shove through. The
+    // flag clears on next successful blocked path replan.
+    //
+    // 'fighting' is intentionally NOT exempt: if combat keeps the adv
+    // glued to one tile for 2 s it's almost always because their target
+    // is unreachable (e.g. across a chest blockade or behind a wall);
+    // forcing a bypass replan dissolves that.
     const stuckExempt = adv.aiState === 'dead' ||
                         adv.aiState === 'opening_chest' ||
-                        adv.aiState === 'fighting' ||
                         adv.goal?.type === 'AT_BOSS' ||
                         adv._leaveFadeEnd != null ||
                         adv._spawnFadeEnd != null
@@ -276,12 +279,17 @@ export class AISystem {
       const tileKey = `${adv.tileX},${adv.tileY}`
       if (adv._lastTileKey === tileKey) {
         adv._tileStuckMs = (adv._tileStuckMs ?? 0) + delta
-        if (adv._tileStuckMs > 3000) {
+        if (adv._tileStuckMs > 2000) {
           adv._pathIgnoresMimics = true
           adv.path = null    // force a fresh plan with the bypass flag set
           adv._tileStuckMs = 0
           adv._waitMs = 0
           adv._mimicStuckMs = 0
+          EventBus.emit('ADVENTURER_UNSTUCK', {
+            adventurer: adv,
+            tile: { x: adv.tileX, y: adv.tileY },
+            goal: adv.goal?.type ?? null,
+          })
         }
       } else {
         adv._lastTileKey = tileKey
