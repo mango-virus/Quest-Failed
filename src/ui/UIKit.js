@@ -297,6 +297,30 @@ export function pixelDiamond(g, cx, cy, size = 4, color = CRYPT.accent) {
   }
 }
 
+// ── Pixel lock icon ───────────────────────────────────────────────────────────
+// Draws a simple pixel-art lock — a U-shaped shackle on top of a filled
+// body with a small keyhole. Used for locked build-menu slots so the
+// "you can't place this yet" state reads instantly.
+//
+// g     : Phaser.GameObjects.Graphics
+// cx, cy: centre of the lock
+// scale : px per "lock unit" (default 2 → ~16x18 sprite)
+// color : shackle + body fill (default CRYPT.inkDimHex)
+export function pixelLock(g, cx, cy, scale = 2, color = 0x8a8678) {
+  const s = scale
+  // Shackle: two verticals + a horizontal cap, U-shape with mouth at bottom
+  g.fillStyle(color, 1)
+  g.fillRect(cx - 3 * s, cy - 5 * s, s,         3 * s) // left post
+  g.fillRect(cx + 2 * s, cy - 5 * s, s,         3 * s) // right post
+  g.fillRect(cx - 3 * s, cy - 5 * s, 6 * s,     s)     // top bar
+  // Body — wider rectangle below the shackle
+  g.fillRect(cx - 4 * s, cy - 2 * s, 9 * s,     6 * s)
+  // Keyhole (dark dot + slit)
+  g.fillStyle(0x000000, 1)
+  g.fillRect(cx,         cy - 1 * s, s,     s)         // top of keyhole
+  g.fillRect(cx - s / 2, cy,         s,     2 * s)     // slit
+}
+
 // ── Pixel-bevel panel ─────────────────────────────────────────────────────────
 // Draws a hard-edged 2px-bevel panel onto the given Graphics object.
 // Top/left edges get the highlight colour, bottom/right get the shadow,

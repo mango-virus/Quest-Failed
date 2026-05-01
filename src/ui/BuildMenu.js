@@ -7,7 +7,7 @@
 //
 // Visible only during night phase — HudScene calls setVisible(false) on day.
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs, pixelDiamond } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs, pixelDiamond, pixelLock } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const DEFAULT_PANEL_W = 230
@@ -299,15 +299,27 @@ export class BuildMenu {
     const cost   = def.cost ?? def.essenceCostToPlace ?? 0
     const locked = (def.unlockLevel ?? 1) > (this._gameState.meta?.dungeonLevel ?? 1)
     const affordable = cost <= (this._gameState.player?.soulEssence ?? 0)
-    const accent  = isSelected ? CRYPT.accent2 : CRYPT.panelEdgeH
-    const accentS = isSelected ? CRYPT.accent  : CRYPT.panelEdgeS
-    const fill    = isSelected ? CRYPT.bgStone3 : CRYPT.bgStone1
+
+    // Locked slots get a much darker fill + dimmer edges so they read as
+    // "not yet" at a glance. Unlocked slots use the regular stone fill.
+    let fill, accent, accentS
+    if (locked) {
+      fill    = 0x07090c                  // very dark — almost black
+      accent  = CRYPT.panelEdgeS          // both bevels = shadow color so
+      accentS = CRYPT.panelEdgeS          // the slot looks recessed/inert
+    } else if (isSelected) {
+      fill    = CRYPT.bgStone3
+      accent  = CRYPT.accent2
+      accentS = CRYPT.accent
+    } else {
+      fill    = CRYPT.bgStone1
+      accent  = CRYPT.panelEdgeH
+      accentS = CRYPT.panelEdgeS
+    }
 
     const slot = this._scene.add.graphics().setDepth(D)
-    pixelPanel(slot, sx, sy, sw, sh, {
-      fill, edgeH: accent, edgeS: accentS,
-    })
-    if (isSelected) {
+    pixelPanel(slot, sx, sy, sw, sh, { fill, edgeH: accent, edgeS: accentS })
+    if (isSelected && !locked) {
       // Outer accent ring
       slot.fillStyle(CRYPT.accent, 1)
       slot.fillRect(sx - 2, sy - 2, sw + 4, 2)
@@ -317,44 +329,57 @@ export class BuildMenu {
     }
     this._slotObjects.push(slot)
 
-    // Glyph (top half)
+    if (locked) {
+      // Big lock icon in the centre instead of glyph + name + cost.
+      const lockG = this._scene.add.graphics().setDepth(D + 1)
+      pixelLock(lockG, sx + sw / 2, sy + sh / 2 - 4, 2, CRYPT.inkMuteHex)
+      this._slotObjects.push(lockG)
+
+      // Small unlock-level caption beneath the lock so the player knows
+      // *when* it unlocks. Smaller and dimmer than a normal slot's cost.
+      const lvlT = this._scene.add.text(sx + sw / 2, sy + sh - 6,
+        `LV ${def.unlockLevel}`, {
+        fontFamily: FONT_HEAD, fontSize: '7px',
+        color: CRYPT.inkMute, letterSpacing: 1,
+      }).setOrigin(0.5, 1).setDepth(D + 1)
+      this._slotObjects.push(lvlT)
+
+      // Hit zone — interactive=false so the cursor doesn't even change.
+      const hit = this._scene.add.zone(sx, sy, sw, sh).setOrigin(0).setDepth(D + 5)
+      this._slotObjects.push(hit)
+      this._slots.push({ key, def, kind, sx, sy, sw, sh })
+      return
+    }
+
+    // ── Unlocked slot — glyph + name + cost ──
     const glyph = def._glyph ?? this._glyphFor(def, kind)
     const g = this._scene.add.text(sx + sw / 2, sy + 14, glyph, {
       fontFamily: FONT_HEAD, fontSize: '12px',
-      color: locked ? CRYPT.inkMuteHex : (isSelected ? CRYPT.accent2Css : CRYPT.ink),
+      color: isSelected ? CRYPT.accent2Css : CRYPT.ink,
     }).setOrigin(0.5).setDepth(D + 1)
     this._slotObjects.push(g)
 
-    // Name — Press Start 2P 7px with word-wrap onto two lines so
-    // 'TRAP FACTORY' / 'WANDERING GATE' fit without ellipsis.
+    // Name — word-wrap onto two lines for 'TRAP FACTORY' etc.
     const name = (def.name ?? def.id ?? '?').toUpperCase()
     const nameT = this._scene.add.text(sx + sw / 2, sy + 28, name, {
       fontFamily: FONT_HEAD, fontSize: '7px',
-      color: locked ? CRYPT.inkMute : CRYPT.ink, letterSpacing: 1,
+      color: CRYPT.ink, letterSpacing: 1,
       align: 'center',
       lineSpacing: 3,
       wordWrap: { width: sw - 6, useAdvancedWrap: true },
     }).setOrigin(0.5, 0).setDepth(D + 1)
     this._slotObjects.push(nameT)
 
-    // Cost (or "L{N}" if locked) — anchored near the bottom regardless of
-    // the name's wrap height.
-    let costStr, costColor
-    if (locked) {
-      costStr   = `L${def.unlockLevel}`
-      costColor = CRYPT.inkMute
-    } else {
-      costStr   = `${cost}`
-      costColor = affordable ? CRYPT.goldCss : CRYPT.accent2Css
-    }
+    // Cost — anchored near the bottom regardless of name wrap height.
+    const costStr   = `${cost}`
+    const costColor = affordable ? CRYPT.goldCss : CRYPT.accent2Css
     const costT = this._scene.add.text(sx + sw / 2, sy + sh - 6, costStr, {
       fontFamily: FONT_HEAD, fontSize: '8px', color: costColor, letterSpacing: 1,
     }).setOrigin(0.5, 1).setDepth(D + 1)
     this._slotObjects.push(costT)
 
-    // Placement cap badge — top-right corner. Only shown when the def has
-    // a finite cap. Hidden defs are filtered out earlier; this is the live
-    // "X/Y" readout for the survivors.
+    // Placement cap badge — top-right corner. Only shown when there's a
+    // finite cap. Hidden defs are filtered out earlier.
     const dungeonLevel = this._gameState.meta?.dungeonLevel ?? 1
     const cap = this._capFor(def, kind, dungeonLevel)
     if (cap != null) {
@@ -369,11 +394,10 @@ export class BuildMenu {
 
     // Hit zone
     const hit = this._scene.add.zone(sx, sy, sw, sh)
-      .setOrigin(0).setDepth(D + 5).setInteractive({ useHandCursor: !locked })
-    hit.on('pointerover', () => { if (!locked) g.setColor(CRYPT.accent2Css) })
-    hit.on('pointerout',  () => { if (!locked && !isSelected) g.setColor(CRYPT.ink) })
+      .setOrigin(0).setDepth(D + 5).setInteractive({ useHandCursor: true })
+    hit.on('pointerover', () => g.setColor(CRYPT.accent2Css))
+    hit.on('pointerout',  () => { if (!isSelected) g.setColor(CRYPT.ink) })
     hit.on('pointerup',   () => {
-      if (locked) return
       this._setSelected(key)
       EventBus.emit('BUILD_SELECT', { def, kind })
     })
