@@ -587,9 +587,23 @@ export class AISystem {
       // The goal tile is exempt by the pathfinder so SEEK_LOOT can still
       // target a chest directly to trigger the reveal.
       const blockedTiles = this._buildChestBlockSet()
-      const path = PathfinderSystem.findPath(
+      let path = PathfinderSystem.findPath(
         { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter, blockedTiles,
       )
+      adv._pathIgnoresMimics = false
+      // Fallback — if no route exists when treating mimics as walls
+      // (e.g. two chests bottleneck the only corridor), try again without
+      // the mimic block so the adv at least keeps moving. Visually the
+      // adv may briefly cross a chest tile, but that's better than being
+      // permanently stuck. This rarely fires; only when the mimics
+      // genuinely sever the dungeon. Mark the resulting path so the
+      // movement-time block (below) lets the adv through.
+      if ((!path || path.length === 0) && (adv.tileX !== target.x || adv.tileY !== target.y)) {
+        path = PathfinderSystem.findPath(
+          { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
+        )
+        if (path && path.length > 0) adv._pathIgnoresMimics = true
+      }
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
         // "no route exists".  Only treat the former as a true arrival; the
@@ -688,9 +702,13 @@ export class AISystem {
     // Mimic chest block — even if a stale path is heading into a chest
     // tile, refuse to commit. Goal-pickup is exempt: when this very adv
     // is targeting that chest via SEEK_LOOT, we let them step onto it
-    // so the reveal handshake can fire. Same wait-then-replan pattern
-    // as the adv-vs-adv block below.
-    if (enteringNewTile && this._isChestMimicAt(wp.x, wp.y)) {
+    // so the reveal handshake can fire. Also relaxed when the current
+    // path was planned with mimics ignored (fallback because there was
+    // no route around them) — without this, the adv would re-block at
+    // movement time, drop the path, replan, get the same fallback, and
+    // stick forever. Same wait-then-replan pattern as the adv-vs-adv
+    // block below for the genuine "stale-path" case.
+    if (enteringNewTile && this._isChestMimicAt(wp.x, wp.y) && !adv._pathIgnoresMimics) {
       const seekTargetIsHere = adv.goal?.type === 'SEEK_LOOT'
         && (this._gameState.loot?.dungeon ?? []).some(i =>
           i.instanceId === adv.goal.itemId && i.tileX === wp.x && i.tileY === wp.y
