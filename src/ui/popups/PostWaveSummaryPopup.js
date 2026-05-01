@@ -40,20 +40,16 @@ export class PostWaveSummaryPopup {
   _render(cx, cy, cw, ch, addChild) {
     const D = 205
 
-    // Banner across the top
+    // Banner across the top — big red 'DAY N CONCLUDED' headline.
     const bannerH = 56
     const bannerG = this._scene.add.graphics().setDepth(D)
     pixelPanel(bannerG, cx, cy, cw, bannerH, { fill: CRYPT.bgStone2 })
     addChild(bannerG)
 
     const dayJustEnded = (this._gameState.meta?.dayNumber ?? 1) - 1
-    addChild(this._scene.add.text(cx + cw / 2, cy + 14,
+    addChild(this._scene.add.text(cx + cw / 2, cy + bannerH / 2,
       `DAY ${dayJustEnded} CONCLUDED`, {
-      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 3,
-    }).setOrigin(0.5).setDepth(D + 2))
-    addChild(this._scene.add.text(cx + cw / 2, cy + 32,
-      'QUEST · FAILED', {
-      fontFamily: FONT_HEAD, fontSize: '14px', color: CRYPT.accent2Css, letterSpacing: 4,
+      fontFamily: FONT_HEAD, fontSize: '18px', color: CRYPT.accent2Css, letterSpacing: 4,
     }).setOrigin(0.5).setDepth(D + 2))
 
     // Three columns
@@ -115,8 +111,8 @@ export class PostWaveSummaryPopup {
         fontFamily: FONT_BODY, fontSize: '8px', color: CRYPT.inkDim, letterSpacing: 1,
         wordWrap: { width: w - 32, useAdvancedWrap: true },
       }).setDepth(D + 3))
-      addChild(this._scene.add.text(x + 16, yy + 40, '+ SOUL ESSENCE', {
-        fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.soulCss, letterSpacing: 1,
+      addChild(this._scene.add.text(x + 16, yy + 40, '+ GOLD', {
+        fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.goldCss, letterSpacing: 1,
       }).setDepth(D + 3))
       yy += rowH
     })

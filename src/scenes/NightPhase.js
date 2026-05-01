@@ -255,7 +255,7 @@ export class NightPhase extends Phaser.Scene {
 
     row('Day',            'day',     PALETTE.textDim)
     row('Dungeon Level',  'dlevel',  PALETTE.textAccent)
-    row('Soul Essence',   'essence', PALETTE.textCyan)
+    row('Gold',           'essence', PALETTE.textCyan)
     row('Dark Power',     'power',   PALETTE.textAccent)
     row('Rooms placed',   'rooms',   PALETTE.textDim)
     row('Roster',         'roster',  PALETTE.textDim)

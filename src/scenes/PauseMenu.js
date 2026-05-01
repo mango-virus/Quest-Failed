@@ -194,7 +194,7 @@ export class PauseMenu extends Phaser.Scene {
       '  deadly lair and survive long enough to defeat them all.\n' +
       '\n' +
       'CURRENCIES\n' +
-      '  Soul Essence — spent during NIGHT to place rooms, traps, and\n' +
+      '  Gold — spent during NIGHT to place rooms, traps, and\n' +
       '    minions. Earned from kills during the day.\n' +
       '  Dark Power — long-term resource for unlocks and upgrades.\n' +
       '\n' +

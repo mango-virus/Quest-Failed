@@ -24,14 +24,17 @@ export class DarkPactPopup {
     this._gameState = gameState
     this._offers    = []
     this._selectedIdx = 0
+    this._hoverIdx    = -1     // -1 means "no hover" — ring follows _selectedIdx
     this._rerollUsed  = false
+    this._cardBounds  = []     // per-card { x, y, w, h } so the ring can move without rebuild
+    this._ringG       = null   // single graphics object, redrawn as hover/select changes
     this._frame = makePopupFrame({
       scene,
       w:    1100,
       h:    540,
       title:'DARK · PACT',
       depth: 200,
-      onClose: () => { /* reset transient ui state */ },
+      onClose: () => { this._cardBounds = []; this._ringG = null; this._hoverIdx = -1 },
       render: (px, py, cx, cy, cw, ch, addChild) => this._render(cx, cy, cw, ch, addChild),
     })
   }
@@ -73,6 +76,7 @@ export class DarkPactPopup {
     const cardsH = ch - 56 - 64       // leave 64 px for footer
     const gap    = 14
     const cardW  = Math.floor((cw - gap * 2) / 3)
+    this._cardBounds = []
     if (this._offers.length === 0) {
       addChild(this._scene.add.text(cx + cw / 2, cardsY + cardsH / 2,
         '— NO MECHANICS AVAILABLE AT THIS LEVEL —', {
@@ -81,8 +85,14 @@ export class DarkPactPopup {
     } else {
       this._offers.slice(0, 3).forEach((def, i) => {
         const x = cx + i * (cardW + gap)
+        this._cardBounds.push({ x, y: cardsY, w: cardW, h: cardsH })
         this._renderCard(def, i, x, cardsY, cardW, cardsH, D, addChild)
       })
+      // Single ring overlay — moves between cards on hover; locks on
+      // click. Drawn last so it sits on top of every card panel.
+      this._ringG = this._scene.add.graphics().setDepth(D + 4)
+      addChild(this._ringG)
+      this._drawRing()
     }
 
     // Footer: Reroll All + Seal the Pact
@@ -107,23 +117,18 @@ export class DarkPactPopup {
   }
 
   _renderCard(def, idx, x, y, w, h, D, addChild) {
-    const isSelected = (idx === this._selectedIdx)
     const rarKey = def.rarity ?? 'common'
     const rar    = RARITIES[rarKey] ?? RARITIES.common
 
+    // Card chrome — same visual for every card; the highlighted state
+    // is drawn by the separate ring overlay so we don't have to rebuild
+    // the whole popup just to move the selection.
     const card = this._scene.add.graphics().setDepth(D + 1)
     pixelPanel(card, x, y, w, h, {
-      fill:  isSelected ? CRYPT.bgStone3 : CRYPT.bgStone1,
-      edgeH: isSelected ? CRYPT.accent2  : CRYPT.panelEdgeH,
-      edgeS: isSelected ? CRYPT.accent   : CRYPT.panelEdgeS,
+      fill:  CRYPT.bgStone1,
+      edgeH: CRYPT.panelEdgeH,
+      edgeS: CRYPT.panelEdgeS,
     })
-    if (isSelected) {
-      card.fillStyle(CRYPT.accent, 1)
-      card.fillRect(x - 2, y - 2, w + 4, 2)
-      card.fillRect(x - 2, y + h, w + 4, 2)
-      card.fillRect(x - 2, y - 2, 2, h + 4)
-      card.fillRect(x + w, y - 2, 2, h + 4)
-    }
     addChild(card)
 
     // Glyph box (top-left)
@@ -175,18 +180,42 @@ export class DarkPactPopup {
       wordWrap: { width: w - 28, useAdvancedWrap: true }, lineSpacing: 3,
     }).setDepth(D + 3))
 
-    // Hit zone
+    // Hit zone — hover moves the preview ring, click locks selection.
     const hit = this._scene.add.zone(x, y, w, h)
       .setOrigin(0).setDepth(D + 5).setInteractive({ useHandCursor: true })
+    hit.on('pointerover', () => {
+      this._hoverIdx = idx
+      this._drawRing()
+    })
+    hit.on('pointerout', () => {
+      if (this._hoverIdx === idx) this._hoverIdx = -1
+      this._drawRing()
+    })
     hit.on('pointerup', () => {
       this._selectedIdx = idx
-      // Cheap re-render: close and re-open the popup so the selection
-      // ring follows. Alternative was a full incremental redraw but the
-      // popup is small enough that this stays imperceptible.
-      this._frame.close()
-      this._frame.open()
+      this._drawRing()
     })
     addChild(hit)
+  }
+
+  // Draw the selection ring around the active card. Uses _hoverIdx if
+  // the mouse is currently over a card, otherwise _selectedIdx so the
+  // last clicked card stays highlighted.
+  _drawRing() {
+    if (!this._ringG || !this._cardBounds.length) return
+    const idx = (this._hoverIdx >= 0) ? this._hoverIdx : this._selectedIdx
+    const b = this._cardBounds[idx]
+    if (!b) return
+    this._ringG.clear()
+    // Inner accent2 stripe
+    this._ringG.fillStyle(CRYPT.accent2, 1)
+    this._ringG.fillRect(b.x - 2, b.y - 2, b.w + 4, 2)
+    this._ringG.fillRect(b.x - 2, b.y + b.h, b.w + 4, 2)
+    this._ringG.fillRect(b.x - 2, b.y - 2, 2, b.h + 4)
+    this._ringG.fillRect(b.x + b.w, b.y - 2, 2, b.h + 4)
+    // Outer accent ring 1px out for extra punch
+    this._ringG.lineStyle(1, CRYPT.accent, 1)
+    this._ringG.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8)
   }
 
   _reroll() {
