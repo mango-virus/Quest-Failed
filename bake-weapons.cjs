@@ -1,0 +1,513 @@
+'use strict';
+
+// Composites LPC weapon layers onto 550 pre-baked adventurer sprites.
+// Run from Quest-Failed/: node bake-weapons.js
+// Overwrites each assets/sprites/adventurers/{class}/{id}.png in-place.
+
+const sharp    = require('sharp');
+const fs       = require('fs');
+const path     = require('path');
+
+// ─── Paths ───────────────────────────────────────────────────────────────────
+const REPO     = __dirname;
+const LPC_BASE = path.resolve(REPO, '../Quest-Failed assets/Universal-LPC-Spritesheet-Character-Generator-master/Universal-LPC-Spritesheet-Character-Generator-master');
+const SHEETS   = path.join(LPC_BASE, 'spritesheets');
+const WDEFS    = path.join(LPC_BASE, 'sheet_definitions/weapons');
+const ADV      = path.join(REPO, 'assets/sprites/adventurers');
+
+// ─── Layout (from layout.json) ────────────────────────────────────────────────
+const LAYOUT_RAW = JSON.parse(fs.readFileSync(path.join(ADV, 'layout.json'), 'utf8'));
+const FRAME  = LAYOUT_RAW.frame; // 64
+const CHAR_W = LAYOUT_RAW.width; // 832
+const CHAR_H = LAYOUT_RAW.height; // 1856
+
+const ANIM_LAYOUT = {}; // name → {y, frames, dirRows, w, h}
+for (const row of LAYOUT_RAW.rows) {
+  ANIM_LAYOUT[row.anim] = {
+    y:       row.y,
+    frames:  row.frames,
+    dirRows: row.dirRows,
+    w:       row.frames  * FRAME,
+    h:       row.dirRows * FRAME,
+  };
+}
+
+// ─── Oversize animation config ────────────────────────────────────────────────
+// Maps custom_animation type → which standard row it targets + source frame size
+const OVERSIZE = {
+  slash_oversize:         { targetAnim: 'slash',  frameSize: 192 },
+  slash_reverse_oversize: { targetAnim: 'slash',  frameSize: 192 },
+  slash_128:              { targetAnim: 'slash',  frameSize: 128 },
+  thrust_oversize:        { targetAnim: 'thrust', frameSize: 192 },
+  walk_128:               { targetAnim: 'walk',   frameSize: 128 },
+};
+// Unknown custom_animations (backslash_128, halfslash_128, …) are silently skipped.
+
+// ─── Animation aliases ────────────────────────────────────────────────────────
+// Some weapons use a different animation than the game engine selects.
+// Rangers/bards play 'shoot' but crossbow only has 'thrust' layers in LPC.
+// Map: weaponName → { sourceAnim → extraTargetAnim }
+// The layer composited at sourceAnim is ALSO composited at extraTargetAnim.
+const ANIM_ALIASES = {
+  Crossbow: { thrust: 'shoot' },
+};
+
+// ─── Attack sprite-sheet config ──────────────────────────────────────────────
+// Classes whose combat animation is slash or thrust get a separate `_atk.png`
+// at 192×192 frames so long weapons (longsword, halberd, spear, …) render at
+// native scale instead of being clipped or shrunk into 64×64.
+// Includes spellcasters and ranged classes too — staves and crossbows now
+// render via the atk sheet's thrust row (see THRUST_ANIM_WEAPONS in
+// AdventurerRenderer). Monks are excluded because they have weapon: null.
+const ATK_CLASSES = new Set([
+  'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
+  'mage', 'cleric', 'necromancer', 'ranger', 'bard',
+]);
+const ATK_FRAME       = 192;          // frame size in atk sheet
+const ATK_COLS        = 8;            // max frames per row (thrust = 8)
+const ATK_ROW_COUNT   = 8;            // 4 slash dirs + 4 thrust dirs
+const ATK_W           = ATK_COLS      * ATK_FRAME; // 1536
+const ATK_H           = ATK_ROW_COUNT * ATK_FRAME; // 1536
+const CHAR_OFFSET     = (ATK_FRAME - FRAME) / 2;   // 64 — character body centered in 192 frame
+// Maps anim name → starting row in atk sheet + how many frames it uses
+const ATK_ANIM_LAYOUT = {
+  slash:  { startRow: 0, frames: 6 }, // rows 0..3
+  thrust: { startRow: 4, frames: 8 }, // rows 4..7
+};
+
+// ─── Scan all weapon def JSONs, build name→def map ───────────────────────────
+function scanWeaponDefs(dir) {
+  const map = {};
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      Object.assign(map, scanWeaponDefs(full));
+    } else if (e.name.startsWith('weapon_') && e.name.endsWith('.json')) {
+      try {
+        const def = JSON.parse(fs.readFileSync(full, 'utf8'));
+        if (def.name) map[def.name] = def;
+      } catch (_) { /* skip malformed */ }
+    }
+  }
+  return map;
+}
+const WEAPON_DEFS = scanWeaponDefs(WDEFS);
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function exists(p) { try { fs.accessSync(p); return true; } catch (_) { return false; } }
+
+// Returns layer-path string for this body-type, falling back to male.
+function layerPath(layerDef, bodyType) {
+  return layerDef[bodyType] || layerDef['male'] || layerDef['female'] || null;
+}
+
+// Pick a weapon variant name: try metalColor first, else first in list.
+function pickVariant(def, variant) {
+  const list = def.variants || [];
+  if (!list.length) return null;
+  const metal = (variant.metalColor || '').toLowerCase();
+  const match = list.find(v => v.toLowerCase() === metal);
+  return match || list[0];
+}
+
+// Extract all layer_N entries from a def, sorted by zPos ascending.
+function getLayers(def) {
+  const layers = [];
+  for (const key of Object.keys(def)) {
+    if (/^layer_\d+$/.test(key)) {
+      layers.push({ key, ...def[key] });
+    }
+  }
+  layers.sort((a, b) => (a.zPos ?? 0) - (b.zPos ?? 0));
+  return layers;
+}
+
+// ─── Build a composite strip for one oversize layer ──────────────────────────
+// Returns array of {input: Buffer, top, left} entries to be placed in the 832×1856 canvas.
+async function oversizeComposites(srcPath, customAnim) {
+  const cfg = OVERSIZE[customAnim];
+  if (!cfg) return [];
+  const targetRow = ANIM_LAYOUT[cfg.targetAnim];
+  if (!targetRow) return [];
+  if (!exists(srcPath)) return [];
+
+  const fs_size  = cfg.frameSize;
+
+  const meta     = await sharp(srcPath).metadata();
+  const srcCols  = Math.floor(meta.width  / fs_size);
+  const srcRows  = Math.floor(meta.height / fs_size);
+  const useCols  = Math.min(srcCols, targetRow.frames);
+  const useRows  = Math.min(srcRows, targetRow.dirRows);
+
+  const ops = [];
+  for (let row = 0; row < useRows; row++) {
+    for (let col = 0; col < useCols; col++) {
+      // Scale the full oversize frame down to 64×64 so the entire weapon arc
+      // is visible. Center-cropping clips the weapon during swing frames where
+      // it extends beyond the center 64px area.
+      const buf = await sharp(srcPath)
+        .extract({
+          left:   col * fs_size,
+          top:    row * fs_size,
+          width:  fs_size,
+          height: fs_size,
+        })
+        .resize(FRAME, FRAME, { kernel: sharp.kernel.nearest })
+        .toBuffer();
+      ops.push({
+        input: buf,
+        top:   targetRow.y + row * FRAME,
+        left:  col * FRAME,
+      });
+    }
+  }
+  return ops;
+}
+
+// ─── Build composites for one layer of a weapon def ──────────────────────────
+async function layerComposites(layerDef, def, variantFile, bodyType) {
+  const lp = layerPath(layerDef, bodyType);
+  if (!lp) return [];
+
+  const ops = [];
+
+  if (layerDef.custom_animation) {
+    // Skip ALL oversize layers from the main sheet — they always create a
+    // scaled-down "ghost" weapon next to the standard-size one. Every weapon
+    // that ships an oversize layer also ships a standard 64×64 layer for
+    // walk/hurt/etc. (e.g. bows have walk + walk_128, Katana has walk + slash_128),
+    // so the main sheet still gets the full-size weapon via the standard path.
+    // Slash/thrust oversize go exclusively to the atk sheet.
+    return ops;
+  } else {
+    // Standard animations: file is at {SHEETS}/{lp}{anim}/{variantFile}.png
+    const aliases = ANIM_ALIASES[def.name] ?? {};
+    for (const anim of (def.animations || [])) {
+      if (anim in OVERSIZE) continue; // skip oversize anim names in standard loop
+      const targetRow = ANIM_LAYOUT[anim];
+      if (!targetRow) continue; // anim not in our sheet (combat, backslash_128, …)
+      const srcPath = path.join(SHEETS, lp, anim, variantFile + '.png');
+      if (!exists(srcPath)) continue;
+      ops.push({ input: srcPath, top: targetRow.y, left: 0 });
+      // Apply to aliased row too (e.g. crossbow thrust → also shoot row).
+      const aliasAnim = aliases[anim];
+      if (aliasAnim) {
+        const aliasRow = ANIM_LAYOUT[aliasAnim];
+        if (aliasRow) ops.push({ input: srcPath, top: aliasRow.y, left: 0 });
+      }
+    }
+  }
+  return ops;
+}
+
+// ─── Attack-sheet layer composites ───────────────────────────────────────────
+// Returns {input, top, left} entries to be placed on the 1536×1536 atk canvas.
+// Oversize weapon frames are placed at full native resolution (or upscaled to
+// 192) so the entire swing arc is visible. Standard 64×64 weapon frames are
+// centered in their 192×192 cell with CHAR_OFFSET margin on each side so the
+// weapon has room to extend past the character body.
+async function atkLayerOps(layerDef, def, variantFile, bodyType) {
+  const lp = layerPath(layerDef, bodyType);
+  if (!lp) return [];
+
+  const ops = [];
+
+  if (layerDef.custom_animation) {
+    const cfg = OVERSIZE[layerDef.custom_animation];
+    if (!cfg) return ops;
+    const animLayout = ATK_ANIM_LAYOUT[cfg.targetAnim];
+    if (!animLayout) return ops; // walk_128 etc. — atk sheet only carries slash/thrust
+
+    const srcPath = path.join(SHEETS, lp, variantFile + '.png');
+    if (!exists(srcPath)) return ops;
+
+    const meta    = await sharp(srcPath).metadata();
+    const fs_size = cfg.frameSize;
+    const useCols = Math.min(Math.floor(meta.width  / fs_size), animLayout.frames);
+    const useRows = Math.min(Math.floor(meta.height / fs_size), 4);
+
+    for (let row = 0; row < useRows; row++) {
+      for (let col = 0; col < useCols; col++) {
+        let buf = await sharp(srcPath)
+          .extract({
+            left:   col * fs_size,
+            top:    row * fs_size,
+            width:  fs_size,
+            height: fs_size,
+          })
+          .toBuffer();
+        if (fs_size !== ATK_FRAME) {
+          buf = await sharp(buf)
+            .resize(ATK_FRAME, ATK_FRAME, { kernel: sharp.kernel.nearest })
+            .toBuffer();
+        }
+        ops.push({
+          input: buf,
+          left: col * ATK_FRAME,
+          top:  (animLayout.startRow + row) * ATK_FRAME,
+        });
+      }
+    }
+    return ops;
+  }
+
+  // Standard 64×64 animation files. Center each 64-frame in its 192 cell so
+  // long weapons (spear etc.) have CHAR_OFFSET=64px of margin to extend into.
+  const aliases = ANIM_ALIASES[def.name] ?? {};
+  for (const animName of (def.animations || [])) {
+    if (animName in OVERSIZE) continue;
+
+    const targetAnims = [animName];
+    if (aliases[animName]) targetAnims.push(aliases[animName]);
+
+    const srcPath = path.join(SHEETS, lp, animName, variantFile + '.png');
+    if (!exists(srcPath)) continue;
+
+    for (const targetAnim of targetAnims) {
+      const animLayout = ATK_ANIM_LAYOUT[targetAnim];
+      if (!animLayout) continue;
+
+      const meta    = await sharp(srcPath).metadata();
+      const useCols = Math.min(Math.floor(meta.width  / FRAME), animLayout.frames);
+      const useRows = Math.min(Math.floor(meta.height / FRAME), 4);
+
+      for (let row = 0; row < useRows; row++) {
+        for (let col = 0; col < useCols; col++) {
+          const buf = await sharp(srcPath)
+            .extract({
+              left:   col * FRAME,
+              top:    row * FRAME,
+              width:  FRAME,
+              height: FRAME,
+            })
+            .toBuffer();
+          ops.push({
+            input: buf,
+            left: col * ATK_FRAME + CHAR_OFFSET,
+            top:  (animLayout.startRow + row) * ATK_FRAME + CHAR_OFFSET,
+          });
+        }
+      }
+    }
+  }
+
+  return ops;
+}
+
+// ─── Build one variant's _atk.png ────────────────────────────────────────────
+// Layout: 1536×1536, 192×192 frames, 8 cols × 8 rows.
+// Rows 0–3 = slash up/left/down/right (cols 0–5 used).
+// Rows 4–7 = thrust up/left/down/right (cols 0–7 used).
+// Each cell: behind weapon → character body (extracted from main sheet's
+// matching slash/thrust frame, centered) → front weapon. Before extracting
+// character bodies we dest-out the main sheet's oversize "ghost" pixels (the
+// scaled-down weapon copies the main bake left in the slash/thrust rows) so
+// the atk sheet doesn't show a tiny weapon next to the full-size one.
+async function buildAttackSheet(charPath, def, variantFile, bodyType) {
+  const transparent = {
+    create: { width: ATK_W, height: ATK_H, channels: 4, background: { r:0, g:0, b:0, alpha:0 } },
+  };
+
+  const layers = getLayers(def);
+  const behindLayers = layers.filter(l => (l.zPos ?? 0) < 100);
+  const frontLayers  = layers.filter(l => (l.zPos ?? 0) >= 100);
+
+  // Behind weapon ops
+  const behindOps = [];
+  for (const layer of behindLayers) {
+    behindOps.push(...await atkLayerOps(layer, def, variantFile, bodyType));
+  }
+
+  // Character-body ops: extract slash + thrust frames from the main sheet
+  // (already ghost-cleaned by processVariant) and place each centered in its
+  // 192×192 atk cell.
+  const charOps = [];
+  for (const [animName, cfg] of Object.entries(ATK_ANIM_LAYOUT)) {
+    const srcRow = ANIM_LAYOUT[animName];
+    if (!srcRow) continue;
+    for (let dir = 0; dir < srcRow.dirRows; dir++) {
+      for (let col = 0; col < cfg.frames; col++) {
+        const buf = await sharp(charPath)
+          .extract({
+            left:   col * FRAME,
+            top:    srcRow.y + dir * FRAME,
+            width:  FRAME,
+            height: FRAME,
+          })
+          .toBuffer();
+        charOps.push({
+          input: buf,
+          left: col * ATK_FRAME + CHAR_OFFSET,
+          top:  (cfg.startRow + dir) * ATK_FRAME + CHAR_OFFSET,
+        });
+      }
+    }
+  }
+
+  // Front weapon ops
+  const frontOps = [];
+  for (const layer of frontLayers) {
+    frontOps.push(...await atkLayerOps(layer, def, variantFile, bodyType));
+  }
+
+  const composites = [
+    ...behindOps.map(o => ({ ...o, blend: 'over' })),
+    ...charOps.map(o => ({ ...o, blend: 'over' })),
+    ...frontOps.map(o => ({ ...o, blend: 'over' })),
+  ];
+
+  return await sharp(transparent)
+    .composite(composites)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
+// ─── Process one variant ──────────────────────────────────────────────────────
+async function processVariant(className, variant, idx, total) {
+  const charPath = path.join(ADV, className, variant.id + '.png');
+  if (!exists(charPath)) {
+    console.warn(`  MISSING char PNG: ${charPath}`);
+    return;
+  }
+
+  const weaponName = variant.weapon;
+  const def = WEAPON_DEFS[weaponName];
+  if (!def) {
+    console.warn(`  No def found for weapon "${weaponName}" (${className}/${variant.id})`);
+    return;
+  }
+
+  const variantFile = pickVariant(def, variant);
+  if (!variantFile) {
+    console.warn(`  No variant file for "${weaponName}" (${className}/${variant.id})`);
+    return;
+  }
+
+  const bodyType = variant.bodyType === 'muscular' ? 'muscular'
+                 : variant.bodyType === 'female'   ? 'female'
+                 :                                   'male';
+
+  const layers = getLayers(def);
+
+  // Separate behind (zPos < 100) and front (zPos >= 100) layers
+  const behindLayers = layers.filter(l => (l.zPos ?? 0) < 100);
+  const frontLayers  = layers.filter(l => (l.zPos ?? 0) >= 100);
+
+  // Build composites for each phase
+  const behindComposites = [];
+  for (const layer of behindLayers) {
+    const ops = await layerComposites(layer, def, variantFile, bodyType);
+    behindComposites.push(...ops);
+  }
+  const frontComposites = [];
+  for (const layer of frontLayers) {
+    const ops = await layerComposites(layer, def, variantFile, bodyType);
+    frontComposites.push(...ops);
+  }
+
+  // Build the behind-weapons buffer (transparent base + behind weapon pixels)
+  const transparent = {
+    create: { width: CHAR_W, height: CHAR_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  };
+
+  // Strip every oversize "ghost" pixel previous bakes left in the main sheet.
+  // Includes slash/thrust (now atk-sheet-only) plus walk_128 ghosts that were
+  // sitting on top of the standard walk layer for bows / Katana / Scimitar.
+  const ghostOps = [];
+  for (const layer of layers) {
+    if (!layer.custom_animation) continue;
+    if (!OVERSIZE[layer.custom_animation]) continue;
+    const lp = layerPath(layer, bodyType);
+    if (!lp) continue;
+    const srcPath = path.join(SHEETS, lp, variantFile + '.png');
+    ghostOps.push(...await oversizeComposites(srcPath, layer.custom_animation));
+  }
+  let charSrc = charPath;
+  if (ghostOps.length > 0) {
+    const ghostMask = await sharp(transparent)
+      .composite(ghostOps.map(op => ({ ...op, blend: 'over' })))
+      .png()
+      .toBuffer();
+    charSrc = await sharp(charPath)
+      .composite([{ input: ghostMask, blend: 'dest-out' }])
+      .png()
+      .toBuffer();
+  }
+
+  if (behindComposites.length === 0 && frontComposites.length === 0 && ghostOps.length === 0) {
+    console.warn(`  No usable layers for "${weaponName}" (${className}/${variant.id})`);
+    return;
+  }
+
+  let behindBuf;
+  if (behindComposites.length > 0) {
+    behindBuf = await sharp(transparent)
+      .composite(behindComposites.map(op => ({ ...op, blend: 'over' })))
+      .png()
+      .toBuffer();
+  }
+
+  let frontBuf;
+  if (frontComposites.length > 0) {
+    frontBuf = await sharp(transparent)
+      .composite(frontComposites.map(op => ({ ...op, blend: 'over' })))
+      .png()
+      .toBuffer();
+  }
+
+  // Final composite: behind → (ghost-cleaned) character → front
+  const finalComposites = [];
+  if (behindBuf) finalComposites.push({ input: behindBuf, blend: 'over' });
+  finalComposites.push({ input: charSrc, blend: 'over' });
+  if (frontBuf)  finalComposites.push({ input: frontBuf,  blend: 'over' });
+
+  const result = await sharp(transparent)
+    .composite(finalComposites)
+    .png({ compressionLevel: 6 })
+    .toBuffer();
+
+  fs.writeFileSync(charPath, result);
+
+  // Atk sheet: only for classes whose combat anim is slash/thrust. The renderer
+  // swaps to this texture during combat and back when idle/walking.
+  if (ATK_CLASSES.has(className)) {
+    const atkBuf  = await buildAttackSheet(charPath, def, variantFile, bodyType);
+    const atkPath = path.join(ADV, className, variant.id + '_atk.png');
+    fs.writeFileSync(atkPath, atkBuf);
+  }
+
+  process.stdout.write(`\r  [${idx + 1}/${total}] ${className}/${variant.id} (${weaponName}/${variantFile})          `);
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+async function main() {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ADV, 'manifest.json'), 'utf8'));
+
+  // Collect all work items
+  const tasks = [];
+  for (const [className, variants] of Object.entries(manifest.variants)) {
+    for (const variant of variants) {
+      tasks.push({ className, variant });
+    }
+  }
+
+  console.log(`Found ${tasks.length} variants across ${Object.keys(manifest.variants).length} classes.`);
+  console.log(`Known weapon defs: ${Object.keys(WEAPON_DEFS).length}`);
+
+  const BATCH = 8; // concurrent sharp operations
+  let done = 0;
+  for (let i = 0; i < tasks.length; i += BATCH) {
+    const batch = tasks.slice(i, i + BATCH);
+    await Promise.all(
+      batch.map(({ className, variant }, j) =>
+        processVariant(className, variant, i + j, tasks.length)
+      )
+    );
+    done += batch.length;
+  }
+
+  console.log('\nDone!');
+}
+
+main().catch(err => { console.error(err); process.exit(1); });

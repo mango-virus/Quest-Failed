@@ -84,6 +84,24 @@ const ADVENTURER_CLASS_IDS = [
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 50
 
+// Classes whose combat animation is slash or thrust ship a separate
+// `_atk.png` at 192×192 frames so long weapons (longsword, halberd, spear)
+// render at native scale rather than being clipped/shrunk into 64×64. Texture
+// keys are `adv-<class>-vNN-atk`. AdventurerRenderer swaps to this texture
+// during combat and back when idle/walking.
+const ADVENTURER_ATK_CLASSES = new Set([
+  'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
+  'mage', 'cleric', 'necromancer', 'ranger', 'bard',
+])
+const ADVENTURER_ATK_FRAME = 192
+const ADVENTURER_ATK_COLS  = 8
+// Atk-sheet row layout: rows 0–3 = slash up/left/down/right (6 frames each),
+// rows 4–7 = thrust up/left/down/right (8 frames each).
+const ADVENTURER_ATK_ANIM_LAYOUT = {
+  slash:  { startRow: 0, frames: 6 },
+  thrust: { startRow: 4, frames: 8 },
+}
+
 // LPC sheets store directions in N / W / S / E row order within each
 // animation block. Map them to the down/up/left/right convention the rest of
 // the game uses.
@@ -147,7 +165,6 @@ export class Preload extends Phaser.Scene {
     this.load.json('minionTypes',       'src/data/minionTypes.json')
     this.load.json('minionEvolutions',  'src/data/minionEvolutions.json')
     this.load.json('trapTypes',         'src/data/trapTypes.json')
-    this.load.json('lootDefinitions',   'src/data/lootDefinitions.json')
     this.load.json('adventurerClasses', 'src/data/adventurerClasses.json')
     this.load.json('lastWords',         'src/data/lastWords.json')
     this.load.json('chatLines',         'src/data/chatLines.json')
@@ -242,6 +259,12 @@ export class Preload extends Phaser.Scene {
     // queues a second loader pass for each referenced PNG.
     this.load.json('themes-manifest', 'assets/themes/manifest.json')
 
+    // ── Boss HP hearts ─────────────────────────────────────────────────────
+    const HEARTS = 'assets/ui/hearts/'
+    this.load.image('heart-full',  HEARTS + 'heart_full.png')
+    this.load.image('heart-empty', HEARTS + 'heart_empty.png')
+    this.load.spritesheet('heart-lose', HEARTS + 'lose_heart.png', { frameWidth: 17, frameHeight: 16 })
+
     // ── Bestiary book UI (boss-select screen) ──────────────────────────────
     // Pack: Craftpix bestiary-book-pixel-art-asset-pack. Each animation sheet
     // is a 4-col × N-row grid of 272×272 frames. Static UI sheets load as
@@ -301,33 +324,6 @@ export class Preload extends Phaser.Scene {
       }
     }
 
-    // Mimic creature sprite sheets — separate pipeline because the mimic
-    // has a state machine (chest → reveal → idle/walk/attack → re-disguise)
-    // and side-only facing (no down/up rows). 102×102 frames per sheet,
-    // chest is a single static 99×102 image. Rendered by MimicRenderer
-    // and animated by MinionAISystem._tickMimic. Texture keys are
-    // `mimic-<state>` and the static chest is `mimic-chest`.
-    const mimicDir = 'assets/sprites/mimic/'
-    this.load.image('mimic-chest', mimicDir + 'chest.png')
-    const MIMIC_SHEETS = [
-      { key: 'reveal',           file: 'Reveal.png',         frames: 15 },
-      { key: 'turn_into_chest',  file: 'turn into chest.png', frames: 10 },
-      { key: 'death',            file: 'Death.png',          frames: 13 },
-      { key: 'idle_left',        file: 'Idle_left.png',       frames: 12 },
-      { key: 'idle_right',       file: 'Idle_right.png',      frames: 12 },
-      { key: 'walk_left',        file: 'walk_left.png',       frames: 10 },
-      { key: 'walk_right',       file: 'walk_right.png',      frames: 10 },
-      { key: 'attack1_left',     file: 'Attack1_left.png',    frames: 12 },
-      { key: 'attack1_right',    file: 'Attack1_right.png',   frames: 12 },
-      { key: 'attack2_left',     file: 'Attack2_left.png',    frames: 10 },
-      { key: 'attack2_right',    file: 'Attack2_right.png',   frames: 10 },
-      { key: 'hurt_left',        file: 'Hurt_left.png',       frames: 7 },
-      { key: 'hurt_right',       file: 'Hurt_right.png',      frames: 7 },
-    ]
-    for (const sh of MIMIC_SHEETS) {
-      this.load.spritesheet(`mimic-${sh.key}`, mimicDir + sh.file, { frameWidth: 102, frameHeight: 102 })
-    }
-
     // ── LPC adventurer spritesheets ──────────────────────────────────────────
     // 50 baked variants per class × 11 classes = 550 sheets. Each is 832×1856
     // RGBA with 64×64 frames in a 13-col × 29-row grid containing 8 animations
@@ -346,6 +342,22 @@ export class Preload extends Phaser.Scene {
       }
     }
 
+    // ── LPC adventurer attack sheets ────────────────────────────────────────
+    // 192×192 frames for slash + thrust so long weapons render at native scale.
+    // Only generated for classes whose combat animation is slash or thrust;
+    // others use the main sheet's slash/thrust rows directly. Variants without
+    // weapons (e.g. some twitch_streamers) won't have an _atk.png — Phaser
+    // logs a 404 and the renderer falls back to the main texture.
+    for (const id of ADVENTURER_CLASS_IDS) {
+      if (!ADVENTURER_ATK_CLASSES.has(id)) continue
+      for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+        const v = `v${String(i).padStart(2, '0')}`
+        this.load.spritesheet(`adv-${id}-${v}-atk`,
+          `assets/sprites/adventurers/${id}/${v}_atk.png`,
+          { frameWidth: ADVENTURER_ATK_FRAME, frameHeight: ADVENTURER_ATK_FRAME })
+      }
+    }
+
     // ── Adventurer emote bubbles ─────────────────────────────────────────
     // 96×32 sheets with three 32×32 frames each. EmoteSystem.js owns the
     // catalog (trigger → variant filename) and the per-frame trigger logic;
@@ -358,15 +370,26 @@ export class Preload extends Phaser.Scene {
   }
 
   create() {
+    this._registerHeartAnimation()
     this._registerBossAnimations()
     this._registerMinionAnimations()
-    this._registerMimicAnimations()
     this._registerAdventurerAnimations()
+    this._registerAdventurerAttackAnimations()
     this._registerEmoteAnimations()
     // Themes load asynchronously (second loader pass for sprite PNGs); kick
     // off MainMenu once that's done. If no manifest exists, this resolves
     // immediately and the game runs with the procedural-only look.
     this._loadThemesAndStart()
+  }
+
+  _registerHeartAnimation() {
+    if (this.anims.exists('heart-lose')) return
+    this.anims.create({
+      key:       'heart-lose',
+      frames:    this.anims.generateFrameNumbers('heart-lose', { start: 0, end: 4 }),
+      frameRate: 10,
+      repeat:    0,
+    })
   }
 
   // Emote bubbles — one anim per variant, 3 frames @ 4fps, looped 3 times
@@ -519,6 +542,42 @@ export class Preload extends Phaser.Scene {
     }
   }
 
+  // LPC adventurer attack animations — registered on the separate `_atk`
+  // textures (192×192 frames, 8 cols × 8 rows). Slash anim per dir reads
+  // frames 0–5 of rows 0–3; thrust per dir reads frames 0–7 of rows 4–7.
+  // Anim key = `adv-<class>-<vNN>-atk-<slash|thrust>-<dir>`. Variants whose
+  // _atk.png didn't load (e.g. weapon: null) are silently skipped — the
+  // renderer falls back to the main texture for those.
+  _registerAdventurerAttackAnimations() {
+    for (const id of ADVENTURER_CLASS_IDS) {
+      if (!ADVENTURER_ATK_CLASSES.has(id)) continue
+      for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+        const v   = `v${String(i).padStart(2, '0')}`
+        const key = `adv-${id}-${v}-atk`
+        if (!this.textures.exists(key)) continue
+        const tex = this.textures.get(key)
+        if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+
+        for (const [animName, cfg] of Object.entries(ADVENTURER_ATK_ANIM_LAYOUT)) {
+          const meta = ADVENTURER_ANIM_META[animName]
+          if (!meta) continue
+          for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
+            const start   = (cfg.startRow + d) * ADVENTURER_ATK_COLS
+            const end     = start + cfg.frames - 1
+            const animKey = `${key}-${animName}-${ADVENTURER_DIRS[d]}`
+            if (this.anims.exists(animKey)) continue
+            this.anims.create({
+              key: animKey,
+              frames: this.anims.generateFrameNumbers(key, { start, end }),
+              frameRate: meta.frameRate,
+              repeat: meta.repeat,
+            })
+          }
+        }
+      }
+    }
+  }
+
   // Mirror of _registerBossAnimations for minion sheets. Same row order
   // (down/up/left/right) — no minion has a swapped layout right now.
   _registerMinionAnimations() {
@@ -548,46 +607,4 @@ export class Preload extends Phaser.Scene {
     }
   }
 
-  // Mimic animations — single-row sheets (no directional rows). One anim
-  // per loaded sheet; key = `mimic-<state>`. Frame counts derive from
-  // sheet width / 102 so the configured frames in the loader can drift
-  // without breaking the registration. The chest is a static image and
-  // doesn't need an anim.
-  _registerMimicAnimations() {
-    const FRAME_SIZE = 102
-    const MIMIC_ANIM_CFG = [
-      { key: 'reveal',          fps: 8,  repeat: 0 },
-      { key: 'turn_into_chest', fps: 8,  repeat: 0 },
-      { key: 'death',           fps: 8,  repeat: 0 },
-      { key: 'idle_left',       fps: 6,  repeat: -1 },
-      { key: 'idle_right',      fps: 6,  repeat: -1 },
-      { key: 'walk_left',       fps: 10, repeat: -1 },
-      { key: 'walk_right',      fps: 10, repeat: -1 },
-      { key: 'attack1_left',    fps: 12, repeat: 0 },
-      { key: 'attack1_right',   fps: 12, repeat: 0 },
-      { key: 'attack2_left',    fps: 12, repeat: 0 },
-      { key: 'attack2_right',   fps: 12, repeat: 0 },
-      { key: 'hurt_left',       fps: 12, repeat: 0 },
-      { key: 'hurt_right',      fps: 12, repeat: 0 },
-    ]
-    for (const cfg of MIMIC_ANIM_CFG) {
-      const sheetKey = `mimic-${cfg.key}`
-      if (!this.textures.exists(sheetKey)) continue
-      const texture = this.textures.get(sheetKey)
-      if (texture.setFilter) texture.setFilter(Phaser.Textures.FilterMode.NEAREST)
-      const tex = texture.source[0]
-      const frameCount = Math.max(1, Math.floor(tex.width / FRAME_SIZE))
-      const animKey = sheetKey
-      if (this.anims.exists(animKey)) continue
-      this.anims.create({
-        key:       animKey,
-        frames:    this.anims.generateFrameNumbers(sheetKey, { start: 0, end: frameCount - 1 }),
-        frameRate: cfg.fps,
-        repeat:    cfg.repeat,
-      })
-    }
-    // Static chest image — apply NEAREST filter so it stays crisp at any zoom.
-    const chestTex = this.textures.exists('mimic-chest') ? this.textures.get('mimic-chest') : null
-    if (chestTex?.setFilter) chestTex.setFilter(Phaser.Textures.FilterMode.NEAREST)
-  }
 }

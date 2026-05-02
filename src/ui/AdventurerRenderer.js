@@ -19,6 +19,28 @@ const RADIUS = 11
 // LPC sheets ship at 64×64 per frame; render at 0.75 so adventurers come in
 // at ~48px tall — about 1.5 dungeon tiles, a readable size for top-down view.
 const LPC_SCALE = 0.75
+// Anims using the separate _atk texture (192×192 frames). When playing one of
+// these, the sprite swaps to the atk texture and adjusts origin so the
+// character body's foot stays at the same world position.
+const ATK_ANIMS = new Set(['slash', 'thrust'])
+// Body sprite origin: foot at y = 0.85 of 64 = 54.4px. In the 192×192 atk
+// frame the body is centered (top=64), so the foot sits at y = 64 + 54.4 =
+// 118.4px → origin y = 118.4 / 192 ≈ 0.617. Keeps the character's foot at the
+// same world position when swapping textures.
+const LPC_BODY_ORIGIN_Y = 0.85
+const LPC_ATK_ORIGIN_Y  = 0.617
+// Weapons that should always render combat as `thrust`, regardless of the
+// class's default animation. Spear/Cane only have thrust frames; staves and
+// the Crossbow have a thrust_oversize that looks more dynamic than the static
+// spellcast/shoot poses, and ensures the weapon is actually visible mid-attack.
+const THRUST_ANIM_WEAPONS = new Set([
+  'Spear', 'Cane', 'Crossbow',
+  'Simple staff', 'Diamond staff', 'S staff', 'Loop staff', 'Gnarled staff',
+])
+// Weapons that should override the class default to `slash`. Necromancers play
+// spellcast by default, but a Scythe has only slash_oversize layers — without
+// this override the scythe never appears mid-attack.
+const SLASH_ANIM_WEAPONS = new Set(['Scythe'])
 // Map adventurer movement vector → LPC direction key.
 function _dirFromVelocity(dx, dy) {
   if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left'
@@ -43,13 +65,21 @@ export class AdventurerRenderer {
     // procedural circle marker.
     const manifest = scene.cache.json.get('adventurerManifest')
     this._lpcVariantsByClass = {}
+    // Map 'class/vNN' → weapon name, used to pick the right combat animation
+    // (e.g. spear-wielders thrust instead of slashing).
+    this._lpcWeaponByVariant = {}
     if (manifest?.variants) {
       for (const [classId, list] of Object.entries(manifest.variants)) {
         this._lpcVariantsByClass[classId] = list.map((v) => v.id)
+        for (const v of list) {
+          this._lpcWeaponByVariant[`${classId}/${v.id}`] = v.weapon
+        }
       }
     }
 
-    EventBus.on('ADVENTURER_DIED',     this._onRemove,   this)
+    // DIED keeps the body on-screen as a corpse until NIGHT_PHASE_STARTED.
+    // FLED still destroys (the adventurer ran off, no body left behind).
+    EventBus.on('ADVENTURER_DIED',     this._onAdvDied,  this)
     EventBus.on('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAll,   this)
     // Stagger fade-in so a party of N spawns one-by-one through the door
@@ -158,15 +188,34 @@ export class AdventurerRenderer {
     const tags = new Set(cls?.tags ?? [])
     let anim
     if (tags.has('spellcaster') || tags.has('healer'))                              anim = 'spellcast'
-    else if (tags.has('ranged') && (cls?.id === 'ranger' || cls?.id === 'bard'))    anim = 'shoot'
+    else if (cls?.id === 'ranger' || cls?.id === 'bard')                            anim = 'shoot'
     else if (cls?.id === 'monk' || cls?.id === 'beast_master')                      anim = 'thrust'
     else                                                                            anim = 'slash'
+    {
+      const wpn = this._lpcWeaponByVariant[adv.spriteVariant]
+      if      (THRUST_ANIM_WEAPONS.has(wpn)) anim = 'thrust'
+      else if (SLASH_ANIM_WEAPONS.has(wpn))  anim = 'slash'
+    }
     const dir = adv._lpcDir ?? 'down'
-    const wantKey = `${s.lpc.textureKey}-${anim}-${dir}`
-    if (!this._scene.anims.exists(wantKey)) return
-    s.lpc.image.anims.play(wantKey, true)
+    const { animKey, originY } = this._resolveLpcAnimKey(s, anim, dir)
+    if (!this._scene.anims.exists(animKey)) return
+    if (s.lpc.image.originY !== originY) s.lpc.image.setOrigin(0.5, originY)
+    s.lpc.image.anims.play(animKey, true)
     // Force the per-tick guard to re-pick on the next idle/walk transition.
-    s.lpc.lastAnim = wantKey
+    s.lpc.lastAnim = animKey
+  }
+
+  // Resolve the (animKey, originY) pair for a desired anim+dir, switching to
+  // the `_atk` texture for slash/thrust when one is registered for this
+  // variant. Falls back to the main texture (and main origin) otherwise.
+  _resolveLpcAnimKey(s, anim, dir) {
+    const useAtk = ATK_ANIMS.has(anim) && s.lpc.atkTextureKey
+    const baseKey = useAtk ? s.lpc.atkTextureKey : s.lpc.textureKey
+    const targetDir = anim === 'hurt' ? 'down' : dir
+    return {
+      animKey: `${baseKey}-${anim}-${targetDir}`,
+      originY: useAtk ? LPC_ATK_ORIGIN_Y : LPC_BODY_ORIGIN_Y,
+    }
   }
 
   // Called every Game.update() frame
@@ -231,8 +280,11 @@ export class AdventurerRenderer {
       if (s.container) s.container.setAlpha(fadeA)
     }
 
-    // Clean up sprites whose adventurers are no longer active
+    // Clean up sprites whose adventurers are no longer active. Corpses (dead
+    // sprites) stay parked at their death position until NIGHT_PHASE_STARTED.
     for (const id of Object.keys(this._sprites)) {
+      const s = this._sprites[id]
+      if (s.isDead) continue
       if (!seen.has(id)) this._destroySprite(id)
     }
   }
@@ -294,9 +346,16 @@ export class AdventurerRenderer {
     } else if (adv.aiState === 'fighting') {
       // Pick the swing style that matches the class's combat flavor.
       if (tags.has('spellcaster') || tags.has('healer'))    anim = 'spellcast'
-      else if (tags.has('ranged') && (cls?.id === 'ranger' || cls?.id === 'bard'))  anim = 'shoot'
+      else if (cls?.id === 'ranger' || cls?.id === 'bard')                          anim = 'shoot'
       else if (cls?.id === 'monk' || cls?.id === 'beast_master')                    anim = 'thrust'
       else                                                                          anim = 'slash'
+      // Weapon-specific overrides so the actual weapon shows mid-attack —
+      // see THRUST_ANIM_WEAPONS / SLASH_ANIM_WEAPONS for rationale.
+      {
+        const wpn = this._lpcWeaponByVariant[adv.spriteVariant]
+        if      (THRUST_ANIM_WEAPONS.has(wpn)) anim = 'thrust'
+        else if (SLASH_ANIM_WEAPONS.has(wpn))  anim = 'slash'
+      }
     } else if (adv.aiState === 'fleeing' || adv.goal?.type === 'FLEE') {
       anim = 'run'
     } else if (adv.aiState === 'walking' || adv.aiState === 'searching') {
@@ -305,11 +364,25 @@ export class AdventurerRenderer {
       anim = 'idle'
     }
 
-    // Hurt sheet only has a south-facing strip; force `down` for that anim.
-    const targetDir = anim === 'hurt' ? 'down' : dir
-    const wantKey = `${s.lpc.textureKey}-${anim}-${targetDir}`
+    // Resolve the right texture/anim — slash and thrust swap to the `_atk`
+    // texture (192×192 frames) so long weapons render at native scale.
+    const { animKey: wantKey, originY } = this._resolveLpcAnimKey(s, anim, dir)
     if (s.lpc.lastAnim === wantKey) return
+
+    // Don't restart a still-playing one-shot attack on a direction change — direction
+    // jitter (e.g. multiple adventurers crowding the boss) would otherwise cut the
+    // swing off after 1–2 frames. Wait until the current attack finishes.
+    const ATTACK_ANIMS = new Set(['slash', 'thrust', 'shoot', 'spellcast'])
+    if (ATTACK_ANIMS.has(anim) && s.lpc.image.anims?.isPlaying) {
+      const curKey = s.lpc.image.anims.currentAnim?.key ?? ''
+      if (curKey.endsWith(`-${anim}-up`) || curKey.endsWith(`-${anim}-down`) ||
+          curKey.endsWith(`-${anim}-left`) || curKey.endsWith(`-${anim}-right`)) {
+        return
+      }
+    }
+
     s.lpc.lastAnim = wantKey
+    if (s.lpc.image.originY !== originY) s.lpc.image.setOrigin(0.5, originY)
     if (this._scene.anims.exists(wantKey)) {
       s.lpc.image.anims.play(wantKey, true)
     }
@@ -352,7 +425,7 @@ export class AdventurerRenderer {
   }
 
   destroy() {
-    EventBus.off('ADVENTURER_DIED',     this._onRemove,   this)
+    EventBus.off('ADVENTURER_DIED',     this._onAdvDied,  this)
     EventBus.off('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAll,   this)
     EventBus.off('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
@@ -490,7 +563,11 @@ export class AdventurerRenderer {
     const textureKey = `adv-${cls}-${vId}`
     if (!this._scene.textures.exists(textureKey)) return null
     const image = this._scene.add.sprite(0, 0, textureKey, 0)
-    return { image, textureKey, lastAnim: null }
+    // Optional 192×192 attack texture for slash/thrust classes — null if this
+    // variant didn't ship an _atk.png (e.g. spellcasters, weapon: null variants).
+    const atkKey = `${textureKey}-atk`
+    const atkTextureKey = this._scene.textures.exists(atkKey) ? atkKey : null
+    return { image, textureKey, atkTextureKey, lastAnim: null }
   }
 
   _destroySprite(id) {
@@ -502,6 +579,35 @@ export class AdventurerRenderer {
 
   _onRemove({ adventurer }) {
     if (adventurer?.instanceId) this._destroySprite(adventurer.instanceId)
+  }
+
+  // Death turns the sprite into a "corpse": play the hurt anim (one-shot,
+  // freezes on last frame), strip the HUD bits, mark it dead so update()
+  // leaves it parked at the death position. Cleaned up by _clearAll on
+  // NIGHT_PHASE_STARTED.
+  _onAdvDied({ adventurer }) {
+    const s = this._sprites[adventurer?.instanceId]
+    if (!s) return
+    s.isDead = true
+    s.hp?.setVisible(false)
+    s.hpBg?.setVisible(false)
+    s.bubble?.setVisible(false)
+    s.bubbleLabel?.setVisible(false)
+    s.veteranBadge?.setVisible(false)
+    s.markedBadge?.setVisible(false)
+    s.body?.disableInteractive()
+    if (s.lpc) {
+      // Snap back to the body texture/origin in case we died mid-attack on
+      // the atk sheet, then play the LPC hurt strip.
+      if (s.lpc.image.originY !== LPC_BODY_ORIGIN_Y) {
+        s.lpc.image.setOrigin(0.5, LPC_BODY_ORIGIN_Y)
+      }
+      const wantKey = `${s.lpc.textureKey}-hurt-down`
+      if (this._scene.anims.exists(wantKey)) {
+        s.lpc.image.anims.play(wantKey, true)
+        s.lpc.lastAnim = wantKey
+      }
+    }
   }
 
   _clearAll() {

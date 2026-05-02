@@ -82,12 +82,16 @@ export class MinionRenderer {
     const seen    = new Set()
 
     for (const m of minions) {
-      // Mimics are owned by MimicRenderer (different sprite pipeline +
-      // state machine). Skip here so we don't double-render.
-      if (m.isMimic) continue
       seen.add(m.instanceId)
       let s = this._sprites[m.instanceId]
-      if (!s) s = this._createSprite(m)
+      // Don't re-spawn corpses on the next day's first tick. If a dead minion
+      // survived in gameState past NIGHT_PHASE_STARTED (which destroyed its
+      // sprite), skip creating a new one. Live minions still construct here.
+      if (!s) {
+        const curHp = m.resources?.hp ?? 0
+        if (m.aiState === 'dead' || curHp <= 0) continue
+        s = this._createSprite(m)
+      }
       if (!s) continue
 
       // Evolution morph: if the minion's def changed since last render
@@ -101,6 +105,7 @@ export class MinionRenderer {
       const now  = this._scene.time.now
       const curHp = m.resources?.hp ?? 0
       const isDead = m.aiState === 'dead' || curHp <= 0
+      if (isDead) s.isDead = true  // tag for NIGHT_PHASE_STARTED cleanup
 
       // Position + Y-sort against the boss + adventurers (larger
       // worldY draws on top).  Skipped while held — the held minion
@@ -164,18 +169,17 @@ export class MinionRenderer {
         }
       }
 
-      // Visibility — spectral minions translucent; hidden mimics fully invisible;
-      // dead minions hidden (death anim is loaded but the existing flow snaps
-      // dead minions to alpha 0 immediately on death). Doorway shadow dim:
-      // standing on a doorway INNER (threshold) cell multiplies alpha by 0.55
-      // to sell stepping into the underpass shadow.
+      // Visibility — spectral minions translucent; hidden mimics fully invisible.
+      // Dead minions stay visible at their last frame as corpses until
+      // NIGHT_PHASE_STARTED clears them. Doorway shadow dim: standing on a
+      // doorway INNER (threshold) cell multiplies alpha by 0.55 to sell
+      // stepping into the underpass shadow.
       let alpha = 1
       if (m.isSpectral) alpha = 0.55
-      if (m.isMimic && m.hiddenAsLoot) alpha = 0
       const tx = (m.worldX / TS) | 0
       const ty = (m.worldY / TS) | 0
       if (this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)) alpha *= 0.55
-      s.container.setAlpha(isDead ? 0 : alpha)
+      s.container.setAlpha(alpha)
 
       // HP bars hidden for minions per user request — bar+bg are still
       // created (so any other code that pokes `s.hp` still works) but the
@@ -329,13 +333,13 @@ export class MinionRenderer {
     this._dropMinion(pointer.worldX, pointer.worldY)
   }
 
-  // Right-click on a minion deletes it and refunds the placement essence
+  // Right-click on a minion deletes it and refunds the placement gold
   // (refund is based on the chain's starter def cost — what the player
   // actually paid; evolution is free). Splices out of gameState.minions
   // so AI/render stop touching it; destroys the sprite record.
   _removeMinion(m) {
     if (!m) return
-    // Refund: walk back to the chain's starter and use its essenceCostToPlace.
+    // Refund: walk back to the chain's starter and use its goldCost.
     // Fallback to the current def's cost if the minion isn't in any chain.
     let refundDef = this._defMap[m.definitionId]
     for (const v of Object.values(this._chains)) {
@@ -344,9 +348,9 @@ export class MinionRenderer {
         break
       }
     }
-    const refund = refundDef?.essenceCostToPlace ?? 0
+    const refund = refundDef?.goldCost ?? 0
     if (refund > 0 && this._gameState.player) {
-      this._gameState.player.soulEssence = (this._gameState.player.soulEssence ?? 0) + refund
+      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + refund
     }
 
     // Clear interaction state so a held/hovered minion doesn't dangle.
@@ -543,12 +547,17 @@ export class MinionRenderer {
     delete this._sprites[id]
   }
 
-  _onMinionDied({ minion }) {
-    const s = this._sprites[minion?.instanceId]
-    if (s) s.container.setAlpha(0)
+  _onMinionDied(_evt) {
+    // No-op — death anim plays in update() and freezes on its last frame.
+    // The sprite is parked at its death position until NIGHT_PHASE_STARTED.
   }
 
   _refreshAll() {
-    // Forces full refresh on next update tick — useful after respawn.
+    // Wipe all corpse sprites at the start of a night so they don't linger
+    // into the next day. Live minions stay; the update() guard above also
+    // keeps gameState entries flagged 'dead' from re-spawning fresh sprites.
+    for (const id of Object.keys(this._sprites)) {
+      if (this._sprites[id].isDead) this._destroySprite(id)
+    }
   }
 }
