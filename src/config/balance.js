@@ -17,7 +17,6 @@ export const Balance = {
 
   // --- Starting currencies (new run) ---
   STARTING_SOUL_ESSENCE: 999999,
-  STARTING_DARK_POWER: 999999,
 
   // DEV: when true, spending essence (placing rooms / minions / traps,
   // and daily upkeep) is a no-op so the player can freely test all
@@ -26,7 +25,6 @@ export const Balance = {
 
   // --- Earn rates per adventurer kill ---
   SOUL_ESSENCE_PER_KILL: 10,
-  DARK_POWER_PER_KILL: 2,
 
   // --- Camera ---
   CAMERA_ZOOM_MIN: 0.25,
@@ -34,9 +32,10 @@ export const Balance = {
   CAMERA_ZOOM_DEFAULT: 1.0,
   CAMERA_SCROLL_SPEED: 8,
 
-  // --- Dungeon progression ---
-  DUNGEON_LEVEL_XP_BASE: 100,
-  DUNGEON_LEVEL_XP_SCALE: 1.5,
+  // --- Boss progression ---
+  BOSS_XP_BASE:     100,   // XP needed to reach lv 2
+  BOSS_XP_SCALE:    1.5,   // XP curve: xpForLv(n) = BASE * SCALE^(n-1)
+  BOSS_XP_PER_KILL:  10,   // boss XP awarded per adventurer kill
 
   // --- Boss ---
   BOSS_DEFEATS_TO_GAME_OVER: 3,
@@ -126,13 +125,12 @@ export const Balance = {
   SLEEP_HP_PER_SEC:                3,
   SLEEP_REQUIRES_NO_HOSTILES:      true,
 
-  // --- Dungeon level progression (Phase 7b) ---
-  DUNGEON_LEVEL_KILLS_BASE:        5,     // kills needed for lv 1 → 2
-  DUNGEON_LEVEL_KILLS_SCALE:       1.4,   // kills_for_lv_n = BASE * SCALE^(n-1)
-  DUNGEON_LEVEL_MAX:               20,
-  ADVENTURER_HP_PER_DUNGEON_LV:    0.10,   // +10% maxHp per dungeon level above 1
-  ADVENTURER_ATK_PER_DUNGEON_LV:   0.07,   // +7% attack per dungeon level above 1
-  UNDERDOG_XP_MULT:                2.0,    // adventurer XP multiplier for underdog tag
+  // --- Scaling by boss level (Phase 7b) ---
+  ADVENTURER_HP_PER_BOSS_LV:   0.10,   // +10% maxHp per boss level above 1
+  ADVENTURER_ATK_PER_BOSS_LV:  0.07,   // +7% attack per boss level above 1
+  MINION_HP_PER_BOSS_LV:       0.10,   // +10% maxHp per boss level above 1
+  MINION_ATK_PER_BOSS_LV:      0.07,   // +7% attack per boss level above 1
+  UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
 
   // --- Mini-boss / vendetta / vulture / wraith ---
   MINIBOSS_HP_MULT:                3.0,
@@ -174,4 +172,14 @@ export const Balance = {
   MECHANIC_GRAV_MELEE_DAMAGE_MULT:        1.2,
   MECHANIC_LOOT_CURSE_DEBUFF_PER_DAY:     1,      // hidden -1 attack per day held
   MECHANIC_MEMORY_FOG_FORGET_FRACTION:    0.5,
+
+  // --- New Phase 9 dark pacts ---
+  MECHANIC_GOLD_RUSH_GOLD_MULT:           2.0,    // 2× gold per kill
+  MECHANIC_UNDYING_HORDE_REVIVE_CHANCE:   0.40,   // 40% chance dead minion rises as undead
+  MECHANIC_UNDYING_HORDE_HP_FRACTION:     0.50,   // undead revive at this fraction of maxHp
+  MECHANIC_SEALED_PATHS_BLOCK_CHANCE:     0.50,   // chance to reroute a fleeing adventurer
+  MECHANIC_SEALED_PATHS_CORNERED_MULT:    1.25,   // cornered fleeing adventurer damage mult
+  MECHANIC_PACK_SYNERGY_BONUS:            0.15,   // +15% damage per ally in room
+  MECHANIC_PACK_SYNERGY_MAX_BONUS:        0.60,   // cap at +60%
+  MECHANIC_BLOOD_MONEY_HP_PER_FIVE_KILLS: 0.02,   // +2% adventurer maxHp per 5 lifetime kills
 }

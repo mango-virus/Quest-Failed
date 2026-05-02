@@ -166,13 +166,6 @@ export class BossTopBar {
       }).setDepth(D)
     this._objects.push(this._captionT)
 
-    // Boss name
-    this._nameT = this._scene.add.text(cx + avatarSize + 10, cy + 14,
-      this._bossName, {
-        fontFamily: FONT_HEAD, fontSize: '11px', color: CRYPT.ink, letterSpacing: 1,
-      }).setDepth(D)
-    this._objects.push(this._nameT)
-
     // LV badge — anchored at the right edge of the left column
     this._levelT = this._scene.add.text(x + w - PADDING_X, cy + 2,
       this._levelText(), {
@@ -180,10 +173,14 @@ export class BossTopBar {
       }).setOrigin(1, 0).setDepth(D)
     this._objects.push(this._levelT)
 
-    // HP bar
+    // HP bar — narrowed to leave room for the lives hearts on the same row
     const barX = cx + avatarSize + 10
-    const barY = cy + 30
-    const barW = w - (barX - x) - PADDING_X
+    const barY = cy + 16
+    const HEART_FONT  = 11   // px, matches pixelBar height
+    const HEART_GAP   = 3
+    const LIVES_TOTAL = 3
+    const livesW = LIVES_TOTAL * HEART_FONT + (LIVES_TOTAL - 1) * HEART_GAP
+    const barW = w - (barX - x) - PADDING_X - livesW - 8
     const boss = this._gameState.boss
     const hp   = boss?.hp ?? 100
     const max  = boss?.maxHp ?? 100
@@ -191,10 +188,36 @@ export class BossTopBar {
       color: 'red', label: `${hp} / ${max}`, depth: D, fontSize: 8,
     })
     this._objects.push(this._hpBar.g, this._hpBar.txt)
+
+    // Lives hearts — right of HP bar; one heart per life, red = alive, muted = lost
+    const heartsX   = barX + barW + 8
+    const heartsY   = barY + 5   // vertically centred in the 11px bar
+    const remaining = boss?.deathsRemaining ?? LIVES_TOTAL
+    this._hearts = []
+    for (let i = 0; i < LIVES_TOTAL; i++) {
+      const h = this._scene.add.text(
+        heartsX + i * (HEART_FONT + HEART_GAP), heartsY, '♥', {
+          fontFamily: FONT_HEAD, fontSize: `${HEART_FONT}px`,
+          color: i < remaining ? CRYPT.accentCss : CRYPT.inkMute,
+        },
+      ).setOrigin(0, 0.5).setDepth(D)
+      this._objects.push(h)
+      this._hearts.push(h)
+    }
+
+    // XP bar — sits below HP bar; tracks boss XP toward next dungeon level
+    const xpBarY = barY + 13
+    const xp    = this._gameState.boss?.xp ?? 0
+    const xpMax = this._gameState.boss?.xpToNext ?? 100
+    this._xpBar = pixelBar(this._scene, barX, xpBarY, barW, 9, xp, Math.max(1, xpMax), {
+      color: 'green', label: `${xp} / ${xpMax} XP`, depth: D, fontSize: 7,
+    })
+    this._objects.push(this._xpBar.g)
+    if (this._xpBar.txt) this._objects.push(this._xpBar.txt)
   }
 
   _levelText() {
-    return `LV ${this._gameState.meta?.dungeonLevel ?? 1}`
+    return `LV ${this._gameState.boss?.level ?? 1}`
   }
 
   _buildCenterCol(x, w) {
@@ -240,13 +263,12 @@ export class BossTopBar {
     }).setDepth(D)
     this._objects.push(hdr)
 
-    // Resource rows: Gold + Dark Power. Icon + value share a single
-    // baseline so they never drift; the small label sits underneath.
+    // Resource row: Gold only. Icon + value share a single baseline;
+    // the small label sits underneath.
     const yMid = 26    // shared icon+value vertical center
     const yLbl = 38    // small caption baseline
     const rows = [
-      { lbl: 'GOLD',       color: CRYPT.goldCss,    icon: '◆', getter: () => this._gameState.player?.soulEssence ?? 0 },
-      { lbl: 'DARK POWER', color: CRYPT.accent2Css, icon: '✦', getter: () => this._gameState.player?.darkPower ?? 0 },
+      { lbl: 'GOLD', color: CRYPT.goldCss, icon: '◆', getter: () => this._gameState.player?.soulEssence ?? 0 },
     ]
     this._resTexts = []
     const colW = (w - PADDING_X * 2) / rows.length
@@ -312,6 +334,15 @@ export class BossTopBar {
     for (const r of (this._resTexts ?? [])) {
       r.value.setText(this._formatNumber(r.getter()))
     }
+    const deathsLeft = this._gameState.boss?.deathsRemaining ?? 3
+    if (this._hearts) {
+      this._hearts.forEach((h, i) => h.setColor(i < deathsLeft ? CRYPT.accentCss : CRYPT.inkMute))
+    }
+    if (this._xpBar) {
+      const xp    = this._gameState.boss?.xp ?? 0
+      const xpMax = this._gameState.boss?.xpToNext ?? 100
+      this._xpBar.update(xp, Math.max(1, xpMax), `${xp} / ${xpMax} XP`)
+    }
   }
 
   destroy() {
@@ -323,6 +354,7 @@ export class BossTopBar {
     this._objects = []
     this._hpBar = null
     this._survivalBar = null
+    this._xpBar = null
   }
 }
 

@@ -1,3 +1,5 @@
+import { allEmoteVariants, emoteKey } from '../systems/EmoteSystem.js'
+
 // Boss skin table. Folder name on disk must equal `id`; texture keys are
 // `${id}-<state>`. Adding a new boss skin = drop the 6 sheets into
 // assets/sprites/<id>/ and add an entry here.
@@ -228,6 +230,7 @@ export class Preload extends Phaser.Scene {
       files.forEach(([key, file]) => this.load.image(key, folder + file))
     }
     loadTileset('room', 'assets/tiles/room/')
+    this.load.image('void-bg', 'assets/tiles/void_bg.png')
     // Add more tilesets here as art lands:
     // loadTileset('cave',  'assets/tiles/cave/')
     // loadTileset('boss',  'assets/tiles/boss/')
@@ -342,6 +345,16 @@ export class Preload extends Phaser.Scene {
           { frameWidth: 64, frameHeight: 64 })
       }
     }
+
+    // ── Adventurer emote bubbles ─────────────────────────────────────────
+    // 96×32 sheets with three 32×32 frames each. EmoteSystem.js owns the
+    // catalog (trigger → variant filename) and the per-frame trigger logic;
+    // here we just queue the spritesheet load. Texture key = emoteKey(name).
+    for (const variant of allEmoteVariants()) {
+      this.load.spritesheet(emoteKey(variant),
+        `assets/sprites/emotes/${variant}.png`,
+        { frameWidth: 32, frameHeight: 32 })
+    }
   }
 
   create() {
@@ -349,10 +362,27 @@ export class Preload extends Phaser.Scene {
     this._registerMinionAnimations()
     this._registerMimicAnimations()
     this._registerAdventurerAnimations()
+    this._registerEmoteAnimations()
     // Themes load asynchronously (second loader pass for sprite PNGs); kick
     // off MainMenu once that's done. If no manifest exists, this resolves
     // immediately and the game runs with the procedural-only look.
     this._loadThemesAndStart()
+  }
+
+  // Emote bubbles — one anim per variant, 3 frames @ 4fps, looped 3 times
+  // (matches EMOTE_ANIM_REPEATS in EmoteSystem so a viewer reads the bubble).
+  _registerEmoteAnimations() {
+    for (const variant of allEmoteVariants()) {
+      const key = emoteKey(variant)
+      if (!this.textures.exists(key)) continue
+      if (this.anims.exists(key)) continue
+      this.anims.create({
+        key,
+        frames:    this.anims.generateFrameNumbers(key, { start: 0, end: 2 }),
+        frameRate: 4,
+        repeat:    2,
+      })
+    }
   }
 
   // Read the themes manifest (if present), queue every referenced sprite PNG

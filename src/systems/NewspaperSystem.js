@@ -49,7 +49,7 @@ export class NewspaperSystem {
       ['MINION_LEVELED_UP',   p => log('mlevel',     p)],
       ['MINION_EVOLVED',      p => log('mevolve',    p)],
       ['MINION_BOUNTY_POSTED',p => log('bounty',     p)],
-      ['DUNGEON_LEVELED_UP',  p => log('dlevel',     p)],
+      ['BOSS_LEVELED_UP',     p => log('boss_leveled_up', p)],
       ['VENDETTA_HUNTER_ARRIVED', p => log('vendetta', p)],
       ['ADVENTURER_RETURNED', p => log('returned',   p)],
       ['MECHANIC_ACTIVATED',  p => log('mech_on',    p)],

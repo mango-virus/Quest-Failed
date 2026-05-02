@@ -639,6 +639,63 @@ export function pixelTabs(scene, x, y, w, h, labels, opts = {}) {
   }
 }
 
+// ── Toast notification ────────────────────────────────────────────────────────
+// Shows a brief dismissing message near the top of the screen.
+// Works from any scene that has called applyUiCamera (scene.uiW is set).
+//
+// type: 'error' (default amber ⚠) | 'info' (blue) | 'success' (green ✓)
+// duration: ms the toast stays fully visible before fading (default 2500)
+//
+// Calling showToast a second time while one is visible immediately replaces it.
+// State is stored on the scene as scene._toast so each scene manages its own.
+export function showToast(scene, message, opts = {}) {
+  const {
+    type     = 'error',
+    duration = 2500,
+  } = opts
+
+  // Dismiss any existing toast on this scene immediately.
+  if (scene._toast) {
+    scene._toast.timer?.remove(false)
+    for (const o of scene._toast.objs ?? []) o?.destroy?.()
+    scene._toast = null
+  }
+
+  const W  = scene.uiW ?? scene.scale.width
+  const tw = Math.min(W - 48, 520)
+  const th = 38
+  const tx = (W - tw) / 2
+  const ty = 14
+
+  const scheme = type === 'info'
+    ? { fill: 0x04101a, border: 0x3388dd, glow: 0x1155aa, text: '#88ccff', icon: '●' }
+    : type === 'success'
+    ? { fill: 0x041a08, border: 0x33bb55, glow: 0x117733, text: '#88ffaa', icon: '✓' }
+    : /* error */ { fill: 0x1a0804, border: 0xee8833, glow: 0xaa4400, text: '#ffd090', icon: '⚠' }
+
+  const bg  = scene.add.graphics().setDepth(200)
+  glowPanel(bg, tx, ty, tw, th, { fill: scheme.fill, border: scheme.border, glow: scheme.glow })
+
+  const txt = scene.add.text(tx + tw / 2, ty + th / 2,
+    `${scheme.icon}   ${message}`, {
+      fontSize: '11px', color: scheme.text,
+      fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(201)
+
+  const objs  = [bg, txt]
+  const timer = scene.time.delayedCall(duration, () => {
+    scene.tweens.add({
+      targets: objs, alpha: 0, duration: 400,
+      onComplete: () => {
+        for (const o of objs) o?.destroy?.()
+        if (scene._toast?.objs === objs) scene._toast = null
+      },
+    })
+  })
+
+  scene._toast = { objs, timer }
+}
+
 // ── UI camera normaliser ───────────────────────────────────────────────────────
 // Scale.RESIZE gives a canvas that matches the physical window so there is no
 // CSS upscaling and text is always sharp.  We zoom the scene camera so a

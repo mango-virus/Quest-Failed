@@ -19,6 +19,7 @@ import { BossSystem }         from '../systems/BossSystem.js'
 import { ReputationSystem }   from '../systems/ReputationSystem.js'
 import { RoomBehaviorSystem } from '../systems/RoomBehaviorSystem.js'
 import { RunHistorySystem }   from '../systems/RunHistorySystem.js'
+import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
@@ -124,6 +125,7 @@ export class Game extends Phaser.Scene {
     this.runHistorySystem    = new RunHistorySystem(this, this.gameState)
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
     this.adventurerRenderer  = new AdventurerRenderer(this, this.gameState)
+    this.emoteSystem         = new EmoteSystem(this, this.gameState, this.adventurerRenderer)
     this.minionRenderer      = new MinionRenderer(this, this.gameState)
     this.mimicRenderer       = new MimicRenderer(this, this.gameState)
     this.trapRenderer        = new TrapRenderer(this, this.gameState)
@@ -151,8 +153,8 @@ export class Game extends Phaser.Scene {
     EventBus.on('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     // Re-clamp zoom whenever the dungeon grid expands so min zoom tracks map size
     EventBus.on('GRID_EXPANDED',        this._onGridExpanded,  this)
-    // Dungeon levels up → expand the grid (+5 tiles each axis, capped 100×100).
-    EventBus.on('DUNGEON_LEVELED_UP',   this._onDungeonLeveledUp, this)
+    // Boss levels up → expand grid + scale all live minions.
+    EventBus.on('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
     // Room Builder saved a room def — rewrite tile grids for all placed
     // instances so structural changes appear immediately without remove + re-place.
     EventBus.on('ROOM_DEF_SAVED',       this._onRoomDefSaved,   this)
@@ -187,7 +189,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
     EventBus.off('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     EventBus.off('GRID_EXPANDED',        this._onGridExpanded,  this)
-    EventBus.off('DUNGEON_LEVELED_UP',   this._onDungeonLeveledUp, this)
+    EventBus.off('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
     EventBus.off('ROOM_DEF_SAVED',       this._onRoomDefSaved,  this)
     EventBus.off('ROOMS_ALL_RESET',      this._onRoomsAllReset, this)
     EventBus.off('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
@@ -200,6 +202,7 @@ export class Game extends Phaser.Scene {
     this.scene.stop('HudScene')
     this._dungeonRenderer?.destroy()
     this.adventurerRenderer?.destroy()
+    this.emoteSystem?.destroy()
     this.minionRenderer?.destroy()
     this.mimicRenderer?.destroy()
     this.trapRenderer?.destroy()
@@ -403,18 +406,31 @@ export class Game extends Phaser.Scene {
     if (this._cam.zoom < minZoom) this._cam.setZoom(minZoom)
   }
 
-  _onDungeonLeveledUp() {
-    // Each dungeon level adds 5 tiles in each axis, capped at 100×100. Existing
-    // rooms stay where they are — expandGrid only grows the map to the right
-    // and bottom, filling new tiles with VOID for future room placement.
+  _onBossLeveledUp({ newLevel }) {
+    // Expand the grid by 5 tiles each axis, capped at 100×100.
     const cap = 100
     const grow = 5
     const oldW = this.gameState.dungeon.gridWidth
     const oldH = this.gameState.dungeon.gridHeight
     const newW = Math.min(cap, oldW + grow)
     const newH = Math.min(cap, oldH + grow)
-    if (newW === oldW && newH === oldH) return
-    this.dungeonGrid.expandGrid(newW, newH)
+    if (newW !== oldW || newH !== oldH) this.dungeonGrid.expandGrid(newW, newH)
+
+    // Scale all live minions up by the ratio from their last boss level to the new one.
+    for (const m of this.gameState.minions ?? []) {
+      if (m.aiState === 'dead') continue
+      const oldLv   = m.bossLevel ?? 1
+      if (oldLv >= newLevel) continue
+      const oldHpM  = 1 + Balance.MINION_HP_PER_BOSS_LV  * (oldLv  - 1)
+      const newHpM  = 1 + Balance.MINION_HP_PER_BOSS_LV  * (newLevel - 1)
+      const oldAtkM = 1 + Balance.MINION_ATK_PER_BOSS_LV * (oldLv  - 1)
+      const newAtkM = 1 + Balance.MINION_ATK_PER_BOSS_LV * (newLevel - 1)
+      const hpFrac  = m.resources.maxHp > 0 ? m.resources.hp / m.resources.maxHp : 1
+      m.resources.maxHp = Math.round(m.resources.maxHp * (newHpM / oldHpM))
+      m.resources.hp    = Math.round(m.resources.maxHp * hpFrac)
+      m.stats.attack    = Math.round(m.stats.attack    * (newAtkM / oldAtkM))
+      m.bossLevel       = newLevel
+    }
   }
 
   _setupCamera() {
@@ -556,6 +572,7 @@ export class Game extends Phaser.Scene {
         this.classAbilitySystem?.update(scaled)
       }
       this.adventurerRenderer?.update()
+      this.emoteSystem?.update()
       this.minionRenderer?.update()
       this.mimicRenderer?.update()
       this.bossRenderer?.update()

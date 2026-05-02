@@ -281,6 +281,20 @@ export class DungeonRenderer {
     this._gameState = gameState
 
     this._gBg        = scene.add.graphics().setDepth(0)
+    // Tiled void background — replaced the old flat STONE_BASE fill.
+    // Depth -0.5 keeps it below _gBg so the vignette + carve-halo overlays
+    // still apply on top.  Sized to the full dungeon grid; resized on every
+    // redraw in case of GRID_EXPANDED.
+    this._bgSprite = scene.add.tileSprite(0, 0, 1, 1, 'void-bg')
+      .setOrigin(0, 0).setDepth(-0.5).setTileScale(0.25)
+    // Void-occluder at depth 12 (same role as _gVoidMask but texture-matched
+    // so sprites bleeding into void cells are hidden behind the real texture
+    // rather than a flat colour).  A GeometryMask built from _voidMaskMaskG
+    // clips it to VOID cells only; _voidMaskMaskG is rebuilt each redraw.
+    this._voidMaskMaskG  = scene.add.graphics()
+    this._voidMaskSprite = scene.add.tileSprite(0, 0, 1, 1, 'void-bg')
+      .setOrigin(0, 0).setDepth(12).setTileScale(0.25)
+      .setMask(this._voidMaskMaskG.createGeometryMask())
     // Grid lines live on their own layer so NightPhase can toggle them
     // (placement-preview hover) without redrawing the bedrock.
     this._gGrid      = scene.add.graphics().setDepth(0.5)
@@ -380,6 +394,13 @@ export class DungeonRenderer {
   // ── Public ─────────────────────────────────────────────────────────────────
 
   redraw() {
+    // Resize texture sprites to current dungeon bounds before any drawing.
+    const { gridWidth: _rgw, gridHeight: _rgh } = this._gameState.dungeon
+    const _rW = _rgw * TS, _rH = _rgh * TS
+    this._bgSprite?.setSize(_rW, _rH)
+    this._voidMaskSprite?.setSize(_rW, _rH)
+    this._voidMaskMaskG?.clear()   // rebuilt by _drawVoidMask() below
+
     this._gBg.clear()
     this._gGrid.clear()
     this._gTiles.clear()
@@ -479,6 +500,9 @@ export class DungeonRenderer {
     EventBus.off('ROOM_REMOVED',          this.redraw, this)
     EventBus.off('GRID_EXPANDED',         this.redraw, this)
     EventBus.off('DEBUG_OVERLAY_CHANGED', this.redraw, this)
+    this._bgSprite?.destroy()
+    this._voidMaskSprite?.destroy()
+    this._voidMaskMaskG?.destroy()
     this._gBg.destroy()
     this._gGrid.destroy()
     this._gTiles.destroy()
@@ -3117,14 +3141,17 @@ export class DungeonRenderer {
   // continuous; per-cell texture stays on _gBg.
   _drawVoidMask() {
     const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
-    const g = this._gVoidMask
-    g.fillStyle(STONE_BASE, 1)
+    // Build the GeometryMask for _voidMaskSprite: fill every VOID cell so
+    // the texture-matched TileSprite is visible there (occluding any sprite
+    // overdraw into the void).  _voidMaskMaskG was cleared at redraw() start.
+    const mg = this._voidMaskMaskG
+    mg.fillStyle(0xffffff, 1)   // colour is irrelevant for GeometryMask
     for (let y = 0; y < gh; y++) {
       const row = tiles[y]
       if (!row) continue
       for (let x = 0; x < gw; x++) {
         if (row[x] !== TILE.VOID) continue
-        g.fillRect(x * TS, y * TS, TS, TS)
+        mg.fillRect(x * TS, y * TS, TS, TS)
       }
     }
   }
@@ -3134,19 +3161,12 @@ export class DungeonRenderer {
     const W = gw * TS
     const H = gh * TS
 
-    // Stone bedrock base — warm gray-brown across the entire grid. Rooms
-    // get overpainted on top by _drawTiles. The empty grid reads as "rock
-    // we haven't carved yet" instead of dark void.
-    this._gBg.fillStyle(STONE_BASE, 1)
-    this._gBg.fillRect(0, 0, W, H)
-    // Soft central darkening — the further you get from the dungeon's
-    // center, the gloomier the rock; gives the grid a slight vignette.
-    this._gBg.fillStyle(0x000000, 0.18)
+    // Background texture is now handled by _bgSprite (TileSprite, depth -0.5).
+    // Just draw the vignette darkening and the carve halo on top of it.
+    this._gBg.fillStyle(0x000000, 0.22)
     this._gBg.fillEllipse(W / 2, H / 2, W * 1.4, H * 1.4)
-    // Per-cell hash texture — speckles, pock marks, rare cracks/veins.
-    this._drawVoidStoneTexture()
     // Lighter halo immediately around each placed room — "freshly chiseled
-    // edge" effect. Drawn after texture so the halo isn't speckled over.
+    // edge" effect.
     this._drawCarveHalo()
   }
 

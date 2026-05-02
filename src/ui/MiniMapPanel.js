@@ -67,7 +67,7 @@ export class MiniMapPanel {
     }).setOrigin(0, 0.5).setDepth(D + 2)
 
     this._levelT = this._scene.add.text(x + w - PADDING - 4, y + HEADER_H / 2 + 2,
-      `L${this._gameState.meta?.dungeonLevel ?? 1}`, {
+      `L${this._gameState.boss?.level ?? 1}`, {
       fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 1,
     }).setOrigin(1, 0.5).setDepth(D + 2)
     this._objects.push(this._levelT)
@@ -234,7 +234,7 @@ export class MiniMapPanel {
     const a = (this._gameState.adventurers?.active ?? []).map(av => `${av.tileX},${av.tileY}`).join('|')
     const m = (this._gameState.minions ?? []).map(mn => `${mn.tileX},${mn.tileY},${mn.aiState}`).join('|')
     const b = this._gameState.boss ? `${this._gameState.boss.tileX},${this._gameState.boss.tileY}` : ''
-    const lv = this._gameState.meta?.dungeonLevel ?? 1
+    const lv = this._gameState.boss?.level ?? 1
     return `${r}#${a}#${m}#${b}#${lv}`
   }
 
@@ -243,7 +243,7 @@ export class MiniMapPanel {
     if (sig !== this._lastSig) {
       this._lastSig = sig
       this._renderRooms()
-      this._levelT?.setText(`L${this._gameState.meta?.dungeonLevel ?? 1}`)
+      this._levelT?.setText(`L${this._gameState.boss?.level ?? 1}`)
     }
   }
 

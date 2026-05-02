@@ -34,9 +34,8 @@ export class DayPhase extends Phaser.Scene {
     if (gs) {
       this._daySnapshot = {
         soulEssence:  gs.player?.soulEssence  ?? 0,
-        darkPower:    gs.player?.darkPower    ?? 0,
         totalKills:   gs.player?.totalKills   ?? 0,
-        dungeonLevel: gs.meta?.dungeonLevel    ?? 1,
+        bossLevel:    gs.boss?.level           ?? 1,
         totals:       { ...(gs.run?.totals ?? {}) },
         graveyardLen: gs.adventurers?.graveyard?.length ?? 0,
       }
@@ -467,12 +466,12 @@ export class DayPhase extends Phaser.Scene {
     return stillAlive[stillAlive.length - 1]   // most recent
   }
 
-  // Phase 7b: scale adventurer base stats by dungeon level — meaningfully tougher at later levels
-  _scaleAdventurerByDungeonLevel(adv, dungeonLv) {
-    if (dungeonLv <= 1) return
-    const lvOver = dungeonLv - 1
-    const hpMul  = 1 + Balance.ADVENTURER_HP_PER_DUNGEON_LV * lvOver
-    const atkMul = 1 + Balance.ADVENTURER_ATK_PER_DUNGEON_LV * lvOver
+  _scaleAdventurerByBossLevel(adv, bossLv) {
+    const bloodMoneyBonus = this._gameState?._mechanicFlags?.bloodMoneyHpBonus ?? 0
+    if (bossLv <= 1 && bloodMoneyBonus === 0) return
+    const lvOver = Math.max(0, bossLv - 1)
+    const hpMul  = 1 + Balance.ADVENTURER_HP_PER_BOSS_LV * lvOver + bloodMoneyBonus
+    const atkMul = 1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
     adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
     adv.resources.hp    = adv.resources.maxHp
     adv.stats.attack    = Math.round(adv.stats.attack * atkMul)
@@ -533,7 +532,7 @@ export class DayPhase extends Phaser.Scene {
     }
 
     const allClasses = this.cache.json.get('adventurerClasses') ?? []
-    const dungeonLv  = this._gameState.meta.dungeonLevel ?? 1
+    const dungeonLv  = this._gameState.boss?.level ?? 1
     const classes    = allClasses.filter(c => (c.unlockLevel ?? 1) <= dungeonLv)
     if (classes.length === 0) return
 
@@ -544,6 +543,8 @@ export class DayPhase extends Phaser.Scene {
     const treasuryCount = (this._gameState.dungeon.rooms ?? [])
       .filter(r => r.definitionId === 'treasury' && r.isActive !== false).length
     if (treasuryCount > 0) baseCount += treasuryCount
+    // Phase 9: Gold Rush — one extra adventurer per day
+    if ((this._gameState._mechanicFlags ?? {}).goldRush) baseCount += 1
     // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
     // count from yesterday's death-clip-going-viral roll.
     const subBonus = this._gameState.player?.subscriberRevengeBonus ?? 0
@@ -605,7 +606,7 @@ export class DayPhase extends Phaser.Scene {
         const cls = guildClasses[i] ?? classes[i % classes.length]
         const tile = { x: spawn.x + (i % 2 === 0 ? 1 : -1), y: spawn.y + Math.floor(i / 2) }
         const adv = createAdventurer(cls, tile)
-        this._scaleAdventurerByDungeonLevel(adv, dungeonLv)
+        this._scaleAdventurerByBossLevel(adv, dungeonLv)
         adv.partyId = partyId
         adv.flags = adv.flags ?? {}
         adv.flags.guildRaid = true
@@ -683,7 +684,7 @@ export class DayPhase extends Phaser.Scene {
       const adv    = createAdventurer(cls, tile)
 
       // Phase 7b: scale adventurer stats with dungeon level
-      this._scaleAdventurerByDungeonLevel(adv, dungeonLv)
+      this._scaleAdventurerByBossLevel(adv, dungeonLv)
 
       // Phase 10: legendary hero promotion (driven by reputation)
       const repSys = this.scene.get('Game')?.reputationSystem
@@ -778,7 +779,7 @@ export class DayPhase extends Phaser.Scene {
     // text update is null-guarded so we no-op on the missing legacy chrome.
     const s = this._gameState
     this._statsTexts?.topRight?.setText(
-      `Essence: ${s.player.soulEssence}  ·  Power: ${s.player.darkPower}  ·  Kills: ${s.player.totalKills}`
+      `Essence: ${s.player.soulEssence}  ·  XP: ${s.meta?.xp ?? 0}/${s.meta?.xpToNext ?? 100}  ·  Kills: ${s.player.totalKills}`
     )
     const n = s.adventurers.active.length
     if (n === 0 && this._allOutTimer == null) {

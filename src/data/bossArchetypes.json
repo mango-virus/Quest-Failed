@@ -1,7 +1,7 @@
 [
   {
     "id": "beholder",
-    "name": "Beholder",
+    "name": "Beholder Tyrant",
     "tagline": "Information warfare",
     "color": "0xaa44ee",
     "spriteFrame": { "col": 0, "row": 0 },
@@ -22,7 +22,7 @@
   },
   {
     "id": "demon",
-    "name": "Demon",
+    "name": "Demon Lord",
     "tagline": "Faustian bargains",
     "color": "0xcc2244",
     "spriteFrame": { "col": 2, "row": 0 },
@@ -43,7 +43,7 @@
   },
   {
     "id": "myconid",
-    "name": "Myconid",
+    "name": "Predator Myconid",
     "tagline": "Patient growth",
     "color": "0x55aa44",
     "spriteFrame": null,
@@ -64,7 +64,7 @@
   },
   {
     "id": "wraith",
-    "name": "Wraith",
+    "name": "Dark Wraith",
     "tagline": "Psychological warfare",
     "color": "0xaaccee",
     "spriteFrame": { "col": 6, "row": 0 },
@@ -85,7 +85,7 @@
   },
   {
     "id": "gnoll",
-    "name": "Gnoll",
+    "name": "Gnoll Alpha",
     "tagline": "Pack aggression",
     "color": "0xddaa55",
     "spriteFrame": { "col": 3, "row": 0 },
@@ -106,7 +106,7 @@
   },
   {
     "id": "golem",
-    "name": "Golem",
+    "name": "Earth Golem",
     "tagline": "Fortress mode",
     "color": "0x888899",
     "spriteFrame": { "col": 6, "row": 1 },
@@ -127,7 +127,7 @@
   },
   {
     "id": "lich",
-    "name": "Lich",
+    "name": "Elder Lich",
     "tagline": "Soul economy",
     "color": "0xddaa22",
     "spriteFrame": null,
@@ -148,7 +148,7 @@
   },
   {
     "id": "lizardman",
-    "name": "Lizardman",
+    "name": "Serpent Captain",
     "tagline": "Hidden strikes",
     "color": "0x446644",
     "spriteFrame": { "col": 1, "row": 0 },
@@ -170,7 +170,7 @@
   },
   {
     "id": "orc",
-    "name": "Orc",
+    "name": "Orc Veteran",
     "tagline": "WAAAGH! scaling",
     "color": "0xaa3322",
     "spriteFrame": { "col": 5, "row": 0 },
@@ -191,7 +191,7 @@
   },
   {
     "id": "vampire",
-    "name": "Vampire",
+    "name": "Vampire Sovereign",
     "tagline": "Charm & conversion",
     "color": "0x882244",
     "spriteFrame": { "col": 4, "row": 0 },

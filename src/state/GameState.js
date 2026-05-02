@@ -55,7 +55,6 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
     meta: {
       version: '1.0.0',
       dayNumber: 1,
-      dungeonLevel: 1,
       bossDefeatedCount: 0,
       reputation: 0,
       runId: _generateRunId(),
@@ -68,7 +67,6 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
         appliedEvolutions: [],
       },
       soulEssence: Balance.STARTING_SOUL_ESSENCE,
-      darkPower: Balance.STARTING_DARK_POWER,
       totalKills: 0,
       totalDaysElapsed: 0,
     },

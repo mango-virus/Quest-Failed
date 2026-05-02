@@ -64,6 +64,8 @@ As the game goes on I want the ability to place new dungeon rooms to expand my d
 
 My dungeon should start out as a level 1 dungeon, but as I kill more adventurers and expand it levels up. Adventures that enter the dungeon should start at level 1. As the dungeon grows and levels up, so should the adventures. As I kill adventures I should get experience that I can use to level up monsters/minions in the dungeon so they are stronger and get new abilities.
 
+(deviation noted: dungeon-level system replaced with boss-level system. The boss character itself now owns level/xp/xpToNext. All scaling — adventurers, minions, room unlocks, loot tiers — uses boss.level. Minions are scaled +10% HP / +7% ATK per boss level above 1. Cap is 10 per DESIGN.md §3.)
+
 ---
 
 ## Personalities and class types
@@ -746,3 +748,28 @@ To make the Game Over screen and Pacts panels meaningful, gamestate gains:
 - Per-day rolling counters on `gameState.run.totals`: kills, dmgDealt, dmgTaken, advsKilled, advsEscaped, gold, souls, roomsBuilt, roomsDestroyed, minionsSummoned, minionsLost, trapsPlaced, trapsDisarmed.
 
 Existing fields are reused where they exist; only missing fields are added. SaveSystem must serialize them.
+
+## Adventurer emote bubbles (2026-05-01)
+
+Adventurers occasionally pop a 32×32 three-frame speech-bubble emote above their head while exploring the dungeon. Sprites live in `assets/sprites/emotes/` and are 96×32 sheets (three 32×32 frames each). Each PNG filename indicates which game event can trigger it.
+
+**Triggers (filename groupings → game event):**
+
+- `random exploring*.png` — ambient roll while `aiState === 'walking'`. Periodic per-adv timer (~6–10s window).
+- `discovered a new room.png` / `discovered new room.png` / `entered unknown room*.png` — `ROOM_OBSERVED` with `firstVisit: true` (adv has no prior knowledge of this room).
+- `walked into known room*.png` — `ROOM_OBSERVED` with `firstVisit: false` (adv already had intel/knowledge).
+- `entered boss room.png` — `BOSS_FIGHT_INCOMING`.
+- `fighting minion or boss*.png` + `found minion*.png` + class-specific (`barbarian attacking.png`, `mage attacking*.png`, `monk attacking.png`, `cleric healing.png`, `ranger or bard attacking.png`) — adv enters `aiState === 'fighting'`. Class-specific variants are mixed into the pool when the class matches.
+- `fleeing*.png` — adv enters `aiState === 'fleeing'` / `ADVENTURER_FLED`.
+- `low health*.png` — HP fraction crosses below 30%.
+- `found loot*.png` — `MIMIC_REVEAL_TRIGGERED` or `TREASURY_CHEST_GRAB_STARTED` (chest/mimic discovery; gear pickup no longer exists).
+- `found something.png` — `TRAP_TRIGGERED` (or other "discovered a feature" hooks if added later).
+- `breaking down door*.png` / `finding a locked door.png` — deferred (no current locked-door event in code).
+- `ressurected.png` — `ADVENTURER_RESURRECTED`.
+- `beast master successful tame.png` — `MINION_TAMED`.
+
+**Display:** sprite floats inside the adventurer's container at y ≈ -52 (just above HP bar at y = -38), plays its 3 frames once at ~3 fps (~900ms total), then destroys. Inherits the container's spawn/leave fade automatically.
+
+**Frequency:** each trigger has a **20% chance** to actually pop an emote — most events stay silent. Per-adv cooldown of ~1.5s prevents stacking.
+
+**Priority:** if a higher-stakes trigger fires (fleeing / low_health / fighting / boss room) while another emote is already playing, the new one replaces the old. Random ambient never overrides a state-driven emote.

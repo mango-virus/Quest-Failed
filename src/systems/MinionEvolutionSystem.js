@@ -10,8 +10,9 @@
 // `applyResets()` BEFORE `MinionAISystem.respawnAll()` so the starter def's
 // stats are in place when respawn full-heals to maxHp.
 
-import { EventBus } from './EventBus.js'
-import { Balance }  from '../config/balance.js'
+import { EventBus }             from './EventBus.js'
+import { Balance }              from '../config/balance.js'
+import { applyBossLevelToMinion } from '../entities/Minion.js'
 
 const KILLS_TO_EVOLVE = 2
 
@@ -104,6 +105,7 @@ export class MinionEvolutionSystem {
   applyResets() {
     for (const m of this._gameState.minions ?? []) {
       if (!m._pendingEvolutionReset) continue
+      if (m.isUndead) { m._pendingEvolutionReset = false; continue }
       const chain = this._chainContaining(m.definitionId)
       if (!chain) {
         m._pendingEvolutionReset = false
@@ -127,6 +129,9 @@ export class MinionEvolutionSystem {
       m.attackRange = starterDef.attackRange ?? stats.attackRange ?? m.attackRange ?? 1
       if (stats.hp != null) m.resources.maxHp = stats.hp
       m.resources.hp = m.resources.maxHp
+      m.bossLevel = 1
+      const bossLv = this._gameState.boss?.level ?? 1
+      if (bossLv > 1) applyBossLevelToMinion(m, bossLv)
       m._pendingEvolutionReset = false
       EventBus.emit('MINION_EVOLUTION_RESET', { minion: m })
     }

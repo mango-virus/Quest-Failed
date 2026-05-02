@@ -46,7 +46,7 @@ export class DarkPactPopup {
     const sys  = game?.dungeonMechanicSystem
     if (!sys) { this._offers = []; return }
     const archId = this._gameState.player?.bossArchetypeId
-    const dLv    = this._gameState.meta?.dungeonLevel ?? 1
+    const dLv    = this._gameState.boss?.level ?? 1
     this._offers = sys.getOfferings(3, archId, dLv) ?? []
     this._selectedIdx = 0
   }

@@ -74,13 +74,13 @@ export class ReputationSystem {
 
     EventBus.on('COMBAT_KILL',           onKill)
     EventBus.on('MINION_BOUNTY_POSTED',  onBounty)
-    EventBus.on('DUNGEON_LEVELED_UP',    onDungeonLv)
+    EventBus.on('BOSS_LEVELED_UP',    onDungeonLv)
     EventBus.on('DAY_PHASE_ENDED',       onDayEnded)
     EventBus.on('ADVENTURER_FLED',       onFlee)
     this._listeners = [
       ['COMBAT_KILL',          onKill],
       ['MINION_BOUNTY_POSTED', onBounty],
-      ['DUNGEON_LEVELED_UP',   onDungeonLv],
+      ['BOSS_LEVELED_UP',   onDungeonLv],
       ['DAY_PHASE_ENDED',      onDayEnded],
       ['ADVENTURER_FLED',      onFlee],
     ]

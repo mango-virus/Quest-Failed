@@ -96,7 +96,7 @@ window.__game.scale.on('resize', () => {
 })
 
 // Suppress the browser right-click context menu game-wide. Right-click is
-// used for drag-pan in Game and to remove rooms/traps in NightPhase, and
+// used for drag-pan in Game and to cancel selections in NightPhase, and
 // having the menu pop up over the canvas is just noise everywhere else
 // (MainMenu, ArchetypeSelect, EndOfDay, GameOver, Graveyard). One canvas-
 // level listener catches every scene without per-scene plumbing.

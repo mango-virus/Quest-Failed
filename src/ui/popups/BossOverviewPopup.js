@@ -1,8 +1,8 @@
 // Phase 31E — Boss Overview popup.
 //
-// Two-column layout: boss card on the left (portrait + name + HP / Dark
-// Power bars + run stats), Active Pacts grid + Dungeon Census tiles on
-// the right. Boss unique ability surfaces from bossArchetypes.json's
+// Two-column layout: boss card on the left (portrait + name + HP / XP
+// bars + run stats), Active Pacts grid + Dungeon Census tiles on the
+// right. Boss unique ability surfaces from bossArchetypes.json's
 // `headline` field. Active pacts come from gameState.history.pacts
 // (Phase 31I plumbing).
 
@@ -102,15 +102,16 @@ export class BossOverviewPopup {
     addChild(hpBar.g, hpBar.txt)
     yy += 22
 
-    // Dark Power bar (capped at 100)
-    addChild(this._scene.add.text(x + 14, yy, 'DARK POWER', {
+    // XP bar — progress toward next dungeon level
+    addChild(this._scene.add.text(x + 14, yy, 'EXPERIENCE', {
       fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 2,
     }).setDepth(D + 2))
     yy += 12
-    const dp = this._gameState.player?.darkPower ?? 0
-    const dpBar = pixelBar(this._scene, x + 14, yy, w - 28, 14, Math.min(dp, 100), 100,
-      { color: 'cyan', label: `${dp}`, depth: D + 2, fontSize: 8 })
-    addChild(dpBar.g, dpBar.txt)
+    const xp    = this._gameState.meta?.xp ?? 0
+    const xpMax = Math.max(1, this._gameState.meta?.xpToNext ?? 100)
+    const xpBar = pixelBar(this._scene, x + 14, yy, w - 28, 14, xp, xpMax,
+      { color: 'green', label: `${xp} / ${xpMax}`, depth: D + 2, fontSize: 8 })
+    addChild(xpBar.g, xpBar.txt)
     yy += 24
 
     // Stats list

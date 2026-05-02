@@ -530,8 +530,9 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | Hidden keys | QW | ✅ DONE | RoomBehaviorSystem._onNightStart drops an iron_key in a random non-boss room each night when a locked room exists but no key is on the floor |
 | Locked doors | QW | ✅ DONE | KnowledgeSystem.costMultiplierForTile returns 9999 for tiles inside locked rooms when adventurer lacks an iron_key — A* effectively treats them as impassable |
 | Secret rooms | QW | ✅ DONE | secret_passage room type; AISystem._pickNextGoal filters out secret rooms unless adv has `mapper` or `completionist` tag |
-| Adventurer level scales with dungeon level | 7b | ✅ DONE — +10% maxHp, +7% attack per dungeon level above 1 (applied in DayPhase spawn) |
-| Dungeon level progression (rooms unlock as it levels up) | 7b | ✅ DONE — `meta.dungeonLevel` increments based on cumulative kills (curve: 5 × 1.4^(n-2)) |
+| Adventurer level scales with boss level | 7b | ✅ DONE — +10% maxHp, +7% attack per boss level above 1 (applied in DayPhase spawn via ADVENTURER_HP_PER_BOSS_LV / ADVENTURER_ATK_PER_BOSS_LV) |
+| Boss level progression (rooms unlock, minions scale) | 7b | ✅ DONE — Boss owns level/xp/xpToNext (moved from meta). Each kill awards BOSS_XP_PER_KILL (10) XP; levels up at curve 100×1.5^(lv-1). Cap 10. BOSS_LEVELED_UP event expands grid + retroactively scales all live minions (+10% HP / +7% ATK per level). Replaces dungeon-level system (2026-05-01). |
+| Minions scale with boss level | — | ✅ DONE — applyBossLevelToMinion() applied at spawn, on evolution reset, and retroactively on BOSS_LEVELED_UP. Same +10% HP / +7% ATK curve as adventurers. |
 | "Legendary heroes" tier (drawn by high reputation) | 10 | ✅ DONE | DayPhase rolls ReputationSystem.legendarySpawnChance() per spawn; isLegendary flag + 1.5×HP / 1.4×ATK / 1.3×DEF |
 | Guild raid teams (full party of coordinated adventurers) | 10b | ✅ DONE | DayPhase._spawnDailyAdventurers branches to a 4-person raid path at feared+ reputation (or whenever runConfig.allRaids is set); shared partyId, +25% HP/atk, 2 personalities each |
 
@@ -658,6 +659,27 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | history-run-totals | Per-day `gameState.run.totals` rolling counters: kills, dmgDealt, dmgTaken, advsKilled, advsEscaped, gold, souls, roomsBuilt, roomsDestroyed, minionsSummoned, minionsLost, trapsPlaced, trapsDisarmed | 31I | ✅ DONE | SaveSystem serializes |
 | save-compat | SaveSystem rehydrates the new history fields cleanly on old saves (defaults to empty arrays / 0s) | 31I | ✅ DONE | back-compat |
 | design-handoff-bundle | Local copy of design bundle preserved in `qf_design_temp/` for reference during build | — | ✅ DONE | unzipped from Claude Design handoff |
+
+---
+
+## 32. Adventurer emote bubbles (2026-05-01)
+
+| ID | Item | Phase | Status | Notes |
+|---|---|---|---|---|
+| emote-assets | Copy 60 emote PNGs from staging into `assets/sprites/emotes/`; each is 96×32 with three 32×32 frames | 32 | ✅ DONE | filenames map to triggers |
+| emote-preload | Register emote spritesheets in Preload.js; build a manifest mapping triggerId → variant texture keys | 32 | ✅ DONE | catalog lives in EmoteSystem.js, Preload imports `allEmoteVariants` |
+| emote-system | `EmoteSystem.js` — subscribes to trigger events, rolls 20% chance, attaches sprite to adv container at y≈-52, plays once, destroys | 32 | ✅ DONE | per-adv cooldown 1500ms; priority replaces lower/equal |
+| emote-trigger-random | Ambient `random_exploring` roll while walking (~6–10s window, 20% chance) | 32 | ✅ DONE | low priority — never overrides state emote |
+| emote-trigger-rooms | Hook `ROOM_OBSERVED` — `firstVisit:true` → discovered/unknown pool; `firstVisit:false` → known-room pool | 32 | ✅ DONE | KnowledgeSystem already emits both flavors |
+| emote-trigger-combat | Hook fighting state transition → `fighting + found minion + class-specific` pool, filtered by classId | 32 | ✅ DONE | tracked via aiState change in update tick |
+| emote-trigger-flee | Hook fleeing state / `ADVENTURER_FLED` → fleeing pool | 32 | ✅ DONE | aiState/`goal.type === FLEE` edge-trigger |
+| emote-trigger-low-hp | Hook HP fraction crossing below 30% → low_health pool | 32 | ✅ DONE | edge-trigger only |
+| emote-trigger-loot | Hook `MIMIC_REVEAL_TRIGGERED` and `TREASURY_CHEST_GRAB_STARTED` → found_loot pool | 32 | ✅ DONE | gear pickup deprecated |
+| emote-trigger-trap | Hook `TRAP_TRIGGERED` → found_something pool | 32 | ✅ DONE | |
+| emote-trigger-boss | Hook `BOSS_FIGHT_INCOMING` → entered_boss_room | 32 | ✅ DONE | |
+| emote-trigger-tame | Hook `MINION_TAMED` → tame_success | 32 | ✅ DONE | |
+| emote-trigger-resurrect | Hook `ADVENTURER_RESURRECTED` → resurrected | 32 | ✅ DONE | |
+| emote-trigger-doors | `breaking down door*` and `finding a locked door` triggers | — | ⏳ PENDING | DEFERRED — no locked-door event in code yet |
 
 ---
 

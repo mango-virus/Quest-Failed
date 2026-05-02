@@ -359,6 +359,27 @@ export class AISystem {
         return
       }
       if (now < adv._leaveFadeEnd) return
+
+      // Phase 9: Sealed Paths — 50% chance to reroute fleeing adventurers back into the dungeon
+      if ((this._gameState._mechanicFlags ?? {}).sealedPaths && !adv._sealedPathsChecked) {
+        adv._sealedPathsChecked = true
+        if (Math.random() < Balance.MECHANIC_SEALED_PATHS_BLOCK_CHANCE) {
+          const rooms = (this._gameState.dungeon.rooms ?? []).filter(
+            r => r.definitionId !== 'entry_hall' && r.isActive !== false
+          )
+          if (rooms.length > 0) {
+            const dest = rooms[Math.floor(Math.random() * rooms.length)]
+            adv.aiState         = 'walking'
+            adv.goal            = { type: 'EXPLORE_ROOM', roomId: dest.instanceId }
+            adv.path            = null
+            adv._leaveFadeEnd   = null
+            adv._leaveFadeStart = null
+            EventBus.emit('SEALED_PATHS_BLOCKED', { adventurer: adv, roomId: dest.instanceId })
+            return
+          }
+        }
+      }
+
       adv.aiState = 'fled'
       // Room redesign 2026-04-30 — Treasury theft resolves on alive exit.
       // If the adventurer made it to the door carrying a chest, deduct the
@@ -921,13 +942,23 @@ export class AISystem {
         // tile, snap back to the last good tile center and force a re-path.
         // Prevents the "stuck in walls" state when an LOS edge case slips
         // through.
+        //
+        // Exception: during lane/approach L-shape motion the ½-tile seam
+        // shift puts targetWX = N×TS (exactly on a tile boundary). moveAxis()
+        // can land worldX there in one step, making floor() resolve to the
+        // adjacent wall column — non-walkable, but NOT a stuck state.  Skip
+        // the snap-back; the commit branch sets tileX from wp.x when dist<0.5.
         const tilesGuard = this._dungeonGrid.getTiles?.()
         const guardRow   = tilesGuard?.[newTileY]
         if (!guardRow || !PathfinderSystem.isWalkable(guardRow[newTileX])) {
-          adv.worldX = adv.tileX * TS + TS / 2
-          adv.worldY = adv.tileY * TS + TS / 2
-          adv.path = null
-          return
+          if (advLane || wpLane) {
+            // intentionally skip — seam-shift boundary overshoot
+          } else {
+            adv.worldX = adv.tileX * TS + TS / 2
+            adv.worldY = adv.tileY * TS + TS / 2
+            adv.path = null
+            return
+          }
         }
         const oldKey = `${adv.tileX},${adv.tileY}`
         if (this._occupancy?.[oldKey] === adv.instanceId) delete this._occupancy[oldKey]
@@ -1059,7 +1090,7 @@ export class AISystem {
       // Flag clears when HP recovers above threshold so a future drop re-rolls.
       if (adv._fleeRolled) return
       adv._fleeRolled = true
-      if (Math.random() < 0.5) return
+      if (Math.random() < 0.8) return
       this._setFleeGoal(adv)
     } else {
       adv._fleeRolled = false
@@ -1781,23 +1812,17 @@ export class AISystem {
     // Phase 9: Taxation of Souls reduces essence yield (already-weakened victim)
     const flags = this._gameState._mechanicFlags ?? {}
     if (flags.taxationOfSouls) essMul *= Balance.MECHANIC_TAXATION_ESSENCE_PENALTY
+    if (flags.goldRush)        essMul *= Balance.MECHANIC_GOLD_RUSH_GOLD_MULT
     const essenceGained = Math.round(Balance.SOUL_ESSENCE_PER_KILL * essMul)
     this._gameState.player.soulEssence += essenceGained
-    this._gameState.player.darkPower   += Balance.DARK_POWER_PER_KILL
     this._gameState.player.totalKills++
 
-    // Phase 31I — emit resource gain so RunHistorySystem can fold it into
-    // gameState.run.totals. Field naming follows the new HUD's terminology
-    // (gold = soul-essence display rename; souls = the dark-power resource).
     EventBus.emit('RESOURCES_AWARDED', {
-      gold:  essenceGained,
-      souls: Balance.DARK_POWER_PER_KILL,
+      gold:   essenceGained,
       reason: 'adventurer_kill',
     })
 
-    // Phase 7b: dungeon level progression — check whether the new kill total
-    // crossed the next-level threshold.
-    this._checkDungeonLevelUp()
+    this._awardBossXp()
 
     EventBus.emit('ADVENTURER_DIED', {
       adventurer: adv,
@@ -1808,27 +1833,24 @@ export class AISystem {
     })
   }
 
-  // Phase 7b: increment meta.dungeonLevel when cumulative kills crosses the curve.
-  // Curve: kills needed to reach lv N = BASE * SCALE^(N-2), summed.
-  _checkDungeonLevelUp() {
-    const lv = this._gameState.meta.dungeonLevel ?? 1
-    if (lv >= Balance.DUNGEON_LEVEL_MAX) return
-    const totalKills = this._gameState.player.totalKills
-    const required = this._cumulativeKillsForLevel(lv + 1)
-    if (totalKills >= required) {
-      this._gameState.meta.dungeonLevel = lv + 1
-      EventBus.emit('DUNGEON_LEVELED_UP', { newLevel: lv + 1, totalKills })
+  // Award boss XP on each kill and level up when xpToNext is reached.
+  // Curve: xpToNext for level N = BOSS_XP_BASE * BOSS_XP_SCALE^(N-1).
+  _awardBossXp() {
+    const boss = this._gameState.boss
+    if (!boss) return
+    boss.xp = (boss.xp ?? 0) + Balance.BOSS_XP_PER_KILL
+    while (boss.xp >= (boss.xpToNext ?? Balance.BOSS_XP_BASE)) {
+      boss.xp -= boss.xpToNext
+      boss.level = (boss.level ?? 1) + 1
+      boss.xpToNext = this._xpToNextLevel(boss.level)
+      EventBus.emit('BOSS_LEVELED_UP', { newLevel: boss.level })
     }
   }
 
-  _cumulativeKillsForLevel(targetLevel) {
-    let total = 0
-    for (let n = 2; n <= targetLevel; n++) {
-      total += Math.round(
-        Balance.DUNGEON_LEVEL_KILLS_BASE * Math.pow(Balance.DUNGEON_LEVEL_KILLS_SCALE, n - 2)
-      )
-    }
-    return total
+  _xpToNextLevel(currentLevel) {
+    return Math.round(
+      Balance.BOSS_XP_BASE * Math.pow(Balance.BOSS_XP_SCALE, currentLevel - 1)
+    )
   }
 
   _lookupKillerName(killerId) {

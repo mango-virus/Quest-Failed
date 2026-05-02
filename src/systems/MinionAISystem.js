@@ -910,6 +910,10 @@ export class MinionAISystem {
       const lost = before - this._gameState.minions.length
       if (lost > 0) EventBus.emit('BLOODBOUND_LOSSES', { count: lost })
     }
+    // Phase 9: Undying Horde — undead minions that die again are gone permanently
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m.isUndead && m.aiState === 'dead')
+    )
 
     for (const m of this._gameState.minions) {
       // Phase 7b: track times-killed-and-respawned for vengeful_wraith evolution

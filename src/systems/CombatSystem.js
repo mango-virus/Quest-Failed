@@ -328,6 +328,30 @@ export class CombatSystem {
         ? Balance.MECHANIC_GRAV_MELEE_DAMAGE_MULT
         : Balance.MECHANIC_GRAV_PROJECTILE_MULT
     }
+    // Phase 9: Pack Synergy — minions deal bonus damage per ally in same room
+    if (flags.packSynergy && _isMinionAttacker(attacker) && attacker.assignedRoomId) {
+      const alliesInRoom = (this._gameState.minions ?? []).filter(m =>
+        m.instanceId !== attacker.instanceId &&
+        m.aiState !== 'dead' &&
+        m.assignedRoomId === attacker.assignedRoomId
+      ).length
+      if (alliesInRoom > 0) {
+        const bonus = Math.min(
+          alliesInRoom * Balance.MECHANIC_PACK_SYNERGY_BONUS,
+          Balance.MECHANIC_PACK_SYNERGY_MAX_BONUS
+        )
+        mit = Math.floor(mit * (1 + bonus))
+      }
+    }
+    // Phase 9: Sealed Paths — cornered fleeing adventurers fight with desperate fury
+    if (flags.sealedPaths && attacker.faction === 'adventurer' && attacker.aiState === 'fleeing') {
+      const fleeThresh = attacker.fleeThreshold ?? Balance.LOW_HP_THRESHOLD
+      const hpFrac = attacker.resources?.maxHp > 0
+        ? attacker.resources.hp / attacker.resources.maxHp : 1
+      if (hpFrac < fleeThresh) {
+        mit = Math.floor(mit * Balance.MECHANIC_SEALED_PATHS_CORNERED_MULT)
+      }
+    }
 
     const variance = 1 + (Math.random() - 0.5) * 0.3
     return Math.max(1, Math.floor(mit * variance))

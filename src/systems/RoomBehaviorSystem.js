@@ -156,7 +156,7 @@ export class RoomBehaviorSystem {
     )
     if (hasLibrary) {
       const allClasses = this._scene.cache.json.get('adventurerClasses') ?? []
-      const dungeonLv = this._gameState.meta.dungeonLevel ?? 1
+      const dungeonLv = this._gameState.boss?.level ?? 1
       const classes = allClasses.filter(c => (c.unlockLevel ?? 1) <= dungeonLv)
       const day = this._gameState.meta.dayNumber
       const baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
@@ -369,9 +369,10 @@ export class RoomBehaviorSystem {
     )
     if (thrones.length > 0) {
       const baseMini = minionTypes.find(d => d.id === 'skeleton3') ?? minionTypes.find(d => d.id === 'skeleton2') ?? baseDef
-      const dungeonLv = this._gameState.meta.dungeonLevel ?? 1
-      // Stats multiplier scales with level. 1.0 at L9, 1.4 at L10.
-      const mult = 1 + 0.1 * Math.max(0, dungeonLv - 8)
+      const dungeonLv = this._gameState.boss?.level ?? 1
+      const lvOver  = dungeonLv - 1
+      const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver
+      const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver
       for (const room of thrones) {
         const aliveHere = (this._gameState.minions ?? []).filter(m =>
           m.assignedRoomId === room.instanceId && m.isThroneMiniBoss && m.aiState !== 'dead'
@@ -386,12 +387,13 @@ export class RoomBehaviorSystem {
           extra: {
             isThroneMiniBoss: true,
             isMiniBoss: true,
+            bossLevel: dungeonLv,
           },
           statsOverride: {
-            hp: Math.floor((baseStats.hp ?? 60) * mult),
-            attack: Math.floor((baseStats.attack ?? 12) * mult),
-            defense: Math.floor((baseStats.defense ?? 6) * mult),
-            speed: baseStats.speed ?? 1,
+            hp:      Math.floor((baseStats.hp      ?? 60) * hpMult),
+            attack:  Math.floor((baseStats.attack  ?? 12) * atkMult),
+            defense: Math.floor((baseStats.defense ??  6) * hpMult),
+            speed:   baseStats.speed ?? 1,
           },
         })
         this._gameState.minions.push(m)

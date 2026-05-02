@@ -22,11 +22,22 @@ function _parseColor(c) {
   return 0xbbbbbb
 }
 
+export function applyBossLevelToMinion(minion, bossLevel) {
+  if (!bossLevel || bossLevel <= 1) return
+  const lvOver  = bossLevel - 1
+  const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver
+  const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver
+  minion.resources.maxHp = Math.round(minion.resources.maxHp * hpMult)
+  minion.resources.hp    = minion.resources.maxHp
+  minion.stats.attack    = Math.round(minion.stats.attack    * atkMult)
+  minion.bossLevel       = bossLevel
+}
+
 export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
   const baseStats = typeDef.baseStats ?? {}
   const colorInt  = _parseColor(typeDef.color)
 
-  return {
+  const minion = {
     instanceId:    _uid(),
     definitionId:  typeDef.id,
     name:          null,                 // populated on first level-up (Phase 7)
@@ -103,5 +114,14 @@ export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
     // Path state for chasing
     path:       null,
     pathIndex:  0,
+
+    // Boss level at which this minion was last scaled
+    bossLevel:  1,
   }
+
+  if (options.bossLevel && options.bossLevel > 1) {
+    applyBossLevelToMinion(minion, options.bossLevel)
+  }
+
+  return minion
 }

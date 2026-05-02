@@ -73,10 +73,13 @@ export class BossSystem {
     if (this._gameState.boss) {
       // Boss already exists — migrate newer fields for saves from earlier phases.
       this._gameState.boss.unlockedAbilities ??= []
-      this._gameState.boss.tileX  ??= cx
-      this._gameState.boss.tileY  ??= cy
-      this._gameState.boss.worldX ??= cx * TS + TS / 2
-      this._gameState.boss.worldY ??= cy * TS + TS / 2
+      this._gameState.boss.tileX    ??= cx
+      this._gameState.boss.tileY    ??= cy
+      this._gameState.boss.worldX   ??= cx * TS + TS / 2
+      this._gameState.boss.worldY   ??= cy * TS + TS / 2
+      this._gameState.boss.level    ??= this._gameState.meta?.dungeonLevel ?? 1
+      this._gameState.boss.xp       ??= this._gameState.meta?.xp ?? 0
+      this._gameState.boss.xpToNext ??= this._gameState.meta?.xpToNext ?? Balance.BOSS_XP_BASE
       return
     }
 
@@ -96,6 +99,9 @@ export class BossSystem {
       tileY:  cy,
       worldX: cx * TS + TS / 2,
       worldY: cy * TS + TS / 2,
+      level:    1,
+      xp:       0,
+      xpToNext: Balance.BOSS_XP_BASE,
     }
   }
 
@@ -106,11 +112,11 @@ export class BossSystem {
   getAvailableAbilities(filterAffordable = false) {
     const defs = this._scene.cache.json.get('bossAbilities') ?? []
     const owned = new Set(this._gameState.boss.unlockedAbilities ?? [])
-    const dp = this._gameState.player.darkPower ?? 0
+    const xp = this._gameState.boss?.xp ?? 0
     return defs.filter(d => {
       if (owned.has(d.id)) return false
       for (const req of (d.requires ?? [])) if (!owned.has(req)) return false
-      if (filterAffordable && (d.powerCost ?? 0) > dp) return false
+      if (filterAffordable && (d.powerCost ?? 0) > xp) return false
       return true
     })
   }
@@ -121,11 +127,11 @@ export class BossSystem {
     if (!def) return false
     const owned = this._gameState.boss.unlockedAbilities
     if (owned.includes(abilityId)) return false
-    if ((this._gameState.player.darkPower ?? 0) < (def.powerCost ?? 0)) return false
+    if ((this._gameState.boss?.xp ?? 0) < (def.powerCost ?? 0)) return false
     for (const req of (def.requires ?? [])) {
       if (!owned.includes(req)) return false
     }
-    this._gameState.player.darkPower -= (def.powerCost ?? 0)
+    this._gameState.boss.xp = Math.max(0, (this._gameState.boss.xp ?? 0) - (def.powerCost ?? 0))
     owned.push(abilityId)
 
     // Apply passive stat bonuses immediately
@@ -1396,6 +1402,10 @@ export class BossSystem {
   // Reuse AISystem's death/flee plumbing by emitting events it already listens
   // to. We don't talk to AISystem directly (avoids circular wiring).
   _killAdv(adv, killerHint) {
+    // Stamp before the event fires so AISystem._tickAdventurer reads 'boss'
+    // when it calls _kill(adv, idx, adv._lastHitBy ?? 'unknown') next tick.
+    adv._lastHitBy   = 'boss'
+    adv._lastHitType = 'physical'
     EventBus.emit('COMBAT_KILL', {
       sourceId:   'boss',
       targetId:   adv.instanceId,

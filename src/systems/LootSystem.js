@@ -59,7 +59,7 @@ export class LootSystem {
    */
   dropFromAdventurer(victim, killerId, killerName) {
     if (!victim) return []
-    const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
+    const dungeonLevel = this._gameState.boss?.level ?? 1
     const maxTier = 1 + Math.floor((dungeonLevel - 1) / Balance.LOOT_TIER_BY_DUNGEON_LEVEL)
 
     // Filter the loot pool to items the victim's class can drop, gated by tier

@@ -35,8 +35,8 @@ export class EndOfDay extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
 
     const onContinue = () => {
-      const startLv = this._daySnapshot?.dungeonLevel ?? this._gameState.meta?.dungeonLevel ?? 1
-      const nowLv   = this._gameState.meta?.dungeonLevel ?? 1
+      const startLv = this._daySnapshot?.bossLevel ?? this._gameState.boss?.level ?? 1
+      const nowLv   = this._gameState.boss?.level ?? 1
       // Boss leveled up during the day → offer Dark Pact.
       if (nowLv > startLv) {
         EventBus.emit('SHOW_DARK_PACT')
