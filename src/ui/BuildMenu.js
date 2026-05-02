@@ -181,7 +181,7 @@ export class BuildMenu {
 
     // Filter out items at placement cap (placed >= max). Locked items
     // stay visible — their L{N} badge is part of the design.
-    const dungeonLevel = this._gameState.meta?.dungeonLevel ?? 1
+    const dungeonLevel = this._gameState.boss?.level ?? 1
     const defs = allDefs.filter(def => {
       const cap = this._capFor(def, kind, dungeonLevel)
       if (cap == null) return true
@@ -298,7 +298,7 @@ export class BuildMenu {
     const key = `${kind}:${def.id}`
     const isSelected = (this._selectedKey === key)
     const cost   = def.cost ?? def.essenceCostToPlace ?? 0
-    const locked = (def.unlockLevel ?? 1) > (this._gameState.meta?.dungeonLevel ?? 1)
+    const locked = (def.unlockLevel ?? 1) > (this._gameState.boss?.level ?? 1)
     const affordable = cost <= (this._gameState.player?.soulEssence ?? 0)
 
     // Locked slots get a much darker fill + dimmer edges so they read as
@@ -381,7 +381,7 @@ export class BuildMenu {
 
     // Placement cap badge — top-right corner. Only shown when there's a
     // finite cap. Hidden defs are filtered out earlier.
-    const dungeonLevel = this._gameState.meta?.dungeonLevel ?? 1
+    const dungeonLevel = this._gameState.boss?.level ?? 1
     const cap = this._capFor(def, kind, dungeonLevel)
     if (cap != null) {
       const used = this._usedFor(def, kind)
@@ -456,7 +456,14 @@ export class BuildMenu {
   setVisible(v) {
     this._visible = !!v
     this._objects.forEach(o => o?.setVisible?.(v))
-    this._slotObjects.forEach(o => o?.setVisible?.(v))
+    this._slotObjects.forEach(o => {
+      o?.setVisible?.(v)
+      // Slot hit zones need their input flag toggled too — setVisible alone
+      // doesn't disable input on a Zone. Without this, hidden day-phase
+      // slot zones could capture clicks meant for other UI; with it,
+      // re-showing on night phase guarantees they're click-receptive.
+      if (o?.input) o.input.enabled = v
+    })
     if (this._tabs) {
       this._tabs.bg?.setVisible?.(v)
       this._tabs.texts?.forEach(t => t.setVisible(v))

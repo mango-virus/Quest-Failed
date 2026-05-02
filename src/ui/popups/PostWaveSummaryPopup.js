@@ -2,7 +2,7 @@
 //
 // Replaces the EndOfDay newspaper. Three columns:
 //   1. Casualties — per-adventurer slain-by + soul reward
-//   2. Resources Earned — gold/souls/dark-power deltas + net
+//   2. Resources Earned — gold earned + XP earned this wave
 //   3. Dungeon Performance — most lethal minion, minions lost, etc.
 //
 // Footer: 'View Dungeon Log' (no-op stub) and 'Continue' (primary).
@@ -13,6 +13,7 @@
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelButton, pixelDiamond } from '../UIKit.js'
 import { makePopupFrame } from './PopupFrame.js'
 import { EventBus } from '../../systems/EventBus.js'
+import { Balance } from '../../config/balance.js'
 
 export class PostWaveSummaryPopup {
   constructor(scene, gameState) {
@@ -165,17 +166,16 @@ export class PostWaveSummaryPopup {
 
     const snap = this._snapshot ?? {}
     const totals = this._gameState.run?.totals ?? {}
-    const goldDelta = (totals.gold  ?? 0) - (snap.totals?.gold  ?? 0)
-    const soulDelta = (totals.souls ?? 0) - (snap.totals?.souls ?? 0)
-    const dpDelta   = (this._gameState.player?.darkPower ?? 0) - (snap.darkPower ?? 0)
+    const goldDelta   = (totals.gold  ?? 0) - (snap.totals?.gold  ?? 0)
     const advsKilled  = (totals.advsKilled  ?? 0) - (snap.totals?.advsKilled  ?? 0)
     const advsEscaped = (totals.advsEscaped ?? 0) - (snap.totals?.advsEscaped ?? 0)
+    const xpEarned    = advsKilled * (Balance.BOSS_XP_PER_KILL ?? 10)
 
     const rows = [
       { l: 'GOLD LOOTED',    v: `+${goldDelta.toLocaleString('en-US')}`, c: CRYPT.goldCss },
-      { l: 'DARK POWER',     v: `${dpDelta >= 0 ? '+' : ''}${dpDelta}`,  c: CRYPT.accent2Css },
-      { l: 'ADVS KILLED',    v: `${advsKilled}`,    c: CRYPT.greenCss },
-      { l: 'ADVS ESCAPED',   v: `${advsEscaped}`,   c: CRYPT.warnCss },
+      { l: 'XP EARNED',      v: `+${xpEarned}`,                          c: CRYPT.greenCss },
+      { l: 'ADVS KILLED',    v: `${advsKilled}`,                         c: CRYPT.greenCss },
+      { l: 'ADVS ESCAPED',   v: `${advsEscaped}`,                        c: CRYPT.warnCss },
     ]
     let yy = y + 40
     for (const r of rows) {
@@ -193,17 +193,17 @@ export class PostWaveSummaryPopup {
       yy += 32
     }
 
-    // Net (gold+souls roughly)
+    // Net gold
     const ruleY = yy + 4
     const rule = this._scene.add.graphics().setDepth(D + 1)
     rule.fillStyle(CRYPT.panelEdgeS, 1); rule.fillRect(x + 16, ruleY, w - 32, 1)
     rule.fillStyle(CRYPT.panelEdgeH, 1); rule.fillRect(x + 16, ruleY + 1, w - 32, 1)
     addChild(rule)
     yy = ruleY + 14
-    addChild(this._scene.add.text(x + 16, yy, 'NET', {
+    addChild(this._scene.add.text(x + 16, yy, 'NET GOLD', {
       fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.ink, letterSpacing: 2,
     }).setDepth(D + 3))
-    addChild(this._scene.add.text(x + w - 16, yy, `+${(goldDelta + soulDelta).toLocaleString('en-US')}`, {
+    addChild(this._scene.add.text(x + w - 16, yy, `+${goldDelta.toLocaleString('en-US')}`, {
       fontFamily: FONT_HEAD, fontSize: '14px', color: CRYPT.goldCss, letterSpacing: 1,
     }).setOrigin(1, 0).setDepth(D + 3))
   }
@@ -237,7 +237,7 @@ export class PostWaveSummaryPopup {
       { l: 'Damage dealt',       v: dmgDealtToday.toLocaleString('en-US'),  c: CRYPT.ink },
       { l: 'Damage taken',       v: dmgTakenToday.toLocaleString('en-US'),  c: CRYPT.accent2Css },
       { l: 'Minions lost',       v: String(lostToday),                c: CRYPT.accentCss },
-      { l: 'Boss level',         v: `LV ${this._gameState.meta?.dungeonLevel ?? 1}`, c: CRYPT.goldCss },
+      { l: 'Boss level',         v: `LV ${this._gameState.boss?.level ?? 1}`, c: CRYPT.goldCss },
     ]
     let yy = y + 40
     for (const s of stats) {

@@ -58,6 +58,14 @@ export class HudScene extends Phaser.Scene {
 
   create() {
     if (!this._gameScene || !this._gameState) return
+    // Defensive: if create() ran without an intervening shutdown (e.g.,
+    // Phaser scene.restart() racing with a window resize during a scene
+    // transition), prior components and EventBus listeners survive. Tear
+    // them down first so we don't end up with duplicates that toggle each
+    // other off on click.
+    if (this._listeners?.length || this._buildMenu) {
+      this.shutdown()
+    }
     applyUiCamera(this)
 
     const W = this.uiW
@@ -149,11 +157,13 @@ export class HudScene extends Phaser.Scene {
     // starts with no selected def — keep them in sync.
     const onPhaseChange = () => {
       const isNight = this._gameState.meta?.phase === 'night'
+      // Close popups FIRST so any orphaned wash is swept before the new
+      // phase's UI tries to take input. Without this order, a leftover
+      // depth-200 interactive overlay would still be on top when the
+      // build menu becomes visible, eating every click.
+      this._closeAllPopups()
       this._buildMenu?.setVisible(isNight)
       EventBus.emit('BUILD_DESELECT')
-      // Phase transitions auto-close any open popup so they don't linger
-      // on top of the new phase view.
-      this._closeAllPopups()
     }
     EventBus.on('NIGHT_PHASE_BEGAN', onPhaseChange)
     EventBus.on('DAY_PHASE_BEGAN',   onPhaseChange)
@@ -227,6 +237,15 @@ export class HudScene extends Phaser.Scene {
     for (const k of Object.keys(this._popups)) {
       this._popups[k]?.close?.()
     }
+    // Defensive: destroy any orphaned high-depth interactive objects
+    // (e.g., a popup wash whose close path missed it). A surviving wash
+    // covers the canvas at depth 200 with setInteractive() and silently
+    // eats every click — would manifest as ALL HudScene UI (BuildMenu,
+    // ActionBar) and NightPhase placement going dead from day 2 onward.
+    const orphans = this.children.list.filter(o =>
+      o && (o.depth ?? 0) >= 200 && o.input?.enabled
+    )
+    for (const o of orphans) o.destroy()
   }
 
   update() {

@@ -5,7 +5,7 @@ import { TILE, DungeonGrid as DungeonGridClass } from '../systems/DungeonGrid.js
 import { createMinion }  from '../entities/Minion.js'
 import { createTrap }    from '../entities/Trap.js'
 import { Balance }       from '../config/balance.js'
-import { PALETTE, glowPanel, glowRect, makeBar, drawRoomIcon, spawnEmbers, applyUiCamera } from '../ui/UIKit.js'
+import { PALETTE, glowPanel, glowRect, makeBar, drawRoomIcon, spawnEmbers, applyUiCamera, showToast } from '../ui/UIKit.js'
 import { ThemeManager, spriteCoverage } from '../systems/ThemeManager.js'
 import { PauseManager }   from '../systems/PauseManager.js'
 
@@ -132,6 +132,15 @@ export class NightPhase extends Phaser.Scene {
   // existing _selectItem / _beginDay flows. Tool-mode events (rotate / move /
   // sell) currently no-op here; full wiring lands in 31D.
   _wireHudEvents() {
+    // Defensive: if create() ran without an intervening shutdown (Phaser
+    // scene.restart() during a window resize is one path that triggers
+    // this), _hudListeners may still hold prior arrow-fn references that
+    // are also still in EventBus. Resetting the array would orphan them
+    // and we'd end up double-firing every BUILD_SELECT / TOOL_MOVE etc.,
+    // which toggle internal state and cancel themselves out.
+    if (this._hudListeners?.length) {
+      for (const [evt, fn] of this._hudListeners) EventBus.off(evt, fn)
+    }
     this._hudListeners = []
     const on = (event, fn) => {
       EventBus.on(event, fn, this)
@@ -256,7 +265,7 @@ export class NightPhase extends Phaser.Scene {
     row('Day',            'day',     PALETTE.textDim)
     row('Dungeon Level',  'dlevel',  PALETTE.textAccent)
     row('Gold',           'essence', PALETTE.textCyan)
-    row('Dark Power',     'power',   PALETTE.textAccent)
+    row('XP',             'xp',      PALETTE.textAccent)
     row('Rooms placed',   'rooms',   PALETTE.textDim)
     row('Roster',         'roster',  PALETTE.textDim)
     row('Traps',          'traps',   PALETTE.textDim)
@@ -289,9 +298,9 @@ export class NightPhase extends Phaser.Scene {
     const canAfford   = s.player.soulEssence >= totalUpkeep
 
     this._statsTexts.day?.setText(`Day ${s.meta.dayNumber}`)
-    this._statsTexts.dlevel?.setText(`${s.meta.dungeonLevel ?? 1} / 10`)
+    this._statsTexts.dlevel?.setText(`LV ${s.boss?.level ?? 1}`)
     this._statsTexts.essence?.setText(`${s.player.soulEssence}`)
-    this._statsTexts.power?.setText(`${s.player.darkPower}`)
+    this._statsTexts.xp?.setText(`${s.meta?.xp ?? 0} / ${s.meta?.xpToNext ?? 100}`)
     this._statsTexts.rooms?.setText(`${s.dungeon.rooms.length}`)
     const rosterCap  = this._rosterCap()
     const rosterUsed = this._rosterUsed()
@@ -444,7 +453,7 @@ export class NightPhase extends Phaser.Scene {
 
     // Hide cap-hit rooms; locked rooms stay visible with a 'L{N}' badge.
     // Cap honors per-boss-level scaling (Room redesign 2026-04-30).
-    const dungeonLevel = this._gameState.meta.dungeonLevel ?? 1
+    const dungeonLevel = this._gameState.boss?.level ?? 1
     const availableDefs = this._roomDefs.filter(def => {
       if (!DungeonGridClass.isUnlocked(def, dungeonLevel)) return true   // locked rooms shown for visibility
       const max = DungeonGridClass.effectiveMaxPerDungeon(def, dungeonLevel)
@@ -789,7 +798,7 @@ export class NightPhase extends Phaser.Scene {
 
   _buildHints(W, H) {
     this.add.text(W - 8, H - BOTTOM_H - 6,
-      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate room / right-click to cancel pick  ·  left-click room to pick up  ·  right-click empty room to remove  ·  Ctrl+Z to undo  ·  ESC = pause  ·  HALLS tab: left=draw  right=erase',
+      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate room / right-click to cancel pick  ·  left-click room to pick up  ·  use SELL tool to remove rooms/minions  ·  Ctrl+Z to undo  ·  ESC = pause  ·  HALLS tab: left=draw  right=erase',
       { fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace' }
     ).setOrigin(1, 1).setDepth(11)
   }
@@ -888,13 +897,18 @@ export class NightPhase extends Phaser.Scene {
       if (overMinion) return
 
       if (p.rightButtonDown()) {
-        // Right-click cancels: armed tool → release; placement candidate →
-        // drop; otherwise fall through to "remove placed room".
+        // Right-click cancels: armed tool → release; placement candidate → drop.
+        // Removal is sell-only — right-click never deletes placed content.
         if (this._toolMode) { this._setToolMode(null); return }
         if (this._selected) { this._cancelSelection(); return }
-        this._tryRemoveRoom(p, cam)
         return
       }
+
+      // Left-clicks inside the HUD panel should not trigger dungeon actions.
+      // Guard here (not in pointermove) so the preview always tracks the
+      // cursor — a pointermove guard was causing the preview tile to never
+      // be set on day 2+ if uiSf differed between scene launches.
+      if (p.x < PANEL_W * (this.uiSf ?? 1)) return
 
       // Phase 31D — action-bar tool intercepts left-click on placed rooms.
       if (this._toolMode) {
@@ -972,7 +986,7 @@ export class NightPhase extends Phaser.Scene {
     const check =
       this._selectedKind === 'minion' ? this._validateMinionPlacement(def, tx, ty)
       : this._selectedKind === 'trap'   ? this._validateTrapPlacement(def, tx, ty)
-      : this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.meta.dungeonLevel ?? 1 })
+      : this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
     this._previewValid = check.valid
 
     const color = check.valid ? 0x00cc66 : 0xcc2222
@@ -1207,7 +1221,7 @@ export class NightPhase extends Phaser.Scene {
     // tx/ty already the top-left corner (set in pointermove via Math.round centering)
     const placeTx = tx
     const placeTy = ty
-    const result  = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.meta.dungeonLevel ?? 1 })
+    const result  = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
     if (!result.valid) {
       this._showPlacementError(result.violations[0] ?? 'Invalid placement')
       return
@@ -1251,7 +1265,7 @@ export class NightPhase extends Phaser.Scene {
         this._heldRoomMinions = null
       }
       this._lastPlaced = { kind: 'room', entity: room, essenceCost: cost }
-      const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.meta.dungeonLevel ?? 1)
+      const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.boss?.level ?? 1)
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
       this._cancelSelection()
       if (atCap) this._renderActivePalette()
@@ -1271,7 +1285,8 @@ export class NightPhase extends Phaser.Scene {
     if (cost > 0 && !Balance.DEV_INFINITE_ESSENCE) this._gameState.player.soulEssence -= cost
 
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
-    const minion = createMinion(def, { x: tx, y: ty }, room?.instanceId ?? null)
+    const bossLevel = this._gameState.boss?.level ?? 1
+    const minion = createMinion(def, { x: tx, y: ty }, room?.instanceId ?? null, { bossLevel })
 
     // Phase 6e: apply archetype-gated stat multiplier (e.g. Tyrant 2×, Architect 0.85×)
     const arch = this._gameState.player?.archetypeModifiers
@@ -1630,6 +1645,7 @@ export class NightPhase extends Phaser.Scene {
     this._paletteCards.forEach(c => this._resetCard(c.cg, c.px, c.py, c.CARD_W, c.CARD_H, c.catColor, false))
     this._clearPreview()
     this._updateGridVisibility()
+    EventBus.emit('BUILD_DESELECT')
   }
 
   // ── Begin Day ─────────────────────────────────────────────────────────────
@@ -1712,36 +1728,7 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _showPlacementError(message) {
-    // If a previous error banner is still on screen, clear it first
-    if (this._placementErrorObjs?.length) {
-      for (const o of this._placementErrorObjs) o?.destroy?.()
-    }
-    this._placementErrorTimer?.remove(false)
-
-    const W = this.uiW
-    const tw = Math.min(W - PANEL_W - 32, 480)
-    const th = 32
-    const tx = PANEL_W + (W - PANEL_W - tw) / 2
-    const ty = 12
-
-    const bg = this.add.graphics().setDepth(30)
-    glowPanel(bg, tx, ty, tw, th, {
-      fill: 0x2a1004, border: 0xffaa44, glow: 0xcc6600,
-    })
-    const txt = this.add.text(tx + tw / 2, ty + th / 2, `⚠   ${message}`, {
-      fontSize: '11px', color: '#ffd99a', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(31)
-    this._placementErrorObjs = [bg, txt]
-
-    this._placementErrorTimer = this.time.delayedCall(2200, () => {
-      this.tweens.add({
-        targets: this._placementErrorObjs, alpha: 0, duration: 400,
-        onComplete: () => {
-          for (const o of this._placementErrorObjs ?? []) o?.destroy?.()
-          this._placementErrorObjs = []
-        },
-      })
-    })
+    showToast(this, message, { type: 'error' })
   }
 }
 
