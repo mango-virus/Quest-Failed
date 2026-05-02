@@ -319,6 +319,7 @@ export class BossSystem {
       const phase    = (Math.PI * 2 * idx) / Math.max(2, total) + Math.random() * 0.4
       const classDef = classes.find(c => c.id === a.classId)
       const isRanged = !!classDef?.tags?.includes('ranged')
+      a._bossFleeRolled = false   // fresh roll for every new fight entry
       this._fightStates.set(a.instanceId, {
         adv:        a,
         // Initial action — `approach` walks the new combatant from the
@@ -1040,6 +1041,147 @@ export class BossSystem {
   // ── Public API ───────────────────────────────────────────────────────────
 
   isFinalDeath() { return (this._gameState.boss?.deathsRemaining ?? 0) <= 0 }
+
+  // Phase 9 — Batch G boss-attack-pact dispatcher. Called once per fight
+  // round before the regular party/boss exchange. Each branch handles its
+  // own cooldown via boss._<id>ReadyAt timestamps.
+  _runBossPactAttacks(boss, defenders) {
+    const flags = this._gameState._mechanicFlags ?? {}
+    const now = this._scene?.time?.now ?? 0
+
+    // ── Hellfire Breath ──
+    if (flags.hellfireBreath) {
+      if (boss._hellfireWindupUntil && now >= boss._hellfireWindupUntil) {
+        // Windup complete — torch up to N front-most defenders.
+        const targets = [...defenders]
+          .sort((a, b) => Math.hypot(a.adv.worldX - boss.worldX, a.adv.worldY - boss.worldY) - Math.hypot(b.adv.worldX - boss.worldX, b.adv.worldY - boss.worldY))
+          .slice(0, Balance.MECHANIC_HELLFIRE_TARGETS)
+        const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_HELLFIRE_DMG_MULT))
+        for (const fs of targets) {
+          fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - dmg)
+        }
+        boss._hellfireWindupUntil = null
+        boss._hellfireReadyAt = now + Balance.MECHANIC_HELLFIRE_COOLDOWN_MS
+        EventBus.emit('PACT_BOSS_HELLFIRE_FIRED', { x: boss.worldX, y: boss.worldY, targetIds: targets.map(t => t.adv.instanceId), damage: dmg })
+      } else if (!boss._hellfireWindupUntil && (boss._hellfireReadyAt ?? 0) <= now) {
+        boss._hellfireWindupUntil = now + Balance.MECHANIC_HELLFIRE_WINDUP_MS
+        EventBus.emit('PACT_BOSS_HELLFIRE_WINDUP', { x: boss.worldX, y: boss.worldY, durationMs: Balance.MECHANIC_HELLFIRE_WINDUP_MS })
+      }
+    }
+
+    // ── Lightning Strike ──
+    if (flags.lightningStrike && (boss._lightningReadyAt ?? 0) <= now) {
+      // Target the adv with highest damage dealt this fight (fallback: highest atk).
+      let target = null, bestScore = -1
+      for (const fs of defenders) {
+        const score = (fs.dmgDealtThisFight ?? 0) + (fs.adv.stats?.attack ?? 0) * 0.5
+        if (score > bestScore) { bestScore = score; target = fs }
+      }
+      if (target) {
+        const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_LIGHTNING_DMG_MULT))
+        target.adv.resources.hp = Math.max(0, target.adv.resources.hp - dmg)
+        const cost = Math.max(1, Math.floor((boss.maxHp ?? 0) * Balance.MECHANIC_LIGHTNING_BOSS_HP_COST_FRAC))
+        boss.hp = Math.max(0, (boss.hp ?? 0) - cost)
+        boss._lightningReadyAt = now + Balance.MECHANIC_LIGHTNING_COOLDOWN_MS
+        EventBus.emit('PACT_BOSS_LIGHTNING_FIRED', { x: target.adv.worldX, y: target.adv.worldY, targetId: target.adv.instanceId, damage: dmg, selfCost: cost })
+      }
+    }
+
+    // ── Shockwave Slam ──
+    if (flags.shockwaveSlam && (boss._shockwaveReadyAt ?? 0) <= now && (boss._shockwaveStunUntil ?? 0) <= now) {
+      const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SHOCKWAVE_DMG_MULT))
+      for (const fs of defenders) {
+        fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - dmg)
+      }
+      boss._shockwaveReadyAt = now + Balance.MECHANIC_SHOCKWAVE_COOLDOWN_MS
+      boss._shockwaveStunUntil = now + Balance.MECHANIC_SHOCKWAVE_STUN_MS
+      EventBus.emit('PACT_BOSS_SHOCKWAVE_FIRED', { x: boss.worldX, y: boss.worldY, damage: dmg, targets: defenders.map(d => d.adv.instanceId) })
+    }
+
+    // ── Spectral Reach ──
+    if (flags.spectralReach && (boss._spectralReadyAt ?? 0) <= now) {
+      let nearest = null, bestD = Infinity
+      for (const fs of defenders) {
+        const d = Math.hypot(fs.adv.worldX - boss.worldX, fs.adv.worldY - boss.worldY)
+        if (d < bestD) { bestD = d; nearest = fs }
+      }
+      if (nearest) {
+        boss.worldX = nearest.adv.worldX - Balance.TILE_SIZE
+        boss.worldY = nearest.adv.worldY
+        const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SPECTRAL_REACH_DMG_MULT))
+        nearest.adv.resources.hp = Math.max(0, nearest.adv.resources.hp - dmg)
+        boss._spectralReadyAt = now + Balance.MECHANIC_SPECTRAL_REACH_COOLDOWN_MS
+        EventBus.emit('PACT_BOSS_SPECTRAL_FIRED', { x: boss.worldX, y: boss.worldY, targetId: nearest.adv.instanceId, damage: dmg })
+      }
+    }
+
+    // ── Dark Vortex ──
+    if (flags.darkVortex && (boss._vortexReadyAt ?? 0) <= now) {
+      const pull = Balance.MECHANIC_DARK_VORTEX_PULL_TILES * Balance.TILE_SIZE
+      for (const fs of defenders) {
+        const dx = boss.worldX - fs.adv.worldX
+        const dy = boss.worldY - fs.adv.worldY
+        const d  = Math.hypot(dx, dy) || 1
+        fs.adv.worldX += (dx / d) * pull
+        fs.adv.worldY += (dy / d) * pull
+      }
+      // Also pull boss-room minions (tradeoff).
+      const bossRoom = this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+      for (const m of (this._gameState.minions ?? [])) {
+        if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+        if (!bossRoom || m.assignedRoomId !== bossRoom.instanceId) continue
+        const dx = boss.worldX - m.worldX, dy = boss.worldY - m.worldY
+        const d  = Math.hypot(dx, dy) || 1
+        m.worldX += (dx / d) * pull
+        m.worldY += (dy / d) * pull
+      }
+      boss._vortexReadyAt = now + Balance.MECHANIC_DARK_VORTEX_COOLDOWN_MS
+      EventBus.emit('PACT_BOSS_VORTEX_FIRED', { x: boss.worldX, y: boss.worldY })
+    }
+
+    // ── Soul Drain ──
+    if (flags.soulDrain) {
+      if (boss._soulDrainChannelUntil && now < boss._soulDrainChannelUntil) {
+        // mid-channel — apply tick damage / heal each round
+        const target = defenders.find(fs => fs.adv.instanceId === boss._soulDrainTargetId)
+        if (target) {
+          const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SOUL_DRAIN_DMG_MULT * 0.34))  // ~3 ticks over channel
+          target.adv.resources.hp = Math.max(0, target.adv.resources.hp - dmg)
+          boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + dmg)
+        }
+      } else if (boss._soulDrainChannelUntil && now >= boss._soulDrainChannelUntil) {
+        boss._soulDrainChannelUntil = null
+        boss._soulDrainTargetId = null
+        boss._soulDrainReadyAt = now + Balance.MECHANIC_SOUL_DRAIN_COOLDOWN_MS
+        EventBus.emit('PACT_BOSS_SOULDRAIN_ENDED', {})
+      } else if ((boss._soulDrainReadyAt ?? 0) <= now && defenders.length > 0) {
+        const target = defenders[Math.floor(Math.random() * defenders.length)]
+        boss._soulDrainTargetId = target.adv.instanceId
+        boss._soulDrainChannelUntil = now + Balance.MECHANIC_SOUL_DRAIN_CHANNEL_MS
+        EventBus.emit('PACT_BOSS_SOULDRAIN_BEGUN', { targetId: target.adv.instanceId })
+      }
+    }
+
+    // ── Doppelgangers ──
+    if (flags.doppelgangers && (boss._doppelReadyAt ?? 0) <= now) {
+      boss._doppelActiveUntil = now + Balance.MECHANIC_DOPPELGANGERS_DURATION_MS
+      boss._doppelReadyAt = now + Balance.MECHANIC_DOPPELGANGERS_COOLDOWN_MS
+      EventBus.emit('PACT_BOSS_DOPPELGANGERS_SPAWNED', { x: boss.worldX, y: boss.worldY, durationMs: Balance.MECHANIC_DOPPELGANGERS_DURATION_MS })
+    }
+
+    // ── Petrifying Stare ──
+    if (flags.petrifyingStare && (boss._petrifyReadyAt ?? 0) <= now && defenders.length > 0) {
+      if (Math.random() < Balance.MECHANIC_PETRIFY_BACKFIRE_CHANCE) {
+        boss._petrifyBackfireUntil = now + Balance.MECHANIC_PETRIFY_BACKFIRE_STUN_MS
+        EventBus.emit('PACT_BOSS_PETRIFY_BACKFIRE', { stunMs: Balance.MECHANIC_PETRIFY_BACKFIRE_STUN_MS })
+      } else {
+        const victim = defenders[Math.floor(Math.random() * defenders.length)]
+        victim.adv._petrifiedUntil = now + Balance.MECHANIC_PETRIFY_DURATION_MS
+        EventBus.emit('PACT_BOSS_PETRIFY_FIRED', { targetId: victim.adv.instanceId, durationMs: Balance.MECHANIC_PETRIFY_DURATION_MS })
+      }
+      boss._petrifyReadyAt = now + Balance.MECHANIC_PETRIFY_COOLDOWN_MS
+    }
+  }
   getState()     { return { ...this._gameState.boss } }
 
   // ── Internals ────────────────────────────────────────────────────────────
@@ -1119,6 +1261,12 @@ export class BossSystem {
       this._endFight('party')
       return
     }
+
+    // Phase 9 — Boss-attack pacts (Batch G). Run special attacks on cooldown
+    // before the regular party/boss exchange. Some apply ongoing state
+    // (windup, channel, stun, dazed) consumed below.
+    this._runBossPactAttacks(boss, defenders)
+
     if (this._roundsRun >= 24) {
       // Hard cap to break stalemates.
       const partyFrac = defenders.reduce((s, fs) =>
@@ -1139,6 +1287,20 @@ export class BossSystem {
       boss.hp = Math.max(0, boss.hp - dmgToBoss)
       this._roundLog.push({ side: 'party', damage: dmgToBoss })
 
+      // Phase 9 — Tyrant's Gaze: each boss-hit-taken costs minions in the
+      // boss chamber 1 HP each.
+      const tFlags = this._gameState._mechanicFlags ?? {}
+      if (tFlags.tyrantsGaze) {
+        const bossRoom = this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+        if (bossRoom) {
+          for (const m of (this._gameState.minions ?? [])) {
+            if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+            if (m.assignedRoomId !== bossRoom.instanceId) continue
+            m.resources.hp = Math.max(0, (m.resources.hp ?? 0) - Balance.MECHANIC_TYRANT_HP_LOSS_PER_TAKEN)
+          }
+        }
+      }
+
       // Room redesign 2026-04-30 — Sanctum: boss regenerates between fight
       // rounds (8 HP per round per active Sanctum). Caps at maxHp.
       if (boss.hp > 0) {
@@ -1158,6 +1320,26 @@ export class BossSystem {
         boss.hp = Math.min(boss.maxHp, boss.hp + 30)
         this._secondWindUsed = true
         EventBus.emit('BOSS_SECOND_WIND')
+      }
+      // Phase 9 — Final Breath: once per run, if this hit would kill the boss,
+      // revive at 50% HP, full-heal all minions, and mark the pact used.
+      // Triggers BEFORE the lethal-check so deathsRemaining is untouched.
+      const flags = this._gameState._mechanicFlags ?? {}
+      if (flags.finalBreath && !flags.finalBreathUsed && boss.hp <= 1) {
+        boss.hp = Math.max(1, Math.floor((boss.maxHp ?? 0) * 0.5))
+        for (const m of (this._gameState.minions ?? [])) {
+          if (m.faction !== 'dungeon') continue
+          if (m.aiState === 'dead') {
+            m.aiState = 'idle'
+            m.tileX  = m.homeTileX
+            m.tileY  = m.homeTileY
+            m.worldX = (m.homeTileX ?? 0) * Balance.TILE_SIZE + Balance.TILE_SIZE / 2
+            m.worldY = (m.homeTileY ?? 0) * Balance.TILE_SIZE + Balance.TILE_SIZE / 2
+          }
+          m.resources.hp = m.resources.maxHp
+        }
+        flags.finalBreathUsed = true
+        EventBus.emit('FINAL_BREATH_TRIGGERED', { bossHp: boss.hp })
       }
       if (boss.hp <= 0) {
         this._endFight('party')
@@ -1193,11 +1375,53 @@ export class BossSystem {
         target.adv.worldY - boss.worldY,
       )
       if (dToTarget <= MELEE_RANGE) {
-        const def   = target.adv.stats?.defense ?? 0
-        const taken = Math.max(1, Math.floor(boss.attack * (0.85 + Math.random() * 0.3) - def))
-        target.adv.resources.hp = Math.max(0, target.adv.resources.hp - taken)
-        this._roundLog.push({ side: 'boss', damage: taken, targetId: target.adv.instanceId })
-        this._emitFx({ kind: 'strike', x: target.adv.worldX, y: target.adv.worldY })
+        // Phase 9 — Avenger's Rite: skip the boss attack while dazed (5s after first adv enters).
+        const aFlags = this._gameState._mechanicFlags ?? {}
+        const now = this._scene?.time?.now ?? 0
+        // Phase 9 — Batch G suppressions: skip melee when winding up / channeling / stunned.
+        const suppressed =
+          (aFlags.hellfireBreath && boss._hellfireWindupUntil && now < boss._hellfireWindupUntil) ||
+          (aFlags.shockwaveSlam && (boss._shockwaveStunUntil ?? 0) > now) ||
+          (aFlags.soulDrain && boss._soulDrainChannelUntil && now < boss._soulDrainChannelUntil) ||
+          (aFlags.petrifyingStare && (boss._petrifyBackfireUntil ?? 0) > now) ||
+          (aFlags.spectralReach && Math.random() >= Balance.MECHANIC_SPECTRAL_REACH_SPEED_PENALTY)
+        if (aFlags.avengersRite && (boss._avengerDazeUntil ?? 0) > now) {
+          this._roundLog.push({ side: 'boss', damage: 0, targetId: target.adv.instanceId, kind: 'avenger_dazed' })
+        } else if (suppressed) {
+          this._roundLog.push({ side: 'boss', damage: 0, targetId: target.adv.instanceId, kind: 'pact_suppressed' })
+        } else {
+          let bossAtk = boss.attack
+          // Phase 9 — Avenger's Rite: +25% damage during 10s buff window after a minion died.
+          if (aFlags.avengersRite && (boss._avengerBuffUntil ?? 0) > now) {
+            bossAtk *= Balance.MECHANIC_AVENGER_BUFF_MULT
+          }
+          // Phase 9 — Final Breath aftermath: -25% damage permanently after the revive triggered.
+          if (aFlags.finalBreath && aFlags.finalBreathUsed) {
+            bossAtk *= 0.75
+          }
+          // Phase 9 — Doppelgangers: real boss only deals 50% damage during illusion window.
+          if (aFlags.doppelgangers && (boss._doppelActiveUntil ?? 0) > now) {
+            bossAtk *= Balance.MECHANIC_DOPPELGANGERS_BOSS_DMG_MULT
+          }
+          const def   = target.adv.stats?.defense ?? 0
+          const taken = Math.max(1, Math.floor(bossAtk * (0.85 + Math.random() * 0.3) - def))
+          target.adv.resources.hp = Math.max(0, target.adv.resources.hp - taken)
+          this._roundLog.push({ side: 'boss', damage: taken, targetId: target.adv.instanceId })
+          this._emitFx({ kind: 'strike', x: target.adv.worldX, y: target.adv.worldY })
+
+          // Phase 9 — Tyrant's Gaze: +1 atk to every minion in the boss chamber per landed hit.
+          if (aFlags.tyrantsGaze) {
+            const bossRoom = this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+            if (bossRoom) {
+              for (const m of (this._gameState.minions ?? [])) {
+                if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+                if (m.assignedRoomId !== bossRoom.instanceId) continue
+                m.stats.attack = (m.stats.attack ?? 0) + Balance.MECHANIC_TYRANT_ATK_PER_HIT
+                m._tyrantStacksToday = (m._tyrantStacksToday ?? 0) + Balance.MECHANIC_TYRANT_ATK_PER_HIT
+              }
+            }
+          }
+        }
       } else {
         // Out of melee range — boss missed this round.  Logged as 0 damage
         // so the round log still records the attempt for future telemetry.
@@ -1304,9 +1528,10 @@ export class BossSystem {
     }
   }
 
-  // Personality-driven flee check.  fleeThreshold weight is the HP fraction
-  // BELOW which the adventurer breaks — paranoid (0.6) bails early, speed
-  // runner (0.12) holds out till nearly dead.
+  // Personality-driven flee check.  Rolls once per threshold crossing so
+  // most adventurers fight to the death — flee is rare, not guaranteed.
+  // chance = threshold * 0.25: default(0.4)→10%, paranoid(0.6)→15%,
+  // traumatized(0.95)→24%, speed_runner(0.12)→3%.
   _shouldFleeBoss(adv) {
     const hp     = adv.resources.hp
     const maxHp  = adv.resources.maxHp ?? 1
@@ -1314,7 +1539,13 @@ export class BossSystem {
     const ps     = this._scene.personalitySystem
     const w      = ps?.getWeights?.(adv) ?? {}
     const threshold = w.fleeThreshold ?? 0.4
-    return hpFrac < threshold
+    if (hpFrac >= threshold) {
+      adv._bossFleeRolled = false   // HP recovered above threshold; allow re-roll if it drops again
+      return false
+    }
+    if (adv._bossFleeRolled) return false   // already decided this threshold crossing
+    adv._bossFleeRolled = true
+    return Math.random() < threshold * 0.25
   }
 
   // Hand the adventurer straight to AISystem's FLEE goal.  We tried running

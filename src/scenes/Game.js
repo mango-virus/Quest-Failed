@@ -1,12 +1,11 @@
 import { SaveSystem }         from '../systems/SaveSystem.js'
 import { EventBus }           from '../systems/EventBus.js'
-import { DungeonGrid }        from '../systems/DungeonGrid.js'
+import { DungeonGrid, TILE }  from '../systems/DungeonGrid.js'
 import { AISystem }           from '../systems/AISystem.js'
 import { PersonalitySystem }  from '../systems/PersonalitySystem.js'
 import { CombatSystem }       from '../systems/CombatSystem.js'
 import { MinionAISystem }     from '../systems/MinionAISystem.js'
 import { TrapSystem }         from '../systems/TrapSystem.js'
-import { LootSystem }         from '../systems/LootSystem.js'
 import { EvolutionSystem }    from '../systems/EvolutionSystem.js'
 import { MinionEvolutionSystem } from '../systems/MinionEvolutionSystem.js'
 import { ClassAbilitySystem } from '../systems/ClassAbilitySystem.js'
@@ -14,9 +13,7 @@ import { KnowledgeSystem }    from '../systems/KnowledgeSystem.js'
 import { DungeonMechanicSystem } from '../systems/DungeonMechanicSystem.js'
 import { NewspaperSystem }    from '../systems/NewspaperSystem.js'
 import { InquisitorSystem }   from '../systems/InquisitorSystem.js'
-import { LootGreedSystem }    from '../systems/LootGreedSystem.js'
 import { BossSystem }         from '../systems/BossSystem.js'
-import { ReputationSystem }   from '../systems/ReputationSystem.js'
 import { RoomBehaviorSystem } from '../systems/RoomBehaviorSystem.js'
 import { RunHistorySystem }   from '../systems/RunHistorySystem.js'
 import { EmoteSystem }        from '../systems/EmoteSystem.js'
@@ -24,17 +21,15 @@ import { Balance }            from '../config/balance.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
 import { MinionRenderer }     from '../ui/MinionRenderer.js'
-import { MimicRenderer }      from '../ui/MimicRenderer.js'
 import { TrapRenderer }       from '../ui/TrapRenderer.js'
-import { LootRenderer }       from '../ui/LootRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
 import { ChatBubbles }        from '../ui/ChatBubbles.js'
 import { KnowledgeOverlay }   from '../ui/KnowledgeOverlay.js'
 import { WantedPoster }       from '../ui/WantedPoster.js'
 import { ReplayGhostRenderer } from '../ui/ReplayGhostRenderer.js'
-import { EternalNightOverlay } from '../ui/EternalNightOverlay.js'
-import { ParanoiaIndicator }   from '../ui/ParanoiaIndicator.js'
 import { BossFightOverlay }    from '../ui/BossFightOverlay.js'
+import { SunderedFloorRenderer } from '../ui/SunderedFloorRenderer.js'
+import { CartographerOverlay }   from '../ui/CartographerOverlay.js'
 import { BossRenderer }       from '../ui/BossRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
@@ -52,14 +47,11 @@ export class Game extends Phaser.Scene {
     this.trapSystem          = null
     this.combatSystem        = null
     this.personalitySystem   = null
-    this.lootSystem          = null
     this.evolutionSystem     = null
     this.knowledgeSystem     = null
     this.adventurerRenderer  = null
     this.minionRenderer      = null
-    this.mimicRenderer       = null
     this.trapRenderer        = null
-    this.lootRenderer        = null
     this.minionInspector     = null
     this.knowledgeOverlay      = null
     this._dungeonRenderer    = null
@@ -106,8 +98,6 @@ export class Game extends Phaser.Scene {
     this.minionAiSystem      = new MinionAISystem(this, this.gameState, this.dungeonGrid, this.combatSystem)
     this.trapSystem          = new TrapSystem(this, this.gameState, this.dungeonGrid)
     this.trapSystem.loadDefinitions()
-    this.lootSystem          = new LootSystem(this, this.gameState, this.dungeonGrid)
-    this.lootSystem.loadDefinitions()
     this.evolutionSystem     = new EvolutionSystem(this, this.gameState)
     this.evolutionSystem.loadDefinitions()
     this.minionEvolutionSystem = new MinionEvolutionSystem(this, this.gameState)
@@ -115,8 +105,6 @@ export class Game extends Phaser.Scene {
     this.dungeonMechanicSystem.loadDefinitions()
     this.newspaperSystem     = new NewspaperSystem(this, this.gameState)
     this.inquisitorSystem    = new InquisitorSystem(this, this.gameState, this.dungeonMechanicSystem, this.personalitySystem)
-    this.lootGreedSystem     = new LootGreedSystem(this, this.gameState, this.dungeonGrid, this.personalitySystem)
-    this.reputationSystem    = new ReputationSystem(this, this.gameState)
     this.bossSystem          = new BossSystem(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
     this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
@@ -127,25 +115,16 @@ export class Game extends Phaser.Scene {
     this.adventurerRenderer  = new AdventurerRenderer(this, this.gameState)
     this.emoteSystem         = new EmoteSystem(this, this.gameState, this.adventurerRenderer)
     this.minionRenderer      = new MinionRenderer(this, this.gameState)
-    this.mimicRenderer       = new MimicRenderer(this, this.gameState)
     this.trapRenderer        = new TrapRenderer(this, this.gameState)
-    this.lootRenderer        = new LootRenderer(this, this.gameState)
-    this.minionInspector     = new MinionInspector(this, this.gameState, this.lootSystem)
+    this.minionInspector     = new MinionInspector(this, this.gameState)
     this.chatBubbles         = new ChatBubbles(this, this.gameState)
     this.knowledgeOverlay      = new KnowledgeOverlay(this, this.gameState, this.knowledgeSystem)
     this.wantedPoster        = new WantedPoster(this, this.gameState)
     this.replayGhostRenderer = new ReplayGhostRenderer(this, this.gameState)
-    this.eternalNightOverlay = new EternalNightOverlay(this, this.gameState, this.knowledgeSystem)
-    // Re-evaluate eternal night enabled state now that the overlay exists.
-    if (this.dungeonMechanicSystem.isActive('eternal_night')) {
-      this.eternalNightOverlay.setEnabled(true)
-    }
-    this.paranoiaIndicator   = new ParanoiaIndicator(this, this.gameState)
-    if (this.dungeonMechanicSystem.isActive('paranoia_protocol')) {
-      this.paranoiaIndicator.setEnabled(true)
-    }
     this.bossFightOverlay    = new BossFightOverlay(this, this.gameState)
     this.bossRenderer        = new BossRenderer(this, this.gameState)
+    this.sunderedFloorRenderer = new SunderedFloorRenderer(this)
+    this.cartographerOverlay   = new CartographerOverlay(this, this.gameState)
 
     // Respawn dead minions when night starts (Phase 6 kernel)
     EventBus.on('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
@@ -204,14 +183,11 @@ export class Game extends Phaser.Scene {
     this.adventurerRenderer?.destroy()
     this.emoteSystem?.destroy()
     this.minionRenderer?.destroy()
-    this.mimicRenderer?.destroy()
     this.trapRenderer?.destroy()
-    this.lootRenderer?.destroy()
     this.minionInspector?.destroy()
     this.chatBubbles?.destroy()
     this.aiSystem?.destroy()
     this.trapSystem?.destroy()
-    this.lootSystem?.destroy()
     this.evolutionSystem?.destroy()
     this.classAbilitySystem?.destroy()
     this.runHistorySystem?.destroy()
@@ -219,17 +195,15 @@ export class Game extends Phaser.Scene {
     this.knowledgeOverlay?.destroy()
     this.wantedPoster?.destroy()
     this.replayGhostRenderer?.destroy()
-    this.eternalNightOverlay?.destroy()
     this.dungeonMechanicSystem?.destroy()
     this.newspaperSystem?.destroy()
     this.inquisitorSystem?.destroy()
-    this.paranoiaIndicator?.destroy()
-    this.lootGreedSystem?.destroy()
     this.bossSystem?.destroy()
-    this.reputationSystem?.destroy()
     this.bossFightOverlay?.destroy()
     this.roomBehaviorSystem?.destroy()
     this.bossRenderer?.destroy()
+    this.sunderedFloorRenderer?.destroy()
+    this.cartographerOverlay?.destroy()
   }
 
   _onBossFinal() {
@@ -376,7 +350,7 @@ export class Game extends Phaser.Scene {
   }
 
   // Phase 6e: cache the chosen archetype's modifiers on gameState so other
-  // systems (EvolutionSystem, NightPhase trap palette, AISystem essence award)
+  // systems (EvolutionSystem, NightPhase trap palette, AISystem gold award)
   // can apply them without re-fetching the JSON each tick.
   _cacheArchetypeModifiers() {
     const id = this.gameState.player?.bossArchetypeId
@@ -464,6 +438,12 @@ export class Game extends Phaser.Scene {
       if (p.middleButtonDown() || (p.rightButtonDown() && !this._isCorridorMode())) {
         this._dragOrigin = { x: p.x + this._cam.scrollX, y: p.y + this._cam.scrollY }
         if (this._followId) this._setFollow(null)
+        return
+      }
+      // Phase 9 — Pact of the Marionette: left-click a minion during day
+      // phase to possess it (once per day).
+      if (p.leftButtonDown() && this.gameState?.meta?.phase === 'day') {
+        this._tryMarionettePossess(p)
       }
     })
 
@@ -527,6 +507,78 @@ export class Game extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => PauseManager.toggle(this))
   }
 
+  // Phase 9 — Marionette possession. Click handler: if pact active and not
+  // yet used today, pick the minion under the cursor and start possessing.
+  _tryMarionettePossess(pointer) {
+    const flags = this.gameState?._mechanicFlags ?? {}
+    if (!flags.pactOfTheMarionette) return
+    if (flags.marionetteUsedToday) return
+    if (flags.possessedMinionId) return    // already possessing
+    const wp = this._cam.getWorldPoint(pointer.x, pointer.y)
+    const tx = Math.floor(wp.x / Balance.TILE_SIZE)
+    const ty = Math.floor(wp.y / Balance.TILE_SIZE)
+    const minion = (this.gameState.minions ?? []).find(m =>
+      m.faction === 'dungeon' && m.aiState !== 'dead' &&
+      m.tileX === tx && m.tileY === ty
+    )
+    if (!minion) return
+    flags.possessedMinionId  = minion.instanceId
+    flags.marionetteUsedToday = true
+    minion._marionetteLastStepAt = 0
+    EventBus.emit('MARIONETTE_POSSESSED', { minionId: minion.instanceId })
+  }
+
+  // Per-frame: move the possessed minion via WASD (debounced) + auto-attack
+  // any adv in melee range. Camera follows the puppet.
+  _tickMarionette(time, _delta) {
+    const flags = this.gameState._mechanicFlags ?? {}
+    const minion = (this.gameState.minions ?? []).find(m => m.instanceId === flags.possessedMinionId)
+    if (!minion || minion.aiState === 'dead') {
+      flags.possessedMinionId = null
+      return
+    }
+    const now = time
+    const interval = Balance.MECHANIC_MARIONETTE_MOVE_INTERVAL_MS
+    const ready = (now - (minion._marionetteLastStepAt ?? 0)) >= interval
+    let dx = 0, dy = 0
+    if (this._keys.W.isDown) dy -= 1
+    if (this._keys.S.isDown) dy += 1
+    if (this._keys.A.isDown) dx -= 1
+    if (this._keys.D.isDown) dx += 1
+    if (ready && (dx !== 0 || dy !== 0)) {
+      const nx = minion.tileX + dx
+      const ny = minion.tileY + dy
+      const grid = this.dungeonGrid
+      const tile = grid?.getTileType?.(nx, ny)
+      if (tile === TILE.FLOOR || tile === TILE.BOSS_FLOOR || tile === TILE.DOOR) {
+        minion.tileX  = nx
+        minion.tileY  = ny
+        minion.worldX = nx * Balance.TILE_SIZE + Balance.TILE_SIZE / 2
+        minion.worldY = ny * Balance.TILE_SIZE + Balance.TILE_SIZE / 2
+        minion._marionetteLastStepAt = now
+      }
+    }
+    // Auto-attack any adv in melee range.
+    const advs = this.gameState.adventurers?.active ?? []
+    for (const adv of advs) {
+      if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
+      const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
+      const reach = Math.max(minion.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+      if (d <= reach + 0.01) {
+        this.combatSystem?.tryAttack?.(minion, adv, {
+          roomId: this.dungeonGrid?.getRoomAtTile?.(minion.tileX, minion.tileY)?.instanceId,
+          method: 'marionette',
+        })
+        break
+      }
+    }
+    // Camera follows the puppet.
+    const cx = minion.worldX - this._cam.centerX
+    const cy = minion.worldY - this._cam.centerY
+    this._cam.scrollX += (cx - this._cam.scrollX) * 0.1
+    this._cam.scrollY += (cy - this._cam.scrollY) * 0.1
+  }
+
   update(_time, delta) {
     const speed = Balance.CAMERA_SCROLL_SPEED / this._cam.zoom
 
@@ -534,10 +586,17 @@ export class Game extends Phaser.Scene {
     const anyWASD = this._keys.W.isDown || this._keys.S.isDown ||
                     this._keys.A.isDown || this._keys.D.isDown
     if (anyWASD && this._followId) this._setFollow(null)
-    if (this._keys.W.isDown) this._cam.scrollY -= speed
-    if (this._keys.S.isDown) this._cam.scrollY += speed
-    if (this._keys.A.isDown) this._cam.scrollX -= speed
-    if (this._keys.D.isDown) this._cam.scrollX += speed
+
+    // Phase 9 — Marionette: WASD drives the possessed minion instead of camera.
+    const possessedId = this.gameState?._mechanicFlags?.possessedMinionId
+    if (possessedId) {
+      this._tickMarionette(_time, delta)
+    } else {
+      if (this._keys.W.isDown) this._cam.scrollY -= speed
+      if (this._keys.S.isDown) this._cam.scrollY += speed
+      if (this._keys.A.isDown) this._cam.scrollX -= speed
+      if (this._keys.D.isDown) this._cam.scrollX += speed
+    }
 
     // Smooth camera follow (day phase only)
     if (this._followId && this.gameState.meta.phase === 'day') {
@@ -568,26 +627,20 @@ export class Game extends Phaser.Scene {
         this.minionAiSystem?.update(scaled)
         this.trapSystem?.update(scaled)
         this.dungeonMechanicSystem?.tickDay(scaled)
-        this.lootGreedSystem?.update(scaled)
         this.classAbilitySystem?.update(scaled)
       }
       this.adventurerRenderer?.update()
       this.emoteSystem?.update()
       this.minionRenderer?.update()
-      this.mimicRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
-      this.lootRenderer?.update()
       this.chatBubbles?.update()
       this.replayGhostRenderer?.update()
-      this.eternalNightOverlay?.update()
-      this.paranoiaIndicator?.update()
+      this.cartographerOverlay?.tick()
     } else {
       this.minionRenderer?.update()
-      this.mimicRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
-      this.lootRenderer?.update()
       this.replayGhostRenderer?.update()
     }
     // Knowledge overlay updates in both phases — the rumour pool persists

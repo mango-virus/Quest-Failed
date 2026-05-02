@@ -33,7 +33,7 @@ export class DayPhase extends Phaser.Scene {
     const gs = this._gameState
     if (gs) {
       this._daySnapshot = {
-        soulEssence:  gs.player?.soulEssence  ?? 0,
+        gold:         gs.player?.gold         ?? 0,
         totalKills:   gs.player?.totalKills   ?? 0,
         bossLevel:    gs.boss?.level           ?? 1,
         totals:       { ...(gs.run?.totals ?? {}) },
@@ -545,6 +545,19 @@ export class DayPhase extends Phaser.Scene {
     if (treasuryCount > 0) baseCount += treasuryCount
     // Phase 9: Gold Rush — one extra adventurer per day
     if ((this._gameState._mechanicFlags ?? {}).goldRush) baseCount += 1
+    // Phase 9: Gilded Demise — extras based on yesterday's kill gold
+    const gildedExtras = (this._gameState._mechanicFlags ?? {}).gildedDemiseExtraAdvs ?? 0
+    if (gildedExtras > 0) {
+      baseCount += gildedExtras
+      this._gameState._mechanicFlags.gildedDemiseExtraAdvs = 0
+    }
+    // Phase 9: Doomsday Clock — force a 4-adv raid on the doomsday day.
+    if ((this._gameState._mechanicFlags ?? {}).doomsdayRaidToday) {
+      baseCount = Math.max(baseCount, Balance.MECHANIC_DOOMSDAY_RAID_SIZE)
+    }
+    // Phase 9: Architect's Vision + Summon Adds III — flat extra adv count per day.
+    const extraAdvs = (this._gameState._mechanicFlags ?? {}).extraAdvsPerDay ?? 0
+    if (extraAdvs > 0) baseCount += extraAdvs
     // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
     // count from yesterday's death-clip-going-viral roll.
     const subBonus = this._gameState.player?.subscriberRevengeBonus ?? 0
@@ -588,54 +601,6 @@ export class DayPhase extends Phaser.Scene {
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: hunter })
       EventBus.emit('VENDETTA_HUNTER_ARRIVED', { adventurer: hunter, vendetta })
       vendettaHunter = hunter
-    }
-
-    // Phase 10b — Guild Raid: at high reputation, sometimes a coordinated
-    // 4-person party shows up. Higher base stats and shared partyId so
-    // combos automatically detect them as cooperating.
-    const repSysEarly = this.scene.get('Game')?.reputationSystem
-    const repTier = repSysEarly?.getTier?.()?.tier ?? 'unknown'
-    const isGuildRaidDay =
-      (repTier === 'feared' || repTier === 'legendary' || repTier === 'mythic')
-        && Math.random() < (repTier === 'mythic' ? 0.45 : repTier === 'legendary' ? 0.30 : 0.15)
-    if (isGuildRaidDay) {
-      const raidSize = 4
-      count = Math.max(count, raidSize)
-      const guildClasses = classes.slice(0, raidSize)
-      for (let i = 0; i < raidSize; i++) {
-        const cls = guildClasses[i] ?? classes[i % classes.length]
-        const tile = { x: spawn.x + (i % 2 === 0 ? 1 : -1), y: spawn.y + Math.floor(i / 2) }
-        const adv = createAdventurer(cls, tile)
-        this._scaleAdventurerByBossLevel(adv, dungeonLv)
-        adv.partyId = partyId
-        adv.flags = adv.flags ?? {}
-        adv.flags.guildRaid = true
-        // +25% HP/atk for coordination
-        adv.resources.maxHp = Math.floor(adv.resources.maxHp * 1.25)
-        adv.resources.hp    = adv.resources.maxHp
-        adv.stats.attack    = Math.floor(adv.stats.attack * 1.25)
-        adv.personalityIds  = personalitySystem
-          ? personalitySystem.rollPersonalities(2, dungeonLv)
-          : []
-        knowledgeSystem?.initializeKnowledgeForSpawn?.(adv)
-        this._gameState.adventurers.active.push(adv)
-        spawned.push(adv)
-        aiSystem.pickInitialGoal(adv)
-        EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
-      }
-      EventBus.emit('GUILD_RAID_ARRIVED', { partyId, members: spawned.slice(-raidSize) })
-      // Combo detection still runs after the for-loop below (skipped because returnLeader/raid pre-fills)
-      if (personalitySystem && spawned.length >= 2) {
-        const combos = personalitySystem.emitCombosForParty(spawned, partyId)
-        for (const combo of combos) {
-          for (const adv of spawned) {
-            adv.activeCombos ??= []
-            if (!adv.activeCombos.includes(combo.id)) adv.activeCombos.push(combo.id)
-          }
-        }
-      }
-      EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
-      return spawned
     }
 
     if (returningRecord) {
@@ -686,17 +651,15 @@ export class DayPhase extends Phaser.Scene {
       // Phase 7b: scale adventurer stats with dungeon level
       this._scaleAdventurerByBossLevel(adv, dungeonLv)
 
-      // Phase 10: legendary hero promotion (driven by reputation)
-      const repSys = this.scene.get('Game')?.reputationSystem
-      const legendaryRoll = repSys?.legendarySpawnChance?.() ?? 0
-      if (i === 0 && !returnLeaderInjected && legendaryRoll > 0 && Math.random() < legendaryRoll) {
+      // Flat 5% chance to promote the lead spawn to a legendary hero.
+      if (i === 0 && !returnLeaderInjected && Math.random() < 0.05) {
         adv.isLegendary = true
         adv.name = `${adv.name} the Legendary`
         adv.resources.maxHp = Math.floor(adv.resources.maxHp * 1.5)
         adv.resources.hp    = adv.resources.maxHp
         adv.stats.attack    = Math.floor(adv.stats.attack * 1.4)
         adv.stats.defense   = Math.floor(adv.stats.defense * 1.3)
-        EventBus.emit('LEGENDARY_HERO_ARRIVED', { adventurer: adv, reputation: repSys.getReputation() })
+        EventBus.emit('LEGENDARY_HERO_ARRIVED', { adventurer: adv })
       }
 
       adv.partyId        = (count > 1 || returnLeaderInjected) ? partyId : null
@@ -779,7 +742,7 @@ export class DayPhase extends Phaser.Scene {
     // text update is null-guarded so we no-op on the missing legacy chrome.
     const s = this._gameState
     this._statsTexts?.topRight?.setText(
-      `Essence: ${s.player.soulEssence}  ·  XP: ${s.meta?.xp ?? 0}/${s.meta?.xpToNext ?? 100}  ·  Kills: ${s.player.totalKills}`
+      `Gold: ${s.player.gold}  ·  XP: ${s.meta?.xp ?? 0}/${s.meta?.xpToNext ?? 100}  ·  Kills: ${s.player.totalKills}`
     )
     const n = s.adventurers.active.length
     if (n === 0 && this._allOutTimer == null) {

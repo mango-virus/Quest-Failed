@@ -40,6 +40,20 @@ export class TrapRenderer {
       // which traps will be avoided.
       const known = this._isKnown(trap)
       s.knownBadge.setVisible(known && !trap.isTriggered)
+      // Phase 9 — Pact of the Brand: blessed trap gets a pulsing gold halo.
+      if (trap._brandBlessed && !trap.isTriggered) {
+        if (!s.brandHalo) {
+          s.brandHalo = this._scene.add.graphics().setDepth(5)
+          s.container.add(s.brandHalo)
+          s.brandHalo.lineStyle(2, 0xffd166, 1)
+          s.brandHalo.strokeCircle(0, 0, 11)
+          s.brandHalo.lineStyle(1, 0xfff4a8, 0.8)
+          s.brandHalo.strokeCircle(0, 0, 14)
+        }
+        s.brandHalo.setVisible(true)
+      } else if (s.brandHalo) {
+        s.brandHalo.setVisible(false)
+      }
     }
 
     for (const id of Object.keys(this._sprites)) {

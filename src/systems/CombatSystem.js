@@ -4,7 +4,7 @@
 // `tryAttack(attacker, target)` when they want to swing. CombatSystem enforces
 // cooldown timing and damage math.
 //
-// Death cleanup (splice from active, push to graveyard, award essence) is the
+// Death cleanup (splice from active, push to graveyard, award gold) is the
 // AI system's responsibility — CombatSystem only mutates HP and emits events.
 
 import { EventBus }   from './EventBus.js'
@@ -26,15 +26,6 @@ export class CombatSystem {
   tryAttack(attacker, target, opts = {}) {
     if (!attacker || !target) return null
     if (target.resources.hp <= 0) return null
-
-    // Mimic invulnerability — the chest disguise and the reveal animation
-    // both block damage. The mimic only becomes a valid target once it
-    // enters idle / walking / attacking / hurt.
-    if (target.isMimic && (
-      target.mimicState === 'chest' ||
-      target.mimicState === 'revealing' ||
-      target.mimicState === 'redisguising'
-    )) return null
 
     // Doorway gate — combat only resolves when BOTH attacker and target
     // are fully in a room. An entity standing on a TILE.DOOR tile is
@@ -322,12 +313,6 @@ export class CombatSystem {
     if (flags.bloodbound && _isMinionAttacker(attacker)) {
       mit *= Balance.MECHANIC_BLOODBOUND_DAMAGE_MULT
     }
-    if (flags.gravAnomaly) {
-      const isMelee = (attacker.attackRange ?? 1) <= 1
-      mit *= isMelee
-        ? Balance.MECHANIC_GRAV_MELEE_DAMAGE_MULT
-        : Balance.MECHANIC_GRAV_PROJECTILE_MULT
-    }
     // Phase 9: Pack Synergy — minions deal bonus damage per ally in same room
     if (flags.packSynergy && _isMinionAttacker(attacker) && attacker.assignedRoomId) {
       const alliesInRoom = (this._gameState.minions ?? []).filter(m =>
@@ -351,6 +336,102 @@ export class CombatSystem {
       if (hpFrac < fleeThresh) {
         mit = Math.floor(mit * Balance.MECHANIC_SEALED_PATHS_CORNERED_MULT)
       }
+    }
+    // Phase 9 — adventurer-only HP-scaling pacts: Glory Hounds, Famine Decree, Sworn Rivals.
+    if (attacker.faction === 'adventurer') {
+      const advFrac = attacker.resources?.maxHp > 0
+        ? attacker.resources.hp / attacker.resources.maxHp : 1
+      if (flags.gloryHounds && advFrac <= Balance.MECHANIC_GLORY_HOUNDS_HP_THRESHOLD) {
+        mit = Math.floor(mit * Balance.MECHANIC_GLORY_HOUNDS_DAMAGE_MULT)
+      }
+      if (flags.famineDecree) {
+        if (advFrac >= 1.0) {
+          mit = Math.floor(mit * Balance.MECHANIC_FAMINE_FULL_HP_MULT)
+        } else if (advFrac < Balance.MECHANIC_FAMINE_LOW_HP_THRESHOLD) {
+          mit = Math.max(1, Math.floor(mit * Balance.MECHANIC_FAMINE_LOW_HP_MULT))
+        }
+      }
+      if (flags.swornRivals && attacker.flags?.swornRivalOf && advFrac >= 1.0) {
+        mit = Math.floor(mit * (1 + Balance.MECHANIC_SWORN_RIVALS_FULL_HP_BONUS))
+      }
+      // Phase 9 — Tower Tax: a ranged adv's first attack of the day
+      // misses entirely; every subsequent attack does +30% damage.
+      if (flags.towerTax && (attacker.attackRange ?? 1) > 1) {
+        if (!attacker._towerTaxFirstShotConsumed) {
+          attacker._towerTaxFirstShotConsumed = true
+          AbilityVfx.floatingText(this._scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 18, 'MISS', { color: '#ffaa55' })
+          return 0    // bypass variance/floor — true zero damage
+        }
+        mit = Math.floor(mit * Balance.MECHANIC_TOWER_TAX_FOLLOWUP_MULT)
+      }
+      // Phase 9 — Mage Hunt: minion damage scales by adv class type.
+      // (This is adv-as-defender, but flag is on attacker.faction === 'adventurer'?
+      // No — Mage Hunt buffs MINIONS hitting advs, so the check belongs
+      // in the minion-attacker block below.)
+    }
+    // Phase 9 — Summon Adds II: advs deal +25% damage in the boss chamber.
+    if (flags.summonAddsII && attacker.faction === 'adventurer' && target.faction === 'dungeon') {
+      const bossRoom = this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+      if (bossRoom && this._scene?.dungeonGrid) {
+        const advRoom = this._scene.dungeonGrid.getRoomAtTile(attacker.tileX, attacker.tileY)
+        if (advRoom?.instanceId === bossRoom.instanceId) {
+          mit = Math.floor(mit * Balance.MECHANIC_SUMMON_ADDS_II_BOSS_DMG_MULT)
+        }
+      }
+    }
+    // Phase 9 — minion-attacker scaling: Ironhide Rite (defender), Mage Hunt (target class), Frenzy stacks, Last Stand.
+    if (_isMinionAttacker(attacker)) {
+      // Endless Garrison — -15% minion damage globally.
+      if (flags.minionDamageMult) {
+        mit = Math.max(1, Math.floor(mit * flags.minionDamageMult))
+      }
+      // Mage Hunt — read attacker side (minion vs adv class)
+      if (flags.mageHunt && target.faction === 'adventurer') {
+        const r = target.attackRange ?? 1
+        mit = Math.floor(mit * (r > 1 ? Balance.MECHANIC_MAGE_HUNT_RANGED_MULT : Balance.MECHANIC_MAGE_HUNT_MELEE_MULT))
+      }
+      // Frenzy Pact — per-room stack of dead allies
+      if (flags.frenzyPact && attacker.assignedRoomId) {
+        const stacks = (flags.frenzyStacks ?? {})[attacker.assignedRoomId] ?? 0
+        if (stacks > 0) {
+          const atkBonus = stacks * Balance.MECHANIC_FRENZY_DAMAGE_PER_STACK
+          mit = Math.floor(mit * (1 + atkBonus))
+        }
+      }
+      // Last Stand Doctrine — +100% if attacker is the only alive minion in their room
+      if (flags.lastStandDoctrine && attacker.assignedRoomId) {
+        const allies = (this._gameState.minions ?? []).filter(m =>
+          m.instanceId !== attacker.instanceId &&
+          m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 &&
+          m.assignedRoomId === attacker.assignedRoomId
+        )
+        if (allies.length === 0) {
+          mit = Math.floor(mit * Balance.MECHANIC_LAST_STAND_DAMAGE_MULT)
+          attacker._lastStandUsed = true
+        }
+      }
+    }
+    // Phase 9 — Ironhide Rite: minions take 0.5× from melee, 2× from ranged.
+    if (flags.ironhideRite && target.faction === 'dungeon' && attacker.faction === 'adventurer') {
+      const r = attacker.attackRange ?? 1
+      mit = Math.floor(mit * (r > 1 ? Balance.MECHANIC_IRONHIDE_RANGED_DAMAGE_MULT : Balance.MECHANIC_IRONHIDE_MELEE_DAMAGE_MULT))
+    }
+    // Phase 9 — Open Book: minions take 50% less damage from advs.
+    if (flags.openBook && target.faction === 'dungeon' && attacker.faction === 'adventurer') {
+      mit = Math.max(1, Math.floor(mit * Balance.MECHANIC_OPEN_BOOK_MINION_TAKEN_MULT))
+    }
+    // Phase 9 — False Maps: enraged advs deal +50% damage during rage window.
+    if (flags.falseMaps && attacker.faction === 'adventurer' && attacker._falseMapsRageUntil) {
+      const now = this._scene?.time?.now ?? 0
+      if (now < attacker._falseMapsRageUntil) {
+        mit = Math.floor(mit * Balance.MECHANIC_FALSE_MAPS_RAGE_MULT)
+      }
+    }
+    // Phase 9 — Pact of the Whisperer: marked adv's party deals +50% damage.
+    if (flags.pactOfTheWhisperer && attacker.faction === 'adventurer' &&
+        flags.whispererPartyId && attacker.partyId === flags.whispererPartyId &&
+        !attacker.flags?.panicFlee) {
+      mit = Math.floor(mit * Balance.MECHANIC_WHISPERER_PARTY_DAMAGE_MULT)
     }
 
     const variance = 1 + (Math.random() - 0.5) * 0.3

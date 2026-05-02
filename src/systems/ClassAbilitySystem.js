@@ -134,7 +134,8 @@ export class ClassAbilitySystem {
     if (
       adventurer.classId === 'bard' &&
       payload._isDeath === true &&
-      adventurer.partyId
+      adventurer.partyId &&
+      !((this._gameState._mechanicFlags ?? {}).crusadersCurse)  // Phase 9 — Crusader's Curse silences bard encore.
     ) {
       this._fireEncore(adventurer)
     }
@@ -570,6 +571,8 @@ export class ClassAbilitySystem {
   // ── Cleric ────────────────────────────────────────────────────────────────
 
   _considerCleric(adv, now) {
+    // Phase 9 — Crusader's Curse: clerics cannot heal in this dungeon.
+    if ((this._gameState._mechanicFlags ?? {}).crusadersCurse) return
     // Heal — find lowest-HP same-party ally below 70% HP within range.
     const healDef = ABILITY_DEFS.cleric_heal
     const target = this._findHealTarget(adv)
@@ -779,7 +782,7 @@ export class ClassAbilitySystem {
       tileX, tileY, worldX: tileX * TS + TS / 2, worldY: tileY * TS + TS / 2,
       homeTileX: tileX, homeTileY: tileY,
       assignedRoomId: assignedRoomId ?? null,
-      behaviorType: 'guard', upkeepCost: 0,
+      behaviorType: 'guard',
       tags: [...(typeDef.tags || [])],
       damageType: baseStats.damageType ?? 'physical',
       attackRange: baseStats.attackRange ?? 1,

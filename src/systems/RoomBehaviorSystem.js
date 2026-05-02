@@ -51,100 +51,16 @@ export class RoomBehaviorSystem {
       room._wavesSpawned = false
     }
 
-    // Phase QW — Hidden Keys: if any room is locked but no iron_key sits in
-    // the dungeon, drop one in a random non-boss room each night so progression
-    // doesn't stall. Adventurers must find it before they can enter the locked room.
-    const dungeon = this._gameState.dungeon
-    const hasLockedRoom = (dungeon.rooms ?? []).some(r => r.locked)
-    const hasKeyOnFloor = (this._gameState.loot?.dungeon ?? []).some(
-      i => i.definitionId === 'iron_key' && i.tileX != null
-    )
-    if (hasLockedRoom && !hasKeyOnFloor) {
-      const candidates = (dungeon.rooms ?? []).filter(r =>
-        r.definitionId !== 'boss_chamber' && !r.locked
-      )
-      if (candidates.length > 0) {
-        const room = candidates[Math.floor(Math.random() * candidates.length)]
-        const x = room.gridX + Math.floor(room.width / 2)
-        const y = room.gridY + Math.floor(room.height / 2)
-        const key = {
-          instanceId:    `key_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          definitionId:  'iron_key',
-          type:          'key',
-          rarity:        'uncommon',
-          tier:          1,
-          tileX: x, tileY: y,
-          worldX: x * 32 + 16, worldY: y * 32 + 16,
-          dungeonRoomId: room.instanceId,
-          provenance: [{ kind: 'hidden_drop', day: this._gameState.meta.dayNumber }],
-        }
-        this._gameState.loot ??= { dungeon: [] }
-        this._gameState.loot.dungeon ??= []
-        this._gameState.loot.dungeon.push(key)
-        EventBus.emit('HIDDEN_KEY_DROPPED', { key, roomId: room.instanceId })
-      }
-    }
-
-    // Room redesign 2026-04-30 — Treasury: spawn / refill chests, pay daily
-    // stipend (+5 essence per active Treasury). Chests refill to 4 each
-    // night; daily stipend is independent of chest theft. Chests with
-    // `_treasuryChest: true` are intercepted in AISystem on pickup so they
-    // attach to the carrier rather than equipping like normal loot.
+    // Room redesign 2026-04-30 — Treasury: pay flat daily gold stipend.
+    // (Floor-loot chests retired in the loot-pickup cleanup; only the
+    // stipend remains.)
     const treasuries = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'treasury' && r.isActive !== false
     )
     if (treasuries.length > 0) {
       const stipend = 5 * treasuries.length
-      this._gameState.player.soulEssence = (this._gameState.player.soulEssence ?? 0) + stipend
+      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + stipend
       EventBus.emit('TREASURY_STIPEND', { amount: stipend, treasuryCount: treasuries.length })
-
-      this._gameState.loot ??= { dungeon: [] }
-      this._gameState.loot.dungeon ??= []
-      for (const room of treasuries) {
-        const existing = this._gameState.loot.dungeon.filter(i =>
-          i._treasuryChest && i._sourceTreasuryId === room.instanceId
-        ).length
-        const toSpawn = Math.max(0, 4 - existing)
-        // Place chests on a small grid inside the room, biased to corners.
-        const inner = {
-          x0: room.gridX + Balance.WALL_THICKNESS,
-          y0: room.gridY + Balance.WALL_THICKNESS,
-          x1: room.gridX + room.width  - Balance.WALL_THICKNESS - 1,
-          y1: room.gridY + room.height - Balance.WALL_THICKNESS - 1,
-        }
-        const slots = [
-          [inner.x0,     inner.y0],
-          [inner.x1,     inner.y0],
-          [inner.x0,     inner.y1],
-          [inner.x1,     inner.y1],
-        ]
-        // Skip slots that already have a chest there.
-        const occupied = new Set(
-          this._gameState.loot.dungeon
-            .filter(i => i._treasuryChest && i._sourceTreasuryId === room.instanceId)
-            .map(i => `${i.tileX},${i.tileY}`)
-        )
-        let spawned = 0
-        for (const [x, y] of slots) {
-          if (spawned >= toSpawn) break
-          if (occupied.has(`${x},${y}`)) continue
-          this._gameState.loot.dungeon.push({
-            instanceId:     `chest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${spawned}`,
-            definitionId:   'treasury_chest',
-            _treasuryChest: true,
-            _essenceValue:  10,
-            _sourceTreasuryId: room.instanceId,
-            tileX: x, tileY: y,
-            worldX: x * 32 + 16, worldY: y * 32 + 16,
-            dungeonRoomId: room.instanceId,
-            provenance: [{ kind: 'treasury_spawn', day: this._gameState.meta.dayNumber, roomId: room.instanceId }],
-            statModifiers: [],
-            curseLevel: 0,
-            currentEquippedBy: null,
-          })
-          spawned++
-        }
-      }
     }
 
     // Room redesign 2026-04-30 — Library of Whispers: forecast next day's
@@ -251,22 +167,20 @@ export class RoomBehaviorSystem {
       }
     }
 
-    // Room redesign 2026-04-30 — Mimic Vault: spawn 2 mimic creatures (in
-    // the chest disguise state) + 1 false chest each night. Mimics use the
-    // dedicated `mimic` minion def with its own state machine and renderer
-    // (see MinionAISystem._tickMimic + MimicRenderer). The disguising loot
-    // item is paired to the mimic via `_mimicMinionId` so AISystem's
-    // SEEK_LOOT pickup can trigger the reveal.
+    // Mimic Vault: spawn 2 chest-disguised mimics each night. Mimics start
+    // in `chest` state (idle, untargetable). Adventurers entering the room
+    // roll a chance to "open" each chest. If opened the mimic reveals,
+    // bites the opener, and engages like a normal hostile minion. Once
+    // anyone reveals a mimic the whole party (and future-day spawns via
+    // sharedPool) learn about it and are far less likely to open.
     const vaults = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'mimic_vault' && r.isActive !== false
     )
     if (vaults.length > 0) {
       const mimicDef = minionTypes.find(d => d.id === 'mimic') ?? baseDef
-      this._gameState.loot ??= { dungeon: [] }
-      this._gameState.loot.dungeon ??= []
       for (const room of vaults) {
         const aliveMimics = (this._gameState.minions ?? []).filter(m =>
-          m.assignedRoomId === room.instanceId && m.isMimic && m.aiState !== 'dead'
+          m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead'
         ).length
         const mimicSlots = [
           [room.gridX + Balance.WALL_THICKNESS, room.gridY + Balance.WALL_THICKNESS],
@@ -274,7 +188,7 @@ export class RoomBehaviorSystem {
         ]
         const occupiedTiles = new Set(
           (this._gameState.minions ?? [])
-            .filter(m => m.assignedRoomId === room.instanceId && m.isMimic && m.aiState !== 'dead')
+            .filter(m => m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead')
             .map(m => `${m.tileX},${m.tileY}`)
         )
         let mimicSpawned = 0
@@ -285,51 +199,13 @@ export class RoomBehaviorSystem {
             tileX: x, tileY: y,
             namePrefix: 'Mimic',
             extra: {
-              isMimic: true,
               isMimicVaultSpawn: true,
-              mimicState:  'chest',
-              mimicFacing: 'right',
-              mimicLastAdvNearbyAt: 0,
+              isMimic: true,
+              mimicState: 'chest',     // 'chest' | 'revealed'
             },
           })
           this._gameState.minions.push(m)
-          // Disguising loot item — visible to adventurers as a Treasury
-          // chest. Carries _mimicMinionId so the SEEK_LOOT pickup branch
-          // can find the right mimic to wake up on interaction.
-          this._gameState.loot.dungeon.push({
-            instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2,6)}_${mimicSpawned}`,
-            definitionId: 'treasury_chest',
-            _treasuryChest: true,
-            _isMimicVaultDisguise: true,
-            _mimicMinionId: m.instanceId,
-            _essenceValue: 0,
-            _sourceTreasuryId: room.instanceId,
-            tileX: x, tileY: y, worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
-            dungeonRoomId: room.instanceId,
-            isMimicSpawn: true,
-            provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
-          })
           mimicSpawned++
-        }
-        // 1 false chest at room center
-        const cx = room.gridX + Math.floor(room.width / 2)
-        const cy = room.gridY + Math.floor(room.height / 2)
-        const hasFalseChest = this._gameState.loot.dungeon.some(i =>
-          i._isFalseChest && i._sourceTreasuryId === room.instanceId
-        )
-        if (!hasFalseChest) {
-          this._gameState.loot.dungeon.push({
-            instanceId: `falsechest_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-            definitionId: 'treasury_chest',
-            _treasuryChest: true,
-            _isFalseChest: true,
-            _falseChestDamage: 30,
-            _essenceValue: 0,
-            _sourceTreasuryId: room.instanceId,
-            tileX: cx, tileY: cy, worldX: cx * TS + TS / 2, worldY: cy * TS + TS / 2,
-            dungeonRoomId: room.instanceId,
-            provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
-          })
         }
       }
     }
@@ -449,6 +325,85 @@ export class RoomBehaviorSystem {
         this._rollWishingWell(adventurer)
       }
     }
+
+    // Mimic Vault — entering a room with chest-state mimics tempts the
+    // adventurer to try opening one. Knowledge of the mimic plummets the
+    // chance. Each chest rolls independently; once one reveals, the
+    // remaining chests are still chests but the adv now KNOWS so subsequent
+    // rolls use the cautious chance.
+    this._rollMimicOpens(adventurer, room)
+  }
+
+  // ── Mimic open-roll ────────────────────────────────────────────────────
+
+  _rollMimicOpens(adv, room) {
+    if (!adv || !room) return
+    if (adv.aiState === 'dead' || adv.aiState === 'fleeing' || adv.aiState === 'leaving') return
+    const chests = (this._gameState.minions ?? []).filter(m =>
+      m.isMimic && m.mimicState === 'chest' && m.aiState !== 'dead' &&
+      m.assignedRoomId === room.instanceId
+    )
+    if (chests.length === 0) return
+
+    adv.knowledge ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
+    adv.knowledge.mimics ??= {}
+
+    for (const mimic of chests) {
+      const known = !!adv.knowledge.mimics[mimic.instanceId]
+      const chance = known
+        ? Balance.MIMIC_OPEN_CHANCE_KNOWN
+        : Balance.MIMIC_OPEN_CHANCE_UNKNOWN
+      if (Math.random() >= chance) continue
+      this._revealMimic(mimic, adv, room)
+    }
+  }
+
+  _revealMimic(mimic, opener, room) {
+    mimic.mimicState = 'revealed'
+    mimic.aiState = 'engaging'
+
+    // Bite: chunk of opener's max HP, applied immediately on reveal.
+    const bite = Math.max(1, Math.floor((opener.resources.maxHp ?? 0) * Balance.MIMIC_REVEAL_BITE_FRAC))
+    opener.resources.hp = Math.max(0, opener.resources.hp - bite)
+    opener._lastHitBy   = mimic.instanceId
+    opener._lastHitType = mimic.damageType ?? 'physical'
+
+    // Mark this mimic known to the opener AND every other adv currently
+    // alive — they all see the chest spring shut. Future-day spawns
+    // inherit via the shared knowledge pool (KnowledgeSystem rebuild).
+    const today = this._gameState.meta?.dayNumber ?? 1
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      a.knowledge ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
+      a.knowledge.mimics ??= {}
+      a.knowledge.mimics[mimic.instanceId] = {
+        type:      mimic.definitionId,
+        roomId:    room.instanceId,
+        confirmed: true,
+        stale:     false,
+        dayLearned: today,
+      }
+    }
+
+    EventBus.emit('MIMIC_REVEALED', {
+      mimic, opener, room, biteDamage: bite,
+    })
+    EventBus.emit('COMBAT_HIT', {
+      sourceId: mimic.instanceId,
+      targetId: opener.instanceId,
+      damage:   bite,
+      damageType: mimic.damageType ?? 'physical',
+      isCritical: true,
+    })
+    if (opener.resources.hp <= 0) {
+      EventBus.emit('COMBAT_KILL', {
+        sourceId:   mimic.instanceId,
+        targetId:   opener.instanceId,
+        damageType: mimic.damageType ?? 'physical',
+        method:     'mimic_bite',
+        roomId:     room.instanceId,
+        day:        today,
+      })
+    }
   }
 
   _teleportFromWanderingGate(adv, gateRoom) {
@@ -505,8 +460,7 @@ export class RoomBehaviorSystem {
       m.assignedRoomId === room.instanceId &&
       m.faction === 'dungeon' &&
       m.aiState !== 'dead' &&
-      (m.resources?.hp ?? 0) > 0 &&
-      !(m.isMimic && m.hiddenAsLoot)   // disguised mimics don't tip their hand
+      (m.resources?.hp ?? 0) > 0
     )
     if (strikers.length === 0) return
     let totalDmg = 0

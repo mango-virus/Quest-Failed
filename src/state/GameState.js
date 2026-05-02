@@ -7,7 +7,6 @@ const BOSS_CHAMBER_DEF = {
   width: 14,
   height: 14,
   connectionPoints: [{ x: 6, y: 0, direction: 'N' }],
-  upkeepCost: 0,
   placementRules: { fixed: false, maxPerDungeon: 1 }, // fixed:false so _writeTiles runs
   tags: ['boss', 'special', 'fixed'],
 }
@@ -53,10 +52,9 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
 
   return {
     meta: {
-      version: '1.0.0',
+      version: '1.1.0',
       dayNumber: 1,
       bossDefeatedCount: 0,
-      reputation: 0,
       runId: _generateRunId(),
       phase: 'night',
     },
@@ -66,7 +64,7 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
         unlockedAbilities: [],
         appliedEvolutions: [],
       },
-      soulEssence: Balance.STARTING_SOUL_ESSENCE,
+      gold: Balance.STARTING_GOLD,
       totalKills: 0,
       totalDaysElapsed: 0,
     },
@@ -78,10 +76,6 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
       graveyard: [],
     },
     guilds: [],
-    loot: {
-      dungeon: [],
-      minionEquipment: {},
-    },
     history: {
       days: [],
       events: [],
@@ -100,7 +94,7 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
         dmgTaken:         0,   // damage advs inflicted on minions/boss
         advsKilled:       0,   // alias of kills, kept distinct in case mimics start counting separately
         advsEscaped:      0,
-        gold:             0,   // cumulative soul-essence (gold) earned across the run
+        gold:             0,   // cumulative gold earned across the run
         souls:            0,   // cumulative dark-power gained across the run
         roomsBuilt:       0,
         roomsDestroyed:   0,

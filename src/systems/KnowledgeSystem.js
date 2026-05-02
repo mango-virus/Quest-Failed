@@ -16,7 +16,7 @@
 //
 // STALENESS
 //   - Dungeon mutations (ROOM_PLACED/REMOVED, TRAP_PLACED/REMOVED, MINION_PLACED/
-//     DIED, LOOT_PICKED_UP, LOOT_SCAVENGED) mark affected entries stale=true.
+//     DIED) mark affected entries stale=true.
 //   - Stale entries are shown in UI with distinct styling but still influence
 //     adventurer routing (at reduced weight).
 //   - Re-interacting with a stale entry flips it back to confirmed.
@@ -44,8 +44,6 @@ export class KnowledgeSystem {
     EventBus.on('TRAP_REMOVED',   this._onTrapMutated,   this)
     EventBus.on('MINION_PLACED',  this._onMinionMutated, this)
     EventBus.on('MINION_DIED',    this._onMinionMutated, this)
-    EventBus.on('LOOT_PICKED_UP', this._onLootRemoved,  this)
-    EventBus.on('LOOT_SCAVENGED', this._onLootRemoved,  this)
   }
 
   destroy() {
@@ -57,8 +55,6 @@ export class KnowledgeSystem {
     EventBus.off('TRAP_REMOVED',   this._onTrapMutated,   this)
     EventBus.off('MINION_PLACED',  this._onMinionMutated, this)
     EventBus.off('MINION_DIED',    this._onMinionMutated, this)
-    EventBus.off('LOOT_PICKED_UP', this._onLootRemoved,  this)
-    EventBus.off('LOOT_SCAVENGED', this._onLootRemoved,  this)
   }
 
   // ── Survivor access (used by DayPhase for spawning) ───────────────────────
@@ -87,6 +83,17 @@ export class KnowledgeSystem {
       }
       EventBus.emit('ROOM_OBSERVED', { adventurer: adv, roomId: room.instanceId, firstVisit: true })
     } else {
+      // Phase 9 — False Maps: if this entry was scrambled and the actual
+      // roomType doesn't match what intel said, the adv enrages.
+      if (entry._falseMapped && entry.roomType !== room.definitionId && !adv._falseMapsRealizedAt) {
+        const now = this._scene?.time?.now ?? 0
+        adv._falseMapsRealizedAt = now
+        adv._falseMapsRageUntil  = now + Balance.MECHANIC_FALSE_MAPS_RAGE_DURATION_MS
+        EventBus.emit('FALSE_MAPS_REALIZED', { adventurer: adv, roomId: room.instanceId })
+      }
+      // Correct the label so they won't re-trigger on every visit.
+      entry.roomType = room.definitionId
+      entry._falseMapped = false
       if (entry.stale) { entry.stale = false; entry.confirmed = true }
       if (entry.lastVisitedDay !== today) {
         entry.visitCount++
@@ -95,12 +102,6 @@ export class KnowledgeSystem {
       }
     }
 
-    // Observe floor loot visible in this room
-    for (const item of this._gs.loot?.dungeon ?? []) {
-      if (item.tileX == null) continue
-      const itemRoom = this._grid.getRoomAtTile(item.tileX, item.tileY)
-      if (itemRoom?.instanceId === room.instanceId) this.observeLoot(adv, item)
-    }
   }
 
   observeMinion(adv, minion) {
@@ -117,29 +118,6 @@ export class KnowledgeSystem {
       list.push({ minionType: minion.definitionId, confirmed: true, stale: false, dayLearned: today })
     } else if (existing.stale) {
       existing.stale = false; existing.confirmed = true
-    }
-  }
-
-  observeLoot(adv, lootItem) {
-    if (!adv || !lootItem || lootItem.tileX == null) return
-    _ensureAdvKnowledge(adv)
-    const today  = this._gs.meta.dayNumber
-    const roomId = lootItem.dungeonRoomId ??
-      this._grid.getRoomAtTile(lootItem.tileX, lootItem.tileY)?.instanceId
-    const existing = adv.knowledge.loot[lootItem.instanceId]
-    if (!existing) {
-      adv.knowledge.loot[lootItem.instanceId] = {
-        tileX:     lootItem.tileX,
-        tileY:     lootItem.tileY,
-        roomId,
-        itemType:  lootItem.definitionId,
-        confirmed: true,
-        stale:     false,
-        dayLearned: today,
-      }
-    } else if (existing.stale) {
-      existing.stale = false; existing.confirmed = true
-      existing.tileX = lootItem.tileX; existing.tileY = lootItem.tileY
     }
   }
 
@@ -167,6 +145,15 @@ export class KnowledgeSystem {
 
   _onAdventurerFled({ adventurer }) {
     if (!adventurer) return
+    // Pact of the Great Erasure: escapees forget the dungeon entirely —
+    // no survivor record, no sharedPool contribution, no veteran return.
+    if ((this._gs._mechanicFlags ?? {}).greatErasure) {
+      EventBus.emit('GREAT_ERASURE_FORGOT', {
+        adventurerId: adventurer.instanceId,
+        name:         adventurer.name,
+      })
+      return
+    }
     _ensureAdvKnowledge(adventurer)
     this._updateSurvivorRecord(adventurer)
     this._rebuildSharedPool()
@@ -204,7 +191,7 @@ export class KnowledgeSystem {
   }
 
   _rebuildSharedPool() {
-    const pool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} }
+    const pool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
     for (const s of this._gs.knowledge.survivors) {
       const k = s.knowledge
       for (const [id, e] of Object.entries(k.rooms ?? {})) {
@@ -224,6 +211,9 @@ export class KnowledgeSystem {
       for (const [id, e] of Object.entries(k.loot ?? {})) {
         if (!pool.loot[id] || (!e.stale && pool.loot[id].stale)) pool.loot[id] = { ...e }
       }
+      for (const [id, e] of Object.entries(k.mimics ?? {})) {
+        if (!pool.mimics[id] || (!e.stale && pool.mimics[id].stale)) pool.mimics[id] = { ...e }
+      }
     }
     this._gs.knowledge.sharedPool = pool
   }
@@ -234,7 +224,7 @@ export class KnowledgeSystem {
     const today = this._gs.meta.dayNumber
     const hadSurvivors = this._gs.knowledge.survivors.some(s => s.lastSeenDay === today)
     if (!hadSurvivors) {
-      this._gs.knowledge.sharedPool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} }
+      this._gs.knowledge.sharedPool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
       this._gs.knowledge.survivors  = []
       EventBus.emit('KNOWLEDGE_PARTY_WIPED')
     }
@@ -286,15 +276,6 @@ export class KnowledgeSystem {
     }
   }
 
-  _onLootRemoved({ item }) {
-    const id = item?.instanceId
-    if (!id) return
-    _setStaleInPool(this._gs.knowledge, 'loot', id)
-    for (const s of this._gs.knowledge.survivors) {
-      if (s.knowledge?.loot?.[id]) s.knowledge.loot[id].stale = true
-    }
-  }
-
   // ── Pathfinder hook ───────────────────────────────────────────────────────
 
   costMultiplierForTile(adv, tx, ty) {
@@ -302,14 +283,7 @@ export class KnowledgeSystem {
 
     // Locked-door block (unchanged from old system)
     const room = this._grid.getRoomAtTile(tx, ty)
-    if (room?.locked) {
-      const dungeonLoot = this._gs.loot?.dungeon ?? []
-      const hasKey = (adv.gear ?? []).some(id => {
-        const item = dungeonLoot.find(i => i.instanceId === id)
-        return item?.type === 'key' || item?.definitionId === 'iron_key'
-      })
-      if (!hasKey) return 9999
-    }
+    if (room?.locked) return 9999
 
     for (const t of Object.values(adv.knowledge.traps ?? {})) {
       if (!t || t.tileX !== tx || t.tileY !== ty) continue
@@ -434,7 +408,7 @@ export class KnowledgeSystem {
     }
   }
 
-  // ── Legacy compat kept for EternalNightOverlay / KnowledgeOverlay ─────────
+  // ── Legacy compat kept for KnowledgeOverlay ───────────────────────────────
 
   computeKnowledgeMap() {
     const heat = {}
@@ -447,26 +421,6 @@ export class KnowledgeSystem {
 
   hasVisitedRoom(adv, roomId) {
     return !!(adv?.knowledge?.rooms?.[roomId])
-  }
-
-  isEternalNightActive() {
-    return !!(this._gs.dungeon?.activeMechanics?.includes?.('eternal_night') ||
-              this._gs.activeMechanics?.includes?.('eternal_night'))
-  }
-
-  visibleRoomIds(adv) {
-    if (!adv) return []
-    const here = this._grid.getRoomAtTile(adv.tileX, adv.tileY)
-    if (!here) return []
-    if (!this.isEternalNightActive()) return this._gs.dungeon.rooms.map(r => r.instanceId)
-    const range = Balance.ETERNAL_NIGHT_VISION_ROOMS ?? 1
-    const vis   = new Set([here.instanceId])
-    for (const other of this._gs.dungeon.rooms) {
-      if (other.instanceId !== here.instanceId && _bboxGap(here, other) <= range) {
-        vis.add(other.instanceId)
-      }
-    }
-    return [...vis]
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -483,11 +437,11 @@ export class KnowledgeSystem {
 
 function _ensureState(gs) {
   gs.knowledge ??= {
-    sharedPool: { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} },
+    sharedPool: { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} },
     survivors:  [],
     partyWipeOccurred: false,
   }
-  gs.knowledge.sharedPool ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} }
+  gs.knowledge.sharedPool ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
   gs.knowledge.survivors  ??= []
 }
 
@@ -497,6 +451,7 @@ function _ensureAdvKnowledge(adv) {
   adv.knowledge.traps          ??= {}
   adv.knowledge.enemiesPerRoom ??= {}
   adv.knowledge.loot           ??= {}
+  adv.knowledge.mimics         ??= {}
 }
 
 function _deepCopy(obj) {
@@ -539,10 +494,3 @@ function _setStaleInPool(knowledge, category, id) {
   }
 }
 
-function _bboxGap(a, b) {
-  const ax2 = a.gridX + a.width  - 1, ay2 = a.gridY + a.height - 1
-  const bx2 = b.gridX + b.width  - 1, by2 = b.gridY + b.height - 1
-  const dx = Math.max(0, Math.max(a.gridX - bx2, b.gridX - ax2))
-  const dy = Math.max(0, Math.max(a.gridY - by2, b.gridY - ay2))
-  return Math.max(dx, dy)
-}

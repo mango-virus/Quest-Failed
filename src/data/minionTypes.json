@@ -11,16 +11,15 @@
     "description": "Tiny floating eye. Sees more than it should.",
     "baseStats": {
       "hp": 18,
-      "attack": 4,
+      "attack": 5,
       "defense": 1,
       "speed": 1.1,
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 14,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 5,
     "evolutionPaths": [],
     "tags": [
       "aberration",
@@ -48,8 +47,7 @@
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 14,
-    "upkeepCost": 4,
+    "goldCost": 14,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -72,17 +70,16 @@
     "sigil": "♆",
     "description": "Blue-skinned, trident-armed lesser demon. Hits hard, dies hard.",
     "baseStats": {
-      "hp": 35,
-      "attack": 9,
-      "defense": 4,
-      "speed": 0.9,
+      "hp": 28,
+      "attack": 8,
+      "defense": 3,
+      "speed": 1,
       "damageType": "fire",
       "abilities": []
     },
-    "essenceCostToPlace": 18,
-    "upkeepCost": 5,
+    "goldCost": 28,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 9,
     "evolutionPaths": [],
     "tags": [
       "fiend",
@@ -110,8 +107,7 @@
       "damageType": "fire",
       "abilities": []
     },
-    "essenceCostToPlace": 24,
-    "upkeepCost": 6,
+    "goldCost": 24,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -142,8 +138,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 22,
-    "upkeepCost": 6,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -174,8 +169,7 @@
       "damageType": "acid",
       "abilities": []
     },
-    "essenceCostToPlace": 24,
-    "upkeepCost": 6,
+    "goldCost": 24,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -206,8 +200,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 28,
-    "upkeepCost": 7,
+    "goldCost": 28,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "evolutionPaths": [],
@@ -231,17 +224,16 @@
     "sigil": "♣",
     "description": "Young treant. Walking shrub with grudges.",
     "baseStats": {
-      "hp": 30,
+      "hp": 28,
       "attack": 6,
-      "defense": 4,
+      "defense": 3,
       "speed": 0.8,
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 16,
-    "upkeepCost": 4,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 8,
     "evolutionPaths": [],
     "tags": [
       "plant",
@@ -269,8 +261,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 22,
-    "upkeepCost": 6,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -301,8 +292,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 30,
-    "upkeepCost": 8,
+    "goldCost": 30,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "evolutionPaths": [],
@@ -333,10 +323,9 @@
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 16,
-    "upkeepCost": 4,
+    "goldCost": 16,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 6,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -364,8 +353,7 @@
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 12,
-    "upkeepCost": 4,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -396,10 +384,9 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 14,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 5,
     "evolutionPaths": [],
     "tags": [
       "beast",
@@ -428,8 +415,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 16,
-    "upkeepCost": 4,
+    "goldCost": 16,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -460,10 +446,9 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 8,
-    "upkeepCost": 2,
+    "goldCost": 10,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 3,
     "evolutionPaths": [],
     "tags": [
       "goblin",
@@ -492,8 +477,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 12,
-    "upkeepCost": 3,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -523,8 +507,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 18,
-    "upkeepCost": 5,
+    "goldCost": 18,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -547,17 +530,16 @@
     "sigil": "▣",
     "description": "Carved-stone construct. Deals damage by existing.",
     "baseStats": {
-      "hp": 60,
-      "attack": 10,
-      "defense": 8,
+      "hp": 42,
+      "attack": 8,
+      "defense": 6,
       "speed": 0.5,
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 26,
-    "upkeepCost": 7,
+    "goldCost": 32,
     "powerCostToUnlock": 0,
-    "unlockLevel": 2,
+    "unlockLevel": 10,
     "evolutionPaths": [],
     "tags": [
       "construct",
@@ -586,8 +568,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 34,
-    "upkeepCost": 9,
+    "goldCost": 34,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "evolutionPaths": [],
@@ -618,10 +599,9 @@
       "damageType": "fire",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 4,
     "evolutionPaths": [],
     "tags": [
       "fiend",
@@ -650,8 +630,7 @@
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 12,
-    "upkeepCost": 3,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -681,8 +660,7 @@
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 12,
-    "upkeepCost": 3,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -706,16 +684,15 @@
     "description": "Robed undead spellcaster. Heals nearby skeletons.",
     "baseStats": {
       "hp": 24,
-      "attack": 4,
+      "attack": 5,
       "defense": 3,
       "speed": 0.9,
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 18,
-    "upkeepCost": 5,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
-    "unlockLevel": 2,
+    "unlockLevel": 8,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -744,8 +721,7 @@
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 22,
-    "upkeepCost": 6,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -775,10 +751,9 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 14,
-    "upkeepCost": 4,
+    "goldCost": 18,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 7,
     "evolutionPaths": [],
     "tags": [
       "reptile",
@@ -806,8 +781,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 18,
-    "upkeepCost": 5,
+    "goldCost": 18,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -831,16 +805,15 @@
     "description": "Sentient cap. Releases a cloud of confusing spores when hit.",
     "baseStats": {
       "hp": 18,
-      "attack": 3,
+      "attack": 4,
       "defense": 2,
       "speed": 0.9,
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 12,
-    "upkeepCost": 3,
+    "goldCost": 8,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 2,
     "evolutionPaths": [],
     "tags": [
       "plant",
@@ -870,8 +843,7 @@
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 16,
-    "upkeepCost": 4,
+    "goldCost": 16,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -895,17 +867,16 @@
     "sigil": "♆",
     "description": "Wild-eyed orc with a heavy axe. No subtlety.",
     "baseStats": {
-      "hp": 32,
-      "attack": 9,
+      "hp": 28,
+      "attack": 8,
       "defense": 3,
       "speed": 1,
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 16,
-    "upkeepCost": 4,
+    "goldCost": 26,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 9,
     "evolutionPaths": [],
     "tags": [
       "orc",
@@ -933,8 +904,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 22,
-    "upkeepCost": 6,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -958,14 +928,13 @@
     "description": "Creeping vine creature. Slows whatever brushes it.",
     "baseStats": {
       "hp": 16,
-      "attack": 2,
+      "attack": 4,
       "defense": 2,
-      "speed": 0.7,
+      "speed": 0.8,
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 6,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -996,8 +965,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 16,
-    "upkeepCost": 4,
+    "goldCost": 16,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1028,8 +996,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 22,
-    "upkeepCost": 6,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "evolutionPaths": [],
@@ -1060,8 +1027,7 @@
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 6,
-    "upkeepCost": 2,
+    "goldCost": 6,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -1092,8 +1058,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 8,
-    "upkeepCost": 2,
+    "goldCost": 8,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -1123,8 +1088,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 18,
-    "upkeepCost": 5,
+    "goldCost": 18,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1153,10 +1117,9 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 8,
-    "upkeepCost": 2,
+    "goldCost": 8,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 2,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -1184,8 +1147,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 14,
-    "upkeepCost": 4,
+    "goldCost": 14,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -1216,8 +1178,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 22,
-    "upkeepCost": 6,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1247,8 +1208,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 6,
-    "upkeepCost": 2,
+    "goldCost": 6,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -1278,8 +1238,7 @@
       "damageType": "acid",
       "abilities": []
     },
-    "essenceCostToPlace": 8,
-    "upkeepCost": 2,
+    "goldCost": 6,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -1310,10 +1269,9 @@
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 8,
-    "upkeepCost": 2,
+    "goldCost": 10,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 3,
     "evolutionPaths": [],
     "tags": [
       "ooze",
@@ -1342,10 +1300,9 @@
       "damageType": "ice",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 4,
     "evolutionPaths": [],
     "tags": [
       "ooze",
@@ -1374,8 +1331,7 @@
       "damageType": "fire",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 10,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -1406,8 +1362,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 12,
-    "upkeepCost": 3,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1438,8 +1393,7 @@
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 12,
-    "upkeepCost": 3,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1470,8 +1424,7 @@
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 10,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1502,8 +1455,7 @@
       "damageType": "fire",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 10,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1527,17 +1479,16 @@
     "sigil": "♥",
     "description": "A vampire's flying child. Bites first, asks nothing.",
     "baseStats": {
-      "hp": 14,
+      "hp": 16,
       "attack": 6,
       "defense": 1,
       "speed": 1.4,
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 16,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 6,
     "evolutionPaths": [],
     "tags": [
       "vampire",
@@ -1566,8 +1517,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 18,
-    "upkeepCost": 5,
+    "goldCost": 18,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1597,10 +1547,9 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 8,
-    "upkeepCost": 2,
+    "goldCost": 18,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 7,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -1628,8 +1577,7 @@
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 10,
-    "upkeepCost": 3,
+    "goldCost": 10,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
@@ -1659,8 +1607,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 22,
-    "upkeepCost": 6,
+    "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1691,8 +1638,7 @@
       "damageType": "psychic",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1723,8 +1669,7 @@
       "damageType": "fire",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1756,8 +1701,7 @@
       "damageType": "shadow",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1789,8 +1733,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1820,8 +1763,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1853,8 +1795,7 @@
       "damageType": "necrotic",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1886,8 +1827,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1919,8 +1859,7 @@
       "damageType": "poison",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1952,8 +1891,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -1983,8 +1921,7 @@
       "damageType": "physical",
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
@@ -2016,10 +1953,9 @@
       "attackRange": 2,
       "abilities": []
     },
-    "essenceCostToPlace": 0,
-    "upkeepCost": 0,
+    "goldCost": 35,
     "powerCostToUnlock": 0,
-    "unlockLevel": 7,
+    "unlockLevel": 10,
     "evolutionPaths": [],
     "tags": [
       "mimic",

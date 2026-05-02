@@ -23,7 +23,6 @@ export function createTrap(typeDef, tile) {
     isTriggered:  false,
     isKnownToAdventurers: false,   // Phase 8 — flips when an adventurer survives + reports it
     repairProgress: 0,             // 0..1, Phase 7 Sapper repair
-    upkeepCost:   typeDef.upkeepCost ?? 1,
     state:        {},              // trap-type-specific scratch state (e.g. timers per adv)
   }
 }

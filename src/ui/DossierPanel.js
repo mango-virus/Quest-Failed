@@ -100,7 +100,6 @@ export class DossierPanel {
       `${classText}${visitCount > 0 ? `  · seen ×${visitCount}` : '  · NEW'}` +
       (adv.flags?.shoppedBetweenRuns ? '  · shopped' : '') +
       (adv.flags?.vendettaMinionId ? '  · ★ AVENGER' : '') +
-      (adv.flags?.guildRaid ? '  · ★ GUILD' : '') +
       (adv.isLegendary ? '  · ★ LEGENDARY' : ''), {
         fontSize: '8px', color: visitCount > 0 ? PALETTE.textGold : PALETTE.textNormal,
         fontFamily: 'monospace',

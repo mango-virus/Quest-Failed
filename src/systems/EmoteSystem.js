@@ -127,8 +127,6 @@ export class EmoteSystem {
 
     EventBus.on('ROOM_OBSERVED',                this._onRoomObserved,    this)
     EventBus.on('BOSS_FIGHT_INCOMING',          this._onBossRoom,        this)
-    EventBus.on('MIMIC_REVEAL_TRIGGERED',       this._onLootEvent,       this)
-    EventBus.on('TREASURY_CHEST_GRAB_STARTED',  this._onLootEvent,       this)
     EventBus.on('TRAP_TRIGGERED',               this._onTrapTriggered,   this)
     EventBus.on('ADVENTURER_RESURRECTED',       this._onResurrected,     this)
     EventBus.on('MINION_TAMED',                 this._onMinionTamed,     this)
@@ -140,8 +138,6 @@ export class EmoteSystem {
   destroy() {
     EventBus.off('ROOM_OBSERVED',                this._onRoomObserved,    this)
     EventBus.off('BOSS_FIGHT_INCOMING',          this._onBossRoom,        this)
-    EventBus.off('MIMIC_REVEAL_TRIGGERED',       this._onLootEvent,       this)
-    EventBus.off('TREASURY_CHEST_GRAB_STARTED',  this._onLootEvent,       this)
     EventBus.off('TRAP_TRIGGERED',               this._onTrapTriggered,   this)
     EventBus.off('ADVENTURER_RESURRECTED',       this._onResurrected,     this)
     EventBus.off('MINION_TAMED',                 this._onMinionTamed,     this)
@@ -216,11 +212,6 @@ export class EmoteSystem {
   _onBossRoom({ adventurer }) {
     if (!adventurer) return
     this._tryTrigger(adventurer, 'boss_room', EMOTE_CATALOG.boss_room)
-  }
-
-  _onLootEvent({ adventurer }) {
-    if (!adventurer) return
-    this._tryTrigger(adventurer, 'found_loot', EMOTE_CATALOG.found_loot)
   }
 
   _onTrapTriggered({ adventurer }) {

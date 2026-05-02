@@ -1,5 +1,5 @@
 const SAVE_KEY = 'quest_failed_save'
-const CURRENT_VERSION = '1.0.0'
+const CURRENT_VERSION = '1.1.0'
 
 export const SaveSystem = {
   save(gameState) {

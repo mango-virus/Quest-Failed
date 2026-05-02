@@ -12,12 +12,12 @@
       "implemented": false
     },
     "mechanics": [
-      { "text": "Floating Eye minions cost no essence (cap 1 per room)", "implemented": false },
+      { "text": "Floating Eye minions cost no gold (cap 1 per room)", "implemented": false },
       { "text": "Once per day, mark a tile — any adventurer that steps on it loses half HP from a death-stare", "implemented": false }
     ],
     "flavorText": "Every gaze is a sentence. The dungeon hands them down all at once.",
     "description": "Information warfare",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -34,11 +34,11 @@
     },
     "mechanics": [
       { "text": "Adventurer corpses auto-rise as Imp minions (free, weak, expire after 1 day)", "implemented": false },
-      { "text": "Hellfire traps cost Dark Power instead of Soul Essence", "implemented": false }
+      { "text": "Hellfire traps cost Dark Power instead of Gold", "implemented": false }
     ],
     "flavorText": "Sign here, and here, and here. The third one is the funny one.",
     "description": "Faustian bargains",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -59,7 +59,7 @@
     ],
     "flavorText": "Roots remember every footstep. Eventually they grow tired of them.",
     "description": "Patient growth",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -80,7 +80,7 @@
     ],
     "flavorText": "The bravest die fastest. The cowards live just long enough to tell the story.",
     "description": "Psychological warfare",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -97,11 +97,11 @@
     },
     "mechanics": [
       { "text": "Bonus damage when adventurers are in groups of 2+ — the pack hunts parties", "implemented": false },
-      { "text": "Scavenger sub-minion auto-loots corpses for extra essence", "implemented": false }
+      { "text": "Scavenger sub-minion auto-loots corpses for extra gold", "implemented": false }
     ],
     "flavorText": "Hunger sharpens the teeth. Then the teeth sharpen everything else.",
     "description": "Pack aggression",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -122,7 +122,7 @@
     ],
     "flavorText": "Stone keeps its promises. Flesh keeps trying to.",
     "description": "Fortress mode",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -143,7 +143,7 @@
     ],
     "flavorText": "Death is a door. You hold the key. You also rebuilt the door.",
     "description": "Soul economy",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -165,7 +165,7 @@
     ],
     "flavorText": "What the eye doesn't see, the fang still finds.",
     "description": "Hidden strikes",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -186,7 +186,7 @@
     ],
     "flavorText": "Da boss said no magic. Da boss is da biggest. So no magic.",
     "description": "WAAAGH! scaling",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
@@ -198,7 +198,7 @@
     "portraitAvailable": true,
     "headline": {
       "name": "Charm",
-      "summary": "Once per day, mark an adventurer. They leave their party, walk to your boss room willingly, and either join you as a thrall minion or get drained for massive essence. Your call.",
+      "summary": "Once per day, mark an adventurer. They leave their party, walk to your boss room willingly, and either join you as a thrall minion or get drained for massive gold. Your call.",
       "implemented": false
     },
     "mechanics": [
@@ -208,7 +208,7 @@
     ],
     "flavorText": "Hospitality is a weapon. So are most things, in the right hands.",
     "description": "Charm & conversion",
-    "modifiers": { "essenceGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   }
 ]

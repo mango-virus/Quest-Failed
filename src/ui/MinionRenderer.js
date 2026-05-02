@@ -114,6 +114,50 @@ export class MinionRenderer {
       s.container.setPosition(m.worldX, m.worldY)
       if (!m._heldByPlayer) s.container.setDepth(7 + m.worldY * 0.0005)
 
+      // Mimic Vault chest disguise — render as a wooden chest until the
+      // mimic reveals. Sprite + HP + level + bounty all hidden while in
+      // chest state. Bite-on-reveal flips state in RoomBehaviorSystem.
+      if (m.isMimic && m.mimicState === 'chest') {
+        if (s.sprite) s.sprite.setVisible(false)
+        s.body?.setVisible?.(false)
+        s.hp?.setVisible?.(false)
+        s.hpBg?.setVisible?.(false)
+        s.lvLabel?.setVisible?.(false)
+        s.bountyMark?.setVisible?.(false)
+        if (!s.chestOverlay) {
+          const cg = this._scene.add.graphics()
+          // Box body
+          cg.fillStyle(0x6b3a1a, 1)
+          cg.fillRect(-10, -8, 20, 14)
+          cg.lineStyle(1, 0x3a1d0a, 1)
+          cg.strokeRect(-10, -8, 20, 14)
+          // Lid seam
+          cg.fillStyle(0x3a1d0a, 1)
+          cg.fillRect(-10, -3, 20, 1)
+          // Gold trim corners
+          cg.fillStyle(0xe8c34a, 1)
+          cg.fillRect(-10, -8, 2, 2)
+          cg.fillRect( 8, -8, 2, 2)
+          cg.fillRect(-10,  4, 2, 2)
+          cg.fillRect( 8,  4, 2, 2)
+          // Lock
+          cg.fillStyle(0xe8c34a, 1)
+          cg.fillRect(-2, -2, 4, 4)
+          cg.fillStyle(0x000000, 1)
+          cg.fillRect(-1, -1, 2, 2)
+          s.container.add(cg)
+          s.chestOverlay = cg
+        }
+        s.chestOverlay.setVisible(true)
+        s.lastX = m.worldX; s.lastY = m.worldY; s.lastHp = curHp
+        continue   // skip the rest of the per-frame update for chest mimics
+      } else if (s.chestOverlay) {
+        s.chestOverlay.setVisible(false)
+        // Restore the normal sprite/body visibility so the revealed mimic renders.
+        if (s.sprite) s.sprite.setVisible(true)
+        s.body?.setVisible?.(true)
+      }
+
       // Facing — snap to cardinal based on per-frame movement delta.
       if (s.lastX !== null) {
         const dx = m.worldX - s.lastX
@@ -333,36 +377,6 @@ export class MinionRenderer {
     this._dropMinion(pointer.worldX, pointer.worldY)
   }
 
-  // Right-click on a minion deletes it and refunds the placement gold
-  // (refund is based on the chain's starter def cost — what the player
-  // actually paid; evolution is free). Splices out of gameState.minions
-  // so AI/render stop touching it; destroys the sprite record.
-  _removeMinion(m) {
-    if (!m) return
-    // Refund: walk back to the chain's starter and use its goldCost.
-    // Fallback to the current def's cost if the minion isn't in any chain.
-    let refundDef = this._defMap[m.definitionId]
-    for (const v of Object.values(this._chains)) {
-      if (Array.isArray(v?.chain) && v.chain.includes(m.definitionId)) {
-        refundDef = this._defMap[v.chain[0]] ?? refundDef
-        break
-      }
-    }
-    const refund = refundDef?.goldCost ?? 0
-    if (refund > 0 && this._gameState.player) {
-      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + refund
-    }
-
-    // Clear interaction state so a held/hovered minion doesn't dangle.
-    if (this._heldMinion === m) this._heldMinion = null
-    if (this._hoverMinion === m) this._hideHoverLabel(m)
-
-    const minions = this._gameState.minions ?? []
-    const idx = minions.findIndex(x => x.instanceId === m.instanceId)
-    if (idx !== -1) minions.splice(idx, 1)
-    this._destroySprite(m.instanceId)
-    EventBus.emit('MINION_REMOVED', { minion: m, refund })
-  }
 
   // ── Internals ──────────────────────────────────────────────────────────────
 
@@ -468,8 +482,9 @@ export class MinionRenderer {
       // can skip room pickup / room removal. Game scene's input runs before
       // NightPhase's, so the flag is set in time.
       pointer._consumedByMinion = true
-      if (pointer.rightButtonDown()) this._removeMinion(m)
-      else                            this._handleMinionClick(m, pointer)
+      // Right-click no longer sells — selling is sell-button-only now.
+      if (pointer.rightButtonDown()) return
+      this._handleMinionClick(m, pointer)
     })
 
     const rec = {
@@ -525,8 +540,9 @@ export class MinionRenderer {
     body.on('pointerdown', (pointer, x, y, event) => {
       event?.stopPropagation?.()
       pointer._consumedByMinion = true
-      if (pointer.rightButtonDown()) this._removeMinion(m)
-      else                            this._handleMinionClick(m, pointer)
+      // Right-click no longer sells — selling is sell-button-only now.
+      if (pointer.rightButtonDown()) return
+      this._handleMinionClick(m, pointer)
     })
 
     const rec = {

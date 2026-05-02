@@ -57,7 +57,7 @@
     "startingResources": {},
     "tags": ["ranged", "healer", "anti_undead", "support"],
     "abilities": ["heal_ally", "smite_undead"],
-    "description": "Heals party members and deals bonus damage to undead minions. Cancels Loot Curse.",
+    "description": "Heals party members and deals bonus damage to undead minions.",
     "flavorText": "Faith is a weapon, and a bandage."
   },
   {

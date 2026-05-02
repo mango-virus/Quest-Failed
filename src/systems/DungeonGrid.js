@@ -90,7 +90,6 @@ export class DungeonGrid {
       width: definition.width,
       height: definition.height,
       isActive: true,
-      upkeepCost: definition.upkeepCost ?? 0,
       // Sprite-tiling fields copied from the room template — DungeonRenderer
       // reads these at draw time to overlay theme sprites on top of the
       // procedural wall/floor art. All default to safe empty values when

@@ -365,8 +365,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "placementRules": {
@@ -623,8 +622,7 @@
         "style": "entrance"
       }
     ],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "placementRules": {
@@ -817,8 +815,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "placementRules": {
@@ -1039,8 +1036,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "placementRules": {
@@ -1069,7 +1065,7 @@
     ],
     "onNightStart": "barracks_respawnMinions",
     "description": "Each Barracks adds +5 roster minion slots. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without a Barracks, no roster minions. Cap scales with boss level.",
-    "flavorText": "Free to upkeep. The bones rest cheap.",
+    "flavorText": "The bones rest cheap.",
     "theme": null,
     "doorTheme": null,
     "doorTiles": {
@@ -1233,8 +1229,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 0,
-    "essenceCostToPlace": 0,
+    "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "placementRules": {
@@ -1439,8 +1434,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 4,
-    "essenceCostToPlace": 15,
+    "goldCost": 15,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "placementRules": {
@@ -1668,8 +1662,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 8,
-    "essenceCostToPlace": 30,
+    "goldCost": 30,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "placementRules": {
@@ -1876,8 +1869,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 6,
-    "essenceCostToPlace": 35,
+    "goldCost": 35,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "placementRules": {
@@ -1902,7 +1894,7 @@
       "bait"
     ],
     "onNightStart": "treasury_refillChests",
-    "description": "Generates a small Soul Essence stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the essence (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft.",
+    "description": "Generates a small Gold stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the gold (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft.",
     "flavorText": "The shinier it gets, the louder it sings.",
     "theme": null,
     "doorTheme": null,
@@ -2067,8 +2059,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 6,
-    "essenceCostToPlace": 18,
+    "goldCost": 18,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "placementRules": {
@@ -2275,8 +2266,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 8,
-    "essenceCostToPlace": 40,
+    "goldCost": 40,
     "powerCostToUnlock": 0,
     "unlockLevel": 4,
     "placementRules": {
@@ -2455,8 +2445,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 6,
-    "essenceCostToPlace": 30,
+    "goldCost": 30,
     "powerCostToUnlock": 0,
     "unlockLevel": 5,
     "placementRules": {
@@ -2634,8 +2623,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 10,
-    "essenceCostToPlace": 35,
+    "goldCost": 35,
     "powerCostToUnlock": 0,
     "unlockLevel": 6,
     "placementRules": {
@@ -2814,8 +2802,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 8,
-    "essenceCostToPlace": 30,
+    "goldCost": 30,
     "powerCostToUnlock": 0,
     "unlockLevel": 6,
     "placementRules": {
@@ -3013,8 +3000,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 8,
-    "essenceCostToPlace": 35,
+    "goldCost": 35,
     "powerCostToUnlock": 0,
     "unlockLevel": 7,
     "placementRules": {
@@ -3213,8 +3199,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 10,
-    "essenceCostToPlace": 40,
+    "goldCost": 40,
     "powerCostToUnlock": 0,
     "unlockLevel": 7,
     "placementRules": {
@@ -3230,7 +3215,7 @@
     ],
     "onAdventurerEnter": "mimicVault_onEnter",
     "onNightStart": "mimicVault_respawnMimics",
-    "description": "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) that respawn nightly, plus 1 false chest — if grabbed, it steals essence from the adventurer.",
+    "description": "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) that respawn nightly, plus 1 false chest — if grabbed, it steals gold from the adventurer.",
     "flavorText": "It even has the right sparkle.",
     "theme": null,
     "doorTheme": null,
@@ -3467,8 +3452,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 12,
-    "essenceCostToPlace": 45,
+    "goldCost": 45,
     "powerCostToUnlock": 0,
     "unlockLevel": 7,
     "placementRules": {
@@ -3653,8 +3637,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 8,
-    "essenceCostToPlace": 35,
+    "goldCost": 35,
     "powerCostToUnlock": 0,
     "unlockLevel": 8,
     "placementRules": {
@@ -3833,8 +3816,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 12,
-    "essenceCostToPlace": 40,
+    "goldCost": 40,
     "powerCostToUnlock": 0,
     "unlockLevel": 8,
     "placementRules": {
@@ -4063,8 +4045,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 12,
-    "essenceCostToPlace": 50,
+    "goldCost": 50,
     "powerCostToUnlock": 0,
     "unlockLevel": 9,
     "placementRules": {
@@ -4315,8 +4296,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 16,
-    "essenceCostToPlace": 60,
+    "goldCost": 60,
     "powerCostToUnlock": 0,
     "unlockLevel": 9,
     "placementRules": {
@@ -4500,8 +4480,7 @@
       ]
     ],
     "connectionPoints": [],
-    "upkeepCost": 14,
-    "essenceCostToPlace": 60,
+    "goldCost": 60,
     "powerCostToUnlock": 0,
     "unlockLevel": 10,
     "placementRules": {

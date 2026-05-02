@@ -53,7 +53,6 @@ export class NewspaperSystem {
       ['VENDETTA_HUNTER_ARRIVED', p => log('vendetta', p)],
       ['ADVENTURER_RETURNED', p => log('returned',   p)],
       ['MECHANIC_ACTIVATED',  p => log('mech_on',    p)],
-      ['HUNGER_BITE',         p => log('hunger',     p)],
       ['BLOODBOUND_LOSSES',   p => log('bloodbound', p)],
     ]
     for (const [evt, fn] of handlers) {
@@ -82,7 +81,6 @@ export class NewspaperSystem {
     const dlevels  = this._events.filter(e => e.kind === 'dlevel')
     const returned = this._events.filter(e => e.kind === 'returned')
     const vendet   = this._events.filter(e => e.kind === 'vendetta')
-    const huntCount = this._events.filter(e => e.kind === 'hunger').length
 
     const headline = this._headline(deaths.length, flees.length, evolves.length, day)
     const body = []
@@ -94,7 +92,7 @@ export class NewspaperSystem {
         const klr = e.payload?.killerName ?? 'something'
         return `  · ${adv?.name ?? 'Anonymous'} the ${adv?.classId ?? 'hopeful'} (${klr})`
       })
-      body.push(`Today the dungeon processed ${deaths.length} adventurer${_s(deaths.length)} into raw soul-essence. Notable departures:`)
+      body.push(`Today the dungeon processed ${deaths.length} adventurer${_s(deaths.length)} into a fresh haul of gold. Notable departures:`)
       body.push(...lines)
       if (deaths.length > 4) body.push(`  · …and ${deaths.length - 4} other${_s(deaths.length - 4)} the bookkeeper has not yet labelled.`)
     } else {
@@ -147,11 +145,6 @@ export class NewspaperSystem {
       const newLv = dlevels[dlevels.length - 1].payload?.newLevel
       body.push('')
       body.push(`Dungeon notoriety has risen to Level ${newLv}. Stronger adventurers are en route. Try not to die.`)
-    }
-
-    if (huntCount > 0) {
-      body.push('')
-      body.push(`Hunger nibbled at ${huntCount} adventurer${_s(huntCount)} throughout the day. The pantry is unimpressed.`)
     }
 
     const mechanics = (this._gameState.activeMechanics ?? []).map(id => {

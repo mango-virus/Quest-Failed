@@ -11,28 +11,6 @@ import { PathfinderSystem } from './PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
 
 const TS = Balance.TILE_SIZE
-// Local alias so _tickMimic can reach Balance constants without piping
-// the whole module name through every reference. Same module — just shorter.
-const _Balance = Balance
-
-// Mimic state-machine timings (ms). Match Preload's anim FPS × frame counts:
-//   reveal        15 frames @  8 fps ≈ 1875 ms
-//   turn_into_chest 10 frames @ 8 fps ≈ 1250 ms
-//   death         13 frames @  8 fps ≈ 1625 ms
-//   attack1       12 frames @ 12 fps ≈ 1000 ms
-//   attack2       10 frames @ 12 fps ≈  833 ms
-//   hurt           7 frames @ 12 fps ≈  583 ms
-const MIMIC_REVEAL_ANIM_MS    = 1900
-const MIMIC_REDISGUISE_ANIM_MS = 1300
-const MIMIC_DEATH_ANIM_MS     = 1700
-const MIMIC_ATTACK1_MS        = 1000
-const MIMIC_ATTACK2_MS        =  900
-const MIMIC_HURT_MS           =  600
-// Game-feel knobs for the disguise lifecycle.
-const MIMIC_NEARBY_RADIUS     = 4    // tiles — adv within this resets re-disguise timer
-const MIMIC_REDISGUISE_MS     = 5000 // 5s of no nearby adv → turn_into_chest
-const MIMIC_DEATH_LINGER_MS   = 2000 // last frame holds 2s after death anim ends
-
 export class MinionAISystem {
   constructor(scene, gameState, dungeonGrid, combatSystem) {
     this._scene = scene
@@ -93,19 +71,6 @@ export class MinionAISystem {
       this._wokenRooms.add(room.instanceId)
     }
 
-    // Mimic hurt reaction — when a mimic takes damage in an attackable
-    // state (idle/walking/attacking), play hurt anim + reset re-disguise
-    // timer. Skip if already dead or in a one-shot state.
-    if (target?.isMimic) {
-      const skip = ['dying', 'chest', 'revealing', 'redisguising', 'hurt']
-      if (!skip.includes(target.mimicState)) {
-        const now = this._scene.time?.now ?? 0
-        target.mimicState        = 'hurt'
-        target.mimicStateUntil   = now + MIMIC_HURT_MS
-        target._mimicHurtFlashAt = now
-        target.mimicLastAdvNearbyAt = now
-      }
-    }
   }
 
   _isRoomSleeping(room) {
@@ -150,13 +115,15 @@ export class MinionAISystem {
     // Player is dragging this minion to a new tile — suspend AI until drop.
     if (minion._heldByPlayer) return
 
-    // Mimic state machine — owns its own lifecycle (chest disguise →
-    // reveal on adv interaction → idle/walk/attack → re-disguise after
-    // 5s of no nearby adv → chest). Bypasses the standard tick.
-    if (minion.isMimic) {
-      this._tickMimic(minion, delta, idx)
-      return
-    }
+    // Phase 9 — Pact of the Marionette: while the player is possessing a
+    // minion, every other dungeon minion stands idle. The possessed one
+    // is driven by Game._tickMarionette and must NOT also run AI here.
+    const possessedId = this._gameState?._mechanicFlags?.possessedMinionId
+    if (possessedId && minion.faction === 'dungeon') return
+
+    // Mimic Vault: chest-state mimics sit still until an adventurer
+    // "opens" them. Open-roll lives in RoomBehaviorSystem.
+    if (minion.isMimic && minion.mimicState === 'chest') return
 
     if (minion.resources.hp <= 0) {
       this._die(minion, idx)
@@ -168,7 +135,8 @@ export class MinionAISystem {
     // walks there via `_moveToward`, then idles ~3s before picking a new
     // target. Originally gated on `behaviorType === 'patrol'`; opened up to
     // guards too so the dungeon feels alive everywhere.
-    if (minion.behaviorType !== 'utility' && minion.aiState === 'idle' && minion.faction === 'dungeon') {
+    if (minion.behaviorType !== 'utility' && minion.aiState === 'idle' && minion.faction === 'dungeon' &&
+        !((this._gameState._mechanicFlags ?? {}).kennelDiscipline)) {
       if (minion._patrolTarget) {
         if (minion.tileX === minion._patrolTarget.x && minion.tileY === minion._patrolTarget.y) {
           minion._patrolTarget = null
@@ -216,22 +184,6 @@ export class MinionAISystem {
           }
         }
       }
-    }
-
-    // Phase 10 — hidden mimic: stay completely passive until an adventurer
-    // steps on the disguised tile. Once revealed, fall through to normal
-    // engagement on the same tick.
-    if (minion.isMimic && minion.hiddenAsLoot) {
-      const trespasser = this._gameState.adventurers.active.find(
-        a => a.tileX === minion.tileX && a.tileY === minion.tileY && a.aiState !== 'dead'
-      )
-      if (!trespasser) return
-      minion.hiddenAsLoot = false
-      // Remove the disguising loot item so the renderer stops drawing both
-      const dlist = this._gameState.loot?.dungeon ?? []
-      const idxLoot = dlist.findIndex(i => i.instanceId === minion.disguisedItemId)
-      if (idxLoot !== -1) dlist.splice(idxLoot, 1)
-      EventBus.emit('MIMIC_REVEALED', { minion, victim: trespasser })
     }
 
     // Phase 6e: utility minions perform their non-combat roles instead
@@ -296,8 +248,6 @@ export class MinionAISystem {
       this._tickHerald(minion, delta)
     } else if (minion.definitionId === 'cleaner') {
       this._tickCleaner(minion, delta)
-    } else if (minion.definitionId === 'scavenger') {
-      this._tickScavenger(minion, delta)
     } else if (minion.definitionId === 'whisperer') {
       this._tickWhisperer(minion, delta)
     }
@@ -306,8 +256,8 @@ export class MinionAISystem {
   }
 
   // Phase QW — Cleaner: removes adventurer corpses from gameState.adventurers.graveyard
-  // (well, marks them collected). Reduces vulture loot grabs and dispels spectral
-  // ghost spawn potential at the start of next day.
+  // (well, marks them collected). Dispels spectral ghost spawn potential at the
+  // start of next day.
   _tickCleaner(cleaner, delta) {
     cleaner._cleanAccum = (cleaner._cleanAccum ?? 0) + delta
     if (cleaner._cleanAccum < 5000) return
@@ -354,32 +304,6 @@ export class MinionAISystem {
       entry.tile.y += Math.floor((Math.random() - 0.5) * 4)
     }
     EventBus.emit('FALSE_RUMOR_PLANTED', { whisperer, bucket, entry })
-  }
-
-  // Phase QW — Scavenger: drags unclaimed loot in its room toward the
-  // nearest Treasury, removing it from adventurer reach.
-  // [Updated 2026-04-30] Repointed treasure_room → treasury after the
-  // Room redesign.
-  _tickScavenger(scav, delta) {
-    scav._scavAccum = (scav._scavAccum ?? 0) + delta
-    if (scav._scavAccum < 4000) return
-    scav._scavAccum = 0
-
-    const room = this._gameState.dungeon.rooms.find(r => r.instanceId === scav.assignedRoomId)
-    if (!room) return
-    const item = (this._gameState.loot?.dungeon ?? []).find(i =>
-      i.tileX != null &&
-      i.dungeonRoomId === room.instanceId &&
-      !i._treasuryChest   // never drag chests — they belong to their Treasury
-    )
-    if (!item) return
-
-    const treasury = this._gameState.dungeon.rooms.find(r => r.definitionId === 'treasury')
-    if (!treasury) return
-    item.tileX = treasury.gridX + Math.floor(treasury.width / 2)
-    item.tileY = treasury.gridY + Math.floor(treasury.height / 2)
-    item.dungeonRoomId = treasury.instanceId
-    EventBus.emit('LOOT_SCAVENGED', { item, by: scav, toRoomId: treasury.instanceId })
   }
 
   _tickSapper(sapper, delta) {
@@ -442,8 +366,11 @@ export class MinionAISystem {
     // Room redesign 2026-04-30 — garrison minions (Crypt et al.) are
     // strictly room-bound: alerts and hunt-behavior overrides do not apply.
     const isGarrison = minion.class === 'garrison'
+    // Phase 9 — Whisperer's Tongue: minions can hear advs across rooms,
+    // so the same-room requirement drops (garrison still hard-bound).
+    const whisperersTongue = !!((this._gameState._mechanicFlags ?? {}).whisperersTongue)
     const requireSameRoom = isGarrison ||
-      (Balance.ENGAGE_REQUIRES_SAME_ROOM && !isAlerted && !isHunter)
+      (Balance.ENGAGE_REQUIRES_SAME_ROOM && !isAlerted && !isHunter && !whisperersTongue)
 
     if (minion.faction === 'adventurer') {
       // Defected minions hunt dungeon-faction minions (and skip adventurers)
@@ -539,14 +466,11 @@ export class MinionAISystem {
     const now = this._scene.time?.now ?? 0
     const stale = !path || (cache && now - cache.computedAt > 600)
     if (stale) {
-      // Mimic chests block any minion's path the same way they block
-      // adventurers — disguised mimics aren't walkable terrain.
-      const blockedTiles = this._buildChestBlockSet(minion)
       const fresh = PathfinderSystem.findPath(
         { x: minion.tileX, y: minion.tileY },
         targetTile,
         this._dungeonGrid,
-        null, 0, blockedTiles,
+        null, 0,
       )
       if (fresh && fresh.length > 0) {
         path = fresh
@@ -568,46 +492,9 @@ export class MinionAISystem {
     }
   }
 
-  // Tiles occupied by ANY alive mimic (any mimicState). Both the
-  // pathfinder (planning) and per-frame _moveToward (committing) consult
-  // this so non-mimic minions can't clip through disguised OR revealed
-  // mimics. `selfMinion` is excluded so a mimic doesn't block its own
-  // tick. Adventurers use AISystem's mirror of this set.
-  _buildChestBlockSet(selfMinion) {
-    const set = new Set()
-    for (const m of this._gameState.minions ?? []) {
-      if (!m.isMimic) continue
-      if (m === selfMinion) continue
-      if (m.aiState === 'dead') continue
-      set.add(`${m.tileX},${m.tileY}`)
-    }
-    return set
-  }
-
-  _isChestMimicAt(tx, ty, selfMinion) {
-    for (const m of this._gameState.minions ?? []) {
-      if (!m.isMimic) continue
-      if (m === selfMinion) continue
-      if (m.aiState === 'dead') continue
-      if (m.tileX !== tx || m.tileY !== ty) continue
-      return true
-    }
-    return false
-  }
-
   // ── Movement ──────────────────────────────────────────────────────────────
 
   _moveToward(minion, targetTile, delta) {
-    // Mimic-chest block — patrol movement uses straight-line _moveToward
-    // without the pathfinder, so a chest mimic in the same room would
-    // otherwise be walked through. Refuse to commit a step into a
-    // chest tile (and clear any cached chase path so the mimic gets
-    // routed around on the next replan).
-    if (this._isChestMimicAt(targetTile.x, targetTile.y, minion)) {
-      minion._chasePath = null
-      minion._patrolTarget = null
-      return
-    }
     // Lane-centred world target — see DungeonGrid.getLaneCenterWorld.
     // Canonical doorway lane tiles + their floor approach/exit tiles
     // shift ½-tile so minions and summons walk through the geometric
@@ -683,210 +570,12 @@ export class MinionAISystem {
     return m.tileX === m.homeTileX && m.tileY === m.homeTileY
   }
 
-  // ── Mimic state machine ──────────────────────────────────────────────────
-  //
-  // States and transitions (driven entirely from this method):
-  //   chest         (default; static; targetable as loot)
-  //     → revealing on adv "open"  (set externally by AISystem chest pickup)
-  //   revealing     (one-shot; invulnerable; locks position)
-  //     → idle when reveal anim ends (mimicStateUntil reached)
-  //   idle / walking  (active combat; pick target, chase, attack)
-  //     → attacking when target in range
-  //     → hurt on damage hook (mimicStateUntil set by CombatSystem)
-  //     → redisguising after MIMIC_REDISGUISE_MS without nearby adv
-  //   attacking     (one-shot; back to idle when anim ends)
-  //   hurt          (one-shot; back to idle when anim ends)
-  //   redisguising  (one-shot turn_into_chest; back to chest when anim ends;
-  //                  spawns a fresh disguise loot entry so advs can re-target)
-  //   dying         (one-shot Death; lingers MIMIC_DEATH_LINGER_MS, then
-  //                  splices via _die)
-  _tickMimic(minion, delta, idx) {
-    const now = this._scene.time?.now ?? 0
-    minion.mimicState        ??= 'chest'
-    minion.mimicFacing       ??= 'right'
-    minion.mimicLastAdvNearbyAt ??= now
-
-    // Death takes priority over everything except the linger timer.
-    if (minion.aiState === 'dead' || (minion.resources?.hp ?? 0) <= 0) {
-      if (minion.mimicState !== 'dying') {
-        minion.mimicState = 'dying'
-        minion.mimicStateUntil    = now + MIMIC_DEATH_ANIM_MS
-        minion.mimicDeathFadeAt   = now + MIMIC_DEATH_ANIM_MS
-        minion.mimicDespawnAt     = now + MIMIC_DEATH_ANIM_MS + MIMIC_DEATH_LINGER_MS
-      }
-      if (now >= (minion.mimicDespawnAt ?? Infinity)) {
-        this._die(minion, idx)
-      }
-      return
-    }
-
-    // One-shot animation timeouts — flip back to a default state when
-    // the registered anim duration elapses.
-    if (minion.mimicStateUntil && now >= minion.mimicStateUntil) {
-      minion.mimicStateUntil = 0
-      switch (minion.mimicState) {
-        case 'revealing':
-          // First reveal — face the most recent adventurer if we know who
-          // triggered us, else default to right.
-          minion.mimicState = 'idle'
-          minion.aiState    = 'idle'
-          this._faceTowardNearestAdv(minion)
-          EventBus.emit('MIMIC_REVEAL_DONE', { minion })
-          break
-        case 'attacking':
-          minion.mimicState = 'idle'
-          minion.aiState    = 'idle'
-          break
-        case 'hurt':
-          minion.mimicState = 'idle'
-          minion.aiState    = 'idle'
-          break
-        case 'redisguising':
-          this._mimicReturnToChest(minion)
-          EventBus.emit('MIMIC_REDISGUISED', { minion })
-          break
-      }
-    }
-
-    // While disguised, revealing, or re-disguising, mimic does no AI.
-    if (minion.mimicState === 'chest'         ||
-        minion.mimicState === 'revealing'     ||
-        minion.mimicState === 'redisguising') {
-      return
-    }
-
-    // Active states from here on.
-    // Re-disguise timer: count time since last adventurer was within
-    // MIMIC_NEARBY_RADIUS tiles. When the gap exceeds MIMIC_REDISGUISE_MS,
-    // play the turn_into_chest animation. The timer resets whenever a
-    // nearby adv is observed (below).
-    const nearestAdv = this._findNearestAdvForMimic(minion)
-    if (nearestAdv.distance <= MIMIC_NEARBY_RADIUS) {
-      minion.mimicLastAdvNearbyAt = now
-    }
-    const timeSinceNearby = now - (minion.mimicLastAdvNearbyAt ?? now)
-    if (timeSinceNearby >= MIMIC_REDISGUISE_MS &&
-        minion.mimicState !== 'attacking' && minion.mimicState !== 'hurt') {
-      minion.mimicState      = 'redisguising'
-      minion.aiState         = 'idle'
-      minion.path            = null
-      minion.mimicStateUntil = now + MIMIC_REDISGUISE_ANIM_MS
-      EventBus.emit('MIMIC_REDISGUISING', { minion })
-      return
-    }
-
-    // Hurt animation locks behavior — just wait for it to end (timer above
-    // flips back to idle).
-    if (minion.mimicState === 'hurt') return
-
-    // Pick / track target. If no adv in same room, idle around home.
-    const target = nearestAdv.adv
-    if (!target) {
-      // Drift to idle if we have no target. Don't redisguise mid-anim.
-      if (minion.mimicState !== 'attacking') {
-        minion.mimicState = 'idle'
-        minion.aiState    = 'idle'
-      }
-      return
-    }
-
-    // Compute melee/ranged distance & pick attack variant.
-    const dist = Math.hypot(target.tileX - minion.tileX, target.tileY - minion.tileY)
-    const reach = Math.max(minion.attackRange ?? 1, _Balance.MELEE_RANGE_TILES ?? 1.5)
-    // Update facing whenever we have a target.
-    minion.mimicFacing = target.tileX < minion.tileX ? 'left' : 'right'
-
-    // In attack range — swing.
-    if (dist <= reach + 0.01) {
-      // If we're already in an attack anim, let it finish.
-      if (minion.mimicState === 'attacking') return
-      // Pick variant by distance (>=2 tiles → ranged, else melee)
-      minion.mimicAttackVariant = dist >= 2 ? 'attack1' : 'attack2'
-      minion.mimicState         = 'attacking'
-      minion.aiState            = 'engaging'
-      minion.path               = null
-      const animMs = minion.mimicAttackVariant === 'attack1'
-        ? MIMIC_ATTACK1_MS
-        : MIMIC_ATTACK2_MS
-      minion.mimicStateUntil    = now + animMs
-      this._combatSystem?.tryAttack(minion, target, { roomId: minion.assignedRoomId })
-      return
-    }
-
-    // Out of range — chase via straight-line move toward target tile.
-    if (minion.mimicState === 'attacking') return  // wait for swing to end
-    minion.mimicState = 'walking'
-    minion.aiState    = 'engaging'
-    this._moveToward(minion, { x: target.tileX, y: target.tileY }, delta)
-  }
-
-  // Spawn a fresh disguise loot item at the mimic's tile so adventurers
-  // can target it again, and snap mimic back to chest state.
-  _mimicReturnToChest(minion) {
-    minion.mimicState   = 'chest'
-    minion.aiState      = 'idle'
-    minion.path         = null
-    minion.mimicStateUntil = 0
-    minion.mimicLastAdvNearbyAt = this._scene.time?.now ?? 0
-    minion.tileX = minion.homeTileX
-    minion.tileY = minion.homeTileY
-    const TS = 32
-    minion.worldX = minion.tileX * TS + TS / 2
-    minion.worldY = minion.tileY * TS + TS / 2
-    // Re-spawn the disguising loot (RoomBehaviorSystem clears it on reveal)
-    this._gameState.loot ??= { dungeon: [] }
-    this._gameState.loot.dungeon ??= []
-    const exists = this._gameState.loot.dungeon.some(i => i._mimicMinionId === minion.instanceId)
-    if (!exists) {
-      this._gameState.loot.dungeon.push({
-        instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-        definitionId: 'treasury_chest',
-        _treasuryChest: true,
-        _isMimicVaultDisguise: true,
-        _mimicMinionId: minion.instanceId,
-        _essenceValue: 0,
-        _sourceTreasuryId: minion.assignedRoomId,
-        tileX: minion.tileX, tileY: minion.tileY,
-        worldX: minion.worldX, worldY: minion.worldY,
-        dungeonRoomId: minion.assignedRoomId,
-        isMimicSpawn: true,
-        provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
-      })
-    }
-  }
-
-  _findNearestAdvForMimic(minion) {
-    let best = null
-    let bestDist = Infinity
-    const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
-    for (const a of this._gameState.adventurers.active) {
-      if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
-      // Same room only — mimic is room-bound (garrison).
-      if (home && !_pointInRoom(a.tileX, a.tileY, home)) continue
-      const d = Math.hypot(a.tileX - minion.tileX, a.tileY - minion.tileY)
-      if (d < bestDist) { best = a; bestDist = d }
-    }
-    return { adv: best, distance: bestDist }
-  }
-
-  _faceTowardNearestAdv(minion) {
-    const { adv } = this._findNearestAdvForMimic(minion)
-    if (adv) minion.mimicFacing = adv.tileX < minion.tileX ? 'left' : 'right'
-  }
-
   // ── Death / respawn ───────────────────────────────────────────────────────
 
   _die(minion, idx) {
     minion.aiState = 'dead'
     minion.deathDay = this._gameState.meta.dayNumber
     minion.currentTargetId = null
-    // Mimic cleanup — yank any disguise loot pointing at this mimic so a
-    // wandering adventurer doesn't open a "ghost" chest.
-    if (minion.isMimic && this._gameState.loot?.dungeon) {
-      this._gameState.loot.dungeon = this._gameState.loot.dungeon.filter(
-        i => i._mimicMinionId !== minion.instanceId
-      )
-    }
     EventBus.emit('MINION_DIED', { minion, killerId: null })
     // Phase 6 kernel: minions auto-respawn at next NIGHT_PHASE_STARTED.
     // We KEEP the entity in the array (with hp=0, aiState='dead') so respawn
@@ -921,7 +610,14 @@ export class MinionAISystem {
         m.timesKilledAndRespawned = (m.timesKilledAndRespawned ?? 0) + 1
         EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
       }
-      m.resources.hp = m.resources.maxHp
+      // Phase 9 — Last Stand Doctrine: minions that triggered the bonus
+      // respawn drained at 50% HP next day.
+      if (m._lastStandUsed) {
+        m.resources.hp = Math.max(1, Math.floor((m.resources.maxHp ?? 0) * Balance.MECHANIC_LAST_STAND_RESPAWN_HP_FRAC))
+        m._lastStandUsed = false
+      } else {
+        m.resources.hp = m.resources.maxHp
+      }
       m.tileX  = m.homeTileX
       m.tileY  = m.homeTileY
       m.worldX = m.homeTileX * TS + TS / 2
@@ -929,43 +625,6 @@ export class MinionAISystem {
       m.aiState = 'idle'
       m.currentTargetId = null
       m.deathDay = null
-
-      // Mimic-specific reset: re-disguise as chest and re-spawn the
-      // paired disguise loot (which gets stripped in _die so revealed
-      // mimics can't be re-targeted mid-day). Without this, after a
-      // mimic respawns adventurers see a chest sprite but SEEK_LOOT has
-      // nothing to target.
-      if (m.isMimic) {
-        m.mimicState           = 'chest'
-        m.mimicFacing          = m.mimicFacing ?? 'right'
-        m.mimicStateUntil      = 0
-        m.mimicDeathFadeAt     = null
-        m.mimicDespawnAt       = null
-        m.mimicLastAdvNearbyAt = 0
-        m._mimicHurtFlashAt    = 0
-        // Avoid duplicate disguises if one somehow survived.
-        const existingDisguise = (this._gameState.loot?.dungeon ?? []).find(
-          i => i._mimicMinionId === m.instanceId
-        )
-        if (!existingDisguise) {
-          this._gameState.loot ??= { dungeon: [] }
-          this._gameState.loot.dungeon ??= []
-          this._gameState.loot.dungeon.push({
-            instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_resp`,
-            definitionId: 'treasury_chest',
-            _treasuryChest: true,
-            _isMimicVaultDisguise: true,
-            _mimicMinionId: m.instanceId,
-            _essenceValue: 0,
-            _sourceTreasuryId: m.assignedRoomId ?? null,
-            tileX: m.tileX, tileY: m.tileY,
-            worldX: m.worldX, worldY: m.worldY,
-            dungeonRoomId: m.assignedRoomId ?? null,
-            isMimicSpawn: true,
-            provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
-          })
-        }
-      }
     }
   }
 }

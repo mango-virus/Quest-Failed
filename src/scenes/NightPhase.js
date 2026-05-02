@@ -1,6 +1,5 @@
 import { EventBus }      from '../systems/EventBus.js'
 import { SaveSystem }    from '../systems/SaveSystem.js'
-import { EssenceSystem } from '../systems/EssenceSystem.js'
 import { TILE, DungeonGrid as DungeonGridClass } from '../systems/DungeonGrid.js'
 import { createMinion }  from '../entities/Minion.js'
 import { createTrap }    from '../entities/Trap.js'
@@ -44,10 +43,8 @@ export class NightPhase extends Phaser.Scene {
     this._paletteScrollY = 0     // vertical scroll offset within palette (Bug fix — palette overflowed when 17+ rooms unlocked)
     this._paletteContentHeight = 0  // total height of all cards on this tab
     this._statsTexts   = {}
-    this._upkeepBar    = null
     this._destroyEmbers = null
-    this._lastPlaced   = null    // { kind: 'room' | 'minion', entity, essenceCost } — for Ctrl+Z undo
-    this._deactivationNotice = null
+    this._lastPlaced   = null    // { kind: 'room' | 'minion', entity, goldCost } — for Ctrl+Z undo
     this._tabButtons      = []     // { container, label, key }
     this._rotation         = 0    // 0 | 90 | 180 | 270 — room placement rotation
   }
@@ -108,19 +105,11 @@ export class NightPhase extends Phaser.Scene {
       this._gameState.unlocks.trapTypes?.includes(t.id) && !blockedTraps.includes(t.id)
     )
 
-    // Enforce upkeep at night start — may deactivate rooms
-    const result = EssenceSystem.enforceUpkeep(this._gameState)
-
     applyUiCamera(this)
     this._buildUI()
     this._buildPreview()
     this._setupInput()
     this._wireHudEvents()
-
-    // Show deactivation notice if rooms were shut off
-    if (result.deactivated.length > 0) {
-      this._showDeactivationNotice(result.deactivated)
-    }
 
     EventBus.emit('NIGHT_PHASE_STARTED')
     EventBus.emit('NIGHT_PHASE_BEGAN')   // Phase 31C — HudScene listens to toggle build menu
@@ -264,12 +253,11 @@ export class NightPhase extends Phaser.Scene {
 
     row('Day',            'day',     PALETTE.textDim)
     row('Dungeon Level',  'dlevel',  PALETTE.textAccent)
-    row('Gold',           'essence', PALETTE.textCyan)
+    row('Gold',           'gold',    PALETTE.textCyan)
     row('XP',             'xp',      PALETTE.textAccent)
     row('Rooms placed',   'rooms',   PALETTE.textDim)
     row('Roster',         'roster',  PALETTE.textDim)
     row('Traps',          'traps',   PALETTE.textDim)
-    row('Upkeep/day',     'upkeep',  PALETTE.textDim)
 
     // Separator
     g.lineStyle(1, PALETTE.panelBorder, 0.5)
@@ -294,12 +282,10 @@ export class NightPhase extends Phaser.Scene {
     // panel hasn't been built (which is now the case on every load).
     if (!this._statsTexts || !this._statsTexts.day) return
     const s = this._gameState
-    const totalUpkeep = EssenceSystem.calculateDailyUpkeep(s)
-    const canAfford   = s.player.soulEssence >= totalUpkeep
 
     this._statsTexts.day?.setText(`Day ${s.meta.dayNumber}`)
     this._statsTexts.dlevel?.setText(`LV ${s.boss?.level ?? 1}`)
-    this._statsTexts.essence?.setText(`${s.player.soulEssence}`)
+    this._statsTexts.gold?.setText(`${s.player.gold}`)
     this._statsTexts.xp?.setText(`${s.meta?.xp ?? 0} / ${s.meta?.xpToNext ?? 100}`)
     this._statsTexts.rooms?.setText(`${s.dungeon.rooms.length}`)
     const rosterCap  = this._rosterCap()
@@ -314,15 +300,6 @@ export class NightPhase extends Phaser.Scene {
     const trapEmpty = trapCap === 0
     this._statsTexts.traps?.setText(`${trapUsed}/${trapCap}`)
       .setStyle({ color: trapFull || trapEmpty ? PALETTE.textRed : PALETTE.textDim })
-    this._statsTexts.upkeep?.setText(`${totalUpkeep}`)
-      .setStyle({ color: canAfford ? PALETTE.textDim : PALETTE.textRed })
-
-    if (this._upkeepBar) {
-      const fraction = s.player.soulEssence > 0
-        ? Math.min(1, totalUpkeep / s.player.soulEssence)
-        : 1
-      this._upkeepBar.update(fraction)
-    }
 
     // Library forecast (Room redesign 2026-04-30)
     const forecast = s.meta.nextPartyPreview
@@ -348,7 +325,7 @@ export class NightPhase extends Phaser.Scene {
   }
 
   // Bug fix — clip the palette content area so scrolled cards never bleed
-  // into the bottom upkeep bar. Without this, the last card's description
+  // into the bottom bar. Without this, the last card's description
   // overlaps the bar and looks half-rendered.
   _installPaletteMask() {
     const H = this.uiH
@@ -490,9 +467,9 @@ export class NightPhase extends Phaser.Scene {
         fontFamily: 'monospace', fontStyle: 'bold',
       }).setDepth(11).setAlpha(titleAlpha)
 
-      const costStr   = def.essenceCostToPlace > 0 ? `${def.essenceCostToPlace} essence` : 'FREE'
+      const costStr   = def.goldCost > 0 ? `${def.goldCost} gold` : 'FREE'
       const costColor = isLocked ? PALETTE.textDim
-                      : def.essenceCostToPlace > 0 ? PALETTE.textCyan
+                      : def.goldCost > 0 ? PALETTE.textCyan
                       : PALETTE.textGreen
       const sizeTxt = this.add.text(px + 38, py + 22, `${def.width}×${def.height}  ·  ${costStr}`, {
         fontSize: '8px', color: costColor, fontFamily: 'monospace',
@@ -595,8 +572,8 @@ export class NightPhase extends Phaser.Scene {
         { fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace' }
       ).setDepth(11)
 
-      const costStr   = def.essenceCostToPlace > 0 ? `${def.essenceCostToPlace} ess  ·  ${def.upkeepCost ?? 0}/day` : 'FREE'
-      const costColor = def.essenceCostToPlace > 0 ? PALETTE.textCyan : PALETTE.textGreen
+      const costStr   = def.goldCost > 0 ? `${def.goldCost} gold` : 'FREE'
+      const costColor = def.goldCost > 0 ? PALETTE.textCyan : PALETTE.textGreen
       const costTxt = this.add.text(px + 38, py + 34, costStr, {
         fontSize: '8px', color: costColor, fontFamily: 'monospace',
       }).setDepth(11)
@@ -662,7 +639,7 @@ export class NightPhase extends Phaser.Scene {
         fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace',
       }).setDepth(11)
 
-      const costStr = `${def.essenceCostToPlace ?? 0} ess  ·  ${def.upkeepCost ?? 0}/day  ·  ${def.baseDamage} dmg`
+      const costStr = `${this._effectiveTrapCost(def)} gold  ·  ${def.baseDamage} dmg`
       const costTxt = this.add.text(px + 10, py + 34, costStr, {
         fontSize: '8px', color: PALETTE.textCyan, fontFamily: 'monospace',
       }).setDepth(11)
@@ -697,7 +674,7 @@ export class NightPhase extends Phaser.Scene {
     cg.fillRect(px, py, cw, 3)
   }
 
-  // ── Bottom upkeep bar ─────────────────────────────────────────────────────
+  // ── Bottom bar ────────────────────────────────────────────────────────────
 
   _buildBottomBar(W, H) {
     const by = H - BOTTOM_H
@@ -710,28 +687,6 @@ export class NightPhase extends Phaser.Scene {
     // Top border highlight
     g.lineStyle(1, PALETTE.accent, 0.5)
     g.beginPath(); g.moveTo(0, by); g.lineTo(W, by); g.strokePath()
-
-    // Upkeep label — far left, sitting under the rooms palette.
-    this.add.text(16, by + 10, 'NECROTIC UPKEEP', {
-      fontSize: '9px', color: PALETTE.textDim, fontFamily: 'monospace',
-    }).setDepth(11)
-
-    // Upkeep bar — far left, width capped to fit under the palette.
-    const barX = 16
-    const barY = by + 24
-    const barW = PANEL_W - 32
-    const barH = 12
-
-    this._upkeepBar = makeBar(this, barX, barY, barW, barH, {
-      fillColor: PALETTE.essenceFill,
-      bgColor:   PALETTE.essenceBg,
-      depth:     11,
-    })
-
-    // Bolt icon after bar
-    this.add.text(barX + barW + 8, barY, '⚡', {
-      fontSize: '12px', color: PALETTE.textAccent, fontFamily: 'monospace',
-    }).setOrigin(0, 0.5).setDepth(11)
 
     // Knowledge overlay toggle (left of BEGIN DAY)
     this._buildKnowledgeButton(W, H, by)
@@ -897,6 +852,20 @@ export class NightPhase extends Phaser.Scene {
       if (overMinion) return
 
       if (p.rightButtonDown()) {
+        // Phase 9 — Pact of the Brand: right-click on a placed trap selects
+        // it as the blessed trap (only valid when no tool/placement armed).
+        if (!this._toolMode && !this._selected &&
+            (this._gameState._mechanicFlags ?? {}).pactOfTheBrand) {
+          const tx = Math.floor(wp.x / TS)
+          const ty = Math.floor(wp.y / TS)
+          const trap = (this._gameState.dungeon.traps ?? []).find(
+            t => t.tileX === tx && t.tileY === ty && !t.isTriggered
+          )
+          if (trap) {
+            EventBus.emit('BRAND_TRAP_SELECTED', { trapId: trap.instanceId })
+            return
+          }
+        }
         // Right-click cancels: armed tool → release; placement candidate → drop.
         // Removal is sell-only — right-click never deletes placed content.
         if (this._toolMode) { this._setToolMode(null); return }
@@ -910,6 +879,34 @@ export class NightPhase extends Phaser.Scene {
       // be set on day 2+ if uiSf differed between scene launches.
       if (p.x < PANEL_W * (this.uiSf ?? 1)) return
 
+      // Phase 9 — Crucible sacrifice mode: two clicks on minions in same room.
+      if (this._crucibleMode) {
+        const tx = Math.floor(wp.x / TS)
+        const ty = Math.floor(wp.y / TS)
+        const minion = (this._gameState.minions ?? []).find(m =>
+          m.faction === 'dungeon' && m.aiState !== 'dead' &&
+          m.tileX === tx && m.tileY === ty
+        )
+        if (!minion) {
+          this._showPlacementError('Click on a minion (or ESC to cancel)')
+          return
+        }
+        if (!this._crucibleVictimId) {
+          this._crucibleVictimId = minion.instanceId
+          this._showPlacementError(`Victim: ${minion.definitionId} — click target in same room`)
+          return
+        }
+        const game = this.scene.get('Game')
+        const result = game?.dungeonMechanicSystem?.crucibleSacrifice?.(this._crucibleVictimId, minion.instanceId)
+        if (result?.ok) {
+          this._showPlacementError('Crucible: sacrifice complete')
+        } else {
+          this._showPlacementError(`Crucible failed: ${result?.error ?? 'unknown'}`)
+        }
+        this._crucibleMode = false
+        this._crucibleVictimId = null
+        return
+      }
       // Phase 31D — action-bar tool intercepts left-click on placed rooms.
       if (this._toolMode) {
         const tx = Math.floor(wp.x / TS)
@@ -952,11 +949,27 @@ export class NightPhase extends Phaser.Scene {
     })
     this.input.keyboard.on('keydown-ESC', () => {
       // Esc cancels an armed tool first; only opens pause if no tool armed.
+      if (this._crucibleMode) {
+        this._crucibleMode = false
+        this._crucibleVictimId = null
+        this._showPlacementError('Crucible cancelled')
+        return
+      }
       if (this._toolMode) { this._setToolMode(null); return }
       PauseManager.toggle(this)
     })
     this.input.keyboard.on('keydown-Z',   (e) => {
       if (e.ctrlKey || e.metaKey) this._undoLastPlacement()
+    })
+    // Phase 9 — Pact of the Crucible: 'C' enters sacrifice mode (pact must
+    // be active + unused this run). Two clicks on minions in the same
+    // room confirm; ESC cancels.
+    this.input.keyboard.on('keydown-C', () => {
+      const f = this._gameState._mechanicFlags ?? {}
+      if (!f.pactOfTheCrucible || f.crucibleUsed) return
+      this._crucibleMode = true
+      this._crucibleVictimId = null
+      this._showPlacementError('CRUCIBLE — click victim minion')
     })
 
     // Bug fix — scroll the palette when wheel happens over the left panel.
@@ -1146,16 +1159,26 @@ export class NightPhase extends Phaser.Scene {
     if (used >= cap) {
       violations.push(`Roster full (${used}/${cap}) — build another Barracks for +5 slots`)
     }
-    if ((def.essenceCostToPlace ?? 0) > this._gameState.player.soulEssence) {
-      violations.push('Insufficient essence')
+    if (this._effectiveMinionCost(def) > this._gameState.player.gold) {
+      violations.push('Insufficient gold')
     }
     return { valid: violations.length === 0, violations }
+  }
+
+  _effectiveMinionCost(def) {
+    const base = def?.goldCost ?? 0
+    const m = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
+    return Math.max(0, Math.round(base * m))
   }
 
   _rosterCap() {
     const barracksCount = (this._gameState.dungeon.rooms ?? [])
       .filter(r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
-    return barracksCount * 5
+    const f = this._gameState._mechanicFlags ?? {}
+    const perBarracks = f.minionSlotsPerBarracks ?? 5
+    const bonus   = f.maxMinionSlotBonus ?? 0
+    const penalty = f.longGameMinionSlotPenalty ?? 0
+    return Math.max(0, barracksCount * perBarracks + bonus - penalty)
   }
 
   _rosterUsed() {
@@ -1188,16 +1211,28 @@ export class NightPhase extends Phaser.Scene {
     } else if (used >= cap) {
       violations.push(`Trap pool full (${used}/${cap}) — build another Trap Factory for +5 slots`)
     }
-    if ((def.essenceCostToPlace ?? 0) > this._gameState.player.soulEssence) {
-      violations.push('Insufficient essence')
+    if (this._effectiveTrapCost(def) > this._gameState.player.gold) {
+      violations.push('Insufficient gold')
     }
     return { valid: violations.length === 0, violations }
   }
 
+  _effectiveTrapCost(def) {
+    const base = def?.goldCost ?? 0
+    const f = this._gameState._mechanicFlags ?? {}
+    let cost = base
+    if (f.hastyArchitect) cost *= Balance.MECHANIC_HASTY_ARCHITECT_TRAP_DISCOUNT
+    if (f.pactOfTheJester) cost *= Balance.MECHANIC_JESTER_TRAP_DISCOUNT
+    if (f.trapGoldCostMult) cost *= f.trapGoldCostMult
+    return Math.max(0, Math.round(cost))
+  }
   _trapCap() {
     const factoryCount = (this._gameState.dungeon.rooms ?? [])
       .filter(r => r.definitionId === 'trap_factory' && r.isActive !== false).length
-    return factoryCount * 5
+    const f = this._gameState._mechanicFlags ?? {}
+    const perFactory = f.trapSlotsPerFactory ?? 5
+    const bonus = f.maxTrapSlotBonus ?? 0
+    return Math.max(0, factoryCount * perFactory + bonus)
   }
 
   _trapUsed() {
@@ -1230,13 +1265,13 @@ export class NightPhase extends Phaser.Scene {
     // Phase 6e: archetype roomCostMultiplier (Tyrant 2×, Architect 0.75×)
     const arch = this._gameState.player?.archetypeModifiers
     const roomMul = arch?.roomCostMultiplier ?? 1
-    const cost = Math.round((def.essenceCostToPlace ?? 0) * roomMul)
-    if (cost > 0 && !Balance.DEV_INFINITE_ESSENCE) {
-      if (this._gameState.player.soulEssence < cost) {
-        this._showPlacementError(`Need ${cost} essence (you have ${this._gameState.player.soulEssence})`)
+    const cost = Math.round((def.goldCost ?? 0) * roomMul)
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
+      if (this._gameState.player.gold < cost) {
+        this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
         return
       }
-      this._gameState.player.soulEssence -= cost
+      this._gameState.player.gold -= cost
     }
 
     const room = this._dungeonGrid.placeRoom(rotDef, placeTx, placeTy)
@@ -1264,7 +1299,7 @@ export class NightPhase extends Phaser.Scene {
         }
         this._heldRoomMinions = null
       }
-      this._lastPlaced = { kind: 'room', entity: room, essenceCost: cost }
+      this._lastPlaced = { kind: 'room', entity: room, goldCost: cost }
       const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.boss?.level ?? 1)
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
       this._cancelSelection()
@@ -1281,8 +1316,8 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
-    const cost = def.essenceCostToPlace ?? 0
-    if (cost > 0 && !Balance.DEV_INFINITE_ESSENCE) this._gameState.player.soulEssence -= cost
+    const cost = this._effectiveMinionCost(def)
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) this._gameState.player.gold -= cost
 
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     const bossLevel = this._gameState.boss?.level ?? 1
@@ -1301,34 +1336,8 @@ export class NightPhase extends Phaser.Scene {
     // [Removed 2026-04-30] treasure_room mini-boss auto-promotion. The
     // Throne Room handler in RoomBehaviorSystem now owns mini-boss spawns.
 
-    // Mimic: seed the state-machine fields + spawn the paired disguise
-    // loot item so adventurers can target the chest via SEEK_LOOT and
-    // trigger the reveal exactly like a Mimic Vault spawn.
-    if (def.id === 'mimic') {
-      minion.isMimic              = true
-      minion.mimicState           = 'chest'
-      minion.mimicFacing          = 'right'
-      minion.mimicLastAdvNearbyAt = 0
-      this._gameState.loot ??= { dungeon: [] }
-      this._gameState.loot.dungeon ??= []
-      this._gameState.loot.dungeon.push({
-        instanceId: `mvchest_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-        definitionId: 'treasury_chest',
-        _treasuryChest: true,
-        _isMimicVaultDisguise: true,
-        _mimicMinionId: minion.instanceId,
-        _essenceValue: 0,
-        _sourceTreasuryId: room?.instanceId ?? null,
-        tileX: tx, tileY: ty,
-        worldX: tx * TS + TS / 2, worldY: ty * TS + TS / 2,
-        dungeonRoomId: room?.instanceId ?? null,
-        isMimicSpawn: true,
-        provenance: [], statModifiers: [], curseLevel: 0, currentEquippedBy: null,
-      })
-    }
-
     this._gameState.minions.push(minion)
-    this._lastPlaced = { kind: 'minion', entity: minion, essenceCost: cost }
+    this._lastPlaced = { kind: 'minion', entity: minion, goldCost: cost }
 
     this._playMinionPlaceSfx()
     EventBus.emit('MINION_PLACED', { minion })
@@ -1348,12 +1357,12 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
-    const cost = def.essenceCostToPlace ?? 0
-    if (cost > 0 && !Balance.DEV_INFINITE_ESSENCE) this._gameState.player.soulEssence -= cost
+    const cost = this._effectiveTrapCost(def)
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) this._gameState.player.gold -= cost
 
     const trap = createTrap(def, { x: tx, y: ty })
     this._gameState.dungeon.traps.push(trap)
-    this._lastPlaced = { kind: 'trap', entity: trap, essenceCost: cost }
+    this._lastPlaced = { kind: 'trap', entity: trap, goldCost: cost }
 
     EventBus.emit('TRAP_PLACED', { trap })
     this._refreshStats()
@@ -1361,7 +1370,7 @@ export class NightPhase extends Phaser.Scene {
 
   // Phase 31D — Sell tool. Removes a placed room AND every minion inside
   // it, refunding 50% of the gold spent on the room + each minion's
-  // essence cost. Boss chamber + fixed rooms are immune.
+  // gold cost. Boss chamber + fixed rooms are immune.
   _executeSellAt(tx, ty) {
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     if (!room) return
@@ -1384,12 +1393,12 @@ export class NightPhase extends Phaser.Scene {
           && m.tileY >= room.gridY && m.tileY < room.gridY + room.height
     })
 
-    let refund = Math.floor((def?.essenceCostToPlace ?? 0) * 0.5)
+    let refund = Math.floor((def?.goldCost ?? 0) * 0.5)
     for (const m of minionsInside) {
       const mDef = allMinions.find(d => d.id === m.definitionId)
-      refund += Math.floor((mDef?.essenceCostToPlace ?? 0) * 0.5)
+      refund += Math.floor((mDef?.goldCost ?? 0) * 0.5)
     }
-    if (refund > 0) this._gameState.player.soulEssence += refund
+    if (refund > 0) this._gameState.player.gold += refund
 
     // Remove the minions first so MINION_REMOVED fires before ROOM_REMOVED.
     for (const m of minionsInside) {
@@ -1429,8 +1438,8 @@ export class NightPhase extends Phaser.Scene {
     // BEGIN DAY.
     // Inline pickup body (rather than calling _tryPickupRoom which expects
     // a pointer): we already have the room + def + tile coords.
-    const cost  = Math.round((def?.essenceCostToPlace ?? 0) * 1)
-    if (cost > 0) this._gameState.player.soulEssence += cost  // full refund — re-charged on drop
+    const cost  = Math.round((def?.goldCost ?? 0) * 1)
+    if (cost > 0) this._gameState.player.gold += cost  // full refund — re-charged on drop
 
     const heldMinions = []
     for (const m of this._gameState.minions ?? []) {
@@ -1447,85 +1456,9 @@ export class NightPhase extends Phaser.Scene {
     this._refreshStats()
   }
 
-  _tryRemoveRoom(p, cam) {
-    // Use Phaser's getWorldPoint — accounts for camera-centre-anchored zoom.
-    const wp = cam.getWorldPoint(p.x, p.y)
-    const tx = Math.floor(wp.x / TS)
-    const ty = Math.floor(wp.y / TS)
-
-    // Trap first (single-tile, most specific)
-    const trapAtTile = (this._gameState.dungeon.traps ?? []).find(
-      t => t.tileX === tx && t.tileY === ty
-    )
-    if (trapAtTile) {
-      this._removeTrap(trapAtTile)
-      return
-    }
-
-    // Then minion (single-tile)
-    const minionAtTile = this._gameState.minions.find(
-      m => m.tileX === tx && m.tileY === ty && m.aiState !== 'dead'
-    )
-    if (minionAtTile) {
-      this._removeMinion(minionAtTile)
-      return
-    }
-
-    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
-    if (!room || room.definitionId === 'boss_chamber') return
-
-    // 50% essence refund on removal
-    const allRooms = this.cache.json.get('rooms') ?? []
-    const def = allRooms.find(d => d.id === room.definitionId)
-    const refund = Math.floor((def?.essenceCostToPlace ?? 0) * 0.5)
-    if (refund > 0) this._gameState.player.soulEssence += refund
-
-    if (this._lastPlaced?.entity?.instanceId === room.instanceId) {
-      this._lastPlaced = null
-    }
-
-    this._dungeonGrid.removeRoom(room.instanceId)
-    // Re-render the palette so any max-1 rooms that were filtered out
-    // reappear immediately (otherwise they only re-show on next scroll).
-    this._renderActivePalette()
-    this._refreshStats()
-  }
-
-  _removeTrap(trap) {
-    const allTraps = this.cache.json.get('trapTypes') ?? []
-    const def    = allTraps.find(d => d.id === trap.definitionId)
-    const refund = Math.floor((def?.essenceCostToPlace ?? 0) * 0.5)
-    if (refund > 0) this._gameState.player.soulEssence += refund
-
-    if (this._lastPlaced?.entity?.instanceId === trap.instanceId) {
-      this._lastPlaced = null
-    }
-    const idx = this._gameState.dungeon.traps.findIndex(t => t.instanceId === trap.instanceId)
-    if (idx >= 0) this._gameState.dungeon.traps.splice(idx, 1)
-    EventBus.emit('TRAP_REMOVED', { trap })
-    this._refreshStats()
-  }
-
-  _removeMinion(minion) {
-    const allMinions = this.cache.json.get('minionTypes') ?? []
-    const def    = allMinions.find(d => d.id === minion.definitionId)
-    // Full 100% essence refund — minions are still in the planning phase, so
-    // there's no penalty for swapping them out before the day starts.
-    const refund = def?.essenceCostToPlace ?? 0
-    if (refund > 0) this._gameState.player.soulEssence += refund
-
-    if (this._lastPlaced?.entity?.instanceId === minion.instanceId) {
-      this._lastPlaced = null
-    }
-    const idx = this._gameState.minions.findIndex(m => m.instanceId === minion.instanceId)
-    if (idx >= 0) this._gameState.minions.splice(idx, 1)
-    EventBus.emit('MINION_REMOVED', { minion })
-    this._refreshStats()
-  }
-
   _undoLastPlacement() {
     if (!this._lastPlaced) return
-    const { kind, entity, essenceCost } = this._lastPlaced
+    const { kind, entity, goldCost } = this._lastPlaced
     if (kind === 'minion') {
       const idx = this._gameState.minions.findIndex(m => m.instanceId === entity.instanceId)
       if (idx >= 0) this._gameState.minions.splice(idx, 1)
@@ -1536,11 +1469,10 @@ export class NightPhase extends Phaser.Scene {
       EventBus.emit('TRAP_REMOVED', { trap: entity })
     } else {
       this._dungeonGrid.removeRoom(entity.instanceId)
-      // Same reason as _tryRemoveRoom: re-show max-1 rooms that were
-      // filtered out of the palette while at-cap.
+      // Re-render so any max-1 rooms filtered out while at-cap reappear.
       this._renderActivePalette()
     }
-    this._gameState.player.soulEssence += essenceCost
+    this._gameState.player.gold += goldCost
     this._lastPlaced = null
     this._refreshStats()
   }
@@ -1577,8 +1509,8 @@ export class NightPhase extends Phaser.Scene {
     // Full cost refund on pick-up (player is repositioning, not removing permanently)
     const arch = this._gameState.player?.archetypeModifiers
     const roomMul = arch?.roomCostMultiplier ?? 1
-    const cost = Math.round((def.essenceCostToPlace ?? 0) * roomMul)
-    if (cost > 0) this._gameState.player.soulEssence += cost
+    const cost = Math.round((def.goldCost ?? 0) * roomMul)
+    if (cost > 0) this._gameState.player.gold += cost
 
     if (this._lastPlaced?.entity?.instanceId === room.instanceId) this._lastPlaced = null
 
@@ -1687,38 +1619,8 @@ export class NightPhase extends Phaser.Scene {
     this.scene.start('DayPhase', { gameState: this._gameState })
   }
 
-  // ── Deactivation notice ────────────────────────────────────────────────────
-
-  _showDeactivationNotice(deactivated) {
-    const { width: W } = this.scale
-    const names = deactivated.map(r => r.definitionId.replace(/_/g, ' ')).join(', ')
-    const msg   = `⚠   Essence shortage — shut off: ${names}`
-
-    const bg = this.add.graphics().setDepth(30)
-    const tw = Math.min(W - PANEL_W - 32, 640)
-    const th = 36
-    const tx = PANEL_W + 16
-    const ty = 8
-    bg.fillStyle(0x220a06, 0.92)
-    bg.fillRect(tx, ty, tw, th)
-    bg.lineStyle(1, 0xcc3322, 0.8)
-    bg.strokeRect(tx, ty, tw, th)
-
-    const txt = this.add.text(tx + tw / 2, ty + th / 2, msg, {
-      fontSize: '10px', color: PALETTE.textRed, fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(31)
-
-    // Fade out after 4 seconds
-    this.time.delayedCall(4000, () => {
-      this.tweens.add({
-        targets: [bg, txt], alpha: 0, duration: 600,
-        onComplete: () => { bg.destroy(); txt.destroy() },
-      })
-    })
-  }
-
   // Show a transient banner when a placement attempt fails, with the
-  // specific reason ("Out of bounds", "Need 25 essence", "Must be 3 rooms
+  // specific reason ("Out of bounds", "Need 25 gold", "Must be 3 rooms
   // from boss", etc.) so the player knows why their click did nothing.
   _playBuildSfx() {
     const keys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3']
@@ -1728,7 +1630,12 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _showPlacementError(message) {
-    showToast(this, message, { type: 'error' })
+    // HudScene sits above NightPhase in the scene stack (see main.js registration
+    // order), so a toast added to NightPhase's display list is painted over by
+    // HudScene's chrome.  Use HudScene as the host so the toast renders on top.
+    const hud = this.scene.get('HudScene')
+    const target = (hud && this.scene.isActive('HudScene')) ? hud : this
+    showToast(target, message, { type: 'error' })
   }
 }
 
@@ -1798,7 +1705,6 @@ function _formatTrigger(trig) {
     case 'line_of_sight_broken':  return 'Triggers on entry'
     case 'stood_still_3_seconds': return 'Triggers if standing still 3s'
     case 'moved_too_fast':        return 'Triggers if moving fast'
-    case 'loot_picked_up':        return 'Triggers on loot pickup'
     case 'ally_healed_nearby':    return 'Triggers on ally heal'
     case 'second_footstep':       return 'Triggers on follower'
     case 'adventurer_was_here_before': return 'Triggers on revisit'

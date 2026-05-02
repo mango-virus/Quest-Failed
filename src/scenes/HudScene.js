@@ -32,6 +32,7 @@ import { KnowledgeMapPopup }    from '../ui/popups/KnowledgeMapPopup.js'
 import { AdventurerIntelPopup } from '../ui/popups/AdventurerIntelPopup.js'
 import { PostWaveSummaryPopup } from '../ui/popups/PostWaveSummaryPopup.js'
 import { DarkPactPopup }        from '../ui/popups/DarkPactPopup.js'
+import { LongGamePopup }        from '../ui/popups/LongGamePopup.js'
 
 const COL_PAD     = 12
 const LEFT_COL_W  = 200
@@ -178,6 +179,13 @@ export class HudScene extends Phaser.Scene {
       intel:     new AdventurerIntelPopup(this, this._gameState),
       postwave:  new PostWaveSummaryPopup(this, this._gameState),
       darkpact:  new DarkPactPopup(this, this._gameState),
+      longgame:  new LongGamePopup(this),
+    }
+    // Phase 9 — open the Long Game popup whenever the pact triggers.
+    {
+      const fn = (payload) => this._popups.longgame.showFor(payload)
+      EventBus.on('LONG_GAME_TRIGGERED', fn)
+      this._listeners.push(['LONG_GAME_TRIGGERED', fn])
     }
     const togglePopup = (key) => {
       // Re-clicking the action-bar button closes the popup. Opening a

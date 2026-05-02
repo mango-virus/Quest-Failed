@@ -13,9 +13,18 @@ import { EventBus } from '../../systems/EventBus.js'
 
 const RARITIES = {
   common:    { color: CRYPT.inkMute,   label: 'COMMON' },
+  uncommon:  { color: CRYPT.greenCss,  label: 'UNCOMMON' },
   rare:      { color: CRYPT.goldCss,   label: 'RARE' },
-  epic:      { color: CRYPT.soulCss,   label: 'EPIC' },
+  epic:      { color: '#a64ad9',       label: 'EPIC' },        // bright purple
   legendary: { color: CRYPT.accentCss, label: 'LEGENDARY' },
+}
+
+// Per-rarity shine animation parameters. Higher rarities pulse faster,
+// brighter, and (legendary) get a sweeping highlight bar.
+const SHINE = {
+  rare:      { pulseDuration: 1500, pulseAlpha: 0.65, sweep: false },
+  epic:      { pulseDuration: 1100, pulseAlpha: 0.50, sweep: false },
+  legendary: { pulseDuration:  900, pulseAlpha: 0.45, sweep: true  },
 }
 
 export class DarkPactPopup {
@@ -28,13 +37,18 @@ export class DarkPactPopup {
     this._rerollUsed  = false
     this._cardBounds  = []     // per-card { x, y, w, h } so the ring can move without rebuild
     this._ringG       = null   // single graphics object, redrawn as hover/select changes
+    this._tweens      = []     // active rarity-shine tweens, cleared on close
     this._frame = makePopupFrame({
       scene,
       w:    1100,
       h:    540,
       title:'DARK · PACT',
       depth: 200,
-      onClose: () => { this._cardBounds = []; this._ringG = null; this._hoverIdx = -1 },
+      onClose: () => {
+        this._cardBounds = []; this._ringG = null; this._hoverIdx = -1
+        for (const t of this._tweens) t?.stop?.()
+        this._tweens = []
+      },
       render: (px, py, cx, cy, cw, ch, addChild) => this._render(cx, cy, cw, ch, addChild),
     })
   }
@@ -145,15 +159,69 @@ export class DarkPactPopup {
 
     // Rarity tag (top-right)
     const tagW = rar.label.length * 7 + 12
+    const tagX = x + w - tagW - 14
+    const tagY = y + 14
+    const tagH = 14
+    const tagHex = this._cssToHex(rar.color)
     const tagG = this._scene.add.graphics().setDepth(D + 2)
     tagG.fillStyle(0x000000, 1)
-    tagG.fillRect(x + w - tagW - 14, y + 14, tagW, 14)
-    tagG.lineStyle(1, this._cssToHex(rar.color), 1)
-    tagG.strokeRect(x + w - tagW - 14, y + 14, tagW, 14)
+    tagG.fillRect(tagX, tagY, tagW, tagH)
+    tagG.lineStyle(1, tagHex, 1)
+    tagG.strokeRect(tagX, tagY, tagW, tagH)
     addChild(tagG)
-    addChild(this._scene.add.text(x + w - tagW / 2 - 14, y + 14 + 7, rar.label, {
+    const tagLabel = this._scene.add.text(tagX + tagW / 2, tagY + tagH / 2, rar.label, {
       fontFamily: FONT_HEAD, fontSize: '7px', color: rar.color, letterSpacing: 1,
-    }).setOrigin(0.5).setDepth(D + 3))
+    }).setOrigin(0.5).setDepth(D + 3)
+    addChild(tagLabel)
+
+    // Phase 9 — rarity shine for rare/epic/legendary tags. The pulse acts
+    // on a separate "halo" graphic stacked on top of the tag so the inner
+    // black fill stays opaque (legibility-preserving).
+    const shine = SHINE[rarKey]
+    if (shine) {
+      const halo = this._scene.add.graphics().setDepth(D + 4)
+      halo.lineStyle(1, tagHex, 1)
+      halo.strokeRect(tagX - 1, tagY - 1, tagW + 2, tagH + 2)
+      halo.lineStyle(1, tagHex, 0.6)
+      halo.strokeRect(tagX - 2, tagY - 2, tagW + 4, tagH + 4)
+      addChild(halo)
+      const pulseTw = this._scene.tweens.add({
+        targets:  [halo, tagLabel],
+        alpha:    shine.pulseAlpha,
+        duration: shine.pulseDuration,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      })
+      this._tweens.push(pulseTw)
+
+      // Legendary gets a sweeping highlight bar that travels left-to-right
+      // across the tag interior. Geometry-masked to the tag bounds so it
+      // never bleeds onto the card body.
+      if (shine.sweep) {
+        const maskShape = this._scene.make.graphics({ x: 0, y: 0, add: false })
+        maskShape.fillStyle(0xffffff, 1)
+        maskShape.fillRect(tagX + 1, tagY + 1, tagW - 2, tagH - 2)
+        const mask = maskShape.createGeometryMask()
+        const sweep = this._scene.add.graphics().setDepth(D + 5)
+        sweep.fillStyle(tagHex, 0.45)
+        sweep.fillRect(0, 0, 18, tagH)
+        sweep.x = tagX - 18
+        sweep.y = tagY
+        sweep.setMask(mask)
+        addChild(sweep)
+        const sweepTw = this._scene.tweens.add({
+          targets:  sweep,
+          x:        tagX + tagW,
+          duration: 1200,
+          delay:    900,         // pause between sweeps so it feels punctuated
+          repeat:   -1,
+          repeatDelay: 1400,
+          ease:     'Sine.easeInOut',
+        })
+        this._tweens.push(sweepTw)
+      }
+    }
 
     // Name
     const nameY = y + 14 + gBox + 14

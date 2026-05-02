@@ -24,15 +24,12 @@ export class TrapSystem {
 
     // Mercy trap fires reactively on heal events instead of per-tick stepping.
     EventBus.on('ALLY_HEALED', this._onAllyHealed, this)
-    // Phase QW — Greed trap fires when an adventurer picks up loot in the trap's room.
-    EventBus.on('LOOT_PICKED_UP', this._onLootPickedUp, this)
     // Whisper trap fires when an adventurer emits a chat bubble in its room.
     EventBus.on('CHAT_BUBBLE_EMITTED', this._onChatBubble, this)
   }
 
   destroy() {
     EventBus.off('ALLY_HEALED', this._onAllyHealed, this)
-    EventBus.off('LOOT_PICKED_UP', this._onLootPickedUp, this)
     EventBus.off('CHAT_BUBBLE_EMITTED', this._onChatBubble, this)
   }
 
@@ -70,21 +67,6 @@ export class TrapSystem {
       const def = this._defs[trap.definitionId]
       if (!def) continue
       this._evaluateTrap(trap, def)
-    }
-  }
-
-  // Phase QW — Greed trap fires when an adventurer picks up loot in the same room.
-  _onLootPickedUp({ adventurer, roomId }) {
-    if (!roomId || !adventurer) return
-    const traps = this._gameState.dungeon.traps ?? []
-    for (const trap of traps) {
-      if (trap.isTriggered) continue
-      const def = this._defs[trap.definitionId]
-      if (!def || def.triggerCondition !== 'loot_picked_up') continue
-      const trapRoom = this._dungeonGrid.getRoomAtTile(trap.tileX, trap.tileY)
-      if (!trapRoom || trapRoom.instanceId !== roomId) continue
-      this._fireTrap(trap, def, adventurer)
-      return
     }
   }
 
@@ -181,7 +163,6 @@ export class TrapSystem {
         }
       } else {
         // ally_healed_nearby is event-driven (see _onAllyHealed)
-        // loot_picked_up — Phase 7b
         continue
       }
       if (fires) {
@@ -205,14 +186,37 @@ export class TrapSystem {
     }
     // [Removed 2026-04-30] requiresPowerSource gate — power_core room
     // retired in the Room redesign; Trap Factory is the new gateway.
-    // Phase QW — requiresEternalNight: torch_trap only fires while the
-    // Eternal Night dungeon mechanic is active.
-    if (def.requiresEternalNight && !this._isEternalNightActive()) {
-      EventBus.emit('TRAP_FAILED_NEEDS_NIGHT', { trap, def, adventurer: adv })
+    // Hasty Architect — 25% chance the trap jams; not consumed, will retry on the next eligible adventurer.
+    if ((this._gameState._mechanicFlags ?? {}).hastyArchitect &&
+        Math.random() < Balance.MECHANIC_HASTY_ARCHITECT_JAM_CHANCE) {
+      AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 18, 'JAMMED', { color: '#ffaa55' })
+      EventBus.emit('TRAP_JAMMED', { trap, def, adventurer: adv })
       return
     }
     trap.isTriggered = true
     let damage = def.baseDamage ?? 0
+    const _mFlags = this._gameState._mechanicFlags ?? {}
+    // Phase 9 — Open Book: traps deal 2× damage.
+    if (_mFlags.openBook) {
+      damage = Math.round(damage * Balance.MECHANIC_OPEN_BOOK_TRAP_DAMAGE_MULT)
+    }
+    // Phase 9 — Trapsmith's Guild: traps deal -25% damage.
+    if (_mFlags.trapDamageMult) {
+      damage = Math.max(1, Math.round(damage * _mFlags.trapDamageMult))
+    }
+    // Phase 9 — Pact of the Jester: +50% trap damage.
+    if (_mFlags.pactOfTheJester) {
+      damage = Math.round(damage * Balance.MECHANIC_JESTER_TRAP_DAMAGE_MULT)
+    }
+    // Phase 9 — Pact of the Brand: blessed trap deals 5× damage on its next fire.
+    let brandConsumed = false
+    if (_mFlags.pactOfTheBrand && trap._brandBlessed) {
+      damage = Math.round(damage * Balance.MECHANIC_BRAND_BLESSED_DAMAGE_MULT)
+      trap._brandBlessed = false
+      brandConsumed = true
+    }
+    // Stash flag so post-fire cleanup can destroy the blessed trap.
+    trap._brandShouldDestroy = brandConsumed
     // Phase 6e: Engineer minion in the same room buffs trap damage
     if (damage > 0) {
       const room = this._dungeonGrid.getRoomAtTile(trap.tileX, trap.tileY)
@@ -257,11 +261,13 @@ export class TrapSystem {
         day:        this._gameState.meta.dayNumber,
       })
     }
-  }
 
-  // Phase QW — Eternal Night mechanic active?
-  _isEternalNightActive() {
-    return !!(this._gameState.activeMechanics?.includes?.('eternal_night'))
+    // Phase 9 — Pact of the Brand: blessed trap is destroyed after it fires.
+    if (trap._brandShouldDestroy) {
+      const idx = this._gameState.dungeon.traps.findIndex(t => t.instanceId === trap.instanceId)
+      if (idx >= 0) this._gameState.dungeon.traps.splice(idx, 1)
+      EventBus.emit('TRAP_REMOVED', { trap, reason: 'brand_consumed' })
+    }
   }
 
   // Curse brand: marks the adventurer so all minions prioritise them

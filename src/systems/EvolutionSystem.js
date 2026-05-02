@@ -4,7 +4,7 @@
 //   • Checks evolutionPaths from minionTypes.json against killHistory
 //     and applies stat deltas + new abilities + name change on trigger
 //   • Generates first-level-up names from the minion's most-frequent kill type
-//   • Marks minions with `hasBounty=true` when they hit BOUNTY_KILL_THRESHOLD
+//   • Marks minions with `hasBounty=true` once their kill count crosses the bounty threshold
 //
 // Underdog 2× XP for adventurer kills lands in Phase 7b alongside adventurer
 // XP/leveling — minions are the focus here.
@@ -238,7 +238,7 @@ export class EvolutionSystem {
 
   _checkBounty(minion) {
     minion.bountyKillCount = (minion.bountyKillCount ?? 0) + 1
-    if (!minion.hasBounty && minion.bountyKillCount >= Balance.BOUNTY_KILL_THRESHOLD) {
+    if (!minion.hasBounty && minion.bountyKillCount >= 3) {
       minion.hasBounty = true
       EventBus.emit('MINION_BOUNTY_POSTED', { minion })
     }

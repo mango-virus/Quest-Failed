@@ -176,10 +176,10 @@ export class BossTopBar {
     // HP bar — narrowed to leave room for the lives hearts on the same row
     const barX = cx + avatarSize + 10
     const barY = cy + 16
-    const HEART_FONT  = 11   // px, matches pixelBar height
+    const HEART_SIZE  = 14   // display px (native sprites are 17×16)
     const HEART_GAP   = 3
     const LIVES_TOTAL = 3
-    const livesW = LIVES_TOTAL * HEART_FONT + (LIVES_TOTAL - 1) * HEART_GAP
+    const livesW = LIVES_TOTAL * HEART_SIZE + (LIVES_TOTAL - 1) * HEART_GAP
     const barW = w - (barX - x) - PADDING_X - livesW - 8
     const boss = this._gameState.boss
     const hp   = boss?.hp ?? 100
@@ -189,20 +189,18 @@ export class BossTopBar {
     })
     this._objects.push(this._hpBar.g, this._hpBar.txt)
 
-    // Lives hearts — right of HP bar; one heart per life, red = alive, muted = lost
+    // Lives hearts — sprite per life; drain animation plays when a life is lost
     const heartsX   = barX + barW + 8
     const heartsY   = barY + 5   // vertically centred in the 11px bar
     const remaining = boss?.deathsRemaining ?? LIVES_TOTAL
-    this._hearts = []
+    this._hearts    = []
+    this._prevLives = remaining
     for (let i = 0; i < LIVES_TOTAL; i++) {
-      const h = this._scene.add.text(
-        heartsX + i * (HEART_FONT + HEART_GAP), heartsY, '♥', {
-          fontFamily: FONT_HEAD, fontSize: `${HEART_FONT}px`,
-          color: i < remaining ? CRYPT.accentCss : CRYPT.inkMute,
-        },
-      ).setOrigin(0, 0.5).setDepth(D)
-      this._objects.push(h)
-      this._hearts.push(h)
+      const key = i < remaining ? 'heart-full' : 'heart-empty'
+      const spr = this._scene.add.sprite(heartsX + i * (HEART_SIZE + HEART_GAP), heartsY, key)
+        .setOrigin(0, 0.5).setDisplaySize(HEART_SIZE, HEART_SIZE).setDepth(D)
+      this._objects.push(spr)
+      this._hearts.push(spr)
     }
 
     // XP bar — sits below HP bar; tracks boss XP toward next dungeon level
@@ -268,7 +266,7 @@ export class BossTopBar {
     const yMid = 26    // shared icon+value vertical center
     const yLbl = 38    // small caption baseline
     const rows = [
-      { lbl: 'GOLD', color: CRYPT.goldCss, icon: '◆', getter: () => this._gameState.player?.soulEssence ?? 0 },
+      { lbl: 'GOLD', color: CRYPT.goldCss, icon: '◆', getter: () => this._gameState.player?.gold ?? 0 },
     ]
     this._resTexts = []
     const colW = (w - PADDING_X * 2) / rows.length
@@ -295,8 +293,7 @@ export class BossTopBar {
   }
 
   _captionText() {
-    const day = this._gameState.meta?.dayNumber ?? 1
-    return `${this._bossClass} · DAY ${day}`
+    return this._bossClass
   }
 
   _dayText()    { return 'CURRENT DAY' }
@@ -336,7 +333,18 @@ export class BossTopBar {
     }
     const deathsLeft = this._gameState.boss?.deathsRemaining ?? 3
     if (this._hearts) {
-      this._hearts.forEach((h, i) => h.setColor(i < deathsLeft ? CRYPT.accentCss : CRYPT.inkMute))
+      if (this._prevLives !== undefined && deathsLeft < this._prevLives) {
+        const spr = this._hearts[deathsLeft]
+        if (spr && !spr._animating) {
+          spr._animating = true
+          spr.play('heart-lose')
+          spr.once('animationcomplete', () => {
+            spr.setTexture('heart-empty')
+            spr._animating = false
+          })
+        }
+      }
+      this._prevLives = deathsLeft
     }
     if (this._xpBar) {
       const xp    = this._gameState.boss?.xp ?? 0

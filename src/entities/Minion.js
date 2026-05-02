@@ -58,7 +58,6 @@ export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
     // 'garrison' = produced by Crypt/Catacombs/etc; room-bound; does NOT count toward cap.
     class:         options.class ?? 'roster',
     behaviorType:  typeDef.behaviorType ?? 'guard',
-    upkeepCost:    typeDef.upkeepCost ?? 0,
     tags:          typeDef.tags ?? [],
     damageType:    baseStats.damageType ?? 'physical',
     attackRange:   baseStats.attackRange ?? 1,  // 1 = melee, >1 = ranged

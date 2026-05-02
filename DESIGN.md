@@ -28,19 +28,57 @@ I want adventurers to be able to learn the dungeon, the enemies, traps, rooms, a
 
 If all the adventures have been killed, or decided to leave the dungeon because they don't think they will survive. I want me (the boss) to get a choice at the end of each day provided to me to change the mechanics, and other stuff about the dungeon so that the dungeon can change in certain ways, making the adventurers have to come up with new strategies to beat my dungeon. These choices should be called "Dungeon Mechanics" and should sometimes come with a strategic trade-off. Here are some examples:
 
-1. **Mimicry Plague** = 20% of all loot chests have a chance to be a Mimic when opened by an adventurer. Trade-off: mimics count as minions, so adventurers killing them gain XP from them
+1. ~~**Mimicry Plague** = 20% of all loot chests have a chance to be a Mimic when opened by an adventurer. Trade-off: mimics count as minions, so adventurers killing them gain XP from them~~ *(REMOVED 2026-05-02 — cut from pact pool)*
 2. **Taxation of Souls** = Adventurers lose 5% HP when entering a new room. Trade-Off: You gain less XP from killing them because they were already weakened.
-3. **Gravitational Anomaly** = Projectiles move 50% slower; melee deals 20% more damage. Trade-Off: Great against Rangers/Mages, but makes your melee Minions vulnerable.
-4. **Cursed Fountains** = turns the water in healing fountain rooms into acid to damage adventurers instead of heal them.
-5. **No Health Regeneration** = Adventurers cannot heal while sleeping
-6. **Memory Fog** = adventurers who sleep in the dungeon forget 50% of what they learned. Trade-off: they heal faster.
-7. **Eternal Night** = adventurers can't see past 1 room. Trade-off: your minions also have reduced patrol range
-8. **Hunger** = adventurers lose 1 HP per minute in the dungeon. Trade-off: ?
+3. ~~**Gravitational Anomaly** = Projectiles move 50% slower; melee deals 20% more damage. Trade-Off: Great against Rangers/Mages, but makes your melee Minions vulnerable.~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+4. ~~**Cursed Fountains** = turns the water in healing fountain rooms into acid to damage adventurers instead of heal them.~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+5. ~~**No Health Regeneration** = Adventurers cannot heal while sleeping~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+6. ~~**Memory Fog** = adventurers who sleep in the dungeon forget 50% of what they learned. Trade-off: they heal faster.~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+7. ~~**Eternal Night** = adventurers can't see past 1 room. Trade-off: your minions also have reduced patrol range~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+8. ~~**Hunger** = adventurers lose 1 HP per minute in the dungeon. Trade-off: ?~~ *(REMOVED 2026-05-02 — cut from pact pool)*
 9. **Bloodbound** = your minions deal +50% damage but die permanently (no respawn) instead of regenerating overnight
-10. **Knowledge is Pain** = Adventurers take +10% damage in rooms they've already cleared. The more they know, the more the dungeon resists them. Directly punishes returning experienced adventurers. Trade-off: First-timers are completely unaffected. Guilds start sending fresh rookies first to scout instead of their veterans.
-11. **Paranoia Protocol** = All chests, doors, and fountains have a visible 10% chance indicator — whether or not they're actually trapped. Adventurers see "10%" on everything, even safe objects. The uncertainty is the trap. Trade off: ?
-12. **Spectral Reinforcements** = Ghosts of previously killed adventurers appear as hostile phantoms in the rooms where they died. They fight with the abilities they had when they died. Rooms with high kill counts become haunted gauntlets. Trade-off: Spectral adventurers deal spirit damage that also affects your living minions. Rooms with many ghosts become chaotic for everyone.
-13. **Loot Curse** = All loot dropped in the dungeon is cursed. Adventurers who pick it up gain the stat bonus but also a hidden debuff that worsens over time. They don't know until it's too late. Trade-off: The curse can be cleansed by a cleric. If there's a cleric in the party, this mechanic is neutralized entirely. Also, Greedy adventurers hoard cursed loot faster.
+10. ~~**Knowledge is Pain** = Adventurers take +10% damage in rooms they've already cleared. The more they know, the more the dungeon resists them. Directly punishes returning experienced adventurers. Trade-off: First-timers are completely unaffected. Guilds start sending fresh rookies first to scout instead of their veterans.~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+11. ~~**Paranoia Protocol** = All chests, doors, and fountains have a visible 10% chance indicator — whether or not they're actually trapped. Adventurers see "10%" on everything, even safe objects. The uncertainty is the trap. Trade off: ?~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+12. ~~**Spectral Reinforcements** = Ghosts of previously killed adventurers appear as hostile phantoms in the rooms where they died. They fight with the abilities they had when they died. Rooms with high kill counts become haunted gauntlets. Trade-off: Spectral adventurers deal spirit damage that also affects your living minions. Rooms with many ghosts become chaotic for everyone.~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+13. ~~**Loot Curse** = All loot dropped in the dungeon is cursed. Adventurers who pick it up gain the stat bonus but also a hidden debuff that worsens over time. They don't know until it's too late. Trade-off: The curse can be cleansed by a cleric. If there's a cleric in the party, this mechanic is neutralized entirely. Also, Greedy adventurers hoard cursed loot faster.~~ *(REMOVED 2026-05-02 — cut from pact pool)*
+14. **The Hasty Architect** = During the Night Phase, you receive a 50% discount on traps. Trade-off: All traps have a 25% chance to fail or jam when triggered/engaged.
+15. **Pact of the Great Erasure** = Adventurers retain zero knowledge of the dungeon upon escaping. Trade-off: Adventurers have 2× Base Stats (Health, Damage, Speed).
+16. **Schism** = Adventurer parties splinter on entry — every adventurer paths solo, with no party loyalty, no healing, no shared buffs. Trade-off: Solo adventurers never flee. They fight to the death.
+17. **Glory Hounds** = Adventurers refuse to retreat — they fight on no matter how wounded they are. Trade-off: Adventurers below 30% HP deal +50% damage.
+18. **Sworn Rivals** = Two adventurers in each party are bound as sworn rivals. When both fall below half HP, they break formation and attack each other on sight. Trade-off: While both rivals are at full HP, each one deals +25% damage.
+19. **Famine Decree** = Adventurers at less than half HP deal −50% damage. Wound them and they wither. Trade-off: Adventurers at full HP deal +50% damage. Fresh-faced parties hit like trucks.
+
+**Active pact pool (after 2026-05-02 additions):** Taxation of Souls (#2), Bloodbound (#9), The Hasty Architect (#14), Pact of the Great Erasure (#15), Schism (#16), Glory Hounds (#17), Sworn Rivals (#18), Famine Decree (#19). Also in the offering JSON but not on this numbered list: Gold Rush, Undying Horde, Sealed Paths, Pack Synergy, Blood Money. The 11 struck-through entries above were cut from the pact pool — their handlers may still have residual code that needs cleanup.
+
+### 2026-05-02 expansion — 50 new pacts added (Batches A–H)
+
+**Batch A — economy / adventurer behavior:** Gilded Demise, Pyramid Scheme, Ransom Note, Tax the Living, Tower Tax, Crusader's Curse.
+
+**Batch B — minion + combat:** Kennel Discipline, Ironhide Rite, Frenzy Pact, Last Stand Doctrine, Mage Hunt, Vampire's Toll.
+
+**Batch C — boss-personal:** Tyrant's Gaze, Soul Tether, Avenger's Rite, Final Breath.
+
+**Batch D — knowledge:** False Maps, Whispered Lies, Open Book, Whisperer's Tongue.
+
+**Batch E — timed/scheduled:** Doomsday Clock, The Long Game, Inquisitor's Mark.
+
+**Batch F — summon adds + max-slot pacts:** Summon Adds I/II/III, Drill Sergeant, Endless Garrison, The Cull, Trap Mason's Touch, Trapsmith's Guild, Forbidden Workshop, Architect's Vision.
+
+**Batch G — boss-attack pacts (auto-cast in boss fight, with VFX events):** Hellfire Breath, Lightning Strike, Shockwave Slam, Spectral Reach, Dark Vortex, Soul Drain, Doppelgangers, Petrifying Stare.
+
+**Batch H — unique mechanics:** Cursed Soil, Sundered Floor, Pact of the Mirror, Pact of the Cartographer, Pact of the Jester, Pact of the Whisperer, Pact of the Brand, Pact of the Reaper, Pact of the Crucible.
+
+**Pact of the Marionette (added 2026-05-02):** Once per day during day phase, left-click any of your minions to possess it. WASD moves the puppet (camera follows automatically); the puppet auto-attacks any adventurer in melee range. While possessed, every other minion in the dungeon stands idle. Possession ends if the puppet is killed, the day ends, or the player loads into the next day. Implemented in `Game._tryMarionettePossess` + `Game._tickMarionette`; MinionAISystem suppresses other dungeon minions while `possessedMinionId` is set.
+
+**UI polish landed (2026-05-02):**
+- **Long Game popup** — now a proper modal popup (`LongGamePopup.js`) wired into HudScene's popup system. Replaces the fade-banner.
+- **Cartographer path overlay** — new `CartographerOverlay.js` ticked from `Game.update` paints color-coded dots along every adventurer's planned path while the pact is active.
+- **Jester name scramble** — `BuildMenu._renderSlot` now renders `?` glyph and `???` name when the trap tab is active and the Jester pact is sealed.
+- **Brand selection UI** — replaced random-pick with right-click-trap during night phase. `TrapRenderer` paints a pulsing gold halo around the blessed trap so the player can see which trap is primed.
+- **Crucible sacrifice UI** — keyboard hotkey `C` during night phase enters sacrifice mode (when pact is active and unused). Two clicks on minions in the same room confirm; ESC cancels. Calls `dungeonMechanicSystem.crucibleSacrifice(victimId, targetId)`.
+- **Sundered Floor renderer** — new `SunderedFloorRenderer.js` listens for the pact's lifecycle events. Pulsing yellow warning ring during the 5s telegraph, then a pitch-black square once the pit fires. Cleared at night.
+
+**Active pact pool total:** 64.
 
 The trade-off should really make you think before choosing them. **I want tons and tons of different mechanics and trade offs to be added.**
 
@@ -247,7 +285,7 @@ Top-level rules:
 | Room | Cap | Effect |
 |---|---|---|
 | **Trap Factory** | scales 1 → 5 | Each Factory adds **+5 trap slots** to your global trap pool. Gateway: without one, no traps. No upgrade tree. |
-| **Treasury** | scales 1 → 5 | Generates a small Soul Essence stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the essence (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft. |
+| **Treasury** | scales 1 → 5 | Generates a small gold stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the gold (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft. |
 | **Armory** | scales 1 → 3 | Minions in **directly door-connected** rooms get +ATK while this is active. |
 
 #### L4 unlocks
@@ -274,7 +312,7 @@ Top-level rules:
 | Room | Cap | Effect |
 |---|---|---|
 | **Catacombs** | 2 | Reactive: when an adventurer dies in this room, a **Tier-2 Revenant (garrison, room-bound)** rises in their place. Max 2 Revenants alive in the room at once; do not respawn if killed. |
-| **Mimic Vault** | 1 | Looks identical to a Treasury on the map. Spawns **2 Mimics (garrison, room-bound)** that respawn nightly, plus 1 false chest — if grabbed, it steals essence from the adventurer. |
+| **Mimic Vault** | 1 | Looks identical to a Treasury on the map. Spawns **2 Mimics (garrison, room-bound)** that respawn nightly, each disguised as a chest (`mimicState: 'chest'`). Adventurers entering the room roll an open-chance per chest — 40% base, 5% if they already know that mimic is hostile. Opening reveals the mimic, deals a 30% max-HP bite to the opener, and propagates knowledge across the surviving party (and into the next-day shared pool). |
 | **Hall of Trials** | scales 1 → 3 | Spawns a **random Tier-2 evolved minion (garrison, room-bound)** at Night Phase if none are alive in the room. If killed, does not respawn that night. |
 
 #### L8 unlocks
@@ -361,9 +399,9 @@ If the adventurers make it to the final room (the boss room) they attempt to fig
 
 ---
 
-## Mana / Essence economy
+## Mana / Essence economy ~~(REMOVED)~~
 
-Mana/Essence economy where every room, trap, and minion has an upkeep cost paid daily from XP harvested. Overbuild and your dungeon starts shutting off rooms.
+~~Mana/Essence economy where every room, trap, and minion has an upkeep cost paid daily from XP harvested. Overbuild and your dungeon starts shutting off rooms.~~
 
 ---
 
@@ -397,12 +435,12 @@ The 10 bosses:
 
 ### 1. Beholder — Information Warfare
 - **Headline: Omniscient Eye.** Player sees full stats / personality / inventory / next-room intent of every adventurer the moment they enter. In return, adventurers always have rumour-grade intel on the dungeon — neither side can surprise the other.
-- Floating Eye minions cost no essence (cap 1 per room).
+- Floating Eye minions cost no gold (cap 1 per room).
 - Once per day, mark a tile; any adventurer that steps on it next turn loses half HP from a death-stare.
 - *Plays like: chess with all pieces face-up.*
 
 ### 2. Demon — Faustian Bargains
-- **Headline: Daily Contract.** Every dawn, an infernal bargain appears — accept and gain a powerful effect (huge essence, free room tier-up, stat boost) at a price (sacrifice a minion, lose a boss life, all advs tomorrow are +1 tier). Player must accept *something*; the only choice is which.
+- **Headline: Daily Contract.** Every dawn, an infernal bargain appears — accept and gain a powerful effect (huge gold, free room tier-up, stat boost) at a price (sacrifice a minion, lose a boss life, all advs tomorrow are +1 tier). Player must accept *something*; the only choice is which.
 - Adventurer corpses auto-rise as Imp minions (free, weak, expire after 1 day).
 - Hellfire traps cost Dark Power instead of Essence.
 - *Plays like: push-your-luck negotiations.*
@@ -422,7 +460,7 @@ The 10 bosses:
 ### 5. Gnoll — Pack Aggression
 - **Headline: Hunger & Pack Bonus.** Place a single Gnoll, get a pack of 3 (each at –33% stats). Killing an adventurer fully feeds the pack and grants +20% ATK for the rest of the day. Unfed packs grow weaker each day instead — you must keep killing to stay strong.
 - Bonus damage when adventurers are in groups of 2+ (pack-hunts parties).
-- Scavenger sub-minion auto-loots corpses for extra essence.
+- Scavenger sub-minion auto-loots corpses for extra gold.
 - *Plays like: snowball with momentum, starve and collapse.*
 
 ### 6. Golem — Fortress Mode
@@ -451,7 +489,7 @@ The 10 bosses:
 - *Plays like: brute-force damage scaling, anti-magic lockout.*
 
 ### 10. Vampire — Charm & Conversion
-- **Headline: Charm.** Once per day, mark an adventurer — they leave their party, walk to the boss room willingly, and either join you as a thrall minion or get drained for massive essence. Player's call.
+- **Headline: Charm.** Once per day, mark an adventurer — they leave their party, walk to the boss room willingly, and either join you as a thrall minion or get drained for massive gold. Player's call.
 - Vampire minions lifesteal 50% of damage dealt.
 - Cannot use any "light"-tagged room (no torches, healing fountains, sun-shrines).
 - Charmed adventurers killed in your dungeon convert to vampire spawn at the next dawn.
@@ -473,7 +511,7 @@ The 10 bosses:
 | Vampire | Conversion / sustain |
 
 ### Implementation notes (deferred until ready)
-- Replaces `bossArchetypes.json` and the entire archetype-modifier wiring (`AISystem._kill` essence multiplier, `EvolutionSystem` XP multiplier, `NightPhase` trap palette filter, etc.).
+- Replaces `bossArchetypes.json` and the entire archetype-modifier wiring (`AISystem._kill` gold multiplier, `EvolutionSystem` XP multiplier, `NightPhase` trap palette filter, etc.).
 - Each headline mechanic is non-trivial — many need new systems (Fear Meter, Phylactery hunt target, growth tiers, hidden-trap intel masking, loot-stat carryover on minions, charm flow). Plan to land them as a coherent group in their own phase.
 - ArchetypeSelect carousel UI stays — just re-skinned with the 10 monster types.
 - Existing 15 archetypes can be preserved as legacy/unlockable variants OR retired entirely; defer that call to implementation time.
@@ -494,7 +532,7 @@ Every piece of gear in the dungeon should have a story. For example: When a Knig
 
 There should be a variety the usual traps (spike traps, arrow traps, pitfall traps, and more) but there should also be of interaction traps I can place in the dungeon. interesting traps are ones that interact with adventurer behavior for example these plus many many more:
 
-1. **Greed Trap** — only triggers if an adventurer picks up loot (perfect for Greedy types)
+1. ~~**Greed Trap** — only triggers if an adventurer picks up loot (perfect for Greedy types)~~ *(REMOVED 2026-05-02 — loot-pickup mechanic was cut from the game; trigger is no longer fireable. Trap will be retired or repurposed in cleanup.)*
 2. **Whisper Trap** — only triggers when adventurers talk strategy (hits parties harder than solos)
 3. **Patience Trap** — pressure plate that only triggers if you stand still for 3+ seconds (counters Paranoid)
 4. **Speed Trap** — triggers if you move too fast through the room (counters Speed runners)
@@ -512,9 +550,9 @@ As you play the game you should not have access to all rooms, minion types, and 
 
 ---
 
-## Reputation system
+## Reputation system ~~(REMOVED)~~
 
-The game gets harder over time through a reputation system. The dungeon gets a Reputation Score — a public legend that grows as adventurers tell stories of their failures to other adventurers. High rep attracts better loot hunters, legendary heroes, and guild raids. Low rep makes solo scrubs feel confident enough to attempt it.
+~~The game gets harder over time through a reputation system. The dungeon gets a Reputation Score — a public legend that grows as adventurers tell stories of their failures to other adventurers. High rep attracts better loot hunters, legendary heroes, and guild raids. Low rep makes solo scrubs feel confident enough to attempt it.~~
 
 ---
 
@@ -638,7 +676,7 @@ The HUD is laid out as a single grid:
 - **Top bar (3 columns):**
   - Left: boss avatar + class/day caption + boss name + boss HP bar. Clicking the avatar opens the **Boss Overview** popup.
   - Center: `WAVE n / N` caption + wave-progress bar. (No "QUEST FAILED" branding text — redundant in-game.)
-  - Right: resource readouts. **Two resources** — Gold and Dark Power. ("Gold" replaces "Soul Essence" in name only; same underlying field.)
+  - Right: resource readouts. **Two resources** — Gold and Dark Power.
 - **Left column:**
   - Mini-map panel (top).
   - Build menu (below): tabs `ROOMS / MINIONS / TRAPS / ITEMS`, 2-col slot grid. ITEMS tab renders an empty grid with "Coming soon" caption.

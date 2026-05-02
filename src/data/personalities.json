@@ -431,6 +431,6 @@
     "rarity": "rare",
     "icon": "M",
     "iconColor": "0xff7777",
-    "description": "Trained to spot mimics. Refuses to pick up loot they suspect is a Mimicry Plague decoy — and 'suspect' here means 'any chest in a known dangerous room'. Frustrates loot-curse builds."
+    "description": "Trained to spot mimics. Refuses to pick up loot they suspect is a trap — and 'suspect' here means 'any chest in a known dangerous room'."
   }
 ]

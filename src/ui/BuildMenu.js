@@ -9,6 +9,7 @@
 
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs, pixelDiamond, pixelLock } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
+import { Balance } from '../config/balance.js'
 
 const DEFAULT_PANEL_W = 230
 const HEADER_H      = 22
@@ -297,9 +298,12 @@ export class BuildMenu {
     const D = this._depth + 2
     const key = `${kind}:${def.id}`
     const isSelected = (this._selectedKey === key)
-    const cost   = def.cost ?? def.essenceCostToPlace ?? 0
+    let cost = def.cost ?? def.goldCost ?? 0
+    if (kind === 'trap' && (this._gameState._mechanicFlags ?? {}).hastyArchitect) {
+      cost = Math.max(0, Math.round(cost * Balance.MECHANIC_HASTY_ARCHITECT_TRAP_DISCOUNT))
+    }
     const locked = (def.unlockLevel ?? 1) > (this._gameState.boss?.level ?? 1)
-    const affordable = cost <= (this._gameState.player?.soulEssence ?? 0)
+    const affordable = cost <= (this._gameState.player?.gold ?? 0)
 
     // Locked slots get a much darker fill + dimmer edges so they read as
     // "not yet" at a glance. Unlocked slots use the regular stone fill.
@@ -353,7 +357,11 @@ export class BuildMenu {
     }
 
     // ── Unlocked slot — glyph + name + cost ──
-    const glyph = def._glyph ?? this._glyphFor(def, kind)
+    // Phase 9 — Pact of the Jester: scramble the glyph + name on trap slots
+    // so the player doesn't know what they're placing until it's down.
+    const jesterScramble = kind === 'trap' &&
+      (this._gameState._mechanicFlags ?? {}).pactOfTheJester
+    const glyph = jesterScramble ? '?' : (def._glyph ?? this._glyphFor(def, kind))
     const g = this._scene.add.text(sx + sw / 2, sy + 14, glyph, {
       fontFamily: FONT_HEAD, fontSize: '12px',
       color: isSelected ? CRYPT.accent2Css : CRYPT.ink,
@@ -361,7 +369,8 @@ export class BuildMenu {
     this._slotObjects.push(g)
 
     // Name — word-wrap onto two lines for 'TRAP FACTORY' etc.
-    const name = (def.name ?? def.id ?? '?').toUpperCase()
+    const baseName = (def.name ?? def.id ?? '?').toUpperCase()
+    const name = jesterScramble ? '???' : baseName
     const nameT = this._scene.add.text(sx + sw / 2, sy + 28, name, {
       fontFamily: FONT_HEAD, fontSize: '7px',
       color: CRYPT.ink, letterSpacing: 1,

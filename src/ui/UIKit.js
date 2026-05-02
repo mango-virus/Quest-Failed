@@ -37,8 +37,8 @@ export const PALETTE = {
   textGreen:   '#33cc77',
 
   // Bars
-  essenceFill: 0xcc3311,
-  essenceBg:   0x220a06,
+  goldFill:    0xcc3311,
+  goldBg:      0x220a06,
   powerFill:   0x9b32d4,
   powerBg:     0x1a0a2e,
   healthFill:  0x22cc55,
@@ -74,7 +74,7 @@ export function glowRect(g, x, y, w, h, border, glow) {
 export function makeBar(scene, x, y, w, h, opts = {}) {
   const {
     bgColor   = PALETTE.panelBg,
-    fillColor = PALETTE.essenceFill,
+    fillColor = PALETTE.goldFill,
     glowColor = null,
     depth     = 10,
   } = opts
@@ -661,9 +661,19 @@ export function showToast(scene, message, opts = {}) {
     scene._toast = null
   }
 
-  const W  = scene.uiW ?? scene.scale.width
+  // Coordinates are in uiW space (logical pixels set by applyUiCamera).
+  // applyUiCamera sets zoom=sf and compensates scroll so that world(0,0)
+  // maps to screen(0,0) and screenX = worldX * sf.  This makes uiW-based
+  // layout correct at every window size.
+  //
+  // DO NOT use setScrollFactor(0) here.  In a zoomed scene, scrollFactor=0
+  // bypasses the scroll *compensation* that applyUiCamera relies on while
+  // the zoom-around-viewport-centre still applies.  At sf>1 that pushes
+  // y=14 to screenY = 14*sf + (sh/2)*(1−sf) which is *negative* (off the
+  // top of the window) at full-screen sizes.
+  const W  = scene.uiW ?? scene.scale?.width ?? 1280
   const tw = Math.min(W - 48, 520)
-  const th = 38
+  const th = 40
   const tx = (W - tw) / 2
   const ty = 14
 
@@ -673,14 +683,14 @@ export function showToast(scene, message, opts = {}) {
     ? { fill: 0x041a08, border: 0x33bb55, glow: 0x117733, text: '#88ffaa', icon: '✓' }
     : /* error */ { fill: 0x1a0804, border: 0xee8833, glow: 0xaa4400, text: '#ffd090', icon: '⚠' }
 
-  const bg  = scene.add.graphics().setDepth(200)
+  const bg  = scene.add.graphics().setDepth(500)
   glowPanel(bg, tx, ty, tw, th, { fill: scheme.fill, border: scheme.border, glow: scheme.glow })
 
   const txt = scene.add.text(tx + tw / 2, ty + th / 2,
     `${scheme.icon}   ${message}`, {
-      fontSize: '11px', color: scheme.text,
+      fontSize: '13px', color: scheme.text,
       fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(201)
+    }).setOrigin(0.5).setDepth(501)
 
   const objs  = [bg, txt]
   const timer = scene.time.delayedCall(duration, () => {

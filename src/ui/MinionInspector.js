@@ -1,25 +1,21 @@
 // Click-on-minion inspector for NightPhase.
-// Shows: name + level, kills, evolution history, equipped gear, available
-// loot in the same room with one-click "equip" buttons.
+// Shows: name + level, kills, evolution history.
 //
 // Subscribes to MINION_CLICKED (emitted by MinionRenderer) to open;
-// LOOT_CLICKED to nothing (Phase 7 ignores; Phase 7b will preview gear);
-// rebuilds itself on equip / minion-leveled events so it stays current.
+// rebuilds itself on minion-leveled events so it stays current.
 
 import { EventBus } from '../systems/EventBus.js'
-import { PALETTE, glowPanel } from './UIKit.js'
+import { PALETTE } from './UIKit.js'
 
 const PANEL_W = 280
 const PANEL_H = 360
 
 export class MinionInspector {
-  constructor(scene, gameState, lootSystem) {
+  constructor(scene, gameState) {
     this._scene = scene
     this._gameState = gameState
-    this._lootSystem = lootSystem
     this._minionId = null
     this._objects  = []          // game objects we've created — clear on close
-    this._equipBtns = []         // { hit, draw, ... }
     this._listeners = []
 
     this._wire()
@@ -47,7 +43,6 @@ export class MinionInspector {
     const onPhaseChange = () => this._closePanel()
 
     EventBus.on('MINION_CLICKED',          onClick)
-    EventBus.on('GEAR_EQUIPPED_TO_MINION', onChange)
     EventBus.on('MINION_LEVELED_UP',       onChange)
     EventBus.on('MINION_EVOLVED',          onChange)
     EventBus.on('MINION_NAMED',            onChange)
@@ -55,7 +50,6 @@ export class MinionInspector {
     EventBus.on('DAY_PHASE_STARTED',       onPhaseChange)
     this._listeners = [
       ['MINION_CLICKED',          onClick],
-      ['GEAR_EQUIPPED_TO_MINION', onChange],
       ['MINION_LEVELED_UP',       onChange],
       ['MINION_EVOLVED',          onChange],
       ['MINION_NAMED',            onChange],
@@ -178,92 +172,6 @@ export class MinionInspector {
       yCursor += 4
     }
 
-    // Equipped gear
-    const equippedIds = minion.equippedGear ?? []
-    const lootDefs = this._scene.cache.json.get('lootDefinitions') ?? []
-    const eqTitle = this._scene.add.text(px + 14, yCursor, 'EQUIPPED', {
-      fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace',
-    }).setDepth(41)
-    this._objects.push(eqTitle)
-    yCursor += 12
-
-    if (equippedIds.length === 0) {
-      const t = this._scene.add.text(px + 18, yCursor, '(nothing)', {
-        fontSize: '9px', color: PALETTE.textDim, fontFamily: 'monospace',
-      }).setDepth(41)
-      this._objects.push(t)
-      yCursor += 12
-    } else {
-      // Phase 7b: equipped items remain in loot.dungeon with tileX=null,
-      // so we can resolve their name + rarity for display.
-      const dungeonLoot = this._gameState.loot?.dungeon ?? []
-      for (const itemId of equippedIds) {
-        const item = dungeonLoot.find(i => i.instanceId === itemId)
-        const def  = lootDefs.find(d => d.id === item?.definitionId)
-        const name = def?.name ?? itemId.slice(-10)
-        const rar  = def?.rarity ?? 'common'
-        const lineColor = rar === 'rare' ? PALETTE.textAccent
-                       : rar === 'uncommon' ? PALETTE.textGreen
-                       : PALETTE.textNormal
-        const t = this._scene.add.text(px + 18, yCursor, `• ${name}`, {
-          fontSize: '9px', color: lineColor, fontFamily: 'monospace',
-        }).setDepth(41)
-        this._objects.push(t)
-        yCursor += 12
-      }
-    }
-    yCursor += 6
-
-    // Available gear in same room
-    const sameRoom = (this._gameState.loot?.dungeon ?? []).filter(
-      i => i.dungeonRoomId === minion.assignedRoomId
-    )
-    const avTitle = this._scene.add.text(px + 14, yCursor,
-      `IN ROOM (${sameRoom.length})`, {
-        fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace',
-      }).setDepth(41)
-    this._objects.push(avTitle)
-    yCursor += 12
-
-    if (sameRoom.length === 0) {
-      const t = this._scene.add.text(px + 18, yCursor, '(no loot here)', {
-        fontSize: '9px', color: PALETTE.textDim, fontFamily: 'monospace',
-      }).setDepth(41)
-      this._objects.push(t)
-    } else {
-      for (const item of sameRoom.slice(0, 4)) {
-        const def = lootDefs.find(d => d.id === item.definitionId)
-        const itemName = def?.name ?? item.definitionId
-        const rarity   = def?.rarity ?? 'common'
-        const lineColor = rarity === 'rare' ? PALETTE.textAccent
-                        : rarity === 'uncommon' ? PALETTE.textGreen
-                        : PALETTE.textNormal
-        const t = this._scene.add.text(px + 18, yCursor,
-          `${itemName}`, {
-            fontSize: '9px', color: lineColor, fontFamily: 'monospace',
-          }).setDepth(41)
-        this._objects.push(t)
-
-        // Equip button
-        const btnW = 50, btnH = 14
-        const bx = px + PANEL_W - btnW - 10
-        const by = yCursor - 2
-        const btnG = this._scene.add.graphics().setDepth(41)
-        glowPanel(btnG, bx, by, btnW, btnH, {
-          fill: 0x1a0a30, border: PALETTE.accent, glow: PALETTE.accent,
-        })
-        const btnTxt = this._scene.add.text(bx + btnW / 2, by + btnH / 2, 'EQUIP', {
-          fontSize: '8px', color: PALETTE.textBright, fontFamily: 'monospace', fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(42)
-        const btnHit = this._scene.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH, 0, 0)
-          .setDepth(43).setInteractive({ useHandCursor: true })
-        btnHit.on('pointerdown', () => {
-          this._lootSystem.equipToMinion(item.instanceId, minion.instanceId)
-        })
-        this._objects.push(btnG, btnTxt, btnHit)
-        yCursor += 16
-      }
-    }
   }
 
   _xpForNextLevel(minion) {

@@ -11,6 +11,17 @@ Top-down reverse roguelike. Player is the dungeon Boss/Architect. NPC adventurer
 
 ---
 
+## Removed systems (cleanup 2026-05-02)
+
+Several systems were retired in a focused cleanup pass. Older sections of this document still describe them; treat any mention of these as historical, not current.
+
+- **Soul Essence currency** → renamed to **gold**. Field is `gameState.player.gold`; balance constants are `STARTING_GOLD`, `GOLD_PER_KILL`, `DEV_INFINITE_GOLD`, `MINION_RESPAWN_COST_GOLD`. Archetype modifier renamed `goldGainMultiplier`. Mechanic constant `MECHANIC_TAXATION_GOLD_PENALTY`.
+- **Daily upkeep** → removed entirely. `EssenceSystem.js` is gone. `upkeepCost` fields stripped from JSON data and entity factories. Placement cost is the only economy pressure.
+- **Reputation system** → removed entirely. `ReputationSystem.js` is gone. Difficulty scales purely off boss level. Legendary heroes still appear at a flat 5% per spawn in `DayPhase._spawnAdventurers`. Guild raids dropped.
+- **Loot pickup mechanic** → removed entirely. `LootSystem.js`, `LootRenderer.js`, `LootGreedSystem.js`, `LootItem.js`, and `MimicRenderer.js` are gone. `gameState.loot.dungeon` is gone. Adventurer kills drop gold directly. Treasury rooms still pay a flat daily gold stipend; chests / hidden keys / vendetta-on-equip / vulture-loot-grab / mimic chest disguise / Greed Trap / `LOOT_PICKED_UP` / `LOOT_SCAVENGED` / `TREASURY_CHEST_*` / `MIMIC_REVEAL_*` events are all gone. Mimics in the Mimic Vault now spawn as plain hostile garrison minions.
+
+---
+
 ## Tech Stack
 
 - **Phaser 3** (game framework — scenes, tilemaps, camera, input, game loop)
@@ -34,17 +45,15 @@ Two separate economies — never combine them into one pool.
 
 | Currency | Name | Earned By | Spent On |
 |---|---|---|---|
-| Upkeep | **Soul Essence** | Adventurer kills (primary), day milestones | Daily upkeep cost of rooms/traps/minions |
+| Build  | **Gold**       | Adventurer kills, treasury room daily stipend | One-time placement cost of rooms / traps / minions |
 | Upgrade | **Dark Power** | Adventurer kills (secondary, lower rate), boss kills, dungeon level-ups | Minion evolution, boss upgrades, unlocking new room/trap/minion types |
 
-**Upkeep enforcement:** If Soul Essence runs out, rooms/traps shut off in reverse order of placement (most recent first) until the daily bill is met. The player sees a warning before the day phase ends.
-
-**Starter rooms** do not require Soul Essence upkeep. Higher-tier rooms do. The `upkeepCost` field on `RoomDefinition` controls this — set to `0` for free rooms.
+There is no daily upkeep — the only economy pressure is placement cost. Rooms, traps, and minions never shut off after placement.
 
 **Starting state (new run):**
 - Boss room: pre-placed (fixed position, never removed)
-- 3 starter rooms: pre-placed, all with `upkeepCost: 0`
-- Soul Essence: tunable constant (`STARTING_ESSENCE` in `src/config/balance.js`)
+- 3 starter rooms: pre-placed (free placement cost)
+- Gold: tunable constant (`STARTING_GOLD` in `src/config/balance.js`)
 - Dark Power: 0
 - All amounts designed to be tweaked without code changes
 
@@ -85,9 +94,6 @@ Quest-Failed/
 │   │   ├── KnowledgeSystem.js   ← per-adventurer knowledge state + spreading
 │   │   ├── PersonalitySystem.js ← behavior weight evaluation + combo detection
 │   │   ├── EvolutionSystem.js   ← minion evolution triggered by kill-method events
-│   │   ├── EssenceSystem.js     ← daily upkeep calculation and room shutdown
-│   │   ├── ReputationSystem.js  ← dungeon reputation score + guild scaling
-│   │   ├── LootSystem.js        ← item generation, provenance history, equipping
 │   │   ├── DungeonMechanicSystem.js ← activate/deactivate mechanics, tradeoff logic
 │   │   ├── BossSystem.js        ← boss archetype stats, fight resolution, evolution
 │   │   └── NewspaperSystem.js   ← generate end-of-day newspaper from DayRecord
@@ -98,14 +104,12 @@ Quest-Failed/
 │   │   ├── dungeonMechanics.json
 │   │   ├── minionTypes.json
 │   │   ├── trapTypes.json
-│   │   ├── lootDefinitions.json
 │   │   └── bossArchetypes.json
 │   ├── entities/
 │   │   ├── Adventurer.js        ← runtime adventurer instance
 │   │   ├── Minion.js            ← runtime minion instance
 │   │   ├── Room.js              ← runtime room instance
-│   │   ├── Trap.js              ← runtime trap instance
-│   │   └── LootItem.js          ← runtime loot instance
+│   │   └── Trap.js              ← runtime trap instance
 │   ├── ui/
 │   │   ├── Palette.js           ← night phase room/trap/minion picker
 │   │   ├── InspectPanel.js      ← day phase read-only entity detail panel
@@ -352,7 +356,7 @@ GameState {
   currentEquippedBy: string | null,  // entity instanceId
   dungeonRoomId: string | null,      // if lying on dungeon floor
   statModifiers: StatModifier[],
-  curseLevel: number,                // 0 = clean; for Loot Curse mechanic
+  curseLevel: number,                // always 0 — field retained on LootItem schema; mechanic cut 2026-05-02
   isVendettaTarget: boolean,         // another adventurer is hunting this item
   vendettaHunterId: string | null
 }
@@ -446,18 +450,19 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
 ### DungeonMechanicDefinition
 ```js
 {
-  id: "mimicry_plague",
-  name: "Mimicry Plague",
-  description: "20% of all loot chests become Mimics when opened.",
-  tradeoffDescription: "Mimics count as minions — adventurers gain XP from killing them.",
-  unlockLevel: 3,
+  id: "taxation_of_souls",
+  name: "Taxation of Souls",
+  description: "Adventurers lose 5% max HP when entering a new room.",
+  tradeoffDescription: "Adventurers are already weakened on kill — you gain slightly less Soul Essence per death.",
+  unlockLevel: 2,
+  weight: 4,
   availableToArchetypes: "all",    // or array of archetype IDs
-  onActivate: "mimicryPlague_activate",
-  onDeactivate: "mimicryPlague_deactivate",
+  onActivate: "taxationOfSouls_activate",
+  onDeactivate: "taxationOfSouls_deactivate",
   onDailyTick: null,
-  tags: ["loot", "deception"],
+  tags: ["damage", "attrition"],
   exclusiveWith: [],               // mechanic IDs that can't coexist
-  synergyWith: ["loot_curse"]      // flavor text mentions synergy
+  synergyWith: []
 }
 ```
 
@@ -1022,17 +1027,12 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 ### Between-run shopping
 - When `KnowledgeSystem.rollReturnLeader()` returns a record, `DayPhase` now also adds `RETURNING_GEAR_BONUS_HP` (8) to `maxHp`/`hp` and `RETURNING_GEAR_BONUS_ATK` (2) to attack on the spawned leader, then sets `flags.shoppedBetweenRuns = true`.
 
-### Eternal Night fog-of-war foundation
-- `KnowledgeSystem.isEternalNightActive()` reads `gameState.activeMechanics?.includes('eternal_night')`.
-- `KnowledgeSystem.visibleRoomIds(adv)` returns the current room plus rooms whose bounding box gap is ≤ `ETERNAL_NIGHT_VISION_ROOMS` (1) tiles. When the mechanic is inactive, returns all room IDs (full sight).
-- This is a *foundation* — Phase 9 will hook a renderer that paints non-visible rooms dark and AI that won't path through them.
-
 ---
 
 ## Phase 9 Implementation Notes (Dungeon Mechanics + Newspaper)
 
 ### DungeonMechanicSystem (`src/systems/DungeonMechanicSystem.js`)
-- Manages `gameState.activeMechanics: string[]` (mechanic IDs). Definitions are JSON-driven via `src/data/dungeonMechanics.json` (13 mechanics: mimicry_plague, taxation_of_souls, gravitational_anomaly, cursed_fountains, no_health_regen, memory_fog, eternal_night, bloodbound, hunger, knowledge_is_pain, paranoia_protocol, spectral_reinforcements, loot_curse).
+- Manages `gameState.activeMechanics: string[]` (mechanic IDs). Definitions are JSON-driven via `src/data/dungeonMechanics.json` (9 active pacts: taxation_of_souls, bloodbound, gold_rush, undying_horde, sealed_paths, pack_synergy, blood_money, hasty_architect, great_erasure).
 - Each definition has `onActivate`, `onDeactivate`, optional `onDailyTick` handler IDs that are looked up in the in-file `_buildHandlerRegistry()`.
 - Public API: `activate(id)`, `deactivate(id)`, `isActive(id)`, `getOfferings(count, archetypeId, dungeonLevel)`, `tickDay(deltaMs)`.
 - `getOfferings` filters by:
@@ -1045,10 +1045,8 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 - On Game scene boot, `loadDefinitions()` re-activates every mechanic in saved state — handlers re-bind their listeners.
 
 ### Mechanic readers in other systems
-- **AISystem._sleep**: reads `_mechanicFlags.noHealthRegen` (zeros heal rate) and emits `ADVENTURER_SLEPT` so memory_fog can drop knowledge entries.
-- **AISystem._applyRoomEffects**: reads `_mechanicFlags.cursedFountains` (flips healing fountain to damage at `MECHANIC_CURSED_FOUNTAIN_DAMAGE_PER_SEC`).
 - **AISystem essence award**: applies `MECHANIC_TAXATION_ESSENCE_PENALTY` (0.7×) when `taxationOfSouls` is on.
-- **CombatSystem._computeDamage**: applies `MECHANIC_BLOODBOUND_DAMAGE_MULT` (1.5×) for minion attackers, `MECHANIC_GRAV_PROJECTILE_MULT` / `MECHANIC_GRAV_MELEE_DAMAGE_MULT` for gravitational anomaly.
+- **CombatSystem._computeDamage**: applies `MECHANIC_BLOODBOUND_DAMAGE_MULT` (1.5×) for minion attackers; `packSynergy` adds +15% per ally in room up to +60%; `sealedPaths` adds 1.25× for cornered fleeing adventurers.
 - **MinionAISystem.respawnAll**: under `bloodbound`, dead minions are spliced out instead of revived. Emits `BLOODBOUND_LOSSES`.
 
 ### EndOfDay scene (`src/scenes/EndOfDay.js`)
@@ -1057,25 +1055,18 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 - Right panel: 3 mechanic offer cards filtered by `getOfferings(3, archetypeId, dungeonLevel)`. Each card shows name, description, and tradeoff (gold italic).
 
 ### NewspaperSystem (`src/systems/NewspaperSystem.js`)
-- Subscribes during the day to: `ADVENTURER_DIED`, `ADVENTURER_FLED`, `MINION_DIED`, `TRAP_TRIGGERED`, `TRAP_DISARMED`, `MINION_LEVELED_UP`, `MINION_EVOLVED`, `MINION_BOUNTY_POSTED`, `DUNGEON_LEVELED_UP`, `VENDETTA_HUNTER_ARRIVED`, `ADVENTURER_RETURNED`, `MECHANIC_ACTIVATED`, `HUNGER_BITE`, `BLOODBOUND_LOSSES`. Buffer is reset on `DAY_PHASE_STARTED`.
+- Subscribes during the day to: `ADVENTURER_DIED`, `ADVENTURER_FLED`, `MINION_DIED`, `TRAP_TRIGGERED`, `TRAP_DISARMED`, `MINION_LEVELED_UP`, `MINION_EVOLVED`, `MINION_BOUNTY_POSTED`, `DUNGEON_LEVELED_UP`, `VENDETTA_HUNTER_ARRIVED`, `ADVENTURER_RETURNED`, `MECHANIC_ACTIVATED`, `BLOODBOUND_LOSSES`. Buffer is reset on `DAY_PHASE_STARTED`.
 - `compose()` returns `{ day, headline, body[], casualties, fled, mechanics[] }`.
 - Tone: workplace memo. Headlines parameterised by death/flee counts; casualty list uses adventurer name + class + killer; flees note "embarrassing internal documents."
-
-### EternalNightOverlay (`src/ui/EternalNightOverlay.js`)
-- Single `Graphics` at depth 2.7. When `eternal_night` mechanic active, paints the union of *NON-visible* rooms across all active adventurers with a 55%-alpha black veil.
-- Throttled to `REFRESH_MS = 200` to avoid per-frame re-fills.
-- Activated/deactivated by mechanic handlers via `scene.eternalNightOverlay.setEnabled()`.
 
 ### What's deferred to 9b (acknowledged orphans)
 - Dossier system (pre-day adventurer info card)
 - Trap memory UI (per-adventurer "spent" icons showing what they know)
-- Paranoia indicators on chests/doors/fountains (data flag exists, UI overlay deferred)
 - Hidden keys + locked doors progression
 - Auto-pause on key events
 - Inquisitor mechanic-disable behaviour
 - Adventurers fight among themselves over loot
 - Mimic AI and Echo (mimic-the-last-seen-adventurer) personalities — Phase 10
-- Spectral reinforcement ghost spawning
 
 ---
 
@@ -1090,21 +1081,12 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 - On `ADVENTURER_ENTERED_DUNGEON` for an inquisitor-tagged adventurer, schedules an 8-second "investigate" delay then deactivates a random active dungeon mechanic.
 - Snapshot of dispelled mechanic stored per `advId` in `_suspended`. Restored on `ADVENTURER_DIED`, `ADVENTURER_FLED`, or `DAY_PHASE_ENDED`.
 
-### ParanoiaIndicator (`src/ui/ParanoiaIndicator.js`)
-- Toggled by `MECHANIC_ACTIVATED/DEACTIVATED` for `paranoia_protocol`.
-- Renders "⚠ 10%" labels above every `healing_fountain` and `treasure_room` regardless of whether the room is actually trapped — the uncertainty itself is the trap.
-
 ### DossierPanel (`src/ui/DossierPanel.js`)
 - Created in `DayPhase.create()` and `show(spawned)` is called 300 ms after spawn.
 - Renders one card per spawned adventurer with class, personality tags, prior-visit count from `gameState.adventurers.known`, and flags for `shoppedBetweenRuns`, `vendettaMinionId`. Auto-dismisses after 4.5 s or on click.
 
 ### LootGreedSystem (`src/systems/LootGreedSystem.js`)
 - Per-day tick scan every 4 s. Groups greedy-tagged adventurers by current room; if 2+ are present in a room with unclaimed loot, picks two at random and applies 6% maxHP `COMBAT_HIT` damage to each (also emits `LOOT_GREED_BRAWL`). Damage feeds the existing flee/kill plumbing so brawls naturally end with someone fleeing or dying — free XP for the dungeon.
-
-### Spectral Reinforcements ghost spawner (in `DungeonMechanicSystem`)
-- The `spectralReinforcements_activate` handler subscribes to `DAY_PHASE_STARTED` and calls `_spawnSpectralGhosts(scene, gameState)`.
-- Picks rooms where adventurers died within the last 3 days and creates dungeon-faction minions cloned from `skeleton_warrior` with `isSpectral: true`. Capped at 3 ghosts per day.
-- `MinionRenderer` renders spectral minions at 0.55 alpha.
 
 ### Trap-memory UI (in `TrapRenderer`)
 - New `knownBadge` text (👁 glyph) is added to each trap container; visible when any active adventurer's knowledge map flags this trap as `accurate`, or the shared pool has a record. Shown only on un-triggered traps (since triggered traps already display the spent slash).
@@ -1137,11 +1119,18 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 - Tier ladder: unknown → whispered (25) → feared (75) → legendary (150) → mythic (300). Tier change emits `REPUTATION_TIER_CHANGED`.
 - `legendarySpawnChance()` returns 0 / 0.10 / 0.20 / 0.30 by tier — DayPhase rolls per first-spawned non-leader; on hit promotes adventurer with `isLegendary=true` and 1.5× HP / 1.4× ATK / 1.3× DEF, emits `LEGENDARY_HERO_ARRIVED`.
 
-### Mimic minion + Mimicry Plague
-- `mimic` minion type added to `minionTypes.json` (HP 40 / ATK 14 / DEF 3). `unlockLevel: 99` so it can't be placed manually.
-- `mimicryPlague_activate` subscribes to `DAY_PHASE_STARTED` and runs `_spawnMimics`: rolls `MECHANIC_MIMICRY_CHEST_RATE` (0.2) per unclaimed loot item; on hit, marks the loot `isMimicSpawn=true` and creates a hidden mimic at the same tile (`hiddenAsLoot=true`, `disguisedItemId`).
-- `MinionRenderer` renders hidden mimics at alpha 0.
-- `MinionAISystem._tickMinion` checks for hidden mimics every tick: if any adventurer steps on the disguised tile, sets `hiddenAsLoot=false`, removes the loot item from `gameState.loot.dungeon`, emits `MIMIC_REVEALED`. Normal engagement takes over the same tick.
+### Mimic minion (Mimic Vault room) — chest disguise (rebuilt 2026-05-02)
+- `mimic` minion type in `minionTypes.json` — HP 60 / ATK 22 / DEF 5, `unlockLevel: 10`, gold cost 35. Not placeable from the build menu; only `RoomBehaviorSystem._refillMimicVault` spawns them.
+- Spawn extras: `{ isMimicVaultSpawn: true, isMimic: true, mimicState: 'chest' }` — start as chests.
+- **Behavior gating** while `mimicState === 'chest'`:
+  - `MinionAISystem._tickMinion` early-returns — they sit still.
+  - `AISystem._findEngageableMinion` skips them — advs see chests, not threats.
+- **Open-roll** in `RoomBehaviorSystem._rollMimicOpens`, fired on every `ADVENTURER_ROOM_CHANGED` into a Mimic-Vault room. Per-chest:
+  - `Balance.MIMIC_OPEN_CHANCE_UNKNOWN = 0.40` if the adv has no `knowledge.mimics[mimicId]` entry.
+  - `Balance.MIMIC_OPEN_CHANCE_KNOWN = 0.05` if they do.
+- **Reveal** in `_revealMimic`: flip `mimicState='revealed'`, set `aiState='engaging'`, deal `0.30 × maxHp` bite to the opener, mark every alive adv's `knowledge.mimics[mimicId]`, emit `MIMIC_REVEALED` + `COMBAT_HIT` (+ `COMBAT_KILL` if the bite kills).
+- **Persistence** — `KnowledgeSystem.sharedPool.mimics` mirrors `knowledge.traps`. Survivors carry their mimic knowledge into the survivor record; `_rebuildSharedPool` unions it; next-day fresh spawns inherit via `initKnowledgeForSpawn` → low open-chance from day 1.
+- **Visual** — `MinionRenderer` paints a chest sprite (wooden body, gold corner trim, lock) while in chest state and hides the normal sprite/HP bar/lvLabel. On reveal the chest hides and the regular mimic anim takes over.
 
 ### Echo personality
 - New `echo` personality in `personalities.json` (rare, unlock 4). Tags: `echo`, `mimic_path`, `cautious`.
@@ -1161,7 +1150,7 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 - Guild raid teams, endless mode, challenge runs, Supabase leaderboard
 - 10 unlockable boss archetypes (currently 5)
 - Full Graveyard sort/filter UI
-- Per-room mimic UI sprite (currently transparent until reveal)
+- (Resolved 2026-05-02) Mimic chest visual — `MinionRenderer` chest sprite with gold trim + lock
 - Twitch streamer chat_poll behavior
 
 ---
@@ -1410,8 +1399,8 @@ Added to `bossArchetypes.json`: the_warden (detention/prison), the_pyromancer (f
 
 ### NightPhase third tab (TRAPS)
 - Three-tab palette now: ROOMS / MINIONS / TRAPS. Each tab counter shows in the header.
-- `_validateTrapPlacement`: tile must be FLOOR or CORRIDOR, no overlap with another trap, no minion on tile, essence sufficient.
-- Right-click removal handles trap → minion → room in that order (most specific first). Ctrl+Z undoes any of the three.
+- `_validateTrapPlacement`: tile must be FLOOR or CORRIDOR, no overlap with another trap, no minion on tile, gold sufficient.
+- Removal is **sell-button-only** (action-bar SELL tool → click a room, refunds 50% room cost + 50% per minion inside). Right-click does NOT remove anything any more — it only cancels armed tools / placement candidates. Ctrl+Z still undoes the most recent placement (full refund).
 
 ### CombatLog overlay (`src/ui/CombatLog.js`)
 - Owned by DayPhase. Subscribes to: `ADVENTURER_ENTERED_DUNGEON`, `TRAP_TRIGGERED`, `COMBAT_HIT` (adventurer→minion only — minion→adventurer is conveyed by trap/kill/flee), `ADVENTURER_DIED`, `ADVENTURER_FLED`, `MINION_DIED`.
@@ -1479,16 +1468,15 @@ Added to `bossArchetypes.json`: the_warden (detention/prison), the_pyromancer (f
 - HP bar floats above body. Dead minions render at alpha 0 — re-appear on respawn since the same sprite container is reused.
 - Click → `MINION_CLICKED` event for future inspector binding.
 
-### EssenceSystem upkeep extension
-- `calculateDailyUpkeep` now sums room upkeep + alive-minion upkeep. Dead minions are skipped (they aren't drawing power until they respawn).
+### (Removed 2026-05-02) EssenceSystem upkeep extension
+- The upkeep system was deleted along with `EssenceSystem.js`. No daily drain of any kind exists in the game now.
 
 ### NightPhase palette refactor
 - Palette panel gained **tabs**: ROOMS / MINIONS, click to switch. Active tab highlighted with accent border.
 - All cards for the active tab tracked in `_paletteObjects` and torn down on tab switch (no leaks).
 - New unified `_selectItem(def, kind)` replaces `_selectRoom`. `_selectedKind` ('room'|'minion') drives preview shape (single-tile for minions, room rect for rooms) and which validator runs.
 - Minion placement validation: tile must be FLOOR/BOSS_FLOOR, must be inside a room, that room must have a barracks within `Balance.MINION_BARRACKS_DISTANCE` (default 3) — except when placing IN a barracks-tagged room.
-- Right-click removal now checks for a minion at the tile first (more specific than room), falls back to room removal.
-- Ctrl+Z undo now handles either kind.
+- Removal goes through the SELL tool, not right-click. Ctrl+Z still undoes the most recent placement (full refund).
 
 ### DungeonGrid additions
 - `hasBarracksWithinDistance(roomId, maxDist)` — BFS on room adjacency graph; treats `starter_barracks` and `crypt` as barracks-tagged.
@@ -1628,11 +1616,12 @@ The personality + class roster now matches the 23 entries in the original game d
 
 ## Phase 3 Implementation Notes
 
-### EssenceSystem (`src/systems/EssenceSystem.js`)
-- `EssenceSystem.calculateDailyUpkeep(gameState)` → sum of all room `upkeepCost` values
-- `EssenceSystem.enforceUpkeep(gameState)` → called at NightPhase start; deducts upkeep, shuts off rooms newest-first if negative, emits `ESSENCE_WARNING` / `ROOM_DEACTIVATED` / `ESSENCE_CRITICAL`
-- `_tryReactivate` runs before deduction — restores previously shut-off rooms if essence can now cover them
-- Returns `{ paid, shortfall, deactivated[] }` — NightPhase uses this to show a red banner notice
+### Economy (gold; upkeep removed)
+- Single currency: `gameState.player.gold`. Constants: `STARTING_GOLD`, `GOLD_PER_KILL`, `DEV_INFINITE_GOLD`, `MINION_RESPAWN_COST_GOLD`.
+- Daily upkeep was removed in the 2026-05-02 cleanup. Rooms / minions / traps cost gold to **place** but no longer drain anything per day; the only gold sinks are placements + Mimic Vault chest theft. `EssenceSystem.js` and `upkeepCost` JSON fields are gone.
+- Sell rules (all paths refund **50%** of the entity's `goldCost`):
+  - **SELL tool** (action bar): click a room → refunds 50% of the room cost + 50% per minion inside, removes them all in one stroke.
+  - **Ctrl+Z**: undoes the most recent placement at full refund (single-level).
 
 ### DayPhase (`src/scenes/DayPhase.js`)
 - Overlay scene (Game scene stays running); launched by NightPhase._beginDay() via `this.scene.start('DayPhase', { gameState })`
@@ -1642,11 +1631,10 @@ The personality + class roster now matches the 23 entries in the original game d
 - Placeholder text removed in Phase 4 when adventurers are added
 
 ### NightPhase updates
-- **Upkeep enforcement**: EssenceSystem.enforceUpkeep runs in `create()` before UI builds; deactivated rooms show darkened in DungeonRenderer (existing `!room.isActive` overlay)
-- **Room removal**: right-click on placed room (when nothing selected) → 50% essence refund → DungeonGrid.removeRoom()
-- **Undo**: Ctrl+Z undoes the last placed room (full essence refund); only tracks single-level undo
-- **Stats panel**: added "Upkeep/day" row; turns red when upkeep > available essence
-- **Begin Day** now calls `this.scene.start('DayPhase', ...)` instead of console.log
+- **Removal**: SELL tool only — click a room to refund 50% room cost + 50% per minion inside; right-click cancels armed tool / selection but does NOT remove placed content.
+- **Undo**: Ctrl+Z undoes the last placement (full refund); single-level only.
+- **Begin Day** calls `this.scene.start('DayPhase', ...)`.
+- (2026-05-02) Upkeep enforcement and the per-card "/day" cost row were deleted along with `EssenceSystem.js`. The Stats panel no longer shows an "Upkeep/day" line.
 
 ### Room definitions added (rooms.json)
 - `entry_hall` — starter, 10×6, 4 connections, free — crossroads entrance room

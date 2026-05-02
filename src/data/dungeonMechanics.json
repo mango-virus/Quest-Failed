@@ -3,14 +3,18 @@
     "id": "taxation_of_souls",
     "name": "Taxation of Souls",
     "description": "Adventurers lose 5% max HP when entering a new room.",
-    "tradeoffDescription": "Adventurers are already weakened on kill — you gain slightly less Soul Essence per death.",
+    "tradeoffDescription": "Adventurers are already weakened on kill — you gain slightly less Gold per death.",
+    "rarity": "common",
     "unlockLevel": 2,
     "weight": 4,
     "availableToArchetypes": "all",
     "onActivate": "taxationOfSouls_activate",
     "onDeactivate": "taxationOfSouls_deactivate",
     "onDailyTick": null,
-    "tags": ["damage", "attrition"],
+    "tags": [
+      "damage",
+      "attrition"
+    ],
     "exclusiveWith": [],
     "synergyWith": []
   },
@@ -19,14 +23,21 @@
     "name": "Bloodbound",
     "description": "Your minions deal +50% damage but die permanently instead of respawning overnight.",
     "tradeoffDescription": "Every minion lost is gone forever. Your dungeon slowly hollows out if you're not careful.",
+    "rarity": "rare",
     "unlockLevel": 4,
     "weight": 2,
     "availableToArchetypes": "all",
     "onActivate": "bloodbound_activate",
     "onDeactivate": "bloodbound_deactivate",
     "onDailyTick": null,
-    "tags": ["minion", "damage", "permanent"],
-    "exclusiveWith": ["undying_horde"],
+    "tags": [
+      "minion",
+      "damage",
+      "permanent"
+    ],
+    "exclusiveWith": [
+      "undying_horde"
+    ],
     "synergyWith": []
   },
   {
@@ -34,29 +45,42 @@
     "name": "Gold Rush",
     "description": "Adventurers drop double gold when they die.",
     "tradeoffDescription": "One extra adventurer enters the dungeon each day. More prey, more risk.",
+    "rarity": "common",
     "unlockLevel": 2,
     "weight": 4,
     "availableToArchetypes": "all",
     "onActivate": "goldRush_activate",
     "onDeactivate": "goldRush_deactivate",
     "onDailyTick": null,
-    "tags": ["gold", "economy"],
+    "tags": [
+      "gold",
+      "economy"
+    ],
     "exclusiveWith": [],
-    "synergyWith": ["blood_money"]
+    "synergyWith": [
+      "blood_money"
+    ]
   },
   {
     "id": "undying_horde",
     "name": "Undying Horde",
     "description": "When a minion dies, 40% chance it rises as a weaker undead — half HP, fights until truly destroyed.",
     "tradeoffDescription": "Undead minions cannot evolve and die permanently if killed again. Your strongest minions become shambling echoes.",
+    "rarity": "rare",
     "unlockLevel": 3,
     "weight": 3,
     "availableToArchetypes": "all",
     "onActivate": "undyingHorde_activate",
     "onDeactivate": "undyingHorde_deactivate",
     "onDailyTick": null,
-    "tags": ["minion", "undead", "attrition"],
-    "exclusiveWith": ["bloodbound"],
+    "tags": [
+      "minion",
+      "undead",
+      "attrition"
+    ],
+    "exclusiveWith": [
+      "bloodbound"
+    ],
     "synergyWith": []
   },
   {
@@ -64,13 +88,17 @@
     "name": "Sealed Paths",
     "description": "Fleeing adventurers have a 50% chance to get turned around and rerouted deeper into the dungeon.",
     "tradeoffDescription": "Cornered adventurers fight with desperate fury — they deal 25% more damage when below their flee threshold.",
+    "rarity": "uncommon",
     "unlockLevel": 3,
     "weight": 3,
     "availableToArchetypes": "all",
     "onActivate": "sealedPaths_activate",
     "onDeactivate": "sealedPaths_deactivate",
     "onDailyTick": null,
-    "tags": ["control", "attrition"],
+    "tags": [
+      "control",
+      "attrition"
+    ],
     "exclusiveWith": [],
     "synergyWith": []
   },
@@ -79,13 +107,1121 @@
     "name": "Pack Synergy",
     "description": "Minions deal +15% damage per other allied minion in the same room, up to +60%.",
     "tradeoffDescription": "Solo minions gain no bonus. Your dungeon rewards dense packing — spread coverage gets weaker.",
+    "rarity": "common",
     "unlockLevel": 4,
     "weight": 3,
     "availableToArchetypes": "all",
     "onActivate": "packSynergy_activate",
     "onDeactivate": "packSynergy_deactivate",
     "onDailyTick": null,
-    "tags": ["minion", "damage"],
+    "tags": [
+      "minion",
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "hasty_architect",
+    "name": "The Hasty Architect",
+    "description": "During the Night Phase, you receive a 50% discount on traps.",
+    "tradeoffDescription": "All traps have a 25% chance to fail or jam when triggered.",
+    "rarity": "uncommon",
+    "unlockLevel": 2,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "hastyArchitect_activate",
+    "onDeactivate": "hastyArchitect_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "economy"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "great_erasure",
+    "name": "Pact of the Great Erasure",
+    "description": "Adventurers retain zero knowledge of the dungeon when they escape — every party that returns starts blind.",
+    "tradeoffDescription": "Adventurers arrive with 2× base Health, Damage, and Speed.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "greatErasure_activate",
+    "onDeactivate": "greatErasure_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "knowledge",
+      "scaling"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "schism",
+    "name": "Schism",
+    "description": "Adventurer parties splinter on entry — every adventurer paths solo, with no party loyalty, no healing, no shared buffs.",
+    "tradeoffDescription": "Solo adventurers never flee. They fight to the death.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "schism_activate",
+    "onDeactivate": "schism_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "control"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "glory_hounds",
+    "name": "Glory Hounds",
+    "description": "Adventurers refuse to retreat — they fight on no matter how wounded they are.",
+    "tradeoffDescription": "Adventurers below 30% HP deal +50% damage.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "gloryHounds_activate",
+    "onDeactivate": "gloryHounds_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "sworn_rivals",
+    "name": "Sworn Rivals",
+    "description": "Two adventurers in each party are bound as sworn rivals. When both fall below half HP, they break formation and attack each other on sight.",
+    "tradeoffDescription": "While both rivals are at full HP, each one deals +25% damage.",
+    "rarity": "epic",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "swornRivals_activate",
+    "onDeactivate": "swornRivals_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "control"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "famine_decree",
+    "name": "Famine Decree",
+    "description": "Adventurers at less than half HP deal −50% damage. Wound them and they wither.",
+    "tradeoffDescription": "Adventurers at full HP deal +50% damage. Fresh-faced parties hit like trucks.",
+    "rarity": "uncommon",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "famineDecree_activate",
+    "onDeactivate": "famineDecree_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "gilded_demise",
+    "name": "Gilded Demise",
+    "description": "Adventurers drop +50% gold when they die.",
+    "tradeoffDescription": "Every 50 gold earned today raises tomorrow's adventurer count by 1.",
+    "rarity": "uncommon",
+    "unlockLevel": 2,
+    "weight": 4,
+    "availableToArchetypes": "all",
+    "onActivate": "gildedDemise_activate",
+    "onDeactivate": "gildedDemise_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pyramid_scheme",
+    "name": "Pyramid Scheme",
+    "description": "The first kill each day grants 5× gold.",
+    "tradeoffDescription": "Every subsequent kill that day grants only 50% of normal gold.",
+    "rarity": "common",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "pyramidScheme_activate",
+    "onDeactivate": "pyramidScheme_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "ransom_note",
+    "name": "Ransom Note",
+    "description": "Every adventurer who escapes the dungeon pays you a 5g ransom.",
+    "tradeoffDescription": "Adventurers move 25% faster — harder to catch before they bolt.",
+    "rarity": "common",
+    "unlockLevel": 2,
+    "weight": 4,
+    "availableToArchetypes": "all",
+    "onActivate": "ransomNote_activate",
+    "onDeactivate": "ransomNote_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "adventurer"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "tax_the_living",
+    "name": "Tax the Living",
+    "description": "Every adventurer entering the dungeon pays you a 3g toll.",
+    "tradeoffDescription": "Adventurers arrive at +20% HP — they paid extra to be tougher.",
+    "rarity": "common",
+    "unlockLevel": 2,
+    "weight": 4,
+    "availableToArchetypes": "all",
+    "onActivate": "taxTheLiving_activate",
+    "onDeactivate": "taxTheLiving_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "adventurer"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "tower_tax",
+    "name": "Tower Tax",
+    "description": "Every ranged adventurer's first attack of the day misses entirely.",
+    "tradeoffDescription": "Every attack after that first miss deals +30% damage.",
+    "rarity": "common",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "towerTax_activate",
+    "onDeactivate": "towerTax_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "control"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "crusaders_curse",
+    "name": "Crusader's Curse",
+    "description": "Healer classes (Cleric, Bard) cannot heal in your dungeon.",
+    "tradeoffDescription": "Healer adventurers arrive with +50% HP to compensate.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "crusadersCurse_activate",
+    "onDeactivate": "crusadersCurse_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "control"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "kennel_discipline",
+    "name": "Kennel Discipline",
+    "description": "All your minions move 50% faster.",
+    "tradeoffDescription": "Minions cannot patrol — they stand still in their assigned room until something walks in.",
+    "rarity": "uncommon",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "kennelDiscipline_activate",
+    "onDeactivate": "kennelDiscipline_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "speed"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "ironhide_rite",
+    "name": "Ironhide Rite",
+    "description": "Your minions take 50% less damage from melee attackers.",
+    "tradeoffDescription": "Minions take 100% more damage from ranged attackers.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "ironhideRite_activate",
+    "onDeactivate": "ironhideRite_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "defense"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "frenzy_pact",
+    "name": "Frenzy Pact",
+    "description": "When an ally minion dies in a room, every surviving minion in that room gains +25% damage for the day. Stacks. No cap.",
+    "tradeoffDescription": "Each stack also gives those minions −25% defense. Also no cap.",
+    "rarity": "epic",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "frenzyPact_activate",
+    "onDeactivate": "frenzyPact_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "last_stand_doctrine",
+    "name": "Last Stand Doctrine",
+    "description": "Minions deal +100% damage when they are the last surviving ally in their room.",
+    "tradeoffDescription": "Minions who triggered Last Stand return at 50% HP the next day, drained from the effort.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "lastStandDoctrine_activate",
+    "onDeactivate": "lastStandDoctrine_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "mage_hunt",
+    "name": "Mage Hunt",
+    "description": "Your minions deal +50% damage against ranged adventurer classes.",
+    "tradeoffDescription": "Minions deal −25% damage against melee classes. Knights and Barbarians are now your hardest matchup.",
+    "rarity": "common",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "mageHunt_activate",
+    "onDeactivate": "mageHunt_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "anti_class"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "vampires_toll",
+    "name": "Vampire's Toll",
+    "description": "Every adventurer killed in your dungeon heals the boss for 5% of max HP.",
+    "tradeoffDescription": "Every adventurer who escapes alive damages the boss for 5% of max HP.",
+    "rarity": "common",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "vampiresToll_activate",
+    "onDeactivate": "vampiresToll_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "lifesteal"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "tyrants_gaze",
+    "name": "Tyrant's Gaze",
+    "description": "Each time the boss lands a hit during a boss fight, every minion in the boss chamber gains +1 attack for the rest of the day (stacks).",
+    "tradeoffDescription": "Each time the boss takes a hit during the fight, every minion in the boss chamber loses 1 HP.",
+    "rarity": "epic",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "tyrantsGaze_activate",
+    "onDeactivate": "tyrantsGaze_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "minion"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "soul_tether",
+    "name": "Soul Tether",
+    "description": "When a minion dies in the boss chamber, the boss heals for 10% of max HP.",
+    "tradeoffDescription": "When a minion dies anywhere else in the dungeon, the boss takes 5% max HP damage.",
+    "rarity": "uncommon",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "soulTether_activate",
+    "onDeactivate": "soulTether_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "minion"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "avengers_rite",
+    "name": "Avenger's Rite",
+    "description": "Whenever a minion dies, the boss enrages: +25% damage for 10 seconds during boss fights.",
+    "tradeoffDescription": "When an adventurer first enters the boss chamber, the boss is dazed for 5 seconds (no attacks).",
+    "rarity": "uncommon",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "avengersRite_activate",
+    "onDeactivate": "avengersRite_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "vengeance"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "final_breath",
+    "name": "Final Breath",
+    "description": "Once per run, when the boss is about to die in a boss fight, instead revive at 50% HP and full-heal every minion in the dungeon.",
+    "tradeoffDescription": "After the revive triggers, the boss permanently deals −25% damage for the rest of the run.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "finalBreath_activate",
+    "onDeactivate": "finalBreath_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "revive"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "false_maps",
+    "name": "False Maps",
+    "description": "Adventurer intel of your dungeon is scrambled — every room they think they know is labelled wrong.",
+    "tradeoffDescription": "When an adventurer enters a room and realizes the intel was wrong, they enrage: +50% damage for 30 seconds.",
+    "rarity": "epic",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "falseMaps_activate",
+    "onDeactivate": "falseMaps_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "knowledge",
+      "control"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "whispered_lies",
+    "name": "Whispered Lies",
+    "description": "Adventurer trap intel is poisoned with extra fake trap markers pointing at empty floor tiles.",
+    "tradeoffDescription": "Real traps still work — but adventurers waste pathfinding effort routing around bait tiles, sometimes routing into your real ones.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "whisperedLies_activate",
+    "onDeactivate": "whisperedLies_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "knowledge",
+      "trap"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "open_book",
+    "name": "Open Book",
+    "description": "Adventurers see every trap and minion in your dungeon from the moment they spawn.",
+    "tradeoffDescription": "Your traps deal 2× damage and your minions take 50% less damage. They knew, they came anyway.",
+    "rarity": "epic",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "openBook_activate",
+    "onDeactivate": "openBook_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "knowledge",
+      "trap",
+      "minion"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "whisperers_tongue",
+    "name": "Whisperer's Tongue",
+    "description": "Adventurers know the location of every minion you've placed.",
+    "tradeoffDescription": "Your minions can hear adventurer footsteps in adjacent rooms and engage them across walls.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "whisperersTongue_activate",
+    "onDeactivate": "whisperersTongue_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "knowledge",
+      "minion"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "doomsday_clock",
+    "name": "Doomsday Clock",
+    "description": "Gain 500 gold immediately.",
+    "tradeoffDescription": "On the 7th day from now, a guaranteed legendary raid arrives — 4 adventurers at 2× normal stats.",
+    "rarity": "legendary",
+    "unlockLevel": 4,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "doomsdayClock_activate",
+    "onDeactivate": "doomsdayClock_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "raid"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_long_game",
+    "name": "The Long Game",
+    "description": "Every 3 days, you receive a free random rare pact at dawn.",
+    "tradeoffDescription": "Every 3 days, you also lose one random minion permanently AND your maximum minion slots drop by 1.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "theLongGame_activate",
+    "onDeactivate": "theLongGame_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "meta",
+      "pact"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "inquisitors_mark",
+    "name": "Inquisitor's Mark",
+    "description": "Each day, one adventurer is marked. Killing the marked one grants 5× gold.",
+    "tradeoffDescription": "The marked adventurer arrives with 2× HP and +50% damage.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "inquisitorsMark_activate",
+    "onDeactivate": "inquisitorsMark_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "bounty"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "summon_adds_i",
+    "name": "Summon Adds I",
+    "description": "At the start of each day, 2 random Tier-1 minions appear in the boss chamber. They guard the room and despawn at day's end.",
+    "tradeoffDescription": "When a summoned add dies, the boss loses 5% of max HP.",
+    "rarity": "uncommon",
+    "unlockLevel": 2,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "summonAddsI_activate",
+    "onDeactivate": "summonAddsI_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "summon"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": [
+      "summon_adds_ii",
+      "summon_adds_iii"
+    ]
+  },
+  {
+    "id": "summon_adds_ii",
+    "name": "Summon Adds II",
+    "description": "At the start of each day, 2 random Tier-2 minions appear in the boss chamber. They guard the room and despawn at day's end.",
+    "tradeoffDescription": "Adventurers entering the boss chamber deal +25% damage.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "summonAddsII_activate",
+    "onDeactivate": "summonAddsII_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "summon"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": [
+      "summon_adds_i",
+      "summon_adds_iii"
+    ]
+  },
+  {
+    "id": "summon_adds_iii",
+    "name": "Summon Adds III",
+    "description": "At the start of each day, 1 random Tier-3 minion (the strongest forms) appears in the boss chamber.",
+    "tradeoffDescription": "Every day for the rest of the run, +1 adventurer enters the dungeon.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "summonAddsIII_activate",
+    "onDeactivate": "summonAddsIII_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "summon"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": [
+      "summon_adds_i",
+      "summon_adds_ii"
+    ]
+  },
+  {
+    "id": "drill_sergeant",
+    "name": "Drill Sergeant",
+    "description": "+5 maximum minion slots regardless of Barracks count.",
+    "tradeoffDescription": "All minions cost 50% more gold to place.",
+    "rarity": "uncommon",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "drillSergeant_activate",
+    "onDeactivate": "drillSergeant_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "slot"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "endless_garrison",
+    "name": "Endless Garrison",
+    "description": "Each Barracks grants 10 minion slots instead of 5.",
+    "tradeoffDescription": "All minions deal 15% less damage — they're overcrowded.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "endlessGarrison_activate",
+    "onDeactivate": "endlessGarrison_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "slot"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_cull",
+    "name": "The Cull",
+    "description": "+10 maximum minion slots flat.",
+    "tradeoffDescription": "At the end of each day, your weakest alive minion is permanently culled.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "theCull_activate",
+    "onDeactivate": "theCull_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "slot"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "trap_masons_touch",
+    "name": "Trap Mason's Touch",
+    "description": "+5 maximum trap slots regardless of Trap Factory count.",
+    "tradeoffDescription": "All traps cost 50% more gold to place.",
+    "rarity": "uncommon",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "trapMasonsTouch_activate",
+    "onDeactivate": "trapMasonsTouch_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "slot"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "trapsmiths_guild",
+    "name": "Trapsmith's Guild",
+    "description": "Each Trap Factory grants 10 trap slots instead of 5.",
+    "tradeoffDescription": "All traps deal 25% less damage — quantity over quality.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "trapsmithsGuild_activate",
+    "onDeactivate": "trapsmithsGuild_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "slot"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "forbidden_workshop",
+    "name": "Forbidden Workshop",
+    "description": "+10 maximum trap slots flat.",
+    "tradeoffDescription": "Each dawn, 25% of your placed traps are randomly disabled for that day.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "forbiddenWorkshop_activate",
+    "onDeactivate": "forbiddenWorkshop_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "slot"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "architects_vision",
+    "name": "Architect's Vision",
+    "description": "+3 maximum minion slots and +3 maximum trap slots.",
+    "tradeoffDescription": "+1 adventurer enters the dungeon each day.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "architectsVision_activate",
+    "onDeactivate": "architectsVision_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "trap",
+      "slot"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "hellfire_breath",
+    "name": "Hellfire Breath",
+    "description": "Boss gains a cone fire-breath attack during boss fights — every 8 seconds, AoE damage to up to 3 adventurers in front.",
+    "tradeoffDescription": "The breath has a 3-second windup; the boss does not attack while charging it.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "hellfireBreath_activate",
+    "onDeactivate": "hellfireBreath_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "lightning_strike",
+    "name": "Lightning Strike",
+    "description": "Boss can summon a lightning bolt at the highest-damage adventurer every 6 seconds during boss fights. Big single-target damage.",
+    "tradeoffDescription": "Each cast costs the boss 3% of max HP.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "lightningStrike_activate",
+    "onDeactivate": "lightningStrike_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "shockwave_slam",
+    "name": "Shockwave Slam",
+    "description": "Every 10 seconds during boss fights, the boss slams the ground — AoE damage to all adventurers in the boss chamber.",
+    "tradeoffDescription": "The boss is stunned for 2 seconds after each slam.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "shockwaveSlam_activate",
+    "onDeactivate": "shockwaveSlam_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "spectral_reach",
+    "name": "Spectral Reach",
+    "description": "Every 5 seconds during boss fights, the boss teleports adjacent to the closest adventurer and instantly strikes.",
+    "tradeoffDescription": "The boss attacks 25% more slowly all day.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "spectralReach_activate",
+    "onDeactivate": "spectralReach_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "dark_vortex",
+    "name": "Dark Vortex",
+    "description": "Every 12 seconds during boss fights, the boss pulls all adventurers in the boss chamber 2 tiles toward itself.",
+    "tradeoffDescription": "The vortex also pulls your minions in the boss chamber, disrupting their positions.",
+    "rarity": "uncommon",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "darkVortex_activate",
+    "onDeactivate": "darkVortex_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "soul_drain",
+    "name": "Soul Drain",
+    "description": "Every 12 seconds during boss fights, the boss channels a beam at one adventurer for 3 seconds, dealing damage and healing the boss for the same amount.",
+    "tradeoffDescription": "The boss can't move or block while channeling.",
+    "rarity": "epic",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "soulDrain_activate",
+    "onDeactivate": "soulDrain_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "doppelgangers",
+    "name": "Doppelgangers",
+    "description": "Every 20 seconds during boss fights, the boss splits into 3 illusions for 10 seconds — adventurers cannot tell which is real.",
+    "tradeoffDescription": "The real boss only deals 50% damage during the illusion window.",
+    "rarity": "epic",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "doppelgangers_activate",
+    "onDeactivate": "doppelgangers_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "petrifying_stare",
+    "name": "Petrifying Stare",
+    "description": "Every 15 seconds during boss fights, the boss freezes one random adventurer in the chamber for 5 seconds.",
+    "tradeoffDescription": "There's a 25% chance per cast that the stare backfires and stuns the boss for 3 seconds instead.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "petrifyingStare_activate",
+    "onDeactivate": "petrifyingStare_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "attack",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "cursed_soil",
+    "name": "Cursed Soil",
+    "description": "Empty floor tiles in your dungeon deal 1 damage per second to anyone standing on them, including your minions.",
+    "tradeoffDescription": "Adventurer kills inside rooms grant +50% gold.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "cursedSoil_activate",
+    "onDeactivate": "cursedSoil_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "environment",
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "sundered_floor",
+    "name": "Sundered Floor",
+    "description": "Each day, a random floor tile becomes a pitfall — telegraphed for 5 seconds, then anyone standing on it takes 25% max HP damage and is briefly stunned. The tile turns pitch black after triggering.",
+    "tradeoffDescription": "There's a 5% chance the pitfall opens under one of your minions instead.",
+    "rarity": "rare",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "sunderedFloor_activate",
+    "onDeactivate": "sunderedFloor_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "environment",
+      "damage",
+      "vfx"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_mirror",
+    "name": "Pact of the Mirror",
+    "description": "At each dawn, one of your minions is duplicated — a free copy at half HP appears beside it.",
+    "tradeoffDescription": "When either twin dies, both die.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheMirror_activate",
+    "onDeactivate": "pactOfTheMirror_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "summon"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_cartographer",
+    "name": "Pact of the Cartographer",
+    "description": "At day start, the planned path of every adventurer is revealed to you in advance.",
+    "tradeoffDescription": "Adventurers move 25% faster.",
+    "rarity": "uncommon",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheCartographer_activate",
+    "onDeactivate": "pactOfTheCartographer_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "intel",
+      "speed"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_jester",
+    "name": "Pact of the Jester",
+    "description": "All trap costs are reduced by 75% and traps deal +50% damage.",
+    "tradeoffDescription": "Trap names are scrambled in your build menu — you don't know which trap you're placing until after it's down.",
+    "rarity": "epic",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheJester_activate",
+    "onDeactivate": "pactOfTheJester_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "chaos"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_whisperer",
+    "name": "Pact of the Whisperer",
+    "description": "One adventurer per day is marked — they panic-flee on sight of any of your minions.",
+    "tradeoffDescription": "The marked adventurer's party gains +50% damage out of revenge.",
+    "rarity": "rare",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheWhisperer_activate",
+    "onDeactivate": "pactOfTheWhisperer_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "control"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_brand",
+    "name": "Pact of the Brand",
+    "description": "Each night you choose one trap to 'bless' — its next firing deals 5× damage.",
+    "tradeoffDescription": "After firing, the blessed trap is destroyed.",
+    "rarity": "uncommon",
+    "unlockLevel": 3,
+    "weight": 3,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheBrand_activate",
+    "onDeactivate": "pactOfTheBrand_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "burst"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_reaper",
+    "name": "Pact of the Reaper",
+    "description": "When an adventurer dies in a room, the next adventurer to enter that room is cursed: −25% HP and −25% damage.",
+    "tradeoffDescription": "The cursed adventurer's curse is visible to their party — they sometimes skip the room entirely.",
+    "rarity": "uncommon",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheReaper_activate",
+    "onDeactivate": "pactOfTheReaper_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "curse"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_crucible",
+    "name": "Pact of the Crucible",
+    "description": "Once per run, you may sacrifice one minion to instantly evolve another in the same room to the next tier.",
+    "tradeoffDescription": "The sacrificed minion's level is lost; the evolved minion keeps its current XP.",
+    "rarity": "legendary",
+    "unlockLevel": 4,
+    "weight": 2,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheCrucible_activate",
+    "onDeactivate": "pactOfTheCrucible_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "evolution"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_marionette",
+    "name": "Pact of the Marionette",
+    "description": "Once per day, left-click any of your minions during the day phase to possess it. WASD moves the puppet; it auto-attacks adventurers in melee range.",
+    "tradeoffDescription": "While possessed, every other minion in the dungeon stands idle. You lose possession if the puppet is killed or the day ends.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 1,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheMarionette_activate",
+    "onDeactivate": "pactOfTheMarionette_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "control",
+      "possession"
+    ],
     "exclusiveWith": [],
     "synergyWith": []
   },
@@ -94,14 +1230,21 @@
     "name": "Blood Money",
     "description": "Each adventurer killed permanently adds +1 gold per night. The bodies pile up, the gold flows.",
     "tradeoffDescription": "Every 5th kill permanently boosts all future adventurers by +2% HP. The dungeon's legend grows.",
+    "rarity": "epic",
     "unlockLevel": 5,
     "weight": 2,
     "availableToArchetypes": "all",
     "onActivate": "bloodMoney_activate",
     "onDeactivate": "bloodMoney_deactivate",
     "onDailyTick": null,
-    "tags": ["gold", "economy", "permanent"],
+    "tags": [
+      "gold",
+      "economy",
+      "permanent"
+    ],
     "exclusiveWith": [],
-    "synergyWith": ["gold_rush"]
+    "synergyWith": [
+      "gold_rush"
+    ]
   }
 ]

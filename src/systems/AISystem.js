@@ -112,58 +112,6 @@ export class AISystem {
     return !!id && id !== selfAdv.instanceId
   }
 
-  // Tiles occupied by ANY alive mimic — adventurers route AROUND them
-  // regardless of whether the mimic is disguised, mid-reveal, or fully
-  // active. SEEK_LOOT now targets the tile ADJACENT to a chest (see the
-  // SEEK_LOOT branch of _goalToTile), so we don't need a goal-tile
-  // exemption here; the chest tile stays blocked and the adv stops
-  // beside it. Active mimics still trigger combat via _findEngageableMinion
-  // — that engagement halts movement before this block matters.
-  _buildChestBlockSet() {
-    const set = new Set()
-    for (const m of this._gameState.minions ?? []) {
-      if (!m.isMimic) continue
-      if (m.aiState === 'dead') continue
-      set.add(`${m.tileX},${m.tileY}`)
-    }
-    return set
-  }
-
-  _isChestMimicAt(tx, ty) {
-    for (const m of this._gameState.minions ?? []) {
-      if (!m.isMimic) continue
-      if (m.aiState === 'dead') continue
-      if (m.tileX !== tx || m.tileY !== ty) continue
-      return true
-    }
-    return false
-  }
-
-  // Pick the closest walkable cardinal neighbor of (tx, ty) — used by
-  // SEEK_LOOT for chest items so the adv ends up beside the chest, not
-  // on top of it. `adv` is just for distance tie-breaking. Returns null
-  // if the chest is fully boxed in (caller falls back to the chest tile
-  // so the goal isn't dead).
-  _findAdjacentWalkableTile(tx, ty, adv) {
-    const tiles = this._dungeonGrid.getTiles?.()
-    if (!tiles) return null
-    const gh = tiles.length
-    const gw = tiles[0]?.length ?? 0
-    const candidates = []
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = tx + dx, ny = ty + dy
-      if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue
-      if (!PathfinderSystem.isWalkable(tiles[ny][nx])) continue
-      // Don't pick a tile that's itself a chest mimic.
-      if (this._isChestMimicAt(nx, ny)) continue
-      const d = Math.hypot(nx - adv.tileX, ny - adv.tileY)
-      candidates.push({ x: nx, y: ny, d })
-    }
-    if (candidates.length === 0) return null
-    candidates.sort((a, b) => a.d - b.d)
-    return { x: candidates[0].x, y: candidates[0].y }
-  }
-
   // World-space center of the entry hall's north-facing door rect.
   // Mirrors AdventurerRenderer._entryDoorWorldCenter / DungeonRenderer
   // _cpDoorRect: 2-tile width slid into the side with more wall space,
@@ -220,41 +168,6 @@ export class AISystem {
       return
     }
 
-    // Room redesign 2026-04-30 — Chest-opening pause. Adventurers freeze
-    // in place while opening a chest (treasury or mimic disguise). When
-    // the timer expires:
-    //   - treasury → attach as carriedChest, switch goal to FLEE
-    //   - mimic    → resume normal AI (the now-revealed mimic is a target)
-    if (adv.flags?.openingChest) {
-      const oc  = adv.flags.openingChest
-      const now = this._scene?.time?.now ?? 0
-      if (now < oc.until) {
-        adv.path = null
-        return
-      }
-      // Timer elapsed — resolve.
-      adv.flags.openingChest = null
-      if (oc.kind === 'treasury') {
-        adv.carriedChest = {
-          value:            oc.value ?? 0,
-          sourceTreasuryId: oc.sourceTreasuryId ?? null,
-          grabbedDay:       this._gameState.meta.dayNumber,
-        }
-        EventBus.emit('TREASURY_CHEST_GRABBED', {
-          adventurer: adv,
-          value: adv.carriedChest.value,
-        })
-        adv.goal    = { type: 'FLEE', reason: 'chest_grabbed' }
-        adv.path    = null
-        adv.aiState = 'walking'
-        return
-      }
-      // Mimic — fall through to normal AI; engagement picks up the
-      // now-revealed mimic. Goal is whatever it was; a re-pick is safe.
-      adv.aiState = 'walking'
-      adv.goal    = this._pickNextGoal(adv)
-    }
-
     // Hall of Madness — clear stale frenzy state up front (target dead /
     // left the room / adv left the Hall). When this returns true the goal
     // was just restored, so we let the rest of the tick recompute paths.
@@ -277,7 +190,6 @@ export class AISystem {
     // (so tileX/Y flickers between two adjacent values each tick) was
     // resetting the detector every frame.
     const stuckExempt = adv.aiState === 'dead' ||
-                        adv.aiState === 'opening_chest' ||
                         adv.goal?.type === 'AT_BOSS' ||
                         adv._leaveFadeEnd != null ||
                         adv._spawnFadeEnd != null
@@ -294,11 +206,9 @@ export class AISystem {
       } else {
         adv._tileStuckMs = (adv._tileStuckMs ?? 0) + delta
         if (adv._tileStuckMs > STUCK_MS) {
-          adv._pathIgnoresMimics = true
           adv.path = null
           adv._tileStuckMs = 0
           adv._waitMs = 0
-          adv._mimicStuckMs = 0
           adv._lastWorldX = adv.worldX
           adv._lastWorldY = adv.worldY
           EventBus.emit('ADVENTURER_UNSTUCK', {
@@ -306,10 +216,6 @@ export class AISystem {
             tile:          { x: adv.tileX, y: adv.tileY },
             goal:          adv.goal?.type ?? null,
             aiState:       adv.aiState,
-            nearbyMimics:  (this._gameState.minions ?? [])
-              .filter(m => m.isMimic && m.aiState !== 'dead' &&
-                Math.abs(m.tileX - adv.tileX) <= 2 && Math.abs(m.tileY - adv.tileY) <= 2)
-              .map(m => ({ id: m.instanceId, x: m.tileX, y: m.tileY, state: m.mimicState })),
           })
           // Light diagnostic so playtesters can see it in the console
           // without enabling extra logging.
@@ -381,22 +287,6 @@ export class AISystem {
       }
 
       adv.aiState = 'fled'
-      // Room redesign 2026-04-30 — Treasury theft resolves on alive exit.
-      // If the adventurer made it to the door carrying a chest, deduct the
-      // chest's value from the player's Soul Essence. Death (handled
-      // elsewhere in _die) clears carriedChest with no deduction.
-      if (adv.carriedChest) {
-        const value = adv.carriedChest.value ?? 0
-        this._gameState.player.soulEssence = Math.max(0,
-          (this._gameState.player.soulEssence ?? 0) - value
-        )
-        EventBus.emit('TREASURY_CHEST_STOLEN', {
-          adventurer: adv,
-          value,
-          sourceTreasuryId: adv.carriedChest.sourceTreasuryId,
-        })
-        adv.carriedChest = null
-      }
       this._gameState.adventurers.active.splice(idx, 1)
       EventBus.emit('ADVENTURER_FLED', {
         adventurer: adv,
@@ -589,36 +479,44 @@ export class AISystem {
       }
     }
 
+    // Phase 9 — Pact of the Whisperer: panic-flee on sight of a hostile minion.
+    if (adv.flags?.panicFlee && adv.aiState !== 'fleeing' && this._combatSystem) {
+      const enemy = this._findEngageableMinion(adv)
+      if (enemy) {
+        this._setFleeGoal(adv, 'whisperer_panic')
+        return
+      }
+    }
+    // Phase 9 — Sworn Rivals: when both rivals fall below half HP, they
+    // break ranks and attack each other on sight (in melee/attack-range).
+    if (adv.flags?.swornRivalOf && adv.aiState !== 'fleeing' && this._combatSystem) {
+      const rival = this._gameState.adventurers.active.find(a =>
+        a.instanceId === adv.flags.swornRivalOf && a.aiState !== 'dead'
+      )
+      if (rival) {
+        const myFrac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
+        const rvFrac = rival.resources.maxHp > 0 ? rival.resources.hp / rival.resources.maxHp : 1
+        const thr   = Balance.MECHANIC_SWORN_RIVALS_HP_THRESHOLD
+        if (myFrac <= thr && rvFrac <= thr) {
+          const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+          const d = Math.hypot(rival.tileX - adv.tileX, rival.tileY - adv.tileY)
+          if (d <= reach + 0.01) {
+            adv.aiState = 'fighting'
+            adv.path = null
+            this._combatSystem.tryAttack(adv, rival, {
+              roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
+              method: 'sworn_rivals',
+            })
+            return
+          }
+        }
+      }
+    }
+
     // Engage hostile minion in melee range
     if (adv.aiState !== 'fleeing' && this._combatSystem) {
       const enemy = this._findEngageableMinion(adv)
       if (enemy) {
-        // Phase 7b: vultures skip combat when there's loot to snag in the room
-        const tagsEarly = this._personalitySystem?.getTags(adv) ?? new Set()
-        if (tagsEarly.has('vulture') && this._lootInSameRoom(adv)) {
-          // Just keep moving toward the loot — don't engage
-          return
-        }
-
-        // Phase QW — martyr_vulture combo ("Sacrifice and Salvage"): if a
-        // party-mate is currently taunting (martyr at low HP), the vulture
-        // refuses to engage at all — they wait for the martyr to draw fire,
-        // then loot the carnage.
-        if (tagsEarly.has('vulture') && adv.partyId) {
-          const tauntingMartyr = this._gameState.adventurers.active.find(a =>
-            a.partyId === adv.partyId &&
-            a.instanceId !== adv.instanceId &&
-            a.aiState !== 'dead' &&
-            a.personalityIds?.includes('martyr') &&
-            (a.resources.hp / Math.max(1, a.resources.maxHp)) <= Balance.MARTYR_TAUNT_HP_FRACTION
-          )
-          if (tauntingMartyr) {
-            adv.flags = adv.flags ?? {}
-            adv.flags.vultureWaitingForCarnage = true
-            return
-          }
-        }
-
         // Phase 5c — Beast Master tame logic moved to ClassAbilitySystem.
         // The legacy tag-based tame attempt is gone; tame is now a proper
         // cooldown ability with single-companion enforcement.
@@ -664,27 +562,9 @@ export class AISystem {
       // same straight line — they pick varied routes between rooms each repath.
       // Fleeing advs skip jitter (panic = beeline home).
       const pathJitter = adv.goal?.type === 'FLEE' ? 0 : 0.6
-      // Mimic chests aren't walkable — adventurers route AROUND them.
-      // The goal tile is exempt by the pathfinder so SEEK_LOOT can still
-      // target a chest directly to trigger the reveal.
-      const blockedTiles = this._buildChestBlockSet()
-      let path = PathfinderSystem.findPath(
-        { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter, blockedTiles,
+      const path = PathfinderSystem.findPath(
+        { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
       )
-      adv._pathIgnoresMimics = false
-      // Fallback — if no route exists when treating mimics as walls
-      // (e.g. two chests bottleneck the only corridor), try again without
-      // the mimic block so the adv at least keeps moving. Visually the
-      // adv may briefly cross a chest tile, but that's better than being
-      // permanently stuck. This rarely fires; only when the mimics
-      // genuinely sever the dungeon. Mark the resulting path so the
-      // movement-time block (below) lets the adv through.
-      if ((!path || path.length === 0) && (adv.tileX !== target.x || adv.tileY !== target.y)) {
-        path = PathfinderSystem.findPath(
-          { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
-        )
-        if (path && path.length > 0) adv._pathIgnoresMimics = true
-      }
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
         // "no route exists".  Only treat the former as a true arrival; the
@@ -780,42 +660,6 @@ export class AISystem {
     // current one — i.e. we're about to commit to entering it. This prevents
     // self-deadlock where an adventurer's own occupancy entry blocks them.
     const enteringNewTile = (wp.x !== adv.tileX || wp.y !== adv.tileY)
-    // Mimic chest block — even if a stale path is heading into a chest
-    // tile, refuse to commit. Goal-pickup is exempt: when this very adv
-    // is targeting that chest via SEEK_LOOT, we let them step onto it
-    // so the reveal handshake can fire. Also relaxed when the current
-    // path was planned with mimics ignored (fallback because there was
-    // no route around them) — without this, the adv would re-block at
-    // movement time, drop the path, replan, get the same fallback, and
-    // stick forever. Same wait-then-replan pattern as the adv-vs-adv
-    // block below for the genuine "stale-path" case.
-    if (enteringNewTile && this._isChestMimicAt(wp.x, wp.y) && !adv._pathIgnoresMimics) {
-      const seekTargetIsHere = adv.goal?.type === 'SEEK_LOOT'
-        && (this._gameState.loot?.dungeon ?? []).some(i =>
-          i.instanceId === adv.goal.itemId && i.tileX === wp.x && i.tileY === wp.y
-        )
-      if (!seekTargetIsHere) {
-        adv._mimicStuckMs = (adv._mimicStuckMs ?? 0) + delta
-        adv._waitMs = (adv._waitMs ?? 0) + delta
-        if (adv._waitMs > 1200) {
-          adv.path = null
-          adv._waitMs = 0
-        }
-        // Escalation — if the adv has spent more than 3 s repeatedly
-        // bouncing off chest tiles (replan→stop→replan loop), give up on
-        // the route-around and shove through. This catches edge cases the
-        // pathfinder fallback misses (e.g. the unblocked path also failed
-        // for an unrelated reason, or path planning thinks it has a route
-        // but every actual step lands on a chest).
-        if (adv._mimicStuckMs > 3000) {
-          adv._pathIgnoresMimics = true
-          adv._mimicStuckMs = 0
-        }
-        return
-      }
-    } else if (adv._mimicStuckMs) {
-      adv._mimicStuckMs = 0
-    }
     if (enteringNewTile && this._tileOccupiedByOtherAdv(wp.x, wp.y, adv)) {
       // Head-on swap escape valve: if the blocker is *also* trying to enter
       // our current tile (i.e. we're walking straight at each other in a
@@ -1012,13 +856,9 @@ export class AISystem {
     // The adv's own start tile is exempt from the mimic check (they can't
     // be standing on a mimic, but float-edge cases shouldn't lock them
     // in place if they are).
-    const startCx = Math.floor(x0), startCy = Math.floor(y0)
     const walkable = (x, y) => {
       const row = tiles[y]
-      if (!row || !PathfinderSystem.isWalkable(row[x])) return false
-      if (x === startCx && y === startCy) return true
-      if (this._isChestMimicAt(x, y)) return false
-      return true
+      return !!row && PathfinderSystem.isWalkable(row[x])
     }
     if (!walkable(cx, cy)) return false
 
@@ -1056,11 +896,10 @@ export class AISystem {
     for (const m of this._gameState.minions) {
       if (m.aiState === 'dead' || m.resources.hp <= 0) continue
       if (m.faction === 'adventurer') continue
+      // Mimic Vault: chest-state mimics look like ordinary chests, not
+      // hostile minions. Skipped until they reveal.
+      if (m.isMimic && m.mimicState === 'chest') continue
       if (adv.flags?.idolizedMinionClass === m.definitionId) continue
-      // Mimics are untargetable while disguised or mid-reveal — adventurers
-      // see a chest, not a hostile minion. The reveal handshake is owned
-      // by the SEEK_LOOT chest pickup branch, not the engage flow.
-      if (m.isMimic && (m.mimicState === 'chest' || m.mimicState === 'revealing' || m.mimicState === 'redisguising')) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d > reach + 0.01) continue
       // Phase 8: any minion within engagement range is also "observed"
@@ -1100,6 +939,8 @@ export class AISystem {
   _setFleeGoal(adv, reason = 'low_hp_retreat') {
     // Phase 5c — Barbarian Unstoppable: immune to ALL flee triggers.
     if (adv.classId === 'barbarian') return
+    // Phase 9 — Schism / Glory Hounds: solo / glory adventurers fight to the death.
+    if (adv.flags?.noFlee) return
 
     // Phase 5c — partial-retreat option. For "soft" panic reasons
     // (coward_panic, low_hp_retreat) there's a 50% chance the adv pulls
@@ -1179,17 +1020,13 @@ export class AISystem {
   _sleep(adv, delta) {
     adv.aiState = 'sleeping'
     adv.path = null   // stop moving
-    // Phase 9: noHealthRegen mechanic blocks all sleep healing
-    const flags = this._gameState._mechanicFlags ?? {}
-    const rate = flags.noHealthRegen ? 0 : (Balance.SLEEP_HP_PER_SEC ?? 3)
+    const rate = Balance.SLEEP_HP_PER_SEC ?? 3
     adv.resources.hp = Math.min(
       adv.resources.maxHp,
       adv.resources.hp + (rate * delta) / 1000
     )
     if (adv.resources.hp >= adv.resources.maxHp) {
       adv.aiState = 'walking'   // wake up at full HP
-      // Phase 9: emit so memory_fog mechanic can degrade their knowledge
-      EventBus.emit('ADVENTURER_SLEPT', { adventurer: adv })
     }
   }
 
@@ -1291,12 +1128,6 @@ export class AISystem {
       if (arrows <= 0 && this._anyHostileMinionInRoom(adv)) return true
     }
     return false
-  }
-
-  _lootInSameRoom(adv) {
-    const room = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
-    if (!room) return false
-    return (this._gameState.loot?.dungeon ?? []).some(i => i.dungeonRoomId === room.instanceId)
   }
 
   _anyHostileMinionInRoom(adv) {
@@ -1424,24 +1255,6 @@ export class AISystem {
         x: room.gridX + Math.floor(room.width  / 2),
         y: room.gridY + Math.floor(room.height / 2),
       }
-    }
-    if (adv.goal.type === 'SEEK_LOOT') {
-      const item = (dungeon.loot?.dungeon ?? this._gameState.loot.dungeon)
-        .find(i => i.instanceId === adv.goal.itemId)
-      if (!item || item.tileX == null) {
-        // Loot already picked up or vanished — fall back to boss
-        adv.goal = { type: 'SEEK_BOSS' }
-        return this._goalToTile(adv)
-      }
-      // Chests are interacted with from an adjacent tile — adventurers
-      // pause "opening" the chest from beside it rather than standing on
-      // it. Plain floor loot still routes onto the item tile so picking
-      // it up looks like stepping over it.
-      if (item._treasuryChest) {
-        const adj = this._findAdjacentWalkableTile(item.tileX, item.tileY, adv)
-        if (adj) return adj
-      }
-      return { x: item.tileX, y: item.tileY }
     }
     if (adv.goal.type === 'SEEK_VENDETTA') {
       // Hunter targets the specific minion. If that minion is dead/missing, fall back to boss.
@@ -1572,92 +1385,6 @@ export class AISystem {
       return
     }
 
-    // Phase 7b: SEEK_LOOT — pick up the item, gain its bonuses, pick next goal
-    if (adv.goal.type === 'SEEK_LOOT') {
-      const itemId = adv.goal.itemId
-      const lootList = this._gameState.loot.dungeon
-      const lootIdx = lootList.findIndex(i => i.instanceId === itemId)
-      if (lootIdx >= 0) {
-        const item = lootList[lootIdx]
-        lootList.splice(lootIdx, 1)
-        // Room redesign 2026-04-30 — Mimic Vault false chest: instead of
-        // letting them carry, immediately deal damage. The chest itself is
-        // already removed from loot.dungeon (splice above). Death routes
-        // through the normal damage path.
-        if (item._isFalseChest) {
-          const dmg = item._falseChestDamage ?? 30
-          adv.resources.hp = Math.max(0, (adv.resources?.hp ?? 0) - dmg)
-          EventBus.emit('MIMIC_VAULT_FALSE_CHEST_TRIGGERED', {
-            adventurer: adv,
-            damage: dmg,
-            sourceTreasuryId: item._sourceTreasuryId,
-          })
-          // Don't switch goal here — let the next tick reroute organically
-          // (e.g., flee on low HP). If the hit killed them, _kill runs
-          // separately on the next combat tick.
-          adv.goal = this._pickNextGoal(adv)
-          return
-        }
-        // Room redesign 2026-04-30 — Mimic Vault disguise: trigger the
-        // mimic's reveal animation and freeze the adventurer in place
-        // for the full reveal duration (they think they're opening a
-        // chest). After the pause, normal combat resumes — the now-
-        // revealed mimic is a valid target via _findEngageableMinion.
-        if (item._isMimicVaultDisguise && item._mimicMinionId) {
-          const mimic = this._gameState.minions?.find(m =>
-            m.instanceId === item._mimicMinionId
-          )
-          const now = this._scene?.time?.now ?? 0
-          const REVEAL_MS = 1900
-          if (mimic && mimic.mimicState === 'chest') {
-            mimic.mimicState      = 'revealing'
-            mimic.mimicStateUntil = now + REVEAL_MS
-            mimic.mimicLastAdvNearbyAt = now
-            EventBus.emit('MIMIC_REVEAL_TRIGGERED', { mimic, adventurer: adv })
-          }
-          adv.flags ??= {}
-          adv.flags.openingChest = { kind: 'mimic', until: now + REVEAL_MS }
-          adv.aiState = 'opening_chest'
-          adv.path    = null
-          // Don't pick next goal yet — the per-tick gate (top of
-          // _tickAdventurer) will hold them in place until the timer
-          // expires, then re-route organically (combat or flee).
-          return
-        }
-        // Room redesign 2026-04-30 — Treasury chest: open-pause then
-        // attach as carriedChest. Adventurer must escape alive to actually
-        // steal the essence (resolved in the FLEE/atNorthEdge block above).
-        if (item._treasuryChest) {
-          const now = this._scene?.time?.now ?? 0
-          const TREASURY_OPEN_MS = 600
-          adv.flags ??= {}
-          adv.flags.openingChest = {
-            kind: 'treasury',
-            until: now + TREASURY_OPEN_MS,
-            value: item._essenceValue ?? 0,
-            sourceTreasuryId: item._sourceTreasuryId ?? null,
-          }
-          adv.aiState = 'opening_chest'
-          adv.path    = null
-          EventBus.emit('TREASURY_CHEST_GRAB_STARTED', { adventurer: adv })
-          return
-        }
-        adv.gear ??= []
-        adv.gear.push(item.instanceId)
-        item.currentEquippedBy = adv.instanceId
-        item.tileX = null; item.tileY = null
-        EventBus.emit('GEAR_PICKED_UP', { item, adventurer: adv })
-        // Phase QW — surface a generic LOOT_PICKED_UP for trap (greed_trap) hooks
-        EventBus.emit('LOOT_PICKED_UP', {
-          item,
-          adventurer: adv,
-          tileX: adv.tileX, tileY: adv.tileY,
-          roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId ?? null,
-        })
-      }
-      adv.goal = this._pickNextGoal(adv)
-      return
-    }
   }
 
   // Personality-driven goal selection.
@@ -1679,27 +1406,14 @@ export class AISystem {
     }
 
     const visited = new Set(adv.visitedRooms ?? [])
-    // Bug fix — adv.gear is an array of loot instanceId strings, not full
-    // loot objects. Resolve through gameState.loot.dungeon to read the item.
-    const dungeonLoot = this._gameState.loot?.dungeon ?? []
-    const hasKey = (adv.gear ?? []).some(id => {
-      const item = dungeonLoot.find(i => i.instanceId === id)
-      return item?.type === 'key' || item?.definitionId === 'iron_key'
-    })
     const unvisited = this._gameState.dungeon.rooms.filter(r =>
       !visited.has(r.instanceId) && r.definitionId !== 'boss_chamber' &&
-      // Phase 10: skip locked rooms unless adventurer has a key
-      (!r.locked || hasKey)
+      // Locked rooms are always skipped now that key-loot is gone.
+      !r.locked
     )
-    // Phase 7b: include floor loot for SEEK_LOOT goal evaluation
-    let floorLoot = (this._gameState.loot?.dungeon ?? []).filter(i => i.tileX != null)
-    // Phase QW — mimic_handler personality refuses suspect chests.
-    if (tags.has('mimic_handler')) {
-      floorLoot = floorLoot.filter(i => !i.isMimicSpawn)
-    }
     return this._personalitySystem.evaluateGoal(adv, {
       unvisitedRooms: unvisited,
-      floorLoot,
+      floorLoot: [],
     })
   }
 
@@ -1738,18 +1452,6 @@ export class AISystem {
     }
     adv.aiState = 'dead'
     adv.resources.hp = 0
-
-    // Room redesign 2026-04-30 — Treasury chest reclaimed on death. The
-    // adventurer never made it out; player keeps the essence. Chest itself
-    // is gone; refill happens at next Night Phase.
-    if (adv.carriedChest) {
-      EventBus.emit('TREASURY_CHEST_RECLAIMED', {
-        adventurer: adv,
-        value: adv.carriedChest.value,
-        sourceTreasuryId: adv.carriedChest.sourceTreasuryId,
-      })
-      adv.carriedChest = null
-    }
 
     // Death attribution: prefer the most-recent combat-hit source, fall back to hint
     const killerId   = adv._lastHitBy ?? killerHint
@@ -1806,19 +1508,35 @@ export class AISystem {
       damageType,
     })
 
-    // Phase 6e: archetype essenceGainMultiplier (e.g. Lich 1.2×)
+    // Phase 6e: archetype goldGainMultiplier (e.g. Lich 1.2×)
     const arch = this._gameState.player?.archetypeModifiers
-    let essMul = arch?.essenceGainMultiplier ?? 1
-    // Phase 9: Taxation of Souls reduces essence yield (already-weakened victim)
+    let goldMul = arch?.goldGainMultiplier ?? 1
+    // Phase 9: Taxation of Souls reduces gold yield (already-weakened victim)
     const flags = this._gameState._mechanicFlags ?? {}
-    if (flags.taxationOfSouls) essMul *= Balance.MECHANIC_TAXATION_ESSENCE_PENALTY
-    if (flags.goldRush)        essMul *= Balance.MECHANIC_GOLD_RUSH_GOLD_MULT
-    const essenceGained = Math.round(Balance.SOUL_ESSENCE_PER_KILL * essMul)
-    this._gameState.player.soulEssence += essenceGained
+    if (flags.taxationOfSouls) goldMul *= Balance.MECHANIC_TAXATION_GOLD_PENALTY
+    if (flags.goldRush)        goldMul *= Balance.MECHANIC_GOLD_RUSH_GOLD_MULT
+    if (flags.gildedDemise)    goldMul *= Balance.MECHANIC_GILDED_DEMISE_GOLD_MULT
+    if (flags.inquisitorsMark && adv.flags?.inquisitorsMark) {
+      goldMul *= Balance.MECHANIC_INQUISITORS_GOLD_MULT
+    }
+    // Phase 9 — Cursed Soil: +50% gold on kills inside any room.
+    if (flags.cursedSoil) {
+      const room = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+      if (room) goldMul *= Balance.MECHANIC_CURSED_SOIL_GOLD_MULT
+    }
+    if (flags.pyramidScheme) {
+      const k = flags.pyramidKillsToday ?? 0
+      goldMul *= (k === 0)
+        ? Balance.MECHANIC_PYRAMID_FIRST_KILL_MULT
+        : Balance.MECHANIC_PYRAMID_REST_KILL_MULT
+      flags.pyramidKillsToday = k + 1
+    }
+    const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
+    this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
 
     EventBus.emit('RESOURCES_AWARDED', {
-      gold:   essenceGained,
+      gold:   goldGained,
       reason: 'adventurer_kill',
     })
 
@@ -1871,9 +1589,8 @@ export class AISystem {
     const m = this._gameState.minions.find(x => x.instanceId === killerId)
     if (m) return m.name ?? this._scene.cache.json.get('minionTypes')
       ?.find(d => d.id === m.definitionId)?.name ?? m.definitionId
-    // Bug fix — adventurer killer (greedy brawls in LootGreedSystem can produce
-    // adv-on-adv deaths). Fall back to active list, then graveyard for fallen
-    // brawlers who died after their target.
+    // Bug fix — adventurer killer (e.g. Hall of Madness frenzy). Fall back to
+    // the active list, then the graveyard for killers who died after their target.
     const adv = this._gameState.adventurers.active.find(a => a.instanceId === killerId) ??
                 this._gameState.adventurers.graveyard.find(a => a.instanceId === killerId)
     if (adv) return `${adv.name ?? 'A Rival'} (rival adventurer)`

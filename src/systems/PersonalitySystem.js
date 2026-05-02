@@ -151,18 +151,8 @@ export class PersonalitySystem {
 
   // Called by AISystem when an adventurer needs a new goal.
   // situation.unvisitedRooms = rooms (excluding boss) the adventurer hasn't entered.
-  // situation.floorLoot = LootItem[] currently on the dungeon floor.
   evaluateGoal(adventurer, situation) {
     const weights = this.getWeights(adventurer)
-
-    // Phase 7b: SEEK_LOOT — high lootPriority + visible floor loot → divert
-    if (situation?.floorLoot?.length > 0) {
-      const greed = weights.lootPriority ?? 0.5
-      if (greed > 0.6 && Math.random() < greed) {
-        const item = _pickClosestLoot(adventurer, situation.floorLoot)
-        if (item) return { type: 'SEEK_LOOT', itemId: item.instanceId }
-      }
-    }
 
     if (situation?.unvisitedRooms?.length > 0) {
       // Higher explorationDrive → higher chance to detour rather than rush boss.
@@ -194,16 +184,6 @@ function _pickClosestRoom(adv, rooms) {
     const cy = room.gridY + Math.floor(room.height / 2)
     const d  = Math.abs(adv.tileX - cx) + Math.abs(adv.tileY - cy)
     if (d < bestDist) { best = room; bestDist = d }
-  }
-  return best
-}
-
-function _pickClosestLoot(adv, items) {
-  let best = null, bestDist = Infinity
-  for (const item of items) {
-    if (item.tileX == null) continue
-    const d = Math.abs(adv.tileX - item.tileX) + Math.abs(adv.tileY - item.tileY)
-    if (d < bestDist) { best = item; bestDist = d }
   }
   return best
 }
