@@ -2654,15 +2654,21 @@ export class DungeonRenderer {
   // hook to reset entry-hall external doors so they re-animate next day.
   closeDoor(cp) {
     if (!cp) return
-    const wasOpenOrAnimating = cp.open || cp.opening
-    cp.open         = false
-    cp.opening      = false
-    cp.openProgress = 0
+    const pairedCp = this._findPairedCpForCp(cp)
+    let didChange = false
+    for (const target of [cp, pairedCp]) {
+      if (!target) continue
+      const wasOpenOrAnimating = target.open || target.opening
+      target.open         = false
+      target.opening      = false
+      target.openProgress = 0
+      if (wasOpenOrAnimating) didChange = true
+    }
     this._redrawDoors()
     // If we just closed an open door, the sprite path needs to swap
     // door_open_* art for door_closed_*. (Going from "already closed" to
     // "closed" is a no-op, so skip the redraw in that case.)
-    if (wasOpenOrAnimating) this.redraw()
+    if (didChange) this.redraw()
   }
 
   _redrawDoors() {

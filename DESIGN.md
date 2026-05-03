@@ -12,7 +12,7 @@
 
 As the boss I want to be able to place traps, monsters, minions, mini bosses, hidden keys, locked doors, loot, and other stuff to try and prevent the adventurer from reaching the boss room. The dungeon grid should be fixed tile size placement where every room snaps to a slot.
 
-Rooms connect to each other directly through their doorways — when you place a room near another, it auto-aligns so a doorway on one room sits next to a facing doorway on the other. There are no separate corridor / hallway tiles to draw; adventurers walk straight from one room into the next through the doorway. (deviation noted: original prototype had drawable corridor segments — replaced with doorway-snap placement so every cell of the dungeon is meaningful gameplay space.)
+Rooms connect to each other directly through their doorways — when you place a room near another, it auto-aligns so a doorway on one room sits next to a facing doorway on the other. There are no auto-routed corridor segments drawn between rooms. **Corridors are a placeable room type** (see room roster) used to extend reach between rooms; adventurers walk through them like any other room. (deviation noted: original prototype had auto-routed drawable corridor segments — replaced with doorway-snap placement plus a placeable Corridor room so every cell of the dungeon is meaningful gameplay space.)
 
 The game should work in days and be endless. Meaning that each day during the day phase, adventures should enter the dungeon solo, with a small party, large party, or a full on raid group. I want adventurers to have different personalities that change how they tackle the dungeon. They also can choose to either fight through the dungeon if they think they can beat it, leave the dungeon for the day to return another day, or sleep in the dungeon to heal up so they can continue to fight through it the next day. During the night phase, I can build out the dungeon, add traps rooms, minions, mini bosses, loot to lure adventurers and more. When I am satisfied I can choose to move to the next day phase.
 
@@ -429,92 +429,83 @@ At the game start I should be able to pick a boss archetype type that I play as.
 
 ## Monster boss redesign (replaces the 15-archetype system)
 
-Replace the current 15 archetypes with **10 specific monster-type bosses**. Each has one *headline mechanic* that defines how the game feels to play, plus a couple of supporting modifiers. The goal: every pick should change which rooms you build, which minions you favour, and what the win condition feels like — no two bosses doing the same thing.
+Replaces the 15 archetypes with **10 specific monster-type bosses**. Each has one or two *playstyle-defining* abilities — no padding modifiers. The goal: every pick should change which rooms you build, which minions you favour, and what the win condition feels like.
 
-The 10 bosses:
+**Spec locked 2026-05-02.** Implementation in progress as one coherent phase.
 
-### 1. Beholder — Information Warfare
-- **Headline: Omniscient Eye.** Player sees full stats / personality / inventory / next-room intent of every adventurer the moment they enter. In return, adventurers always have rumour-grade intel on the dungeon — neither side can surprise the other.
-- Floating Eye minions cost no gold (cap 1 per room).
-- Once per day, mark a tile; any adventurer that steps on it next turn loses half HP from a death-stare.
-- *Plays like: chess with all pieces face-up.*
+### 1. Beholder Tyrant — Geometry / sightlines
+- **Petrify Gaze.** During the BossFightScene only, the boss freezes adventurers for 2 seconds every 6 seconds. VFX: an eye-beam from the boss to each target with a stone-crackle overlay on the frozen adv.
+- **Anti-Magic Aura.** Each day, 2 random rooms are marked anti-magic — classes inside them lose all abilities for the day. The count goes up by +1 each boss level. VFX: a faint purple glowing aura around the marked rooms.
 
-### 2. Demon — Faustian Bargains
-- **Headline: Daily Contract.** Every dawn, an infernal bargain appears — accept and gain a powerful effect (huge gold, free room tier-up, stat boost) at a price (sacrifice a minion, lose a boss life, all advs tomorrow are +1 tier). Player must accept *something*; the only choice is which.
-- Adventurer corpses auto-rise as Imp minions (free, weak, expire after 1 day).
-- Hellfire traps cost Dark Power instead of Essence.
-- *Plays like: push-your-luck negotiations.*
+### 2. Demon Lord — Faustian sacrifice
+- **Sacrifice Pact.** A new "Sacrifice" fire button on the boss UI. Click it, then click one of your minions to permanently burn it (no respawn) and instakill a system-chosen random adventurer in the dungeon. 1×/day, resets at dawn. If zero minions exist, the button greys out. The burned minion plays a fire-burn death VFX.
+- **Hellgate.** A permanent infernal portal appears in a corner of the boss room. Each dawn, N free Imps spawn from it, where N = boss level. Imps have 10% of `imp1` base stats at boss level 1, gaining +10% per boss level (no cap). Imps persist forever (until killed), do NOT count toward the minion cap, and roam the dungeon — they don't sit in the boss room. Use the `imp1` sprite.
 
-### 3. Myconid — Patient Growth (renamed from Ent 2026-04-28 to match available portrait art)
-- **Headline: Living Dungeon.** Every placed room gains +1 *growth tier* at the end of each day, accumulating permanent buffs (more HP, extra trap fires, denser minion spawns). Weak early, monstrous late.
-- Corridors slowly overgrow — every 3 days a corridor tile reverts to wall, forcing detours.
-- Treant minions regenerate between fight rounds. *(Note: minion flavor still tree-themed; consider reskinning to fungal/spore creatures when mechanic ships.)*
-- *Plays like: survive early, dominate late.*
+### 3. Predator Myconid — Slow squeeze
+- **Spore Network.** Every 3 days, all Corridor rooms release a poison cloud for the entire day. Any adv inside takes `0.5 × bossLevel` HP damage per tick. VFX: a faint green cloud with floating spores filling the corridor room.
+- **Corpse Bloom.** Every adventurer corpse becomes a green-tinted fungal corpse (the last frame of their death animation, tinted green) that lingers for 3 days. Advs that touch the corpse take -2 HP/sec poison until they die or leave the dungeon (poison ticks stack across multiple corpses). After 3 days the corpse turns into a free Vinekin sprout minion (uses `plant1`, doesn't count toward minion cap). The corpse despawns immediately if its room is moved.
 
-### 4. Wraith — Psychological Warfare
-- **Headline: Fear Meter.** Adventurers accumulate FEAR each time they see a corpse, hear a scream, or trigger a trap. At thresholds they panic-flee, attack their own party, or drop loot. You don't kill them — you *break* them.
-- Minions can phase through walls when fleeing (escape bad fights without dying).
-- "Haunt" traps deal psychic damage proportional to current FEAR (worthless on fresh advs, devastating on rattled ones).
-- *Plays like: attrition + crowd control.*
+### 4. Dark Wraith — Psychological warfare
+- **Fear Meter.** Every adv tracks a fear value. +5 per adv corpse seen, +10 per trap triggered, +5 per minion sighted, +15 when an ally dies in front of them. VFX: a small floating fear bar above the adv's head, positioned just above or below the HP bar (no overlap).
+  - **At 50% fear:** flee to any random room (could even path away from the exit).
+  - **At 75% fear:** attack other adventurers, persistent for 5 seconds.
+  - **At 100% fear:** die instantly. Drops gold equal to a normal kill, but boss gets no XP.
+- **Haunting.** When an adventurer dies in a room, a free Ghost minion spawns there (uses `ghost2`, doesn't count toward minion cap, permanent until killed). Ghosts patrol their spawn room. They can detect adventurers in adjacent connected rooms and move directly through walls into that adjacent room to fight, then return to the spawn room if alive.
 
-### 5. Gnoll — Pack Aggression
-- **Headline: Hunger & Pack Bonus.** Place a single Gnoll, get a pack of 3 (each at –33% stats). Killing an adventurer fully feeds the pack and grants +20% ATK for the rest of the day. Unfed packs grow weaker each day instead — you must keep killing to stay strong.
-- Bonus damage when adventurers are in groups of 2+ (pack-hunts parties).
-- Scavenger sub-minion auto-loots corpses for extra gold.
-- *Plays like: snowball with momentum, starve and collapse.*
+### 5. Gnoll Alpha — Snowball aggression
+- **Hunters Pack.** The boss room has a free Tier-1 Gnoll minion (`gnoll1`) that respawns each day if killed. A new free gnoll is added at each boss level up to a maximum of 5 (Lvl 5+ = 5 gnolls). They do NOT count toward your max minion limit. They can still evolve normally if they rack up enough kills without dying.
+- **Bloodlust.** Every minion or boss kill in the dungeon adds +3% ATK to ALL gnolls for the rest of the day, no cap. Resets at dawn. VFX: a red flash on each gnoll sprite + a small "+3% ATK" floater each time it stacks.
 
-### 6. Golem — Fortress Mode
-- **Headline: Reinforced Construction.** No traps, no minion variety — but you get **Reinforce** (1×/night, double a chosen room's HP and stat output) and exclusive Stone Wall tiles that block pathing entirely. Boss is immobile but +50% HP/DEF.
-- Healing fountains restore minions to full instantly each dawn.
-- Minions move 30% slower but hit 30% harder.
-- *Plays like: defensive engineering, choke-point design.*
+### 6. Earth Golem — Build-wide turtle
+- **Living Architecture.** Each placed room (boss room + corridor rooms count) gives the boss +5 max HP and +1 DEF, permanently. Want a tank? Build a palace.
+- **Earthquake.** A new "Earthquake" button in the boss UI, available 1×/day during the day phase. Click the button, then click a target room — every adventurer inside takes damage equal to (total rooms placed × 2). No cap. A first-time-use notification surfaces when the player gains the ability so they know how to use it. VFX: the targeted room visibly shakes when triggered.
 
-### 7. Lich — Soul Economy
-- **Headline: Phylactery.** Place an item in any room as the boss's spare life — die in a fight and respawn there. Adventurers can hunt and destroy it; only one phylactery exists at a time, moving it costs a full day. The whole game becomes "where do I hide my second life?"
-- Every adventurer kill banks a soul; spend 5 to skip a day's incoming party.
-- Skeleton minions are free, capped 1/room.
-- *Plays like: resource hoarding + hidden objective.*
+### 7. Elder Lich — Death economy
+- **Phylactery.** Unlocks at boss level 3. A "Heart" item appears in the items menu (free to place, no gold cost) — placing it in any room gives the boss a 4th life. A pop-up notifies the player when this unlocks. The heart has 200 HP, doesn't heal back to full each day, and uses the heart-full sprite. Adventurers always have knowledge of the phylactery; on dungeon entry there's a 15% per-adventurer roll to make hunting it their goal — entering its room they attack it like a minion. **Only one heart can exist at a time, and it cannot be replaced if destroyed.** Moving it costs a full day. The boss's 3 normal lives still apply: when the boss has zero normal lives left, every party from then on enters specifically searching for the heart instead of the boss. The game ends only when both the normal lives and the heart are gone.
+- **Necromancy.** Every adventurer killed in your dungeon raises as a free Skeleton minion at the following dawn (so a kill on day N spawns the skeleton at the start of day N+1). The skeleton lasts until the end of the day after that (i.e. it gets one full day of life). It retains its class abilities — dead Mages still cast spells (now via cooldowns, not mana), dead Clerics heal *your* minions, and so on. Skeletons do not count toward the minion cap.
 
-### 8. Lizardman — Hidden Strikes
-- **Headline: Hidden Traps.** Traps don't show up in adventurer rumour intel until they kill someone — every trap is a free first hit. After the first kill, the rumour pool starts knowing about it normally.
-- Cold-blooded: minions weaker in fire rooms, stronger in water rooms (room temperature matters).
-- All minion attacks apply 1-stack poison (DoT).
-- Egg-laying: kills have 25% chance to spawn a free juvenile minion in that room.
-- *Plays like: ambush, attrition, surprise.*
+### 8. Serpent Captain — Ambush + bleed
+- **Camouflage.** All Lizardman minions and traps are completely invisible to adventurers until they attack once (each minion / trap loses camouflage individually on its first attack). The player still sees them, rendered slightly transparent to indicate camo state. Advs cannot path-plan around what they cannot see.
+- **Venom Stack.** Every Lizardman minion attack applies a poison stack on hit. Each stack ticks -1 HP/second; stacks add (3 stacks → -3 HP/sec). Stacks persist until the adventurer dies or leaves the dungeon. VFX: a green tint on the poisoned adv sprite plus a stack-count number above their head.
 
-### 9. Orc — WAAAGH! Scaling
-- **Headline: Loot the Fallen.** Every orc minion permanently keeps gear from adventurers it kills (+1 ATK per kill, no cap). Late-game veterans become walking arsenals — but cannot use any "magic"-tagged room (no alchemy, scrying, mirror maze).
-- Brawl pit: if 3+ adventurers are in a room, orcs there deal 2× damage.
-- Boss has +50% ATK / –25% DEF (glass berserker).
-- *Plays like: brute-force damage scaling, anti-magic lockout.*
+### 9. Orc Veteran — Veteran scaling + Warband
+- **Loot the Fallen.** Every orc minion permanently keeps +1 ATK per adventurer it kills, no cap. Stays on that individual orc; lost when the orc dies (does not transfer to a respawn). Carries through the entire run otherwise. VFX: a small badge on the orc sprite showing its current loot-ATK count.
+- **Warband.** Orcs in the same room give every other orc in that room +5% ATK and +5% DEF. Stacks per ally, no cap (5 orcs in one room → +20% / +20% on each). Encourages dense orc rooms instead of spread garrisons. (Locked 2026-05-02 to replace the scrapped "WAAAGH!" idea.)
 
-### 10. Vampire — Charm & Conversion
-- **Headline: Charm.** Once per day, mark an adventurer — they leave their party, walk to the boss room willingly, and either join you as a thrall minion or get drained for massive gold. Player's call.
-- Vampire minions lifesteal 50% of damage dealt.
-- Cannot use any "light"-tagged room (no torches, healing fountains, sun-shrines).
-- Charmed adventurers killed in your dungeon convert to vampire spawn at the next dawn.
-- *Plays like: manipulation, conversion, sustain.*
+### 10. Vampire Sovereign — Charm + boss-centric
+- **Charm.** At the start of each day, the system marks one random adventurer in the day's incoming party with a charm VFX. They leave their party, walk to the boss room, and are converted into a Thrall — same class and abilities as the original adventurer, using the `vampire_minion1` sprite. Thralls patrol the entire dungeon hunting other adventurers. **They close any door behind them after passing through; if it was a locked door, it relocks.** This door-locking behavior applies to all patrolling minions in the game (Thralls, Imps, Ghosts, etc.). Thralls survive across days, do not respawn if killed, and persist until killed.
+- **Blood Tax.** Your minions still hit advs for damage normally, but instead of just subtracting HP from the adv, the damage is routed to the boss to restore HP. Advs still die from minion hits; the boss heals from each hit. The boss's own attacks work normally. VFX: a faint red streak from each adv being hit, flowing back to the boss sprite.
 
 ### Niche coverage
 
 | Boss | Playstyle |
 |---|---|
-| Beholder | Information / pre-emption |
-| Demon | Risk/reward bargaining |
-| Myconid | Slow scaling |
-| Wraith | Psychological / debuff |
-| Gnoll | Snowball / momentum |
-| Golem | Fortify / turtle |
-| Lich | Resource hoarding + hidden objective |
-| Lizardman | Stealth / attrition |
-| Orc | Brute scaling / lockout |
-| Vampire | Conversion / sustain |
+| Beholder | Geometry / fight-scene control |
+| Demon | Sacrificial trades + free fodder |
+| Myconid | Slow squeeze, terrain hazards |
+| Wraith | Fear-driven attrition + ghost economy |
+| Gnoll | Boss-room pack + day-long snowball |
+| Golem | Build wide, boss = dungeon size |
+| Lich | Hidden 4th life + recruit from kills |
+| Lizardman | Ambush + bleed-out DoT |
+| Orc | Veteran orcs scale forever |
+| Vampire | Boss is the fighter, minions feed it |
 
-### Implementation notes (deferred until ready)
-- Replaces `bossArchetypes.json` and the entire archetype-modifier wiring (`AISystem._kill` gold multiplier, `EvolutionSystem` XP multiplier, `NightPhase` trap palette filter, etc.).
-- Each headline mechanic is non-trivial — many need new systems (Fear Meter, Phylactery hunt target, growth tiers, hidden-trap intel masking, loot-stat carryover on minions, charm flow). Plan to land them as a coherent group in their own phase.
-- ArchetypeSelect carousel UI stays — just re-skinned with the 10 monster types.
-- Existing 15 archetypes can be preserved as legacy/unlockable variants OR retired entirely; defer that call to implementation time.
+### Implementation notes
+- All locked specs above are JSON-loaded by `src/data/bossArchetypes.json` (read into the bestiary by `ArchetypeSelect.js`).
+- Implementation order (locked 2026-05-02, ascending complexity / shared infra):
+  1. Orc — Loot the Fallen (smallest, no new AI)
+  2. Golem — Living Architecture + Earthquake (UI button + room-targeted damage)
+  3. Beholder — Petrify Gaze (BossFightScene only) + Anti-Magic Aura room flag
+  4. Lich — Phylactery (heart item + 4th life routing + adv hunt goal)
+  5. Lich — Necromancy (raise-as-skeleton + class retention)
+  6. Lizardman — Camouflage + Venom Stack DoT
+  7. Myconid — Spore Network + Corpse Bloom (reuses DoT)
+  8. Wraith — Fear Meter + Haunting (new AI overrides + ghost wall-phase)
+  9. Demon — Sacrifice Pact + Hellgate (introduces patrol AI infra)
+  10. Vampire — Charm + Blood Tax (patrol thralls reuse Demon's patrol infra; door re-lock applies to all patrollers)
+  11. Gnoll — Hunters Pack + Bloodlust (depends on free-minion infra from Hellgate; Bloodlust simple)
+- Door re-lock behavior must be a generic patrolling-minion property, not a vampire-thrall-specific hack.
 
 ---
 
@@ -564,7 +555,7 @@ After a minion kills 3+ adventurers, bounty hunters specifically enter the dunge
 
 ## Adventurer resources
 
-Adventurers should also enter the dungeon with limited resources. For example, a ranger has a limited number of arrows before they decide to leave the dungeon and come back another day. The mage can run out of mana to cast spells if he doesn't have enough mana potions and may need to stand still in the dungeon to concentrate and regen their mana. Adventurers can being in health potions to heal themselves, but may run out and become more vulnerable to death. And more like this.
+Adventurers should also enter the dungeon with limited resources. For example, a ranger has a limited number of arrows before they decide to leave the dungeon and come back another day. Casters (Mage, Cleric, etc.) ration their abilities through per-instance cooldowns + per-day usage budgets — heavy spells only fire a few times per dungeon run. Adventurers can bring in health potions to heal themselves, but may run out and become more vulnerable to death. And more like this. (deviation noted: original "mana pool" mechanic was removed — replaced with the cooldown / usage-budget system in the Class ability rework. See § Class abilities.)
 
 ---
 

@@ -106,6 +106,9 @@ export class KnowledgeSystem {
 
   observeMinion(adv, minion) {
     if (!adv || !minion) return
+    // Phase 1b.6 — Lizardman Camouflage: a camouflaged minion isn't visible
+    // to advs, so they don't add to the rumour pool either.
+    if (minion._camouflaged) return
     _ensureAdvKnowledge(adv)
     const today  = this._gs.meta.dayNumber
     const roomId = minion.assignedRoomId ??
@@ -116,6 +119,8 @@ export class KnowledgeSystem {
     const existing = list.find(e => e.minionType === minion.definitionId)
     if (!existing) {
       list.push({ minionType: minion.definitionId, confirmed: true, stale: false, dayLearned: today })
+      // Phase 1b.8 — Wraith Fear Meter listens for first sightings.
+      EventBus.emit('MINION_OBSERVED', { advId: adv.instanceId, minionId: minion.instanceId, roomId })
     } else if (existing.stale) {
       existing.stale = false; existing.confirmed = true
     }

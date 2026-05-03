@@ -207,21 +207,29 @@ export class ClassAbilitySystem {
 
   update(_delta) {
     const now = this._scene.time.now
+    const antiMagicRoomIds = this._gameState._antiMagicRoomIds ?? null
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
       this._tickActiveBuffs(adv, now)
-      switch (adv.classId) {
-        case 'knight':          this._considerKnight(adv, now); break
-        case 'bard':            this._considerBard(adv, now);   break
-        case 'monk':            this._considerMonk(adv, now);   break
-        case 'cleric':          this._considerCleric(adv, now); break
-        case 'mage':            this._considerMage(adv, now);   break
-        case 'necromancer':     this._considerNecromancer(adv, now); break
-        case 'ranger':          this._considerRanger(adv, now); break
-        case 'beast_master':    this._considerBeastMaster(adv, now); break
-        case 'barbarian':       this._considerBarbarian(adv, now); break
-        case 'rogue':           this._considerRogue(adv, now);  break
-        case 'twitch_streamer': this._considerTwitch(adv, now); break
+      // Phase 1b.3 — Beholder Anti-Magic Aura. While the active boss is the
+      // beholder, advs standing in a marked room can't fire ANY class
+      // abilities. Existing buff timers still tick out via _tickActiveBuffs.
+      const silenced = antiMagicRoomIds && antiMagicRoomIds.length > 0 &&
+        _advInAntiMagicRoom(adv, this._gameState, antiMagicRoomIds)
+      if (!silenced) {
+        switch (adv.classId) {
+          case 'knight':          this._considerKnight(adv, now); break
+          case 'bard':            this._considerBard(adv, now);   break
+          case 'monk':            this._considerMonk(adv, now);   break
+          case 'cleric':          this._considerCleric(adv, now); break
+          case 'mage':            this._considerMage(adv, now);   break
+          case 'necromancer':     this._considerNecromancer(adv, now); break
+          case 'ranger':          this._considerRanger(adv, now); break
+          case 'beast_master':    this._considerBeastMaster(adv, now); break
+          case 'barbarian':       this._considerBarbarian(adv, now); break
+          case 'rogue':           this._considerRogue(adv, now);  break
+          case 'twitch_streamer': this._considerTwitch(adv, now); break
+        }
       }
       // Inner Peace tick — Monk regen while active (any class can be regen-target
       // but only Monk's Inner Peace ability sets _innerPeaceUntil).
@@ -1126,4 +1134,20 @@ export class ClassAbilitySystem {
       AbilitySystem.resetForNewDay(adv, defs)
     }
   }
+}
+
+// Phase 1b.3 — Beholder Anti-Magic Aura helper. Adventurers track tileX/tileY
+// per AISystem tick; a room is "anti-magic" when its instanceId is in the
+// daily set on gameState.
+function _advInAntiMagicRoom(adv, gameState, antiMagicRoomIds) {
+  if (!Array.isArray(antiMagicRoomIds) || antiMagicRoomIds.length === 0) return false
+  const tx = adv?.tileX, ty = adv?.tileY
+  if (typeof tx !== 'number' || typeof ty !== 'number') return false
+  const rooms = gameState?.dungeon?.rooms ?? []
+  for (const r of rooms) {
+    if (!antiMagicRoomIds.includes(r.instanceId)) continue
+    if (tx >= r.gridX && tx < r.gridX + r.width &&
+        ty >= r.gridY && ty < r.gridY + r.height) return true
+  }
+  return false
 }

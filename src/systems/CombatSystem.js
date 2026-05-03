@@ -99,6 +99,13 @@ export class CombatSystem {
       ?? 'physical'
     const method = opts.method ?? this._inferMethod(attacker, damageType)
 
+    // Phase 1b.6 — Lizardman Camouflage: each minion reveals on its FIRST
+    // attack. Subsequent attacks no-op the unset.
+    if (attacker?._camouflaged) {
+      attacker._camouflaged = false
+      EventBus.emit('LIZARDMAN_CAMO_REVEAL', { minionId: attacker.instanceId })
+    }
+
     EventBus.emit('COMBAT_HIT', {
       sourceId: attacker.instanceId,
       targetId: target.instanceId,

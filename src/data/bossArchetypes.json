@@ -2,63 +2,60 @@
   {
     "id": "beholder",
     "name": "Beholder Tyrant",
-    "tagline": "Information warfare",
+    "tagline": "Geometry & sightlines",
     "color": "0xaa44ee",
     "spriteFrame": { "col": 0, "row": 0 },
     "portraitAvailable": true,
     "headline": {
-      "name": "Omniscient Eye",
-      "summary": "See full stats, personality, and next-room intent of every adventurer the moment they enter. In return, adventurers always have rumour-grade intel on your dungeon — neither side can surprise the other.",
+      "name": "Petrify Gaze",
+      "summary": "In the boss fight, every 6 seconds a stone-eye beam locks adventurers in place for 2 seconds.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Floating Eye minions cost no gold (cap 1 per room)", "implemented": false },
-      { "text": "Once per day, mark a tile — any adventurer that steps on it loses half HP from a death-stare", "implemented": false }
+      { "text": "Anti-Magic Aura — each day, 2 random rooms glow purple and silence all class abilities inside. +1 marked room per boss level.", "implemented": false }
     ],
-    "flavorText": "Every gaze is a sentence. The dungeon hands them down all at once.",
-    "description": "Information warfare",
+    "flavorText": "All seeing. All silencing. Whatever the eye lingers on, the world forgets how to move.",
+    "description": "Geometry & sightlines",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
     "id": "demon",
     "name": "Demon Lord",
-    "tagline": "Faustian bargains",
+    "tagline": "Faustian sacrifice",
     "color": "0xcc2244",
     "spriteFrame": { "col": 2, "row": 0 },
     "portraitAvailable": true,
     "headline": {
-      "name": "Daily Contract",
-      "summary": "Every dawn, an infernal bargain appears. Accept and gain a powerful effect at a cost. You cannot decline — only choose which devil to deal with.",
+      "name": "Sacrifice Pact",
+      "summary": "Once per day, burn one of your own minions in fire to instakill a random adventurer in the dungeon. The minion is gone for the rest of the run.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Adventurer corpses auto-rise as Imp minions (free, weak, expire after 1 day)", "implemented": false },
-      { "text": "Hellfire traps cost Dark Power instead of Gold", "implemented": false }
+      { "text": "Hellgate — a permanent portal in the boss room births free Imps every dawn (one per boss level). Imps are weak but unlimited, roam the dungeon, and never count toward your minion cap.", "implemented": false }
     ],
-    "flavorText": "Sign here, and here, and here. The third one is the funny one.",
-    "description": "Faustian bargains",
+    "flavorText": "Every contract is signed in someone else's blood. Pick whose.",
+    "description": "Faustian sacrifice",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
     "id": "myconid",
     "name": "Predator Myconid",
-    "tagline": "Patient growth",
+    "tagline": "Slow squeeze",
     "color": "0x55aa44",
     "spriteFrame": null,
     "portraitAvailable": true,
     "headline": {
-      "name": "Living Dungeon",
-      "summary": "Every room you've placed gains +1 growth tier at the end of each day, accumulating permanent buffs. You start weak; by Day 7 your rooms are gnarled monsters of their original selves.",
+      "name": "Spore Network",
+      "summary": "Every third day, every Corridor room fills with a green spore cloud — anyone inside chokes for damage that scales with your boss level.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Corridors slowly overgrow — every 3 days a corridor tile reverts to wall, forcing detours", "implemented": false },
-      { "text": "Treant minions regenerate HP between fight rounds", "implemented": false }
+      { "text": "Corpse Bloom — adventurers who die rot into green-tinted fungal corpses for 3 days. Touching one poisons advs until they die or flee. After 3 days the corpse blooms into a free Vinekin sprout.", "implemented": false }
     ],
-    "flavorText": "Roots remember every footstep. Eventually they grow tired of them.",
-    "description": "Patient growth",
+    "flavorText": "Patient soil keeps every footstep. Eventually it grows tired of them.",
+    "description": "Slow squeeze",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
@@ -71,14 +68,13 @@
     "portraitAvailable": true,
     "headline": {
       "name": "Fear Meter",
-      "summary": "Adventurers accumulate FEAR each time they see a corpse, hear a scream, or trigger a trap. At thresholds they panic-flee, attack their own party, or drop loot. You don't kill them — you break them.",
+      "summary": "Adventurers gain fear from corpses, traps, minions, and dying allies. At 50% they flee at random; at 75% they turn on their own party; at 100% they drop dead — gold for you, no XP.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Your minions can phase through walls when fleeing — escape bad fights without dying", "implemented": false },
-      { "text": "Haunt traps deal psychic damage proportional to current FEAR — devastating on rattled adventurers", "implemented": false }
+      { "text": "Haunting — every adventurer that dies leaves a free Ghost in that room. Ghosts patrol their home, see through adjacent walls, and phase through them to attack — then return.", "implemented": false }
     ],
-    "flavorText": "The bravest die fastest. The cowards live just long enough to tell the story.",
+    "flavorText": "The bravest die first. The cowards live just long enough to be useful.",
     "description": "Psychological warfare",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
@@ -86,128 +82,120 @@
   {
     "id": "gnoll",
     "name": "Gnoll Alpha",
-    "tagline": "Pack aggression",
+    "tagline": "Snowball aggression",
     "color": "0xddaa55",
     "spriteFrame": { "col": 3, "row": 0 },
     "portraitAvailable": true,
     "headline": {
-      "name": "Hunger & Pack Bonus",
-      "summary": "Place a single Gnoll, get a pack of 3 (each at -33% stats). Killing an adventurer fully feeds the pack and grants +20% ATK for the rest of the day. Unfed packs grow weaker each day instead.",
+      "name": "Hunters Pack",
+      "summary": "A free gnoll lives in your boss room and respawns each day. Boss levels add more, up to a pack of five. They don't count toward your minion cap and they can still evolve from kills.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Bonus damage when adventurers are in groups of 2+ — the pack hunts parties", "implemented": false },
-      { "text": "Scavenger sub-minion auto-loots corpses for extra gold", "implemented": false }
+      { "text": "Bloodlust — every minion or boss kill in your dungeon stacks +3% ATK on every gnoll for the rest of the day, no cap. Resets at dawn.", "implemented": false }
     ],
-    "flavorText": "Hunger sharpens the teeth. Then the teeth sharpen everything else.",
-    "description": "Pack aggression",
+    "flavorText": "First blood feeds the second. By dusk the teeth are sharper than the gates.",
+    "description": "Snowball aggression",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
     "id": "golem",
     "name": "Earth Golem",
-    "tagline": "Fortress mode",
+    "tagline": "Build-wide turtle",
     "color": "0x888899",
     "spriteFrame": { "col": 6, "row": 1 },
     "portraitAvailable": true,
     "headline": {
-      "name": "Reinforced Construction",
-      "summary": "No traps, no minion variety — but you get Reinforce (1×/night, double a chosen room's HP and stat output) and exclusive Stone Wall tiles that block pathing entirely. The boss is immobile but +50% HP/DEF.",
+      "name": "Living Architecture",
+      "summary": "Every room you place — boss room and corridors included — permanently grants the boss +5 HP and +1 DEF. The bigger the dungeon, the bigger the boss.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Healing fountains restore minions to full instantly each dawn", "implemented": false },
-      { "text": "Minions move 30% slower but hit 30% harder", "implemented": false }
+      { "text": "Earthquake — once per day, slam a chosen room. Every adventurer inside takes damage equal to (rooms placed × 2). The wider you build, the harder it hits.", "implemented": false }
     ],
-    "flavorText": "Stone keeps its promises. Flesh keeps trying to.",
-    "description": "Fortress mode",
+    "flavorText": "Stone keeps every promise. Flesh keeps trying to.",
+    "description": "Build-wide turtle",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
     "id": "lich",
     "name": "Elder Lich",
-    "tagline": "Soul economy",
+    "tagline": "Death economy",
     "color": "0xddaa22",
     "spriteFrame": null,
     "portraitAvailable": true,
     "headline": {
       "name": "Phylactery",
-      "summary": "Place an item in any room as your boss's spare life — die in a fight and you respawn there. Adventurers can hunt and destroy it, and you can only have one at a time. Moving it costs a full day.",
+      "summary": "At boss level 3, place a Heart item in any room as a hidden 4th life. Adventurers always know it exists and may roll to hunt it on entry — losing it is permanent.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Every adventurer kill banks a soul. Spend 5 to skip an incoming day's party", "implemented": false },
-      { "text": "Skeleton minions are free, capped at 1 per room", "implemented": false }
+      { "text": "Necromancy — every adventurer killed in your dungeon rises at the next dawn as a free Skeleton with their old class abilities. Dead Clerics heal your minions, dead Mages still cast.", "implemented": false }
     ],
     "flavorText": "Death is a door. You hold the key. You also rebuilt the door.",
-    "description": "Soul economy",
+    "description": "Death economy",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
     "id": "lizardman",
     "name": "Serpent Captain",
-    "tagline": "Hidden strikes",
+    "tagline": "Ambush & bleed",
     "color": "0x446644",
     "spriteFrame": { "col": 1, "row": 0 },
     "portraitAvailable": true,
     "headline": {
-      "name": "Hidden Traps",
-      "summary": "Your traps don't show up in adventurer rumour intel until they kill someone. Every trap is a free first hit. After that the rumour pool starts knowing about it normally.",
+      "name": "Camouflage",
+      "summary": "Your minions and traps are completely invisible to adventurers until each one strikes for the first time. They can't path-plan around what they can't see.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Cold-blooded — minions weaker in fire rooms, stronger in water rooms", "implemented": false },
-      { "text": "All minion attacks apply 1-stack poison damage over time", "implemented": false },
-      { "text": "Egg-laying — kills have 25% chance to spawn a free juvenile minion", "implemented": false }
+      { "text": "Venom Stack — every Lizardman minion attack adds a poison stack that ticks -1 HP/sec. Stacks add up and follow the adventurer until they die or flee the dungeon.", "implemented": false }
     ],
     "flavorText": "What the eye doesn't see, the fang still finds.",
-    "description": "Hidden strikes",
+    "description": "Ambush & bleed",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
     "id": "orc",
     "name": "Orc Veteran",
-    "tagline": "WAAAGH! scaling",
+    "tagline": "Veteran scaling & warband",
     "color": "0xaa3322",
     "spriteFrame": { "col": 5, "row": 0 },
     "portraitAvailable": true,
     "headline": {
       "name": "Loot the Fallen",
-      "summary": "Every orc minion permanently keeps gear from adventurers it kills (+1 ATK per kill, no cap). Late-game your veterans are walking arsenals — but you cannot use any 'magic'-tagged room.",
+      "summary": "Every orc minion permanently keeps +1 ATK for each adventurer it personally kills, with no cap. Late-run veterans are walking arsenals — but they lose it all if they die.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Brawl pit — if 3+ adventurers are in a room, orcs there deal 2× damage", "implemented": false },
-      { "text": "Boss has +50% ATK / -25% DEF (glass berserker)", "implemented": false }
+      { "text": "Warband — orcs in the same room give every other orc there +5% ATK and +5% DEF. Stacks per ally, no cap. Pack them tight and they hit like a hammer.", "implemented": false }
     ],
-    "flavorText": "Da boss said no magic. Da boss is da biggest. So no magic.",
-    "description": "WAAAGH! scaling",
+    "flavorText": "Every kill makes the axe heavier. Every brother in the room makes the swing harder.",
+    "description": "Veteran scaling & warband",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   },
   {
     "id": "vampire",
     "name": "Vampire Sovereign",
-    "tagline": "Charm & conversion",
+    "tagline": "Charm & blood tax",
     "color": "0x882244",
     "spriteFrame": { "col": 4, "row": 0 },
     "portraitAvailable": true,
     "headline": {
       "name": "Charm",
-      "summary": "Once per day, mark an adventurer. They leave their party, walk to your boss room willingly, and either join you as a thrall minion or get drained for massive gold. Your call.",
+      "summary": "Each dawn, one adventurer is marked. They leave their party, walk to your boss room, and rise as a Thrall with their old class. Thralls patrol the dungeon hunting their former allies and lock every door behind them.",
       "implemented": false
     },
     "mechanics": [
-      { "text": "Vampire minions lifesteal 50% of damage dealt", "implemented": false },
-      { "text": "Cannot use any 'light'-tagged room (no torches, healing fountains, sun-shrines)", "implemented": false },
-      { "text": "Charmed adventurers killed in your dungeon convert to vampire spawn at next dawn", "implemented": false }
+      { "text": "Blood Tax — your minions still hit hard, but every point of damage they deal is funneled to the boss as healing. Adventurers still die; the boss never bleeds.", "implemented": false }
     ],
     "flavorText": "Hospitality is a weapon. So are most things, in the right hands.",
-    "description": "Charm & conversion",
+    "description": "Charm & blood tax",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   }

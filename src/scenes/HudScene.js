@@ -18,6 +18,7 @@
 import { applyUiCamera, CRYPT } from '../ui/UIKit.js'
 import { BossTopBar, BOSS_TOP_BAR_HEIGHT } from '../ui/BossTopBar.js'
 import { ActionBar,  ACTION_BAR_HEIGHT  } from '../ui/ActionBar.js'
+import { BossArchetypeUI } from '../ui/BossArchetypeUI.js'
 import { KnowledgePin, KNOWLEDGE_PIN_HEIGHT } from '../ui/KnowledgePin.js'
 import { DungeonLog }   from '../ui/DungeonLog.js'
 import { BuildMenu }    from '../ui/BuildMenu.js'
@@ -151,6 +152,10 @@ export class HudScene extends Phaser.Scene {
 
     // ── Action bar (bottom strip) ──
     this._actionBar = new ActionBar(this, this._gameState, { depth: 60 })
+
+    // ── Boss-archetype action strip (Phase 1b) ──
+    // Sits above the action bar; only renders archetype-specific buttons.
+    this._archetypeUI = new BossArchetypeUI(this, this._gameState, { depth: 65 })
 
     // Listen for phase change: toggle build menu visibility, AND clear any
     // lingering BuildMenu selection so day-2+ placement works cleanly. The

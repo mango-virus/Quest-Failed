@@ -899,6 +899,10 @@ export class AISystem {
       // Mimic Vault: chest-state mimics look like ordinary chests, not
       // hostile minions. Skipped until they reveal.
       if (m.isMimic && m.mimicState === 'chest') continue
+      // Phase 1b.6 — Lizardman Camouflage. Adventurers literally cannot see
+      // camouflaged minions, so they're invisible to targeting until the
+      // minion reveals on its first attack.
+      if (m._camouflaged) continue
       if (adv.flags?.idolizedMinionClass === m.definitionId) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d > reach + 0.01) continue
@@ -1256,6 +1260,28 @@ export class AISystem {
         y: room.gridY + Math.floor(room.height / 2),
       }
     }
+    // Phase 1b.4 — Lich Phylactery: route the adv directly to the heart's
+    // tile. If the heart is gone (destroyed mid-walk), fall back to FLEE.
+    if (adv.goal.type === 'HUNT_PHYLACTERY') {
+      const phyl = this._gameState.phylactery
+      if (!phyl || (phyl.resources?.hp ?? 0) <= 0) {
+        adv.goal = { type: 'FLEE', reason: 'phylactery_gone' }
+        adv.aiState = 'fleeing'
+        return this._goalToTile(adv)
+      }
+      return { x: phyl.tileX, y: phyl.tileY }
+    }
+    // Phase 1b.10 — Vampire Charm: walk to the boss room without engaging.
+    // BossArchetypeSystem watches for arrival and converts the adv into a
+    // thrall. Pathfinder uses the boss room's center.
+    if (adv.goal.type === 'CHARM_WALK') {
+      const room = dungeon.rooms.find(r => r.instanceId === adv.goal.roomId)
+      if (!room) return null
+      return {
+        x: room.gridX + Math.floor(room.width  / 2),
+        y: room.gridY + Math.floor(room.height / 2),
+      }
+    }
     if (adv.goal.type === 'SEEK_VENDETTA') {
       // Hunter targets the specific minion. If that minion is dead/missing, fall back to boss.
       const targetMinion = this._gameState.minions.find(m => m.instanceId === adv.goal.minionId && m.aiState !== 'dead')
@@ -1366,6 +1392,26 @@ export class AISystem {
       // splice on arrival.  Just clear the path so the next tick picks a
       // fresh route if we ended up somewhere other than entry.
       adv.path = null
+      return
+    }
+
+    // Phase 1b.4 — Reached the phylactery: freeze the adv on the heart's
+    // tile. BossArchetypeSystem ticks per second to apply damage. Once the
+    // heart breaks (or the adv dies / flees), this goal resolves.
+    if (adv.goal.type === 'HUNT_PHYLACTERY') {
+      adv.path = null
+      const phyl = this._gameState.phylactery
+      if (!phyl || (phyl.resources?.hp ?? 0) <= 0) {
+        adv.goal = this._pickNextGoal(adv)
+      }
+      return
+    }
+    // Phase 1b.10 — Vampire Charm: arrived at the boss room. Hold the adv
+    // in place; BossArchetypeSystem.tick converts them into a thrall on the
+    // very next frame.
+    if (adv.goal.type === 'CHARM_WALK') {
+      adv.path = null
+      adv.aiState = 'idle'
       return
     }
 

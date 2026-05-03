@@ -105,6 +105,53 @@ export class MinionAISystem {
     for (let i = 0; i < minions.length; i++) {
       this._tickMinion(minions[i], delta, i)
     }
+    // Phase 1b — patrolling minions close (and re-lock) doors behind them.
+    // Generic — applies to every patrolling minion regardless of archetype
+    // (Vampire Thralls, Demon Imps, Wraith Haunt Ghosts).
+    this._tickPatrollerDoors()
+  }
+
+  _isPatrollerMinion(m) {
+    return !!(m && (m._isVampireThrall || m._isDemonImp || m._isHauntGhost))
+  }
+
+  _tickPatrollerDoors() {
+    const grid = this._dungeonGrid
+    if (!grid?.getCpForDoorTile) return
+    const renderer = this._scene?._dungeonRenderer
+    const minions = this._gameState?.minions ?? []
+    for (const m of minions) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (!this._isPatrollerMinion(m)) {
+        // Drop tracking state on non-patrollers (e.g. minion lost its tag).
+        m._doorPatLastCp = null
+        continue
+      }
+
+      const onCpEntry = grid.getCpForDoorTile(m.tileX, m.tileY)
+      const onCp = onCpEntry?.cp ?? null
+
+      if (onCp) {
+        // On a door tile this frame. If it's a NEW door (different cp than
+        // the one we were tracking), record cp + its current lock state and
+        // make sure the door is visibly open (matches the adventurer
+        // behavior of opening on approach).
+        if (m._doorPatLastCp !== onCp) {
+          m._doorPatLastCp        = onCp
+          m._doorPatLockedSnapshot = !!onCp.locked
+          if (renderer?.openDoor) renderer.openDoor(onCp)
+        }
+      } else if (m._doorPatLastCp) {
+        // Just stepped off a door tile — close it (paired side too via
+        // closeDoor's mirror logic) and re-lock if the snapshot says so.
+        const cp        = m._doorPatLastCp
+        const wasLocked = !!m._doorPatLockedSnapshot
+        renderer?.closeDoor?.(cp)
+        if (wasLocked) cp.locked = true
+        m._doorPatLastCp        = null
+        m._doorPatLockedSnapshot = false
+      }
+    }
   }
 
   // ── Per-minion tick ────────────────────────────────────────────────────────

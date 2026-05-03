@@ -278,6 +278,48 @@ export class AdventurerRenderer {
       const shadowA = inDoorwayShadow ? 0.55 : 1
       const fadeA  = Math.min(spawnA, leaveA) * shadowA
       if (s.container) s.container.setAlpha(fadeA)
+
+      // Phase 1b.8 — Wraith Fear Meter bar. 0..100. Hidden at 0; full purple
+      // fill at 100. Cheap re-render only when the rounded value changes.
+      const fearRaw = adv._fear ?? 0
+      const fearMax = 100
+      const fearFracClamped = Math.max(0, Math.min(1, fearRaw / fearMax))
+      const fearKey = Math.round(fearRaw)
+      if (s._lastFear !== fearKey) {
+        const visible = fearKey > 0
+        if (s.fearBg)   s.fearBg.setVisible(visible)
+        if (s.fearFill) {
+          s.fearFill.setVisible(visible)
+          s.fearFill.width = (RADIUS * 2) * fearFracClamped
+          // Gradually shift hue from purple → red as fear nears panic death.
+          const t = fearFracClamped
+          const r = Math.round(0x9b + (0xff - 0x9b) * t)
+          const g = Math.round(0x32 + (0x22 - 0x32) * t)
+          const b = Math.round(0xd4 + (0x22 - 0xd4) * t)
+          s.fearFill.fillColor = (r << 16) | (g << 8) | b
+        }
+        s._lastFear = fearKey
+      }
+
+      // Phase 1b.6 — Lizardman Venom Stack VFX. Green tint on the body /
+      // sprite + a "Nx" badge above the HP bar. Cleared as soon as stacks
+      // hit zero (heart-purged or DoT timed out).
+      const stacks = adv._venomStacks ?? 0
+      if (s._lastVenomStacks !== stacks) {
+        if (s.venomBadge) {
+          if (stacks > 0) s.venomBadge.setText(`${stacks}×`).setVisible(true)
+          else            s.venomBadge.setVisible(false)
+        }
+        // Tint the LPC sprite (or fallback body) green when poisoned.
+        const tint = stacks > 0 ? 0x66ee88 : 0xffffff
+        if (s.builder?.image?.setTint) {
+          if (stacks > 0) s.builder.image.setTint(tint)
+          else             s.builder.image.clearTint()
+        } else if (s.body?.setStrokeStyle) {
+          s.body.setStrokeStyle(2, stacks > 0 ? 0x66ee88 : adv.classColor, 1)
+        }
+        s._lastVenomStacks = stacks
+      }
     }
 
     // Clean up sprites whose adventurers are no longer active. Corpses (dead
@@ -491,7 +533,22 @@ export class AdventurerRenderer {
       }).setOrigin(0, 0.5)
     }
 
-    const children = [ring, body, label, hpBg, hp]
+    // Phase 1b.6 — Lizardman Venom Stack badge. Shown only when the adv has
+    // venom stacks > 0. Anchored to the right of the HP bar, two pixels up.
+    const venomBadge = this._scene.add.text(RADIUS + 4, HP_BAR_Y - 1, '', {
+      fontSize: '9px', color: '#88ff88', fontFamily: 'monospace', fontStyle: 'bold',
+      stroke: '#053018', strokeThickness: 2,
+    }).setOrigin(0, 0.5).setVisible(false)
+
+    // Phase 1b.8 — Wraith Fear Meter bar. Sits two pixels BELOW the HP bar
+    // so the two read as separate gauges. Hidden until fear > 0.
+    const FEAR_BAR_Y = HP_BAR_Y + 5
+    const fearBg = this._scene.add.rectangle(0, FEAR_BAR_Y, RADIUS * 2, 2, 0x180a14, 0.9)
+      .setOrigin(0.5).setVisible(false)
+    const fearFill = this._scene.add.rectangle(-RADIUS, FEAR_BAR_Y, RADIUS * 2, 2, 0x9b32d4, 1)
+      .setOrigin(0, 0.5).setVisible(false)
+
+    const children = [ring, body, label, hpBg, hp, venomBadge, fearBg, fearFill]
     if (bubble) children.push(bubble, bubbleLabel)
     if (comboBadge) children.push(comboBadge)
     if (veteranBadge) children.push(veteranBadge)
@@ -505,7 +562,7 @@ export class AdventurerRenderer {
       EventBus.emit('ADVENTURER_CLICKED', { adventurer: adv })
     })
 
-    const sprite = { container: c, ring, body, label, hp, hpBg, bubble, bubbleLabel, comboBadge, veteranBadge }
+    const sprite = { container: c, ring, body, label, hp, hpBg, bubble, bubbleLabel, comboBadge, veteranBadge, venomBadge, fearBg, fearFill, _lastVenomStacks: null, _lastFear: null }
 
     // Builder sprite — if the class def has a CharacterEditor-authored
     // idle animation, swap the placeholder body for the real sprite Image.

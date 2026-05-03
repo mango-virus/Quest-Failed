@@ -49,7 +49,7 @@ export class BuildMenu {
       room:   () => this._roomDefs(),
       minion: () => this._minionDefs(),
       trap:   () => this._trapDefs(),
-      item:   () => [],     // items not implemented yet
+      item:   () => this._itemDefs(),
     }
 
     this._listeners = []
@@ -162,6 +162,12 @@ export class BuildMenu {
     on('MINION_PLACED',   () => this._renderActive())
     on('MINION_DIED',     () => this._renderActive())
     on('BUILD_DESELECT',  () => this._setSelected(null))
+    // Phase 1b.4 — Lich Phylactery: re-render so the items tab refreshes
+    // when boss level crosses 3 (heart unlock) and when the heart is placed
+    // or destroyed (phylactery removed from gameState).
+    on('BOSS_LEVELED_UP',     () => this._renderActive())
+    on('PHYLACTERY_PLACED',   () => this._renderActive())
+    on('PHYLACTERY_DESTROYED', () => this._renderActive())
   }
 
   _switchTab(key) {
@@ -453,13 +459,36 @@ export class BuildMenu {
   _minionDefs() {
     const all = this._scene.cache.json.get('minionTypes') ?? []
     const allowed = new Set(this._gameState.unlocks?.minionTypes ?? [])
-    return all.filter(m => allowed.has(m.id))
+    const evolutions = this._scene.cache.json.get('minionEvolutions') ?? {}
+    const starterIds = new Set(
+      Object.values(evolutions)
+        .filter(v => Array.isArray(v?.chain))
+        .map(v => v.chain[0])
+    )
+    return all.filter(m => allowed.has(m.id) && starterIds.has(m.id))
+              .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
   }
 
   _trapDefs() {
     const all = this._scene.cache.json.get('trapTypes') ?? []
     const allowed = new Set(this._gameState.unlocks?.trapTypes ?? [])
     return all.filter(t => allowed.has(t.id))
+  }
+
+  // Phase 1b.4 — Lich Phylactery. Items show only when their archetype + boss
+  // level prerequisites are met, and only one phylactery can exist per run
+  // (filter the heart out if it's already placed).
+  _itemDefs() {
+    const all      = this._scene.cache.json.get('items') ?? []
+    const archId   = this._gameState.player?.bossArchetypeId
+    const bossLv   = this._gameState.boss?.level ?? 1
+    const phylAlreadyPlaced = !!this._gameState.phylactery
+    return all.filter(it => {
+      if (it.archetypeRestriction && it.archetypeRestriction !== archId) return false
+      if ((it.unlockLevel ?? 1) > bossLv) return false
+      if (it.id === 'phylactery_heart' && phylAlreadyPlaced) return false
+      return true
+    })
   }
 
   setVisible(v) {

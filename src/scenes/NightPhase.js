@@ -97,7 +97,7 @@ export class NightPhase extends Phaser.Scene {
     )
     this._minionDefs = allMinions.filter(m =>
       this._gameState.unlocks.minionTypes?.includes(m.id) && starterIds.has(m.id)
-    )
+    ).sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
     const allTraps = this.cache.json.get('trapTypes') ?? []
     const blockedTraps = this._gameState.player?.archetypeModifiers?.blockedTrapTypes ?? []
     const blocksAll = blockedTraps.includes('*')
@@ -136,11 +136,8 @@ export class NightPhase extends Phaser.Scene {
       this._hudListeners.push([event, fn])
     }
     on('BUILD_SELECT', ({ def, kind }) => {
-      // Translate kind values used by BuildMenu (room/minion/trap/item) into
-      // NightPhase's existing kinds (room/minion/trap). Items are no-op.
-      if (kind === 'item') return
-      // Selecting a build slot cancels any armed tool — they're mutually
-      // exclusive interaction modes.
+      // Phase 1b.4 — Lich Phylactery: item placement flows through the same
+      // single-tile path as traps. _confirmItemPlacement handles validation.
       this._setToolMode(null)
       this._selectItem(def, kind)
     })
@@ -528,6 +525,7 @@ export class NightPhase extends Phaser.Scene {
     const CARD_W = PANEL_W - 20
     const startY = this._paletteContentY - this._paletteScrollY
     const gap    = 4
+    const dungeonLevel = this._gameState.boss?.level ?? 1
     this._paletteContentHeight = this._minionDefs.length * (CARD_H + gap)
 
     if (this._minionDefs.length === 0) {
@@ -544,56 +542,83 @@ export class NightPhase extends Phaser.Scene {
       const cy = startY + i * (CARD_H + gap) + CARD_H / 2
       const px = 10
       const py = startY + i * (CARD_H + gap)
-      const catColor = CAT_COLOR[def.category] ?? 0xddccaa
+      const catColor  = CAT_COLOR[def.category] ?? 0xddccaa
+      const isLocked  = (def.unlockLevel ?? 1) > dungeonLevel
+      const titleAlpha = isLocked ? 0.45 : 1
 
       const cg = this.add.graphics().setDepth(10)
       glowPanel(cg, px, py, CARD_W, CARD_H, {
-        fill: 0x060c18, border: 0x0d1e30, glow: catColor,
+        fill:   isLocked ? 0x040810 : 0x060c18,
+        border: isLocked ? 0x1a1a24 : 0x0d1e30,
+        glow:   isLocked ? 0x444466 : catColor,
       })
-      cg.fillStyle(catColor, 0.5); cg.fillRect(px, py, CARD_W, 3)
+      cg.fillStyle(catColor, isLocked ? 0.18 : 0.5); cg.fillRect(px, py, CARD_W, 3)
 
-      // Minion sigil square (placeholder for sprite)
+      // Minion sigil square
       const sigilG = this.add.graphics().setDepth(11)
       sigilG.fillStyle(0x0a0e16, 1)
       sigilG.fillRect(px + 8, py + 14, 22, 22)
-      sigilG.lineStyle(1, catColor, 1)
+      sigilG.lineStyle(1, catColor, isLocked ? 0.3 : 1)
       sigilG.strokeRect(px + 8, py + 14, 22, 22)
       const sigilTxt = this.add.text(px + 19, py + 25, def.id[0].toUpperCase(), {
         fontSize: '12px', color: PALETTE.textBright, fontFamily: 'monospace', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(12)
+      }).setOrigin(0.5).setDepth(12).setAlpha(titleAlpha)
 
       const nameTxt = this.add.text(px + 38, py + 6, def.name.toUpperCase(), {
-        fontSize: '10px', color: PALETTE.textNormal, fontFamily: 'monospace', fontStyle: 'bold',
-      }).setDepth(11)
+        fontSize: '10px',
+        color: isLocked ? PALETTE.textDim : PALETTE.textNormal,
+        fontFamily: 'monospace', fontStyle: 'bold',
+      }).setDepth(11).setAlpha(titleAlpha)
 
       const stats = def.baseStats ?? {}
       const statTxt = this.add.text(px + 38, py + 20,
         `HP ${stats.hp}  ATK ${stats.attack}  DEF ${stats.defense}`,
         { fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace' }
-      ).setDepth(11)
+      ).setDepth(11).setAlpha(titleAlpha)
 
       const costStr   = def.goldCost > 0 ? `${def.goldCost} gold` : 'FREE'
-      const costColor = def.goldCost > 0 ? PALETTE.textCyan : PALETTE.textGreen
+      const costColor = isLocked ? PALETTE.textDim
+                      : def.goldCost > 0 ? PALETTE.textCyan : PALETTE.textGreen
       const costTxt = this.add.text(px + 38, py + 34, costStr, {
         fontSize: '8px', color: costColor, fontFamily: 'monospace',
-      }).setDepth(11)
+      }).setDepth(11).setAlpha(titleAlpha)
+
+      let lockBadge = null
+      if (isLocked) {
+        lockBadge = this.add.text(px + CARD_W - 6, py + 6,
+          `🔒 L${def.unlockLevel ?? '?'}`, {
+            fontSize: '9px', color: '#ff8866', fontFamily: 'monospace', fontStyle: 'bold',
+          }).setOrigin(1, 0).setDepth(12)
+      }
 
       const hit = this.add.rectangle(cx, cy, CARD_W, CARD_H, 0x000000, 0)
         .setDepth(12).setInteractive({ useHandCursor: true })
       hit.on('pointerover', () => {
         if (this._selected !== def) {
           cg.clear()
-          glowPanel(cg, px, py, CARD_W, CARD_H, { fill: 0x0a1525, border: catColor, glow: catColor })
-          cg.fillStyle(catColor, 0.5); cg.fillRect(px, py, CARD_W, 3)
+          glowPanel(cg, px, py, CARD_W, CARD_H, {
+            fill:   isLocked ? 0x080812 : 0x0a1525,
+            border: isLocked ? 0x442233 : catColor,
+            glow:   isLocked ? 0x664455 : catColor,
+          })
+          cg.fillStyle(catColor, isLocked ? 0.18 : 0.5); cg.fillRect(px, py, CARD_W, 3)
         }
       })
       hit.on('pointerout', () => {
         if (this._selected !== def) this._resetCard(cg, px, py, CARD_W, CARD_H, catColor, false)
       })
-      hit.on('pointerdown', (p) => { if (!p.rightButtonDown()) this._selectItem(def, 'minion') })
+      hit.on('pointerdown', (p) => {
+        if (p.rightButtonDown()) return
+        if (isLocked) {
+          this._showPlacementError(`${def.name} unlocks at boss level ${def.unlockLevel}`)
+          return
+        }
+        this._selectItem(def, 'minion')
+      })
 
-      this._paletteCards.push({ def, kind: 'minion', cg, px, py, CARD_W, CARD_H, catColor })
+      this._paletteCards.push({ def, kind: 'minion', cg, px, py, CARD_W, CARD_H, catColor, isLocked })
       this._paletteObjects.push(cg, sigilG, sigilTxt, nameTxt, statTxt, costTxt, hit)
+      if (lockBadge) this._paletteObjects.push(lockBadge)
     })
   }
 
@@ -1250,6 +1275,10 @@ export class NightPhase extends Phaser.Scene {
       this._confirmTrapPlacement(tx, ty)
       return
     }
+    if (this._selectedKind === 'item') {
+      this._confirmItemPlacement(tx, ty)
+      return
+    }
 
     const def     = this._selected
     const rotDef  = this._getRotatedDef(def)
@@ -1366,6 +1395,60 @@ export class NightPhase extends Phaser.Scene {
 
     EventBus.emit('TRAP_PLACED', { trap })
     this._refreshStats()
+  }
+
+  // Phase 1b.4 — Lich Phylactery placement. Single-tile, free, must be inside
+  // a non-boss room. Stores on `gameState.phylactery`.
+  _confirmItemPlacement(tx, ty) {
+    const def = this._selected
+    if (!def) return
+    if (def.id === 'phylactery_heart') {
+      if (this._gameState.phylactery) {
+        this._showPlacementError('Phylactery already placed')
+        return
+      }
+      const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+      if (!room) {
+        this._showPlacementError('Place the heart inside a room')
+        return
+      }
+      if (room.definitionId === 'boss_chamber') {
+        this._showPlacementError('Heart cannot live in the boss chamber')
+        return
+      }
+      // Tile must be an interior floor cell. Walls/void block placement.
+      const tt = this._dungeonGrid?.getTileType?.(tx, ty)
+      if (tt === TILE.WALL || tt === TILE.VOID || tt === TILE.BOSS_WALL) {
+        this._showPlacementError('Place the heart on a floor tile')
+        return
+      }
+
+      const TS_LOCAL = TS
+      const phyl = {
+        instanceId: `phyl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        definitionId: def.id,
+        roomId: room.instanceId,
+        tileX:  tx,
+        tileY:  ty,
+        worldX: tx * TS_LOCAL + TS_LOCAL / 2,
+        worldY: ty * TS_LOCAL + TS_LOCAL / 2,
+        resources: {
+          hp:    def.baseStats?.hp ?? 200,
+          maxHp: def.baseStats?.hp ?? 200,
+        },
+        defense: def.baseStats?.defense ?? 0,
+        spriteKey: def.spriteKey ?? 'heart-full',
+        placedDay: this._gameState.meta?.dayNumber ?? 1,
+      }
+      this._gameState.phylactery = phyl
+      this._lastPlaced = { kind: 'item', entity: phyl, goldCost: 0 }
+
+      EventBus.emit('PHYLACTERY_PLACED', { phylactery: phyl })
+      this._cancelSelection()
+      this._refreshStats()
+      return
+    }
+    this._showPlacementError(`Unknown item: ${def.id}`)
   }
 
   // Phase 31D — Sell tool. Removes a placed room AND every minion inside

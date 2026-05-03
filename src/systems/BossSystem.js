@@ -597,6 +597,10 @@ export class BossSystem {
     const TS   = Balance.TILE_SIZE
     const adv  = fs.adv
     const boss = this._gameState.boss
+    // Phase 1b.3 — Beholder Petrify Gaze: while frozen, the adv is locked in
+    // place and skips its action loop entirely. Aggro stays paused too.
+    const _now = this._scene?.time?.now ?? 0
+    if ((adv._petrifiedUntil ?? 0) > _now) return
     const { clampX, clampY } = this._roomClamp()
     fs.actionT += dt
     // Aggro decays exponentially (~30 % / sec) so taunts and recent strikes
@@ -1245,8 +1249,12 @@ export class BossSystem {
     //               targets until the flee handoff (in _tickFightAdv)
     //               removes them from _fightStates as they cross the wall.
     const all       = [...this._fightStates.values()]
+    const _nowR     = this._scene?.time?.now ?? 0
+    // Phase 1b.3 — Beholder Petrify Gaze: petrified advs cannot attack the
+    // boss this round (they remain valid defenders and can still take damage).
     const attackers = all.filter(fs =>
       fs.action !== 'flee' && fs.action !== 'dying' && fs.adv.resources.hp > 0
+      && (fs.adv._petrifiedUntil ?? 0) <= _nowR
     )
     const defenders = all.filter(fs =>
       fs.action !== 'dying' && fs.adv.resources.hp > 0
@@ -1594,6 +1602,18 @@ export class BossSystem {
       boss.deathsRemaining = Math.max(0, boss.deathsRemaining - 1)
     }
 
+    // Phase 1b.4 — Lich Phylactery acts as a 4th life. When the boss runs
+    // out of normal lives but the phylactery is still alive, instead of
+    // ending the run we revive the boss for one more death. Only the lich
+    // archetype can have a phylactery, and only one is ever placed.
+    const phyl = this._gameState?.phylactery
+    const phylAlive = phyl && (phyl.resources?.hp ?? 0) > 0
+    if (winner === 'party' && boss && boss.deathsRemaining <= 0 && phylAlive) {
+      boss.deathsRemaining = 1
+      boss.hp              = boss.maxHp
+      EventBus.emit('PHYLACTERY_REVIVED_BOSS', { phylactery: phyl })
+    }
+
     // Death-pose freeze — only when the boss actually died this round
     // (hp drained to 0; the 24-round stalemate cap can resolve in the
     // party's favour without killing the boss, and that path should
@@ -1615,6 +1635,9 @@ export class BossSystem {
       party:           finalParty,
     })
 
+    // Final-death gate. Phylactery (Lich) acts as a 4th life — if it's
+    // still alive when normal lives hit zero, the revive block above will
+    // have already restored deathsRemaining=1, so we won't reach this path.
     if (boss && boss.deathsRemaining <= 0) {
       EventBus.emit('BOSS_DEFEATED_FINAL', { totalDays: this._gameState.player.totalDaysElapsed })
     }

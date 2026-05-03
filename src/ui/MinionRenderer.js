@@ -220,6 +220,9 @@ export class MinionRenderer {
       // stepping into the underpass shadow.
       let alpha = 1
       if (m.isSpectral) alpha = 0.55
+      // Phase 1b.6 — Lizardman Camouflage: player can see camouflaged minions
+      // but they're translucent so the camo state reads at a glance.
+      if (m._camouflaged) alpha *= 0.5
       const tx = (m.worldX / TS) | 0
       const ty = (m.worldY / TS) | 0
       if (this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)) alpha *= 0.55
@@ -260,6 +263,20 @@ export class MinionRenderer {
       if (m.hasBounty !== s._lastBounty) {
         s.bountyMark.setVisible(!!m.hasBounty)
         s._lastBounty = !!m.hasBounty
+      }
+
+      // Phase 1b.1 — Orc Loot the Fallen badge. Show "+N" on orc-tagged
+      // minions only while the active boss is the orc archetype and the
+      // minion has at least one kill banked.
+      if (s.lootBadge) {
+        const archId = this._gameState?.player?.bossArchetypeId
+        const isOrc  = archId === 'orc' && Array.isArray(m.tags) && m.tags.includes('orc')
+        const bonus  = isOrc ? (m.lootAtkBonus ?? 0) : 0
+        if (bonus !== s._lastLootBonus) {
+          if (bonus > 0) s.lootBadge.setText(`+${bonus}`).setVisible(true)
+          else           s.lootBadge.setVisible(false)
+          s._lastLootBonus = bonus
+        }
       }
     }
 
@@ -462,7 +479,15 @@ export class MinionRenderer {
       fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setVisible(false)
 
-    c.add([sprite, hpBg, hp, lvLabel, bountyMark])
+    // Phase 1b.1 — Orc Loot the Fallen badge. Bottom-left of the sprite,
+    // mirroring lvLabel's bottom-right placement. Hidden until lootAtkBonus > 0
+    // AND the active boss is the orc archetype (toggled in the tick loop).
+    const lootBadge = s.add.text(-displaySize / 2 + 1, displaySize / 2 - 2, '', {
+      fontSize: '7px', color: '#ff8855', fontFamily: 'monospace', fontStyle: 'bold',
+      stroke: '#0a0e16', strokeThickness: 2,
+    }).setOrigin(0, 1).setVisible(false)
+
+    c.add([sprite, hpBg, hp, lvLabel, bountyMark, lootBadge])
 
     // Pixel-perfect hit testing on the sprite itself — pointer events only
     // register on non-transparent pixels of the actual art. Containers can't
@@ -488,11 +513,11 @@ export class MinionRenderer {
     })
 
     const rec = {
-      container: c, sprite, body: null, hp, hpBg, hpBarW, lvLabel, bountyMark,
+      container: c, sprite, body: null, hp, hpBg, hpBarW, lvLabel, bountyMark, lootBadge,
       facing: 'down', currentAnim: null,
       lastX: null, lastY: null, lastHp: null,
       sampleX: 0, sampleY: 0, sampleAt: 0, isMoving: false,
-      hurtUntil: 0, _lastLv: null, _lastBounty: null, _lastTint: null,
+      hurtUntil: 0, _lastLv: null, _lastBounty: null, _lastTint: null, _lastLootBonus: null,
     }
     this._sprites[m.instanceId] = rec
     return rec
@@ -528,7 +553,13 @@ export class MinionRenderer {
       fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setVisible(false)
 
-    c.add([body, label, hpBg, hp, lvLabel, bountyMark])
+    // Phase 1b.1 — Orc Loot the Fallen badge (placeholder path mirrors sprite path).
+    const lootBadge = s.add.text(-SIZE / 2 + 1, SIZE / 2 - 2, '', {
+      fontSize: '7px', color: '#ff8855', fontFamily: 'monospace', fontStyle: 'bold',
+      stroke: '#0a0e16', strokeThickness: 2,
+    }).setOrigin(0, 1).setVisible(false)
+
+    c.add([body, label, hpBg, hp, lvLabel, bountyMark, lootBadge])
 
     // Placeholder has no texture for pixel-perfect — use the body's default
     // rectangle bounds (matches the visible square). Marker
@@ -546,11 +577,11 @@ export class MinionRenderer {
     })
 
     const rec = {
-      container: c, sprite: null, body, hp, hpBg, hpBarW, lvLabel, bountyMark,
+      container: c, sprite: null, body, hp, hpBg, hpBarW, lvLabel, bountyMark, lootBadge,
       facing: 'down', currentAnim: null,
       lastX: null, lastY: null, lastHp: null,
       sampleX: 0, sampleY: 0, sampleAt: 0, isMoving: false,
-      hurtUntil: 0, _lastLv: null, _lastBounty: null, _lastStroke: null,
+      hurtUntil: 0, _lastLv: null, _lastBounty: null, _lastStroke: null, _lastLootBonus: null,
     }
     this._sprites[m.instanceId] = rec
     return rec

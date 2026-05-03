@@ -40,6 +40,77 @@ export const Balance = {
   // --- Boss ---
   BOSS_DEFEATS_TO_GAME_OVER: 3,
 
+  // --- Phase 1b.2: Earth Golem ---
+  GOLEM_HP_PER_ROOM:          5,   // +5 max HP per placed room (Living Architecture)
+  GOLEM_DEF_PER_ROOM:         1,   // +1 defense per placed room
+  GOLEM_EARTHQUAKE_DMG_PER_ROOM: 2, // adv damage = (rooms placed × 2)
+  GOLEM_EARTHQUAKE_USES_PER_DAY: 1,
+
+  // --- Phase 1b.3: Beholder Tyrant ---
+  BEHOLDER_PETRIFY_INTERVAL_MS:    6000,  // gaze fires every 6 s during boss fight
+  BEHOLDER_PETRIFY_DURATION_MS:    2000,  // each fire freezes for 2 s
+  BEHOLDER_ANTIMAGIC_BASE_ROOMS:   2,     // 2 random rooms/day at boss lvl 1
+  BEHOLDER_ANTIMAGIC_PER_BOSS_LV:  1,     // +1 marked room per boss level above 1
+
+  // --- Phase 1b.4: Elder Lich ---
+  LICH_PHYLACTERY_UNLOCK_LEVEL:    3,    // boss level required for the heart to appear in items
+  LICH_PHYLACTERY_HUNT_CHANCE:     0.15, // per-adv roll on dungeon entry
+  LICH_PHYLACTERY_DMG_INTERVAL_MS: 800,  // adv damage tick rate while attacking the heart
+
+  // --- Phase 1b.5: Lich Necromancy ---
+  // Skeleton lifespan: spawn at dawn N+1 (after the kill on day N), expire
+  // at the end of day N+1 — i.e. one full day of life. Tracked via
+  // m._expireAtDay = dayNumber+1 and culled in respawnAll/dawn.
+  NECROMANCY_LIFESPAN_DAYS:       1,
+  // Cleric retention: raised cleric heals adjacent minions per tick.
+  NECROMANCY_CLERIC_HEAL_AMOUNT:  4,
+  NECROMANCY_CLERIC_HEAL_INTERVAL_MS: 2200,
+
+  // --- Phase 1b.6: Serpent Captain ---
+  // Venom Stack: each minion attack adds a stack; per-stack DoT ticks every
+  // 1 s for -1 HP per stack. Persists until adv dies / leaves dungeon.
+  // (Reused by Myconid Corpse Bloom — corpse touch adds 2 stacks per corpse.)
+  LIZARDMAN_VENOM_TICK_INTERVAL_MS: 1000,
+  LIZARDMAN_VENOM_DMG_PER_STACK:    1,
+
+  // --- Phase 1b.7: Predator Myconid ---
+  MYCONID_SPORE_INTERVAL_DAYS:        3,    // every Nth day, corridor rooms gas advs all day
+  MYCONID_SPORE_DMG_PER_BOSS_LV:      0.5,  // per-tick HP damage = bossLevel × this
+  MYCONID_SPORE_TICK_INTERVAL_MS:     1000, // adv damage tick rate inside spore clouds
+  MYCONID_CORPSE_LIFESPAN_DAYS:       3,    // fungal corpse lingers 3 days then sprouts
+  MYCONID_CORPSE_VENOM_STACKS_ADDED:  2,    // stacks added per corpse on first touch
+
+  // --- Phase 1b.9: Demon Lord ---
+  DEMON_SACRIFICE_USES_PER_DAY:    1,    // Faustian sacrifice — once per day, burn a minion → kill a random adv
+  DEMON_HELLGATE_BASE_STAT_FRAC:   0.10, // imps spawn at 10% of imp1 base stats at lvl 1
+  DEMON_HELLGATE_STAT_PER_LV:      0.10, // +10% per boss level (no cap)
+
+  // --- Phase 1b.10: Vampire Sovereign ---
+  VAMPIRE_THRALL_ROAM_SWAP_MS:    6000,  // thrall reassigns to a random non-boss room every N ms
+  VAMPIRE_BLOOD_TAX_VFX_MIN_DMG:    1,   // minimum damage to fire the red-streak VFX (saves performance)
+
+  // --- Phase 1b.11: Gnoll Alpha ---
+  GNOLL_HUNTERS_PACK_MAX:           5,    // max free gnolls in boss room (lvl 5+ caps here)
+  GNOLL_BLOODLUST_PCT_PER_KILL:    0.03,  // +3% ATK per kill, no cap, resets at dawn
+
+  // --- Phase 1b.12 (post-spec): Orc Veteran second ability — Warband ---
+  // Orcs in the same room buff every other orc in that room. Stacks per ally.
+  ORC_WARBAND_ATK_PCT_PER_ALLY:    0.05,  // +5% ATK per other orc in same room
+  ORC_WARBAND_DEF_PCT_PER_ALLY:    0.05,  // +5% DEF per other orc in same room
+
+  // --- Phase 1b.8: Dark Wraith ---
+  WRAITH_FEAR_MAX:                       100,
+  WRAITH_FEAR_PER_CORPSE_SEEN:             5,
+  WRAITH_FEAR_PER_TRAP_TRIGGERED:         10,
+  WRAITH_FEAR_PER_MINION_SIGHTED:          5,
+  WRAITH_FEAR_PER_ALLY_DIED_NEAR:         15,
+  WRAITH_FEAR_FLEE_THRESHOLD:             50,
+  WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD:    75,
+  WRAITH_FEAR_PANIC_DEATH_THRESHOLD:      100,
+  WRAITH_FEAR_FRIENDLY_FIRE_WINDOW_MS:   5000,
+  WRAITH_HAUNT_DETECT_RANGE_TILES:         8, // detection sight range from spawn-room center
+  WRAITH_HAUNT_PHASE_SPEED_TILES_PER_SEC:  1.6, // wall-phase travel speed
+
   // --- Minions ---
   MINION_RESPAWN_COST_GOLD: 5,
 

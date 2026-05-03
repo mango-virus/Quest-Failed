@@ -169,6 +169,7 @@ export class Preload extends Phaser.Scene {
     this.load.json('lastWords',         'src/data/lastWords.json')
     this.load.json('chatLines',         'src/data/chatLines.json')
     this.load.json('bossAbilities',     'src/data/bossAbilities.json')
+    this.load.json('items',             'src/data/items.json')
 
     // ── Audio ────────────────────────────────────────────────────────────
     // Title-screen / boss-picker loop.  Lives across MainMenu and

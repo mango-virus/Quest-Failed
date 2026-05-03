@@ -16,12 +16,15 @@ import { InquisitorSystem }   from '../systems/InquisitorSystem.js'
 import { BossSystem }         from '../systems/BossSystem.js'
 import { RoomBehaviorSystem } from '../systems/RoomBehaviorSystem.js'
 import { RunHistorySystem }   from '../systems/RunHistorySystem.js'
+import { BossArchetypeSystem } from '../systems/BossArchetypeSystem.js'
 import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
 import { MinionRenderer }     from '../ui/MinionRenderer.js'
 import { TrapRenderer }       from '../ui/TrapRenderer.js'
+import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
+import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
 import { ChatBubbles }        from '../ui/ChatBubbles.js'
 import { KnowledgeOverlay }   from '../ui/KnowledgeOverlay.js'
@@ -111,11 +114,15 @@ export class Game extends Phaser.Scene {
     // Phase 31I — passive run-history aggregator. Subscribes to event bus
     // and folds counts into gameState.run.totals + history.pacts. No gameplay.
     this.runHistorySystem    = new RunHistorySystem(this, this.gameState)
+    // Phase 1b — per-archetype headline mechanics (Orc Loot the Fallen, etc).
+    this.bossArchetypeSystem = new BossArchetypeSystem(this, this.gameState)
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
     this.adventurerRenderer  = new AdventurerRenderer(this, this.gameState)
     this.emoteSystem         = new EmoteSystem(this, this.gameState, this.adventurerRenderer)
     this.minionRenderer      = new MinionRenderer(this, this.gameState)
     this.trapRenderer        = new TrapRenderer(this, this.gameState)
+    this.phylacteryRenderer  = new PhylacteryRenderer(this, this.gameState)
+    this.fungalCorpseRenderer = new FungalCorpseRenderer(this, this.gameState)
     this.minionInspector     = new MinionInspector(this, this.gameState)
     this.chatBubbles         = new ChatBubbles(this, this.gameState)
     this.knowledgeOverlay      = new KnowledgeOverlay(this, this.gameState, this.knowledgeSystem)
@@ -618,6 +625,10 @@ export class Game extends Phaser.Scene {
 
     // Boss wander always runs at real time (cosmetic, independent of sim speed)
     this.bossSystem?.update(delta)
+    // Phase 1b.4 — Lich Phylactery damage tick. Always runs (real time so
+    // hunters keep biting through pause-fast-slow). Gated internally by
+    // archetype + phylactery presence.
+    this.bossArchetypeSystem?.tick?.(delta)
 
     if (this.gameState.meta.phase === 'day') {
       const ts = this._getDayTimeScale()
@@ -634,6 +645,8 @@ export class Game extends Phaser.Scene {
       this.minionRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
+      this.phylacteryRenderer?.update()
+      this.fungalCorpseRenderer?.update()
       this.chatBubbles?.update()
       this.replayGhostRenderer?.update()
       this.cartographerOverlay?.tick()
@@ -641,6 +654,8 @@ export class Game extends Phaser.Scene {
       this.minionRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
+      this.phylacteryRenderer?.update()
+      this.fungalCorpseRenderer?.update()
       this.replayGhostRenderer?.update()
     }
     // Knowledge overlay updates in both phases — the rumour pool persists
