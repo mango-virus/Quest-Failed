@@ -23,7 +23,7 @@ const TEXT_DEPTH   = 12
 
 // Day-phase speed cycle steps. Tap the primary action button while in
 // day phase to cycle through these values; index 0 = 1x is the default.
-const SPEED_STEPS = [1, 2, 4]
+const SPEED_STEPS = [1, 2, 4, 8]
 
 export class ActionBar {
   constructor(scene, gameState, opts = {}) {

@@ -248,7 +248,7 @@ const WALL_CAP_FILL = 0x3a4a64
 
 // Room border colours by category — connection-dot markers + tint wash.
 const ROOM_STYLE = {
-  special:  { border: PALETTE.bossBorder, tint: 0x6622aa },
+  special:  { border: PALETTE.bossBorder, tint: null },
   starter:  { border: PALETTE.roomBorder, tint: null     },
   trap:     { border: 0xcc4422,           tint: 0xaa2222 },
   treasure: { border: 0xddaa22,           tint: 0xaa8822 },
@@ -269,6 +269,42 @@ function _tileHash(x, y) {
 // TilesetEditor + RoomTileEditor + Preload (the second-pass loader queues
 // every manifest sprite under this same key).
 function _themeTextureKey(id) { return `themesprite-${id}` }
+
+// Apply hue/sat/bright/contrast to a packed 0xRRGGBB colour and return a
+// new packed colour.  Mirrors the transforms Phaser ColorMatrix applies so
+// the procedural floor matches what the sprite-based walls look like.
+function _adjustHex(hex, adj) {
+  if (!adj) return hex
+  const { hue = 0, sat = 0, bright = 0, contrast = 0 } = adj
+  if (!hue && !sat && !bright && !contrast) return hex
+  let r = ((hex >> 16) & 0xff) / 255
+  let g = ((hex >>  8) & 0xff) / 255
+  let b = ( hex        & 0xff) / 255
+  if (bright)   { const f = 1 + bright;  r *= f; g *= f; b *= f }
+  if (contrast) { const f = 1 + contrast; r = (r - 0.5) * f + 0.5; g = (g - 0.5) * f + 0.5; b = (b - 0.5) * f + 0.5 }
+  if (hue || sat) {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b)
+    let h = 0, s = 0, l = (mx + mn) / 2
+    if (mx !== mn) {
+      const d = mx - mn
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn)
+      if      (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
+      else if (mx === g) h = ((b - r) / d + 2) / 6
+      else               h = ((r - g) / d + 4) / 6
+    }
+    if (hue) h = (h + hue / 360 + 1) % 1
+    if (sat) s = Math.max(0, Math.min(1, s + sat))
+    if (s === 0) { r = g = b = l } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q
+      const h2r = (p2, q2, t) => { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1/6) return p2 + (q2 - p2) * 6 * t; if (t < 0.5) return q2; if (t < 2/3) return p2 + (q2 - p2) * (2/3 - t) * 6; return p2 }
+      r = h2r(p, q, h + 1/3); g = h2r(p, q, h); b = h2r(p, q, h - 1/3)
+    }
+  }
+  const ri = Math.max(0, Math.min(255, Math.round(r * 255)))
+  const gi = Math.max(0, Math.min(255, Math.round(g * 255)))
+  const bi = Math.max(0, Math.min(255, Math.round(b * 255)))
+  return (ri << 16) | (gi << 8) | bi
+}
 
 
 export class DungeonRenderer {
@@ -335,6 +371,12 @@ export class DungeonRenderer {
     // there but can briefly peek through at sub-tile fractional
     // positions), so we dim across the entire 4×2 doorway zone.
     this._doorwayShadowCells = new Set()
+    // Decoration layers. Floor decor (rugs, runes, markings) renders just
+    // above floor sprites but below entities so characters walk over them.
+    // Object decor (torches, banners, chandeliers) renders above entities,
+    // framing the room architecture overhead.
+    this._cDecorFloor  = scene.add.container(0, 0).setDepth(1.5)
+    this._cDecorObject = scene.add.container(0, 0).setDepth(8.9)
     this._gTints     = scene.add.graphics().setDepth(1.2)
     this._gOverlay   = scene.add.graphics().setDepth(3)
     this._gCollision = scene.add.graphics().setDepth(3.2)
@@ -405,6 +447,8 @@ export class DungeonRenderer {
     this._gGrid.clear()
     this._gTiles.clear()
     this._cTileSprites.removeAll(true)
+    this._cDecorFloor.removeAll(true)
+    this._cDecorObject.removeAll(true)
     this._cDoorSpritesLow.removeAll(true)
     this._cDoorSpritesHigh.removeAll(true)
     this._innerCellMaskG.clear()
@@ -429,6 +473,7 @@ export class DungeonRenderer {
     this._drawTiles()
     if (Balance.WALL_THICKNESS > 1) this._drawCornerBlockOverlays()
     this._drawCategoryTints()
+    this._drawRoomDecorations()
     this._drawRoomOverlays()
     this._drawDoorwayArchitecture()
     this._drawVoidMask()
@@ -507,6 +552,8 @@ export class DungeonRenderer {
     this._gGrid.destroy()
     this._gTiles.destroy()
     this._cTileSprites.destroy(true)
+    this._cDecorFloor.destroy(true)
+    this._cDecorObject.destroy(true)
     this._cDoorSpritesLow.destroy(true)
     this._cDoorSpritesHigh.destroy(true)
     this._innerCellMaskG.destroy()
@@ -572,7 +619,8 @@ export class DungeonRenderer {
         if (this._renderTileSprite(x, y, t)) continue
 
         if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) {
-          this._drawFloorCell(g, x, y)
+          const floorRoom = this._cellRoomMap?.get(`${x},${y}`)
+          this._drawFloorCell(g, x, y, floorRoom?.colorAdjust?.floor)
         } else if (t === TILE.WALL || t === TILE.BOSS_WALL) {
           this._drawWallCellByTag(g, x, y, this._wallOrient.get(`${x},${y}`))
         } else if (t === TILE.DOOR) {
@@ -1333,15 +1381,8 @@ export class DungeonRenderer {
     const cov = spriteCoverage(sprite)
     const size = cov * TS
 
-    const buildImg = () => {
-      const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
-        .setOrigin(0.5)
-      img.setDisplaySize(size, size)
-      if (rot) img.setAngle(rot)
-      if (flipH) img.flipX = true
-      if (flipV) img.flipY = true
-      return img
-    }
+    const isFloor = (t === TILE.FLOOR || t === TILE.BOSS_FLOOR)
+    const _room   = this._cellRoomMap?.get(`${x},${y}`)
 
     // Decide which container this sprite goes into. Three cases:
     //   1. The cell is a door-projection ANCHOR (spanRender set): this
@@ -1360,7 +1401,25 @@ export class DungeonRenderer {
     const doorEntry = this._doorCellMap?.get(`${x},${y}`)
     const isDoorwayCell = !!doorEntry && (doorEntry.kind === 'door' || doorEntry.kind === 'jamb')
     const isTileLayoutWall = !doorEntry?.spanRender && this._isTileLayoutSpanAnchor(x, y)
-    if (isDoorwayCell && !isTileLayoutWall) {
+    const isDoorContainer = isDoorwayCell && !isTileLayoutWall
+    const buildImg = () => {
+      const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
+        .setOrigin(0.5)
+      img.setDisplaySize(size, size)
+      if (rot) img.setAngle(rot)
+      if (flipH) img.flipX = true
+      if (flipV) img.flipY = true
+      // Door containers use geometry masks — postFX breaks those, so use
+      // preFX (inline render pass) for door sprites. Each cell uses its own
+      // physical room's colorAdjust so each half of the door matches its room.
+      const adj = isDoorContainer
+        ? (_room?.colorAdjust?.doors ?? _room?.colorAdjust?.walls)
+        : _room?.colorAdjust?.[isFloor ? 'floor' : 'walls']
+      this._applyColorAdj(img, adj, isDoorContainer)
+      return img
+    }
+
+    if (isDoorContainer) {
       this._cDoorSpritesLow.add(buildImg())
       this._cDoorSpritesHigh.add(buildImg())
     } else {
@@ -1402,6 +1461,7 @@ export class DungeonRenderer {
     const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
       .setOrigin(0.5)
     img.setDisplaySize(size, size)
+    this._applyColorAdj(img, room?.colorAdjust?.walls)
     this._cTileSprites.add(img)
     return true
   }
@@ -1412,15 +1472,15 @@ export class DungeonRenderer {
   //   192..255→ slightly darker speck
   // Rather than a per-pixel stipple (very expensive in Graphics), we tint a
   // single ~6×6 patch in one corner so each cell reads as base-with-detail.
-  _drawFloorCell(g, x, y) {
+  _drawFloorCell(g, x, y, adj) {
     const px = x * TS, py = y * TS
-    g.fillStyle(FLOOR_BASE, 1)
+    g.fillStyle(_adjustHex(FLOOR_BASE, adj), 1)
     g.fillRect(px, py, TS, TS)
 
     const h = _tileHash(x, y)
     const bucket = h & 0xff
     if (bucket >= 128) {
-      const variant = bucket >= 192 ? FLOOR_DARK : FLOOR_LIGHT
+      const variant = bucket >= 192 ? _adjustHex(FLOOR_DARK, adj) : _adjustHex(FLOOR_LIGHT, adj)
       const sx = (h >>> 8)  & 0x1f   // 0..31
       const sy = (h >>> 13) & 0x1f
       const sw = 4 + ((h >>> 18) & 0x07)   // 4..11
@@ -3440,6 +3500,53 @@ export class DungeonRenderer {
     this._showGrid = visible
     this._gGrid.clear()
     this._drawGrid()
+  }
+
+  // ── Color adjustment ────────────────────────────────────────────────────────
+
+  // Applies hue/saturation/brightness/contrast via Phaser 3.60 ColorMatrix.
+  // adj = { hue, sat, bright, contrast } — all optional, default 0 = no change.
+  // usePre=true → preFX (inline render pass, compatible with geometry masks).
+  // usePre=false → postFX (offscreen pass, breaks geometry masks on containers).
+  _applyColorAdj(img, adj, usePre = false) {
+    if (!adj) return
+    const { hue = 0, sat = 0, bright = 0, contrast = 0 } = adj
+    if (!hue && !sat && !bright && !contrast) return
+    try {
+      const fx = usePre ? img.preFX : img.postFX
+      const cm = fx?.addColorMatrix?.()
+      if (!cm) return
+      if (hue)      cm.hue(hue, true)
+      if (sat)      cm.saturate(sat, true)
+      if (bright)   cm.brightness(1 + bright, true)
+      if (contrast) cm.contrast(contrast, true)
+    } catch (_) {}
+  }
+
+  // ── Decoration sprites ──────────────────────────────────────────────────────
+
+  _drawRoomDecorations() {
+    for (const room of this._gameState.dungeon.rooms) {
+      const decorations = room.decorations
+      if (!Array.isArray(decorations) || decorations.length === 0) continue
+      for (const decor of decorations) {
+        const key = `decor-${decor.spriteId}`
+        if (!this._scene.textures.exists(key)) continue
+        const sz = decor.size ?? 1
+        const wx = (room.gridX + decor.x) * TS + (sz * TS) / 2
+        const wy = (room.gridY + decor.y) * TS + (sz * TS) / 2
+        const img = this._scene.add.image(wx, wy, key)
+          .setOrigin(0.5).setDisplaySize(sz * TS, sz * TS)
+        if (decor.rot)   img.setAngle(decor.rot)
+        if (decor.flipH) img.flipX = true
+        if (decor.flipV) img.flipY = true
+        if (decor.layer === 'object') {
+          this._cDecorObject.add(img)
+        } else {
+          this._cDecorFloor.add(img)
+        }
+      }
+    }
   }
 
   // ── Room overlays (connection dots / inactive tint) ────────────────────────
