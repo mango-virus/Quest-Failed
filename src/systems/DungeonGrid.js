@@ -68,6 +68,48 @@ export class DungeonGrid {
     return definition.placementRules?.maxPerDungeon ?? null
   }
 
+  // ── Decoration collision ────────────────────────────────────────────────────
+
+  // Returns true if a solid decoration occupies this tile (blocks pathfinding).
+  isSolidDecor(tx, ty) {
+    return this._solidDecorTiles?.has(`${tx},${ty}`) ?? false
+  }
+
+  // Rebuild the entire solid-decor set from current placed rooms. Call after
+  // _reapplyAllRoomDefs() or any batch room mutation.
+  rebuildSolidDecors() {
+    this._solidDecorTiles = new Set()
+    for (const room of this._d.rooms) {
+      this._addSolidDecors(room)
+    }
+  }
+
+  _addSolidDecors(room) {
+    if (!this._solidDecorTiles) this._solidDecorTiles = new Set()
+    for (const d of (room.decorations ?? [])) {
+      if (!d.solid) continue
+      const sz = d.size ?? 1
+      for (let dy = 0; dy < sz; dy++) {
+        for (let dx = 0; dx < sz; dx++) {
+          this._solidDecorTiles.add(`${room.gridX + d.x + dx},${room.gridY + d.y + dy}`)
+        }
+      }
+    }
+  }
+
+  _removeSolidDecors(room) {
+    if (!this._solidDecorTiles) return
+    for (const d of (room.decorations ?? [])) {
+      if (!d.solid) continue
+      const sz = d.size ?? 1
+      for (let dy = 0; dy < sz; dy++) {
+        for (let dx = 0; dx < sz; dx++) {
+          this._solidDecorTiles.delete(`${room.gridX + d.x + dx},${room.gridY + d.y + dy}`)
+        }
+      }
+    }
+  }
+
   // ── Public API ──────────────────────────────────────────────────────────────
 
   // Place a room at (gridX, gridY). Returns the placed room or null.
@@ -97,9 +139,12 @@ export class DungeonGrid {
       // See RoomTileEditor for how these are authored.
       theme:      typeof definition.theme     === 'string' ? definition.theme     : null,
       doorTheme:  typeof definition.doorTheme === 'string' ? definition.doorTheme : null,
-      tileLayout: Array.isArray(definition.tileLayout) ? definition.tileLayout : [],
-      doorTiles:  (definition.doorTiles && typeof definition.doorTiles === 'object')
-                    ? definition.doorTiles : null,
+      tileLayout:   Array.isArray(definition.tileLayout) ? definition.tileLayout : [],
+      doorTiles:    (definition.doorTiles && typeof definition.doorTiles === 'object')
+                      ? definition.doorTiles : null,
+      decorations:  Array.isArray(definition.decorations) ? definition.decorations : [],
+      colorAdjust:  (definition.colorAdjust && typeof definition.colorAdjust === 'object')
+                      ? definition.colorAdjust : null,
       // Each cp gets `open: false` by default — doors start closed and
       // become open when adventurers walk through (or, for the entry_hall's
       // external cp, automatically at day-start). `style` defaults to
@@ -122,6 +167,7 @@ export class DungeonGrid {
     this._writeTiles(room, definition)
     this._d.rooms.push(room)
     this._indexRoom(room)
+    this._addSolidDecors(room)
     // Auto-connect: scan adjacent rooms for valid overlaps and create
     // matching cps + doors at the centre of each overlap. Skipped for
     // rooms loaded with pre-authored cps (e.g. entry_hall's external N).
@@ -135,6 +181,7 @@ export class DungeonGrid {
     const idx = this._d.rooms.findIndex(r => r.instanceId === instanceId)
     if (idx === -1) return false
     const room = this._d.rooms[idx]
+    this._removeSolidDecors(room)
 
     // Strip paired cps from every neighbour and re-paint their wall tiles
     // so the door visually disappears. Without this, removing a room would

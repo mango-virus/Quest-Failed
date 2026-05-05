@@ -74,6 +74,10 @@ export class PathfinderSystem {
         // opening.  Allowed for the goal tile (so something parked on
         // the secondary column is still reachable).
         if (nKey !== eKey && dungeonGrid.isDoorBlocked?.(nx, ny)) continue
+        // Solid decoration blocking — designer-placed objects that physically
+        // occupy a floor tile (pillars, barrels, etc.). Goal tile is exempt
+        // so something can still path to a unit standing next to a decor.
+        if (nKey !== eKey && dungeonGrid.isSolidDecor?.(nx, ny)) continue
         // Mimic chests + any other dynamic blockers the caller wants
         // to route around (chest mimics on the floor, etc.). Goal tile
         // is exempt — the only way to reveal a chest is to walk onto it.

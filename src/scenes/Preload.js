@@ -260,6 +260,10 @@ export class Preload extends Phaser.Scene {
     // queues a second loader pass for each referenced PNG.
     this.load.json('themes-manifest', 'assets/themes/manifest.json')
 
+    // Decor manifest — user-uploaded decoration sprites. Optional; absent on
+    // first run. Loaded alongside themes in _loadThemesAndStart().
+    this.load.json('decor-manifest', 'assets/sprites/decor/manifest.json')
+
     // ── Boss HP hearts ─────────────────────────────────────────────────────
     const HEARTS = 'assets/ui/hearts/'
     this.load.image('heart-full',  HEARTS + 'heart_full.png')
@@ -418,27 +422,39 @@ export class Preload extends Phaser.Scene {
   // sprite texture isn't registered.
   async _loadThemesAndStart() {
     const startMain = () => this.scene.start('MainMenu')
-    let ThemeManager
+    let ThemeManager, DecorManager
     try {
       ThemeManager = (await import('../systems/ThemeManager.js')).ThemeManager
+      DecorManager = (await import('../systems/DecorManager.js')).DecorManager
     } catch (err) {
-      console.warn('[Preload] ThemeManager import failed:', err)
+      console.warn('[Preload] manager import failed:', err)
       return startMain()
     }
 
-    const manifest = this.cache.json.get('themes-manifest')
-    if (!manifest) return startMain()
+    const manifest      = this.cache.json.get('themes-manifest')
+    const decorManifest = this.cache.json.get('decor-manifest')
 
-    // Queue every referenced PNG. Phaser keys must match the convention used
-    // by editors: `themesprite-<id>` so the same key works in TilesetEditor,
-    // RoomTileEditor, and DungeonRenderer.
+    if (!manifest && !decorManifest) return startMain()
+
+    // Queue theme sprite PNGs.
     let queued = 0
-    if (manifest.sprites && typeof manifest.sprites === 'object') {
+    if (manifest?.sprites && typeof manifest.sprites === 'object') {
       for (const [id, meta] of Object.entries(manifest.sprites)) {
         const key = `themesprite-${id}`
         if (this.textures.exists(key)) continue
         const file = meta?.file || `assets/themes/sprites/${id}.png`
         this.load.image(key, file)
+        queued++
+      }
+    }
+
+    // Queue decor sprite PNGs (`decor-<id>` keys).
+    if (Array.isArray(decorManifest)) {
+      for (const entry of decorManifest) {
+        if (!entry?.id || !entry?.file) continue
+        const key = `decor-${entry.id}`
+        if (this.textures.exists(key)) continue
+        this.load.image(key, entry.file)
         queued++
       }
     }
@@ -451,7 +467,8 @@ export class Preload extends Phaser.Scene {
       })
     }
 
-    ThemeManager.load(manifest)
+    if (manifest)      ThemeManager.load(manifest)
+    if (decorManifest) DecorManager.load(decorManifest)
     startMain()
   }
 
