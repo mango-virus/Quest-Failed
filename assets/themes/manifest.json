@@ -230,6 +230,20 @@
       "mode": "span",
       "coverage": 2,
       "tags": []
+    },
+    "dirt_floor": {
+      "file": "assets/themes/sprites/dirt_floor.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
+    },
+    "dirt_floor_long": {
+      "file": "assets/themes/sprites/dirt_floor_long.png",
+      "srcSize": 128,
+      "mode": "span",
+      "coverage": 2,
+      "tags": []
     }
   },
   "themes": {},
