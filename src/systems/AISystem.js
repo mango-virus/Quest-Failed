@@ -892,6 +892,9 @@ export class AISystem {
     // engage at their declared attackRange instead of melee. Falls back to
     // MELEE_RANGE_TILES (1.5) for melee classes.
     const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+    // Doorway pass-through: an adventurer in a doorway keeps walking and
+    // ignores all targets. Stops the adv from halting path mid-doorway.
+    if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) return null
     let best = null, bestDist = Infinity
     for (const m of this._gameState.minions) {
       if (m.aiState === 'dead' || m.resources.hp <= 0) continue
@@ -904,6 +907,9 @@ export class AISystem {
       // minion reveals on its first attack.
       if (m._camouflaged) continue
       if (adv.flags?.idolizedMinionClass === m.definitionId) continue
+      // Skip minions standing in a doorway — they're mid-passage and
+      // untouchable; the adventurer walks through rather than stopping to fight.
+      if (this._dungeonGrid?.getTileType?.(m.tileX, m.tileY) === TILE.DOOR) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d > reach + 0.01) continue
       // Phase 8: any minion within engagement range is also "observed"

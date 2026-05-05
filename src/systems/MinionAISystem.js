@@ -9,6 +9,7 @@
 import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
+import { TILE }             from './DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
 export class MinionAISystem {
@@ -400,6 +401,35 @@ export class MinionAISystem {
     // Phase 6e: Barracks-style rooms — minions sleep until combat happens here.
     if (this._isRoomSleeping(homeRoom)) return null
 
+    // Doorway pass-through: a minion in a doorway keeps walking and ignores
+    // all targets so it doesn't halt mid-passage to fight.
+    if (this._dungeonGrid?.getTileType?.(minion.tileX, minion.tileY) === TILE.DOOR) return null
+
+    // Boss-chamber override: minions standing inside the boss room engage
+    // any adventurer also inside the boss room, regardless of where their
+    // home is. Reaches them via boss abilities / dark pacts (Final Breath
+    // revives, summoned adds, displacement effects), which is the only way
+    // a minion can end up here. Without this, a minion whose home is some
+    // other room would refuse to attack the adventurers raiding the boss.
+    const standingRoom = this._dungeonGrid?.getRoomAtTile?.(minion.tileX, minion.tileY)
+    if (standingRoom?.definitionId === 'boss_chamber') {
+      let bestB = null
+      let bestBd = Infinity
+      const aggroB = Balance.AGGRO_RANGE_TILES
+      for (const adv of this._gameState.adventurers.active) {
+        if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
+        if (adv._invisible) continue
+        if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
+        if (!_pointInRoom(adv.tileX, adv.tileY, standingRoom)) continue
+        const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
+        if (d > aggroB) continue
+        if (d < bestBd) { bestB = adv; bestBd = d }
+      }
+      if (bestB) return bestB
+      // No adv in the boss chamber yet — fall through to normal logic so
+      // the minion still patrols and can react to defectors etc.
+    }
+
     let best = null
     let bestDist = Infinity
     let bestPriority = 0
@@ -424,6 +454,7 @@ export class MinionAISystem {
       for (const m of this._gameState.minions) {
         if (m === minion || m.aiState === 'dead' || m.resources.hp <= 0) continue
         if (m.faction !== 'dungeon') continue
+        if (this._dungeonGrid?.getTileType?.(m.tileX, m.tileY) === TILE.DOOR) continue
         const d = Math.hypot(m.tileX - minion.tileX, m.tileY - minion.tileY)
         if (d > aggro) continue
         if (d < bestDist) { best = m; bestDist = d }
@@ -437,6 +468,9 @@ export class MinionAISystem {
       // Phase 5c — Rogue Invisibility: minions ignore invisible advs.
       // (Boss can still target — that's BossSystem's responsibility.)
       if (adv._invisible) continue
+      // Adventurers in a doorway are passing through — untargetable so they
+      // can walk past a blocking minion without the minion halting to fight.
+      if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
 
       if (requireSameRoom) {
         if (!_pointInRoom(adv.tileX, adv.tileY, homeRoom)) continue

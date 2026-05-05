@@ -754,6 +754,12 @@ export class BossSystem {
     const px = adv.worldX, py = adv.worldY
     adv.worldX = clampX(adv.worldX)
     adv.worldY = clampY(adv.worldY)
+
+    // Sync tile coords from world position so MinionAI's range/path checks
+    // see the adv's live orbit position. AISystem skips AT_BOSS advs so
+    // these wouldn't otherwise update for the duration of the fight.
+    adv.tileX = Math.floor(adv.worldX / TS)
+    adv.tileY = Math.floor(adv.worldY / TS)
     if (fs.action === 'knockback' && (adv.worldX !== px || adv.worldY !== py)) {
       if (Math.hypot(fs.vx, fs.vy) > 2 * TS) {
         this._emitFx({ kind: 'wall_hit', x: adv.worldX, y: adv.worldY })
@@ -1289,11 +1295,58 @@ export class BossSystem {
 
     // Party → boss (skipped if everyone left is in flee — they're too busy
     // running to swing at the boss).
+    //
+    // Aggro split: if minions are present in the boss chamber (boss
+    // abilities or dark pacts displaced them here), an attacker may divert
+    // their swing to a nearby minion instead of the boss. Their attack
+    // contribution is removed from the boss damage pool and applied to the
+    // minion directly (no boss-defense subtraction). This is option (c)
+    // from the design — adventurers naturally pick the closest threat.
     if (attackers.length > 0) {
-      const totalAtk  = attackers.reduce((s, fs) => s + (fs.adv.stats?.attack ?? 5), 0)
-      const dmgToBoss = Math.max(1, Math.floor((totalAtk - boss.defense) * (0.85 + Math.random() * 0.3)))
-      boss.hp = Math.max(0, boss.hp - dmgToBoss)
-      this._roundLog.push({ side: 'party', damage: dmgToBoss })
+      const bossRoom = this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+      const liveMinions = bossRoom
+        ? (this._gameState.minions ?? []).filter(m =>
+            m.faction === 'dungeon' &&
+            m.aiState !== 'dead' &&
+            (m.resources?.hp ?? 0) > 0 &&
+            _pointInRoomBS(m.tileX, m.tileY, bossRoom))
+        : []
+      const TSb = Balance.TILE_SIZE
+      const MINION_AGGRO_RANGE = 1.6 * TSb
+      const MINION_REDIRECT_PROB = 0.35
+
+      let bossAtkPool = 0
+      for (const fs of attackers) {
+        const advAtk = fs.adv.stats?.attack ?? 5
+        let nearest = null
+        let nearestD = Infinity
+        for (const m of liveMinions) {
+          const d = Math.hypot((m.worldX ?? 0) - fs.adv.worldX, (m.worldY ?? 0) - fs.adv.worldY)
+          if (d <= MINION_AGGRO_RANGE && d < nearestD) { nearest = m; nearestD = d }
+        }
+        if (nearest && Math.random() < MINION_REDIRECT_PROB) {
+          const def = nearest.stats?.defense ?? 0
+          const taken = Math.max(1, Math.floor(advAtk * (0.85 + Math.random() * 0.3) - def))
+          nearest.resources.hp = Math.max(0, (nearest.resources.hp ?? 0) - taken)
+          this._emitFx({ kind: 'strike', x: nearest.worldX ?? fs.adv.worldX, y: nearest.worldY ?? fs.adv.worldY })
+          this._roundLog.push({ side: 'party', damage: taken, targetId: nearest.instanceId, kind: 'minion_strike' })
+          if (nearest.resources.hp <= 0) {
+            nearest.aiState = 'dead'
+            nearest.deathDay = this._gameState.meta?.dayNumber ?? 0
+            EventBus.emit('MINION_DIED', { minion: nearest, killerId: fs.adv.instanceId })
+          }
+        } else {
+          bossAtkPool += advAtk
+        }
+      }
+
+      const dmgToBoss = bossAtkPool > 0
+        ? Math.max(1, Math.floor((bossAtkPool - boss.defense) * (0.85 + Math.random() * 0.3)))
+        : 0
+      if (dmgToBoss > 0) {
+        boss.hp = Math.max(0, boss.hp - dmgToBoss)
+        this._roundLog.push({ side: 'party', damage: dmgToBoss })
+      }
 
       // Phase 9 — Tyrant's Gaze: each boss-hit-taken costs minions in the
       // boss chamber 1 HP each.
@@ -1688,6 +1741,11 @@ export class BossSystem {
     // Until then the boss can keep hitting them with round damage and
     // slam AOE; only their movement is handed off to AISystem.
   }
+}
+
+function _pointInRoomBS(tx, ty, room) {
+  return tx >= room.gridX && tx < room.gridX + room.width &&
+         ty >= room.gridY && ty < room.gridY + room.height
 }
 
 // Phase 10b — summon a small number of dungeon-faction skeletons near the
