@@ -119,6 +119,7 @@ export const Balance = {
   TIME_SCALE_NORMAL: 1,
   TIME_SCALE_FAST: 2,
   TIME_SCALE_FASTEST: 4,
+  TIME_SCALE_ULTRA: 8,
 
   // --- Adventurers ---
   ADVENTURERS_PER_DAY_BASE: 1,        // adds +1 every 2 days

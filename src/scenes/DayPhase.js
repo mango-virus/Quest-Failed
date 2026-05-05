@@ -63,6 +63,7 @@ export class DayPhase extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ONE',   () => this._setTimeScale(Balance.TIME_SCALE_NORMAL))
     this.input.keyboard?.on('keydown-TWO',   () => this._setTimeScale(Balance.TIME_SCALE_FAST))
     this.input.keyboard?.on('keydown-FOUR',  () => this._setTimeScale(Balance.TIME_SCALE_FASTEST))
+    this.input.keyboard?.on('keydown-EIGHT', () => this._setTimeScale(Balance.TIME_SCALE_ULTRA))
 
     this._dossierPanel = new DossierPanel(this, this._gameState)
 
@@ -255,8 +256,9 @@ export class DayPhase extends Phaser.Scene {
       { label: '1×', scale: Balance.TIME_SCALE_NORMAL },
       { label: '2×', scale: Balance.TIME_SCALE_FAST   },
       { label: '4×', scale: Balance.TIME_SCALE_FASTEST },
+      { label: '8×', scale: Balance.TIME_SCALE_ULTRA   },
     ]
-    const bw = 52, bh = 32, gap = 6
+    const bw = 48, bh = 32, gap = 6
     const totalW = CONTROLS.length * (bw + gap) - gap
     const startX = W / 2 - totalW / 2
     const btnY   = by + (BOTTOM_H - bh) / 2
