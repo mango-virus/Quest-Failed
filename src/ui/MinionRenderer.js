@@ -51,12 +51,17 @@ export class MinionRenderer {
 
     // Pickup-and-move state. While `_heldMinion` is non-null its sprite
     // tracks the cursor; AI is suspended via `minion._heldByPlayer`.
+    // `_pickupOrigin` records where the minion was before pickup so we can
+    // snap it back if the player exits MOVE mode or day starts mid-carry.
     this._heldMinion = null
+    this._pickupOrigin = null
     this._onScenePointerDown = this._onScenePointerDown.bind(this)
     scene.input.on('pointerdown', this._onScenePointerDown)
 
     EventBus.on('MINION_DIED',         this._onMinionDied,  this)
     EventBus.on('NIGHT_PHASE_STARTED', this._refreshAll,    this)
+    EventBus.on('DAY_PHASE_STARTED',   this._returnHeldToOrigin, this)
+    EventBus.on('TOOL_MODE_CHANGED',   this._onToolModeChanged,  this)
   }
 
   update() {
@@ -289,6 +294,8 @@ export class MinionRenderer {
   destroy() {
     EventBus.off('MINION_DIED',         this._onMinionDied,  this)
     EventBus.off('NIGHT_PHASE_STARTED', this._refreshAll,    this)
+    EventBus.off('DAY_PHASE_STARTED',   this._returnHeldToOrigin, this)
+    EventBus.off('TOOL_MODE_CHANGED',   this._onToolModeChanged,  this)
     this._scene?.input?.off?.('pointerdown', this._onScenePointerDown)
     this._hoverLabel?.destroy()
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
@@ -313,16 +320,19 @@ export class MinionRenderer {
 
   // Toggles pickup: clicking an unheld minion picks it up; clicking the held
   // minion drops it in place. event.stopPropagation in the caller prevents
-  // the scene-level handler from also firing. Skipped entirely when the
-  // NightPhase palette has a minion type selected for placement — that
-  // click is meant to place a new minion, not pick up an existing one.
+  // the scene-level handler from also firing. Pickup is gated to NightPhase
+  // + MOVE tool mode — day-phase clicks and clicks without MOVE armed do
+  // nothing. Drop-on-click on the held minion always works so the player
+  // isn't trapped carrying one.
   _handleMinionClick(m, pointer) {
-    if (this._isPlacingMinion()) return
     if (this._heldMinion === m) {
       this._dropMinion(pointer.worldX, pointer.worldY)
-    } else if (!this._heldMinion) {
-      this._beginPickup(m)
+      return
     }
+    if (this._heldMinion) return
+    if (this._isPlacingMinion()) return
+    if (!this._isMoveModeArmed()) return
+    this._beginPickup(m)
   }
 
   // Returns true when the NightPhase scene has a minion type queued in its
@@ -332,8 +342,25 @@ export class MinionRenderer {
     return !!(np && np._selectedKind === 'minion' && np._selected)
   }
 
+  // Pickup is only allowed during the build (Night) phase with the MOVE
+  // tool armed on the action bar. This blocks day-phase clicks entirely
+  // and forces the player to opt into rearrangement deliberately.
+  _isMoveModeArmed() {
+    const sm = this._scene?.scene
+    if (!sm?.isActive?.('NightPhase')) return false
+    const np = sm.get?.('NightPhase')
+    return !!(np && np._toolMode === 'move')
+  }
+
   _beginPickup(m) {
     this._heldMinion = m
+    this._pickupOrigin = {
+      tileX: m.tileX, tileY: m.tileY,
+      worldX: m.worldX, worldY: m.worldY,
+      assignedRoomId: m.assignedRoomId ?? null,
+      homeTileX: m.homeTileX ?? m.tileX,
+      homeTileY: m.homeTileY ?? m.tileY,
+    }
     m._heldByPlayer = true
     const rec = this._sprites[m.instanceId]
     if (rec) rec.container.setDepth(100)   // float above walls/doors while carried
@@ -359,11 +386,17 @@ export class MinionRenderer {
     const tileY = Math.floor(wy / TS)
     const tiles = this._scene.dungeonGrid?.getTiles?.()
     const row   = tiles?.[tileY]
-    if (!row || !PathfinderSystem.isWalkable(row[tileX])) return
+    if (!row || !PathfinderSystem.isWalkable(row[tileX])) {
+      this._showPlacementError("Can't place a minion there")
+      return
+    }
     // Boss chamber is off-limits — minions can't be parked on the boss
     // floor (matches _validateMinionPlacement for fresh placements).
     const dropRoom = this._scene.dungeonGrid?.getRoomAtTile?.(tileX, tileY)
-    if (dropRoom?.definitionId === 'boss_chamber') return
+    if (dropRoom?.definitionId === 'boss_chamber') {
+      this._showPlacementError("Can't place a minion in the boss chamber")
+      return
+    }
 
     m.tileX  = tileX
     m.tileY  = tileY
@@ -382,8 +415,47 @@ export class MinionRenderer {
     const rec = this._sprites[m.instanceId]
     if (rec) rec.container.setDepth(7)
     this._heldMinion = null
+    this._pickupOrigin = null
     this._playPickupDropSfx()
     EventBus.emit('MINION_PLACED', { minion: m })
+  }
+
+  // Surface a transient error through NightPhase's existing toast so feedback
+  // matches the rest of placement validation. Silent fallback if NightPhase
+  // isn't reachable (shouldn't happen given pickup is gated to it).
+  _showPlacementError(msg) {
+    const np = this._scene?.scene?.get?.('NightPhase')
+    np?._showPlacementError?.(msg)
+  }
+
+  // Force the held minion back to its pickup tile. Called when the player
+  // exits MOVE mode or the day starts — leaving a minion floating attached
+  // to the cursor in DayPhase would defeat the "no movement during day" rule.
+  _returnHeldToOrigin() {
+    const m = this._heldMinion
+    if (!m) return
+    const o = this._pickupOrigin
+    if (o) {
+      m.tileX  = o.tileX
+      m.tileY  = o.tileY
+      m.worldX = o.worldX
+      m.worldY = o.worldY
+      m.homeTileX = o.homeTileX
+      m.homeTileY = o.homeTileY
+      m.assignedRoomId = o.assignedRoomId
+    }
+    m._patrolTarget = null
+    m._patrolAccum  = 0
+    m._chasePath    = null
+    m._heldByPlayer = false
+    const rec = this._sprites[m.instanceId]
+    if (rec) rec.container.setDepth(7)
+    this._heldMinion = null
+    this._pickupOrigin = null
+  }
+
+  _onToolModeChanged({ mode } = {}) {
+    if (mode !== 'move') this._returnHeldToOrigin()
   }
 
   // Background click anywhere in the world — drop the held minion. Object-
