@@ -427,6 +427,20 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": 0.3,
+        "hue": -75,
+        "bright": 0.5,
+        "contrast": -0.7
+      },
+      "doors": {
+        "sat": -1
+      }
     }
   },
   {
@@ -684,6 +698,18 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1,
+        "hue": 0
+      },
+      "floor": {
+        "sat": 0,
+        "hue": -15,
+        "bright": 0.5,
+        "contrast": -0.4
+      }
     }
   },
   {
@@ -887,6 +913,16 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "hue": -165,
+        "sat": -1
+      },
+      "floor": {
+        "sat": 0,
+        "hue": 0
+      }
     }
   },
   {
@@ -1111,6 +1147,16 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "hue": -165,
+        "sat": -1
+      },
+      "floor": {
+        "sat": -0.3,
+        "hue": 180
+      }
     }
   },
   {
@@ -1149,9 +1195,15 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor18",
+          "rot": 90
+        },
         null,
-        null,
-        null,
+        {
+          "id": "floor18",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_l",
@@ -1175,9 +1227,12 @@
           "rot": 270
         },
         null,
+        "floor18",
         null,
-        null,
-        null,
+        {
+          "id": "floor18",
+          "rot": 270
+        },
         null,
         {
           "id": "wall_r",
@@ -1290,6 +1345,15 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "hue": -30,
+        "sat": -0.2
+      }
     }
   },
   {
@@ -1328,9 +1392,12 @@
           "rot": 270
         },
         null,
+        "floor2",
         null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_l",
@@ -1354,9 +1421,15 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor5",
+          "rot": 270
+        },
         null,
-        null,
-        null,
+        {
+          "id": "floor5",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_c",
@@ -1380,9 +1453,15 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor2",
+          "rot": 270
+        },
         null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_r",
@@ -1495,6 +1574,14 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": -1
+      }
     }
   },
   {
@@ -1537,11 +1624,11 @@
           "rot": 270
         },
         null,
+        "floor15",
         null,
+        "floor15",
         null,
-        null,
-        null,
-        null,
+        "floor15",
         null,
         {
           "id": "wall_l",
@@ -1567,11 +1654,14 @@
           "rot": 270
         },
         null,
+        "floor11",
         null,
+        "floor1",
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor10",
+          "rot": 270
+        },
         null,
         {
           "id": "wall_hole",
@@ -1597,11 +1687,20 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor15",
+          "rot": 180
+        },
         null,
+        {
+          "id": "floor15",
+          "rot": 180
+        },
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor15",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_r",
@@ -1732,6 +1831,16 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": -0.2,
+        "hue": 105,
+        "bright": 0
+      }
     }
   },
   {
@@ -1774,11 +1883,14 @@
           "rot": 270
         },
         null,
+        "floor2",
         null,
+        "floor8",
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_l",
@@ -1804,11 +1916,20 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor2",
+          "rot": 270
+        },
         null,
+        {
+          "id": "floor8",
+          "rot": 180
+        },
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_r",
@@ -1941,6 +2062,17 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": 2,
+        "bright": -0.15,
+        "hue": -15,
+        "contrast": 0
+      }
     }
   },
   {
@@ -1979,9 +2111,9 @@
           "rot": 270
         },
         null,
+        "floor10",
         null,
-        null,
-        null,
+        "dirt_floor",
         null,
         {
           "id": "pillar3_r",
@@ -2005,9 +2137,9 @@
           "rot": 270
         },
         null,
+        "dirt_floor",
         null,
-        null,
-        null,
+        "dirt_floor_long",
         null,
         {
           "id": "pillar2_l",
@@ -2129,6 +2261,11 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      }
     }
   },
   {
@@ -2171,11 +2308,14 @@
           "rot": 270
         },
         null,
+        "floor1",
         null,
+        {
+          "id": "floor13",
+          "rot": 270
+        },
         null,
-        null,
-        null,
-        null,
+        "floor1",
         null,
         {
           "id": "wall_l",
@@ -2201,11 +2341,17 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor13",
+          "rot": 90
+        },
         null,
+        "floor1",
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor13",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_r",
@@ -2327,6 +2473,15 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": 0,
+        "hue": 120
+      }
     }
   },
   {
@@ -2365,9 +2520,15 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor10",
+          "rot": 90
+        },
         null,
-        null,
-        null,
+        {
+          "id": "floor10",
+          "rot": 180
+        },
         null,
         {
           "id": "pillar1_l",
@@ -2391,9 +2552,15 @@
           "rot": 270
         },
         null,
+        {
+          "id": "dirt_floor",
+          "rot": 90
+        },
         null,
-        null,
-        null,
+        {
+          "id": "floor14",
+          "rot": 180
+        },
         null,
         {
           "id": "pillar4_r",
@@ -2505,6 +2672,15 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": -0.3,
+        "hue": -165
+      }
     }
   },
   {
@@ -2543,9 +2719,15 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor10",
+          "rot": 90
+        },
         null,
-        null,
-        null,
+        {
+          "id": "floor10",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_c",
@@ -2569,9 +2751,12 @@
           "rot": 270
         },
         null,
+        "floor10",
         null,
-        null,
-        null,
+        {
+          "id": "floor10",
+          "rot": 270
+        },
         null,
         {
           "id": "wall_c",
@@ -2684,6 +2869,17 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": 2,
+        "hue": -150,
+        "bright": -0.4,
+        "contrast": -0.3
+      }
     }
   },
   {
@@ -2722,9 +2918,9 @@
           "rot": 270
         },
         null,
+        "floor1",
         null,
-        null,
-        null,
+        "floor1",
         null,
         {
           "id": "wall_r",
@@ -2748,9 +2944,9 @@
           "rot": 270
         },
         null,
+        "floor1",
         null,
-        null,
-        null,
+        "floor1",
         null,
         {
           "id": "wall_l",
@@ -2863,6 +3059,16 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": -1,
+        "bright": -0.05,
+        "contrast": -0.6
+      }
     }
   },
   {
@@ -2905,11 +3111,14 @@
           "rot": 270
         },
         null,
+        "dirt_floor",
         null,
+        "floor18",
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "dirt_floor_long",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_l",
@@ -2935,11 +3144,14 @@
           "rot": 270
         },
         null,
+        "floor10",
         null,
+        "floor10",
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor10",
+          "rot": 270
+        },
         null,
         {
           "id": "wall_r",
@@ -3062,6 +3274,15 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": -0.5,
+        "hue": -75
+      }
     }
   },
   {
@@ -3104,11 +3325,14 @@
           "rot": 270
         },
         null,
+        "floor2",
         null,
+        "floor8",
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_l",
@@ -3134,11 +3358,20 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor2",
+          "rot": 270
+        },
         null,
+        {
+          "id": "floor8",
+          "rot": 180
+        },
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_r",
@@ -3262,6 +3495,17 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "sat": 2,
+        "bright": -0.5,
+        "hue": -15,
+        "contrast": 0
+      }
     }
   },
   {
@@ -3308,13 +3552,25 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor2",
+          "rot": 180
+        },
         null,
+        {
+          "id": "floor8",
+          "rot": 180
+        },
         null,
+        {
+          "id": "floor8",
+          "rot": 180
+        },
         null,
-        null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 270
+        },
         null,
         {
           "id": "wall_l",
@@ -3342,13 +3598,22 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor8",
+          "rot": 90
+        },
         null,
+        {
+          "id": "floor1",
+          "rot": 180
+        },
         null,
+        "floor1",
         null,
-        null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor8",
+          "rot": 270
+        },
         null,
         {
           "id": "wall_c",
@@ -3376,13 +3641,16 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor2",
+          "rot": 90
+        },
         null,
+        "floor8",
         null,
+        "floor8",
         null,
-        null,
-        null,
-        null,
-        null,
+        "floor2",
         null,
         {
           "id": "wall_r",
@@ -3519,6 +3787,14 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "hue": -180
+      }
     }
   },
   {
@@ -3557,9 +3833,12 @@
           "rot": 270
         },
         null,
+        "floor11",
         null,
-        null,
-        null,
+        {
+          "id": "floor11",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_hole",
@@ -3583,9 +3862,15 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor11",
+          "rot": 270
+        },
         null,
-        null,
-        null,
+        {
+          "id": "floor11",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_r",
@@ -3698,6 +3983,16 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "hue": -180,
+        "sat": 1.9,
+        "bright": -0.35
+      }
     }
   },
   {
@@ -3710,9 +4005,9 @@
       [
         "corner",
         null,
-        "wall_l",
+        "door_open_l",
         null,
-        "wall_r",
+        "door_open_r",
         null,
         {
           "id": "corner",
@@ -3732,16 +4027,19 @@
       ],
       [
         {
-          "id": "wall_r",
+          "id": "door_open_r",
           "rot": 270
         },
         null,
+        {
+          "id": "floor18",
+          "rot": 270
+        },
         null,
-        null,
-        null,
+        "floor18",
         null,
         {
-          "id": "wall_l",
+          "id": "door_open_l",
           "rot": 90
         },
         null
@@ -3758,43 +4056,49 @@
       ],
       [
         {
-          "id": "wall_l",
-          "rot": 270
-        },
-        null,
-        null,
-        null,
-        null,
-        null,
-        {
-          "id": "wall_r",
-          "rot": 90
-        },
-        null
-      ],
-      [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      [
-        {
-          "id": "corner",
+          "id": "door_open_l",
           "rot": 270
         },
         null,
         {
-          "id": "wall_r",
+          "id": "floor18",
           "rot": 180
         },
         null,
         {
-          "id": "wall_l",
+          "id": "floor18",
+          "rot": 90
+        },
+        null,
+        {
+          "id": "door_open_r",
+          "rot": 90
+        },
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        {
+          "id": "corner",
+          "rot": 270
+        },
+        null,
+        {
+          "id": "door_open_r",
+          "rot": 180
+        },
+        null,
+        {
+          "id": "door_open_l",
           "rot": 180
         },
         null,
@@ -3878,6 +4182,15 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "hue": 75,
+        "sat": 0
+      }
     }
   },
   {
@@ -3920,11 +4233,20 @@
           "rot": 270
         },
         null,
+        {
+          "id": "dirt_floor_long",
+          "rot": 270
+        },
         null,
+        {
+          "id": "floor2",
+          "rot": 180
+        },
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor16",
+          "rot": 270
+        },
         null,
         {
           "id": "wall_r",
@@ -3950,11 +4272,20 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor16",
+          "rot": 180
+        },
         null,
+        {
+          "id": "floor13",
+          "rot": 90
+        },
         null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor10",
+          "rot": 270
+        },
         null,
         {
           "id": "pillar3_r",
@@ -3980,11 +4311,14 @@
           "rot": 270
         },
         null,
+        "floor3",
         null,
+        {
+          "id": "floor10",
+          "rot": 180
+        },
         null,
-        null,
-        null,
-        null,
+        "floor16",
         null,
         {
           "id": "pillar4_r",
@@ -4106,6 +4440,16 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "hue": -90,
+        "sat": 1.5,
+        "bright": -0.5
+      }
     }
   },
   {
@@ -4152,13 +4496,16 @@
           "rot": 270
         },
         null,
+        "floor2",
         null,
+        "floor8",
         null,
+        "floor8",
         null,
-        null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_l",
@@ -4186,13 +4533,19 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor8",
+          "rot": 270
+        },
         null,
+        "floor1",
         null,
+        "floor1",
         null,
-        null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor8",
+          "rot": 90
+        },
         null,
         {
           "id": "wall_c",
@@ -4220,13 +4573,25 @@
           "rot": 270
         },
         null,
+        {
+          "id": "floor2",
+          "rot": 270
+        },
         null,
+        {
+          "id": "floor8",
+          "rot": 180
+        },
         null,
+        {
+          "id": "floor8",
+          "rot": 180
+        },
         null,
-        null,
-        null,
-        null,
-        null,
+        {
+          "id": "floor2",
+          "rot": 180
+        },
         null,
         {
           "id": "wall_r",
@@ -4362,6 +4727,14 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      },
+      "floor": {
+        "hue": 0
+      }
     }
   },
   {
@@ -4400,9 +4773,9 @@
           "rot": 270
         },
         null,
+        "dirt_floor",
         null,
-        null,
-        null,
+        "dirt_floor",
         null,
         {
           "id": "wall_l",
@@ -4426,9 +4799,9 @@
           "rot": 270
         },
         null,
+        "dirt_floor",
         null,
-        null,
-        null,
+        "dirt_floor",
         null,
         {
           "id": "wall_hole",
@@ -4541,6 +4914,11 @@
           null
         ]
       ]
+    },
+    "colorAdjust": {
+      "walls": {
+        "sat": -1
+      }
     }
   }
 ]
