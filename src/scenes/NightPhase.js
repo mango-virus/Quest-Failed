@@ -487,9 +487,10 @@ export class NightPhase extends Phaser.Scene {
         fontFamily: 'monospace', fontStyle: 'bold',
       }).setDepth(11).setAlpha(titleAlpha)
 
-      const costStr   = def.goldCost > 0 ? `${def.goldCost} gold` : 'FREE'
+      const dynCost   = DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+      const costStr   = dynCost > 0 ? `${dynCost} gold` : 'FREE'
       const costColor = isLocked ? PALETTE.textDim
-                      : def.goldCost > 0 ? PALETTE.textCyan
+                      : dynCost > 0 ? PALETTE.textCyan
                       : PALETTE.textGreen
       const sizeTxt = this.add.text(px + 38, py + 22, `${def.width}×${def.height}  ·  ${costStr}`, {
         fontSize: '8px', color: costColor, fontFamily: 'monospace',
@@ -1264,7 +1265,9 @@ export class NightPhase extends Phaser.Scene {
   _effectiveMinionCost(def) {
     const base = def?.goldCost ?? 0
     const m = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
-    return Math.max(0, Math.round(base * m))
+    const bossLv = this._gameState.boss?.level ?? 1
+    const lvMul  = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
+    return Math.max(0, Math.round(base * m * lvMul))
   }
 
   _rosterCap() {
@@ -1365,7 +1368,8 @@ export class NightPhase extends Phaser.Scene {
     // Phase 6e: archetype roomCostMultiplier (Tyrant 2×, Architect 0.75×)
     const arch = this._gameState.player?.archetypeModifiers
     const roomMul = arch?.roomCostMultiplier ?? 1
-    const cost = Math.round((def.goldCost ?? 0) * roomMul)
+    const baseCost = DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+    const cost = Math.round(baseCost * roomMul)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
         this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
@@ -1374,7 +1378,12 @@ export class NightPhase extends Phaser.Scene {
       this._gameState.player.gold -= cost
     }
 
-    const room = this._dungeonGrid.placeRoom(rotDef, placeTx, placeTy)
+    // Pass dungeonLevel so placeRoom's internal validatePlacement check
+    // doesn't default to 1 and reject any room with unlockLevel > 1 — that
+    // was silently making "newly unlocked" rooms unplaceable.
+    const room = this._dungeonGrid.placeRoom(rotDef, placeTx, placeTy, {
+      dungeonLevel: this._gameState.boss?.level ?? 1,
+    })
     if (room) {
       this._playBuildSfx()
       // Re-anchor any minions that were inside this room before pickup so
@@ -1968,7 +1977,13 @@ export class NightPhase extends Phaser.Scene {
       return m.tileX >= room.gridX && m.tileX < room.gridX + room.width
           && m.tileY >= room.gridY && m.tileY < room.gridY + room.height
     })
-    let refund = Math.floor((def?.goldCost ?? 0) * 0.5)
+    // Free-instance aware refund: if the count of this def is still
+    // within the freeFirstN window, this slot was free → refund 0.
+    // Otherwise it was a paid placement → refund 50% of base cost.
+    const freeFirstN  = def?.placementRules?.freeFirstN ?? 0
+    const sameCount   = (this._gameState.dungeon?.rooms ?? []).filter(r => r.definitionId === room.definitionId).length
+    const wasFreeSlot = freeFirstN > 0 && sameCount <= freeFirstN
+    let refund = wasFreeSlot ? 0 : Math.floor((def?.goldCost ?? 0) * 0.5)
     for (const m of minionsInside) {
       const mDef = allMinions.find(d => d.id === m.definitionId)
       refund += Math.floor((mDef?.goldCost ?? 0) * 0.5)

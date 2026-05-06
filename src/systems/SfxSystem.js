@@ -68,6 +68,12 @@ const SFX_VOLUMES = {
 // Fallback for any key not in the table.
 const SFX_DEFAULT_VOL = 0.70
 
+// Global SFX boost applied on top of the per-sound table + master slider,
+// clamped to Phaser's 1.0 ceiling. Bumps quiet sounds (revive 0.58, error
+// 0.58, score-countup 0.55, etc.) toward audibility when the master slider
+// is near max. The originally-loud ones simply hit the cap.
+const SFX_BOOST = 1.5
+
 export class SfxSystem {
   constructor(scene, gameState) {
     this._scene     = scene
@@ -263,22 +269,30 @@ export class SfxSystem {
     this._play('sfx-remove-room')
   }
   _onBuildError()    { this._play('sfx-error') }
-  _onDarkPact()      { this._play('sfx-dark-pact') }
+  _onDarkPact()      { this._play('sfx-dark-pact', 3.5) }
 
   _onResourcesAwarded({ gold }) {
     if (!gold || gold <= 0) return
     const now = this._now()
     if (now - this._lastGoldAt < 400) return
     this._lastGoldAt = now
-    this._play('sfx-collect-gold')
+    // Gold pickups get an extra boost — they're a satisfying milestone and
+    // were getting buried under combat sounds at the standard 1.0 cap.
+    this._play('sfx-collect-gold', 3.0)
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  _play(key) {
+  // Optional `extraBoost` multiplies on top of SFX_BOOST and lets the final
+  // volume exceed 1.0 — Phaser's WebAudio GainNode accepts gain > 1, so we
+  // rely on it for the "extra loud" pickup sounds (collect-gold) where the
+  // standard ceiling makes them disappear in the mix.
+  _play(key, extraBoost) {
     if (SfxVolume.isMuted()) return
     if (!this._scene?.cache?.audio?.exists?.(key)) return
-    const vol = Math.min(1, (SFX_VOLUMES[key] ?? SFX_DEFAULT_VOL) * SfxVolume.getVolume())
+    const baseGain = SFX_VOLUMES[key] ?? SFX_DEFAULT_VOL
+    const cap = extraBoost ? 4 : 1
+    const vol = Math.min(cap, baseGain * SFX_BOOST * (extraBoost ?? 1) * SfxVolume.getVolume())
     if (vol <= 0) return
     try { this._scene.sound.play(key, { volume: vol }) } catch {}
   }

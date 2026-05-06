@@ -62,6 +62,9 @@ const ANIM_ALIASES = {
 const ATK_CLASSES = new Set([
   'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
   'mage', 'cleric', 'necromancer', 'ranger', 'bard',
+  // Event-only class — Cosplay Contest spawns; cosplayers retaliate
+  // when attacked, so they need the oversize weapon attack sheet too.
+  'cosplay_adventurer',
 ]);
 const ATK_FRAME       = 192;          // frame size in atk sheet
 const ATK_COLS        = 8;            // max frames per row (thrust = 8)
@@ -484,9 +487,17 @@ async function processVariant(className, variant, idx, total) {
 async function main() {
   const manifest = JSON.parse(fs.readFileSync(path.join(ADV, 'manifest.json'), 'utf8'));
 
+  // Optional CLI filter — restrict to a comma-separated class list when
+  // re-baking only newly-added classes (avoids re-processing the other
+  // 550 variants on every change). Pass as the only argv:
+  //   node bake-weapons.cjs cosplay_adventurer
+  //   node bake-weapons.cjs cosplay_adventurer,cartographer_scholar
+  const classFilter = (process.argv[2] || '').split(',').map(s => s.trim()).filter(Boolean);
+
   // Collect all work items
   const tasks = [];
   for (const [className, variants] of Object.entries(manifest.variants)) {
+    if (classFilter.length && !classFilter.includes(className)) continue;
     for (const variant of variants) {
       tasks.push({ className, variant });
     }

@@ -371,8 +371,24 @@ export class BuildMenu {
     const key = `${kind}:${def.id}`
     const isSelected = (this._selectedKey === key)
     let cost = def.cost ?? def.goldCost ?? 0
+    // Rooms with freeFirstN: first N placements are free, then base cost.
+    if (kind === 'room') {
+      const freeFirstN = def.placementRules?.freeFirstN ?? 0
+      if (freeFirstN > 0) {
+        const placed = (this._gameState.dungeon?.rooms ?? []).filter(r => r.definitionId === def.id).length
+        if (placed < freeFirstN) cost = 0
+      }
+    }
     if (kind === 'trap' && (this._gameState._mechanicFlags ?? {}).hastyArchitect) {
       cost = Math.max(0, Math.round(cost * Balance.MECHANIC_HASTY_ARCHITECT_TRAP_DISCOUNT))
+    }
+    // Minion costs scale with boss level so prices keep pace with stats.
+    // Mirrors NightPhase._effectiveMinionCost so the displayed cost matches
+    // the actual debit on purchase.
+    if (kind === 'minion') {
+      const bossLv = this._gameState.boss?.level ?? 1
+      const lvMul  = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
+      cost = Math.max(0, Math.round(cost * lvMul))
     }
     const locked = (def.unlockLevel ?? 1) > (this._gameState.boss?.level ?? 1)
     const affordable = cost <= (this._gameState.player?.gold ?? 0)

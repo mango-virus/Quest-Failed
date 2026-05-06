@@ -2,7 +2,7 @@
 //
 // Triggered by BOSS_DEFEATED_FINAL. Header reads 'DUNGEON FALLEN' (boss
 // perspective per the user). Three panels: Final Tally / Pacts Sealed /
-// Built · Lost. Footer: View Dungeon Log (stub), New Evil, Main Menu.
+// Built · Lost. Footer: Leaderboard, New Evil, Main Menu.
 //
 // Animation: header fades in -> Final Tally rows reveal with per-row
 // number count-up -> Pacts Sealed timeline -> Built/Lost rows -> footer
@@ -15,6 +15,7 @@ import {
 } from '../ui/UIKit.js'
 import { SaveSystem }    from '../systems/SaveSystem.js'
 import { TitleMusic }    from '../systems/TitleMusic.js'
+import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { SfxVolume }     from '../systems/SfxVolume.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { Leaderboard }   from '../systems/Leaderboard.js'
@@ -346,11 +347,10 @@ export class GameOver extends Phaser.Scene {
     const btnY = fy + 8
     const totalW = 200 + 12 + 220 + 12 + 200
     let bx = (W - totalW) / 2
-    const btn1 = pixelButton(this, bx, btnY, 200, 44, 'VIEW DUNGEON LOG', {
-      depth: 5, fontSize: 9,
-      onClick: () => { /* stub — combat-log filter lands later */ },
+    const btn1 = pixelButton(this, bx, btnY, 200, 44, 'LEADERBOARD', {
+      depth: 5, fontSize: 10,
+      onClick: () => this.scene.start('Leaderboard'),
     })
-    btn1.setEnabled(false)
     bx += 212
     const btn2 = pixelButton(this, bx, btnY, 220, 44, 'NEW EVIL', {
       depth: 5, fontSize: 11, primary: true,
@@ -438,11 +438,7 @@ export class GameOver extends Phaser.Scene {
     this._fadeIn(objs, startT, FOOTER_FADE_MS)
     // Re-enable hit zones after the fade completes.
     this._tweens.push(this.time.delayedCall(startT + FOOTER_FADE_MS, () => {
-      for (const b of this._buttons) {
-        // Don't re-enable the disabled stub button.
-        if (b.label?.text === 'VIEW DUNGEON LOG') continue
-        b.hit.input.enabled = true
-      }
+      for (const b of this._buttons) b.hit.input.enabled = true
     }))
   }
 
@@ -514,8 +510,6 @@ export class GameOver extends Phaser.Scene {
     for (const b of this._buttons) {
       b.bg.setAlpha(1); b.label.setAlpha(1)
       if (b._customLabels) b._customLabels.forEach(l => l.setAlpha(1))
-      // Honor the disabled stub state — don't re-enable VIEW DUNGEON LOG.
-      if (b.label?.text === 'VIEW DUNGEON LOG') continue
       b.hit.input.enabled = true
     }
   }
@@ -591,6 +585,12 @@ export class GameOver extends Phaser.Scene {
   _newRun() {
     SaveSystem.deleteSave?.()
     SaveSystem.clear?.()
+    // Tear down BOTH music modules before scene transition. ArchetypeSelect
+    // calls TitleMusic.ensurePlaying on entry — without stopping the
+    // dungeon playlist first, the gameplay tracks layer on top of title
+    // music (and again on top of any prior title-music instance that
+    // _newRun's stop() didn't catch).
+    GameplayMusic.stop?.()
     TitleMusic.stop?.()
     this.scene.start('ArchetypeSelect')
   }

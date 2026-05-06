@@ -83,6 +83,14 @@ function _rehydrateRunHistory(state) {
     }
   }
 
+  // Dungeon-event scheduler slice (added 2026-05-05). Older saves predate
+  // the EventSystem; safe defaults let the system schedule the first event
+  // fresh on next NIGHT_PHASE_BEGAN.
+  state.events ??= { nextEventDay: null, lastEventId: null, scheduledId: null }
+  state.events.nextEventDay ??= null
+  state.events.lastEventId  ??= null
+  state.events.scheduledId  ??= null
+
   state.adventurers ??= { active: [], known: [], graveyard: [] }
   state.adventurers.known ??= []
   for (const a of state.adventurers.known) {

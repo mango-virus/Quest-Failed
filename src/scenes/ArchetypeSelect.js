@@ -22,6 +22,7 @@
 import { createGameState } from '../state/GameState.js'
 import { SaveSystem }      from '../systems/SaveSystem.js'
 import { TitleMusic }      from '../systems/TitleMusic.js'
+import { SfxVolume }       from '../systems/SfxVolume.js'
 import { applyUiCamera }   from '../ui/UIKit.js'
 import { UIEditor }        from '../ui/UIEditor.js'
 
@@ -177,6 +178,10 @@ export class ArchetypeSelect extends Phaser.Scene {
     // its first frame shows a near-closed book, which read as a black flash
     // immediately after the open animation finished.)
     this._book.play('bestiary-open-anim')
+    // One-shot book-open SFX timed to the opening animation.
+    if (!SfxVolume.isMuted() && this.cache?.audio?.exists?.('sfx-book-open')) {
+      try { this.sound.play('sfx-book-open', { volume: Math.min(1, 0.85 * SfxVolume.getVolume()) }) } catch {}
+    }
     this._book.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this._book.setTexture('bestiary-open', OPEN_FRAMES - 1)
       this._buildPageContent()

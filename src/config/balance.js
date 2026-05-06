@@ -33,7 +33,7 @@ export const Balance = {
   CAMERA_SCROLL_SPEED: 8,
 
   // --- Boss progression ---
-  BOSS_XP_BASE:     100,   // XP needed to reach lv 2
+  BOSS_XP_BASE:      50,   // XP needed to reach lv 2
   BOSS_XP_SCALE:    1.5,   // XP curve: xpForLv(n) = BASE * SCALE^(n-1)
   BOSS_XP_PER_KILL:  10,   // boss XP awarded per adventurer kill
 
@@ -196,6 +196,10 @@ export const Balance = {
   MINION_ATK_PER_BOSS_LV:       0.12,   // +12% attack per boss level
   MINION_HP_PER_DAY:             0.06,   // +6%  maxHp per day (small day boost)
   MINION_ATK_PER_DAY:            0.04,   // +4%  attack per day
+  // Minion gold-cost scales with boss level so prices keep pace with stats.
+  // Slightly under the avg (HP+ATK)/2 stat-rate so minions feel a touch
+  // more affordable at higher levels — small reward for progression.
+  MINION_COST_PER_BOSS_LV:      0.20,   // +20% gold cost per boss level above 1
   UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
 
   // --- Mini-boss / vendetta / vulture / wraith ---
@@ -370,9 +374,9 @@ export const Balance = {
   // many pacts exist at each tier. If a tier has no available pacts left
   // its weight collapses to 0 for that draw, so commons "show up the most
   // when available" without crowding out rarer tiers.
-  MECHANIC_RARITY_WEIGHT_COMMON:    45,
+  MECHANIC_RARITY_WEIGHT_COMMON:    30,
   MECHANIC_RARITY_WEIGHT_UNCOMMON:  25,
-  MECHANIC_RARITY_WEIGHT_RARE:      15,
-  MECHANIC_RARITY_WEIGHT_EPIC:      10,
-  MECHANIC_RARITY_WEIGHT_LEGENDARY:  5,
+  MECHANIC_RARITY_WEIGHT_RARE:      20,
+  MECHANIC_RARITY_WEIGHT_EPIC:      15,
+  MECHANIC_RARITY_WEIGHT_LEGENDARY: 10,
 }

@@ -33,7 +33,9 @@ import { DarkPactPopup }        from '../ui/popups/DarkPactPopup.js'
 import { LongGamePopup }        from '../ui/popups/LongGamePopup.js'
 import { ConfirmPopup }         from '../ui/popups/ConfirmPopup.js'
 import { PactDetailPopup }      from '../ui/popups/PactDetailPopup.js'
+import { BossLevelUpPopup }     from '../ui/popups/BossLevelUpPopup.js'
 import { BossFightOverlay }     from '../ui/BossFightOverlay.js'
+import { EventBanner }          from '../ui/EventBanner.js'
 
 const COL_PAD     = 12
 const LEFT_COL_W  = 200
@@ -150,6 +152,10 @@ export class HudScene extends Phaser.Scene {
     // and render at screen-space depth above the world.
     this._bossFightOverlay = new BossFightOverlay(this, this._gameState)
 
+    // Top-of-screen banner for Dungeon Event announcements (fires during
+    // night phase when EventSystem schedules an event for the next day).
+    this._eventBanner = new EventBanner(this)
+
     // Listen for phase change: toggle build menu visibility, AND clear any
     // lingering BuildMenu selection so day-2+ placement works cleanly. The
     // BuildMenu lives in HudScene (persistent), but NightPhase re-init
@@ -180,6 +186,7 @@ export class HudScene extends Phaser.Scene {
       longgame:   new LongGamePopup(this),
       confirm:    new ConfirmPopup(this),
       pactdetail: new PactDetailPopup(this),
+      bosslevelup: new BossLevelUpPopup(this, this._gameState),
     }
     // Phase 9 — open the Long Game popup whenever the pact triggers.
     {
@@ -238,6 +245,19 @@ export class HudScene extends Phaser.Scene {
     this._listeners.push(['SHOW_POST_WAVE_SUMMARY', onShowPostWave])
     this._listeners.push(['SHOW_DARK_PACT',         onShowDarkPact])
 
+    // Boss Level-Up popup — drained by EndOfDay between PostWaveSummary
+    // close and the night-phase handoff. Fires once per level-up; the
+    // EndOfDay scene chains them when multiple level-ups occurred in a
+    // single day. Each show emits BOSS_LEVEL_UP_DISMISSED on close so
+    // EndOfDay can advance the queue.
+    const onShowBossLevelUp = ({ fromLevel, toLevel }) => {
+      this._closeAllPopups()
+      this._popups.bosslevelup.setLevels(fromLevel, toLevel)
+      this._popups.bosslevelup.open()
+    }
+    EventBus.on('SHOW_BOSS_LEVEL_UP', onShowBossLevelUp)
+    this._listeners.push(['SHOW_BOSS_LEVEL_UP', onShowBossLevelUp])
+
     // Phase 31G — action-bar MENU button opens the pause menu. Esc still
     // works via PauseManager's keyboard hook in NightPhase / DayPhase.
     const onOpenPause = () => {
@@ -290,6 +310,7 @@ export class HudScene extends Phaser.Scene {
     this._dungeonLog?.destroy();   this._dungeonLog    = null
     this._buildMenu?.destroy();    this._buildMenu     = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
+    this._eventBanner?.destroy();      this._eventBanner       = null
     if (this._popups) {
       for (const k of Object.keys(this._popups)) this._popups[k]?.destroy?.()
       this._popups = {}

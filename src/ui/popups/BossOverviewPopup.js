@@ -47,28 +47,63 @@ export class BossOverviewPopup {
     pixelPanel(card, x, y, w, h, { fill: CRYPT.bgStone1 })
     addChild(card)
 
-    // Portrait box
-    const portraitH = 180
+    // Portrait box — tall enough that the boss sprite renders at a
+    // satisfying ~244 px (vs the old 148 px when this was 180 tall).
+    // Card height (h) easily fits this + the name/HP/XP/stats stack
+    // (≈180 px) within the popup's 560 px frame.
+    const portraitH = 260
     const portraitG = this._scene.add.graphics().setDepth(D + 1)
     pixelPanel(portraitG, x + 14, y + 14, w - 28, portraitH, {
       fill: CRYPT.bgStone2, edgeH: CRYPT.panelEdgeS, edgeS: CRYPT.panelEdgeH, inset: true,
     })
     addChild(portraitG)
 
-    // Use the boss's idle-down sprite (frame 0 of the idle sheet — row 0
-    // is 'down' per Preload's DEFAULT_ROW_DIRS) instead of the small
-    // bestiary bust. Falls back to the bestiary portrait, then to a
-    // crown glyph, if neither texture is loaded.
+    // Use the boss's idle-down sprite (the sheet's first row is 'down'
+    // per Preload's DEFAULT_ROW_DIRS). Switched from `add.image` to
+    // `add.sprite` so we can play the looping idle-down animation
+    // registered by Preload._registerBossAnimations. Scale uses
+    // setScale (preserves aspect, unlike setDisplaySize) and aims to
+    // fill the portrait box with a small breathing margin.
     const bossId    = arch?.id ?? this._gameState.player?.bossArchetypeId
     const idleKey   = `${bossId}-idle`
     const portKey   = `bestiary-portrait-${bossId}`
     const cxImg     = x + w / 2
     const cyImg     = y + 14 + portraitH / 2
     if (this._scene.textures.exists(idleKey)) {
-      const img = this._scene.add.image(cxImg, cyImg, idleKey, 0)
-        .setDisplaySize(portraitH - 32, portraitH - 32)
-        .setDepth(D + 2)
-      addChild(img)
+      // Probe the frame size first so we can pick a sensible vertical bias
+      // before instantiating the sprite. 128-frame boss sheets centre the
+      // character in the upper portion of their frame (transparent padding
+      // around it), so we shove the sprite down ~30 px to put feet near
+      // the box bottom. 64-frame sheets have the character filling the
+      // frame, so a tiny bias is enough.
+      const probeTex = this._scene.textures.get(idleKey)
+      const probeFw  = probeTex?.frames?.['__BASE']?.width
+                    ?? probeTex?.source?.[0]?.width
+                    ?? 64
+      const VERT_BIAS = probeFw >= 128 ? 30 : 6
+      const cyImg2 = y + 14 + portraitH / 2 + VERT_BIAS
+      const sprite = this._scene.add.sprite(cxImg, cyImg2, idleKey, 0).setDepth(D + 2)
+      const fw = sprite.frame?.width  || 64
+      // Boss sheets ship two frame sizes: 64 (most bosses) and 128 (demon,
+      // golem). 128-frame sheets centre a ~64-px character with transparent
+      // padding around it, which made earlier "fit the frame" math under-
+      // size them. Treat both as 64-px content and let any padding
+      // overflow the portrait box — a geometry mask below clips it cleanly.
+      const effectiveChar = fw >= 128 ? 64 : fw
+      const PADDING       = 4
+      const maxH          = portraitH - PADDING * 2
+      const scale         = maxH / effectiveChar
+      sprite.setScale(scale)
+      sprite.texture?.setFilter?.(Phaser.Textures.FilterMode.NEAREST)
+      // Clip the sprite to the portrait box so a 128-frame sheet's
+      // transparent / sprite-edge pixels don't poke past the popup chrome.
+      const maskG = this._scene.make.graphics({ x: 0, y: 0, add: false })
+      maskG.fillStyle(0xffffff)
+      maskG.fillRect(x + 14, y + 14, w - 28, portraitH)
+      sprite.setMask(maskG.createGeometryMask())
+      const animKey = `${idleKey}-down`
+      if (this._scene.anims.exists(animKey)) sprite.play(animKey)
+      addChild(sprite)
     } else if (this._scene.textures.exists(portKey)) {
       const img = this._scene.add.image(cxImg, cyImg, portKey)
         .setDisplaySize(portraitH - 32, portraitH - 32)

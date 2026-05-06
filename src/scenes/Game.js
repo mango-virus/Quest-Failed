@@ -29,6 +29,7 @@ import { LockRenderer }       from '../ui/LockRenderer.js'
 import { BeaconRenderer }     from '../ui/BeaconRenderer.js'
 import { FountainRenderer }   from '../ui/FountainRenderer.js'
 import { TreasureChestRenderer } from '../ui/TreasureChestRenderer.js'
+import { DarkDealDemonRenderer } from '../ui/DarkDealDemonRenderer.js'
 import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
 import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
@@ -44,6 +45,7 @@ import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { PauseManager }       from '../systems/PauseManager.js'
 import { SfxSystem }          from '../systems/SfxSystem.js'
+import { EventSystem }        from '../systems/EventSystem.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -121,6 +123,7 @@ export class Game extends Phaser.Scene {
     this.inquisitorSystem    = new InquisitorSystem(this, this.gameState, this.dungeonMechanicSystem, this.personalitySystem)
     this.bossSystem          = new BossSystem(this, this.gameState)
     this.sfxSystem           = new SfxSystem(this, this.gameState)
+    this.eventSystem         = new EventSystem(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
     this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
     // Phase 31I — passive run-history aggregator. Subscribes to event bus
@@ -139,6 +142,7 @@ export class Game extends Phaser.Scene {
     this.beaconRenderer      = new BeaconRenderer(this, this.gameState)
     this.fountainRenderer    = new FountainRenderer(this, this.gameState)
     this.treasureChestRenderer = new TreasureChestRenderer(this, this.gameState)
+    this.darkDealDemonRenderer = new DarkDealDemonRenderer(this, this.gameState)
     this.phylacteryRenderer  = new PhylacteryRenderer(this, this.gameState)
     this.fungalCorpseRenderer = new FungalCorpseRenderer(this, this.gameState)
     this.minionInspector     = new MinionInspector(this, this.gameState)
@@ -235,6 +239,7 @@ export class Game extends Phaser.Scene {
     this.beaconRenderer?.destroy()
     this.fountainRenderer?.destroy()
     this.treasureChestRenderer?.destroy()
+    this.darkDealDemonRenderer?.destroy()
     this.minionInspector?.destroy()
     this.chatBubbles?.destroy()
     this.aiSystem?.destroy()
@@ -251,6 +256,7 @@ export class Game extends Phaser.Scene {
     this.inquisitorSystem?.destroy()
     this.bossSystem?.destroy()
     this.sfxSystem?.destroy()
+    this.eventSystem?.destroy()
     // bossFightOverlay lives in HudScene now — that scene's shutdown handles it.
     this.roomBehaviorSystem?.destroy()
     this.bossRenderer?.destroy()
@@ -544,26 +550,7 @@ export class Game extends Phaser.Scene {
     const sxFor = (worldX, screenX) => worldX - cx - (screenX - cx) / z
     const syFor = (worldY, screenY) => worldY - cy - (screenY - cy) / z
 
-    if (!this._lastClampLog || (this._scene?.time?.now ?? 0) - this._lastClampLog > 1000) {
-      this._lastClampLog = this._scene?.time?.now ?? 0
-      const minSX = sxFor(0,    pa.left)
-      const maxSX = sxFor(mapW, pa.sw - pa.right)
-      const minSY = syFor(0,    pa.top)
-      const maxSY = syFor(mapH, pa.sh - pa.bottom)
-      // eslint-disable-next-line no-console
-      console.log(
-        `[clamp] z=${z.toFixed(3)} ` +
-        `canvas=${pa.sw|0}x${pa.sh|0} ` +
-        `camWH=${cam.width|0}x${cam.height|0} ` +
-        `pa=L${pa.left|0}/R${pa.right|0}/T${pa.top|0}/B${pa.bottom|0} ` +
-        `play=${playW|0}x${playH|0} ` +
-        `scroll=(${cam.scrollX|0},${cam.scrollY|0}) ` +
-        `boundsX=[${minSX|0},${maxSX|0}] ` +
-        `boundsY=[${minSY|0},${maxSY|0}] ` +
-        `minZ=${this._computeMinZoom().toFixed(3)} ` +
-        `fcam=${!!this._fightCamActive}`
-      )
-    }
+    // [clamp] debug log removed — was leftover from camera-zoom diagnosis.
 
     // X axis — clamp so dungeon edges align with play-area edges.
     if (playW / z >= mapW) {

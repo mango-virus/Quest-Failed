@@ -68,6 +68,18 @@ export class DungeonGrid {
     return definition.placementRules?.maxPerDungeon ?? null
   }
 
+  // Returns the gold cost to place ONE more instance of `definition`.
+  // Honors `placementRules.freeFirstN`: the first N placements are free,
+  // subsequent placements cost the room's base goldCost. `placedRooms` is
+  // typically gameState.dungeon.rooms (an array of placed-room records).
+  static effectiveRoomCost(definition, placedRooms = []) {
+    const base = definition.goldCost ?? 0
+    const freeFirstN = definition.placementRules?.freeFirstN ?? 0
+    if (freeFirstN <= 0) return base
+    const count = placedRooms.filter(r => r.definitionId === definition.id).length
+    return count < freeFirstN ? 0 : base
+  }
+
   // ── Decoration collision ────────────────────────────────────────────────────
 
   // Returns true if a solid decoration occupies this tile (blocks pathfinding).

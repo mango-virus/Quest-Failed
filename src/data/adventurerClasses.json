@@ -181,5 +181,108 @@
     "unlockLevel": 3,
     "description": "Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. Aura ends the moment they fall.",
     "flavorText": "Every chord, a small kindness."
+  },
+  {
+    "id": "tournament_rival_warrior",
+    "name": "Sir Aldric the Bold",
+    "color": "0xc83a3a",
+    "baseStats": { "hp": 65, "attack": 11, "defense": 6, "speed": 1.6 },
+    "startingResources": {},
+    "tags": ["melee", "tournament_rival"],
+    "unlockLevel": 99,
+    "description": "Tournament champion warrior. Fights for glory and the kill credit.",
+    "flavorText": "The boss kill is MINE."
+  },
+  {
+    "id": "tournament_rival_rogue",
+    "name": "Vexa the Swift",
+    "color": "0xddaa44",
+    "baseStats": { "hp": 45, "attack": 13, "defense": 3, "speed": 2.6 },
+    "startingResources": {},
+    "tags": ["melee", "tournament_rival"],
+    "unlockLevel": 99,
+    "description": "Tournament champion rogue. Fast, lethal, ruthless against rivals.",
+    "flavorText": "Stand aside. I'll be the hero of this tale."
+  },
+  {
+    "id": "tournament_rival_mage",
+    "name": "Magus Drevhart",
+    "color": "0xaa66ff",
+    "baseStats": { "hp": 38, "attack": 15, "defense": 2, "speed": 1.8, "attackRange": 4 },
+    "startingResources": {},
+    "tags": ["ranged", "spellcaster", "tournament_rival"],
+    "unlockLevel": 99,
+    "description": "Tournament champion mage. Will incinerate anyone in his way — boss, minion, or rival.",
+    "flavorText": "Witness true power."
+  },
+  {
+    "id": "monster_invader",
+    "name": "Rival Monster",
+    "color": "0x6644aa",
+    "baseStats": { "hp": 35, "attack": 8, "defense": 3, "speed": 1.7 },
+    "startingResources": {},
+    "tags": ["melee", "monster_invader"],
+    "unlockLevel": 99,
+    "description": "Foot soldier from a rival dungeon. Chasing the boss kill on behalf of their own dark lord.",
+    "flavorText": "*snarl*"
+  },
+  {
+    "id": "rival_boss_invader",
+    "name": "Rival Dungeon Boss",
+    "color": "0x884444",
+    "baseStats": { "hp": 200, "attack": 18, "defense": 10, "speed": 1.4 },
+    "startingResources": {},
+    "tags": ["melee", "rival_boss"],
+    "unlockLevel": 99,
+    "description": "A boss from another dungeon, here to settle a score. Goes straight for the throne room.",
+    "flavorText": "Only one of us walks out."
+  },
+  {
+    "id": "cartographer_scholar",
+    "name": "Cartographer Scholar",
+    "color": "0xb89668",
+    "baseStats": {
+      "hp": 22,
+      "attack": 2,
+      "defense": 1,
+      "speed": 1.6
+    },
+    "startingResources": {},
+    "tags": ["non_combatant", "scholar"],
+    "unlockLevel": 99,
+    "description": "Mapper, not fighter. Tours every room (avoiding the boss), then leaves. Their notes spread to future adventurers.",
+    "flavorText": "For science."
+  },
+  {
+    "id": "cosplay_adventurer",
+    "name": "Cosplayer",
+    "color": "0xc88af0",
+    "baseStats": {
+      "hp": 32,
+      "attack": 6,
+      "defense": 3,
+      "speed": 1.7
+    },
+    "startingResources": {},
+    "tags": ["melee", "cosplay"],
+    "unlockLevel": 99,
+    "description": "Adventurer in a monster costume. Walks past most minions ignoring them; only fights if attacked.",
+    "flavorText": "Wait — is that a real beholder, or a really good costume?"
+  },
+  {
+    "id": "loot_goblin",
+    "name": "Loot Goblin",
+    "color": "0x88cc44",
+    "baseStats": {
+      "hp": 12,
+      "attack": 1,
+      "defense": 0,
+      "speed": 2.6
+    },
+    "startingResources": {},
+    "tags": ["thief", "non_combatant"],
+    "unlockLevel": 99,
+    "description": "Pure thief. Spawns in the boss room and bolts for the exit. Will not stop to fight. Each one that escapes steals 10% of your gold.",
+    "flavorText": "Snatch and giggle."
   }
 ]

@@ -539,6 +539,23 @@ export class MainMenu extends Phaser.Scene {
     if (this.anims.exists('jam-portal-spin')) sprite.play('jam-portal-spin')
     this._objects.push(sprite)
 
+    // Slow RGB hue cycle — full revolution every 8s. Tween drives the
+    // tint each frame; HSV→RGB at full saturation+value gives the
+    // saturated rainbow look (red→yellow→green→cyan→blue→magenta→red).
+    const hueState = { h: 0 }
+    const hueTween = this.tweens.add({
+      targets:  hueState,
+      h:        360,
+      duration: 8000,
+      repeat:   -1,
+      onUpdate: () => {
+        const c = Phaser.Display.Color.HSVToRGB(hueState.h / 360, 1, 1)
+        sprite.setTint((c.r << 16) | (c.g << 8) | c.b)
+      },
+    })
+    this._jamPortalHueTween = hueTween
+    sprite.once(Phaser.GameObjects.Events.DESTROY, () => hueTween.stop())
+
     const label = this.add.text(cx, cy + 38, 'JAM PORTAL', {
       fontFamily: FONT_HEAD, fontSize: '8px',
       color: CRYPT.accent2Css, letterSpacing: 2,

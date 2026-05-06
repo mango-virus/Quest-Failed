@@ -81,6 +81,11 @@ const MINION_IDS = [
 const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
   'twitch_streamer', 'beast_master', 'barbarian', 'monk', 'bard',
+  // Event-only classes — no normal spawn (unlockLevel: 99 in
+  // adventurerClasses.json) but baked + preloaded so the corresponding
+  // dungeon events render their dedicated LPC art rather than falling
+  // back to procedural silhouettes.
+  'cartographer_scholar', 'cosplay_adventurer',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 50
 
@@ -92,6 +97,11 @@ const ADVENTURER_VARIANTS_PER_CLASS = 50
 const ADVENTURER_ATK_CLASSES = new Set([
   'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
   'mage', 'cleric', 'necromancer', 'ranger', 'bard',
+  // Cosplayers fight when provoked, so they need the long-weapon attack
+  // sheet. Cartographer scholars are barehanded + non-combatant — no
+  // attack sheet needed; they reuse the main 64×64 sheet's slash row
+  // for the rare retaliation case if it ever comes up.
+  'cosplay_adventurer',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8
@@ -170,6 +180,14 @@ export class Preload extends Phaser.Scene {
     this.load.json('chatLines',         'src/data/chatLines.json')
     this.load.json('bossAbilities',     'src/data/bossAbilities.json')
     this.load.json('items',             'src/data/items.json')
+    this.load.json('events',            'src/data/events.json')
+
+    // Dark Deal demon — 5×4 sheet of 80×80 frames. Row 1 (frames 0-4)
+    // appearing animation, rows 2-3 (frames 5-14) idle, row 4 (15-19)
+    // leaving animation. Spawned in the boss room on Dark Deal nights.
+    this.load.spritesheet('event-dark-deal-demon',
+      'assets/sprites/event_dark_deal_demon.png',
+      { frameWidth: 80, frameHeight: 80 })
 
     // ── Audio ────────────────────────────────────────────────────────────
     // Title-screen / boss-picker loop.  Lives across MainMenu and
@@ -252,6 +270,7 @@ export class Preload extends Phaser.Scene {
     this.load.audio('sfx-btn-hover',       'assets/audio/cursor hover button.mp3')
     this.load.audio('sfx-btn-click',       'assets/audio/Press button.wav')
     this.load.audio('sfx-build-menu-press','assets/audio/build menu press.wav')
+    this.load.audio('sfx-book-open',       'assets/audio/book-open.mp3')
 
     // Boss fight music — one picked at random when a party enters the boss room.
     // Keys must match BOSS_TRACKS in src/systems/GameplayMusic.js.
@@ -494,6 +513,7 @@ export class Preload extends Phaser.Scene {
     this._registerDemonPortalAnimation()
     this._registerJamPortalAnimation()
     this._registerSoulBeaconAnimation()
+    this._registerDarkDealDemonAnimations()
     this._registerHealingFountainAnimation()
     this._registerTreasureChestAnimations()
     // Themes load asynchronously (second loader pass for sprite PNGs); kick
@@ -748,6 +768,43 @@ export class Preload extends Phaser.Scene {
       frameRate: 4,
       repeat:    -1,
     })
+  }
+
+  // Dark Deal demon — appearing (smoke→demon), idle bouncing, leaving
+  // (demon→smoke). Sprite is 5 cols × 4 rows of 80px frames; rows are
+  // numbered top-to-bottom so frame 0 = top-left, frame 4 = top-right,
+  // frame 19 = bottom-right.
+  _registerDarkDealDemonAnimations() {
+    const key = 'event-dark-deal-demon'
+    if (!this.textures.exists(key)) return
+    const tex = this.textures.get(key)
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    if (!this.anims.exists('event-dark-deal-demon-appear')) {
+      this.anims.create({
+        key:       'event-dark-deal-demon-appear',
+        frames:    this.anims.generateFrameNumbers(key, { start: 0, end: 4 }),
+        frameRate: 8,
+        repeat:    0,
+      })
+    }
+    // Idle uses the two middle rows (frames 5-14) so the demon has some
+    // body language while the player decides.
+    if (!this.anims.exists('event-dark-deal-demon-idle')) {
+      this.anims.create({
+        key:       'event-dark-deal-demon-idle',
+        frames:    this.anims.generateFrameNumbers(key, { start: 5, end: 14 }),
+        frameRate: 6,
+        repeat:    -1,
+      })
+    }
+    if (!this.anims.exists('event-dark-deal-demon-leave')) {
+      this.anims.create({
+        key:       'event-dark-deal-demon-leave',
+        frames:    this.anims.generateFrameNumbers(key, { start: 15, end: 19 }),
+        frameRate: 8,
+        repeat:    0,
+      })
+    }
   }
 
   _registerHealingFountainAnimation() {

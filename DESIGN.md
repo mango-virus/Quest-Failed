@@ -667,7 +667,7 @@ The HUD is laid out as a single grid:
 - **Top bar (3 columns):**
   - Left: boss avatar + class/day caption + boss name + boss HP bar. Clicking the avatar opens the **Boss Overview** popup.
   - Center: `WAVE n / N` caption + wave-progress bar. (No "QUEST FAILED" branding text — redundant in-game.)
-  - Right: resource readouts. **Two resources** — Gold and Dark Power.
+  - Right: resource readouts. ~~**Two resources** — Gold and Dark Power.~~ *(REMOVED 2026-05-05 — Dark Power was retired; Gold is the only currency. The Treasury panel shows Gold only.)*
 - **Left column:**
   - Mini-map panel (top).
   - Build menu (below): tabs `ROOMS / MINIONS / TRAPS / ITEMS`, 2-col slot grid. ITEMS tab renders an empty grid with "Coming soon" caption.
@@ -710,7 +710,7 @@ A popup overlay (in-scene UI group), opened from a HUD button at any time during
 
 In-scene popup, opened by **clicking the boss avatar** in the top bar.
 
-- Boss card: portrait, name, class, HP bar, Dark Power bar, run stats (kills, damage dealt, waves survived, escaped advs, current day).
+- Boss card: portrait, name, class, HP bar, ~~Dark Power bar,~~ run stats (kills, damage dealt, waves survived, escaped advs, current day). *(2026-05-05: Dark Power retired — bar removed.)*
 - **Boss unique ability** — displays the boss's signature ability (per `bossAbilities.json`). Pending full implementation per archetype, but the slot exists.
 - **Active Pacts** (dungeon mechanics chosen this run): grid of cards with name, glyph, short description.
 - **Dungeon Census:** counts of rooms / minions / traps / items / doors / paths with breakdowns.
@@ -737,7 +737,7 @@ In-scene popup, opened from the **Knowledge button** on the action bar. Replaces
 In-scene popup shown immediately after the last adventurer leaves on a given day. Splits the existing `EndOfDay` newspaper-only.
 
 - Header: "DAY N CONCLUDED · QUEST · FAILED".
-- Three panels: **Casualties** (per-adventurer slain-by + soul reward), **Resources Earned** (gold/souls/dark-power deltas, repair costs, net), **Dungeon Performance** (most lethal minion, most lethal trap, minions lost, traps triggered, avg adv survival, boss damage taken, new intel leaked).
+- Three panels: **Casualties** (per-adventurer slain-by + ~~soul reward~~ gold reward), **Resources Earned** (gold deltas ~~/souls/dark-power deltas~~, repair costs, net), **Dungeon Performance** (most lethal minion, most lethal trap, minions lost, traps triggered, avg adv survival, boss damage taken, new intel leaked). *(2026-05-05: Souls / Dark Power retired — Gold is the only currency now.)*
 - Footer: `View Combat Log` button (stub for now or links to log filter), `Continue ⏵` button.
 - After Continue:
   - **If the boss leveled up that day** → opens **Dark Pact** popup.
@@ -802,3 +802,62 @@ Adventurers occasionally pop a 32×32 three-frame speech-bubble emote above thei
 **Frequency:** each trigger has a **20% chance** to actually pop an emote — most events stay silent. Per-adv cooldown of ~1.5s prevents stacking.
 
 **Priority:** if a higher-stakes trigger fires (fleeing / low_health / fighting / boss room) while another emote is already playing, the new one replaces the old. Random ambient never overrides a state-driven emote.
+
+## Dungeon events (2026-05-05)
+
+Random events that fire between days to break up the standard build/invade loop. Each event is announced at the start of the **night phase** so the player can prepare during build, then resolves on the following **day phase**. (Two events — Dark Deal and Loot Goblin Heist — manifest during the night phase itself; see notes.)
+
+**Cadence (locked 2026-05-05):** one event every **6–8 days**. Same event cannot fire back-to-back (no-repeat window of 1 occurrence). Harder events — **Legendary Speed Runner, The Tournament, Rival Dungeon** — only become eligible from **boss level 3** onward. All other events available from the first eligible day.
+
+### Initial event pool
+
+**Guild Raid!**
+- Notification: *"Your dungeon has been discovered by a local Guild."*
+- Effect: On the next day phase, double the usual amount of adventurers will raid the dungeon. Spawned as **steady pressure** (longer wave, not a single surge) so early-game rosters aren't instantly overwhelmed.
+
+**Legendary Speed Runner**
+- Notification: *"A high-level, legendary adventurer is trying to set a 'world record' for clearing your dungeon."*
+- Name is intentionally fourth-wall-breaking for humor.
+- Effect: This adventurer has twice the stats of a normal adventurer and moves at 2× speed and ignores all non-essential rooms and minions while he looks for the boss. If you kill them, the Boss gains a massive amount of XP.
+
+**Dungeon Pestilence**
+- Notification: *"A disease has broken out among your minions."*
+- Effect: All minions start the next Day Phase with 50% Health (applies to existing AND newly placed minions while the event is active). The disease is contagious — any adventurer who fights a minion in melee range becomes "Blighted," losing health over time as they explore until they die or leave the dungeon. Blight does NOT persist after the adventurer leaves.
+
+**Cartographer's Convention**
+- Notification: *"A group of scholars are on their way to map out the dungeon."*
+- Effect: These adventurers don't care about the Boss; they want to visit every single room. They never go to the boss room. Once they have been to every room to gain all knowledge, they try to leave the dungeon. **Every room they map permanently raises that room's "infamy"** — future adventurers spawn with knowledge of those rooms' layouts. This gives the player a real reason to engage and kill them rather than ignore them.
+- Asset note: create 3 different LPC adventurers specifically for this event. They should wear glasses and look like scholars.
+
+**Blood Moon Eclipse**
+- Notification: *"A rare celestial event empowers the dark arts."*
+- Effect: Minions do double damage on the next day phase, but **also take double damage** (sharpened risk/reward) AND no gold is claimed from dying adventurers.
+
+**Negotiation Day**
+- The Adventurer's Guild sends a single diplomat — **no combat at all**. Modal popup at start of day:
+  - **Pay tribute:** lose 25% of treasury, get a free day (no adventurers).
+  - **Refuse:** next day's wave size +50%.
+- Tests greed vs. risk; gives the player a real day off.
+
+**The Tournament**
+- Three named rivals enter — they hate each other more than they hate you. They actively try to "claim" the boss kill, sabotaging each other (steal each other's loot piles, body-block, even attack each other when in the same room). Funnel them together and they self-destruct. Fail to exploit it and they steamroll you.
+
+**Rival Dungeon**
+- Effect: On this event day phase a rival group of random monsters will enter the dungeon instead of the usual adventurers. The last one to enter will be a big random boss from the boss pool looking for the player's boss to defeat in combat. Big XP and gold for killing the boss.
+
+**Twitch Con**
+- Effect: The following day, all adventurers will be **twitch_streamer** class (class already exists in `adventurerClasses.json`). Pure chaos. However, killing these ones will not cause extra adventurers to arrive the next day afterwards (no escalation penalty for this day's kills).
+
+**Dark Deal**
+- Effect: A demon appears in the boss room on the next **night phase** and offers you a free dark pact choice immediately. In return, the demon steals half of the boss's max HP only for the next day phase. Player can click the demon to choose a dark pact. If the player does not accept the deal and choose a pact, the demon leaves without taking anything.
+- Asset: demon sprite + animation at `Quest-Failed assets/!To do/Demon.png`. The sheet has 4 rows — first two lines are the demon **appearing**, second two lines are the demon **leaving**.
+
+**Cosplay Contest**
+- Effect: On this day adventurers wearing monster outfits enter the dungeon. These adventurers should not attack minions unless they are attacked by them first. These adventurers have a 75% chance to not aggro a minion and they allow them to walk past them ignoring them.
+- Asset note: will need some new LPC adventurers for this event that are wearing different animal and monster parts: zombie, skeleton, tails, wings, fantasy, beastman, farm animal, furry, undead, and/or reptilian parts. Just make sure they are colored correctly (e.g. reptilian should be green like a lizard).
+
+**Loot Goblin Heist**
+- Notification: *"A pack of Loot Goblins has broken into your treasure hoard!"*
+- Effect: Instead of adventurers entering the front door, a group of Loot Goblins spawn in the **Boss Room** and try to run for the dungeon exit. Each one killed provides a large amount of gold and they will not stop to fight anything; they just look for the exit. **Any goblin that escapes the dungeon steals 10% of your current gold total** (per goblin, applied at exit time).
+
+**Rival Dungeon — boss combat AI:** the rival boss uses **simple AI** (not the full BossArchetypeSystem behavior set) — basic chase + attack against the player's boss. Keeps the event scope contained.

@@ -113,21 +113,25 @@ export class ActionBar {
     // Phase 31D — Rotate dropped from the action bar; rotation now happens
     // via the R key while a room is held in MOVE mode (or during initial
     // placement from the build menu).
+    //
+    // Layout (post-rebalance): 3 build tools left, 3 info tools right,
+    // and the BEGIN DAY / SPEED primary button is promoted to the centre
+    // alongside the phase indicator since they're conceptually one unit
+    // (the phase state + the action that flips it).
     const leftDefs = [
       { key: 'move',    w: 86, label: 'MOVE',   event: 'TOOL_MOVE'   },
       { key: 'sell',    w: 86, label: 'SELL',   event: 'TOOL_SELL', danger: true },
       { key: 'roster',  w: 96, label: 'ROSTER', event: 'OPEN_MINION_ROSTER' },
     ]
     const rightDefs = [
-      // Primary button — onPrimary delegates to a method that branches on
-      // phase: BEGIN DAY at night, speed cycle during day.
-      { key: 'phaseToggle', w: 124, label: this._primaryLabel(), onPrimary: true, primary: true },
       { key: 'knowledge',   w:  98, label: 'KNOWLEDGE', event: 'OPEN_KNOWLEDGE_MAP' },
       { key: 'advIntel',    w: 110, label: 'ADV INTEL', event: 'OPEN_ADV_INTEL' },
       { key: 'menu',        w:  74, label: 'MENU',      event: 'OPEN_PAUSE_MENU' },
     ]
-    const leftTotal  = leftDefs.reduce((s, d) => s + d.w, 0)  + BTN_PAD * (leftDefs.length - 1)
-    const rightTotal = rightDefs.reduce((s, d) => s + d.w, 0) + BTN_PAD * (rightDefs.length - 1)
+    const phaseDef = {
+      key: 'phaseToggle', w: 124, label: this._primaryLabel(),
+      onPrimary: true, primary: true,
+    }
 
     // Left cluster — placed at panel-left + sideMargin
     let lx = this._panelX + sideMargin
@@ -135,9 +139,11 @@ export class ActionBar {
       this._buttons[d.key] = this._addButton(d.key, lx, btnY, d.w, d.label, d)
       lx += d.w + BTN_PAD
     }
+    const leftTotal = leftDefs.reduce((s, d) => s + d.w, 0) + BTN_PAD * (leftDefs.length - 1)
     const leftClusterEnd = this._panelX + sideMargin + leftTotal
 
     // Right cluster — anchored at panel-right - sideMargin
+    const rightTotal = rightDefs.reduce((s, d) => s + d.w, 0) + BTN_PAD * (rightDefs.length - 1)
     const rightClusterStart = this._panelX + this._panelW - sideMargin - rightTotal
     let rx = rightClusterStart
     for (const d of rightDefs) {
@@ -145,22 +151,24 @@ export class ActionBar {
       rx += d.w + BTN_PAD
     }
 
-    // Phase indicator floats in the middle of the gap between the clusters.
-    const phaseX = Math.round((leftClusterEnd + rightClusterStart) / 2)
+    // Centre — BEGIN DAY button placed so the empty gap between ROSTER
+    // (last left button) and KNOWLEDGE (first right button) is equal on
+    // both sides. NOT centered on the whole panel, because the left and
+    // right clusters have different total widths and clusterless centering
+    // would visually drift toward the wider side.
+    const buttonX = Math.round((leftClusterEnd + rightClusterStart - phaseDef.w) / 2)
+    const buttonCx = buttonX + Math.round(phaseDef.w / 2)
 
-    this._phaseCaption = this._scene.add.text(phaseX, y + 8, 'PHASE', {
-      fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 2,
-    }).setOrigin(0.5, 0).setDepth(D + TEXT_DEPTH)
-    this._objects.push(this._phaseCaption)
-
-    this._phaseStatus = this._scene.add.text(phaseX, y + 22, this._phaseStatusText(), {
-      fontFamily: FONT_HEAD, fontSize: '9px',
+    this._phaseStatus = this._scene.add.text(buttonCx, btnY - 4, this._phaseStatusText(), {
+      fontFamily: FONT_HEAD, fontSize: '7px',
       color: this._gameState.meta?.phase === 'day' ? CRYPT.accent2Css : CRYPT.soulCss,
-      letterSpacing: 1,
-      align: 'center',
-      lineSpacing: 4,
-    }).setOrigin(0.5, 0).setDepth(D + TEXT_DEPTH)
+      letterSpacing: 2,
+    }).setOrigin(0.5, 1).setDepth(D + TEXT_DEPTH)
     this._objects.push(this._phaseStatus)
+
+    this._buttons[phaseDef.key] = this._addButton(
+      phaseDef.key, buttonX, btnY, phaseDef.w, phaseDef.label, phaseDef,
+    )
   }
 
   _addButton(key, x, y, w, label, opts = {}) {
@@ -225,8 +233,8 @@ export class ActionBar {
 
   _phaseStatusText() {
     const ph = this._gameState.meta?.phase ?? 'night'
-    if (ph === 'night') return '◐\nNIGHT\n—\nBUILD'
-    return '☀\nDAY\n—\nINVASION'
+    if (ph === 'night') return '◐ NIGHT · BUILD PHASE'
+    return '☀ DAY · INVASION PHASE'
   }
 
   // Called every frame from HudScene.update (~60fps). Cheap reads.

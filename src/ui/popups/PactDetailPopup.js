@@ -1,32 +1,43 @@
 // Detail popup for a single dark pact, opened from clicking a card in
-// BossOverviewPopup's "Active Pacts" grid. Displays the pact name,
-// description, and trade-off description from `dungeonMechanics.json`.
+// BossOverviewPopup's "Active Pacts" grid. Displays the pact using the
+// SAME card chrome as the Dark Pact menu (sigil + rarity ribbon + flavor
+// + benefit/tradeoff), via the shared PactCard renderer. Adds a "SEALED
+// ON DAY N" header and a CLOSE button.
+//
 // Triggered via the SHOW_PACT_DETAIL event with payload { mechanicId, day }.
 // Renders at a higher depth than BossOverviewPopup so it overlays cleanly
-// without disturbing the underlying view — closing this popup returns
-// the player to the Boss Overview.
+// without disturbing the underlying view.
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelButton } from '../UIKit.js'
+import { CRYPT, FONT_HEAD, pixelButton } from '../UIKit.js'
 import { makePopupFrame } from './PopupFrame.js'
+import { renderPactCard, RARITIES } from './PactCard.js'
 
-const RARITY_COLORS = {
-  legendary: CRYPT.accentCss,
-  epic:      CRYPT.soulCss,
-  rare:      CRYPT.goldCss,
-  common:    CRYPT.ink,
-}
+// Card dimensions match the Dark Pact menu (cardW × cardsH from
+// DarkPactPopup at popup w=1040, h=560), so the visual is pixel-identical.
+const CARD_W = 326
+const CARD_H = 336
 
 export class PactDetailPopup {
   constructor(scene) {
-    this._scene = scene
+    this._scene  = scene
     this._payload = null   // { mechanicId, day }
+    this._tweens  = []     // looping tweens from renderPactCard
+
     this._frame = makePopupFrame({
       scene,
-      w:    640,
-      h:    380,
+      // Tight wrapper around the card: title bar (32) + padding (14) +
+      // header (28) + gap (10) + card (336) + gap (12) + close (38)
+      // + bottom pad (14) ≈ 484. Width = card + padding * 2 + breathing.
+      w:    CARD_W + 60,
+      h:    CARD_H + 152,
       title:'PACT',
       depth: 240,
-      render: (px, py, cx, cy, cw, ch, addChild) => this._render(cx, cy, cw, ch, addChild),
+      onClose: () => {
+        for (const t of this._tweens) t?.stop?.()
+        this._tweens = []
+      },
+      render: (px, py, cx, cy, cw, ch, addChild) =>
+        this._render(cx, cy, cw, ch, addChild),
     })
   }
 
@@ -52,44 +63,29 @@ export class PactDetailPopup {
       return
     }
 
-    const rarityColor = RARITY_COLORS[mech.rarity] ?? CRYPT.ink
+    const rarKey = mech.rarity ?? 'common'
+    const rar    = RARITIES[rarKey] ?? RARITIES.common
 
-    // Day stamp + rarity tag
+    // Header strip: SEALED ON DAY N + rarity label
     addChild(this._scene.add.text(cx + cw / 2, cy + 4,
-      `SEALED ON DAY ${p.day ?? '?'}  ·  ${(mech.rarity ?? 'common').toUpperCase()}`, {
+      `SEALED ON DAY ${p.day ?? '?'}`, {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 3,
     }).setOrigin(0.5, 0).setDepth(D + 2))
 
-    // Pact name
-    addChild(this._scene.add.text(cx + cw / 2, cy + 28, (mech.name ?? mech.id).toUpperCase(), {
-      fontFamily: FONT_HEAD, fontSize: '16px', color: rarityColor, letterSpacing: 2,
-    }).setOrigin(0.5, 0).setDepth(D + 2))
-
-    // Effect heading + description
-    addChild(this._scene.add.text(cx, cy + 78, 'EFFECT', {
-      fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.goldCss, letterSpacing: 3,
-    }).setOrigin(0, 0).setDepth(D + 2))
-    addChild(this._scene.add.text(cx, cy + 96, mech.description ?? '—', {
-      fontFamily: FONT_BODY, fontSize: '11px', color: CRYPT.ink, letterSpacing: 0,
-      wordWrap: { width: cw },
-    }).setOrigin(0, 0).setDepth(D + 2))
-
-    // Tradeoff heading + description
-    const tradeY = cy + 170
-    addChild(this._scene.add.text(cx, tradeY, 'COST', {
-      fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.accent2Css, letterSpacing: 3,
-    }).setOrigin(0, 0).setDepth(D + 2))
-    addChild(this._scene.add.text(cx, tradeY + 18,
-      mech.tradeoffDescription ?? '— No declared cost. The price will reveal itself. —', {
-      fontFamily: FONT_BODY, fontSize: '11px', color: CRYPT.inkDim, letterSpacing: 0,
-      wordWrap: { width: cw },
-    }).setOrigin(0, 0).setDepth(D + 2))
+    // Card — centred horizontally, sits just below the header
+    const cardX = cx + Math.floor((cw - CARD_W) / 2)
+    const cardY = cy + 28
+    const { container, tweens } = renderPactCard(
+      this._scene, mech, cardX, cardY, CARD_W, CARD_H, { depth: D + 1 },
+    )
+    addChild(container)
+    this._tweens.push(...tweens)
 
     this._addCloseButton(cx, cy, cw, ch, D, addChild)
   }
 
   _addCloseButton(cx, cy, cw, ch, D, addChild) {
-    const btnW = 180, btnH = 34
+    const btnW = 180, btnH = 36
     const btn = pixelButton(this._scene,
       cx + cw / 2 - btnW / 2, cy + ch - btnH - 4, btnW, btnH,
       'CLOSE',

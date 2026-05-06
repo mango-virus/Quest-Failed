@@ -184,34 +184,50 @@ export class BossFightOverlay {
     }).setOrigin(0.5).setDepth(SLATE_DEPTH + 2).setAlpha(0)
     this._slateObjs.push(tag)
 
-    // Boss portrait — first frame of the idle sheet, scaled big.
+    // Boss portrait — first frame of the idle sheet. Sits in the left
+    // gutter; text is then centered to the FULL card width below, so
+    // the title/tagline reads as the primary element rather than being
+    // shoved off-centre by the portrait. Scale dropped slightly (1.9 →
+    // 1.6) to widen the safe text zone.
     const skin = this._gameState.player?.bossArchetypeId
     const portraitKey = skin && this._scene.textures.exists(`${skin}-idle`) ? `${skin}-idle` : null
+    const PORTRAIT_SCALE   = 1.6
+    const PORTRAIT_FRAME   = 64
+    const PORTRAIT_W       = portraitKey ? PORTRAIT_FRAME * PORTRAIT_SCALE : 0
+    const PORTRAIT_PAD     = 14   // left/right inset
     if (portraitKey) {
-      const portrait = this._scene.add.sprite(cardX + 70, cardY + cardH / 2 + 6, portraitKey, 0)
-        .setOrigin(0.5).setScale(1.9).setDepth(SLATE_DEPTH + 2).setAlpha(0)
+      const portrait = this._scene.add.sprite(
+        cardX + PORTRAIT_PAD + PORTRAIT_W / 2,
+        cardY + cardH / 2 + 6,
+        portraitKey, 0,
+      ).setOrigin(0.5).setScale(PORTRAIT_SCALE).setDepth(SLATE_DEPTH + 2).setAlpha(0)
       this._slateObjs.push(portrait)
     }
 
-    // Name + tagline (right of portrait). Title font scales down if the
-    // name wouldn't fit at 18 px so very long names still land on one
-    // line without the card needing to be even wider.
-    const textX = cardX + 130
-    const textW = cardW - 130 - 18
-    const titleT = this._scene.add.text(textX, cardY + cardH / 2 - 6, name.toUpperCase(), {
+    // Name + tagline — centered to the card box (origin 0.5). Auto-
+    // shrink keeps long names from running into the portrait on the
+    // left or the right edge: textW = the *symmetric* gap from card-
+    // centre to whichever side has less room (the portrait side, since
+    // the right side is just a small padding).
+    const cardCx        = cardX + cardW / 2
+    const portraitRight = portraitKey ? (cardX + PORTRAIT_PAD + PORTRAIT_W) : (cardX + 8)
+    const safeHalfW     = Math.min(cardCx - portraitRight - 8, cardW / 2 - 8)
+    const textW         = safeHalfW * 2
+
+    const titleT = this._scene.add.text(cardCx, cardY + cardH / 2 - 6, name.toUpperCase(), {
       fontFamily: FONT_HEAD, fontSize: '18px', color: '#fff5cc', letterSpacing: 2,
       stroke: '#3a0810', strokeThickness: 3,
-    }).setOrigin(0, 0.5).setDepth(SLATE_DEPTH + 2).setAlpha(0)
+    }).setOrigin(0.5, 0.5).setDepth(SLATE_DEPTH + 2).setAlpha(0)
     if (titleT.width > textW) {
       const scale = Math.max(0.65, textW / titleT.width)
       titleT.setFontSize(Math.floor(18 * scale))
     }
     this._slateObjs.push(titleT)
 
-    const tagT = this._scene.add.text(textX, cardY + cardH / 2 + 16, tagline, {
+    const tagT = this._scene.add.text(cardCx, cardY + cardH / 2 + 22, tagline, {
       fontFamily: FONT_BODY, fontSize: '10px', color: CRYPT.inkDim, letterSpacing: 1,
-      fontStyle: 'italic', wordWrap: { width: textW },
-    }).setOrigin(0, 0.5).setDepth(SLATE_DEPTH + 2).setAlpha(0)
+      fontStyle: 'italic', align: 'center', wordWrap: { width: textW },
+    }).setOrigin(0.5, 0.5).setDepth(SLATE_DEPTH + 2).setAlpha(0)
     this._slateObjs.push(tagT)
 
     // Lives remaining (small, below)

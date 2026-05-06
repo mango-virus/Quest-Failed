@@ -1,0 +1,86 @@
+[
+  {
+    "id": "guild_raid",
+    "title": "GUILD RAID!",
+    "notif": "Your dungeon has been discovered by a local Guild.",
+    "colorTheme": "warn",
+    "minBossLevel": 1
+  },
+  {
+    "id": "legendary_speedrunner",
+    "title": "LEGENDARY SPEED RUNNER",
+    "notif": "A high-level, legendary adventurer is trying to set a 'world record' for clearing your dungeon.",
+    "colorTheme": "accent",
+    "minBossLevel": 3
+  },
+  {
+    "id": "dungeon_pestilence",
+    "title": "DUNGEON PESTILENCE",
+    "notif": "A disease has broken out among your minions.",
+    "colorTheme": "green",
+    "minBossLevel": 1
+  },
+  {
+    "id": "cartographers_convention",
+    "title": "CARTOGRAPHER'S CONVENTION",
+    "notif": "A group of scholars are on their way to map out the dungeon.",
+    "colorTheme": "soul",
+    "minBossLevel": 1
+  },
+  {
+    "id": "blood_moon_eclipse",
+    "title": "BLOOD MOON ECLIPSE",
+    "notif": "A rare celestial event empowers the dark arts.",
+    "colorTheme": "accent",
+    "minBossLevel": 1
+  },
+  {
+    "id": "negotiation_day",
+    "title": "NEGOTIATION DAY",
+    "notif": "The Adventurer's Guild sends a diplomat to your dungeon.",
+    "colorTheme": "gold",
+    "minBossLevel": 1
+  },
+  {
+    "id": "the_tournament",
+    "title": "THE TOURNAMENT",
+    "notif": "Three rivals enter — they hate each other more than they hate you.",
+    "colorTheme": "warn",
+    "minBossLevel": 3
+  },
+  {
+    "id": "rival_dungeon",
+    "title": "RIVAL DUNGEON",
+    "notif": "A rival dungeon's monsters are invading. Their boss seeks yours.",
+    "colorTheme": "accent",
+    "minBossLevel": 3
+  },
+  {
+    "id": "twitch_con",
+    "title": "TWITCH CON",
+    "notif": "Streamers are converging on your dungeon. Pure chaos awaits.",
+    "colorTheme": "soul",
+    "minBossLevel": 1
+  },
+  {
+    "id": "dark_deal",
+    "title": "DARK DEAL",
+    "notif": "A demon will appear in your boss room tonight, offering a free pact.",
+    "colorTheme": "accent",
+    "minBossLevel": 1
+  },
+  {
+    "id": "cosplay_contest",
+    "title": "COSPLAY CONTEST",
+    "notif": "Adventurers in monster costumes will visit. Most won't even fight.",
+    "colorTheme": "gold",
+    "minBossLevel": 1
+  },
+  {
+    "id": "loot_goblin_heist",
+    "title": "LOOT GOBLIN HEIST",
+    "notif": "A pack of Loot Goblins has broken into your treasure hoard!",
+    "colorTheme": "gold",
+    "minBossLevel": 1
+  }
+]

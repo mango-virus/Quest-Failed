@@ -41,12 +41,12 @@ Several systems were retired in a focused cleanup pass. Older sections of this d
 
 ## Currencies
 
-Two separate economies — never combine them into one pool.
+> **2026-05-05: Dark Power was retired.** Gold is the only currency in the game now. The strikethrough rows below preserve historical context but do not reflect runtime behavior. Lingering `darkPower` / `souls` field references in code (e.g. GameOver leaderboard submit, `run.totals.souls` counter) default to 0 and are inert — a follow-up cleanup pass is owed.
 
 | Currency | Name | Earned By | Spent On |
 |---|---|---|---|
-| Build  | **Gold**       | Adventurer kills, treasury room daily stipend | One-time placement cost of rooms / traps / minions |
-| Upgrade | **Dark Power** | Adventurer kills (secondary, lower rate), boss kills, dungeon level-ups | Minion evolution, boss upgrades, unlocking new room/trap/minion types |
+| Build  | **Gold**       | Adventurer kills, treasury room daily stipend, treasure-chest passive income | One-time placement cost of rooms / traps / minions / items |
+| ~~Upgrade~~ | ~~**Dark Power**~~ | ~~Adventurer kills (secondary, lower rate), boss kills, dungeon level-ups~~ | ~~Minion evolution, boss upgrades, unlocking new room/trap/minion types~~ — *all costs converted to Gold or removed.* |
 
 There is no daily upkeep — the only economy pressure is placement cost. Rooms, traps, and minions never shut off after placement.
 
@@ -54,7 +54,7 @@ There is no daily upkeep — the only economy pressure is placement cost. Rooms,
 - Boss room: pre-placed (fixed position, never removed)
 - 3 starter rooms: pre-placed (free placement cost)
 - Gold: tunable constant (`STARTING_GOLD` in `src/config/balance.js`)
-- Dark Power: 0
+- ~~Dark Power: 0~~ *(currency retired)*
 - All amounts designed to be tweaked without code changes
 
 ---
@@ -202,8 +202,8 @@ GameState {
   player: {
     bossArchetypeId: string,
     bossEvolution: BossEvolutionState,
-    soulEssence: number,
-    darkPower: number,
+    soulEssence: number,             // legacy field name; displayed as "Gold"
+    darkPower: number,               // RETIRED 2026-05-05 — defaults to 0; no system writes/reads it any longer
     totalKills: number,
     totalDaysElapsed: number
   },
@@ -383,7 +383,7 @@ All game content lives in `src/data/`. Adding new content never requires code ch
   ],
   upkeepCost: 5,              // Soul Essence per day; 0 = free (starter rooms)
   essenceCostToPlace: 20,     // one-time placement cost
-  powerCostToUnlock: 0,       // Dark Power to unlock this type (0 = available from start)
+  powerCostToUnlock: 0,       // (Dark Power retired 2026-05-05) historically Dark Power; field still parsed but inert
   unlockLevel: 1,             // minimum dungeon level to see it in the palette
   placementRules: {
     minDepthFromBoss: 0,
@@ -541,13 +541,13 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
   },
   startingRooms: ["boss_chamber", "starter_corridor", "starter_barracks", "starter_crypt"],
   startingEssence: 50,                  // overrides balance.js default if set
-  startingDarkPower: 0,
+  startingDarkPower: 0,                 // (RETIRED 2026-05-05) Dark Power removed; ignored
   baseFightStats: { hp: 200, attack: 15, defense: 10, abilities: ["soul_drain"] },
   evolutionTree: [
     {
       id: "raise_dead",
       name: "Raise Dead",
-      cost: 30,                         // Dark Power
+      cost: 30,                         // (was Dark Power; retired 2026-05-05 — needs conversion to Gold or removal)
       description: "Summon undead adds during the boss fight.",
       requiresLevel: 3,
       statDeltas: {},
@@ -1159,7 +1159,7 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 
 ### Boss evolution tree
 - New `src/data/bossAbilities.json` with 6 nodes across 3 tiers. Each node has `powerCost`, `requires[]`, `effect` ID.
-- `BossSystem` persists `gameState.boss.unlockedAbilities[]`. Public API: `getAvailableAbilities(filterAffordable)` and `unlockAbility(id)` — validates ownership / requires / cost, deducts Dark Power, applies passive stat bonuses.
+- `BossSystem` persists `gameState.boss.unlockedAbilities[]`. Public API: `getAvailableAbilities(filterAffordable)` and `unlockAbility(id)` — validates ownership / requires / cost, ~~deducts Dark Power~~ (Dark Power retired 2026-05-05; cost path is currently no-op pending follow-up to switch to Gold), applies passive stat bonuses.
 - EndOfDay scene gains "BOSS UPGRADES (N DP)" button → modal with full ability grid (state colours: owned green ✓ / available purple / locked dim).
 - `_resolve()` reads owned abilities each fight: `soul_drain` → boss starts at 125% HP; `summon_adds` → 2 skeleton helpers via `_summonAddsNearBoss`; `second_wind` → one-time +30 HP if boss < 20%; `necrotic_aura` → 5% maxHp AOE per round.
 
@@ -1582,7 +1582,7 @@ The personality + class roster now matches the 23 entries in the original game d
 - `update(delta)` is called with timeScale-adjusted delta — DayPhase pause/2x/4x feeds in here
 - Per-adventurer state machine: walking → reaches boss → instant kill (Phase 6/10 will replace with combat)
 - `pickSpawnTile()` finds the deepest-from-boss room with a valid path to the boss; returns null if dungeon has no entrance reachable to boss
-- On death: emits `ADVENTURER_DIED`, awards `SOUL_ESSENCE_PER_KILL` + `DARK_POWER_PER_KILL`, moves entity to graveyard
+- On death: emits `ADVENTURER_DIED`, awards `SOUL_ESSENCE_PER_KILL` ~~+ `DARK_POWER_PER_KILL`~~ (Dark Power retired 2026-05-05), moves entity to graveyard
 
 ### AdventurerRenderer (`src/ui/AdventurerRenderer.js`)
 - Owned by Game scene; renders one Container per active adventurer (depth 8, above corridors and rooms)

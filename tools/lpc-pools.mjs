@@ -327,6 +327,121 @@ export const POOLS = {
       chance: 1.0,
     },
   },
+
+  // Cartographer Scholar — Cartographer's Convention event spawn. Robed
+  // researcher silhouette closer to mage / cleric than to a fighter:
+  // long pants/shoes, no armor, hood or wizard hat sometimes, and
+  // mandatory glasses (chance 1.0 on the headwear pool entry — the
+  // visual tell the user asked for). Barehanded so they read as
+  // "scientist, not soldier"; AISystem skips combat for them anyway.
+  cartographer_scholar: {
+    bodyTypes: COMMON.bodyTypes,
+    heads: 'auto_human',
+    hair: 'all_human_hair',
+    beardChance: 0.4,
+    torso: ['Longsleeve', 'Longsleeve 2', 'Longsleeve 2 Buttoned', 'Cardigan', 'Longsleeve Polo'],
+    legs: ['Long Pants', 'Hose', 'Pantaloons'],
+    feet: ['Slippers', 'Sandals', 'Basic Shoes', 'Revised Shoes'],
+    arms: { items: ['Cuffs', 'Lace Cuffs'], chance: 0.5 },
+    headwear: {
+      items: [
+        'Hood', 'Sack Cloth Hood',
+        'Wizard Hat Base', 'Wizard Hat Belt', 'Wizard Hat Buckle',
+      ],
+      chance: 0.6,
+    },
+    accessory: {
+      // Forced glasses on every variant — the iconic "scholar" tell.
+      items: ['Round Glasses', 'Nerd Glasses', 'Halfmoon Glasses'],
+      chance: 1.0,
+    },
+    barehanded: true,
+  },
+
+  // Cosplay Adventurer — Cosplay Contest event spawn. Body is always a
+  // human (so every torso / legs / arms / shoe layer composites cleanly)
+  // but the HEAD is always a monster: beastman, reptilian, undead,
+  // farm animal, fantasy creature. Per-bodyType head map keeps gendered
+  // monster heads matched to the gendered body so a "Lizard female"
+  // head doesn't end up on a male body. Stacked with a wing/tail
+  // accessory for the full "in costume" silhouette.
+  cosplay_adventurer: {
+    bodyTypes: ['male', 'muscular', 'female'],
+    // Heads must read instantly as "not a human" at 64×64. The trimmed
+    // set keeps only clearly non-human silhouettes (snouts, beaks,
+    // muzzles, animal ears, skulls, alien crania, jack-o-lantern). The
+    // following were INTENTIONALLY EXCLUDED because they're humanoid
+    // enough at game scale to look like a normal pale/green human:
+    //   Vampire, Frankenstein, Zombie, Orc male/female, Goblin, Troll
+    heads: {
+      male: [
+        'Boarman', 'Wolf male', 'Wartotaur', 'Minotaur',
+        'Lizard male',
+        'Pig', 'Sheep', 'Rabbit', 'Rat', 'Mouse',
+        'Alien', 'Jack O Lantern', 'Skeleton',
+      ],
+      muscular: [
+        'Boarman', 'Wolf male', 'Wartotaur', 'Minotaur',
+        'Lizard male',
+        'Pig', 'Sheep',
+        'Alien', 'Jack O Lantern', 'Skeleton',
+      ],
+      female: [
+        'Wolf female', 'Minotaur female',
+        'Lizard female',
+        'Boarman', 'Pig', 'Sheep', 'Rabbit', 'Rat', 'Mouse',
+        'Alien', 'Jack O Lantern', 'Skeleton',
+      ],
+    },
+    // No hair / beard / nose / eyebrows — every face layer (zPos 105+)
+    // would composite on top of the monster head's built-in features
+    // and break the illusion. The monster head sprite already has its
+    // own eyes + snout / muzzle / beak art.
+    hair: null,
+    beardChance: 0,
+    noses: null,
+    eyebrows: null,
+    torso: [
+      'TShirt', 'TShirt Buttoned', 'TShirt Scoop', 'Shortsleeve', 'Shortsleeve Polo',
+      'Longsleeve', 'Longsleeve 2', 'Longsleeve Polo', 'Cardigan',
+      'Plate', 'Leather',
+    ],
+    legs: ['Pants', 'Cuffed Pants', 'Long Pants', 'Fur Pants', 'Pantaloons', 'Shorts'],
+    feet: ['Basic Boots', 'Basic Shoes', 'Revised Boots', 'Folded Rim Boots', 'Sara Shoes'],
+    arms: { items: ['Gloves', 'Cuffs', 'Pauldrons', 'Lace Cuffs'], chance: 0.4 },
+    // Headwear chance lower than other classes because the monster head
+    // IS the visual story. A helmet on a wolf face hides the joke.
+    headwear: {
+      items: [
+        'Hood', 'Sack Cloth Hood', 'Bandana', 'Pirate Bandana',
+        'Cavalier feather', 'Tricorne',
+      ],
+      chance: 0.25,
+    },
+    accessory: {
+      // Wing / tail accessories layered on top of the monster head and
+      // body for full creature silhouette. 1-2 picks per variant.
+      items: [
+        // wings — bat / feathered / lizard / batlike-lizard
+        'Bat Wings', 'Feathered Wings', 'Lizard Wings', 'Lizard Wings (Alt Colors)', 'Batlike Lizard Wings',
+        // tails — cat / wolf / fluffy wolf / lizard
+        'Cat Tail', 'Wolf Tail', 'Fluffy Wolf Tail', 'Lizard tail', 'Lizard Tail (Alt Colors)',
+      ],
+      pickCount: { min: 1, max: 2 },
+      chance: 1.0,
+    },
+    weapon: {
+      // Any weapon — costume contest contestants brought their own.
+      items: [
+        'Longsword', 'Arming Sword', 'Saber', 'Mace', 'Waraxe', 'Spear',
+        'Dagger', 'Rapier', 'Scimitar',
+        'Simple staff', 'Gnarled staff',
+        'Recurve', 'Slingshot',
+      ],
+      chance: 0.85,
+    },
+    sometimesShield: 0.25,
+  },
 };
 
 // Per-class variant count for the bake.

@@ -311,16 +311,27 @@ export class BossArchetypeUI {
 
   _setEarthquakeBtnVisible(v) {
     if (!this._earthquakeBtn) return
-    this._earthquakeBtn.bg.setVisible(v)
-    this._earthquakeBtn.label.setVisible(v)
-    this._earthquakeBtn.hit.input.enabled = v
+    this._earthquakeBtn.bg?.setVisible?.(v)
+    this._earthquakeBtn.label?.setVisible?.(v)
+    // Hit zone may not have an `input` component yet (set lazily by Phaser
+    // on first setInteractive). Use the safe enable/disable API instead of
+    // poking .input.enabled directly so this never throws on first call.
+    const hit = this._earthquakeBtn.hit
+    if (hit) {
+      if (v) hit.setInteractive?.({ useHandCursor: true })
+      else   hit.disableInteractive?.()
+    }
   }
 
   _setSacrificeBtnVisible(v) {
     if (!this._sacrificeBtn) return
-    this._sacrificeBtn.bg.setVisible(v)
-    this._sacrificeBtn.label.setVisible(v)
-    this._sacrificeBtn.hit.input.enabled = v
+    this._sacrificeBtn.bg?.setVisible?.(v)
+    this._sacrificeBtn.label?.setVisible?.(v)
+    const hit = this._sacrificeBtn.hit
+    if (hit) {
+      if (v) hit.setInteractive?.({ useHandCursor: true })
+      else   hit.disableInteractive?.()
+    }
   }
 
   _isArchetypeGolem() {

@@ -180,10 +180,22 @@ function pickFromPool(rng, pool) {
 function sampleVariant(rng, className, classPool) {
   const v = { className, layers: [] };
   v.bodyType = pick(rng, classPool.bodyTypes);
-  // 'auto_human' = pick a head shape that matches the chosen body type
-  const heads = classPool.heads === 'auto_human'
-    ? COMMON.humanHeadsByBody[v.bodyType] || COMMON.humanHeadsByBody.male
-    : classPool.heads;
+  // Heads resolution supports three forms:
+  //   'auto_human'  → pick a Human Male/Female head matched to the body
+  //   array         → flat list, all body types share the same options
+  //   object        → bodyType → head[] lookup (e.g. cosplay_adventurer's
+  //                   monster heads where Lizard male / female / Skeleton /
+  //                   Zombie need to pair with the matching body shape)
+  let heads;
+  if (classPool.heads === 'auto_human') {
+    heads = COMMON.humanHeadsByBody[v.bodyType] || COMMON.humanHeadsByBody.male;
+  } else if (Array.isArray(classPool.heads)) {
+    heads = classPool.heads;
+  } else if (classPool.heads && typeof classPool.heads === 'object') {
+    heads = classPool.heads[v.bodyType] || classPool.heads.male || [];
+  } else {
+    heads = [];
+  }
   v.head = pick(rng, heads);
   // Hair: every adventurer can roll any of the 26 palettes (incl. fantasy).
   v.hairColor = pick(rng, HAIR_ALL);
@@ -198,12 +210,24 @@ function sampleVariant(rng, className, classPool) {
   v.clothColor = pick(rng, clothPool);
   // Metal color (one shared finish for all metal pieces — armor, helm, pauldrons).
   v.metalColor = pick(rng, METAL_ALL);
-  v.nose = pick(rng, COMMON.noses);
-  v.eyebrows = pick(rng, COMMON.eyebrows);
-  // Hair: always pick a hairstyle. If male and beard rolls, layer a beard.
-  v.hair = classPool.hair === 'all_human_hair'
-    ? pick(rng, HAIR_HEAD_FULL).name
-    : pick(rng, classPool.hair);
+  // Nose / eyebrows render at zPos 105 / 106 — ON TOP of the head
+  // sprite (zPos 100). For non-human heads (cosplay_adventurer's
+  // monster heads) the head art has its own facial features built in,
+  // so painting human eyebrows + a nose on top breaks the illusion.
+  // Pool can opt out by setting `noses: null` / `eyebrows: null`.
+  v.nose     = classPool.noses     === null ? null : pick(rng, COMMON.noses);
+  v.eyebrows = classPool.eyebrows  === null ? null : pick(rng, COMMON.eyebrows);
+  // Hair: pick a hairstyle, or skip entirely when classPool.hair is null
+  // (e.g. cosplay_adventurer wears monster heads — hair zPos 120 would
+  // render flowing locks on top of a wolf face). Beard follows the same
+  // null-skip rule below.
+  if (classPool.hair === null) {
+    v.hair = null;
+  } else if (classPool.hair === 'all_human_hair') {
+    v.hair = pick(rng, HAIR_HEAD_FULL).name;
+  } else {
+    v.hair = pick(rng, classPool.hair);
+  }
   v.beard = (v.bodyType !== 'female' && chance(rng, classPool.beardChance ?? 0))
     ? pick(rng, HAIR_BEARDS_FULL).name
     : null;
@@ -461,7 +485,17 @@ async function compositeVariant(rng, variant, outFile) {
 // ---- Bake -------------------------------------------------------------------
 
 const allCredits = new Map(); // contributor → Set of files
-const manifest = { variants: {}, layout: LAYOUT };
+// When a class filter is in effect we MERGE into the existing manifest
+// so we don't blow away the entries for classes we didn't re-bake (the
+// PNGs on disk are still good — just the manifest entries would be
+// missing, and AdventurerRenderer would silently fall back to the
+// procedural-circle silhouette for every untouched class).
+const manifestPath = path.join(outRoot, 'manifest.json');
+const manifest = (classFilter.length && fs.existsSync(manifestPath))
+  ? JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  : { variants: {}, layout: LAYOUT };
+manifest.variants ??= {};
+manifest.layout = LAYOUT;
 
 async function bakeClass(className) {
   const classPool = POOLS[className];

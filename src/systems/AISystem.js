@@ -435,6 +435,10 @@ export class AISystem {
     this._gameState.dungeon.lootPiles ??= []
     this._gameState.dungeon.lootPiles.push(pile)
     EventBus.emit('LOOT_PILE_DROPPED', { pile })
+    // Boss-chamber corpses are not lootable — adventurers there are
+    // already locked into the fight and shouldn't peel off to grab loot.
+    const pileRoom = this._dungeonGrid?.getRoomAtTile?.(pile.tileX, pile.tileY)
+    if (pileRoom?.definitionId === 'boss_chamber') return
     // Roll nearby walking advs for the LOOT_CORPSE goal.
     //   • greedy / vulture → 100% if in sight
     //   • anti_loot         → never (refuses to grab even free loot)
@@ -621,6 +625,26 @@ export class AISystem {
     for (const a of active) {
       if (a.aiState === 'dead' || a.resources.hp <= 0) continue
       this._occupancy[`${a.tileX},${a.tileY}`] = a.instanceId
+    }
+
+    // Dungeon event: Dungeon Pestilence — Blight DoT. ~1 dmg per 2s on
+    // any adv who melee'd a minion this day. Accumulator on the adv so
+    // the rate is independent of frame timing. Cleared automatically on
+    // death (adv removed) or flee (EventSystem clears at end of day).
+    if (this._gameState._eventFlags?.pestilenceActive) {
+      for (const a of active) {
+        if (!a._blighted) continue
+        if (a.aiState === 'dead' || a.aiState === 'fleeing' || a.resources.hp <= 0) continue
+        a._blightAcc = (a._blightAcc ?? 0) + delta
+        while (a._blightAcc >= 2000) {
+          a._blightAcc -= 2000
+          a.resources.hp = Math.max(0, a.resources.hp - 1)
+          if (a.resources.hp <= 0) {
+            this._kill(a, active.indexOf(a), 'pestilence')
+            break
+          }
+        }
+      }
     }
 
     // Iterate in reverse so we can splice on death without index trouble
@@ -815,7 +839,25 @@ export class AISystem {
         if (adv._oscRing.length >= OSC_TRIGGER_SAMPLES &&
             adv.goal?.type !== 'FLEE') {
           const unique = new Set(adv._oscRing.map(e => `${e.x},${e.y}`))
-          if (unique.size <= 2) {
+          // Standard 2-tile ping-pong (e.g. wedged against a wall).
+          let oscillating = unique.size <= 2
+          // Doorway ping-pong: adv walks room A → DOOR → room B → DOOR
+          // → room A → ... That's exactly 3 unique tiles, one of which
+          // is a DOOR, so the standard ≤2 check misses it. Detect by
+          // checking that one of the visited tiles is a DOOR AND the
+          // window only covers 3 unique tiles total. The DOOR check
+          // keeps the threshold from over-firing on legit travel
+          // (real walking sweeps far more than 3 tiles in 3 seconds).
+          if (!oscillating && unique.size === 3 && this._dungeonGrid?.getTileType) {
+            for (const k of unique) {
+              const [x, y] = k.split(',').map(Number)
+              if (this._dungeonGrid.getTileType(x, y) === TILE.DOOR) {
+                oscillating = true
+                break
+              }
+            }
+          }
+          if (oscillating) {
             adv.goal    = { type: 'FLEE', reason: 'oscillation' }
             adv.path    = null
             adv.aiState = 'fleeing'
@@ -1132,6 +1174,33 @@ export class AISystem {
             return
           }
         }
+      }
+    }
+
+    // Dungeon event: The Tournament — rivals attack each other on
+    // sight when within their attack range. Mirrors the Sworn Rivals
+    // pattern above but without the HP-threshold gate (tournament
+    // rivals are aggressive from the start). Falls through to normal
+    // minion engagement if no other rival is in range.
+    if (adv._tournamentRival && adv.aiState !== 'fleeing' && this._combatSystem) {
+      const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+      let target = null, bestDist = Infinity
+      for (const other of this._gameState.adventurers.active) {
+        if (other === adv) continue
+        if (!other._tournamentRival) continue
+        if (other.aiState === 'dead' || other.aiState === 'fleeing') continue
+        const d = Math.hypot(other.tileX - adv.tileX, other.tileY - adv.tileY)
+        if (d > reach + 0.01) continue
+        if (d < bestDist) { target = other; bestDist = d }
+      }
+      if (target) {
+        adv.aiState = 'fighting'
+        adv.path = null
+        this._combatSystem.tryAttack(adv, target, {
+          roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
+          method: 'tournament_rivalry',
+        })
+        return
       }
     }
 
@@ -1589,6 +1658,20 @@ export class AISystem {
     // way; the symmetric "minions don't attack the charmed adv" rule
     // lives in MinionAISystem._pickTarget.
     if (adv._charmed) return null
+    // Dungeon event: Legendary Speed Runner — beelines to the boss,
+    // ignores every minion on the way (no engagement at all). Minions
+    // can still hit the speedrunner from MinionAISystem; this only
+    // suppresses the adv-side targeting.
+    if (adv._speedrunner) return null
+    // Dungeon event: Cosplay Contest — passive cosplayers walk past
+    // minions until provoked (CombatSystem flips _provoked when a
+    // minion lands a hit). The 25% non-passive cosplayers fall through
+    // and engage normally.
+    if (adv._cosplay && adv._cosplayPassive && !adv._provoked) return null
+    // Dungeon event: Cartographer's Convention — scholars never engage,
+    // they're just here to map. Minions can still hit them; they'll
+    // flee when low and feed their tour into KnowledgeSystem on escape.
+    if (adv._cartographer) return null
     // Phase 5c — ranged classes (Mage / Cleric / Necromancer / Ranger / Bard)
     // engage at their declared attackRange instead of melee. Falls back to
     // MELEE_RANGE_TILES (1.5) for melee classes.
@@ -2350,6 +2433,32 @@ export class AISystem {
   // Personality-driven goal selection.
   // Falls back to SEEK_BOSS if no PersonalitySystem is wired yet.
   _pickNextGoal(adv) {
+    // Dungeon event: Legendary Speed Runner — pure beeline to the boss.
+    // Skips the entire goal-picking flow (no scout, no regroup, no
+    // treasure, no chest detours, no personality variants) so they march
+    // straight at the boss room every replan.
+    if (adv._speedrunner) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Rival Dungeon — the rival boss exists to challenge
+    // the player's boss in the throne room. Same beeline shortcut as
+    // the speedrunner.
+    if (adv._rivalBoss) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Cartographer's Convention — pick the closest
+    // unvisited non-boss room and explore it. When all rooms are
+    // visited (or unreachable), flee. Never engages combat goals.
+    if (adv._cartographer) {
+      const visited = new Set(adv.visitedRooms ?? [])
+      let best = null, bestDist = Infinity
+      for (const room of this._gameState.dungeon.rooms) {
+        if (visited.has(room.instanceId)) continue
+        if (room.definitionId === 'boss_chamber') continue
+        const cx = room.gridX + Math.floor(room.width / 2)
+        const cy = room.gridY + Math.floor(room.height / 2)
+        const d = Math.hypot(adv.tileX - cx, adv.tileY - cy)
+        if (d < bestDist) { best = room; bestDist = d }
+      }
+      if (best) return { type: 'EXPLORE_ROOM', roomId: best.instanceId }
+      return { type: 'FLEE', reason: 'tour_complete' }
+    }
     // Phase: alive AI — if the adv has wandered far from their party,
     // ~30% chance to detour back instead of picking a normal goal.
     const centroid = this._partyCentroid(adv)
@@ -2383,6 +2492,9 @@ export class AISystem {
       for (const p of piles) {
         const d = Math.hypot(adv.tileX - p.tileX, adv.tileY - p.tileY)
         if (d > bestDist) continue
+        // Skip boss-chamber corpses — advs there are committed to the fight.
+        const pRoom = this._dungeonGrid?.getRoomAtTile?.(p.tileX, p.tileY)
+        if (pRoom?.definitionId === 'boss_chamber') continue
         best = p; bestDist = d
       }
       if (best) {
@@ -2563,6 +2675,17 @@ export class AISystem {
         : Balance.MECHANIC_PYRAMID_REST_KILL_MULT
       flags.pyramidKillsToday = k + 1
     }
+    // Dungeon event: Blood Moon Eclipse — no gold from kills today (the
+    // empowered minions tear advs apart, but the eclipse's dark glow taints
+    // the loot). Pairs with the symmetric 2× damage modifier in CombatSystem.
+    if ((this._gameState._eventFlags ?? {}).bloodMoonEclipseActive) goldMul = 0
+    // Dungeon event: Loot Goblin Heist — every goblin killed drops a
+    // hefty gold pile (5× normal) since the whole point of the event is
+    // racing the pack before they escape with the treasury.
+    if (adv.classId === 'loot_goblin') goldMul *= 5
+    // Dungeon event: Rival Dungeon — slaying the rival boss is a major
+    // payoff (8× gold). XP windfall handled below alongside speedrunner.
+    if (adv._rivalBoss) goldMul *= 8
     const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
@@ -2573,6 +2696,18 @@ export class AISystem {
     })
 
     this._awardBossXp()
+    // Dungeon event: Legendary Speed Runner — killing the speedrunner
+    // grants a *massive* XP windfall (9× the normal kill on top of the
+    // base award above = 10× total). Tunes the high-risk encounter into
+    // a clear high-reward payoff if the player can actually stop them.
+    if (adv._speedrunner) {
+      for (let i = 0; i < 9; i++) this._awardBossXp()
+    }
+    // Dungeon event: Rival Dungeon — same windfall scale as speedrunner;
+    // killing another dungeon's boss is a peer-tier achievement.
+    if (adv._rivalBoss) {
+      for (let i = 0; i < 9; i++) this._awardBossXp()
+    }
 
     EventBus.emit('ADVENTURER_DIED', {
       adventurer: adv,
@@ -2598,9 +2733,12 @@ export class AISystem {
   }
 
   _xpToNextLevel(currentLevel) {
-    return Math.round(
-      Balance.BOSS_XP_BASE * Math.pow(Balance.BOSS_XP_SCALE, currentLevel - 1)
-    )
+    // Round UP to the nearest 10 so the threshold always aligns with the
+    // XP-per-kill granularity (10 per kill). Without this, a level cap of
+    // e.g. 113 means the boss levels up at exactly 120 XP anyway, but the
+    // displayed threshold doesn't match the kill cadence.
+    const raw = Balance.BOSS_XP_BASE * Math.pow(Balance.BOSS_XP_SCALE, currentLevel - 1)
+    return Math.ceil(raw / 10) * 10
   }
 
   _lookupKillerName(killerId) {

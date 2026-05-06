@@ -142,9 +142,11 @@ export class ClassAbilitySystem {
 
     // Twitch passive — Subscriber Revenge: 50% chance on death to add +3 to
     // tomorrow's spawn count. Stored on gameState.player and consumed by DayPhase.
+    // Suppressed during Twitch Con event — chaos day, no escalation penalty.
     if (
       adventurer.classId === 'twitch_streamer' &&
       payload._isDeath === true &&
+      !this._gameState._eventFlags?.twitchConActive &&
       Math.random() < 0.5
     ) {
       this._gameState.player ??= {}

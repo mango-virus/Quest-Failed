@@ -482,7 +482,11 @@ export class BossArchetypeSystem {
         boss._golem.earthquakeUsesLeft = Balance.GOLEM_EARTHQUAKE_USES_PER_DAY
       }
     }
-    this._earthquakeArmed = false
+    // Disarm via the proper API so the UI hears GOLEM_EARTHQUAKE_DISARMED
+    // and resets its button label / room-pick listener. Without this, a
+    // player who armed earthquake but didn't fire it ends up with the
+    // button stuck on "PICK A ROOM" the next day.
+    this._disarmEarthquake()
     // Beholder: clear yesterday's anti-magic markings the moment night begins
     // (the new selection happens on DAY_PHASE_BEGAN).
     this._clearAntiMagicMarks()
@@ -547,8 +551,13 @@ export class BossArchetypeSystem {
     EventBus.emit('GOLEM_EARTHQUAKE_ARMED', {})
   }
 
+  // Always emits GOLEM_EARTHQUAKE_DISARMED, even if our internal flag is
+  // already false. Necessary because phase-change resets clear the system
+  // flag silently — without an emit the BossArchetypeUI would stay armed
+  // in its own state and the button would get stuck on "PICK A ROOM"
+  // forever (clicking it would emit DISARM but the early-return here
+  // would suppress the DISARMED event, leaving the UI mid-flight).
   _disarmEarthquake() {
-    if (!this._earthquakeArmed) return
     this._earthquakeArmed = false
     EventBus.emit('GOLEM_EARTHQUAKE_DISARMED', {})
   }

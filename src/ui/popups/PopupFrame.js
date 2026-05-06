@@ -38,6 +38,10 @@ export function makePopupFrame(opts) {
     onOpen = null,
     onClose = null,
     render = null,
+    // When false the popup becomes mandatory: no X button, Esc does nothing,
+    // and clicking the wash outside the panel does NOT close it. Used by
+    // Dark Pact, which forces the player to commit to a choice.
+    dismissable = true,
   } = opts
 
   const W = scene.uiW ?? 1280
@@ -88,10 +92,15 @@ export function makePopupFrame(opts) {
     const wash = scene.add.rectangle(0, 0, W, H, 0x000000, 0.78)
       .setOrigin(0).setDepth(depth)
       .setInteractive()
-    let washPressed = false
-    wash.on('pointerdown', () => { washPressed = true })
-    wash.on('pointerup',   () => { if (washPressed) { washPressed = false; close() } })
-    wash.on('pointerout',  () => { washPressed = false })
+    if (dismissable) {
+      let washPressed = false
+      wash.on('pointerdown', () => { washPressed = true })
+      wash.on('pointerup',   () => { if (washPressed) { washPressed = false; close() } })
+      wash.on('pointerout',  () => { washPressed = false })
+    }
+    // When non-dismissable the wash is still interactive so it eats clicks
+    // (preventing them from reaching scene UI behind the popup) but never
+    // calls close().
     addChild(wash)
 
     // Pixel-bevel panel chrome
@@ -116,12 +125,15 @@ export function makePopupFrame(opts) {
     }).setOrigin(0, 0.5).setDepth(depth + 3)
     addChild(titleT)
 
-    // Close button (top-right)
-    const closeBtn = pixelButton(scene, px + w - 32 - 4, py + 4, 32, 24, 'X', {
-      depth: depth + 3, fontSize: 9, danger: true,
-      onClick: () => close(),
-    })
-    addChild(closeBtn.bg, closeBtn.label, closeBtn.hit)
+    // Close button (top-right) — omitted when non-dismissable so the player
+    // is forced to interact with the popup body.
+    if (dismissable) {
+      const closeBtn = pixelButton(scene, px + w - 32 - 4, py + 4, 32, 24, 'X', {
+        depth: depth + 3, fontSize: 9, danger: true,
+        onClick: () => close(),
+      })
+      addChild(closeBtn.bg, closeBtn.label, closeBtn.hit)
+    }
 
     // Click-outside zone — clicks inside the panel are blocked by an
     // inner zone so they don't bubble to the wash.
@@ -130,9 +142,11 @@ export function makePopupFrame(opts) {
     innerZone.on('pointerup', (p, _lx, _ly, e) => e.stopPropagation())
     addChild(innerZone)
 
-    // Esc key closes
-    escHandler = () => close()
-    scene.input.keyboard?.on('keydown-ESC', escHandler)
+    // Esc key closes — only when dismissable.
+    if (dismissable) {
+      escHandler = () => close()
+      scene.input.keyboard?.on('keydown-ESC', escHandler)
+    }
 
     // Content area — what the popup body has to work with
     const contentX = px + PADDING

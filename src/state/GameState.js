@@ -145,6 +145,14 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
       survivors: [],
       partyWipeOccurred: false,
     },
+    // Dungeon-event scheduler state. EventSystem owns reads/writes; this
+    // initial shape just guarantees the slice exists so older saves and
+    // fresh runs both have a valid structure on first read.
+    events: {
+      nextEventDay: null,
+      lastEventId:  null,
+      scheduledId:  null,
+    },
     unlocks: {
       // Synced with src/data/rooms.json (Room redesign 2026-04-30).
       // Boss-level gating via room.unlockLevel is a separate phase — for now everything is in the allowlist.

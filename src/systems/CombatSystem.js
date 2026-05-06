@@ -98,6 +98,39 @@ export class CombatSystem {
       finalDmg = Math.max(1, finalDmg - target._twitchDefBonus)
     }
 
+    // Dungeon event: Blood Moon Eclipse — minions deal 2× damage AND take
+    // 2× damage. Symmetric so the day is a sharp risk/reward, not pure
+    // upside. Boss treated as a minion for this scaling (he's on the
+    // dungeon faction).
+    if (this._gameState._eventFlags?.bloodMoonEclipseActive) {
+      const attackerIsDungeon = attacker.faction === 'dungeon' || attacker === this._gameState.boss
+      const targetIsDungeon   = target.faction   === 'dungeon' || target   === this._gameState.boss
+      if (attackerIsDungeon || targetIsDungeon) finalDmg = Math.max(1, finalDmg * 2)
+    }
+
+    // Dungeon event: Dungeon Pestilence — when an adventurer melees a
+    // dungeon-faction minion, they get infected with Blight. AISystem
+    // ticks the DoT until the adv dies or escapes.
+    if (
+      this._gameState._eventFlags?.pestilenceActive &&
+      attacker.faction !== 'dungeon' &&
+      target.faction   === 'dungeon' &&
+      (attacker.stats?.attackRange ?? 1) <= 1
+    ) {
+      attacker._blighted = true
+    }
+
+    // Dungeon event: Cosplay Contest — passive cosplayers were ignoring
+    // minions; the moment one lands a hit, that adv "snaps out of it"
+    // and engages from then on. Flag flip is one-way for the day.
+    if (
+      this._gameState._eventFlags?.cosplayContestActive &&
+      attacker.faction === 'dungeon' &&
+      target._cosplay
+    ) {
+      target._provoked = true
+    }
+
     target.resources.hp = Math.max(0, target.resources.hp - finalDmg)
 
     const damageType = attacker.damageType

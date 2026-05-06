@@ -8,12 +8,59 @@
 
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel } from './UIKit.js'
 import { MINION_ABILITY_INFO } from '../systems/MinionAbilities.js'
+import { Balance }              from '../config/balance.js'
 
 const W = 270             // panel width (px, design-space)
 const PAD = 10
 const LINE = 12           // body line height
 const HEAD_LINE = 14
 const COST_GLYPH = '◆'
+
+// Hover-tooltip summaries — kept in code so we don't have to touch the
+// data files. Tooltip prefers `def.summary` if a future room/item ships
+// one in JSON; otherwise it falls back to ROOM_SUMMARIES / ITEM_SUMMARIES
+// here, then finally to `def.description`. Minion descriptions are
+// suppressed entirely (their stats + ABILITY/BEHAVIOR sections cover it).
+const ROOM_SUMMARIES = {
+  entry_hall:           'Required entry point. Only one allowed.',
+  starter_corridor:     'Connecting passage. Place between rooms to link them.',
+  starter_barracks:     '+5 roster minion slots. Required for any patrolling minions.',
+  starter_guard_post:   'Minions hunt adventurers in connected rooms, then return.',
+  crypt:                'Garrison of 4 Risen Bones. Room-bound, refills nightly.',
+  trap_factory:         '+5 trap slots. Required to place any traps.',
+  treasury:             'Daily gold stipend + 4 lootable chests. Pulls more adventurers.',
+  armory:               '+ATK to minions in connected rooms.',
+  library_of_whispers:  "Reveals next party's intel the night before. Detail grows with boss level.",
+  watchtower:           'Minions in connected rooms get a first-strike on entry.',
+  wandering_gate:       'Entry chance to teleport adventurer to a random room.',
+  veil_of_forgetting:   'Erases adventurer intel for connected rooms each night.',
+  catacombs:            'Adventurers who die here rise as Tier-2 Revenants (max 2).',
+  mimic_vault:          'Looks like a Treasury. 2 Mimics + 1 thieving false chest.',
+  hall_of_trials:       "Garrisons one random Tier-2 minion. Doesn't respawn same day.",
+  wishing_well:         "Coin flip on entry: buff or 'Marked' (+50% damage taken).",
+  false_exit:           'Tricks fleeing adventurers — teleports them back inside.',
+  hall_of_madness:      'Chance for adventurers to attack each other instead of moving.',
+  throne_room:          'Garrisons 1 Mini-Boss that scales with boss level.',
+  sanctum:              'Boss regenerates HP between fights. Connected minions regen too.',
+}
+
+const ITEM_SUMMARIES = {
+  phylactery_heart:     'Spare life. Respawn while it lives — adventurers can destroy it.',
+  door_lock:            'Locks a doorway. Requires a Key Chest placed nearby.',
+  key_chest:            'Holds the key to a locked door. Refills daily.',
+  soul_bound_beacon:    '+30% HP/ATK to minions in the room. Requires a Healing Fountain.',
+  healing_fountain:     'Heals adventurers to full once per day. Tradeoff for the Beacon.',
+  treasure_chest_1:     'T1. Pays 10g/day. Adventurers may steal 10% (10% tempted).',
+  treasure_chest_2:     'T2. Pays 20g/day. Adventurers may steal 17% (14% tempted).',
+  treasure_chest_3:     'T3. Pays 35g/day. Adventurers may steal 24% (19% tempted).',
+  treasure_chest_4:     'T4. Pays 55g/day. Adventurers may steal 31% (23% tempted).',
+  treasure_chest_5:     'T5. Pays 80g/day. Adventurers may steal 38% (28% tempted).',
+  treasure_chest_6:     'T6. Pays 110g/day. Adventurers may steal 45% (32% tempted).',
+  treasure_chest_7:     'T7. Pays 145g/day. Adventurers may steal 52% (37% tempted).',
+  treasure_chest_8:     'T8. Pays 185g/day. Adventurers may steal 59% (41% tempted).',
+  treasure_chest_9:     'T9. Pays 230g/day. Adventurers may steal 66% (46% tempted).',
+  treasure_chest_10:    'T10. Pays 300g/day. Adventurers may steal 75% (50% tempted).',
+}
 
 export class BuildMenuTooltip {
   constructor(scene, opts = {}) {
@@ -150,19 +197,42 @@ export class BuildMenuTooltip {
   _costFor(def, kind, gameState) {
     let cost = def.cost ?? def.goldCost ?? null
     if (cost == null) return null
+    // Rooms with freeFirstN: first N placements are free, then base cost.
+    if (kind === 'room') {
+      const freeFirstN = def.placementRules?.freeFirstN ?? 0
+      if (freeFirstN > 0) {
+        const placed = (gameState?.dungeon?.rooms ?? []).filter(r => r.definitionId === def.id).length
+        if (placed < freeFirstN) cost = 0
+      }
+    }
     // Mirror BuildMenu's hastyArchitect discount so the displayed cost
     // matches the actual debit on purchase.
     if (kind === 'trap' && (gameState?._mechanicFlags ?? {}).hastyArchitect) {
       cost = Math.max(0, Math.round(cost * 0.5))
+    }
+    // Minion costs scale with boss level (mirrors NightPhase + BuildMenu).
+    if (kind === 'minion') {
+      const bossLv = gameState?.boss?.level ?? 1
+      const lvMul  = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
+      cost = Math.max(0, Math.round(cost * lvMul))
     }
     return cost
   }
 
   _composeLines(def, kind, gameState) {
     const out = []
-    const desc = def.description?.trim()
-    if (desc) {
-      out.push({ text: desc, wrap: true, color: CRYPT.inkDim })
+    // Minions skip description — their stat block + ABILITY/BEHAVIOR
+    // sections cover what the player needs to know. Rooms and items
+    // prefer a curated short summary (def.summary or the per-id maps
+    // above) and only fall back to the full description as a last resort.
+    if (kind !== 'minion') {
+      let summary = def.summary?.trim()
+      if (!summary) {
+        if (kind === 'room') summary = ROOM_SUMMARIES[def.id]
+        else if (kind === 'item') summary = ITEM_SUMMARIES[def.id]
+      }
+      const text = (summary && summary.trim()) || def.description?.trim()
+      if (text) out.push({ text, wrap: true, color: CRYPT.inkDim })
     }
 
     const stats = []

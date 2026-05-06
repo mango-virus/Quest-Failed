@@ -321,7 +321,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 |---|---|---|
 | Auto-resolved boss fight (no boss control) | 10 | ✅ DONE | BossSystem._resolve runs iterative slug-fest: party totalAtk vs boss def vs boss atk spread across alive party until either side wipes |
 | 3 boss deaths → game over → eulogy → new run | 10 | ✅ DONE | gameState.boss.deathsRemaining; BOSS_DEFEATED_FINAL → GameOver scene with eulogy + NEW RUN button |
-| Boss evolution tree (XP-spent abilities) | 10b | ✅ DONE | bossAbilities.json with 6 nodes (3 tiers); BossSystem.unlockAbility spends Dark Power, requires-chain enforced; EndOfDay BOSS UPGRADES modal |
+| Boss evolution tree (XP-spent abilities) | 10b | ✅ DONE | bossAbilities.json with 6 nodes (3 tiers); BossSystem.unlockAbility ~~spends Dark Power~~ (Dark Power retired 2026-05-05 — currency layer needs a follow-up pass to switch to Gold or remove the cost), requires-chain enforced; EndOfDay BOSS UPGRADES modal |
 | Summon adds ability | 10b | ✅ DONE | summon_adds ability spawns 2 skeleton helpers in boss chamber on each fight |
 | Environmental hazards (lava floor, falling pillars) | 10b | ✅ DONE | lava_floor (3 HP/sec passive fire), collapsing_pillars (random ~4s 8 dmg burst) rooms wired in AISystem._applyRoomEffects |
 | 💭 Many more abilities | 10b | 💭 OPEN — 6 abilities in tree; expand in future passes |
@@ -360,8 +360,8 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 
 | Item | Phase | Status |
 |---|---|---|
-| Soul Essence (upkeep currency) | 1 | ✅ DONE |
-| Dark Power (upgrade currency) | 1 | ✅ DONE |
+| Soul Essence (upkeep currency) | 1 | ✅ DONE | renamed to Gold display-side; field still `gameState.player.soulEssence` |
+| Dark Power (upgrade currency) | 1 | 🚫 REMOVED 2026-05-05 | currency retired; only Gold remains. `gameState.player.darkPower` may still appear in stale code paths (GameOver.js leaderboard submit, run.totals.souls) — those default to 0 / harmless |
 | Daily upkeep deduction at NightPhase start | 3 | ✅ DONE |
 | Overdraft → shut off newest rooms | 3 | ✅ DONE |
 | Reactivation when essence recovers | 3 | ✅ DONE |
@@ -634,8 +634,8 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | title-archive | DUNGEON ARCHIVE — leaderboard stub button, no-op | 31B | ✅ DONE | future leaderboard hook |
 | title-options | OPTIONS — opens new Options scene | 31B | ✅ DONE | depends on options-scene |
 | title-quit | QUIT — closes the game | 31B | ✅ DONE | |
-| hud-topbar | HUD top bar: boss avatar + class/day + HP bar (left), wave counter + bar (center), Gold + Dark Power resources (right) | 31C | ✅ DONE | replaces BossHpPanel; clicking avatar opens Boss Overview |
-| hud-resources | "Gold" rename of Soul Essence (display only) + Dark Power readout | 31C | ✅ DONE | display rename only — field stays as-is |
+| hud-topbar | HUD top bar: boss avatar + class/day + HP bar (left), wave counter + bar (center), Gold ~~+ Dark Power~~ (right) | 31C | ✅ DONE | replaces BossHpPanel; clicking avatar opens Boss Overview. *(2026-05-05: Dark Power readout removed — Treasury panel now shows Gold only. See `BossTopBar._buildRightCol`.)* |
+| hud-resources | "Gold" rename of Soul Essence (display only) ~~+ Dark Power readout~~ | 31C | 🟡 PARTIAL | Gold rename live; Dark Power readout was removed when the currency was retired 2026-05-05. |
 | hud-minimap | Mini-map panel — restyled with pixel chrome (data layer unchanged) | 31C | ✅ DONE | reuses MiniMap |
 | hud-build-menu | Build menu (left column, locked): tabs Rooms/Minions/Traps/Items, 2-col grid | 31C | ✅ DONE | replaces existing NightPhase palette |
 | hud-build-items-stub | ITEMS tab renders empty grid + "Coming soon" caption | 31C | ✅ DONE | placeholder |
@@ -694,6 +694,30 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | emote-trigger-tame | Hook `MINION_TAMED` → tame_success | 32 | ✅ DONE | |
 | emote-trigger-resurrect | Hook `ADVENTURER_RESURRECTED` → resurrected | 32 | ✅ DONE | |
 | emote-trigger-doors | `breaking down door*` and `finding a locked door` triggers | — | ⏳ PENDING | DEFERRED — no locked-door event in code yet |
+
+---
+
+## 33. Dungeon events (2026-05-05)
+
+> See DESIGN.md → "Dungeon events" for full per-event spec. All events are pre-announced during the night phase before the day they fire (Dark Deal + Loot Goblin Heist resolve during the night phase itself).
+
+| ID | Item | Phase | Status | Notes |
+|---|---|---|---|---|
+| event-system | `EventSystem` — schedule + roll engine, event registry, night-phase notification banner, JSON-driven event definitions in `src/data/events.json` | EV | ⏳ PENDING | **Cadence: 1 event every 6–8 days. Same event cannot fire back-to-back. Speed Runner / Tournament / Rival Dungeon gated to boss level ≥ 3.** |
+| event-guild-raid | Guild Raid! — next day spawns 2× adventurers as steady pressure (longer wave, not one-shot surge) | EV | ⏳ PENDING | |
+| event-legendary-speedrunner | Legendary Speed Runner — single 2× stats / 2× speed adventurer, ignores non-essential rooms + minions, beelines to boss; killing them grants massive boss XP | EV | ⏳ PENDING | Boss level ≥ 3. Name intentionally fourth-wall-breaking. Pathfind: shortest path to boss room, only engages chokepoint-required minions. |
+| event-pestilence | Dungeon Pestilence — minions start day at 50% HP; melee with adventurer applies "Blighted" DoT until they die or leave; affects existing + newly-placed minions; Blight does NOT persist after adv leaves | EV | ⏳ PENDING | Adds new status: `blighted` on adventurer entity. |
+| event-cartographers | Cartographer's Convention — 3 scholar adventurers visit every non-boss room then leave; each room they map raises that room's "infamy" so future advs spawn with that knowledge | EV | ⏳ PENDING | New per-room `infamy` field; KnowledgeSystem reads on adv spawn. AI: visit-all goal type. |
+| event-cartographer-sprites | 3 LPC scholar adventurers (with glasses) for the Cartographer event | EV | ⏳ PENDING | Content task — uses existing LPC pipeline. |
+| event-blood-moon | Blood Moon Eclipse — minions deal 2× damage AND take 2× damage; no gold from killed adventurers | EV | ⏳ PENDING | |
+| event-negotiation | Negotiation Day — non-combat. Modal at start of day: pay 25% treasury (free day) OR refuse (next day +50% wave size) | EV | ⏳ PENDING | New popup component. Decision persists into following days' adv counts. |
+| event-tournament | The Tournament — 3 named rivals enter, hostile to each other AND the dungeon; sabotage each other's loot, body-block, attack each other when in same room | EV | ⏳ PENDING | Boss level ≥ 3. New AI sub-state: `rival_competitive`. Damage between adventurers is new infrastructure. |
+| event-rival-dungeon | Rival Dungeon — instead of adventurers, a group of random monsters enters; final entrant is a random boss from the boss pool that fights the player's boss; killing it grants big XP + gold | EV | ⏳ PENDING | Boss level ≥ 3. Reuses boss roster as enemy spawns. **Rival boss uses simple AI — basic chase + attack, NOT full BossArchetypeSystem behaviors.** |
+| event-twitch-con | Twitch Con — entire next wave is `twitch_streamer` class adventurers; killing them does NOT trigger the usual escalation/+adventurers-next-day penalty | EV | ⏳ PENDING | Class already exists in `adventurerClasses.json`. |
+| event-dark-deal | Dark Deal — demon appears in boss room during NIGHT phase, offers a free dark pact; if accepted, boss max HP halved for next day; if ignored, demon leaves with no penalty. Click demon to engage. | EV | ⏳ PENDING | Asset: `assets/!To do/Demon.png` — 4-row sheet (rows 1-2 appearing, rows 3-4 leaving). Spawns sprite into boss room scene + click handler + pact picker reuse. |
+| event-cosplay-contest | Cosplay Contest — adventurers in monster outfits; do not attack minions unless attacked first; 75% chance to walk past minions ignoring them | EV | ⏳ PENDING | Adv AI variant: passive-pass behavior, retaliation flag. |
+| event-cosplay-sprites | New LPC adventurer variants wearing animal/monster parts (zombie, skeleton, tails, wings, fantasy, beastman, farm animal, furry, undead, reptilian) — colored correctly per part theme | EV | ⏳ PENDING | Content task. Reptilian = green, etc. |
+| event-loot-goblin-heist | Loot Goblin Heist — goblins spawn in BOSS ROOM (reverse direction) and run for the dungeon exit; each kill drops large gold; goblins never stop to fight, only flee. **Each goblin that escapes steals 10% of current gold total** (per goblin, applied at exit) | EV | ⏳ PENDING | New spawn-point: boss room. New AI: pure-flee-to-exit goal (no engagement). Gold-drain stacks per escapee. |
 
 ---
 

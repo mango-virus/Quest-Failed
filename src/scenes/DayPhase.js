@@ -514,6 +514,33 @@ export class DayPhase extends Phaser.Scene {
     const knowledgeSystem = game.knowledgeSystem
     if (!aiSystem) return
 
+    // Dungeon event: Loot Goblin Heist — replaces the normal wave with a
+    // pack of goblins spawning IN the boss room and bolting for the exit.
+    // No combat AI; gold-steal on escape handled by EventSystem.
+    if ((this._gameState._eventFlags ?? {}).lootGoblinHeistActive) {
+      return this._spawnLootGoblinHeist()
+    }
+    // Dungeon event: Legendary Speed Runner — replaces the normal wave
+    // with one buffed solo adv that ignores everything except the boss.
+    if ((this._gameState._eventFlags ?? {}).legendarySpeedrunnerActive) {
+      return this._spawnLegendarySpeedrunner()
+    }
+    // Dungeon event: Cartographer's Convention — replaces the normal
+    // wave with 3 scholars that tour every non-boss room then leave.
+    if ((this._gameState._eventFlags ?? {}).cartographersConventionActive) {
+      return this._spawnCartographers()
+    }
+    // Dungeon event: The Tournament — 3 named rivals compete for boss
+    // kill. They attack each other AND the dungeon.
+    if ((this._gameState._eventFlags ?? {}).tournamentActive) {
+      return this._spawnTournamentRivals()
+    }
+    // Dungeon event: Rival Dungeon — monsters invade instead of advs.
+    // Final entrant is a buffed rival boss that goes for the throne room.
+    if ((this._gameState._eventFlags ?? {}).rivalDungeonActive) {
+      return this._spawnRivalDungeon()
+    }
+
     let spawn = aiSystem.pickSpawnTile()
     if (!spawn) {
       // pickSpawnTile rejects when there's no verified path from entry to
@@ -545,10 +572,25 @@ export class DayPhase extends Phaser.Scene {
     // unlockDay = calendar day required (default 1). Both must be met.
     // Rare/late classes (necromancer, twitch_streamer, beast_master, bard)
     // use unlockLevel 3 so they appear once the boss has levelled up twice.
-    const classes = allClasses.filter(c =>
+    let classes = allClasses.filter(c =>
       (c.unlockLevel ?? 1) <= dungeonLv &&
       (c.unlockDay   ?? 1) <= dayNum,
     )
+    // Dungeon event: Twitch Con — every adventurer is a Twitch Streamer.
+    // Bypasses unlock gates so the event still fires on day 1 even though
+    // twitch_streamer normally requires bossLevel ≥ 3.
+    if ((this._gameState._eventFlags ?? {}).twitchConActive) {
+      const ts = allClasses.find(c => c.id === 'twitch_streamer')
+      if (ts) classes = [ts]
+    }
+    // Dungeon event: Cosplay Contest — entire wave uses the dedicated
+    // cosplay_adventurer class so the LPC variants (wings/tails/horns
+    // accessories) read instantly as "in costume". Same unlock-gate
+    // bypass as Twitch Con.
+    if ((this._gameState._eventFlags ?? {}).cosplayContestActive) {
+      const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
+      if (cos) classes = [cos]
+    }
     if (classes.length === 0) return
 
     const day   = this._gameState.meta.dayNumber
@@ -573,6 +615,30 @@ export class DayPhase extends Phaser.Scene {
     // Phase 9: Architect's Vision + Summon Adds III — flat extra adv count per day.
     const extraAdvs = (this._gameState._mechanicFlags ?? {}).extraAdvsPerDay ?? 0
     if (extraAdvs > 0) baseCount += extraAdvs
+    // Dungeon event: Guild Raid — double the day's wave size as steady
+    // pressure (longer wave, not a single surge — handled here at the
+    // baseCount stage so the existing trickle/cadence logic stretches it
+    // automatically).
+    if ((this._gameState._eventFlags ?? {}).guildRaidActive) baseCount *= 2
+    // Dungeon event: Negotiation Day — outcome was decided during the
+    // prior night via the SHOW_CONFIRM modal. PAY = no adventurers today
+    // (free day). REFUSE = today is normal but tomorrow's wave is +50%
+    // (handled by the guildPenaltyTomorrow flag below, which the player
+    // sets via the modal's onCancel and consumes on the FOLLOWING day).
+    const eventFlags = this._gameState._eventFlags ?? {}
+    if (eventFlags.negotiationOutcome === 'pay') return []
+    // The +50% kicks in the day AFTER refusal — we set guildPenaltyTomorrow
+    // here at refusal-day end (not on refuse itself) so it doesn't double-
+    // count today; see the bottom-of-spawn block below.
+    if (eventFlags.guildPenaltyTomorrow) {
+      baseCount = Math.round(baseCount * 1.5)
+      eventFlags.guildPenaltyTomorrow = false
+    }
+    // If today's negotiation was refused, queue tomorrow's penalty BEFORE
+    // EventSystem clears the outcome flag at DAY_PHASE_ENDED.
+    if (eventFlags.negotiationOutcome === 'refuse') {
+      eventFlags.guildPenaltyTomorrow = true
+    }
     // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
     // count from yesterday's death-clip-going-viral roll.
     const subBonus = this._gameState.player?.subscriberRevengeBonus ?? 0
@@ -657,11 +723,21 @@ export class DayPhase extends Phaser.Scene {
       returnLeaderInjected = true
     }
 
+    const cosplayActive = !!(this._gameState._eventFlags ?? {}).cosplayContestActive
     for (let i = (returnLeaderInjected ? 1 : 0); i < count; i++) {
       const cls    = classes[Math.floor(Math.random() * classes.length)]
       const offset = i === 0 ? { x: 0, y: 0 } : { x: (i % 2 === 0 ? 1 : -1), y: Math.floor(i / 2) }
       const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
       const adv    = createAdventurer(cls, tile)
+
+      // Dungeon event: Cosplay Contest. Each adv has a 75% chance to be
+      // "passive" (will not initiate combat with minions), the other 25%
+      // engage normally. Passive cosplayers still retaliate when attacked
+      // (CombatSystem flips _provoked when a minion lands a hit).
+      if (cosplayActive) {
+        adv._cosplay        = true
+        adv._cosplayPassive = Math.random() < 0.75
+      }
 
       // Phase 7b: scale adventurer stats with dungeon level
       this._scaleAdventurerByBossLevel(adv, dungeonLv)
@@ -714,6 +790,221 @@ export class DayPhase extends Phaser.Scene {
 
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
     return spawned
+  }
+
+  // Dungeon event: Loot Goblin Heist. Spawns a pack of goblins INSIDE the
+  // boss room with their goal pre-set to FLEE so they bolt for the entry
+  // hall without ever engaging combat. Bypasses the normal class-pool gate
+  // (loot_goblin has unlockLevel 99 so it never appears in regular waves).
+  _spawnLootGoblinHeist() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+
+    const bossRoom = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
+    if (!bossRoom) return []
+    const cx = bossRoom.gridX + Math.floor(bossRoom.width  / 2)
+    const cy = bossRoom.gridY + Math.floor(bossRoom.height / 2)
+
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const goblinDef  = allClasses.find(c => c.id === 'loot_goblin')
+    if (!goblinDef) return []
+
+    const PACK_SIZE = 5
+    const partyId   = `loot_goblin_pack_${Date.now()}`
+    const spawned   = []
+    for (let i = 0; i < PACK_SIZE; i++) {
+      const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: Math.floor(i / 2) }
+      const tile   = { x: cx + offset.x, y: cy + offset.y }
+      const adv    = createAdventurer(goblinDef, tile)
+      adv.partyId  = partyId
+      // Skip stat scaling and personalities — goblins are pure mooks. Lock
+      // the goal to FLEE up-front so AISystem's normal goal picker never
+      // chooses combat for them.
+      adv.goal     = { type: 'FLEE', reason: 'loot_heist' }
+      adv.aiState  = 'fleeing'
+      this._gameState.adventurers.active.push(adv)
+      spawned.push(adv)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+    }
+
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
+  // Dungeon event: Legendary Speed Runner. One buffed adv replaces the
+  // entire wave. Knight chassis (highest base HP) doubled in every stat,
+  // tagged with `_speedrunner` so AISystem skips engagement and goal
+  // detours and just beelines to the boss room. On kill, AISystem awards
+  // a massive boss-XP bonus.
+  _spawnLegendarySpeedrunner() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const chassis    = allClasses.find(c => c.id === 'knight')
+                    ?? allClasses.find(c => c.id === 'barbarian')
+                    ?? allClasses[0]
+    if (!chassis) return []
+
+    const spawn = aiSystem.pickSpawnTile()
+                ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+
+    const adv = createAdventurer(chassis, { x: spawn.x, y: spawn.y })
+    adv._speedrunner = true
+    adv.isLegendary  = true
+    adv.name = 'Speedy McRunner the Legendary'
+    adv.resources.maxHp = adv.resources.maxHp * 2
+    adv.resources.hp    = adv.resources.maxHp
+    adv.stats.attack    = adv.stats.attack    * 2
+    adv.stats.defense   = adv.stats.defense   * 2
+    adv.stats.speed     = (adv.stats.speed ?? 1.4) * 2
+    adv.partyId         = null
+
+    this._gameState.adventurers.active.push(adv)
+    aiSystem.pickInitialGoal(adv)
+    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+    EventBus.emit('LEGENDARY_HERO_ARRIVED',     { adventurer: adv })
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
+    return [adv]
+  }
+
+  // Dungeon event: Cartographer's Convention. 3 scholars enter via the
+  // normal entry, tagged `_cartographer = true` so AISystem skips
+  // engagement and routes them through every non-boss room. When they
+  // flee at the end of the tour they go through the standard
+  // ADVENTURER_FLED → KnowledgeSystem._updateSurvivorRecord pipeline,
+  // which automatically seeds tomorrow's wave with their map data.
+  _spawnCartographers() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const scholarDef = allClasses.find(c => c.id === 'cartographer_scholar')
+    if (!scholarDef) return []
+
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+
+    const PARTY_SIZE = 3
+    const partyId    = `cartographers_${Date.now()}`
+    const spawned    = []
+    for (let i = 0; i < PARTY_SIZE; i++) {
+      const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: 0 }
+      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
+      const adv    = createAdventurer(scholarDef, tile)
+      adv._cartographer = true
+      adv.partyId       = partyId
+      this._gameState.adventurers.active.push(adv)
+      aiSystem.pickInitialGoal(adv)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+      spawned.push(adv)
+    }
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
+  // Dungeon event: The Tournament. 3 named rivals enter the dungeon at
+  // the entry hall, each tagged `_tournamentRival = true` so AISystem's
+  // adv-vs-adv block targets the others when in range. They still
+  // engage the dungeon's minions/boss as normal — the rivalry just adds
+  // a second target preference.
+  _spawnTournamentRivals() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const rivalIds   = ['tournament_rival_warrior', 'tournament_rival_rogue', 'tournament_rival_mage']
+    const rivalDefs  = rivalIds.map(id => allClasses.find(c => c.id === id)).filter(Boolean)
+    if (rivalDefs.length < 3) return []
+
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+
+    const spawned = []
+    for (let i = 0; i < rivalDefs.length; i++) {
+      const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: 0 }
+      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
+      const adv    = createAdventurer(rivalDefs[i], tile)
+      adv._tournamentRival = true
+      // Solo party id per rival — the rivalry is the entire point, no
+      // shared-party perks.
+      adv.partyId = `tournament_rival_${i}`
+      this._gameState.adventurers.active.push(adv)
+      aiSystem.pickInitialGoal(adv)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+      spawned.push(adv)
+    }
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
+  // Dungeon event: Rival Dungeon. 4 rival monsters + 1 buffed rival
+  // boss enter via the entry hall. Reuses adventurer infrastructure
+  // wholesale — they're "adventurer-faction" so the player's minions
+  // attack them naturally, and the rival boss reaching the boss room
+  // triggers the existing boss-fight system (BossSystem handles the
+  // arrival/death like any other adv reaching the throne).
+  _spawnRivalDungeon() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const monsterDef = allClasses.find(c => c.id === 'monster_invader')
+    const bossDef    = allClasses.find(c => c.id === 'rival_boss_invader')
+    if (!monsterDef || !bossDef) return []
+
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+
+    const PACK_SIZE = 4
+    const partyId   = `rival_dungeon_${Date.now()}`
+    const spawned   = []
+    for (let i = 0; i < PACK_SIZE; i++) {
+      const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: Math.floor(i / 2) }
+      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
+      const adv    = createAdventurer(monsterDef, tile)
+      adv._monsterInvader = true
+      adv.partyId         = partyId
+      this._gameState.adventurers.active.push(adv)
+      aiSystem.pickInitialGoal(adv)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+      spawned.push(adv)
+    }
+
+    // Rival boss spawns last, slightly behind the pack. Marked as both
+    // a monster invader (for any flag-based hooks) AND _rivalBoss for
+    // the kill-bonus + simple AI override (always SEEK_BOSS).
+    const bossTile = { x: spawn.x, y: spawn.y - 1 }
+    const rival    = createAdventurer(bossDef, bossTile)
+    rival._monsterInvader = true
+    rival._rivalBoss      = true
+    rival.isLegendary     = true   // pulses the LEGENDARY_HERO_ARRIVED chrome
+    rival.partyId         = partyId
+    this._gameState.adventurers.active.push(rival)
+    aiSystem.pickInitialGoal(rival)
+    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: rival })
+    EventBus.emit('LEGENDARY_HERO_ARRIVED',     { adventurer: rival })
+    spawned.push(rival)
+
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
+  // Reused by the speedrunner spawner — picks the entry hall north door
+  // tile when AISystem.pickSpawnTile rejects (e.g. a temporarily blocked
+  // path). Same logic as the regular spawn fallback.
+  _fallbackEntrySpawn() {
+    const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
+    if (!entry) return null
+    const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
+    const localX = cp ? cp.x : Math.floor(entry.width / 2)
+    return { x: entry.gridX + localX, y: entry.gridY }
   }
 
   // Bug fix — visible "no entrance" banner when pickSpawnTile fails. Without

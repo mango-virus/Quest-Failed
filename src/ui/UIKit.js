@@ -721,7 +721,9 @@ export function showToast(scene, message, opts = {}) {
   // top of the window) at full-screen sizes.
   const W  = scene.uiW ?? scene.scale?.width ?? 1280
   const tw = Math.min(W - 48, 520)
-  const th = 40
+  const PAD_X     = 18      // horizontal padding inside the toast box
+  const PAD_Y     = 10      // vertical padding inside the toast box
+  const MIN_TH    = 40      // minimum toast height (single-line messages)
   const tx = (W - tw) / 2
   const ty = 14
 
@@ -731,14 +733,20 @@ export function showToast(scene, message, opts = {}) {
     ? { fill: 0x041a08, border: 0x33bb55, glow: 0x117733, text: '#88ffaa', icon: '✓' }
     : /* error */ { fill: 0x1a0804, border: 0xee8833, glow: 0xaa4400, text: '#ffd090', icon: '⚠' }
 
+  // Build text first so we can measure its rendered height with word-wrap
+  // applied, then size the box around it. Without wordWrap, long messages
+  // (e.g. "EARTHQUAKE unlocked …") spill out the right edge.
+  const txt = scene.add.text(0, 0, `${scheme.icon}   ${message}`, {
+    fontSize: '13px', color: scheme.text,
+    fontFamily: 'monospace', fontStyle: 'bold',
+    align: 'center',
+    wordWrap: { width: tw - PAD_X * 2, useAdvancedWrap: true },
+  }).setOrigin(0.5).setDepth(501)
+  const th = Math.max(MIN_TH, Math.ceil(txt.height) + PAD_Y * 2)
+  txt.setPosition(tx + tw / 2, ty + th / 2)
+
   const bg  = scene.add.graphics().setDepth(500)
   glowPanel(bg, tx, ty, tw, th, { fill: scheme.fill, border: scheme.border, glow: scheme.glow })
-
-  const txt = scene.add.text(tx + tw / 2, ty + th / 2,
-    `${scheme.icon}   ${message}`, {
-      fontSize: '13px', color: scheme.text,
-      fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(501)
 
   const objs  = [bg, txt]
   const timer = scene.time.delayedCall(duration, () => {

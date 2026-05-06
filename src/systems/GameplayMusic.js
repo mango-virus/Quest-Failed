@@ -164,6 +164,11 @@ export const GameplayMusic = {
   // returns to the title screen so TitleMusic can take over again.
   stop() {
     _stopCurrent()
+    // Also kill any boss-fight track that's still active or mid-fade —
+    // without this, returning to MainMenu / ArchetypeSelect during a
+    // boss-fight tween would leave the boss music looping on top of the
+    // title music.
+    _stopBoss()
     _currentKey = null
     _bag = []
     _history = []
