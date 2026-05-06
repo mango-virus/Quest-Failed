@@ -555,25 +555,25 @@ export class MainMenu extends Phaser.Scene {
   // Click sends the player to the jam-1 lobby via Portal.sendPlayerThroughPortal,
   // forwarding their current ref so the lobby can show the back-link.
   _drawJamPortal() {
-    const cx = W - 60
-    const cy = 60
+    const cx = RIGHT_X + RIGHT_W / 2
+    const cy = 500
     const JAM_LOBBY_URL = 'https://callumhyoung.github.io/gamejam1-lobby/'
 
     const sprite = this.add.sprite(cx, cy, 'jam-portal', 0)
-      .setScale(2)
+      .setScale(4)
       .setDepth(25)
       .setInteractive({ useHandCursor: true })
     if (this.anims.exists('jam-portal-spin')) sprite.play('jam-portal-spin')
     this._objects.push(sprite)
 
-    const label = this.add.text(cx, cy + 38, 'JAM PORTAL', {
+    const label = this.add.text(cx, cy + 76, 'JAM PORTAL', {
       fontFamily: FONT_HEAD, fontSize: '8px',
       color: CRYPT.accent2Css, letterSpacing: 2,
     }).setOrigin(0.5, 0).setDepth(25)
     this._objects.push(label)
 
-    sprite.on('pointerover', () => { sprite.setScale(2.15); label.setColor('#ffffff') })
-    sprite.on('pointerout',  () => { sprite.setScale(2);    label.setColor(CRYPT.accent2Css) })
+    sprite.on('pointerover', () => { sprite.setScale(4.3); label.setColor('#ffffff') })
+    sprite.on('pointerout',  () => { sprite.setScale(4);   label.setColor(CRYPT.accent2Css) })
     sprite.on('pointerdown', () => {
       try {
         if (window.Portal?.sendPlayerThroughPortal) {
