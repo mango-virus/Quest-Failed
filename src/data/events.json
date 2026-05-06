@@ -44,7 +44,7 @@
   {
     "id": "the_tournament",
     "title": "THE TOURNAMENT",
-    "notif": "Three rivals enter — they hate each other more than they hate you.",
+    "notif": "Three rivals enter — each one hungry for the boss kill credit and ready to take it from anyone in the way.",
     "colorTheme": "warn",
     "minBossLevel": 3
   },

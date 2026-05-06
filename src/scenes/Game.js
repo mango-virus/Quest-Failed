@@ -51,6 +51,8 @@ import { EventSystem }        from '../systems/EventSystem.js'
 import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
+import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
+import { AbilityVfx }         from '../ui/AbilityVfx.js'
 import { BossPactVfx }        from '../ui/BossPactVfx.js'
 import { TutorialSystem }     from '../systems/TutorialSystem.js'
 
@@ -133,6 +135,7 @@ export class Game extends Phaser.Scene {
     this.eventSystem         = new EventSystem(this, this.gameState)
     this.combatFeedback      = new CombatFeedback(this, this.gameState)
     this.hitSparkSystem      = new HitSparkSystem(this, this.gameState)
+    this.rivalBossShowdown   = new RivalBossShowdown(this, this.gameState)
     this.bossPactVfx         = new BossPactVfx(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
     this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
@@ -191,6 +194,12 @@ export class Game extends Phaser.Scene {
     EventBus.on('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
     EventBus.on('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.on('ADVENTURER_FLED',      this._onAdvRemoved,   this)
+    // Loot Goblin Heist — red floater at the goblin's last position + toast
+    // banner so the player notices the gold drain.
+    EventBus.on('LOOT_GOBLIN_ESCAPED',  this._onLootGoblinEscaped, this)
+    // Blood Moon Eclipse — red wash overlay during the event day.
+    EventBus.on('DUNGEON_EVENT_BEGAN',  this._onDungeonEventBegan, this)
+    EventBus.on('DUNGEON_EVENT_ENDED',  this._onDungeonEventEnded, this)
     EventBus.on('ADVENTURERS_SPAWNED',  this._onAdvsSpawned,  this)
     EventBus.on('DAY_PHASE_ENDED',      this._onDayEnded,     this)
     // Day-cycle hooks for the entrance door — animate-open at day start,
@@ -241,6 +250,9 @@ export class Game extends Phaser.Scene {
     EventBus.off('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.off('ADVENTURER_FLED',      this._onAdvRemoved,   this)
     EventBus.off('ADVENTURERS_SPAWNED',  this._onAdvsSpawned,  this)
+    EventBus.off('LOOT_GOBLIN_ESCAPED',  this._onLootGoblinEscaped, this)
+    EventBus.off('DUNGEON_EVENT_BEGAN',  this._onDungeonEventBegan, this)
+    EventBus.off('DUNGEON_EVENT_ENDED',  this._onDungeonEventEnded, this)
     EventBus.off('DAY_PHASE_ENDED',      this._onDayEnded,     this)
     EventBus.off('DAY_PHASE_STARTED',    this._onDayStartedDoors, this)
     EventBus.off('DAY_PHASE_ENDED',      this._onDayEndedDoors,   this)
@@ -283,6 +295,7 @@ export class Game extends Phaser.Scene {
     this.eventSystem?.destroy()
     this.combatFeedback?.destroy()
     this.hitSparkSystem?.destroy()
+    this.rivalBossShowdown?.destroy()
     this.bossPactVfx?.destroy()
     // bossFightOverlay lives in HudScene now — that scene's shutdown handles it.
     this.roomBehaviorSystem?.destroy()
@@ -439,6 +452,93 @@ export class Game extends Phaser.Scene {
     // handing the camera over to follow mode.
     this.time.delayedCall(750, () => {
       if (!this._followId) this._setFollow(adventurers[0].instanceId)
+    })
+  }
+
+  // Loot Goblin escape feedback. Red "-Ng" floater at the goblin's last
+  // world position + a center-screen toast banner so the gold drain is
+  // unmissable. Without this the gold counter just silently drops.
+  _onLootGoblinEscaped({ adventurer, stolen }) {
+    if (!stolen || stolen <= 0) return
+    const wx = adventurer?.worldX
+    const wy = adventurer?.worldY
+    if (typeof wx === 'number' && typeof wy === 'number') {
+      AbilityVfx.floatingText(this, wx, wy - 18, `-${stolen}g`, {
+        color: '#ff5555', fontSize: '14px', durationMs: 900, driftY: -36, depth: 95,
+      })
+    }
+    const cam = this.cameras?.main
+    if (!cam) return
+    const cx = cam.midPoint.x
+    const cy = cam.midPoint.y - 80
+    const banner = this.add.text(cx, cy, `GOBLIN ESCAPED · -${stolen}g`, {
+      fontSize: '20px', color: '#ff7777', fontFamily: 'monospace', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(120).setScrollFactor(0)
+    this.tweens.add({
+      targets:  banner,
+      alpha:    { from: 1, to: 0 },
+      y:        cy - 40,
+      duration: 1400,
+      ease:     'Quad.easeOut',
+      onComplete: () => banner.destroy(),
+    })
+  }
+
+  // Per-event ambient overlays. Hooks DUNGEON_EVENT_BEGAN /
+  // DUNGEON_EVENT_ENDED so each event can paint its own scene-wide chrome
+  // (Blood Moon red wash, etc.) without each renderer needing its own
+  // event subscription. ENDED clears whatever was set.
+  _onDungeonEventBegan({ def }) {
+    if (def?.id === 'blood_moon_eclipse') {
+      this._buildBloodMoonOverlay()
+    }
+  }
+
+  _onDungeonEventEnded({ def }) {
+    if (def?.id === 'blood_moon_eclipse') {
+      this._destroyBloodMoonOverlay()
+    }
+  }
+
+  _buildBloodMoonOverlay() {
+    if (this._bloodMoonOverlay) return
+    const cam = this.cameras?.main
+    if (!cam) return
+    const w = cam.width, h = cam.height
+    const layer = this.add.graphics().setScrollFactor(0).setDepth(110).setAlpha(0)
+    // Soft red wash + brighter top-band vignette so the sky reads as
+    // bleeding without the world becoming unreadable.
+    layer.fillStyle(0xcc0033, 0.22)
+    layer.fillRect(0, 0, w, h)
+    layer.fillStyle(0x880022, 0.18)
+    layer.fillRect(0, 0, w, Math.round(h * 0.35))
+    this._bloodMoonOverlay = layer
+    this.tweens.add({ targets: layer, alpha: 1, duration: 650 })
+    // Resize listener so the overlay fills the canvas after window resize.
+    this._bloodMoonResize = () => {
+      if (!this._bloodMoonOverlay || !this.cameras?.main) return
+      const cm = this.cameras.main
+      this._bloodMoonOverlay.clear()
+      this._bloodMoonOverlay.fillStyle(0xcc0033, 0.22)
+      this._bloodMoonOverlay.fillRect(0, 0, cm.width, cm.height)
+      this._bloodMoonOverlay.fillStyle(0x880022, 0.18)
+      this._bloodMoonOverlay.fillRect(0, 0, cm.width, Math.round(cm.height * 0.35))
+    }
+    this.scale.on('resize', this._bloodMoonResize, this)
+  }
+
+  _destroyBloodMoonOverlay() {
+    if (this._bloodMoonResize) {
+      this.scale.off('resize', this._bloodMoonResize, this)
+      this._bloodMoonResize = null
+    }
+    const layer = this._bloodMoonOverlay
+    if (!layer) return
+    this._bloodMoonOverlay = null
+    this.tweens.add({
+      targets: layer, alpha: 0, duration: 400,
+      onComplete: () => layer.destroy(),
     })
   }
 

@@ -424,6 +424,25 @@ export class AdventurerRenderer {
         }
         s._lastVenomStacks = stacks
       }
+
+      // Dungeon event: Pestilence — show a skull glyph + sickly olive tint
+      // while the adv is Blighted. Skipped when venom stacks are also
+      // present so we don't double-tint (venom wins for color, blight
+      // still shows its own badge).
+      const blighted = !!adv._blighted
+      if (s._lastBlight !== blighted) {
+        if (s.blightBadge) s.blightBadge.setVisible(blighted)
+        // Apply olive tint only when the adv isn't already venom-tinted —
+        // venom's vivid green is more urgent and should win.
+        if (stacks === 0) {
+          const tint = blighted ? 0x88aa66 : 0xffffff
+          if (s.builder?.image?.setTint) {
+            if (blighted) s.builder.image.setTint(tint)
+            else          s.builder.image.clearTint()
+          }
+        }
+        s._lastBlight = blighted
+      }
     }
 
     // Clean up sprites whose adventurers are no longer active. Corpses (dead
@@ -654,6 +673,14 @@ export class AdventurerRenderer {
       stroke: '#053018', strokeThickness: 2,
     }).setOrigin(0, 0.5).setVisible(false)
 
+    // Dungeon event: Pestilence — small skull glyph above the HP bar
+    // when the adv has been Blighted. Distinct from the venom green to
+    // avoid visual collision with Lizardman venom stacks.
+    const blightBadge = this._scene.add.text(0, HP_BAR_Y - 12, '☠', {
+      fontSize: '10px', color: '#aacc88', fontFamily: 'monospace', fontStyle: 'bold',
+      stroke: '#1c2a14', strokeThickness: 2,
+    }).setOrigin(0.5).setVisible(false)
+
     // Phase 1b.8 — Wraith Fear Meter bar. Sits two pixels BELOW the HP bar
     // so the two read as separate gauges. Hidden until fear > 0.
     const FEAR_BAR_Y = HP_BAR_Y + 5
@@ -662,7 +689,7 @@ export class AdventurerRenderer {
     const fearFill = this._scene.add.rectangle(-RADIUS, FEAR_BAR_Y, RADIUS * 2, 2, 0x9b32d4, 1)
       .setOrigin(0, 0.5).setVisible(false)
 
-    const children = [ring, body, label, hpBg, hp, venomBadge, fearBg, fearFill]
+    const children = [ring, body, label, hpBg, hp, venomBadge, blightBadge, fearBg, fearFill]
     if (bubble) children.push(bubble, bubbleLabel)
     if (comboBadge) children.push(comboBadge)
     if (veteranBadge) children.push(veteranBadge)
@@ -676,7 +703,7 @@ export class AdventurerRenderer {
       EventBus.emit('ADVENTURER_CLICKED', { adventurer: adv })
     })
 
-    const sprite = { container: c, ring, body, label, hp, hpBg, bubble, bubbleLabel, comboBadge, veteranBadge, venomBadge, fearBg, fearFill, _lastVenomStacks: null, _lastFear: null }
+    const sprite = { container: c, ring, body, label, hp, hpBg, bubble, bubbleLabel, comboBadge, veteranBadge, venomBadge, blightBadge, fearBg, fearFill, _lastVenomStacks: null, _lastFear: null, _lastBlight: null }
 
     // Builder sprite — if the class def has a CharacterEditor-authored
     // idle animation, swap the placeholder body for the real sprite Image.
@@ -723,12 +750,39 @@ export class AdventurerRenderer {
   // and instantiate a Phaser sprite for it. Returns null if the manifest
   // isn't loaded or this class has no baked variants.
   _buildLpcSprite(adv) {
-    const variants = this._lpcVariantsByClass[adv.classId]
+    // Rival Dungeon boss: render with one of the boss-archetype skins
+    // instead of an adventurer LPC sheet, so they read as a peer-tier
+    // threat. Texture is loaded by Preload's BOSS_SKINS list; we just
+    // pick frame 0 of the idle sheet at boss-scale.
+    if (adv._rivalBossSpriteKey) {
+      const key = `${adv._rivalBossSpriteKey}-idle`
+      if (this._scene.textures.exists(key)) {
+        const image = this._scene.add.sprite(0, 0, key, 0)
+        const idleAnim = `${adv._rivalBossSpriteKey}-idle-down`
+        if (this._scene.anims.exists(idleAnim)) image.play(idleAnim)
+        // Scale 1.5 — between adv (~0.5) and player boss (2.0) so the
+        // rival reads as imposing without overpowering the player's boss
+        // visually during the showdown.
+        image.setScale(1.5)
+        return { image, textureKey: key, atkTextureKey: null, lastAnim: null }
+      }
+      // Texture missing — fall through to LPC fallback below.
+    }
+    // Event-only classes (tournament_rival_*, monster_invader, rival_boss_invader,
+    // loot_goblin) don't ship their own LPC bake — they declare a
+    // spriteSourceClassId on their adventurerClasses.json entry that points at
+    // an existing baked class to borrow art from. Falls through to the normal
+    // path when the class IS baked.
+    const def = this._defMap?.[adv.classId]
+    const sourceClassId =
+      (this._lpcVariantsByClass[adv.classId]?.length ? adv.classId : null) ??
+      def?.spriteSourceClassId ?? adv.classId
+    const variants = this._lpcVariantsByClass[sourceClassId]
     if (!variants || variants.length === 0) return null
     // Save-stable: assign once, persist on adv for save/load identity.
     if (!adv.spriteVariant) {
       const picked = variants[Math.floor(Math.random() * variants.length)]
-      adv.spriteVariant = `${adv.classId}/${picked}`
+      adv.spriteVariant = `${sourceClassId}/${picked}`
     }
     const [cls, vId] = adv.spriteVariant.split('/')
     const textureKey = `adv-${cls}-${vId}`

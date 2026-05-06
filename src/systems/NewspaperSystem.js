@@ -54,6 +54,8 @@ export class NewspaperSystem {
       ['ADVENTURER_RETURNED', p => log('returned',   p)],
       ['MECHANIC_ACTIVATED',  p => log('mech_on',    p)],
       ['BLOODBOUND_LOSSES',   p => log('bloodbound', p)],
+      ['DUNGEON_EVENT_BEGAN', p => log('event_began', p)],
+      ['DUNGEON_EVENT_ENDED', p => log('event_ended', p)],
     ]
     for (const [evt, fn] of handlers) {
       EventBus.on(evt, fn)
@@ -81,6 +83,7 @@ export class NewspaperSystem {
     const dlevels  = this._events.filter(e => e.kind === 'dlevel')
     const returned = this._events.filter(e => e.kind === 'returned')
     const vendet   = this._events.filter(e => e.kind === 'vendetta')
+    const eventBegan = this._events.find(e => e.kind === 'event_began')
 
     const headline = this._headline(deaths.length, flees.length, evolves.length, day)
     const body = []
@@ -113,6 +116,12 @@ export class NewspaperSystem {
     if (vendet.length > 0) {
       body.push('')
       body.push(`A sibling of a previous victim has filed a workplace incident report and brought a sword.`)
+    }
+
+    if (eventBegan) {
+      const name = eventBegan.payload?.def?.name ?? 'A strange omen'
+      body.push('')
+      body.push(`Special bulletin: today was ${name}. Filed under "things the Boss didn't ask for."`)
     }
 
     if (minionDeaths.length > 0) {

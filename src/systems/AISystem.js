@@ -19,6 +19,12 @@ const INVESTIGATE_NOISE_CHANCE     = 0.4    // per-adv roll on noise event
 const INVESTIGATE_NOISE_TIMEOUT_MS = 5000   // give up if not arrived in time
 const REGROUP_DISTANCE             = 8      // tiles from party centroid
 const REGROUP_CHANCE               = 0.30   // roll on _pickNextGoal
+// Wall-clock cooldown after a REGROUP completes before another can fire.
+// At 8x time scale advs reach goals fast enough that the 30% REGROUP roll
+// retriggers immediately — they ping back to a centroid that has shifted
+// forward — producing visible "running back and forth." Cooldown is on
+// scene.time.now (wall clock) so it doesn't compress at high speed.
+const REGROUP_COOLDOWN_MS          = 2500
 const GLOAT_CHANCE                 = 0.25   // roll on COMBAT_KILL
 const GLOAT_DURATION_MS            = 1500   // freeze in place this long
 const SCOUT_CHANCE                 = 0.15   // roll on _pickNextGoal
@@ -2272,6 +2278,7 @@ export class AISystem {
     }
     // Phase: alive AI — caught up to the party, resume normal goals.
     if (adv.goal.type === 'REGROUP_AT_PARTY') {
+      adv._regroupCooldownUntil = (this._scene?.time?.now ?? 0) + REGROUP_COOLDOWN_MS
       adv.goal = this._pickNextGoal(adv)
       adv.path = null
       return
@@ -2496,7 +2503,8 @@ export class AISystem {
     // Phase: alive AI — if the adv has wandered far from their party,
     // ~30% chance to detour back instead of picking a normal goal.
     const centroid = this._partyCentroid(adv)
-    if (centroid && Math.random() < REGROUP_CHANCE) {
+    const regroupReady = (this._scene?.time?.now ?? 0) >= (adv._regroupCooldownUntil ?? 0)
+    if (regroupReady && centroid && Math.random() < REGROUP_CHANCE) {
       const d = Math.hypot(adv.tileX - centroid.x, adv.tileY - centroid.y)
       if (d > REGROUP_DISTANCE) {
         const goal = { type: 'REGROUP_AT_PARTY' }
@@ -2725,9 +2733,11 @@ export class AISystem {
     // hefty gold pile (5× normal) since the whole point of the event is
     // racing the pack before they escape with the treasury.
     if (adv.classId === 'loot_goblin') goldMul *= 5
-    // Dungeon event: Rival Dungeon — slaying the rival boss is a major
-    // payoff (8× gold). XP windfall handled below alongside speedrunner.
-    if (adv._rivalBoss) goldMul *= 8
+    // Dungeon event: Rival Dungeon — rewards on rival-boss kill are
+    // owned by RivalBossShowdown (+200 gold + 1 boss level, applied via
+    // RESOURCES_AWARDED + BOSS_LEVELED_UP). Suppress the standard kill
+    // gold here so rewards don't double-count.
+    if (adv._rivalBoss) goldMul = 0
     const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
@@ -2749,11 +2759,9 @@ export class AISystem {
     if (adv._speedrunner) {
       for (let i = 0; i < 9; i++) this._awardBossXp()
     }
-    // Dungeon event: Rival Dungeon — same windfall scale as speedrunner;
-    // killing another dungeon's boss is a peer-tier achievement.
-    if (adv._rivalBoss) {
-      for (let i = 0; i < 9; i++) this._awardBossXp()
-    }
+    // Rival Dungeon — rewards (gold + level) handled by RivalBossShowdown's
+    // ADVENTURER_DIED listener so the standard XP path here stays the
+    // base 10 XP per kill, with the +1 level applied separately.
 
     EventBus.emit('ADVENTURER_DIED', {
       adventurer: adv,

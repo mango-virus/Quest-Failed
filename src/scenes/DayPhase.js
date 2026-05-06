@@ -584,9 +584,9 @@ export class DayPhase extends Phaser.Scene {
       if (ts) classes = [ts]
     }
     // Dungeon event: Cosplay Contest — entire wave uses the dedicated
-    // cosplay_adventurer class so the LPC variants (wings/tails/horns
-    // accessories) read instantly as "in costume". Same unlock-gate
-    // bypass as Twitch Con.
+    // cosplay_adventurer class. Costumes come from the existing
+    // cosplay_adventurer LPC variant pool (50 baked variants) — no
+    // separate accessory overlay. Same unlock-gate bypass as Twitch Con.
     if ((this._gameState._eventFlags ?? {}).cosplayContestActive) {
       const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
       if (cos) classes = [cos]
@@ -625,23 +625,11 @@ export class DayPhase extends Phaser.Scene {
     if ((this._gameState._eventFlags ?? {}).guildRaidActive) baseCount *= 2
     // Dungeon event: Negotiation Day — outcome was decided during the
     // prior night via the SHOW_CONFIRM modal. PAY = no adventurers today
-    // (free day). REFUSE = today is normal but tomorrow's wave is +50%
-    // (handled by the guildPenaltyTomorrow flag below, which the player
-    // sets via the modal's onCancel and consumes on the FOLLOWING day).
+    // (free day). REFUSE = today's wave is +50%. Both apply to the same
+    // day the modal called "tomorrow", so the player's framing matches.
     const eventFlags = this._gameState._eventFlags ?? {}
-    if (eventFlags.negotiationOutcome === 'pay') return []
-    // The +50% kicks in the day AFTER refusal — we set guildPenaltyTomorrow
-    // here at refusal-day end (not on refuse itself) so it doesn't double-
-    // count today; see the bottom-of-spawn block below.
-    if (eventFlags.guildPenaltyTomorrow) {
-      baseCount = Math.round(baseCount * 1.5)
-      eventFlags.guildPenaltyTomorrow = false
-    }
-    // If today's negotiation was refused, queue tomorrow's penalty BEFORE
-    // EventSystem clears the outcome flag at DAY_PHASE_ENDED.
-    if (eventFlags.negotiationOutcome === 'refuse') {
-      eventFlags.guildPenaltyTomorrow = true
-    }
+    if (eventFlags.negotiationOutcome === 'pay')    return []
+    if (eventFlags.negotiationOutcome === 'refuse') baseCount = Math.round(baseCount * 1.5)
     // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
     // count from yesterday's death-clip-going-viral roll.
     const subBonus = this._gameState.player?.subscriberRevengeBonus ?? 0
@@ -997,6 +985,13 @@ export class DayPhase extends Phaser.Scene {
     rival._rivalBoss      = true
     rival.isLegendary     = true   // pulses the LEGENDARY_HERO_ARRIVED chrome
     rival.partyId         = partyId
+    // Pick a random boss-archetype sprite for the rival (exclude the
+    // player's own archetype so the visual contrast reads). Save-stable.
+    const playerArchetype = this._gameState.player?.bossArchetypeId
+    const ARCHETYPES = ['beholder','demon','gnoll','golem','lich','lizardman','myconid','orc','vampire','wraith']
+    const candidates = ARCHETYPES.filter(a => a !== playerArchetype)
+    rival._rivalBossSpriteKey = candidates[Math.floor(Math.random() * candidates.length)]
+    rival.name = `${rival._rivalBossSpriteKey.charAt(0).toUpperCase() + rival._rivalBossSpriteKey.slice(1)} Pretender`
     this._gameState.adventurers.active.push(rival)
     aiSystem.pickInitialGoal(rival)
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: rival })

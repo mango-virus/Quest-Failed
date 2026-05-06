@@ -190,13 +190,14 @@ export class EventSystem {
         break
       case 'dungeon_pestilence':
         flags.pestilenceActive = true
-        // Halve every live minion's HP at the start of the day. Newly
-        // placed minions (Lich necromancy, Demon hellgate spawns, etc.)
-        // get the same treatment via the MINION_PLACED listener.
+        // Cap every live minion's HP at 50% of max — sickness weakens,
+        // never heals. A wounded minion sitting at 10/100 stays at 10;
+        // a healthy 100/100 drops to 50.
         for (const m of this._gameState.minions ?? []) {
           if (m.aiState === 'dead') continue
           if (m.resources?.maxHp > 0) {
-            m.resources.hp = Math.max(1, Math.round(m.resources.maxHp * 0.5))
+            const cap = Math.max(1, Math.round(m.resources.maxHp * 0.5))
+            m.resources.hp = Math.min(m.resources.hp, cap)
           }
         }
         break
