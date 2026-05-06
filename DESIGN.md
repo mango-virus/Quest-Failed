@@ -270,9 +270,9 @@ Top-level rules:
 
 | Room | Cap | Unlock | Effect |
 |---|---|---|---|
-| **Corridor** | scales 2 → 20 (+2/level) | L1, free | No effect. Connects rooms. |
-| **Barracks** | scales 1 → 5 | L1, free | Each Barracks adds **+5 roster minion slots**. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without one, no roster minions. |
-| **Guard Post** | unlimited | L1 | Minions placed here leave to hunt adventurers in any **directly door-connected** room. They return after the kill. |
+| **Corridor** | scales 2 → 20 (+2/level) | L1, first 2 free / 10g after | No effect. Connects rooms. |
+| **Barracks** | scales 1 → 9 (one extra per boss level from L3) | L1, first 1 free / 30g after | Each Barracks adds **+10 roster minion slots**. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without one, no roster minions. |
+| **Guard Post** | scales 1 → 3 (extras at L4 and L7) | L1, first 1 free / 25g after | Minions placed here leave to hunt adventurers in any **directly door-connected** room. They return after the kill. |
 
 #### L2 unlocks
 

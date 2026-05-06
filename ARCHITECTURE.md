@@ -11,14 +11,28 @@ Top-down reverse roguelike. Player is the dungeon Boss/Architect. NPC adventurer
 
 ---
 
-## Removed systems (cleanup 2026-05-02)
+## Removed systems
 
-Several systems were retired in a focused cleanup pass. Older sections of this document still describe them; treat any mention of these as historical, not current.
+Several systems were retired in cleanup passes. Older sections of this document still describe them; treat any mention of these as historical, not current.
 
+**2026-05-02 cleanup:**
 - **Soul Essence currency** → renamed to **gold**. Field is `gameState.player.gold`; balance constants are `STARTING_GOLD`, `GOLD_PER_KILL`, `DEV_INFINITE_GOLD`, `MINION_RESPAWN_COST_GOLD`. Archetype modifier renamed `goldGainMultiplier`. Mechanic constant `MECHANIC_TAXATION_GOLD_PENALTY`.
 - **Daily upkeep** → removed entirely. `EssenceSystem.js` is gone. `upkeepCost` fields stripped from JSON data and entity factories. Placement cost is the only economy pressure.
 - **Reputation system** → removed entirely. `ReputationSystem.js` is gone. Difficulty scales purely off boss level. Legendary heroes still appear at a flat 5% per spawn in `DayPhase._spawnAdventurers`. Guild raids dropped.
 - **Loot pickup mechanic** → removed entirely. `LootSystem.js`, `LootRenderer.js`, `LootGreedSystem.js`, `LootItem.js`, and `MimicRenderer.js` are gone. `gameState.loot.dungeon` is gone. Adventurer kills drop gold directly. Treasury rooms still pay a flat daily gold stipend; chests / hidden keys / vendetta-on-equip / vulture-loot-grab / mimic chest disguise / Greed Trap / `LOOT_PICKED_UP` / `LOOT_SCAVENGED` / `TREASURY_CHEST_*` / `MIMIC_REVEAL_*` events are all gone. Mimics in the Mimic Vault now spawn as plain hostile garrison minions.
+
+**2026-05-04 cleanup:**
+- **Sleep goal** → removed. Adventurers no longer rest mid-dungeon. `ADVENTURER_SLEEPING` event is dead. The barracks regen-when-empty cosmetic is unrelated.
+
+**2026-05-05 cleanup:**
+- **Dark Power currency** → retired. Was the long-term unlock currency; the design collapsed to a single Gold currency. `gameState.player.darkPower` field still loads from old saves but is ignored. Boss-archetype evolution-tree `cost` fields, ability `powerCostToUnlock`, and `startingDarkPower` are no-ops. Currency-migration to Gold is partial — some unlock buttons may display stale costs until that pass lands. `DARK_POWER_*` events are gone.
+
+**Replacement layer (added since 2026-05-02):**
+- **Item entities** — Door Lock + Key Chest (forced-pair placement, locked doors block until keyed), Soul-Bound Beacon + Healing Fountain (forced-pair, room buff with adventurer-tradeoff), Treasure Chest (10 tiers — pay daily gold, may be looted by tempted advs), Phylactery Heart (Lich-only, spare life). All defined in `src/data/items.json`.
+- **Knowledge tier system** — FULL / PARTIAL / RUMOR / UNKNOWN classification on every pool entry, scaling pathfinder cost weight by tier. See `KnowledgeSystem.tierForEntry`.
+- **Tutorial pipeline** — see `TutorialSystem` below.
+- **Welcome intro popup + Boss Level-Up popup + Pact Detail popup** — added to HudScene's popup roster.
+- **Coin-burst VFX** on adv kill (CoinBurstRenderer) and combat hit-feedback (CombatFeedback).
 
 ---
 
@@ -478,9 +492,9 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
     damageType: "physical",
     abilities: []
   },
-  upkeepCost: 3,                  // Soul Essence per day
-  essenceCostToPlace: 10,
-  powerCostToUnlock: 0,
+  goldCost: 10,                   // gold to place (was essenceCostToPlace; Soul Essence retired 2026-05-02)
+  // upkeepCost / essenceCostToPlace fields retired with EssenceSystem.
+  // powerCostToUnlock retired with Dark Power 2026-05-05; ignored if present.
   unlockLevel: 1,
   evolutionPaths: [
     // Conditions checked against KillEntry[] by EvolutionSystem
@@ -515,10 +529,9 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
   damageType: "physical",
   baseDamage: 25,
   tags: ["behavioral", "anti-greedy"],
-  essenceCostToPlace: 8,
-  powerCostToUnlock: 0,
+  goldCost: 8,                          // gold to place (was essenceCostToPlace)
+  // powerCostToUnlock + repairCost retired with their respective currencies.
   unlockLevel: 1,
-  repairCost: 4,                        // Soul Essence cost for Sapper to repair
   isVisible: false,                     // adventurers can't see it until triggered
   description: "Only triggers when an adventurer picks up loot.",
   flavorText: "The real treasure was the hubris all along."
@@ -532,7 +545,7 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
   name: "The Lich",
   description: "Undead synergies, soul economy. Weak to clerics.",
   modifiers: {
-    essenceGainMultiplier: 1.2,
+    goldGainMultiplier: 1.2,            // (was essenceGainMultiplier; Soul Essence retired)
     minionXpMultiplier: 1.0,
     availableRoomTags: [],              // no restrictions beyond defaults
     blockedRoomTags: [],
@@ -540,14 +553,15 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
     roomCostMultiplier: 1.0
   },
   startingRooms: ["boss_chamber", "starter_corridor", "starter_barracks", "starter_crypt"],
-  startingEssence: 50,                  // overrides balance.js default if set
-  startingDarkPower: 0,                 // (RETIRED 2026-05-05) Dark Power removed; ignored
+  startingGold: 30,                     // overrides Balance.STARTING_GOLD if set
+  // startingEssence / startingDarkPower fields retired (Soul Essence 2026-05-02,
+  // Dark Power 2026-05-05). Stale data in saves is ignored on load.
   baseFightStats: { hp: 200, attack: 15, defense: 10, abilities: ["soul_drain"] },
   evolutionTree: [
     {
       id: "raise_dead",
       name: "Raise Dead",
-      cost: 30,                         // (was Dark Power; retired 2026-05-05 — needs conversion to Gold or removal)
+      cost: 30,                         // gold (was Dark Power; currency migration in progress)
       description: "Summon undead adds during the boss fight.",
       requiresLevel: 3,
       statDeltas: {},
@@ -566,41 +580,70 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
 ### EventBus (`src/systems/EventBus.js`)
 Central pub/sub. All systems and UI components communicate through it — never call each other directly. This keeps systems decoupled and makes the newspaper, combat log, auto-pause, and replay ghost trivially easy (they're just subscribers).
 
-Key events:
+Key events (the catalog has grown well past this snapshot — search
+`EventBus.emit(` across `src/` for the live list. Retired events are
+kept here with their successors noted so old code-comments still grep):
+
 ```
 GAME_STATE_LOADED
-DAY_PHASE_STARTED / ENDED
-NIGHT_PHASE_STARTED / ENDED
+DAY_PHASE_STARTED / DAY_PHASE_BEGAN / DAY_PHASE_ENDED
+NIGHT_PHASE_STARTED / NIGHT_PHASE_ENDED
 ADVENTURER_ENTERED_DUNGEON { adventurer }
+ADVENTURERS_SPAWNED { adventurers }
 ADVENTURER_ROOM_CHANGED { adventurer, fromRoomId, toRoomId }
 ADVENTURER_DIED { adventurer, killerId, killerName, roomId, damageType }
-ADVENTURER_FLED { adventurer, knowledgeSnapshot }
-ADVENTURER_SLEEPING { adventurer, roomId }
-TRAP_TRIGGERED { trap, adventurer, damage }
+ADVENTURER_FLED { adventurer, reason }
+TRAP_TRIGGERED { trap, adventurer, damage, roomId }
 TRAP_SPOTTED { trap, adventurer }          ← adventurer detected trap without triggering
 COMBAT_HIT { sourceId, targetId, damage, damageType, isCritical }
-COMBAT_KILL { sourceId, targetId, damageType, method }   ← feeds EvolutionSystem
+COMBAT_KILL { sourceId, targetId, damageType, method }
+CHARMED_ATTACK { attackerId, victimId, dmg }   ← succubus-charmed adv hits former ally
 MINION_LEVELED_UP { minion }
-MINION_EVOLVED { minion, evolutionId }
+MINION_EVOLVED { minion, fromIdx, toIdx, isFinal }
 MINION_DIED { minion, killerId }
-MINION_BOUNTY_POSTED { minion }
+MINION_PLACED { minion }
+MINION_OBSERVED { advId, minionId, roomId }
 ROOM_PLACED { room }
 ROOM_REMOVED { room }
-ROOM_DEACTIVATED { room }                  ← shut off by essence shortage
+ROOM_OBSERVED { adventurer, roomId, firstVisit }
+LOCK_PLACED / LOCKS_CHANGED / KEY_CHEST_OPENED / KEY_CHEST_REMOVED
+TREASURE_CHEST_OPENED / TREASURE_CHEST_REMOVED / TREASURE_PAYOUT
 MECHANIC_ACTIVATED { mechanic }
 MECHANIC_DEACTIVATED { mechanic }
-BOSS_FIGHT_STARTED { adventurers }
-BOSS_FIGHT_ENDED { result: "boss_won" | "adventurers_won" }
+PACT_SEALED { mechanicId, rarity }
+DARK_PACT_SEALED { mechanicId }
+BOSS_FIGHT_INCOMING / BOSS_FIGHT_STARTED / BOSS_FIGHT_RESOLVED
 BOSS_DEFEATED { bossDefeatedCount }
-ESSENCE_WARNING { currentEssence, shortfall }
-ESSENCE_CRITICAL                           ← rooms shutting off
-KNOWLEDGE_SHARED { fromId, toId, entries }
-GEAR_DROPPED { item, roomId, droppedBy }
-GEAR_EQUIPPED_TO_MINION { item, minionId }
-VENDETTA_CREATED { adventurerId, itemInstanceId, minionId }
+BOSS_LEVELED_UP { newLevel }
+BOSS_LEVEL_UP_DISMISSED
+KNOWLEDGE_SURVIVOR_SAVED / KNOWLEDGE_PARTY_WIPED
 DUNGEON_LEVELED_UP { newLevel }
 GRID_EXPANDED { newWidth, newHeight }
 PERSONALITY_COMBO_ACTIVATED { combo, partyId }
+PLACEMENT_BLOCKED { reason }              ← drives the resource-warning hint pipeline
+RESOURCES_AWARDED { gold, reason, worldX?, worldY? }
+SHOW_TUTORIAL { title, body, onClose }
+SHOW_POST_WAVE_SUMMARY / SHOW_DARK_PACT / SHOW_BOSS_LEVEL_UP / SHOW_PACT_DETAIL
+INTRO_DISMISSED { tutorialEnabled }
+
+# Per-archetype events (full list in BossArchetypeSystem.js):
+BEHOLDER_PETRIFY_FIRED / BEHOLDER_ANTIMAGIC_ROOMS_SET
+GOLEM_LIVING_ARCH_TICK / GOLEM_EARTHQUAKE_*
+LICH_PHYLACTERY_* / PHYLACTERY_DESTROYED
+LIZARDMAN_VENOM_APPLIED / LIZARDMAN_CAMO_REVEAL
+MYCONID_SPORE_DAY_BEGAN / MYCONID_CORPSE_*
+DEMON_SACRIFICE_* / DEMON_HELLGATE_SPAWNED
+VAMPIRE_CHARM_MARKED / VAMPIRE_THRALL_* / VAMPIRE_BLOOD_TAX_*
+GNOLL_HUNTERS_PACK_REFILLED / GNOLL_BLOODLUST_STACK
+WRAITH_FEAR_CHANGED / WRAITH_FEAR_FLEE / WRAITH_FRIENDLY_FIRE / WRAITH_HAUNT_*
+SUCCUBUS_TRANSFORM_OUT / SUCCUBUS_TRANSFORM_IN / SUCCUBUS_BAT_FLYING_OUT /
+  SUCCUBUS_BAT_FLYING_BACK / SUCCUBUS_CHARM_APPLIED / SUCCUBUS_FLIGHT_ENDED
+
+# Retired (do not emit, kept for grep):
+ADVENTURER_SLEEPING                       ← Sleep goal removed 2026-05-04
+ROOM_DEACTIVATED / ESSENCE_WARNING / ESSENCE_CRITICAL  ← Soul Essence retired 2026-05-02
+GEAR_DROPPED / GEAR_EQUIPPED_TO_MINION / VENDETTA_CREATED  ← LootSystem retired 2026-05-02
+KNOWLEDGE_SHARED                          ← replaced by sharedPool rebuild on ADVENTURER_FLED
 ```
 
 ### SaveSystem (`src/systems/SaveSystem.js`)
@@ -703,12 +746,11 @@ Manages `AdventurerKnowledge` per adventurer. Knowledge is per-entity (rooms, tr
 ### EvolutionSystem (`src/systems/EvolutionSystem.js`)
 Subscribes to `COMBAT_KILL`. For each kill event, checks the killer minion's kill history against all evolution paths in its MinionTypeDefinition. When a condition is met, applies stat deltas, grants new ability, updates minion name, emits `MINION_EVOLVED`.
 
-### EssenceSystem (`src/systems/EssenceSystem.js`)
-- Runs on night phase start: calculate total daily upkeep cost of all active rooms/traps/minions
-- Deduct from Soul Essence
-- If Soul Essence goes negative: deactivate rooms (most recently placed first) until balanced
-- Emit `ESSENCE_WARNING` before day phase if projected shortfall
-- Emit `ROOM_DEACTIVATED` for each room shut off
+### ~~EssenceSystem~~ (RETIRED)
+Soul Essence + nightly upkeep was cut. The two-currency model collapsed
+to a single Gold currency; rooms / traps / minions have no recurring
+cost. No system file exists for this anymore — kept as a historical
+reference only. `ESSENCE_WARNING` and `ROOM_DEACTIVATED` events are gone.
 
 ### DungeonMechanicSystem (`src/systems/DungeonMechanicSystem.js`)
 - `activateMechanic(mechanicId, gameState)` — calls `onActivate` handler, adds to `activeMechanics`
@@ -716,11 +758,14 @@ Subscribes to `COMBAT_KILL`. For each kill event, checks the killer minion's kil
 - `getOfferedMechanics(gameState)` → array of mechanic IDs the player is offered this end-of-day (filtered by archetype, dungeon level, exclusivity)
 - `tickAll(gameState)` — calls `onDailyTick` for all active mechanics
 
-### LootSystem (`src/systems/LootSystem.js`)
-- `generateLoot(sourceId, dungeonLevel)` → creates LootItem with appropriate stats
-- `dropLoot(item, roomId, droppedBy)` → moves item to dungeon floor, adds provenance entry, emits `GEAR_DROPPED`
-- `equipToMinion(itemInstanceId, minionId)` → transfers ownership, adds provenance entry, checks for vendetta triggers, emits `GEAR_EQUIPPED_TO_MINION`
-- `createVendetta(adventurerId, itemInstanceId)` → flags item, sets vendetta hunter, emits `VENDETTA_CREATED`
+### ~~LootSystem~~ (RETIRED 2026-05-02)
+Full gear / equip / vendetta-tracking pipeline was cut. Adventurers
+now drop simple loot piles via AISystem._dropLootPile (consumed by
+LOOT_CORPSE goal for a small permanent stat buff) — no equipment, no
+provenance, no cross-run vendetta on items. Vendetta hunters still
+exist but target a specific minion id directly via SEEK_VENDETTA goal.
+GEAR_DROPPED / GEAR_EQUIPPED_TO_MINION / VENDETTA_CREATED events are
+gone.
 
 ### BossSystem (`src/systems/BossSystem.js`)
 - `resolveBossFight(adventurers, bossState)` → simulates the fight, returns frame-by-frame event log for BossFightScene to animate
@@ -729,6 +774,51 @@ Subscribes to `COMBAT_KILL`. For each kill event, checks the killer minion's kil
 
 ### NewspaperSystem (`src/systems/NewspaperSystem.js`)
 Subscribes to all events during a day. On end-of-day, compiles a `DayRecord` and generates newspaper text from templates + event data. Tone is dryly comedic.
+
+### BossArchetypeSystem (`src/systems/BossArchetypeSystem.js`)
+Owns the per-archetype headline mechanics for all 11 monster bosses (Orc Loot the Fallen + Warband, Golem Living Architecture + Earthquake, Beholder Petrify Gaze + Anti-Magic Aura, Lich Phylactery + Necromancy, Lizardman Camouflage + Venom, Myconid Spore Network + Corpse Bloom, Demon Sacrifice + Hellgate, Vampire Charm + Blood Tax, Gnoll Hunters Pack + Bloodlust, Wraith Fear Meter + Haunting, Succubus Bat-Form Seduction). All hooks gate on `gameState.player.bossArchetypeId` so a single system hosts every archetype rule. Subscribes to most combat / phase / mutation events; ticks per frame from Game.update.
+
+### TutorialSystem (`src/systems/TutorialSystem.js`)
+One-shot how-to-play hint pipeline. Owns 24 tutorial entries across 4 categories (phase intros, mechanic intros, boss-archetype hooks, resource-warning hints). On a gate event, enqueues the matching hint if `meta.tutorialEnabled` and not yet `meta.seenTutorials[id]`; emits `SHOW_TUTORIAL` for HudScene to route to TutorialPopup. Drains the queue one popup at a time with a 450ms inter-popup gap. Holds emission until `meta.introSeen` flips so hints don't fire over the welcome popup.
+
+### CombatFeedback (`src/systems/CombatFeedback.js`)
+Hit-feedback layer: damage-number floaters, knockback, hit-flash tints. Subscribes to COMBAT_HIT events.
+
+### EventSystem (`src/systems/EventSystem.js`)
+Distinct from EventBus — runs the daily dungeon-event roller (Loot Goblin Heist, Cartographer's Convention, Tournament, Rival Dungeon, Negotiation Day, Twitch Con, Cosplay Contest, Dark Deal, Pestilence, etc.). Sets `gameState._eventFlags.<flag>Active` for the day. DayPhase reads these flags to swap out the normal spawn for the event's bespoke wave.
+
+### MinionEvolutionSystem (`src/systems/MinionEvolutionSystem.js`)
+Chain-based evolution alongside the legacy EvolutionSystem. Each minion's chain (e.g. `skeleton1 → skeleton2 → skeleton3`) is XP-driven via `minionEvolutions.json`. Emits `MINION_EVOLVED` with `{ minion, fromIdx, toIdx, isFinal }`.
+
+### RunHistorySystem (`src/systems/RunHistorySystem.js`)
+Passive aggregator that subscribes to PACT_SEALED / RESOURCES_AWARDED / MINION_DIED / ADVENTURER_DIED and folds counts into `gameState.run.totals` + `gameState.history.pacts`. No gameplay effect — drives Boss Overview "Active Pacts" + GameOver leaderboard submit.
+
+### InquisitorSystem (`src/systems/InquisitorSystem.js`)
+Inquisitor-personality dispel ability. Inquisitors dispel one active dungeon mechanic per encounter via DungeonMechanicSystem.deactivate.
+
+### EmoteSystem (`src/systems/EmoteSystem.js`)
+Speech-bubble + emote glyph dispatcher for adventurers (chat lines on goal change, gloating after kills, fear cues, etc.). Subscribes to SAY_* / COMBAT_KILL / WRAITH_FEAR_CHANGED / etc.
+
+### ClassAbilitySystem (`src/systems/ClassAbilitySystem.js`)
+Per-class active abilities (Cleric heal-ally, Necromancer raise, Bard Song of Speed, Twitch Streamer trail, etc.). Cooldown-driven; per-day budgets; called from AISystem when the adv's ability conditions are met.
+
+### SfxSystem (`src/systems/SfxSystem.js`)
+Routes EventBus events → sound-effect playback. Owns the audio mixer.
+
+### Music systems (`src/systems/TitleMusic.js`, `src/systems/GameplayMusic.js`)
+TitleMusic loops on MainMenu / ArchetypeSelect; GameplayMusic shuffles a 5-track playlist while Game scene is active.
+
+### PauseManager (`src/systems/PauseManager.js`)
+Esc-driven pause overlay manager. Pauses every gameplay scene (NightPhase / DayPhase / HudScene) so timers + AI freeze behind the panel.
+
+### PlayerProfile (`src/systems/PlayerProfile.js`)
+Persistent cross-run profile (player name, max boss level reached). Drives ArchetypeSelect's unlock gates (e.g. Succubus requires lifetime max bossLevel ≥ 4).
+
+### Theme + Decor managers (`src/ui/ThemeManager.js`, `src/ui/DecorManager.js`)
+Async-loaded room tile + decoration manifests. Optional — game runs in procedural mode if manifests are missing.
+
+### Renderers (in `src/ui/`)
+DungeonRenderer, AdventurerRenderer, MinionRenderer, BossRenderer, TrapRenderer, LootPileRenderer, KeyChestRenderer, LockRenderer, BeaconRenderer, FountainRenderer, TreasureChestRenderer, DarkDealDemonRenderer, PhylacteryRenderer, FungalCorpseRenderer, SuccubusBatRenderer, CoinBurstRenderer, SunderedFloorRenderer, CartographerOverlay, ChatBubbles, ReplayGhostRenderer, MinionInspector, KnowledgeOverlay, WantedPoster, EventBanner, BossArchetypeUI. Each subscribes to its relevant events + reads its slice of gameState; updated per-frame from Game.update / HudScene.update.
 
 ---
 
