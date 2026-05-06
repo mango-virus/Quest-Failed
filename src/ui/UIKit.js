@@ -21,7 +21,9 @@ export function uiSfxHover(scene) {
 export function uiSfxClick(scene) {
   if (SfxVolume.isMuted()) return
   if (!scene.cache?.audio?.exists?.('sfx-btn-click')) return
-  scene.sound.play('sfx-btn-click', { volume: Math.min(1, 0.88 * SfxVolume.getVolume()) })
+  // Click is the loudest UI sfx — saturates at master ≥ 0.71 so it always
+  // reads as a clear tactile beat at the default 0.8 master volume.
+  scene.sound.play('sfx-btn-click', { volume: Math.min(1, 1.4 * SfxVolume.getVolume()) })
 }
 
 // ── Master palette ────────────────────────────────────────────────────────────

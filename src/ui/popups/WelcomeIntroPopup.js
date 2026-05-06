@@ -4,7 +4,7 @@
 // inline how-to-play hint popups will fire at their event gates throughout
 // the run.
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelButton } from '../UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelButton, uiSfxClick } from '../UIKit.js'
 import { makePopupFrame } from './PopupFrame.js'
 import { EventBus } from '../../systems/EventBus.js'
 
@@ -133,7 +133,7 @@ export class WelcomeIntroPopup {
     hit.on('pointerup', () => {
       this._tutorialChecked = !this._tutorialChecked
       drawCheck()
-      try { this._scene.sound.play('sfx-btn-click', { volume: 0.35 }) } catch {}
+      try { uiSfxClick(this._scene) } catch {}
     })
     addChild(hit)
 

@@ -15,7 +15,7 @@
 //   - Footer buttons
 //   - Climax VFX overlay (splatter dots + PACT SEALED stamp)
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelButton } from '../UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelButton, uiSfxClick } from '../UIKit.js'
 import { makePopupFrame } from './PopupFrame.js'
 import { EventBus } from '../../systems/EventBus.js'
 import { RARITIES, renderPactCard } from './PactCard.js'
@@ -430,7 +430,7 @@ export class DarkPactPopup {
       // becomes the new selection.
       this._selectedIdx = (this._selectedIdx === idx) ? -1 : idx
       this._refreshSelectionVisuals()
-      try { this._scene.sound.play('sfx-btn-click', { volume: 0.4 }) } catch {}
+      try { uiSfxClick(this._scene) } catch {}
     })
     addChild(hit)
 

@@ -23,7 +23,7 @@ import { createGameState } from '../state/GameState.js'
 import { SaveSystem }      from '../systems/SaveSystem.js'
 import { TitleMusic }      from '../systems/TitleMusic.js'
 import { SfxVolume }       from '../systems/SfxVolume.js'
-import { applyUiCamera, pixelLock, FONT_HEAD } from '../ui/UIKit.js'
+import { applyUiCamera, pixelLock, FONT_HEAD, uiSfxHover, uiSfxClick } from '../ui/UIKit.js'
 import { UIEditor }        from '../ui/UIEditor.js'
 import { PlayerProfile }   from '../systems/PlayerProfile.js'
 
@@ -362,6 +362,10 @@ export class ArchetypeSelect extends Phaser.Scene {
       .setDepth(portrait.depth ?? 0)
       .setInteractive({ useHandCursor: true })
     hit.on('pointerover', () => {
+      // Tactile hover chime — same as every other UI button. The helper
+      // throttles to one chime per 80 ms so dragging across slots
+      // doesn't machine-gun.
+      uiSfxHover(this)
       if (isLocked) {
         // Anchor tooltip to the portrait's CURRENT position (post-editor),
         // not the original slot centre — succubus' editor override moves
@@ -383,6 +387,7 @@ export class ArchetypeSelect extends Phaser.Scene {
       // Locked archetypes can't become the run's selected boss. Tooltip
       // already explains the gate; ignoring the click is enough feedback.
       if (isLocked) return
+      uiSfxClick(this)
       this._lockedId = arch.id
       this._select(arch.id)
     })

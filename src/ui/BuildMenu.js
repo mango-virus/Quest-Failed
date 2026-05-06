@@ -7,7 +7,7 @@
 //
 // Visible only during night phase — HudScene calls setVisible(false) on day.
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs, pixelDiamond, pixelLock, uiSfxHover } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs, pixelDiamond, pixelLock, uiSfxHover, uiSfxClick } from './UIKit.js'
 import { EventBus }          from '../systems/EventBus.js'
 import { Balance }           from '../config/balance.js'
 import { SfxVolume }         from '../systems/SfxVolume.js'
@@ -573,8 +573,11 @@ export class BuildMenu {
       this._tooltip?.hide()
     })
     hit.on('pointerup',   () => {
-      if (!SfxVolume.isMuted() && this._scene.cache?.audio?.exists?.('sfx-build-menu-press'))
-        this._scene.sound.play('sfx-build-menu-press', { volume: Math.min(1, 0.88 * SfxVolume.getVolume()) })
+      // Use the standard UI click chime so construction-menu presses
+      // are at the same volume as every other button. The dedicated
+      // build_menu_press.wav was naturally quieter than press_button.wav
+      // and no multiplier could close the gap (Phaser caps at 1.0).
+      uiSfxClick(this._scene)
       this._setSelected(key)
       EventBus.emit('BUILD_SELECT', { def, kind })
     })
