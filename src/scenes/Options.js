@@ -35,6 +35,7 @@ export class Options extends Phaser.Scene {
   }
 
   create() {
+    TitleMusic.ensurePlaying(this)
     this._setupCamera()
     this.time.delayedCall(0, () => this._setupCamera())
     this.scale.on('resize', this._setupCamera, this)

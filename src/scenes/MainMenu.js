@@ -49,11 +49,12 @@ export class MainMenu extends Phaser.Scene {
   }
 
   create() {
-    // Title-screen music — restart on every entry to MainMenu (matches the
-    // pre-overhaul behavior). Forward flow into ArchetypeSelect / Game still
-    // carries music seamlessly via those scenes' own audio handling.
+    // Title-screen music — keep the loop running continuously across
+    // MainMenu / ArchetypeSelect transitions (ensurePlaying is a no-op
+    // when already playing, and starts fresh after GameOver / editor
+    // teardowns that stopped it).
     GameplayMusic.stop()
-    TitleMusic.restart(this)
+    TitleMusic.ensurePlaying(this)
 
     this._setupCamera()
     this.time.delayedCall(0, () => this._setupCamera())
@@ -430,7 +431,7 @@ export class MainMenu extends Phaser.Scene {
         label: 'LEADERBOARD',
         sub:   'Global hall of evil',
         glyph: '❖',
-        action: () => { TitleMusic.stop(); this.scene.start('Leaderboard') },
+        action: () => this.scene.start('Leaderboard'),
       },
       // Dev-only entries — visible only when the player has set their
       // name to "LJ" via the NameEntryPanel (case-insensitive).
@@ -612,18 +613,15 @@ export class MainMenu extends Phaser.Scene {
       new NameEntryPanel(this, {
         onConfirm: (name) => {
           PlayerProfile.setName(name)
-          TitleMusic.stop()
           this.scene.start('ArchetypeSelect')
         },
       })
     } else {
-      TitleMusic.stop()
       this.scene.start('ArchetypeSelect')
     }
   }
 
   _actOptions() {
-    TitleMusic.stop()
     this.scene.start('Options')
   }
 

@@ -9,6 +9,7 @@ import {
   pixelPanel, pixelButton, applyUiCamera,
 } from '../ui/UIKit.js'
 import { Leaderboard as LeaderboardAPI } from '../systems/Leaderboard.js'
+import { TitleMusic } from '../systems/TitleMusic.js'
 
 const W = 1280
 const H = 720
@@ -23,6 +24,7 @@ export class Leaderboard extends Phaser.Scene {
   }
 
   create() {
+    TitleMusic.ensurePlaying(this)
     this._setupCamera()
     this.scale.on('resize', this._setupCamera, this)
     this.events.once('shutdown', () => {
