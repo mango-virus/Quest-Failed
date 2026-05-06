@@ -394,4 +394,15 @@ export const Balance = {
   MECHANIC_RARITY_WEIGHT_RARE:      20,
   MECHANIC_RARITY_WEIGHT_EPIC:      12,
   MECHANIC_RARITY_WEIGHT_LEGENDARY:  7,
+
+  // --- VFX feature flags ---
+  // Master toggle for the per-hit damage-type spark animation. Flip to
+  // false to fully disable the HitSparkSystem (hit-spark sprites stop
+  // spawning; nothing else changes).
+  VFX_HIT_SPARKS_ENABLED:           true,
+  // Hit sparks render at this scale (sprite is 64×64 native, the dungeon
+  // uses 32×32 tiles, so 0.5 makes the spark fill exactly one tile).
+  VFX_HIT_SPARK_SCALE:              0.6,
+  // Frame rate for the 14-frame hit-spark animation. ~28 fps = ~500 ms.
+  VFX_HIT_SPARK_FPS:                28,
 }

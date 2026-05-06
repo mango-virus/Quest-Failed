@@ -1,4 +1,5 @@
 import { allEmoteVariants, emoteKey } from '../systems/EmoteSystem.js'
+import { Balance } from '../config/balance.js'
 
 // Boss skin table. Folder name on disk must equal `id`; texture keys are
 // `${id}-<state>`. Adding a new boss skin = drop the 6 sheets into
@@ -490,6 +491,12 @@ export class Preload extends Phaser.Scene {
     // 96×64 sheet, 3 cols × 2 rows, each frame 32×32. 6-frame looping portal.
     this.load.spritesheet('jam-portal', 'assets/sprites/jam_portal.png', { frameWidth: 32, frameHeight: 32 })
 
+    // ── VFX: Hit Spark (damage-type-coded combat impact) ─────────────────
+    // 896×576 sheet, 14 cols × 9 rows, each frame 64×64. One row per color
+    // variant (mapped to damage types in HitSparkSystem). Plays once on
+    // every COMBAT_HIT and destroys.
+    this.load.spritesheet('vfx-hit-spark', 'assets/sprites/vfx/hit-spark.png', { frameWidth: 64, frameHeight: 64 })
+
     // ── Items: lock / key / key chest ────────────────────────────────────
     // Padlock + key are 16×16 single-frame icons. Key chest is a 29×61
     // sheet — two frames (closed on top, open on bottom) of 29×30 with a
@@ -541,6 +548,7 @@ export class Preload extends Phaser.Scene {
     this._registerEmoteAnimations()
     this._registerDemonPortalAnimation()
     this._registerJamPortalAnimation()
+    this._registerHitSparkAnimations()
     this._registerSoulBeaconAnimation()
     this._registerDarkDealDemonAnimations()
     this._registerSuccubusSpecialAnimations()
@@ -788,6 +796,31 @@ export class Preload extends Phaser.Scene {
       frameRate: 8,
       repeat:    -1,
     })
+  }
+
+  // 9 one-shot hit-spark animations, one per color row of the 14×9 sheet.
+  // HitSparkSystem picks the right key by damage type and plays it on
+  // COMBAT_HIT. Frame range = 14 frames per row.
+  _registerHitSparkAnimations() {
+    if (!this.textures.exists('vfx-hit-spark')) return
+    const tex = this.textures.get('vfx-hit-spark')
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    const COLS = 14
+    const ROWS = 9
+    const fps = (typeof Balance !== 'undefined' && Balance.VFX_HIT_SPARK_FPS) || 28
+    for (let row = 0; row < ROWS; row++) {
+      const key = `vfx-hit-spark-${row}`
+      if (this.anims.exists(key)) continue
+      this.anims.create({
+        key,
+        frames:    this.anims.generateFrameNumbers('vfx-hit-spark', {
+          start: row * COLS,
+          end:   row * COLS + COLS - 1,
+        }),
+        frameRate: fps,
+        repeat:    0,
+      })
+    }
   }
 
   _registerSoulBeaconAnimation() {
