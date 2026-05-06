@@ -395,6 +395,15 @@ export const Balance = {
   MECHANIC_RARITY_WEIGHT_EPIC:      12,
   MECHANIC_RARITY_WEIGHT_LEGENDARY:  7,
 
+  // --- AI failsafes ---
+  // If an adventurer has not changed tile for this long (in ms) and is
+  // not in a freeze-by-design state (petrified, AT_BOSS, spawn/leave
+  // fade, dead), kill them. Prevents day-end hangs from genuine pins
+  // (collision bug, unreachable goal, etc.). The soft stuck detector at
+  // 1500 ms triggers a path replan first; the hard kill only fires if
+  // that didn't free them.
+  STUCK_FAILSAFE_MS:                5000,
+
   // --- VFX feature flags ---
   // Master toggle for the per-hit damage-type spark animation. Flip to
   // false to fully disable the HitSparkSystem (hit-spark sprites stop

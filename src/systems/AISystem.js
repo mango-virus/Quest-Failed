@@ -898,6 +898,35 @@ export class AISystem {
       }
     }
 
+    // Hard stuck failsafe — if the soft detectors above have not freed
+    // the adv after 5s of zero tile change, kill them. Prevents day-end
+    // hangs from genuine pins (collision bug, unreachable goal, etc.).
+    // Same exemptions as the soft detector + petrify (Beholder Gaze
+    // legitimately freezes the adv for 2s).
+    const _hardStuckNow = this._scene?.time?.now ?? 0
+    const hardStuckExempt = stuckExempt ||
+      (adv._petrifiedUntil != null && _hardStuckNow < adv._petrifiedUntil)
+    if (!hardStuckExempt) {
+      if (adv._hardStuckTileX !== adv.tileX || adv._hardStuckTileY !== adv.tileY) {
+        adv._hardStuckTileX = adv.tileX
+        adv._hardStuckTileY = adv.tileY
+        adv._hardStuckMs = 0
+      } else {
+        adv._hardStuckMs = (adv._hardStuckMs ?? 0) + delta
+        if (adv._hardStuckMs > Balance.STUCK_FAILSAFE_MS) {
+          // eslint-disable-next-line no-console
+          console.log('[stuck-failsafe] adv', adv.instanceId, 'pinned at',
+            adv.tileX, adv.tileY, 'for >',
+            Balance.STUCK_FAILSAFE_MS, 'ms — auto-kill')
+          this._kill(adv, idx, 'stuck_failsafe')
+          return
+        }
+      }
+    } else {
+      // Reset while exempt so the timer starts fresh once exemption clears.
+      adv._hardStuckMs = 0
+    }
+
     // Track whether the adventurer has ever been outside the entry hall.
     // Without this, advs that get a FLEE goal immediately on spawn (e.g.
     // their first pathfind failed and we converted to FLEE) would auto-
