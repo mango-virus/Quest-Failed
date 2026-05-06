@@ -434,8 +434,8 @@ export class MainMenu extends Phaser.Scene {
         action: () => this.scene.start('Leaderboard'),
       },
       // Dev-only entries — visible only when the player has set their
-      // name to "LJ" via the NameEntryPanel (case-insensitive).
-      ...(PlayerProfile.getName().trim().toUpperCase() === 'LJ' ? [
+      // name to "Mango" via the NameEntryPanel (case-insensitive).
+      ...(PlayerProfile.getName().trim().toUpperCase() === 'MANGO' ? [
         {
           label: 'ROOM EDITOR',
           sub:   'Edit room layouts',
