@@ -80,7 +80,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 50,
+    "goldCost": 30,
     "unlockLevel": 2,
     "maxPerDungeon": 1,
     "tier": 1,
@@ -100,7 +100,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 130,
+    "goldCost": 78,
     "unlockLevel": 3,
     "maxPerDungeon": 1,
     "tier": 2,
@@ -120,7 +120,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 210,
+    "goldCost": 126,
     "unlockLevel": 4,
     "maxPerDungeon": 1,
     "tier": 3,
@@ -140,7 +140,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 290,
+    "goldCost": 174,
     "unlockLevel": 5,
     "maxPerDungeon": 1,
     "tier": 4,
@@ -160,7 +160,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 370,
+    "goldCost": 222,
     "unlockLevel": 6,
     "maxPerDungeon": 1,
     "tier": 5,
@@ -180,7 +180,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 450,
+    "goldCost": 270,
     "unlockLevel": 7,
     "maxPerDungeon": 1,
     "tier": 6,
@@ -200,7 +200,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 530,
+    "goldCost": 318,
     "unlockLevel": 8,
     "maxPerDungeon": 1,
     "tier": 7,
@@ -220,7 +220,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 610,
+    "goldCost": 366,
     "unlockLevel": 9,
     "maxPerDungeon": 1,
     "tier": 8,
@@ -240,7 +240,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 690,
+    "goldCost": 414,
     "unlockLevel": 10,
     "maxPerDungeon": 1,
     "tier": 9,
@@ -260,7 +260,7 @@
       "treasure",
       "chest"
     ],
-    "goldCost": 800,
+    "goldCost": 480,
     "unlockLevel": 11,
     "maxPerDungeon": 1,
     "tier": 10,
