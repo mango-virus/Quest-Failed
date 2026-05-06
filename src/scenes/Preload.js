@@ -355,9 +355,6 @@ export class Preload extends Phaser.Scene {
     this.load.image('ui-coin',       'assets/ui/coin.png')
     this.load.image('ui-gold-coins', 'assets/ui/gold-coins.png')
     this.load.image('ui-coin-bag',   'assets/ui/coin-bag.png')
-    // Day/night sun + moon icons for the ActionBar phase indicator.
-    this.load.image('ui-day',        'assets/ui/day.png')
-    this.load.image('ui-night',      'assets/ui/night.png')
 
     // Per-boss portrait images for the COMPENDIUM grid slots. Each is a 22×22
     // pixel-art bust. Bosses without a portrait file (lich) fall back to the
