@@ -777,6 +777,13 @@ export class AISystem {
     if (MinionAbilities.isRooted(adv, _now) || MinionAbilities.isStaggered(adv, _now)) {
       return
     }
+    // Sundered Floor pact stun — adv that just dropped into a sundered tile
+    // is briefly frozen. _sunderedStunUntil is stamped by the pact handler
+    // in DungeonMechanicSystem on tile entry; same freeze-in-place semantics
+    // as root/stagger.
+    if (adv._sunderedStunUntil != null && _now < adv._sunderedStunUntil) {
+      return
+    }
 
     // Hall of Madness — clear stale frenzy state up front (target dead /
     // left the room / adv left the Hall). When this returns true the goal

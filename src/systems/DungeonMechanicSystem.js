@@ -628,8 +628,16 @@ function _buildHandlerRegistry() {
 
     // ── Tower Tax ────────────────────────────────────────────────────────
     // Pure flag — CombatSystem reads attacker._towerTaxFirstShotConsumed.
-    towerTax_activate: ({ gameState }) => {
+    // The "first attack of the day" promise needs an explicit daily reset
+    // so returning adventurers (KNOWLEDGE_RETURN_CHANCE) miss again on
+    // their second visit.
+    towerTax_activate: ({ subscribe, gameState }) => {
       gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), towerTax: true }
+      subscribe('DAY_PHASE_STARTED', () => {
+        for (const adv of (gameState.adventurers?.active ?? [])) {
+          adv._towerTaxFirstShotConsumed = false
+        }
+      })
     },
     towerTax_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.towerTax = false
@@ -1360,9 +1368,9 @@ function _buildHandlerRegistry() {
 
     // ── Pact of the Brand ────────────────────────────────────────────────
     // Tracks which trap is blessed. TrapSystem reads trap._brandBlessed
-    // to apply 5× damage, then destroys the trap on fire. The night-phase
-    // selection UI is a follow-up task — for now, automatic random pick
-    // at NIGHT_PHASE_STARTED so the mechanic is testable.
+    // to apply 5× damage, then destroys the trap on fire. Player selects
+    // the trap during night phase via right-click (NightPhase emits
+    // BRAND_TRAP_SELECTED).
     pactOfTheBrand_activate: ({ subscribe, gameState }) => {
       gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), pactOfTheBrand: true }
       subscribe('NIGHT_PHASE_STARTED', () => {

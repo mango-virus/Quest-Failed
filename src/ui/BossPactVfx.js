@@ -393,28 +393,48 @@ export class BossPactVfx {
   }
 
   // ── 7. Doppelgangers ─────────────────────────────────────────────
-  // Three semi-transparent ghost copies appear flanking the boss for
-  // the duration. They orbit slowly. Faded purple tint.
+  // Three boss-sprite illusions appear flanking the boss for the
+  // duration. They orbit slowly and play the same idle animation as
+  // the real boss, so the player genuinely cannot tell which is real.
+  // Falls back to graphics circles if the boss spritesheet isn't
+  // loaded (shouldn't happen in normal play).
   _onDoppelSpawned({ x, y, durationMs }) {
     const COUNT = 3
     const RADIUS = TS * 1.4
+    const spriteKey = this._scene.bossRenderer?._spriteKey
+    const idleAnim  = spriteKey ? `${spriteKey}-idle-down` : null
+    const hasSprite = !!(spriteKey && this._scene.textures?.exists?.(spriteKey + '-idle'))
     const copies = []
     for (let i = 0; i < COUNT; i++) {
-      const ghost = this._scene.add.graphics().setDepth(38).setAlpha(0)
-      ghost.fillStyle(0x6633bb, 0.6)
-      ghost.fillCircle(0, 0, 10)
-      ghost.lineStyle(2, 0x9966ff, 0.9)
-      ghost.strokeCircle(0, 0, 12)
-      ghost.setPosition(x, y)
+      let ghost
+      if (hasSprite) {
+        ghost = this._scene.add.sprite(x, y, `${spriteKey}-idle`, 0)
+          .setScale(2.0)               // matches BOSS_SPRITE_SCALE in BossRenderer
+          .setAlpha(0)
+          .setDepth(38)
+          .setTint(0xb088ff)           // soft purple wash so illusions read as ghostly
+        if (idleAnim && this._scene.anims?.exists?.(idleAnim)) {
+          ghost.play(idleAnim)
+        }
+      } else {
+        // Fallback — original purple-orb look in case the boss sheet
+        // didn't load.
+        ghost = this._scene.add.graphics().setDepth(38).setAlpha(0)
+        ghost.fillStyle(0x6633bb, 0.6)
+        ghost.fillCircle(0, 0, 10)
+        ghost.lineStyle(2, 0x9966ff, 0.9)
+        ghost.strokeCircle(0, 0, 12)
+        ghost.setPosition(x, y)
+      }
       copies.push({ ghost, phaseOff: (Math.PI * 2 * i) / COUNT })
       this._scene.tweens.add({
-        targets: ghost, alpha: 0.85, duration: 200,
+        targets: ghost, alpha: hasSprite ? 0.6 : 0.85, duration: 200,
       })
     }
     const start = this._scene.time?.now ?? 0
     const tick = () => {
       const now = this._scene.time?.now ?? 0
-      const t = (now - start) / 800   // full orbit ~800ms
+      const t = (now - start) / 1200   // slower orbit so the player has time to read all 4 figures
       const boss = this._gameState.boss
       const cx = boss?.worldX ?? x
       const cy = boss?.worldY ?? y
