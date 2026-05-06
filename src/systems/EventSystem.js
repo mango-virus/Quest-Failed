@@ -1,8 +1,9 @@
 // EventSystem — schedules + dispatches Dungeon Events.
 //
-// Cadence (locked 2026-05-05): one event every 6–8 days. Same event cannot
-// fire back-to-back. Hard events (legendary_speedrunner, the_tournament,
-// rival_dungeon) gated to bossLevel >= 3.
+// Cadence: one event every 5 days. Same event cannot fire back-to-back
+// (lastEventId filter in _eligibleEvents). Hard events
+// (legendary_speedrunner, the_tournament, rival_dungeon) gated to
+// bossLevel >= 3.
 //
 // Lifecycle:
 //   NIGHT_PHASE_BEGAN   — if today is `nextEventDay`, pick eligible event,
@@ -26,8 +27,10 @@
 
 import { EventBus } from './EventBus.js'
 
-const MIN_GAP = 6
-const MAX_GAP = 8
+// Fixed 5-day cadence — every event fires exactly 5 days after the prior
+// one resolved. Set MIN_GAP === MAX_GAP for a deterministic schedule.
+const MIN_GAP = 5
+const MAX_GAP = 5
 
 export class EventSystem {
   constructor(scene, gameState) {
@@ -159,7 +162,10 @@ export class EventSystem {
     this._clearEffect(def)
     ev.lastEventId  = id
     ev.scheduledId  = null
-    ev.nextEventDay = (this._gameState.meta?.dayNumber ?? 1) + 1 + this._rollGap()
+    // Gap is measured from the day the previous event fired — so with
+    // MIN_GAP/MAX_GAP both = 5, an event on day N schedules the next on
+    // day N+5 (no extra +1 offset).
+    ev.nextEventDay = (this._gameState.meta?.dayNumber ?? 1) + this._rollGap()
     EventBus.emit('DUNGEON_EVENT_ENDED', { def })
   }
 
