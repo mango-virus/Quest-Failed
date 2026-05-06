@@ -5,7 +5,7 @@
 // rebuilds itself on minion-leveled events so it stays current.
 
 import { EventBus } from '../systems/EventBus.js'
-import { PALETTE } from './UIKit.js'
+import { PALETTE, glowPanel } from './UIKit.js'
 
 const PANEL_W = 280
 const PANEL_H = 360

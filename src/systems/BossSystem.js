@@ -58,8 +58,9 @@ export class BossSystem {
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
-    this._fxGraphics?.destroy()
-    this._fxGraphics = null
+    this._fxGraphics?.destroy();   this._fxGraphics  = null
+    this._arenaGlowG?.destroy();   this._arenaGlowG  = null
+    this._decalsG?.destroy();      this._decalsG     = null
   }
 
   // Persisted state. Boss HP refreshes between fights — only deathsRemaining
@@ -236,6 +237,19 @@ export class BossSystem {
       this._fxGraphics = this._scene.add.graphics().setDepth(2.7)
       this._fxParticles = []
     }
+    // Tier 3 — boss-room atmosphere layers.
+    //   _arenaGlowG : redrawn each tick while a fight is active. Tints the
+    //                 boss-room floor red, intensifying as boss HP drops
+    //                 below 50 % then 25 %. Sits above the floor (depth 1)
+    //                 but below entities (~7).
+    //   _decalsG    : persistent corpse splatters stamped during fights.
+    //                 Cleared on NIGHT_PHASE_STARTED via _wire's listener.
+    if (!this._arenaGlowG) {
+      this._arenaGlowG = this._scene.add.graphics().setDepth(1.7).setBlendMode(Phaser.BlendModes.ADD)
+    }
+    if (!this._decalsG) {
+      this._decalsG = this._scene.add.graphics().setDepth(1.55)
+    }
     const room = this._bossRoom
       ?? (this._bossRoom = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber'))
     if (!room) return
@@ -249,6 +263,41 @@ export class BossSystem {
       this._tickFightCombat(dt)
     }
     this._tickFightFx(dt)
+    this._tickArenaGlow()
+  }
+
+  // Boss-room floor glow — draws an additive red rectangle over the
+  // boss room, with alpha proportional to "how hurt the boss is".
+  // 100 % HP → invisible. 50 % HP → faint red. 25 % HP → strong red.
+  // Drawn fresh each fight-tick and cleared when no fight is active.
+  _tickArenaGlow() {
+    const g = this._arenaGlowG
+    if (!g) return
+    g.clear()
+    if (!this._fighting || this._fightEnded) return
+    const room = this._bossRoom
+    if (!room) return
+    const boss = this._gameState.boss
+    if (!boss) return
+    const hpFrac = Math.max(0, Math.min(1, (boss.hp ?? 0) / Math.max(1, boss.maxHp ?? 1)))
+    // Empirical curve: alpha 0 at full HP, ramps faster as HP drops.
+    // (1 - hpFrac)² gives a soft start and a strong finish.
+    const intensity = (1 - hpFrac) * (1 - hpFrac)
+    if (intensity <= 0.01) return
+    // Subtle slow pulse below 25 % so the room feels alive at low HP.
+    const pulse = hpFrac < 0.25
+      ? 0.85 + 0.15 * Math.sin((this._scene.time?.now ?? 0) / 220)
+      : 1
+    const alpha = Math.min(0.55, intensity * 0.55 * pulse)
+    const TS = Balance.TILE_SIZE
+    const WT = Balance.WALL_THICKNESS
+    // Inset by wall thickness so the glow sits inside the masonry, not on top.
+    const x = (room.gridX + WT) * TS
+    const y = (room.gridY + WT) * TS
+    const w = (room.width  - WT * 2) * TS
+    const h = (room.height - WT * 2) * TS
+    g.fillStyle(0xff2211, alpha)
+    g.fillRect(x, y, w, h)
   }
 
   // Reconcile our internal fight-state map with the live AT_BOSS adventurer
@@ -917,9 +966,9 @@ export class BossSystem {
 
   _emitFx(p) {
     p.t = 0
-    if      (p.kind === 'strike')      p.dur = 0.18
-    else if (p.kind === 'wind_up')     p.dur = 0.30
-    else if (p.kind === 'shockwave')   p.dur = 0.40
+    if      (p.kind === 'strike')      p.dur = 0.35
+    else if (p.kind === 'wind_up')     p.dur = 0.40
+    else if (p.kind === 'shockwave')   p.dur = 0.50
     else if (p.kind === 'wall_hit')    p.dur = 0.25
     else if (p.kind === 'lunge_trail') p.dur = 0.30
     else if (p.kind === 'cast')        p.dur = 0.28
@@ -927,6 +976,45 @@ export class BossSystem {
     else if (p.kind === 'taunt')       p.dur = 0.55
     else                                p.dur = 0.20
     this._fxParticles.push(p)
+
+    // Tier 2 cinematic feedback — physical screen shake on heavy hits so
+    // the boss room feels weighty. Shockwave (slam AOE) gives a moderate
+    // shake; the killing-blow case lives in _endFight where we know the
+    // boss actually died.
+    if (p.kind === 'shockwave') {
+      this._scene.cameras?.main?.shake?.(200, 0.005)
+    } else if (p.kind === 'wall_hit') {
+      this._scene.cameras?.main?.shake?.(120, 0.003)
+    }
+  }
+
+  // Float a rising damage number from world (worldX, worldY). Each hit
+  // in _runOneRound calls this so the player can see numerical feedback
+  // for every swing instead of guessing from the HP bar movement.
+  //   color : CSS color string for the number text
+  //   crit  : true → bigger, longer-lived, exclamation-prefixed
+  _floatDamage(worldX, worldY, value, opts = {}) {
+    if (!this._scene?.add?.text) return
+    if (!value || value <= 0) return
+    const isCrit   = !!opts.crit
+    const color    = opts.color ?? '#ff7777'
+    const fontSize = isCrit ? '18px' : '13px'
+    const label    = `${isCrit ? '!' : ''}${Math.round(value)}`
+    const jitterX  = (Math.random() - 0.5) * 14
+    const t = this._scene.add.text(worldX + jitterX, worldY - 12, label, {
+      fontFamily: 'monospace', fontSize, color,
+      fontStyle:  isCrit ? 'bold' : 'normal',
+      stroke:     '#000000',
+      strokeThickness: isCrit ? 4 : 3,
+    }).setOrigin(0.5, 1).setDepth(11)
+    this._scene.tweens.add({
+      targets:  t,
+      y:        t.y - (isCrit ? 44 : 30),
+      alpha:    0,
+      duration: isCrit ? 950 : 720,
+      ease:     'Cubic.easeOut',
+      onComplete: () => t.destroy(),
+    })
   }
 
   _tickFightFx(dt) {
@@ -942,19 +1030,43 @@ export class BossSystem {
 
       switch (p.kind) {
         case 'strike': {
-          // Small yellow burst with white outer ring at impact point
-          const r = 4 + phase * 8
-          g.fillStyle(0xffee66, alpha * 0.85)
+          // Bright multi-layer impact: white core, colored ring, and a
+          // 4-spike cross flash. Color biases slightly red→yellow over
+          // the lifetime so the spark feels like it's cooling off.
+          const tintColor = p.color ?? 0xffe066
+          const r  = 5 + phase * 14
+          g.fillStyle(0xffffff, alpha * 0.95)
+          g.fillCircle(p.x, p.y, r * 0.55)
+          g.fillStyle(tintColor, alpha * 0.85)
           g.fillCircle(p.x, p.y, r)
+          g.lineStyle(2, 0xffffff, alpha * 0.9)
+          g.strokeCircle(p.x, p.y, r * 1.4)
+          // Cross/star spikes — 4 thin lines radiating out, lengthening
+          // as the spark expands. Gives the burst a "hit" punch instead
+          // of a bland circle.
+          const spikeLen = r * 2.2
           g.lineStyle(2, 0xffffff, alpha)
-          g.strokeCircle(p.x, p.y, r * 1.25)
+          for (let i = 0; i < 4; i++) {
+            const a  = (Math.PI / 2) * i + Math.PI / 4
+            const x2 = p.x + Math.cos(a) * spikeLen
+            const y2 = p.y + Math.sin(a) * spikeLen
+            g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(x2, y2); g.strokePath()
+          }
           break
         }
         case 'wind_up': {
-          // Red telegraph ring contracting toward boss
-          const r = (1.6 - phase * 0.5) * TS
-          g.lineStyle(3, 0xff3322, alpha * 0.9)
+          // Big red telegraph: filled translucent disc + bold contracting
+          // ring. Reads at a glance as "DANGER ZONE — slam incoming." The
+          // disc fades faster than the ring so the ring is the last
+          // visible warning before the slam fires.
+          const baseR = 2.3 * TS
+          const r     = (baseR) * (1 - phase * 0.4)
+          g.fillStyle(0xff2211, alpha * 0.22)
+          g.fillCircle(p.x, p.y, r)
+          g.lineStyle(4, 0xff3322, alpha)
           g.strokeCircle(p.x, p.y, r)
+          g.lineStyle(2, 0xffaa66, alpha * 0.7)
+          g.strokeCircle(p.x, p.y, r * 0.6)
           break
         }
         case 'shockwave': {
@@ -1035,17 +1147,48 @@ export class BossSystem {
     const onIncoming = (payload) => this._onIncoming(payload)
     // Clear death-pose freeze whenever the world resets around the
     // boss — next adv party arriving (BOSS_FIGHT_INCOMING) replaces
-    // the dead-pose with the prefight banner; night phase resets
-    // run-state for the next day's party.
+    // the dead-pose with the prefight banner; the post-wave summary
+    // popup is the natural release point at end of day; night phase
+    // resets run-state defensively for the next day's party.
     const onClearPose = () => { this._deathPoseUntil = 0 }
-    EventBus.on('BOSS_FIGHT_INCOMING', onIncoming)
-    EventBus.on('BOSS_FIGHT_INCOMING', onClearPose)
-    EventBus.on('NIGHT_PHASE_STARTED', onClearPose)
+    // Tier 3 — blood decals get cleared at night so they don't bleed
+    // (heh) into the next day's build phase.
+    const onClearDecals = () => { this._decalsG?.clear?.() }
+    // Stamp a blood splatter wherever an adventurer dies during a boss
+    // fight. Outside fights this is a no-op.
+    const onAdvDied = ({ adventurer }) => {
+      if (!this._fighting || this._fightEnded) return
+      if (!adventurer || !this._decalsG) return
+      this._stampBloodDecal(adventurer.worldX, adventurer.worldY)
+    }
+    EventBus.on('BOSS_FIGHT_INCOMING',    onIncoming)
+    EventBus.on('BOSS_FIGHT_INCOMING',    onClearPose)
+    EventBus.on('SHOW_POST_WAVE_SUMMARY', onClearPose)
+    EventBus.on('NIGHT_PHASE_STARTED',    onClearPose)
+    EventBus.on('NIGHT_PHASE_STARTED',    onClearDecals)
+    EventBus.on('ADVENTURER_DIED',        onAdvDied)
     this._listeners = [
-      ['BOSS_FIGHT_INCOMING', onIncoming],
-      ['BOSS_FIGHT_INCOMING', onClearPose],
-      ['NIGHT_PHASE_STARTED', onClearPose],
+      ['BOSS_FIGHT_INCOMING',    onIncoming],
+      ['BOSS_FIGHT_INCOMING',    onClearPose],
+      ['SHOW_POST_WAVE_SUMMARY', onClearPose],
+      ['NIGHT_PHASE_STARTED',    onClearPose],
+      ['NIGHT_PHASE_STARTED',    onClearDecals],
+      ['ADVENTURER_DIED',        onAdvDied],
     ]
+  }
+
+  // Stamp a small blood splatter at (worldX, worldY) onto the persistent
+  // decals graphics layer. A few overlapping irregular blobs in dark red
+  // give it a hand-painted feel without needing an actual texture.
+  _stampBloodDecal(worldX, worldY) {
+    const g = this._decalsG
+    if (!g) return
+    // Three jittered blobs — main pool + two splatter droplets.
+    g.fillStyle(0x6a0a08, 0.85)
+    g.fillCircle(worldX, worldY + 4, 6 + Math.random() * 2)
+    g.fillStyle(0x8a1410, 0.7)
+    g.fillCircle(worldX - 5 + Math.random() * 10, worldY + 6, 3 + Math.random() * 2)
+    g.fillCircle(worldX + 4 + Math.random() * 6, worldY + 2, 2 + Math.random() * 2)
   }
 
   // ── Public API ───────────────────────────────────────────────────────────
@@ -1198,6 +1341,13 @@ export class BossSystem {
 
   _onIncoming({ adventurer }) {
     if (this._fighting) return
+    // Defensive: never start a fight on a dead-posed boss. AISystem already
+    // redirects arriving advs to FLEE when boss.hp <= 0, but if anything
+    // else fires BOSS_FIGHT_INCOMING during the death-pose window, ignore
+    // it so no fight can begin until the post-wave summary clears the pose.
+    const boss = this._gameState.boss
+    const now  = this._scene.time?.now ?? 0
+    if (boss && (boss.hp <= 0 || this._deathPoseUntil > now)) return
     this._fighting       = true
     this._combatStarted  = false
     this._fightEnded     = false
@@ -1208,7 +1358,6 @@ export class BossSystem {
 
     // Refresh boss HP up front; pre-fight ability effects happen here so they
     // are visible during the prefight banner / opening dance.
-    const boss = this._gameState.boss
     if (boss) {
       boss.hp = boss.maxHp
       const owned = new Set(boss.unlockedAbilities ?? [])
@@ -1262,8 +1411,12 @@ export class BossSystem {
       fs.action !== 'flee' && fs.action !== 'dying' && fs.adv.resources.hp > 0
       && (fs.adv._petrifiedUntil ?? 0) <= _nowR
     )
+    // Phase 5c — Rogue Invisibility: invisible adventurers are untargetable
+    // by the boss (same rule as MinionAISystem). They can still die to
+    // DoT effects applied before they went invisible, but the boss won't
+    // pick them as targets and pact attacks won't hit them.
     const defenders = all.filter(fs =>
-      fs.action !== 'dying' && fs.adv.resources.hp > 0
+      fs.action !== 'dying' && fs.adv.resources.hp > 0 && !fs.adv._invisible
     )
 
     if (defenders.length === 0) {
@@ -1302,8 +1455,22 @@ export class BossSystem {
     // contribution is removed from the boss damage pool and applied to the
     // minion directly (no boss-defense subtraction). This is option (c)
     // from the design — adventurers naturally pick the closest threat.
-    if (attackers.length > 0) {
-      const bossRoom = this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    // Necromancer-raised undead and beast-master tames standing in the
+    // boss chamber join the fight as side-allies: they pile their attack
+    // onto the party damage pool (counted below) and the boss can punch
+    // back at one of them per round (after the main exchange resolves).
+    const bossRoomForAllies = this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    const sideAllies = bossRoomForAllies
+      ? (this._gameState.minions ?? []).filter(m =>
+          m.faction === 'adventurer' &&
+          (m.raisedByAdvId || m.tamedByAdvId) &&
+          m.aiState !== 'dead' &&
+          (m.resources?.hp ?? 0) > 0 &&
+          _pointInRoomBS(m.tileX, m.tileY, bossRoomForAllies))
+      : []
+
+    if (attackers.length > 0 || sideAllies.length > 0) {
+      const bossRoom = bossRoomForAllies
       const liveMinions = bossRoom
         ? (this._gameState.minions ?? []).filter(m =>
             m.faction === 'dungeon' &&
@@ -1316,6 +1483,11 @@ export class BossSystem {
       const MINION_REDIRECT_PROB = 0.35
 
       let bossAtkPool = 0
+      // Side-allies contribute their attack stat directly to the boss pool
+      // (no minion-redirect — they're focused on the boss specifically).
+      for (const ally of sideAllies) {
+        bossAtkPool += ally.stats?.attack ?? 0
+      }
       for (const fs of attackers) {
         const advAtk = fs.adv.stats?.attack ?? 5
         let nearest = null
@@ -1328,7 +1500,8 @@ export class BossSystem {
           const def = nearest.stats?.defense ?? 0
           const taken = Math.max(1, Math.floor(advAtk * (0.85 + Math.random() * 0.3) - def))
           nearest.resources.hp = Math.max(0, (nearest.resources.hp ?? 0) - taken)
-          this._emitFx({ kind: 'strike', x: nearest.worldX ?? fs.adv.worldX, y: nearest.worldY ?? fs.adv.worldY })
+          this._emitFx({ kind: 'strike', x: nearest.worldX ?? fs.adv.worldX, y: nearest.worldY ?? fs.adv.worldY, color: 0xffd166 })
+          this._floatDamage(nearest.worldX ?? fs.adv.worldX, nearest.worldY ?? fs.adv.worldY, taken, { color: '#ffd166' })
           this._roundLog.push({ side: 'party', damage: taken, targetId: nearest.instanceId, kind: 'minion_strike' })
           if (nearest.resources.hp <= 0) {
             nearest.aiState = 'dead'
@@ -1346,6 +1519,13 @@ export class BossSystem {
       if (dmgToBoss > 0) {
         boss.hp = Math.max(0, boss.hp - dmgToBoss)
         this._roundLog.push({ side: 'party', damage: dmgToBoss })
+        // Big collected damage hit on the boss — float a single number
+        // (the pool result, not per-attacker) above the boss sprite.
+        // Crit-flag when it shaves >=10% of maxHP in one round.
+        const isHeavy = dmgToBoss >= Math.max(8, (boss.maxHp ?? 0) * 0.1)
+        this._floatDamage(boss.worldX, boss.worldY - 12, dmgToBoss, {
+          color: '#ffd166', crit: isHeavy,
+        })
       }
 
       // Phase 9 — Tyrant's Gaze: each boss-hit-taken costs minions in the
@@ -1405,6 +1585,26 @@ export class BossSystem {
       if (boss.hp <= 0) {
         this._endFight('party')
         return
+      }
+    }
+
+    // Boss → side-allies. Each round the boss also lands a swing on one
+    // adv-faction minion in the chamber (necromancer undead / beast-master
+    // tame). They aren't full members of the party-vs-boss abstraction, so
+    // this is a parallel damage pass — boss.attack vs minion.stats.defense
+    // with the same randomization the party-vs-boss exchange uses.
+    if (sideAllies.length > 0 && boss.hp > 0) {
+      const victim = sideAllies[Math.floor(Math.random() * sideAllies.length)]
+      const def    = victim.stats?.defense ?? 0
+      const taken  = Math.max(1, Math.floor((boss.attack ?? 0) * (0.85 + Math.random() * 0.3) - def))
+      victim.resources.hp = Math.max(0, (victim.resources.hp ?? 0) - taken)
+      this._roundLog.push({ side: 'boss', damage: taken, targetId: victim.instanceId, kind: 'ally_strike' })
+      this._emitFx({ kind: 'strike', x: victim.worldX ?? boss.worldX, y: victim.worldY ?? boss.worldY, color: 0xff6644 })
+      this._floatDamage(victim.worldX ?? boss.worldX, victim.worldY ?? boss.worldY, taken, { color: '#ff7777' })
+      if (victim.resources.hp <= 0) {
+        victim.aiState = 'dead'
+        victim.deathDay = this._gameState.meta?.dayNumber ?? 0
+        EventBus.emit('MINION_DIED', { minion: victim, killerId: null })
       }
     }
 
@@ -1468,7 +1668,15 @@ export class BossSystem {
           const taken = Math.max(1, Math.floor(bossAtk * (0.85 + Math.random() * 0.3) - def))
           target.adv.resources.hp = Math.max(0, target.adv.resources.hp - taken)
           this._roundLog.push({ side: 'boss', damage: taken, targetId: target.adv.instanceId })
-          this._emitFx({ kind: 'strike', x: target.adv.worldX, y: target.adv.worldY })
+          this._emitFx({ kind: 'strike', x: target.adv.worldX, y: target.adv.worldY, color: 0xff5544 })
+          // Boss hit on the adv — float a red damage number; crit if it
+          // was a "heavy" connection (≥30% of the adv's max HP).
+          const advMax = target.adv.resources?.maxHp ?? 0
+          const isHeavy = taken >= Math.max(8, advMax * 0.3)
+          this._floatDamage(target.adv.worldX, target.adv.worldY - 8, taken, {
+            color: '#ff7777', crit: isHeavy,
+          })
+          EventBus.emit('BOSS_MELEE_HIT', { targetId: target.adv.instanceId, damage: taken })
 
           // Phase 9 — Tyrant's Gaze: +1 atk to every minion in the boss chamber per landed hit.
           if (aFlags.tyrantsGaze) {
@@ -1507,6 +1715,10 @@ export class BossSystem {
     // adventurers can die mid-flee but don't re-roll the flee decision.
     for (const fs of defenders) {
       if (fs.adv.resources.hp <= 0) {
+        // Stamp attribution now so AISystem._kill reads 'boss' on its very
+        // next tick — before _killAdv runs after the dying animation.
+        fs.adv._lastHitBy   = 'boss'
+        fs.adv._lastHitType = 'physical'
         fs.action       = 'dying'
         fs.actionT      = 0
         fs.actionDur    = 0.6
@@ -1631,6 +1843,27 @@ export class BossSystem {
     this._fightEnded = true
 
     const boss = this._gameState.boss
+
+    // Tier 2 cinematic feedback — punctuate the killing blow with a
+    // strong screen shake. The boss losing a life shakes harder than a
+    // party defeat (the whole arena reels for the player's win).
+    const shake = winner === 'party' ? { dur: 450, mag: 0.012 }
+                                     : { dur: 250, mag: 0.006 }
+    this._scene.cameras?.main?.shake?.(shake.dur, shake.mag)
+
+    // Tier 3 — slow-motion killing blow. When the boss actually died on
+    // this tick (party win + hp at 0), drop the global time scale to
+    // 0.25 for 400 ms of REAL time, then restore the player's chosen
+    // speed. Uses window.setTimeout so the restore isn't itself slowed
+    // by the scaled timer (scene.time.delayedCall would take 1.6 s real).
+    const isLethal = winner === 'party' && (boss?.hp ?? 0) <= 0
+    if (isLethal) {
+      const origScale = this._scene.time.timeScale ?? 1
+      this._scene.time.timeScale = 0.25
+      window.setTimeout(() => {
+        if (this._scene?.time) this._scene.time.timeScale = origScale
+      }, 400)
+    }
     const finalParty = []
 
     for (const fs of this._fightStates.values()) {
@@ -1670,13 +1903,11 @@ export class BossSystem {
     // Death-pose freeze — only when the boss actually died this round
     // (hp drained to 0; the 24-round stalemate cap can resolve in the
     // party's favour without killing the boss, and that path should
-    // NOT play death anim or freeze the boss).  Final death lingers
-    // forever; non-final lasts 4 s so the player sees the collapse
-    // before the boss respawns wandering for the next party.
+    // NOT play death anim or freeze the boss).  The freeze persists
+    // until SHOW_POST_WAVE_SUMMARY (popup appears) or BOSS_FIGHT_INCOMING
+    // (next party arrives that day) clears _deathPoseUntil — see _wire().
     if (winner === 'party' && boss && boss.hp <= 0) {
-      const now = this._scene.time?.now ?? 0
-      const isFinal = boss.deathsRemaining <= 0
-      this._deathPoseUntil = isFinal ? Infinity : now + 4000
+      this._deathPoseUntil = Infinity
     }
 
     EventBus.emit('BOSS_FIGHT_RESOLVED', {

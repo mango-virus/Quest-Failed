@@ -73,8 +73,14 @@ export class RoomBehaviorSystem {
     if (hasLibrary) {
       const allClasses = this._scene.cache.json.get('adventurerClasses') ?? []
       const dungeonLv = this._gameState.boss?.level ?? 1
-      const classes = allClasses.filter(c => (c.unlockLevel ?? 1) <= dungeonLv)
       const day = this._gameState.meta.dayNumber
+      // Mirror the DayPhase spawn filter: gate by both boss level and
+      // calendar day so the Library forecast doesn't preview a rare
+      // class (Beast Master, Twitch Streamer) before its unlockDay.
+      const classes = allClasses.filter(c =>
+        (c.unlockLevel ?? 1) <= dungeonLv &&
+        (c.unlockDay   ?? 1) <= day,
+      )
       const baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
       const size = Math.max(0, Math.min(baseCount, classes.length * 2))
       const classCounts = {}

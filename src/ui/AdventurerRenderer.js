@@ -82,6 +82,10 @@ export class AdventurerRenderer {
     EventBus.on('ADVENTURER_DIED',     this._onAdvDied,  this)
     EventBus.on('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAll,   this)
+    // Myconid Corpse Bloom — when a fungal corpse sprouts a Vinekin, take
+    // down the dead-adv body sprite that's been parked on the death tile
+    // since ADVENTURER_DIED. The Vinekin replaces it as the room occupant.
+    EventBus.on('MYCONID_CORPSE_SPROUTED', this._onMyconidSprouted, this)
     // Stagger fade-in so a party of N spawns one-by-one through the door
     // instead of all popping in at once. _spawnQueueNextAt tracks the next
     // free slot in scene-time ms; each new adv starts fading at that time.
@@ -92,6 +96,67 @@ export class AdventurerRenderer {
     // and then sits on its last frame for repeat hits against the same
     // target.
     EventBus.on('COMBAT_HIT',          this._onCombatHit, this)
+    // Phase: alive AI — pop a "+2 ATK" floater above the adv when they
+    // gain a buff (currently only fired by LOOT_CORPSE completion).
+    EventBus.on('BUFF_GAINED',         this._onBuffGained, this)
+    // Phase D — persistent gold-bag label that follows every adv carrying
+    // stolen treasure. Created on TREASURE_STOLEN, destroyed on death,
+    // escape, or recover. Position updates each tick.
+    this._carrierLabels = {}
+    EventBus.on('TREASURE_STOLEN',     this._onTreasureStolen,     this)
+    EventBus.on('TREASURE_RECOVERED',  this._onTreasureCleared,    this)
+    EventBus.on('TREASURE_ESCAPED',    this._onTreasureCleared,    this)
+    EventBus.on('ADVENTURER_DIED',     this._onTreasureCleared,    this)
+    EventBus.on('NIGHT_PHASE_STARTED', this._clearAllCarrierLabels, this)
+  }
+
+  _onTreasureStolen({ adv, gold }) {
+    if (!adv || !gold) return
+    const id = adv.instanceId
+    if (this._carrierLabels[id]) this._carrierLabels[id].destroy?.()
+    // 24×26 gold-coins icon. Sits just above the HP bar (HP_BAR_Y = -38)
+    // so it reads as "this adv is carrying loot" without obscuring chat
+    // bubbles, which anchor higher (worldY - 30, extending upward).
+    if (!this._scene.textures.exists('item-gold-coins')) return
+    const img = this._scene.add.image(adv.worldX, adv.worldY - 42, 'item-gold-coins')
+      .setOrigin(0.5, 1).setDepth(40)
+    this._carrierLabels[id] = img
+  }
+
+  _onTreasureCleared({ adv, adventurer }) {
+    const id = (adv ?? adventurer)?.instanceId
+    if (!id) return
+    this._carrierLabels[id]?.destroy?.()
+    delete this._carrierLabels[id]
+  }
+
+  _clearAllCarrierLabels() {
+    for (const t of Object.values(this._carrierLabels ?? {})) t?.destroy?.()
+    this._carrierLabels = {}
+  }
+
+  // Floating "+ATK" / "+5 HP" text that drifts upward and fades. Keeps
+  // each adv's last-floater so a rapid second buff replaces the first
+  // instead of stacking on top of itself.
+  _onBuffGained({ adventurer, label }) {
+    if (!adventurer || !label) return
+    const x = adventurer.worldX
+    const y = adventurer.worldY - 18
+    const t = this._scene.add.text(x, y, label, {
+      fontSize:        '11px',
+      color:           '#ffe066',
+      fontFamily:      '"Press Start 2P", monospace',
+      stroke:          '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5, 1).setDepth(40)
+    this._scene.tweens.add({
+      targets:    t,
+      y:          y - 22,
+      alpha:      { from: 1, to: 0 },
+      duration:   1400,
+      ease:       'Quad.easeOut',
+      onComplete: () => t.destroy(),
+    })
   }
 
   // ADVENTURER_ENTERED_DUNGEON handler — snaps the adv to the center of
@@ -226,6 +291,11 @@ export class AdventurerRenderer {
 
     for (const adv of active) {
       seen.add(adv.instanceId)
+      // Phase D — keep the gold-coins icon glued above the adv carrying
+      // stolen treasure. Sits just above the HP bar (y - 42) — chat
+      // bubbles anchor higher (y - 30 extending up) so they don't clash.
+      const tag = this._carrierLabels?.[adv.instanceId]
+      if (tag) tag.setPosition(adv.worldX, adv.worldY - 42)
       let s = this._sprites[adv.instanceId]
       if (!s) s = this._createSprite(adv)
       // Track movement direction for the LPC sprite — derived from the
@@ -443,8 +513,6 @@ export class AdventurerRenderer {
       glyph = '*'; color = 0xcc4422
     } else if (adv.aiState === 'fleeing' || adv.goal?.type === 'FLEE') {
       glyph = '!'; color = 0xddcc44
-    } else if (adv.aiState === 'sleeping') {
-      glyph = 'z'; color = 0x4488cc
     } else if (adv.aiState === 'healing') {
       glyph = '+'; color = 0xcc88ee
     } else if (adv.goal?.type === 'EXPLORE_ROOM') {
@@ -472,6 +540,7 @@ export class AdventurerRenderer {
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAll,   this)
     EventBus.off('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     EventBus.off('COMBAT_HIT',          this._onCombatHit, this)
+    EventBus.off('MYCONID_CORPSE_SPROUTED', this._onMyconidSprouted, this)
     this._clearAll()
   }
 
@@ -638,6 +707,12 @@ export class AdventurerRenderer {
     if (adventurer?.instanceId) this._destroySprite(adventurer.instanceId)
   }
 
+  // Myconid Corpse Bloom — sprout consumed the corpse, so take the body
+  // sprite down too if it's still around.
+  _onMyconidSprouted({ advId }) {
+    if (advId && this._sprites[advId]) this._destroySprite(advId)
+  }
+
   // Death turns the sprite into a "corpse": play the hurt anim (one-shot,
   // freezes on last frame), strip the HUD bits, mark it dead so update()
   // leaves it parked at the death position. Cleaned up by _clearAll on
@@ -645,6 +720,14 @@ export class AdventurerRenderer {
   _onAdvDied({ adventurer }) {
     const s = this._sprites[adventurer?.instanceId]
     if (!s) return
+    // Myconid archetype paints its own corpse via FungalCorpseRenderer on
+    // the death tile (green-tinted last-hurt frame inside the glow). If we
+    // also leave the parked body here, both render and the player sees a
+    // duplicate corpse. Tear our sprite down immediately for myconid runs.
+    if (this._gameState?.player?.bossArchetypeId === 'myconid') {
+      this._destroySprite(adventurer.instanceId)
+      return
+    }
     s.isDead = true
     s.hp?.setVisible(false)
     s.hpBg?.setVisible(false)

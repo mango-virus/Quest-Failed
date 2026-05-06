@@ -8,7 +8,7 @@ import {
   CRYPT, FONT_HEAD, FONT_BODY,
   pixelPanel, pixelButton, pixelDiamond, applyUiCamera,
 } from '../ui/UIKit.js'
-import { AudioControls }                     from '../ui/AudioControls.js'
+import { AudioControls, AUDIO_CONTROLS_HEIGHT } from '../ui/AudioControls.js'
 import { PauseManager }                      from '../systems/PauseManager.js'
 
 const PANEL_W   = 380
@@ -172,9 +172,9 @@ export class PauseMenu extends Phaser.Scene {
     }).setDepth(4))
     yy += 18
 
-    // Audio controls — scene-space widget. Keep it inside the panel.
-    this._audio = new AudioControls(this, innerX, yy, { depth: 5 })
-    yy += 36
+    // Audio controls — two-row music + SFX widget.
+    this._audio = new AudioControls(this, innerX, yy, { depth: 5, w: innerW })
+    yy += AUDIO_CONTROLS_HEIGHT + 8
 
     // Fullscreen toggle row
     yy += 16

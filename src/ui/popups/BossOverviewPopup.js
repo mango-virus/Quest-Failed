@@ -8,6 +8,7 @@
 
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar, pixelDiamond } from '../UIKit.js'
 import { makePopupFrame } from './PopupFrame.js'
+import { EventBus } from '../../systems/EventBus.js'
 
 export class BossOverviewPopup {
   constructor(scene, gameState) {
@@ -135,24 +136,81 @@ export class BossOverviewPopup {
   }
 
   _renderRightColumn(x, y, w, h, D, addChild) {
-    // Top section: boss unique ability
+    // Top section: archetype ability card. Each archetype ships a
+    // `headline` and one or more `mechanics`; we collect them into a
+    // single list and let the player flip through with a ▶ arrow on the
+    // right side of the panel.
+    const arch = this._archetypeDef()
+    const abilities = []
+    if (arch?.headline) {
+      abilities.push({ name: arch.headline.name, summary: arch.headline.summary })
+    }
+    for (const m of arch?.mechanics ?? []) {
+      // mechanics entries are usually a single descriptive `text` line;
+      // split off the leading "Name —" so it can be shown as the title.
+      const t = m.text ?? ''
+      const dashIdx = t.indexOf(' — ')
+      if (dashIdx > 0) {
+        abilities.push({ name: t.slice(0, dashIdx), summary: t.slice(dashIdx + 3) })
+      } else {
+        abilities.push({ name: 'Mechanic', summary: t })
+      }
+    }
+    if (abilities.length === 0) {
+      abilities.push({ name: '— pending implementation —', summary: 'This boss class does not yet have a unique ability defined.' })
+    }
+
     const abilityH = 90
     const abilityG = this._scene.add.graphics().setDepth(D)
     pixelPanel(abilityG, x, y, w, abilityH, { fill: CRYPT.bgStone1 })
     addChild(abilityG)
 
-    const abilityHeader = this._sectionHeader(x, y, w, 'UNIQUE ABILITY', D, addChild)
-    const headline = this._archetypeDef()?.headline
-    const abilityName = headline?.name ?? '— pending implementation —'
-    const abilitySummary = headline?.summary ?? 'This boss class does not yet have a unique ability defined.'
+    // Persist the current page across re-opens of the popup so the player
+    // doesn't lose their place when other UI re-renders trigger a rebuild.
+    if (this._abilityIdx == null || this._abilityIdx >= abilities.length) this._abilityIdx = 0
+    const pageLabel = (idx) => abilities.length > 1 ? ` · ${idx + 1} / ${abilities.length}` : ''
+    const headerT = this._sectionHeader(x, y, w, `ABILITY${pageLabel(this._abilityIdx)}`, D, addChild)
 
-    addChild(this._scene.add.text(x + 14, y + 30, abilityName.toUpperCase(), {
+    const cur = abilities[this._abilityIdx]
+    // Reserve room on the right for the page-turn arrow when more than one ability exists.
+    const arrowReserve = abilities.length > 1 ? 28 : 0
+    const nameT = this._scene.add.text(x + 14, y + 30, cur.name.toUpperCase(), {
       fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 1,
-    }).setDepth(D + 2))
-    addChild(this._scene.add.text(x + 14, y + 46, abilitySummary, {
+      wordWrap: { width: w - 28 - arrowReserve, useAdvancedWrap: true },
+    }).setDepth(D + 2)
+    const sumT = this._scene.add.text(x + 14, y + 46, cur.summary ?? '', {
       fontFamily: FONT_BODY, fontSize: '8px', color: CRYPT.ink, letterSpacing: 1,
-      wordWrap: { width: w - 28, useAdvancedWrap: true }, lineSpacing: 4,
-    }).setDepth(D + 2))
+      wordWrap: { width: w - 28 - arrowReserve, useAdvancedWrap: true }, lineSpacing: 4,
+    }).setDepth(D + 2)
+    addChild(nameT)
+    addChild(sumT)
+
+    // Page-turn arrow (right edge, vertically centred in the card). Only
+    // shown when there's something to flip to. Click cycles through the
+    // ability list and re-renders the name + summary in place.
+    if (abilities.length > 1) {
+      const arrowX = x + w - 22
+      const arrowY = y + abilityH / 2 + 4
+      const arrow = this._scene.add.text(arrowX, arrowY, '▶', {
+        fontFamily: FONT_HEAD, fontSize: '14px', color: CRYPT.accent2Css,
+      }).setOrigin(0.5).setDepth(D + 3)
+      const hit = this._scene.add.zone(arrowX - 14, arrowY - 14, 28, 28).setOrigin(0)
+        .setDepth(D + 4).setInteractive({ useHandCursor: true })
+      let pressed = false
+      hit.on('pointerover', () => arrow.setColor(CRYPT.goldCss))
+      hit.on('pointerout',  () => { arrow.setColor(CRYPT.accent2Css); pressed = false })
+      hit.on('pointerdown', () => { pressed = true })
+      hit.on('pointerup', () => {
+        if (!pressed) return
+        pressed = false
+        this._abilityIdx = (this._abilityIdx + 1) % abilities.length
+        const next = abilities[this._abilityIdx]
+        nameT.setText(next.name.toUpperCase())
+        sumT.setText(next.summary ?? '')
+        headerT.setText(`ABILITY${pageLabel(this._abilityIdx)}`)
+      })
+      addChild(arrow, hit)
+    }
 
     // Middle section: Active Pacts
     const pactsY = y + abilityH + 12
@@ -200,8 +258,10 @@ export class BossOverviewPopup {
       const row = Math.floor(i / cols)
       const px = x + col * colW
       const py = y + row * rowH
+      const cardW = colW - 6
+      const cardH = rowH - 4
       const cardG = this._scene.add.graphics().setDepth(D + 2)
-      pixelPanel(cardG, px, py, colW - 6, rowH - 4, {
+      pixelPanel(cardG, px, py, cardW, cardH, {
         fill: CRYPT.bgStone2, edgeH: CRYPT.panelEdgeS, edgeS: CRYPT.panelEdgeH, inset: true,
       })
       addChild(cardG)
@@ -211,6 +271,22 @@ export class BossOverviewPopup {
       addChild(this._scene.add.text(px + 8, py + 16, this._mechName(p.mechanicId).toUpperCase(), {
         fontFamily: FONT_HEAD, fontSize: '9px', color: this._rarityColor(p.rarity), letterSpacing: 1,
       }).setDepth(D + 3))
+      // Make the card clickable — opens PactDetailPopup with this pact's
+      // info so players can read what the pact actually does. Both
+      // pointerdown and pointerup must land on the zone (matching the
+      // popup-frame wash convention) so the click-that-opened-the-boss-
+      // overview can't immediately fire one of these.
+      const hit = this._scene.add.zone(px, py, cardW, cardH).setOrigin(0)
+        .setDepth(D + 4).setInteractive({ useHandCursor: true })
+      let pressed = false
+      hit.on('pointerdown', () => { pressed = true })
+      hit.on('pointerout',  () => { pressed = false })
+      hit.on('pointerup',   () => {
+        if (!pressed) return
+        pressed = false
+        EventBus.emit('SHOW_PACT_DETAIL', { mechanicId: p.mechanicId, day: p.day })
+      })
+      addChild(hit)
     })
   }
 
@@ -254,6 +330,14 @@ export class BossOverviewPopup {
     return r === 'legendary' ? CRYPT.accentCss
          : r === 'epic'      ? CRYPT.soulCss
          : r === 'rare'      ? CRYPT.goldCss
+         : CRYPT.ink
+  }
+
+  // Boss ability names are coloured by tier so the unlock progression
+  // reads at a glance. Tier 1 = ink, 2 = gold, 3 = accent2 (red).
+  _tierColor(t) {
+    return t >= 3 ? CRYPT.accent2Css
+         : t >= 2 ? CRYPT.goldCss
          : CRYPT.ink
   }
 }

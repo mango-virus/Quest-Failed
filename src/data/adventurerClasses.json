@@ -74,6 +74,7 @@
     "startingResources": {},
     "tags": ["spellcaster", "minion_raiser", "dark"],
     "abilities": ["raise_corpse", "soul_bolt"],
+    "unlockLevel": 3,
     "description": "Raises defeated minions to fight for the party. Lich-archetype dungeons may turn raised minions hostile mid-fight.",
     "flavorText": "Death is a waste of perfectly good labour."
   },
@@ -107,7 +108,7 @@
     "startingResources": {},
     "tags": ["chaotic", "chat_driven", "viral"],
     "abilities": ["chat_poll", "viewer_drop"],
-    "unlockLevel": 6,
+    "unlockLevel": 3,
     "rarity": "rare",
     "description": "Streams the run live. Decisions polled to chat in real time. Their death produces a clip that summons more adventurers tomorrow.",
     "flavorText": "PogChamp the chest! PogChamp the chest!"
@@ -125,7 +126,7 @@
     "startingResources": {},
     "tags": ["beast_tamer", "support", "pet_class"],
     "abilities": ["tame_minion", "command_beast"],
-    "unlockLevel": 6,
+    "unlockLevel": 3,
     "rarity": "rare",
     "description": "Trained handler. Tames a single hostile minion mid-fight; the tamed beast follows and fights for them. Only one companion at a time — if it dies, they tame a replacement.",
     "flavorText": "Every beast was a person once, in their head."
@@ -177,6 +178,7 @@
     "startingResources": {},
     "tags": ["support", "buffer", "ranged_low"],
     "abilities": ["inspire_party", "song_of_speed"],
+    "unlockLevel": 3,
     "description": "Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. Aura ends the moment they fall.",
     "flavorText": "Every chord, a small kindness."
   }

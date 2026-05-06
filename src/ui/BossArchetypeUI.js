@@ -147,17 +147,7 @@ export class BossArchetypeUI {
       if (!game?.add?.graphics) return
       const x = payload?.x, y = payload?.y
       if (typeof x !== 'number' || typeof y !== 'number') return
-      const g = game.add.graphics().setDepth(200)
-      // Outer orange ring + inner yellow flame pulse + dark core.
-      g.fillStyle(0x441010, 0.7); g.fillCircle(x, y, 26)
-      g.lineStyle(3, 0xff5522, 1); g.strokeCircle(x, y, 22)
-      g.lineStyle(2, 0xffcc44, 0.95); g.strokeCircle(x, y, 14)
-      g.fillStyle(0x110000, 0.85); g.fillCircle(x, y, 6)
-      game.tweens.add({
-        targets: g, alpha: 0, scaleX: 2.2, scaleY: 2.2,
-        duration: 900, ease: 'Cubic.easeOut',
-        onComplete: () => g.destroy(),
-      })
+      this._spawnSacrificeFlames(game, x, y)
     })
     // Phase 1b.10 — Vampire Charm + Blood Tax VFX + toasts.
     this._on('VAMPIRE_CHARM_MARKED', (payload) => {
@@ -165,24 +155,30 @@ export class BossArchetypeUI {
       if (!game?.add?.graphics) return
       const adv = this._gameState?.adventurers?.active?.find(a => a.instanceId === payload?.advId)
       if (!adv) return
-      // Persistent dark-red ring around the charmed adv until conversion.
+      // Persistent dark-red ring that follows the charmed adv each frame.
+      // Draw circles at local (0,0) so setPosition() moves the whole graphic.
       const g = game.add.graphics().setDepth(11)
-      g.lineStyle(2, 0xcc1a44, 0.9); g.strokeCircle(adv.worldX, adv.worldY, 16)
-      g.lineStyle(1, 0xff66aa, 0.7); g.strokeCircle(adv.worldX, adv.worldY, 22)
+      g.lineStyle(2, 0xcc1a44, 0.9); g.strokeCircle(0, 0, 16)
+      g.lineStyle(1, 0xff66aa, 0.7); g.strokeCircle(0, 0, 22)
+      g.setPosition(adv.worldX, adv.worldY)
       game.tweens.add({
         targets: g, alpha: 0.25, yoyo: true, repeat: -1,
         duration: 600, ease: 'Sine.easeInOut',
       })
-      // Stash on adv so we can clean up at conversion / death.
       adv._charmRingGfx = g
+      this._charmRings ??= []
+      this._charmRings.push({ advId: payload.advId, gfx: g })
     })
     this._on('VAMPIRE_THRALL_CONVERTED', (payload) => {
       const game = this._scene.scene.get('Game')
+      // Adv is still in active at emit time — find and destroy ring before splice.
       const adv = this._gameState?.adventurers?.active?.find(a => a.instanceId === payload?.advId)
-      // The adv has already been spliced; look up by instanceId on a saved
-      // reference. As a safe fallback, just kill any orphaned ring graphics
-      // we might have hidden on the now-converted adv.
       if (adv?._charmRingGfx) { adv._charmRingGfx.destroy(); adv._charmRingGfx = null }
+      // Also clean up from the tracking list so update() stops repositioning it.
+      if (this._charmRings) {
+        const idx = this._charmRings.findIndex(r => r.advId === payload?.advId)
+        if (idx >= 0) { this._charmRings[idx].gfx?.destroy(); this._charmRings.splice(idx, 1) }
+      }
       if (game) {
         showToast(this._scene, 'A thrall joins your dungeon', { type: 'info', duration: 2200 })
       }
@@ -376,43 +372,51 @@ export class BossArchetypeUI {
         && py >= this._btnY && py <= this._btnY + BTN_H
   }
 
-  // Minion-pick listener for Sacrifice Pact. Resolves the closest live
-  // dungeon-faction minion to the click position and emits the target
-  // event. Cancels the targeting on right-click or click on the button.
+  // Minion-pick listener for Sacrifice Pact. We listen on TWO channels:
+  //   1. EventBus 'MINION_CLICKED' — fired by MinionRenderer's per-sprite
+  //      pointerdown. We have to use this because that handler calls
+  //      event.stopPropagation(), which (per Phaser's InputPlugin) suppresses
+  //      the scene-level pointerdown event. So a direct minion click would
+  //      otherwise never reach us.
+  //   2. Scene-level pointerdown on Game — only fires for empty-space clicks
+  //      (everything over a minion gets stop-propagated). Used for the
+  //      "click a minion" toast, right-click cancel, and ignoring clicks
+  //      that fall on the SACRIFICE button itself.
   _installMinionPickListener() {
     const game = this._scene.scene.get('Game')
     if (!game) return
     if (this._minionPickHandler) return
+
+    this._minionClickedHandler = ({ minion, pointer }) => {
+      if (!minion || minion.faction !== 'dungeon') return
+      if (minion.aiState === 'dead' || (minion.resources?.hp ?? 0) <= 0) return
+      if (pointer?.rightButtonDown && pointer.rightButtonDown()) {
+        EventBus.emit('DEMON_SACRIFICE_DISARM')
+        return
+      }
+      EventBus.emit('DEMON_SACRIFICE_TARGET', { minionId: minion.instanceId })
+    }
+    EventBus.on('MINION_CLICKED', this._minionClickedHandler, this)
+
     this._minionPickHandler = (pointer) => {
       if (pointer.rightButtonDown && pointer.rightButtonDown()) {
         EventBus.emit('DEMON_SACRIFICE_DISARM')
         return
       }
       if (this._isPointerOverSacrificeBtn(pointer)) return
-      const wp = pointer.positionToCamera(game.cameras.main)
-      const TS = 32
-      const minions = this._gameState?.minions ?? []
-      const HIT_R = TS * 0.7
-      let best = null
-      let bestD = Infinity
-      for (const m of minions) {
-        if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
-        if (m.faction !== 'dungeon') continue
-        const d = Math.hypot(wp.x - m.worldX, wp.y - m.worldY)
-        if (d > HIT_R) continue
-        if (d < bestD) { bestD = d; best = m }
-      }
-      if (!best) {
-        showToast(this._scene, 'Click on one of your minions', { type: 'error', duration: 1500 })
-        return
-      }
-      EventBus.emit('DEMON_SACRIFICE_TARGET', { minionId: best.instanceId })
+      // Empty-space click — minion sprite handlers stop propagation, so if
+      // we're here the player clicked off any minion. Nudge them.
+      showToast(this._scene, 'Click on one of your minions', { type: 'error', duration: 1500 })
     }
     game.input.on('pointerdown', this._minionPickHandler)
     this._minionPickGame = game
   }
 
   _removeMinionPickListener() {
+    if (this._minionClickedHandler) {
+      EventBus.off('MINION_CLICKED', this._minionClickedHandler, this)
+      this._minionClickedHandler = null
+    }
     if (!this._minionPickHandler || !this._minionPickGame) return
     this._minionPickGame.input.off('pointerdown', this._minionPickHandler)
     this._minionPickHandler = null
@@ -455,6 +459,84 @@ export class BossArchetypeUI {
     })
   }
 
+  // "Going up in flames" — a column of flickering flame tongues that rise
+  // from the minion's last tile and dissipate. Spawns ~14 tongues with
+  // staggered delays, each tweening upward + shrinking + fading. Dark base
+  // pool grounds it; a single bright pop punctuates the burn-out.
+  _spawnSacrificeFlames(game, x, y) {
+    const FLAME_COLORS = [0xff2a0a, 0xff5522, 0xff9933, 0xffcc44]
+    // Dark scorched pool at the feet — stays a beat then fades.
+    const pool = game.add.graphics().setDepth(199)
+    pool.fillStyle(0x1a0500, 0.85); pool.fillEllipse(x, y + 6, 22, 8)
+    pool.fillStyle(0x441010, 0.6);  pool.fillEllipse(x, y + 6, 14, 5)
+    game.tweens.add({
+      targets: pool, alpha: 0, duration: 1400, ease: 'Cubic.easeOut',
+      onComplete: () => pool.destroy(),
+    })
+
+    // Bright ignition pop on frame 1 so the eye locks onto the burn.
+    const pop = game.add.graphics().setDepth(201)
+    pop.fillStyle(0xffcc44, 0.9); pop.fillCircle(x, y, 12)
+    pop.fillStyle(0xff5522, 0.85); pop.fillCircle(x, y, 7)
+    game.tweens.add({
+      targets: pop, alpha: 0, scaleX: 2.4, scaleY: 2.4,
+      duration: 320, ease: 'Cubic.easeOut',
+      onComplete: () => pop.destroy(),
+    })
+
+    // Rising flame tongues — each a small teardrop drawn as two stacked
+    // circles, tweened upward with shrink + fade. Random horizontal jitter
+    // and stagger keeps it organic.
+    const N = 14
+    for (let i = 0; i < N; i++) {
+      const delay = Math.random() * 280
+      const jx = (Math.random() - 0.5) * 16
+      const startY = y + 4 + (Math.random() - 0.5) * 4
+      const rise = 22 + Math.random() * 18
+      const inner = FLAME_COLORS[Math.floor(Math.random() * 2) + 2]   // bright
+      const outer = FLAME_COLORS[Math.floor(Math.random() * 2)]       // deep red/orange
+      const r = 3 + Math.random() * 2
+      const tongue = game.add.graphics().setDepth(200)
+      tongue.fillStyle(outer, 0.95); tongue.fillCircle(0, 0, r + 1.5)
+      tongue.fillStyle(inner, 0.9);  tongue.fillCircle(0, -1, r * 0.7)
+      tongue.x = x + jx
+      tongue.y = startY
+      tongue.alpha = 0
+      game.tweens.add({
+        targets: tongue,
+        y: startY - rise,
+        x: tongue.x + (Math.random() - 0.5) * 6,
+        alpha: { from: 0, to: 1 },
+        scaleX: { from: 1.1, to: 0.4 },
+        scaleY: { from: 1.4, to: 0.5 },
+        duration: 520 + Math.random() * 220,
+        delay,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          // Fade-out tail so each tongue dies, doesn't snap.
+          game.tweens.add({
+            targets: tongue, alpha: 0, duration: 180,
+            onComplete: () => tongue.destroy(),
+          })
+        },
+      })
+    }
+
+    // Wisp of smoke at the top once the bulk of the flames are gone.
+    game.time.delayedCall(420, () => {
+      const smoke = game.add.graphics().setDepth(198)
+      smoke.fillStyle(0x222222, 0.55); smoke.fillCircle(0, 0, 6)
+      smoke.fillStyle(0x444444, 0.4);  smoke.fillCircle(2, -2, 4)
+      smoke.x = x; smoke.y = y - 12
+      game.tweens.add({
+        targets: smoke,
+        y: y - 36, alpha: 0, scaleX: 1.8, scaleY: 1.8,
+        duration: 900, ease: 'Cubic.easeOut',
+        onComplete: () => smoke.destroy(),
+      })
+    })
+  }
+
   _removeRoomPickListener() {
     if (!this._roomPickHandler || !this._roomPickGame) return
     this._roomPickGame.input.off('pointerdown', this._roomPickHandler)
@@ -489,11 +571,27 @@ export class BossArchetypeUI {
     }
   }
 
+  // Called each frame by HudScene.update(). Repositions charm-ring graphics
+  // to track the charmed adventurer's current world position.
+  update() {
+    if (!this._charmRings?.length) return
+    const active = this._gameState?.adventurers?.active ?? []
+    this._charmRings = this._charmRings.filter(({ advId, gfx }) => {
+      if (!gfx?.active) return false
+      const adv = active.find(a => a.instanceId === advId)
+      if (!adv) { gfx.destroy(); return false }
+      gfx.setPosition(adv.worldX, adv.worldY)
+      return true
+    })
+  }
+
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn, this)
     this._listeners = []
     this._removeRoomPickListener()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
+    for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()
+    this._charmRings = []
   }
 }

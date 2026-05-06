@@ -390,8 +390,14 @@ export class DungeonGrid {
   }
 
   getTileType(tileX, tileY) {
-    if (tileX < 0 || tileY < 0 || tileX >= this._d.gridWidth || tileY >= this._d.gridHeight) return TILE.VOID
-    return this._d.tiles[tileY][tileX]
+    // Wraith Haunt ghosts (and anything else that lerps through tile space)
+    // can pass fractional coords here. Without flooring, `tiles[23.99…]`
+    // returns undefined and the next `[tileX]` indexing throws — which then
+    // ate the AI tick mid-frame and froze the game.
+    const tx = Math.floor(tileX)
+    const ty = Math.floor(tileY)
+    if (tx < 0 || ty < 0 || tx >= this._d.gridWidth || ty >= this._d.gridHeight) return TILE.VOID
+    return this._d.tiles[ty][tx]
   }
 
   // Lane axis for a TILE.DOOR tile.  Returns 'y' (vertical travel —

@@ -4,7 +4,8 @@
 // is centred on that room. CombatSystem reads stats; MinionAISystem reads
 // behaviorType + assignedRoomId; MinionRenderer reads tile/world pos + hp.
 
-import { Balance } from '../config/balance.js'
+import { Balance }         from '../config/balance.js'
+import { MinionAbilities } from '../systems/MinionAbilities.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -22,15 +23,26 @@ function _parseColor(c) {
   return 0xbbbbbb
 }
 
-export function applyBossLevelToMinion(minion, bossLevel) {
-  if (!bossLevel || bossLevel <= 1) return
-  const lvOver  = bossLevel - 1
-  const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver
-  const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver
-  minion.resources.maxHp = Math.round(minion.resources.maxHp * hpMult)
+export function applyMinionScaling(minion, bossLevel, day = 1) {
+  // Record base stats on first call so repeated rescales don't stack.
+  if (minion._baseMaxHp == null) {
+    minion._baseMaxHp = minion.resources.maxHp
+    minion._baseAtk   = minion.stats.attack
+  }
+  const lvOver  = Math.max(0, (bossLevel ?? 1) - 1)
+  const dayOver = Math.max(0, (day ?? 1) - 1)
+  const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver + Balance.MINION_HP_PER_DAY  * dayOver
+  const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver + Balance.MINION_ATK_PER_DAY * dayOver
+  minion.resources.maxHp = Math.round(minion._baseMaxHp * hpMult)
   minion.resources.hp    = minion.resources.maxHp
-  minion.stats.attack    = Math.round(minion.stats.attack    * atkMult)
-  minion.bossLevel       = bossLevel
+  minion.stats.attack    = Math.round(minion._baseAtk   * atkMult)
+  minion.bossLevel       = bossLevel ?? 1
+  minion._scaledDay      = day ?? 1
+}
+
+// Backward-compat alias used by older callsites that don't have day context.
+export function applyBossLevelToMinion(minion, bossLevel) {
+  applyMinionScaling(minion, bossLevel, minion._scaledDay ?? 1)
 }
 
 export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
@@ -118,9 +130,13 @@ export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
     bossLevel:  1,
   }
 
-  if (options.bossLevel && options.bossLevel > 1) {
-    applyBossLevelToMinion(minion, options.bossLevel)
+  if (options.bossLevel || options.dayNumber) {
+    applyMinionScaling(minion, options.bossLevel ?? 1, options.dayNumber ?? 1)
   }
+
+  // Pass-1 ability flag setup — currently arms Lizardman Camouflage at spawn
+  // (cleared on first attack via CombatSystem, re-armed each night).
+  MinionAbilities.initFlags(minion, typeDef)
 
   return minion
 }

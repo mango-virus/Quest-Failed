@@ -5,10 +5,39 @@
 
 import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
+import { MinionAbilities }  from './MinionAbilities.js'
 import { Balance }          from '../config/balance.js'
 import { TILE }             from './DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
+
+// ── Adventurer-life goals (Phase: alive AI) ──────────────────────────────
+// These are personality-agnostic (any adv can roll them) and short-lived.
+// Tuned for "reads as alive without spamming chat bubbles."
+const INVESTIGATE_NOISE_RADIUS     = 6      // tiles around the noise source
+const INVESTIGATE_NOISE_CHANCE     = 0.4    // per-adv roll on noise event
+const INVESTIGATE_NOISE_TIMEOUT_MS = 5000   // give up if not arrived in time
+const REGROUP_DISTANCE             = 8      // tiles from party centroid
+const REGROUP_CHANCE               = 0.30   // roll on _pickNextGoal
+const GLOAT_CHANCE                 = 0.25   // roll on COMBAT_KILL
+const GLOAT_DURATION_MS            = 1500   // freeze in place this long
+const SCOUT_CHANCE                 = 0.15   // roll on _pickNextGoal
+const SCOUT_MIN_DISTANCE           = 10     // unvisited room must be at least this far
+const SCOUT_SPEED_MULT             = 1.2    // scouts move slightly faster
+const RESCUE_HP_FRACTION           = 0.20   // ally must be below this to rescue
+const RESCUE_RANGE                 = 12     // tiles between rescuer and ally
+const RESCUE_SPEED_MULT            = 1.3    // rescuer moves faster
+const WARN_RADIUS                  = 5      // tiles around the threat
+const WARN_CHANCE                  = 0.5    // roll per nearby ally on threat detect
+const WARN_COOLDOWN_MS             = 8000   // per-warner cooldown
+const LOOT_SIGHT_RANGE             = 14     // tiles between adv and dropped pile
+const LOOT_CHANCE                  = 0.45   // per-adv roll on pile drop
+const LOOT_DURATION_MS             = 2500   // looting freeze
+const LOOT_PILE_TTL_MS             = 30000  // piles vanish if untouched
+// Pathfinder penalty multiplier per known-trap tile. Used by AVOID_TRAP
+// in the pathfinder cost function. Higher = stronger detour.
+const TRAP_AVOID_PENALTY           = 8.0
+const TRAP_AVOID_PENALTY_WARNED    = 18.0   // when warned by a party-mate
 
 export class AISystem {
   constructor(scene, gameState, dungeonGrid, personalitySystem = null, combatSystem = null, knowledgeSystem = null) {
@@ -18,15 +47,287 @@ export class AISystem {
     this._personalitySystem = personalitySystem
     this._combatSystem      = combatSystem
     this._knowledgeSystem   = knowledgeSystem
-    EventBus.on('COMBAT_HIT',      this._onCombatHit,    this)
-    EventBus.on('MINION_DIED',     this._onMinionDied,   this)
-    EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
+    EventBus.on('COMBAT_HIT',          this._onCombatHit,        this)
+    EventBus.on('MINION_DIED',         this._onMinionDied,       this)
+    EventBus.on('ADVENTURER_DIED',     this._onAdventurerDied,   this)
+    EventBus.on('BOSS_FIGHT_RESOLVED', this._onBossFightResolved, this)
+    // Phase: adventurer-life goals — react to ambient events.
+    EventBus.on('TRAP_TRIGGERED',      this._onTrapTriggeredAI,  this)
+    EventBus.on('COMBAT_KILL',         this._onCombatKill,       this)
+    // Phase: alive AI — wipe leftover loot piles when day ends so the
+    // dungeon doesn't accumulate them across nights.
+    EventBus.on('NIGHT_PHASE_STARTED', this._onNightStartedAI,   this)
   }
 
   destroy() {
-    EventBus.off('COMBAT_HIT',      this._onCombatHit,    this)
-    EventBus.off('MINION_DIED',     this._onMinionDied,   this)
-    EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
+    EventBus.off('COMBAT_HIT',          this._onCombatHit,        this)
+    EventBus.off('MINION_DIED',         this._onMinionDied,       this)
+    EventBus.off('ADVENTURER_DIED',     this._onAdventurerDied,   this)
+    EventBus.off('BOSS_FIGHT_RESOLVED', this._onBossFightResolved, this)
+    EventBus.off('TRAP_TRIGGERED',      this._onTrapTriggeredAI,  this)
+    EventBus.off('COMBAT_KILL',         this._onCombatKill,       this)
+    EventBus.off('NIGHT_PHASE_STARTED', this._onNightStartedAI,   this)
+  }
+
+  _onNightStartedAI() {
+    if (this._gameState.dungeon?.lootPiles?.length) {
+      this._gameState.dungeon.lootPiles = []
+    }
+    // Phase: items — every locked door re-locks, every key chest re-fills,
+    // class lockpick/break-down counters reset, and any keys carried by
+    // adventurers (active or fled) drop. The dungeon resets to its built
+    // configuration each night.
+    for (const c of this._gameState.dungeon?.keyChests ?? []) c.opened = false
+    for (const l of this._gameState.dungeon?.locks ?? []) {
+      l.unlocked = false
+      l.broken   = false
+    }
+    for (const a of this._gameState.adventurers?.active ?? []) {
+      a.keys = []
+      a.lockpickUsedToday = 0
+      a.breakdownUsedToday = 0
+      // Phase: items — fresh day, fountain is usable again. Knowledge of
+      // fountain locations carries over (knownFountains persists).
+      a.fountainUsedToday = false
+    }
+    // Phase D — Treasure Chest passive payout + reset. Every placed chest
+    // re-closes (sprite snaps to frame 0 via TreasureChestRenderer.update)
+    // and pays its tier's gold/day to the player. An opened chest from
+    // the previous day still pays — the steal already cost the player.
+    const itemsCache = this._scene.cache.json.get('items') ?? []
+    let chestPayout = 0
+    for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
+      const def = itemsCache.find(it => it.id === `treasure_chest_${chest.tier}`)
+      chestPayout += (def?.treasure?.goldPerDay ?? 0)
+      chest.opened = false
+    }
+    if (chestPayout > 0) {
+      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + chestPayout
+      EventBus.emit('TREASURE_PAYOUT', { gold: chestPayout })
+    }
+    EventBus.emit('LOCKS_CHANGED')
+  }
+
+  // ── Treasure Chest ──────────────────────────────────────────────────
+  // Iterate unopened chests highest-tier first. Greedy / vulture /
+  // loot_seeker advs always pick the top tier they can reach. Other advs
+  // roll the chest's `temptPct` per chest in tier order; first hit wins.
+  // Returns a chest entry or null.
+  _maybePickTreasureChest(adv) {
+    const chests = (this._gameState.dungeon?.treasureChests ?? []).filter(c => !c.opened)
+    if (chests.length === 0) return null
+    chests.sort((a, b) => b.tier - a.tier)
+    const tags = this._personalitySystem?.getTags(adv) ?? new Set()
+    if (tags.has('anti_loot')) return null
+    const greedy = tags.has('greedy') || tags.has('vulture') || tags.has('loot_seeker')
+    const itemsCache = this._scene.cache.json.get('items') ?? []
+    for (const chest of chests) {
+      if (greedy) return chest
+      const def = itemsCache.find(it => it.id === `treasure_chest_${chest.tier}`)
+      const temptPct = def?.treasure?.temptPct ?? 10
+      if (Math.random() * 100 < temptPct) return chest
+    }
+    return null
+  }
+
+  // Open a treasure chest the adv has reached, debit the player by
+  // stealPct% of current gold, mark the gold on the adv. 30% chance the
+  // adv switches to ESCAPE_WITH_LOOT (entry-hall beeline). Otherwise
+  // they continue with their original goal carrying the prize.
+  _tryOpenTreasureChest(adv) {
+    if (adv.stolenGold > 0) return   // already carrying — don't rob another
+    for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
+      if (chest.opened) continue
+      const d = Math.max(Math.abs(chest.tileX - adv.tileX), Math.abs(chest.tileY - adv.tileY))
+      if (d > 1) continue
+      chest.opened = true
+      const itemsCache = this._scene.cache.json.get('items') ?? []
+      const def = itemsCache.find(it => it.id === `treasure_chest_${chest.tier}`)
+      const tr  = def?.treasure ?? {}
+      const playerGold = this._gameState.player.gold ?? 0
+      const stolen = Math.max(0, Math.floor(playerGold * (tr.stealPct ?? 10) / 100))
+      this._gameState.player.gold = Math.max(0, playerGold - stolen)
+      adv.stolenGold = (adv.stolenGold ?? 0) + stolen
+      adv.stolenFromChestTier = chest.tier
+      EventBus.emit('TREASURE_CHEST_OPENED', { chest, adv, stolen })
+      EventBus.emit('TREASURE_STOLEN', { adv, gold: stolen, tier: chest.tier })
+      EventBus.emit('SAY_stoleTreasure', { adventurer: adv })
+      // Roll for escape goal — if hit, the adv abandons everything and
+      // sprints for the exit.
+      if (Math.random() < (tr.escapeChance ?? 0.30)) {
+        adv.goalStack = []   // wipe stack — escape supersedes everything
+        adv.goal = { type: 'ESCAPE_WITH_LOOT' }
+        adv.path = null
+        EventBus.emit('SAY_escapingWithLoot', { adventurer: adv })
+      }
+      return
+    }
+  }
+
+  // ── Healing Fountain ─────────────────────────────────────────────────
+  // When adv first enters a room with one or more fountains, log them
+  // into adv.knownFountains. They'll then be considered as heal targets
+  // any time HP drops below the low-HP threshold.
+  _maybeDiscoverFountain(adv, roomId) {
+    const fts = (this._gameState.dungeon?.fountains ?? []).filter(f => f.roomId === roomId)
+    if (fts.length === 0) return
+    adv.knownFountains ??= []
+    for (const f of fts) {
+      if (!adv.knownFountains.includes(f.instanceId)) adv.knownFountains.push(f.instanceId)
+    }
+  }
+
+  // If conditions hold (low HP, knows a fountain, hasn't healed today,
+  // not on a higher-priority goal), set SEEK_HEAL targeting the closest
+  // known unblocked fountain.
+  _maybeSeekHeal(adv) {
+    if (adv.fountainUsedToday) return
+    if (adv.aiState === 'fleeing' || adv.aiState === 'dead') return
+    const hpFrac = adv.resources.hp / Math.max(1, adv.resources.maxHp)
+    if (hpFrac >= Balance.LOW_HP_THRESHOLD) return
+    const t = adv.goal?.type
+    if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS'
+        || t === 'FLEE' || t === 'SEEK_HEAL' || t === 'RESCUE_ALLY'
+        || t === 'OPEN_LOCKED_DOOR' || t === 'SEEK_KEY_CHEST') return
+    const known = adv.knownFountains ?? []
+    if (known.length === 0) return
+    const fts = (this._gameState.dungeon?.fountains ?? []).filter(f => known.includes(f.instanceId))
+    if (fts.length === 0) return
+    let best = null, bestD = Infinity
+    for (const f of fts) {
+      const d = Math.hypot(adv.tileX - f.tileX, adv.tileY - f.tileY)
+      if (d < bestD) { best = f; bestD = d }
+    }
+    if (!best) return
+    adv.goalStack ??= []
+    if (adv.goal) adv.goalStack.push(adv.goal)
+    adv.goal = { type: 'SEEK_HEAL', fountainId: best.instanceId }
+    adv.path = null
+    EventBus.emit('SAY_seekHeal', { adventurer: adv })
+  }
+
+  // Proximity-based heal when adv steps onto/adjacent to a fountain. One
+  // free heal-to-full per adv per day. Marks fountainUsedToday so they
+  // don't loop back later in the same day.
+  _tryHealAtFountain(adv) {
+    if (adv.fountainUsedToday) return
+    if (adv.resources.hp >= adv.resources.maxHp) return
+    for (const f of this._gameState.dungeon?.fountains ?? []) {
+      const d = Math.max(Math.abs(f.tileX - adv.tileX), Math.abs(f.tileY - adv.tileY))
+      if (d > 1) continue
+      const healed = adv.resources.maxHp - adv.resources.hp
+      adv.resources.hp = adv.resources.maxHp
+      adv.fountainUsedToday = true
+      EventBus.emit('FOUNTAIN_HEAL_USED', { adventurer: adv, fountain: f, healed })
+      EventBus.emit('SAY_healed', { adventurer: adv })
+      return
+    }
+  }
+
+  // Find the closest unopened key chest reachable by `adv` given the
+  // current set of locks they can't pass. Returns the chest entry or
+  // null. Used as a fallback when normal pathfinding fails so they go
+  // grab a key instead of giving up and fleeing.
+  _findReachableUnopenedKeyChest(adv) {
+    const chests = (this._gameState.dungeon?.keyChests ?? []).filter(c => !c.opened)
+    if (chests.length === 0) return null
+    const blocked = new Set()
+    for (const lock of this._gameState.dungeon?.locks ?? []) {
+      if (lock.unlocked || lock.broken) continue
+      if (this._canAdvUnlockHere(adv, lock)) continue
+      for (const t of lock.doorTiles) blocked.add(`${t.x},${t.y}`)
+    }
+    let best = null, bestLen = Infinity
+    for (const chest of chests) {
+      const path = PathfinderSystem.findPath(
+        { x: adv.tileX, y: adv.tileY },
+        { x: chest.tileX, y: chest.tileY },
+        this._dungeonGrid, null, 0, blocked,
+      )
+      if (path && path.length < bestLen) { best = chest; bestLen = path.length }
+    }
+    return best
+  }
+
+  // Returns the lock entry that owns the given tile, or null. Used by the
+  // pathfinder cost wrapper to mark unowned-key locked doors as walls and
+  // by _tryUnlockTile to consume the unlock method on step.
+  _lockOnTile(tx, ty) {
+    for (const l of this._gameState.dungeon?.locks ?? []) {
+      if (l.unlocked || l.broken) continue
+      if (l.doorTiles.some(t => t.x === tx && t.y === ty)) return l
+    }
+    return null
+  }
+
+  // Whether `adv` has any way to pass `lock` right now (key OR uses-left
+  // for their class ability). Doesn't consume — see _tryUnlockTile.
+  _canAdvUnlockHere(adv, lock) {
+    if ((adv.keys ?? []).includes(lock.id)) return true
+    if (adv.classId === 'rogue'     && (adv.lockpickUsedToday  ?? 0) < 2) return true
+    if (adv.classId === 'barbarian' && (adv.breakdownUsedToday ?? 0) < 2) return true
+    return false
+  }
+
+  // When `adv` steps onto a locked door tile, consume the highest-
+  // priority unlock method they have (key > lockpick > break) and flip
+  // the lock open. Broken locks stay broken until night reset.
+  _tryUnlockTile(adv, tx, ty) {
+    const lock = this._lockOnTile(tx, ty)
+    if (!lock) return
+    if ((adv.keys ?? []).includes(lock.id)) {
+      adv.keys = adv.keys.filter(k => k !== lock.id)
+      lock.unlocked = true
+      EventBus.emit('LOCK_OPENED', { lock, adv, method: 'key' })
+      EventBus.emit('LOCKS_CHANGED')
+      EventBus.emit('SAY_unlockedDoor', { adventurer: adv })
+      return
+    }
+    if (adv.classId === 'rogue' && (adv.lockpickUsedToday ?? 0) < 2) {
+      adv.lockpickUsedToday = (adv.lockpickUsedToday ?? 0) + 1
+      lock.unlocked = true
+      EventBus.emit('LOCK_OPENED', { lock, adv, method: 'lockpick' })
+      EventBus.emit('LOCKS_CHANGED')
+      EventBus.emit('SAY_lockpicked', { adventurer: adv })
+      return
+    }
+    if (adv.classId === 'barbarian' && (adv.breakdownUsedToday ?? 0) < 2) {
+      adv.breakdownUsedToday = (adv.breakdownUsedToday ?? 0) + 1
+      lock.unlocked = true
+      lock.broken = true
+      EventBus.emit('LOCK_OPENED', { lock, adv, method: 'break' })
+      EventBus.emit('LOCKS_CHANGED')
+      EventBus.emit('SAY_brokeDoor', { adventurer: adv })
+      return
+    }
+  }
+
+  // When `adv` steps onto an unopened key chest tile, open it, give them
+  // the key, and stack an OPEN_LOCKED_DOOR goal so they head straight to
+  // the matching door. Existing goal is pushed onto goalStack and resumes
+  // after the door is opened.
+  _tryPickKey(adv) {
+    for (const chest of this._gameState.dungeon?.keyChests ?? []) {
+      if (chest.opened) continue
+      // Proximity pickup — adv just needs to be within Chebyshev range 1
+      // (same tile or any 8-neighbour). Path smoothing can skip the
+      // exact chest tile, so an exact-tile check made advs walk past.
+      const d = Math.max(Math.abs(chest.tileX - adv.tileX), Math.abs(chest.tileY - adv.tileY))
+      if (d > 1) continue
+      chest.opened = true
+      adv.keys ??= []
+      if (!adv.keys.includes(chest.lockId)) adv.keys.push(chest.lockId)
+      EventBus.emit('KEY_CHEST_OPENED', { chest, adv })
+      const t = adv.goal?.type
+      if (t !== 'CHARM_WALK' && t !== 'HUNT_PHYLACTERY' && t !== 'AT_BOSS' && t !== 'FLEE') {
+        adv.goalStack ??= []
+        if (adv.goal) adv.goalStack.push(adv.goal)
+        adv.goal = { type: 'OPEN_LOCKED_DOOR', lockId: chest.lockId }
+        adv.path = null
+      }
+      EventBus.emit('SAY_pickedKey', { adventurer: adv })
+      return
+    }
   }
 
   setPersonalitySystem(ps) { this._personalitySystem = ps }
@@ -40,13 +341,218 @@ export class AISystem {
     adv._lastHitBy   = sourceId
     adv._lastHitType = damageType
     this._checkFleeTrigger(adv)
+    this._maybeRescueAlly(adv, sourceId)
   }
 
-  // (Stub) Necromancer's old raise-on-minion-death behavior has been retired.
-  // The new Summon Undead ability (cooldown-driven, summons fresh skeletons
-  // from nothing rather than raising corpses) will be wired in the
-  // Necromancer class-rework pass.
-  _onMinionDied({ minion }) { /* intentionally empty after Phase 5b rework */ }
+  // If `victim` is at critical HP and being attacked, find a nearby living
+  // ally (any party — not gated on party_loyal) and give them a RESCUE_ALLY
+  // goal targeting the attacker. Higher-priority than normal goals so the
+  // rescuer interrupts whatever they were doing.
+  _maybeRescueAlly(victim, attackerId) {
+    if (!victim || victim.aiState === 'dead' || victim.aiState === 'fleeing') return
+    const hpFrac = victim.resources.hp / Math.max(1, victim.resources.maxHp)
+    if (hpFrac > RESCUE_HP_FRACTION) return
+    const advs = this._gameState.adventurers?.active ?? []
+    let best = null, bestDist = RESCUE_RANGE
+    for (const adv of advs) {
+      if (adv.instanceId === victim.instanceId) continue
+      if (adv.aiState === 'dead' || adv.aiState === 'fleeing') continue
+      const t = adv.goal?.type
+      if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS'
+          || t === 'FLEE' || t === 'RESCUE_ALLY') continue
+      const d = Math.hypot(adv.tileX - victim.tileX, adv.tileY - victim.tileY)
+      if (d > bestDist) continue
+      best = adv; bestDist = d
+    }
+    if (!best) return
+    best.goalStack ??= []
+    if (best.goal) best.goalStack.push(best.goal)
+    best.goal = {
+      type:        'RESCUE_ALLY',
+      allyId:      victim.instanceId,
+      attackerId:  attackerId,
+    }
+    best.path = null
+    EventBus.emit('SAY_rescueAlly', { adventurer: best })
+  }
+
+  // Minion deaths are noise — nearby adventurers may detour to investigate.
+  _onMinionDied({ minion }) {
+    if (minion?.tileX == null || minion?.tileY == null) return
+    this._emitNoise(minion.tileX, minion.tileY)
+  }
+
+  // Trap firings are noise too.
+  _onTrapTriggeredAI({ trap, x, y, adventurer }) {
+    const tx = trap?.tileX ?? x ?? adventurer?.tileX
+    const ty = trap?.tileY ?? y ?? adventurer?.tileY
+    if (tx == null || ty == null) return
+    this._emitNoise(tx, ty)
+  }
+
+  // Whenever an adventurer kills something, ~25% chance for a brief gloat
+  // pause + chat line. Skipped for boss kills (BOSS_FIGHT_INCOMING flow
+  // owns those reactions) and for fleeing/dying adventurers.
+  _onCombatKill({ source, victim }) {
+    if (!source?.instanceId) return
+    const adv = this._gameState.adventurers?.active?.find(a => a.instanceId === source.instanceId)
+    if (!adv || adv.aiState === 'dead' || adv.aiState === 'fleeing') return
+    if (victim?.isBoss) return
+    if (Math.random() >= GLOAT_CHANCE) return
+    // Don't interrupt critical goals (charm, hunt phylactery, etc.).
+    const t = adv.goal?.type
+    if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'FLEE' || t === 'AT_BOSS') return
+    adv._gloatUntil = this._scene.time.now + GLOAT_DURATION_MS
+    EventBus.emit('SAY_gloatOverKill', { adventurer: adv })
+  }
+
+  // ── LOOT_CORPSE ──────────────────────────────────────────────────────
+  // Pile shape: { instanceId, tileX, tileY, fromAdvId, fromAdvName,
+  //              buff: { stat, amount, label } }
+  //
+  // Buffs are tiny so even a string of looted corpses doesn't break combat
+  // balance. Stats reach into adv.stats (attack/defense/maxHp/speed).
+  // The +<n> floater is rendered by AdventurerRenderer after we emit
+  // BUFF_GAINED with the same label string.
+  _dropLootPile(adv) {
+    const buffPool = [
+      { stat: 'attack',  amount: 2, label: '+2 ATK' },
+      { stat: 'defense', amount: 1, label: '+1 DEF' },
+      { stat: 'maxHp',   amount: 5, label: '+5 HP'  },
+      { stat: 'speed',   amount: 0.15, label: '+SPD' },
+    ]
+    const buff = buffPool[Math.floor(Math.random() * buffPool.length)]
+    const pile = {
+      instanceId:  `loot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      tileX:       adv.tileX,
+      tileY:       adv.tileY,
+      worldX:      adv.worldX,
+      worldY:      adv.worldY,
+      fromAdvId:   adv.instanceId,
+      fromAdvName: adv.name ?? 'unknown',
+      buff,
+    }
+    this._gameState.dungeon.lootPiles ??= []
+    this._gameState.dungeon.lootPiles.push(pile)
+    EventBus.emit('LOOT_PILE_DROPPED', { pile })
+    // Roll nearby walking advs for the LOOT_CORPSE goal.
+    //   • greedy / vulture → 100% if in sight
+    //   • anti_loot         → never (refuses to grab even free loot)
+    //   • everyone else     → LOOT_CHANCE roll
+    const advs = this._gameState.adventurers?.active ?? []
+    for (const a of advs) {
+      if (a.instanceId === adv.instanceId) continue
+      if (a.aiState === 'dead' || a.aiState === 'fleeing') continue
+      const t = a.goal?.type
+      if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS'
+          || t === 'FLEE' || t === 'LOOT_CORPSE' || t === 'RESCUE_ALLY') continue
+      const d = Math.hypot(a.tileX - pile.tileX, a.tileY - pile.tileY)
+      if (d > LOOT_SIGHT_RANGE) continue
+      const tags = this._personalitySystem?.getTags(a) ?? new Set()
+      if (tags.has('anti_loot')) continue
+      const greedy = tags.has('greedy') || tags.has('vulture') || tags.has('loot_seeker')
+      if (!greedy && Math.random() >= LOOT_CHANCE) continue
+      a.goalStack ??= []
+      if (a.goal) a.goalStack.push(a.goal)
+      a.goal = { type: 'LOOT_CORPSE', pileId: pile.instanceId }
+      a.path = null
+      EventBus.emit('SAY_lootCorpseStart', { adventurer: a })
+    }
+  }
+
+  // Apply a loot-pile buff to the adventurer and emit BUFF_GAINED so the
+  // renderer can pop a "+2 ATK" floater above their head.
+  _applyLootBuff(adv, pile) {
+    const { stat, amount, label } = pile.buff
+    if (!adv.stats) adv.stats = {}
+    if (stat === 'maxHp') {
+      adv.resources.maxHp = (adv.resources.maxHp ?? 0) + amount
+      adv.resources.hp    = Math.min(adv.resources.maxHp, (adv.resources.hp ?? 0) + amount)
+    } else {
+      adv.stats[stat] = (adv.stats[stat] ?? 0) + amount
+    }
+    adv.flags ??= {}
+    adv.flags.lootedCorpses = (adv.flags.lootedCorpses ?? 0) + 1
+    EventBus.emit('BUFF_GAINED', { adventurer: adv, label })
+    EventBus.emit('SAY_lootCorpseDone', { adventurer: adv })
+  }
+
+  // When an adventurer enters a room with a real threat, they shout to
+  // their party. Threat = a high-tier minion (evolved minion or boss-level
+  // ≥3 boss-spawn) OR an armed trap they already know about. The warner
+  // gets the chat line; nearby party-mates get a brief trapCaution-ish
+  // boost (currently just a flag — pathfinder hookup lands with AVOID_TRAP
+  // in Phase 3).
+  _maybeWarnParty(adv, roomId) {
+    const now = this._scene.time.now
+    if ((adv._lastWarnAt ?? 0) + WARN_COOLDOWN_MS > now) return
+    const room = this._gameState.dungeon.rooms.find(r => r.instanceId === roomId)
+    if (!room) return
+
+    // Evolved minions or strong minions (definitionId ending with a digit
+    // ≥3, e.g. orc3, slime9) count as a threat.
+    const minionsHere = (this._gameState.minions ?? []).filter(m =>
+      m.aiState !== 'dead' && m.tileX != null &&
+      m.tileX >= room.gridX && m.tileX < room.gridX + room.width &&
+      m.tileY >= room.gridY && m.tileY < room.gridY + room.height
+    )
+    const strongMinion = minionsHere.find(m => {
+      const id = String(m.definitionId ?? '')
+      const lastChar = id[id.length - 1]
+      return /\d/.test(lastChar) && Number(lastChar) >= 3
+    })
+
+    // A trap we know about, sitting in this room, counts as a threat
+    // worth shouting "trap!" over.
+    const knownTraps = (this._gameState.dungeon.traps ?? []).filter(t =>
+      t.disarmed !== true &&
+      t.tileX >= room.gridX && t.tileX < room.gridX + room.width &&
+      t.tileY >= room.gridY && t.tileY < room.gridY + room.height &&
+      this._knowledgeSystem?.isTrapKnown?.(t.instanceId)
+    )
+
+    if (!strongMinion && knownTraps.length === 0) return
+
+    adv._lastWarnAt = now
+    EventBus.emit('SAY_warnParty', { adventurer: adv })
+    // Brief party caution flag — picked up by AVOID_TRAP pathfinder hook
+    // in Phase 3. Set on every party-mate within WARN_RADIUS tiles.
+    const advs = this._gameState.adventurers?.active ?? []
+    for (const mate of advs) {
+      if (mate.instanceId === adv.instanceId) continue
+      if (mate.aiState === 'dead') continue
+      const d = Math.hypot(mate.tileX - adv.tileX, mate.tileY - adv.tileY)
+      if (d > WARN_RADIUS) continue
+      if (Math.random() >= WARN_CHANCE) continue
+      mate._warnedUntil = now + WARN_COOLDOWN_MS
+    }
+  }
+
+  // Push every nearby walking adventurer toward the noise tile, with a
+  // probability roll per adv. Skips advs already on a higher-priority
+  // goal so we don't yank them off a flee or boss path.
+  _emitNoise(tx, ty) {
+    const advs = this._gameState.adventurers?.active ?? []
+    for (const adv of advs) {
+      if (adv.aiState === 'dead' || adv.aiState === 'fleeing') continue
+      const t = adv.goal?.type
+      if (t === 'FLEE' || t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY'
+          || t === 'AT_BOSS' || t === 'INVESTIGATE_NOISE'
+          || t === 'RESCUE_ALLY' || t === 'DEFEND_ALLY') continue
+      const d = Math.hypot(adv.tileX - tx, adv.tileY - ty)
+      if (d > INVESTIGATE_NOISE_RADIUS) continue
+      if (Math.random() >= INVESTIGATE_NOISE_CHANCE) continue
+      adv.goalStack ??= []
+      if (adv.goal) adv.goalStack.push(adv.goal)
+      adv.goal = {
+        type: 'INVESTIGATE_NOISE',
+        targetX: tx, targetY: ty,
+        expiresAt: this._scene.time.now + INVESTIGATE_NOISE_TIMEOUT_MS,
+      }
+      adv.path = null
+      EventBus.emit('SAY_investigateNoiseHeard', { adventurer: adv })
+    }
+  }
 
   // Detect PARTY_WIPED — fires when the last living party member dies AND any
   // surviving traumatized member should panic-flee (sole survivor scenario).
@@ -81,6 +587,23 @@ export class AISystem {
         survivor.flags.fullKnowledgeOnFlee = true   // Phase 8 will read this
         this._setFleeGoal(survivor, 'traumatized_panic')
       }
+    }
+  }
+
+  // When the party wins a boss fight, force every adventurer still in the dungeon
+  // to flee — not just those who were inside _fightStates. Split-off adventurers
+  // (solo, chat_poll redirect, etc.) never receive the BossSystem handoff and
+  // would otherwise keep exploring indefinitely.
+  // Barbarian and noFlee flags are intentionally bypassed: the dungeon run is
+  // over for this wave and everyone must exit.
+  _onBossFightResolved({ winner }) {
+    if (winner !== 'party') return
+    for (const adv of this._gameState.adventurers.active) {
+      if (adv.aiState === 'dead' || adv.aiState === 'fleeing' ||
+          adv.aiState === 'fled' || adv.aiState === 'leaving') continue
+      adv.goal    = { type: 'FLEE', reason: 'boss_defeated' }
+      adv.aiState = 'fleeing'
+      adv.path    = null
     }
   }
 
@@ -154,6 +677,33 @@ export class AISystem {
     if (adv._leaveFadeEnd != null && (this._scene?.time?.now ?? 0) < adv._leaveFadeEnd) {
       return
     }
+    // Phase: alive AI — gloat-pause after a kill. Adv stands in place,
+    // chat bubble is already firing via the COMBAT_KILL listener.
+    if (adv._gloatUntil != null && (this._scene?.time?.now ?? 0) < adv._gloatUntil) {
+      return
+    }
+    // Phase: alive AI — looting freeze. Adv idles next to the corpse
+    // until the timer expires, then takes the buff and resumes normal
+    // goals. If the pile vanished mid-loot (other adv stole it, day
+    // ended), bail without applying the buff.
+    if (adv._lootingUntil != null) {
+      const now = this._scene?.time?.now ?? 0
+      if (now < adv._lootingUntil) return
+      const pileId = adv._lootingPileId
+      const piles  = this._gameState.dungeon.lootPiles ??= []
+      const idx2   = piles.findIndex(p => p.instanceId === pileId)
+      if (idx2 >= 0) {
+        const pile = piles[idx2]
+        piles.splice(idx2, 1)
+        EventBus.emit('LOOT_PILE_REMOVED', { pile, looterId: adv.instanceId })
+        this._applyLootBuff(adv, pile)
+      }
+      adv._lootingUntil = null
+      adv._lootingPileId = null
+      adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
     // AT_BOSS adventurers are owned by BossSystem.  Skip every other AI
     // branch and free our occupancy entry so the 4th party member can
     // path through the doorway tile this one used to hold.  Without the
@@ -165,6 +715,21 @@ export class AISystem {
         const key = `${adv.tileX},${adv.tileY}`
         if (this._occupancy[key] === adv.instanceId) delete this._occupancy[key]
       }
+      return
+    }
+
+    // Pass-1 minion abilities — DoT damage + status expiry. Run early so an
+    // adv that drops to 0 HP from poison/burn is killed this tick rather than
+    // continuing to walk through goals first.
+    MinionAbilities.tickEntity(adv, this._scene, delta)
+    if (adv.resources.hp <= 0) {
+      this._kill(adv, idx, adv._lastHitBy ?? 'dot')
+      return
+    }
+    // Root / stagger gate — adv stands still for the duration. Any minion
+    // already in range gets free swings (CombatSystem hits them normally).
+    const _now = this._scene?.time?.now ?? 0
+    if (MinionAbilities.isRooted(adv, _now) || MinionAbilities.isStaggered(adv, _now)) {
       return
     }
 
@@ -222,6 +787,50 @@ export class AISystem {
           // eslint-disable-next-line no-console
           console.log('[stuck-unstuck] adv', adv.instanceId, 'at', adv.tileX, adv.tileY,
             'goal:', adv.goal?.type, 'state:', adv.aiState)
+        }
+      }
+
+      // Oscillation failsafe — catches the case the soft detector above
+      // misses: an adv that ping-pongs between two adjacent tiles passes
+      // the half-tile-per-1.5s displacement check every frame, but
+      // never makes real progress. Sample the current tile every
+      // OSC_SAMPLE_MS, keep a rolling OSC_WINDOW_MS window of samples,
+      // and if the window covers a full sustained period (≥3s of
+      // samples) but only contains ≤2 unique tiles, give up on the
+      // original goal and force a FLEE so they head home instead of
+      // hanging the day. Skipped for already-fleeing advs (they can't
+      // escalate further) and for advs the soft detector exempts.
+      const OSC_SAMPLE_MS = 200
+      const OSC_WINDOW_MS = 5000
+      const OSC_TRIGGER_SAMPLES = 15      // 15 × 200ms = 3s of samples
+      const now = this._scene.time?.now ?? 0
+      adv._oscNextAt ??= 0
+      if (now >= adv._oscNextAt) {
+        adv._oscNextAt = now + OSC_SAMPLE_MS
+        adv._oscRing ??= []
+        adv._oscRing.push({ x: adv.tileX, y: adv.tileY, t: now })
+        while (adv._oscRing.length > 0 && (now - adv._oscRing[0].t) > OSC_WINDOW_MS) {
+          adv._oscRing.shift()
+        }
+        if (adv._oscRing.length >= OSC_TRIGGER_SAMPLES &&
+            adv.goal?.type !== 'FLEE') {
+          const unique = new Set(adv._oscRing.map(e => `${e.x},${e.y}`))
+          if (unique.size <= 2) {
+            adv.goal    = { type: 'FLEE', reason: 'oscillation' }
+            adv.path    = null
+            adv.aiState = 'fleeing'
+            adv._oscRing = []
+            adv._tileStuckMs = 0
+            EventBus.emit('ADVENTURER_OSCILLATION_BREAK', {
+              adventurer: adv,
+              tile:       { x: adv.tileX, y: adv.tileY },
+              uniqueTiles: [...unique],
+            })
+            // eslint-disable-next-line no-console
+            console.log('[oscillation-break] adv', adv.instanceId,
+              'at', adv.tileX, adv.tileY, 'unique:', unique.size,
+              'prevGoal:', adv.goal?.reason)
+          }
         }
       }
     }
@@ -346,6 +955,15 @@ export class AISystem {
       if (bossRoom &&
           adv.tileX >= bossRoom.gridX + WT && adv.tileX < bossRoom.gridX + bossRoom.width  - WT &&
           adv.tileY >= bossRoom.gridY + WT && adv.tileY < bossRoom.gridY + bossRoom.height - WT) {
+        // Boss at 0 hp is "dead-posed" — frozen on the death frame until
+        // the post-wave summary appears. Don't engage it; redirect this
+        // adv out of the dungeon so no fight starts on a dead boss.
+        if ((this._gameState.boss?.hp ?? 1) <= 0) {
+          adv.goal = { type: 'FLEE' }
+          adv.path = null
+          adv.aiState = 'walking'
+          return
+        }
         adv.goal    = { type: 'AT_BOSS' }
         adv.path    = null
         adv.aiState = 'fighting'
@@ -368,6 +986,8 @@ export class AISystem {
         EventBus.emit('ADVENTURER_ROOM_CHANGED', {
           adventurer: adv, fromRoomId: prev, toRoomId: curRoomId,
         })
+        this._maybeWarnParty(adv, curRoomId)
+        this._maybeDiscoverFountain(adv, curRoomId)
       }
     }
 
@@ -377,7 +997,10 @@ export class AISystem {
     // Phase 10b — Twitch Streamer chat_poll: every ~10s, chat picks a random
     // unvisited room and the streamer abandons whatever they were doing
     // to "follow viewer suggestion". Wildly chaotic; loved by the boss.
-    if (adv.classId === 'twitch_streamer' && adv.aiState !== 'fighting' && adv.aiState !== 'fleeing') {
+    // Suppressed when the boss is already dead (hp <= 0) so the poll can't
+    // override the flee goal that _onBossFightResolved just set.
+    if (adv.classId === 'twitch_streamer' && adv.aiState !== 'fighting' && adv.aiState !== 'fleeing' &&
+        (this._gameState.boss?.hp ?? 1) > 0) {
       adv._chatPollAccum = (adv._chatPollAccum ?? 0) + delta
       if (adv._chatPollAccum >= 10000) {
         adv._chatPollAccum = 0
@@ -410,15 +1033,14 @@ export class AISystem {
       this._setFleeGoal(adv, 'out_of_arrows')
     }
 
-    // Phase 6e: SLEEP goal — if HP is moderate-low and no enemies in room,
-    // sleep here to slowly heal back to full. Vulnerable while sleeping.
-    if (this._shouldSleep(adv)) {
-      this._sleep(adv, delta)
-      return
-    }
-
     // Standard flee check (HP threshold)
     this._checkFleeTrigger(adv)
+
+    // Phase: items — Healing Fountain heal-seeking. If the adv knows a
+    // fountain, hasn't healed today, and is below the low-HP threshold,
+    // detour to the closest known fountain. Skips when already on a
+    // higher-priority goal so a charm/flee doesn't get hijacked.
+    this._maybeSeekHeal(adv)
 
     // Phase QW — solo: split off from party on first tick. Once stripped,
     // they ignore party effects and pursue their own goals. No combo banner
@@ -554,17 +1176,55 @@ export class AISystem {
       // Phase 8: weight tiles by this adventurer's knowledge (avoid known
       // traps) — but skip knowledge weighting when fleeing.  A panicking
       // adventurer takes the fastest route home, traps be damned.
+      // Phase: alive AI — wrap the cost fn so:
+      //   • known traps cost more when this adv was recently warned
+      //   • we count rejected trap tiles → ~12% chance to fire avoidTrap
+      //     chat line (so the dodge reads visibly to the player)
       const useKnowledgeCost = this._knowledgeSystem && adv.goal?.type !== 'FLEE'
-      const costFn = useKnowledgeCost
-        ? (tx, ty) => this._knowledgeSystem.costMultiplierForTile(adv, tx, ty)
-        : null
+      let trapRejectsThisPath = 0
+      const warned = (adv._warnedUntil ?? 0) > this._scene.time.now
+      const costFn = (tx, ty) => {
+        if (!useKnowledgeCost) return 1
+        const base = this._knowledgeSystem.costMultiplierForTile(adv, tx, ty)
+        if (base > 1) {
+          trapRejectsThisPath++
+          return base * (warned ? TRAP_AVOID_PENALTY_WARNED : TRAP_AVOID_PENALTY)
+        }
+        return base
+      }
+      // Phase: items — hard-block every locked-door tile this adv has no
+      // way to open. The pathfinder skips blocked tiles entirely (vs a
+      // soft cost A* would still pick if no alternative existed), so an
+      // adv with no key / lockpick / break literally cannot route through.
+      // Applies to FLEE too — locks are real barriers. Also blocks every
+      // Beacon and Fountain tile so structures have collision.
+      const blockedForAdv = new Set()
+      for (const lock of this._gameState.dungeon?.locks ?? []) {
+        if (lock.unlocked || lock.broken) continue
+        if (this._canAdvUnlockHere(adv, lock)) continue
+        for (const t of lock.doorTiles) blockedForAdv.add(`${t.x},${t.y}`)
+      }
+      for (const b of this._gameState.dungeon?.beacons        ?? []) blockedForAdv.add(`${b.tileX},${b.tileY}`)
+      for (const f of this._gameState.dungeon?.fountains      ?? []) blockedForAdv.add(`${f.tileX},${f.tileY}`)
+      for (const c of this._gameState.dungeon?.treasureChests ?? []) blockedForAdv.add(`${c.tileX},${c.tileY}`)
       // Add path jitter for non-flee goals so adventurers don't all march the
       // same straight line — they pick varied routes between rooms each repath.
       // Fleeing advs skip jitter (panic = beeline home).
       const pathJitter = adv.goal?.type === 'FLEE' ? 0 : 0.6
       const path = PathfinderSystem.findPath(
         { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
+        blockedForAdv,
       )
+      // Phase: alive AI — if the pathfinder rejected at least one known
+      // trap tile, occasionally have the adv shout about avoiding it.
+      // Cooldown via _lastAvoidTrapAt prevents constant chatter.
+      if (trapRejectsThisPath > 0) {
+        const now = this._scene.time.now
+        if ((adv._lastAvoidTrapAt ?? 0) + 6000 < now && Math.random() < 0.12) {
+          adv._lastAvoidTrapAt = now
+          EventBus.emit('SAY_avoidTrap', { adventurer: adv })
+        }
+      }
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
         // "no route exists".  Only treat the former as a true arrival; the
@@ -578,6 +1238,19 @@ export class AISystem {
           adv.goal.fleeTargetY = null
           adv.goal.fleeIsEntry = false
           adv.path             = null
+          return
+        }
+        // Phase: items — before giving up and fleeing, see if there's an
+        // unopened key chest the adv could grab. If so, push the current
+        // goal onto the stack and head for the chest. _tryPickKey will
+        // hand them the key on arrival, and OPEN_LOCKED_DOOR follows.
+        const chest = this._findReachableUnopenedKeyChest(adv)
+        if (chest) {
+          adv.goalStack ??= []
+          if (adv.goal) adv.goalStack.push(adv.goal)
+          adv.goal = { type: 'SEEK_KEY_CHEST', chestId: chest.instanceId }
+          adv.path = null
+          EventBus.emit('SAY_seekKey', { adventurer: adv })
           return
         }
         // Non-flee goal blocked — convert to FLEE rather than despawn.
@@ -699,7 +1372,11 @@ export class AISystem {
     // Phase 5c — Bard Song of Speed: same-party advs within 2 tiles of a
     // speed-song-active Bard move 20% faster.
     const songMul  = this._songOfSpeedMul(adv)
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * TS * delta) / 1000
+    // Phase: alive AI — scouts and rescuers move faster.
+    const goalMul = adv.goal?.type === 'SCOUT_AHEAD'  ? SCOUT_SPEED_MULT
+                  : adv.goal?.type === 'RESCUE_ALLY'  ? RESCUE_SPEED_MULT
+                  : 1
+    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * goalMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -712,6 +1389,18 @@ export class AISystem {
       adv.tileY  = wp.y
       if (this._occupancy) this._occupancy[`${wp.x},${wp.y}`] = adv.instanceId
       this._maybeOpenDoorAt(wp.x, wp.y)
+      // Phase: items — if the new tile is a locked door tile, consume the
+      // best available unlock method (key > lockpick > break). If it's a
+      // key-chest tile, open it and stack the OPEN_LOCKED_DOOR goal.
+      this._tryUnlockTile(adv, wp.x, wp.y)
+      this._tryPickKey(adv)
+      this._tryHealAtFountain(adv)
+      this._tryOpenTreasureChest(adv)
+      // _tryPickKey may have nulled adv.path (it switches the goal to
+      // OPEN_LOCKED_DOOR and clears the path so a fresh repath happens
+      // next tick). Guard the .length read so the update loop doesn't
+      // throw — when path is null we're already done with this step.
+      if (!adv.path) return
       // Advance past every waypoint we collapsed via LOS smoothing.
       adv.pathIndex = wpIndex + 1
 
@@ -796,20 +1485,27 @@ export class AISystem {
         const guardRow   = tilesGuard?.[newTileY]
         if (!guardRow || !PathfinderSystem.isWalkable(guardRow[newTileX])) {
           if (advLane || wpLane) {
-            // intentionally skip — seam-shift boundary overshoot
+            // Seam-shift boundary overshoot: world position legitimately
+            // sits on the tile boundary (lane-centre shift puts targetWX/Y
+            // exactly at N×TS), but tileX/Y must NOT be latched to the
+            // non-walkable cell — doing so corrupts the next path call and
+            // produces a backward oscillation as the pathfinder plans from
+            // a wall tile. Leave tileX/Y alone; the commit branch will set
+            // them correctly from wp.x/y once dist < 0.5.
           } else {
             adv.worldX = adv.tileX * TS + TS / 2
             adv.worldY = adv.tileY * TS + TS / 2
             adv.path = null
             return
           }
+        } else {
+          const oldKey = `${adv.tileX},${adv.tileY}`
+          if (this._occupancy?.[oldKey] === adv.instanceId) delete this._occupancy[oldKey]
+          adv.tileX = newTileX
+          adv.tileY = newTileY
+          if (this._occupancy) this._occupancy[`${newTileX},${newTileY}`] = adv.instanceId
+          this._maybeOpenDoorAt(newTileX, newTileY)
         }
-        const oldKey = `${adv.tileX},${adv.tileY}`
-        if (this._occupancy?.[oldKey] === adv.instanceId) delete this._occupancy[oldKey]
-        adv.tileX = newTileX
-        adv.tileY = newTileY
-        if (this._occupancy) this._occupancy[`${newTileX},${newTileY}`] = adv.instanceId
-        this._maybeOpenDoorAt(newTileX, newTileY)
       }
     }
   }
@@ -888,6 +1584,11 @@ export class AISystem {
   // ── Combat / Flee helpers ──────────────────────────────────────────────────
 
   _findEngageableMinion(adv) {
+    // Vampire Charm — a charmed adv is being walked toward the boss
+    // room as a future thrall. They don't engage anything along the
+    // way; the symmetric "minions don't attack the charmed adv" rule
+    // lives in MinionAISystem._pickTarget.
+    if (adv._charmed) return null
     // Phase 5c — ranged classes (Mage / Cleric / Necromancer / Ranger / Bard)
     // engage at their declared attackRange instead of melee. Falls back to
     // MELEE_RANGE_TILES (1.5) for melee classes.
@@ -1008,38 +1709,6 @@ export class AISystem {
     return best
   }
 
-  // Phase 6e: SLEEP goal — adventurer naps in a safe room to recover HP slowly.
-  // Triggered when:
-  //   - HP fraction is low (≤ LOW_HP_THRESHOLD)
-  //   - No hostile minions in same room (SLEEP_REQUIRES_NO_HOSTILES)
-  //   - HP < maxHp
-  // While sleeping, aiState='sleeping', they don't move/attack. Damage from any
-  // source breaks sleep (handled implicitly — _checkFleeTrigger runs on incoming hits).
-  _shouldSleep(adv) {
-    if (adv.aiState === 'fleeing') return false
-    if (adv.resources.hp >= adv.resources.maxHp) return false
-    // Inner Peace already regenerates the Monk; layering Sleep on top freezes
-    // them in place ("stuck while inner peace is active").
-    if (adv._innerPeaceUntil && this._scene.time.now < adv._innerPeaceUntil) return false
-    const hpFrac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
-    if (hpFrac > Balance.LOW_HP_THRESHOLD) return false
-    if (Balance.SLEEP_REQUIRES_NO_HOSTILES && this._anyHostileMinionInRoom(adv)) return false
-    return true
-  }
-
-  _sleep(adv, delta) {
-    adv.aiState = 'sleeping'
-    adv.path = null   // stop moving
-    const rate = Balance.SLEEP_HP_PER_SEC ?? 3
-    adv.resources.hp = Math.min(
-      adv.resources.maxHp,
-      adv.resources.hp + (rate * delta) / 1000
-    )
-    if (adv.resources.hp >= adv.resources.maxHp) {
-      adv.aiState = 'walking'   // wake up at full HP
-    }
-  }
-
   // Phase 8b: per-adventurer path sampling for Replay Ghost rendering
   _samplePath(adv, delta) {
     adv.pathHistory ??= []
@@ -1053,7 +1722,7 @@ export class AISystem {
   }
 
   // Phase 6e: passive room effects driven by definitionId.
-  // Healing Fountain restores HP slowly while standing in it (and not in combat).
+  // (Healing Fountain is now a placeable ITEM, not a room — see Phase C.)
   _applyRoomEffects(adv, delta) {
     const room = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
     if (!room || room.isActive === false) return
@@ -1277,10 +1946,13 @@ export class AISystem {
       }
       return { x: phyl.tileX, y: phyl.tileY }
     }
-    // Phase 1b.10 — Vampire Charm: walk to the boss room without engaging.
-    // BossArchetypeSystem watches for arrival and converts the adv into a
-    // thrall. Pathfinder uses the boss room's center.
+    // Phase 1b.10 — Vampire Charm: walk to the boss itself (not just the room).
+    // Route to the boss's current tile so the adv tracks the boss as it moves.
+    // BossArchetypeSystem converts them into a thrall once they get close enough.
     if (adv.goal.type === 'CHARM_WALK') {
+      const boss = this._gameState.boss
+      if (boss?.tileX != null && boss?.tileY != null) return { x: boss.tileX, y: boss.tileY }
+      // Fallback: boss not yet positioned — use room center.
       const room = dungeon.rooms.find(r => r.instanceId === adv.goal.roomId)
       if (!room) return null
       return {
@@ -1336,6 +2008,120 @@ export class AISystem {
       if (!entry) return null
       return _entryNorthTile(entry)
     }
+    // Phase: alive AI — react-to-noise detour. Time-limited; expires back
+    // to whatever was on the goal stack.
+    if (adv.goal.type === 'INVESTIGATE_NOISE') {
+      if (this._scene.time.now >= (adv.goal.expiresAt ?? 0)) {
+        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return { x: adv.goal.targetX, y: adv.goal.targetY }
+    }
+    // Phase: alive AI — chase down the party centroid.
+    if (adv.goal.type === 'REGROUP_AT_PARTY') {
+      const c = this._partyCentroid(adv)
+      if (!c) {
+        adv.goal = this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return c
+    }
+    // Phase: alive AI — solo scout to a far unvisited room. If the room
+    // disappears mid-scout (player removed it), pick a new goal.
+    if (adv.goal.type === 'SCOUT_AHEAD') {
+      const room = dungeon.rooms.find(r => r.instanceId === adv.goal.roomId)
+      if (!room) {
+        adv.goal = this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return {
+        x: room.gridX + Math.floor(room.width  / 2),
+        y: room.gridY + Math.floor(room.height / 2),
+      }
+    }
+    // Phase D — beeline to the targeted treasure chest. If it's gone or
+    // already opened, pop back to whatever we were doing.
+    if (adv.goal.type === 'SEEK_TREASURE') {
+      const chest = (this._gameState.dungeon.treasureChests ?? [])
+        .find(c => c.instanceId === adv.goal.chestId && !c.opened)
+      if (!chest) {
+        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return { x: chest.tileX, y: chest.tileY }
+    }
+    // Phase D — escape with stolen loot. Same target as FLEE (entry-hall
+    // north exit), but the adv keeps full speed (not panicked) and the
+    // gold is gone for good when they leave.
+    if (adv.goal.type === 'ESCAPE_WITH_LOOT') {
+      const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
+      if (!entry) return null
+      return _entryNorthTile(entry)
+    }
+    // Phase: items — beeline to a known healing fountain. If the fountain
+    // is gone (sold mid-walk), pick up where we left off.
+    if (adv.goal.type === 'SEEK_HEAL') {
+      const f = (this._gameState.dungeon.fountains ?? [])
+        .find(x => x.instanceId === adv.goal.fountainId)
+      if (!f) {
+        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return { x: f.tileX, y: f.tileY }
+    }
+    // Phase: items — beeline to the key chest. If it's been opened
+    // (someone else got there first) or sold, drop the goal.
+    if (adv.goal.type === 'SEEK_KEY_CHEST') {
+      const chest = (this._gameState.dungeon.keyChests ?? [])
+        .find(c => c.instanceId === adv.goal.chestId && !c.opened)
+      if (!chest) {
+        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return { x: chest.tileX, y: chest.tileY }
+    }
+    // Phase: items — beeline to the closest tile of the matching lock.
+    // If the lock is gone (sold) or already open, drop the goal.
+    if (adv.goal.type === 'OPEN_LOCKED_DOOR') {
+      const lock = (this._gameState.dungeon.locks ?? []).find(l => l.id === adv.goal.lockId)
+      if (!lock || lock.unlocked || lock.broken) {
+        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      let best = null, bestD = Infinity
+      for (const t of lock.doorTiles) {
+        const d = Math.hypot(adv.tileX - t.x, adv.tileY - t.y)
+        if (d < bestD) { best = t; bestD = d }
+      }
+      return best ? { x: best.x, y: best.y } : null
+    }
+    // Phase: alive AI — walk to the loot pile. If it's already gone
+    // (someone else grabbed it, or the day ended), repick.
+    if (adv.goal.type === 'LOOT_CORPSE') {
+      const pile = (this._gameState.dungeon.lootPiles ?? [])
+        .find(p => p.instanceId === adv.goal.pileId)
+      if (!pile) {
+        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return { x: pile.tileX, y: pile.tileY }
+    }
+    // Phase: alive AI — rescue. Path to the ATTACKER (so the rescuer
+    // pulls aggro) when known; otherwise to the ally's tile. If the
+    // ally has recovered or died, drop the goal.
+    if (adv.goal.type === 'RESCUE_ALLY') {
+      const ally = this._gameState.adventurers.active.find(a => a.instanceId === adv.goal.allyId)
+      if (!ally || ally.aiState === 'dead'
+          || (ally.resources.hp / Math.max(1, ally.resources.maxHp)) >= 0.5) {
+        adv.goal = this._pickNextGoal(adv)
+        return this._goalToTile(adv)
+      }
+      const attacker = this._gameState.minions?.find(m =>
+        m.instanceId === adv.goal.attackerId && m.aiState !== 'dead'
+      )
+      if (attacker) return { x: attacker.tileX, y: attacker.tileY }
+      return { x: ally.tileX, y: ally.tileY }
+    }
     if (adv.goal.type === 'TACTICAL_RETREAT') {
       // Phase 5c — head to the chosen safer visited room. If the room was
       // removed mid-retreat (player undo, etc.) fall back to FLEE so the
@@ -1355,6 +2141,105 @@ export class AISystem {
   }
 
   _onGoalReached(adv, idx) {
+    // Phase: alive AI — investigation done, look around (mark current room
+    // visited if new), then resume the prior goal or pick a new one.
+    if (adv.goal.type === 'INVESTIGATE_NOISE') {
+      const room = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
+      if (room) {
+        adv.visitedRooms ??= []
+        if (!adv.visitedRooms.includes(room.instanceId)) adv.visitedRooms.push(room.instanceId)
+      }
+      adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase: alive AI — caught up to the party, resume normal goals.
+    if (adv.goal.type === 'REGROUP_AT_PARTY') {
+      adv.goal = this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase: alive AI — scout reached the unvisited room. Mark visited,
+    // emit observed (so KnowledgeSystem records the contents), back to
+    // normal flow.
+    if (adv.goal.type === 'SCOUT_AHEAD') {
+      adv.visitedRooms ??= []
+      if (adv.goal.roomId && !adv.visitedRooms.includes(adv.goal.roomId)) {
+        adv.visitedRooms.push(adv.goal.roomId)
+      }
+      adv.goal = this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase: alive AI — rescuer reached the attacker (or the ally tile).
+    // Resume normal flow; per-tick combat engages naturally now that the
+    // rescuer is on top of the threat.
+    if (adv.goal.type === 'RESCUE_ALLY') {
+      adv.goal = this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase D — reached a treasure chest. The actual open + steal +
+    // escape-roll already fired in _tryOpenTreasureChest during the
+    // tile commit (proximity-based). Resume normal flow.
+    if (adv.goal.type === 'SEEK_TREASURE') {
+      adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase D — reached the entry hall while carrying stolen gold. The
+    // actual splice + ADVENTURER_FLED emission happens in the existing
+    // FLEE atNorthEdge code (same exit tile). Mark gold as permanently
+    // lost. Treat the rest like FLEE — convert to it so the existing
+    // splice path runs.
+    if (adv.goal.type === 'ESCAPE_WITH_LOOT') {
+      EventBus.emit('TREASURE_ESCAPED', { adventurer: adv, gold: adv.stolenGold ?? 0 })
+      adv.goal = { type: 'FLEE', reason: 'treasure_escape' }
+      adv.aiState = 'fleeing'
+      adv.path = null
+      return
+    }
+    // Phase: items — reached the fountain. The actual heal already
+    // fired in _tryHealAtFountain when the adv stepped within range,
+    // so we just pop back to the prior goal.
+    if (adv.goal.type === 'SEEK_HEAL') {
+      adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase: items — reached the chest tile. _tryPickKey already fired
+    // (proximity-based) during the per-tile commit, picking the key up
+    // and stacking OPEN_LOCKED_DOOR on top. If the chest somehow wasn't
+    // grabbed (e.g. opened by someone else mid-walk), pop the stack.
+    if (adv.goal.type === 'SEEK_KEY_CHEST') {
+      adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase: items — reached the locked door. The unlock fired during
+    // _tryUnlockTile when the adv stepped onto the tile, so by the time
+    // we get here the door is open. Pop back to the prior goal.
+    if (adv.goal.type === 'OPEN_LOCKED_DOOR') {
+      adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+      adv.path = null
+      return
+    }
+    // Phase: alive AI — reached the loot pile. Start the looting timer;
+    // the per-tick guard freezes the adv until _lootingUntil expires,
+    // then _applyLootBuff fires and the pile is removed.
+    if (adv.goal.type === 'LOOT_CORPSE') {
+      const pile = (this._gameState.dungeon.lootPiles ?? [])
+        .find(p => p.instanceId === adv.goal.pileId)
+      if (!pile) {
+        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
+        adv.path = null
+        return
+      }
+      adv._lootingUntil = this._scene.time.now + LOOT_DURATION_MS
+      adv._lootingPileId = pile.instanceId
+      adv.path = null
+      return
+    }
     if (adv.goal.type === 'EXPLORE_ROOM') {
       adv.visitedRooms ??= []
       if (!adv.visitedRooms.includes(adv.goal.roomId)) {
@@ -1368,6 +2253,14 @@ export class AISystem {
     }
 
     if (adv.goal.type === 'SEEK_BOSS') {
+      // Boss at 0 hp is "dead-posed" — don't trigger a fight on a dead
+      // boss. Redirect to FLEE so the adv leaves the dungeon instead.
+      if ((this._gameState.boss?.hp ?? 1) <= 0) {
+        adv.goal = { type: 'FLEE' }
+        adv.path = null
+        adv.aiState = 'walking'
+        return
+      }
       // Phase 10: hand control to BossSystem. Adventurer freezes in place at
       // boss-chamber threshold; BossSystem auto-resolves the fight.
       adv.goal = { type: 'AT_BOSS' }
@@ -1439,9 +2332,85 @@ export class AISystem {
 
   }
 
+  // Average tile position of all living party-mates other than `adv`.
+  // Returns null if `adv` has no party or all party-mates are dead.
+  _partyCentroid(adv) {
+    if (!adv.partyId) return null
+    const mates = this._gameState.adventurers?.active?.filter(a =>
+      a.partyId === adv.partyId &&
+      a.instanceId !== adv.instanceId &&
+      a.aiState !== 'dead'
+    ) ?? []
+    if (!mates.length) return null
+    let sx = 0, sy = 0
+    for (const m of mates) { sx += m.tileX; sy += m.tileY }
+    return { x: Math.round(sx / mates.length), y: Math.round(sy / mates.length) }
+  }
+
   // Personality-driven goal selection.
   // Falls back to SEEK_BOSS if no PersonalitySystem is wired yet.
   _pickNextGoal(adv) {
+    // Phase: alive AI — if the adv has wandered far from their party,
+    // ~30% chance to detour back instead of picking a normal goal.
+    const centroid = this._partyCentroid(adv)
+    if (centroid && Math.random() < REGROUP_CHANCE) {
+      const d = Math.hypot(adv.tileX - centroid.x, adv.tileY - centroid.y)
+      if (d > REGROUP_DISTANCE) {
+        const goal = { type: 'REGROUP_AT_PARTY' }
+        EventBus.emit('SAY_regroupAtParty', { adventurer: adv })
+        return goal
+      }
+    }
+    // Phase D — Treasure chest pull. Greedy types always go for the
+    // highest-tier unopened chest; everyone else rolls each chest's
+    // tempt %. Skipped if the adv is already carrying stolen gold.
+    if (!adv.stolenGold) {
+      const chest = this._maybePickTreasureChest(adv)
+      if (chest) {
+        EventBus.emit('SAY_seekTreasure', { adventurer: adv })
+        return { type: 'SEEK_TREASURE', chestId: chest.instanceId }
+      }
+    }
+
+    // Phase: alive AI — greedy / vulture types prioritize visible loot
+    // piles over any normal goal. They scan every pile each replan and
+    // grab the closest within sight range. anti_loot advs skip this.
+    const tags0 = this._personalitySystem?.getTags(adv) ?? new Set()
+    const greedy = tags0.has('greedy') || tags0.has('vulture') || tags0.has('loot_seeker')
+    if (greedy && !tags0.has('anti_loot')) {
+      const piles = this._gameState.dungeon?.lootPiles ?? []
+      let best = null, bestDist = LOOT_SIGHT_RANGE
+      for (const p of piles) {
+        const d = Math.hypot(adv.tileX - p.tileX, adv.tileY - p.tileY)
+        if (d > bestDist) continue
+        best = p; bestDist = d
+      }
+      if (best) {
+        EventBus.emit('SAY_lootCorpseStart', { adventurer: adv })
+        return { type: 'LOOT_CORPSE', pileId: best.instanceId }
+      }
+    }
+
+    // Phase: alive AI — solo scout. ~15% chance to break off toward the
+    // farthest unvisited non-boss room (must be ≥ SCOUT_MIN_DISTANCE
+    // tiles away). Adv gets a movement speed bonus while scouting.
+    if (Math.random() < SCOUT_CHANCE) {
+      const visited = new Set(adv.visitedRooms ?? [])
+      let best = null, bestDist = SCOUT_MIN_DISTANCE
+      for (const room of this._gameState.dungeon.rooms) {
+        if (visited.has(room.instanceId)) continue
+        if (room.definitionId === 'boss_chamber') continue
+        if (room.locked) continue
+        const cx = room.gridX + Math.floor(room.width / 2)
+        const cy = room.gridY + Math.floor(room.height / 2)
+        const d = Math.hypot(adv.tileX - cx, adv.tileY - cy)
+        if (d > bestDist) { best = room; bestDist = d }
+      }
+      if (best) {
+        EventBus.emit('SAY_scoutAhead', { adventurer: adv })
+        return { type: 'SCOUT_AHEAD', roomId: best.instanceId }
+      }
+    }
     if (!this._personalitySystem) return { type: 'SEEK_BOSS' }
 
     // Phase 10 — Echo personality follows the most-recent non-echo party
@@ -1465,7 +2434,6 @@ export class AISystem {
     )
     return this._personalitySystem.evaluateGoal(adv, {
       unvisitedRooms: unvisited,
-      floorLoot: [],
     })
   }
 
@@ -1551,6 +2519,14 @@ export class AISystem {
       }
     }
 
+    // Phase D — if the adv was carrying stolen treasure, refund the
+    // player. Loot returns on death; only successful escape costs gold
+    // permanently.
+    if (adv.stolenGold > 0) {
+      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + adv.stolenGold
+      EventBus.emit('TREASURE_RECOVERED', { adv, gold: adv.stolenGold })
+      adv.stolenGold = 0
+    }
     this._gameState.adventurers.active.splice(idx, 1)
     this._gameState.adventurers.graveyard.push({
       ...adv,
@@ -1559,6 +2535,10 @@ export class AISystem {
       killerName,
       damageType,
     })
+    // Phase: alive AI — drop a loot pile at the death tile. Other advs
+    // can roll the LOOT_CORPSE goal to walk over and pick it up. Buff is
+    // a small permanent stat boost. Skip if dropped during fade-out.
+    this._dropLootPile(adv)
 
     // Phase 6e: archetype goldGainMultiplier (e.g. Lich 1.2×)
     const arch = this._gameState.player?.archetypeModifiers

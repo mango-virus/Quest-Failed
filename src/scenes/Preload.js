@@ -198,6 +198,20 @@ export class Preload extends Phaser.Scene {
     })
     this.registry.set('titleBgKeys', TITLE_BACKGROUNDS.map((_, i) => `title-bg-${i}`))
 
+    // Animated title-screen backgrounds — MainMenu picks one at random per
+    // visit, layered behind the QUEST/FAILED title stack on the left half.
+    // To add a clip: drop bgNN.mp4 in assets/title-screen/videos/ and add
+    // its number here. To remove: delete the file and the number.
+    const TITLE_VIDEO_NUMBERS = [2, 4, 5, 6, 9, 11, 12, 13, 14]
+    const titleVideoKeys = []
+    for (const i of TITLE_VIDEO_NUMBERS) {
+      const num = String(i).padStart(2, '0')
+      const key = `title-vid-${num}`
+      this.load.video(key, `assets/title-screen/videos/bg${num}.mp4`, 'loadeddata', false, true)
+      titleVideoKeys.push(key)
+    }
+    this.registry.set('titleVideoKeys', titleVideoKeys)
+
     // Room-placement SFX — one is picked at random when the player
     // places a room during NightPhase.
     this.load.audio('sfx-build-1', 'assets/audio/build1.wav')
@@ -206,6 +220,46 @@ export class Preload extends Phaser.Scene {
 
     // Minion pickup / drop SFX — single sample, plays on both actions.
     this.load.audio('sfx-minion-place', 'assets/audio/pickup and drop.wav')
+
+    // Gameplay SFX — managed by SfxSystem.
+    this.load.audio('sfx-death',          'assets/audio/adventurer and minion death.wav')
+    this.load.audio('sfx-archer-shoot',   'assets/audio/archer long range shoot.mp3')
+    this.load.audio('sfx-beholder-beam',  'assets/audio/beholder eye beam.mp3')
+    this.load.audio('sfx-boss-attack',    'assets/audio/boss attack1.mp3')
+    this.load.audio('sfx-boss-death',     'assets/audio/boss death.wav')
+    this.load.audio('sfx-break-door',     'assets/audio/break door.wav')
+    this.load.audio('sfx-chest-open',     'assets/audio/chest open.mp3')
+    this.load.audio('sfx-cleric-heal',    'assets/audio/cleric heal.wav')
+    this.load.audio('sfx-close-door',     'assets/audio/close door.wav')
+    this.load.audio('sfx-collect-gold',   'assets/audio/collect gold.wav')
+    this.load.audio('sfx-dark-pact',      'assets/audio/dark pact menu open.wav')
+    this.load.audio('sfx-day-end',        'assets/audio/day phase end.wav')
+    this.load.audio('sfx-day-start',      'assets/audio/day phase start.wav')
+    this.load.audio('sfx-door-open',      'assets/audio/door open.mp3')
+    this.load.audio('sfx-door-unlock',    'assets/audio/Door Unlock.wav')
+    this.load.audio('sfx-error',          'assets/audio/error.wav')
+    this.load.audio('sfx-mage-attack',    'assets/audio/long range mage attack.wav')
+    this.load.audio('sfx-melee-1',        'assets/audio/melee weapon attack1.wav')
+    this.load.audio('sfx-melee-2',        'assets/audio/melee weapon attack2.wav')
+    this.load.audio('sfx-monk-1',         'assets/audio/monk attack1.wav')
+    this.load.audio('sfx-monk-2',         'assets/audio/monk attack2.wav')
+    this.load.audio('sfx-necro-summon',   'assets/audio/necromancer summon.mp3')
+    this.load.audio('sfx-remove-room',    'assets/audio/remove room.wav')
+    this.load.audio('sfx-revive',         'assets/audio/revive.wav')
+    this.load.audio('sfx-score-countup',  'assets/audio/score or number count up.mp3')
+    this.load.audio('sfx-take-damage',    'assets/audio/take damge.wav')
+    this.load.audio('sfx-teleport',       'assets/audio/teleport.wav')
+    this.load.audio('sfx-btn-hover',       'assets/audio/cursor hover button.mp3')
+    this.load.audio('sfx-btn-click',       'assets/audio/Press button.wav')
+    this.load.audio('sfx-build-menu-press','assets/audio/build menu press.wav')
+
+    // Boss fight music — one picked at random when a party enters the boss room.
+    // Keys must match BOSS_TRACKS in src/systems/GameplayMusic.js.
+    this.load.audio('boss-fight-1', 'assets/audio/Boss Fight 1.mp3')
+    this.load.audio('boss-fight-2', 'assets/audio/Boss Fight 2.mp3')
+    this.load.audio('boss-fight-3', 'assets/audio/Boss Fight 3.mp3')
+    this.load.audio('boss-fight-4', 'assets/audio/Boss Fight 4.mp3')
+    this.load.audio('boss-fight-5', 'assets/audio/Boss Fight 5.mp3')
 
     // Gameplay-music playlist — shuffled by GameplayMusic.js once the
     // player drops into a run.  Keys here must match the TRACKS array
@@ -295,6 +349,16 @@ export class Preload extends Phaser.Scene {
     this.load.image('bestiary-portrait-border',    BEST + 'portrait_border.png')
     this.load.image('bestiary-portrait-highlight', BEST + 'portrait_highlight.png')
 
+    // Currency icons — replace the ◆ glyph in BuildMenu costs and the
+    // BossTopBar treasury readout. coin = ≤20g, gold-coins = >20g, coin-bag
+    // = treasury total.
+    this.load.image('ui-coin',       'assets/ui/coin.png')
+    this.load.image('ui-gold-coins', 'assets/ui/gold-coins.png')
+    this.load.image('ui-coin-bag',   'assets/ui/coin-bag.png')
+    // Day/night sun + moon icons for the ActionBar phase indicator.
+    this.load.image('ui-day',        'assets/ui/day.png')
+    this.load.image('ui-night',      'assets/ui/night.png')
+
     // Per-boss portrait images for the COMPENDIUM grid slots. Each is a 22×22
     // pixel-art bust. Bosses without a portrait file (lich) fall back to the
     // procedural silhouette in ArchetypeSelect.
@@ -372,6 +436,55 @@ export class Preload extends Phaser.Scene {
         `assets/sprites/emotes/${variant}.png`,
         { frameWidth: 32, frameHeight: 32 })
     }
+
+    // ── Demon Hellgate portal ─────────────────────────────────────────────
+    // 96×64 sheet, 3 cols × 2 rows, each frame 32×32. 6-frame looping portal.
+    this.load.spritesheet('demon-portal', 'assets/sprites/demon_portal.png', { frameWidth: 32, frameHeight: 32 })
+
+    // ── Game-jam portal (MainMenu hyperlink to the jam lobby) ────────────
+    // 96×64 sheet, 3 cols × 2 rows, each frame 32×32. 6-frame looping portal.
+    this.load.spritesheet('jam-portal', 'assets/sprites/jam_portal.png', { frameWidth: 32, frameHeight: 32 })
+
+    // ── Items: lock / key / key chest ────────────────────────────────────
+    // Padlock + key are 16×16 single-frame icons. Key chest is a 29×61
+    // sheet — two frames (closed on top, open on bottom) of 29×30 with a
+    // 1-pixel separator row. Frame 0 = closed, frame 1 = opened.
+    this.load.image('item-padlock', 'assets/sprites/items/padlock.png')
+    this.load.image('item-key',     'assets/sprites/items/key.png')
+    this.load.spritesheet('item-key-chest',
+      'assets/sprites/items/key_chest.png',
+      { frameWidth: 29, frameHeight: 30, spacing: 1 })
+
+    // ── Items: Soul-Bound Beacon + Healing Fountain (Phase C) ───────────
+    // Beacon: 47×144 sheet, 3 frames stacked vertically (47×48 each).
+    // Pulsing stone monolith — looped at 4 fps.
+    this.load.spritesheet('item-soul-beacon',
+      'assets/sprites/items/soul_bound_beacon.png',
+      { frameWidth: 47, frameHeight: 48 })
+    // Fountain: 288×64 sheet, 6 frames horizontal (48×64 each).
+    // Cascading water — looped at 8 fps.
+    this.load.spritesheet('item-healing-fountain',
+      'assets/sprites/items/healing_fountain.png',
+      { frameWidth: 48, frameHeight: 64 })
+
+    // Floating gold-coin icon shown above adventurers carrying stolen
+    // treasure (Phase D). 24×26 single-frame image.
+    this.load.image('item-gold-coins', 'assets/sprites/items/gold_coins.png')
+
+    // Pixel-art accent diamond shared by every panel header / popup
+    // ornament. 18×26 single-frame; pixelDiamond() in UIKit swaps it in
+    // for the procedural rhombus when the texture is loaded.
+    this.load.image('ui-diamond', 'assets/sprites/items/diamond.png')
+
+    // ── Items: Treasure Chests (Phase D) ─────────────────────────────────
+    // 10 tiers, each a 31×128 sheet of 4 frames (31×32 each):
+    // closed → cracking → opening → fully open. Frame 0 = idle (closed),
+    // frames 1–3 = one-shot open animation, holds frame 3 after.
+    for (let tier = 1; tier <= 10; tier++) {
+      this.load.spritesheet(`item-treasure-chest-${tier}`,
+        `assets/sprites/items/treasure_chest_${tier}.png`,
+        { frameWidth: 31, frameHeight: 32 })
+    }
   }
 
   create() {
@@ -381,6 +494,11 @@ export class Preload extends Phaser.Scene {
     this._registerAdventurerAnimations()
     this._registerAdventurerAttackAnimations()
     this._registerEmoteAnimations()
+    this._registerDemonPortalAnimation()
+    this._registerJamPortalAnimation()
+    this._registerSoulBeaconAnimation()
+    this._registerHealingFountainAnimation()
+    this._registerTreasureChestAnimations()
     // Themes load asynchronously (second loader pass for sprite PNGs); kick
     // off MainMenu once that's done. If no manifest exists, this resolves
     // immediately and the game runs with the procedural-only look.
@@ -593,6 +711,78 @@ export class Preload extends Phaser.Scene {
           }
         }
       }
+    }
+  }
+
+  _registerDemonPortalAnimation() {
+    if (!this.textures.exists('demon-portal')) return
+    if (this.anims.exists('demon-portal-spin')) return
+    const tex = this.textures.get('demon-portal')
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    this.anims.create({
+      key:       'demon-portal-spin',
+      frames:    this.anims.generateFrameNumbers('demon-portal', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat:    -1,
+    })
+  }
+
+  _registerJamPortalAnimation() {
+    if (!this.textures.exists('jam-portal')) return
+    if (this.anims.exists('jam-portal-spin')) return
+    const tex = this.textures.get('jam-portal')
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    this.anims.create({
+      key:       'jam-portal-spin',
+      frames:    this.anims.generateFrameNumbers('jam-portal', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat:    -1,
+    })
+  }
+
+  _registerSoulBeaconAnimation() {
+    if (!this.textures.exists('item-soul-beacon')) return
+    if (this.anims.exists('item-soul-beacon-pulse')) return
+    const tex = this.textures.get('item-soul-beacon')
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    this.anims.create({
+      key:       'item-soul-beacon-pulse',
+      frames:    this.anims.generateFrameNumbers('item-soul-beacon', { start: 0, end: 2 }),
+      frameRate: 4,
+      repeat:    -1,
+    })
+  }
+
+  _registerHealingFountainAnimation() {
+    if (!this.textures.exists('item-healing-fountain')) return
+    if (this.anims.exists('item-healing-fountain-flow')) return
+    const tex = this.textures.get('item-healing-fountain')
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    this.anims.create({
+      key:       'item-healing-fountain-flow',
+      frames:    this.anims.generateFrameNumbers('item-healing-fountain', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat:    -1,
+    })
+  }
+
+  _registerTreasureChestAnimations() {
+    // One-shot 4-frame open per tier: frame 0 = closed (idle), frames 1–3
+    // play on open and hold on the last frame. Renderer drives playback;
+    // we just register the anims here so they exist in the global pool.
+    for (let tier = 1; tier <= 10; tier++) {
+      const texKey  = `item-treasure-chest-${tier}`
+      const animKey = `${texKey}-open`
+      if (!this.textures.exists(texKey)) continue
+      if (this.anims.exists(animKey)) continue
+      const tex = this.textures.get(texKey)
+      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      this.anims.create({
+        key:       animKey,
+        frames:    this.anims.generateFrameNumbers(texKey, { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat:    0,
+      })
     }
   }
 

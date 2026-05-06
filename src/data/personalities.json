@@ -2,9 +2,12 @@
   {
     "id": "greedy",
     "name": "Greedy",
-    "tags": ["greedy", "loot_seeker", "impulsive"],
+    "tags": [
+      "greedy",
+      "loot_seeker",
+      "impulsive"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.9,
       "fleeThreshold": 0.35,
       "trapCaution": 0.15,
       "partyCooperation": 0.3,
@@ -14,7 +17,11 @@
       "healPriority": 0.25
     },
     "decisionOverrides": [
-      { "trigger": "chest_in_room", "action": "open_chest", "priority": 100 }
+      {
+        "trigger": "chest_in_room",
+        "action": "open_chest",
+        "priority": 100
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -26,9 +33,12 @@
   {
     "id": "paranoid",
     "name": "Paranoid",
-    "tags": ["paranoid", "cautious", "slow"],
+    "tags": [
+      "paranoid",
+      "cautious",
+      "slow"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.1,
       "fleeThreshold": 0.6,
       "trapCaution": 0.99,
       "partyCooperation": 0.7,
@@ -38,8 +48,16 @@
       "healPriority": 0.8
     },
     "decisionOverrides": [
-      { "trigger": "any_door", "action": "check_for_trap_first", "priority": 90 },
-      { "trigger": "chest_in_room", "action": "avoid_unless_forced", "priority": 90 }
+      {
+        "trigger": "any_door",
+        "action": "check_for_trap_first",
+        "priority": 90
+      },
+      {
+        "trigger": "chest_in_room",
+        "action": "avoid_unless_forced",
+        "priority": 90
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -51,9 +69,12 @@
   {
     "id": "speed_runner",
     "name": "Speed Runner",
-    "tags": ["speed_runner", "reckless", "solo_tendency"],
+    "tags": [
+      "speed_runner",
+      "reckless",
+      "solo_tendency"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.15,
       "fleeThreshold": 0.12,
       "trapCaution": 0.08,
       "partyCooperation": 0.15,
@@ -63,7 +84,11 @@
       "healPriority": 0.1
     },
     "decisionOverrides": [
-      { "trigger": "weak_enemy_blocking_path", "action": "run_past", "priority": 80 }
+      {
+        "trigger": "weak_enemy_blocking_path",
+        "action": "run_past",
+        "priority": 80
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -75,9 +100,12 @@
   {
     "id": "completionist",
     "name": "Completionist",
-    "tags": ["completionist", "thorough", "explorer"],
+    "tags": [
+      "completionist",
+      "thorough",
+      "explorer"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.5,
       "fleeThreshold": 0.3,
       "trapCaution": 0.5,
       "partyCooperation": 0.6,
@@ -87,7 +115,11 @@
       "healPriority": 0.5
     },
     "decisionOverrides": [
-      { "trigger": "unexplored_room_adjacent", "action": "explore_it", "priority": 85 }
+      {
+        "trigger": "unexplored_room_adjacent",
+        "action": "explore_it",
+        "priority": 85
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -99,9 +131,12 @@
   {
     "id": "martyr",
     "name": "Martyr",
-    "tags": ["martyr", "selfless", "tank"],
+    "tags": [
+      "martyr",
+      "selfless",
+      "tank"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.1,
       "fleeThreshold": 0.05,
       "trapCaution": 0.3,
       "partyCooperation": 0.99,
@@ -111,7 +146,11 @@
       "healPriority": 0.2
     },
     "decisionOverrides": [
-      { "trigger": "low_hp_and_party_in_danger", "action": "taunt_all_enemies", "priority": 95 }
+      {
+        "trigger": "low_hp_and_party_in_danger",
+        "action": "taunt_all_enemies",
+        "priority": 95
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -123,19 +162,26 @@
   {
     "id": "coward",
     "name": "Coward",
-    "tags": ["coward", "scout", "fast_knowledge"],
+    "tags": [
+      "coward",
+      "scout",
+      "fast_knowledge"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.1,
       "fleeThreshold": 0.99,
       "trapCaution": 0.6,
       "partyCooperation": 0.3,
       "explorationDrive": 0.7,
-      "aggressionLevel": 0.0,
+      "aggressionLevel": 0,
       "riskTolerance": 0.05,
       "healPriority": 0.6
     },
     "decisionOverrides": [
-      { "trigger": "any_enemy_nearby", "action": "flee_room", "priority": 99 }
+      {
+        "trigger": "any_enemy_nearby",
+        "action": "flee_room",
+        "priority": 99
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -147,9 +193,12 @@
   {
     "id": "overconfident",
     "name": "Overconfident",
-    "tags": ["overconfident", "reckless", "solo_tendency"],
+    "tags": [
+      "overconfident",
+      "reckless",
+      "solo_tendency"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.5,
       "fleeThreshold": 0.05,
       "trapCaution": 0.05,
       "partyCooperation": 0.1,
@@ -159,7 +208,11 @@
       "healPriority": 0.05
     },
     "decisionOverrides": [
-      { "trigger": "party_warns_danger", "action": "ignore_warning_and_charge", "priority": 99 }
+      {
+        "trigger": "party_warns_danger",
+        "action": "ignore_warning_and_charge",
+        "priority": 99
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -171,9 +224,12 @@
   {
     "id": "cartographer",
     "name": "Cartographer",
-    "tags": ["mapper", "thorough", "knowledge_spreader"],
+    "tags": [
+      "mapper",
+      "thorough",
+      "knowledge_spreader"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.2,
       "fleeThreshold": 0.4,
       "trapCaution": 0.6,
       "partyCooperation": 0.7,
@@ -184,7 +240,10 @@
     },
     "decisionOverrides": [],
     "reactions": [
-      { "event": "ADVENTURER_FLED", "handler": "cartographer_shareFullMap" }
+      {
+        "event": "ADVENTURER_FLED",
+        "handler": "cartographer_shareFullMap"
+      }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
@@ -195,9 +254,12 @@
   {
     "id": "party_loyal",
     "name": "Party Loyal",
-    "tags": ["loyal", "team_player", "support"],
+    "tags": [
+      "loyal",
+      "team_player",
+      "support"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.4,
       "fleeThreshold": 0.5,
       "trapCaution": 0.5,
       "partyCooperation": 0.95,
@@ -217,9 +279,12 @@
   {
     "id": "solo",
     "name": "Solo",
-    "tags": ["solo_tendency", "independent", "scout"],
+    "tags": [
+      "solo_tendency",
+      "independent",
+      "scout"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.5,
       "fleeThreshold": 0.4,
       "trapCaution": 0.45,
       "partyCooperation": 0.05,
@@ -229,7 +294,11 @@
       "healPriority": 0.4
     },
     "decisionOverrides": [
-      { "trigger": "party_present", "action": "split_off_alone", "priority": 80 }
+      {
+        "trigger": "party_present",
+        "action": "split_off_alone",
+        "priority": 80
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -241,9 +310,12 @@
   {
     "id": "raid_leader",
     "name": "Raid Leader",
-    "tags": ["leader", "tactical", "rallying"],
+    "tags": [
+      "leader",
+      "tactical",
+      "rallying"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.4,
       "fleeThreshold": 0.35,
       "trapCaution": 0.55,
       "partyCooperation": 0.85,
@@ -253,10 +325,17 @@
       "healPriority": 0.55
     },
     "decisionOverrides": [
-      { "trigger": "ally_in_combat", "action": "rally_to_help", "priority": 85 }
+      {
+        "trigger": "ally_in_combat",
+        "action": "rally_to_help",
+        "priority": 85
+      }
     ],
     "reactions": [
-      { "event": "ADVENTURER_DIED", "handler": "leader_rallies_or_party_scatters" }
+      {
+        "event": "ADVENTURER_DIED",
+        "handler": "leader_rallies_or_party_scatters"
+      }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
@@ -267,9 +346,12 @@
   {
     "id": "underdog",
     "name": "Underdog",
-    "tags": ["underdog", "scaling", "persistent"],
+    "tags": [
+      "underdog",
+      "scaling",
+      "persistent"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.5,
       "fleeThreshold": 0.5,
       "trapCaution": 0.5,
       "partyCooperation": 0.55,
@@ -280,7 +362,10 @@
     },
     "decisionOverrides": [],
     "reactions": [
-      { "event": "COMBAT_KILL", "handler": "underdog_doubleXP" }
+      {
+        "event": "COMBAT_KILL",
+        "handler": "underdog_doubleXP"
+      }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
@@ -291,9 +376,12 @@
   {
     "id": "inquisitor",
     "name": "Inquisitor",
-    "tags": ["inquisitor", "anti_mechanic", "tactical"],
+    "tags": [
+      "inquisitor",
+      "anti_mechanic",
+      "tactical"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.3,
       "fleeThreshold": 0.4,
       "trapCaution": 0.7,
       "partyCooperation": 0.6,
@@ -303,7 +391,11 @@
       "healPriority": 0.5
     },
     "decisionOverrides": [
-      { "trigger": "dungeon_mechanic_active", "action": "investigate_to_disable", "priority": 95 }
+      {
+        "trigger": "dungeon_mechanic_active",
+        "action": "investigate_to_disable",
+        "priority": 95
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -315,9 +407,12 @@
   {
     "id": "vulture",
     "name": "Vulture",
-    "tags": ["vulture", "opportunist", "loner"],
+    "tags": [
+      "vulture",
+      "opportunist",
+      "loner"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.85,
       "fleeThreshold": 0.6,
       "trapCaution": 0.7,
       "partyCooperation": 0.05,
@@ -327,8 +422,16 @@
       "healPriority": 0.5
     },
     "decisionOverrides": [
-      { "trigger": "fight_in_progress_nearby", "action": "wait_for_resolution", "priority": 90 },
-      { "trigger": "corpse_in_room", "action": "loot_corpse", "priority": 95 }
+      {
+        "trigger": "fight_in_progress_nearby",
+        "action": "wait_for_resolution",
+        "priority": 90
+      },
+      {
+        "trigger": "corpse_in_room",
+        "action": "loot_corpse",
+        "priority": 95
+      }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -340,9 +443,12 @@
   {
     "id": "traumatized",
     "name": "Traumatized",
-    "tags": ["traumatized", "survivor", "knowledge_carrier"],
+    "tags": [
+      "traumatized",
+      "survivor",
+      "knowledge_carrier"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.1,
       "fleeThreshold": 0.95,
       "trapCaution": 0.6,
       "partyCooperation": 0.5,
@@ -353,7 +459,10 @@
     },
     "decisionOverrides": [],
     "reactions": [
-      { "event": "PARTY_WIPED", "handler": "traumatized_fleeWithFullKnowledge" }
+      {
+        "event": "PARTY_WIPED",
+        "handler": "traumatized_fleeWithFullKnowledge"
+      }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
@@ -364,9 +473,12 @@
   {
     "id": "the_fan",
     "name": "The Fan",
-    "tags": ["fan", "pacifist_partial", "quirky"],
+    "tags": [
+      "fan",
+      "pacifist_partial",
+      "quirky"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.4,
       "fleeThreshold": 0.4,
       "trapCaution": 0.5,
       "partyCooperation": 0.4,
@@ -376,7 +488,11 @@
       "healPriority": 0.5
     },
     "decisionOverrides": [
-      { "trigger": "encountered_idol_minion_type", "action": "spare_or_befriend", "priority": 100 }
+      {
+        "trigger": "encountered_idol_minion_type",
+        "action": "spare_or_befriend",
+        "priority": 100
+      }
     ],
     "reactions": [],
     "unlockLevel": 2,
@@ -388,9 +504,12 @@
   {
     "id": "echo",
     "name": "Echo",
-    "tags": ["echo", "mimic_path", "cautious"],
+    "tags": [
+      "echo",
+      "mimic_path",
+      "cautious"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.3,
       "fleeThreshold": 0.5,
       "trapCaution": 0.9,
       "partyCooperation": 0.5,
@@ -400,7 +519,11 @@
       "healPriority": 0.6
     },
     "decisionOverrides": [
-      { "trigger": "leader_path_known", "action": "mimic_leader_path", "priority": 88 }
+      {
+        "trigger": "leader_path_known",
+        "action": "mimic_leader_path",
+        "priority": 88
+      }
     ],
     "reactions": [],
     "unlockLevel": 4,
@@ -412,9 +535,12 @@
   {
     "id": "mimic_handler",
     "name": "Mimic Handler",
-    "tags": ["mimic_handler", "anti_loot", "tactical"],
+    "tags": [
+      "mimic_handler",
+      "anti_loot",
+      "tactical"
+    ],
     "behaviorWeights": {
-      "lootPriority": 0.1,
       "fleeThreshold": 0.45,
       "trapCaution": 0.85,
       "partyCooperation": 0.55,
@@ -424,7 +550,11 @@
       "healPriority": 0.55
     },
     "decisionOverrides": [
-      { "trigger": "loot_visible", "action": "skip_suspected_mimic", "priority": 80 }
+      {
+        "trigger": "loot_visible",
+        "action": "skip_suspected_mimic",
+        "priority": 80
+      }
     ],
     "reactions": [],
     "unlockLevel": 3,

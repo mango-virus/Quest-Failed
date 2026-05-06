@@ -14,6 +14,7 @@ import { TilesetEditor }   from './scenes/TilesetEditor.js'
 import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
 import { PauseMenu }       from './scenes/PauseMenu.js'
 import { Options }         from './scenes/Options.js'
+import { Leaderboard }     from './scenes/Leaderboard.js'
 
 // Future scenes registered here as they are built in later phases:
 // import { BossFight }     from './scenes/BossFight.js'
@@ -25,8 +26,10 @@ import { Options }         from './scenes/Options.js'
 //      re-run applyUiCamera and rebuild layouts for the new viewport.
 const config = {
   type: Phaser.AUTO,
-  width:  window.innerWidth,
-  height: window.innerHeight,
+  // Do NOT set width/height here — Scale.RESIZE reads the parent container's
+  // live size directly, and snapshot values taken at script-parse time become
+  // a fixed "design resolution" that Phaser refuses to resize below, which
+  // causes the canvas to stay oversized when the window is made smaller.
   parent: 'game-container',
   backgroundColor: '#0a0514',
   scene: [
@@ -46,6 +49,7 @@ const config = {
     RoomTileEditor,
     PauseMenu,   // overlay above any active gameplay scene when paused
     Options,     // settings scene reachable from MainMenu's OPTIONS
+    Leaderboard, // global hall-of-evil scene reachable from MainMenu
   ],
   scale: {
     mode: Phaser.Scale.RESIZE,
@@ -93,6 +97,15 @@ window.__game.scale.on('resize', () => {
       s.scene.restart()
     }
   }, 200)
+})
+
+// Belt-and-suspenders resize: Phaser's RESIZE mode already listens internally,
+// but un-maximizing a browser window on Windows can race its ResizeObserver.
+// We fire refresh() inside requestAnimationFrame so the browser has completed
+// CSS layout before Phaser reads offsetWidth/offsetHeight on the container.
+// (A direct call on 'resize' can still see the stale pre-reflow dimensions.)
+window.addEventListener('resize', () => {
+  requestAnimationFrame(() => window.__game?.scale?.refresh())
 })
 
 // Suppress the browser right-click context menu game-wide. Right-click is

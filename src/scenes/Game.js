@@ -23,6 +23,12 @@ import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
 import { MinionRenderer }     from '../ui/MinionRenderer.js'
 import { TrapRenderer }       from '../ui/TrapRenderer.js'
+import { LootPileRenderer }   from '../ui/LootPileRenderer.js'
+import { KeyChestRenderer }   from '../ui/KeyChestRenderer.js'
+import { LockRenderer }       from '../ui/LockRenderer.js'
+import { BeaconRenderer }     from '../ui/BeaconRenderer.js'
+import { FountainRenderer }   from '../ui/FountainRenderer.js'
+import { TreasureChestRenderer } from '../ui/TreasureChestRenderer.js'
 import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
 import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
@@ -37,6 +43,7 @@ import { BossRenderer }       from '../ui/BossRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { PauseManager }       from '../systems/PauseManager.js'
+import { SfxSystem }          from '../systems/SfxSystem.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -90,6 +97,10 @@ export class Game extends Phaser.Scene {
     this._reapplyAllRoomDefs()
 
     this._dungeonRenderer    = new DungeonRenderer(this, this.gameState)
+    // Phase: items — push every saved lock onto cp.locked so the
+    // DungeonRenderer's first draw picks the locked door variant. The
+    // LOCKS_CHANGED listener handles every subsequent mutation.
+    this._syncLockedCPs()
     this.personalitySystem   = new PersonalitySystem(this)
     this.personalitySystem.loadDefinitions()
 
@@ -109,6 +120,7 @@ export class Game extends Phaser.Scene {
     this.newspaperSystem     = new NewspaperSystem(this, this.gameState)
     this.inquisitorSystem    = new InquisitorSystem(this, this.gameState, this.dungeonMechanicSystem, this.personalitySystem)
     this.bossSystem          = new BossSystem(this, this.gameState)
+    this.sfxSystem           = new SfxSystem(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
     this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
     // Phase 31I — passive run-history aggregator. Subscribes to event bus
@@ -121,6 +133,12 @@ export class Game extends Phaser.Scene {
     this.emoteSystem         = new EmoteSystem(this, this.gameState, this.adventurerRenderer)
     this.minionRenderer      = new MinionRenderer(this, this.gameState)
     this.trapRenderer        = new TrapRenderer(this, this.gameState)
+    this.lootPileRenderer    = new LootPileRenderer(this, this.gameState)
+    this.keyChestRenderer    = new KeyChestRenderer(this, this.gameState)
+    this.lockRenderer        = new LockRenderer(this, this.gameState)
+    this.beaconRenderer      = new BeaconRenderer(this, this.gameState)
+    this.fountainRenderer    = new FountainRenderer(this, this.gameState)
+    this.treasureChestRenderer = new TreasureChestRenderer(this, this.gameState)
     this.phylacteryRenderer  = new PhylacteryRenderer(this, this.gameState)
     this.fungalCorpseRenderer = new FungalCorpseRenderer(this, this.gameState)
     this.minionInspector     = new MinionInspector(this, this.gameState)
@@ -128,7 +146,9 @@ export class Game extends Phaser.Scene {
     this.knowledgeOverlay      = new KnowledgeOverlay(this, this.gameState, this.knowledgeSystem)
     this.wantedPoster        = new WantedPoster(this, this.gameState)
     this.replayGhostRenderer = new ReplayGhostRenderer(this, this.gameState)
-    this.bossFightOverlay    = new BossFightOverlay(this, this.gameState)
+    // BossFightOverlay moved to HudScene — it uses scene.uiW/uiH which
+    // only HudScene sets via applyUiCamera. Game scene retains the
+    // camera-zoom hooks below that pair with the overlay's intro slate.
     this.bossRenderer        = new BossRenderer(this, this.gameState)
     this.sunderedFloorRenderer = new SunderedFloorRenderer(this)
     this.cartographerOverlay   = new CartographerOverlay(this, this.gameState)
@@ -146,6 +166,10 @@ export class Game extends Phaser.Scene {
     EventBus.on('ROOM_DEF_SAVED',       this._onRoomDefSaved,   this)
     // Room Builder reset ALL rooms — reapply every placed room in one pass.
     EventBus.on('ROOMS_ALL_RESET',      this._onRoomsAllReset,  this)
+    // Phase: items — keep cp.locked flags + door sprites in sync with
+    // gameState.dungeon.locks. Anything that mutates the locks list emits
+    // LOCKS_CHANGED so this single listener owns all redraw timing.
+    EventBus.on('LOCKS_CHANGED',        this._syncLockedCPs,    this)
     // Camera follow
     EventBus.on('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
     EventBus.on('ADVENTURER_DIED',      this._onAdvRemoved,   this)
@@ -157,8 +181,17 @@ export class Game extends Phaser.Scene {
     EventBus.on('DAY_PHASE_STARTED',    this._onDayStartedDoors, this)
     EventBus.on('DAY_PHASE_ENDED',      this._onDayEndedDoors,   this)
 
+    // Camera stays put during boss fights per user feedback — the intro
+    // slate and bottom HP bar (BossFightOverlay) carry the cinematic on
+    // their own without moving the world view.
+
+    // Boss-fight music — starts when adventurer enters boss room, fades out on resolve.
+    EventBus.on('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
+    EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
+
     this._setupCamera()
     this._setupInput()
+    this.scale.on('resize', this._onSceneResize, this)
 
     // MiniMap lives on a dedicated HUD scene that doesn't share our world
     // camera's zoom/scroll. Launch it now and hand it the references it
@@ -178,6 +211,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
     EventBus.off('ROOM_DEF_SAVED',       this._onRoomDefSaved,  this)
     EventBus.off('ROOMS_ALL_RESET',      this._onRoomsAllReset, this)
+    EventBus.off('LOCKS_CHANGED',        this._syncLockedCPs,   this)
     EventBus.off('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
     EventBus.off('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.off('ADVENTURER_FLED',      this._onAdvRemoved,   this)
@@ -185,12 +219,22 @@ export class Game extends Phaser.Scene {
     EventBus.off('DAY_PHASE_ENDED',      this._onDayEnded,     this)
     EventBus.off('DAY_PHASE_STARTED',    this._onDayStartedDoors, this)
     EventBus.off('DAY_PHASE_ENDED',      this._onDayEndedDoors,   this)
+    EventBus.off('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
+    EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
+    GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
+    this.scale.off('resize', this._onSceneResize, this)
     this.scene.stop('HudScene')
     this._dungeonRenderer?.destroy()
     this.adventurerRenderer?.destroy()
     this.emoteSystem?.destroy()
     this.minionRenderer?.destroy()
     this.trapRenderer?.destroy()
+    this.lootPileRenderer?.destroy()
+    this.keyChestRenderer?.destroy()
+    this.lockRenderer?.destroy()
+    this.beaconRenderer?.destroy()
+    this.fountainRenderer?.destroy()
+    this.treasureChestRenderer?.destroy()
     this.minionInspector?.destroy()
     this.chatBubbles?.destroy()
     this.aiSystem?.destroy()
@@ -206,7 +250,8 @@ export class Game extends Phaser.Scene {
     this.newspaperSystem?.destroy()
     this.inquisitorSystem?.destroy()
     this.bossSystem?.destroy()
-    this.bossFightOverlay?.destroy()
+    this.sfxSystem?.destroy()
+    // bossFightOverlay lives in HudScene now — that scene's shutdown handles it.
     this.roomBehaviorSystem?.destroy()
     this.bossRenderer?.destroy()
     this.sunderedFloorRenderer?.destroy()
@@ -224,6 +269,27 @@ export class Game extends Phaser.Scene {
     this.scene.start('GameOver', { gameState: this.gameState })
   }
 
+  // Merge a room def's static connection points with the live room's
+  // saved CPs. Def CPs win on identity (template-defined doors / external
+  // exits), but inherit any saved open/opening/openProgress state. Saved
+  // CPs that don't match a def CP are auto-pair connections generated by
+  // DungeonGrid._autoConnect() when the room was placed adjacent to a
+  // neighbour — we keep those verbatim, otherwise the door tile is left
+  // orphaned and the room becomes unreachable from that side.
+  _mergeRoomConnectionPoints(room, def) {
+    const sameSpot = (a, b) => a.x === b.x && a.y === b.y && a.direction === b.direction
+    const savedCPs = Array.isArray(room.connectionPoints) ? room.connectionPoints : []
+    const defCPs   = (def.connectionPoints ?? []).map(cp => ({ ...cp }))
+    const merged   = defCPs.map(dcp => {
+      const saved = savedCPs.find(s => sameSpot(s, dcp))
+      return saved
+        ? { ...dcp, open: saved.open, opening: saved.opening, openProgress: saved.openProgress }
+        : dcp
+    })
+    const autoPairs = savedCPs.filter(s => !defCPs.some(dcp => sameSpot(dcp, s)))
+    room.connectionPoints = [...merged, ...autoPairs]
+  }
+
   // Room Builder emits this whenever it saves a room def to localStorage.
   // We rewrite the tile grid for every already-placed instance so structural
   // edits (floor/wall layout, doorway positions) appear immediately in the
@@ -236,8 +302,9 @@ export class Game extends Phaser.Scene {
     for (const room of this.gameState.dungeon.rooms) {
       if (room.definitionId !== roomId) continue
       // Sync the room instance's connectionPoints with the updated def so
-      // doorway positions stay accurate for neighbour lookups.
-      room.connectionPoints = (def.connectionPoints ?? []).map(cp => ({ ...cp }))
+      // doorway positions stay accurate for neighbour lookups. Auto-pair
+      // CPs are preserved so door↔neighbour links survive a def edit.
+      this._mergeRoomConnectionPoints(room, def)
       this._refreshRoomFromDef(room, def)
       this.dungeonGrid.reapplyRoomDef(room, def)
     }
@@ -265,15 +332,38 @@ export class Game extends Phaser.Scene {
     this._dungeonRenderer?.redraw()
   }
 
+  // Phase: items — propagate `gameState.dungeon.locks[]` onto each
+  // affected connection point's `cp.locked` flag. DungeonRenderer reads
+  // `cp.locked` in `_doorStateFor()` to pick the locked door variant
+  // sprite, so this needs to run any time the locks list mutates: on
+  // place, sell, unlock, break, and night reset (also at scene create
+  // so a saved game restores the locked sprites).
+  _syncLockedCPs() {
+    for (const room of this.gameState.dungeon?.rooms ?? []) {
+      for (const cp of room.connectionPoints ?? []) cp.locked = false
+    }
+    for (const lock of this.gameState.dungeon?.locks ?? []) {
+      if (lock.unlocked || lock.broken) continue
+      for (const t of lock.doorTiles) {
+        const info = this.dungeonGrid?.getCpForDoorTile?.(t.x, t.y)
+        if (info?.cp) info.cp.locked = true
+      }
+    }
+    this._dungeonRenderer?.redrawDoors?.()
+  }
+
   // Reapply current room definitions to every placed room instance.
   // Shared by the on-load fix and the live ROOMS_ALL_RESET event handler.
+  // Door↔neighbour links are preserved via _mergeRoomConnectionPoints()
+  // so a continued save doesn't end up with orphaned door tiles between
+  // rooms that DungeonGrid._autoConnect() linked at placement time.
   _reapplyAllRoomDefs() {
     const roomDefs = this.cache.json.get('rooms') ?? []
     const defMap   = Object.fromEntries(roomDefs.map(d => [d.id, d]))
     for (const room of this.gameState.dungeon.rooms) {
       const def = defMap[room.definitionId]
       if (!def) continue
-      room.connectionPoints = (def.connectionPoints ?? []).map(cp => ({ ...cp }))
+      this._mergeRoomConnectionPoints(room, def)
       this._refreshRoomFromDef(room, def)
       this.dungeonGrid.reapplyRoomDef(room, def)
     }
@@ -287,6 +377,10 @@ export class Game extends Phaser.Scene {
     this.minionEvolutionSystem?.applyResets()
     this.minionAiSystem?.respawnAll()
     this.trapSystem?.resetAll()
+    // Safety: if the boss fight ended without resolving (all fled etc.),
+    // BOSS_FIGHT_RESOLVED already handled this — this is a belt-and-suspenders
+    // guard to ensure boss music never leaks into the night phase.
+    GameplayMusic.bossFightEnd(true)
   }
 
   // ── Camera follow ─────────────────────────────────────────────────────────
@@ -377,11 +471,211 @@ export class Game extends Phaser.Scene {
 
   // Minimum zoom that still fits the full dungeon map in the viewport.
   // Shrinks as the map expands so the player can always zoom out to see everything.
+  // Side / top / bottom HUD chrome dimensions in UI design units (kept in
+  // sync with HudScene.LEFT_COL_W + COL_PAD*2, RIGHT_COL_W + COL_PAD*2,
+  // BOSS_TOP_BAR_HEIGHT, ACTION_BAR_HEIGHT). Used to derive the central
+  // play area in canvas pixels for the camera-clamp logic.
+  static get _PLAY_AREA_INSETS() {
+    return { left: 200 + 12 * 2, right: 220 + 12 * 2, top: 56, bottom: 76 + 6 }
+  }
+
+  // The play area is the sub-rectangle of the canvas not covered by HUD
+  // chrome. Returned in canvas pixels.
+  _computePlayArea() {
+    const sw  = this.scale.width
+    const sh  = this.scale.height
+    const sf  = Math.min(sw / 1280, sh / 720)
+    const ins = Game._PLAY_AREA_INSETS
+    return {
+      left:   ins.left   * sf,
+      right:  ins.right  * sf,
+      top:    ins.top    * sf,
+      bottom: ins.bottom * sf,
+      sw, sh,
+    }
+  }
+
   _computeMinZoom() {
     const { gridWidth, gridHeight } = this.gameState.dungeon
     const mapPxW = gridWidth  * TS
     const mapPxH = gridHeight * TS
-    return Math.min(this.scale.width / mapPxW, this.scale.height / mapPxH)
+    const pa = this._computePlayArea()
+    const playW = pa.sw - pa.left - pa.right
+    const playH = pa.sh - pa.top  - pa.bottom
+    // Min zoom such that the dungeon FILLS the play area on both axes
+    // (the larger of the two ratios). Prevents the player from zooming
+    // out to a point where excess play-area space appears around the
+    // dungeon — the trade-off is they can't see the whole dungeon at
+    // once if its aspect ratio differs from the play area's; they have
+    // to pan to see the off-screen portion.
+    return Math.max(playW / mapPxW, playH / mapPxH)
+  }
+
+  // Camera scroll clamp + auto-centering, expressed against the *play area*
+  // (the rectangle between the HUD panels) instead of the full canvas. The
+  // camera viewport is still the whole canvas — that keeps geometry masks
+  // working correctly — but the scroll is constrained so the dungeon never
+  // hides behind a panel and centres in the play area when the player has
+  // zoomed out far enough that the dungeon doesn't fill the viewport.
+  _clampCameraToPlayArea() {
+    const cam = this._cam
+    if (!cam) return
+    const { gridWidth, gridHeight } = this.gameState.dungeon
+    const mapW = gridWidth  * TS
+    const mapH = gridHeight * TS
+    const pa = this._computePlayArea()
+    const playW = pa.sw - pa.left - pa.right
+    const playH = pa.sh - pa.top  - pa.bottom
+    const playCx = pa.left + playW / 2
+    const playCy = pa.top  + playH / 2
+    const z  = cam.zoom
+    const cx = cam.centerX
+    const cy = cam.centerY
+
+    // Phaser zooms cameras around their viewport midpoint, not the
+    // top-left. The inverse of "world W shows up at canvas-px X" is
+    //   scrollX = W - cx - (X - cx) / z
+    // (matching the wheel-zoom-to-cursor formula). The earlier clamp
+    // used the top-left form (W - X/z) which silently mis-clamped any
+    // time z != 1, leaving black void on whichever side the math
+    // under-shot. With sf-driven UI scaling the camera's effective zoom
+    // is rarely 1, so this bug appeared as soon as the canvas was any
+    // size other than exactly 1280×720.
+    const sxFor = (worldX, screenX) => worldX - cx - (screenX - cx) / z
+    const syFor = (worldY, screenY) => worldY - cy - (screenY - cy) / z
+
+    if (!this._lastClampLog || (this._scene?.time?.now ?? 0) - this._lastClampLog > 1000) {
+      this._lastClampLog = this._scene?.time?.now ?? 0
+      const minSX = sxFor(0,    pa.left)
+      const maxSX = sxFor(mapW, pa.sw - pa.right)
+      const minSY = syFor(0,    pa.top)
+      const maxSY = syFor(mapH, pa.sh - pa.bottom)
+      // eslint-disable-next-line no-console
+      console.log(
+        `[clamp] z=${z.toFixed(3)} ` +
+        `canvas=${pa.sw|0}x${pa.sh|0} ` +
+        `camWH=${cam.width|0}x${cam.height|0} ` +
+        `pa=L${pa.left|0}/R${pa.right|0}/T${pa.top|0}/B${pa.bottom|0} ` +
+        `play=${playW|0}x${playH|0} ` +
+        `scroll=(${cam.scrollX|0},${cam.scrollY|0}) ` +
+        `boundsX=[${minSX|0},${maxSX|0}] ` +
+        `boundsY=[${minSY|0},${maxSY|0}] ` +
+        `minZ=${this._computeMinZoom().toFixed(3)} ` +
+        `fcam=${!!this._fightCamActive}`
+      )
+    }
+
+    // X axis — clamp so dungeon edges align with play-area edges.
+    if (playW / z >= mapW) {
+      // Dungeon fits horizontally inside the play area → centre it.
+      cam.scrollX = sxFor(mapW / 2, playCx)
+    } else {
+      const minScrollX = sxFor(0,    pa.left)
+      const maxScrollX = sxFor(mapW, pa.sw - pa.right)
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minScrollX, maxScrollX)
+    }
+
+    // Y axis (mirrors X)
+    if (playH / z >= mapH) {
+      cam.scrollY = syFor(mapH / 2, playCy)
+    } else {
+      const minScrollY = syFor(0,    pa.top)
+      const maxScrollY = syFor(mapH, pa.sh - pa.bottom)
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minScrollY, maxScrollY)
+    }
+  }
+
+  // Cinematic zoom into the boss chamber when a fight starts. Pairs with
+  // BossFightOverlay's intro slate. We snapshot the player's pre-fight
+  // zoom + scroll so the resolved handler can ease back to whatever they
+  // were watching before. Tween skipped if the boss room can't be found
+  // (e.g. malformed save) so the camera never jumps to (0,0) silently.
+  _onBossFightZoomIn() {
+    if (!this._cam) return
+    const boss = this.gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!boss) return
+    const bx = (boss.gridX + boss.width  / 2) * TS
+    const by = (boss.gridY + boss.height / 2) * TS
+    // Snapshot only once — successive incoming events during a single
+    // fight (chained adventurers) shouldn't overwrite the original view.
+    if (!this._preFightCam) {
+      this._preFightCam = {
+        zoom:    this._cam.zoom,
+        worldCX: this._cam.midPoint.x,
+        worldCY: this._cam.midPoint.y,
+        followId: this._followId,
+      }
+    }
+    // Drop adv-follow while the cinematic plays — otherwise update()'s
+    // follow lerp fights this tween every frame, dragging the camera
+    // toward the lead adv and creating a visible wobble.
+    if (this._followId) this._setFollow(null)
+    const targetZoom = Math.max(this._cam.zoom, 1.5)
+    this._tweenCameraTo(bx, by, targetZoom, 600, 'Sine.easeOut')
+  }
+
+  _onBossFightZoomOut() {
+    if (!this._cam || !this._preFightCam) return
+    const snap = this._preFightCam
+    this._tweenCameraTo(snap.worldCX, snap.worldCY, snap.zoom, 700, 'Sine.easeInOut',
+      () => { this._preFightCam = null })
+  }
+
+  _onBossFightMusicStart() { GameplayMusic.bossFightStart(this) }
+  _onBossFightMusicEnd()   { GameplayMusic.bossFightEnd() }
+
+  // Tween the camera so its world midpoint eases linearly from the
+  // current view to (worldX, worldY) while zoom eases to targetZoom.
+  // Driving zoom + scroll independently caused the world midpoint to
+  // drift mid-tween (the zoom <-> scroll relationship is non-linear) —
+  // visibly the camera would swing past the boss room before snapping
+  // back. Using a virtual `p` and recomputing both each frame keeps the
+  // midpoint on a straight line throughout the ease.
+  _tweenCameraTo(worldX, worldY, targetZoom, duration, ease, onComplete) {
+    const cam = this._cam
+    if (!cam) return
+    const startZoom = cam.zoom
+    const startMidX = cam.midPoint.x
+    const startMidY = cam.midPoint.y
+    if (this._fightCamTween) this._fightCamTween.stop()
+    // Suspend the per-frame clamp + follow lerp while this tween owns
+    // the camera — otherwise update() runs every frame and either
+    // re-centres the dungeon (clamp) or pulls scroll back toward an
+    // adventurer (follow), fighting the tween.
+    this._fightCamActive = true
+    const obj = { p: 0 }
+    this._fightCamTween = this.tweens.add({
+      targets:  obj,
+      p:        1,
+      duration,
+      ease,
+      onUpdate: () => {
+        const t  = obj.p
+        const z  = startZoom + (targetZoom - startZoom) * t
+        const mx = startMidX + (worldX     - startMidX) * t
+        const my = startMidY + (worldY     - startMidY) * t
+        cam.setZoom(z)
+        const pa = this._computePlayArea()
+        const playCx = pa.left + (pa.sw - pa.left - pa.right) / 2
+        const playCy = pa.top  + (pa.sh - pa.top  - pa.bottom) / 2
+        // Mid-point-aware: place world (mx,my) at canvas px (playCx,playCy)
+        cam.scrollX = mx - cam.centerX - (playCx - cam.centerX) / z
+        cam.scrollY = my - cam.centerY - (playCy - cam.centerY) / z
+      },
+      onComplete: () => {
+        this._fightCamActive = false
+        // Final snap to the exact target — guarantees the resting
+        // position matches the math regardless of where the last
+        // onUpdate fired.
+        cam.setZoom(targetZoom)
+        const pa = this._computePlayArea()
+        const playCx = pa.left + (pa.sw - pa.left - pa.right) / 2
+        const playCy = pa.top  + (pa.sh - pa.top  - pa.bottom) / 2
+        cam.scrollX = worldX - cam.centerX - (playCx - cam.centerX) / targetZoom
+        cam.scrollY = worldY - cam.centerY - (playCy - cam.centerY) / targetZoom
+        if (onComplete) onComplete()
+      },
+    })
   }
 
   _onGridExpanded() {
@@ -389,6 +683,42 @@ export class Game extends Phaser.Scene {
     // out further). If the camera happens to be below the new minimum, clamp up.
     const minZoom = this._computeMinZoom()
     if (this._cam.zoom < minZoom) this._cam.setZoom(minZoom)
+    this._clampCameraToPlayArea()
+  }
+
+  // Fires when Phaser's scale manager resizes the canvas. The camera's own
+  // viewport update (cam.width/height) is also bound to this same event, and
+  // listener order isn't guaranteed — so we defer one rAF to make sure cam
+  // state has settled before we sample / restore the centred world point.
+  _onSceneResize() {
+    if (!this._cam) return
+    const boss = this.gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    // Snapshot the world point the player was looking at BEFORE the resize
+    // settles, taken from the most recent update() tick. midPoint computed
+    // mid-resize would mix the new viewport size with old scrollX, returning
+    // a wrong world point. Fall back to boss centre if update() hasn't run.
+    let wX = this._camWorldCX
+    let wY = this._camWorldCY
+    if (wX === undefined) {
+      wX = boss ? (boss.gridX + boss.width  / 2) * TS : 0
+      wY = boss ? (boss.gridY + boss.height / 2) * TS : 0
+    }
+    if (this._pendingResizeRaf) cancelAnimationFrame(this._pendingResizeRaf)
+    this._pendingResizeRaf = requestAnimationFrame(() => {
+      this._pendingResizeRaf = null
+      if (!this._cam || !this.scene.isActive()) return
+      const minZ = this._computeMinZoom()
+      if (this._cam.zoom < minZ) this._cam.setZoom(minZ)
+      // Re-centre on the world point the player was watching, against
+      // the new play-area centre rather than the canvas centre.
+      const pa = this._computePlayArea()
+      const playCx = pa.left + (pa.sw - pa.left - pa.right) / 2
+      const playCy = pa.top  + (pa.sh - pa.top  - pa.bottom) / 2
+      const _z = this._cam.zoom
+      this._cam.scrollX = wX - this._cam.centerX - (playCx - this._cam.centerX) / _z
+      this._cam.scrollY = wY - this._cam.centerY - (playCy - this._cam.centerY) / _z
+      this._clampCameraToPlayArea()
+    })
   }
 
   _onBossLeveledUp({ newLevel }) {
@@ -422,18 +752,23 @@ export class Game extends Phaser.Scene {
     this._cam = this.cameras.main
     this._cam.setBackgroundColor(0x050a12)
 
-    // Place the camera so the boss chamber is at the centre of the viewport.
-    // Phaser cameras zoom around the camera centre, so the scroll formula is:
-    //   scrollX = bossX - centerX  (for any zoom; canonical "centred" scroll)
-    // After the camera is set up, getWorldPoint(centerX, centerY) returns boss.
+    // Place the camera so the boss chamber sits at the play-area centre
+    // (between the HUD panels), then let _clampCameraToPlayArea finalise
+    // bounds in update(). Centring on play area instead of canvas means
+    // the boss room isn't shifted off behind the build panel at startup.
     const boss = this.gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
     const bossX = boss ? (boss.gridX + boss.width  / 2) * TS : 0
     const bossY = boss ? (boss.gridY + boss.height / 2) * TS : 0
 
     const startZoom = Math.max(Balance.CAMERA_ZOOM_DEFAULT, this._computeMinZoom())
     this._cam.setZoom(startZoom)
-    this._cam.scrollX = bossX - this._cam.centerX
-    this._cam.scrollY = bossY - this._cam.centerY
+
+    const pa = this._computePlayArea()
+    const playCx = pa.left + (pa.sw - pa.left - pa.right) / 2
+    const playCy = pa.top  + (pa.sh - pa.top  - pa.bottom) / 2
+    this._cam.scrollX = bossX - this._cam.centerX - (playCx - this._cam.centerX) / startZoom
+    this._cam.scrollY = bossY - this._cam.centerY - (playCy - this._cam.centerY) / startZoom
+    this._clampCameraToPlayArea()
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────
@@ -508,6 +843,7 @@ export class Game extends Phaser.Scene {
 
       this._cam.scrollX = worldPoint.x - cx - (pointer.x - cx) / newZoom
       this._cam.scrollY = worldPoint.y - cy - (pointer.y - cy) / newZoom
+      this._clampCameraToPlayArea()
     })
 
     this._keys = this.input.keyboard.addKeys('W,A,S,D')
@@ -515,7 +851,17 @@ export class Game extends Phaser.Scene {
     // ESC opens the pause menu. Wired here as a fallback for when neither
     // NightPhase nor DayPhase has keyboard focus (e.g. during the
     // BossFightOverlay cinematic, which lives inside this scene).
-    this.input.keyboard.on('keydown-ESC', () => PauseManager.toggle(this))
+    this.input.keyboard.on('keydown-ESC', () => {
+      // Defer to NightPhase first if it has anything armed — selected
+      // item, tool mode, crucible, or a pending trade-off all want ESC
+      // to cancel them, not open pause.
+      const np = this.scene.get('NightPhase')
+      if (np && np.scene?.isActive?.() &&
+          (np._pendingTradeOff || np._selected || np._toolMode || np._crucibleMode)) {
+        return
+      }
+      PauseManager.toggle(this)
+    })
   }
 
   // Phase 9 — Marionette possession. Click handler: if pact active and not
@@ -591,6 +937,13 @@ export class Game extends Phaser.Scene {
   }
 
   update(_time, delta) {
+    // Store the world point currently at the camera centre so _onSceneResize
+    // can restore it after the viewport is updated by Phaser's scale manager.
+    // midPoint is the zoom-aware world-space centre of the camera; using
+    // scrollX+centerX is only correct at zoom=1.
+    this._camWorldCX = this._cam.midPoint.x
+    this._camWorldCY = this._cam.midPoint.y
+
     const speed = Balance.CAMERA_SCROLL_SPEED / this._cam.zoom
 
     // WASD breaks follow mode then moves camera manually
@@ -609,8 +962,10 @@ export class Game extends Phaser.Scene {
       if (this._keys.D.isDown) this._cam.scrollX += speed
     }
 
-    // Smooth camera follow (day phase only)
-    if (this._followId && this.gameState.meta.phase === 'day') {
+    // Smooth camera follow (day phase only). Suspended while the boss-
+    // fight cinematic tween owns the camera so the follow lerp doesn't
+    // drag scroll back toward the lead adventurer mid-zoom.
+    if (this._followId && this.gameState.meta.phase === 'day' && !this._fightCamActive) {
       const adv = this.gameState.adventurers.active.find(a => a.instanceId === this._followId)
       if (adv) {
         const tx = adv.worldX - this._cam.centerX
@@ -622,13 +977,20 @@ export class Game extends Phaser.Scene {
       }
     }
 
+    // After all camera-mutating logic above, clamp the scroll against the
+    // play area (between HUD panels) — keeps the dungeon edges aligned
+    // with the play area edges, and centres the dungeon when it fits
+    // entirely inside the play area on a given axis. Suspended while
+    // the boss-fight cinematic tween is running so it can place the
+    // camera on the boss room without the clamp pulling it back to a
+    // fitted-centre position each frame.
+    if (!this._fightCamActive) this._clampCameraToPlayArea()
+
     // Door open/close animations always tick at real time — the visual
     // shouldn't depend on time scale (and the entry-hall door auto-opens at
     // night→day transition where time scale isn't yet applied).
     this._dungeonRenderer?.update(delta)
 
-    // Boss wander always runs at real time (cosmetic, independent of sim speed)
-    this.bossSystem?.update(delta)
     // Phase 1b.4 — Lich Phylactery damage tick. Always runs (real time so
     // hunters keep biting through pause-fast-slow). Gated internally by
     // archetype + phylactery presence.
@@ -638,6 +1000,9 @@ export class Game extends Phaser.Scene {
       const ts = this._getDayTimeScale()
       if (ts > 0) {
         const scaled = delta * ts
+        // Boss fight runs at the same scaled rate as all other day-phase
+        // systems so x2/x4/x8 speed applies during the boss encounter.
+        this.bossSystem?.update(scaled)
         this.aiSystem?.update(scaled)
         this.minionAiSystem?.update(scaled)
         this.trapSystem?.update(scaled)
@@ -649,15 +1014,29 @@ export class Game extends Phaser.Scene {
       this.minionRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
+      this.lootPileRenderer?.update()
+      this.keyChestRenderer?.update()
+      this.lockRenderer?.update()
+      this.beaconRenderer?.update()
+      this.fountainRenderer?.update()
+      this.treasureChestRenderer?.update()
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
       this.chatBubbles?.update()
       this.replayGhostRenderer?.update()
       this.cartographerOverlay?.tick()
     } else {
+      // Boss wanders its room during night at real time (cosmetic only).
+      this.bossSystem?.update(delta)
       this.minionRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
+      this.lootPileRenderer?.update()
+      this.keyChestRenderer?.update()
+      this.lockRenderer?.update()
+      this.beaconRenderer?.update()
+      this.fountainRenderer?.update()
+      this.treasureChestRenderer?.update()
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
       this.replayGhostRenderer?.update()

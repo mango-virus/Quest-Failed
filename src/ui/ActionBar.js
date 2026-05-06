@@ -145,22 +145,59 @@ export class ActionBar {
       rx += d.w + BTN_PAD
     }
 
-    // Phase indicator floats in the middle of the gap between the clusters.
-    const phaseX = Math.round((leftClusterEnd + rightClusterStart) / 2)
+    // Phase indicator — an inset panel filling the gap between the
+    // clusters, with a day/night sprite on the left and a two-line
+    // text stack on the right ("NIGHT" + "BUILD" or "DAY" + "INVASION").
+    // Replaces the old caption + multi-line glyph stack which left big
+    // empty bands top/bottom and used a tiny 9px font.
+    const gap          = Math.max(0, rightClusterStart - leftClusterEnd)
+    const phasePanelW  = Math.min(gap - 12, 280)
+    const phasePanelH  = BAR_H - 16
+    const phasePanelX  = Math.round((leftClusterEnd + rightClusterStart) / 2 - phasePanelW / 2)
+    const phasePanelY  = y + (BAR_H - phasePanelH) / 2
 
-    this._phaseCaption = this._scene.add.text(phaseX, y + 8, 'PHASE', {
-      fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 2,
-    }).setOrigin(0.5, 0).setDepth(D + TEXT_DEPTH)
-    this._objects.push(this._phaseCaption)
+    const inset = this._scene.add.graphics().setDepth(D + 4)
+    pixelPanel(inset, phasePanelX, phasePanelY, phasePanelW, phasePanelH, {
+      fill:  CRYPT.bgDeep ?? 0x06080b,
+      edgeH: CRYPT.panelEdgeS,
+      edgeS: CRYPT.panelEdgeS,
+    })
+    this._objects.push(inset)
+    this._phasePanelRect = { x: phasePanelX, y: phasePanelY, w: phasePanelW, h: phasePanelH }
 
-    this._phaseStatus = this._scene.add.text(phaseX, y + 22, this._phaseStatusText(), {
+    // Sun / moon icon. The PNGs are tiny pixel art; force NEAREST filter
+    // once on the texture so up-scaling doesn't blur it (the global
+    // renderer has antialias on for everything else).
+    const initialKey = this._gameState.meta?.phase === 'day' ? 'ui-day' : 'ui-night'
+    const tex = this._scene.textures.get(initialKey)
+    if (tex && tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    const dayTex = this._scene.textures.get('ui-day')
+    if (dayTex && dayTex.setFilter) dayTex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+
+    const ICON_SIZE = phasePanelH - 14   // square, hugs panel padding
+    const iconX     = phasePanelX + 10 + ICON_SIZE / 2
+    const iconY     = phasePanelY + phasePanelH / 2
+    this._phaseIcon = this._scene.add.image(iconX, iconY, initialKey)
+      .setDisplaySize(ICON_SIZE, ICON_SIZE)
+      .setDepth(D + TEXT_DEPTH)
+    this._objects.push(this._phaseIcon)
+
+    // Two-line text stack to the right of the icon.
+    const textX = phasePanelX + 10 + ICON_SIZE + 14
+    const isDay0 = this._gameState.meta?.phase === 'day'
+    this._phaseTitle = this._scene.add.text(textX, phasePanelY + 14, isDay0 ? 'DAY' : 'NIGHT', {
+      fontFamily: FONT_HEAD, fontSize: '14px',
+      color: isDay0 ? CRYPT.goldCss : CRYPT.soulCss,
+      letterSpacing: 2,
+    }).setOrigin(0, 0).setDepth(D + TEXT_DEPTH)
+    this._objects.push(this._phaseTitle)
+
+    this._phaseSubtitle = this._scene.add.text(textX, phasePanelY + phasePanelH - 16, isDay0 ? 'INVASION' : 'BUILD', {
       fontFamily: FONT_HEAD, fontSize: '9px',
-      color: this._gameState.meta?.phase === 'day' ? CRYPT.accent2Css : CRYPT.soulCss,
-      letterSpacing: 1,
-      align: 'center',
-      lineSpacing: 4,
-    }).setOrigin(0.5, 0).setDepth(D + TEXT_DEPTH)
-    this._objects.push(this._phaseStatus)
+      color: CRYPT.inkDim,
+      letterSpacing: 2,
+    }).setOrigin(0, 0).setDepth(D + TEXT_DEPTH)
+    this._objects.push(this._phaseSubtitle)
   }
 
   _addButton(key, x, y, w, label, opts = {}) {
@@ -223,19 +260,19 @@ export class ActionBar {
     }
   }
 
-  _phaseStatusText() {
-    const ph = this._gameState.meta?.phase ?? 'night'
-    if (ph === 'night') return '◐\nNIGHT\n—\nBUILD'
-    return '☀\nDAY\n—\nINVASION'
-  }
-
   // Called every frame from HudScene.update (~60fps). Cheap reads.
   update() {
     if (!this._gameState) return
-    if (this._phaseStatus) {
-      this._phaseStatus.setText(this._phaseStatusText())
-      const isDay = this._gameState.meta?.phase === 'day'
-      this._phaseStatus.setColor(isDay ? CRYPT.accent2Css : CRYPT.soulCss)
+    if (this._phaseTitle && this._phaseSubtitle && this._phaseIcon) {
+      const isDay   = this._gameState.meta?.phase === 'day'
+      const title   = isDay ? 'DAY' : 'NIGHT'
+      const sub     = isDay ? 'INVASION' : 'BUILD'
+      const iconKey = isDay ? 'ui-day' : 'ui-night'
+      const titleColor = isDay ? CRYPT.goldCss : CRYPT.soulCss
+      if (this._phaseTitle.text !== title) this._phaseTitle.setText(title)
+      if (this._phaseSubtitle.text !== sub) this._phaseSubtitle.setText(sub)
+      if (this._phaseTitle.style.color !== titleColor) this._phaseTitle.setColor(titleColor)
+      if (this._phaseIcon.texture?.key !== iconKey) this._phaseIcon.setTexture(iconKey)
     }
     if (this._buttons.phaseToggle) {
       const extras   = this._buttons.phaseToggle._extras

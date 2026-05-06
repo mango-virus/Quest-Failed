@@ -470,10 +470,15 @@ export class DayPhase extends Phaser.Scene {
 
   _scaleAdventurerByBossLevel(adv, bossLv) {
     const bloodMoneyBonus = this._gameState?._mechanicFlags?.bloodMoneyHpBonus ?? 0
-    if (bossLv <= 1 && bloodMoneyBonus === 0) return
-    const lvOver = Math.max(0, bossLv - 1)
-    const hpMul  = 1 + Balance.ADVENTURER_HP_PER_BOSS_LV * lvOver + bloodMoneyBonus
+    const day     = this._gameState?.meta?.dayNumber ?? 1
+    const lvOver  = Math.max(0, bossLv - 1)
+    const dayOver = Math.max(0, day - 1)
+    if (lvOver === 0 && dayOver === 0 && bloodMoneyBonus === 0) return
+    const hpMul  = 1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
+                     + Balance.ADVENTURER_HP_PER_DAY        * dayOver
+                     + bloodMoneyBonus
     const atkMul = 1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
+                     + Balance.ADVENTURER_ATK_PER_DAY       * dayOver
     adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
     adv.resources.hp    = adv.resources.maxHp
     adv.stats.attack    = Math.round(adv.stats.attack * atkMul)
@@ -535,7 +540,15 @@ export class DayPhase extends Phaser.Scene {
 
     const allClasses = this.cache.json.get('adventurerClasses') ?? []
     const dungeonLv  = this._gameState.boss?.level ?? 1
-    const classes    = allClasses.filter(c => (c.unlockLevel ?? 1) <= dungeonLv)
+    const dayNum     = this._gameState.meta?.dayNumber ?? 1
+    // Class spawn gates: unlockLevel = boss level required (default 1),
+    // unlockDay = calendar day required (default 1). Both must be met.
+    // Rare/late classes (necromancer, twitch_streamer, beast_master, bard)
+    // use unlockLevel 3 so they appear once the boss has levelled up twice.
+    const classes = allClasses.filter(c =>
+      (c.unlockLevel ?? 1) <= dungeonLv &&
+      (c.unlockDay   ?? 1) <= dayNum,
+    )
     if (classes.length === 0) return
 
     const day   = this._gameState.meta.dayNumber
@@ -818,11 +831,24 @@ export class DayPhase extends Phaser.Scene {
 
   _showLastWords(adv, killerId) {
     if (!adv) return
-    const lookup = this.cache.json.get('lastWords')?.byClassAndKiller ?? {}
-    const classBucket = lookup[adv.classId] ?? lookup.default ?? {}
-    const killerKey = this._resolveKillerKey(killerId)
-    const lines = classBucket[killerKey] ?? classBucket.default ?? lookup.default?.default ?? ['...']
-    const line  = lines[Math.floor(Math.random() * lines.length)]
+    const data     = this.cache.json.get('lastWords') ?? {}
+    const lookup   = data.byClassAndKiller ?? {}
+    const byPers   = data.byPersonality    ?? {}
+
+    // 30% chance: pick from the first matching personality that has lines
+    let line = null
+    if (Math.random() < 0.30) {
+      const persPool = (adv.personalityIds ?? [])
+        .flatMap(p => byPers[p] ?? [])
+      if (persPool.length) line = persPool[Math.floor(Math.random() * persPool.length)]
+    }
+
+    if (!line) {
+      const classBucket = lookup[adv.classId] ?? lookup.default ?? {}
+      const killerKey   = this._resolveKillerKey(killerId)
+      const lines = classBucket[killerKey] ?? classBucket.default ?? lookup.default?.default ?? ['...']
+      line = lines[Math.floor(Math.random() * lines.length)]
+    }
 
     // Add to the Game scene at world-space coords so the camera handles
     // zoom/scroll projection automatically (avoids manual world→screen math).
@@ -831,8 +857,8 @@ export class DayPhase extends Phaser.Scene {
     const wy = adv.worldY - 16
 
     const txt = gameScene.add.text(wx, wy, `"${line}"`, {
-      fontSize: '11px', color: PALETTE.textBright, fontFamily: 'monospace',
-      fontStyle: 'italic', backgroundColor: '#10141c', padding: { x: 5, y: 2 },
+      fontSize: '9px', color: PALETTE.textBright, fontFamily: 'monospace',
+      fontStyle: 'italic', backgroundColor: '#10141c', padding: { x: 4, y: 2 },
     }).setOrigin(0.5, 1).setDepth(28).setAlpha(0)
 
     gameScene.tweens.add({

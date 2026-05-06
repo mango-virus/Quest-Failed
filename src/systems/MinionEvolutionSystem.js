@@ -12,7 +12,7 @@
 
 import { EventBus }             from './EventBus.js'
 import { Balance }              from '../config/balance.js'
-import { applyBossLevelToMinion } from '../entities/Minion.js'
+import { applyMinionScaling } from '../entities/Minion.js'
 
 const KILLS_TO_EVOLVE = 2
 
@@ -46,6 +46,9 @@ export class MinionEvolutionSystem {
   _onCombatKill({ sourceId, targetId }) {
     const minion = (this._gameState.minions ?? []).find(m => m.instanceId === sourceId)
     if (!minion || minion.aiState === 'dead') return
+    // Phase 1b.8 — Wraith Haunt ghosts are locked to ghost2; they don't
+    // advance up the chain regardless of kill count.
+    if (minion._isHauntGhost) return
     // Only adventurer kills count toward evolution.
     const target = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === targetId)
     if (!target) return
@@ -131,7 +134,8 @@ export class MinionEvolutionSystem {
       m.resources.hp = m.resources.maxHp
       m.bossLevel = 1
       const bossLv = this._gameState.boss?.level ?? 1
-      if (bossLv > 1) applyBossLevelToMinion(m, bossLv)
+      const day    = this._gameState.meta?.dayNumber ?? 1
+      applyMinionScaling(m, bossLv, day)
       m._pendingEvolutionReset = false
       EventBus.emit('MINION_EVOLUTION_RESET', { minion: m })
     }

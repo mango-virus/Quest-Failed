@@ -1,33 +1,219 @@
 {
   "byClassAndKiller": {
     "knight": {
-      "minion":       ["For the realm!", "I die unbroken!", "Tell my brother — gngh."],
-      "boss":         ["At least I made it.", "Not today...", "Avenge me!"],
-      "default":      ["Ahhh!", "By the gods—", "I'm sorry, master..."]
-    },
-    "mage": {
-      "minion":       ["Extra mana would have been nice.", "Ugh, melee.", "The spell almost—"],
-      "boss":         ["The boss... was real...", "Such power..."],
-      "default":      ["This isn't in the book.", "I—", "My research..."]
+      "minion":  ["For the realm!", "I die unbroken!", "Tell my brother — gngh.", "The shield... held... long enough.", "You fight well. I admit that.", "No dishonour... in this.", "Fall back! FALL BACK!"],
+      "boss":    ["At least I made it.", "Not today...", "Avenge me!", "So that's what it feels like.", "Worth... every... mile.", "I underestimated it.", "The dungeon wins this round."],
+      "trap":    ["Who... put that there.", "Dishonorable.", "I should've checked the floor.", "Trap... well designed... ugh."],
+      "default": ["Ahhh!", "By the gods—", "I'm sorry, master...", "Hold—", "ARGH!"]
     },
     "rogue": {
-      "minion":       ["Oh, you're fast.", "Should've stuck to the shadows.", "—n-no fair."],
-      "default":      ["Pft. Whatever.", "Nice run, all things considered.", "Tell Marcus..."]
+      "minion":  ["Oh, you're fast.", "Should've stuck to the shadows.", "—n-no fair.", "First time that's happened. Okay second time.", "Fine. You got me. Fine.", "Didn't dodge that one.", "I had an exit and I missed it."],
+      "boss":    ["Couldn't steal my way out of this one.", "That was... a good fight.", "Respect.", "I've picked worse marks.", "Worth the risk. Wasn't worth the risk.", "I had a plan. The plan had a flaw."],
+      "trap":    ["My own trap energy... returned.", "That was my idea. Someone stole it.", "Walked into that. Classic.", "My lockpick can't fix this."],
+      "default": ["Pft. Whatever.", "Nice run, all things considered.", "Tell Marcus...", "Not the exit I wanted.", "Heh."]
+    },
+    "mage": {
+      "minion":  ["Extra mana would have been nice.", "Ugh, melee.", "The spell almost—", "Should've kept range.", "My staff was RIGHT HERE.", "Note to self: melee bad.", "Counterspell next time."],
+      "boss":    ["The boss... was real...", "Such power...", "I understand it now. A bit late.", "Arcane feedback was severe.", "I ran out of spells. I should've rationed.", "That boss had resistances. Many resistances."],
+      "trap":    ["Magical trap. Honestly impressed.", "I felt the enchantment and stepped on it anyway.", "This is what hubris looks like.", "The runes — I should've read the runes."],
+      "default": ["This isn't in the book.", "I—", "My research...", "I was so close to a breakthrough.", "Not the experiment I planned."]
     },
     "cleric": {
-      "minion":       ["The light... fades.", "Heal one more, please.", "Bless this..."],
-      "default":      ["My faith... was true.", "At peace.", "I forgive—"]
+      "minion":  ["The light... fades.", "Heal one more, please.", "Bless this...", "Even light runs out.", "I forgive them. I still lost though.", "The gods were... quiet.", "I prayed. It helped slightly."],
+      "boss":    ["My faith... was true.", "At peace.", "I forgive—", "Even the righteous fall.", "The gods will make sense of this.", "This was the plan all along. Probably."],
+      "trap":    ["No divine protection for traps. Noted.", "God gives, traps take.", "I blessed the floor. Not enough.", "Perhaps I should've blessed myself first."],
+      "default": ["I heal others. I forgot myself.", "Not yet—", "Keep the faith.", "An honourable end.", "Light..."]
     },
     "necromancer": {
-      "minion":       ["Death cannot... claim... me.", "I'll come back.", "Mark my words..."],
-      "default":      ["Reanimate me.", "I expected this.", "Witness."]
+      "minion":  ["Death cannot... claim... me.", "I'll come back.", "Mark my words...", "This is merely a setback.", "I've died before. It's fine. It's not fine.", "The irony. The beautiful irony.", "I'll reanimate and explain everything."],
+      "boss":    ["Reanimate me.", "I expected this.", "Witness.", "The boss had a point.", "Death... from death. Poetic.", "Even necromancers die. Important lesson."],
+      "trap":    ["A trap killed a necromancer. History is made.", "Whoever built this trap was artistically inclined.", "I will raise this trap. And destroy it.", "Acceptable. I've died to worse."],
+      "default": ["Death is not... the end...", "I prepared for this. I did not prepare well.", "The ritual was incomplete.", "Next time.", "Witness..."]
+    },
+    "ranger": {
+      "minion":  ["Out of arrows.", "Should've kept distance.", "They closed the gap too fast.", "My last arrow missed.", "In the forest, I'd have survived this.", "Cover was too thin.", "I had a shot. I missed."],
+      "boss":    ["Not enough arrows in the world.", "The boss dodged every shot.", "Range means nothing against THAT.", "Seven arrows. None of them worked.", "Didn't track this one correctly."],
+      "trap":    ["I track animals. Not floor pressure plates.", "Who puts a trap there? Honestly.", "My survival instincts failed me indoors.", "Nature never did this to me."],
+      "default": ["First arrow. Second arrow. Third arrow. Out.", "Out of range. And out of time.", "I needed more supplies.", "The forest is safer.", "Resupply... required."]
     },
     "twitch_streamer": {
-      "minion":       ["Chat, did you see that? CHAT!", "F in the chat...", "RIP my run, FeelsBadMan."],
-      "default":      ["Clip it!", "MaxLOL", "...gg, dungeon."]
+      "minion":  ["Chat, did you see that? CHAT!", "F in the chat...", "RIP my run, FeelsBadMan.", "Chat I'm out... PogChamp?", "PauseChamp... no wait.", "Guys I'm dying on stream! GUYS!", "NotLikeThis NotLikeThis NotLikeThis"],
+      "boss":    ["Clip it!", "MaxLOL", "...gg, dungeon.", "This is so going on the highlight reel.", "The boss got me. My viewers will avenge this.", "Died to the boss. First time on stream. Not first time overall."],
+      "trap":    ["WAIT WAIT CHAT DID YOU SEE THAT", "Trap jumpscare PogChamp", "My chat voted to go left. I went right.", "That's a clip. That is absolutely a clip."],
+      "default": ["Rage quit... incoming.", "I'm out. F for me.", "I'll respawn at spawn. Wait—", "Moment of silence please.", "Someone clip this."]
+    },
+    "beast_master": {
+      "minion":  ["Easy... easy...", "It didn't... respond to the command.", "My companion couldn't reach in time.", "I was trying to tame it...", "That one wasn't tameable.", "Approach slowly... didn't work."],
+      "boss":    ["The boss resisted taming. Obviously.", "No beast can handle this.", "My companion will carry on without me.", "I've faced dangerous animals. This wins.", "Nature... has limits."],
+      "trap":    ["My animals sensed it. I didn't listen.", "A ranger would've spotted that.", "The dungeon doesn't play by nature's rules.", "My companion tried to warn me."],
+      "default": ["Every beast was a person once... in my head.", "I thought I could tame it.", "Nature wins some. Dungeons win others.", "Take care of my companion.", "...good boy."]
+    },
+    "barbarian": {
+      "minion":  ["THAT ONE HIT HARD!", "RESPECT!", "GLORIOUS!", "Pain just got louder.", "I felt that. Deeply.", "My rage wasn't enough. Impossible.", "WORTHY OPPONENT!"],
+      "boss":    ["WORTHY.", "FINALLY. A REAL FIGHT.", "MORE BLOOD FOR THE BLOOD—", "The boss... was stronger.", "I laughed the whole way down.", "BEAUTIFUL.", "A good death. A VERY good death."],
+      "trap":    ["A TRAP? A TRAP KILLED ME?!", "No honor in this.", "TRAP! COWARD BUILD!", "My ancestors are disappointed."],
+      "default": ["AARGH!", "I REJECT THIS.", "MORE.", "Pain is just—", "FALL.", "Not... done... yet."]
+    },
+    "monk": {
+      "minion":  ["I did not see that one.", "The dodge... failed.", "I miscalculated the arc.", "One hit. That's all it took.", "My form was wrong.", "Thirty percent... wasn't enough."],
+      "boss":    ["The boss has no openings.", "I found no gap.", "Speed means nothing against power that large.", "I dodged much. Not enough.", "Humbling.", "A worthy wall."],
+      "trap":    ["I stepped without thinking. A true failure.", "The trap was faster than my mind.", "I paused. That was the mistake.", "Flow interrupted."],
+      "default": ["The path ends here.", "Impermanence.", "Breathe out...", "My balance... failed.", "The dungeon taught me something.", "...stillness."]
+    },
+    "bard": {
+      "minion":  ["The song cuts short—", "I didn't finish verse three.", "My lute!", "I was mid-chorus.", "A ballad died with me here.", "The rhythm broke.", "I blame the acoustics."],
+      "boss":    ["The ballad needs a darker ending.", "I shall compose this posthumously.", "My greatest work: this death.", "The boss didn't appreciate the music.", "Final note:", "At least it was dramatic."],
+      "trap":    ["No song for traps. Not dignified enough.", "The trap struck mid-verse.", "A discordant end.", "I was going to write about this. Past tense."],
+      "default": ["Every ballad needs a third act.", "I'll finish this in the next life.", "An audience of none...", "My patrons won't be pleased.", "The music... stops."]
     },
     "default": {
-      "default":      ["Aaargh!", "Tell my family.", "Ungh.", "Not like this..."]
+      "minion":  ["Didn't see that coming.", "Fair fight, actually.", "Tell someone.", "At least I tried."],
+      "boss":    ["The boss was... something.", "Bigger than I expected.", "Underestimated it.", "Fair."],
+      "trap":    ["Who puts a trap THERE.", "Ow.", "Trap. Smart.", "I saw it. I stepped on it."],
+      "default": ["Aaargh!", "Tell my family.", "Ungh.", "Not like this...", "Almost...", "Worth a shot.", "I'll be back."]
     }
+  },
+
+  "byPersonality": {
+    "greedy": [
+      "...worth... it.",
+      "I should've taken the gold first.",
+      "The treasure was right THERE.",
+      "At least I looted one chest.",
+      "Leave my share. Do NOT leave my share.",
+      "I'm not dead, I'm temporarily unliquidated."
+    ],
+    "paranoid": [
+      "I knew it. I KNEW it.",
+      "I said this would happen.",
+      "Called it. Didn't stop it.",
+      "Every instinct said no. I came anyway.",
+      "The paranoia was right all along.",
+      "Next time. I'll trust the feeling next time."
+    ],
+    "speed_runner": [
+      "Run failed. Resetting.",
+      "That cost me twelve seconds minimum.",
+      "I was on pace until this.",
+      "PB ruined.",
+      "Off-pace. Very off-pace."
+    ],
+    "completionist": [
+      "Two rooms left. TWO ROOMS.",
+      "I didn't finish.",
+      "The map is incomplete.",
+      "Ninety-four percent. I'll never forgive this.",
+      "I had a checklist.",
+      "...one room left."
+    ],
+    "martyr": [
+      "This is what I was built for.",
+      "Worth it. Truly worth it.",
+      "Take the victory I bought you.",
+      "I held long enough. Didn't I?",
+      "No sacrifice is wasted.",
+      "Go. Don't look back."
+    ],
+    "coward": [
+      "I should have RUN.",
+      "I should've left when I said I should've left.",
+      "My instincts were correct and I ignored them.",
+      "I voted to go home.",
+      "The exit was RIGHT THERE.",
+      "I knew. I ALWAYS know. I never leave."
+    ],
+    "overconfident": [
+      "I did not expect that.",
+      "Okay. Okay that one got me.",
+      "This dungeon got lucky.",
+      "I was FINE and then I wasn't.",
+      "Calculated. Miscalculated.",
+      "I've soloed worse. I lied about that."
+    ],
+    "cartographer": [
+      "Update the map. Remove my marker.",
+      "The data... incomplete.",
+      "Note: room C-7 is lethal.",
+      "I mapped everything. Except this.",
+      "My notes survive even if I don't.",
+      "Someone finish the survey."
+    ],
+    "party_loyal": [
+      "Did everyone else make it?",
+      "Don't let my death slow the party.",
+      "Stay together. Promise me.",
+      "Was it enough? Did I do enough?",
+      "I'm glad we made it this far together.",
+      "No regrets. Not a single one."
+    ],
+    "solo": [
+      "Should've gone further alone.",
+      "This is on me. Just me.",
+      "Solo attempt: failed.",
+      "At least no one else got hurt.",
+      "Died alone. As intended.",
+      "No witnesses. Good."
+    ],
+    "raid_leader": [
+      "Someone else lead now.",
+      "The party can survive without me. Probably.",
+      "I should've called the retreat earlier.",
+      "The formation held... mostly.",
+      "New leader: whoever's still standing.",
+      "Phase three. Someone else handle phase three."
+    ],
+    "underdog": [
+      "I was so close to unstoppable.",
+      "The scaling wasn't fast enough.",
+      "Next run. I'll snowball earlier.",
+      "Always the underdog. Even in death.",
+      "Closer than last time. Small wins.",
+      "I'll be back. And I'll be STRONGER."
+    ],
+    "traumatized": [
+      "Again. It happened AGAIN.",
+      "I knew. I always know.",
+      "Same as last time. Exactly the same.",
+      "I survived before. Not this time.",
+      "At least now I can stop dreading it.",
+      "I tried to warn them."
+    ],
+    "the_fan": [
+      "I don't blame it.",
+      "Killed by the one I loved.",
+      "Worth it to see them up close.",
+      "I would do it again.",
+      "They were more beautiful than I imagined.",
+      "No hard feelings."
+    ],
+    "vulture": [
+      "Waited too long. Story of my life.",
+      "Wrong read on the timing.",
+      "Patient to the very end.",
+      "I was watching and then I wasn't.",
+      "The margin got me.",
+      "Even vultures die."
+    ],
+    "inquisitor": [
+      "The mechanic... I almost cracked it.",
+      "I was close to the nexus point.",
+      "Next group: disable the second focal node first.",
+      "Knowledge transfers. My death is data.",
+      "The dungeon yielded its secret. Too late for me."
+    ],
+    "echo": [
+      "The path failed. So I followed it.",
+      "Should've forged my own way.",
+      "I copied wrong.",
+      "The one I followed didn't make it either.",
+      "Pattern: step for step, death for death."
+    ],
+    "mimic_handler": [
+      "That wasn't a mimic. I assumed it was safe.",
+      "Ironic.",
+      "The one time I trusted the chest.",
+      "I guarded against mimics. Not this.",
+      "My anti-mimic instinct failed in the wrong direction."
+    ]
   }
 }

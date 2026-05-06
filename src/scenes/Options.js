@@ -10,8 +10,10 @@ import {
   CRYPT, FONT_HEAD, FONT_BODY,
   pixelPanel, pixelButton, pixelDiamond,
 } from '../ui/UIKit.js'
-import { AudioControls } from '../ui/AudioControls.js'
+import { AudioControls, AUDIO_CONTROLS_HEIGHT } from '../ui/AudioControls.js'
 import { TitleMusic }    from '../systems/TitleMusic.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { NameEntryPanel } from '../ui/NameEntryPanel.js'
 
 // Same logical design size as MainMenu so the two screens letterbox the
 // same way and the Crypt chrome stays consistent across navigation.
@@ -19,16 +21,17 @@ const W = 1280
 const H = 720
 
 const PANEL_W = 560
-const PANEL_H = 380
+const PANEL_H = 460
 const TITLE_H = 30
 const PADDING = 18
 
 export class Options extends Phaser.Scene {
   constructor() {
     super('Options')
-    this._objects = []
-    this._buttons = []
-    this._audio   = null
+    this._objects   = []
+    this._buttons   = []
+    this._audio     = null
+    this._namePanel = null
   }
 
   create() {
@@ -40,13 +43,16 @@ export class Options extends Phaser.Scene {
     this._drawBackground()
     this._drawPanel()
 
-    // Esc returns to title menu (matches the convention)
-    this.input.keyboard.on('keydown-ESC', () => this._goBack())
+    // Esc returns to title menu — ignored when name entry is open (panel handles it)
+    this.input.keyboard.on('keydown-ESC', () => {
+      if (this._namePanel?.isOpen) return
+      this._goBack()
+    })
   }
 
   shutdown() {
-    this._audio?.destroy()
-    this._audio = null
+    this._namePanel?.destroy(); this._namePanel = null
+    this._audio?.destroy();     this._audio     = null
     this._buttons.forEach(b => b?.destroy?.())
     this._buttons = []
     this._objects.forEach(o => o?.destroy?.())
@@ -111,6 +117,8 @@ export class Options extends Phaser.Scene {
     yy += 14
     yy = this._sectionDisplay(innerX, innerW, yy)
     yy += 14
+    yy = this._sectionName(innerX, innerW, yy)
+    yy += 14
     yy = this._sectionKeyboard(innerX, innerW, yy)
 
     // Back button — anchored to bottom of the panel
@@ -130,12 +138,12 @@ export class Options extends Phaser.Scene {
     }).setDepth(3))
     y += 18
     this._objects.push(this.add.text(x, y,
-      'Master volume / music / SFX. Drag the slider to adjust.', {
+      'Drag sliders to adjust music and sound effects volume independently.', {
       fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
     }).setDepth(3))
     y += 16
-    this._audio = new AudioControls(this, x, y, { depth: 5 })
-    y += 36
+    this._audio = new AudioControls(this, x, y, { depth: 5, w })
+    y += AUDIO_CONTROLS_HEIGHT + 8
     return y
   }
 
@@ -165,6 +173,38 @@ export class Options extends Phaser.Scene {
     return y
   }
 
+  _sectionName(x, w, y) {
+    this._objects.push(this.add.text(x, y, 'PLAYER NAME', {
+      fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 3,
+    }).setDepth(3))
+    y += 18
+
+    const current = PlayerProfile.hasName() ? PlayerProfile.getName() : '—'
+    this._nameDisplayT = this.add.text(x, y, current, {
+      fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.ink, letterSpacing: 1,
+    }).setDepth(3)
+    this._objects.push(this._nameDisplayT)
+
+    const editBtn = pixelButton(this, x + w - 140, y - 6, 140, 28, 'CHANGE NAME', {
+      depth: 5, fontSize: 8,
+      onClick: () => {
+        this._namePanel = new NameEntryPanel(this, {
+          depth:     10,
+          initial:   PlayerProfile.getName(),
+          onConfirm: (name) => {
+            PlayerProfile.setName(name)
+            this._nameDisplayT.setText(name)
+            this._namePanel = null
+          },
+          onCancel: () => { this._namePanel = null },
+        })
+      },
+    })
+    this._buttons.push(editBtn)
+    y += 32
+    return y
+  }
+
   _sectionKeyboard(x, w, y) {
     this._objects.push(this.add.text(x, y, 'KEYBOARD', {
       fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 3,
@@ -189,6 +229,7 @@ export class Options extends Phaser.Scene {
 
   _refresh() {
     // Tear down + rebuild — straightforward and cheap given the panel size.
+    this._namePanel?.destroy(); this._namePanel = null
     this._audio?.destroy(); this._audio = null
     this._buttons.forEach(b => b?.destroy?.())
     this._buttons = []

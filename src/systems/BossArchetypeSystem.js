@@ -111,7 +111,7 @@
 
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
-import { createMinion, applyBossLevelToMinion } from '../entities/Minion.js'
+import { createMinion, applyMinionScaling, applyBossLevelToMinion } from '../entities/Minion.js'
 
 const MINION_TAG_ORC       = 'orc'
 const MINION_TAG_LIZARDMAN = 'lizardman'
@@ -217,8 +217,7 @@ export class BossArchetypeSystem {
     EventBus.off('DEMON_SACRIFICE_TARGET',  this._fireSacrifice,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
-    this._sporeFx?.destroy?.()
-    this._sporeFx = null
+    this._clearSporeFx()
     this._stopPetrifyTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
@@ -306,6 +305,17 @@ export class BossArchetypeSystem {
       if (adv && typeof adv.tileX === 'number' && typeof adv.tileY === 'number') {
         const room = this._scene?.dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
         this._gameState.fungalCorpses ??= []
+        // Hard cap on simultaneous corpses — without it Myconid snowballs:
+        // every adv kill is both gold AND a permanent venom tile AND a free
+        // future minion. Skip new corpses once the cap is full; a slot opens
+        // up when an existing corpse expires/sprouts or its room is moved.
+        if (this._gameState.fungalCorpses.length >= Balance.MYCONID_CORPSE_MAX_ACTIVE) {
+          EventBus.emit('MYCONID_CORPSE_CAPPED', {
+            advId: adv.instanceId ?? null,
+            cap:   Balance.MYCONID_CORPSE_MAX_ACTIVE,
+          })
+          return
+        }
         // Capture the LPC sprite-sheet info so FungalCorpseRenderer can paint
         // the actual last frame of the adv's hurt animation tinted green
         // instead of the generic skull stand-in. spriteVariant is "<class>/<vNN>".
@@ -325,6 +335,9 @@ export class BossArchetypeSystem {
         }
         this._gameState.fungalCorpses.push({
           instanceId:    `fcor_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          // Track the source adv so the sprout can despawn the dead body
+          // sprite that AdventurerRenderer leaves frozen on the death tile.
+          advId:         adv.instanceId ?? null,
           tileX:         adv.tileX,
           tileY:         adv.tileY,
           roomId:        room?.instanceId ?? null,
@@ -484,13 +497,27 @@ export class BossArchetypeSystem {
     if (this._gameState?._myconid) {
       this._gameState._myconid.activeSporeRoomIds = []
     }
-    this._sporeFx?.clear?.()
-    // Demon: reset daily Sacrifice uses; spawn the dawn batch of free imps.
+    this._clearSporeFx()
+    // Demon: reset daily Sacrifice uses; top the Hellgate roster up to
+    // N=bossLevel imps. Killed or sacrificed imps from prior days do NOT
+    // revive (enforced by the dead-imp filter in MinionAISystem.respawnAll);
+    // each dawn fills the open slots with brand-new imp instances. Surviving
+    // imps from yesterday are kept — we just spawn enough fresh ones to
+    // reach the N-slot ceiling, so total count never grows past N.
     if (this._archId() === 'demon') {
       this._gameState._demon ??= { sacrificeUsesLeft: 0 }
       this._gameState._demon.sacrificeUsesLeft = Balance.DEMON_SACRIFICE_USES_PER_DAY
-      this._sacrificeArmed = false
-      this._spawnHellgateImps()
+      // Disarm via the proper API so the UI hears DEMON_SACRIFICE_DISARMED
+      // and snaps the button back to SACRIFICE — silent state mutation here
+      // was the source of the "stuck on PICK A MINION" bug.
+      this._disarmSacrifice()
+      const bossLv = this._gameState?.boss?.level ?? 1
+      const N = Math.max(1, bossLv)
+      const aliveImps = (this._gameState?.minions ?? [])
+        .filter(m => m._isDemonImp && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
+        .length
+      const need = Math.max(0, N - aliveImps)
+      if (need > 0) this._spawnHellgateImps(need)
     }
     // Gnoll: refresh Hunters Pack to its boss-level cap and reset Bloodlust.
     if (this._archId() === 'gnoll') {
@@ -865,7 +892,7 @@ export class BossArchetypeSystem {
     // them on hit, Myconid applies them on corpse contact, etc).
     this._tickVenom()
     // Myconid spore-cloud damage + corpse-touch venom-stack application.
-    this._tickMyconid()
+    this._tickMyconid(delta)
     // Wraith fear-threshold reactions + haunt-ghost wall-phasing.
     this._tickWraith()
     // Demon imp roaming (rotates assignedRoomId every ~6 s).
@@ -1001,8 +1028,8 @@ export class BossArchetypeSystem {
       // Lightweight class retention — boost the skeleton based on the
       // adventurer's old class. Cleric heal is handled in _tickRaisedClerics.
       this._applyClassRetentionBuffs(minion, entry.classId)
-      // Re-apply boss scaling on top of any base-stat tweaks above.
-      applyBossLevelToMinion(minion, bossLv)
+      // Re-apply boss+day scaling on top of any base-stat tweaks above.
+      applyMinionScaling(minion, bossLv, this._gameState?.meta?.dayNumber ?? 1)
 
       this._gameState.minions.push(minion)
       raised.push(minion)
@@ -1256,42 +1283,152 @@ export class BossArchetypeSystem {
     EventBus.emit('MYCONID_SPORE_DAY_BEGAN', { roomIds: ids, day: today })
   }
 
+  _clearSporeFx() {
+    const fx = this._sporeFx
+    if (!fx) return
+    fx.container?.destroy?.(true)
+    this._sporeFx = null
+  }
+
   _renderSporeOverlay() {
     if (this._archId() !== 'myconid') return
     const s = this._scene
-    if (!s?.add?.graphics) return
-    if (!this._sporeFx) {
-      this._sporeFx = s.add.graphics().setDepth(2.5)
-    }
-    const g = this._sporeFx
-    g.clear()
+    if (!s?.add?.container) return
+
+    // Tear down any previous-day VFX so we never leak particles between
+    // spore-network days.
+    this._clearSporeFx()
+
     const ids = this._gameState?._myconid?.activeSporeRoomIds ?? []
     if (ids.length === 0) return
-    const TS = Balance.TILE_SIZE
+
+    const TS    = Balance.TILE_SIZE
     const rooms = this._gameState?.dungeon?.rooms ?? []
+    const container = s.add.container(0, 0).setDepth(2.5)
+    const roomFx = []
+
     for (const r of rooms) {
       if (!ids.includes(r.instanceId)) continue
-      const x = r.gridX * TS
-      const y = r.gridY * TS
-      const w = r.width  * TS
-      const h = r.height * TS
-      // Faint green wash + dotted border + a few floating spore specks.
-      g.fillStyle(0x66cc44, 0.18)
-      g.fillRect(x, y, w, h)
-      g.lineStyle(2, 0x88dd66, 0.55)
-      g.strokeRect(x + 1, y + 1, w - 2, h - 2)
-      // Sprinkle a deterministic-ish set of spore dots so the overlay reads
-      // as alive without having to animate per-frame.
-      const seed = (r.gridX * 73856093 ^ r.gridY * 19349663) >>> 0
-      const dots = Math.max(4, Math.floor((r.width * r.height) / 6))
-      let s32 = seed
-      g.fillStyle(0xddffaa, 0.55)
-      for (let i = 0; i < dots; i++) {
-        s32 = (s32 * 1103515245 + 12345) & 0x7fffffff
-        const dx = (s32 % w)
-        s32 = (s32 * 1103515245 + 12345) & 0x7fffffff
-        const dy = (s32 % h)
-        g.fillCircle(x + dx, y + dy, 1.2)
+      const px = r.gridX * TS
+      const py = r.gridY * TS
+      const pw = r.width  * TS
+      const ph = r.height * TS
+
+      // Deterministic seed → cloud shapes don't rearrange across saves.
+      let seed = ((r.gridX + 1) * 73856093 ^ (r.gridY + 1) * 19349663) >>> 0
+      const rand = () => {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff
+        return seed / 0x7fffffff
+      }
+
+      // Layered cloud puffs — overlapping translucent green discs with a
+      // bright inner core, scattered across the room interior. Animated
+      // alpha+scale via the per-frame _tickSporeVfx loop (NOT Phaser
+      // tweens) — using infinite-yoyo tweens for every puff stalled the
+      // main loop on days with many spore corridors.
+      const inset  = TS * 0.45
+      const minX   = px + inset
+      const maxX   = px + pw - inset
+      const minY   = py + inset
+      const maxY   = py + ph - inset
+      const area = r.width * r.height
+      const puffCount = Math.min(6, Math.max(3, Math.floor(area / 10)))
+      const puffs = []
+      for (let i = 0; i < puffCount; i++) {
+        const cx = minX + rand() * Math.max(1, (maxX - minX))
+        const cy = minY + rand() * Math.max(1, (maxY - minY))
+        const radius = TS * (0.75 + rand() * 0.55)
+        const halo = s.add.circle(cx, cy, radius,        0x6abf3d, 0.10)
+        const core = s.add.circle(cx, cy, radius * 0.55, 0x9ee870, 0.20)
+        container.add([halo, core])
+        puffs.push({
+          halo, core,
+          phase: rand() * Math.PI * 2,   // staggered breathing per puff
+          freq:  0.0010 + rand() * 0.0008, // rad/ms
+        })
+      }
+
+      // Drifting pixel spores — tiny green specks with random velocity
+      // that wander across the room and fade in/out over their lifetime.
+      // Animated per-frame in `_tickSporeVfx`.
+      const particles = []
+      const partCount = Math.min(18, Math.max(8, Math.floor(area / 5)))
+      const bounds = {
+        minX: px + 2, maxX: px + pw - 2,
+        minY: py + 2, maxY: py + ph - 2,
+      }
+      for (let i = 0; i < partCount; i++) {
+        const sprite = s.add.rectangle(
+          bounds.minX + rand() * (bounds.maxX - bounds.minX),
+          bounds.minY + rand() * (bounds.maxY - bounds.minY),
+          2, 2,
+          rand() < 0.25 ? 0xffffaa : 0xccff88,
+          0.0,
+        )
+        container.add(sprite)
+        const maxLife = 1800 + rand() * 1800
+        particles.push({
+          sprite,
+          // px/ms — slow drift with a faint upward bias.
+          vx:      (rand() - 0.5) * 0.030,
+          vy:      (rand() - 0.5) * 0.030 - 0.012,
+          life:    rand() * maxLife,
+          maxLife,
+          bounds,
+        })
+      }
+
+      roomFx.push({ roomId: r.instanceId, particles, puffs })
+    }
+
+    this._sporeFx = { container, rooms: roomFx, elapsed: 0 }
+  }
+
+  // Per-frame spore drift + cloud-puff breathing. Manual animation
+  // avoids the per-puff infinite-yoyo Phaser tweens that piled up on
+  // big spore-network days and froze the main loop.
+  _tickSporeVfx(deltaMs) {
+    const fx = this._sporeFx
+    if (!fx?.rooms?.length) return
+    const dt = Math.max(1, Math.min(64, deltaMs))
+    fx.elapsed = (fx.elapsed ?? 0) + dt
+    const t = fx.elapsed
+    for (const r of fx.rooms) {
+      // Cloud puff breath — sin-curve alpha + slight core scale. Cheaper
+      // than tweens because we only touch alpha/scale on a handful of
+      // already-allocated Arc objects per room.
+      for (const puff of (r.puffs ?? [])) {
+        const ph = Math.sin(t * puff.freq + puff.phase)
+        // halo breathes 0.18 ↔ 0.32 — the wide soft outer green wash
+        puff.halo.setAlpha(0.25 + 0.07 * ph)
+        // core breathes 0.40 ↔ 0.60 with scale 1.00 ↔ 1.18 — the bright
+        // inner billow that reads as the cloud's mass
+        puff.core.setAlpha(0.50 + 0.10 * ph)
+        const sc = 1.09 + 0.09 * ph
+        puff.core.setScale(sc, sc)
+      }
+      for (const p of r.particles) {
+        p.life -= dt
+        if (p.life <= 0) {
+          const b = p.bounds
+          p.sprite.x  = b.minX + Math.random() * (b.maxX - b.minX)
+          p.sprite.y  = b.minY + Math.random() * (b.maxY - b.minY)
+          p.vx        = (Math.random() - 0.5) * 0.030
+          p.vy        = (Math.random() - 0.5) * 0.030 - 0.012
+          p.maxLife   = 1800 + Math.random() * 1800
+          p.life      = p.maxLife
+          continue
+        }
+        p.sprite.x += p.vx * dt
+        p.sprite.y += p.vy * dt
+        const b = p.bounds
+        if (p.sprite.x < b.minX)      { p.sprite.x = b.minX; p.vx = -p.vx }
+        else if (p.sprite.x > b.maxX) { p.sprite.x = b.maxX; p.vx = -p.vx }
+        if (p.sprite.y < b.minY)      { p.sprite.y = b.minY; p.vy = -p.vy }
+        else if (p.sprite.y > b.maxY) { p.sprite.y = b.maxY; p.vy = -p.vy }
+        // Sin-curve alpha — fade in then back out over the particle's life.
+        const lt = 1 - (p.life / p.maxLife)
+        p.sprite.setAlpha(0.15 + 0.75 * Math.sin(Math.PI * lt))
       }
     }
   }
@@ -1313,17 +1450,32 @@ export class BossArchetypeSystem {
       // Sprout a free Vinekin in the corpse tile (if the room still exists).
       const room = this._gameState?.dungeon?.rooms?.find(r => r.instanceId === c.roomId)
       if (plantDef && room) {
-        const minion = createMinion(
-          plantDef,
-          { x: c.tileX, y: c.tileY },
-          c.roomId,
-          { class: 'garrison', bossLevel: bossLv },
-        )
-        minion._myconidSprout = true
-        applyBossLevelToMinion(minion, bossLv)
-        this._gameState.minions.push(minion)
-        EventBus.emit('MINION_PLACED', { minion })
-        EventBus.emit('MYCONID_CORPSE_SPROUTED', { corpseId: c.instanceId, minionId: minion.instanceId })
+        try {
+          // bossLevel option already triggers applyBossLevelToMinion inside
+          // createMinion — DO NOT call it a second time or stats double-scale.
+          const minion = createMinion(
+            plantDef,
+            { x: c.tileX, y: c.tileY },
+            c.roomId,
+            { class: 'garrison', bossLevel: bossLv },
+          )
+          minion._myconidSprout = true
+          this._gameState.minions.push(minion)
+          EventBus.emit('MINION_PLACED', { minion })
+          EventBus.emit('MYCONID_CORPSE_SPROUTED', {
+            corpseId: c.instanceId,
+            minionId: minion.instanceId,
+            advId:    c.advId ?? null,
+            tileX:    c.tileX,
+            tileY:    c.tileY,
+          })
+        } catch (err) {
+          // Don't let a sprout throw drag the entire DAY_PHASE_BEGAN tick
+          // (and every other archetype/system listener after it) into a
+          // halt. Log so we can see what failed and continue.
+          console.error('[Myconid] Vinekin sprout failed:', err, { corpse: c })
+          EventBus.emit('MYCONID_CORPSE_EXPIRED', { corpseId: c.instanceId })
+        }
       } else {
         EventBus.emit('MYCONID_CORPSE_EXPIRED', { corpseId: c.instanceId })
       }
@@ -1353,8 +1505,12 @@ export class BossArchetypeSystem {
     const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!bossRoom) return
     const minions = this._gameState?.minions ?? []
-    const aliveCount = minions.filter(m => this._isHuntersPackGnoll(m) && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length
-    const need = this._expectedHuntersPackCount() - aliveCount
+    // Count ALL pack gnolls (alive + dead) — dead ones will be revived by
+    // respawnAll moments after this runs. Using alive-only would spawn a
+    // replacement for every gnoll that died during the day, then respawnAll
+    // would also revive the original, producing one extra gnoll per death.
+    const totalCount = minions.filter(m => this._isHuntersPackGnoll(m)).length
+    const need = this._expectedHuntersPackCount() - totalCount
     if (need <= 0) return
 
     const bossLv = this._gameState?.boss?.level ?? 1
@@ -1362,7 +1518,7 @@ export class BossArchetypeSystem {
     const cy = bossRoom.gridY + Math.floor(bossRoom.height / 2)
 
     for (let i = 0; i < need; i++) {
-      const idx   = aliveCount + i
+      const idx   = totalCount + i
       const angle = (idx / Balance.GNOLL_HUNTERS_PACK_MAX) * Math.PI * 2
       const r = 2 + (idx % 2)
       const tx = cx + Math.round(Math.cos(angle) * r)
@@ -1374,11 +1530,12 @@ export class BossArchetypeSystem {
         { class: 'garrison', bossLevel: bossLv },
       )
       minion._isHuntersPackGnoll = true
-      applyBossLevelToMinion(minion, bossLv)
+      // bossLevel option already triggers applyBossLevelToMinion inside
+      // createMinion — DO NOT call it a second time or stats double-scale.
       this._gameState.minions.push(minion)
       EventBus.emit('MINION_PLACED', { minion })
     }
-    EventBus.emit('GNOLL_HUNTERS_PACK_REFILLED', { spawned: need, total: aliveCount + need })
+    EventBus.emit('GNOLL_HUNTERS_PACK_REFILLED', { spawned: need, total: totalCount + need })
   }
 
   // Capture each gnoll-tagged minion's current ATK as the day's baseline so
@@ -1462,8 +1619,13 @@ export class BossArchetypeSystem {
       const adv = advs[i]
       if (!adv?._charmed) continue
       if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
-      const room = grid?.getRoomAtTile?.(adv.tileX, adv.tileY)
-      if (room?.instanceId !== bossRoom.instanceId) continue
+      const boss = this._gameState.boss
+      if (!boss) continue
+      const dist = Math.hypot(
+        (adv.worldX ?? adv.tileX * 32) - (boss.worldX ?? boss.tileX * 32),
+        (adv.worldY ?? adv.tileY * 32) - (boss.worldY ?? boss.tileY * 32),
+      )
+      if (dist > 48) continue  // ~1.5 tiles — must physically touch the boss
 
       // Convert: spawn a vampire_minion1 thrall at the adv's tile, then
       // remove the adv from the active list.
@@ -1480,7 +1642,7 @@ export class BossArchetypeSystem {
       minion.isUndead           = true   // permadeath: respawnAll strips dead undead
       // Light class retention to mirror Lich Necromancy.
       this._applyClassRetentionBuffs(minion, adv.classId)
-      applyBossLevelToMinion(minion, bossLv)
+      applyMinionScaling(minion, bossLv, this._gameState?.meta?.dayNumber ?? 1)
       this._gameState.minions.push(minion)
       EventBus.emit('MINION_PLACED', { minion })
       EventBus.emit('VAMPIRE_THRALL_CONVERTED', {
@@ -1489,9 +1651,23 @@ export class BossArchetypeSystem {
         classId:  adv.classId,
       })
 
-      // Remove the adv from the active list (don't run through the
-      // FLED/DIED pipelines — they didn't die or escape, they defected).
+      // Remove from active and push to graveyard so ADVENTURER_DIED
+      // triggers DayPhase's "all out" check and the day progresses.
       advs.splice(i, 1)
+      this._gameState.adventurers.graveyard.push({
+        ...adv,
+        diedOnDay:  this._gameState.meta?.dayNumber ?? 0,
+        killedBy:   'vampire_charm',
+        killerName: 'Vampire',
+        damageType: 'unholy',
+      })
+      EventBus.emit('ADVENTURER_DIED', {
+        adventurer: adv,
+        killerId:   'vampire_charm',
+        killerName: 'Vampire',
+        roomId:     this._scene?.dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId ?? null,
+        damageType: 'unholy',
+      })
       converted++
     }
     if (converted > 0) {
@@ -1542,8 +1718,11 @@ export class BossArchetypeSystem {
     EventBus.emit('DEMON_SACRIFICE_ARMED', {})
   }
 
+  // Always emits DEMON_SACRIFICE_DISARMED, even if we believed we were
+  // already disarmed. The UI may be holding stale armed state (e.g. if the
+  // night reset cleared us silently in the past) — broadcasting the event
+  // unconditionally lets the UI self-heal back to the SACRIFICE label.
   _disarmSacrifice() {
-    if (!this._sacrificeArmed) return
     this._sacrificeArmed = false
     EventBus.emit('DEMON_SACRIFICE_DISARMED', {})
   }
@@ -1606,36 +1785,25 @@ export class BossArchetypeSystem {
     })
   }
 
-  // Permanent infernal portal painted in the top-left corner of the boss
+  // Permanent infernal portal placed in the top-left corner of the boss
   // chamber. Visual-only; spawn logic is in _spawnHellgateImps.
   _renderHellgatePortal() {
     if (this._archId() !== 'demon') return
     const s = this._scene
-    if (!s?.add?.graphics) return
+    if (!s?.add?.sprite) return
     const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!bossRoom) return
-    if (!this._hellgateFx) {
-      this._hellgateFx = s.add.graphics().setDepth(2.7)
-    }
-    const g = this._hellgateFx
-    g.clear()
+    if (this._hellgateFx) return  // already placed; animation loops itself
+    if (!s.textures.exists('demon-portal')) return
     const TS = Balance.TILE_SIZE
-    // Interior corner — a few tiles inside the wall thickness so the portal
-    // doesn't paint over the wall ring.
     const cx = (bossRoom.gridX + 3) * TS
     const cy = (bossRoom.gridY + 3) * TS
-    // Outer fire halo.
-    g.fillStyle(0x441010, 0.55)
-    g.fillCircle(cx, cy, 22)
-    g.lineStyle(2, 0xff5522, 0.85)
-    g.strokeCircle(cx, cy, 18)
-    g.lineStyle(2, 0xffaa44, 0.65)
-    g.strokeCircle(cx, cy, 12)
-    g.fillStyle(0x110000, 0.85)
-    g.fillCircle(cx, cy, 9)
-    g.fillStyle(0xff3a1a, 0.85)
-    g.fillCircle(cx + 2, cy - 3, 3)
-    g.fillCircle(cx - 3, cy + 2, 2)
+    this._hellgateFx = s.add.sprite(cx, cy, 'demon-portal')
+      .setDepth(2.7)
+      .setScale(2)
+    if (s.anims.exists('demon-portal-spin')) {
+      this._hellgateFx.play('demon-portal-spin')
+    }
   }
 
   _impStatScaleForLevel(bossLv) {
@@ -1644,22 +1812,24 @@ export class BossArchetypeSystem {
     return base * (1 + bonus)
   }
 
-  _spawnHellgateImps() {
-    if (this._archId() !== 'demon') return
+  // Spawn `count` imps in a ring around the boss-room corner. Returns the
+  // number actually placed (may be 0 if the boss room or imp def is missing).
+  _spawnHellgateImps(count) {
+    if (this._archId() !== 'demon') return 0
+    if (count <= 0) return 0
     const minionTypes = this._scene?.cache?.json?.get?.('minionTypes') ?? []
     const impDef = minionTypes.find(m => m.id === 'imp1')
-    if (!impDef) return
+    if (!impDef) return 0
     const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
-    if (!bossRoom) return
+    if (!bossRoom) return 0
     const bossLv = this._gameState?.boss?.level ?? 1
-    const N = Math.max(1, bossLv)
     const scale = this._impStatScaleForLevel(bossLv)
 
     const cx = bossRoom.gridX + 3
     const cy = bossRoom.gridY + 3
 
-    for (let i = 0; i < N; i++) {
-      const angle = (i / N) * Math.PI * 2
+    for (let i = 0; i < count; i++) {
+      const angle = (i / Math.max(1, count)) * Math.PI * 2
       const r = 1
       const tx = cx + Math.round(Math.cos(angle) * r)
       const ty = cy + Math.round(Math.sin(angle) * r)
@@ -1670,7 +1840,6 @@ export class BossArchetypeSystem {
         { class: 'garrison' },   // note: NOT applying boss-level scaling here;
                                  // we want the explicit scale fraction below.
       )
-      // Scale stats to the spec'd 10% × (1 + 0.1·bossLv) of imp1 base.
       const base = impDef.baseStats ?? {}
       minion.resources.maxHp = Math.max(1, Math.round((base.hp     ?? 14) * scale))
       minion.resources.hp    = minion.resources.maxHp
@@ -1681,7 +1850,8 @@ export class BossArchetypeSystem {
       this._gameState.minions.push(minion)
       EventBus.emit('MINION_PLACED', { minion })
     }
-    EventBus.emit('DEMON_HELLGATE_SPAWNED', { count: N, statScale: scale })
+    EventBus.emit('DEMON_HELLGATE_SPAWNED', { count, statScale: scale })
+    return count
   }
 
   // Per-frame: rotate every demon imp's assignedRoomId every ~6 seconds so
@@ -1829,6 +1999,20 @@ export class BossArchetypeSystem {
   _spawnHauntGhost(deadAdv, roomId) {
     if (this._archId() !== 'wraith') return
     if (!deadAdv) return
+    // Hard cap on simultaneous haunts. Without it Wraith snowballs: every
+    // adv kill stacks another permanent wall-phasing predator. New kills
+    // past the cap simply don't spawn a ghost; a slot opens up when an
+    // existing haunt dies (one-shot — see respawnAll filter).
+    const liveHauntCount = (this._gameState?.minions ?? []).filter(m =>
+      m._isHauntGhost && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0
+    ).length
+    if (liveHauntCount >= Balance.WRAITH_HAUNT_MAX_ACTIVE) {
+      EventBus.emit('WRAITH_HAUNT_CAPPED', {
+        cap: Balance.WRAITH_HAUNT_MAX_ACTIVE,
+        advId: deadAdv.instanceId ?? null,
+      })
+      return
+    }
     const minionTypes = this._scene?.cache?.json?.get?.('minionTypes') ?? []
     const ghostDef = minionTypes.find(m => m.id === 'ghost2')
     if (!ghostDef) return
@@ -1853,7 +2037,8 @@ export class BossArchetypeSystem {
     minion._hauntHomeTileY  = ty
     minion._hauntPhase      = 'home'   // 'home' | 'hunt' | 'return'
     minion.isSpectral       = true
-    applyBossLevelToMinion(minion, bossLv)
+    // bossLevel option already triggers applyBossLevelToMinion inside
+    // createMinion — DO NOT call it a second time or stats double-scale.
     this._gameState.minions.push(minion)
     EventBus.emit('MINION_PLACED', { minion })
     EventBus.emit('WRAITH_HAUNT_SPAWNED', { minionId: minion.instanceId, roomId: homeRoomId })
@@ -1924,8 +2109,10 @@ export class BossArchetypeSystem {
   }
 
   // Per-frame: damage advs in active spore rooms; apply corpse-touch venom.
-  _tickMyconid() {
+  _tickMyconid(deltaMs) {
     if (this._archId() !== 'myconid') return
+    // Animate the drifting spore particles + cloud puffs every frame.
+    this._tickSporeVfx(deltaMs)
     const now = this._scene?.time?.now ?? 0
     const advs = this._gameState?.adventurers?.active ?? []
     const bossLv = this._gameState?.boss?.level ?? 1

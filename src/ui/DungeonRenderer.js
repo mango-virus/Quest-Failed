@@ -1409,13 +1409,14 @@ export class DungeonRenderer {
       if (rot) img.setAngle(rot)
       if (flipH) img.flipX = true
       if (flipV) img.flipY = true
-      // Door containers use geometry masks — postFX breaks those, so use
-      // preFX (inline render pass) for door sprites. Each cell uses its own
-      // physical room's colorAdjust so each half of the door matches its room.
+      // Always use preFX (inline render pass). PostFX renders to an offscreen
+      // framebuffer that doesn't resize with the canvas, which caused floor /
+      // wall tile sprites to visibly slide on window resize. PreFX works with
+      // geometry masks too, so door sprites are also safe.
       const adj = isDoorContainer
         ? (_room?.colorAdjust?.doors ?? _room?.colorAdjust?.walls)
         : _room?.colorAdjust?.[isFloor ? 'floor' : 'walls']
-      this._applyColorAdj(img, adj, isDoorContainer)
+      this._applyColorAdj(img, adj, true)
       return img
     }
 
@@ -1461,7 +1462,7 @@ export class DungeonRenderer {
     const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
       .setOrigin(0.5)
     img.setDisplaySize(size, size)
-    this._applyColorAdj(img, room?.colorAdjust?.walls)
+    this._applyColorAdj(img, room?.colorAdjust?.walls, true)
     this._cTileSprites.add(img)
     return true
   }
@@ -2691,10 +2692,10 @@ export class DungeonRenderer {
       didOpen = true
     }
     if (!didOpen) return false
-    // Full redraw so the sprite path picks up the new state (closed →
-    // open) immediately. The procedural panel layer's split-aside
-    // animation still uses cp.openProgress per-frame via _redrawDoors().
-    this.redraw()
+    // Lightweight door-only redraw. A full redraw() rebuilds the entire
+    // dungeon (walls, floors, decor, void mask, sprites, ...) and was
+    // causing a noticeable freeze on every door open/close.
+    this.redrawDoors()
     return true
   }
 
@@ -2724,14 +2725,76 @@ export class DungeonRenderer {
       target.openProgress = 0
       if (wasOpenOrAnimating) didChange = true
     }
-    this._redrawDoors()
     // If we just closed an open door, the sprite path needs to swap
-    // door_open_* art for door_closed_*. (Going from "already closed" to
-    // "closed" is a no-op, so skip the redraw in that case.)
-    if (didChange) this.redraw()
+    // door_open_* art for door_closed_*. Use the lightweight door-only
+    // redraw — a full redraw() was causing a noticeable freeze on every
+    // door event. The cheap _redrawDoors() (procedural-panel only) is
+    // covered as a subset of redrawDoors().
+    if (didChange) {
+      this.redrawDoors()
+      EventBus.emit('DOOR_CLOSED', { cp })
+    } else {
+      this._redrawDoors()
+    }
   }
 
   _redrawDoors() {
+    this._gDoors.clear()
+    this._drawClosedDoors()
+  }
+
+  // Lightweight redraw for door state changes (open/close). Rebuilds ONLY
+  // the door sprite containers, the door cell map (so per-cell `state` +
+  // `renderable` flags reflect the current cp.open/cp.opening state), and
+  // the procedural closed-door panel layer. Leaves walls, floors, decor,
+  // void mask, etc. untouched.
+  //
+  // A full redraw() was causing a ~0.5 s freeze on every door event because
+  // it rebuilt the entire dungeon.
+  redrawDoors() {
+    this._cDoorSpritesLow.removeAll(true)
+    this._cDoorSpritesHigh.removeAll(true)
+
+    const tiles = this._gameState?.dungeon?.tiles
+    if (tiles) {
+      // The doorway mask graphics + shadow-cell set get accumulating fills
+      // every time _buildDoorCellMap runs. Clear them first so the rebuild
+      // starts clean. Geometry masks read their source graphics' current
+      // state at render time, so re-painting the same shapes is fine.
+      this._innerCellMaskG?.clear()
+      this._outerCellMaskG?.clear()
+      this._doorwayShadowCells?.clear()
+
+      // Rebuild the door cell map — this captures fresh per-cell `state`
+      // and `renderable` flags. Without it, the sprite resolver keeps using
+      // the state ('closed') captured at the last full redraw and the door
+      // art never swaps to the open swatch.
+      this._doorCellMap = this._buildDoorCellMap()
+
+      // _drawTiles normally exempts doorway anchors from _spanCoveredSet
+      // after the map is built so they iterate and render. Replicate that.
+      for (const [k, v] of this._doorCellMap.entries()) {
+        if (v.spanRender) this._spanCoveredSet?.delete(k)
+      }
+
+      for (const [k, doorEntry] of this._doorCellMap.entries()) {
+        const isDoorwayCell = doorEntry.kind === 'door' || doorEntry.kind === 'jamb'
+        if (!isDoorwayCell) continue
+        const comma = k.indexOf(',')
+        const x = +k.slice(0, comma)
+        const y = +k.slice(comma + 1)
+        // Skip cells that route to _cTileSprites (tileLayout span anchors
+        // overlapping the doorway zone) — we don't clear that container
+        // here, so re-rendering would duplicate its contents.
+        const isTileLayoutWall = !doorEntry.spanRender && this._isTileLayoutSpanAnchor(x, y)
+        if (isTileLayoutWall) continue
+        if (this._spanCoveredSet?.has(k) && !doorEntry.spanRender) continue
+        const t = tiles[y]?.[x]
+        if (t == null) continue
+        this._renderTileSprite(x, y, t)
+      }
+    }
+
     this._gDoors.clear()
     this._drawClosedDoors()
   }

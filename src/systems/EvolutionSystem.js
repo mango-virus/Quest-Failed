@@ -108,6 +108,7 @@ export class EvolutionSystem {
     const minion = this._gameState.minions.find(m => m.instanceId === sourceId)
     if (!minion) return
     if (minion.faction === 'adventurer') return
+    if (minion._isHauntGhost) return
     const victim = this._gameState.adventurers.graveyard.find(a => a.instanceId === targetId) ??
                    this._gameState.adventurers.active.find(a => a.instanceId === targetId)
     if (!victim) return
@@ -167,6 +168,10 @@ export class EvolutionSystem {
   // ── Evolution check ───────────────────────────────────────────────────────
 
   _checkEvolutions(minion) {
+    // Phase 1b.8 — Wraith Haunt ghosts are spectres locked to their summoning
+    // form (ghost2). They never advance an evolution stage no matter how many
+    // adventurers they cull, since the boss's ability defines what they are.
+    if (minion?._isHauntGhost) return
     const def = this._defs[minion.definitionId]
     if (!def?.evolutionPaths?.length) return
 

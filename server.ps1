@@ -20,6 +20,10 @@ $mimeTypes = @{
     '.ttf'  = 'font/ttf'
     '.woff' = 'font/woff'
     '.woff2'= 'font/woff2'
+    '.mp4'  = 'video/mp4'
+    '.webm' = 'video/webm'
+    '.mp3'  = 'audio/mpeg'
+    '.wav'  = 'audio/wav'
 }
 
 while ($listener.IsListening) {

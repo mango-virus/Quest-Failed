@@ -5,7 +5,10 @@
     "description": "Your spare life. Place in any room — die in a fight and you respawn while the heart lives. Adventurers can hunt and destroy it.",
     "spriteKey": "phylactery-heart",
     "color": "0xddaa22",
-    "tags": ["phylactery", "lich"],
+    "tags": [
+      "phylactery",
+      "lich"
+    ],
     "baseStats": {
       "hp": 200,
       "defense": 0
@@ -14,5 +17,258 @@
     "unlockLevel": 3,
     "archetypeRestriction": "lich",
     "maxPerDungeon": 1
+  },
+  {
+    "id": "door_lock",
+    "name": "Door Lock",
+    "description": "Place a padlock on a doorway. Adventurers can only pass with a key, or via Rogue lockpick / Barbarian break-down. You must immediately place a Key Chest where adventurers can reach it.",
+    "spriteKey": "item-padlock",
+    "tags": [
+      "lock",
+      "denial"
+    ],
+    "goldCost": 50,
+    "unlockLevel": 2
+  },
+  {
+    "id": "key_chest",
+    "name": "Key Chest",
+    "description": "Holds the key to a specific locked door. Refills at the start of every day.",
+    "spriteKey": "item-key-chest",
+    "tags": [
+      "chest",
+      "lock",
+      "trade-off"
+    ],
+    "goldCost": 0,
+    "unlockLevel": 2,
+    "hidden": true
+  },
+  {
+    "id": "soul_bound_beacon",
+    "name": "Soul-Bound Beacon",
+    "description": "A glowing pedestal that empowers every minion in the same room (+30% damage and HP, scales with boss level). You must immediately place a Healing Fountain in another room — adventurers can use it once per day to heal to full.",
+    "spriteKey": "item-soul-beacon",
+    "tags": [
+      "beacon",
+      "lure",
+      "buff"
+    ],
+    "goldCost": 120,
+    "unlockLevel": 3
+  },
+  {
+    "id": "healing_fountain",
+    "name": "Healing Fountain",
+    "description": "Heals any adventurer who touches it to full HP — once per day per adventurer. Required as the trade-off for placing a Soul-Bound Beacon.",
+    "spriteKey": "item-healing-fountain",
+    "tags": [
+      "fountain",
+      "heal",
+      "trade-off"
+    ],
+    "goldCost": 0,
+    "unlockLevel": 1,
+    "hidden": true
+  },
+  {
+    "id": "treasure_chest_1",
+    "name": "Treasure Chest T1",
+    "description": "Tier 1 chest. Pays 10 gold at the end of each day. If an adventurer opens it, they steal 10% of your current gold and may try to escape with it. Tempt chance: 10% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-1",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 50,
+    "unlockLevel": 2,
+    "maxPerDungeon": 1,
+    "tier": 1,
+    "treasure": {
+      "goldPerDay": 10,
+      "stealPct": 10,
+      "temptPct": 10,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_2",
+    "name": "Treasure Chest T2",
+    "description": "Tier 2 chest. Pays 20 gold at the end of each day. If an adventurer opens it, they steal 17% of your current gold and may try to escape with it. Tempt chance: 14% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-2",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 130,
+    "unlockLevel": 3,
+    "maxPerDungeon": 1,
+    "tier": 2,
+    "treasure": {
+      "goldPerDay": 20,
+      "stealPct": 17,
+      "temptPct": 14,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_3",
+    "name": "Treasure Chest T3",
+    "description": "Tier 3 chest. Pays 35 gold at the end of each day. If an adventurer opens it, they steal 24% of your current gold and may try to escape with it. Tempt chance: 19% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-3",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 210,
+    "unlockLevel": 4,
+    "maxPerDungeon": 1,
+    "tier": 3,
+    "treasure": {
+      "goldPerDay": 35,
+      "stealPct": 24,
+      "temptPct": 19,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_4",
+    "name": "Treasure Chest T4",
+    "description": "Tier 4 chest. Pays 55 gold at the end of each day. If an adventurer opens it, they steal 31% of your current gold and may try to escape with it. Tempt chance: 23% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-4",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 290,
+    "unlockLevel": 5,
+    "maxPerDungeon": 1,
+    "tier": 4,
+    "treasure": {
+      "goldPerDay": 55,
+      "stealPct": 31,
+      "temptPct": 23,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_5",
+    "name": "Treasure Chest T5",
+    "description": "Tier 5 chest. Pays 80 gold at the end of each day. If an adventurer opens it, they steal 38% of your current gold and may try to escape with it. Tempt chance: 28% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-5",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 370,
+    "unlockLevel": 6,
+    "maxPerDungeon": 1,
+    "tier": 5,
+    "treasure": {
+      "goldPerDay": 80,
+      "stealPct": 38,
+      "temptPct": 28,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_6",
+    "name": "Treasure Chest T6",
+    "description": "Tier 6 chest. Pays 110 gold at the end of each day. If an adventurer opens it, they steal 45% of your current gold and may try to escape with it. Tempt chance: 32% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-6",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 450,
+    "unlockLevel": 7,
+    "maxPerDungeon": 1,
+    "tier": 6,
+    "treasure": {
+      "goldPerDay": 110,
+      "stealPct": 45,
+      "temptPct": 32,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_7",
+    "name": "Treasure Chest T7",
+    "description": "Tier 7 chest. Pays 145 gold at the end of each day. If an adventurer opens it, they steal 52% of your current gold and may try to escape with it. Tempt chance: 37% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-7",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 530,
+    "unlockLevel": 8,
+    "maxPerDungeon": 1,
+    "tier": 7,
+    "treasure": {
+      "goldPerDay": 145,
+      "stealPct": 52,
+      "temptPct": 37,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_8",
+    "name": "Treasure Chest T8",
+    "description": "Tier 8 chest. Pays 185 gold at the end of each day. If an adventurer opens it, they steal 59% of your current gold and may try to escape with it. Tempt chance: 41% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-8",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 610,
+    "unlockLevel": 9,
+    "maxPerDungeon": 1,
+    "tier": 8,
+    "treasure": {
+      "goldPerDay": 185,
+      "stealPct": 59,
+      "temptPct": 41,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_9",
+    "name": "Treasure Chest T9",
+    "description": "Tier 9 chest. Pays 230 gold at the end of each day. If an adventurer opens it, they steal 66% of your current gold and may try to escape with it. Tempt chance: 46% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-9",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 690,
+    "unlockLevel": 10,
+    "maxPerDungeon": 1,
+    "tier": 9,
+    "treasure": {
+      "goldPerDay": 230,
+      "stealPct": 66,
+      "temptPct": 46,
+      "escapeChance": 0.3
+    }
+  },
+  {
+    "id": "treasure_chest_10",
+    "name": "Treasure Chest T10",
+    "description": "Tier 10 chest. Pays 300 gold at the end of each day. If an adventurer opens it, they steal 75% of your current gold and may try to escape with it. Tempt chance: 50% (greedy adventurers always go).",
+    "spriteKey": "item-treasure-chest-10",
+    "tags": [
+      "treasure",
+      "chest"
+    ],
+    "goldCost": 800,
+    "unlockLevel": 11,
+    "maxPerDungeon": 1,
+    "tier": 10,
+    "treasure": {
+      "goldPerDay": 300,
+      "stealPct": 75,
+      "temptPct": 50,
+      "escapeChance": 0.3
+    }
   }
 ]

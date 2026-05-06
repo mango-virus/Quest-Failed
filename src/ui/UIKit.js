@@ -2,6 +2,28 @@
 // All drawing functions operate on caller-supplied Graphics objects
 // so scenes retain full control over depth and camera assignment.
 
+import { SfxVolume } from '../systems/SfxVolume.js'
+
+// Module-level hover rate-limit so rapid mouse-overs across many buttons
+// don't stack the hover sound.
+let _lastBtnHoverAt = 0
+
+// Exported helpers so non-pixelButton interactive elements (BuildMenu slots,
+// BossTopBar, etc.) can play the same UI sounds without duplicating logic.
+export function uiSfxHover(scene) {
+  if (SfxVolume.isMuted()) return
+  const now = Date.now()
+  if (now - _lastBtnHoverAt < 80) return
+  if (!scene.cache?.audio?.exists?.('sfx-btn-hover')) return
+  _lastBtnHoverAt = now
+  scene.sound.play('sfx-btn-hover', { volume: Math.min(1, 0.18 * SfxVolume.getVolume()) })
+}
+export function uiSfxClick(scene) {
+  if (SfxVolume.isMuted()) return
+  if (!scene.cache?.audio?.exists?.('sfx-btn-click')) return
+  scene.sound.play('sfx-btn-click', { volume: Math.min(1, 0.88 * SfxVolume.getVolume()) })
+}
+
 // ── Master palette ────────────────────────────────────────────────────────────
 export const PALETTE = {
   // Backgrounds
@@ -283,10 +305,25 @@ export const FONT_BODY = '"Press Start 2P", monospace'
 // size   : half-diagonal in pixels (default 4 → 8x8 bounding diamond)
 // color  : fill colour (default CRYPT.accent)
 export function pixelDiamond(g, cx, cy, size = 4, color = CRYPT.accent) {
+  // Pixel-art sprite path — `ui-diamond` is an 18×26 red gem image.
+  // Anchored at center on the same scene as `g` and tied to `g`'s
+  // lifetime via the destroy event, so callers don't need to track an
+  // extra object for cleanup. Falls back to the procedural rhombus when
+  // the texture isn't loaded (Boot scene, asset 404, etc).
+  const scene = g?.scene
+  if (scene?.textures?.exists?.('ui-diamond')) {
+    // size=4 was the canonical procedural radius (~9 px tall); the new
+    // sprite is 26 px tall, so 0.45 ≈ matches the old footprint and
+    // scales linearly for any caller that passes size=3 or size=5.
+    const scale = (size / 4) * 0.45
+    const img = scene.add.image(cx, cy, 'ui-diamond')
+      .setOrigin(0.5).setScale(scale)
+      .setDepth((g.depth ?? 0) + 1)
+    g.once('destroy', () => { try { img.destroy() } catch {} })
+    return
+  }
+  // Procedural fallback (kept verbatim from the original implementation).
   g.fillStyle(color, 1)
-  // Diagonal stripes from top to bottom — at each row Y, draw a horizontal
-  // strip of width that grows toward the middle then shrinks. This mimics
-  // how a pixel-art diamond is built.
   for (let i = 0; i <= size; i++) {
     const w = 1 + i * 2
     g.fillRect(cx - i, cy - size + i, w, 1)
@@ -427,14 +464,24 @@ export function pixelButton(scene, x, y, w, h, text, opts = {}) {
     label.setPosition(x + w / 2 + (pressed ? 1 : 0), y + h / 2 + (pressed ? 1 : 0))
   }
 
-  hit.on('pointerover', () => { hover = true; if (enabled) repaint() })
+  hit.on('pointerover', () => {
+    hover = true
+    if (enabled) {
+      repaint()
+      const now = Date.now()
+      uiSfxHover(scene)
+    }
+  })
   hit.on('pointerout',  () => { hover = false; pressed = false; if (enabled) repaint() })
   hit.on('pointerdown', () => { pressed = true; if (enabled) repaint() })
   hit.on('pointerup',   (...args) => {
     const wasPressed = pressed
     pressed = false
     if (enabled) repaint()
-    if (enabled && wasPressed && hover && onClick) onClick(...args)
+    if (enabled && wasPressed && hover) {
+      uiSfxClick(scene)
+      if (onClick) onClick(...args)
+    }
   })
 
   repaint()
@@ -609,12 +656,13 @@ export function pixelTabs(scene, x, y, w, h, labels, opts = {}) {
   }
 
   zones.forEach((z, i) => {
-    z.on('pointerover', () => { hovers[i] = true;  repaint() })
+    z.on('pointerover', () => { hovers[i] = true;  repaint(); uiSfxHover(scene) })
     z.on('pointerout',  () => { hovers[i] = false; repaint() })
     z.on('pointerup',   () => {
       if (active !== i) {
         active = i
         repaint()
+        uiSfxClick(scene)
         if (onChange) onChange(i, labels[i])
       }
     })

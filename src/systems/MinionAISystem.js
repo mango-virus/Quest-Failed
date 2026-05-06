@@ -8,8 +8,10 @@
 
 import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
+import { MinionAbilities }  from './MinionAbilities.js'
 import { Balance }          from '../config/balance.js'
 import { TILE }             from './DungeonGrid.js'
+import { applyMinionScaling } from '../entities/Minion.js'
 
 const TS = Balance.TILE_SIZE
 export class MinionAISystem {
@@ -27,12 +29,17 @@ export class MinionAISystem {
     EventBus.on('COMBAT_HIT', this._onCombatHit, this)
     EventBus.on('NIGHT_PHASE_STARTED', this._resetRoomState, this)
     EventBus.on('MINION_DIED', this._onMinionDied, this)
+
+    // Pass-3: wire global behavior listeners (e.g. Mimic Migrate on
+    // NIGHT_PHASE_STARTED). Idempotent — re-attaching is a no-op.
+    MinionAbilities.attach(scene, gameState, dungeonGrid)
   }
 
   destroy() {
     EventBus.off('COMBAT_HIT', this._onCombatHit, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._resetRoomState, this)
     EventBus.off('MINION_DIED', this._onMinionDied, this)
+    MinionAbilities.detach()
   }
 
   // Mourner stacking: attack buff for any same-room ally that's still standing
@@ -110,6 +117,48 @@ export class MinionAISystem {
     // Generic — applies to every patrolling minion regardless of archetype
     // (Vampire Thralls, Demon Imps, Wraith Haunt Ghosts).
     this._tickPatrollerDoors()
+    // Phase: items — Soul-Bound Beacon: +30% damage / +30% maxHp to every
+    // minion in the same room, scaling +5% per boss level above 1. Stats
+    // are reverted when the minion leaves the room.
+    this._tickBeaconBuffs()
+  }
+
+  _tickBeaconBuffs() {
+    const beacons = this._gameState.dungeon?.beacons ?? []
+    if (beacons.length === 0) {
+      // Fast path: no beacons → strip any leftover buffs.
+      for (const m of this._gameState.minions ?? []) {
+        if (m._beaconBuffed) this._stripBeaconBuff(m)
+      }
+      return
+    }
+    const bossLevel = this._gameState.boss?.level ?? 1
+    const bonus     = 0.30 + Math.max(0, bossLevel - 1) * 0.05
+    const beaconRoomIds = new Set(beacons.map(b => b.roomId))
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead') continue
+      const room = this._dungeonGrid.getRoomAtTile?.(m.tileX, m.tileY)
+      const inBeaconRoom = !!(room && beaconRoomIds.has(room.instanceId))
+      if (inBeaconRoom && !m._beaconBuffed) {
+        m._beaconBuffMul = 1 + bonus
+        m._beaconHpAdd   = Math.round((m.resources?.maxHp ?? 0) * bonus)
+        m.resources.maxHp += m._beaconHpAdd
+        m.resources.hp     = Math.min(m.resources.maxHp, m.resources.hp + m._beaconHpAdd)
+        m._beaconBuffed = true
+      } else if (!inBeaconRoom && m._beaconBuffed) {
+        this._stripBeaconBuff(m)
+      }
+    }
+  }
+
+  _stripBeaconBuff(m) {
+    if (m._beaconHpAdd) {
+      m.resources.maxHp = Math.max(1, m.resources.maxHp - m._beaconHpAdd)
+      m.resources.hp    = Math.min(m.resources.maxHp, m.resources.hp)
+    }
+    m._beaconBuffed = false
+    m._beaconBuffMul = null
+    m._beaconHpAdd = null
   }
 
   _isPatrollerMinion(m) {
@@ -145,7 +194,16 @@ export class MinionAISystem {
       } else if (m._doorPatLastCp) {
         // Just stepped off a door tile — close it (paired side too via
         // closeDoor's mirror logic) and re-lock if the snapshot says so.
-        const cp        = m._doorPatLastCp
+        // Defer the close if an adventurer (or another patroller) is
+        // currently standing on the same doorway. Slamming the door on a
+        // mid-traversal walker leaves them in inconsistent waypoint state
+        // and was the source of a crash when imps and advs crossed at the
+        // same doorway.
+        const cp = m._doorPatLastCp
+        if (this._anyoneOnCp(cp, m)) {
+          // Hold the close — keep _doorPatLastCp so we retry next tick.
+          continue
+        }
         const wasLocked = !!m._doorPatLockedSnapshot
         renderer?.closeDoor?.(cp)
         if (wasLocked) cp.locked = true
@@ -155,6 +213,29 @@ export class MinionAISystem {
     }
   }
 
+  // True if any live adventurer or any other patroller minion is currently
+  // standing on a tile that belongs to `cp`'s doorway. Used to defer door
+  // slams when traffic is in the way.
+  _anyoneOnCp(cp, exceptMinion) {
+    if (!cp) return false
+    const grid = this._dungeonGrid
+    if (!grid?.getCpForDoorTile) return false
+    const advs = this._gameState?.adventurers?.active ?? []
+    for (const a of advs) {
+      if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+      const e = grid.getCpForDoorTile(a.tileX, a.tileY)
+      if (e?.cp === cp) return true
+    }
+    const minions = this._gameState?.minions ?? []
+    for (const o of minions) {
+      if (o === exceptMinion) continue
+      if (!o || o.aiState === 'dead' || (o.resources?.hp ?? 0) <= 0) continue
+      const e = grid.getCpForDoorTile(o.tileX, o.tileY)
+      if (e?.cp === cp) return true
+    }
+    return false
+  }
+
   // ── Per-minion tick ────────────────────────────────────────────────────────
 
   _tickMinion(minion, delta, idx) {
@@ -162,6 +243,24 @@ export class MinionAISystem {
 
     // Player is dragging this minion to a new tile — suspend AI until drop.
     if (minion._heldByPlayer) return
+
+    // Phase 1b.8 — Wraith Haunt ghosts are owned by BossArchetypeSystem's
+    // _tickHauntGhosts (wall-phase lerp + melee engage). Letting the regular
+    // minion AI also process them causes conflicting per-frame tile-coord
+    // writes (fractional from the lerp vs integer from _moveToward) + repeated
+    // pathfinder calls from fractional start tiles, which thrashes the path
+    // cache and locks up frames once an adv enters the haunt's room.
+    //
+    // We still need to detect and route the death so MINION_DIED fires (drives
+    // sprite cleanup, aiState='dead', and the respawnAll filter that strips
+    // dead haunt ghosts permanently). Without this, a ghost killed by an adv
+    // sits at hp=0 with aiState='engaging' and slips back through respawn.
+    if (minion._isHauntGhost) {
+      if (minion.resources.hp <= 0 && minion.aiState !== 'dead') {
+        this._die(minion, idx)
+      }
+      return
+    }
 
     // Phase 9 — Pact of the Marionette: while the player is possessing a
     // minion, every other dungeon minion stands idle. The possessed one
@@ -178,17 +277,64 @@ export class MinionAISystem {
       return
     }
 
+    // Pass-1: status tick (DoTs / root-stagger expiry). Cheap to run on every
+    // minion every tick; nothing applies these to minions yet but the plumbing
+    // is in place for future passes.
+    MinionAbilities.tickEntity(minion, this._scene, delta)
+    if (minion.resources.hp <= 0) {
+      this._die(minion, idx)
+      return
+    }
+
+    // Pass-1: Lich Heal Undead aura. Bone Cleric heals the most-wounded
+    // undead-tagged ally within its home room every 3s for 6 HP.
+    if (minion.definitionId === 'lich1') {
+      this._tickLichHealAura(minion, delta)
+    }
+
+    // Pass-3: per-minion behavior dispatcher. Sets _hidden, _patrolTarget,
+    // teleports, etc. Runs before the wander block so its overrides are
+    // visible to that block immediately.
+    MinionAbilities.tickBehavior(minion, this._scene, this._gameState, this._dungeonGrid, delta)
+
+    // Pass-1/3: stationary behavior gates. Zombies/Vinekin/Mushrooms never
+    // patrol — they hold their tile until aggro'd. Pass-3 adds Lizardman
+    // Lurk and Ghost Haunts a Tile to the same set. The aiState is left at
+    // 'idle' so combat targeting still works; we just skip the wander block
+    // below.
+    const isStationary = minion.definitionId === 'zombie1'      ||
+                         minion.definitionId === 'plant1'       ||
+                         minion.definitionId === 'mushroom1'    ||
+                         minion.definitionId === 'mushroom2'    ||
+                         minion.definitionId === 'lizardman1'   ||
+                         minion.definitionId === 'ghost1'
+
     // Idle wander: any non-utility dungeon minion explores its assigned room
     // when no hostiles are in sight. Picks a random tile in the home room,
     // walks there via `_moveToward`, then idles ~3s before picking a new
     // target. Originally gated on `behaviorType === 'patrol'`; opened up to
     // guards too so the dungeon feels alive everywhere.
-    if (minion.behaviorType !== 'utility' && minion.aiState === 'idle' && minion.faction === 'dungeon' &&
+    if (!isStationary &&
+        minion.behaviorType !== 'utility' && minion.aiState === 'idle' && minion.faction === 'dungeon' &&
         !((this._gameState._mechanicFlags ?? {}).kennelDiscipline)) {
+      // Pass-3: Ent Slow Guard — temporarily reduce movement speed during
+      // wander only. Restore real speed after the move call.
+      const isEnt   = minion.definitionId === 'ent1' ||
+                      minion.definitionId === 'ent2' ||
+                      minion.definitionId === 'ent3'
+      const isSlime = minion.definitionId === 'slime1' ||
+                      minion.definitionId === 'slime2' ||
+                      minion.definitionId === 'slime3' ||
+                      minion.definitionId === 'slime4'
+      const realSpeed = minion.stats?.speed ?? 1.0
+      if (isEnt && minion.stats) minion.stats.speed = realSpeed * 0.4
+
       if (minion._patrolTarget) {
         if (minion.tileX === minion._patrolTarget.x && minion.tileY === minion._patrolTarget.y) {
           minion._patrolTarget = null
-          minion._patrolAccum  = 0
+          // Pass-3 Slime Bouncy Path — re-pick a new direction immediately
+          // (no rest period), giving Bomb Slimes their erratic feel.
+          minion._patrolAccum = isSlime ? 3000 : 0
         } else {
           this._moveToward(minion, minion._patrolTarget, delta)
         }
@@ -204,6 +350,7 @@ export class MinionAISystem {
           }
         }
       }
+      if (isEnt && minion.stats) minion.stats.speed = realSpeed
     }
 
     // Phase QW — Sleeping in barracks: idle minions assigned to a
@@ -240,6 +387,43 @@ export class MinionAISystem {
       return
     }
 
+    // Owned allies — necromancer-raised undead AND beast-master tames are
+    // tethered to their owner adventurer.
+    //   • If the owner has died, fled, or otherwise left the dungeon, the
+    //     ally drops dead immediately (the necro's will / the BM's bond
+    //     is what kept them on-side).
+    //   • While the owner is alive, sync speed each tick so owner buffs /
+    //     debuffs propagate to the leash, and force-follow when the leash
+    //     stretches past FOLLOW_LEASH_TILES — this beats out engaging
+    //     distant targets, so the pack stays with the owner instead of
+    //     scattering. Within leash range the tick falls through to normal
+    //     target selection (so they happily engage anything hostile near
+    //     the owner).
+    const ownerId = minion.raisedByAdvId ?? minion.tamedByAdvId ?? null
+    if (ownerId) {
+      const owner = this._gameState.adventurers.active.find(
+        a => a.instanceId === ownerId &&
+             a.aiState !== 'dead' && a.aiState !== 'fled' && a.aiState !== 'fleeing'
+      )
+      if (!owner) {
+        minion.resources.hp = 0
+        this._die(minion, idx)
+        return
+      }
+      if (owner.stats?.speed) minion.stats.speed = owner.stats.speed
+      const FOLLOW_LEASH_TILES = 3
+      const distToOwner = Math.hypot(
+        owner.tileX - minion.tileX,
+        owner.tileY - minion.tileY,
+      )
+      if (distToOwner > FOLLOW_LEASH_TILES) {
+        minion.aiState = 'following'
+        minion.currentTargetId = null
+        this._walkAlongPath(minion, { x: owner.tileX, y: owner.tileY }, delta)
+        return
+      }
+    }
+
     // Re-acquire target each tick (cheap; small entity counts in this jam)
     const target = this._pickTarget(minion)
 
@@ -257,25 +441,27 @@ export class MinionAISystem {
       return
     }
 
-    // No target — summons trail their summoner; everyone else returns home / patrols.
+    // No target — owned allies (raised undead / tames) at this point are
+    // within leash range (the force-follow block above handles the far
+    // case + owner-gone despawn), so they just close the small remaining
+    // gap or idle next to the owner. Other faction='dungeon' minions
+    // return home / patrol.
     minion.currentTargetId = null
-    if (minion.raisedByAdvId) {
-      const summoner = this._gameState.adventurers.active.find(
-        a => a.instanceId === minion.raisedByAdvId && a.aiState !== 'dead'
+    const closeOwnerId = minion.raisedByAdvId ?? minion.tamedByAdvId ?? null
+    if (closeOwnerId) {
+      const owner = this._gameState.adventurers.active.find(
+        a => a.instanceId === closeOwnerId && a.aiState !== 'dead'
       )
-      if (summoner) {
-        const dist = Math.hypot(summoner.tileX - minion.tileX, summoner.tileY - minion.tileY)
+      if (owner) {
+        const dist = Math.hypot(owner.tileX - minion.tileX, owner.tileY - minion.tileY)
         if (dist > 1.4) {
           minion.aiState = 'following'
-          // Pathfind to the summoner so we don't clip through walls between
-          // rooms. _walkAlongPath caches and reuses paths.
-          this._walkAlongPath(minion, { x: summoner.tileX, y: summoner.tileY }, delta)
+          this._walkAlongPath(minion, { x: owner.tileX, y: owner.tileY }, delta)
         } else {
           minion.aiState = 'idle'
         }
-        return
       }
-      // Summoner gone (fled/died) — fall through to home behavior.
+      return
     }
     if (this._atHome(minion)) {
       minion.aiState = 'idle'
@@ -392,6 +578,44 @@ export class MinionAISystem {
     EventBus.emit('HERALD_ALERTED', { herald, room })
   }
 
+  // ── Lich Heal Undead aura (Pass-1) ────────────────────────────────────────
+  // Every HEAL_INTERVAL_MS, the Bone Cleric finds the most-wounded undead-tagged
+  // ally inside its home room and restores HEAL_AMOUNT HP. Skips itself unless
+  // it's the only undead present (mostly self-preservation).
+  _tickLichHealAura(lich, delta) {
+    const HEAL_INTERVAL_MS = 3000
+    const HEAL_AMOUNT      = 6
+    lich._lichHealAccum = (lich._lichHealAccum ?? 0) + delta
+    if (lich._lichHealAccum < HEAL_INTERVAL_MS) return
+    lich._lichHealAccum = 0
+
+    const home = this._gameState.dungeon.rooms.find(r => r.instanceId === lich.assignedRoomId)
+    if (!home) return
+
+    let best = null
+    let bestMissing = 0
+    for (const m of this._gameState.minions) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction !== 'dungeon') continue
+      if (!Array.isArray(m.tags) || !m.tags.includes('undead')) continue
+      if (!_pointInRoom(m.tileX, m.tileY, home)) continue
+      const missing = (m.resources?.maxHp ?? 0) - (m.resources?.hp ?? 0)
+      if (missing > bestMissing) { best = m; bestMissing = missing }
+    }
+    if (!best) return
+    const before = best.resources.hp
+    best.resources.hp = Math.min(best.resources.maxHp ?? 0, best.resources.hp + HEAL_AMOUNT)
+    const restored = best.resources.hp - before
+    if (restored > 0) {
+      EventBus.emit('ALLY_HEALED', {
+        sourceId: lich.instanceId,
+        targetId: best.instanceId,
+        amount:   restored,
+        roomId:   lich.assignedRoomId,
+      })
+    }
+  }
+
   // ── Targeting ──────────────────────────────────────────────────────────────
 
   _pickTarget(minion) {
@@ -419,6 +643,9 @@ export class MinionAISystem {
       for (const adv of this._gameState.adventurers.active) {
         if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
         if (adv._invisible) continue
+        // Vampire Charm — charmed advs are walking peacefully to the
+        // boss to be turned; minions ignore them.
+        if (adv._charmed) continue
         if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
         if (!_pointInRoom(adv.tileX, adv.tileY, standingRoom)) continue
         const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
@@ -468,6 +695,12 @@ export class MinionAISystem {
       // Phase 5c — Rogue Invisibility: minions ignore invisible advs.
       // (Boss can still target — that's BossSystem's responsibility.)
       if (adv._invisible) continue
+      // Vampire Charm — same rationale as the boss-chamber override
+      // above: charmed advs are walking peacefully to the boss room
+      // and shouldn't be interrupted by minion attacks. The matching
+      // "charmed adv ignores minions" rule lives in
+      // AISystem._findEngageableMinion.
+      if (adv._charmed) continue
       // Adventurers in a doorway are passing through — untargetable so they
       // can walk past a blocking minion without the minion halting to fight.
       if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
@@ -521,6 +754,13 @@ export class MinionAISystem {
       })
       return
     }
+    // Pass-3: Imp Flying / Rat Wall Squeeze — bypass the A* walker and
+    // straight-line through walls toward the target. Floats / squeezes
+    // through gaps that A* refuses to plot.
+    if (minion.definitionId === 'imp1' || minion.definitionId === 'rat1') {
+      this._moveToward(minion, { x: target.tileX, y: target.tileY }, delta)
+      return
+    }
     // Out of range — chase along an A* path so the minion follows
     // walkable tiles (through doorways) instead of straight-lining
     // through walls. The previous straight-line _moveToward made
@@ -547,11 +787,19 @@ export class MinionAISystem {
     const now = this._scene.time?.now ?? 0
     const stale = !path || (cache && now - cache.computedAt > 600)
     if (stale) {
+      // Phase: items — block beacon/fountain/treasure-chest tiles so
+      // minions navigate around the structures (collision parity with
+      // adventurers).
+      const blocked = new Set()
+      for (const b of this._gameState.dungeon?.beacons        ?? []) blocked.add(`${b.tileX},${b.tileY}`)
+      for (const f of this._gameState.dungeon?.fountains      ?? []) blocked.add(`${f.tileX},${f.tileY}`)
+      for (const c of this._gameState.dungeon?.treasureChests ?? []) blocked.add(`${c.tileX},${c.tileY}`)
       const fresh = PathfinderSystem.findPath(
         { x: minion.tileX, y: minion.tileY },
         targetTile,
         this._dungeonGrid,
         null, 0,
+        blocked,
       )
       if (fresh && fresh.length > 0) {
         path = fresh
@@ -654,9 +902,20 @@ export class MinionAISystem {
   // ── Death / respawn ───────────────────────────────────────────────────────
 
   _die(minion, idx) {
+    // Pass-2 revive interrupt — Zombie One More Time, Skeleton Reassemble.
+    // Returns true if the death was aborted (minion is now alive again).
+    if (MinionAbilities.onMinionDying(this._scene, minion, this._gameState)) {
+      minion.aiState = 'idle'
+      minion.currentTargetId = null
+      return
+    }
     minion.aiState = 'dead'
     minion.deathDay = this._gameState.meta.dayNumber
     minion.currentTargetId = null
+    // Pass-1/2 ability hook — credits stolen gold (Goblin / Mimic), spawns
+    // mini-slimes, fires Imp blast, releases Mushroom spores. Safe no-op for
+    // everything else.
+    MinionAbilities.onMinionDeath(this._scene, minion, this._gameState)
     EventBus.emit('MINION_DIED', { minion, killerId: null })
     // Phase 6 kernel: minions auto-respawn at next NIGHT_PHASE_STARTED.
     // We KEEP the entity in the array (with hp=0, aiState='dead') so respawn
@@ -684,6 +943,32 @@ export class MinionAISystem {
     this._gameState.minions = this._gameState.minions.filter(
       m => !(m.isUndead && m.aiState === 'dead')
     )
+    // Phase 1b.9 — Demon Hellgate imps don't respawn. Killed (or sacrificed,
+    // though those are stripped on burn) imps stay dead; the Hellgate emits a
+    // fresh batch of N=bossLevel imps each dawn from BossArchetypeSystem.
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m._isDemonImp && (m.aiState === 'dead' || m.resources.hp <= 0))
+    )
+    // Phase 1b.7 — Myconid Corpse Bloom Vinekins are one-shot. Each fungal
+    // corpse only sprouts a single Vinekin; if it dies, the slot is gone for
+    // good (unless another corpse blooms). Otherwise the cap on simultaneous
+    // corpses is meaningless and Vinekin numbers compound week over week.
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m._myconidSprout && (m.aiState === 'dead' || m.resources.hp <= 0))
+    )
+    // Phase 1b.8 — Wraith Haunt ghosts are spectres bound to one specific
+    // death. If killed, they don't reform; the boss has to claim a fresh
+    // adventurer to spawn another one. Without this, ghosts accumulate every
+    // night and Wraith snowballs uncontrollably.
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m._isHauntGhost && (m.aiState === 'dead' || m.resources.hp <= 0))
+    )
+    // Pass-2: mini-slimes from Slime Split are temporary — wipe them all at
+    // dawn (alive or dead) so they can't accumulate forever.
+    this._gameState.minions = this._gameState.minions.filter(m => !m._isMiniSlime)
+
+    const bossLv = this._gameState.boss?.level ?? 1
+    const day    = this._gameState.meta?.dayNumber ?? 1
 
     for (const m of this._gameState.minions) {
       // Phase 7b: track times-killed-and-respawned for vengeful_wraith evolution
@@ -691,13 +976,14 @@ export class MinionAISystem {
         m.timesKilledAndRespawned = (m.timesKilledAndRespawned ?? 0) + 1
         EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
       }
+      // Re-apply day+boss scaling each dawn so retained minions stay competitive.
+      // applyMinionScaling always recomputes from _baseMaxHp/_baseAtk, never stacks.
+      applyMinionScaling(m, bossLv, day)
       // Phase 9 — Last Stand Doctrine: minions that triggered the bonus
-      // respawn drained at 50% HP next day.
+      // respawn drained at 50% HP next day (overrides the full-heal above).
       if (m._lastStandUsed) {
         m.resources.hp = Math.max(1, Math.floor((m.resources.maxHp ?? 0) * Balance.MECHANIC_LAST_STAND_RESPAWN_HP_FRAC))
         m._lastStandUsed = false
-      } else {
-        m.resources.hp = m.resources.maxHp
       }
       m.tileX  = m.homeTileX
       m.tileY  = m.homeTileY
@@ -706,6 +992,28 @@ export class MinionAISystem {
       m.aiState = 'idle'
       m.currentTargetId = null
       m.deathDay = null
+      // Pass-1: bank any pickpocketed gold from minions that survived the day
+      // (Goblin / Mimic). Death-time crediting is handled in _die.
+      if (m._stolenGold > 0 && this._gameState.player) {
+        this._gameState.player.gold = (this._gameState.player.gold ?? 0) + m._stolenGold
+        m._stolenGold = 0
+      }
+      // Pass-3: Lizardman Lurk — re-anchor to a random corner of the home
+      // room each dawn so they don't telegraph by always sitting on the
+      // same tile.
+      if (m.definitionId === 'lizardman1' || m.definitionId === 'lizardman2') {
+        MinionAbilities._placeLizardmanInCorner(m, this._gameState)
+      }
+      // Pass-3: clear behavior-state accumulators (teleport timer, demon
+      // sense flag, scavenger target) so they restart each day.
+      m._teleAccum     = 0
+      m._demonSensing  = false
+      m._patrolTarget  = null
+      m._patrolAccum   = 0
+      m._chasePath     = null
+      // Clear per-fight ability flags so Vinekin Snare re-arms and Lizardman
+      // Camouflage re-hides each night.
+      MinionAbilities.resetOneShotsForNight(m)
     }
   }
 }

@@ -5,8 +5,10 @@
 // State priority (highest first):
 //   death  — latched once on BOSS_DEFEATED_FINAL; sprite freezes on last frame.
 //            Also triggered (non-latched) on BOSS_FIGHT_RESOLVED winner='party'
-//            so each life loss plays the death anim during the result overlay,
-//            cleared on the next BOSS_FIGHT_INCOMING.
+//            so each life loss plays the death anim and lingers on the last
+//            frame until SHOW_POST_WAVE_SUMMARY (post-wave popup appears) or
+//            BOSS_FIGHT_INCOMING (a new fight starts before the day ends)
+//            clears it.
 //   hurt   — one-shot ~300 ms whenever boss.hp drops vs last sample
 //   attack — while fighting and BossSystem._bossState.action is lunge/slam
 //   idle   — default; played both when stationary and while wandering
@@ -64,7 +66,7 @@ export class BossRenderer {
     this._isMoving    = false
 
     this._onFinalDeath = () => { this._dead = true }
-    this._onFightResolved = ({ winner, bossHpRemaining, deathsRemaining }) => {
+    this._onFightResolved = ({ winner, bossHpRemaining }) => {
       // Only play death anim when the boss actually died this round
       // (hp drained to 0).  Other code paths can resolve the fight in
       // the party's favour while the boss still has hp — e.g. the
@@ -73,26 +75,18 @@ export class BossRenderer {
       // reported ("playing death animation when it still has health").
       if (winner === 'party' && (bossHpRemaining ?? 1) <= 0) {
         this._playingDeath = true
-        // Auto-revive the sprite after the 4 s linger when this isn't
-        // the final death — keeps render and BossSystem's wander gate
-        // (also 4 s) in sync so the boss collapses, stays planted on
-        // the last frame, then springs back up to idle for the next
-        // party.  Final death (deathsRemaining <= 0) latches via
-        // `_dead` and overrides _playingDeath, so no auto-clear.
-        const isFinal = (deathsRemaining ?? 0) <= 0
-        if (!isFinal) {
-          this._scene.time.delayedCall(4000, () => {
-            // Guard against a fight starting inside the linger window
-            // (BOSS_FIGHT_INCOMING already cleared the flag).
-            if (this._playingDeath) this._playingDeath = false
-          })
-        }
+        // The death pose lingers on the last frame until the post-wave
+        // summary popup appears (SHOW_POST_WAVE_SUMMARY) or a new fight
+        // starts (BOSS_FIGHT_INCOMING). Final deaths latch via `_dead`
+        // independently and override this.
       }
     }
-    this._onFightIncoming = () => { this._playingDeath = false }
-    EventBus.on('BOSS_DEFEATED_FINAL', this._onFinalDeath)
-    EventBus.on('BOSS_FIGHT_RESOLVED', this._onFightResolved)
-    EventBus.on('BOSS_FIGHT_INCOMING', this._onFightIncoming)
+    this._onFightIncoming  = () => { this._playingDeath = false }
+    this._onPostWave       = () => { this._playingDeath = false }
+    EventBus.on('BOSS_DEFEATED_FINAL',      this._onFinalDeath)
+    EventBus.on('BOSS_FIGHT_RESOLVED',      this._onFightResolved)
+    EventBus.on('BOSS_FIGHT_INCOMING',      this._onFightIncoming)
+    EventBus.on('SHOW_POST_WAVE_SUMMARY',   this._onPostWave)
   }
 
   update() {
@@ -145,7 +139,28 @@ export class BossRenderer {
 
     // Pick state
     const state = this._pickState()
-    const animKey = `${this._spriteKey}-${state}-${this._facing}`
+    let animKey = `${this._spriteKey}-${state}-${this._facing}`
+    // Death state is the only one where a missing directional variant
+    // would visibly leave the boss "stuck" in idle / attack — every
+    // other state can naturally keep playing its previous anim. Fall
+    // back to the down-facing death anim when the directional one
+    // isn't registered (some boss skins ship a single-direction death
+    // sheet); if even that's missing, freeze the current frame so the
+    // boss at least visually stops instead of looping idle.
+    if (state === 'death' && !this._scene.anims.exists(animKey)) {
+      const fallback = `${this._spriteKey}-death-down`
+      if (this._scene.anims.exists(fallback)) {
+        animKey = fallback
+      } else {
+        // No death sheet at all — stop whatever's currently playing so
+        // the boss reads as "defeated" instead of mid-attack-loop.
+        if (this._currentAnim !== '__stopped__') {
+          this._currentAnim = '__stopped__'
+          this._sprite.stop?.()
+        }
+        return
+      }
+    }
     if (animKey !== this._currentAnim && this._scene.anims.exists(animKey)) {
       this._currentAnim = animKey
       // ignoreIfPlaying:false so a hurt mid-attack restarts cleanly.
@@ -154,9 +169,10 @@ export class BossRenderer {
   }
 
   destroy() {
-    EventBus.off('BOSS_DEFEATED_FINAL', this._onFinalDeath)
-    EventBus.off('BOSS_FIGHT_RESOLVED', this._onFightResolved)
-    EventBus.off('BOSS_FIGHT_INCOMING', this._onFightIncoming)
+    EventBus.off('BOSS_DEFEATED_FINAL',    this._onFinalDeath)
+    EventBus.off('BOSS_FIGHT_RESOLVED',    this._onFightResolved)
+    EventBus.off('BOSS_FIGHT_INCOMING',    this._onFightIncoming)
+    EventBus.off('SHOW_POST_WAVE_SUMMARY', this._onPostWave)
     this._container?.destroy()
     this._container = null
     this._sprite    = null

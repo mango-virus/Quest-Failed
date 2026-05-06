@@ -544,7 +544,7 @@ export class ArchetypeSelect extends Phaser.Scene {
     this.editor.register(title, `${prefix}headline-title`, { fallbackName: 'headline-title' })
 
     const summary = this.add.text(x + 14, y + 14, headline.summary ?? '', {
-      fontSize: '9px', color: '#d4b890', fontFamily: 'serif',
+      fontSize: '9px', color: '#3a1808', fontFamily: 'serif',
       wordWrap: { width: w - 14 }, lineSpacing: 1,
     }).setOrigin(0, 0).setDepth(2)
     this._cContent.add(summary)
@@ -563,7 +563,7 @@ export class ArchetypeSelect extends Phaser.Scene {
     this.editor.register(bullet, `${prefix}mechanic-${idx}-bullet`, { fallbackName: `mechanic-${idx}-bullet` })
 
     const txt = this.add.text(x + 10, y, mech.text ?? '', {
-      fontSize: '9px', color: '#c8b090', fontFamily: 'serif',
+      fontSize: '9px', color: '#3a1808', fontFamily: 'serif',
       wordWrap: { width: w - 22 }, lineSpacing: 1,
     }).setOrigin(0, 0).setDepth(2)
     this._cContent.add(txt)

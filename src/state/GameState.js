@@ -1,12 +1,19 @@
 import { Balance } from '../config/balance.js'
 import { DungeonGrid } from '../systems/DungeonGrid.js'
 
-// Boss chamber definition (must match src/data/rooms.json)
+// Boss chamber definition (must match src/data/rooms.json).
+// connectionPoints stays empty here to mirror rooms.json; door pairs to
+// adjacent rooms get created at runtime by DungeonGrid._autoConnect when
+// the player places a neighbour. Keeping a static CP here used to be
+// silently wiped by the legacy _reapplyAllRoomDefs overwrite, but the
+// merge-aware version (which preserves saved CPs to fix door connections
+// on Continue) would now treat a static bootstrap CP as a real door and
+// stamp a phantom tile. Empty here = consistent with the JSON.
 const BOSS_CHAMBER_DEF = {
   id: 'boss_chamber',
   width: 14,
   height: 14,
-  connectionPoints: [{ x: 6, y: 0, direction: 'N' }],
+  connectionPoints: [],
   placementRules: { fixed: false, maxPerDungeon: 1 }, // fixed:false so _writeTiles runs
   tags: ['boss', 'special', 'fixed'],
 }
@@ -22,6 +29,35 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
     rooms: [],
     corridors: [],
     traps: [],
+    // Loot piles dropped by adventurers when they die. Other adventurers
+    // can roll the LOOT_CORPSE goal to walk to one and pick it up for a
+    // small permanent stat buff. Each entry:
+    //   { instanceId, tileX, tileY, fromAdvId, fromAdvName, buff: { stat, amount } }
+    lootPiles: [],
+    // Door locks placed via the Door Lock item. Each lock owns 2–4 door
+    // tiles (a single doorway, both rooms' sides) and references the key
+    // chest that holds its key. Adventurers can only cross a locked tile
+    // by using the matching key (consumed), Rogue lockpick, or Barbarian
+    // break-down ability. Each entry:
+    //   { id, doorTiles: [{x,y}, ...], keyChestId, broken: false }
+    locks: [],
+    // Key chests dropped as the trade-off for Door Lock. Each holds the
+    // key to its lock and refills closed at every NIGHT_PHASE_STARTED.
+    //   { instanceId, tileX, tileY, lockId, opened: false }
+    keyChests: [],
+    // Soul-Bound Beacons placed via the Beacon item. Buff every minion in
+    // the same room (+30% dmg/HP, scales with boss level). Each owns a
+    // paired Healing Fountain placed via the forced trade-off.
+    //   { instanceId, tileX, tileY, roomId, fountainId }
+    beacons: [],
+    // Healing Fountains. Adventurers walk to one when low HP and have it
+    // in their knowledge — heals to full once per adv per day.
+    //   { instanceId, tileX, tileY, roomId, beaconId }
+    fountains: [],
+    // Treasure Chests (Phase D). Pay passive gold each night, attract
+    // greedy adventurers, and risk a steal-and-escape if opened.
+    //   { instanceId, tileX, tileY, tier, opened: false }
+    treasureChests: [],
     activeMechanics: [],
     expansions: [],
   }

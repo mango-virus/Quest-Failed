@@ -10,8 +10,8 @@ export const Balance = {
   // wall layers. Room outer width/height in rooms.json is sized to include
   // both wall layers; floor area = outer − 2*WALL_THICKNESS in each dim.
   WALL_THICKNESS: 2,
-  STARTING_GRID_WIDTH: 40,
-  STARTING_GRID_HEIGHT: 40,
+  STARTING_GRID_WIDTH: 80,
+  STARTING_GRID_HEIGHT: 54,
   GRID_EXPANSION_PER_UNLOCK: 10,
   MAX_GRID_SIZE: 100,
 
@@ -79,6 +79,7 @@ export const Balance = {
   MYCONID_SPORE_TICK_INTERVAL_MS:     1000, // adv damage tick rate inside spore clouds
   MYCONID_CORPSE_LIFESPAN_DAYS:       3,    // fungal corpse lingers 3 days then sprouts
   MYCONID_CORPSE_VENOM_STACKS_ADDED:  2,    // stacks added per corpse on first touch
+  MYCONID_CORPSE_MAX_ACTIVE:          3,    // hard cap on simultaneous fungal corpses (Myconid was over-tuned otherwise)
 
   // --- Phase 1b.9: Demon Lord ---
   DEMON_SACRIFICE_USES_PER_DAY:    1,    // Faustian sacrifice — once per day, burn a minion → kill a random adv
@@ -110,6 +111,7 @@ export const Balance = {
   WRAITH_FEAR_FRIENDLY_FIRE_WINDOW_MS:   5000,
   WRAITH_HAUNT_DETECT_RANGE_TILES:         8, // detection sight range from spawn-room center
   WRAITH_HAUNT_PHASE_SPEED_TILES_PER_SEC:  1.6, // wall-phase travel speed
+  WRAITH_HAUNT_MAX_ACTIVE:                 5,   // hard cap on simultaneous Haunt ghosts (Wraith was over-tuned otherwise)
 
   // --- Minions ---
   MINION_RESPAWN_COST_GOLD: 5,
@@ -141,7 +143,7 @@ export const Balance = {
   CLERIC_HEAL_AMOUNT:        12,
   CLERIC_HEAL_TARGET_THRESHOLD: 0.8,  // heal an ally below this HP fraction
   HEAL_RANGE_TILES:          2,       // cleric heal-ally range
-  LOW_HP_THRESHOLD:          0.4,     // adventurer triggers sleep / low-hp behavior below this fraction
+  LOW_HP_THRESHOLD:          0.4,     // adventurer triggers low-hp behavior (HEAL / FLEE) below this fraction
   MARTYR_TAUNT_HP_FRACTION:  0.3,     // martyr triggers taunt at this HP%
   PARANOID_SPEED_MULTIPLIER: 0.55,    // paranoid moves this much slower in unfamiliar rooms
 
@@ -182,14 +184,18 @@ export const Balance = {
   HERALD_ALERT_DURATION_MS:        5000,
   MOURNER_DAMAGE_BUFF_PER_DEATH:   2,      // attack stat gain per nearby ally death
   ENGINEER_TRAP_DAMAGE_BUFF:       1.25,
-  SLEEP_HP_PER_SEC:                3,
-  SLEEP_REQUIRES_NO_HOSTILES:      true,
 
-  // --- Scaling by boss level (Phase 7b) ---
+  // --- Scaling by boss level + day (Phase 7b) ---
+  // Adventurers scale only by boss level; minions scale by both (faster HP/ATK
+  // growth so they keep pace as runs go deep).
   ADVENTURER_HP_PER_BOSS_LV:   0.10,   // +10% maxHp per boss level above 1
-  ADVENTURER_ATK_PER_BOSS_LV:  0.07,   // +7% attack per boss level above 1
-  MINION_HP_PER_BOSS_LV:       0.10,   // +10% maxHp per boss level above 1
-  MINION_ATK_PER_BOSS_LV:      0.07,   // +7% attack per boss level above 1
+  ADVENTURER_ATK_PER_BOSS_LV:  0.07,   // +7%  attack per boss level above 1
+  ADVENTURER_HP_PER_DAY:        0.04,   // +4%  maxHp per day above 1
+  ADVENTURER_ATK_PER_DAY:       0.02,   // +2%  attack per day above 1
+  MINION_HP_PER_BOSS_LV:        0.20,   // +20% maxHp per boss level (bigger boss-level boost)
+  MINION_ATK_PER_BOSS_LV:       0.12,   // +12% attack per boss level
+  MINION_HP_PER_DAY:             0.06,   // +6%  maxHp per day (small day boost)
+  MINION_ATK_PER_DAY:            0.04,   // +4%  attack per day
   UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
 
   // --- Mini-boss / vendetta / vulture / wraith ---

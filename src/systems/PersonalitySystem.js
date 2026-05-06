@@ -8,7 +8,6 @@
 import { EventBus } from './EventBus.js'
 
 const DEFAULT_WEIGHTS = {
-  lootPriority:     0.5,
   fleeThreshold:    0.5,
   trapCaution:      0.5,
   partyCooperation: 0.5,
@@ -24,7 +23,6 @@ const DEFAULT_WEIGHTS = {
 const MAX_BLEND_WEIGHTS = new Set([
   'fleeThreshold',    // most cautious wins
   'trapCaution',      // most paranoid wins
-  'lootPriority',     // greediest member dominates
   'explorationDrive', // most thorough wins
 ])
 

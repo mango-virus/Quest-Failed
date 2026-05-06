@@ -10,7 +10,7 @@
 // Phase 31E (until then, the click is a harmless no-op except for the
 // event emission).
 
-import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar, pixelDiamond } from './UIKit.js'
+import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar, pixelDiamond, uiSfxHover, uiSfxClick } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const BAR_H        = 56
@@ -141,6 +141,7 @@ export class BossTopBar {
     hit.on('pointerover', () => {
       if (avSym.setColor) avSym.setColor('#ffffff')
       else avSym.setTint?.(0xffffff)
+      uiSfxHover(this._scene)
     })
     hit.on('pointerout',  () => {
       pressed = false
@@ -153,7 +154,10 @@ export class BossTopBar {
       const wasPressed = pressed
       pressed = false
       repaintAvatar(0)
-      if (wasPressed) EventBus.emit('OPEN_BOSS_OVERVIEW')
+      if (wasPressed) {
+        uiSfxClick(this._scene)
+        EventBus.emit('OPEN_BOSS_OVERVIEW')
+      }
     })
     this._objects.push(hit)
 
@@ -251,46 +255,149 @@ export class BossTopBar {
   _buildRightCol(x, w) {
     const D = this._depth + TEXT_DEPTH
     const startX = x + PADDING_X
+    this._goldDepth = D
 
-    // Header — diamond + label, matches the other panels' ornament style
+    // Tiny TREASURY tag — header sits above the big number.
     const dia = this._scene.add.graphics().setDepth(D)
-    pixelDiamond(dia, startX + 4, 12, 4, CRYPT.accent)
+    pixelDiamond(dia, startX + 4, 8, 3, CRYPT.accent)
     this._objects.push(dia)
-    const hdr = this._scene.add.text(startX + 14, 8, 'TREASURY', {
-      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 2,
+    const hdr = this._scene.add.text(startX + 12, 4, 'TREASURY', {
+      fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 2,
     }).setDepth(D)
     this._objects.push(hdr)
 
-    // Resource row: Gold only. Icon + value share a single baseline;
-    // the small label sits underneath.
-    const yMid = 26    // shared icon+value vertical center
-    const yLbl = 38    // small caption baseline
-    const rows = [
-      { lbl: 'GOLD', color: CRYPT.goldCss, icon: '◆', getter: () => this._gameState.player?.gold ?? 0 },
-    ]
+    // Pile sprite — center-anchored on the same vertical line as the
+    // number so they read as a single block. Swaps + scales by wealth
+    // tier so the visual itself communicates "small / modest / vast."
+    const initialGold = this._gameState.player?.gold ?? 0
+    this._goldTier = this._goldTierFor(initialGold)
+    const numAnchorY = 32
+    const pileX = startX + 8
+    this._goldPile = this._scene.add.image(pileX, numAnchorY, this._goldTexFor(this._goldTier))
+      .setOrigin(0, 0.5).setDepth(D).setScale(this._goldPileScaleFor(this._goldTier))
+    this._objects.push(this._goldPile)
+
+    // Glow halo behind the big number — pulses at high wealth tiers.
+    const numAnchorX = startX + 44
+    this._goldGlow = this._scene.add.graphics().setDepth(D - 1)
+    this._objects.push(this._goldGlow)
+    this._goldGlowAt = { x: numAnchorX + 24, y: numAnchorY }
+
+    // BIG GOLD NUMBER — dominates the panel. 22px, gold, stroked.
+    this._goldDisplayed = initialGold   // animated value (lerped)
+    this._goldNumber = this._scene.add.text(numAnchorX, numAnchorY,
+      this._formatNumber(initialGold), {
+        fontFamily: FONT_HEAD, fontSize: '22px',
+        color: CRYPT.goldCss, letterSpacing: 1,
+        stroke: '#1a0a05', strokeThickness: 3,
+      }).setOrigin(0, 0.5).setDepth(D)
+    this._objects.push(this._goldNumber)
+
+    // Old _resTexts list intentionally cleared — the gold readout is
+    // now driven by _updateGold() below, not the generic resource loop.
     this._resTexts = []
-    const colW = (w - PADDING_X * 2) / rows.length
-    rows.forEach((r, i) => {
-      const rx = startX + i * colW
+    this._lastGold = initialGold
+  }
 
-      const ico = this._scene.add.text(rx, yMid, r.icon, {
-        fontFamily: FONT_HEAD, fontSize: '11px', color: r.color,
-      }).setOrigin(0, 0.5).setDepth(D)
-      this._objects.push(ico)
+  // ── Gold visual tiers ───────────────────────────────────────────────
+  // Three sprites in escalating "wealth weight":
+  //   0: a single coin     — the "couple of pennies" look
+  //   1: a pile of coins   — modest stash
+  //   2: a fat coin bag    — proper hoard
+  _goldTierFor(gold) {
+    if (gold < 100)  return 0   // single coin
+    if (gold < 1000) return 1   // gold coins pile
+    return 2                     // coin bag
+  }
+  _goldTexFor(tier) {
+    return tier === 0 ? 'ui-coin'
+         : tier === 1 ? 'item-gold-coins'
+         :              'ui-coin-bag'
+  }
+  _goldPileScaleFor(tier) {
+    return [1.1, 1.2, 1.3][tier] ?? 1.0
+  }
 
-      const val = this._scene.add.text(rx + 16, yMid, this._formatNumber(r.getter()), {
-        fontFamily: FONT_HEAD, fontSize: '12px', color: r.color, letterSpacing: 1,
-      }).setOrigin(0, 0.5).setDepth(D)
-      this._objects.push(val)
+  // ── Per-tick gold update + animations ───────────────────────────────
+  _updateGold() {
+    const cur = this._gameState.player?.gold ?? 0
+    if (cur !== this._lastGold) {
+      this._popGoldFloater(cur - this._lastGold)
+      this._tweenGoldTo(cur)
+      // Pile tier swap + scale
+      const newTier = this._goldTierFor(cur)
+      if (newTier !== this._goldTier) {
+        this._goldTier = newTier
+        this._goldPile?.setTexture(this._goldTexFor(newTier))
+        this._goldPile?.setScale(this._goldPileScaleFor(newTier))
+      }
+      // Soft ka-ching for meaningful gains; silent for tiny ticks and losses.
+      const delta = cur - this._lastGold
+      if (delta >= 25 && this.cache?.audio?.exists?.('sfx-collect-gold')) {
+        try { this._scene.sound.play('sfx-collect-gold', { volume: 0.4 }) } catch {}
+      }
+      this._lastGold = cur
+    }
 
-      const lbl = this._scene.add.text(rx + 16, yLbl, r.lbl, {
-        fontFamily: FONT_HEAD, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 1,
-      }).setOrigin(0, 0).setDepth(D)
-      this._objects.push(lbl)
+    // Pulsing glow at high wealth — sin-wave alpha, dormant below the
+    // threshold so casual play doesn't shimmer constantly.
+    if (this._goldGlow) {
+      this._goldGlow.clear()
+      if (cur >= 1000) {
+        const t = this._scene.time.now / 700
+        const a = 0.18 + 0.18 * Math.abs(Math.sin(t))
+        this._goldGlow.fillStyle(0xffe066, a)
+        this._goldGlow.fillCircle(this._goldGlowAt.x, this._goldGlowAt.y, 22)
+      }
+    }
+  }
 
-      this._resTexts.push({ value: val, getter: r.getter })
+  // 400ms count-up/down lerp on the displayed value. Cancels any
+  // in-flight tween so rapid changes don't stack.
+  _tweenGoldTo(target) {
+    if (this._goldTickTween) this._goldTickTween.stop()
+    const from = this._goldDisplayed
+    this._goldTickTween = this._scene.tweens.addCounter({
+      from, to: target,
+      duration: 400,
+      ease: 'Quad.easeOut',
+      onUpdate: (tw) => {
+        const v = Math.round(tw.getValue())
+        this._goldDisplayed = v
+        this._goldNumber?.setText(this._formatNumber(v))
+      },
+      onComplete: () => {
+        this._goldDisplayed = target
+        this._goldNumber?.setText(this._formatNumber(target))
+        this._goldTickTween = null
+      },
     })
   }
+
+  // Brief +N (green) or -N (red) floater next to the number. Fades up.
+  _popGoldFloater(delta) {
+    if (!delta || !this._goldNumber) return
+    const isGain = delta > 0
+    const x = this._goldNumber.x + this._goldNumber.width + 6
+    const y = this._goldNumber.y
+    const t = this._scene.add.text(x, y, (isGain ? '+' : '') + delta, {
+      fontFamily: FONT_HEAD, fontSize: '10px',
+      color: isGain ? '#33cc77' : '#cc4422',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0, 0.5).setDepth((this._goldDepth ?? 0) + 5)
+    this._scene.tweens.add({
+      targets: t,
+      y: y - 16,
+      alpha: { from: 1, to: 0 },
+      duration: 1100,
+      ease: 'Quad.easeOut',
+      onComplete: () => { try { t.destroy() } catch {} },
+    })
+  }
+
+  // Convenience accessor — `this.cache` doesn't exist on UI components,
+  // we have to reach through the scene.
+  get cache() { return this._scene?.cache }
 
   _captionText() {
     return this._bossClass
@@ -331,6 +438,10 @@ export class BossTopBar {
     for (const r of (this._resTexts ?? [])) {
       r.value.setText(this._formatNumber(r.getter()))
     }
+    // Treasury redesign — gold has its own animated readout (tier pile,
+    // tick-up, ±floaters, wealth glow). Cheap to call every tick because
+    // it short-circuits when gold is unchanged.
+    this._updateGold()
     const deathsLeft = this._gameState.boss?.deathsRemaining ?? 3
     if (this._hearts) {
       if (this._prevLives !== undefined && deathsLeft < this._prevLives) {

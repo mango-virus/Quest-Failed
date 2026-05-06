@@ -31,8 +31,15 @@ class EventBusClass {
     const listeners = this._listeners[event]
     if (!listeners || listeners.length === 0) return this
     // Copy array before iterating so listeners can safely remove themselves.
+    // Each callback is isolated — a throw in one subscriber must not abort
+    // the rest, otherwise unrelated systems silently break in lockstep.
     for (const { callback, context } of [...listeners]) {
-      callback.call(context, data)
+      try {
+        callback.call(context, data)
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[EventBus] listener for "${event}" threw:`, err)
+      }
     }
     return this
   }

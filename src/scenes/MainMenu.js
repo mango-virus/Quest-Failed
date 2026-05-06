@@ -5,7 +5,7 @@
 // stack; dark menu panel on the right with run readout + 5-button menu +
 // blinking "PRESS Z TO CONTINUE" + flavor quote + version footer.
 //
-// Five primary actions: CONTINUE / NEW EVIL / DUNGEON ARCHIVE / OPTIONS / QUIT.
+// Five primary actions: CONTINUE / NEW EVIL / LEADERBOARD / OPTIONS / QUIT.
 // A small bottom-left dev cluster preserves access to editors + Graveyard
 // (the design has no slot for these; they stay reachable until 31G/options
 // or a future dev panel takes over).
@@ -13,7 +13,8 @@
 import { SaveSystem }    from '../systems/SaveSystem.js'
 import { TitleMusic }    from '../systems/TitleMusic.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
-import { AudioControls } from '../ui/AudioControls.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { NameEntryPanel } from '../ui/NameEntryPanel.js'
 import {
   CRYPT, FONT_HEAD, FONT_BODY,
   pixelPanel, pixelButton,
@@ -29,6 +30,14 @@ const RIGHT_X = LEFT_W
 const RIGHT_W = W - LEFT_W
 
 const VERSION = 'v0.1.0'
+
+// Title-screen videos that should be horizontally mirrored (boss facing
+// the wrong way relative to the QUEST/FAILED title on the bottom-left).
+// All other clips render as-is, centered cover-fit.
+const TITLE_VIDEO_FLIP_X = new Set([
+  'title-vid-05',
+  'title-vid-11',
+])
 
 export class MainMenu extends Phaser.Scene {
   constructor() {
@@ -56,10 +65,8 @@ export class MainMenu extends Phaser.Scene {
     this._drawDungeonArt()
     this._drawScanlines()
     this._drawTitleStack()
-    this._drawCornerStamp()
     this._drawRightPanel()
-    this._drawAudio()
-
+    this._drawJamPortal()
     if (this._save) {
       this._zKey = this.input.keyboard.addKey('Z')
       this._zKey.on('down', () => this._actContinue())
@@ -104,12 +111,18 @@ export class MainMenu extends Phaser.Scene {
     this._objects.push(g)
   }
 
-  // ─── Left side: faint procedural dungeon art ───────────────────────────
+  // ─── Left side: animated video backdrop with chrome overlays ──────────
+  // Picks one of the title-screen MP4s at random and fills the LEFT_W × H
+  // region behind the QUEST/FAILED title stack. Shared chrome (gradient
+  // backdrop, right-edge fade, darken wash) is always drawn so the title
+  // stays legible and the seam into the right panel stays clean. If no
+  // videos loaded (e.g. file missing), falls back to the procedural tile
+  // grid + sigils.
   _drawDungeonArt() {
-    // Stone-gradient backdrop for the left panel (faked with stacked rects)
+    // Stone-gradient backdrop (drawn first so it underlies the video; if
+    // the video texture has any transparency or scaling gap, this fills it).
     const grad = this.add.graphics().setDepth(1)
     for (let i = 0; i < 8; i++) {
-      const t = i / 7
       const c = Phaser.Display.Color.Interpolate.ColorWithColor(
         Phaser.Display.Color.IntegerToColor(CRYPT.bgStone1),
         Phaser.Display.Color.IntegerToColor(CRYPT.bgDeep),
@@ -120,23 +133,113 @@ export class MainMenu extends Phaser.Scene {
     }
     this._objects.push(grad)
 
-    // Tile grid (32×22) — same proportions as the in-game dungeon view
+    // Spawn a randomly-picked video, then chain to a different one each
+    // time it ends — gives the title screen a varied loop instead of the
+    // same clip on repeat. The chain is cancelled on scene shutdown so a
+    // late callback never tries to use a destroyed scene.
+    const allKeys  = this.registry.get('titleVideoKeys') ?? []
+    const liveKeys = allKeys.filter(k => this.cache.video.exists(k))
+    if (liveKeys.length > 0) {
+      this._titleVidLast = null
+      this._spawnNextTitleVideo(liveKeys)
+      this.events.once('shutdown', () => {
+        this._titleVidShutdown = true
+        this._titleVid?.destroy?.()
+        this._titleVid = null
+      })
+    } else {
+      this._drawDungeonArtFallback()
+    }
+
+    // Right-edge fade into the menu panel (transparent → bgDeep)
+    const fade = this.add.graphics().setDepth(8)
+    const fadeW = 90
+    for (let i = 0; i < fadeW; i++) {
+      const a = i / fadeW
+      fade.fillStyle(CRYPT.bgDeep, a)
+      fade.fillRect(LEFT_W - fadeW + i, 0, 1, H)
+    }
+    this._objects.push(fade)
+
+    // Darken overlay — improves legibility of the title stack over any video.
+    const dark = this.add.rectangle(0, 0, LEFT_W, H, CRYPT.bgDeep, 0.42).setOrigin(0).setDepth(7)
+    this._objects.push(dark)
+  }
+
+  // Fisher-Yates shuffle of every loaded clip key. If the previous clip
+  // would land at index 0, swap it deeper into the queue so we don't get
+  // the same clip back-to-back across the queue boundary.
+  _refillTitleVidQueue(liveKeys) {
+    const q = liveKeys.slice()
+    for (let i = q.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[q[i], q[j]] = [q[j], q[i]]
+    }
+    if (q.length > 1 && q[0] === this._titleVidLast) {
+      const swapIdx = 1 + Math.floor(Math.random() * (q.length - 1))
+      ;[q[0], q[swapIdx]] = [q[swapIdx], q[0]]
+    }
+    this._titleVidQueue = q
+  }
+
+  // Spawn the next clip from a shuffled queue: every video plays once
+  // before any video repeats. When the queue empties, reshuffle — and
+  // bias the new shuffle so the first pick isn't the clip that just
+  // finished (avoids a same-clip seam at the boundary).
+  _spawnNextTitleVideo(liveKeys) {
+    if (this._titleVidShutdown) return
+
+    if (!this._titleVidQueue?.length) this._refillTitleVidQueue(liveKeys)
+    const key = this._titleVidQueue.shift()
+    this._titleVidLast = key
+
+    // Tear down any previous video before adding a new one.
+    if (this._titleVid) {
+      const old = this._titleVid
+      this._titleVid = null
+      // Drop from _objects so shutdown() doesn't double-destroy.
+      const i = this._objects.indexOf(old)
+      if (i >= 0) this._objects.splice(i, 1)
+      old.destroy()
+    }
+
+    const vid = this.add.video(0, 0, key).setOrigin(0, 0).setDepth(2)
+    vid.setMute(true)
+    vid.setLoop(false)            // play through once, then chain
+    vid.play(false)
+    if (TITLE_VIDEO_FLIP_X.has(key)) vid.setFlipX(true)
+
+    const fit = () => {
+      const vw = vid.video?.videoWidth  || 1
+      const vh = vid.video?.videoHeight || 1
+      const scale = Math.max(LEFT_W / vw, H / vh)
+      vid.setDisplaySize(Math.ceil(vw * scale), Math.ceil(vh * scale))
+      vid.setPosition(Math.round((LEFT_W - vw * scale) / 2), 0)
+    }
+    if (vid.video?.videoWidth) fit()
+    else vid.video?.addEventListener('loadedmetadata', fit, { once: true })
+
+    // Hand off to the next clip when this one finishes. Phaser emits
+    // 'complete' on the Video object when playback ends.
+    vid.once('complete', () => this._spawnNextTitleVideo(liveKeys))
+
+    this._titleVid = vid
+    this._objects.push(vid)
+  }
+
+  // Procedural tile grid + sigils — used only if no video assets loaded.
+  _drawDungeonArtFallback() {
     const cols = 32, rows = 22
     const cellW = LEFT_W / cols
     const cellH = H / rows
 
     const tiles = this.add.graphics().setDepth(2).setAlpha(0.85)
-
-    // Filled stone ground tint
     tiles.fillStyle(CRYPT.bgStone2, 1)
     tiles.fillRect(0, 0, LEFT_W, H)
-
-    // Grid lines
     tiles.lineStyle(1, 0x000000, 0.45)
     for (let i = 0; i <= cols; i++) tiles.lineBetween(Math.round(i * cellW), 0, Math.round(i * cellW), H)
     for (let j = 0; j <= rows; j++) tiles.lineBetween(0, Math.round(j * cellH), LEFT_W, Math.round(j * cellH))
 
-    // Lit room blocks — different floor shades
     const rooms = [
       { x:  1, y:  1, w: 7, h: 5, c: CRYPT.bgFloor },
       { x: 11, y:  1, w: 6, h: 4, c: CRYPT.bgFloor2 },
@@ -152,13 +255,11 @@ export class MainMenu extends Phaser.Scene {
       const ph = Math.round(r.h * cellH)
       tiles.fillStyle(r.c, 1)
       tiles.fillRect(px, py, pw, ph)
-      // wall edge
       tiles.lineStyle(2, CRYPT.wallEdge, 1)
       tiles.strokeRect(px + 1, py + 1, pw - 2, ph - 2)
     }
     this._objects.push(tiles)
 
-    // Sigil entities — pixel-glyph text objects (placeholders until real sprites)
     const entities = [
       { tx:  3, ty:  3, glyph: '@', col: CRYPT.soulCss,  size: 26 },
       { tx:  4, ty:  3, glyph: '@', col: CRYPT.soulCss,  size: 26 },
@@ -181,20 +282,6 @@ export class MainMenu extends Phaser.Scene {
       ).setOrigin(0.5).setDepth(3)
       this._objects.push(t)
     }
-
-    // Right-edge fade into the menu panel (gradient from transparent to bgDeep)
-    const fade = this.add.graphics().setDepth(8)
-    const fadeW = 90
-    for (let i = 0; i < fadeW; i++) {
-      const a = i / fadeW
-      fade.fillStyle(CRYPT.bgDeep, a)
-      fade.fillRect(LEFT_W - fadeW + i, 0, 1, H)
-    }
-    this._objects.push(fade)
-
-    // Darken overlay (improves text legibility on top of art)
-    const dark = this.add.rectangle(0, 0, LEFT_W, H, CRYPT.bgDeep, 0.32).setOrigin(0).setDepth(7)
-    this._objects.push(dark)
   }
 
   _drawScanlines() {
@@ -308,27 +395,33 @@ export class MainMenu extends Phaser.Scene {
         label: 'NEW EVIL',
         sub:   'Begin a new run',
         glyph: '✚',
+        // Promote to the red primary style when there's no save to
+        // continue, so the menu has a single obvious entry point.
+        primary: !this._save,
         action: () => this._actNewEvil(),
       },
       {
-        label: 'DUNGEON ARCHIVE',
-        sub:   'Past runs - stats',
+        label: 'LEADERBOARD',
+        sub:   'Global hall of evil',
         glyph: '❖',
-        enabled: false,             // leaderboard not implemented yet
-        action: null,
+        action: () => { TitleMusic.stop(); this.scene.start('Leaderboard') },
       },
-      {
-        label: 'ROOM EDITOR',
-        sub:   'Edit room layouts',
-        glyph: '▤',
-        action: () => { TitleMusic.stop(); this.scene.start('RoomTileEditor') },
-      },
-      {
-        label: 'TILESET EDITOR',
-        sub:   'Author tile themes',
-        glyph: '▦',
-        action: () => { TitleMusic.stop(); this.scene.start('TilesetEditor') },
-      },
+      // Dev-only entries — visible only when the player has set their
+      // name to "LJ" via the NameEntryPanel (case-insensitive).
+      ...(PlayerProfile.getName().trim().toUpperCase() === 'LJ' ? [
+        {
+          label: 'ROOM EDITOR',
+          sub:   'Edit room layouts',
+          glyph: '▤',
+          action: () => { TitleMusic.stop(); this.scene.start('RoomTileEditor') },
+        },
+        {
+          label: 'TILESET EDITOR',
+          sub:   'Author tile themes',
+          glyph: '▦',
+          action: () => { TitleMusic.stop(); this.scene.start('TilesetEditor') },
+        },
+      ] : []),
       {
         label: 'OPTIONS',
         sub:   'Audio - controls',
@@ -388,7 +481,7 @@ export class MainMenu extends Phaser.Scene {
         fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute,
       }).setOrigin(0.5, 0).setDepth(22))
     this._objects.push(
-      this.add.text(innerX + innerW, H - 36, '© NIGHTBOUND', {
+      this.add.text(innerX + innerW, H - 36, '© MANGO-VIRUS', {
         fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.inkMute,
       }).setOrigin(1, 0).setDepth(22))
   }
@@ -431,10 +524,40 @@ export class MainMenu extends Phaser.Scene {
     return btn
   }
 
-  _drawAudio() {
-    // Audio controls — bottom-left corner of the design rect.
-    new AudioControls(this, 16, H - 32, { depth: 50 })
-    // AudioControls owns its own teardown via scene shutdown; nothing to push.
+  // ─── Game-jam portal (upper-right of the menu panel) ───────────────────
+  // Click sends the player to the jam-1 lobby via Portal.sendPlayerThroughPortal,
+  // forwarding their current ref so the lobby can show the back-link.
+  _drawJamPortal() {
+    const cx = W - 60
+    const cy = 60
+    const JAM_LOBBY_URL = 'https://callumhyoung.github.io/gamejam1-lobby/'
+
+    const sprite = this.add.sprite(cx, cy, 'jam-portal', 0)
+      .setScale(2)
+      .setDepth(25)
+      .setInteractive({ useHandCursor: true })
+    if (this.anims.exists('jam-portal-spin')) sprite.play('jam-portal-spin')
+    this._objects.push(sprite)
+
+    const label = this.add.text(cx, cy + 38, 'JAM PORTAL', {
+      fontFamily: FONT_HEAD, fontSize: '8px',
+      color: CRYPT.accent2Css, letterSpacing: 2,
+    }).setOrigin(0.5, 0).setDepth(25)
+    this._objects.push(label)
+
+    sprite.on('pointerover', () => { sprite.setScale(2.15); label.setColor('#ffffff') })
+    sprite.on('pointerout',  () => { sprite.setScale(2);    label.setColor(CRYPT.accent2Css) })
+    sprite.on('pointerdown', () => {
+      try {
+        if (window.Portal?.sendPlayerThroughPortal) {
+          window.Portal.sendPlayerThroughPortal(JAM_LOBBY_URL)
+        } else {
+          window.location.href = JAM_LOBBY_URL
+        }
+      } catch {
+        window.location.href = JAM_LOBBY_URL
+      }
+    })
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────
@@ -455,7 +578,22 @@ export class MainMenu extends Phaser.Scene {
 
   _actNewEvil() {
     if (this._save) this._confirmOverwrite()
-    else            { TitleMusic.stop(); this.scene.start('ArchetypeSelect') }
+    else            this._startNewRun()
+  }
+
+  _startNewRun() {
+    if (!PlayerProfile.hasName()) {
+      new NameEntryPanel(this, {
+        onConfirm: (name) => {
+          PlayerProfile.setName(name)
+          TitleMusic.stop()
+          this.scene.start('ArchetypeSelect')
+        },
+      })
+    } else {
+      TitleMusic.stop()
+      this.scene.start('ArchetypeSelect')
+    }
   }
 
   _actOptions() {
@@ -515,8 +653,7 @@ export class MainMenu extends Phaser.Scene {
       onClick: () => {
         SaveSystem.deleteSave()
         teardown()
-        TitleMusic.stop()
-        this.scene.start('ArchetypeSelect')
+        this._startNewRun()
       },
     })
     btnCancel = pixelButton(this, W / 2 + 10, py + PH - 70, 120, 38, 'CANCEL', {

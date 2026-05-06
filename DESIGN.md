@@ -443,14 +443,14 @@ Replaces the 15 archetypes with **10 specific monster-type bosses**. Each has on
 
 ### 3. Predator Myconid — Slow squeeze
 - **Spore Network.** Every 3 days, all Corridor rooms release a poison cloud for the entire day. Any adv inside takes `0.5 × bossLevel` HP damage per tick. VFX: a faint green cloud with floating spores filling the corridor room.
-- **Corpse Bloom.** Every adventurer corpse becomes a green-tinted fungal corpse (the last frame of their death animation, tinted green) that lingers for 3 days. Advs that touch the corpse take -2 HP/sec poison until they die or leave the dungeon (poison ticks stack across multiple corpses). After 3 days the corpse turns into a free Vinekin sprout minion (uses `plant1`, doesn't count toward minion cap). The corpse despawns immediately if its room is moved.
+- **Corpse Bloom.** Every adventurer corpse becomes a green-tinted fungal corpse (the last frame of their death animation, tinted green) that lingers for 3 days. Advs that touch the corpse take -2 HP/sec poison until they die or leave the dungeon (poison ticks stack across multiple corpses). After 3 days the corpse turns into a free Vinekin sprout minion (uses `plant1`, doesn't count toward minion cap). The corpse despawns immediately if its room is moved. **Hard cap of 3 simultaneous fungal corpses** — new adv kills past the cap simply don't drop a corpse (Myconid was over-tuned otherwise). **Sprouted Vinekins are one-shot** — if killed, they don't respawn at the next night phase; you only get a new one when another corpse blooms.
 
 ### 4. Dark Wraith — Psychological warfare
 - **Fear Meter.** Every adv tracks a fear value. +5 per adv corpse seen, +10 per trap triggered, +5 per minion sighted, +15 when an ally dies in front of them. VFX: a small floating fear bar above the adv's head, positioned just above or below the HP bar (no overlap).
   - **At 50% fear:** flee to any random room (could even path away from the exit).
   - **At 75% fear:** attack other adventurers, persistent for 5 seconds.
   - **At 100% fear:** die instantly. Drops gold equal to a normal kill, but boss gets no XP.
-- **Haunting.** When an adventurer dies in a room, a free Ghost minion spawns there (uses `ghost2`, doesn't count toward minion cap, permanent until killed). Ghosts patrol their spawn room. They can detect adventurers in adjacent connected rooms and move directly through walls into that adjacent room to fight, then return to the spawn room if alive.
+- **Haunting.** When an adventurer dies in a room, a free Ghost minion spawns there (uses `ghost2`, doesn't count toward minion cap). Ghosts patrol their spawn room. They can detect adventurers in adjacent connected rooms and move directly through walls into that adjacent room to fight, then return to the spawn room if alive. **Hard cap of 5 simultaneous Haunt ghosts** — adv kills past the cap don't spawn one. **Killed Haunt ghosts are one-shot** — they don't respawn at night; the boss must claim a fresh adventurer to fill an empty slot. **Haunt ghosts cannot evolve** — they're locked to `ghost2` regardless of kills (no condition-based or kill-count evolution).
 
 ### 5. Gnoll Alpha — Snowball aggression
 - **Hunters Pack.** The boss room has a free Tier-1 Gnoll minion (`gnoll1`) that respawns each day if killed. A new free gnoll is added at each boss level up to a maximum of 5 (Lvl 5+ = 5 gnolls). They do NOT count toward your max minion limit. They can still evolve normally if they rack up enough kills without dying.
@@ -678,7 +678,7 @@ The HUD is laid out as a single grid:
 - **Action bar (bottom):**
   - `Rotate` — click button, then click a placed room to rotate it 90°. Free.
   - `Move` — click button, then click a placed room to pick it up and re-place it. Minions inside stay assigned to that room as it moves. Free.
-  - `Sell` — click button, then click a placed room. Refunds 50% of gold spent on the room AND the minions inside it.
+  - `Sell` — click button, then click a placed room (refunds 50% of gold spent on the room AND the minions inside it) OR click a single minion (refunds 50% of just that minion's gold cost; the room stays).
   - `Roster` — opens the **Minion Roster** popup (replaces the design's "Repair" button — repair is not a feature).
   - Phase indicator (center) — current phase label.
   - `Begin Day` (primary, right side) — toggles night→day. During day phase, becomes `End Wave` (existing behavior).
@@ -693,7 +693,7 @@ Build menu is locked to the **left side** (no left/right toggle).
 These are gameplay additions, kept minimal:
 
 - **Click the action button**, then **click the target room**. Acting button is the active "tool" until cancelled (right-click / Esc cancels).
-- **Sell** — refunds 50% of the gold spent on the room and on every minion currently assigned to it. Removes the room and its minions from the dungeon. No undo.
+- **Sell** — clicking a placed room refunds 50% of the gold spent on it and on every minion currently assigned to it, removing the room and those minions. Clicking a single minion (with no room sold in the same click) instead sells just that minion: refund 50% of its gold cost, remove it, leave the room standing. No undo.
 - **Move** — picks up a room. Cursor follows; click a valid empty area to drop. Minions inside the room stay assigned to that room and travel with it. No cost.
 - **Rotate** — rotates the selected room 90° clockwise in place. Minions stay. If the rotated footprint collides with another room, the action is rejected with a flash/warning. No cost.
 

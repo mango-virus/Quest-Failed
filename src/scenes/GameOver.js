@@ -13,8 +13,11 @@ import {
   CRYPT, FONT_HEAD, FONT_BODY,
   pixelPanel, pixelButton, pixelDiamond, applyUiCamera,
 } from '../ui/UIKit.js'
-import { SaveSystem } from '../systems/SaveSystem.js'
-import { TitleMusic } from '../systems/TitleMusic.js'
+import { SaveSystem }    from '../systems/SaveSystem.js'
+import { TitleMusic }    from '../systems/TitleMusic.js'
+import { SfxVolume }     from '../systems/SfxVolume.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { Leaderboard }   from '../systems/Leaderboard.js'
 
 const W = 1280
 const H = 720
@@ -39,6 +42,8 @@ export class GameOver extends Phaser.Scene {
     this._countTimers = []
     this._completed = false   // true once skip-to-end has fired
     this._countTargets = []   // [{textObj, target}] so skip can finish them
+    this._countupSound    = null
+    this._pendingCountUps = 0
   }
 
   init(data) {
@@ -54,6 +59,7 @@ export class GameOver extends Phaser.Scene {
       this._countTimers.forEach(t => t?.remove?.(false))
       this._buttons.forEach(b => b?.destroy?.())
       this._objects.forEach(o => o?.destroy?.())
+      this._stopCountupSound()
     })
 
     // Backdrop
@@ -69,6 +75,9 @@ export class GameOver extends Phaser.Scene {
     this._buildHeader()
     this._buildPanels()
     this._buildFooter()
+    this._submitLeaderboard()
+    // Count real count-ups (numeric, non-zero) so we know when sound should stop.
+    this._pendingCountUps = this._countTargets.filter(ct => !ct.finalText && ct.target > 0).length
     this._kickoffSequence()
   }
 
@@ -368,6 +377,11 @@ export class GameOver extends Phaser.Scene {
     this._fadeIn([this._headerCaption, this._headerTitle, this._headerSub], t, HEADER_FADE_MS)
     t += HEADER_FADE_MS + PHASE_GAP_MS
 
+    // Start count-up sound when the first tally row appears.
+    if (this._pendingCountUps > 0) {
+      this._tweens.push(this.time.delayedCall(t, () => this._startCountupSound()))
+    }
+
     // Phase 1: tally rows
     t = this._revealRowsWithCountUp(this._tallyPanel.rows, t)
     t += PHASE_GAP_MS
@@ -471,7 +485,11 @@ export class GameOver extends Phaser.Scene {
           const eased = 1 - Math.pow(1 - t, 3)
           const v = Math.round(start + (target - start) * eased)
           ct.textObj.setText(v.toLocaleString('en-US'))
-          if (t >= 1) tick.remove(false)
+          if (t >= 1) {
+            tick.remove(false)
+            this._pendingCountUps--
+            if (this._pendingCountUps <= 0) this._stopCountupSound()
+          }
         },
       })
       this._countTimers.push(tick)
@@ -481,6 +499,7 @@ export class GameOver extends Phaser.Scene {
   _skip() {
     if (this._completed) return
     this._completed = true
+    this._stopCountupSound()
     // Stop every running tween + count-up timer.
     for (const t of this._tweens) t?.remove?.(false) ?? t?.stop?.()
     this._tweens = []
@@ -499,6 +518,73 @@ export class GameOver extends Phaser.Scene {
       if (b.label?.text === 'VIEW DUNGEON LOG') continue
       b.hit.input.enabled = true
     }
+  }
+
+  // ─── Count-up sound ───────────────────────────────────────────────────
+  _startCountupSound() {
+    if (this._countupSound || !this.cache.audio.exists('sfx-score-countup')) return
+    this._countupSound = this.sound.add('sfx-score-countup', {
+      loop: true,
+      volume: this._sfxVolume(),
+    })
+    this._countupSound.play()
+  }
+
+  _stopCountupSound() {
+    if (!this._countupSound) return
+    this._countupSound.stop()
+    this._countupSound.destroy()
+    this._countupSound = null
+  }
+
+  _sfxVolume() {
+    if (SfxVolume.isMuted()) return 0
+    return Math.min(1, 0.55 * SfxVolume.getVolume())
+  }
+
+  // ─── Leaderboard submission ───────────────────────────────────────────
+  // Fire-and-forget POST to Supabase. A failed submission (offline,
+  // network blip, RLS error) is silently logged — it must not block the
+  // post-run flow. Submits exactly once per scene activation: GameOver is
+  // re-entered when the player picks NEW EVIL, but at that point a fresh
+  // gameState will populate.
+  _submitLeaderboard() {
+    if (this._submitted) return
+    this._submitted = true
+
+    const gs    = this._gameState ?? {}
+    const tot   = gs.run?.totals ?? {}
+    const player = gs.player ?? {}
+    const name   = (PlayerProfile.getName?.() || '').trim() || 'ANON'
+    const days   = Number(player.totalDaysElapsed ?? gs.meta?.dayNumber ?? 0)
+    const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
+
+    // Skip submissions that look like noise (player quit before any kills
+    // on day 1, or no boss picked).
+    if (!player.bossArchetypeId || (days <= 1 && kills === 0)) return
+
+    const run = {
+      player_name:   name.slice(0, 32),
+      boss_id:       String(player.bossArchetypeId),
+      boss_level:    Number(gs.boss?.level ?? 1),
+      days_survived: days,
+      total_kills:   kills,
+      gold:          Number(tot.gold ?? player.soulEssence ?? 0),
+      dark_power:    Number(player.darkPower ?? 0),
+      end_cause:     'death',
+      meta: {
+        roomsBuilt:     Number(tot.roomsBuilt ?? 0),
+        minionsSummoned: Number(tot.minionsSummoned ?? 0),
+        minionsLost:    Number(tot.minionsLost ?? 0),
+        advsEscaped:    Number(tot.advsEscaped ?? 0),
+        dmgDealt:       Number(tot.dmgDealt ?? 0),
+        dmgTaken:       Number(tot.dmgTaken ?? 0),
+      },
+    }
+
+    Leaderboard.submitRun(run).catch(err => {
+      console.warn('[Leaderboard] submit failed:', err.message)
+    })
   }
 
   // ─── Footer actions ───────────────────────────────────────────────────

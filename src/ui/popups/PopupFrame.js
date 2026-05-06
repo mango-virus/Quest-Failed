@@ -81,11 +81,17 @@ export function makePopupFrame(opts) {
     isOpen = true
 
     // Dim backdrop covering the full canvas. Click-through is intercepted
-    // so a click outside the panel closes the popup.
+    // so a click outside the panel closes the popup. We require BOTH
+    // pointerdown and pointerup to land on the wash before closing — a
+    // pointerup-only trigger would let the release of whatever click
+    // opened the popup (e.g. SELL → click room) immediately close it.
     const wash = scene.add.rectangle(0, 0, W, H, 0x000000, 0.78)
       .setOrigin(0).setDepth(depth)
       .setInteractive()
-    wash.on('pointerup', () => close())
+    let washPressed = false
+    wash.on('pointerdown', () => { washPressed = true })
+    wash.on('pointerup',   () => { if (washPressed) { washPressed = false; close() } })
+    wash.on('pointerout',  () => { washPressed = false })
     addChild(wash)
 
     // Pixel-bevel panel chrome

@@ -647,6 +647,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | build-action-rotate | Rotate action via R key while a room is held in MOVE mode (button dropped from action bar mid-phase per user). 90° CW, minions follow. | 31D | ✅ DONE | scope-changed during 31D — was an action-bar button, now an R-key affordance during MOVE pickup; existing R-on-placement behaviour covers it |
 | build-action-move | Move action: button → click room → cursor-follow → click drop, minions stay, free | 31D | ✅ DONE | new gameplay action |
 | build-action-sell | Sell action: button → click room → 50% gold refund (room cost + minion costs in room), removes room + minions | 31D | ✅ DONE | new gameplay action |
+| build-action-sell-minion | Sell action also accepts a single minion: 50% gold refund of that minion's cost, room stays | 31D | ⏳ PENDING | extension of build-action-sell |
 | popup-adv-intel | Adventurer Intel popup — opened from HUD button any phase, shows current/incoming party | 31E | ✅ DONE | renamed from "Pre-Wave Prep" |
 | popup-adv-intel-library | Library room masks `???` fields on incoming party UNLESS Library room exists in dungeon | 31E | ✅ DONE | new Library role; gates intel reveal |
 | popup-adv-intel-knowmap | Adventurer Intel shows the adventurers' knowledge map (replaces design's predicted route) | 31E | ✅ DONE | reuses KnowledgeSystem |

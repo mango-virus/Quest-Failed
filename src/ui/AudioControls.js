@@ -1,25 +1,23 @@
-// AudioControls — small mute + volume widget that drives TitleMusic.
+// AudioControls — dual-row volume widget.
 //
-// Compact horizontal layout:
-//   [♪/—] [───•──────────]
-//    mute   slider
+// Renders two labelled slider rows stacked vertically:
 //
-// When mounted with a `playlist` option (a GameplayMusic-shaped module
-// exposing previous() / next() / isActive()), two extra transport
-// buttons appear:
+//   MUSIC  [♪]  [──────•──────────────────────]
+//   SFX    [♪]  [──────•──────────────────────]
 //
-//   [♪/—] [<<] [>>] [───•──────────]
-//          prev next
+// The Music row drives TitleMusic (and GameplayMusic mirrors it).
+// The SFX row drives SfxVolume (SfxSystem reads it per-sound).
 //
-// Volume + mute always drive TitleMusic (the source of truth for the
-// shared music preference).  GameplayMusic mirrors via TitleMusic.onChange,
-// so the slider drives both modules simultaneously.
+// Width is caller-supplied via opts.w so the widget stretches to fill
+// whatever panel it lives in (PauseMenu / Options).
+// Height is always AUDIO_CONTROLS_HEIGHT — export it for layout math.
 //
-// Consumed by:
-//   - MainMenu (bottom-right, beside the version label) — no playlist
-//   - HudScene (top-right, away from the mini-map / boss HP bar) — playlist enabled
+// Used by:
+//   PauseMenu  — settings sub-screen
+//   Options    — audio section
 
 import { TitleMusic } from '../systems/TitleMusic.js'
+import { SfxVolume }  from '../systems/SfxVolume.js'
 
 const COL = {
   bg:        0x0a0612,
@@ -27,216 +25,172 @@ const COL = {
   border:    0x3a1e08,
   trackBg:   0x1a1018,
   trackFill: 0xff7a1a,
+  trackFillSfx: 0x4aabff,   // blue tint for SFX row
   thumb:     0xffd0a0,
+  thumbSfx:  0xaaddff,
   iconOn:    '#ffd0a0',
+  iconOnSfx: '#aaddff',
   iconOff:   '#6a4a30',
   iconHover: '#ffe0b0',
-  btnDisabled: '#4a3020',
+  labelCol:  '#8a8090',
 }
 
-const H        = 24
-const ICON_W   = 28
-const BTN_W    = 22
-const TRACK_H  = 4
-const THUMB_W  = 6
-const THUMB_H  = 12
-const SLIDER_W_DEFAULT = 130 - (ICON_W + 4) - 6  // = 92, original slider width
+const ROW_H     = 24
+const ROW_GAP   = 6
+const LABEL_W   = 42   // "MUSIC" / "SFX  " label column
+const MUTE_W    = 24
+const SLIDER_PAD = 8   // left gap before slider + right margin
 
-// Compute total widget width given options, so callers can position
-// the widget against a screen edge before the constructor runs.
-export function audioControlsWidth(opts = {}) {
-  const hasPlaylist = !!opts.playlist
-  const buttonsW = hasPlaylist ? (BTN_W * 2 + 4) : 0
-  return ICON_W + buttonsW + 4 + SLIDER_W_DEFAULT + 6
-}
+export const AUDIO_CONTROLS_HEIGHT = ROW_H * 2 + ROW_GAP
+
+const DEFAULT_W = 300
 
 export class AudioControls {
-  // x/y = top-left corner.  depth defaults high so it floats above
-  // the rest of the scene.
   constructor(scene, x, y, opts = {}) {
-    this._scene = scene
-    this._depth = opts.depth ?? 100
-    this._playlist = opts.playlist ?? null
-    this._dragging = false
-
-    const W = audioControlsWidth(opts)
-    this._W = W
+    this._scene    = scene
+    this._depth    = opts.depth ?? 100
+    this._w        = opts.w ?? DEFAULT_W
+    this._unsubs   = []
+    this._dragging = null   // null | 'music' | 'sfx'
 
     this._container = scene.add.container(x, y).setDepth(this._depth)
 
-    // Background panel
+    // Background panel covering both rows
     this._bg = scene.add.graphics()
     this._drawBg(false)
     this._container.add(this._bg)
 
-    // ─── Mute button ─────────────────────────────────────────────────
-    this._muteHit = scene.add.rectangle(0, 0, ICON_W, H, 0xffffff, 0.001)
-      .setOrigin(0, 0).setInteractive({ useHandCursor: true })
-    this._container.add(this._muteHit)
+    // Build the two rows
+    this._music = this._makeRow(0,           'MUSIC', TitleMusic, COL.trackFill,   COL.thumb,    COL.iconOn)
+    this._sfx   = this._makeRow(ROW_H + ROW_GAP, 'SFX',   SfxVolume,  COL.trackFillSfx, COL.thumbSfx, COL.iconOnSfx)
 
-    this._muteIcon = scene.add.text(ICON_W / 2, H / 2,
-      this._iconChar(),
-      {
-        fontSize: '15px',
-        fontFamily: 'monospace',
-        color: TitleMusic.isMuted() ? COL.iconOff : COL.iconOn,
-        fontStyle: 'bold',
-      },
-    ).setOrigin(0.5).setResolution(2)
-    this._container.add(this._muteIcon)
-
-    this._muteHit.on('pointerover', () => this._muteIcon.setColor(COL.iconHover))
-    this._muteHit.on('pointerout',  () => this._muteIcon.setColor(this._iconRestColor()))
-    this._muteHit.on('pointerdown', () => TitleMusic.toggleMuted())
-
-    // ─── Optional transport buttons (prev/next track) ────────────────
-    let cursorX = ICON_W + 2
-    if (this._playlist) {
-      this._prevBtn = this._makeTransportButton(cursorX, '<<', () => {
-        this._playlist.previous(this._scene)
-      })
-      cursorX += BTN_W + 2
-
-      this._nextBtn = this._makeTransportButton(cursorX, '>>', () => {
-        this._playlist.next(this._scene)
-      })
-      cursorX += BTN_W + 2
-    }
-
-    // ─── Volume slider ──────────────────────────────────────────────
-    const sliderX = cursorX + 2
-    const sliderW = SLIDER_W_DEFAULT
-    this._sliderX = sliderX
-    this._sliderW = sliderW
-
-    const trackY = H / 2
-    this._track = scene.add.rectangle(sliderX, trackY, sliderW, TRACK_H, COL.trackBg)
-      .setOrigin(0, 0.5)
-    this._track.setStrokeStyle(1, 0x1a0a1a, 0.8)
-    this._container.add(this._track)
-
-    this._fill = scene.add.rectangle(sliderX, trackY, 1, TRACK_H, COL.trackFill)
-      .setOrigin(0, 0.5)
-    this._container.add(this._fill)
-
-    this._thumb = scene.add.rectangle(sliderX, trackY, THUMB_W, THUMB_H, COL.thumb)
-      .setOrigin(0.5)
-    this._thumb.setStrokeStyle(1, 0x6a3010, 1)
-    this._container.add(this._thumb)
-
-    this._sliderHit = scene.add.rectangle(sliderX, 0, sliderW, H, 0xffffff, 0.001)
-      .setOrigin(0, 0).setInteractive({ useHandCursor: true })
-    this._container.add(this._sliderHit)
-
-    this._sliderHit.on('pointerdown', (p) => {
-      this._dragging = true
-      this._setFromPointer(p)
-    })
-    // Drag continues even when pointer leaves the hit rect — we listen
-    // on the scene-wide input manager so the slider tracks fully across
-    // the screen until pointer-up.
+    // Scene-wide pointer tracking for drag
     scene.input.on('pointermove', this._onPointerMove, this)
     scene.input.on('pointerup',   this._onPointerUp,   this)
 
-    // Hover affordance on the panel as a whole
-    this._muteHit.on('pointerover', () => this._drawBg(true))
-    this._muteHit.on('pointerout',  () => this._drawBg(false))
-    this._sliderHit.on('pointerover', () => this._drawBg(true))
-    this._sliderHit.on('pointerout',  () => this._drawBg(false))
+    // Subscribe to both APIs for live UI sync
+    this._unsubs.push(TitleMusic.onChange(() => this._refreshRow(this._music, TitleMusic)))
+    this._unsubs.push(SfxVolume.onChange(()   => this._refreshRow(this._sfx,  SfxVolume)))
 
-    // Sync to current TitleMusic state
-    this._unsubscribe = TitleMusic.onChange(() => this._refresh())
-    this._refresh()
+    this._refreshRow(this._music, TitleMusic)
+    this._refreshRow(this._sfx,   SfxVolume)
 
-    // Tear down on scene shutdown
     scene.events.once('shutdown', () => this.destroy())
   }
 
   destroy() {
     if (this._destroyed) return
     this._destroyed = true
-    this._unsubscribe?.()
+    this._unsubs.forEach(u => u())
     this._scene.input.off('pointermove', this._onPointerMove, this)
     this._scene.input.off('pointerup',   this._onPointerUp,   this)
     this._container?.destroy()
     this._container = null
   }
 
-  // ─── Internals ─────────────────────────────────────────────────────
+  // ── Row builder ──────────────────────────────────────────────────────────
 
-  _makeTransportButton(x, label, onClick) {
-    const hit = this._scene.add.rectangle(x, 0, BTN_W, H, 0xffffff, 0.001)
+  _makeRow(rowY, label, api, fillColor, thumbColor, iconOnColor) {
+    const sliderX = LABEL_W + MUTE_W + SLIDER_PAD
+    const sliderW = this._w - sliderX - 4
+
+    // Label
+    const labelT = this._scene.add.text(0, rowY + ROW_H / 2, label, {
+      fontSize: '8px', fontFamily: '"Press Start 2P", monospace',
+      color: COL.labelCol,
+    }).setOrigin(0, 0.5).setResolution(2)
+    this._container.add(labelT)
+
+    // Mute hit zone + icon
+    const muteHit = this._scene.add.rectangle(LABEL_W, rowY, MUTE_W, ROW_H, 0xffffff, 0.001)
       .setOrigin(0, 0).setInteractive({ useHandCursor: true })
-    this._container.add(hit)
+    this._container.add(muteHit)
 
-    const txt = this._scene.add.text(x + BTN_W / 2, H / 2, label, {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      color: COL.iconOn,
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setResolution(2)
-    this._container.add(txt)
+    const muteIcon = this._scene.add.text(LABEL_W + MUTE_W / 2, rowY + ROW_H / 2,
+      api.isMuted() ? '—' : '♪', {
+        fontSize: '13px', fontFamily: 'monospace',
+        color: api.isMuted() ? COL.iconOff : iconOnColor,
+        fontStyle: 'bold',
+      }).setOrigin(0.5).setResolution(2)
+    this._container.add(muteIcon)
 
-    hit.on('pointerover', () => { txt.setColor(COL.iconHover); this._drawBg(true) })
-    hit.on('pointerout',  () => { txt.setColor(COL.iconOn);    this._drawBg(false) })
-    hit.on('pointerdown', () => onClick())
-    return { hit, txt }
+    muteHit.on('pointerover', () => muteIcon.setColor(COL.iconHover))
+    muteHit.on('pointerout',  () => muteIcon.setColor(api.isMuted() ? COL.iconOff : iconOnColor))
+    muteHit.on('pointerdown', () => { api.toggleMuted(); this._drawBg(true) })
+
+    // Track
+    const trackY = rowY + ROW_H / 2
+    const track = this._scene.add.rectangle(sliderX, trackY, sliderW, 4, COL.trackBg)
+      .setOrigin(0, 0.5)
+    track.setStrokeStyle(1, 0x1a0a1a, 0.8)
+    this._container.add(track)
+
+    const fill = this._scene.add.rectangle(sliderX, trackY, 1, 4, fillColor)
+      .setOrigin(0, 0.5)
+    this._container.add(fill)
+
+    const thumb = this._scene.add.rectangle(sliderX, trackY, 6, 12, thumbColor)
+      .setOrigin(0.5)
+    thumb.setStrokeStyle(1, 0x3a1c0a, 1)
+    this._container.add(thumb)
+
+    // Slider hit zone
+    const sliderHit = this._scene.add.rectangle(sliderX, rowY, sliderW, ROW_H, 0xffffff, 0.001)
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true })
+    this._container.add(sliderHit)
+
+    sliderHit.on('pointerdown', (p) => {
+      this._dragging = api
+      this._setFromPointer(p, api, sliderX, sliderW)
+    })
+
+    // Hover glow on entire widget
+    muteHit.on('pointerover',   () => this._drawBg(true))
+    muteHit.on('pointerout',    () => this._drawBg(false))
+    sliderHit.on('pointerover', () => this._drawBg(true))
+    sliderHit.on('pointerout',  () => this._drawBg(false))
+
+    return { muteIcon, fill, thumb, sliderX, sliderW, fillColor, thumbColor, iconOnColor }
   }
+
+  // ── Internals ────────────────────────────────────────────────────────────
 
   _drawBg(hover) {
     this._bg.clear()
     this._bg.fillStyle(hover ? COL.bgHover : COL.bg, 0.85)
-    this._bg.fillRoundedRect(0, 0, this._W, H, 4)
+    this._bg.fillRoundedRect(0, 0, this._w, AUDIO_CONTROLS_HEIGHT, 4)
     this._bg.lineStyle(1, COL.border, 0.6)
-    this._bg.strokeRoundedRect(0, 0, this._W, H, 4)
+    this._bg.strokeRoundedRect(0, 0, this._w, AUDIO_CONTROLS_HEIGHT, 4)
   }
 
-  _iconChar() {
-    // Use musical-note glyphs that work in any font without emoji
-    // support — the title-bar icon font shipped by Phaser/browser
-    // doesn't always include 🔊/🔇.
-    return TitleMusic.isMuted() ? '—' : '♪'
-  }
-
-  _iconRestColor() {
-    return TitleMusic.isMuted() ? COL.iconOff : COL.iconOn
-  }
-
-  _setFromPointer(p) {
-    // The container lives in world space, so we need the pointer's world
-    // coords (camera-transformed). Phaser's `p.x/p.y` is screen pixels —
-    // wrong when the scene's camera zoom != 1 (which applyUiCamera sets
-    // on every UI scene). `p.worldX/p.worldY` accounts for zoom + scroll.
-    const wx = (p.worldX != null) ? p.worldX : p.x
-    const wy = (p.worldY != null) ? p.worldY : p.y
+  _setFromPointer(p, api, sliderX, sliderW) {
+    const wx = p.worldX ?? p.x
+    const wy = p.worldY ?? p.y
     const local = this._container.getLocalPoint(wx, wy)
-    const t = (local.x - this._sliderX) / this._sliderW
+    const t = (local.x - sliderX) / sliderW
     const v = Math.max(0, Math.min(1, t))
-    TitleMusic.setVolume(v)
-    // Setting volume while muted would hide the change; auto-unmute so
-    // dragging the slider always produces audible feedback.
-    if (TitleMusic.isMuted() && v > 0) TitleMusic.setMuted(false)
+    api.setVolume(v)
+    if (api.isMuted() && v > 0) api.setMuted(false)
   }
 
   _onPointerMove(p) {
     if (!this._dragging) return
-    this._setFromPointer(p)
+    const row = this._dragging === TitleMusic ? this._music : this._sfx
+    this._setFromPointer(p, this._dragging, row.sliderX, row.sliderW)
   }
 
-  _onPointerUp() { this._dragging = false }
+  _onPointerUp() { this._dragging = null }
 
-  _refresh() {
+  _refreshRow(row, api) {
     if (!this._container) return
-    const v = TitleMusic.getVolume()
-    const muted = TitleMusic.isMuted()
-    // Slider visuals
-    const fillW = Math.max(1, this._sliderW * v)
-    this._fill.width = fillW
-    this._fill.setFillStyle(muted ? 0x333333 : COL.trackFill)
-    this._thumb.x = this._sliderX + fillW
-    this._thumb.setFillStyle(muted ? 0x666666 : COL.thumb)
-    // Mute icon
-    this._muteIcon.setText(this._iconChar())
-    this._muteIcon.setColor(this._iconRestColor())
+    const v     = api.getVolume()
+    const muted = api.isMuted()
+    const fillW = Math.max(1, row.sliderW * v)
+    row.fill.width = fillW
+    row.fill.setFillStyle(muted ? 0x333333 : row.fillColor)
+    row.thumb.x = row.sliderX + fillW
+    row.thumb.setFillStyle(muted ? 0x666666 : row.thumbColor)
+    row.muteIcon.setText(muted ? '—' : '♪')
+    row.muteIcon.setColor(muted ? COL.iconOff : row.iconOnColor)
   }
 }

@@ -1,6 +1,7 @@
 import { EventBus }      from '../systems/EventBus.js'
 import { SaveSystem }    from '../systems/SaveSystem.js'
 import { TILE, DungeonGrid as DungeonGridClass } from '../systems/DungeonGrid.js'
+import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { createMinion }  from '../entities/Minion.js'
 import { createTrap }    from '../entities/Trap.js'
 import { Balance }       from '../config/balance.js'
@@ -71,6 +72,12 @@ export class NightPhase extends Phaser.Scene {
     // Phase 31D — action-bar tool mode: 'sell' | 'move' | 'rotate' | null.
     // When armed, the next click on a placed room executes the action.
     this._toolMode     = null
+    // Phase: items — Door Lock forced trade-off. When the player clicks a
+    // doorway with a Door Lock armed, we stage the lock (don't commit
+    // yet), auto-select the Key Chest, and require they place it before
+    // anything else. ESC during this state rolls back the staged lock.
+    //   { stage: 'awaiting_chest', doorTiles: [{x,y}], goldCost: number }
+    this._pendingTradeOff = null
   }
 
   create() {
@@ -138,6 +145,22 @@ export class NightPhase extends Phaser.Scene {
     on('BUILD_SELECT', ({ def, kind }) => {
       // Phase 1b.4 — Lich Phylactery: item placement flows through the same
       // single-tile path as traps. _confirmItemPlacement handles validation.
+      // Forced-placement guard: while a trade-off is pending the player
+      // can't switch to a different item — they must commit the trade-off
+      // (or ESC / right-click out). Allowed item id depends on what's
+      // pending (key_chest for Door Lock, healing_fountain for Beacon).
+      if (this._pendingTradeOff) {
+        const required = this._pendingTradeOff.kind === 'beacon'
+          ? 'healing_fountain' : 'key_chest'
+        if (def?.id !== required) {
+          this._showPlacementError(
+            this._pendingTradeOff.kind === 'beacon'
+              ? 'Place the Healing Fountain first (ESC to cancel)'
+              : 'Place the Key Chest first (ESC to cancel)'
+          )
+          return
+        }
+      }
       this._setToolMode(null)
       this._selectItem(def, kind)
     })
@@ -868,13 +891,17 @@ export class NightPhase extends Phaser.Scene {
       // too late. Easier to check `gameState.minions` directly: if any
       // alive minion is within ~half a tile of the cursor's world point,
       // assume the click is for the minion and let MinionRenderer handle it.
+      // Exception: when an action mode is armed that itself targets minions
+      // (SELL tool, Crucible sacrifice), we WANT the click to fall through
+      // to those handlers instead of being delegated to MinionRenderer.
       const wp = cam.getWorldPoint(p.x, p.y)
       const minionHitR = TS * 0.55
       const overMinion = (this._gameState.minions ?? []).some(m => {
         if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
         return Math.hypot(wp.x - m.worldX, wp.y - m.worldY) <= minionHitR
       })
-      if (overMinion) return
+      const minionTargetingMode = this._crucibleMode || this._toolMode === 'sell'
+      if (overMinion && !minionTargetingMode) return
 
       if (p.rightButtonDown()) {
         // Phase 9 — Pact of the Brand: right-click on a placed trap selects
@@ -891,8 +918,15 @@ export class NightPhase extends Phaser.Scene {
             return
           }
         }
-        // Right-click cancels: armed tool → release; placement candidate → drop.
+        // Right-click cancels: pending trade-off → roll back the staged
+        // lock; armed tool → release; placement candidate → drop.
         // Removal is sell-only — right-click never deletes placed content.
+        if (this._pendingTradeOff) {
+          this._pendingTradeOff = null
+          this._cancelSelection()
+          this._showPlacementError('Placement cancelled')
+          return
+        }
         if (this._toolMode) { this._setToolMode(null); return }
         if (this._selected) { this._cancelSelection(); return }
         return
@@ -973,7 +1007,13 @@ export class NightPhase extends Phaser.Scene {
       }
     })
     this.input.keyboard.on('keydown-ESC', () => {
-      // Esc cancels an armed tool first; only opens pause if no tool armed.
+      // Esc cancels whatever's armed first, then opens pause as a fallback.
+      if (this._pendingTradeOff) {
+        this._pendingTradeOff = null
+        this._cancelSelection()
+        this._showPlacementError('Lock placement cancelled')
+        return
+      }
       if (this._crucibleMode) {
         this._crucibleMode = false
         this._crucibleVictimId = null
@@ -981,6 +1021,7 @@ export class NightPhase extends Phaser.Scene {
         return
       }
       if (this._toolMode) { this._setToolMode(null); return }
+      if (this._selected)  { this._cancelSelection(); return }
       PauseManager.toggle(this)
     })
     this.input.keyboard.on('keydown-Z',   (e) => {
@@ -1021,10 +1062,40 @@ export class NightPhase extends Phaser.Scene {
     const placeTx = tx
     const placeTy = ty
 
-    const check =
-      this._selectedKind === 'minion' ? this._validateMinionPlacement(def, tx, ty)
-      : this._selectedKind === 'trap'   ? this._validateTrapPlacement(def, tx, ty)
-      : this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
+    let check
+    if (this._selectedKind === 'minion') {
+      check = this._validateMinionPlacement(def, tx, ty)
+    } else if (this._selectedKind === 'trap') {
+      check = this._validateTrapPlacement(def, tx, ty)
+    } else if (this._selectedKind === 'item' && def.id === 'door_lock') {
+      const isDoor = this._dungeonGrid.getTileType?.(tx, ty) === TILE.DOOR
+      check = { valid: !!isDoor, violations: isDoor ? [] : ['Click on a doorway'] }
+    } else if (this._selectedKind === 'item' && def.id === 'key_chest') {
+      check = this._pendingTradeOff
+        ? this._validateKeyChestPlacement(tx, ty, this._pendingTradeOff.doorTiles)
+        : { valid: false, violations: ['No pending lock'] }
+      if (!check.valid && check.reason) check.violations = [check.reason]
+    } else if (this._selectedKind === 'item' && def.id === 'soul_bound_beacon') {
+      check = this._validateRoomFloorPlacement(tx, ty)
+      const here = (this._gameState.dungeon.beacons ?? []).filter(
+        b => check.room && b.roomId === check.room.instanceId,
+      )
+      if (check.valid && here.length > 0) check = { valid: false, reason: 'Max 1 Beacon per room' }
+      if (!check.valid && check.reason) check.violations = [check.reason]
+    } else if (this._selectedKind === 'item' && def.id === 'healing_fountain') {
+      check = this._pendingTradeOff?.kind === 'beacon'
+        ? this._validateRoomFloorPlacement(tx, ty, { differentRoomThan: this._pendingTradeOff.roomId })
+        : { valid: false, reason: 'Place via a Beacon' }
+      if (!check.valid && check.reason) check.violations = [check.reason]
+    } else if (this._selectedKind === 'item' && def.id?.startsWith('treasure_chest_')) {
+      check = this._validateRoomFloorPlacement(tx, ty)
+      const tier = def.tier ?? 1
+      const here = (this._gameState.dungeon.treasureChests ?? []).filter(c => c.tier === tier)
+      if (check.valid && here.length >= 1) check = { valid: false, reason: `Tier ${tier} already placed` }
+      if (!check.valid && check.reason) check.violations = [check.reason]
+    } else {
+      check = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
+    }
     this._previewValid = check.valid
 
     const color = check.valid ? 0x00cc66 : 0xcc2222
@@ -1032,8 +1103,8 @@ export class NightPhase extends Phaser.Scene {
 
     this._preview.clear()
 
-    if (this._selectedKind === 'minion' || this._selectedKind === 'trap') {
-      // Single-tile preview for minions and traps
+    if (this._selectedKind === 'minion' || this._selectedKind === 'trap' || this._selectedKind === 'item') {
+      // Single-tile preview for minions, traps, and items
       const wx = tx * TS
       const wy = ty * TS
       this._preview.fillStyle(color, fillA)
@@ -1348,9 +1419,10 @@ export class NightPhase extends Phaser.Scene {
     const cost = this._effectiveMinionCost(def)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) this._gameState.player.gold -= cost
 
-    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    const room      = this._dungeonGrid.getRoomAtTile(tx, ty)
     const bossLevel = this._gameState.boss?.level ?? 1
-    const minion = createMinion(def, { x: tx, y: ty }, room?.instanceId ?? null, { bossLevel })
+    const dayNumber = this._gameState.meta?.dayNumber ?? 1
+    const minion = createMinion(def, { x: tx, y: ty }, room?.instanceId ?? null, { bossLevel, dayNumber })
 
     // Phase 6e: apply archetype-gated stat multiplier (e.g. Tyrant 2×, Architect 0.85×)
     const arch = this._gameState.player?.archetypeModifiers
@@ -1397,11 +1469,130 @@ export class NightPhase extends Phaser.Scene {
     this._refreshStats()
   }
 
+  // ── Door Lock helpers ──────────────────────────────────────────────────
+  // Flood-fill TILE.DOOR cells connected to (sx, sy) so we can lock every
+  // door tile of a doorway in one shot regardless of which cell the
+  // player clicked.
+  _findDoorwayTiles(sx, sy) {
+    const tiles = this._dungeonGrid.getTiles()
+    if (tiles[sy]?.[sx] !== TILE.DOOR) return []
+    const result = []
+    const visited = new Set()
+    const queue = [{ x: sx, y: sy }]
+    while (queue.length > 0) {
+      const { x, y } = queue.shift()
+      const k = `${x},${y}`
+      if (visited.has(k)) continue
+      visited.add(k)
+      if (tiles[y]?.[x] !== TILE.DOOR) continue
+      result.push({ x, y })
+      queue.push({ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 })
+    }
+    return result
+  }
+
+  // Reachability for the key chest: from the entry-hall north tile, can
+  // we reach (tx, ty) without crossing any tile in `blockedTiles` (the
+  // staged lock's door tiles)? Treats other already-placed locked doors
+  // as walls too so multi-lock dungeons stay solvable.
+  _validateKeyChestPlacement(tx, ty, blockedTiles) {
+    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    if (!room) return { valid: false, reason: 'Place inside a room' }
+    if (room.definitionId === 'boss_chamber') return { valid: false, reason: 'Not in boss chamber' }
+    if (room.definitionId === 'entry_hall')   return { valid: false, reason: 'Not in entry hall' }
+    const tt = this._dungeonGrid.getTileType?.(tx, ty)
+    if (tt !== TILE.FLOOR && tt !== TILE.BOSS_FLOOR) {
+      return { valid: false, reason: 'Place on a floor tile' }
+    }
+    const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
+    if (!entry) return { valid: false, reason: 'Place an Entry Hall first' }
+    const startX = entry.gridX + Math.floor(entry.width / 2)
+    const startY = entry.gridY + 1
+    const blockedSet = new Set()
+    for (const t of blockedTiles) blockedSet.add(`${t.x},${t.y}`)
+    for (const lock of this._gameState.dungeon.locks ?? []) {
+      for (const t of lock.doorTiles) blockedSet.add(`${t.x},${t.y}`)
+    }
+    const path = PathfinderSystem.findPath(
+      { x: startX, y: startY }, { x: tx, y: ty }, this._dungeonGrid,
+      null, 0, blockedSet,
+    )
+    if (!path) return { valid: false, reason: 'Chest unreachable past the lock' }
+    return { valid: true }
+  }
+
+  // True when (tx, ty) IS or is orthogonally adjacent to a TILE.DOOR.
+  // Used by item placement to keep collision-blocking items away from
+  // doorways (otherwise advs/minions can't enter the room).
+  _isAdjacentToDoor(tx, ty) {
+    const tiles = this._dungeonGrid.getTiles?.() ?? []
+    for (const [dx, dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) {
+      if (tiles[ty + dy]?.[tx + dx] === TILE.DOOR) return true
+    }
+    return false
+  }
+
+  // True when (tx, ty) is already taken by another placed item with
+  // collision (chest, beacon, fountain, phylactery, trap).
+  _isTileOccupiedByItem(tx, ty) {
+    const d = this._gameState.dungeon ?? {}
+    if ((d.beacons        ?? []).some(b => b.tileX === tx && b.tileY === ty)) return true
+    if ((d.fountains      ?? []).some(f => f.tileX === tx && f.tileY === ty)) return true
+    if ((d.keyChests      ?? []).some(c => c.tileX === tx && c.tileY === ty)) return true
+    if ((d.treasureChests ?? []).some(c => c.tileX === tx && c.tileY === ty)) return true
+    if ((d.traps          ?? []).some(t => t.tileX === tx && t.tileY === ty)) return true
+    if (this._gameState.phylactery && this._gameState.phylactery.tileX === tx && this._gameState.phylactery.tileY === ty) return true
+    return false
+  }
+
+  // Common floor-tile guard for placeable items inside non-boss/non-entry
+  // rooms with collision (Beacon + Fountain). Returns { valid, reason, room }.
+  _validateRoomFloorPlacement(tx, ty, opts = {}) {
+    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    if (!room) return { valid: false, reason: 'Place inside a room' }
+    if (room.definitionId === 'boss_chamber') return { valid: false, reason: 'Not in boss chamber' }
+    if (room.definitionId === 'entry_hall')   return { valid: false, reason: 'Not in entry hall' }
+    const tt = this._dungeonGrid.getTileType?.(tx, ty)
+    if (tt !== TILE.FLOOR && tt !== TILE.BOSS_FLOOR) {
+      return { valid: false, reason: 'Place on a floor tile' }
+    }
+    if (this._isAdjacentToDoor(tx, ty)) {
+      return { valid: false, reason: 'Cannot block a doorway' }
+    }
+    if (this._isTileOccupiedByItem(tx, ty)) {
+      return { valid: false, reason: 'Tile is occupied' }
+    }
+    if (opts.differentRoomThan && room.instanceId === opts.differentRoomThan) {
+      return { valid: false, reason: 'Must be in a different room' }
+    }
+    return { valid: true, room }
+  }
+
   // Phase 1b.4 — Lich Phylactery placement. Single-tile, free, must be inside
   // a non-boss room. Stores on `gameState.phylactery`.
   _confirmItemPlacement(tx, ty) {
     const def = this._selected
     if (!def) return
+    if (def.id === 'door_lock') {
+      this._confirmDoorLock(tx, ty)
+      return
+    }
+    if (def.id === 'key_chest') {
+      this._confirmKeyChest(tx, ty)
+      return
+    }
+    if (def.id === 'soul_bound_beacon') {
+      this._confirmSoulBeacon(tx, ty)
+      return
+    }
+    if (def.id === 'healing_fountain') {
+      this._confirmHealingFountain(tx, ty)
+      return
+    }
+    if (def.id?.startsWith('treasure_chest_')) {
+      this._confirmTreasureChest(tx, ty)
+      return
+    }
     if (def.id === 'phylactery_heart') {
       if (this._gameState.phylactery) {
         this._showPlacementError('Phylactery already placed')
@@ -1451,36 +1642,358 @@ export class NightPhase extends Phaser.Scene {
     this._showPlacementError(`Unknown item: ${def.id}`)
   }
 
+  // Door Lock placement step 1 — click a doorway, stage the lock, force
+  // the player into key-chest placement. The lock isn't committed (and
+  // gold isn't deducted) until the chest commit fires.
+  _confirmDoorLock(tx, ty) {
+    const def = this._selected
+    if (this._dungeonGrid.getTileType?.(tx, ty) !== TILE.DOOR) {
+      this._showPlacementError('Click on a doorway')
+      return
+    }
+    const doorTiles = this._findDoorwayTiles(tx, ty)
+    if (doorTiles.length === 0) {
+      this._showPlacementError('No doorway here')
+      return
+    }
+    // Reject if any of these tiles already belong to an existing lock.
+    const tileKey = (t) => `${t.x},${t.y}`
+    const newKeys = new Set(doorTiles.map(tileKey))
+    const dupe = (this._gameState.dungeon.locks ?? []).some(l =>
+      l.doorTiles.some(t => newKeys.has(tileKey(t)))
+    )
+    if (dupe) {
+      this._showPlacementError('Doorway already locked')
+      return
+    }
+    // The boss chamber doorway is unlockable — locking it could softlock
+    // the run if no adventurer carries a key / lockpick / break ability.
+    for (const t of doorTiles) {
+      const r = this._dungeonGrid.getRoomAtTile(t.x, t.y)
+      if (r?.definitionId === 'boss_chamber') {
+        this._showPlacementError('Cannot lock the boss chamber doorway')
+        return
+      }
+    }
+    const cost = def.goldCost ?? 0
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD && this._gameState.player.gold < cost) {
+      this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
+      return
+    }
+    // Force-select the Key Chest. The user must commit a chest before
+    // the lock + gold cost finalize.
+    const items = this.cache.json.get('items') ?? []
+    const keyChestDef = items.find(it => it.id === 'key_chest')
+    if (!keyChestDef) {
+      this._showPlacementError('Key Chest item missing — see items.json')
+      return
+    }
+    this._pendingTradeOff = { stage: 'awaiting_chest', doorTiles, goldCost: cost }
+    this._selected     = keyChestDef
+    this._selectedKind = 'item'
+    this._previewTileX = -1
+    this._previewTileY = -1
+    this._showPlacementError('Place a Key Chest where adventurers can reach it (ESC to cancel)')
+  }
+
+  // Door Lock placement step 2 — commit the chest, the lock, and the
+  // gold debit together, then clear the pending state.
+  _confirmKeyChest(tx, ty) {
+    if (!this._pendingTradeOff) {
+      this._showPlacementError('Key chests are placed via Door Lock')
+      return
+    }
+    const blocked = this._pendingTradeOff.doorTiles
+    const v = this._validateKeyChestPlacement(tx, ty, blocked)
+    if (!v.valid) {
+      this._showPlacementError(v.reason)
+      return
+    }
+    const cost = this._pendingTradeOff.goldCost ?? 0
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) this._gameState.player.gold -= cost
+    const lockId  = `lock_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    const chestId = `chest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    this._gameState.dungeon.locks ??= []
+    this._gameState.dungeon.locks.push({
+      id: lockId, doorTiles: blocked, keyChestId: chestId,
+      unlocked: false, broken: false,
+    })
+    this._gameState.dungeon.keyChests ??= []
+    this._gameState.dungeon.keyChests.push({
+      instanceId: chestId, tileX: tx, tileY: ty, lockId, opened: false,
+    })
+    this._lastPlaced = { kind: 'item', entity: 'door_lock_pair', goldCost: cost,
+      lockId, chestId }
+    EventBus.emit('LOCK_PLACED', { lockId, chestId, doorTiles: blocked, tileX: tx, tileY: ty })
+    EventBus.emit('LOCKS_CHANGED')
+    // Lock + chest land together — play the door-close clack for the
+    // lock and the chest-open creak for the chest. Both clips already
+    // ship in Preload.
+    try {
+      if (this.cache.audio.exists('sfx-close-door')) this.sound.play('sfx-close-door', { volume: 0.7 })
+      if (this.cache.audio.exists('sfx-chest-open')) this.sound.play('sfx-chest-open', { volume: 0.6 })
+    } catch {}
+    this._pendingTradeOff = null
+    this._cancelSelection()
+    this._refreshStats()
+  }
+
+  // Soul-Bound Beacon placement — step 1. Stage the beacon, force the
+  // player into Healing Fountain placement (must be in a different room).
+  _confirmSoulBeacon(tx, ty) {
+    const def = this._selected
+    const v = this._validateRoomFloorPlacement(tx, ty)
+    if (!v.valid) { this._showPlacementError(v.reason); return }
+    // Max 1 beacon per room.
+    const here = (this._gameState.dungeon.beacons ?? []).filter(b => b.roomId === v.room.instanceId)
+    if (here.length > 0) { this._showPlacementError('Max 1 Beacon per room'); return }
+
+    const cost = def.goldCost ?? 0
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD && this._gameState.player.gold < cost) {
+      this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
+      return
+    }
+    const items = this.cache.json.get('items') ?? []
+    const fountainDef = items.find(it => it.id === 'healing_fountain')
+    if (!fountainDef) {
+      this._showPlacementError('Healing Fountain item missing — see items.json')
+      return
+    }
+    this._pendingTradeOff = {
+      stage: 'awaiting_fountain',
+      kind:  'beacon',
+      tileX: tx, tileY: ty, roomId: v.room.instanceId,
+      goldCost: cost,
+    }
+    this._selected     = fountainDef
+    this._selectedKind = 'item'
+    this._previewTileX = -1
+    this._previewTileY = -1
+    this._showPlacementError('Place a Healing Fountain in a different room (ESC to cancel)')
+  }
+
+  // Treasure Chest placement — single-tile, no trade-off. Tier comes
+  // from def.tier; only one chest per tier allowed in the dungeon.
+  _confirmTreasureChest(tx, ty) {
+    const def = this._selected
+    const v = this._validateRoomFloorPlacement(tx, ty)
+    if (!v.valid) { this._showPlacementError(v.reason); return }
+    const tier = def.tier ?? 1
+    const here = (this._gameState.dungeon.treasureChests ?? []).filter(c => c.tier === tier)
+    if (here.length >= 1) {
+      this._showPlacementError(`Tier ${tier} chest already placed`)
+      return
+    }
+    const cost = def.goldCost ?? 0
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
+      if (this._gameState.player.gold < cost) {
+        this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
+        return
+      }
+      this._gameState.player.gold -= cost
+    }
+    const id = `treasure_${tier}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    this._gameState.dungeon.treasureChests ??= []
+    this._gameState.dungeon.treasureChests.push({
+      instanceId: id,
+      tileX: tx, tileY: ty,
+      tier,
+      opened: false,
+    })
+    this._lastPlaced = { kind: 'item', entity: 'treasure_chest', goldCost: cost, chestId: id }
+    EventBus.emit('TREASURE_CHEST_PLACED', { chestId: id, tier, tileX: tx, tileY: ty })
+    try {
+      if (this.cache.audio.exists('sfx-build-1')) this.sound.play('sfx-build-1', { volume: 0.6 })
+    } catch {}
+    this._cancelSelection()
+    this._refreshStats()
+  }
+
+  // Soul-Bound Beacon placement — step 2. Commit beacon + fountain + gold
+  // together and clear the pending trade-off.
+  _confirmHealingFountain(tx, ty) {
+    if (!this._pendingTradeOff || this._pendingTradeOff.kind !== 'beacon') {
+      this._showPlacementError('Healing Fountain is placed via Soul-Bound Beacon')
+      return
+    }
+    const v = this._validateRoomFloorPlacement(tx, ty, {
+      differentRoomThan: this._pendingTradeOff.roomId,
+    })
+    if (!v.valid) { this._showPlacementError(v.reason); return }
+
+    const cost = this._pendingTradeOff.goldCost ?? 0
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) this._gameState.player.gold -= cost
+
+    const beaconId   = `beacon_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    const fountainId = `fount_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    this._gameState.dungeon.beacons ??= []
+    this._gameState.dungeon.beacons.push({
+      instanceId: beaconId,
+      tileX:  this._pendingTradeOff.tileX,
+      tileY:  this._pendingTradeOff.tileY,
+      roomId: this._pendingTradeOff.roomId,
+      fountainId,
+    })
+    this._gameState.dungeon.fountains ??= []
+    this._gameState.dungeon.fountains.push({
+      instanceId: fountainId,
+      tileX: tx, tileY: ty,
+      roomId: v.room.instanceId,
+      beaconId,
+    })
+    this._lastPlaced = {
+      kind: 'item', entity: 'beacon_pair', goldCost: cost, beaconId, fountainId,
+    }
+    EventBus.emit('BEACON_PLACED', { beaconId, fountainId })
+    try {
+      if (this.cache.audio.exists('sfx-build-3')) this.sound.play('sfx-build-3', { volume: 0.7 })
+    } catch {}
+    this._pendingTradeOff = null
+    this._cancelSelection()
+    this._refreshStats()
+  }
+
   // Phase 31D — Sell tool. Removes a placed room AND every minion inside
   // it, refunding 50% of the gold spent on the room + each minion's
   // gold cost. Boss chamber + fixed rooms are immune.
   _executeSellAt(tx, ty) {
+    const allMinions = this.cache.json.get('minionTypes') ?? []
+
+    // Phase: items — selling a Key Chest also removes its paired lock,
+    // Phase D — sell a Treasure Chest. 50% refund of its tier's cost.
+    const treasureHit = (this._gameState.dungeon.treasureChests ?? []).find(c =>
+      c.tileX === tx && c.tileY === ty
+    )
+    if (treasureHit) {
+      const items = this.cache.json.get('items') ?? []
+      const def   = items.find(it => it.id === `treasure_chest_${treasureHit.tier}`)
+      const refund = Math.floor((def?.goldCost ?? 0) * 0.5)
+      if (refund > 0) this._gameState.player.gold += refund
+      this._gameState.dungeon.treasureChests = (this._gameState.dungeon.treasureChests ?? [])
+        .filter(c => c.instanceId !== treasureHit.instanceId)
+      EventBus.emit('TREASURE_CHEST_REMOVED', { chest: treasureHit, refund })
+      this._refreshStats()
+      this._setToolMode(null)
+      return
+    }
+
+    // Phase: items — selling a Beacon OR Fountain also removes the
+    // paired structure. Refund is 50% of the Beacon's original gold cost.
+    const beaconHit = (this._gameState.dungeon.beacons ?? []).find(b =>
+      b.tileX === tx && b.tileY === ty
+    )
+    const fountainHit = (this._gameState.dungeon.fountains ?? []).find(f =>
+      f.tileX === tx && f.tileY === ty
+    )
+    if (beaconHit || fountainHit) {
+      const items = this.cache.json.get('items') ?? []
+      const beaconDef = items.find(it => it.id === 'soul_bound_beacon')
+      const refund    = Math.floor((beaconDef?.goldCost ?? 0) * 0.5)
+      if (refund > 0) this._gameState.player.gold += refund
+      const beaconId   = beaconHit?.instanceId ?? fountainHit?.beaconId
+      const fountainId = fountainHit?.instanceId ?? beaconHit?.fountainId
+      this._gameState.dungeon.beacons = (this._gameState.dungeon.beacons ?? [])
+        .filter(b => b.instanceId !== beaconId)
+      this._gameState.dungeon.fountains = (this._gameState.dungeon.fountains ?? [])
+        .filter(f => f.instanceId !== fountainId)
+      EventBus.emit('BEACON_REMOVED', { beaconId, fountainId, refund })
+      this._refreshStats()
+      this._setToolMode(null)
+      return
+    }
+
+    // so the player can undo a Door Lock placement after the fact. Refund
+    // is 50% of the lock's original gold cost (chest itself was free).
+    const chestHit = (this._gameState.dungeon.keyChests ?? []).find(c =>
+      c.tileX === tx && c.tileY === ty
+    )
+    if (chestHit) {
+      const items = this.cache.json.get('items') ?? []
+      const lockDef = items.find(it => it.id === 'door_lock')
+      const refund  = Math.floor((lockDef?.goldCost ?? 0) * 0.5)
+      if (refund > 0) this._gameState.player.gold += refund
+      // Remove paired lock then the chest.
+      const lockIdx = (this._gameState.dungeon.locks ?? [])
+        .findIndex(l => l.id === chestHit.lockId)
+      if (lockIdx >= 0) {
+        const lock = this._gameState.dungeon.locks[lockIdx]
+        this._gameState.dungeon.locks.splice(lockIdx, 1)
+        EventBus.emit('LOCK_REMOVED', { lock })
+      }
+      const chestIdx = this._gameState.dungeon.keyChests.findIndex(c => c.instanceId === chestHit.instanceId)
+      if (chestIdx >= 0) this._gameState.dungeon.keyChests.splice(chestIdx, 1)
+      EventBus.emit('KEY_CHEST_REMOVED', { chest: chestHit, refund })
+      EventBus.emit('LOCKS_CHANGED')
+      this._refreshStats()
+      this._setToolMode(null)
+      return
+    }
+
+    // Single-minion sell takes priority over room sell — clicking a minion
+    // refunds 50% of just that minion's gold cost and leaves the room
+    // standing. Falls through to room sell when the clicked tile has no
+    // alive minion on it.
+    const minionHit = (this._gameState.minions ?? []).find(m =>
+      m.aiState !== 'dead' && m.tileX === tx && m.tileY === ty
+    )
+    if (minionHit) {
+      const mDef = allMinions.find(d => d.id === minionHit.definitionId)
+      const refund = Math.floor((mDef?.goldCost ?? 0) * 0.5)
+      if (refund > 0) this._gameState.player.gold += refund
+      const idx = this._gameState.minions.findIndex(x => x.instanceId === minionHit.instanceId)
+      if (idx >= 0) this._gameState.minions.splice(idx, 1)
+      EventBus.emit('MINION_REMOVED', { minion: minionHit })
+      this._refreshStats()
+      this._setToolMode(null)
+      return
+    }
+
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     if (!room) return
     if (room.definitionId === 'boss_chamber') {
       this._showPlacementError('Cannot sell the boss chamber')
       return
     }
-    const allRooms   = this.cache.json.get('rooms')       ?? []
-    const allMinions = this.cache.json.get('minionTypes') ?? []
+    const allRooms = this.cache.json.get('rooms') ?? []
     const def = allRooms.find(d => d.id === room.definitionId)
     if (def?.placementRules?.fixed) {
       this._showPlacementError('Cannot sell a fixed room')
       return
     }
 
-    // Find all minions whose tiles fall inside the room footprint.
+    // Find all minions whose tiles fall inside the room footprint, and
+    // compute the refund up-front so the confirm popup can show it.
     const minionsInside = (this._gameState.minions ?? []).filter(m => {
       if (m.aiState === 'dead') return false
       return m.tileX >= room.gridX && m.tileX < room.gridX + room.width
           && m.tileY >= room.gridY && m.tileY < room.gridY + room.height
     })
-
     let refund = Math.floor((def?.goldCost ?? 0) * 0.5)
     for (const m of minionsInside) {
       const mDef = allMinions.find(d => d.id === m.definitionId)
       refund += Math.floor((mDef?.goldCost ?? 0) * 0.5)
     }
+
+    // Gate the room sell behind a yes / cancel popup so a stray click can't
+    // wipe out the player's progress. Cancel keeps the SELL tool armed so
+    // they can immediately try again on a different target.
+    const roomLabel  = (def?.name ?? room.definitionId ?? 'this room').toUpperCase()
+    const minionLine = minionsInside.length > 0
+      ? `\nThis will also remove ${minionsInside.length} minion${minionsInside.length === 1 ? '' : 's'} inside.`
+      : ''
+    EventBus.emit('SHOW_CONFIRM', {
+      message: `Sell ${roomLabel} for ${refund} gold?${minionLine}`,
+      confirmLabel: 'SELL',
+      cancelLabel:  'CANCEL',
+      onConfirm: () => this._finalizeRoomSell(room, refund, minionsInside),
+      onCancel:  () => {},
+    })
+  }
+
+  // Actually perform the room sale once the player confirms. Split out so
+  // the confirm popup's onConfirm callback can run it after the click that
+  // armed the popup has long since unwound.
+  _finalizeRoomSell(room, refund, minionsInside) {
     if (refund > 0) this._gameState.player.gold += refund
 
     // Remove the minions first so MINION_REMOVED fires before ROOM_REMOVED.
@@ -1719,6 +2232,7 @@ export class NightPhase extends Phaser.Scene {
     const hud = this.scene.get('HudScene')
     const target = (hud && this.scene.isActive('HudScene')) ? hud : this
     showToast(target, message, { type: 'error' })
+    this.scene.get('Game')?.sfxSystem?.playError()
   }
 }
 

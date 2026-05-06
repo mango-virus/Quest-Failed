@@ -22,12 +22,20 @@ const PADDING         = 8
 const MAX_ROWS        = 64        // ring-buffer cap; UI shows the visible slice
 const ROW_BORDER_W    = 2
 
+// Per-event colour scheme. Goal: a glance at the log tells the player
+// whether a row is good (green tones), bad (reds), neutral (cyans), or
+// worth ignoring (muted ink). Categories are split so similar-meaning
+// events don't all bleed into the same colour.
 const COLOR_FOR = {
-  kill: CRYPT.greenCss,
-  dmg:  CRYPT.accent2Css,
-  warn: CRYPT.warnCss,
-  know: CRYPT.soulCss,
-  info: CRYPT.ink,
+  kill:        CRYPT.greenCss,    // adventurer killed by you — good
+  flee:        CRYPT.goldCss,     // adventurer fled — partial win
+  trap:        CRYPT.warnCss,     // trap fired — orange action beat
+  'minion-down': CRYPT.accent2Css, // minion died — bad
+  arrival:     CRYPT.soulCss,     // adventurer enters dungeon
+  ability:     '#a8e8e8',         // class ability triggered (lighter cyan)
+  pact:        '#c64bff',         // pact sealed — bright purple
+  phase:       CRYPT.inkMute,     // day/night transitions, dimmed
+  info:        CRYPT.ink,         // generic fallback
 }
 
 export class DungeonLog {
@@ -94,29 +102,29 @@ export class DungeonLog {
     }
 
     on('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
-      this._add(`${adventurer.name} (${adventurer.classId}) enters.`, 'info')
+      this._add(`${adventurer.name} (${adventurer.classId}) enters.`, 'arrival')
     })
     on('TRAP_TRIGGERED', ({ def, adventurer, damage }) => {
-      this._add(`${this._short(adventurer)} sprung ${def?.name ?? 'trap'} (${damage ?? 0} dmg).`, 'dmg')
+      this._add(`${this._short(adventurer)} sprung ${def?.name ?? 'trap'} (${damage ?? 0} dmg).`, 'trap')
     })
     on('ADVENTURER_DIED', ({ adventurer, killerName }) => {
       this._add(`${killerName ?? 'Something'} killed ${adventurer.name}.`, 'kill')
     })
     on('ADVENTURER_FLED', ({ adventurer, reason }) => {
-      this._add(`${adventurer.name} fled (${reason ?? 'unknown'}).`, 'warn')
+      this._add(`${adventurer.name} fled (${reason ?? 'unknown'}).`, 'flee')
     })
     on('MINION_DIED', ({ minion }) => {
-      this._add(`${this._minionName(minion)} fell.`, 'dmg')
+      this._add(`${this._minionName(minion)} fell.`, 'minion-down')
     })
     on('ABILITY_TRIGGERED', ({ message }) => {
-      if (message) this._add(`✦ ${message}`, 'know')
+      if (message) this._add(`✦ ${message}`, 'ability')
     })
     on('PACT_SEALED', ({ mechanicId, rarity }) => {
-      this._add(`Pact sealed: ${mechanicId} (${rarity}).`, 'know')
+      this._add(`Pact sealed: ${mechanicId} (${rarity}).`, 'pact')
     })
-    on('DAY_PHASE_BEGAN', () => this._add('Day phase begins.', 'info'))
-    on('DAY_PHASE_ENDED', () => this._add('Day phase ends.', 'info'))
-    on('NIGHT_PHASE_BEGAN', () => this._add('Night phase begins — build undisturbed.', 'info'))
+    on('DAY_PHASE_BEGAN', () => this._add('Day phase begins.', 'phase'))
+    on('DAY_PHASE_ENDED', () => this._add('Day phase ends.', 'phase'))
+    on('NIGHT_PHASE_BEGAN', () => this._add('Night phase begins — build undisturbed.', 'phase'))
   }
 
   _short(adv) {

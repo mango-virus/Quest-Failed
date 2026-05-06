@@ -26,7 +26,7 @@ const WALK_SAMPLE_MS   = 120
 const TS               = 32     // tile size — minion sprites are world-space, this matches Balance.TILE_SIZE
 // Per-evolution-tier scale multipliers — each tier renders bigger.
 // Indexed by chain position (tier 1 → tier 4).
-const EVOLUTION_TIER_SCALE = [1.0, 1.2, 1.4, 1.6]
+const EVOLUTION_TIER_SCALE = [1.0, 1.3, 1.6, 1.9]
 
 export class MinionRenderer {
   constructor(scene, gameState) {
@@ -115,9 +115,15 @@ export class MinionRenderer {
       // Position + Y-sort against the boss + adventurers (larger
       // worldY draws on top).  Skipped while held — the held minion
       // keeps its fixed depth-100 lift so it stays above everything
-      // until dropped.
+      // until dropped. Corpses are pinned to a sub-7 depth band so
+      // adventurers always render OVER them — without this, an adv
+      // walking onto the same tile as a corpse can be visually
+      // occluded by it, which reads as "the body is blocking me".
       s.container.setPosition(m.worldX, m.worldY)
-      if (!m._heldByPlayer) s.container.setDepth(7 + m.worldY * 0.0005)
+      if (!m._heldByPlayer) {
+        const baseDepth = isDead ? 1.6 : 7   // corpses below all live entities
+        s.container.setDepth(baseDepth + m.worldY * 0.0005)
+      }
 
       // Mimic Vault chest disguise — render as a wooden chest until the
       // mimic reveals. Sprite + HP + level + bounty all hidden while in
@@ -208,13 +214,15 @@ export class MinionRenderer {
       // Play anim if changed and registered. Final-form minions that reuse
       // a boss texture set use the boss anim prefix (bossSkinId-state-dir);
       // everyone else uses the standard minion-defId-state-dir prefix.
+      // _resolveAnimKey tries direction fallbacks then state fallbacks so a
+      // missing sheet never leaves the sprite frozen on a stale frame.
       if (s.sprite) {
         const def = this._defMap[m.definitionId]
         const prefix = def?.bossSkinId ? def.bossSkinId : `minion-${m.definitionId}`
-        const animKey = `${prefix}-${wantState}-${s.facing}`
-        if (s.currentAnim !== animKey && this._scene.anims.exists(animKey)) {
-          s.currentAnim = animKey
-          s.sprite.play(animKey, true)
+        const resolved = this._resolveAnimKey(prefix, wantState, s.facing)
+        if (resolved && s.currentAnim !== resolved) {
+          s.currentAnim = resolved
+          s.sprite.play(resolved, true)
         }
       }
 
@@ -228,6 +236,11 @@ export class MinionRenderer {
       // Phase 1b.6 — Lizardman Camouflage: player can see camouflaged minions
       // but they're translucent so the camo state reads at a glance.
       if (m._camouflaged) alpha *= 0.5
+      // Pass-3: Vampire Sleep on Ceiling / Golem Camouflaged Pillar — fully
+      // hidden until the trigger condition flips _hidden off (adv enters
+      // room for Vampire, adv steps adjacent for Golem). Adventurers also
+      // skip _hidden minions in target acquisition (see MinionAISystem).
+      if (m._hidden) alpha *= 0.0
       const tx = (m.worldX / TS) | 0
       const ty = (m.worldY / TS) | 0
       if (this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)) alpha *= 0.55
@@ -242,14 +255,20 @@ export class MinionRenderer {
 
       // Faction-flip stroke colour (defected minions get a green outline).
       // Only meaningful on the placeholder rect; sprite-rendered minions
-      // wear faction via tint instead.
-      const expectedStroke = m.faction === 'adventurer' ? 0x33cc77 : m.color
+      // wear faction via tint instead. Necromancer-raised undead and
+      // beast-master tames are intentionally rendered without the green
+      // flag so they read as normal sprites — their owner adventurer
+      // standing nearby is the visual tell that they're on the party's
+      // side.
+      const isOwnedAlly    = !!(m.raisedByAdvId || m.tamedByAdvId)
+      const factionFlagged = m.faction === 'adventurer' && !isOwnedAlly
+      const expectedStroke = factionFlagged ? 0x33cc77 : m.color
       if (s.body && s._lastStroke !== expectedStroke) {
         s.body.setStrokeStyle(2, expectedStroke, 1)
         s._lastStroke = expectedStroke
       }
       if (s.sprite) {
-        const expectedTint = m.faction === 'adventurer' ? 0x88ff99 : 0xffffff
+        const expectedTint = factionFlagged ? 0x88ff99 : 0xffffff
         if (s._lastTint !== expectedTint) {
           s.sprite.setTint(expectedTint)
           s._lastTint = expectedTint
@@ -498,6 +517,31 @@ export class MinionRenderer {
     return 1.0
   }
 
+  // Resolve the best available animation key for a given prefix+state+facing.
+  // Tries the exact key first, then other directions, then a fallback state.
+  // Returns null only for `death` with no death sheet (sprite stays on last frame,
+  // which is the correct corpse appearance).
+  _resolveAnimKey(prefix, state, facing) {
+    const dirs = [facing, 'down', 'right', 'left', 'up']
+
+    // 1. Exact direction, then other directions for the same state.
+    for (const dir of dirs) {
+      const key = `${prefix}-${state}-${dir}`
+      if (this._scene.anims.exists(key)) return key
+    }
+
+    // 2. State fallbacks — death intentionally has none (freeze = corpse pose).
+    const fallbacks = { hurt: ['idle'], attack: ['idle'], run: ['walk', 'idle'] }
+    for (const fbState of (fallbacks[state] ?? [])) {
+      for (const dir of dirs) {
+        const key = `${prefix}-${fbState}-${dir}`
+        if (this._scene.anims.exists(key)) return key
+      }
+    }
+
+    return null
+  }
+
   // Re-skin a live sprite record after the minion's definitionId changed
   // (evolved or reset). Swaps texture, rescales, and clears anim cache so
   // the next frame replays with the new prefix.
@@ -541,12 +585,12 @@ export class MinionRenderer {
     const hpBg = s.add.rectangle(0,            hpY, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5).setVisible(false)
     const hp   = s.add.rectangle(-hpBarW / 2,  hpY, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5).setVisible(false)
 
-    const lvLabel = s.add.text(displaySize / 2 - 1, displaySize / 2 - 2, '', {
+    const lvLabel = s.add.text(8, hpY - 7, '', {
       fontSize: '7px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
       stroke: '#0a0e16', strokeThickness: 2,
-    }).setOrigin(1, 1).setVisible(false)
+    }).setOrigin(0, 0.5).setVisible(false)
 
-    // Bounty star sits just above the HP bar.
+    // Bounty star sits just above the HP bar; lvLabel shares the same row offset to its right.
     const bountyMark = s.add.text(0, hpY - 7, '★', {
       fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setVisible(false)
@@ -573,6 +617,9 @@ export class MinionRenderer {
     sprite.on('pointerover', () => this._showHoverLabel(m))
     sprite.on('pointerout',  () => this._hideHoverLabel(m))
     sprite.on('pointerdown', (pointer, x, y, event) => {
+      // Always announce — listeners (e.g. Demon sacrifice picker) can't rely
+      // on scene-level pointerdown because we stopPropagation below.
+      EventBus.emit('MINION_CLICKED', { minion: m, pointer })
       event?.stopPropagation?.()
       // Stamp the shared pointer so NightPhase's scene-level handler
       // (separate input plugin — gameObjects filter doesn't see this sprite)
@@ -616,10 +663,10 @@ export class MinionRenderer {
     const hpBg = s.add.rectangle(0,           hpYP, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5).setVisible(false)
     const hp   = s.add.rectangle(-SIZE / 2,   hpYP, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5).setVisible(false)
 
-    const lvLabel = s.add.text(SIZE / 2 - 1, SIZE / 2 - 2, '', {
+    const lvLabel = s.add.text(8, hpYP - 7, '', {
       fontSize: '7px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
       stroke: '#0a0e16', strokeThickness: 2,
-    }).setOrigin(1, 1).setVisible(false)
+    }).setOrigin(0, 0.5).setVisible(false)
 
     const bountyMark = s.add.text(0, hpYP - 7, '★', {
       fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
@@ -641,6 +688,7 @@ export class MinionRenderer {
     body.on('pointerover', () => this._showHoverLabel(m))
     body.on('pointerout',  () => this._hideHoverLabel(m))
     body.on('pointerdown', (pointer, x, y, event) => {
+      EventBus.emit('MINION_CLICKED', { minion: m, pointer })
       event?.stopPropagation?.()
       pointer._consumedByMinion = true
       // Right-click no longer sells — selling is sell-button-only now.
@@ -664,6 +712,13 @@ export class MinionRenderer {
     if (!s) return
     s.container.destroy()
     delete this._sprites[id]
+    // If the hover label was tracking this minion, hide it — otherwise the
+    // label remains glued to the last known worldX/worldY (e.g. after a
+    // Demon Sacrifice strips the minion mid-day).
+    if (this._hoverMinion?.instanceId === id) {
+      this._hoverMinion = null
+      this._hoverLabel?.setVisible(false)
+    }
   }
 
   _onMinionDied(_evt) {

@@ -48,6 +48,15 @@ export class DarkPactPopup {
         this._cardBounds = []; this._ringG = null; this._hoverIdx = -1
         for (const t of this._tweens) t?.stop?.()
         this._tweens = []
+        // EndOfDay's day → night handoff hangs on DARK_PACT_SEALED.
+        // If the player dismissed the popup without picking (wash /
+        // Esc / X), fire it with no pact so the chain still resolves
+        // and the next night phase begins. _seal() pre-sets the flag
+        // so this handler is a no-op on the explicit-pick path.
+        if (!this._sealed) {
+          this._sealed = true
+          EventBus.emit('DARK_PACT_SEALED', { mechanicId: null })
+        }
       },
       render: (px, py, cx, cy, cw, ch, addChild) => this._render(cx, cy, cw, ch, addChild),
     })
@@ -68,6 +77,7 @@ export class DarkPactPopup {
   open() {
     if (!this._offers.length) this.refreshOffers()
     this._rerollUsed = false
+    this._sealed     = false
     this._frame.open()
   }
   close() { this._frame.close() }
@@ -298,6 +308,7 @@ export class DarkPactPopup {
     const def = this._offers[this._selectedIdx]
     if (!def) {
       // Nothing to seal — still continue to night to avoid soft-locking.
+      this._sealed = true
       EventBus.emit('DARK_PACT_SEALED', { mechanicId: null })
       this.close()
       return
@@ -312,6 +323,7 @@ export class DarkPactPopup {
       mechanicId: def.id,
       rarity:     def.rarity ?? 'common',
     })
+    this._sealed = true
     EventBus.emit('DARK_PACT_SEALED', { mechanicId: def.id })
     this.close()
   }

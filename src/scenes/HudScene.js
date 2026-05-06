@@ -7,7 +7,6 @@
 //                      replacement for the old MiniMap)
 //   - BuildMenu      — left column, below mini-map (visible only in
 //                      night phase)
-//   - AudioControls  — bottom-left, just above the action bar
 //   - KnowledgePin   — right column, top
 //   - DungeonLog     — right column, below knowledge pin
 //   - ActionBar      — bottom strip (rotate / move / sell / roster /
@@ -23,8 +22,6 @@ import { KnowledgePin, KNOWLEDGE_PIN_HEIGHT } from '../ui/KnowledgePin.js'
 import { DungeonLog }   from '../ui/DungeonLog.js'
 import { BuildMenu }    from '../ui/BuildMenu.js'
 import { MiniMapPanel, MINIMAP_PANEL_HEIGHT } from '../ui/MiniMapPanel.js'
-import { AudioControls } from '../ui/AudioControls.js'
-import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { EventBus }      from '../systems/EventBus.js'
 import { PauseManager }  from '../systems/PauseManager.js'
 import { BossOverviewPopup }    from '../ui/popups/BossOverviewPopup.js'
@@ -34,6 +31,9 @@ import { AdventurerIntelPopup } from '../ui/popups/AdventurerIntelPopup.js'
 import { PostWaveSummaryPopup } from '../ui/popups/PostWaveSummaryPopup.js'
 import { DarkPactPopup }        from '../ui/popups/DarkPactPopup.js'
 import { LongGamePopup }        from '../ui/popups/LongGamePopup.js'
+import { ConfirmPopup }         from '../ui/popups/ConfirmPopup.js'
+import { PactDetailPopup }      from '../ui/popups/PactDetailPopup.js'
+import { BossFightOverlay }     from '../ui/BossFightOverlay.js'
 
 const COL_PAD     = 12
 const LEFT_COL_W  = 200
@@ -48,7 +48,6 @@ export class HudScene extends Phaser.Scene {
     this._knowPin      = null
     this._dungeonLog   = null
     this._buildMenu    = null
-    this._audioControls = null
     this._popups       = {}      // { boss, roster, knowledge, intel } — set in create()
     this._listeners    = []
   }
@@ -119,17 +118,6 @@ export class HudScene extends Phaser.Scene {
     })
     this._buildMenu.setVisible(this._gameState.meta?.phase === 'night')
 
-    // ── Audio controls — sit in the action bar's left empty margin
-    //    (the bar is now a centered ~1020 px panel, so the left ~130 px
-    //    of canvas next to it is free space). Vertically centered on the
-    //    action bar so the volume slider lines up with the buttons.
-    const actionBarTop = H - ACTION_BAR_HEIGHT
-    this._audioControls = new AudioControls(this,
-      COL_PAD,
-      actionBarTop + 12,
-      { depth: 80, playlist: GameplayMusic },
-    )
-
     // ── Knowledge Pin (right column, top) ──
     const knowX = W - RIGHT_COL_W - COL_PAD
     const knowY = TOP_Y
@@ -156,6 +144,11 @@ export class HudScene extends Phaser.Scene {
     // ── Boss-archetype action strip (Phase 1b) ──
     // Sits above the action bar; only renders archetype-specific buttons.
     this._archetypeUI = new BossArchetypeUI(this, this._gameState, { depth: 65 })
+
+    // Boss-fight cinematic overlay (intro slate + bottom HP bar +
+    // result slate). Lives here so it can use this scene's uiW/uiH
+    // and render at screen-space depth above the world.
+    this._bossFightOverlay = new BossFightOverlay(this, this._gameState)
 
     // Listen for phase change: toggle build menu visibility, AND clear any
     // lingering BuildMenu selection so day-2+ placement works cleanly. The
@@ -184,13 +177,28 @@ export class HudScene extends Phaser.Scene {
       intel:     new AdventurerIntelPopup(this, this._gameState),
       postwave:  new PostWaveSummaryPopup(this, this._gameState),
       darkpact:  new DarkPactPopup(this, this._gameState),
-      longgame:  new LongGamePopup(this),
+      longgame:   new LongGamePopup(this),
+      confirm:    new ConfirmPopup(this),
+      pactdetail: new PactDetailPopup(this),
     }
     // Phase 9 — open the Long Game popup whenever the pact triggers.
     {
       const fn = (payload) => this._popups.longgame.showFor(payload)
       EventBus.on('LONG_GAME_TRIGGERED', fn)
       this._listeners.push(['LONG_GAME_TRIGGERED', fn])
+    }
+    // Generic confirm-dialog channel — any scene can emit SHOW_CONFIRM with
+    // { message, onConfirm, onCancel } to gate destructive actions.
+    {
+      const fn = (payload) => this._popups.confirm.showFor(payload)
+      EventBus.on('SHOW_CONFIRM', fn)
+      this._listeners.push(['SHOW_CONFIRM', fn])
+    }
+    // Pact detail popup — opens from clicking a pact card in BossOverviewPopup.
+    {
+      const fn = (payload) => this._popups.pactdetail.showFor(payload)
+      EventBus.on('SHOW_PACT_DETAIL', fn)
+      this._listeners.push(['SHOW_PACT_DETAIL', fn])
     }
     const togglePopup = (key) => {
       // Re-clicking the action-bar button closes the popup. Opening a
@@ -268,6 +276,8 @@ export class HudScene extends Phaser.Scene {
     this._knowPin?.update()
     this._dungeonLog?.update()
     this._buildMenu?.update()
+    this._archetypeUI?.update()
+    this._bossFightOverlay?.update()
   }
 
   shutdown() {
@@ -279,7 +289,7 @@ export class HudScene extends Phaser.Scene {
     this._knowPin?.destroy();      this._knowPin       = null
     this._dungeonLog?.destroy();   this._dungeonLog    = null
     this._buildMenu?.destroy();    this._buildMenu     = null
-    this._audioControls?.destroy(); this._audioControls = null
+    this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
     if (this._popups) {
       for (const k of Object.keys(this._popups)) this._popups[k]?.destroy?.()
       this._popups = {}

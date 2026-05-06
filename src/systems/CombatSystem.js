@@ -7,10 +7,11 @@
 // Death cleanup (splice from active, push to graveyard, award gold) is the
 // AI system's responsibility — CombatSystem only mutates HP and emits events.
 
-import { EventBus }   from './EventBus.js'
-import { AbilityVfx } from '../ui/AbilityVfx.js'
-import { Balance }  from '../config/balance.js'
-import { TILE }      from './DungeonGrid.js'
+import { EventBus }        from './EventBus.js'
+import { AbilityVfx }      from '../ui/AbilityVfx.js'
+import { MinionAbilities } from './MinionAbilities.js'
+import { Balance }         from '../config/balance.js'
+import { TILE }            from './DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -40,6 +41,11 @@ export class CombatSystem {
     const now = this._scene.time.now
     const cooldown = this._cooldownFor(attacker)
     if (now - (attacker.lastAttackAt ?? 0) < cooldown) return null
+
+    // Pass-3 Ghost Possession — possessed adventurers redirect their swing
+    // to a same-party ally for the duration of the possession buff.
+    target = MinionAbilities.maybeRedirectPossessedAttack(attacker, target, this._gameState, this._scene)
+    if (!target || target.resources.hp <= 0) return null
 
     // Range check
     const dx = target.tileX - attacker.tileX
@@ -113,6 +119,10 @@ export class CombatSystem {
       damageType,
       isCritical,
     })
+
+    // Pass-1 minion abilities — on-hit hooks (Plague Bite, Hellfire Brand,
+    // Bloodthirst, Petrify Gaze, Earthshake, Pickpocket, Greedy Bite, Snare).
+    MinionAbilities.onHit(this._scene, attacker, target, finalDmg, this._gameState)
 
     // Phase 5c — Mage Arcane Burst: if queued, deal AoE damage to all enemies
     // within 1 tile of the primary target, then consume the flag.
@@ -218,12 +228,28 @@ export class CombatSystem {
   // ── Internals ──────────────────────────────────────────────────────────────
 
   _cooldownFor(entity) {
-    const speed = entity.stats?.speed ?? 1.0
+    let speed = entity.stats?.speed ?? 1.0
+
+    // Pass-1: Orc Berserker Rage — Marauders/Warlords swing 30% faster
+    // once they drop below half HP.
+    if (entity.definitionId === 'orc1' || entity.definitionId === 'orc2') {
+      const maxHp = entity.resources?.maxHp ?? 1
+      const hp    = entity.resources?.hp    ?? maxHp
+      if (hp / maxHp < 0.5) speed *= 1.3
+    }
+
     return Balance.ATTACK_INTERVAL_MS / Math.max(0.5, speed)
   }
 
   _computeDamage(attacker, target) {
     let raw = attacker.stats?.attack ?? 1
+
+    // Phase: items — Soul-Bound Beacon damage buff. The flag + multiplier
+    // are set/cleared by MinionAISystem._tickBeaconBuffs as the minion
+    // enters/leaves a beacon room.
+    if (attacker._beaconBuffed && attacker._beaconBuffMul) {
+      raw = Math.floor(raw * attacker._beaconBuffMul)
+    }
 
     // Phase 5c — Bard Inspire Party: same-party advs within 2 tiles of an
     // inspire-active Bard get +15% attack damage.
@@ -312,8 +338,23 @@ export class CombatSystem {
       raw = Math.floor(raw * 1.5)
     }
 
+    // Pass-1: Lizardman Camouflage — first attack while still hidden hits 3×.
+    if (attacker?._camouflaged && (attacker.definitionId === 'lizardman1' || attacker.definitionId === 'lizardman2')) {
+      raw = Math.floor(raw * 3)
+    }
+    // Pass-1: Orc Berserker Rage — already-applied via reduced cooldown
+    // (see _cooldownFor); no damage multiplier needed here.
+
     const def = target.stats?.defense ?? 0
     let mit = Math.max(1, raw - def)
+
+    // Pass-1: Ent Gnarled Hide — Sapling Sentinels and treants take half
+    // damage from physical hits.
+    const damageType = attacker.damageType ?? attacker.stats?.damageType ?? 'physical'
+    if (damageType === 'physical' && target.definitionId &&
+        (target.definitionId === 'ent1' || target.definitionId === 'ent2' || target.definitionId === 'ent3')) {
+      mit = Math.max(1, Math.floor(mit * 0.5))
+    }
 
     // Phase 9 mechanic damage modifiers
     const flags = this._gameState._mechanicFlags ?? {}
