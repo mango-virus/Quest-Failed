@@ -187,6 +187,40 @@ export class AdventurerRenderer {
       adventurer.worldX = door.worldX
       adventurer.worldY = door.worldY
     }
+
+    // Arrival flourish — expanding-and-fading dust puff at the doorway,
+    // scheduled to fire when this adv's fade-in BEGINS so the puff
+    // lines up with the visible "pop". Geometry is drawn around the
+    // graphics' LOCAL (0,0) and the graphics object is positioned at
+    // the doorway — that way `scale` tweens cause the puff to expand
+    // around its centre instead of drifting diagonally toward the
+    // world origin (which is what happened when I drew at world
+    // coords directly).
+    if (door) {
+      const fireAt = Math.max(0, start - now)
+      this._scene.time.delayedCall(fireAt, () => {
+        if (!this._scene || !this._scene.add) return
+        const puff = this._scene.add.graphics()
+          .setPosition(door.worldX, door.worldY - 6)
+          .setDepth(20)
+        // Solid (non-blended) light fill is more reliably visible over
+        // the dungeon floor than ADD blending. Two stacked circles for
+        // a chunkier "poof" silhouette.
+        puff.fillStyle(0xfff4d0, 0.85)
+        puff.fillCircle(0, 0, 7)
+        puff.fillStyle(0xe8c898, 0.55)
+        puff.fillCircle(-3, -2, 5)
+        puff.fillCircle(3,  2, 5)
+        this._scene.tweens.add({
+          targets: puff,
+          scale:   2.6,
+          alpha:   0,
+          duration: 520,
+          ease:    'Quad.easeOut',
+          onComplete: () => puff.destroy(),
+        })
+      })
+    }
   }
 
   // Compute the world-space center of the entry hall's north-facing door
@@ -472,6 +506,11 @@ export class AdventurerRenderer {
       anim = 'run'
     } else if (adv.aiState === 'walking' || adv.aiState === 'searching') {
       anim = 'walk'
+    } else if (adv.aiState === 'charmed') {
+      // Charmed adv runs at their target between damage ticks. Attack
+      // swings are layered on by COMBAT_HIT (see _onCombatHit + the
+      // generalized in-flight attack guard below).
+      anim = 'walk'
     } else {
       anim = 'idle'
     }
@@ -481,15 +520,21 @@ export class AdventurerRenderer {
     const { animKey: wantKey, originY } = this._resolveLpcAnimKey(s, anim, dir)
     if (s.lpc.lastAnim === wantKey) return
 
-    // Don't restart a still-playing one-shot attack on a direction change — direction
-    // jitter (e.g. multiple adventurers crowding the boss) would otherwise cut the
-    // swing off after 1–2 frames. Wait until the current attack finishes.
+    // Let an in-flight attack swing finish before transitioning back to
+    // walk/idle. The COMBAT_HIT listener fires off slash/thrust/shoot/
+    // spellcast as one-shots; without this guard, the very next update
+    // tick clobbers them with the state-machine's preferred anim and
+    // the player only ever sees a 1-frame stub. Applies whether the
+    // wanted anim is itself an attack (direction jitter mid-swing) or
+    // a different state (e.g. charmed advs whose ambient anim is walk).
     const ATTACK_ANIMS = new Set(['slash', 'thrust', 'shoot', 'spellcast'])
-    if (ATTACK_ANIMS.has(anim) && s.lpc.image.anims?.isPlaying) {
+    if (s.lpc.image.anims?.isPlaying) {
       const curKey = s.lpc.image.anims.currentAnim?.key ?? ''
-      if (curKey.endsWith(`-${anim}-up`) || curKey.endsWith(`-${anim}-down`) ||
-          curKey.endsWith(`-${anim}-left`) || curKey.endsWith(`-${anim}-right`)) {
-        return
+      for (const atk of ATTACK_ANIMS) {
+        if (curKey.endsWith(`-${atk}-up`) || curKey.endsWith(`-${atk}-down`) ||
+            curKey.endsWith(`-${atk}-left`) || curKey.endsWith(`-${atk}-right`)) {
+          return
+        }
       }
     }
 

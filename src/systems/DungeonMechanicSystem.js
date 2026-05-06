@@ -93,7 +93,10 @@ export class DungeonMechanicSystem {
   }
 
   // Random N mechanics that are: not already active, not blocked by archetype,
-  // unlockLevel ≤ current dungeon level + 1 (so unlocks ladder smoothly).
+  // unlockLevel gating REMOVED 2026-05-06 per user direction: every
+  // pact is eligible from day 1, with rarity weighting (TIER_WEIGHTS in
+  // _weightedSample) preserving the "legendaries are rare" feel. The
+  // dungeonLevel param is still accepted so callers don't need to change.
   getOfferings(count, archetypeId, dungeonLevel = 1) {
     const active = new Set(this._gameState.activeMechanics)
     // Bug fix — JSON modifiers expose `blockedMechanicTags` (array of tag
@@ -106,7 +109,6 @@ export class DungeonMechanicSystem {
       const defTags = def.tags ?? []
       // Block if any of this def's tags is in the archetype's blocked set
       if (defTags.some(t => blockedTags.has(t))) return false
-      if ((def.unlockLevel ?? 1) > dungeonLevel + 1) return false
       // exclusiveWith already-active → not offerable
       for (const conflictId of (def.exclusiveWith ?? [])) {
         if (active.has(conflictId)) return false

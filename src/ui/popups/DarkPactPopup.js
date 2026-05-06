@@ -679,6 +679,16 @@ export class DarkPactPopup {
       const game = this._scene.scene.get('Game')
       const sys  = game?.dungeonMechanicSystem
       sys?.activate?.(def.id)
+      // Build SFX on seal — same random-of-three pick NightPhase uses
+      // for room placement, so sealing a pact has the same satisfying
+      // "thunk" as constructing the dungeon. Inline rather than via
+      // SfxSystem because the seal is a one-shot popup moment with no
+      // existing event hook in that system.
+      const buildKeys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3']
+      const buildKey  = buildKeys[Math.floor(Math.random() * buildKeys.length)]
+      if (this._scene.cache?.audio?.exists?.(buildKey)) {
+        try { this._scene.sound.play(buildKey, { volume: 0.8 }) } catch {}
+      }
       EventBus.emit('PACT_SEALED', {
         mechanicId: def.id,
         rarity:     def.rarity ?? 'common',

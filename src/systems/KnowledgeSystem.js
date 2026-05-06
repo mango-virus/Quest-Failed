@@ -44,6 +44,13 @@ export class KnowledgeSystem {
     EventBus.on('TRAP_REMOVED',   this._onTrapMutated,   this)
     EventBus.on('MINION_PLACED',  this._onMinionMutated, this)
     EventBus.on('MINION_DIED',    this._onMinionMutated, this)
+    // Benefit-entity removals — when the player sells a fountain / chest,
+    // mark every adv's knowledge of that entity stale so the next day's
+    // wave treats it as RUMOR-tier (they walk in expecting it; it's gone).
+    EventBus.on('TREASURE_CHEST_REMOVED', this._onTreasureRemoved, this)
+    EventBus.on('TREASURE_CHEST_OPENED',  this._onTreasureRemoved, this)
+    EventBus.on('KEY_CHEST_REMOVED',      this._onKeyChestRemoved, this)
+    EventBus.on('KEY_CHEST_OPENED',       this._onKeyChestRemoved, this)
   }
 
   destroy() {
@@ -55,6 +62,10 @@ export class KnowledgeSystem {
     EventBus.off('TRAP_REMOVED',   this._onTrapMutated,   this)
     EventBus.off('MINION_PLACED',  this._onMinionMutated, this)
     EventBus.off('MINION_DIED',    this._onMinionMutated, this)
+    EventBus.off('TREASURE_CHEST_REMOVED', this._onTreasureRemoved, this)
+    EventBus.off('TREASURE_CHEST_OPENED',  this._onTreasureRemoved, this)
+    EventBus.off('KEY_CHEST_REMOVED',      this._onKeyChestRemoved, this)
+    EventBus.off('KEY_CHEST_OPENED',       this._onKeyChestRemoved, this)
   }
 
   // ── Survivor access (used by DayPhase for spawning) ───────────────────────
@@ -81,6 +92,8 @@ export class KnowledgeSystem {
         firstVisitedDay: today,
         lastVisitedDay:  today,
       }
+      // First visit picks up every benefit/utility entity in this room.
+      this.observeRoomContents(adv, room)
       EventBus.emit('ROOM_OBSERVED', { adventurer: adv, roomId: room.instanceId, firstVisit: true })
     } else {
       // Phase 9 — False Maps: if this entry was scrambled and the actual
@@ -102,6 +115,39 @@ export class KnowledgeSystem {
       }
     }
 
+  }
+
+  // Pulls every benefit/utility entity inside a room into adv.knowledge
+  // the moment they enter. Adventurers shouldn't know where chests or
+  // fountains are without seeing them — this is the gate for that.
+  observeRoomContents(adv, room) {
+    if (!adv || !room) return
+    _ensureAdvKnowledge(adv)
+    const today = this._gs.meta?.dayNumber ?? 0
+    const inside = (e) =>
+      e.tileX >= room.gridX && e.tileX < room.gridX + room.width &&
+      e.tileY >= room.gridY && e.tileY < room.gridY + room.height
+    for (const f of (this._gs.dungeon?.fountains ?? [])) {
+      if (!inside(f)) continue
+      adv.knowledge.fountains[f.instanceId] ??= {
+        tileX: f.tileX, tileY: f.tileY, roomId: room.instanceId,
+        confirmed: true, stale: false, dayLearned: today,
+      }
+    }
+    for (const c of (this._gs.dungeon?.treasureChests ?? [])) {
+      if (!inside(c)) continue
+      adv.knowledge.treasureChests[c.instanceId] ??= {
+        tileX: c.tileX, tileY: c.tileY, tier: c.tier,
+        confirmed: true, stale: false, dayLearned: today,
+      }
+    }
+    for (const c of (this._gs.dungeon?.keyChests ?? [])) {
+      if (!inside(c)) continue
+      adv.knowledge.keyChests[c.instanceId] ??= {
+        tileX: c.tileX, tileY: c.tileY, lockId: c.lockId,
+        confirmed: true, stale: false, dayLearned: today,
+      }
+    }
   }
 
   observeMinion(adv, minion) {
@@ -196,28 +242,54 @@ export class KnowledgeSystem {
   }
 
   _rebuildSharedPool() {
-    const pool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
+    const pool = {
+      rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
+      fountains: {}, treasureChests: {}, keyChests: {},
+    }
+    // Each pooled entry is stamped with `sharedBy` = the survivor whose
+    // intel landed it in the pool. Non-stale entries win on conflict;
+    // ties go to whoever was processed first. The Knowledge Map ledger
+    // reads this to render "via {name}" attribution.
     for (const s of this._gs.knowledge.survivors) {
-      const k = s.knowledge
+      const k    = s.knowledge
+      const name = s.name ?? '???'
       for (const [id, e] of Object.entries(k.rooms ?? {})) {
-        if (!pool.rooms[id] || (!e.stale && pool.rooms[id].stale)) pool.rooms[id] = { ...e }
+        if (!pool.rooms[id] || (!e.stale && pool.rooms[id].stale)) {
+          pool.rooms[id] = { ...e, sharedBy: name }
+        }
       }
       for (const [id, e] of Object.entries(k.traps ?? {})) {
-        if (!pool.traps[id] || (!e.stale && pool.traps[id].stale)) pool.traps[id] = { ...e }
+        if (!pool.traps[id] || (!e.stale && pool.traps[id].stale)) {
+          pool.traps[id] = { ...e, sharedBy: name }
+        }
       }
       for (const [roomId, list] of Object.entries(k.enemiesPerRoom ?? {})) {
         pool.enemiesPerRoom[roomId] ??= []
         for (const e of list) {
           const ex = pool.enemiesPerRoom[roomId].find(x => x.minionType === e.minionType)
-          if (!ex) pool.enemiesPerRoom[roomId].push({ ...e })
-          else if (!e.stale && ex.stale) { ex.stale = false; ex.confirmed = true }
+          if (!ex) pool.enemiesPerRoom[roomId].push({ ...e, sharedBy: name })
+          else if (!e.stale && ex.stale) {
+            ex.stale = false; ex.confirmed = true; ex.sharedBy = name
+          }
         }
       }
       for (const [id, e] of Object.entries(k.loot ?? {})) {
-        if (!pool.loot[id] || (!e.stale && pool.loot[id].stale)) pool.loot[id] = { ...e }
+        if (!pool.loot[id] || (!e.stale && pool.loot[id].stale)) {
+          pool.loot[id] = { ...e, sharedBy: name }
+        }
       }
       for (const [id, e] of Object.entries(k.mimics ?? {})) {
-        if (!pool.mimics[id] || (!e.stale && pool.mimics[id].stale)) pool.mimics[id] = { ...e }
+        if (!pool.mimics[id] || (!e.stale && pool.mimics[id].stale)) {
+          pool.mimics[id] = { ...e, sharedBy: name }
+        }
+      }
+      // Benefits/utility entities — same merge rule + sharedBy stamp.
+      for (const bucket of ['fountains', 'treasureChests', 'keyChests']) {
+        for (const [id, e] of Object.entries(k[bucket] ?? {})) {
+          if (!pool[bucket][id] || (!e.stale && pool[bucket][id].stale)) {
+            pool[bucket][id] = { ...e, sharedBy: name }
+          }
+        }
       }
     }
     this._gs.knowledge.sharedPool = pool
@@ -268,6 +340,30 @@ export class KnowledgeSystem {
     }
   }
 
+  _onTreasureRemoved({ chest }) {
+    const id = chest?.instanceId
+    if (!id) return
+    _setStaleInPool(this._gs.knowledge, 'treasureChests', id)
+    for (const s of this._gs.knowledge.survivors) {
+      if (s.knowledge?.treasureChests?.[id]) s.knowledge.treasureChests[id].stale = true
+    }
+    for (const a of this._gs.adventurers?.active ?? []) {
+      if (a.knowledge?.treasureChests?.[id]) a.knowledge.treasureChests[id].stale = true
+    }
+  }
+
+  _onKeyChestRemoved({ chest }) {
+    const id = chest?.instanceId
+    if (!id) return
+    _setStaleInPool(this._gs.knowledge, 'keyChests', id)
+    for (const s of this._gs.knowledge.survivors) {
+      if (s.knowledge?.keyChests?.[id]) s.knowledge.keyChests[id].stale = true
+    }
+    for (const a of this._gs.adventurers?.active ?? []) {
+      if (a.knowledge?.keyChests?.[id]) a.knowledge.keyChests[id].stale = true
+    }
+  }
+
   _onMinionMutated({ minion }) {
     const roomId = minion?.assignedRoomId
     if (!roomId) return
@@ -281,6 +377,36 @@ export class KnowledgeSystem {
     }
   }
 
+  // ── Tier classification ───────────────────────────────────────────────────
+  //
+  // Maps a knowledge-pool entry to one of FULL / PARTIAL / RUMOR (or null
+  // for missing). Used by both the Knowledge Map popup (visual coloring)
+  // and the pathfinder cost wrapper (avoidance weight). Stale entries
+  // collapse to RUMOR; non-stale entries split into FULL (≤ N days old)
+  // vs PARTIAL (older). Date sources differ per entry type:
+  //   rooms          → lastVisitedDay
+  //   traps / enemies → dayLearned
+  //   loot / mimics  → dayLearned (or lastVisitedDay if present)
+  tierForEntry(entry) {
+    if (!entry) return null
+    if (entry.stale) return 'RUMOR'
+    const today = this._gs?.meta?.dayNumber ?? 0
+    const day   = entry.lastVisitedDay ?? entry.dayLearned ?? today
+    const ageDays = Math.max(0, today - day)
+    return (ageDays <= Balance.KNOWLEDGE_FULL_MAX_AGE_DAYS) ? 'FULL' : 'PARTIAL'
+  }
+
+  // Returns the cost-multiplier scalar for a given tier (1.0 = no change,
+  // higher = more avoided). Pathfinder applies this on top of base trap
+  // cost so adventurers route around FULL-tier traps the most aggressively
+  // and only lightly avoid RUMOR-tier ones.
+  costMultiplierForTier(tier) {
+    if (tier === 'FULL')    return Balance.KNOWLEDGE_TIER_FULL_MULT
+    if (tier === 'PARTIAL') return Balance.KNOWLEDGE_TIER_PARTIAL_MULT
+    if (tier === 'RUMOR')   return Balance.KNOWLEDGE_TIER_RUMOR_MULT
+    return 0   // UNKNOWN — no avoidance weight
+  }
+
   // ── Pathfinder hook ───────────────────────────────────────────────────────
 
   costMultiplierForTile(adv, tx, ty) {
@@ -290,11 +416,35 @@ export class KnowledgeSystem {
     const room = this._grid.getRoomAtTile(tx, ty)
     if (room?.locked) return 9999
 
+    // Trap weight first — if the tile has a known trap, that always wins
+    // over room-level minion routing (it's the more localized hazard).
     for (const t of Object.values(adv.knowledge.traps ?? {})) {
       if (!t || t.tileX !== tx || t.tileY !== ty) continue
-      return t.stale
-        ? Balance.KNOWLEDGE_TRAP_COST_MULTIPLIER * Balance.KNOWLEDGE_STALE_FACTOR
-        : Balance.KNOWLEDGE_TRAP_COST_MULTIPLIER
+      const tier  = this.tierForEntry(t)
+      if (!tier) return 1
+      const scale = this.costMultiplierForTier(tier)
+      return 1 + (Balance.KNOWLEDGE_TRAP_COST_MULTIPLIER - 1) * scale
+    }
+    // Minion-room weight — if this tile is in a room the adv knows
+    // contains enemies, route around it (scaled by tier). The freshest
+    // entry in the room's enemy list wins for tier purposes.
+    if (room?.instanceId) {
+      const list = adv.knowledge.enemiesPerRoom?.[room.instanceId]
+      if (Array.isArray(list) && list.length > 0) {
+        let bestTier = null
+        const rank = { FULL: 0, PARTIAL: 1, RUMOR: 2 }
+        for (const e of list) {
+          const tier = this.tierForEntry(e)
+          if (!tier) continue
+          if (bestTier == null || (rank[tier] ?? 9) < (rank[bestTier] ?? 9)) {
+            bestTier = tier
+          }
+        }
+        if (bestTier) {
+          const scale = this.costMultiplierForTier(bestTier)
+          return 1 + (Balance.KNOWLEDGE_DANGER_ROOM_MULT - 1) * scale
+        }
+      }
     }
     return 1
   }
@@ -441,13 +591,18 @@ export class KnowledgeSystem {
 // ── Module-level helpers ──────────────────────────────────────────────────────
 
 function _ensureState(gs) {
-  gs.knowledge ??= {
-    sharedPool: { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} },
-    survivors:  [],
-    partyWipeOccurred: false,
+  const empty = () => ({
+    rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
+    fountains: {}, treasureChests: {}, keyChests: {},
+  })
+  gs.knowledge ??= { sharedPool: empty(), survivors: [], partyWipeOccurred: false }
+  gs.knowledge.sharedPool ??= empty()
+  // Backfill new buckets onto an older save's pool so it doesn't choke
+  // when we read fountains/chests from a save that predates this schema.
+  for (const k of ['fountains', 'treasureChests', 'keyChests']) {
+    gs.knowledge.sharedPool[k] ??= {}
   }
-  gs.knowledge.sharedPool ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
-  gs.knowledge.survivors  ??= []
+  gs.knowledge.survivors ??= []
 }
 
 function _ensureAdvKnowledge(adv) {
@@ -457,6 +612,12 @@ function _ensureAdvKnowledge(adv) {
   adv.knowledge.enemiesPerRoom ??= {}
   adv.knowledge.loot           ??= {}
   adv.knowledge.mimics         ??= {}
+  // Benefit/utility entities. Adventurers gain entries on first sighting;
+  // gated AI lookups in AISystem read these dicts so they only seek what
+  // they know about.
+  adv.knowledge.fountains      ??= {}
+  adv.knowledge.treasureChests ??= {}
+  adv.knowledge.keyChests      ??= {}
 }
 
 function _deepCopy(obj) {
@@ -489,6 +650,14 @@ function _mergeKnowledge(base, incoming) {
   }
   for (const [id, e] of Object.entries(incoming.loot ?? {})) {
     if (!merged.loot[id] || (!e.stale && merged.loot[id].stale)) merged.loot[id] = { ...e }
+  }
+  // Benefit/utility merges — same overwrite-if-fresher pattern as above.
+  for (const bucket of ['fountains', 'treasureChests', 'keyChests']) {
+    for (const [id, e] of Object.entries(incoming[bucket] ?? {})) {
+      if (!merged[bucket][id] || (!e.stale && merged[bucket][id].stale)) {
+        merged[bucket][id] = { ...e }
+      }
+    }
   }
   return merged
 }

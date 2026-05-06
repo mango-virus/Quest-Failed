@@ -24,12 +24,12 @@
     "depth": 999
   },
   "portrait-highlight": {
-    "x": 657,
-    "y": 412,
+    "x": 575,
+    "y": 492,
     "scaleX": 2.621,
     "scaleY": 2.621,
     "depth": 1000,
-    "alpha": 0.96
+    "alpha": 0.551
   },
   "slot-beholder": {
     "x": 495,
@@ -357,6 +357,17 @@
         "stroke": "#000000",
         "strokeThickness": 3
       }
+    },
+    {
+      "name": "upload-6",
+      "type": "image",
+      "x": 873,
+      "y": 203,
+      "scaleX": 2.358,
+      "scaleY": 2.358,
+      "depth": 50,
+      "bossId": "succubus",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADcAAAASAgMAAACC1K5QAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAlQTFRF////AAAATh806LvzvAAAAAN0Uk5T/wD/aewfvgAAAMhJREFUeJxjZGAR+PPB4SDL/z8BDB8OMHLNKvgzYZF9y3+VFw6f0hhZ/Q/88XquMee/wB+Hj8KMIMWub0Q2/P8z4QBQ8aooKBeoWEqMMXQ9SBXDEZBi1teMDGy/JhQ4HKxfcmdGlh1Q8W/WDQEH7A/qiKwJPmjHGMqABP5jcl+DnCTwwZGfFcx9C3SSWprUNAEI9w3QFkFr1tcXXOFcoGKnfaFwvUDF0+2vwrlAxW/kv4K5wgfDl9xBmMxof1VH5IPA/o+/Gf4DADUObb+v8OEkAAAAAElFTkSuQmCC"
     }
   ],
   "gnoll/boss-name": {
@@ -806,5 +817,62 @@
     "y": 509,
     "depth": 2,
     "visible": false
+  },
+  "slot-succubus": {
+    "x": 575,
+    "y": 492,
+    "scaleX": 1.671,
+    "scaleY": 1.671,
+    "depth": 1000
+  },
+  "succubus/boss-name": {
+    "x": 881,
+    "y": 276,
+    "scaleX": 2,
+    "scaleY": 2,
+    "depth": 3,
+    "visible": false
+  },
+  "succubus/boss-full-body": {
+    "x": 881,
+    "y": 298,
+    "scaleX": 2.237,
+    "scaleY": 2.237,
+    "depth": 1000
+  },
+  "succubus/headline-title": {
+    "x": 816,
+    "y": 385,
+    "depth": 2
+  },
+  "succubus/headline-summary": {
+    "x": 768,
+    "y": 405,
+    "depth": 2
+  },
+  "succubus/mechanic-0-bullet": {
+    "x": 757,
+    "y": 515,
+    "depth": 2,
+    "visible": false
+  },
+  "succubus/mechanic-0-text": {
+    "x": 768,
+    "y": 445,
+    "depth": 2
+  },
+  "succubus/flavor-quote": {
+    "x": 881,
+    "y": 545,
+    "depth": 2,
+    "visible": false
+  },
+  "upload-6": {
+    "x": 873,
+    "y": 203,
+    "scaleX": 2.358,
+    "scaleY": 2.358,
+    "depth": 50,
+    "bossId": "succubus"
   }
 }

@@ -21,7 +21,7 @@ export const Balance = {
   // DEV: when true, spending gold (placing rooms / minions / traps) is a
   // no-op so the player can freely test all content. Toggle back to `false`
   // to restore normal economy.
-  DEV_INFINITE_GOLD: true,
+  DEV_INFINITE_GOLD: false,
 
   // --- Earn rates per adventurer kill ---
   GOLD_PER_KILL: 10,
@@ -168,6 +168,15 @@ export const Balance = {
   // --- Knowledge system (Phase 8) ---
   KNOWLEDGE_STALE_FACTOR:          0.5,    // stale trap cost = KNOWLEDGE_TRAP_COST_MULTIPLIER * this
   KNOWLEDGE_TRAP_COST_MULTIPLIER:  6.0,    // path cost multiplier for tiles with known triggered/known traps
+  // 4-tier knowledge: FULL = recent confirmed, PARTIAL = confirmed but aging,
+  // RUMOR = dungeon mutated since intel was gathered. Each multiplier scales
+  // KNOWLEDGE_TRAP_COST_MULTIPLIER so adventurers weigh known traps by tier.
+  KNOWLEDGE_TIER_FULL_MULT:        1.0,
+  KNOWLEDGE_TIER_PARTIAL_MULT:     0.6,
+  KNOWLEDGE_TIER_RUMOR_MULT:       0.25,
+  // Max age in days before a confirmed (non-stale) entry drops from FULL to
+  // PARTIAL. Anything observed today or yesterday counts as FULL.
+  KNOWLEDGE_FULL_MAX_AGE_DAYS:     1,
   KNOWLEDGE_DANGER_ROOM_MULT:      1.8,    // path cost mult for rooms known dangerous (deaths happened)
   KNOWLEDGE_INHERIT_FRACTION:      0.5,    // fraction of shared pool a new adventurer inherits
   KNOWLEDGE_INHERIT_ACCURACY:      0.7,    // accuracy of inherited intel (rumour vs witnessed)
@@ -374,9 +383,9 @@ export const Balance = {
   // many pacts exist at each tier. If a tier has no available pacts left
   // its weight collapses to 0 for that draw, so commons "show up the most
   // when available" without crowding out rarer tiers.
-  MECHANIC_RARITY_WEIGHT_COMMON:    30,
-  MECHANIC_RARITY_WEIGHT_UNCOMMON:  25,
+  MECHANIC_RARITY_WEIGHT_COMMON:    33,
+  MECHANIC_RARITY_WEIGHT_UNCOMMON:  28,
   MECHANIC_RARITY_WEIGHT_RARE:      20,
-  MECHANIC_RARITY_WEIGHT_EPIC:      15,
-  MECHANIC_RARITY_WEIGHT_LEGENDARY: 10,
+  MECHANIC_RARITY_WEIGHT_EPIC:      12,
+  MECHANIC_RARITY_WEIGHT_LEGENDARY:  7,
 }

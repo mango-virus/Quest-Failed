@@ -1249,15 +1249,17 @@ export class NightPhase extends Phaser.Scene {
         violations.push(`Need barracks within ${Balance.MINION_BARRACKS_DISTANCE} rooms`)
       }
     }
-    // Room redesign 2026-04-30 — roster cap: each Barracks adds +5 slots.
-    // Garrison minions (Crypt et al.) do not count toward this cap.
+    // Each Barracks adds +10 roster slots. Garrison minions (Crypt et al.)
+    // do not count toward this cap.
     const cap = this._rosterCap()
     const used = this._rosterUsed()
     if (used >= cap) {
-      violations.push(`Roster full (${used}/${cap}) — build another Barracks for +5 slots`)
+      violations.push(`Roster full (${used}/${cap}) — build another Barracks for +10 slots`)
+      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'roster_full' })
     }
     if (this._effectiveMinionCost(def) > this._gameState.player.gold) {
       violations.push('Insufficient gold')
+      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
     }
     return { valid: violations.length === 0, violations }
   }
@@ -1274,7 +1276,7 @@ export class NightPhase extends Phaser.Scene {
     const barracksCount = (this._gameState.dungeon.rooms ?? [])
       .filter(r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
     const f = this._gameState._mechanicFlags ?? {}
-    const perBarracks = f.minionSlotsPerBarracks ?? 5
+    const perBarracks = f.minionSlotsPerBarracks ?? 10
     const bonus   = f.maxMinionSlotBonus ?? 0
     const penalty = f.longGameMinionSlotPenalty ?? 0
     return Math.max(0, barracksCount * perBarracks + bonus - penalty)
@@ -1309,9 +1311,11 @@ export class NightPhase extends Phaser.Scene {
       violations.push('Build a Trap Factory to unlock traps')
     } else if (used >= cap) {
       violations.push(`Trap pool full (${used}/${cap}) — build another Trap Factory for +5 slots`)
+      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'trap_pool_full' })
     }
     if (this._effectiveTrapCost(def) > this._gameState.player.gold) {
       violations.push('Insufficient gold')
+      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
     }
     return { valid: violations.length === 0, violations }
   }
@@ -1366,13 +1370,18 @@ export class NightPhase extends Phaser.Scene {
     }
 
     // Phase 6e: archetype roomCostMultiplier (Tyrant 2×, Architect 0.75×)
+    // Move-drops are gold-neutral: pickup didn't refund, drop doesn't
+    // charge. Anything else is a fresh placement and pays effectiveRoomCost.
     const arch = this._gameState.player?.archetypeModifiers
     const roomMul = arch?.roomCostMultiplier ?? 1
-    const baseCost = DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+    const baseCost = this._heldMoveRoom
+      ? 0
+      : DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
     const cost = Math.round(baseCost * roomMul)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
         this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
+        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
         return
       }
       this._gameState.player.gold -= cost
@@ -1408,6 +1417,9 @@ export class NightPhase extends Phaser.Scene {
         }
         this._heldRoomMinions = null
       }
+      // Move-drop complete — clear the gold-neutral flag so the NEXT
+      // placement (a fresh room from the build menu) charges correctly.
+      this._heldMoveRoom = false
       this._lastPlaced = { kind: 'room', entity: room, goldCost: cost }
       const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.boss?.level ?? 1)
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
@@ -1797,6 +1809,7 @@ export class NightPhase extends Phaser.Scene {
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
         this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
+        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
         return
       }
       this._gameState.player.gold -= cost
@@ -2049,8 +2062,11 @@ export class NightPhase extends Phaser.Scene {
     // BEGIN DAY.
     // Inline pickup body (rather than calling _tryPickupRoom which expects
     // a pointer): we already have the room + def + tile coords.
-    const cost  = Math.round((def?.goldCost ?? 0) * 1)
-    if (cost > 0) this._gameState.player.gold += cost  // full refund — re-charged on drop
+    //
+    // Move is gold-neutral: no refund here, and the placement-on-drop path
+    // checks `_heldMoveRoom` and skips the goldCost debit. (Selling is the
+    // only way to convert a placed room back into gold.)
+    this._heldMoveRoom = true
 
     const heldMinions = []
     for (const m of this._gameState.minions ?? []) {

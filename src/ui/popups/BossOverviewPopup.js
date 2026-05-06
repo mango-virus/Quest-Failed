@@ -80,7 +80,11 @@ export class BossOverviewPopup {
       const probeFw  = probeTex?.frames?.['__BASE']?.width
                     ?? probeTex?.source?.[0]?.width
                     ?? 64
-      const VERT_BIAS = probeFw >= 128 ? 30 : 6
+      // Succubus's idle sheet is feet-anchored (sliced with `anchor: 'feet'`),
+      // so a positive bias drops her feet below the portrait box. Pull her
+      // UP so she sits inside the panel without bottom clipping.
+      let VERT_BIAS = probeFw >= 128 ? 30 : 6
+      if (bossId === 'succubus') VERT_BIAS = -14
       const cyImg2 = y + 14 + portraitH / 2 + VERT_BIAS
       const sprite = this._scene.add.sprite(cxImg, cyImg2, idleKey, 0).setDepth(D + 2)
       const fw = sprite.frame?.width  || 64

@@ -93,6 +93,14 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
       bossDefeatedCount: 0,
       runId: _generateRunId(),
       phase: 'night',
+      // Welcome popup shows once per run on Game scene boot. Flips to
+      // true the moment the player clicks Continue.
+      introSeen: false,
+      // Whether the inline how-to-play hint popups fire at their gate
+      // events. Set from the welcome popup's checkbox.
+      tutorialEnabled: true,
+      // Per-tutorial seen flags so each hint only fires once per run.
+      seenTutorials: {},
     },
     player: {
       bossArchetypeId,

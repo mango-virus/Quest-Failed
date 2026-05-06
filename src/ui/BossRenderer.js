@@ -95,6 +95,16 @@ export class BossRenderer {
 
     if (!this._container) this._build(boss)
 
+    // Succubus shapeshift: while she is in bat-form (flight phase 'going'
+    // or 'return') the body sprite is hidden so the bat can stand in for
+    // her. The transform_out / transform_in phases keep her visible so
+    // the transform-anim VFX can overlay correctly.
+    const flight = this._gameState?._succubus?.flight
+    const inBatForm = flight && (flight.phase === 'going' || flight.phase === 'return')
+    if (this._container.visible !== !inBatForm) {
+      this._container.setVisible(!inBatForm)
+    }
+
     // Position + Y-sort against adventurers/minions.  Larger worldY
     // (further down the screen) draws on top.  Factor stays small
     // enough that all entities live below DungeonRenderer's overhead

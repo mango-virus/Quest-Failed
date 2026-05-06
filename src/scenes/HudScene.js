@@ -34,6 +34,8 @@ import { LongGamePopup }        from '../ui/popups/LongGamePopup.js'
 import { ConfirmPopup }         from '../ui/popups/ConfirmPopup.js'
 import { PactDetailPopup }      from '../ui/popups/PactDetailPopup.js'
 import { BossLevelUpPopup }     from '../ui/popups/BossLevelUpPopup.js'
+import { WelcomeIntroPopup }    from '../ui/popups/WelcomeIntroPopup.js'
+import { TutorialPopup }        from '../ui/popups/TutorialPopup.js'
 import { BossFightOverlay }     from '../ui/BossFightOverlay.js'
 import { EventBanner }          from '../ui/EventBanner.js'
 
@@ -187,6 +189,21 @@ export class HudScene extends Phaser.Scene {
       confirm:    new ConfirmPopup(this),
       pactdetail: new PactDetailPopup(this),
       bosslevelup: new BossLevelUpPopup(this, this._gameState),
+      welcomeintro: new WelcomeIntroPopup(this, this._gameState),
+      tutorial:     new TutorialPopup(this),
+    }
+    // Welcome popup — fires once per run after the player picks a boss
+    // and the Game scene boots. `meta.introSeen` flips on Continue.
+    if (!this._gameState?.meta?.introSeen) {
+      this.time.delayedCall(180, () => this._popups.welcomeintro.open())
+    }
+    // Tutorial pipeline — TutorialSystem decides what to fire and when;
+    // it emits SHOW_TUTORIAL with { title, body, onClose }, this popup
+    // does the chrome.
+    {
+      const fn = (payload) => this._popups.tutorial.showFor(payload)
+      EventBus.on('SHOW_TUTORIAL', fn)
+      this._listeners.push(['SHOW_TUTORIAL', fn])
     }
     // Phase 9 — open the Long Game popup whenever the pact triggers.
     {
@@ -275,14 +292,28 @@ export class HudScene extends Phaser.Scene {
 
   _closeAllPopups() {
     if (!this._popups) return
+    // Tutorial + welcome popups are sticky — they require explicit
+    // dismissal (GOT IT / CONTINUE). Without this skip they got force-
+    // closed any time another popup opened (Boss Overview, Dark Pact,
+    // Post-Wave Summary, etc.), making hints disappear unread.
+    const STICKY = new Set(['tutorial', 'welcomeintro'])
     for (const k of Object.keys(this._popups)) {
+      if (STICKY.has(k)) continue
       this._popups[k]?.close?.()
     }
-    // Defensive: destroy any orphaned high-depth interactive objects
-    // (e.g., a popup wash whose close path missed it). A surviving wash
-    // covers the canvas at depth 200 with setInteractive() and silently
+    // Defensive orphan-cleanup: destroy any orphaned high-depth interactive
+    // objects (e.g., a popup wash whose close path missed it). A surviving
+    // wash covers the canvas at depth 200 with setInteractive() and silently
     // eats every click — would manifest as ALL HudScene UI (BuildMenu,
     // ActionBar) and NightPhase placement going dead from day 2 onward.
+    //
+    // SKIP when a sticky popup is currently open — it owns interactive
+    // objects at depth ≥ 200 (its wash, button hit zone, etc.) that the
+    // cleanup would otherwise destroy mid-render, leaving the popup
+    // visible but with a non-clickable button.
+    const stickyOpen = this._popups.tutorial?.isOpen?.()
+                    || this._popups.welcomeintro?._frame?.isOpen?.()
+    if (stickyOpen) return
     const orphans = this.children.list.filter(o =>
       o && (o.depth ?? 0) >= 200 && o.input?.enabled
     )

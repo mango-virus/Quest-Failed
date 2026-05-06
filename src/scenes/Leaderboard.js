@@ -181,12 +181,19 @@ export class Leaderboard extends Phaser.Scene {
   _renderRows(rows) {
     const archs  = this.cache.json.get('bossArchetypes') ?? []
     const nameOf = (id) => archs.find(a => a.id === id)?.name ?? id
-    const rowH   = 24
+    // Row height bumped from 24 → 52 so the 22×22 bestiary portrait
+    // can render at 44×44 (2× nearest-neighbour upscale) without
+    // crushing the row vertically.
+    const rowH   = 52
     const maxRows = Math.floor(this._rowsH / rowH)
     const visible = rows.slice(0, maxRows)
 
     visible.forEach((r, i) => {
-      const y = this._rowsTop + 12 + i * rowH
+      // Centre each row in its own row slot. The old `+ 12` was tuned
+      // for the 24-px row height; with rowH = 52 it left the first
+      // row's portrait poking 10 px above _rowsTop into the BOSS
+      // header. `+ rowH/2` always centres the row inside its slot.
+      const y = this._rowsTop + rowH / 2 + i * rowH
 
       // Zebra stripe for readability
       if (i % 2 === 1) {
@@ -210,6 +217,26 @@ export class Leaderboard extends Phaser.Scene {
                       : i === 2 ? CRYPT.goldCss
                       :           CRYPT.inkMute
 
+      // Boss portrait in the BOSS column — uses the bestiary portrait
+      // (22×22 pixel-art bust at assets/ui/bestiary/portraits/<id>_p.png,
+      // loaded as `bestiary-portrait-<id>`) scaled to 44×44 (2×) with
+      // NEAREST filtering so the pixel art stays crisp instead of
+      // bilinear-blurring. Falls back silently if missing.
+      const PORTRAIT_SIZE = 44
+      const PORTRAIT_GAP  = 10
+      const bossCol       = this._cols.find(c => c.key === 'boss')
+      const portraitKey   = r.boss_id ? `bestiary-portrait-${r.boss_id}` : null
+      const hasPortrait   = portraitKey && this.textures.exists(portraitKey)
+      if (bossCol && hasPortrait) {
+        const tex = this.textures.get(portraitKey)
+        if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+        const portrait = this.add.image(
+          bossCol.x + PORTRAIT_SIZE / 2, y, portraitKey,
+        ).setOrigin(0.5).setDepth(3)
+        portrait.setDisplaySize(PORTRAIT_SIZE, PORTRAIT_SIZE)
+        this._objects.push(portrait)
+      }
+
       for (const col of this._cols) {
         const isRank = col.key === 'rank'
         const text   = cells[col.key]
@@ -222,7 +249,12 @@ export class Leaderboard extends Phaser.Scene {
                     :                      CRYPT.inkMute,
           letterSpacing: 1,
         }
-        this._objects.push(this.add.text(col.x, y, text, style)
+        // Boss text shifts right when a portrait is present so the two
+        // don't overlap. Other columns render at their declared x.
+        const xOffset = (col.key === 'boss' && hasPortrait)
+          ? (PORTRAIT_SIZE + PORTRAIT_GAP)
+          : 0
+        this._objects.push(this.add.text(col.x + xOffset, y, text, style)
           .setOrigin(col.originX, 0.5).setDepth(3))
       }
     })

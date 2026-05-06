@@ -12,7 +12,7 @@ import { AudioControls, AUDIO_CONTROLS_HEIGHT } from '../ui/AudioControls.js'
 import { PauseManager }                      from '../systems/PauseManager.js'
 
 const PANEL_W   = 380
-const PANEL_H   = 296
+const PANEL_H   = 360
 const TITLE_H   = 30
 const PADDING   = 16
 const BTN_W     = 320
@@ -194,6 +194,33 @@ export class PauseMenu extends Phaser.Scene {
       },
     })
     this._buttons.push(fsBtn)
+
+    // Tutorials toggle row — flips meta.tutorialEnabled. Off-by-default
+    // is fine; flipping ON re-arms hints for unseen events going forward.
+    // (Already-seen flags persist, so re-enabling won't replay old hints.)
+    yy += 50
+    this._screenObjects.push(this.add.text(innerX, yy, 'TUTORIAL HINTS', {
+      fontFamily: FONT_HEAD, fontSize: '9px', color: CRYPT.inkMute, letterSpacing: 3,
+    }).setDepth(4))
+    yy += 18
+    const tutOn = !!this._gameState?.meta?.tutorialEnabled
+    const tutBtn = pixelButton(this, innerX, yy, 140, 32, tutOn ? 'ON' : 'OFF', {
+      depth: 5, fontSize: 10,
+      primary: tutOn,
+      onClick: () => {
+        if (!this._gameState) return
+        this._gameState.meta ??= {}
+        this._gameState.meta.tutorialEnabled = !this._gameState.meta.tutorialEnabled
+        this._setScreen('settings')
+      },
+    })
+    this._buttons.push(tutBtn)
+    // Tiny help line on the right side of the row explaining what this does
+    this._screenObjects.push(this.add.text(innerX + 150, yy + 9,
+      'One-shot how-to popups\nas you encounter mechanics.', {
+      fontFamily: FONT_BODY, fontSize: '7px', color: CRYPT.inkDim, letterSpacing: 0,
+      lineSpacing: 2,
+    }).setDepth(4))
 
     // Back button at the bottom
     const backY = py + PANEL_H - PADDING - BTN_H

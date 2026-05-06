@@ -198,5 +198,25 @@
     "description": "Charm & blood tax",
     "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
     "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
+  },
+  {
+    "id": "succubus",
+    "name": "Succubus Queen",
+    "tagline": "Shapeshifter & seductress",
+    "color": "0xd24858",
+    "spriteFrame": { "col": 0, "row": 0 },
+    "portraitAvailable": true,
+    "headline": {
+      "name": "Bat-Form Seduction",
+      "summary": "Shapeshift to a bat-swarm and charm an adventurer (once per boss level per day). They turn on their party until they kill an ally.",
+      "implemented": false
+    },
+    "mechanics": [
+      { "text": "Bat Form — flies through walls and door locks while transformed.", "implemented": false }
+    ],
+    "flavorText": "She does not need a key. Doors are for the unloved.",
+    "description": "Shapeshifter & seductress",
+    "modifiers": { "goldGainMultiplier": 1, "minionXpMultiplier": 1, "roomCostMultiplier": 1, "availableMechanicTags": [], "blockedRoomTags": [], "blockedMechanicTags": [] },
+    "baseFightStats": { "hp": 200, "attack": 12, "defense": 10 }
   }
 ]

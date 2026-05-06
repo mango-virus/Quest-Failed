@@ -24,7 +24,7 @@ const COST_GLYPH = '◆'
 const ROOM_SUMMARIES = {
   entry_hall:           'Required entry point. Only one allowed.',
   starter_corridor:     'Connecting passage. Place between rooms to link them.',
-  starter_barracks:     '+5 roster minion slots. Required for any patrolling minions.',
+  starter_barracks:     '+10 roster minion slots. Required for any patrolling minions.',
   starter_guard_post:   'Minions hunt adventurers in connected rooms, then return.',
   crypt:                'Garrison of 4 Risen Bones. Room-bound, refills nightly.',
   trap_factory:         '+5 trap slots. Required to place any traps.',

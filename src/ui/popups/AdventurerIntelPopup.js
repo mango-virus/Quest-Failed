@@ -64,24 +64,169 @@ export class AdventurerIntelPopup {
     pixelPanel(partyG, cx, partyY, cw, partyH, { fill: CRYPT.bgStone1 })
     addChild(partyG)
 
-    const advs = this._partyToShow(phase)
+    if (phase === 'night') {
+      this._renderNightPreview(cx, partyY, cw, partyH, hasLibrary, D, addChild)
+      return
+    }
+
+    const advs = (this._gameState.adventurers?.active ?? []).slice()
     if (advs.length === 0) {
       addChild(this._scene.add.text(cx + cw / 2, partyY + partyH / 2,
-        phase === 'day' ? '— DUNGEON IS QUIET —' : '— NO ADVENTURERS SCHEDULED —', {
+        '— DUNGEON IS QUIET —', {
         fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.inkMute, letterSpacing: 2,
       }).setOrigin(0.5).setDepth(D + 2))
       return
     }
 
-    const showFull = (phase === 'day') || hasLibrary
     const rowH = 90
     const padX = 14
     const visibleH = partyH - 24
     const maxRows = Math.floor(visibleH / (rowH + 8))
     advs.slice(0, maxRows).forEach((adv, i) => {
       this._renderAdvRow(adv, cx + padX, partyY + 12 + i * (rowH + 8),
-        cw - padX * 2, rowH, showFull, D, addChild)
+        cw - padX * 2, rowH, true, D, addChild)
     })
+  }
+
+  // ── Night-phase preview ─────────────────────────────────────────────────
+  //
+  // We can't show the EXACT incoming party — DayPhase rolls them with RNG
+  // when its create() runs, and pre-rolling would break determinism with
+  // event-driven spawn flags. Instead show a deterministic forecast built
+  // from the same gates DayPhase uses: projected wave size, eligible class
+  // pool, returning veterans (from KnowledgeSystem), and the shared-pool
+  // knowledge every fresh adv inherits at spawn.
+  _renderNightPreview(cx, py, cw, ph, hasLibrary, D, addChild) {
+    const day      = this._gameState.meta?.dayNumber ?? 1
+    const bossLv   = this._gameState.boss?.level ?? 1
+    const flags    = this._gameState._mechanicFlags ?? {}
+    const events   = this._gameState._eventFlags ?? {}
+    // Wave size — mirrors DayPhase's baseCount calc closely.
+    let baseCount  = (this.cache?.json?.get?.('balance')?.ADVENTURERS_PER_DAY_BASE)
+                  ?? 1
+    baseCount = 1 + Math.floor((day - 1) / 2)
+    if (flags.gildedDemiseExtraAdvs) baseCount += flags.gildedDemiseExtraAdvs ?? 0
+    if (flags.extraAdvsPerDay)       baseCount += flags.extraAdvsPerDay ?? 0
+    if (flags.doomsdayRaidToday)     baseCount = Math.max(baseCount, 4)
+    if (events.guildRaidActive)      baseCount *= 2
+    // Eligible class pool — same gate DayPhase uses
+    const allClasses = this._scene.cache.json.get('adventurerClasses') ?? []
+    const eligible = allClasses.filter(c =>
+      (c.unlockLevel ?? 1) <= bossLv && (c.unlockDay ?? 1) <= day,
+    )
+    // Returning veterans — survivors whose lastSeenDay was the just-finished day
+    const survivors = this._gameState.knowledge?.survivors ?? []
+    const vets = survivors.filter(s => s.lastSeenDay === (day - 1) || s.lastSeenDay === day)
+    // Shared-pool baseline knowledge advs will spawn with
+    const pool = this._gameState.knowledge?.sharedPool ?? {}
+    const poolRooms = Object.keys(pool.rooms ?? {}).length
+    const poolTraps = Object.keys(pool.traps ?? {}).length
+    const enemySeen = new Set()
+    for (const list of Object.values(pool.enemiesPerRoom ?? {})) {
+      for (const e of (list ?? [])) enemySeen.add(e.minionType)
+    }
+    const poolMins  = enemySeen.size
+
+    const padX = 16
+    let yy = py + 14
+    const colW = cw - padX * 2
+
+    // ── Wave size + class pool ─────────────────────────────────────────
+    addChild(this._scene.add.text(cx + padX, yy, 'WAVE FORECAST', {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.goldCss, letterSpacing: 3,
+    }).setDepth(D + 2))
+    yy += 16
+    addChild(this._scene.add.text(cx + padX, yy,
+      `Day ${day} · ~${baseCount} adventurer${baseCount === 1 ? '' : 's'} expected`, {
+      fontFamily: FONT_BODY, fontSize: '10px', color: CRYPT.ink, letterSpacing: 1,
+    }).setDepth(D + 2))
+    yy += 18
+    if (events.legendarySpeedrunnerActive)  this._addPreviewLine(cx + padX, yy, 'EVENT: Legendary Speed Runner — solo buffed adv', CRYPT.accent2Css, addChild, D), yy += 14
+    if (events.lootGoblinHeistActive)        this._addPreviewLine(cx + padX, yy, 'EVENT: Loot Goblin Heist — goblins steal then flee', CRYPT.accent2Css, addChild, D), yy += 14
+    if (events.cartographersConventionActive)this._addPreviewLine(cx + padX, yy, 'EVENT: Cartographers — 3 scholars touring rooms', CRYPT.accent2Css, addChild, D), yy += 14
+    if (events.tournamentActive)             this._addPreviewLine(cx + padX, yy, 'EVENT: The Tournament — 3 named rivals', CRYPT.accent2Css, addChild, D), yy += 14
+    if (events.rivalDungeonActive)           this._addPreviewLine(cx + padX, yy, 'EVENT: Rival Dungeon — monsters + boss invade', CRYPT.accent2Css, addChild, D), yy += 14
+    yy += 4
+
+    // ── Eligible classes grid ──────────────────────────────────────────
+    addChild(this._scene.add.text(cx + padX, yy, 'ELIGIBLE CLASSES', {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.goldCss, letterSpacing: 3,
+    }).setDepth(D + 2))
+    yy += 16
+    const list = hasLibrary
+      ? eligible.map(c => c.name?.toUpperCase() ?? c.id?.toUpperCase()).join(' · ')
+      : `${eligible.length} class${eligible.length === 1 ? '' : 'es'} unlocked — ??? (build a Library to reveal)`
+    addChild(this._scene.add.text(cx + padX, yy, list, {
+      fontFamily: FONT_BODY, fontSize: '9px', color: hasLibrary ? CRYPT.ink : CRYPT.inkDim,
+      letterSpacing: 1, wordWrap: { width: colW, useAdvancedWrap: true }, lineSpacing: 3,
+    }).setDepth(D + 2))
+    yy += 36
+
+    // ── Returning veterans ─────────────────────────────────────────────
+    addChild(this._scene.add.text(cx + padX, yy, 'RETURNING VETERANS', {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.goldCss, letterSpacing: 3,
+    }).setDepth(D + 2))
+    yy += 16
+    if (vets.length === 0) {
+      addChild(this._scene.add.text(cx + padX, yy, '— no escaped survivors carrying intel —', {
+        fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
+      }).setDepth(D + 2))
+      yy += 16
+    } else {
+      const visible = hasLibrary ? vets.slice(0, 4) : []
+      if (!hasLibrary) {
+        addChild(this._scene.add.text(cx + padX, yy,
+          `${vets.length} survivor${vets.length === 1 ? '' : 's'} returning — ??? (build a Library to reveal)`, {
+          fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
+        }).setDepth(D + 2))
+        yy += 16
+      } else {
+        for (const v of visible) {
+          const k = v.knowledge ?? {}
+          const r = Object.keys(k.rooms ?? {}).length
+          const t = Object.keys(k.traps ?? {}).length
+          const seenSet = new Set()
+          for (const lst of Object.values(k.enemiesPerRoom ?? {})) {
+            for (const e of (lst ?? [])) seenSet.add(e.minionType)
+          }
+          addChild(this._scene.add.text(cx + padX, yy,
+            `${(v.name ?? '???').toUpperCase()} (${(v.classId ?? '?').toUpperCase()}) · run #${v.runCount ?? 1} · knows ${r}R / ${t}T / ${seenSet.size}M`, {
+            fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.soulCss, letterSpacing: 1,
+          }).setDepth(D + 2))
+          yy += 14
+        }
+        if (vets.length > visible.length) {
+          addChild(this._scene.add.text(cx + padX, yy,
+            `+${vets.length - visible.length} more`, {
+            fontFamily: FONT_BODY, fontSize: '8px', color: CRYPT.inkMute, letterSpacing: 1,
+          }).setDepth(D + 2))
+          yy += 14
+        }
+      }
+    }
+    yy += 8
+
+    // ── Shared knowledge pool ──────────────────────────────────────────
+    addChild(this._scene.add.text(cx + padX, yy, 'WHAT THEY KNOW (BASELINE)', {
+      fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.goldCss, letterSpacing: 3,
+    }).setDepth(D + 2))
+    yy += 16
+    if (poolRooms === 0 && poolTraps === 0 && poolMins === 0) {
+      addChild(this._scene.add.text(cx + padX, yy, '— blind: no leaked intel from prior survivors —', {
+        fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
+      }).setDepth(D + 2))
+    } else {
+      addChild(this._scene.add.text(cx + padX, yy,
+        `${poolRooms} ROOMS · ${poolTraps} TRAPS · ${poolMins} MINION TYPES leaked`, {
+        fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.ink, letterSpacing: 1,
+      }).setDepth(D + 2))
+    }
+  }
+
+  _addPreviewLine(x, y, text, color, addChild, D) {
+    addChild(this._scene.add.text(x, y, text, {
+      fontFamily: FONT_BODY, fontSize: '9px', color, letterSpacing: 1,
+    }).setDepth(D + 2))
   }
 
   _renderAdvRow(adv, x, y, w, h, showFull, D, addChild) {
@@ -91,18 +236,54 @@ export class AdventurerIntelPopup {
     })
     addChild(rowG)
 
-    // Sigil box on the left
+    // Portrait box on the left — when intel is "full" (Library built),
+    // show the adventurer's looping idle-down sprite inside the panel.
+    // Falls back to the sigil glyph when intel is masked ('?') or when
+    // the spriteVariant texture isn't loaded.
     const sigilSize = h - 16
+    const boxX = x + 8
+    const boxY = y + 8
     const sigilG = this._scene.add.graphics().setDepth(D + 2)
-    pixelPanel(sigilG, x + 8, y + 8, sigilSize, sigilSize, {
+    pixelPanel(sigilG, boxX, boxY, sigilSize, sigilSize, {
       fill: CRYPT.bgDeep, edgeH: CRYPT.panelEdgeS, edgeS: CRYPT.panelEdgeH, inset: true,
     })
     addChild(sigilG)
-    addChild(this._scene.add.text(x + 8 + sigilSize / 2, y + 8 + sigilSize / 2,
-      showFull ? (adv.sigil ?? '@') : '?', {
-      fontFamily: FONT_HEAD, fontSize: '32px',
-      color: showFull ? this._classColor(adv) : CRYPT.inkMute,
-    }).setOrigin(0.5).setDepth(D + 3))
+
+    const variant    = showFull ? adv.spriteVariant : null
+    const [cls, vId] = (variant ?? '/').split('/')
+    const textureKey = (cls && vId) ? `adv-${cls}-${vId}` : null
+    const hasTexture = textureKey && this._scene.textures.exists(textureKey)
+
+    if (hasTexture) {
+      const cx = boxX + sigilSize / 2
+      const cy = boxY + sigilSize / 2
+      const sprite = this._scene.add.sprite(cx, cy, textureKey, 0).setDepth(D + 3)
+      sprite.texture?.setFilter?.(Phaser.Textures.FilterMode.NEAREST)
+      // LPC adventurer frames are 64×64 but the character only fills
+      // the lower-middle ~40 px. A naive `boxSize / 64` scale makes
+      // the character look tiny and floating in the panel — divide by
+      // ~50 instead so the character fills ~85 % of the box height.
+      // Mask clips the ~30 % excess on top/sides.
+      const scale = sigilSize / 50
+      sprite.setScale(scale)
+      // LPC character centre sits ~4 px below the frame centre (feet
+      // anchor). Nudge sprite down a touch so the character lands
+      // visually centred in the box.
+      sprite.y += 4 * scale
+      const maskG = this._scene.make.graphics({ x: 0, y: 0, add: false })
+      maskG.fillStyle(0xffffff)
+      maskG.fillRect(boxX, boxY, sigilSize, sigilSize)
+      sprite.setMask(maskG.createGeometryMask())
+      const animKey = `${textureKey}-idle-down`
+      if (this._scene.anims.exists(animKey)) sprite.play(animKey)
+      addChild(sprite)
+    } else {
+      addChild(this._scene.add.text(boxX + sigilSize / 2, boxY + sigilSize / 2,
+        showFull ? (adv.sigil ?? '@') : '?', {
+        fontFamily: FONT_HEAD, fontSize: '32px',
+        color: showFull ? this._classColor(adv) : CRYPT.inkMute,
+      }).setOrigin(0.5).setDepth(D + 3))
+    }
 
     // Right side: name / class+lvl+hp / tags / threat bar
     const tx = x + 8 + sigilSize + 14
@@ -150,20 +331,6 @@ export class AdventurerIntelPopup {
     return (this._gameState.dungeon?.rooms ?? []).some(r => r.definitionId === 'library_of_whispers')
   }
 
-  _partyToShow(phase) {
-    if (phase === 'day') {
-      return (this._gameState.adventurers?.active ?? []).slice()
-    }
-    // Night phase: try to read the next-day queue if the spawn system
-    // exposes one. Otherwise, fall back to whatever's in active (rare in
-    // night but harmless) or known adventurers.
-    const next = this._gameState.adventurers?.nextDay
-              ?? this._gameState.adventurers?.queued
-              ?? []
-    if (Array.isArray(next) && next.length) return next
-    return []
-  }
-
   _classDef(id) {
     return (this._scene.cache.json.get('adventurerClasses') ?? []).find(c => c.id === id)
   }
@@ -185,7 +352,15 @@ export class AdventurerIntelPopup {
     const k = adv.knowledge ?? {}
     const roomCount = Object.keys(k.rooms  ?? {}).length
     const trapCount = Object.keys(k.traps  ?? {}).length
-    const minCount  = Object.keys(k.minions ?? {}).length
+    // KnowledgeSystem stores enemy intel as `enemiesPerRoom: { roomId: [{minionType,...}] }`,
+    // not a flat `minions` dict. Sum distinct minion types across rooms so
+    // the count actually reflects what the adv knows.
+    const enemyRooms = k.enemiesPerRoom ?? {}
+    const seen = new Set()
+    for (const list of Object.values(enemyRooms)) {
+      for (const e of (list ?? [])) seen.add(e.minionType)
+    }
+    const minCount = seen.size
     if (roomCount === 0 && trapCount === 0 && minCount === 0) {
       tags.push({ text: 'BLIND ENTRY', color: CRYPT.inkMute })
     }

@@ -41,11 +41,17 @@ import { BossFightOverlay }    from '../ui/BossFightOverlay.js'
 import { SunderedFloorRenderer } from '../ui/SunderedFloorRenderer.js'
 import { CartographerOverlay }   from '../ui/CartographerOverlay.js'
 import { BossRenderer }       from '../ui/BossRenderer.js'
+import { SuccubusBatRenderer } from '../ui/SuccubusBatRenderer.js'
+import { CoinBurstRenderer }  from '../ui/CoinBurstRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { PauseManager }       from '../systems/PauseManager.js'
 import { SfxSystem }          from '../systems/SfxSystem.js'
 import { EventSystem }        from '../systems/EventSystem.js'
+import { PlayerProfile }      from '../systems/PlayerProfile.js'
+import { CombatFeedback }     from '../systems/CombatFeedback.js'
+import { BossPactVfx }        from '../ui/BossPactVfx.js'
+import { TutorialSystem }     from '../systems/TutorialSystem.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -124,6 +130,8 @@ export class Game extends Phaser.Scene {
     this.bossSystem          = new BossSystem(this, this.gameState)
     this.sfxSystem           = new SfxSystem(this, this.gameState)
     this.eventSystem         = new EventSystem(this, this.gameState)
+    this.combatFeedback      = new CombatFeedback(this, this.gameState)
+    this.bossPactVfx         = new BossPactVfx(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
     this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
     // Phase 31I — passive run-history aggregator. Subscribes to event bus
@@ -154,6 +162,9 @@ export class Game extends Phaser.Scene {
     // only HudScene sets via applyUiCamera. Game scene retains the
     // camera-zoom hooks below that pair with the overlay's intro slate.
     this.bossRenderer        = new BossRenderer(this, this.gameState)
+    this.succubusBatRenderer = new SuccubusBatRenderer(this, this.gameState)
+    this.coinBurstRenderer   = new CoinBurstRenderer(this)
+    this.tutorialSystem      = new TutorialSystem(this, this.gameState)
     this.sunderedFloorRenderer = new SunderedFloorRenderer(this)
     this.cartographerOverlay   = new CartographerOverlay(this, this.gameState)
 
@@ -184,6 +195,14 @@ export class Game extends Phaser.Scene {
     // hard-close at day end so it re-animates next day.
     EventBus.on('DAY_PHASE_STARTED',    this._onDayStartedDoors, this)
     EventBus.on('DAY_PHASE_ENDED',      this._onDayEndedDoors,   this)
+
+    // Phase-transition camera fade — short fade-out on the OUTGOING
+    // phase, fade-in on the INCOMING phase, so day/night swaps feel
+    // like a transition instead of a hard cut. World camera only
+    // (HUD scene's camera is independent and stays visible).
+    EventBus.on('DAY_PHASE_BEGAN',      this._onPhaseFadeIn,  this)
+    EventBus.on('NIGHT_PHASE_BEGAN',    this._onPhaseFadeIn,  this)
+    EventBus.on('DAY_PHASE_ENDED',      this._onPhaseFadeOut, this)
 
     // Camera stays put during boss fights per user feedback — the intro
     // slate and bottom HP bar (BossFightOverlay) carry the cinematic on
@@ -223,6 +242,9 @@ export class Game extends Phaser.Scene {
     EventBus.off('DAY_PHASE_ENDED',      this._onDayEnded,     this)
     EventBus.off('DAY_PHASE_STARTED',    this._onDayStartedDoors, this)
     EventBus.off('DAY_PHASE_ENDED',      this._onDayEndedDoors,   this)
+    EventBus.off('DAY_PHASE_BEGAN',      this._onPhaseFadeIn,  this)
+    EventBus.off('NIGHT_PHASE_BEGAN',    this._onPhaseFadeIn,  this)
+    EventBus.off('DAY_PHASE_ENDED',      this._onPhaseFadeOut, this)
     EventBus.off('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
@@ -257,9 +279,14 @@ export class Game extends Phaser.Scene {
     this.bossSystem?.destroy()
     this.sfxSystem?.destroy()
     this.eventSystem?.destroy()
+    this.combatFeedback?.destroy()
+    this.bossPactVfx?.destroy()
     // bossFightOverlay lives in HudScene now — that scene's shutdown handles it.
     this.roomBehaviorSystem?.destroy()
     this.bossRenderer?.destroy()
+    this.succubusBatRenderer?.destroy()
+    this.coinBurstRenderer?.destroy()
+    this.tutorialSystem?.destroy()
     this.sunderedFloorRenderer?.destroy()
     this.cartographerOverlay?.destroy()
   }
@@ -410,6 +437,17 @@ export class Game extends Phaser.Scene {
     this.time.delayedCall(750, () => {
       if (!this._followId) this._setFollow(adventurers[0].instanceId)
     })
+  }
+
+  // Phase-transition camera fade. Short, world-camera only — HUD stays
+  // visible the whole time. Re-entrant by design: a phase change while
+  // a previous fade is mid-tween just kicks off a new fadeIn (Phaser's
+  // FadeIn effect cancels any in-flight fade automatically).
+  _onPhaseFadeIn() {
+    this._cam?.fadeIn?.(280, 0, 0, 0)
+  }
+  _onPhaseFadeOut() {
+    this._cam?.fadeOut?.(220, 0, 0, 0)
   }
 
   _onDayEnded() {
@@ -709,6 +747,12 @@ export class Game extends Phaser.Scene {
   }
 
   _onBossLeveledUp({ newLevel }) {
+    // Persist the highest boss level the player has ever reached
+    // (across all runs / archetypes) so the archetype-picker unlock
+    // gates can read it on the next title-screen visit. e.g. Succubus
+    // unlocks once any boss has hit level 4.
+    PlayerProfile.recordBossLevel(newLevel)
+
     // Expand the grid by 5 tiles each axis, capped at 100×100.
     const cap = 100
     const grow = 5
@@ -1000,6 +1044,7 @@ export class Game extends Phaser.Scene {
       this.emoteSystem?.update()
       this.minionRenderer?.update()
       this.bossRenderer?.update()
+      this.succubusBatRenderer?.update()
       this.trapRenderer?.update()
       this.lootPileRenderer?.update()
       this.keyChestRenderer?.update()

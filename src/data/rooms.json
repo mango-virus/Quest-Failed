@@ -1091,13 +1091,13 @@
                                                                 "1":  1,
                                                                 "2":  1,
                                                                 "3":  2,
-                                                                "4":  2,
-                                                                "5":  3,
-                                                                "6":  3,
-                                                                "7":  4,
-                                                                "8":  4,
-                                                                "9":  5,
-                                                                "10":  5
+                                                                "4":  3,
+                                                                "5":  4,
+                                                                "6":  5,
+                                                                "7":  6,
+                                                                "8":  7,
+                                                                "9":  8,
+                                                                "10":  9
                                                             }
                            },
         "tags":  [
@@ -1108,7 +1108,7 @@
                      "free"
                  ],
         "onNightStart":  "barracks_respawnMinions",
-        "description":  "Each Barracks adds +5 roster minion slots. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without a Barracks, no roster minions. Cap scales with boss level.",
+        "description":  "Each Barracks adds +10 roster minion slots. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without a Barracks, no roster minions. Cap scales with boss level.",
         "flavorText":  "The bones rest cheap.",
         "theme":  null,
         "doorTheme":  null,

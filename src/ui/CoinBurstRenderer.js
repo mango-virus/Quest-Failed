@@ -1,0 +1,104 @@
+// Spawns a small coin-burst + floating "+Xg" label whenever a kill (or
+// other in-world payout) emits RESOURCES_AWARDED with a worldX/worldY
+// position. Each burst:
+//   - 5–8 mini coin sprites flick outward in random directions, fall
+//     under fake gravity, fade out
+//   - A "+Xg" gold-color text label rises and fades from the same point
+//
+// Listens on EventBus, owns its own particles. Updated/cleaned per-tween.
+
+import { EventBus } from '../systems/EventBus.js'
+import { CRYPT, FONT_HEAD } from './UIKit.js'
+
+const COIN_COUNT_MIN = 5
+const COIN_COUNT_MAX = 9
+const COIN_LIFE_MS   = 700
+const COIN_RADIUS    = 2
+
+export class CoinBurstRenderer {
+  constructor(scene) {
+    this._scene = scene
+    this._items = []   // graphics objects pending destroy
+
+    this._onAward = this._onAward.bind(this)
+    EventBus.on('RESOURCES_AWARDED', this._onAward)
+  }
+
+  destroy() {
+    EventBus.off('RESOURCES_AWARDED', this._onAward)
+    for (const o of this._items) o?.destroy?.()
+    this._items = []
+  }
+
+  _onAward(payload) {
+    const gold = payload?.gold ?? 0
+    if (gold <= 0) return
+    // Only spawn the world burst when we have a position. Off-screen
+    // payouts (Blood Money passive, etc.) just skip the VFX silently.
+    const wx = payload.worldX, wy = payload.worldY
+    if (wx == null || wy == null) return
+
+    this._spawnLabel(wx, wy, gold)
+    const count = COIN_COUNT_MIN + Math.floor(Math.random() * (COIN_COUNT_MAX - COIN_COUNT_MIN + 1))
+    for (let i = 0; i < count; i++) this._spawnCoin(wx, wy, i, count)
+  }
+
+  // Floating "+Xg" label — gold color, drifts up and fades
+  _spawnLabel(wx, wy, gold) {
+    const t = this._scene.add.text(wx, wy - 16, `+${gold}g`, {
+      fontFamily: FONT_HEAD, fontSize: '11px', color: CRYPT.goldCss,
+      letterSpacing: 1, stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(60)
+    this._items.push(t)
+    this._scene.tweens.add({
+      targets:  t,
+      y:        wy - 44,
+      alpha:    { from: 1, to: 0 },
+      duration: 900,
+      ease:     'Sine.easeOut',
+      onComplete: () => {
+        const i = this._items.indexOf(t); if (i >= 0) this._items.splice(i, 1)
+        t.destroy()
+      },
+    })
+  }
+
+  // One coin: small gold disc that flies outward + falls + fades. Uses the
+  // existing item-coin texture if loaded; otherwise falls back to a graphics
+  // primitive so the burst still renders even if the asset's missing.
+  _spawnCoin(wx, wy, idx, total) {
+    const ang  = (idx / total) * Math.PI * 2 + Math.random() * 0.4
+    const dist = 22 + Math.random() * 18
+    const tx   = wx + Math.cos(ang) * dist
+    const ty   = wy + Math.sin(ang) * dist + 8 // bias slightly downward — fake gravity
+    let obj
+    if (this._scene.textures.exists('item-coin')) {
+      obj = this._scene.add.image(wx, wy, 'item-coin').setDepth(58)
+      obj.setScale(0.5)
+      obj.texture?.setFilter?.(Phaser.Textures.FilterMode.NEAREST)
+    } else {
+      obj = this._scene.add.graphics().setDepth(58)
+      obj.fillStyle(CRYPT.gold, 1)
+      obj.fillCircle(0, 0, COIN_RADIUS)
+      obj.fillStyle(0x000000, 1)
+      obj.fillRect(-1, -COIN_RADIUS + 1, 2, 1) // tiny edge highlight
+      obj.x = wx; obj.y = wy
+    }
+    this._items.push(obj)
+    this._scene.tweens.add({
+      targets:  obj,
+      x:        tx,
+      y:        ty + 24,    // drop after the lateral fling
+      alpha:    { from: 1, to: 0 },
+      scaleX:   0.35,
+      scaleY:   0.35,
+      angle:    (Math.random() - 0.5) * 360,
+      duration: COIN_LIFE_MS + Math.random() * 200,
+      ease:     'Quad.easeIn',
+      onComplete: () => {
+        const i = this._items.indexOf(obj); if (i >= 0) this._items.splice(i, 1)
+        obj.destroy()
+      },
+    })
+  }
+}

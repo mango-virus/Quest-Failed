@@ -616,6 +616,18 @@ export class BossArchetypeSystem {
   // ── BEHOLDER: Petrify Gaze ──────────────────────────────────────────────
 
   _onBossFightStarted() {
+    // Track the active fight so per-archetype ticks (e.g. succubus charm)
+    // can suspend during it. Boss fight runs in an overlay scene; spawning
+    // dungeon-scene VFX mid-fight tangles the renderer pipeline and was
+    // dropping every sprite to invisible until the next reload.
+    this._bossFightActive = true
+    // Abort any in-progress succubus flight so the boss isn't left hidden
+    // (BossRenderer hides her during 'going'/'return' phases).
+    if (this._archId() === 'succubus' && this._gameState?._succubus?.flight) {
+      this._gameState._succubus.flight = null
+      EventBus.emit('SUCCUBUS_FLIGHT_ENDED', {})
+    }
+
     if (this._archId() !== 'beholder') return
     this._stopPetrifyTimer()
     // Schedule the gaze every BEHOLDER_PETRIFY_INTERVAL_MS while the fight runs.
@@ -627,6 +639,7 @@ export class BossArchetypeSystem {
   }
 
   _onBossFightResolved() {
+    this._bossFightActive = false
     if (this._archId() !== 'beholder') return
     this._stopPetrifyTimer()
     // Clear any lingering petrify timestamps so an adv that survived doesn't
@@ -721,6 +734,19 @@ export class BossArchetypeSystem {
       this._tickFungalCorpseDay()
       this._rollSporeNetwork()
       this._renderSporeOverlay()
+    }
+    // Succubus: refresh daily charm uses. One use per boss level (L1=1,
+    // L2=2, L3=3, ... L10=10). Stamp a random delay before the FIRST
+    // charm attempt so it doesn't fire the instant adventurers arrive —
+    // feels more organic when she lurks briefly.
+    if (this._archId() === 'succubus') {
+      const lv  = this._gameState?.boss?.level ?? 1
+      const now = this._scene?.time?.now ?? 0
+      this._gameState._succubus ??= {}
+      this._gameState._succubus.usesLeft = Math.max(1, lv)
+      // First use: random 3–8s after day begins
+      this._gameState._succubus.cooldownUntil = now + 3000 + Math.floor(Math.random() * 5000)
+      this._gameState._succubus.flight = null
     }
   }
 
@@ -908,6 +934,8 @@ export class BossArchetypeSystem {
     this._tickDemonImps(this._scene?.time?.now ?? 0)
     // Vampire charm-conversion + thrall roaming.
     this._tickVampire(this._scene?.time?.now ?? 0)
+    // Succubus shapeshifter+seductress: trigger + bat flight + charm.
+    this._tickSuccubus(delta, this._scene?.time?.now ?? 0)
     // Orc Loot+Warband live recompute.
     this._tickOrc()
     if (this._archId() !== 'lich') return
@@ -1610,6 +1638,144 @@ export class BossArchetypeSystem {
     if (this._archId() !== 'vampire') return
     this._tickCharmConversion()
     this._tickThrallRoaming(now)
+  }
+
+  // ── SUCCUBUS: Shapeshifter + Seductress ─────────────────────────────────
+  //
+  // Day-phase loop. While uses-left > 0 and the cooldown has elapsed and
+  // there is at least one targetable adv, kick off a flight. Phases:
+  //   'transform_out' (300ms) — boss visible, transform+smoke VFX on her
+  //   'going'         (1.5s)  — boss hidden, bat sprite flies → target
+  //   'return'        (1.5s)  — boss hidden, bat sprite flies back
+  //   'transform_in'  (300ms) — boss visible again, transform+smoke VFX
+  //   null                    — idle; cooldown counts down to next charm
+  //
+  // Phase transitions emit events (SUCCUBUS_TRANSFORM_OUT/IN, SUCCUBUS_BAT_
+  // FLYING_OUT/BACK, SUCCUBUS_CHARM_APPLIED, SUCCUBUS_FLIGHT_ENDED) so the
+  // renderers can react. Boss visibility is driven off `flight.phase` —
+  // BossRenderer hides the boss whenever phase is 'going' or 'return'.
+  _tickSuccubus(delta, now) {
+    if (this._archId() !== 'succubus') return
+    // Day phase only — skip during night/build phase.
+    if ((this._gameState?.meta?.phase ?? '') !== 'day') return
+    // Boss fight runs in an overlay scene that doesn't compose well with
+    // mid-flight VFX (sprites can disappear). Suspend during the fight.
+    if (this._bossFightActive) return
+    const s = (this._gameState._succubus ??= { usesLeft: 1, cooldownUntil: 0, flight: null })
+
+    // Active flight in progress — advance its phase
+    if (s.flight) {
+      const f = s.flight
+      if (now < f.until) return
+
+      if (f.phase === 'transform_out') {
+        // Transform finished — bat takes off
+        f.phase     = 'going'
+        f.startedAt = now
+        f.until     = now + 1500
+        EventBus.emit('SUCCUBUS_BAT_FLYING_OUT', {
+          fromX: f.fromX, fromY: f.fromY, toX: f.toX, toY: f.toY,
+        })
+        return
+      }
+
+      if (f.phase === 'going') {
+        // Apply charm at the bat's arrival. Tear down any AT_BOSS / FLEE /
+        // pathing state so the charmed adv enters _tickCharmedAdv with a
+        // clean slate — otherwise leftover goals can immediately re-trigger
+        // and the adv just stands still.
+        const target = this._gameState.adventurers?.active?.find(a => a.instanceId === f.targetId)
+        if (target && target.aiState !== 'dead' && (target.resources?.hp ?? 0) > 0) {
+          target.aiState     = 'charmed'
+          target._charmedAt  = now
+          target._charmedKills = 0
+          target._charmedAloneTimer = 0
+          target._charmerId  = 'succubus'
+          target._charmedFormerPartyId = target.partyId ?? null
+          target.partyId       = null
+          target.path          = null
+          target.pathIndex     = 0
+          target.goal          = { type: 'CHARMED' }
+          target.goalStack     = []
+          target._charmedAtkAcc  = 0
+          target._charmedPathAt  = 0
+          EventBus.emit('SUCCUBUS_CHARM_APPLIED', { targetId: target.instanceId })
+        }
+        // Return flight — swap from/to so the bat heads back to boss room
+        const newFromX = f.toX, newFromY = f.toY
+        f.phase     = 'return'
+        f.startedAt = now
+        f.until     = now + 1500
+        f.fromX     = newFromX
+        f.fromY     = newFromY
+        f.toX       = f.bossX
+        f.toY       = f.bossY
+        EventBus.emit('SUCCUBUS_BAT_FLYING_BACK', {
+          fromX: f.fromX, fromY: f.fromY, toX: f.toX, toY: f.toY,
+        })
+        return
+      }
+
+      if (f.phase === 'return') {
+        // Bat landed — boss-side reverse-transform begins
+        f.phase     = 'transform_in'
+        f.startedAt = now
+        f.until     = now + 300
+        EventBus.emit('SUCCUBUS_TRANSFORM_IN', { bossX: f.bossX, bossY: f.bossY })
+        return
+      }
+
+      if (f.phase === 'transform_in') {
+        // Reverse transform finished — boss is back, end the flight cycle.
+        // Randomize cooldown so subsequent charms don't clump (7–15s).
+        EventBus.emit('SUCCUBUS_FLIGHT_ENDED', {})
+        s.flight = null
+        s.cooldownUntil = now + 7000 + Math.floor(Math.random() * 8000)
+        return
+      }
+      return
+    }
+
+    // No active flight — try to start one if uses + cooldown allow it
+    if ((s.usesLeft ?? 0) <= 0) return
+    if ((s.cooldownUntil ?? 0) > now) return
+
+    const advs = this._gameState?.adventurers?.active ?? []
+    const eligible = advs.filter(a =>
+      a && a.aiState !== 'dead' && a.aiState !== 'charmed' &&
+      a.aiState !== 'fleeing' && a.aiState !== 'fled' &&
+      (a.resources?.hp ?? 0) > 0
+    )
+    if (eligible.length === 0) return
+
+    const target = eligible[Math.floor(Math.random() * eligible.length)]
+    // Boss origin: prefer the boss's live worldX/Y (she may be wandering
+    // her chamber); fall back to room center if the field is missing.
+    const TS = Balance.TILE_SIZE
+    const boss = this._gameState?.boss
+    let bossX = boss?.worldX, bossY = boss?.worldY
+    if (bossX == null || bossY == null) {
+      const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+      if (!bossRoom) return
+      bossX = (bossRoom.gridX + bossRoom.width  / 2) * TS
+      bossY = (bossRoom.gridY + bossRoom.height / 2) * TS
+    }
+    const toX = target.worldX ?? (target.tileX * TS + TS / 2)
+    const toY = target.worldY ?? (target.tileY * TS + TS / 2)
+
+    s.flight = {
+      phase:     'transform_out',
+      targetId:  target.instanceId,
+      startedAt: now,
+      until:     now + 300,
+      fromX:     bossX,
+      fromY:     bossY,
+      toX, toY,
+      bossX, bossY,           // pinned for the return-flight target
+    }
+    s.usesLeft -= 1
+    EventBus.emit('SUCCUBUS_FLIGHT_STARTED', { targetId: target.instanceId, fromX: bossX, fromY: bossY, toX, toY })
+    EventBus.emit('SUCCUBUS_TRANSFORM_OUT',  { bossX, bossY, dx: toX - bossX })
   }
 
   _tickCharmConversion() {

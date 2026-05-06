@@ -26,6 +26,20 @@ const BOSS_SKINS = [
   { id: 'orc',       prefix: 'orc3' },
   { id: 'vampire',   prefix: 'Vampires3' },
   { id: 'wraith',    prefix: 'Ghost3' },
+  // Succubus uses a custom asset pack with non-square frames per state and
+  // no `_with_shadow` filename suffix. `noShadow` flips the path; `states`
+  // overrides per-state frame width/height.
+  {
+    id: 'succubus', prefix: 'Succubus', noShadow: true,
+    states: {
+      idle:   { frameW: 73, frameH: 70 },
+      walk:   { frameW: 73, frameH: 70 },
+      run:    { frameW: 73, frameH: 70 },
+      attack: { frameW: 81, frameH: 89 },
+      hurt:   { frameW: 73, frameH: 70 },
+      death:  { frameW: 73, frameH: 70 },
+    },
+  },
 ]
 
 // Per-state metadata. frameRate and repeat are uniform across bosses; frame
@@ -189,6 +203,19 @@ export class Preload extends Phaser.Scene {
       'assets/sprites/event_dark_deal_demon.png',
       { frameWidth: 80, frameHeight: 80 })
 
+    // Succubus special anims — bat-form swarm (4×4: rows = LD/RD/LU/RU,
+    // 4 frames each), boss-on-target transform (2×2: top row right-facing,
+    // bottom row left-facing), and a 1-row 6-frame smoke puff overlay.
+    this.load.spritesheet('succubus-bat',
+      'assets/sprites/succubus/Succubus_Bat.png',
+      { frameWidth: 32, frameHeight: 29 })
+    this.load.spritesheet('succubus-transform',
+      'assets/sprites/succubus/Succubus_Transform.png',
+      { frameWidth: 57, frameHeight: 51 })
+    this.load.spritesheet('succubus-transform-smoke',
+      'assets/sprites/succubus/Succubus_TransformSmoke.png',
+      { frameWidth: 44, frameHeight: 49 })
+
     // ── Audio ────────────────────────────────────────────────────────────
     // Title-screen / boss-picker loop.  Lives across MainMenu and
     // ArchetypeSelect (see Audio helpers in those scenes); stops when
@@ -220,7 +247,7 @@ export class Preload extends Phaser.Scene {
     // visit, layered behind the QUEST/FAILED title stack on the left half.
     // To add a clip: drop bgNN.mp4 in assets/title-screen/videos/ and add
     // its number here. To remove: delete the file and the number.
-    const TITLE_VIDEO_NUMBERS = [2, 4, 5, 6, 9, 11, 12, 13, 14]
+    const TITLE_VIDEO_NUMBERS = [2, 4, 5, 6, 9, 11, 12, 13, 14, 15, 16, 17]
     const titleVideoKeys = []
     for (const i of TITLE_VIDEO_NUMBERS) {
       const num = String(i).padStart(2, '0')
@@ -380,7 +407,7 @@ export class Preload extends Phaser.Scene {
     // procedural silhouette in ArchetypeSelect.
     // Per-boss bestiary art keys: 22×22 portraits, name banners, and full
     // body images now exist for all 10 bosses.
-    const ALL_BOSSES = ['beholder', 'demon', 'gnoll', 'golem', 'lich', 'lizardman', 'myconid', 'orc', 'vampire', 'wraith']
+    const ALL_BOSSES = ['beholder', 'demon', 'gnoll', 'golem', 'lich', 'lizardman', 'myconid', 'orc', 'succubus', 'vampire', 'wraith']
     for (const id of ALL_BOSSES) {
       this.load.image(`bestiary-portrait-${id}`, BEST + `portraits/${id}_p.png`)
       this.load.image(`bestiary-name-${id}`,     BEST + `names/${id}_n.png`)
@@ -391,11 +418,18 @@ export class Preload extends Phaser.Scene {
 
     // Boss sprite sheets — craftpix.net 4-direction monster pack ("In use" set).
     // Texture key per state = `<archetypeId>-<state>`; BossRenderer keys by id.
+    // Per-skin overrides: `noShadow` drops the `_with_shadow` filename suffix,
+    // `states[k].frameW/frameH` overrides the default square frameSize for
+    // skins (like the succubus) whose states ship at different dimensions.
     for (const skin of BOSS_SKINS) {
       const folder = `assets/sprites/${skin.id}/`
       const fs = skin.frameSize ?? DEFAULT_FRAME_SIZE
+      const suffix = skin.noShadow ? '' : '_with_shadow'
       for (const s of BOSS_SHEET_STATES) {
-        this.load.spritesheet(`${skin.id}-${s.key}`, folder + `${skin.prefix}_${s.file}_with_shadow.png`, { frameWidth: fs, frameHeight: fs })
+        const stateConf = skin.states?.[s.key]
+        const fW = stateConf?.frameW ?? fs
+        const fH = stateConf?.frameH ?? fs
+        this.load.spritesheet(`${skin.id}-${s.key}`, folder + `${skin.prefix}_${s.file}${suffix}.png`, { frameWidth: fW, frameHeight: fH })
       }
     }
 
@@ -427,21 +461,16 @@ export class Preload extends Phaser.Scene {
       }
     }
 
-    // ── LPC adventurer attack sheets ────────────────────────────────────────
-    // 192×192 frames for slash + thrust so long weapons render at native scale.
-    // Only generated for classes whose combat animation is slash or thrust;
-    // others use the main sheet's slash/thrust rows directly. Variants without
-    // weapons (e.g. some twitch_streamers) won't have an _atk.png — Phaser
-    // logs a 404 and the renderer falls back to the main texture.
-    for (const id of ADVENTURER_CLASS_IDS) {
-      if (!ADVENTURER_ATK_CLASSES.has(id)) continue
-      for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
-        const v = `v${String(i).padStart(2, '0')}`
-        this.load.spritesheet(`adv-${id}-${v}-atk`,
-          `assets/sprites/adventurers/${id}/${v}_atk.png`,
-          { frameWidth: ADVENTURER_ATK_FRAME, frameHeight: ADVENTURER_ATK_FRAME })
-      }
-    }
+    // ── LPC adventurer attack sheets — DEFERRED ─────────────────────────
+    // 192×192 frames for slash + thrust so long weapons render at native
+    // scale. ~650 separate file requests, mostly bigger than the main
+    // sheets — historically the dominant chunk of cold-start load time.
+    // Now loaded in the BACKGROUND from MainMenu while the player is on
+    // the title screen (see MainMenu._kickOffDeferredLoad). The renderer
+    // already falls back to the main 64×64 sheet for slash/thrust if an
+    // atk sheet hasn't finished loading yet, so an early Start Run is
+    // visually graceful (combat anims look slightly compressed for a
+    // moment, then upgrade once the sheets land).
 
     // ── Adventurer emote bubbles ─────────────────────────────────────────
     // 96×32 sheets with three 32×32 frames each. EmoteSystem.js owns the
@@ -514,6 +543,7 @@ export class Preload extends Phaser.Scene {
     this._registerJamPortalAnimation()
     this._registerSoulBeaconAnimation()
     this._registerDarkDealDemonAnimations()
+    this._registerSuccubusSpecialAnimations()
     this._registerHealingFountainAnimation()
     this._registerTreasureChestAnimations()
     // Themes load asynchronously (second loader pass for sprite PNGs); kick
@@ -623,9 +653,12 @@ export class Preload extends Phaser.Scene {
         const texture = this.textures.get(sheetKey)
         if (texture.setFilter) texture.setFilter(Phaser.Textures.FilterMode.NEAREST)
         // Derive frame count from texture width — every boss × state pair
-        // ships a different number of frames.
+        // ships a different number of frames. Skins with a `states` table
+        // (e.g. succubus) override frame width per-state.
         const tex = texture.source[0]
-        const frameCount = Math.floor(tex.width / fs)
+        const stateConf = skin.states?.[s.key]
+        const fW = stateConf?.frameW ?? fs
+        const frameCount = Math.floor(tex.width / fW)
         if (frameCount < 1) continue
         for (let row = 0; row < dirs.length; row++) {
           const start = row * frameCount
@@ -804,6 +837,69 @@ export class Preload extends Phaser.Scene {
         frameRate: 8,
         repeat:    0,
       })
+    }
+  }
+
+  // Succubus specials — bat-form (4 directions × 4 frames), boss transform
+  // anim (2 directions × 2 frames), and one-shot smoke puff (6 frames).
+  // Bat directional anims are keyed by row order LD/RD/LU/RU. The boss
+  // mid-day "Bat-Form Seduction" sequence stitches them together with the
+  // smoke overlay played at start + end.
+  _registerSuccubusSpecialAnimations() {
+    // Bat — 4×4 sheet, rows = LD/RD/LU/RU, 4 flap frames each
+    const batKey = 'succubus-bat'
+    if (this.textures.exists(batKey)) {
+      const tex = this.textures.get(batKey)
+      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      const dirs = ['ld', 'rd', 'lu', 'ru']
+      for (let i = 0; i < dirs.length; i++) {
+        const k = batKey + '-' + dirs[i]
+        if (this.anims.exists(k)) continue
+        this.anims.create({
+          key:       k,
+          frames:    this.anims.generateFrameNumbers(batKey, { start: i * 4, end: i * 4 + 3 }),
+          frameRate: 12,
+          repeat:    -1,
+        })
+      }
+    }
+    // Boss transform — 2×2 sheet. Top row (frames 0-1) = facing right,
+    // bottom row (frames 2-3) = facing left. Played once when the boss
+    // shifts into the bat-swarm and again when she returns.
+    const trKey = 'succubus-transform'
+    if (this.textures.exists(trKey)) {
+      const tex = this.textures.get(trKey)
+      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      if (!this.anims.exists('succubus-transform-right')) {
+        this.anims.create({
+          key:       'succubus-transform-right',
+          frames:    this.anims.generateFrameNumbers(trKey, { start: 0, end: 1 }),
+          frameRate: 6,
+          repeat:    0,
+        })
+      }
+      if (!this.anims.exists('succubus-transform-left')) {
+        this.anims.create({
+          key:       'succubus-transform-left',
+          frames:    this.anims.generateFrameNumbers(trKey, { start: 2, end: 3 }),
+          frameRate: 6,
+          repeat:    0,
+        })
+      }
+    }
+    // Smoke puff — 6-frame one-shot, plays under the transform sprite.
+    const smKey = 'succubus-transform-smoke'
+    if (this.textures.exists(smKey)) {
+      const tex = this.textures.get(smKey)
+      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      if (!this.anims.exists('succubus-transform-smoke-puff')) {
+        this.anims.create({
+          key:       'succubus-transform-smoke-puff',
+          frames:    this.anims.generateFrameNumbers(smKey, { start: 0, end: 5 }),
+          frameRate: 12,
+          repeat:    0,
+        })
+      }
     }
   }
 

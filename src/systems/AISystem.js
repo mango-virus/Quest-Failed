@@ -114,7 +114,14 @@ export class AISystem {
   // roll the chest's `temptPct` per chest in tier order; first hit wins.
   // Returns a chest entry or null.
   _maybePickTreasureChest(adv) {
-    const chests = (this._gameState.dungeon?.treasureChests ?? []).filter(c => !c.opened)
+    // Knowledge gate: only chests the adv has personally seen (or
+    // inherited from a survivor) qualify. Stale entries are skipped —
+    // the chest may have been removed since the intel was gathered.
+    const known = adv.knowledge?.treasureChests ?? {}
+    const knownIds = Object.keys(known).filter(id => known[id]?.stale !== true)
+    if (knownIds.length === 0) return null
+    const chests = (this._gameState.dungeon?.treasureChests ?? [])
+      .filter(c => !c.opened && knownIds.includes(c.instanceId))
     if (chests.length === 0) return null
     chests.sort((a, b) => b.tier - a.tier)
     const tags = this._personalitySystem?.getTags(adv) ?? new Set()
@@ -164,18 +171,13 @@ export class AISystem {
     }
   }
 
-  // ── Healing Fountain ─────────────────────────────────────────────────
-  // When adv first enters a room with one or more fountains, log them
-  // into adv.knownFountains. They'll then be considered as heal targets
-  // any time HP drops below the low-HP threshold.
-  _maybeDiscoverFountain(adv, roomId) {
-    const fts = (this._gameState.dungeon?.fountains ?? []).filter(f => f.roomId === roomId)
-    if (fts.length === 0) return
-    adv.knownFountains ??= []
-    for (const f of fts) {
-      if (!adv.knownFountains.includes(f.instanceId)) adv.knownFountains.push(f.instanceId)
-    }
-  }
+  // ── Healing Fountain (knowledge-gated) ──────────────────────────────
+  // Discovery now rides on KnowledgeSystem.observeRoomContents (called from
+  // observeCurrentRoom) — when the adv enters a room, every fountain /
+  // treasure chest / key chest in that room is recorded into
+  // adv.knowledge.{fountains,treasureChests,keyChests}. Returning
+  // survivors inherit those entries via the shared pool. _maybeSeekHeal
+  // below reads adv.knowledge.fountains directly.
 
   // If conditions hold (low HP, knows a fountain, hasn't healed today,
   // not on a higher-priority goal), set SEEK_HEAL targeting the closest
@@ -189,9 +191,14 @@ export class AISystem {
     if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS'
         || t === 'FLEE' || t === 'SEEK_HEAL' || t === 'RESCUE_ALLY'
         || t === 'OPEN_LOCKED_DOOR' || t === 'SEEK_KEY_CHEST') return
-    const known = adv.knownFountains ?? []
-    if (known.length === 0) return
-    const fts = (this._gameState.dungeon?.fountains ?? []).filter(f => known.includes(f.instanceId))
+    // Knowledge gate: only fountains the adv has seen (or inherited from
+    // survivors) are valid heal targets. Stale entries (RUMOR tier — the
+    // fountain may have been removed) drop out so they don't waste a trip.
+    const knownIds = Object.keys(adv.knowledge?.fountains ?? {}).filter(id =>
+      adv.knowledge.fountains[id]?.stale !== true,
+    )
+    if (knownIds.length === 0) return
+    const fts = (this._gameState.dungeon?.fountains ?? []).filter(f => knownIds.includes(f.instanceId))
     if (fts.length === 0) return
     let best = null, bestD = Infinity
     for (const f of fts) {
@@ -229,7 +236,15 @@ export class AISystem {
   // null. Used as a fallback when normal pathfinding fails so they go
   // grab a key instead of giving up and fleeing.
   _findReachableUnopenedKeyChest(adv) {
-    const chests = (this._gameState.dungeon?.keyChests ?? []).filter(c => !c.opened)
+    // Knowledge gate: only key chests the adv has seen (or learned from a
+    // returning survivor) are valid targets. Without this, every adv knew
+    // every key chest's location at spawn — too forgiving for a stealth
+    // economy. Stale entries (chest moved/destroyed) drop out.
+    const known = adv.knowledge?.keyChests ?? {}
+    const knownIds = Object.keys(known).filter(id => known[id]?.stale !== true)
+    if (knownIds.length === 0) return null
+    const chests = (this._gameState.dungeon?.keyChests ?? [])
+      .filter(c => !c.opened && knownIds.includes(c.instanceId))
     if (chests.length === 0) return null
     const blocked = new Set()
     for (const lock of this._gameState.dungeon?.locks ?? []) {
@@ -687,6 +702,12 @@ export class AISystem {
     if (adv.aiState === 'dead') return
     if (adv.resources.hp <= 0) {
       this._kill(adv, idx, adv._lastHitBy ?? 'unknown')
+      return
+    }
+    // Succubus charm — adv hunts down a former ally and attacks them.
+    // Self-destructs after killing 1 ally, or after 5s of finding nothing.
+    if (adv.aiState === 'charmed') {
+      this._tickCharmedAdv(adv, delta, idx)
       return
     }
     // Phase 5c — while the spawn fade-in is still running, the adv idles
@@ -2506,11 +2527,19 @@ export class AISystem {
     // Phase: alive AI — solo scout. ~15% chance to break off toward the
     // farthest unvisited non-boss room (must be ≥ SCOUT_MIN_DISTANCE
     // tiles away). Adv gets a movement speed bonus while scouting.
+    //
+    // Knowledge gate: scouts target rooms they HEARD about (in their
+    // knowledge) but haven't personally visited yet — "let me confirm
+    // what survivors said." Without this, scouts had omniscient room
+    // awareness and could break off toward rooms that should be hidden
+    // from them. Day-1 advs with no inherited knowledge skip scout.
     if (Math.random() < SCOUT_CHANCE) {
       const visited = new Set(adv.visitedRooms ?? [])
+      const knownRoomIds = adv.knowledge?.rooms ?? {}
       let best = null, bestDist = SCOUT_MIN_DISTANCE
       for (const room of this._gameState.dungeon.rooms) {
         if (visited.has(room.instanceId)) continue
+        if (!knownRoomIds[room.instanceId]) continue   // never heard about
         if (room.definitionId === 'boss_chamber') continue
         if (room.locked) continue
         const cx = room.gridX + Math.floor(room.width / 2)
@@ -2693,6 +2722,10 @@ export class AISystem {
     EventBus.emit('RESOURCES_AWARDED', {
       gold:   goldGained,
       reason: 'adventurer_kill',
+      // World position so the renderer can spawn a coin-burst at the
+      // exact death tile instead of a generic "you got gold" toast.
+      worldX: adv.worldX,
+      worldY: adv.worldY,
     })
 
     this._awardBossXp()
@@ -2716,6 +2749,138 @@ export class AISystem {
       roomId:     this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId ?? null,
       damageType,
     })
+  }
+
+  // ── Succubus charm — adv hunts a former ally and attacks them ───────────
+  //
+  // Set when the Succubus boss applies CHARM (BossArchetypeSystem._tickSuccubus).
+  // The adv is detached from their party (partyId=null), aiState='charmed',
+  // and has _charmedKills=0, _charmedAloneTimer=0. They home in on the nearest
+  // non-charmed living adv and deal damage tick-by-tick. After they kill one
+  // ally — OR spend 5s with no targets — they collapse dead.
+  _tickCharmedAdv(adv, delta, idx) {
+    // Already killed an ally → drop dead now.
+    if ((adv._charmedKills ?? 0) >= 1) {
+      this._kill(adv, idx, adv._charmerId ?? 'succubus_charm')
+      return
+    }
+    // Find the nearest other living, non-charmed adv to attack
+    const active = this._gameState.adventurers.active
+    let target = null, bestD = Infinity
+    for (const o of active) {
+      if (o === adv) continue
+      if (o.aiState === 'dead' || o.aiState === 'fleeing' || o.aiState === 'fled' || o.aiState === 'charmed') continue
+      if ((o.resources?.hp ?? 0) <= 0) continue
+      const d = Math.hypot((o.tileX ?? 0) - adv.tileX, (o.tileY ?? 0) - adv.tileY)
+      if (d < bestD) { bestD = d; target = o }
+    }
+    if (!target) {
+      // No allies left → wander dazed, collapse after 5s
+      adv._charmedAloneTimer = (adv._charmedAloneTimer ?? 0) + delta
+      if (adv._charmedAloneTimer >= 5000) {
+        this._kill(adv, idx, adv._charmerId ?? 'succubus_charm')
+      }
+      return
+    }
+    adv._charmedAloneTimer = 0
+    // Adjacent? Apply damage tick. Otherwise pathfind toward the target.
+    const dx = target.tileX - adv.tileX
+    const dy = target.tileY - adv.tileY
+    const cheb = Math.max(Math.abs(dx), Math.abs(dy))
+    if (cheb <= 1) {
+      // Face the victim so the attack animation plays in the right direction
+      const adx = Math.abs(target.worldX - adv.worldX)
+      const ady = Math.abs(target.worldY - adv.worldY)
+      adv._lpcDir = (adx > ady)
+        ? (target.worldX > adv.worldX ? 'right' : 'left')
+        : (target.worldY > adv.worldY ? 'down'  : 'up')
+
+      // Damage tick — every 400 ms hit for full adv.attack so kills land
+      // in a few seconds, not half a minute.
+      adv._charmedAtkAcc = (adv._charmedAtkAcc ?? 0) + delta
+      if (adv._charmedAtkAcc >= 400) {
+        adv._charmedAtkAcc = 0
+        const dmg = Math.max(1, Math.round(adv.stats?.attack ?? 6))
+        target.resources.hp = Math.max(0, (target.resources.hp ?? 0) - dmg)
+        target._lastHitBy   = adv.instanceId
+        // COMBAT_HIT drives AdventurerRenderer's attack-anim trigger
+        // (slash / thrust / spellcast / shoot per class). Same event
+        // shape as minion-vs-adv hits.
+        EventBus.emit('COMBAT_HIT', {
+          sourceId:   adv.instanceId,
+          targetId:   target.instanceId,
+          damage:     dmg,
+          damageType: 'physical',
+        })
+        EventBus.emit('CHARMED_ATTACK', {
+          attackerId: adv.instanceId, victimId: target.instanceId, dmg,
+        })
+        if (target.resources.hp <= 0) {
+          // Mark this adv's kill so next charmed-tick drops them dead.
+          adv._charmedKills = (adv._charmedKills ?? 0) + 1
+        }
+      }
+      return
+    }
+    // Path toward the target. Re-path every ~300 ms so the charmed adv
+    // tracks a moving target rather than walking to where they USED to be.
+    const now = this._scene?.time?.now ?? 0
+    const lastPathAt = adv._charmedPathAt ?? 0
+    const needsPath = !adv.path || adv.pathIndex == null || adv.pathIndex >= adv.path.length
+                    || (now - lastPathAt) > 300
+    if (needsPath) {
+      // Try direct path first; if pathfinder rejects the target tile (some
+      // builds treat occupied tiles as unwalkable), retry with each of the
+      // 8 adjacent tiles as the destination.
+      let path = PathfinderSystem.findPath(
+        { x: adv.tileX, y: adv.tileY },
+        { x: target.tileX, y: target.tileY },
+        this._dungeonGrid, null, 0, null,
+      )
+      if (!path || path.length < 2) {
+        const offsets = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]
+        for (const [ox, oy] of offsets) {
+          path = PathfinderSystem.findPath(
+            { x: adv.tileX, y: adv.tileY },
+            { x: target.tileX + ox, y: target.tileY + oy },
+            this._dungeonGrid, null, 0, null,
+          )
+          if (path && path.length >= 2) break
+        }
+      }
+      if (path && path.length > 1) {
+        adv.path = path
+        adv.pathIndex = 1   // skip the starting tile
+        adv._charmedPathAt = now
+      }
+    }
+    // Walk along the path. Use the same straight-line stepper the other
+    // states use so the renderer's worldX/worldY remain accurate.
+    if (adv.path && adv.pathIndex < adv.path.length) {
+      const wp = adv.path[adv.pathIndex]
+      const targetWX = wp.x * TS + TS / 2
+      const targetWY = wp.y * TS + TS / 2
+      const ddx = targetWX - adv.worldX, ddy = targetWY - adv.worldY
+      const dist = Math.hypot(ddx, ddy) || 1
+      // Speed: same formula the regular adv movement uses upstream —
+      // adv.stats.speed × TS × delta / 1000 (px/frame). The earlier
+      // version multiplied by Balance.ADVENTURER_BASE_SPEED, which
+      // doesn't exist — every step computed NaN and the charmed adv
+      // never moved.
+      const stepPx = ((adv.stats?.speed ?? 1) * TS * delta) / 1000
+      if (dist <= stepPx) {
+        adv.worldX = targetWX
+        adv.worldY = targetWY
+        adv.tileX  = wp.x
+        adv.tileY  = wp.y
+        adv.pathIndex++
+      } else {
+        adv.worldX += (ddx / dist) * stepPx
+        adv.worldY += (ddy / dist) * stepPx
+        adv.tileX = Math.floor(adv.worldX / TS)
+        adv.tileY = Math.floor(adv.worldY / TS)
+      }
+    }
   }
 
   // Award boss XP on each kill and level up when xpToNext is reached.

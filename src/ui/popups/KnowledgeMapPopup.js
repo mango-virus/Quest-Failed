@@ -191,15 +191,16 @@ export class KnowledgeMapPopup {
     const pool   = this._gameState.knowledge?.sharedPool ?? {}
     const rooms  = this._gameState.dungeon?.rooms ?? []
     const traps  = this._gameState.dungeon?.traps ?? []
-    const roomDefs  = this._scene.cache.json.get('rooms')      ?? []
-    const trapDefs  = this._scene.cache.json.get('trapTypes')  ?? []
+    const roomDefs   = this._scene.cache.json.get('rooms')        ?? []
+    const trapDefs   = this._scene.cache.json.get('trapTypes')    ?? []
+    const minionDefs = this._scene.cache.json.get('minionTypes')  ?? []
 
     const out = []
     const addFromPool = (poolMap, lookup, prefix = '') => {
       for (const k of Object.keys(poolMap ?? {})) {
         const entry = poolMap[k]
         out.push({
-          label: prefix + lookup(k),
+          label: prefix + lookup(k, entry),
           via:   entry?.sharedBy ?? entry?.source ?? null,
           lvl:   this._levelFor(entry),
         })
@@ -215,10 +216,41 @@ export class KnowledgeMapPopup {
       const d = trapDefs.find(x => x.id === t?.definitionId)
       return `Trap: ${d?.name ?? t?.definitionId ?? id}`
     })
-    addFromPool(pool.enemiesPerRoom, (id) => {
+    // Enemies-per-room is a list per room rather than a single entry, so
+    // we extract sharedBy + level from the freshest list member and
+    // expand the label to name the actual minion types observed.
+    for (const [id, list] of Object.entries(pool.enemiesPerRoom ?? {})) {
+      if (!Array.isArray(list) || list.length === 0) continue
       const r = rooms.find(x => x.instanceId === id)
       const d = roomDefs.find(x => x.id === r?.definitionId)
-      return `Enemies in ${d?.name ?? r?.definitionId ?? id}`
+      const types = list.map(e => {
+        const m = minionDefs.find(md => md.id === e.minionType)
+        return m?.name ?? e.minionType
+      }).join(', ')
+      // Level rolls up to the most-confirmed entry in the list
+      const best = list.reduce((acc, e) => {
+        const lvl = this._levelFor(e)
+        const rank = { FULL: 0, PARTIAL: 1, RUMOR: 2, UNKNOWN: 3 }[lvl] ?? 9
+        return rank < acc.rank ? { entry: e, lvl, rank } : acc
+      }, { entry: null, lvl: 'UNKNOWN', rank: 9 })
+      out.push({
+        label: `Enemies in ${d?.name ?? r?.definitionId ?? id}: ${types}`,
+        via:   best.entry?.sharedBy ?? null,
+        lvl:   best.lvl,
+      })
+    }
+    // Loot piles seen by survivors. Each entry tracks its source room/tile
+    // so the player can see what the next wave already knows about.
+    addFromPool(pool.loot, (id, entry) => {
+      const tx = entry?.tileX, ty = entry?.tileY
+      const r = (tx != null && ty != null)
+        ? rooms.find(x =>
+            tx >= x.gridX && tx < x.gridX + x.width &&
+            ty >= x.gridY && ty < x.gridY + x.height)
+        : null
+      const d = r ? roomDefs.find(x => x.id === r.definitionId) : null
+      return r ? `Loot in ${d?.name ?? r.definitionId ?? '?'}`
+               : `Loot pile (${entry?.fromAdvName ?? 'unknown'})`
     })
     // De-dup labels
     const seen = new Set()
@@ -236,13 +268,18 @@ export class KnowledgeMapPopup {
   _levelFor(entry) {
     if (entry == null) return 'UNKNOWN'
     if (entry === true) return 'FULL'
-    const acc = entry.accuracy ?? entry.level ?? entry
-    if (typeof acc === 'number') {
-      if (acc >= 0.7) return 'FULL'
-      if (acc >= 0.3) return 'PARTIAL'
-      return 'RUMOR'
-    }
-    return 'PARTIAL'
+    // Delegate to KnowledgeSystem so the popup's coloring matches the
+    // pathfinder's tier weighting exactly. Falls back to a local
+    // computation if the system isn't reachable (e.g. unit tests).
+    const sys = this._scene?.scene?.get?.('Game')?.knowledgeSystem
+    const tier = sys?.tierForEntry?.(entry)
+    if (tier) return tier
+    // Fallback: same logic as KnowledgeSystem.tierForEntry
+    if (entry.stale) return 'RUMOR'
+    const today = this._gameState?.meta?.dayNumber ?? 0
+    const day   = entry.lastVisitedDay ?? entry.dayLearned ?? today
+    const ageDays = Math.max(0, today - day)
+    return (ageDays <= 1) ? 'FULL' : 'PARTIAL'
   }
 
   _exposurePct() {

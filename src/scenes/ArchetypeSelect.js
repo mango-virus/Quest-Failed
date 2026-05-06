@@ -23,8 +23,21 @@ import { createGameState } from '../state/GameState.js'
 import { SaveSystem }      from '../systems/SaveSystem.js'
 import { TitleMusic }      from '../systems/TitleMusic.js'
 import { SfxVolume }       from '../systems/SfxVolume.js'
-import { applyUiCamera }   from '../ui/UIKit.js'
+import { applyUiCamera, pixelLock, FONT_HEAD } from '../ui/UIKit.js'
 import { UIEditor }        from '../ui/UIEditor.js'
+import { PlayerProfile }   from '../systems/PlayerProfile.js'
+
+// Per-archetype unlock requirements. Empty entry = always unlocked.
+// Each entry's `check(maxLvl)` returns true when the gate is satisfied.
+// All gates read the same persistent `qf.player.maxBossLevel` value, so
+// hitting the highest required level unlocks every tier below it too.
+const UNLOCK_GATES = {
+  myconid:  { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
+  orc:      { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
+  vampire:  { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
+  wraith:   { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
+  succubus: { requiredLevel: 5, label: 'REACH BOSS LV 5 TO UNLOCK', check: (m) => m >= 5 },
+}
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────
 
@@ -287,6 +300,10 @@ export class ArchetypeSelect extends Phaser.Scene {
     const slotPx = 24 * this._borderScale          // visible opening size
     const accent = parseColor(arch.color, 0xddaa22)
 
+    // Unlock gate — per-archetype, persisted in PlayerProfile across runs.
+    const gate     = UNLOCK_GATES[arch.id] ?? null
+    const isLocked = !!gate && !gate.check(PlayerProfile.getMaxBossLevel())
+
     // Portrait — bestiary-pack 22×22 portrait if we have one for this boss,
     // else procedural silhouette.
     const portraitKey = `bestiary-portrait-${arch.id}`
@@ -304,21 +321,98 @@ export class ArchetypeSelect extends Phaser.Scene {
     this._cContent.add(portrait)
     this.editor.register(portrait, `slot-${arch.id}`)
 
-    // Hit area follows the portrait. Hover previews the boss; click LOCKS it
-    // so leaving another hovered slot snaps back to the locked one.
-    const hit = this.add.rectangle(portrait.x, portrait.y, slotPx + 4, slotPx + 4, 0x000000, 0)
+    // Locked: dim the portrait + tint it grey + overlay a small lock
+    // icon. Positioning has to defer one tick because the UIEditor
+    // applies layout-JSON overrides (e.g. succubus' custom x=575/y=492
+    // and scale 1.671) to the portrait AFTER _buildSlot runs — drawing
+    // the lock at the original (cx, cy) would strand it well below the
+    // moved portrait.
+    let lockGfx = null
+    if (isLocked) {
+      // Slight dim only — the lock icon is the primary "locked" tell;
+      // we just want the portrait to read as a hair muted, not greyed
+      // out. Alpha 0.75 + a soft warm tint keeps the boss recognisable.
+      portrait.setAlpha(0.75)
+      if (portrait.setTint) portrait.setTint(0xb0a090)
+      // Lock lives at the SCENE ROOT (NOT inside _cContent). Putting
+      // it in the container made it subject to whatever container-
+      // level alpha animation, mask, or sibling z-order the bestiary
+      // book is doing — even with bringToTop the previous attempt
+      // wasn't visibly landing on top of the portrait.
+      lockGfx = this.add.graphics().setDepth(9000)
+      this.time.delayedCall(0, () => {
+        if (!lockGfx || lockGfx.scene !== this) return
+        const px = portrait.x ?? cx
+        const py = portrait.y ?? cy
+        const ph = portrait.displayHeight ?? slotPx
+        const lockScale = Math.max(1, Math.round((ph * 0.45) / 9))
+        pixelLock(lockGfx, px, py, lockScale, 0xeeeeee)
+      })
+    }
+
+    // Hit area follows the portrait's CURRENT displayed bounds. Editor
+    // overrides can resize a slot to a non-default scale (e.g. succubus
+    // ships at scaleX=1.671 vs the other bosses' 2.859), so a fixed
+    // slotPx-sized hit rect would no longer match the visible portrait.
+    // Use the portrait's display dimensions with a small pad, falling
+    // back to the slotPx default for any non-image silhouette path.
+    const hitW = Math.max(slotPx + 4, (portrait.displayWidth  ?? slotPx) + 6)
+    const hitH = Math.max(slotPx + 4, (portrait.displayHeight ?? slotPx) + 6)
+    const hit = this.add.rectangle(portrait.x, portrait.y, hitW, hitH, 0x000000, 0)
+      .setDepth(portrait.depth ?? 0)
       .setInteractive({ useHandCursor: true })
-    hit.on('pointerover', () => this._select(arch.id))
+    hit.on('pointerover', () => {
+      if (isLocked) {
+        // Anchor tooltip to the portrait's CURRENT position (post-editor),
+        // not the original slot centre — succubus' editor override moves
+        // the slot well off the cx/cy passed into _buildSlot.
+        const px = portrait.x ?? cx
+        const py = portrait.y ?? cy
+        const ph = portrait.displayHeight ?? hitH
+        this._showLockTooltip(px, py - ph / 2 - 6, gate.label)
+      } else {
+        this._hideLockTooltip()
+        this._select(arch.id)
+      }
+    })
     hit.on('pointerout', () => {
+      this._hideLockTooltip()
       if (this._lockedId && this._lockedId !== arch.id) this._select(this._lockedId)
     })
     hit.on('pointerdown', () => {
+      // Locked archetypes can't become the run's selected boss. Tooltip
+      // already explains the gate; ignoring the click is enough feedback.
+      if (isLocked) return
       this._lockedId = arch.id
       this._select(arch.id)
     })
     this._cContent.add(hit)
 
-    this._slots.push({ archId: arch.id, portrait, hit })
+    this._slots.push({ archId: arch.id, portrait, hit, lockGfx, isLocked })
+  }
+
+  // Floating "REACH BOSS LV N TO UNLOCK" label that appears above a
+  // locked slot on hover. Single shared label — moved + reused across
+  // hovers rather than created per slot.
+  _showLockTooltip(x, y, label) {
+    if (!this._lockTooltip) {
+      // Tooltip also lives at scene root (not inside _cContent) so
+      // nothing in the bestiary book can stack on top of it. Bright
+      // pure-black background + bold yellow text for max contrast
+      // against the wood-grain bestiary page.
+      this._lockTooltip = this.add.text(0, 0, '', {
+        fontFamily: FONT_HEAD, fontSize: '9px',
+        color: '#ffe488', letterSpacing: 2,
+        stroke: '#000000', strokeThickness: 3,
+        backgroundColor: '#000000',
+        padding: { x: 8, y: 5 },
+      }).setOrigin(0.5, 1).setDepth(9100)
+    }
+    this._lockTooltip.setText(label).setPosition(x, y).setVisible(true)
+  }
+
+  _hideLockTooltip() {
+    if (this._lockTooltip) this._lockTooltip.setVisible(false)
   }
 
   _showHighlight(cx, cy) {
@@ -613,6 +707,11 @@ export class ArchetypeSelect extends Phaser.Scene {
 
   _beginRun() {
     if (!this._selectedId) return
+    // Defensive: refuse to start a run on a locked archetype even if
+    // something other than the slot click ever set _selectedId.
+    const gate = UNLOCK_GATES[this._selectedId]
+    if (gate && !gate.check(PlayerProfile.getMaxBossLevel())) return
+
     // Pass the rooms cache so createGameState picks up `theme` + `tileLayout`
     // edits the user authored in the Room Editor onto the boss chamber.
     const rooms = this.cache.json.get('rooms')

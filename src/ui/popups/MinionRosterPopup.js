@@ -188,19 +188,53 @@ export class MinionRosterPopup {
     }
     const def = this._minionDef(m.definitionId)
 
-    // Portrait box
+    // Portrait box — mirrors BossOverviewPopup's portrait pattern: an
+    // inset panel with the minion's looping idle-down animation playing
+    // inside it. Falls back to the giant sigil letter if a sprite sheet
+    // for this minion id isn't loaded (legacy save w/ removed minion).
     const pxBox = 140
+    const boxX  = x + (w - pxBox) / 2
+    const boxY  = y + 14
     const portraitG = this._scene.add.graphics().setDepth(D + 1)
-    pixelPanel(portraitG, x + (w - pxBox) / 2, y + 14, pxBox, pxBox, {
+    pixelPanel(portraitG, boxX, boxY, pxBox, pxBox, {
       fill: CRYPT.bgStone2, edgeH: CRYPT.panelEdgeS, edgeS: CRYPT.panelEdgeH, inset: true,
     })
     addChild(portraitG)
 
-    const sigil = m.sigil ?? def?.sigil ?? def?.id?.[0]?.toUpperCase() ?? '?'
-    addChild(this._scene.add.text(x + w / 2, y + 14 + pxBox / 2, sigil, {
-      fontFamily: FONT_HEAD, fontSize: '48px',
-      color: this._minionColor(def), letterSpacing: 1,
-    }).setOrigin(0.5).setDepth(D + 2))
+    const idleKey = `minion-${m.definitionId}-idle`
+    if (this._scene.textures.exists(idleKey)) {
+      const cxImg = boxX + pxBox / 2
+      const cyImg = boxY + pxBox / 2
+      const sprite = this._scene.add.sprite(cxImg, cyImg, idleKey, 0).setDepth(D + 2)
+      sprite.texture?.setFilter?.(Phaser.Textures.FilterMode.NEAREST)
+      // Most minion sheets ship at 64 px content; 128-frame sheets
+      // (demon/golem/ent/elder_slime/rat) centre a ~64-px character
+      // with transparent padding. Treat both as 64-px content for
+      // scaling math and let any padding overflow be clipped by the
+      // mask below — keeps demons / golems readable instead of
+      // shrunken to half size.
+      const fw            = sprite.frame?.width || 64
+      const effectiveChar = fw >= 128 ? 64 : fw
+      const PADDING       = 8
+      const scale         = (pxBox - PADDING * 2) / effectiveChar
+      sprite.setScale(scale)
+      // Clip to the portrait box so 128-frame padding doesn't poke
+      // past the panel edges into the surrounding stat tiles.
+      const maskG = this._scene.make.graphics({ x: 0, y: 0, add: false })
+      maskG.fillStyle(0xffffff)
+      maskG.fillRect(boxX, boxY, pxBox, pxBox)
+      sprite.setMask(maskG.createGeometryMask())
+      const animKey = `${idleKey}-down`
+      if (this._scene.anims.exists(animKey)) sprite.play(animKey)
+      addChild(sprite)
+    } else {
+      // Fallback — original sigil letter for unknown minion ids.
+      const sigil = m.sigil ?? def?.sigil ?? def?.id?.[0]?.toUpperCase() ?? '?'
+      addChild(this._scene.add.text(boxX + pxBox / 2, boxY + pxBox / 2, sigil, {
+        fontFamily: FONT_HEAD, fontSize: '48px',
+        color: this._minionColor(def), letterSpacing: 1,
+      }).setOrigin(0.5).setDepth(D + 2))
+    }
 
     let yy = y + 14 + pxBox + 16
     addChild(this._scene.add.text(x + 14, yy,

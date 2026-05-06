@@ -15,6 +15,7 @@ import { TitleMusic }    from '../systems/TitleMusic.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { NameEntryPanel } from '../ui/NameEntryPanel.js'
+import { kickOffAdventurerAtkLoad } from './AdventurerAtkLoader.js'
 import {
   CRYPT, FONT_HEAD, FONT_BODY,
   pixelPanel, pixelButton,
@@ -67,6 +68,22 @@ export class MainMenu extends Phaser.Scene {
     this._drawTitleStack()
     this._drawRightPanel()
     this._drawJamPortal()
+
+    // Background-load adventurer attack sheets while the player is on
+    // the title screen. These are the heaviest single chunk of cold-
+    // start load (~650 file requests at 192×192) and aren't needed
+    // until combat actually starts. Idempotent — re-entering MainMenu
+    // (e.g. from Options) won't double-queue.
+    //
+    // Delayed 3s + throttled to 4 parallel downloads (default 32) so
+    // the load doesn't compete with title-screen video decoding —
+    // running the full unthrottled batch immediately on title-screen
+    // entry caused visible stutter on first-time startups.
+    this.time.delayedCall(3000, () => {
+      if (!this.scene.isActive()) return  // user navigated away
+      this.load.maxParallelDownloads = 4
+      kickOffAdventurerAtkLoad(this)
+    })
     if (this._save) {
       this._zKey = this.input.keyboard.addKey('Z')
       this._zKey.on('down', () => this._actContinue())
@@ -137,10 +154,19 @@ export class MainMenu extends Phaser.Scene {
     // time it ends — gives the title screen a varied loop instead of the
     // same clip on repeat. The chain is cancelled on scene shutdown so a
     // late callback never tries to use a destroyed scene.
+    //
+    // Phaser reuses the same scene INSTANCE across scene.start('MainMenu')
+    // calls, so the previous run's `_titleVidShutdown = true` flag would
+    // survive into the new create() and silently disable video spawning
+    // (this happened any time the player went MainMenu → Options →
+    // MainMenu, leaving the title screen video-less). Reset it here so
+    // every fresh create() starts the video chain cleanly.
+    this._titleVidShutdown = false
     const allKeys  = this.registry.get('titleVideoKeys') ?? []
     const liveKeys = allKeys.filter(k => this.cache.video.exists(k))
     if (liveKeys.length > 0) {
       this._titleVidLast = null
+      this._titleVidQueue = null
       this._spawnNextTitleVideo(liveKeys)
       this.events.once('shutdown', () => {
         this._titleVidShutdown = true
@@ -538,23 +564,6 @@ export class MainMenu extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
     if (this.anims.exists('jam-portal-spin')) sprite.play('jam-portal-spin')
     this._objects.push(sprite)
-
-    // Slow RGB hue cycle — full revolution every 8s. Tween drives the
-    // tint each frame; HSV→RGB at full saturation+value gives the
-    // saturated rainbow look (red→yellow→green→cyan→blue→magenta→red).
-    const hueState = { h: 0 }
-    const hueTween = this.tweens.add({
-      targets:  hueState,
-      h:        360,
-      duration: 8000,
-      repeat:   -1,
-      onUpdate: () => {
-        const c = Phaser.Display.Color.HSVToRGB(hueState.h / 360, 1, 1)
-        sprite.setTint((c.r << 16) | (c.g << 8) | c.b)
-      },
-    })
-    this._jamPortalHueTween = hueTween
-    sprite.once(Phaser.GameObjects.Events.DESTROY, () => hueTween.stop())
 
     const label = this.add.text(cx, cy + 38, 'JAM PORTAL', {
       fontFamily: FONT_HEAD, fontSize: '8px',
