@@ -177,6 +177,12 @@ export const Balance = {
   // Max age in days before a confirmed (non-stale) entry drops from FULL to
   // PARTIAL. Anything observed today or yesterday counts as FULL.
   KNOWLEDGE_FULL_MAX_AGE_DAYS:     1,
+  // Per-entry chance a fresh first-time adventurer inherits a piece of
+  // shared-pool intel at spawn. Parties WITH a returning veteran get the
+  // full pool (the veteran briefs them). Solo / no-veteran parties roll
+  // each entry at this rate, so different advs in the same wave end up
+  // with different mental maps.
+  KNOWLEDGE_FRESH_INHERIT_CHANCE:  0.5,
   KNOWLEDGE_DANGER_ROOM_MULT:      1.8,    // path cost mult for rooms known dangerous (deaths happened)
   KNOWLEDGE_INHERIT_FRACTION:      0.5,    // fraction of shared pool a new adventurer inherits
   KNOWLEDGE_INHERIT_ACCURACY:      0.7,    // accuracy of inherited intel (rumour vs witnessed)

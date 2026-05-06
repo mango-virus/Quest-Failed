@@ -65,10 +65,11 @@ export class KnowledgeMapPopup {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.accent2Css, letterSpacing: 2,
     }).setOrigin(1, 0.5).setDepth(D + 2))
 
-    // Inner map area
+    // Inner map area. Legend strip below it gets enough vertical room for
+    // a 2-line tier label + note without clipping into the panel border.
     const mapTop = y + 28
-    const legendH = 24
-    const mapH   = h - 28 - legendH - 12
+    const legendH = 36
+    const mapH   = h - 28 - legendH - 16
     const mapW   = w - 24
     const mapX   = x + 12
     const innerG = this._scene.add.graphics().setDepth(D + 1)
@@ -118,13 +119,14 @@ export class KnowledgeMapPopup {
     }
     addChild(roomG)
 
-    // Legend strip
+    // Legend strip — short single-line notes per tier so they don't
+    // wrap and clip on narrow column widths.
     const legendY = mapTop + mapH + 6
     const items = [
-      { lvl: 'FULL',    note: 'they will route around it' },
-      { lvl: 'PARTIAL', note: 'they suspect' },
-      { lvl: 'RUMOR',   note: 'vague intel' },
-      { lvl: 'UNKNOWN', note: 'your edge' },
+      { lvl: 'FULL',    note: 'strongly avoided' },
+      { lvl: 'PARTIAL', note: 'mildly avoided' },
+      { lvl: 'RUMOR',   note: 'lightly avoided' },
+      { lvl: 'UNKNOWN', note: 'walks in blind' },
     ]
     let lx = mapX
     const colW = Math.floor(mapW / items.length)
@@ -138,6 +140,7 @@ export class KnowledgeMapPopup {
       }).setDepth(D + 2))
       addChild(this._scene.add.text(lx + 12, legendY + 14, it.note, {
         fontFamily: FONT_BODY, fontSize: '7px', color: CRYPT.inkMute, letterSpacing: 1,
+        wordWrap: { width: colW - 18, useAdvancedWrap: true }, lineSpacing: 1,
       }).setDepth(D + 2))
       lx += colW
     }

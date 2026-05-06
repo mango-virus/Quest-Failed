@@ -759,8 +759,16 @@ export class DayPhase extends Phaser.Scene {
         ? personalitySystem.rollPersonalities(pCount, dungeonLv)
         : []
 
-      // Phase 8: inherit a fraction of the global shared knowledge pool (with rumour accuracy)
-      knowledgeSystem?.initializeKnowledgeForSpawn?.(adv)
+      // Fresh adventurers inherit the shared knowledge pool — the union
+      // of every survivor's intel from prior days. With a returning
+      // veteran in the party they get the full pool (the vet briefs
+      // them); without one each entry is rolled at
+      // KNOWLEDGE_FRESH_INHERIT_CHANCE so the wave's mental map is
+      // patchy and varied.
+      const inheritFraction = returnLeaderInjected
+        ? 1.0
+        : Balance.KNOWLEDGE_FRESH_INHERIT_CHANCE
+      knowledgeSystem?.initKnowledgeForSpawn?.(adv, inheritFraction)
 
       // If there's a returning leader, the rest of the party also gets the leader's
       // knowledge as "told" (full intel, slightly degraded accuracy) — design intent:

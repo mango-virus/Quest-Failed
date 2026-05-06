@@ -1050,7 +1050,10 @@ export class AISystem {
           adventurer: adv, fromRoomId: prev, toRoomId: curRoomId,
         })
         this._maybeWarnParty(adv, curRoomId)
-        this._maybeDiscoverFountain(adv, curRoomId)
+        // Fountain / chest / key-chest discovery now rides on
+        // KnowledgeSystem.observeRoomContents (called from
+        // observeCurrentRoom). The old _maybeDiscoverFountain helper was
+        // removed when knowledge buckets replaced adv.knownFountains.
       }
     }
 

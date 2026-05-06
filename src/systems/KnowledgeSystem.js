@@ -309,9 +309,39 @@ export class KnowledgeSystem {
 
   // ── Knowledge initialization (called by DayPhase on spawn) ───────────────
 
-  // Fresh adventurer gets the full shared pool (complete, not fractional).
-  initKnowledgeForSpawn(adv) {
-    adv.knowledge = _deepCopy(this._gs.knowledge.sharedPool)
+  // Fresh adventurer inherits a fraction of the shared pool. `inheritFraction`
+  // = 1.0 (default) copies the whole thing — used when a returning veteran is
+  // briefing the rest of the party. < 1 rolls each entry independently so
+  // a wave of strangers ends up with patchy, varied mental maps.
+  initKnowledgeForSpawn(adv, inheritFraction = 1.0) {
+    const pool = this._gs.knowledge?.sharedPool
+    if (!pool) { _ensureAdvKnowledge(adv); return }
+    if (inheritFraction >= 1) {
+      adv.knowledge = _deepCopy(pool)
+      _ensureAdvKnowledge(adv)
+      return
+    }
+    const fresh = {
+      rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
+      fountains: {}, treasureChests: {}, keyChests: {},
+    }
+    // Per-entry roll. enemiesPerRoom is an array per room; roll each minion
+    // type independently so a fresh adv might know a Skeleton lurks in the
+    // Crypt without knowing about its Goblin roommate.
+    for (const bucket of Object.keys(fresh)) {
+      const src = pool[bucket] ?? {}
+      if (bucket === 'enemiesPerRoom') {
+        for (const [id, list] of Object.entries(src)) {
+          const filtered = (list ?? []).filter(() => Math.random() < inheritFraction)
+          if (filtered.length) fresh[bucket][id] = filtered.map(e => ({ ...e }))
+        }
+      } else {
+        for (const [id, e] of Object.entries(src)) {
+          if (Math.random() < inheritFraction) fresh[bucket][id] = { ...e }
+        }
+      }
+    }
+    adv.knowledge = fresh
   }
 
   // Returning veteran: restore accumulated knowledge + flag as veteran.

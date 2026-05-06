@@ -48,6 +48,7 @@ export class DarkPactPopup {
     this._emberTimer  = null
     this._brokerSprite = null
     this._isRerolling = false   // suppresses the dismiss emit during reroll's close+open
+    this._rerollAnimating = false // gates card input during the 720 ms reroll wind-up
 
     this._frame = makePopupFrame({
       scene,
@@ -146,6 +147,7 @@ export class DarkPactPopup {
       })
     if (!rerollEnabled) rerollBtn.setEnabled(false)
     addChild(rerollBtn.bg, rerollBtn.label, rerollBtn.hit)
+    this._rerollBtn = rerollBtn
 
     const sealBtn = pixelButton(this._scene,
       cx + cw - 240, footerY, 240, 38, 'SEAL THE PACT',
@@ -398,8 +400,17 @@ export class DarkPactPopup {
       .setOrigin(0)
       .setDepth(D + 20)
       .setInteractive({ useHandCursor: true })
+    // Guard: ignore card input while sealing or mid-reroll-animation
+    // (the 720 ms window between clicking REROLL and the new offering
+    // appearing). _rerollAnimating clears as soon as the new cards
+    // render, so post-reroll selection works normally. _rerollUsed
+    // (the spent flag) is intentionally NOT in this gate — that one
+    // sticks for the rest of the night to keep the button labelled
+    // "REROLL USED".
+    const inputLocked = () =>
+      this._sealing || this._rerollAnimating || this._isRerolling || !this._frame.isOpen?.()
     hit.on('pointerover', () => {
-      if (this._sealing) return
+      if (inputLocked()) return
       if (this._hoverIdx !== idx) {
         this._hoverIdx = idx
         this._refreshSelectionVisuals()
@@ -407,13 +418,14 @@ export class DarkPactPopup {
       }
     })
     hit.on('pointerout', () => {
+      if (inputLocked()) return
       if (this._hoverIdx === idx) {
         this._hoverIdx = -1
         this._refreshSelectionVisuals()
       }
     })
     hit.on('pointerup', () => {
-      if (this._sealing) return
+      if (inputLocked()) return
       // Toggle: clicking the already-marked card unmarks it. Anything else
       // becomes the new selection.
       this._selectedIdx = (this._selectedIdx === idx) ? -1 : idx
@@ -450,11 +462,17 @@ export class DarkPactPopup {
   // (which previously caused cards to "freeze" mid-lift).
   _refreshSelectionVisuals(force = false) {
     if (!this._cardConts.length) return
+    // If the popup is mid-close (e.g. reroll animation just torn down the
+    // cards), bail rather than spinning up new tweens on dead containers.
+    if (!this._frame?.isOpen?.()) return
     const hover = this._hoverIdx
     const sel   = this._selectedIdx
     for (let i = 0; i < this._cardConts.length; i++) {
       const cont = this._cardConts[i]
       if (!cont || !cont.scene) continue
+      // Defensive: a half-destroyed container can survive in the array
+      // but with cleared properties. Skip it rather than throw.
+      if (cont.active === false) continue
 
       const isSel = (i === sel)
       const isHov = (i === hover && !isSel)
@@ -563,6 +581,9 @@ export class DarkPactPopup {
   _reroll() {
     if (this._rerollUsed || this._sealing) return
     this._rerollUsed = true
+    // Immediate visual disable so spamming the button reads as "already
+    // pressed" rather than firing nothing for 720 ms of animation.
+    this._rerollBtn?.setEnabled?.(false)
     try { this._scene.sound.play('sfx-necro-summon', { volume: 0.45 }) } catch {}
 
     // Burn-out: each card fades + drifts up, staggered. After the last
@@ -586,12 +607,18 @@ export class DarkPactPopup {
         ease:     'Quad.easeIn',
       })
     }
+    // _rerollAnimating gates card-input through the close+open transition.
+    // It clears the moment the new offering is fully visible — distinct
+    // from _rerollUsed which stays true so the REROLL button reads as
+    // spent for the rest of the night.
+    this._rerollAnimating = true
     this._scene.time.delayedCall(lastDelay + 360, () => {
       this._isRerolling = true
       this._frame.close()
       this.refreshOffers()
       this._frame.open()
-      this._isRerolling = false
+      this._isRerolling     = false
+      this._rerollAnimating = false
     })
   }
 
