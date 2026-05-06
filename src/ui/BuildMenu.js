@@ -561,8 +561,15 @@ export class BuildMenu {
     // cap check around line 263) but the "used/cap" overlay was visual
     // noise. The tooltip surfaces MAX/DUNGEON for items that have one.
 
-    // Hit zone
-    const hit = this._scene.add.zone(sx, sy, sw, sh)
+    // Hit zone — clipped to the visible slot area so a partially-scrolled
+    // slot can't catch clicks on the tabs above or the action bar below.
+    // (Visuals are clipped by the geometry mask; without this clip the
+    // zone still overhangs and steals tab presses when scrolled.)
+    const clipTop = Math.max(sy, this._slotsTopY)
+    const clipBot = Math.min(sy + sh, this._slotsBotY)
+    const clipH   = clipBot - clipTop
+    if (clipH <= 0) return
+    const hit = this._scene.add.zone(sx, clipTop, sw, clipH)
       .setOrigin(0).setDepth(D + 5).setInteractive({ useHandCursor: true })
     hit.on('pointerover', () => {
       nameT.setColor(CRYPT.accent2Css); uiSfxHover(this._scene)

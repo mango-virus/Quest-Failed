@@ -747,7 +747,10 @@ export class MinionAISystem {
     const reach = minion.attackRange ?? Balance.MELEE_RANGE_TILES
     const d = Math.hypot(target.tileX - minion.tileX, target.tileY - minion.tileY)
 
-    if (d <= reach + 0.01) {
+    // No overlap-attacks: a minion standing on the same tile as the
+    // target doesn't swing at point-blank — they wait for the adv to
+    // step off. Symmetric with the adv-side rule in AISystem.
+    if (d >= 0.99 && d <= reach + 0.01) {
       // In range — attack
       this._combatSystem.tryAttack(minion, target, {
         roomId: minion.assignedRoomId,

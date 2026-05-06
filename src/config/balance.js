@@ -351,7 +351,7 @@ export const Balance = {
   MECHANIC_SOUL_DRAIN_COOLDOWN_MS:       12000,
   MECHANIC_SOUL_DRAIN_CHANNEL_MS:         3000,
   MECHANIC_SOUL_DRAIN_DMG_MULT:           1.2,
-  MECHANIC_DOPPELGANGERS_COOLDOWN_MS:    20000,
+  MECHANIC_DOPPELGANGERS_COOLDOWN_MS:     5000,
   MECHANIC_DOPPELGANGERS_DURATION_MS:    10000,
   MECHANIC_DOPPELGANGERS_BOSS_DMG_MULT:   0.5,
   MECHANIC_PETRIFY_COOLDOWN_MS:          15000,
@@ -398,11 +398,11 @@ export const Balance = {
   // --- AI failsafes ---
   // If an adventurer has not changed tile for this long (in ms) and is
   // not in a freeze-by-design state (petrified, AT_BOSS, spawn/leave
-  // fade, dead), kill them. Prevents day-end hangs from genuine pins
-  // (collision bug, unreachable goal, etc.). The soft stuck detector at
-  // 1500 ms triggers a path replan first; the hard kill only fires if
+  // fade, dead, fighting), kill them. Prevents day-end hangs from genuine
+  // pins (collision bug, unreachable goal, etc.). The soft stuck detector
+  // at 1500 ms triggers a path replan first; the hard kill only fires if
   // that didn't free them.
-  STUCK_FAILSAFE_MS:                5000,
+  STUCK_FAILSAFE_MS:               10000,
 
   // --- VFX feature flags ---
   // Master toggle for the per-hit damage-type spark animation. Flip to

@@ -996,7 +996,7 @@
   {
     "id": "doppelgangers",
     "name": "Doppelgangers",
-    "description": "Every 20 seconds during boss fights, the boss splits into 3 illusions for 10 seconds — adventurers cannot tell which is real.",
+    "description": "Every 5 seconds during boss fights, the boss splits into 3 illusions for 10 seconds — adventurers cannot tell which is real.",
     "tradeoffDescription": "The real boss only deals 50% damage during the illusion window.",
     "rarity": "epic",
     "unlockLevel": 5,

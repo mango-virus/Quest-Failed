@@ -899,12 +899,14 @@ export class AISystem {
     }
 
     // Hard stuck failsafe — if the soft detectors above have not freed
-    // the adv after 5s of zero tile change, kill them. Prevents day-end
-    // hangs from genuine pins (collision bug, unreachable goal, etc.).
-    // Same exemptions as the soft detector + petrify (Beholder Gaze
-    // legitimately freezes the adv for 2s).
+    // the adv after STUCK_FAILSAFE_MS of zero tile change, kill them.
+    // Prevents day-end hangs from genuine pins (collision bug, unreachable
+    // goal, etc.). Same exemptions as the soft detector + petrify
+    // (Beholder Gaze legitimately freezes for 2 s) + fighting (combat
+    // legitimately holds the adv on a tile while they trade blows).
     const _hardStuckNow = this._scene?.time?.now ?? 0
     const hardStuckExempt = stuckExempt ||
+      adv.aiState === 'fighting' ||
       (adv._petrifiedUntil != null && _hardStuckNow < adv._petrifiedUntil)
     if (!hardStuckExempt) {
       if (adv._hardStuckTileX !== adv.tileX || adv._hardStuckTileY !== adv.tileY) {
@@ -1445,42 +1447,10 @@ export class AISystem {
       return
     }
 
-    // Yield-on-overlap: if the tile we're walking into is currently held by
-    // another active adventurer, hold position this tick. They'll move along
-    // and we'll resume next tick. Adventurers physically overlapping each
-    // other looked wrong (multiple bodies stacked on the same square), so
-    // walkers now respect a single-occupant-per-tile invariant.
-    //
-    // We only block when the next tile is a *different* tile than our
-    // current one — i.e. we're about to commit to entering it. This prevents
-    // self-deadlock where an adventurer's own occupancy entry blocks them.
-    const enteringNewTile = (wp.x !== adv.tileX || wp.y !== adv.tileY)
-    if (enteringNewTile && this._tileOccupiedByOtherAdv(wp.x, wp.y, adv)) {
-      // Head-on swap escape valve: if the blocker is *also* trying to enter
-      // our current tile (i.e. we're walking straight at each other in a
-      // 1-wide corridor), relax the single-occupant invariant for this
-      // tick.  Both adventurers commit their move in the same frame and
-      // cross paths.  Without this, the 1.2 s repath loop just gives the
-      // same blocked route back forever.
-      const blocker = this._gameState.adventurers.active.find(a =>
-        a.instanceId !== adv.instanceId && a.tileX === wp.x && a.tileY === wp.y
-      )
-      const blockerNext = blocker?.path?.[blocker.pathIndex]
-      const isHeadOn = !!(blockerNext &&
-        blockerNext.x === adv.tileX && blockerNext.y === adv.tileY)
-      if (!isHeadOn) {
-        adv._waitMs = (adv._waitMs ?? 0) + delta
-        // Stuck for more than ~1.2 s? Drop the path and let the next tick
-        // recompute — pathfinder might find a way around, or the blocker
-        // will have shifted.
-        if (adv._waitMs > 1200) {
-          adv.path = null
-          adv._waitMs = 0
-        }
-        return
-      }
-      // Fall through — commit the swap move.
-    }
+    // Adventurers walk through each other freely — no yield-on-overlap.
+    // The single-occupant invariant was visually cleaner but produced
+    // soft-locks in narrow corridors and at room thresholds. Multiple
+    // adventurer bodies on one tile is an acceptable trade.
     adv._waitMs = 0
 
     // Phase 6c: paranoid types move slower in unfamiliar rooms.
@@ -1749,6 +1719,10 @@ export class AISystem {
       if (this._dungeonGrid?.getTileType?.(m.tileX, m.tileY) === TILE.DOOR) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d > reach + 0.01) continue
+      // No overlap-attacks: an adv standing on the same tile as a minion
+      // walks through rather than swinging. They'll engage as soon as
+      // they're a tile apart.
+      if (d < 0.99) continue
       // Phase 8: any minion within engagement range is also "observed"
       this._knowledgeSystem?.observeMinion(adv, m)
       if (d < bestDist) { best = m; bestDist = d }
