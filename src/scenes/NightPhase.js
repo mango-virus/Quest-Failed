@@ -2154,6 +2154,37 @@ export class NightPhase extends Phaser.Scene {
     }
     this._heldRoomMinions = heldMinions
 
+    // Door locks tied to this room's doorways become orphaned the moment
+    // removeRoom() unpairs the CPs and repaints the wall — the lock entry
+    // would linger in state with stale doorTiles, so the pathfinder
+    // blockedForAdv set built from those tiles wouldn't match the new
+    // doorway after re-placement, and adventurers would walk through it
+    // unlocked. Refund (full, matching the room refund above) and remove
+    // any lock whose doorTiles sit on this room.
+    const inRoomBounds = (t) =>
+      t.x >= room.gridX && t.x < room.gridX + room.width &&
+      t.y >= room.gridY && t.y < room.gridY + room.height
+    const locks     = this._gameState.dungeon.locks     ?? []
+    const keyChests = this._gameState.dungeon.keyChests ?? []
+    const lockDef   = (this.cache.json.get('items') ?? []).find(it => it.id === 'door_lock')
+    const lockCost  = lockDef?.goldCost ?? 0
+    let locksChanged = false
+    for (let i = locks.length - 1; i >= 0; i--) {
+      const lock = locks[i]
+      if (!lock.doorTiles?.some(inRoomBounds)) continue
+      if (lockCost > 0) this._gameState.player.gold += lockCost
+      const chestIdx = keyChests.findIndex(c => c.instanceId === lock.keyChestId)
+      if (chestIdx >= 0) {
+        const chest = keyChests[chestIdx]
+        keyChests.splice(chestIdx, 1)
+        EventBus.emit('KEY_CHEST_REMOVED', { chest, refund: 0 })
+      }
+      locks.splice(i, 1)
+      EventBus.emit('LOCK_REMOVED', { lock })
+      locksChanged = true
+    }
+    if (locksChanged) EventBus.emit('LOCKS_CHANGED')
+
     this._dungeonGrid.removeRoom(room.instanceId)
     this._rotation = 0
 

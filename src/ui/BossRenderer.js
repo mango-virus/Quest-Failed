@@ -113,13 +113,24 @@ export class BossRenderer {
     this._container.setDepth(7 + boss.worldY * 0.0005)
 
     // Facing — snap to cardinal based on movement delta this frame.
+    // Hysteresis: on a perfect diagonal (adx ≈ ady) floating-point jitter
+    // flips which component is larger every frame, so a strict adx>ady
+    // tie-break makes the boss rapidly toggle between horizontal and
+    // vertical walk anims. Require one axis to dominate by AXIS_HYST
+    // before switching axes; otherwise keep the existing facing's axis.
     if (this._lastWorldX !== null) {
       const dx = boss.worldX - this._lastWorldX
       const dy = boss.worldY - this._lastWorldY
       const adx = Math.abs(dx), ady = Math.abs(dy)
       const MIN = 0.05  // ignore sub-pixel jitter so direction doesn't flicker
+      const AXIS_HYST = 1.15
       if (adx > MIN || ady > MIN) {
-        this._facing = (adx > ady)
+        const horizontalNow = this._facing === 'left' || this._facing === 'right'
+        let goHorizontal
+        if (adx > ady * AXIS_HYST)      goHorizontal = true
+        else if (ady > adx * AXIS_HYST) goHorizontal = false
+        else                            goHorizontal = horizontalNow
+        this._facing = goHorizontal
           ? (dx > 0 ? 'right' : 'left')
           : (dy > 0 ? 'down'  : 'up')
       }

@@ -52,6 +52,12 @@ export class GameOver extends Phaser.Scene {
   }
 
   create() {
+    // Silence all background music the moment the run ends — the dungeon
+    // playlist or a boss-fight loop is still running when BOSS_DEFEATED_FINAL
+    // transitions us in. Only the count-up SFX should be audible here.
+    GameplayMusic.stop?.()
+    TitleMusic.stop?.()
+
     this._setupCamera()
     this.scale.on('resize', this._setupCamera, this)
     this.events.once('shutdown', () => {

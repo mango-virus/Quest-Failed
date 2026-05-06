@@ -812,7 +812,7 @@ TitleMusic loops on MainMenu / ArchetypeSelect; GameplayMusic shuffles a 5-track
 Esc-driven pause overlay manager. Pauses every gameplay scene (NightPhase / DayPhase / HudScene) so timers + AI freeze behind the panel.
 
 ### PlayerProfile (`src/systems/PlayerProfile.js`)
-Persistent cross-run profile (player name, max boss level reached). Drives ArchetypeSelect's unlock gates (e.g. Succubus requires lifetime max bossLevel ≥ 4).
+Persistent cross-run profile (player name, max boss level reached). Drives ArchetypeSelect's unlock gates (e.g. Succubus requires lifetime max bossLevel ≥ 7).
 
 ### Theme + Decor managers (`src/ui/ThemeManager.js`, `src/ui/DecorManager.js`)
 Async-loaded room tile + decoration manifests. Optional — game runs in procedural mode if manifests are missing.

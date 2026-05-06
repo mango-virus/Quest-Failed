@@ -33,10 +33,10 @@ import { PlayerProfile }   from '../systems/PlayerProfile.js'
 // hitting the highest required level unlocks every tier below it too.
 const UNLOCK_GATES = {
   myconid:  { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
-  orc:      { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
-  vampire:  { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
-  wraith:   { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
-  succubus: { requiredLevel: 5, label: 'REACH BOSS LV 5 TO UNLOCK', check: (m) => m >= 5 },
+  orc:      { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
+  vampire:  { requiredLevel: 5, label: 'REACH BOSS LV 5 TO UNLOCK', check: (m) => m >= 5 },
+  wraith:   { requiredLevel: 6, label: 'REACH BOSS LV 6 TO UNLOCK', check: (m) => m >= 6 },
+  succubus: { requiredLevel: 7, label: 'REACH BOSS LV 7 TO UNLOCK', check: (m) => m >= 7 },
 }
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────

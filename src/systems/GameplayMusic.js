@@ -62,6 +62,13 @@ const _listeners  = new Set()
 // Boss fight state
 let _bossInstance = null   // currently-playing boss track sound instance
 let _inBossFight  = false  // true while a boss fight is active
+// In-flight fade-out instances. bossFightEnd() detaches the boss sound
+// from _bossInstance the moment the fade begins so the volume slider
+// stops targeting it; without this list, a subsequent stop() can't find
+// the still-audible sound (it lives in the global SoundManager) and the
+// boss track plays on forever — most visibly when the player loses, so
+// BOSS_FIGHT_RESOLVED's fade is interrupted by the GameOver transition.
+const _fadingBosses = []
 
 function _shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -100,11 +107,24 @@ function _stopCurrent() {
 }
 
 function _stopBoss() {
-  if (!_bossInstance) return
-  try { _bossInstance.removeAllListeners() } catch {}
-  try { _bossInstance.stop() } catch {}
-  try { _bossInstance.destroy() } catch {}
-  _bossInstance = null
+  // Kill any boss sound still mid-fade — bossFightEnd() detaches them
+  // from _bossInstance the moment the fade starts, so they wouldn't be
+  // caught by the _bossInstance check below. The fade tween is owned by
+  // the Game scene; if that scene shut down before the fade completed
+  // (e.g. BOSS_DEFEATED_FINAL → GameOver), the tween is gone but the
+  // sound itself lives in the global SoundManager and keeps playing.
+  while (_fadingBosses.length) {
+    const s = _fadingBosses.pop()
+    try { s.removeAllListeners() } catch {}
+    try { s.stop() } catch {}
+    try { s.destroy() } catch {}
+  }
+  if (_bossInstance) {
+    try { _bossInstance.removeAllListeners() } catch {}
+    try { _bossInstance.stop() } catch {}
+    try { _bossInstance.destroy() } catch {}
+    _bossInstance = null
+  }
   _inBossFight = false
 }
 
@@ -262,11 +282,14 @@ export const GameplayMusic = {
       return
     }
 
+    _fadingBosses.push(boss)
     scene.tweens.add({
       targets:  boss,
       volume:   0,
       duration: BOSS_FADE_MS,
       onComplete: () => {
+        const idx = _fadingBosses.indexOf(boss)
+        if (idx >= 0) _fadingBosses.splice(idx, 1)
         try { boss.stop(); boss.destroy() } catch {}
         resume()
       },
