@@ -111,4 +111,32 @@ export const AbilityVfx = {
     target.setAlpha?.(alpha)
     return target
   },
+
+  // Projectile — small dot tweened from (fromX,fromY) to (toX,toY).
+  // Used for ranged minion attacks (lich heal beam, ghost spook,
+  // mimic snap, etc.) so range > 1 reads visually instead of damage
+  // appearing instantly at the target.
+  //
+  // Options: color (hex), durationMs, radius, depth.
+  projectile(scene, fromX, fromY, toX, toY, opts = {}) {
+    if (!_validXY(fromX, fromY) || !_validXY(toX, toY)) return null
+    const o = {
+      color:      opts.color      ?? 0xfff0aa,
+      durationMs: opts.durationMs ?? 220,
+      radius:     opts.radius     ?? 3,
+      depth:      opts.depth      ?? 12,
+    }
+    const dot = scene.add.graphics().setDepth(o.depth)
+    dot.fillStyle(o.color, 1).fillCircle(0, 0, o.radius)
+    dot.setPosition(fromX, fromY)
+    scene.tweens.add({
+      targets:  dot,
+      x:        toX,
+      y:        toY,
+      duration: o.durationMs,
+      ease:     'Sine.easeIn',
+      onComplete: () => dot.destroy(),
+    })
+    return dot
+  },
 }

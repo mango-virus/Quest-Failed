@@ -1726,6 +1726,11 @@ export class AISystem {
       // camouflaged minions, so they're invisible to targeting until the
       // minion reveals on its first attack.
       if (m._camouflaged) continue
+      // Vampire Sleep on Ceiling / Golem Camouflaged Pillar — minion is
+      // invisible until the trigger condition flips _hidden off (vampires:
+      // adv enters room, golems: adv steps adjacent). MinionRenderer drops
+      // alpha to 0; this skip makes the hide mechanically real.
+      if (m._hidden) continue
       if (adv.flags?.idolizedMinionClass === m.definitionId) continue
       // Skip minions standing in a doorway — they're mid-passage and
       // untouchable; the adventurer walks through rather than stopping to fight.

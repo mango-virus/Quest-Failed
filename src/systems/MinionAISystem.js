@@ -12,6 +12,7 @@ import { MinionAbilities }  from './MinionAbilities.js'
 import { Balance }          from '../config/balance.js'
 import { TILE }             from './DungeonGrid.js'
 import { applyMinionScaling } from '../entities/Minion.js'
+import { AbilityVfx }       from '../ui/AbilityVfx.js'
 
 const TS = Balance.TILE_SIZE
 export class MinionAISystem {
@@ -613,6 +614,14 @@ export class MinionAISystem {
         amount:   restored,
         roomId:   lich.assignedRoomId,
       })
+      // Heal pulse VFX so the player sees the lich working — gold ring
+      // around the healed target + floating "+N" text above their head.
+      if (Number.isFinite(best.worldX)) {
+        AbilityVfx.pulseRing(this._scene, best.worldX, best.worldY,
+          { color: 0xffd966, fromR: 4, toR: 22, alpha: 0.7, durationMs: 400 })
+        AbilityVfx.floatingText(this._scene, best.worldX, best.worldY - 18,
+          `+${restored}`, { color: '#ffd966', fontSize: '11px' })
+      }
     }
   }
 

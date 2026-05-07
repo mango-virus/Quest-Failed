@@ -130,6 +130,16 @@ export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
     bossLevel:  1,
   }
 
+  // Mimic — every mimic spawn (player-built or Mimic Vault) starts in
+  // chest disguise. RoomBehaviorSystem._rollMimicOpens reveals on the
+  // appropriate trigger (adv tries to open). Without this, a built mimic
+  // walked around in plain sight, contradicting the "disguised as a
+  // chest" bestiary text.
+  if (typeDef.id === 'mimic') {
+    minion.isMimic    = true
+    minion.mimicState = 'chest'
+  }
+
   if (options.bossLevel || options.dayNumber) {
     applyMinionScaling(minion, options.bossLevel ?? 1, options.dayNumber ?? 1)
   }

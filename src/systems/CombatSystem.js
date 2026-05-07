@@ -108,6 +108,15 @@ export class CombatSystem {
       if (attackerIsDungeon || targetIsDungeon) finalDmg = Math.max(1, finalDmg * 2)
     }
 
+    // Ambush bonus: minions with behaviorType 'ambush' (plant2, imp2, etc.)
+    // that just revealed get a one-shot 1.5× damage on their next attack.
+    // Flag is set by MinionAbilities._tickAmbushHidden on the hidden→visible
+    // edge and consumed here.
+    if (attacker._ambushBuffActive) {
+      finalDmg = Math.max(1, Math.round(finalDmg * 1.5))
+      attacker._ambushBuffActive = false
+    }
+
     // Dungeon event: Dungeon Pestilence — when an adventurer melees a
     // dungeon-faction minion, they get infected with Blight. AISystem
     // ticks the DoT until the adv dies or escapes.
@@ -143,6 +152,28 @@ export class CombatSystem {
     if (attacker?._camouflaged) {
       attacker._camouflaged = false
       EventBus.emit('LIZARDMAN_CAMO_REVEAL', { minionId: attacker.instanceId })
+    }
+
+    // Ranged-attack projectile VFX. Fires whenever the attacker's
+    // attackRange exceeds melee (1) so ranged minions (lich heal beam,
+    // ghost spook, mimic snap, ranger arrow, etc.) read visually instead
+    // of damage appearing at the target with no travel cue. Color is
+    // keyed by damageType so the projectile reads thematically.
+    if ((attacker.attackRange ?? 1) > 1 &&
+        Number.isFinite(attacker.worldX) && Number.isFinite(target.worldX)) {
+      const projColor =
+        damageType === 'fire'      ? 0xff8844 :
+        damageType === 'frost' || damageType === 'ice' ? 0x88ddff :
+        damageType === 'arcane' || damageType === 'magic' ? 0xaaccff :
+        damageType === 'poison'    ? 0x88dd66 :
+        damageType === 'psychic'   ? 0xcc88ff :
+        damageType === 'shadow' || damageType === 'necrotic' ? 0x6644aa :
+        damageType === 'acid'      ? 0xccff66 :
+        0xfff0aa
+      AbilityVfx.projectile(this._scene,
+        attacker.worldX, attacker.worldY - 8,
+        target.worldX,   target.worldY - 8,
+        { color: projColor, durationMs: 200, radius: 3 })
     }
 
     EventBus.emit('COMBAT_HIT', {

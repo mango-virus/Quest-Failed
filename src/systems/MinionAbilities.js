@@ -25,16 +25,23 @@ import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { EventBus }   from './EventBus.js'
 
 // Family helpers — keep ability application keyed off definitionId so we can
-// add new evolutions without rewiring this file.
+// add new evolutions without rewiring this file. Boss-archetype mini-boss
+// final forms are included so they retain their family abilities when
+// summoned by BossArchetypeSystem (otherwise the evolution silently drops
+// Petrify Gaze, Hellfire Brand, etc).
 const RAT_IDS         = new Set(['rat1', 'rat2', 'rat3'])
-const DEMON_IDS       = new Set(['demon1', 'demon2'])
-const VAMPIRE_IDS     = new Set(['vampire_minion1', 'vampire_minion2'])
-const BEHOLDER_IDS    = new Set(['beholder1', 'beholder2'])
-const GOLEM_IDS       = new Set(['golem1', 'golem2'])
+const DEMON_IDS       = new Set(['demon1', 'demon2', 'demon_lord'])
+const VAMPIRE_IDS     = new Set(['vampire_minion1', 'vampire_minion2', 'vampire_sovereign'])
+const BEHOLDER_IDS    = new Set(['beholder1', 'beholder2', 'beholder_tyrant'])
+const GOLEM_IDS       = new Set(['golem1', 'golem2', 'golem_warden'])
 const GOBLIN_IDS      = new Set(['goblin1', 'goblin2', 'goblin3'])
-const LIZARDMAN_IDS   = new Set(['lizardman1', 'lizardman2'])
+const LIZARDMAN_IDS   = new Set(['lizardman1', 'lizardman2', 'serpent_captain'])
 const SLIME_IDS       = new Set(['slime1', 'slime2', 'slime3', 'slime4'])
-const GNOLL_IDS       = new Set(['gnoll1', 'gnoll2'])
+const GNOLL_IDS       = new Set(['gnoll1', 'gnoll2', 'gnoll_alpha'])
+const ORC_IDS         = new Set(['orc1', 'orc2', 'orc_veteran'])
+const GHOST_IDS       = new Set(['ghost1', 'ghost2', 'dark_wraith'])
+const LICH_IDS        = new Set(['lich1', 'lich2', 'elder_lich'])
+const MUSHROOM_IDS    = new Set(['mushroom1', 'mushroom2', 'myconid_stalker'])
 
 // ── Player-facing ability/behavior text ─────────────────────────────────────
 // One entry per buildable minion (Tier-1s + Mimic). BuildMenuTooltip pulls
@@ -102,7 +109,11 @@ export const MinionAbilities = {
     }
 
     // Vampire — Bloodthirst: heal attacker for 50% of damage dealt.
-    if (VAMPIRE_IDS.has(id) && damageDealt > 0) {
+    // Generic `lifesteal` tag also triggers (used by Blood Briar) so any
+    // future "drains blood" minion can opt in via JSON without changing
+    // this file.
+    const hasLifestealTag = Array.isArray(attacker.tags) && attacker.tags.includes('lifesteal')
+    if ((VAMPIRE_IDS.has(id) || hasLifestealTag) && damageDealt > 0) {
       const heal = Math.max(1, Math.floor(damageDealt * 0.5))
       const before = attacker.resources.hp
       attacker.resources.hp = Math.min(attacker.resources.maxHp ?? 0, attacker.resources.hp + heal)
@@ -143,12 +154,18 @@ export const MinionAbilities = {
       attacker._snareUsed = true
       this._applyRoot(target, scene, 2500)
       AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, 'SNARED', { color: '#559944' })
+      // Green vine ring around the rooted target — visible cue that
+      // they're locked in place for the snare duration.
+      if (Number.isFinite(target.worldX)) {
+        AbilityVfx.pulseRing(scene, target.worldX, target.worldY,
+          { color: 0x559944, fromR: 6, toR: 18, alpha: 0.8, durationMs: 500 })
+      }
     }
 
     // Ghost — Possession: 25% per hit; possessed adv attacks a same-party
     // ally on their next swing (redirect handled by maybeRedirectPossessed
     // hook in CombatSystem).
-    if (id === 'ghost1' && Math.random() < 0.25 && target.classId !== undefined) {
+    if (GHOST_IDS.has(id) && Math.random() < 0.25 && target.classId !== undefined) {
       target._possessedUntil = (scene?.time?.now ?? 0) + 2000
       AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, 'POSSESSED', { color: '#aaccee' })
     }
@@ -167,6 +184,13 @@ export const MinionAbilities = {
         m._patrolAccum  = 0
       }
       AbilityVfx.floatingText(scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 22, 'HOWL!', { color: '#ddaa55' })
+      // Howl propagation ring — expanding tan ring radiating from the
+      // gnoll so the rally signal reads visually. Tuned wider than a
+      // standard hit ring since the howl is room-scope, not point-scope.
+      if (Number.isFinite(attacker.worldX)) {
+        AbilityVfx.pulseRing(scene, attacker.worldX, attacker.worldY,
+          { color: 0xddaa55, fromR: 6, toR: 64, alpha: 0.55, durationMs: 600 })
+      }
     }
 
     // Lizardman — Camouflage reveal already handled in CombatSystem
@@ -471,10 +495,16 @@ export const MinionAbilities = {
     // Visibility-flip behaviors run regardless of aiState.
     if (VAMPIRE_IDS.has(id))   this._tickVampireHidden(minion, gameState)
     if (GOLEM_IDS.has(id))     this._tickGolemHidden(minion, gameState)
+    // Generic ambush — any minion declaring behaviorType 'ambush' that
+    // isn't already covered by a family-specific hidden handler above.
+    if (minion.behaviorType === 'ambush' &&
+        !VAMPIRE_IDS.has(id) && !GOLEM_IDS.has(id)) {
+      this._tickAmbushHidden(minion, gameState)
+    }
 
     // Beholder Teleport — periodic random non-boss-room teleport. Skips
     // while engaged so we don't yank a fighting beholder off its target.
-    if (id === 'beholder1' && minion.aiState !== 'engaging') {
+    if (BEHOLDER_IDS.has(id) && minion.aiState !== 'engaging') {
       this._tickBeholderTeleport(minion, scene, gameState, dungeonGrid, delta)
     }
 
@@ -485,15 +515,15 @@ export const MinionAbilities = {
     if (id === 'skeleton1') this._tickSkeletonMarch(minion, gameState)
 
     // Orc Patrol Nearby Rooms — occasionally pick a tile in a neighbor room.
-    if (id === 'orc1' || id === 'orc2') this._tickOrcPatrol(minion, gameState, dungeonGrid)
+    if (ORC_IDS.has(id)) this._tickOrcPatrol(minion, gameState, dungeonGrid)
 
     // Demon Sense — react to advs in adjacent rooms by setting an override
     // patrol target. Combat re-acquisition then engages naturally.
-    if (id === 'demon1' || id === 'demon2') this._tickDemonSense(minion, gameState, dungeonGrid)
+    if (DEMON_IDS.has(id)) this._tickDemonSense(minion, gameState, dungeonGrid)
 
     // Goblin Loot Scavenger — when nothing to fight, path to nearest loot
     // pile in the same/adjacent room and bank the gold on contact.
-    if (id === 'goblin1') this._tickGoblinScavenger(minion, scene, gameState, dungeonGrid)
+    if (GOBLIN_IDS.has(id)) this._tickGoblinScavenger(minion, scene, gameState, dungeonGrid)
   },
 
   // Adventurer-targeting visibility filter. Used by MinionAISystem._pickTarget
@@ -547,6 +577,28 @@ export const MinionAbilities = {
       }
     }
     golem._hidden = !close
+  },
+
+  // Generic ambush handler. Used by minions whose JSON sets
+  // `behaviorType: 'ambush'` (plant2, imp2). Mirrors the vampire pattern:
+  // hidden while no adv is in the home room, reveals on entry. The first
+  // attack after a reveal carries `_ambushBuffActive` so CombatSystem can
+  // multiply damage; the flag clears on consume.
+  _tickAmbushHidden(minion, gameState) {
+    const home = gameState?.dungeon?.rooms?.find(r => r.instanceId === minion.assignedRoomId)
+    if (!home) { minion._hidden = false; return }
+    const advInRoom = (gameState.adventurers?.active ?? []).some(a =>
+      a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 &&
+      a.tileX >= home.gridX && a.tileX < home.gridX + home.width &&
+      a.tileY >= home.gridY && a.tileY < home.gridY + home.height
+    )
+    const wasHidden = minion._hidden === true
+    minion._hidden = !advInRoom
+    // Edge: hidden -> revealed transition queues a one-shot 1.5× damage
+    // bonus on the next attack. Stays armed until consumed.
+    if (wasHidden && !minion._hidden) {
+      minion._ambushBuffActive = true
+    }
   },
 
   _tickBeholderTeleport(beholder, scene, gameState, dungeonGrid, delta) {

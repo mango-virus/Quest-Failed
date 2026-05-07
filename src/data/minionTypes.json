@@ -45,7 +45,8 @@
       "defense": 2,
       "speed": 1,
       "damageType": "psychic",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 3
     },
     "goldCost": 0,
     "powerCostToUnlock": 0,
@@ -600,7 +601,8 @@
       "defense": 1,
       "speed": 1.3,
       "damageType": "fire",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 3
     },
     "goldCost": 14,
     "powerCostToUnlock": 0,
@@ -847,7 +849,8 @@
       "defense": 3,
       "speed": 0.8,
       "damageType": "poison",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 2
     },
     "goldCost": 0,
     "powerCostToUnlock": 0,
@@ -1228,7 +1231,7 @@
   },
   {
     "id": "slime2",
-    "name": "Ember Slime",
+    "name": "Acid Slime",
     "spriteKey": "slime2",
     "frameSize": 64,
     "category": "combat",
@@ -1716,9 +1719,7 @@
       "phasing",
       "miniboss"
     ],
-    "vulnerableToElements": [
-      "holy"
-    ]
+    "vulnerableToElements": []
   },
   {
     "id": "gnoll_alpha",
@@ -1810,9 +1811,7 @@
       "caster",
       "miniboss"
     ],
-    "vulnerableToElements": [
-      "holy"
-    ]
+    "vulnerableToElements": []
   },
   {
     "id": "serpent_captain",
@@ -1863,7 +1862,8 @@
       "defense": 5,
       "speed": 0.8,
       "damageType": "poison",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 3
     },
     "goldCost": 0,
     "powerCostToUnlock": 0,
@@ -1936,9 +1936,7 @@
       "vampiric",
       "miniboss"
     ],
-    "vulnerableToElements": [
-      "holy"
-    ]
+    "vulnerableToElements": []
   },
   {
     "id": "mimic",
