@@ -35,13 +35,16 @@ const COL = {
   labelCol:  '#8a8090',
 }
 
-const ROW_H     = 24
-const ROW_GAP   = 6
-const LABEL_W   = 42   // "MUSIC" / "SFX  " label column
-const MUTE_W    = 24
-const SLIDER_PAD = 8   // left gap before slider + right margin
+const ROW_H     = 28
+const ROW_GAP   = 8
+const LABEL_W   = 52   // "MUSIC" / "SFX  " label column
+const MUTE_W    = 22
+const SLIDER_PAD = 10  // left gap before slider
+const PAD_X     = 10   // left/right inset inside the rounded-rect bg
+const PAD_Y     = 8    // top/bottom inset inside the rounded-rect bg
+const TRACK_H   = 6
 
-export const AUDIO_CONTROLS_HEIGHT = ROW_H * 2 + ROW_GAP
+export const AUDIO_CONTROLS_HEIGHT = PAD_Y * 2 + ROW_H * 2 + ROW_GAP
 
 const DEFAULT_W = 300
 
@@ -60,9 +63,10 @@ export class AudioControls {
     this._drawBg(false)
     this._container.add(this._bg)
 
-    // Build the two rows
-    this._music = this._makeRow(0,           'MUSIC', TitleMusic, COL.trackFill,   COL.thumb,    COL.iconOn)
-    this._sfx   = this._makeRow(ROW_H + ROW_GAP, 'SFX',   SfxVolume,  COL.trackFillSfx, COL.thumbSfx, COL.iconOnSfx)
+    // Build the two rows — offset by PAD_Y so the rows aren't flush
+    // against the rounded-rect bg.
+    this._music = this._makeRow(PAD_Y,                       'MUSIC', TitleMusic, COL.trackFill,    COL.thumb,    COL.iconOn)
+    this._sfx   = this._makeRow(PAD_Y + ROW_H + ROW_GAP,     'SFX',   SfxVolume,  COL.trackFillSfx, COL.thumbSfx, COL.iconOnSfx)
 
     // Scene-wide pointer tracking for drag
     scene.input.on('pointermove', this._onPointerMove, this)
@@ -91,24 +95,26 @@ export class AudioControls {
   // ── Row builder ──────────────────────────────────────────────────────────
 
   _makeRow(rowY, label, api, fillColor, thumbColor, iconOnColor) {
-    const sliderX = LABEL_W + MUTE_W + SLIDER_PAD
-    const sliderW = this._w - sliderX - 4
+    const labelX  = PAD_X
+    const muteX   = labelX + LABEL_W
+    const sliderX = muteX + MUTE_W + SLIDER_PAD
+    const sliderW = this._w - sliderX - PAD_X
 
     // Label
-    const labelT = this._scene.add.text(0, rowY + ROW_H / 2, label, {
-      fontSize: '8px', fontFamily: '"Press Start 2P", monospace',
+    const labelT = this._scene.add.text(labelX, rowY + ROW_H / 2, label, {
+      fontSize: '9px', fontFamily: '"Press Start 2P", monospace',
       color: COL.labelCol,
     }).setOrigin(0, 0.5).setResolution(2)
     this._container.add(labelT)
 
     // Mute hit zone + icon
-    const muteHit = this._scene.add.rectangle(LABEL_W, rowY, MUTE_W, ROW_H, 0xffffff, 0.001)
+    const muteHit = this._scene.add.rectangle(muteX, rowY, MUTE_W, ROW_H, 0xffffff, 0.001)
       .setOrigin(0, 0).setInteractive({ useHandCursor: true })
     this._container.add(muteHit)
 
-    const muteIcon = this._scene.add.text(LABEL_W + MUTE_W / 2, rowY + ROW_H / 2,
+    const muteIcon = this._scene.add.text(muteX + MUTE_W / 2, rowY + ROW_H / 2,
       api.isMuted() ? '—' : '♪', {
-        fontSize: '13px', fontFamily: 'monospace',
+        fontSize: '14px', fontFamily: 'monospace',
         color: api.isMuted() ? COL.iconOff : iconOnColor,
         fontStyle: 'bold',
       }).setOrigin(0.5).setResolution(2)
@@ -120,16 +126,16 @@ export class AudioControls {
 
     // Track
     const trackY = rowY + ROW_H / 2
-    const track = this._scene.add.rectangle(sliderX, trackY, sliderW, 4, COL.trackBg)
+    const track = this._scene.add.rectangle(sliderX, trackY, sliderW, TRACK_H, COL.trackBg)
       .setOrigin(0, 0.5)
     track.setStrokeStyle(1, 0x1a0a1a, 0.8)
     this._container.add(track)
 
-    const fill = this._scene.add.rectangle(sliderX, trackY, 1, 4, fillColor)
+    const fill = this._scene.add.rectangle(sliderX, trackY, 1, TRACK_H, fillColor)
       .setOrigin(0, 0.5)
     this._container.add(fill)
 
-    const thumb = this._scene.add.rectangle(sliderX, trackY, 6, 12, thumbColor)
+    const thumb = this._scene.add.rectangle(sliderX, trackY, 7, 14, thumbColor)
       .setOrigin(0.5)
     thumb.setStrokeStyle(1, 0x3a1c0a, 1)
     this._container.add(thumb)

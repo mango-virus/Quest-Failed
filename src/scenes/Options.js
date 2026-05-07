@@ -21,7 +21,7 @@ const W = 1280
 const H = 720
 
 const PANEL_W = 560
-const PANEL_H = 460
+const PANEL_H = 380
 const TITLE_H = 30
 const PADDING = 18
 
@@ -119,8 +119,6 @@ export class Options extends Phaser.Scene {
     yy = this._sectionDisplay(innerX, innerW, yy)
     yy += 14
     yy = this._sectionName(innerX, innerW, yy)
-    yy += 14
-    yy = this._sectionKeyboard(innerX, innerW, yy)
 
     // Back button — anchored to bottom of the panel
     const backW = 220
@@ -137,12 +135,7 @@ export class Options extends Phaser.Scene {
     this._objects.push(this.add.text(x, y, 'AUDIO', {
       fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 3,
     }).setDepth(3))
-    y += 18
-    this._objects.push(this.add.text(x, y,
-      'Drag sliders to adjust music and sound effects volume independently.', {
-      fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
-    }).setDepth(3))
-    y += 16
+    y += 20
     this._audio = new AudioControls(this, x, y, { depth: 5, w })
     y += AUDIO_CONTROLS_HEIGHT + 8
     return y
@@ -152,14 +145,16 @@ export class Options extends Phaser.Scene {
     this._objects.push(this.add.text(x, y, 'DISPLAY', {
       fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 3,
     }).setDepth(3))
-    y += 18
+    y += 20
 
-    // Fullscreen toggle button
+    const rowH = 32
     const isFs = this.scale.isFullscreen
-    this._objects.push(this.add.text(x, y, 'Fullscreen', {
-      fontFamily: FONT_BODY, fontSize: '10px', color: CRYPT.ink, letterSpacing: 1,
+    // Center label vertically against the button.
+    this._objects.push(this.add.text(x, y + rowH / 2, 'Fullscreen', {
+      fontFamily: FONT_BODY, fontSize: '11px', color: CRYPT.ink, letterSpacing: 1,
     }).setOrigin(0, 0.5).setDepth(3))
-    const fsBtn = pixelButton(this, x + 140, y - 16, 120, 32, isFs ? 'ON' : 'OFF', {
+    const btnW = 100
+    const fsBtn = pixelButton(this, x + w - btnW, y, btnW, rowH, isFs ? 'ON' : 'OFF', {
       depth: 5, fontSize: 10,
       primary: isFs,
       onClick: () => {
@@ -170,7 +165,7 @@ export class Options extends Phaser.Scene {
       },
     })
     this._buttons.push(fsBtn)
-    y += 30
+    y += rowH + 4
     return y
   }
 
@@ -178,16 +173,18 @@ export class Options extends Phaser.Scene {
     this._objects.push(this.add.text(x, y, 'PLAYER NAME', {
       fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 3,
     }).setDepth(3))
-    y += 18
+    y += 20
 
+    const rowH = 32
     const current = PlayerProfile.hasName() ? PlayerProfile.getName() : '—'
-    this._nameDisplayT = this.add.text(x, y, current, {
-      fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.ink, letterSpacing: 1,
-    }).setDepth(3)
+    this._nameDisplayT = this.add.text(x, y + rowH / 2, current, {
+      fontFamily: FONT_HEAD, fontSize: '11px', color: CRYPT.ink, letterSpacing: 1,
+    }).setOrigin(0, 0.5).setDepth(3)
     this._objects.push(this._nameDisplayT)
 
-    const editBtn = pixelButton(this, x + w - 140, y - 6, 140, 28, 'CHANGE NAME', {
-      depth: 5, fontSize: 8,
+    const btnW = 140
+    const editBtn = pixelButton(this, x + w - btnW, y, btnW, rowH, 'CHANGE NAME', {
+      depth: 5, fontSize: 9,
       onClick: () => {
         this._namePanel = new NameEntryPanel(this, {
           depth:     10,
@@ -202,29 +199,7 @@ export class Options extends Phaser.Scene {
       },
     })
     this._buttons.push(editBtn)
-    y += 32
-    return y
-  }
-
-  _sectionKeyboard(x, w, y) {
-    this._objects.push(this.add.text(x, y, 'KEYBOARD', {
-      fontFamily: FONT_HEAD, fontSize: '10px', color: CRYPT.accent2Css, letterSpacing: 3,
-    }).setDepth(3))
-    y += 18
-
-    const lines = [
-      'ESC          Pause / back',
-      'R            Rotate held room (during MOVE)',
-      'SPACE        Day phase: pause time',
-      '1 / 2 / 4    Day phase: 1× / 2× / 4× speed',
-      'Right-click  Cancel armed tool / placement',
-    ]
-    for (const line of lines) {
-      this._objects.push(this.add.text(x, y, line, {
-        fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
-      }).setDepth(3))
-      y += 14
-    }
+    y += rowH + 4
     return y
   }
 
