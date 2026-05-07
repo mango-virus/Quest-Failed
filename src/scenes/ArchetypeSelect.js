@@ -37,6 +37,7 @@ const UNLOCK_GATES = {
   vampire:  { requiredLevel: 5, label: 'REACH BOSS LV 5 TO UNLOCK', check: (m) => m >= 5 },
   wraith:   { requiredLevel: 6, label: 'REACH BOSS LV 6 TO UNLOCK', check: (m) => m >= 6 },
   succubus: { requiredLevel: 7, label: 'REACH BOSS LV 7 TO UNLOCK', check: (m) => m >= 7 },
+  slime:    { requiredLevel: 99, label: 'REACH BOSS LV 99 TO UNLOCK', check: (m) => m >= 99 },
 }
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────

@@ -408,7 +408,7 @@ export class Preload extends Phaser.Scene {
     // procedural silhouette in ArchetypeSelect.
     // Per-boss bestiary art keys: 22×22 portraits, name banners, and full
     // body images now exist for all 10 bosses.
-    const ALL_BOSSES = ['beholder', 'demon', 'gnoll', 'golem', 'lich', 'lizardman', 'myconid', 'orc', 'succubus', 'vampire', 'wraith']
+    const ALL_BOSSES = ['beholder', 'demon', 'gnoll', 'golem', 'lich', 'lizardman', 'myconid', 'orc', 'succubus', 'vampire', 'wraith', 'slime']
     for (const id of ALL_BOSSES) {
       this.load.image(`bestiary-portrait-${id}`, BEST + `portraits/${id}_p.png`)
       this.load.image(`bestiary-name-${id}`,     BEST + `names/${id}_n.png`)

@@ -24,12 +24,12 @@
     "depth": 999
   },
   "portrait-highlight": {
-    "x": 575,
-    "y": 492,
+    "x": 657,
+    "y": 493,
     "scaleX": 2.621,
     "scaleY": 2.621,
     "depth": 1000,
-    "alpha": 0.617
+    "alpha": 0.993
   },
   "slot-beholder": {
     "x": 495,
@@ -828,8 +828,8 @@
     "scaleX": 1.671,
     "scaleY": 1.671,
     "depth": 1000,
-    "alpha": 0.35,
-    "tint": 4473924
+    "alpha": 0.75,
+    "tint": 11575440
   },
   "succubus/boss-name": {
     "x": 881,
@@ -937,5 +937,60 @@
     "x": 760,
     "y": 474,
     "depth": 2
+  },
+  "slot-slime": {
+    "x": 657,
+    "y": 493,
+    "scaleX": 2.859,
+    "scaleY": 2.859,
+    "depth": 1000,
+    "alpha": 0.75,
+    "tint": 11575440
+  },
+  "slime/boss-name": {
+    "x": 873,
+    "y": 203,
+    "scaleX": 2.662,
+    "scaleY": 2.662,
+    "depth": 1000
+  },
+  "slime/boss-full-body": {
+    "x": 871,
+    "y": 285,
+    "scaleX": 2.689,
+    "scaleY": 2.689,
+    "depth": 1000
+  },
+  "slime/headline-title": {
+    "x": 767,
+    "y": 381,
+    "depth": 2
+  },
+  "slime/headline-summary": {
+    "x": 767,
+    "y": 400,
+    "depth": 2
+  },
+  "slime/mechanic-0-bullet": {
+    "x": 763,
+    "y": 462,
+    "depth": 2,
+    "visible": false
+  },
+  "slime/mechanic-0-text": {
+    "x": 767,
+    "y": 430,
+    "depth": 2
+  },
+  "slime/mechanic-0-body": {
+    "x": 767,
+    "y": 449,
+    "depth": 2
+  },
+  "slime/flavor-quote": {
+    "x": 881,
+    "y": 580,
+    "depth": 2,
+    "visible": false
   }
 }

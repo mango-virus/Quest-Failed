@@ -399,5 +399,39 @@
       "attack": 12,
       "defense": 10
     }
+  },
+  {
+    "id": "slime",
+    "name": "Pure Slime",
+    "tagline": "Coming soon",
+    "color": "0x55cc77",
+    "spriteFrame": null,
+    "portraitAvailable": true,
+    "headline": {
+      "name": "???",
+      "summary": "Reach boss level 99 to unlock.",
+      "implemented": false
+    },
+    "mechanics": [
+      {
+        "text": "??? — locked until boss level 99.",
+        "implemented": false
+      }
+    ],
+    "flavorText": "Something stirs in the ooze. Not yet, though.",
+    "description": "Coming soon",
+    "modifiers": {
+      "goldGainMultiplier": 1,
+      "minionXpMultiplier": 1,
+      "roomCostMultiplier": 1,
+      "availableMechanicTags": [],
+      "blockedRoomTags": [],
+      "blockedMechanicTags": []
+    },
+    "baseFightStats": {
+      "hp": 200,
+      "attack": 12,
+      "defense": 10
+    }
   }
 ]
