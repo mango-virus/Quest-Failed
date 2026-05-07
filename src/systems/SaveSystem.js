@@ -100,5 +100,40 @@ function _rehydrateRunHistory(state) {
   for (const a of (state.adventurers.active   ?? [])) a.escapeCount ??= 0
   for (const a of (state.adventurers.graveyard ?? [])) a.escapeCount ??= 0
 
+  // Strip transient `_xUntil` timestamps and one-shot flags. These are
+  // stamped against scene.time.now (resets to 0 each scene-load), so any
+  // saved buff would phantom-stay-active until scene time catches up to
+  // the old wall-clock value. Cleanest fix: drop them on load and let the
+  // owning systems re-arm fresh.
+  const TRANSIENT_KEYS = [
+    // Class-ability windows
+    '_summonGateUntil', '_focusActiveUntil', '_innerPeaceUntil',
+    '_boneArmorUntil', '_invisibilityUntil', '_twitchEffectUntil',
+    '_arcaneBurstQueued', '_madnessTargetId', '_wanderingGateCooldownDay',
+    // Boss-archetype timed effects
+    '_petrifiedUntil', '_fearAttackUntil', '_charmedAt',
+    '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',
+    '_lootingUntil', '_gloatUntil', '_spawnFadeEnd', '_leaveFadeEnd',
+    // AI tracking
+    '_lastAttackAt', '_waitMs', '_tileStuckMs', '_hardStuckMs',
+    '_oscNextAt', '_blightAcc', '_antiMagicNextPulseAt',
+    '_fearPanicDeathTriggered', '_fearAttackArmed',
+    '_fearFleeTriggered',
+    // Anti-magic / silence
+    '_provoked', '_invisible',
+    // Tower Tax leak we already fixed via DAY_PHASE_STARTED reset, but
+    // strip on load too so cross-save legacy state is clean.
+    '_towerTaxFirstShotConsumed',
+  ]
+  for (const a of (state.adventurers.active   ?? [])) {
+    for (const k of TRANSIENT_KEYS) if (k in a) delete a[k]
+  }
+  for (const m of (state.minions ?? [])) {
+    if ('_lastAttackAt' in m) delete m._lastAttackAt
+    if ('_lastClericHealAt' in m) delete m._lastClericHealAt
+    if ('_raisedBardBuffUntil' in m) delete m._raisedBardBuffUntil
+    if ('_doorPatLastCp' in m) delete m._doorPatLastCp   // patroller door state — re-derives at runtime
+  }
+
   return state
 }

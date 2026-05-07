@@ -226,17 +226,22 @@ Other Ideas for example:
 
 ## Dungeon room types
 
+> **Status:** This original 9-room list is preserved as design history.
+> The actual shipping roster lives in **"Room redesign 2026-04-30"** below.
+> Per-entry status notes track which legacy rooms made it into the new
+> roster vs. which were dropped.
+
 Different types of dungeon room ideas for example:
 
-1. **The Hall of Echoes** — Any sound made in this room alerts minions in the adjacent rooms. Perfect for setting up an ambush for Speed Runners.
-2. **The False Exit** — A room that looks like a way out but send the player to a random location in the dungeon instead. It's a "Stamina Drainer" for parties trying to escape.
-3. **The Treasure Room** — lures more adventurers to the dungeon so I can gain more xp but hold valuable items that can make the adventures stronger if they get to it.
-4. **The Healing Fountain Room** — A room that looks like a safe haven. Adventurers will stop to "Sleep" or "Heal" here leaving them vulnerable to being attacked by patroling minions/monsters while they sleep.
-5. **The Necropolis Wing** — A special late-game room that turns every adventurer corpse that dies in it into a weak skeleton minion permanently. Not respawnable, no XP — but they were once adventurers, so they "remember" the dungeon layout and patrol the dungeon suspiciously well.
-6. **The Colosseum** — A large arena room. When adventurers enter, doors lock and waves of minions spawn. The trick: there's a lever mid-room the party has to reach to open the exit. Greedy types ignore the lever to loot the mini boss first.
-7. **The Mirror Maze** — A room full of reflective pillars. Adventurers can lose track of each other. Minions with stealth thrive here. Cartographers are less effective — the map geometry is intentionally disorienting.
-8. **The Obelisk Room** — A dark room with a glowing obelisk. Standing near it heals adventurers — but slowly charges a trap that summons a wave of minions when fully charged. Do they heal or rush through? They decide based on their personality/type.
-9. **Barracks** — Minions actively sleep here between patrols. Parties can sneak through silently — but any combat wakes everyone. The Speedrunner wants to dash through. The Paranoid refuses to move until every minion is dead.
+1. **The Hall of Echoes** — Any sound made in this room alerts minions in the adjacent rooms. Perfect for setting up an ambush for Speed Runners. *(🚫 REMOVED — sound-alert mechanic dropped; the "adjacent-room alert" idea folded into the Whisperer's Tongue dark pact instead.)*
+2. **The False Exit** — A room that looks like a way out but send the player to a random location in the dungeon instead. It's a "Stamina Drainer" for parties trying to escape. *(✅ SHIPPED as `false_exit`.)*
+3. **The Treasure Room** — lures more adventurers to the dungeon so I can gain more xp but hold valuable items that can make the adventures stronger if they get to it. *(✅ SHIPPED as `treasury` + the Treasure Chest item line T1–T10.)*
+4. **The Healing Fountain Room** — A room that looks like a safe haven. Adventurers will stop to "Sleep" or "Heal" here leaving them vulnerable to being attacked by patroling minions/monsters while they sleep. *(🚫 REMOVED as a room; survives as the **Healing Fountain item** in `items.json`. No room version ships.)*
+5. **The Necropolis Wing** — A special late-game room that turns every adventurer corpse that dies in it into a weak skeleton minion permanently. Not respawnable, no XP — but they were once adventurers, so they "remember" the dungeon layout and patrol the dungeon suspiciously well. *(✅ SHIPPED as `catacombs` — adv deaths in the room raise Revenants up to a 2-alive cap.)*
+6. **The Colosseum** — A large arena room. When adventurers enter, doors lock and waves of minions spawn. The trick: there's a lever mid-room the party has to reach to open the exit. Greedy types ignore the lever to loot the mini boss first. *(🚫 REMOVED — wave-spawn-while-locked never shipped.)*
+7. **The Mirror Maze** — A room full of reflective pillars. Adventurers can lose track of each other. Minions with stealth thrive here. Cartographers are less effective — the map geometry is intentionally disorienting. *(🚫 REMOVED — fake-marker idea folded into the Whispered Lies dark pact instead.)*
+8. **The Obelisk Room** — A dark room with a glowing obelisk. Standing near it heals adventurers — but slowly charges a trap that summons a wave of minions when fully charged. Do they heal or rush through? They decide based on their personality/type. *(🚫 REMOVED — wave-charge mechanic never shipped.)*
+9. **Barracks** — Minions actively sleep here between patrols. Parties can sneak through silently — but any combat wakes everyone. The Speedrunner wants to dash through. The Paranoid refuses to move until every minion is dead. *(✅ SHIPPED as `starter_barracks` — sneak-through mechanic kept; "sleep wakes on combat" simplified.)*
 
 **I want many many different rooms that can be added to the dungeon.**
 

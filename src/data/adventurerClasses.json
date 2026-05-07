@@ -39,7 +39,10 @@
       "attackRange": 4
     },
     "startingResources": {},
-    "tags": ["ranged", "spellcaster"],
+    "tags": [
+      "ranged",
+      "spellcaster"
+    ],
     "description": "Glass cannon. Big spells, brittle bones.",
     "flavorText": "Fireball solves most problems. Survival is a different one."
   },
@@ -55,9 +58,12 @@
       "attackRange": 3
     },
     "startingResources": {},
-    "tags": ["ranged", "healer", "anti_undead", "support"],
-    "abilities": ["heal_ally", "smite_undead"],
-    "description": "Heals party members and deals bonus damage to undead minions.",
+    "tags": [
+      "ranged",
+      "healer",
+      "support"
+    ],
+    "description": "Field medic for the party — heals wounded allies and rezzes the fallen. Light melee resistance, no offensive specialty.",
     "flavorText": "Faith is a weapon, and a bandage."
   },
   {
@@ -72,10 +78,13 @@
       "attackRange": 5
     },
     "startingResources": {},
-    "tags": ["spellcaster", "minion_raiser", "dark"],
-    "abilities": ["raise_corpse", "soul_bolt"],
+    "tags": [
+      "spellcaster",
+      "minion_raiser",
+      "dark"
+    ],
     "unlockLevel": 3,
-    "description": "Raises defeated minions to fight for the party. Lich-archetype dungeons may turn raised minions hostile mid-fight.",
+    "description": "Raises defeated minions to fight for the party. Defected raises last until the day ends.",
     "flavorText": "Death is a waste of perfectly good labour."
   },
   {
@@ -89,10 +98,14 @@
       "speed": 1.9,
       "attackRange": 4
     },
-    "startingResources": { "arrows": 18 },
-    "tags": ["ranged", "scout"],
-    "abilities": ["volley", "track"],
-    "description": "Ranged combatant. Fires arrows from a distance — runs out and has to leave to resupply.",
+    "startingResources": {
+      "arrows": 18
+    },
+    "tags": [
+      "ranged",
+      "scout"
+    ],
+    "description": "Ranged combatant. Fires arrows from a distance; switches to melee when the quiver runs dry.",
     "flavorText": "First arrow. Second arrow. Third arrow. Out."
   },
   {
@@ -106,11 +119,14 @@
       "speed": 1.8
     },
     "startingResources": {},
-    "tags": ["chaotic", "chat_driven", "viral"],
-    "abilities": ["chat_poll", "viewer_drop"],
+    "tags": [
+      "chaotic",
+      "chat_driven",
+      "viral"
+    ],
     "unlockLevel": 3,
     "rarity": "rare",
-    "description": "Streams the run live. Decisions polled to chat in real time. Their death produces a clip that summons more adventurers tomorrow.",
+    "description": "Streams the run live. Decisions polled to chat in real time. A killed streamer sometimes goes viral, summoning extra adventurers the next day.",
     "flavorText": "PogChamp the chest! PogChamp the chest!"
   },
   {
@@ -124,8 +140,11 @@
       "speed": 1.7
     },
     "startingResources": {},
-    "tags": ["beast_tamer", "support", "pet_class"],
-    "abilities": ["tame_minion", "command_beast"],
+    "tags": [
+      "beast_tamer",
+      "support",
+      "pet_class"
+    ],
     "unlockLevel": 3,
     "rarity": "rare",
     "description": "Trained handler. Tames a single hostile minion mid-fight; the tamed beast follows and fights for them. Only one companion at a time — if it dies, they tame a replacement.",
@@ -142,8 +161,11 @@
       "speed": 1.8
     },
     "startingResources": {},
-    "tags": ["melee", "rage", "fearless"],
-    "abilities": ["rage_scaling", "unstoppable"],
+    "tags": [
+      "melee",
+      "rage",
+      "fearless"
+    ],
     "description": "Rage-fueled brawler. Damage scales as HP drops (up to 2x at near-death). Immune to fear and flee triggers — never retreats.",
     "flavorText": "Pain is just bad weather. You walk through it."
   },
@@ -158,8 +180,11 @@
       "speed": 2.5
     },
     "startingResources": {},
-    "tags": ["melee", "evader", "unarmored"],
-    "abilities": ["dodge_chance", "armor_pierce"],
+    "tags": [
+      "melee",
+      "evader",
+      "unarmored"
+    ],
     "dodgeChance": 0.3,
     "description": "Unarmored, lightning-fast. ~30% chance to dodge incoming hits including traps. Strikes ignore half of minion defense.",
     "flavorText": "Be the wind around the blade."
@@ -176,8 +201,11 @@
       "attackRange": 4
     },
     "startingResources": {},
-    "tags": ["support", "buffer", "ranged_low"],
-    "abilities": ["inspire_party", "song_of_speed"],
+    "tags": [
+      "support",
+      "buffer",
+      "ranged_low"
+    ],
     "unlockLevel": 3,
     "description": "Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. Aura ends the moment they fall.",
     "flavorText": "Every chord, a small kindness."
@@ -187,9 +215,17 @@
     "name": "Sir Aldric the Bold",
     "color": "0xc83a3a",
     "spriteSourceClassId": "knight",
-    "baseStats": { "hp": 65, "attack": 11, "defense": 6, "speed": 1.6 },
+    "baseStats": {
+      "hp": 65,
+      "attack": 11,
+      "defense": 6,
+      "speed": 1.6
+    },
     "startingResources": {},
-    "tags": ["melee", "tournament_rival"],
+    "tags": [
+      "melee",
+      "tournament_rival"
+    ],
     "unlockLevel": 99,
     "description": "Tournament champion warrior. Fights for glory and the kill credit.",
     "flavorText": "The boss kill is MINE."
@@ -199,9 +235,17 @@
     "name": "Vexa the Swift",
     "color": "0xddaa44",
     "spriteSourceClassId": "rogue",
-    "baseStats": { "hp": 45, "attack": 13, "defense": 3, "speed": 2.6 },
+    "baseStats": {
+      "hp": 45,
+      "attack": 13,
+      "defense": 3,
+      "speed": 2.6
+    },
     "startingResources": {},
-    "tags": ["melee", "tournament_rival"],
+    "tags": [
+      "melee",
+      "tournament_rival"
+    ],
     "unlockLevel": 99,
     "description": "Tournament champion rogue. Fast, lethal, ruthless against rivals.",
     "flavorText": "Stand aside. I'll be the hero of this tale."
@@ -211,9 +255,19 @@
     "name": "Magus Drevhart",
     "color": "0xaa66ff",
     "spriteSourceClassId": "mage",
-    "baseStats": { "hp": 38, "attack": 15, "defense": 2, "speed": 1.8, "attackRange": 4 },
+    "baseStats": {
+      "hp": 38,
+      "attack": 15,
+      "defense": 2,
+      "speed": 1.8,
+      "attackRange": 4
+    },
     "startingResources": {},
-    "tags": ["ranged", "spellcaster", "tournament_rival"],
+    "tags": [
+      "ranged",
+      "spellcaster",
+      "tournament_rival"
+    ],
     "unlockLevel": 99,
     "description": "Tournament champion mage. Will incinerate anyone in his way — boss, minion, or rival.",
     "flavorText": "Witness true power."
@@ -223,9 +277,17 @@
     "name": "Rival Monster",
     "color": "0x6644aa",
     "spriteSourceClassId": "cosplay_adventurer",
-    "baseStats": { "hp": 35, "attack": 8, "defense": 3, "speed": 1.7 },
+    "baseStats": {
+      "hp": 35,
+      "attack": 8,
+      "defense": 3,
+      "speed": 1.7
+    },
     "startingResources": {},
-    "tags": ["melee", "monster_invader"],
+    "tags": [
+      "melee",
+      "monster_invader"
+    ],
     "unlockLevel": 99,
     "description": "Foot soldier from a rival dungeon. Chasing the boss kill on behalf of their own dark lord.",
     "flavorText": "*snarl*"
@@ -235,9 +297,17 @@
     "name": "Rival Dungeon Boss",
     "color": "0x884444",
     "spriteSourceClassId": "barbarian",
-    "baseStats": { "hp": 200, "attack": 18, "defense": 10, "speed": 1.4 },
+    "baseStats": {
+      "hp": 200,
+      "attack": 18,
+      "defense": 10,
+      "speed": 1.4
+    },
     "startingResources": {},
-    "tags": ["melee", "rival_boss"],
+    "tags": [
+      "melee",
+      "rival_boss"
+    ],
     "unlockLevel": 99,
     "description": "A boss from another dungeon, here to settle a score. Goes straight for the throne room.",
     "flavorText": "Only one of us walks out."
@@ -253,7 +323,10 @@
       "speed": 1.6
     },
     "startingResources": {},
-    "tags": ["non_combatant", "scholar"],
+    "tags": [
+      "non_combatant",
+      "scholar"
+    ],
     "unlockLevel": 99,
     "description": "Mapper, not fighter. Tours every room (avoiding the boss), then leaves. Their notes spread to future adventurers.",
     "flavorText": "For science."
@@ -269,7 +342,10 @@
       "speed": 1.7
     },
     "startingResources": {},
-    "tags": ["melee", "cosplay"],
+    "tags": [
+      "melee",
+      "cosplay"
+    ],
     "unlockLevel": 99,
     "description": "Adventurer in a monster costume. Walks past most minions ignoring them; only fights if attacked.",
     "flavorText": "Wait — is that a real beholder, or a really good costume?"
@@ -286,7 +362,10 @@
       "speed": 2.6
     },
     "startingResources": {},
-    "tags": ["thief", "non_combatant"],
+    "tags": [
+      "thief",
+      "non_combatant"
+    ],
     "unlockLevel": 99,
     "description": "Pure thief. Spawns in the boss room and bolts for the exit. Will not stop to fight. Each one that escapes steals 10% of your gold.",
     "flavorText": "Snatch and giggle."
