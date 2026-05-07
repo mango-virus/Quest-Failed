@@ -258,11 +258,16 @@ export class BossArchetypeSystem {
         this._gameState._lich ??= { pendingRaises: [] }
         this._gameState._lich.pendingRaises ??= []
         this._gameState._lich.pendingRaises.push({
-          classId: adv.classId ?? 'knight',
-          name:    adv.name ?? 'Risen',
-          level:   adv.level ?? 1,
-          tileX:   adv.tileX,
-          tileY:   adv.tileY,
+          classId:       adv.classId ?? 'knight',
+          name:          adv.name ?? 'Risen',
+          level:         adv.level ?? 1,
+          tileX:         adv.tileX,
+          tileY:         adv.tileY,
+          // Capture LPC sheet identity so MinionRenderer can render the
+          // raised minion with the dead adventurer's sprite (tinted
+          // darker), matching the "they look like the adventurer that
+          // died" design intent.
+          spriteVariant: adv.spriteVariant ?? null,
         })
       }
     }
@@ -994,8 +999,9 @@ export class BossArchetypeSystem {
         hp:          phyl.resources.hp,
       })
     }
-    // Lich Necromancy: per-tick cleric heal from raised dead.
+    // Lich Necromancy: per-tick ability ticks for raised dead.
     this._tickRaisedClerics()
+    this._tickRaisedBards()
   }
 
   // ── LICH: Necromancy ────────────────────────────────────────────────────
@@ -1060,6 +1066,7 @@ export class BossArchetypeSystem {
       minion._raisedFromAdvDeath  = true
       minion._raisedClassId       = entry.classId
       minion._raisedAdvName       = entry.name
+      minion._raisedSpriteVariant = entry.spriteVariant ?? null
       minion._expireAtDay         = expireOn
 
       // Lightweight class retention — boost the skeleton based on the
@@ -1282,6 +1289,50 @@ export class BossArchetypeSystem {
         targetId: target.instanceId,
         amount:   heal,
       })
+    }
+  }
+
+  // Raised Bard aura — every tick, every dungeon minion within
+  // NECROMANCY_BARD_AURA_RANGE_TILES of a raised bard gets a +15% ATK
+  // baseline-aware buff for the next ~250 ms (re-stamped each frame the
+  // minion is in range, so the buff persists while inside and decays
+  // naturally when leaving). Does not stack between bards.
+  _tickRaisedBards() {
+    if (this._archId() !== 'lich') return
+    const minions = this._gameState?.minions ?? []
+    if (minions.length === 0) return
+    const now    = this._scene?.time?.now ?? 0
+    const range  = Balance.NECROMANCY_BARD_AURA_RANGE_TILES ?? 4
+    const buffMs = 250                  // refreshed every tick, decays if out of range
+    const mul    = 1 + (Balance.NECROMANCY_BARD_AURA_ATK_PCT ?? 0.15)
+    for (const bard of minions) {
+      if (!bard._raisedFromAdvDeath || bard._raisedClassId !== 'bard') continue
+      if (bard.aiState === 'dead' || (bard.resources?.hp ?? 0) <= 0) continue
+      for (const ally of minions) {
+        if (ally === bard) continue
+        if (ally.aiState === 'dead' || (ally.resources?.hp ?? 0) <= 0) continue
+        if (ally.faction && ally.faction !== 'dungeon') continue
+        const d = Math.abs(ally.tileX - bard.tileX) + Math.abs(ally.tileY - bard.tileY)
+        if (d > range) continue
+        // Stamp baseline once so the buff is reversible without losing
+        // intermediate adjustments (orc warband, evolution, etc).
+        if (ally._raisedBardBaselineAtk == null) {
+          ally._raisedBardBaselineAtk = ally.stats?.attack ?? 0
+        }
+        ally.stats.attack = Math.round(ally._raisedBardBaselineAtk * mul)
+        ally._raisedBardBuffUntil = now + buffMs
+      }
+    }
+    // Decay pass — any minion whose buff has expired reverts to baseline
+    // and the baseline tag is cleared so future bards can re-stamp.
+    for (const m of minions) {
+      if (m._raisedBardBuffUntil == null) continue
+      if (now < m._raisedBardBuffUntil) continue
+      if (m._raisedBardBaselineAtk != null) {
+        m.stats.attack = m._raisedBardBaselineAtk
+        m._raisedBardBaselineAtk = null
+      }
+      m._raisedBardBuffUntil = null
     }
   }
 
@@ -2132,21 +2183,39 @@ export class BossArchetypeSystem {
           EventBus.emit('WRAITH_FEAR_FLEE', { advId: adv.instanceId, roomId: pick.instanceId })
         }
       }
-      // 75% — friendly-fire window (re-armed every time threshold is crossed).
+      // 75% — friendly-fire window. Single-shot per threshold crossing:
+      // armed once when fear first hits 75, runs for FRIENDLY_FIRE_WINDOW_MS,
+      // then clears so the adv resumes normal AI until they either hit 100%
+      // panic-die or the run ends. _fearAttackArmed prevents re-arm.
       if (fear >= Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD) {
-        if (!adv._fearAttackUntil || adv._fearAttackUntil < now + 100) {
+        if (!adv._fearAttackArmed) {
+          adv._fearAttackArmed = true
           adv._fearAttackUntil = now + Balance.WRAITH_FEAR_FRIENDLY_FIRE_WINDOW_MS
-          // Pick a random same-party adv (or any active adv if solo) and
-          // route there; ATTACK_ALLY goal already exists for Hall of Madness.
           const party = adv.partyId
             ? advs.filter(a => a !== adv && a.partyId === adv.partyId && (a.resources?.hp ?? 0) > 0)
             : advs.filter(a => a !== adv && (a.resources?.hp ?? 0) > 0)
           if (party.length > 0) {
             const target = party[Math.floor(Math.random() * party.length)]
-            adv.goal = { type: 'ATTACK_ALLY', allyId: target.instanceId }
+            adv.goal = { type: 'ATTACK_ALLY', allyId: target.instanceId, source: 'wraith_fear' }
             adv.path = null
             EventBus.emit('WRAITH_FRIENDLY_FIRE', { advId: adv.instanceId, targetId: target.instanceId })
           }
+        } else if (adv._fearAttackUntil && now >= adv._fearAttackUntil &&
+                   adv.goal?.type === 'ATTACK_ALLY' && adv.goal?.source === 'wraith_fear') {
+          // Window expired — route back to a random non-entry, non-boss
+          // room so the adv resumes wandering. AISystem._goalToTile reads
+          // .type unguarded, so we hand it a valid goal rather than null.
+          const rooms = this._gameState?.dungeon?.rooms ?? []
+          const candidates = rooms.filter(r =>
+            r.definitionId !== 'entry_hall' && r.definitionId !== 'boss_chamber',
+          )
+          if (candidates.length > 0) {
+            const pick = candidates[Math.floor(Math.random() * candidates.length)]
+            adv.goal = { type: 'EXPLORE_ROOM', roomId: pick.instanceId }
+          } else {
+            adv.goal = { type: 'FLEE', reason: 'wraith_fear_window_ended' }
+          }
+          adv.path = null
         }
       }
       // 100% — instant panic death. Drop gold like a normal kill, no XP.

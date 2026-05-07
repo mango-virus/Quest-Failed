@@ -65,6 +65,12 @@ export const Balance = {
   // Cleric retention: raised cleric heals adjacent minions per tick.
   NECROMANCY_CLERIC_HEAL_AMOUNT:  4,
   NECROMANCY_CLERIC_HEAL_INTERVAL_MS: 2200,
+  // Bard retention: raised bards aura nearby dungeon minions for +15% ATK
+  // while in range. Buff is re-stamped every tick the minion is within
+  // NECROMANCY_BARD_AURA_RANGE_TILES (Manhattan dist) and decays naturally
+  // when they leave the radius.
+  NECROMANCY_BARD_AURA_RANGE_TILES: 4,
+  NECROMANCY_BARD_AURA_ATK_PCT:    0.15,
 
   // --- Phase 1b.6: Serpent Captain ---
   // Venom Stack: each minion attack adds a stack; per-stack DoT ticks every
@@ -108,7 +114,7 @@ export const Balance = {
   WRAITH_FEAR_FLEE_THRESHOLD:             50,
   WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD:    75,
   WRAITH_FEAR_PANIC_DEATH_THRESHOLD:      100,
-  WRAITH_FEAR_FRIENDLY_FIRE_WINDOW_MS:   5000,
+  WRAITH_FEAR_FRIENDLY_FIRE_WINDOW_MS:  10000,
   WRAITH_HAUNT_DETECT_RANGE_TILES:         8, // detection sight range from spawn-room center
   WRAITH_HAUNT_PHASE_SPEED_TILES_PER_SEC:  1.6, // wall-phase travel speed
   WRAITH_HAUNT_MAX_ACTIVE:                 5,   // hard cap on simultaneous Haunt ghosts (Wraith was over-tuned otherwise)

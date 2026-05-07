@@ -233,6 +233,114 @@ export class BossArchetypeUI {
         })
       }
     })
+
+    // ── Polish VFX (audit followup) ──────────────────────────────────────
+
+    // Lizardman: small dust poof + tint flash when a camouflaged minion
+    // reveals on first hit.
+    this._on('LIZARDMAN_CAMO_REVEAL', ({ minionId }) => {
+      const game = this._scene.scene.get('Game')
+      if (!game?.add?.graphics) return
+      const m = (this._gameState?.minions ?? []).find(x => x.instanceId === minionId)
+      if (!m) return
+      const ring = game.add.graphics().setDepth(12)
+      ring.lineStyle(2, 0x66ff88, 0.95).strokeCircle(m.worldX, m.worldY, 14)
+      ring.lineStyle(1, 0xccffd9, 0.7).strokeCircle(m.worldX, m.worldY, 20)
+      game.tweens.add({
+        targets: ring, alpha: 0, scale: 1.4,
+        duration: 380, ease: 'Cubic.easeOut',
+        onComplete: () => ring.destroy(),
+      })
+    })
+
+    // Wraith: purple wisp at every haunt-ghost spawn.
+    this._on('WRAITH_HAUNT_SPAWNED', ({ minionId }) => {
+      const game = this._scene.scene.get('Game')
+      if (!game?.add?.graphics) return
+      const m = (this._gameState?.minions ?? []).find(x => x.instanceId === minionId)
+      if (!m) return
+      const wisp = game.add.graphics().setDepth(12)
+      wisp.fillStyle(0x9966ff, 0.55).fillCircle(m.worldX, m.worldY, 10)
+      wisp.lineStyle(2, 0xcc99ff, 0.9).strokeCircle(m.worldX, m.worldY, 14)
+      game.tweens.add({
+        targets: wisp, alpha: 0, y: m.worldY - 18,
+        duration: 700, ease: 'Cubic.easeOut',
+        onComplete: () => wisp.destroy(),
+      })
+    })
+
+    // Lich Necromancy: dark-purple summoning burst + center-screen toast
+    // listing how many rose.
+    this._on('NECROMANCY_RAISED', ({ count, minionIds }) => {
+      const game = this._scene.scene.get('Game')
+      if (!game?.add?.graphics) return
+      const minions = this._gameState?.minions ?? []
+      for (const id of (minionIds ?? [])) {
+        const m = minions.find(x => x.instanceId === id)
+        if (!m) continue
+        const ring = game.add.graphics().setDepth(12)
+        ring.lineStyle(2, 0x6633bb, 0.95).strokeCircle(m.worldX, m.worldY, 16)
+        ring.lineStyle(1, 0x9966dd, 0.6).strokeCircle(m.worldX, m.worldY, 22)
+        game.tweens.add({
+          targets: ring, alpha: 0, scale: 1.4,
+          duration: 500, ease: 'Cubic.easeOut',
+          onComplete: () => ring.destroy(),
+        })
+      }
+      // Center-screen toast — same pattern as the Game-scene loot-goblin
+      // toast so the chrome stays consistent.
+      const cam = game.cameras?.main
+      if (!cam || !count) return
+      const banner = game.add.text(cam.midPoint.x, cam.midPoint.y - 80,
+        `${count} risen at dawn`, {
+          fontSize: '18px', color: '#cc99ff',
+          fontFamily: 'monospace', fontStyle: 'bold',
+          stroke: '#1c0a2a', strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(125).setScrollFactor(0)
+      game.tweens.add({
+        targets: banner, alpha: { from: 1, to: 0 }, y: cam.midPoint.y - 110,
+        duration: 1400, ease: 'Quad.easeOut',
+        onComplete: () => banner.destroy(),
+      })
+    })
+
+    // Myconid: center-screen toast when a Spore Day starts so the player
+    // sees that the corridors are dangerous today.
+    this._on('MYCONID_SPORE_DAY_BEGAN', ({ roomIds }) => {
+      const game = this._scene.scene.get('Game')
+      const cam = game?.cameras?.main
+      if (!cam) return
+      const banner = game.add.text(cam.midPoint.x, cam.midPoint.y - 80,
+        `SPORE DAY · ${(roomIds ?? []).length} corridors fogged`, {
+          fontSize: '20px', color: '#88dd66',
+          fontFamily: 'monospace', fontStyle: 'bold',
+          stroke: '#0a2010', strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(125).setScrollFactor(0)
+      game.tweens.add({
+        targets: banner, alpha: { from: 1, to: 0 }, y: cam.midPoint.y - 110,
+        duration: 1600, ease: 'Quad.easeOut',
+        onComplete: () => banner.destroy(),
+      })
+    })
+
+    // Beholder: "SILENCED" floater above an adv whose class ability was
+    // suppressed by an Anti-Magic room. Throttled by ClassAbilitySystem.
+    this._on('BEHOLDER_ANTI_MAGIC_SILENCED', ({ advId }) => {
+      const game = this._scene.scene.get('Game')
+      if (!game?.add?.text) return
+      const adv = (this._gameState?.adventurers?.active ?? [])
+        .find(a => a.instanceId === advId)
+      if (!adv || typeof adv.worldX !== 'number') return
+      const txt = game.add.text(adv.worldX, adv.worldY - 22, 'SILENCED', {
+        fontFamily: 'monospace', fontSize: '9px', fontStyle: 'bold',
+        color: '#cc99ff', stroke: '#1c0a2a', strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(95)
+      game.tweens.add({
+        targets: txt, y: adv.worldY - 40, alpha: 0,
+        duration: 800, ease: 'Quad.easeOut',
+        onComplete: () => txt.destroy(),
+      })
+    })
   }
 
   _buildEarthquakeButton() {

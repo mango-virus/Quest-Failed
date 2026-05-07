@@ -218,7 +218,9 @@ export class MinionRenderer {
       // missing sheet never leaves the sprite frozen on a stale frame.
       if (s.sprite) {
         const def = this._defMap[m.definitionId]
-        const prefix = def?.bossSkinId ? def.bossSkinId : `minion-${m.definitionId}`
+        const raisedPrefix = this._raisedDeadPrefix(m)
+        const prefix = raisedPrefix
+          ?? (def?.bossSkinId ? def.bossSkinId : `minion-${m.definitionId}`)
         const resolved = this._resolveAnimKey(prefix, wantState, s.facing)
         if (resolved && s.currentAnim !== resolved) {
           s.currentAnim = resolved
@@ -490,19 +492,41 @@ export class MinionRenderer {
 
   _createSprite(m) {
     const def     = this._defMap[m.definitionId]
-    const idleKey = this._idleTextureKey(def, m.definitionId)
+    const idleKey = this._idleTextureKey(def, m.definitionId, m)
     const hasSprite = def && idleKey && this._scene.textures.exists(idleKey)
     const rec = hasSprite ? this._createAnimatedSprite(m, def, idleKey)
                           : this._createPlaceholder(m)
     if (rec) rec._lastDefId = m.definitionId
+    // Lich Necromancy: raised dead retain the dead adventurer's LPC sprite,
+    // tinted darker to read as undead. Applied after creation so it survives
+    // any later setTexture / setTint calls in the per-tick path.
+    if (rec?.sprite && m._raisedSpriteVariant) {
+      rec.sprite.setTint(0x9988aa)
+      rec._raisedDeadTint = 0x9988aa
+    }
     return rec
   }
 
   // Texture key for the idle frame — boss-skin finals use the boss texture
-  // set (`${bossSkinId}-idle`), everyone else uses `minion-${defId}-idle`.
-  _idleTextureKey(def, defId) {
+  // set (`${bossSkinId}-idle`), raised dead use the LPC adv texture for the
+  // dead adventurer's class+variant, everyone else uses
+  // `minion-${defId}-idle`.
+  _idleTextureKey(def, defId, m) {
+    const raised = this._raisedDeadPrefix(m)
+    if (raised) return raised
     if (def?.bossSkinId) return `${def.bossSkinId}-idle`
     return `minion-${defId}-idle`
+  }
+
+  // For Lich-raised undead: the LPC adv prefix derived from the dead
+  // adventurer's spriteVariant. Returns null if the minion isn't a
+  // raised undead OR the LPC texture isn't loaded for that variant
+  // (falls through to the standard skeleton sheet in that case).
+  _raisedDeadPrefix(m) {
+    if (!m?._raisedSpriteVariant) return null
+    const prefix = `adv-${m._raisedSpriteVariant.replace('/', '-')}`
+    if (!this._scene?.textures?.exists?.(prefix)) return null
+    return prefix
   }
 
   // Scale multiplier for the minion's current evolution tier. Position-based

@@ -218,6 +218,18 @@ export class ClassAbilitySystem {
       // abilities. Existing buff timers still tick out via _tickActiveBuffs.
       const silenced = antiMagicRoomIds && antiMagicRoomIds.length > 0 &&
         _advInAntiMagicRoom(adv, this._gameState, antiMagicRoomIds)
+      if (silenced) {
+        // Throttle a "SILENCED" pulse to ~once per 2 s per adv so the
+        // player sees feedback when their cast was suppressed without
+        // spamming a floater every frame.
+        adv._antiMagicNextPulseAt ??= 0
+        if (now >= adv._antiMagicNextPulseAt) {
+          adv._antiMagicNextPulseAt = now + 2000
+          EventBus.emit('BEHOLDER_ANTI_MAGIC_SILENCED', { advId: adv.instanceId })
+        }
+      } else {
+        adv._antiMagicNextPulseAt = 0
+      }
       if (!silenced) {
         switch (adv.classId) {
           case 'knight':          this._considerKnight(adv, now); break
