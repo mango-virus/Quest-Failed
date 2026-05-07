@@ -92,18 +92,14 @@
     "y": 412,
     "scaleX": 2.859,
     "scaleY": 2.859,
-    "depth": 1000,
-    "alpha": 0.75,
-    "tint": 11575440
+    "depth": 1000
   },
   "slot-wraith": {
     "x": 495,
     "y": 493,
     "scaleX": 2.859,
     "scaleY": 2.859,
-    "depth": 1000,
-    "alpha": 0.75,
-    "tint": 11575440
+    "depth": 1000
   },
   "nameplate": {
     "x": 873,
@@ -827,9 +823,7 @@
     "y": 492,
     "scaleX": 1.671,
     "scaleY": 1.671,
-    "depth": 1000,
-    "alpha": 0.75,
-    "tint": 11575440
+    "depth": 1000
   },
   "succubus/boss-name": {
     "x": 881,
@@ -943,9 +937,7 @@
     "y": 493,
     "scaleX": 2.859,
     "scaleY": 2.859,
-    "depth": 1000,
-    "alpha": 0.75,
-    "tint": 11575440
+    "depth": 1000
   },
   "slime/boss-name": {
     "x": 873,
