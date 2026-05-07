@@ -2144,7 +2144,9 @@ export class BossArchetypeSystem {
   // adventurer's body. AdventurerRenderer keeps dead adv sprites parked
   // until NIGHT_PHASE_STARTED, so room-change is the cleanest trigger.
   _onAdvRoomChanged(payload) {
-    if (this._archId() !== 'wraith') return
+    const archId = this._archId()
+    if (archId === 'lich') this._lichOnAdvRoomChanged(payload)
+    if (archId !== 'wraith') return
     const adv = payload?.adventurer
     const roomId = payload?.toRoomId
     if (!adv || !roomId) return
@@ -2159,6 +2161,40 @@ export class BossArchetypeSystem {
       return r?.instanceId === roomId
     })
     if (corpseHere) this._addFear(adv, Balance.WRAITH_FEAR_PER_CORPSE_SEEN)
+  }
+
+  // LICH: when an adventurer walks into the phylactery's room, roll once
+  // (LICH_PHYLACTERY_ROOM_FIND_CHANCE) to convert them into a hunter. Once
+  // rolled (pass or fail) the adv is sticky — they won't keep rolling on
+  // re-entry, so the chance stays meaningful instead of "eventually 100%
+  // if they pace through enough." Spawn-time rolls remain independent.
+  _lichOnAdvRoomChanged(payload) {
+    const adv = payload?.adventurer
+    const roomId = payload?.toRoomId
+    if (!adv || !roomId) return
+    const phyl = this._gameState?.phylactery
+    if (!phyl || (phyl.resources?.hp ?? 0) <= 0) return
+    if (phyl.roomId !== roomId) return
+    if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
+    if (adv._huntPhylactery) return
+    if (adv._phylRoomRolled) return
+    const t = adv.goal?.type
+    if (t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS' || t === 'CHARM_WALK' ||
+        t === 'FLEE' || adv.aiState === 'fleeing' || adv.aiState === 'charmed') {
+      return
+    }
+    adv._phylRoomRolled = true
+    // Same desperation rule the spawn-time roll uses — when the boss is
+    // already on its phylactery life, every adv that finds the room
+    // commits to attacking it, no roll.
+    const boss = this._gameState?.boss
+    const noNormalLivesLeft = (boss?.deathsRemaining ?? 0) <= 0
+    if (!noNormalLivesLeft && Math.random() >= Balance.LICH_PHYLACTERY_ROOM_FIND_CHANCE) return
+    adv._huntPhylactery = true
+    adv.goalStack ??= []
+    if (adv.goal) adv.goalStack.push(adv.goal)
+    adv.goal = { type: 'HUNT_PHYLACTERY', roomId: phyl.roomId }
+    adv.path = null
   }
 
   // Per-frame: react to fear thresholds + tick the friendly-fire window.

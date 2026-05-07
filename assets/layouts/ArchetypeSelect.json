@@ -29,7 +29,7 @@
     "scaleX": 2.621,
     "scaleY": 2.621,
     "depth": 1000,
-    "alpha": 0.551
+    "alpha": 0.617
   },
   "slot-beholder": {
     "x": 495,
@@ -92,14 +92,18 @@
     "y": 412,
     "scaleX": 2.859,
     "scaleY": 2.859,
-    "depth": 1000
+    "depth": 1000,
+    "alpha": 0.75,
+    "tint": 11575440
   },
   "slot-wraith": {
     "x": 495,
     "y": 493,
     "scaleX": 2.859,
     "scaleY": 2.859,
-    "depth": 1000
+    "depth": 1000,
+    "alpha": 0.75,
+    "tint": 11575440
   },
   "nameplate": {
     "x": 873,
@@ -180,13 +184,13 @@
     "depth": 1000
   },
   "demon/headline-title": {
-    "x": 829,
-    "y": 393,
+    "x": 753,
+    "y": 395,
     "depth": 2
   },
   "demon/headline-summary": {
     "x": 753,
-    "y": 408,
+    "y": 412,
     "scaleX": 1.1,
     "scaleY": 1.1,
     "depth": 2
@@ -199,7 +203,7 @@
   },
   "demon/mechanic-0-text": {
     "x": 753,
-    "y": 455,
+    "y": 437,
     "depth": 1000
   },
   "demon/mechanic-1-bullet": {
@@ -236,8 +240,8 @@
     "depth": 1000
   },
   "beholder/headline-title": {
-    "x": 832,
-    "y": 394,
+    "x": 745,
+    "y": 395,
     "depth": 2
   },
   "beholder/headline-summary": {
@@ -385,7 +389,7 @@
     "depth": 2
   },
   "gnoll/headline-title": {
-    "x": 823,
+    "x": 761,
     "y": 399,
     "depth": 2
   },
@@ -402,7 +406,7 @@
   },
   "gnoll/mechanic-0-text": {
     "x": 761,
-    "y": 474,
+    "y": 456,
     "depth": 2
   },
   "gnoll/mechanic-1-bullet": {
@@ -438,7 +442,7 @@
     "depth": 2
   },
   "golem/headline-title": {
-    "x": 807,
+    "x": 760,
     "y": 392,
     "depth": 2
   },
@@ -455,7 +459,7 @@
   },
   "golem/mechanic-0-text": {
     "x": 760,
-    "y": 462,
+    "y": 448,
     "depth": 2
   },
   "golem/mechanic-1-bullet": {
@@ -491,7 +495,7 @@
     "depth": 2
   },
   "lich/headline-title": {
-    "x": 835,
+    "x": 759,
     "y": 399,
     "depth": 2
   },
@@ -508,7 +512,7 @@
   },
   "lich/mechanic-0-text": {
     "x": 760,
-    "y": 473,
+    "y": 455,
     "depth": 2
   },
   "lich/mechanic-1-bullet": {
@@ -544,7 +548,7 @@
     "depth": 1000
   },
   "lizardman/headline-title": {
-    "x": 832,
+    "x": 760,
     "y": 399,
     "depth": 2
   },
@@ -561,7 +565,7 @@
   },
   "lizardman/mechanic-0-text": {
     "x": 760,
-    "y": 470,
+    "y": 455,
     "depth": 2
   },
   "lizardman/mechanic-1-bullet": {
@@ -609,13 +613,13 @@
     "depth": 1000
   },
   "myconid/headline-title": {
-    "x": 823,
-    "y": 385,
+    "x": 761,
+    "y": 391,
     "depth": 2
   },
   "myconid/headline-summary": {
     "x": 761,
-    "y": 404,
+    "y": 409,
     "depth": 2
   },
   "myconid/mechanic-0-bullet": {
@@ -626,7 +630,7 @@
   },
   "myconid/mechanic-0-text": {
     "x": 761,
-    "y": 456,
+    "y": 448,
     "depth": 2
   },
   "myconid/mechanic-1-bullet": {
@@ -662,7 +666,7 @@
     "depth": 1000
   },
   "orc/headline-title": {
-    "x": 827,
+    "x": 768,
     "y": 392,
     "depth": 2
   },
@@ -679,7 +683,7 @@
   },
   "orc/mechanic-0-text": {
     "x": 768,
-    "y": 462,
+    "y": 451,
     "depth": 2
   },
   "orc/mechanic-1-bullet": {
@@ -715,8 +719,8 @@
     "depth": 1000
   },
   "vampire/headline-title": {
-    "x": 856,
-    "y": 394,
+    "x": 760,
+    "y": 392,
     "depth": 2
   },
   "vampire/headline-summary": {
@@ -732,7 +736,7 @@
   },
   "vampire/mechanic-0-text": {
     "x": 760,
-    "y": 476,
+    "y": 455,
     "depth": 2
   },
   "vampire/mechanic-1-bullet": {
@@ -780,7 +784,7 @@
     "depth": 1000
   },
   "wraith/headline-title": {
-    "x": 842,
+    "x": 761,
     "y": 392,
     "depth": 2
   },
@@ -797,7 +801,7 @@
   },
   "wraith/mechanic-0-text": {
     "x": 761,
-    "y": 462,
+    "y": 448,
     "depth": 2
   },
   "wraith/mechanic-1-bullet": {
@@ -823,7 +827,9 @@
     "y": 492,
     "scaleX": 1.671,
     "scaleY": 1.671,
-    "depth": 1000
+    "depth": 1000,
+    "alpha": 0.35,
+    "tint": 4473924
   },
   "succubus/boss-name": {
     "x": 881,
@@ -841,13 +847,13 @@
     "depth": 1000
   },
   "succubus/headline-title": {
-    "x": 816,
-    "y": 385,
+    "x": 768,
+    "y": 392,
     "depth": 2
   },
   "succubus/headline-summary": {
     "x": 768,
-    "y": 405,
+    "y": 409,
     "depth": 2
   },
   "succubus/mechanic-0-bullet": {
@@ -858,8 +864,9 @@
   },
   "succubus/mechanic-0-text": {
     "x": 768,
-    "y": 445,
-    "depth": 2
+    "y": 457,
+    "depth": 2,
+    "visible": false
   },
   "succubus/flavor-quote": {
     "x": 881,
@@ -874,5 +881,61 @@
     "scaleY": 2.358,
     "depth": 50,
     "bossId": "succubus"
+  },
+  "beholder/mechanic-0-body": {
+    "x": 746,
+    "y": 468,
+    "depth": 2
+  },
+  "wraith/mechanic-0-body": {
+    "x": 761,
+    "y": 468,
+    "depth": 2
+  },
+  "demon/mechanic-0-body": {
+    "x": 753,
+    "y": 456,
+    "depth": 2
+  },
+  "golem/mechanic-0-body": {
+    "x": 760,
+    "y": 468,
+    "depth": 2
+  },
+  "lich/mechanic-0-body": {
+    "x": 760,
+    "y": 472,
+    "depth": 2
+  },
+  "gnoll/mechanic-0-body": {
+    "x": 761,
+    "y": 476,
+    "depth": 2
+  },
+  "orc/mechanic-0-body": {
+    "x": 768,
+    "y": 470,
+    "depth": 2
+  },
+  "myconid/mechanic-0-body": {
+    "x": 761,
+    "y": 468,
+    "depth": 2
+  },
+  "lizardman/mechanic-0-body": {
+    "x": 760,
+    "y": 474,
+    "depth": 2
+  },
+  "succubus/mechanic-0-body": {
+    "x": 768,
+    "y": 477,
+    "depth": 2,
+    "visible": false
+  },
+  "vampire/mechanic-0-body": {
+    "x": 760,
+    "y": 474,
+    "depth": 2
   }
 }

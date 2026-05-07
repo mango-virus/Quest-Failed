@@ -154,7 +154,7 @@ const TUTORIALS = [
   },
   {
     id: 'arch_lich', archetype: 'lich', title: 'Elder Lich',
-    body: 'At boss lvl 3 the Phylactery item unlocks — a spare life. Adventurers killed raise as free skeletons next dawn.',
+    body: 'You start with one Phylactery Heart — place it in any room as a hidden spare life. Adventurers killed raise as free skeletons next dawn.',
     subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
   },
   {

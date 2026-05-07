@@ -44,12 +44,18 @@ export class PhylacteryRenderer {
     const s = this._scene
     const c = s.add.container(phyl.worldX, phyl.worldY).setDepth(7)
 
-    const spriteKey = phyl.spriteKey ?? 'heart-full'
+    // Saved phyls from before the spriteKey rename point at 'phylactery-heart'
+    // which Preload never loaded; try the legacy key first, then 'heart-full'
+    // (the boss-life sprite — same image used in BossTopBar), then a plain
+    // rectangle if both are missing for any reason.
+    const candidates = [phyl.spriteKey, 'heart-full'].filter(Boolean)
+    const spriteKey  = candidates.find(k => s.textures?.exists?.(k))
     let sprite = null
-    if (s.textures?.exists?.(spriteKey)) {
-      sprite = s.add.sprite(0, 0, spriteKey).setOrigin(0.5).setScale(0.6)
+    if (spriteKey) {
+      sprite = s.add.sprite(0, 0, spriteKey).setOrigin(0.5).setScale(1.2)
+      sprite.texture?.setFilter?.(Phaser.Textures.FilterMode.NEAREST)
     } else {
-      // Fallback diamond if the heart asset isn't loaded for any reason.
+      // Fallback diamond if no heart texture is loaded.
       sprite = s.add.rectangle(0, 0, 18, 18, 0xee2255, 1).setStrokeStyle(2, 0xffaaaa, 1)
     }
 

@@ -3,7 +3,7 @@
     "id": "phylactery_heart",
     "name": "Phylactery Heart",
     "description": "Your spare life. Place in any room — die in a fight and you respawn while the heart lives. Adventurers can hunt and destroy it.",
-    "spriteKey": "phylactery-heart",
+    "spriteKey": "heart-full",
     "color": "0xddaa22",
     "tags": [
       "phylactery",
@@ -14,7 +14,7 @@
       "defense": 0
     },
     "goldCost": 0,
-    "unlockLevel": 3,
+    "unlockLevel": 1,
     "archetypeRestriction": "lich",
     "maxPerDungeon": 1
   },

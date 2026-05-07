@@ -227,8 +227,9 @@ export class BuildMenu {
     on('MINION_DIED',     () => this._renderActive())
     on('BUILD_DESELECT',  () => this._setSelected(null))
     // Phase 1b.4 — Lich Phylactery: re-render so the items tab refreshes
-    // when boss level crosses 3 (heart unlock) and when the heart is placed
-    // or destroyed (phylactery removed from gameState).
+    // when the heart is placed or destroyed (phylactery removed from gameState).
+    // BOSS_LEVELED_UP is still subscribed for parity with other level-gated
+    // items even though the heart is now available from level 1.
     on('BOSS_LEVELED_UP',     () => this._renderActive())
     on('PHYLACTERY_PLACED',   () => this._renderActive())
     on('PHYLACTERY_DESTROYED', () => this._renderActive())

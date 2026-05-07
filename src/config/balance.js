@@ -53,8 +53,9 @@ export const Balance = {
   BEHOLDER_ANTIMAGIC_PER_BOSS_LV:  1,     // +1 marked room per boss level above 1
 
   // --- Phase 1b.4: Elder Lich ---
-  LICH_PHYLACTERY_UNLOCK_LEVEL:    3,    // boss level required for the heart to appear in items
+  LICH_PHYLACTERY_UNLOCK_LEVEL:    1,    // available from day 1; toast fires once on first save load
   LICH_PHYLACTERY_HUNT_CHANCE:     0.15, // per-adv roll on dungeon entry
+  LICH_PHYLACTERY_ROOM_FIND_CHANCE: 0.20, // per-adv one-shot roll on first entry into the phyl's room
   LICH_PHYLACTERY_DMG_INTERVAL_MS: 800,  // adv damage tick rate while attacking the heart
 
   // --- Phase 1b.5: Lich Necromancy ---

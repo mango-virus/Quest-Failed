@@ -666,15 +666,44 @@ export class ArchetypeSelect extends Phaser.Scene {
     this._dossierObjs.push(bullet)
     this.editor.register(bullet, `${prefix}mechanic-${idx}-bullet`, { fallbackName: `mechanic-${idx}-bullet` })
 
-    const txt = this.add.text(x + 10, y, mech.text ?? '', {
-      fontSize: '9px', color: '#3a1808', fontFamily: 'serif',
-      wordWrap: { width: w - 22 }, lineSpacing: 1,
-    }).setOrigin(0, 0).setDepth(2)
-    this._cContent.add(txt)
-    this._dossierObjs.push(txt)
-    this.editor.register(txt, `${prefix}mechanic-${idx}-text`, { fallbackName: `mechanic-${idx}-text` })
+    // Mechanic data is stored as "Name — body". Render the name half as a
+    // styled title (matching the headline's purple serif), with the body
+    // beneath it — so each ability gets the same visual treatment instead
+    // of the second ability reading as a flat sentence.
+    //
+    // The title is registered under the legacy `mechanic-<idx>-text` key so
+    // the per-boss layout overrides in assets/layouts/ArchetypeSelect.json
+    // keep tuning the block's anchor; the body inherits the title's final
+    // position via title.x / title.y + 14.
+    const raw  = mech.text ?? ''
+    const sep  = ' — '
+    const dash = raw.indexOf(sep)
+    const name = dash >= 0 ? raw.slice(0, dash).trim() : null
+    const body = dash >= 0 ? raw.slice(dash + sep.length).trim() : raw
 
-    return { bottomY: y + txt.height }
+    const titleStr   = name ? name.toUpperCase() : body
+    const titleStyle = name
+      ? { fontSize: '11px', color: hexToCss(accent), fontFamily: 'serif', fontStyle: 'bold' }
+      : { fontSize: '9px',  color: '#3a1808',         fontFamily: 'serif',
+          wordWrap: { width: w - 22 }, lineSpacing: 1 }
+    const title = this.add.text(x + 10, y, titleStr, titleStyle).setOrigin(0, 0).setDepth(2)
+    this._cContent.add(title)
+    this._dossierObjs.push(title)
+    this.editor.register(title, `${prefix}mechanic-${idx}-text`, { fallbackName: `mechanic-${idx}-text` })
+
+    let bodyT = null
+    if (name) {
+      bodyT = this.add.text(title.x, title.y + 14, body, {
+        fontSize: '9px', color: '#3a1808', fontFamily: 'serif',
+        wordWrap: { width: w - 22 }, lineSpacing: 1,
+      }).setOrigin(0, 0).setDepth(2)
+      this._cContent.add(bodyT)
+      this._dossierObjs.push(bodyT)
+      this.editor.register(bodyT, `${prefix}mechanic-${idx}-body`, { fallbackName: `mechanic-${idx}-body` })
+    }
+
+    const last = bodyT ?? title
+    return { bottomY: last.y + last.height }
   }
 
   // ─── Boss switcher (edit-mode helper) ──────────────────────────────────────
