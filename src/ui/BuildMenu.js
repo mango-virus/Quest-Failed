@@ -201,18 +201,30 @@ export class BuildMenu {
   }
 
   _onWheel(pointer, _objs, _dx, dy) {
-    // pointer.x/y are canvas pixels; HudScene's camera zoom maps them to
-    // design-space coords. getWorldPoint applies the inverse zoom + scroll.
-    const cam = this._scene.cameras.main
-    const wp  = cam.getWorldPoint(pointer.x, pointer.y)
-    const px = wp.x, py = wp.y
-    if (px < this._x || px > this._x + this._w) return
-    if (py < this._slotsTopY || py > this._slotsBotY) return
+    if (!this._pointerInScrollArea(pointer)) return
     const visibleH = this._slotsBotY - this._slotsTopY
     const maxScroll = Math.max(0, this._contentH - visibleH)
     this._scrollY = Math.max(0, Math.min(maxScroll, this._scrollY + dy * 0.5))
     this._renderActive()
   }
+
+  // True if `pointer` is currently over the BuildMenu's scrollable area.
+  // Used by Game.js to suppress the world camera's wheel-zoom while the
+  // player is scrolling through build slots — without this, the wheel
+  // event hits both handlers and the dungeon view zooms while the menu
+  // scrolls. pointer.x/y are canvas pixels; HudScene's camera transform
+  // maps them to design-space coords.
+  _pointerInScrollArea(pointer) {
+    if (!pointer || !this._visible) return false
+    const cam = this._scene.cameras?.main
+    if (!cam) return false
+    const wp  = cam.getWorldPoint(pointer.x, pointer.y)
+    const px = wp.x, py = wp.y
+    if (px < this._x || px > this._x + this._w) return false
+    if (py < this._slotsTopY || py > this._slotsBotY) return false
+    return true
+  }
+  containsPointer(pointer) { return this._pointerInScrollArea(pointer) }
 
   _wireEvents() {
     const on = (event, fn) => {

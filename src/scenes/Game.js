@@ -947,8 +947,14 @@ export class Game extends Phaser.Scene {
     this.input.on('pointerup', () => { this._dragOrigin = null })
 
     this.input.on('wheel', (pointer, _o, _dx, dy) => {
-      // Let NightPhase's palette eat wheels that happen over its left panel.
-      if (this.scene.isActive('NightPhase') && pointer.x <= 230) return
+      // Let HudScene's BuildMenu eat wheels that happen over the slot
+      // grid — without this guard, the wheel both scrolls the menu AND
+      // zooms the dungeon view at the same time. Bounds-check is
+      // delegated to BuildMenu.containsPointer so the comparison runs in
+      // the menu's design-space (HudScene camera transform applied),
+      // independent of canvas size or camera zoom.
+      const buildMenu = this.scene.get('HudScene')?._buildMenu
+      if (buildMenu?.containsPointer?.(pointer)) return
 
       const oldZoom = this._cam.zoom
       const newZoom = Phaser.Math.Clamp(
