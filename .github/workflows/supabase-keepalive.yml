@@ -1,0 +1,30 @@
+name: Supabase keep-alive
+
+# Supabase free-tier projects pause after ~1 week of inactivity. This
+# workflow hits the public leaderboard endpoint on a schedule so the
+# project stays warm. The anon key is already public (it's shipped in
+# the browser bundle at src/systems/Leaderboard.js), so no secret is
+# required here.
+
+on:
+  schedule:
+    # Every 3 days at 12:00 UTC. Cron in GitHub Actions can skip runs
+    # under heavy load, so we use 3 days rather than 6 to give margin
+    # against the ~7-day pause threshold.
+    - cron: '0 12 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint
+        run: |
+          ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0b2RncHZkbXJkanRxcnp2dGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMTgwMDcsImV4cCI6MjA5MzU5NDAwN30.6OHUI6oCIr_TseFEq37PRyOTsExsGUc2bbnrlX_tf28'
+          STATUS=$(curl -sS -o /tmp/body -w '%{http_code}' \
+            "https://atodgpvdmrdjtqrzvtks.supabase.co/rest/v1/runs?select=id&limit=1" \
+            -H "apikey: $ANON" \
+            -H "Authorization: Bearer $ANON")
+          echo "HTTP $STATUS"
+          cat /tmp/body
+          test "$STATUS" = "200"
