@@ -870,19 +870,17 @@ export class AISystem {
         while (adv._oscRing.length > 0 && (now - adv._oscRing[0].t) > OSC_WINDOW_MS) {
           adv._oscRing.shift()
         }
-        if (adv._oscRing.length >= OSC_TRIGGER_SAMPLES &&
-            adv.goal?.type !== 'FLEE') {
+        if (adv._oscRing.length >= OSC_TRIGGER_SAMPLES) {
           const unique = new Set(adv._oscRing.map(e => `${e.x},${e.y}`))
           // Standard 2-tile ping-pong (e.g. wedged against a wall).
           let oscillating = unique.size <= 2
           // Doorway ping-pong: adv walks room A → DOOR → room B → DOOR
-          // → room A → ... That's exactly 3 unique tiles, one of which
-          // is a DOOR, so the standard ≤2 check misses it. Detect by
-          // checking that one of the visited tiles is a DOOR AND the
-          // window only covers 3 unique tiles total. The DOOR check
-          // keeps the threshold from over-firing on legit travel
-          // (real walking sweeps far more than 3 tiles in 3 seconds).
-          if (!oscillating && unique.size === 3 && this._dungeonGrid?.getTileType) {
+          // → room A → ... or paces back and forth in front of a door
+          // they can't pass. The DOOR check keeps the threshold from
+          // over-firing on legit travel (real walking sweeps ≥5 unique
+          // tiles in 3 s); widened to ≤4 unique tiles so we also catch
+          // the "two approach tiles + door + back-step" pattern.
+          if (!oscillating && unique.size <= 4 && this._dungeonGrid?.getTileType) {
             for (const k of unique) {
               const [x, y] = k.split(',').map(Number)
               if (this._dungeonGrid.getTileType(x, y) === TILE.DOOR) {
@@ -892,20 +890,35 @@ export class AISystem {
             }
           }
           if (oscillating) {
+            // Escalation depends on whether they're already fleeing.
+            // Non-FLEE goals: convert to FLEE so they head home — that's
+            // usually enough to break a self-induced ping-pong because
+            // FLEE re-targets the entry hall door from scratch.
+            // FLEE that's STILL oscillating means the entry path itself
+            // is broken (door won't open, blocked by minion in a way
+            // pathfind can't route around). Force-despawn — better to
+            // boot one stuck adv than freeze day-end forever waiting on
+            // them to find their way out.
+            const wasFlee = adv.goal?.type === 'FLEE'
+            EventBus.emit('ADVENTURER_OSCILLATION_BREAK', {
+              adventurer: adv,
+              tile:       { x: adv.tileX, y: adv.tileY },
+              uniqueTiles: [...unique],
+              escalation: wasFlee ? 'despawn' : 'flee',
+            })
+            // eslint-disable-next-line no-console
+            console.log('[oscillation-break] adv', adv.instanceId,
+              'at', adv.tileX, adv.tileY, 'unique:', unique.size,
+              'goalWas:', adv.goal?.type, 'reason:', adv.goal?.reason)
+            if (wasFlee) {
+              this._despawn(adv, idx, 'oscillation_at_exit')
+              return
+            }
             adv.goal    = { type: 'FLEE', reason: 'oscillation' }
             adv.path    = null
             adv.aiState = 'fleeing'
             adv._oscRing = []
             adv._tileStuckMs = 0
-            EventBus.emit('ADVENTURER_OSCILLATION_BREAK', {
-              adventurer: adv,
-              tile:       { x: adv.tileX, y: adv.tileY },
-              uniqueTiles: [...unique],
-            })
-            // eslint-disable-next-line no-console
-            console.log('[oscillation-break] adv', adv.instanceId,
-              'at', adv.tileX, adv.tileY, 'unique:', unique.size,
-              'prevGoal:', adv.goal?.reason)
           }
         }
       }

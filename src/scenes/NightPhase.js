@@ -1394,15 +1394,44 @@ export class NightPhase extends Phaser.Scene {
       dungeonLevel: this._gameState.boss?.level ?? 1,
     })
     if (room) {
+      // Stamp the rotation the room was placed at so a future MOVE
+      // pickup knows what frame its contents' offsets live in. Older
+      // saves without this field are treated as rotation 0 at pickup.
+      room.rotation = this._rotation
       this._playBuildSfx()
       // Re-anchor any minions that were inside this room before pickup so
       // they ride along to the new position. Offsets are pre-rotation; if
       // the player rotated the room the layout may not match — orphaned
       // minions on void tiles will be cleaned up by AI on next tick.
+      // Offsets were captured in the room's pre-pickup footprint frame
+      // (room.rotation = _heldMoveRoomRotation, with dimensions
+      // _heldMoveCaptureW/H). Apply NET rotation = (drop - capture)
+      // mod 4 steps so contents rotate WITH the room across both the
+      // capture rotation AND any further user rotation. Same CW formula
+      // as _rotateCP (nx = h - 1 - y, ny = x). Starts with capture-frame
+      // dimensions so we don't mis-bound when the captured room wasn't
+      // at the def's default orientation.
+      const captureRot = this._heldMoveRoomRotation ?? 0
+      const captureW   = this._heldMoveCaptureW    ?? def.width
+      const captureH   = this._heldMoveCaptureH    ?? def.height
+      const dropRot    = this._rotation ?? 0
+      const netSteps   = (((dropRot - captureRot) / 90) % 4 + 4) % 4
+      const rotateOff = (offX, offY) => {
+        let x = offX, y = offY, w = captureW, h = captureH
+        for (let i = 0; i < netSteps; i++) {
+          const nx = h - 1 - y
+          const ny = x
+          x = nx; y = ny
+          const tmp = w; w = h; h = tmp
+        }
+        return { offX: x, offY: y }
+      }
+
       if (this._heldRoomMinions?.length) {
         for (const { minion, offX, offY } of this._heldRoomMinions) {
-          const nx = room.gridX + offX
-          const ny = room.gridY + offY
+          const r = rotateOff(offX, offY)
+          const nx = room.gridX + r.offX
+          const ny = room.gridY + r.offY
           minion.tileX  = nx
           minion.tileY  = ny
           minion.worldX = nx * TS + TS / 2
@@ -1417,9 +1446,48 @@ export class NightPhase extends Phaser.Scene {
         }
         this._heldRoomMinions = null
       }
+
+      // Re-anchor items that travelled with the room. Beacons/fountains
+      // also re-bind their roomId to the new room instance so beacon-aura
+      // and fountain heal-on-stand lookups continue to resolve.
+      if (this._heldRoomItems) {
+        const d = this._gameState.dungeon
+        const place = (carried, target, opts = {}) => {
+          for (const { data, offX, offY } of carried) {
+            const r = rotateOff(offX, offY)
+            data.tileX = room.gridX + r.offX
+            data.tileY = room.gridY + r.offY
+            if (opts.rebindRoom) data.roomId = room.instanceId
+            if (opts.withWorld) {
+              data.worldX = data.tileX * TS + TS / 2
+              data.worldY = data.tileY * TS + TS / 2
+            }
+            target.push(data)
+          }
+        }
+        d.treasureChests ??= []; place(this._heldRoomItems.treasureChests, d.treasureChests)
+        d.beacons        ??= []; place(this._heldRoomItems.beacons,        d.beacons,   { rebindRoom: true })
+        d.fountains      ??= []; place(this._heldRoomItems.fountains,      d.fountains, { rebindRoom: true })
+        d.keyChests      ??= []; place(this._heldRoomItems.keyChests,      d.keyChests)
+        d.traps          ??= []; place(this._heldRoomItems.traps,          d.traps)
+        const ph = this._heldRoomItems.phylactery
+        if (ph) {
+          const r = rotateOff(ph.offX, ph.offY)
+          ph.data.tileX = room.gridX + r.offX
+          ph.data.tileY = room.gridY + r.offY
+          ph.data.worldX = ph.data.tileX * TS + TS / 2
+          ph.data.worldY = ph.data.tileY * TS + TS / 2
+          ph.data.roomId = room.instanceId
+          this._gameState.phylactery = ph.data
+        }
+        this._heldRoomItems = null
+      }
       // Move-drop complete — clear the gold-neutral flag so the NEXT
       // placement (a fresh room from the build menu) charges correctly.
       this._heldMoveRoom = false
+      this._heldMoveRoomRotation = null
+      this._heldMoveCaptureW     = null
+      this._heldMoveCaptureH     = null
       this._lastPlaced = { kind: 'room', entity: room, goldCost: cost }
       const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.boss?.level ?? 1)
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
@@ -1615,7 +1683,8 @@ export class NightPhase extends Phaser.Scene {
       return
     }
     if (def.id === 'phylactery_heart') {
-      if (this._gameState.phylactery) {
+      const isMove = this._heldMoveItem?.kind === 'phylactery'
+      if (!isMove && this._gameState.phylactery) {
         this._showPlacementError('Phylactery already placed')
         return
       }
@@ -1636,24 +1705,39 @@ export class NightPhase extends Phaser.Scene {
       }
 
       const TS_LOCAL = TS
-      const phyl = {
-        instanceId: `phyl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        definitionId: def.id,
-        roomId: room.instanceId,
-        tileX:  tx,
-        tileY:  ty,
-        worldX: tx * TS_LOCAL + TS_LOCAL / 2,
-        worldY: ty * TS_LOCAL + TS_LOCAL / 2,
-        resources: {
-          hp:    def.baseStats?.hp ?? 200,
-          maxHp: def.baseStats?.hp ?? 200,
-        },
-        defense: def.baseStats?.defense ?? 0,
-        spriteKey: def.spriteKey ?? 'heart-full',
-        placedDay: this._gameState.meta?.dayNumber ?? 1,
-      }
+      // Move-drop reuses the existing phylactery (preserving instanceId
+      // and current HP) at the new tile. Fresh placement creates a new one.
+      const phyl = isMove
+        ? {
+            ...this._heldMoveItem.data,
+            roomId: room.instanceId,
+            tileX:  tx,
+            tileY:  ty,
+            worldX: tx * TS_LOCAL + TS_LOCAL / 2,
+            worldY: ty * TS_LOCAL + TS_LOCAL / 2,
+          }
+        : {
+            instanceId: `phyl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            definitionId: def.id,
+            roomId: room.instanceId,
+            tileX:  tx,
+            tileY:  ty,
+            worldX: tx * TS_LOCAL + TS_LOCAL / 2,
+            worldY: ty * TS_LOCAL + TS_LOCAL / 2,
+            resources: {
+              hp:    def.baseStats?.hp ?? 200,
+              maxHp: def.baseStats?.hp ?? 200,
+            },
+            defense: def.baseStats?.defense ?? 0,
+            spriteKey: def.spriteKey ?? 'heart-full',
+            placedDay: this._gameState.meta?.dayNumber ?? 1,
+          }
       this._gameState.phylactery = phyl
-      this._lastPlaced = { kind: 'item', entity: phyl, goldCost: 0 }
+      if (isMove) {
+        this._heldMoveItem = null
+      } else {
+        this._lastPlaced = { kind: 'item', entity: phyl, goldCost: 0 }
+      }
 
       EventBus.emit('PHYLACTERY_PLACED', { phylactery: phyl })
       this._cancelSelection()
@@ -1800,12 +1884,19 @@ export class NightPhase extends Phaser.Scene {
     const v = this._validateRoomFloorPlacement(tx, ty)
     if (!v.valid) { this._showPlacementError(v.reason); return }
     const tier = def.tier ?? 1
-    const here = (this._gameState.dungeon.treasureChests ?? []).filter(c => c.tier === tier)
-    if (here.length >= 1) {
-      this._showPlacementError(`Tier ${tier} chest already placed`)
-      return
+    // Move-drop path: chest was picked up via the MOVE tool. Reuse the
+    // existing instance (preserves instanceId + opened flag) and skip
+    // the cap check (it was just removed) + gold cost (move is neutral).
+    const isMove = this._heldMoveItem?.kind === 'treasure_chest' &&
+                   this._heldMoveItem.data?.tier === tier
+    if (!isMove) {
+      const here = (this._gameState.dungeon.treasureChests ?? []).filter(c => c.tier === tier)
+      if (here.length >= 1) {
+        this._showPlacementError(`Tier ${tier} chest already placed`)
+        return
+      }
     }
-    const cost = def.goldCost ?? 0
+    const cost = isMove ? 0 : (def.goldCost ?? 0)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
         this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
@@ -1814,15 +1905,21 @@ export class NightPhase extends Phaser.Scene {
       }
       this._gameState.player.gold -= cost
     }
-    const id = `treasure_${tier}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    const id = isMove
+      ? this._heldMoveItem.data.instanceId
+      : `treasure_${tier}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     this._gameState.dungeon.treasureChests ??= []
     this._gameState.dungeon.treasureChests.push({
       instanceId: id,
       tileX: tx, tileY: ty,
       tier,
-      opened: false,
+      opened: isMove ? !!this._heldMoveItem.data.opened : false,
     })
-    this._lastPlaced = { kind: 'item', entity: 'treasure_chest', goldCost: cost, chestId: id }
+    if (!isMove) {
+      this._lastPlaced = { kind: 'item', entity: 'treasure_chest', goldCost: cost, chestId: id }
+    } else {
+      this._heldMoveItem = null
+    }
     EventBus.emit('TREASURE_CHEST_PLACED', { chestId: id, tier, tileX: tx, tileY: ty })
     try {
       if (this.cache.audio.exists('sfx-build-1')) this.sound.play('sfx-build-1', { volume: 0.6 })
@@ -2044,6 +2141,54 @@ export class NightPhase extends Phaser.Scene {
   // inside come along with the room. Player drops the room with a
   // second click (handled by the regular placement flow).
   _executeMoveAt(tx, ty) {
+    // Items take precedence over rooms — clicking a treasure chest or
+    // phylactery heart on the MOVE tool should pick up THAT item, not
+    // the room containing it. Paired items (beacon/fountain, key
+    // chest/door lock) are rebuild-only because their pair would be
+    // broken by a partial move.
+    const items = this.cache.json.get('items') ?? []
+
+    const treasureHit = (this._gameState.dungeon.treasureChests ?? []).find(c =>
+      c.tileX === tx && c.tileY === ty
+    )
+    if (treasureHit) {
+      const chestDef = items.find(it => it.id === `treasure_chest_${treasureHit.tier}`)
+      if (!chestDef) { this._showPlacementError('Chest def missing'); return }
+      this._gameState.dungeon.treasureChests = (this._gameState.dungeon.treasureChests ?? [])
+        .filter(c => c.instanceId !== treasureHit.instanceId)
+      EventBus.emit('TREASURE_CHEST_REMOVED', { chest: treasureHit, refund: 0 })
+      this._heldMoveItem = { kind: 'treasure_chest', data: treasureHit }
+      this._rotation = 0
+      this._selectItem(chestDef, 'item')
+      this._refreshStats()
+      return
+    }
+
+    if (this._gameState.phylactery &&
+        this._gameState.phylactery.tileX === tx &&
+        this._gameState.phylactery.tileY === ty) {
+      const heartDef = items.find(it => it.id === 'phylactery_heart')
+      if (!heartDef) { this._showPlacementError('Phylactery def missing'); return }
+      const phyl = this._gameState.phylactery
+      this._gameState.phylactery = null
+      EventBus.emit('PHYLACTERY_REMOVED', { phylactery: phyl })
+      this._heldMoveItem = { kind: 'phylactery', data: phyl }
+      this._rotation = 0
+      this._selectItem(heartDef, 'item')
+      this._refreshStats()
+      return
+    }
+
+    if ((this._gameState.dungeon.beacons ?? []).some(b => b.tileX === tx && b.tileY === ty) ||
+        (this._gameState.dungeon.fountains ?? []).some(f => f.tileX === tx && f.tileY === ty)) {
+      this._showPlacementError('Beacon/Fountain pair — use SELL and rebuild')
+      return
+    }
+    if ((this._gameState.dungeon.keyChests ?? []).some(c => c.tileX === tx && c.tileY === ty)) {
+      this._showPlacementError('Key Chest is paired with a Door Lock — use SELL and rebuild')
+      return
+    }
+
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     if (!room) return
     if (room.definitionId === 'boss_chamber') {
@@ -2067,6 +2212,14 @@ export class NightPhase extends Phaser.Scene {
     // checks `_heldMoveRoom` and skips the goldCost debit. (Selling is the
     // only way to convert a placed room back into gold.)
     this._heldMoveRoom = true
+    // Capture the room's rotation + footprint at pickup time. Offsets
+    // collected below are in this captured frame, NOT the def's default
+    // frame. _confirmPlacement uses these to compute net rotation
+    // between capture and drop so items + minions stay on the same
+    // logical tile across moves of previously-rotated rooms.
+    this._heldMoveRoomRotation = room.rotation ?? 0
+    this._heldMoveCaptureW     = room.width
+    this._heldMoveCaptureH     = room.height
 
     const heldMinions = []
     for (const m of this._gameState.minions ?? []) {
@@ -2077,6 +2230,50 @@ export class NightPhase extends Phaser.Scene {
       m._heldByPlayer = true
     }
     this._heldRoomMinions = heldMinions
+
+    // Items inside the room travel with it. Pulled out of gameState here
+    // and re-anchored at the new (room.gridX + offX, room.gridY + offY)
+    // tile after placeRoom succeeds. Same pre-rotation-offset caveat as
+    // minions — rotating a moved room may land items on void tiles.
+    const inBounds = (tx, ty) =>
+      tx >= room.gridX && tx < room.gridX + room.width &&
+      ty >= room.gridY && ty < room.gridY + room.height
+    const carryOffsets = (arr) => {
+      const carried = []
+      const remaining = []
+      for (const it of arr ?? []) {
+        if (inBounds(it.tileX, it.tileY)) {
+          carried.push({ data: it, offX: it.tileX - room.gridX, offY: it.tileY - room.gridY })
+        } else {
+          remaining.push(it)
+        }
+      }
+      return { carried, remaining }
+    }
+    const d = this._gameState.dungeon
+    const carriedItems = { treasureChests: [], beacons: [], fountains: [], keyChests: [], traps: [], phylactery: null }
+    {
+      const r = carryOffsets(d.treasureChests); d.treasureChests = r.remaining; carriedItems.treasureChests = r.carried
+    }
+    {
+      const r = carryOffsets(d.beacons);        d.beacons        = r.remaining; carriedItems.beacons = r.carried
+    }
+    {
+      const r = carryOffsets(d.fountains);      d.fountains      = r.remaining; carriedItems.fountains = r.carried
+    }
+    {
+      const r = carryOffsets(d.keyChests);      d.keyChests      = r.remaining; carriedItems.keyChests = r.carried
+    }
+    {
+      const r = carryOffsets(d.traps);          d.traps          = r.remaining; carriedItems.traps = r.carried
+    }
+    if (this._gameState.phylactery && inBounds(this._gameState.phylactery.tileX, this._gameState.phylactery.tileY)) {
+      const p = this._gameState.phylactery
+      carriedItems.phylactery = { data: p, offX: p.tileX - room.gridX, offY: p.tileY - room.gridY }
+      this._gameState.phylactery = null
+    }
+    this._heldRoomItems = carriedItems
+
     this._dungeonGrid.removeRoom(room.instanceId)
     this._rotation = 0
     this._selectItem(def, 'room')
@@ -2228,6 +2425,31 @@ export class NightPhase extends Phaser.Scene {
     if (this._heldRoomMinions?.length) {
       for (const { minion } of this._heldRoomMinions) minion._heldByPlayer = false
       this._heldRoomMinions = null
+    }
+    this._heldMoveRoomRotation = null
+    this._heldMoveCaptureW     = null
+    this._heldMoveCaptureH     = null
+    // Held items have no AI cleanup, so if the player cancels mid-move
+    // we restore them to gameState at their original pre-pickup tiles
+    // rather than silently destroy them. The room they belonged to is
+    // gone (will be void), but the items remain sellable/movable.
+    if (this._heldRoomItems) {
+      const d = this._gameState.dungeon
+      const restore = (arr, carried) => {
+        if (!carried?.length) return
+        arr ??= []
+        for (const { data } of carried) arr.push(data)
+        return arr
+      }
+      d.treasureChests = restore(d.treasureChests, this._heldRoomItems.treasureChests) ?? d.treasureChests
+      d.beacons        = restore(d.beacons,        this._heldRoomItems.beacons)        ?? d.beacons
+      d.fountains      = restore(d.fountains,      this._heldRoomItems.fountains)      ?? d.fountains
+      d.keyChests      = restore(d.keyChests,      this._heldRoomItems.keyChests)      ?? d.keyChests
+      d.traps          = restore(d.traps,          this._heldRoomItems.traps)          ?? d.traps
+      if (this._heldRoomItems.phylactery) {
+        this._gameState.phylactery = this._heldRoomItems.phylactery.data
+      }
+      this._heldRoomItems = null
     }
     this._selected = null
     this._selectedKind = null

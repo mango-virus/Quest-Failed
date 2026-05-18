@@ -180,7 +180,12 @@ export class AdventurerRenderer {
     // 2-tile-wide × WALL_THICKNESS-tile-tall door rect). All spawning
     // advs appear stacked in the same spot — visibly "right in the
     // doorway" — until their fade ends and AI walks them in.
-    const door = this._entryDoorWorldCenter()
+    //
+    // Exception: spawn-in-place advs (Loot Goblin Heist drops a pack
+    // inside the boss room) keep the position the spawner chose. Without
+    // this guard the renderer teleports them back to the entry-hall door
+    // immediately after the spawner placed them, breaking the heist.
+    const door = adventurer._spawnedInPlace ? null : this._entryDoorWorldCenter()
     if (door) {
       adventurer.tileX  = door.tileX
       adventurer.tileY  = door.tileY

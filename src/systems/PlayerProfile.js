@@ -25,6 +25,8 @@ export const PlayerProfile = {
   // after the per-name update inherits the legacy global progress.
   getMaxBossLevel() {
     const name = this.getName().trim()
+    // Cheat: player name "mango" (case-insensitive) unlocks every archetype.
+    if (name.toLowerCase() === 'mango') return Number.MAX_SAFE_INTEGER
     if (!name) {
       // Unnamed (pre-prompt) — read/write the legacy slot directly.
       const v = parseInt(localStorage.getItem(MAX_LEVEL_KEY) ?? '0', 10)

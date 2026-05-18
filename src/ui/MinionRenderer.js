@@ -18,6 +18,11 @@ import { EventBus }         from '../systems/EventBus.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 
 const MINION_SCALE     = 1.0    // native — 64 → 64 px, 128 → 128 px (NEAREST keeps it crisp)
+// Lich-raised undead are re-skinned to LPC adventurer sheets (frameSize 64),
+// which AdventurerRenderer renders at 0.75. Match that here so a raised dead
+// reads the same size as the adventurer it used to be — otherwise they
+// render at 1.0 and look 33% too big.
+const RAISED_DEAD_SCALE = 0.75
 const PLACEHOLDER_SIZE = 18
 const HURT_FLASH_MS    = 300
 const ATTACK_FLASH_MS  = 400
@@ -270,7 +275,12 @@ export class MinionRenderer {
         s._lastStroke = expectedStroke
       }
       if (s.sprite) {
-        const expectedTint = factionFlagged ? 0x88ff99 : 0xffffff
+        // Lich-raised undead keep their dark undead tint, captured at sprite
+        // creation as `_raisedDeadTint`. Faction-flag green still wins for
+        // anything aligned with the adventurers (shouldn't happen for raised
+        // dead, but covers the edge case cleanly).
+        const baseTint     = s._raisedDeadTint ?? 0xffffff
+        const expectedTint = factionFlagged ? 0x88ff99 : baseTint
         if (s._lastTint !== expectedTint) {
           s.sprite.setTint(expectedTint)
           s._lastTint = expectedTint
@@ -501,8 +511,8 @@ export class MinionRenderer {
     // tinted darker to read as undead. Applied after creation so it survives
     // any later setTexture / setTint calls in the per-tick path.
     if (rec?.sprite && m._raisedSpriteVariant) {
-      rec.sprite.setTint(0x9988aa)
-      rec._raisedDeadTint = 0x9988aa
+      rec.sprite.setTint(0x5d5566)
+      rec._raisedDeadTint = 0x5d5566
     }
     return rec
   }
@@ -576,7 +586,8 @@ export class MinionRenderer {
     const idleKey = this._idleTextureKey(def, m.definitionId)
     if (this._scene.textures.exists(idleKey)) s.sprite.setTexture(idleKey, 0)
     const tierScale = this._tierScaleFor(m.definitionId)
-    s.sprite.setScale(MINION_SCALE * tierScale)
+    const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
+    s.sprite.setScale(baseScale * tierScale)
     s.currentAnim = null   // force play() with the new prefix next tick
   }
 
@@ -588,12 +599,13 @@ export class MinionRenderer {
     const c = s.add.container(m.worldX, m.worldY).setDepth(7)
 
     const tierScale = this._tierScaleFor(m.definitionId)
+    const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
     const sprite = s.add.sprite(0, 0, idleKey, 0)
       .setOrigin(0.5)
-      .setScale(MINION_SCALE * tierScale)
+      .setScale(baseScale * tierScale)
 
     const fs          = def.frameSize ?? 64
-    const displaySize = fs * MINION_SCALE
+    const displaySize = fs * baseScale
     const hpBarW      = Math.round(displaySize * 0.55)
     // HP bar sits just above the sprite's top edge (a few pixels of gap so
     // it reads clearly without feeling detached). Frame size varies by

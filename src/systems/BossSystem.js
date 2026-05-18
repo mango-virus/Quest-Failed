@@ -1608,6 +1608,36 @@ export class BossSystem {
       }
     }
 
+    // Lich Necromancy — raised undead standing in the boss chamber actively
+    // swing at adventurers each cinematic round. They're already valid
+    // redirect targets for adv swings (handled above in the attacker block),
+    // so this completes the loop: they hit AND get hit. Scoped to
+    // `_raisedFromAdvDeath` to avoid silently turning every dungeon minion
+    // the player happened to park in the boss room into an active attacker
+    // (that would change balance for archetypes that don't have raised dead).
+    const raisedHere = bossRoomForAllies
+      ? (this._gameState.minions ?? []).filter(m =>
+          m._raisedFromAdvDeath &&
+          m.faction === 'dungeon' &&
+          m.aiState !== 'dead' &&
+          (m.resources?.hp ?? 0) > 0 &&
+          _pointInRoomBS(m.tileX, m.tileY, bossRoomForAllies))
+      : []
+    for (const m of raisedHere) {
+      if (defenders.length === 0) break
+      const fs  = defenders[Math.floor(Math.random() * defenders.length)]
+      const atk = m.stats?.attack ?? 0
+      const def = fs.adv.stats?.defense ?? 0
+      const dmg = Math.max(1, Math.floor(atk * (0.85 + Math.random() * 0.3) - def))
+      fs.adv.resources.hp = Math.max(0, (fs.adv.resources.hp ?? 0) - dmg)
+      this._roundLog.push({
+        side: 'minion', damage: dmg, targetId: fs.adv.instanceId,
+        kind: 'raised_strike', sourceId: m.instanceId,
+      })
+      this._emitFx({ kind: 'strike', x: fs.adv.worldX, y: fs.adv.worldY, color: 0x9988cc })
+      this._floatDamage(fs.adv.worldX, fs.adv.worldY - 8, dmg, { color: '#bb99dd' })
+    }
+
     // Boss → single target.  Prefer whoever the boss is currently chasing
     // / lunging at (set by _tickFightBoss).  Falls back to nearest defender
     // when the tracked target is no longer in the room.  AOE attacks (slam,

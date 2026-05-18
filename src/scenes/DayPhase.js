@@ -822,6 +822,10 @@ export class DayPhase extends Phaser.Scene {
       // chooses combat for them.
       adv.goal     = { type: 'FLEE', reason: 'loot_heist' }
       adv.aiState  = 'fleeing'
+      // Tell AdventurerRenderer NOT to snap this adv to the entry-hall
+      // doorway — they spawn inside the boss room and bolt for the exit
+      // from there.
+      adv._spawnedInPlace = true
       this._gameState.adventurers.active.push(adv)
       spawned.push(adv)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })

@@ -84,7 +84,12 @@ window.__game = new Phaser.Game(config)
 // until the user navigates away and back, which is the right trade for not
 // losing paint strokes. Game scene is also skipped (it owns runtime state);
 // Phaser's own RESIZE handling already resized its camera.
-const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'TilesetEditor', 'RoomTileEditor', 'PauseMenu', 'Options'])
+// DayPhase + NightPhase own active-run state (live adventurer list, placed
+// rooms, build-menu selection). Restarting their create() on a resize
+// re-runs _spawnDailyAdventurers / re-wires NightPhase from scratch, which
+// surfaced as "pressing F12 spawns adventurers" — opening DevTools fires a
+// resize, and DayPhase.restart() spawns a fresh wave on top of the live one.
+const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'TilesetEditor', 'RoomTileEditor', 'PauseMenu', 'Options', 'DayPhase', 'NightPhase'])
 let _resizeTimer = null
 window.__game.scale.on('resize', () => {
   clearTimeout(_resizeTimer)

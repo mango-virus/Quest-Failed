@@ -70,16 +70,30 @@ export class MinionAISystem {
                  ?? this._gameState.minions.find(m => m.instanceId === sourceId)
     const target = this._gameState.adventurers.active.find(a => a.instanceId === targetId)
                  ?? this._gameState.minions.find(m => m.instanceId === targetId)
-    const tile   = source ?? target
-    if (!tile) return
-    const room = this._dungeonGrid.getRoomAtTile(tile.tileX, tile.tileY)
-    if (!room) return
+    if (!source && !target) return
 
-    // Wake barracks-style rooms on first combat
-    if (room.definitionId === 'starter_barracks' || room.definitionId === 'barracks') {
-      this._wokenRooms.add(room.instanceId)
+    // Retaliation tracking — if a minion was the target, stamp who hit it so
+    // _pickTarget can override its same-room / aggro-range filters and
+    // engage that adv specifically. Without this, a minion attacked from
+    // outside its home room (ranged adv across a doorway, melee adv at a
+    // room boundary) never retaliates because _pickTarget rejects every
+    // adv outside the home room.
+    if (target && target.faction === 'dungeon' && source) {
+      target._lastHitBy = sourceId
+      target._lastHitAt = this._scene.time?.now ?? 0
     }
 
+    // Wake barracks-style rooms on first combat. Check BOTH the attacker's
+    // and the target's room so a sleepy barracks-minion still wakes when
+    // hit from outside the barracks (e.g. by a ranged adv shooting in).
+    for (const t of [source, target]) {
+      if (!t) continue
+      const room = this._dungeonGrid.getRoomAtTile(t.tileX, t.tileY)
+      if (!room) continue
+      if (room.definitionId === 'starter_barracks' || room.definitionId === 'barracks') {
+        this._wokenRooms.add(room.instanceId)
+      }
+    }
   }
 
   _isRoomSleeping(room) {
@@ -699,8 +713,17 @@ export class MinionAISystem {
     }
 
     // Default 'dungeon' faction: attack adventurers, plus any 'adventurer'-faction minions
+    // Retaliation window — an adv that hit us in the last 3 s bypasses the
+    // same-room and aggro-range filters so we always swing back, even
+    // across room boundaries (ranged adv shooting in, melee adv at door
+    // approach). Cleared implicitly by time expiry.
+    const RETALIATION_WINDOW_MS = 3000
+    const nowMs = this._scene.time?.now ?? 0
+    const retaliateId = (minion._lastHitBy && (nowMs - (minion._lastHitAt ?? 0)) < RETALIATION_WINDOW_MS)
+      ? minion._lastHitBy : null
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
+      const isRetaliationTarget = retaliateId && adv.instanceId === retaliateId
       // Phase 5c — Rogue Invisibility: minions ignore invisible advs.
       // (Boss can still target — that's BossSystem's responsibility.)
       if (adv._invisible) continue
@@ -714,16 +737,32 @@ export class MinionAISystem {
       // can walk past a blocking minion without the minion halting to fight.
       if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
 
-      if (requireSameRoom) {
-        if (!_pointInRoom(adv.tileX, adv.tileY, homeRoom)) continue
+      if (requireSameRoom && !isRetaliationTarget) {
+        // A minion that drifted out of its home room (chased a target,
+        // got displaced, path home broken by a locked door) sits idle in
+        // some foreign room. Without the standingRoom fallback below,
+        // advs walking into that foreign room are invisible to the
+        // minion. Accept advs in either the home room OR the minion's
+        // current standing room — generalises the boss-chamber override
+        // above to every room.
+        const inHome = _pointInRoom(adv.tileX, adv.tileY, homeRoom)
+        const inStanding = standingRoom && standingRoom.instanceId !== homeRoom.instanceId &&
+                           _pointInRoom(adv.tileX, adv.tileY, standingRoom)
+        // Garrison minions are strictly home-bound — no standingRoom
+        // fallback (they shouldn't be away from home in the first place;
+        // if they are, the right fix is to send them back, not let them
+        // engage abroad).
+        if (!inHome && !(inStanding && !isGarrison)) continue
       }
       // When alerted, extend reach so we can hunt across rooms
       const range = isAlerted ? aggro * 2.5 : aggro
       const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-      if (d > range) continue
+      if (d > range && !isRetaliationTarget) continue
 
-      // Priority overrides — curse brand > martyr > default
-      const priority = _adventurerPriority(adv)
+      // Priority overrides — curse brand > martyr > retaliation > default.
+      // Retaliation gets priority 2 so the minion locks onto the actual
+      // attacker over an unrelated adv standing slightly closer.
+      const priority = isRetaliationTarget ? Math.max(2, _adventurerPriority(adv)) : _adventurerPriority(adv)
       if (priority > bestPriority || (priority === bestPriority && d < bestDist)) {
         best = adv
         bestDist = d

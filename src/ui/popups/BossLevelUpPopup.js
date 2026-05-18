@@ -21,6 +21,12 @@ export class BossLevelUpPopup {
     this._gameState = gameState
     this._fromLevel = 1
     this._toLevel   = 2
+    // Per-open tweens / timers. Cleared on close so a fast-clicked sequence
+    // (multi-level day) doesn't leak repeat:-1 tweens whose onUpdate
+    // closures keep poking at destroyed graphics + text. A leaked tween
+    // mutating a destroyed Text (via setText on a half-torn-down canvas)
+    // was crashing the renderer in the popup that opened next.
+    this._asyncRefs = []
 
     this._frame = makePopupFrame({
       scene,
@@ -28,9 +34,24 @@ export class BossLevelUpPopup {
       h:    560,
       title:'BOSS LEVEL UP',
       depth: 200,
-      onClose: () => EventBus.emit('BOSS_LEVEL_UP_DISMISSED'),
+      onClose: () => {
+        this._stopAsync()
+        EventBus.emit('BOSS_LEVEL_UP_DISMISSED')
+      },
       render: (px, py, cx, cy, cw, ch, addChild) => this._render(cx, cy, cw, ch, addChild),
     })
+  }
+
+  _trackTween(tw) { if (tw) this._asyncRefs.push({ kind: 'tween', ref: tw }); return tw }
+  _trackTimer(t)  { if (t)  this._asyncRefs.push({ kind: 'timer', ref: t  }); return t  }
+  _stopAsync() {
+    for (const a of this._asyncRefs) {
+      try {
+        if (a.kind === 'tween') a.ref?.stop?.()
+        else if (a.kind === 'timer') a.ref?.remove?.(false)
+      } catch {}
+    }
+    this._asyncRefs = []
   }
 
   setLevels(fromLevel, toLevel) {
@@ -55,18 +76,19 @@ export class BossLevelUpPopup {
     // Pulsing accent ring under the banner — reads as "this is special"
     const ring = this._scene.add.graphics().setDepth(D + 1)
     addChild(ring)
-    this._scene.tweens.add({
+    this._trackTween(this._scene.tweens.add({
       targets: ring,
       alpha:   { from: 0.25, to: 0.85 },
       duration: 600,
       yoyo: true,
       repeat: -1,
       onUpdate: () => {
+        if (!ring.scene) return
         ring.clear()
         ring.lineStyle(2, CRYPT.accent, 1)
         ring.strokeRect(cx + 2, cy + 2, cw - 4, bannerH - 4)
       },
-    })
+    }))
 
     // BOSS LEVEL UP heading
     const headT = this._scene.add.text(cx + cw / 2, cy + 14, 'BOSS LEVEL UP', {
@@ -76,10 +98,10 @@ export class BossLevelUpPopup {
     addChild(headT)
     // Pop-in: scale up from 0.6 → 1.0 with bounce
     headT.setScale(0.6).setAlpha(0)
-    this._scene.tweens.add({
+    this._trackTween(this._scene.tweens.add({
       targets: headT, scale: 1, alpha: 1,
       duration: 380, ease: 'Back.easeOut',
-    })
+    }))
 
     // Level X → Y display, big and centered. Count up the new value.
     const levelLineY = cy + 50
@@ -89,16 +111,17 @@ export class BossLevelUpPopup {
     }).setOrigin(0.5, 0).setDepth(D + 2)
     addChild(arrowT)
     // After ~500ms, count the second number up to newLevel
-    this._scene.time.delayedCall(500, () => {
+    this._trackTimer(this._scene.time.delayedCall(500, () => {
       if (!arrowT.scene) return
-      this._scene.tweens.addCounter({
+      this._trackTween(this._scene.tweens.addCounter({
         from: oldLevel, to: newLevel,
         duration: 500, ease: 'Quad.easeOut',
         onUpdate: (tw) => {
+          if (!arrowT.scene) return
           const v = Math.round(tw.getValue())
           arrowT.setText(`LEVEL ${oldLevel}  →  LEVEL ${v}`)
         },
-      })
+      }))
       // Celebration chime — amplified past 1.0 because the source file
       // is mastered low. Phaser's WebAudio path supports gain > 1.0.
       try {
@@ -106,7 +129,7 @@ export class BossLevelUpPopup {
           this._scene.sound.play('sfx-collect-gold', { volume: 2.5 })
         }
       } catch {}
-    })
+    }))
 
     // ── Stat-delta banner ────────────────────────────────────────────
     const statsY = cy + bannerH + 12
