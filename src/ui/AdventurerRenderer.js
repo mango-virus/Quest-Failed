@@ -563,7 +563,11 @@ export class AdventurerRenderer {
     }
 
     s.lpc.lastAnim = wantKey
-    if (s.lpc.image.originY !== originY) s.lpc.image.setOrigin(0.5, originY)
+    // Minion-sheet sprites (loot_goblin) keep their centered origin — the
+    // LPC body/atk origin doesn't apply to 64×64 minion frames.
+    if (!s.lpc.isMinionSheet && s.lpc.image.originY !== originY) {
+      s.lpc.image.setOrigin(0.5, originY)
+    }
     if (this._scene.anims.exists(wantKey)) {
       s.lpc.image.anims.play(wantKey, true)
     }
@@ -734,9 +738,16 @@ export class AdventurerRenderer {
     if (lpc) {
       // LPC sprite is positioned slightly above center so the feet sit on
       // the tile, then origin-anchored at (0.5, 0.85) so the bottom is the
-      // movement reference point.
-      lpc.image.setOrigin(0.5, 0.85)
-      lpc.image.setScale(LPC_SCALE)
+      // movement reference point. Minion-sheet sprites (loot_goblin) use
+      // a centered origin + 1.0 scale to match how the same sheets render
+      // when worn by an actual goblin minion in the dungeon.
+      if (lpc.isMinionSheet) {
+        lpc.image.setOrigin(0.5, 0.5)
+        lpc.image.setScale(1.0)
+      } else {
+        lpc.image.setOrigin(0.5, 0.85)
+        lpc.image.setScale(LPC_SCALE)
+      }
       // Insert below all existing children (ring/body/label) so the HP bar +
       // thought bubble float above the sprite.
       c.addAt(lpc.image, 0)
@@ -772,6 +783,25 @@ export class AdventurerRenderer {
         return { image, textureKey: key, atkTextureKey: null, lastAnim: null }
       }
       // Texture missing — fall through to LPC fallback below.
+    }
+    // Loot Goblin Heist — render the goblin "adventurers" with the goblin
+    // MINION sheets so they read visually as the goblin race that's
+    // raiding the dungeon, not as a humanoid LPC adventurer. Animation
+    // keys are shaped `${textureKey}-${anim}-${dir}` which matches the
+    // minion anim registration (minion-goblin1-walk-down etc.), so the
+    // existing _tickLpcAnim flow drives walk/run/idle/hurt without any
+    // additional handling. atkTextureKey null because goblins never
+    // swing — they're FLEE-only.
+    if (adv.classId === 'loot_goblin') {
+      const baseKey = 'minion-goblin1'
+      const idleKey = `${baseKey}-idle`
+      if (this._scene.textures.exists(idleKey)) {
+        const image = this._scene.add.sprite(0, 0, idleKey, 0)
+        const startAnim = `${baseKey}-run-down`
+        if (this._scene.anims.exists(startAnim)) image.play(startAnim)
+        return { image, textureKey: baseKey, atkTextureKey: null, lastAnim: null, isMinionSheet: true }
+      }
+      // Texture missing — fall through to the LPC path (cartographer_scholar bake).
     }
     // Event-only classes (tournament_rival_*, monster_invader, rival_boss_invader,
     // loot_goblin) don't ship their own LPC bake — they declare a
@@ -842,8 +872,9 @@ export class AdventurerRenderer {
     s.body?.disableInteractive()
     if (s.lpc) {
       // Snap back to the body texture/origin in case we died mid-attack on
-      // the atk sheet, then play the LPC hurt strip.
-      if (s.lpc.image.originY !== LPC_BODY_ORIGIN_Y) {
+      // the atk sheet, then play the LPC hurt strip. Minion-sheet sprites
+      // (loot_goblin) keep their centered origin.
+      if (!s.lpc.isMinionSheet && s.lpc.image.originY !== LPC_BODY_ORIGIN_Y) {
         s.lpc.image.setOrigin(0.5, LPC_BODY_ORIGIN_Y)
       }
       const wantKey = `${s.lpc.textureKey}-hurt-down`
