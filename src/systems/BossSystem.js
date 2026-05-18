@@ -1007,6 +1007,17 @@ export class BossSystem {
       stroke:     '#000000',
       strokeThickness: isCrit ? 4 : 3,
     }).setOrigin(0.5, 1).setDepth(11)
+    // Pop-in scale tween — crits punch harder (start smaller + bigger
+    // overshoot) so they read as distinct from regular hits. Origin
+    // (0.5, 1) keeps the text's bottom edge pinned at worldY - 12 while
+    // it scales upward (preserving the original vertical position).
+    t.setScale(isCrit ? 0.4 : 0.55)
+    this._scene.tweens.add({
+      targets:  t,
+      scale:    1,
+      duration: isCrit ? 220 : 160,
+      ease:     'Back.easeOut',
+    })
     this._scene.tweens.add({
       targets:  t,
       y:        t.y - (isCrit ? 44 : 30),

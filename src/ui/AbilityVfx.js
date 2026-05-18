@@ -83,6 +83,17 @@ export const AbilityVfx = {
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(0.5).setDepth(o.depth)
+    // Pop-in: start small and overshoot to 1.0 with Back.easeOut so damage
+    // numbers / status labels punch in instead of drifting in linearly.
+    // Runs in parallel with the drift+fade tween below — multiple tweens
+    // per target are fine in Phaser.
+    txt.setScale(0.55)
+    scene.tweens.add({
+      targets: txt,
+      scale:   1,
+      duration: 160,
+      ease:    'Back.easeOut',
+    })
     scene.tweens.add({
       targets: txt,
       y: y + o.driftY,
