@@ -322,8 +322,10 @@ export class BossTopBar {
   _updateGold() {
     const cur = this._gameState.player?.gold ?? 0
     if (cur !== this._lastGold) {
-      this._popGoldFloater(cur - this._lastGold)
+      const delta = cur - this._lastGold
+      this._popGoldFloater(delta)
       this._tweenGoldTo(cur)
+      this._pulseGoldNumber(delta)
       // Pile tier swap + scale
       const newTier = this._goldTierFor(cur)
       if (newTier !== this._goldTier) {
@@ -332,7 +334,6 @@ export class BossTopBar {
         this._goldPile?.setScale(this._goldPileScaleFor(newTier))
       }
       // Soft ka-ching for meaningful gains; silent for tiny ticks and losses.
-      const delta = cur - this._lastGold
       if (delta >= 25 && this.cache?.audio?.exists?.('sfx-collect-gold')) {
         try { this._scene.sound.play('sfx-collect-gold', { volume: 0.4 }) } catch {}
       }
@@ -370,6 +371,32 @@ export class BossTopBar {
         this._goldDisplayed = target
         this._goldNumber?.setText(this._formatNumber(target))
         this._goldTickTween = null
+      },
+    })
+  }
+
+  // Brief scale-bump + colour flash on the big gold number itself when the
+  // value changes. Gains tint a slightly brighter gold and bump bigger;
+  // losses tint red. The text origin is (0, 0.5) so we shift x to keep the
+  // number visually centered on its left anchor while scaling.
+  _pulseGoldNumber(delta) {
+    if (!delta || !this._goldNumber) return
+    const isGain = delta > 0
+    const targetScale = isGain ? 1.18 : 1.08
+    const flashColor  = isGain ? '#fff2a0' : '#ff8a6a'
+    // Stop any in-flight pulse so rapid changes don't fight each other.
+    if (this._goldPulseTween) this._goldPulseTween.stop()
+    this._goldNumber.setScale(1)
+    this._goldNumber.setColor(flashColor)
+    this._goldPulseTween = this._scene.tweens.add({
+      targets:  this._goldNumber,
+      scale:    { from: targetScale, to: 1 },
+      duration: 280,
+      ease:     'Back.easeOut',
+      onComplete: () => {
+        this._goldNumber?.setColor(CRYPT.goldCss)
+        this._goldNumber?.setScale(1)
+        this._goldPulseTween = null
       },
     })
   }
