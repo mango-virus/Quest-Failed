@@ -51,6 +51,7 @@ import { EventSystem }        from '../systems/EventSystem.js'
 import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
+import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
 import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
 import { AbilityVfx }         from '../ui/AbilityVfx.js'
 import { BossPactVfx }        from '../ui/BossPactVfx.js'
@@ -135,6 +136,7 @@ export class Game extends Phaser.Scene {
     this.eventSystem         = new EventSystem(this, this.gameState)
     this.combatFeedback      = new CombatFeedback(this, this.gameState)
     this.hitSparkSystem      = new HitSparkSystem(this, this.gameState)
+    this.screenShakeSystem   = new ScreenShakeSystem(this)
     this.rivalBossShowdown   = new RivalBossShowdown(this, this.gameState)
     this.bossPactVfx         = new BossPactVfx(this, this.gameState)
     this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
@@ -295,6 +297,7 @@ export class Game extends Phaser.Scene {
     this.eventSystem?.destroy()
     this.combatFeedback?.destroy()
     this.hitSparkSystem?.destroy()
+    this.screenShakeSystem?.destroy()
     this.rivalBossShowdown?.destroy()
     this.bossPactVfx?.destroy()
     // bossFightOverlay lives in HudScene now — that scene's shutdown handles it.

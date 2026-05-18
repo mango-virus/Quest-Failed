@@ -421,4 +421,9 @@ export const Balance = {
   VFX_HIT_SPARK_SCALE:              0.6,
   // Frame rate for the 14-frame hit-spark animation. ~28 fps = ~500 ms.
   VFX_HIT_SPARK_FPS:                28,
+
+  // Master toggle for kinetic camera shake on impactful events
+  // (crits, big hits, Golem Earthquake, Beholder Petrify, etc.).
+  // Flip to false to disable all screen shake without code changes.
+  VFX_SCREEN_SHAKE_ENABLED:         true,
 }
