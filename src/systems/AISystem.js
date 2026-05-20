@@ -1291,6 +1291,36 @@ export class AISystem {
       }
     }
 
+    // Dungeon event: Twitch Con — "streamer beef". A `_twitchChaos`
+    // adventurer whose freelance agenda rolled BEEF (goal.type === 'WANDER'
+    // with beef=true) attacks the nearest OTHER `_twitchChaos` adv in range.
+    // Mirrors the Tournament rivalry block above — uncoordinated infighting,
+    // no HP gate. Falls through to normal minion engagement if no other
+    // streamer is in reach, so the player's minions/boss can still fight
+    // (and kill) them as usual.
+    if (adv._twitchChaos && adv.goal?.type === 'WANDER' && adv.goal?.beef &&
+        adv.aiState !== 'fleeing' && this._combatSystem) {
+      const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+      let target = null, bestDist = Infinity
+      for (const other of this._gameState.adventurers.active) {
+        if (other === adv) continue
+        if (!other._twitchChaos) continue
+        if (other.aiState === 'dead' || other.aiState === 'fleeing') continue
+        const d = Math.hypot(other.tileX - adv.tileX, other.tileY - adv.tileY)
+        if (d > reach + 0.01) continue
+        if (d < bestDist) { target = other; bestDist = d }
+      }
+      if (target) {
+        adv.aiState = 'fighting'
+        adv.path = null
+        this._combatSystem.tryAttack(adv, target, {
+          roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
+          method: 'streamer_beef',
+        })
+        return
+      }
+    }
+
     // Engage hostile minion in melee range
     if (adv.aiState !== 'fleeing' && this._combatSystem) {
       const enemy = this._findEngageableMinion(adv)
@@ -2170,6 +2200,31 @@ export class AISystem {
       if (!entry) return null
       return entryDoorTile(entry)
     }
+    // Dungeon event: Twitch Con — "wander in place". A freelance streamer
+    // who rolled WANDER drifts to a random walkable tile a few steps from
+    // wherever they currently are (a fresh tile is picked each replan, so
+    // they mill around aimlessly). EventSystem's freelance timer re-rolls
+    // the agenda every ~4s so this never permanently strands them.
+    if (adv.goal.type === 'WANDER') {
+      const tilesGrid = this._dungeonGrid.getTiles?.()
+      if (tilesGrid) {
+        // Try a handful of random offsets in a small radius; first walkable,
+        // non-door tile wins. Fall back to standing still if none found.
+        for (let tries = 0; tries < 8; tries++) {
+          const ox = Math.floor(Math.random() * 7) - 3   // [-3, 3]
+          const oy = Math.floor(Math.random() * 7) - 3
+          const tx = adv.tileX + ox
+          const ty = adv.tileY + oy
+          const row = tilesGrid[ty]
+          if (!row) continue
+          const t = row[tx]
+          if (!PathfinderSystem.isWalkable(t)) continue
+          if (t === TILE.DOOR) continue
+          return { x: tx, y: ty }
+        }
+      }
+      return { x: adv.tileX, y: adv.tileY }
+    }
     // Phase: alive AI — react-to-noise detour. Time-limited; expires back
     // to whatever was on the goal stack.
     if (adv.goal.type === 'INVESTIGATE_NOISE') {
@@ -2442,6 +2497,15 @@ export class AISystem {
     }
     if (adv.goal.type === 'AT_BOSS') {
       // Frozen — BossSystem will kill or flee them when the fight resolves
+      adv.path = null
+      return
+    }
+
+    // Dungeon event: Twitch Con — wandering streamer reached its drift
+    // tile. Just clear the path; _goalToTile picks a fresh random tile on
+    // the next replan, and EventSystem's freelance timer will re-roll the
+    // whole agenda within a few seconds anyway.
+    if (adv.goal.type === 'WANDER') {
       adv.path = null
       return
     }

@@ -25,7 +25,10 @@
 // Per-event effect flags live on `gameState._eventFlags` (mirrors the
 // established `_mechanicFlags` pattern used by DungeonMechanicSystem).
 
-import { EventBus } from './EventBus.js'
+import { EventBus }         from './EventBus.js'
+import { Balance }          from '../config/balance.js'
+import { createAdventurer } from '../entities/Adventurer.js'
+import { entryDoorTile }    from './DungeonGrid.js'
 
 // Fixed 5-day cadence — every event fires exactly 5 days after the prior
 // one resolved. Set MIN_GAP === MAX_GAP for a deterministic schedule.
@@ -46,6 +49,13 @@ export class EventSystem {
     gameState.events.scheduledId  ??= null
     gameState._eventFlags         ??= {}
 
+    // Active Phaser timer events for the Twitch Con chaos mechanics. Held
+    // here so they can be torn down cleanly (no leaked timers) in both
+    // _clearEffect (at day end) and destroy() (scene shutdown).
+    this._twitchTimers = []
+    // Per-day raid counter — capped so a long day can't spawn endlessly.
+    this._twitchRaidsToday = 0
+
     this._listeners = []
     const on = (evt, fn) => { EventBus.on(evt, fn, this); this._listeners.push([evt, fn]) }
     on('NIGHT_PHASE_BEGAN', this._onNightPhaseBegan)
@@ -55,11 +65,18 @@ export class EventSystem {
     // goblins steal a slice of treasury when they escape.
     on('MINION_PLACED',     this._onMinionPlaced)
     on('ADVENTURER_FLED',   this._onAdventurerFled)
+    // Twitch Con — uniformly tag every twitch_streamer that enters the
+    // dungeon while the event is live. Catches the initial wave AND every
+    // endless-raid reinforcement (both emit ADVENTURER_ENTERED_DUNGEON).
+    on('ADVENTURER_ENTERED_DUNGEON', this._onAdventurerEntered)
   }
 
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn, this)
     this._listeners = []
+    // Tear down any in-flight Twitch Con timers so a scene shutdown
+    // mid-event doesn't leak Phaser timer events.
+    this._stopTwitchConChaos()
   }
 
   // ── Scheduling ─────────────────────────────────────────────────────────
@@ -186,6 +203,10 @@ export class EventSystem {
         break
       case 'twitch_con':
         flags.twitchConActive = true
+        // Spin up the three chaos timers (chat commands, freelance AI,
+        // endless raids). The initial wave's twitch_streamers are tagged
+        // by the ADVENTURER_ENTERED_DUNGEON listener as they spawn.
+        this._startTwitchConChaos()
         break
       case 'negotiation_day':
         // The decision was made during night via SHOW_CONFIRM. DayPhase
@@ -266,6 +287,8 @@ export class EventSystem {
         break
       case 'twitch_con':
         flags.twitchConActive = false
+        // Stop every chaos timer so they don't bleed into the next day.
+        this._stopTwitchConChaos()
         break
       case 'negotiation_day':
         // Outcome consumed in DayPhase. Clear here so the decision doesn't
@@ -341,5 +364,292 @@ export class EventSystem {
     // the adventurers.known record the post-wave summary reads.
     adventurer.goldStolen = (adventurer.goldStolen ?? 0) + stolen
     EventBus.emit('LOOT_GOBLIN_ESCAPED', { adventurer, stolen })
+  }
+
+  // ── Dungeon event: Twitch Con — "pure chaos" ───────────────────────────
+  // Three timer-driven mechanics, all active only while twitchConActive:
+  //   1. Chat-command chaos — random direct mutations on streamers.
+  //   2. Freelance AI       — streamers re-roll their agenda constantly.
+  //   3. Endless raids      — periodic reinforcement squads (capped).
+  // EventSystem OWNS all three: Phaser scene timers (which pause with the
+  // game) are stored in `_twitchTimers` and torn down in _clearEffect AND
+  // destroy(). Every twitch_streamer that enters the dungeon while the
+  // event runs gets tagged `_twitchChaos` by _onAdventurerEntered below.
+
+  // Tag every twitch_streamer joining the dungeon while Twitch Con is live.
+  // Catches the initial DayPhase wave AND the endless-raid reinforcements
+  // (both emit ADVENTURER_ENTERED_DUNGEON) — one uniform hook.
+  _onAdventurerEntered({ adventurer }) {
+    if (!this._gameState._eventFlags?.twitchConActive) return
+    if (adventurer?.classId === 'twitch_streamer') adventurer._twitchChaos = true
+  }
+
+  // Start all three chaos timers. Idempotent — clears any existing timers
+  // first so a save-load mid-event (DAY_PHASE_BEGAN re-fires) can't stack
+  // duplicate timers.
+  _startTwitchConChaos() {
+    this._stopTwitchConChaos()
+    this._twitchRaidsToday = 0
+    const time = this._scene?.time
+    if (!time) return
+    // Looping Phaser timer events — they auto-pause when the game pauses.
+    this._twitchTimers.push(time.addEvent({
+      delay:    Balance.TWITCH_CON_CHAT_CMD_INTERVAL_MS,
+      loop:     true,
+      callback: this._twitchChatCommandTick,
+      callbackScope: this,
+    }))
+    this._twitchTimers.push(time.addEvent({
+      delay:    Balance.TWITCH_CON_FREELANCE_INTERVAL_MS,
+      loop:     true,
+      callback: this._twitchFreelanceTick,
+      callbackScope: this,
+    }))
+    this._twitchTimers.push(time.addEvent({
+      delay:    Balance.TWITCH_CON_RAID_INTERVAL_MS,
+      loop:     true,
+      callback: this._twitchRaidTick,
+      callbackScope: this,
+    }))
+  }
+
+  // Tear down every chaos timer. Safe to call when none are running.
+  _stopTwitchConChaos() {
+    for (const t of this._twitchTimers) t?.remove?.(false)
+    this._twitchTimers = []
+  }
+
+  // All currently-alive `_twitchChaos` adventurers.
+  _liveTwitchStreamers() {
+    return (this._gameState.adventurers?.active ?? []).filter(a =>
+      a._twitchChaos && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0,
+    )
+  }
+
+  // Floating "!COMMAND" / banner text above the dungeon, twitch-purple.
+  // Copies the floating-text pattern from DayPhase.js (~668-673): a
+  // scroll-fixed, top-depth text tweened up + faded then destroyed.
+  _twitchFloatText(text, worldX, worldY, opts = {}) {
+    const game = this._scene
+    if (!game?.add) return
+    const txt = game.add.text(worldX, worldY, text, {
+      fontSize:   opts.fontSize ?? '14px',
+      color:      '#9146ff',                       // twitch purple
+      fontFamily: 'monospace',
+      fontStyle:  'bold',
+      stroke:     '#000000',
+      strokeThickness: opts.strokeThickness ?? 3,
+      align:      'center',
+    }).setOrigin(0.5).setDepth(9999)
+    if (opts.scrollFixed) txt.setScrollFactor(0)
+    game.tweens.add({
+      targets:  txt,
+      alpha:    0,
+      y:        txt.y - (opts.rise ?? 30),
+      duration: opts.duration ?? 1400,
+      onComplete: () => txt.destroy(),
+    })
+  }
+
+  // ── Mechanic 1 — Chat-command chaos ────────────────────────────────────
+  // Every ~2.8s, pick a random alive streamer and apply ONE random "chat
+  // command" — a direct, immediate mutation on the adventurer object — plus
+  // a floating "!COMMAND" tag above them.
+  _twitchChatCommandTick() {
+    if (!this._gameState._eventFlags?.twitchConActive) return
+    const streamers = this._liveTwitchStreamers()
+    if (streamers.length === 0) return
+    const adv = streamers[Math.floor(Math.random() * streamers.length)]
+
+    // Each command is a self-contained direct mutation — no new flags for
+    // other systems to read. AISystem re-paths naturally off cleared paths.
+    const commands = ['!HYPE', '!MALDING', '!DONO', "!RATIO'd", '!CLIP IT']
+    const cmd = commands[Math.floor(Math.random() * commands.length)]
+
+    switch (cmd) {
+      case '!HYPE':
+        // Sugar rush — faster movement.
+        adv.stats.speed = (adv.stats.speed ?? 1.4) * Balance.TWITCH_CON_HYPE_SPEED_MULT
+        break
+      case '!MALDING':
+        // Tilted — sluggish movement.
+        adv.stats.speed = (adv.stats.speed ?? 1.4) * Balance.TWITCH_CON_MALDING_SPEED_MULT
+        break
+      case '!DONO':
+        // A big donation — full heal.
+        if (adv.resources) adv.resources.hp = adv.resources.maxHp
+        break
+      case "!RATIO'd":
+        // Chat turns on them — instant chunk of damage.
+        if (adv.resources) {
+          const dmg = Math.round(adv.resources.maxHp * Balance.TWITCH_CON_RATIO_DMG_FRAC)
+          adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
+        }
+        break
+      case '!CLIP IT': {
+        // Teleport — jump to another streamer's tile, or a random walkable
+        // floor tile if there's nobody else. Clear path state so AISystem
+        // re-paths from the new position next tick.
+        const dest = this._pickTeleportTile(adv)
+        if (dest) {
+          const TS = Balance.TILE_SIZE
+          adv.tileX  = dest.x
+          adv.tileY  = dest.y
+          adv.worldX = dest.x * TS + TS / 2
+          adv.worldY = dest.y * TS + TS / 2
+          adv.path       = null
+          adv.pathIndex  = 0
+          adv.pathTarget = null
+        }
+        break
+      }
+    }
+
+    this._twitchFloatText(cmd, adv.worldX, adv.worldY - 4)
+    EventBus.emit('TWITCH_CON_CHAT_COMMAND', { adventurer: adv, command: cmd })
+  }
+
+  // Pick a teleport destination for !CLIP IT: another live streamer's tile
+  // preferred, else a random walkable floor tile (a non-boss room center —
+  // always walkable). Returns { x, y } or null.
+  _pickTeleportTile(self) {
+    const others = this._liveTwitchStreamers().filter(a => a !== self)
+    if (others.length > 0) {
+      const peer = others[Math.floor(Math.random() * others.length)]
+      return { x: peer.tileX, y: peer.tileY }
+    }
+    // Fallback — a random non-boss room's center tile.
+    const rooms = (this._gameState.dungeon?.rooms ?? [])
+      .filter(r => r.definitionId !== 'boss_chamber')
+    if (rooms.length === 0) return null
+    const room = rooms[Math.floor(Math.random() * rooms.length)]
+    return {
+      x: room.gridX + Math.floor(room.width  / 2),
+      y: room.gridY + Math.floor(room.height / 2),
+    }
+  }
+
+  // ── Mechanic 2 — Freelance AI ──────────────────────────────────────────
+  // Every ~4s, each live streamer re-rolls its agenda. They behave like an
+  // uncoordinated mob: charge the boss / raid a random non-boss room /
+  // wander in place / flee — plus an occasional "streamer beef" where they
+  // pick a fight with each other (a WANDER goal flagged `beef`, which
+  // AISystem's _twitchChaos infighting branch targets the nearest peer for).
+  // Re-rolling to goal types AISystem already executes keeps combat intact:
+  // streamers still fight (and die to) the player's minions and boss.
+  _twitchFreelanceTick() {
+    if (!this._gameState._eventFlags?.twitchConActive) return
+    const dungeon = this._gameState.dungeon
+    if (!dungeon) return
+    const nonBossRooms = (dungeon.rooms ?? [])
+      .filter(r => r.definitionId !== 'boss_chamber')
+
+    for (const adv of this._liveTwitchStreamers()) {
+      // Don't yank an adv out of an active fight or a flee — let those
+      // resolve; the next re-roll catches them once they're free.
+      if (adv.aiState === 'fighting' || adv.aiState === 'fleeing') continue
+      // 4-way agenda roll, with a low chance of "streamer beef" mixed in.
+      const beef = Math.random() < Balance.TWITCH_CON_BEEF_CHANCE
+      if (beef) {
+        // WANDER + beef — AISystem's _twitchChaos branch makes them swing
+        // at the nearest other streamer, drifting around in between.
+        adv.goal = { type: 'WANDER', beef: true, reason: 'streamer_beef' }
+      } else {
+        const roll = Math.floor(Math.random() * 4)
+        switch (roll) {
+          case 0:   // charge the boss
+            adv.goal = { type: 'SEEK_BOSS' }
+            break
+          case 1: { // raid a random non-boss room
+            if (nonBossRooms.length > 0) {
+              const room = nonBossRooms[Math.floor(Math.random() * nonBossRooms.length)]
+              adv.goal = { type: 'EXPLORE_ROOM', roomId: room.instanceId }
+            } else {
+              adv.goal = { type: 'SEEK_BOSS' }
+            }
+            break
+          }
+          case 2:   // wander aimlessly in place
+            adv.goal = { type: 'WANDER', reason: 'freelance_wander' }
+            break
+          case 3:   // bail out
+            adv.goal = { type: 'FLEE', reason: 'freelance_flee' }
+            adv.aiState = 'fleeing'
+            break
+        }
+      }
+      // Clear path state so AISystem re-paths to the new goal next tick.
+      adv.path       = null
+      adv.pathIndex  = 0
+      adv.pathTarget = null
+    }
+    EventBus.emit('TWITCH_CON_FREELANCE_REROLL', {})
+  }
+
+  // ── Mechanic 3 — Endless raids ─────────────────────────────────────────
+  // Every ~9s, show a big "RAID INCOMING!" banner and spawn a small squad
+  // of twitch_streamers at the dungeon entry. They auto-tag `_twitchChaos`
+  // via _onAdventurerEntered. Capped: stop after TWITCH_CON_RAID_MAX_PER_DAY
+  // raids, or once there are already too many streamers active.
+  _twitchRaidTick() {
+    if (!this._gameState._eventFlags?.twitchConActive) return
+    // Cap 1 — total raids this day.
+    if (this._twitchRaidsToday >= Balance.TWITCH_CON_RAID_MAX_PER_DAY) return
+    // Cap 2 — don't pile on if the dungeon is already swamped.
+    if (this._liveTwitchStreamers().length >= Balance.TWITCH_CON_RAID_STREAMER_CAP) return
+
+    const game = this._scene
+    const aiSystem = game?.aiSystem
+    if (!aiSystem) return
+    // Entry spawn tile — same source the other event-spawn code uses.
+    const entry = this._gameState.dungeon?.rooms
+      ?.find(r => r.definitionId === 'entry_hall')
+    const spawn = aiSystem.pickSpawnTile?.() ?? (entry ? entryDoorTile(entry) : null)
+    if (!spawn) return
+
+    const allClasses = game.cache?.json?.get?.('adventurerClasses') ?? []
+    const streamerDef = allClasses.find(c => c.id === 'twitch_streamer')
+    if (!streamerDef) return
+
+    // Squad size 2-3 (inclusive).
+    const min  = Balance.TWITCH_CON_RAID_SQUAD_MIN
+    const max  = Balance.TWITCH_CON_RAID_SQUAD_MAX
+    const size = min + Math.floor(Math.random() * (max - min + 1))
+    const partyId = `twitch_raid_${Date.now()}`
+    const spawned = []
+    for (let i = 0; i < size; i++) {
+      // Fan the squad out around the entry tile (same offset pattern as
+      // DayPhase._spawnLootGoblinHeist).
+      const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: Math.floor(i / 2) }
+      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
+      const adv    = createAdventurer(streamerDef, tile)
+      adv.partyId    = partyId
+      adv.spawnTileX = tile.x
+      adv.spawnTileY = tile.y
+      this._gameState.adventurers.active.push(adv)
+      // Give them a valid starting goal (the freelance timer re-rolls it
+      // within ~4s anyway, but this avoids a tick with a stale goal).
+      aiSystem.pickInitialGoal?.(adv)
+      // ADVENTURER_ENTERED_DUNGEON tags them `_twitchChaos` via the
+      // listener and lets AISystem/renderers pick them up.
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+      spawned.push(adv)
+    }
+    if (spawned.length === 0) return
+    this._twitchRaidsToday++
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    EventBus.emit('TWITCH_CON_RAID_SPAWNED', { adventurers: spawned, raidNumber: this._twitchRaidsToday })
+
+    // "RAID INCOMING!" banner — big, centered, twitch-purple, scroll-fixed.
+    const cam = game.cameras?.main
+    if (cam) {
+      this._twitchFloatText('RAID INCOMING!', cam.midPoint.x, cam.midPoint.y - 100, {
+        fontSize: '32px',
+        strokeThickness: 5,
+        rise: 40,
+        duration: 2200,
+        scrollFixed: true,
+      })
+    }
   }
 }

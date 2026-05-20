@@ -443,6 +443,21 @@ export const Balance = {
   // (crits, big hits, Golem Earthquake, Beholder Petrify, etc.).
   // Flip to false to disable all screen shake without code changes.
   VFX_SCREEN_SHAKE_ENABLED:         true,
+
+  // --- Dungeon event: Twitch Con ---
+  // Three timer-driven chaos mechanics, all owned by EventSystem and only
+  // running while `_eventFlags.twitchConActive`. Tune cadence/strength here.
+  TWITCH_CON_CHAT_CMD_INTERVAL_MS:   2800,  // chat-command roll cadence
+  TWITCH_CON_FREELANCE_INTERVAL_MS:  4000,  // agenda re-roll cadence
+  TWITCH_CON_RAID_INTERVAL_MS:       9000,  // endless-raid spawn cadence
+  TWITCH_CON_RAID_SQUAD_MIN:         2,     // raid squad size, inclusive
+  TWITCH_CON_RAID_SQUAD_MAX:         3,
+  TWITCH_CON_RAID_MAX_PER_DAY:       5,     // hard cap on raids per day
+  TWITCH_CON_RAID_STREAMER_CAP:      20,    // also stop if this many streamers already active
+  TWITCH_CON_HYPE_SPEED_MULT:        1.5,   // !HYPE speed buff
+  TWITCH_CON_MALDING_SPEED_MULT:     0.6,   // !MALDING speed nerf
+  TWITCH_CON_RATIO_DMG_FRAC:         0.25,  // !RATIO'd instant damage as a fraction of maxHp
+  TWITCH_CON_BEEF_CHANCE:            0.18,  // per-replan chance a streamer picks a fight with another streamer
 }
 
 // ── Derived helpers ──────────────────────────────────────────────────
