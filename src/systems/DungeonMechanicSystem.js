@@ -197,7 +197,9 @@ export class DungeonMechanicSystem {
     }
   }
 
-  // Cursed Soil — 1 dmg/sec to anyone standing on a floor tile (incl. minions).
+  // Cursed Soil — 1 dmg/sec to anyone standing on an "empty floor" tile:
+  // a dungeon floor tile that lies outside every room (the bare connective
+  // corridors). Standing inside a room is safe ground.
   _tickCursedSoil(deltaMs) {
     const f = this._gameState._mechanicFlags ?? {}
     if (!f.cursedSoil) return
@@ -205,12 +207,24 @@ export class DungeonMechanicSystem {
     if (f._cursedSoilAccumMs < 1000) return
     f._cursedSoilAccumMs -= 1000
     const dmg = Balance.MECHANIC_CURSED_SOIL_DPS
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    // True only when the tile lies outside every room footprint.
+    const onEmptyFloor = (tx, ty) => {
+      if (tx == null || ty == null) return false
+      for (const r of rooms) {
+        if (tx >= r.gridX && tx < r.gridX + r.width &&
+            ty >= r.gridY && ty < r.gridY + r.height) return false
+      }
+      return true
+    }
     for (const adv of (this._gameState.adventurers?.active ?? [])) {
       if (adv.aiState === 'dead' || adv.aiState === 'leaving') continue
+      if (!onEmptyFloor(adv.tileX, adv.tileY)) continue
       adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
     }
     for (const m of (this._gameState.minions ?? [])) {
       if (m.aiState === 'dead') continue
+      if (!onEmptyFloor(m.tileX, m.tileY)) continue
       m.resources.hp = Math.max(0, m.resources.hp - dmg)
     }
   }
@@ -798,18 +812,27 @@ function _buildHandlerRegistry() {
 
     // ── Avenger's Rite ───────────────────────────────────────────────────
     // Sets boss._avengerBuffUntil on minion death; sets boss._avengerDazeUntil
-    // when an adv enters the boss chamber. BossSystem reads these.
+    // ONCE per boss fight — only for the FIRST adventurer to reach the boss
+    // chamber (re-armed each dawn). BossSystem reads these.
     avengersRite_activate: ({ subscribe, gameState, scene }) => {
-      gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), avengersRite: true }
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), avengersRite: true }
+      f.avengerDazeArmed ??= true
       subscribe('MINION_DIED', () => {
         if (!gameState.boss) return
         const now = scene?.time?.now ?? 0
         gameState.boss._avengerBuffUntil = now + Balance.MECHANIC_AVENGER_BUFF_DURATION_MS
       })
+      // Re-arm the daze each dawn so it can fire once per boss fight.
+      subscribe('DAY_PHASE_STARTED', () => {
+        gameState._mechanicFlags.avengerDazeArmed = true
+      })
+      // Daze only for the FIRST adventurer to enter the boss chamber.
       subscribe('ADVENTURER_ROOM_CHANGED', ({ toRoomId }) => {
         if (!gameState.boss || !toRoomId) return
+        if (!gameState._mechanicFlags.avengerDazeArmed) return
         const bossRoom = gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         if (!bossRoom || bossRoom.instanceId !== toRoomId) return
+        gameState._mechanicFlags.avengerDazeArmed = false
         const now = scene?.time?.now ?? 0
         gameState.boss._avengerDazeUntil = now + Balance.MECHANIC_AVENGER_DAZE_DURATION_MS
       })
@@ -1109,7 +1132,7 @@ function _buildHandlerRegistry() {
         (gameState._mechanicFlags.maxMinionSlotBonus ?? 0) - Balance.MECHANIC_DRILL_SERGEANT_SLOTS)
     },
 
-    // ── Endless Garrison — 10/Barracks, -15% minion damage ──────────────
+    // ── Endless Garrison — 15/Barracks, -15% minion damage ──────────────
     endlessGarrison_activate: ({ gameState }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.endlessGarrison = true

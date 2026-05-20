@@ -801,7 +801,7 @@
     "id": "endless_garrison",
     "name": "Endless Garrison",
     "symbol": "▦",
-    "description": "Each Barracks grants 10 minion slots instead of 5.",
+    "description": "Each Barracks grants 15 minion slots instead of 10.",
     "tradeoffDescription": "All minions deal 15% less damage — they're overcrowded.",
     "rarity": "rare",
     "unlockLevel": 4,

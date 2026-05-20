@@ -620,7 +620,9 @@ export class ClassAbilitySystem {
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
       if (adv === cleric) continue
-      if (cleric.partyId && adv.partyId !== cleric.partyId) continue
+      // A cleric with no party (e.g. severed by Schism) has no allies to
+      // heal — heals nobody. Otherwise restrict to same-party allies.
+      if (!cleric.partyId || adv.partyId !== cleric.partyId) continue
       const frac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
       if (frac >= bestFrac) continue
       const d = Math.hypot(adv.tileX - cleric.tileX, adv.tileY - cleric.tileY)
@@ -641,7 +643,8 @@ export class ClassAbilitySystem {
       if (cleric.classId !== 'cleric') continue
       if (cleric === falling) continue
       if (cleric.aiState === 'dead' || cleric.resources?.hp <= 0) continue
-      if (cleric.partyId && cleric.partyId !== falling.partyId) continue
+      // No party (Schism-severed) → cannot resurrect anyone.
+      if (!cleric.partyId || cleric.partyId !== falling.partyId) continue
       const ready = AbilitySystem.canUse(cleric, ABILITY_DEFS.cleric_resurrection, this._scene.time.now)
       if (!ready.ready) continue
       // Spend the use.

@@ -532,6 +532,14 @@ export class CombatSystem {
     if (flags.openBook && target.faction === 'dungeon' && attacker.faction === 'adventurer') {
       mit = Math.max(1, Math.floor(mit * Balance.MECHANIC_OPEN_BOOK_MINION_TAKEN_MULT))
     }
+    // Phase 9 — Frenzy Pact tradeoff: a frenzied minion loses 25% defense
+    // per per-room stack — it takes that much more damage (no cap).
+    if (flags.frenzyPact && target.faction === 'dungeon' && target.assignedRoomId) {
+      const fStacks = (flags.frenzyStacks ?? {})[target.assignedRoomId] ?? 0
+      if (fStacks > 0) {
+        mit = Math.floor(mit * (1 + fStacks * Balance.MECHANIC_FRENZY_DEFENSE_PER_STACK))
+      }
+    }
     // Phase 9 — False Maps: enraged advs deal +50% damage during rage window.
     if (flags.falseMaps && attacker.faction === 'adventurer' && attacker._falseMapsRageUntil) {
       const now = this._scene?.time?.now ?? 0
