@@ -546,8 +546,8 @@ export class ArchetypeSelect extends Phaser.Scene {
     const cy = this._pageBottom - 2
 
     const label = this.add.text(cx, cy, 'BEGIN RUN', {
-      fontSize: '16px', color: '#f4d28a', fontFamily: 'serif', fontStyle: 'bold',
-      stroke: '#3a1808', strokeThickness: 3,
+      fontSize: '26px', color: '#f4d28a', fontFamily: 'serif', fontStyle: 'bold',
+      stroke: '#3a1808', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(5).setInteractive({ useHandCursor: true })
     label.setResolution(this._textRes)
     this._cContent.add(label)

@@ -527,13 +527,15 @@ export class AISystem {
       return /\d/.test(lastChar) && Number(lastChar) >= 3
     })
 
-    // A trap we know about, sitting in this room, counts as a threat
-    // worth shouting "trap!" over.
+    // A trap THIS adventurer knows about, sitting in this room, counts as
+    // a threat worth shouting "trap!" over. Knowledge is per-adventurer —
+    // adv.knowledge.traps is keyed by trap instanceId (populated on a
+    // personal trigger-sighting or inherited from the shared pool).
     const knownTraps = (this._gameState.dungeon.traps ?? []).filter(t =>
       t.disarmed !== true &&
       t.tileX >= room.gridX && t.tileX < room.gridX + room.width &&
       t.tileY >= room.gridY && t.tileY < room.gridY + room.height &&
-      this._knowledgeSystem?.isTrapKnown?.(t.instanceId)
+      adv.knowledge?.traps?.[t.instanceId] != null
     )
 
     if (!strongMinion && knownTraps.length === 0) return
@@ -1264,11 +1266,25 @@ export class AISystem {
       }
     }
 
-    // Dungeon event: The Tournament — rivals attack each other on
-    // sight when within their attack range. Mirrors the Sworn Rivals
-    // pattern above but without the HP-threshold gate (tournament
-    // rivals are aggressive from the start). Falls through to normal
-    // minion engagement if no other rival is in range.
+    // Dungeon event: The Tournament — scatter→hunt timeout. A rival
+    // still in its SCATTER_ROOM phase past `_scatterUntil` (e.g. pinned
+    // in combat by minions and never reaching its room) flips to
+    // HUNT_RIVAL anyway so the bloodsport always progresses.
+    if (adv._tournamentRival && adv.goal?.type === 'SCATTER_ROOM' &&
+        this._scene.time.now >= (adv._scatterUntil ?? 0)) {
+      adv.goal = { type: 'HUNT_RIVAL' }
+      adv.path = null
+    }
+
+    // Dungeon event: The Tournament ("Bloodsport") — rivals hunt each
+    // other to the death. The seeking is goal-driven (HUNT_RIVAL goal,
+    // resolved in _goalToTile to the nearest living rival's tile); this
+    // block is the in-range ENGAGEMENT half: whenever ANOTHER living
+    // rival is within attack range — whether the adv is scattering,
+    // hunting, or seeking the boss — drop everything and swing at the
+    // nearest one. No HP gate (aggressive from the start). Falls through
+    // to normal minion engagement if no rival is in reach, so the
+    // player's minions/boss still fight (and can kill) them.
     if (adv._tournamentRival && adv.aiState !== 'fleeing' && this._combatSystem) {
       const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
       let target = null, bestDist = Infinity
@@ -1281,6 +1297,9 @@ export class AISystem {
         if (d < bestDist) { target = other; bestDist = d }
       }
       if (target) {
+        // Reaching a rival in combat counts as "scatter complete" — flip
+        // straight to HUNT so once this target dies the adv keeps hunting.
+        if (adv.goal?.type === 'SCATTER_ROOM') adv.goal = { type: 'HUNT_RIVAL' }
         adv.aiState = 'fighting'
         adv.path = null
         this._combatSystem.tryAttack(adv, target, {
@@ -2127,6 +2146,34 @@ export class AISystem {
         y: room.gridY + Math.floor(room.height / 2),
       }
     }
+    // Dungeon event: The Tournament — scatter phase. Route the rival to
+    // the center of its assigned non-boss room. If the room is gone,
+    // skip straight to HUNT.
+    if (adv.goal.type === 'SCATTER_ROOM') {
+      const room = dungeon.rooms.find(r => r.instanceId === adv.goal.roomId)
+      if (!room || room.definitionId === 'boss_chamber') {
+        adv.goal = { type: 'HUNT_RIVAL' }
+        return this._goalToTile(adv)
+      }
+      return {
+        x: room.gridX + Math.floor(room.width  / 2),
+        y: room.gridY + Math.floor(room.height / 2),
+      }
+    }
+    // Dungeon event: The Tournament — HUNT phase. Path toward the nearest
+    // living OTHER rival's current tile (tracked fresh each replan so the
+    // hunter chases as the prey moves). If no other rival is alive this
+    // adv is the last one standing — switch to SEEK_BOSS (EventSystem
+    // also sets this on the last-standing detection, but this is a safety
+    // net so a HUNT_RIVAL goal never strands a lone survivor).
+    if (adv.goal.type === 'HUNT_RIVAL') {
+      const prey = this._nearestLivingRival(adv)
+      if (!prey) {
+        adv.goal = { type: 'SEEK_BOSS' }
+        return this._goalToTile(adv)
+      }
+      return { x: prey.tileX, y: prey.tileY }
+    }
     // Phase 1b.4 — Lich Phylactery: route the adv directly to the heart's
     // tile. If the heart is gone (destroyed mid-walk), fall back to FLEE.
     if (adv.goal.type === 'HUNT_PHYLACTERY') {
@@ -2469,6 +2516,27 @@ export class AISystem {
       adv.goal = this._pickNextGoal(adv)
       return
     }
+    // Dungeon event: The Tournament — rival reached its scatter room.
+    // Flip into HUNT mode: from here on it actively chases + kills the
+    // nearest living other rival.
+    if (adv.goal.type === 'SCATTER_ROOM') {
+      adv.visitedRooms ??= []
+      if (adv.goal.roomId && !adv.visitedRooms.includes(adv.goal.roomId)) {
+        adv.visitedRooms.push(adv.goal.roomId)
+      }
+      adv.goal = { type: 'HUNT_RIVAL' }
+      adv.path = null
+      return
+    }
+    // Dungeon event: The Tournament — hunter reached the prey's tile.
+    // Just clear the path; _goalToTile re-resolves the nearest living
+    // rival on the next replan (the in-range engagement block does the
+    // actual attacking). If the prey is now dead, _goalToTile flips this
+    // to SEEK_BOSS for the last one standing.
+    if (adv.goal.type === 'HUNT_RIVAL') {
+      adv.path = null
+      return
+    }
 
     if (adv.goal.type === 'SEEK_BOSS') {
       // Only redirect to FLEE on TRUE death (no lives left, no
@@ -2584,6 +2652,23 @@ export class AISystem {
 
   // Personality-driven goal selection.
   // Falls back to SEEK_BOSS if no PersonalitySystem is wired yet.
+  // Dungeon event: The Tournament — nearest living OTHER tournament
+  // rival to `adv` (by Euclidean tile distance). Returns null when `adv`
+  // is the last rival standing. Excludes dead/fleeing rivals — though
+  // rivals carry noFlee, the dead check still matters once one is killed.
+  _nearestLivingRival(adv) {
+    let best = null, bestDist = Infinity
+    for (const other of this._gameState.adventurers.active) {
+      if (other === adv) continue
+      if (!other._tournamentRival) continue
+      if (other.aiState === 'dead' || other.aiState === 'fleeing') continue
+      if ((other.resources?.hp ?? 0) <= 0) continue
+      const d = Math.hypot(other.tileX - adv.tileX, other.tileY - adv.tileY)
+      if (d < bestDist) { best = other; bestDist = d }
+    }
+    return best
+  }
+
   _pickNextGoal(adv) {
     // Dungeon event: Legendary Speed Runner — pure beeline to the boss.
     // Skips the entire goal-picking flow (no scout, no regroup, no
@@ -2594,6 +2679,17 @@ export class AISystem {
     // the player's boss in the throne room. Same beeline shortcut as
     // the speedrunner.
     if (adv._rivalBoss) return { type: 'SEEK_BOSS' }
+    // Dungeon event: The Tournament — a rival's goal-picking is fully
+    // owned by the bloodsport flow (scatter → hunt → seek boss). It never
+    // runs the normal personality/scout/treasure goal picker. While any
+    // other rival is alive, HUNT them; otherwise (last one standing) go
+    // for the boss. EventSystem also sets SEEK_BOSS on the winner, so
+    // this is the fallback for any unexpected goal dissolve.
+    if (adv._tournamentRival) {
+      return this._nearestLivingRival(adv)
+        ? { type: 'HUNT_RIVAL' }
+        : { type: 'SEEK_BOSS' }
+    }
     // Dungeon event: Cartographer's Convention — pick the closest
     // unvisited non-boss room and explore it. When all rooms are
     // visited (or unreachable), flee. Never engages combat goals.
@@ -2853,6 +2949,10 @@ export class AISystem {
     // RESOURCES_AWARDED + BOSS_LEVELED_UP). Suppress the standard kill
     // gold here so rewards don't double-count.
     if (adv._rivalBoss) goldMul = 0
+    // Returning veterans are worth double — they've raided before and
+    // carry better spoils. Applied after _rivalBoss so a rival boss (which
+    // zeroes goldMul) is unaffected; veterans are never rival bosses.
+    if (adv.flags?.returningVeteran) goldMul *= 2
     const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++

@@ -336,8 +336,13 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | Knowledge accumulates as adventurer enters dungeon | 8 | ✅ DONE — `observeCurrentRoom` per tick + `observeMinion` on engagement scan |
 | Knowledge sharing on flee (to other adventurers) | 8 | ✅ DONE — merges into `gameState.sharedKnowledge` with personality-specific accuracy |
 | Knowledge accuracy flag (some intel is wrong) | 8 | ✅ DONE — accuracy multiplier, `'rumor'` source, partial accurate flag |
-| Adventurer returns leading party with prior knowledge | 8 | ✅ DONE — KNOWLEDGE_RETURN_CHANCE rolls; leader's full knowledge copied to followers |
+| Adventurer returns leading party with prior knowledge | 8 | ✅ DONE — *was silently dead until 2026-05-20:* `rollReturnLeader()` was never implemented, so the DayPhase returning-leader block never ran (every wave inherited at the partial rate, never the full-briefing 1.0). `rollReturnLeader()` now exists — KNOWLEDGE_RETURN_CHANCE gates a recently-fled survivor (within KNOWLEDGE_RETURN_MAX_AGE_DAYS) returning as the wave leader |
 | Knowledge affects pathfinding cost | 8 | ✅ DONE — PathfinderSystem accepts `costFn`; trap-known tiles get 6× multiplier |
+| Veteran return notification | 8 | ✅ DONE (2026-05-20) — returning leader carries `escapeCount` → ToastQueue "VETERAN APPROACHING" toast on entry; also emits `VETERAN_APPROACHING` for the Dungeon Log |
+| Veterans stronger than normal adventurers | 8 | ✅ DONE (2026-05-20) — boss-level scaled like any adventurer, then ×`KNOWLEDGE_VETERAN_HP_MULT` (1.2) / ×`KNOWLEDGE_VETERAN_ATK_MULT` (1.15) |
+| Veterans worth double gold | 8 | ✅ DONE (2026-05-20) — `goldMul ×2` for `returningVeteran` in the AISystem kill-reward chain |
+| Veterans visually distinct at a glance | 8 | ✅ DONE (2026-05-20) — gold aura ring + body stroke + "★ VET n" badge in AdventurerRenderer |
+| Returning veteran identity continuity | 8 | ✅ DONE (2026-05-20) — returning leader reuses the survivor's `instanceId` so re-flees accumulate `runCount`; `KnowledgeSystem._onAdventurerDied` purges a veteran killed in the dungeon (their championed intel leaves the shared pool) |
 
 ---
 

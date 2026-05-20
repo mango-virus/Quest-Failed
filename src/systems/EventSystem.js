@@ -69,6 +69,10 @@ export class EventSystem {
     // dungeon while the event is live. Catches the initial wave AND every
     // endless-raid reinforcement (both emit ADVENTURER_ENTERED_DUNGEON).
     on('ADVENTURER_ENTERED_DUNGEON', this._onAdventurerEntered)
+    // The Tournament ("Bloodsport") — when a tournament rival dies while
+    // the event is live, attribute the kill (rival-vs-rival only), buff
+    // the killer, and check for last-one-standing.
+    on('ADVENTURER_DIED', this._onAdventurerDiedTournament)
   }
 
   destroy() {
@@ -382,6 +386,122 @@ export class EventSystem {
   _onAdventurerEntered({ adventurer }) {
     if (!this._gameState._eventFlags?.twitchConActive) return
     if (adventurer?.classId === 'twitch_streamer') adventurer._twitchChaos = true
+  }
+
+  // ── Dungeon event: The Tournament — "Bloodsport" lifecycle ─────────────
+  // EventSystem owns the bookkeeping: rival deaths, the kill-buff handoff,
+  // and last-one-standing detection. The scatter→hunt AI lives in AISystem;
+  // DayPhase spawns + tags the rivals. Flow:
+  //   1. A rival dies → if its killer was ANOTHER rival, buff that killer.
+  //      (A minion/boss kill grants nothing.)
+  //   2. After every rival death, count living rivals. When exactly one
+  //      remains, point them at the boss and show the winner banner.
+
+  // All currently-alive tournament rivals.
+  _liveTournamentRivals() {
+    return (this._gameState.adventurers?.active ?? []).filter(a =>
+      a._tournamentRival && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0,
+    )
+  }
+
+  _onAdventurerDiedTournament({ adventurer, killerId }) {
+    if (!this._gameState._eventFlags?.tournamentActive) return
+    if (!adventurer?._tournamentRival) return
+
+    // Attribute the kill. `killerId` is the killing-blow source's
+    // instanceId (AISystem._kill derives it from _lastHitBy). The buff is
+    // ONLY granted when that id resolves to another living tournament
+    // rival — a minion or the boss landing the kill grants nothing.
+    const killer = (this._gameState.adventurers?.active ?? []).find(a =>
+      a.instanceId === killerId && a._tournamentRival && a.aiState !== 'dead',
+    )
+    if (killer && killer !== adventurer) {
+      this._applyTournamentKillBuff(killer)
+    }
+
+    // Last-one-standing check — runs on every rival death regardless of
+    // who landed it (a rival killed by minions still thins the field).
+    const survivors = this._liveTournamentRivals()
+    if (survivors.length === 1) {
+      this._crownTournamentWinner(survivors[0])
+    }
+  }
+
+  // Apply one stack of the kill-buff: scale attack / maxHp / defense,
+  // heal to the new full, bump the kill counter (drives sprite growth in
+  // AdventurerRenderer). Stacks multiplicatively per kill.
+  _applyTournamentKillBuff(rival) {
+    rival.stats     ??= {}
+    rival.resources ??= {}
+    rival._tournamentKills = (rival._tournamentKills ?? 0) + 1
+
+    rival.stats.attack  = Math.round((rival.stats.attack  ?? 1) * Balance.TOURNAMENT_RIVAL_KILL_ATK_MULT)
+    rival.stats.defense = Math.round((rival.stats.defense ?? 0) * Balance.TOURNAMENT_RIVAL_KILL_DEF_MULT)
+    const newMaxHp = Math.round((rival.resources.maxHp ?? rival.stats.hp ?? 1) * Balance.TOURNAMENT_RIVAL_KILL_HP_MULT)
+    rival.resources.maxHp = newMaxHp
+    rival.stats.hp        = newMaxHp     // keep stats.hp in sync (used as a maxHp fallback)
+    rival.resources.hp    = newMaxHp     // heal to full on the kill
+
+    // Floating "EMPOWERED" tag above the killer, tournament-red.
+    this._tournamentFloatText('EMPOWERED', rival.worldX, (rival.worldY ?? 0) - 6)
+    EventBus.emit('TOURNAMENT_RIVAL_BUFFED', {
+      adventurer: rival,
+      kills:      rival._tournamentKills,
+    })
+  }
+
+  // Last rival standing — switch their goal to the boss (now powered-up)
+  // and announce the victor with a centered banner.
+  _crownTournamentWinner(rival) {
+    if (rival._tournamentWinner) return     // already crowned — don't double-fire
+    rival._tournamentWinner = true
+    // Hand control to the boss-seek flow; clear path so AISystem re-routes
+    // to the boss room on the next tick.
+    rival.goal = { type: 'SEEK_BOSS' }
+    rival.path = null
+    rival.pathIndex = 0
+    rival.pathTarget = null
+    if (rival.aiState === 'fighting') rival.aiState = 'walking'
+
+    EventBus.emit('TOURNAMENT_WINNER_CROWNED', { adventurer: rival })
+
+    // "TOURNAMENT WINNER" banner — big, centered, scroll-fixed.
+    const game = this._scene
+    const cam  = game?.cameras?.main
+    if (cam) {
+      const name = rival.name ?? 'A rival'
+      this._tournamentFloatText(`${name}\nTOURNAMENT WINNER`, cam.midPoint.x, cam.midPoint.y - 100, {
+        fontSize: '28px',
+        strokeThickness: 5,
+        rise: 40,
+        duration: 2600,
+        scrollFixed: true,
+      })
+    }
+  }
+
+  // Floating tournament-red text — mirrors _twitchFloatText but in the
+  // event's warn-red palette.
+  _tournamentFloatText(text, worldX, worldY, opts = {}) {
+    const game = this._scene
+    if (!game?.add) return
+    const txt = game.add.text(worldX, worldY, text, {
+      fontSize:   opts.fontSize ?? '14px',
+      color:      '#e0533a',                       // tournament warn-red
+      fontFamily: 'monospace',
+      fontStyle:  'bold',
+      stroke:     '#000000',
+      strokeThickness: opts.strokeThickness ?? 3,
+      align:      'center',
+    }).setOrigin(0.5).setDepth(9999)
+    if (opts.scrollFixed) txt.setScrollFactor(0)
+    game.tweens.add({
+      targets:  txt,
+      alpha:    0,
+      y:        txt.y - (opts.rise ?? 30),
+      duration: opts.duration ?? 1400,
+      onComplete: () => txt.destroy(),
+    })
   }
 
   // Start all three chaos timers. Idempotent — clears any existing timers

@@ -35,14 +35,18 @@ export class KeyChestRenderer {
     const seen = new Set()
     for (const c of chests) {
       seen.add(c.instanceId)
+      // Anchor bottom-center on the chest's tile — same as the treasure
+      // chest renderer so both chest types sit on the tile they were
+      // placed on (origin 0.5,1 means cy is the chest's ground line).
+      const cx = c.tileX * TS + TS / 2
+      const cy = c.tileY * TS + TS - 2
       let s = this._sprites[c.instanceId]
       if (!s) {
-        // Centered on tile; a touch above ground so the chest sits on it.
-        const cx = c.tileX * TS + TS / 2
-        const cy = c.tileY * TS + TS / 2
-        s = this._scene.add.sprite(cx, cy - 4, 'item-key-chest', 0)
+        s = this._scene.add.sprite(cx, cy, 'item-key-chest', 0)
           .setOrigin(0.5, 1).setDepth(2.6).setScale(CHEST_SCALE)
         this._sprites[c.instanceId] = s
+      } else {
+        s.setPosition(cx, cy)
       }
       s.setFrame(c.opened ? 1 : 0)
     }

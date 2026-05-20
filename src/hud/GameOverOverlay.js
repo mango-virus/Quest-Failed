@@ -148,8 +148,13 @@ export class GameOverOverlay {
   }
 
   _finalBlow() {
-    // Pick the highest-level survivor in adventurers.known (closest proxy
-    // for "killed the boss" since the gameState doesn't tag it explicitly).
+    // BossSystem records the actual killer (the fight-party adventurer
+    // credited with the final blow) on gameState.run.finalBlow when the
+    // boss is defeated. Prefer that.
+    const recorded = this._gameState.run?.finalBlow
+    if (recorded && (recorded.classId || recorded.name)) return recorded
+    // Fallback for runs with no logged fight party — pick the highest-level
+    // known adventurer as a rough proxy.
     const known = this._gameState.adventurers?.known ?? []
     if (known.length === 0) return null
     return known.reduce((best, k) =>

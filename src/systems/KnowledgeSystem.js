@@ -38,6 +38,7 @@ export class KnowledgeSystem {
 
     EventBus.on('TRAP_TRIGGERED', this._onTrapTriggered, this)
     EventBus.on('ADVENTURER_FLED', this._onAdventurerFled, this)
+    EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
     EventBus.on('ROOM_PLACED',    this._onRoomMutated,   this)
     EventBus.on('ROOM_REMOVED',   this._onRoomMutated,   this)
     EventBus.on('TRAP_PLACED',    this._onTrapMutated,   this)
@@ -59,6 +60,7 @@ export class KnowledgeSystem {
   destroy() {
     EventBus.off('TRAP_TRIGGERED', this._onTrapTriggered, this)
     EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
+    EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
     EventBus.off('ROOM_PLACED',    this._onRoomMutated,   this)
     EventBus.off('ROOM_REMOVED',   this._onRoomMutated,   this)
     EventBus.off('TRAP_PLACED',    this._onTrapMutated,   this)
@@ -76,6 +78,23 @@ export class KnowledgeSystem {
 
   getSurvivors() {
     return this._gs.knowledge.survivors
+  }
+
+  // Phase 8 — pick a fled survivor to personally return the next day as a
+  // veteran leading the wave (carrying their accumulated knowledge, which
+  // briefs the whole party). Chance-gated; only survivors who fled within
+  // KNOWLEDGE_RETURN_MAX_AGE_DAYS are eligible — older intel-holders just
+  // keep feeding the shared pool passively. Returns a survivor record or
+  // null. DayPhase consumes the record in its returning-leader block.
+  rollReturnLeader() {
+    const survivors = this._gs.knowledge?.survivors ?? []
+    if (survivors.length === 0) return null
+    if (Math.random() >= Balance.KNOWLEDGE_RETURN_CHANCE) return null
+    const today = this._gs.meta?.dayNumber ?? 0
+    const eligible = survivors.filter(s =>
+      (today - (s.lastSeenDay ?? today)) <= Balance.KNOWLEDGE_RETURN_MAX_AGE_DAYS)
+    if (eligible.length === 0) return null
+    return eligible[Math.floor(Math.random() * eligible.length)]
   }
 
   // ── Observation API — called each tick / event by AISystem ───────────────
@@ -238,6 +257,23 @@ export class KnowledgeSystem {
     }
   }
 
+  // A survivor who personally returned (as a veteran) and then died in the
+  // dungeon is gone for good — "death destroys personal knowledge". The
+  // returning leader reuses the survivor's instanceId, so this matches by
+  // id; fresh adventurers who were never survivors simply don't match.
+  // Removing them and rebuilding the pool means killing the veteran also
+  // scrubs the intel they were championing — a real reason to hunt them.
+  _onAdventurerDied({ adventurer }) {
+    if (!adventurer) return
+    const survivors = this._gs.knowledge?.survivors
+    if (!Array.isArray(survivors)) return
+    const idx = survivors.findIndex(s => s.instanceId === adventurer.instanceId)
+    if (idx !== -1) {
+      survivors.splice(idx, 1)
+      this._rebuildSharedPool()
+    }
+  }
+
   _updateSurvivorRecord(adv) {
     const survivors = this._gs.knowledge.survivors
     const idx  = survivors.findIndex(s => s.instanceId === adv.instanceId)
@@ -371,6 +407,7 @@ export class KnowledgeSystem {
   // Returning veteran: restore accumulated knowledge + flag as veteran.
   initKnowledgeForSurvivor(adv, survivorRecord) {
     adv.knowledge        = _deepCopy(survivorRecord.knowledge)
+    _ensureAdvKnowledge(adv)
     adv.flags           ??= {}
     adv.flags.returningVeteran = true
     adv.flags.runsCompleted    = survivorRecord.runCount
@@ -638,6 +675,70 @@ export class KnowledgeSystem {
       totalRooms:          total,
       confirmedTraps,      staleTraps,
       confirmedLoot,       confirmedEnemyRooms,
+    }
+  }
+
+  // ── HUD intel report ─────────────────────────────────────────────────────
+  //
+  // Single source of truth for the knowledge HUD panels (KnowledgeMapOverlay,
+  // RightPanels' Adventurer Intel). Built from the LIVE pool so it reflects
+  // the currently-exploring party, not just last day's escapees. Every entry
+  // is classified through tierForEntry() — the same classifier the pathfinder
+  // uses — so the UI coloring and the AI avoidance weighting never disagree.
+  //
+  // `rooms` / `traps` / `enemiesPerRoom` are id → 'FULL'|'PARTIAL'|'RUMOR'
+  // maps; an id absent from the map is UNKNOWN.
+  //
+  // `exposurePct` is tier-weighted: FULL intel is worth 4× a RUMOR. A dungeon
+  // the adventurers only have rumours about reads low even if every room has
+  // been whispered about — the number tracks how much they REALLY know.
+  getIntelReport() {
+    const pool   = this._livePool()
+    const rooms  = this._gs.dungeon?.rooms  ?? []
+    const traps  = this._gs.dungeon?.traps  ?? []
+    const WEIGHT = { FULL: 1.0, PARTIAL: 0.5, RUMOR: 0.25 }
+    const RANK   = { FULL: 0, PARTIAL: 1, RUMOR: 2 }
+
+    let weightSum = 0
+    const roomTiers = {}
+    for (const r of rooms) {
+      const tier = this.tierForEntry(pool.rooms?.[r.instanceId])
+      if (!tier) continue
+      roomTiers[r.instanceId] = tier
+      weightSum += WEIGHT[tier] ?? 0
+    }
+
+    const trapTiers = {}
+    for (const t of traps) {
+      const tier = this.tierForEntry(pool.traps?.[t.instanceId])
+      if (!tier) continue
+      trapTiers[t.instanceId] = tier
+      weightSum += WEIGHT[tier] ?? 0
+    }
+
+    // Per-room enemy sightings collapse to the freshest (best) tier seen.
+    const enemyTiers = {}
+    for (const [roomId, list] of Object.entries(pool.enemiesPerRoom ?? {})) {
+      let best = null
+      for (const e of (list ?? [])) {
+        const tier = this.tierForEntry(e)
+        if (!tier) continue
+        if (best == null || (RANK[tier] ?? 9) < (RANK[best] ?? 9)) best = tier
+      }
+      if (best) enemyTiers[roomId] = best
+    }
+
+    const denom = rooms.length + traps.length
+    const exposurePct = denom > 0
+      ? Math.min(100, Math.round((100 * weightSum) / denom))
+      : 0
+
+    return {
+      exposurePct,
+      rooms:           roomTiers,
+      traps:           trapTiers,
+      enemiesPerRoom:  enemyTiers,
+      leakedRoomCount: Object.keys(roomTiers).length,
     }
   }
 

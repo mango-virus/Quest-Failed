@@ -95,20 +95,34 @@ export class KnowledgeMapOverlay {
     return null
   }
 
-  // Read shared-pool intel for a room instance, return one of the four
-  // state strings. Mirrors KnowledgePin._levelFor.
-  _intelStateFor(roomInstanceId) {
-    const pool = this._gameState.knowledge?.sharedPool ?? {}
-    const e = pool.rooms?.[roomInstanceId]
-    if (e == null) return 'UNKNOWN'
-    if (e === true) return 'FULL'
-    const acc = e.accuracy ?? e.level ?? e
-    if (typeof acc === 'number') {
-      if (acc >= 0.7) return 'FULL'
-      if (acc >= 0.3) return 'PARTIAL'
-      return 'RUMOR'
+  // Resolve the live KnowledgeSystem off the Game scene. It owns the
+  // authoritative tier classifier + live-pool union; the HUD must never
+  // re-derive intel state from raw gameState fields (that's what made
+  // every room read PARTIAL).
+  _knowledgeSystem() {
+    const mgr = window.__game?.scene
+    if (!mgr) return null
+    const game = mgr.getScene?.('Game')
+    if (game?.knowledgeSystem) return game.knowledgeSystem
+    for (const s of (mgr.scenes ?? [])) {
+      if (s?.knowledgeSystem) return s.knowledgeSystem
     }
-    return 'PARTIAL'
+    return null
+  }
+
+  // Pull the HUD intel snapshot from the live system. Falls back to an
+  // empty report (everything UNKNOWN, 0% exposure) when there's no Game
+  // scene — e.g. opened from a menu context.
+  _intelReport() {
+    const sys = this._knowledgeSystem()
+    if (sys?.getIntelReport) return sys.getIntelReport()
+    return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, leakedRoomCount: 0 }
+  }
+
+  // Room intel state — one of the four state strings. Reads the cached
+  // report computed once per render in _renderBody().
+  _intelStateFor(roomInstanceId) {
+    return this._report?.rooms?.[roomInstanceId] ?? 'UNKNOWN'
   }
 
   _roomEntries() {
@@ -165,24 +179,27 @@ export class KnowledgeMapOverlay {
     return out
   }
 
+  // Mitigation advice — tied to mechanics that actually exist: SCRUB
+  // INTEL (the button below, wipes the room from the shared pool) and
+  // relocating the room (fires ROOM_REMOVED → KnowledgeSystem marks the
+  // intel stale, dropping its tier). Garrisoning does NOT affect room
+  // intel — don't claim it does.
   _mitigationFor(state) {
-    if (state === 'FULL')    return 'Garrison this room to demote FULL → PARTIAL.'
-    if (state === 'PARTIAL') return 'Rotate the garrison nightly.'
-    if (state === 'RUMOR')   return 'Leave it dark — adventurers walk in blind.'
-    return 'They walk in blind — keep it dark.'
+    if (state === 'FULL')    return 'They know this room cold. Scrub the intel, or relocate the room to break their map.'
+    if (state === 'PARTIAL') return 'Rough map only — scrub it, or relocate the room before a revisit sharpens it back to FULL.'
+    if (state === 'RUMOR')   return 'Stale rumours — barely acted on. Low priority; scrub it for a clean slate.'
+    return 'They walk in blind here — keep it dark.'
   }
 
   _exposurePct() {
-    const pool = this._gameState.knowledge?.sharedPool ?? {}
-    const known = Object.keys(pool.rooms ?? {}).length
-                + Object.keys(pool.traps ?? {}).length
-    const total = Math.max(1, (this._gameState.dungeon?.rooms?.length ?? 0)
-                            + (this._gameState.dungeon?.traps?.length ?? 0))
-    return Math.min(100, Math.round((known / total) * 100))
+    return this._report?.exposurePct ?? 0
   }
 
   // ── Render ──────────────────────────────────────────────────────
   _renderBody() {
+    // Compute the intel snapshot once per render — every _intelStateFor /
+    // _exposurePct call below reads this cached object.
+    this._report = this._intelReport()
     const exposure = this._exposurePct()
     const leakedRooms = this._leakedRooms()
     const totalIntel = leakedRooms.reduce(

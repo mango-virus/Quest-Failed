@@ -343,6 +343,17 @@ export class AdventurerRenderer {
       s.container.setPosition(adv.worldX, adv.worldY)
       // Y-sort against the boss + minions: larger worldY draws on top.
       s.container.setDepth(7 + adv.worldY * 0.0005)
+      // Dungeon event: The Tournament — a rival visibly GROWS with every
+      // rival it kills. Container scale = SPRITE_MULT ^ killCount, only
+      // re-set when the kill count changes (cheap, stable). Buff stacks
+      // are applied by EventSystem on each rival-kills-rival.
+      if (adv._tournamentRival) {
+        const kills = adv._tournamentKills ?? 0
+        if (s._tournamentKillsShown !== kills) {
+          s._tournamentKillsShown = kills
+          s.container.setScale(Math.pow(Balance.TOURNAMENT_RIVAL_KILL_SPRITE_MULT, kills))
+        }
+      }
       const hpFrac = adv.resources.maxHp > 0
         ? Math.max(0, adv.resources.hp / adv.resources.maxHp) : 0
       s.hp.width = Math.max(0, hpFrac * (RADIUS * 2))
@@ -611,11 +622,20 @@ export class AdventurerRenderer {
     // depth issue.)
     const c = this._scene.add.container(adv.worldX, adv.worldY).setDepth(8)
 
-    // Outer ring (faction/colour glow)
-    const ring = this._scene.add.circle(0, 0, RADIUS + 3, adv.classColor, 0.25)
+    // Outer ring (faction/colour glow). Returning veterans get a bright
+    // gold aura instead — wider, brighter, with a hard outline — so they
+    // read as veterans at a glance even in a crowded party.
+    const isVeteran = !!adv.flags?.returningVeteran
+    const ring = this._scene.add.circle(
+      0, 0,
+      isVeteran ? RADIUS + 6 : RADIUS + 3,
+      isVeteran ? 0xffcc44 : adv.classColor,
+      isVeteran ? 0.5 : 0.25,
+    )
+    if (isVeteran) ring.setStrokeStyle(2, 0xffe488, 0.95)
     // Body
     const body = this._scene.add.circle(0, 0, RADIUS, 0x10141c, 1)
-    body.setStrokeStyle(2, adv.classColor, 1)
+    body.setStrokeStyle(2, isVeteran ? 0xffcc44 : adv.classColor, 1)
     // Sigil letter
     const label = this._scene.add.text(0, 0, adv.sigil, {
       fontSize: '12px', color: '#f0f4ff', fontFamily: 'monospace', fontStyle: 'bold',
@@ -638,14 +658,16 @@ export class AdventurerRenderer {
     // Phase 5c — combo badge removed (personality combos retired entirely).
     let comboBadge = null
 
-    // Veteran badge — shown for returning survivors. Sits just above the HP
-    // bar so it's clearly readable.
+    // Veteran badge — gold star + prior-raid count, shown for returning
+    // survivors. Sits just above the HP bar; paired with the gold aura
+    // ring so a veteran is unmistakable at a glance.
     let veteranBadge = null
-    if (adv.flags?.returningVeteran) {
-      veteranBadge = this._scene.add.text(-(RADIUS + 4), HP_BAR_Y - 8,
-        `↩${adv.flags.runsCompleted ?? ''}`, {
-          fontSize: '9px', color: '#ff6644', fontFamily: 'monospace', fontStyle: 'bold',
-          stroke: '#000000', strokeThickness: 2,
+    if (isVeteran) {
+      const runs = adv.flags.runsCompleted ?? 1
+      veteranBadge = this._scene.add.text(-(RADIUS + 4), HP_BAR_Y - 9,
+        `★ HERO ${runs}`, {
+          fontSize: '9px', color: '#ffe488', fontFamily: 'monospace', fontStyle: 'bold',
+          stroke: '#3a2a06', strokeThickness: 3,
         }).setOrigin(1, 0.5)
     }
 

@@ -165,7 +165,7 @@ export class AdventurerIntelPopup {
     yy += 36
 
     // ── Returning veterans ─────────────────────────────────────────────
-    addChild(this._scene.add.text(cx + padX, yy, 'RETURNING VETERANS', {
+    addChild(this._scene.add.text(cx + padX, yy, 'RETURNING HEROES', {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.goldCss, letterSpacing: 3,
     }).setDepth(D + 2))
     yy += 16

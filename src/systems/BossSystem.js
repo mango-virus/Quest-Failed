@@ -1498,13 +1498,24 @@ export class BossSystem {
     // fight always starts with the full concurrent-floater budget.
     this._activeFloaters = 0
 
-    // Refresh boss HP up front; pre-fight ability effects happen here so they
-    // are visible during the prefight banner / opening dance.
+    // Pre-fight setup; ability effects happen here so they are visible
+    // during the prefight banner / opening dance.
     if (boss) {
-      boss.hp = boss.maxHp
       const owned = new Set(boss.unlockedAbilities ?? [])
+      // Respawn refresh — ONLY when the boss is actually down (drained to
+      // 0 and lingering between fights after a non-final life loss). A
+      // boss that SURVIVED its last fight keeps its damage: multiple
+      // fights in one day must wear it down. HP otherwise only restores
+      // via a healing ability, an external heal, or the day-end reset.
+      if ((boss.hp ?? 0) <= 0) {
+        boss.hp = boss.maxHp
+      }
+      // Soul Drain ability — heals +25% maxHP at the start of every
+      // fight (may overheal, capped at 125% maxHP). A deliberate healing
+      // ability, so it fires whether the boss respawned or survived.
       if (owned.has('soul_drain')) {
-        boss.hp = Math.floor(boss.maxHp * 1.25)
+        const cap = Math.floor((boss.maxHp ?? 0) * 1.25)
+        boss.hp = Math.min(cap, (boss.hp ?? 0) + Math.floor((boss.maxHp ?? 0) * 0.25))
       }
       if (owned.has('summon_adds')) {
         const bossRoom = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
@@ -2129,6 +2140,7 @@ export class BossSystem {
     // still alive when normal lives hit zero, the revive block above will
     // have already restored deathsRemaining=1, so we won't reach this path.
     if (boss && boss.deathsRemaining <= 0) {
+      this._recordFinalBlow()
       EventBus.emit('BOSS_DEFEATED_FINAL', { totalDays: this._gameState.player.totalDaysElapsed })
     }
 
@@ -2141,6 +2153,37 @@ export class BossSystem {
     this._bossState      = null
     if (this._fxGraphics)  this._fxGraphics.clear()
     if (this._fxParticles) this._fxParticles.length = 0
+  }
+
+  // The boss takes damage as a single pooled party attack — the sim has
+  // no literal "last hit". Credit the final blow to the fight-party
+  // adventurer who contributed the most attack to the killing pool
+  // (preferring survivors; tie-break on display level). Stored on
+  // gameState.run so the Game Over screen shows the real killer instead
+  // of guessing the highest-level adventurer the player ever saw.
+  _recordFinalBlow() {
+    const states = this._fightStates ? [...this._fightStates.values()] : []
+    const advs   = states.map(fs => fs?.adv).filter(Boolean)
+    if (advs.length === 0) return
+    const advLevel = (a) => a?.displayLevel ?? a?.level ?? 1
+    // Survivors are the ones who killed the boss; fall back to the whole
+    // party if the killing round happened to be a mutual wipe.
+    const alive = advs.filter(a => (a.resources?.hp ?? 0) > 0)
+    const pool  = alive.length > 0 ? alive : advs
+    const killer = pool.reduce((best, a) => {
+      const atkA = a.stats?.attack    ?? 0
+      const atkB = best.stats?.attack ?? 0
+      if (atkA > atkB) return a
+      if (atkA === atkB && advLevel(a) > advLevel(best)) return a
+      return best
+    }, pool[0])
+    this._gameState.run ??= {}
+    this._gameState.run.finalBlow = {
+      instanceId: killer.instanceId ?? null,
+      name:       killer.name ?? '?',
+      classId:    killer.classId ?? null,
+      level:      advLevel(killer),
+    }
   }
 
   // Reuse AISystem's death/flee plumbing by emitting events it already listens

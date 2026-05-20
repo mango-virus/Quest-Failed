@@ -44,7 +44,7 @@
   {
     "id": "the_tournament",
     "title": "THE TOURNAMENT",
-    "notif": "Three rivals enter — each one hungry for the boss kill credit and ready to take it from anyone in the way.",
+    "notif": "Bloodsport. Three rivals scatter into your dungeon and hunt each other to the death — the victor, grown stronger with every kill, comes for your boss.",
     "colorTheme": "warn",
     "minBossLevel": 3
   },

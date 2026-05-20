@@ -409,7 +409,7 @@ export class RightPanels {
     }, [
       p.veteran ? h('div', {
         className: 'pix qf-wave-tile-vet',
-        title: 'Returning veteran',
+        title: 'Returning hero',
       }, '★') : null,
       h('div', { className: 'qf-wave-tile-sprite' }, spriteEl),
       h('div', { className: 'pix qf-wave-tile-name' }, label),
@@ -515,7 +515,10 @@ export class RightPanels {
     const preview = gs.run?.nextWavePreview
     let finalCount = count
     if (preview && preview.day === nextDay && typeof preview.count === 'number') {
+      // Include the 3 Tournament rivals — they spawn alongside the
+      // normal wave (additive event), so the badge total counts them.
       finalCount = preview.count + (preview.vendettaHunter ? 1 : 0)
+                 + (preview.tournamentRivalCount ?? 0)
     }
     return { count: finalCount, threatPct, notes, party }
   }
@@ -602,14 +605,37 @@ export class RightPanels {
   }
 
   // ── AdventurerIntel ─────────────────────────────────────────────
-  // Mirrors KnowledgePin._topFacts. Pulls leaked rooms / traps / enemies
-  // from gameState.knowledge.sharedPool, resolves instance IDs to display
-  // names via the Phaser JSON cache, and shows exposure %.
+  // Pulls leaked rooms / traps / enemies from the live KnowledgeSystem
+  // intel report, resolves instance IDs to display names via the Phaser
+  // JSON cache, and shows tier-weighted exposure %.
+
+  // Resolve the live KnowledgeSystem off the Game scene. It owns the
+  // authoritative tier classifier + live-pool union — the HUD must never
+  // re-derive intel state from raw gameState fields.
+  _knowledgeSystem() {
+    const mgr = window.__game?.scene
+    if (!mgr) return null
+    const game = mgr.getScene?.('Game')
+    if (game?.knowledgeSystem) return game.knowledgeSystem
+    for (const s of (mgr.scenes ?? [])) {
+      if (s?.knowledgeSystem) return s.knowledgeSystem
+    }
+    return null
+  }
+
+  // HUD intel snapshot from the live system; empty fallback off-scene.
+  _intelReport() {
+    const sys = this._knowledgeSystem()
+    if (sys?.getIntelReport) return sys.getIntelReport()
+    return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, leakedRoomCount: 0 }
+  }
+
   _renderIntel() {
     const body = this._refs.intelBody
     if (!body) return
-    const facts = this._topFacts()
-    const exposure = this._exposurePct()
+    const report = this._intelReport()
+    const facts = this._topFacts(report)
+    const exposure = report.exposurePct
     const leakCount = facts.length
     if (this._refs.leakCount) {
       this._refs.leakCount.textContent = leakCount === 0
@@ -651,8 +677,7 @@ export class RightPanels {
     ])
   }
 
-  _topFacts() {
-    const pool   = this._gameState.knowledge?.sharedPool ?? {}
+  _topFacts(report) {
     const rooms  = this._gameState.dungeon?.rooms ?? []
     const traps  = this._gameState.dungeon?.traps ?? []
     const game = window.__game
@@ -677,14 +702,14 @@ export class RightPanels {
       return d?.name ?? t?.definitionId ?? instanceId
     }
     const out = []
-    for (const k of Object.keys(pool.rooms ?? {})) {
-      out.push({ label: lookupRoomName(k), lvl: this._levelFor(pool.rooms[k]) })
+    for (const [id, tier] of Object.entries(report.rooms ?? {})) {
+      out.push({ label: lookupRoomName(id), lvl: tier })
     }
-    for (const k of Object.keys(pool.traps ?? {})) {
-      out.push({ label: lookupTrapName(k), lvl: this._levelFor(pool.traps[k]) })
+    for (const [id, tier] of Object.entries(report.traps ?? {})) {
+      out.push({ label: lookupTrapName(id), lvl: tier })
     }
-    for (const k of Object.keys(pool.enemiesPerRoom ?? {})) {
-      out.push({ label: `Enemies in ${lookupRoomName(k)}`, lvl: this._levelFor(pool.enemiesPerRoom[k]) })
+    for (const [id, tier] of Object.entries(report.enemiesPerRoom ?? {})) {
+      out.push({ label: `Enemies in ${lookupRoomName(id)}`, lvl: tier })
     }
     const seen = new Set()
     const uniq = []
@@ -696,27 +721,6 @@ export class RightPanels {
     const order = { FULL: 0, PARTIAL: 1, RUMOR: 2 }
     uniq.sort((a, b) => (order[a.lvl] ?? 9) - (order[b.lvl] ?? 9))
     return uniq.slice(0, 8)
-  }
-
-  _levelFor(entry) {
-    if (entry == null) return 'RUMOR'
-    if (entry === true) return 'FULL'
-    const acc = entry.accuracy ?? entry.level ?? entry
-    if (typeof acc === 'number') {
-      if (acc >= 0.7) return 'FULL'
-      if (acc >= 0.3) return 'PARTIAL'
-      return 'RUMOR'
-    }
-    return 'PARTIAL'
-  }
-
-  _exposurePct() {
-    const pool   = this._gameState.knowledge?.sharedPool ?? {}
-    const known  = (pool.rooms ? Object.keys(pool.rooms).length : 0)
-                 + (pool.traps ? Object.keys(pool.traps).length : 0)
-    const total  = Math.max(1, (this._gameState.dungeon?.rooms?.length ?? 0)
-                              + (this._gameState.dungeon?.traps?.length ?? 0))
-    return Math.min(100, Math.round((known / total) * 100))
   }
 
   // ── DungeonLog ──────────────────────────────────────────────────
@@ -890,17 +894,20 @@ export class RightPanels {
   }
 
   _tick() {
-    // Cheap pass: re-evaluate exposure occasionally — every ~1s is fine
-    // since the panel mostly redraws on events.
+    // Cheap pass: re-evaluate the live intel report occasionally — every
+    // ~1s is fine since the panel also redraws on events.
     const now = performance.now()
     if (!this._lastIntelTick || now - this._lastIntelTick > 1000) {
       this._lastIntelTick = now
-      // Only re-render if facts changed (signature compare)
+      // Signature off the live report — re-renders when tiers shift (rooms
+      // ageing FULL→PARTIAL, the active party learning new rooms mid-day,
+      // exposure % moving), not just when the persisted pool gains keys.
+      const report = this._intelReport()
       const sig = JSON.stringify({
-        rooms: Object.keys(this._gameState.knowledge?.sharedPool?.rooms ?? {}).sort(),
-        traps: Object.keys(this._gameState.knowledge?.sharedPool?.traps ?? {}).sort(),
-        per:   Object.keys(this._gameState.knowledge?.sharedPool?.enemiesPerRoom ?? {}).sort(),
-        roomsN: this._gameState.dungeon?.rooms?.length ?? 0,
+        e: report.exposurePct,
+        r: report.rooms,
+        t: report.traps,
+        n: report.enemiesPerRoom,
       })
       if (sig !== this._intelSig) { this._intelSig = sig; this._renderIntel() }
     }

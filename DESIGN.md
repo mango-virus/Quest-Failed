@@ -22,6 +22,15 @@ The game should work in days and be endless. Meaning that each day during the da
 
 I want adventurers to be able to learn the dungeon, the enemies, traps, rooms, and so on and use this knowledge to their advantage. An adventurer without knowledge will enter it "blind" and learn as they go. If an adventurer leaves the dungeon, he can share knowledge of the dungeon for specific rooms or minions or traps or treasure he saw. He shares that with other adventurers that can enter the dungeon and adapt to the knowledge they gained. Avoiding traps, certain minions or mini bosses, taking specific paths to avoid dangers. Sometimes the knowledge is accurate, and sometimes its completely wrong. Sometimes that adventurer should return leading a party the next time he returns, with all of their party knowing what he knows from his last visit to the dungeon.
 
+### Returning veterans — labelled "Heroes" in-game (2026-05-20)
+
+When a fled adventurer personally returns leading a party, it should be a noticeable moment, not a silent re-spawn. The player-facing label for these returnees is **"Hero"** (the underlying mechanic is still the returning-survivor system; the in-game wording was changed to "Hero" on 2026-05-20 — internal identifiers like `returningVeteran` are unchanged).
+
+- **Notification** — the player is alerted that a Hero is incoming.
+- **A little stronger** — Heroes are tougher and hit a bit harder than a normal adventurer of the same wave (they survived the dungeon once already).
+- **Worth double gold** — killing a Hero pays out twice the normal kill gold.
+- **Visually distinct** — Heroes look obviously different (a gold aura ring + "★ HERO" badge) so the player can pick them out of a party at a glance.
+
 ---
 
 ## Dungeon mechanics (end-of-day choice)

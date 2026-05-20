@@ -41,21 +41,20 @@ const TIER_COLOR = {
   UNKNOWN: '#5a4a4e',
 }
 
-// Derive a room's intel tier from gameState.knowledge.sharedPool.rooms.
-// Mirrors KnowledgeMapOverlay._intelStateFor + KnowledgePin._levelFor
-// so the mini + full map agree on every room's color.
-function _intelTierFor(roomInstanceId, gameState) {
-  const pool = gameState?.knowledge?.sharedPool ?? {}
-  const e = pool.rooms?.[roomInstanceId]
-  if (e == null) return 'UNKNOWN'
-  if (e === true) return 'FULL'
-  const acc = e.accuracy ?? e.level ?? e
-  if (typeof acc === 'number') {
-    if (acc >= 0.7) return 'FULL'
-    if (acc >= 0.3) return 'PARTIAL'
-    return 'RUMOR'
+// Pull the HUD intel snapshot from the live KnowledgeSystem on the Game
+// scene. It owns the authoritative tier classifier + live-pool union, so
+// the mini-map, the full Knowledge Map overlay, and the pathfinder all
+// agree on every room's tier. Re-deriving tiers from raw gameState fields
+// is what made every room read PARTIAL — never do that. Empty fallback
+// (all UNKNOWN, 0% exposure) when there's no Game scene.
+function _knowledgeReport() {
+  const mgr = window.__game?.scene
+  let sys = mgr?.getScene?.('Game')?.knowledgeSystem
+  if (!sys && mgr?.scenes) {
+    for (const s of mgr.scenes) { if (s?.knowledgeSystem) { sys = s.knowledgeSystem; break } }
   }
-  return 'PARTIAL'
+  if (sys?.getIntelReport) return sys.getIntelReport()
+  return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, leakedRoomCount: 0 }
 }
 
 export class LeftPanels {
@@ -602,11 +601,12 @@ export class LeftPanels {
     // Position rooms as % of the canvas. Room placement coords live on
     // `gridX` / `gridY` (see DungeonGrid.placeRoom); minion coords use
     // `tileX` / `tileY` (different convention, on the Minion entity).
+    const report = _knowledgeReport()
     const blocks = rooms.map(r => {
       // Color by intel tier — same convention as the full Knowledge
       // Map overlay. UNKNOWN rooms stay dim grey; once an adventurer
       // leaks any intel they tint up through RUMOR → PARTIAL → FULL.
-      const tier = _intelTierFor(r.instanceId, this._gameState)
+      const tier = report.rooms[r.instanceId] || 'UNKNOWN'
       const tint = TIER_COLOR[tier] || TIER_COLOR.UNKNOWN
       const x = r.gridX ?? 0, y = r.gridY ?? 0
       return h('div', {
@@ -704,19 +704,13 @@ export class LeftPanels {
     // Gold readout removed from the CONSTRUCTION header at user request;
     // TopBar shows the treasury total and per-card cost chips cover the
     // affordability check. No `goldMeta` to refresh anymore.
-    // Mini-map header now shows DUNGEON EXPOSURE — the % of placed
-    // rooms the guild has any intel on (any tier counts toward
-    // "known"). 0% = nobody has scouted you; 100% = every room is
-    // leaked. Color ramps from cool to hot as exposure rises so the
-    // urgency is glanceable.
-    const rooms = gs.dungeon?.rooms ?? []
-    const playerRooms = rooms.filter(r => r.definitionId !== 'boss_chamber')
-    const totalRooms  = playerRooms.length
-    let knownCount = 0
-    for (const r of playerRooms) {
-      if (_intelTierFor(r.instanceId, gs) !== 'UNKNOWN') knownCount++
-    }
-    const pct = totalRooms > 0 ? Math.round((knownCount / totalRooms) * 100) : 0
+    // Mini-map header shows DUNGEON EXPOSURE — the tier-weighted % from
+    // the live KnowledgeSystem report (FULL intel counts 4× a RUMOR), so
+    // it matches the Knowledge Map overlay + Adventurer Intel panel
+    // exactly. 0% = nobody has scouted you; 100% = every room is fully
+    // mapped. Color ramps cool→hot as exposure rises.
+    const report = _knowledgeReport()
+    const pct = report.exposurePct
     if (pct !== this._prevExposurePct) {
       this._prevExposurePct = pct
       if (this._refs.mapMeta) {
@@ -729,6 +723,14 @@ export class LeftPanels {
           : pct >= 25 ? 'var(--gold)'
           : 'var(--poison)'
       }
+    }
+    // Re-tint the mini-map rooms when any room's intel tier shifts. The
+    // active party learns rooms mid-day, so the map can't be place-only —
+    // re-render whenever the tier map changes (cheap signature compare).
+    const tierSig = JSON.stringify(report.rooms)
+    if (tierSig !== this._mapTierSig) {
+      this._mapTierSig = tierSig
+      this._renderMap()
     }
 
     // Placement-count signature — when a room / item is placed or

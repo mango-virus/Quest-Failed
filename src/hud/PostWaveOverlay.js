@@ -372,16 +372,40 @@ export class PostWaveOverlay {
     ])
   }
 
+  // Current dungeon exposure % from the live KnowledgeSystem, or null
+  // if the Game scene / system can't be reached.
+  _currentExposure() {
+    const mgr = window.__game?.scene
+    let sys = mgr?.getScene?.('Game')?.knowledgeSystem
+    if (!sys && mgr?.scenes) {
+      for (const s of mgr.scenes) { if (s?.knowledgeSystem) { sys = s.knowledgeSystem; break } }
+    }
+    const r = sys?.getIntelReport?.()
+    return (r && typeof r.exposurePct === 'number') ? r.exposurePct : null
+  }
+
   _renderLeakWarn(escaped) {
     const names = escaped.map(e => e.name || 'Unnamed').slice(0, 2).join(', ')
+    const textChildren = [
+      h('span', { style: { color: 'var(--warn)' } }, names),
+      ' escaped carrying intel back to the guild.',
+    ]
+    // Real exposure delta: end-of-day exposure minus the day-start
+    // baseline DayPhase stamped on the snapshot. Escapees are the only
+    // adventurers that feed the shared pool, so this is exactly the cost
+    // of today's escapes. Tier-weighted, capped — never the old fake
+    // `escaped.length * 6`. If the system is unreachable, omit the figure
+    // rather than print a guess.
+    const current = this._currentExposure()
+    if (current != null) {
+      const delta = Math.max(0, current - (this._snapshot?.exposurePct ?? 0))
+      textChildren.push(' Exposure ')
+      textChildren.push(h('span', { style: { color: 'var(--blood)' } }, `+${delta}%`))
+      textChildren.push(` (now ${current}%).`)
+    }
     return h('div', { className: 'qf-pws-warn pws-warning' }, [
       h('div', { className: 'pix qf-pws-warn-title' }, '⚠ INTEL LEAKED'),
-      h('div', { className: 'qf-pws-warn-text' }, [
-        h('span', { style: { color: 'var(--warn)' } }, names),
-        ' escaped carrying intel back to the guild. Exposure ',
-        h('span', { style: { color: 'var(--blood)' } }, `+${escaped.length * 6}%`),
-        '.',
-      ]),
+      h('div', { className: 'qf-pws-warn-text' }, textChildren),
     ])
   }
 

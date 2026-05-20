@@ -132,7 +132,7 @@ export class ToastQueue {
         ?? adventurer.knownEscapeCount
         ?? (adventurer.isVeteran ? 1 : 0)
       if (escapeCount > 0) {
-        this._push('damage', 'VETERAN APPROACHING',
+        this._push('damage', 'HERO APPROACHING',
           `${adventurer.name || 'A returning adventurer'} is back for more.`)
       }
     })

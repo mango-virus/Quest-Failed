@@ -299,7 +299,7 @@ export class AdvIntelOverlay {
         this._summaryItem('PARTY SIZE', `${advs.length} APPROACHING`, 'var(--text)'),
         h('div', { className: 'qf-advintel-divider' }),
         this._summaryItem(
-          'VETERANS',
+          'HEROES',
           veteranCount > 0 ? `${veteranCount} ★ RETURN` : '— NONE —',
           veteranCount > 0 ? 'var(--warn)' : 'var(--text-mute)',
         ),
@@ -424,8 +424,8 @@ export class AdvIntelOverlay {
           }, name),
           veteran && h('span', {
             className: 'pix qf-advintel-card-vet',
-            title: 'returning veteran',
-          }, '★ VETERAN'),
+            title: 'returning hero',
+          }, '★ HERO'),
         ]),
         h('div', { className: 'pix qf-advintel-card-class' }, `${classLabel} · LV ${lv}`),
         h('div', { className: 'qf-advintel-card-stats' }, [
@@ -501,7 +501,7 @@ export class AdvIntelOverlay {
               }, `THREAT · ${tier.label}`),
               veteran && h('span', {
                 className: 'pix qf-advintel-detail-vetchip',
-              }, '★ VETERAN'),
+              }, '★ HERO'),
             ]),
           ]),
         ]),

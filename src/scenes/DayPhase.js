@@ -33,12 +33,17 @@ export class DayPhase extends Phaser.Scene {
     // day. All values are primitives or shallow clones — JSON-safe.
     const gs = this._gameState
     if (gs) {
+      // Day-start exposure baseline — lets PostWaveSummary show the REAL
+      // intel-leak delta (escapees feed the shared pool; the dead leak
+      // nothing) instead of a fabricated per-escapee figure.
+      const ks = this.scene.get('Game')?.knowledgeSystem
       this._daySnapshot = {
         gold:         gs.player?.gold         ?? 0,
         totalKills:   gs.player?.totalKills   ?? 0,
         bossLevel:    gs.boss?.level           ?? 1,
         totals:       { ...(gs.run?.totals ?? {}) },
         graveyardLen: gs.adventurers?.graveyard?.length ?? 0,
+        exposurePct:  ks?.getIntelReport?.()?.exposurePct ?? 0,
       }
     } else {
       this._daySnapshot = null
@@ -558,10 +563,15 @@ export class DayPhase extends Phaser.Scene {
     if ((this._gameState._eventFlags ?? {}).cartographersConventionActive) {
       return this._spawnCartographers()
     }
-    // Dungeon event: The Tournament — 3 named rivals compete for boss
-    // kill. They attack each other AND the dungeon.
+    // Dungeon event: The Tournament ("Bloodsport") — 3 named rivals
+    // scatter into the dungeon and hunt each other to the death. Unlike
+    // the other replacement events this is ADDITIVE: the normal daily
+    // wave still spawns below; the rivals join it. _spawnTournamentRivals
+    // pushes its trio into adventurers.active and tags them; we then fall
+    // through to the regular spawn flow so the player's wave shows up too.
     if ((this._gameState._eventFlags ?? {}).tournamentActive) {
-      return this._spawnTournamentRivals()
+      this._spawnTournamentRivals()
+      // No `return` — keep going so the normal wave spawns alongside.
     }
     // Dungeon event: Rival Dungeon — monsters invade instead of advs.
     // Final entrant is a buffed rival boss that goes for the throne room.
@@ -717,22 +727,33 @@ export class DayPhase extends Phaser.Scene {
         Balance.KNOWLEDGE_RETURN_PARTY_SIZE_MAX
       )
       count = partySize
-      // Spawn the leader first with their full prior knowledge
+      // The returning veteran leads the wave, carrying their accumulated map.
       const leaderClass = allClasses.find(c => c.id === returningRecord.classId) ?? classes[0]
       const leader = createAdventurer(leaderClass, { x: spawn.x, y: spawn.y })
+      // Reuse the survivor's instanceId so identity carries across runs:
+      // _updateSurvivorRecord finds the same record on a re-flee (runCount
+      // keeps accumulating), and KnowledgeSystem._onAdventurerDied can purge
+      // them from the survivor registry if they're killed this time.
+      leader.instanceId     = returningRecord.instanceId
       leader.name           = returningRecord.name
       leader.personalityIds = [...(returningRecord.personalityIds ?? [])]
       leader.partyId        = partyId
       leader.spawnTileX     = spawn.x
       leader.spawnTileY     = spawn.y
-      leader.knowledge      = JSON.parse(JSON.stringify(returningRecord.knowledge ?? { rooms: {}, traps: {}, minions: {} }))
-      leader.flags = leader.flags ?? {}
-      leader.flags.returningLeader = true
+      // Restore accumulated knowledge + set the returningVeteran /
+      // runsCompleted flags the renderer + dossier read.
+      knowledgeSystem.initKnowledgeForSurvivor(leader, returningRecord)
+      // escapeCount drives the "VETERAN APPROACHING" toast fired off
+      // ADVENTURER_ENTERED_DUNGEON below — must be set before that emit.
+      leader.escapeCount = returningRecord.runCount ?? 1
 
-      // Phase 8b: between-run shopping — fled adventurers return stronger
-      leader.resources.maxHp += Balance.RETURNING_GEAR_BONUS_HP
-      leader.resources.hp     = leader.resources.maxHp
-      leader.stats.attack    += Balance.RETURNING_GEAR_BONUS_ATK
+      // Veterans scale with boss level like any adventurer, then take a
+      // veteran bonus on top — tougher and harder-hitting than a fresh
+      // recruit, since they already survived the dungeon once.
+      this._scaleAdventurerByBossLevel(leader, dungeonLv)
+      leader.resources.maxHp = Math.round(leader.resources.maxHp * Balance.KNOWLEDGE_VETERAN_HP_MULT)
+      leader.resources.hp    = leader.resources.maxHp
+      leader.stats.attack    = Math.round((leader.stats.attack ?? 0) * Balance.KNOWLEDGE_VETERAN_ATK_MULT)
       leader.flags.shoppedBetweenRuns = true
 
       // Phase 8b: hand the prior path samples over so ReplayGhostRenderer can draw them
@@ -742,6 +763,7 @@ export class DayPhase extends Phaser.Scene {
       spawned.push(leader)
       aiSystem.pickInitialGoal(leader)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: leader })
+      EventBus.emit('VETERAN_APPROACHING', { adventurer: leader })
       EventBus.emit('ADVENTURER_RETURNED', {
         adventurer: leader,
         source: returningRecord,
@@ -999,11 +1021,14 @@ export class DayPhase extends Phaser.Scene {
     return spawned
   }
 
-  // Dungeon event: The Tournament. 3 named rivals enter the dungeon at
-  // the entry hall, each tagged `_tournamentRival = true` so AISystem's
-  // adv-vs-adv block targets the others when in range. They still
-  // engage the dungeon's minions/boss as normal — the rivalry just adds
-  // a second target preference.
+  // Dungeon event: The Tournament ("Bloodsport"). 3 named rivals enter
+  // at the entry hall alongside the normal daily wave, each tagged
+  // `_tournamentRival = true`. On spawn they SCATTER — every rival picks
+  // a distinct random non-boss room and heads there. Once a rival reaches
+  // its scatter room (or after a fallback timeout) AISystem flips it into
+  // HUNT mode: it actively paths toward and kills the nearest living
+  // OTHER rival. Last one standing then seeks the boss. Rivals never flee
+  // (noFlee) — they're bloodsport contestants, fight to the death.
   _spawnTournamentRivals() {
     const game = this.scene.get('Game')
     const aiSystem = game.aiSystem
@@ -1017,17 +1042,49 @@ export class DayPhase extends Phaser.Scene {
     const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
     if (!spawn) return []
 
+    // Scatter targets — distinct non-boss rooms, one per rival. Shuffled
+    // so the trio fans out across the dungeon instead of converging on a
+    // spawn-camp brawl at the entry. If there are fewer non-boss rooms
+    // than rivals, rooms repeat (still better than all-stacked).
+    const scatterRooms = (this._gameState.dungeon?.rooms ?? [])
+      .filter(r => r.definitionId !== 'boss_chamber')
+    for (let i = scatterRooms.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[scatterRooms[i], scatterRooms[j]] = [scatterRooms[j], scatterRooms[i]]
+    }
+
     const spawned = []
     for (let i = 0; i < rivalDefs.length; i++) {
       const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: 0 }
       const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
       const adv    = createAdventurer(rivalDefs[i], tile)
       adv._tournamentRival = true
+      // Per-rival kill counter — drives the kill-buff stacking + sprite
+      // growth. Starts at 0; EventSystem increments it on a rival-kill.
+      adv._tournamentKills = 0
+      // Bloodsport contestants never flee — fight to the death. Reuses
+      // the same flag glory_hounds / schism set (AISystem._setFleeGoal).
+      adv.flags = adv.flags ?? {}
+      adv.flags.noFlee = true
       // Solo party id per rival — the rivalry is the entire point, no
       // shared-party perks.
       adv.partyId = `tournament_rival_${i}`
       this._gameState.adventurers.active.push(adv)
-      aiSystem.pickInitialGoal(adv)
+      // Scatter goal — head to a distinct non-boss room. AISystem flips
+      // this to HUNT_RIVAL once the room is reached (or on timeout).
+      const room = scatterRooms.length > 0
+        ? scatterRooms[i % scatterRooms.length]
+        : null
+      if (room) {
+        adv.goal = { type: 'SCATTER_ROOM', roomId: room.instanceId }
+      } else {
+        // Degenerate dungeon (no non-boss rooms) — go straight to HUNT.
+        adv.goal = { type: 'HUNT_RIVAL' }
+      }
+      // Fallback timestamp — if the rival is still scattering past this
+      // game-time it flips to HUNT regardless (set when day clock starts;
+      // AISystem compares against scene.time.now).
+      adv._scatterUntil = (game.time?.now ?? 0) + Balance.TOURNAMENT_SCATTER_FALLBACK_MS
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
       spawned.push(adv)
     }

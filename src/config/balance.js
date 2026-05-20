@@ -206,6 +206,9 @@ export const Balance = {
   KNOWLEDGE_RETURN_CHANCE:         0.35,   // chance a fled adventurer returns next day with their party
   KNOWLEDGE_RETURN_PARTY_SIZE_MIN: 2,
   KNOWLEDGE_RETURN_PARTY_SIZE_MAX: 4,
+  KNOWLEDGE_RETURN_MAX_AGE_DAYS:   3,      // a survivor is only eligible to personally return if they fled within this many days
+  KNOWLEDGE_VETERAN_HP_MULT:       1.2,    // returning veterans are tougher than a fresh adventurer
+  KNOWLEDGE_VETERAN_ATK_MULT:      1.15,   // ...and hit a little harder
   KNOWLEDGE_CARTOGRAPHER_BOOST:    1.0,    // cartographers share at full accuracy (multiplier on accuracy)
   KNOWLEDGE_COWARD_PARTIAL:        0.85,   // cowards share with mild degradation
   KNOWLEDGE_TRAUMATIZED_PARTIAL:   1.0,    // traumatized share full intel
@@ -246,8 +249,6 @@ export const Balance = {
   REPLAY_GHOST_FADE_MS:            8000,   // ghost trail fade duration after return spawn
   // [Removed 2026-04-30] MIRROR_MAZE_KNOWLEDGE_ACCURACY (room retired).
   VANDAL_DISARM_DAMAGE:            0,      // vandals take 0 damage when disarming
-  RETURNING_GEAR_BONUS_HP:         8,      // bonus HP from "between-run shopping"
-  RETURNING_GEAR_BONUS_ATK:        2,
 
   // --- Dungeon mechanics (Phase 9) ---
   MECHANIC_OFFER_COUNT:                   3,      // cards shown at end-of-day
@@ -458,6 +459,22 @@ export const Balance = {
   TWITCH_CON_MALDING_SPEED_MULT:     0.6,   // !MALDING speed nerf
   TWITCH_CON_RATIO_DMG_FRAC:         0.25,  // !RATIO'd instant damage as a fraction of maxHp
   TWITCH_CON_BEEF_CHANCE:            0.18,  // per-replan chance a streamer picks a fight with another streamer
+
+  // --- Dungeon event: The Tournament ("Bloodsport") ---
+  // 3 rivals scatter to random rooms, then hunt each other to the death.
+  // The killer of a rival is buffed per kill; the last one standing seeks
+  // the boss. All numbers below are owned/applied by EventSystem + AISystem.
+  // Fallback (ms) after which a rival still stuck in its scatter phase
+  // flips to HUNT mode anyway, so a rival pinned in combat still progresses.
+  TOURNAMENT_SCATTER_FALLBACK_MS:    6000,
+  // Per rival-kill stat multipliers — STACK multiplicatively per kill.
+  // A rival with 2 kills lands at ~2.5× attack / ~2.5× maxHp.
+  TOURNAMENT_RIVAL_KILL_ATK_MULT:    1.6,   // attack ×1.6 per kill
+  TOURNAMENT_RIVAL_KILL_HP_MULT:     1.6,   // maxHp ×1.6 per kill (hp set to new maxHp)
+  TOURNAMENT_RIVAL_KILL_DEF_MULT:    1.4,   // defense ×1.4 per kill
+  // Sprite scale gain per kill — AdventurerRenderer multiplies the
+  // container scale by this once per recorded kill (visible "growing").
+  TOURNAMENT_RIVAL_KILL_SPRITE_MULT: 1.22,  // sprite ×1.22 per kill
 }
 
 // ── Derived helpers ──────────────────────────────────────────────────

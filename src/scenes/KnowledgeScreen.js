@@ -280,7 +280,7 @@ export class KnowledgeScreen extends Phaser.Scene {
 
     // Survivors roster — static during day phase (only changes on
     // day-end death/flee events, which we're not displayed during).
-    this.add.text(px, cy, 'VETERAN ROSTER', {
+    this.add.text(px, cy, 'HERO ROSTER', {
       fontSize: '9px', color: '#aa0000', fontFamily: 'monospace', fontStyle: 'bold',
     }).setDepth(5)
     cy += 14

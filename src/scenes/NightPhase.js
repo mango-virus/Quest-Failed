@@ -197,15 +197,11 @@ export class NightPhase extends Phaser.Scene {
       }
       return this._emitPreviewUpdated()
     }
-    if (eventFlags.tournamentActive) {
-      gs.run.nextWavePreview = {
-        day, count: 3,
-        classIds: ['tournament_rival_warrior', 'tournament_rival_rogue', 'tournament_rival_mage'],
-        eventType: 'tournament',
-        vendettaHunter: null,
-      }
-      return this._emitPreviewUpdated()
-    }
+    // The Tournament is now ADDITIVE (the 3 rivals join the normal
+    // daily wave, they don't replace it). So we DON'T early-return here
+    // — we fall through to the normal wave roll below, then append the
+    // 3 rivals to the resulting classIds (see the tournament append
+    // block just before nextWavePreview is assembled).
     if (eventFlags.rivalDungeonActive) {
       gs.run.nextWavePreview = {
         day, count: 5,
@@ -335,12 +331,31 @@ export class NightPhase extends Phaser.Scene {
       classIds.push(chosenClass)
       spriteVariants.push(chosenVar)
     }
+    // The Tournament ("Bloodsport") — the 3 rivals join the normal wave.
+    // They're APPENDED to classIds/spriteVariants (after the player-wave
+    // slots) so the IncomingWave panel shows them, while `count` and the
+    // leading `count` slots stay = the normal wave: DayPhase's spawn loop
+    // only consumes the first `count` ids (bounded by its own loop), and
+    // the rivals themselves are spawned independently by
+    // _spawnTournamentRivals. `tournamentRivalCount` lets the panel add
+    // them to its displayed total.
+    let tournamentRivalCount = 0
+    if (eventFlags.tournamentActive) {
+      const rivalIds = ['tournament_rival_warrior', 'tournament_rival_rogue', 'tournament_rival_mage']
+      for (const rid of rivalIds) {
+        classIds.push(rid)
+        spriteVariants.push(this._pickWaveVariant(rid))
+      }
+      tournamentRivalCount = rivalIds.length
+    }
+
     gs.run.nextWavePreview = {
       day,
       count,
+      tournamentRivalCount,
       classIds,
       spriteVariants,
-      eventType: null,
+      eventType: tournamentRivalCount > 0 ? 'tournament' : null,
       vendettaHunter: vendettaHunterPresent
         ? { claimantClass: vendetta?.claimantClass ?? null,
             spriteVariant: this._pickWaveVariant(vendetta?.claimantClass),
