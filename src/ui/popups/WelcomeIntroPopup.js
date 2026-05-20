@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/WelcomeIntroOverlay.js`.
+//
 // Welcome / "you're the boss" intro popup. Fires once per run on Game
 // scene boot when meta.introSeen is false. Modal — the player must click
 // Continue to begin the night phase. The checkbox controls whether the

@@ -337,6 +337,9 @@ export class EventSystem {
     if (!player) return
     const stolen = Math.floor((player.gold ?? 0) * 0.10)
     player.gold = Math.max(0, (player.gold ?? 0) - stolen)
+    // Stamp the take on the adventurer so RunHistorySystem folds it into
+    // the adventurers.known record the post-wave summary reads.
+    adventurer.goldStolen = (adventurer.goldStolen ?? 0) + stolen
     EventBus.emit('LOOT_GOBLIN_ESCAPED', { adventurer, stolen })
   }
 }

@@ -1,3 +1,7 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/NameEntryOverlay.js`
+// under the new DOM HUD. Phaser fallback only used if a future
+// `?newhud=0` flow needs to prompt for a name. Kept per CLAUDE.md.
+
 import {
   CRYPT, FONT_HEAD, FONT_BODY,
   pixelPanel, pixelButton,

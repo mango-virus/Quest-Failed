@@ -563,6 +563,20 @@ export class GameOver extends Phaser.Scene {
     // on day 1, or no boss picked).
     if (!player.bossArchetypeId || (days <= 1 && kills === 0)) return
 
+    // Human-readable names of every pact sealed this run, so the
+    // leaderboard's chronicle can list them. Resolves the display name
+    // from dungeonMechanics.json, falling back to a humanized id.
+    const dMechs = this.cache.json.get('dungeonMechanics') ?? []
+    const pactNames = (gs.history?.pacts ?? []).map(p => {
+      const def = dMechs.find(d => d.id === p?.mechanicId)
+      if (def?.name) return def.name
+      return String(p?.mechanicId || '')
+        .split('_')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+        .trim()
+    }).filter(Boolean)
+
     const run = {
       player_name:   name.slice(0, 32),
       boss_id:       String(player.bossArchetypeId),
@@ -579,6 +593,7 @@ export class GameOver extends Phaser.Scene {
         advsEscaped:    Number(tot.advsEscaped ?? 0),
         dmgDealt:       Number(tot.dmgDealt ?? 0),
         dmgTaken:       Number(tot.dmgTaken ?? 0),
+        pacts:          pactNames,
       },
     }
 

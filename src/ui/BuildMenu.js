@@ -1,3 +1,7 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/LeftPanels.js`
+// construction grid under the new DOM HUD. Phaser fallback under
+// `?newhud=0`. Kept per CLAUDE.md.
+//
 // Phase 31C — Build menu (left HUD column, below mini-map).
 //
 // Replaces NightPhase's old left palette. Tabs: ROOMS / MINIONS / TRAPS / ITEMS.

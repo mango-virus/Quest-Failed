@@ -3399,8 +3399,11 @@ export class DungeonRenderer {
     const pw = room.width  * TS, ph = room.height * TS
     const cx = px + pw / 2, cy = py + ph / 2
 
-    // 1) Brief camera shake to sell the impact
-    scene.cameras.main.shake(180, 0.0035)
+    // 1) Brief camera shake to sell the impact — gated by the
+    // SettingsOverlay SCREEN SHAKE toggle (qf.video.shake).
+    let _shakeOk = true
+    try { _shakeOk = localStorage.getItem('qf.video.shake') !== 'false' } catch {}
+    if (_shakeOk) scene.cameras.main.shake(180, 0.0035)
 
     // 2) Bright outline flash that fades over ~280ms
     const flashG = scene.add.graphics().setDepth(9.9)

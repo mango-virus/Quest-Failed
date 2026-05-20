@@ -1,3 +1,6 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/TopBar.js` under the
+// new DOM HUD. Phaser fallback under `?newhud=0`. Kept per CLAUDE.md.
+//
 // Phase 31C — top HUD bar.
 // Replaces the bottom-center BossHpPanel with the design's top-bar layout:
 // 3-column strip across the top of the screen showing the boss avatar +

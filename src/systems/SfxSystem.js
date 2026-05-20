@@ -162,6 +162,18 @@ export class SfxSystem {
 
     // Dark Pact
     on('SHOW_DARK_PACT',          this._onDarkPact)
+
+    // ── New-HUD-specific cues (Phase 34C.5) ─────────────────────────────
+    // Pact sealed (after the player picks a card in PactPicker). Distinct
+    // from SHOW_DARK_PACT, which fires when the picker is *about* to open.
+    on('PACT_SEALED',             this._onPactSealed)
+    // Intel leaked — fires when an adventurer flees with new room intel.
+    // Rate-limited so it doesn't stack across rapid leak events.
+    on('INTEL_LEAKED',            this._onIntelLeaked)
+    // Game-over title burn-in — fires once when the boss runs out of lives.
+    on('SHOW_GAME_OVER',          this._onGameOver)
+    // Minion bounty posted — the "hunters approach" beat.
+    on('MINION_BOUNTY_POSTED',    this._onBountyPosted)
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -270,6 +282,34 @@ export class SfxSystem {
   }
   _onBuildError()    { this._play('sfx-error') }
   _onDarkPact()      { this._play('sfx-dark-pact', 3.5) }
+
+  _onPactSealed() {
+    // Reuse the cinematic pact sting — slightly quieter than the popup
+    // open since this fires on confirm rather than reveal.
+    this._play('sfx-dark-pact', 2.0)
+  }
+
+  _onIntelLeaked() {
+    // Rate-limit using the trap timer (300ms) so an intel-leak storm at
+    // a wave's end doesn't machine-gun the error chirp.
+    const now = this._now()
+    if (now - this._lastTrapAt < 300) return
+    this._lastTrapAt = now
+    this._play('sfx-error', 1.2)
+  }
+
+  _onGameOver() {
+    // Big dramatic stinger as QUEST FAILED burns in. Sfx-boss-death is
+    // already loud + dramatic; bump the extra cap to make it cut through
+    // even with the score-countup loop layered on top.
+    this._play('sfx-boss-death', 2.5)
+  }
+
+  _onBountyPosted() {
+    // Bounty posters are positive events for the boss ("hunters approach,
+    // reinforce the wing"). Door-unlock reads as a portentous bell.
+    this._play('sfx-door-unlock', 0.8)
+  }
 
   _onResourcesAwarded({ gold }) {
     if (!gold || gold <= 0) return

@@ -36,6 +36,12 @@ export const Balance = {
   BOSS_XP_BASE:      50,   // XP needed to reach lv 2
   BOSS_XP_SCALE:    1.5,   // XP curve: xpForLv(n) = BASE * SCALE^(n-1)
   BOSS_XP_PER_KILL:  10,   // boss XP awarded per adventurer kill
+  // Boss fight-stat growth per level. Applied additively on every
+  // BOSS_LEVELED_UP so it stacks cleanly with ability/event modifiers.
+  // From the 200/12/10 base, level 10 lands at ~470 HP / 30 ATK / 19 DEF.
+  BOSS_HP_PER_LEVEL:  30,
+  BOSS_ATK_PER_LEVEL:  2,
+  BOSS_DEF_PER_LEVEL:  1,
 
   // --- Boss ---
   BOSS_DEFEATS_TO_GAME_OVER: 3,
@@ -63,6 +69,10 @@ export const Balance = {
   // at the end of day N+1 — i.e. one full day of life. Tracked via
   // m._expireAtDay = dayNumber+1 and culled in respawnAll/dawn.
   NECROMANCY_LIFESPAN_DAYS:       1,
+  // Hard cap on how many raised skeletons the Lich can have alive at
+  // once. Dawn raises are clamped to (cap − currently-alive raised) so
+  // a big kill day can't flood the dungeon with undead.
+  NECROMANCY_MAX_RAISED:          5,
   // Cleric retention: raised cleric heals adjacent minions per tick.
   NECROMANCY_CLERIC_HEAL_AMOUNT:  4,
   NECROMANCY_CLERIC_HEAL_INTERVAL_MS: 2200,
@@ -358,6 +368,13 @@ export const Balance = {
   MECHANIC_SOUL_DRAIN_COOLDOWN_MS:       12000,
   MECHANIC_SOUL_DRAIN_CHANNEL_MS:         3000,
   MECHANIC_SOUL_DRAIN_DMG_MULT:           1.2,
+  // Soul Drain ticks once per this interval during the channel (the DMG
+  // mult above is already scaled for ~3 ticks). Without an interval the
+  // damage/heal applied EVERY frame — ~60× the intended power.
+  MECHANIC_SOUL_DRAIN_TICK_MS:            1000,
+  // Boss heals for this fraction of the damage each tick deals (the pact
+  // used to heal 1:1, which made the boss near-unkillable mid-channel).
+  MECHANIC_SOUL_DRAIN_HEAL_FRAC:          0.5,
   MECHANIC_DOPPELGANGERS_COOLDOWN_MS:     5000,
   MECHANIC_DOPPELGANGERS_DURATION_MS:     4000,
   MECHANIC_DOPPELGANGERS_BOSS_DMG_MULT:   0.5,
@@ -426,4 +443,26 @@ export const Balance = {
   // (crits, big hits, Golem Earthquake, Beholder Petrify, etc.).
   // Flip to false to disable all screen shake without code changes.
   VFX_SCREEN_SHAKE_ENABLED:         true,
+}
+
+// ── Derived helpers ──────────────────────────────────────────────────
+// Display level for a wave of adventurers, derived from how far boss
+// level + day progression scales their HP & ATK above the class
+// baseline. Level 1 is an unscaled day-1 wave; it climbs in lockstep
+// with the stat scaling so players see incoming waves visibly getting
+// stronger. PURELY COSMETIC — it changes no stats, it just mirrors the
+// multipliers DayPhase._scaleAdventurerByBossLevel applies.
+export function adventurerDisplayLevel(bossLv = 1, day = 1, bloodMoneyBonus = 0) {
+  const lvOver  = Math.max(0, Math.floor(bossLv || 1) - 1)
+  const dayOver = Math.max(0, Math.floor(day   || 1) - 1)
+  const hpMul  = 1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
+                   + Balance.ADVENTURER_HP_PER_DAY       * dayOver
+                   + (bloodMoneyBonus || 0)
+  const atkMul = 1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
+                   + Balance.ADVENTURER_ATK_PER_DAY      * dayOver
+  // One level ≈ one boss-level's worth of average HP/ATK buff.
+  const step = (Balance.ADVENTURER_HP_PER_BOSS_LV +
+                Balance.ADVENTURER_ATK_PER_BOSS_LV) / 2 || 0.085
+  const avgMul = (hpMul + atkMul) / 2
+  return Math.max(1, 1 + Math.round((avgMul - 1) / step))
 }

@@ -72,6 +72,28 @@ export const MINION_ABILITY_INFO = {
   mimic:           { ability: 'Greedy Bite — banks +5g per hit; lost if killed mid-day.',      behavior: 'Migrate — relocates to a random treasure room each dawn.' },
 }
 
+// Family-wide resolver — maps ANY minion definitionId (including evolved
+// tier-2/3 forms and boss-archetype mini-boss finals) to its family's
+// player-facing ability/behavior text. Tier-1 ids hit MINION_ABILITY_INFO
+// directly; evolved ids fall through the family ID sets above, since the
+// on-hit / tick effects key off those same sets. Zombie / skeleton /
+// plant / imp / ent / mushroom abilities are tier-1-only by design, so
+// their evolutions correctly resolve to no ability text.
+const _FAMILY_ABILITY_KEY = [
+  [RAT_IDS, 'rat1'], [DEMON_IDS, 'demon1'], [VAMPIRE_IDS, 'vampire_minion1'],
+  [BEHOLDER_IDS, 'beholder1'], [GOLEM_IDS, 'golem1'], [GOBLIN_IDS, 'goblin1'],
+  [LIZARDMAN_IDS, 'lizardman1'], [SLIME_IDS, 'slime2'], [GNOLL_IDS, 'gnoll1'],
+  [ORC_IDS, 'orc1'], [GHOST_IDS, 'ghost1'], [LICH_IDS, 'lich1'],
+]
+export function minionAbilityInfo(definitionId) {
+  if (!definitionId) return null
+  if (MINION_ABILITY_INFO[definitionId]) return MINION_ABILITY_INFO[definitionId]
+  for (const [set, key] of _FAMILY_ABILITY_KEY) {
+    if (set.has(definitionId)) return MINION_ABILITY_INFO[key] ?? null
+  }
+  return null
+}
+
 // Pass-2 death-trigger constants. Tuned conservatively so passive death effects
 // don't dominate combat — tweak if these feel weak/strong in playtests.
 const ZOMBIE_OMT_CHANCE       = 0.5     // 50% chance to rise once per fight
@@ -495,10 +517,17 @@ export const MinionAbilities = {
     // Visibility-flip behaviors run regardless of aiState.
     if (VAMPIRE_IDS.has(id))   this._tickVampireHidden(minion, gameState)
     if (GOLEM_IDS.has(id))     this._tickGolemHidden(minion, gameState)
-    // Generic ambush — any minion declaring behaviorType 'ambush' that
-    // isn't already covered by a family-specific hidden handler above.
-    if (minion.behaviorType === 'ambush' &&
-        !VAMPIRE_IDS.has(id) && !GOLEM_IDS.has(id)) {
+    // Goblins are visible Loot Scavengers — despite their JSON
+    // behaviorType 'ambush' they must NEVER be ambush-hidden, or they
+    // vanish at dawn and only reappear when an adventurer engages them
+    // (the reported bug). Force-clear _hidden so a save made before
+    // this fix also recovers on the next tick.
+    if (GOBLIN_IDS.has(id)) {
+      minion._hidden = false
+    // Generic ambush — any other minion declaring behaviorType
+    // 'ambush' that isn't covered by a family-specific hidden handler.
+    } else if (minion.behaviorType === 'ambush' &&
+               !VAMPIRE_IDS.has(id) && !GOLEM_IDS.has(id)) {
       this._tickAmbushHidden(minion, gameState)
     }
 

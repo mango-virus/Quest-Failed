@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/TutorialOverlay.js`.
+//
 // Small modal popup used by TutorialSystem to surface one-shot how-to
 // hints (phase intros, mechanic intros, boss-archetype hooks). Modal so
 // the player can read at their own pace; body text is short by design.

@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/ConfirmPopup.js` (DOM).
+//
 // Generic yes / cancel confirmation popup. Triggered via the SHOW_CONFIRM
 // EventBus event with a payload of { title, message, confirmLabel, cancelLabel,
 // onConfirm, onCancel }. Both callbacks are optional; only one runs per

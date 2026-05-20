@@ -18,6 +18,27 @@ import { AbilityVfx } from './AbilityVfx.js'
 
 const TS = 32
 
+// Phase 34C.5 — particles quality. Loose particle counts (ember swarm,
+// smoke burst, streak lines) scale by this multiplier; structural counts
+// (cracks, doppelganger copies) stay fixed because they affect the read
+// of the effect, not just its density.
+function _particlesMult() {
+  try {
+    const lvl = localStorage.getItem('qf.video.particles') ?? 'high'
+    if (lvl === 'off')  return 0
+    if (lvl === 'low')  return 0.4
+    if (lvl === 'med')  return 0.7
+    return 1.0
+  } catch { return 1.0 }
+}
+// Round-and-clamp helper so a 6-particle burst at low (0.4) still emits
+// at least 1 instead of vanishing to zero (which would erase the effect).
+function _scaledCount(base) {
+  const m = _particlesMult()
+  if (m <= 0) return 0
+  return Math.max(1, Math.round(base * m))
+}
+
 // Resolve any of the entity pools to a worldX/worldY by instanceId.
 function _findEntity(gs, id) {
   if (!id) return null
@@ -130,8 +151,10 @@ export class BossPactVfx {
       targets: [g, outer], alpha: 0, duration: 380, ease: 'Quad.easeOut',
       onComplete: () => { g.destroy(); outer.destroy() },
     })
-    // Ember swarm — 8 little circles drifting from source toward target
-    for (let i = 0; i < 8; i++) {
+    // Ember swarm — 8 little circles drifting from source toward target.
+    // Scales with the particles quality setting.
+    const _emberCount = _scaledCount(8)
+    for (let i = 0; i < _emberCount; i++) {
       const e = this._scene.add.graphics().setDepth(46)
       e.fillStyle(i % 2 ? 0xffcc55 : 0xff8833, 1)
       e.fillCircle(0, 0, 2 + Math.random() * 2)
@@ -258,11 +281,12 @@ export class BossPactVfx {
     this._shake(0.008, 180)
   }
   _smokeBurst(x, y, color = 0x666666) {
-    for (let i = 0; i < 7; i++) {
+    const _puffCount = _scaledCount(7)
+    for (let i = 0; i < _puffCount; i++) {
       const p = this._scene.add.graphics().setPosition(x, y).setDepth(43)
       p.fillStyle(color, 0.7)
       p.fillCircle(0, 0, 4 + Math.random() * 3)
-      const ang = (Math.PI * 2 * i) / 7
+      const ang = (Math.PI * 2 * i) / _puffCount
       const dist = 18 + Math.random() * 12
       this._scene.tweens.add({
         targets: p,
@@ -295,9 +319,10 @@ export class BossPactVfx {
         })
       },
     })
-    // 12 streak lines spiralling inward
-    for (let i = 0; i < 12; i++) {
-      const ang  = (Math.PI * 2 * i) / 12 + (Math.random() - 0.5) * 0.4
+    // 12 streak lines spiralling inward (scaled by particles setting)
+    const _streakCount = _scaledCount(12)
+    for (let i = 0; i < _streakCount; i++) {
+      const ang  = (Math.PI * 2 * i) / _streakCount + (Math.random() - 0.5) * 0.4
       const dist = TS * 3 + Math.random() * TS
       const sx = x + Math.cos(ang) * dist
       const sy = y + Math.sin(ang) * dist

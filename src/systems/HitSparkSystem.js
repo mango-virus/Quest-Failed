@@ -57,6 +57,12 @@ export class HitSparkSystem {
     if (!targetId) return
     if (typeof damage !== 'number' || damage <= 0) return  // skip misses / dodges
     if (!this._scene.textures?.exists?.('vfx-hit-spark')) return
+    // Phase 34C.5 — honor the particles=off setting by skipping the
+    // spark entirely. Hit sparks are per-hit single sprites (not density-
+    // scaled particles), so low/med/high all behave the same here.
+    try {
+      if (localStorage.getItem('qf.video.particles') === 'off') return
+    } catch {}
 
     const target = this._findEntity(targetId)
     if (!target) return

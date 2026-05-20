@@ -26,10 +26,13 @@ import { Leaderboard }     from './scenes/Leaderboard.js'
 //      re-run applyUiCamera and rebuild layouts for the new viewport.
 const config = {
   type: Phaser.AUTO,
-  // Do NOT set width/height here — Scale.RESIZE reads the parent container's
-  // live size directly, and snapshot values taken at script-parse time become
-  // a fixed "design resolution" that Phaser refuses to resize below, which
-  // causes the canvas to stay oversized when the window is made smaller.
+  // The DOM HUD (src/hud/*) lives in a 1920×1080 logical stage that scales
+  // to fit the viewport. Lock Phaser to the same design size with FIT so
+  // its canvas and the DOM stage share one coordinate space — that's what
+  // prevents the dungeon view from extending past the HUD panel edges and
+  // makes mouse coords line up between the two layers.
+  width:  1920,
+  height: 1080,
   parent: 'game-container',
   backgroundColor: '#0a0514',
   scene: [
@@ -52,8 +55,8 @@ const config = {
     Leaderboard, // global hall-of-evil scene reachable from MainMenu
   ],
   scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.NO_CENTER,
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   render: {
     antialias:   true,
@@ -89,7 +92,18 @@ window.__game = new Phaser.Game(config)
 // re-runs _spawnDailyAdventurers / re-wires NightPhase from scratch, which
 // surfaced as "pressing F12 spawns adventurers" — opening DevTools fires a
 // resize, and DayPhase.restart() spawns a fresh wave on top of the live one.
-const NON_LAYOUT_SCENES = new Set(['Boot', 'Preload', 'Game', 'TilesetEditor', 'RoomTileEditor', 'PauseMenu', 'Options', 'DayPhase', 'NightPhase'])
+const NON_LAYOUT_SCENES = new Set([
+  'Boot', 'Preload',
+  'Game', 'DayPhase', 'NightPhase',
+  'TilesetEditor', 'RoomTileEditor',
+  'PauseMenu', 'Options',
+  // MainMenu / HudScene / transition scenes — restarting these on a
+  // window resize (fullscreen toggle) caused MainMenuOverlay to remount
+  // over an active run, and HudScene restart tore down the DOM HUD's
+  // event wiring + cached state mid-gameplay.
+  'MainMenu', 'HudScene',
+  'ArchetypeSelect', 'EndOfDay', 'GameOver',
+])
 let _resizeTimer = null
 window.__game.scale.on('resize', () => {
   clearTimeout(_resizeTimer)

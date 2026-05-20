@@ -36,6 +36,13 @@ export class RunHistorySystem {
     EventBus.on('COMBAT_HIT',        this._onCombatHit,     this)
     EventBus.on('PACT_SEALED',       this._onPactSealed,    this)
     EventBus.on('RESOURCES_AWARDED', this._onResourcesAwarded, this)
+    EventBus.on('INTEL_LEAKED',      this._onIntelLeaked,     this)
+    EventBus.on('LOOT_GOBLIN_ESCAPED', this._onLootGoblinEscaped, this)
+    // Treasure chests skim the player's gold when cracked, and refund it
+    // if the thief is killed before escaping — track both so goldLost
+    // ends up as the gold *permanently* lost to chests.
+    EventBus.on('TREASURE_STOLEN',     this._onTreasureStolen,    this)
+    EventBus.on('TREASURE_RECOVERED',  this._onTreasureRecovered, this)
   }
 
   destroy() {
@@ -50,6 +57,10 @@ export class RunHistorySystem {
     EventBus.off('COMBAT_HIT',        this._onCombatHit,     this)
     EventBus.off('PACT_SEALED',       this._onPactSealed,    this)
     EventBus.off('RESOURCES_AWARDED', this._onResourcesAwarded, this)
+    EventBus.off('INTEL_LEAKED',      this._onIntelLeaked,    this)
+    EventBus.off('LOOT_GOBLIN_ESCAPED', this._onLootGoblinEscaped, this)
+    EventBus.off('TREASURE_STOLEN',     this._onTreasureStolen,    this)
+    EventBus.off('TREASURE_RECOVERED',  this._onTreasureRecovered, this)
   }
 
   // ─── Event handlers ────────────────────────────────────────────────────
@@ -89,13 +100,59 @@ export class RunHistorySystem {
       known = {
         name:        adv.name,
         classId:     adv.classId,
+        // Preserve the LPC variant + level so the PostWaveSummary,
+        // AdvIntel, and any other "returning veteran" UI can render
+        // the EXACT sprite the player saw flee, not a v01 stand-in.
+        // Without this, every escaped adv in PostWave showed a
+        // generic class portrait instead of the unique character that
+        // got away.
+        spriteVariant: adv.spriteVariant ?? null,
+        // `level` here is the cosmetic display level the player saw, not
+        // the XP counter — so returning-veteran UI shows the same number.
+        level:       adv.displayLevel ?? adv.level ?? 1,
         escapeCount: 0,
         lastEscapedDay: null,
       }
       this._gameState.adventurers.known.push(known)
     }
+    // Update sprite + level each time a known adv escapes again — they
+    // may have leveled between visits and their variant is the same
+    // each return (spriteVariant persists on the live adv object).
+    known.spriteVariant = adv.spriteVariant ?? known.spriteVariant ?? null
+    known.level = adv.displayLevel ?? adv.level ?? known.level ?? 1
     known.escapeCount++
     known.lastEscapedDay = this._gameState.meta.dayNumber
+    // Carry the gold this escapee made off with onto the record so the
+    // post-wave summary's "Ng STOLEN" chip shows it: the loot-goblin
+    // heist skim (adv.goldStolen, stamped by EventSystem) PLUS any
+    // treasure-chest loot they're still carrying (adv.stolenGold).
+    known.goldStolen = (adv.goldStolen ?? 0) + (adv.stolenGold ?? 0)
+  }
+
+  // Loot Goblin Heist — fold the skimmed gold into a per-run loss total
+  // so the post-wave summary can show net gold, not just gold earned.
+  _onLootGoblinEscaped(payload) {
+    const stolen = Number(payload?.stolen ?? 0)
+    if (!stolen) return
+    const t = this._gameState.run.totals
+    t.goldLost = (t.goldLost ?? 0) + stolen
+  }
+
+  // Treasure chest cracked — gold skimmed straight from the player.
+  _onTreasureStolen(payload) {
+    const gold = Number(payload?.gold ?? 0)
+    if (!gold) return
+    const t = this._gameState.run.totals
+    t.goldLost = (t.goldLost ?? 0) + gold
+  }
+
+  // Chest thief killed before escaping — their haul is refunded, so the
+  // loss is reversed.
+  _onTreasureRecovered(payload) {
+    const gold = Number(payload?.gold ?? 0)
+    if (!gold) return
+    const t = this._gameState.run.totals
+    t.goldLost = Math.max(0, (t.goldLost ?? 0) - gold)
   }
 
   _onCombatHit(payload) {
@@ -131,6 +188,17 @@ export class RunHistorySystem {
     const t = this._gameState.run.totals
     if (typeof payload?.gold  === 'number') t.gold  += payload.gold
     if (typeof payload?.souls === 'number') t.souls += payload.souls
+  }
+
+  _onIntelLeaked(payload) {
+    const n = Number(payload?.count ?? 0)
+    if (!n) return
+    const t = this._gameState.run.totals
+    t.intelLeaks = (t.intelLeaks ?? 0) + n
+    // Also bump a discrete leak-event counter (each fled adventurer
+    // counts as one event regardless of how many items they took) so
+    // the leaderboard can show "12 leak events" if it ever wants that.
+    t.leakEvents = (t.leakEvents ?? 0) + 1
   }
 
   _onPactSealed(payload) {

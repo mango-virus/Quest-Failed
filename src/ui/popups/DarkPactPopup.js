@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/PactPicker.js` (DOM).
+//
 // Dark Pact popup — the climactic nightly choice.
 //
 // Shown after Post-Wave Summary on days the boss leveled up. Three
@@ -656,8 +658,11 @@ export class DarkPactPopup {
       })
     }
 
-    // Camera punch + boom SFX
-    try { this._scene.cameras.main.shake(220, 0.006) } catch {}
+    // Camera punch + boom SFX — gated by the SettingsOverlay SCREEN
+    // SHAKE toggle (qf.video.shake).
+    let _shakeOk = true
+    try { _shakeOk = localStorage.getItem('qf.video.shake') !== 'false' } catch {}
+    if (_shakeOk) try { this._scene.cameras.main.shake(220, 0.006) } catch {}
     try { this._scene.sound.play('sfx-boss-attack', { volume: 0.55 }) } catch {}
 
     // Splatter VFX — red dots radiating outward from card center

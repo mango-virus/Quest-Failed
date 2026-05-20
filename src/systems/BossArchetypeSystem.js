@@ -674,6 +674,8 @@ export class BossArchetypeSystem {
       if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
       if (!_advInsideRoom(a, bossRoom)) continue
       a._petrifiedUntil = now + Balance.BEHOLDER_PETRIFY_DURATION_MS
+      // Status-text float (DungeonFx renders 'PETRIFIED' above the adv).
+      EventBus.emit('STATUS_APPLIED', { targetId: a.instanceId, label: 'PETRIFIED' })
       targets.push(a)
     }
     if (targets.length === 0) return
@@ -912,6 +914,7 @@ export class BossArchetypeSystem {
         const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         if (bossRoom) {
           pick._charmed = true
+          EventBus.emit('STATUS_APPLIED', { targetId: pick.instanceId, label: 'CHARMED' })
           // Detach from party for the walk so allies don't drag them back via
           // FOLLOW_LEADER goals later.
           pick._charmedFormerPartyId = pick.partyId ?? null
@@ -1046,12 +1049,24 @@ export class BossArchetypeSystem {
     const cx = bossRoom.gridX + Math.floor(bossRoom.width  / 2)
     const cy = bossRoom.gridY + Math.floor(bossRoom.height / 2)
 
+    // Cap the Lich's standing undead army. Count skeletons still alive
+    // from earlier days, then raise only enough to reach the cap — a big
+    // kill day can't flood the dungeon. Excess queued dead are dropped
+    // (the queue is drained below regardless).
+    const aliveRaised = (this._gameState.minions ?? []).filter(
+      m => m._raisedFromAdvDeath && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0,
+    ).length
+    const raiseCount = Math.max(0, Math.min(
+      queue.length,
+      Balance.NECROMANCY_MAX_RAISED - aliveRaised,
+    ))
+
     const raised = []
-    for (let i = 0; i < queue.length; i++) {
+    for (let i = 0; i < raiseCount; i++) {
       const entry = queue[i]
       // Spread spawn tiles in a small ring around boss-chamber center so they
       // don't all stack on the same tile.
-      const angle = (i / Math.max(1, queue.length)) * Math.PI * 2
+      const angle = (i / Math.max(1, raiseCount)) * Math.PI * 2
       const r = 2 + (i % 2)
       const tx = cx + Math.round(Math.cos(angle) * r)
       const ty = cy + Math.round(Math.sin(angle) * r)
@@ -1183,7 +1198,12 @@ export class BossArchetypeSystem {
       if (this._isLizardmanMinion(m)) {
         const adv = this._gameState?.adventurers?.active?.find(a => a.instanceId === payload?.targetId)
         if (adv) {
+          const wasClean = !adv._venomStacks
           adv._venomStacks = (adv._venomStacks ?? 0) + 1
+          // First-stack-only float so a venom-storm doesn't spam POISONED.
+          if (wasClean) {
+            EventBus.emit('STATUS_APPLIED', { targetId: adv.instanceId, label: 'POISONED' })
+          }
           EventBus.emit('LIZARDMAN_VENOM_APPLIED', {
             advId:  adv.instanceId,
             stacks: adv._venomStacks,
@@ -2445,7 +2465,11 @@ export class BossArchetypeSystem {
           if (adv.tileX !== c.tileX || adv.tileY !== c.tileY) continue
           if (adv._fungalCorpsesStung.includes(c.instanceId)) continue
           adv._fungalCorpsesStung.push(c.instanceId)
+          const wasClean = !adv._venomStacks
           adv._venomStacks = (adv._venomStacks ?? 0) + Balance.MYCONID_CORPSE_VENOM_STACKS_ADDED
+          if (wasClean) {
+            EventBus.emit('STATUS_APPLIED', { targetId: adv.instanceId, label: 'POISONED' })
+          }
           EventBus.emit('MYCONID_CORPSE_TOUCHED', {
             advId:    adv.instanceId,
             corpseId: c.instanceId,

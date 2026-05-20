@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/PostWaveOverlay.js`.
+//
 // Phase 31F — Post-Wave Summary popup.
 //
 // Three columns:

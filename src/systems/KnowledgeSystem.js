@@ -51,6 +51,9 @@ export class KnowledgeSystem {
     EventBus.on('TREASURE_CHEST_OPENED',  this._onTreasureRemoved, this)
     EventBus.on('KEY_CHEST_REMOVED',      this._onKeyChestRemoved, this)
     EventBus.on('KEY_CHEST_OPENED',       this._onKeyChestRemoved, this)
+    // Knowledge Map "SCRUB INTEL" button — player spends gold to wipe a
+    // room from the shared knowledge pool so the next wave walks in blind.
+    EventBus.on('KNOWLEDGE_SCRUB_REQUEST', this._onScrubRequest, this)
   }
 
   destroy() {
@@ -66,6 +69,7 @@ export class KnowledgeSystem {
     EventBus.off('TREASURE_CHEST_OPENED',  this._onTreasureRemoved, this)
     EventBus.off('KEY_CHEST_REMOVED',      this._onKeyChestRemoved, this)
     EventBus.off('KEY_CHEST_OPENED',       this._onKeyChestRemoved, this)
+    EventBus.off('KNOWLEDGE_SCRUB_REQUEST', this._onScrubRequest, this)
   }
 
   // ── Survivor access (used by DayPhase for spawning) ───────────────────────
@@ -212,6 +216,26 @@ export class KnowledgeSystem {
       adventurerId: adventurer.instanceId,
       name:         adventurer.name,
     })
+    // Phase 34 follow-up — leaderboard `leaks_count` plumbing. Count the
+    // intel items this survivor is taking with them and broadcast the
+    // event the ToastQueue / RunHistorySystem already listen for. One
+    // "leak" = one piece of room / trap / fountain / chest / loot intel.
+    const k = adventurer.knowledge ?? {}
+    const count = (Object.keys(k.rooms          ?? {}).length)
+                + (Object.keys(k.traps          ?? {}).length)
+                + (Object.keys(k.fountains      ?? {}).length)
+                + (Object.keys(k.treasureChests ?? {}).length)
+                + (Object.keys(k.keyChests      ?? {}).length)
+                + (Object.keys(k.mimics         ?? {}).length)
+                + (Object.keys(k.loot           ?? {}).length)
+    if (count > 0) {
+      EventBus.emit('INTEL_LEAKED', {
+        adventurer,
+        adventurerId: adventurer.instanceId,
+        adventurerName: adventurer.name,
+        count,
+      })
+    }
   }
 
   _updateSurvivorRecord(adv) {
@@ -392,6 +416,53 @@ export class KnowledgeSystem {
     for (const a of this._gs.adventurers?.active ?? []) {
       if (a.knowledge?.keyChests?.[id]) a.knowledge.keyChests[id].stale = true
     }
+  }
+
+  // ── Scrub intel (Knowledge Map "SCRUB INTEL" button) ─────────────────────
+  //
+  // The player spends gold to make a room "unknown" again. To stick, the
+  // room must be forgotten everywhere intel persists:
+  //   * sharedPool        — what the overlay reads + next wave inherits
+  //   * survivors[].knowledge — else _rebuildSharedPool restores it the
+  //                         next time any adventurer flees
+  //   * adventurers.active[].knowledge — a wave already inside forgets too
+  // Room-level entry, the room's enemy sightings, and any traps sitting
+  // inside the room are all wiped.
+  _onScrubRequest({ roomId, cost = 0 } = {}) {
+    if (!roomId) return
+    const player = this._gs.player
+    if (!player) return
+    if ((player.gold ?? 0) < cost) {
+      EventBus.emit('SHOW_TOAST', { message: 'Not enough gold to scrub intel', type: 'error' })
+      return
+    }
+
+    const room = this._gs.dungeon?.rooms?.find(r => r.instanceId === roomId)
+    const inRoom = room
+      ? (tx, ty) => tx >= room.gridX && tx < room.gridX + room.width &&
+                    ty >= room.gridY && ty < room.gridY + room.height
+      : () => false
+    const trapIds = new Set()
+    for (const t of (this._gs.dungeon?.traps ?? [])) {
+      if (t && inRoom(t.tileX, t.tileY)) trapIds.add(t.instanceId)
+    }
+
+    const scrub = (k) => {
+      if (!k) return
+      if (k.rooms)          delete k.rooms[roomId]
+      if (k.enemiesPerRoom) delete k.enemiesPerRoom[roomId]
+      if (k.traps) for (const id of trapIds) delete k.traps[id]
+    }
+    scrub(this._gs.knowledge?.sharedPool)
+    for (const s of this._gs.knowledge?.survivors ?? []) scrub(s.knowledge)
+    for (const a of this._gs.adventurers?.active ?? []) scrub(a.knowledge)
+
+    if (cost > 0) player.gold -= cost
+    EventBus.emit('KNOWLEDGE_SCRUBBED', { roomId, cost })
+    EventBus.emit('SHOW_TOAST', {
+      message: `Intel scrubbed · ${cost}g spent`,
+      type: 'success',
+    })
   }
 
   _onMinionMutated({ minion }) {

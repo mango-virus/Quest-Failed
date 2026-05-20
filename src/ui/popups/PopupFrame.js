@@ -1,3 +1,7 @@
+// SUPERSEDED (Phase 34) — Phaser popups in this directory are replaced
+// by DOM overlays in `src/hud/` under the new HUD. HudScene gates the
+// legacy listeners behind `!useNewHud`. Fallback only.
+//
 // Shared modal-popup chrome for the four 31E popups (Adventurer Intel,
 // Boss Overview, Minion Roster, Knowledge Map). Builds the dim backdrop,
 // the centered pixel-bevel panel, the title bar with close button, and

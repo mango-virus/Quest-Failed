@@ -15,6 +15,18 @@ const COIN_COUNT_MAX = 9
 const COIN_LIFE_MS   = 700
 const COIN_RADIUS    = 2
 
+// Phase 34C.5 — particles quality. Coin burst count scales by this;
+// label stays so the player always sees the +Ng readout.
+function _particlesMult() {
+  try {
+    const lvl = localStorage.getItem('qf.video.particles') ?? 'high'
+    if (lvl === 'off')  return 0
+    if (lvl === 'low')  return 0.4
+    if (lvl === 'med')  return 0.7
+    return 1.0
+  } catch { return 1.0 }
+}
+
 export class CoinBurstRenderer {
   constructor(scene) {
     this._scene = scene
@@ -39,7 +51,11 @@ export class CoinBurstRenderer {
     if (wx == null || wy == null) return
 
     this._spawnLabel(wx, wy, gold)
-    const count = COIN_COUNT_MIN + Math.floor(Math.random() * (COIN_COUNT_MAX - COIN_COUNT_MIN + 1))
+    // Random base count [MIN..MAX], then scale by particles setting.
+    // Label always fires above; only the coin sprites scale down.
+    const rawCount = COIN_COUNT_MIN + Math.floor(Math.random() * (COIN_COUNT_MAX - COIN_COUNT_MIN + 1))
+    const mult = _particlesMult()
+    const count = mult <= 0 ? 0 : Math.max(1, Math.round(rawCount * mult))
     for (let i = 0; i < count; i++) this._spawnCoin(wx, wy, i, count)
   }
 

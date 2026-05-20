@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/PactDetailPopup.js` (DOM).
+//
 // Detail popup for a single dark pact, opened from clicking a card in
 // BossOverviewPopup's "Active Pacts" grid. Displays the pact using the
 // SAME card chrome as the Dark Pact menu (sigil + rarity ribbon + flavor

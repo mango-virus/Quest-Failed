@@ -43,8 +43,18 @@ export class BossArchetypeUI {
 
     this._listeners = []
     this._wireEvents()
-    this._buildEarthquakeButton()
-    this._buildSacrificeButton()
+    // Under the new DOM HUD, the EARTHQUAKE / SACRIFICE buttons are
+    // rendered by src/hud/BossArchetypeStrip.js to match the chrome's
+    // theme. The Phaser VFX wiring above stays — only the player-facing
+    // buttons skip. Detection mirrors isNewHudEnabled() without pulling
+    // in the import (this file lives in src/ui/ which shouldn't depend
+    // on src/hud/).
+    let _useNewHud = true
+    try { _useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
+    if (!_useNewHud) {
+      this._buildEarthquakeButton()
+      this._buildSacrificeButton()
+    }
     this._refreshVisibility()
     this._maybeShowFirstUseToast()
   }
@@ -667,7 +677,12 @@ export class BossArchetypeUI {
   // targeted room's center so the player can read what just happened.
   _playEarthquakeVfx(payload) {
     const game = this._scene.scene.get('Game')
-    if (game?.cameras?.main?.shake) {
+    // Gate on the SettingsOverlay's SCREEN SHAKE toggle. Inline read
+    // (rather than importing userSettings) to avoid a dep cycle —
+    // BossArchetypeUI imports many UI primitives that loop back here.
+    let shakeOk = true
+    try { shakeOk = localStorage.getItem('qf.video.shake') !== 'false' } catch {}
+    if (game?.cameras?.main?.shake && shakeOk) {
       game.cameras.main.shake(450, 0.012)
     }
     const room = payload?.room

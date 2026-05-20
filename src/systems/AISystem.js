@@ -7,7 +7,7 @@ import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { MinionAbilities }  from './MinionAbilities.js'
 import { Balance }          from '../config/balance.js'
-import { TILE }             from './DungeonGrid.js'
+import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -680,26 +680,12 @@ export class AISystem {
     return !!id && id !== selfAdv.instanceId
   }
 
-  // World-space center of the entry hall's north-facing door rect.
-  // Mirrors AdventurerRenderer._entryDoorWorldCenter / DungeonRenderer
-  // _cpDoorRect: 2-tile width slid into the side with more wall space,
-  // WALL_THICKNESS-tile height starting at the top row.  Used so leave-
-  // fade snaps the adv to the same spot the spawn-fade snaps to.
+  // World-space center of the entry hall's doorway rect, wherever the
+  // (possibly rotated) entrance ended up. Delegates to the shared
+  // rotation-aware helper so leave-fade snaps the adv to the same spot
+  // the spawn-fade snaps to.
   _entryDoorWorldCenter(entry) {
-    if (!entry) return null
-    const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
-    if (!cp) {
-      const x = entry.gridX + Math.floor(entry.width / 2)
-      return { tileX: x, tileY: entry.gridY, worldX: x * TS + TS / 2, worldY: entry.gridY * TS + TS / 2 }
-    }
-    const WT      = 2
-    const alongDx = ((entry.width - 1) - cp.x) >= cp.x ? 1 : -1
-    const xStart  = Math.min(cp.x, cp.x + alongDx)
-    const tileX   = entry.gridX + xStart
-    const tileY   = entry.gridY
-    const worldX  = tileX * TS + TS
-    const worldY  = tileY * TS + (WT * TS) / 2
-    return { tileX, tileY, worldX, worldY }
+    return entryDoorWorldCenter(entry)
   }
 
   // ── Per-adventurer tick ─────────────────────────────────────────────────────
@@ -966,18 +952,27 @@ export class AISystem {
       adv.tileY >= entry.gridY && adv.tileY < entry.gridY + entry.height
     if (!inEntry) adv._leftEntry = true
 
-    // The dungeon entrance is fixed at the north edge of entry_hall — the
-    // canonical exit/entry gate. Fleeing only counts as "escaped" when the
-    // adventurer's tile is on entry_hall's northmost row (the doorway row).
-    const atNorthEdge = entry &&
-      adv.tileY === entry.gridY &&
-      adv.tileX >= entry.gridX && adv.tileX < entry.gridX + entry.width
+    // The dungeon entrance is the entry_hall's external doorway — the
+    // canonical exit/entry gate. The Entry Hall can be rotated, so the
+    // doorway may sit on any edge; fleeing counts as "escaped" once the
+    // adventurer reaches the edge row/column that doorway is on.
+    let atExitEdge = false
+    if (entry) {
+      const inX = adv.tileX >= entry.gridX && adv.tileX < entry.gridX + entry.width
+      const inY = adv.tileY >= entry.gridY && adv.tileY < entry.gridY + entry.height
+      switch (entryDoorSide(entry)) {
+        case 'N': atExitEdge = inX && adv.tileY === entry.gridY;                     break
+        case 'S': atExitEdge = inX && adv.tileY === entry.gridY + entry.height - 1;   break
+        case 'W': atExitEdge = inY && adv.tileX === entry.gridX;                      break
+        case 'E': atExitEdge = inY && adv.tileX === entry.gridX + entry.width - 1;    break
+      }
+    }
 
-    // If fleeing and physically RETURNING to the north edge of entry_hall
+    // If fleeing and physically RETURNING to the entry_hall's exit edge
     // (must have left at some point), leave the dungeon.  Mirrors the
     // entry flow: snap to the doorway center, idle while fading out,
     // then splice + emit ADVENTURER_FLED when the fade completes.
-    if (adv.goal?.type === 'FLEE' && atNorthEdge && adv._leftEntry) {
+    if (adv.goal?.type === 'FLEE' && atExitEdge && adv._leftEntry) {
       const now = this._scene?.time?.now ?? 0
       if (adv._leaveFadeEnd == null) {
         const door = this._entryDoorWorldCenter(entry)
@@ -1075,10 +1070,21 @@ export class AISystem {
       if (bossRoom &&
           adv.tileX >= bossRoom.gridX + WT && adv.tileX < bossRoom.gridX + bossRoom.width  - WT &&
           adv.tileY >= bossRoom.gridY + WT && adv.tileY < bossRoom.gridY + bossRoom.height - WT) {
-        // Boss at 0 hp is "dead-posed" — frozen on the death frame until
-        // the post-wave summary appears. Don't engage it; redirect this
-        // adv out of the dungeon so no fight starts on a dead boss.
-        if ((this._gameState.boss?.hp ?? 1) <= 0) {
+        // Only redirect to FLEE on TRUE death (no lives left, no
+        // phylactery). A non-final death leaves boss.hp at 0 ("death
+        // pose") between fights but the boss is still alive overall —
+        // the next BOSS_FIGHT_INCOMING refreshes hp to maxHp and starts
+        // the fight normally. The prior `boss.hp <= 0` check was too
+        // broad: it stopped the second adventurer wave of a single day
+        // (or a vendetta-hunter arriving alone after the main party)
+        // from ever triggering a fight, leaving them stuck at the
+        // boss-room interior with goal SEEK_BOSS → no AT_BOSS handoff,
+        // no BOSS_FIGHT_INCOMING, and no path home because they were
+        // already on a SEEK_BOSS path — visually a freeze.
+        const boss = this._gameState.boss
+        const finallyDead = !!boss && (boss.deathsRemaining ?? 1) <= 0
+                            && !((this._gameState.phylactery?.resources?.hp ?? 0) > 0)
+        if (finallyDead) {
           adv.goal = { type: 'FLEE' }
           adv.path = null
           adv.aiState = 'walking'
@@ -1470,6 +1476,21 @@ export class AISystem {
       // painted door sprite stuck on closed art until the animation
       // completes.
       this._scene?._dungeonRenderer?.openDoor(enteringDoor.cp)
+      // Reset stuck + oscillation counters while we're legitimately
+      // holding for the door animation. The animation takes 500 ms of
+      // REAL time (DungeonRenderer.update consumes raw delta) but the
+      // stuck-failsafe (1500 ms) and oscillation detector (3 s window)
+      // both tick on SCALED delta — at 8× speed the stuck cap elapses
+      // in 187 ms real, far less than the door animation. Without this
+      // reset the path gets nulled mid-open, the next jitter picks a
+      // different route, the adv walks away, the new path eventually
+      // points back through this same door, and the player sees them
+      // ping-ponging at the doorway threshold.
+      adv._tileStuckMs = 0
+      adv._oscRing    = []
+      adv._oscNextAt  = (this._scene.time?.now ?? 0) + 200
+      adv._lastWorldX = adv.worldX
+      adv._lastWorldY = adv.worldY
       return
     }
 
@@ -2141,13 +2162,13 @@ export class AISystem {
       return { x: ally.tileX, y: ally.tileY }
     }
     if (adv.goal.type === 'FLEE') {
-      // Always target the entry hall's north entrance — that's the canonical
+      // Always target the entry hall's doorway — that's the canonical
       // exit. Pathfinder routes from each adventurer's current tile, so two
       // fleeing advs at different positions still find their own shortest
       // route to the door.
       const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
       if (!entry) return null
-      return _entryNorthTile(entry)
+      return entryDoorTile(entry)
     }
     // Phase: alive AI — react-to-noise detour. Time-limited; expires back
     // to whatever was on the goal stack.
@@ -2191,13 +2212,13 @@ export class AISystem {
       }
       return { x: chest.tileX, y: chest.tileY }
     }
-    // Phase D — escape with stolen loot. Same target as FLEE (entry-hall
-    // north exit), but the adv keeps full speed (not panicked) and the
-    // gold is gone for good when they leave.
+    // Phase D — escape with stolen loot. Same target as FLEE (the
+    // entry-hall doorway), but the adv keeps full speed (not panicked)
+    // and the gold is gone for good when they leave.
     if (adv.goal.type === 'ESCAPE_WITH_LOOT') {
       const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
       if (!entry) return null
-      return _entryNorthTile(entry)
+      return entryDoorTile(entry)
     }
     // Phase: items — beeline to a known healing fountain. If the fountain
     // is gone (sold mid-walk), pick up where we left off.
@@ -2395,9 +2416,17 @@ export class AISystem {
     }
 
     if (adv.goal.type === 'SEEK_BOSS') {
-      // Boss at 0 hp is "dead-posed" — don't trigger a fight on a dead
-      // boss. Redirect to FLEE so the adv leaves the dungeon instead.
-      if ((this._gameState.boss?.hp ?? 1) <= 0) {
+      // Only redirect to FLEE on TRUE death (no lives left, no
+      // phylactery). A non-final death leaves boss.hp at 0 ("death
+      // pose") between fights but the boss is still alive overall —
+      // the next BOSS_FIGHT_INCOMING refreshes hp and starts the fight
+      // normally. Prior `boss.hp <= 0` check was too broad and stopped
+      // any second-fight scenario (later-arriving adv that day, lone
+      // vendetta hunter, guild-raid staggered party) from kicking off.
+      const boss = this._gameState.boss
+      const finallyDead = !!boss && (boss.deathsRemaining ?? 1) <= 0
+                          && !((this._gameState.phylactery?.resources?.hp ?? 0) > 0)
+      if (finallyDead) {
         adv.goal = { type: 'FLEE' }
         adv.path = null
         adv.aiState = 'walking'
@@ -2708,13 +2737,17 @@ export class AISystem {
       adv.stolenGold = 0
     }
     this._gameState.adventurers.active.splice(idx, 1)
-    this._gameState.adventurers.graveyard.push({
+    // Held so the kill gold (computed below) can be stamped onto the
+    // record after the fact — the post-wave summary reads goldDropped
+    // off the graveyard entry.
+    const graveEntry = {
       ...adv,
       diedOnDay:  this._gameState.meta.dayNumber,
       killedBy:   killerId,
       killerName,
       damageType,
-    })
+    }
+    this._gameState.adventurers.graveyard.push(graveEntry)
     // Phase: alive AI — drop a loot pile at the death tile. Other advs
     // can roll the LOOT_CORPSE goal to walk over and pick it up. Buff is
     // a small permanent stat boost. Skip if dropped during fade-out.
@@ -2759,6 +2792,11 @@ export class AISystem {
     const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
+    // Record the loot drop on both the live adv (the ADVENTURER_DIED
+    // payload — DungeonFx's coin-drop float reads it) and the graveyard
+    // record (the post-wave summary's per-adventurer "+Ng LOOT" chip).
+    adv.goldDropped = goldGained
+    graveEntry.goldDropped = goldGained
 
     EventBus.emit('RESOURCES_AWARDED', {
       gold:   goldGained,
@@ -2995,7 +3033,7 @@ export class AISystem {
     const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
     if (!entry) return null
 
-    const candidate = _entryNorthTile(entry)
+    const candidate = entryDoorTile(entry)
     const bossCentre = {
       x: boss.gridX + Math.floor(boss.width  / 2),
       y: boss.gridY + Math.floor(boss.height / 2),
@@ -3010,14 +3048,4 @@ export class AISystem {
 function _pointInRoom(tx, ty, room) {
   return tx >= room.gridX && tx < room.gridX + room.width &&
          ty >= room.gridY && ty < room.gridY + room.height
-}
-
-// Dungeon-coords tile of the entry hall's north entrance — used as both the
-// spawn point (adventurers walk in from the north) and the exit gate (fleeing
-// advs must reach this row to escape). Falls back to the top-row centre if
-// the entry_hall has no explicit north connection point.
-function _entryNorthTile(entry) {
-  const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
-  const localX = cp ? cp.x : Math.floor(entry.width / 2)
-  return { x: entry.gridX + localX, y: entry.gridY }
 }

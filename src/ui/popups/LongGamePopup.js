@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/LongGameOverlay.js`.
+//
 // Phase 9 — Pact of "The Long Game" notification popup.
 //
 // Shown each time the pact triggers (every 3 days). Displays the free

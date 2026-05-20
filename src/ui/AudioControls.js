@@ -1,3 +1,8 @@
+// SUPERSEDED (Phase 34) — replaced by the AUDIO tab in
+// `src/hud/SettingsOverlay.js` under the new HUD. The Phaser PauseMenu
+// that mounted this widget isn't constructed under newhud, so this
+// file is effectively dead but retained per CLAUDE.md.
+//
 // AudioControls — dual-row volume widget.
 //
 // Renders two labelled slider rows stacked vertically:

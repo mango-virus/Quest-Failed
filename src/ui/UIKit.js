@@ -3,6 +3,7 @@
 // so scenes retain full control over depth and camera assignment.
 
 import { SfxVolume } from '../systems/SfxVolume.js'
+import { EventBus } from '../systems/EventBus.js'
 
 // Module-level hover rate-limit so rapid mouse-overs across many buttons
 // don't stack the hover sound.
@@ -10,20 +11,27 @@ let _lastBtnHoverAt = 0
 
 // Exported helpers so non-pixelButton interactive elements (BuildMenu slots,
 // BossTopBar, etc.) can play the same UI sounds without duplicating logic.
+// 2026-05-19 — volumes raised to match src/hud/HudSfx.js so Phaser-
+// rendered UI (ArchetypeSelect, Options, editors) reads at the same
+// loudness as the DOM HUD's chrome. Cap raised to 4.0 since Press
+// button.wav is naturally quiet and needs real amplification.
+const UI_BOOST = 1.6
 export function uiSfxHover(scene) {
   if (SfxVolume.isMuted()) return
   const now = Date.now()
   if (now - _lastBtnHoverAt < 80) return
   if (!scene.cache?.audio?.exists?.('sfx-btn-hover')) return
   _lastBtnHoverAt = now
-  scene.sound.play('sfx-btn-hover', { volume: Math.min(1, 0.18 * SfxVolume.getVolume()) })
+  const vol = Math.min(4, 0.55 * UI_BOOST * SfxVolume.getVolume())
+  scene.sound.play('sfx-btn-hover', { volume: vol })
 }
 export function uiSfxClick(scene) {
   if (SfxVolume.isMuted()) return
   if (!scene.cache?.audio?.exists?.('sfx-btn-click')) return
-  // Click is the loudest UI sfx — saturates at master ≥ 0.71 so it always
-  // reads as a clear tactile beat at the default 0.8 master volume.
-  scene.sound.play('sfx-btn-click', { volume: Math.min(1, 1.4 * SfxVolume.getVolume()) })
+  // Press button.wav is naturally quiet — base 2.5 × 1.6 boost × full
+  // slider lands around 3.2, matched to the DOM HUD click chip.
+  const vol = Math.min(4, 2.5 * UI_BOOST * SfxVolume.getVolume())
+  scene.sound.play('sfx-btn-click', { volume: vol })
 }
 
 // ── Master palette ────────────────────────────────────────────────────────────
@@ -703,6 +711,18 @@ export function showToast(scene, message, opts = {}) {
     type     = 'error',
     duration = 2500,
   } = opts
+
+  // Phase 34 — route through the DOM ToastQueue when the new HUD is on.
+  // The Phaser canvas toast renders at the top of the screen, which
+  // sits under the DOM TopBar in newhud mode (top ~120px of stage is
+  // chrome). Letting the DOM queue render it instead keeps the toast
+  // visible. Inline localStorage check to avoid pulling src/hud/ deps.
+  try {
+    if (localStorage.getItem('newhud') !== '0') {
+      EventBus.emit('SHOW_TOAST', { message, type, duration })
+      return
+    }
+  } catch {}
 
   // Dismiss any existing toast on this scene immediately.
   if (scene._toast) {

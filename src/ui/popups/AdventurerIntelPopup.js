@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/AdvIntelOverlay.js`.
+//
 // Phase 31E — Adventurer Intel popup.
 //
 // Opens any phase via the action-bar 'ADV INTEL' button. Day phase shows
@@ -295,7 +297,7 @@ export class AdventurerIntelPopup {
 
     const classDef = this._classDef(adv.classId)
     const subline = showFull
-      ? `${(classDef?.name ?? adv.classId ?? '?').toUpperCase()} · LVL ${adv.level ?? 1} · ${adv.resources?.maxHp ?? 0} HP`
+      ? `${(classDef?.name ?? adv.classId ?? '?').toUpperCase()} · LVL ${adv.displayLevel ?? adv.level ?? 1} · ${adv.resources?.maxHp ?? 0} HP`
       : '??? · LVL ??? · ??? HP'
     addChild(this._scene.add.text(tx, y + 26, subline, {
       fontFamily: FONT_BODY, fontSize: '9px',

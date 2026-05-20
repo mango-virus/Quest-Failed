@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/RosterOverlay.js`.
+//
 // Phase 31E — Minion Roster popup.
 //
 // Two-column: sortable list (left) with name / class / HP bar / level /

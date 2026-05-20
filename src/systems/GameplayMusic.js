@@ -62,12 +62,20 @@ const _listeners  = new Set()
 // Boss fight state
 let _bossInstance = null   // currently-playing boss track sound instance
 let _inBossFight  = false  // true while a boss fight is active
-// In-flight fade-out instances. bossFightEnd() detaches the boss sound
-// from _bossInstance the moment the fade begins so the volume slider
-// stops targeting it; without this list, a subsequent stop() can't find
-// the still-audible sound (it lives in the global SoundManager) and the
-// boss track plays on forever — most visibly when the player loses, so
-// BOSS_FIGHT_RESOLVED's fade is interrupted by the GameOver transition.
+// In-flight fade-outs. Each entry is { sound, tween }: the boss sound
+// mid-fade plus the volume tween animating it. bossFightEnd() detaches
+// the boss sound from _bossInstance the moment the fade begins so the
+// volume slider stops targeting it; without this list, a subsequent
+// stop() can't find the still-audible sound (it lives in the global
+// SoundManager) and the boss track plays on forever.
+//
+// The `tween` is tracked so _stopBoss() can KILL it before destroying
+// the sound. A volume tween left running against a destroyed sound
+// throws "Cannot set properties of null (setting 'volume')" from inside
+// Phaser's tween step — uncaught, it kills the entire game loop. That
+// is the second-boss-fight freeze: at 8× speed the next fight reliably
+// begins inside the 3s fade window, so _stopBoss() destroys a sound
+// whose fade tween is still live.
 const _fadingBosses = []
 
 function _shuffle(arr) {
@@ -114,10 +122,17 @@ function _stopBoss() {
   // (e.g. BOSS_DEFEATED_FINAL → GameOver), the tween is gone but the
   // sound itself lives in the global SoundManager and keeps playing.
   while (_fadingBosses.length) {
-    const s = _fadingBosses.pop()
-    try { s.removeAllListeners() } catch {}
-    try { s.stop() } catch {}
-    try { s.destroy() } catch {}
+    const { sound, tween } = _fadingBosses.pop()
+    // CRITICAL ORDER: kill the volume-fade tween BEFORE destroying the
+    // sound. The tween animates `sound.volume`; if the sound is
+    // destroyed first, the tween's next update sets `volume` on a
+    // now-null internal object and throws inside Phaser's tween step,
+    // which is uncaught and hard-freezes the game.
+    try { tween?.stop() } catch {}
+    try { tween?.remove() } catch {}
+    try { sound?.removeAllListeners() } catch {}
+    try { sound?.stop() } catch {}
+    try { sound?.destroy() } catch {}
   }
   if (_bossInstance) {
     try { _bossInstance.removeAllListeners() } catch {}
@@ -232,7 +247,6 @@ export const GameplayMusic = {
   bossFightStart(scene) {
     if (_inBossFight) return   // already in a fight (guard against double-fire)
     _scene = scene || _scene
-    _inBossFight = true
 
     // Pause the regular track so it resumes from the same position later.
     if (_instance && _instance.isPlaying) _instance.pause()
@@ -242,7 +256,6 @@ export const GameplayMusic = {
     if (!_scene?.cache?.audio?.exists?.(key)) {
       // Asset missing — fall back to letting the regular music continue.
       if (_instance && !_instance.isPlaying) _instance.resume()
-      _inBossFight = false
       return
     }
 
@@ -250,6 +263,13 @@ export const GameplayMusic = {
     const boss = _scene.sound.add(key, { volume: _effectiveBossVolume(), loop: true })
     _bossInstance = boss
     boss.play()
+    // Set the flag LAST. _stopBoss() above clears _inBossFight, so
+    // setting it earlier would just get wiped — leaving the re-entry
+    // guard at the top permanently disabled. With BOSS_FIGHT_INCOMING
+    // able to fire repeatedly (chained adventurers, the orphan
+    // watchdog), a disabled guard meant every re-fire tore down and
+    // rebuilt the boss track.
+    _inBossFight = true
   },
 
   // Call on BOSS_FIGHT_RESOLVED: fades out the boss track over BOSS_FADE_MS,
@@ -282,13 +302,16 @@ export const GameplayMusic = {
       return
     }
 
-    _fadingBosses.push(boss)
-    scene.tweens.add({
+    // Track the sound + its fade tween together so _stopBoss() can kill
+    // the tween before destroying the sound (see _fadingBosses comment).
+    const fadeEntry = { sound: boss, tween: null }
+    _fadingBosses.push(fadeEntry)
+    fadeEntry.tween = scene.tweens.add({
       targets:  boss,
       volume:   0,
       duration: BOSS_FADE_MS,
       onComplete: () => {
-        const idx = _fadingBosses.indexOf(boss)
+        const idx = _fadingBosses.indexOf(fadeEntry)
         if (idx >= 0) _fadingBosses.splice(idx, 1)
         try { boss.stop(); boss.destroy() } catch {}
         resume()

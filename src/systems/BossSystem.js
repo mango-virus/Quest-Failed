@@ -28,6 +28,9 @@ import { Balance }  from '../config/balance.js'
 import { TILE }     from './DungeonGrid.js'
 
 const PREFIGHT_DELAY_MS = 1000   // banner pause before the first combat round
+// How long the boss lies collapsed after a NON-FINAL life loss before
+// it recovers and resumes wandering. The final death poses forever.
+const DEATH_POSE_MS     = 4000
 const ROUND_INTERVAL_S  = 0.6    // seconds of cinematic combat between damage rounds
 
 export class BossSystem {
@@ -152,6 +155,50 @@ export class BossSystem {
       this._tickFightAnim(delta)
       return
     }
+
+    // ── Orphan-combatant watchdog ────────────────────────────────────
+    // An adventurer can be stranded with goal 'AT_BOSS' and NO fight
+    // running. AISystem hands a SEEK_BOSS adventurer to BossSystem by
+    // setting goal 'AT_BOSS' and emitting BOSS_FIGHT_INCOMING — but
+    // _onIncoming drops that event with `if (this._fighting) return`
+    // when a previous fight is still resolving. If that prior fight
+    // then ends before _syncFightParty folds the new arrival in, nobody
+    // ever picks them up: AISystem freezes AT_BOSS advs in place (they
+    // are BossSystem-owned), the active list never empties, and the day
+    // never ends — exactly the "second boss fight freezes the game"
+    // report. Because `update` only reaches here when _fighting is
+    // false, any AT_BOSS adventurer found now is provably stranded.
+    // Recover deterministically every frame: start a fresh fight for
+    // them, or release them to flee when the boss is already finally
+    // defeated (no lives + no phylactery).
+    // hp > 0 excludes a just-killed adventurer whose corpse is still in
+    // the active list playing its death animation before the splice —
+    // its aiState may not have flipped to 'dead' yet on the same frame.
+    const stranded = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.goal?.type === 'AT_BOSS' &&
+      a.aiState !== 'dead' && a.aiState !== 'fled' && a.aiState !== 'fleeing' &&
+      (a.resources?.hp ?? 1) > 0)
+    if (stranded.length > 0) {
+      if (this.isFinalDeath()) {
+        for (const a of stranded) {
+          a.goal    = { type: 'FLEE', reason: 'boss_defeated' }
+          a.path    = null
+          a.aiState = 'fleeing'
+        }
+      } else {
+        // Clear any lingering death-pose so _onIncoming doesn't bail,
+        // then re-emit BOSS_FIGHT_INCOMING so EVERY listener (the DOM
+        // BossFightOverlay, fight music, the death-pose clear, and our
+        // own _onIncoming) re-syncs — not just our internal fight
+        // start. _onIncoming will set _fighting = true synchronously,
+        // so next frame skips this watchdog (the early _fighting
+        // branch), and it fires exactly once per stranded party.
+        this._deathPoseUntil = 0
+        EventBus.emit('BOSS_FIGHT_INCOMING', { adventurer: stranded[0] })
+      }
+      return
+    }
+
     // Death-pose freeze — boss collapsed at the end of the last fight
     // and is lingering on the last frame of its death animation.
     // Skip wander, advance the on-screen sprite stays planted.
@@ -226,6 +273,20 @@ export class BossSystem {
     const dt = delta / 1000
     this._fightT = (this._fightT ?? 0) + dt
 
+    // Combat-start gate. _onIncoming also schedules a scene.time
+    // delayedCall to flip _combatStarted, but that timer rides the
+    // Game scene's clock — which the killing-blow slow-mo scales, and
+    // which can desync from this system's own _fightT accumulator.
+    // Gating on _fightT (which advances purely from the scaled delta
+    // every tick this fight runs) guarantees combat ALWAYS begins,
+    // even if the delayedCall is delayed, dropped, or never fires.
+    // Without a hard guarantee here a fight can animate forever
+    // without exchanging damage — adventurers dance, nothing dies,
+    // the active list never empties and the day never ends.
+    if (!this._combatStarted && this._fightT >= PREFIGHT_DELAY_MS / 1000) {
+      this._combatStarted = true
+    }
+
     if (!this._fightStates) {
       this._fightStates = new Map()
       this._bossState   = {
@@ -233,6 +294,26 @@ export class BossSystem {
         targetId: null, slamFired: false, windUpEmitted: false,
       }
     }
+
+    // ── Hard fight-duration cap — absolute anti-freeze backstop ───────
+    // A real fight is ~1s prefight + at most 24 rounds × 0.6s ≈ 16s of
+    // fight-time. 30s is a generous ceiling. _fightT advances purely
+    // from the scaled delta every tick this fight runs, so this fires
+    // in bounded REAL time at EVERY speed (≈3.75s real at 8×, where
+    // the freeze was reported). If anything stalls the normal
+    // resolution path — combat-start gate, the per-round runner, the
+    // 24-round stalemate cap, an emptied _fightStates — _fighting would
+    // otherwise stay stuck true forever: the day can never end and the
+    // game appears frozen. This guarantees the fight ALWAYS resolves.
+    // Winner is decided by who still has HP, matching the stalemate
+    // cap's tie-break. _fightStates is non-null here (created above) so
+    // _endFight's roster loop is safe.
+    if (!this._fightEnded && this._fightT > 30) {
+      const boss = this._gameState.boss
+      this._endFight(boss && (boss.hp ?? 0) > 0 ? 'boss' : 'party')
+      return
+    }
+
     if (!this._fxGraphics) {
       this._fxGraphics = this._scene.add.graphics().setDepth(2.7)
       this._fxParticles = []
@@ -975,6 +1056,12 @@ export class BossSystem {
     else if (p.kind === 'dodge')       p.dur = 0.30
     else if (p.kind === 'taunt')       p.dur = 0.55
     else                                p.dur = 0.20
+    // Hard cap the particle pool. _tickFightFx redraws every live
+    // particle (each is ~10 Graphics ops) once per sub-step — up to
+    // 10× per frame at 8×. A guild-raid fight emits fast enough to
+    // pile up hundreds of particles; capped at 64 the redraw cost
+    // stays bounded. Oldest particle is dropped to make room.
+    if (this._fxParticles.length >= 64) this._fxParticles.shift()
     this._fxParticles.push(p)
 
     // Tier 2 cinematic feedback — physical screen shake on heavy hits so
@@ -996,6 +1083,17 @@ export class BossSystem {
   _floatDamage(worldX, worldY, value, opts = {}) {
     if (!this._scene?.add?.text) return
     if (!value || value <= 0) return
+    // Concurrent-floater cap. Each call allocates a Phaser Text object,
+    // and every Text is a separate canvas + GPU texture upload. A
+    // guild-raid boss fight (DOUBLE the wave — 12-16 combatants) at 8×
+    // speed resolves damage rounds fast enough to call this hundreds of
+    // times per second; uncapped, that storm of texture allocations
+    // thrashes the GPU/GC hard enough to hang the tab. 24 simultaneous
+    // numbers reads fine and bounds the cost. Counter is decremented in
+    // the rise-tween's onComplete (and reset per fight in _onIncoming
+    // as a belt-and-braces guard against a leaked count).
+    this._activeFloaters = this._activeFloaters ?? 0
+    if (this._activeFloaters >= 24) return
     const isCrit   = !!opts.crit
     const color    = opts.color ?? '#ff7777'
     const fontSize = isCrit ? '18px' : '13px'
@@ -1007,6 +1105,7 @@ export class BossSystem {
       stroke:     '#000000',
       strokeThickness: isCrit ? 4 : 3,
     }).setOrigin(0.5, 1).setDepth(11)
+    this._activeFloaters++
     // Pop-in scale tween — crits punch harder (start smaller + bigger
     // overshoot) so they read as distinct from regular hits. Origin
     // (0.5, 1) keeps the text's bottom edge pinned at worldY - 12 while
@@ -1024,7 +1123,10 @@ export class BossSystem {
       alpha:    0,
       duration: isCrit ? 950 : 720,
       ease:     'Cubic.easeOut',
-      onComplete: () => t.destroy(),
+      onComplete: () => {
+        t.destroy()
+        this._activeFloaters = Math.max(0, (this._activeFloaters ?? 1) - 1)
+      },
     })
   }
 
@@ -1172,15 +1274,23 @@ export class BossSystem {
       if (!adventurer || !this._decalsG) return
       this._stampBloodDecal(adventurer.worldX, adventurer.worldY)
     }
-    EventBus.on('BOSS_FIGHT_INCOMING',    onIncoming)
+    // ORDER CRITICAL: onClearPose MUST be registered before onIncoming
+    // so that when BOSS_FIGHT_INCOMING fires, the death-pose freeze is
+    // released BEFORE _startFight checks _deathPoseUntil. Reversed
+    // order caused the second boss fight of a single day to fail to
+    // start when the first fight had killed the boss (lives > 0 but
+    // still death-posed) — _startFight saw stale _deathPoseUntil =
+    // Infinity, returned early, and the second party stood frozen at
+    // the throne while the day clock kept ticking.
     EventBus.on('BOSS_FIGHT_INCOMING',    onClearPose)
+    EventBus.on('BOSS_FIGHT_INCOMING',    onIncoming)
     EventBus.on('SHOW_POST_WAVE_SUMMARY', onClearPose)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearPose)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearDecals)
     EventBus.on('ADVENTURER_DIED',        onAdvDied)
     this._listeners = [
-      ['BOSS_FIGHT_INCOMING',    onIncoming],
       ['BOSS_FIGHT_INCOMING',    onClearPose],
+      ['BOSS_FIGHT_INCOMING',    onIncoming],
       ['SHOW_POST_WAVE_SUMMARY', onClearPose],
       ['NIGHT_PHASE_STARTED',    onClearPose],
       ['NIGHT_PHASE_STARTED',    onClearDecals],
@@ -1306,22 +1416,30 @@ export class BossSystem {
     // ── Soul Drain ──
     if (flags.soulDrain) {
       if (boss._soulDrainChannelUntil && now < boss._soulDrainChannelUntil) {
-        // mid-channel — apply tick damage / heal each round
-        const target = defenders.find(fs => fs.adv.instanceId === boss._soulDrainTargetId)
-        if (target) {
-          const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SOUL_DRAIN_DMG_MULT * 0.34))  // ~3 ticks over channel
-          target.adv.resources.hp = Math.max(0, target.adv.resources.hp - dmg)
-          boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + dmg)
+        // Mid-channel — apply ONE damage/heal tick per TICK_MS. This block
+        // runs every frame, so without the interval gate the drain landed
+        // ~60 hits/second instead of the ~3 the DMG mult is scaled for.
+        if ((boss._soulDrainNextTick ?? 0) <= now) {
+          boss._soulDrainNextTick = now + Balance.MECHANIC_SOUL_DRAIN_TICK_MS
+          const target = defenders.find(fs => fs.adv.instanceId === boss._soulDrainTargetId)
+          if (target) {
+            const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SOUL_DRAIN_DMG_MULT * 0.34))
+            target.adv.resources.hp = Math.max(0, target.adv.resources.hp - dmg)
+            const heal = Math.floor(dmg * Balance.MECHANIC_SOUL_DRAIN_HEAL_FRAC)
+            boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + heal)
+          }
         }
       } else if (boss._soulDrainChannelUntil && now >= boss._soulDrainChannelUntil) {
         boss._soulDrainChannelUntil = null
         boss._soulDrainTargetId = null
+        boss._soulDrainNextTick = 0
         boss._soulDrainReadyAt = now + Balance.MECHANIC_SOUL_DRAIN_COOLDOWN_MS
         EventBus.emit('PACT_BOSS_SOULDRAIN_ENDED', {})
       } else if ((boss._soulDrainReadyAt ?? 0) <= now && defenders.length > 0) {
         const target = defenders[Math.floor(Math.random() * defenders.length)]
         boss._soulDrainTargetId = target.adv.instanceId
         boss._soulDrainChannelUntil = now + Balance.MECHANIC_SOUL_DRAIN_CHANNEL_MS
+        boss._soulDrainNextTick = now   // first tick fires immediately
         EventBus.emit('PACT_BOSS_SOULDRAIN_BEGUN', { targetId: target.adv.instanceId })
       }
     }
@@ -1342,6 +1460,7 @@ export class BossSystem {
         const victim = defenders[Math.floor(Math.random() * defenders.length)]
         victim.adv._petrifiedUntil = now + Balance.MECHANIC_PETRIFY_DURATION_MS
         EventBus.emit('PACT_BOSS_PETRIFY_FIRED', { targetId: victim.adv.instanceId, durationMs: Balance.MECHANIC_PETRIFY_DURATION_MS })
+        EventBus.emit('STATUS_APPLIED', { targetId: victim.adv.instanceId, label: 'PETRIFIED' })
       }
       boss._petrifyReadyAt = now + Balance.MECHANIC_PETRIFY_COOLDOWN_MS
     }
@@ -1352,13 +1471,21 @@ export class BossSystem {
 
   _onIncoming({ adventurer }) {
     if (this._fighting) return
-    // Defensive: never start a fight on a dead-posed boss. AISystem already
-    // redirects arriving advs to FLEE when boss.hp <= 0, but if anything
-    // else fires BOSS_FIGHT_INCOMING during the death-pose window, ignore
-    // it so no fight can begin until the post-wave summary clears the pose.
+    // Defensive: never start a fight on a dead-posed boss or after
+    // final death. boss.hp <= 0 is NOT a sufficient block on its own —
+    // between fights with deathsRemaining > 0 the boss still has lives
+    // left but lingers at 0 hp until the next fight refreshes it. Only
+    // bail when the boss is REALLY dead (final death, no phylactery)
+    // or when the death-pose freeze hasn't been cleared yet (a parallel
+    // listener on BOSS_FIGHT_INCOMING releases the pose immediately
+    // before this _startFight call so the second fight of the day can
+    // proceed). Previously the over-broad `boss.hp <= 0` check froze
+    // the second boss fight indefinitely when the first one killed
+    // (but didn't permanently defeat) the boss.
     const boss = this._gameState.boss
     const now  = this._scene.time?.now ?? 0
-    if (boss && (boss.hp <= 0 || this._deathPoseUntil > now)) return
+    if (this._deathPoseUntil > now) return
+    if (this.isFinalDeath()) return
     this._fighting       = true
     this._combatStarted  = false
     this._fightEnded     = false
@@ -1366,6 +1493,10 @@ export class BossSystem {
     this._roundLog       = []
     this._secondWindUsed = false
     this._roundsRun      = 0
+    // Belt-and-braces: clear any leaked floating-damage-number count
+    // (e.g. tweens torn down without firing onComplete) so a fresh
+    // fight always starts with the full concurrent-floater budget.
+    this._activeFloaters = 0
 
     // Refresh boss HP up front; pre-fight ability effects happen here so they
     // are visible during the prefight banner / opening dance.
@@ -1397,9 +1528,26 @@ export class BossSystem {
   // damage round every ROUND_INTERVAL_S, then evaluates flee + death.
   _tickFightCombat(dt) {
     this._fightCombatT += dt
-    if (this._fightCombatT < ROUND_INTERVAL_S) return
-    this._fightCombatT -= ROUND_INTERVAL_S
-    this._runOneRound()
+    // Drain the accumulator with a per-tick cap. Without this, a single
+    // call with a huge dt (browser hitch + high speed setting) would run
+    // ONE round and leave the rest queued — eventually catching up over
+    // many frames. WITH a small per-tick loop the catch-up is faster but
+    // still bounded so a 5s hitch can't try to simulate 8 rounds + 8
+    // cascading death sequences + their FX in one frame. Cap at 3 rounds
+    // per tick; remainder leaks to the next frame.
+    let rounds = 0
+    while (this._fightCombatT >= ROUND_INTERVAL_S && rounds < 3) {
+      this._fightCombatT -= ROUND_INTERVAL_S
+      this._runOneRound()
+      rounds++
+      if (this._fightEnded) break
+    }
+    // Drop any remaining unprocessed time once we've hit the cap so the
+    // accumulator can't grow without bound when the simulation can't
+    // keep up — better to drop time than freeze.
+    if (this._fightCombatT > ROUND_INTERVAL_S * 3) {
+      this._fightCombatT = ROUND_INTERVAL_S
+    }
   }
 
   _runOneRound() {
@@ -1899,10 +2047,17 @@ export class BossSystem {
     // by the scaled timer (scene.time.delayedCall would take 1.6 s real).
     const isLethal = winner === 'party' && (boss?.hp ?? 0) <= 0
     if (isLethal) {
-      const origScale = this._scene.time.timeScale ?? 1
+      // Restore to 1, NOT to the captured pre-slowmo value. The Game
+      // scene's time.timeScale is only ever touched here, so 1 is the
+      // true rest value. Capturing `origScale` was unsafe: two lethal
+      // killing blows close together (a second boss fight resolving
+      // while the first's 400ms slow-mo is still in flight) would
+      // capture origScale = 0.25 and "restore" the clock to 0.25
+      // permanently — every subsequent delayedCall (including the next
+      // fight's prefight gate) then runs at quarter speed.
       this._scene.time.timeScale = 0.25
       window.setTimeout(() => {
-        if (this._scene?.time) this._scene.time.timeScale = origScale
+        if (this._scene?.time) this._scene.time.timeScale = 1
       }, 400)
     }
     const finalParty = []
@@ -1941,14 +2096,24 @@ export class BossSystem {
       EventBus.emit('PHYLACTERY_REVIVED_BOSS', { phylactery: phyl })
     }
 
-    // Death-pose freeze — only when the boss actually died this round
-    // (hp drained to 0; the 24-round stalemate cap can resolve in the
+    // Death-pose — only when the boss actually died this round (hp
+    // drained to 0; the 24-round stalemate cap can resolve in the
     // party's favour without killing the boss, and that path should
-    // NOT play death anim or freeze the boss).  The freeze persists
-    // until SHOW_POST_WAVE_SUMMARY (popup appears) or BOSS_FIGHT_INCOMING
-    // (next party arrives that day) clears _deathPoseUntil — see _wire().
+    // NOT play the death anim or freeze the boss).
+    //
+    // A NON-FINAL life loss poses for DEATH_POSE_MS then the boss
+    // recovers and resumes wandering — the collapse is a brief beat,
+    // not a permanent state. Only the FINAL death freezes the boss
+    // forever (Infinity). Previously BOTH cases used Infinity, so after
+    // every life loss the boss stayed frozen on the last death frame
+    // for the entire rest of the day until night reset it. An earlier
+    // BOSS_FIGHT_INCOMING / SHOW_POST_WAVE_SUMMARY still clears the
+    // pose early via _wire()'s onClearPose listener.
     if (winner === 'party' && boss && boss.hp <= 0) {
-      this._deathPoseUntil = Infinity
+      const nowMs = this._scene?.time?.now ?? 0
+      this._deathPoseUntil = this.isFinalDeath()
+        ? Infinity
+        : nowMs + DEATH_POSE_MS
     }
 
     EventBus.emit('BOSS_FIGHT_RESOLVED', {

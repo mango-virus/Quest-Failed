@@ -130,6 +130,9 @@ export class EvolutionSystem {
       adv.stats.attack    = (adv.stats.attack    ?? 0) + 3
       adv.resources.maxHp = (adv.resources.maxHp ?? 0) + 5
       adv.resources.hp    = Math.min(adv.resources.maxHp, adv.resources.hp + 5)
+      // The cosmetic display level rises in step with the XP level-up so
+      // the UI reflects the +3 ATK / +5 HP they just gained.
+      if (adv.displayLevel != null) adv.displayLevel += 1
       EventBus.emit('ADVENTURER_LEVELED_UP', { adventurer: adv, newLevel: adv.level })
     }
   }

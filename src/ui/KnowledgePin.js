@@ -1,3 +1,6 @@
+// SUPERSEDED (Phase 34) — replaced by the exposure / leak list inside
+// `src/hud/RightPanels.js`. Phaser fallback under `?newhud=0`.
+//
 // Phase 31C — Knowledge Pin (right HUD column).
 //
 // Always-visible compact summary of what adventurers know about the dungeon:

@@ -1,0 +1,123 @@
+// HudSfx — DOM-side audio bridge for the new HUD.
+//
+// Phaser's SfxSystem owns gameplay SFX (combat, deaths, doors, etc).
+// This module handles the UI-only cues that originate from DOM events
+// the EventBus can't observe: button clicks, panel switches, toast
+// appearances. Routes through `window.__game.sound` so it shares the
+// existing master/SfxVolume slider math.
+//
+// Rate-limited per-key so a rapid-fire click doesn't machine-gun the
+// chip. UI cues respect the master + SFX volume sliders via SfxVolume
+// (read fresh each play — the user can adjust mid-session).
+//
+// Mounted once from HudRoot. No event subscriptions — `playUi(key)`
+// is called directly by the surfaces that want a click feel.
+
+import { SfxVolume } from '../systems/SfxVolume.js'
+
+// Per-cue base gain. Kept conservative so UI clicks don't drown out
+// gameplay SFX. Tweak via SettingsOverlay's master + sfx sliders.
+// Bumped 2026-05-19 — values calibrated to the actual source files
+// (e.g. `Press button.wav` is naturally quiet, needs ~2.5 base to
+// cut through; `cursor hover button.mp3` is brighter, lower base).
+const UI_VOL = {
+  hover:        0.55,  // soft hover whisper — still subtle, now audible
+  click:        2.50,  // Press button.wav — needs heavy boost to cut through
+  click_danger: 1.80,  // sacrifice / abandon — louder so it feels weighty
+  toast:        0.65,  // toast appear chip
+  tab:          0.70,  // tab switch in overlays
+  open_panel:   0.90,  // overlay open
+  close_panel:  0.75,  // overlay close
+}
+
+// Global UI-boost multiplier — mirrors SfxSystem.SFX_BOOST (1.5) so the
+// UI chips don't read as quieter than gameplay sounds. Phaser's WebAudio
+// gain accepts >1, and the SfxSystem already relies on this for boosted
+// payouts (collect-gold pickup, dark-pact stinger).
+const UI_BOOST = 1.6
+
+// Map cue → existing SFX key. Reuses gameplay sounds to avoid shipping
+// new assets; the design's audio README marked the new UI cues as
+// "wire to existing SfxVolume" so this matches the spec.
+const UI_KEY = {
+  hover:        'sfx-btn-hover',     // dedicated cursor-hover chip
+  click:        'sfx-btn-click',     // dedicated press-button chip
+  click_danger: 'sfx-error',         // descending tone for destructive choice
+  toast:        'sfx-door-open',     // gentle "arrives" feel
+  tab:          'sfx-chest-open',    // hollow flip
+  open_panel:   'sfx-chest-open',
+  close_panel:  'sfx-close-door',
+}
+
+// Per-cue cooldown (ms) — prevents back-to-back clicks from layering.
+const COOLDOWN = {
+  hover:        80,
+  click:        90,
+  click_danger: 200,
+  toast:        180,
+  tab:          120,
+  open_panel:   200,
+  close_panel:  150,
+}
+
+const _lastAt = {}
+
+export const HudSfx = {
+  playUi(cue) {
+    if (SfxVolume.isMuted()) return
+    const cd = COOLDOWN[cue] ?? 100
+    const now = performance.now()
+    if (_lastAt[cue] && now - _lastAt[cue] < cd) return
+    _lastAt[cue] = now
+
+    const sound = window.__game?.sound
+    const key   = UI_KEY[cue]
+    if (!sound || !key) return
+    // Only play if Phaser already loaded the audio in Preload — silent fail
+    // otherwise. (DOM HUD ships before the Phaser cache is fully populated.)
+    const scenes = window.__game.scene?.scenes ?? []
+    const hasIt = scenes.some(s => s.cache?.audio?.exists?.(key))
+    if (!hasIt) return
+
+    const base = UI_VOL[cue] ?? 0.5
+    // Cap at 4.0 — Phaser's WebAudio gain accepts values >1, and quiet
+    // source files (Press button.wav is the prime offender) need real
+    // amplification to read at the same loudness as gameplay chips.
+    // SfxSystem caps at 4.0 too for its boosted payouts.
+    const vol  = Math.min(4.0, base * UI_BOOST * SfxVolume.getVolume())
+    if (vol <= 0) return
+    try { sound.play(key, { volume: vol }) } catch {}
+  },
+}
+
+// Convenience: install a delegated click + pointerover listener on the
+// HUD stage so every .btn / overlay button gets the click chip for free.
+// Surfaces that want a different sound can call HudSfx.playUi('...')
+// directly and the delegate will be a no-op (cooldown blocks the
+// generic 'click' from also firing).
+export function installHudSfxDelegates() {
+  const stage = document.getElementById('hud-stage')
+  if (!stage || stage.dataset.sfxInstalled === '1') return
+  stage.dataset.sfxInstalled = '1'
+
+  stage.addEventListener('click', (e) => {
+    const t = e.target
+    if (!(t instanceof Element)) return
+    const btn = t.closest('button, .btn, .qf-mm-item, .qf-bottombar-tool, .qf-bottombar-speed-btn, .qf-bottombar-menu, .qf-tab')
+    if (!btn) return
+    // Distinguish danger buttons by a data attr or known class names so
+    // the sacrifice / abandon path gets the descending tone.
+    const cls = btn.className || ''
+    const danger = /danger|sacrifice|abandon|delete|destroy/i.test(cls)
+                || btn.dataset?.kind === 'danger'
+    HudSfx.playUi(danger ? 'click_danger' : 'click')
+  }, true)
+
+  stage.addEventListener('pointerover', (e) => {
+    const t = e.target
+    if (!(t instanceof Element)) return
+    const btn = t.closest('button, .btn, .qf-mm-item, .qf-bottombar-tool, .qf-bottombar-speed-btn, .qf-bottombar-menu, .qf-tab')
+    if (!btn) return
+    HudSfx.playUi('hover')
+  }, true)
+}

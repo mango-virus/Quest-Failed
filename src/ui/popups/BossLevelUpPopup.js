@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/BossLevelUpOverlay.js`.
+//
 // Boss Level-Up celebratory popup. Pops over EndOfDay after the
 // PostWaveSummary closes, BEFORE the level-gate handoff to the night
 // phase. Banner + count-up + grid of newly unlocked content (rooms,

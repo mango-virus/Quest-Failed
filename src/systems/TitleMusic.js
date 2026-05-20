@@ -22,7 +22,7 @@
 
 const STORAGE_KEY      = 'qf.audio.musicVolume'
 const STORAGE_MUTE_KEY = 'qf.audio.musicMuted'
-const DEFAULT_VOLUME = 0.4
+const DEFAULT_VOLUME = 0.15
 // Multiplier applied to the user's preferred volume while ducked for
 // gameplay.  0.35 = roughly a 9 dB cut, audible-but-background, easily
 // drowned by any future SFX layer.

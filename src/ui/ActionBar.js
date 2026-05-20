@@ -1,3 +1,8 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/BottomBar.js` under the
+// new DOM HUD. This Phaser implementation stays as the fallback for
+// `?newhud=0` / `localStorage.newhud='0'`. Kept per CLAUDE.md's
+// removal-not-deletion policy.
+//
 // Phase 31C — bottom action bar.
 //
 // Composition (left to right):

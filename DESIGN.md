@@ -284,6 +284,7 @@ Top-level rules:
 | Room | Cap | Effect |
 |---|---|---|
 | **Crypt** | 3 | Spawns up to **4 Risen Bones (garrison, room-bound)**. Refills to 4 each Night Phase. Does not count toward Barracks cap. |
+| **Library of Whispers** | 1 | Reveals next party intel the night before. Tier scales with boss level: **L2** size + classes; **L6** + personalities; **L8** + stats & equipment; **L10** + planned dungeon route. (Moved from L4 → L2 on 2026-05-19.) |
 
 #### L3 unlocks
 
@@ -295,9 +296,7 @@ Top-level rules:
 
 #### L4 unlocks
 
-| Room | Cap | Effect |
-|---|---|---|
-| **Library of Whispers** | 1 | Reveals next party intel the night before. Tier scales with boss level: **L4** size + classes; **L6** + personalities; **L8** + stats & equipment; **L10** + planned dungeon route. |
+_(no new rooms — see Library of Whispers moved to L2)_
 
 #### L5 unlocks
 

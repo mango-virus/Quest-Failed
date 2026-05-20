@@ -106,7 +106,10 @@ export class EndOfDay extends Phaser.Scene {
   }
 
   _goToNight() {
-    SaveSystem.save(this._gameState)
+    // Auto-save gated by SettingsOverlay GAMEPLAY > AUTOSAVE toggle.
+    let _autosaveOn = true
+    try { _autosaveOn = localStorage.getItem('qf.gameplay.autosave') !== 'false' } catch {}
+    if (_autosaveOn) SaveSystem.save(this._gameState)
     this.scene.start('NightPhase', { gameState: this._gameState })
   }
 }

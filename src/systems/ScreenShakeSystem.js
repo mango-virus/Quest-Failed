@@ -14,6 +14,7 @@
 
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
+import { userSettings } from '../hud/userSettings.js'
 
 const SHAKE_MIN_GAP_MS = 80
 
@@ -48,6 +49,7 @@ export class ScreenShakeSystem {
 
   _shake(level) {
     if (!Balance.VFX_SCREEN_SHAKE_ENABLED) return
+    if (!userSettings.isShakeEnabled()) return
     const now = this._scene.time?.now ?? 0
     if (now - this._lastShake < SHAKE_MIN_GAP_MS) return
     const cam = this._scene._cam ?? this._scene.cameras?.main

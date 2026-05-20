@@ -25,6 +25,79 @@ const DIR_VEC = {
 }
 const OPPOSITE_DIR = { N: 'S', S: 'N', E: 'W', W: 'E' }
 
+// ── Entry-hall doorway geometry ───────────────────────────────────────────────
+// The Entry Hall can be placed at any rotation. Its single external
+// "entrance" connection point is rotated with the room (NightPhase._rotateCP
+// updates the cp's x/y + direction), so the doorway can end up on any of the
+// four edges. These helpers resolve the doorway from the cp's CURRENT
+// position — never assume north. Pure functions of the placed-room object;
+// safe to call from AI, renderers, and scene code.
+
+// The entry hall's external entrance connection point (or null).
+export function entryDoorCp(entry) {
+  const cps = entry?.connectionPoints ?? []
+  return cps.find(c => c.style === 'entrance')
+      ?? cps.find(c => c.external)
+      ?? cps.find(c => c.direction === 'N')
+      ?? null
+}
+
+// Which edge the entrance doorway sits on: 'N' | 'S' | 'E' | 'W'. Derived
+// from the cp's position (matches DungeonRenderer._cpDoorRect) so it stays
+// correct however the room was rotated.
+export function entryDoorSide(entry) {
+  const cp = entryDoorCp(entry)
+  if (!cp || !entry) return 'N'
+  if (cp.y <= 0)                return 'N'
+  if (cp.y >= entry.height - 1) return 'S'
+  if (cp.x <= 0)                return 'W'
+  if (cp.x >= entry.width - 1)  return 'E'
+  return 'N'
+}
+
+// Dungeon-coords tile of the entrance doorway — the adventurer spawn point
+// and the flee-exit target. The cp tile itself is the carved DOOR opening.
+export function entryDoorTile(entry) {
+  if (!entry) return null
+  const cp = entryDoorCp(entry)
+  if (!cp) return { x: entry.gridX + Math.floor(entry.width / 2), y: entry.gridY }
+  return { x: entry.gridX + cp.x, y: entry.gridY + cp.y }
+}
+
+// World-space centre + anchor tile of the 2 × WALL_THICKNESS doorway block.
+// Mirrors DungeonRenderer._cpDoorRect so the spawn / leave fade snaps the
+// adventurer to exactly where the door art is drawn.
+export function entryDoorWorldCenter(entry) {
+  if (!entry) return null
+  const TS = Balance.TILE_SIZE
+  const cp = entryDoorCp(entry)
+  if (!cp) {
+    const x = entry.gridX + Math.floor(entry.width / 2)
+    return { tileX: x, tileY: entry.gridY, worldX: x * TS + TS / 2, worldY: entry.gridY * TS + TS / 2 }
+  }
+  const WT = Balance.WALL_THICKNESS
+  const onTop = cp.y <= 0
+  const onBot = cp.y >= entry.height - 1
+  if (onTop || onBot) {
+    const alongDx = (cp.alongDx === 1 || cp.alongDx === -1)
+      ? cp.alongDx
+      : (((entry.width - 1) - cp.x) >= cp.x ? 1 : -1)
+    const xStart = Math.min(cp.x, cp.x + alongDx)
+    const yStart = onTop ? 0 : entry.height - WT
+    const tileX  = entry.gridX + xStart
+    const tileY  = entry.gridY + yStart
+    return { tileX, tileY, worldX: tileX * TS + TS, worldY: tileY * TS + (WT * TS) / 2 }
+  }
+  const alongDy = (cp.alongDy === 1 || cp.alongDy === -1)
+    ? cp.alongDy
+    : (((entry.height - 1) - cp.y) >= cp.y ? 1 : -1)
+  const yStart = Math.min(cp.y, cp.y + alongDy)
+  const xStart = (cp.x <= 0) ? 0 : entry.width - WT
+  const tileX  = entry.gridX + xStart
+  const tileY  = entry.gridY + yStart
+  return { tileX, tileY, worldX: tileX * TS + (WT * TS) / 2, worldY: tileY * TS + TS }
+}
+
 // Snap radius — how far away (in tiles, manhattan distance) a candidate
 // position can be from the perfect alignment and still snap into place.
 // Tight (=1) so the room only locks in when the cursor is essentially on

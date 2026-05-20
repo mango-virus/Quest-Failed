@@ -3,12 +3,13 @@
 // just samples that state and picks the right animation each frame.
 //
 // State priority (highest first):
-//   death  — latched once on BOSS_DEFEATED_FINAL; sprite freezes on last frame.
-//            Also triggered (non-latched) on BOSS_FIGHT_RESOLVED winner='party'
-//            so each life loss plays the death anim and lingers on the last
-//            frame until SHOW_POST_WAVE_SUMMARY (post-wave popup appears) or
-//            BOSS_FIGHT_INCOMING (a new fight starts before the day ends)
-//            clears it.
+//   death  — latched on BOSS_DEFEATED_FINAL (final death, frozen forever).
+//            Otherwise mirrors BossSystem._deathPoseUntil: a non-final
+//            life loss plays the death anim and holds the last frame
+//            for ~4s, then the boss recovers and resumes wandering. A
+//            new fight or the post-wave summary clears the pose early.
+//            Reading BossSystem's timestamp directly keeps the renderer
+//            in lockstep with the pose — no separate flag to drift.
 //   hurt   — one-shot ~300 ms whenever boss.hp drops vs last sample
 //   attack — while fighting and BossSystem._bossState.action is lunge/slam
 //   idle   — default; played both when stationary and while wandering
@@ -58,35 +59,18 @@ export class BossRenderer {
     this._lastHp      = null
     this._hurtUntil   = 0
     this._dead        = false        // latched on BOSS_DEFEATED_FINAL
-    this._playingDeath = false       // one-shot per life loss; cleared on next fight
     // Position sample for walk detection — see WALK_SAMPLE_MS comment above.
     this._sampleX     = null
     this._sampleY     = null
     this._sampleAt    = 0
     this._isMoving    = false
 
+    // The non-final death pose is no longer tracked with a renderer-side
+    // flag — _pickState reads BossSystem._deathPoseUntil directly so the
+    // anim and the pose can't drift. Only the FINAL death needs a latch
+    // here (BossSystem tears down shortly after, into GameOver).
     this._onFinalDeath = () => { this._dead = true }
-    this._onFightResolved = ({ winner, bossHpRemaining }) => {
-      // Only play death anim when the boss actually died this round
-      // (hp drained to 0).  Other code paths can resolve the fight in
-      // the party's favour while the boss still has hp — e.g. the
-      // 24-round stalemate cap that picks a winner by hp fraction —
-      // and showing the death anim there is the bug the player
-      // reported ("playing death animation when it still has health").
-      if (winner === 'party' && (bossHpRemaining ?? 1) <= 0) {
-        this._playingDeath = true
-        // The death pose lingers on the last frame until the post-wave
-        // summary popup appears (SHOW_POST_WAVE_SUMMARY) or a new fight
-        // starts (BOSS_FIGHT_INCOMING). Final deaths latch via `_dead`
-        // independently and override this.
-      }
-    }
-    this._onFightIncoming  = () => { this._playingDeath = false }
-    this._onPostWave       = () => { this._playingDeath = false }
-    EventBus.on('BOSS_DEFEATED_FINAL',      this._onFinalDeath)
-    EventBus.on('BOSS_FIGHT_RESOLVED',      this._onFightResolved)
-    EventBus.on('BOSS_FIGHT_INCOMING',      this._onFightIncoming)
-    EventBus.on('SHOW_POST_WAVE_SUMMARY',   this._onPostWave)
+    EventBus.on('BOSS_DEFEATED_FINAL', this._onFinalDeath)
   }
 
   update() {
@@ -190,17 +174,21 @@ export class BossRenderer {
   }
 
   destroy() {
-    EventBus.off('BOSS_DEFEATED_FINAL',    this._onFinalDeath)
-    EventBus.off('BOSS_FIGHT_RESOLVED',    this._onFightResolved)
-    EventBus.off('BOSS_FIGHT_INCOMING',    this._onFightIncoming)
-    EventBus.off('SHOW_POST_WAVE_SUMMARY', this._onPostWave)
+    EventBus.off('BOSS_DEFEATED_FINAL', this._onFinalDeath)
     this._container?.destroy()
     this._container = null
     this._sprite    = null
   }
 
   _pickState() {
-    if (this._dead || this._playingDeath) return 'death'
+    if (this._dead) return 'death'
+    // Death pose is owned by BossSystem: _deathPoseUntil is a ~4s
+    // timestamp on a non-final life loss (collapse → recover) or
+    // Infinity on the final death, cleared to 0 when a new fight starts
+    // or the post-wave summary opens. The stalemate-cap win path never
+    // sets it, so the boss won't death-anim while it still has HP.
+    const bs = this._scene.bossSystem
+    if (bs && (bs._deathPoseUntil ?? 0) > this._scene.time.now) return 'death'
     if (this._scene.time.now < this._hurtUntil) return 'hurt'
     const action = this._scene.bossSystem?._bossState?.action
     if (action === 'lunge' || action === 'slam') return 'attack'

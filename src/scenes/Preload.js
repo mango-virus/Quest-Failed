@@ -299,6 +299,7 @@ export class Preload extends Phaser.Scene {
     this.load.audio('sfx-btn-click',       'assets/audio/Press button.wav')
     this.load.audio('sfx-build-menu-press','assets/audio/build menu press.wav')
     this.load.audio('sfx-book-open',       'assets/audio/book-open.mp3')
+    this.load.audio('sfx-speech',          'assets/audio/speech-2.wav')
 
     // Boss fight music — one picked at random when a party enters the boss room.
     // Keys must match BOSS_TRACKS in src/systems/GameplayMusic.js.

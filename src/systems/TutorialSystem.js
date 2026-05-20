@@ -24,7 +24,13 @@ const TUTORIALS = [
   // ── A. Phase intros ───────────────────────────────────────────────────
   {
     id: 'firstNight', title: 'Build Phase',
-    body: 'Place rooms, minions, and traps. Click BEGIN DAY when ready.',
+    lead: 'NIGHT FALLS — THE DUNGEON IS YOURS',
+    body: 'Each night you reshape the bone-halls. Open the CONSTRUCTION panel on the left to spend gold on rooms, minions, traps, and items. When the dungeon is ready, click BEGIN DAY in the top-right to summon the next wave of adventurers.',
+    tips: [
+      'Click a card once to select it, again to deselect.',
+      'Hover the dungeon to preview placement; click to commit.',
+      'Sell a placed room for partial gold from its right-click menu.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('NIGHT_PHASE_STARTED', fn)
@@ -33,7 +39,13 @@ const TUTORIALS = [
   },
   {
     id: 'firstDay', title: 'Defend Phase',
-    body: 'Adventurers invade. Stop them before they reach the boss chamber.',
+    lead: 'DAWN BREAKS — THE INVASION BEGINS',
+    body: 'Adventurers spill in through the entry hall and march toward your boss chamber. Your minions defend their assigned rooms, your traps spring on intruders, and your boss is the last line of defense. The day ends when every adventurer is dead or fled.',
+    tips: [
+      'Watch the INCOMING WAVE panel to see who is coming.',
+      'Click the ADV INTEL panel to inspect each adventurer.',
+      'A killed adventurer drops gold; a fled one steals it.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('DAY_PHASE_BEGAN', fn)
@@ -42,7 +54,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstEndOfDay', title: 'End of Day',
-    body: 'Each day cleared earns gold and XP. New unlocks come with boss levels.',
+    lead: 'THE DUST SETTLES — TALLY THE SPOILS',
+    body: 'Each survived day pays gold from every kill plus XP toward your next boss level. Review who fell, who escaped with intel, and how much you earned. Levelling unlocks new rooms, minions, traps, and items in the Construction panel.',
+    tips: [
+      'Gold buys more dungeon; XP buys boss power.',
+      'Escaped adventurers carry intel — expect them to return.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('SHOW_POST_WAVE_SUMMARY', fn)
@@ -51,7 +68,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstBossLevelUp', title: 'Boss Leveled',
-    body: 'New rooms, minions, traps, and items unlocked — check the Construction menu.',
+    lead: 'POWER GROWS — NEW BUILDS UNLOCKED',
+    body: 'Hitting a new boss level unlocks more rooms, minion types, traps, and items in the Construction panel. Some unlocks gate on level; some on specific archetype hooks. Check the panel between days to see what is newly available.',
+    tips: [
+      'Locked cards show a "LV X" badge — they will unlock at that boss level.',
+      'Higher tiers cost more gold — plan upgrades around your treasury.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('BOSS_LEVEL_UP_DISMISSED', fn)
@@ -60,7 +82,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstDarkPact', title: 'Dark Pact',
-    body: 'Pick a permanent buff with a tradeoff. Cannot be undone.',
+    lead: 'THE DUNGEON HUNGERS — STRIKE A BARGAIN',
+    body: 'Dark Pacts grant a permanent buff in exchange for a permanent drawback. Pacts cannot be undone, refunded, or rerolled once sealed. Common pacts are mild, rare pacts are powerful, and legendary pacts rewrite a whole system — choose with care.',
+    tips: [
+      'Read both halves of a pact before sealing.',
+      'Sealed pacts show in the top-right buff row.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('SHOW_DARK_PACT', fn)
@@ -71,7 +98,13 @@ const TUTORIALS = [
   // ── B. Core-mechanic intros ───────────────────────────────────────────
   {
     id: 'firstMinionPlaced', title: 'Minions',
-    body: 'Minions defend their room. Patrol minions hunt in connected rooms.',
+    lead: 'YOUR PACK — THE BONES OF THE DUNGEON',
+    body: 'Minions defend the room they were placed in. Defender behaviours hold ground in their assigned room; patrol behaviours roam through connected rooms hunting intruders. Different species have different stats, attack ranges, and unique abilities — match the minion to the room.',
+    tips: [
+      'Open ROSTER (top button) to rename, reassign, or sacrifice.',
+      'Patrol minions cover more ground but spread your defense thin.',
+      'Minions level up from kills and can evolve into stronger forms.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('MINION_PLACED', fn)
@@ -80,7 +113,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstAdvEnters', title: 'Invasion',
-    body: 'Each adventurer has a class and abilities. Open Intel to scout.',
+    lead: 'THE HEROES COME — KNOW YOUR ENEMY',
+    body: 'Each adventurer has a class (Knight, Rogue, Mage, etc.), a personality that shapes their decisions, and a kit of class abilities. Some are tanks, some glass cannons, some bring utility. Scout them before they enter your dungeon — what you know shapes how you defend.',
+    tips: [
+      'Open the ADV INTEL panel to see HP, class, and ability list.',
+      'Knowledge of an adv carries over between days — they remember too.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('ADVENTURERS_SPAWNED', fn)
@@ -89,7 +127,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstAdvFlees', title: 'Flee',
-    body: 'Fleers escape with stolen gold. Kill before they exit.',
+    lead: 'COWARDS — DO NOT LET THEM ESCAPE',
+    body: 'Adventurers who fall below their personal flee threshold turn around and sprint for the exit. If they reach it, they escape with any gold they stole AND any intel they learned about your dungeon — making future waves harder. Kill them before they get out.',
+    tips: [
+      'Place fast patrol minions near the entry hall to intercept.',
+      'Traps that slow or stun help close the kill window.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('ADVENTURER_FLED', fn)
@@ -98,11 +141,16 @@ const TUTORIALS = [
   },
   {
     id: 'firstLockedDoor', title: 'Locked Door',
-    body: 'Adventurers need a key. Rogues lockpick; Barbarians break through.',
+    lead: 'IRON & KEY — A CHOICE IS MADE',
+    body: 'A Door Lock seals a doorway shut — only an adventurer with the matching key can pass. The trade-off: placing a lock also spawns a Key Chest in your dungeon. If a Rogue picks the lock or a Barbarian breaks it down, the door opens permanently for that run.',
     // LOCKS_CHANGED also fires during Game scene boot to sync cp.locked
     // flags on saved locks — would have triggered this at run start.
     // LOCK_PLACED only fires when the player drops a fresh Door Lock,
     // which is exactly when the player needs to know how it works.
+    tips: [
+      'Lock chokepoints to funnel adventurers past your kill zones.',
+      'Guard the Key Chest — that is how a clever party gets through.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('LOCK_PLACED', fn)
@@ -111,7 +159,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstKnowledge', title: 'They Learn',
-    body: 'Survivors remember. Returning advs avoid known traps.',
+    lead: 'INTEL LEAKS — THE GUILD REMEMBERS',
+    body: 'Every adventurer who escapes carries home what they saw: room layouts, trap locations, minion placements. Returning parties use that intel to route around known dangers — what worked once will work less the next time. Kill them all to keep your dungeon a black box.',
+    tips: [
+      'The KNOWLEDGE MAP panel shows what the guild currently knows.',
+      'Rebuild known rooms to invalidate stale intel.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('ADVENTURER_FLED', fn)
@@ -120,7 +173,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstMinionEvolved', title: 'Evolution',
-    body: 'Minions evolve from kills — bigger, stronger, new abilities.',
+    lead: 'BLOOD MAKES THE STRONG STRONGER',
+    body: 'Minions that survive long enough and rack up kills evolve into their next form — bigger sprite, more HP, more damage, often a new ability. Evolution is permanent and carries the minion through future days. Protect your veterans.',
+    tips: [
+      'Evolved minions stay in their assigned room — no need to re-place.',
+      'Check ROSTER to see kill counts and evolution chains.',
+    ],
     subscribe: (fire) => {
       const fn = () => fire()
       EventBus.on('MINION_EVOLVED', fn)
@@ -129,63 +187,76 @@ const TUTORIALS = [
   },
 
   // ── C. Boss-archetype hooks ───────────────────────────────────────────
-  // Each fires on the first DAY_PHASE_BEGAN — gated by `archetype` so the
-  // hint matches the player's chosen boss. Tutorial copy mirrors each
-  // boss's headline mechanic in 1-2 lines.
+  // Each fires on the first NIGHT_PHASE_STARTED — gated by `archetype` so
+  // the hint matches the player's chosen boss. Firing during night-1 lets
+  // the player learn their archetype's identity + headline mechanic before
+  // they place their first room or summon their first minion, so they can
+  // make informed Build-phase choices on day-1.
   {
     id: 'arch_beholder', archetype: 'beholder', title: 'Beholder Tyrant',
-    body: 'Petrify Gaze freezes adventurers during boss fights. Anti-Magic rooms silence their class abilities each day.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'A HUNDRED EYES — A THOUSAND SCHEMES',
+    body: 'You are the Beholder Tyrant. During boss fights, Petrify Gaze freezes adventurers in place — letting your minions tear them apart. Anti-Magic rooms you place silence all class abilities for any adventurer inside, neutering casters and clerics.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_demon', archetype: 'demon', title: 'Demon Lord',
-    body: 'Hellgate births free Imps every dawn. Sacrifice can burn a minion to instakill an adventurer.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'HELL OPENS ITS GATE',
+    body: 'You are the Demon Lord. Every dawn, your Hellgate births free Imps into your dungeon — no gold cost, no roster slot. You can also Sacrifice any minion at any time to instantly kill one adventurer of your choice. Burn cheap minions for high-value kills.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_gnoll', archetype: 'gnoll', title: 'Gnoll Alpha',
-    body: 'Hunters Pack: free gnolls spawn in your boss room. Each kill stacks +ATK on every gnoll.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'THE PACK HUNTS — ONE MIND, MANY TEETH',
+    body: 'You are the Gnoll Alpha. Each dawn, free gnolls spawn directly in your boss room. Every kill any gnoll makes stacks a permanent +ATK on every gnoll in your roster — the longer the run, the more terrifying the pack becomes.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_golem', archetype: 'golem', title: 'Earth Golem',
-    body: 'Each placed room gives the boss +HP and +DEF. Earthquake (1/day) damages every adv in a chosen room.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'YOU ARE THE DUNGEON — STONE AND BONE',
+    body: 'You are the Earth Golem. Every room you place increases your boss\'s HP and DEF stats permanently — your dungeon literally makes you tougher. Once per day you can Earthquake a chosen room, dealing damage to every adventurer inside.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_lich', archetype: 'lich', title: 'Elder Lich',
-    body: 'You start with one Phylactery Heart — place it in any room as a hidden spare life. Adventurers killed raise as free skeletons next dawn.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'DEATH IS A DOORWAY YOU WALK BOTH WAYS',
+    body: 'You are the Elder Lich. You start with one Phylactery Heart in your treasury — place it in any room as a hidden spare life: when your boss dies, the Heart resurrects you in that room. Every adventurer killed in your dungeon rises as a free skeleton minion the next dawn.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_lizardman', archetype: 'lizardman', title: 'Serpent Captain',
-    body: 'Lizardman minions spawn invisible until they strike. Hits stack venom — adventurers tick HP per stack until they die or flee.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'SHADOW AND VENOM — STRIKE UNSEEN',
+    body: 'You are the Serpent Captain. Your lizardman minions spawn invisible to adventurers until the first strike — a free surprise round every encounter. Each lizardman hit stacks venom on the target; adventurers tick HP loss per stack until they die or flee.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_myconid', archetype: 'myconid', title: 'Predator Myconid',
-    body: 'Every third day, corridor rooms fill with damaging spores. Adv corpses bloom into free Vinekin minions.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'THE FUNGUS REMEMBERS EVERY CORPSE',
+    body: 'You are the Predator Myconid. Every third day, your corridors fill with damaging spores that tick HP off any adventurer walking through. Adventurer corpses bloom into free Vinekin minions on the spot — kill them in your corridors and the corridor itself grows new defenders.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_orc', archetype: 'orc', title: 'Orc Veteran',
-    body: 'Orcs gain +1 ATK per kill, forever. Orcs in the same room buff each other.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'BLOOD FOR BLOOD — STRENGTH FOREVER',
+    body: 'You are the Orc Veteran. Every orc minion gains +1 ATK per kill, permanently — a veteran orc late in a run will hit like a small army. Orcs in the same room also buff each other\'s attack, so a clustered orc pack snowballs hard.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_vampire', archetype: 'vampire', title: 'Vampire Sovereign',
-    body: 'One adv per day is charmed — they walk to your boss room and rise as a free thrall hunting their old party.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'KISS THEM ONCE — OWN THEM FOREVER',
+    body: 'You are the Vampire Sovereign. Once per day, you charm one adventurer of your choice — they break from their party and walk straight to your boss room, where they rise as a free thrall minion. The thrall then hunts down their former allies with personal grudges.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_wraith', archetype: 'wraith', title: 'Dark Wraith',
-    body: 'Adventurers gain Fear from corpses, traps, and dying allies. At 50% they flee; at 75% friendly fire; at 100% they drop dead.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'TERROR IS YOUR ONLY WEAPON',
+    body: 'You are the Dark Wraith. Adventurers gain Fear stacks from corpses, sprung traps, and watching allies die. At 50% Fear they flee; at 75% they attack their own party in panic; at 100% they collapse dead on the spot. You don\'t need swords — you need fright.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
     id: 'arch_succubus', archetype: 'succubus', title: 'Succubus Queen',
-    body: 'Once per boss level per day, shapeshift into a bat-swarm and charm an adventurer. They turn on their party until they kill an ally.',
-    subscribe: (fire) => { const fn = () => fire(); EventBus.on('DAY_PHASE_BEGAN', fn); return () => EventBus.off('DAY_PHASE_BEGAN', fn) },
+    lead: 'A SMILE — A WHISPER — A KILL',
+    body: 'You are the Succubus Queen. Once per boss level per day, you shapeshift into a bat-swarm, infiltrate the invading party, and charm one adventurer. The charmed adv turns on their team and fights for you until they kill an ally — then the spell breaks.',
+    subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
 
   // ── D. Resource-warning hints ─────────────────────────────────────────
@@ -193,7 +264,12 @@ const TUTORIALS = [
   // PLACEMENT_BLOCKED { reason } from the relevant validation sites.
   {
     id: 'warn_rosterFull', title: 'Roster Full',
-    body: 'Your minion roster is at capacity. Build another Barracks (+10 slots).',
+    lead: 'THE PIT IS PACKED — NO ROOM FOR MORE',
+    body: 'Your minion roster has hit its current capacity. Every Barracks you build adds +10 slots to the roster cap. Until you expand, you cannot summon another minion of any species.',
+    tips: [
+      'Place another Barracks to raise the cap by +10.',
+      'Sacrifice a weak minion in ROSTER to free a slot now.',
+    ],
     subscribe: (fire) => {
       const fn = (p) => { if (p?.reason === 'roster_full') fire() }
       EventBus.on('PLACEMENT_BLOCKED', fn)
@@ -202,7 +278,12 @@ const TUTORIALS = [
   },
   {
     id: 'warn_lowGold', title: 'Need More Gold',
-    body: 'Earn gold by killing adventurers. Sell rooms or wait for the next day to refill.',
+    lead: 'THE TREASURY ECHOES — EMPTY',
+    body: 'You do not have enough gold to build that. Gold comes in from adventurer kills, treasure chests, and surviving the day. Until you refill, you can sell a placed room from its right-click menu for a partial refund.',
+    tips: [
+      'Kills pay more than survival — fight greedy, not safe.',
+      'Treasure chests in your dungeon pay passive gold per night.',
+    ],
     subscribe: (fire) => {
       const fn = (p) => { if (p?.reason === 'insufficient_gold') fire() }
       EventBus.on('PLACEMENT_BLOCKED', fn)
@@ -211,7 +292,12 @@ const TUTORIALS = [
   },
   {
     id: 'warn_trapsFull', title: 'Trap Pool Full',
-    body: 'Your trap pool is capped. Build another Trap Factory (+5 slots).',
+    lead: 'NO MORE TRAPS — THE FORGE IS COLD',
+    body: 'Your active trap pool has reached its cap. Each Trap Factory you build raises the cap by +5. Until you expand, you cannot deploy another trap of any type.',
+    tips: [
+      'Place another Trap Factory to raise the cap by +5.',
+      'Remove an unused or known-by-the-guild trap to free a slot.',
+    ],
     subscribe: (fire) => {
       const fn = (p) => { if (p?.reason === 'trap_pool_full') fire() }
       EventBus.on('PLACEMENT_BLOCKED', fn)
@@ -273,6 +359,12 @@ export class TutorialSystem {
     const meta = this._gameState?.meta
     if (!meta) return
     if (!meta.tutorialEnabled) return
+    // Global master toggle from SettingsOverlay > GAMEPLAY > GAMEPLAY HINTS.
+    // ANDs with the per-run `meta.tutorialEnabled` (set by WelcomeIntro
+    // checkbox) so either off disables.
+    try {
+      if (localStorage.getItem('qf.gameplay.tutorials') === 'false') return
+    } catch {}
     // Per-archetype hints only fire when the player picked that boss.
     if (t.archetype && this._gameState.player?.bossArchetypeId !== t.archetype) return
     meta.seenTutorials ??= {}
@@ -298,6 +390,19 @@ export class TutorialSystem {
       this._showing = false
       return
     }
+    // Re-check the gameplay-hints gate at fire time. A tutorial may have
+    // been enqueued while the toggle was on; if the player toggled it off
+    // since, drop the queue rather than firing a popup they explicitly
+    // disabled. Same dual check as _enqueue: per-run meta.tutorialEnabled
+    // AND global localStorage key.
+    let _globalOff = false
+    try { _globalOff = localStorage.getItem('qf.gameplay.tutorials') === 'false' } catch {}
+    if (!meta.tutorialEnabled || _globalOff) {
+      this._queue.length = 0
+      this._queuedIds.clear()
+      this._showing = false
+      return
+    }
     const t = this._queue.shift()
     // Mark seen at SHOW time (not enqueue time) so a tutorial that got
     // suppressed during the welcome-or-disabled window can still fire
@@ -310,7 +415,9 @@ export class TutorialSystem {
     // routes to its TutorialPopup. Keeps this system free of UI imports.
     EventBus.emit('SHOW_TUTORIAL', {
       title:  t.title,
+      lead:   t.lead ?? null,
       body:   t.body,
+      tips:   t.tips ?? null,
       onClose: () => {
         // Small inter-popup gap so successive hints don\'t feel jammed
         this._scene.time.delayedCall(450, () => this._popNext())

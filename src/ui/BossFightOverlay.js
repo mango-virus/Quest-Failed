@@ -1,3 +1,7 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/BossFightOverlay.js`
+// (DOM) under the new HUD. Phaser fallback under `?newhud=0`. Kept
+// per CLAUDE.md.
+//
 // Boss-fight cinematic overlay, lives on HudScene so it can use the
 // scene's uiW / uiH (set by applyUiCamera). Renders three pieces:
 //

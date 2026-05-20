@@ -1,3 +1,6 @@
+// SUPERSEDED (Phase 34) — replaced by the dungeon-log strip inside
+// `src/hud/RightPanels.js`. Phaser fallback under `?newhud=0`.
+//
 // Phase 31C — Dungeon Log (renamed from Combat Log).
 //
 // Panel-style scrolling event log for the HUD right column. Always visible.

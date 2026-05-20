@@ -26,6 +26,26 @@ export class Leaderboard extends Phaser.Scene {
   create() {
     TitleMusic.ensurePlaying(this)
     this._setupCamera()
+
+    // New HUD path: mount the DOM LeaderboardOverlay over an empty
+    // Phaser scene and route its close → back to MainMenu.
+    let useNewHud = true
+    try { useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
+    if (useNewHud) {
+      import('../hud/LeaderboardOverlay.js').then(({ LeaderboardOverlay }) => {
+        if (!this.scene.isActive()) return
+        const ov = new LeaderboardOverlay({
+          onClose: () => this.scene.start('MainMenu'),
+        })
+        ov.open()
+        this._domLeaderboard = ov
+      })
+      this.events.once('shutdown', () => {
+        this._domLeaderboard?.close()
+        this._domLeaderboard = null
+      })
+      return
+    }
     this.scale.on('resize', this._setupCamera, this)
     this.events.once('shutdown', () => {
       this.scale.off('resize', this._setupCamera, this)

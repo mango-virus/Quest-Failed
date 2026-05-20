@@ -1,3 +1,7 @@
+// SUPERSEDED (Phase 34) — folded into `src/hud/ToastQueue.js` as the
+// 'bounty' kind under the new DOM HUD. Phaser fallback under
+// `?newhud=0`. Kept per CLAUDE.md.
+//
 // Phase 7b — wanted-poster popup notification.
 // Subscribes to MINION_BOUNTY_POSTED. When a minion crosses the kill threshold,
 // shows a parchment-styled popup at the top-right with name + kills + gear count.

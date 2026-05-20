@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/KnowledgeMapOverlay.js`.
+//
 // Phase 31E — Knowledge Map popup.
 //
 // Two-column: large dungeon map on the left with rooms color-coded by

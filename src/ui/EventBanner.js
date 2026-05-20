@@ -1,3 +1,7 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/EventBanner.js` (DOM)
+// under the new HUD. Phaser fallback under `?newhud=0`. Kept per
+// CLAUDE.md.
+//
 // EventBanner — top-of-screen themed slate that announces a Dungeon Event
 // during the night phase. Mirrors BossFightOverlay's intro/result-slate
 // styling (pixelPanel frame + stroked title + subtitle, fade in/out) but

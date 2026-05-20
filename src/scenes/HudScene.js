@@ -15,6 +15,7 @@
 // Stays active across phase transitions so chrome never flashes.
 
 import { applyUiCamera, CRYPT } from '../ui/UIKit.js'
+import { HudRoot, isNewHudEnabled } from '../hud/HudRoot.js'
 import { BossTopBar, BOSS_TOP_BAR_HEIGHT } from '../ui/BossTopBar.js'
 import { ActionBar,  ACTION_BAR_HEIGHT  } from '../ui/ActionBar.js'
 import { BossArchetypeUI } from '../ui/BossArchetypeUI.js'
@@ -71,79 +72,103 @@ export class HudScene extends Phaser.Scene {
     if (this._listeners?.length || this._buildMenu) {
       this.shutdown()
     }
+    // Phaser does NOT auto-invoke a `shutdown()` method on the user scene
+    // class when scene.stop() runs — it only fires the SHUTDOWN event on
+    // the scene's event emitter. Without this binding, HudScene.shutdown()
+    // was unreachable from the normal stop path, so the DOM HudRoot kept
+    // bleeding through MainMenu / ArchetypeSelect / RoomTileEditor /
+    // TilesetEditor after ABANDON RUN, RISE AGAIN, or anything else that
+    // stopped HudScene. Use `once` so a single stop fires shutdown once
+    // and detaches; create() runs again on the next start.
+    this.events.once('shutdown', this.shutdown, this)
     applyUiCamera(this)
 
     const W = this.uiW
     const H = this.uiH
     const TOP_Y = BOSS_TOP_BAR_HEIGHT + 6
 
-    // ── Side chrome (dark backing) ──
-    // The dungeon view is rendered by the Game scene one layer below us.
-    // Without these solid fills the dungeon shows through the gaps
-    // between the side panels and along the action bar's left/right
-    // margins. They sit at depth 50 — below the panels (60) but above
-    // the world camera. The top bar is its own panel, so we only need
-    // left/right side strips and a full-width bottom strip here.
-    this._chrome = []
-    const chromeColor = CRYPT.bgDeep
-    const leftChromeW = LEFT_COL_W + COL_PAD * 2
-    const rightChromeW = RIGHT_COL_W + COL_PAD * 2
-    const sideTop = BOSS_TOP_BAR_HEIGHT
-    const sideBottom = H - ACTION_BAR_HEIGHT
+    // ── DOM HUD branch ──
+    // The new HUD (TopBar / BottomBar / LeftPanels / RightPanels /
+    // ToastQueue) replaces six Phaser panels: BossTopBar, MiniMapPanel,
+    // BuildMenu, KnowledgePin, DungeonLog, ActionBar — plus their dark
+    // backing chrome rects. When the DOM HUD is active we skip those
+    // constructions entirely so update() loops, dynamic-object recreation,
+    // and phase-change re-show events can't bleed Phaser pixels through
+    // the DOM overlay. Popups, BossArchetypeUI, BossFightOverlay, and
+    // EventBanner stay Phaser — overlays land in Phase 34C, the others
+    // aren't in the new design yet.
+    const useNewHud = isNewHudEnabled()
 
-    const leftBg = this.add.rectangle(0, sideTop, leftChromeW, sideBottom - sideTop, chromeColor)
-      .setOrigin(0).setDepth(50)
-    const rightBg = this.add.rectangle(W - rightChromeW, sideTop, rightChromeW, sideBottom - sideTop, chromeColor)
-      .setOrigin(0).setDepth(50)
-    const bottomBg = this.add.rectangle(0, sideBottom, W, ACTION_BAR_HEIGHT, chromeColor)
-      .setOrigin(0).setDepth(50)
-    this._chrome.push(leftBg, rightBg, bottomBg)
+    if (useNewHud) {
+      const game = window.__game
+      // Rebuild HudRoot if gameState identity changed (new run, save load).
+      if (game?._hudRoot && game._hudRoot._gameState !== this._gameState) {
+        game._hudRoot.destroy()
+        game._hudRoot = null
+      }
+      if (game && !game._hudRoot) {
+        game._hudRoot = new HudRoot(this._gameState)
+      }
+    } else {
+      // ── Side chrome (dark backing) ──
+      // Without these solid fills the dungeon shows through the gaps
+      // between the side panels and along the action bar margins.
+      this._chrome = []
+      const chromeColor = CRYPT.bgDeep
+      const leftChromeW = LEFT_COL_W + COL_PAD * 2
+      const rightChromeW = RIGHT_COL_W + COL_PAD * 2
+      const sideTop = BOSS_TOP_BAR_HEIGHT
+      const sideBottom = H - ACTION_BAR_HEIGHT
 
-    // ── Top bar ──
-    this._topBar = new BossTopBar(this, this._gameState, { depth: 60 })
+      const leftBg = this.add.rectangle(0, sideTop, leftChromeW, sideBottom - sideTop, chromeColor)
+        .setOrigin(0).setDepth(50)
+      const rightBg = this.add.rectangle(W - rightChromeW, sideTop, rightChromeW, sideBottom - sideTop, chromeColor)
+        .setOrigin(0).setDepth(50)
+      const bottomBg = this.add.rectangle(0, sideBottom, W, ACTION_BAR_HEIGHT, chromeColor)
+        .setOrigin(0).setDepth(50)
+      this._chrome.push(leftBg, rightBg, bottomBg)
 
-    // ── Mini-map (left column, top) ──
-    this._miniMap = new MiniMapPanel(this, this._gameState, {
-      depth: 60,
-      x: COL_PAD, y: TOP_Y,
-      w: LEFT_COL_W, h: MINIMAP_PANEL_HEIGHT,
-    })
+      // ── Top bar ──
+      this._topBar = new BossTopBar(this, this._gameState, { depth: 60 })
 
-    // ── Build menu (left column, fills down to the action bar) ──
-    // The audio strip moved INTO the action bar's left margin, so the
-    // build menu reclaims that vertical space.
-    const buildMenuY = TOP_Y + MINIMAP_PANEL_HEIGHT + 8
-    this._buildMenu = new BuildMenu(this, this._gameState, {
-      depth: 60,
-      x:     COL_PAD,
-      y:     buildMenuY,
-      w:     LEFT_COL_W,
-      h:     H - buildMenuY - ACTION_BAR_HEIGHT - 6,
-    })
-    this._buildMenu.setVisible(this._gameState.meta?.phase === 'night')
+      // ── Mini-map (left column, top) ──
+      this._miniMap = new MiniMapPanel(this, this._gameState, {
+        depth: 60,
+        x: COL_PAD, y: TOP_Y,
+        w: LEFT_COL_W, h: MINIMAP_PANEL_HEIGHT,
+      })
 
-    // ── Knowledge Pin (right column, top) ──
-    const knowX = W - RIGHT_COL_W - COL_PAD
-    const knowY = TOP_Y
-    this._knowPin = new KnowledgePin(this, this._gameState, {
-      depth: 60, x: knowX, y: knowY, w: RIGHT_COL_W,
-    })
-    // Use the panel's actual rendered height so the Dungeon Log seats
-    // flush against it without leaving a gap.
-    const knowPinH = KNOWLEDGE_PIN_HEIGHT
+      // ── Build menu (left column, fills down to the action bar) ──
+      const buildMenuY = TOP_Y + MINIMAP_PANEL_HEIGHT + 8
+      this._buildMenu = new BuildMenu(this, this._gameState, {
+        depth: 60,
+        x:     COL_PAD,
+        y:     buildMenuY,
+        w:     LEFT_COL_W,
+        h:     H - buildMenuY - ACTION_BAR_HEIGHT - 6,
+      })
+      this._buildMenu.setVisible(this._gameState.meta?.phase === 'night')
 
-    // ── Dungeon Log (right column, fills below pin) ──
-    const logY = knowY + knowPinH + 8
-    this._dungeonLog = new DungeonLog(this, this._gameState, {
-      depth: 60,
-      x:     knowX,
-      y:     logY,
-      w:     RIGHT_COL_W,
-      h:     H - logY - ACTION_BAR_HEIGHT - COL_PAD,
-    })
+      // ── Knowledge Pin (right column, top) ──
+      const knowX = W - RIGHT_COL_W - COL_PAD
+      const knowY = TOP_Y
+      this._knowPin = new KnowledgePin(this, this._gameState, {
+        depth: 60, x: knowX, y: knowY, w: RIGHT_COL_W,
+      })
 
-    // ── Action bar (bottom strip) ──
-    this._actionBar = new ActionBar(this, this._gameState, { depth: 60 })
+      // ── Dungeon Log (right column, fills below pin) ──
+      const logY = knowY + KNOWLEDGE_PIN_HEIGHT + 8
+      this._dungeonLog = new DungeonLog(this, this._gameState, {
+        depth: 60,
+        x:     knowX,
+        y:     logY,
+        w:     RIGHT_COL_W,
+        h:     H - logY - ACTION_BAR_HEIGHT - COL_PAD,
+      })
+
+      // ── Action bar (bottom strip) ──
+      this._actionBar = new ActionBar(this, this._gameState, { depth: 60 })
+    }
 
     // ── Boss-archetype action strip (Phase 1b) ──
     // Sits above the action bar; only renders archetype-specific buttons.
@@ -151,12 +176,21 @@ export class HudScene extends Phaser.Scene {
 
     // Boss-fight cinematic overlay (intro slate + bottom HP bar +
     // result slate). Lives here so it can use this scene's uiW/uiH
-    // and render at screen-space depth above the world.
-    this._bossFightOverlay = new BossFightOverlay(this, this._gameState)
+    // and render at screen-space depth above the world. Gated under
+    // !useNewHud — the DOM port (src/hud/BossFightOverlay.js) takes
+    // over when the new HUD is on so the cinematic isn't obscured by
+    // the DOM chrome.
+    if (!useNewHud) {
+      this._bossFightOverlay = new BossFightOverlay(this, this._gameState)
+    }
 
     // Top-of-screen banner for Dungeon Event announcements (fires during
     // night phase when EventSystem schedules an event for the next day).
-    this._eventBanner = new EventBanner(this)
+    // Gated under !useNewHud — same reason as BossFightOverlay; the DOM
+    // port (src/hud/EventBanner.js) renders above the new HUD's top bar.
+    if (!useNewHud) {
+      this._eventBanner = new EventBanner(this)
+    }
 
     // Listen for phase change: toggle build menu visibility, AND clear any
     // lingering BuildMenu selection so day-2+ placement works cleanly. The
@@ -194,32 +228,33 @@ export class HudScene extends Phaser.Scene {
     }
     // Welcome popup — fires once per run after the player picks a boss
     // and the Game scene boots. `meta.introSeen` flips on Continue.
-    if (!this._gameState?.meta?.introSeen) {
+    // (Under the new DOM HUD, WelcomeIntroOverlay handles this itself.)
+    if (!useNewHud && !this._gameState?.meta?.introSeen) {
       this.time.delayedCall(180, () => this._popups.welcomeintro.open())
     }
     // Tutorial pipeline — TutorialSystem decides what to fire and when;
     // it emits SHOW_TUTORIAL with { title, body, onClose }, this popup
     // does the chrome.
-    {
+    if (!useNewHud) {
       const fn = (payload) => this._popups.tutorial.showFor(payload)
       EventBus.on('SHOW_TUTORIAL', fn)
       this._listeners.push(['SHOW_TUTORIAL', fn])
     }
     // Phase 9 — open the Long Game popup whenever the pact triggers.
-    {
+    if (!useNewHud) {
       const fn = (payload) => this._popups.longgame.showFor(payload)
       EventBus.on('LONG_GAME_TRIGGERED', fn)
       this._listeners.push(['LONG_GAME_TRIGGERED', fn])
     }
     // Generic confirm-dialog channel — any scene can emit SHOW_CONFIRM with
     // { message, onConfirm, onCancel } to gate destructive actions.
-    {
+    if (!useNewHud) {
       const fn = (payload) => this._popups.confirm.showFor(payload)
       EventBus.on('SHOW_CONFIRM', fn)
       this._listeners.push(['SHOW_CONFIRM', fn])
     }
     // Pact detail popup — opens from clicking a pact card in BossOverviewPopup.
-    {
+    if (!useNewHud) {
       const fn = (payload) => this._popups.pactdetail.showFor(payload)
       EventBus.on('SHOW_PACT_DETAIL', fn)
       this._listeners.push(['SHOW_PACT_DETAIL', fn])
@@ -240,49 +275,64 @@ export class HudScene extends Phaser.Scene {
       EventBus.on(event, fn)
       this._listeners.push([event, fn])
     }
-    wirePopup('OPEN_BOSS_OVERVIEW', 'boss')
-    wirePopup('OPEN_MINION_ROSTER', 'roster')
-    wirePopup('OPEN_KNOWLEDGE_MAP', 'knowledge')
-    wirePopup('OPEN_ADV_INTEL',     'intel')
+    // All 4 main info popups now have DOM ports (34C.2.a + 34C.2.b),
+    // so gate every legacy wire under !useNewHud. The Phaser popups
+    // still construct in case some future flow needs them, but their
+    // OPEN_* listeners are dormant when the DOM HUD is active.
+    if (!useNewHud) wirePopup('OPEN_BOSS_OVERVIEW', 'boss')
+    if (!useNewHud) wirePopup('OPEN_MINION_ROSTER', 'roster')
+    if (!useNewHud) wirePopup('OPEN_KNOWLEDGE_MAP', 'knowledge')
+    if (!useNewHud) wirePopup('OPEN_ADV_INTEL',     'intel')
 
     // 31F end-of-day chain — EndOfDay scene drives these events; we just
     // open / close the corresponding popup.
-    const onShowPostWave = ({ snapshot }) => {
-      this._closeAllPopups()
-      this._popups.postwave.setSnapshot(snapshot)
-      this._popups.postwave.open()
+    if (!useNewHud) {
+      const onShowPostWave = ({ snapshot }) => {
+        this._closeAllPopups()
+        this._popups.postwave.setSnapshot(snapshot)
+        this._popups.postwave.open()
+      }
+      const onShowDarkPact = () => {
+        this._closeAllPopups()
+        this._popups.darkpact.refreshOffers()
+        this._popups.darkpact.open()
+      }
+      EventBus.on('SHOW_POST_WAVE_SUMMARY', onShowPostWave)
+      EventBus.on('SHOW_DARK_PACT',         onShowDarkPact)
+      this._listeners.push(['SHOW_POST_WAVE_SUMMARY', onShowPostWave])
+      this._listeners.push(['SHOW_DARK_PACT',         onShowDarkPact])
     }
-    const onShowDarkPact = () => {
-      this._closeAllPopups()
-      this._popups.darkpact.refreshOffers()
-      this._popups.darkpact.open()
-    }
-    EventBus.on('SHOW_POST_WAVE_SUMMARY', onShowPostWave)
-    EventBus.on('SHOW_DARK_PACT',         onShowDarkPact)
-    this._listeners.push(['SHOW_POST_WAVE_SUMMARY', onShowPostWave])
-    this._listeners.push(['SHOW_DARK_PACT',         onShowDarkPact])
 
     // Boss Level-Up popup — drained by EndOfDay between PostWaveSummary
     // close and the night-phase handoff. Fires once per level-up; the
     // EndOfDay scene chains them when multiple level-ups occurred in a
     // single day. Each show emits BOSS_LEVEL_UP_DISMISSED on close so
     // EndOfDay can advance the queue.
-    const onShowBossLevelUp = ({ fromLevel, toLevel }) => {
-      this._closeAllPopups()
-      this._popups.bosslevelup.setLevels(fromLevel, toLevel)
-      this._popups.bosslevelup.open()
+    if (!useNewHud) {
+      const onShowBossLevelUp = ({ fromLevel, toLevel }) => {
+        this._closeAllPopups()
+        this._popups.bosslevelup.setLevels(fromLevel, toLevel)
+        this._popups.bosslevelup.open()
+      }
+      EventBus.on('SHOW_BOSS_LEVEL_UP', onShowBossLevelUp)
+      this._listeners.push(['SHOW_BOSS_LEVEL_UP', onShowBossLevelUp])
     }
-    EventBus.on('SHOW_BOSS_LEVEL_UP', onShowBossLevelUp)
-    this._listeners.push(['SHOW_BOSS_LEVEL_UP', onShowBossLevelUp])
 
     // Phase 31G — action-bar MENU button opens the pause menu. Esc still
     // works via PauseManager's keyboard hook in NightPhase / DayPhase.
-    const onOpenPause = () => {
-      this._closeAllPopups()
-      PauseManager.toggle(this)
+    // When the new DOM HUD is on, its PauseOverlay owns the OPEN_PAUSE_MENU
+    // subscription end-to-end (mounts the overlay + calls PauseManager.open
+    // to freeze scenes). Skipping the legacy listener here avoids a double-
+    // subscription where one call opens and the other immediately toggles
+    // it closed.
+    if (!useNewHud) {
+      const onOpenPause = () => {
+        this._closeAllPopups()
+        PauseManager.toggle(this)
+      }
+      EventBus.on('OPEN_PAUSE_MENU', onOpenPause)
+      this._listeners.push(['OPEN_PAUSE_MENU', onOpenPause])
     }
-    EventBus.on('OPEN_PAUSE_MENU', onOpenPause)
-    this._listeners.push(['OPEN_PAUSE_MENU', onOpenPause])
   }
 
   _isPopupOpen(key) {
@@ -334,6 +384,17 @@ export class HudScene extends Phaser.Scene {
   shutdown() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
+    // Tear down the DOM HUD when HudScene shuts down. HudRoot lives on
+    // `window.__game._hudRoot` (singleton-on-game), not on the scene, so
+    // without this it would persist across scene transitions and bleed
+    // through MainMenu / ArchetypeSelect / RoomTileEditor / TilesetEditor
+    // when the player navigates after a game-over or via PauseMenu
+    // ABANDON. HudScene.create() rebuilds HudRoot on next start.
+    const game = window.__game
+    if (game?._hudRoot) {
+      game._hudRoot.destroy()
+      game._hudRoot = null
+    }
     this._miniMap?.destroy();      this._miniMap       = null
     this._topBar?.destroy();       this._topBar        = null
     this._actionBar?.destroy();    this._actionBar     = null

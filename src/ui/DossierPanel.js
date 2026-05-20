@@ -1,3 +1,8 @@
+// SUPERSEDED (Phase 31C / Phase 34) — disabled in DayPhase.js since
+// Phase 31C and replaced by the Adventurer Intel popup
+// (`src/hud/AdvIntelOverlay.js` under the new HUD). Kept per
+// CLAUDE.md's removal-not-deletion policy.
+//
 // Phase 9b — Dossier panel.
 //
 // Shown briefly at the start of each day with a card per spawning adventurer.

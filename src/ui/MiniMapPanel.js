@@ -1,3 +1,6 @@
+// SUPERSEDED (Phase 34) — replaced by the mini-map blueprint inside
+// `src/hud/LeftPanels.js`. Phaser fallback under `?newhud=0`.
+//
 // Phase 31C — Crypt-themed dungeon mini-map (left HUD column, top).
 //
 // Replaces the old MiniMap.js procedural-grid renderer with the design's

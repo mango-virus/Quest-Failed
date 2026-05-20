@@ -50,11 +50,36 @@ export class MainMenu extends Phaser.Scene {
 
   create() {
     // Title-screen music — keep the loop running continuously across
-    // MainMenu / ArchetypeSelect transitions (ensurePlaying is a no-op
-    // when already playing, and starts fresh after GameOver / editor
-    // teardowns that stopped it).
+    // MainMenu / ArchetypeSelect transitions.
     GameplayMusic.stop()
     TitleMusic.ensurePlaying(this)
+
+    // Under the new DOM HUD, the title screen is `MainMenuOverlay`. Mount
+    // it and skip the Phaser scene's procedural rendering entirely. Stays
+    // in the Phaser scene system so things like input plumbing / scene
+    // start / stop calls from elsewhere still work — the scene just has
+    // an empty visual layer.
+    let useNewHud = true
+    try { useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
+    if (useNewHud) {
+      import('../hud/MainMenuOverlay.js').then(({ MainMenuOverlay }) => {
+        if (!this.scene.isActive()) return
+        // Singleton on window.__game so re-entering MainMenu (e.g. from
+        // a returned-to-menu after a game-over) doesn't double-mount.
+        const game = window.__game
+        if (game._mainMenuOverlay) game._mainMenuOverlay.close()
+        game._mainMenuOverlay = new MainMenuOverlay()
+        game._mainMenuOverlay.open()
+      })
+      // Set up camera so right-click suppression etc still works.
+      this._setupCamera()
+      this.events.once('shutdown', () => {
+        const game = window.__game
+        game?._mainMenuOverlay?.close()
+        game._mainMenuOverlay = null
+      })
+      return
+    }
 
     this._setupCamera()
     this.time.delayedCall(0, () => this._setupCamera())

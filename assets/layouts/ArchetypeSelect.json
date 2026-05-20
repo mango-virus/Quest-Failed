@@ -1,7 +1,7 @@
 {
   "book": {
-    "x": 725,
-    "y": 265,
+    "x": 640,
+    "y": 255,
     "scaleX": 2.594,
     "scaleY": 2.594,
     "depth": 1
@@ -12,267 +12,260 @@
     "depth": 10
   },
   "compendium-header": {
-    "x": 572,
-    "y": 255,
+    "x": 487,
+    "y": 245,
     "visible": false
   },
   "portrait-border": {
-    "x": 434,
-    "y": 207,
+    "x": 349,
+    "y": 197,
     "scaleX": 2.621,
     "scaleY": 2.621,
     "depth": 999
   },
   "portrait-highlight": {
-    "x": 657,
-    "y": 493,
+    "x": 572,
+    "y": 483,
     "scaleX": 2.621,
     "scaleY": 2.621,
     "depth": 1000,
     "alpha": 0.993
   },
   "slot-beholder": {
-    "x": 495,
-    "y": 249,
+    "x": 410,
+    "y": 239,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-demon": {
-    "x": 576,
-    "y": 249,
+    "x": 491,
+    "y": 239,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-gnoll": {
-    "x": 657,
-    "y": 249,
+    "x": 572,
+    "y": 239,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-golem": {
-    "x": 495,
-    "y": 331,
+    "x": 410,
+    "y": 321,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-lich": {
-    "x": 576,
-    "y": 331,
+    "x": 491,
+    "y": 321,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-lizardman": {
-    "x": 657,
-    "y": 331,
+    "x": 572,
+    "y": 321,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-myconid": {
-    "x": 495,
-    "y": 412,
+    "x": 410,
+    "y": 402,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-orc": {
-    "x": 576,
-    "y": 412,
+    "x": 491,
+    "y": 402,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-vampire": {
-    "x": 657,
-    "y": 412,
+    "x": 572,
+    "y": 402,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slot-wraith": {
-    "x": 495,
-    "y": 493,
+    "x": 410,
+    "y": 483,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "nameplate": {
-    "x": 873,
-    "y": 204,
+    "x": 788,
+    "y": 194,
     "scaleX": 2.396,
     "scaleY": 2.396,
     "depth": 2
   },
   "begin-run-label": {
-    "x": 954,
-    "y": 524,
+    "x": 869,
+    "y": 514,
     "depth": 5
   },
   "upload-0": {
-    "x": 722,
-    "y": 221,
+    "x": 637,
+    "y": 211,
     "scaleX": 2.594,
     "scaleY": 2.594,
     "depth": 50,
     "visible": false
   },
   "upload-1": {
-    "x": 721,
-    "y": 216,
+    "x": 636,
+    "y": 206,
     "scaleX": 2.311,
     "scaleY": 2.311,
     "depth": 50,
     "visible": false
   },
   "upload-2": {
-    "x": 576,
-    "y": 177,
+    "x": 491,
+    "y": 167,
     "scaleX": 3.138,
     "scaleY": 3.138,
     "depth": 50
   },
   "upload-3": {
-    "x": 808,
-    "y": 331,
+    "x": 723,
+    "y": 321,
     "scaleX": 2.594,
     "scaleY": 2.594,
     "depth": 50,
     "visible": false
   },
   "upload-4": {
-    "x": 873,
-    "y": 203,
+    "x": 788,
+    "y": 193,
     "scaleX": 2.144,
     "scaleY": 2.144,
     "depth": 50,
     "bossId": "beholder"
   },
-  "upload-5": {
-    "x": 1000,
-    "y": 525,
-    "scaleX": 1.464,
-    "scaleY": 1.464,
-    "depth": 50
-  },
   "text-6": {
-    "x": 1152,
-    "y": 352,
+    "x": 1067,
+    "y": 342,
     "depth": 50,
     "visible": false
   },
   "demon/boss-name": {
-    "x": 872,
-    "y": 203,
+    "x": 787,
+    "y": 193,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 1000
   },
   "demon/boss-full-body": {
-    "x": 881,
-    "y": 292,
+    "x": 796,
+    "y": 282,
     "scaleX": 2.11,
     "scaleY": 2.11,
     "depth": 1000
   },
   "demon/headline-title": {
-    "x": 753,
-    "y": 395,
+    "x": 668,
+    "y": 385,
     "depth": 2
   },
   "demon/headline-summary": {
-    "x": 753,
-    "y": 412,
+    "x": 668,
+    "y": 402,
     "scaleX": 1.1,
     "scaleY": 1.1,
     "depth": 2
   },
   "demon/mechanic-0-bullet": {
-    "x": 760,
-    "y": 437,
+    "x": 675,
+    "y": 427,
     "depth": 2,
     "visible": false
   },
   "demon/mechanic-0-text": {
-    "x": 753,
-    "y": 437,
+    "x": 668,
+    "y": 427,
     "depth": 1000
   },
   "demon/mechanic-1-bullet": {
-    "x": 758,
-    "y": 455,
+    "x": 673,
+    "y": 445,
     "depth": 2,
     "visible": false
   },
   "demon/mechanic-1-text": {
-    "x": 769,
-    "y": 455,
+    "x": 684,
+    "y": 445,
     "depth": 2,
     "visible": false
   },
   "demon/flavor-quote": {
-    "x": 875,
-    "y": 510,
+    "x": 790,
+    "y": 500,
     "depth": 2,
     "visible": false
   },
   "beholder/boss-name": {
-    "x": 881,
-    "y": 181,
+    "x": 796,
+    "y": 171,
     "scaleX": 2,
     "scaleY": 2,
     "depth": 3,
     "visible": false
   },
   "beholder/boss-full-body": {
-    "x": 861,
-    "y": 297,
+    "x": 776,
+    "y": 287,
     "scaleX": 2.953,
     "scaleY": 2.953,
     "depth": 1000
   },
   "beholder/headline-title": {
-    "x": 745,
-    "y": 395,
+    "x": 660,
+    "y": 385,
     "depth": 2
   },
   "beholder/headline-summary": {
-    "x": 746,
-    "y": 414,
+    "x": 661,
+    "y": 404,
     "scaleX": 1.1,
     "scaleY": 1.1,
     "depth": 2
   },
   "beholder/mechanic-0-bullet": {
-    "x": 760,
-    "y": 437,
+    "x": 675,
+    "y": 427,
     "depth": 2,
     "visible": false
   },
   "beholder/mechanic-0-text": {
-    "x": 746,
-    "y": 454,
+    "x": 661,
+    "y": 444,
     "depth": 2
   },
   "beholder/mechanic-1-bullet": {
-    "x": 758,
-    "y": 455,
+    "x": 673,
+    "y": 445,
     "depth": 2,
     "visible": false
   },
   "beholder/mechanic-1-text": {
-    "x": 769,
-    "y": 455,
+    "x": 684,
+    "y": 445,
     "depth": 2,
     "visible": false
   },
   "beholder/flavor-quote": {
-    "x": 875,
-    "y": 514,
+    "x": 790,
+    "y": 504,
     "depth": 2,
     "visible": false
   },
@@ -280,8 +273,8 @@
     {
       "name": "upload-0",
       "type": "image",
-      "x": 722,
-      "y": 221,
+      "x": 637,
+      "y": 211,
       "scaleX": 2.594,
       "scaleY": 2.594,
       "depth": 50,
@@ -291,8 +284,8 @@
     {
       "name": "upload-1",
       "type": "image",
-      "x": 721,
-      "y": 216,
+      "x": 636,
+      "y": 206,
       "scaleX": 2.311,
       "scaleY": 2.311,
       "depth": 50,
@@ -302,8 +295,8 @@
     {
       "name": "upload-2",
       "type": "image",
-      "x": 576,
-      "y": 177,
+      "x": 491,
+      "y": 167,
       "scaleX": 3.138,
       "scaleY": 3.138,
       "depth": 50,
@@ -312,8 +305,8 @@
     {
       "name": "upload-3",
       "type": "image",
-      "x": 808,
-      "y": 331,
+      "x": 723,
+      "y": 321,
       "scaleX": 2.594,
       "scaleY": 2.594,
       "depth": 50,
@@ -323,8 +316,8 @@
     {
       "name": "upload-4",
       "type": "image",
-      "x": 873,
-      "y": 203,
+      "x": 788,
+      "y": 193,
       "scaleX": 2.144,
       "scaleY": 2.144,
       "depth": 50,
@@ -332,20 +325,10 @@
       "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADcAAAASCAYAAAD/ukbDAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAFUSURBVFhH7ZXBcYQwDEXlNAJFQBtQa7aNbBHZSsghiPk8hFjDcMhM3k16lpANg8s0TZOBUkoxM4uczd4d16ojUZ0S1bE/SZ/nYmx7MzP7/P76FVLkznm8npsho81lPbPNZXXZLJs6PiwaMhvknbrMKXRX6z50gSd5Ou50DZ3m7mQ9ST7L/is9+ykEp6zxVXc0i88xtv12txrTKXRZ3R1OUTc0nYfTIpSh6VYNCRsyXhaCM+7KLMWLlcfrWWw+BTqbvTuuVUfOOPYn2Sz//FU2d4ai37Hy7p+NcO1eXu+ymr5kuecixrZf/XoZHxGt9wHVcWjGDvsxJuGOydGJMr7qnGg9a3Q9Sd9chp66P4ynqK6GvTd6C3tD6oWpv1/N0S8JoI69Pcf+mjtN1ixymtMh1Q1Nt9o866JaJ8qdJmsWOeY0rnE1udP4KTNvO445jWtcTS7iB+RbxBtUx9cCAAAAAElFTkSuQmCC"
     },
     {
-      "name": "upload-5",
-      "type": "image",
-      "x": 1000,
-      "y": 525,
-      "scaleX": 1.464,
-      "scaleY": 1.464,
-      "depth": 50,
-      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAMCAYAAABBV8wuAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAB4SURBVChTY5ijb/qfAQtgEmH+yYBNkunaL04GJf7fGJJMDAwMDNc/sGJIMsEYn778Q5GES6BLoki8+cvOcOIdO4NlewBCx9M/7Ayv/jIx+Hf5MWh7VTPCJT7+QwgywOxAF2RgYGBgaNMx/391WyuGBxmwCjIwMAAAOV41+Ka/lUUAAAAASUVORK5CYII="
-    },
-    {
       "name": "text-6",
       "type": "text",
-      "x": 1152,
-      "y": 352,
+      "x": 1067,
+      "y": 342,
       "depth": 50,
       "visible": false,
       "text": "NEW TEXT",
@@ -361,8 +344,8 @@
     {
       "name": "upload-6",
       "type": "image",
-      "x": 873,
-      "y": 203,
+      "x": 788,
+      "y": 193,
       "scaleX": 2.358,
       "scaleY": 2.358,
       "depth": 50,
@@ -371,617 +354,617 @@
     }
   ],
   "gnoll/boss-name": {
-    "x": 873,
-    "y": 204,
+    "x": 788,
+    "y": 194,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 3
   },
   "gnoll/boss-full-body": {
-    "x": 873,
-    "y": 306,
+    "x": 788,
+    "y": 296,
     "scaleX": 2.64,
     "scaleY": 2.64,
     "depth": 2
   },
   "gnoll/headline-title": {
-    "x": 761,
-    "y": 399,
+    "x": 676,
+    "y": 389,
     "depth": 2
   },
   "gnoll/headline-summary": {
-    "x": 761,
-    "y": 418,
+    "x": 676,
+    "y": 408,
     "depth": 2
   },
   "gnoll/mechanic-0-bullet": {
-    "x": 757,
-    "y": 502,
+    "x": 672,
+    "y": 492,
     "depth": 2,
     "visible": false
   },
   "gnoll/mechanic-0-text": {
-    "x": 761,
-    "y": 456,
+    "x": 676,
+    "y": 446,
     "depth": 2
   },
   "gnoll/mechanic-1-bullet": {
-    "x": 757,
-    "y": 531,
+    "x": 672,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "gnoll/mechanic-1-text": {
-    "x": 767,
-    "y": 531,
+    "x": 682,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "gnoll/flavor-quote": {
-    "x": 877,
-    "y": 510,
+    "x": 792,
+    "y": 500,
     "depth": 2,
     "visible": false
   },
   "golem/boss-name": {
-    "x": 873,
-    "y": 203,
+    "x": 788,
+    "y": 193,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 1000
   },
   "golem/boss-full-body": {
-    "x": 880,
-    "y": 305,
+    "x": 795,
+    "y": 295,
     "scaleX": 2.871,
     "scaleY": 2.871,
     "depth": 2
   },
   "golem/headline-title": {
-    "x": 760,
-    "y": 392,
+    "x": 675,
+    "y": 382,
     "depth": 2
   },
   "golem/headline-summary": {
-    "x": 760,
-    "y": 411,
+    "x": 675,
+    "y": 401,
     "depth": 2
   },
   "golem/mechanic-0-bullet": {
-    "x": 757,
-    "y": 502,
+    "x": 672,
+    "y": 492,
     "depth": 2,
     "visible": false
   },
   "golem/mechanic-0-text": {
-    "x": 760,
-    "y": 448,
+    "x": 675,
+    "y": 438,
     "depth": 2
   },
   "golem/mechanic-1-bullet": {
-    "x": 757,
-    "y": 518,
+    "x": 672,
+    "y": 508,
     "depth": 2,
     "visible": false
   },
   "golem/mechanic-1-text": {
-    "x": 767,
-    "y": 518,
+    "x": 682,
+    "y": 508,
     "depth": 2,
     "visible": false
   },
   "golem/flavor-quote": {
-    "x": 873,
-    "y": 499,
+    "x": 788,
+    "y": 489,
     "depth": 2,
     "visible": false
   },
   "lich/boss-name": {
-    "x": 873,
-    "y": 204,
+    "x": 788,
+    "y": 194,
     "scaleX": 2.662,
     "scaleY": 2.662,
     "depth": 1000
   },
   "lich/boss-full-body": {
-    "x": 881,
-    "y": 309,
+    "x": 796,
+    "y": 299,
     "scaleX": 2.749,
     "scaleY": 2.749,
     "depth": 2
   },
   "lich/headline-title": {
-    "x": 759,
-    "y": 399,
+    "x": 674,
+    "y": 389,
     "depth": 2
   },
   "lich/headline-summary": {
-    "x": 759,
-    "y": 418,
+    "x": 674,
+    "y": 408,
     "depth": 2
   },
   "lich/mechanic-0-bullet": {
-    "x": 757,
-    "y": 502,
+    "x": 672,
+    "y": 492,
     "depth": 2,
     "visible": false
   },
   "lich/mechanic-0-text": {
-    "x": 760,
-    "y": 455,
+    "x": 675,
+    "y": 445,
     "depth": 2
   },
   "lich/mechanic-1-bullet": {
-    "x": 757,
-    "y": 531,
+    "x": 672,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "lich/mechanic-1-text": {
-    "x": 767,
-    "y": 531,
+    "x": 682,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "lich/flavor-quote": {
-    "x": 881,
-    "y": 510,
+    "x": 796,
+    "y": 500,
     "depth": 2,
     "visible": false
   },
   "lizardman/boss-name": {
-    "x": 872,
-    "y": 203,
+    "x": 787,
+    "y": 193,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 1000
   },
   "lizardman/boss-full-body": {
-    "x": 878,
-    "y": 280,
+    "x": 793,
+    "y": 270,
     "scaleX": 2.44,
     "scaleY": 2.44,
     "depth": 1000
   },
   "lizardman/headline-title": {
-    "x": 760,
-    "y": 399,
+    "x": 675,
+    "y": 389,
     "depth": 2
   },
   "lizardman/headline-summary": {
-    "x": 760,
-    "y": 417,
+    "x": 675,
+    "y": 407,
     "depth": 2
   },
   "lizardman/mechanic-0-bullet": {
-    "x": 760,
-    "y": 487,
+    "x": 675,
+    "y": 477,
     "depth": 2,
     "visible": false
   },
   "lizardman/mechanic-0-text": {
-    "x": 760,
-    "y": 455,
+    "x": 675,
+    "y": 445,
     "depth": 2
   },
   "lizardman/mechanic-1-bullet": {
-    "x": 757,
-    "y": 518,
+    "x": 672,
+    "y": 508,
     "depth": 2,
     "visible": false
   },
   "lizardman/mechanic-1-text": {
-    "x": 768,
-    "y": 521,
+    "x": 683,
+    "y": 511,
     "depth": 2,
     "visible": false
   },
   "lizardman/mechanic-2-bullet": {
-    "x": 757,
-    "y": 534,
+    "x": 672,
+    "y": 524,
     "depth": 2,
     "visible": false
   },
   "lizardman/mechanic-2-text": {
-    "x": 767,
-    "y": 534,
+    "x": 682,
+    "y": 524,
     "depth": 2,
     "visible": false
   },
   "lizardman/flavor-quote": {
-    "x": 872,
-    "y": 499,
+    "x": 787,
+    "y": 489,
     "depth": 2,
     "visible": false
   },
   "myconid/boss-name": {
-    "x": 872,
-    "y": 203,
+    "x": 787,
+    "y": 193,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 1000
   },
   "myconid/boss-full-body": {
-    "x": 872,
-    "y": 301,
+    "x": 787,
+    "y": 291,
     "scaleX": 2.416,
     "scaleY": 2.416,
     "depth": 1000
   },
   "myconid/headline-title": {
-    "x": 761,
-    "y": 391,
+    "x": 676,
+    "y": 381,
     "depth": 2
   },
   "myconid/headline-summary": {
-    "x": 761,
-    "y": 409,
+    "x": 676,
+    "y": 399,
     "depth": 2
   },
   "myconid/mechanic-0-bullet": {
-    "x": 757,
-    "y": 489,
+    "x": 672,
+    "y": 479,
     "depth": 2,
     "visible": false
   },
   "myconid/mechanic-0-text": {
-    "x": 761,
-    "y": 448,
+    "x": 676,
+    "y": 438,
     "depth": 2
   },
   "myconid/mechanic-1-bullet": {
-    "x": 757,
-    "y": 518,
+    "x": 672,
+    "y": 508,
     "depth": 2,
     "visible": false
   },
   "myconid/mechanic-1-text": {
-    "x": 767,
-    "y": 518,
+    "x": 682,
+    "y": 508,
     "depth": 2,
     "visible": false
   },
   "myconid/flavor-quote": {
-    "x": 878,
-    "y": 509,
+    "x": 793,
+    "y": 499,
     "depth": 2,
     "visible": false
   },
   "orc/boss-name": {
-    "x": 873,
-    "y": 204,
+    "x": 788,
+    "y": 194,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 1000
   },
   "orc/boss-full-body": {
-    "x": 873,
-    "y": 300,
+    "x": 788,
+    "y": 290,
     "scaleX": 2.334,
     "scaleY": 2.334,
     "depth": 1000
   },
   "orc/headline-title": {
-    "x": 768,
-    "y": 392,
+    "x": 683,
+    "y": 382,
     "depth": 2
   },
   "orc/headline-summary": {
-    "x": 768,
-    "y": 411,
+    "x": 683,
+    "y": 401,
     "depth": 2
   },
   "orc/mechanic-0-bullet": {
-    "x": 757,
-    "y": 502,
+    "x": 672,
+    "y": 492,
     "depth": 2,
     "visible": false
   },
   "orc/mechanic-0-text": {
-    "x": 768,
-    "y": 451,
+    "x": 683,
+    "y": 441,
     "depth": 2
   },
   "orc/mechanic-1-bullet": {
-    "x": 757,
-    "y": 531,
+    "x": 672,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "orc/mechanic-1-text": {
-    "x": 767,
-    "y": 531,
+    "x": 682,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "orc/flavor-quote": {
-    "x": 881,
-    "y": 510,
+    "x": 796,
+    "y": 500,
     "depth": 2,
     "visible": false
   },
   "vampire/boss-name": {
-    "x": 873,
-    "y": 204,
+    "x": 788,
+    "y": 194,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 1000
   },
   "vampire/boss-full-body": {
-    "x": 873,
-    "y": 303,
+    "x": 788,
+    "y": 293,
     "scaleX": 2.44,
     "scaleY": 2.44,
     "depth": 1000
   },
   "vampire/headline-title": {
-    "x": 760,
-    "y": 392,
+    "x": 675,
+    "y": 382,
     "depth": 2
   },
   "vampire/headline-summary": {
-    "x": 760,
-    "y": 412,
+    "x": 675,
+    "y": 402,
     "depth": 2
   },
   "vampire/mechanic-0-bullet": {
-    "x": 761,
-    "y": 487,
+    "x": 676,
+    "y": 477,
     "depth": 2,
     "visible": false
   },
   "vampire/mechanic-0-text": {
-    "x": 760,
-    "y": 455,
+    "x": 675,
+    "y": 445,
     "depth": 2
   },
   "vampire/mechanic-1-bullet": {
-    "x": 757,
-    "y": 505,
+    "x": 672,
+    "y": 495,
     "depth": 2,
     "visible": false
   },
   "vampire/mechanic-1-text": {
-    "x": 767,
-    "y": 505,
+    "x": 682,
+    "y": 495,
     "depth": 2,
     "visible": false
   },
   "vampire/mechanic-2-bullet": {
-    "x": 757,
-    "y": 534,
+    "x": 672,
+    "y": 524,
     "depth": 2,
     "visible": false
   },
   "vampire/mechanic-2-text": {
-    "x": 767,
-    "y": 534,
+    "x": 682,
+    "y": 524,
     "depth": 2,
     "visible": false
   },
   "vampire/flavor-quote": {
-    "x": 881,
-    "y": 509,
+    "x": 796,
+    "y": 499,
     "depth": 2,
     "visible": false
   },
   "wraith/boss-name": {
-    "x": 873,
-    "y": 202,
+    "x": 788,
+    "y": 192,
     "scaleX": 2.42,
     "scaleY": 2.42,
     "depth": 1000
   },
   "wraith/boss-full-body": {
-    "x": 881,
-    "y": 305,
+    "x": 796,
+    "y": 295,
     "scaleX": 2.301,
     "scaleY": 2.301,
     "depth": 1000
   },
   "wraith/headline-title": {
-    "x": 761,
-    "y": 392,
+    "x": 676,
+    "y": 382,
     "depth": 2
   },
   "wraith/headline-summary": {
-    "x": 761,
-    "y": 411,
+    "x": 676,
+    "y": 401,
     "depth": 2
   },
   "wraith/mechanic-0-bullet": {
-    "x": 757,
-    "y": 502,
+    "x": 672,
+    "y": 492,
     "depth": 2,
     "visible": false
   },
   "wraith/mechanic-0-text": {
-    "x": 761,
-    "y": 448,
+    "x": 676,
+    "y": 438,
     "depth": 2
   },
   "wraith/mechanic-1-bullet": {
-    "x": 757,
-    "y": 531,
+    "x": 672,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "wraith/mechanic-1-text": {
-    "x": 767,
-    "y": 531,
+    "x": 682,
+    "y": 521,
     "depth": 2,
     "visible": false
   },
   "wraith/flavor-quote": {
-    "x": 881,
-    "y": 509,
+    "x": 796,
+    "y": 499,
     "depth": 2,
     "visible": false
   },
   "slot-succubus": {
-    "x": 575,
-    "y": 492,
+    "x": 490,
+    "y": 482,
     "scaleX": 1.671,
     "scaleY": 1.671,
     "depth": 1000
   },
   "succubus/boss-name": {
-    "x": 881,
-    "y": 276,
+    "x": 796,
+    "y": 266,
     "scaleX": 2,
     "scaleY": 2,
     "depth": 3,
     "visible": false
   },
   "succubus/boss-full-body": {
-    "x": 881,
-    "y": 298,
+    "x": 796,
+    "y": 288,
     "scaleX": 2.237,
     "scaleY": 2.237,
     "depth": 1000
   },
   "succubus/headline-title": {
-    "x": 768,
-    "y": 392,
+    "x": 683,
+    "y": 382,
     "depth": 2
   },
   "succubus/headline-summary": {
-    "x": 768,
-    "y": 409,
+    "x": 683,
+    "y": 399,
     "depth": 2
   },
   "succubus/mechanic-0-bullet": {
-    "x": 757,
-    "y": 515,
+    "x": 672,
+    "y": 505,
     "depth": 2,
     "visible": false
   },
   "succubus/mechanic-0-text": {
-    "x": 768,
-    "y": 457,
+    "x": 683,
+    "y": 447,
     "depth": 2,
     "visible": false
   },
   "succubus/flavor-quote": {
-    "x": 881,
-    "y": 545,
+    "x": 796,
+    "y": 535,
     "depth": 2,
     "visible": false
   },
   "upload-6": {
-    "x": 873,
-    "y": 203,
+    "x": 788,
+    "y": 193,
     "scaleX": 2.358,
     "scaleY": 2.358,
     "depth": 50,
     "bossId": "succubus"
   },
   "beholder/mechanic-0-body": {
-    "x": 746,
-    "y": 468,
+    "x": 661,
+    "y": 458,
     "depth": 2
   },
   "wraith/mechanic-0-body": {
-    "x": 761,
-    "y": 468,
+    "x": 676,
+    "y": 458,
     "depth": 2
   },
   "demon/mechanic-0-body": {
-    "x": 753,
-    "y": 456,
+    "x": 668,
+    "y": 446,
     "depth": 2
   },
   "golem/mechanic-0-body": {
-    "x": 760,
-    "y": 468,
+    "x": 675,
+    "y": 458,
     "depth": 2
   },
   "lich/mechanic-0-body": {
-    "x": 760,
-    "y": 472,
+    "x": 675,
+    "y": 462,
     "depth": 2
   },
   "gnoll/mechanic-0-body": {
-    "x": 761,
-    "y": 476,
+    "x": 676,
+    "y": 466,
     "depth": 2
   },
   "orc/mechanic-0-body": {
-    "x": 768,
-    "y": 470,
+    "x": 683,
+    "y": 460,
     "depth": 2
   },
   "myconid/mechanic-0-body": {
-    "x": 761,
-    "y": 468,
+    "x": 676,
+    "y": 458,
     "depth": 2
   },
   "lizardman/mechanic-0-body": {
-    "x": 760,
-    "y": 474,
+    "x": 675,
+    "y": 464,
     "depth": 2
   },
   "succubus/mechanic-0-body": {
-    "x": 768,
-    "y": 477,
+    "x": 683,
+    "y": 467,
     "depth": 2,
     "visible": false
   },
   "vampire/mechanic-0-body": {
-    "x": 760,
-    "y": 474,
+    "x": 675,
+    "y": 464,
     "depth": 2
   },
   "slot-slime": {
-    "x": 657,
-    "y": 493,
+    "x": 572,
+    "y": 483,
     "scaleX": 2.859,
     "scaleY": 2.859,
     "depth": 1000
   },
   "slime/boss-name": {
-    "x": 873,
-    "y": 203,
+    "x": 788,
+    "y": 193,
     "scaleX": 2.662,
     "scaleY": 2.662,
     "depth": 1000
   },
   "slime/boss-full-body": {
-    "x": 871,
-    "y": 285,
+    "x": 786,
+    "y": 275,
     "scaleX": 2.689,
     "scaleY": 2.689,
     "depth": 1000
   },
   "slime/headline-title": {
-    "x": 767,
-    "y": 381,
+    "x": 682,
+    "y": 371,
     "depth": 2
   },
   "slime/headline-summary": {
-    "x": 767,
-    "y": 400,
+    "x": 682,
+    "y": 390,
     "depth": 2
   },
   "slime/mechanic-0-bullet": {
-    "x": 763,
-    "y": 462,
+    "x": 678,
+    "y": 452,
     "depth": 2,
     "visible": false
   },
   "slime/mechanic-0-text": {
-    "x": 767,
-    "y": 430,
+    "x": 682,
+    "y": 420,
     "depth": 2
   },
   "slime/mechanic-0-body": {
-    "x": 767,
-    "y": 449,
+    "x": 682,
+    "y": 439,
     "depth": 2
   },
   "slime/flavor-quote": {
-    "x": 881,
-    "y": 580,
+    "x": 796,
+    "y": 570,
     "depth": 2,
     "visible": false
   }

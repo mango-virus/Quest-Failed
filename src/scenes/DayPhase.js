@@ -1,7 +1,8 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
-import { Balance }        from '../config/balance.js'
+import { Balance, adventurerDisplayLevel } from '../config/balance.js'
 import { createAdventurer } from '../entities/Adventurer.js'
+import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
 // CombatLog removed in Phase 31C — DungeonLog (HudScene right column) replaces it.
 import { DossierPanel }   from '../ui/DossierPanel.js'
@@ -48,6 +49,11 @@ export class DayPhase extends Phaser.Scene {
 
   create() {
     const { width: W, height: H } = applyUiCamera(this)
+    // Reset per-day idempotency guards. Phaser reuses the same scene
+    // instance across day-start invocations, so without this reset
+    // `_didSpawnToday` from yesterday persists and short-circuits today's
+    // spawnNow() — leaving the day stuck with no adventurers.
+    this._didSpawnToday = false
     // Phase 31C — top bar / stats row / follow indicator / bottom bar +
     // CombatLog all moved to HudScene (BossTopBar / DungeonLog / ActionBar).
     // The legacy methods stay on the class as dead code; their internal
@@ -72,16 +78,38 @@ export class DayPhase extends Phaser.Scene {
     EventBus.emit('DAY_PHASE_STARTED')
     EventBus.emit('DAY_PHASE_BEGAN')   // Phase 31C — HudScene listens to toggle build menu off
 
-    const spawned = this._spawnDailyAdventurers() ?? []
-    this._refreshStats()
-
-    // Phase 9b: show dossier of today's callers briefly
-    if (spawned.length > 0) {
-      // Phase 31C — old DossierPanel + ARRIVAL banner are legacy chrome
-      // that conflicted visually with the new HUD. The Adventurer Intel
-      // popup (31E) replaces the dossier; the banner just spammed across
-      // the new top bar. Camera focus on entry_hall stays.
-      this._focusCameraOnEntry()
+    // Defer adventurer spawn until the DAY phase-change cinematic
+    // finishes (2.8s). Otherwise adventurers march in behind/under the
+    // cinematic and the "DAWN BREAKS · THE INVASION" framing is lost.
+    // Detection: when the new DOM HUD is on, PhaseTransition will emit
+    // PHASE_TRANSITION_FINISHED at the cinematic's end. Under legacy
+    // (`?newhud=0`) there's no cinematic so we spawn immediately. A
+    // fallback timer guards against the event never firing (defensive).
+    let _useNewHud = true
+    try { _useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
+    const spawnNow = () => {
+      if (this._didSpawnToday) return
+      this._didSpawnToday = true
+      const spawned = this._spawnDailyAdventurers() ?? []
+      this._refreshStats()
+      if (spawned.length > 0) this._focusCameraOnEntry()
+    }
+    if (_useNewHud) {
+      const onFinish = ({ phase } = {}) => {
+        if (phase !== 'day') return
+        EventBus.off('PHASE_TRANSITION_FINISHED', onFinish)
+        spawnNow()
+      }
+      EventBus.on('PHASE_TRANSITION_FINISHED', onFinish)
+      // Defensive fallback — if the cinematic gets cancelled or its
+      // emit never lands, still spawn at 2.9s so the day isn't soft-
+      // locked.
+      this.time.delayedCall(2900, () => {
+        EventBus.off('PHASE_TRANSITION_FINISHED', onFinish)
+        spawnNow()
+      })
+    } else {
+      spawnNow()
     }
   }
 
@@ -551,11 +579,9 @@ export class DayPhase extends Phaser.Scene {
       // about the broken connectivity.
       const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
       if (entry) {
-        // Match AISystem.pickSpawnTile — drop the adventurer at the north
-        // entrance so the entry contract stays consistent even on fallback.
-        const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
-        const localX = cp ? cp.x : Math.floor(entry.width / 2)
-        spawn = { x: entry.gridX + localX, y: entry.gridY }
+        // Match AISystem.pickSpawnTile — drop the adventurer at the entry
+        // hall doorway so the entry contract stays consistent on fallback.
+        spawn = entryDoorTile(entry)
         this._statsTexts.activeCount.setText('Adventurers can\'t reach your boss — fix the path.')
         this._showNoSpawnBanner()
       } else {
@@ -656,10 +682,20 @@ export class DayPhase extends Phaser.Scene {
     let returnLeaderInjected = false
     let count = Math.min(baseCount, classes.length * 2)
 
-    // Phase 7b: vendetta hunter spawn — if active vendettas, 35% chance one shows up
+    // Phase 7b: vendetta hunter spawn — if active vendettas, 35% chance
+    // one shows up. NightPhase pre-rolls this and stores the outcome on
+    // `nextWavePreview.vendettaHunter` so the IncomingWave panel matches
+    // what actually spawns. Consume the pre-roll if it targets today;
+    // otherwise fall back to the original Math.random gate.
     const vendetta = this._pickActiveVendetta()
     let vendettaHunter = null
-    if (vendetta && Math.random() < 0.35) {
+    const _preVend = (this._gameState.run?.nextWavePreview?.day === day)
+      ? this._gameState.run.nextWavePreview?.vendettaHunter
+      : undefined
+    const _vendettaActive = _preVend !== undefined
+      ? !!_preVend                       // preview present → use its decision
+      : (vendetta && Math.random() < 0.35)   // no preview → original behavior
+    if (vendetta && _vendettaActive) {
       const hunterClass = allClasses.find(c => c.id === vendetta.claimantClass) ?? classes[0]
       const hunter = createAdventurer(hunterClass, { x: spawn.x, y: spawn.y })
       hunter.name      = `${vendetta.avengeeName.split(' ').slice(-1)[0]}'s Sibling`
@@ -715,11 +751,47 @@ export class DayPhase extends Phaser.Scene {
     }
 
     const cosplayActive = !!(this._gameState._eventFlags ?? {}).cosplayContestActive
+    // Consume the night-time pre-rolled class list (NightPhase._rollNextWavePreview)
+    // so the IncomingWave panel's preview matches the actual spawn. If the
+    // preview is missing or stale, fall back to fresh Math.random picks.
+    const _wavePreview = this._gameState.run?.nextWavePreview
+    const _previewIds = (_wavePreview && _wavePreview.day === day && Array.isArray(_wavePreview.classIds))
+      ? _wavePreview.classIds
+      : null
+    // Parallel spriteVariants array — NightPhase pre-rolled the exact
+    // "<class>/vNN" for each adv so the IncomingWave panel can show
+    // the actual character that arrives. Apply each variant after
+    // createAdventurer so AdventurerRenderer._buildLpcSprite sees an
+    // already-set spriteVariant and skips its own random pick.
+    const _previewVariants = (_wavePreview && _wavePreview.day === day && Array.isArray(_wavePreview.spriteVariants))
+      ? _wavePreview.spriteVariants
+      : null
+    let _previewCursor = 0
     for (let i = (returnLeaderInjected ? 1 : 0); i < count; i++) {
-      const cls    = classes[Math.floor(Math.random() * classes.length)]
+      let cls
+      let preRolledVariant = null
+      if (_previewIds && _previewCursor < _previewIds.length) {
+        cls = classes.find(c => c.id === _previewIds[_previewCursor]) || null
+        // Only adopt the pre-rolled sprite variant when the previewed
+        // class actually matched one in the live pool. When `cls` is
+        // null the loop falls back to a class from `classes` below —
+        // and a variant rolled for a *different* class would render the
+        // wrong sprite (e.g. a cosplay-event adventurer wearing a stale
+        // knight costume because the preview was rolled before the
+        // event flag was set).
+        if (cls && _previewVariants && _previewVariants[_previewCursor]) {
+          preRolledVariant = _previewVariants[_previewCursor]
+        }
+        _previewCursor++
+      }
+      if (!cls) cls = classes[Math.floor(Math.random() * classes.length)]
       const offset = i === 0 ? { x: 0, y: 0 } : { x: (i % 2 === 0 ? 1 : -1), y: Math.floor(i / 2) }
       const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
       const adv    = createAdventurer(cls, tile)
+      // Stamp the pre-rolled variant so the in-game LPC renderer uses
+      // the same sprite the wave preview showed. Skipped when no
+      // pre-roll exists (legacy saves, event-replacement spawns).
+      if (preRolledVariant) adv.spriteVariant = preRolledVariant
 
       // Dungeon event: Cosplay Contest. Each adv has a 75% chance to be
       // "passive" (will not initiate combat with minions), the other 25%
@@ -787,7 +859,24 @@ export class DayPhase extends Phaser.Scene {
       }
     }
 
+    // Stamp a cosmetic display level on every spawned adventurer,
+    // derived from the same boss-level / day scaling that buffs their
+    // stats — so the UI's "LV" readouts climb as waves get genuinely
+    // stronger. Level 1 = a day-1 baseline wave. Changes NO stats; this
+    // is separate from `adv.level` (the XP / ability progression counter
+    // the combat systems read), so combat behaviour is untouched.
+    const _waveLevel = adventurerDisplayLevel(
+      dungeonLv, dayNum,
+      this._gameState?._mechanicFlags?.bloodMoneyHpBonus ?? 0,
+    )
+    for (const a of spawned) a.displayLevel = _waveLevel
+
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    // Clear the consumed wave preview so a returning night-phase reroll
+    // (or save-load) won't reuse stale class ids from yesterday.
+    if (this._gameState.run?.nextWavePreview) {
+      this._gameState.run.nextWavePreview = null
+    }
     return spawned
   }
 
@@ -1006,15 +1095,13 @@ export class DayPhase extends Phaser.Scene {
     return spawned
   }
 
-  // Reused by the speedrunner spawner — picks the entry hall north door
-  // tile when AISystem.pickSpawnTile rejects (e.g. a temporarily blocked
-  // path). Same logic as the regular spawn fallback.
+  // Reused by the speedrunner spawner — picks the entry hall doorway tile
+  // when AISystem.pickSpawnTile rejects (e.g. a temporarily blocked path).
+  // Same logic as the regular spawn fallback.
   _fallbackEntrySpawn() {
     const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
     if (!entry) return null
-    const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
-    const localX = cp ? cp.x : Math.floor(entry.width / 2)
-    return { x: entry.gridX + localX, y: entry.gridY }
+    return entryDoorTile(entry)
   }
 
   // Bug fix — visible "no entrance" banner when pickSpawnTile fails. Without
@@ -1247,7 +1334,10 @@ export class DayPhase extends Phaser.Scene {
     this._gameState.meta.dayNumber++
     this._gameState.meta.phase = 'night'
     this._gameState.player.totalDaysElapsed++
-    SaveSystem.save(this._gameState)
+    // Auto-save gated by SettingsOverlay GAMEPLAY > AUTOSAVE toggle.
+    let _autosaveOn = true
+    try { _autosaveOn = localStorage.getItem('qf.gameplay.autosave') !== 'false' } catch {}
+    if (_autosaveOn) SaveSystem.save(this._gameState)
     EventBus.emit('DAY_PHASE_ENDED')
     // Phase 31F — pass the day-start snapshot through to EndOfDay so the
     // PostWaveSummary popup can compute per-day deltas + so EndOfDay

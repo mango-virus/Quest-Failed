@@ -662,7 +662,6 @@ export class MinionAISystem {
     if (standingRoom?.definitionId === 'boss_chamber') {
       let bestB = null
       let bestBd = Infinity
-      const aggroB = Balance.AGGRO_RANGE_TILES
       for (const adv of this._gameState.adventurers.active) {
         if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
         if (adv._invisible) continue
@@ -671,8 +670,10 @@ export class MinionAISystem {
         if (adv._charmed) continue
         if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
         if (!_pointInRoom(adv.tileX, adv.tileY, standingRoom)) continue
+        // No distance gate — a minion in the boss chamber engages any
+        // adventurer who has reached the chamber, however far across it
+        // (the chamber is 14×14, far larger than AGGRO_RANGE_TILES).
         const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-        if (d > aggroB) continue
         if (d < bestBd) { bestB = adv; bestBd = d }
       }
       if (bestB) return bestB
@@ -737,27 +738,34 @@ export class MinionAISystem {
       // can walk past a blocking minion without the minion halting to fight.
       if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
 
-      if (requireSameRoom && !isRetaliationTarget) {
-        // A minion that drifted out of its home room (chased a target,
-        // got displaced, path home broken by a locked door) sits idle in
-        // some foreign room. Without the standingRoom fallback below,
-        // advs walking into that foreign room are invisible to the
-        // minion. Accept advs in either the home room OR the minion's
-        // current standing room — generalises the boss-chamber override
-        // above to every room.
-        const inHome = _pointInRoom(adv.tileX, adv.tileY, homeRoom)
-        const inStanding = standingRoom && standingRoom.instanceId !== homeRoom.instanceId &&
-                           _pointInRoom(adv.tileX, adv.tileY, standingRoom)
-        // Garrison minions are strictly home-bound — no standingRoom
-        // fallback (they shouldn't be away from home in the first place;
-        // if they are, the right fix is to send them back, not let them
-        // engage abroad).
-        if (!inHome && !(inStanding && !isGarrison)) continue
-      }
-      // When alerted, extend reach so we can hunt across rooms
-      const range = isAlerted ? aggro * 2.5 : aggro
+      // Is this adv inside the minion's home room, or the room the
+      // minion is currently standing in? A minion that drifted out of
+      // its home room (chased a target, got displaced, path home broken
+      // by a locked door) sits idle in some foreign room — the
+      // standingRoom fallback keeps advs who walk into that foreign room
+      // visible. Garrison minions are strictly home-bound — no
+      // standingRoom fallback (if they're away from home, the fix is to
+      // send them back, not let them engage abroad).
+      const inHome = _pointInRoom(adv.tileX, adv.tileY, homeRoom)
+      const inStanding = !!(standingRoom && standingRoom.instanceId !== homeRoom.instanceId &&
+                            _pointInRoom(adv.tileX, adv.tileY, standingRoom))
+      const inMinionRoom = inHome || (inStanding && !isGarrison)
+
+      if (requireSameRoom && !isRetaliationTarget && !inMinionRoom) continue
+
+      // Distance gate. An adv sharing the minion's room is ALWAYS
+      // engageable — a guard notices any intruder who walks in, no
+      // matter how far across the room they entered. Rooms run up to
+      // 14×14, well past AGGRO_RANGE_TILES, so gating same-room targets
+      // by aggro range used to make a minion near one wall ignore an
+      // adventurer who entered by the far wall. The aggro range only
+      // limits cross-room targets — an alerted / hunt / whisperersTongue
+      // minion scanning neighbouring rooms.
       const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-      if (d > range && !isRetaliationTarget) continue
+      if (!inMinionRoom && !isRetaliationTarget) {
+        const range = isAlerted ? aggro * 2.5 : aggro
+        if (d > range) continue
+      }
 
       // Priority overrides — curse brand > martyr > retaliation > default.
       // Retaliation gets priority 2 so the minion locks onto the actual

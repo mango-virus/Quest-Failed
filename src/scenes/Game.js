@@ -160,10 +160,20 @@ export class Game extends Phaser.Scene {
     this.darkDealDemonRenderer = new DarkDealDemonRenderer(this, this.gameState)
     this.phylacteryRenderer  = new PhylacteryRenderer(this, this.gameState)
     this.fungalCorpseRenderer = new FungalCorpseRenderer(this, this.gameState)
-    this.minionInspector     = new MinionInspector(this, this.gameState)
+    // MinionInspector and WantedPoster have DOM ports under the new HUD
+    // (src/hud/MinionInspectorOverlay.js + the ToastQueue 'bounty' kind).
+    // Gate the Phaser constructions so they don't double-fire under the
+    // DOM HUD — both would otherwise sit obscured behind the chrome.
+    let _useNewHud = true
+    try { _useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
+    if (!_useNewHud) {
+      this.minionInspector   = new MinionInspector(this, this.gameState)
+    }
     this.chatBubbles         = new ChatBubbles(this, this.gameState)
     this.knowledgeOverlay      = new KnowledgeOverlay(this, this.gameState, this.knowledgeSystem)
-    this.wantedPoster        = new WantedPoster(this, this.gameState)
+    if (!_useNewHud) {
+      this.wantedPoster      = new WantedPoster(this, this.gameState)
+    }
     this.replayGhostRenderer = new ReplayGhostRenderer(this, this.gameState)
     // BossFightOverlay moved to HudScene — it uses scene.uiW/uiH which
     // only HudScene sets via applyUiCamera. Game scene retains the
@@ -311,14 +321,22 @@ export class Game extends Phaser.Scene {
   }
 
   _onBossFinal() {
-    // Stop everything, transition to GameOver. HudScene was launched in
-    // parallel — explicitly stop it BEFORE we transition so the Boss HP
-    // panel doesn't linger over the GameOver / ArchetypeSelect screens.
-    this.scene.stop('HudScene')
+    // Stop everything, transition to GameOver. Under the new DOM HUD,
+    // keep HudScene alive so the DOM GameOverOverlay can mount over the
+    // dimmed dungeon view — the overlay handles RISE AGAIN by starting
+    // MainMenu itself. Otherwise (legacy), stop HudScene + start the
+    // Phaser GameOver scene as before.
+    let useNewHud = true
+    try { useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
     this.scene.stop('NightPhase')
     this.scene.stop('DayPhase')
     this.scene.stop('EndOfDay')
-    this.scene.start('GameOver', { gameState: this.gameState })
+    if (useNewHud) {
+      EventBus.emit('SHOW_GAME_OVER')
+    } else {
+      this.scene.stop('HudScene')
+      this.scene.start('GameOver', { gameState: this.gameState })
+    }
   }
 
   // Merge a room def's static connection points with the live room's
@@ -868,6 +886,20 @@ export class Game extends Phaser.Scene {
     const newH = Math.min(cap, oldH + grow)
     if (newW !== oldW || newH !== oldH) this.dungeonGrid.expandGrid(newW, newH)
 
+    // Scale the boss's own fight stats. Additive per level so it layers
+    // cleanly on top of ability bonuses (+4 ATK / +5 DEF) and event
+    // modifiers — BOSS_LEVELED_UP fires exactly once per level gained.
+    // Current HP keeps its fraction so a mid-fight level-up doesn't
+    // full-heal the boss (matches the minion rescale below).
+    const boss = this.gameState.boss
+    if (boss) {
+      const hpFrac = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1
+      boss.maxHp   = (boss.maxHp ?? 0) + Balance.BOSS_HP_PER_LEVEL
+      boss.hp      = Math.round(boss.maxHp * hpFrac)
+      boss.attack  = (boss.attack ?? 0)  + Balance.BOSS_ATK_PER_LEVEL
+      boss.defense = (boss.defense ?? 0) + Balance.BOSS_DEF_PER_LEVEL
+    }
+
     // Scale all live minions up by the ratio from their last boss level to the new one.
     for (const m of this.gameState.minions ?? []) {
       if (m.aiState === 'dead') continue
@@ -1142,15 +1174,79 @@ export class Game extends Phaser.Scene {
     if (this.gameState.meta.phase === 'day') {
       const ts = this._getDayTimeScale()
       if (ts > 0) {
-        const scaled = delta * ts
-        // Boss fight runs at the same scaled rate as all other day-phase
-        // systems so x2/x4/x8 speed applies during the boss encounter.
-        this.bossSystem?.update(scaled)
-        this.aiSystem?.update(scaled)
-        this.minionAiSystem?.update(scaled)
-        this.trapSystem?.update(scaled)
-        this.dungeonMechanicSystem?.tickDay(scaled)
-        this.classAbilitySystem?.update(scaled)
+        // Cap real delta before scaling so a browser frame hitch
+        // (tab refocus, GC pause, alt-tab return — anything that
+        // makes Phaser report a huge `delta`) doesn't multiply into
+        // a massive scaled tick.
+        const realCapped = Math.min(delta, 50)
+        const totalScaled = realCapped * ts
+
+        // ── Fixed sub-stepping ──────────────────────────────────────
+        // The simulation systems (movement, boss-fight combat, AI
+        // pathing) are written for ~16ms ticks. Handing them one
+        // coarse tick at high speed broke them: at 8× a single frame
+        // is realCapped(50) × 8 = 400ms. A 400ms tick makes
+        // adventurers teleport whole tiles past path waypoints, the
+        // boss-fight round timer (0.6s/round) and movement overshoot
+        // the room clamp, and the fight state machine wedge so the
+        // encounter never resolves — the "freezes during fights at
+        // 8×" report. Splitting the scaled time into sub-steps of at
+        // most MAX_STEP ms makes every system run exactly as it does
+        // at 1×, just more times per frame. steps is bounded (≤10 at
+        // 8×) because realCapped caps the input, so this can never
+        // itself run away.
+        const MAX_STEP = 40
+        const steps  = Math.max(1, Math.ceil(totalScaled / MAX_STEP))
+        const stepDt = totalScaled / steps
+
+        // ── Wall-clock budget breaker ───────────────────────────────
+        // Sub-stepping multiplies per-frame simulation cost by `steps`
+        // (≤10 at 8×). On a heavy wave — a guild-raid event spawns
+        // DOUBLE the adventurers, so a boss fight can hold 12-16
+        // combatants plus minions — 10× that cost can blow past the
+        // frame budget and the tab appears frozen. This guard caps the
+        // REAL time spent simulating per frame: once over budget we
+        // stop sub-stepping and let the frame render. The game then
+        // visibly runs slower than the chosen multiplier instead of
+        // hard-freezing — graceful degradation. The check is AFTER each
+        // sub-step so at least one always runs (the sim never stalls
+        // completely), and `performance.now()` is monotonic so this
+        // can never itself hang.
+        const STEP_BUDGET_MS = 50
+        const budgetStart = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+        // Per-system crash guard. An UNCAUGHT exception thrown inside a
+        // system's update() propagates out of Game.update, out of the
+        // Phaser scene step, and kills the requestAnimationFrame loop
+        // dead — the entire game hard-freezes on the spot ("freezes
+        // instantly"). EventBus already isolates event listeners this
+        // way; the per-frame system ticks were the one unprotected
+        // path. Each system is wrapped independently so a throw in one
+        // (e.g. a boss-fight edge case on the second fight) can't
+        // starve the others — adventurers keep moving, the game stays
+        // responsive, and the real error + stack trace lands in the
+        // console instead of a silent freeze. A boss fight that throws
+        // every tick still self-terminates via BossSystem's 30s
+        // _fightT hard cap (that timer advances before the throw).
+        const tick = (sys, fn) => {
+          try { fn() }
+          catch (err) {
+            // eslint-disable-next-line no-console
+            console.error(`[Game.update] ${sys}.update() threw — caught to keep the game loop alive:`, err)
+          }
+        }
+        for (let i = 0; i < steps; i++) {
+          // Boss fight runs at the same scaled rate as all other
+          // day-phase systems so x2/x4/x8 speed applies during the
+          // boss encounter.
+          tick('bossSystem',            () => this.bossSystem?.update(stepDt))
+          tick('aiSystem',              () => this.aiSystem?.update(stepDt))
+          tick('minionAiSystem',        () => this.minionAiSystem?.update(stepDt))
+          tick('trapSystem',            () => this.trapSystem?.update(stepDt))
+          tick('dungeonMechanicSystem', () => this.dungeonMechanicSystem?.tickDay(stepDt))
+          tick('classAbilitySystem',    () => this.classAbilitySystem?.update(stepDt))
+          const nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+          if (nowMs - budgetStart > STEP_BUDGET_MS) break
+        }
       }
       this.adventurerRenderer?.update()
       this.emoteSystem?.update()

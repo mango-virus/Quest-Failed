@@ -1,3 +1,7 @@
+// SUPERSEDED (Phase 34) — replaced by
+// `src/hud/MinionInspectorOverlay.js` under the new DOM HUD. Phaser
+// fallback under `?newhud=0`. Kept per CLAUDE.md.
+//
 // Click-on-minion inspector for NightPhase.
 // Shows: name + level, kills, evolution history.
 //

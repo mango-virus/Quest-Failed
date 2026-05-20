@@ -1,3 +1,5 @@
+// SUPERSEDED (Phase 34) — replaced by `src/hud/BossOverviewOverlay.js`.
+//
 // Phase 31E — Boss Overview popup.
 //
 // Two-column layout: boss card on the left (portrait + name + HP / XP

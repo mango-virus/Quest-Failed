@@ -13,6 +13,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
+import { entryDoorWorldCenter } from '../systems/DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
@@ -228,32 +229,15 @@ export class AdventurerRenderer {
     }
   }
 
-  // Compute the world-space center of the entry hall's north-facing door
-  // rect. Cached for the day. Doorways are 2 cells wide (along the wall
-  // axis) × WALL_THICKNESS cells across, with the extra cell slid toward
-  // whichever side has more wall — so the center isn't simply the cp tile.
+  // World-space center of the entry hall's doorway rect, wherever the
+  // (possibly rotated) entrance ended up. Cached for the day — the cache
+  // is cleared on day start, so a rotation done in the night phase is
+  // picked up next day. Delegates to the shared rotation-aware helper.
   _entryDoorWorldCenter() {
     if (this._entryDoorCache) return this._entryDoorCache
     const entry = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'entry_hall')
     if (!entry) return null
-    const cp = (entry.connectionPoints ?? []).find(c => c.direction === 'N')
-    if (!cp) {
-      // Fallback — center of top wall row.
-      const x = entry.gridX + Math.floor(entry.width / 2)
-      this._entryDoorCache = { tileX: x, tileY: entry.gridY, worldX: x * TS + TS / 2, worldY: entry.gridY * TS + TS / 2 }
-      return this._entryDoorCache
-    }
-    // Match DungeonRenderer._cpDoorRect: 2-tile width slid into the side
-    // with more wall space; WALL_THICKNESS-tile height starting at top row.
-    const WT      = 2
-    const alongDx = ((entry.width - 1) - cp.x) >= cp.x ? 1 : -1
-    const xStart  = Math.min(cp.x, cp.x + alongDx)
-    const tileX   = entry.gridX + xStart
-    const tileY   = entry.gridY
-    // Center of the 2 × WT tile rect.
-    const worldX = tileX * TS + TS              // center of 2-tile width
-    const worldY = tileY * TS + (WT * TS) / 2   // center of WT-tile height
-    this._entryDoorCache = { tileX, tileY, worldX, worldY }
+    this._entryDoorCache = entryDoorWorldCenter(entry)
     return this._entryDoorCache
   }
 

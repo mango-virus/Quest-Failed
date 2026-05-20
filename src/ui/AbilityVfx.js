@@ -31,6 +31,23 @@ function _validXY(x, y) {
   return Number.isFinite(x) && Number.isFinite(y)
 }
 
+// Phase 34C.5 — Particles quality setting. Inline localStorage read
+// instead of importing src/hud/userSettings.js to keep src/ui/ free of
+// HUD dependencies. Defaults to 'high' (multiplier 1.0). The 5 levels:
+//   off → 0    (skip emit entirely)
+//   low → 0.4
+//   med → 0.7
+//   high → 1.0  (default)
+function _particlesMult() {
+  try {
+    const lvl = localStorage.getItem('qf.video.particles') ?? 'high'
+    if (lvl === 'off')  return 0
+    if (lvl === 'low')  return 0.4
+    if (lvl === 'med')  return 0.7
+    return 1.0
+  } catch { return 1.0 }
+}
+
 export const AbilityVfx = {
   pulseRing(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
@@ -52,9 +69,15 @@ export const AbilityVfx = {
   particleBurst(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const o = { ...DEFAULTS.particles, ...opts }
+    // Scale by the user's particles quality setting. At 'off' we skip
+    // the emit entirely; at 'low' we cut count to ~40% (rounded so a
+    // 6-dot burst still emits 2 dots), etc.
+    const mult = _particlesMult()
+    if (mult <= 0) return null
+    const count = Math.max(1, Math.round(o.count * mult))
     const created = []
-    for (let i = 0; i < o.count; i++) {
-      const angle = (i / o.count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4
       const dist = o.speed * (0.6 + Math.random() * 0.6) * (o.durationMs / 1000)
       const dot = scene.add.circle(x, y, 2 + Math.random() * 1.5, o.color, 0.95)
       dot.setDepth(o.depth)

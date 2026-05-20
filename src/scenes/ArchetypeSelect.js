@@ -101,9 +101,29 @@ export class ArchetypeSelect extends Phaser.Scene {
     // directly via a save state somehow.
     TitleMusic.ensurePlaying(this)
 
-    const { width: W, height: H } = applyUiCamera(this)
+    // Design space is 1280×720 — a true 16:9 frame matching the locked
+    // canvas. The layout was originally authored against a 1450-wide
+    // space, which forced the camera to letterbox + downscale ~12% on a
+    // 16:9 screen — shrinking the book and softening every Text. The
+    // saved layout in `assets/layouts/ArchetypeSelect.json` has been
+    // re-centered for 1280×720 (x −85, y −10), so the book renders at
+    // full 1:1 size, edge-to-edge with no letterbox bars. The book art
+    // sits low within its 272×272 sprite frame, so the book sprite is
+    // intentionally placed above the geometric centre (y≈255) to land
+    // the *visible* book in the middle of the screen.
+    const { width: W, height: H } = applyUiCamera(this, 1280, 720)
     this._W = W
     this._H = H
+
+    // Text render-resolution multiplier. The boss-picker camera scales
+    // the whole 1280×720 design space to fit the canvas; on most
+    // displays that is an UPSCALE, and default 1×-resolution Phaser
+    // Text upscaled by the GPU renders blurry. Rendering every Text's
+    // internal canvas at this multiple keeps the lettering crisp at any
+    // window size. Applied via _crispText() after content builds and
+    // inline on the always-on chrome (back button, lock tooltip).
+    this._textRes = Math.min(4, Math.max(2,
+      Math.ceil((this.uiSf || 1) * (window.devicePixelRatio || 1))))
     this._archetypes = (this.cache.json.get('bossArchetypes') ?? []).slice()
       .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -220,6 +240,22 @@ export class ArchetypeSelect extends Phaser.Scene {
     // Spawn user-created text boxes / uploaded sprites from the saved layout.
     // Fire-and-forget — async only matters if the user added images.
     this.editor.loadDynamicItems()
+    this._crispText(this._cContent)
+  }
+
+  // Walk a container tree and bump every Text object's render
+  // resolution so the lettering stays sharp under the scene's camera
+  // zoom. Idempotent — safe to re-run after _renderDossier swaps in a
+  // fresh batch of dossier text.
+  _crispText(root) {
+    if (!root) return
+    const kids = root.list ?? []
+    for (const o of kids) {
+      if (o && o.type === 'Text' && typeof o.setResolution === 'function') {
+        o.setResolution(this._textRes)
+      }
+      if (o && o.list) this._crispText(o)
+    }
   }
 
   _buildHeaders() {
@@ -412,7 +448,7 @@ export class ArchetypeSelect extends Phaser.Scene {
         stroke: '#000000', strokeThickness: 3,
         backgroundColor: '#000000',
         padding: { x: 8, y: 5 },
-      }).setOrigin(0.5, 1).setDepth(9100)
+      }).setOrigin(0.5, 1).setDepth(9100).setResolution(this._textRes)
     }
     this._lockTooltip.setText(label).setPosition(x, y).setVisible(true)
   }
@@ -504,15 +540,17 @@ export class ArchetypeSelect extends Phaser.Scene {
 
   _buildBeginRun() {
     // The text label itself is the button — no separate sigil graphic.
-    const cx = this._dossierX + this._dossierW / 2
-    const cy = this._pageBottom - 30
+    // Centred horizontally on screen, parked on the book's bottom edge
+    // just below the page content — a standalone call-to-action.
+    const cx = this._bookCX
+    const cy = this._pageBottom - 2
 
     const label = this.add.text(cx, cy, 'BEGIN RUN', {
-      fontSize: '14px', color: '#f4d28a', fontFamily: 'serif', fontStyle: 'bold',
+      fontSize: '16px', color: '#f4d28a', fontFamily: 'serif', fontStyle: 'bold',
       stroke: '#3a1808', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(5).setInteractive({ useHandCursor: true })
+    label.setResolution(this._textRes)
     this._cContent.add(label)
-    this.editor.register(label, 'begin-run-label')
 
     label.on('pointerover',  () => label.setStyle({ color: '#fff5cc' }))
     label.on('pointerout',   () => label.setStyle({ color: '#f4d28a' }))
@@ -612,99 +650,111 @@ export class ArchetypeSelect extends Phaser.Scene {
     this._dossierObjs.push(sprite)
     this.editor.register(sprite, `${prefix}boss-full-body`, { fallbackName: 'boss-full-body' })
 
-    // Headline mechanic — bold name + 1-line summary, starting just below the
-    // full body image (image bottom = dossierTop + 100).
-    let yCursor = this._dossierTop + 110
+    // Ability plaques — the signature headline first, then supporting
+    // mechanics. Each is a self-contained card centred on the page, so
+    // the layout is uniform across every boss.
+    let yCursor = this._dossierTop + 60
+    const cardW = this._dossierW - 8
     if (arch.headline) {
-      const headlineRow = this._renderHeadlineMechanic(this._dossierX + 8, yCursor, this._dossierW - 16, arch.headline, accent, prefix)
-      yCursor = headlineRow.bottomY + 8
+      const r = this._renderAbilityCard(
+        cx, yCursor, cardW, arch.headline.name, arch.headline.summary, accent, true)
+      yCursor = r.bottomY + 8
     }
-
-    // Supporting mechanics
     if (Array.isArray(arch.mechanics)) {
-      arch.mechanics.forEach((m, idx) => {
-        const row = this._renderMechanicBullet(this._dossierX + 8, yCursor, this._dossierW - 16, m, accent, idx, prefix)
-        yCursor = row.bottomY + 4
-      })
+      for (const m of arch.mechanics) {
+        const parsed = _parseMechanic(m?.text ?? '')
+        const r = this._renderAbilityCard(
+          cx, yCursor, cardW, parsed.name, parsed.body, accent, false)
+        yCursor = r.bottomY + 8
+      }
     }
 
-    // Flavor — anchored to the bottom-band above the wax seal
+    // Flavor — anchored to the bottom-band above the wax seal. Wrap
+    // pulled well inside the page so the italic quote can't run past
+    // the right edge of the book.
     if (arch.flavorText) {
       const flav = this.add.text(cx, this._pageBottom - 60, `"${arch.flavorText}"`, {
         fontSize: '10px', color: '#7a6a4a', fontFamily: 'serif', fontStyle: 'italic',
-        wordWrap: { width: this._dossierW - 30 }, align: 'center',
+        wordWrap: { width: this._dossierW - 50 }, align: 'center',
       }).setOrigin(0.5, 1).setDepth(2)
       this.editor.register(flav, `${prefix}flavor-quote`, { fallbackName: 'flavor-quote' })
       this._cContent.add(flav)
       this._dossierObjs.push(flav)
     }
+
+    // Sharpen every Text just created for this dossier.
+    this._crispText(this._cContent)
   }
 
-  _renderHeadlineMechanic(x, y, w, headline, accent, prefix = '') {
-    const title = this.add.text(x + 14, y, headline.name.toUpperCase(), {
-      fontSize: '11px', color: hexToCss(accent), fontFamily: 'serif', fontStyle: 'bold',
-    }).setOrigin(0, 0).setDepth(2)
-    this._cContent.add(title)
-    this._dossierObjs.push(title)
-    this.editor.register(title, `${prefix}headline-title`, { fallbackName: 'headline-title' })
+  // Renders one boss ability as a centred plaque — a boss-colour card
+  // with a pixel-font name (sigil diamonds flanking it) and a wrapped,
+  // centred description. `isHeadline` gets the bolder "signature" look.
+  // Uniform across every boss; no per-boss layout tuning involved.
+  _renderAbilityCard(cx, y, panelW, nameStr, bodyStr, accent, isHeadline) {
+    const padTop = 6
+    const gap    = 4
+    const padBot = 8
+    const innerW = panelW - 26   // description wrap width (room for padding)
 
-    const summary = this.add.text(x + 14, y + 14, headline.summary ?? '', {
-      fontSize: '9px', color: '#3a1808', fontFamily: 'serif',
-      wordWrap: { width: w - 14 }, lineSpacing: 1,
-    }).setOrigin(0, 0).setDepth(2)
-    this._cContent.add(summary)
-    this._dossierObjs.push(summary)
-    this.editor.register(summary, `${prefix}headline-summary`, { fallbackName: 'headline-summary' })
-
-    return { bottomY: y + 14 + summary.height }
-  }
-
-  _renderMechanicBullet(x, y, w, mech, accent, idx = 0, prefix = '') {
-    const bullet = this.add.text(x, y, '•', {
-      fontSize: '10px', color: hexToCss(accent), fontFamily: 'serif', fontStyle: 'bold',
-    }).setOrigin(0, 0).setDepth(2)
-    this._cContent.add(bullet)
-    this._dossierObjs.push(bullet)
-    this.editor.register(bullet, `${prefix}mechanic-${idx}-bullet`, { fallbackName: `mechanic-${idx}-bullet` })
-
-    // Mechanic data is stored as "Name — body". Render the name half as a
-    // styled title (matching the headline's purple serif), with the body
-    // beneath it — so each ability gets the same visual treatment instead
-    // of the second ability reading as a flat sentence.
-    //
-    // The title is registered under the legacy `mechanic-<idx>-text` key so
-    // the per-boss layout overrides in assets/layouts/ArchetypeSelect.json
-    // keep tuning the block's anchor; the body inherits the title's final
-    // position via title.x / title.y + 14.
-    const raw  = mech.text ?? ''
-    const sep  = ' — '
-    const dash = raw.indexOf(sep)
-    const name = dash >= 0 ? raw.slice(0, dash).trim() : null
-    const body = dash >= 0 ? raw.slice(dash + sep.length).trim() : raw
-
-    const titleStr   = name ? name.toUpperCase() : body
-    const titleStyle = name
-      ? { fontSize: '11px', color: hexToCss(accent), fontFamily: 'serif', fontStyle: 'bold' }
-      : { fontSize: '9px',  color: '#3a1808',         fontFamily: 'serif',
-          wordWrap: { width: w - 22 }, lineSpacing: 1 }
-    const title = this.add.text(x + 10, y, titleStr, titleStyle).setOrigin(0, 0).setDepth(2)
-    this._cContent.add(title)
-    this._dossierObjs.push(title)
-    this.editor.register(title, `${prefix}mechanic-${idx}-text`, { fallbackName: `mechanic-${idx}-text` })
-
-    let bodyT = null
-    if (name) {
-      bodyT = this.add.text(title.x, title.y + 14, body, {
-        fontSize: '9px', color: '#3a1808', fontFamily: 'serif',
-        wordWrap: { width: w - 22 }, lineSpacing: 1,
-      }).setOrigin(0, 0).setDepth(2)
-      this._cContent.add(bodyT)
-      this._dossierObjs.push(bodyT)
-      this.editor.register(bodyT, `${prefix}mechanic-${idx}-body`, { fallbackName: `mechanic-${idx}-body` })
+    let name = null
+    if (nameStr) {
+      name = this.add.text(cx, y + padTop, String(nameStr).toUpperCase(), {
+        fontFamily: FONT_HEAD, fontSize: isHeadline ? '10px' : '9px',
+        color: hexToCss(accent), fontStyle: 'bold', align: 'center',
+      }).setOrigin(0.5, 0).setDepth(2)
+      // Dark stroke so the accent-coloured name punches off the parchment.
+      name.setStroke('#1c0e04', 3)
+      this._cContent.add(name)
+      this._dossierObjs.push(name)
     }
 
-    const last = bodyT ?? title
-    return { bottomY: last.y + last.height }
+    // Description — VT323 is the game's body pixel font (force-loaded by
+    // Boot.js), matching the menu typography. Capitalised so each
+    // mechanic reads as a proper sentence.
+    const bodyY = name ? (name.y + name.height + gap) : (y + padTop)
+    const body = this.add.text(cx, bodyY, _capFirst(String(bodyStr ?? '')), {
+      fontFamily: '"VT323", monospace', fontSize: '13px', color: '#3a1808',
+      align: 'center', wordWrap: { width: innerW }, lineSpacing: 1,
+    }).setOrigin(0.5, 0).setDepth(2)
+    this._cContent.add(body)
+    this._dossierObjs.push(body)
+
+    const cardX = cx - panelW / 2
+    const cardH = (body.y + body.height + padBot) - y
+
+    // Plaque — boss-colour wash + border + edge-bars, drawn behind the
+    // text (depth 1 vs 2). The headline gets the stronger signature look.
+    const g = this.add.graphics().setDepth(1)
+    g.fillStyle(accent, isHeadline ? 0.17 : 0.10)
+    g.fillRoundedRect(cardX, y, panelW, cardH, 4)
+    g.lineStyle(isHeadline ? 2 : 1, accent, isHeadline ? 0.9 : 0.55)
+    g.strokeRoundedRect(cardX, y, panelW, cardH, 4)
+    g.fillStyle(accent, isHeadline ? 1 : 0.7)
+    g.fillRect(cardX + 2,          y + 4, 3, cardH - 8)
+    g.fillRect(cardX + panelW - 5, y + 4, 3, cardH - 8)
+    // Sigil diamonds flanking the name.
+    if (name) {
+      const sy   = name.y + name.height / 2
+      const half = name.width / 2
+      const r    = isHeadline ? 4 : 3
+      this._drawSigil(g, cx - half - 11, sy, r, accent)
+      this._drawSigil(g, cx + half + 11, sy, r, accent)
+    }
+    this._cContent.add(g)
+    this._dossierObjs.push(g)
+
+    return { bottomY: y + cardH }
+  }
+
+  // Small filled accent diamond — an ability sigil.
+  _drawSigil(g, x, y, r, color) {
+    g.fillStyle(color, 1)
+    g.fillPoints([
+      { x,        y: y - r },
+      { x: x + r, y },
+      { x,        y: y + r },
+      { x: x - r, y },
+    ], true)
   }
 
   // ─── Boss switcher (edit-mode helper) ──────────────────────────────────────
@@ -731,7 +781,8 @@ export class ArchetypeSelect extends Phaser.Scene {
     const back = this.add.text(20, 20, '◀ BACK', {
       fontSize: '14px', color: '#a08868', fontFamily: 'serif', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 3,
-    }).setOrigin(0, 0).setDepth(10).setInteractive({ useHandCursor: true })
+    }).setOrigin(0, 0).setDepth(10).setResolution(this._textRes)
+      .setInteractive({ useHandCursor: true })
     back.on('pointerover', () => back.setStyle({ color: '#f4d28a' }))
     back.on('pointerout',  () => back.setStyle({ color: '#a08868' }))
     back.on('pointerdown', () => this.scene.start('MainMenu'))
@@ -771,5 +822,21 @@ function parseColor(c, fallback) {
 
 function hexToCss(n) {
   return '#' + n.toString(16).padStart(6, '0')
+}
+
+// Capitalise the first letter so a mechanic body — authored as the tail
+// of a "Name — body" string — reads as a proper standalone sentence.
+function _capFirst(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+}
+
+// Splits a mechanic's "Name — body" string into its two halves. With no
+// separator the whole string is treated as the body (no name line).
+function _parseMechanic(text) {
+  const raw = String(text ?? '')
+  const sep = ' — '
+  const i = raw.indexOf(sep)
+  if (i < 0) return { name: null, body: raw }
+  return { name: raw.slice(0, i).trim(), body: raw.slice(i + sep.length).trim() }
 }
 

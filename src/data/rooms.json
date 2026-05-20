@@ -653,7 +653,7 @@
                      "free",
                      "required"
                  ],
-        "description":  "REQUIRED â€” adventurers always enter the dungeon through this room. Only one allowed.",
+        "description":  "REQUIRED — adventurers always enter the dungeon through this room. Only one allowed.",
         "flavorText":  "Every journey into darkness starts somewhere.",
         "theme":  null,
         "doorTheme":  null,
@@ -2449,7 +2449,7 @@
                              ],
         "goldCost":  40,
         "powerCostToUnlock":  0,
-        "unlockLevel":  4,
+        "unlockLevel":  2,
         "placementRules":  {
                                "minDepthFromBoss":  0,
                                "maxPerDungeon":  1,
@@ -3501,7 +3501,7 @@
                  ],
         "onAdventurerEnter":  "mimicVault_onEnter",
         "onNightStart":  "mimicVault_respawnMimics",
-        "description":  "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) that respawn nightly, plus 1 false chest â€” if grabbed, it steals gold from the adventurer.",
+        "description":  "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) that respawn nightly, plus 1 false chest — if grabbed, it steals gold from the adventurer.",
         "flavorText":  "It even has the right sparkle.",
         "theme":  null,
         "doorTheme":  null,
@@ -4454,7 +4454,7 @@
                      "friendly_fire"
                  ],
         "onAdventurerEnter":  "hallOfMadness_friendlyFireRoll",
-        "description":  "Adventurers in this room have a % chance to attack each other instead of moving on. (Heavy implementation lift â€” needs new AI state.)",
+        "description":  "Adventurers in this room have a % chance to attack each other instead of moving on. (Heavy implementation lift — needs new AI state.)",
         "flavorText":  "He looked at me and I saw the rest of them looking back.",
         "theme":  null,
         "doorTheme":  null,

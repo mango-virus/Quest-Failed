@@ -13,6 +13,14 @@ const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
 const BOTTOM_H   = 64
 
+// SettingsOverlay's GAMEPLAY > AUTOSAVE toggle. Default-on; gates the
+// automatic phase-transition / end-of-day saves but NOT the explicit
+// player-initiated save (ABANDON RUN, initial run save in ArchetypeSelect).
+function _autosaveOn() {
+  try { return localStorage.getItem('qf.gameplay.autosave') !== 'false' }
+  catch { return true }
+}
+
 // Room category accent colours (match DungeonRenderer ROOM_STYLE)
 const CAT_COLOR = {
   special:  0xaa22ff,
@@ -118,9 +126,271 @@ export class NightPhase extends Phaser.Scene {
     this._setupInput()
     this._wireHudEvents()
 
+    // Pre-roll tomorrow's adventurer wave BEFORE emitting NIGHT_PHASE_BEGAN
+    // so RightPanels' listener picks up the freshly-stored preview on its
+    // first render — emitting first then rolling caused the panel to show
+    // empty until something else triggered a re-render.
+    this._rollNextWavePreview()
+    // Re-roll whenever the player does anything during the night that
+    // could change the wave: sealing pacts (flag changes affect count
+    // and class pool), placing/removing rooms (treasury count affects
+    // baseCount). The preview stays current automatically.
+    this._wirePreviewRerolls()
     EventBus.emit('NIGHT_PHASE_STARTED')
     EventBus.emit('NIGHT_PHASE_BEGAN')   // Phase 31C — HudScene listens to toggle build menu
-    SaveSystem.save(this._gameState)
+    if (_autosaveOn()) SaveSystem.save(this._gameState)
+  }
+
+  // Roll the class-id list for the next day's wave so the IncomingWave
+  // panel matches what actually spawns. Uses the same eligibility gate +
+  // count formula as DayPhase._spawnDailyAdventurers; the actual day
+  // spawn reads from this list instead of rolling fresh.
+  //
+  // Handles ALL spawn paths:
+  //   * Event replacements (loot goblin heist / speedrunner / cartographers
+  //     / tournament rivals / rival dungeon) — fixed compositions.
+  //   * Twitch Con / Cosplay Contest — single-class wave overrides.
+  //   * Vendetta hunter (35% chance) — pre-rolled and stored so the
+  //     preview matches whether one will actually arrive.
+  //   * Normal class-pool roll.
+  //
+  // Re-runs on PACT_SEALED, ROOM_PLACED, ROOM_REMOVED, and EVENT_FLAG_*
+  // events so the preview stays accurate as the player changes the
+  // dungeon mid-night. Emits WAVE_PREVIEW_UPDATED so RightPanels can
+  // re-render.
+  _rollNextWavePreview() {
+    const gs = this._gameState
+    if (!gs?.meta) return
+    gs.run = gs.run ?? {}
+    const day = (gs.meta.dayNumber ?? 1) + (gs.meta.phase === 'day' ? 1 : 0)
+    const bossLv = gs.boss?.level ?? 1
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const eventFlags = gs._eventFlags ?? {}
+
+    // ── Event replacement waves ──────────────────────────────────
+    // These bypass the normal class pool entirely. Compositions match
+    // the corresponding _spawn*() methods in DayPhase exactly.
+    if (eventFlags.lootGoblinHeistActive) {
+      gs.run.nextWavePreview = {
+        day, count: 5,
+        classIds: ['loot_goblin', 'loot_goblin', 'loot_goblin', 'loot_goblin', 'loot_goblin'],
+        eventType: 'lootGoblin',
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+    if (eventFlags.legendarySpeedrunnerActive) {
+      gs.run.nextWavePreview = {
+        day, count: 1,
+        classIds: ['knight'],   // chassis preference: knight → barbarian → classes[0]
+        eventType: 'speedrunner',
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+    if (eventFlags.cartographersConventionActive) {
+      gs.run.nextWavePreview = {
+        day, count: 3,
+        classIds: ['cartographer_scholar', 'cartographer_scholar', 'cartographer_scholar'],
+        eventType: 'cartographers',
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+    if (eventFlags.tournamentActive) {
+      gs.run.nextWavePreview = {
+        day, count: 3,
+        classIds: ['tournament_rival_warrior', 'tournament_rival_rogue', 'tournament_rival_mage'],
+        eventType: 'tournament',
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+    if (eventFlags.rivalDungeonActive) {
+      gs.run.nextWavePreview = {
+        day, count: 5,
+        classIds: ['monster_invader', 'monster_invader', 'monster_invader', 'monster_invader', 'rival_boss_invader'],
+        eventType: 'rivalDungeon',
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+
+    // ── Normal wave (eligible class pool + count formula) ────────
+    let classes = allClasses.filter(c =>
+      (c.unlockLevel ?? 1) <= bossLv &&
+      (c.unlockDay   ?? 1) <= day,
+    )
+    // Twitch Con — entire wave is twitch_streamer. Bypasses unlock gates.
+    if (eventFlags.twitchConActive) {
+      const ts = allClasses.find(c => c.id === 'twitch_streamer')
+      if (ts) classes = [ts]
+    }
+    // Cosplay Contest — entire wave is cosplay_adventurer. Same bypass.
+    if (eventFlags.cosplayContestActive) {
+      const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
+      if (cos) classes = [cos]
+    }
+    if (classes.length === 0) {
+      gs.run.nextWavePreview = { day, count: 0, classIds: [], vendettaHunter: null, eventType: null }
+      return this._emitPreviewUpdated()
+    }
+    // Reach for any prior preview for THIS same day. Used below to
+    // stabilise both the regular class picks and the vendetta hunter
+    // 35% coin — without this, every re-roll picks fresh randoms and
+    // the panel flips classes on every room placement.
+    const prev = gs.run.nextWavePreview && gs.run.nextWavePreview.day === day
+      ? gs.run.nextWavePreview
+      : null
+    // Mirror DayPhase's baseCount calculation. Keep ordering identical
+    // so the preview tracks the actual spawn exactly when no last-second
+    // flags fire between night and day.
+    let baseCount = (Balance.ADVENTURERS_PER_DAY_BASE ?? 2) + Math.floor((day - 1) / 2)
+    const treasuryCount = (gs.dungeon?.rooms ?? [])
+      .filter(r => r.definitionId === 'treasury' && r.isActive !== false).length
+    if (treasuryCount > 0) baseCount += treasuryCount
+    if ((gs._mechanicFlags ?? {}).goldRush) baseCount += 1
+    const gildedExtras = (gs._mechanicFlags ?? {}).gildedDemiseExtraAdvs ?? 0
+    if (gildedExtras > 0) baseCount += gildedExtras
+    if ((gs._mechanicFlags ?? {}).doomsdayRaidToday) {
+      baseCount = Balance.MECHANIC_DOOMSDAY_RAID_SIZE ?? baseCount
+    }
+    const extraAdvs = (gs._mechanicFlags ?? {}).extraAdvsPerDay ?? 0
+    if (extraAdvs > 0) baseCount += extraAdvs
+    if (eventFlags.guildRaidActive) baseCount *= 2
+    if (eventFlags.negotiationOutcome === 'pay')    baseCount = 0
+    if (eventFlags.negotiationOutcome === 'refuse') baseCount = Math.round(baseCount * 1.5)
+    const subBonus = gs.player?.subscriberRevengeBonus ?? 0
+    if (subBonus > 0) baseCount += subBonus
+    const count = Math.min(baseCount, classes.length * 2)
+
+    // Vendetta hunter pre-roll. DayPhase rolls 0.35 fresh; here we roll
+    // it now and persist the outcome so the preview matches reality.
+    // The hunter is added to the front of classIds when present.
+    //
+    // Stability: if the prior preview already decided on a hunter
+    // outcome for this same day + same vendetta target, carry that
+    // forward. Without this, every re-roll flips the 35% coin again
+    // and the player sees the hunter blink in/out as they place rooms.
+    const vendetta = this._pickActiveVendettaForPreview()
+    const prevHunter = (prev && prev.day === day) ? prev.vendettaHunter : null
+    const prevTargetsSameMinion = prevHunter &&
+      prevHunter.minionInstanceId === (vendetta?.minionInstanceId ?? null)
+    let vendettaHunterPresent
+    if (!vendetta) {
+      vendettaHunterPresent = false
+    } else if (prevTargetsSameMinion || prevHunter === null && prev?.day === day) {
+      // Prior preview made a decision (yes-hunter or no-hunter) about
+      // this same vendetta target — keep it.
+      vendettaHunterPresent = !!prevHunter
+    } else {
+      vendettaHunterPresent = Math.random() < 0.35
+    }
+
+    if (count <= 0 && !vendettaHunterPresent) {
+      gs.run.nextWavePreview = {
+        day, count: 0, classIds: [],
+        vendettaHunter: null, eventType: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+
+    // classIds is JUST the regular wave (consumed 1:1 by DayPhase's
+    // main spawn loop). The vendetta hunter is tracked separately so
+    // DayPhase's vendetta path can match the pre-rolled outcome
+    // without confusing the cursor.
+    //
+    // Stability: reuse the prior preview's class picks for slots that
+    // still exist (same day, slot index unchanged). Only NEW slots
+    // (count grew) get a fresh random roll; SHRUNK counts truncate
+    // from the end. Without this, every ROOM_PLACED re-roll would
+    // pick new random classes — the player sees one class in the
+    // panel, places a corridor, gets a different class on BEGIN DAY.
+    const reusable = (prev && Array.isArray(prev.classIds)) ? prev.classIds : []
+    const reusableVariants = (prev && Array.isArray(prev.spriteVariants)) ? prev.spriteVariants : []
+    const classIds = []
+    // Parallel array of pre-rolled spriteVariant strings ("knight/v07",
+    // "cosplay_adventurer/v23", etc.) — DayPhase stamps each onto the
+    // matching adv when it spawns, so the IncomingWave panel can show
+    // the EXACT character that will arrive (not a generic class
+    // placeholder). Format mirrors AdventurerRenderer's adv.spriteVariant.
+    const spriteVariants = []
+    for (let i = 0; i < count; i++) {
+      const carryClass = reusable[i]
+      const carryVar   = reusableVariants[i]
+      const stillEligible = carryClass && classes.some(c => c.id === carryClass)
+      let chosenClass, chosenVar
+      if (stillEligible) {
+        chosenClass = carryClass
+        // Reuse the prior variant only if it's a string. Falls through
+        // to a fresh pick when this is a save from before variant
+        // pre-rolling shipped.
+        chosenVar = (typeof carryVar === 'string' && carryVar.includes('/'))
+          ? carryVar
+          : this._pickWaveVariant(chosenClass)
+      } else {
+        chosenClass = classes[Math.floor(Math.random() * classes.length)].id
+        chosenVar = this._pickWaveVariant(chosenClass)
+      }
+      classIds.push(chosenClass)
+      spriteVariants.push(chosenVar)
+    }
+    gs.run.nextWavePreview = {
+      day,
+      count,
+      classIds,
+      spriteVariants,
+      eventType: null,
+      vendettaHunter: vendettaHunterPresent
+        ? { claimantClass: vendetta?.claimantClass ?? null,
+            spriteVariant: this._pickWaveVariant(vendetta?.claimantClass),
+            minionInstanceId: vendetta?.minionInstanceId ?? null,
+            itemInstanceId:   vendetta?.itemInstanceId   ?? null,
+            avengeeName:      vendetta?.avengeeName      ?? null }
+        : null,
+    }
+    this._emitPreviewUpdated()
+  }
+
+  // Mirror DayPhase._pickActiveVendetta so the preview reads from the
+  // same data source. Returns the most-recent vendetta whose target
+  // minion is still alive in the dungeon faction.
+  _pickActiveVendettaForPreview() {
+    const list = this._gameState?.vendettas ?? []
+    if (list.length === 0) return null
+    const stillAlive = list.filter(v => {
+      const m = this._gameState.minions?.find(min => min.instanceId === v.minionInstanceId)
+      return !!m && m.aiState !== 'dead' && m.faction === 'dungeon'
+    })
+    if (stillAlive.length === 0) return null
+    return stillAlive[stillAlive.length - 1]
+  }
+
+  // Pick a deterministic-but-random LPC variant for a class. Mirrors
+  // AdventurerRenderer._buildLpcSprite's lookup (use the class's own
+  // bake when present, else fall through to its spriteSourceClassId
+  // defined in adventurerClasses.json — e.g. event-only classes that
+  // borrow art from a baked sibling). Returns "<sourceClass>/vNN".
+  // Preload bakes 50 variants per baked class (ADVENTURER_VARIANTS_PER_CLASS).
+  _pickWaveVariant(classId) {
+    if (!classId) return null
+    const allClasses = this.cache?.json?.get?.('adventurerClasses') ?? []
+    const def = allClasses.find(c => c.id === classId)
+    // Use the class's own bake when it has one; otherwise borrow art
+    // from spriteSourceClassId (declared on event-only classes that
+    // don't ship their own LPC sheet, like tournament_rival_*,
+    // monster_invader, etc.).
+    const sourceClass = def?.spriteSourceClassId || classId
+    // 50 baked variants per class — pad to v01..v50.
+    const n = 1 + Math.floor(Math.random() * 50)
+    const v = `v${String(n).padStart(2, '0')}`
+    return `${sourceClass}/${v}`
+  }
+
+  _emitPreviewUpdated() {
+    EventBus.emit('WAVE_PREVIEW_UPDATED', {
+      preview: this._gameState?.run?.nextWavePreview ?? null,
+    })
   }
 
   // Phase 31C — HUD chrome moved to HudScene. We listen for the build/tool
@@ -205,6 +475,42 @@ export class NightPhase extends Phaser.Scene {
       for (const [evt, fn] of this._hudListeners) EventBus.off(evt, fn, this)
       this._hudListeners = []
     }
+    // Detach the wave-preview re-roll subscriptions installed by
+    // _wirePreviewRerolls so they don't leak across scene restarts.
+    if (this._previewRerollListeners) {
+      for (const [evt, fn] of this._previewRerollListeners) EventBus.off(evt, fn)
+      this._previewRerollListeners = []
+    }
+  }
+
+  // Re-roll the wave preview whenever something changes during the night
+  // that would alter the next day's spawn (pact flags, room placements,
+  // etc.). Keeps the IncomingWave panel accurate without forcing the
+  // player to do anything special.
+  _wirePreviewRerolls() {
+    if (this._previewRerollListeners?.length) {
+      // Defensive — if create() ran twice without a shutdown, old listeners
+      // would still be live. Reset before re-attaching.
+      for (const [evt, fn] of this._previewRerollListeners) EventBus.off(evt, fn)
+    }
+    this._previewRerollListeners = []
+    const reroll = () => this._rollNextWavePreview()
+    const sub = (evt) => {
+      EventBus.on(evt, reroll)
+      this._previewRerollListeners.push([evt, reroll])
+    }
+    // Pacts can flip _mechanicFlags (gold_rush, doomsday, etc.) or
+    // _eventFlags (guildRaid, etc.) — re-roll captures the new state.
+    sub('PACT_SEALED')
+    // Treasury rooms add +1 to baseCount each; placement/removal during
+    // night changes the next-day count.
+    sub('ROOM_PLACED')
+    sub('ROOM_REMOVED')
+    // Any dungeon event that fires during night sets _eventFlags.* —
+    // catch the announcement so we re-roll into the event-replacement
+    // wave (or back out of one if it gets cancelled somewhere).
+    sub('DUNGEON_EVENT_ANNOUNCED')
+    sub('DUNGEON_EVENT_CLEARED')
   }
 
   // ── UI construction ───────────────────────────────────────────────────────
@@ -1166,9 +1472,11 @@ export class NightPhase extends Phaser.Scene {
         }
       }
 
-      // Rotation angle label — top-left corner of the preview rect, world space
+      // Rotation angle label — top-left corner of the preview rect, world
+      // space. Carries the [R] keybind hint so the player discovers room
+      // rotation without having to find it in the help strip.
       if (this._rotLabel) {
-        this._rotLabel.setText(`↻ ${this._rotation}°`)
+        this._rotLabel.setText(`↻ ${this._rotation}°   ·   [R] ROTATE`)
         this._rotLabel.setPosition(wx + 2, wy + 2)
         this._rotLabel.setVisible(true)
       }
@@ -2494,7 +2802,7 @@ export class NightPhase extends Phaser.Scene {
     }
 
     this._gameState.meta.phase = 'day'
-    SaveSystem.save(this._gameState)
+    if (_autosaveOn()) SaveSystem.save(this._gameState)
     EventBus.emit('NIGHT_PHASE_ENDED')
     this.scene.start('DayPhase', { gameState: this._gameState })
   }
