@@ -17,6 +17,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
+import { ABILITY_DEFS } from '../systems/ClassAbilitySystem.js'
 
 const STAT_LABEL = { attack: 'ATK', defense: 'DEF', maxHp: 'MAX HP', speed: 'SPD' }
 
@@ -30,6 +31,63 @@ const CAT_COLOR = {
   item:       'var(--gold-bright)',
   placed:     'var(--info)',
   trap:       'var(--warn)',
+}
+
+// Friendly one-line descriptions of each AI goal type, shown on the
+// adventurer hover panel. Unmapped types fall back to a humanized form
+// of the raw goal id (lower-case, underscores → spaces).
+const GOAL_LABELS = {
+  SEEK_BOSS:         'Hunting the boss',
+  AT_BOSS:           'Fighting the boss',
+  EXPLORE_ROOM:      'Exploring the dungeon',
+  SCATTER_ROOM:      'Scattering',
+  HUNT_RIVAL:        'Hunting a rival',
+  HUNT_PHYLACTERY:   'Seeking the phylactery',
+  CHARM_WALK:        'Charmed',
+  SEEK_VENDETTA:     'Out for vengeance',
+  FOLLOW_LEADER:     'Following the leader',
+  ATTACK_ALLY:       'Attacking an ally',
+  DEFEND_ALLY:       'Defending an ally',
+  RESCUE_ALLY:       'Rescuing an ally',
+  FLEE:              'Fleeing the dungeon',
+  TACTICAL_RETREAT:  'Retreating',
+  WANDER:            'Wandering',
+  INVESTIGATE_NOISE: 'Investigating a noise',
+  REGROUP_AT_PARTY:  'Regrouping with the party',
+  SCOUT_AHEAD:       'Scouting ahead',
+  SEEK_TREASURE:     'Going for treasure',
+  ESCAPE_WITH_LOOT:  'Escaping with loot',
+  SEEK_HEAL:         'Looking for healing',
+  SEEK_KEY_CHEST:    'Searching for a key',
+  OPEN_LOCKED_DOOR:  'Working a locked door',
+  LOOT_CORPSE:       'Looting a corpse',
+}
+
+function advGoalLabel(adv) {
+  if (adv?.aiState === 'dead') return 'Slain'
+  const type = adv?.goal?.type
+  if (!type) return 'Idle'
+  return GOAL_LABELS[type] ?? String(type).toLowerCase().replace(/_/g, ' ')
+}
+
+// ABILITY_DEFS keys are prefixed by a short class tag, not the full
+// classId — map classId → prefix so the hover panel can list a class's
+// abilities. Classes absent here have no active class abilities.
+const CLASS_ABILITY_PREFIX = {
+  knight: 'knight', rogue: 'rogue', mage: 'mage', cleric: 'cleric',
+  necromancer: 'necro', ranger: 'ranger', twitch_streamer: 'twitch',
+  beast_master: 'bm', barbarian: 'barb', monk: 'monk', bard: 'bard',
+}
+
+// Names of every class ability for the hover panel (e.g. "Protective
+// Aura · Taunt"). Empty for classes with no active abilities.
+function advAbilityLabels(classId) {
+  const prefix = CLASS_ABILITY_PREFIX[classId]
+  if (!prefix) return ''
+  return Object.entries(ABILITY_DEFS)
+    .filter(([key]) => key.startsWith(`${prefix}_`))
+    .map(([, def]) => def.label)
+    .join(' · ')
 }
 
 export class InspectPopup {
@@ -118,13 +176,18 @@ export class InspectPopup {
   _abilityLines(definitionId) {
     const info = minionAbilityInfo(definitionId)
     if (!info) return null
+    return this._abilityBlock(info.ability, info.behavior)
+  }
+
+  // Render an ABILITY / BEHAVIOR block from explicit strings.
+  _abilityBlock(ability, behavior) {
     const line = (tag, text) => h('div', { className: 'qf-inspect-ability' }, [
       h('span', { className: 'pix qf-inspect-ability-tag' }, tag),
       h('span', { className: 'qf-inspect-ability-text' }, text),
     ])
     return h('div', { className: 'qf-inspect-abilities' }, [
-      info.ability  && line('ABILITY',  info.ability),
-      info.behavior && line('BEHAVIOR', info.behavior),
+      ability  && line('ABILITY',  ability),
+      behavior && line('BEHAVIOR', behavior),
     ])
   }
 
@@ -148,10 +211,19 @@ export class InspectPopup {
       ['LV',  m.level ?? 1],
     ]
     const def = this._minionDef(m)
+    // Converted thralls share the vampire_minion1 def but roam in the open
+    // — override the def's "Sleep on Ceiling" behavior text so the panel
+    // doesn't claim it's invisible when it is plainly visible and wandering.
+    const abilities = m._isVampireThrall
+      ? this._abilityBlock(
+          'Bloodthirst — heals for 50% of damage dealt.',
+          'Roams the dungeon, hunting any intruders it crosses.',
+        )
+      : this._abilityLines(m.definitionId)
     return [
       this._statsGrid(boxes),
       def?.description ? this._descLine(def.description) : null,
-      this._abilityLines(m.definitionId),
+      abilities,
     ]
   }
 
@@ -161,15 +233,38 @@ export class InspectPopup {
     const hp    = a.resources?.hp ?? a.stats?.hp ?? '?'
     const maxHp = a.resources?.maxHp ?? hp
     const boxes = [
-      ['LV',  a.level ?? 1],
+      ['LV',  a.displayLevel ?? a.level ?? 1],
       ['HP',  `${hp}/${maxHp}`],
       ['ATK', a.stats?.attack ?? '?'],
     ]
     const flavor = def?.flavorText || def?.description || ''
-    const desc = flavor
-      ? `${String(cls).toUpperCase()} — ${flavor}`
-      : String(cls).toUpperCase()
-    return [this._statsGrid(boxes), this._descLine(desc)]
+    return [
+      this._statsGrid(boxes),
+      flavor ? this._descLine(flavor) : null,
+      this._advLines(a, cls),
+    ]
+  }
+
+  // Tagged CLASS / ABILITIES / PERSONALITY / GOAL lines — same row style
+  // as the minion panel's ABILITY / BEHAVIOR block.
+  _advLines(a, cls) {
+    const line = (tag, text) => h('div', { className: 'qf-inspect-ability' }, [
+      h('span', { className: 'pix qf-inspect-ability-tag' }, tag),
+      h('span', { className: 'qf-inspect-ability-text' }, text),
+    ])
+    return h('div', { className: 'qf-inspect-abilities' }, [
+      line('CLASS',       cls),
+      line('ABILITIES',   advAbilityLabels(a.classId) || '—'),
+      line('PERSONALITY', this._personalityNames(a)   || '—'),
+      line('GOAL',        advGoalLabel(a)),
+    ])
+  }
+
+  _personalityNames(a) {
+    const defs = this._cachedJson('personalities') ?? []
+    return (a.personalityIds ?? [])
+      .map(pid => defs.find(d => d.id === pid)?.name ?? pid)
+      .join(' · ')
   }
 
   _itemContent(p) {

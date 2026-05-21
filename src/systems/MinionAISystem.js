@@ -668,6 +668,8 @@ export class MinionAISystem {
         // Vampire Charm — charmed advs are walking peacefully to the
         // boss to be turned; minions ignore them.
         if (adv._charmed) continue
+        // The Saboteur is untouchable — minions pay it no mind.
+        if (adv._saboteur) continue
         if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
         if (!_pointInRoom(adv.tileX, adv.tileY, standingRoom)) continue
         // No distance gate — a minion in the boss chamber engages any
@@ -734,6 +736,8 @@ export class MinionAISystem {
       // "charmed adv ignores minions" rule lives in
       // AISystem._findEngageableMinion.
       if (adv._charmed) continue
+      // The Saboteur is untouchable — minions pay it no mind.
+      if (adv._saboteur) continue
       // Adventurers in a doorway are passing through — untargetable so they
       // can walk past a blocking minion without the minion halting to fight.
       if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
@@ -1022,6 +1026,12 @@ export class MinionAISystem {
     this._gameState.minions = this._gameState.minions.filter(
       m => !(m._isHauntGhost && (m.aiState === 'dead' || m.resources.hp <= 0))
     )
+    // Mercenary-contract minions don't revive — if the hire falls in
+    // battle, the contract is over. (Surviving mercenaries are removed
+    // separately by EventSystem when their 3-day contract expires.)
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m._mercenary && (m.aiState === 'dead' || m.resources.hp <= 0))
+    )
     // Pass-2: mini-slimes from Slime Split are temporary — wipe them all at
     // dawn (alive or dead) so they can't accumulate forever.
     this._gameState.minions = this._gameState.minions.filter(m => !m._isMiniSlime)
@@ -1034,6 +1044,11 @@ export class MinionAISystem {
       if (m.aiState === 'dead' || m.resources.hp <= 0) {
         m.timesKilledAndRespawned = (m.timesKilledAndRespawned ?? 0) + 1
         EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
+        // A minion that died loses the XP it earned — it revives next
+        // dawn as a fresh level-1 recruit. (Evolution is reverted
+        // separately by MinionEvolutionSystem.applyResets.)
+        m.level = 1
+        m.xp    = 0
       }
       // Re-apply day+boss scaling each dawn so retained minions stay competitive.
       // applyMinionScaling always recomputes from _baseMaxHp/_baseAtk, never stacks.

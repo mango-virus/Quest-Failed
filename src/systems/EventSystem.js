@@ -1,9 +1,10 @@
 // EventSystem — schedules + dispatches Dungeon Events.
 //
-// Cadence: one event every 5 days. Same event cannot fire back-to-back
-// (lastEventId filter in _eligibleEvents). Hard events
-// (legendary_speedrunner, the_tournament, rival_dungeon) gated to
-// bossLevel >= 3.
+// Cadence: first event on day 3, then one every 3 days. Same event
+// cannot fire back-to-back (lastEventId filter in _eligibleEvents).
+// Every event is eligible from day one — no boss-level or day gate.
+// A debug panel (DebugEventPanel) can force any specific event via the
+// DEBUG_FORCE_EVENT bus event.
 //
 // Lifecycle:
 //   NIGHT_PHASE_BEGAN   — if today is `nextEventDay`, pick eligible event,
@@ -27,19 +28,36 @@
 
 import { EventBus }         from './EventBus.js'
 import { Balance }          from '../config/balance.js'
+import { AbilitySystem }    from './AbilitySystem.js'
 import { createAdventurer } from '../entities/Adventurer.js'
+import { createMinion }     from '../entities/Minion.js'
 import { entryDoorTile }    from './DungeonGrid.js'
 
-// Fixed 5-day cadence — every event fires exactly 5 days after the prior
+// Fixed 3-day cadence — every event fires exactly 3 days after the prior
 // one resolved. Set MIN_GAP === MAX_GAP for a deterministic schedule.
-const MIN_GAP = 5
-const MAX_GAP = 5
+const MIN_GAP = 3
+const MAX_GAP = 3
+
+// ── Day-long state-modifier event tuning ───────────────────────────────
+// Miasma — chip damage to everything, every tick.
+const MIASMA_TICK_MS  = 2000
+const MIASMA_TICK_DMG = 2
+// Tremors — a quake strikes a random room on this interval. Each
+// successive quake this day hits TREMOR_DMG_STEP harder than the last.
+const TREMOR_INTERVAL_MS = 8000
+const TREMOR_DMG         = 14
+const TREMOR_DMG_STEP    = 6
+// Arcane Storm — class-ability cooldowns multiplied by this while active.
+const ARCANE_STORM_COOLDOWN_SCALE = 0.4
 
 export class EventSystem {
   constructor(scene, gameState) {
     this._scene     = scene
     this._gameState = gameState
     this._defs      = scene.cache?.json?.get?.('events') ?? []
+    // Minion-type table — used by the Black Market / Mercenary events to
+    // pick a minion to grant.
+    this._minionTypes = scene.cache?.json?.get?.('minionTypes') ?? []
 
     // Defensive create so a fresh GameState OR an old save without the
     // events slice both end up with a valid structure.
@@ -47,6 +65,7 @@ export class EventSystem {
     gameState.events.nextEventDay ??= this._initialNextDay()
     gameState.events.lastEventId  ??= null
     gameState.events.scheduledId  ??= null
+    gameState.events.scheduledDay ??= null
     gameState._eventFlags         ??= {}
 
     // Active Phaser timer events for the Twitch Con chaos mechanics. Held
@@ -55,6 +74,12 @@ export class EventSystem {
     this._twitchTimers = []
     // Per-day raid counter — capped so a long day can't spawn endlessly.
     this._twitchRaidsToday = 0
+    // Looping timers for the day-long state-modifier events (Miasma chip
+    // DoT, Tremor quakes). Torn down in _clearEffect and destroy().
+    this._eventTimers = []
+    // How many tremor quakes have struck so far this day — drives the
+    // escalating per-quake damage. Reset in _applyEffect / _clearEffect.
+    this._tremorCount = 0
 
     this._listeners = []
     const on = (evt, fn) => { EventBus.on(evt, fn, this); this._listeners.push([evt, fn]) }
@@ -73,6 +98,49 @@ export class EventSystem {
     // the event is live, attribute the kill (rival-vs-rival only), buff
     // the killer, and check for last-one-standing.
     on('ADVENTURER_DIED', this._onAdventurerDiedTournament)
+    // Debug panel — force a specific event for playtesting.
+    on('DEBUG_FORCE_EVENT', this._onDebugForceEvent)
+    // Gambler's Coin — the player clicked the imp NPC; surface the wager.
+    on('GAMBLER_IMP_CLICKED', this._onGamblerImpClicked)
+    // Gambler's Coin — the player chose DOUBLE OR NOTHING in the cinematic.
+    on('GAMBLER_DOUBLE_REQUEST', this._onGamblerDoubleRequest)
+  }
+
+  // Gambler's Coin — fired by GamblerImpRenderer when the player clicks
+  // the imp. Surfaces the wager modal (the imp leaves once it resolves).
+  _onGamblerImpClicked() {
+    this._promptGamblersCoin()
+  }
+
+  // Gambler's Coin — the second wager. WIN doubles the player's current
+  // gold; LOSE wipes it out entirely. Result is dramatised by the
+  // CoinFlipCinematic (it requested this via GAMBLER_DOUBLE_REQUEST).
+  _onGamblerDoubleRequest() {
+    const player = this._gameState.player
+    if (!player) return
+    const goldBefore = player.gold ?? 0
+    const won = Math.random() < 0.5
+    const goldAfter = won ? goldBefore * 2 : 0
+    player.gold = goldAfter
+    EventBus.emit('GAMBLER_DOUBLE_RESULT', { won, goldBefore, goldAfter })
+  }
+
+  // Debug / playtest hook — fired by DebugEventPanel.
+  _onDebugForceEvent({ id } = {}) {
+    if (id) this.forceEvent(id)
+  }
+
+  // Immediately schedule a chosen event. Announces it now (so night-
+  // phase modals fire right away); the day-phase effect applies on the
+  // next DAY_PHASE_BEGAN, exactly like a normally-rolled event. The
+  // forced event overrides whatever was scheduled.
+  forceEvent(id) {
+    const def = this._defs.find(d => d.id === id)
+    if (!def) return
+    this._gameState.events.scheduledId  = def.id
+    this._gameState.events.scheduledDay = this._gameState.meta?.dayNumber ?? 1
+    EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: this._gameState.meta?.dayNumber ?? 1 })
+    this._dispatchAnnounceUi(def)
   }
 
   destroy() {
@@ -81,14 +149,18 @@ export class EventSystem {
     // Tear down any in-flight Twitch Con timers so a scene shutdown
     // mid-event doesn't leak Phaser timer events.
     this._stopTwitchConChaos()
+    this._stopEventTimers()
+    // Drop any Arcane Storm cooldown scaling so it can't leak past a
+    // scene teardown into a fresh run.
+    AbilitySystem.setCooldownScale(1)
   }
 
   // ── Scheduling ─────────────────────────────────────────────────────────
 
-  // First-time scheduling: pick a day in the [MIN_GAP, MAX_GAP] window from
-  // day 1 so the player gets at least 6 event-free days to learn the loop.
+  // First-time scheduling: the first dungeon event lands on day 3, then
+  // every MIN_GAP/MAX_GAP days after each one resolves.
   _initialNextDay() {
-    return 1 + this._rollGap()
+    return 3
   }
 
   _rollGap() {
@@ -96,12 +168,12 @@ export class EventSystem {
   }
 
   _eligibleEvents() {
-    const bossLevel = this._gameState.boss?.level ?? 1
-    const lastId    = this._gameState.events.lastEventId
-    return this._defs.filter(d =>
-      (d.minBossLevel ?? 1) <= bossLevel &&
-      d.id !== lastId,
-    )
+    // Every event is eligible from day one — no boss-level or day-count
+    // gate. The only filter is the no-repeat rule: an event can't fire
+    // twice in a row. (`minBossLevel` in events.json is now vestigial —
+    // kept as a difficulty-tier hint, not enforced.)
+    const lastId = this._gameState.events.lastEventId
+    return this._defs.filter(d => d.id !== lastId)
   }
 
   _pickEvent() {
@@ -114,6 +186,8 @@ export class EventSystem {
 
   _onNightPhaseBegan() {
     const today = this._gameState.meta?.dayNumber ?? 1
+    // Expire any mercenary contracts that have run their course.
+    this._cullExpiredMercenaries()
     const ev = this._gameState.events
     if (ev.scheduledId) {
       // Already-announced event (mid-cycle reload) — re-prompt night-phase
@@ -128,7 +202,10 @@ export class EventSystem {
     const def = this._pickEvent()
     if (!def) return                       // nothing eligible (e.g. only one event in pool and it was last)
 
-    ev.scheduledId = def.id
+    ev.scheduledId  = def.id
+    // The day the event's effect actually plays out — used to schedule
+    // the NEXT event from the correct anchor (see _onDayPhaseEnded).
+    ev.scheduledDay = today
     EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: today })
     this._dispatchAnnounceUi(def)
   }
@@ -137,7 +214,268 @@ export class EventSystem {
   // etc.) instead of waiting for day to begin. Routed here so EventSystem
   // owns "what fires when" and per-event handlers stay narrow.
   _dispatchAnnounceUi(def) {
-    if (def.id === 'negotiation_day') this._promptNegotiation()
+    if (def.id === 'negotiation_day')    this._promptNegotiation()
+    // Gambler's Coin no longer prompts on announce — GamblerImpRenderer
+    // spawns the imp NPC; clicking it fires GAMBLER_IMP_CLICKED, which
+    // surfaces the wager modal via _onGamblerImpClicked.
+    if (def.id === 'memory_plague')      this._wipeKnowledgePool()
+    if (def.id === 'black_market')       this._promptBlackMarket()
+    if (def.id === 'mercenary_contract') this._promptMercenary()
+    if (def.id === 'cursed_relic')       this._promptCursedRelic()
+  }
+
+  // Theme / icon / title for an event's SHOW_CONFIRM modal — pulled from
+  // events.json so the confirm popup is styled to match the event banner
+  // (ConfirmPopup renders the themed variant when payload.event is set).
+  _eventConfirmMeta(id) {
+    const def = this._defs.find(d => d.id === id) ?? {}
+    return {
+      theme: def.colorTheme ?? 'gold',
+      icon:  def.icon ?? '',
+      title: def.title ?? 'DUNGEON EVENT',
+    }
+  }
+
+  // ── Night-phase choice events ──────────────────────────────────────────
+  // Black Market / Mercenary Contract / Cursed Relic — all surface a
+  // SHOW_CONFIRM modal at announce. Each guards against re-prompt on a
+  // save-load mid-night with a `*Decided` flag (cleared in _clearEffect).
+
+  // Minion types unlocked at the current boss level.
+  _unlockedMinionTypes() {
+    const lv = this._gameState.boss?.level ?? 1
+    return (this._minionTypes ?? []).filter(t => (t.unlockLevel ?? 1) <= lv)
+  }
+
+  // A random Tier-3 minion type — the chain[2] final form of an
+  // evolution chain (used for the Mercenary Contract's elite hire).
+  _randomTier3MinionType() {
+    const chains = this._scene?.cache?.json?.get?.('minionEvolutions') ?? {}
+    const tier3  = []
+    for (const data of Object.values(chains)) {
+      const chain = data?.chain
+      if (Array.isArray(chain) && chain.length >= 3) tier3.push(chain[2])
+    }
+    if (tier3.length === 0) return null
+    const id = tier3[Math.floor(Math.random() * tier3.length)]
+    return (this._minionTypes ?? []).find(t => t.id === id) ?? null
+  }
+
+  // Drop an event-granted minion into a random non-boss room. Garrison
+  // class so it never interferes with the Barracks cap. Returns the
+  // minion, or null if the dungeon has no room to place it.
+  _spawnEventMinion(typeDef, extra = {}) {
+    if (!typeDef) return null
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    const pool  = rooms.filter(r => r.definitionId !== 'boss_chamber')
+    const src   = pool.length ? pool : rooms
+    const room  = src[Math.floor(Math.random() * src.length)]
+    if (!room) return null
+    const tile = {
+      x: room.gridX + Math.floor((room.width  ?? 1) / 2),
+      y: room.gridY + Math.floor((room.height ?? 1) / 2),
+    }
+    const minion = createMinion(typeDef, tile, room.instanceId, {
+      class:     'garrison',
+      bossLevel: this._gameState.boss?.level ?? 1,
+      dayNumber: this._gameState.meta?.dayNumber ?? 1,
+    })
+    Object.assign(minion, extra)
+    this._gameState.minions ??= []
+    this._gameState.minions.push(minion)
+    EventBus.emit('MINION_PLACED', { minion })
+    return minion
+  }
+
+  _promptBlackMarket() {
+    const flags = this._gameState._eventFlags
+    if (flags.blackMarketDecided) return
+    const price = 50
+    EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('black_market'),
+      message:
+        `A smuggler slips into your hoard:\n\n` +
+        `BUY — pay ${price} gold for a free random minion, delivered tonight.\n` +
+        `DECLINE — wave the smuggler off.`,
+      confirmLabel: `BUY (${price}g)`,
+      cancelLabel:  'DECLINE',
+      onConfirm: () => {
+        flags.blackMarketDecided = true
+        const player = this._gameState.player
+        if (!player || (player.gold ?? 0) < price) {
+          EventBus.emit('SHOW_TOAST', { message: 'Not enough gold for the black market', type: 'error' })
+          return
+        }
+        const types = this._unlockedMinionTypes()
+        if (types.length === 0) return
+        player.gold -= price
+        const pick = types[Math.floor(Math.random() * types.length)]
+        const m = this._spawnEventMinion(pick)
+        EventBus.emit('SHOW_TOAST', {
+          message: m ? `Black market — a ${pick.name ?? pick.id} joins your dungeon!`
+                     : 'No room to place the minion',
+          type: 'gold',
+        })
+      },
+      onCancel: () => { flags.blackMarketDecided = true },
+    })
+  }
+
+  _promptMercenary() {
+    const flags = this._gameState._eventFlags
+    if (flags.mercenaryDecided) return
+    const price = 120
+    EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('mercenary_contract'),
+      message:
+        `A mercenary captain offers a contract:\n\n` +
+        `HIRE — pay ${price} gold for an elite (Tier 3) minion that fights\n` +
+        `for 3 days, then walks off the job.\n` +
+        `DECLINE — turn the contract down.`,
+      confirmLabel: `HIRE (${price}g)`,
+      cancelLabel:  'DECLINE',
+      onConfirm: () => {
+        flags.mercenaryDecided = true
+        const player = this._gameState.player
+        if (!player || (player.gold ?? 0) < price) {
+          EventBus.emit('SHOW_TOAST', { message: 'Not enough gold to hire the mercenary', type: 'error' })
+          return
+        }
+        const pick = this._randomTier3MinionType()
+        if (!pick) return
+        player.gold -= price
+        const day = this._gameState.meta?.dayNumber ?? 1
+        const m = this._spawnEventMinion(pick, {
+          _mercenary: true,
+          _mercenaryUntilDay: day + 3,
+          name: 'Mercenary',
+        })
+        if (m) {
+          // Elite hire — double every combat stat. The `_base*` values
+          // are doubled too so the buff survives the nightly re-scale
+          // in MinionAISystem.respawnAll (applyMinionScaling recomputes
+          // hp/attack from _baseMaxHp / _baseAtk each dawn).
+          m._baseMaxHp      = (m._baseMaxHp ?? m.resources.maxHp) * 2
+          m._baseAtk        = (m._baseAtk   ?? m.stats.attack)    * 2
+          m.resources.maxHp = (m.resources.maxHp ?? 0) * 2
+          m.resources.hp    = m.resources.maxHp
+          m.stats.attack    = (m.stats.attack  ?? 0) * 2
+          m.stats.defense   = (m.stats.defense ?? 0) * 2
+        }
+        EventBus.emit('SHOW_TOAST', {
+          message: m ? `Mercenary hired — a ${pick.name ?? pick.id} fights for you!`
+                     : 'No room for the mercenary',
+          type: 'gold',
+        })
+      },
+      onCancel: () => { flags.mercenaryDecided = true },
+    })
+  }
+
+  _promptCursedRelic() {
+    const flags = this._gameState._eventFlags
+    if (flags.cursedRelicDecided) return
+    EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('cursed_relic'),
+      message:
+        `A cursed relic — a chest gorged with gold — surfaces in your hoard:\n\n` +
+        `CLAIM — keep the chest (it pays gold every day). But its dark pull\n` +
+        `swells every adventurer wave for as long as it sits in your dungeon.\n` +
+        `BANISH — be rid of it.`,
+      confirmLabel: 'CLAIM',
+      cancelLabel:  'BANISH',
+      onConfirm: () => {
+        flags.cursedRelicDecided = true
+        this._placeCursedRelic()
+      },
+      onCancel: () => { flags.cursedRelicDecided = true },
+    })
+  }
+
+  // Drop the cursed relic — a high-tier treasure chest tagged `_cursed`
+  // — into the boss room. TreasureChestRenderer paints it with a purple-
+  // black glow; DayPhase swells waves while it exists; the player can
+  // SELL it like any treasure chest to lift the curse.
+  _placeCursedRelic() {
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    const bossRoom = rooms.find(r => r.definitionId === 'boss_chamber') ?? rooms[0]
+    if (!bossRoom) return
+    const tx = bossRoom.gridX + Math.floor((bossRoom.width  ?? 1) / 2)
+    const ty = bossRoom.gridY + Math.floor((bossRoom.height ?? 1) / 2)
+    this._gameState.dungeon.treasureChests ??= []
+    this._gameState.dungeon.treasureChests.push({
+      instanceId: `cursed_relic_${Date.now()}`,
+      tileX: tx, tileY: ty, tier: 5, opened: false, _cursed: true,
+    })
+    EventBus.emit('TREASURE_CHEST_PLACED', { tier: 5, tileX: tx, tileY: ty, cursed: true })
+    EventBus.emit('SHOW_TOAST', { message: 'The cursed relic festers in your hoard…', type: 'leak' })
+  }
+
+  // Mercenaries serve a fixed contract then walk off the job. Checked
+  // each night — any whose contract has run out is removed.
+  _cullExpiredMercenaries() {
+    const day = this._gameState.meta?.dayNumber ?? 1
+    const minions = this._gameState.minions
+    if (!Array.isArray(minions)) return
+    let left = 0
+    for (let i = minions.length - 1; i >= 0; i--) {
+      const m = minions[i]
+      if (m?._mercenary && day > (m._mercenaryUntilDay ?? 0)) {
+        minions.splice(i, 1)
+        left++
+      }
+    }
+    if (left > 0) {
+      EventBus.emit('SHOW_TOAST', {
+        message: `${left} mercenary contract${left === 1 ? '' : 's'} expired`, type: 'info',
+      })
+    }
+  }
+
+  // Dungeon event: The Gambler's Coin — a night-phase wager. 50/50 to
+  // double the treasury or halve it. Re-prompt-safe via `gamblerDecided`.
+  _promptGamblersCoin() {
+    const flags = this._gameState._eventFlags
+    if (flags.gamblerDecided) return
+    const goldNow = this._gameState.player?.gold ?? 0
+    EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('gamblers_coin'),
+      message:
+        `A grinning imp flips a coin:\n\n` +
+        `WAGER — 50/50: double your ${goldNow} gold, or lose half.\n` +
+        `DECLINE — keep your gold and send the imp away.`,
+      confirmLabel: 'WAGER',
+      cancelLabel:  'DECLINE',
+      onConfirm: () => {
+        flags.gamblerDecided = true
+        // The imp's work is done — send it out of the dungeon.
+        EventBus.emit('GAMBLER_IMP_DISMISS')
+        const player = this._gameState.player
+        if (!player) return
+        const won = Math.random() < 0.5
+        const goldBefore = goldNow
+        const goldAfter  = won ? goldBefore * 2 : Math.floor(goldBefore / 2)
+        player.gold = goldAfter
+        // The full-screen coin-flip cinematic (CoinFlipCinematic.js)
+        // dramatises the result — it replaces the old plain toast.
+        // `canDouble` lets the cinematic offer a DOUBLE OR NOTHING follow-up.
+        EventBus.emit('GAMBLER_COIN_FLIP', { won, goldBefore, goldAfter, canDouble: true })
+      },
+      onCancel: () => {
+        flags.gamblerDecided = true
+        EventBus.emit('GAMBLER_IMP_DISMISS')
+      },
+    })
+  }
+
+  // Dungeon event: Memory Plague — wipe the shared knowledge pool the
+  // moment the event is announced (night), so the next day's wave spawns
+  // with no inherited intel. One-shot, guarded against save-load re-fire.
+  _wipeKnowledgePool() {
+    const flags = this._gameState._eventFlags
+    if (flags.memoryPlagueWiped) return
+    flags.memoryPlagueWiped = true
+    EventBus.emit('KNOWLEDGE_WIPE_ALL', {})
   }
 
   _promptNegotiation() {
@@ -148,6 +486,7 @@ export class EventSystem {
     const goldNow   = this._gameState.player?.gold ?? 0
     const tribute   = Math.floor(goldNow * 0.25)
     EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('negotiation_day'),
       message:
         `The Adventurer's Guild offers a deal:\n\n` +
         `PAY ${tribute} gold (25% of treasury) — no adventurers tomorrow.\n` +
@@ -182,11 +521,14 @@ export class EventSystem {
     const def = this._defs.find(d => d.id === id)
     this._clearEffect(def)
     ev.lastEventId  = id
+    // Gap is measured from the day the event actually FIRED, not from
+    // `meta.dayNumber` here — by DAY_PHASE_ENDED the day counter has
+    // already rolled to the next day, so reading it gave an off-by-one
+    // (event on day 3 → next scheduled day 7 instead of 6).
+    const firedDay  = ev.scheduledDay ?? this._gameState.meta?.dayNumber ?? 1
+    ev.nextEventDay = firedDay + this._rollGap()
     ev.scheduledId  = null
-    // Gap is measured from the day the previous event fired — so with
-    // MIN_GAP/MAX_GAP both = 5, an event on day N schedules the next on
-    // day N+5 (no extra +1 offset).
-    ev.nextEventDay = (this._gameState.meta?.dayNumber ?? 1) + this._rollGap()
+    ev.scheduledDay = null
     EventBus.emit('DUNGEON_EVENT_ENDED', { def })
   }
 
@@ -272,6 +614,74 @@ export class EventSystem {
           }
         }
         break
+      case 'tax_season': {
+        // Guild tax — skim 20% of the treasury the instant the day
+        // starts. The trade-off (2× kill gold) is applied in AISystem.
+        flags.taxSeasonActive = true
+        const player = this._gameState.player
+        if (player) {
+          const tax = Math.floor((player.gold ?? 0) * 0.20)
+          player.gold = Math.max(0, (player.gold ?? 0) - tax)
+          if (tax > 0) {
+            EventBus.emit('SHOW_TOAST', { message: `Tax Season — ${tax} gold levied`, type: 'error' })
+          }
+        }
+        break
+      }
+      case 'patrons_blessing':
+        // Boss XP from every kill is doubled — applied in AISystem._kill.
+        flags.patronsBlessingActive = true
+        break
+      case 'memory_plague':
+        // The pool wipe already fired at announce (_wipeKnowledgePool).
+        // Nothing to do at day start.
+        break
+      case 'gamblers_coin':
+        // The wager resolved at announce via the night modal. No day effect.
+        break
+      case 'dense_fog':
+        // KnowledgeSystem reads this flag — all intel gained today is
+        // downgraded to RUMOR tier so exposure barely rises.
+        flags.denseFogActive = true
+        break
+      case 'miasma':
+        // Chip DoT on every combatant — see _miasmaTick.
+        flags.miasmaActive = true
+        this._startEventTimer(MIASMA_TICK_MS, this._miasmaTick)
+        break
+      case 'tremors':
+        // Periodic quake on a random room — see _tremorTick. The counter
+        // resets here so each day's tremors escalate from the base again.
+        flags.tremorsActive = true
+        this._tremorCount = 0
+        this._startEventTimer(TREMOR_INTERVAL_MS, this._tremorTick)
+        break
+      case 'arcane_storm':
+        // Class-ability cooldowns slashed dungeon-wide (AbilitySystem).
+        flags.arcaneStormActive = true
+        AbilitySystem.setCooldownScale(ARCANE_STORM_COOLDOWN_SCALE)
+        break
+      case 'bounty_hunters':
+        // DayPhase replaces the wave with a hunter pack (_spawnBountyHunterWave).
+        flags.bountyHuntersActive = true
+        break
+      case 'zombie_horde':
+        // DayPhase replaces the wave with a zombie swarm (_spawnZombieHorde).
+        flags.zombieHordeActive = true
+        break
+      case 'infamy_spike':
+        // DayPhase reads this to inflate the wave + buff every adv to hero grade.
+        flags.infamySpikeActive = true
+        break
+      case 'black_market':
+      case 'mercenary_contract':
+      case 'cursed_relic':
+        // All resolved at announce via their night modal. No day effect.
+        break
+      case 'the_saboteur':
+        // DayPhase replaces the wave with the lone Saboteur (_spawnSaboteur).
+        flags.saboteurActive = true
+        break
       // Other events ship in follow-up passes — flag stub keeps the
       // dispatch table explicit so missing handlers stand out in code review.
       default:
@@ -342,6 +752,57 @@ export class EventSystem {
         flags.darkDealAccepted       = false
         flags.darkDealOriginalMaxHp  = null
         break
+      case 'tax_season':
+        flags.taxSeasonActive = false
+        break
+      case 'patrons_blessing':
+        flags.patronsBlessingActive = false
+        break
+      case 'memory_plague':
+        // Clear the one-shot guard so a future Memory Plague wipes again.
+        flags.memoryPlagueWiped = false
+        break
+      case 'gamblers_coin':
+        // Clear the decision guard so a future Gambler's Coin re-prompts.
+        flags.gamblerDecided = false
+        break
+      case 'dense_fog':
+        flags.denseFogActive = false
+        break
+      case 'miasma':
+        flags.miasmaActive = false
+        this._stopEventTimers()
+        break
+      case 'tremors':
+        flags.tremorsActive = false
+        this._tremorCount = 0
+        this._stopEventTimers()
+        break
+      case 'arcane_storm':
+        flags.arcaneStormActive = false
+        AbilitySystem.setCooldownScale(1)
+        break
+      case 'bounty_hunters':
+        flags.bountyHuntersActive = false
+        break
+      case 'zombie_horde':
+        flags.zombieHordeActive = false
+        break
+      case 'infamy_spike':
+        flags.infamySpikeActive = false
+        break
+      case 'black_market':
+        flags.blackMarketDecided = false
+        break
+      case 'mercenary_contract':
+        flags.mercenaryDecided = false
+        break
+      case 'cursed_relic':
+        flags.cursedRelicDecided = false
+        break
+      case 'the_saboteur':
+        flags.saboteurActive = false
+        break
       default:
         if (def?.id) flags[`${def.id}_active`] = false
         break
@@ -368,6 +829,108 @@ export class EventSystem {
     // the adventurers.known record the post-wave summary reads.
     adventurer.goldStolen = (adventurer.goldStolen ?? 0) + stolen
     EventBus.emit('LOOT_GOBLIN_ESCAPED', { adventurer, stolen })
+  }
+
+  // ── Day-long state-modifier event timers (Miasma / Tremors) ────────────
+  // Looping Phaser scene timers (auto-pause with the game). Started in
+  // _applyEffect, torn down in _clearEffect and destroy().
+
+  _startEventTimer(delayMs, callback) {
+    const time = this._scene?.time
+    if (!time) return
+    this._eventTimers.push(time.addEvent({
+      delay: delayMs, loop: true, callback, callbackScope: this,
+    }))
+  }
+
+  _stopEventTimers() {
+    for (const t of this._eventTimers) t?.remove?.(false)
+    this._eventTimers = []
+  }
+
+  // Miasma — chip damage to every living combatant each tick. Invaders
+  // bleed to death (their AISystem tick kills them at hp<=0); your
+  // minions are weakened but never killed by the fumes alone, and the
+  // boss is whittled toward — but never below — a 25% HP floor.
+  _miasmaTick() {
+    if (!this._gameState._eventFlags?.miasmaActive) return
+    const dmg = MIASMA_TICK_DMG
+    for (const a of this._gameState.adventurers?.active ?? []) {
+      if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+    }
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      m.resources.hp = Math.max(1, m.resources.hp - dmg)
+    }
+    const boss = this._gameState.boss
+    if (boss && (boss.hp ?? 0) > 0 && boss.maxHp) {
+      const floor = Math.max(1, Math.round(boss.maxHp * 0.25))
+      boss.hp = Math.max(floor, boss.hp - dmg)
+    }
+  }
+
+  // Tremors — a quake rocks one random non-boss room: screen shake plus a
+  // damage hit to everything standing in it. Invaders can be killed by
+  // the collapse; your minions take a non-lethal floor of 1 HP. Each quake
+  // this day hits harder than the last (TREMOR_DMG_STEP). Every hit emits
+  // COMBAT_HIT so CombatFeedback floats a damage number over the victim,
+  // and an "EARTHQUAKE" label pops above the struck room.
+  _tremorTick() {
+    if (!this._gameState._eventFlags?.tremorsActive) return
+    const rooms = (this._gameState.dungeon?.rooms ?? [])
+      .filter(r => r.definitionId !== 'boss_chamber')
+    if (rooms.length === 0) return
+    const room = rooms[Math.floor(Math.random() * rooms.length)]
+    const inRoom = (e) =>
+      e && e.tileX >= room.gridX && e.tileX < room.gridX + (room.width ?? 1) &&
+      e.tileY >= room.gridY && e.tileY < room.gridY + (room.height ?? 1)
+
+    // Escalating damage — quake #1 = TREMOR_DMG, each later quake adds a step.
+    const dmg = TREMOR_DMG + TREMOR_DMG_STEP * (this._tremorCount ?? 0)
+    this._tremorCount = (this._tremorCount ?? 0) + 1
+
+    for (const a of this._gameState.adventurers?.active ?? []) {
+      if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+      if (!inRoom(a)) continue
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      EventBus.emit('COMBAT_HIT', {
+        sourceId: 'tremor', targetId: a.instanceId,
+        damage: dmg, damageType: 'earthquake', isCritical: false,
+      })
+    }
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (!inRoom(m)) continue
+      m.resources.hp = Math.max(1, m.resources.hp - dmg)
+      EventBus.emit('COMBAT_HIT', {
+        sourceId: 'tremor', targetId: m.instanceId,
+        damage: dmg, damageType: 'earthquake', isCritical: false,
+      })
+    }
+    this._scene?.cameras?.main?.shake?.(360, 0.012)
+    this._tremorLabel(room, dmg)
+    EventBus.emit('TREMOR_STRUCK', { roomId: room.instanceId, damage: dmg })
+  }
+
+  // Floating "EARTHQUAKE -dmg" label above the struck room's center —
+  // mirrors the Golem earthquake floater so the player can read the hit.
+  _tremorLabel(room, dmg) {
+    const game = this._scene
+    if (!game?.add || !room) return
+    const TS = Balance.TILE_SIZE
+    const cx = (room.gridX + (room.width  ?? 1) / 2) * TS
+    const cy = (room.gridY + (room.height ?? 1) / 2) * TS
+    const txt = game.add.text(cx, cy, `EARTHQUAKE\n-${dmg}`, {
+      fontFamily: 'monospace', fontSize: '14px', fontStyle: 'bold',
+      color: '#ffcc66', stroke: '#3a1a00', strokeThickness: 4,
+      align: 'center',
+    }).setOrigin(0.5).setDepth(200)
+    game.tweens?.add({
+      targets: txt, y: cy - 36, alpha: 0,
+      duration: 1100,
+      onComplete: () => txt.destroy(),
+    })
   }
 
   // ── Dungeon event: Twitch Con — "pure chaos" ───────────────────────────
@@ -632,8 +1195,20 @@ export class EventSystem {
   // Pick a teleport destination for !CLIP IT: another live streamer's tile
   // preferred, else a random walkable floor tile (a non-boss room center —
   // always walkable). Returns { x, y } or null.
+  //
+  // The boss chamber is OFF-LIMITS as a destination — the boss fight is
+  // gated on adventurers reaching the throne by walking the dungeon, so a
+  // !CLIP IT shortcut straight into the boss room is disallowed. The peer
+  // pick filters out any streamer currently standing in it; the fallback
+  // already only draws from non-boss rooms.
   _pickTeleportTile(self) {
-    const others = this._liveTwitchStreamers().filter(a => a !== self)
+    const boss = (this._gameState.dungeon?.rooms ?? [])
+      .find(r => r.definitionId === 'boss_chamber')
+    const inBoss = (tx, ty) => !!boss &&
+      tx >= boss.gridX && tx < boss.gridX + boss.width &&
+      ty >= boss.gridY && ty < boss.gridY + boss.height
+    const others = this._liveTwitchStreamers()
+      .filter(a => a !== self && !inBoss(a.tileX, a.tileY))
     if (others.length > 0) {
       const peer = others[Math.floor(Math.random() * others.length)]
       return { x: peer.tileX, y: peer.tileY }

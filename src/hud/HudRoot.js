@@ -35,9 +35,13 @@ import { PostWaveOverlay }      from './PostWaveOverlay.js'
 import { GameOverOverlay }      from './GameOverOverlay.js'
 import { PactPicker }           from './PactPicker.js'
 import { DungeonFx }            from './DungeonFx.js'
+import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
+import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
+import { JamPortalCorner }      from './JamPortalCorner.js'
+import { DebugEventPanel }      from './DebugEventPanel.js'
 import { installHudSfxDelegates } from './HudSfx.js'
 import { EventBus }             from '../systems/EventBus.js'
 
@@ -84,6 +88,9 @@ export class HudRoot {
     this._leftPanels  = new LeftPanels(this._gameState)
     this._rightPanels = new RightPanels(this._gameState)
     this._toastQueue  = new ToastQueue()
+    // Small spinning jam portal pinned to the bottom-right corner of the
+    // play area — same asset + click route as the main-menu jam portal.
+    this._jamPortal   = new JamPortalCorner()
     // HotkeyHints strip removed at user request — the bottom-bar
     // buttons (PLACE/MOVE/SELL, speed, etc.) make the hint redundant.
     // The HotkeyHints class file stays in the repo per the project's
@@ -91,6 +98,7 @@ export class HudRoot {
     this._panels.push(
       this._topBar, this._bottomBar,
       this._leftPanels, this._rightPanels, this._toastQueue,
+      this._jamPortal,
     )
     // Event-driven overlays — no DOM until they open. Register separately
     // so they don't take up slots in the panels list.
@@ -121,8 +129,16 @@ export class HudRoot {
     // it during construction would otherwise be wiped out the moment
     // HudRoot finishes building.
     this._dungeonFx       = new DungeonFx(this._gameState)
+    // Ambient event atmosphere (storm / fog / blood moon …). Self-mounts
+    // into #hud-stage, so it must build after the mount() above.
+    this._eventFx         = new EventFx(this._gameState)
     this._bossFightOverlay = new BossFightOverlay(this._gameState)
     this._eventBanner      = new EventBanner(this._gameState)
+    // Full-screen coin-flip sequence for The Gambler's Coin event.
+    this._coinFlip         = new CoinFlipCinematic()
+    // Dev playtest tool — bottom-left "⚙ EVENT" button to force any
+    // dungeon event on demand. Safe to remove before shipping.
+    this._debugEventPanel  = new DebugEventPanel()
     // Pass the BottomBar's archetype-slot ref so the strip mounts INSIDE
     // the bar rather than floating above it (which used to cover the
     // dungeon view during day phase).
@@ -291,8 +307,11 @@ export class HudRoot {
     this._gameOverOverlay?.destroy();this._gameOverOverlay = null
     this._pactPicker?.destroy();     this._pactPicker = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
+    this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
     this._eventBanner?.destroy();    this._eventBanner = null
+    this._coinFlip?.destroy();       this._coinFlip = null
+    this._debugEventPanel?.destroy(); this._debugEventPanel = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
     const canvas = window.__game?.canvas
     if (this._onPointerMove)  canvas?.removeEventListener('pointermove',  this._onPointerMove)

@@ -582,6 +582,12 @@ export const MinionAbilities = {
   // ── Pass-3 behavior helpers ────────────────────────────────────────────
 
   _tickVampireHidden(vampire, gameState) {
+    // Converted thralls (charmed adventurers turned by the Vampire boss)
+    // share the vampire_minion1 definition but ROAM the dungeon — they are
+    // not ceiling ambushers. Keep them permanently visible; without this
+    // they inherit Sleep on Ceiling and vanish whenever their room is
+    // empty (e.g. all night), which reads as "the thrall never appeared".
+    if (vampire._isVampireThrall) { vampire._hidden = false; return }
     // Hide while no adv is in vampire's home room (sleeping on the ceiling).
     // Reveal once any adv steps inside.
     const home = gameState?.dungeon?.rooms?.find(r => r.instanceId === vampire.assignedRoomId)

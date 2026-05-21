@@ -2,85 +2,209 @@
   {
     "id": "guild_raid",
     "title": "GUILD RAID!",
-    "notif": "Your dungeon has been discovered by a local Guild.",
+    "notif": "A local Guild has found your dungeon — the next adventurer wave is TWICE the usual size.",
+    "icon": "⚔️",
     "colorTheme": "warn",
     "minBossLevel": 1
   },
   {
     "id": "legendary_speedrunner",
     "title": "LEGENDARY SPEED RUNNER",
-    "notif": "A high-level, legendary adventurer is trying to set a 'world record' for clearing your dungeon.",
-    "colorTheme": "accent",
+    "notif": "A legendary adventurer races for your boss — 2x stats, 2x speed, ignores all rooms and minions. Killing them grants a huge boss-XP windfall.",
+    "icon": "💨",
+    "colorTheme": "ember",
     "minBossLevel": 3
   },
   {
     "id": "dungeon_pestilence",
     "title": "DUNGEON PESTILENCE",
-    "notif": "A disease has broken out among your minions.",
-    "colorTheme": "green",
+    "notif": "A plague strikes your minions — every minion starts the day at HALF HP. Adventurers who melee them catch a damaging Blight.",
+    "icon": "☣️",
+    "colorTheme": "toxic",
     "minBossLevel": 1
   },
   {
     "id": "cartographers_convention",
     "title": "CARTOGRAPHER'S CONVENTION",
-    "notif": "A group of scholars are on their way to map out the dungeon.",
+    "notif": "Scholars tour every room then leave — everything they map feeds the next wave's intel. Kill them to stop the leak.",
+    "icon": "🗺️",
     "colorTheme": "soul",
     "minBossLevel": 1
   },
   {
     "id": "blood_moon_eclipse",
     "title": "BLOOD MOON ECLIPSE",
-    "notif": "A rare celestial event empowers the dark arts.",
-    "colorTheme": "accent",
+    "notif": "A blood moon rises — your minions and boss deal 2x damage but also TAKE 2x damage, and kills drop no gold.",
+    "icon": "🌑",
+    "colorTheme": "crimson",
     "minBossLevel": 1
   },
   {
     "id": "negotiation_day",
     "title": "NEGOTIATION DAY",
-    "notif": "The Adventurer's Guild sends a diplomat to your dungeon.",
+    "notif": "A Guild diplomat arrives tonight — PAY tribute (25% of gold) for a free day with no wave, or REFUSE for a +50% wave.",
+    "icon": "🤝",
     "colorTheme": "gold",
     "minBossLevel": 1
   },
   {
-    "id": "the_tournament",
-    "title": "THE TOURNAMENT",
-    "notif": "Bloodsport. Three rivals scatter into your dungeon and hunt each other to the death — the victor, grown stronger with every kill, comes for your boss.",
-    "colorTheme": "warn",
-    "minBossLevel": 3
-  },
-  {
     "id": "rival_dungeon",
     "title": "RIVAL DUNGEON",
-    "notif": "A rival dungeon's monsters are invading. Their boss seeks yours.",
-    "colorTheme": "accent",
+    "notif": "A rival dungeon invades — a full wave of its T1/T2 minions plus a boss-sized T3 champion, here to destroy your boss.",
+    "icon": "🏰",
+    "colorTheme": "crimson",
     "minBossLevel": 3
   },
   {
     "id": "twitch_con",
     "title": "TWITCH CON",
-    "notif": "Streamers are converging on your dungeon. Pure chaos awaits.",
-    "colorTheme": "soul",
+    "notif": "A chaotic, endless wave of streamer adventurers floods in — random chat-command effects fire on them all day.",
+    "icon": "📺",
+    "colorTheme": "arcane",
     "minBossLevel": 1
   },
   {
     "id": "dark_deal",
     "title": "DARK DEAL",
-    "notif": "A demon will appear in your boss room tonight, offering a free pact.",
-    "colorTheme": "accent",
+    "notif": "A demon waits in your boss room tonight — click it to take a FREE dark pact, at the cost of half the boss's HP for the day.",
+    "icon": "😈",
+    "colorTheme": "violet",
     "minBossLevel": 1
   },
   {
     "id": "cosplay_contest",
     "title": "COSPLAY CONTEST",
-    "notif": "Adventurers in monster costumes will visit. Most won't even fight.",
-    "colorTheme": "gold",
+    "notif": "Adventurers in monster costumes visit — most (75%) won't fight your minions unless attacked first.",
+    "icon": "🎭",
+    "colorTheme": "rose",
     "minBossLevel": 1
   },
   {
     "id": "loot_goblin_heist",
     "title": "LOOT GOBLIN HEIST",
-    "notif": "A pack of Loot Goblins has broken into your treasure hoard!",
+    "notif": "Loot goblins raid your hoard — each one that escapes steals 10% of your gold. Kill them for a big gold payout.",
+    "icon": "💰",
     "colorTheme": "gold",
     "minBossLevel": 1
+  },
+  {
+    "id": "tax_season",
+    "title": "TAX SEASON",
+    "notif": "The Guild taxes you — lose 20% of your gold at day start, but every kill today pays DOUBLE gold.",
+    "icon": "🧾",
+    "colorTheme": "bone",
+    "minBossLevel": 1
+  },
+  {
+    "id": "patrons_blessing",
+    "title": "PATRON'S BLESSING",
+    "notif": "A dark patron favours you — your boss earns DOUBLE XP from every adventurer killed today.",
+    "icon": "✨",
+    "colorTheme": "violet",
+    "minBossLevel": 1
+  },
+  {
+    "id": "memory_plague",
+    "title": "MEMORY PLAGUE",
+    "notif": "An amnesia plague erases the Guild's maps — the next wave arrives knowing NOTHING about your dungeon.",
+    "icon": "🧠",
+    "colorTheme": "soul",
+    "minBossLevel": 1
+  },
+  {
+    "id": "gamblers_coin",
+    "title": "THE GAMBLER'S COIN",
+    "notif": "A gambling imp offers a coin flip tonight — WAGER your treasury for a 50/50 chance to double it, or lose half.",
+    "icon": "🪙",
+    "colorTheme": "gold",
+    "minBossLevel": 1
+  },
+  {
+    "id": "dense_fog",
+    "title": "DENSE FOG",
+    "notif": "Thick fog fills the halls — adventurers barely learn anything today, so your dungeon's exposure stays low.",
+    "icon": "🌫️",
+    "colorTheme": "shadow",
+    "minBossLevel": 1
+  },
+  {
+    "id": "miasma",
+    "title": "CREEPING MIASMA",
+    "notif": "A toxic miasma fills the dungeon — everything takes steady chip damage all day, your minions and boss included.",
+    "icon": "☠️",
+    "colorTheme": "green",
+    "minBossLevel": 1
+  },
+  {
+    "id": "tremors",
+    "title": "TREMORS",
+    "notif": "Quakes rock the dungeon — every few seconds a random room is struck, damaging everyone standing in it.",
+    "icon": "💥",
+    "colorTheme": "warn",
+    "minBossLevel": 1
+  },
+  {
+    "id": "arcane_storm",
+    "title": "ARCANE STORM",
+    "notif": "An arcane storm surges overhead — adventurer class abilities recharge far faster all day long.",
+    "icon": "⚡",
+    "colorTheme": "blue",
+    "minBossLevel": 1
+  },
+  {
+    "id": "bounty_hunters",
+    "title": "BOUNTY HUNTERS",
+    "notif": "A pack of bounty hunters replaces the wave — they hunt down your strongest minion, ignoring everything else.",
+    "icon": "🎯",
+    "colorTheme": "ember",
+    "minBossLevel": 2
+  },
+  {
+    "id": "zombie_horde",
+    "title": "ZOMBIE HORDE",
+    "notif": "A massive zombie horde replaces the wave — slow and weak, but enormous in number, mauling everything in reach.",
+    "icon": "🧟",
+    "colorTheme": "bone",
+    "minBossLevel": 2
+  },
+  {
+    "id": "infamy_spike",
+    "title": "INFAMY SPIKE",
+    "notif": "Your infamy spikes — a wave 50% larger than usual, and every adventurer in it is a hardened hero.",
+    "icon": "🔥",
+    "colorTheme": "accent",
+    "minBossLevel": 2
+  },
+  {
+    "id": "black_market",
+    "title": "BLACK MARKET",
+    "notif": "A smuggler visits tonight — pay 50 gold for a free random unlocked minion, delivered to your dungeon.",
+    "icon": "🛒",
+    "colorTheme": "gold",
+    "minBossLevel": 1
+  },
+  {
+    "id": "mercenary_contract",
+    "title": "MERCENARY CONTRACT",
+    "notif": "A mercenary captain offers a contract tonight — pay 120 gold to hire an elite double-stat minion for 3 days.",
+    "icon": "🗡️",
+    "colorTheme": "blue",
+    "minBossLevel": 2
+  },
+  {
+    "id": "cursed_relic",
+    "title": "CURSED RELIC",
+    "notif": "A cursed relic surfaces tonight — CLAIM a gold-paying chest, but every adventurer wave DOUBLES while you keep it.",
+    "icon": "🏺",
+    "colorTheme": "arcane",
+    "minBossLevel": 1
+  },
+  {
+    "id": "the_saboteur",
+    "title": "THE SABOTEUR",
+    "notif": "Alongside the day's wave, an untouchable saboteur slips in — they disable EVERY trap in your dungeon for the day, then leave.",
+    "icon": "🥷",
+    "colorTheme": "shadow",
+    "minBossLevel": 2
   }
 ]

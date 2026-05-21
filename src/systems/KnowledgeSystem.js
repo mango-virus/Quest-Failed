@@ -3,8 +3,11 @@
 // CORE RULES
 //   - Knowledge is per-adventurer, gained only through personal interaction:
 //       entering a room     → room type knowledge
+//       entering a room     → benefit/utility + placed-item knowledge for
+//                             every entity inside (fountains, chests, AND the
+//                             generic `items` bucket — phylactery, beacons)
 //       sighting a minion   → enemy type knowledge for that room
-//       seeing floor loot   → loot position knowledge
+//       seeing floor loot   → buff-pile knowledge (live-only, not pooled)
 //       springing a trap    → trap placement knowledge
 //   - Death: personal knowledge permanently destroyed, nothing transfers.
 //   - Escape: knowledge saved to survivor registry, merged into
@@ -52,9 +55,21 @@ export class KnowledgeSystem {
     EventBus.on('TREASURE_CHEST_OPENED',  this._onTreasureRemoved, this)
     EventBus.on('KEY_CHEST_REMOVED',      this._onKeyChestRemoved, this)
     EventBus.on('KEY_CHEST_OPENED',       this._onKeyChestRemoved, this)
+    // Generic placed-item removals — phylactery (sold/moved or hunted to
+    // death) + soul-bound beacon (sold). Same staleness contract as the
+    // chest handlers: the next wave still expects the item to be there.
+    EventBus.on('PHYLACTERY_REMOVED',     this._onItemEntityRemoved, this)
+    EventBus.on('PHYLACTERY_DESTROYED',   this._onItemEntityRemoved, this)
+    EventBus.on('BEACON_REMOVED',         this._onItemEntityRemoved, this)
+    // Floor loot — buff-piles dropped by corpses. Transient (cleared each
+    // night), so loot intel is live-only; we still drop the entry the
+    // moment a pile is looted so the live readout never shows a ghost.
+    EventBus.on('LOOT_PILE_REMOVED',      this._onLootPileRemoved, this)
     // Knowledge Map "SCRUB INTEL" button — player spends gold to wipe a
     // room from the shared knowledge pool so the next wave walks in blind.
     EventBus.on('KNOWLEDGE_SCRUB_REQUEST', this._onScrubRequest, this)
+    // Dungeon event: Memory Plague — wipe the entire shared pool.
+    EventBus.on('KNOWLEDGE_WIPE_ALL', this._onWipeAll, this)
   }
 
   destroy() {
@@ -71,7 +86,21 @@ export class KnowledgeSystem {
     EventBus.off('TREASURE_CHEST_OPENED',  this._onTreasureRemoved, this)
     EventBus.off('KEY_CHEST_REMOVED',      this._onKeyChestRemoved, this)
     EventBus.off('KEY_CHEST_OPENED',       this._onKeyChestRemoved, this)
+    EventBus.off('PHYLACTERY_REMOVED',     this._onItemEntityRemoved, this)
+    EventBus.off('PHYLACTERY_DESTROYED',   this._onItemEntityRemoved, this)
+    EventBus.off('BEACON_REMOVED',         this._onItemEntityRemoved, this)
+    EventBus.off('LOOT_PILE_REMOVED',      this._onLootPileRemoved, this)
     EventBus.off('KNOWLEDGE_SCRUB_REQUEST', this._onScrubRequest, this)
+    EventBus.off('KNOWLEDGE_WIPE_ALL', this._onWipeAll, this)
+  }
+
+  // Dungeon event: Memory Plague — erase every survivor's recorded intel
+  // so the shared pool empties out and the next wave walks in blind.
+  _onWipeAll() {
+    if (!this._gs.knowledge) return
+    this._gs.knowledge.survivors = []
+    this._rebuildSharedPool()
+    EventBus.emit('KNOWLEDGE_POOL_WIPED', {})
   }
 
   // ── Survivor access (used by DayPhase for spawning) ───────────────────────
@@ -92,12 +121,20 @@ export class KnowledgeSystem {
     if (Math.random() >= Balance.KNOWLEDGE_RETURN_CHANCE) return null
     const today = this._gs.meta?.dayNumber ?? 0
     const eligible = survivors.filter(s =>
+      // Event-specific adventurers never return as a Hero (see noReturn
+      // in _updateSurvivorRecord).
+      !s.noReturn &&
       (today - (s.lastSeenDay ?? today)) <= Balance.KNOWLEDGE_RETURN_MAX_AGE_DAYS)
     if (eligible.length === 0) return null
     return eligible[Math.floor(Math.random() * eligible.length)]
   }
 
   // ── Observation API — called each tick / event by AISystem ───────────────
+
+  // Dungeon event: Dense Fog — while it's active every scrap of intel an
+  // adventurer picks up registers only as a vague RUMOR (stale), and a
+  // re-visit can't sharpen it. Exposure barely climbs through the fog.
+  _fogActive() { return !!this._gs?._eventFlags?.denseFogActive }
 
   observeCurrentRoom(adv) {
     const room = this._grid.getRoomAtTile(adv.tileX, adv.tileY)
@@ -107,10 +144,11 @@ export class KnowledgeSystem {
     const entry = adv.knowledge.rooms[room.instanceId]
 
     if (!entry) {
+      const fog = this._fogActive()
       adv.knowledge.rooms[room.instanceId] = {
         roomType:        room.definitionId,
-        confirmed:       true,
-        stale:           false,
+        confirmed:       !fog,
+        stale:           fog,
         visitCount:      1,
         firstVisitedDay: today,
         lastVisitedDay:  today,
@@ -130,14 +168,16 @@ export class KnowledgeSystem {
       // Correct the label so they won't re-trigger on every visit.
       entry.roomType = room.definitionId
       entry._falseMapped = false
-      if (entry.stale) { entry.stale = false; entry.confirmed = true }
+      if (entry.stale && !this._fogActive()) { entry.stale = false; entry.confirmed = true }
       if (entry.lastVisitedDay !== today) {
         entry.visitCount++
         entry.lastVisitedDay = today
         EventBus.emit('ROOM_OBSERVED', { adventurer: adv, roomId: room.instanceId, firstVisit: false })
       }
     }
-
+    // Floor-loot scan — runs every tick (not just first visit) so buff-piles
+    // dropped after this adv entered the room are still picked up.
+    this._observeRoomLoot(adv, room)
   }
 
   // Pulls every benefit/utility entity inside a room into adv.knowledge
@@ -171,6 +211,79 @@ export class KnowledgeSystem {
         confirmed: true, stale: false, dayLearned: today,
       }
     }
+    // Generic `items` bucket — every placed item-entity that doesn't have
+    // a dedicated bucket above. Currently the Lich phylactery heart (single,
+    // stored on `gameState.phylactery`) and soul-bound beacons (array on
+    // `gameState.dungeon.beacons`). Keyed by instanceId, the same shape the
+    // chest buckets use so the merge / live-pool / stale code treats them
+    // uniformly. Door locks are doorway-attached (no room interior tile),
+    // so they aren't scanned here.
+    for (const it of this._itemEntities()) {
+      if (!inside(it)) continue
+      adv.knowledge.items[it.instanceId] ??= {
+        itemType: it.itemType, tileX: it.tileX, tileY: it.tileY,
+        roomId:   room.instanceId,
+        confirmed: true, stale: false, dayLearned: today,
+      }
+    }
+  }
+
+  // Flattened list of every placed item-entity tracked by the generic
+  // `items` bucket. Each entry is normalised to { instanceId, itemType,
+  // tileX, tileY } so observeRoomContents / staleness can treat the
+  // phylactery (a singleton on gameState.phylactery) and beacons (an
+  // array on gameState.dungeon.beacons) identically.
+  _itemEntities() {
+    const out = []
+    const phyl = this._gs.phylactery
+    if (phyl && phyl.instanceId != null && phyl.tileX != null) {
+      out.push({
+        instanceId: phyl.instanceId,
+        itemType:   phyl.definitionId ?? 'phylactery_heart',
+        tileX:      phyl.tileX, tileY: phyl.tileY,
+      })
+    }
+    for (const b of (this._gs.dungeon?.beacons ?? [])) {
+      if (!b || b.instanceId == null || b.tileX == null) continue
+      out.push({
+        instanceId: b.instanceId,
+        itemType:   b.definitionId ?? 'soul_bound_beacon',
+        tileX:      b.tileX, tileY: b.tileY,
+      })
+    }
+    return out
+  }
+
+  // Floor-loot observation — records every buff-pile sitting inside `room`
+  // into adv.knowledge.loot. Loot piles are dropped by fallen adventurers
+  // mid-raid and cleared each night, so this intel is LIVE-ONLY: it feeds
+  // _livePool (the live HUD readout) but is never merged into the persistent
+  // sharedPool or carried out by returning veterans. Keyed by pile id.
+  _observeRoomLoot(adv, room) {
+    if (!adv || !room) return
+    _ensureAdvKnowledge(adv)
+    const today = this._gs.meta?.dayNumber ?? 0
+    for (const pile of (this._gs.dungeon?.lootPiles ?? [])) {
+      if (!pile || pile.tileX == null) continue
+      if (pile.tileX < room.gridX || pile.tileX >= room.gridX + room.width ||
+          pile.tileY < room.gridY || pile.tileY >= room.gridY + room.height) continue
+      adv.knowledge.loot[pile.instanceId] ??= {
+        label:  pile.buff?.label ?? 'Loot',
+        tileX:  pile.tileX, tileY: pile.tileY,
+        roomId: room.instanceId,
+        confirmed: true, stale: false, dayLearned: today,
+      }
+    }
+  }
+
+  // A looted pile is gone for good — drop it from every active adventurer's
+  // knowledge so the live loot readout doesn't show a phantom pile.
+  _onLootPileRemoved({ pile } = {}) {
+    const id = pile?.instanceId
+    if (!id) return
+    for (const a of this._gs.adventurers?.active ?? []) {
+      if (a.knowledge?.loot?.[id]) delete a.knowledge.loot[id]
+    }
   }
 
   observeMinion(adv, minion) {
@@ -187,10 +300,11 @@ export class KnowledgeSystem {
     const list = adv.knowledge.enemiesPerRoom[roomId] ??= []
     const existing = list.find(e => e.minionType === minion.definitionId)
     if (!existing) {
-      list.push({ minionType: minion.definitionId, confirmed: true, stale: false, dayLearned: today })
+      const fog = this._fogActive()
+      list.push({ minionType: minion.definitionId, confirmed: !fog, stale: fog, dayLearned: today })
       // Phase 1b.8 — Wraith Fear Meter listens for first sightings.
       EventBus.emit('MINION_OBSERVED', { advId: adv.instanceId, minionId: minion.instanceId, roomId })
-    } else if (existing.stale) {
+    } else if (existing.stale && !this._fogActive()) {
       existing.stale = false; existing.confirmed = true
     }
   }
@@ -200,6 +314,7 @@ export class KnowledgeSystem {
   _onTrapTriggered({ trap, roomId }) {
     if (!trap) return
     const today = this._gs.meta.dayNumber
+    const dangerTiles = this._trapDangerTiles(trap)
     for (const adv of this._gs.adventurers.active) {
       if (!this._inRoom(adv, roomId)) continue
       _ensureAdvKnowledge(adv)
@@ -207,18 +322,37 @@ export class KnowledgeSystem {
         type:      trap.definitionId,
         tileX:     trap.tileX,
         tileY:     trap.tileY,
+        footprint: trap.footprint ?? { w: 1, h: 1 },
+        dangerTiles,
         confirmed: true,
         stale:     false,
         dayLearned: today,
       }
     }
     trap.isKnownToAdventurers = true
+    // Durable — seed the shared pool so the trap's location outlives the
+    // adventurer who sprang it (future waves inherit it like room intel).
+    this._seedTriggeredTraps(this._gs.knowledge?.sharedPool)
   }
 
   // ── Survivor handling ─────────────────────────────────────────────────────
 
   _onAdventurerFled({ adventurer }) {
     if (!adventurer) return
+    // Loot Goblins are raiders, not adventurers — they come for gold,
+    // not intel. They never carry knowledge out, never seed the shared
+    // pool (no INTEL_LEAKED, no exposure), and never become a survivor
+    // that could return as a veteran. Skip them entirely.
+    if (adventurer.classId === 'loot_goblin') return
+    // The Saboteur is here to wreck traps, not study the dungeon — they
+    // leave with zero intel: no survivor record, no shared-pool feed.
+    if (adventurer._saboteur) return
+    // Monster invaders (zombie horde, rival-dungeon enemies + boss) are
+    // not Guild adventurers — they don't report to anyone. They never
+    // retain knowledge, never feed the shared intel pool, never become a
+    // survivor, and never fire INTEL_LEAKED (so the post-wave summary,
+    // dungeon log, and toasts won't claim they "carried intel back").
+    if (adventurer._monster) return
     // Pact of the Great Erasure: escapees forget the dungeon entirely —
     // no survivor record, no sharedPool contribution, no veteran return.
     if ((this._gs._mechanicFlags ?? {}).greatErasure) {
@@ -238,15 +372,16 @@ export class KnowledgeSystem {
     // Phase 34 follow-up — leaderboard `leaks_count` plumbing. Count the
     // intel items this survivor is taking with them and broadcast the
     // event the ToastQueue / RunHistorySystem already listen for. One
-    // "leak" = one piece of room / trap / fountain / chest / loot intel.
+    // "leak" = one piece of room / trap / fountain / chest / item intel.
+    // Floor loot is excluded — it's live-only and doesn't leave the run.
     const k = adventurer.knowledge ?? {}
     const count = (Object.keys(k.rooms          ?? {}).length)
                 + (Object.keys(k.traps          ?? {}).length)
                 + (Object.keys(k.fountains      ?? {}).length)
                 + (Object.keys(k.treasureChests ?? {}).length)
                 + (Object.keys(k.keyChests      ?? {}).length)
+                + (Object.keys(k.items          ?? {}).length)
                 + (Object.keys(k.mimics         ?? {}).length)
-                + (Object.keys(k.loot           ?? {}).length)
     if (count > 0) {
       EventBus.emit('INTEL_LEAKED', {
         adventurer,
@@ -279,6 +414,13 @@ export class KnowledgeSystem {
     const idx  = survivors.findIndex(s => s.instanceId === adv.instanceId)
     const today = this._gs.meta.dayNumber
 
+    // Event-specific adventurers (speedrunner, cartographers, saboteur,
+    // tournament rivals, zombie horde, loot goblins, bounty-hunter pack,
+    // rival dungeon) still feed the shared intel pool when they flee, but
+    // they must NEVER personally return as a Hero — `noReturn` excludes
+    // them from rollReturnLeader's eligible set.
+    const isEventAdv = !!adv.flags?.eventAdventurer
+
     if (idx === -1) {
       survivors.push({
         instanceId:    adv.instanceId,
@@ -291,6 +433,7 @@ export class KnowledgeSystem {
         knowledge:     _deepCopy(adv.knowledge),
         pathHistory:   [...(adv.pathHistory ?? [])],
         lastSeenDay:   today,
+        noReturn:      isEventAdv,
       })
     } else {
       const rec = survivors[idx]
@@ -298,13 +441,15 @@ export class KnowledgeSystem {
       rec.lastSeenDay  = today
       rec.pathHistory  = [...(adv.pathHistory ?? [])]
       rec.knowledge    = _mergeKnowledge(rec.knowledge, adv.knowledge)
+      // Sticky — once event-tagged, the record stays non-returnable.
+      rec.noReturn     = rec.noReturn || isEventAdv
     }
   }
 
   _rebuildSharedPool() {
     const pool = {
       rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
-      fountains: {}, treasureChests: {}, keyChests: {},
+      fountains: {}, treasureChests: {}, keyChests: {}, items: {},
     }
     // Each pooled entry is stamped with `sharedBy` = the survivor whose
     // intel landed it in the pool. Non-stale entries win on conflict;
@@ -333,18 +478,16 @@ export class KnowledgeSystem {
           }
         }
       }
-      for (const [id, e] of Object.entries(k.loot ?? {})) {
-        if (!pool.loot[id] || (!e.stale && pool.loot[id].stale)) {
-          pool.loot[id] = { ...e, sharedBy: name }
-        }
-      }
+      // Floor loot is deliberately NOT pooled — buff-piles are transient
+      // (cleared each night), so loot intel stays live-only (see _livePool).
       for (const [id, e] of Object.entries(k.mimics ?? {})) {
         if (!pool.mimics[id] || (!e.stale && pool.mimics[id].stale)) {
           pool.mimics[id] = { ...e, sharedBy: name }
         }
       }
-      // Benefits/utility entities — same merge rule + sharedBy stamp.
-      for (const bucket of ['fountains', 'treasureChests', 'keyChests']) {
+      // Benefits/utility + generic placed items — same merge rule +
+      // sharedBy stamp.
+      for (const bucket of ['fountains', 'treasureChests', 'keyChests', 'items']) {
         for (const [id, e] of Object.entries(k[bucket] ?? {})) {
           if (!pool[bucket][id] || (!e.stale && pool[bucket][id].stale)) {
             pool[bucket][id] = { ...e, sharedBy: name }
@@ -352,7 +495,54 @@ export class KnowledgeSystem {
         }
       }
     }
+    this._seedTriggeredTraps(pool)
     this._gs.knowledge.sharedPool = pool
+  }
+
+  // Triggered traps are durably known — re-seed them into any (re)built
+  // shared pool so a sprung trap's location survives the discoverer's
+  // death and is inherited by future waves.
+  _seedTriggeredTraps(pool) {
+    if (!pool) return
+    pool.traps ??= {}
+    const today = this._gs.meta?.dayNumber ?? 0
+    for (const t of this._gs.dungeon?.traps ?? []) {
+      if (!t.isKnownToAdventurers || pool.traps[t.instanceId]) continue
+      pool.traps[t.instanceId] = {
+        type: t.definitionId, tileX: t.tileX, tileY: t.tileY,
+        footprint: t.footprint ?? { w: 1, h: 1 },
+        dangerTiles: this._trapDangerTiles(t),
+        confirmed: true, stale: false, dayLearned: today, sharedBy: 'the dungeon',
+      }
+    }
+  }
+
+  // Tiles a line-of-sight trap (arrows / dragon / cannon) threatens — its
+  // firing lane from the muzzle until a wall. Adventurers route around
+  // these once they know the trap. Returns null for non-LOS traps.
+  _trapDangerTiles(trap) {
+    // Line-of-sight traps: wall-mounted (arrows / dragon) or the cannon.
+    if (trap.placement !== 'wall' && trap.definitionId !== 'cannon') return null
+    const D = { N: { dx: 0, dy: -1 }, S: { dx: 0, dy: 1 }, E: { dx: 1, dy: 0 }, W: { dx: -1, dy: 0 } }
+    const d = D[trap.facing]
+    if (!d) return null
+    const fp = trap.footprint ?? { w: 1, h: 1 }
+    let x, y
+    if (trap.placement === 'wall') {
+      x = trap.tileX + d.dx; y = trap.tileY + d.dy
+    } else if (trap.facing === 'N') { x = trap.tileX + (fp.w >> 1); y = trap.tileY - 1 }
+    else if (trap.facing === 'S')   { x = trap.tileX + (fp.w >> 1); y = trap.tileY + fp.h }
+    else if (trap.facing === 'E')   { x = trap.tileX + fp.w;        y = trap.tileY + (fp.h >> 1) }
+    else                            { x = trap.tileX - 1;           y = trap.tileY + (fp.h >> 1) }
+    const tiles = []
+    for (let i = 0; i < 48; i++) {
+      const t = this._grid.getTileType(x, y)
+      // Lane is confined to the room — a wall, door, or void stops the shot.
+      if (t !== 1 && t !== 5) break
+      tiles.push({ x, y })
+      x += d.dx; y += d.dy
+    }
+    return tiles.length ? tiles : null
   }
 
   // ── End-of-day (called by DayPhase._endDay before transitioning) ──────────
@@ -361,8 +551,13 @@ export class KnowledgeSystem {
     const today = this._gs.meta.dayNumber
     const hadSurvivors = this._gs.knowledge.survivors.some(s => s.lastSeenDay === today)
     if (!hadSurvivors) {
-      this._gs.knowledge.sharedPool = { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
+      this._gs.knowledge.sharedPool = {
+        rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
+        fountains: {}, treasureChests: {}, keyChests: {}, items: {},
+      }
       this._gs.knowledge.survivors  = []
+      // Sprung traps stay known even through a total party wipe.
+      this._seedTriggeredTraps(this._gs.knowledge.sharedPool)
       EventBus.emit('KNOWLEDGE_PARTY_WIPED')
     }
   }
@@ -383,7 +578,7 @@ export class KnowledgeSystem {
     }
     const fresh = {
       rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
-      fountains: {}, treasureChests: {}, keyChests: {},
+      fountains: {}, treasureChests: {}, keyChests: {}, items: {},
     }
     // Per-entry roll. enemiesPerRoom is an array per room; roll each minion
     // type independently so a fresh adv might know a Skeleton lurks in the
@@ -452,6 +647,37 @@ export class KnowledgeSystem {
     }
     for (const a of this._gs.adventurers?.active ?? []) {
       if (a.knowledge?.keyChests?.[id]) a.knowledge.keyChests[id].stale = true
+    }
+  }
+
+  // Generic item-entity removal staleness — fires for PHYLACTERY_REMOVED
+  // (sold / moved), PHYLACTERY_DESTROYED (hunted to death), and
+  // BEACON_REMOVED (sold). The payload key differs per event:
+  //   PHYLACTERY_*  → { phylactery }
+  //   BEACON_REMOVED → { beaconId, fountainId }
+  // — so we resolve an instanceId from whichever shape arrived.
+  _onItemEntityRemoved(payload = {}) {
+    const id = payload.phylactery?.instanceId
+            ?? payload.beaconId
+            ?? payload.item?.instanceId
+            ?? payload.instanceId
+    if (id) this._staleInAllScopes('items', id)
+    // A beacon sale also drops its paired healing fountain — there's no
+    // standalone FOUNTAIN_REMOVED event, so flip the fountain entry stale
+    // off the same payload (same contract as the chest handlers).
+    if (payload.fountainId) this._staleInAllScopes('fountains', payload.fountainId)
+  }
+
+  // Flip a single knowledge entry stale everywhere intel persists — the
+  // shared pool, every survivor record, and every active adventurer.
+  _staleInAllScopes(bucket, id) {
+    if (!id) return
+    _setStaleInPool(this._gs.knowledge, bucket, id)
+    for (const s of this._gs.knowledge.survivors) {
+      if (s.knowledge?.[bucket]?.[id]) s.knowledge[bucket][id].stale = true
+    }
+    for (const a of this._gs.adventurers?.active ?? []) {
+      if (a.knowledge?.[bucket]?.[id]) a.knowledge[bucket][id].stale = true
     }
   }
 
@@ -556,8 +782,20 @@ export class KnowledgeSystem {
 
     // Trap weight first — if the tile has a known trap, that always wins
     // over room-level minion routing (it's the more localized hazard).
+    // Known traps weight their whole footprint plus a 1-tile danger ring,
+    // so an adventurer with intel routes clear of 2×2 hazards and the
+    // pillar / blade reach — not just the trap's anchor tile.
     for (const t of Object.values(adv.knowledge.traps ?? {})) {
-      if (!t || t.tileX !== tx || t.tileY !== ty) continue
+      if (!t) continue
+      const fp = t.footprint ?? { w: 1, h: 1 }
+      const M = 1
+      const inBox = tx >= t.tileX - M && tx < t.tileX + fp.w + M &&
+                    ty >= t.tileY - M && ty < t.tileY + fp.h + M
+      // Line-of-sight traps (arrows / dragon / cannon) — the danger is the
+      // firing lane, not the trap tile, so route around the line of fire.
+      const inLane = !inBox && Array.isArray(t.dangerTiles) &&
+                     t.dangerTiles.some(d => d.x === tx && d.y === ty)
+      if (!inBox && !inLane) continue
       const tier  = this.tierForEntry(t)
       if (!tier) return 1
       const scale = this.costMultiplierForTier(tier)
@@ -613,6 +851,7 @@ export class KnowledgeSystem {
       traps:          { ...(sp.traps          ?? {}) },
       enemiesPerRoom: {},
       loot:           { ...(sp.loot           ?? {}) },
+      items:          { ...(sp.items          ?? {}) },
     }
     // Deep-copy the per-room enemy lists since we mutate them below.
     for (const [roomId, list] of Object.entries(sp.enemiesPerRoom ?? {})) {
@@ -646,6 +885,12 @@ export class KnowledgeSystem {
         const ex = pool.loot[id]
         if (!ex || (!e.stale && ex.stale)) pool.loot[id] = { ...e }
       }
+      // Placed items (phylactery / beacons) — same merge rule, so the
+      // intel UI reflects items the active wave just walked past.
+      for (const [id, e] of Object.entries(k.items ?? {})) {
+        const ex = pool.items[id]
+        if (!ex || (!e.stale && ex.stale)) pool.items[id] = { ...e }
+      }
     }
     return pool
   }
@@ -655,6 +900,7 @@ export class KnowledgeSystem {
     const allRooms = this._gs.dungeon.rooms ?? []
     let confirmed = 0, stale = 0, confirmedTraps = 0, staleTraps = 0
     let confirmedLoot = 0, confirmedEnemyRooms = 0
+    let confirmedItems = 0, staleItems = 0
 
     for (const r of allRooms) {
       const e = pool.rooms?.[r.instanceId]
@@ -666,6 +912,10 @@ export class KnowledgeSystem {
     for (const list of Object.values(pool.enemiesPerRoom ?? {})) {
       if (list.some(e => !e.stale)) confirmedEnemyRooms++
     }
+    // Placed-item intel (phylactery / beacons) — split confirmed vs stale
+    // the same way traps are, so the Threat Assessment screen can surface
+    // a "Known items" line alongside the rest.
+    for (const it of Object.values(pool.items ?? {})) it.stale ? staleItems++ : confirmedItems++
 
     const total = allRooms.length
     return {
@@ -675,6 +925,7 @@ export class KnowledgeSystem {
       totalRooms:          total,
       confirmedTraps,      staleTraps,
       confirmedLoot,       confirmedEnemyRooms,
+      confirmedItems,      staleItems,
     }
   }
 
@@ -716,6 +967,18 @@ export class KnowledgeSystem {
       weightSum += WEIGHT[tier] ?? 0
     }
 
+    // Placed-item intel (phylactery / beacons). Iterate the live item
+    // entities so a sold item drops out of the report immediately; each
+    // surviving entity is classified through the same tier classifier.
+    const itemTiers = {}
+    const itemEnts  = this._itemEntities()
+    for (const it of itemEnts) {
+      const tier = this.tierForEntry(pool.items?.[it.instanceId])
+      if (!tier) continue
+      itemTiers[it.instanceId] = tier
+      weightSum += WEIGHT[tier] ?? 0
+    }
+
     // Per-room enemy sightings collapse to the freshest (best) tier seen.
     const enemyTiers = {}
     for (const [roomId, list] of Object.entries(pool.enemiesPerRoom ?? {})) {
@@ -728,7 +991,7 @@ export class KnowledgeSystem {
       if (best) enemyTiers[roomId] = best
     }
 
-    const denom = rooms.length + traps.length
+    const denom = rooms.length + traps.length + itemEnts.length
     const exposurePct = denom > 0
       ? Math.min(100, Math.round((100 * weightSum) / denom))
       : 0
@@ -738,6 +1001,7 @@ export class KnowledgeSystem {
       rooms:           roomTiers,
       traps:           trapTiers,
       enemiesPerRoom:  enemyTiers,
+      items:           itemTiers,
       leakedRoomCount: Object.keys(roomTiers).length,
     }
   }
@@ -762,6 +1026,9 @@ export class KnowledgeSystem {
       traps,
       enemies: pool.enemiesPerRoom?.[roomId] ?? [],
       loot:    Object.values(pool.loot ?? {}).filter(l => l.roomId === roomId),
+      // Placed-item intel (phylactery / beacons) for this room — keyed
+      // by the roomId stamped at observe time.
+      items:   Object.values(pool.items ?? {}).filter(it => it.roomId === roomId),
     }
   }
 
@@ -795,13 +1062,13 @@ export class KnowledgeSystem {
 function _ensureState(gs) {
   const empty = () => ({
     rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
-    fountains: {}, treasureChests: {}, keyChests: {},
+    fountains: {}, treasureChests: {}, keyChests: {}, items: {},
   })
   gs.knowledge ??= { sharedPool: empty(), survivors: [], partyWipeOccurred: false }
   gs.knowledge.sharedPool ??= empty()
   // Backfill new buckets onto an older save's pool so it doesn't choke
-  // when we read fountains/chests from a save that predates this schema.
-  for (const k of ['fountains', 'treasureChests', 'keyChests']) {
+  // when we read fountains/chests/items from a save that predates this schema.
+  for (const k of ['fountains', 'treasureChests', 'keyChests', 'items']) {
     gs.knowledge.sharedPool[k] ??= {}
   }
   gs.knowledge.survivors ??= []
@@ -820,6 +1087,8 @@ function _ensureAdvKnowledge(adv) {
   adv.knowledge.fountains      ??= {}
   adv.knowledge.treasureChests ??= {}
   adv.knowledge.keyChests      ??= {}
+  // Generic placed-item intel (phylactery / beacons) keyed by instanceId.
+  adv.knowledge.items          ??= {}
 }
 
 function _deepCopy(obj) {
@@ -850,11 +1119,11 @@ function _mergeKnowledge(base, incoming) {
       else if (!e.stale && ex.stale) { ex.stale = false; ex.confirmed = true }
     }
   }
-  for (const [id, e] of Object.entries(incoming.loot ?? {})) {
-    if (!merged.loot[id] || (!e.stale && merged.loot[id].stale)) merged.loot[id] = { ...e }
-  }
-  // Benefit/utility merges — same overwrite-if-fresher pattern as above.
-  for (const bucket of ['fountains', 'treasureChests', 'keyChests']) {
+  // Floor loot is intentionally not merged — it's live-only intel that
+  // doesn't accumulate across a returning veteran's runs.
+  // Benefit/utility + generic-item merges — same overwrite-if-fresher
+  // pattern as above.
+  for (const bucket of ['fountains', 'treasureChests', 'keyChests', 'items']) {
     for (const [id, e] of Object.entries(incoming[bucket] ?? {})) {
       if (!merged[bucket][id] || (!e.stale && merged[bucket][id].stale)) {
         merged[bucket][id] = { ...e }

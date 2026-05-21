@@ -29,7 +29,7 @@ const TUTORIALS = [
     tips: [
       'Click a card once to select it, again to deselect.',
       'Hover the dungeon to preview placement; click to commit.',
-      'Sell a placed room for partial gold from its right-click menu.',
+      'Use the SELL tool on the action bar to remove a placed room for partial gold.',
     ],
     subscribe: (fire) => {
       const fn = () => fire()
@@ -95,6 +95,22 @@ const TUTORIALS = [
     },
   },
 
+  {
+    id: 'multiEntryUnlocked', title: 'Another Way In',
+    lead: 'THE KINGDOM MAPS YOUR WALLS',
+    body: 'The realm has found another way into your dungeon. From boss level 5 you MUST place a second Entry Hall before the day can begin — and a third is forced at level 10. Each dawn every adventurer randomly picks which entrance to storm through, and the wounded flee to whichever exit is nearest.',
+    tips: [
+      'The extra Entry Hall slot is unlocked in CONSTRUCTION > ROOMS.',
+      'Every entrance must connect to your boss room or the day will not start.',
+      'More doors mean more fronts — spread your defense or funnel each entry into a kill zone.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if ((p?.newLevel ?? 0) >= 5) fire() }
+      EventBus.on('BOSS_LEVELED_UP', fn)
+      return () => EventBus.off('BOSS_LEVELED_UP', fn)
+    },
+  },
+
   // ── B. Core-mechanic intros ───────────────────────────────────────────
   {
     id: 'firstMinionPlaced', title: 'Minions',
@@ -112,6 +128,21 @@ const TUTORIALS = [
     },
   },
   {
+    id: 'firstTrapPlaced', title: 'Traps',
+    lead: 'PATIENCE IN THE STONE — THE DUNGEON BITES BACK',
+    body: 'Traps lie dormant until an adventurer triggers them — and the guild only learns a trap exists by springing it the hard way. Floor traps strike whoever steps on their footprint; wall traps (arrows, dragon) fire down a line, threatening the whole lane in front of them. Each trap takes one Trap Factory slot.',
+    tips: [
+      'Aim a wall trap so its firing lane crosses a corridor adventurers must walk.',
+      'Once sprung, escapees remember a trap — survivors route future waves around it.',
+      'Build more Trap Factories to raise your trap cap (+5 slots each).',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('TRAP_PLACED', fn)
+      return () => EventBus.off('TRAP_PLACED', fn)
+    },
+  },
+  {
     id: 'firstAdvEnters', title: 'Invasion',
     lead: 'THE HEROES COME — KNOW YOUR ENEMY',
     body: 'Each adventurer has a class (Knight, Rogue, Mage, etc.), a personality that shapes their decisions, and a kit of class abilities. Some are tanks, some glass cannons, some bring utility. Scout them before they enter your dungeon — what you know shapes how you defend.',
@@ -126,11 +157,25 @@ const TUTORIALS = [
     },
   },
   {
+    id: 'firstBossFight', title: 'The Boss Fight',
+    lead: 'THEY REACH THE THRONE — NOW YOU FIGHT',
+    body: 'An adventurer has broken through to your boss chamber. Your boss is the final wall — it fights on its own, trading blows and unleashing its archetype powers. If the boss falls, the run ends, so everything else you build exists to bleed the party down before they ever reach this room.',
+    tips: [
+      'Boss stats grow each level — spend XP so your boss keeps pace with tougher parties.',
+      'A full-HP party at the throne is deadly; wear them down with minions and traps first.',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('BOSS_FIGHT_STARTED', fn)
+      return () => EventBus.off('BOSS_FIGHT_STARTED', fn)
+    },
+  },
+  {
     id: 'firstAdvFlees', title: 'Flee',
     lead: 'COWARDS — DO NOT LET THEM ESCAPE',
     body: 'Adventurers who fall below their personal flee threshold turn around and sprint for the exit. If they reach it, they escape with any gold they stole AND any intel they learned about your dungeon — making future waves harder. Kill them before they get out.',
     tips: [
-      'Place fast patrol minions near the entry hall to intercept.',
+      'Place fast patrol minions near your entrances to intercept.',
       'Traps that slow or stun help close the kill window.',
     ],
     subscribe: (fire) => {
@@ -186,6 +231,21 @@ const TUTORIALS = [
     },
   },
 
+  {
+    id: 'firstDungeonEvent', title: 'Dungeon Event',
+    lead: 'THE WORLD INTRUDES — NOT EVERY DAY IS NORMAL',
+    body: 'A Dungeon Event has been announced. Events hijack a day with special rules — a freak wave, a tournament of rivals, a goblin heist, a tax on your treasury. Read the announcement banner: it spells out exactly what is coming so you can build for it during the night before.',
+    tips: [
+      'Some events replace the normal wave entirely; others just bend the rules.',
+      'You cannot stop an event — but you can prepare for it in the build phase.',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('DUNGEON_EVENT_ANNOUNCED', fn)
+      return () => EventBus.off('DUNGEON_EVENT_ANNOUNCED', fn)
+    },
+  },
+
   // ── C. Boss-archetype hooks ───────────────────────────────────────────
   // Each fires on the first NIGHT_PHASE_STARTED — gated by `archetype` so
   // the hint matches the player's chosen boss. Firing during night-1 lets
@@ -201,7 +261,7 @@ const TUTORIALS = [
   {
     id: 'arch_demon', archetype: 'demon', title: 'Demon Lord',
     lead: 'HELL OPENS ITS GATE',
-    body: 'You are the Demon Lord. Every dawn, your Hellgate births free Imps into your dungeon — no gold cost, no roster slot. You can also Sacrifice any minion at any time to instantly kill one adventurer of your choice. Burn cheap minions for high-value kills.',
+    body: 'You are the Demon Lord. Every dawn, your Hellgate births free Imps into your dungeon — no gold cost, no roster slot. Once per day you can Sacrifice: it burns one of your minions — 50% of the time a free Hellgate Imp — to instantly kill a random adventurer in the dungeon.',
     subscribe: (fire) => { const fn = () => fire(); EventBus.on('NIGHT_PHASE_STARTED', fn); return () => EventBus.off('NIGHT_PHASE_STARTED', fn) },
   },
   {
@@ -279,7 +339,7 @@ const TUTORIALS = [
   {
     id: 'warn_lowGold', title: 'Need More Gold',
     lead: 'THE TREASURY ECHOES — EMPTY',
-    body: 'You do not have enough gold to build that. Gold comes in from adventurer kills, treasure chests, and surviving the day. Until you refill, you can sell a placed room from its right-click menu for a partial refund.',
+    body: 'You do not have enough gold to build that. Gold comes in from adventurer kills, treasure chests, and surviving the day. Until you refill, use the SELL tool on the action bar to remove a placed room for a partial refund.',
     tips: [
       'Kills pay more than survival — fight greedy, not safe.',
       'Treasure chests in your dungeon pay passive gold per night.',

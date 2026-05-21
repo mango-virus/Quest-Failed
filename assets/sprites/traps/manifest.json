@@ -1,0 +1,80 @@
+{
+  "arrow": {
+    "file": "assets/sprites/traps/arrow.png",
+    "frameWidth": 16,
+    "frameHeight": 157,
+    "count": 12
+  },
+  "bomb": {
+    "file": "assets/sprites/traps/bomb.png",
+    "frameWidth": 48,
+    "frameHeight": 48,
+    "count": 12
+  },
+  "cannon-up": {
+    "file": "assets/sprites/traps/cannon-up.png",
+    "frameWidth": 16,
+    "frameHeight": 100,
+    "count": 12
+  },
+  "cannon-down": {
+    "file": "assets/sprites/traps/cannon-down.png",
+    "frameWidth": 16,
+    "frameHeight": 123,
+    "count": 12
+  },
+  "cannon-left": {
+    "file": "assets/sprites/traps/cannon-left.png",
+    "frameWidth": 128,
+    "frameHeight": 32,
+    "count": 12
+  },
+  "cannon-right": {
+    "file": "assets/sprites/traps/cannon-right.png",
+    "frameWidth": 127,
+    "frameHeight": 32,
+    "count": 12
+  },
+  "dragon-ud": {
+    "file": "assets/sprites/traps/dragon-ud.png",
+    "frameWidth": 32,
+    "frameHeight": 76,
+    "count": 10
+  },
+  "dragon-rl": {
+    "file": "assets/sprites/traps/dragon-rl.png",
+    "frameWidth": 96,
+    "frameHeight": 32,
+    "count": 10
+  },
+  "spike-pillar": {
+    "file": "assets/sprites/traps/spike-pillar.png",
+    "frameWidth": 48,
+    "frameHeight": 64,
+    "count": 6
+  },
+  "spike-pit": {
+    "file": "assets/sprites/traps/spike-pit.png",
+    "frameWidth": 48,
+    "frameHeight": 32,
+    "count": 6
+  },
+  "rotating-blades": {
+    "file": "assets/sprites/traps/rotating-blades.png",
+    "frameWidth": 48,
+    "frameHeight": 48,
+    "count": 4
+  },
+  "saw-h": {
+    "file": "assets/sprites/traps/saw-h.png",
+    "frameWidth": 70,
+    "frameHeight": 32,
+    "count": 6
+  },
+  "saw-v": {
+    "file": "assets/sprites/traps/saw-v.png",
+    "frameWidth": 16,
+    "frameHeight": 64,
+    "count": 6
+  }
+}

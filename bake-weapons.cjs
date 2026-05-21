@@ -65,6 +65,9 @@ const ATK_CLASSES = new Set([
   // Event-only class — Cosplay Contest spawns; cosplayers retaliate
   // when attacked, so they need the oversize weapon attack sheet too.
   'cosplay_adventurer',
+  // Bounty hunters carry crossbows — crossbow combat is the thrust-oversize
+  // animation, which lives in the _atk.png sheet.
+  'bounty_hunter',
 ]);
 const ATK_FRAME       = 192;          // frame size in atk sheet
 const ATK_COLS        = 8;            // max frames per row (thrust = 8)

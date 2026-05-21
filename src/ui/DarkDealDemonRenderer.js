@@ -30,6 +30,15 @@ export class DarkDealDemonRenderer {
     on('DAY_PHASE_BEGAN',   this._onDayPhaseBegan)
     on('PACT_SEALED',       this._onPactSealed)
     on('DARK_PACT_SEALED',  this._onDarkPactSealed)
+    // Also spawn on the announce event — covers a Dark Deal forced
+    // mid-night (debug panel), which happens after NIGHT_PHASE_BEGAN has
+    // already fired. _spawnDemon() is idempotent so the normal flow
+    // (which emits both) never double-spawns.
+    on('DUNGEON_EVENT_ANNOUNCED', this._onEventAnnounced)
+  }
+
+  _onEventAnnounced({ def } = {}) {
+    if (def?.id === 'dark_deal') this._spawnDemon()
   }
 
   destroy() {

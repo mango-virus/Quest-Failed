@@ -74,6 +74,33 @@ const SFX_DEFAULT_VOL = 0.70
 // is near max. The originally-loud ones simply hit the cap.
 const SFX_BOOST = 1.5
 
+// ── Window-focus tracking ───────────────────────────────────────────────────
+// SFX fired while the game window/tab is in the background are dropped, not
+// queued. When the page loses focus the browser suspends the WebAudio clock,
+// but the still-running simulation keeps triggering combat/event sounds —
+// each one gets scheduled against that frozen clock and they all release in
+// one burst the instant the player clicks back in. Dropping them at the
+// source keeps the return quiet (the player already hears nothing while
+// away — they just shouldn't get the backlog).
+//
+// Pure event-driven (no `document.hasFocus()` — it reports false in some
+// automated/embedded contexts and would wrongly mute a focused game).
+// Starts true: the game normally loads focused. Registered once at module
+// load; the flag is process-global, not per-scene.
+let _pageHasFocus = true
+if (typeof window !== 'undefined') {
+  window.addEventListener('blur',  () => { _pageHasFocus = false })
+  window.addEventListener('focus', () => { _pageHasFocus = true })
+  if (typeof document !== 'undefined') {
+    // Belt-and-suspenders for minimize / tab-switch cases where 'blur' may
+    // not fire. Becoming visible again re-fires a window 'focus', which
+    // restores the flag — so only the hidden→true transition is handled here.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) _pageHasFocus = false
+    })
+  }
+}
+
 export class SfxSystem {
   constructor(scene, gameState) {
     this._scene     = scene
@@ -174,6 +201,11 @@ export class SfxSystem {
     on('SHOW_GAME_OVER',          this._onGameOver)
     // Minion bounty posted — the "hunters approach" beat.
     on('MINION_BOUNTY_POSTED',    this._onBountyPosted)
+    // The Gambler's Coin cinematic — metallic toss + win/lose sting.
+    // The double-or-nothing follow-up reuses the toss sting.
+    on('GAMBLER_COIN_FLIP',       this._onCoinFlip)
+    on('GAMBLER_DOUBLE_REQUEST',  this._onCoinFlip)
+    on('GAMBLER_COIN_REVEALED',   this._onCoinRevealed)
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -311,6 +343,17 @@ export class SfxSystem {
     this._play('sfx-door-unlock', 0.8)
   }
 
+  _onCoinFlip() {
+    // The coin leaves the imp's hand — a bright metallic toss.
+    this._play('sfx-collect-gold', 1.6)
+  }
+
+  _onCoinRevealed({ won } = {}) {
+    // Win — a fat gold chime; loss — the error chirp as the hoard drains.
+    if (won) this._play('sfx-collect-gold', 3.5)
+    else     this._play('sfx-error', 1.3)
+  }
+
   _onResourcesAwarded({ gold }) {
     if (!gold || gold <= 0) return
     const now = this._now()
@@ -328,6 +371,9 @@ export class SfxSystem {
   // rely on it for the "extra loud" pickup sounds (collect-gold) where the
   // standard ceiling makes them disappear in the mix.
   _play(key, extraBoost) {
+    // Backgrounded — drop the sound entirely so it can't queue up and
+    // burst on return (see the _pageHasFocus note above).
+    if (!_pageHasFocus) return
     if (SfxVolume.isMuted()) return
     if (!this._scene?.cache?.audio?.exists?.(key)) return
     const baseGain = SFX_VOLUMES[key] ?? SFX_DEFAULT_VOL

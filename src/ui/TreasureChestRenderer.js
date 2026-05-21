@@ -20,6 +20,7 @@ export class TreasureChestRenderer {
     this._scene     = scene
     this._gameState = gameState
     this._sprites   = {}    // chestId → Sprite
+    this._glows     = {}    // chestId → Ellipse (cursed-relic aura only)
 
     EventBus.on('TREASURE_CHEST_OPENED', this._onChestOpened, this)
   }
@@ -27,7 +28,9 @@ export class TreasureChestRenderer {
   destroy() {
     EventBus.off('TREASURE_CHEST_OPENED', this._onChestOpened, this)
     for (const s of Object.values(this._sprites)) s?.destroy?.()
+    for (const g of Object.values(this._glows))   g?.destroy?.()
     this._sprites = {}
+    this._glows   = {}
   }
 
   update() {
@@ -53,11 +56,28 @@ export class TreasureChestRenderer {
       if (!c.opened && s.anims?.currentAnim?.key?.endsWith('-open')) s.stop()
       if (!c.opened && s.frame?.name !== 0)        s.setFrame(0)
       else if (c.opened && !s.anims?.isPlaying && s.frame?.name !== 3) s.setFrame(3)
+
+      // Cursed Relic (event chest) — blacken the chest and pulse a
+      // purple aura under it so the curse reads at a glance.
+      if (c._cursed) {
+        s.setTint(0x4a2660)
+        let g = this._glows[c.instanceId]
+        if (!g) {
+          g = this._scene.add.ellipse(cx, cy - 8, TS * 1.7, TS * 1.0, 0x9b2fe0, 0.5)
+            .setDepth(2.5)
+          this._glows[c.instanceId] = g
+        }
+        g.setPosition(cx, cy - 8)
+        const now = this._scene.time?.now ?? 0
+        g.setAlpha(0.28 + 0.26 * Math.sin(now / 280))
+      }
     }
     for (const id of Object.keys(this._sprites)) {
       if (!seen.has(id)) {
         this._sprites[id]?.destroy?.()
         delete this._sprites[id]
+        this._glows[id]?.destroy?.()
+        delete this._glows[id]
       }
     }
   }

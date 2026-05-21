@@ -902,6 +902,13 @@ export class ClassAbilitySystem {
     if (!hasCompanion) {
       const target = this._nearestHostileMinion(adv, tameDef.rangeTiles)
       if (target) {
+        // Mark the minion as this Beast Master's tame target so the rest
+        // of the party leaves it alone while the tame is attempted —
+        // AISystem._findEngageableMinion skips tame-protected minions.
+        // Refreshed every tick the minion stays in range; the stamp
+        // lapses on its own once the BM moves off, dies, or succeeds.
+        target._tameTargetedBy = adv.instanceId
+        target._tameTargetedAt = now
         const ready = AbilitySystem.canUse(adv, tameDef, now)
         if (ready.ready) {
           AbilitySystem.markUsed(adv, tameDef, now)

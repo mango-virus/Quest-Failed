@@ -24,6 +24,10 @@ const LPC_SCALE = 0.75
 // these, the sprite swaps to the atk texture and adjusts origin so the
 // character body's foot stays at the same world position.
 const ATK_ANIMS = new Set(['slash', 'thrust'])
+// LPC attack-anim names that minion sheets + boss-archetype sheets have
+// no dedicated frames for (those sheets ship a single `attack` state).
+// _resolveLpcAnimKey collapses every one of these onto `attack`.
+const SHEET_ATTACK_ANIMS = new Set(['slash', 'thrust', 'shoot', 'spellcast'])
 // Body sprite origin: foot at y = 0.85 of 64 = 54.4px. In the 192×192 atk
 // frame the body is centered (top=64), so the foot sits at y = 64 + 54.4 =
 // 118.4px → origin y = 118.4 / 192 ≈ 0.617. Keeps the character's foot at the
@@ -177,16 +181,17 @@ export class AdventurerRenderer {
     adventurer._spawnFadeEnd   = start + FADE_MS
     this._spawnQueueNextAt     = start + STAGGER_MS
 
-    // Snap to the geometric center of the entry-hall doorway opening (the
-    // 2-tile-wide × WALL_THICKNESS-tile-tall door rect). All spawning
-    // advs appear stacked in the same spot — visibly "right in the
-    // doorway" — until their fade ends and AI walks them in.
+    // Snap to the geometric center of the doorway opening of the entry
+    // hall this adventurer spawned at (the 2-tile-wide × WALL_THICKNESS-
+    // tile-tall door rect). With multiple entry halls each adventurer
+    // snaps to whichever one they were spawned at, so a wave visibly
+    // pours out of every doorway it used.
     //
     // Exception: spawn-in-place advs (Loot Goblin Heist drops a pack
     // inside the boss room) keep the position the spawner chose. Without
     // this guard the renderer teleports them back to the entry-hall door
     // immediately after the spawner placed them, breaking the heist.
-    const door = adventurer._spawnedInPlace ? null : this._entryDoorWorldCenter()
+    const door = adventurer._spawnedInPlace ? null : this._entryDoorWorldCenter(adventurer)
     if (door) {
       adventurer.tileX  = door.tileX
       adventurer.tileY  = door.tileY
@@ -229,16 +234,23 @@ export class AdventurerRenderer {
     }
   }
 
-  // World-space center of the entry hall's doorway rect, wherever the
-  // (possibly rotated) entrance ended up. Cached for the day — the cache
-  // is cleared on day start, so a rotation done in the night phase is
-  // picked up next day. Delegates to the shared rotation-aware helper.
-  _entryDoorWorldCenter() {
-    if (this._entryDoorCache) return this._entryDoorCache
-    const entry = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'entry_hall')
-    if (!entry) return null
-    this._entryDoorCache = entryDoorWorldCenter(entry)
-    return this._entryDoorCache
+  // World-space center of the doorway rect of the entry hall `adv` spawned
+  // at, wherever the (possibly rotated) entrance ended up. With multiple
+  // entry halls the adventurer is snapped to the entry hall nearest their
+  // spawn tile — DayPhase already placed them at that entry's doorway.
+  // Delegates to the shared rotation-aware helper.
+  _entryDoorWorldCenter(adv) {
+    const entries = this._gameState?.dungeon?.rooms
+      ?.filter(r => r.definitionId === 'entry_hall') ?? []
+    if (entries.length === 0) return null
+    let best = entries[0], bestD = Infinity
+    for (const e of entries) {
+      const cx = e.gridX + e.width / 2
+      const cy = e.gridY + e.height / 2
+      const d  = Math.hypot((adv?.tileX ?? 0) - cx, (adv?.tileY ?? 0) - cy)
+      if (d < bestD) { bestD = d; best = e }
+    }
+    return entryDoorWorldCenter(best)
   }
 
   // Returns the alpha (0..1) the sprite should render at right now given
@@ -287,7 +299,12 @@ export class AdventurerRenderer {
     const dir = adv._lpcDir ?? 'down'
     const { animKey, originY } = this._resolveLpcAnimKey(s, anim, dir)
     if (!this._scene.anims.exists(animKey)) return
-    if (s.lpc.image.originY !== originY) s.lpc.image.setOrigin(0.5, originY)
+    // Minion-sheet + boss-archetype sprites keep the centered/anchored
+    // origin the spawner gave them — the LPC body/atk origin math only
+    // applies to true LPC adventurer sheets.
+    if (!s.lpc.isMinionSheet && !s.lpc.bossSheet && s.lpc.image.originY !== originY) {
+      s.lpc.image.setOrigin(0.5, originY)
+    }
     s.lpc.image.anims.play(animKey, true)
     // Force the per-tick guard to re-pick on the next idle/walk transition.
     s.lpc.lastAnim = animKey
@@ -297,6 +314,19 @@ export class AdventurerRenderer {
   // the `_atk` texture for slash/thrust when one is registered for this
   // variant. Falls back to the main texture (and main origin) otherwise.
   _resolveLpcAnimKey(s, anim, dir) {
+    // Minion sheets (zombie horde, rival-dungeon monsters, loot goblins)
+    // and boss-archetype sheets (Rival Dungeon boss) only ship idle/walk/
+    // run/attack/hurt/death states — there's no slash/thrust/shoot/
+    // spellcast and no separate `_atk` texture. Collapse every LPC attack
+    // variant onto the single `attack` state so they visibly swing.
+    if (s.lpc.bossSheet || s.lpc.isMinionSheet) {
+      const mapped = SHEET_ATTACK_ANIMS.has(anim) ? 'attack' : anim
+      const targetDir = anim === 'hurt' ? 'down' : dir
+      return {
+        animKey: `${s.lpc.textureKey}-${mapped}-${targetDir}`,
+        originY: LPC_BODY_ORIGIN_Y,
+      }
+    }
     const useAtk = ATK_ANIMS.has(anim) && s.lpc.atkTextureKey
     const baseKey = useAtk ? s.lpc.atkTextureKey : s.lpc.textureKey
     const targetDir = anim === 'hurt' ? 'down' : dir
@@ -382,6 +412,15 @@ export class AdventurerRenderer {
       const shadowA = inDoorwayShadow ? 0.55 : 1
       const fadeA  = Math.min(spawnA, leaveA) * shadowA
       if (s.container) s.container.setAlpha(fadeA)
+
+      // Rival Dungeon boss is big enough to overflow a 2-tile doorway. While
+      // it transits a doorway, drop its container below the door-jamb layer
+      // (DungeonRenderer `_gJambs`, depth 6) so the jamb posts + door framing
+      // render IN FRONT of it — it reads as squeezing through the opening
+      // instead of clipping over the walls beside the door.
+      if (adv._rivalBoss && inDoorwayShadow) {
+        s.container.setDepth(5.5)
+      }
 
       // Phase 1b.8 — Wraith Fear Meter bar. 0..100. Hidden at 0; full purple
       // fill at 100. Cheap re-render only when the rounded value changes.
@@ -503,7 +542,9 @@ export class AdventurerRenderer {
     const cls = this._defMap?.[adv.classId]
     const tags = new Set(cls?.tags ?? [])
     if (adv.resources?.hp <= 0) {
-      anim = 'hurt'
+      // Minion + boss sheets have a real `death` animation; LPC adventurer
+      // sheets fall back to the `hurt` strip as their corpse pose.
+      anim = (s.lpc.isMinionSheet || s.lpc.bossSheet) ? 'death' : 'hurt'
     } else if (adv.aiState === 'leaving') {
       // Standing in the doorway during the exit fade — idle, not run,
       // so the adv visibly stops before they vanish.
@@ -546,7 +587,8 @@ export class AdventurerRenderer {
     // the player only ever sees a 1-frame stub. Applies whether the
     // wanted anim is itself an attack (direction jitter mid-swing) or
     // a different state (e.g. charmed advs whose ambient anim is walk).
-    const ATTACK_ANIMS = new Set(['slash', 'thrust', 'shoot', 'spellcast'])
+    // `attack` covers the boss-archetype sheet's one-shot swing.
+    const ATTACK_ANIMS = new Set(['slash', 'thrust', 'shoot', 'spellcast', 'attack'])
     if (s.lpc.image.anims?.isPlaying) {
       const curKey = s.lpc.image.anims.currentAnim?.key ?? ''
       for (const atk of ATTACK_ANIMS) {
@@ -558,9 +600,10 @@ export class AdventurerRenderer {
     }
 
     s.lpc.lastAnim = wantKey
-    // Minion-sheet sprites (loot_goblin) keep their centered origin — the
-    // LPC body/atk origin doesn't apply to 64×64 minion frames.
-    if (!s.lpc.isMinionSheet && s.lpc.image.originY !== originY) {
+    // Minion-sheet sprites (loot_goblin, horde) and boss-archetype sheets
+    // (Rival Dungeon boss) keep the origin the spawner gave them — the LPC
+    // body/atk origin math doesn't apply to those frame layouts.
+    if (!s.lpc.isMinionSheet && !s.lpc.bossSheet && s.lpc.image.originY !== originY) {
       s.lpc.image.setOrigin(0.5, originY)
     }
     if (this._scene.anims.exists(wantKey)) {
@@ -625,7 +668,9 @@ export class AdventurerRenderer {
     // Outer ring (faction/colour glow). Returning veterans get a bright
     // gold aura instead — wider, brighter, with a hard outline — so they
     // read as veterans at a glance even in a crowded party.
-    const isVeteran = !!adv.flags?.returningVeteran
+    // Returning survivors AND Infamy-Spike heroes both get the gold
+    // hero treatment (ring + badge).
+    const isVeteran = !!(adv.flags?.returningVeteran || adv.flags?.hero)
     const ring = this._scene.add.circle(
       0, 0,
       isVeteran ? RADIUS + 6 : RADIUS + 3,
@@ -659,16 +704,19 @@ export class AdventurerRenderer {
     let comboBadge = null
 
     // Veteran badge — gold star + prior-raid count, shown for returning
-    // survivors. Sits just above the HP bar; paired with the gold aura
-    // ring so a veteran is unmistakable at a glance.
+    // survivors. Centred above the HP bar (origin 0.5, 0.5 at x=0 = the
+    // adventurer's centre); paired with the gold aura ring so a veteran is
+    // unmistakable at a glance.
     let veteranBadge = null
     if (isVeteran) {
-      const runs = adv.flags.runsCompleted ?? 1
-      veteranBadge = this._scene.add.text(-(RADIUS + 4), HP_BAR_Y - 9,
-        `★ HERO ${runs}`, {
+      // Returning survivors show their prior-run count; a fresh
+      // Infamy-Spike hero has none, so the badge is just "★ HERO".
+      const runs = adv.flags.runsCompleted
+      veteranBadge = this._scene.add.text(0, HP_BAR_Y - 9,
+        runs ? `★ HERO ${runs}` : '★ HERO', {
           fontSize: '9px', color: '#ffe488', fontFamily: 'monospace', fontStyle: 'bold',
           stroke: '#3a2a06', strokeThickness: 3,
-        }).setOrigin(1, 0.5)
+        }).setOrigin(0.5, 0.5)
     }
 
     // Room redesign 2026-04-30 — Wishing Well "Marked" badge.
@@ -711,12 +759,13 @@ export class AdventurerRenderer {
     if (markedBadge) children.push(markedBadge)
     c.add(children)
 
-    // Click-to-inspect
-    body.setInteractive({ useHandCursor: true })
-    body.on('pointerdown', (pointer, x, y, event) => {
-      event?.stopPropagation?.()
-      EventBus.emit('ADVENTURER_CLICKED', { adventurer: adv })
-    })
+    // Click to follow. The procedural `body` circle is only the hit
+    // target when no LPC/builder sprite is shown — Phaser skips input
+    // hit-testing on invisible objects, so when a real sprite replaces
+    // `body` (the usual case) the input must be wired onto that sprite
+    // too. _wireSpriteInput is called again below for the builder / LPC
+    // images.
+    this._wireSpriteInput(adv, body)
 
     const sprite = { container: c, ring, body, label, hp, hpBg, bubble, bubbleLabel, comboBadge, veteranBadge, venomBadge, blightBadge, fearBg, fearFill, _lastVenomStacks: null, _lastFear: null, _lastBlight: null }
 
@@ -735,6 +784,7 @@ export class AdventurerRenderer {
       body.setVisible(false)
       ring.setVisible(false)
       sprite.builder = { image: img, state: 'idle', idx: 0, accum: 0 }
+      this._wireSpriteInput(adv, img)
     }
 
     // LPC sprite — preferred over the procedural circle when a baked variant
@@ -744,12 +794,19 @@ export class AdventurerRenderer {
     if (lpc) {
       // LPC sprite is positioned slightly above center so the feet sit on
       // the tile, then origin-anchored at (0.5, 0.85) so the bottom is the
-      // movement reference point. Minion-sheet sprites (loot_goblin) use
-      // a centered origin + 1.0 scale to match how the same sheets render
-      // when worn by an actual goblin minion in the dungeon.
+      // movement reference point. Minion-sheet sprites (loot_goblin, zombie
+      // horde, rival-dungeon monsters) use a centered origin + a scale that
+      // defaults to 1.0 — matching how the same sheets render when worn by
+      // an actual minion in the dungeon.
       if (lpc.isMinionSheet) {
         lpc.image.setOrigin(0.5, 0.5)
-        lpc.image.setScale(1.0)
+        lpc.image.setScale(adv._minionSheetScale ?? 1.0)
+      } else if (lpc.bossSheet) {
+        // Rival Dungeon boss — boss-archetype sprite anchored + scaled to
+        // the same footprint as the player's own boss so the throne-room
+        // showdown reads as a genuine peer fight.
+        lpc.image.setOrigin(0.5, 0.85)
+        lpc.image.setScale(lpc.bossScale ?? 2.0)
       } else {
         lpc.image.setOrigin(0.5, 0.85)
         lpc.image.setScale(LPC_SCALE)
@@ -762,6 +819,10 @@ export class AdventurerRenderer {
       ring.setVisible(false)
       label.setVisible(false)
       sprite.lpc = lpc
+      // Dungeon event: The Saboteur reads as an all-black ninja — dark
+      // tint over the rogue LPC sprite.
+      if (adv._saboteur) lpc.image.setTint(0x1c1c26)
+      this._wireSpriteInput(adv, lpc.image)
     }
 
     this._sprites[adv.instanceId] = sprite
@@ -772,21 +833,26 @@ export class AdventurerRenderer {
   // and instantiate a Phaser sprite for it. Returns null if the manifest
   // isn't loaded or this class has no baked variants.
   _buildLpcSprite(adv) {
-    // Rival Dungeon boss: render with one of the boss-archetype skins
-    // instead of an adventurer LPC sheet, so they read as a peer-tier
-    // threat. Texture is loaded by Preload's BOSS_SKINS list; we just
-    // pick frame 0 of the idle sheet at boss-scale.
+    // Rival Dungeon boss: a T3 minion final-form (beholder_tyrant,
+    // demon_lord, …) — those forms render with a boss-archetype skin, so
+    // we render the matching boss sheet rather than an adventurer LPC
+    // sheet. `bossSheet` flags the caller to anchor + scale it like the
+    // player's own boss. Texture is loaded by Preload's BOSS_SKINS list.
     if (adv._rivalBossSpriteKey) {
-      const key = `${adv._rivalBossSpriteKey}-idle`
-      if (this._scene.textures.exists(key)) {
-        const image = this._scene.add.sprite(0, 0, key, 0)
-        const idleAnim = `${adv._rivalBossSpriteKey}-idle-down`
+      const archetype = adv._rivalBossSpriteKey
+      const idleTex = `${archetype}-idle`
+      if (this._scene.textures.exists(idleTex)) {
+        const image = this._scene.add.sprite(0, 0, idleTex, 0)
+        const idleAnim = `${archetype}-idle-down`
         if (this._scene.anims.exists(idleAnim)) image.play(idleAnim)
-        // Scale 1.5 — between adv (~0.5) and player boss (2.0) so the
-        // rival reads as imposing without overpowering the player's boss
-        // visually during the showdown.
-        image.setScale(1.5)
-        return { image, textureKey: key, atkTextureKey: null, lastAnim: null }
+        // textureKey is the bare archetype (NOT the idle sheet) so
+        // _resolveLpcAnimKey builds `<archetype>-<state>-<dir>` keys that
+        // match how _registerBossAnimations registered them — that's what
+        // drives the boss's walk + attack animation instead of a freeze.
+        return {
+          image, textureKey: archetype, atkTextureKey: null, lastAnim: null,
+          bossSheet: true, bossScale: 2.0,
+        }
       }
       // Texture missing — fall through to LPC fallback below.
     }
@@ -808,6 +874,23 @@ export class AdventurerRenderer {
         return { image, textureKey: baseKey, atkTextureKey: null, lastAnim: null, isMinionSheet: true }
       }
       // Texture missing — fall through to the LPC path (cartographer_scholar bake).
+    }
+    // Dungeon events Zombie Horde + Rival Dungeon — render the invaders
+    // with actual MINION sheets so they read as the monster race they are
+    // rather than as humanoid adventurers. `_minionSheet` is set per-adv
+    // at spawn (a `minion-<id>` key) — varied zombie tiers for the horde,
+    // T1/T2 minion ids for the rival pack. Same minion-sheet anim contract
+    // as the loot-goblin path above.
+    if (adv._minionSheet) {
+      const baseKey = adv._minionSheet
+      const idleKey = `${baseKey}-idle`
+      if (this._scene.textures.exists(idleKey)) {
+        const image = this._scene.add.sprite(0, 0, idleKey, 0)
+        const startAnim = `${baseKey}-walk-down`
+        if (this._scene.anims.exists(startAnim)) image.play(startAnim)
+        return { image, textureKey: baseKey, atkTextureKey: null, lastAnim: null, isMinionSheet: true }
+      }
+      // Texture missing — fall through to the LPC path.
     }
     // Event-only classes (tournament_rival_*, monster_invader, rival_boss_invader,
     // loot_goblin) don't ship their own LPC bake — they declare a
@@ -834,6 +917,21 @@ export class AdventurerRenderer {
     const atkKey = `${textureKey}-atk`
     const atkTextureKey = this._scene.textures.exists(atkKey) ? atkKey : null
     return { image, textureKey, atkTextureKey, lastAnim: null }
+  }
+
+  // ── Click ──────────────────────────────────────────────────────────────────
+
+  // Make a sprite/marker clickable. Click emits ADVENTURER_CLICKED — the
+  // Game scene locks the camera onto the adv. Wired onto whichever marker
+  // is actually visible (procedural circle, builder image, or LPC sprite),
+  // since Phaser skips input hit-testing on invisible objects.
+  _wireSpriteInput(adv, obj) {
+    if (!obj || obj.input) return
+    obj.setInteractive({ useHandCursor: true })
+    obj.on('pointerdown', (pointer, x, y, event) => {
+      event?.stopPropagation?.()
+      EventBus.emit('ADVENTURER_CLICKED', { adventurer: adv })
+    })
   }
 
   _destroySprite(id) {
@@ -878,12 +976,19 @@ export class AdventurerRenderer {
     s.body?.disableInteractive()
     if (s.lpc) {
       // Snap back to the body texture/origin in case we died mid-attack on
-      // the atk sheet, then play the LPC hurt strip. Minion-sheet sprites
-      // (loot_goblin) keep their centered origin.
-      if (!s.lpc.isMinionSheet && s.lpc.image.originY !== LPC_BODY_ORIGIN_Y) {
+      // the atk sheet, then play the hurt strip. Minion-sheet and boss-
+      // archetype sheets keep the origin the spawner gave them.
+      if (!s.lpc.isMinionSheet && !s.lpc.bossSheet && s.lpc.image.originY !== LPC_BODY_ORIGIN_Y) {
         s.lpc.image.setOrigin(0.5, LPC_BODY_ORIGIN_Y)
       }
-      const wantKey = `${s.lpc.textureKey}-hurt-down`
+      // Minion + boss sheets ship a dedicated `death` animation (all four
+      // facings); LPC adventurer sheets only have a single-dir `hurt`
+      // strip, used as the corpse pose. Match the dir _tickLpcAnim will
+      // request so the corpse pose doesn't re-trigger on the next frame.
+      const isSheet = s.lpc.isMinionSheet || s.lpc.bossSheet
+      const corpseState = isSheet ? 'death' : 'hurt'
+      const dir = isSheet ? (adventurer._lpcDir ?? 'down') : 'down'
+      const wantKey = `${s.lpc.textureKey}-${corpseState}-${dir}`
       if (this._scene.anims.exists(wantKey)) {
         s.lpc.image.anims.play(wantKey, true)
         s.lpc.lastAnim = wantKey
@@ -895,8 +1000,5 @@ export class AdventurerRenderer {
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
     // Reset the spawn-fade stagger queue so the next day starts fresh.
     this._spawnQueueNextAt = 0
-    // Drop the cached doorway tile in case the player rebuilt the entry
-    // hall between days.
-    this._entryDoorCache = null
   }
 }

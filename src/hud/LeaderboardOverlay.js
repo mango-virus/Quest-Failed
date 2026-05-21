@@ -19,6 +19,17 @@ import { Leaderboard as LeaderboardAPI } from '../systems/Leaderboard.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { runCountUp } from './countUp.js'
 
+// Pact rarity → chip colour. Mirrors the bright (c1) tones of the
+// PactPicker tome (src/hud/PactPicker.js RARITY) so a pact reads the
+// same hue everywhere it surfaces.
+const RARITY_COLOR = {
+  common:    '#d8d2c0',
+  uncommon:  '#86e89a',
+  rare:      '#ffd86a',
+  epic:      '#e2a6f2',
+  legendary: '#ff8a96',
+}
+
 // Build a small boss-portrait <div> from assets/ui/bestiary/portraits/
 // <id>_p.png. Used in place of the procedural pixelSprite blobs the
 // leaderboard previously rendered. Falls back to pixelSprite if the
@@ -239,6 +250,44 @@ export class LeaderboardOverlay {
       if (days < 30) return `${days} days ago`
       return d.toLocaleDateString()
     } catch { return 'recently' }
+  }
+
+  // Walk every Phaser scene's JSON cache for `key`. The leaderboard can
+  // open from the main menu or in-game, so we don't assume a specific
+  // scene owns the cache entry.
+  _cachedJson(key) {
+    const scenes = window.__game?.scene?.scenes || []
+    for (const s of scenes) {
+      const v = s.cache?.json?.get?.(key)
+      if (Array.isArray(v) || (v && typeof v === 'object')) return v
+    }
+    return null
+  }
+
+  // Lazy lookup of pact identifier → rarity. Keyed by BOTH the lowercased
+  // display name and the raw id so it resolves whichever shape
+  // _normalize() left in the pacts array. Built from dungeonMechanics.json.
+  _pactRarityMap() {
+    if (this._rarityMap) return this._rarityMap
+    const map = {}
+    for (const m of (this._cachedJson('dungeonMechanics') ?? [])) {
+      const rar = String(m?.rarity ?? '').toLowerCase()
+      if (!rar) continue
+      if (m.id)   map[String(m.id).toLowerCase()]   = rar
+      if (m.name) map[String(m.name).toLowerCase()] = rar
+    }
+    // Only memoise once the cache actually had the data — guards against
+    // an early open before Preload finished registering the JSON.
+    if (Object.keys(map).length > 0) this._rarityMap = map
+    return map
+  }
+
+  // Resolve a pact string (display name or id) to its rarity chip colour.
+  // Unknown / unmatched pacts fall back to the common tone.
+  _pactColor(pact) {
+    const key = String(pact ?? '').trim().toLowerCase()
+    const rar = this._pactRarityMap()[key]
+    return RARITY_COLOR[rar] ?? RARITY_COLOR.common
   }
 
   _rerender() {
@@ -517,9 +566,19 @@ export class LeaderboardOverlay {
         h('div', { className: 'pix qf-lb-pacts-label' }, '◇ NOTABLE PACTS'),
         h('div', { className: 'qf-lb-pacts-chips' },
           sel.pacts && sel.pacts.length > 0
-            ? sel.pacts.slice(0, 4).map(p =>
-                h('span', { className: 'pix qf-lb-pact-chip' },
-                  String(p).toUpperCase()))
+            ? sel.pacts.slice(0, 4).map(p => {
+                // Tint the chip by the pact's rarity (common → legendary).
+                const color = this._pactColor(p)
+                return h('span', {
+                  className: 'pix qf-lb-pact-chip',
+                  style: {
+                    color,
+                    borderColor: `${color}99`,
+                    background:  `${color}1f`,
+                    textShadow:  `0 0 6px ${color}55`,
+                  },
+                }, String(p).toUpperCase())
+              })
             : [h('span', {
                 className: 'pix qf-lb-pact-chip',
                 style: {

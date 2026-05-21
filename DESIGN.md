@@ -278,15 +278,15 @@ Top-level rules:
 | Room | Cap | Unlock | Effect |
 |---|---|---|---|
 | **Boss Chamber** | 1 (fixed) | Start | The boss's lair. Game ends here. |
-| **Entry Hall** | 1 | Start | Adventurers always enter through this. Required to play. |
+| **Entry Hall** | 1 / 2 / 3 (forced) | Start; 2nd @ L5, 3rd @ L10 | Adventurers enter the dungeon through these. Each day every adventurer randomly picks which Entry Hall to emerge from; fleeing adventurers run to the nearest one. The kingdom forces a 2nd Entry Hall at boss level 5 and a 3rd at level 10 — more entrances mean more fronts to defend. Required to play. |
 
 #### Starter — free, available L1
 
 | Room | Cap | Unlock | Effect |
 |---|---|---|---|
-| **Corridor** | scales 2 → 20 (+2/level) | L1, first 2 free / 10g after | No effect. Connects rooms. |
-| **Barracks** | scales 1 → 9 (one extra per boss level from L3) | L1, first 1 free / 30g after | Each Barracks adds **+10 roster minion slots**. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without one, no roster minions. |
-| **Guard Post** | scales 1 → 3 (extras at L4 and L7) | L1, first 1 free / 25g after | Minions placed here leave to hunt adventurers in any **directly door-connected** room. They return after the kill. |
+| **Corridor** | scales 2 → 20 (+2/level) | L1, first 2 free / 8g+ after (escalating) | No effect. Connects rooms. |
+| **Barracks** | scales 1 → 9 (one extra per boss level from L3) | L1, first 1 free / 45g+ after (escalating) | Each Barracks adds **+10 roster minion slots**. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without one, no roster minions. |
+| **Guard Post** | scales 1 → 3 (extras at L4 and L7) | L1, first 1 free / 24g+ after (escalating) | Minions placed here leave to hunt adventurers in any **directly door-connected** room. They return after the kill. |
 
 #### L2 unlocks
 
@@ -362,6 +362,12 @@ _(no new rooms — see Library of Whispers moved to L2)_
 | L8 | 16 | 4 | 3 | 3 | 2 | 1 | — |
 | L9 | 18 | 5 | 4 | 4 | 3 | 2 | 1 |
 | L10 | 20 | 5 | 5 | 5 | 3 | 3 | 2 |
+
+### Room cost rework — power-based pricing (2026-05-20)
+
+Room `goldCost` values were retuned so price reflects **how powerful the room's effect is**, not just how late it unlocks. Gateway rooms (Barracks, Trap Factory) and free-recurring-unit rooms (Crypt, Throne Room, Hall of Trials, Catacombs) cost more; the pure-information room (Library of Whispers) costs less; capstones (Sanctum) sting.
+
+**Escalating cost** — every multi-instance ("scaling") room now costs more for each additional copy. The first paid copy costs the base `goldCost`; each copy after adds a `costStep` (a top-level room field in `rooms.json`). So a 4th Barracks costs far more than the 1st — spamming a strong room snowballs its price. Single-instance rooms keep a flat cost. Sell-refund is 50% of what that specific copy actually cost (escalation-aware).
 
 ### Removed from the original room list
 
@@ -451,7 +457,7 @@ Replaces the 15 archetypes with **10 specific monster-type bosses**. Each has on
 - **Anti-Magic Aura.** Each day, 2 random rooms are marked anti-magic — classes inside them lose all abilities for the day. The count goes up by +1 each boss level. VFX: a faint purple glowing aura around the marked rooms.
 
 ### 2. Demon Lord — Faustian sacrifice
-- **Sacrifice Pact.** A new "Sacrifice" fire button on the boss UI. Click it, then click one of your minions to permanently burn it (no respawn) and instakill a system-chosen random adventurer in the dungeon. 1×/day, resets at dawn. If zero minions exist, the button greys out. The burned minion plays a fire-burn death VFX.
+- **Sacrifice Pact.** A "Sacrifice" fire button on the boss UI. Clicking it fires immediately — no minion-pick step: the game auto-chooses the minion to burn, with a **50% chance it burns a free Hellgate Imp** (when any exist) and otherwise a random dungeon minion. The burned minion permanently dies (no respawn) and a system-chosen random adventurer in the dungeon is instakilled. 1×/day, resets at dawn. If zero minions exist, the button greys out. The burned minion plays a fire-burn death VFX. *(deviation noted 2026-05-20: was a click-then-pick-a-minion flow; changed to auto-sacrifice with the 50% imp bias so the Demon's two abilities synergise — Hellgate feeds Sacrifice cheap fuel.)*
 - **Hellgate.** A permanent infernal portal appears in a corner of the boss room. Each dawn, N free Imps spawn from it, where N = boss level. Imps have 10% of `imp1` base stats at boss level 1, gaining +10% per boss level (no cap). Imps persist forever (until killed), do NOT count toward the minion cap, and roam the dungeon — they don't sit in the boss room. Use the `imp1` sprite.
 
 ### 3. Predator Myconid — Slow squeeze
@@ -534,17 +540,39 @@ Every piece of gear in the dungeon should have a story. For example: When a Knig
 
 ## Trap types
 
-There should be a variety the usual traps (spike traps, arrow traps, pitfall traps, and more) but there should also be of interaction traps I can place in the dungeon. interesting traps are ones that interact with adventurer behavior for example these plus many many more:
+**SCRAPPED 2026-05-20 — the original 9 interaction traps below never shipped (`trapTypes.json` was always empty). They are fully superseded by the "Trap types (current roster)" section that follows.** History preserved:
 
-1. ~~**Greed Trap** — only triggers if an adventurer picks up loot (perfect for Greedy types)~~ *(REMOVED 2026-05-02 — loot-pickup mechanic was cut from the game; trigger is no longer fireable. Trap will be retired or repurposed in cleanup.)*
-2. **Whisper Trap** — only triggers when adventurers talk strategy (hits parties harder than solos)
-3. **Patience Trap** — pressure plate that only triggers if you stand still for 3+ seconds (counters Paranoid)
-4. **Speed Trap** — triggers if you move too fast through the room (counters Speed runners)
-5. **Mercy Trap** — triggers when an adventurer heals an ally
-6. **Torch Trap** — triggers when light is brought into a dark room
-7. **Echo Mine** — triggers on the second footstep, so the leader is safe but the follower dies
-8. **Memory Trap** — only affects adventurers who've been in this room before (punishes returning parties)
-9. **Curse Brand Trap** — Brands a random adventurer with a glowing mark. Monsters in the dungeon now prioritize that target. Doesn't deal damage — just redirects all aggro.
+1. ~~Greed Trap~~ · 2. ~~Whisper Trap~~ · 3. ~~Patience Trap~~ · 4. ~~Speed Trap~~ · 5. ~~Mercy Trap~~ · 6. ~~Torch Trap~~ · 7. ~~Echo Mine~~ · 8. ~~Memory Trap~~ · 9. ~~Curse Brand Trap~~ — *(all REMOVED 2026-05-20)*
+
+---
+
+## Trap types (current roster — 2026-05-20 redesign)
+
+8 traps. Each takes 1 Trap-Factory slot. None may be placed in the boss room or the entry hall. The Trap Factory (gateway room) unlocks at **boss level 3**; the traps then unlock progressively from level 3 to 8. Gold costs run **20–55** at base and scale **+20% per boss level** (mirroring minion cost). **Trap damage scales +12% per boss level** so traps keep pace with the toughening adventurer waves — the same idea as minion attack scaling.
+
+| Trap | Unlocks (boss lvl) | Gold |
+|---|---|---|
+| Spike Pillar | 3 | 20 |
+| Shooting Arrows | 4 | 30 |
+| Rotating Blades | 4 | 25 |
+| Bomb | 5 | 35 |
+| Saw Blade | 6 | 35 |
+| Spike Pit | 6 | 40 |
+| Cannon | 7 | 45 |
+| Dragon Trap | 8 | 55 |
+
+1. **Shooting Arrows** — Wall-mounted; cannot sit on a doorway. Shoots an arrow when an adventurer enters its line-of-sight lane. Small impact damage + a poison damage-over-time effect lasting 10 seconds. Infinite use, never breaks. While placed, the wall segment cannot become a doorway (rooms can't connect there) until the trap is moved.
+2. **Bomb** — Placed on a single floor tile. When an adventurer comes within 2 tiles, a ~3-second fuse starts, then it explodes — major damage to all minions AND adventurers within a 5-tile radius. Breaks after exploding (does not respawn). Has collision; minions and adventurers path around it.
+3. **Cannon** — Placed on a 2×2 floor area. Shoots a cannonball when an adventurer enters its line of sight. Rotatable with R (4 facings). Has collision. Infinite use, never breaks.
+4. **Spike Pillar** — Placed on a 2×2 floor area. Shoots spikes outward, damaging anything within 1 tile of the body. Has collision.
+5. **Dragon Trap** — Wall-mounted; cannot sit on a doorway. Shoots fire when an adventurer enters its line of sight; heavy fire damage. Infinite use, never breaks. Blocks doorway connection at its segment until moved. North/south variant (faces down — flip vertically for south walls) and left/right variant (faces right — flip horizontally for right walls).
+6. **Spike Pit** — Placed on a 2×2 floor area; must be fully interior (no tile of the footprint adjacent to any wall or door). Disguised until stepped on, then the spikes reveal. Heavy damage with a chance to instantly kill. Once triggered it stays revealed for the rest of the day; adventurers who know about it route around. Re-hides at the start of the next night phase.
+7. **Rotating Blades** — Placed on a 2×2 floor area. Constantly spinning. Has collision; damages any adventurer in a tile adjacent to the body.
+8. **Saw Blade** — A saw that constantly travels back and forth along a straight track. Heavy damage to any adventurer the blade overlaps. No collision (the track stays walkable).
+
+**Trap knowledge.** Adventurers only learn a trap's location once it has been triggered, or once an adventurer takes damage from it and survives. Until then they path normally and may walk straight into it. Once a trap is known, adventurers carrying that intel route around its danger zone.
+
+**Friendly fire.** Area/contact hazards (Bomb, Spike Pillar, Rotating Blades, Saw Blade, Spike Pit) damage both adventurers and the boss's own minions. Line-of-sight projectile traps (Shooting Arrows, Cannon, Dragon Trap) only hit adventurers — their projectiles fly over minions.
 
 ---
 
@@ -563,6 +591,16 @@ As you play the game you should not have access to all rooms, minion types, and 
 ## Bounty hunters
 
 After a minion kills 3+ adventurers, bounty hunters specifically enter the dungeon to slay it. The minion or monster can get a wanted poster and the poster includes the minion's name, kills, and current gear — making that minion feel famous.
+
+### Bounty hunter spec (2026-05-20)
+
+- A minion earns a **bounty** at 3+ kills (`hasBounty` flag). The bounty persists until the minion dies.
+- While any minion carries a bounty, each day there's a chance (`BOUNTY_HUNTER_SPAWN_CHANCE`) a **bounty hunter** enters the dungeon — an extra arrival on top of the normal wave — targeting that minion specifically (it hunts the minion, then the boss if the minion is already dead).
+- On entry, a **top-of-screen event banner** announces the hunter and names the targeted minion.
+- Bounty hunters are **stronger than a normal adventurer** — scaled by boss level like any adventurer, then buffed (`BOUNTY_HUNTER_HP_MULT` / `BOUNTY_HUNTER_ATK_MULT`).
+- Killing a bounty hunter pays out **extra gold** (`BOUNTY_HUNTER_GOLD_MULT`).
+- The HUD marks bountied minions: a gold ★ in the Minion Roster (and the ★ + level badge above the minion in the dungeon view).
+- Bounty hunters wear **dedicated LPC sprites** — a dark, leather-armoured, hooded, crossbow-carrying look, with sunglasses + a scarf on every variant (24 variants baked from the `bounty_hunter` recipe in `tools/lpc-pools.mjs`). Gameplay class stays `ranger`; only the spritesheet differs (assigned via `spriteVariant` at spawn).
 
 ---
 
@@ -820,7 +858,7 @@ Adventurers occasionally pop a 32×32 three-frame speech-bubble emote above thei
 
 Random events that fire between days to break up the standard build/invade loop. Each event is announced at the start of the **night phase** so the player can prepare during build, then resolves on the following **day phase**. (Two events — Dark Deal and Loot Goblin Heist — manifest during the night phase itself; see notes.)
 
-**Cadence (locked 2026-05-05):** one event every **6–8 days**. Same event cannot fire back-to-back (no-repeat window of 1 occurrence). Harder events — **Legendary Speed Runner, The Tournament, Rival Dungeon** — only become eligible from **boss level 3** onward. All other events available from the first eligible day.
+**Cadence (revised 2026-05-21):** the first event lands on **day 3**, then one every **3 days** (deviation noted: was 6–8 days). Same event cannot fire back-to-back (no-repeat window of 1 occurrence). Harder events — **Legendary Speed Runner, Rival Dungeon** — only become eligible from **boss level 3** onward; each event also carries a per-event `minBossLevel` gate. All other events available from the first eligible day. (The Tournament was also a boss-level-3 event but was removed 2026-05-21.)
 
 ### Initial event pool
 
@@ -852,8 +890,8 @@ Random events that fire between days to break up the standard build/invade loop.
   - **Refuse:** next day's wave size +50%.
 - Tests greed vs. risk; gives the player a real day off.
 
-**The Tournament**
-- Three named rivals enter — they hate each other more than they hate you. They actively try to "claim" the boss kill, sabotaging each other (steal each other's loot piles, body-block, even attack each other when in the same room). Funnel them together and they self-destruct. Fail to exploit it and they steamroll you.
+**The Tournament** — ❌ REMOVED 2026-05-21 (cut at player request; the rival-vs-rival bloodsport AI never read cleanly in play)
+- ~~Three named rivals enter — they hate each other more than they hate you. They actively try to "claim" the boss kill, sabotaging each other (steal each other's loot piles, body-block, even attack each other when in the same room). Funnel them together and they self-destruct. Fail to exploit it and they steamroll you.~~
 
 **Rival Dungeon**
 - Effect: On this event day phase a rival group of random monsters will enter the dungeon instead of the usual adventurers. The last one to enter will be a big random boss from the boss pool looking for the player's boss to defeat in combat. Big XP and gold for killing the boss.
@@ -874,3 +912,37 @@ Random events that fire between days to break up the standard build/invade loop.
 - Effect: Instead of adventurers entering the front door, a group of Loot Goblins spawn in the **Boss Room** and try to run for the dungeon exit. Each one killed provides a large amount of gold and they will not stop to fight anything; they just look for the exit. **Any goblin that escapes the dungeon steals 10% of your current gold total** (per goblin, applied at exit time).
 
 **Rival Dungeon — boss combat AI:** the rival boss uses **simple AI** (not the full BossArchetypeSystem behavior set) — basic chase + attack against the player's boss. Keeps the event scope contained.
+
+### Event pool — 2026-05-21 expansion (15 new events)
+
+Added for variety, spanning four buckets: player boons/choices, threat waves, day-long state modifiers, and economy/meta. Difficulty mix of punishing and risk/reward.
+
+**Tax Season** — *minBossLevel 1.* The guild skims 20% of the treasury at day start, but every kill that day pays double gold.
+
+**Patron's Blessing** — *minBossLevel 1.* Boss XP from every kill that day is doubled. A pure-upside breather.
+
+**The Gambler's Coin** — *minBossLevel 1.* Night modal — WAGER (50/50: double the treasury or halve it) or DECLINE.
+
+**Memory Plague** — *minBossLevel 1.* The shared knowledge pool is wiped at announce — the next wave walks in with no inherited intel.
+
+**Dense Fog** — *minBossLevel 1.* All intel adventurers gather that day registers only as RUMOR tier — exposure barely rises. Grey screen wash.
+
+**Creeping Miasma** — *minBossLevel 1.* Chip damage every 2s to everything: invaders bleed to death, minions are weakened (floored at 1 HP), the boss is whittled toward a 25% HP floor. Green wash.
+
+**Tremors** — *minBossLevel 1.* Every 8s a quake rocks one random room — screen shake + a damage hit to everyone standing in it (lethal to invaders, non-lethal to minions).
+
+**Arcane Storm** — *minBossLevel 1.* Adventurer class-ability cooldowns are slashed to 40% — the invaders' spellcasters fire relentlessly. Purple wash. (Boss-archetype abilities use a separate timer system and are unaffected.)
+
+**Bounty Hunters** — *minBossLevel 2.* A 5-strong hunter pack replaces the wave, all locked onto the player's highest-level minion; buffed; reuses the baked bounty_hunter sprite.
+
+**Zombie Horde** — *minBossLevel 2.* A 14-strong shamble of slow, weak, never-fleeing undead replaces the wave — they maul everything en route to the boss. Rendered with the zombie minion sheets (tiers 1–3, varied).
+
+**Infamy Spike** — *minBossLevel 2.* The normal wave, +50% size, every adventurer buffed to hero grade (×1.6 HP / ×1.5 ATK / ×1.3 DEF) and carrying a `hero` tag (gold ring + ★ HERO badge).
+
+**Black Market** — *minBossLevel 1.* Night modal — pay 50 gold for a free random unlocked minion delivered that night.
+
+**Mercenary Contract** — *minBossLevel 2.* Night modal — pay 120 gold to hire an elite Tier-3 minion with **doubled stats** that fights for 3 days, then leaves. If it dies in battle it dies **permanently** (no overnight revive).
+
+**Cursed Relic** — *minBossLevel 1.* Night modal CLAIM/BANISH. CLAIM drops a cursed Tier-5 treasure chest in the boss room (pays gold daily, glows purple-black) — but every adventurer wave is **doubled** while it sits in the dungeon (a daily toast announces the curse). Sell the chest to lift the curse.
+
+**The Saboteur** — *minBossLevel 2.* A lone masked, all-black ninja-rogue replaces the wave. They are invulnerable and minions ignore them; they run trap-to-trap disabling every trap for the day (traps re-arm overnight), then flee.

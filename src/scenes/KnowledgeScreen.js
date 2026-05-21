@@ -38,6 +38,28 @@ const COL = {
   threatHi:  0xcc3322,
 }
 
+// ── Knowledge-category color scheme ─────────────────────────────────
+// The ONE 4-category palette shared across all three knowledge
+// surfaces (the LeftPanels mini-map, this menu, the big Knowledge Map
+// overlay). Each category is "what kind of intel the adventurers
+// leaked": ROOMS / TRAPS / MINIONS / ITEMS. Kept byte-for-byte in
+// sync with LeftPanels.CAT_COLOR and KnowledgeMapOverlay.CAT_COLOR —
+// the only difference is Phaser wants numeric hex, the DOM wants
+// strings, so each surface declares its own copy of the same values.
+const CAT_COLOR = {
+  ROOMS:   0x5cc8d8,
+  TRAPS:   0xe89a3c,
+  MINIONS: 0xc8334a,
+  ITEMS:   0xc879d8,
+}
+// CSS-string form of the same palette for text-object colours.
+const CAT_COLOR_STR = {
+  ROOMS:   '#5cc8d8',
+  TRAPS:   '#e89a3c',
+  MINIONS: '#c8334a',
+  ITEMS:   '#c879d8',
+}
+
 // Tile size for the mini-map — small enough that even 30×30 grids fit in center panel
 const MAP_TILE = 8
 
@@ -242,33 +264,70 @@ export class KnowledgeScreen extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(7)
     cy += barH + 8
 
-    // Stats breakdown — each row's text is captured so we can update its
-    // value text and flash it green on a change.
+    cy += 4
+
+    // ── Intel categories legend + breakdown ────────────────────────
+    // Section label, then one row per intel category. Each row carries
+    // a colour swatch (the shared CAT_COLOR) on the left so the player
+    // can read which colour means what on the map + the other two
+    // knowledge surfaces. The right-aligned number is the live count.
+    this.add.text(px, cy, 'INTEL CATEGORIES', {
+      fontSize: '9px', color: '#aa0000', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setDepth(5)
+    cy += 14
+
+    // Each row: a 8×8 swatch in the category colour + a label + a
+    // live count. Captured into _statTextRefs so the refresh loop can
+    // update the count and flash it green when new intel arrives.
     const rows = [
-      { key: 'confirmedRooms', label: 'Confirmed rooms', color: '#cc2222',
-        compute: (s) => s.confirmedRooms ?? 0 },
-      { key: 'staleRooms',     label: 'Stale rooms',     color: '#cc8822',
-        compute: (s) => s.staleRooms ?? 0 },
-      { key: 'unknownRooms',   label: 'Unknown rooms',   color: PALETTE.textDim,
-        compute: (s) => (s.totalRooms ?? 0) - (s.confirmedRooms ?? 0) - (s.staleRooms ?? 0) },
-      { key: 'confirmedTraps', label: 'Known traps',     color: '#cc2222',
-        compute: (s) => s.confirmedTraps ?? 0 },
-      { key: 'staleTraps',     label: 'Stale traps',     color: '#cc8822',
-        compute: (s) => s.staleTraps ?? 0 },
-      { key: 'confirmedLoot',  label: 'Known loot',      color: '#ddaa22',
-        compute: (s) => s.confirmedLoot ?? 0 },
+      { key: 'rooms',   label: 'Rooms known',   swatch: CAT_COLOR.ROOMS,   color: CAT_COLOR_STR.ROOMS,
+        compute: (s) => (s.confirmedRooms ?? 0) + (s.staleRooms ?? 0) },
+      { key: 'traps',   label: 'Traps known',   swatch: CAT_COLOR.TRAPS,   color: CAT_COLOR_STR.TRAPS,
+        compute: (s) => (s.confirmedTraps ?? 0) + (s.staleTraps ?? 0) },
+      { key: 'minions', label: 'Minion rooms',  swatch: CAT_COLOR.MINIONS, color: CAT_COLOR_STR.MINIONS,
+        compute: (s) => s.confirmedEnemyRooms ?? 0 },
+      { key: 'items',   label: 'Items known',   swatch: CAT_COLOR.ITEMS,   color: CAT_COLOR_STR.ITEMS,
+        compute: (s) => (s.confirmedItems ?? 0) + (s.staleItems ?? 0) },
     ]
     for (const row of rows) {
       const val = row.compute(stats)
-      const t = this.add.text(px, cy,
-        `${row.label.padEnd(18)}${val}`, {
+      // Colour swatch — matches the map pips + mini-map legend.
+      const sg = this.add.graphics().setDepth(5)
+      sg.fillStyle(row.swatch, 0.95); sg.fillRect(px, cy + 1, 8, 8)
+      const t = this.add.text(px + 14, cy,
+        `${row.label.padEnd(15)}${val}`, {
           fontSize: '9px', color: row.color, fontFamily: 'monospace',
         }).setDepth(5)
       this._statTextRefs.push({
-        text: t, color: row.color, label: row.label,
+        text: t, color: row.color, label: row.label.padEnd(15),
         compute: row.compute, lastValue: val,
       })
       cy += 13
+    }
+    cy += 4
+
+    // Stale / unknown breakdown — secondary detail under the category
+    // legend. These aren't categories, they're the room-state tiers
+    // used for the map shading, kept dim so they don't compete.
+    const subRows = [
+      { key: 'staleRooms',   label: 'Stale rooms',   color: '#cc8822',
+        compute: (s) => s.staleRooms ?? 0 },
+      { key: 'unknownRooms', label: 'Unknown rooms', color: PALETTE.textDim,
+        compute: (s) => (s.totalRooms ?? 0) - (s.confirmedRooms ?? 0) - (s.staleRooms ?? 0) },
+      { key: 'confirmedLoot', label: 'Floor loot',   color: '#ddaa22',
+        compute: (s) => s.confirmedLoot ?? 0 },
+    ]
+    for (const row of subRows) {
+      const val = row.compute(stats)
+      const t = this.add.text(px + 14, cy,
+        `${row.label.padEnd(15)}${val}`, {
+          fontSize: '8px', color: row.color, fontFamily: 'monospace',
+        }).setDepth(5)
+      this._statTextRefs.push({
+        text: t, color: row.color, label: row.label.padEnd(15),
+        compute: row.compute, lastValue: val,
+      })
+      cy += 12
     }
     cy += 8
 
@@ -307,7 +366,7 @@ export class KnowledgeScreen extends Phaser.Scene {
         cy += 12
 
         this.add.text(px + 8, cy,
-          `${(s.classId ?? '?').padEnd(12)} Runs: ${s.runCount}`, {
+          `${this._classLabel(s.classId).slice(0, 12).padEnd(12)} Runs: ${s.runCount}`, {
             fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace',
           }).setDepth(5)
         cy += 11
@@ -364,22 +423,53 @@ export class KnowledgeScreen extends Phaser.Scene {
       this._hitZones.push(hz)
     }
 
-    // Legend
+    // ── Legend ─────────────────────────────────────────────────────
+    // Two rows so the player can read the map at a glance:
+    //   Row 1 — ROOM STATE: how each room block is shaded (the room's
+    //           own knowledge tier — confirmed / stale / unknown).
+    //   Row 2 — INTEL CATEGORY: the four pip colours drawn inside a
+    //           room, one per category of intel the adventurers hold.
+    //           Same palette + order as the mini-map and the big
+    //           Knowledge Map overlay.
     const legY = oy + drawH + 6
     if (legY + 12 < mapY + mapH) {
-      const legItems = [
+      // Row 1 — room-state shading.
+      this.add.text(ox, legY, 'ROOM:', {
+        fontSize: '8px', color: '#aa0000', fontFamily: 'monospace', fontStyle: 'bold',
+      }).setDepth(5)
+      let lx = ox + 42
+      for (const li of [
         { color: COL.confirmed, label: 'confirmed' },
         { color: COL.stale,     label: 'stale' },
         { color: COL.unknown,   label: 'unknown' },
-      ]
-      let lx = ox
-      for (const li of legItems) {
+      ]) {
         const lg = this.add.graphics().setDepth(5)
         lg.fillStyle(li.color, 0.8); lg.fillRect(lx, legY, 8, 8)
         this.add.text(lx + 10, legY, li.label, {
           fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace',
         }).setDepth(5)
-        lx += 70
+        lx += 64
+      }
+      // Row 2 — the 4-category intel pips.
+      const legY2 = legY + 13
+      if (legY2 + 10 < mapY + mapH) {
+        this.add.text(ox, legY2, 'INTEL:', {
+          fontSize: '8px', color: '#aa0000', fontFamily: 'monospace', fontStyle: 'bold',
+        }).setDepth(5)
+        let lx2 = ox + 42
+        for (const li of [
+          { color: CAT_COLOR.ROOMS,   label: 'rooms' },
+          { color: CAT_COLOR.TRAPS,   label: 'traps' },
+          { color: CAT_COLOR.MINIONS, label: 'minions' },
+          { color: CAT_COLOR.ITEMS,   label: 'items' },
+        ]) {
+          const lg = this.add.graphics().setDepth(5)
+          lg.fillStyle(li.color, 0.95); lg.fillRect(lx2, legY2, 8, 8)
+          this.add.text(lx2 + 10, legY2, li.label, {
+            fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace',
+          }).setDepth(5)
+          lx2 += 58
+        }
       }
     }
   }
@@ -447,6 +537,11 @@ export class KnowledgeScreen extends Phaser.Scene {
     }
   }
 
+  // Per-room category intel pips — one small square per known intel
+  // category, coloured from the shared CAT_COLOR palette so they match
+  // the legend and the other two knowledge surfaces. Loot keeps a gold
+  // pip (it's a distinct floor-loot bucket, not one of the 4 build
+  // categories).
   _drawMapRoomIcons(room, rx, ry, rw, rh, state, ig) {
     const details = this._ks?.getRoomKnowledgeDetails(room.instanceId)
     if (!details) return
@@ -455,12 +550,18 @@ export class KnowledgeScreen extends Phaser.Scene {
     const dim = state === 'stale' ? 0.5 : 0.9
 
     if (details.enemies.length > 0) {
-      ig.fillStyle(0xcc3322, dim)
+      ig.fillStyle(CAT_COLOR.MINIONS, dim)
       ig.fillRect(iconX, ry + 2, 3, 3)
       iconX += 5
     }
     if (details.traps.length > 0) {
-      ig.fillStyle(0xffaa00, dim)
+      ig.fillStyle(CAT_COLOR.TRAPS, dim)
+      ig.fillRect(iconX, ry + 2, 3, 3)
+      iconX += 5
+    }
+    // Placed-item intel marker (phylactery / beacons).
+    if ((details.items?.length ?? 0) > 0) {
+      ig.fillStyle(CAT_COLOR.ITEMS, dim)
       ig.fillRect(iconX, ry + 2, 3, 3)
       iconX += 5
     }
@@ -522,9 +623,10 @@ export class KnowledgeScreen extends Phaser.Scene {
                      : state === 'stale'     ? '#cc8822'
                      : PALETTE.textDim
 
-    // Room name + state badge
+    // Room name + state badge — resolve through the room name helper
+    // so a missing def never leaks the raw definitionId.
     this._push(this.add.text(tx, cy,
-      `${def.name ?? room.definitionId}`, {
+      this._roomLabel(room.definitionId, def), {
         fontSize: '11px', color: stateColor, fontFamily: 'monospace', fontStyle: 'bold',
         wordWrap: { width: w },
       }).setDepth(5))
@@ -553,17 +655,18 @@ export class KnowledgeScreen extends Phaser.Scene {
     }
     cy += 6
 
-    // Enemies
+    // Enemies — section header + per-line text in the MINIONS category
+    // colour so the panel matches the legend.
     const enemies = details?.enemies ?? []
     if (enemies.length > 0) {
-      this._push(this.add.text(tx, cy, '☠ ENEMIES', {
-        fontSize: '9px', color: '#cc2222', fontFamily: 'monospace', fontStyle: 'bold',
+      this._push(this.add.text(tx, cy, '☠ MINIONS', {
+        fontSize: '9px', color: CAT_COLOR_STR.MINIONS, fontFamily: 'monospace', fontStyle: 'bold',
       }).setDepth(5))
       cy += 13
       for (const e of enemies) {
         const staleTag = e.stale ? ' [STALE]' : ''
         this._push(this.add.text(tx + 4, cy,
-          `· ${e.minionType}${staleTag}`, {
+          `· ${this._minionLabel(e.minionType)}${staleTag}`, {
             fontSize: '8px', color: e.stale ? '#886622' : PALETTE.textNormal,
             fontFamily: 'monospace',
           }).setDepth(5))
@@ -572,18 +675,18 @@ export class KnowledgeScreen extends Phaser.Scene {
       cy += 4
     }
 
-    // Traps
+    // Traps — TRAPS category colour.
     const traps = details?.traps ?? []
     if (traps.length > 0) {
       this._push(this.add.text(tx, cy, '⚡ TRAPS', {
-        fontSize: '9px', color: '#cc8822', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: '9px', color: CAT_COLOR_STR.TRAPS, fontFamily: 'monospace', fontStyle: 'bold',
       }).setDepth(5))
       cy += 13
       for (const t of traps) {
         const staleTag = t.stale ? ' [STALE]' : ''
         this._push(this.add.text(tx + 4, cy,
-          `· ${t.type} @(${t.tileX},${t.tileY})${staleTag}`, {
-            fontSize: '8px', color: t.stale ? '#886622' : '#cc8822',
+          `· ${this._trapLabel(t.type)} @(${t.tileX},${t.tileY})${staleTag}`, {
+            fontSize: '8px', color: t.stale ? '#886622' : CAT_COLOR_STR.TRAPS,
             fontFamily: 'monospace',
           }).setDepth(5))
         cy += 11
@@ -591,7 +694,8 @@ export class KnowledgeScreen extends Phaser.Scene {
       cy += 4
     }
 
-    // Loot
+    // Loot — buff-piles the adventurers spotted on the floor. Each pile
+    // carries its own readable buff label (e.g. "+2 ATK"); show it raw.
     const loot = details?.loot ?? []
     if (loot.length > 0) {
       this._push(this.add.text(tx, cy, '◈ LOOT', {
@@ -601,7 +705,7 @@ export class KnowledgeScreen extends Phaser.Scene {
       for (const l of loot) {
         const staleTag = l.stale ? ' [STALE]' : ''
         this._push(this.add.text(tx + 4, cy,
-          `· ${l.itemType ?? '?'}${staleTag}`, {
+          `· ${l.label ?? 'Loot'}${staleTag}`, {
             fontSize: '8px', color: l.stale ? '#886622' : '#ddaa22',
             fontFamily: 'monospace',
           }).setDepth(5))
@@ -609,11 +713,74 @@ export class KnowledgeScreen extends Phaser.Scene {
       }
     }
 
-    if (enemies.length === 0 && traps.length === 0 && loot.length === 0) {
+    // Items — placed item-entities the adventurers know about (Lich
+    // phylactery / soul-bound beacons). ITEMS category colour; same
+    // stale-tag treatment as the sections above so the player sees
+    // what intel is going rumour-tier.
+    const items = details?.items ?? []
+    if (items.length > 0) {
+      this._push(this.add.text(tx, cy, '✦ ITEMS', {
+        fontSize: '9px', color: CAT_COLOR_STR.ITEMS, fontFamily: 'monospace', fontStyle: 'bold',
+      }).setDepth(5))
+      cy += 13
+      for (const it of items) {
+        const staleTag = it.stale ? ' [STALE]' : ''
+        this._push(this.add.text(tx + 4, cy,
+          `· ${this._itemLabel(it.itemType)}${staleTag}`, {
+            fontSize: '8px', color: it.stale ? '#886622' : CAT_COLOR_STR.ITEMS,
+            fontFamily: 'monospace',
+          }).setDepth(5))
+        cy += 11
+      }
+    }
+
+    if (enemies.length === 0 && traps.length === 0 && loot.length === 0 &&
+        items.length === 0) {
       this._push(this.add.text(tx, cy, 'Room clear.', {
         fontSize: '9px', color: PALETTE.textDim, fontFamily: 'monospace',
       }).setDepth(5))
     }
+  }
+
+  // Resolve an item-entity type id to its display name via items.json.
+  _itemLabel(itemType) {
+    if (!itemType) return 'item'
+    const def = (this.cache.json.get('items') ?? []).find(d => d.id === itemType)
+    return def?.name ?? itemType
+  }
+
+  // Resolve a room definition id to its player-facing display name via
+  // rooms.json. `defHint` is the already-looked-up def when the caller
+  // has one; pass null to look it up here. Never returns a raw dev id
+  // when the def is found — falls back to a generic word otherwise.
+  _roomLabel(definitionId, defHint = null) {
+    const def = defHint && defHint.name != null
+      ? defHint
+      : (this.cache.json.get('rooms') ?? []).find(d => d.id === definitionId)
+    return def?.name ?? definitionId ?? 'Room'
+  }
+
+  // Resolve an adventurer class id to its display name via
+  // adventurerClasses.json — the survivor roster must show "Cosplayer",
+  // never the raw `cosplay_adventurer` dev id.
+  _classLabel(classId) {
+    if (!classId) return 'Adventurer'
+    const def = (this.cache.json.get('adventurerClasses') ?? []).find(d => d.id === classId)
+    return def?.name ?? classId
+  }
+
+  // Resolve a minion / trap definition id to its player-facing display
+  // name — the raw dev ids (rat1, shooting_arrows) must never reach the UI.
+  _minionLabel(minionType) {
+    if (!minionType) return 'enemy'
+    const def = (this.cache.json.get('minionTypes') ?? []).find(d => d.id === minionType)
+    return def?.name ?? minionType
+  }
+
+  _trapLabel(trapType) {
+    if (!trapType) return 'trap'
+    const def = (this.cache.json.get('trapTypes') ?? []).find(d => d.id === trapType)
+    return def?.name ?? trapType
   }
 
   _push(obj) {
@@ -671,10 +838,13 @@ export class KnowledgeScreen extends Phaser.Scene {
     }
 
     // Stats breakdown — flash green on any value change so newly-
-    // discovered rooms / traps / loot read as "just learned".
+    // discovered rooms / traps / minions / items read as "just
+    // learned". `ref.label` is already padded at build time, so the
+    // value is appended directly (no re-pad — that would drift the
+    // column from how the row was first laid out).
     for (const ref of this._statTextRefs) {
       const newVal = ref.compute(stats)
-      ref.text.setText(`${ref.label.padEnd(18)}${newVal}`)
+      ref.text.setText(`${ref.label}${newVal}`)
       if (newVal !== ref.lastValue) {
         this._flashText(ref.text, ref.color, FLASH_NEW_COLOR)
       }
@@ -716,9 +886,10 @@ export class KnowledgeScreen extends Phaser.Scene {
     if (!d) return state
     const enemies = (d.enemies ?? []).map(e => `${e.minionType}:${e.stale ? 1 : 0}`).join(',')
     const traps   = (d.traps   ?? []).map(t => `${t.type}@${t.tileX},${t.tileY}:${t.stale ? 1 : 0}`).join(',')
-    const loot    = (d.loot    ?? []).map(l => `${l.itemType}:${l.stale ? 1 : 0}`).join(',')
+    const loot    = (d.loot    ?? []).map(l => `${l.label}:${l.stale ? 1 : 0}`).join(',')
+    const items   = (d.items   ?? []).map(i => `${i.itemType}:${i.stale ? 1 : 0}`).join(',')
     const visits  = d.room?.visitCount ?? 0
-    return `${state}|${visits}|${enemies}|${traps}|${loot}`
+    return `${state}|${visits}|${enemies}|${traps}|${loot}|${items}`
   }
 
   _flashText(textObj, restColor, flashColor) {

@@ -136,27 +136,43 @@ export function snapshotMinion(defId, size = 64) {
   if (!f && defId === 'mimic') {
     f = _getFrameSource('item-treasure-chest-1', 0)
   }
+  // T3 minion final-forms (beholder_tyrant, demon_lord, …) ship no
+  // `minion-<id>` sheet of their own — in-game MinionRenderer draws them
+  // with a boss-archetype skin via the def's `bossSkinId`. Mirror that so
+  // menus (roster, MVP, bestiary) show the real form, not a placeholder.
+  if (!f) {
+    const def = _minionDef(defId)
+    if (def?.bossSkinId) f = _getFrameSource(`${def.bossSkinId}-idle`, 0)
+  }
   if (!f) return null
   const c = _drawFit(f, size, { padPct: 0.02, autoCrop: true })
   c.className = 'qf-snap qf-snap-minion'
   return c
 }
 
+// Look up a minion def in the loaded minionTypes.json — used to resolve
+// `bossSkinId` for the T3 final-forms that have no minion sheet.
+function _minionDef(defId) {
+  const arr = window.__game?.cache?.json?.get?.('minionTypes')
+  if (!Array.isArray(arr)) return null
+  return arr.find(d => d.id === defId) ?? null
+}
+
 // ── Item snapshot ──────────────────────────────────────────────────
 // Items declare a `spriteKey` in items.json (e.g. 'heart-full',
 // 'item-padlock') — that key resolves to a Phaser image/spritesheet
 // loaded by Preload.
-export function snapshotItem(spriteKey, size = 64) {
+export function snapshotItem(spriteKey, size = 64, frameIdx = 0) {
   if (!spriteKey) return null
-  const f = _getFrameSource(spriteKey, 0)
+  const f = _getFrameSource(spriteKey, frameIdx)
   if (!f) return null
   const c = _drawFit(f, size, { padPct: 0.05, autoCrop: true, minScale: 2 })
   c.className = 'qf-snap qf-snap-item'
   return c
 }
 
-export function snapshotTrap(spriteKey, size = 64) {
-  return snapshotItem(spriteKey, size)
+export function snapshotTrap(spriteKey, size = 64, frameIdx = 0) {
+  return snapshotItem(spriteKey, size, frameIdx)
 }
 
 // ── Animated boss idle sprite ──────────────────────────────────────
@@ -327,10 +343,67 @@ export function snapshotAdventurer(classId, size = 64, variant = 'v01') {
   const tryKey = (cId, vId) => `adv-${cId}-${vId}`
   let f = _getFrameSource(tryKey(cls, v), ADV_IDLE_SOUTH_FRAME)
   if (!f) f = _getFrameSource(tryKey(cls, 'v01'), ADV_IDLE_SOUTH_FRAME)
+  // Event-replacement classes (tournament_rival_*, monster_invader,
+  // rival_boss_invader) ship no LPC bake of their own — they declare a
+  // `spriteSourceClassId` pointing at a baked class to borrow art from.
+  // Mirror AdventurerRenderer's resolution so the class still resolves a
+  // sprite even when no concrete spriteVariant has been assigned yet.
+  if (!f) {
+    const src = _classSpriteSource(cls)
+    if (src && src !== cls) {
+      f = _getFrameSource(tryKey(src, v), ADV_IDLE_SOUTH_FRAME)
+      if (!f) f = _getFrameSource(tryKey(src, 'v01'), ADV_IDLE_SOUTH_FRAME)
+    }
+  }
   if (!f) return null
   const c = _drawFit(f, size, { padPct: 0.02, autoCrop: true })
   c.className = 'qf-snap qf-snap-adv'
   return c
+}
+
+// Resolve a class id → its `spriteSourceClassId` (the baked class it
+// borrows LPC art from) via the loaded adventurerClasses.json. Returns
+// null when the class is baked itself / has no source / the cache is cold.
+function _classSpriteSource(classId) {
+  const arr = window.__game?.cache?.json?.get?.('adventurerClasses')
+  if (!Array.isArray(arr)) return null
+  return arr.find(d => d.id === classId)?.spriteSourceClassId ?? null
+}
+
+// Entity-aware adventurer snapshot. Takes the full adventurer OBJECT and
+// returns the sprite the in-game renderer actually draws for it — needed
+// for the dungeon-event invaders that don't render as LPC humans:
+//   • Rival-dungeon boss            → its boss-archetype skin (_rivalBossSpriteKey)
+//   • Rival monsters / Zombie Horde → a minion sheet          (_minionSheet)
+//   • everything else               → the normal LPC adventurer snapshot
+// Falls through to snapshotAdventurer (loot_goblin + spriteSourceClassId
+// handled there) so a plain adventurer works unchanged. Menus should call
+// THIS, not snapshotAdventurer, whenever they hold the adventurer object —
+// otherwise event invaders render as the procedural fallback marker.
+export function snapshotAdventurerEntity(adv, size = 64) {
+  if (!adv) return null
+  // Rival-dungeon boss — render its boss-archetype idle skin (lich-idle,
+  // demon-idle, …), the same sheet the in-game renderer uses for it.
+  if (adv._rivalBossSpriteKey) {
+    const f = _getFrameSource(`${adv._rivalBossSpriteKey}-idle`, 0)
+    if (f) {
+      const c = _drawFit(f, size, { padPct: 0.04, autoCrop: true })
+      c.className = 'qf-snap qf-snap-boss'
+      return c
+    }
+  }
+  // Rival monsters / Zombie Horde — `_minionSheet` is a `minion-<id>` base
+  // key; snapshot its idle frame so the menu shows the monster race, not a
+  // humanoid adventurer.
+  if (adv._minionSheet) {
+    const f = _getFrameSource(`${adv._minionSheet}-idle`, 0)
+    if (f) {
+      const c = _drawFit(f, size, { padPct: 0.02, autoCrop: true })
+      c.className = 'qf-snap qf-snap-minion'
+      return c
+    }
+  }
+  return snapshotAdventurer(adv.spriteVariant || adv.classId || adv.kind, size)
 }
 
 // ── Room thumbnail ─────────────────────────────────────────────────

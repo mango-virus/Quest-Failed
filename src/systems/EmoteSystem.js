@@ -278,6 +278,9 @@ export class EmoteSystem {
   // Roll, check cooldown / priority, and play.
   _tryTrigger(adv, triggerId, pool) {
     if (!adv?.instanceId || !pool || pool.length === 0) return
+    // Event-spawned monsters (zombie horde, rival-dungeon invaders) don't
+    // emote — they're monsters, not adventurers.
+    if (adv._monster) return
     if (Math.random() >= TRIGGER_CHANCE) return
 
     const now = this._scene.time.now

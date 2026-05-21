@@ -14,6 +14,7 @@
 // dossier overlay.  Informational only — the game keeps running.
 
 import { PALETTE, glowPanel } from './UIKit.js'
+import { classLabel } from '../util/displayNames.js'
 
 const PANEL_W   = 220
 const CARD_H    = 70
@@ -100,7 +101,7 @@ export class DossierPanel {
       }).setDepth(37)
     this._objects.push(heading)
 
-    const classText = (visitCount >= 1 || fullyKnown) ? (adv.classId ?? '???') : '???'
+    const classText = (visitCount >= 1 || fullyKnown) ? classLabel(adv.classId, '???') : '???'
     const sub = this._scene.add.text(x + 8, y + 20,
       `${classText}${visitCount > 0 ? `  · seen ×${visitCount}` : '  · NEW'}` +
       (adv.flags?.shoppedBetweenRuns ? '  · shopped' : '') +

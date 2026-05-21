@@ -298,9 +298,9 @@
     "color": "0x884444",
     "spriteSourceClassId": "barbarian",
     "baseStats": {
-      "hp": 200,
-      "attack": 18,
-      "defense": 10,
+      "hp": 150,
+      "attack": 13,
+      "defense": 6,
       "speed": 1.4
     },
     "startingResources": {},

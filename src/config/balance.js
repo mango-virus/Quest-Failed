@@ -144,6 +144,16 @@ export const Balance = {
   ADVENTURERS_PER_DAY_BASE: 1,        // adds +1 every 2 days
   ADVENTURER_BASE_TILES_PER_SEC: 1.5, // multiplied by class.speed
 
+  // --- Bounty hunters ---
+  // When a minion has a bounty (earned at 3+ kills), a hunter has this
+  // chance each day to enter specifically to slay it. The hunter is scaled
+  // by boss level like any adventurer, THEN buffed by these mults — clearly
+  // stronger than a normal adventurer — and pays out extra gold on death.
+  BOUNTY_HUNTER_SPAWN_CHANCE: 0.5,
+  BOUNTY_HUNTER_HP_MULT:      1.6,
+  BOUNTY_HUNTER_ATK_MULT:     1.4,
+  BOUNTY_HUNTER_GOLD_MULT:    3,
+
   // --- Combat (Phase 6 kernel) ---
   ATTACK_INTERVAL_MS:        900,     // base time between attacks (scales by 1/speed)
   MELEE_RANGE_TILES:         1.5,     // adventurer or minion in melee range
@@ -231,11 +241,21 @@ export const Balance = {
   MINION_ATK_PER_BOSS_LV:       0.12,   // +12% attack per boss level
   MINION_HP_PER_DAY:             0.06,   // +6%  maxHp per day (small day boost)
   MINION_ATK_PER_DAY:            0.04,   // +4%  attack per day
+  // Trap damage scales with boss level so traps keep pace with the
+  // toughening adventurer waves — mirrors minion attack scaling.
+  TRAP_DAMAGE_PER_BOSS_LV:       0.12,   // +12% trap damage per boss level above 1
   // Minion gold-cost scales with boss level so prices keep pace with stats.
   // Slightly under the avg (HP+ATK)/2 stat-rate so minions feel a touch
   // more affordable at higher levels — small reward for progression.
   MINION_COST_PER_BOSS_LV:      0.20,   // +20% gold cost per boss level above 1
+  TRAP_COST_PER_BOSS_LV:        0.20,   // +20% trap gold cost per boss level (mirrors minions)
   UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
+
+  // --- Zombie Horde dungeon event ---
+  // Horde size scales hard with boss level — a late-game horde should
+  // read as an overwhelming swarm, not a slightly bigger wave.
+  ZOMBIE_HORDE_BASE:            16,    // shamblers at boss level 1
+  ZOMBIE_HORDE_PER_BOSS_LV:      8,    // +8 shamblers per boss level above 1
 
   // --- Mini-boss / vendetta / vulture / wraith ---
   MINIBOSS_HP_MULT:                3.0,

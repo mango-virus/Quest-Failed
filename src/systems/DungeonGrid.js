@@ -142,15 +142,24 @@ export class DungeonGrid {
   }
 
   // Returns the gold cost to place ONE more instance of `definition`.
-  // Honors `placementRules.freeFirstN`: the first N placements are free,
-  // subsequent placements cost the room's base goldCost. `placedRooms` is
-  // typically gameState.dungeon.rooms (an array of placed-room records).
+  // Honors:
+  //   • `placementRules.freeFirstN` — the first N placements are free.
+  //   • `costStep` (top-level room field) — escalating cost: each PAID copy
+  //                     beyond the first costs `costStep` more gold than the
+  //                     last, so spamming a strong multi-instance room
+  //                     snowballs in price. 1st paid copy costs the base
+  //                     `goldCost`. Omit `costStep` for a flat price.
+  // `placedRooms` is typically gameState.dungeon.rooms (placed-room records).
   static effectiveRoomCost(definition, placedRooms = []) {
     const base = definition.goldCost ?? 0
     const freeFirstN = definition.placementRules?.freeFirstN ?? 0
-    if (freeFirstN <= 0) return base
     const count = placedRooms.filter(r => r.definitionId === definition.id).length
-    return count < freeFirstN ? 0 : base
+    if (count < freeFirstN) return 0
+    const step = definition.costStep ?? 0
+    if (!step) return base
+    // paidIndex 0 = first paid copy (costs `base`), 1 = base + step, …
+    const paidIndex = count - freeFirstN
+    return base + step * paidIndex
   }
 
   // ── Decoration collision ────────────────────────────────────────────────────
@@ -158,6 +167,18 @@ export class DungeonGrid {
   // Returns true if a solid decoration occupies this tile (blocks pathfinding).
   isSolidDecor(tx, ty) {
     return this._solidDecorTiles?.has(`${tx},${ty}`) ?? false
+  }
+
+  // True if a solid trap (cannon / bomb / spike pillar / rotating blades)
+  // occupies this tile — adventurers and minions must path around it.
+  isSolidTrap(tx, ty) {
+    for (const t of this._d.traps ?? []) {
+      if (!t.solid) continue
+      const fp = t.footprint ?? { w: 1, h: 1 }
+      if (tx >= t.tileX && tx < t.tileX + fp.w &&
+          ty >= t.tileY && ty < t.tileY + fp.h) return true
+    }
+    return false
   }
 
   // Rebuild the entire solid-decor set from current placed rooms. Call after
@@ -280,6 +301,13 @@ export class DungeonGrid {
 
     EventBus.emit('ROOM_REMOVED', { room })
     return true
+  }
+
+  // Re-run auto-connect for the room owning (tx,ty). Used when a wall trap
+  // is removed so a doorway it was suppressing can finally form.
+  recheckAutoConnect(tx, ty) {
+    const room = this.getRoomAtTile(tx, ty)
+    if (room) this._autoConnect(room)
   }
 
   _unpairNeighbourCps(room) {
@@ -472,6 +500,17 @@ export class DungeonGrid {
     const xMin = onLft ? 0 : room.width - WT
     const xMax = onLft ? WT - 1 : room.width - 1
     return lx >= xMin && lx <= xMax && ly >= yMin && ly <= yMax
+  }
+
+  // Wall-mounted traps suppress the auto-door at their wall segment — true
+  // if any wall trap sits inside this cp's door block. The player must move
+  // the trap before the rooms will connect there.
+  _doorBlockOccupiedByWallTrap(room, cp) {
+    for (const t of this._d.traps ?? []) {
+      if (t.placement !== 'wall') continue
+      if (this._isTileInCpDoorBlock(room, cp, t.tileX, t.tileY)) return true
+    }
+    return false
   }
 
   getTileType(tileX, tileY) {
@@ -948,6 +987,11 @@ export class DungeonGrid {
       const fullOther = {
         style: styleOther, external: false, ...cpOther,
         open: false, opening: false, openProgress: 0,
+      }
+      // A wall-mounted trap on either room's segment blocks this doorway.
+      if (this._doorBlockOccupiedByWallTrap(newRoom, fullNew) ||
+          this._doorBlockOccupiedByWallTrap(other, fullOther)) {
+        continue
       }
       out.push({ newCp: fullNew, otherRoom: other, otherCp: fullOther })
       usedWallsNew.add(dirNew)

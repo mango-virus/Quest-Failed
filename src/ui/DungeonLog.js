@@ -13,6 +13,7 @@
 
 import { EventBus }                 from '../systems/EventBus.js'
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelDiamond } from './UIKit.js'
+import { classLabel, pactLabel }    from '../util/displayNames.js'
 
 const HEADER_H        = 22
 // Press Start 2P at 7px renders ~11-12px tall (font metrics include extra
@@ -105,12 +106,15 @@ export class DungeonLog {
     }
 
     on('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
-      this._add(`${adventurer.name} (${adventurer.classId}) enters.`, 'arrival')
+      this._add(`${adventurer.name} (${classLabel(adventurer.classId)}) enters.`, 'arrival')
     })
     on('TRAP_TRIGGERED', ({ def, adventurer, damage }) => {
       this._add(`${this._short(adventurer)} sprung ${def?.name ?? 'trap'} (${damage ?? 0} dmg).`, 'trap')
     })
     on('ADVENTURER_DIED', ({ adventurer, killerName }) => {
+      // Event-spawned monster waves (zombie horde, rival dungeon) carry
+      // `_monster` — skip their deaths so a bulk wipe doesn't flood the log.
+      if (adventurer?._monster) return
       this._add(`${killerName ?? 'Something'} killed ${adventurer.name}.`, 'kill')
     })
     on('ADVENTURER_FLED', ({ adventurer, reason }) => {
@@ -123,7 +127,7 @@ export class DungeonLog {
       if (message) this._add(`✦ ${message}`, 'ability')
     })
     on('PACT_SEALED', ({ mechanicId, rarity }) => {
-      this._add(`Pact sealed: ${mechanicId} (${rarity}).`, 'pact')
+      this._add(`Pact sealed: ${pactLabel(mechanicId)} (${rarity}).`, 'pact')
     })
     on('DAY_PHASE_BEGAN', () => this._add('Day phase begins.', 'phase'))
     on('DAY_PHASE_ENDED', () => this._add('Day phase ends.', 'phase'))
@@ -131,7 +135,7 @@ export class DungeonLog {
   }
 
   _short(adv) {
-    return adv?.name?.split(' ')[0] ?? adv?.classId ?? 'someone'
+    return adv?.name?.split(' ')[0] ?? (adv?.classId ? classLabel(adv.classId) : 'someone')
   }
 
   _minionName(m) {

@@ -31,7 +31,7 @@
 import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
-import { snapshotAdventurer } from './inGameSnapshot.js'
+import { snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { adventurerDisplayLevel } from '../config/balance.js'
 
 const THREAT_TIERS = [
@@ -153,11 +153,20 @@ export class AdvIntelOverlay {
       return preview?.vendettaHunter ? [this._stubFromVendetta(preview.vendettaHunter)] : []
     }
     const defs = this._cachedJson('adventurerClasses') ?? []
-    const stubs = preview.classIds.map((classId, i) => this._stubFromPreview(
-      classId,
-      preview.spriteVariants?.[i] ?? null,
-      defs,
-    ))
+    const stubs = preview.classIds.map((classId, i) => {
+      const stub = this._stubFromPreview(classId, preview.spriteVariants?.[i] ?? null, defs)
+      // Event waves carry pre-rolled sprites parallel to classIds —
+      // minionSheets[i] = a `minion-<id>` key (rival monsters, zombies),
+      // bossSkin = the rival boss's archetype skin. Attach them so the
+      // stub renders the real creature, not a humanoid stand-in.
+      if (Array.isArray(preview.minionSheets) && preview.minionSheets[i]) {
+        stub._minionSheet = preview.minionSheets[i]
+      }
+      if (preview.bossSkin && classId === 'rival_boss_invader') {
+        stub._rivalBossSpriteKey = preview.bossSkin
+      }
+      return stub
+    })
     if (preview.vendettaHunter) stubs.unshift(this._stubFromVendetta(preview.vendettaHunter, defs))
     return stubs
   }
@@ -579,23 +588,43 @@ export class AdvIntelOverlay {
   }
 
   // What this adv knows about the dungeon — pulled from the shared
-  // knowledge pool keyed by room instance IDs. Returns a list of
-  // human-readable strings.
+  // knowledge pool keyed by room / trap / item instance IDs. Returns a
+  // list of human-readable strings. Surfaces rooms, minions, traps, and
+  // placed items uniformly so this ledger matches the other intel
+  // surfaces (KnowledgeScreen / RightPanels / KnowledgeMap).
   _knownAboutDungeon(adv) {
     const pool = this._gameState.knowledge?.sharedPool ?? {}
     const out = []
     const rooms = this._gameState.dungeon?.rooms ?? []
+    const traps = this._gameState.dungeon?.traps ?? []
     const roomDefs = this._cachedJson('rooms') ?? []
+    const trapDefs = this._cachedJson('trapTypes') ?? []
+    const itemDefs = this._cachedJson('items') ?? []
     const roomName = (id) => {
       const r = rooms.find(x => x.instanceId === id)
       const d = roomDefs.find(x => x.id === r?.definitionId)
       return d?.name ?? r?.definitionId ?? id
+    }
+    const trapName = (id) => {
+      const t = traps.find(x => x.instanceId === id)
+      const d = trapDefs.find(x => x.id === t?.definitionId)
+      return d?.name ?? t?.definitionId ?? id
+    }
+    const itemName = (entry) => {
+      const d = itemDefs.find(x => x.id === entry?.itemType)
+      return d?.name ?? entry?.itemType ?? 'placed item'
     }
     for (const k of Object.keys(pool.rooms ?? {}).slice(0, 4)) {
       out.push(`Knows the ${roomName(k)} exists.`)
     }
     for (const k of Object.keys(pool.enemiesPerRoom ?? {}).slice(0, 3)) {
       out.push(`Has seen guards in the ${roomName(k)}.`)
+    }
+    for (const k of Object.keys(pool.traps ?? {}).slice(0, 3)) {
+      out.push(`Knows where the ${trapName(k)} is set.`)
+    }
+    for (const e of Object.values(pool.items ?? {}).slice(0, 3)) {
+      out.push(`Knows the ${itemName(e)} is placed.`)
     }
     // Only claim prior dungeon knowledge for genuine veterans — same
     // name-keyed check as the veteran badge. The old instanceId test
@@ -612,7 +641,7 @@ export class AdvIntelOverlay {
   // v01 texture is loaded (cold-start) so the background portrait
   // shows through unobscured.
   _renderAdvSprite(adv) {
-    const snap = snapshotAdventurer(adv.spriteVariant || adv.classId, 120)
+    const snap = snapshotAdventurerEntity(adv, 120)
     if (!snap) return null
     snap.style.position = 'absolute'
     snap.style.left = '50%'

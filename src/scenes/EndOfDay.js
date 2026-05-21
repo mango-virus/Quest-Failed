@@ -75,7 +75,18 @@ export class EndOfDay extends Phaser.Scene {
       }
       this._afterLevelUps()
     }
-    const onPactSealed = () => this._goToNight()
+    const onPactSealed = () => {
+      // The boss gets one Dark Pact pick per level gained — if more are
+      // still owed, open the next pact book. Deferred a beat so it opens
+      // AFTER the sealed picker has finished its close animation and torn
+      // itself down (DARK_PACT_SEALED fires just before that teardown).
+      if ((this._pactPicksRemaining ?? 0) > 0) {
+        this._pactPicksRemaining--
+        this.time.delayedCall(600, () => EventBus.emit('SHOW_DARK_PACT'))
+        return
+      }
+      this._goToNight()
+    }
 
     EventBus.on('POST_WAVE_CONTINUE',       onContinue)
     EventBus.on('BOSS_LEVEL_UP_DISMISSED',  onLevelUpDismissed)
@@ -88,12 +99,15 @@ export class EndOfDay extends Phaser.Scene {
     EventBus.emit('SHOW_POST_WAVE_SUMMARY', { snapshot: this._daySnapshot })
   }
 
-  // After every queued level-up has been dismissed, fall through to the
-  // Dark Pact gate (currently retired, so this just goes to night).
+  // After every queued level-up has been dismissed, open the Dark Pact
+  // gate — one pact pick per level the boss gained today. A multi-level
+  // day picks multiple pacts, one book after another (see onPactSealed).
   _afterLevelUps() {
     const startLv = this._daySnapshot?.bossLevel ?? this._gameState.boss?.level ?? 1
     const nowLv   = this._gameState.boss?.level ?? 1
-    if (nowLv > startLv) {
+    this._pactPicksRemaining = Math.max(0, nowLv - startLv)
+    if (this._pactPicksRemaining > 0) {
+      this._pactPicksRemaining--
       EventBus.emit('SHOW_DARK_PACT')
       return
     }

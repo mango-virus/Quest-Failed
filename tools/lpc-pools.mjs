@@ -178,6 +178,44 @@ export const POOLS = {
     },
   },
 
+  // Bounty hunter — the professional tracker who enters the dungeon to
+  // slay a famous (3+ kill) minion. A dark, practical, leather-armoured
+  // silhouette: leather torso, hood / brimmed hat, sturdy boots, often
+  // pauldrons, a crossbow, and a dark earthy palette — reads as a
+  // seasoned mercenary, not a fresh recruit. Uses only proven LPC item
+  // names so the bake never misses a layer. The crossbow renders via the
+  // thrust-oversize attack sheet, so bounty_hunter must also be listed in
+  // ATK_CLASSES (bake-weapons.cjs) + ADVENTURER_ATK_CLASSES (Preload.js),
+  // and `node bake-weapons.cjs bounty_hunter` must run after the base bake.
+  bounty_hunter: {
+    bodyTypes: COMMON.bodyTypes,
+    heads: 'auto_human',
+    hair: 'all_human_hair',
+    beardChance: 0.45,
+    torso: ['Leather', 'Longsleeve 2', 'Longsleeve'],
+    legs: ['Long Pants', 'Cuffed Pants', 'Pants'],
+    feet: ['Basic Boots', 'Folded Rim Boots', 'Revised Boots'],
+    arms: { items: ['Pauldrons', 'Gloves', 'Cuffs'], chance: 0.8 },
+    headwear: {
+      items: ['Hood', 'Leather Cap', 'Leather Cap Feather', 'Bonnie', 'Bordered Bandana', 'Tricorne'],
+      chance: 0.9,
+    },
+    // Signature look — every bounty hunter wears sunglasses + a scarf.
+    // pickCount 2 over a 2-item pool at chance 1.0 forces BOTH onto every
+    // variant (the sampler dedups picks, so it always lands on the full set).
+    accessory: {
+      items: ['Sunglasses', 'Scarf'],
+      pickCount: { min: 2, max: 2 },
+      chance: 1.0,
+    },
+    // Dark, earthy, professional — a subset of the proven cloth palette.
+    clothColorPool: ['brown', 'leather', 'walnut', 'slate', 'gray', 'charcoal', 'black', 'navy', 'forest', 'maroon', 'bluegray'],
+    weapon: {
+      items: ['Crossbow'],
+      chance: 1.0,
+    },
+  },
+
   twitch_streamer: {
     bodyTypes: COMMON.bodyTypes,
     heads: 'auto_human',

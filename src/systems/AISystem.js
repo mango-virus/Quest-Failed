@@ -44,6 +44,12 @@ const LOOT_PILE_TTL_MS             = 30000  // piles vanish if untouched
 // in the pathfinder cost function. Higher = stronger detour.
 const TRAP_AVOID_PENALTY           = 8.0
 const TRAP_AVOID_PENALTY_WARNED    = 18.0   // when warned by a party-mate
+// Beast Master tame protection — how long a minion stays off-limits to
+// other adventurers' melee after a Beast Master last stamped it as a
+// tame target. ClassAbilitySystem refreshes the stamp every tick the
+// minion is in tame range, so this only needs to outlast a frame or two;
+// the slack covers high-speed sub-stepping and frame hitches.
+const TAME_PROTECT_MS              = 1500
 
 export class AISystem {
   constructor(scene, gameState, dungeonGrid, personalitySystem = null, combatSystem = null, knowledgeSystem = null) {
@@ -409,6 +415,27 @@ export class AISystem {
     const ty = trap?.tileY ?? y ?? adventurer?.tileY
     if (tx == null || ty == null) return
     this._emitNoise(tx, ty)
+    // The struck adventurer re-routes around the now-known trap — but at
+    // most once every few seconds. A trap that fires repeatedly would
+    // otherwise thrash their path every tick, which the oscillation
+    // failsafe reads as "stuck" and wrongly flees them.
+    if (adventurer && adventurer.aiState !== 'dead' && adventurer.aiState !== 'fleeing') {
+      const now = this._scene?.time?.now ?? 0
+      if (now - (adventurer._trapRepathAt ?? -Infinity) > 3000) {
+        adventurer._trapRepathAt = now
+        adventurer.path = null
+      }
+    }
+  }
+
+  // True if a live hostile minion is within melee range of the adventurer.
+  _minionAdjacent(adv) {
+    for (const m of this._gameState.minions ?? []) {
+      if (m.faction !== 'dungeon') continue
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (Math.abs(m.tileX - adv.tileX) <= 1 && Math.abs(m.tileY - adv.tileY) <= 1) return true
+    }
+    return false
   }
 
   // Whenever an adventurer kills something, ~25% chance for a brief gloat
@@ -698,6 +725,34 @@ export class AISystem {
       this._kill(adv, idx, adv._lastHitBy ?? 'unknown')
       return
     }
+    // Vampire charm — a charmed adventurer must walk to the boss to be
+    // turned into a thrall; they NEVER flee. Soft panics (low HP, coward,
+    // raid-leader-dead, etc.) are already ignored via _setFleeGoal's
+    // _charmed guard, but the hard path-failure conversions (oscillation,
+    // blocked/no-route, goal lost) assign a FLEE goal directly. If a
+    // charmed adv ends up with one it means they genuinely cannot reach
+    // the boss — kill them on the spot rather than let them flee.
+    if (adv._charmed && adv.goal?.type === 'FLEE') {
+      this._kill(adv, idx, 'vampire_charm')
+      return
+    }
+    // Dungeon event: Rival Dungeon boss — it invades to destroy the
+    // player's boss and never flees out of panic. The hard path-failure
+    // conversions (oscillation, blocked/no-route, goal lost) assign a FLEE
+    // goal directly, bypassing `noFlee`. Intercept those here, BEFORE any
+    // movement runs, and re-pick a normal explore/seek goal so the rival
+    // boss keeps hunting the dungeon instead of leaving.
+    //
+    // EXCEPTION: a `boss_defeated` flee is NOT a panic — it's the normal
+    // post-fight exit every adventurer takes once the player's boss loses
+    // a life. The rival boss leaves on that just like anyone else, so it
+    // doesn't loiter and immediately re-engage the refreshed boss.
+    if (adv._rivalBoss && adv.goal?.type === 'FLEE' && adv.goal.reason !== 'boss_defeated') {
+      const next = this._pickNextGoal(adv)
+      adv.goal    = (next && next.type !== 'FLEE') ? next : { type: 'SEEK_BOSS' }
+      adv.path    = null
+      adv.aiState = 'walking'
+    }
     // Succubus charm — adv hunts down a former ally and attacks them.
     // Self-destructs after killing 1 ally, or after 5s of finding nothing.
     if (adv.aiState === 'charmed') {
@@ -853,6 +908,13 @@ export class AISystem {
       adv._oscNextAt ??= 0
       if (now >= adv._oscNextAt) {
         adv._oscNextAt = now + OSC_SAMPLE_MS
+        // In melee, standing still IS the correct behaviour — an adventurer
+        // toe-to-toe with a hostile minion is fighting, not wedged. Wipe the
+        // sample window while a minion is in melee range so a long fight
+        // can't trip the failsafe and flee them mid-swing. The `fighting`
+        // state also covers adventurer-vs-adventurer duels (Tournament
+        // rivals, Twitch beef) — those legitimately hold a tile too.
+        if (this._minionAdjacent(adv) || adv.aiState === 'fighting') adv._oscRing = []
         adv._oscRing ??= []
         adv._oscRing.push({ x: adv.tileX, y: adv.tileY, t: now })
         while (adv._oscRing.length > 0 && (now - adv._oscRing[0].t) > OSC_WINDOW_MS) {
@@ -902,11 +964,27 @@ export class AISystem {
               this._despawn(adv, idx, 'oscillation_at_exit')
               return
             }
-            adv.goal    = { type: 'FLEE', reason: 'oscillation' }
-            adv.path    = null
-            adv.aiState = 'fleeing'
-            adv._oscRing = []
-            adv._tileStuckMs = 0
+            // noFlee advs (zombie horde, tournament rivals, rival-dungeon
+            // monsters) must NEVER be converted to FLEE by the failsafe —
+            // that's the "event wave walks in then immediately bolts" bug.
+            // Just replanning isn't enough either: a monster wedged at a
+            // doorway re-plans the same route and keeps pacing. Shove it
+            // forward along its own path past the chokepoint instead; if
+            // it has no usable path, fall back to a replan.
+            if (adv.flags?.noFlee) {
+              if (!this._shoveAlongPath(adv, 4)) {
+                adv.path = null
+                adv.goal = this._pickNextGoal(adv)
+              }
+              adv._oscRing = []
+              adv._tileStuckMs = 0
+            } else {
+              adv.goal    = { type: 'FLEE', reason: 'oscillation' }
+              adv.path    = null
+              adv.aiState = 'fleeing'
+              adv._oscRing = []
+              adv._tileStuckMs = 0
+            }
           }
         }
       }
@@ -943,32 +1021,42 @@ export class AISystem {
       adv._hardStuckMs = 0
     }
 
-    // Track whether the adventurer has ever been outside the entry hall.
+    // Track whether the adventurer has ever been outside ALL entry halls.
     // Without this, advs that get a FLEE goal immediately on spawn (e.g.
     // their first pathfind failed and we converted to FLEE) would auto-
     // splice on the first tick because they're still standing in the
     // entry from spawn time.
-    const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-    const inEntry = entry &&
-      adv.tileX >= entry.gridX && adv.tileX < entry.gridX + entry.width &&
-      adv.tileY >= entry.gridY && adv.tileY < entry.gridY + entry.height
+    //
+    // Adventurers spawn from — and escape through — any entry hall, so
+    // these checks scan ALL of them:
+    //   insideEntry — the entry hall the adventurer currently stands in
+    //   exitEntry   — the entry hall whose external exit edge they're on
+    const entries = this._entryHalls()
+    const insideEntry = entries.find(e =>
+      adv.tileX >= e.gridX && adv.tileX < e.gridX + e.width &&
+      adv.tileY >= e.gridY && adv.tileY < e.gridY + e.height) ?? null
+    const inEntry = insideEntry != null
     if (!inEntry) adv._leftEntry = true
 
-    // The dungeon entrance is the entry_hall's external doorway — the
-    // canonical exit/entry gate. The Entry Hall can be rotated, so the
+    // The dungeon entrance is an entry hall's external doorway — the
+    // canonical exit/entry gate. An Entry Hall can be rotated, so the
     // doorway may sit on any edge; fleeing counts as "escaped" once the
-    // adventurer reaches the edge row/column that doorway is on.
-    let atExitEdge = false
-    if (entry) {
-      const inX = adv.tileX >= entry.gridX && adv.tileX < entry.gridX + entry.width
-      const inY = adv.tileY >= entry.gridY && adv.tileY < entry.gridY + entry.height
-      switch (entryDoorSide(entry)) {
-        case 'N': atExitEdge = inX && adv.tileY === entry.gridY;                     break
-        case 'S': atExitEdge = inX && adv.tileY === entry.gridY + entry.height - 1;   break
-        case 'W': atExitEdge = inY && adv.tileX === entry.gridX;                      break
-        case 'E': atExitEdge = inY && adv.tileX === entry.gridX + entry.width - 1;    break
+    // adventurer reaches the edge row/column that doorway is on, for ANY
+    // entry hall.
+    let exitEntry = null
+    for (const e of entries) {
+      const inX = adv.tileX >= e.gridX && adv.tileX < e.gridX + e.width
+      const inY = adv.tileY >= e.gridY && adv.tileY < e.gridY + e.height
+      let atEdge = false
+      switch (entryDoorSide(e)) {
+        case 'N': atEdge = inX && adv.tileY === e.gridY;                 break
+        case 'S': atEdge = inX && adv.tileY === e.gridY + e.height - 1;   break
+        case 'W': atEdge = inY && adv.tileX === e.gridX;                  break
+        case 'E': atEdge = inY && adv.tileX === e.gridX + e.width - 1;    break
       }
+      if (atEdge) { exitEntry = e; break }
     }
+    const atExitEdge = exitEntry != null
 
     // If fleeing and physically RETURNING to the entry_hall's exit edge
     // (must have left at some point), leave the dungeon.  Mirrors the
@@ -977,7 +1065,7 @@ export class AISystem {
     if (adv.goal?.type === 'FLEE' && atExitEdge && adv._leftEntry) {
       const now = this._scene?.time?.now ?? 0
       if (adv._leaveFadeEnd == null) {
-        const door = this._entryDoorWorldCenter(entry)
+        const door = this._entryDoorWorldCenter(exitEntry)
         if (door) {
           adv.tileX  = door.tileX
           adv.tileY  = door.tileY
@@ -1032,7 +1120,7 @@ export class AISystem {
         // the fade-out so we never see an instant disappear.
         const now = this._scene?.time?.now ?? 0
         if (adv._leaveFadeEnd == null) {
-          const door = this._entryDoorWorldCenter(entry)
+          const door = this._entryDoorWorldCenter(insideEntry)
           if (door) {
             adv.tileX  = door.tileX
             adv.tileY  = door.tileY
@@ -1232,6 +1320,38 @@ export class AISystem {
       }
     }
 
+    // Succubus Charm counter — a charmed adventurer turns traitor and
+    // attacks their own party. Allies rallied by _rallyAgainstCharmed
+    // carry `flags.charmRetaliateId` and gang up on the traitor: they
+    // swing the moment the charmed adv is in melee/attack range (the
+    // charmed adv isn't a dungeon-faction target, so _findEngageableMinion
+    // never sees them — this mirrors the Hall of Madness block above).
+    if (adv.flags?.charmRetaliateId && this._combatSystem && adv.aiState !== 'fleeing') {
+      const traitor = this._gameState.adventurers.active.find(
+        a => a.instanceId === adv.flags.charmRetaliateId)
+      if (!traitor || traitor.aiState !== 'charmed' || (traitor.resources?.hp ?? 0) <= 0) {
+        // Traitor cut down, or the charm already broke on its own —
+        // drop the vendetta and resume a normal goal.
+        adv.flags.charmRetaliateId = null
+        if (adv.goal?.type === 'ATTACK_ALLY' && adv.goal?.source === 'charm_retaliation') {
+          adv.goal = this._pickNextGoal(adv)
+          adv.path = null
+        }
+      } else {
+        const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+        const d = Math.hypot(traitor.tileX - adv.tileX, traitor.tileY - adv.tileY)
+        if (d <= reach + 0.01) {
+          adv.aiState = 'fighting'
+          adv.path = null
+          this._combatSystem.tryAttack(adv, traitor, {
+            roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
+            method: 'charm_retaliation',
+          })
+          return
+        }
+      }
+    }
+
     // Phase 9 — Pact of the Whisperer: panic-flee on sight of a hostile minion.
     if (adv.flags?.panicFlee && adv.aiState !== 'fleeing' && this._combatSystem) {
       const enemy = this._findEngageableMinion(adv)
@@ -1285,28 +1405,50 @@ export class AISystem {
     // nearest one. No HP gate (aggressive from the start). Falls through
     // to normal minion engagement if no rival is in reach, so the
     // player's minions/boss still fight (and can kill) them.
-    if (adv._tournamentRival && adv.aiState !== 'fleeing' && this._combatSystem) {
-      const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
-      let target = null, bestDist = Infinity
-      for (const other of this._gameState.adventurers.active) {
-        if (other === adv) continue
-        if (!other._tournamentRival) continue
-        if (other.aiState === 'dead' || other.aiState === 'fleeing') continue
-        const d = Math.hypot(other.tileX - adv.tileX, other.tileY - adv.tileY)
-        if (d > reach + 0.01) continue
-        if (d < bestDist) { target = other; bestDist = d }
-      }
-      if (target) {
-        // Reaching a rival in combat counts as "scatter complete" — flip
-        // straight to HUNT so once this target dies the adv keeps hunting.
-        if (adv.goal?.type === 'SCATTER_ROOM') adv.goal = { type: 'HUNT_RIVAL' }
-        adv.aiState = 'fighting'
-        adv.path = null
-        this._combatSystem.tryAttack(adv, target, {
-          roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
-          method: 'tournament_rivalry',
-        })
-        return
+    // Gated on `_leftEntry`: a rival only starts swinging at other rivals
+    // once it has physically left the entry hall. Without this gate all
+    // three rivals — snapped onto the same doorway tile by the renderer's
+    // spawn handler — brawl on the spot the instant they appear, never
+    // scatter, and the oscillation failsafe eventually flees them. The
+    // gate forces them to path out to their scatter rooms first.
+    if (adv._tournamentRival && adv.aiState !== 'fleeing' && adv._leftEntry && this._combatSystem) {
+      // A rival mid-doorway cannot trade blows — CombatSystem's doorway
+      // gate rejects any swing where the attacker OR target stands on a
+      // TILE.DOOR tile. If we engaged from a door anyway we'd zero out
+      // the path, hold aiState 'fighting' (which exempts the stuck
+      // failsafes), and freeze the pair on the threshold forever doing
+      // no damage and playing no swing. So a rival standing on a door
+      // skips engagement entirely and falls through to movement — it
+      // keeps pathing toward its prey, steps off the door into a room,
+      // and fights there. A foe still on a door isn't a valid target
+      // yet either (the swing would just be rejected).
+      const onDoor = (e) =>
+        this._dungeonGrid?.getTileType?.(e.tileX, e.tileY) === TILE.DOOR
+      if (!onDoor(adv)) {
+        const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+        let target = null, bestDist = Infinity
+        for (const other of this._gameState.adventurers.active) {
+          if (other === adv) continue
+          if (!other._tournamentRival) continue
+          if (!other._leftEntry) continue
+          if (other.aiState === 'dead' || other.aiState === 'fleeing') continue
+          if (onDoor(other)) continue
+          const d = Math.hypot(other.tileX - adv.tileX, other.tileY - adv.tileY)
+          if (d > reach + 0.01) continue
+          if (d < bestDist) { target = other; bestDist = d }
+        }
+        if (target) {
+          // Reaching a rival in combat counts as "scatter complete" — flip
+          // straight to HUNT so once this target dies the adv keeps hunting.
+          if (adv.goal?.type === 'SCATTER_ROOM') adv.goal = { type: 'HUNT_RIVAL' }
+          adv.aiState = 'fighting'
+          adv.path = null
+          this._combatSystem.tryAttack(adv, target, {
+            roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
+            method: 'tournament_rivalry',
+          })
+          return
+        }
       }
     }
 
@@ -1368,7 +1510,7 @@ export class AISystem {
         // so they at least try to head home — only an actual entry-hall
         // arrival or death is allowed to remove them from active.
         if (adv.goal?.type !== 'FLEE') {
-          adv.goal    = { type: 'FLEE', reason: 'goal_unreachable' }
+          adv.goal    = { type: 'FLEE', reason: 'goal_lost' }
           adv.path    = null
           adv.aiState = 'fleeing'
           return
@@ -1397,28 +1539,36 @@ export class AISystem {
         }
         return base
       }
-      // Phase: items — hard-block every locked-door tile this adv has no
-      // way to open. The pathfinder skips blocked tiles entirely (vs a
-      // soft cost A* would still pick if no alternative existed), so an
-      // adv with no key / lockpick / break literally cannot route through.
-      // Applies to FLEE too — locks are real barriers. Also blocks every
-      // Beacon and Fountain tile so structures have collision.
+      // Phase: items — HARD-block every locked-door tile this adv has no
+      // way to open. The pathfinder skips these entirely, so an adv with
+      // no key / lockpick / break truly cannot route through a lock.
+      // Applies to FLEE too — locks are real barriers.
       const blockedForAdv = new Set()
       for (const lock of this._gameState.dungeon?.locks ?? []) {
         if (lock.unlocked || lock.broken) continue
         if (this._canAdvUnlockHere(adv, lock)) continue
         for (const t of lock.doorTiles) blockedForAdv.add(`${t.x},${t.y}`)
       }
-      for (const b of this._gameState.dungeon?.beacons        ?? []) blockedForAdv.add(`${b.tileX},${b.tileY}`)
-      for (const f of this._gameState.dungeon?.fountains      ?? []) blockedForAdv.add(`${f.tileX},${f.tileY}`)
-      for (const c of this._gameState.dungeon?.treasureChests ?? []) blockedForAdv.add(`${c.tileX},${c.tileY}`)
+      // Collision items (Beacon / Fountain / Treasure Chest) are SOFT
+      // blockers — the adv routes around them when any other route
+      // exists, but walks THROUGH as a last resort rather than failing
+      // to path and fleeing "can't find a way through". Solid traps get
+      // the same treatment via the softTraps flag on the findPath call.
+      const softBlockedForAdv = new Set()
+      for (const b of this._gameState.dungeon?.beacons        ?? []) softBlockedForAdv.add(`${b.tileX},${b.tileY}`)
+      for (const f of this._gameState.dungeon?.fountains      ?? []) softBlockedForAdv.add(`${f.tileX},${f.tileY}`)
+      for (const c of this._gameState.dungeon?.treasureChests ?? []) softBlockedForAdv.add(`${c.tileX},${c.tileY}`)
+      const softOpts = { softBlocked: softBlockedForAdv, softTraps: true }
       // Add path jitter for non-flee goals so adventurers don't all march the
       // same straight line — they pick varied routes between rooms each repath.
-      // Fleeing advs skip jitter (panic = beeline home).
+      // Fleeing advs skip jitter (panic = beeline home). Event monsters KEEP
+      // jitter on: it spreads a 14-strong horde across parallel routes — with
+      // jitter off they pathed an identical line in lockstep and a single
+      // obstacle wedged the whole blob at once.
       const pathJitter = adv.goal?.type === 'FLEE' ? 0 : 0.6
       const path = PathfinderSystem.findPath(
         { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
-        blockedForAdv,
+        blockedForAdv, softOpts,
       )
       // Phase: alive AI — if the pathfinder rejected at least one known
       // trap tile, occasionally have the adv shout about avoiding it.
@@ -1459,7 +1609,19 @@ export class AISystem {
           return
         }
         // Non-flee goal blocked — convert to FLEE rather than despawn.
-        adv.goal    = { type: 'FLEE', reason: 'goal_unreachable' }
+        // Diagnose the blocker for the dungeon log: with collision items
+        // and traps now soft, the only hard barrier left is a locked
+        // door — re-path with locks ignored, and if THAT succeeds we
+        // know a lock sealed them off; otherwise they're truly boxed in.
+        let blockReason = 'no_route'
+        if (blockedForAdv.size > 0) {
+          const unlocked = PathfinderSystem.findPath(
+            { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, null, 0,
+            null, softOpts,
+          )
+          if (unlocked && unlocked.length > 0) blockReason = 'blocked_by_lock'
+        }
+        adv.goal    = { type: 'FLEE', reason: blockReason }
         adv.path    = null
         adv.aiState = 'fleeing'
         return
@@ -1791,6 +1953,9 @@ export class AISystem {
     // they're just here to map. Minions can still hit them; they'll
     // flee when low and feed their tour into KnowledgeSystem on escape.
     if (adv._cartographer) return null
+    // Dungeon event: The Saboteur — never fights anything; they're here
+    // only to disarm traps. (Minions ignore them too — MinionAISystem.)
+    if (adv._saboteur) return null
     // Phase 5c — ranged classes (Mage / Cleric / Necromancer / Ranger / Bard)
     // engage at their declared attackRange instead of melee. Falls back to
     // MELEE_RANGE_TILES (1.5) for melee classes.
@@ -1798,10 +1963,21 @@ export class AISystem {
     // Doorway pass-through: an adventurer in a doorway keeps walking and
     // ignores all targets. Stops the adv from halting path mid-doorway.
     if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) return null
+    const nowMs = this._scene?.time?.now ?? 0
     let best = null, bestDist = Infinity
     for (const m of this._gameState.minions) {
       if (m.aiState === 'dead' || m.resources.hp <= 0) continue
       if (m.faction === 'adventurer') continue
+      // Beast Master tame protection — a minion a Beast Master has tamed,
+      // OR is actively trying to tame (recent _tameTargetedAt stamp from
+      // ClassAbilitySystem), is off-limits to every other adventurer's
+      // melee. Lets the Beast Master secure the tame without the rest of
+      // the party killing the beast first, and keeps the tamed companion
+      // safe afterward.
+      if (m.tamedByAdvId) continue
+      if (m._tameTargetedAt != null &&
+          (nowMs - m._tameTargetedAt) >= 0 &&
+          (nowMs - m._tameTargetedAt) < TAME_PROTECT_MS) continue
       // Mimic Vault: chest-state mimics look like ordinary chests, not
       // hostile minions. Skipped until they reveal.
       if (m.isMimic && m.mimicState === 'chest') continue
@@ -1829,6 +2005,35 @@ export class AISystem {
       if (d < bestDist) { best = m; bestDist = d }
     }
     return best
+  }
+
+  // Failsafe un-stick for noFlee monsters the oscillation detector caught
+  // pacing — almost always wedged at a doorway chokepoint. Teleport them
+  // `steps` waypoints further along their CURRENT path (the path itself is
+  // valid — it routes through the door — only the per-tick movement was
+  // ping-ponging). Snaps onto a genuinely walkable waypoint only. Returns
+  // true if it moved them, false if there's no usable path to shove along.
+  _shoveAlongPath(adv, steps) {
+    if (!Array.isArray(adv.path) || adv.path.length === 0) return false
+    const from = Math.max(0, adv.pathIndex ?? 0)
+    const to   = Math.min(adv.path.length - 1, from + steps)
+    if (to <= from) return false
+    const wp = adv.path[to]
+    if (!wp) return false
+    const tiles = this._dungeonGrid?.getTiles?.()
+    const row   = tiles?.[wp.y]
+    if (!row || !PathfinderSystem.isWalkable(row[wp.x])) return false
+    const oldKey = `${adv.tileX},${adv.tileY}`
+    if (this._occupancy?.[oldKey] === adv.instanceId) delete this._occupancy[oldKey]
+    adv.tileX  = wp.x
+    adv.tileY  = wp.y
+    adv.worldX = wp.x * TS + TS / 2
+    adv.worldY = wp.y * TS + TS / 2
+    adv.pathIndex = to + 1
+    adv._lastWorldX = adv.worldX
+    adv._lastWorldY = adv.worldY
+    if (this._occupancy) this._occupancy[`${wp.x},${wp.y}`] = adv.instanceId
+    return true
   }
 
   _checkFleeTrigger(adv) {
@@ -1863,6 +2068,9 @@ export class AISystem {
     if (adv.classId === 'barbarian') return
     // Phase 9 — Schism / Glory Hounds: solo / glory adventurers fight to the death.
     if (adv.flags?.noFlee) return
+    // Vampire charm: charmed adventurers are walking to the boss to be turned
+    // into thralls — they cannot break off and flee.
+    if (adv._charmed) return
 
     // Phase 5c — partial-retreat option. For "soft" panic reasons
     // (coward_panic, low_hp_retreat) there's a 50% chance the adv pulls
@@ -2130,6 +2338,16 @@ export class AISystem {
 
   _goalToTile(adv) {
     const dungeon = this._gameState.dungeon
+    // Dungeon event: The Saboteur — route to the targeted trap's tile.
+    // If that trap is already disabled or gone, re-pick the next one.
+    if (adv.goal.type === 'DISARM_TRAP') {
+      const trap = (dungeon.traps ?? []).find(t => t.instanceId === adv.goal.trapId)
+      if (!trap || trap._disabledThisDay) {
+        adv.goal = this._nextSaboteurGoal(adv)
+        return this._goalToTile(adv)
+      }
+      return { x: trap.tileX, y: trap.tileY }
+    }
     if (adv.goal.type === 'SEEK_BOSS') {
       const boss = dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
       if (!boss) return null
@@ -2239,13 +2457,12 @@ export class AISystem {
       return { x: ally.tileX, y: ally.tileY }
     }
     if (adv.goal.type === 'FLEE') {
-      // Always target the entry hall's doorway — that's the canonical
-      // exit. Pathfinder routes from each adventurer's current tile, so two
-      // fleeing advs at different positions still find their own shortest
-      // route to the door.
-      const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-      if (!entry) return null
-      return entryDoorTile(entry)
+      // Run for an entry hall doorway — the canonical exit. With multiple
+      // entry halls the adventurer locks onto the nearest one when the
+      // flee begins (stored on the goal) so they don't oscillate between
+      // two equidistant exits as they move. Pathfinder still routes from
+      // each adventurer's own tile.
+      return this._fleeExitTile(adv)
     }
     // Dungeon event: Twitch Con — "wander in place". A freelance streamer
     // who rolled WANDER drifts to a random walkable tile a few steps from
@@ -2318,9 +2535,7 @@ export class AISystem {
     // entry-hall doorway), but the adv keeps full speed (not panicked)
     // and the gold is gone for good when they leave.
     if (adv.goal.type === 'ESCAPE_WITH_LOOT') {
-      const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-      if (!entry) return null
-      return entryDoorTile(entry)
+      return this._fleeExitTile(adv)
     }
     // Phase: items — beeline to a known healing fountain. If the fountain
     // is gone (sold mid-walk), pick up where we left off.
@@ -2405,6 +2620,20 @@ export class AISystem {
   }
 
   _onGoalReached(adv, idx) {
+    // Dungeon event: The Saboteur reached a trap — disable it for the
+    // day (TrapSystem re-arms every trap overnight), then move on to the
+    // next still-armed trap, or flee once they're all dead.
+    if (adv.goal.type === 'DISARM_TRAP') {
+      const trap = (this._gameState.dungeon.traps ?? []).find(t => t.instanceId === adv.goal.trapId)
+      if (trap && !trap._disabledThisDay) {
+        trap._disabledThisDay = true
+        EventBus.emit('TRAP_DISARMED', { trap, by: 'saboteur' })
+      }
+      adv.goal = this._nextSaboteurGoal(adv)
+      adv.path = null
+      if (adv.goal.type === 'FLEE') adv.aiState = 'fleeing'
+      return
+    }
     // Phase: alive AI — investigation done, look around (mark current room
     // visited if new), then resume the prior goal or pick a new one.
     if (adv.goal.type === 'INVESTIGATE_NOISE') {
@@ -2675,10 +2904,12 @@ export class AISystem {
     // treasure, no chest detours, no personality variants) so they march
     // straight at the boss room every replan.
     if (adv._speedrunner) return { type: 'SEEK_BOSS' }
-    // Dungeon event: Rival Dungeon — the rival boss exists to challenge
-    // the player's boss in the throne room. Same beeline shortcut as
-    // the speedrunner.
-    if (adv._rivalBoss) return { type: 'SEEK_BOSS' }
+    // Dungeon event: The Saboteur — tours the dungeon disabling every
+    // trap, then flees. Never picks a combat or exploration goal.
+    if (adv._saboteur) return this._nextSaboteurGoal(adv)
+    // NOTE: the Rival Dungeon boss intentionally has NO beeline shortcut
+    // here — it explores room-to-room like the regular monster invaders
+    // until the normal goal flow converges on the boss room.
     // Dungeon event: The Tournament — a rival's goal-picking is fully
     // owned by the bloodsport flow (scatter → hunt → seek boss). It never
     // runs the normal personality/scout/treasure goal picker. While any
@@ -2808,6 +3039,20 @@ export class AISystem {
 
   // Public: called by DayPhase after spawning so the adventurer's first goal
   // reflects their personality (cartographer detours, reckless beelines, etc.)
+  // Dungeon event: The Saboteur — pick the nearest still-armed trap to
+  // disarm, or FLEE once every trap in the dungeon is disabled.
+  _nextSaboteurGoal(adv) {
+    const traps = (this._gameState.dungeon?.traps ?? []).filter(t => t && !t._disabledThisDay)
+    let best = null, bestD = Infinity
+    for (const t of traps) {
+      const d = Math.hypot((t.tileX ?? 0) - adv.tileX, (t.tileY ?? 0) - adv.tileY)
+      if (d < bestD) { bestD = d; best = t }
+    }
+    return best
+      ? { type: 'DISARM_TRAP', trapId: best.instanceId }
+      : { type: 'FLEE', reason: 'saboteur_done' }
+  }
+
   pickInitialGoal(adv) {
     // Don't re-explore the spawn room
     const spawnRoom = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
@@ -2940,6 +3185,9 @@ export class AISystem {
     // empowered minions tear advs apart, but the eclipse's dark glow taints
     // the loot). Pairs with the symmetric 2× damage modifier in CombatSystem.
     if ((this._gameState._eventFlags ?? {}).bloodMoonEclipseActive) goldMul = 0
+    // Dungeon event: Tax Season — the guild taxed your treasury at dawn,
+    // but the bounties on you pay double: kill gold is doubled.
+    if ((this._gameState._eventFlags ?? {}).taxSeasonActive) goldMul *= 2
     // Dungeon event: Loot Goblin Heist — every goblin killed drops a
     // hefty gold pile (5× normal) since the whole point of the event is
     // racing the pack before they escape with the treasury.
@@ -2953,6 +3201,9 @@ export class AISystem {
     // carry better spoils. Applied after _rivalBoss so a rival boss (which
     // zeroes goldMul) is unaffected; veterans are never rival bosses.
     if (adv.flags?.returningVeteran) goldMul *= 2
+    // Bounty hunters are a high-value kill — they came for one of your
+    // minions and pay out accordingly.
+    if (adv.flags?.bountyHunter) goldMul *= Balance.BOUNTY_HUNTER_GOLD_MULT
     const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
@@ -2972,6 +3223,8 @@ export class AISystem {
     })
 
     this._awardBossXp()
+    // Dungeon event: Patron's Blessing — boss XP from every kill doubled.
+    if ((this._gameState._eventFlags ?? {}).patronsBlessingActive) this._awardBossXp()
     // Dungeon event: Legendary Speed Runner — killing the speedrunner
     // grants a *massive* XP windfall (9× the normal kill on top of the
     // base award above = 10× total). Tunes the high-risk encounter into
@@ -2990,6 +3243,33 @@ export class AISystem {
       roomId:     this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId ?? null,
       damageType,
     })
+  }
+
+  // Succubus Charm counter — when a charmed adventurer turns on the
+  // party, rally every nearby non-charmed ally to hunt the traitor
+  // down. Tags them with `flags.charmRetaliateId` + an ATTACK_ALLY goal
+  // (which paths them to the traitor); the charm-retaliation engage
+  // block in _tickAdventurer makes them swing once in range. They drop
+  // the vendetta when the traitor falls.
+  _rallyAgainstCharmed(charmed) {
+    if (!charmed) return
+    const RANGE = 6   // tiles — allies this close notice the betrayal
+    for (const o of this._gameState.adventurers.active) {
+      if (o === charmed) continue
+      if (o.aiState === 'dead' || o.aiState === 'fled' || o.aiState === 'charmed') continue
+      // Don't drag a fleeing adventurer back into the brawl.
+      if (o.aiState === 'fleeing' || o.goal?.type === 'FLEE') continue
+      if ((o.resources?.hp ?? 0) <= 0) continue
+      const d = Math.hypot((o.tileX ?? 0) - (charmed.tileX ?? 0),
+                           (o.tileY ?? 0) - (charmed.tileY ?? 0))
+      if (d > RANGE) continue
+      o.flags ??= {}
+      o.flags.charmRetaliateId = charmed.instanceId
+      if (o.goal?.type !== 'ATTACK_ALLY' || o.goal?.allyId !== charmed.instanceId) {
+        o.goal = { type: 'ATTACK_ALLY', allyId: charmed.instanceId, source: 'charm_retaliation' }
+        o.path = null
+      }
+    }
   }
 
   // ── Succubus charm — adv hunts a former ally and attacks them ───────────
@@ -3024,6 +3304,9 @@ export class AISystem {
       return
     }
     adv._charmedAloneTimer = 0
+    // The charmed adv has turned on the party — rally nearby allies to
+    // cut the traitor down before they land a kill.
+    this._rallyAgainstCharmed(adv)
     // Adjacent? Apply damage tick. Otherwise pathfind toward the target.
     const dx = target.tileX - adv.tileX
     const dy = target.tileY - adv.tileY
@@ -3186,25 +3469,70 @@ export class AISystem {
   // walkable tile that has a path back to the boss. Falls back to the deepest
   // room's centre. Returns null if dungeon is unreachable from outside.
   // Adventurers always enter through the Entry Hall — that's the contract.
-  // Returns the centre tile of the entry_hall if it exists AND has a valid
-  // path to the boss chamber. Returns null otherwise (caller should block
-  // day-start in that case).
+  // ── Entry halls ───────────────────────────────────────────────────────────
+  //
+  // The dungeon has 1-3 entry halls (a 2nd is forced at boss level 5, a 3rd
+  // at level 10). Adventurers spawn from — and flee to — any of them.
+
+  // Every entry-hall room in the dungeon.
+  _entryHalls() {
+    return (this._gameState.dungeon?.rooms ?? [])
+      .filter(r => r.definitionId === 'entry_hall')
+  }
+
+  // The entry hall closest to `adv` (straight-line). A fleeing adventurer
+  // runs for the nearest exit, not always the first-placed one.
+  _nearestEntryHall(adv) {
+    let best = null, bestD = Infinity
+    for (const e of this._entryHalls()) {
+      const door = entryDoorTile(e)
+      const d = Math.hypot((adv.tileX ?? 0) - door.x, (adv.tileY ?? 0) - door.y)
+      if (d < bestD) { bestD = d; best = e }
+    }
+    return best
+  }
+
+  // Door tile of the entry hall a fleeing / escaping adventurer is heading
+  // for. Locks onto the nearest entry hall the first time it's asked
+  // (stored as goal.fleeEntryId) so the target stays stable even as the
+  // adventurer moves between two equidistant exits. Returns null if there
+  // are no entry halls at all.
+  _fleeExitTile(adv) {
+    const halls = this._entryHalls()
+    if (halls.length === 0) return null
+    let entry = adv.goal?.fleeEntryId
+      ? halls.find(e => e.instanceId === adv.goal.fleeEntryId)
+      : null
+    if (!entry) {
+      entry = this._nearestEntryHall(adv)
+      if (entry && adv.goal) adv.goal.fleeEntryId = entry.instanceId
+    }
+    return entry ? entryDoorTile(entry) : null
+  }
+
+  // Returns a spawn-door tile for a fresh adventurer, or null (caller should
+  // block day-start). Picks a RANDOM entry hall among those with a verified
+  // path to the boss chamber — DayPhase calls this once per adventurer, so a
+  // wave naturally splits across every connected entrance.
   pickSpawnTile() {
     const dungeon = this._gameState.dungeon
     const boss = dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
     if (!boss) return null
 
-    const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-    if (!entry) return null
-
-    const candidate = entryDoorTile(entry)
     const bossCentre = {
       x: boss.gridX + Math.floor(boss.width  / 2),
       y: boss.gridY + Math.floor(boss.height / 2),
     }
-    const path = PathfinderSystem.findPath(candidate, bossCentre, this._dungeonGrid)
-    if (!path || path.length === 0) return null
-    return candidate
+    // An entry hall is a valid spawn point only if its doorway can still
+    // reach the boss — a walled-off entry would just strand the adventurer.
+    const valid = []
+    for (const entry of this._entryHalls()) {
+      const candidate = entryDoorTile(entry)
+      const path = PathfinderSystem.findPath(candidate, bossCentre, this._dungeonGrid)
+      if (path && path.length > 0) valid.push(candidate)
+    }
+    if (valid.length === 0) return null
+    return valid[Math.floor(Math.random() * valid.length)]
   }
 
 }

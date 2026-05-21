@@ -123,6 +123,7 @@ export class AdventurerIntelPopup {
     const pool = this._gameState.knowledge?.sharedPool ?? {}
     const poolRooms = Object.keys(pool.rooms ?? {}).length
     const poolTraps = Object.keys(pool.traps ?? {}).length
+    const poolItems = Object.keys(pool.items ?? {}).length
     const enemySeen = new Set()
     for (const list of Object.values(pool.enemiesPerRoom ?? {})) {
       for (const e of (list ?? [])) enemySeen.add(e.minionType)
@@ -187,12 +188,13 @@ export class AdventurerIntelPopup {
           const k = v.knowledge ?? {}
           const r = Object.keys(k.rooms ?? {}).length
           const t = Object.keys(k.traps ?? {}).length
+          const it = Object.keys(k.items ?? {}).length
           const seenSet = new Set()
           for (const lst of Object.values(k.enemiesPerRoom ?? {})) {
             for (const e of (lst ?? [])) seenSet.add(e.minionType)
           }
           addChild(this._scene.add.text(cx + padX, yy,
-            `${(v.name ?? '???').toUpperCase()} (${(v.classId ?? '?').toUpperCase()}) · run #${v.runCount ?? 1} · knows ${r}R / ${t}T / ${seenSet.size}M`, {
+            `${(v.name ?? '???').toUpperCase()} (${(v.classId ?? '?').toUpperCase()}) · run #${v.runCount ?? 1} · knows ${r}R / ${t}T / ${seenSet.size}M / ${it}I`, {
             fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.soulCss, letterSpacing: 1,
           }).setDepth(D + 2))
           yy += 14
@@ -213,13 +215,13 @@ export class AdventurerIntelPopup {
       fontFamily: FONT_HEAD, fontSize: '8px', color: CRYPT.goldCss, letterSpacing: 3,
     }).setDepth(D + 2))
     yy += 16
-    if (poolRooms === 0 && poolTraps === 0 && poolMins === 0) {
+    if (poolRooms === 0 && poolTraps === 0 && poolMins === 0 && poolItems === 0) {
       addChild(this._scene.add.text(cx + padX, yy, '— blind: no leaked intel from prior survivors —', {
         fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.inkDim, letterSpacing: 1,
       }).setDepth(D + 2))
     } else {
       addChild(this._scene.add.text(cx + padX, yy,
-        `${poolRooms} ROOMS · ${poolTraps} TRAPS · ${poolMins} MINION TYPES leaked`, {
+        `${poolRooms} ROOMS · ${poolTraps} TRAPS · ${poolMins} MINION TYPES · ${poolItems} ITEMS leaked`, {
         fontFamily: FONT_BODY, fontSize: '9px', color: CRYPT.ink, letterSpacing: 1,
       }).setDepth(D + 2))
     }
@@ -354,6 +356,9 @@ export class AdventurerIntelPopup {
     const k = adv.knowledge ?? {}
     const roomCount = Object.keys(k.rooms  ?? {}).length
     const trapCount = Object.keys(k.traps  ?? {}).length
+    // Placed-item intel (phylactery / beacons) lives in the generic
+    // `items` bucket keyed by instanceId.
+    const itemCount = Object.keys(k.items  ?? {}).length
     // KnowledgeSystem stores enemy intel as `enemiesPerRoom: { roomId: [{minionType,...}] }`,
     // not a flat `minions` dict. Sum distinct minion types across rooms so
     // the count actually reflects what the adv knows.
@@ -363,12 +368,13 @@ export class AdventurerIntelPopup {
       for (const e of (list ?? [])) seen.add(e.minionType)
     }
     const minCount = seen.size
-    if (roomCount === 0 && trapCount === 0 && minCount === 0) {
+    if (roomCount === 0 && trapCount === 0 && minCount === 0 && itemCount === 0) {
       tags.push({ text: 'BLIND ENTRY', color: CRYPT.inkMute })
     }
     if (roomCount > 0) tags.push({ text: `KNOWS ${roomCount} ROOMS`, color: CRYPT.soulCss })
     if (trapCount > 0) tags.push({ text: `KNOWS ${trapCount} TRAPS`, color: CRYPT.warnCss })
     if (minCount  > 0) tags.push({ text: `KNOWS ${minCount} MINIONS`, color: CRYPT.accent2Css })
+    if (itemCount > 0) tags.push({ text: `KNOWS ${itemCount} ITEMS`, color: CRYPT.goldCss })
     for (const pid of (adv.personalityIds ?? []).slice(0, 2)) {
       tags.push({ text: pid.toUpperCase(), color: CRYPT.ink })
     }

@@ -2091,7 +2091,13 @@ export class BossSystem {
       }
     }
 
-    if (winner === 'party' && boss) {
+    // A life is lost ONLY on an actual defeat — boss HP drained to 0.
+    // The 24-round stalemate cap can resolve as a 'party' win on
+    // HP-fraction while the boss is still alive; that must NOT cost a
+    // life (matches the death-pose gate below, which already checks
+    // boss.hp <= 0). Without this guard the boss "lost a life" with HP
+    // still on the clock.
+    if (winner === 'party' && boss && (boss.hp ?? 0) <= 0) {
       boss.deathsRemaining = Math.max(0, boss.deathsRemaining - 1)
     }
 

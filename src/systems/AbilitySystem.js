@@ -24,6 +24,14 @@
 import { EventBus } from './EventBus.js'
 
 export const AbilitySystem = {
+  // Global cooldown scale — 1 normally. The Arcane Storm dungeon event
+  // drops it (e.g. 0.4) so every class ability comes back far faster.
+  // EventSystem owns the value (set on event begin/end).
+  _cooldownScale: 1,
+  setCooldownScale(mult) {
+    this._cooldownScale = (typeof mult === 'number' && mult > 0) ? mult : 1
+  },
+
   // Returns { ready: bool, reason?: 'cooldown' | 'no_uses_left' }.
   canUse(adv, abilityDef, nowMs) {
     if (!adv || !abilityDef) return { ready: false, reason: 'invalid' }
@@ -47,7 +55,7 @@ export const AbilitySystem = {
     const id = abilityDef.id
     if (abilityDef.cooldownMs != null) {
       adv.cooldowns ??= {}
-      adv.cooldowns[id] = nowMs + abilityDef.cooldownMs
+      adv.cooldowns[id] = nowMs + abilityDef.cooldownMs * AbilitySystem._cooldownScale
     }
     if (abilityDef.usesPerDay != null || abilityDef.usesPerDayPerLevel) {
       adv.usesLeftToday ??= {}

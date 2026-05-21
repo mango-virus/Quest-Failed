@@ -76,6 +76,18 @@ export class RunHistorySystem {
     const t = this._gameState.run.totals
     t.advsKilled++
     t.kills++
+    // A returning "hero" who dies is gone for good — scrub them from the
+    // known-adventurer pool so they can never come back. (Their
+    // knowledge-survivor record, which actually gates the returning-
+    // veteran spawn, is purged separately by KnowledgeSystem._onAdventurerDied.)
+    const dead = payload?.adventurer
+    if (dead?.name) {
+      const known = this._gameState.adventurers?.known
+      if (Array.isArray(known)) {
+        const i = known.findIndex(k => k.name === dead.name)
+        if (i !== -1) known.splice(i, 1)
+      }
+    }
     // Bump killer minion's lifetime kill count when the killer is a minion.
     const killerId = payload?.killerId
     if (!killerId || killerId === 'boss' || killerId === 'unknown') return
@@ -90,6 +102,10 @@ export class RunHistorySystem {
     this._gameState.run.totals.advsEscaped++
     const adv = payload?.adventurer
     if (!adv) return
+    // Loot Goblins raid once and leave — they never become a "known"
+    // veteran/hero and can't return, so keep them out of the pool
+    // entirely (no returning-adventurer UI, no FullLog leak entry).
+    if (adv.classId === 'loot_goblin') return
     // Increment per-instance escape count + reconcile to the named-identity
     // entry in adventurers.known so a returning adventurer accumulates.
     adv.escapeCount = (adv.escapeCount ?? 0) + 1
@@ -107,6 +123,16 @@ export class RunHistorySystem {
         // generic class portrait instead of the unique character that
         // got away.
         spriteVariant: adv.spriteVariant ?? null,
+        // Event-invader sprite fields — rival-dungeon monsters render from
+        // a minion sheet and the rival boss from a boss-archetype skin
+        // (neither carries an LPC spriteVariant). Preserve them or the
+        // escaped-adventurer UI (PostWaveSummary, AdvIntel) falls back to a
+        // humanoid stand-in instead of the actual creature.
+        _minionSheet:        adv._minionSheet        ?? null,
+        _rivalBossSpriteKey: adv._rivalBossSpriteKey ?? null,
+        // Monster invaders never "carry intel" — the post-wave summary
+        // reads this to show a neutral retreat message instead.
+        _monster:            adv._monster            ?? null,
         // `level` here is the cosmetic display level the player saw, not
         // the XP counter — so returning-veteran UI shows the same number.
         level:       adv.displayLevel ?? adv.level ?? 1,
@@ -119,6 +145,9 @@ export class RunHistorySystem {
     // may have leveled between visits and their variant is the same
     // each return (spriteVariant persists on the live adv object).
     known.spriteVariant = adv.spriteVariant ?? known.spriteVariant ?? null
+    known._minionSheet        = adv._minionSheet        ?? known._minionSheet        ?? null
+    known._rivalBossSpriteKey = adv._rivalBossSpriteKey ?? known._rivalBossSpriteKey ?? null
+    known._monster            = adv._monster            ?? known._monster            ?? null
     known.level = adv.displayLevel ?? adv.level ?? known.level ?? 1
     known.escapeCount++
     known.lastEscapedDay = this._gameState.meta.dayNumber

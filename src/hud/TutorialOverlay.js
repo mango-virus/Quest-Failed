@@ -33,7 +33,7 @@ export class TutorialOverlay {
     // longer archetype copy + 3 tips expand without scrolling.
     const tipCount = Array.isArray(tips) ? tips.length : 0
     const bodyLines = Math.max(1, Math.ceil((body?.length ?? 0) / 70))
-    const baseChrome = 200     // title bar + GOT IT button + outer padding
+    const baseChrome = 240     // title bar + GOT IT + opt-out button + outer padding
     const bodyBlock  = 40 + bodyLines * 22  // card padding + wrapped lines
     const leadBlock  = lead ? 36 : 0
     const tipsBlock  = tipCount > 0 ? (tipCount * 36 + 6) : 0
@@ -58,10 +58,22 @@ export class TutorialOverlay {
         Array.isArray(tips) && tips.length > 0 && h('ul', { className: 'qf-tutorial-tips' },
           tips.map(t => h('li', { className: 'qf-tutorial-tip' }, t))
         ),
-        h('button', {
-          className: 'btn primary lg qf-tutorial-got',
-          on: { click: () => this._dismiss(true) },
-        }, 'GOT IT'),
+        // GOT IT dismisses just this hint. "Turn off hints" opts out of
+        // every future hint — for players who no longer want them.
+        h('div', {
+          className: 'qf-tutorial-actions',
+          style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' },
+        }, [
+          h('button', {
+            className: 'btn primary lg qf-tutorial-got',
+            on: { click: () => this._dismiss(true) },
+          }, 'GOT IT'),
+          h('button', {
+            className: 'btn qf-tutorial-optout',
+            style: { fontSize: '11px', padding: '5px 14px', opacity: 0.7 },
+            on: { click: () => this._disableHints() },
+          }, '✕ Turn off hints'),
+        ]),
       ]),
     })
     // Defang Esc; hide X close button.
@@ -97,6 +109,17 @@ export class TutorialOverlay {
       PauseManager.softResume()
     }
     if (fireCb) cb?.()
+  }
+
+  // Player opted out from the hint popup itself. Flips the global
+  // GAMEPLAY > GAMEPLAY HINTS setting off — the same localStorage key the
+  // Settings panel and TutorialSystem both read — so no further hints fire
+  // and the choice persists across runs. TutorialSystem._popNext re-checks
+  // this key when this popup's onClose advances the queue, so any queued
+  // backlog is dropped too. Re-enable any time from Settings › Gameplay.
+  _disableHints() {
+    try { localStorage.setItem('qf.gameplay.tutorials', 'false') } catch {}
+    this._dismiss(true)
   }
 
   destroy() {

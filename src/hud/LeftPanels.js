@@ -1,10 +1,13 @@
 // LeftPanels — DOM port of the design's left HUD column.
 //
 // Stacks two panels:
-//   1. MiniKnowledgeMap — 1:1 blueprint of the dungeon. Rooms tinted by
-//      definitionId (the existing MiniMapPanel's contract). Intel-state
-//      coloring (FULL / PARTIAL / RUMOR / UNKNOWN) lands when Adv Intel
-//      ships in the same pass.
+//   1. MiniKnowledgeMap — 1:1 blueprint of the dungeon rendered as a
+//      pure KNOWLEDGE view. Each room block tints by ROOMS-category
+//      intel; small category pips (TRAPS / MINIONS / ITEMS) mark which
+//      other intel the adventurers hold for that room. Boss-chamber
+//      marker always drawn. A 4-category legend (the shared CAT_COLOR
+//      scheme) sits under the canvas — see KnowledgeScreen +
+//      KnowledgeMapOverlay for the matching surfaces.
 //   2. ConstructionPanel — 4 category tabs (ROOMS / MINIONS / TRAPS /
 //      ITEMS), 2-col card grid, footer with selected-item detail + a
 //      PLACE button. Emits BUILD_SELECT { def, kind } on card click and
@@ -16,6 +19,8 @@
 
 import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { DungeonGrid } from '../systems/DungeonGrid.js'
+import { Balance } from '../config/balance.js'
 import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
 import { snapshotMinion, snapshotItem, snapshotTrap, snapshotRoomMini } from './inGameSnapshot.js'
 import { getRoomThumbnail, precacheRoomThumbnails } from './roomThumbnailCache.js'
@@ -28,18 +33,30 @@ const CATEGORIES = [
   { id: 'ITEMS',   kind: 'item',   icon: '◆', color: 'var(--info)',   cache: 'items',       unlockKey: null },
 ]
 
-// Knowledge-tier colors. Matches KnowledgeMapOverlay's STATE_COLOR so
-// the mini-map reads as a small version of the full intel screen.
-//   FULL    — adventurers know this room cold (red, strongly avoided)
-//   PARTIAL — half-remembered (orange, mildly avoided)
-//   RUMOR   — stale or 2nd-hand intel (cyan, lightly avoided)
-//   UNKNOWN — never seen (dim grey, walked in blind)
-const TIER_COLOR = {
-  FULL:    '#c8334a',
-  PARTIAL: '#e89a3c',
-  RUMOR:   '#5cc8d8',
-  UNKNOWN: '#5a4a4e',
+// ── Knowledge-category color scheme ─────────────────────────────────
+// ONE 4-category palette shared across all three knowledge surfaces
+// (this mini-map, the KnowledgeScreen menu, the big Knowledge Map
+// overlay) so the player learns one legend and reads them all. Each
+// category answers "what kind of intel did the adventurers leak":
+//   ROOMS   — they know a room exists / its layout       (cyan)
+//   TRAPS   — they know a trap's placement               (orange)
+//   MINIONS — they've sighted enemies in a room          (red)
+//   ITEMS   — they know a placed item (phylactery / etc.) (magenta)
+// Mirrored verbatim in KnowledgeScreen.CAT_COLOR and
+// KnowledgeMapOverlay.CAT_COLOR — keep all three in sync.
+const CAT_COLOR = {
+  ROOMS:   '#5cc8d8',
+  TRAPS:   '#e89a3c',
+  MINIONS: '#c8334a',
+  ITEMS:   '#c879d8',
 }
+// Dim grey for a room the adventurers have never seen — no intel of
+// any category. Walked-in-blind rooms paint with this so the player
+// can still see the dungeon shape behind the knowledge overlay.
+const UNKNOWN_COLOR = '#5a4a4e'
+// The boss-chamber marker keeps its own gold so the player can always
+// locate the boss regardless of which intel categories are showing.
+const BOSS_COLOR = '#ffcb5c'
 
 // Pull the HUD intel snapshot from the live KnowledgeSystem on the Game
 // scene. It owns the authoritative tier classifier + live-pool union, so
@@ -54,7 +71,20 @@ function _knowledgeReport() {
     for (const s of mgr.scenes) { if (s?.knowledgeSystem) { sys = s.knowledgeSystem; break } }
   }
   if (sys?.getIntelReport) return sys.getIntelReport()
-  return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, leakedRoomCount: 0 }
+  return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, items: {}, leakedRoomCount: 0 }
+}
+
+// Resolve the live KnowledgeSystem off the Game scene so the mini-map
+// can pull per-room detail (which traps / minions / items sit inside a
+// room) — getIntelReport() only gives id→tier maps, not room membership
+// for traps / items. The system owns getRoomKnowledgeDetails().
+function _knowledgeSystem() {
+  const mgr = window.__game?.scene
+  let sys = mgr?.getScene?.('Game')?.knowledgeSystem
+  if (!sys && mgr?.scenes) {
+    for (const s of mgr.scenes) { if (s?.knowledgeSystem) { sys = s.knowledgeSystem; break } }
+  }
+  return sys ?? null
 }
 
 export class LeftPanels {
@@ -110,24 +140,25 @@ export class LeftPanels {
             }),
             h('div', { className: 'qf-minimap-scan' }),
           ]),
-          // Legend — tier color → meaning, in the same order as the
-          // full Knowledge Map overlay's legend.
+          // Legend — one swatch per intel category, in the same order
+          // and colours as the KnowledgeScreen menu + the full Knowledge
+          // Map overlay so all three surfaces read with one legend.
           h('div', { className: 'qf-minimap-legend' }, [
             h('div', { className: 'qf-minimap-legend-item' }, [
-              h('span', { className: 'qf-minimap-legend-dot', style: { background: TIER_COLOR.FULL } }),
-              h('span', { className: 'pix qf-minimap-legend-label' }, 'FULL'),
+              h('span', { className: 'qf-minimap-legend-dot', style: { background: CAT_COLOR.ROOMS } }),
+              h('span', { className: 'pix qf-minimap-legend-label' }, 'ROOMS'),
             ]),
             h('div', { className: 'qf-minimap-legend-item' }, [
-              h('span', { className: 'qf-minimap-legend-dot', style: { background: TIER_COLOR.PARTIAL } }),
-              h('span', { className: 'pix qf-minimap-legend-label' }, 'PARTIAL'),
+              h('span', { className: 'qf-minimap-legend-dot', style: { background: CAT_COLOR.TRAPS } }),
+              h('span', { className: 'pix qf-minimap-legend-label' }, 'TRAPS'),
             ]),
             h('div', { className: 'qf-minimap-legend-item' }, [
-              h('span', { className: 'qf-minimap-legend-dot', style: { background: TIER_COLOR.RUMOR } }),
-              h('span', { className: 'pix qf-minimap-legend-label' }, 'RUMOR'),
+              h('span', { className: 'qf-minimap-legend-dot', style: { background: CAT_COLOR.MINIONS } }),
+              h('span', { className: 'pix qf-minimap-legend-label' }, 'MINIONS'),
             ]),
             h('div', { className: 'qf-minimap-legend-item' }, [
-              h('span', { className: 'qf-minimap-legend-dot', style: { background: TIER_COLOR.UNKNOWN } }),
-              h('span', { className: 'pix qf-minimap-legend-label' }, 'UNKNOWN'),
+              h('span', { className: 'qf-minimap-legend-dot', style: { background: CAT_COLOR.ITEMS } }),
+              h('span', { className: 'pix qf-minimap-legend-label' }, 'ITEMS'),
             ]),
           ]),
         ]),
@@ -157,6 +188,14 @@ export class LeftPanels {
             h('span', { className: 'qf-cat-label' }, cat.id),
           ]))
         ),
+        // Slot counter (traps / minions) — filled by _renderSlots
+        h('div', {
+          ref: el => { this._refs.slots = el },
+          style: {
+            display: 'none', justifyContent: 'space-between', alignItems: 'center',
+            padding: '3px 9px', fontSize: '8px', letterSpacing: '0.5px',
+          },
+        }),
         // Grid (filled by _renderGrid)
         h('div', {
           className: 'qf-build-grid',
@@ -172,6 +211,7 @@ export class LeftPanels {
 
     this._selectCategory(this._selectedCategory, /*skipRerender*/ true)
     this._renderFooter()
+    this._renderSlots()
     return root
   }
 
@@ -192,6 +232,47 @@ export class LeftPanels {
       this._renderGrid()
       this._renderFooter()
     }
+    this._renderSlots()
+  }
+
+  // ── Slot counter (trap / minion capacity) ───────────────────────
+  // Trap slots come from Trap Factories (×5 each); minion roster slots
+  // from Barracks (×10 each). Shown above the grid on those two tabs.
+  _slotInfo(cat) {
+    const gs = this._gameState
+    const d  = gs.dungeon ?? {}
+    const f  = gs._mechanicFlags ?? {}
+    if (cat.kind === 'trap') {
+      const factories = (d.rooms ?? []).filter(
+        r => r.definitionId === 'trap_factory' && r.isActive !== false).length
+      const cap = Math.max(0, factories * (f.trapSlotsPerFactory ?? 5) + (f.maxTrapSlotBonus ?? 0))
+      return { label: 'TRAP SLOTS', used: (d.traps ?? []).length, cap }
+    }
+    if (cat.kind === 'minion') {
+      const barracks = (d.rooms ?? []).filter(
+        r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
+      const cap = Math.max(0, barracks * (f.minionSlotsPerBarracks ?? 10)
+        + (f.maxMinionSlotBonus ?? 0) - (f.longGameMinionSlotPenalty ?? 0))
+      const used = (gs.minions ?? []).filter(
+        m => (m.class ?? 'roster') === 'roster' && m.aiState !== 'dead').length
+      return { label: 'MINION SLOTS', used, cap }
+    }
+    return null
+  }
+
+  _renderSlots() {
+    const el = this._refs.slots
+    if (!el) return
+    const info = this._slotInfo(this._currentCategory())
+    if (!info) { el.style.display = 'none'; return }
+    el.style.display = 'flex'
+    const full = info.used >= info.cap
+    mount(el, [
+      h('span', { className: 'pix', style: { color: 'var(--text-dim)' } }, info.label),
+      h('span', { className: 'pix', style: {
+        color: full ? 'var(--hp-low)' : 'var(--gold-bright)',
+      } }, `${info.used} / ${info.cap}`),
+    ])
   }
 
   _currentCategory() {
@@ -302,17 +383,20 @@ export class LeftPanels {
     return this._placedCount(def, cat) >= cap
   }
 
-  // Effective gold cost to place ONE MORE of `def` right now. Rooms
-  // whose placementRules declare freeFirstN are free until N copies are
-  // placed, then cost the base goldCost — so the panel must show 0 for
-  // the early free copies and the real price afterwards. Mirrors
-  // DungeonGrid.effectiveRoomCost so the displayed price matches what
-  // placement actually charges.
+  // Effective gold cost to place ONE MORE of `def` right now. For rooms
+  // this defers to DungeonGrid.effectiveRoomCost — the single source of
+  // truth — so the displayed price matches what placement actually
+  // charges, including freeFirstN free copies and escalating costStep.
   _costFor(def, cat) {
-    const base = def.goldCost ?? def.cost ?? 0
     if (cat.kind === 'room') {
-      const freeN = def.placementRules?.freeFirstN ?? 0
-      if (freeN > 0 && this._placedCount(def, cat) < freeN) return 0
+      return DungeonGrid.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+    }
+    const base = def.goldCost ?? def.cost ?? 0
+    // Traps scale with boss level (mirrors NightPhase._effectiveTrapCost) so
+    // the build-menu price matches what placement actually charges.
+    if (cat.kind === 'trap') {
+      const lv = this._gameState.boss?.level ?? 1
+      return Math.round(base * (1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, lv - 1)))
     }
     return base
   }
@@ -435,7 +519,9 @@ export class LeftPanels {
       return img
     }
     if (cat.kind === 'trap') {
-      const snap = snapshotTrap(def.spriteKey || def.textureKey, 76)
+      // Arrow trap frame 0 is just the wall nub — show a launched-arrow frame.
+      const frameIdx = def.id === 'shooting_arrows' ? 3 : 0
+      const snap = snapshotTrap(def.spriteKey || def.textureKey, 76, frameIdx)
       if (snap) { snap.classList.add('qf-build-card-snap'); return snap }
       return roomIcon('trap', 64)
     }
@@ -580,6 +666,19 @@ export class LeftPanels {
   }
 
   // ── MiniKnowledgeMap ────────────────────────────────────────────
+  //
+  // A pure KNOWLEDGE view — it shows what the ADVENTURERS know about the
+  // dungeon, not the live entity state. Each of the four intel
+  // categories gets its own colour from CAT_COLOR:
+  //   ROOMS   — the room block itself tints cyan once its layout leaks;
+  //             rooms with no intel of any kind stay dim grey.
+  //   TRAPS   — an orange pip in the room's marker strip when the
+  //             adventurers know a trap sits inside it.
+  //   MINIONS — a red pip when they've sighted enemies in the room.
+  //   ITEMS   — a magenta pip when they know a placed item is inside.
+  // The boss-chamber marker (gold) is always drawn so the player can
+  // locate the boss. Minion markers are derived from KnowledgeSystem
+  // intel (known sightings), NOT from live entity positions.
   _renderMap() {
     const canvas = this._refs.mapRooms
     if (!canvas) return
@@ -597,57 +696,100 @@ export class LeftPanels {
       parent.style.setProperty('--grid-h', H)
     }
     const rooms = d.rooms || []
-    const minions = this._gameState.minions || []
     // Position rooms as % of the canvas. Room placement coords live on
-    // `gridX` / `gridY` (see DungeonGrid.placeRoom); minion coords use
-    // `tileX` / `tileY` (different convention, on the Minion entity).
+    // `gridX` / `gridY` (see DungeonGrid.placeRoom).
     const report = _knowledgeReport()
-    const blocks = rooms.map(r => {
-      // Color by intel tier — same convention as the full Knowledge
-      // Map overlay. UNKNOWN rooms stay dim grey; once an adventurer
-      // leaks any intel they tint up through RUMOR → PARTIAL → FULL.
-      const tier = report.rooms[r.instanceId] || 'UNKNOWN'
-      const tint = TIER_COLOR[tier] || TIER_COLOR.UNKNOWN
+    const sys    = _knowledgeSystem()
+    const els = []
+    for (const r of rooms) {
       const x = r.gridX ?? 0, y = r.gridY ?? 0
-      return h('div', {
+      // ROOMS category — the room block tints cyan once its layout has
+      // leaked (any tier); UNKNOWN rooms stay dim grey so the dungeon
+      // shape is still visible behind the knowledge overlay.
+      const roomTier = report.rooms?.[r.instanceId] || null
+      const roomKnown = !!roomTier
+      const tint = roomKnown ? CAT_COLOR.ROOMS : UNKNOWN_COLOR
+      // Per-room category intel — which of TRAPS / MINIONS / ITEMS the
+      // adventurers know about inside this room. getRoomKnowledgeDetails
+      // gives the room-membership the flat id→tier report can't.
+      const details = sys?.getRoomKnowledgeDetails?.(r.instanceId)
+      const hasTraps   = (details?.traps?.length   ?? 0) > 0
+      const hasMinions = (details?.enemies?.length ?? 0) > 0
+      const hasItems   = (details?.items?.length   ?? 0) > 0
+      // Build a human-readable tooltip listing the known categories.
+      const known = []
+      if (roomKnown)  known.push('room')
+      if (hasTraps)   known.push('traps')
+      if (hasMinions) known.push('minions')
+      if (hasItems)   known.push('items')
+      els.push(h('div', {
         className: 'qf-minimap-room',
-        title: `${r.definitionId || 'room'} · ${tier}`,
-        dataset: { tier },
+        title: known.length ? `Known: ${known.join(', ')}` : 'No intel',
+        dataset: { known: roomKnown ? 'true' : 'false' },
         style: {
           left:   `${(x / W) * 100}%`,
           top:    `${(y / H) * 100}%`,
           width:  `${(r.width  / W) * 100}%`,
           height: `${(r.height / H) * 100}%`,
-          background: tier === 'UNKNOWN' ? `${tint}1c` : `${tint}38`,
+          background: roomKnown ? `${tint}38` : `${tint}1c`,
           borderColor: tint,
-          boxShadow: tier === 'UNKNOWN'
-            ? `inset 0 0 0 1px rgba(0,0,0,0.3)`
-            : `0 0 6px ${tint}55, inset 0 0 0 1px rgba(0,0,0,0.3)`,
+          boxShadow: roomKnown
+            ? `0 0 6px ${tint}55, inset 0 0 0 1px rgba(0,0,0,0.3)`
+            : `inset 0 0 0 1px rgba(0,0,0,0.3)`,
         },
-      })
-    })
-    // Boss dot — center of the boss chamber if any.
+      }))
+      // Per-entity intel markers — each known trap / item / minion drawn
+      // at its real tile so the mini-map shows WHERE leaked things sit,
+      // not just which room carries the category. Traps + items carry
+      // tileX/tileY in the knowledge pool directly; minions are tracked
+      // per-room-per-type only, so we cross-reference the live minion
+      // list to plot each known-type minion at its actual tile.
+      const pushMarker = (cat, tx, ty) => {
+        if (tx == null || ty == null) return
+        const color = CAT_COLOR[cat]
+        els.push(h('div', {
+          className: `qf-minimap-emarker qf-minimap-emarker-${cat.toLowerCase()}`,
+          style: {
+            left: `${((tx + 0.5) / W) * 100}%`,
+            top:  `${((ty + 0.5) / H) * 100}%`,
+            background: color,
+            boxShadow:  `0 0 3px ${color}`,
+          },
+        }))
+      }
+      if (hasTraps) {
+        for (const t of (details.traps ?? [])) pushMarker('TRAPS', t.tileX, t.tileY)
+      }
+      if (hasItems) {
+        for (const it of (details.items ?? [])) pushMarker('ITEMS', it.tileX, it.tileY)
+      }
+      if (hasMinions) {
+        const knownTypes = new Set((details.enemies ?? []).map(e => e.minionType))
+        for (const m of (this._gameState.minions ?? [])) {
+          if (!m || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+          if (m.tileX == null || m.tileY == null) continue
+          if (!knownTypes.has(m.definitionId)) continue
+          if (m.tileX < x || m.tileX >= x + r.width ||
+              m.tileY < y || m.tileY >= y + r.height) continue
+          pushMarker('MINIONS', m.tileX, m.tileY)
+        }
+      }
+    }
+    // Boss-chamber marker — always drawn (gold) regardless of intel so
+    // the player can locate the boss.
     const boss = rooms.find(r => r.definitionId === 'boss_chamber')
-    const bossDot = boss ? h('div', {
-      className: 'qf-minimap-boss',
-      style: {
-        left: `${((boss.gridX + boss.width / 2)  / W) * 100}%`,
-        top:  `${((boss.gridY + boss.height / 2) / H) * 100}%`,
-      },
-    }) : null
-    // Minion dots
-    const minionDots = minions.map(m => {
-      if (m.tileX == null || m.tileY == null) return null
-      return h('div', {
-        className: 'qf-minimap-minion',
+    if (boss) {
+      els.push(h('div', {
+        className: 'qf-minimap-boss',
+        title: 'Boss Chamber',
         style: {
-          left: `${(m.tileX / W) * 100}%`,
-          top:  `${(m.tileY / H) * 100}%`,
+          left: `${((boss.gridX + boss.width / 2)  / W) * 100}%`,
+          top:  `${((boss.gridY + boss.height / 2) / H) * 100}%`,
         },
-      })
-    }).filter(Boolean)
+      }))
+    }
 
-    mount(canvas, [...blocks, bossDot, ...minionDots])
+    mount(canvas, els)
   }
 
   // ── Events / tick ───────────────────────────────────────────────
@@ -724,12 +866,25 @@ export class LeftPanels {
           : 'var(--poison)'
       }
     }
-    // Re-tint the mini-map rooms when any room's intel tier shifts. The
-    // active party learns rooms mid-day, so the map can't be place-only —
-    // re-render whenever the tier map changes (cheap signature compare).
-    const tierSig = JSON.stringify(report.rooms)
-    if (tierSig !== this._mapTierSig) {
-      this._mapTierSig = tierSig
+    // Slot counter — refresh when trap / minion counts or caps change.
+    const slotInfo = this._slotInfo(this._currentCategory())
+    const slotSig  = slotInfo ? `${slotInfo.used}/${slotInfo.cap}` : 'none'
+    if (slotSig !== this._prevSlotSig) {
+      this._prevSlotSig = slotSig
+      this._renderSlots()
+    }
+    // Re-render the mini-map whenever the adventurers' knowledge shifts.
+    // The active party learns rooms / traps / minions / items mid-day,
+    // so the map can't be place-only — the signature covers all four
+    // intel categories (cheap object-key compare each frame).
+    const mapSig = [
+      Object.keys(report.rooms          ?? {}).sort().join(','),
+      Object.keys(report.traps          ?? {}).sort().join(','),
+      Object.keys(report.enemiesPerRoom ?? {}).sort().join(','),
+      Object.keys(report.items          ?? {}).sort().join(','),
+    ].join('|')
+    if (mapSig !== this._mapTierSig) {
+      this._mapTierSig = mapSig
       this._renderMap()
     }
 

@@ -87,9 +87,11 @@
 //     Red-streak VFX from the adv to the boss for each tax tick.
 //
 // Phase 1b.9 — DEMON: Sacrifice Pact + Hellgate
-//   Sacrifice Pact: 1×/day, player clicks a SACRIFICE button + picks one of
-//     their own minions. The minion permanently burns (no respawn) and one
-//     randomly-chosen alive adv in the dungeon is instakilled.
+//   Sacrifice Pact: 1×/day, player clicks the SACRIFICE button — it fires
+//     immediately, auto-choosing the minion to burn (no pick step). 50%
+//     chance to burn an expendable Hellgate Imp when any exist, else a
+//     random dungeon minion. The burned minion permadies (no respawn) and
+//     one randomly-chosen alive adv in the dungeon is instakilled.
 //   Hellgate: a permanent infernal portal sits in a corner of the boss
 //     chamber. Each dawn N free Imps spawn (N = boss level), stat-scaled
 //     to 10% of imp1 base × (1 + bossLevel × 10%). Imps roam the whole
@@ -1707,7 +1709,7 @@ export class BossArchetypeSystem {
 
   _tickVampire(now) {
     if (this._archId() !== 'vampire') return
-    this._tickCharmConversion()
+    this._tickCharmConversion(now)
     this._tickThrallRoaming(now)
   }
 
@@ -1849,12 +1851,21 @@ export class BossArchetypeSystem {
     EventBus.emit('SUCCUBUS_TRANSFORM_OUT',  { bossX, bossY, dx: toX - bossX })
   }
 
-  _tickCharmConversion() {
+  _tickCharmConversion(now = 0) {
     const advs = this._gameState?.adventurers?.active ?? []
     if (advs.length === 0) return
-    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+    const bossRoom = rooms.find(r => r.definitionId === 'boss_chamber')
     if (!bossRoom) return
-    const grid = this._scene?.dungeonGrid
+    // Non-boss rooms the thrall can be planted in. A converted thrall must
+    // NOT be left standing on the adventurer's old tile — that tile sits
+    // inside/next to the boss chamber, and a thrall only relocates via
+    // MinionAI (day phase only) or respawnAll's home-snap (night-start
+    // only). A conversion that lands late in the day or during the build
+    // phase would otherwise strand the thrall, invisible, on the boss
+    // floor until the next day's AI walks it out. Planting it directly in
+    // a real room makes it appear immediately in any phase.
+    const roamPool = rooms.filter(r => r.definitionId !== 'boss_chamber')
     const minionTypes = this._scene?.cache?.json?.get?.('minionTypes') ?? []
     const thrallDef = minionTypes.find(m => m.id === 'vampire_minion1')
     if (!thrallDef) return
@@ -1873,18 +1884,38 @@ export class BossArchetypeSystem {
       )
       if (dist > 48) continue  // ~1.5 tiles — must physically touch the boss
 
-      // Convert: spawn a vampire_minion1 thrall at the adv's tile, then
-      // remove the adv from the active list.
+      // Convert: spawn a vampire_minion1 thrall, then remove the adv from
+      // the active list. The thrall is planted directly in a random
+      // non-boss room (full live + home position) so it's standing
+      // somewhere visible the instant it converts — see roamPool comment
+      // above. Falls back to the adv's tile only if the dungeon somehow
+      // has no rooms outside the boss chamber.
+      let spawnTileX  = adv.tileX
+      let spawnTileY  = adv.tileY
+      let spawnRoomId = bossRoom.instanceId
+      if (roamPool.length > 0) {
+        const room = roamPool[Math.floor(Math.random() * roamPool.length)]
+        spawnTileX  = room.gridX + Math.floor(room.width  / 2)
+        spawnTileY  = room.gridY + Math.floor(room.height / 2)
+        spawnRoomId = room.instanceId
+      }
       const minion = createMinion(
         thrallDef,
-        { x: adv.tileX, y: adv.tileY },
-        bossRoom.instanceId,
+        { x: spawnTileX, y: spawnTileY },
+        spawnRoomId,
         { class: 'garrison', bossLevel: bossLv },
       )
       minion._isVampireThrall   = true
       minion._charmedClassId    = adv.classId ?? 'unknown'
       minion._charmedAdvName    = adv.name    ?? 'Thrall'
-      minion._thrallRoamLastSwapAt = 0
+      // A thrall roams in the open — it must never inherit vampire_minion1's
+      // Sleep on Ceiling hide flag. Clear it explicitly so the thrall is
+      // visible the instant it converts, even before its first AI tick or
+      // when converted during the build phase (AI doesn't tick at night).
+      minion._hidden            = false
+      // Stamp the roam clock to "now" so the thrall settles in its spawn
+      // room for a full swap interval before it starts wandering.
+      minion._thrallRoamLastSwapAt = now
       minion.isUndead           = true   // permadeath: respawnAll strips dead undead
       // Light class retention to mirror Lich Necromancy.
       this._applyClassRetentionBuffs(minion, adv.classId)
@@ -1914,6 +1945,9 @@ export class BossArchetypeSystem {
         roomId:     this._scene?.dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId ?? null,
         damageType: 'unholy',
       })
+      // Turning an adventurer into a thrall counts as a kill for the boss —
+      // award XP just like a normal defeat (conversion bypasses _killAdv).
+      this._scene?.aiSystem?._awardBossXp?.()
       converted++
     }
     if (converted > 0) {
@@ -1958,10 +1992,36 @@ export class BossArchetypeSystem {
     )
   }
 
+  // The SACRIFICE button fires immediately — no minion-pick step. The
+  // minion to burn is auto-chosen by _pickSacrificeMinion(); we flip the
+  // transient _sacrificeArmed flag on so the shared _fireSacrifice() guard
+  // passes for this synchronous call. DEMON_SACRIFICE_ARMED is intentionally
+  // NOT emitted, so the UI never enters a "PICK A MINION" state.
   _armSacrifice() {
     if (!this._sacrificeAvailable()) return
+    const m = this._pickSacrificeMinion()
+    if (!m) { this._disarmSacrifice(); return }
     this._sacrificeArmed = true
-    EventBus.emit('DEMON_SACRIFICE_ARMED', {})
+    this._fireSacrifice({ minionId: m.instanceId })
+  }
+
+  // Auto-pick the minion the Sacrifice Pact burns. 50% chance to prefer an
+  // expendable Hellgate Imp (this archetype's other ability spawns Imps for
+  // free), so on average half of all sacrifices cost only a free imp rather
+  // than a minion the player paid for. Falls back to the other pool when
+  // the preferred one is empty.
+  _pickSacrificeMinion() {
+    const alive = (this._gameState?.minions ?? []).filter(m =>
+      m && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon')
+    if (alive.length === 0) return null
+    const imps    = alive.filter(m => m._isDemonImp)
+    const nonImps = alive.filter(m => !m._isDemonImp)
+    const preferImp = Math.random() < 0.5
+    let pool = preferImp
+      ? (imps.length    ? imps    : nonImps)
+      : (nonImps.length ? nonImps : imps)
+    if (pool.length === 0) pool = alive
+    return pool[Math.floor(Math.random() * pool.length)]
   }
 
   // Always emits DEMON_SACRIFICE_DISARMED, even if we believed we were

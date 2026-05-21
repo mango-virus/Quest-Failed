@@ -46,6 +46,13 @@ const WALL_BASE        = 0x1e3248
 const WALL_HIGHLIGHT   = 0x32485e
 const WALL_SHADOW      = 0x121f30
 const MORTAR           = 0x0a1420
+// Flat backdrop fill for the empty void under the dungeon grid. A neutral
+// stone gray that matches the dungeon's *visible* walls: nearly every room
+// desaturates its walls (rooms.json `colorAdjust.walls: { sat: -1 }`), so
+// on-screen the walls read as grey — not the navy WALL_BASE constant. This
+// is tuned to the mid-tone of that desaturated masonry (base bricks +
+// lighter capstones/cornerstones averaged). Replaced the `void_bg.png` tile.
+const VOID_BG_COLOR    = 0x474747
 const BRICK_W          = 32
 const BRICK_H          = 8
 const ROWS_PER_TILE    = TS / BRICK_H   // 4
@@ -317,23 +324,30 @@ export class DungeonRenderer {
     this._gameState = gameState
 
     this._gBg        = scene.add.graphics().setDepth(0)
-    // Tiled void background — replaced the old flat STONE_BASE fill.
+    // Flat cold void backdrop — a near-black fill under the whole grid.
+    // Replaced the tiled `void-bg` texture, which clashed with the Crypt
+    // HUD. A white texture tinted to VOID_BG_COLOR keeps this a resizable
+    // TileSprite (setSize on GRID_EXPANDED) with no PNG asset to maintain.
     // Depth -0.5 keeps it below _gBg so the vignette + carve-halo overlays
     // still apply on top.  Sized to the full dungeon grid; resized on every
     // redraw in case of GRID_EXPANDED.
-    this._bgSprite = scene.add.tileSprite(0, 0, 1, 1, 'void-bg')
-      .setOrigin(0, 0).setDepth(-0.5).setTileScale(0.25)
-    // Void-occluder at depth 12 (same role as _gVoidMask but texture-matched
-    // so sprites bleeding into void cells are hidden behind the real texture
-    // rather than a flat colour).  A GeometryMask built from _voidMaskMaskG
-    // clips it to VOID cells only; _voidMaskMaskG is rebuilt each redraw.
+    this._bgSprite = scene.add.tileSprite(0, 0, 1, 1, '__WHITE')
+      .setOrigin(0, 0).setDepth(-0.5).setTint(VOID_BG_COLOR)
+    // Void-occluder at depth 12 (same role as _gVoidMask): a flat fill in
+    // the void colour so sprites bleeding into void cells are hidden behind
+    // the backdrop.  A GeometryMask built from _voidMaskMaskG clips it to
+    // VOID cells only; _voidMaskMaskG is rebuilt each redraw.
     this._voidMaskMaskG  = scene.add.graphics()
-    this._voidMaskSprite = scene.add.tileSprite(0, 0, 1, 1, 'void-bg')
-      .setOrigin(0, 0).setDepth(12).setTileScale(0.25)
+    this._voidMaskSprite = scene.add.tileSprite(0, 0, 1, 1, '__WHITE')
+      .setOrigin(0, 0).setDepth(12).setTint(VOID_BG_COLOR)
       .setMask(this._voidMaskMaskG.createGeometryMask())
-    // Grid lines live on their own layer so NightPhase can toggle them
-    // (placement-preview hover) without redrawing the bedrock.
-    this._gGrid      = scene.add.graphics().setDepth(0.5)
+    // Grid lines — drawn ABOVE the void-occluder (depth 12) and masked to
+    // VOID cells by the same _voidMaskMaskG geometry, so the blueprint grid
+    // shows on the empty bedrock but never clutters placed-room art. An
+    // always-on faint ambient pass keeps the flat void from reading blank;
+    // NightPhase toggles a brighter overlay on during placement.
+    this._gGrid      = scene.add.graphics().setDepth(12.5)
+      .setMask(this._voidMaskMaskG.createGeometryMask())
     this._showGrid   = false
     this._gTiles     = scene.add.graphics().setDepth(1)
     // Theme-driven sprite tiles. When a placed room has a theme assigned (or
@@ -3290,8 +3304,8 @@ export class DungeonRenderer {
     const W = gw * TS
     const H = gh * TS
 
-    // Background texture is now handled by _bgSprite (TileSprite, depth -0.5).
-    // Just draw the vignette darkening and the carve halo on top of it.
+    // The flat void backdrop is _bgSprite (depth -0.5). Here we just draw
+    // the vignette darkening and the carve halo on top of it.
     this._gBg.fillStyle(0x000000, 0.22)
     this._gBg.fillEllipse(W / 2, H / 2, W * 1.4, H * 1.4)
     // Lighter halo immediately around each placed room — "freshly chiseled
@@ -3538,18 +3552,29 @@ export class DungeonRenderer {
   // re-rendering the bedrock. Hidden by default; NightPhase shows them
   // while a room placement preview is active (see setGridVisible).
   _drawGrid() {
-    if (!this._showGrid) return
     const { gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
     const g = this._gGrid
+    // Ambient grid — always drawn (masked to VOID cells via _gGrid's setup)
+    // so the flat void backdrop reads as dungeon bedrock, not a blank field.
+    // Kept very faint so it's texture, not visual noise.
+    this._strokeGrid(g, gw, gh, 0.09, 0.18)
+    // Placement grid — a brighter overlay while a build placement is active,
+    // so the grid "lighting up" still reads as a placement affordance.
+    if (this._showGrid) this._strokeGrid(g, gw, gh, 0.46, 0.85)
+  }
 
-    g.lineStyle(1, PALETTE.gridLine, 0.35)
+  // One full grid pass: thin minor lines on every cell boundary + stronger
+  // lines every 5th. Run once for the ambient pass, again (brighter) for
+  // the placement overlay.
+  _strokeGrid(g, gw, gh, minorAlpha, majorAlpha) {
+    g.lineStyle(1, PALETTE.gridLine, minorAlpha)
     for (let tx = 0; tx <= gw; tx++) {
       g.beginPath(); g.moveTo(tx * TS, 0); g.lineTo(tx * TS, gh * TS); g.strokePath()
     }
     for (let ty = 0; ty <= gh; ty++) {
       g.beginPath(); g.moveTo(0, ty * TS); g.lineTo(gw * TS, ty * TS); g.strokePath()
     }
-    g.lineStyle(1, PALETTE.gridLine, 0.7)
+    g.lineStyle(1, PALETTE.gridLine, majorAlpha)
     for (let tx = 0; tx <= gw; tx += 5) {
       g.beginPath(); g.moveTo(tx * TS, 0); g.lineTo(tx * TS, gh * TS); g.strokePath()
     }

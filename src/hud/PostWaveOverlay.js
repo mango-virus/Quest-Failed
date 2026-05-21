@@ -21,9 +21,10 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { pixelSprite, spriteKindForDefId } from './sprites.js'
-import { snapshotMinion, snapshotAdventurer } from './inGameSnapshot.js'
+import { snapshotMinion, snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
+import { classLabel, minionLabel } from '../util/displayNames.js'
 
 export class PostWaveOverlay {
   constructor(gameState) {
@@ -48,7 +49,13 @@ export class PostWaveOverlay {
       height:   840,
       accent:   'var(--blood)',
       animation: 'unfurl',
-      onClose:  () => { this._overlay = null; this._cancelCountUp() },
+      // X / Esc / backdrop dismiss MUST advance the day→night chain just
+      // like the CONTINUE TO NIGHT button — route every dismiss path
+      // through _closeNow(). Without this, closing via X never emits
+      // POST_WAVE_CONTINUE, EndOfDay hangs, NightPhase never starts, and
+      // the play area is left black. (Overlay.close() is guarded by its
+      // own _open flag, so _closeNow's ov.close() call here just no-ops.)
+      onClose:  () => this._closeNow(),
       body,
     })
     this._overlay.open()
@@ -122,6 +129,11 @@ export class PostWaveOverlay {
       ...slain.map(a => ({ ...a, _status: 'slain' })),
       ...escaped.map(a => ({ ...a, _status: 'escaped' })),
     ]
+    // Loot Goblins escape with stolen gold, not intel; monster invaders
+    // (zombie horde, rival dungeon) don't report to the Guild at all —
+    // exclude both from the "INTEL LEAKED" warning so it only counts
+    // real Guild leakers.
+    const intelLeakers = escaped.filter(a => a.classId !== 'loot_goblin' && !a._monster)
 
     return h('div', { className: 'qf-pws-body' }, [
       this._renderHero(slain.length, escaped.length, stats.goldDelta, stats.goldLost, day),
@@ -144,7 +156,7 @@ export class PostWaveOverlay {
         h('div', { className: 'qf-pws-rightcol' }, [
           this._renderMvp(mvp),
           this._renderStats(stats),
-          escaped.length > 0 && this._renderLeakWarn(escaped),
+          intelLeakers.length > 0 && this._renderLeakWarn(intelLeakers),
         ]),
       ]),
       // Footer
@@ -245,12 +257,15 @@ export class PostWaveOverlay {
     // When one escapes the dungeon they steal gold, not leak intel.
     // Sprite + message + chip all differ from a normal adv.
     const isGoblin = adv.classId === 'loot_goblin'
+    // Monster invaders (zombie horde, rival dungeon) retreat — they never
+    // carry intel back to the Guild.
+    const isMonster = !!adv._monster
     // Sprite resolution: goblins use the minion-goblin1 sheet (same
     // sheet AdventurerRenderer borrows for the loot_goblin class);
     // everyone else uses their LPC variant via snapshotAdventurer.
     const spriteEl = isGoblin
       ? (snapshotMinion('goblin1', 38) || pixelSprite('goblin', 38))
-      : (snapshotAdventurer(adv.spriteVariant || adv.classId, 38)
+      : (snapshotAdventurerEntity(adv, 38)
          || pixelSprite(advKind, 38))
     return h('div', {
       className: 'qf-pws-row pws-row',
@@ -276,7 +291,7 @@ export class PostWaveOverlay {
         h('div', { className: 'qf-pws-row-headline' }, [
           h('span', { className: 'pix qf-pws-row-name' }, adv.name || 'Unnamed'),
           h('span', { className: 'pix qf-pws-row-class' },
-            `${(adv.classId || '?').toUpperCase()} · LV ${adv.displayLevel ?? adv.level ?? adv.lv ?? 1}`),
+            `${classLabel(adv.classId).toUpperCase()} · LV ${adv.displayLevel ?? adv.level ?? adv.lv ?? 1}`),
         ]),
         h('div', {
           className: 'qf-pws-row-detail',
@@ -285,7 +300,9 @@ export class PostWaveOverlay {
           ? ['slain by ', h('span', { style: { color: 'var(--poison)' } }, killerName)]
           : isGoblin
             ? 'escaped — made off with stolen gold'
-            : 'escaped — carried intel back to the guild'
+            : isMonster
+              ? 'retreated from the dungeon'
+              : 'escaped — carried intel back to the guild'
         ),
         // Tag chip
         h('div', { className: 'qf-pws-row-tags' }, [
@@ -295,8 +312,8 @@ export class PostWaveOverlay {
           // Escape chip: anyone who got away with gold — a loot goblin,
           // or an adventurer who cracked a treasure chest — shows the
           // loss-gold "Ng STOLEN" chip. Empty-handed escapees just leaked
-          // intel.
-          !isSlain && ((isGoblin || (adv.goldStolen ?? 0) > 0)
+          // intel. Monster invaders carry neither gold nor intel — no chip.
+          !isSlain && !isMonster && ((isGoblin || (adv.goldStolen ?? 0) > 0)
             ? h('span', {
                 className: 'pix qf-pws-tag-leak',
                 style: {
@@ -327,9 +344,9 @@ export class PostWaveOverlay {
               || pixelSprite(spriteKindForDefId(mvp.definitionId), 36)),
             h('div', { className: 'qf-pws-mvp-textcol' }, [
               h('div', { className: 'pix qf-pws-mvp-name' },
-                mvp.name || mvp.definitionId || '?'),
+                mvp.name || minionLabel(mvp.definitionId)),
               h('div', { className: 'pix qf-pws-mvp-class' },
-                `${String(mvp.definitionId || '?').toUpperCase()} · LV ${mvp.level ?? 1}`),
+                `${minionLabel(mvp.definitionId).toUpperCase()} · LV ${mvp.level ?? 1}`),
             ]),
             h('div', { className: 'pix qf-pws-mvp-kills' },
               `☠ ${mvp.lifetime?.kills ?? 0} KILLS`),

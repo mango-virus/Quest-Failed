@@ -127,6 +127,21 @@ window.addEventListener('resize', () => {
   requestAnimationFrame(() => window.__game?.scale?.refresh())
 })
 
+// Refocusing the window/tab can leave the FIT-scaled Phaser canvas
+// mis-sized: Phaser's ResizeObserver can fire while the game container is
+// briefly 0-sized mid-relayout, collapsing the canvas so the dungeon view
+// goes dark (the DOM HUD scales on its own and stays fine). Re-run the
+// scale fit once — and again after layout has settled — to recover.
+function _recoverCanvasScale() {
+  const refresh = () => window.__game?.scale?.refresh()
+  requestAnimationFrame(refresh)
+  setTimeout(refresh, 150)
+}
+window.addEventListener('focus', _recoverCanvasScale)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') _recoverCanvasScale()
+})
+
 // Suppress the browser right-click context menu game-wide. Right-click is
 // used for drag-pan in Game and to cancel selections in NightPhase, and
 // having the menu pop up over the canvas is just noise everywhere else

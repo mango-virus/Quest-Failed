@@ -30,13 +30,15 @@ import { BeaconRenderer }     from '../ui/BeaconRenderer.js'
 import { FountainRenderer }   from '../ui/FountainRenderer.js'
 import { TreasureChestRenderer } from '../ui/TreasureChestRenderer.js'
 import { DarkDealDemonRenderer } from '../ui/DarkDealDemonRenderer.js'
+import { GamblerImpRenderer }    from '../ui/GamblerImpRenderer.js'
 import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
 import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
 import { ChatBubbles }        from '../ui/ChatBubbles.js'
 import { KnowledgeOverlay }   from '../ui/KnowledgeOverlay.js'
 import { WantedPoster }       from '../ui/WantedPoster.js'
-import { ReplayGhostRenderer } from '../ui/ReplayGhostRenderer.js'
+// ReplayGhostRenderer removed 2026-05-21 (prior-run path trail cut at
+// user request) — file kept in repo, just no longer imported/constructed.
 import { BossFightOverlay }    from '../ui/BossFightOverlay.js'
 import { SunderedFloorRenderer } from '../ui/SunderedFloorRenderer.js'
 import { CartographerOverlay }   from '../ui/CartographerOverlay.js'
@@ -158,6 +160,7 @@ export class Game extends Phaser.Scene {
     this.fountainRenderer    = new FountainRenderer(this, this.gameState)
     this.treasureChestRenderer = new TreasureChestRenderer(this, this.gameState)
     this.darkDealDemonRenderer = new DarkDealDemonRenderer(this, this.gameState)
+    this.gamblerImpRenderer    = new GamblerImpRenderer(this, this.gameState)
     this.phylacteryRenderer  = new PhylacteryRenderer(this, this.gameState)
     this.fungalCorpseRenderer = new FungalCorpseRenderer(this, this.gameState)
     // MinionInspector and WantedPoster have DOM ports under the new HUD
@@ -174,7 +177,12 @@ export class Game extends Phaser.Scene {
     if (!_useNewHud) {
       this.wantedPoster      = new WantedPoster(this, this.gameState)
     }
-    this.replayGhostRenderer = new ReplayGhostRenderer(this, this.gameState)
+    // Replay Ghost trail removed at user request (2026-05-21) — a
+    // returning Hero no longer draws their prior-run path on the dungeon
+    // floor. ReplayGhostRenderer.js stays in the repo (removal-not-
+    // deletion); it just isn't constructed. The ?.update() / ?.destroy()
+    // calls elsewhere no-op safely on the null field.
+    this.replayGhostRenderer = null
     // BossFightOverlay moved to HudScene — it uses scene.uiW/uiH which
     // only HudScene sets via applyUiCamera. Game scene retains the
     // camera-zoom hooks below that pair with the overlay's intro slate.
@@ -238,6 +246,12 @@ export class Game extends Phaser.Scene {
     this._setupCamera()
     this._setupInput()
     this.scale.on('resize', this._onSceneResize, this)
+    // Tab-refocus camera recovery — see _onTabVisible. The browser relayout
+    // on refocus can scroll the world camera into the void; this re-anchors
+    // it once the viewport settles.
+    this._onTabVisibleBound = () => this._onTabVisible()
+    window.addEventListener('focus', this._onTabVisibleBound)
+    document.addEventListener('visibilitychange', this._onTabVisibleBound)
 
     // MiniMap lives on a dedicated HUD scene that doesn't share our world
     // camera's zoom/scroll. Launch it now and hand it the references it
@@ -275,6 +289,11 @@ export class Game extends Phaser.Scene {
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
     this.scale.off('resize', this._onSceneResize, this)
+    if (this._onTabVisibleBound) {
+      window.removeEventListener('focus', this._onTabVisibleBound)
+      document.removeEventListener('visibilitychange', this._onTabVisibleBound)
+      this._onTabVisibleBound = null
+    }
     this.scene.stop('HudScene')
     this._dungeonRenderer?.destroy()
     this.adventurerRenderer?.destroy()
@@ -288,6 +307,7 @@ export class Game extends Phaser.Scene {
     this.fountainRenderer?.destroy()
     this.treasureChestRenderer?.destroy()
     this.darkDealDemonRenderer?.destroy()
+    this.gamblerImpRenderer?.destroy()
     this.minionInspector?.destroy()
     this.chatBubbles?.destroy()
     this.aiSystem?.destroy()
@@ -513,13 +533,60 @@ export class Game extends Phaser.Scene {
   _onDungeonEventBegan({ def }) {
     if (def?.id === 'blood_moon_eclipse') {
       this._buildBloodMoonOverlay()
+      return
     }
+    // Day-long state-modifier events get a flat colour wash so the
+    // player sees the effect is live all day (same idea as Blood Moon).
+    const tints = {
+      dense_fog:    { color: 0xaab4be, alpha: 0.30 },
+      miasma:       { color: 0x4f7a3a, alpha: 0.24 },
+      arcane_storm: { color: 0x6a3acc, alpha: 0.20 },
+    }
+    const t = tints[def?.id]
+    if (t) this._buildEventTint(t.color, t.alpha)
   }
 
   _onDungeonEventEnded({ def }) {
     if (def?.id === 'blood_moon_eclipse') {
       this._destroyBloodMoonOverlay()
+      return
     }
+    this._destroyEventTint()
+  }
+
+  // Generic flat colour wash for day-long state events (fog / miasma /
+  // arcane storm). Kept separate from the Blood Moon overlay, which has
+  // its own two-band treatment.
+  _buildEventTint(color, alpha) {
+    if (this._eventTintOverlay) this._destroyEventTint()
+    if (!this.cameras?.main) return
+    const layer = this.add.graphics().setScrollFactor(0).setDepth(110).setAlpha(0)
+    const paint = () => {
+      const cm = this.cameras?.main
+      if (!cm) return
+      layer.clear()
+      layer.fillStyle(color, alpha)
+      layer.fillRect(0, 0, cm.width, cm.height)
+    }
+    paint()
+    this._eventTintOverlay = layer
+    this._eventTintPaint   = paint
+    this.tweens.add({ targets: layer, alpha: 1, duration: 650 })
+    this.scale.on('resize', paint, this)
+  }
+
+  _destroyEventTint() {
+    if (this._eventTintPaint) {
+      this.scale.off('resize', this._eventTintPaint, this)
+      this._eventTintPaint = null
+    }
+    const layer = this._eventTintOverlay
+    if (!layer) return
+    this._eventTintOverlay = null
+    this.tweens.add({
+      targets: layer, alpha: 0, duration: 400,
+      onComplete: () => layer.destroy(),
+    })
   }
 
   _buildBloodMoonOverlay() {
@@ -841,33 +908,69 @@ export class Game extends Phaser.Scene {
   // state has settled before we sample / restore the centred world point.
   _onSceneResize() {
     if (!this._cam) return
-    const boss = this.gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     // Snapshot the world point the player was looking at BEFORE the resize
     // settles, taken from the most recent update() tick. midPoint computed
     // mid-resize would mix the new viewport size with old scrollX, returning
-    // a wrong world point. Fall back to boss centre if update() hasn't run.
-    let wX = this._camWorldCX
-    let wY = this._camWorldCY
-    if (wX === undefined) {
-      wX = boss ? (boss.gridX + boss.width  / 2) * TS : 0
-      wY = boss ? (boss.gridY + boss.height / 2) * TS : 0
-    }
+    // a wrong world point.
+    const wX = this._camWorldCX
+    const wY = this._camWorldCY
     if (this._pendingResizeRaf) cancelAnimationFrame(this._pendingResizeRaf)
     this._pendingResizeRaf = requestAnimationFrame(() => {
       this._pendingResizeRaf = null
-      if (!this._cam || !this.scene.isActive()) return
-      const minZ = this._computeMinZoom()
-      if (this._cam.zoom < minZ) this._cam.setZoom(minZ)
-      // Re-centre on the world point the player was watching, against
-      // the new play-area centre rather than the canvas centre.
-      const pa = this._computePlayArea()
-      const playCx = pa.left + (pa.sw - pa.left - pa.right) / 2
-      const playCy = pa.top  + (pa.sh - pa.top  - pa.bottom) / 2
-      const _z = this._cam.zoom
-      this._cam.scrollX = wX - this._cam.centerX - (playCx - this._cam.centerX) / _z
-      this._cam.scrollY = wY - this._cam.centerY - (playCy - this._cam.centerY) / _z
-      this._clampCameraToPlayArea()
+      this._reanchorCamera(wX, wY)
     })
+  }
+
+  // Re-anchor the world camera on `(wX, wY)` — the player's last look-point —
+  // against the CURRENT viewport. Shared by the resize handler and the
+  // tab-refocus recovery. Bails (returns false) while the viewport is
+  // degenerate (a mid-relayout 0×0 collapse) so a transient never writes a
+  // garbage scroll/zoom. Returns true once it has anchored successfully.
+  _reanchorCamera(wX, wY) {
+    if (!this._cam || !this.scene.isActive()) return false
+    if (this.scale.width < 2 || this.scale.height < 2) return false
+    if (wX === undefined || wY === undefined) {
+      const boss = this.gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+      wX = boss ? (boss.gridX + boss.width  / 2) * TS : 0
+      wY = boss ? (boss.gridY + boss.height / 2) * TS : 0
+    }
+    const minZ = this._computeMinZoom()
+    if (this._cam.zoom < minZ) this._cam.setZoom(minZ)
+    // Re-centre on the look-point against the play-area centre (between the
+    // HUD panels), not the canvas centre.
+    const pa = this._computePlayArea()
+    const playCx = pa.left + (pa.sw - pa.left - pa.right) / 2
+    const playCy = pa.top  + (pa.sh - pa.top  - pa.bottom) / 2
+    const z = this._cam.zoom
+    this._cam.scrollX = wX - this._cam.centerX - (playCx - this._cam.centerX) / z
+    this._cam.scrollY = wY - this._cam.centerY - (playCy - this._cam.centerY) / z
+    this._clampCameraToPlayArea()
+    return true
+  }
+
+  // Tab-refocus recovery. When the player clicks away from the game and
+  // back, the browser re-lays-out the page and the game container can
+  // briefly collapse to 0×0; that transient can scroll the WORLD camera
+  // into the void (canvas + DOM HUD stay fine, so the dungeon just reads
+  // as an all-dark play area).
+  //
+  // Recovery is CLAMP-ONLY: _clampCameraToPlayArea pulls the camera back
+  // into valid bounds if it drifted off, but is a no-op when the camera is
+  // already valid — so a normal tab-back never nudges the view. (An
+  // earlier version re-anchored the camera here, which re-framed it to the
+  // play-area centre on every refocus and visibly shifted the dungeon.)
+  // Fired at a few delays so it still lands once the relayout settles.
+  _onTabVisible() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+    for (const delay of [0, 150, 400, 800]) {
+      setTimeout(() => {
+        if (!this._cam || !this.scene.isActive()) return
+        if (this.scale.width < 2 || this.scale.height < 2) return
+        const minZ = this._computeMinZoom()
+        if (this._cam.zoom < minZ) this._cam.setZoom(minZ)
+        this._clampCameraToPlayArea()
+      }, delay)
+    }
   }
 
   _onBossLeveledUp({ newLevel }) {
@@ -1112,12 +1215,23 @@ export class Game extends Phaser.Scene {
   }
 
   update(_time, delta) {
-    // Store the world point currently at the camera centre so _onSceneResize
-    // can restore it after the viewport is updated by Phaser's scale manager.
-    // midPoint is the zoom-aware world-space centre of the camera; using
-    // scrollX+centerX is only correct at zoom=1.
-    this._camWorldCX = this._cam.midPoint.x
-    this._camWorldCY = this._cam.midPoint.y
+    // Capture the world point currently at the PLAY-AREA centre (the gap
+    // between the HUD panels) so _onSceneResize can re-anchor on it after a
+    // viewport change. The camera FRAMES on the play-area centre, not the
+    // canvas centre — so this capture is the exact inverse of the scroll
+    // formula in _reanchorCamera. Capturing the canvas-centre midPoint
+    // instead made every re-anchor shift the view by the canvas-vs-play-
+    // area offset, which surfaced as the dungeon nudging on each tab
+    // refocus. Skipped on a degenerate 0×0 frame so a mid-relayout
+    // transient can't overwrite the last good value with garbage.
+    if (this.scale.width >= 2 && this.scale.height >= 2) {
+      const pa = this._computePlayArea()
+      const playCx = pa.left + (pa.sw - pa.left - pa.right) / 2
+      const playCy = pa.top  + (pa.sh - pa.top  - pa.bottom) / 2
+      const cx = this._cam.centerX, cy = this._cam.centerY, z = this._cam.zoom
+      this._camWorldCX = this._cam.scrollX + cx + (playCx - cx) / z
+      this._camWorldCY = this._cam.scrollY + cy + (playCy - cy) / z
+    }
 
     const speed = Balance.CAMERA_SCROLL_SPEED / this._cam.zoom
 

@@ -15,6 +15,7 @@
 
 import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
+import { pactLabel } from '../util/displayNames.js'
 
 // Color palette + glyphs MUST stay in sync with RightPanels.js LOG_KINDS
 // so the live dungeon log and the full-run log read identically. Notes:
@@ -121,7 +122,7 @@ export class FullLogOverlay {
         const rarity = (p.rarity || 'common').toUpperCase()
         dayEvents.push({
           t: '02:30', kind: 'pact',
-          text: `PACT SEALED · ${p.mechanicId} (${rarity})`,
+          text: `PACT SEALED · ${pactLabel(p.mechanicId)} (${rarity})`,
         })
       }
       dayEvents.push({ t: '06:00', kind: 'day-phase', text: `Dawn breaks · Day ${d} begins` })

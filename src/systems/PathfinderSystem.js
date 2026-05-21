@@ -11,6 +11,13 @@ const WALKABLE = new Set([
   TILE.DOOR,
 ])
 
+// Per-tile cost added for a "soft" obstacle (collision item / solid trap
+// the caller flagged as passable-as-last-resort). Large enough that any
+// detour around it is always cheaper — A* only routes THROUGH a soft
+// obstacle when there is genuinely no other way. Dwarfs any real path
+// length on dungeons up to ~100×100 tiles.
+const SOFT_BLOCK_COST = 100000
+
 export class PathfinderSystem {
   /**
    * Standard A* with Manhattan heuristic.
@@ -29,9 +36,14 @@ export class PathfinderSystem {
    * @param {DungeonGrid} dungeonGrid
    * @param {(tx:number, ty:number) => number} [costFn] returns multiplier (default 1)
    * @param {number} [jitter=0] random per-tile cost noise amplitude
+   * @param {Set<string>} [blockedTiles] hard-blocked tile keys ("x,y") — skipped entirely
+   * @param {{softBlocked?:Set<string>, softTraps?:boolean}} [opts] soft-obstacle handling:
+   *        `softBlocked` tiles and (when `softTraps`) solid traps cost SOFT_BLOCK_COST
+   *        instead of hard-blocking, so the path routes around them but can pass
+   *        through as a last resort rather than failing entirely.
    * @returns {Array<{x:number,y:number}> | null}
    */
-  static findPath(start, end, dungeonGrid, costFn = null, jitter = 0, blockedTiles = null) {
+  static findPath(start, end, dungeonGrid, costFn = null, jitter = 0, blockedTiles = null, opts = null) {
     if (start.x === end.x && start.y === end.y) return []
 
     const tiles = dungeonGrid.getTiles()
@@ -78,10 +90,24 @@ export class PathfinderSystem {
         // occupy a floor tile (pillars, barrels, etc.). Goal tile is exempt
         // so something can still path to a unit standing next to a decor.
         if (nKey !== eKey && dungeonGrid.isSolidDecor?.(nx, ny)) continue
+        // Solid traps (cannon / bomb / spike pillar / rotating blades) are
+        // physical blockers — units route around them. Goal tile exempt.
+        // `opts.softTraps` (adventurer pathing) downgrades them to a heavy
+        // detour cost instead of a hard block, so an adv whose ONLY route
+        // runs through one walks through rather than failing to path.
+        let softPenalty = 0
+        if (nKey !== eKey && dungeonGrid.isSolidTrap?.(nx, ny)) {
+          if (opts?.softTraps) softPenalty += SOFT_BLOCK_COST
+          else continue
+        }
         // Mimic chests + any other dynamic blockers the caller wants
         // to route around (chest mimics on the floor, etc.). Goal tile
         // is exempt — the only way to reveal a chest is to walk onto it.
         if (nKey !== eKey && blockedTiles?.has?.(nKey)) continue
+        // Soft blockers — collision items (Beacon / Fountain / Treasure
+        // Chest) the caller wants routed around when possible but passable
+        // as a last resort. Same heavy-cost treatment as softTraps.
+        if (nKey !== eKey && opts?.softBlocked?.has?.(nKey)) softPenalty += SOFT_BLOCK_COST
 
         let tileCost = costFn ? Math.max(1, costFn(nx, ny)) : 1
         if (jitterCache) {
@@ -92,6 +118,7 @@ export class PathfinderSystem {
           }
           tileCost *= mul
         }
+        tileCost += softPenalty
         const tentativeG = (gScore[currKey] ?? Infinity) + tileCost
         if (tentativeG < (gScore[nKey] ?? Infinity)) {
           cameFrom[nKey] = currKey

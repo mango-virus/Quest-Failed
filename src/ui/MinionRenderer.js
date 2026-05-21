@@ -29,6 +29,13 @@ const ATTACK_FLASH_MS  = 400
 const WALK_MIN_DELTA   = 0.15
 const WALK_SAMPLE_MS   = 120
 const TS               = 32     // tile size — minion sprites are world-space, this matches Balance.TILE_SIZE
+// Ambush/hidden minions (Vampire Sleep on Ceiling, generic ambush) are
+// invisible to the adventurer AI, but the PLAYER should still see a faint
+// ghost of them so placement reads at a glance. Rendered at this alpha
+// instead of 0 — fainter than camouflage (0.5) to keep the "hidden" state
+// distinct. NOTE: Golem Camouflaged Pillar is exempt — golems render fully
+// opaque to the player even while _hidden (see the per-tick visibility block).
+const HIDDEN_ALPHA     = 0.28
 // Per-evolution-tier scale multipliers — each tier renders bigger.
 // Indexed by chain position (tier 1 → tier 4).
 const EVOLUTION_TIER_SCALE = [1.0, 1.3, 1.6, 1.9]
@@ -139,7 +146,6 @@ export class MinionRenderer {
         s.hp?.setVisible?.(false)
         s.hpBg?.setVisible?.(false)
         s.lvLabel?.setVisible?.(false)
-        s.bountyMark?.setVisible?.(false)
         if (!s.chestOverlay) {
           const cg = this._scene.add.graphics()
           // Box body
@@ -243,11 +249,17 @@ export class MinionRenderer {
       // Phase 1b.6 — Lizardman Camouflage: player can see camouflaged minions
       // but they're translucent so the camo state reads at a glance.
       if (m._camouflaged) alpha *= 0.5
-      // Pass-3: Vampire Sleep on Ceiling / Golem Camouflaged Pillar — fully
-      // hidden until the trigger condition flips _hidden off (adv enters
-      // room for Vampire, adv steps adjacent for Golem). Adventurers also
-      // skip _hidden minions in target acquisition (see MinionAISystem).
-      if (m._hidden) alpha *= 0.0
+      // Pass-3: Vampire Sleep on Ceiling / generic ambush — hidden until
+      // the trigger condition flips _hidden off (adv enters room).
+      // Adventurers skip _hidden minions in target acquisition (see
+      // MinionAISystem) so the ambush still works — but the PLAYER sees a
+      // faint ghost (HIDDEN_ALPHA) so they know the minion is lying in wait.
+      // Golem Camouflaged Pillar is exempt: golems stay fully opaque to the
+      // player even while _hidden (their _hidden flag still drives the AI
+      // ambush, but per design they must not look faded).
+      if (m._hidden && !String(m.definitionId ?? '').startsWith('golem')) {
+        alpha *= HIDDEN_ALPHA
+      }
       const tx = (m.worldX / TS) | 0
       const ty = (m.worldY / TS) | 0
       if (this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)) alpha *= 0.55
@@ -287,18 +299,17 @@ export class MinionRenderer {
         }
       }
 
-      // Level badge + bounty mark
+      // Status badge — combined bounty star + level, in one centred label.
       const lv = m.level ?? 1
-      if (lv >= 2 && s._lastLv !== lv) {
-        s.lvLabel.setText(`L${lv}`).setVisible(true)
+      const hasBounty = !!m.hasBounty
+      if (s._lastLv !== lv || s._lastBounty !== hasBounty) {
         s._lastLv = lv
-      } else if (lv < 2 && s._lastLv !== lv) {
-        s.lvLabel.setVisible(false)
-        s._lastLv = lv
-      }
-      if (m.hasBounty !== s._lastBounty) {
-        s.bountyMark.setVisible(!!m.hasBounty)
-        s._lastBounty = !!m.hasBounty
+        s._lastBounty = hasBounty
+        const parts = []
+        if (hasBounty) parts.push('★')
+        if (lv >= 2)   parts.push(`LV ${lv}`)
+        const txt = parts.join(' ')
+        s.lvLabel.setText(txt).setVisible(txt.length > 0)
       }
 
       // Phase 1b.1 — Orc Loot the Fallen badge. Show "+N" on orc-tagged
@@ -621,15 +632,13 @@ export class MinionRenderer {
     const hpBg = s.add.rectangle(0,            hpY, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5).setVisible(false)
     const hp   = s.add.rectangle(-hpBarW / 2,  hpY, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5).setVisible(false)
 
-    const lvLabel = s.add.text(8, hpY - 7, '', {
-      fontSize: '7px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
+    // Status badge — combined bounty star (★) + level (LV n), as ONE
+    // label centred above the HP bar so the pair always reads centred on
+    // the minion. Built each tick from m.hasBounty + m.level.
+    const lvLabel = s.add.text(0, hpY - 7, '', {
+      fontSize: '8px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
       stroke: '#0a0e16', strokeThickness: 2,
-    }).setOrigin(0, 0.5).setVisible(false)
-
-    // Bounty star sits just above the HP bar; lvLabel shares the same row offset to its right.
-    const bountyMark = s.add.text(0, hpY - 7, '★', {
-      fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setVisible(false)
+    }).setOrigin(0.5, 0.5).setVisible(false)
 
     // Phase 1b.1 — Orc Loot the Fallen badge. Bottom-left of the sprite,
     // mirroring lvLabel's bottom-right placement. Hidden until lootAtkBonus > 0
@@ -639,7 +648,7 @@ export class MinionRenderer {
       stroke: '#0a0e16', strokeThickness: 2,
     }).setOrigin(0, 1).setVisible(false)
 
-    c.add([sprite, hpBg, hp, lvLabel, bountyMark, lootBadge])
+    c.add([sprite, hpBg, hp, lvLabel, lootBadge])
 
     // Pixel-perfect hit testing on the sprite itself — pointer events only
     // register on non-transparent pixels of the actual art. Containers can't
@@ -668,7 +677,7 @@ export class MinionRenderer {
     })
 
     const rec = {
-      container: c, sprite, body: null, hp, hpBg, hpBarW, lvLabel, bountyMark, lootBadge,
+      container: c, sprite, body: null, hp, hpBg, hpBarW, lvLabel, lootBadge,
       facing: 'down', currentAnim: null,
       lastX: null, lastY: null, lastHp: null,
       sampleX: 0, sampleY: 0, sampleAt: 0, isMoving: false,
@@ -699,14 +708,12 @@ export class MinionRenderer {
     const hpBg = s.add.rectangle(0,           hpYP, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5).setVisible(false)
     const hp   = s.add.rectangle(-SIZE / 2,   hpYP, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5).setVisible(false)
 
-    const lvLabel = s.add.text(8, hpYP - 7, '', {
-      fontSize: '7px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
+    // Status badge — combined bounty star (★) + level (LV n), one centred
+    // label (see the sprite-path twin above for the rationale).
+    const lvLabel = s.add.text(0, hpYP - 7, '', {
+      fontSize: '8px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
       stroke: '#0a0e16', strokeThickness: 2,
-    }).setOrigin(0, 0.5).setVisible(false)
-
-    const bountyMark = s.add.text(0, hpYP - 7, '★', {
-      fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setVisible(false)
+    }).setOrigin(0.5, 0.5).setVisible(false)
 
     // Phase 1b.1 — Orc Loot the Fallen badge (placeholder path mirrors sprite path).
     const lootBadge = s.add.text(-SIZE / 2 + 1, SIZE / 2 - 2, '', {
@@ -714,7 +721,7 @@ export class MinionRenderer {
       stroke: '#0a0e16', strokeThickness: 2,
     }).setOrigin(0, 1).setVisible(false)
 
-    c.add([body, label, hpBg, hp, lvLabel, bountyMark, lootBadge])
+    c.add([body, label, hpBg, hp, lvLabel, lootBadge])
 
     // Placeholder has no texture for pixel-perfect — use the body's default
     // rectangle bounds (matches the visible square). Marker
@@ -733,7 +740,7 @@ export class MinionRenderer {
     })
 
     const rec = {
-      container: c, sprite: null, body, hp, hpBg, hpBarW, lvLabel, bountyMark, lootBadge,
+      container: c, sprite: null, body, hp, hpBg, hpBarW, lvLabel, lootBadge,
       facing: 'down', currentAnim: null,
       lastX: null, lastY: null, lastHp: null,
       sampleX: 0, sampleY: 0, sampleAt: 0, isMoving: false,

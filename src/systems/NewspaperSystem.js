@@ -17,6 +17,7 @@
 // is middle management; adventurers are clients who lodge complaints.
 
 import { EventBus } from './EventBus.js'
+import { classLabel } from '../util/displayNames.js'
 
 export class NewspaperSystem {
   constructor(scene, gameState) {
@@ -93,7 +94,7 @@ export class NewspaperSystem {
       const lines = deaths.slice(0, 4).map(e => {
         const adv = e.payload?.adventurer
         const klr = e.payload?.killerName ?? 'something'
-        return `  · ${adv?.name ?? 'Anonymous'} the ${adv?.classId ?? 'hopeful'} (${klr})`
+        return `  · ${adv?.name ?? 'Anonymous'} the ${classLabel(adv?.classId, 'hopeful')} (${klr})`
       })
       body.push(`Today the dungeon processed ${deaths.length} adventurer${_s(deaths.length)} into a fresh haul of gold. Notable departures:`)
       body.push(...lines)

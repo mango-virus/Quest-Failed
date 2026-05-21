@@ -23,7 +23,8 @@ import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { adventurerDisplayLevel } from '../config/balance.js'
 import { pixelSprite } from './sprites.js'
-import { snapshotAdventurer } from './inGameSnapshot.js'
+import { snapshotAdventurerEntity } from './inGameSnapshot.js'
+import { pactLabel } from '../util/displayNames.js'
 
 // AI-side `ADVENTURER_FLED` events carry a `reason` code that's useful
 // for systems but reads as dev jargon in the player-facing log
@@ -35,6 +36,9 @@ import { snapshotAdventurer } from './inGameSnapshot.js'
 const FLEE_REASON_FLAVOR = {
   // ── Path / goal failures ────────────────────────────────────────
   goal_unreachable:    n => `${n} can't find a way through and flees the dungeon!`,
+  blocked_by_lock:     n => `${n} is sealed off by a locked door and flees the dungeon!`,
+  no_route:            n => `${n} is boxed in with no way through and flees the dungeon!`,
+  goal_lost:           n => `${n} finds their target gone and flees the dungeon!`,
   oscillation:         n => `${n} loses their nerve and bolts for the exit!`,
   tour_complete:       n => `${n} has mapped enough — they head for home.`,
 
@@ -372,16 +376,33 @@ export class RightPanels {
     ])
   }
 
+  // Resolve an adventurer class id to its player-facing display name
+  // (adventurerClasses.json). Raw dev ids — cosplay_adventurer,
+  // tournament_rival_warrior, loot_goblin — must never reach the UI.
+  _classLabel(classId) {
+    if (!classId) return 'Adventurer'
+    const game = window.__game
+    for (const s of (game?.scene?.scenes || [])) {
+      const arr = s.cache?.json?.get?.('adventurerClasses')
+      if (Array.isArray(arr)) {
+        const def = arr.find(d => d.id === classId)
+        if (def?.name) return def.name
+        break
+      }
+    }
+    return classId
+  }
+
   // `idx` is the adventurer's position in the forecast party — it lines
   // up 1:1 with AdvIntelOverlay's night-phase list (both order
   // [vendettaHunter?, ...preview.classIds]), so clicking a tile opens
   // the Adventurer Intel page focused on that exact adventurer.
   _renderPartyTile(p, idx = 0) {
     // p.kind is the sprite-grid key (knight / cleric / monk / etc.);
-    // p.classId is the original adventurer class id used as the visible
-    // label so players see real class names ("MAGE", "RANGER") instead
-    // of the underlying sprite family.
-    const label = String(p.classId || p.kind || '').toUpperCase()
+    // p.classId is the original adventurer class id — resolve it through
+    // adventurerClasses.json so the tile shows the real class display
+    // name ("Cosplayer", "Loot Goblin") instead of the raw dev id.
+    const label = String(this._classLabel(p.classId) || p.kind || 'Adventurer').toUpperCase()
     // Real LPC adventurer sprite from the baked spritesheets — same
     // texture the in-game AdventurerRenderer uses. Falls back to the
     // procedural pixelSprite when the LPC texture isn't loaded yet
@@ -395,7 +416,7 @@ export class RightPanels {
     // that will spawn tomorrow, not a generic class placeholder.
     // Falls back to bare classId (snapshotAdventurer defaults to v01)
     // for legacy saves / event-replacement spawns with no pre-roll.
-    const advSnap = snapshotAdventurer(p.spriteVariant || p.classId || p.kind, 48)
+    const advSnap = snapshotAdventurerEntity(p, 48)
     const spriteEl = advSnap
       ? (() => {
           advSnap.classList.add('qf-wave-tile-adv')
@@ -519,6 +540,7 @@ export class RightPanels {
       // normal wave (additive event), so the badge total counts them.
       finalCount = preview.count + (preview.vendettaHunter ? 1 : 0)
                  + (preview.tournamentRivalCount ?? 0)
+                 + (preview.saboteurCount ?? 0)
     }
     return { count: finalCount, threatPct, notes, party }
   }
@@ -578,14 +600,25 @@ export class RightPanels {
     const variantList = Array.isArray(preview.spriteVariants) ? preview.spriteVariants : []
     for (let i = 0; i < preview.classIds.length; i++) {
       const id = preview.classIds[i]
-      party.push({
+      const tile = {
         kind:    _advKind(id),
         classId: id,
         spriteVariant: variantList[i] ?? null,
         lv:      waveLevel,
         veteran: knownByClass.has(id) && rand() < 0.15,
-      })
+      }
+      // Event waves carry pre-rolled sprites parallel to classIds —
+      // minionSheets[i] for rival monsters / zombies, bossSkin for the
+      // rival boss — so the tile shows the real creature.
+      if (Array.isArray(preview.minionSheets) && preview.minionSheets[i]) {
+        tile._minionSheet = preview.minionSheets[i]
+      }
+      if (preview.bossSkin && id === 'rival_boss_invader') {
+        tile._rivalBossSpriteKey = preview.bossSkin
+      }
+      party.push(tile)
     }
+
     return party
   }
 
@@ -627,7 +660,7 @@ export class RightPanels {
   _intelReport() {
     const sys = this._knowledgeSystem()
     if (sys?.getIntelReport) return sys.getIntelReport()
-    return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, leakedRoomCount: 0 }
+    return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, items: {}, leakedRoomCount: 0 }
   }
 
   _renderIntel() {
@@ -691,6 +724,7 @@ export class RightPanels {
     }
     const roomDefs = cached('rooms')
     const trapDefs = cached('trapTypes')
+    const itemDefs = cached('items')
     const lookupRoomName = (instanceId) => {
       const r = rooms.find(x => x.instanceId === instanceId)
       const d = roomDefs.find(x => x.id === r?.definitionId)
@@ -701,6 +735,14 @@ export class RightPanels {
       const d = trapDefs.find(x => x.id === t?.definitionId)
       return d?.name ?? t?.definitionId ?? instanceId
     }
+    // Item intel keys are item-entity instanceIds; resolve through the
+    // sharedPool's stored itemType (the report only carries id → tier).
+    const itemPool = this._gameState.knowledge?.sharedPool?.items ?? {}
+    const lookupItemName = (instanceId) => {
+      const itemType = itemPool[instanceId]?.itemType
+      const d = itemDefs.find(x => x.id === itemType)
+      return d?.name ?? itemType ?? instanceId
+    }
     const out = []
     for (const [id, tier] of Object.entries(report.rooms ?? {})) {
       out.push({ label: lookupRoomName(id), lvl: tier })
@@ -710,6 +752,9 @@ export class RightPanels {
     }
     for (const [id, tier] of Object.entries(report.enemiesPerRoom ?? {})) {
       out.push({ label: `Enemies in ${lookupRoomName(id)}`, lvl: tier })
+    }
+    for (const [id, tier] of Object.entries(report.items ?? {})) {
+      out.push({ label: lookupItemName(id), lvl: tier })
     }
     const seen = new Set()
     const uniq = []
@@ -776,11 +821,18 @@ export class RightPanels {
       this._listeners.push([event, fn])
     }
     sub('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
-      const cls  = adventurer?.className || adventurer?.classId || 'Adventurer'
+      // Resolve the class id to its display name — `className` is never
+      // populated on the entity, so without this the log would print
+      // the raw dev id ("cosplay_adventurer entered the dungeon").
+      const cls  = adventurer?.className || this._classLabel(adventurer?.classId)
       const name = adventurer?.name || 'Unnamed'
       this._addLog(`${name} (${cls}) entered the dungeon.`, 'spawn')
     })
     sub('ADVENTURER_DIED', ({ adventurer, killerName }) => {
+      // Event-spawned monster waves (zombie horde, rival dungeon) are
+      // tagged `_monster`. They die in bulk and would flood the log with
+      // kill lines — skip their death messages so the feed stays readable.
+      if (adventurer?._monster) return
       const name = adventurer?.name || 'Adventurer'
       const k = killerName ? ` by ${killerName}` : ''
       this._addLog(`${name} slain${k}.`, 'kill')
@@ -815,7 +867,7 @@ export class RightPanels {
     })
     sub('PACT_SEALED', ({ mechanicId, rarity }) => {
       const tag = rarity ? rarity.toUpperCase() : 'PACT'
-      this._addLog(`${tag} pact sealed: ${mechanicId}.`, 'pact')
+      this._addLog(`${tag} pact sealed: ${pactLabel(mechanicId)}.`, 'pact')
     })
     sub('BOSS_LEVELED_UP', ({ toLevel }) => {
       this._addLog(`The boss ascends — level ${toLevel || '?'}.`, 'level')
@@ -863,6 +915,10 @@ export class RightPanels {
       const n = adventurer?.name || 'A vendetta hunter'
       this._addLog(`${n} comes for revenge.`, 'veteran')
     })
+    sub('BOUNTY_HUNTER_ARRIVED', ({ minion } = {}) => {
+      const t = minion?.name || 'a marked minion'
+      this._addLog(`A bounty hunter enters, hunting ${t}.`, 'veteran')
+    })
     sub('LEGENDARY_HERO_ARRIVED', ({ adventurer } = {}) => {
       const n = adventurer?.name || 'A legendary hero'
       this._addLog(`★ ${n} arrives.`, 'veteran')
@@ -908,6 +964,7 @@ export class RightPanels {
         r: report.rooms,
         t: report.traps,
         n: report.enemiesPerRoom,
+        i: report.items,
       })
       if (sig !== this._intelSig) { this._intelSig = sig; this._renderIntel() }
     }

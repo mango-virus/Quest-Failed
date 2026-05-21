@@ -7,6 +7,8 @@ import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
 // CombatLog removed in Phase 31C — DungeonLog (HudScene right column) replaces it.
 import { DossierPanel }   from '../ui/DossierPanel.js'
 import { PauseManager }   from '../systems/PauseManager.js'
+import { classLabel }     from '../util/displayNames.js'
+import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 
 const TOP_H    = 48
 const BOTTOM_H = 56
@@ -18,8 +20,6 @@ export class DayPhase extends Phaser.Scene {
     this._timeScale   = Balance.TIME_SCALE_NORMAL
     this._timeBtns    = []  // { bg, txt, scale, x, y, w, h }
     this._statsTexts  = {}
-    this._inspector   = null
-    this._inspectedId = null
     this._allOutTimer = null
     this._listeners   = []
     this._followText  = null
@@ -64,7 +64,6 @@ export class DayPhase extends Phaser.Scene {
     // The legacy methods stay on the class as dead code; their internal
     // stores (e.g., this._statsTexts) are never populated, so _refreshStats
     // and _refreshEndDayButton early-return.
-    this._buildInspectorTemplate(W, H)
     this._setTimeScale(Balance.TIME_SCALE_NORMAL)
 
     this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
@@ -96,6 +95,20 @@ export class DayPhase extends Phaser.Scene {
       if (this._didSpawnToday) return
       this._didSpawnToday = true
       const spawned = this._spawnDailyAdventurers() ?? []
+      // Event-replacement waves (speedrunner, cartographers, saboteur,
+      // zombie horde, loot goblins, bounty-hunter pack, rival dungeon)
+      // are event-specific — flag every member so they can never return
+      // later as a Hero (KnowledgeSystem.rollReturnLeader skips flagged
+      // survivors). The additive Tournament rivals are flagged inside
+      // _spawnTournamentRivals instead.
+      const _ef = this._gameState._eventFlags ?? {}
+      if (_ef.lootGoblinHeistActive || _ef.legendarySpeedrunnerActive ||
+          _ef.cartographersConventionActive || _ef.bountyHuntersActive ||
+          _ef.zombieHordeActive || _ef.saboteurActive || _ef.rivalDungeonActive) {
+        for (const a of spawned) {
+          if (a) { a.flags ??= {}; a.flags.eventAdventurer = true }
+        }
+      }
       this._refreshStats()
       if (spawned.length > 0) this._focusCameraOnEntry()
     }
@@ -118,19 +131,36 @@ export class DayPhase extends Phaser.Scene {
     }
   }
 
-  // Brief camera pan + zoom to the entry_hall so the player can watch the
+  // Brief camera pan + zoom to the entry hall(s) so the player can watch the
   // first adventurer(s) physically enter the dungeon.
   _focusCameraOnEntry() {
-    const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-    if (!entry) return
+    const entries = this._gameState.dungeon.rooms.filter(r => r.definitionId === 'entry_hall')
+    if (entries.length === 0) return
     const gameScene = this.scene.get('Game')
     const cam = gameScene?.cameras?.main
     if (!cam) return
 
     const TS = Balance.TILE_SIZE
-    const wx = (entry.gridX + entry.width / 2) * TS
-    const wy = (entry.gridY + entry.height / 2) * TS
-    const targetZoom = Math.min(1.4, Balance.CAMERA_ZOOM_MAX)
+    // Frame every entry hall — a wave can pour out of 1-3 doorways at once.
+    // Centre on the bounding box of all of them; with more than one entry,
+    // zoom out just enough to fit the spread (clamped so it never goes
+    // uselessly far). A single entry keeps the original tight framing.
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const e of entries) {
+      minX = Math.min(minX, e.gridX)
+      minY = Math.min(minY, e.gridY)
+      maxX = Math.max(maxX, e.gridX + e.width)
+      maxY = Math.max(maxY, e.gridY + e.height)
+    }
+    const wx = ((minX + maxX) / 2) * TS
+    const wy = ((minY + maxY) / 2) * TS
+    let targetZoom = Math.min(1.4, Balance.CAMERA_ZOOM_MAX)
+    if (entries.length > 1) {
+      const boxW = Math.max(1, (maxX - minX) * TS)
+      const boxH = Math.max(1, (maxY - minY) * TS)
+      const fit = Math.min((cam.width * 0.85) / boxW, (cam.height * 0.85) / boxH)
+      targetZoom = Math.max(0.5, Math.min(targetZoom, fit))
+    }
     const targetScrollX = wx - cam.centerX
     const targetScrollY = wy - cam.centerY
 
@@ -165,7 +195,7 @@ export class DayPhase extends Phaser.Scene {
       }).setOrigin(0.5, 0).setDepth(34)
 
     const names = spawned.map(a =>
-      `${a.name} (${this._capitalize(a.classId ?? '?')})`
+      `${a.name} (${classLabel(a.classId)})`
     ).join('  ·  ')
     const sub = this.add.text(W / 2, by + 36, names, {
       fontSize: '10px', color: PALETTE.textGold, fontFamily: 'monospace',
@@ -414,81 +444,6 @@ export class DayPhase extends Phaser.Scene {
     b.label.setStyle({ color: enabled ? PALETTE.textAccent : PALETTE.textDim })
   }
 
-  // ── Inspector panel (right side) ───────────────────────────────────────────
-
-  _buildInspectorTemplate(W, H) {
-    const pw = 260
-    const ph = 280
-    const px = W - pw - 16
-    const py = TOP_H + 16
-
-    const g = this.add.graphics().setDepth(25).setVisible(false)
-    glowPanel(g, px, py, pw, ph, {
-      fill: 0x06060e, border: 0xddaa22, glow: 0x886600,
-    })
-
-    const heading = this.add.text(px + 12, py + 10, '', {
-      fontSize: '12px', color: PALETTE.textGold, fontFamily: 'monospace', fontStyle: 'bold',
-    }).setDepth(26).setVisible(false)
-
-    const subtitle = this.add.text(px + 12, py + 26, '', {
-      fontSize: '9px', color: PALETTE.textDim, fontFamily: 'monospace',
-    }).setDepth(26).setVisible(false)
-
-    const body = this.add.text(px + 12, py + 50, '', {
-      fontSize: '10px', color: PALETTE.textNormal, fontFamily: 'monospace',
-      lineSpacing: 4, wordWrap: { width: pw - 24 },
-    }).setDepth(26).setVisible(false)
-
-    const closeBtn = this.add.text(px + pw - 12, py + 8, '×', {
-      fontSize: '16px', color: PALETTE.textDim, fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(1, 0).setDepth(27).setInteractive({ useHandCursor: true }).setVisible(false)
-    closeBtn.on('pointerdown', () => this._closeInspector())
-
-    this._inspector = { g, heading, subtitle, body, closeBtn, px, py, pw, ph }
-  }
-
-  _showInspector(adv) {
-    this._inspectedId = adv.instanceId
-    const ps = this.scene.get('Game').personalitySystem
-    const i  = this._inspector
-    i.heading.setText(adv.name)
-    i.subtitle.setText(`${this._capitalize(adv.classId)}  ·  ${adv.aiState}`)
-
-    const personalityNames = (adv.personalityIds ?? [])
-      .map(pid => ps?.getDefinition(pid)?.name ?? pid)
-      .join(' / ') || '—'
-
-    const goalText = adv.goal.type === 'EXPLORE_ROOM'
-      ? `EXPLORE_ROOM (${(adv.goal.roomId ?? '').slice(0, 12)})`
-      : adv.goal.type
-
-    const lines = [
-      `HP         ${adv.resources.hp}/${adv.resources.maxHp}`,
-      `Attack     ${adv.stats.attack}`,
-      `Defense    ${adv.stats.defense}`,
-      `Speed      ${adv.stats.speed.toFixed(1)} t/s`,
-      ``,
-      `Personality`,
-      `  ${personalityNames}`,
-      ``,
-      `Goal       ${goalText}`,
-      `Visited    ${adv.visitedRooms?.length ?? 0} rooms`,
-      `Party      ${adv.partyId ? adv.partyId.slice(0, 14) : 'solo'}`,
-    ]
-    // Phase 5c — combos retired; row removed.
-    i.body.setText(lines.join('\n'))
-    ;[i.g, i.heading, i.subtitle, i.body, i.closeBtn].forEach(o => o.setVisible(true))
-  }
-
-  _closeInspector() {
-    this._inspectedId = null
-    const i = this._inspector
-    ;[i.g, i.heading, i.subtitle, i.body, i.closeBtn].forEach(o => o.setVisible(false))
-  }
-
-  _capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : '' }
-
   // Phase 7b: filter vendettas to just those whose target minion is still alive
   _pickActiveVendetta() {
     const list = this._gameState.vendettas ?? []
@@ -515,27 +470,6 @@ export class DayPhase extends Phaser.Scene {
     adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
     adv.resources.hp    = adv.resources.maxHp
     adv.stats.attack    = Math.round(adv.stats.attack * atkMul)
-  }
-
-  // Returning leader briefs party members: copies leader's known rooms/traps/minions
-  // with 'told' source so the adventurer treats them as known but second-hand.
-  _copyLeaderKnowledgeToFollower(leader, follower) {
-    follower.knowledge ??= { rooms: {}, traps: {}, minions: {} }
-    for (const [roomId, entry] of Object.entries(leader.knowledge?.rooms ?? {})) {
-      if (!follower.knowledge.rooms[roomId]) {
-        follower.knowledge.rooms[roomId] = { ...entry, source: 'told', visited: false, visitCount: 0 }
-      }
-    }
-    for (const [trapId, entry] of Object.entries(leader.knowledge?.traps ?? {})) {
-      if (!follower.knowledge.traps[trapId]) {
-        follower.knowledge.traps[trapId] = { ...entry, source: 'told' }
-      }
-    }
-    for (const [minionId, entry] of Object.entries(leader.knowledge?.minions ?? {})) {
-      if (!follower.knowledge.minions[minionId]) {
-        follower.knowledge.minions[minionId] = { ...entry, source: 'told' }
-      }
-    }
   }
 
   // ── Spawn ──────────────────────────────────────────────────────────────────
@@ -578,6 +512,25 @@ export class DayPhase extends Phaser.Scene {
     if ((this._gameState._eventFlags ?? {}).rivalDungeonActive) {
       return this._spawnRivalDungeon()
     }
+    // Dungeon event: Bounty Hunters — a pack out to slay the player's
+    // strongest minion replaces the normal wave.
+    if ((this._gameState._eventFlags ?? {}).bountyHuntersActive) {
+      return this._spawnBountyHunterWave()
+    }
+    // Dungeon event: Zombie Horde — a massive shamble of weak undead
+    // replaces the normal wave.
+    if ((this._gameState._eventFlags ?? {}).zombieHordeActive) {
+      return this._spawnZombieHorde()
+    }
+    // Dungeon event: The Saboteur — a masked rogue joins the normal
+    // daily wave (additive, like the Tournament). They tour the dungeon
+    // disabling every trap for the day, then flee. _spawnSaboteur pushes
+    // the saboteur into adventurers.active; we fall through so the
+    // regular wave spawns alongside them.
+    if ((this._gameState._eventFlags ?? {}).saboteurActive) {
+      this._spawnSaboteur()
+      // No `return` — keep going so the normal wave spawns alongside.
+    }
 
     let spawn = aiSystem.pickSpawnTile()
     if (!spawn) {
@@ -587,11 +540,11 @@ export class DayPhase extends Phaser.Scene {
       // the dungeon is genuinely disconnected, but the player sees
       // activity instead of an empty day.  The banner still warns them
       // about the broken connectivity.
-      const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-      if (entry) {
-        // Match AISystem.pickSpawnTile — drop the adventurer at the entry
-        // hall doorway so the entry contract stays consistent on fallback.
-        spawn = entryDoorTile(entry)
+      const fallbackSpawn = this._fallbackEntrySpawn()
+      if (fallbackSpawn) {
+        // Match AISystem.pickSpawnTile — drop the adventurer at a random
+        // entry hall doorway so the entry contract stays consistent.
+        spawn = fallbackSpawn
         this._statsTexts.activeCount.setText('Adventurers can\'t reach your boss — fix the path.')
         this._showNoSpawnBanner()
       } else {
@@ -659,6 +612,24 @@ export class DayPhase extends Phaser.Scene {
     // baseCount stage so the existing trickle/cadence logic stretches it
     // automatically).
     if ((this._gameState._eventFlags ?? {}).guildRaidActive) baseCount *= 2
+    // Dungeon event: Infamy Spike — a swollen wave (+50%) of hero-grade
+    // adventurers. The per-adv hero buff is applied in the spawn loop.
+    if ((this._gameState._eventFlags ?? {}).infamySpikeActive) {
+      baseCount = Math.round(baseCount * 1.5)
+    }
+    // Dungeon event hangover: a claimed Cursed Relic DOUBLES every
+    // adventurer wave for as long as the cursed chest sits in the
+    // dungeon — the player can SELL it to lift the curse. A daily toast
+    // makes the ongoing curse visible.
+    const hasCursedRelic = (this._gameState.dungeon?.treasureChests ?? [])
+      .some(c => c._cursed)
+    if (hasCursedRelic) {
+      baseCount = baseCount * 2
+      EventBus.emit('SHOW_TOAST', {
+        message: 'The cursed relic doubles the adventurer wave',
+        type: 'leak',
+      })
+    }
     // Dungeon event: Negotiation Day — outcome was decided during the
     // prior night via the SHOW_CONFIRM modal. PAY = no adventurers today
     // (free day). REFUSE = today's wave is +50%. Both apply to the same
@@ -707,11 +678,12 @@ export class DayPhase extends Phaser.Scene {
       : (vendetta && Math.random() < 0.35)   // no preview → original behavior
     if (vendetta && _vendettaActive) {
       const hunterClass = allClasses.find(c => c.id === vendetta.claimantClass) ?? classes[0]
-      const hunter = createAdventurer(hunterClass, { x: spawn.x, y: spawn.y })
+      const vhSpawn = aiSystem.pickSpawnTile() ?? spawn
+      const hunter = createAdventurer(hunterClass, { x: vhSpawn.x, y: vhSpawn.y })
       hunter.name      = `${vendetta.avengeeName.split(' ').slice(-1)[0]}'s Sibling`
       hunter.partyId   = partyId
-      hunter.spawnTileX = spawn.x
-      hunter.spawnTileY = spawn.y
+      hunter.spawnTileX = vhSpawn.x
+      hunter.spawnTileY = vhSpawn.y
       hunter.flags     = { vendettaMinionId: vendetta.minionInstanceId, vendettaItemId: vendetta.itemInstanceId }
       hunter.goal      = { type: 'SEEK_VENDETTA', minionId: vendetta.minionInstanceId, itemId: vendetta.itemInstanceId }
       this._gameState.adventurers.active.push(hunter)
@@ -719,6 +691,45 @@ export class DayPhase extends Phaser.Scene {
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: hunter })
       EventBus.emit('VENDETTA_HUNTER_ARRIVED', { adventurer: hunter, vendetta })
       vendettaHunter = hunter
+    }
+
+    // Bounty hunter — when a dungeon minion has a bounty on its head
+    // (earned at 3+ kills), a specialist hunter has a chance each day to
+    // enter specifically to slay it. Spawned outside the wave count, like
+    // the vendetta hunter; stronger than a normal adventurer and worth
+    // extra gold (AISystem applies BOUNTY_HUNTER_GOLD_MULT on the kill).
+    const bountyTarget = (this._gameState.minions ?? []).find(m =>
+      m && m.hasBounty && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
+    if (bountyTarget && Math.random() < Balance.BOUNTY_HUNTER_SPAWN_CHANCE) {
+      const hClass = allClasses.find(c => c.id === 'ranger')
+                  ?? classes[Math.floor(Math.random() * classes.length)]
+      const bhSpawn = aiSystem.pickSpawnTile() ?? spawn
+      const hunter = createAdventurer(hClass, { x: bhSpawn.x, y: bhSpawn.y })
+      hunter.name       = 'Bounty Hunter'
+      hunter.partyId    = partyId
+      hunter.spawnTileX = bhSpawn.x
+      hunter.spawnTileY = bhSpawn.y
+      hunter.flags      = { bountyHunter: true, bountyTargetId: bountyTarget.instanceId }
+      // Reuses SEEK_VENDETTA — the generic "hunt this specific minion" goal.
+      hunter.goal       = { type: 'SEEK_VENDETTA', minionId: bountyTarget.instanceId }
+      // Dedicated bounty-hunter LPC sprite. Gameplay class stays `ranger`
+      // (its abilities still work); the renderer keys the spritesheet off
+      // the class embedded in spriteVariant, so this paints the baked
+      // bounty_hunter art. Falls back to the ranger sheet if unbaked.
+      const _bhVariants = this.cache.json.get('adventurerManifest')?.variants?.bounty_hunter
+      if (Array.isArray(_bhVariants) && _bhVariants.length) {
+        const _bhv = _bhVariants[Math.floor(Math.random() * _bhVariants.length)]
+        hunter.spriteVariant = `bounty_hunter/${_bhv.id}`
+      }
+      // Scaled like any adventurer, then buffed — clearly stronger.
+      this._scaleAdventurerByBossLevel(hunter, dungeonLv)
+      hunter.resources.maxHp = Math.round(hunter.resources.maxHp * Balance.BOUNTY_HUNTER_HP_MULT)
+      hunter.resources.hp    = hunter.resources.maxHp
+      hunter.stats.attack    = Math.round((hunter.stats.attack ?? 0) * Balance.BOUNTY_HUNTER_ATK_MULT)
+      this._gameState.adventurers.active.push(hunter)
+      spawned.push(hunter)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: hunter })
+      EventBus.emit('BOUNTY_HUNTER_ARRIVED', { adventurer: hunter, minion: bountyTarget })
     }
 
     if (returningRecord) {
@@ -729,7 +740,8 @@ export class DayPhase extends Phaser.Scene {
       count = partySize
       // The returning veteran leads the wave, carrying their accumulated map.
       const leaderClass = allClasses.find(c => c.id === returningRecord.classId) ?? classes[0]
-      const leader = createAdventurer(leaderClass, { x: spawn.x, y: spawn.y })
+      const ldSpawn = aiSystem.pickSpawnTile() ?? spawn
+      const leader = createAdventurer(leaderClass, { x: ldSpawn.x, y: ldSpawn.y })
       // Reuse the survivor's instanceId so identity carries across runs:
       // _updateSurvivorRecord finds the same record on a re-flee (runCount
       // keeps accumulating), and KnowledgeSystem._onAdventurerDied can purge
@@ -738,8 +750,8 @@ export class DayPhase extends Phaser.Scene {
       leader.name           = returningRecord.name
       leader.personalityIds = [...(returningRecord.personalityIds ?? [])]
       leader.partyId        = partyId
-      leader.spawnTileX     = spawn.x
-      leader.spawnTileY     = spawn.y
+      leader.spawnTileX     = ldSpawn.x
+      leader.spawnTileY     = ldSpawn.y
       // Restore accumulated knowledge + set the returningVeteran /
       // runsCompleted flags the renderer + dossier read.
       knowledgeSystem.initKnowledgeForSurvivor(leader, returningRecord)
@@ -807,9 +819,19 @@ export class DayPhase extends Phaser.Scene {
         _previewCursor++
       }
       if (!cls) cls = classes[Math.floor(Math.random() * classes.length)]
-      const offset = i === 0 ? { x: 0, y: 0 } : { x: (i % 2 === 0 ? 1 : -1), y: Math.floor(i / 2) }
-      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
-      const adv    = createAdventurer(cls, tile)
+      // Each adventurer rolls its own entry hall (pickSpawnTile picks a
+      // random connected entrance verified to reach the boss), so a wave
+      // naturally splits across all of them and every adv starts on a
+      // valid, path-connected tile. NO manual offset: the old code added
+      // a per-index offset (floor(i/2) on Y) to de-stack advs sharing an
+      // entry, but on a large wave that pushed late-index adventurers
+      // many tiles off the entry hall — into walls — where they couldn't
+      // path to their goal and instantly fled "can't find a way through".
+      // The renderer snaps each adv to the doorway and staggers the
+      // fade-in, so stacking on one tile is purely cosmetic.
+      const advSpawn = aiSystem.pickSpawnTile() ?? spawn
+      const tile     = { x: advSpawn.x, y: advSpawn.y }
+      const adv      = createAdventurer(cls, tile)
       // Stamp the pre-rolled variant so the in-game LPC renderer uses
       // the same sprite the wave preview showed. Skipped when no
       // pre-roll exists (legacy saves, event-replacement spawns).
@@ -826,6 +848,18 @@ export class DayPhase extends Phaser.Scene {
 
       // Phase 7b: scale adventurer stats with dungeon level
       this._scaleAdventurerByBossLevel(adv, dungeonLv)
+
+      // Dungeon event: Infamy Spike — every adventurer in the wave is a
+      // hardened hero (tougher, harder-hitting) and carries the `hero`
+      // flag the renderer reads for the gold hero treatment + badge.
+      if ((this._gameState._eventFlags ?? {}).infamySpikeActive) {
+        adv.flags ??= {}
+        adv.flags.hero = true
+        adv.resources.maxHp = Math.round(adv.resources.maxHp * 1.6)
+        adv.resources.hp    = adv.resources.maxHp
+        adv.stats.attack    = Math.round((adv.stats.attack  ?? 0) * 1.5)
+        adv.stats.defense   = Math.round((adv.stats.defense ?? 0) * 1.3)
+      }
 
       // Flat 5% chance to promote the lead spawn to a legendary hero.
       if (i === 0 && !returnLeaderInjected && Math.random() < 0.05) {
@@ -854,13 +888,11 @@ export class DayPhase extends Phaser.Scene {
         ? 1.0
         : Balance.KNOWLEDGE_FRESH_INHERIT_CHANCE
       knowledgeSystem?.initKnowledgeForSpawn?.(adv, inheritFraction)
-
-      // If there's a returning leader, the rest of the party also gets the leader's
-      // knowledge as "told" (full intel, slightly degraded accuracy) — design intent:
-      // "with all of their party knowing what he knows from his last visit"
-      if (returnLeaderInjected && spawned[0]?.knowledge) {
-        this._copyLeaderKnowledgeToFollower(spawned[0], adv)
-      }
+      // When a veteran leads the wave, inheritFraction is 1.0 (set above), so
+      // every follower already inherits the full shared pool — which includes
+      // the returning leader's accumulated intel. That satisfies the design
+      // intent ("all of their party knowing what he knows from his last
+      // visit") with no separate leader-briefing step.
 
       this._gameState.adventurers.active.push(adv)
       spawned.push(adv)
@@ -946,6 +978,168 @@ export class DayPhase extends Phaser.Scene {
     return spawned
   }
 
+  // Dungeon event: Bounty Hunters. A full pack enters specifically to
+  // slay the player's strongest minion — every hunter locks onto the
+  // highest-level living minion via the generic SEEK_VENDETTA goal. If
+  // the player has no minions, the hunters just seek the boss instead.
+  _spawnBountyHunterWave() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const hClass = allClasses.find(c => c.id === 'ranger') ?? allClasses[0]
+    if (!hClass) return []
+    const dungeonLv = this._gameState.boss?.level ?? 1
+    // Target = the player's highest-level living minion.
+    const target = (this._gameState.minions ?? [])
+      .filter(m => m && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
+      .sort((a, b) => (b.level ?? 1) - (a.level ?? 1))[0] ?? null
+    const bhVariants = this.cache.json.get('adventurerManifest')?.variants?.bounty_hunter
+    const PACK_SIZE = 5
+    const partyId   = `bounty_pack_${Date.now()}`
+    const spawned   = []
+    // Consume the LPC variants NightPhase pre-rolled onto the preview so
+    // the pack matches the IncomingWave panel; roll fresh otherwise.
+    const _bhDay  = this._gameState.meta?.dayNumber ?? 1
+    const _bhPrev = this._gameState.run?.nextWavePreview
+    const _bhVarsPre = (_bhPrev && _bhPrev.day === _bhDay
+      && _bhPrev.eventType === 'bountyHunters' && Array.isArray(_bhPrev.spriteVariants))
+      ? _bhPrev.spriteVariants : null
+    for (let i = 0; i < PACK_SIZE; i++) {
+      const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+      if (!spawn) break
+      const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: Math.floor(i / 2) }
+      const hunter = createAdventurer(hClass, { x: spawn.x + offset.x, y: spawn.y + offset.y })
+      hunter.name       = 'Bounty Hunter'
+      hunter.partyId    = partyId
+      hunter.spawnTileX = spawn.x + offset.x
+      hunter.spawnTileY = spawn.y + offset.y
+      hunter.flags      = { bountyHunter: true }
+      if (target) {
+        hunter.flags.bountyTargetId = target.instanceId
+        // SEEK_VENDETTA is the generic "hunt this specific minion" goal.
+        hunter.goal = { type: 'SEEK_VENDETTA', minionId: target.instanceId }
+      }
+      if (_bhVarsPre?.[i]) {
+        hunter.spriteVariant = _bhVarsPre[i]
+      } else if (Array.isArray(bhVariants) && bhVariants.length) {
+        const v = bhVariants[Math.floor(Math.random() * bhVariants.length)]
+        hunter.spriteVariant = `bounty_hunter/${v.id}`
+      }
+      this._scaleAdventurerByBossLevel(hunter, dungeonLv)
+      hunter.resources.maxHp = Math.round(hunter.resources.maxHp * Balance.BOUNTY_HUNTER_HP_MULT)
+      hunter.resources.hp    = hunter.resources.maxHp
+      hunter.stats.attack    = Math.round((hunter.stats.attack ?? 0) * Balance.BOUNTY_HUNTER_ATK_MULT)
+      this._gameState.adventurers.active.push(hunter)
+      if (!target) aiSystem.pickInitialGoal(hunter)
+      spawned.push(hunter)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: hunter })
+    }
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
+  // Dungeon event: Zombie Horde. A massive shamble of slow, weak undead
+  // floods the dungeon. They use normal invader AI — maul anything in
+  // their path, then push for the boss — and never flee. Rendered with
+  // the zombie MINION sheets, varied across tiers 1-3 for visual variety.
+  _spawnZombieHorde() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const chassis = allClasses.find(c => c.id === 'monster_invader') ?? allClasses[0]
+    if (!chassis) return []
+    const SHEETS = ['minion-zombie1', 'minion-zombie2', 'minion-zombie3']
+    const partyId = `zombie_horde_${Date.now()}`
+    const dungeonLv = this._gameState.boss?.level ?? 1
+    // Horde size scales with boss level so the swarm grows over the run.
+    const HORDE_SIZE = Balance.ZOMBIE_HORDE_BASE
+      + Balance.ZOMBIE_HORDE_PER_BOSS_LV * Math.max(0, dungeonLv - 1)
+    const spawned = []
+    // Consume the sheet set NightPhase pre-rolled onto the IncomingWave
+    // preview so the horde matches what the intel panels showed; roll
+    // fresh per-zombie if the preview is missing/stale.
+    const _zDay  = this._gameState.meta?.dayNumber ?? 1
+    const _zPrev = this._gameState.run?.nextWavePreview
+    const _zSheets = (_zPrev && _zPrev.day === _zDay
+      && _zPrev.eventType === 'zombieHorde' && Array.isArray(_zPrev.minionSheets))
+      ? _zPrev.minionSheets : null
+    for (let i = 0; i < HORDE_SIZE; i++) {
+      // One fresh entry-hall door tile per zombie. pickSpawnTile only ever
+      // returns a doorway verified to reach the boss, so every shambler
+      // starts on a valid, path-connected tile. NO manual offset: the old
+      // code added a per-index offset (floor(i/2) on Y) that pushed late
+      // zombies in a large horde dozens of tiles off the entry — into
+      // walls / out of bounds — where they couldn't path and instantly
+      // fled "can't find a way through". The renderer snaps everyone to
+      // the doorway and staggers the fade-in, so stacking on one tile is
+      // purely cosmetic and resolves as they walk off. (Mirrors the
+      // offset-free spawn in _spawnRivalDungeon.)
+      const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+      if (!spawn) break
+      const z = createAdventurer(chassis, { x: spawn.x, y: spawn.y })
+      z.name       = 'Shambler'
+      z.partyId    = partyId
+      z.spawnTileX = spawn.x
+      z.spawnTileY = spawn.y
+      // Slow, weak, relentless — and they never flee.
+      z.resources.maxHp = Math.max(1, Math.round((z.resources.maxHp ?? 30) * 0.5))
+      z.resources.hp    = z.resources.maxHp
+      z.stats.attack    = Math.max(1, Math.round((z.stats.attack ?? 6) * 0.6))
+      z.stats.speed     = (z.stats.speed ?? 1.4) * 0.55
+      z.flags = { noFlee: true }
+      // Scale with boss level + day like a normal adventurer (applied on
+      // top of the slow/weak multipliers above) so a late-game horde is
+      // still a real threat instead of trivial chip damage.
+      this._scaleAdventurerByBossLevel(z, dungeonLv)
+      // Monsters, not adventurers — suppresses chat bubbles + emotes and
+      // plays the minion death animation (AdventurerRenderer / ChatBubbles
+      // / EmoteSystem all key off `_monster`).
+      z._monster = true
+      // AdventurerRenderer keys off `_minionSheet`. Prefer the pre-rolled
+      // sheet from the preview; otherwise vary across the three zombie
+      // tiers so the horde doesn't read as identical clones.
+      z._minionSheet = _zSheets?.[i]
+        ?? SHEETS[Math.floor(Math.random() * SHEETS.length)]
+      this._gameState.adventurers.active.push(z)
+      aiSystem.pickInitialGoal(z)
+      spawned.push(z)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: z })
+    }
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
+  // Dungeon event: The Saboteur. A masked rogue joins the normal daily
+  // wave (additive event). Tagged `_saboteur` + `_invulnerable`: AISystem
+  // routes them trap-to-trap disabling each one for the day, minions
+  // ignore them, and they take no damage. Once every trap is disabled
+  // they flee. Fast-moving and dark-tinted (AdventurerRenderer) so the
+  // sabotage run reads as a quick all-black-ninja montage.
+  _spawnSaboteur() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const rogueDef = allClasses.find(c => c.id === 'rogue') ?? allClasses[0]
+    if (!rogueDef) return []
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+    const adv = createAdventurer(rogueDef, { x: spawn.x, y: spawn.y })
+    adv.name          = 'The Saboteur'
+    adv._saboteur     = true
+    adv._invulnerable = true
+    adv.partyId       = null
+    // Fast — the sabotage run should read as a quick montage.
+    adv.stats.speed   = (adv.stats.speed ?? 1.4) * 2.0
+    this._gameState.adventurers.active.push(adv)
+    aiSystem.pickInitialGoal(adv)
+    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
+    return [adv]
+  }
+
   // Dungeon event: Legendary Speed Runner. One buffed adv replaces the
   // entire wave. Knight chassis (highest base HP) doubled in every stat,
   // tagged with `_speedrunner` so AISystem skips engagement and goal
@@ -1008,8 +1202,11 @@ export class DayPhase extends Phaser.Scene {
     const spawned    = []
     for (let i = 0; i < PARTY_SIZE; i++) {
       const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: 0 }
-      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
-      const adv    = createAdventurer(scholarDef, tile)
+      // Each scholar rolls its own entry hall so the convention splits
+      // across every connected entrance, same as a normal wave.
+      const advSpawn = aiSystem.pickSpawnTile() ?? spawn
+      const tile     = { x: advSpawn.x + offset.x, y: advSpawn.y + offset.y }
+      const adv      = createAdventurer(scholarDef, tile)
       adv._cartographer = true
       adv.partyId       = partyId
       this._gameState.adventurers.active.push(adv)
@@ -1056,8 +1253,11 @@ export class DayPhase extends Phaser.Scene {
     const spawned = []
     for (let i = 0; i < rivalDefs.length; i++) {
       const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: 0 }
-      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
-      const adv    = createAdventurer(rivalDefs[i], tile)
+      // Each rival rolls its own entry hall so the trio enters from across
+      // the dungeon before scattering to their hunt rooms.
+      const advSpawn = aiSystem.pickSpawnTile() ?? spawn
+      const tile     = { x: advSpawn.x + offset.x, y: advSpawn.y + offset.y }
+      const adv      = createAdventurer(rivalDefs[i], tile)
       adv._tournamentRival = true
       // Per-rival kill counter — drives the kill-buff stacking + sprite
       // growth. Starts at 0; EventSystem increments it on a rival-kill.
@@ -1066,6 +1266,8 @@ export class DayPhase extends Phaser.Scene {
       // the same flag glory_hounds / schism set (AISystem._setFleeGoal).
       adv.flags = adv.flags ?? {}
       adv.flags.noFlee = true
+      // Event-specific — Tournament rivals must never return as a Hero.
+      adv.flags.eventAdventurer = true
       // Solo party id per rival — the rivalry is the entire point, no
       // shared-party perks.
       adv.partyId = `tournament_rival_${i}`
@@ -1111,15 +1313,46 @@ export class DayPhase extends Phaser.Scene {
     const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
     if (!spawn) return []
 
-    const PACK_SIZE = 4
+    // The rival dungeon sends one monster per adventurer that would have
+    // come in a normal wave today — so the invasion scales with the run —
+    // but never fewer than the original pack of 4.
+    const PACK_SIZE = Math.max(4, this._normalWaveSize())
     const partyId   = `rival_dungeon_${Date.now()}`
     const spawned   = []
+    // The invading pack wears actual minion art (so the rival dungeon
+    // reads as a monster horde, not humanoid adventurers). Consume the
+    // sprite set NightPhase pre-rolled onto the IncomingWave preview so
+    // the spawn matches exactly what the intel panels showed. The preview
+    // only forecasts the first 4 monsters, so a fresh full-size roll
+    // backs any extras beyond those previewed.
+    const day = this._gameState.meta?.dayNumber ?? 1
+    const _rdPreview = this._gameState.run?.nextWavePreview
+    const _rdUsePreview = !!_rdPreview && _rdPreview.day === day
+      && _rdPreview.eventType === 'rivalDungeon'
+    const _rdRolled = rollRivalDungeonSprites(
+      this.cache.json.get('minionEvolutions') ?? {},
+      this._gameState.player?.bossArchetypeId, PACK_SIZE)
+    const _rdMinionSheets = _rdRolled.minionSheets.slice()
+    if (_rdUsePreview && Array.isArray(_rdPreview.minionSheets)) {
+      _rdPreview.minionSheets.forEach((s, i) => { if (s) _rdMinionSheets[i] = s })
+    }
+    const _rdBossSkin = (_rdUsePreview && _rdPreview.bossSkin)
+      ? _rdPreview.bossSkin
+      : _rdRolled.bossSkin
     for (let i = 0; i < PACK_SIZE; i++) {
-      const offset = i === 0 ? { x: 0, y: 0 } : { x: ((i % 2 === 0) ? 1 : -1), y: Math.floor(i / 2) }
-      const tile   = { x: spawn.x + offset.x, y: spawn.y + offset.y }
-      const adv    = createAdventurer(monsterDef, tile)
+      // Per-monster spawn tile (the renderer snaps everyone to a doorway +
+      // staggers the fade-in, so a manual offset is dead weight and just
+      // risks landing a body on an unwalkable tile).
+      const tile = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn() ?? spawn
+      const adv  = createAdventurer(monsterDef, tile)
       adv._monsterInvader = true
       adv.partyId         = partyId
+      // A rival dungeon's troops are here to win — they commit, never flee.
+      adv.flags = { ...(adv.flags ?? {}), noFlee: true }
+      // Monsters, not adventurers — no chat bubbles / emotes, minion
+      // death animation.
+      adv._monster = true
+      if (_rdMinionSheets[i]) adv._minionSheet = _rdMinionSheets[i]
       this._gameState.adventurers.active.push(adv)
       aiSystem.pickInitialGoal(adv)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
@@ -1129,19 +1362,20 @@ export class DayPhase extends Phaser.Scene {
     // Rival boss spawns last, slightly behind the pack. Marked as both
     // a monster invader (for any flag-based hooks) AND _rivalBoss for
     // the kill-bonus + simple AI override (always SEEK_BOSS).
-    const bossTile = { x: spawn.x, y: spawn.y - 1 }
+    const bossTile = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn() ?? spawn
     const rival    = createAdventurer(bossDef, bossTile)
     rival._monsterInvader = true
     rival._rivalBoss      = true
     rival.isLegendary     = true   // pulses the LEGENDARY_HERO_ARRIVED chrome
     rival.partyId         = partyId
-    // Pick a random boss-archetype sprite for the rival (exclude the
-    // player's own archetype so the visual contrast reads). Save-stable.
-    const playerArchetype = this._gameState.player?.bossArchetypeId
-    const ARCHETYPES = ['beholder','demon','gnoll','golem','lich','lizardman','myconid','orc','vampire','wraith']
-    const candidates = ARCHETYPES.filter(a => a !== playerArchetype)
-    rival._rivalBossSpriteKey = candidates[Math.floor(Math.random() * candidates.length)]
-    rival.name = `${rival._rivalBossSpriteKey.charAt(0).toUpperCase() + rival._rivalBossSpriteKey.slice(1)} Pretender`
+    // The boss commits to the throne-room showdown — never flees.
+    rival.flags = { ...(rival.flags ?? {}), noFlee: true }
+    // A monster, not an adventurer — no chat bubbles / emotes.
+    rival._monster = true
+    // The rival boss is a T3 minion final-form — it renders with a
+    // boss-archetype skin (pre-rolled above so it matches the preview).
+    rival._rivalBossSpriteKey = _rdBossSkin
+    rival.name = `${_rdBossSkin.charAt(0).toUpperCase() + _rdBossSkin.slice(1)} Champion`
     this._gameState.adventurers.active.push(rival)
     aiSystem.pickInitialGoal(rival)
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: rival })
@@ -1152,12 +1386,30 @@ export class DayPhase extends Phaser.Scene {
     return spawned
   }
 
+  // Best-estimate of how many adventurers a normal (event-free) wave
+  // would field today — base growth + Treasury draw + flat boss-mechanic
+  // extras. Mirrors the `baseCount` build-up in the regular spawn flow
+  // (minus event modifiers). Used by replacement events (Rival Dungeon)
+  // that want to match the wave the player would otherwise have faced.
+  _normalWaveSize() {
+    const day = this._gameState.meta?.dayNumber ?? 1
+    let n = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+    const treasuryCount = (this._gameState.dungeon?.rooms ?? [])
+      .filter(r => r.definitionId === 'treasury' && r.isActive !== false).length
+    n += treasuryCount
+    const mech = this._gameState._mechanicFlags ?? {}
+    if (mech.goldRush) n += 1
+    n += mech.extraAdvsPerDay ?? 0
+    return Math.max(1, n)
+  }
+
   // Reused by the speedrunner spawner — picks the entry hall doorway tile
   // when AISystem.pickSpawnTile rejects (e.g. a temporarily blocked path).
   // Same logic as the regular spawn fallback.
   _fallbackEntrySpawn() {
-    const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-    if (!entry) return null
+    const entries = this._gameState.dungeon.rooms.filter(r => r.definitionId === 'entry_hall')
+    if (entries.length === 0) return null
+    const entry = entries[Math.floor(Math.random() * entries.length)]
     return entryDoorTile(entry)
   }
 
@@ -1235,18 +1487,7 @@ export class DayPhase extends Phaser.Scene {
   // ── Event wiring ───────────────────────────────────────────────────────────
 
   _wireEvents() {
-    const onClick = ({ adventurer }) => this._showInspector(adventurer)
-    const onChange = () => {
-      this._refreshStats()
-      if (this._inspectedId &&
-          !this._gameState.adventurers.active.some(a => a.instanceId === this._inspectedId)) {
-        this._closeInspector()
-      }
-      if (this._inspectedId) {
-        const adv = this._gameState.adventurers.active.find(a => a.instanceId === this._inspectedId)
-        if (adv) this._showInspector(adv)
-      }
-    }
+    const onChange = () => this._refreshStats()
     const onCombo = ({ combo }) => this._showComboBanner(combo)
     const onDeath = (data) => {
       onChange()
@@ -1258,14 +1499,12 @@ export class DayPhase extends Phaser.Scene {
       this._followText.setText(id && name ? `▶ ${name}` : '')
     }
 
-    EventBus.on('ADVENTURER_CLICKED',           onClick)
     EventBus.on('ADVENTURER_DIED',              onDeath)
     EventBus.on('ADVENTURER_FLED',              onChange)
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
     EventBus.on('CAMERA_FOLLOW_CHANGED',        onFollow)
     EventBus.on('PERSONALITY_COMBO_ACTIVATED',  onCombo)
     this._listeners = [
-      ['ADVENTURER_CLICKED',          onClick],
       ['ADVENTURER_DIED',             onDeath],
       ['ADVENTURER_FLED',             onChange],
       ['ADVENTURER_ENTERED_DUNGEON',  onChange],

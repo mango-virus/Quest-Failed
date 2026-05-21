@@ -142,6 +142,11 @@ export class BossFightOverlay {
       className: 'qf-bossfight-bar-track',
       ref: el => { this._barTrack = el },
     }, [
+      // White chip-damage ghost — sits behind the fill (first in DOM).
+      h('div', {
+        className: 'qf-bossfight-bar-ghost',
+        ref: el => { this._barGhost = el },
+      }),
       h('div', {
         className: 'qf-bossfight-bar-fill',
         ref: el => { this._barFill = el },
@@ -207,8 +212,12 @@ export class BossFightOverlay {
     if (frac > 0.5)        color = 'var(--poison)'
     else if (frac > 0.25)  color = 'var(--gold)'
     else                   color = 'var(--hp-low, #ff5544)'
-    this._barFill.style.width      = `${(frac * 100).toFixed(2)}%`
+    const pct = `${(frac * 100).toFixed(2)}%`
+    this._barFill.style.width      = pct
     this._barFill.style.background = color
+    // White chip-damage ghost — lags behind the fill so HP just lost
+    // flashes white then drains away (mirrors the top-bar HP chip bar).
+    if (this._barGhost) this._barGhost.style.width = pct
   }
 
   // ─── Resolve ───────────────────────────────────────────────────

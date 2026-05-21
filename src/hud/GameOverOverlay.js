@@ -21,11 +21,12 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { pixelSprite, spriteKindForDefId } from './sprites.js'
-import { snapshotMinion } from './inGameSnapshot.js'
+import { snapshotMinion, snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { classLabel, minionLabel } from '../util/displayNames.js'
 
 export class GameOverOverlay {
   constructor(gameState) {
@@ -277,7 +278,7 @@ export class GameOverOverlay {
           h('div', { className: 'qf-go-mvpcol' }, [
             this._mvpCard(
               'MVP MINION',
-              mvpMinion ? (mvpMinion.name || mvpMinion.definitionId || '?') : '— none —',
+              mvpMinion ? (mvpMinion.name || minionLabel(mvpMinion.definitionId)) : '— none —',
               mvpMinion ? `${mvpMinion.lifetime?.kills ?? 0}☠` : '—',
               'var(--poison)',
               mvpMinion
@@ -297,10 +298,11 @@ export class GameOverOverlay {
             ),
             this._mvpCard(
               'FINAL BLOW',
-              final ? `${final.name} · ${(final.classId || '?').toUpperCase()}` : '— unknown —',
+              final ? `${final.name} · ${classLabel(final.classId).toUpperCase()}` : '— unknown —',
               final ? `LV ${final.level ?? final.lv ?? 1}` : '—',
               'var(--blood)',
-              final ? pixelSprite(spriteKindForDefId(final.classId), 28) : null,
+              final ? (snapshotAdventurerEntity(final, 28)
+                || pixelSprite(spriteKindForDefId(final.classId), 28)) : null,
             ),
           ]),
         ]),

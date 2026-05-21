@@ -3,11 +3,13 @@ import { SaveSystem }    from '../systems/SaveSystem.js'
 import { TILE, DungeonGrid as DungeonGridClass } from '../systems/DungeonGrid.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { createMinion }  from '../entities/Minion.js'
-import { createTrap }    from '../entities/Trap.js'
+import { createTrap, trackTiles } from '../entities/Trap.js'
 import { Balance }       from '../config/balance.js'
 import { PALETTE, glowPanel, glowRect, makeBar, drawRoomIcon, spawnEmbers, applyUiCamera, showToast } from '../ui/UIKit.js'
 import { ThemeManager, spriteCoverage } from '../systems/ThemeManager.js'
 import { PauseManager }   from '../systems/PauseManager.js'
+import { minionLabel }    from '../util/displayNames.js'
+import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -30,6 +32,12 @@ const CAT_COLOR = {
   combat:   0xcc2244,
   utility:  0x22cc88,
   default:  0x0088cc,
+}
+
+// Cardinal direction → unit tile vector (trap facing / wall-trap LOS).
+const DIR = {
+  N: { dx: 0, dy: -1 }, S: { dx: 0, dy: 1 },
+  E: { dx: 1, dy: 0 },  W: { dx: -1, dy: 0 },
 }
 
 export class NightPhase extends Phaser.Scene {
@@ -77,6 +85,7 @@ export class NightPhase extends Phaser.Scene {
     this._paletteScrollY = 0
     this._lastPlaced   = null
     this._rotation     = 0
+    this._trapFacing   = 'S'   // cannon / saw track orientation while placing a trap
     // Phase 31D — action-bar tool mode: 'sell' | 'move' | 'rotate' | null.
     // When armed, the next click on a placed room executes the action.
     this._toolMode     = null
@@ -86,6 +95,8 @@ export class NightPhase extends Phaser.Scene {
     // anything else. ESC during this state rolls back the staged lock.
     //   { stage: 'awaiting_chest', doorTiles: [{x,y}], goldCost: number }
     this._pendingTradeOff = null
+    // MOVE tool — the placed trap currently being relocated (or null).
+    this._heldMoveTrap = null
   }
 
   create() {
@@ -158,6 +169,14 @@ export class NightPhase extends Phaser.Scene {
   // events so the preview stays accurate as the player changes the
   // dungeon mid-night. Emits WAVE_PREVIEW_UPDATED so RightPanels can
   // re-render.
+  // Returns a same-day preview of the SAME event, if one exists — used so
+  // an event's pre-rolled sprite arrays stay STABLE across the per-room-
+  // placement re-rolls instead of reshuffling every time. null = roll fresh.
+  _priorEventPreview(day, eventType) {
+    const p = this._gameState.run?.nextWavePreview
+    return (p && p.day === day && p.eventType === eventType) ? p : null
+  }
+
   _rollNextWavePreview() {
     const gs = this._gameState
     if (!gs?.meta) return
@@ -202,15 +221,79 @@ export class NightPhase extends Phaser.Scene {
     // — we fall through to the normal wave roll below, then append the
     // 3 rivals to the resulting classIds (see the tournament append
     // block just before nextWavePreview is assembled).
+    // ── Event waves that spawn non-LPC creatures ────────────────────
+    // Each pre-rolls the EXACT sprites the spawn will use and stores them
+    // on the preview so the IncomingWave / intel panels match the dungeon
+    // view. Sprite arrays are parallel to `classIds`:
+    //   minionSheets[i] — a `minion-<id>` sheet key (rival monsters,
+    //                     zombies); null for slots that use the class LPC.
+    //   bossSkin        — the rival boss's archetype skin id.
+    //   spriteVariants  — `<class>/vNN` LPC variants (bounty hunters).
+    // All kept STABLE across re-rolls via _priorEventPreview.
     if (eventFlags.rivalDungeonActive) {
+      const prior = this._priorEventPreview(day, 'rivalDungeon')
+      let minionSheets, bossSkin
+      if (prior && Array.isArray(prior.minionSheets) && prior.bossSkin) {
+        minionSheets = prior.minionSheets
+        bossSkin     = prior.bossSkin
+      } else {
+        const rolled = rollRivalDungeonSprites(
+          this.cache.json.get('minionEvolutions') ?? {}, gs.player?.bossArchetypeId)
+        // 4 monster sheets + a null boss slot — parallel to classIds.
+        minionSheets = [...rolled.minionSheets, null]
+        bossSkin     = rolled.bossSkin
+      }
       gs.run.nextWavePreview = {
         day, count: 5,
         classIds: ['monster_invader', 'monster_invader', 'monster_invader', 'monster_invader', 'rival_boss_invader'],
         eventType: 'rivalDungeon',
+        minionSheets, bossSkin,
         vendettaHunter: null,
       }
       return this._emitPreviewUpdated()
     }
+    if (eventFlags.zombieHordeActive) {
+      // Horde size scales with boss level — matches DayPhase._spawnZombieHorde.
+      const HORDE = Balance.ZOMBIE_HORDE_BASE
+        + Balance.ZOMBIE_HORDE_PER_BOSS_LV * Math.max(0, bossLv - 1)
+      const Z = ['minion-zombie1', 'minion-zombie2', 'minion-zombie3']
+      const prior = this._priorEventPreview(day, 'zombieHorde')
+      const minionSheets = (prior && Array.isArray(prior.minionSheets)
+        && prior.minionSheets.length === HORDE)
+        ? prior.minionSheets
+        : Array.from({ length: HORDE }, () => Z[Math.floor(Math.random() * Z.length)])
+      gs.run.nextWavePreview = {
+        day, count: HORDE,
+        classIds: Array.from({ length: HORDE }, () => 'monster_invader'),
+        eventType: 'zombieHorde',
+        minionSheets,
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+    if (eventFlags.bountyHuntersActive) {
+      const PACK = 5
+      const prior = this._priorEventPreview(day, 'bountyHunters')
+      const bhVars = this.cache.json.get('adventurerManifest')?.variants?.bounty_hunter
+      const spriteVariants = (prior && Array.isArray(prior.spriteVariants)
+        && prior.spriteVariants.length === PACK)
+        ? prior.spriteVariants
+        : Array.from({ length: PACK }, () => (Array.isArray(bhVars) && bhVars.length)
+            ? `bounty_hunter/${bhVars[Math.floor(Math.random() * bhVars.length)].id}`
+            : null)
+      gs.run.nextWavePreview = {
+        day, count: PACK,
+        classIds: Array.from({ length: PACK }, () => 'ranger'),
+        spriteVariants,
+        eventType: 'bountyHunters',
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
+    // The Saboteur is ADDITIVE — a masked rogue joins the normal wave.
+    // Like the Tournament, it does NOT early-return: it falls through to
+    // the normal roll and appends a rogue slot (see the saboteur append
+    // block just before nextWavePreview is assembled).
 
     // ── Normal wave (eligible class pool + count formula) ────────
     let classes = allClasses.filter(c =>
@@ -348,14 +431,24 @@ export class NightPhase extends Phaser.Scene {
       }
       tournamentRivalCount = rivalIds.length
     }
+    // The Saboteur joins the normal wave too (additive event) — append a
+    // rogue slot so the IncomingWave panel shows the extra body.
+    let saboteurCount = 0
+    if (eventFlags.saboteurActive) {
+      classIds.push('rogue')
+      spriteVariants.push(this._pickWaveVariant('rogue'))
+      saboteurCount = 1
+    }
 
     gs.run.nextWavePreview = {
       day,
       count,
       tournamentRivalCount,
+      saboteurCount,
       classIds,
       spriteVariants,
-      eventType: tournamentRivalCount > 0 ? 'tournament' : null,
+      eventType: tournamentRivalCount > 0 ? 'tournament'
+        : (saboteurCount > 0 ? 'saboteur' : null),
       vendettaHunter: vendettaHunterPresent
         ? { claimantClass: vendetta?.claimantClass ?? null,
             spriteVariant: this._pickWaveVariant(vendetta?.claimantClass),
@@ -1153,6 +1246,7 @@ export class NightPhase extends Phaser.Scene {
 
     this._selected = def
     this._selectedKind = kind
+    if (kind === 'trap') this._trapFacing = def.id === 'saw_blade' ? 'E' : 'S'
     const card = this._paletteCards.find(c => c.def === def)
     if (card) this._resetCard(card.cg, card.px, card.py, card.CARD_W, card.CARD_H, card.catColor, true)
     this._updateGridVisibility()
@@ -1193,6 +1287,16 @@ export class NightPhase extends Phaser.Scene {
         tx = Math.round(wp.x / TS - rotDef.width  / 2)
         ty = Math.round(wp.y / TS - rotDef.height / 2)
         // Free placement — no snap. Doors auto-create at adjacency time.
+      } else if (this._selectedKind === 'trap') {
+        const fp = this._selected.footprint ?? { w: 1, h: 1 }
+        if (fp.w > 1 || fp.h > 1) {
+          // 2×2 traps centre on the cursor like rooms
+          tx = Math.round(wp.x / TS - fp.w / 2)
+          ty = Math.round(wp.y / TS - fp.h / 2)
+        } else {
+          tx = Math.floor(wp.x / TS)
+          ty = Math.floor(wp.y / TS)
+        }
       } else {
         tx = Math.floor(wp.x / TS)
         ty = Math.floor(wp.y / TS)
@@ -1274,7 +1378,7 @@ export class NightPhase extends Phaser.Scene {
         }
         if (!this._crucibleVictimId) {
           this._crucibleVictimId = minion.instanceId
-          this._showPlacementError(`Victim: ${minion.definitionId} — click target in same room`)
+          this._showPlacementError(`Victim: ${minionLabel(minion.definitionId)} — click target in same room`)
           return
         }
         const game = this.scene.get('Game')
@@ -1324,8 +1428,9 @@ export class NightPhase extends Phaser.Scene {
       if (this._selectedKind === 'room') {
         this._rotation = (this._rotation + 90) % 360
         if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
-      } else {
-        this._cancelSelection()
+      } else if (this._selectedKind === 'trap' && this._selected?.rotatable) {
+        this._trapFacing = this._nextTrapFacing(this._selected, this._trapFacing)
+        if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
       }
     })
     this.input.keyboard.on('keydown-ESC', () => {
@@ -1425,8 +1530,39 @@ export class NightPhase extends Phaser.Scene {
 
     this._preview.clear()
 
-    if (this._selectedKind === 'minion' || this._selectedKind === 'trap' || this._selectedKind === 'item') {
-      // Single-tile preview for minions, traps, and items
+    if (this._selectedKind === 'trap') {
+      const fp = def.footprint ?? { w: 1, h: 1 }
+      const wx = tx * TS, wy = ty * TS
+      const ww = fp.w * TS, wh = fp.h * TS
+      // Saw track — faint tiles the blade will patrol.
+      if (def.id === 'saw_blade') {
+        const horiz = this._trapFacing === 'E' || this._trapFacing === 'W'
+        const len = def.trackLength ?? 4
+        for (let i = 0; i < len; i++) {
+          const cx = (horiz ? tx + i : tx) * TS
+          const cy = (horiz ? ty : ty + i) * TS
+          this._preview.fillStyle(color, 0.10)
+          this._preview.fillRect(cx, cy, TS, TS)
+          this._preview.lineStyle(1, color, 0.4)
+          this._preview.strokeRect(cx, cy, TS, TS)
+        }
+      }
+      this._preview.fillStyle(color, fillA)
+      this._preview.fillRect(wx, wy, ww, wh)
+      this._preview.lineStyle(2, color, 0.75)
+      this._preview.strokeRect(wx, wy, ww, wh)
+      if (this._rotLabel && def.rotatable) {
+        const horiz = this._trapFacing === 'E' || this._trapFacing === 'W'
+        this._rotLabel.setText(def.id === 'saw_blade'
+          ? `↻ ${horiz ? 'HORIZONTAL' : 'VERTICAL'}   ·   [R] ROTATE`
+          : `↻ ${this._trapFacing}   ·   [R] ROTATE`)
+        this._rotLabel.setPosition(wx + 2, wy + 2)
+        this._rotLabel.setVisible(true)
+      } else {
+        this._rotLabel?.setVisible(false)
+      }
+    } else if (this._selectedKind === 'minion' || this._selectedKind === 'item') {
+      // Single-tile preview for minions and items
       const wx = tx * TS
       const wy = ty * TS
       this._preview.fillStyle(color, fillA)
@@ -1613,34 +1749,117 @@ export class NightPhase extends Phaser.Scene {
 
   _validateTrapPlacement(def, tx, ty) {
     const violations = []
-    const tile = this._dungeonGrid.getTileType(tx, ty)
-    // Traps go on FLOOR — not boss floor (sacred), not walls/void.
-    if (tile !== TILE.FLOOR) {
-      violations.push('Place on room floor')
+    const grid = this._dungeonGrid
+    const fp = def.footprint ?? { w: 1, h: 1 }
+
+    // Footprint tiles (anchor tx,ty = top-left).
+    const fpTiles = []
+    for (let dy = 0; dy < fp.h; dy++)
+      for (let dx = 0; dx < fp.w; dx++)
+        fpTiles.push({ x: tx + dx, y: ty + dy })
+
+    if (def.placement === 'wall') {
+      // Wall-mounted: a single TILE.WALL cell that faces a room interior.
+      if (grid.getTileType(tx, ty) !== TILE.WALL) {
+        violations.push('Place on a room wall')
+      } else {
+        const facing = this._wallTrapFacing(tx, ty)
+        if (!facing) {
+          violations.push('Wall must face into a room')
+        } else {
+          const room = grid.getRoomAtTile(tx + DIR[facing].dx, ty + DIR[facing].dy)
+          if (room && (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall'))
+            violations.push('Not on the boss room or entry hall')
+        }
+      }
+    } else {
+      // Floor traps: every footprint tile must be plain room floor.
+      const allFloor = fpTiles.every(c => grid.getTileType(c.x, c.y) === TILE.FLOOR)
+      if (!allFloor) {
+        violations.push(fp.w > 1 ? 'Whole 2×2 area must be open floor' : 'Place on room floor')
+      } else {
+        const room = grid.getRoomAtTile(tx, ty)
+        if (room && (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall'))
+          violations.push('Not in the boss room or entry hall')
+        // Spike Pit must sit fully interior — footprint + surrounding ring
+        // all floor (no wall/door/void touching it).
+        if (def.placement === 'floor_interior') {
+          let ringOK = true
+          for (let dy = -1; dy <= fp.h && ringOK; dy++)
+            for (let dx = -1; dx <= fp.w && ringOK; dx++)
+              if (grid.getTileType(tx + dx, ty + dy) !== TILE.FLOOR) ringOK = false
+          if (!ringOK) violations.push('Must sit fully inside a room (away from walls)')
+        }
+      }
     }
-    // No two traps on the same tile
-    if ((this._gameState.dungeon.traps ?? []).some(t => t.tileX === tx && t.tileY === ty)) {
-      violations.push('Already a trap here')
+
+    // Saw blade — the whole track must run over open floor.
+    if (def.id === 'saw_blade') {
+      const horiz = this._trapFacing === 'E' || this._trapFacing === 'W'
+      const len = def.trackLength ?? 4
+      let trackOK = true
+      for (let i = 0; i < len && trackOK; i++) {
+        const cx = horiz ? tx + i : tx
+        const cy = horiz ? ty : ty + i
+        if (grid.getTileType(cx, cy) !== TILE.FLOOR) trackOK = false
+      }
+      if (!trackOK) violations.push('Saw track must run over open floor')
     }
-    // No minion on this tile (would be silly)
-    if (this._gameState.minions.some(m => m.tileX === tx && m.tileY === ty)) {
+
+    // Overlap with another trap's footprint.
+    const occupied = new Set()
+    for (const tr of this._gameState.dungeon.traps ?? []) {
+      if (tr === this._heldMoveTrap) continue
+      const tfp = tr.footprint ?? { w: 1, h: 1 }
+      for (let dy = 0; dy < tfp.h; dy++)
+        for (let dx = 0; dx < tfp.w; dx++)
+          occupied.add(`${tr.tileX + dx},${tr.tileY + dy}`)
+    }
+    if (fpTiles.some(c => occupied.has(`${c.x},${c.y}`)))
+      violations.push('Overlaps another trap')
+
+    // Overlap with a minion.
+    const minionTiles = new Set((this._gameState.minions ?? [])
+      .filter(m => m.aiState !== 'dead')
+      .map(m => `${m.tileX},${m.tileY}`))
+    if (fpTiles.some(c => minionTiles.has(`${c.x},${c.y}`)))
       violations.push('Tile occupied by a minion')
-    }
-    // Room redesign 2026-04-30 — Trap Factory is the gateway: each Factory
-    // adds +5 trap slots. Without a Factory, no traps at all.
-    const cap = this._trapCap()
-    const used = this._trapUsed()
-    if (cap === 0) {
-      violations.push('Build a Trap Factory to unlock traps')
-    } else if (used >= cap) {
-      violations.push(`Trap pool full (${used}/${cap}) — build another Trap Factory for +5 slots`)
-      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'trap_pool_full' })
-    }
-    if (this._effectiveTrapCost(def) > this._gameState.player.gold) {
-      violations.push('Insufficient gold')
-      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
+
+    // Trap Factory gateway — each Factory adds +5 trap slots. Skipped when
+    // relocating an already-placed trap (the MOVE tool is gold/slot-neutral).
+    if (!this._heldMoveTrap) {
+      const cap = this._trapCap()
+      const used = this._trapUsed()
+      if (cap === 0) {
+        violations.push('Build a Trap Factory to unlock traps')
+      } else if (used >= cap) {
+        violations.push(`Trap pool full (${used}/${cap}) — build another Trap Factory for +5 slots`)
+        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'trap_pool_full' })
+      }
+      if (this._effectiveTrapCost(def) > this._gameState.player.gold) {
+        violations.push('Insufficient gold')
+        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
+      }
     }
     return { valid: violations.length === 0, violations }
+  }
+
+  // Direction from a wall tile toward an adjacent room-interior floor tile,
+  // or null if the wall faces no room (outer wall / corner).
+  _wallTrapFacing(tx, ty) {
+    for (const dir of ['N', 'S', 'E', 'W']) {
+      if (this._dungeonGrid.getTileType(tx + DIR[dir].dx, ty + DIR[dir].dy) === TILE.FLOOR)
+        return dir
+    }
+    return null
+  }
+
+  // Cycle a rotatable trap's facing: cannon turns clockwise N→E→S→W; the
+  // saw blade toggles its track between horizontal (E) and vertical (S).
+  _nextTrapFacing(def, cur) {
+    if (def.id === 'saw_blade') return cur === 'E' ? 'S' : 'E'
+    const order = ['N', 'E', 'S', 'W']
+    return order[(order.indexOf(cur) + 1) % 4]
   }
 
   _effectiveTrapCost(def) {
@@ -1650,6 +1869,10 @@ export class NightPhase extends Phaser.Scene {
     if (f.hastyArchitect) cost *= Balance.MECHANIC_HASTY_ARCHITECT_TRAP_DISCOUNT
     if (f.pactOfTheJester) cost *= Balance.MECHANIC_JESTER_TRAP_DISCOUNT
     if (f.trapGoldCostMult) cost *= f.trapGoldCostMult
+    // Scale with boss level (mirrors minion cost) so traps hold their
+    // price gap over minions as the run progresses.
+    const bossLv = this._gameState.boss?.level ?? 1
+    cost *= 1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
     return Math.max(0, Math.round(cost))
   }
   _trapCap() {
@@ -1870,13 +2093,42 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
+    // Wall traps face the room they're mounted toward; floor traps use the
+    // R-key facing (cannon direction / saw track orientation).
+    const facing = def.placement === 'wall'
+      ? this._wallTrapFacing(tx, ty)
+      : this._trapFacing
+
+    // MOVE tool — relocate the held trap in place. Same instance (knowledge
+    // / brand state carries over), gold-neutral, cancel-safe.
+    if (this._heldMoveTrap) {
+      const trap = this._heldMoveTrap
+      const oldX = trap.tileX, oldY = trap.tileY
+      const wasWall = trap.placement === 'wall'
+      const fp = trap.footprint ?? { w: 1, h: 1 }
+      trap.tileX = tx
+      trap.tileY = ty
+      trap.facing = facing
+      trap.worldX = (tx + fp.w / 2) * TS
+      trap.worldY = (ty + fp.h / 2) * TS
+      trap.state = {}
+      trap.cooldownUntil = 0
+      if (wasWall) this._dungeonGrid.recheckAutoConnect(oldX, oldY)
+      this._heldMoveTrap = null
+      this._playBuildSfx()
+      this._cancelSelection()
+      this._refreshStats()
+      return
+    }
+
     const cost = this._effectiveTrapCost(def)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) this._gameState.player.gold -= cost
 
-    const trap = createTrap(def, { x: tx, y: ty })
+    const trap = createTrap(def, { tileX: tx, tileY: ty, facing })
     this._gameState.dungeon.traps.push(trap)
     this._lastPlaced = { kind: 'trap', entity: trap, goldCost: cost }
 
+    this._playBuildSfx()
     EventBus.emit('TRAP_PLACED', { trap })
     this._refreshStats()
   }
@@ -1916,20 +2168,27 @@ export class NightPhase extends Phaser.Scene {
     if (tt !== TILE.FLOOR && tt !== TILE.BOSS_FLOOR) {
       return { valid: false, reason: 'Place on a floor tile' }
     }
-    const entry = this._gameState.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-    if (!entry) return { valid: false, reason: 'Place an Entry Hall first' }
-    const startX = entry.gridX + Math.floor(entry.width / 2)
-    const startY = entry.gridY + 1
+    const entries = this._gameState.dungeon.rooms.filter(r => r.definitionId === 'entry_hall')
+    if (entries.length === 0) return { valid: false, reason: 'Place an Entry Hall first' }
     const blockedSet = new Set()
     for (const t of blockedTiles) blockedSet.add(`${t.x},${t.y}`)
     for (const lock of this._gameState.dungeon.locks ?? []) {
       for (const t of lock.doorTiles) blockedSet.add(`${t.x},${t.y}`)
     }
-    const path = PathfinderSystem.findPath(
-      { x: startX, y: startY }, { x: tx, y: ty }, this._dungeonGrid,
-      null, 0, blockedSet,
-    )
-    if (!path) return { valid: false, reason: 'Chest unreachable past the lock' }
+    // The key chest must be grabbable BEFORE the lock seals the way — so
+    // it's valid as long as it's reachable from AT LEAST ONE entry hall
+    // without crossing the staged (or any existing) lock's door tiles.
+    let reachable = false
+    for (const entry of entries) {
+      const startX = entry.gridX + Math.floor(entry.width / 2)
+      const startY = entry.gridY + 1
+      const path = PathfinderSystem.findPath(
+        { x: startX, y: startY }, { x: tx, y: ty }, this._dungeonGrid,
+        null, 0, blockedSet,
+      )
+      if (path) { reachable = true; break }
+    }
+    if (!reachable) return { valid: false, reason: 'Chest unreachable past the lock' }
     return { valid: true }
   }
 
@@ -2232,12 +2491,15 @@ export class NightPhase extends Phaser.Scene {
       ? this._heldMoveItem.data.instanceId
       : `treasure_${tier}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     this._gameState.dungeon.treasureChests ??= []
-    this._gameState.dungeon.treasureChests.push({
-      instanceId: id,
-      tileX: tx, tileY: ty,
-      tier,
-      opened: isMove ? !!this._heldMoveItem.data.opened : false,
-    })
+    // Move-drop spreads the held chest so EVERY field survives the
+    // relocation (instanceId, tier, opened, and flags like `_cursed`
+    // that drive the cursed-relic glow / wave-swell). A fresh placement
+    // builds a clean object.
+    this._gameState.dungeon.treasureChests.push(
+      isMove
+        ? { ...this._heldMoveItem.data, tileX: tx, tileY: ty }
+        : { instanceId: id, tileX: tx, tileY: ty, tier, opened: false }
+    )
     if (!isMove) {
       this._lastPlaced = { kind: 'item', entity: 'treasure_chest', goldCost: cost, chestId: id }
     } else {
@@ -2295,169 +2557,285 @@ export class NightPhase extends Phaser.Scene {
     this._refreshStats()
   }
 
-  // Phase 31D — Sell tool. Removes a placed room AND every minion inside
-  // it, refunding 50% of the gold spent on the room + each minion's
-  // gold cost. Boss chamber + fixed rooms are immune.
+  // Phase 31D — Sell tool. Click a placed entity (room / minion / trap /
+  // item) to sell it for a 50% gold refund. Every sale is gated behind a
+  // yes / cancel confirm popup so a stray click can't wipe out progress.
+  // The tool is STICKY — it stays armed after each sale (like MOVE); the
+  // player exits via the SELL button, ESC, another tool, or a build slot.
+  // Boss chamber + fixed rooms are immune.
   _executeSellAt(tx, ty) {
-    const allMinions = this.cache.json.get('minionTypes') ?? []
+    // Selling is a build-phase action only — never during the day.
+    if (this._gameState.meta?.phase !== 'night') return
 
-    // Phase: items — selling a Key Chest also removes its paired lock,
-    // Phase D — sell a Treasure Chest. 50% refund of its tier's cost.
+    // Treasure Chest.
     const treasureHit = (this._gameState.dungeon.treasureChests ?? []).find(c =>
       c.tileX === tx && c.tileY === ty
     )
     if (treasureHit) {
-      const items = this.cache.json.get('items') ?? []
-      const def   = items.find(it => it.id === `treasure_chest_${treasureHit.tier}`)
-      const refund = Math.floor((def?.goldCost ?? 0) * 0.5)
-      if (refund > 0) this._gameState.player.gold += refund
-      this._gameState.dungeon.treasureChests = (this._gameState.dungeon.treasureChests ?? [])
-        .filter(c => c.instanceId !== treasureHit.instanceId)
-      EventBus.emit('TREASURE_CHEST_REMOVED', { chest: treasureHit, refund })
-      this._refreshStats()
-      this._setToolMode(null)
+      const def    = (this.cache.json.get('items') ?? []).find(it => it.id === `treasure_chest_${treasureHit.tier}`)
+      const refund = this._sellRefund('treasureChest', treasureHit)
+      this._promptSell(
+        `Sell ${(def?.name ?? 'Treasure Chest').toUpperCase()} for ${refund} gold?`,
+        () => this._doSellTreasureChest(treasureHit),
+      )
       return
     }
 
-    // Phase: items — selling a Beacon OR Fountain also removes the
-    // paired structure. Refund is 50% of the Beacon's original gold cost.
-    const beaconHit = (this._gameState.dungeon.beacons ?? []).find(b =>
-      b.tileX === tx && b.tileY === ty
-    )
-    const fountainHit = (this._gameState.dungeon.fountains ?? []).find(f =>
-      f.tileX === tx && f.tileY === ty
-    )
+    // Soul-Bound Beacon / Healing Fountain — paired; selling either half
+    // removes both. Refund is 50% of the Beacon's gold cost.
+    const beaconHit   = (this._gameState.dungeon.beacons ?? []).find(b => b.tileX === tx && b.tileY === ty)
+    const fountainHit = (this._gameState.dungeon.fountains ?? []).find(f => f.tileX === tx && f.tileY === ty)
     if (beaconHit || fountainHit) {
-      const items = this.cache.json.get('items') ?? []
-      const beaconDef = items.find(it => it.id === 'soul_bound_beacon')
-      const refund    = Math.floor((beaconDef?.goldCost ?? 0) * 0.5)
-      if (refund > 0) this._gameState.player.gold += refund
-      const beaconId   = beaconHit?.instanceId ?? fountainHit?.beaconId
-      const fountainId = fountainHit?.instanceId ?? beaconHit?.fountainId
-      this._gameState.dungeon.beacons = (this._gameState.dungeon.beacons ?? [])
-        .filter(b => b.instanceId !== beaconId)
-      this._gameState.dungeon.fountains = (this._gameState.dungeon.fountains ?? [])
-        .filter(f => f.instanceId !== fountainId)
-      EventBus.emit('BEACON_REMOVED', { beaconId, fountainId, refund })
-      this._refreshStats()
-      this._setToolMode(null)
+      const beacon   = beaconHit   ?? (this._gameState.dungeon.beacons ?? []).find(b => b.instanceId === fountainHit.beaconId)
+      const fountain = fountainHit ?? (this._gameState.dungeon.fountains ?? []).find(f => f.instanceId === beaconHit.fountainId)
+      const refund   = this._sellRefund('beacon', beacon)
+      this._promptSell(
+        `Sell the SOUL-BOUND BEACON for ${refund} gold?\nIts paired Healing Fountain is also removed.`,
+        () => this._doSellBeaconPair(beacon, fountain),
+      )
       return
     }
 
-    // so the player can undo a Door Lock placement after the fact. Refund
-    // is 50% of the lock's original gold cost (chest itself was free).
-    const chestHit = (this._gameState.dungeon.keyChests ?? []).find(c =>
-      c.tileX === tx && c.tileY === ty
-    )
+    // Key Chest — paired with a Door Lock; selling removes both. Refund is
+    // 50% of the lock's gold cost (the chest itself was free).
+    const chestHit = (this._gameState.dungeon.keyChests ?? []).find(c => c.tileX === tx && c.tileY === ty)
     if (chestHit) {
-      const items = this.cache.json.get('items') ?? []
-      const lockDef = items.find(it => it.id === 'door_lock')
-      const refund  = Math.floor((lockDef?.goldCost ?? 0) * 0.5)
-      if (refund > 0) this._gameState.player.gold += refund
-      // Remove paired lock then the chest.
-      const lockIdx = (this._gameState.dungeon.locks ?? [])
-        .findIndex(l => l.id === chestHit.lockId)
-      if (lockIdx >= 0) {
-        const lock = this._gameState.dungeon.locks[lockIdx]
-        this._gameState.dungeon.locks.splice(lockIdx, 1)
-        EventBus.emit('LOCK_REMOVED', { lock })
-      }
-      const chestIdx = this._gameState.dungeon.keyChests.findIndex(c => c.instanceId === chestHit.instanceId)
-      if (chestIdx >= 0) this._gameState.dungeon.keyChests.splice(chestIdx, 1)
-      EventBus.emit('KEY_CHEST_REMOVED', { chest: chestHit, refund })
-      EventBus.emit('LOCKS_CHANGED')
-      this._refreshStats()
-      this._setToolMode(null)
+      const refund = this._sellRefund('keyChest', chestHit)
+      this._promptSell(
+        `Sell the DOOR LOCK for ${refund} gold?\nIts paired Key Chest is also removed.`,
+        () => this._doSellKeyChest(chestHit),
+      )
       return
     }
 
-    // Single-minion sell takes priority over room sell — clicking a minion
-    // refunds 50% of just that minion's gold cost and leaves the room
-    // standing. Falls through to room sell when the clicked tile has no
-    // alive minion on it.
+    // Single minion — leaves the room standing. Takes priority over room
+    // sell when the clicked tile has an alive minion on it.
     const minionHit = (this._gameState.minions ?? []).find(m =>
       m.aiState !== 'dead' && m.tileX === tx && m.tileY === ty
     )
     if (minionHit) {
-      const mDef = allMinions.find(d => d.id === minionHit.definitionId)
-      const refund = Math.floor((mDef?.goldCost ?? 0) * 0.5)
-      if (refund > 0) this._gameState.player.gold += refund
-      const idx = this._gameState.minions.findIndex(x => x.instanceId === minionHit.instanceId)
-      if (idx >= 0) this._gameState.minions.splice(idx, 1)
-      EventBus.emit('MINION_REMOVED', { minion: minionHit })
-      this._refreshStats()
-      this._setToolMode(null)
+      const mDef   = (this.cache.json.get('minionTypes') ?? []).find(d => d.id === minionHit.definitionId)
+      const refund = this._sellRefund('minion', minionHit)
+      this._promptSell(
+        `Sell ${(mDef?.name ?? minionHit.definitionId ?? 'minion').toUpperCase()} for ${refund} gold?`,
+        () => this._doSellMinion(minionHit),
+      )
       return
     }
 
+    // Trap — click anywhere on the trap as the player sees it.
+    const trapHit = (this._gameState.dungeon.traps ?? [])
+      .find(t => this._trapCoversTile(t, tx, ty))
+    if (trapHit) {
+      const tDef   = (this.cache.json.get('trapTypes') ?? []).find(d => d.id === trapHit.definitionId)
+      const refund = this._sellRefund('trap', trapHit)
+      this._promptSell(
+        `Sell ${(tDef?.name ?? trapHit.definitionId ?? 'trap').toUpperCase()} for ${refund} gold?`,
+        () => this._doSellTrap(trapHit),
+      )
+      return
+    }
+
+    // Room — selling a room also sells everything placed inside it.
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     if (!room) return
     if (room.definitionId === 'boss_chamber') {
       this._showPlacementError('Cannot sell the boss chamber')
       return
     }
-    const allRooms = this.cache.json.get('rooms') ?? []
-    const def = allRooms.find(d => d.id === room.definitionId)
+    const def = (this.cache.json.get('rooms') ?? []).find(d => d.id === room.definitionId)
     if (def?.placementRules?.fixed) {
       this._showPlacementError('Cannot sell a fixed room')
       return
     }
+    this._promptRoomSell(room, def)
+  }
 
-    // Find all minions whose tiles fall inside the room footprint, and
-    // compute the refund up-front so the confirm popup can show it.
-    const minionsInside = (this._gameState.minions ?? []).filter(m => {
-      if (m.aiState === 'dead') return false
-      return m.tileX >= room.gridX && m.tileX < room.gridX + room.width
-          && m.tileY >= room.gridY && m.tileY < room.gridY + room.height
-    })
-    // Free-instance aware refund: if the count of this def is still
-    // within the freeFirstN window, this slot was free → refund 0.
-    // Otherwise it was a paid placement → refund 50% of base cost.
-    const freeFirstN  = def?.placementRules?.freeFirstN ?? 0
-    const sameCount   = (this._gameState.dungeon?.rooms ?? []).filter(r => r.definitionId === room.definitionId).length
-    const wasFreeSlot = freeFirstN > 0 && sameCount <= freeFirstN
-    let refund = wasFreeSlot ? 0 : Math.floor((def?.goldCost ?? 0) * 0.5)
-    for (const m of minionsInside) {
-      const mDef = allMinions.find(d => d.id === m.definitionId)
-      refund += Math.floor((mDef?.goldCost ?? 0) * 0.5)
+  // Gather everything inside a room's footprint, total the refund, and
+  // pop the confirm — the message spells out what else gets sold so the
+  // player isn't surprised that the room's contents go with it.
+  _promptRoomSell(room, def) {
+    const inside = (e) => !!e &&
+      e.tileX >= room.gridX && e.tileX < room.gridX + room.width &&
+      e.tileY >= room.gridY && e.tileY < room.gridY + room.height
+
+    const minions   = (this._gameState.minions ?? []).filter(m => m.aiState !== 'dead' && inside(m))
+    const traps     = (this._gameState.dungeon.traps ?? []).filter(t => inside(t))
+    const chests    = (this._gameState.dungeon.treasureChests ?? []).filter(c => inside(c))
+    const keyChests = (this._gameState.dungeon.keyChests ?? []).filter(c => inside(c))
+    // A beacon/fountain pair is pulled in if EITHER half sits in the room.
+    const fountains = this._gameState.dungeon.fountains ?? []
+    const beaconPairs = []
+    for (const b of (this._gameState.dungeon.beacons ?? [])) {
+      const f = fountains.find(x => x.instanceId === b.fountainId)
+      if (inside(b) || inside(f)) beaconPairs.push({ beacon: b, fountain: f })
     }
+    const phyl = inside(this._gameState.phylactery) ? this._gameState.phylactery : null
 
-    // Gate the room sell behind a yes / cancel popup so a stray click can't
-    // wipe out the player's progress. Cancel keeps the SELL tool armed so
-    // they can immediately try again on a different target.
-    const roomLabel  = (def?.name ?? room.definitionId ?? 'this room').toUpperCase()
-    const minionLine = minionsInside.length > 0
-      ? `\nThis will also remove ${minionsInside.length} minion${minionsInside.length === 1 ? '' : 's'} inside.`
-      : ''
+    // Refund: 50% of what THIS room copy cost + 50% of every sellable
+    // thing inside it. effectiveRoomCost on the room list MINUS the sold
+    // copy reports the price that copy was placed at.
+    const roomsMinusSold = (this._gameState.dungeon?.rooms ?? [])
+      .filter(r => r.instanceId !== room.instanceId)
+    const roomRefund = Math.floor(DungeonGridClass.effectiveRoomCost(def, roomsMinusSold) * 0.5)
+    let refund = roomRefund
+    for (const m of minions)     refund += this._sellRefund('minion', m)
+    for (const t of traps)       refund += this._sellRefund('trap', t)
+    for (const c of chests)      refund += this._sellRefund('treasureChest', c)
+    for (const c of keyChests)   refund += this._sellRefund('keyChest', c)
+    for (const p of beaconPairs) refund += this._sellRefund('beacon', p.beacon)
+
+    // "Also removes …" warning so the cascading sale isn't a surprise.
+    const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`
+    const parts = []
+    if (minions.length)     parts.push(plural(minions.length, 'minion'))
+    if (traps.length)       parts.push(plural(traps.length, 'trap'))
+    if (chests.length)      parts.push(plural(chests.length, 'treasure chest'))
+    if (keyChests.length)   parts.push(`${plural(keyChests.length, 'key chest')} (+ door lock)`)
+    if (beaconPairs.length) parts.push(`${plural(beaconPairs.length, 'beacon')} (+ fountain)`)
+    if (phyl)               parts.push('your PHYLACTERY')
+    const roomLabel = (def?.name ?? room.definitionId ?? 'this room').toUpperCase()
+    const warnLine  = parts.length ? `\nThis also removes: ${parts.join(', ')}.` : ''
+
+    this._promptSell(
+      `Sell ${roomLabel} for ${refund} gold?${warnLine}`,
+      () => this._finalizeRoomSell(room, roomRefund, { minions, traps, chests, keyChests, beaconPairs, phyl }),
+    )
+  }
+
+  // Emit the shared yes / cancel confirm popup for a sell. onConfirm runs
+  // the actual removal; the SELL tool stays armed either way.
+  _promptSell(message, doSell) {
     EventBus.emit('SHOW_CONFIRM', {
-      message: `Sell ${roomLabel} for ${refund} gold?${minionLine}`,
+      message,
       confirmLabel: 'SELL',
       cancelLabel:  'CANCEL',
-      onConfirm: () => this._finalizeRoomSell(room, refund, minionsInside),
+      onConfirm: () => { doSell(); this._refreshStats() },
       onCancel:  () => {},
     })
   }
 
-  // Actually perform the room sale once the player confirms. Split out so
-  // the confirm popup's onConfirm callback can run it after the click that
-  // armed the popup has long since unwound.
-  _finalizeRoomSell(room, refund, minionsInside) {
-    if (refund > 0) this._gameState.player.gold += refund
+  // 50% gold refund for a sellable entity. Single source of truth so the
+  // confirm popup's total and the gold actually credited can't drift.
+  // True when tile (tx,ty) lies on trap `t` as the player SEES it — its
+  // footprint for normal traps, or the saw blade's full track (the saw
+  // sprite spans the whole track, so a click anywhere along it must select
+  // the trap). Used by the sell + move hit-tests so the player isn't
+  // restricted to the trap's single anchor tile.
+  _trapCoversTile(t, tx, ty) {
+    if (!t) return false
+    if (t.definitionId === 'saw_blade') {
+      const def = (this.cache.json.get('trapTypes') ?? []).find(d => d.id === 'saw_blade')
+      return trackTiles(t, def?.trackLength ?? 4).some(c => c.x === tx && c.y === ty)
+    }
+    const fp = t.footprint ?? { w: 1, h: 1 }
+    return tx >= t.tileX && tx < t.tileX + fp.w &&
+           ty >= t.tileY && ty < t.tileY + fp.h
+  }
 
-    // Remove the minions first so MINION_REMOVED fires before ROOM_REMOVED.
-    for (const m of minionsInside) {
-      const idx = this._gameState.minions.findIndex(x => x.instanceId === m.instanceId)
-      if (idx >= 0) this._gameState.minions.splice(idx, 1)
-      EventBus.emit('MINION_REMOVED', { minion: m })
+  _sellRefund(kind, entity) {
+    const items = () => this.cache.json.get('items') ?? []
+    if (kind === 'treasureChest') {
+      const d = items().find(it => it.id === `treasure_chest_${entity.tier}`)
+      return Math.floor((d?.goldCost ?? 0) * 0.5)
+    }
+    if (kind === 'beacon') {
+      const d = items().find(it => it.id === 'soul_bound_beacon')
+      return Math.floor((d?.goldCost ?? 0) * 0.5)
+    }
+    if (kind === 'keyChest') {
+      const d = items().find(it => it.id === 'door_lock')
+      return Math.floor((d?.goldCost ?? 0) * 0.5)
+    }
+    if (kind === 'minion') {
+      const d = (this.cache.json.get('minionTypes') ?? []).find(x => x.id === entity.definitionId)
+      return Math.floor((d?.goldCost ?? 0) * 0.5)
+    }
+    if (kind === 'trap') {
+      const d = (this.cache.json.get('trapTypes') ?? []).find(x => x.id === entity.definitionId)
+      return Math.floor((d?.goldCost ?? 0) * 0.5)
+    }
+    return 0
+  }
+
+  // ── Pure sell-removers — credit the refund, drop the entity, emit its
+  // REMOVED event. No confirm / no tool-mode change, so the room sell can
+  // batch them. ──────────────────────────────────────────────────────────
+  _doSellTreasureChest(chest) {
+    const refund = this._sellRefund('treasureChest', chest)
+    if (refund > 0) this._gameState.player.gold += refund
+    this._gameState.dungeon.treasureChests = (this._gameState.dungeon.treasureChests ?? [])
+      .filter(c => c.instanceId !== chest.instanceId)
+    EventBus.emit('TREASURE_CHEST_REMOVED', { chest, refund })
+  }
+
+  _doSellBeaconPair(beacon, fountain) {
+    const refund     = this._sellRefund('beacon', beacon)
+    if (refund > 0) this._gameState.player.gold += refund
+    const beaconId   = beacon?.instanceId   ?? fountain?.beaconId
+    const fountainId = fountain?.instanceId ?? beacon?.fountainId
+    this._gameState.dungeon.beacons = (this._gameState.dungeon.beacons ?? [])
+      .filter(b => b.instanceId !== beaconId)
+    this._gameState.dungeon.fountains = (this._gameState.dungeon.fountains ?? [])
+      .filter(f => f.instanceId !== fountainId)
+    EventBus.emit('BEACON_REMOVED', { beaconId, fountainId, refund })
+  }
+
+  _doSellKeyChest(chest) {
+    const refund = this._sellRefund('keyChest', chest)
+    if (refund > 0) this._gameState.player.gold += refund
+    const lockIdx = (this._gameState.dungeon.locks ?? []).findIndex(l => l.id === chest.lockId)
+    if (lockIdx >= 0) {
+      const lock = this._gameState.dungeon.locks[lockIdx]
+      this._gameState.dungeon.locks.splice(lockIdx, 1)
+      EventBus.emit('LOCK_REMOVED', { lock })
+    }
+    this._gameState.dungeon.keyChests = (this._gameState.dungeon.keyChests ?? [])
+      .filter(c => c.instanceId !== chest.instanceId)
+    EventBus.emit('KEY_CHEST_REMOVED', { chest, refund })
+    EventBus.emit('LOCKS_CHANGED')
+  }
+
+  _doSellMinion(minion) {
+    const refund = this._sellRefund('minion', minion)
+    if (refund > 0) this._gameState.player.gold += refund
+    const idx = this._gameState.minions.findIndex(x => x.instanceId === minion.instanceId)
+    if (idx >= 0) this._gameState.minions.splice(idx, 1)
+    EventBus.emit('MINION_REMOVED', { minion })
+  }
+
+  _doSellTrap(trap) {
+    const refund = this._sellRefund('trap', trap)
+    if (refund > 0) this._gameState.player.gold += refund
+    const idx = this._gameState.dungeon.traps.findIndex(x => x.instanceId === trap.instanceId)
+    if (idx >= 0) this._gameState.dungeon.traps.splice(idx, 1)
+    // A removed wall trap may free a doorway it was suppressing.
+    if (trap.placement === 'wall') {
+      this._dungeonGrid.recheckAutoConnect(trap.tileX, trap.tileY)
+    }
+    EventBus.emit('TRAP_REMOVED', { trap, refund })
+  }
+
+  // Perform the room sale once confirmed — drop every contained entity
+  // first (so their REMOVED events precede ROOM_REMOVED), then the room.
+  _finalizeRoomSell(room, roomRefund, contents) {
+    for (const m of contents.minions)     this._doSellMinion(m)
+    for (const t of contents.traps)       this._doSellTrap(t)
+    for (const c of contents.chests)      this._doSellTreasureChest(c)
+    for (const c of contents.keyChests)   this._doSellKeyChest(c)
+    for (const p of contents.beaconPairs) this._doSellBeaconPair(p.beacon, p.fountain)
+    if (contents.phyl) {
+      const phylactery = contents.phyl
+      this._gameState.phylactery = null
+      EventBus.emit('PHYLACTERY_REMOVED', { phylactery })
     }
 
+    if (roomRefund > 0) this._gameState.player.gold += roomRefund
     if (this._lastPlaced?.entity?.instanceId === room.instanceId) {
       this._lastPlaced = null
     }
     this._dungeonGrid.removeRoom(room.instanceId)
     this._renderActivePalette()
-    this._refreshStats()
-    this._setToolMode(null)
   }
 
   // Phase 31D — Move tool. Reuses the existing pickup logic so minions
@@ -2470,6 +2848,23 @@ export class NightPhase extends Phaser.Scene {
     // chest/door lock) are rebuild-only because their pair would be
     // broken by a partial move.
     const items = this.cache.json.get('items') ?? []
+
+    // Trap move — the trap stays in the array (rendered at its old spot)
+    // and is relocated in place on drop, so cancelling the move leaves it
+    // untouched. Hit-test covers the trap as the player sees it.
+    const trapHit = (this._gameState.dungeon.traps ?? [])
+      .find(t => this._trapCoversTile(t, tx, ty))
+    if (trapHit) {
+      const tDef = (this.cache.json.get('trapTypes') ?? []).find(d => d.id === trapHit.definitionId)
+      if (!tDef) { this._showPlacementError('Trap def missing'); return }
+      this._heldMoveTrap = trapHit
+      this._selected     = tDef
+      this._selectedKind = 'trap'
+      this._trapFacing   = trapHit.facing
+      this._updateGridVisibility()
+      this._showPlacementError('Moving trap — click a new spot')
+      return
+    }
 
     const treasureHit = (this._gameState.dungeon.treasureChests ?? []).find(c =>
       c.tileX === tx && c.tileY === ty
@@ -2777,6 +3172,9 @@ export class NightPhase extends Phaser.Scene {
     this._selected = null
     this._selectedKind = null
     this._rotation = 0
+    // A held trap is never removed from the array — clearing the ref just
+    // ends the move; the trap stays wherever it currently sits.
+    this._heldMoveTrap = null
     this._paletteCards.forEach(c => this._resetCard(c.cg, c.px, c.py, c.CARD_W, c.CARD_H, c.catColor, false))
     this._clearPreview()
     this._updateGridVisibility()
@@ -2792,9 +3190,23 @@ export class NightPhase extends Phaser.Scene {
     this._cancelSelection()
 
     const dungeon = this._gameState.dungeon
-    const entry = dungeon.rooms.find(r => r.definitionId === 'entry_hall')
-    if (!entry) {
+    const entries = dungeon.rooms.filter(r => r.definitionId === 'entry_hall')
+    if (entries.length === 0) {
       this._showPlacementError('You must place an Entry Hall before starting the day')
+      return
+    }
+    // Forced multi-entry — the kingdom discovers a 2nd way into the dungeon
+    // at boss level 5 and a 3rd at level 10. The required count matches the
+    // build cap for the current boss level (entry_hall's
+    // maxPerDungeonByBossLevel table), so the day can't begin until every
+    // mandated Entry Hall is placed.
+    const entryDef = (this.cache.json.get('rooms') ?? []).find(d => d.id === 'entry_hall')
+    const requiredEntries = DungeonGridClass.effectiveMaxPerDungeon(
+      entryDef, this._gameState.boss?.level ?? 1) ?? 1
+    if (entries.length < requiredEntries) {
+      const ord = requiredEntries === 3 ? '3rd' : '2nd'
+      this._showPlacementError(
+        `The kingdom has found another way in — place a ${ord} Entry Hall before the day begins`)
       return
     }
 
@@ -2905,13 +3317,13 @@ function _rotateCP(cp, w, h, steps) {
 
 function _formatTrigger(trig) {
   switch (trig) {
-    case 'stepped_on':            return 'Triggers on step'
-    case 'line_of_sight_broken':  return 'Triggers on entry'
-    case 'stood_still_3_seconds': return 'Triggers if standing still 3s'
-    case 'moved_too_fast':        return 'Triggers if moving fast'
-    case 'ally_healed_nearby':    return 'Triggers on ally heal'
-    case 'second_footstep':       return 'Triggers on follower'
-    case 'adventurer_was_here_before': return 'Triggers on revisit'
+    case 'los_lane':         return 'Fires down its line of sight'
+    case 'los_facing':       return 'Fires when it sees a target'
+    case 'proximity':        return 'Detonates when approached'
+    case 'radius':           return 'Strikes anything near it'
+    case 'adjacent_contact': return 'Cuts anything beside it'
+    case 'stepped_on':       return 'Springs when stepped on'
+    case 'saw_overlap':      return 'Carves anything it rolls over'
     default: return trig
   }
 }

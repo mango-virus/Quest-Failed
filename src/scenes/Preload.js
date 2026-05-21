@@ -101,6 +101,9 @@ const ADVENTURER_CLASS_IDS = [
   // dungeon events render their dedicated LPC art rather than falling
   // back to procedural silhouettes.
   'cartographer_scholar', 'cosplay_adventurer',
+  // Sprite-only class — bounty hunters spawn with `ranger` gameplay but
+  // wear this dedicated baked sheet (assigned via spriteVariant in DayPhase).
+  'bounty_hunter',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 50
 
@@ -117,6 +120,9 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // attack sheet needed; they reuse the main 64×64 sheet's slash row
   // for the rare retaliation case if it ever comes up.
   'cosplay_adventurer',
+  // Bounty hunters carry crossbows — crossbow combat is thrust-oversize,
+  // which lives in the _atk.png sheet.
+  'bounty_hunter',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8
@@ -350,7 +356,6 @@ export class Preload extends Phaser.Scene {
       files.forEach(([key, file]) => this.load.image(key, folder + file))
     }
     loadTileset('room', 'assets/tiles/room/')
-    this.load.image('void-bg', 'assets/tiles/void_bg.png')
     // Add more tilesets here as art lands:
     // loadTileset('cave',  'assets/tiles/cave/')
     // loadTileset('boss',  'assets/tiles/boss/')
@@ -497,6 +502,24 @@ export class Preload extends Phaser.Scene {
     // variant (mapped to damage types in HitSparkSystem). Plays once on
     // every COMBAT_HIT and destroys.
     this.load.spritesheet('vfx-hit-spark', 'assets/sprites/vfx/hit-spark.png', { frameWidth: 64, frameHeight: 64 })
+
+    // ── Traps ─────────────────────────────────────────────────────────────
+    // Sheets re-baked from the raw art into clean uniform grids by
+    // tools/bake-traps.mjs. Frame dims mirror assets/sprites/traps/manifest.json.
+    const TRAP = 'assets/sprites/traps/'
+    this.load.spritesheet('trap-arrow',           TRAP + 'arrow.png',           { frameWidth: 16,  frameHeight: 157 })
+    this.load.spritesheet('trap-bomb',            TRAP + 'bomb.png',            { frameWidth: 48,  frameHeight: 48  })
+    this.load.spritesheet('trap-cannon-up',       TRAP + 'cannon-up.png',       { frameWidth: 16,  frameHeight: 100 })
+    this.load.spritesheet('trap-cannon-down',     TRAP + 'cannon-down.png',     { frameWidth: 16,  frameHeight: 123 })
+    this.load.spritesheet('trap-cannon-left',     TRAP + 'cannon-left.png',     { frameWidth: 128, frameHeight: 32  })
+    this.load.spritesheet('trap-cannon-right',    TRAP + 'cannon-right.png',    { frameWidth: 127, frameHeight: 32  })
+    this.load.spritesheet('trap-dragon-ud',       TRAP + 'dragon-ud.png',       { frameWidth: 32,  frameHeight: 76  })
+    this.load.spritesheet('trap-dragon-rl',       TRAP + 'dragon-rl.png',       { frameWidth: 96,  frameHeight: 32  })
+    this.load.spritesheet('trap-spike-pillar',    TRAP + 'spike-pillar.png',    { frameWidth: 48,  frameHeight: 64  })
+    this.load.spritesheet('trap-spike-pit',       TRAP + 'spike-pit.png',       { frameWidth: 48,  frameHeight: 32  })
+    this.load.spritesheet('trap-rotating-blades', TRAP + 'rotating-blades.png', { frameWidth: 48,  frameHeight: 48  })
+    this.load.spritesheet('trap-saw-h',           TRAP + 'saw-h.png',           { frameWidth: 70,  frameHeight: 32  })
+    this.load.spritesheet('trap-saw-v',           TRAP + 'saw-v.png',           { frameWidth: 16,  frameHeight: 64  })
 
     // ── Items: lock / key / key chest ────────────────────────────────────
     // Padlock + key are 16×16 single-frame icons. Key chest is a 29×61

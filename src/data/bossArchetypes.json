@@ -48,7 +48,7 @@
     "portraitAvailable": true,
     "headline": {
       "name": "Sacrifice Pact",
-      "summary": "Once per day, burn a minion to instakill a random adventurer.",
+      "summary": "Once per day, burn a minion (often a free imp) to instakill a random adventurer.",
       "implemented": true
     },
     "mechanics": [
@@ -57,7 +57,7 @@
         "implemented": true
       }
     ],
-    "flavorText": "Every contract is signed in someone else's blood. Pick whose.",
+    "flavorText": "Every contract is signed in someone else's blood. The Pact decides whose.",
     "description": "Faustian sacrifice",
     "modifiers": {
       "goldGainMultiplier": 1,

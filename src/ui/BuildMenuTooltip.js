@@ -9,6 +9,7 @@
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel } from './UIKit.js'
 import { MINION_ABILITY_INFO } from '../systems/MinionAbilities.js'
 import { Balance }              from '../config/balance.js'
+import { DungeonGrid }          from '../systems/DungeonGrid.js'
 
 const W = 270             // panel width (px, design-space)
 const PAD = 10
@@ -22,7 +23,7 @@ const COST_GLYPH = '◆'
 // here, then finally to `def.description`. Minion descriptions are
 // suppressed entirely (their stats + ABILITY/BEHAVIOR sections cover it).
 const ROOM_SUMMARIES = {
-  entry_hall:           'Required entry point. Only one allowed.',
+  entry_hall:           'Required entry point. A 2nd unlocks at boss level 5, a 3rd at level 10 — both forced.',
   starter_corridor:     'Connecting passage. Place between rooms to link them.',
   starter_barracks:     '+10 roster minion slots. Required for any patrolling minions.',
   starter_guard_post:   'Minions hunt adventurers in connected rooms, then return.',
@@ -197,13 +198,10 @@ export class BuildMenuTooltip {
   _costFor(def, kind, gameState) {
     let cost = def.cost ?? def.goldCost ?? null
     if (cost == null) return null
-    // Rooms with freeFirstN: first N placements are free, then base cost.
+    // Rooms: freeFirstN free copies + escalating costStep, via the
+    // canonical cost fn so the tooltip price matches the actual charge.
     if (kind === 'room') {
-      const freeFirstN = def.placementRules?.freeFirstN ?? 0
-      if (freeFirstN > 0) {
-        const placed = (gameState?.dungeon?.rooms ?? []).filter(r => r.definitionId === def.id).length
-        if (placed < freeFirstN) cost = 0
-      }
+      cost = DungeonGrid.effectiveRoomCost(def, gameState?.dungeon?.rooms ?? [])
     }
     // Mirror BuildMenu's hastyArchitect discount so the displayed cost
     // matches the actual debit on purchase.

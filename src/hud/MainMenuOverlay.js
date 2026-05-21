@@ -23,6 +23,8 @@ import { h, mount } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
 import { SaveSystem } from '../systems/SaveSystem.js'
 import { SettingsOverlay } from './SettingsOverlay.js'
+import { ConfirmPopup } from './ConfirmPopup.js'
+import { EventBus } from '../systems/EventBus.js'
 import { installHudSfxDelegates } from './HudSfx.js'
 
 // Title-screen boss video pool. File pattern is `assets/title-screen/
@@ -43,6 +45,7 @@ export class MainMenuOverlay {
     this._el = null
     this._settings = null
     this._leaderboard = null
+    this._confirm = null
     this._hovered = 'continue'
     this._save = null
     this._keyHandler = (e) => this._onKey(e)
@@ -56,6 +59,10 @@ export class MainMenuOverlay {
     // gameplay, but on a fresh page load MainMenu opens BEFORE HudRoot
     // mounts and the delegates would otherwise be missing. Idempotent.
     installHudSfxDelegates()
+    // Own a ConfirmPopup — the in-game one lives in HudRoot, which isn't
+    // mounted at the title screen. Used by the jam-portal "are you sure"
+    // prompt; listens for SHOW_CONFIRM.
+    this._confirm = new ConfirmPopup()
     this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
     if (!this._save) this._hovered = 'new'   // CONTINUE is disabled — default-focus NEW EVIL
     // Set up the boss-video shuffle queue. Each play picks the next
@@ -74,6 +81,8 @@ export class MainMenuOverlay {
     window.removeEventListener('keydown', this._keyHandler)
     this._settings?.close()
     this._settings = null
+    this._confirm?.destroy()
+    this._confirm = null
   }
 
   // ─── Rendering ─────────────────────────────────────────────────
@@ -298,10 +307,23 @@ export class MainMenuOverlay {
     }
   }
 
-  // Game-jam lobby portal. Uses the shared `window.Portal` helper when
-  // available so the lobby gets the caller's referrer; falls back to a
-  // direct navigate if the helper isn't loaded.
+  // Game-jam lobby portal. Clicking it leaves the game, so confirm first
+  // via the shared ConfirmPopup (SHOW_CONFIRM) — only navigate on confirm.
   _openJamPortal() {
+    EventBus.emit('SHOW_CONFIRM', {
+      title: 'LEAVE QUEST FAILED?',
+      message: 'This takes you to the game-jam lobby and leaves Quest '
+             + 'Failed. Are you sure you want to leave?',
+      confirmLabel: 'LEAVE',
+      cancelLabel:  'STAY',
+      onConfirm: () => this._goToJamLobby(),
+    })
+  }
+
+  // Uses the shared `window.Portal` helper when available so the lobby
+  // gets the caller's referrer; falls back to a direct navigate if the
+  // helper isn't loaded.
+  _goToJamLobby() {
     const LOBBY_URL = 'https://callumhyoung.github.io/gamejam1-lobby/'
     try {
       if (window.Portal?.sendPlayerThroughPortal) {

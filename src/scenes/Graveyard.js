@@ -12,6 +12,7 @@
 
 import { PALETTE, glowPanel } from '../ui/UIKit.js'
 import { PauseManager }       from '../systems/PauseManager.js'
+import { classLabel }         from '../util/displayNames.js'
 
 export class Graveyard extends Phaser.Scene {
   constructor() {
@@ -99,7 +100,7 @@ export class Graveyard extends Phaser.Scene {
                       : g.classId === 'ranger' ? '#aaffcc'
                       : PALETTE.textNormal
       const main = this.add.text(0, cy,
-        `${g.name ?? '???'}  ·  ${g.classId ?? '?'}  ·  Day ${g.diedOnDay ?? '?'}`, {
+        `${g.name ?? '???'}  ·  ${classLabel(g.classId, '?')}  ·  Day ${g.diedOnDay ?? '?'}`, {
           fontSize: '11px', color: lineColor, fontFamily: 'monospace', fontStyle: 'bold',
         })
       const sub = this.add.text(0, cy + 16,

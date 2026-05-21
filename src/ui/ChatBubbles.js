@@ -187,6 +187,9 @@ export class ChatBubbles {
   }
 
   _createBubble(adv, line, lifeMs) {
+    // Event-spawned monsters (zombie horde, rival-dungeon invaders) are
+    // not chatty adventurers — they never show speech bubbles.
+    if (!adv || adv._monster) return
     const c   = this._scene.add.container(adv.worldX, adv.worldY - 30).setDepth(11)
     const txt = this._scene.add.text(0, 0, line, {
       fontSize: '9px', color: '#e0e6f0', fontFamily: 'monospace',

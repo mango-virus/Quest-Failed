@@ -17,6 +17,7 @@ import { Balance }           from '../config/balance.js'
 import { SfxVolume }         from '../systems/SfxVolume.js'
 import { BuildMenuTooltip }  from './BuildMenuTooltip.js'
 import { ThemeManager, readCellEntry, spriteCoverage } from '../systems/ThemeManager.js'
+import { DungeonGrid } from '../systems/DungeonGrid.js'
 
 const DEFAULT_PANEL_W = 230
 const HEADER_H      = 22
@@ -388,13 +389,10 @@ export class BuildMenu {
     const key = `${kind}:${def.id}`
     const isSelected = (this._selectedKey === key)
     let cost = def.cost ?? def.goldCost ?? 0
-    // Rooms with freeFirstN: first N placements are free, then base cost.
+    // Rooms: freeFirstN free copies + escalating costStep, via the
+    // canonical cost fn so the slot price matches what placement charges.
     if (kind === 'room') {
-      const freeFirstN = def.placementRules?.freeFirstN ?? 0
-      if (freeFirstN > 0) {
-        const placed = (this._gameState.dungeon?.rooms ?? []).filter(r => r.definitionId === def.id).length
-        if (placed < freeFirstN) cost = 0
-      }
+      cost = DungeonGrid.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
     }
     if (kind === 'trap' && (this._gameState._mechanicFlags ?? {}).hastyArchitect) {
       cost = Math.max(0, Math.round(cost * Balance.MECHANIC_HASTY_ARCHITECT_TRAP_DISCOUNT))

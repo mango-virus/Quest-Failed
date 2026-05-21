@@ -96,7 +96,9 @@ export class TopBar {
             h('div', {
               className: 'num',
               ref: el => { this._refs.xpNum = el },
-              style: { fontSize: '7px' },
+              // 6px (+ tighter spacing) so "n / n XP" fits the thin 8px
+              // XP bar without the glyph tops/bottoms clipping.
+              style: { fontSize: '6px', letterSpacing: '0.5px' },
             }, '0 / 0 XP'),
           ]),
           // Buff slots + hearts row
@@ -128,7 +130,7 @@ export class TopBar {
       // RIGHT — treasury
       h('div', { className: 'qf-topbar-right' }, [
         h('div', { className: 'qf-treasury-label' }, [
-          h('span', { className: 'diamond sm gold' }),
+          h('span', { className: 'diamond sm white' }),
           ' TREASURY',
         ]),
         h('div', {

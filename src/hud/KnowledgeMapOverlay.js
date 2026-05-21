@@ -39,7 +39,29 @@ const STATE_COLOR = {
   RUMOR:   '#5cc8d8',
   UNKNOWN: '#5a4a4e',
 }
+// Base scrub cost by the room's own intel tier. The full cost also
+// scales with how much the room exposes — see _scrubCost().
 const SCRUB_COST = { FULL: 22, PARTIAL: 12, RUMOR: 6, UNKNOWN: 0 }
+// Extra scrub cost per known aspect inside the room (each leaked trap /
+// minion / item) and per room unlock-tier above the first.
+const SCRUB_PER_ASPECT     = 8
+const SCRUB_PER_ROOM_LEVEL = 5
+
+// ── Knowledge-category color scheme ─────────────────────────────────
+// The ONE 4-category palette shared with the LeftPanels mini-map and
+// the KnowledgeScreen menu (LeftPanels.CAT_COLOR / KnowledgeScreen
+// .CAT_COLOR_STR). Each category answers "what kind of intel leaked":
+//   ROOMS / TRAPS / MINIONS / ITEMS. Used here for the category-filter
+//   toggle buttons + the per-category intel markers on the blueprint.
+const CAT_COLOR = {
+  ROOMS:   '#5cc8d8',
+  TRAPS:   '#e89a3c',
+  MINIONS: '#c8334a',
+  ITEMS:   '#c879d8',
+}
+// The four filterable categories, in legend order. `all` true = no
+// filter active (everything shows).
+const CATEGORIES = ['ROOMS', 'TRAPS', 'MINIONS', 'ITEMS']
 
 export class KnowledgeMapOverlay {
   constructor(gameState) {
@@ -48,6 +70,11 @@ export class KnowledgeMapOverlay {
     this._zoom = 1
     this._pan  = { x: 0, y: 0 }
     this._filterRoomId = null
+    // Category filter — a Set of the categories currently SHOWN. When
+    // it holds all four (the default) no filtering happens; toggling a
+    // button removes / re-adds its category. Both the DUNGEON
+    // BLUEPRINT and the INTEL LEDGER honour this set.
+    this._catFilter = new Set(CATEGORIES)
     this._dragRef = null
     this._listener = () => this.toggle()
     EventBus.on('OPEN_KNOWLEDGE_MAP', this._listener)
@@ -64,6 +91,7 @@ export class KnowledgeMapOverlay {
     this._zoom = 1
     this._pan = { x: 0, y: 0 }
     this._filterRoomId = null
+    this._catFilter = new Set(CATEGORIES)
     this._overlay = new Overlay({
       title:  'KNOWLEDGE MAP',
       width:  1400,
@@ -116,13 +144,77 @@ export class KnowledgeMapOverlay {
   _intelReport() {
     const sys = this._knowledgeSystem()
     if (sys?.getIntelReport) return sys.getIntelReport()
-    return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, leakedRoomCount: 0 }
+    return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, items: {}, leakedRoomCount: 0 }
+  }
+
+  // Resolve an item-entity type id to its display name via items.json.
+  _itemLabel(itemType) {
+    if (!itemType) return 'placed item'
+    const def = (this._cachedJson('items') ?? []).find(d => d.id === itemType)
+    return def?.name ?? itemType
+  }
+
+  // Resolve a minion / trap definition id to its player-facing display
+  // name (minionTypes.json / trapTypes.json) — never leak the dev id.
+  _minionLabel(minionType) {
+    if (!minionType) return 'enemy'
+    const def = (this._cachedJson('minionTypes') ?? []).find(d => d.id === minionType)
+    return def?.name ?? minionType
+  }
+
+  _trapLabel(trapType) {
+    if (!trapType) return 'trap'
+    const def = (this._cachedJson('trapTypes') ?? []).find(d => d.id === trapType)
+    return def?.name ?? trapType
   }
 
   // Room intel state — one of the four state strings. Reads the cached
   // report computed once per render in _renderBody().
   _intelStateFor(roomInstanceId) {
     return this._report?.rooms?.[roomInstanceId] ?? 'UNKNOWN'
+  }
+
+  // ── Category filter ─────────────────────────────────────────────
+  // True when `cat` should be shown. With all four categories in the
+  // set nothing is filtered; remove one and it stops showing.
+  _catVisible(cat) {
+    return this._catFilter.has(cat)
+  }
+  // True when a filter is actually narrowing the view (i.e. at least
+  // one category is hidden). Used to label the ledger meta.
+  _catFilterActive() {
+    return this._catFilter.size < CATEGORIES.length
+  }
+  // Toggle a category on / off. Never lets the player hide ALL four —
+  // the last visible category can't be removed (an empty map is
+  // useless), it just re-shows everything instead.
+  _toggleCategory(cat) {
+    if (this._catFilter.has(cat)) {
+      if (this._catFilter.size <= 1) this._catFilter = new Set(CATEGORIES)
+      else this._catFilter.delete(cat)
+    } else {
+      this._catFilter.add(cat)
+    }
+    this._rerender()
+  }
+
+  // Which intel categories does this room have, honouring the filter?
+  // Returns the set of VISIBLE categories the room actually carries —
+  // ROOMS when its layout leaked, TRAPS/MINIONS/ITEMS from the room
+  // detail. Used to decide whether a room block / ledger card shows.
+  _visibleCategoriesForRoom(roomInstanceId) {
+    const out = []
+    if (this._intelStateFor(roomInstanceId) !== 'UNKNOWN' && this._catVisible('ROOMS')) {
+      out.push('ROOMS')
+    }
+    const sys = this._knowledgeSystem()
+    const d   = sys?.getRoomKnowledgeDetails?.(roomInstanceId)
+    if (d) {
+      if ((d.traps?.length   ?? 0) > 0 && this._catVisible('TRAPS'))   out.push('TRAPS')
+      if ((d.enemies?.length ?? 0) > 0 && this._catVisible('MINIONS')) out.push('MINIONS')
+      if ((d.items?.length   ?? 0) > 0 && this._catVisible('ITEMS'))   out.push('ITEMS')
+    }
+    return out
   }
 
   _roomEntries() {
@@ -147,33 +239,83 @@ export class KnowledgeMapOverlay {
     })
   }
 
+  // Rooms that have leaked SOME intel the player is currently allowed
+  // to see. A room with only trap intel drops out of the list when the
+  // TRAPS filter is off — so the ledger + the "ROOMS LEAKED" counts
+  // always track the active category filter.
   _leakedRooms() {
-    return this._roomEntries().filter(r => r.state !== 'UNKNOWN')
+    return this._roomEntries().filter(
+      r => this._visibleCategoriesForRoom(r.id).length > 0)
   }
 
+  // Build the list of "what they know" lines for a room. Every line is
+  // tagged with its intel `cat` so the category filter can drop the
+  // ones the player has toggled off. Attribution comes from survivors
+  // (escapees who carried intel back).
   _intelEntriesFor(roomInstanceId) {
-    // Build a list of "what they know" lines for this room. Attribution
-    // comes from survivors (escapees who carried intel back).
     const survivors = this._gameState.knowledge?.survivors ?? []
+    const day = this._gameState.meta?.dayNumber ?? 1
     const out = []
-    const state = this._intelStateFor(roomInstanceId)
-    if (state === 'FULL') {
-      out.push({ text: 'layout known', source: 'shared pool', cls: 'rogue', day: this._gameState.meta?.dayNumber ?? 1 })
-      out.push({ text: 'guards counted', source: 'shared pool', cls: 'rogue', day: this._gameState.meta?.dayNumber ?? 1 })
-    } else if (state === 'PARTIAL') {
-      out.push({ text: 'partial layout', source: 'shared pool', cls: 'cleric', day: this._gameState.meta?.dayNumber ?? 1 })
-    } else if (state === 'RUMOR') {
-      out.push({ text: 'rumored existence', source: 'shared pool', cls: 'cleric', day: this._gameState.meta?.dayNumber ?? 1 })
+    // ── ROOMS category — the room layout itself.
+    if (this._catVisible('ROOMS')) {
+      const state = this._intelStateFor(roomInstanceId)
+      if (state === 'FULL') {
+        out.push({ cat: 'ROOMS', text: 'layout known', source: 'shared pool', cls: 'rogue', day })
+      } else if (state === 'PARTIAL') {
+        out.push({ cat: 'ROOMS', text: 'partial layout', source: 'shared pool', cls: 'cleric', day })
+      } else if (state === 'RUMOR') {
+        out.push({ cat: 'ROOMS', text: 'rumored existence', source: 'shared pool', cls: 'cleric', day })
+      }
     }
-    // Cross-reference survivor knowledge for attribution
-    for (const sv of survivors.slice(0, 4)) {
-      if ((sv.knownRooms ?? []).includes(roomInstanceId)) {
-        out.push({
-          text: 'leaked it on escape',
-          source: sv.name || 'escapee',
-          cls: sv.classId || 'rogue',
-          day: sv.escapeDay || (this._gameState.meta?.dayNumber ?? 1),
-        })
+    // Per-room intel detail — traps / minions / placed items the
+    // adventurers know sit in this room. Brings the Knowledge Map in
+    // line with the other intel surfaces (KnowledgeScreen / RightPanels),
+    // which all surface traps + minions + items, not just room layout.
+    // Each block is gated on its category being visible.
+    const sys = this._knowledgeSystem()
+    const details = sys?.getRoomKnowledgeDetails?.(roomInstanceId)
+    if (details) {
+      if (this._catVisible('MINIONS')) {
+        for (const e of (details.enemies ?? [])) {
+          out.push({
+            cat: 'MINIONS',
+            text: `minion: ${this._minionLabel(e.minionType)}${e.stale ? ' (stale)' : ''}`,
+            source: 'shared pool', cls: 'cleric', day,
+          })
+        }
+      }
+      if (this._catVisible('TRAPS')) {
+        for (const t of (details.traps ?? [])) {
+          out.push({
+            cat: 'TRAPS',
+            text: `trap: ${this._trapLabel(t.type)}${t.stale ? ' (stale)' : ''}`,
+            source: 'shared pool', cls: 'rogue', day,
+          })
+        }
+      }
+      if (this._catVisible('ITEMS')) {
+        for (const it of (details.items ?? [])) {
+          out.push({
+            cat: 'ITEMS',
+            text: `item: ${this._itemLabel(it.itemType)}${it.stale ? ' (stale)' : ''}`,
+            source: 'shared pool', cls: 'rogue', day,
+          })
+        }
+      }
+    }
+    // Cross-reference survivor knowledge for attribution — this line
+    // describes the room leak itself, so it rides the ROOMS category.
+    if (this._catVisible('ROOMS')) {
+      for (const sv of survivors.slice(0, 4)) {
+        if ((sv.knownRooms ?? []).includes(roomInstanceId)) {
+          out.push({
+            cat: 'ROOMS',
+            text: 'leaked it on escape',
+            source: sv.name || 'escapee',
+            cls: sv.classId || 'rogue',
+            day: sv.escapeDay || day,
+          })
+        }
       }
     }
     return out
@@ -267,6 +409,38 @@ export class KnowledgeMapOverlay {
     )
   }
 
+  // Category-filter toolbar — one toggle button per intel category.
+  // A button is "lit" when its category is showing; clicking it hides
+  // that category from BOTH the blueprint and the ledger. Lives under
+  // the blueprint header so it reads as a control for the map.
+  _renderCategoryFilter() {
+    return h('div', { className: 'qf-knowmap-catfilter' }, [
+      h('span', { className: 'pix qf-knowmap-catfilter-label' }, 'SHOW'),
+      ...CATEGORIES.map(cat => {
+        const on = this._catVisible(cat)
+        const color = CAT_COLOR[cat]
+        return h('button', {
+          className: 'qf-knowmap-catbtn',
+          dataset: { on: on ? 'true' : 'false' },
+          title: on ? `Hide ${cat} intel` : `Show ${cat} intel`,
+          style: {
+            '--cat-color': color,
+            borderColor: on ? color : 'var(--line-2)',
+            color: on ? color : 'var(--text-dim)',
+            background: on ? `${color}1f` : 'transparent',
+          },
+          on: { click: () => this._toggleCategory(cat) },
+        }, [
+          h('span', {
+            className: 'qf-knowmap-catbtn-dot',
+            style: { background: on ? color : 'var(--text-dim)' },
+          }),
+          cat,
+        ])
+      }),
+    ])
+  }
+
   _renderMap() {
     const W = this._gameState.dungeon?.gridWidth || 30
     const H = this._gameState.dungeon?.gridHeight || 30
@@ -286,6 +460,8 @@ export class KnowledgeMapOverlay {
           }, `${Math.round(zoom * 100)}%`),
         ]),
       ]),
+      // Category filter toolbar
+      this._renderCategoryFilter(),
       // Map viewport
       h('div', {
         className: 'qf-knowmap-viewport',
@@ -313,6 +489,10 @@ export class KnowledgeMapOverlay {
             ...rooms.map(r => this._renderRoomBlock(r, W, H)),
             // Scan line
             h('div', { className: 'qf-knowmap-scan' }),
+            // Per-entity intel markers — each known minion / trap / item
+            // plotted at its actual tile so the player sees WHERE leaked
+            // things sit, not just which room carries the category.
+            ...this._entityMarkers().map(mk => this._renderEntityMarker(mk, W, H)),
           ]),
         ]),
         // Filter chip
@@ -325,12 +505,27 @@ export class KnowledgeMapOverlay {
           }, '×'),
         ]),
       ]),
-      // Legend
+      // Tier legend — how each room block is shaded (its avoidance tier).
       h('div', { className: 'qf-knowmap-legend' }, [
         this._legendItem('FULL',    'strongly avoided', STATE_COLOR.FULL),
         this._legendItem('PARTIAL', 'mildly avoided',   STATE_COLOR.PARTIAL),
         this._legendItem('RUMOR',   'lightly avoided',  STATE_COLOR.RUMOR),
         this._legendItem('UNKNOWN', 'walks in blind',   STATE_COLOR.UNKNOWN),
+      ]),
+      // Category legend — the four intel-category marker colours,
+      // matching the filter buttons + the other two knowledge surfaces.
+      h('div', { className: 'qf-knowmap-catlegend' }, [
+        h('span', { className: 'pix qf-knowmap-catlegend-label' }, 'INTEL'),
+        ...CATEGORIES.map(cat => h('div', { className: 'qf-knowmap-catlegend-item' }, [
+          h('span', {
+            className: 'qf-knowmap-catlegend-dot',
+            style: { background: CAT_COLOR[cat], boxShadow: `0 0 4px ${CAT_COLOR[cat]}` },
+          }),
+          h('span', {
+            className: 'pix qf-knowmap-catlegend-text',
+            style: { color: CAT_COLOR[cat] },
+          }, cat),
+        ])),
       ]),
     ])
   }
@@ -338,7 +533,15 @@ export class KnowledgeMapOverlay {
   _renderRoomBlock(r, gridW, gridH) {
     const c = STATE_COLOR[r.state]
     const isUnknown = r.state === 'UNKNOWN'
-    const isFiltered = this._filterRoomId && this._filterRoomId !== r.id
+    // Room-pick filter (clicking a room) dims the others.
+    const isRoomFiltered = this._filterRoomId && this._filterRoomId !== r.id
+    // Category filter — which intel categories this room carries that
+    // the player is currently allowed to see. When the category filter
+    // is active and a room has none of the visible categories, the
+    // block dims right down so only relevant rooms read on the map.
+    const visCats  = this._visibleCategoriesForRoom(r.id)
+    const catFaded = this._catFilterActive() && visCats.length === 0
+    const opacity  = isRoomFiltered ? 0.25 : (catFaded ? 0.22 : 1)
     return h('button', {
       className: 'qf-knowmap-room',
       title: `${r.name} · ${r.state}`,
@@ -352,7 +555,7 @@ export class KnowledgeMapOverlay {
         boxShadow: isUnknown
           ? 'none'
           : `0 0 18px ${c}44, inset 0 0 0 1px rgba(0,0,0,0.3)`,
-        opacity: isFiltered ? 0.25 : 1,
+        opacity,
         animation: r.fresh ? 'fresh-leak 1.8s ease-in-out infinite' : 'none',
       },
       on: { click: () => {
@@ -364,7 +567,79 @@ export class KnowledgeMapOverlay {
         className: 'pix qf-knowmap-room-label',
         style: { color: isUnknown ? 'var(--text-faint)' : c },
       }, isUnknown ? '???' : r.name),
+      // Per-category intel (traps / minions / items) now renders as
+      // positional markers on the blueprint — see _renderEntityMarker —
+      // rather than category dots clustered in the room corner.
     ])
+  }
+
+  // Build the positional intel-marker list for the blueprint. Traps and
+  // items carry tileX/tileY in the knowledge pool directly. Minions are
+  // tracked per-room-per-type only (no position), so we cross-reference
+  // the live minion list to plot each known-type minion at its real
+  // tile. Honours the category filter.
+  _entityMarkers() {
+    const sys = this._knowledgeSystem()
+    if (!sys?.getRoomKnowledgeDetails) return []
+    const rooms   = this._gameState.dungeon?.rooms ?? []
+    const minions = this._gameState.minions ?? []
+    const out = []
+    for (const room of rooms) {
+      const rid = room.instanceId
+      const details = sys.getRoomKnowledgeDetails(rid)
+      if (!details) continue
+      const inRoom = (tx, ty) =>
+        tx >= room.gridX && tx < room.gridX + room.width &&
+        ty >= room.gridY && ty < room.gridY + room.height
+      if (this._catVisible('TRAPS')) {
+        for (const t of (details.traps ?? [])) {
+          if (t.tileX == null || t.tileY == null) continue
+          out.push({ cat: 'TRAPS', tileX: t.tileX, tileY: t.tileY,
+                     roomId: rid, label: this._trapLabel(t.type) })
+        }
+      }
+      if (this._catVisible('ITEMS')) {
+        for (const it of (details.items ?? [])) {
+          if (it.tileX == null || it.tileY == null) continue
+          out.push({ cat: 'ITEMS', tileX: it.tileX, tileY: it.tileY,
+                     roomId: rid, label: this._itemLabel(it.itemType) })
+        }
+      }
+      if (this._catVisible('MINIONS')) {
+        const knownTypes = new Set((details.enemies ?? []).map(e => e.minionType))
+        if (knownTypes.size > 0) {
+          for (const m of minions) {
+            if (!m || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+            if (m.tileX == null || m.tileY == null) continue
+            if (!knownTypes.has(m.definitionId)) continue
+            if (!inRoom(m.tileX, m.tileY)) continue
+            out.push({ cat: 'MINIONS', tileX: m.tileX, tileY: m.tileY,
+                       roomId: rid, label: this._minionLabel(m.definitionId) })
+          }
+        }
+      }
+    }
+    return out
+  }
+
+  // One positional marker on the blueprint, centred on its tile. Shape
+  // is set per category via CSS (minion circle / trap diamond / item
+  // square). pointer-events:none so clicks fall through to the room
+  // block underneath (room-pick filter still works).
+  _renderEntityMarker(mk, gridW, gridH) {
+    const color  = CAT_COLOR[mk.cat]
+    const dimmed = this._filterRoomId && this._filterRoomId !== mk.roomId
+    return h('div', {
+      className: `qf-knowmap-entity qf-knowmap-entity-${mk.cat.toLowerCase()}`,
+      title: `${mk.label} · ${mk.cat}`,
+      style: {
+        left: `${((mk.tileX + 0.5) / gridW) * 100}%`,
+        top:  `${((mk.tileY + 0.5) / gridH) * 100}%`,
+        background: color,
+        boxShadow: `0 0 6px ${color}`,
+        opacity: dimmed ? 0.18 : 1,
+      },
+    })
   }
 
   _legendItem(label, sub, color) {
@@ -387,16 +662,22 @@ export class KnowledgeMapOverlay {
     const filtered = this._filterRoomId
       ? leakedRooms.filter(r => r.id === this._filterRoomId)
       : leakedRooms
+    // When the category filter is narrowing the view, name the active
+    // categories so the player knows the ledger is partial.
+    const catFilterActive = this._catFilterActive()
+    const activeCats = CATEGORIES.filter(c => this._catVisible(c))
     return h('div', { className: 'panel bevel qf-knowmap-ledger' }, [
       h('div', { className: 'panel-head' }, [
         h('div', { className: 'title' }, 'INTEL LEDGER'),
         h('div', {
           className: 'meta qf-knowmap-ledger-meta',
-          style: { color: this._filterRoomId ? 'var(--rumor)' : 'var(--warn)' },
+          style: { color: (this._filterRoomId || catFilterActive) ? 'var(--rumor)' : 'var(--warn)' },
         }, [
           this._filterRoomId
             ? `${filtered.length} OF ${leakedRooms.length}`
-            : `${leakedRooms.length} ROOMS LEAKED`,
+            : catFilterActive
+              ? `${leakedRooms.length} · ${activeCats.join('/')}`
+              : `${leakedRooms.length} ROOMS LEAKED`,
           this._filterRoomId && h('button', {
             className: 'qf-knowmap-ledger-clear',
             on: { click: () => { this._filterRoomId = null; this._rerender() } },
@@ -415,11 +696,31 @@ export class KnowledgeMapOverlay {
     ])
   }
 
+  // Total gold to scrub a room's intel. Scales with three things the
+  // player can see on the card: the base intel tier (FULL/PARTIAL/
+  // RUMOR), the number of known aspects inside it (leaked traps +
+  // minions + items), and the room's own unlock tier. So a late-game
+  // room with a known trap and minion costs far more to wipe than a
+  // barely-glimpsed empty starter room.
+  _scrubCost(r) {
+    const base = SCRUB_COST[r.state] ?? 0
+    if (base === 0) return 0   // UNKNOWN layout — nothing to scrub
+    const d = this._knowledgeSystem()?.getRoomKnowledgeDetails?.(r.id)
+    const aspects = (d?.traps?.length   ?? 0)
+                  + (d?.enemies?.length ?? 0)
+                  + (d?.items?.length   ?? 0)
+    const roomDef  = (this._cachedJson('rooms') ?? []).find(x => x.id === r.defId)
+    const unlockLv = Math.max(1, roomDef?.unlockLevel ?? 1)
+    return base
+         + aspects * SCRUB_PER_ASPECT
+         + (unlockLv - 1) * SCRUB_PER_ROOM_LEVEL
+  }
+
   _renderLedgerCard(r) {
     const color = STATE_COLOR[r.state]
     const entries = this._intelEntriesFor(r.id)
     const mitigation = this._mitigationFor(r.state)
-    const scrubCost = SCRUB_COST[r.state] ?? 0
+    const scrubCost = this._scrubCost(r)
     return h('div', {
       className: 'qf-knowmap-card',
       style: {
@@ -440,9 +741,11 @@ export class KnowledgeMapOverlay {
       ]),
       h('ul', { className: 'qf-knowmap-card-entries' },
         entries.map(it => h('li', null, [
+          // Entry arrow tinted by the line's intel category so the
+          // ledger colour-codes consistently with the map markers.
           h('span', {
             className: 'qf-knowmap-card-entry-arrow',
-            style: { color },
+            style: { color: CAT_COLOR[it.cat] ?? color },
           }, '›'),
           h('div', null, [
             h('div', null, it.text),

@@ -158,7 +158,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | ID | Name | Cap | Unlock | Phase | Status | Notes |
 |---|---|---|---|---|---|---|
 | boss_chamber | Boss Chamber | 1 (fixed) | Start | 2 | ✅ DONE | fixed centerpiece, kept |
-| entry_hall | Entry Hall | 1 | Start | 3 | ✅ DONE | required entrance, kept |
+| entry_hall | Entry Hall | 1 / 2 / 3 (forced) | Start; L5; L10 | 3 | ✅ DONE | required entrance; multi-entry (2026-05-20) — random per-adventurer spawn entry + flee-to-nearest, 2nd Entry Hall forced @ boss L5, 3rd @ L10 |
 
 ### 6b. Starter (free, L1)
 
@@ -228,33 +228,40 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 
 ## 7. Trap types
 
-### 7a. Standard ("the usual")
+**2026-05-20 redesign.** The original 3 standard + 9 interaction traps were scrapped — none ever shipped (`trapTypes.json` was always `[]`; the old `TrapSystem`/`Trap`/`TrapRenderer` code targeted that dead roster). Replaced by the 8-trap roster below. Old rows preserved in git history.
 
-| Type | Phase | Status |
-|---|---|---|
-| spike_trap | 6b | ✅ DONE — stepped_on trigger, deals 20 physical |
-| arrow_trap | 6b | ✅ DONE — line_of_sight_broken (proxy: stepped_on), 18 piercing |
-| pitfall_trap | 6b | ✅ DONE — stepped_on, 25 physical |
+### 7a. Current roster (8 traps) — ✅ DONE
 
-### 7b. Interaction traps (target: 9 from design)
+| ID | Name | Footprint | Placement | Trigger | Unlock | Gold | Status |
+|---|---|---|---|---|---|---|---|
+| spike_pillar | Spike Pillar | 2×2 | floor | adv within 1 tile | L3 | 20 | ✅ DONE |
+| shooting_arrows | Shooting Arrows | 1 wall tile | wall (not doorway) | adv in LOS lane | L4 | 30 | ✅ DONE |
+| rotating_blades | Rotating Blades | 2×2 | floor | adv in adjacent tile | L4 | 25 | ✅ DONE |
+| bomb | Bomb | 1×1 | floor | adv within 2 tiles → 3s fuse | L5 | 35 | ✅ DONE |
+| saw_blade | Saw Blade | 3-tile track | floor | saw overlaps adv | L6 | 35 | ✅ DONE |
+| spike_pit | Spike Pit | 2×2 | floor (fully interior) | stepped on | L6 | 40 | ✅ DONE |
+| cannon | Cannon | 1×1 | floor | adv in LOS (faced dir) | L7 | 45 | ✅ DONE |
+| dragon_trap | Dragon Trap | 1 wall tile | wall (not doorway) | adv in LOS lane | L8 | 55 | ✅ DONE |
 
-| ID | Name | Phase | Status | Notes |
-|---|---|---|---|---|
-| greed_trap | Greed Trap | QW | ✅ DONE | AISystem emits LOOT_PICKED_UP on SEEK_LOOT pickup; TrapSystem._onLootPickedUp fires same-room greed traps |
-| whisper_trap | Whisper Trap | QW | ✅ DONE | ChatBubbles emits CHAT_BUBBLE_EMITTED on bubble show; TrapSystem._onChatBubble fires same-room whisper traps |
-| patience_trap | Patience Trap | 6b | ✅ DONE — fires on stand-still 3s+ |
-| speed_trap | Speed Trap | 6b | ✅ DONE — fires when speed >= 2.0 tiles/sec |
-| mercy_trap | Mercy Trap | 6c | ✅ DONE — fires on ALLY_HEALED event in same room |
-| torch_trap | Torch Trap | QW | ⏳ PENDING | `requiresEternalNight` gate removed 2026-05-02 when eternal_night pact was cut; trap definition not yet added to trapTypes.json — needs a new gate condition or redesign |
-| echo_mine | Echo Mine | 6d | ✅ DONE — armed on 1st step, fires on 2nd (35 explosive dmg) |
-| memory_trap | Memory Trap | 8 | ✅ DONE — fires when `adv.knowledge.rooms[roomId].visitCount >= 2` |
-| curse_brand_trap | Curse Brand Trap | 6d | ✅ DONE — applies cursedBrand flag for 30s; minions get priority 3 aggro on target |
+Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Factory (gateway room) unlocks at boss L3; traps unlock L3–8. Trap damage scales +12%/boss level (`Balance.TRAP_DAMAGE_PER_BOSS_LV`); trap gold cost scales +20%/boss level (`Balance.TRAP_COST_PER_BOSS_LV`) — both mirror the minion system. Gold values in `trapTypes.json` are the level-1 base. Knowledge gained only on trigger or damage-survived. Area/contact hazards hit both factions; LOS projectile traps hit adventurers only and are confined to the trap's own room (lane stops at walls/doors).
 
-### 7c. Open-ended
+### 7b. Cross-cutting infrastructure (new — none of this existed) — ✅ DONE
 
 | Item | Phase | Status |
 |---|---|---|
-| 💭 Many more interaction traps | 6–10 | 💭 OPEN |
+| Multi-tile (2×2) footprint + placement validation | TRAPS | ✅ DONE |
+| Wall-mounted placement category + auto-door suppression | TRAPS | ✅ DONE |
+| Trap collision (solid-tile registration for pathfinding) | TRAPS | ✅ DONE |
+| Line-of-sight scan (room-confined; canned projectile animations) | TRAPS | ✅ DONE |
+| Proximity / radius / adjacent-contact triggers | TRAPS | ✅ DONE |
+| Continuous-damage zones (blades / saw / pillar) | TRAPS | ✅ DONE |
+| Moving trap (saw track travel — time-based wave) | TRAPS | ✅ DONE |
+| Trap rotation + R-key handling (cannon only) | TRAPS | ✅ DONE |
+| Poison damage-over-time status effect | TRAPS | ✅ DONE |
+| Bomb fuse countdown + 5-tile-radius explosion + chain | TRAPS | ✅ DONE |
+| Knowledge gain (trigger / damage-survived) → pathfinder routing | TRAPS | ✅ DONE |
+| Trap damage scales with boss level (+12%/lvl) | TRAPS | ✅ DONE |
+| Rewrite `Trap.js` / `TrapSystem.js` / `TrapRenderer.js` (old roster) | TRAPS | ✅ DONE |
 
 ---
 
@@ -353,7 +360,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | Knowledge Overlay toggle | 8 | ✅ DONE — DayPhase KNOWLEDGE button; world-space red→blue overlay |
 | Thought Bubbles | 5 | ✅ DONE — shows primary personality icon |
 | More thought-bubble states (Searching/Scared/Greedy/Healing/Planning) | 6b | ✅ DONE — Fighting/Fleeing/Searching states + personality default |
-| Replay Ghost (returning party shows previous run) | 8b | ✅ DONE | AISystem path-samples to adv.pathHistory; KnowledgeSystem snapshots into AdventurerRecord; ReplayGhostRenderer subscribes to ADVENTURER_RETURNED, draws fading dot trail over REPLAY_GHOST_FADE_MS |
+| Replay Ghost (returning party shows previous run) | 8b | 🚫 REMOVED 2026-05-21 | Cut at user request — the prior-run path trail read as a confusing debug line when a Hero spawned. ReplayGhostRenderer.js stays in the repo but is no longer constructed (Game.js). ADVENTURER_RETURNED + adv.priorPathHistory are retained (NewspaperSystem still uses the sample count for flavor text); only the on-floor dot trail is gone. |
 | Combat log (Slay-the-Spire style) | 6b | ✅ DONE — fading event feed bottom-left during day phase |
 | Chat bubbles (adventurers talking to themselves/party) | 6b | ✅ DONE — class + personality lines, sparse pacing |
 | Time controls (pause/1×/2×/4×) | 4 | ✅ DONE |
@@ -453,9 +460,12 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 
 | Item | Phase | Status |
 |---|---|---|
-| Minion-kill threshold (3+) triggers bounty hunter spawn | 7/7b | ✅ DONE | EvolutionSystem flags `hasBounty` at BOUNTY_KILL_THRESHOLD; vendetta hunter spawn variant in DayPhase covers the targeted-hunter feature |
+| Minion-kill threshold (3+) triggers bounty hunter spawn | 7/7b → fixed 2026-05-20 | ✅ DONE — *the row used to claim the vendetta-hunter spawn "covered" this; it did NOT — vendetta hunters have a different trigger (a relative's death/loot), and no `hasBounty`-driven spawn existed.* Now real: EvolutionSystem flags `hasBounty` at 3 kills, and DayPhase gives a daily `BOUNTY_HUNTER_SPAWN_CHANCE` roll to spawn a hunter targeting that minion (reuses the SEEK_VENDETTA "hunt this minion" goal) |
+| Bounty hunter arrival event banner | 7b | ✅ DONE (2026-05-20) — `BOUNTY_HUNTER_ARRIVED` → top-of-screen EventBanner naming the targeted minion |
+| Bounty hunters stronger than normal adventurers | 7b | ✅ DONE (2026-05-20) — boss-level scaled, then ×`BOUNTY_HUNTER_HP_MULT` (1.6) / ×`BOUNTY_HUNTER_ATK_MULT` (1.4) |
+| Bounty hunters worth extra gold | 7b | ✅ DONE (2026-05-20) — `goldMul ×BOUNTY_HUNTER_GOLD_MULT` (3) in the AISystem kill-reward chain |
 | Wanted poster UI (name, kills, gear) | 7b | ✅ DONE — popup banner top-right on MINION_BOUNTY_POSTED; auto-fades 5s |
-| Bounty-flagged minions feel "famous" | 7 | ✅ DONE — gold star marker above sprite + inspector banner |
+| Bounty-flagged minions feel "famous" | 7 | ✅ DONE — gold ★ above the sprite (paired with the LV badge), inspector banner, and a gold ★ in the Minion Roster list |
 
 ---
 
@@ -708,21 +718,41 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 
 | ID | Item | Phase | Status | Notes |
 |---|---|---|---|---|
-| event-system | `EventSystem` — schedule + roll engine, event registry, night-phase notification banner, JSON-driven event definitions in `src/data/events.json` | EV | ⏳ PENDING | **Cadence: 1 event every 6–8 days. Same event cannot fire back-to-back. Speed Runner / Tournament / Rival Dungeon gated to boss level ≥ 3.** |
-| event-guild-raid | Guild Raid! — next day spawns 2× adventurers as steady pressure (longer wave, not one-shot surge) | EV | ⏳ PENDING | |
-| event-legendary-speedrunner | Legendary Speed Runner — single 2× stats / 2× speed adventurer, ignores non-essential rooms + minions, beelines to boss; killing them grants massive boss XP | EV | ⏳ PENDING | Boss level ≥ 3. Name intentionally fourth-wall-breaking. Pathfind: shortest path to boss room, only engages chokepoint-required minions. |
-| event-pestilence | Dungeon Pestilence — minions start day at 50% HP; melee with adventurer applies "Blighted" DoT until they die or leave; affects existing + newly-placed minions; Blight does NOT persist after adv leaves | EV | ⏳ PENDING | Adds new status: `blighted` on adventurer entity. |
-| event-cartographers | Cartographer's Convention — 3 scholar adventurers visit every non-boss room then leave; each room they map raises that room's "infamy" so future advs spawn with that knowledge | EV | ⏳ PENDING | New per-room `infamy` field; KnowledgeSystem reads on adv spawn. AI: visit-all goal type. |
-| event-cartographer-sprites | 3 LPC scholar adventurers (with glasses) for the Cartographer event | EV | ⏳ PENDING | Content task — uses existing LPC pipeline. |
-| event-blood-moon | Blood Moon Eclipse — minions deal 2× damage AND take 2× damage; no gold from killed adventurers | EV | ⏳ PENDING | |
-| event-negotiation | Negotiation Day — non-combat. Modal at start of day: pay 25% treasury (free day) OR refuse (next day +50% wave size) | EV | ⏳ PENDING | New popup component. Decision persists into following days' adv counts. |
-| event-tournament | The Tournament — 3 named rivals enter, hostile to each other AND the dungeon; sabotage each other's loot, body-block, attack each other when in same room | EV | ⏳ PENDING | Boss level ≥ 3. New AI sub-state: `rival_competitive`. Damage between adventurers is new infrastructure. |
-| event-rival-dungeon | Rival Dungeon — instead of adventurers, a group of random monsters enters; final entrant is a random boss from the boss pool that fights the player's boss; killing it grants big XP + gold | EV | ⏳ PENDING | Boss level ≥ 3. Reuses boss roster as enemy spawns. **Rival boss uses simple AI — basic chase + attack, NOT full BossArchetypeSystem behaviors.** |
-| event-twitch-con | Twitch Con — entire next wave is `twitch_streamer` class adventurers; killing them does NOT trigger the usual escalation/+adventurers-next-day penalty | EV | ⏳ PENDING | Class already exists in `adventurerClasses.json`. |
-| event-dark-deal | Dark Deal — demon appears in boss room during NIGHT phase, offers a free dark pact; if accepted, boss max HP halved for next day; if ignored, demon leaves with no penalty. Click demon to engage. | EV | ⏳ PENDING | Asset: `assets/!To do/Demon.png` — 4-row sheet (rows 1-2 appearing, rows 3-4 leaving). Spawns sprite into boss room scene + click handler + pact picker reuse. |
-| event-cosplay-contest | Cosplay Contest — adventurers in monster outfits; do not attack minions unless attacked first; 75% chance to walk past minions ignoring them | EV | ⏳ PENDING | Adv AI variant: passive-pass behavior, retaliation flag. |
-| event-cosplay-sprites | New LPC adventurer variants wearing animal/monster parts (zombie, skeleton, tails, wings, fantasy, beastman, farm animal, furry, undead, reptilian) — colored correctly per part theme | EV | ⏳ PENDING | Content task. Reptilian = green, etc. |
-| event-loot-goblin-heist | Loot Goblin Heist — goblins spawn in BOSS ROOM (reverse direction) and run for the dungeon exit; each kill drops large gold; goblins never stop to fight, only flee. **Each goblin that escapes steals 10% of current gold total** (per goblin, applied at exit) | EV | ⏳ PENDING | New spawn-point: boss room. New AI: pure-flee-to-exit goal (no engagement). Gold-drain stacks per escapee. |
+| event-system | `EventSystem` — schedule + roll engine, event registry, night-phase notification banner, JSON-driven event definitions in `src/data/events.json` | EV | ✅ DONE | **Cadence (revised 2026-05-21): first event day 3, then every 3 days (was 6–8). Same event cannot fire back-to-back. Speed Runner / Rival Dungeon gated to boss level ≥ 3; every event also carries a per-event `minBossLevel`.** (The Tournament was removed 2026-05-21 — see `event-tournament`.) |
+| event-guild-raid | Guild Raid! — next day spawns 2× adventurers as steady pressure (longer wave, not one-shot surge) | EV | ✅ DONE | |
+| event-legendary-speedrunner | Legendary Speed Runner — single 2× stats / 2× speed adventurer, ignores non-essential rooms + minions, beelines to boss; killing them grants massive boss XP | EV | ✅ DONE | Boss level ≥ 3. Name intentionally fourth-wall-breaking. Pathfind: shortest path to boss room, only engages chokepoint-required minions. |
+| event-pestilence | Dungeon Pestilence — minions start day at 50% HP; melee with adventurer applies "Blighted" DoT until they die or leave; affects existing + newly-placed minions; Blight does NOT persist after adv leaves | EV | ✅ DONE | Adds new status: `blighted` on adventurer entity. |
+| event-cartographers | Cartographer's Convention — 3 scholar adventurers visit every non-boss room then leave; each room they map raises that room's "infamy" so future advs spawn with that knowledge | EV | ✅ DONE | New per-room `infamy` field; KnowledgeSystem reads on adv spawn. AI: visit-all goal type. |
+| event-cartographer-sprites | 3 LPC scholar adventurers (with glasses) for the Cartographer event | EV | ✅ DONE | Content task — uses existing LPC pipeline. |
+| event-blood-moon | Blood Moon Eclipse — minions deal 2× damage AND take 2× damage; no gold from killed adventurers | EV | ✅ DONE | |
+| event-negotiation | Negotiation Day — non-combat. Modal at start of day: pay 25% treasury (free day) OR refuse (next day +50% wave size) | EV | ✅ DONE | New popup component. Decision persists into following days' adv counts. |
+| event-tournament | ~~The Tournament — 3 named rivals enter, hostile to each other AND the dungeon; sabotage each other's loot, body-block, attack each other when in same room~~ | EV | ❌ REMOVED | **Removed 2026-05-21 at player request** — the rival-vs-rival bloodsport never read cleanly in play. Event entry deleted from `events.json`, so it can no longer be scheduled or debug-forced. Inert spawn/AI code (`_spawnTournamentRivals`, `_tournamentRival` AI blocks, `tournament_rival_*` classes) left in place but unreachable. |
+| event-rival-dungeon | Rival Dungeon — instead of adventurers, a group of random monsters enters; final entrant is a random boss from the boss pool that fights the player's boss; killing it grants big XP + gold | EV | ✅ DONE | Boss level ≥ 3. Reuses boss roster as enemy spawns. **Rival boss uses simple AI — basic chase + attack, NOT full BossArchetypeSystem behaviors.** |
+| event-twitch-con | Twitch Con — entire next wave is `twitch_streamer` class adventurers; killing them does NOT trigger the usual escalation/+adventurers-next-day penalty | EV | ✅ DONE | Class already exists in `adventurerClasses.json`. |
+| event-dark-deal | Dark Deal — demon appears in boss room during NIGHT phase, offers a free dark pact; if accepted, boss max HP halved for next day; if ignored, demon leaves with no penalty. Click demon to engage. | EV | ✅ DONE | Asset: `assets/!To do/Demon.png` — 4-row sheet (rows 1-2 appearing, rows 3-4 leaving). Spawns sprite into boss room scene + click handler + pact picker reuse. |
+| event-cosplay-contest | Cosplay Contest — adventurers in monster outfits; do not attack minions unless attacked first; 75% chance to walk past minions ignoring them | EV | ✅ DONE | Adv AI variant: passive-pass behavior, retaliation flag. |
+| event-cosplay-sprites | New LPC adventurer variants wearing animal/monster parts (zombie, skeleton, tails, wings, fantasy, beastman, farm animal, furry, undead, reptilian) — colored correctly per part theme | EV | ✅ DONE | Content task. Reptilian = green, etc. |
+| event-loot-goblin-heist | Loot Goblin Heist — goblins spawn in BOSS ROOM (reverse direction) and run for the dungeon exit; each kill drops large gold; goblins never stop to fight, only flee. **Each goblin that escapes steals 10% of current gold total** (per goblin, applied at exit) | EV | ✅ DONE | New spawn-point: boss room. New AI: pure-flee-to-exit goal (no engagement). Gold-drain stacks per escapee. |
+
+### 33b. Event pool expansion — 2026-05-21 (15 new events)
+
+| ID | Item | Phase | Status | Notes |
+|---|---|---|---|---|
+| event-tax-season | Tax Season — 20% treasury levied at day start; every kill that day pays 2× gold | EV | ✅ DONE | minBossLevel 1. AISystem goldMul ×2. |
+| event-patrons-blessing | Patron's Blessing — boss XP from every kill that day doubled | EV | ✅ DONE | minBossLevel 1. AISystem `_awardBossXp` called twice. |
+| event-gamblers-coin | The Gambler's Coin — night modal; WAGER 50/50 double-or-halve the treasury | EV | ✅ DONE | minBossLevel 1. SHOW_CONFIRM modal. |
+| event-memory-plague | Memory Plague — shared knowledge pool wiped at announce; next wave blind | EV | ✅ DONE | minBossLevel 1. `KNOWLEDGE_WIPE_ALL` → KnowledgeSystem clears survivors + rebuilds pool. |
+| event-dense-fog | Dense Fog — intel gathered that day registers only as RUMOR tier; exposure barely rises | EV | ✅ DONE | minBossLevel 1. KnowledgeSystem `_fogActive` gates confirmed/stale. Grey screen tint. |
+| event-miasma | Creeping Miasma — chip DoT every 2s to all; invaders lethal, minions floored at 1 HP, boss floored at 25% | EV | ✅ DONE | minBossLevel 1. EventSystem timer. Green tint. |
+| event-tremors | Tremors — every 8s a quake hits one random room (shake + damage to occupants) | EV | ✅ DONE | minBossLevel 1. EventSystem timer; minions non-lethal. |
+| event-arcane-storm | Arcane Storm — adventurer class-ability cooldowns ×0.4 | EV | ✅ DONE | minBossLevel 1. `AbilitySystem.setCooldownScale`. Boss-archetype abilities (separate timer system) unaffected. Purple tint. |
+| event-bounty-hunters | Bounty Hunters — 5-strong pack replaces wave, all hunting the highest-level minion | EV | ✅ DONE | minBossLevel 2. Reuses SEEK_VENDETTA goal + bounty_hunter sprite. |
+| event-zombie-horde | Zombie Horde — 14 slow/weak/never-flee undead replace the wave; maul everything to the boss | EV | ✅ DONE | minBossLevel 2. Rendered with zombie minion sheets (tiers 1–3, varied). |
+| event-infamy-spike | Infamy Spike — wave +50% size, every adv buffed to hero grade + `hero` tag | EV | ✅ DONE | minBossLevel 2. Gold ring + ★ HERO badge via AdventurerRenderer. |
+| event-black-market | Black Market — night modal; pay 50g for a free random unlocked minion | EV | ✅ DONE | minBossLevel 1. Minion spawned as `garrison` class (no Barracks-cap interaction). |
+| event-mercenary-contract | Mercenary Contract — night modal; pay 120g to hire a Tier-3 minion (doubled stats) for 3 days; permadeath if killed | EV | ✅ DONE | minBossLevel 2. `_mercenary` tag; stats + `_base*` doubled; contract expiry culled by EventSystem; dead mercenaries filtered out in `respawnAll` (no revive). |
+| event-cursed-relic | Cursed Relic — night modal CLAIM/BANISH; CLAIM drops a cursed Tier-5 chest (gold/day) that DOUBLES every wave (with a daily toast) until sold | EV | ✅ DONE | minBossLevel 1. Reuses treasure-chest entity; `_cursed` flag → purple-black glow in TreasureChestRenderer + wave-double in DayPhase. |
+| event-saboteur | The Saboteur — lone invulnerable all-black ninja-rogue replaces the wave; tours every trap disabling it (re-arms overnight), then flees | EV | ✅ DONE | minBossLevel 2. New `DISARM_TRAP` goal; minions ignore `_saboteur`; traps can't damage `_invulnerable`. Dark-tinted rogue sprite. |
 
 ---
 

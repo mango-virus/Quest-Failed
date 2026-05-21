@@ -133,6 +133,12 @@ function _rehydrateRunHistory(state) {
     if ('_lastClericHealAt' in m) delete m._lastClericHealAt
     if ('_raisedBardBuffUntil' in m) delete m._raisedBardBuffUntil
     if ('_doorPatLastCp' in m) delete m._doorPatLastCp   // patroller door state — re-derives at runtime
+    // Beast Master tame-protection stamp — _tameTargetedAt is scene-time
+    // based, so a saved value would phantom-protect a minion after load
+    // (scene time resets to 0). Drop both; ClassAbilitySystem re-stamps
+    // live if the Beast Master is still working on the tame.
+    if ('_tameTargetedAt' in m) delete m._tameTargetedAt
+    if ('_tameTargetedBy' in m) delete m._tameTargetedBy
   }
 
   return state

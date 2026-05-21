@@ -199,7 +199,12 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
         'zombie1', 'zombie2', 'zombie3',
         'mimic',
       ],
-      trapTypes: [],
+      // All 8 traps available from level 1 — boss-level gating deferred
+      // (will land alongside final gold costs once traps are tuned).
+      trapTypes: [
+        'shooting_arrows', 'bomb', 'cannon', 'spike_pillar',
+        'dragon_trap', 'spike_pit', 'rotating_blades', 'saw_blade',
+      ],
       dungeonMechanics: [],
       bossAbilities: [],
       archetypes: ['the_lich', 'the_architect', 'the_beast_lord', 'the_trickster', 'the_tyrant'],

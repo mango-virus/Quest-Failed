@@ -1,25 +1,25 @@
-// EventBanner (DOM) — Phase 34E port of `src/ui/EventBanner.js`.
+// EventBanner (DOM) — cinematic Dungeon Event announcement slate.
 //
 // Top-of-screen themed slate announcing a Dungeon Event during night
 // phase. Listens for `DUNGEON_EVENT_ANNOUNCED { def }` and renders
-// `def.title` + `def.notif` in a per-theme color palette.
+// `def.icon` + `def.title` + `def.notif` in a per-theme colour palette.
 //
-// Theme keys match the existing events.json `colorTheme` field:
-//   warn   — orange/amber  (defensive heads-up)
-//   accent — red           (hostile / boss-tier event)
-//   soul   — cyan          (knowledge / neutral oddity)
-//   gold   — yellow        (positive / loot / decision)
-//   green  — green         (disease / nature / sickness)
+// The slate slams in with a flash, a rotating conic glow ring, animated
+// corner brackets, a wiping divider and a fade-up effect line — all
+// CSS-driven (see styles.css `qf-eb-*` keyframes). Theme keys match the
+// events.json `colorTheme` field (warn / accent / soul / gold / green /
+// blue / violet / bone / ember / toxic / rose / shadow / arcane /
+// crimson).
 //
-// Sits just below the new HUD's TopBar. Fade in 350ms / hold 4500ms /
-// fade out 600ms. A second announcement while one is showing bumps the
-// current banner immediately.
+// Sits just below the new HUD's TopBar. A second announcement while one
+// is showing bumps the current banner immediately. A persistent pill
+// stays up for the whole event with a hover tooltip.
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const FADE_IN_MS  = 350
-const HOLD_MS     = 4500
+const HOLD_MS     = 4600
 const FADE_OUT_MS = 600
 
 export class EventBanner {
@@ -52,6 +52,7 @@ export class EventBanner {
       },
     }, [
       h('span', { className: 'qf-eventpill-dot' }),
+      h('span', { className: 'qf-eventpill-icon' }, ''),
       h('span', { className: 'qf-eventpill-label' }, ''),
     ])
     // Hover tooltip — the active event's "what it does" description.
@@ -65,6 +66,19 @@ export class EventBanner {
     const sub = (event, fn) => { EventBus.on(event, fn); this._listeners.push([event, fn]) }
     sub('DUNGEON_EVENT_ANNOUNCED', (p) => { this._onAnnounced(p); this._showPill(p?.def) })
     sub('DUNGEON_EVENT_ENDED',     ()  => this._hidePill())
+    // A bounty hunter entering gets the transient top banner only — it's a
+    // one-off arrival, not a multi-day event, so no persistent pill.
+    sub('BOUNTY_HUNTER_ARRIVED',   (p) => this._onBountyHunter(p))
+  }
+
+  _onBountyHunter({ minion } = {}) {
+    const name = minion?.name || 'your most-wanted minion'
+    this._onAnnounced({ def: {
+      title: 'BOUNTY HUNTER',
+      notif: `A bounty hunter has entered the dungeon to slay ${name}.`,
+      icon: '🎯',
+      colorTheme: 'ember',
+    } })
   }
 
   // ── Persistent event pill ──────────────────────────────────────────────
@@ -72,12 +86,14 @@ export class EventBanner {
     if (!def || !this._pill) return
     const theme = String(def.colorTheme ?? 'warn')
     this._pill.className = `qf-eventpill qf-eventpill-${theme} open`
+    const icon  = this._pill.querySelector('.qf-eventpill-icon')
     const label = this._pill.querySelector('.qf-eventpill-label')
+    if (icon)  icon.textContent  = def.icon ?? ''
     if (label) label.textContent = def.title ?? 'DUNGEON EVENT'
     // Stock the hover tooltip with the event's "what it does" blurb.
     this._activeNotif = def.notif ?? ''
     if (this._pillTip) {
-      this._pillTip.className = `qf-eventpill-tip qf-eventpill-${theme}`
+      this._pillTip.className = `qf-eventpill-tip qf-eventpill-tip-${theme}`
       this._pillTip.textContent = this._activeNotif
     }
   }
@@ -113,13 +129,26 @@ export class EventBanner {
     const theme = String(def.colorTheme ?? 'warn')
     // Reset class list to only carry the theme.
     this.el.className = `qf-eventbanner qf-eventbanner-${theme}`
+    // Rebuild the whole slate so every CSS entry animation restarts fresh.
     this.el.replaceChildren(
       h('div', { className: 'qf-eventbanner-card' }, [
-        h('div', { className: 'qf-eventbanner-title' }, def.title ?? ''),
-        h('div', { className: 'qf-eventbanner-sub'   }, def.notif ?? ''),
+        h('span', { className: 'qf-eventbanner-corner tl' }),
+        h('span', { className: 'qf-eventbanner-corner tr' }),
+        h('span', { className: 'qf-eventbanner-corner bl' }),
+        h('span', { className: 'qf-eventbanner-corner br' }),
+        h('div',  { className: 'qf-eventbanner-flash' }),
+        h('div',  { className: 'qf-eventbanner-inner' }, [
+          h('div', { className: 'qf-eventbanner-kicker' }, '◆  DUNGEON EVENT  ◆'),
+          h('div', { className: 'qf-eventbanner-row' }, [
+            def.icon ? h('span', { className: 'qf-eventbanner-icon' }, def.icon) : null,
+            h('div', { className: 'qf-eventbanner-title' }, def.title ?? ''),
+          ].filter(Boolean)),
+          h('div', { className: 'qf-eventbanner-rule' }),
+          h('div', { className: 'qf-eventbanner-sub' }, def.notif ?? ''),
+        ]),
       ]),
     )
-    // Force a reflow so the open transition runs after the class swap.
+    // Force a reflow so the open animation runs after the class swap.
     // eslint-disable-next-line no-unused-expressions
     this.el.offsetHeight
     this.el.classList.add('open')

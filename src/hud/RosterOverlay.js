@@ -15,6 +15,7 @@ import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
 import { snapshotMinion } from './inGameSnapshot.js'
+import { minionLabel } from '../util/displayNames.js'
 
 const FILTERS = ['ALL', 'READY', 'WOUNDED', 'IDLE']
 const FILTER_COLORS = {
@@ -116,14 +117,36 @@ export class RosterOverlay {
   }
 
   _tierOf(m) {
-    // Heuristic: unlockLevel ≤ 1 → T1, 2-3 → T2, 4+ → T3. The data has
-    // its own tier field on some defs; prefer that when present.
+    // Tier = the minion's position in its evolution chain: chain[0] is
+    // T1, chain[1] T2, chain[2] T3. The definitionId mutates up the
+    // chain on each evolution, so the current id directly encodes the
+    // tier. (The old unlockLevel heuristic was wrong — unlockLevel is
+    // the boss level the type unlocks at, not its evolution stage. e.g.
+    // orc1 "Orc Marauder" is a T1 starter but unlocks at boss-lvl 3, so
+    // it was mislabeled T2; every evolution-only form has unlockLevel 99
+    // so they all collapsed to T3.)
+    const id     = m?.definitionId
+    const chains = this._cachedJson('minionEvolutions') ?? {}
+    for (const data of Object.values(chains)) {
+      const chain = data?.chain
+      if (Array.isArray(chain)) {
+        const i = chain.indexOf(id)
+        if (i !== -1) return `T${i + 1}`
+      }
+    }
+    // Not part of any evolution chain (summoned adds, special minions) —
+    // fall back to an explicit tier field if the def has one, else T1.
     const def = this._minionDefinition(m)
-    if (def?.tier) return `T${def.tier}`
-    const ul = def?.unlockLevel ?? 1
-    if (ul <= 1) return 'T1'
-    if (ul <= 3) return 'T2'
-    return 'T3'
+    return def?.tier ? `T${def.tier}` : 'T1'
+  }
+
+  // Tier badge colour. T4 exists for the slime lines (their evolution
+  // chains are four deep).
+  _tierColor(tier) {
+    return tier === 'T1' ? 'var(--text-mute)'
+         : tier === 'T2' ? 'var(--gold)'
+         : tier === 'T3' ? 'var(--blood)'
+         : 'var(--info)'
   }
 
   // ── Render ──────────────────────────────────────────────────────
@@ -194,6 +217,7 @@ export class RosterOverlay {
       // Header row
       h('div', { className: 'qf-roster-listhead' }, [
         h('div'),
+        h('div', { style: { textAlign: 'center' } }, 'TIER'),
         h('div', null, 'NAME'),
         h('div', null, 'HP'),
         h('div', null, 'LV'),
@@ -218,8 +242,7 @@ export class RosterOverlay {
     const pct = maxHp > 0 ? (hp / maxHp) * 100 : 0
     const active = idx === this._selIdx
     const tier = this._tierOf(m)
-    const tierColor = tier === 'T1' ? 'var(--text-mute)'
-                    : tier === 'T2' ? 'var(--gold)' : 'var(--blood)'
+    const tierColor = this._tierColor(tier)
     const kills = m.lifetime?.kills ?? 0
     const name = m.name || this._minionDefinition(m)?.name || m.definitionId || '?'
 
@@ -232,17 +255,27 @@ export class RosterOverlay {
       },
       on: { click: () => { this._selIdx = idx; this._rerender() } },
     }, [
-      // Sprite + tier overlay
+      // Sprite
       h('div', { className: 'qf-roster-sprite' }, [
         this._minionVisual(m, 56, 'qf-roster-sprite-img'),
-        h('div', {
+      ]),
+      // Tier — its own column (was an overlay badge on the sprite's feet).
+      h('div', { className: 'qf-roster-tier-cell' }, [
+        h('span', {
           className: 'pix qf-roster-tier',
           style: { color: tierColor, borderColor: tierColor },
         }, tier),
       ]),
-      // Name + status
+      // Name + status. A gold ★ flags a minion that has a bounty on its
+      // head — bounty hunters will enter the dungeon specifically to kill it.
       h('div', null, [
-        h('div', { className: 'qf-roster-row-name' }, name),
+        h('div', { className: 'qf-roster-row-name' }, [
+          m.hasBounty && h('span', {
+            style: { color: 'var(--gold)', marginRight: '4px' },
+            title: 'BOUNTY — hunters will come for this minion',
+          }, '★'),
+          name,
+        ]),
         h('div', {
           className: 'pix qf-roster-row-status',
           style: { color: statusColor },
@@ -296,8 +329,7 @@ export class RosterOverlay {
     }
     const status = this._classifyStatus(sel)
     const tier = this._tierOf(sel)
-    const tierColor = tier === 'T1' ? 'var(--text-mute)'
-                    : tier === 'T2' ? 'var(--gold)' : 'var(--blood)'
+    const tierColor = this._tierColor(tier)
     const hp = sel.resources?.hp ?? 0
     const maxHp = sel.resources?.maxHp ?? 1
     const pct = maxHp > 0 ? (hp / maxHp) * 100 : 0
@@ -335,7 +367,7 @@ export class RosterOverlay {
       // Name + assignment
       h('div', { className: 'pix qf-roster-detail-name' }, name),
       h('div', { className: 'qf-roster-detail-assign' }, [
-        h('span', { className: 'pix qf-roster-detail-kind' }, String(sel.definitionId || '').toUpperCase()),
+        h('span', { className: 'pix qf-roster-detail-kind' }, minionLabel(sel.definitionId).toUpperCase()),
         h('span', { style: { margin: '0 6px', color: 'var(--text-dim)' } }, '·'),
         ' stationed at ',
         h('span', { style: { color: 'var(--poison)' } }, this._roomName(sel.assignedRoomId)),
@@ -471,7 +503,7 @@ export class RosterOverlay {
   _onSacrifice(minion) {
     EventBus.emit('SHOW_CONFIRM', {
       title:        'SACRIFICE MINION',
-      message:      `Permanently destroy ${minion.name || minion.definitionId || 'this minion'}?`,
+      message:      `Permanently destroy ${minion.name || minionLabel(minion.definitionId)}?`,
       confirmLabel: 'SACRIFICE',
       cancelLabel:  'CANCEL',
       onConfirm: () => {

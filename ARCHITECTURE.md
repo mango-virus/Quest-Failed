@@ -1099,11 +1099,12 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 
 ## Phase 8b Implementation Notes (Knowledge polish)
 
-### Replay Ghosts
+### Replay Ghosts — 🚫 REMOVED 2026-05-21
+Cut at user request: the on-floor prior-run path trail read as a confusing debug line when a Hero spawned. `ui/ReplayGhostRenderer.js` stays in the repo (removal-not-deletion) but is no longer constructed — `Game.js` sets `this.replayGhostRenderer = null`. The path-sampling + `ADVENTURER_RETURNED` plumbing below is retained: it's harmless and `NewspaperSystem` still uses `priorPathHistory.length` for a flavor line. Only the visual dot trail is gone.
 - `AISystem._samplePath(adv, delta)` writes `{x, y, day}` samples to `adv.pathHistory` every `Balance.REPLAY_PATH_SAMPLE_MS` (500ms). Capped at `REPLAY_PATH_MAX_SAMPLES` (60) — old samples shift off the front.
 - `KnowledgeSystem._addOrUpdateKnown` snapshots `pathHistory` into the persisted `AdventurerRecord` so it survives across day cycles.
 - `DayPhase._spawnDailyAdventurers` copies the record's path into `leader.priorPathHistory` and emits `ADVENTURER_RETURNED { adventurer, source, priorPathHistory }`.
-- `ui/ReplayGhostRenderer.js` subscribes to that event, allocates a `Graphics` at depth 2.6 (between the knowledge overlay and entities), and per-frame fades the trail over `REPLAY_GHOST_FADE_MS` (8000ms). Newer dots brighter; trail self-destructs at full fade. Cleared on phase change.
+- `ui/ReplayGhostRenderer.js` (no longer mounted) subscribed to that event, allocated a `Graphics` at depth 2.6, and faded a dot trail over `REPLAY_GHOST_FADE_MS`.
 
 ### Mirror Maze
 - New `mirror_maze` room in `rooms.json` (8×8, special tag, 30 essence to place).

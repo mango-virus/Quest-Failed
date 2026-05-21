@@ -47,11 +47,16 @@ export class CombatSystem {
     target = MinionAbilities.maybeRedirectPossessedAttack(attacker, target, this._gameState, this._scene)
     if (!target || target.resources.hp <= 0) return null
 
-    // Range check
+    // Range check. Must match the reach the AI engagement blocks use
+    // (AISystem: `Math.max(attackRange ?? 1, MELEE_RANGE_TILES)`) — a
+    // melee entity has `attackRange === 1`, so a bare `?? MELEE_RANGE`
+    // never widens to 1.5 and the AI could engage a diagonally-adjacent
+    // foe (dist ≈ 1.41) that this check then rejected forever, freezing
+    // the attacker (tournament rivals) or making it pace at a doorway.
     const dx = target.tileX - attacker.tileX
     const dy = target.tileY - attacker.tileY
     const dist = Math.hypot(dx, dy)
-    const reach = (attacker.attackRange ?? Balance.MELEE_RANGE_TILES)
+    const reach = Math.max(attacker.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
     if (dist > reach + 0.01) return null
 
     attacker.lastAttackAt = now

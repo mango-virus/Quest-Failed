@@ -643,7 +643,7 @@
         "unlockLevel":  1,
         "placementRules":  {
                                "minDepthFromBoss":  0,
-                               "maxPerDungeon":  1,
+                               "maxPerDungeonByBossLevel":  { "1": 1, "5": 2, "10": 3 },
                                "fixed":  false
                            },
         "tags":  [
@@ -653,7 +653,7 @@
                      "free",
                      "required"
                  ],
-        "description":  "REQUIRED — adventurers always enter the dungeon through this room. Only one allowed.",
+        "description":  "REQUIRED — adventurers enter the dungeon through these. The kingdom finds a 2nd way in at boss level 5, and a 3rd at level 10.",
         "flavorText":  "Every journey into darkness starts somewhere.",
         "theme":  null,
         "doorTheme":  null,
@@ -845,7 +845,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  10,
+        "goldCost":  8,
+        "costStep":  3,
         "powerCostToUnlock":  0,
         "unlockLevel":  1,
         "placementRules":  {
@@ -1079,7 +1080,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  30,
+        "goldCost":  45,
+        "costStep":  35,
         "powerCostToUnlock":  0,
         "unlockLevel":  1,
         "placementRules":  {
@@ -1294,7 +1296,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  25,
+        "goldCost":  24,
+        "costStep":  18,
         "powerCostToUnlock":  0,
         "unlockLevel":  1,
         "placementRules":  {
@@ -1535,7 +1538,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  15,
+        "goldCost":  35,
+        "costStep":  25,
         "powerCostToUnlock":  0,
         "unlockLevel":  2,
         "placementRules":  {
@@ -1790,7 +1794,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  30,
+        "goldCost":  45,
+        "costStep":  35,
         "powerCostToUnlock":  0,
         "unlockLevel":  3,
         "placementRules":  {
@@ -2021,7 +2026,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  35,
+        "goldCost":  40,
+        "costStep":  30,
         "powerCostToUnlock":  0,
         "unlockLevel":  3,
         "placementRules":  {
@@ -2224,7 +2230,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  18,
+        "goldCost":  22,
+        "costStep":  15,
         "powerCostToUnlock":  0,
         "unlockLevel":  3,
         "placementRules":  {
@@ -2447,7 +2454,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  40,
+        "goldCost":  26,
         "powerCostToUnlock":  0,
         "unlockLevel":  2,
         "placementRules":  {
@@ -2650,6 +2657,7 @@
 
                              ],
         "goldCost":  30,
+        "costStep":  22,
         "powerCostToUnlock":  0,
         "unlockLevel":  5,
         "placementRules":  {
@@ -2851,7 +2859,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  35,
+        "goldCost":  38,
         "powerCostToUnlock":  0,
         "unlockLevel":  6,
         "placementRules":  {
@@ -3043,7 +3051,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  30,
+        "goldCost":  28,
         "powerCostToUnlock":  0,
         "unlockLevel":  6,
         "placementRules":  {
@@ -3259,7 +3267,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  35,
+        "goldCost":  38,
+        "costStep":  26,
         "powerCostToUnlock":  0,
         "unlockLevel":  7,
         "placementRules":  {
@@ -3485,7 +3494,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  40,
+        "goldCost":  38,
         "powerCostToUnlock":  0,
         "unlockLevel":  7,
         "placementRules":  {
@@ -3775,7 +3784,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  45,
+        "goldCost":  46,
+        "costStep":  30,
         "powerCostToUnlock":  0,
         "unlockLevel":  7,
         "placementRules":  {
@@ -3979,7 +3989,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  35,
+        "goldCost":  28,
         "powerCostToUnlock":  0,
         "unlockLevel":  8,
         "placementRules":  {
@@ -4179,7 +4189,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  40,
+        "goldCost":  34,
         "powerCostToUnlock":  0,
         "unlockLevel":  8,
         "placementRules":  {
@@ -4440,7 +4450,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  50,
+        "goldCost":  46,
         "powerCostToUnlock":  0,
         "unlockLevel":  9,
         "placementRules":  {
@@ -4724,7 +4734,8 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  60,
+        "goldCost":  65,
+        "costStep":  45,
         "powerCostToUnlock":  0,
         "unlockLevel":  9,
         "placementRules":  {
@@ -4918,7 +4929,7 @@
         "connectionPoints":  [
 
                              ],
-        "goldCost":  60,
+        "goldCost":  85,
         "powerCostToUnlock":  0,
         "unlockLevel":  10,
         "placementRules":  {
