@@ -227,6 +227,13 @@ export class Preload extends Phaser.Scene {
       'assets/sprites/succubus/Succubus_TransformSmoke.png',
       { frameWidth: 44, frameHeight: 49 })
 
+    // Room lighting — wall-mounted torches (placed randomly on a room's
+    // north interior wall, 0-3 per room) and free-standing braziers (4 at
+    // the boss chamber's interior corners). Both ship as 1×6 vertical
+    // sheets; TorchRenderer registers a 6-frame loop anim for each.
+    this.load.spritesheet('torch',   'assets/sprites/torch.png',   { frameWidth: 43, frameHeight: 48 })
+    this.load.spritesheet('brazier', 'assets/sprites/brazier.png', { frameWidth: 44, frameHeight: 48 })
+
     // ── Audio ────────────────────────────────────────────────────────────
     // Title-screen / boss-picker loop.  Lives across MainMenu and
     // ArchetypeSelect (see Audio helpers in those scenes); stops when

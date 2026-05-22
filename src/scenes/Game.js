@@ -46,6 +46,7 @@ import { BossRenderer }       from '../ui/BossRenderer.js'
 import { SuccubusBatRenderer } from '../ui/SuccubusBatRenderer.js'
 import { CoinBurstRenderer }  from '../ui/CoinBurstRenderer.js'
 import { SellFxRenderer }     from '../ui/SellFxRenderer.js'
+import { TorchRenderer }      from '../ui/TorchRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { PauseManager }       from '../systems/PauseManager.js'
@@ -192,6 +193,7 @@ export class Game extends Phaser.Scene {
     this.succubusBatRenderer = new SuccubusBatRenderer(this, this.gameState)
     this.coinBurstRenderer   = new CoinBurstRenderer(this)
     this.sellFxRenderer      = new SellFxRenderer(this)
+    this.torchRenderer       = new TorchRenderer(this, this.gameState)
     // Companion NPC brain — constructed before TutorialSystem so its
     // INTRO_DISMISSED handler registers first and her welcome line is
     // queued ahead of the first tutorial.
@@ -350,6 +352,7 @@ export class Game extends Phaser.Scene {
     this.succubusBatRenderer?.destroy()
     this.coinBurstRenderer?.destroy()
     this.sellFxRenderer?.destroy()
+    this.torchRenderer?.destroy()
     this.tutorialSystem?.destroy()
     this.npcDirector?.destroy()
     this.sunderedFloorRenderer?.destroy()
@@ -1403,6 +1406,7 @@ export class Game extends Phaser.Scene {
       this.treasureChestRenderer?.update()
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
+      this.torchRenderer?.update()
       this.chatBubbles?.update()
       this.replayGhostRenderer?.update()
       this.cartographerOverlay?.tick()
@@ -1420,6 +1424,7 @@ export class Game extends Phaser.Scene {
       this.treasureChestRenderer?.update()
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
+      this.torchRenderer?.update()
       this.replayGhostRenderer?.update()
     }
     // Knowledge overlay updates in both phases — the rumour pool persists

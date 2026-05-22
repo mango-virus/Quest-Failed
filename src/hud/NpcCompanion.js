@@ -134,7 +134,17 @@ export class NpcCompanion {
 
     this.el = h('div', {
       className: 'qf-npc',
-      dataset: { speaking: 'false', tutorial: 'false', dock: 'corner', placing: 'false', intro: 'false' },
+      // `companionId` drives the per-companion `--npc-accent` CSS rules in
+      // styles.css (parallel to the recruit screen's `[data-id]` accent
+      // overrides), so the portrait hover-glow matches the companion.
+      dataset: {
+        speaking:    'false',
+        tutorial:    'false',
+        dock:        'corner',
+        placing:     'false',
+        intro:       'false',
+        companionId: this._companion.id,
+      },
       // Per-companion sprite scale + bubble-lift scale + sprite scale anchor.
       style: {
         '--npc-img-scale':         String(this._hudScale),

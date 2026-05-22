@@ -8469,7 +8469,16 @@ body {
   height: 1080px;
   z-index: 8;                /* above FX layer + dungeon, below HUD chrome */
   pointer-events: none;      /* only the portrait + bubble are interactive */
+  /* Per-companion accent colour — drives the portrait hover-glow. The
+     CSS-var pattern parallels `--cmp-accent` on the recruit screen so
+     every companion has a single distinct hue across BOTH surfaces.
+     Default is Lilith's pink; the [data-companion-id] rules below
+     override for the others. */
+  --npc-accent: #ff3782;
 }
+.qf-npc[data-companion-id="malakor"] { --npc-accent: #a070dc; }  /* purple */
+.qf-npc[data-companion-id="zulgath"] { --npc-accent: #e8c060; }  /* gold   */
+.qf-npc[data-companion-id="safira"]  { --npc-accent: #2caee8; }  /* sky    */
 /* Docked beside a menu — lift above the overlay backdrop (z:150). */
 .qf-npc[data-dock="menu"] { z-index: 160; }
 
@@ -8511,7 +8520,7 @@ body {
   height: 570px;             /* 384 × (831/560) */
 }
 .qf-npc-portrait.talking { animation: qf-npc-talk 0.5s ease-in-out infinite; }
-.qf-npc-portrait:hover    { filter: drop-shadow(0 6px 16px rgba(255, 100, 130, 0.4)); }
+.qf-npc-portrait:hover    { filter: drop-shadow(0 6px 16px color-mix(in srgb, var(--npc-accent) 42%, transparent)); }
 
 /* During placement (room / minion / trap / item) the companion must not
    intercept the click — the portrait and an ordinary bubble go click-through
@@ -8827,8 +8836,15 @@ body {
   opacity: 0.55;
   transition: transform 160ms cubic-bezier(0.2,0.8,0.2,1), opacity 200ms ease;
 }
-.qf-cmpsel-card[data-id="malakor"] { --cmp-accent: #4f7d8c; }
-.qf-cmpsel-card[data-id="safira"]  { --cmp-accent: #b86fc9; }
+/* Per-companion accent colours — drive the card border + portrait glow +
+   name tint on the recruit screen, AND parallel `--npc-accent` rules on
+   the in-game .qf-npc element below. Each companion gets a distinct hue:
+   Lilith pink (warm/flirty), Malakor purple (sinister/loyal), Zul'Gath
+   gold (ancient dragon, treasure-hoarder), Safira light blue (genie magic). */
+.qf-cmpsel-card[data-id="lilith"]  { --cmp-accent: #ff3782; }
+.qf-cmpsel-card[data-id="malakor"] { --cmp-accent: #a070dc; }
+.qf-cmpsel-card[data-id="zulgath"] { --cmp-accent: #e8c060; }
+.qf-cmpsel-card[data-id="safira"]  { --cmp-accent: #2caee8; }
 .qf-cmpsel-card:hover {
   opacity: 0.9;
   transform: translateY(-6px);
@@ -8916,9 +8932,9 @@ body {
   position: absolute;
   bottom: 4px; left: 50%;
   transform: translateX(-50%);
-  width: 58%; height: 22px;
+  width: 68%; height: 32px;
   background: radial-gradient(ellipse,
-    color-mix(in srgb, var(--cmp-accent) 28%, transparent) 0%, transparent 74%);
+    color-mix(in srgb, var(--cmp-accent) 55%, transparent) 0%, transparent 78%);
   opacity: 0;
   transition: opacity 220ms ease;
   pointer-events: none;
@@ -8950,7 +8966,14 @@ body {
 }
 .qf-cmpsel-card:hover .qf-cmpsel-portrait-img,
 .qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait-img {
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cmp-accent) 32%, transparent));
+  /* Layered halo — a tight bright rim hugs the silhouette, a wider soft
+     glow fans out. Bright/saturated hues (Malakor purple, Zul'Gath gold)
+     read fine at a single 32% layer, but lighter/cooler hues (Lilith pink,
+     Safira blue) mix too far toward transparent and fade. Stacking two
+     drop-shadows lifts every companion's glow while keeping the silhouette
+     crisp. */
+  filter: drop-shadow(0 0 6px  color-mix(in srgb, var(--cmp-accent) 70%, transparent))
+          drop-shadow(0 0 22px color-mix(in srgb, var(--cmp-accent) 42%, transparent));
 }
 
 /* Name plate */
