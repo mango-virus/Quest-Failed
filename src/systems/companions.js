@@ -73,9 +73,10 @@ export const COMPANIONS = {
     // wings simply extend further past the portrait box (that's fine).
     hudScale: 1.15,
     spriteDir: 'assets/npc-malakor/',
-    // 'idle-1' is his neutral resting face (he also has 'smile', but a
-    // rude keeper resting on a grin reads wrong — idle suits him).
-    restExpr:  'idle-1',
+    // 'idle-2' is his neutral resting face (he also has 'smile', but a
+    // rude keeper resting on a grin reads wrong — idle suits him; idle-2
+    // chosen over idle-1 for the default at the designer's request).
+    restExpr:  'idle-2',
     linesKey:  'malakorLines',
     // 43 expressions. Adding more later: drop the PNGs in, extend
     // tools/bake-npc-sprites.mjs's map, re-run the bake, append ids here.

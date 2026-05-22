@@ -221,8 +221,12 @@ export class NpcDirector {
     for (const evt of ACTION_EVENTS) {
       this._on(evt, () => { this._lastActionAt = this._now(); this._nudgeCount = 0 })
     }
-    // Player clicked the portrait.
-    this._on('NPC_POKE', () => this._react({ cat: 'poke' }, null))
+    // Player clicked the portrait. Pokes are a DIRECT player action, so
+    // they bypass the global-gap + active-line interrupt gates that
+    // normally throttle ordinary chatter — see `_pokeNow`. Without this,
+    // a click within ~2.6s of any prior line silently dropped (felt like
+    // the companion was ignoring you).
+    this._on('NPC_POKE', () => this._pokeNow())
     // Tutorials — she delivers them herself.
     this._on('SHOW_TUTORIAL', (p) => this._onTutorial(p))
     this._on('NPC_TUTORIAL_DONE', (p) => this._onTutorialDone(p))
@@ -612,6 +616,72 @@ export class NpcDirector {
     const line = this._pickFrom(cat.lines, ctx)
     if (!line) return
     this._catReadyAt[`menu_${kind}`] = now + (cat.cooldownMs ?? 9000)
+    this._emit(priority, {
+      text:   line.text,
+      expr:   line.expr,
+      priority,
+      holdMs: this._holdMs(line.text),
+    })
+  }
+
+  // Player poked the portrait — direct user action, so honour it
+  // regardless of GLOBAL_GAP_MS, the _active interrupt rule, the
+  // coalescing window, and the companion-mode "quiet" priority filter.
+  // It still defers to a sticky message (tutorial / intro — those are
+  // modal by design) and still respects the per-category cooldown so a
+  // mash of clicks doesn't barf one poke line per millisecond.
+  _pokeNow() {
+    const mode = this._mode()
+    if (mode === 'off') return
+    if (!this._introDone) return
+    const now = this._now()
+    // Tutorial / intro owns the bubble — don't barge a sticky.
+    if (this._active && now < this._active.endsAt && (this._active.priority ?? 0) >= 4) return
+    // Per-category cooldown — protects against spam-click spam-poke.
+    if (now < (this._catReadyAt.poke ?? 0)) return
+    // Pick a source. During NIGHT phase the poke has a ~50% chance to
+    // draw from the `suggestion` category (actionable build hints,
+    // gated on game state via `when` conditions) instead of `poke`
+    // (personality flavour), so half the player's pokes are useful
+    // advice and half are character moments. During DAY phase the
+    // hints are not actionable — the dungeon is locked once the wave
+    // is in — so pokes stay pure flavour there.
+    const ctx = this._buildCtx(null, null)
+    const isDay = this._gs?.meta?.phase === 'day'
+    let line = null
+    let priority = 1
+    const tryHint = !isDay && Math.random() < 0.5
+    if (tryHint) {
+      const sugCat = this._cats.suggestion
+      if (sugCat?.lines?.length) {
+        // Honour the per-line `when` conditions exactly like _maybeIdle
+        // does — only fire a hint whose precondition is satisfied right
+        // now (no point telling the player to "place a treasury" when
+        // they already have one). If the eligible pool is empty, fall
+        // through to the flavour pool below.
+        const eligible = sugCat.lines.filter(l => !l.when || this._checkCond(l.when))
+        if (eligible.length) {
+          line = this._pickFrom(eligible, ctx)
+          priority = sugCat.priority ?? 1
+        }
+      }
+    }
+    if (!line) {
+      // Default / fallback: a flavour poke line.
+      const pokeCat = this._cats.poke
+      if (!pokeCat?.lines?.length) return
+      line = this._pickFrom(pokeCat.lines, ctx)
+      if (!line) return
+      priority = pokeCat.priority ?? 1
+    }
+    // Cooldown the poke category (NOT suggestion's own — _maybeIdle's
+    // 30s idle cadence on hints stays untouched). Spam-clicks within the
+    // poke cooldown are absorbed regardless of which pool fired this one.
+    this._catReadyAt.poke = now + (this._cats.poke?.cooldownMs ?? 1200)
+    // _emit bypasses _stageEmit's coalescing window AND interrupts any
+    // non-sticky line on screen (NpcCompanion's _onSay replaces a
+    // non-sticky msg without complaint). That's exactly the "I clicked
+    // them and they responded" feel the player expects.
     this._emit(priority, {
       text:   line.text,
       expr:   line.expr,

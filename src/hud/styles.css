@@ -6974,6 +6974,24 @@ body {
   margin-top: 14px;
   justify-content: center;
 }
+/* Per-run chronicle feature isn't shipped yet — show the button greyed
+   out so the player understands it's intentional, not broken. */
+.qf-lb-fullchron--disabled,
+.qf-lb-fullchron--disabled:hover,
+.qf-lb-fullchron--disabled:focus {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+  box-shadow: none;
+  transform: none;
+}
+.qf-lb-fullchron-soon {
+  margin-left: 6px;
+  font-size: 0.78em;
+  letter-spacing: 0.5px;
+  opacity: 0.75;
+  font-style: italic;
+}
 
 /* ---------- DungeonFx (Phase 34D) ---------- */
 .qf-fx {

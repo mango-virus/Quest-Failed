@@ -589,13 +589,20 @@ export class LeaderboardOverlay {
               }, '— NO PACTS SEALED —')]
         ),
       ]),
-      // View full chronicle
+      // View full chronicle — placeholder for the per-run event log
+      // feature. The leaderboard summary doesn't carry the full journal
+      // yet, so the button is shown in a disabled "coming soon" state
+      // (tooltip + greyed style) rather than firing a no-op click. When
+      // per-run logs ship, drop the disabled flag and wire the handler.
       h('button', {
-        className: 'btn qf-lb-fullchron',
-        on: { click: () => { /* opens FullLog when per-run logs ship */ } },
+        className: 'btn qf-lb-fullchron qf-lb-fullchron--disabled',
+        disabled: true,
+        'aria-disabled': 'true',
+        title: 'Coming soon — per-run chronicles will be recorded in a future update.',
       }, [
         h('span', { style: { color: 'var(--gold)' } }, '▶ '),
         'VIEW FULL CHRONICLE',
+        h('span', { className: 'qf-lb-fullchron-soon' }, ' (coming soon)'),
       ]),
     ])
   }
