@@ -166,20 +166,11 @@ export class Preload extends Phaser.Scene {
   }
 
   preload() {
-    const { width, height } = this.scale
-
-    // Loading bar
-    this.add.rectangle(width / 2, height / 2, 440, 24, 0x1a0a2e)
-    const bar = this.add.rectangle(width / 2 - 218, height / 2, 4, 20, 0x9b32d4)
-    bar.setOrigin(0, 0.5)
-
-    this.add.text(width / 2, height / 2 - 30, 'LOADING...', {
-      fontSize: '14px',
-      color: '#444455',
-      fontFamily: 'monospace',
-    }).setOrigin(0.5)
-
-    this.load.on('progress', (p) => { bar.width = 4 + 432 * p })
+    // Loading screen lives in the DOM (#boot-loader, injected at HTML
+    // parse time so it shows BEFORE Phaser initializes). We wire its
+    // bar / flavour line to Phaser's loader events here and fade it
+    // out on create().
+    this._wireBootLoader()
 
     // Per-scene UI layout overrides written by UIEditor (Ctrl+S). Files are
     // optional — Phaser's loader will log a 404 if missing and the editor
@@ -641,7 +632,13 @@ export class Preload extends Phaser.Scene {
   // render time; DungeonRenderer falls back to procedural for any cell whose
   // sprite texture isn't registered.
   async _loadThemesAndStart() {
-    const startMain = () => this.scene.start('MainMenu')
+    const startMain = () => {
+      // Fade out the DOM boot loader in parallel with the MainMenu
+      // scene-start (its CSS transition runs while Phaser is spinning
+      // up the menu).
+      this._dismissBootLoader()
+      this.scene.start('MainMenu')
+    }
     let ThemeManager, DecorManager
     try {
       ThemeManager = (await import('../systems/ThemeManager.js')).ThemeManager
@@ -1043,6 +1040,118 @@ export class Preload extends Phaser.Scene {
         }
       }
     }
+  }
+
+  // ── DOM boot-loader wiring ──────────────────────────────────────────
+  // The loading screen is rendered in the DOM (#boot-loader in
+  // index.html) so it shares the HUD's Crypt CSS tokens (.panel.bevel
+  // .ornate, --blood, --gold, --pix, etc.) and is visible the moment
+  // the HTML parses — before Phaser's canvas even exists. This method
+  // hooks Phaser loader events to the existing DOM nodes:
+  //   • progress      → fills N_BLOCKS discrete chunks of #boot-loader-bar
+  //   • fileprogress  → swaps the flavour line under the bar based on
+  //                     a keyword match against the file key
+  // Idle-line cycling for quiet periods and torch flicker run from CSS
+  // (no JS needed for the visuals). On create() the overlay fades out.
+  _wireBootLoader() {
+    const root    = (typeof document !== 'undefined') ? document.getElementById('boot-loader') : null
+    if (!root) return
+    const barEl   = root.querySelector('#boot-loader-bar')
+    const flavEl  = root.querySelector('#boot-loader-flavour')
+
+    // Build the N_BLOCKS row once, then toggle the .filled class as
+    // progress crosses each step. Discrete blocks = retro power-meter
+    // feel that matches the 32px tile aesthetic.
+    const N_BLOCKS = 32
+    let blocks = barEl ? Array.from(barEl.children) : []
+    if (barEl && blocks.length === 0) {
+      const frag = document.createDocumentFragment()
+      for (let i = 0; i < N_BLOCKS; i++) {
+        const b = document.createElement('i')
+        b.className = 'boot-loader__block'
+        frag.appendChild(b)
+      }
+      barEl.appendChild(frag)
+      blocks = Array.from(barEl.children)
+    }
+    let _filled = 0
+    this.load.on('progress', (p) => {
+      const target = Math.min(N_BLOCKS, Math.floor(p * N_BLOCKS + 0.0001))
+      if (target === _filled) return
+      // Add/remove only the deltas — cheaper than rewriting all 32 classes.
+      for (let i = Math.min(_filled, target); i < Math.max(_filled, target); i++) {
+        blocks[i]?.classList.toggle('filled', i < target)
+      }
+      _filled = target
+    })
+
+    // Flavour line — keyword table mapping file keys to lore-coloured
+    // status lines. First hit wins. Cross-references the leaderboard's
+    // "Chronicle gathers itself" voice.
+    const FLAVOUR_BY_KEY = [
+      [/^lpc|^adv-|^class-|adventurer/i,                                 'Summoning challengers from the bright world…'],
+      [/^minion-|^monster-/i,                                            'Coaxing the swarm from the dark…'],
+      [/^boss|Beholder|Demon|Gnoll|Golem|Lich|Lizardman|Mushroom|^orc|Vampire|Ghost|Succubus/i,
+                                                                          'Carving the boss-shapes from stone…'],
+      [/^sfx-|^music-|title-|gameover/i,                                 'Tuning the wyrm choir…'],
+      [/trap|^spike|^arrow/i,                                            'Oiling the trap mechanisms…'],
+      [/^chest|treasure|beacon|fountain|item-/i,                         'Polishing trophies for the doomed…'],
+      [/event|dark-deal|tournament|twitch/i,                             'Brewing the night’s dark deals…'],
+      [/torch|brazier|fire|fx-/i,                                        'Striking flint for the sconces…'],
+      [/room|tile|wall|floor|door|theme/i,                               'Carving wall tiles, brick by brick…'],
+      [/\.json$|^layout-|^npc|chatLines|lastWords/i,                     'Whispering the codex into being…'],
+    ]
+    const IDLE_LINES = [
+      'The dungeon stirs…',
+      'Counting bones in the ossuary…',
+      'Bribing the gatekeeper…',
+      'The Chronicle gathers itself…',
+      'Sharpening every grudge…',
+    ]
+    let _curFlavour = flavEl?.textContent ?? ''
+    let _lastFileMs = -1e9
+    const setFlavour = (line) => {
+      if (!flavEl || line === _curFlavour) return
+      _curFlavour = line
+      flavEl.textContent = line
+    }
+    this.load.on('fileprogress', (file) => {
+      if (!file?.key) return
+      _lastFileMs = performance.now()
+      for (const [re, line] of FLAVOUR_BY_KEY) {
+        if (re.test(file.key)) { setFlavour(line); return }
+      }
+    })
+
+    // Idle rotation — cycles a different line every 2s when no file
+    // event has fired in a while, so the screen never freezes on one
+    // phrase during a long single-asset load.
+    if (this._bootIdleTimer) { clearInterval(this._bootIdleTimer); this._bootIdleTimer = null }
+    let _idleIdx = 0
+    this._bootIdleTimer = setInterval(() => {
+      if (performance.now() - _lastFileMs < 1400) return
+      _idleIdx = (_idleIdx + 1) % IDLE_LINES.length
+      setFlavour(IDLE_LINES[_idleIdx])
+    }, 2000)
+
+    // Stash the root so create() can fade it out.
+    this._bootLoaderRoot = root
+  }
+
+  // Called by Phaser after all preload() loads finish. Fades the DOM
+  // overlay out, then removes it from the tree so it can't intercept
+  // input on later scenes.
+  _dismissBootLoader() {
+    const root = this._bootLoaderRoot
+    if (this._bootIdleTimer) { clearInterval(this._bootIdleTimer); this._bootIdleTimer = null }
+    if (!root) return
+    root.classList.add('is-leaving')
+    // Match the CSS transition duration (.boot-loader.is-leaving has a
+    // 320ms opacity fade). Slight buffer so we don't race the transition.
+    setTimeout(() => {
+      try { root.remove() } catch {}
+    }, 380)
+    this._bootLoaderRoot = null
   }
 
 }

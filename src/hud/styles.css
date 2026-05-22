@@ -109,7 +109,13 @@ img { image-rendering: pixelated; }
 body {
   font-family: var(--mono);
   color: var(--text);
-  background: var(--void);
+  /* Pure black — this fills the letterbox bars outside the 1920×1080
+     stage on non-16:9 viewports. Was `var(--void)` (#07050a), which read
+     as a purplish black against the rest of the screen. `--void` itself
+     stays unchanged because in-game washes / overlays still want that
+     faint purple tint; only the outside-stage background is forced to
+     true black here. */
+  background: #000;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -6993,6 +6999,112 @@ body {
   font-style: italic;
 }
 
+/* ---------- BootLoader (DOM loading overlay) ----------
+   Lives in index.html so it paints the instant the HTML parses,
+   before Phaser's canvas even exists. Reuses the standard HUD
+   tokens (.panel.bevel.ornate, --blood, --gold, --pix) so the boot
+   moment is visually continuous with everything else.
+*/
+.boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;            /* above Phaser canvas + DOM HUD */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at center, var(--bg-1) 0%, var(--void) 75%);
+  font-family: var(--pix);
+  color: var(--text);
+  pointer-events: auto;      /* eat input during load */
+  opacity: 1;
+  transition: opacity 320ms ease-out;
+}
+.boot-loader.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Central bevelled panel */
+.boot-loader__panel {
+  position: relative;
+  width: 560px;
+  padding: 22px 28px 18px;
+  background: var(--bg-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Title row — gold diamond + heading + gold diamond, all on the
+   pixel font so it reads as a proper HUD header. */
+.boot-loader__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--text);
+  text-shadow: var(--glow-gold);
+}
+.boot-loader__title .diamond {
+  width: 8px;
+  height: 8px;
+}
+.boot-loader__rivets {
+  margin-top: -4px;
+  margin-bottom: 4px;
+  opacity: 0.6;
+}
+
+/* Bar trough — recessed, with a subtle inner shadow so the blocks
+   read as sitting INSIDE a stone groove. */
+.boot-loader__bar {
+  position: relative;
+  width: 440px;
+  height: 22px;
+  padding: 3px;
+  background: var(--bg-0);
+  border: 1px solid var(--line-2);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.7),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  display: flex;
+  gap: 2px;
+}
+
+/* 32 discrete fill blocks. Empty by default; toggled to .filled by
+   Preload._wireBootLoader as progress crosses each step. Power-meter
+   feel that matches the 32px tile grid. */
+.boot-loader__block {
+  flex: 1 1 0;
+  height: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition:
+    background 80ms ease,
+    box-shadow 80ms ease;
+}
+.boot-loader__block.filled {
+  background: linear-gradient(180deg, var(--blood-glow) 0%, var(--blood) 60%, var(--blood-deep) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 0 6px rgba(255, 68, 88, 0.35);
+}
+
+/* Flavour line — small, dim, italic. Cycles per load category. */
+.boot-loader__flavour {
+  font-family: var(--term);
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: var(--text-mute);
+  text-align: center;
+  min-height: 1.2em;
+}
+
 /* ---------- DungeonFx (Phase 34D) ---------- */
 .qf-fx {
   position: absolute;
@@ -8618,11 +8730,17 @@ body {
   width: 300px;
   padding: 9px 13px 11px;
   background: var(--bg-1);
-  border: 2px solid var(--line-2);
+  /* Per-companion accent on the border + a soft outer halo so each
+     companion's bubble reads as theirs at a glance. The tail keeps its
+     black outline + dark fill (see ::before / ::after below) so the
+     pixel-art "stamped" edge stays crisp at the junction. Tutorial /
+     intro bubbles override to a gold treatment further down. */
+  border: 2px solid var(--npc-accent);
   box-shadow:
     inset 2px 2px 0 rgba(255, 255, 255, 0.05),
     inset -2px -2px 0 rgba(0, 0, 0, 0.5),
     0 0 0 2px #000,
+    0 0 18px color-mix(in srgb, var(--npc-accent) 22%, transparent),
     0 8px 22px rgba(0, 0, 0, 0.6);
   opacity: 0;
   transform: translateY(10px) scale(0.95);
@@ -8882,11 +9000,15 @@ body {
   width: 372px;
   min-height: 134px;
   background: var(--bg-1);
-  border: 2px solid var(--line-2);
+  /* Per-companion accent — matches the in-game `.qf-npc-bubble` so both
+     surfaces feel like the same character's bubble. `--cmp-accent` is
+     set on the parent .qf-cmpsel-card[data-id=...] rules. */
+  border: 2px solid var(--cmp-accent);
   box-shadow:
     inset 2px 2px 0 rgba(255, 255, 255, 0.05),
     inset -2px -2px 0 rgba(0, 0, 0, 0.5),
     0 0 0 2px #000,
+    0 0 16px color-mix(in srgb, var(--cmp-accent) 20%, transparent),
     0 8px 22px rgba(0, 0, 0, 0.6);
   padding: 11px 15px 13px;
   margin-bottom: 22px;

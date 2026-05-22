@@ -10,6 +10,30 @@
 <body>
 <div id="game-container"></div>
 <div id="hud-root" hidden><div id="hud-stage"></div></div>
+
+<!--
+  Boot loader — visible the moment the HTML parses (before Phaser even
+  initializes). Uses the same Crypt CSS tokens as the rest of the HUD
+  (.panel.bevel.ornate corner brackets, --blood / --gold / --pix). The
+  bar is filled by Preload._wireBootLoader (32 discrete blocks); the
+  flavour line cycles per load category; the sconces sine-flicker via
+  CSS keyframes. Removed from the DOM by Preload._dismissBootLoader
+  once asset loading finishes.
+-->
+<div id="boot-loader" class="boot-loader" role="status" aria-live="polite">
+  <div class="boot-loader__panel panel bevel ornate">
+    <div class="boot-loader__title">
+      <i class="diamond gold sm"></i>
+      <span>LOADING THE CRYPT</span>
+      <i class="diamond gold sm"></i>
+    </div>
+    <div class="boot-loader__rivets">
+      <span class="rivets"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div id="boot-loader-bar" class="boot-loader__bar" aria-label="Loading progress"></div>
+    <div id="boot-loader-flavour" class="boot-loader__flavour">The dungeon stirs…</div>
+  </div>
+</div>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />

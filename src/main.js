@@ -35,7 +35,12 @@ const config = {
   width:  1920,
   height: 1080,
   parent: 'game-container',
-  backgroundColor: '#0a0514',
+  // Pure black behind everything. Phaser fills its canvas with this colour
+  // wherever the active scene does not paint — most visibly in the letterbox
+  // bars when the viewport aspect differs from the 1920×1080 design size.
+  // Was '#0a0514' (dark purplish-black), which read as a faint violet tint
+  // on the bars outside the menus / game.
+  backgroundColor: '#000000',
   scene: [
     Boot,
     Preload,

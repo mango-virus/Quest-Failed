@@ -1,5 +1,10 @@
 :root {
-  --bg: #0a0514;
+  /* Pure black — html / body / #game-container all use this and it is
+     what shows in the letterbox bars outside the Phaser canvas on
+     non-16:9 viewports. Was #0a0514 (dark purplish-black), which read
+     as a faint violet tint on those bars. The --accent vars stay
+     purple — they drive deliberate purple highlights elsewhere. */
+  --bg: #000000;
   --accent: #9b32d4;
   --accent-bright: #c64bff;
   --fg: #f4f4ff;
