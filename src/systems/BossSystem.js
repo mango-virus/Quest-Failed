@@ -1130,6 +1130,112 @@ export class BossSystem {
     })
   }
 
+  // Float a short text label from world (worldX, worldY) — sibling of
+  // _floatDamage for non-numeric fight callouts ("ILLUSION", "SHE SPLITS").
+  // Shares the 24-floater concurrency cap.
+  _floatText(worldX, worldY, label, color = '#ffffff') {
+    if (!this._scene?.add?.text) return
+    this._activeFloaters = this._activeFloaters ?? 0
+    if (this._activeFloaters >= 24) return
+    const t = this._scene.add.text(worldX, worldY - 12, label, {
+      fontFamily: 'monospace', fontSize: '12px', color,
+      fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5, 1).setDepth(11)
+    this._activeFloaters++
+    t.setScale(0.5)
+    this._scene.tweens.add({ targets: t, scale: 1, duration: 170, ease: 'Back.easeOut' })
+    this._scene.tweens.add({
+      targets: t, y: t.y - 34, alpha: 0, duration: 800, ease: 'Cubic.easeOut',
+      onComplete: () => {
+        t.destroy()
+        this._activeFloaters = Math.max(0, (this._activeFloaters ?? 1) - 1)
+      },
+    })
+  }
+
+  // ── SUCCUBUS: Doppelgänger (boss-fight second ability) ──────────────────
+  //
+  // The Queen hides among illusory duplicates. Each combat round the
+  // party's pooled damage may land on a decoy (round negated, decoy
+  // shatters) instead of the real Queen. She re-conjures decoys when her
+  // HP crosses a phase threshold. State is per-fight (instance fields, not
+  // persisted) — _onIncoming() calls _initDoppelganger() for every fight.
+
+  _doppelActive() {
+    return (Balance.SUCCUBUS_DOPPEL_ENABLED ?? true) &&
+           this._gameState?.player?.bossArchetypeId === 'succubus'
+  }
+
+  // Decoys conjured per split — base + 1 per N boss levels, capped.
+  _doppelDecoyCount() {
+    const lvl  = this._gameState?.boss?.level ?? 1
+    const base = Balance.SUCCUBUS_DOPPEL_BASE_DECOYS ?? 2
+    const per  = Math.max(1, Balance.SUCCUBUS_DOPPEL_LEVELS_PER_DECOY ?? 3)
+    const cap  = Balance.SUCCUBUS_DOPPEL_MAX_DECOYS ?? 4
+    return Math.min(cap, base + Math.floor((lvl - 1) / per))
+  }
+
+  // Called from _onIncoming for every fight. Resets the per-fight state to
+  // a safe baseline (0 decoys / no splits) for non-succubus bosses too.
+  _initDoppelganger() {
+    this._doppelDecoys     = 0
+    this._doppelSplitsLeft = []
+    if (!this._doppelActive()) return
+    this._doppelDecoys     = this._doppelDecoyCount()
+    this._doppelSplitsLeft = [...(Balance.SUCCUBUS_DOPPEL_SPLIT_THRESHOLDS ?? [0.75, 0.5, 0.25])]
+    EventBus.emit('SUCCUBUS_DOPPEL_SPLIT', { decoys: this._doppelDecoys, reason: 'fight_start' })
+  }
+
+  // Round-start hook: re-conjure a fresh set of decoys for every phase
+  // threshold the boss has dropped past since the last round.
+  _tickDoppelgangerSplit(boss) {
+    if (!this._doppelActive() || !boss) return
+    if (!this._doppelSplitsLeft?.length) return
+    const frac = (boss.hp ?? 0) / Math.max(1, boss.maxHp ?? 1)
+    let split = false
+    while (this._doppelSplitsLeft.length && frac <= this._doppelSplitsLeft[0]) {
+      this._doppelSplitsLeft.shift()
+      split = true
+    }
+    if (!split) return
+    this._doppelDecoys = this._doppelDecoyCount()
+    EventBus.emit('SUCCUBUS_DOPPEL_SPLIT', { decoys: this._doppelDecoys, reason: 'phase' })
+    if (Number.isFinite(boss.worldX)) {
+      for (let i = 0; i < 3; i++) {
+        this._emitFx({
+          kind: 'cast',
+          x: boss.worldX + (Math.random() - 0.5) * 56,
+          y: boss.worldY + (Math.random() - 0.5) * 36,
+          color: 0xd24858,
+        })
+      }
+      this._floatText(boss.worldX, boss.worldY - 26, 'SHE SPLITS', '#d24858')
+    }
+  }
+
+  // Round damage intercept. Returns true when the party's pooled damage
+  // this round is absorbed by a decoy (which then shatters).
+  _tryDoppelgangerAbsorb() {
+    if (!this._doppelActive()) return false
+    const D = this._doppelDecoys ?? 0
+    if (D <= 0) return false
+    // D decoys + 1 real Queen → D/(D+1) chance the swing finds an illusion.
+    if (Math.random() >= D / (D + 1)) return false
+    this._doppelDecoys = D - 1
+    const boss = this._gameState?.boss
+    if (boss && Number.isFinite(boss.worldX)) {
+      this._emitFx({
+        kind: 'wall_hit',
+        x: boss.worldX + (Math.random() - 0.5) * 44,
+        y: boss.worldY + (Math.random() - 0.5) * 20,
+        color: 0xd24858,
+      })
+      this._floatText(boss.worldX, boss.worldY - 12, 'ILLUSION', '#e88aa0')
+    }
+    EventBus.emit('SUCCUBUS_DOPPEL_SHATTER', { decoysLeft: this._doppelDecoys })
+    return true
+  }
+
   _tickFightFx(dt) {
     const g = this._fxGraphics
     if (!g) return
@@ -1498,6 +1604,10 @@ export class BossSystem {
     // fight always starts with the full concurrent-floater budget.
     this._activeFloaters = 0
 
+    // Succubus Doppelgänger — conjure the opening set of decoy duplicates
+    // for this fight (no-op for any other archetype).
+    this._initDoppelganger()
+
     // Pre-fight setup; ability effects happen here so they are visible
     // during the prefight banner / opening dance.
     if (boss) {
@@ -1614,6 +1724,10 @@ export class BossSystem {
     }
     this._roundsRun++
 
+    // Succubus Doppelgänger — re-conjure decoys if boss HP has crossed a
+    // phase threshold since the last round.
+    this._tickDoppelgangerSplit(boss)
+
     const owned = new Set(boss.unlockedAbilities ?? [])
 
     // Party → boss (skipped if everyone left is in flee — they're too busy
@@ -1683,9 +1797,12 @@ export class BossSystem {
         }
       }
 
-      const dmgToBoss = bossAtkPool > 0
+      let dmgToBoss = bossAtkPool > 0
         ? Math.max(1, Math.floor((bossAtkPool - boss.defense) * (0.85 + Math.random() * 0.3)))
         : 0
+      // Succubus Doppelgänger — the party may swing at an illusion instead
+      // of the real Queen; the decoy shatters and this round deals nothing.
+      if (dmgToBoss > 0 && this._tryDoppelgangerAbsorb()) dmgToBoss = 0
       if (dmgToBoss > 0) {
         boss.hp = Math.max(0, boss.hp - dmgToBoss)
         this._roundLog.push({ side: 'party', damage: dmgToBoss })

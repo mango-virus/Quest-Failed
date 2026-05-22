@@ -9,6 +9,8 @@
 //   - a global min-gap between any two lines
 //   - an interrupt rule (higher priority cuts in; a small queue holds
 //     other priority-3+ moments so they aren't lost)
+//   - a short coalescing window so a burst of near-simultaneous events
+//     resolves to a single bubble instead of flickering the loser
 //   - a recently-said ring buffer so she never repeats back-to-back
 //   - an idle timer that fills silence with context-aware musings
 //
@@ -32,6 +34,13 @@ const TICK_MS        = 700     // queue-drain + idle cadence
 const MENU_FOLLOWUP_MS = 15000 // gap between her remarks while a menu stays open
 const NUDGE_AFTER_MS   = 70000 // night-phase inactivity before she nudges the player
 const NUDGE_GAP_MS     = 32000 // spacing between successive inactivity nudges
+// When the Director decides to emit a line it is staged for this long
+// before actually firing. Any higher-priority line that arrives inside the
+// window supersedes it, so a burst of events that land in the same instant
+// (or within a couple of frames) resolves to ONE bubble — instead of
+// emitting the lower line and then yanking it for the higher one a frame
+// later, which reads as a message flickering in and being replaced.
+const COALESCE_MS      = 180
 
 // event name → { cat, ctx } reaction map. `cat` may be a string or an
 // array (lines merged from several categories). `ctx` names the payload
@@ -76,7 +85,7 @@ const REACTIONS = {
   DEMON_HELLGATE_SPAWNED:     { cat: 'arch_hellgate' },
   BEHOLDER_PETRIFY_FIRED:     { cat: 'arch_petrify' },
   VAMPIRE_CHARM_MARKED:       { cat: 'arch_charm' },
-  SUCCUBUS_CHARM_APPLIED:     { cat: 'arch_charm' },
+  SUCCUBUS_CHARM_APPLIED:     { cat: 'arch_seduce' },
   GNOLL_HUNTERS_PACK_REFILLED:{ cat: 'arch_huntpack' },
   MYCONID_SPORE_DAY_BEGAN:    { cat: 'arch_spores' },
   WRAITH_HAUNT_SPAWNED:       { cat: 'arch_haunt' },
@@ -114,6 +123,8 @@ export class NpcDirector {
     this._lastSayAt    = 0
     this._active       = null    // { priority, endsAt }
     this._queue        = []      // pending { priority, payload, endsAt }
+    this._pendingEmit  = null    // line staged inside the coalescing window
+    this._emitTimer    = null    // timer that flushes _pendingEmit
     this._firstKillDay = false   // has the day's first kill been narrated?
     this._tutorials    = new Map() // tutorialId → onClose callback
     this._tutSeq       = 0
@@ -138,6 +149,7 @@ export class NpcDirector {
     for (const [evt, fn] of this._unsubs) EventBus.off(evt, fn)
     this._unsubs = []
     if (this._timer) { clearInterval(this._timer); this._timer = null }
+    if (this._emitTimer) { clearTimeout(this._emitTimer); this._emitTimer = null }
     this._tutorials.clear()
   }
 
@@ -240,7 +252,7 @@ export class NpcDirector {
     // dialogue through Lilith. Shown straight away at high priority.
     this._on('NPC_BROKER_SAY', ({ text, expr } = {}) => {
       if (!text || this._mode() === 'off') return
-      this._emit(3, { text, expr: expr || 'mischievous', priority: 3, holdMs: this._holdMs(text) })
+      this._stageEmit(3, { text, expr: expr || 'mischievous', priority: 3, holdMs: this._holdMs(text) })
     })
   }
 
@@ -307,11 +319,42 @@ export class NpcDirector {
       // Respect the global breathing room for ordinary chatter.
       return false
     }
-    this._emit(priority, payloadOut)
+    return this._stageEmit(priority, payloadOut)
+  }
+
+  // Stage a line inside the coalescing window. While one line is staged,
+  // a strictly higher-priority line supersedes it; an equal/lower one is
+  // refused (returns false — _react may then queue a priority-3+ moment so
+  // it isn't lost). When the window closes _flushEmit fires the survivor.
+  _stageEmit(priority, payloadOut) {
+    if (this._pendingEmit) {
+      if (priority > this._pendingEmit.priority) {
+        this._pendingEmit = { priority, payload: payloadOut }
+        return true
+      }
+      return false
+    }
+    this._pendingEmit = { priority, payload: payloadOut }
+    this._emitTimer = setTimeout(() => this._flushEmit(), COALESCE_MS)
     return true
   }
 
+  _flushEmit() {
+    this._emitTimer = null
+    const p = this._pendingEmit
+    if (p) this._emit(p.priority, p.payload)
+  }
+
+  // Drop a staged line — used when something seizes the bubble directly
+  // (a tutorial, the intro) so the staged line cannot flush in over it.
+  _cancelPendingEmit() {
+    if (this._emitTimer) { clearTimeout(this._emitTimer); this._emitTimer = null }
+    this._pendingEmit = null
+  }
+
   _emit(priority, payloadOut) {
+    // An immediate emit supersedes anything still in the coalescing window.
+    this._cancelPendingEmit()
     const now = this._now()
     this._lastSayAt = now
     this._active = {
@@ -325,6 +368,10 @@ export class NpcDirector {
   _tick() {
     const now = this._now()
     if (this._active && now >= this._active.endsAt) this._active = null
+
+    // A line is mid-coalesce — it flushes on its own short timer; don't
+    // start anything else (queue drain / idle / nudge) until it lands.
+    if (this._pendingEmit) return
 
     // A tutorial waiting on the current line (e.g. her welcome greeting)
     // gets the bubble the moment it frees up — ahead of ordinary chatter.
@@ -393,7 +440,7 @@ export class NpcDirector {
       this._catReadyAt[src] = now + (this._cats[src].cooldownMs ?? 26000)
     }
     if (!line) return
-    this._emit(0, { text: line.text, expr: line.expr, priority: 0, holdMs: this._holdMs(line.text) })
+    this._stageEmit(0, { text: line.text, expr: line.expr, priority: 0, holdMs: this._holdMs(line.text) })
   }
 
   // Night-phase inactivity nudge — escalating "do something" lines when the
@@ -417,7 +464,7 @@ export class NpcDirector {
     if (!pool.length) pool = cat.lines
     const line = this._pickFrom(pool, this._buildCtx(null, null))
     if (!line) return false
-    this._emit(1, { text: line.text, expr: line.expr, priority: 1, holdMs: this._holdMs(line.text) })
+    this._stageEmit(1, { text: line.text, expr: line.expr, priority: 1, holdMs: this._holdMs(line.text) })
     return true
   }
 
@@ -468,15 +515,23 @@ export class NpcDirector {
     }
     if (!pages.length) pages.push({ text: String(title ?? 'A lesson, my liege.'), expr: 'reading' })
     const out = { kind: 'tutorial', id, title: title ?? null, pages, priority: 4, sticky: true }
-    // If an ordinary line is still on screen (e.g. her welcome greeting),
-    // let it finish — _tick emits the tutorial the moment the bubble frees.
+    // Tutorials take priority over ordinary chatter — the player just EARNED
+    // this lesson by taking the action, so it must appear NOW, not 8 seconds
+    // from now when whatever reaction the same action also triggered finally
+    // winds down. Only wait behind another sticky message (intro priority 5,
+    // or another tutorial — TutorialSystem's _showing flag should prevent
+    // that, but be defensive). `_emitTutorial` cancels any staged coalescing
+    // emit so the cut-in lands cleanly; NpcCompanion's _onSay also replaces
+    // any non-sticky line on its end.
     const now = this._now()
-    if (this._active && now < this._active.endsAt) this._pendingTutorial = out
+    const stickyUp = this._active && now < this._active.endsAt && (this._active.priority ?? 0) >= 4
+    if (stickyUp) this._pendingTutorial = out
     else this._emitTutorial(out)
   }
 
   _emitTutorial(out) {
     // Sticky + top-priority — held until the player pages past the last panel.
+    this._cancelPendingEmit()
     this._active = { priority: 4, endsAt: Infinity }
     this._lastSayAt = this._now()
     EventBus.emit('NPC_SAY', out)
@@ -502,6 +557,7 @@ export class NpcDirector {
     }))
     if (!pages.length) { this._introDone = true; return }
     // Priority 5 — above everything; the intro is never interrupted.
+    this._cancelPendingEmit()
     this._active = { priority: 5, endsAt: Infinity }
     this._lastSayAt = this._now()
     EventBus.emit('NPC_SAY', { kind: 'intro', id: 'intro', pages, priority: 5, sticky: true })

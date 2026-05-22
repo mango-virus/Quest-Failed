@@ -45,6 +45,7 @@ import { CartographerOverlay }   from '../ui/CartographerOverlay.js'
 import { BossRenderer }       from '../ui/BossRenderer.js'
 import { SuccubusBatRenderer } from '../ui/SuccubusBatRenderer.js'
 import { CoinBurstRenderer }  from '../ui/CoinBurstRenderer.js'
+import { SellFxRenderer }     from '../ui/SellFxRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { PauseManager }       from '../systems/PauseManager.js'
@@ -190,6 +191,7 @@ export class Game extends Phaser.Scene {
     this.bossRenderer        = new BossRenderer(this, this.gameState)
     this.succubusBatRenderer = new SuccubusBatRenderer(this, this.gameState)
     this.coinBurstRenderer   = new CoinBurstRenderer(this)
+    this.sellFxRenderer      = new SellFxRenderer(this)
     // Companion NPC brain — constructed before TutorialSystem so its
     // INTRO_DISMISSED handler registers first and her welcome line is
     // queued ahead of the first tutorial.
@@ -347,6 +349,7 @@ export class Game extends Phaser.Scene {
     this.bossRenderer?.destroy()
     this.succubusBatRenderer?.destroy()
     this.coinBurstRenderer?.destroy()
+    this.sellFxRenderer?.destroy()
     this.tutorialSystem?.destroy()
     this.npcDirector?.destroy()
     this.sunderedFloorRenderer?.destroy()

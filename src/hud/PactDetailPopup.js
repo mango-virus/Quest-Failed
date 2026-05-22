@@ -57,13 +57,16 @@ export class PactDetailPopup {
       ]),
       h('div', { className: 'tt-body' }, [
         pact.flavorText && h('div', { className: 'qf-pact-tt-flavor' }, `"${pact.flavorText}"`),
-        pact.boon && h('div', { className: 'qf-pact-tt-row' }, [
+        // What the pact does. `description` is the dungeonMechanics.json
+        // field; `boon` is kept as a fallback for any other pact shape.
+        (pact.description || pact.boon) && h('div', { className: 'qf-pact-tt-row' }, [
           h('span', { className: 'qf-pact-tt-arrow', style: { color: 'var(--poison)' } }, '▲'),
-          h('span', { style: { color: 'var(--text)' } }, pact.boon),
+          h('span', { style: { color: 'var(--text)' } }, pact.description || pact.boon),
         ]),
-        pact.bane && h('div', { className: 'qf-pact-tt-row' }, [
+        // The cost the boss pays for it.
+        (pact.tradeoffDescription || pact.bane) && h('div', { className: 'qf-pact-tt-row' }, [
           h('span', { className: 'qf-pact-tt-arrow', style: { color: 'var(--blood)' } }, '▼'),
-          h('span', { style: { color: 'var(--warn)' } }, pact.bane),
+          h('span', { style: { color: 'var(--warn)' } }, pact.tradeoffDescription || pact.bane),
         ]),
       ]),
     ])

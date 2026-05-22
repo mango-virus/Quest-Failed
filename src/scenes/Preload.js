@@ -204,6 +204,8 @@ export class Preload extends Phaser.Scene {
     this.load.json('events',            'src/data/events.json')
     this.load.json('npcLines',          'src/data/npcLines.json')
     this.load.json('malakorLines',      'src/data/malakorLines.json')
+    this.load.json('zulgathLines',      'src/data/zulgathLines.json')
+    this.load.json('safiraLines',       'src/data/safiraLines.json')
 
     // Dark Deal demon — 5×4 sheet of 80×80 frames. Row 1 (frames 0-4)
     // appearing animation, rows 2-3 (frames 5-14) idle, row 4 (15-19)

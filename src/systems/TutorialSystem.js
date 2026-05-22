@@ -398,12 +398,32 @@ export class TutorialSystem {
       if (!this._showing) this._popNext()
     }
     EventBus.on('INTRO_DISMISSED', this._onIntroDismissed)
+
+    // The Options menu's GAMEPLAY HINTS toggle flips only the global
+    // `qf.gameplay.tutorials` localStorage key — it has no handle on the
+    // per-run `gameState.meta.tutorialEnabled`, and the tutorial gate ANDs
+    // both. So mirror the global key onto the per-run flag whenever settings
+    // are applied; otherwise re-enabling hints from Options silently fails
+    // for any run that opted out at the intro. Only acts on a real change.
+    this._onSettingsChanged = () => {
+      const meta = this._gameState?.meta
+      if (!meta) return
+      let on = true
+      try { on = localStorage.getItem('qf.gameplay.tutorials') !== 'false' } catch {}
+      if (on === !!meta.tutorialEnabled) return
+      meta.tutorialEnabled = on
+      // The flag flipped — clear any stale queue so re-enabling does not dump
+      // a backlog and disabling does not leave one armed.
+      this.resetQueue()
+    }
+    EventBus.on('SETTINGS_CHANGED', this._onSettingsChanged)
   }
 
   destroy() {
     for (const fn of this._unsubs) fn()
     this._unsubs = []
     EventBus.off('INTRO_DISMISSED', this._onIntroDismissed)
+    EventBus.off('SETTINGS_CHANGED', this._onSettingsChanged)
     this._queue  = []
     this._queuedIds.clear()
   }
@@ -419,12 +439,16 @@ export class TutorialSystem {
     const meta = this._gameState?.meta
     if (!meta) return
     if (!meta.tutorialEnabled) return
-    // Global master toggle from SettingsOverlay > GAMEPLAY > GAMEPLAY HINTS.
-    // ANDs with the per-run `meta.tutorialEnabled` (set by WelcomeIntro
-    // checkbox) so either off disables.
-    try {
-      if (localStorage.getItem('qf.gameplay.tutorials') === 'false') return
-    } catch {}
+    // NOTE: we deliberately do NOT gate on the global
+    // `qf.gameplay.tutorials` localStorage key here. That key can be stale
+    // 'false' from a previous run's opt-out at the moment the boot's
+    // NIGHT_PHASE_STARTED (and friends) fires, which would silently drop the
+    // firstNight tutorial — before the current run's player has had any
+    // chance to opt in via the intro. `_popNext` re-checks the global key
+    // at fire time, so a still-disabled tutorial is dropped there; an opt-in
+    // via the intro / options updates the key and drains the queue normally.
+    // Net behaviour is the same EXCEPT the new-run opt-in path now correctly
+    // fires the queued first-phase tutorial instead of waiting until night 2.
     // Per-archetype hints only fire when the player picked that boss.
     if (t.archetype && this._gameState.player?.bossArchetypeId !== t.archetype) return
     meta.seenTutorials ??= {}

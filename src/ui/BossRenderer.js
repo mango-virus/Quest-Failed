@@ -37,6 +37,11 @@ const WALK_MIN_DELTA    = 0.15
 // the boss's wander tick may not have moved it this frame even though it's
 // actively walking. Compare against the position N ms ago instead.
 const WALK_SAMPLE_MS    = 120
+// Succubus Doppelgänger illusion decoys — translucent pink duplicates of
+// the Queen that flank her during the boss fight.
+const DECOY_TINT    = 0xffaad6
+const DECOY_ALPHA   = 0.5
+const DECOY_STEP_PX = 46
 
 export class BossRenderer {
   constructor(scene, gameState) {
@@ -71,6 +76,18 @@ export class BossRenderer {
     // here (BossSystem tears down shortly after, into GameOver).
     this._onFinalDeath = () => { this._dead = true }
     EventBus.on('BOSS_DEFEATED_FINAL', this._onFinalDeath)
+
+    // Succubus Doppelgänger — translucent illusion duplicates that flank
+    // the Queen during the boss fight. Driven entirely by BossSystem's
+    // SUCCUBUS_DOPPEL_* events (only ever fired for the succubus archetype),
+    // so no archetype check is needed here.
+    this._decoys = []
+    this._onDoppelSplit   = (p) => this._syncDecoys(p?.decoys ?? 0)
+    this._onDoppelShatter = () => this._shatterDecoy()
+    this._onDoppelClear   = () => this._clearDecoys()
+    EventBus.on('SUCCUBUS_DOPPEL_SPLIT',   this._onDoppelSplit)
+    EventBus.on('SUCCUBUS_DOPPEL_SHATTER', this._onDoppelShatter)
+    EventBus.on('BOSS_FIGHT_RESOLVED',     this._onDoppelClear)
   }
 
   update() {
@@ -171,10 +188,17 @@ export class BossRenderer {
       // ignoreIfPlaying:false so a hurt mid-attack restarts cleanly.
       this._sprite.play(animKey, true)
     }
+
+    // Doppelgänger decoys trail the Queen + mirror her animation.
+    this._updateDecoys(boss)
   }
 
   destroy() {
     EventBus.off('BOSS_DEFEATED_FINAL', this._onFinalDeath)
+    EventBus.off('SUCCUBUS_DOPPEL_SPLIT',   this._onDoppelSplit)
+    EventBus.off('SUCCUBUS_DOPPEL_SHATTER', this._onDoppelShatter)
+    EventBus.off('BOSS_FIGHT_RESOLVED',     this._onDoppelClear)
+    this._clearDecoys()
     this._container?.destroy()
     this._container = null
     this._sprite    = null
@@ -220,5 +244,69 @@ export class BossRenderer {
 
     this._container = c
     this._sprite    = sprite
+  }
+
+  // ── Succubus Doppelgänger illusions ─────────────────────────────────────
+
+  // Re-split tops the decoy count back up; new decoys fade in. Shatter is
+  // the only path that removes a decoy, so this only ever needs to add.
+  _syncDecoys(count) {
+    while (this._decoys.length < count) {
+      const sp = this._makeDecoySprite()
+      if (!sp) break
+      this._decoys.push(sp)
+      this._scene.tweens.add({
+        targets: sp, alpha: DECOY_ALPHA, duration: 260, ease: 'Quad.easeOut',
+      })
+    }
+  }
+
+  _makeDecoySprite() {
+    const s = this._scene
+    if (!s.textures?.exists?.(`${this._spriteKey}-idle`)) return null
+    return s.add.sprite(0, 0, `${this._spriteKey}-idle`, 0)
+      .setOrigin(0.5, 0.5)
+      .setScale(BOSS_SPRITE_SCALE)
+      .setAlpha(0)
+      .setTint(DECOY_TINT)
+  }
+
+  // Pop the outermost decoy with a shatter tween (scale-up + fade).
+  _shatterDecoy() {
+    const sp = this._decoys.pop()
+    if (!sp) return
+    if (!sp.active) { sp.destroy?.(); return }
+    this._scene.tweens.add({
+      targets: sp, alpha: 0,
+      scaleX: BOSS_SPRITE_SCALE * 1.6, scaleY: BOSS_SPRITE_SCALE * 1.6,
+      duration: 300, ease: 'Cubic.easeOut',
+      onComplete: () => sp.destroy(),
+    })
+  }
+
+  _clearDecoys() {
+    for (const sp of this._decoys) sp?.destroy?.()
+    this._decoys = []
+  }
+
+  // Each frame: fan the live decoys out to alternating sides of the Queen
+  // and mirror her current animation so the whole swarm moves as one.
+  _updateDecoys(boss) {
+    if (this._decoys.length === 0) return
+    const baseDepth = 7 + boss.worldY * 0.0005
+    this._decoys.forEach((sp, i) => {
+      if (!sp || !sp.active) return
+      const pair = Math.floor(i / 2) + 1
+      const side = i % 2 === 0 ? 1 : -1
+      sp.setPosition(boss.worldX + side * DECOY_STEP_PX * pair,
+                     boss.worldY - 6 + (pair % 2) * 12)
+      sp.setDepth(baseDepth - 0.02)
+      if (this._currentAnim &&
+          this._currentAnim !== '__stopped__' &&
+          this._scene.anims.exists(this._currentAnim) &&
+          sp.anims?.getName?.() !== this._currentAnim) {
+        sp.play(this._currentAnim, true)
+      }
+    })
   }
 }

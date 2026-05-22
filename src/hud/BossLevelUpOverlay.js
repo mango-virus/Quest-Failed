@@ -39,6 +39,9 @@ export class BossLevelUpOverlay {
     const body = this._renderBody()
     this._overlay = new Overlay({
       npcKind: 'levelup',
+      // Stay screen-centered — the ASCENSION screen is a full-attention
+      // celebratory moment, not a docked side menu.
+      dock:    false,
       title:   'ASCENSION',
       width:   980,
       height:  680,

@@ -210,7 +210,12 @@ export class PauseMenu extends Phaser.Scene {
       onClick: () => {
         if (!this._gameState) return
         this._gameState.meta ??= {}
-        this._gameState.meta.tutorialEnabled = !this._gameState.meta.tutorialEnabled
+        const next = !this._gameState.meta.tutorialEnabled
+        this._gameState.meta.tutorialEnabled = next
+        // Keep the global Options key in sync — the tutorial gate ANDs
+        // `meta.tutorialEnabled` with `qf.gameplay.tutorials`, so flipping
+        // only one of the two would leave hints stuck off.
+        try { localStorage.setItem('qf.gameplay.tutorials', next ? 'true' : 'false') } catch {}
         this._setScreen('settings')
       },
     })

@@ -46,6 +46,20 @@ export class NpcCompanion {
     this._name        = this._companion.name
     // Per-companion HUD sprite scale (see companions.js `hudScale`).
     this._hudScale    = this._companion.hudScale ?? 1
+    // Bubble-lift scale + sprite scale anchor — default to mirroring the
+    // sprite scale / bottom-centre, but a wide-sprite companion (Zul'Gath)
+    // overrides them so its big scale does not fling the bubble off the top
+    // and so its bulk spills off-screen left rather than over the view.
+    this._bubbleScale = this._companion.hudBubbleScale ?? this._hudScale
+    this._imgOrigin   = this._companion.hudImgOrigin ?? '50% 100%'
+    this._imgOriginDocked = this._companion.hudImgOriginDocked ?? this._imgOrigin
+    // Corner-mode fine-placement nudge (px), default none — see companions.js.
+    this._imgTx = this._companion.hudOffsetX ?? 0
+    this._imgTy = this._companion.hudOffsetY ?? 0
+    this._bubbleLift = this._companion.hudBubbleLift ?? 0
+    // Docked-mode (menu open) nudge — separate from the corner nudge.
+    this._imgTxDocked = this._companion.hudOffsetXDocked ?? 0
+    this._imgTyDocked = this._companion.hudOffsetYDocked ?? 0
     this._mode      = userSettings.companionMode()
     this._curExpr   = null
     this._frontIsA  = true
@@ -69,7 +83,19 @@ export class NpcCompanion {
     this._on('HUD_MENU_CLOSED', () => {
       this._menuDepth = Math.max(0, this._menuDepth - 1); this._applyDock()
     })
+    // While the player is placing a room / minion / trap / item, the
+    // companion must not intercept clicks meant for the placement — drop
+    // its pointer-events so the click falls through to the dungeon.
+    this._on('PLACEMENT_MODE_CHANGED', (p) => this._applyPlacing(!!p?.active))
+    // Safety net: the build phase ending always clears placement mode.
+    this._on('NIGHT_PHASE_ENDED', () => this._applyPlacing(false))
     this._applyMode()
+  }
+
+  // Toggle the companion's interactivity off during placement so the
+  // portrait + bubble let placement clicks pass straight through.
+  _applyPlacing(active) {
+    this.el.dataset.placing = active ? 'true' : 'false'
   }
 
   // ── DOM ───────────────────────────────────────────────────────────────────
@@ -101,12 +127,27 @@ export class NpcCompanion {
       on: { click: () => this._onBubbleClick() },
     }, [this._eyebrow, this._textEl, this._contEl, this._choicesEl, this._optoutEl, this._skipEl])
 
+    // Full-stage input shield — shown only while the companion delivers its
+    // run-intro. It swallows every click so the player can interact ONLY
+    // with the intro bubble (which rides above it). See `data-intro`.
+    this._shield = h('div', { className: 'qf-npc-shield' })
+
     this.el = h('div', {
       className: 'qf-npc',
-      dataset: { speaking: 'false', tutorial: 'false', dock: 'corner' },
-      // Drives the per-companion sprite scale on .qf-npc-img.
-      style: { '--npc-img-scale': String(this._hudScale) },
-    }, [this._bubble, this._portrait])
+      dataset: { speaking: 'false', tutorial: 'false', dock: 'corner', placing: 'false', intro: 'false' },
+      // Per-companion sprite scale + bubble-lift scale + sprite scale anchor.
+      style: {
+        '--npc-img-scale':         String(this._hudScale),
+        '--npc-bubble-scale':      String(this._bubbleScale),
+        '--npc-img-origin':        this._imgOrigin,
+        '--npc-img-origin-docked': this._imgOriginDocked,
+        '--npc-img-tx':            this._imgTx + 'px',
+        '--npc-img-ty':            this._imgTy + 'px',
+        '--npc-img-tx-docked':     this._imgTxDocked + 'px',
+        '--npc-img-ty-docked':     this._imgTyDocked + 'px',
+        '--npc-bubble-lift':       this._bubbleLift + 'px',
+      },
+    }, [this._shield, this._bubble, this._portrait])
   }
 
   _on(evt, fn) { EventBus.on(evt, fn); this._listeners.push([evt, fn]) }
@@ -165,6 +206,8 @@ export class NpcCompanion {
       }
     }
     this.el.dataset.tutorial = this._msg.sticky ? 'true' : 'false'
+    // The run-intro is fully modal — raise the input shield for it (only).
+    this.el.dataset.intro = (this._msg.kind === 'intro') ? 'true' : 'false'
     this.el.dataset.speaking = 'true'
     this._renderPage()
   }
@@ -327,6 +370,8 @@ export class NpcCompanion {
     this._bubble.classList.remove('open')
     this.el.dataset.speaking = 'false'
     this.el.dataset.tutorial = 'false'
+    // Bubble closed → the intro is over → drop the modal input shield.
+    this.el.dataset.intro = 'false'
     this._portrait.classList.remove('talking')
     this._fadeTimer = setTimeout(() => this._setExpression(this._rest), FADE_MS + 120)
   }

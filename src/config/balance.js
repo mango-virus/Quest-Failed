@@ -116,6 +116,23 @@ export const Balance = {
   ORC_WARBAND_ATK_PCT_PER_ALLY:    0.05,  // +5% ATK per other orc in same room
   ORC_WARBAND_DEF_PCT_PER_ALLY:    0.05,  // +5% DEF per other orc in same room
 
+  // --- Succubus Queen second ability — Doppelgänger (boss-fight only) ---
+  // The Queen hides among illusory duplicates during the boss fight. Each
+  // combat round the party's pooled damage may land on a decoy (round
+  // negated, decoy shatters) instead of the real Queen. She re-conjures a
+  // fresh set of decoys each time her HP crosses a phase threshold.
+  SUCCUBUS_DOPPEL_ENABLED:           true,
+  SUCCUBUS_DOPPEL_BASE_DECOYS:          2,   // decoys conjured at boss level 1
+  SUCCUBUS_DOPPEL_LEVELS_PER_DECOY:     3,   // +1 decoy per N boss levels
+  SUCCUBUS_DOPPEL_MAX_DECOYS:           4,   // hard cap on decoys per split
+  SUCCUBUS_DOPPEL_SPLIT_THRESHOLDS: [0.75, 0.5, 0.25],  // boss-HP fracs that re-split
+
+  // Bat-Form Seduction charm cadence — delay between one charm flight
+  // ending and the next being eligible, in ms (+ a random 0..RAND on top).
+  // Bumped 2026-05-22 so she charms noticeably less often (was 7000/8000).
+  SUCCUBUS_CHARM_COOLDOWN_BASE_MS:  20000,
+  SUCCUBUS_CHARM_COOLDOWN_RAND_MS:  16000,
+
   // --- Phase 1b.8: Dark Wraith ---
   WRAITH_FEAR_MAX:                       100,
   WRAITH_FEAR_PER_CORPSE_SEEN:             5,

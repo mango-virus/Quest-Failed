@@ -43,6 +43,9 @@ export class BossFightOverlay {
     this._shakeUntil  = 0
     this._flashUntil  = 0
     this._barActive   = false
+    // Day number the intro slate was last shown for — the "BOSS FIGHT"
+    // announcement fires only on the first fight of each day.
+    this._introShownDay = null
 
     this._stage = document.getElementById('hud-stage')
     if (!this._stage) return
@@ -74,7 +77,14 @@ export class BossFightOverlay {
   // ─── Intro slate + bar build ───────────────────────────────────
   _onIncoming() {
     this._buildVignette()
-    this._buildIntroSlate()
+    // The intro slate is a once-per-day "BOSS FIGHT" announcement — a
+    // second (or later) party reaching the boss room on the same day
+    // drops straight into the bar + vignette with no slate.
+    const day = this._gs.meta?.dayNumber ?? 0
+    if (day !== this._introShownDay) {
+      this._introShownDay = day
+      this._buildIntroSlate()
+    }
     this._buildBar()
     this._lastHp = this._gs.boss?.hp ?? null
     this._barActive = true

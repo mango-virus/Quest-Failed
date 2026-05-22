@@ -753,8 +753,8 @@ export class BossArchetypeSystem {
       const now = this._scene?.time?.now ?? 0
       this._gameState._succubus ??= {}
       this._gameState._succubus.usesLeft = Math.max(1, lv)
-      // First use: random 3–8s after day begins
-      this._gameState._succubus.cooldownUntil = now + 3000 + Math.floor(Math.random() * 5000)
+      // First use: a longer lurk (≈10–18s) before the day's first charm.
+      this._gameState._succubus.cooldownUntil = now + 10000 + Math.floor(Math.random() * 8000)
       this._gameState._succubus.flight = null
     }
   }
@@ -1800,10 +1800,12 @@ export class BossArchetypeSystem {
 
       if (f.phase === 'transform_in') {
         // Reverse transform finished — boss is back, end the flight cycle.
-        // Randomize cooldown so subsequent charms don't clump (7–15s).
+        // Randomize cooldown so subsequent charms don't clump.
         EventBus.emit('SUCCUBUS_FLIGHT_ENDED', {})
         s.flight = null
-        s.cooldownUntil = now + 7000 + Math.floor(Math.random() * 8000)
+        s.cooldownUntil = now
+          + (Balance.SUCCUBUS_CHARM_COOLDOWN_BASE_MS ?? 20000)
+          + Math.floor(Math.random() * (Balance.SUCCUBUS_CHARM_COOLDOWN_RAND_MS ?? 16000))
         return
       }
       return

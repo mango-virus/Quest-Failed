@@ -401,13 +401,13 @@ export class BossOverviewOverlay {
         }, (p.rarity || 'COMMON').toUpperCase()),
       ]),
       p.flavorText && h('div', { className: 'qf-boss-pact-flavor' }, `"${p.flavorText}"`),
-      p.boon && h('div', { className: 'qf-boss-pact-boon' }, [
+      (p.description || p.boon) && h('div', { className: 'qf-boss-pact-boon' }, [
         h('span', { style: { color: 'var(--poison)' } }, '▲ '),
-        p.boon,
+        p.description || p.boon,
       ]),
-      p.bane && h('div', { className: 'qf-boss-pact-bane' }, [
+      (p.tradeoffDescription || p.bane) && h('div', { className: 'qf-boss-pact-bane' }, [
         h('span', { style: { color: 'var(--blood)' } }, '▼ '),
-        p.bane,
+        p.tradeoffDescription || p.bane,
       ]),
     ])
   }

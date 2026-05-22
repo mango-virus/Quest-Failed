@@ -86,6 +86,16 @@ export class ArchetypeDecorOverlay {
     })
     this._imgEl.src = c.spriteDir + c.restExpr + '.webp'
     this._curExpr = c.restExpr
+    // Mirror to face the book; `archScale` (default 1, a no-op for the tall
+    // humanoids) sizes up a wide companion (Zul'Gath) on the boss screen.
+    // `archOrigin` anchors that scale-up so his head sits past the book edge
+    // and the faded tail overflows off-screen; `fadeMask` dissolves the tail.
+    this._imgEl.style.transform = `scaleX(-1) scale(${c.archScale ?? 1})`
+    if (c.archOrigin) this._imgEl.style.transformOrigin = c.archOrigin
+    if (c.fadeMask) {
+      this._imgEl.style.maskImage = c.fadeMask
+      this._imgEl.style.webkitMaskImage = c.fadeMask
+    }
 
     this._nameEl = h('div', { className: 'pix qf-cmpsel-bubble-name' }, c.name.toUpperCase())
     this._textEl = h('div', { className: 'qf-cmpsel-bubble-text' }, '')
@@ -161,10 +171,16 @@ export class ArchetypeDecorOverlay {
   // ── speech ──────────────────────────────────────────────────────────────────
   _greet() {
     const c = this._companion
-    const greet = c.id === 'malakor'
-      ? 'Pick your monster, then. The adventurers are already marching — and they will not gut themselves.'
-      : 'Choose well, my liege. Whichever beast you crown, I will make the whole realm adore them.'
-    this._say(greet, c.restExpr)
+    // Per-companion greeting — each keeper addresses the player their own
+    // way (Lilith "my liege", Malakor blunt, Zul'Gath "small one", Safira
+    // "Master"). Falls back to Lilith's line for any unknown companion.
+    const greets = {
+      lilith:  'Choose well, my liege. Whichever beast you crown, I will make the whole realm adore them.',
+      malakor: 'Pick your monster, then. The adventurers are already marching — and they will not gut themselves.',
+      zulgath: 'Mm. Choose your monster, small one. I have watched every shape of dungeon-master rise and fall — whichever you crown, I have seen its ending before.',
+      safira:  'Ooh, a CHOICE, Master! Pick the boss you wish to be and — *poof* — I grant it. Choose well; I get dreadfully attached to whatever you pick.',
+    }
+    this._say(greets[c.id] ?? greets.lilith, c.restExpr)
   }
 
   _say(text, expr) {

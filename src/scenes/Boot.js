@@ -1,48 +1,38 @@
-// Hard cap on the font wait. `document.fonts.load` never rejects when the
-// network can't reach Google Fonts — it just never resolves — so without
-// this cap the game would hang forever on a black Boot screen for any
-// player who's offline or on a network that blocks fonts.gstatic.com.
-const FONT_LOAD_TIMEOUT_MS = 3000
+// Boot — the first scene. Warms the Google Fonts cache, then hands off to
+// Preload immediately.
+//
+// IMPORTANT: Boot must NOT block on the font load. The previous version
+// awaited `Promise.race([document.fonts.load(...), setTimeout(...)])` —
+// but in a throttled / backgrounded tab (the dev preview, a minimized
+// window) `setTimeout` is suspended AND `document.fonts.load` never
+// resolves when fonts.gstatic.com is unreachable, so NEITHER side of the
+// race settled and the game hung forever on a black Boot screen.
+//
+// Fonts are warmed fire-and-forget instead. Preload then spends seconds
+// loading sprite/audio assets — far longer than the three tiny font files
+// take — so MainMenu virtually always draws with the real glyphs anyway;
+// on a rare slow connection it just falls back to monospace briefly
+// instead of hanging.
 
 export class Boot extends Phaser.Scene {
   constructor() {
     super('Boot')
   }
 
-  preload() {
-    // Only assets needed for the Preload scene's loading bar.
-  }
-
   create() {
-    // Wait for the Google Fonts (Press Start 2P + VT323) to actually
-    // download before any scene renders text. Phaser bakes each Text
-    // into an off-screen canvas at create() time and does NOT re-render
-    // when a font finishes loading later, so unloaded fonts result in
-    // permanent monospace-fallback glyphs even though .style.fontFamily
-    // claims the right family. Forcing the load here gates Preload (and
-    // therefore MainMenu) on the fonts being cached.
-    this._awaitFontsThenStart()
+    this._warmFonts()
+    this.scene.start('Preload')
   }
 
-  async _awaitFontsThenStart() {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.load) {
-      const fonts = Promise.all([
-        // Hit a few sizes — browsers may key cache entries by size, and
-        // Phaser will request whatever pixel size the scene asks for.
-        document.fonts.load('10px "Press Start 2P"'),
-        document.fonts.load('78px "Press Start 2P"'),
-        document.fonts.load('15px "VT323"'),
-      ])
-      // Race the font load against a timeout: whichever finishes first
-      // wins. A normal connection resolves `fonts` in well under the cap,
-      // so this never delays a healthy load — it only rescues a player
-      // who can't reach Google Fonts (the game then starts with monospace
-      // fallback glyphs instead of hanging on a black screen forever).
-      const timeout = new Promise(resolve => setTimeout(resolve, FONT_LOAD_TIMEOUT_MS))
-      try {
-        await Promise.race([fonts, timeout])
-      } catch (e) { /* swallow — fall back to monospace if Google Fonts unreachable */ }
-    }
-    this.scene.start('Preload')
+  // Kick the Google Font downloads (Press Start 2P + VT323) without
+  // awaiting them — see the file header for why blocking here is unsafe.
+  _warmFonts() {
+    try {
+      if (typeof document === 'undefined' || !document.fonts?.load) return
+      // A few sizes — browsers may key font cache entries by pixel size.
+      document.fonts.load('10px "Press Start 2P"')
+      document.fonts.load('78px "Press Start 2P"')
+      document.fonts.load('15px "VT323"')
+    } catch { /* fonts unreachable — scenes fall back to monospace */ }
   }
 }

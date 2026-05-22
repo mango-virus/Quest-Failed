@@ -19,7 +19,7 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const FADE_IN_MS  = 350
-const HOLD_MS     = 4600
+const HOLD_MS     = 7600   // banner stays fully visible for this long before fading
 const FADE_OUT_MS = 600
 
 export class EventBanner {

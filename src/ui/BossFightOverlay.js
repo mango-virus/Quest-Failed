@@ -43,6 +43,9 @@ export class BossFightOverlay {
     this._barShakeUntil  = 0
     this._barFlashUntil  = 0
     this._lastBossHp     = null
+    // Day number the intro slate was last shown for — the "BOSS FIGHT"
+    // announcement fires only on the first fight of each day.
+    this._introShownDay  = null
 
     this._onIncoming = this._onIncoming.bind(this)
     this._onResolved = this._onResolved.bind(this)
@@ -111,7 +114,14 @@ export class BossFightOverlay {
   _onIncoming() {
     this._destroyResult()
     this._buildVignette()
-    this._buildIntroSlate()
+    // The intro slate is a once-per-day "BOSS FIGHT" announcement — a
+    // second (or later) party reaching the boss room on the same day
+    // drops straight into the bar + vignette with no slate.
+    const day = this._gameState.meta?.dayNumber ?? 0
+    if (day !== this._introShownDay) {
+      this._introShownDay = day
+      this._buildIntroSlate()
+    }
     this._buildBar()
     this._lastBossHp = this._gameState.boss?.hp ?? null
     this._barActive = true

@@ -115,11 +115,20 @@ export class CompanionSelectOverlay {
       alt: c.name, draggable: 'false',
     })
     img.src = c.spriteDir + c.restExpr + '.webp'
-    // Even out the two companions' on-screen size + (optionally) mirror
-    // the sprite so they face each other.
+    // Even out the companions' on-screen size + (optionally) mirror the
+    // sprite so they face each other. `portraitOrigin` lets a wide sprite
+    // (Zul'Gath) scale up from its bottom edge — growing UP, not down over
+    // the name plate — instead of the default centre.
     const flip  = c.portraitFlipX ? -1 : 1
     const scale = c.portraitScale ?? 1
     img.style.transform = `scaleX(${flip}) scale(${scale})`
+    if (c.portraitOrigin) img.style.transformOrigin = c.portraitOrigin
+    // A wide companion (Zul'Gath) fades his tail/backside out so the big
+    // sprite reads as a tall dragon rather than an overflowing rectangle.
+    if (c.fadeMask) {
+      img.style.maskImage = c.fadeMask
+      img.style.webkitMaskImage = c.fadeMask
+    }
 
     const text   = h('div', { className: 'qf-cmpsel-bubble-text' }, '')
     const bubble = h('div', { className: 'qf-cmpsel-bubble' }, [
@@ -186,7 +195,7 @@ export class CompanionSelectOverlay {
   }
 
   // The current speaker says their next banter line; when it finishes
-  // typing it holds, then passes the turn to the other companion.
+  // typing it holds, then passes the turn to the next companion.
   _advance() {
     if (!this._el) return
     const id = this._speaker
@@ -204,14 +213,18 @@ export class CompanionSelectOverlay {
     this._typewrite(id, line.t || '', () => {
       this._convoTimer = setTimeout(() => {
         this._convoTimer = null
-        this._speaker = this._other(this._speaker)
+        this._speaker = this._next(this._speaker)
         this._advance()
       }, HOLD_MS)
     })
   }
 
-  _other(id) {
-    return COMPANION_ORDER.find(c => c !== id) || id
+  // Round-robin through COMPANION_ORDER so the bicker rotates through ALL
+  // companions (three now, four later), not just a back-and-forth pair.
+  _next(id) {
+    const i = COMPANION_ORDER.indexOf(id)
+    if (i < 0) return COMPANION_ORDER[0] || id
+    return COMPANION_ORDER[(i + 1) % COMPANION_ORDER.length]
   }
 
   // Hand the next turn to `id` immediately — used by hover / select. Any

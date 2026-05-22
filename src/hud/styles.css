@@ -1114,13 +1114,15 @@ body {
      are clickable. */
   pointer-events: auto;
 }
-/* Companion docked beside this menu — left-pin the modal so Lilith
-   (standing at the screen's left) only overlaps its outer edge by a
-   sliver instead of covering content. `padding-left` sets where the
-   modal's left edge lands; tune it to taste against her docked width. */
+/* Companion docked beside this menu — pin the modal to the right of the
+   companion's full-body footprint so she never covers menu content. She
+   stands docked at left:30 / width:384, so her box ends ~414px; 430px
+   leaves a small clearance. Overlays that should stay screen-centered
+   instead (e.g. the 980px boss level-up screen) opt out of docking via
+   the Overlay `dock: false` option. */
 .overlay.qf-npc-docked {
   justify-content: flex-start;
-  padding-left: 380px;
+  padding-left: 430px;
 }
 .overlay > .modal {
   animation: panel-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -8405,6 +8407,22 @@ body {
 /* Docked beside a menu — lift above the overlay backdrop (z:150). */
 .qf-npc[data-dock="menu"] { z-index: 160; }
 
+/* Sticky-message modal — while a companion delivers a sticky message (the
+   run-intro OR a tutorial hint) the whole companion jumps to the top of the
+   stack and its input shield (a child) swallows every click below it, so the
+   player can ONLY interact with the message bubble — it takes priority over
+   everything, placement mode included. Cleared when the bubble dismisses.
+   `data-tutorial` is set true for BOTH tutorial and intro (any sticky msg). */
+.qf-npc[data-tutorial="true"] { z-index: 9999; }
+.qf-npc-shield {
+  position: fixed;           /* relative to the transformed #hud-stage → covers the whole stage */
+  inset: 0;
+  z-index: 1;                /* within .qf-npc: above the portrait, below the bubble (z-index 2) */
+  pointer-events: auto;      /* eats every click that lands on it */
+  display: none;
+}
+.qf-npc[data-tutorial="true"] .qf-npc-shield { display: block; }
+
 /* Portrait — two stacked <img> layers cross-fade between expressions. */
 .qf-npc-portrait {
   position: absolute;
@@ -8429,6 +8447,17 @@ body {
 .qf-npc-portrait.talking { animation: qf-npc-talk 0.5s ease-in-out infinite; }
 .qf-npc-portrait:hover    { filter: drop-shadow(0 6px 16px rgba(255, 100, 130, 0.4)); }
 
+/* During placement (room / minion / trap / item) the companion must not
+   intercept the click — the portrait and an ordinary bubble go click-through
+   so the placement lands on the dungeon underneath. EXCEPTION: a sticky
+   message bubble (tutorial / intro) stays clickable — it takes priority over
+   placement, and its shield blocks the stray placement click anyway. Without
+   this exception a tutorial firing mid-placement could not be advanced. */
+.qf-npc[data-placing="true"] .qf-npc-portrait,
+.qf-npc[data-placing="true"]:not([data-tutorial="true"]) .qf-npc-bubble {
+  pointer-events: none;
+}
+
 .qf-npc-img {
   position: absolute;
   inset: 0;
@@ -8440,11 +8469,36 @@ body {
   transition: opacity 0.42s ease;
   user-select: none;
   -webkit-user-drag: none;
+  /* The sprite <img> is deliberately removed from hit-testing. A scaled-up
+     companion (e.g. Zul'Gath, hudScale 2.5) balloons this element's
+     rectangular box far above the visible art — a wide sprite `contain`-fit
+     into a tall box leaves a big transparent margin overhead. Leaving that
+     rect hit-testable made hovering the empty space ABOVE the dragon register
+     as hovering him. Hover/click targeting lives on `.qf-npc-portrait`
+     instead, whose box hugs the actual sprite. Rendering is unaffected. */
+  pointer-events: none;
   /* Per-companion sprite scale (companions.js `hudScale`). Scales from
      the feet so the body grows in place; any excess (tall wings) just
      extends above the portrait box. */
-  transform: scale(var(--npc-img-scale, 1));
-  transform-origin: 50% 100%;
+  /* --npc-img-tx/ty nudge a companion within the corner box (default 0,0 —
+     a no-op for the humanoids). Used to fine-place a wide sprite (Zul'Gath). */
+  transform: translate(var(--npc-img-tx, 0px), var(--npc-img-ty, 0px))
+             scale(var(--npc-img-scale, 1));
+  /* Scale anchor — bottom-centre by default; a companion may override it.
+     Corner mode uses --npc-img-origin; a wide companion (Zul'Gath) anchors
+     bottom-LEFT here so his scaled bulk grows RIGHT into the view, not left
+     under the construction panel where it would be hidden. */
+  transform-origin: var(--npc-img-origin, 50% 100%);
+}
+/* Docked beside a menu, the spill must avoid the centred modal instead, so
+   the docked anchor is separate — Zul'Gath anchors bottom-RIGHT here, growing
+   LEFT off the screen edge. Falls back to the corner origin, then default.
+   The corner nudge does NOT carry into docked — docked uses its own offsets
+   (default 0,0), so docked placement stays untouched. */
+.qf-npc[data-dock="menu"] .qf-npc-img {
+  transform-origin: var(--npc-img-origin-docked, var(--npc-img-origin, 50% 100%));
+  transform: translate(var(--npc-img-tx-docked, 0px), var(--npc-img-ty-docked, 0px))
+             scale(var(--npc-img-scale, 1));
 }
 .qf-npc-img.front { opacity: 1; }
 
@@ -8465,7 +8519,9 @@ body {
   /* Base 360px, lifted by however much a >1 hudScale grows the sprite
      upward — (scale − 1) × portrait-box-height — so the bubble clears a
      scaled-up companion (e.g. Malakor) instead of overlapping his head. */
-  bottom: calc(360px + (var(--npc-img-scale, 1) - 1) * 350px);
+  /* --npc-bubble-lift raises the corner bubble for a companion that needs
+     it (default 0 — no-op for the humanoids; docked has its own rule). */
+  bottom: calc(360px + (var(--npc-bubble-scale, 1) - 1) * 350px + var(--npc-bubble-lift, 0px));
   width: 300px;
   padding: 9px 13px 11px;
   background: var(--bg-1);
@@ -8487,7 +8543,7 @@ body {
   left: 72px;
   /* Same scale-aware lift as the corner bubble, against the taller
      docked portrait box (570px). */
-  bottom: calc(600px + (var(--npc-img-scale, 1) - 1) * 570px);
+  bottom: calc(600px + (var(--npc-bubble-scale, 1) - 1) * 570px);
   width: 332px;
 }
 .qf-npc-bubble.open {
@@ -8595,6 +8651,13 @@ body {
   transition: opacity 0.2s ease, color 0.15s ease;
 }
 .qf-npc-optout.show { opacity: 0.7; }
+/* Both `.qf-npc-optout` (turn off hints) and `.qf-npc-skip` (skip intro)
+   share this position absolute slot at the bubble's bottom-left, and the
+   skip element is later in source order than the opt-out. Without this
+   rule, the invisible (opacity 0) one still absorbs clicks at the slot
+   because nothing tells the browser otherwise — so the visible link feels
+   dead. Make the hidden one transparent to pointer events. */
+.qf-npc-optout:not(.show) { pointer-events: none; }
 /* Hover only brightens it when it is actually shown (tutorial bubbles).
    Without the .show gate, hovering the bottom-left of ANY bubble — the
    intro included — revealed the hidden control. */
@@ -8674,7 +8737,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 64px;
+  /* Sized so up to FOUR companion cards fit the 1920-wide stage in one
+     row (3 today, room for a 4th later — see companions.js COMPANION_ORDER). */
+  gap: 34px;
   padding: 8px 48px;
   z-index: 4;
 }
@@ -8687,7 +8752,7 @@ body {
 .qf-cmpsel-card {
   --cmp-accent: var(--blood);
   position: relative;
-  width: 540px;
+  width: 410px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -8697,6 +8762,7 @@ body {
   transition: transform 160ms cubic-bezier(0.2,0.8,0.2,1), opacity 200ms ease;
 }
 .qf-cmpsel-card[data-id="malakor"] { --cmp-accent: #4f7d8c; }
+.qf-cmpsel-card[data-id="safira"]  { --cmp-accent: #b86fc9; }
 .qf-cmpsel-card:hover {
   opacity: 0.9;
   transform: translateY(-6px);
@@ -8713,7 +8779,7 @@ body {
 .qf-cmpsel-bubble {
   position: relative;
   /* Slimmer than the card — the flex column centres it. */
-  width: 420px;
+  width: 372px;
   min-height: 134px;
   background: var(--bg-1);
   border: 2px solid var(--line-2);
@@ -8772,7 +8838,7 @@ body {
 /* Portrait */
 .qf-cmpsel-portrait {
   position: relative;
-  height: 540px;
+  height: 462px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -8806,8 +8872,13 @@ body {
    earlier "freeze" was an inherited pointer-events bug, never filters —
    a hover-only glow on one card is perfectly cheap.) */
 .qf-cmpsel-portrait-img {
-  height: 100%;
+  /* Contain within the card. A tall portrait sprite stays height-limited
+     (identical to the old `height:100%`); a WIDE sprite (Zul'Gath the
+     dragon) is limited by width instead of ballooning past the card. */
+  max-width: 100%;
+  max-height: 100%;
   width: auto;
+  height: auto;
   image-rendering: auto;
   transition: filter 220ms ease;
 }
@@ -8879,6 +8950,8 @@ body {
 .qf-cmpsel-card   { animation: cmpsel-card-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .qf-cmpsel-stage > .qf-cmpsel-card:nth-child(1) { animation-delay: 90ms; }
 .qf-cmpsel-stage > .qf-cmpsel-card:nth-child(2) { animation-delay: 230ms; }
+.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(3) { animation-delay: 370ms; }
+.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(4) { animation-delay: 510ms; }
 @keyframes cmpsel-head-in   { from { opacity: 0; transform: translateY(-16px); } }
 @keyframes cmpsel-footer-in { from { opacity: 0; transform: translateY(20px); } }
 @keyframes cmpsel-card-in   { from { opacity: 0; transform: translateY(44px); } }
@@ -8979,8 +9052,12 @@ body {
   animation: cmpsel-breathe 3.2s ease-in-out infinite;
 }
 .qf-archdec-img {
-  height: 100%;
+  /* Contain: tall sprites stay height-limited (unchanged); a wide sprite
+     (Zul'Gath) is limited by width instead of overflowing the column. */
+  max-width: 100%;
+  max-height: 100%;
   width: auto;
+  height: auto;
   /* Both companions render at natural full size (feet on the bottom edge)
      and are mirrored to face the book — the sprites face right by default.
      No portraitScale here: scaling a companion down anchored to the feet

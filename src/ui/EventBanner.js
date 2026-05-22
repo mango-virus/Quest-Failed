@@ -23,7 +23,7 @@ import { EventBus } from '../systems/EventBus.js'
 
 const BANNER_DEPTH    = 95
 const FADE_IN_MS      = 350
-const HOLD_MS         = 4500
+const HOLD_MS         = 7500   // banner stays fully visible for this long before fading
 const FADE_OUT_MS     = 600
 const CARD_W          = 540
 const CARD_H          = 96

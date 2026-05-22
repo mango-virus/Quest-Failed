@@ -40,6 +40,10 @@ const HIDDEN_ALPHA     = 0.28
 // Indexed by chain position (tier 1 → tier 4).
 const EVOLUTION_TIER_SCALE = [1.0, 1.3, 1.6, 1.9]
 
+// Duration of the sell "shadow-swallow" animation (ms) — the death anim
+// plays while the minion sinks into an opening shadow pool, then both go.
+const SELL_SWALLOW_MS = 650
+
 export class MinionRenderer {
   constructor(scene, gameState) {
     this._scene     = scene
@@ -74,6 +78,7 @@ export class MinionRenderer {
     EventBus.on('NIGHT_PHASE_STARTED', this._refreshAll,    this)
     EventBus.on('DAY_PHASE_STARTED',   this._returnHeldToOrigin, this)
     EventBus.on('TOOL_MODE_CHANGED',   this._onToolModeChanged,  this)
+    EventBus.on('ENTITY_SOLD',         this._onEntitySold,       this)
   }
 
   update() {
@@ -327,10 +332,15 @@ export class MinionRenderer {
       }
     }
 
-    // Drop sprites whose minions are gone (e.g. unplaced via NightPhase removal).
+    // Drop sprites whose minions are gone (e.g. unplaced via NightPhase
+    // removal). A minion mid sell-swallow is kept — _tickSelling owns its
+    // sprite until the animation finishes.
     for (const id of Object.keys(this._sprites)) {
-      if (!seen.has(id)) this._destroySprite(id)
+      if (seen.has(id)) continue
+      if (this._sprites[id]?.selling) continue
+      this._destroySprite(id)
     }
+    this._tickSelling(this._scene.time.now)
   }
 
   destroy() {
@@ -338,6 +348,7 @@ export class MinionRenderer {
     EventBus.off('NIGHT_PHASE_STARTED', this._refreshAll,    this)
     EventBus.off('DAY_PHASE_STARTED',   this._returnHeldToOrigin, this)
     EventBus.off('TOOL_MODE_CHANGED',   this._onToolModeChanged,  this)
+    EventBus.off('ENTITY_SOLD',         this._onEntitySold,       this)
     this._scene?.input?.off?.('pointerdown', this._onScenePointerDown)
     this._hoverLabel?.destroy()
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
@@ -753,6 +764,7 @@ export class MinionRenderer {
   _destroySprite(id) {
     const s = this._sprites[id]
     if (!s) return
+    s.sellPool?.destroy()
     s.container.destroy()
     delete this._sprites[id]
     // If the hover label was tracking this minion, hide it — otherwise the
@@ -767,6 +779,58 @@ export class MinionRenderer {
   _onMinionDied(_evt) {
     // No-op — death anim plays in update() and freezes on its last frame.
     // The sprite is parked at its death position until NIGHT_PHASE_STARTED.
+  }
+
+  // ── Sell shadow-swallow ─────────────────────────────────────────────────
+  // The player sold this minion. Play its death animation and open a
+  // shadow pool beneath it; _tickSelling sinks the sprite into the pool and
+  // destroys it when the swallow completes. Fired by NightPhase BEFORE the
+  // minion is spliced from gameState, so the sprite record is still live.
+  _onEntitySold({ kind, minion } = {}) {
+    if (kind !== 'minion' || !minion) return
+    const s = this._sprites[minion.instanceId]
+    if (!s || s.selling) return
+    // Death animation (corpse pose). Falls through harmlessly when the
+    // minion's sheet has no death anim (_resolveAnimKey returns null).
+    if (s.sprite) {
+      const def    = this._defMap[minion.definitionId]
+      const prefix = this._raisedDeadPrefix(minion)
+        ?? (def?.bossSkinId ? def.bossSkinId : `minion-${minion.definitionId}`)
+      const deathKey = this._resolveAnimKey(prefix, 'death', s.facing)
+      if (deathKey) { s.currentAnim = deathKey; s.sprite.play(deathKey, true) }
+    }
+    // Drop any hover label still glued to this minion.
+    if (this._hoverMinion?.instanceId === minion.instanceId) {
+      this._hoverMinion = null
+      this._hoverLabel?.setVisible(false)
+    }
+    // Shadow pool that opens beneath the minion, then closes over it.
+    const baseX = s.container.x
+    const baseY = s.container.y
+    s.sellPool = this._scene.add.ellipse(baseX, baseY + 6, 42, 19, 0x080410, 0.92)
+      .setDepth(1.5).setScale(0)
+    s.selling = { startedAt: this._scene.time.now, baseX, baseY }
+  }
+
+  // Advance every sprite mid sell-swallow: open the shadow pool, sink the
+  // minion into it with a fade, then destroy sprite + pool when done.
+  _tickSelling(now) {
+    for (const id of Object.keys(this._sprites)) {
+      const s = this._sprites[id]
+      if (!s?.selling) continue
+      const t = Math.min(1, (now - s.selling.startedAt) / SELL_SWALLOW_MS)
+      // Pool opens fast (t 0→0.3), holds, then closes shut (t 0.65→1).
+      if (s.sellPool) {
+        const open  = Math.min(1, t / 0.3)
+        const close = t > 0.65 ? (t - 0.65) / 0.35 : 0
+        s.sellPool.setScale(Math.max(0, open - close))
+      }
+      // Minion sinks into the pool and fades once it has opened.
+      const sink = t > 0.25 ? (t - 0.25) / 0.75 : 0
+      s.container.y = s.selling.baseY + sink * 16
+      s.container.setAlpha(1 - sink)
+      if (t >= 1) this._destroySprite(id)
+    }
   }
 
   _refreshAll() {

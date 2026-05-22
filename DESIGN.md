@@ -495,6 +495,11 @@ Replaces the 15 archetypes with **10 specific monster-type bosses**. Each has on
 - **Charm.** At the start of each day, the system marks one random adventurer in the day's incoming party with a charm VFX. They leave their party, walk to the boss room, and are converted into a Thrall — same class and abilities as the original adventurer, using the `vampire_minion1` sprite. Thralls patrol the entire dungeon hunting other adventurers. **They close any door behind them after passing through; if it was a locked door, it relocks.** This door-locking behavior applies to all patrolling minions in the game (Thralls, Imps, Ghosts, etc.). Thralls survive across days, do not respawn if killed, and persist until killed.
 - **Blood Tax.** Your minions still hit advs for damage normally, but instead of just subtracting HP from the adv, the damage is routed to the boss to restore HP. Advs still die from minion hits; the boss heals from each hit. The boss's own attacks work normally. VFX: a faint red streak from each adv being hit, flowing back to the boss sprite.
 
+### 11. Succubus Queen — Shapeshifter + seductress
+*(deviation noted: added after the 2026-05-02 ten-boss spec lock — the roster is now 12 (Succubus Queen + the locked-until-L99 Slime). Doppelgänger replaces the original placeholder second ability "Bat Form" — a fly-through-walls footnote of Bat-Form Seduction, not a distinct ability. The bat-form flight gameplay is kept as-is; only the second-ability slot's design changed. Locked 2026-05-22.)*
+- **Bat-Form Seduction.** Once per boss level per day, the Queen shapeshifts into a bat-swarm and flies to an adventurer — through walls and door locks — to charm them. The charmed adventurer turns on their own party until they kill an ally.
+- **Doppelgänger.** Boss-fight only. The Queen hides among illusory seductive duplicates. Each combat round the party's pooled damage may land on a decoy instead of the real Queen — the decoy shatters and the boss takes no damage that round. Odds scale with decoy count (with D decoys, D/(D+1) chance the round is wasted on an illusion). Once every decoy is gone the Queen is exposed and takes full damage — until she re-splits, conjuring a fresh set of decoys each time her HP crosses a phase threshold (75% / 50% / 25%). Decoy count is 2 at boss level 1, +1 every 3 boss levels, capped at 4. VFX: translucent pink duplicate sprites flank the Queen and mirror her animation; each shatters with a fade + puff and an "ILLUSION" floater, and a re-split fans out a fresh set with a puff burst + "SHE SPLITS" floater.
+
 ### Niche coverage
 
 | Boss | Playstyle |
@@ -509,6 +514,7 @@ Replaces the 15 archetypes with **10 specific monster-type bosses**. Each has on
 | Lizardman | Ambush + bleed-out DoT |
 | Orc | Veteran orcs scale forever |
 | Vampire | Boss is the fighter, minions feed it |
+| Succubus | Charm flips a hero; illusions stall the boss fight |
 
 ### Implementation notes
 - All locked specs above are JSON-loaded by `src/data/bossArchetypes.json` (read into the bestiary by `ArchetypeSelect.js`).
@@ -998,7 +1004,7 @@ The aim: every one of her 42 expressions sees regular use, and she always has so
 
 The game gets a **second companion**, **Malakor**, built the same way as Lilith. The player picks *one* companion per run.
 
-- **Personality.** Malakor has a different personality from Lilith: **rude, sinister, likes to roast the player — but also loyal**. Where Lilith dotes and flirts, Malakor is a gruff, contemptuous dungeon-keeper who insults the player's choices and mocks them ("boss", with sarcastic honorifics like "your dread majesty", "little king") — yet would never abandon them. The insults are real; the loyalty is realer.
+- **Personality.** Malakor has a different personality from Lilith: **rude, sinister, likes to roast the player — but also loyal**. Where Lilith dotes and flirts, Malakor is a gruff, contemptuous dungeon-keeper who insults the player's choices and mocks them — addressing the player throughout as the sarcastic honorific **"little king"** — yet would never abandon them. The insults are real; the loyalty is realer. *(Deviation noted 2026-05-22: Malakor's address was originally a mix of "boss" / "your dread majesty" / "little king"; at the designer's request it was consolidated to one consistent mocking honorific — "little king".)*
 - **Sprites.** Malakor ships with **39 expression sprites** (vs Lilith's 42). His dialogue only uses ids he has. Source art: `Quest-Failed assets/Main NPC 2`, baked to `assets/npc-malakor/`.
 - **Reactivity & dialogue volume.** Malakor reacts to **all the same things Lilith does** and has **close to the same number of chat-bubble messages** — a full parallel dialogue bank (`src/data/malakorLines.json`), authored in batches, with the same category + specifics structure as Lilith's.
 - **Companion-select screen.** A new screen appears **after clicking NEW EVIL / start game and before the boss-select screen**, where the player chooses their dungeon-keeper companion between Lilith and Malakor. After confirming, the player proceeds to the boss picker. The screen shows the **full-body sprite of both companions**; hovering a companion **previews** it. The companions **react to being hovered** and have **chat bubbles** in which they talk to the player and try to convince them to pick them — in their own personalities and using their own expression sprites. The companion the player is *not* hovering reacts too (it heckles / sulks). The choice is remembered between runs and stored on the run's game state (`meta.companionId`).
@@ -1011,4 +1017,36 @@ The boss-select screen (`ArchetypeSelect`) keeps its bestiary book + picker exac
 - **Atmosphere.** A dark edge **vignette** framing the book, a warm **candle-glow** radiating from the book, and slow **drifting embers** rising through the surround.
 - **Footer instruction bar.** An instruction line (`HOVER A PORTRAIT TO STUDY IT … CLICK TO CLAIM YOUR BOSS … BEGIN RUN TO DESCEND`), and the **BACK** button restyled and moved into the bottom-left of this footer band.
 - **Boss-accent tint.** The header eyebrow and the candle-glow **tint to the signature colour** of whichever boss the player is currently inspecting. *(deviation noted 2026-05-22: a pixel corner-bracket frame was added, then removed at the player's request.)*
-- **Companion at the side.** The run's chosen companion (Lilith or Malakor) **stands at the right edge** and **reacts to each boss the player hovers**, speaking a line from their own `specifics.boss` dialogue bank in a chat bubble matching the in-game companion bubble, swapping expression sprites to match.
+- **Companion at the side.** The run's chosen companion **stands at the right edge** and **reacts to each boss the player hovers**, speaking a line from their own `specifics.boss` dialogue bank in a chat bubble matching the in-game companion bubble, swapping expression sprites to match.
+
+## Third companion — Zul'Gath (2026-05-22)
+
+The game gets a **third companion**, **Zul'Gath**, built the same way as Lilith and Malakor. The player picks *one* companion per run. *(A fourth companion is planned; the system is built to accommodate it as a data edit.)*
+
+- **Character.** Zul'Gath is a **male dragon** — ancient, eons old, having watched a thousand dungeon-bosses rise and fall. His personality is a third distinct axis from the others: where Lilith offers warmth and Malakor offers harsh truth, Zul'Gath offers **perspective** — **dry, deadpan, languid, faintly condescending but fond, and unbothered by everything** (catastrophe is routine). He hoards treasure and takes the long view. He addresses the player as **"small one"**.
+- **Fourth-wall breaking.** Zul'Gath **breaks the fourth wall** more centrally than the others: old enough to perceive the *loop* — the runs, the reloads, the player beyond the glass — which he regards with serene amusement rather than alarm.
+- **Sprites.** Zul'Gath ships with **39 expression sprites**. Source art: `Quest-Failed assets/Main NPC 3 - Zul'Gath`, baked to `assets/npc-zulgath/`. His dialogue uses **all 39** — the panic/distress faces (`scared`, `crying`, `shocked`, `guilty`, `shame`) appear only sparingly, as rare dry cracks in his calm.
+- **Reactivity & dialogue volume.** Zul'Gath reacts to **all the same things** as the others and has a **full parallel dialogue bank** (`src/data/zulgathLines.json`, ~1011 lines) — same category + specifics structure.
+- **Recruit screen.** The CompanionSelect screen now shows **three** companions (room for four), and their recruitment bicker is a **round-robin squabble** — the turn rotates through every companion rather than a two-way back-and-forth. Lilith's and Malakor's banter banks gained cross-banter lines that reference Zul'Gath.
+
+## Expanded expression sets (2026-05-22)
+
+The three companions each received **more hand-drawn expression sprites**, and the dialogue banks were rebalanced so every new face sees regular use — existing lines re-tagged where a new face fit the words better, plus newly authored lines so each new expression is used roughly as often as the companion's established faces.
+
+- **Lilith — 45 → 63 expressions (+18).** New faces broaden her doting/flirty range (`adoring`, `in-love`, `heart-eyes`, `lovestruck`, `affection`, `swooning`, `obsessed`, `obsessive-love`, `adorable`), her vanity (`changing-outfit`, `preening`, `tail-play`, `sexy-2`), and her wicked side (`cruel`, `menacing`, `sneering`, `disgusted`, `giggling`). Her redrawn `cute-2` / `mischievous` / `mischievous-2` art replaced the old versions in-place (same ids — a re-bake swapped the art).
+- **Malakor — 40 → 43 expressions (+3).** `battle-roar` (combat fury), `menacing` (intimidation), `salute` (a war-sergeant's loyalty beat).
+- **Zul'Gath — 39 → 45 expressions (+6).** All deepen his deadpan register: `smug`, `self-satisfied`, `superior` (lofty "above all this"), a second bored face (`bored-2`), and the rare reflective cracks `nostalgic` / `wistful`.
+
+A follow-up pass then topped up the rarely-used *existing* expressions as well, so each companion's whole sprite set sees regular use — every expression is now used at least ~9 times, with the sole exception of a few genuine-distress faces on the stoic characters (Malakor, Zul'Gath) deliberately held rarer (a floor of ~6), since a gruff war-sergeant or an unbothered ancient dragon should only rarely show those.
+
+Adding a sprite later stays a data edit: drop the PNG in, extend `tools/bake-npc-sprites.mjs`'s map, re-run the bake, append the id in `companions.js` + the bank's embedded `expressions` array, then re-tag/author lines so it gets used.
+
+## Fourth companion — Safira (2026-05-22)
+
+The game gets its **fourth and final companion**, **Safira**, built the same way as Lilith, Malakor and Zul'Gath. The player picks *one* companion per run. With Safira the companion roster is complete.
+
+- **Character.** Safira is a **genie girl** — bound for eons to a lamp, freed only lately and thrilled to finally *do* something. Her personality is the fourth distinct axis: where Lilith offers warmth, Malakor offers harsh truth and Zul'Gath offers perspective, Safira offers **chaotic, dazzling over-eagerness**. Eons in the lamp left her a touch unhinged; she frames the player's every action as a **"wish"** she is granting (and tends to over-grant / embellish), and swings between giddy delight and theatrical panic. She addresses the player as **"Master"**.
+- **Fourth-wall breaking.** Safira breaks the fourth wall **more than any other companion** — and differently from Zul'Gath. Where his meta-awareness is serene cosmic detachment, hers is **direct and intimate**: a wish-granting genie is literally a game character bound to serve whoever holds the controller, so she speaks straight to "Master out there", names the game's systems and UI by name, and treats saving / loading / respawns as lamp-magic.
+- **Sprites.** Safira ships with **53 expression sprites**. Source art: `Quest-Failed assets/Main NPC 4 - Safira`, baked to `assets/npc-safira/`. Her dialogue uses **all 53**.
+- **Reactivity & dialogue volume.** Safira reacts to **all the same things** as the others and has a **full parallel dialogue bank** (`src/data/safiraLines.json`) — same category + specifics structure, comparable line count.
+- **Recruit screen.** The CompanionSelect screen now shows **four** companions. Safira sits **third — between Malakor and Zul'Gath — facing right** (toward Zul'Gath). The round-robin recruitment squabble now rotates through all four; the other three banks gained cross-banter lines referencing Safira.

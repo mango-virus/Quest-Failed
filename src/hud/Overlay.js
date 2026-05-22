@@ -34,6 +34,10 @@ export class Overlay {
       // When set, opening/closing the overlay emits HUD_MENU_OPENED /
       // HUD_MENU_CLOSED { kind } so the companion NPC docks beside it.
       npcKind:  opts.npcKind  ?? null,
+      // When false, the modal stays screen-centered even with a companion
+      // docked (the companion still steps out via npcKind). Used by the
+      // boss level-up screen, which should be dead-center on screen.
+      dock:     opts.dock     ?? true,
       width:    opts.width    ?? 1200,
       height:   opts.height   ?? 780,
       accent:   opts.accent   ?? 'var(--blood)',
@@ -126,7 +130,8 @@ export class Overlay {
     const stage = document.getElementById('hud-stage') || document.body
     // When the companion docks beside this menu, left-pin the modal so
     // Lilith only overlaps its outer edge instead of covering content.
-    const dockShift = !!this._opts.npcKind && userSettings.companionMode() !== 'off'
+    const dockShift = !!this._opts.npcKind && this._opts.dock &&
+                      userSettings.companionMode() !== 'off'
     this.el.classList.toggle('qf-npc-docked', dockShift)
     stage.appendChild(this.el)
     if (this._opts.npcKind) {

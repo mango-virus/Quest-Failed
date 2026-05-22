@@ -1257,6 +1257,9 @@ export class NightPhase extends Phaser.Scene {
   _updateGridVisibility() {
     const gameScene = this.scene.get('Game')
     gameScene?._dungeonRenderer?.setGridVisible?.(this._selected != null)
+    // Placement mode owns the cursor — tell the HUD so the companion's
+    // portrait / bubble stop eating placement clicks that land on them.
+    EventBus.emit('PLACEMENT_MODE_CHANGED', { active: this._selected != null })
   }
 
   _clearPreview() {
@@ -2581,6 +2584,7 @@ export class NightPhase extends Phaser.Scene {
       this._promptSell(
         `Sell ${(def?.name ?? 'Treasure Chest').toUpperCase()} for ${refund} gold?`,
         () => this._doSellTreasureChest(treasureHit),
+        this._sellFxAt(refund, treasureHit.tileX, treasureHit.tileY),
       )
       return
     }
@@ -2596,6 +2600,7 @@ export class NightPhase extends Phaser.Scene {
       this._promptSell(
         `Sell the SOUL-BOUND BEACON for ${refund} gold?\nIts paired Healing Fountain is also removed.`,
         () => this._doSellBeaconPair(beacon, fountain),
+        this._sellFxAt(refund, beacon.tileX, beacon.tileY),
       )
       return
     }
@@ -2608,6 +2613,7 @@ export class NightPhase extends Phaser.Scene {
       this._promptSell(
         `Sell the DOOR LOCK for ${refund} gold?\nIts paired Key Chest is also removed.`,
         () => this._doSellKeyChest(chestHit),
+        this._sellFxAt(refund, chestHit.tileX, chestHit.tileY),
       )
       return
     }
@@ -2623,6 +2629,7 @@ export class NightPhase extends Phaser.Scene {
       this._promptSell(
         `Sell ${(mDef?.name ?? minionHit.definitionId ?? 'minion').toUpperCase()} for ${refund} gold?`,
         () => this._doSellMinion(minionHit),
+        { refund, worldX: minionHit.worldX, worldY: minionHit.worldY },
       )
       return
     }
@@ -2636,6 +2643,7 @@ export class NightPhase extends Phaser.Scene {
       this._promptSell(
         `Sell ${(tDef?.name ?? trapHit.definitionId ?? 'trap').toUpperCase()} for ${refund} gold?`,
         () => this._doSellTrap(trapHit),
+        this._sellFxAt(refund, trapHit.tileX, trapHit.tileY),
       )
       return
     }
@@ -2704,17 +2712,34 @@ export class NightPhase extends Phaser.Scene {
     this._promptSell(
       `Sell ${roomLabel} for ${refund} gold?${warnLine}`,
       () => this._finalizeRoomSell(room, roomRefund, { minions, traps, chests, keyChests, beaconPairs, phyl }),
+      // `refund` here is the grand total (room + everything inside it).
+      { refund, worldX: (room.gridX + room.width / 2) * TS, worldY: (room.gridY + room.height / 2) * TS },
     )
   }
 
   // Emit the shared yes / cancel confirm popup for a sell. onConfirm runs
   // the actual removal; the SELL tool stays armed either way.
-  _promptSell(message, doSell) {
+  _promptSell(message, doSell, sellFx = null) {
     EventBus.emit('SHOW_CONFIRM', {
       message,
       confirmLabel: 'SELL',
       cancelLabel:  'CANCEL',
-      onConfirm: () => { doSell(); this._refreshStats() },
+      onConfirm: () => {
+        // Run the sale first — `_doSell*` / `_finalizeRoomSell` return
+        // `false` when called against an already-removed entity, which is
+        // how we dedupe leak-amplified re-fires. Only the call that
+        // actually completes the sale shows the toast, so the player sees
+        // exactly one readout. Free / zero-refund sales still toast.
+        const happened = doSell()
+        if (happened !== false && sellFx) {
+          const refund = sellFx.refund ?? 0
+          EventBus.emit('SHOW_TOAST', {
+            message: refund > 0 ? `Sold · +${refund} gold` : 'Sold',
+            type:    'success',
+          })
+        }
+        this._refreshStats()
+      },
       onCancel:  () => {},
     })
   }
@@ -2765,27 +2790,62 @@ export class NightPhase extends Phaser.Scene {
   // ── Pure sell-removers — credit the refund, drop the entity, emit its
   // REMOVED event. No confirm / no tool-mode change, so the room sell can
   // batch them. ──────────────────────────────────────────────────────────
+  // Broadcast a sell so SellFxRenderer / MinionRenderer can play the
+  // shatter / shadow-swallow animation. A dedicated event — NOT the
+  // *_REMOVED events, which also fire for the MOVE tool and would wrongly
+  // animate a relocation. `kind`: 'minion' | 'trap' | 'room' | 'item'.
+  _emitSellFx(kind, worldX, worldY, extra = {}) {
+    if (!Number.isFinite(worldX) || !Number.isFinite(worldY)) return
+    EventBus.emit('ENTITY_SOLD', { kind, worldX, worldY, ...extra })
+  }
+
+  // World-space center of a tile — traps / items store tile coords only.
+  _tileCenterWorld(tileX, tileY) {
+    return { wx: tileX * TS + TS / 2, wy: tileY * TS + TS / 2 }
+  }
+
+  // { refund, worldX, worldY } for a tile-anchored sellable — the optional
+  // third arg to _promptSell, which floats the "+Xg" readout on confirm.
+  _sellFxAt(refund, tileX, tileY) {
+    return { refund, worldX: tileX * TS + TS / 2, worldY: tileY * TS + TS / 2 }
+  }
+
   _doSellTreasureChest(chest) {
+    // Idempotency guard — see _doSellMinion for context (EventBus leak
+    // can re-fire the confirm callback; re-runs no-op cleanly).
+    const list = this._gameState.dungeon.treasureChests ?? []
+    if (!list.some(c => c.instanceId === chest.instanceId)) return false
     const refund = this._sellRefund('treasureChest', chest)
     if (refund > 0) this._gameState.player.gold += refund
-    this._gameState.dungeon.treasureChests = (this._gameState.dungeon.treasureChests ?? [])
-      .filter(c => c.instanceId !== chest.instanceId)
+    this._gameState.dungeon.treasureChests = list.filter(c => c.instanceId !== chest.instanceId)
+    const { wx, wy } = this._tileCenterWorld(chest.tileX, chest.tileY)
+    this._emitSellFx('item', wx, wy, { refund, instanceId: chest.instanceId })
     EventBus.emit('TREASURE_CHEST_REMOVED', { chest, refund })
+    return true
   }
 
   _doSellBeaconPair(beacon, fountain) {
-    const refund     = this._sellRefund('beacon', beacon)
-    if (refund > 0) this._gameState.player.gold += refund
     const beaconId   = beacon?.instanceId   ?? fountain?.beaconId
     const fountainId = fountain?.instanceId ?? beacon?.fountainId
-    this._gameState.dungeon.beacons = (this._gameState.dungeon.beacons ?? [])
-      .filter(b => b.instanceId !== beaconId)
+    // Idempotency guard.
+    const list = this._gameState.dungeon.beacons ?? []
+    if (!list.some(b => b.instanceId === beaconId)) return false
+    const refund = this._sellRefund('beacon', beacon)
+    if (refund > 0) this._gameState.player.gold += refund
+    this._gameState.dungeon.beacons = list.filter(b => b.instanceId !== beaconId)
     this._gameState.dungeon.fountains = (this._gameState.dungeon.fountains ?? [])
       .filter(f => f.instanceId !== fountainId)
+    const { wx, wy } = this._tileCenterWorld(
+      beacon?.tileX ?? fountain?.tileX, beacon?.tileY ?? fountain?.tileY)
+    this._emitSellFx('item', wx, wy, { refund, instanceId: beaconId })
     EventBus.emit('BEACON_REMOVED', { beaconId, fountainId, refund })
+    return true
   }
 
   _doSellKeyChest(chest) {
+    // Idempotency guard.
+    const list = this._gameState.dungeon.keyChests ?? []
+    if (!list.some(c => c.instanceId === chest.instanceId)) return false
     const refund = this._sellRefund('keyChest', chest)
     if (refund > 0) this._gameState.player.gold += refund
     const lockIdx = (this._gameState.dungeon.locks ?? []).findIndex(l => l.id === chest.lockId)
@@ -2794,35 +2854,57 @@ export class NightPhase extends Phaser.Scene {
       this._gameState.dungeon.locks.splice(lockIdx, 1)
       EventBus.emit('LOCK_REMOVED', { lock })
     }
-    this._gameState.dungeon.keyChests = (this._gameState.dungeon.keyChests ?? [])
-      .filter(c => c.instanceId !== chest.instanceId)
+    this._gameState.dungeon.keyChests = list.filter(c => c.instanceId !== chest.instanceId)
+    const { wx, wy } = this._tileCenterWorld(chest.tileX, chest.tileY)
+    this._emitSellFx('item', wx, wy, { refund, instanceId: chest.instanceId })
     EventBus.emit('KEY_CHEST_REMOVED', { chest, refund })
     EventBus.emit('LOCKS_CHANGED')
+    return true
   }
 
   _doSellMinion(minion) {
+    // Idempotency guard. There's a known EventBus listener leak (the
+    // `scene.restart()` gotcha) that lets the SHOW_CONFIRM onConfirm
+    // callback re-fire multiple times for a single confirm-click. Without
+    // this guard a single sell credits gold N times, multi-emits the
+    // shatter FX, and so on. Re-fires no-op cleanly.
+    const idx = this._gameState.minions.findIndex(x => x.instanceId === minion.instanceId)
+    if (idx < 0) return false
     const refund = this._sellRefund('minion', minion)
     if (refund > 0) this._gameState.player.gold += refund
-    const idx = this._gameState.minions.findIndex(x => x.instanceId === minion.instanceId)
-    if (idx >= 0) this._gameState.minions.splice(idx, 1)
+    // Emit the sell-FX BEFORE the splice so MinionRenderer can grab the
+    // still-live sprite for the shadow-swallow + death animation.
+    this._emitSellFx('minion', minion.worldX, minion.worldY, { minion, refund })
+    this._gameState.minions.splice(idx, 1)
     EventBus.emit('MINION_REMOVED', { minion })
+    return true
   }
 
   _doSellTrap(trap) {
+    // Idempotency guard (see _doSellMinion).
+    const idx = this._gameState.dungeon.traps.findIndex(x => x.instanceId === trap.instanceId)
+    if (idx < 0) return false
     const refund = this._sellRefund('trap', trap)
     if (refund > 0) this._gameState.player.gold += refund
-    const idx = this._gameState.dungeon.traps.findIndex(x => x.instanceId === trap.instanceId)
-    if (idx >= 0) this._gameState.dungeon.traps.splice(idx, 1)
+    this._gameState.dungeon.traps.splice(idx, 1)
     // A removed wall trap may free a doorway it was suppressing.
     if (trap.placement === 'wall') {
       this._dungeonGrid.recheckAutoConnect(trap.tileX, trap.tileY)
     }
+    const { wx, wy } = this._tileCenterWorld(trap.tileX, trap.tileY)
+    this._emitSellFx('trap', wx, wy, { refund, instanceId: trap.instanceId })
     EventBus.emit('TRAP_REMOVED', { trap, refund })
+    return true
   }
 
   // Perform the room sale once confirmed — drop every contained entity
   // first (so their REMOVED events precede ROOM_REMOVED), then the room.
   _finalizeRoomSell(room, roomRefund, contents) {
+    // Idempotency guard (see _doSellMinion). Without this a single room
+    // sale would re-credit roomRefund and re-emit FX every time the
+    // leak-amplified onConfirm fires.
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    if (!rooms.some(r => r.instanceId === room.instanceId)) return false
     for (const m of contents.minions)     this._doSellMinion(m)
     for (const t of contents.traps)       this._doSellTrap(t)
     for (const c of contents.chests)      this._doSellTreasureChest(c)
@@ -2830,16 +2912,26 @@ export class NightPhase extends Phaser.Scene {
     for (const p of contents.beaconPairs) this._doSellBeaconPair(p.beacon, p.fountain)
     if (contents.phyl) {
       const phylactery = contents.phyl
+      const pc = this._tileCenterWorld(phylactery.tileX, phylactery.tileY)
+      this._emitSellFx('item', pc.wx, pc.wy)
       this._gameState.phylactery = null
       EventBus.emit('PHYLACTERY_REMOVED', { phylactery })
     }
 
     if (roomRefund > 0) this._gameState.player.gold += roomRefund
+    // Shatter the whole room footprint. The room carries only its own
+    // refund — contained traps / items / minions emit theirs separately;
+    // SellFxRenderer sums the batch into one "+Xg" floater.
+    this._emitSellFx('room',
+      (room.gridX + room.width  / 2) * TS,
+      (room.gridY + room.height / 2) * TS,
+      { width: room.width, height: room.height, refund: roomRefund })
     if (this._lastPlaced?.entity?.instanceId === room.instanceId) {
       this._lastPlaced = null
     }
     this._dungeonGrid.removeRoom(room.instanceId)
     this._renderActivePalette()
+    return true
   }
 
   // Phase 31D — Move tool. Reuses the existing pickup logic so minions

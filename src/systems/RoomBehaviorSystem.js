@@ -413,12 +413,16 @@ export class RoomBehaviorSystem {
   }
 
   _teleportFromWanderingGate(adv, gateRoom) {
+    // Twitch Streamers can never be sent to the boss chamber — exclude it
+    // from every destination bucket below for them.
+    const noBoss = adv?.classId === 'twitch_streamer'
     const rooms = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.isActive !== false && r.definitionId !== 'wandering_gate'
     )
-    const boss = rooms.find(r => r.definitionId === 'boss_chamber')
+    const boss = noBoss ? null : rooms.find(r => r.definitionId === 'boss_chamber')
     const neighbors = (this._scene?.dungeonGrid?.getNeighborRooms?.(gateRoom.instanceId) ?? [])
-      .filter(r => r.definitionId !== 'wandering_gate' && r.isActive !== false)
+      .filter(r => r.definitionId !== 'wandering_gate' && r.isActive !== false &&
+                   !(noBoss && r.definitionId === 'boss_chamber'))
     const anyBuilt = rooms.filter(r => r.definitionId !== 'boss_chamber')
 
     const roll = Math.random()
@@ -551,6 +555,9 @@ export class RoomBehaviorSystem {
   // [Removed 2026-04-30] _lockColosseumGates — colosseum room retired.
 
   _teleportToNearBoss(adv) {
+    // Twitch Streamers never get teleported into the boss chamber — chat
+    // chaos must not shortcut them past the dungeon into the throne room.
+    if (adv?.classId === 'twitch_streamer') return
     const boss = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
     if (!boss) return
     const tx = boss.gridX + Math.floor(boss.width / 2)
