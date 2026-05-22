@@ -6480,6 +6480,45 @@ body {
   overflow: hidden;
 }
 .qf-mm-panelhead { margin-bottom: 28px; }
+/* Player-name pill — sits above the "YOUR REIGN, MY LORD" eyebrow on the
+   main menu, click to open NameEntryOverlay. Empty-state (no name set
+   yet) glows gold so a first-time player notices it. */
+.qf-mm-playername {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--line-2);
+  padding: 6px 12px 7px;
+  margin-bottom: 14px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease,
+              background 0.15s ease, box-shadow 0.15s ease;
+}
+.qf-mm-playername:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: rgba(0, 0, 0, 0.32);
+  box-shadow: 0 0 12px rgba(212, 166, 72, 0.25);
+}
+.qf-mm-playername-icon {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.qf-mm-playername-label {
+  font-size: 10px;
+  letter-spacing: 3px;
+}
+.qf-mm-playername-empty {
+  color: var(--gold);
+  border-color: var(--gold);
+  animation: qf-mm-playername-pulse 2.4s ease-in-out infinite;
+}
+@keyframes qf-mm-playername-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 166, 72, 0.0); }
+  50%      { box-shadow: 0 0 14px 0 rgba(212, 166, 72, 0.35); }
+}
 .qf-mm-eyebrow-sm {
   font-size: 9px; color: var(--text-mute);
   letter-spacing: 3px; margin-bottom: 14px;

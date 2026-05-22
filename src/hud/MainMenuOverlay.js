@@ -26,6 +26,8 @@ import { SettingsOverlay } from './SettingsOverlay.js'
 import { ConfirmPopup } from './ConfirmPopup.js'
 import { EventBus } from '../systems/EventBus.js'
 import { installHudSfxDelegates } from './HudSfx.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { NameEntryOverlay } from './NameEntryOverlay.js'
 
 // Title-screen boss video pool. File pattern is `assets/title-screen/
 // videos/bgNN.mp4` where NN is the zero-padded number from the list
@@ -46,6 +48,7 @@ export class MainMenuOverlay {
     this._settings = null
     this._leaderboard = null
     this._confirm = null
+    this._nameEntry = null
     this._hovered = 'continue'
     this._save = null
     this._closed = false
@@ -95,6 +98,8 @@ export class MainMenuOverlay {
     this._settings = null
     this._confirm?.destroy()
     this._confirm = null
+    this._nameEntry?.close()
+    this._nameEntry = null
   }
 
   // ─── Rendering ─────────────────────────────────────────────────
@@ -149,6 +154,11 @@ export class MainMenuOverlay {
       // RIGHT PANEL
       h('div', { className: 'qf-mm-panel' }, [
         h('div', { className: 'qf-mm-panelhead' }, [
+          // Player-name row — clickable to open NameEntryOverlay. Persistent
+          // identity above the boss heading so the player can see / change
+          // their name from the title screen at any time (drives the
+          // per-name boss-level unlock progression in PlayerProfile).
+          this._renderPlayerName(),
           h('div', { className: 'pix qf-mm-eyebrow-sm mm-logo-eyebrow' },
             'YOUR REIGN, MY LORD'),
           h('div', {
@@ -271,6 +281,73 @@ export class MainMenuOverlay {
     return `Day ${day} · ${kills} kill${kills === 1 ? '' : 's'}`
   }
 
+  // ─── Player name ───────────────────────────────────────────────
+  // Pill above the boss heading that shows the current player name (or
+  // "SET YOUR NAME" if unset) and opens NameEntryOverlay on click. The
+  // old Phaser MainMenu prompted via NameEntryPanel before each new run;
+  // this is the DOM equivalent, persistent so the player can change their
+  // name from the title screen at any time. Drives per-name progression
+  // in PlayerProfile (boss-level unlocks scope to the current name).
+  _renderPlayerName() {
+    const name = PlayerProfile.getName().trim()
+    const hasName = !!name
+    return h('button', {
+      className: 'qf-mm-playername' + (hasName ? '' : ' qf-mm-playername-empty'),
+      title: hasName
+        ? `Change your name (currently ${name})`
+        : 'Set your name — required to begin a new run',
+      on: { click: () => this._editName() },
+    }, [
+      h('span', { className: 'qf-mm-playername-icon' }, '✎'),
+      h('span', { className: 'pix qf-mm-playername-label' },
+        hasName ? name.toUpperCase() : 'SET YOUR NAME'),
+    ])
+  }
+
+  // Open NameEntryOverlay seeded with the current name (if any). Saves on
+  // confirm and re-renders the panel so the name row + boss heading
+  // update without a refresh.
+  _editName() {
+    if (this._nameEntry) return
+    const current = PlayerProfile.getName().trim()
+    this._nameEntry = new NameEntryOverlay({
+      title:        'YOUR NAME, MY LORD',
+      instruction:  current
+        ? 'Rename yourself — the dungeon will remember the new one.'
+        : 'Enter your title — the dungeon will remember it.',
+      initial:      current,
+      confirmLabel: current ? 'SAVE' : 'BEGIN REIGN',
+      onConfirm: (n) => {
+        PlayerProfile.setName(n)
+        this._nameEntry = null
+        this._render()
+      },
+      onCancel: () => { this._nameEntry = null },
+    })
+    this._nameEntry.open()
+  }
+
+  // Modal flavour used when NEW EVIL is clicked without a name set —
+  // forces a name before the run can begin, then calls `after()` to
+  // continue the new-run flow. Cancelling leaves the player on the menu.
+  _promptForName(after) {
+    if (this._nameEntry) return
+    this._nameEntry = new NameEntryOverlay({
+      title:        'YOUR NAME, MY LORD',
+      instruction:  'A boss without a name is just another beast. Enter yours before you take the throne.',
+      initial:      '',
+      confirmLabel: 'BEGIN REIGN',
+      onConfirm: (n) => {
+        PlayerProfile.setName(n)
+        this._nameEntry = null
+        this._render()
+        if (typeof after === 'function') after()
+      },
+      onCancel: () => { this._nameEntry = null },
+    })
+    this._nameEntry.open()
+  }
+
   // ─── Keybinds + actions ────────────────────────────────────────
   _onKey(e) {
     if (e.key === 'z' || e.key === 'Z') {
@@ -291,10 +368,20 @@ export class MainMenuOverlay {
         game.scene.start('Game', { gameState: this._save })
         break
       case 'new':
+        // Gate on having a player name — drives per-name boss-level
+        // progression in PlayerProfile and the leaderboard. The old Phaser
+        // MainMenu's NameEntryPanel gate was lost in the DOM port; this
+        // restores it. If unset, prompt; on confirm, proceed.
+        if (!PlayerProfile.hasName()) {
+          this._promptForName(() => {
+            this.close()
+            // CompanionSelect runs first (pick a companion), then hands off
+            // to ArchetypeSelect (boss picker).
+            game.scene.start('CompanionSelect')
+          })
+          return
+        }
         this.close()
-        // CompanionSelect runs first (pick Lilith / Malakor), then it
-        // hands off to ArchetypeSelect. NameEntryPanel gating still lives
-        // in ArchetypeSelect — the name-entry happens inside it on first run.
         game.scene.start('CompanionSelect')
         break
       case 'leader':

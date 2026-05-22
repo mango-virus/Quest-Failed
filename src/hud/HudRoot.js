@@ -42,7 +42,6 @@ import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
 import { JamPortalCorner }      from './JamPortalCorner.js'
-import { DebugEventPanel }      from './DebugEventPanel.js'
 import { installHudSfxDelegates } from './HudSfx.js'
 import { EventBus }             from '../systems/EventBus.js'
 
@@ -142,9 +141,6 @@ export class HudRoot {
     this._eventBanner      = new EventBanner(this._gameState)
     // Full-screen coin-flip sequence for The Gambler's Coin event.
     this._coinFlip         = new CoinFlipCinematic()
-    // Dev playtest tool — bottom-left "⚙ EVENT" button to force any
-    // dungeon event on demand. Safe to remove before shipping.
-    this._debugEventPanel  = new DebugEventPanel()
     // Pass the BottomBar's archetype-slot ref so the strip mounts INSIDE
     // the bar rather than floating above it (which used to cover the
     // dungeon view during day phase).
@@ -317,7 +313,6 @@ export class HudRoot {
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
     this._eventBanner?.destroy();    this._eventBanner = null
     this._coinFlip?.destroy();       this._coinFlip = null
-    this._debugEventPanel?.destroy(); this._debugEventPanel = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
     const canvas = window.__game?.canvas
     if (this._onPointerMove)  canvas?.removeEventListener('pointermove',  this._onPointerMove)

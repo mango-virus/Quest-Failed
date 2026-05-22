@@ -209,6 +209,7 @@ export class SfxSystem {
     // Night-phase building
     on('ROOM_REMOVED',            this._onSell)
     on('MINION_REMOVED',          this._onSell)
+    on('ENTITY_SOLD',             this._onSellGold)
     on('BUILD_ERROR',             this._onBuildError)
 
     // Dark Pact
@@ -380,6 +381,18 @@ export class SfxSystem {
     if (now - this._lastSellAt < 300) return
     this._lastSellAt = now
     this._play('sfx-remove-room')
+  }
+
+  // Gold-pickup chime layered on top of the remove-room sound when a sell
+  // refunds gold. Shares the `_lastGoldAt` rate-limit with kill payouts so
+  // a room sale (which fires ENTITY_SOLD per contained entity + once for
+  // the room) plays the chime once, not a burst.
+  _onSellGold({ refund } = {}) {
+    if (!refund || refund <= 0) return
+    const now = this._now()
+    if (now - this._lastGoldAt < 400) return
+    this._lastGoldAt = now
+    this._play('sfx-collect-gold', 3.0)
   }
   _onBuildError()    { this._play('sfx-error') }
   _onDarkPact()      { this._play('sfx-dark-pact', 3.5) }

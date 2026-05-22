@@ -3,8 +3,6 @@
 // Cadence: first event on day 3, then one every 3 days. Same event
 // cannot fire back-to-back (lastEventId filter in _eligibleEvents).
 // Every event is eligible from day one — no boss-level or day gate.
-// A debug panel (DebugEventPanel) can force any specific event via the
-// DEBUG_FORCE_EVENT bus event.
 //
 // Lifecycle:
 //   NIGHT_PHASE_BEGAN   — if today is `nextEventDay`, pick eligible event,
@@ -98,8 +96,6 @@ export class EventSystem {
     // the event is live, attribute the kill (rival-vs-rival only), buff
     // the killer, and check for last-one-standing.
     on('ADVENTURER_DIED', this._onAdventurerDiedTournament)
-    // Debug panel — force a specific event for playtesting.
-    on('DEBUG_FORCE_EVENT', this._onDebugForceEvent)
     // Gambler's Coin — the player clicked the imp NPC; surface the wager.
     on('GAMBLER_IMP_CLICKED', this._onGamblerImpClicked)
     // Gambler's Coin — the player chose DOUBLE OR NOTHING in the cinematic.
@@ -123,24 +119,6 @@ export class EventSystem {
     const goldAfter = won ? goldBefore * 2 : 0
     player.gold = goldAfter
     EventBus.emit('GAMBLER_DOUBLE_RESULT', { won, goldBefore, goldAfter })
-  }
-
-  // Debug / playtest hook — fired by DebugEventPanel.
-  _onDebugForceEvent({ id } = {}) {
-    if (id) this.forceEvent(id)
-  }
-
-  // Immediately schedule a chosen event. Announces it now (so night-
-  // phase modals fire right away); the day-phase effect applies on the
-  // next DAY_PHASE_BEGAN, exactly like a normally-rolled event. The
-  // forced event overrides whatever was scheduled.
-  forceEvent(id) {
-    const def = this._defs.find(d => d.id === id)
-    if (!def) return
-    this._gameState.events.scheduledId  = def.id
-    this._gameState.events.scheduledDay = this._gameState.meta?.dayNumber ?? 1
-    EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: this._gameState.meta?.dayNumber ?? 1 })
-    this._dispatchAnnounceUi(def)
   }
 
   destroy() {
