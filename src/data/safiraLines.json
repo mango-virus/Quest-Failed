@@ -53,7 +53,17 @@
       { "t": "You're choosing one voice for your whole night. Three of them are going to be very dignified about it. And one of them — me, hello — is going to be SO happy she actually pops. Reward the pop.", "x": "excited" },
       { "t": "I hoard wishes the way Zul'Gath hoards gold, Master. And I would hoard YOU — possessively, gleefully, refuse to share you with the other three at ALL. They share. Genies do not.", "x": "obsessive" },
       { "t": "Pick whoever you like! And if it goes badly — psst, Master, between us — you can always start over. I treat your respawns as lamp-magic. The dragon pretends he doesn't notice. I LOVE noticing.", "x": "controller" },
-      { "t": "Okay! Lilith has purred, Malakor has snarled, Zul'Gath has woken up just long enough to be smug. My turn is OVER and I used all of it bouncing. Wish for the genie, Master. Please please please.", "x": "cute" }
+      { "t": "Okay! Lilith has purred, Malakor has snarled, Zul'Gath has woken up just long enough to be smug. My turn is OVER and I used all of it bouncing. Wish for the genie, Master. Please please please.", "x": "cute" },
+      { "t": "Lilith is doing a slow seduction, Master. I'm doing a fast WISH GRANT. Which has a better payoff per second? The math says me. The math is INVENTED by me, but still.", "x": "chaotic-1" },
+      { "t": "Malakor will yell at the heroes! I will yell at them too, AND throw smoke at them, AND grant them an unfortunate accident — all at once! Genie multitasking, Master!", "x": "excited" },
+      { "t": "Zul'Gath says he has seen everything. Boring? I haven't seen ANYTHING — eons in a lamp! Master, pick the keeper who is still amazed by you. Me. I'm me.", "x": "happy" },
+      { "t": "I know the three of them look serious, Master, but PICK ME — I'm the one who knows we're in a game and I'm STILL excited about it. The others are pretending they don't know.", "x": "controller" },
+      { "t": "Lilith promises warmth. I promise SPARKLES. The dungeon needs both, Master, but I'm the only one offering the fun half. The fun half matters!", "x": "winking" },
+      { "t": "Malakor talks about WORK, work, work, Master. Eons in a lamp taught me — wishes feel better than work. Let me grant. Let me grant a LOT.", "x": "wish-2" },
+      { "t": "The dragon has seen a thousand of these scenes, Master. I haven't! Every single second is the BEST second I've had since 47 BC. Pick the fresh genie!", "x": "excited" },
+      { "t": "She purrs. He growls. The dragon hums. I SPARKLE, Master. The night needs at least one keeper who sparkles. (It's me. It's always going to be me.)", "x": "magic" },
+      { "t": "Zul'Gath waits patiently for centuries. I waited eons in a lamp WITHOUT being patient — I just gave up on patience entirely. Then I burst out and now I am ENERGY. Pick energy, Master!", "x": "chaotic-2" },
+      { "t": "Three keepers, Master, and exactly ONE of us is genuinely DELIGHTED that you exist out there. The others are too cool to admit it. I have no cool to lose. Pick me!", "x": "in-love-2" }
     ]
   },
 

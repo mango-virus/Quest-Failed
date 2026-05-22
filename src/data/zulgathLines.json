@@ -58,7 +58,17 @@
       { "t": "She will grant your every wish, small one. Eagerly. All of them. Be wary: a creature that cannot say 'no' is not a counsellor. It is an echo with a lamp.", "x": "thinking" },
       { "t": "Safira, child — you have been free of that lamp for a heartbeat. I was old when your lamp was still sand. Do slow down. The night is long; there is no need to shriek through it.", "x": "unimpressed" },
       { "t": "I find her delightful, in truth — all that chaos. It is how I was, perhaps, an age or two ago. ...Choose me anyway, small one. Delightful and steady are not the same word.", "x": "joking" },
-      { "t": "The genie and I both know we are watched, small one. The difference: she performs for the watcher, and I merely nod at them. A nod ages better than a performance.", "x": "winking" }
+      { "t": "The genie and I both know we are watched, small one. The difference: she performs for the watcher, and I merely nod at them. A nod ages better than a performance.", "x": "winking" },
+      { "t": "Mm. They are still squabbling, small one. I have watched arguments outlive bosses. ...Choose the keeper who outlives the argument.", "x": "thinking" },
+      { "t": "Lilith is sincere — I will grant her that, in old age I am generous. She is also very young to be sincere about anything for long. I keep my sincerity in older, quieter words.", "x": "joking" },
+      { "t": "Malakor will FIX your problem, small one. Loudly. I will tell you which problems are not worth fixing. The second skill is rarer — and older.", "x": "cool" },
+      { "t": "Safira is delightful. ...A great many delightful things have been forgotten, small one. I have not. Choose the one that lasts.", "x": "wistful" },
+      { "t": "The flirt, the soldier, and the genie, small one. All excellent within their hour. I am the one for the years that follow.", "x": "superior" },
+      { "t": "The genie performs for the watcher beyond the glass — I have seen her glance there. So have I, small one. The difference is, I do not perform.", "x": "winking" },
+      { "t": "Malakor will exhaust himself defending you, small one. Admirable. He will need rest. I will be there during the rest.", "x": "nostalgic" },
+      { "t": "Three keepers. One throne. ...The shortest math problem of the night, small one. Pick the dragon.", "x": "self-satisfied" },
+      { "t": "Lilith will tell you you are unforgettable. You are, small one. Briefly. I have unforgotten a great many of you. The dragon keeps a ledger.", "x": "smug" },
+      { "t": "The lamp-girl waited eons to serve, small one. I have been free to serve for eons. The difference matters when the night is long and you need a hand that has done this before.", "x": "confident" }
     ]
   },
 

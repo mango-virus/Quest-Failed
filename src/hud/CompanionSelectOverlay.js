@@ -32,11 +32,19 @@ export class CompanionSelectOverlay {
     this._el       = null
     this._refs     = {}      // id → { card, img, bubble, text }
     this._banter   = {}      // id → [ { t, x }, ... ]
-    this._lineIdx  = {}      // id → next banter index
+    // Per-companion shuffle-bag of un-said banter line indices — refilled
+    // when empty so each speaker cycles through ALL their lines before any
+    // repeats, but in random order each cycle.
+    this._lineBag    = {}    // id → array of remaining shuffled line indices
     this._typeTimers = {}    // id → typewriter setInterval handle
     this._fullText = {}      // id → full text of the line currently typing
     this._convoTimer = null  // hold-then-pass-the-turn setTimeout handle
     this._speaker  = DEFAULT_COMPANION  // whose turn it is to speak
+    // Random-fair rotation: the set of companions yet to speak in the
+    // current cycle. Refilled (minus the just-spoke companion, to avoid
+    // back-to-back at the cycle boundary) when it empties. Guarantees
+    // every companion speaks once before any of them speaks again.
+    this._unspoken = new Set()
     this._lastBlipAt = 0
     this._confirmBtn = null
     this._selected = DEFAULT_COMPANION
@@ -59,7 +67,7 @@ export class CompanionSelectOverlay {
       const bank = this._scene?.cache?.json?.get(getCompanion(id).linesKey)
       const rec  = bank?.recruit ?? {}
       this._banter[id]  = Array.isArray(rec.banter) ? rec.banter : []
-      this._lineIdx[id] = 0
+      this._lineBag[id] = []
     }
 
     this._render()
@@ -173,21 +181,27 @@ export class CompanionSelectOverlay {
   }
 
   // ── conversation ────────────────────────────────────────────────────────────
-  // Seed both bubbles with an opening line — shown INSTANTLY, not typed,
-  // so it doesn't read as two messages "firing" at once — then begin the
-  // strictly-alternating typed bicker after a read-hold.
+  // Seed every bubble with a random banter line — shown INSTANTLY, not
+  // typed, so it doesn't read as four messages firing at once — then
+  // begin the random-fair typed bicker after a read-hold. The seed picks
+  // from each speaker's shuffle bag, so the visible opening lines vary
+  // between visits instead of always being the same line[0].
   _startConversation() {
     for (const id of COMPANION_ORDER) {
       const lines = this._banter[id]
       const r = this._refs[id]
       if (!r || !lines?.length) continue
-      const line = lines[0]
-      this._lineIdx[id] = 1
+      const idx = this._popLineIndex(id)
+      const line = lines[idx]
       r.text.textContent = line.t || ''
       this._fullText[id] = line.t || ''
       if (line.x) r.img.src = COMPANIONS[id].spriteDir + line.x + '.webp'
     }
     this._speaker = this._selected
+    // Seed the speaker rotation with everyone EXCEPT the initial speaker
+    // — the next N-1 turns must each be a different companion before the
+    // initial speaker may take a second turn, per the random-fair rule.
+    this._unspoken = new Set(COMPANION_ORDER.filter(id => id !== this._selected))
     this._convoTimer = setTimeout(() => {
       this._convoTimer = null
       this._advance()
@@ -202,9 +216,8 @@ export class CompanionSelectOverlay {
     const lines = this._banter[id]
     const r = this._refs[id]
     if (!r || !lines?.length) return
-    const n = this._lineIdx[id] || 0
-    this._lineIdx[id] = n + 1
-    const line = lines[n % lines.length]
+    const n = this._popLineIndex(id)
+    const line = lines[n]
     // Bubble pop + expression swap.
     r.bubble.classList.remove('qf-cmpsel-bubble--in')
     void r.bubble.offsetWidth
@@ -219,16 +232,49 @@ export class CompanionSelectOverlay {
     })
   }
 
-  // Round-robin through COMPANION_ORDER so the bicker rotates through ALL
-  // companions (three now, four later), not just a back-and-forth pair.
-  _next(id) {
-    const i = COMPANION_ORDER.indexOf(id)
-    if (i < 0) return COMPANION_ORDER[0] || id
-    return COMPANION_ORDER[(i + 1) % COMPANION_ORDER.length]
+  // Random-fair rotation: each companion speaks exactly once per cycle in
+  // randomized order. _unspoken tracks who has yet to speak this cycle;
+  // when it empties we refill it with every companion and (defensively)
+  // bias the first pick away from the just-spoke one so two cycles don't
+  // produce the same speaker back-to-back across the cycle boundary.
+  _next(prevId) {
+    if (this._unspoken.size === 0) {
+      for (const id of COMPANION_ORDER) this._unspoken.add(id)
+    }
+    let candidates = Array.from(this._unspoken)
+    if (candidates.length > 1 && candidates.includes(prevId)) {
+      candidates = candidates.filter(id => id !== prevId)
+    }
+    const next = candidates[Math.floor(Math.random() * candidates.length)]
+    this._unspoken.delete(next)
+    return next
+  }
+
+  // Pop the next banter line index for `id` from the shuffle bag,
+  // refilling + reshuffling when the bag empties so each companion cycles
+  // through ALL their lines before any repeats, but in random order.
+  _popLineIndex(id) {
+    const lines = this._banter[id]
+    if (!lines?.length) return 0
+    let bag = this._lineBag[id]
+    if (!bag || bag.length === 0) {
+      bag = []
+      for (let i = 0; i < lines.length; i++) bag.push(i)
+      // Fisher-Yates shuffle.
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[bag[i], bag[j]] = [bag[j], bag[i]]
+      }
+      this._lineBag[id] = bag
+    }
+    return bag.shift()
   }
 
   // Hand the next turn to `id` immediately — used by hover / select. Any
-  // line currently mid-type is snapped to its full text first.
+  // line currently mid-type is snapped to its full text first. We also
+  // mark this id as having taken their turn so the random-fair rotation
+  // does NOT pick them again later in the same cycle (otherwise a player-
+  // initiated jump could give one companion two turns in a single cycle).
   _focus(id) {
     if (this._convoTimer) { clearTimeout(this._convoTimer); this._convoTimer = null }
     for (const cid of COMPANION_ORDER) {
@@ -240,6 +286,7 @@ export class CompanionSelectOverlay {
       }
     }
     this._speaker = id
+    this._unspoken.delete(id)
     this._advance()
   }
 

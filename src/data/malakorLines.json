@@ -106,7 +106,17 @@
       { "t": "She calls every move you make a 'wish.' I call it WORK. One of us actually respects what you do on that throne, little king.", "x": "mocking" },
       { "t": "Listen to the lamp-girl rattle on. Hngh. Chaos is not a strategy. Pick the keeper with discipline, little king — pick the one who has buried heroes, not granted party favours.", "x": "bored" },
       { "t": "A genie is BOUND to serve you, little king. Snap her lamp and she is gone. I stayed because I CHOSE to. That is the loyalty that holds a throne up.", "x": "salute" },
-      { "t": "She chatters at the air — to someone past the glass, she swears. Hngh. Mad or not, madness does not guard a doorway. Pick the keeper who is watching the DOOR.", "x": "mocking-2" }
+      { "t": "She chatters at the air — to someone past the glass, she swears. Hngh. Mad or not, madness does not guard a doorway. Pick the keeper who is watching the DOOR.", "x": "mocking-2" },
+      { "t": "Lilith, your purring is going to give the heroes a headache. Mine, anyway. Stop it, little king. Some of us are still working.", "x": "unimpressed" },
+      { "t": "The dragon thinks slowness is wisdom, little king. A storm needs a sergeant, not a stone. I am the sergeant. He is the rock the storm runs over.", "x": "determined" },
+      { "t": "The lamp-girl is granting wishes like the dungeon was a birthday party, little king. It is a WAR. Pick the soldier.", "x": "mocking" },
+      { "t": "Lilith makes the night cosy. Hngh. Cosy nights are how bosses die, little king. I make the night SURVIVABLE — there is a difference and you will feel it.", "x": "cool" },
+      { "t": "Three voices fighting for the chair beside the throne, little king. Two of them are noise. I am the one who will still be in that chair when the noise stops.", "x": "confident-1" },
+      { "t": "Zul'Gath has watched a thousand dungeons fall. WATCHED. I have stopped a few of them. There is a difference, little king, and it matters tonight.", "x": "commanding" },
+      { "t": "Safira is bouncing again. Hngh. A keeper who cannot stand still cannot stand a watch, little king. Pick the keeper who can.", "x": "bored" },
+      { "t": "Lilith coos. Safira squeals. I bark — when the bark gets your throne another night. Pick the noise that PAYS, little king.", "x": "mocking-2" },
+      { "t": "The dragon will give you years of advice you cannot use yet, little king. I will give you the order you need NOW. Tonight, only one of us is useful.", "x": "confident-2" },
+      { "t": "Safira talks to people who are not in the room, little king. Cute. Madness does not guard a door. I do — and I am NOT cute, which is the point.", "x": "eye-roll" }
     ]
   },
   "categories": {

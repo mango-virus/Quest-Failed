@@ -239,9 +239,14 @@ export class NpcDirector {
       const kind = p?.kind
       if (!kind) return
       this._menuStack.push(kind)
-      // The pact picker (the Grimoire) drives Lilith's speech itself via
-      // NPC_BROKER_SAY; every other menu gets bank commentary.
-      if (kind !== 'pact') this._react({ cat: `menu_${kind}` }, null)
+      // INSTANT barge — opening any menu must immediately put a line about
+      // THAT menu in the bubble, replacing whatever ordinary chatter was
+      // already playing and ignoring the per-category cooldown. Tutorial /
+      // intro stickies are NOT interrupted (they keep top priority — see
+      // `_mentMenu`). The pact picker has no menu_pact category by design
+      // (the Grimoire's broker drives its in-screen speech via
+      // NPC_BROKER_SAY); `_mentMenu` gracefully no-ops there.
+      this._mentMenu(kind)
     })
     this._on('HUD_MENU_CLOSED', (p) => {
       const i = this._menuStack.lastIndexOf(p?.kind)
@@ -576,6 +581,43 @@ export class NpcDirector {
     this._active = null
     this._lastSayAt = this._now()
     EventBus.emit('INTRO_DISMISSED', { tutorialEnabled: !!value })
+  }
+
+  // Instant menu-open speech. Called from the HUD_MENU_OPENED handler so
+  // every menu opening immediately puts a menu-specific line in the
+  // bubble — barging over any ordinary chatter on screen and ignoring the
+  // per-category cooldown so commentary always happens AT OPEN, not 8
+  // seconds later when the previous reaction line winds down. Tutorial /
+  // intro stickies (priority 4-5) are never interrupted — they always
+  // take priority by design; the menu followup picks the menu line back
+  // up via `_maybeMenuFollowup` once the sticky frees. Bypasses
+  // `_tryShow` / `_stageEmit` (coalescing window) and calls `_emit`
+  // directly to land in the same frame. The cooldown IS recorded after
+  // the barge so `_maybeMenuFollowup` respects spacing for follow-ups
+  // while the player lingers in the menu.
+  _mentMenu(kind) {
+    const mode = this._mode()
+    if (mode === 'off') return
+    if (!this._introDone) return
+    const cat = this._cats[`menu_${kind}`]
+    if (!cat?.lines?.length) return
+    const priority = cat.priority ?? 2
+    // Quiet mode keeps only notable events (priority 2+); menu lines are
+    // 2-3 so they pass, but defensive in case a bank ever lowers one.
+    if (mode === 'quiet' && priority < 2) return
+    // A sticky message (tutorial / intro) owns the bubble — leave it.
+    const now = this._now()
+    if (this._active && now < this._active.endsAt && (this._active.priority ?? 0) >= 4) return
+    const ctx = this._buildCtx(null, null)
+    const line = this._pickFrom(cat.lines, ctx)
+    if (!line) return
+    this._catReadyAt[`menu_${kind}`] = now + (cat.cooldownMs ?? 9000)
+    this._emit(priority, {
+      text:   line.text,
+      expr:   line.expr,
+      priority,
+      holdMs: this._holdMs(line.text),
+    })
   }
 
   // While a HUD menu is open she comments on it at a relaxed cadence.

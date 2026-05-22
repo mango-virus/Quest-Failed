@@ -11,11 +11,12 @@
 // Assignment:
 //   • Boss chamber → 4 braziers at the interior floor corners (no random
 //     torches). Brazier graphic is centred on the floor tile.
-//   • Every other room → 0..3 torches randomly placed on the north
-//     interior wall (top row, excluding the two flanking corner cells and
-//     any cell occupied by a connection-point doorway). The torch sprite
-//     reads naturally on the north wall (camera-facing) so we restrict
-//     placement to that edge.
+//   • Every other room → 0..3 torches spread round-robin across the four
+//     interior walls (excluding the two flanking corner cells and any
+//     cell occupied by a connection-point doorway). Multiple torches on
+//     the same wall must respect MIN_TORCH_SPACING so they don't cluster
+//     on adjacent cells. _anchorFor handles the inward offset per side
+//     so the mount sits TORCH_INSET px in from the room edge.
 //
 // Door-conflict pruning: if a tile that holds a torch later becomes a
 // doorway (auto-connect carves through a wall when an adjacent room is
@@ -45,11 +46,14 @@ const TORCH_GLOW_LAYERS  = [[14, 0.16], [28, 0.09], [48, 0.045]]
 const BRAZIER_GLOW_COLOR = 0xffaa55
 const BRAZIER_GLOW_LAYERS = [[18, 0.19], [36, 0.11], [62, 0.055]]
 
-// Depths. Sprite above wall-overhead (which DungeonRenderer puts at 9);
-// glow above floor/tints but below the entity layer (~7) so creatures
-// walking through aren't washed in orange.
+// Depths. Sprite sits ABOVE jambs/decor-floor (~1.5–6) but BELOW the
+// entity layer (boss/minions/adventurers Y-sort at 7 + worldY * 0.0005,
+// i.e. ~7.0–7.5) so creatures walk IN FRONT of the torches/braziers
+// instead of looking like they're walking under them. Glow sits even
+// lower (above floor tiles, below most decor) so the light warms the
+// floor without tinting characters.
 const DEPTH_GLOW   = 2.6
-const DEPTH_SPRITE = 9.5
+const DEPTH_SPRITE = 6.5
 
 // Subtle alpha modulation for "the flame breathes" — sine wave over time.
 const FLICKER_AMPL    = 0.10
@@ -58,7 +62,7 @@ const FLICKER_FREQ_MS = 220   // ~4.5 Hz per torch (phase-offset per sprite)
 // How far (in px) the torch sprite is anchored INSIDE the room from the
 // wall tile's interior edge. Pulls the torch off the room's outer edge so
 // it reads as mounted on the wall facing the room, not stuck on the rim.
-const TORCH_INSET = 14
+const TORCH_INSET = 8
 
 // Minimum tile-distance between two torches on the same wall, so a
 // multi-torch room doesn't cluster them on adjacent cells.
@@ -145,27 +149,64 @@ export class TorchRenderer {
     } else {
       room.torches = this._rollTorches(room)
     }
-    // Snapshot the orientation we authored these coords in so a later
-    // rotate-during-move can rotate them to follow the room.
-    room._torchRotation = room.rotation ?? 0
-    room._torchW = room.width
-    room._torchH = room.height
+    // NOTE: do NOT snapshot _torchRotation / _torchW / _torchH here.
+    // `DungeonGrid.placeRoom` emits ROOM_PLACED before NightPhase stamps
+    // `room.rotation = this._rotation`, so reading it now would record
+    // 0 even for a rotated drop — and the next _syncRoomRotation tick
+    // would then "rotate" the already-rotated torch coords onto floor
+    // tiles. Defer the snapshot to _syncRoomRotation's lazy-init path
+    // (runs on the first update tick, by which point room.rotation has
+    // been written).
   }
 
-  // 0..3 torches on the room's north interior wall, excluding the two
-  // flanking corner cells and any cell that holds a connection-point
-  // doorway. Cells are validated against the live dungeon tile grid so
-  // pillar / decorative non-wall cells don't get a torch.
+  // 0..3 torches spread across the room's interior walls. We draw round-
+  // robin from the four walls in randomised order and enforce
+  // MIN_TORCH_SPACING between picks on the same wall so a multi-torch
+  // room doesn't cluster two torches on adjacent cells.
+  // Corner cells and connection-point doorway cells are excluded; cells
+  // are validated against the live dungeon tile grid so pillar /
+  // decorative non-wall cells don't get a torch.
   _rollTorches(room) {
-    const candidates = this._northWallCandidates(room)
-    if (candidates.length === 0) return []
+    // Consider all four walls. The torch sprite shows a wall-mounted
+    // bracket with a flame rising — in a top-down view this reads fine
+    // on any of the four interior walls. _anchorFor handles the inward
+    // offset per side. Drawing from all four walls also gives multi-
+    // torch rooms more variety than a strict N/S split (which tended
+    // to read as "always N" when one wall's pool was thinned by an
+    // auto-connect doorway).
+    const dirs = this._shuffle(['N', 'S', 'W', 'E'])
+    const pools = {}
+    for (const d of dirs) pools[d] = this._shuffle(this._wallCandidates(room, d))
+    const used = { N: [], S: [], W: [], E: [] }
+
     const count = Math.floor(Math.random() * 4)   // 0..3 uniform
-    const pool = candidates.slice()
     const picked = []
-    for (let i = 0; i < count && pool.length > 0; i++) {
-      const idx = Math.floor(Math.random() * pool.length)
-      picked.push(pool.splice(idx, 1)[0])
+    let guard = 0
+    while (picked.length < count && guard < 32) {
+      guard++
+      let placed = false
+      for (const d of dirs) {
+        const pool = pools[d]
+        if (!pool || pool.length === 0) continue
+        // Find the first candidate that respects MIN_TORCH_SPACING
+        // from already-placed torches on this wall.
+        const axis = (d === 'N' || d === 'S') ? 'localX' : 'localY'
+        let chosenIdx = -1
+        for (let i = 0; i < pool.length; i++) {
+          const c = pool[i]
+          const ok = used[d].every(u => Math.abs(c[axis] - u[axis]) >= MIN_TORCH_SPACING)
+          if (ok) { chosenIdx = i; break }
+        }
+        if (chosenIdx < 0) continue
+        const c = pool.splice(chosenIdx, 1)[0]
+        used[d].push(c)
+        picked.push(c)
+        placed = true
+        if (picked.length >= count) break
+      }
+      if (!placed) break  // no wall can satisfy spacing → stop
     }
+
     return picked.map(c => ({
       localX:      c.localX,
       localY:      c.localY,
@@ -175,25 +216,56 @@ export class TorchRenderer {
     }))
   }
 
-  _northWallCandidates(room) {
+  // Candidate wall cells on the given direction's interior edge.
+  // dir: 'N' (top row, localY=0) | 'S' (bottom row) | 'W' (left col)
+  //      | 'E' (right col). Skips the two flanking corner cells and any
+  // cell that holds a connection-point doorway.
+  _wallCandidates(room, dir) {
     const tiles = this._gameState.dungeon?.tiles
     if (!tiles) return []
-    const doorXs = new Set(
-      (room.connectionPoints ?? [])
-        .filter(cp => cp.y === 0)
-        .map(cp => cp.x)
-    )
+    const w = room.width, h = room.height
     const out = []
-    // Skip the two outer columns — those are corner cells; we want flat
-    // wall between them. localY=0 is the top edge.
-    for (let lx = 1; lx < room.width - 1; lx++) {
-      if (doorXs.has(lx)) continue
-      const tx = room.gridX + lx
-      const ty = room.gridY
-      const t = tiles[ty]?.[tx]
-      if (t === TILE.WALL || t === TILE.BOSS_WALL) {
-        out.push({ localX: lx, localY: 0 })
+    if (dir === 'N' || dir === 'S') {
+      const ly = (dir === 'N') ? 0 : (h - 1)
+      const doorXs = new Set(
+        (room.connectionPoints ?? [])
+          .filter(cp => cp.y === ly)
+          .map(cp => cp.x)
+      )
+      for (let lx = 1; lx < w - 1; lx++) {
+        if (doorXs.has(lx)) continue
+        const tx = room.gridX + lx
+        const ty = room.gridY + ly
+        const t = tiles[ty]?.[tx]
+        if (t === TILE.WALL || t === TILE.BOSS_WALL) {
+          out.push({ localX: lx, localY: ly })
+        }
       }
+    } else {
+      const lx = (dir === 'W') ? 0 : (w - 1)
+      const doorYs = new Set(
+        (room.connectionPoints ?? [])
+          .filter(cp => cp.x === lx)
+          .map(cp => cp.y)
+      )
+      for (let ly = 1; ly < h - 1; ly++) {
+        if (doorYs.has(ly)) continue
+        const tx = room.gridX + lx
+        const ty = room.gridY + ly
+        const t = tiles[ty]?.[tx]
+        if (t === TILE.WALL || t === TILE.BOSS_WALL) {
+          out.push({ localX: lx, localY: ly })
+        }
+      }
+    }
+    return out
+  }
+
+  _shuffle(arr) {
+    const out = arr.slice()
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const tmp = out[i]; out[i] = out[j]; out[j] = tmp
     }
     return out
   }
@@ -245,8 +317,17 @@ export class TorchRenderer {
   // they stick to the same wall of the rotated room.
   _syncRoomRotation(room) {
     if (!Array.isArray(room.torches) || room.torches.length === 0) return
-    const cur    = room.rotation ?? 0
-    const stored = room._torchRotation ?? cur
+    const cur = room.rotation ?? 0
+    // Lazy init — `room.rotation` is stamped by NightPhase AFTER
+    // ROOM_PLACED fires, so we record the authoring frame on the first
+    // tick (when it's settled) rather than during _assignForRoom.
+    if (room._torchRotation == null) {
+      room._torchRotation = cur
+      room._torchW = room.width
+      room._torchH = room.height
+      return
+    }
+    const stored = room._torchRotation
     if (cur === stored) return
     let steps = (((cur - stored) / 90) % 4 + 4) % 4
     if (steps === 0) { room._torchRotation = cur; return }
@@ -266,6 +347,37 @@ export class TorchRenderer {
     room._torchH = h
   }
 
+  // World anchor (sprite bottom-center) for a torch/brazier on the given
+  // room. Torches get an inward offset so they sit ~TORCH_INSET px in
+  // from the room edge instead of clinging to the rim of the cell.
+  // Brazier returns the south edge of its corner tile (no inward shift —
+  // they're free-standing on the floor, not mounted on a wall).
+  _anchorFor(room, t) {
+    const baseX = (room.gridX + t.localX) * TS + TS / 2
+    const baseY = (room.gridY + t.localY) * TS + TS
+    if (t.kind === 'brazier') return { x: baseX, y: baseY }
+
+    // Determine which wall this torch is on (post-rotation) from its
+    // local coords, and shift the anchor toward the room interior.
+    const w = room.width, h = room.height
+    let dx = 0, dy = 0
+    if (t.localY === 0) {
+      // North wall — push south (down into the room).
+      dy = TS / 2 + TORCH_INSET
+    } else if (t.localY === h - 1) {
+      // South wall — push north (up into the room). Sprite anchor is
+      // bottom edge, so a negative dy lifts it up.
+      dy = -TS / 2 - TORCH_INSET
+    } else if (t.localX === 0) {
+      // West wall — push east into room.
+      dx =  TS / 2 + TORCH_INSET
+    } else if (t.localX === w - 1) {
+      // East wall — push west into room.
+      dx = -TS / 2 - TORCH_INSET
+    }
+    return { x: baseX + dx, y: baseY + dy }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────
 
   update() {
@@ -277,11 +389,7 @@ export class TorchRenderer {
       if (!Array.isArray(torches)) continue
       for (const t of torches) {
         seen.add(t.instanceId)
-        // Anchor: south edge of the tile (bottom of cell) so the sprite's
-        // bottom-center (mount) sits on the wall/floor and the flame
-        // extends up over it.
-        const wx = (room.gridX + t.localX) * TS + TS / 2
-        const wy = (room.gridY + t.localY) * TS + TS
+        const { x: wx, y: wy } = this._anchorFor(room, t)
         let rec = this._sprites[t.instanceId]
         if (!rec) {
           rec = this._createSprite(t, wx, wy)
@@ -289,14 +397,13 @@ export class TorchRenderer {
           this._sprites[t.instanceId] = rec
         } else {
           rec.sprite?.setPosition(wx, wy)
-          // Glow sits at the cell center (above the floor / on the wall
-          // base) so its halo is centered on the light source.
+          // Glow sits a half-tile above the sprite anchor (≈ the flame
+          // of the torch / top of the brazier) so its halo is centered
+          // on the actual light source rather than the mount.
           rec.glow?.setPosition(wx, wy - TS / 2)
-          // Y-sort for braziers — they're free-standing on the floor and
-          // can be occluded by entities passing in front.
-          if (t.kind === 'brazier') {
-            rec.sprite?.setDepth(7 + wy * 0.0005)
-          }
+          // Sprite depth is fixed (set in _createSprite) and intentionally
+          // below the entity layer so creatures pass IN FRONT of the
+          // light source instead of looking like they're walking under it.
         }
         // Flicker — sine wave over time, phase-offset per torch.
         if (rec.glow) {
@@ -339,7 +446,7 @@ export class TorchRenderer {
     // the tile lands the mount on the wall / floor and the flame above.
     const sprite = s.add.sprite(wx, wy, texKey)
       .setOrigin(0.5, 1)
-      .setDepth(isBrazier ? (7 + wy * 0.0005) : DEPTH_SPRITE)
+      .setDepth(DEPTH_SPRITE)
     // Start at a random frame so the dungeon doesn't flicker in lockstep.
     sprite.play({ key: animKey, startFrame: t.frameOffset ?? 0 })
 
