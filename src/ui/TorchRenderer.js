@@ -37,11 +37,13 @@ const TS = Balance.TILE_SIZE
 const TORCH_FRAMES     = 6
 const ANIM_FRAME_RATE  = 8
 
-// Glow layers (radius, alpha) for the additive-blend warm light.
+// Glow layers (radius, alpha) for the additive-blend warm light. Alphas
+// are deliberately low — the dungeon view shouldn't read as floodlit, the
+// torches just warm the floor around them.
 const TORCH_GLOW_COLOR   = 0xff8844
-const TORCH_GLOW_LAYERS  = [[14, 0.32], [28, 0.18], [48, 0.09]]
+const TORCH_GLOW_LAYERS  = [[14, 0.16], [28, 0.09], [48, 0.045]]
 const BRAZIER_GLOW_COLOR = 0xffaa55
-const BRAZIER_GLOW_LAYERS = [[18, 0.38], [36, 0.22], [62, 0.11]]
+const BRAZIER_GLOW_LAYERS = [[18, 0.19], [36, 0.11], [62, 0.055]]
 
 // Depths. Sprite above wall-overhead (which DungeonRenderer puts at 9);
 // glow above floor/tints but below the entity layer (~7) so creatures
@@ -50,8 +52,17 @@ const DEPTH_GLOW   = 2.6
 const DEPTH_SPRITE = 9.5
 
 // Subtle alpha modulation for "the flame breathes" — sine wave over time.
-const FLICKER_AMPL = 0.14
+const FLICKER_AMPL    = 0.10
 const FLICKER_FREQ_MS = 220   // ~4.5 Hz per torch (phase-offset per sprite)
+
+// How far (in px) the torch sprite is anchored INSIDE the room from the
+// wall tile's interior edge. Pulls the torch off the room's outer edge so
+// it reads as mounted on the wall facing the room, not stuck on the rim.
+const TORCH_INSET = 14
+
+// Minimum tile-distance between two torches on the same wall, so a
+// multi-torch room doesn't cluster them on adjacent cells.
+const MIN_TORCH_SPACING = 3
 
 let _nextId = 1
 

@@ -246,6 +246,85 @@ const TUTORIALS = [
     },
   },
 
+  // ── B-2. First time you open each menu ────────────────────────────────
+  // Brief "what is this panel for" tutorials, one per HUD menu kind, fired
+  // by HUD_MENU_OPENED with the `kind` payload narrowed to one screen.
+  // postwave / levelup / pact have their own gates above (firstEndOfDay /
+  // firstBossLevelUp / firstDarkPact) — those teach the moment, not the
+  // panel UI — so this block covers the remaining five menus only. Game
+  // Over is intentionally NOT taught here (the loss screen needs no
+  // explainer past "you died").
+  {
+    id: 'firstMenuBoss', title: 'Boss Overview',
+    lead: 'KNOW YOUR OWN TEETH',
+    body: 'The Boss Overview is your own dossier — current HP, attack, defence, level, every unlocked ability, and every sealed pact stacked on your reign. Open it between days to remember what you actually bring to a fight before you commit the rest of your minions to defending rooms.',
+    tips: [
+      'Each boss level unlocks new rooms, minions, and traps — this is where you confirm what is newly available.',
+      'Sealed pacts list their effects in one place — handy when a fight goes sideways and you need to remember what you traded for.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if (p?.kind === 'boss') fire() }
+      EventBus.on('HUD_MENU_OPENED', fn)
+      return () => EventBus.off('HUD_MENU_OPENED', fn)
+    },
+  },
+  {
+    id: 'firstMenuIntel', title: 'Adventurer Intel',
+    lead: 'STUDY THE PREY BEFORE THE HUNT',
+    body: 'The Intel panel lists every adventurer in the incoming wave by class — their HP, attack, signature ability, and known weakness. Read it during the night so the dungeon you build is shaped for the wave tomorrow will actually have to walk through.',
+    tips: [
+      'Click an adventurer to inspect them in detail.',
+      'Several casters? Anti-magic rooms. All melee? Choke points and traps.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if (p?.kind === 'intel') fire() }
+      EventBus.on('HUD_MENU_OPENED', fn)
+      return () => EventBus.off('HUD_MENU_OPENED', fn)
+    },
+  },
+  {
+    id: 'firstMenuRoster', title: 'Minion Roster',
+    lead: 'YOUR PACK — NAMED AND COUNTED',
+    body: 'Every minion currently in your dungeon, with name, assigned room, kill count, and evolution progress. The roster is where you rename your veterans, reassign a guard to a different room, or sacrifice one to claw back roughly half its cost.',
+    tips: [
+      'Two surviving kills evolve a minion into its next form — watch the kill counter.',
+      'Reassigning a minion is free; sacrificing returns about half the gold spent on it.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if (p?.kind === 'roster') fire() }
+      EventBus.on('HUD_MENU_OPENED', fn)
+      return () => EventBus.off('HUD_MENU_OPENED', fn)
+    },
+  },
+  {
+    id: 'firstMenuLog', title: 'Event Log',
+    lead: 'THE DUNGEON REMEMBERS EVERY DEATH',
+    body: 'A chronological record of the run — every kill, escape, boss level-up, sealed pact, and dungeon event, with the day each one happened. Scroll back when a wave goes wrong; the log will tell you exactly which class slipped past which corridor.',
+    tips: [
+      'A streak of "fled" entries usually means a corridor lacks a trap or a chokepoint.',
+      'A streak of kills from one minion means it is probably overdue for an evolution check.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if (p?.kind === 'log') fire() }
+      EventBus.on('HUD_MENU_OPENED', fn)
+      return () => EventBus.off('HUD_MENU_OPENED', fn)
+    },
+  },
+  {
+    id: 'firstMenuKnowledge', title: 'Knowledge Map',
+    lead: 'WHAT THE GUILD KNOWS ABOUT YOU',
+    body: 'The Knowledge Map is the guild\'s scouting record of your dungeon — which rooms, traps, and minions they have observed, plus an exposure percentage for the whole map. Higher exposure means returning veterans path around your defences more efficiently; a black-box dungeon is a deadly one.',
+    tips: [
+      'Rebuild a known room (sell it, then place a new one) to wipe the guild\'s intel on that tile.',
+      'Killing everyone who enters keeps exposure low — every escapee is a leak.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if (p?.kind === 'knowledge') fire() }
+      EventBus.on('HUD_MENU_OPENED', fn)
+      return () => EventBus.off('HUD_MENU_OPENED', fn)
+    },
+  },
+
   // ── C. Boss-archetype hooks ───────────────────────────────────────────
   // Each fires on the first NIGHT_PHASE_STARTED — gated by `archetype` so
   // the hint matches the player's chosen boss. Firing during night-1 lets
