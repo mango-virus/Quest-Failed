@@ -20,7 +20,12 @@ import { SfxVolume } from './SfxVolume.js'
 //   MP3s without direct measurement are estimated by type/context.
 const SFX_VOLUMES = {
   // ── Combat ────────────────────────────────────────────────────────────
-  'sfx-take-damage':    0.70,   // reference  (-1.8pk / -20.6rms)
+  'sfx-take-damage':    0.70,   // reference  (-1.8pk / -20.6rms) — minions/boss only
+  'sfx-human-hit-1':    0.78,   // adventurer hurt — WAV estimate
+  'sfx-human-hit-2':    0.78,
+  'sfx-human-hit-3':    0.78,
+  'sfx-human-die-1':    0.82,   // adventurer death — WAV estimate
+  'sfx-human-die-2':    0.82,
   'sfx-melee-1':        0.95,   // very transient (-13.1pk / -36.5rms) — needs punch
   'sfx-melee-2':        0.95,   // very transient (-14.7pk / -38.5rms)
   'sfx-monk-1':         0.88,   // (-11.2pk / -28.1rms)
@@ -63,6 +68,12 @@ const SFX_VOLUMES = {
 
   // ── Score countup (looping) ───────────────────────────────────────────
   'sfx-score-countup':  0.55,   // sits in background while numbers tally
+
+  // ── Notifications / progression ───────────────────────────────────────
+  'sfx-boss-levelup':   0.85,   // boss level-up screen — WAV estimate
+  'sfx-event-notif':    0.80,   // event notification pop-in — MP3 estimate
+  'sfx-scrub-intel':    0.78,   // intel scrubbed via Knowledge Map — WAV estimate
+  'sfx-minion-levelup': 0.82,   // minion level-up / evolution — WAV estimate
 }
 
 // Fallback for any key not in the table.
@@ -119,6 +130,12 @@ export class SfxSystem {
     this._lastSellAt       = 0
     this._lastTrapAt       = 0
     this._lastEvolvedAt    = 0
+    this._lastHumanHitAt   = 0
+    this._lastHumanDieAt   = 0
+
+    // Day number of the most recent event-notification SFX — only the
+    // first event notification each day gets a sound.
+    this._lastEventNotifDay = -1
 
     this._handlers = []
     this._wire()
@@ -143,13 +160,14 @@ export class SfxSystem {
     on('BOSS_MELEE_HIT',          this._onBossMeleeHit)
 
     // Deaths
-    on('ADVENTURER_DIED',         this._onDeath)
+    on('ADVENTURER_DIED',         this._onAdventurerDeath)
     on('MINION_DIED',             this._onDeath)
 
     // Boss fight
     on('BOSS_FIGHT_STARTED',      this._onBossFightStarted)
     on('BOSS_FIGHT_RESOLVED',     this._onBossFightResolved)
     on('BOSS_LEVELED_UP',         this._onBossLeveledUp)
+    on('SHOW_BOSS_LEVEL_UP',      this._onBossLevelUpScreen)
 
     // Abilities
     on('ABILITY_TRIGGERED',       this._onAbilityTriggered)
@@ -160,8 +178,9 @@ export class SfxSystem {
     // Traps
     on('TRAP_TRIGGERED',          this._onTrapTriggered)
 
-    // Minion evolution
-    on('MINION_EVOLVED',          this._onMinionEvolved)
+    // Minion level-up / evolution
+    on('MINION_LEVELED_UP',       this._onMinionLevelUp)
+    on('MINION_EVOLVED',          this._onMinionLevelUp)
     on('MINIBOSS_PROMOTED',       this._onMinibossPromoted)
 
     // Doors
@@ -181,6 +200,11 @@ export class SfxSystem {
     // Phase transitions
     on('DAY_PHASE_BEGAN',         this._onDayStart)
     on('DAY_PHASE_ENDED',         this._onDayEnd)
+    on('NIGHT_PHASE_BEGAN',       this._onNightTransition)
+
+    // Knowledge / dungeon events
+    on('KNOWLEDGE_SCRUBBED',      this._onIntelScrubbed)
+    on('DUNGEON_EVENT_ANNOUNCED', this._onEventNotif)
 
     // Night-phase building
     on('ROOM_REMOVED',            this._onSell)
@@ -210,10 +234,14 @@ export class SfxSystem {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  _onCombatHit({ sourceId, damageType }) {
-    // Take-damage sound — rate-limited to avoid rapid-fire stacking.
+  _onCombatHit({ sourceId, targetId, damage }) {
     const now = this._now()
-    if (now - this._lastTakeDamageAt >= 120) {
+    // Hurt sound. Adventurers get Human_Hit (this replaces the generic
+    // take-damage cue for advs); minions and the boss keep take-damage.
+    // Trap damage routes here too — traps emit COMBAT_HIT per tick.
+    if (targetId && this._findAdv(targetId)) {
+      this._playHumanHit(damage)
+    } else if (now - this._lastTakeDamageAt >= 120) {
       this._lastTakeDamageAt = now
       this._play('sfx-take-damage')
     }
@@ -241,23 +269,40 @@ export class SfxSystem {
     }
   }
 
-  _onBossMeleeHit() {
+  _onBossMeleeHit({ damage } = {}) {
     // Play boss attack sound every other hit to avoid rapid-fire repetition.
     if (this._bossAttackAlt === 0) this._play('sfx-boss-attack')
     this._bossAttackAlt = 1 - this._bossAttackAlt
-    // Also play take-damage for the target.
-    const now = this._now()
-    if (now - this._lastTakeDamageAt >= 120) {
-      this._lastTakeDamageAt = now
-      this._play('sfx-take-damage')
-    }
+    // Boss melee always targets an adventurer → Human_Hit.
+    this._playHumanHit(damage)
   }
 
+  // Adventurer hurt — picks one of the three Human_Hit variants at random.
+  // One sound per hit, with a short anti-stack guard so a mass fight or an
+  // AoE tick doesn't machine-gun the cue. Zero-damage hits (dodges) silent.
+  _playHumanHit(damage) {
+    if (damage != null && damage <= 0) return
+    const now = this._now()
+    if (now - this._lastHumanHitAt < 80) return
+    this._lastHumanHitAt = now
+    this._play(`sfx-human-hit-${1 + Math.floor(Math.random() * 3)}`)
+  }
+
+  // Minion death. Adventurer death has its own handler (_onAdventurerDeath).
   _onDeath() {
     const now = this._now()
     if (now - this._lastDeathAt < 250) return
     this._lastDeathAt = now
     this._play('sfx-death')
+  }
+
+  // Adventurer death — one of the two Human_Die variants at random, with a
+  // short anti-stack guard so simultaneous kills don't stack into noise.
+  _onAdventurerDeath() {
+    const now = this._now()
+    if (now - this._lastHumanDieAt < 250) return
+    this._lastHumanDieAt = now
+    this._play(`sfx-human-die-${1 + Math.floor(Math.random() * 2)}`)
   }
 
   _onBossFightStarted() {
@@ -279,11 +324,13 @@ export class SfxSystem {
     this._play('sfx-take-damage')
   }
 
-  _onMinionEvolved() {
+  // Fires for both MINION_LEVELED_UP and MINION_EVOLVED. Shared 500ms guard
+  // so a level-up that coincides with an evolution plays one celebration.
+  _onMinionLevelUp() {
     const now = this._now()
     if (now - this._lastEvolvedAt < 500) return
     this._lastEvolvedAt = now
-    this._play('sfx-revive')
+    this._play('sfx-minion-levelup')
   }
 
   _onMinibossPromoted() {
@@ -306,6 +353,28 @@ export class SfxSystem {
   _onBeholderBeam()  { this._play('sfx-beholder-beam') }
   _onDayStart()      { this._play('sfx-day-start') }
   _onDayEnd()        { this._play('sfx-day-end') }
+
+  // Night-phase transition — the dark-pact sting doubles as the
+  // "night falls, build your dungeon" cue.
+  _onNightTransition()  { this._play('sfx-dark-pact') }
+
+  // The boss level-up / ASCENSION screen appeared (EndOfDay → overlay).
+  // Distinct from BOSS_LEVELED_UP, which fires mid-day when the level
+  // is actually earned.
+  _onBossLevelUpScreen() { this._play('sfx-boss-levelup') }
+
+  // Intel scrubbed via the Knowledge Map "SCRUB INTEL" button. Fires on
+  // KNOWLEDGE_SCRUBBED — emitted only on a successful (paid) scrub.
+  _onIntelScrubbed()    { this._play('sfx-scrub-intel') }
+
+  // First dungeon-event notification of the day. EventSystem can announce
+  // more than one event in a day; only the first gets the cue.
+  _onEventNotif({ day } = {}) {
+    const d = day ?? this._gameState?.meta?.dayNumber ?? 0
+    if (d === this._lastEventNotifDay) return
+    this._lastEventNotifDay = d
+    this._play('sfx-event-notif')
+  }
   _onSell() {
     const now = this._now()
     if (now - this._lastSellAt < 300) return

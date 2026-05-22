@@ -40,6 +40,7 @@ import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
+import { NpcCompanion }         from './NpcCompanion.js'
 import { JamPortalCorner }      from './JamPortalCorner.js'
 import { DebugEventPanel }      from './DebugEventPanel.js'
 import { installHudSfxDelegates } from './HudSfx.js'
@@ -88,6 +89,10 @@ export class HudRoot {
     this._leftPanels  = new LeftPanels(this._gameState)
     this._rightPanels = new RightPanels(this._gameState)
     this._toastQueue  = new ToastQueue()
+    // Companion NPC (Lilith or Malakor — per gameState.meta.companionId)
+    // peeks into the lower-left of the dungeon view. Pure renderer;
+    // NpcDirector (a Game-scene system) drives it.
+    this._npc         = new NpcCompanion(this._gameState)
     // Small spinning jam portal pinned to the bottom-right corner of the
     // play area — same asset + click route as the main-menu jam portal.
     this._jamPortal   = new JamPortalCorner()
@@ -98,6 +103,7 @@ export class HudRoot {
     this._panels.push(
       this._topBar, this._bottomBar,
       this._leftPanels, this._rightPanels, this._toastQueue,
+      this._npc,
       this._jamPortal,
     )
     // Event-driven overlays — no DOM until they open. Register separately

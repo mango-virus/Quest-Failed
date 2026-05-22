@@ -38,6 +38,7 @@ export class BossLevelUpOverlay {
     this._toLevel   = toLevel
     const body = this._renderBody()
     this._overlay = new Overlay({
+      npcKind: 'levelup',
       title:   'ASCENSION',
       width:   980,
       height:  680,

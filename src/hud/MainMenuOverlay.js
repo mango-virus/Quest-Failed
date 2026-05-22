@@ -48,6 +48,7 @@ export class MainMenuOverlay {
     this._confirm = null
     this._hovered = 'continue'
     this._save = null
+    this._closed = false
     this._keyHandler = (e) => this._onKey(e)
   }
 
@@ -76,8 +77,19 @@ export class MainMenuOverlay {
   }
 
   close() {
+    this._closed = true
+    // Stop the boss-video chain BEFORE detaching the DOM. In Chrome a
+    // <video> removed from the document keeps PLAYING, and its `ended`
+    // handler keeps re-spawning the next 1080p clip — so without this,
+    // leaving the title screen leaves a detached video decoding MP4s
+    // forever, which chokes the tab the instant the next screen opens.
+    const vid = this._refs?.video
+    if (vid) {
+      try { vid.pause(); vid.removeAttribute('src'); vid.load() } catch {}
+    }
     this._el?.remove()
     this._el = null
+    this._refs = null
     window.removeEventListener('keydown', this._keyHandler)
     this._settings?.close()
     this._settings = null
@@ -280,10 +292,10 @@ export class MainMenuOverlay {
         break
       case 'new':
         this.close()
-        // NameEntryPanel gating lives in the Phaser ArchetypeSelect /
-        // existing _startNewRun helper; jump straight to ArchetypeSelect
-        // for now — the name-entry happens inside it on first run.
-        game.scene.start('ArchetypeSelect')
+        // CompanionSelect runs first (pick Lilith / Malakor), then it
+        // hands off to ArchetypeSelect. NameEntryPanel gating still lives
+        // in ArchetypeSelect — the name-entry happens inside it on first run.
+        game.scene.start('CompanionSelect')
         break
       case 'leader':
         this._openLeaderboard()
@@ -341,6 +353,9 @@ export class MainMenuOverlay {
   // Bound to the <video> tag's `ended` event so playback chains
   // continuously through every clip before repeating.
   _spawnNextBossVideo() {
+    // Belt-and-suspenders: if the overlay was closed, never re-arm the
+    // chain (the `ended` event can still fire once on a detached video).
+    if (this._closed) return
     const vid = this._refs?.video
     if (!vid) return
     if (!this._bossVidQueue?.length) {

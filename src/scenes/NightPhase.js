@@ -2030,11 +2030,15 @@ export class NightPhase extends Phaser.Scene {
       }
       // Move-drop complete — clear the gold-neutral flag so the NEXT
       // placement (a fresh room from the build menu) charges correctly.
+      const wasMoveDrop = !!this._heldMoveRoom
       this._heldMoveRoom = false
       this._heldMoveRoomRotation = null
       this._heldMoveCaptureW     = null
       this._heldMoveCaptureH     = null
       this._lastPlaced = { kind: 'room', entity: room, goldCost: cost }
+      // A relocated room fires ROOM_MOVED (not ROOM_PLACED) so the
+      // companion comments on the move rather than a fresh build.
+      if (wasMoveDrop) EventBus.emit('ROOM_MOVED', { room })
       const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.boss?.level ?? 1)
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
       this._cancelSelection()

@@ -638,7 +638,7 @@ export class MainMenu extends Phaser.Scene {
       new NameEntryPanel(this, {
         onConfirm: (name) => {
           PlayerProfile.setName(name)
-          this.scene.start('ArchetypeSelect')
+          this.scene.start('CompanionSelect')
         },
       })
     } else {

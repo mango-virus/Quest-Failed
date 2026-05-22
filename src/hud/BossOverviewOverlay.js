@@ -36,6 +36,7 @@ export class BossOverviewOverlay {
     if (this._overlay) return
     this._tab = 'overview'
     this._overlay = new Overlay({
+      npcKind: 'boss',
       title:  'BOSS OVERVIEW',
       width:  1300,
       height: 820,

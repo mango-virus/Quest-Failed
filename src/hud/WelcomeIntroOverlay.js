@@ -11,6 +11,7 @@
 import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
+import { userSettings } from './userSettings.js'
 
 const PARAGRAPHS = [
   {
@@ -65,6 +66,14 @@ export class WelcomeIntroOverlay {
   open() {
     if (this._overlay) return
     if (this._gameState?.meta?.introSeen) return
+    // When the companion is enabled, Lilith delivers the intro herself
+    // (NpcDirector handles NPC_DELIVER_INTRO and emits INTRO_DISMISSED on
+    // the player's hint choice). This modal is only the fallback for a
+    // player who has hidden her.
+    if (userSettings.companionMode() !== 'off') {
+      EventBus.emit('NPC_DELIVER_INTRO')
+      return
+    }
     this._overlay = new Overlay({
       title:    'WELCOME, BOSS',
       width:    600,

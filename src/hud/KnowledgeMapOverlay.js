@@ -93,6 +93,7 @@ export class KnowledgeMapOverlay {
     this._filterRoomId = null
     this._catFilter = new Set(CATEGORIES)
     this._overlay = new Overlay({
+      npcKind: 'knowledge',
       title:  'KNOWLEDGE MAP',
       width:  1400,
       height: 840,

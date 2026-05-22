@@ -1,0 +1,375 @@
+// NpcCompanion — the DOM HUD presence for the chosen companion NPC.
+//
+// The game ships two companions (Lilith / Malakor); the player picks one
+// per run on the CompanionSelect screen. This component is companion-
+// agnostic — it reads sprite folder, expression vocabulary, rest face
+// and display name from the companion registry (src/systems/companions.js)
+// based on `gameState.meta.companionId`.
+//
+// Two modes:
+//   • CORNER — a waist-up portrait peeking into the lower-left of the
+//     dungeon view, with an RPG chat bubble.
+//   • MENU   — when a HUD menu opens (HUD_MENU_OPENED) the companion
+//     steps out in full body to the far left, beside the modal.
+//
+// Pure renderer: it listens for `NPC_SAY` (from NpcDirector) and shows
+// whatever it is handed. It emits back `NPC_POKE` (clicked them),
+// `NPC_TUTORIAL_DONE` (paged past the last tutorial panel), and
+// `NPC_CHOICE` (picked an option on a choice page — e.g. the intro's
+// tutorial-hints question).
+//
+// Two stacked <img> layers cross-fade between expressions.
+
+import { h } from './dom.js'
+import { EventBus } from '../systems/EventBus.js'
+import { PauseManager } from '../systems/PauseManager.js'
+import { userSettings } from './userSettings.js'
+import { SfxVolume } from '../systems/SfxVolume.js'
+import { getCompanion } from '../systems/companions.js'
+
+const FADE_MS   = 380
+// RPG-style per-letter speech blip. The typewriter ticks far faster than
+// this (16–24ms); the gap throttles blips to a readable chirp instead of
+// a buzz. Volume rides the SFX channel but stays quiet — it fires a lot.
+const BLIP_GAP_MS = 55
+const BLIP_VOL    = 0.32
+
+export class NpcCompanion {
+  constructor(gameState) {
+    // Resolve the chosen companion — sprite dir, expression list, rest
+    // face and name all come from the registry. Falls back to the
+    // default companion for a missing / legacy companionId.
+    this._companion = getCompanion(gameState?.meta?.companionId)
+    this._dir         = this._companion.spriteDir
+    this._rest        = this._companion.restExpr
+    this._expressions = this._companion.expressions
+    this._name        = this._companion.name
+    // Per-companion HUD sprite scale (see companions.js `hudScale`).
+    this._hudScale    = this._companion.hudScale ?? 1
+    this._mode      = userSettings.companionMode()
+    this._curExpr   = null
+    this._frontIsA  = true
+    this._exprToken = 0
+    this._typeTimer = null
+    this._holdTimer = null
+    this._fadeTimer = null
+    this._msg       = null      // { pages, idx, sticky, holdMs, id, title, kind }
+    this._softHeld  = false
+    this._lastBlipAt = 0
+    this._menuDepth = 0         // open HUD menus → docked when > 0
+    this._listeners = []
+
+    this._build()
+    this._setExpression(this._rest)
+    this._preloadAll()
+
+    this._on('NPC_SAY', (p) => this._onSay(p))
+    this._on('SETTINGS_CHANGED', () => this._syncMode())
+    this._on('HUD_MENU_OPENED', () => { this._menuDepth++; this._applyDock() })
+    this._on('HUD_MENU_CLOSED', () => {
+      this._menuDepth = Math.max(0, this._menuDepth - 1); this._applyDock()
+    })
+    this._applyMode()
+  }
+
+  // ── DOM ───────────────────────────────────────────────────────────────────
+  _build() {
+    this._imgA = h('img', { className: 'qf-npc-img', alt: '', draggable: 'false' })
+    this._imgB = h('img', { className: 'qf-npc-img', alt: '', draggable: 'false' })
+    this._portrait = h('div', {
+      className: 'qf-npc-portrait',
+      on: { click: () => this._onPoke() },
+      title: this._name,
+    }, [this._imgA, this._imgB])
+
+    this._eyebrow  = h('div', { className: 'qf-npc-eyebrow' }, this._name.toUpperCase())
+    this._textEl   = h('div', { className: 'qf-npc-text' })
+    this._contEl   = h('div', { className: 'qf-npc-cont' }, '▶')
+    this._choicesEl = h('div', { className: 'qf-npc-choices' })
+    this._optoutEl = h('div', {
+      className: 'qf-npc-optout',
+      on: { click: (e) => { e.stopPropagation(); this._disableHints() } },
+    }, '✕ turn off hints')
+    // "skip intro" — shown only on the intro, and only once she has
+    // delivered it at least once before (a first-timer still reads it).
+    this._skipEl = h('div', {
+      className: 'qf-npc-optout qf-npc-skip',
+      on: { click: (e) => { e.stopPropagation(); this._skipIntro() } },
+    }, '▶▶  skip intro')
+    this._bubble = h('div', {
+      className: 'qf-npc-bubble',
+      on: { click: () => this._onBubbleClick() },
+    }, [this._eyebrow, this._textEl, this._contEl, this._choicesEl, this._optoutEl, this._skipEl])
+
+    this.el = h('div', {
+      className: 'qf-npc',
+      dataset: { speaking: 'false', tutorial: 'false', dock: 'corner' },
+      // Drives the per-companion sprite scale on .qf-npc-img.
+      style: { '--npc-img-scale': String(this._hudScale) },
+    }, [this._bubble, this._portrait])
+  }
+
+  _on(evt, fn) { EventBus.on(evt, fn); this._listeners.push([evt, fn]) }
+
+  _preloadAll() {
+    for (const id of this._expressions) {
+      const im = new Image(); im.src = this._dir + id + '.webp'
+    }
+  }
+
+  _applyDock() {
+    this.el.dataset.dock = this._menuDepth > 0 ? 'menu' : 'corner'
+  }
+
+  // ── expression cross-fade ─────────────────────────────────────────────────
+  _setExpression(expr) {
+    if (!expr) return
+    // Guard — an expression this companion's sprite set lacks (e.g. broker
+    // or tutorial dialogue authored against a different companion) would
+    // 404 to a broken-image box. Fall back to the rest face instead.
+    if (!this._expressions.includes(expr)) expr = this._rest
+    if (expr === this._curExpr) return
+    this._curExpr = expr
+    const token = ++this._exprToken
+    const back  = this._frontIsA ? this._imgB : this._imgA
+    const front = this._frontIsA ? this._imgA : this._imgB
+    const swap = () => {
+      if (token !== this._exprToken) return
+      back.classList.add('front')
+      front.classList.remove('front')
+      this._frontIsA = !this._frontIsA
+    }
+    back.onload = swap
+    back.src = this._dir + expr + '.webp'
+    if (back.complete && back.naturalWidth) swap()
+  }
+
+  // ── incoming message ──────────────────────────────────────────────────────
+  _onSay(payload) {
+    if (!payload || this._mode === 'off') return
+    const special = payload.kind === 'tutorial' || payload.kind === 'intro'
+    // A sticky tutorial/intro owns the bubble — ordinary lines can't cut in.
+    if (this._msg?.sticky && !special) return
+
+    this._clearTimers()
+    if (special) {
+      this._msg = {
+        pages: payload.pages ?? [], idx: 0, sticky: true,
+        id: payload.id, title: payload.title, kind: payload.kind,
+      }
+      if (!this._softHeld) { PauseManager.softPause(); this._softHeld = true }
+    } else {
+      this._msg = {
+        pages: [{ text: payload.text ?? '', expr: payload.expr ?? this._rest }],
+        idx: 0, sticky: false, holdMs: payload.holdMs ?? 2800, kind: 'line',
+      }
+    }
+    this.el.dataset.tutorial = this._msg.sticky ? 'true' : 'false'
+    this.el.dataset.speaking = 'true'
+    this._renderPage()
+  }
+
+  _renderPage() {
+    const m = this._msg
+    if (!m) return
+    const page = m.pages[m.idx] ?? { text: '', expr: this._rest }
+    this._setExpression(page.expr || this._rest)
+    const nameUpper = this._name.toUpperCase()
+    this._eyebrow.textContent = m.sticky ? (m.title || nameUpper) : nameUpper
+    this._contEl.classList.remove('show')
+    this._optoutEl.classList.remove('show')
+    this._skipEl.classList.remove('show')
+    this._choicesEl.classList.remove('show')
+    this._choicesEl.replaceChildren()
+    this._bubble.classList.add('open')
+    this._portrait.classList.add('talking')
+    this._typewrite(String(page.text || ''))
+  }
+
+  _typewrite(text) {
+    const speed = this._msg?.sticky ? 16 : 24
+    this._textEl.textContent = ''
+    this._fullText = text
+    let i = 0
+    this._typeTimer = setInterval(() => {
+      const step = text.length > 140 ? 2 : 1
+      i = Math.min(text.length, i + step)
+      this._textEl.textContent = text.slice(0, i)
+      if (i >= text.length) { this._onTypeDone(); return }
+      // Chirp on the freshly-revealed character — skip whitespace so
+      // word gaps land as natural beats.
+      const ch = text[i - 1]
+      if (ch && ch.trim()) this._blip()
+    }, speed)
+  }
+
+  // Per-letter speech blip (RPG dialogue style). Throttled so the fast
+  // typewriter cadence doesn't smear into a buzz; honours the Companion
+  // Speech setting and the global SFX mute / volume.
+  _blip() {
+    if (!userSettings.isNpcSpeechEnabled()) return
+    if (SfxVolume.isMuted()) return
+    const now = (typeof performance !== 'undefined') ? performance.now() : Date.now()
+    if (now - this._lastBlipAt < BLIP_GAP_MS) return
+    this._lastBlipAt = now
+    try {
+      const snd = window.__game?.sound
+      if (!snd) return
+      snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL })
+    } catch {}
+  }
+
+  _onTypeDone() {
+    if (this._typeTimer) { clearInterval(this._typeTimer); this._typeTimer = null }
+    this._textEl.textContent = this._fullText
+    this._portrait.classList.remove('talking')
+    const m = this._msg
+    if (!m) return
+    const page = m.pages[m.idx]
+    if (page && Array.isArray(page.choices) && page.choices.length) {
+      // Decision page — render the option buttons.
+      for (const ch of page.choices) {
+        this._choicesEl.appendChild(h('button', {
+          className: 'qf-npc-choice',
+          on: { click: (e) => { e.stopPropagation(); this._onChoice(ch.value) } },
+        }, ch.label))
+      }
+      this._choicesEl.classList.add('show')
+    } else if (m.sticky) {
+      this._contEl.textContent = (m.idx >= m.pages.length - 1) ? '✔' : '▶'
+      this._contEl.classList.add('show')
+      if (m.kind === 'tutorial') this._optoutEl.classList.add('show')
+      else if (m.kind === 'intro' && m.idx < m.pages.length - 1 && this._introSeenBefore()) {
+        this._skipEl.classList.add('show')
+      }
+    } else {
+      this._holdTimer = setTimeout(() => this._dismiss(), m.holdMs ?? 2800)
+    }
+  }
+
+  // ── interaction ───────────────────────────────────────────────────────────
+  _onBubbleClick() {
+    const m = this._msg
+    if (!m) return
+    if (this._typeTimer) {
+      clearInterval(this._typeTimer); this._typeTimer = null
+      this._textEl.textContent = this._fullText
+      this._onTypeDone()
+      return
+    }
+    const page = m.pages[m.idx]
+    // A choice page ignores background clicks — the player must pick a button.
+    if (page && Array.isArray(page.choices) && page.choices.length) return
+    if (m.sticky) {
+      if (m.idx >= m.pages.length - 1) {
+        if (m.kind === 'intro') this._onChoice(true)   // defensive fallback
+        else this._finishTutorial()
+      } else {
+        m.idx++
+        this._renderPage()
+      }
+    } else {
+      this._dismiss()
+    }
+  }
+
+  _onPoke() {
+    if (this._msg?.sticky) return        // no poking mid-lesson / mid-intro
+    EventBus.emit('NPC_POKE')
+  }
+
+  _onChoice(value) {
+    const m = this._msg
+    const id = m?.id, kind = m?.kind
+    this._releaseSoftPause()
+    this._msg = null
+    this._dismissBubble()
+    EventBus.emit('NPC_CHOICE', { id, kind, value })
+  }
+
+  _disableHints() {
+    try { localStorage.setItem('qf.gameplay.tutorials', 'false') } catch {}
+    this._finishTutorial()
+  }
+
+  // "skip intro" — jump past the explanation straight to her final page,
+  // the tutorial-hints question, so a returning player still chooses.
+  _skipIntro() {
+    const m = this._msg
+    if (!m || m.kind !== 'intro') return
+    this._clearTimers()
+    m.idx = m.pages.length - 1
+    this._renderPage()
+  }
+
+  // True once a companion intro has been delivered at least once before
+  // (global across both companions) — gates the "skip intro" link so a
+  // genuine first-timer still reads it.
+  _introSeenBefore() {
+    try { return localStorage.getItem('qf.introSeenEver') === 'true' } catch { return false }
+  }
+
+  _finishTutorial() {
+    const id = this._msg?.id
+    this._releaseSoftPause()
+    this._msg = null
+    this._dismissBubble()
+    if (id) EventBus.emit('NPC_TUTORIAL_DONE', { id })
+  }
+
+  _dismiss() {
+    this._msg = null
+    this._dismissBubble()
+  }
+
+  _dismissBubble() {
+    this._clearTimers()
+    this._bubble.classList.remove('open')
+    this.el.dataset.speaking = 'false'
+    this.el.dataset.tutorial = 'false'
+    this._portrait.classList.remove('talking')
+    this._fadeTimer = setTimeout(() => this._setExpression(this._rest), FADE_MS + 120)
+  }
+
+  _clearTimers() {
+    if (this._typeTimer) { clearInterval(this._typeTimer); this._typeTimer = null }
+    if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null }
+    if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null }
+  }
+
+  _releaseSoftPause() {
+    if (this._softHeld) { this._softHeld = false; PauseManager.softResume() }
+  }
+
+  // ── settings ──────────────────────────────────────────────────────────────
+  _syncMode() {
+    const next = userSettings.companionMode()
+    if (next === this._mode) return
+    this._mode = next
+    this._applyMode()
+  }
+
+  _applyMode() {
+    if (this._mode === 'off') {
+      // Hidden mid-sticky-message — resolve it so nothing downstream stalls
+      // (TutorialSystem's queue, or the intro → INTRO_DISMISSED handoff).
+      if (this._msg?.sticky) {
+        if (this._msg.kind === 'intro') this._onChoice(true)
+        else this._finishTutorial()
+      } else {
+        this._dismiss()
+      }
+      this.el.style.display = 'none'
+    } else {
+      this.el.style.display = ''
+    }
+  }
+
+  destroy() {
+    for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
+    this._listeners = []
+    this._clearTimers()
+    this._releaseSoftPause()
+    this.el?.remove()
+  }
+}

@@ -54,55 +54,17 @@ const RARITY_GLYPH = {
   common: '❖', uncommon: '✦', rare: '✠', epic: '❂', legendary: '⛧',
 }
 
-// Pact-broker personas — one per boss level (clamp(level-2) indexes the
-// list). Each carries its own sprite sheet: VEX'KAR is the dark-deal
-// demon (a 5×4 grid with a smoke→demon "appear" sequence and a 10-frame
-// idle); the rest are single-row idle strips.
-// Per-frame layout shared by a broker family and its recoloured variants
-// (variant sheets are produced by tools/recolor-brokers.mjs). The demon
-// plays appear 0-8 (smoke→demon), idle 9-14, and leave 15-19
-// (demon→smoke) when a pact is sealed; `flip` mirrors it to face the
-// book. The idle strips have no appear/leave — they idle straight away.
-// displayH is an exact integer multiple of frameH so the pixel art
-// scales by a whole number (non-integer scaling makes animated pixel
-// art shimmer frame-to-frame).
-const _DEMON = {
-  cols: 5, rows: 4, frameW: 80, frameH: 80, displayH: 480, flip: true,
-  idleFrom: 9, idleTo: 14, appearFrom: 0, appearTo: 8, leaveFrom: 15, leaveTo: 19, fps: 6,
+// Lilith — the dungeon keeper — is the broker of the Grimoire. She
+// replaced the old roster of demon-broker sprites; the contextual
+// dialogue in LINES below is now routed to her companion bubble via the
+// NPC_BROKER_SAY event (NpcDirector → NpcCompanion). Each delivery
+// carries an expression id so the companion's portrait matches the
+// moment. Ids are kept to the set BOTH companions share, so whichever
+// keeper the player chose has a real sprite for it.
+const VIEW_EXPR = {
+  common: 'smug', uncommon: 'mischievous', rare: 'laughing',
+  epic: 'evil', legendary: 'excited',
 }
-const _IDLE2 = { cols: 5, rows: 1, frameW: 120.8,  frameH: 122, displayH: 366, idleFrom: 0, idleTo: 4, fps: 8 }
-const _IDLE3 = { cols: 6, rows: 1, frameW: 124,    frameH: 80,  displayH: 320, idleFrom: 0, idleTo: 5, fps: 8 }
-const _IDLE4 = { cols: 6, rows: 1, frameW: 121.67, frameH: 79,  displayH: 316, idleFrom: 0, idleTo: 5, fps: 8 }
-// A single-image broker (no sprite sheet) — one static frame. With no
-// frames to step, it is brought to life by a CSS hovering-drift idle
-// (anim: 'float') instead. cols/rows are 1; idleFrom===idleTo holds it
-// on the lone frame.
-const _SUCCUBUS = {
-  cols: 1, rows: 1, frameW: 755, frameH: 1120, displayH: 560,
-  flip: false, idleFrom: 0, idleTo: 0, fps: 1, anim: 'float',
-}
-const _PB = 'assets/sprites/pact-broker/'
-
-// A random broker — an original or one of its colour variants — presides
-// over each bargain. Only the name is shown, beneath the sprite.
-const BROKERS = [
-  { name: "VEX'KAR",    ..._DEMON, sheet: 'assets/sprites/event_dark_deal_demon.png' },
-  { name: 'ZHARNOK',    ..._DEMON, sheet: _PB + 'demon-black.png' },
-  { name: 'VORRAGAL',   ..._DEMON, sheet: _PB + 'demon-red.png' },
-  { name: 'SYLTH',      ..._IDLE2, sheet: _PB + 'broker-idle-2.png' },
-  { name: 'AURISYNE',   ..._IDLE2, sheet: _PB + 'broker-idle-2-gold.png' },
-  { name: "THESS'RA",   ..._IDLE2, sheet: _PB + 'broker-idle-2-green.png' },
-  { name: "VOSK'REL",   ..._IDLE2, sheet: _PB + 'broker-idle-2-blackred.png' },
-  { name: "AG'AZOTH",   ..._IDLE3, sheet: _PB + 'broker-idle-3.png' },
-  { name: 'OSSIRETH',   ..._IDLE3, sheet: _PB + 'broker-idle-3-blue.png' },
-  { name: "VAEL'GROSH", ..._IDLE3, sheet: _PB + 'broker-idle-3-gold.png' },
-  { name: "KHARN'OSS",  ..._IDLE3, sheet: _PB + 'broker-idle-3-blackred.png' },
-  { name: "DRAX'ZIN",   ..._IDLE4, sheet: _PB + 'broker-idle-4.png' },
-  { name: "GRISP'AEL",  ..._IDLE4, sheet: _PB + 'broker-idle-4-green.png' },
-  { name: 'VHANTUS',    ..._IDLE4, sheet: _PB + 'broker-idle-4-blue.png' },
-  { name: 'DROSKAL',    ..._IDLE4, sheet: _PB + 'broker-idle-4-blackred.png' },
-  { name: 'VESPERYN',   ..._SUCCUBUS, sheet: _PB + 'succubus-broker.png' },
-]
 
 const LINES = {
   closed: [
@@ -260,14 +222,11 @@ export class PactPicker {
     this._sealResolved = false
     this._opened     = false   // has the tome been unsealed yet?
     this._rerollUsed = false
-    this._broker     = BROKERS[0]
-    this._brokerFrame = 0
+    this._menuOpenEmitted = false   // tracks the HUD_MENU_OPENED/CLOSED pair
     this._timers      = []
     this._ashTimer    = 0
-    this._brokerTimer = 0
     this._sheetTimer  = 0
     this._chatterTimer = 0
-    this._speechTimer  = 0
 
     this._listener = () => this.open()
     EventBus.on('SHOW_DARK_PACT', this._listener)
@@ -291,18 +250,15 @@ export class PactPicker {
     this._opened     = false
     this._rerollUsed = false
 
-    // A random broker presides over each bargain.
-    // TEMP: locked to the succubus broker for now — restore `pick(BROKERS)`
-    // to bring back the full random roster.
-    this._broker = BROKERS.find(b => b.name === 'VESPERYN') || pick(BROKERS)
-
     this._build()
     this._startAsh()
-    this._playBrokerAppear()
     this._renderFooterClosed()
+    // Lilith steps in beside the Grimoire as its broker.
+    this._menuOpenEmitted = true
+    EventBus.emit('HUD_MENU_OPENED', { kind: 'pact' })
 
-    // The broker beckons toward the shut tome.
-    this._after(900, () => this._brokerSay(pick(LINES.closed)))
+    // She beckons toward the shut tome.
+    this._after(900, () => this._brokerSay(pick(LINES.closed), 'mischievous'))
   }
 
   destroy() {
@@ -314,10 +270,13 @@ export class PactPicker {
     for (const t of this._timers) clearTimeout(t)
     this._timers = []
     if (this._ashTimer)     { clearInterval(this._ashTimer);    this._ashTimer = 0 }
-    if (this._brokerTimer)  { clearInterval(this._brokerTimer); this._brokerTimer = 0 }
     if (this._sheetTimer)   { clearInterval(this._sheetTimer);  this._sheetTimer = 0 }
     if (this._chatterTimer) { clearTimeout(this._chatterTimer); this._chatterTimer = 0 }
-    if (this._speechTimer)  { clearInterval(this._speechTimer); this._speechTimer = 0 }
+    // Release Lilith from her docked-beside-the-Grimoire stance.
+    if (this._menuOpenEmitted) {
+      this._menuOpenEmitted = false
+      EventBus.emit('HUD_MENU_CLOSED', { kind: 'pact' })
+    }
     this._el?.remove()
     this._el = null
   }
@@ -409,7 +368,6 @@ export class PactPicker {
 
       h('div', { className: 'qf-ip-stage', ref: (el) => { this._stageEl = el } }, [
         this._buildHeader(),
-        this._buildBroker(),
         this._bookWrap,
         this._buildFooter(),
       ]),
@@ -424,31 +382,6 @@ export class PactPicker {
       h('div', { className: 'qf-ip-title-rule' }),
       h('div', { className: 'pix qf-ip-title' }, 'THE GRIMOIRE OF DARK PACTS'),
       h('div', { className: 'qf-ip-title-rule' }),
-    ])
-  }
-
-  _buildBroker() {
-    const b = this._broker
-    const w = Math.round(b.displayH * (b.frameW / b.frameH))
-    this._brokerEl = h('div', {
-      className: 'qf-ip-demon' + (b.anim === 'float' ? ' qf-ip-anim-float' : ''),
-      style: {
-        width:  `${w}px`,
-        height: `${b.displayH}px`,
-        backgroundImage:    `url(${b.sheet})`,
-        backgroundSize:     `${b.cols * 100}% ${b.rows * 100}%`,
-        backgroundPosition: this._brokerFramePos(b.appearFrom ?? b.idleFrom),
-        transform: b.flip ? 'scaleX(-1)' : 'none',
-      },
-    })
-    this._speechEl = h('div', { className: 'qf-ip-speech' }, [
-      h('div', { className: 'qf-ip-speech-tail' }),
-      h('div', { className: 'mono qf-ip-speech-text' }, '…'),
-    ])
-    return h('div', { className: 'qf-ip-broker' }, [
-      h('div', { className: 'qf-ip-broker-glow' }),
-      this._brokerEl,
-      this._speechEl,
     ])
   }
 
@@ -547,8 +480,8 @@ export class PactPicker {
         this._renderFooterOpen()
         this._busy = false
         const hasLeg = this._offers.some(o => (o?.rarity ?? '') === 'legendary')
-        this._brokerSay(hasLeg ? pick(LINES.openLegendary) : pick(LINES.open))
-        this._setBrokerMood(this._pageIdx)
+        this._brokerSay(hasLeg ? pick(LINES.openLegendary) : pick(LINES.open),
+          hasLeg ? 'excited' : 'evil')
       },
     })
   }
@@ -696,8 +629,7 @@ export class PactPicker {
       this._pageIdx = idx
       this._renderPage(idx)
       this._updateBookmarks()
-      this._brokerSay(this._viewLine(idx))
-      this._setBrokerMood(idx)
+      this._brokerSay(this._viewLine(idx), VIEW_EXPR[this._rarKey(idx)] || 'mischievous')
     })
   }
 
@@ -709,7 +641,7 @@ export class PactPicker {
     this._busy = true
     this._rerollBtn.disabled = true
     this._rerollBtn.textContent = '— TERMS ARE FINAL —'
-    this._brokerSay(pick(LINES.reroll))
+    this._brokerSay(pick(LINES.reroll), 'eye-roll')
     this._sfx('sfx-book-open', 0.6)
     this._showPages(false)
 
@@ -728,7 +660,6 @@ export class PactPicker {
           this._renderPage(0)
           this._showPages(true)
           this._busy = false
-          this._setBrokerMood(0)
         },
       }),
     })
@@ -750,7 +681,6 @@ export class PactPicker {
     const rar  = this._rar(this._pageIdx)
     const tier = rar.weight <= 1 ? 'low' : rar.weight === 2 ? 'mid' : 'high'
     if (this._signBtn) { this._signBtn.disabled = true; this._signBtn.classList.add('is-spent') }
-    this._setBrokerMood(null)
 
     // Beat 1 — blood signature scrawls across the line.
     this._after(150, () => {
@@ -780,7 +710,7 @@ export class PactPicker {
       this._flash(rar)
       this._sfx('sfx-boss-attack', 0.55)
       this._sfx(pick(['sfx-build-1', 'sfx-build-2', 'sfx-build-3']), 0.8)
-      this._brokerSay(pick(LINES.seal[tier]))
+      this._brokerSay(pick(LINES.seal[tier]), 'excited')
       this._emitEssence(rar)
     })
 
@@ -790,7 +720,6 @@ export class PactPicker {
     // (its onDone) so the animation always completes on screen.
     this._after(2300, () => {
       this._showPages(false)
-      this._playBrokerLeave()
       this._sfx('sfx-book-open', 0.5)
       this._playSheet({
         layer: this._layerClose, cols: 4, rows: 3,
@@ -907,33 +836,14 @@ export class PactPicker {
 
   // ── Broker ──────────────────────────────────────────────────────────────
 
-  // Speak a line — revealed letter by letter, RPG-style, with a soft
-  // blip of speech SFX on each character. Resets the idle-chatter clock
-  // so fresh chatter never crowds a reaction.
-  _brokerSay(text) {
-    this._revealSpeech(String(text == null ? '' : text))
+  // Route a broker line to Lilith's companion bubble — NpcDirector picks
+  // up NPC_BROKER_SAY and shows it while she is docked beside the
+  // Grimoire. Re-arms the idle-chatter clock so fresh chatter never
+  // crowds a reaction.
+  _brokerSay(text, expr = 'mischievous') {
+    const line = String(text == null ? '' : text)
+    if (line) EventBus.emit('NPC_BROKER_SAY', { text: line, expr })
     this._scheduleChatter()
-  }
-
-  // Type a line into the speech bubble one character at a time. Any
-  // reveal already in progress is cancelled so a new reaction takes
-  // over cleanly; a blip plays on each non-space character.
-  _revealSpeech(text) {
-    if (this._speechTimer) { clearInterval(this._speechTimer); this._speechTimer = 0 }
-    const el = this._speechEl?.querySelector('.qf-ip-speech-text')
-    if (!el) return
-    const chars = [...text]
-    el.textContent = ''
-    if (!chars.length) return
-    let i = 0
-    const tick = () => {
-      const ch = chars[i]
-      el.textContent += ch
-      if (ch.trim()) this._sfx('sfx-speech', 0.25)
-      if (++i >= chars.length) { clearInterval(this._speechTimer); this._speechTimer = 0 }
-    }
-    tick()                                  // first character lands immediately
-    if (chars.length > 1) this._speechTimer = setInterval(tick, 30)
   }
 
   // A remark for the pact just turned to — half the time a tag-specific
@@ -955,73 +865,6 @@ export class PactPicker {
       if (this._busy || this._signing) { this._scheduleChatter(); return }
       this._brokerSay(pick(LINES.idle))
     }, 13000 + Math.random() * 8000)
-  }
-
-  _setBrokerMood(idx) {
-    if (!this._brokerEl) return
-    this._brokerEl.classList.toggle('is-nervous',
-      idx !== null && this._rarKey(idx) === 'legendary')
-  }
-
-  _brokerFramePos(f) {
-    const b = this._broker
-    const col = f % b.cols, row = (f / b.cols) | 0
-    const x = b.cols > 1 ? (col / (b.cols - 1)) * 100 : 0
-    const y = b.rows > 1 ? (row / (b.rows - 1)) * 100 : 0
-    return `${x}% ${y}%`
-  }
-
-  _setBrokerFrame(f) {
-    this._brokerFrame = f
-    if (this._brokerEl) this._brokerEl.style.backgroundPosition = this._brokerFramePos(f)
-  }
-
-  _startBrokerIdle() {
-    const b = this._broker
-    if (this._brokerTimer) { clearInterval(this._brokerTimer); this._brokerTimer = 0 }
-    let f = b.idleFrom
-    this._setBrokerFrame(f)
-    this._brokerTimer = setInterval(() => {
-      f = f >= b.idleTo ? b.idleFrom : f + 1
-      this._setBrokerFrame(f)
-    }, Math.max(40, 1000 / b.fps))
-  }
-
-  // VEX'KAR materialises from smoke (appear frames) before idling; the
-  // strip-sheet brokers have no appear sequence and idle straight away.
-  _playBrokerAppear() {
-    const b = this._broker
-    if (b.appearFrom == null) { this._startBrokerIdle(); return }
-    if (this._brokerTimer) { clearInterval(this._brokerTimer); this._brokerTimer = 0 }
-    let f = b.appearFrom
-    this._setBrokerFrame(f)
-    this._brokerTimer = setInterval(() => {
-      if (f >= b.appearTo) {
-        clearInterval(this._brokerTimer); this._brokerTimer = 0
-        this._startBrokerIdle()
-        return
-      }
-      f++
-      this._setBrokerFrame(f)
-    }, Math.max(40, 1000 / (b.fps + 2)))
-  }
-
-  // VEX'KAR dissipates back into smoke (leave frames) as the pact seals;
-  // the strip-sheet brokers simply vanish with the picker teardown.
-  _playBrokerLeave() {
-    const b = this._broker
-    if (b.leaveFrom == null) return
-    if (this._brokerTimer) { clearInterval(this._brokerTimer); this._brokerTimer = 0 }
-    let f = b.leaveFrom
-    this._setBrokerFrame(f)
-    this._brokerTimer = setInterval(() => {
-      if (f >= b.leaveTo) {
-        clearInterval(this._brokerTimer); this._brokerTimer = 0
-        return
-      }
-      f++
-      this._setBrokerFrame(f)
-    }, Math.max(40, 1000 / (b.fps + 2)))
   }
 
   // ── Ash particles ───────────────────────────────────────────────────────

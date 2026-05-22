@@ -25,6 +25,7 @@ import { snapshotMinion, snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
+import { GameOverMusic } from '../systems/GameOverMusic.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { classLabel, minionLabel } from '../util/displayNames.js'
 
@@ -42,6 +43,7 @@ export class GameOverOverlay {
     if (this._overlay) return
     const body = this._renderBody()
     this._overlay = new Overlay({
+      npcKind:  'gameover',
       title:    'YOUR REIGN ENDS',
       width:    1100,
       height:   860,
@@ -60,6 +62,9 @@ export class GameOverOverlay {
       this._overlay._escHandler = () => {}
     }
     this._overlay.open()
+    // Stop the dungeon / boss music and loop the game-over track for as
+    // long as this terminal screen is up.
+    GameOverMusic.start(window.__game)
     // Cascade every tagged number up from 0 (with count / gold SFX).
     this._countUpCancel = runCountUp(body)
     // Submit run to leaderboard once per show. Mirrors the Phaser
@@ -392,6 +397,9 @@ export class GameOverOverlay {
     // Close the overlay, return to main menu. Mirrors GameOver scene's
     // "rise again" behaviour.
     this._cancelCountUp()
+    // Leaving the game-over screen — stop the loop so MainMenu's title
+    // music can take over.
+    GameOverMusic.stop()
     const ov = this._overlay
     this._overlay = null
     ov?._opts && (ov._opts.onClose = null)
@@ -413,6 +421,7 @@ export class GameOverOverlay {
   destroy() {
     EventBus.off('SHOW_GAME_OVER', this._listener)
     this._cancelCountUp()
+    GameOverMusic.stop()
     this._fullLog?.close()
     this._fullLog = null
     const ov = this._overlay

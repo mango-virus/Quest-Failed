@@ -6,11 +6,6 @@
     "scaleY": 2.594,
     "depth": 1
   },
-  "back-button": {
-    "x": 20,
-    "y": 20,
-    "depth": 10
-  },
   "compendium-header": {
     "x": 487,
     "y": 245,

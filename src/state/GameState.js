@@ -1,5 +1,6 @@
 import { Balance } from '../config/balance.js'
 import { DungeonGrid } from '../systems/DungeonGrid.js'
+import { DEFAULT_COMPANION } from '../systems/companions.js'
 
 // Boss chamber definition (must match src/data/rooms.json).
 // connectionPoints stays empty here to mirror rooms.json; door pairs to
@@ -18,7 +19,11 @@ const BOSS_CHAMBER_DEF = {
   tags: ['boss', 'special', 'fixed'],
 }
 
-export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
+export function createGameState(
+  bossArchetypeId = 'the_lich',
+  roomDefs = null,
+  companionId = DEFAULT_COMPANION,
+) {
   const gw = Balance.STARTING_GRID_WIDTH
   const gh = Balance.STARTING_GRID_HEIGHT
 
@@ -93,6 +98,10 @@ export function createGameState(bossArchetypeId = 'the_lich', roomDefs = null) {
       bossDefeatedCount: 0,
       runId: _generateRunId(),
       phase: 'night',
+      // Which dungeon-keeper companion the player chose for this run on
+      // the CompanionSelect screen. Drives the HUD portrait + dialogue
+      // bank. See src/systems/companions.js.
+      companionId,
       // Welcome popup shows once per run on Game scene boot. Flips to
       // true the moment the player clicks Continue.
       introSeen: false,

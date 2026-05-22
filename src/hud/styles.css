@@ -1114,6 +1114,14 @@ body {
      are clickable. */
   pointer-events: auto;
 }
+/* Companion docked beside this menu — left-pin the modal so Lilith
+   (standing at the screen's left) only overlaps its outer edge by a
+   sliver instead of covering content. `padding-left` sets where the
+   modal's left edge lands; tune it to taste against her docked width. */
+.overlay.qf-npc-docked {
+  justify-content: flex-start;
+  padding-left: 380px;
+}
 .overlay > .modal {
   animation: panel-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -1728,6 +1736,11 @@ body {
     0 0 8px rgba(212, 166, 72, 0.35);
   text-shadow: 1px 1px 0 #4a3010;
 }
+.qf-bb-speed-btn { transition: background 120ms ease, color 120ms ease; }
+.qf-bb-speed-btn:not(.active):hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
 
 /* Menu buttons */
 .qf-bb-menu { padding: 8px 12px; }
@@ -1916,6 +1929,12 @@ body {
   border-top-color: var(--cat-color, var(--blood));
   color: var(--cat-color, var(--blood));
 }
+/* Hover feedback on an inactive tab — marks it as clickable. */
+.qf-cat-tab:not(.active):hover {
+  background: var(--bg-1);
+  color: var(--text);
+  border-top-color: color-mix(in srgb, var(--cat-color, var(--blood)) 45%, transparent);
+}
 .qf-cat-icon {
   font-family: var(--pix);
   font-size: 14px;
@@ -1977,6 +1996,16 @@ body {
 }
 .qf-build-card[data-can-afford="true"]:not([data-locked="true"]) {
   filter: grayscale(0.3) brightness(0.85);
+}
+/* Hover feedback on a placeable card — lifts + glows in its category
+   colour so the player can tell the card is clickable. */
+.qf-build-card:not([data-locked="true"]):hover {
+  border-color: var(--cat-color);
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 0 0 1px var(--bg-0),
+    0 5px 12px rgba(0,0,0,0.55),
+    0 0 14px color-mix(in srgb, var(--cat-color) 30%, transparent);
 }
 
 .qf-build-card-icon {
@@ -2431,6 +2460,19 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
+/* The log panel header is clickable — it opens the full-run log overlay.
+   It's the only panel-head that's interactive, so it gets its own hover
+   feedback to signal that. */
+.qf-logpanel-head {
+  transition: background 140ms ease;
+}
+.qf-logpanel-head:hover {
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+}
+.qf-logpanel-head:hover .title {
+  color: var(--gold-bright);
+  text-shadow: 0 0 6px rgba(212, 166, 72, 0.4);
+}
 .qf-log-meta {
   display: flex;
   align-items: center;
@@ -2593,6 +2635,14 @@ body {
   font-size: 12px;
   cursor: pointer;
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.1);
+  transition: background 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+.qf-overlay-close:hover {
+  background: var(--blood);
+  filter: brightness(1.15);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 12px rgba(255, 68, 88, 0.4);
 }
 .qf-overlay-body {
   flex: 1;
@@ -2865,6 +2915,7 @@ body {
   border-color: var(--poison);
   box-shadow: 0 0 8px rgba(107, 160, 58, 0.5);
 }
+.qf-toggle:hover { filter: brightness(1.18); }
 .qf-toggle-thumb {
   position: absolute;
   top: 2px;
@@ -2890,6 +2941,9 @@ body {
   cursor: pointer;
   transition: all 140ms;
 }
+/* The radio's colours are set inline by JS, so hover brightens via a
+   filter (which JS doesn't touch) to signal it's clickable. */
+.qf-radio-opt:hover { filter: brightness(1.25); }
 
 /* Keybinds */
 .qf-keybind {
@@ -3019,6 +3073,11 @@ body {
 }
 .qf-roster-filter[data-active="true"] {
   background: var(--bg-1);
+}
+/* Hover feedback on an inactive filter — marks it as clickable. */
+.qf-roster-filter:not([data-active="true"]):hover {
+  background: var(--bg-1);
+  border-top-color: color-mix(in srgb, var(--blood) 40%, transparent);
 }
 .qf-roster-filter-count {
   opacity: 0.5;
@@ -3471,6 +3530,12 @@ body {
   border-top-color: var(--blood);
   color: var(--blood);
 }
+/* Hover feedback on an inactive tab — marks it as clickable. */
+.qf-boss-tab:not([data-active="true"]):hover {
+  background: var(--bg-1);
+  color: var(--text);
+  border-top-color: color-mix(in srgb, var(--blood) 45%, transparent);
+}
 .qf-boss-content {
   flex: 1;
   overflow: auto;
@@ -3505,6 +3570,11 @@ body {
   font-size: 8px;
   letter-spacing: 1px;
   cursor: pointer;
+  transition: color 120ms ease, text-shadow 120ms ease;
+}
+.qf-boss-viewall:hover {
+  color: var(--blood-glow);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--blood) 45%, transparent);
 }
 .qf-boss-empty {
   padding: 18px;
@@ -4244,6 +4314,11 @@ body {
   cursor: pointer;
   font-family: var(--pix);
   font-size: 10px;
+  transition: color 120ms ease, text-shadow 120ms ease;
+}
+.qf-knowmap-clearfilter:hover {
+  color: var(--text);
+  text-shadow: 0 0 6px rgba(255,255,255,0.25);
 }
 
 .qf-knowmap-legend {
@@ -4292,6 +4367,12 @@ body {
   font-size: 7px;
   letter-spacing: 1px;
   padding: 2px 6px;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.qf-knowmap-ledger-clear:hover {
+  background: var(--bg-2);
+  border-color: var(--line-bright);
+  color: var(--text);
 }
 .qf-knowmap-ledger-body {
   flex: 1;
@@ -5563,6 +5644,12 @@ body {
   border-color: var(--blood);
   color: #fff;
 }
+.qf-fl-filterbtn { transition: background 120ms ease, border-color 120ms ease, color 120ms ease; }
+.qf-fl-filterbtn:not([data-active="true"]):hover {
+  background: var(--bg-2);
+  border-color: var(--line-bright);
+  color: var(--text);
+}
 .qf-fl-scroll {
   flex: 1; overflow: auto; padding: 12px;
   background: linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
@@ -6590,6 +6677,12 @@ body {
 .qf-lb-tab-icon { font-size: 14px; }
 .qf-lb-tab[data-active="true"] .qf-lb-tab-icon { text-shadow: 0 0 6px var(--tab-color); }
 .qf-lb-tab-label { letter-spacing: 2px; }
+/* Hover feedback on an inactive tab — marks it as clickable. */
+.qf-lb-tab:not([data-active="true"]):hover {
+  background: var(--bg-1);
+  border-color: var(--line-bright);
+  color: var(--text);
+}
 
 .qf-lb-loading, .qf-lb-error, .qf-lb-empty {
   flex: 1;
@@ -8288,4 +8381,635 @@ body {
   font-size: 8px;
   color: #8a7a9a;
   text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Companion NPC — Lilith
+   Two modes:
+   • CORNER (default) — peeks into the lower-left of the dungeon view,
+     lower body tucked behind the bottom bar, bubble opens above her.
+   • MENU  (data-dock="menu") — when a HUD menu opens she steps out in
+     full body to the far left, above the overlay backdrop, to comment.
+   The root is a fixed full-height left strip; the portrait + bubble are
+   positioned within it and animate between the two modes.
+   ═══════════════════════════════════════════════════════════════════════ */
+.qf-npc {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 560px;
+  height: 1080px;
+  z-index: 8;                /* above FX layer + dungeon, below HUD chrome */
+  pointer-events: none;      /* only the portrait + bubble are interactive */
+}
+/* Docked beside a menu — lift above the overlay backdrop (z:150). */
+.qf-npc[data-dock="menu"] { z-index: 160; }
+
+/* Portrait — two stacked <img> layers cross-fade between expressions. */
+.qf-npc-portrait {
+  position: absolute;
+  left: 326px;               /* corner: just right of the 320px build panel */
+  bottom: 0;
+  width: 236px;
+  height: 350px;             /* 236 × (831/560) — matches sprite aspect */
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.65));
+  animation: qf-npc-bob 4.6s ease-in-out infinite;
+  transform-origin: 50% 100%;
+  transition: left 0.42s ease, bottom 0.42s ease, width 0.42s ease, height 0.42s ease;
+}
+/* Docked: full body, far left, fully visible above the backdrop. */
+.qf-npc[data-dock="menu"] .qf-npc-portrait {
+  left: 30px;
+  bottom: 14px;
+  width: 384px;
+  height: 570px;             /* 384 × (831/560) */
+}
+.qf-npc-portrait.talking { animation: qf-npc-talk 0.5s ease-in-out infinite; }
+.qf-npc-portrait:hover    { filter: drop-shadow(0 6px 16px rgba(255, 100, 130, 0.4)); }
+
+.qf-npc-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  opacity: 0;
+  transition: opacity 0.42s ease;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* Per-companion sprite scale (companions.js `hudScale`). Scales from
+     the feet so the body grows in place; any excess (tall wings) just
+     extends above the portrait box. */
+  transform: scale(var(--npc-img-scale, 1));
+  transform-origin: 50% 100%;
+}
+.qf-npc-img.front { opacity: 1; }
+
+@keyframes qf-npc-bob {
+  0%, 100% { transform: translateY(0)    rotate(0deg); }
+  50%      { transform: translateY(-5px) rotate(-0.6deg); }
+}
+@keyframes qf-npc-talk {
+  0%, 100% { transform: translateY(0)    scale(1); }
+  50%      { transform: translateY(-3px) scale(1.012); }
+}
+
+/* Chat bubble — pixel-bevel panel, opens above her head. */
+.qf-npc-bubble {
+  position: absolute;
+  z-index: 2;                /* paint above the portrait so the tail isn't hidden by her horns */
+  left: 332px;               /* corner: above the corner head */
+  /* Base 360px, lifted by however much a >1 hudScale grows the sprite
+     upward — (scale − 1) × portrait-box-height — so the bubble clears a
+     scaled-up companion (e.g. Malakor) instead of overlapping his head. */
+  bottom: calc(360px + (var(--npc-img-scale, 1) - 1) * 350px);
+  width: 300px;
+  padding: 9px 13px 11px;
+  background: var(--bg-1);
+  border: 2px solid var(--line-2);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.05),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 2px #000,
+    0 8px 22px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+  transform-origin: 20% 100%;
+  transition: opacity 0.26s ease, transform 0.26s cubic-bezier(0.2, 1.4, 0.4, 1),
+              left 0.42s ease, bottom 0.42s ease, width 0.42s ease;
+  pointer-events: none;
+}
+/* Docked: bubble rides above her full-body stance. */
+.qf-npc[data-dock="menu"] .qf-npc-bubble {
+  left: 72px;
+  /* Same scale-aware lift as the corner bubble, against the taller
+     docked portrait box (570px). */
+  bottom: calc(600px + (var(--npc-img-scale, 1) - 1) * 570px);
+  width: 332px;
+}
+.qf-npc-bubble.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* Bubble tail — a notch pointing down toward Lilith's head. */
+.qf-npc-bubble::before,
+.qf-npc-bubble::after {
+  content: '';
+  position: absolute;
+  left: 112px;               /* corner: lines up with her head, between the horns */
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+.qf-npc[data-dock="menu"] .qf-npc-bubble::before,
+.qf-npc[data-dock="menu"] .qf-npc-bubble::after { left: 150px; }
+.qf-npc-bubble::before {        /* outline */
+  bottom: -16px;
+  border-width: 16px 14px 0 0;
+  border-color: #000 transparent transparent transparent;
+}
+.qf-npc-bubble::after {         /* fill */
+  bottom: -11px;
+  border-width: 12px 11px 0 0;
+  border-color: var(--bg-1) transparent transparent transparent;
+}
+
+.qf-npc-eyebrow {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+.qf-npc-text {
+  font-family: var(--term);
+  font-size: 17px;
+  line-height: 1.32;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 22px;
+  max-height: 280px;
+  overflow: hidden;
+}
+.qf-npc-cont {
+  font-size: 14px;
+  color: var(--gold-bright);
+  text-align: right;
+  margin-top: 6px;
+  height: 16px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.qf-npc-cont.show {
+  opacity: 1;
+  animation: qf-npc-cont-pulse 1s ease-in-out infinite;
+}
+@keyframes qf-npc-cont-pulse {
+  0%, 100% { opacity: 0.45; transform: translateX(0); }
+  50%      { opacity: 1;    transform: translateX(3px); }
+}
+
+/* Choice buttons — shown on a page that offers the player a decision
+   (e.g. the final intro page: enable tutorial hints or not). */
+.qf-npc-choices {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.qf-npc-choices.show { display: flex; }
+.qf-npc-choice {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  padding: 9px 12px;
+  background: var(--bg-2);
+  border: 2px solid var(--gold);
+  color: var(--gold-bright);
+  cursor: pointer;
+  image-rendering: pixelated;
+  box-shadow: inset 2px 2px 0 rgba(255,255,255,0.06), inset -2px -2px 0 rgba(0,0,0,0.5);
+}
+.qf-npc-choice:hover {
+  background: var(--gold);
+  color: #1a0a04;
+}
+
+/* "Turn off hints" — small dismissal link on tutorial bubbles. */
+.qf-npc-optout {
+  position: absolute;
+  left: 13px;
+  bottom: 8px;
+  font-family: var(--term);
+  font-size: 13px;
+  color: var(--text-mute);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, color 0.15s ease;
+}
+.qf-npc-optout.show { opacity: 0.7; }
+/* Hover only brightens it when it is actually shown (tutorial bubbles).
+   Without the .show gate, hovering the bottom-left of ANY bubble — the
+   intro included — revealed the hidden control. */
+.qf-npc-optout.show:hover { opacity: 1; color: var(--blood-glow); }
+/* "skip intro" reuses the opt-out link styling but hovers gold, not red. */
+.qf-npc-skip.show:hover { color: var(--gold-bright); }
+
+/* Tutorial / intro mode — gold-accented bubble so a "lesson" reads distinctly. */
+.qf-npc[data-tutorial="true"] .qf-npc-bubble {
+  border-color: var(--gold);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.06),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 2px #000,
+    0 0 18px rgba(212, 166, 72, 0.35),
+    0 8px 22px rgba(0, 0, 0, 0.6);
+}
+.qf-npc[data-tutorial="true"] .qf-npc-bubble::after {
+  border-top-color: var(--bg-1);
+}
+
+/* ============================================================
+   CompanionSelect — "choose your dungeon keeper" screen
+   ============================================================ */
+.qf-cmpsel {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* #hud-stage / #hud-root are `pointer-events: none` (so the dungeon
+     canvas receives clicks during gameplay) and pointer-events INHERITS.
+     This full-screen picker must re-enable it or every click falls
+     straight through to the Phaser canvas and the menu is dead to the
+     mouse. Children inherit `auto` from here. */
+  pointer-events: auto;
+  /* Flat solid fill — no gradient, no scanline overlay. The Phaser
+     canvas repaints underneath this overlay every frame, so anything
+     here that needs continuous re-rasterising (full-screen gradients,
+     a 1px repeating-gradient scanline layer, blur filters) gets paid
+     60×/sec and froze the screen on weaker GPUs. Keep it cheap. */
+  background: #0b0710;
+  font-family: var(--ui, sans-serif);
+  overflow: hidden;
+}
+
+/* Header */
+.qf-cmpsel-head {
+  text-align: center;
+  padding: 40px 24px 8px;
+  z-index: 4;
+}
+.qf-cmpsel-eyebrow {
+  font-size: 11px;
+  letter-spacing: 5px;
+  color: var(--gold);
+  margin-bottom: 12px;
+}
+.qf-cmpsel-title {
+  font-size: 34px;
+  letter-spacing: 6px;
+  color: var(--text);
+  text-shadow: 4px 4px 0 #000;
+}
+.qf-cmpsel-sub {
+  max-width: 720px;
+  margin: 14px auto 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-mute);
+}
+
+/* Two-card stage */
+.qf-cmpsel-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 64px;
+  padding: 8px 48px;
+  z-index: 4;
+}
+
+/* One companion card */
+/* Dim/select state uses `opacity` + `transform` only — NOT `filter`.
+   The Phaser canvas churns every frame underneath this DOM overlay, so
+   any `filter` on the cards (or drop-shadows on the big portraits) would
+   be re-composited 60×/sec and tank the framerate on weaker GPUs. */
+.qf-cmpsel-card {
+  --cmp-accent: var(--blood);
+  position: relative;
+  width: 540px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 12px 16px 0;
+  opacity: 0.55;
+  transition: transform 160ms cubic-bezier(0.2,0.8,0.2,1), opacity 200ms ease;
+}
+.qf-cmpsel-card[data-id="malakor"] { --cmp-accent: #4f7d8c; }
+.qf-cmpsel-card:hover {
+  opacity: 0.9;
+  transform: translateY(-6px);
+}
+.qf-cmpsel-card[data-selected="true"] {
+  opacity: 1;
+  transform: translateY(-10px);
+}
+
+/* Chat bubble */
+/* Chat bubble — matched to the in-game companion bubble (.qf-npc-bubble):
+   same panel fill, bevel, layered shadow, two-layer down-tail and
+   term-font text that types out letter-by-letter. */
+.qf-cmpsel-bubble {
+  position: relative;
+  /* Slimmer than the card — the flex column centres it. */
+  width: 420px;
+  min-height: 134px;
+  background: var(--bg-1);
+  border: 2px solid var(--line-2);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.05),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 2px #000,
+    0 8px 22px rgba(0, 0, 0, 0.6);
+  padding: 11px 15px 13px;
+  margin-bottom: 22px;
+}
+/* Two-layer tail (outline + fill) pointing down at the portrait. */
+.qf-cmpsel-bubble::before,
+.qf-cmpsel-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 0; height: 0;
+  border-style: solid;
+}
+.qf-cmpsel-bubble::before {
+  bottom: -16px;
+  transform: translateX(-50%);
+  border-width: 16px 13px 0 13px;
+  border-color: #000 transparent transparent transparent;
+}
+.qf-cmpsel-bubble::after {
+  bottom: -11px;
+  transform: translateX(-50%);
+  border-width: 12px 10px 0 10px;
+  border-color: var(--bg-1) transparent transparent transparent;
+}
+.qf-cmpsel-bubble--in { animation: cmpsel-bubble-in 220ms ease both; }
+@keyframes cmpsel-bubble-in {
+  from { opacity: 0.2; transform: translateY(-4px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+.qf-cmpsel-bubble-name {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+.qf-cmpsel-bubble-text {
+  font-family: var(--term);
+  font-size: 17px;
+  line-height: 1.32;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 22px;
+}
+
+/* Portrait */
+.qf-cmpsel-portrait {
+  position: relative;
+  height: 540px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+/* Accent floor-glow pooled under the character on hover / select — grounds
+   the figure and echoes the silhouette glow. */
+.qf-cmpsel-portrait::after {
+  content: '';
+  position: absolute;
+  bottom: 4px; left: 50%;
+  transform: translateX(-50%);
+  width: 58%; height: 22px;
+  background: radial-gradient(ellipse,
+    color-mix(in srgb, var(--cmp-accent) 28%, transparent) 0%, transparent 74%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+.qf-cmpsel-card:hover .qf-cmpsel-portrait::after,
+.qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait::after { opacity: 1; }
+/* The selected companion gently breathes so they don't read as static. */
+.qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait {
+  animation: cmpsel-breathe 3.2s ease-in-out infinite;
+}
+@keyframes cmpsel-breathe {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+/* Soft accent glow tracing the character on hover / select. drop-shadow
+   follows the PNG alpha, so it haloes the figure, not a rectangle. (The
+   earlier "freeze" was an inherited pointer-events bug, never filters —
+   a hover-only glow on one card is perfectly cheap.) */
+.qf-cmpsel-portrait-img {
+  height: 100%;
+  width: auto;
+  image-rendering: auto;
+  transition: filter 220ms ease;
+}
+.qf-cmpsel-card:hover .qf-cmpsel-portrait-img,
+.qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait-img {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cmp-accent) 32%, transparent));
+}
+
+/* Name plate */
+.qf-cmpsel-plate {
+  text-align: center;
+  margin-top: 4px;
+  padding: 10px 28px 12px;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  border: 1px solid var(--cmp-accent);
+  box-shadow: 0 0 0 2px #000;
+  min-width: 320px;
+}
+.qf-cmpsel-name {
+  font-size: 20px;
+  letter-spacing: 4px;
+  color: var(--cmp-accent);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--cmp-accent) 45%, transparent);
+}
+.qf-cmpsel-tag {
+  margin-top: 5px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-mute);
+}
+/* Player-facing "what this keeper is like" descriptor row. */
+.qf-cmpsel-traits {
+  margin-top: 8px;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cmp-accent) 78%, var(--text-mute));
+}
+.qf-cmpsel-chosen {
+  margin-top: 7px;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.qf-cmpsel-card[data-selected="true"] .qf-cmpsel-chosen { opacity: 1; }
+
+/* Footer */
+.qf-cmpsel-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1180px;
+  padding: 18px 32px 34px;
+  z-index: 4;
+}
+.qf-cmpsel-confirm { min-width: 260px; }
+
+/* ── Entrance — header drops in, cards rise staggered, footer fades up.
+   Keyframes specify only `from`; the implicit `to` is each element's own
+   resting state, so a card animates into whatever opacity/lift its
+   selected/hover state dictates. fill-mode `backwards` holds the `from`
+   state during the stagger delay but does NOT pin the end state — so once
+   the entrance finishes, the normal hover/select transitions take over. */
+.qf-cmpsel-head   { animation: cmpsel-head-in 420ms ease backwards; }
+.qf-cmpsel-footer { animation: cmpsel-footer-in 460ms ease backwards; animation-delay: 340ms; }
+.qf-cmpsel-card   { animation: cmpsel-card-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(1) { animation-delay: 90ms; }
+.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(2) { animation-delay: 230ms; }
+@keyframes cmpsel-head-in   { from { opacity: 0; transform: translateY(-16px); } }
+@keyframes cmpsel-footer-in { from { opacity: 0; transform: translateY(20px); } }
+@keyframes cmpsel-card-in   { from { opacity: 0; transform: translateY(44px); } }
+
+/* ============================================================
+   ArchetypeSelect — decorative surround (ArchetypeDecorOverlay)
+   A purely-visual DOM layer over the Phaser bestiary book: header,
+   footer + BACK, and the chosen companion reacting at the right.
+   The root stays pointer-events:none (inherited from #hud-stage) so
+   the book + picker keep receiving clicks; only BACK re-enables them.
+   ============================================================ */
+.qf-archdec {
+  position: absolute;
+  inset: 0;
+  z-index: 160;
+  overflow: hidden;
+  font-family: var(--ui, sans-serif);
+  --arch-accent: #ddaa22;
+}
+
+/* Header — eyebrow + title, hugging the top edge above the book. */
+.qf-archdec-head {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  animation: cmpsel-head-in 420ms ease backwards;
+}
+.qf-archdec-eyebrow {
+  font-size: 10px;
+  letter-spacing: 5px;
+  color: var(--arch-accent);
+  margin-bottom: 12px;
+  text-shadow: 0 2px 0 #000, 0 0 12px rgba(0, 0, 0, 0.85);
+  transition: color 180ms ease;
+}
+.qf-archdec-title {
+  font-size: 24px;
+  letter-spacing: 6px;
+  color: var(--text);
+  text-shadow: 4px 4px 0 #000;
+}
+
+/* Footer — instruction line + BACK button. */
+.qf-archdec-hint {
+  position: absolute;
+  bottom: 34px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-mute);
+  text-shadow: 0 2px 0 #000;
+  animation: cmpsel-footer-in 460ms ease backwards;
+  animation-delay: 200ms;
+}
+.qf-archdec-back {
+  position: absolute;
+  bottom: 26px;
+  left: 40px;
+  /* The only interactive element in this overlay — everything else is
+     display-only and the root inherits pointer-events:none, so the
+     Phaser book + picker keep all their clicks. */
+  pointer-events: auto;
+  animation: cmpsel-footer-in 460ms ease backwards;
+  animation-delay: 200ms;
+}
+
+/* Companion — full body at the right, slides in once the book opens. */
+.qf-archdec-companion {
+  position: absolute;
+  right: 26px;
+  bottom: 0;
+  width: 430px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(48px);
+  transition: opacity 0.5s ease, transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.qf-archdec-companion[data-in="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+.qf-archdec-portrait {
+  position: relative;
+  width: 100%;
+  height: 560px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* Gentle idle breathing so the companion doesn't read as static —
+     reuses the CompanionSelect screen's breathe. It's on this container,
+     NOT the img, so it never fights the img's scaleX(-1) facing flip. */
+  animation: cmpsel-breathe 3.2s ease-in-out infinite;
+}
+.qf-archdec-img {
+  height: 100%;
+  width: auto;
+  /* Both companions render at natural full size (feet on the bottom edge)
+     and are mirrored to face the book — the sprites face right by default.
+     No portraitScale here: scaling a companion down anchored to the feet
+     sinks them low in the frame. */
+  transform: scaleX(-1);
+  transform-origin: 50% 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Chat bubble — reuses .qf-cmpsel-bubble's panel look (itself matched to
+   the in-game .qf-npc-bubble: same fill, bevel, layered shadow, down-tail
+   and term-font typed text). This only adds the slimmer width + the
+   open/close fade so it behaves like the live HUD bubble. */
+.qf-archdec-bubble {
+  width: 372px;
+  /* Clearance above the companion's head — the portrait uses portraitScale
+     (≤ 1) so no sprite overflows upward into this gap. */
+  margin-bottom: 34px;
+  /* Paint above the portrait anyway, so a tall crown / wing tip can't
+     poke through the panel — mirrors .qf-npc-bubble's z-index. */
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+  transform-origin: 50% 100%;
+  transition: opacity 0.26s ease,
+              transform 0.26s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.qf-archdec-bubble.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }

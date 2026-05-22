@@ -202,6 +202,8 @@ export class Preload extends Phaser.Scene {
     this.load.json('bossAbilities',     'src/data/bossAbilities.json')
     this.load.json('items',             'src/data/items.json')
     this.load.json('events',            'src/data/events.json')
+    this.load.json('npcLines',          'src/data/npcLines.json')
+    this.load.json('malakorLines',      'src/data/malakorLines.json')
 
     // Dark Deal demon — 5×4 sheet of 80×80 frames. Row 1 (frames 0-4)
     // appearing animation, rows 2-3 (frames 5-14) idle, row 4 (15-19)
@@ -306,6 +308,18 @@ export class Preload extends Phaser.Scene {
     this.load.audio('sfx-build-menu-press','assets/audio/build menu press.wav')
     this.load.audio('sfx-book-open',       'assets/audio/book-open.mp3')
     this.load.audio('sfx-speech',          'assets/audio/speech-2.wav')
+    this.load.audio('sfx-human-die-1',     'assets/audio/Human_Die01.wav')
+    this.load.audio('sfx-human-die-2',     'assets/audio/Human_Die02.wav')
+    this.load.audio('sfx-human-hit-1',     'assets/audio/Human_Hit01.wav')
+    this.load.audio('sfx-human-hit-2',     'assets/audio/Human_Hit02.wav')
+    this.load.audio('sfx-human-hit-3',     'assets/audio/Human_Hit03.wav')
+    this.load.audio('sfx-boss-levelup',    'assets/audio/boss level up.wav')
+    this.load.audio('sfx-event-notif',     'assets/audio/event notification.mp3')
+    this.load.audio('sfx-scrub-intel',     'assets/audio/scrub intel.wav')
+    this.load.audio('sfx-minion-levelup',  'assets/audio/minion level up or evolve.wav')
+
+    // Game-over music — looped by GameOverMusic.js on the run-end screen.
+    this.load.audio('game-over-music', 'assets/audio/game over.wav')
 
     // Boss fight music — one picked at random when a party enters the boss room.
     // Keys must match BOSS_TRACKS in src/systems/GameplayMusic.js.

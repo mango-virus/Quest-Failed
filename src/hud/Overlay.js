@@ -23,12 +23,17 @@
 // it scales/positions with the rest of the new HUD.
 
 import { h, mount } from './dom.js'
+import { EventBus } from '../systems/EventBus.js'
+import { userSettings } from './userSettings.js'
 
 export class Overlay {
   constructor(opts = {}) {
     this._opts = {
       title:    opts.title    ?? '',
       badge:    opts.badge    ?? null,
+      // When set, opening/closing the overlay emits HUD_MENU_OPENED /
+      // HUD_MENU_CLOSED { kind } so the companion NPC docks beside it.
+      npcKind:  opts.npcKind  ?? null,
       width:    opts.width    ?? 1200,
       height:   opts.height   ?? 780,
       accent:   opts.accent   ?? 'var(--blood)',
@@ -119,7 +124,14 @@ export class Overlay {
     window.addEventListener('keydown', this._escHandler)
     // Inject into the HUD stage if not already mounted
     const stage = document.getElementById('hud-stage') || document.body
+    // When the companion docks beside this menu, left-pin the modal so
+    // Lilith only overlaps its outer edge instead of covering content.
+    const dockShift = !!this._opts.npcKind && userSettings.companionMode() !== 'off'
+    this.el.classList.toggle('qf-npc-docked', dockShift)
     stage.appendChild(this.el)
+    if (this._opts.npcKind) {
+      EventBus.emit('HUD_MENU_OPENED', { kind: this._opts.npcKind })
+    }
   }
 
   close() {
@@ -127,6 +139,9 @@ export class Overlay {
     this._open = false
     window.removeEventListener('keydown', this._escHandler)
     this.el?.remove()
+    if (this._opts.npcKind) {
+      EventBus.emit('HUD_MENU_CLOSED', { kind: this._opts.npcKind })
+    }
     this._opts.onClose?.()
   }
 

@@ -58,6 +58,7 @@ import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
 import { AbilityVfx }         from '../ui/AbilityVfx.js'
 import { BossPactVfx }        from '../ui/BossPactVfx.js'
 import { TutorialSystem }     from '../systems/TutorialSystem.js'
+import { NpcDirector }        from '../systems/NpcDirector.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -189,6 +190,10 @@ export class Game extends Phaser.Scene {
     this.bossRenderer        = new BossRenderer(this, this.gameState)
     this.succubusBatRenderer = new SuccubusBatRenderer(this, this.gameState)
     this.coinBurstRenderer   = new CoinBurstRenderer(this)
+    // Companion NPC brain — constructed before TutorialSystem so its
+    // INTRO_DISMISSED handler registers first and her welcome line is
+    // queued ahead of the first tutorial.
+    this.npcDirector         = new NpcDirector(this, this.gameState)
     this.tutorialSystem      = new TutorialSystem(this, this.gameState)
     this.sunderedFloorRenderer = new SunderedFloorRenderer(this)
     this.cartographerOverlay   = new CartographerOverlay(this, this.gameState)
@@ -242,6 +247,12 @@ export class Game extends Phaser.Scene {
     // Boss-fight music — starts when adventurer enters boss room, fades out on resolve.
     EventBus.on('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
     EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
+    // Persist the save the moment the intro is dismissed so `meta.introSeen`
+    // hits disk immediately. The run-start save (ArchetypeSelect) is written
+    // BEFORE the intro plays, so without this a player who quits during
+    // night 1 — before any phase autosave — would see the intro replay on
+    // Continue. Saving here closes that window.
+    EventBus.on('INTRO_DISMISSED',      this._onIntroDismissed, this)
 
     this._setupCamera()
     this._setupInput()
@@ -287,6 +298,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('DAY_PHASE_ENDED',      this._onPhaseFadeOut, this)
     EventBus.off('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
+    EventBus.off('INTRO_DISMISSED',      this._onIntroDismissed, this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
     this.scale.off('resize', this._onSceneResize, this)
     if (this._onTabVisibleBound) {
@@ -336,6 +348,7 @@ export class Game extends Phaser.Scene {
     this.succubusBatRenderer?.destroy()
     this.coinBurstRenderer?.destroy()
     this.tutorialSystem?.destroy()
+    this.npcDirector?.destroy()
     this.sunderedFloorRenderer?.destroy()
     this.cartographerOverlay?.destroy()
   }
@@ -459,6 +472,17 @@ export class Game extends Phaser.Scene {
     }
     // Rebuild the solid-decor tile set after all rooms have been reapplied.
     this.dungeonGrid.rebuildSolidDecors()
+  }
+
+  // The intro was just delivered + dismissed — `meta.introSeen` is now
+  // true on the live gameState. Persist it straight away so a Continue
+  // started before the first phase autosave doesn't replay the intro.
+  // Unconditional (not gated by the AUTOSAVE setting) for the same reason
+  // ArchetypeSelect's run-start save is: the save file already exists, and
+  // the intro closes before the player builds anything, so this only
+  // corrects the flag — it doesn't capture build progress.
+  _onIntroDismissed() {
+    if (this.gameState) SaveSystem.save(this.gameState)
   }
 
   _onNightStart() {

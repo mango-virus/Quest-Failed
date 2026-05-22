@@ -946,3 +946,69 @@ Added for variety, spanning four buckets: player boons/choices, threat waves, da
 **Cursed Relic** — *minBossLevel 1.* Night modal CLAIM/BANISH. CLAIM drops a cursed Tier-5 treasure chest in the boss room (pays gold daily, glows purple-black) — but every adventurer wave is **doubled** while it sits in the dungeon (a daily toast announces the curse). Sell the chest to lift the curse.
 
 **The Saboteur** — *minBossLevel 2.* A lone masked, all-black ninja-rogue replaces the wave. They are invulnerable and minions ignore them; they run trap-to-trap disabling every trap for the day (traps re-arm overnight), then flee.
+
+---
+
+## Companion NPC — Lilith (2026-05-21)
+
+The game gets a permanent companion NPC named **Lilith** — a succubus dungeon-keeper who appears in the gameplay HUD and reacts to everything the player does and everything that happens in the dungeon. She is the player's constant in-game presence: part advisor, part commentator, part hype-demon.
+
+**Role & personality.** Lilith is the boss's devoted dungeon-keeper. Her voice is **flirty and wicked, with a sarcastic and sinister edge** — she dotes on the player ("my liege"), revels in cruelty, flirts and teases through the fourth wall, dryly roasts a bad play, and lets real menace slip through now and then. She **breaks the fourth wall** — she knows the player exists, knows they are *playing a game*, and references their clicking, building, and watching directly.
+
+**Presence.** Lilith is **always visible** during gameplay — a waist-up character peeking in from the **bottom-left corner** of the HUD, with an RPG-style chat bubble that opens up-and-right of her so it clears the build menu. She idles with a gentle breathing animation when silent.
+
+**Reactivity.** Lilith reacts to *anything and everything*:
+- **Player actions** — placing/selling/moving rooms, minions, traps, items; sealing pacts; blocked placements; beginning the day; opening panels; possessing a minion.
+- **Game events** — adventurers entering/dying/fleeing/escaping, party wipes, minion kills/deaths/level-ups/evolutions, boss fights, boss damage, boss level-ups, grid expansion, traps triggering, intel leaking, dungeon events, bounty hunters, Heroes returning, archetype mechanics firing.
+- **Ambient/idle** — when nothing is happening she fills the silence with context-aware musings (about the day count, the treasury, exposure, an idle minion) and fourth-wall asides.
+- She has a **massive, ever-expandable bank of lines** so reactions stay fresh; the bank is data-driven JSON.
+
+**Tutorials.** Lilith **fully delivers the tutorial messages** — the existing how-to-play hints are spoken by her as paged RPG dialogue ("▶ to continue"), framed as her teaching the player. The standalone tutorial popup is retired while she is enabled (it remains as a fallback when she is hidden).
+
+**Expressions.** Lilith uses a set of **42 hand-drawn expression sprites** (one static image per mood). Every line she says is tagged with the expression that fits it, so her face always matches her words and the moment. Expressions cover the full range: happy, smile, excited, cute, flirty, sexy, winking, confident, proud, smug, mischievous, evil, cackling, laughing, commanding, building, determined, aggressive, angry, worried, scared, sad, crying, guilty, upset, impatient, bored, sleeping, thinking, smart/reading, surprised, shocked, stunned, level-up, happy-with-gold, and more.
+
+**Hide option.** The options menu has a **companion control** so a player who does not want the NPC can hide her entirely. It is a three-way setting — **Off** (hidden completely), **Quiet** (only major reactions + tutorials), **Normal** (full reactivity, default).
+
+**Intent.** Lilith should feel *alive* and be *fully implemented* — not a static decoration. The goal is a companion who makes watching the dungeon-sim feel like sharing the throne room with a delighted, dangerous friend.
+
+### Lilith expansion (2026-05-21)
+
+A second pass deepening her into a full part of the experience:
+
+- **She delivers the intro.** On a new run, instead of a separate welcome popup, Lilith introduces *herself* — her name, her role as the boss's dungeon keeper — then explains the game's premise (you are the boss; build by night, defend by day; grow endlessly). The final beat is a choice she offers the player directly: allow her to give tutorial hints, or not. The old welcome modal remains only as the fallback when the companion is hidden.
+- **In-bubble hint opt-out.** While she is delivering a tutorial hint, the bubble carries a small "turn off hints" control so the player can dismiss all future hints without opening the menu.
+- **She appears beside menus.** Opening any of these menus — Knowledge Map, Boss Overview, Adventurer Intel, Minion Roster, the full Dungeon Log, Game Over, Post-Wave Summary, Boss Level-Up — makes Lilith step out **in full (full body) to the left of the menu**, where she comments on that menu and on how the run is going. She returns to her corner when the menu closes. The player should always feel her presence — she is a full part of the experience, not just a corner decoration.
+- **She is the Dark Pact broker.** Lilith replaces the demon broker who previously presided over the Grimoire of Dark Pacts. When the nightly pact choice appears, *she* presents the three pacts — tempting, wicked, delighting in the bargain. The Grimoire book + card UI is unchanged; only the broker character becomes Lilith.
+- **Sizing.** Her corner portrait was tuned slightly larger than the first minimised pass.
+
+### Lilith dialogue expansion (2026-05-21)
+
+A large content pass so Lilith comments on *specifics*, not just generic categories — and uses her full expression range far more. Delivered in batches:
+
+- **Specific commentary.** She comments on the *specific* thing in play: the boss archetype the player chose, the specific dungeon event announced, the specific room / minion / trap / item placed (and sold and moved), and the specific adventurer class entering / dying / fleeing. Mechanically: a keyed "specifics" bank — when she has a bespoke line for an entity she uses it, otherwise she falls back to the generic category.
+- **Build suggestions.** She acts as an advisor — surfacing context-aware suggestions during the build phase: what to spend gold on, that the dungeon has no traps, that exposure is high, where locked doors help, etc. Each suggestion is gated on a game-state condition.
+- **Inactivity nudges.** If the player goes a long while without doing anything — no placements, no progressing to the next day — Lilith gets visibly bored and nudges them ("are we building, my liege, or admiring?"), escalating in impatience the longer they idle.
+- **Game-system commentary.** She remarks on the game's systems as they surface — adventurers learning the dungeon (knowledge), minions evolving, bounties being posted, intel leaking, and so on.
+- **Pacts.** Per-pact bespoke lines are intentionally *not* written for all 60+ pacts — the Grimoire pact-picker already carries rich per-rarity/per-tag broker dialogue she delivers; held pacts are referenced generically by name. A few legendary pacts may get named callouts.
+- **More extras.** Playstyle meta-commentary (she notices the player's habits), streaks, last-life tension lines, day-milestone callouts, named-minion milestones, and reactions to the boss's signature archetype abilities firing.
+
+The aim: every one of her 42 expressions sees regular use, and she always has something *specific* to say.
+
+## Second companion — Malakor (2026-05-21)
+
+The game gets a **second companion**, **Malakor**, built the same way as Lilith. The player picks *one* companion per run.
+
+- **Personality.** Malakor has a different personality from Lilith: **rude, sinister, likes to roast the player — but also loyal**. Where Lilith dotes and flirts, Malakor is a gruff, contemptuous dungeon-keeper who insults the player's choices and mocks them ("boss", with sarcastic honorifics like "your dread majesty", "little king") — yet would never abandon them. The insults are real; the loyalty is realer.
+- **Sprites.** Malakor ships with **39 expression sprites** (vs Lilith's 42). His dialogue only uses ids he has. Source art: `Quest-Failed assets/Main NPC 2`, baked to `assets/npc-malakor/`.
+- **Reactivity & dialogue volume.** Malakor reacts to **all the same things Lilith does** and has **close to the same number of chat-bubble messages** — a full parallel dialogue bank (`src/data/malakorLines.json`), authored in batches, with the same category + specifics structure as Lilith's.
+- **Companion-select screen.** A new screen appears **after clicking NEW EVIL / start game and before the boss-select screen**, where the player chooses their dungeon-keeper companion between Lilith and Malakor. After confirming, the player proceeds to the boss picker. The screen shows the **full-body sprite of both companions**; hovering a companion **previews** it. The companions **react to being hovered** and have **chat bubbles** in which they talk to the player and try to convince them to pick them — in their own personalities and using their own expression sprites. The companion the player is *not* hovering reacts too (it heckles / sulks). The choice is remembered between runs and stored on the run's game state (`meta.companionId`).
+
+## Boss-select screen — decorative surround (2026-05-22)
+
+The boss-select screen (`ArchetypeSelect`) keeps its bestiary book + picker exactly as-is, but the empty black space around the book is dressed up in the companion-select screen's style:
+
+- **Header.** A title above the book — eyebrow line `◆ THE DUNGEON NEEDS A MASTER ◆` and a large `PICK YOUR DUNGEON BOSS` heading, using the CompanionSelect screen's pixel font.
+- **Atmosphere.** A dark edge **vignette** framing the book, a warm **candle-glow** radiating from the book, and slow **drifting embers** rising through the surround.
+- **Footer instruction bar.** An instruction line (`HOVER A PORTRAIT TO STUDY IT … CLICK TO CLAIM YOUR BOSS … BEGIN RUN TO DESCEND`), and the **BACK** button restyled and moved into the bottom-left of this footer band.
+- **Boss-accent tint.** The header eyebrow and the candle-glow **tint to the signature colour** of whichever boss the player is currently inspecting. *(deviation noted 2026-05-22: a pixel corner-bracket frame was added, then removed at the player's request.)*
+- **Companion at the side.** The run's chosen companion (Lilith or Malakor) **stands at the right edge** and **reacts to each boss the player hovers**, speaking a line from their own `specifics.boss` dialogue bank in a chat bubble matching the in-game companion bubble, swapping expression sprites to match.

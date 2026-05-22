@@ -82,6 +82,7 @@ export class FullLogOverlay {
   open() {
     if (this._overlay) return
     this._overlay = new Overlay({
+      npcKind:  'log',
       title:    'DUNGEON LOG · FULL RUN',
       width:    1100,
       height:   840,

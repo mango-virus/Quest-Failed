@@ -83,6 +83,7 @@ export class AdvIntelOverlay {
     this._selIdx = this._pendingSelIdx ?? 0
     this._pendingSelIdx = null
     this._overlay = new Overlay({
+      npcKind: 'intel',
       title:  'ADVENTURER INTEL',
       width:  1300,
       height: 820,

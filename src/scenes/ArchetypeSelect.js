@@ -21,6 +21,7 @@
 
 import { createGameState } from '../state/GameState.js'
 import { SaveSystem }      from '../systems/SaveSystem.js'
+import { COMPANIONS, DEFAULT_COMPANION } from '../systems/companions.js'
 import { TitleMusic }      from '../systems/TitleMusic.js'
 import { SfxVolume }       from '../systems/SfxVolume.js'
 import { applyUiCamera, pixelLock, FONT_HEAD, uiSfxHover, uiSfxClick } from '../ui/UIKit.js'
@@ -115,6 +116,22 @@ export class ArchetypeSelect extends Phaser.Scene {
     this._W = W
     this._H = H
 
+    // Per-visit state reset — Phaser reuses the scene instance across
+    // scene.start(), so fields from a previous visit leak into the next
+    // create(). In particular `_destroyed` (set true by the last shutdown)
+    // would otherwise make _mountDecorOverlay bail and the companion never
+    // appears when you BACK out and re-enter with a different companion.
+    // The slot / dossier arrays are constructor-only, so without this they
+    // would accumulate stale (destroyed) object refs across re-entries.
+    this._destroyed   = false
+    this._introDone   = false
+    this._decor       = null
+    this._slots       = []
+    this._dossierObjs = []
+    this._selectedId  = null
+    this._hoverId     = null
+    this._lockedId    = null
+
     // Text render-resolution multiplier. The boss-picker camera scales
     // the whole 1280×720 design space to fit the canvas; on most
     // displays that is an UPSCALE, and default 1×-resolution Phaser
@@ -157,6 +174,21 @@ export class ArchetypeSelect extends Phaser.Scene {
     )
     this._setupBossSwitcherKeys()
 
+    // Decorative surround for the empty space around the book. The
+    // atmosphere (vignette / candle-glow / embers) and the pixel corner
+    // frame are drawn in-scene; the header, footer and the chosen companion
+    // are a DOM overlay (`ArchetypeDecorOverlay`) so they share the exact
+    // fonts + chat-bubble styling of the CompanionSelect screen. Purely
+    // additive — none of it touches the book sprite or picker logic.
+    this.events.once('shutdown', () => {
+      this._destroyed = true
+      this._decor?.close()
+      this._decor = null
+    })
+    this._buildAtmosphere()
+    this._buildChrome()
+    this._mountDecorOverlay()
+
     // The book occupies the centre. We start with the closed-book frame
     // (frame 0 of `bestiary-open`) and play the opening animation on a tween.
     // Sprite (not Image) so we can call play() on it for the open / page-turn
@@ -171,9 +203,6 @@ export class ArchetypeSelect extends Phaser.Scene {
 
     // Container populated AFTER the open animation completes (book < content).
     this._cContent = this.add.container(0, 0).setDepth(2).setAlpha(0)
-
-    // Back button — visible immediately, lets the user bail out of the intro
-    this._drawBackButton()
 
     this._registerAnimations()
     this._playIntro()
@@ -227,6 +256,10 @@ export class ArchetypeSelect extends Phaser.Scene {
       })
       // No auto-select — highlight + dossier stay hidden until the user
       // hovers or clicks a portrait.
+      // Book is open — bring the companion in at the side. The flag covers
+      // the race where the overlay's async import resolves after this fires.
+      this._introDone = true
+      this._decor?.reveal()
     })
   }
 
@@ -588,6 +621,11 @@ export class ArchetypeSelect extends Phaser.Scene {
 
     // Render dossier
     this._renderDossier(arch)
+
+    // Decorative surround follows the focused boss — accent tint + the
+    // companion's reaction to whichever boss the player is inspecting.
+    this._applyAccent(accent)
+    this._decor?.reactToBoss(archId)
   }
 
   _renderDossier(arch) {
@@ -775,18 +813,146 @@ export class ArchetypeSelect extends Phaser.Scene {
     })
   }
 
-  // ─── Footer / chrome ────────────────────────────────────────────────────────
+  // ─── Decorative surround (atmosphere · chrome · companion) ──────────────────
+  //
+  // Everything below is additive dressing for the empty space around the
+  // bestiary book — it never touches the book sprite or the picker grid.
+  // Three groups: atmosphere (vignette + candle-glow + drifting embers),
+  // chrome (header title, footer instruction, accent corner-frame) and the
+  // chosen companion, who stands at the right and reacts to whichever boss
+  // the player is inspecting using their own `specifics.boss` dialogue bank.
 
-  _drawBackButton() {
-    const back = this.add.text(20, 20, '◀ BACK', {
-      fontSize: '14px', color: '#a08868', fontFamily: 'serif', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 3,
-    }).setOrigin(0, 0).setDepth(10).setResolution(this._textRes)
-      .setInteractive({ useHandCursor: true })
-    back.on('pointerover', () => back.setStyle({ color: '#f4d28a' }))
-    back.on('pointerout',  () => back.setStyle({ color: '#a08868' }))
-    back.on('pointerdown', () => this.scene.start('MainMenu'))
-    this.editor.register(back, 'back-button')
+  _buildAtmosphere() {
+    const W = this._W, H = this._H
+    this._makeAtmosTextures()
+
+    // Warm candle-glow radiating from the book — additive, so it brightens
+    // the book art and spills a little light into the dark margins.
+    if (this.textures.exists('arch-glow')) {
+      this._bookGlow = this.add.image(this._bookCX, this._bookCY, 'arch-glow')
+        .setDepth(1.5)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setTint(this._blendColors(0xffd6a2, 0xddaa22, 0.4))
+      this._bookGlow.setDisplaySize(W * 0.92, H * 1.34)
+      // Soft candle-flicker.
+      this.tweens.add({
+        targets: this._bookGlow, alpha: { from: 0.82, to: 1 },
+        duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      })
+    }
+
+    // Drifting embers — additive, so they glow in the dark surround and all
+    // but vanish over the bright parchment (keeps the page text readable).
+    if (this.textures.exists('arch-ember')) {
+      this._embers = this.add.particles(0, 0, 'arch-ember', {
+        x: { min: 0, max: W },
+        y: H + 30,
+        lifespan: { min: 6500, max: 12000 },
+        speedY: { min: -38, max: -16 },
+        speedX: { min: -13, max: 13 },
+        scale: { start: 0.55, end: 0.1 },
+        alpha: { start: 0.55, end: 0 },
+        tint: [0xffb24d, 0xff8a36, 0xffd98a, 0xff7a2a],
+        frequency: 340,
+        quantity: 1,
+        blendMode: 'ADD',
+      }).setDepth(4.5)
+    }
+
+    // Edge vignette — frames the book in shadow. Sits above the page content
+    // but below the companion + chrome so neither of those gets dimmed.
+    if (this.textures.exists('arch-vignette')) {
+      this._vignette = this.add.image(W / 2, H / 2, 'arch-vignette').setDepth(4)
+      this._vignette.setDisplaySize(W, H)
+    }
+  }
+
+  _makeAtmosTextures() {
+    // Small soft ember dot.
+    if (!this.textures.exists('arch-ember')) {
+      const g = this.add.graphics()
+      g.fillStyle(0xffffff, 0.35); g.fillCircle(4, 4, 4)
+      g.fillStyle(0xffffff, 1);    g.fillCircle(4, 4, 2.4)
+      g.generateTexture('arch-ember', 8, 8)
+      g.destroy()
+    }
+    // Radial candle-glow — a white alpha gradient, tinted warm at use.
+    if (!this.textures.exists('arch-glow')) {
+      const S = 256
+      const cv = this.textures.createCanvas('arch-glow', S, S)
+      if (cv) {
+        const ctx = cv.getContext()
+        const grd = ctx.createRadialGradient(S / 2, S / 2, 6, S / 2, S / 2, S / 2)
+        grd.addColorStop(0,    'rgba(255,255,255,0.6)')
+        grd.addColorStop(0.45, 'rgba(255,255,255,0.2)')
+        grd.addColorStop(1,    'rgba(255,255,255,0)')
+        ctx.fillStyle = grd
+        ctx.fillRect(0, 0, S, S)
+        cv.refresh()
+      }
+    }
+    // Edge vignette.
+    if (!this.textures.exists('arch-vignette')) {
+      const VW = 320, VH = 180
+      const cv = this.textures.createCanvas('arch-vignette', VW, VH)
+      if (cv) {
+        const ctx = cv.getContext()
+        const maxR = Math.hypot(VW / 2, VH / 2)
+        const grd = ctx.createRadialGradient(VW / 2, VH / 2, maxR * 0.40, VW / 2, VH / 2, maxR)
+        grd.addColorStop(0,    'rgba(0,0,0,0)')
+        grd.addColorStop(0.55, 'rgba(0,0,0,0)')
+        grd.addColorStop(0.80, 'rgba(6,3,10,0.42)')
+        grd.addColorStop(1,    'rgba(3,1,6,0.9)')
+        ctx.fillStyle = grd
+        ctx.fillRect(0, 0, VW, VH)
+        cv.refresh()
+      }
+    }
+  }
+
+  _buildChrome() {
+    // Accent colour — default gold, recoloured per focused boss by
+    // _applyAccent (drives the book-glow tint + the DOM overlay's header
+    // accent). The header / footer / companion all live in the DOM overlay
+    // (ArchetypeDecorOverlay); nothing chrome-like is drawn in-scene.
+    this._accent = 0xddaa22
+  }
+
+  // Recolours the book-glow and the DOM overlay's accent to the focused
+  // boss's signature colour. No-op when unchanged.
+  _applyAccent(accent) {
+    if (accent == null || accent === this._accent) return
+    this._accent = accent
+    if (this._bookGlow) this._bookGlow.setTint(this._blendColors(0xffd6a2, accent, 0.44))
+    this._decor?.setAccent(hexToCss(accent))
+  }
+
+  // Linear blend between two 0xRRGGBB colours (t = 0 → a, t = 1 → b).
+  _blendColors(a, b, t) {
+    const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255
+    const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255
+    const r  = Math.round(ar + (br - ar) * t)
+    const gg = Math.round(ag + (bg - ag) * t)
+    const bl = Math.round(ab + (bb - ab) * t)
+    return (r << 16) | (gg << 8) | bl
+  }
+
+  // ─── Companion + chrome overlay ─────────────────────────────────
+
+  // Mounts the DOM decorative overlay — header, footer and the chosen
+  // companion. DOM (not Phaser) so it reuses the CompanionSelect screen's
+  // exact fonts and the in-game chat-bubble styling. The overlay root is
+  // pointer-events:none, so the Phaser book + picker keep every click;
+  // only its BACK button re-enables pointer events.
+  _mountDecorOverlay() {
+    import("../hud/ArchetypeDecorOverlay.js").then(({ ArchetypeDecorOverlay }) => {
+      if (this._destroyed || !this.scene.isActive()) return
+      this._decor = new ArchetypeDecorOverlay(this)
+      this._decor.open()
+      this._decor.setAccent(hexToCss(this._accent ?? 0xddaa22))
+      // The intro may already have finished while the import was in flight.
+      if (this._introDone) this._decor.reveal()
+    })
   }
 
   // ─── Begin run ──────────────────────────────────────────────────────────────
@@ -801,7 +967,16 @@ export class ArchetypeSelect extends Phaser.Scene {
     // Pass the rooms cache so createGameState picks up `theme` + `tileLayout`
     // edits the user authored in the Room Editor onto the boss chamber.
     const rooms = this.cache.json.get('rooms')
-    const state = createGameState(this._selectedId, rooms)
+    // Companion picked on the CompanionSelect screen (which runs before
+    // this scene and persists the choice to localStorage). Validated
+    // against the registry so a stale / hand-edited value can't slip
+    // through; an absent value defaults to the first companion.
+    let companionId = DEFAULT_COMPANION
+    try {
+      const stored = localStorage.getItem('qf.companion')
+      if (stored && COMPANIONS[stored]) companionId = stored
+    } catch {}
+    const state = createGameState(this._selectedId, rooms, companionId)
     SaveSystem.save(state)
     // Title music carries through into the dungeon; Game.create() ducks
     // it to a quieter background level via TitleMusic.duckForGameplay.

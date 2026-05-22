@@ -44,6 +44,7 @@ export class PostWaveOverlay {
     this._fired = false
     const body = this._renderBody()
     this._overlay = new Overlay({
+      npcKind:  'postwave',
       title:    'POST-WAVE SUMMARY',
       width:    1400,
       height:   840,

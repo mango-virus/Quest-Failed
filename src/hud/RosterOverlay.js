@@ -48,6 +48,7 @@ export class RosterOverlay {
     this._filter = 'ALL'
     this._selIdx = 0
     this._overlay = new Overlay({
+      npcKind: 'roster',
       title:  'MINION ROSTER',
       width:  1300,
       height: 780,

@@ -16,6 +16,8 @@ const KEY = {
   confirmRun:      'qf.gameplay.confirmRun',
   autosave:        'qf.gameplay.autosave',
   tutorials:       'qf.gameplay.tutorials',
+  companion:       'qf.gameplay.companion',
+  speechSfx:       'qf.audio.speechSfx',
 }
 
 const DEFAULT_BOOL = {
@@ -27,6 +29,7 @@ const DEFAULT_BOOL = {
   confirmRun:      true,
   autosave:        true,
   tutorials:       true,
+  speechSfx:       true,
 }
 
 function _readBool(key) {
@@ -68,6 +71,26 @@ export const userSettings = {
   isTutorialsEnabled() {
     return _readBool(KEY.tutorials) ?? DEFAULT_BOOL.tutorials
   },
+  // Per-letter speech blip while the companion NPC types out a line
+  // (RPG-style). Default on.
+  isNpcSpeechEnabled() {
+    return _readBool(KEY.speechSfx) ?? DEFAULT_BOOL.speechSfx
+  },
+
+  // Companion NPC (Lilith) visibility + chattiness.
+  //   'off'    — hidden entirely; NpcDirector stays silent, tutorials
+  //              fall back to the standalone TutorialOverlay popup.
+  //   'quiet'  — shown, but only notable events + tutorials (no idle
+  //              chatter, no minor build-action reactions).
+  //   'normal' — full reactivity (default).
+  companionMode() {
+    try {
+      const raw = localStorage.getItem(KEY.companion)
+      if (raw === 'off' || raw === 'quiet' || raw === 'normal') return raw
+    } catch {}
+    return 'normal'
+  },
+
   // 'off' | 'low' | 'med' | 'high'. Numeric multiplier for emitters.
   particlesLevel() {
     try {

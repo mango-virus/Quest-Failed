@@ -21,12 +21,14 @@ import { h, mount } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { SfxVolume } from '../systems/SfxVolume.js'
 import { TitleMusic } from '../systems/TitleMusic.js'
+import { EventBus } from '../systems/EventBus.js'
 
 const STORE_KEYS = {
   master:    'qf.audio.master',
   music:     'qf.audio.music',
   sfx:       'qf.audio.sfx',
   ambient:   'qf.audio.ambient',
+  speechSfx: 'qf.audio.speechSfx',
   scanlines: 'qf.video.scanlines',
   vignette:  'qf.video.vignette',
   shake:     'qf.video.shake',
@@ -38,14 +40,16 @@ const STORE_KEYS = {
   autosave:   'qf.gameplay.autosave',
   hotkeys:    'qf.gameplay.hotkeys',
   tutorials:  'qf.gameplay.tutorials',
+  companion:  'qf.gameplay.companion',
 }
 
 const DEFAULTS = {
-  master: 70, music: 22, sfx: 80, ambient: 45,
+  master: 70, music: 20, sfx: 80, ambient: 45, speechSfx: true,
   scanlines: true, vignette: true, dungeonVignette: true,
   shake: true, particles: 'high',
   palette: 'crypt', fullscreen: false,
   confirmRun: true, autosave: true, hotkeys: true, tutorials: true,
+  companion: 'normal',
 }
 
 const TABS = [
@@ -195,6 +199,9 @@ export class SettingsOverlay {
     this._applyAudio(this._draft)
     this._applyVideoFlags(this._draft)
     this._applyPalette(this._draft.palette)
+    // Let live HUD listeners (e.g. the companion NPC) react to changed
+    // settings without polling localStorage.
+    EventBus.emit('SETTINGS_CHANGED')
     this._overlay.close()
   }
 
@@ -271,6 +278,9 @@ export class SettingsOverlay {
         this._slider('SFX',     'sfx'),
         this._slider('AMBIENT', 'ambient'),
       ]),
+      this._section('VOICE', 'var(--rumor)', [
+        this._toggle('COMPANION SPEECH', 'speechSfx'),
+      ]),
     ])
   }
 
@@ -315,6 +325,11 @@ export class SettingsOverlay {
       this._toggle('CONFIRM ABANDON RUN', 'confirmRun'),
       this._toggle('AUTOSAVE',            'autosave'),
       this._toggle('GAMEPLAY HINTS',      'tutorials'),
+      this._radio('COMPANION', 'companion', [
+        { v: 'off',    l: 'OFF' },
+        { v: 'quiet',  l: 'QUIET' },
+        { v: 'normal', l: 'NORMAL' },
+      ]),
     ])
   }
 

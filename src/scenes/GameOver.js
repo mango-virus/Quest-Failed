@@ -16,6 +16,7 @@ import {
 import { SaveSystem }    from '../systems/SaveSystem.js'
 import { TitleMusic }    from '../systems/TitleMusic.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
+import { GameOverMusic } from '../systems/GameOverMusic.js'
 import { SfxVolume }     from '../systems/SfxVolume.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { Leaderboard }   from '../systems/Leaderboard.js'
@@ -52,11 +53,10 @@ export class GameOver extends Phaser.Scene {
   }
 
   create() {
-    // Silence all background music the moment the run ends — the dungeon
-    // playlist or a boss-fight loop is still running when BOSS_DEFEATED_FINAL
-    // transitions us in. Only the count-up SFX should be audible here.
-    GameplayMusic.stop?.()
-    TitleMusic.stop?.()
+    // Silence the dungeon playlist / boss-fight loop still running from
+    // BOSS_DEFEATED_FINAL and loop the game-over track instead — start()
+    // stops the other music layers itself.
+    GameOverMusic.start(this)
 
     this._setupCamera()
     this.scale.on('resize', this._setupCamera, this)
@@ -67,6 +67,9 @@ export class GameOver extends Phaser.Scene {
       this._buttons.forEach(b => b?.destroy?.())
       this._objects.forEach(o => o?.destroy?.())
       this._stopCountupSound()
+      // Leaving the game-over screen — drop the loop so the next scene's
+      // music (title loop / boss picker) can start clean.
+      GameOverMusic.stop()
     })
 
     // Backdrop
