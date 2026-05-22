@@ -1,14 +1,15 @@
-const NAME_KEY      = 'qf.player.name'
-// Legacy global slot (one-shared-progress for everyone on this browser).
-// Now superseded by per-name slots; getMaxBossLevel migrates the legacy
-// value into the current player's per-name key on first read and then
-// deletes it, so the legacy slot exists only for transient unnamed runs
-// and for one-time migration of pre-update saves.
-const MAX_LEVEL_KEY = 'qf.player.maxBossLevel'
+const NAME_KEY           = 'qf.player.name'
+const MAX_LEVEL_KEY_BASE = 'qf.player.maxBossLevel'
+// Cheat handle that unlocks every boss archetype + the dev-only Room /
+// Tileset editor entries on the main menu. Case-insensitive comparison.
+const CHEAT_NAME         = 'mango'
+
+function _isCheatName(name) {
+  return (name ?? '').trim().toLowerCase() === CHEAT_NAME
+}
 
 function _maxLevelKeyFor(name) {
-  const n = (name ?? '').trim()
-  return n ? `${MAX_LEVEL_KEY}:${n}` : MAX_LEVEL_KEY
+  return `${MAX_LEVEL_KEY_BASE}:${(name ?? '').trim()}`
 }
 
 export const PlayerProfile = {
@@ -17,43 +18,42 @@ export const PlayerProfile = {
   hasName()     { const n = localStorage.getItem(NAME_KEY); return !!n && n.trim().length > 0 },
   clearName()   { localStorage.removeItem(NAME_KEY) },
 
+  // Is the current player name the "unlock-everything" cheat? Used both
+  // to bypass the boss-archetype unlock gates in ArchetypeSelect and to
+  // surface the dev-only Room / Tileset editor entries on the main menu.
+  isCheatName() {
+    return _isCheatName(this.getName())
+  },
+
   // Persistent record of the highest boss level the player has reached
-  // across all runs, scoped to the current player name. Drives
+  // across all runs, scoped to the current player name. Drives the
   // archetype-unlock gates on the picker (e.g. Succubus unlocks once the
-  // player has hit boss level 7 with this name). Renaming starts a
-  // fresh progression — only the first named player to open the game
-  // after the per-name update inherits the legacy global progress.
+  // player has hit boss level 7 with THIS name). Each name has its own
+  // slot — renaming starts a fresh progression. The cheat name bypasses
+  // the gates entirely (returns MAX_SAFE_INTEGER so every check passes);
+  // an unnamed run unlocks nothing.
+  //
+  // History: an earlier version migrated a legacy global slot
+  // (`qf.player.maxBossLevel`, no per-name suffix) into the first name
+  // read after the per-name update. That was dropped — it had a habit of
+  // silently handing the first newly-named player all the unlocks
+  // accumulated by anonymous play, which read as "any name unlocks
+  // everything" during testing.
   getMaxBossLevel() {
     const name = this.getName().trim()
-    // Cheat: player name "mango" (case-insensitive) unlocks every archetype.
-    if (name.toLowerCase() === 'mango') return Number.MAX_SAFE_INTEGER
-    if (!name) {
-      // Unnamed (pre-prompt) — read/write the legacy slot directly.
-      const v = parseInt(localStorage.getItem(MAX_LEVEL_KEY) ?? '0', 10)
-      return Number.isFinite(v) ? v : 0
-    }
-    const perKey = _maxLevelKeyFor(name)
-    let raw = localStorage.getItem(perKey)
-    if (raw == null) {
-      // First read for this name — migrate legacy global if present, so
-      // an existing pre-update player doesn't appear to lose all their
-      // unlocks the first time they reopen the picker.
-      const legacy = localStorage.getItem(MAX_LEVEL_KEY)
-      if (legacy != null) {
-        localStorage.setItem(perKey, legacy)
-        localStorage.removeItem(MAX_LEVEL_KEY)
-        raw = legacy
-      }
-    }
-    const v = parseInt(raw ?? '0', 10)
+    if (_isCheatName(name)) return Number.MAX_SAFE_INTEGER
+    if (!name) return 0
+    const v = parseInt(localStorage.getItem(_maxLevelKeyFor(name)) ?? '0', 10)
     return Number.isFinite(v) ? v : 0
   },
   recordBossLevel(level) {
     const n = parseInt(level, 10)
     if (!Number.isFinite(n) || n <= 0) return
+    const name = this.getName().trim()
+    if (!name) return                  // unnamed runs don't bank progress
+    if (_isCheatName(name)) return     // the cheat is always max — nothing to record
     if (n > this.getMaxBossLevel()) {
-      const key = _maxLevelKeyFor(this.getName().trim())
-      localStorage.setItem(key, String(n))
+      localStorage.setItem(_maxLevelKeyFor(name), String(n))
     }
   },
 }

@@ -166,9 +166,13 @@ export class MainMenuOverlay {
           }, this._currentBossName()),
           h('div', { className: 'qf-mm-currentsub' }, this._currentBossSub()),
         ]),
-        h('div', { className: 'qf-mm-items' },
-          items.map((m, i) => this._renderItem(m, i))
-        ),
+        h('div', {
+          className: 'qf-mm-items',
+          // Keep a ref so the cheat-name flip (mango on/off) can surgically
+          // swap the items without re-rendering the entire menu and
+          // restarting the boss-video chain.
+          ref: el => { this._refs = { ...(this._refs || {}), menuItems: el } },
+        }, items.map((m, i) => this._renderItem(m, i))),
         h('div', { className: 'qf-mm-spacer' }),
         // Jam Portal — animated sprite link to the game-jam lobby.
         // Mirrors what the Phaser MainMenu drew via `_drawJamPortal()`.
@@ -238,16 +242,28 @@ export class MainMenuOverlay {
   }
 
   _menuItems() {
-    return [
+    const items = [
       { id: 'continue', label: 'CONTINUE', sub: this._continueSub(), icon: '▶',
         primary: true, enabled: !!this._save, color: 'var(--blood)' },
       { id: 'new', label: 'NEW EVIL', sub: 'Begin a new run', icon: '+', color: 'var(--gold)' },
       { id: 'leader', label: 'LEADERBOARD', sub: 'Global hall of evil', icon: '◆', color: 'var(--rumor)' },
-      { id: 'rooms', label: 'ROOM EDITOR', sub: 'Edit room layouts', icon: '▤', color: 'var(--poison)' },
-      { id: 'tiles', label: 'TILESET EDITOR', sub: 'Author tile themes', icon: '▦', color: 'var(--info)' },
+    ]
+    // ROOM EDITOR + TILESET EDITOR are dev surfaces — only shown when the
+    // player's name is the cheat handle (PlayerProfile.isCheatName). Regular
+    // players don't see them at all. The menu-items list is re-rendered
+    // (surgically) on name change so flipping into / out of the cheat name
+    // makes these entries appear / disappear without leaving the menu.
+    if (PlayerProfile.isCheatName()) {
+      items.push(
+        { id: 'rooms', label: 'ROOM EDITOR', sub: 'Edit room layouts', icon: '▤', color: 'var(--poison)' },
+        { id: 'tiles', label: 'TILESET EDITOR', sub: 'Author tile themes', icon: '▦', color: 'var(--info)' },
+      )
+    }
+    items.push(
       { id: 'options', label: 'OPTIONS', sub: 'Audio · controls', icon: '◇', color: 'var(--warn)' },
       { id: 'quit', label: 'QUIT', sub: 'Return to the mortal realm', icon: '✖', color: 'var(--text-mute)' },
-    ]
+    )
+    return items
   }
 
   _continueSub() {
@@ -296,17 +312,30 @@ export class MainMenuOverlay {
       title: hasName
         ? `Change your name (currently ${name})`
         : 'Set your name — required to begin a new run',
+      'aria-label': hasName ? `Change name from ${name}` : 'Set your name',
+      // Keep a ref so we can surgically swap the pill on name change
+      // instead of re-rendering the whole menu — a full _render() would
+      // recreate the boss-video <video> element with no src and leave a
+      // black stage until the next clip would have queued.
+      ref: el => { this._refs = { ...(this._refs || {}), playerName: el } },
       on: { click: () => this._editName() },
     }, [
-      h('span', { className: 'qf-mm-playername-icon' }, '✎'),
-      h('span', { className: 'pix qf-mm-playername-label' },
-        hasName ? name.toUpperCase() : 'SET YOUR NAME'),
+      // Tiny eyebrow above the name itself — names this control as an
+      // action ("YOUR NAME · CLICK TO CHANGE") so it reads as a button
+      // even at a glance, instead of looking like decorative metadata.
+      h('div', { className: 'pix qf-mm-playername-eyebrow' },
+        hasName ? 'YOUR NAME · CLICK TO CHANGE' : 'YOUR NAME — REQUIRED'),
+      h('div', { className: 'qf-mm-playername-row' }, [
+        h('span', { className: 'qf-mm-playername-icon' }, '✎'),
+        h('span', { className: 'pix qf-mm-playername-label' },
+          hasName ? name.toUpperCase() : 'SET YOUR NAME'),
+      ]),
     ])
   }
 
   // Open NameEntryOverlay seeded with the current name (if any). Saves on
-  // confirm and re-renders the panel so the name row + boss heading
-  // update without a refresh.
+  // confirm and surgically refreshes the player-name pill so the rest of
+  // the menu (boss-video chain in particular) keeps playing untouched.
   _editName() {
     if (this._nameEntry) return
     const current = PlayerProfile.getName().trim()
@@ -320,7 +349,8 @@ export class MainMenuOverlay {
       onConfirm: (n) => {
         PlayerProfile.setName(n)
         this._nameEntry = null
-        this._render()
+        this._refreshPlayerName()
+        this._refreshMenuItems()
       },
       onCancel: () => { this._nameEntry = null },
     })
@@ -340,12 +370,39 @@ export class MainMenuOverlay {
       onConfirm: (n) => {
         PlayerProfile.setName(n)
         this._nameEntry = null
-        this._render()
+        this._refreshPlayerName()
+        this._refreshMenuItems()
         if (typeof after === 'function') after()
       },
       onCancel: () => { this._nameEntry = null },
     })
     this._nameEntry.open()
+  }
+
+  // Swap just the player-name button without re-rendering the whole menu.
+  // A full _render() would recreate the boss-video <video> element with no
+  // `src` (the video src is set imperatively in `_spawnNextBossVideo`, not
+  // declaratively in the markup), which left the stage dark behind the
+  // QUEST/FAILED title after every name change.
+  _refreshPlayerName() {
+    const old = this._refs?.playerName
+    if (!old || !old.parentNode) return
+    const fresh = this._renderPlayerName()
+    old.parentNode.replaceChild(fresh, old)
+  }
+
+  // Rebuild the menu items list IN PLACE only when the cheat-name flip
+  // actually changes the item set — ordinary renames (callum → alex) leave
+  // the items untouched, so the per-item entrance animations don't re-fire.
+  // Flipping into / out of "mango" rebuilds so ROOM/TILESET editors appear
+  // or disappear without leaving the menu and coming back.
+  _refreshMenuItems() {
+    const host = this._refs?.menuItems
+    if (!host) return
+    const items = this._menuItems()
+    if (items.length === host.children.length) return    // no add/remove
+    host.replaceChildren()
+    items.forEach((m, i) => host.appendChild(this._renderItem(m, i)))
   }
 
   // ─── Keybinds + actions ────────────────────────────────────────

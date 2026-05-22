@@ -52,7 +52,7 @@ const MORTAR           = 0x0a1420
 // on-screen the walls read as grey — not the navy WALL_BASE constant. This
 // is tuned to the mid-tone of that desaturated masonry (base bricks +
 // lighter capstones/cornerstones averaged). Replaced the `void_bg.png` tile.
-const VOID_BG_COLOR    = 0x474747
+const VOID_BG_COLOR    = 0x2c2c30
 const BRICK_W          = 32
 const BRICK_H          = 8
 const ROWS_PER_TILE    = TS / BRICK_H   // 4
@@ -3557,7 +3557,7 @@ export class DungeonRenderer {
     // Ambient grid — always drawn (masked to VOID cells via _gGrid's setup)
     // so the flat void backdrop reads as dungeon bedrock, not a blank field.
     // Kept very faint so it's texture, not visual noise.
-    this._strokeGrid(g, gw, gh, 0.09, 0.18)
+    this._strokeGrid(g, gw, gh, 0.05, 0.10)
     // Placement grid — a brighter overlay while a build placement is active,
     // so the grid "lighting up" still reads as a placement affordance.
     if (this._showGrid) this._strokeGrid(g, gw, gh, 0.46, 0.85)
