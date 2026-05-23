@@ -201,6 +201,7 @@ export class PauseOverlay {
             message:      'All progress in this dungeon will be ERASED. Continue?',
             confirmLabel: 'ABANDON',
             cancelLabel:  'STAY',
+            theme:        'crimson',
             onConfirm: () => {
               this.close()
               setTimeout(() => PauseManager.abandonAndExitToMenu(), 50)

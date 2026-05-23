@@ -813,6 +813,7 @@ export class KnowledgeMapOverlay {
       message:      `Spend ${cost}g to scrub ${room.name} intel from the shared pool?`,
       confirmLabel: 'SCRUB',
       cancelLabel:  'KEEP',
+      theme:        'soul',
       onConfirm: () => {
         EventBus.emit('KNOWLEDGE_SCRUB_REQUEST', { roomId: room.id, cost })
         // Defer rerender so the gameplay side has a chance to update pool first

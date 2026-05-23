@@ -507,6 +507,7 @@ export class RosterOverlay {
       message:      `Permanently destroy ${minion.name || minionLabel(minion.definitionId)}?`,
       confirmLabel: 'SACRIFICE',
       cancelLabel:  'CANCEL',
+      theme:        'crimson',
       onConfirm: () => {
         // The Phaser ROSTER has no canonical sacrifice path right now;
         // for parity we emit a domain event the gameplay layer can wire

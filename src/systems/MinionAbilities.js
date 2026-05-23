@@ -50,18 +50,18 @@ const MUSHROOM_IDS    = new Set(['mushroom1', 'mushroom2', 'myconid_stalker'])
 // scrolling text in a 270px panel with 9px font.
 export const MINION_ABILITY_INFO = {
   rat1:            { ability: 'Plague Bite — every hit stacks a 5-tick poison DoT.',           behavior: 'Wall Squeeze — straight-lines through walls when chasing.' },
-  zombie1:         { ability: 'One More Time — 50% chance to revive once per fight at 25% HP.', behavior: 'Idle Stand — never patrols; holds its tile until aggro.' },
-  slime2:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Bouncy Path — re-picks a new direction the moment it arrives.' },
-  slime3:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Bouncy Path — re-picks a new direction the moment it arrives.' },
-  slime4:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Bouncy Path — re-picks a new direction the moment it arrives.' },
+  zombie1:         { ability: 'One More Time — 50% chance to revive once per fight at 25% HP.', behavior: 'Roams — shuffles between rooms looking for prey; never returns home.' },
+  slime2:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Roams — bounces between rooms with no rest period.' },
+  slime3:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Roams — bounces between rooms with no rest period.' },
+  slime4:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Roams — bounces between rooms with no rest period.' },
   plant1:          { ability: 'Root Snare — first hit per fight roots the target 2.5s.',      behavior: 'Permanently Rooted — never moves once placed.' },
   goblin1:         { ability: 'Pickpocket — banks +1g per hit; lost if killed mid-day.',       behavior: 'Loot Scavenger — paths to nearby loot piles, banks +5g on contact.' },
   mushroom1:       { ability: 'Confusion Spores — death cloud staggers nearby advs 3s.',       behavior: 'Permanently Rooted — never moves once placed.' },
   skeleton1:       { ability: 'Reassemble — 30% revive at 50% HP if a skel buddy is alive in-room.', behavior: 'March in Formation — same-room skeletons sync patrol targets.' },
   lizardman1:      { ability: 'Camouflage — invisible until first attack (3× damage on reveal).', behavior: 'Lurk — anchors to a random corner each dawn; never patrols.' },
-  orc1:            { ability: 'Berserker Rage — +30% attack speed below 50% HP.',              behavior: 'Patrol Nearby Rooms — wanders into adjacent rooms (40% of trips).' },
-  gnoll1:          { ability: 'Howl — first hit alerts every other gnoll to converge.',        behavior: 'Hunter — chases adventurers across the entire dungeon.' },
-  imp1:            { ability: 'Self-Combust — explodes on death for 8 fire AoE damage.',       behavior: 'Flying — straight-lines through walls when chasing.' },
+  orc1:            { ability: 'Berserker Rage — +30% attack speed below 50% HP.',              behavior: 'Roams — wanders the whole dungeon room-to-room; picks fights wherever.' },
+  gnoll1:          { ability: 'Howl — first hit alerts every other gnoll to converge.',        behavior: 'Roams — hunts across the dungeon; never returns home between kills.' },
+  imp1:            { ability: 'Self-Combust — explodes on death for 8 fire AoE damage.',       behavior: 'Roams + Flying — wanders rooms; straight-lines through walls when chasing.' },
   ghost1:          { ability: 'Possession — 25% per hit; possessed adv attacks an ally for 2s.', behavior: 'Haunts a Tile — never moves; reaches across the room (range 5).' },
   vampire_minion1: { ability: 'Bloodthirst — heals for 50% of damage dealt.',                  behavior: 'Sleep on Ceiling — invisible until an adv enters the room.' },
   beholder1:       { ability: 'Petrify Gaze — 15% per hit to root the target 2s.',             behavior: 'Teleport — relocates to a random non-boss room every 8s.' },
@@ -69,7 +69,7 @@ export const MINION_ABILITY_INFO = {
   ent1:            { ability: 'Gnarled Hide — takes 50% less physical damage.',                behavior: 'Slow Guard — patrols home room at 0.4× speed.' },
   demon1:          { ability: 'Hellfire Brand — every hit applies a 3-tick burn DoT.',         behavior: 'Demon Sense — runs to adjacent rooms to attack intruders.' },
   golem1:          { ability: 'Earthshake — 20% per hit to stagger the target 1s.',            behavior: 'Camouflaged Pillar — invisible until an adv steps adjacent.' },
-  mimic:           { ability: 'Greedy Bite — banks +5g per hit; lost if killed mid-day.',      behavior: 'Migrate — relocates to a random treasure room each dawn.' },
+  mimic:           { ability: 'Devour — instantly kills any adventurer who tries to loot it.', behavior: 'Stationary Trap — disguised as a treasure chest; sits still until sprung.' },
 }
 
 // Family-wide resolver — maps ANY minion definitionId (including evolved
@@ -107,7 +107,6 @@ const SPORE_STAGGER_MS        = 3000
 
 // Pass-3 behavior constants
 const TS                      = 32     // tile size (matches Balance.TILE_SIZE)
-const ORC_NEIGHBOR_PATROL_PCT = 0.4    // chance Orc patrols a neighbor room instead of home
 const BEHOLDER_TELEPORT_MS    = 8000   // teleport interval
 const ENT_PATROL_SPEED_MULT   = 0.4    // Ent's already-slow patrol gets halved
 
@@ -543,8 +542,12 @@ export const MinionAbilities = {
     // Skeleton March in Formation — sync patrol target with same-room peers.
     if (id === 'skeleton1') this._tickSkeletonMarch(minion, gameState)
 
-    // Orc Patrol Nearby Rooms — occasionally pick a tile in a neighbor room.
-    if (ORC_IDS.has(id)) this._tickOrcPatrol(minion, gameState, dungeonGrid)
+    // Orcs now use the unified `behaviorType: 'roam'` dispatch in
+    // MinionAISystem (cross-room wander via A*). The bespoke
+    // _tickOrcPatrol was broken anyway — its neighbor-room target got
+    // overridden by the "not at home → return home" pathway, so orcs
+    // never actually reached the neighbor and the tooltip lied. Roam
+    // handles the whole patrol now and the tooltip matches reality.
 
     // Demon Sense — react to advs in adjacent rooms by setting an override
     // patrol target. Combat re-acquisition then engages naturally.
@@ -685,22 +688,12 @@ export const MinionAbilities = {
     }
   },
 
-  _tickOrcPatrol(orc, gameState, dungeonGrid) {
-    // 40% of the time when picking the next patrol target, pick a tile in
-    // a connected neighbor room instead of the home room. The base wander
-    // loop in _tickMinion handles the rest.
-    if (orc._patrolTarget) return
-    if ((orc._patrolAccum ?? 0) < 3000) return
-    if (Math.random() >= ORC_NEIGHBOR_PATROL_PCT) return
-    const neighbors = dungeonGrid?.getNeighborRooms?.(orc.assignedRoomId) ?? []
-    if (!neighbors.length) return
-    const dest = neighbors[Math.floor(Math.random() * neighbors.length)]
-    if (!dest) return
-    const rx = dest.gridX + Math.floor(Math.random() * dest.width)
-    const ry = dest.gridY + Math.floor(Math.random() * dest.height)
-    orc._patrolTarget = { x: rx, y: ry }
-    orc._patrolAccum  = 0
-  },
+  // _tickOrcPatrol removed — orcs now use `behaviorType: 'roam'` in
+  // minionTypes.json, which dispatches to the unified cross-room wander
+  // in MinionAISystem. The old bespoke handler set neighbor-room patrol
+  // targets that were immediately overridden by the "not at home →
+  // return home" pathway, so orcs never actually reached the neighbor.
+  // The roam dispatch suppresses that override too.
 
   _tickDemonSense(demon, gameState, dungeonGrid) {
     // Look for an adv in any neighbor room. If found, set patrol target to

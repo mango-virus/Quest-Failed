@@ -58,7 +58,17 @@ export class DayPhase extends Phaser.Scene {
     // instance across day-start invocations, so without this reset
     // `_didSpawnToday` from yesterday persists and short-circuits today's
     // spawnNow() — leaving the day stuck with no adventurers.
-    this._didSpawnToday = false
+    //
+    // Mid-day resume case: when Game.create() launches DayPhase directly
+    // because a save was made mid-wave (meta.phase === 'day' with
+    // adventurers still in active), we must NOT respawn a fresh daily
+    // wave on top of the survivors — pre-seed the guard so spawnNow()
+    // and its 2.9s defensive fallback both early-return. Skipping the
+    // respawn also leaves the player's surviving adventurers in place
+    // and lets the AI tick (now running because DayPhase is active)
+    // resume their movement straight away.
+    const _activeOnLoad = this._gameState?.adventurers?.active?.length ?? 0
+    this._didSpawnToday = _activeOnLoad > 0
     // Phase 31C — top bar / stats row / follow indicator / bottom bar +
     // CombatLog all moved to HudScene (BossTopBar / DungeonLog / ActionBar).
     // The legacy methods stay on the class as dead code; their internal

@@ -834,6 +834,30 @@ export class AISystem {
       this._occupancy[`${a.tileX},${a.tileY}`] = a.instanceId
     }
 
+    // Flee-decision broadcast. Many sites set adv.goal to FLEE (the
+    // central _setFleeGoal helper, the oscillation/no_route/goal_lost
+    // inline assignments, BossSystem._handOffToAIFlee, etc.). Rather
+    // than emit at every call site, we diff goal.type against the
+    // previous tick and broadcast ADVENTURER_FLEE_DECIDED the frame
+    // anyone first enters FLEE. The dungeon log subscribes to THIS
+    // event for the flavor message so the player sees "X panics" at
+    // the moment the AI decides, not minutes later when the adv
+    // finally crosses the entry-hall threshold and ADVENTURER_FLED
+    // fires. Reason / context come straight off the goal — every
+    // setter populates them.
+    for (const a of active) {
+      if (a.aiState === 'dead' || a.aiState === 'fled') continue
+      const goalType = a.goal?.type ?? null
+      if (goalType === 'FLEE' && a._lastGoalTypeForFleeDetect !== 'FLEE') {
+        EventBus.emit('ADVENTURER_FLEE_DECIDED', {
+          adventurer: a,
+          reason:  a.goal?.reason  ?? null,
+          context: a.goal?.context ?? null,
+        })
+      }
+      a._lastGoalTypeForFleeDetect = goalType
+    }
+
     // Dungeon event: Dungeon Pestilence — Blight DoT. ~1 dmg per 2s on
     // any adv who melee'd a minion this day. Accumulator on the adv so
     // the rate is independent of frame timing. Cleared automatically on

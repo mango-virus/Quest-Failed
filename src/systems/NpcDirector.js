@@ -157,6 +157,21 @@ export class NpcDirector {
   _on(evt, fn) { EventBus.on(evt, fn); this._unsubs.push([evt, fn]) }
 
   _wire() {
+    // Phase transitions drop any stale day/night moment that's still in
+    // flight — a high-priority event queued in `_queue` or staged in
+    // `_pendingEmit` (the 180ms coalesce window) just before the cutover
+    // would otherwise flush AFTER the phase has changed, surfacing
+    // "first blood" / "boss fight starting" lines during the night build
+    // menu. Subscribed BEFORE the REACTIONS loop so it runs first and
+    // doesn't wipe the same phase's freshly-queued night_start /
+    // day_start reaction that the loop's handler queues next.
+    const dropStale = () => {
+      this._cancelPendingEmit()
+      this._queue.length = 0
+    }
+    this._on('NIGHT_PHASE_BEGAN', dropStale)
+    this._on('DAY_PHASE_BEGAN',   dropStale)
+
     for (const evt of Object.keys(REACTIONS)) {
       const spec = REACTIONS[evt]
       this._on(evt, (payload) => this._react(spec, payload))

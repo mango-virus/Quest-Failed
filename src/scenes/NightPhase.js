@@ -10,6 +10,7 @@ import { ThemeManager, spriteCoverage } from '../systems/ThemeManager.js'
 import { PauseManager }   from '../systems/PauseManager.js'
 import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
+import { getRotatedDef } from '../util/roomRotation.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -2753,6 +2754,7 @@ export class NightPhase extends Phaser.Scene {
       message,
       confirmLabel: 'SELL',
       cancelLabel:  'CANCEL',
+      theme:        'gold',
       onConfirm: () => {
         // Run the sale first — `_doSell*` / `_finalizeRoomSell` return
         // `false` when called against an already-removed entity, which is
@@ -3144,21 +3146,10 @@ export class NightPhase extends Phaser.Scene {
     this._refreshStats()
   }
 
+  // Rotation math lives in src/util/roomRotation.js so Game.js's load-time
+  // reapply path can apply the exact same transform to a saved room.
   _getRotatedDef(def) {
-    const steps = this._rotation / 90
-    if (steps === 0) return def
-    const w = steps % 2 === 0 ? def.width  : def.height
-    const h = steps % 2 === 0 ? def.height : def.width
-    const connectionPoints = (def.connectionPoints ?? []).map(cp =>
-      _rotateCP(cp, def.width, def.height, steps)
-    )
-    let layout = Array.isArray(def.tileLayout) ? def.tileLayout : []
-    let lw = def.width, lh = def.height
-    for (let i = 0; i < steps; i++) {
-      layout = _rotateTileLayoutCW(layout, lw, lh)
-      const tmp = lw; lw = lh; lh = tmp
-    }
-    return { ...def, width: w, height: h, connectionPoints, tileLayout: layout }
+    return getRotatedDef(def, this._rotation)
   }
 
   _tryPickupRoom(p, cam) {
@@ -3380,65 +3371,9 @@ export class NightPhase extends Phaser.Scene {
   }
 }
 
-// Rotate a tileLayout 2D array 90° clockwise. layout is indexed [ry][rx]
-// for a room of (oldW × oldH); the result is indexed for (oldH × oldW).
-// Cell entries (string or {id, rot, flipH, flipV}) get their per-cell rot
-// incremented by 90° so the painted sprite turns with the room.
-//
-// Sprites with coverage > 1 anchor at the top-left of a cov×cov block; the
-// other cov*cov - 1 cells are null. CW rotation moves the block such that
-// the original (ox, oy) anchor's new TL is at (newX = oldH - cov - oy,
-// newY = ox). We walk the source layout and place each anchor at its new
-// TL — non-anchor null cells in the source need no work since the result
-// grid starts fully null.
-function _rotateTileLayoutCW(layout, oldW, oldH) {
-  const newW = oldH
-  const newH = oldW
-  const out = Array.from({ length: newH }, () => new Array(newW).fill(null))
-  for (let oy = 0; oy < oldH; oy++) {
-    const row = Array.isArray(layout?.[oy]) ? layout[oy] : null
-    if (!row) continue
-    for (let ox = 0; ox < oldW; ox++) {
-      const cell = row[ox]
-      if (cell == null) continue
-      const id  = (typeof cell === 'string') ? cell : cell.id
-      const cov = Math.max(1, spriteCoverage(ThemeManager.getSprite(id)) || 1)
-      const newX = oldH - cov - oy
-      const newY = ox
-      if (newY < 0 || newY >= newH || newX < 0 || newX >= newW) continue
-      out[newY][newX] = _rotateCellEntryCW(cell)
-    }
-  }
-  return out
-}
-
-function _rotateCellEntryCW(cell) {
-  if (cell == null) return null
-  if (typeof cell === 'string') return { id: cell, rot: 90 }
-  if (typeof cell === 'object' && typeof cell.id === 'string') {
-    const rot = (((cell.rot ?? 0) + 90) % 360 + 360) % 360
-    const out = { id: cell.id, rot }
-    if (cell.flipH) out.flipH = true
-    if (cell.flipV) out.flipV = true
-    return out
-  }
-  return null
-}
-
-// Rotate connection point (cx,cy,direction) by `steps` × 90° clockwise
-// within a room originally (w × h). w and h swap each step.
-function _rotateCP(cp, w, h, steps) {
-  const DIR_CW = { N: 'E', E: 'S', S: 'W', W: 'N' }
-  let { x, y, direction } = cp
-  for (let i = 0; i < steps; i++) {
-    const nx = h - 1 - y
-    const ny = x
-    x = nx; y = ny
-    direction = DIR_CW[direction] ?? direction
-    const tmp = w; w = h; h = tmp
-  }
-  return { ...cp, x, y, direction }
-}
+// (Rotation helpers _rotateTileLayoutCW / _rotateCellEntryCW / _rotateCP
+// moved to src/util/roomRotation.js — see getRotatedDef. Game.js's
+// load-time room reapplication path needs the same math.)
 
 function _formatTrigger(trig) {
   switch (trig) {

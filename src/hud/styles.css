@@ -1,8 +1,36 @@
 /* ---------- Reset ---------- */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+/* Native cursor hidden everywhere — CustomCursor.js paints a pixel-art
+   arrow on top of the page that overlays both the Phaser canvas and
+   the DOM HUD layer. Without `!important` the per-element `cursor:
+   pointer` declarations below would override and flicker the native
+   pointer back on every hover. */
+html, body, * { cursor: none !important; }
+button { font: inherit; color: inherit; background: none; border: none; }
 img { image-rendering: pixelated; }
+
+/* ---------- Custom cursor (overlay sprite, see src/hud/CustomCursor.js) ----------
+   Single fixed-position element parked at top-left of the viewport; the
+   JS module translates it to (clientX, clientY) on every mousemove and
+   swaps the background image through a 3-frame click animation on
+   mousedown. z-index well above any HUD/popup chrome (boot loader is
+   10000; this is 100000). */
+#qf-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 42px;       /* 21 px source × 2 → readable at game scale */
+  height: 42px;
+  pointer-events: none;
+  z-index: 100000;
+  background-repeat: no-repeat;
+  background-size: contain;
+  image-rendering: pixelated;
+  /* Smoother than top/left because it skips relayout each frame. */
+  transform: translate(-100px, -100px);
+  transition: opacity 80ms linear;
+}
 
 /* ---------- Tokens (palette: "Crypt Red" — default) ---------- */
 :root {

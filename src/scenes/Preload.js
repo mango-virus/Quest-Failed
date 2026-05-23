@@ -359,6 +359,11 @@ export class Preload extends Phaser.Scene {
     // Minion pickup / drop SFX — single sample, plays on both actions.
     this.load.audio('sfx-minion-place', 'assets/audio/pickup and drop.wav')
 
+    // Mouse-click SFX — fires from CustomCursor on every primary-button
+    // mousedown anywhere in the game. Same source as the CustomCursor
+    // click animation art.
+    this.load.audio('sfx-cursor-click', 'assets/audio/sfx-cursor-click.mp3')
+
     // Gameplay SFX — managed by SfxSystem.
     this.load.audio('sfx-death',          'assets/audio/adventurer and minion death.wav')
     this.load.audio('sfx-archer-shoot',   'assets/audio/archer long range shoot.mp3')

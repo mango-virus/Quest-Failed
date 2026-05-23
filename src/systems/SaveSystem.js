@@ -105,7 +105,7 @@ function _rehydrateRunHistory(state) {
   // saved buff would phantom-stay-active until scene time catches up to
   // the old wall-clock value. Cleanest fix: drop them on load and let the
   // owning systems re-arm fresh.
-  const TRANSIENT_KEYS = [
+  const ADV_TRANSIENT_KEYS = [
     // Class-ability windows
     '_summonGateUntil', '_focusActiveUntil', '_innerPeaceUntil',
     '_boneArmorUntil', '_invisibilityUntil', '_twitchEffectUntil',
@@ -114,31 +114,74 @@ function _rehydrateRunHistory(state) {
     '_petrifiedUntil', '_fearAttackUntil', '_charmedAt',
     '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',
     '_lootingUntil', '_gloatUntil', '_spawnFadeEnd', '_leaveFadeEnd',
-    // AI tracking
+    // AI tracking — scene-time based
     '_lastAttackAt', '_waitMs', '_tileStuckMs', '_hardStuckMs',
     '_oscNextAt', '_blightAcc', '_antiMagicNextPulseAt',
     '_fearPanicDeathTriggered', '_fearAttackArmed',
     '_fearFleeTriggered',
+    // Retaliation lock (mirrors the minion fix). `_lastHitAt` is
+    // scene.time-stamped; on load it'd appear "in the future" and
+    // every adv would think it was just hit, jumping to retaliate on
+    // a possibly-gone source.
+    '_lastHitAt', '_lastHitBy', '_lastHitType',
+    // Other AI-tick scene-time fields that surfaced in the audit —
+    // each was used as `if (now < adv._xxxUntil)` so a saved future
+    // timestamp keeps the effect active longer than intended.
+    '_scatterUntil', '_warnedUntil', '_lastAvoidTrapAt', '_lastWarnAt',
+    '_lastTameAt',
     // Anti-magic / silence
     '_provoked', '_invisible',
     // Tower Tax leak we already fixed via DAY_PHASE_STARTED reset, but
     // strip on load too so cross-save legacy state is clean.
     '_towerTaxFirstShotConsumed',
   ]
-  for (const a of (state.adventurers.active   ?? [])) {
-    for (const k of TRANSIENT_KEYS) if (k in a) delete a[k]
+  for (const a of (state.adventurers.active ?? [])) {
+    for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]
   }
+
+  // Same treatment for minions — was a known freeze cause (loaded
+  // minions stuck in perma-retaliate because `_lastHitAt` was a
+  // scene-time stamp from the previous session, now far in the
+  // future relative to the new scene's `time.now = 0`).
+  const MIN_TRANSIENT_KEYS = [
+    '_lastAttackAt',
+    '_lastClericHealAt',
+    '_raisedBardBuffUntil',
+    '_doorPatLastCp',           // patroller door state — re-derives at runtime
+    '_tameTargetedAt',          // Beast Master scene-time stamp; ClassAbilitySystem re-arms
+    '_tameTargetedBy',
+    // Retaliation lock (was missing — main minion-freeze cause)
+    '_lastHitAt', '_lastHitBy',
+  ]
   for (const m of (state.minions ?? [])) {
-    if ('_lastAttackAt' in m) delete m._lastAttackAt
-    if ('_lastClericHealAt' in m) delete m._lastClericHealAt
-    if ('_raisedBardBuffUntil' in m) delete m._raisedBardBuffUntil
-    if ('_doorPatLastCp' in m) delete m._doorPatLastCp   // patroller door state — re-derives at runtime
-    // Beast Master tame-protection stamp — _tameTargetedAt is scene-time
-    // based, so a saved value would phantom-protect a minion after load
-    // (scene time resets to 0). Drop both; ClassAbilitySystem re-stamps
-    // live if the Beast Master is still working on the tame.
-    if ('_tameTargetedAt' in m) delete m._tameTargetedAt
-    if ('_tameTargetedBy' in m) delete m._tameTargetedBy
+    for (const k of MIN_TRANSIENT_KEYS) if (k in m) delete m[k]
+    // Wipe in-flight pathing / targeting so AI rebuilds from current
+    // tile state. Cheap and avoids dangling references to entities
+    // that may have been culled between save and load.
+    if ('_patrolTarget' in m)  m._patrolTarget  = null
+    if ('_chasePath'    in m)  m._chasePath     = null
+    if ('_wasChasingFlee' in m) m._wasChasingFlee = false
+    // Held-by-player flag — set during room pickup, cleared on drop.
+    // If autosave caught a held room, minions would stay frozen
+    // (MinionAISystem.update returns early on _heldByPlayer = true).
+    if ('_heldByPlayer' in m) m._heldByPlayer = false
+  }
+
+  // Traps — same audit. The in-flight per-trap state fields
+  // (fuseEndsAt / firedAt / per-victim hitAt map) are all
+  // scene-time stamps; loading mid-day with stale values either
+  // freezes a trap (fuse "already triggered in the future") or
+  // makes it spam-hit (last-hit timestamps stale).
+  // Permanent flags (`_disabledThisDay`, `_brandBlessed`) are kept —
+  // they're not time-based and represent real per-day state.
+  for (const t of (state.dungeon?.traps ?? [])) {
+    if (!t.state) continue
+    delete t.state.fuseEndsAt
+    delete t.state.firedAt
+    delete t.state.hitAt
+    delete t.state.fuseLit
+    // exploded persists for visuals; revealed persists (knowledge).
+    // Both are booleans, not time-based.
   }
 
   return state

@@ -28,8 +28,13 @@ export class RoomTooltip {
     // Suppress re-mount when the same room is hovered again — keeps the
     // tab state across pointermove ticks.
     if (this._currentRoomId === room.instanceId && this._el) {
-      this._el.style.left = `${x + 14}px`
-      this._el.style.top  = `${y + 14}px`
+      // Offset chosen so the tooltip clears the 42-px custom cursor
+      // sprite (its hotspot is the top-left pixel; the body extends
+      // down + right). y+44 puts the tooltip's top edge just below
+      // the cursor's bottom edge; x+16 keeps it visually anchored to
+      // the cursor hotspot.
+      this._el.style.left = `${x + 16}px`
+      this._el.style.top  = `${y + 44}px`
       return
     }
     this.hide()
@@ -45,8 +50,10 @@ export class RoomTooltip {
       className: 'tooltip qf-roomtt',
       style: {
         position: 'fixed',
-        left: `${x + 14}px`,
-        top:  `${y + 14}px`,
+        // Same +16 / +44 offset as the same-room reposition path —
+        // clears the 42-px custom cursor sprite.
+        left: `${x + 16}px`,
+        top:  `${y + 44}px`,
       },
     }, [
       h('div', { className: 'tt-head' }, [

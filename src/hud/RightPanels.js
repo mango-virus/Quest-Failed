@@ -791,17 +791,23 @@ export class RightPanels {
       const k = killerName ? ` by ${killerName}` : ''
       this._addLog(`${name} slain${k}.`, 'kill')
     })
-    sub('ADVENTURER_FLED', ({ adventurer, reason, context }) => {
+    // ADVENTURER_FLEE_DECIDED fires at the moment the AI commits to a
+    // FLEE goal — the player sees the flavor line in real time
+    // ("Lyra panics at the sight of the Orc and runs!") instead of
+    // waiting for ADVENTURER_FLED, which only fires once they actually
+    // reach the entry hall and fade out (could be many seconds later
+    // and well past the player's attention window).
+    sub('ADVENTURER_FLEE_DECIDED', ({ adventurer, reason, context }) => {
       const name = adventurer?.name || 'Adventurer'
-      // Flee is gold-colored "partial win" in the original scheme — they
-      // got away but dropped gold and leaked intel. Not red (kill) and
-      // not bare-orange (leak) — its own tier.
-      // Reason + context are translated to player-facing flavor text via
-      // fleeReasonFlavor so the log reads as story instead of exposing
-      // internal AI dev codes ("goal_unreachable" etc.).
       const flavor = fleeReasonFlavor(reason, name, context)
       this._addLog(flavor, 'flee')
-      this._renderIntel()   // a flee usually leaks intel
+    })
+    // ADVENTURER_FLED still fires at exit time — keep the intel-leak
+    // rerender on that boundary since intel ledger updates depend on
+    // the adv actually escaping (a fleeing adv killed mid-route leaks
+    // nothing).
+    sub('ADVENTURER_FLED', () => {
+      this._renderIntel()
     })
     sub('MINION_DIED', ({ minion }) => {
       const name = minion?.name || minion?.type || 'Minion'

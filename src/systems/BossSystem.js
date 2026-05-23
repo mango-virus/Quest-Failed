@@ -28,9 +28,6 @@ import { Balance }  from '../config/balance.js'
 import { TILE }     from './DungeonGrid.js'
 
 const PREFIGHT_DELAY_MS = 1000   // banner pause before the first combat round
-// How long the boss lies collapsed after a NON-FINAL life loss before
-// it recovers and resumes wandering. The final death poses forever.
-const DEATH_POSE_MS     = 4000
 const ROUND_INTERVAL_S  = 0.6    // seconds of cinematic combat between damage rounds
 
 export class BossSystem {
@@ -1364,11 +1361,17 @@ export class BossSystem {
 
   _wire() {
     const onIncoming = (payload) => this._onIncoming(payload)
-    // Clear death-pose freeze whenever the world resets around the
-    // boss — next adv party arriving (BOSS_FIGHT_INCOMING) replaces
-    // the dead-pose with the prefight banner; the post-wave summary
-    // popup is the natural release point at end of day; night phase
-    // resets run-state defensively for the next day's party.
+    // Clear death-pose freeze on two boundaries:
+    //   - BOSS_FIGHT_INCOMING: a same-day second adv party is arriving,
+    //     the boss has to be ready to fight again. Replaces the dead-
+    //     pose with the prefight banner.
+    //   - NIGHT_PHASE_STARTED: the next day begins, build phase needs
+    //     the boss alive in the chamber for placement / UI.
+    // The post-wave summary used to release here too, but the player
+    // request is "stay on the last death frame until the following
+    // night phase begins" — so the boss now stays visibly dead through
+    // the end-of-day summary popup. Night phase is the only natural
+    // release point for the no-second-fight case.
     const onClearPose = () => { this._deathPoseUntil = 0 }
     // Tier 3 — blood decals get cleared at night so they don't bleed
     // (heh) into the next day's build phase.
@@ -1390,14 +1393,12 @@ export class BossSystem {
     // the throne while the day clock kept ticking.
     EventBus.on('BOSS_FIGHT_INCOMING',    onClearPose)
     EventBus.on('BOSS_FIGHT_INCOMING',    onIncoming)
-    EventBus.on('SHOW_POST_WAVE_SUMMARY', onClearPose)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearPose)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearDecals)
     EventBus.on('ADVENTURER_DIED',        onAdvDied)
     this._listeners = [
       ['BOSS_FIGHT_INCOMING',    onClearPose],
       ['BOSS_FIGHT_INCOMING',    onIncoming],
-      ['SHOW_POST_WAVE_SUMMARY', onClearPose],
       ['NIGHT_PHASE_STARTED',    onClearPose],
       ['NIGHT_PHASE_STARTED',    onClearDecals],
       ['ADVENTURER_DIED',        onAdvDied],
@@ -2242,19 +2243,19 @@ export class BossSystem {
     // party's favour without killing the boss, and that path should
     // NOT play the death anim or freeze the boss).
     //
-    // A NON-FINAL life loss poses for DEATH_POSE_MS then the boss
-    // recovers and resumes wandering — the collapse is a brief beat,
-    // not a permanent state. Only the FINAL death freezes the boss
-    // forever (Infinity). Previously BOTH cases used Infinity, so after
-    // every life loss the boss stayed frozen on the last death frame
-    // for the entire rest of the day until night reset it. An earlier
-    // BOSS_FIGHT_INCOMING / SHOW_POST_WAVE_SUMMARY still clears the
-    // pose early via _wire()'s onClearPose listener.
+    // BOTH non-final and final life losses freeze on the last death
+    // frame until something explicitly releases the pose. _wire()
+    // releases it on BOSS_FIGHT_INCOMING (a same-day second adv party
+    // is arriving, the boss must be ready to fight) and on
+    // NIGHT_PHASE_STARTED (the next day begins, build phase needs the
+    // boss alive). Crucially we do NOT release on SHOW_POST_WAVE_SUMMARY
+    // anymore — the boss stays visibly dead in the chamber through the
+    // end-of-day summary popup so the player's win reads as the boss
+    // *staying down*, not magically up before the night even starts.
+    // Final death stays Infinity-posed forever (game over; no later
+    // event will fire to clear it).
     if (winner === 'party' && boss && boss.hp <= 0) {
-      const nowMs = this._scene?.time?.now ?? 0
-      this._deathPoseUntil = this.isFinalDeath()
-        ? Infinity
-        : nowMs + DEATH_POSE_MS
+      this._deathPoseUntil = Infinity
     }
 
     EventBus.emit('BOSS_FIGHT_RESOLVED', {

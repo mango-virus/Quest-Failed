@@ -130,8 +130,11 @@ export class InspectPopup {
     const w  = el.offsetWidth  || 230
     const ht = el.offsetHeight || 130
     // Default down-right of the cursor; flip / clamp to stay on-screen.
+    // y+44 clears the 42-px custom cursor sprite's bottom edge so the
+    // tooltip header isn't covered. x+16 keeps it anchored close to
+    // the cursor hotspot horizontally.
     let left = x + 16
-    let top  = y + 16
+    let top  = y + 44
     if (left + w  > window.innerWidth  - 8) left = x - w - 16
     if (top  + ht > window.innerHeight - 8) top  = window.innerHeight - ht - 8
     el.style.left = `${Math.max(8, left)}px`

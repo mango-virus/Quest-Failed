@@ -118,7 +118,12 @@ export class DungeonLog {
       if (adventurer?._monster) return
       this._add(`${killerName ?? 'Something'} killed ${adventurer.name}.`, 'kill')
     })
-    on('ADVENTURER_FLED', ({ adventurer, reason, context }) => {
+    // Flee flavor fires at the decision moment, not at dungeon exit.
+    // ADVENTURER_FLED still emits for cleanup pipelines (knowledge
+    // survivors, intel leaks), but the player-facing log line belongs
+    // on the moment the AI commits to running — otherwise the message
+    // shows up long after the player saw the adv start their flee.
+    on('ADVENTURER_FLEE_DECIDED', ({ adventurer, reason, context }) => {
       this._add(fleeReasonFlavor(reason, adventurer.name, context), 'flee')
     })
     on('MINION_DIED', ({ minion }) => {

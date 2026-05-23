@@ -15,6 +15,22 @@ import { applyMinionScaling } from '../entities/Minion.js'
 import { AbilityVfx }       from '../ui/AbilityVfx.js'
 
 const TS = Balance.TILE_SIZE
+
+// Defs that never move — they hold their home tile until aggro'd, never
+// wander. Single source of truth used by both the wander block (skip
+// patrol target picking) and _pickTarget (exempt from flee-chase
+// follow-through; a stationary def can't physically pursue across rooms).
+// Listed minions' tooltip BEHAVIOR text honestly says "never moves" /
+// "rooted" / "haunts a tile" — don't add a def here without matching its
+// player-facing description.
+const STATIONARY_DEF_IDS = new Set([
+  'plant1',
+  'mushroom1',
+  'mushroom2',
+  'lizardman1',
+  'ghost1',
+])
+
 export class MinionAISystem {
   constructor(scene, gameState, dungeonGrid, combatSystem) {
     this._scene = scene
@@ -97,10 +113,29 @@ export class MinionAISystem {
   }
 
   _isRoomSleeping(room) {
-    // Phase 6e: starter_barracks sleeps until combat in it.
+    // Phase 6e: starter_barracks sleeps until either (a) combat fires in
+    // the room (handled by _onCombatHit) OR (b) a live, non-invisible
+    // adventurer is currently INSIDE the room. The latter is the
+    // intended "wake on intrusion" behavior — minions shouldn't let an
+    // adv stroll past them in their own quarters and only react once
+    // they've been hit. Invisible (Rogue) advs still slip through
+    // undetected, matching the boss-targeting rule.
     const sleepy = room.definitionId === 'starter_barracks' || room.definitionId === 'barracks'
     if (!sleepy) return false
-    return !this._wokenRooms.has(room.instanceId)
+    if (this._wokenRooms.has(room.instanceId)) return false
+    const advs = this._gameState?.adventurers?.active ?? []
+    for (const a of advs) {
+      if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+      if (a._invisible) continue
+      if (a.tileX >= room.gridX && a.tileX < room.gridX + room.width &&
+          a.tileY >= room.gridY && a.tileY < room.gridY + room.height) {
+        // Latch awake so subsequent ticks don't re-scan, and so the room
+        // stays alert for the rest of the day even if the adv leaves.
+        this._wokenRooms.add(room.instanceId)
+        return false
+      }
+    }
+    return true
   }
 
   _isRoomAlerted(roomId) {
@@ -339,17 +374,13 @@ export class MinionAISystem {
     // visible to that block immediately.
     MinionAbilities.tickBehavior(minion, this._scene, this._gameState, this._dungeonGrid, delta)
 
-    // Pass-1/3: stationary behavior gates. Zombies/Vinekin/Mushrooms never
-    // patrol — they hold their tile until aggro'd. Pass-3 adds Lizardman
-    // Lurk and Ghost Haunts a Tile to the same set. The aiState is left at
-    // 'idle' so combat targeting still works; we just skip the wander block
-    // below.
-    const isStationary = minion.definitionId === 'zombie1'      ||
-                         minion.definitionId === 'plant1'       ||
-                         minion.definitionId === 'mushroom1'    ||
-                         minion.definitionId === 'mushroom2'    ||
-                         minion.definitionId === 'lizardman1'   ||
-                         minion.definitionId === 'ghost1'
+    // Pass-1/3: stationary behavior gates. Vinekin/Mushrooms never patrol
+    // — they hold their tile until aggro'd. Pass-3 adds Lizardman Lurk
+    // and Ghost Haunts a Tile to the same set. The aiState is left at
+    // 'idle' so combat targeting still works; we just skip the wander
+    // block below. (Zombies were previously here but now roam — see the
+    // 'roam' behaviorType handling further down.)
+    const isStationary = STATIONARY_DEF_IDS.has(minion.definitionId)
 
     // Idle wander: any non-utility dungeon minion explores its assigned room
     // when no hostiles are in sight. Picks a random tile in the home room,
@@ -371,24 +402,76 @@ export class MinionAISystem {
       const realSpeed = minion.stats?.speed ?? 1.0
       if (isEnt && minion.stats) minion.stats.speed = realSpeed * 0.4
 
+      // Wander dispatch — three patrol scopes share the same picker:
+      //   - 'roam' behaviorType (JSON-driven: zombies, imps, gnolls,
+      //     slimes, orcs) wanders any active non-boss room. Movement
+      //     uses A* so they actually traverse doorways.
+      //   - Guard-Post-home minions get the same dungeon-wide pool.
+      //   - Boss-chamber-home minions (boss-archetype summon adds, lich
+      //     raises, gnoll hunters pack) patrol the chamber via A* (the
+      //     room has the boss + decor in the way) with a shorter idle
+      //     pause so they read as actively patrolling, not standing
+      //     still during the fight.
+      //   - Everyone else does straight-line drift inside home room.
+      const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
+      const isGuardPostHome = home?.definitionId === 'starter_guard_post'
+      const isBossChamberHome = home?.definitionId === 'boss_chamber'
+      const isRoamer = minion.behaviorType === 'roam'
+      const wanderCrossRoom = isRoamer || isGuardPostHome
+      const usePathfinder   = wanderCrossRoom || isBossChamberHome
+      const patrolPauseMs   = isBossChamberHome ? 1200 : 3000
+
       if (minion._patrolTarget) {
         if (minion.tileX === minion._patrolTarget.x && minion.tileY === minion._patrolTarget.y) {
           minion._patrolTarget = null
           // Pass-3 Slime Bouncy Path — re-pick a new direction immediately
           // (no rest period), giving Bomb Slimes their erratic feel.
-          minion._patrolAccum = isSlime ? 3000 : 0
+          minion._patrolAccum = isSlime ? patrolPauseMs : 0
+        } else if (usePathfinder) {
+          // A* routing for cross-room patrol (roam / guard post) and
+          // intra-room patrol around obstacles (boss chamber).
+          this._walkAlongPath(minion, minion._patrolTarget, delta)
         } else {
           this._moveToward(minion, minion._patrolTarget, delta)
         }
       } else {
         minion._patrolAccum = (minion._patrolAccum ?? 0) + delta
-        if (minion._patrolAccum >= 3000) {
+        if (minion._patrolAccum >= patrolPauseMs) {
           minion._patrolAccum = 0
-          const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
-          if (home) {
-            const rx = home.gridX + Math.floor(Math.random() * home.width)
-            const ry = home.gridY + Math.floor(Math.random() * home.height)
-            minion._patrolTarget = { x: rx, y: ry }
+          // Restrict wander targets to INTERIOR FLOOR tiles only. The
+          // raw bounding rect includes walls and door tiles; picking a
+          // door tile combines with _moveToward's open-door-on-approach
+          // hook to leave the minion idling on the opened doorway,
+          // looking like they tried to leave but stopped halfway.
+          // Picking a wall tile leaves them walking into a wall they
+          // can never reach. Constrain to the inner band, verify the
+          // tile is FLOOR/BOSS_FLOOR, and retry a few times if the
+          // pick lands on decor or anything else non-floor.
+          const candidateRooms = wanderCrossRoom
+            ? this._gameState.dungeon.rooms.filter(r =>
+                r.isActive !== false && r.definitionId !== 'boss_chamber')
+            : (home ? [home] : [])
+          const room = candidateRooms.length
+            ? candidateRooms[Math.floor(Math.random() * candidateRooms.length)]
+            : null
+          if (room) {
+            const WT = Balance.WALL_THICKNESS
+            const minX = room.gridX + WT
+            const minY = room.gridY + WT
+            const innerW = Math.max(1, room.width  - 2 * WT)
+            const innerH = Math.max(1, room.height - 2 * WT)
+            let pick = null
+            for (let attempt = 0; attempt < 8 && !pick; attempt++) {
+              const rx = minX + Math.floor(Math.random() * innerW)
+              const ry = minY + Math.floor(Math.random() * innerH)
+              const t = this._dungeonGrid?.getTileType?.(rx, ry)
+              if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) pick = { x: rx, y: ry }
+            }
+            // Fall back to the minion's own home tile if every roll failed
+            // (tiny room fully covered by decor / etc.) — they'll just
+            // hold position this cycle.
+            if (!pick) pick = { x: minion.homeTileX, y: minion.homeTileY }
+            minion._patrolTarget = pick
           }
         }
       }
@@ -505,9 +588,37 @@ export class MinionAISystem {
       }
       return
     }
+    // Guard Post minions don't get pulled back home between fights —
+    // their job is to patrol the WHOLE dungeon, so wherever they are
+    // when combat resolves they keep wandering. The wander block above
+    // picks the next destination (any active non-boss room) and
+    // _walkAlongPath routes them there through doorways. Without this,
+    // every kill triggered a forced return home and they'd ping-pong
+    // between the post and the next patrol target.
+    //
+    // EXCEPTION: if this minion just lost a fleeing chase (adv escaped
+    // into the entry hall or otherwise dropped off the target list),
+    // force a single return-home cycle so they actually head back to
+    // their original room before resuming patrol — matches the user
+    // request that abandoned chases end with the minion regrouping at
+    // its post, not just patrolling onward.
+    const homeRoom = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
+    const isGuardPostHomeForReturn = homeRoom?.definitionId === 'starter_guard_post'
+    const isRoamerForReturn = minion.behaviorType === 'roam'
     if (this._atHome(minion)) {
       minion.aiState = 'idle'
+      minion._wasChasingFlee = false
       // Patrol = small drift around home (Phase 6b will improve)
+    } else if (isGuardPostHomeForReturn && !minion._wasChasingFlee) {
+      minion.aiState = 'idle'
+      // Patrol = small drift around home (Phase 6b will improve)
+    } else if (isRoamerForReturn) {
+      // 'roam' behaviorType minions never head home autonomously —
+      // they keep wandering from wherever the chase / combat ended.
+      // Drops the _wasChasingFlee return-home pass on purpose so a
+      // chase that lost its target doesn't force a regroup beat.
+      minion.aiState = 'idle'
+      minion._wasChasingFlee = false
     } else {
       minion.aiState = 'returning'
       // Pathfind back home rather than straight-lining through walls.
@@ -739,6 +850,15 @@ export class MinionAISystem {
       : null
     const requireSameRoom = isGarrison ||
       (Balance.ENGAGE_REQUIRES_SAME_ROOM && !isAlerted && !isHunter && !whisperersTongue)
+    // Mobile chase exception: any minion that can actually move (not
+    // garrison, not stationary) pursues a FLEEING adventurer through the
+    // whole dungeon. Same-room and aggro-range gates are dropped for
+    // fleeing targets; pursuit ends when the adv reaches the entry hall
+    // (the explicit "give up at the door" cutoff). Stationary defs (see
+    // STATIONARY_DEF_IDS at the top of this file) and garrison can't
+    // follow, so they keep their normal room-bound targeting.
+    const isStationaryForChase = STATIONARY_DEF_IDS.has(minion.definitionId)
+    const canChaseFleeing = !isGarrison && !isStationaryForChase
 
     if (minion.faction === 'adventurer') {
       // Defected minions hunt dungeon-faction minions (and skip adventurers)
@@ -780,6 +900,26 @@ export class MinionAISystem {
       // can walk past a blocking minion without the minion halting to fight.
       if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
 
+      // Fleeing-chase gate. Cross-room pursuit is gated on the minion
+      // having ALREADY engaged this specific adv on a prior tick
+      // (currentTargetId match). That naturally limits chasers to:
+      //   - minions that were fighting the adv when they started fleeing
+      //     (currentTargetId was set during the in-room engagement and
+      //     persists across the room transition)
+      //   - minions in rooms the fleeing adv subsequently enters (they
+      //     pick the adv up via the regular same-room match below, set
+      //     currentTargetId, and from the next tick onward inherit the
+      //     cross-room exception)
+      // Distant minions that never saw the adv have no lock and stay
+      // home — no dungeon-wide stampede every time someone runs.
+      // Pursuit ends when the adv reaches entry_hall regardless.
+      const advRoom = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+      const isFleeingAdv = adv.aiState === 'fleeing'
+      const wasMyTarget = !!(minion.currentTargetId && adv.instanceId === minion.currentTargetId)
+      if (isFleeingAdv && canChaseFleeing && wasMyTarget && advRoom?.definitionId === 'entry_hall') continue
+      const isFleeChaseTarget = isFleeingAdv && canChaseFleeing && wasMyTarget &&
+                                advRoom?.definitionId !== 'entry_hall'
+
       // Is this adv inside the minion's home room, or the room the
       // minion is currently standing in? A minion that drifted out of
       // its home room (chased a target, got displaced, path home broken
@@ -800,14 +940,13 @@ export class MinionAISystem {
       // walk-along-path code.
       let inGuardPostBeat = false
       if (isGuardPost && guardPostConnectedIds && !inHome && !inStanding) {
-        const advRoom = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
         if (advRoom && guardPostConnectedIds.has(advRoom.instanceId)) {
           inGuardPostBeat = true
         }
       }
       const inMinionRoom = inHome || (inStanding && !isGarrison) || inGuardPostBeat
 
-      if (requireSameRoom && !isRetaliationTarget && !inMinionRoom) continue
+      if (requireSameRoom && !isRetaliationTarget && !inMinionRoom && !isFleeChaseTarget) continue
 
       // Distance gate. An adv sharing the minion's room is ALWAYS
       // engageable — a guard notices any intruder who walks in, no
@@ -818,7 +957,7 @@ export class MinionAISystem {
       // limits cross-room targets — an alerted / hunt / whisperersTongue
       // minion scanning neighbouring rooms.
       const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-      if (!inMinionRoom && !isRetaliationTarget) {
+      if (!inMinionRoom && !isRetaliationTarget && !isFleeChaseTarget) {
         const range = isAlerted ? aggro * 2.5 : aggro
         if (d > range) continue
       }
@@ -826,7 +965,12 @@ export class MinionAISystem {
       // Priority overrides — curse brand > martyr > retaliation > default.
       // Retaliation gets priority 2 so the minion locks onto the actual
       // attacker over an unrelated adv standing slightly closer.
-      const priority = isRetaliationTarget ? Math.max(2, _adventurerPriority(adv)) : _adventurerPriority(adv)
+      // Flee-chase targets get priority bumped to retaliation tier so
+      // a minion already locked on doesn't flicker to a closer non-
+      // fleeing adv mid-pursuit (which would let the original quarry
+      // escape).
+      const basePriority = isRetaliationTarget ? Math.max(2, _adventurerPriority(adv)) : _adventurerPriority(adv)
+      const priority = isFleeChaseTarget ? Math.max(2, basePriority) : basePriority
       if (priority > bestPriority || (priority === bestPriority && d < bestDist)) {
         best = adv
         bestDist = d
@@ -859,28 +1003,48 @@ export class MinionAISystem {
     const reach = minion.attackRange ?? Balance.MELEE_RANGE_TILES
     const d = Math.hypot(target.tileX - minion.tileX, target.tileY - minion.tileY)
 
-    // No overlap-attacks: a minion standing on the same tile as the
-    // target doesn't swing at point-blank — they wait for the adv to
-    // step off. Symmetric with the adv-side rule in AISystem.
-    if (d >= 0.99 && d <= reach + 0.01) {
-      // In range — attack
-      this._combatSystem.tryAttack(minion, target, {
-        roomId: minion.assignedRoomId,
-      })
-      return
+    // Flee-chase speed match: a fleeing adv runs at adv.stats.speed *
+    // 1.1 (the AISystem flee multiplier). Mirror that exact speed on
+    // the chaser so the pursuit is purely positional — whoever was
+    // closer wins, neither side magically out-paces the other. Saved
+    // and restored around the move calls below so the minion's base
+    // speed stays untouched between ticks. Also stamp a _wasChasingFlee
+    // flag so the no-target block can force a one-shot return home
+    // after the chase ends (otherwise guard-post minions would just
+    // resume patrol from wherever the adv escaped, instead of heading
+    // back to their post).
+    const fleeing = target?.aiState === 'fleeing'
+    const savedSpeed = minion.stats?.speed
+    if (fleeing && minion.stats && (target.stats?.speed ?? 0) > 0) {
+      minion.stats.speed = target.stats.speed * 1.1
+      minion._wasChasingFlee = true
     }
-    // Pass-3: Imp Flying / Rat Wall Squeeze — bypass the A* walker and
-    // straight-line through walls toward the target. Floats / squeezes
-    // through gaps that A* refuses to plot.
-    if (minion.definitionId === 'imp1' || minion.definitionId === 'rat1') {
-      this._moveToward(minion, { x: target.tileX, y: target.tileY }, delta)
-      return
+    try {
+      // No overlap-attacks: a minion standing on the same tile as the
+      // target doesn't swing at point-blank — they wait for the adv to
+      // step off. Symmetric with the adv-side rule in AISystem.
+      if (d >= 0.99 && d <= reach + 0.01) {
+        // In range — attack
+        this._combatSystem.tryAttack(minion, target, {
+          roomId: minion.assignedRoomId,
+        })
+        return
+      }
+      // Pass-3: Imp Flying / Rat Wall Squeeze — bypass the A* walker and
+      // straight-line through walls toward the target. Floats / squeezes
+      // through gaps that A* refuses to plot.
+      if (minion.definitionId === 'imp1' || minion.definitionId === 'rat1') {
+        this._moveToward(minion, { x: target.tileX, y: target.tileY }, delta)
+        return
+      }
+      // Out of range — chase along an A* path so the minion follows
+      // walkable tiles (through doorways) instead of straight-lining
+      // through walls. The previous straight-line _moveToward made
+      // cross-room engagements look like teleports.
+      this._walkAlongPath(minion, { x: target.tileX, y: target.tileY }, delta)
+    } finally {
+      if (fleeing && minion.stats) minion.stats.speed = savedSpeed
     }
-    // Out of range — chase along an A* path so the minion follows
-    // walkable tiles (through doorways) instead of straight-lining
-    // through walls. The previous straight-line _moveToward made
-    // cross-room engagements look like teleports.
-    this._walkAlongPath(minion, { x: target.tileX, y: target.tileY }, delta)
   }
 
   // Generalised pathfinding walker. One step per call toward `targetTile`,

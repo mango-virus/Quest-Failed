@@ -472,6 +472,7 @@ export class MainMenuOverlay {
              + 'Failed. Are you sure you want to leave?',
       confirmLabel: 'LEAVE',
       cancelLabel:  'STAY',
+      theme:        'shadow',
       onConfirm: () => this._goToJamLobby(),
     })
   }

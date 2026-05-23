@@ -65,6 +65,7 @@ import { AbilityVfx }         from '../ui/AbilityVfx.js'
 import { BossPactVfx }        from '../ui/BossPactVfx.js'
 import { TutorialSystem }     from '../systems/TutorialSystem.js'
 import { NpcDirector }        from '../systems/NpcDirector.js'
+import { getRotatedDef }      from '../util/roomRotation.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -297,7 +298,20 @@ export class Game extends Phaser.Scene {
     this.scene.launch('HudScene', { gameScene: this, gameState: this.gameState })
     this._hudScene = this.scene.get('HudScene')
 
-    this.scene.launch('NightPhase', { gameState: this.gameState })
+    // Resume the correct phase scene based on the saved state. Mid-day
+    // saves (PauseManager "Save & Exit" mid-wave) stamp meta.phase = 'day'
+    // — unconditionally launching NightPhase here strands the game in a
+    // broken state: Game.update()'s day branch runs because phase is 'day',
+    // but _getDayTimeScale() returns 0 (DayPhase not active), so AI ticks
+    // are skipped while renderers keep updating animations. Visually:
+    // adventurers + minions "walk in place" with no progress. Launch
+    // DayPhase directly in that case; DayPhase.create() detects the
+    // mid-wave resume (active.length > 0) and skips the daily wave spawn.
+    if (this.gameState?.meta?.phase === 'day') {
+      this.scene.launch('DayPhase', { gameState: this.gameState })
+    } else {
+      this.scene.launch('NightPhase', { gameState: this.gameState })
+    }
 
     EventBus.emit('GAME_STATE_LOADED', this.gameState)
   }
@@ -437,12 +451,17 @@ export class Game extends Phaser.Scene {
     if (!def) return
     for (const room of this.gameState.dungeon.rooms) {
       if (room.definitionId !== roomId) continue
+      // Rotated rooms need the def rotated to the same orientation
+      // before merging — otherwise the unrotated tileLayout / CP
+      // positions get stamped onto a rotated footprint (mismatched
+      // overlay sprites, doors in the wrong walls).
+      const rotDef = getRotatedDef(def, room.rotation ?? 0)
       // Sync the room instance's connectionPoints with the updated def so
       // doorway positions stay accurate for neighbour lookups. Auto-pair
       // CPs are preserved so door↔neighbour links survive a def edit.
-      this._mergeRoomConnectionPoints(room, def)
-      this._refreshRoomFromDef(room, def)
-      this.dungeonGrid.reapplyRoomDef(room, def)
+      this._mergeRoomConnectionPoints(room, rotDef)
+      this._refreshRoomFromDef(room, rotDef)
+      this.dungeonGrid.reapplyRoomDef(room, rotDef)
     }
     this._dungeonRenderer?.redraw()
   }
@@ -548,9 +567,15 @@ export class Game extends Phaser.Scene {
     for (const room of this.gameState.dungeon.rooms) {
       const def = defMap[room.definitionId]
       if (!def) continue
-      this._mergeRoomConnectionPoints(room, def)
-      this._refreshRoomFromDef(room, def)
-      this.dungeonGrid.reapplyRoomDef(room, def)
+      // Rotated rooms (room.rotation > 0) need the def rotated to match
+      // the saved orientation before any of the apply steps run. Without
+      // this, _refreshRoomFromDef stamps the unrotated tileLayout onto a
+      // rotated footprint, producing the patchy / mismatched overlay
+      // sprites the user saw on continued saves of rotated rooms.
+      const rotDef = getRotatedDef(def, room.rotation ?? 0)
+      this._mergeRoomConnectionPoints(room, rotDef)
+      this._refreshRoomFromDef(room, rotDef)
+      this.dungeonGrid.reapplyRoomDef(room, rotDef)
     }
     // Rebuild the solid-decor tile set after all rooms have been reapplied.
     this.dungeonGrid.rebuildSolidDecors()

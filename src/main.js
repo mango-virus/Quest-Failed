@@ -16,6 +16,7 @@ import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
 import { PauseMenu }       from './scenes/PauseMenu.js'
 import { Options }         from './scenes/Options.js'
 import { Leaderboard }     from './scenes/Leaderboard.js'
+import { installCustomCursor } from './hud/CustomCursor.js'
 
 // Future scenes registered here as they are built in later phases:
 // import { BossFight }     from './scenes/BossFight.js'
@@ -86,6 +87,13 @@ Phaser.GameObjects.GameObjectFactory.prototype.text = function (x, y, text, styl
 }
 
 window.__game = new Phaser.Game(config)
+
+// Pixel-art cursor overlay. Hides the native browser cursor (via the
+// `cursor: none` reset in styles.css) and paints a fixed-position
+// DOM sprite that follows the mouse + plays a 3-frame click anim on
+// mousedown. Top-level install so it's active across every scene and
+// the DOM HUD without per-scene wiring.
+installCustomCursor()
 
 // On window resize, debounce a layout pass — UI scenes get restarted so their
 // create() can re-run applyUiCamera and rebuild element positions for the new

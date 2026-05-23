@@ -254,14 +254,19 @@ const DOOR_STYLES = {
 const WALL_CAP_FILL = 0x3a4a64
 
 // Room border colours by category — connection-dot markers + tint wash.
+// Tint washes removed from every category per user request: the per-
+// room colorAdjust (hue/sat/bright on the sprite pixels) carries the
+// per-room voice on its own, and the flat category overlay was reading
+// as a muddy haze on top of it. Border colours retained — they still
+// drive the connection-dot markers around each room.
 const ROOM_STYLE = {
   special:  { border: PALETTE.bossBorder, tint: null },
-  starter:  { border: PALETTE.roomBorder, tint: null     },
-  trap:     { border: 0xcc4422,           tint: 0xaa2222 },
-  treasure: { border: 0xddaa22,           tint: 0xaa8822 },
-  combat:   { border: 0xcc2244,           tint: 0x882244 },
-  utility:  { border: 0x22cc88,           tint: 0x22aa66 },
-  default:  { border: PALETTE.roomBorder, tint: null     },
+  starter:  { border: PALETTE.roomBorder, tint: null },
+  trap:     { border: 0xcc4422,           tint: null },
+  treasure: { border: 0xddaa22,           tint: null },
+  combat:   { border: 0xcc2244,           tint: null },
+  utility:  { border: 0x22cc88,           tint: null },
+  default:  { border: PALETTE.roomBorder, tint: null },
 }
 
 // Tile-coord hash used for the floor stipple — deterministic so the pattern

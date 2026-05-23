@@ -2,23 +2,26 @@
 //
 // Subscribes to `SHOW_CONFIRM` with payload
 //   { title?, message, confirmLabel?, cancelLabel?, onConfirm?, onCancel?,
-//     event? }
-// Backdrop / Esc / X dismissal counts as cancel.
+//     event?, theme?, icon?, kicker?, forceChoice? }
+// Backdrop / Esc dismissal counts as cancel — UNLESS the prompt requires
+// an explicit choice (Dungeon Event decisions): those disable backdrop
+// + Esc so the player has to commit to a button.
 //
-// When `event: { theme, icon, title }` is present (night-phase Dungeon
-// Event decisions — Gambler's Coin, Negotiation Day, Black Market,
-// Mercenary Contract, Cursed Relic) a themed event-slate variant is
-// rendered instead of the plain Overlay, matching the event-banner look
-// (per-theme palette, corner brackets, icon, kicker).
+// ALL confirms — sell prompts, abandon-run, dungeon-event decisions —
+// share the corner-bracket event-slate frame. The `event` payload (used
+// by Gambler's Coin / Negotiation Day / Black Market / Mercenary
+// Contract / Cursed Relic) supplies an event-banner theme + icon + the
+// "◆ DUNGEON EVENT ◆" kicker AND auto-enables forceChoice; non-event
+// callers get the same chrome minus the kicker and icon (default
+// 'shadow' theme) and keep the click-out-to-cancel affordance. Callers
+// can override theme / kicker / icon / forceChoice individually.
 
 import { h } from './dom.js'
-import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 
 export class ConfirmPopup {
   constructor() {
-    this._overlay  = null     // generic-confirm Overlay instance
-    this._eventEl  = null     // themed event-confirm DOM node
+    this._el       = null     // mounted card DOM node
     this._escFn    = null
     this._payload  = null
     this._resolved = false
@@ -29,31 +32,43 @@ export class ConfirmPopup {
   showFor(payload) {
     // Replace any open confirm with the new payload (treat the previous
     // one as cancelled so its callback fires).
-    if (this._overlay || this._eventEl) {
+    if (this._el) {
       this._resolveAs('cancel')
       this._closeAll()
     }
     this._payload  = payload ?? {}
     this._resolved = false
-
-    if (this._payload.event) { this._showEventConfirm(); return }
-    this._showGenericConfirm()
+    this._showCard()
   }
 
-  // ── Themed event-decision modal ────────────────────────────────────────
-  _showEventConfirm() {
+  // ── Unified confirm slate ──────────────────────────────────────────────
+  // Renders the event-style frame for every confirm. The `event` payload
+  // (dungeon-event decisions) drives theme + icon + kicker defaults; for
+  // ordinary callers (sell prompts, abandon-run) the kicker and icon are
+  // omitted and the theme defaults to 'blue'.
+  _showCard() {
     const p   = this._payload
-    const ev  = p.event ?? {}
-    const theme        = String(ev.theme ?? 'gold')
-    const message      = p.message      ?? ''
-    const confirmLabel = p.confirmLabel ?? 'YES'
-    const cancelLabel  = p.cancelLabel  ?? 'CANCEL'
-    const stage = document.getElementById('hud-stage')
-    if (!stage) { this._showGenericConfirm(); return }
+    const ev  = p.event ?? null
+    const theme        = String(p.theme ?? ev?.theme ?? (ev ? 'gold' : 'shadow'))
+    const title        = ev?.title       ?? p.title        ?? 'CONFIRM'
+    const icon         = p.icon          ?? ev?.icon       ?? null
+    const kicker       = p.kicker        ?? (ev ? '◆  DUNGEON EVENT  ◆' : null)
+    const message      = p.message       ?? 'Are you sure?'
+    const confirmLabel = p.confirmLabel  ?? 'YES'
+    const cancelLabel  = p.cancelLabel   ?? 'CANCEL'
+    // Force-choice mode locks the prompt open until the player commits
+    // to a button. Defaults true for Dungeon Event decisions (they have
+    // run-altering consequences and shouldn't be auto-cancelled by a
+    // stray click outside the card); other callers can opt in via the
+    // payload. When forceChoice is on, both backdrop clicks and the Esc
+    // key become no-ops.
+    const forceChoice = p.forceChoice ?? !!ev
+    this._forceChoice = forceChoice
+    const stage = document.getElementById('hud-stage') ?? document.body
 
-    this._eventEl = h('div', {
-      className: 'qf-eventconfirm',
-      on: {
+    this._el = h('div', {
+      className: 'qf-eventconfirm' + (forceChoice ? ' qf-eventconfirm-locked' : ''),
+      on: forceChoice ? {} : {
         click: (e) => { if (e.target === e.currentTarget) this._click('cancel') },
       },
     }, [
@@ -62,10 +77,10 @@ export class ConfirmPopup {
         h('span', { className: 'qf-eventconfirm-corner tr' }),
         h('span', { className: 'qf-eventconfirm-corner bl' }),
         h('span', { className: 'qf-eventconfirm-corner br' }),
-        h('div', { className: 'qf-eventconfirm-kicker' }, '◆  DUNGEON EVENT  ◆'),
+        kicker ? h('div', { className: 'qf-eventconfirm-kicker' }, kicker) : null,
         h('div', { className: 'qf-eventconfirm-head' }, [
-          ev.icon ? h('span', { className: 'qf-eventconfirm-icon' }, ev.icon) : null,
-          h('div', { className: 'qf-eventconfirm-title' }, ev.title ?? p.title ?? 'DUNGEON EVENT'),
+          icon ? h('span', { className: 'qf-eventconfirm-icon' }, icon) : null,
+          h('div', { className: 'qf-eventconfirm-title' }, title),
         ].filter(Boolean)),
         h('div', { className: 'qf-eventconfirm-rule' }),
         h('div', { className: 'qf-eventconfirm-message' }, message),
@@ -79,56 +94,28 @@ export class ConfirmPopup {
             on: { click: () => this._click('confirm') },
           }, confirmLabel),
         ]),
-      ]),
+      ].filter(Boolean)),
     ])
-    stage.appendChild(this._eventEl)
+    stage.appendChild(this._el)
     // Force reflow so the .show fade/slam runs.
     // eslint-disable-next-line no-unused-expressions
-    this._eventEl.offsetHeight
-    this._eventEl.classList.add('show')
+    this._el.offsetHeight
+    this._el.classList.add('show')
 
-    this._escFn = (e) => { if (e.key === 'Escape') this._click('cancel') }
+    // Esc-to-cancel is also gated by forceChoice. The handler is still
+    // bound when forceChoice is on (so we can swallow Esc and prevent
+    // any upstream listener from acting on it) but it explicitly does
+    // NOT cancel the prompt — the player must commit to a button.
+    this._escFn = (e) => {
+      if (e.key !== 'Escape') return
+      if (this._forceChoice) {
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+      this._click('cancel')
+    }
     window.addEventListener('keydown', this._escFn)
-  }
-
-  // ── Generic confirm (non-event callers) ────────────────────────────────
-  _showGenericConfirm() {
-    const p = this._payload
-    const title        = p.title        ?? 'CONFIRM'
-    const message      = p.message      ?? 'Are you sure?'
-    const confirmLabel = p.confirmLabel ?? 'YES'
-    const cancelLabel  = p.cancelLabel  ?? 'CANCEL'
-
-    // Size the modal to the message so long text never needs a scrollbar.
-    const lineCount = String(message).split('\n')
-      .reduce((n, seg) => n + Math.max(1, Math.ceil(seg.length / 48)), 0)
-    const height = Math.min(560, Math.max(240, 160 + lineCount * 28))
-
-    this._overlay = new Overlay({
-      title,
-      width:  520,
-      height,
-      accent: 'var(--blood)',
-      onClose: () => {
-        if (!this._resolved) this._resolveAs('cancel')
-        this._overlay = null
-        this._payload = null
-      },
-      body: h('div', { className: 'qf-confirm-body' }, [
-        h('div', { className: 'qf-confirm-message' }, message),
-        h('div', { className: 'qf-confirm-buttons' }, [
-          h('button', {
-            className: 'btn',
-            on: { click: () => this._click('cancel') },
-          }, cancelLabel),
-          h('button', {
-            className: 'btn primary',
-            on: { click: () => this._click('confirm') },
-          }, confirmLabel),
-        ]),
-      ]),
-    })
-    this._overlay.open()
   }
 
   _click(which) {
@@ -138,17 +125,11 @@ export class ConfirmPopup {
 
   _closeAll() {
     if (this._escFn) { window.removeEventListener('keydown', this._escFn); this._escFn = null }
-    if (this._eventEl) {
-      const el = this._eventEl
-      this._eventEl = null
+    if (this._el) {
+      const el = this._el
+      this._el = null
       el.classList.add('closing')
       setTimeout(() => el.remove(), 220)
-    }
-    if (this._overlay) {
-      const ov = this._overlay
-      this._overlay = null
-      ov._opts.onClose = null   // already resolved — suppress the onClose path
-      ov.close()
     }
   }
 
