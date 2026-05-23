@@ -291,6 +291,22 @@ export class MinionAISystem {
     // _pickTarget/_engageTarget flow so the mimic swings back. Without
     // this carve-out the mimic is invulnerable from inside the chest.
     if (minion.isMimic && (minion.mimicState === 'chest' || minion.mimicState === 'sprung')) {
+      // Hard pin to homeTile — mimics never move on their own.
+      // Some other system (room MOVE displacement on rotation, knockback,
+      // a stray AI write) was nudging them off-tile by the next night.
+      // This guard snaps them back every tick they don't retaliate, so
+      // their physical position is locked even if something tries to
+      // shift it. When the player explicitly MOVES the mimic (pickup +
+      // drop) the MOVE handler updates homeTileX/Y too, so this pin
+      // honours intentional relocations.
+      if (minion.tileX !== minion.homeTileX || minion.tileY !== minion.homeTileY) {
+        minion.tileX  = minion.homeTileX
+        minion.tileY  = minion.homeTileY
+        minion.worldX = minion.homeTileX * TS + TS / 2
+        minion.worldY = minion.homeTileY * TS + TS / 2
+        minion._patrolTarget = null
+        minion._chasePath    = null
+      }
       const RETALIATE_MS = 3000
       const now = this._scene.time?.now ?? 0
       const retaliating = minion._lastHitBy &&
