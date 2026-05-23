@@ -1078,6 +1078,18 @@ export class MinionAISystem {
     this._gameState.minions = this._gameState.minions.filter(
       m => !(m._isHauntGhost && (m.aiState === 'dead' || m.resources.hp <= 0))
     )
+    // Hall of Trials spawns are one-shot. The room's promise is "one
+    // random Tier-2 minion per day, and if it dies it doesn't come
+    // back" — letting respawnAll revive a killed HoT spawn put it back
+    // alive next dawn, AND MinionEvolutionSystem.applyResets would
+    // demote it to its Tier-1 base (skeleton2 → skeleton1, etc.),
+    // which is the "respawning as T1" bug the player reported. Filter
+    // dead HoT spawns out permanently here; RoomBehaviorSystem.
+    // _onDayStart then sees no alive HoT spawn in the room and rolls
+    // a FRESH random Tier-2 — the design's intended replacement.
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m.isHallOfTrialsSpawn && (m.aiState === 'dead' || m.resources.hp <= 0))
+    )
     // Mercenary-contract minions don't revive — if the hire falls in
     // battle, the contract is over. (Surviving mercenaries are removed
     // separately by EventSystem when their 3-day contract expires.)
