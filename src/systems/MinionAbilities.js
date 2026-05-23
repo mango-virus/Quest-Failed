@@ -564,18 +564,18 @@ export const MinionAbilities = {
   },
 
   // Wire global EventBus listeners. Called from Game.create after gameState/
-  // dungeonGrid exist. Currently used for Mimic Migrate at NIGHT_PHASE_STARTED.
-  attach(scene, gameState, dungeonGrid) {
+  // dungeonGrid exist. (Previously hosted Mimic Migrate; that handler was
+  // removed 2026-05-22 when mimics became stationary chest traps — see
+  // AISystem._springMimic for the new mechanic. attach/detach are kept as
+  // stubs so future per-system hooks can land here without re-wiring
+  // MinionAISystem's create/destroy.)
+  attach(_scene, _gameState, _dungeonGrid) {
     if (this._attached) return
     this._attached = true
-    this._migrateHandler = () => this._migrateMimics(gameState, dungeonGrid)
-    EventBus.on('NIGHT_PHASE_STARTED', this._migrateHandler)
   },
 
   detach() {
     if (!this._attached) return
-    if (this._migrateHandler) EventBus.off('NIGHT_PHASE_STARTED', this._migrateHandler)
-    this._migrateHandler = null
     this._attached = false
   },
 
@@ -767,38 +767,11 @@ export const MinionAbilities = {
     }
   },
 
-  // Mimic Migrate — move every mimic to a different chest-bearing room each
-  // night. If no other suitable room exists, the mimic stays put.
-  _migrateMimics(gameState, dungeonGrid) {
-    const mimics = (gameState?.minions ?? []).filter(m => m.definitionId === 'mimic' && m.aiState !== 'dead')
-    if (!mimics.length) return
-    const rooms = gameState?.dungeon?.rooms ?? []
-    const chestRoomIds = new Set(
-      rooms.filter(r => Array.isArray(r.tags) ? r.tags.includes('treasure') : false).map(r => r.instanceId)
-    )
-    // Fallback: any room except boss/entry — mimics can hop to any normal room.
-    const candidatePool = rooms.filter(r =>
-      r.definitionId !== 'boss_chamber' &&
-      r.definitionId !== 'starter_entry' &&
-      r.definitionId !== 'entry'
-    )
-    for (const m of mimics) {
-      const pool = candidatePool.filter(r => r.instanceId !== m.assignedRoomId)
-      if (!pool.length) continue
-      // Prefer a treasure room if any are in the candidate list.
-      const treasure = pool.filter(r => chestRoomIds.has(r.instanceId))
-      const dest = (treasure.length ? treasure : pool)[Math.floor(Math.random() * (treasure.length ? treasure.length : pool.length))]
-      const tx = dest.gridX + Math.floor(dest.width / 2)
-      const ty = dest.gridY + Math.floor(dest.height / 2)
-      m.tileX  = tx
-      m.tileY  = ty
-      m.homeTileX = tx
-      m.homeTileY = ty
-      m.worldX = tx * TS + TS / 2
-      m.worldY = ty * TS + TS / 2
-      m.assignedRoomId = dest.instanceId
-    }
-  },
+  // [Removed 2026-05-22] _migrateMimics. Old design hopped every mimic to
+  // a random different room each night, which contradicted the new
+  // "stationary chest trap" mechanic — mimics now stay where the player
+  // placed them (or where the Mimic Vault spawned them). See
+  // AISystem._springMimic for the rework.
 
   // Lizardman Lurk — set the home tile to a corner of its room on respawn.
   _placeLizardmanInCorner(minion, gameState) {
