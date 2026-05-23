@@ -46,7 +46,7 @@ const BONE_DAYS_MIN  = 3
 const BONE_DAYS_MAX  = 7
 // Boss chamber gets a flat shorter window — most adv deaths happen
 // here so a longer life means towers of bones + blood by day 4.
-const BOSS_DAYS = 2
+const BOSS_DAYS = 3
 
 // Bone-spawn-on-death chance. Total odds + which kind:
 //   60% nothing (blood only)
