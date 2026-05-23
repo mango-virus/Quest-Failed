@@ -3676,35 +3676,6 @@ export class DungeonRenderer {
       this._gOverlay.fillStyle(0x000000, 0.55)
       this._gOverlay.fillRect(px, py, pw, ph)
     }
-
-    // Companion-flavour room wash — a subtle accent tint over rooms
-    // the chosen companion has a thematic claim on. Active rooms only
-    // so the wash doesn't fight the dimmed-out look of inactive ones.
-    if (room.isActive) {
-      const tint = this._companionRoomTint(room, def)
-      if (tint) {
-        this._gOverlay.fillStyle(tint.color, tint.alpha)
-        this._gOverlay.fillRect(px, py, pw, ph)
-      }
-    }
-  }
-
-  // Picks a flavour tint for a room based on the chosen companion.
-  //   • Lilith   → pink wash over the boss chamber (her "den")
-  //   • Zul'Gath → gold haze over treasury rooms (her hoard)
-  // Returns null for any companion/room combo that doesn't match — the
-  // common case, so this stays cheap on the hot redraw path.
-  _companionRoomTint(room, def) {
-    const cmp = this._gameState?.meta?.companionId
-    if (!cmp) return null
-    const id = def?.id
-    if (cmp === 'lilith' && id === 'boss_chamber') {
-      return { color: 0xff4f9d, alpha: 0.10 }
-    }
-    if (cmp === 'zulgath' && id === 'treasury') {
-      return { color: 0xffc83a, alpha: 0.12 }
-    }
-    return null
   }
 
   // ── Collision overlay (debug) ──────────────────────────────────────────────
