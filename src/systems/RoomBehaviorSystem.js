@@ -149,6 +149,15 @@ export class RoomBehaviorSystem {
     // refill case (the existing crypts the player already had) and the
     // first-day-after-placement case for newly-built rooms.
 
+    // Throne Room mini-boss respawn (user 2026-05-22): if a Throne Room
+    // mini-boss died yesterday, refill it during the night build phase
+    // so the throne is visibly occupied before dawn. Idempotent — if a
+    // mini-boss is still alive in the room, this is a no-op. Newly-built
+    // Throne Rooms STILL get their first mini-boss at day-start (see
+    // _onDayStart) since this _onNightStart hook fires before the player
+    // can place anything.
+    this._spawnThroneMinibosses()
+
     // [Removed 2026-04-30] Necropolis Wing corpse-to-minion conversion.
     // Catacombs now fills the corpse-spawn role (see AISystem._kill).
   }
@@ -283,45 +292,11 @@ export class RoomBehaviorSystem {
       }
     }
 
-    // Room redesign 2026-04-30 — Throne Room: spawn 1 mini-boss per Throne
-    // Room daily. Stats scale with current dungeonLevel. Mini-boss is a
-    // garrison minion (room-bound) and the only minion allowed in the room.
-    const thrones = (this._gameState.dungeon.rooms ?? []).filter(r =>
-      r.definitionId === 'throne_room' && r.isActive !== false
-    )
-    if (thrones.length > 0) {
-      const baseMini = minionTypes.find(d => d.id === 'skeleton3') ?? minionTypes.find(d => d.id === 'skeleton2') ?? baseDef
-      const dungeonLv = this._gameState.boss?.level ?? 1
-      const lvOver  = dungeonLv - 1
-      const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver
-      const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver
-      for (const room of thrones) {
-        const aliveHere = (this._gameState.minions ?? []).filter(m =>
-          m.assignedRoomId === room.instanceId && m.isThroneMiniBoss && m.aiState !== 'dead'
-        ).length
-        if (aliveHere > 0) continue
-        const cx = room.gridX + Math.floor(room.width / 2)
-        const cy = room.gridY + Math.floor(room.height / 2)
-        const baseStats = baseMini.baseStats ?? { hp: 60, attack: 12, defense: 6, speed: 1 }
-        const m = this._makeGarrison(baseMini, room, {
-          tileX: cx, tileY: cy,
-          namePrefix: 'Mini-Boss',
-          extra: {
-            isThroneMiniBoss: true,
-            isMiniBoss: true,
-            bossLevel: dungeonLv,
-          },
-          statsOverride: {
-            hp:      Math.floor((baseStats.hp      ?? 60) * hpMult),
-            attack:  Math.floor((baseStats.attack  ?? 12) * atkMult),
-            defense: Math.floor((baseStats.defense ??  6) * hpMult),
-            speed:   baseStats.speed ?? 1,
-          },
-        })
-        this._gameState.minions.push(m)
-        EventBus.emit('THRONE_MINIBOSS_SPAWNED', { minion: m, roomId: room.instanceId, dungeonLv })
-      }
-    }
+    // Throne Room — spawn at day start so a freshly-built throne room
+    // has its mini-boss ready for the first wave of the day. The same
+    // helper also fires from _onNightStart so a killed mini-boss can
+    // respawn during the night build phase (user request 2026-05-22).
+    this._spawnThroneMinibosses()
   }
 
   // ── False Exit + room redesign hooks — react on room change ──────────────
@@ -496,6 +471,66 @@ export class RoomBehaviorSystem {
     }
     this._gameState.minions ??= []
     return m
+  }
+
+  // Throne Room mini-boss spawn helper. Fires from both _onDayStart
+  // (so a freshly-built Throne Room has a mini-boss ready for Day 1)
+  // and _onNightStart (so a killed mini-boss respawns at the next
+  // night phase, per user 2026-05-22). Idempotent: skips any Throne
+  // Room that already has an alive mini-boss.
+  //
+  // Per user 2026-05-22:
+  //   - Random Tier-3 minion (not just skeleton3)
+  //   - Base stats × 2, THEN scale with boss level
+  //   - Tagged with `_mbDisplayScale` so MinionRenderer draws the
+  //     sprite almost as big as the actual boss
+  _spawnThroneMinibosses() {
+    const thrones = (this._gameState.dungeon?.rooms ?? []).filter(r =>
+      r.definitionId === 'throne_room' && r.isActive !== false
+    )
+    if (thrones.length === 0) return
+    const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
+    // Tier-3 pool — same id-ends-in-3 convention HoT uses for T2.
+    // Excludes the boss-tier slime4 sequence and leaves elder_slime3,
+    // ent3, goblin3, imp3, plant3, rat3, skeleton3, slime3, zombie3.
+    const tier3Pool = minionTypes.filter(d => /[a-z_]+3$/.test(d.id))
+    if (tier3Pool.length === 0) return
+    const dungeonLv = this._gameState.boss?.level ?? 1
+    const lvOver  = dungeonLv - 1
+    const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver
+    const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver
+    const MINIBOSS_DOUBLER = 2   // base stats × 2 before boss-level scaling
+    for (const room of thrones) {
+      const aliveHere = (this._gameState.minions ?? []).filter(m =>
+        m.assignedRoomId === room.instanceId && m.isThroneMiniBoss && m.aiState !== 'dead'
+      ).length
+      if (aliveHere > 0) continue
+      const def = tier3Pool[Math.floor(Math.random() * tier3Pool.length)]
+      const cx = room.gridX + Math.floor(room.width / 2)
+      const cy = room.gridY + Math.floor(room.height / 2)
+      const baseStats = def.baseStats ?? { hp: 60, attack: 12, defense: 6, speed: 1 }
+      const m = this._makeGarrison(def, room, {
+        tileX: cx, tileY: cy,
+        namePrefix: 'Mini-Boss',
+        extra: {
+          isThroneMiniBoss:  true,
+          isMiniBoss:        true,
+          bossLevel:         dungeonLv,
+          // Sprite-scale flag read by MinionRenderer to draw the mini-
+          // boss noticeably larger than a normal minion (closer to the
+          // dungeon boss's footprint).
+          _mbDisplayScale:   2.0,
+        },
+        statsOverride: {
+          hp:      Math.floor((baseStats.hp      ?? 60) * MINIBOSS_DOUBLER * hpMult),
+          attack:  Math.floor((baseStats.attack  ?? 12) * MINIBOSS_DOUBLER * atkMult),
+          defense: Math.floor((baseStats.defense ??  6) * MINIBOSS_DOUBLER * hpMult),
+          speed:   baseStats.speed ?? 1,
+        },
+      })
+      this._gameState.minions.push(m)
+      EventBus.emit('THRONE_MINIBOSS_SPAWNED', { minion: m, roomId: room.instanceId, dungeonLv })
+    }
   }
 
   _rollWishingWell(adv) {

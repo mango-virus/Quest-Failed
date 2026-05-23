@@ -1090,6 +1090,16 @@ export class MinionAISystem {
     this._gameState.minions = this._gameState.minions.filter(
       m => !(m.isHallOfTrialsSpawn && (m.aiState === 'dead' || m.resources.hp <= 0))
     )
+    // Throne Room mini-bosses are the same shape — kill drops the
+    // tagged entity entirely so the next _spawnThroneMinibosses pass
+    // rolls a fresh random Tier-3 with double-base stats. Without this
+    // filter, respawnAll would resurrect the dead mini-boss at full HP
+    // and applyResets would demote its Tier-3 def to a Tier-1 base,
+    // mirroring the HoT regression but worse — the mini-boss would
+    // come back puny.
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m.isThroneMiniBoss && (m.aiState === 'dead' || m.resources.hp <= 0))
+    )
     // Mercenary-contract minions don't revive — if the hire falls in
     // battle, the contract is over. (Surviving mercenaries are removed
     // separately by EventSystem when their 3-day contract expires.)

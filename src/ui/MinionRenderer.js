@@ -23,6 +23,14 @@ const MINION_SCALE     = 1.0    // native — 64 → 64 px, 128 → 128 px (NEAR
 // reads the same size as the adventurer it used to be — otherwise they
 // render at 1.0 and look 33% too big.
 const RAISED_DEAD_SCALE = 0.75
+// Per-minion display-scale multiplier — set by spawn handlers when a
+// minion should render at a non-default footprint. Currently used for
+// Throne Room mini-bosses (2.0× via _mbDisplayScale) so they read as
+// "almost as big as the boss" without needing a separate sprite sheet.
+// Reads from `m._mbDisplayScale` (number) → defaults to 1.0 when unset.
+function _displayScaleFor(m) {
+  return (typeof m?._mbDisplayScale === 'number') ? m._mbDisplayScale : 1.0
+}
 const PLACEHOLDER_SIZE = 18
 const HURT_FLASH_MS    = 300
 const ATTACK_FLASH_MS  = 400
@@ -629,7 +637,8 @@ export class MinionRenderer {
     if (this._scene.textures.exists(idleKey)) s.sprite.setTexture(idleKey, 0)
     const tierScale = this._tierScaleFor(m.definitionId)
     const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
-    s.sprite.setScale(baseScale * tierScale)
+    const dispScale = _displayScaleFor(m)
+    s.sprite.setScale(baseScale * tierScale * dispScale)
     s.currentAnim = null   // force play() with the new prefix next tick
   }
 
@@ -642,12 +651,13 @@ export class MinionRenderer {
 
     const tierScale = this._tierScaleFor(m.definitionId)
     const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
+    const dispScale = _displayScaleFor(m)
     const sprite = s.add.sprite(0, 0, idleKey, 0)
       .setOrigin(0.5)
-      .setScale(baseScale * tierScale)
+      .setScale(baseScale * tierScale * dispScale)
 
     const fs          = def.frameSize ?? 64
-    const displaySize = fs * baseScale
+    const displaySize = fs * baseScale * dispScale
     const hpBarW      = Math.round(displaySize * 0.55)
     // HP bar sits just above the sprite's top edge (a few pixels of gap so
     // it reads clearly without feeling detached). Frame size varies by
