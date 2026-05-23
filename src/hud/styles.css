@@ -117,6 +117,15 @@ body {
      true black here. */
   background: #000;
   -webkit-font-smoothing: antialiased;
+  /* Pixel-font wrap fix — Press Start 2P at small sizes with the
+     browser's default `line-height: normal` lands at ~1.0×, which
+     makes any wrapped pixel label (e.g. SettingsOverlay's "COMPANION
+     SPEECH" stack) collapse with no visible gap between lines.
+     `line-height` is inherited, so a single default here lifts every
+     pixel/VT323/mono block that hasn't set its own value. Elements
+     that need a tight 1.0 (icon buttons, single-glyph rows etc.)
+     already set `line-height: 1` explicitly and stay unaffected. */
+  line-height: 1.55;
 }
 
 #root {
@@ -139,7 +148,20 @@ body {
 }
 
 /* ---------- Typography primitives ---------- */
-.pix    { font-family: var(--pix); letter-spacing: 0.5px; image-rendering: pixelated; }
+.pix    {
+  font-family: var(--pix);
+  letter-spacing: 0.5px;
+  image-rendering: pixelated;
+  /* Press Start 2P + browser default `line-height: normal` ends up
+     ~1.0×, which makes any wrapped pixel-font block read as two
+     stacked lines with no gap (caps from line 2 visually touch line
+     1 — see e.g. SettingsOverlay "COMPANION SPEECH"). All pixel-font
+     labels go through this class, so a sane default here fixes
+     wrap-collisions everywhere at once. Elements that need a tight
+     1.0 line (single-glyph icon buttons etc.) already override
+     locally — e.g. .qf-bb-menu-icon, .qf-buff-overflow-glyph. */
+  line-height: 1.55;
+}
 .term   { font-family: var(--term); letter-spacing: 0.5px; }
 .mono   { font-family: var(--mono); }
 .up     { text-transform: uppercase; letter-spacing: 1.5px; }
@@ -2810,16 +2832,16 @@ body {
   overflow: hidden;
 }
 .qf-settings-tabs {
-  width: 180px;
+  width: 160px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 8px;
+  gap: 4px;
+  padding-top: 4px;
 }
 .qf-settings-tab {
   justify-content: flex-start;
-  padding: 12px 16px;
-  gap: 12px;
+  padding: 10px 14px;
+  gap: 10px;
   border-color: var(--line-2);
   background: var(--bg-2);
   display: flex;
@@ -2853,17 +2875,18 @@ body {
   border: 1px solid var(--line-2);
 }
 
-.qf-settings-section { margin-bottom: 18px; }
+.qf-settings-section { margin-bottom: 12px; }
+.qf-settings-section:last-child { margin-bottom: 0; }
 .qf-settings-section-title {
   font-size: 9px;
   letter-spacing: 2px;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
 }
 .qf-settings-section-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .qf-settings-row {
@@ -2871,7 +2894,7 @@ body {
   grid-template-columns: 140px 1fr 50px;
   gap: 12px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 6px 12px;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
 }
@@ -2958,8 +2981,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
-  margin-bottom: 4px;
+  padding: 6px 12px;
+  margin-bottom: 3px;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   font-family: var(--mono);
@@ -2981,8 +3004,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 14px;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--line-2);
 }
 .qf-settings-reset { color: var(--text-mute); }
@@ -6481,11 +6504,17 @@ body {
 .qf-mm-panel {
   position: relative;
   background: #0c060e;
-  padding: 60px 32px 24px;
+  /* Tightened (was 60px/24px) — the global line-height: 1.55 added in
+     the styles.css typography fix made every text block ~10% taller,
+     and the panel has `overflow: hidden`, which was clipping the
+     bottom footer (v 0.1.4 · SAVE OK · BONEMAKER · MMXXVI). Reduced
+     padding + the jam-portal and menu-item shrinks below recover the
+     ~80px we needed back. */
+  padding: 44px 32px 18px;
   display: flex; flex-direction: column;
   overflow: hidden;
 }
-.qf-mm-panelhead { margin-bottom: 28px; }
+.qf-mm-panelhead { margin-bottom: 18px; }
 /* Player-name button — sits above the "YOUR REIGN, MY LORD" eyebrow on
    the main menu, click to open NameEntryOverlay. Designed to UNAMBIGUOUSLY
    read as a button: full-width row, visible gold border at rest, an
@@ -6562,11 +6591,13 @@ body {
   color: var(--text-mute); letter-spacing: 1px;
 }
 
-.qf-mm-items { display: flex; flex-direction: column; gap: 8px; }
+.qf-mm-items { display: flex; flex-direction: column; gap: 6px; }
 .qf-mm-item {
   width: 100%;
   justify-content: center;
-  padding: 14px 20px;
+  /* Vertical padding reduced (was 14px) so the four menu rows give
+     back ~32px to the footer below — see .qf-mm-panel comment. */
+  padding: 9px 20px;
   text-align: center;
   display: flex; align-items: center; gap: 14px;
 }
@@ -6617,7 +6648,8 @@ body {
   border: none;
   cursor: pointer;
   padding: 0;
-  margin: 0 auto 18px;
+  /* Margin tightened (was 18px) — see .qf-mm-panel comment. */
+  margin: 0 auto 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -6626,13 +6658,15 @@ body {
 }
 .qf-mm-jamportal:hover { transform: scale(1.08); }
 .qf-mm-jamportal-sprite {
-  width: 192px;
-  height: 192px;
-  /* 96×64 sheet, 3 cols × 2 rows of 32×32 frames. Scale 6× via
-     background-size so the sprite renders at 192px cells. Keyframe
-     offsets below match the 192px stride. */
+  /* Shrunk from 192×192 → 128×128 to give the bottom footer back the
+     vertical space it needs (the line-height: 1.55 typography fix
+     pushed the panel content past the .qf-mm-panel `overflow: hidden`
+     boundary). 96×64 sheet, 3×2 grid of 32×32 frames → scale 4× so
+     each cell renders at 128px. Keyframe stride = 128px. */
+  width: 128px;
+  height: 128px;
   background-image: url('../../assets/sprites/jam_portal.png');
-  background-size: 576px 384px;
+  background-size: 384px 256px;
   background-repeat: no-repeat;
   background-position: 0 0;
   image-rendering: pixelated;
@@ -6642,11 +6676,11 @@ body {
 }
 @keyframes qf-mm-jamportal-spin {
   0%      { background-position:    0px    0px; }
-  16.66%  { background-position: -192px    0px; }
-  33.33%  { background-position: -384px    0px; }
-  50%     { background-position:    0px -192px; }
-  66.66%  { background-position: -192px -192px; }
-  83.33%  { background-position: -384px -192px; }
+  16.66%  { background-position: -128px    0px; }
+  33.33%  { background-position: -256px    0px; }
+  50%     { background-position:    0px -128px; }
+  66.66%  { background-position: -128px -128px; }
+  83.33%  { background-position: -256px -128px; }
 }
 .qf-mm-jamportal-label {
   font-size: 10px;
@@ -6699,19 +6733,23 @@ body {
   83.33%  { background-position: -120px  -60px; }
 }
 
-.qf-mm-bottom { margin-top: 24px; text-align: center; }
+/* Bottom block tightened (margin-top 24→12, prompt margin-bottom
+   14→8, quote margin-bottom 18→10, footer padding-top 14→8) so the
+   v 0.1.4 · SAVE OK · BONEMAKER · MMXXVI row stays inside the panel
+   even at the heavier line-height set on body. */
+.qf-mm-bottom { margin-top: 12px; text-align: center; }
 .qf-mm-prompt {
   font-size: 10px; color: var(--blood);
-  letter-spacing: 3px; margin-bottom: 14px;
+  letter-spacing: 3px; margin-bottom: 8px;
 }
 .qf-mm-quote {
   font-family: var(--term); font-size: 18px;
   color: var(--text-mute); font-style: italic;
-  line-height: 1.4; margin-bottom: 18px;
+  line-height: 1.4; margin-bottom: 10px;
 }
 .qf-mm-footer {
   display: flex; justify-content: space-between; align-items: baseline;
-  padding-top: 14px;
+  padding-top: 8px;
   border-top: 1px solid var(--line-2);
   font-size: 8px;
   color: var(--text-dim);
@@ -8661,6 +8699,162 @@ body {
 .qf-npc[data-placing="true"] .qf-npc-portrait,
 .qf-npc[data-placing="true"]:not([data-tutorial="true"]) .qf-npc-bubble {
   pointer-events: none;
+}
+
+/* Ambient accent halo behind the portrait — a soft pulsing radial wash in
+   the companion's accent colour. Pure presence flair; visually says
+   "this companion is here" without any HUD chrome. */
+.qf-npc-aura {
+  position: absolute;
+  left: 280px;
+  bottom: 50px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--npc-accent) 24%, transparent) 0%,
+    color-mix(in srgb, var(--npc-accent) 10%, transparent) 38%,
+    transparent 68%);
+  pointer-events: none;
+  opacity: 0.85;
+  animation: qf-npc-aura-pulse 5.2s ease-in-out infinite;
+  /* Below the portrait visually — the DOM order in NpcCompanion._build
+     puts the portrait LAST among siblings, and both elements have no
+     explicit z-index, so the later one (portrait) paints on top. */
+}
+@keyframes qf-npc-aura-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.94); }
+  50%      { opacity: 0.95; transform: scale(1.05); }
+}
+/* Per-companion pulse rhythm — same shape, different breathing rate so
+   each companion's presence FEELS slightly different (Lilith gentle,
+   Malakor slow & ominous, Zul'Gath ancient & languid, Safira quick &
+   bright). Drift particle speeds below get the same treatment. */
+.qf-npc[data-companion-id="lilith"]  .qf-npc-aura { animation-duration: 4.8s; }
+.qf-npc[data-companion-id="malakor"] .qf-npc-aura { animation-duration: 6.4s; }
+.qf-npc[data-companion-id="zulgath"] .qf-npc-aura { animation-duration: 7.8s; }
+.qf-npc[data-companion-id="safira"]  .qf-npc-aura { animation-duration: 3.6s; }
+
+/* Rising accent-coloured particles drifting up out of the portrait
+   silhouette — a thin column of motion that reinforces the halo above. */
+.qf-npc-particles {
+  position: absolute;
+  left: 326px;
+  bottom: 0;
+  width: 236px;
+  height: 380px;
+  pointer-events: none;
+  overflow: hidden;
+}
+.qf-npc-particles span {
+  position: absolute;
+  bottom: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--npc-accent);
+  text-shadow:
+    0 0 8px var(--npc-accent),
+    0 0 18px color-mix(in srgb, var(--npc-accent) 45%, transparent);
+  opacity: 0;
+  animation: qf-npc-particle-rise 7s ease-out infinite;
+}
+/* Per-companion glyph rendered via ::before — gives each companion a
+   unique particle SHAPE on top of the per-accent colour. Heart for
+   Lilith, four-point spark for Malakor, gem for Zul'Gath, six-point
+   starburst for Safira. Default fallback dot for any future / unknown
+   companion id. */
+.qf-npc-particles span::before {
+  content: '·';
+  display: block;
+}
+.qf-npc[data-companion-id="lilith"]  .qf-npc-particles span::before { content: '♥'; font-size: 1.15em; }
+.qf-npc[data-companion-id="malakor"] .qf-npc-particles span::before { content: '✦'; }
+.qf-npc[data-companion-id="zulgath"] .qf-npc-particles span::before { content: '◆'; font-size: 0.9em; }
+.qf-npc[data-companion-id="safira"]  .qf-npc-particles span::before { content: '✺'; font-size: 1.1em; }
+.qf-npc-particles span:nth-child(1) { left: 12%; animation-delay: 0s;   }
+.qf-npc-particles span:nth-child(2) { left: 28%; animation-delay: 1.6s; }
+.qf-npc-particles span:nth-child(3) { left: 46%; animation-delay: 0.7s; }
+.qf-npc-particles span:nth-child(4) { left: 62%; animation-delay: 3.4s; }
+.qf-npc-particles span:nth-child(5) { left: 78%; animation-delay: 2.1s; }
+.qf-npc-particles span:nth-child(6) { left: 90%; animation-delay: 4.8s; }
+@keyframes qf-npc-particle-rise {
+  0%   { transform: translateY(0)      scale(0.6); opacity: 0; }
+  12%  { opacity: 0.85; }
+  85%  { opacity: 0.7; }
+  100% { transform: translateY(-360px) scale(1.15); opacity: 0; }
+}
+/* Per-companion drift speed — Lilith slow & calm, Malakor quick erratic
+   sparks, Zul'Gath very slow embers (an ancient dragon doesn't rush),
+   Safira bright sparkles at a brisk pace. */
+.qf-npc[data-companion-id="lilith"]  .qf-npc-particles span { animation-duration: 8.4s; }
+.qf-npc[data-companion-id="malakor"] .qf-npc-particles span { animation-duration: 4.6s; }
+.qf-npc[data-companion-id="zulgath"] .qf-npc-particles span { animation-duration: 11s;  }
+.qf-npc[data-companion-id="safira"]  .qf-npc-particles span { animation-duration: 5.4s; }
+/* Docked mode (menu open) — the portrait moves far left and grows; the
+   ambient layer would stay anchored to the corner spot, which looks
+   wrong with no portrait there. Hide it in docked mode; corner-mode
+   gameplay is where this flair belongs. */
+.qf-npc[data-dock="menu"] .qf-npc-aura,
+.qf-npc[data-dock="menu"] .qf-npc-particles { display: none; }
+/* Sticky message (tutorial / intro) — the full-stage shield + bright
+   bubble are the focus. Dim the ambient so it does not compete with
+   the lesson. */
+.qf-npc[data-tutorial="true"] .qf-npc-aura,
+.qf-npc[data-tutorial="true"] .qf-npc-particles { opacity: 0.25; }
+
+/* Cursor sparkle trail — Safira-only. One <div> per mousemove (throttled
+   in CompanionCursor.js) at the cursor's viewport position; this CSS
+   animates each sparkle from a small bright pop to a soft fade and the
+   JS removes the element when the animation finishes. Sky-blue accent
+   colour is set inline by the spawner so other companions could reuse
+   the class with their own hue if we ever want to extend it. */
+.qf-cursor-sparkle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147483640;            /* always on top, even over modals */
+  /* The cursor sits at (left, top); translate centres the glyph on it. */
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  line-height: 1;
+  text-shadow:
+    0 0 6px currentColor,
+    0 0 14px color-mix(in srgb, currentColor 55%, transparent);
+  animation: qf-cursor-sparkle-fade 700ms ease-out forwards;
+  /* Keep the GPU happy on the spammy fade-out. */
+  will-change: opacity, transform;
+}
+@keyframes qf-cursor-sparkle-fade {
+  0%   { opacity: 0.95; transform: translate(-50%, -50%) scale(0.55) rotate(0deg);   }
+  35%  { opacity: 0.85; transform: translate(-50%, -50%) scale(1.05) rotate(35deg);  }
+  100% { opacity: 0;    transform: translate(-50%, -55%) scale(1.45) rotate(75deg);  }
+}
+
+/* Placement burst — fires on ROOM_PLACED / MINION_PLACED / TRAP_PLACED /
+   item-placed events while Safira is the chosen companion. Each particle
+   gets its own `--burst-dx` / `--burst-dy` set inline by the spawner
+   (CompanionCursor._burstAtCursor): a polar coord around the cursor that
+   drives the fly-outward translate at the 100% keyframe. Bigger glyph
+   and a richer arc than the trail so the placement reads as a moment. */
+.qf-cursor-burst {
+  font-size: 18px;
+  animation: qf-cursor-burst-fade 950ms cubic-bezier(0.2, 0.65, 0.3, 1) forwards;
+}
+@keyframes qf-cursor-burst-fade {
+  0%   {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.4) rotate(0deg);
+  }
+  20%  {
+    opacity: 1;
+    transform: translate(calc(-50% + (var(--burst-dx, 0px) * 0.30)),
+                         calc(-50% + (var(--burst-dy, 0px) * 0.30)))
+               scale(1.25) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--burst-dx, 0px)),
+                         calc(-50% + var(--burst-dy, 0px)))
+               scale(1.6) rotate(120deg);
+  }
 }
 
 .qf-npc-img {

@@ -26,6 +26,7 @@ import { PauseManager } from '../systems/PauseManager.js'
 import { userSettings } from './userSettings.js'
 import { SfxVolume } from '../systems/SfxVolume.js'
 import { getCompanion } from '../systems/companions.js'
+import { CompanionCursor } from './CompanionCursor.js'
 
 const FADE_MS   = 380
 // RPG-style per-letter speech blip. The typewriter ticks far faster than
@@ -76,6 +77,15 @@ export class NpcCompanion {
     this._build()
     this._setExpression(this._rest)
     this._preloadAll()
+
+    // Safira only — a sparkle trail follows the cursor while she is the
+    // chosen keeper, her signature chaotic-genie flair. Other companions
+    // intentionally get no trail so hers stays distinct. Lives as long
+    // as the NpcCompanion does (i.e. only during gameplay).
+    if (this._companion.id === 'safira') {
+      this._cursorFx = new CompanionCursor({ glyph: '✺', color: '#2caee8' })
+      this._cursorFx.mount()
+    }
 
     this._on('NPC_SAY', (p) => this._onSay(p))
     this._on('SETTINGS_CHANGED', () => this._syncMode())
@@ -132,6 +142,17 @@ export class NpcCompanion {
     // with the intro bubble (which rides above it). See `data-intro`.
     this._shield = h('div', { className: 'qf-npc-shield' })
 
+    // Ambient accent flair — a soft pulsing halo behind the portrait plus
+    // a thin column of rising accent-coloured particles. Same shape per
+    // companion, tinted by `--npc-accent`, with the pulse + drift speed
+    // varied per `[data-companion-id]` so each companion's rhythm feels
+    // distinct. Pure CSS animation, hidden in docked mode (menu open).
+    this._aura = h('div', { className: 'qf-npc-aura' })
+    this._particles = h('div', { className: 'qf-npc-particles' }, [
+      h('span'), h('span'), h('span'),
+      h('span'), h('span'), h('span'),
+    ])
+
     this.el = h('div', {
       className: 'qf-npc',
       // `companionId` drives the per-companion `--npc-accent` CSS rules in
@@ -157,7 +178,7 @@ export class NpcCompanion {
         '--npc-img-ty-docked':     this._imgTyDocked + 'px',
         '--npc-bubble-lift':       this._bubbleLift + 'px',
       },
-    }, [this._shield, this._bubble, this._portrait])
+    }, [this._shield, this._aura, this._particles, this._bubble, this._portrait])
   }
 
   _on(evt, fn) { EventBus.on(evt, fn); this._listeners.push([evt, fn]) }
@@ -425,6 +446,12 @@ export class NpcCompanion {
     this._listeners = []
     this._clearTimers()
     this._releaseSoftPause()
+    // Tear down Safira's cursor sparkle trail if it was mounted. Removing
+    // the mousemove listener prevents new sparkles from spawning; any
+    // already-spawned sparkle <div>s clean themselves up via their own
+    // setTimeout. Safe to call on companions that never mounted one.
+    this._cursorFx?.unmount()
+    this._cursorFx = null
     this.el?.remove()
   }
 }

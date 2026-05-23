@@ -54,6 +54,7 @@ import { SfxSystem }          from '../systems/SfxSystem.js'
 import { EventSystem }        from '../systems/EventSystem.js'
 import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { CombatFeedback }     from '../systems/CombatFeedback.js'
+import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
 import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
@@ -140,6 +141,10 @@ export class Game extends Phaser.Scene {
     this.sfxSystem           = new SfxSystem(this, this.gameState)
     this.eventSystem         = new EventSystem(this, this.gameState)
     this.combatFeedback      = new CombatFeedback(this, this.gameState)
+    // Per-companion world-space VFX layered onto combat/death — pink
+    // hearts on adv death for Lilith, purple sparks on every hit for
+    // Malakor. Reads gameState.meta.companionId; no-ops for the others.
+    this.companionWorldFx    = new CompanionWorldFx(this, this.gameState)
     this.hitSparkSystem      = new HitSparkSystem(this, this.gameState)
     this.screenShakeSystem   = new ScreenShakeSystem(this)
     this.rivalBossShowdown   = new RivalBossShowdown(this, this.gameState)
@@ -191,7 +196,7 @@ export class Game extends Phaser.Scene {
     // camera-zoom hooks below that pair with the overlay's intro slate.
     this.bossRenderer        = new BossRenderer(this, this.gameState)
     this.succubusBatRenderer = new SuccubusBatRenderer(this, this.gameState)
-    this.coinBurstRenderer   = new CoinBurstRenderer(this)
+    this.coinBurstRenderer   = new CoinBurstRenderer(this, this.gameState)
     this.sellFxRenderer      = new SellFxRenderer(this)
     this.torchRenderer       = new TorchRenderer(this, this.gameState)
     // Companion NPC brain — constructed before TutorialSystem so its
@@ -342,6 +347,7 @@ export class Game extends Phaser.Scene {
     this.sfxSystem?.destroy()
     this.eventSystem?.destroy()
     this.combatFeedback?.destroy()
+    this.companionWorldFx?.destroy()
     this.hitSparkSystem?.destroy()
     this.screenShakeSystem?.destroy()
     this.rivalBossShowdown?.destroy()

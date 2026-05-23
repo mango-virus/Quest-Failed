@@ -9,11 +9,19 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { CRYPT, FONT_HEAD } from './UIKit.js'
+import { AbilityVfx } from './AbilityVfx.js'
 
 const COIN_COUNT_MIN = 5
 const COIN_COUNT_MAX = 9
 const COIN_LIFE_MS   = 700
 const COIN_RADIUS    = 2
+
+// Zul'Gath companion bonus — her hoarder gremlin flair amplifies every
+// gold pickup. Coin count scales, label gets a touch larger, and a
+// brief gold ring pulses out from the pickup point.
+const ZULGATH_COIN_MULT      = 1.8
+const ZULGATH_LABEL_SIZE     = '13px'   // default label is 11px
+const ZULGATH_RING_COLOR_HEX = 0xffc83a
 
 // Phase 34C.5 — particles quality. Coin burst count scales by this;
 // label stays so the player always sees the +Ng readout.
@@ -28,12 +36,17 @@ function _particlesMult() {
 }
 
 export class CoinBurstRenderer {
-  constructor(scene) {
-    this._scene = scene
-    this._items = []   // graphics objects pending destroy
+  constructor(scene, gameState = null) {
+    this._scene     = scene
+    this._gameState = gameState   // optional — used only for companion flavour
+    this._items     = []          // graphics objects pending destroy
 
     this._onAward = this._onAward.bind(this)
     EventBus.on('RESOURCES_AWARDED', this._onAward)
+  }
+
+  _isZulgath() {
+    return this._gameState?.meta?.companionId === 'zulgath'
   }
 
   destroy() {
@@ -53,16 +66,31 @@ export class CoinBurstRenderer {
     this._spawnLabel(wx, wy, gold)
     // Random base count [MIN..MAX], then scale by particles setting.
     // Label always fires above; only the coin sprites scale down.
-    const rawCount = COIN_COUNT_MIN + Math.floor(Math.random() * (COIN_COUNT_MAX - COIN_COUNT_MIN + 1))
+    let rawCount = COIN_COUNT_MIN + Math.floor(Math.random() * (COIN_COUNT_MAX - COIN_COUNT_MIN + 1))
+    if (this._isZulgath()) rawCount = Math.round(rawCount * ZULGATH_COIN_MULT)
     const mult = _particlesMult()
     const count = mult <= 0 ? 0 : Math.max(1, Math.round(rawCount * mult))
     for (let i = 0; i < count; i++) this._spawnCoin(wx, wy, i, count)
+    // Zul'Gath only: gold pulse ring at the pickup point so her hoard
+    // pings really pop. Skipped at particles=off (pulseRing internally
+    // ignores quality but we don't want to add even one draw at off).
+    if (this._isZulgath() && mult > 0) {
+      AbilityVfx.pulseRing(this._scene, wx, wy, {
+        color:      ZULGATH_RING_COLOR_HEX,
+        fromR:      6,
+        toR:        28,
+        alpha:      0.85,
+        durationMs: 360,
+        depth:      59,
+      })
+    }
   }
 
   // Floating "+Xg" label — gold color, drifts up and fades
   _spawnLabel(wx, wy, gold) {
+    const fontSize = this._isZulgath() ? ZULGATH_LABEL_SIZE : '11px'
     const t = this._scene.add.text(wx, wy - 16, `+${gold}g`, {
-      fontFamily: FONT_HEAD, fontSize: '11px', color: CRYPT.goldCss,
+      fontFamily: FONT_HEAD, fontSize, color: CRYPT.goldCss,
       letterSpacing: 1, stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(60)
     this._items.push(t)

@@ -84,8 +84,13 @@ export class SettingsOverlay {
     this._applyVideoFlags(this._draft)
     this._overlay = new Overlay({
       title:   'OPTIONS',
-      width:   920,
-      height:  680,
+      // Sized to the tallest tab (CONTROLS, 9 keybinds — the only one
+      // that needs all the vertical room). The previous 920×680 left
+      // ~340px of empty space below the AUDIO tab's five rows. Trimmed
+      // to 860×540 and the internal whitespace was tightened in
+      // .qf-settings-* so every tab fills its frame.
+      width:   860,
+      height:  540,
       accent:  'var(--blood)',
       onClose: () => this._onCancel(),
       body:    this._renderBody(),

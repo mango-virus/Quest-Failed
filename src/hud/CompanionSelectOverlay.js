@@ -13,6 +13,7 @@ import { h } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
 import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
 import { COMPANION_ORDER, COMPANIONS, DEFAULT_COMPANION, getCompanion } from '../systems/companions.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { userSettings } from './userSettings.js'
 import { SfxVolume } from '../systems/SfxVolume.js'
 
@@ -48,6 +49,12 @@ export class CompanionSelectOverlay {
     this._lastBlipAt = 0
     this._confirmBtn = null
     this._selected = DEFAULT_COMPANION
+    // Visible companion roster — initialised to the full order, then
+    // narrowed in open() by `_computeVisibleOrder()` which drops any
+    // companion whose id / display name matches the player's name.
+    // A player named "Lilith" cannot pick Lilith-the-companion as
+    // their keeper (same rule self-applies for the other three).
+    this._order = COMPANION_ORDER.slice()
     this._keyHandler = (e) => this._onKey(e)
   }
 
@@ -56,14 +63,32 @@ export class CompanionSelectOverlay {
     installHudSfxDelegates()
     ensureStageScaled()
 
-    // Remembered last choice — default-selects the previous companion.
+    // Recompute the visible roster each open() so renaming between
+    // visits takes effect. Drops any companion that shares the
+    // player's name (id or display name, case-insensitive).
+    this._order = this._computeVisibleOrder()
+    // Defensive: if the filter somehow nuked everyone (shouldn't be
+    // possible with one name vs four companions, but be safe), fall
+    // back to the full roster so the picker is still usable.
+    if (!this._order.length) this._order = COMPANION_ORDER.slice()
+    // If the stored last-pick is now hidden — e.g. the player just
+    // renamed themselves to that companion — pick the first visible
+    // one instead so we never start with a hidden selection.
+    if (!this._order.includes(this._selected)) {
+      this._selected = this._order[0] || DEFAULT_COMPANION
+    }
+
+    // Remembered last choice — default-selects the previous companion,
+    // but only if that companion is still visible after the filter.
     try {
       const stored = localStorage.getItem(STORE_KEY)
-      if (stored && COMPANIONS[stored]) this._selected = stored
+      if (stored && COMPANIONS[stored] && this._order.includes(stored)) {
+        this._selected = stored
+      }
     } catch {}
 
     // Pull each companion's banter pool out of the JSON cache.
-    for (const id of COMPANION_ORDER) {
+    for (const id of this._order) {
       const bank = this._scene?.cache?.json?.get(getCompanion(id).linesKey)
       const rec  = bank?.recruit ?? {}
       this._banter[id]  = Array.isArray(rec.banter) ? rec.banter : []
@@ -99,7 +124,7 @@ export class CompanionSelectOverlay {
           'They will run your dungeon, whisper in your ear, and watch you reign. Pick the voice you can stand for a lifetime of nights.'),
       ]),
       h('div', { className: 'qf-cmpsel-stage' },
-        COMPANION_ORDER.map(id => this._card(id))),
+        this._order.map(id => this._card(id))),
       h('div', { className: 'qf-cmpsel-footer' }, [
         h('button', {
           className: 'btn qf-cmpsel-back',
@@ -168,7 +193,7 @@ export class CompanionSelectOverlay {
   }
 
   _preloadSprites() {
-    for (const id of COMPANION_ORDER) {
+    for (const id of this._order) {
       const c = COMPANIONS[id]
       const ids = new Set([c.restExpr])
       for (const ln of (this._banter[id] ?? [])) {
@@ -187,7 +212,7 @@ export class CompanionSelectOverlay {
   // from each speaker's shuffle bag, so the visible opening lines vary
   // between visits instead of always being the same line[0].
   _startConversation() {
-    for (const id of COMPANION_ORDER) {
+    for (const id of this._order) {
       const lines = this._banter[id]
       const r = this._refs[id]
       if (!r || !lines?.length) continue
@@ -201,7 +226,7 @@ export class CompanionSelectOverlay {
     // Seed the speaker rotation with everyone EXCEPT the initial speaker
     // — the next N-1 turns must each be a different companion before the
     // initial speaker may take a second turn, per the random-fair rule.
-    this._unspoken = new Set(COMPANION_ORDER.filter(id => id !== this._selected))
+    this._unspoken = new Set(this._order.filter(id => id !== this._selected))
     this._convoTimer = setTimeout(() => {
       this._convoTimer = null
       this._advance()
@@ -239,7 +264,7 @@ export class CompanionSelectOverlay {
   // produce the same speaker back-to-back across the cycle boundary.
   _next(prevId) {
     if (this._unspoken.size === 0) {
-      for (const id of COMPANION_ORDER) this._unspoken.add(id)
+      for (const id of this._order) this._unspoken.add(id)
     }
     let candidates = Array.from(this._unspoken)
     if (candidates.length > 1 && candidates.includes(prevId)) {
@@ -248,6 +273,21 @@ export class CompanionSelectOverlay {
     const next = candidates[Math.floor(Math.random() * candidates.length)]
     this._unspoken.delete(next)
     return next
+  }
+
+  // Filter COMPANION_ORDER to hide any companion whose id or display
+  // name matches the player's current name (case-insensitive). A player
+  // named "Lilith" cannot pick Lilith-the-companion as their keeper —
+  // same rule self-applies for the other three names. Returns a fresh
+  // array so the global COMPANION_ORDER stays untouched.
+  _computeVisibleOrder() {
+    const name = PlayerProfile.getName().trim().toLowerCase()
+    if (!name) return COMPANION_ORDER.slice()
+    return COMPANION_ORDER.filter(id => {
+      const c = COMPANIONS[id]
+      if (!c) return false
+      return id.toLowerCase() !== name && (c.name || '').toLowerCase() !== name
+    })
   }
 
   // Pop the next banter line index for `id` from the shuffle bag,
@@ -277,7 +317,7 @@ export class CompanionSelectOverlay {
   // initiated jump could give one companion two turns in a single cycle).
   _focus(id) {
     if (this._convoTimer) { clearTimeout(this._convoTimer); this._convoTimer = null }
-    for (const cid of COMPANION_ORDER) {
+    for (const cid of this._order) {
       if (this._typeTimers[cid]) {
         clearInterval(this._typeTimers[cid])
         this._typeTimers[cid] = null
@@ -348,7 +388,7 @@ export class CompanionSelectOverlay {
   }
 
   _applySelected() {
-    for (const id of COMPANION_ORDER) {
+    for (const id of this._order) {
       const r = this._refs[id]
       if (r) r.card.dataset.selected = (id === this._selected) ? 'true' : 'false'
     }
@@ -375,8 +415,8 @@ export class CompanionSelectOverlay {
     if (e.key === 'Escape') { e.preventDefault(); this._back();    return }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault()
-      const i = COMPANION_ORDER.indexOf(this._selected)
-      const next = COMPANION_ORDER[(i + (e.key === 'ArrowRight' ? 1 : -1) + COMPANION_ORDER.length) % COMPANION_ORDER.length]
+      const i = this._order.indexOf(this._selected)
+      const next = this._order[(i + (e.key === 'ArrowRight' ? 1 : -1) + this._order.length) % this._order.length]
       this._select(next)
     }
   }
