@@ -1551,7 +1551,6 @@
             "undead",
             "garrison_spawner"
         ],
-        "onNightStart": "crypt_spawnUndead",
         "description": "Spawns up to 4 Risen Bones (garrison, room-bound). Refills to 4 each Night Phase. Garrison minions cannot leave this room and do not count toward the Barracks cap.",
         "flavorText": "They always come back. That's the point.",
         "theme": null,
@@ -1607,7 +1606,8 @@
             "floor": {
                 "sat": -1
             }
-        }
+        },
+        "onDayStart": "crypt_spawnUndead"
     },
     {
         "id": "trap_factory",
@@ -3496,7 +3496,6 @@
             "looks_like_treasury"
         ],
         "onAdventurerEnter": "mimicVault_onEnter",
-        "onNightStart": "mimicVault_respawnMimics",
         "description": "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) that respawn nightly, plus 1 false chest — if grabbed, it steals gold from the adventurer.",
         "flavorText": "It even has the right sparkle.",
         "theme": null,
@@ -3555,7 +3554,8 @@
                 "hue": -15,
                 "contrast": 0
             }
-        }
+        },
+        "onDayStart": "mimicVault_respawnMimics"
     },
     {
         "id": "hall_of_trials",
@@ -3789,7 +3789,6 @@
             "garrison_spawner",
             "elite"
         ],
-        "onNightStart": "hallOfTrials_spawnElite",
         "description": "Spawns a random Tier-2 evolved minion (garrison, room-bound) at Night Phase if none are alive in the room. If killed, does not respawn that night. Cap scales with boss level.",
         "flavorText": "Only the proven walk these stones.",
         "theme": null,
@@ -3845,7 +3844,8 @@
             "floor": {
                 "hue": -180
             }
-        }
+        },
+        "onDayStart": "hallOfTrials_spawnElite"
     },
     {
         "id": "wishing_well",
@@ -4730,7 +4730,6 @@
             "garrison_spawner",
             "no_other_minions"
         ],
-        "onNightStart": "throneRoom_spawnMiniBoss",
         "description": "Spawns 1 Mini-Boss (garrison, room-bound) that scales with boss level (T1 â†’ T2 â†’ T3). No other minions may be placed in this room. Respawns nightly. Cap scales with boss level.",
         "flavorText": "Every kingdom has a deputy. Mine has teeth.",
         "theme": null,
@@ -4786,7 +4785,8 @@
             "floor": {
                 "hue": 0
             }
-        }
+        },
+        "onDayStart": "throneRoom_spawnMiniBoss"
     },
     {
         "id": "sanctum",

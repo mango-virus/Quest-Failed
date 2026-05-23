@@ -27,9 +27,18 @@ export class RoomBehaviorSystem {
     this._lastRoomByAdv = {}    // for false-exit detection (entering from flee)
 
     EventBus.on('NIGHT_PHASE_STARTED', this._onNightStart, this)
+    // Phase QW (room-spawn timing fix) — minion spawns (Crypt risen bones,
+    // Mimic Vault chests, Hall of Trials elite, Throne Room mini-boss) fire
+    // at DAY_PHASE_STARTED so rooms placed THIS night have their inhabitants
+    // ready when adventurers arrive the next morning. Previously these were
+    // gated on NIGHT_PHASE_STARTED, which fires at the START of the build
+    // phase — before the player can place anything — so newly-built rooms
+    // sat empty until the night AFTER they were placed.
+    EventBus.on('DAY_PHASE_STARTED',   this._onDayStart,   this)
     EventBus.on('ADVENTURER_ROOM_CHANGED', this._onRoomChanged, this)
     this._listeners = [
       ['NIGHT_PHASE_STARTED', this._onNightStart],
+      ['DAY_PHASE_STARTED',   this._onDayStart],
       ['ADVENTURER_ROOM_CHANGED', this._onRoomChanged],
     ]
   }
@@ -39,6 +48,7 @@ export class RoomBehaviorSystem {
       // Bound methods need explicit ref — recreate to off cleanly.
     }
     EventBus.off('NIGHT_PHASE_STARTED', this._onNightStart, this)
+    EventBus.off('DAY_PHASE_STARTED',   this._onDayStart,   this)
     EventBus.off('ADVENTURER_ROOM_CHANGED', this._onRoomChanged, this)
   }
 
@@ -129,15 +139,38 @@ export class RoomBehaviorSystem {
       }
     }
 
+    // [Moved 2026-05-22 → _onDayStart] Crypt / Mimic Vault / Hall of Trials /
+    // Throne Room minion-spawning blocks USED to live here, gated on
+    // NIGHT_PHASE_STARTED. That fires at the START of the build phase —
+    // before the player has placed anything — so a Crypt placed THIS night
+    // had to wait until the NEXT night before its risen bones appeared,
+    // leaving it empty for the day's adventurers. Moved to DAY_PHASE_STARTED
+    // so spawns land just before adventurers arrive, covering BOTH the
+    // refill case (the existing crypts the player already had) and the
+    // first-day-after-placement case for newly-built rooms.
+
+    // [Removed 2026-04-30] Necropolis Wing corpse-to-minion conversion.
+    // Catacombs now fills the corpse-spawn role (see AISystem._kill).
+  }
+
+  // ── Day-start spawns (room-redesign minion factories) ────────────────────
+  //
+  // Fires on DAY_PHASE_STARTED, BEFORE the day's phase-transition cinematic
+  // and BEFORE _spawnDailyAdventurers in DayPhase, so by the time adventurers
+  // arrive every gateway room has its garrison ready. Both fresh placements
+  // (built during the prior night) and refills (occupants killed yesterday)
+  // are handled by the same iterate-all-rooms-and-top-up logic — caps and
+  // alive-checks are room-specific.
+  _onDayStart() {
     const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
     const baseDef = minionTypes.find(d => d.id === 'skeleton1') ?? minionTypes[0]
     if (!baseDef) return
     const TS = 32
 
     // Room redesign 2026-04-30 — Crypt spawns up to 4 garrison Risen Bones,
-    // refilling each Night Phase. Garrison minions are room-bound (cannot
-    // patrol or chase outside the Crypt) and do NOT count toward the
-    // Barracks roster cap.
+    // refilling each day. Garrison minions are room-bound (cannot patrol or
+    // chase outside the Crypt) and do NOT count toward the Barracks roster
+    // cap.
     const crypts = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'crypt' && r.isActive !== false
     )
@@ -173,7 +206,7 @@ export class RoomBehaviorSystem {
       }
     }
 
-    // Mimic Vault: spawn 2 chest-disguised mimics each night. Mimics start
+    // Mimic Vault: spawn 2 chest-disguised mimics each day. Mimics start
     // in `chest` state (idle, untargetable). Adventurers entering the room
     // roll a chance to "open" each chest. If opened the mimic reveals,
     // bites the opener, and engages like a normal hostile minion. Once
@@ -216,7 +249,7 @@ export class RoomBehaviorSystem {
       }
     }
 
-    // Room redesign 2026-04-30 — Hall of Trials: at Night Phase, if no
+    // Room redesign 2026-04-30 — Hall of Trials: at day start, if no
     // garrison alive in this Hall, spawn one random T2 evolved minion.
     const trialHalls = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'hall_of_trials' && r.isActive !== false
@@ -244,7 +277,7 @@ export class RoomBehaviorSystem {
     }
 
     // Room redesign 2026-04-30 — Throne Room: spawn 1 mini-boss per Throne
-    // Room nightly. Stats scale with current dungeonLevel. Mini-boss is a
+    // Room daily. Stats scale with current dungeonLevel. Mini-boss is a
     // garrison minion (room-bound) and the only minion allowed in the room.
     const thrones = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'throne_room' && r.isActive !== false
@@ -282,9 +315,6 @@ export class RoomBehaviorSystem {
         EventBus.emit('THRONE_MINIBOSS_SPAWNED', { minion: m, roomId: room.instanceId, dungeonLv })
       }
     }
-
-    // [Removed 2026-04-30] Necropolis Wing corpse-to-minion conversion.
-    // Catacombs now fills the corpse-spawn role (see AISystem._kill).
   }
 
   // ── False Exit + room redesign hooks — react on room change ──────────────
