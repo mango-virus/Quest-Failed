@@ -225,6 +225,90 @@ export class Preload extends Phaser.Scene {
     this.load.spritesheet('torch',   'assets/sprites/torch.png',   { frameWidth: 43, frameHeight: 48 })
     this.load.spritesheet('brazier', 'assets/sprites/brazier.png', { frameWidth: 44, frameHeight: 48 })
 
+    // Cobwebs — three single-frame corner accents used by CobwebRenderer
+    // to dust the four interior wall corners of each room. Sizes pick
+    // weighted-randomly per slot (small/medium/large).
+    this.load.image('cobweb-small',  'assets/sprites/cobweb-small.png')
+    this.load.image('cobweb-medium', 'assets/sprites/cobweb-medium.png')
+    this.load.image('cobweb-large',  'assets/sprites/cobweb-large.png')
+
+    // Room decor props — themed cosmetic dressing used by DecorRenderer.
+    // Five families: floor skeletons, wall-chained skeletons, skulls
+    // (two facings + flips), skull pile, statues, and chains (singles
+    // + pairs). All sized for tile-scale top-down placement.
+    this.load.image('decor-skel-floor-1', 'assets/sprites/decor-skel-floor-1.png')
+    this.load.image('decor-skel-floor-2', 'assets/sprites/decor-skel-floor-2.png')
+    this.load.image('decor-skel-floor-3', 'assets/sprites/decor-skel-floor-3.png')
+    this.load.image('decor-skel-wall-1',  'assets/sprites/decor-skel-wall-1.png')
+    this.load.image('decor-skel-wall-2',  'assets/sprites/decor-skel-wall-2.png')
+    this.load.image('decor-skull-s',      'assets/sprites/decor-skull-s.png')
+    this.load.image('decor-skull-w',      'assets/sprites/decor-skull-w.png')
+    this.load.image('decor-skull-pile',   'assets/sprites/decor-skull-pile.png')
+    this.load.image('decor-statue-m',     'assets/sprites/decor-statue-m.png')
+    this.load.image('decor-statue-l',     'assets/sprites/decor-statue-l.png')
+    this.load.image('decor-chain-single-s', 'assets/sprites/decor-chain-single-s.png')
+    this.load.image('decor-chain-single-m', 'assets/sprites/decor-chain-single-m.png')
+    this.load.image('decor-chain-single-l', 'assets/sprites/decor-chain-single-l.png')
+    this.load.image('decor-chain-pair-1a', 'assets/sprites/decor-chain-pair-1a.png')
+    this.load.image('decor-chain-pair-1b', 'assets/sprites/decor-chain-pair-1b.png')
+    this.load.image('decor-chain-pair-2a', 'assets/sprites/decor-chain-pair-2a.png')
+    this.load.image('decor-chain-pair-2b', 'assets/sprites/decor-chain-pair-2b.png')
+    this.load.image('decor-chain-pair-3a', 'assets/sprites/decor-chain-pair-3a.png')
+    this.load.image('decor-chain-pair-3b', 'assets/sprites/decor-chain-pair-3b.png')
+    this.load.image('decor-chain-draped',  'assets/sprites/decor-chain-draped.png')
+
+    // Themed room props — cropped from larger sprite packs via
+    // tools/crop-decor.mjs. DecorRenderer picks the appropriate kit
+    // per room definitionId (library → bookshelf, armory → weapon-rack,
+    // treasury → chest, crypt → skull-relief).
+    for (let i = 1; i <= 6; i++) this.load.image(`decor-bookshelf-${i}`,    `assets/sprites/decor-bookshelf-${i}.png`)
+    for (let i = 1; i <= 6; i++) this.load.image(`decor-chest-${i}`,        `assets/sprites/decor-chest-${i}.png`)
+    for (let i = 1; i <= 4; i++) this.load.image(`decor-weapon-rack-${i}`,  `assets/sprites/decor-weapon-rack-${i}.png`)
+    // Skull-relief medallion — single 6-frame animation. Sheet is
+    // 27×192 = 1 column × 6 rows of 27×32 frames laid out top to
+    // bottom. DecorRenderer plays 'skull-relief-anim' (frames 0..5)
+    // on every placed medallion.
+    this.load.spritesheet('decor-skull-relief-sheet',
+      'assets/sprites/decor-skull-relief-sheet.png',
+      { frameWidth: 27, frameHeight: 32 })
+
+    // Batch 2 — themed centerpieces + flat decals.
+    // (Dragon-skeleton + carpet dropped per user request.)
+    this.load.image('decor-banner-sigil',      'assets/sprites/decor-banner-sigil.png')
+    this.load.image('decor-forge',             'assets/sprites/decor-forge.png')
+    // Three ritual-circle variants, all picked randomly by the
+    // `ritual_circle` kind: pentacle (5-point star), alchemy
+    // hexagram (6-point star), and a smaller alchemy circle.
+    this.load.image('decor-ritual-pentacle',   'assets/sprites/decor-ritual-pentacle.png')
+    this.load.image('decor-ritual-hex',        'assets/sprites/decor-ritual-hex.png')
+    this.load.image('decor-ritual-small',      'assets/sprites/decor-ritual-small.png')
+
+    // Batch 3 — smithy + storage + decorative pottery.
+    this.load.image('decor-anvil-1',        'assets/sprites/decor-anvil-1.png')
+    this.load.image('decor-anvil-2',        'assets/sprites/decor-anvil-2.png')
+    this.load.image('decor-cauldron',       'assets/sprites/decor-cauldron.png')
+    this.load.image('decor-crate-large',    'assets/sprites/decor-crate-large.png')
+    this.load.image('decor-crate-medium',   'assets/sprites/decor-crate-medium.png')
+    this.load.image('decor-sack',           'assets/sprites/decor-sack.png')
+    this.load.image('decor-vase-1',         'assets/sprites/decor-vase-1.png')
+    this.load.image('decor-vase-2',         'assets/sprites/decor-vase-2.png')
+
+    // Wishing-well centerpiece — placed dead-centre in the
+    // wishing_well room (and ONCE_PER_ROOM gated).
+    this.load.image('decor-wishing-well',   'assets/sprites/decor-wishing-well.png')
+
+    // Death decals — blood puddles spawned by BloodSplatRenderer on
+    // every adventurer death. Source PNGs are large (~1000+ px wide,
+    // ~30 actual px per art "pixel"); BloodSplatRenderer downscales
+    // to ~tile size with NEAREST filtering to keep the chunky look.
+    this.load.image('blood-1', 'assets/sprites/blood-1.png')
+    this.load.image('blood-2', 'assets/sprites/blood-2.png')
+    this.load.image('blood-3', 'assets/sprites/blood-3.png')
+    this.load.image('blood-4', 'assets/sprites/blood-4.png')
+    this.load.image('blood-5', 'assets/sprites/blood-5.png')
+    this.load.image('blood-6', 'assets/sprites/blood-6.png')
+    this.load.image('blood-7', 'assets/sprites/blood-7.png')
+
     // ── Audio ────────────────────────────────────────────────────────────
     // Title-screen / boss-picker loop.  Lives across MainMenu and
     // ArchetypeSelect (see Audio helpers in those scenes); stops when

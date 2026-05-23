@@ -47,6 +47,9 @@ import { SuccubusBatRenderer } from '../ui/SuccubusBatRenderer.js'
 import { CoinBurstRenderer }  from '../ui/CoinBurstRenderer.js'
 import { SellFxRenderer }     from '../ui/SellFxRenderer.js'
 import { TorchRenderer }      from '../ui/TorchRenderer.js'
+import { CobwebRenderer }     from '../ui/CobwebRenderer.js'
+import { DecorRenderer }      from '../ui/DecorRenderer.js'
+import { BloodSplatRenderer } from '../ui/BloodSplatRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { PauseManager }       from '../systems/PauseManager.js'
@@ -103,6 +106,18 @@ export class Game extends Phaser.Scene {
     // playlist (shuffled in-run soundtrack).
     TitleMusic.stop()
     GameplayMusic.start(this)
+
+    // Mango cheat — when the player's name is the dev-test handle,
+    // unlock every room / minion / trap / item by stamping
+    // `unlockLevel = 1` on every JSON def in Phaser's cache and
+    // back-filling the gameState.unlocks allowlists. All downstream
+    // gate checks (BuildMenu, NightPhase placement, DungeonGrid
+    // validation, EventSystem minion pool, etc.) naturally pass.
+    // Mutation reverts on page reload — switching off the cheat
+    // mid-session requires a refresh. The same flag also drives the
+    // 9999-gold floor refilled every update tick (see update()).
+    this._isMangoCheat = PlayerProfile.isCheatName()
+    if (this._isMangoCheat) this._applyMangoCheatUnlocks()
 
     this.dungeonGrid         = new DungeonGrid(this.gameState.dungeon)
 
@@ -199,6 +214,9 @@ export class Game extends Phaser.Scene {
     this.coinBurstRenderer   = new CoinBurstRenderer(this, this.gameState)
     this.sellFxRenderer      = new SellFxRenderer(this)
     this.torchRenderer       = new TorchRenderer(this, this.gameState)
+    this.cobwebRenderer      = new CobwebRenderer(this, this.gameState)
+    this.decorRenderer       = new DecorRenderer(this, this.gameState)
+    this.bloodSplatRenderer  = new BloodSplatRenderer(this, this.gameState)
     // Companion NPC brain — constructed before TutorialSystem so its
     // INTRO_DISMISSED handler registers first and her welcome line is
     // queued ahead of the first tutorial.
@@ -359,6 +377,9 @@ export class Game extends Phaser.Scene {
     this.coinBurstRenderer?.destroy()
     this.sellFxRenderer?.destroy()
     this.torchRenderer?.destroy()
+    this.cobwebRenderer?.destroy()
+    this.decorRenderer?.destroy()
+    this.bloodSplatRenderer?.destroy()
     this.tutorialSystem?.destroy()
     this.npcDirector?.destroy()
     this.sunderedFloorRenderer?.destroy()
@@ -465,6 +486,55 @@ export class Game extends Phaser.Scene {
       }
     }
     this._dungeonRenderer?.redrawDoors?.()
+  }
+
+  // Gold floor maintained for the mango cheat — anything below is
+  // topped back up every update tick.
+  static get MANGO_GOLD_FLOOR() { return 9999 }
+
+  // Mango cheat — flatten every JSON def's unlockLevel to 1, back-fill
+  // the gameState.unlocks allowlists so every room / minion / trap /
+  // item is available from boss level 1, AND seed the gold to the
+  // 9999 floor so a fresh-into-cheat run has buying power immediately
+  // (the per-tick refill in update() keeps it topped up after spends).
+  // Called once from create() when PlayerProfile.isCheatName() is
+  // true. Mutates Phaser's cached defs in place; the change persists
+  // until the page reloads (next run by a non-cheat name will need a
+  // refresh to restore gates).
+  _applyMangoCheatUnlocks() {
+    // 1) Stamp unlockLevel = 1 on every gated def.
+    const keys = ['rooms', 'minionTypes', 'trapTypes', 'items']
+    let touched = 0
+    for (const key of keys) {
+      const defs = this.cache.json.get(key)
+      if (!Array.isArray(defs)) continue
+      for (const def of defs) {
+        if (def && (def.unlockLevel ?? 1) > 1) { def.unlockLevel = 1; touched++ }
+      }
+    }
+    // 2) Back-fill the allowlists in gameState.unlocks so any IDs added
+    //    to JSON since this save was first initialised still appear in
+    //    the build menus (NightPhase / EventSystem / DungeonGrid all
+    //    intersect against these lists).
+    const u = this.gameState.unlocks ?? (this.gameState.unlocks = {})
+    const ensureAll = (slot, defs) => {
+      if (!Array.isArray(defs)) return
+      const have = new Set(u[slot] ?? [])
+      for (const d of defs) if (d?.id) have.add(d.id)
+      u[slot] = [...have]
+    }
+    ensureAll('rooms',       this.cache.json.get('rooms'))
+    ensureAll('minionTypes', this.cache.json.get('minionTypes'))
+    ensureAll('trapTypes',   this.cache.json.get('trapTypes'))
+    // Items don't have an allowlist — they're gated purely by
+    // unlockLevel, which step 1 already neutralised.
+
+    // 3) Seed gold to the floor so the player has buying power
+    //    immediately. The update() tick keeps it topped up after spends.
+    const p = this.gameState.player ?? (this.gameState.player = {})
+    if ((p.gold ?? 0) < Game.MANGO_GOLD_FLOOR) p.gold = Game.MANGO_GOLD_FLOOR
+
+    console.info(`[Mango cheat] Unlocked every room/minion/trap/item (${touched} defs flattened); gold pinned at ${Game.MANGO_GOLD_FLOOR}.`)
   }
 
   // Reapply current room definitions to every placed room instance.
@@ -1251,6 +1321,14 @@ export class Game extends Phaser.Scene {
   }
 
   update(_time, delta) {
+    // Mango cheat — refill gold floor every tick so spends instantly
+    // restore. Cheap (one int compare + maybe one assignment per
+    // frame), gated by the cheat flag so non-mango runs pay nothing.
+    if (this._isMangoCheat) {
+      const p = this.gameState?.player
+      if (p && (p.gold ?? 0) < Game.MANGO_GOLD_FLOOR) p.gold = Game.MANGO_GOLD_FLOOR
+    }
+
     // Capture the world point currently at the PLAY-AREA centre (the gap
     // between the HUD panels) so _onSceneResize can re-anchor on it after a
     // viewport change. The camera FRAMES on the play-area centre, not the
@@ -1413,6 +1491,9 @@ export class Game extends Phaser.Scene {
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
       this.torchRenderer?.update()
+      this.cobwebRenderer?.update()
+      this.decorRenderer?.update()
+      this.bloodSplatRenderer?.update()
       this.chatBubbles?.update()
       this.replayGhostRenderer?.update()
       this.cartographerOverlay?.tick()
@@ -1431,6 +1512,9 @@ export class Game extends Phaser.Scene {
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
       this.torchRenderer?.update()
+      this.cobwebRenderer?.update()
+      this.decorRenderer?.update()
+      this.bloodSplatRenderer?.update()
       this.replayGhostRenderer?.update()
     }
     // Knowledge overlay updates in both phases — the rumour pool persists
