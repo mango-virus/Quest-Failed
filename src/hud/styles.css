@@ -8688,7 +8688,7 @@ body {
   --npc-accent: #ff3782;
 }
 .qf-npc[data-companion-id="malakor"] { --npc-accent: #a070dc; }  /* purple */
-.qf-npc[data-companion-id="zulgath"] { --npc-accent: #e8c060; }  /* gold   */
+.qf-npc[data-companion-id="zulgath"] { --npc-accent: #ff8c2a; }  /* orange — shifted from gold 2026-05-22 so his bubble border doesn't read as tutorial gold */
 .qf-npc[data-companion-id="safira"]  { --npc-accent: #2caee8; }  /* sky    */
 /* Docked beside a menu — lift above the overlay backdrop (z:150). */
 .qf-npc[data-dock="menu"] { z-index: 160; }
@@ -9216,7 +9216,7 @@ body {
    gold (ancient dragon, treasure-hoarder), Safira light blue (genie magic). */
 .qf-cmpsel-card[data-id="lilith"]  { --cmp-accent: #ff3782; }
 .qf-cmpsel-card[data-id="malakor"] { --cmp-accent: #a070dc; }
-.qf-cmpsel-card[data-id="zulgath"] { --cmp-accent: #e8c060; }
+.qf-cmpsel-card[data-id="zulgath"] { --cmp-accent: #ff8c2a; }
 .qf-cmpsel-card[data-id="safira"]  { --cmp-accent: #2caee8; }
 .qf-cmpsel-card:hover {
   opacity: 0.9;
