@@ -439,10 +439,13 @@ export const Balance = {
   // --- Pact of the Marionette ---
   MECHANIC_MARIONETTE_MOVE_INTERVAL_MS:   180,    // min ms between possessed-minion tile steps
 
-  // --- Mimic Vault (chest-disguised mimics) ---
-  MIMIC_OPEN_CHANCE_UNKNOWN: 0.40,   // % per room-entry an unaware adv tries to open it
-  MIMIC_OPEN_CHANCE_KNOWN:   0.05,   // % when the adv already knows the mimic is hostile
-  MIMIC_REVEAL_BITE_FRAC:    0.30,   // % of opener's maxHp on the reveal bite
+  // --- Mimic (chest-disguised stationary trap minion) ---
+  // [Removed 2026-05-22] MIMIC_OPEN_CHANCE_UNKNOWN / MIMIC_OPEN_CHANCE_KNOWN
+  // / MIMIC_REVEAL_BITE_FRAC. The mimic mechanic was rewritten — open
+  // probability is now driven by the standard chest temptPct (per the
+  // mimic's pre-rolled chestTier) and the trigger insta-kills the opener
+  // instead of biting + engaging. See AISystem._tryTriggerMimic /
+  // _springMimic for the new path.
 
   // --- Rarity-driven offering weights (Phase 9) ---
   // Each Dark Pact card draw first picks a rarity TIER using these weights,

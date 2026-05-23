@@ -131,13 +131,20 @@ export function createMinion(typeDef, tile, assignedRoomId, options = {}) {
   }
 
   // Mimic — every mimic spawn (player-built or Mimic Vault) starts in
-  // chest disguise. RoomBehaviorSystem._rollMimicOpens reveals on the
-  // appropriate trigger (adv tries to open). Without this, a built mimic
-  // walked around in plain sight, contradicting the "disguised as a
-  // chest" bestiary text.
+  // chest disguise. The mimic poses as a random Treasure Chest tier (1-10)
+  // — visible to the player as a red-tinted chest so they can position it
+  // tactically, but to adventurers it reads as an ordinary chest. State
+  // machine:
+  //   'chest'  — disguised, ready to spring. Stationary. Untargetable
+  //              by advs unless they know (knowledge.mimics[id]).
+  //   'sprung' — open animation played + an adv was instantly killed.
+  //              Stays open visually until NIGHT_PHASE_STARTED reset.
+  //   ('dead' is the standard aiState path when a knowledgeable adv
+  //   kills the mimic via direct combat.)
   if (typeDef.id === 'mimic') {
     minion.isMimic    = true
     minion.mimicState = 'chest'
+    minion.chestTier  = 1 + Math.floor(Math.random() * 10)   // 1..10 random tier
   }
 
   if (options.bossLevel || options.dayNumber) {

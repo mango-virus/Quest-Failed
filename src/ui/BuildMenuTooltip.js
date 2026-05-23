@@ -36,7 +36,7 @@ const ROOM_SUMMARIES = {
   wandering_gate:       'Entry chance to teleport adventurer to a random room.',
   veil_of_forgetting:   'Erases adventurer intel for connected rooms each night.',
   catacombs:            'Adventurers who die here rise as Tier-2 Revenants (max 2).',
-  mimic_vault:          'Looks like a Treasury. 2 Mimics + 1 thieving false chest.',
+  mimic_vault:          'Looks like a Treasury. Spawns 2 stationary Mimics each day, disguised as chests — any adventurer who tries to loot one is instantly devoured.',
   hall_of_trials:       "Garrisons one random Tier-2 minion. Doesn't respawn same day.",
   wishing_well:         "Coin flip on entry: buff or 'Marked' (+50% damage taken).",
   false_exit:           'Tricks fleeing adventurers — teleports them back inside.',

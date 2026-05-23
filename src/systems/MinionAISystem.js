@@ -283,9 +283,20 @@ export class MinionAISystem {
     const possessedId = this._gameState?._mechanicFlags?.possessedMinionId
     if (possessedId && minion.faction === 'dungeon') return
 
-    // Mimic Vault: chest-state mimics sit still until an adventurer
-    // "opens" them. Open-roll lives in RoomBehaviorSystem.
-    if (minion.isMimic && minion.mimicState === 'chest') return
+    // Mimic — disguised-chest minions sit still in BOTH the active
+    // 'chest' state (waiting to spring) AND the spent 'sprung' state
+    // (just killed an adv; visually open till next night). They never
+    // patrol or hunt. EXCEPTION: if a knowledge-aware adv has attacked
+    // them within the retaliation window, fall through to the normal
+    // _pickTarget/_engageTarget flow so the mimic swings back. Without
+    // this carve-out the mimic is invulnerable from inside the chest.
+    if (minion.isMimic && (minion.mimicState === 'chest' || minion.mimicState === 'sprung')) {
+      const RETALIATE_MS = 3000
+      const now = this._scene.time?.now ?? 0
+      const retaliating = minion._lastHitBy &&
+        (now - (minion._lastHitAt ?? 0)) < RETALIATE_MS
+      if (!retaliating) return
+    }
 
     if (minion.resources.hp <= 0) {
       this._die(minion, idx)

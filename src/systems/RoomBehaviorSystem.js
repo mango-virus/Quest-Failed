@@ -207,11 +207,17 @@ export class RoomBehaviorSystem {
     }
 
     // Mimic Vault: spawn 2 chest-disguised mimics each day. Mimics start
-    // in `chest` state (idle, untargetable). Adventurers entering the room
-    // roll a chance to "open" each chest. If opened the mimic reveals,
-    // bites the opener, and engages like a normal hostile minion. Once
-    // anyone reveals a mimic the whole party (and future-day spawns via
-    // sharedPool) learn about it and are far less likely to open.
+    // in 'chest' state — a red-tinted Treasure Chest sprite (per-mimic
+    // random tier) to the player, an ordinary chest to the adv AI.
+    // Adventurers within 1 tile of a 'chest'-state mimic THEY DON'T KNOW
+    // ABOUT trigger AISystem._tryTriggerMimic: the chest open animation
+    // plays, the opener is instantly killed, knowledge propagates to all
+    // alive advs + the shared pool, and the mimic transitions to
+    // 'sprung' (visibly open) for the rest of the day. At
+    // NIGHT_PHASE_STARTED, AISystem._resetSprungMimics flips them back
+    // to 'chest'. Knowledge-aware advs see through the disguise and may
+    // attack the mimic instead (it counter-attacks via the retaliation
+    // window in MinionAISystem).
     const vaults = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.definitionId === 'mimic_vault' && r.isActive !== false
     )
@@ -239,8 +245,9 @@ export class RoomBehaviorSystem {
             namePrefix: 'Mimic',
             extra: {
               isMimicVaultSpawn: true,
-              isMimic: true,
-              mimicState: 'chest',     // 'chest' | 'revealed'
+              isMimic:    true,
+              mimicState: 'chest',                              // 'chest' | 'sprung'
+              chestTier:  1 + Math.floor(Math.random() * 10),   // random visual tier 1..10
             },
           })
           this._gameState.minions.push(m)
@@ -362,84 +369,12 @@ export class RoomBehaviorSystem {
       }
     }
 
-    // Mimic Vault — entering a room with chest-state mimics tempts the
-    // adventurer to try opening one. Knowledge of the mimic plummets the
-    // chance. Each chest rolls independently; once one reveals, the
-    // remaining chests are still chests but the adv now KNOWS so subsequent
-    // rolls use the cautious chance.
-    this._rollMimicOpens(adventurer, room)
-  }
-
-  // ── Mimic open-roll ────────────────────────────────────────────────────
-
-  _rollMimicOpens(adv, room) {
-    if (!adv || !room) return
-    if (adv.aiState === 'dead' || adv.aiState === 'fleeing' || adv.aiState === 'leaving') return
-    const chests = (this._gameState.minions ?? []).filter(m =>
-      m.isMimic && m.mimicState === 'chest' && m.aiState !== 'dead' &&
-      m.assignedRoomId === room.instanceId
-    )
-    if (chests.length === 0) return
-
-    adv.knowledge ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
-    adv.knowledge.mimics ??= {}
-
-    for (const mimic of chests) {
-      const known = !!adv.knowledge.mimics[mimic.instanceId]
-      const chance = known
-        ? Balance.MIMIC_OPEN_CHANCE_KNOWN
-        : Balance.MIMIC_OPEN_CHANCE_UNKNOWN
-      if (Math.random() >= chance) continue
-      this._revealMimic(mimic, adv, room)
-    }
-  }
-
-  _revealMimic(mimic, opener, room) {
-    mimic.mimicState = 'revealed'
-    mimic.aiState = 'engaging'
-
-    // Bite: chunk of opener's max HP, applied immediately on reveal.
-    const bite = Math.max(1, Math.floor((opener.resources.maxHp ?? 0) * Balance.MIMIC_REVEAL_BITE_FRAC))
-    opener.resources.hp = Math.max(0, opener.resources.hp - bite)
-    opener._lastHitBy   = mimic.instanceId
-    opener._lastHitType = mimic.damageType ?? 'physical'
-
-    // Mark this mimic known to the opener AND every other adv currently
-    // alive — they all see the chest spring shut. Future-day spawns
-    // inherit via the shared knowledge pool (KnowledgeSystem rebuild).
-    const today = this._gameState.meta?.dayNumber ?? 1
-    for (const a of (this._gameState.adventurers?.active ?? [])) {
-      a.knowledge ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
-      a.knowledge.mimics ??= {}
-      a.knowledge.mimics[mimic.instanceId] = {
-        type:      mimic.definitionId,
-        roomId:    room.instanceId,
-        confirmed: true,
-        stale:     false,
-        dayLearned: today,
-      }
-    }
-
-    EventBus.emit('MIMIC_REVEALED', {
-      mimic, opener, room, biteDamage: bite,
-    })
-    EventBus.emit('COMBAT_HIT', {
-      sourceId: mimic.instanceId,
-      targetId: opener.instanceId,
-      damage:   bite,
-      damageType: mimic.damageType ?? 'physical',
-      isCritical: true,
-    })
-    if (opener.resources.hp <= 0) {
-      EventBus.emit('COMBAT_KILL', {
-        sourceId:   mimic.instanceId,
-        targetId:   opener.instanceId,
-        damageType: mimic.damageType ?? 'physical',
-        method:     'mimic_bite',
-        roomId:     room.instanceId,
-        day:        today,
-      })
-    }
+    // [Removed 2026-05-22] _rollMimicOpens + _revealMimic. The mimic
+    // mechanic was rewritten to "stationary disguised chest with insta-
+    // kill on loot-attempt" — see AISystem._tryTriggerMimic +
+    // _springMimic for the new path. Proximity-based trigger replaces
+    // the room-entry roll, knowledge propagation happens on spring, and
+    // the bite-on-reveal-then-engage mechanic was retired entirely.
   }
 
   _teleportFromWanderingGate(adv, gateRoom) {

@@ -188,8 +188,9 @@ export class SfxSystem {
     on('DOOR_CLOSED',             this._onDoorClosed)
     on('PHYLACTERY_UNLOCKED',     this._onDoorUnlock)
 
-    // Environment
-    on('MIMIC_REVEALED',          this._onChestOpen)
+    // Environment — MIMIC_SPRUNG fires when an adv triggers a disguised
+    // mimic; reuses the chest-open SFX since the visual is the same.
+    on('MIMIC_SPRUNG',            this._onChestOpen)
     on('WANDERING_GATE_TELEPORTED', this._onTeleport)
     on('FALSE_EXIT_TELEPORTED',   this._onTeleport)
     on('PACT_BOSS_PETRIFY_FIRED', this._onBeholderBeam)

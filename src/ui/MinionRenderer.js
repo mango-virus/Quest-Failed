@@ -142,45 +142,65 @@ export class MinionRenderer {
         s.container.setDepth(baseDepth + m.worldY * 0.0005)
       }
 
-      // Mimic Vault chest disguise — render as a wooden chest until the
-      // mimic reveals. Sprite + HP + level + bounty all hidden while in
-      // chest state. Bite-on-reveal flips state in RoomBehaviorSystem.
-      if (m.isMimic && m.mimicState === 'chest') {
+      // Mimic disguise — render as a red-tinted Treasure Chest sprite at
+      // the mimic's pre-rolled `chestTier` (1..10). Player sees the red
+      // tint as a "danger" hint; adventurers perceive it as a normal
+      // chest (the tint is purely visual). Sprite frame tracks state:
+      //   'chest'  → frame 0 (closed lid)
+      //   'sprung' → frame 3 (lid open)  — set after a kill, stays till
+      //              the next NIGHT_PHASE_STARTED reset.
+      if (m.isMimic && (m.mimicState === 'chest' || m.mimicState === 'sprung')) {
         if (s.sprite) s.sprite.setVisible(false)
         s.body?.setVisible?.(false)
         s.hp?.setVisible?.(false)
         s.hpBg?.setVisible?.(false)
         s.lvLabel?.setVisible?.(false)
-        if (!s.chestOverlay) {
-          const cg = this._scene.add.graphics()
-          // Box body
-          cg.fillStyle(0x6b3a1a, 1)
-          cg.fillRect(-10, -8, 20, 14)
-          cg.lineStyle(1, 0x3a1d0a, 1)
-          cg.strokeRect(-10, -8, 20, 14)
-          // Lid seam
-          cg.fillStyle(0x3a1d0a, 1)
-          cg.fillRect(-10, -3, 20, 1)
-          // Gold trim corners
-          cg.fillStyle(0xe8c34a, 1)
-          cg.fillRect(-10, -8, 2, 2)
-          cg.fillRect( 8, -8, 2, 2)
-          cg.fillRect(-10,  4, 2, 2)
-          cg.fillRect( 8,  4, 2, 2)
-          // Lock
-          cg.fillStyle(0xe8c34a, 1)
-          cg.fillRect(-2, -2, 4, 4)
-          cg.fillStyle(0x000000, 1)
-          cg.fillRect(-1, -1, 2, 2)
-          s.container.add(cg)
-          s.chestOverlay = cg
+        const tier   = m.chestTier ?? 1
+        const texKey = `item-treasure-chest-${tier}`
+        // Build/refresh the chest sprite. Lazy-create when the texture
+        // is ready; degrade to invisible-no-op otherwise so we don't
+        // crash on cold-start before Preload finishes.
+        if (!s.chestSprite && this._scene.textures.exists(texKey)) {
+          // Anchor bottom-center like TreasureChestRenderer (chest art
+          // is taller than the 32px tile). 1.6× scale matches the
+          // real-chest renderer so a mimic visually IS one of them.
+          s.chestSprite = this._scene.add
+            .sprite(0, 0, texKey, 0)
+            .setOrigin(0.5, 1)
+            .setScale(1.6)
+          // Red tint — player-side cue. Adventurers' AI ignores tint
+          // (they just see "a chest"). 0xff5050 = punchy warning red
+          // that still reads on top of all 10 chest art tiers.
+          s.chestSprite.setTint(0xff5050)
+          s.container.add(s.chestSprite)
         }
-        s.chestOverlay.setVisible(true)
+        if (s.chestSprite) {
+          // Lift slightly so the bottom-anchor lands on the tile floor
+          // instead of below it (container origin is mid-tile).
+          s.chestSprite.setPosition(0, 14)
+          s.chestSprite.setVisible(true)
+          // State-driven frame: 0 = closed, 3 = open (per the chest
+          // 4-frame anim convention). 'sprung' stays on the open frame
+          // till the night-phase reset flips state back to 'chest'.
+          const targetFrame = m.mimicState === 'sprung' ? 3 : 0
+          if (s.chestSprite.frame?.name !== targetFrame) {
+            s.chestSprite.setFrame(targetFrame)
+          }
+        }
+        // Clean up the old custom-drawn graphics overlay if it lingers
+        // from a save before this renderer rewrite shipped.
+        if (s.chestOverlay) { s.chestOverlay.destroy(); s.chestOverlay = null }
         s.lastX = m.worldX; s.lastY = m.worldY; s.lastHp = curHp
         continue   // skip the rest of the per-frame update for chest mimics
+      } else if (s.chestSprite) {
+        // Dead mimic (knowledge-aware adv killed it via combat) — drop
+        // the chest sprite and let the standard dead-minion render show.
+        s.chestSprite.destroy()
+        s.chestSprite = null
+        if (s.sprite) s.sprite.setVisible(true)
+        s.body?.setVisible?.(true)
       } else if (s.chestOverlay) {
-        s.chestOverlay.setVisible(false)
-        // Restore the normal sprite/body visibility so the revealed mimic renders.
+        s.chestOverlay.destroy(); s.chestOverlay = null
         if (s.sprite) s.sprite.setVisible(true)
         s.body?.setVisible?.(true)
       }

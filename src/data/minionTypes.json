@@ -1947,7 +1947,7 @@
     "behaviorType": "patrol",
     "color": "0xb88844",
     "sigil": "$",
-    "description": "Disguised as a chest. Sprung when an unsuspecting adventurer tries to open it. Re-disguises when the room is quiet.",
+    "description": "Sits perfectly still, disguised as a random treasure chest (red-tinted to your eye so you can position it; adventurers see a normal chest). An adventurer who tries to loot it is instantly devoured — but survivors learn this specific mimic is a trap and refuse to open it. Re-disguises each night so a sprung mimic is dangerous again the next day. Can be attacked by anyone who knows the disguise.",
     "baseStats": {
       "hp": 72,
       "attack": 20,

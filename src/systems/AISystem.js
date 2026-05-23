@@ -85,6 +85,12 @@ export class AISystem {
     if (this._gameState.dungeon?.lootPiles?.length) {
       this._gameState.dungeon.lootPiles = []
     }
+    // Mimic — every spent ('sprung') mimic re-disguises overnight. The
+    // chest visibly closes again, ready to trap tomorrow's wave. Mimics
+    // killed via combat (aiState='dead') stay dead until respawnAll
+    // handles them (Mimic Vault auto-spawns) or the player rebuilds
+    // (placeable mimics).
+    this._resetSprungMimics()
     // Phase: items — every locked door re-locks, every key chest re-fills,
     // class lockpick/break-down counters reset, and any keys carried by
     // adventurers (active or fled) drop. The dungeon resets to its built
@@ -132,8 +138,32 @@ export class AISystem {
     const known = adv.knowledge?.treasureChests ?? {}
     const knownIds = Object.keys(known).filter(id => known[id]?.stale !== true)
     if (knownIds.length === 0) return null
-    const chests = (this._gameState.dungeon?.treasureChests ?? [])
+    // Real chests — uncopen, in the live `treasureChests` list.
+    const realChests = (this._gameState.dungeon?.treasureChests ?? [])
       .filter(c => !c.opened && knownIds.includes(c.instanceId))
+    // Mimic chests — disguised mimics the adv perceives as chests.
+    // KnowledgeSystem.observeRoomContents copies them into `knowledge.
+    // treasureChests` with `_isMimic: true`, so they show up in the same
+    // tempt loop. An adv whose `knowledge.mimics[id]` is set knows the
+    // disguise and SKIPS the tempt (no opens) — they're handled by the
+    // normal hostile-engagement path elsewhere instead.
+    const mimicSightings = []
+    for (const id of knownIds) {
+      const entry = known[id]
+      if (!entry?._isMimic) continue
+      if (adv.knowledge?.mimics?.[id]) continue   // sees through the disguise
+      const m = (this._gameState.minions ?? []).find(x => x.instanceId === id)
+      if (!m || m.aiState === 'dead' || m.mimicState !== 'chest') continue
+      // Wrap as a chest-shaped target so the rest of the goal flow
+      // (pathing + reach-and-open) treats it uniformly.
+      mimicSightings.push({
+        instanceId: m.instanceId,
+        tileX: m.tileX, tileY: m.tileY,
+        tier: m.chestTier ?? 1,
+        _isMimic: true,
+      })
+    }
+    const chests = [...realChests, ...mimicSightings]
     if (chests.length === 0) return null
     chests.sort((a, b) => b.tier - a.tier)
     const tags = this._personalitySystem?.getTags(adv) ?? new Set()
@@ -147,6 +177,102 @@ export class AISystem {
       if (Math.random() * 100 < temptPct) return chest
     }
     return null
+  }
+
+  // Mimic-chest proximity trigger. Runs alongside _tryOpenTreasureChest
+  // every tile-step. An adv adjacent to a 'chest'-state mimic THEY DON'T
+  // YET KNOW IS A MIMIC triggers the trap: chest-open animation plays
+  // (via the renderer reacting to mimicState='sprung'), all alive party
+  // members + the shared knowledge pool learn this specific mimic is
+  // dangerous, and the opener is instantly killed (routed through the
+  // standard adventurer-died path so the player gets normal kill credit).
+  //
+  // The mimic itself transitions to 'sprung' and stays open till
+  // NIGHT_PHASE_STARTED resets it back to 'chest' for the next day.
+  _tryTriggerMimic(adv) {
+    if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
+    for (const m of (this._gameState.minions ?? [])) {
+      if (!m.isMimic) continue
+      if (m.mimicState !== 'chest') continue
+      if (m.aiState === 'dead') continue
+      // Knowledge-aware advs see through the disguise and refuse to open
+      // it — they handle the mimic via normal hostile engagement (see
+      // the adv-targeting allow-list in _findEngageableMinion).
+      if (adv.knowledge?.mimics?.[m.instanceId]) continue
+      const d = Math.max(Math.abs(m.tileX - adv.tileX), Math.abs(m.tileY - adv.tileY))
+      if (d > 1) continue
+      this._springMimic(m, adv)
+      return   // opener is now dead; bail before the caller advances them
+    }
+  }
+
+  // Trigger sequence — flip state, propagate knowledge, kill the opener.
+  // Knowledge propagation:
+  //   * every alive adv (any party) gets `knowledge.mimics[mimicId]`
+  //   * the shared `knowledge.sharedPool.mimics[mimicId]` slot is set so
+  //     next-day spawns inherit the warning when KnowledgeSystem
+  //     initialises their knowledge from the pool.
+  _springMimic(mimic, opener) {
+    mimic.mimicState = 'sprung'
+    const today = this._gameState.meta?.dayNumber ?? 1
+    // Mark this mimic known on every currently-alive adventurer (not
+    // just the opener's party — the dungeon scream of "DON'T OPEN
+    // THAT CHEST" carries). Future-day spawns inherit via sharedPool.
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      if (a.aiState === 'dead' || a === opener) continue
+      a.knowledge ??= { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {} }
+      a.knowledge.mimics ??= {}
+      a.knowledge.mimics[mimic.instanceId] = {
+        type:       mimic.definitionId,
+        roomId:     this._dungeonGrid?.getRoomAtTile?.(mimic.tileX, mimic.tileY)?.instanceId ?? null,
+        confirmed:  true,
+        stale:      false,
+        dayLearned: today,
+      }
+    }
+    // Shared pool — KnowledgeSystem._mergeKnowledge unions this into
+    // fresh adv knowledge on spawn so tomorrow's wave already knows.
+    const pool = this._gameState.knowledge ??= { sharedPool: {} }
+    pool.sharedPool ??= {}
+    pool.sharedPool.mimics ??= {}
+    pool.sharedPool.mimics[mimic.instanceId] = {
+      type:       mimic.definitionId,
+      roomId:     this._dungeonGrid?.getRoomAtTile?.(mimic.tileX, mimic.tileY)?.instanceId ?? null,
+      confirmed:  true,
+      stale:      false,
+      dayLearned: today,
+    }
+    EventBus.emit('MIMIC_SPRUNG', { mimic, opener })
+    EventBus.emit('COMBAT_KILL', {
+      sourceId:   mimic.instanceId,
+      targetId:   opener.instanceId,
+      damageType: 'physical',
+      method:     'mimic_devour',
+      roomId:     this._dungeonGrid?.getRoomAtTile?.(opener.tileX, opener.tileY)?.instanceId ?? null,
+      day:        today,
+    })
+    // The opener dies instantly. Route through the standard _kill path
+    // so AdventurerRenderer, the post-wave tally, gold/XP credit, and
+    // the graveyard record all fire correctly. _kill reads
+    // adv.resources.hp + adv._lastHitBy; both are set above.
+    opener.resources.hp = 0
+    opener._lastHitBy   = mimic.instanceId
+    opener._lastHitType = 'mimic_devour'
+    const idx = (this._gameState.adventurers?.active ?? []).indexOf(opener)
+    this._kill(opener, idx, mimic.instanceId)
+  }
+
+  // Reset every 'sprung' mimic back to 'chest' state at the start of
+  // a new night so they're armed and ready for tomorrow's wave. Called
+  // from a NIGHT_PHASE_STARTED hook — placed here (next to the mimic
+  // logic) for locality. Knowledge that THIS mimic exists persists on
+  // the shared pool so next-day advs still avoid it.
+  _resetSprungMimics() {
+    for (const m of (this._gameState.minions ?? [])) {
+      if (m.isMimic && m.mimicState === 'sprung' && m.aiState !== 'dead') {
+        m.mimicState = 'chest'
+      }
+    }
   }
 
   // Open a treasure chest the adv has reached, debit the player by
@@ -1746,6 +1872,11 @@ export class AISystem {
       this._tryPickKey(adv)
       this._tryHealAtFountain(adv)
       this._tryOpenTreasureChest(adv)
+      // Mimic trigger — same proximity rule as a real chest, but
+      // routes to the kill-the-opener path instead of looting. Bails
+      // early if the adv is now dead so subsequent step-logic skips.
+      this._tryTriggerMimic(adv)
+      if (adv.aiState === 'dead') return
       // _tryPickKey may have nulled adv.path (it switches the goal to
       // OPEN_LOCKED_DOOR and clears the path so a fresh repath happens
       // next tick). Guard the .length read so the update loop doesn't
@@ -1978,9 +2109,20 @@ export class AISystem {
       if (m._tameTargetedAt != null &&
           (nowMs - m._tameTargetedAt) >= 0 &&
           (nowMs - m._tameTargetedAt) < TAME_PROTECT_MS) continue
-      // Mimic Vault: chest-state mimics look like ordinary chests, not
-      // hostile minions. Skipped until they reveal.
-      if (m.isMimic && m.mimicState === 'chest') continue
+      // Mimic — disguised mimics look like ordinary chests, so the adv
+      // doesn't perceive them as hostile by default. EXCEPTION: an adv
+      // who has knowledge of THIS specific mimic (witnessed a kill,
+      // or inherited intel from a survivor / shared pool) sees through
+      // the disguise and may attack it as a normal hostile. We also
+      // skip 'sprung' mimics — they're visibly spent for the day and
+      // not a threat until they re-disguise at night.
+      if (m.isMimic && (m.mimicState === 'chest' || m.mimicState === 'sprung')) {
+        const known = !!adv.knowledge?.mimics?.[m.instanceId]
+        if (!known) continue
+        // Sprung mimics aren't a meaningful threat — let the adv ignore
+        // them even when known; they have bigger problems.
+        if (m.mimicState === 'sprung') continue
+      }
       // Phase 1b.6 — Lizardman Camouflage. Adventurers literally cannot see
       // camouflaged minions, so they're invisible to targeting until the
       // minion reveals on its first attack.

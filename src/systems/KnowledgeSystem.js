@@ -204,6 +204,23 @@ export class KnowledgeSystem {
         confirmed: true, stale: false, dayLearned: today,
       }
     }
+    // Mimics perceived as chests — every Mimic minion in 'chest' state
+    // inside this room registers in the adv's treasureChests map with
+    // an `_isMimic` marker. The adv treats it as an ordinary chest for
+    // pathing + tempt purposes; the kill-on-open branch in AISystem
+    // detects the flag and routes to the mimic-spring path. Knowledge
+    // that a specific mimic IS a mimic (after surviving a kill) lives
+    // separately on `knowledge.mimics[id]` and beats the disguise.
+    for (const m of (this._gs.minions ?? [])) {
+      if (!m.isMimic || m.mimicState !== 'chest') continue
+      if (m.aiState === 'dead') continue
+      if (!inside(m)) continue
+      adv.knowledge.treasureChests[m.instanceId] ??= {
+        tileX: m.tileX, tileY: m.tileY, tier: m.chestTier ?? 1,
+        _isMimic: true, _mimicInstanceId: m.instanceId,
+        confirmed: true, stale: false, dayLearned: today,
+      }
+    }
     for (const c of (this._gs.dungeon?.keyChests ?? [])) {
       if (!inside(c)) continue
       adv.knowledge.keyChests[c.instanceId] ??= {
