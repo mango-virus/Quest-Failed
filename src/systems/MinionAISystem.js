@@ -699,6 +699,17 @@ export class MinionAISystem {
     // Phase 9 — Whisperer's Tongue: minions can hear advs across rooms,
     // so the same-room requirement drops (garrison still hard-bound).
     const whisperersTongue = !!((this._gameState._mechanicFlags ?? {}).whisperersTongue)
+    // Phase QW (Guard Post) — minions whose home room is a Guard Post
+    // act as a forward operating base. They actively engage adventurers
+    // in any room directly door-connected to the post, NOT the whole
+    // dungeon (unlike `behaviorType: 'hunt'`). Garrison minions are
+    // still hard-bound to their assigned room and ignore this aura.
+    const isGuardPost = !isGarrison && homeRoom.definitionId === 'starter_guard_post'
+    const guardPostConnectedIds = isGuardPost && this._dungeonGrid?.getNeighborRooms
+      ? new Set((this._dungeonGrid.getNeighborRooms(homeRoom.instanceId) ?? [])
+          .filter(r => r.isActive !== false)
+          .map(r => r.instanceId))
+      : null
     const requireSameRoom = isGarrison ||
       (Balance.ENGAGE_REQUIRES_SAME_ROOM && !isAlerted && !isHunter && !whisperersTongue)
 
@@ -753,7 +764,21 @@ export class MinionAISystem {
       const inHome = _pointInRoom(adv.tileX, adv.tileY, homeRoom)
       const inStanding = !!(standingRoom && standingRoom.instanceId !== homeRoom.instanceId &&
                             _pointInRoom(adv.tileX, adv.tileY, standingRoom))
-      const inMinionRoom = inHome || (inStanding && !isGarrison)
+      // Guard Post forward operating base — the adv is in a room
+      // directly door-connected to the minion's home Guard Post.
+      // _pickTarget will pick this adv, _engageTarget will path the
+      // minion through the door to engage, and when the connected
+      // rooms clear the default no-target return-home flow brings them
+      // back. Cheaper than a full new AI state, leans on the existing
+      // walk-along-path code.
+      let inGuardPostBeat = false
+      if (isGuardPost && guardPostConnectedIds && !inHome && !inStanding) {
+        const advRoom = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+        if (advRoom && guardPostConnectedIds.has(advRoom.instanceId)) {
+          inGuardPostBeat = true
+        }
+      }
+      const inMinionRoom = inHome || (inStanding && !isGarrison) || inGuardPostBeat
 
       if (requireSameRoom && !isRetaliationTarget && !inMinionRoom) continue
 

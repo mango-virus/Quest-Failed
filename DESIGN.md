@@ -340,7 +340,7 @@ _(no new rooms — see Library of Whispers moved to L2)_
 | Room | Cap | Effect |
 |---|---|---|
 | **Hall of Madness** | 1 | Adventurers in this room have a % chance to attack each other instead of moving on. (Heavy implementation lift — needs new AI state.) |
-| **Throne Room** | scales 1 → 2 | Spawns 1 **Mini-Boss (garrison, room-bound)** that scales with boss level (T1→T2→T3 mechanics). No other minions may be placed in this room. Respawns nightly. |
+| **Throne Room** | scales 1 → 2 | Spawns 1 **Mini-Boss (garrison, room-bound)** that scales with boss level. No other minions may be placed in this room. Respawns nightly. *(deviation noted 2026-05-22: the original "T1→T2→T3 family progression" spec was simplified to a skeleton3 baseline whose HP/ATK/DEF scale via `MINION_HP_PER_BOSS_LV` / `MINION_ATK_PER_BOSS_LV`. Stat scaling already creates the difficulty curve; family-tier visual swap is deferred polish.)* |
 
 #### L10 unlocks (capstone)
 
