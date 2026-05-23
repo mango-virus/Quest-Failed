@@ -231,7 +231,7 @@ export class BossFightOverlay {
   }
 
   // ─── Resolve ───────────────────────────────────────────────────
-  _onResolved({ winner, deathsRemaining } = {}) {
+  _onResolved({ winner, deathsRemaining, bossHpRemaining } = {}) {
     // Tear down bar + vignette in parallel with showing the result.
     this._barActive = false
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0 }
@@ -241,23 +241,37 @@ export class BossFightOverlay {
       this._bar?.classList.remove('open', 'fading')
       this._vignette?.classList.remove('open', 'fading')
     }, 600)
-    this._buildResultSlate(winner, deathsRemaining)
+    this._buildResultSlate(winner, deathsRemaining, bossHpRemaining)
   }
 
-  _buildResultSlate(winner, deathsRemaining) {
+  _buildResultSlate(winner, deathsRemaining, bossHpRemaining) {
     if (!this._result) return
-    const partyWon = winner === 'party'
+    // A "party" winner can mean two different things: the boss actually
+    // died (hp <= 0 → life lost) OR the 24-round stalemate cap resolved in
+    // the party's favour on HP-fraction while the boss is still alive
+    // (BossSystem only decrements deathsRemaining on actual death). Showing
+    // "YOU LOST A LIFE" in the stalemate case is misleading — the lives
+    // count is unchanged. Use bossHpRemaining to pick the accurate slate.
+    const partyWon  = winner === 'party'
+    const lifeLost  = partyWon && (bossHpRemaining ?? 0) <= 0
     this._result.replaceChildren()
     this._result.classList.toggle('party-won', partyWon)
     this._result.classList.toggle('boss-won',  !partyWon)
+    let title, sub
+    if (lifeLost) {
+      title = 'YOU LOST A LIFE'
+      sub   = `Lives remaining: ${deathsRemaining ?? '?'}`
+    } else if (partyWon) {
+      title = 'INTRUDER WITHDREW'
+      sub   = 'The dungeon held — for now.'
+    } else {
+      title = 'INTRUDER REPELLED'
+      sub   = 'The dungeon endures.'
+    }
     this._result.appendChild(h('div', { className: 'qf-bossfight-result-wash' }))
     this._result.appendChild(h('div', { className: 'qf-bossfight-result-card' }, [
-      h('div', { className: 'qf-bossfight-result-title' },
-        partyWon ? 'YOU LOST A LIFE' : 'INTRUDER REPELLED'),
-      h('div', { className: 'qf-bossfight-result-sub' },
-        partyWon
-          ? `Lives remaining: ${deathsRemaining ?? '?'}`
-          : 'The dungeon endures.'),
+      h('div', { className: 'qf-bossfight-result-title' }, title),
+      h('div', { className: 'qf-bossfight-result-sub' },   sub),
     ]))
     this._result.classList.add('open')
 

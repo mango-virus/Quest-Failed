@@ -366,7 +366,7 @@ export class BossFightOverlay {
 
   // ── Result slate ────────────────────────────────────────────────────────
 
-  _onResolved({ winner, deathsRemaining }) {
+  _onResolved({ winner, deathsRemaining, bossHpRemaining }) {
     // Fade the bar + vignette out alongside the result slate.
     if (this._barContainer) {
       const c = this._barContainer
@@ -380,14 +380,20 @@ export class BossFightOverlay {
         onComplete: () => this._destroyVignette(),
       })
     }
-    this._buildResultSlate(winner, deathsRemaining)
+    this._buildResultSlate(winner, deathsRemaining, bossHpRemaining)
   }
 
-  _buildResultSlate(winner, deathsRemaining) {
+  _buildResultSlate(winner, deathsRemaining, bossHpRemaining) {
     this._destroyResult()
     const W = this._scene.uiW ?? 1280
     const H = this._scene.uiH ?? 720
     const isPartyWin = winner === 'party'
+    // A "party" winner can mean the boss actually died (hp <= 0 → life
+    // lost) OR the 24-round stalemate cap resolved in the party's favour
+    // on HP-fraction while the boss is still alive — BossSystem only
+    // decrements deathsRemaining on actual death, so the stalemate case
+    // must not claim a life was lost.
+    const lifeLost = isPartyWin && (bossHpRemaining ?? 0) <= 0
 
     const wash = this._scene.add.rectangle(0, 0, W, H, 0x000000, 0.45)
       .setOrigin(0).setDepth(RESULT_DEPTH).setAlpha(0)
@@ -404,8 +410,11 @@ export class BossFightOverlay {
     })
     this._resultObjs.push(frame)
 
+    const titleText = lifeLost      ? 'YOU LOST A LIFE'
+                    : isPartyWin     ? 'INTRUDER WITHDREW'
+                    :                  'INTRUDER REPELLED'
     const titleT = this._scene.add.text(cardX + cardW / 2, cardY + cardH / 2 - 10,
-      isPartyWin ? 'YOU LOST A LIFE' : 'INTRUDER REPELLED', {
+      titleText, {
       fontFamily: FONT_HEAD, fontSize: '15px',
       color: isPartyWin ? '#ff7777' : '#88ffaa',
       letterSpacing: 2,
@@ -413,9 +422,9 @@ export class BossFightOverlay {
     }).setOrigin(0.5).setDepth(RESULT_DEPTH + 2).setAlpha(0)
     this._resultObjs.push(titleT)
 
-    const subText = isPartyWin
-      ? `Lives remaining: ${deathsRemaining ?? '?'}`
-      : `The dungeon endures.`
+    const subText = lifeLost      ? `Lives remaining: ${deathsRemaining ?? '?'}`
+                  : isPartyWin    ? 'The dungeon held — for now.'
+                  :                 'The dungeon endures.'
     const subT = this._scene.add.text(cardX + cardW / 2, cardY + cardH / 2 + 14, subText, {
       fontFamily: FONT_BODY, fontSize: '10px',
       color: isPartyWin ? '#ffcccc' : '#cceedd', letterSpacing: 1,

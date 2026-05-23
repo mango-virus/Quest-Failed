@@ -361,6 +361,17 @@ export class TrapSystem {
     // The Saboteur is invulnerable while disarming — traps can't touch them.
     if (entity._invulnerable) return false
     const now = this._scene.time.now
+    // Per-entity 4 s damage lockout for this specific trap. Centralised
+    // here (rather than at each call site) so it covers stepped-on,
+    // saw, LOS, area, and bomb traps uniformly. The stepped-on / saw
+    // call sites have their own shorter per-entity cooldowns (def.cooldownMs)
+    // that still drive the visual re-fire cadence — this just guarantees
+    // a single trap can't damage the same entity twice within 4 s, even
+    // when global trap cooldowns are shorter.
+    if (entity.instanceId && trap.state) {
+      trap.state.advDmgCooldownUntil ??= {}
+      if (now < (trap.state.advDmgCooldownUntil[entity.instanceId] ?? 0)) return false
+    }
     // Monk Focus — 30% dodge vs traps (adventurers only carry this flag).
     if (entity._focusActiveUntil && now < entity._focusActiveUntil && Math.random() < 0.30) {
       AbilityVfx.floatingText?.(this._scene, entity.worldX, entity.worldY - 18, 'DODGED', { color: '#eeeeff' })
@@ -378,6 +389,10 @@ export class TrapSystem {
     entity.resources.hp = Math.max(0, entity.resources.hp - damage)
     entity._lastHitBy   = trap.instanceId
     entity._lastHitType = def.damageType ?? 'physical'
+    if (entity.instanceId && trap.state) {
+      trap.state.advDmgCooldownUntil ??= {}
+      trap.state.advDmgCooldownUntil[entity.instanceId] = now + 4000
+    }
 
     EventBus.emit('COMBAT_HIT', {
       sourceId: trap.instanceId, targetId: entity.instanceId,

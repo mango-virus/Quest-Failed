@@ -14,6 +14,7 @@
 import { EventBus }                 from '../systems/EventBus.js'
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelDiamond } from './UIKit.js'
 import { classLabel, pactLabel }    from '../util/displayNames.js'
+import { fleeReasonFlavor }         from '../util/fleeFlavor.js'
 
 const HEADER_H        = 22
 // Press Start 2P at 7px renders ~11-12px tall (font metrics include extra
@@ -117,8 +118,8 @@ export class DungeonLog {
       if (adventurer?._monster) return
       this._add(`${killerName ?? 'Something'} killed ${adventurer.name}.`, 'kill')
     })
-    on('ADVENTURER_FLED', ({ adventurer, reason }) => {
-      this._add(`${adventurer.name} fled (${reason ?? 'unknown'}).`, 'flee')
+    on('ADVENTURER_FLED', ({ adventurer, reason, context }) => {
+      this._add(fleeReasonFlavor(reason, adventurer.name, context), 'flee')
     })
     on('MINION_DIED', ({ minion }) => {
       this._add(`${this._minionName(minion)} fell.`, 'minion-down')

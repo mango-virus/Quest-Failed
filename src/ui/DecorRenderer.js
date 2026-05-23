@@ -261,7 +261,24 @@ export class DecorRenderer {
 
   _onRoomPlaced({ room } = {}) {
     if (!room) return
-    if (!Array.isArray(room.decorProps)) this._assignForRoom(room)
+    if (!Array.isArray(room.decorProps)) {
+      this._assignForRoom(room)
+      // TEMP DIAG — only warn for the bug case (zero props rolled).
+      if (room.decorProps.length === 0) {
+        const kit = THEME_KITS[room.definitionId] ?? THEME_KITS._default
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[DecorDiag] BUG: ${room.definitionId} @(${room.gridX},${room.gridY}) ` +
+          `${room.width}×${room.height} rolled ZERO props from kit ` +
+          `[${kit.join(', ')}]. Torches=${room.torches?.length ?? 0}, ` +
+          `Cobwebs=${room.cobwebs?.length ?? 0}, CPs=${room.connectionPoints?.length ?? 0}`
+        )
+      }
+    } else {
+      // TEMP DIAG — also warn if decorProps was pre-set somehow.
+      // eslint-disable-next-line no-console
+      console.warn(`[DecorDiag] BUG: ${room.definitionId} arrived with decorProps PRE-SET (length ${room.decorProps.length}) — SKIPPED roll`)
+    }
   }
 
   // ── Assignment / rolling ──────────────────────────────────────────────
@@ -288,16 +305,28 @@ export class DecorRenderer {
     const occupied = this._existingOccupancy(room)
     const out = []
     let attempts = 0
+    // TEMP DIAG — tracking why subsequent rooms get no decor.
+    const diag = []
     while (out.length < count && attempts < 30) {
       attempts++
       const kind = kit[Math.floor(Math.random() * kit.length)]
-      if (ONCE_PER_ROOM.has(kind) && placedKinds.has(kind)) continue
+      if (ONCE_PER_ROOM.has(kind) && placedKinds.has(kind)) {
+        diag.push(`${kind}:OnceCap`)
+        continue
+      }
       const prop = this._placeKind(room, kind, used, occupied)
       if (prop) {
         used.add(`${prop.localX},${prop.localY}`)
         placedKinds.add(prop.kind)
         out.push(prop)
+        diag.push(`${kind}:OK@(${prop.localX},${prop.localY})`)
+      } else {
+        diag.push(`${kind}:NULL`)
       }
+    }
+    if (out.length < count) {
+      // eslint-disable-next-line no-console
+      console.info(`[DecorDiag] _rollDecor short: want ${count}, got ${out.length}/${attempts} attempts. Trace: ${diag.join(' | ')}`)
     }
     return out
   }

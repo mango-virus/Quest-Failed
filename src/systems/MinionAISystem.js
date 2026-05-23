@@ -939,6 +939,20 @@ export class MinionAISystem {
   // ── Movement ──────────────────────────────────────────────────────────────
 
   _moveToward(minion, targetTile, delta) {
+    // Door pause: if the next waypoint sits on a closed connection-point
+    // door, trigger the split-open animation (idempotent) and hold position
+    // until it finishes — mirrors the adventurer pattern in
+    // AISystem._moveToward so minions don't phase silently through closed
+    // doors when chasing, returning home, or following a summoner.
+    // Patroller minions (vampire thrall / demon imp / wraith haunt) keep
+    // their re-lock-behind behavior via _tickPatrollerDoors; this just
+    // makes the open visible for every minion that crosses a doorway.
+    const enteringDoor = this._dungeonGrid?.getCpForDoorTile?.(targetTile.x, targetTile.y)
+    if (enteringDoor && !enteringDoor.cp.open) {
+      this._scene?._dungeonRenderer?.openDoor(enteringDoor.cp)
+      return
+    }
+
     // Lane-centred world target — see DungeonGrid.getLaneCenterWorld.
     // Canonical doorway lane tiles + their floor approach/exit tiles
     // shift ½-tile so minions and summons walk through the geometric

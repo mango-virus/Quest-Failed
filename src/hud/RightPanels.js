@@ -26,53 +26,7 @@ import { pixelSprite } from './sprites.js'
 import { snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { pactLabel } from '../util/displayNames.js'
 
-// AI-side `ADVENTURER_FLED` events carry a `reason` code that's useful
-// for systems but reads as dev jargon in the player-facing log
-// ("goal_unreachable", "coward_panic", etc.). This map translates each
-// internal reason to a thematic one-line story beat. The full message
-// is built with the adventurer's name interpolated — using a function
-// per reason keeps the grammar natural ("Lyra panics and flees!" vs.
-// "Lyra fled — coward_panic.").
-const FLEE_REASON_FLAVOR = {
-  // ── Path / goal failures ────────────────────────────────────────
-  goal_unreachable:    n => `${n} can't find a way through and flees the dungeon!`,
-  blocked_by_lock:     n => `${n} is sealed off by a locked door and flees the dungeon!`,
-  no_route:            n => `${n} is boxed in with no way through and flees the dungeon!`,
-  goal_lost:           n => `${n} finds their target gone and flees the dungeon!`,
-  oscillation:         n => `${n} loses their nerve and bolts for the exit!`,
-  tour_complete:       n => `${n} has mapped enough — they head for home.`,
-
-  // ── HP / morale ─────────────────────────────────────────────────
-  low_hp_retreat:      n => `${n} is gravely wounded and retreats!`,
-  coward_panic:        n => `${n} panics and runs!`,
-  out_of_arrows:       n => `${n} is out of arrows and falls back!`,
-  whisperer_panic:     n => `${n} hears the whispers and flees in terror!`,
-  traumatized_panic:   n => `${n} is broken by what they've seen and flees!`,
-  raid_leader_dead:    n => `${n}'s raid leader fell — they scatter!`,
-  panic_witnessed_death: n => `${n} watched an ally die and breaks ranks!`,
-
-  // ── Boss-room consequences ──────────────────────────────────────
-  boss_defeated:       n => `${n} flees from the boss chamber in awe!`,
-  fled_from_boss:      n => `${n} loses their nerve before the boss and flees!`,
-  rival_boss_defeated: n => `${n} sees their rival boss fall — they retreat!`,
-  rival_squad_scatter: n => `${n}'s squad shatters and scatters into the dungeon!`,
-
-  // ── Archetype-driven ────────────────────────────────────────────
-  phylactery_gone:           n => `${n} senses your phylactery is unguarded and flees to report.`,
-  phylactery_destroyed:      n => `${n} sees the phylactery destroyed and breaks for the exit!`,
-  wraith_fear_window_ended:  n => `${n} comes to their senses and flees the dread!`,
-
-  // ── Loot escape ─────────────────────────────────────────────────
-  treasure_escape:     n => `${n} grabs the loot and bolts for the exit!`,
-}
-
-function _fleeReasonFlavor(reason, name) {
-  const fn = reason && FLEE_REASON_FLAVOR[reason]
-  if (fn) return fn(name)
-  // Unknown reason — fall back to a generic flavor line that still
-  // reads as story, not as a dev code dump.
-  return `${name} loses their nerve and flees!`
-}
+import { fleeReasonFlavor } from '../util/fleeFlavor.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 
 // Tiny seeded PRNG (mulberry32). Used to produce a deterministic party
@@ -837,15 +791,15 @@ export class RightPanels {
       const k = killerName ? ` by ${killerName}` : ''
       this._addLog(`${name} slain${k}.`, 'kill')
     })
-    sub('ADVENTURER_FLED', ({ adventurer, reason }) => {
+    sub('ADVENTURER_FLED', ({ adventurer, reason, context }) => {
       const name = adventurer?.name || 'Adventurer'
       // Flee is gold-colored "partial win" in the original scheme — they
       // got away but dropped gold and leaked intel. Not red (kill) and
       // not bare-orange (leak) — its own tier.
-      // Reason gets translated to player-facing flavor text via
-      // FLEE_REASON_FLAVOR so the log reads as story instead of
-      // exposing internal AI dev codes ("goal_unreachable" etc.).
-      const flavor = _fleeReasonFlavor(reason, name)
+      // Reason + context are translated to player-facing flavor text via
+      // fleeReasonFlavor so the log reads as story instead of exposing
+      // internal AI dev codes ("goal_unreachable" etc.).
+      const flavor = fleeReasonFlavor(reason, name, context)
       this._addLog(flavor, 'flee')
       this._renderIntel()   // a flee usually leaks intel
     })

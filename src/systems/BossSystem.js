@@ -2152,6 +2152,7 @@ export class BossSystem {
     this._handOffToAIFlee(
       fs.adv,
       witnessedAdv ? 'panic_witnessed_death' : 'fled_from_boss',
+      witnessedAdv ? { allyName: witnessedAdv.name ?? 'a comrade' } : null,
     )
   }
 
@@ -2204,7 +2205,13 @@ export class BossSystem {
         adv.resources.hp = 0
         this._killAdv(adv, 'boss')
       } else if (winner === 'party') {
-        this._handOffToAIFlee(adv, 'boss_defeated')
+        // Distinguish real lethal win (boss.hp <= 0 → "fled in awe of
+        // their slain foe") from the 24-round stalemate cap (boss still
+        // alive → "withdrew from the chamber"). Same lives-lost guard
+        // that's in the slate text — keeps the dungeon log consistent
+        // with the result card.
+        const lethal = (boss?.hp ?? 0) <= 0
+        this._handOffToAIFlee(adv, lethal ? 'boss_defeated' : 'boss_stalemate')
       }
     }
 
@@ -2330,14 +2337,14 @@ export class BossSystem {
   // pathfind back toward the entry hall (potentially getting lost on the
   // way).  They're only spliced from active by AISystem when they actually
   // arrive at the entry — never here.
-  _handOffToAIFlee(adv, reason) {
+  _handOffToAIFlee(adv, reason, context = null) {
     const TS = Balance.TILE_SIZE
     // Sync tile coords from world position so AISystem starts pathing from
     // wherever our fight animation left them.
     adv.tileX   = Math.floor(adv.worldX / TS)
     adv.tileY   = Math.floor(adv.worldY / TS)
     adv.path    = null
-    adv.goal    = { type: 'FLEE', reason }
+    adv.goal    = { type: 'FLEE', reason, context }
     adv.aiState = 'fleeing'
     // We deliberately keep the fightState entry around — _syncFightParty
     // prunes it once the adventurer physically leaves the boss chamber.

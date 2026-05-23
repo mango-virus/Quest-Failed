@@ -8,6 +8,7 @@ import { PathfinderSystem } from './PathfinderSystem.js'
 import { MinionAbilities }  from './MinionAbilities.js'
 import { Balance }          from '../config/balance.js'
 import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './DungeonGrid.js'
+import { minionLabel, roomLabel } from '../util/displayNames.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -551,6 +552,31 @@ export class AISystem {
         adventurer._trapRepathAt = now
         adventurer.path = null
       }
+      // Recoil: soft-block the trap's footprint + 1-tile ring (and LOS
+      // dangerTiles, if any) for this adv for ~3 s. KnowledgeSystem's
+      // standard cost multiplier (6× for FULL-tier) isn't strong enough
+      // when the goal sits just past the trap — the pathfinder still
+      // routes through and the adv tanks re-hits every cooldownMs. A
+      // SOFT_BLOCK_COST equivalent forces the detour while still allowing
+      // walk-through when there's literally no other route. Listener
+      // order: KnowledgeSystem is wired first in Game.js, so the trap's
+      // knowledge entry (with dangerTiles) is already populated by the
+      // time we read it here.
+      if (trap) {
+        const recoil = adventurer._trapRecoil ?? { tiles: new Set(), expireAt: 0 }
+        const fp = trap.footprint ?? { w: 1, h: 1 }
+        for (let rx = trap.tileX - 1; rx < trap.tileX + fp.w + 1; rx++) {
+          for (let ry = trap.tileY - 1; ry < trap.tileY + fp.h + 1; ry++) {
+            recoil.tiles.add(`${rx},${ry}`)
+          }
+        }
+        const lane = adventurer.knowledge?.traps?.[trap.instanceId]?.dangerTiles
+        if (Array.isArray(lane)) {
+          for (const d of lane) recoil.tiles.add(`${d.x},${d.y}`)
+        }
+        recoil.expireAt = now + 3000
+        adventurer._trapRecoil = recoil
+      }
     }
   }
 
@@ -748,9 +774,10 @@ export class AISystem {
     const wasRaidLeader = adventurer.personalityIds?.includes('raid_leader')
     if (wasRaidLeader && survivors.length > 0) {
       EventBus.emit('RAID_LEADER_FELL', { leader: adventurer, partyId: adventurer.partyId })
+      const leaderName = adventurer?.name ?? 'their leader'
       for (const s of survivors) {
         if (s.aiState === 'fleeing') continue
-        this._setFleeGoal(s, 'raid_leader_dead')
+        this._setFleeGoal(s, 'raid_leader_dead', { leaderName })
       }
     }
 
@@ -776,12 +803,16 @@ export class AISystem {
   // would otherwise keep exploring indefinitely.
   // Barbarian and noFlee flags are intentionally bypassed: the dungeon run is
   // over for this wave and everyone must exit.
-  _onBossFightResolved({ winner }) {
+  _onBossFightResolved({ winner, bossHpRemaining }) {
     if (winner !== 'party') return
+    // Stalemate cap: party "won" on HP-fraction while the boss is still
+    // alive. Use a different reason so the log doesn't claim the boss
+    // was slain (matches BossFightOverlay's "INTRUDER WITHDREW" slate).
+    const reason = (bossHpRemaining ?? 0) <= 0 ? 'boss_defeated' : 'boss_stalemate'
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.aiState === 'fleeing' ||
           adv.aiState === 'fled' || adv.aiState === 'leaving') continue
-      adv.goal    = { type: 'FLEE', reason: 'boss_defeated' }
+      adv.goal    = { type: 'FLEE', reason }
       adv.aiState = 'fleeing'
       adv.path    = null
     }
@@ -1231,6 +1262,7 @@ export class AISystem {
       EventBus.emit('ADVENTURER_FLED', {
         adventurer: adv,
         reason: adv.goal.reason ?? 'low_hp_retreat',
+        context: adv.goal.context ?? null,
       })
       return
     }
@@ -1265,6 +1297,7 @@ export class AISystem {
         EventBus.emit('ADVENTURER_FLED', {
           adventurer: adv,
           reason: 'goal_unreachable',
+          context: adv.goal?.context ?? null,
         })
         return
       }
@@ -1366,8 +1399,11 @@ export class AISystem {
     this._applyRoomEffects(adv, delta)
 
     // Phase 6c: detect coward seeing enemies — flee before engaging
-    if (this._cowardShouldFlee(adv)) {
-      this._setFleeGoal(adv, 'coward_panic')
+    const spookMinion = this._cowardShouldFlee(adv)
+    if (spookMinion) {
+      this._setFleeGoal(adv, 'coward_panic', {
+        minionName: this._minionDisplayName(spookMinion),
+      })
     }
 
     // Phase 6e: resource-depletion flee. Mana removed in 5b rework, so this
@@ -1482,7 +1518,9 @@ export class AISystem {
     if (adv.flags?.panicFlee && adv.aiState !== 'fleeing' && this._combatSystem) {
       const enemy = this._findEngageableMinion(adv)
       if (enemy) {
-        this._setFleeGoal(adv, 'whisperer_panic')
+        this._setFleeGoal(adv, 'whisperer_panic', {
+          minionName: this._minionDisplayName(enemy),
+        })
         return
       }
     }
@@ -1636,7 +1674,8 @@ export class AISystem {
         // so they at least try to head home — only an actual entry-hall
         // arrival or death is allowed to remove them from active.
         if (adv.goal?.type !== 'FLEE') {
-          adv.goal    = { type: 'FLEE', reason: 'goal_lost' }
+          const lostLabel = this._goalRoomLabel(adv)
+          adv.goal    = { type: 'FLEE', reason: 'goal_lost', context: lostLabel ? { goalLabel: lostLabel } : null }
           adv.path    = null
           adv.aiState = 'fleeing'
           return
@@ -1684,6 +1723,19 @@ export class AISystem {
       for (const b of this._gameState.dungeon?.beacons        ?? []) softBlockedForAdv.add(`${b.tileX},${b.tileY}`)
       for (const f of this._gameState.dungeon?.fountains      ?? []) softBlockedForAdv.add(`${f.tileX},${f.tileY}`)
       for (const c of this._gameState.dungeon?.treasureChests ?? []) softBlockedForAdv.add(`${c.tileX},${c.tileY}`)
+      // Trap recoil — _onTrapTriggeredAI stamps a tile set on the adv when
+      // they survive a trap hit. Treat those tiles as soft-blocked for
+      // ~3 s so the next path routes AWAY from the trap rather than
+      // weighing-by-6 the same route and walking back through.
+      const recoil = adv._trapRecoil
+      if (recoil) {
+        const now = this._scene?.time?.now ?? 0
+        if (now < (recoil.expireAt ?? 0)) {
+          for (const k of recoil.tiles) softBlockedForAdv.add(k)
+        } else {
+          adv._trapRecoil = null
+        }
+      }
       const softOpts = { softBlocked: softBlockedForAdv, softTraps: true }
       // Add path jitter for non-flee goals so adventurers don't all march the
       // same straight line — they pick varied routes between rooms each repath.
@@ -1734,6 +1786,20 @@ export class AISystem {
           EventBus.emit('SAY_seekKey', { adventurer: adv })
           return
         }
+        // Pre-flee retarget: the current goal's target is unreachable,
+        // but the dungeon usually has OTHER reachable rooms — the failure
+        // is almost always a player placing a single room with no
+        // connecting corridor, not the whole dungeon being sealed. Walk
+        // the rooms list and re-target to the first one we can actually
+        // path to, so the adv keeps exploring instead of bolting back to
+        // entry with "can't find a way through". Only flee if literally
+        // nothing is reachable (truly boxed in / no corridors at all).
+        const alt = this._findReachableAlternateGoal(adv, target, blockedForAdv, softOpts)
+        if (alt) {
+          adv.goal = alt
+          adv.path = null
+          return
+        }
         // Non-flee goal blocked — convert to FLEE rather than despawn.
         // Diagnose the blocker for the dungeon log: with collision items
         // and traps now soft, the only hard barrier left is a locked
@@ -1747,7 +1813,8 @@ export class AISystem {
           )
           if (unlocked && unlocked.length > 0) blockReason = 'blocked_by_lock'
         }
-        adv.goal    = { type: 'FLEE', reason: blockReason }
+        const blockLabel = this._goalRoomLabel(adv)
+        adv.goal    = { type: 'FLEE', reason: blockReason, context: blockLabel ? { goalLabel: blockLabel } : null }
         adv.path    = null
         adv.aiState = 'fleeing'
         return
@@ -2199,13 +2266,39 @@ export class AISystem {
       if (adv._fleeRolled) return
       adv._fleeRolled = true
       if (Math.random() < 0.8) return
-      this._setFleeGoal(adv)
+      this._setFleeGoal(adv, 'low_hp_retreat', {
+        hpPct: Math.max(1, Math.round(hpFrac * 100)),
+      })
     } else {
       adv._fleeRolled = false
     }
   }
 
-  _setFleeGoal(adv, reason = 'low_hp_retreat') {
+  // Display-name helpers for flee-context strings. Prefer the minion's
+  // instance name (proper noun like "Grunt") when set, else fall back to
+  // the JSON definition's display name ("Orc"). Returns a string that
+  // reads cleanly inside flavor templates without "the" prefixes/suffixes.
+  _minionDisplayName(m) {
+    if (!m) return 'a hostile'
+    if (m.name && m.name !== m.definitionId) return m.name
+    return minionLabel(m.definitionId, 'hostile')
+  }
+
+  // Resolve the room name behind an adv's current goal so flee messages
+  // can mention WHERE they were trying to get to. Returns null when the
+  // goal isn't room-shaped (e.g. HUNT_PHYLACTERY, REGROUP_AT_PARTY).
+  _goalRoomLabel(adv) {
+    const g = adv?.goal
+    if (!g) return null
+    if (g.type === 'EXPLORE_ROOM' || g.type === 'SCATTER_ROOM' || g.type === 'SCOUT_AHEAD') {
+      const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === g.roomId)
+      if (room) return roomLabel(room.definitionId)
+    }
+    if (g.type === 'SEEK_BOSS' || g.type === 'AT_BOSS') return 'boss chamber'
+    return null
+  }
+
+  _setFleeGoal(adv, reason = 'low_hp_retreat', context = null) {
     // Phase 5c — Barbarian Unstoppable: immune to ALL flee triggers.
     if (adv.classId === 'barbarian') return
     // Phase 9 — Schism / Glory Hounds: solo / glory adventurers fight to the death.
@@ -2224,14 +2317,14 @@ export class AISystem {
     if (SOFT_PANIC && Math.random() < 0.5) {
       const safe = this._findSafeRetreatRoom(adv)
       if (safe) {
-        adv.goal = { type: 'TACTICAL_RETREAT', roomId: safe.instanceId, fromReason: reason }
+        adv.goal = { type: 'TACTICAL_RETREAT', roomId: safe.instanceId, fromReason: reason, fromContext: context }
         adv.aiState = 'walking'
         adv.path = null
         return
       }
     }
 
-    adv.goal = { type: 'FLEE', reason }
+    adv.goal = { type: 'FLEE', reason, context }
     adv.aiState = 'fleeing'
     adv.path = null
   }
@@ -2381,10 +2474,13 @@ export class AISystem {
   }
 
   // Coward: flees the moment a hostile minion is in the same room.
+  // Returns the spotted minion if the coward should flee, else null.
+  // Returning the actual minion lets callers thread the trigger into
+  // flee-flavor context ("Lyra catches sight of the Orc and panics!").
   _cowardShouldFlee(adv) {
-    if (adv.aiState === 'fleeing') return false
+    if (adv.aiState === 'fleeing') return null
     const tags = this._personalitySystem?.getTags(adv) ?? new Set()
-    if (!tags.has('coward')) return false
+    if (!tags.has('coward')) return null
     // Phase 5c — proximity-based instead of "any minion in this room."
     // Previously cowards bolted the moment they spawned into a room that
     // happened to contain a placed minion (even one tile away in a 14×14
@@ -2392,12 +2488,15 @@ export class AISystem {
     // within sight (≤ 4 tiles), so they at least walk a few tiles before
     // panicking.
     const SIGHT = 4
-    return this._gameState.minions.some(m => {
-      if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
-      if (m.faction === 'adventurer') return false   // friendly defectors don't scare them
+    let closest = null
+    let closestD = Infinity
+    for (const m of this._gameState.minions) {
+      if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
+      if (m.faction === 'adventurer') continue   // friendly defectors don't scare them
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
-      return d <= SIGHT
-    })
+      if (d <= SIGHT && d < closestD) { closest = m; closestD = d }
+    }
+    return closest
   }
 
   // Cleric heal target: same-party ally below HP threshold, in heal range, alive.
@@ -3181,6 +3280,76 @@ export class AISystem {
 
   // Public: called by DayPhase after spawning so the adventurer's first goal
   // reflects their personality (cartographer detours, reckless beelines, etc.)
+  // Pre-flee fallback used by _tickAdventurer's pathfinder-failed block.
+  // Walks the rooms list and returns the first goal we can actually path
+  // to with the adv's current blocked/soft-blocked tile sets — preserving
+  // the same lock blocks and trap recoils the original failed call used.
+  // Order: unvisited non-boss rooms first (preserves exploration intent),
+  // then boss chamber, then visited rooms as a last-resort wander. Returns
+  // null only when no goal is reachable at all (truly boxed in).
+  _findReachableAlternateGoal(adv, failedTarget, blockedForAdv, softOpts) {
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    if (rooms.length === 0) return null
+    const failedKey = failedTarget ? `${failedTarget.x},${failedTarget.y}` : null
+    const visited = new Set(adv.visitedRooms ?? [])
+    const skipRoomId = adv.goal?.type === 'EXPLORE_ROOM' ? adv.goal.roomId : null
+
+    const tryRoom = (room) => {
+      if (!room || room.locked) return null
+      const target = {
+        x: room.gridX + Math.floor(room.width / 2),
+        y: room.gridY + Math.floor(room.height / 2),
+      }
+      if (adv.tileX === target.x && adv.tileY === target.y) return null
+      if (failedKey && `${target.x},${target.y}` === failedKey) return null
+      const p = PathfinderSystem.findPath(
+        { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, null, 0,
+        blockedForAdv, softOpts,
+      )
+      return (p && p.length > 0) ? target : null
+    }
+
+    // Pass 1: unvisited non-boss rooms (shuffled for variety so a party
+    // doesn't all converge on the same fallback).
+    const unvisited = rooms.filter(r =>
+      !visited.has(r.instanceId) &&
+      r.instanceId !== skipRoomId &&
+      r.definitionId !== 'boss_chamber'
+    )
+    for (let i = unvisited.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[unvisited[i], unvisited[j]] = [unvisited[j], unvisited[i]]
+    }
+    for (const room of unvisited) {
+      if (tryRoom(room)) {
+        return { type: 'EXPLORE_ROOM', roomId: room.instanceId }
+      }
+    }
+
+    // Pass 2: boss chamber (don't reuse if the original failed goal WAS
+    // SEEK_BOSS — pathfinding would just fail the same way again).
+    if (adv.goal?.type !== 'SEEK_BOSS') {
+      const boss = rooms.find(r => r.definitionId === 'boss_chamber')
+      if (boss && tryRoom(boss)) return { type: 'SEEK_BOSS' }
+    }
+
+    // Pass 3: visited rooms as a last-resort wander. Better than fleeing
+    // — the adv keeps moving and may pick up a new goal naturally next
+    // replan.
+    const visitedRooms = rooms.filter(r =>
+      visited.has(r.instanceId) &&
+      r.instanceId !== skipRoomId &&
+      r.definitionId !== 'boss_chamber'
+    )
+    for (const room of visitedRooms) {
+      if (tryRoom(room)) {
+        return { type: 'EXPLORE_ROOM', roomId: room.instanceId }
+      }
+    }
+
+    return null
+  }
+
   // Dungeon event: The Saboteur — pick the nearest still-armed trap to
   // disarm, or FLEE once every trap in the dungeon is disabled.
   _nextSaboteurGoal(adv) {
@@ -3601,7 +3770,11 @@ export class AISystem {
   _despawn(adv, idx, reason) {
     adv.aiState = 'fled'
     this._gameState.adventurers.active.splice(idx, 1)
-    EventBus.emit('ADVENTURER_FLED', { adventurer: adv, reason })
+    EventBus.emit('ADVENTURER_FLED', {
+      adventurer: adv,
+      reason,
+      context: adv.goal?.context ?? null,
+    })
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
