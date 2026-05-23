@@ -348,8 +348,18 @@ export class LeftPanels {
       const byLevel = def.placementRules?.maxPerDungeonByBossLevel
       if (byLevel != null) {
         const lvl = this._gameState.boss?.level ?? this._gameState.meta?.dungeonLevel ?? 1
-        let cap = null
-        for (let l = 1; l <= lvl; l++) if (byLevel[l] != null) cap = byLevel[l]
+        // Sparse-table baseline (2026-05-22): seed `cap` to the lowest
+        // entry's value so a sparse table (e.g. throne_room's L9/L10)
+        // doesn't fall through to "unlimited" when viewed below its
+        // first entry — important under the mango cheat which flattens
+        // unlockLevel to 1. Matches DungeonGrid.effectiveMaxPerDungeon.
+        const keys = Object.keys(byLevel)
+          .map(k => parseInt(k, 10))
+          .filter(n => Number.isFinite(n))
+          .sort((a, b) => a - b)
+        if (keys.length === 0) return def.placementRules?.maxPerDungeon ?? null
+        let cap = byLevel[keys[0]]
+        for (const l of keys) if (l <= lvl) cap = byLevel[l]
         return cap
       }
       return def.placementRules?.maxPerDungeon ?? null

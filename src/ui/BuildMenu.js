@@ -352,15 +352,26 @@ export class BuildMenu {
     }
   }
 
-  // Placement cap helpers — mirror NightPhase logic without importing it.
+  // Placement cap helpers — mirror DungeonGrid.effectiveMaxPerDungeon
+  // semantics. Sparse-table baseline (2026-05-22): when the table's
+  // lowest entry is above the current dungeonLevel (mango cheat path),
+  // we seed `cap` to the lowest entry's value so the cap isn't
+  // accidentally null/unlimited at low levels. `cap === 0 → null` is
+  // kept as a legacy "0 = unlimited" carve-out for any future table
+  // that wants to mean "unlimited at this level".
   _capFor(def, kind, dungeonLevel) {
     if (kind === 'room') {
       const byLevel = def.placementRules?.maxPerDungeonByBossLevel
       if (byLevel) {
-        const keys = Object.keys(byLevel).map(k => parseInt(k, 10)).sort((a, b) => a - b)
-        let cap = byLevel[keys[0]]
+        const keys = Object.keys(byLevel).map(k => parseInt(k, 10))
+          .filter(n => Number.isFinite(n)).sort((a, b) => a - b)
+        if (keys.length === 0) {
+          const m = def.placementRules?.maxPerDungeon
+          return (m === 0 || m == null) ? null : m
+        }
+        let cap = byLevel[keys[0]]   // baseline = lowest entry's value
         for (const k of keys) if (dungeonLevel >= k) cap = byLevel[k]
-        return cap === 0 ? null : cap     // 0 = unlimited
+        return cap === 0 ? null : cap
       }
       const m = def.placementRules?.maxPerDungeon
       return (m === 0 || m == null) ? null : m

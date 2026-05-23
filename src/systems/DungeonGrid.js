@@ -127,14 +127,29 @@ export class DungeonGrid {
   // for unlimited. Prefers placementRules.maxPerDungeonByBossLevel when
   // present (a sparse {level: cap} table); falls back to the static
   // maxPerDungeon for legacy rooms.
+  //
+  // Sparse-table baseline (fix 2026-05-22): when the table's lowest
+  // entry is above the current dungeonLevel (e.g. throne_room's
+  // `{"9":1,"10":2}` viewed at L1 — only reachable via the mango cheat
+  // flattening unlockLevel to 1), the cap previously fell through to
+  // `null` = unlimited, letting a cheat-mode player spam infinite
+  // copies of any sparse-tabled room. Now we seed `cap` to the lowest
+  // table entry's value, so a sparse table that starts at L9 enforces
+  // its L9 cap from L1 onward. Cap still climbs normally as the
+  // dungeonLevel reaches each higher entry.
   static effectiveMaxPerDungeon(definition, dungeonLevel = 1) {
     const byLevel = definition.placementRules?.maxPerDungeonByBossLevel
     if (byLevel != null) {
-      // Walk down to find the highest unlocked entry <= dungeonLevel.
-      // Tables ship dense, but defensive in case future rooms skip levels.
-      let cap = null
-      for (let l = 1; l <= dungeonLevel; l++) {
-        if (byLevel[l] != null) cap = byLevel[l]
+      const keys = Object.keys(byLevel)
+        .map(k => parseInt(k, 10))
+        .filter(n => Number.isFinite(n))
+        .sort((a, b) => a - b)
+      if (keys.length === 0) {
+        return definition.placementRules?.maxPerDungeon ?? null
+      }
+      let cap = byLevel[keys[0]]   // baseline = lowest entry's value
+      for (const l of keys) {
+        if (l <= dungeonLevel) cap = byLevel[l]
       }
       return cap
     }
