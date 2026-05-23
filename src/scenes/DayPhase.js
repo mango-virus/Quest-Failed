@@ -800,6 +800,13 @@ export class DayPhase extends Phaser.Scene {
     const _previewVariants = (_wavePreview && _wavePreview.day === day && Array.isArray(_wavePreview.spriteVariants))
       ? _wavePreview.spriteVariants
       : null
+    // Phase QW (Library tiers) — also consume the night-pre-rolled
+    // personalities so the AdvIntel forecast at night = the wave that
+    // actually shows up at dawn. Falls back to fresh per-adv rolls when
+    // no preview exists (legacy saves, replacement-event waves).
+    const _previewPersonalities = (_wavePreview && _wavePreview.day === day && Array.isArray(_wavePreview.personalityIds))
+      ? _wavePreview.personalityIds
+      : null
     let _previewCursor = 0
     for (let i = (returnLeaderInjected ? 1 : 0); i < count; i++) {
       let cls
@@ -874,9 +881,16 @@ export class DayPhase extends Phaser.Scene {
 
       adv.partyId        = (count > 1 || returnLeaderInjected) ? partyId : null
       const pCount       = 1 + Math.floor((dungeonLv - 1) / 5)
-      adv.personalityIds = personalitySystem
-        ? personalitySystem.rollPersonalities(pCount, dungeonLv)
-        : []
+      // Library-tiers pre-roll: prefer the night-stamped personalities
+      // when the preview targets this slot. Cursor is offset by
+      // returnLeaderInjected since the loop start (i = 1 when veteran
+      // leads) is one ahead of the preview index. Falls back to a fresh
+      // roll if no pre-roll exists for this slot (legacy saves, etc.).
+      const _personalityIdx = i - (returnLeaderInjected ? 1 : 0)
+      const _preRolledPersonalities = _previewPersonalities && _previewPersonalities[_personalityIdx]
+      adv.personalityIds = (Array.isArray(_preRolledPersonalities) && _preRolledPersonalities.length > 0)
+        ? [..._preRolledPersonalities]
+        : (personalitySystem ? personalitySystem.rollPersonalities(pCount, dungeonLv) : [])
 
       // Fresh adventurers inherit the shared knowledge pool — the union
       // of every survivor's intel from prior days. With a returning

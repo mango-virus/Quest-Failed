@@ -440,6 +440,34 @@ export class NightPhase extends Phaser.Scene {
       saboteurCount = 1
     }
 
+    // Phase QW (Library tiers) — pre-roll personalities for each normal
+    // wave slot so the AdvIntel panel can reveal them at Library count >= 2
+    // and DayPhase consumes the same set when the wave actually spawns
+    // (so the panel's truth = the dungeon's truth). Mirrors DayPhase's
+    // per-adv roll exactly: pCount = 1 + floor((bossLv-1)/5), same
+    // PersonalitySystem.rollPersonalities call. Reuses prior preview's
+    // picks for slots that still exist (same stability rule as classIds /
+    // spriteVariants) so re-rolls on ROOM_PLACED don't flip personalities
+    // the player just read.
+    const _pSys = this.scene.get('Game')?.personalitySystem
+    const pCount = 1 + Math.floor((bossLv - 1) / 5)
+    const reusablePersonalities = (prev && Array.isArray(prev.personalityIds))
+      ? prev.personalityIds : []
+    const personalityIds = []
+    for (let i = 0; i < count; i++) {
+      const carry = reusablePersonalities[i]
+      if (Array.isArray(carry) && carry.length > 0) {
+        personalityIds.push([...carry])
+      } else if (_pSys?.rollPersonalities) {
+        personalityIds.push(_pSys.rollPersonalities(pCount, bossLv) ?? [])
+      } else {
+        personalityIds.push([])
+      }
+    }
+    // Tournament rivals + Saboteur append extra slots to classIds — give
+    // them empty personality slots to keep parallel array shapes aligned.
+    for (let i = 0; i < tournamentRivalCount + saboteurCount; i++) personalityIds.push([])
+
     gs.run.nextWavePreview = {
       day,
       count,
@@ -447,6 +475,7 @@ export class NightPhase extends Phaser.Scene {
       saboteurCount,
       classIds,
       spriteVariants,
+      personalityIds,
       eventType: tournamentRivalCount > 0 ? 'tournament'
         : (saboteurCount > 0 ? 'saboteur' : null),
       vendettaHunter: vendettaHunterPresent

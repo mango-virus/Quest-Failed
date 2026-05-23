@@ -4174,6 +4174,49 @@ body {
   line-height: 1.4;
 }
 
+/* Library tier reveals — personalities (tier 2) + planned route (tier 4).
+   Each section is structurally identical to its sibling "relations" row
+   so a Library-less view reads as a parallel redact-note rather than a
+   missing UI element. */
+.qf-advintel-detail-personalities {
+  margin-top: 10px;
+}
+.qf-advintel-route {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(155, 50, 212, 0.06), transparent);
+  border: 1px solid var(--rumor);
+}
+.qf-advintel-route-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.qf-advintel-route-arrow {
+  color: var(--text-mute);
+  font-weight: bold;
+}
+.qf-advintel-route-room {
+  letter-spacing: 0.5px;
+}
+.qf-advintel-route-empty {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-mute);
+  font-style: italic;
+}
+.qf-advintel-redact-note {
+  font-family: var(--pix, var(--mono));
+  font-size: 9px;
+  color: var(--text-mute);
+  letter-spacing: 1px;
+  padding: 4px 0;
+}
+
 /* ---------- KnowledgeMapOverlay ---------- */
 .qf-knowmap-body {
   flex: 1;

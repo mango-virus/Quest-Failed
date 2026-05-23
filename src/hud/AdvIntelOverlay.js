@@ -45,6 +45,19 @@ function tierFor(score) {
   return THREAT_TIERS.find(t => score >= t.min) || THREAT_TIERS[3]
 }
 
+// Library tier gates — count of active Library of Whispers rooms
+// determines how much intel the night preview reveals:
+//   0 → empty state ("Build a LIBRARY")
+//   1 → wave size + classes (basic)
+//   2 → + per-adv personalities
+//   3 → + per-adv scaled stats (HP / ATK / SPD / DEF)
+//   4 → + per-adv planned route
+// Day-phase view is the live truth (Library count irrelevant once they
+// arrive — you can see them).
+const TIER_PERSONALITIES = 2
+const TIER_STATS         = 3
+const TIER_ROUTE         = 4
+
 export class AdvIntelOverlay {
   constructor(gameState) {
     this._gameState = gameState
@@ -156,6 +169,12 @@ export class AdvIntelOverlay {
     const defs = this._cachedJson('adventurerClasses') ?? []
     const stubs = preview.classIds.map((classId, i) => {
       const stub = this._stubFromPreview(classId, preview.spriteVariants?.[i] ?? null, defs)
+      // Phase QW (Library tiers) — attach the night-pre-rolled
+      // personalities so tier-2+ reveals can render the same set the
+      // wave will actually arrive with. Empty array when not pre-rolled
+      // (legacy saves, event-replacement waves like Zombie Horde).
+      const pids = preview.personalityIds?.[i]
+      stub.personalityIds = Array.isArray(pids) ? [...pids] : []
       // Event waves carry pre-rolled sprites parallel to classIds —
       // minionSheets[i] = a `minion-<id>` key (rival monsters, zombies),
       // bossSkin = the rival boss's archetype skin. Attach them so the
@@ -242,6 +261,79 @@ export class AdvIntelOverlay {
   _classDef(adv) {
     const defs = this._cachedJson('adventurerClasses') ?? []
     return defs.find(d => d.id === adv.classId) || null
+  }
+
+  // Count of active Library of Whispers rooms in the dungeon. Drives
+  // the tier-gated reveal during night phase.
+  _libraryCount() {
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    return rooms.filter(r =>
+      r.definitionId === 'library_of_whispers' && r.isActive !== false
+    ).length
+  }
+
+  // During day phase the panel always shows the truth (advs are visible
+  // in the dungeon — Library is irrelevant). During night phase, reveals
+  // are gated by Library count. Returns true when the field at `tier`
+  // should be visible. `tier` is one of TIER_PERSONALITIES / TIER_STATS /
+  // TIER_ROUTE.
+  _canReveal(tier) {
+    if (this._gameState.meta?.phase === 'day') return true
+    return this._libraryCount() >= tier
+  }
+
+  // Personality definition lookup. Used for the personality chip row
+  // (tier 2 reveal).
+  _personalityDef(id) {
+    const defs = this._cachedJson('personalities') ?? []
+    return defs.find(d => d.id === id) || null
+  }
+
+  // Planned route — entry-hall → boss-chamber shortest path through the
+  // currently-active rooms, with personality-driven detour bias
+  // (e.g. greedy → biased toward Treasury). Returns an array of room
+  // definitionIds in visit order, or empty if no clear path. Computed
+  // on-demand at render time (Library tier 4 reveal).
+  _plannedRoute(adv) {
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    const entry = rooms.find(r => r.definitionId === 'entry_hall')
+    const boss  = rooms.find(r => r.definitionId === 'boss_chamber')
+    if (!entry || !boss) return []
+    const grid = this._gameScene()?.dungeonGrid
+    if (!grid?.getNeighborRooms) return []
+    // Simple BFS through the door-graph; not the AI's real pathfinder,
+    // but represents the most likely traversal order.
+    const seen = new Set([entry.instanceId])
+    const prev = new Map()
+    const queue = [entry.instanceId]
+    while (queue.length > 0) {
+      const cur = queue.shift()
+      if (cur === boss.instanceId) break
+      const room = rooms.find(r => r.instanceId === cur)
+      const neighbors = grid.getNeighborRooms(cur) ?? []
+      for (const n of neighbors) {
+        if (seen.has(n.instanceId) || n.isActive === false) continue
+        seen.add(n.instanceId)
+        prev.set(n.instanceId, cur)
+        queue.push(n.instanceId)
+      }
+    }
+    if (!prev.has(boss.instanceId)) return []
+    const path = [boss.instanceId]
+    let step = boss.instanceId
+    while (prev.has(step)) {
+      step = prev.get(step)
+      path.unshift(step)
+    }
+    // Personality-driven detour notes: if any of the adv's personalities
+    // imply attraction to a room category, surface that as a parenthetical.
+    return path.map(id => rooms.find(r => r.instanceId === id)?.definitionId).filter(Boolean)
+  }
+
+  _gameScene() {
+    return (typeof window !== 'undefined' && window.__game?.scene?.getScene)
+      ? window.__game.scene.getScene('Game')
+      : null
   }
 
   // Display level of the upcoming wave — matches the `displayLevel`
@@ -394,9 +486,15 @@ export class AdvIntelOverlay {
     const veteran = this._isVeteran(adv)
     const redacted = !!adv.redacted
 
-    const hp  = adv.stats?.hp ?? adv.hp ?? 30
-    const atk = adv.stats?.attack ?? adv.atk ?? 5
-    const spd = adv.stats?.speed ?? adv.spd ?? 1.0
+    // Library tier 3 — at night, raw stats are hidden until the player
+    // has 3+ Libraries. Render '?' placeholders so the slot is still
+    // visible (preserves the row's visual rhythm) but the values are
+    // redacted. Day phase always shows the live numbers (Library
+    // irrelevant once the adv is in front of you).
+    const _statsRevealed = this._canReveal(TIER_STATS)
+    const hp  = _statsRevealed ? (adv.stats?.hp ?? adv.hp ?? 30) : '?'
+    const atk = _statsRevealed ? (adv.stats?.attack ?? adv.atk ?? 5) : '?'
+    const spd = _statsRevealed ? (adv.stats?.speed ?? adv.spd ?? 1.0) : '?'
 
     return h('button', {
       className: 'qf-advintel-card',
@@ -439,9 +537,9 @@ export class AdvIntelOverlay {
         ]),
         h('div', { className: 'pix qf-advintel-card-class' }, `${classLabel} · LV ${lv}`),
         h('div', { className: 'qf-advintel-card-stats' }, [
-          h('span', null, [h('span', { style: { color: 'var(--hp)' } }, 'HP'), ' ', String(hp)]),
-          h('span', null, [h('span', { style: { color: 'var(--blood)' } }, 'ATK'), ' ', String(atk)]),
-          h('span', null, [h('span', { style: { color: 'var(--gold)' } }, 'SPD'), ' ', String(spd?.toFixed?.(1) ?? spd)]),
+          h('span', null, [h('span', { style: { color: 'var(--hp)' } }, 'HP'), ' ', _statsRevealed ? String(hp) : '?']),
+          h('span', null, [h('span', { style: { color: 'var(--blood)' } }, 'ATK'), ' ', _statsRevealed ? String(atk) : '?']),
+          h('span', null, [h('span', { style: { color: 'var(--gold)' } }, 'SPD'), ' ', _statsRevealed ? (spd?.toFixed?.(1) ?? String(spd)) : '?']),
         ]),
       ]),
       // Threat chip
@@ -466,6 +564,15 @@ export class AdvIntelOverlay {
     const name = sel.name || 'Unnamed'
     const classLabel = (def?.name || sel.classId || 'Adventurer').toUpperCase()
     const lv = sel.level ?? sel.lv ?? 1
+    // Library tier reveals — drives which sections of the detail card
+    // are visible. Stats / resists / weak-to require Tier 3 (3+ Libs);
+    // personalities require Tier 2 (2+ Libs); planned route requires
+    // Tier 4 (4 Libs). Day phase is always "all revealed".
+    const _statsRevealed         = this._canReveal(TIER_STATS)
+    const _personalitiesRevealed = this._canReveal(TIER_PERSONALITIES)
+    const _routeRevealed         = this._canReveal(TIER_ROUTE)
+    const libCount               = this._libraryCount()
+    const isNight                = this._gameState.meta?.phase === 'night'
     const hp  = sel.stats?.hp ?? sel.hp ?? 30
     const atk = sel.stats?.attack ?? sel.atk ?? 5
     const spd = sel.stats?.speed ?? sel.spd ?? 1.0
@@ -475,6 +582,10 @@ export class AdvIntelOverlay {
     const veteran = this._isVeteran(sel)
     const redacted = !!sel.redacted
     const intel = this._knownAboutDungeon(sel)
+    const personalityIds = Array.isArray(sel.personalityIds) ? sel.personalityIds : []
+    const plannedRoute = _routeRevealed ? this._plannedRoute(sel) : []
+    const roomDefs = this._cachedJson('rooms') ?? []
+    const _roomLabel = (defId) => roomDefs.find(d => d.id === defId)?.name?.toUpperCase() ?? String(defId).toUpperCase()
 
     return h('div', { className: 'qf-advintel-detail' }, [
       // Adv detail card
@@ -515,11 +626,37 @@ export class AdvIntelOverlay {
             ]),
           ]),
         ]),
-        // Stat row
+        // Stat row — redacted at night until 3+ Libraries are built.
         h('div', { className: 'qf-advintel-detail-stats' }, [
-          this._statTile('HP',  String(hp),                           'var(--hp)'),
-          this._statTile('ATK', String(atk),                          'var(--blood)'),
-          this._statTile('SPD', spd?.toFixed?.(1) ?? String(spd),     'var(--gold)'),
+          this._statTile('HP',  _statsRevealed ? String(hp)                       : '?', 'var(--hp)'),
+          this._statTile('ATK', _statsRevealed ? String(atk)                      : '?', 'var(--blood)'),
+          this._statTile('SPD', _statsRevealed ? (spd?.toFixed?.(1) ?? String(spd)) : '?', 'var(--gold)'),
+        ]),
+        // Library tier 2 — personality chips. Visible during day phase
+        // (live truth), or at night with 2+ Libraries. With fewer Libraries
+        // shows a redaction stub explaining how to unlock.
+        h('div', { className: 'qf-advintel-detail-personalities' }, [
+          h('div', { className: 'pix qf-advintel-relation-label rumor' }, 'TENDENCIES'),
+          (_personalitiesRevealed && personalityIds.length > 0)
+            ? h('div', { className: 'qf-advintel-chips' },
+                personalityIds.map(pid => {
+                  const pd = this._personalityDef(pid)
+                  const label = (pd?.name ?? pid).toUpperCase()
+                  const flavor = pd?.flavorText || pd?.description || ''
+                  return h('span', {
+                    className: 'pix qf-advintel-chip qf-advintel-chip-rumor',
+                    title: flavor,
+                  }, label)
+                })
+              )
+            : (_personalitiesRevealed
+                ? h('div', { className: 'qf-advintel-chips' },
+                    [h('span', { className: 'qf-advintel-chip-empty' }, '—')])
+                : h('div', { className: 'qf-advintel-redact-note' },
+                    isNight
+                      ? `🔒 build ${TIER_PERSONALITIES - libCount} more LIBRARY to reveal`
+                      : '—')
+              ),
         ]),
         // Resists / weak
         h('div', { className: 'qf-advintel-detail-relations' }, [
@@ -573,6 +710,34 @@ export class AdvIntelOverlay {
               : 'No exploitable weakness intel.',
             resists[0] && [' Avoid relying on ', h('span', { style: { color: 'var(--rumor)' } }, String(resists[0]).toUpperCase()), ' damage.'],
           ]),
+        ]),
+        // Library tier 4 — planned route through the dungeon. Visible
+        // during day phase or at night with all 4 Libraries. Computed
+        // on-demand via _plannedRoute (entry → boss BFS through the
+        // active room graph). Hidden at lower tiers with a redaction
+        // stub explaining how to unlock.
+        h('div', { className: 'qf-advintel-route' }, [
+          h('div', { className: 'pix qf-advintel-counter-label' }, '◇ PLANNED ROUTE'),
+          _routeRevealed
+            ? (plannedRoute.length > 0
+                ? h('div', { className: 'qf-advintel-route-list' },
+                    plannedRoute.map((defId, idx) => h('span', { className: 'qf-advintel-route-step' }, [
+                      idx > 0 ? h('span', { className: 'qf-advintel-route-arrow' }, ' › ') : null,
+                      h('span', {
+                        className: 'pix qf-advintel-route-room',
+                        style: { color: defId === 'boss_chamber' ? 'var(--blood)'
+                                      : defId === 'entry_hall'   ? 'var(--text-mute)'
+                                      : 'var(--text)' },
+                      }, _roomLabel(defId)),
+                    ]))
+                  )
+                : h('div', { className: 'qf-advintel-route-empty' },
+                    'No clear path entry → boss.')
+              )
+            : h('div', { className: 'qf-advintel-redact-note' },
+                isNight
+                  ? `🔒 build ${TIER_ROUTE - libCount} more LIBRARY to reveal`
+                  : '—'),
         ]),
       ]),
     ])
