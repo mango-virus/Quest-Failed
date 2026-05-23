@@ -267,7 +267,7 @@ A full reset of the room roster, organized around three principles:
 Top-level rules:
 
 - **"Adjacent / connected"** = directly through a shared door. Not transitive through corridors.
-- **All chest/loot theft requires alive exit** to the dungeon entrance; deaths return the loot.
+- ~~**All chest/loot theft requires alive exit** to the dungeon entrance; deaths return the loot.~~ *(SCOPE_CHANGED 2026-05-22: the loot-pickup system was retired 2026-05-02. Treasury became a flat daily gold stipend; Mimic Vault became a chest-disguise-and-bite reveal. The alive-exit-theft rule no longer applies to any room.)*
 - **Boss level cap is 10.** Rooms unlock progressively across all 10 levels.
 - **Hazard rooms** (Lava Floor, Serpent Pit, Collapsing Pillars) are removed — to be revisited as traps in a later pass.
 
@@ -300,7 +300,7 @@ Top-level rules:
 | Room | Cap | Effect |
 |---|---|---|
 | **Trap Factory** | scales 1 → 5 | Each Factory adds **+5 trap slots** to your global trap pool. Gateway: without one, no traps. No upgrade tree. |
-| **Treasury** | scales 1 → 5 | Generates a small gold stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the gold (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft. |
+| **Treasury** | scales 1 → 5 | Generates a flat **+5 gold daily stipend** per active Treasury at Night Phase start (`RoomBehaviorSystem._onNightStart` → emits `TREASURY_STIPEND`). Each active Treasury also **adds +1 adventurer to the next day's wave** — riches attract invaders, so stacking Treasuries is a real risk-vs-reward trade. *(deviation noted 2026-05-22: the original "4 chests + alive-exit-required theft" model was retired in the 2026-05-02 loot-pickup cleanup. Only the stipend + arrival-rate increase ship; chest theft is gone from the design.)* |
 | **Armory** | scales 1 → 3 | Minions in **directly door-connected** rooms get +ATK while this is active. |
 
 #### L4 unlocks
@@ -350,18 +350,20 @@ _(no new rooms — see Library of Whispers moved to L2)_
 
 ### Cap scaling table
 
-| Level | Corridor | Barracks | Trap Factory | Treasury | Armory | Hall of Trials | Throne Room |
-|---|---|---|---|---|---|---|---|
-| L1 | 2 | 1 | — | — | — | — | — |
-| L2 | 4 | 1 | — | — | — | — | — |
-| L3 | 6 | 2 | 1 | 1 | 1 | — | — |
-| L4 | 8 | 2 | 1 | 1 | 1 | — | — |
-| L5 | 10 | 3 | 2 | 2 | 1 | — | — |
-| L6 | 12 | 3 | 2 | 2 | 2 | — | — |
-| L7 | 14 | 4 | 3 | 3 | 2 | 1 | — |
-| L8 | 16 | 4 | 3 | 3 | 2 | 1 | — |
-| L9 | 18 | 5 | 4 | 4 | 3 | 2 | 1 |
-| L10 | 20 | 5 | 5 | 5 | 3 | 3 | 2 |
+| Level | Corridor | Barracks | Library | Trap Factory | Treasury | Armory | Hall of Trials | Throne Room |
+|---|---|---|---|---|---|---|---|---|
+| L1 | 2 | 1 | — | — | — | — | — | — |
+| L2 | 4 | 1 | 1 | — | — | — | — | — |
+| L3 | 6 | 2 | 1 | 1 | 1 | 1 | — | — |
+| L4 | 8 | 3 | 2 | 1 | 1 | 1 | — | — |
+| L5 | 10 | 4 | 2 | 2 | 2 | 1 | — | — |
+| L6 | 12 | 5 | 3 | 2 | 2 | 2 | — | — |
+| L7 | 14 | 6 | 3 | 3 | 3 | 2 | 1 | — |
+| L8 | 16 | 7 | 4 | 3 | 3 | 2 | 1 | — |
+| L9 | 18 | 8 | 4 | 4 | 4 | 3 | 2 | 1 |
+| L10 | 20 | 9 | 4 | 5 | 5 | 3 | 3 | 2 |
+
+*(table updated 2026-05-22 to match `src/data/rooms.json`. **Library** row added — each additional Library beyond the 1st unlocks a deeper tier of intel in the Adventurer Intel panel: L2 size+classes (1 Lib), L4 + personalities (2 Libs), L6 + scaled stats (3 Libs), L8 + planned route (4 Libs). **Barracks** ships at 1→9 instead of the original 1→5 spec — kept at the higher cap as a quality-of-life decision per user 2026-05-22; design row retained for historical reference.)*
 
 ### Room cost rework — power-based pricing (2026-05-20)
 
