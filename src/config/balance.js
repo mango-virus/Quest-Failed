@@ -38,9 +38,12 @@ export const Balance = {
   BOSS_XP_PER_KILL:  10,   // boss XP awarded per adventurer kill
   // Boss fight-stat growth per level. Applied additively on every
   // BOSS_LEVELED_UP so it stacks cleanly with ability/event modifiers.
-  // From the 200/12/10 base, level 10 lands at ~470 HP / 30 ATK / 19 DEF.
-  BOSS_HP_PER_LEVEL:  30,
-  BOSS_ATK_PER_LEVEL:  2,
+  // Halved from the previous 30/2/1 curve — the old pace doubled raw
+  // power over ten levels and made late-game boss fights run too hot.
+  // From the 200/12/10 base, level 10 now lands at ~335 HP / 21 ATK /
+  // 19 DEF (HP +68%, ATK +75% over ten levels, DEF unchanged).
+  BOSS_HP_PER_LEVEL:  15,
+  BOSS_ATK_PER_LEVEL:  1,
   BOSS_DEF_PER_LEVEL:  1,
 
   // --- Boss ---
@@ -493,7 +496,27 @@ export const Balance = {
   TWITCH_CON_RAID_INTERVAL_MS:       9000,  // endless-raid spawn cadence
   TWITCH_CON_RAID_SQUAD_MIN:         2,     // raid squad size, inclusive
   TWITCH_CON_RAID_SQUAD_MAX:         3,
-  TWITCH_CON_RAID_MAX_PER_DAY:       5,     // hard cap on raids per day
+  TWITCH_CON_RAID_MAX_PER_DAY:       2,     // hard cap on raids per day (lowered from 5 — long days were running endless)
+
+  // --- Cheater class ---
+  CHEATER_INSTAKILL_CHANCE:    0.15,   // per-attack chance during aimhack window to one-shot a minion
+  CHEATER_LAG_SPIKE_CHANCE:    0.05,   // per-attack chance for a 2× damage swing that self-stuns afterward
+  CHEATER_LAG_STUN_MS:         1000,   // self-stun duration (ms) on lag-spike hits — counter-window for the player
+  CHEATER_REPORT_BAN_THRESHOLD:  4,     // hit count that flips the cheater to "BANNED" → forced flee
+
+  // --- PATCH 0.0.0 event (dungeon event 'patch_zero') ---
+  // Cheater-only wave with anti-cheat disabled, buffed cheats, double
+  // kill gold, glitch tile spam, and a roulette of "admin console
+  // commands" that fire random server-side effects. All flagged off
+  // _eventFlags.patchZeroActive — set in EventSystem._applyEffect,
+  // cleared in _clearEffect.
+  PATCH_ZERO_INSTAKILL_CHANCE:   0.25,  // up from 0.15 baseline
+  PATCH_ZERO_TELEPORT_CD_MS:     8000,  // halved from 15000
+  PATCH_ZERO_SPEEDHACK_CD_MS:    6000,  // halved from 12000
+  PATCH_ZERO_KILL_GOLD_MULT:     2.0,   // ban bounty — 2× normal cheater kill payout
+  PATCH_ZERO_GLITCH_TILE_MS:     1200,  // cadence of random RGB tile-flash visual
+  PATCH_ZERO_CONSOLE_CMD_MS:     8000,  // cadence of /command roulette
+
   TWITCH_CON_RAID_STREAMER_CAP:      20,    // also stop if this many streamers already active
   TWITCH_CON_HYPE_SPEED_MULT:        1.5,   // !HYPE speed buff
   TWITCH_CON_MALDING_SPEED_MULT:     0.6,   // !MALDING speed nerf

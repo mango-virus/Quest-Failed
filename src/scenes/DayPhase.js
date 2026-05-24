@@ -9,6 +9,7 @@ import { DossierPanel }   from '../ui/DossierPanel.js'
 import { PauseManager }   from '../systems/PauseManager.js'
 import { classLabel }     from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
+import { pickWeightedClass } from '../util/classSpawn.js'
 
 const TOP_H    = 48
 const BOTTOM_H = 56
@@ -590,6 +591,13 @@ export class DayPhase extends Phaser.Scene {
       const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
       if (cos) classes = [cos]
     }
+    // Dungeon event: PATCH 0.0.0 — entire wave is the Cheater class.
+    // Same unlock-gate bypass: the cheater normally unlocks at boss
+    // level 2, but the event-replaced wave runs even on day 1.
+    if ((this._gameState._eventFlags ?? {}).patchZeroActive) {
+      const ch = allClasses.find(c => c.id === 'cheater')
+      if (ch) classes = [ch]
+    }
     if (classes.length === 0) return
 
     const day   = this._gameState.meta.dayNumber
@@ -835,7 +843,10 @@ export class DayPhase extends Phaser.Scene {
         }
         _previewCursor++
       }
-      if (!cls) cls = classes[Math.floor(Math.random() * classes.length)]
+      // Weighted fallback — respects per-class spawnWeight from the JSON
+      // (default 1.0). Only used when the NightPhase preview didn't have
+      // a slot for this index (e.g. baseCount grew mid-day).
+      if (!cls) cls = pickWeightedClass(classes) ?? classes[0]
       // Each adventurer rolls its own entry hall (pickSpawnTile picks a
       // random connected entrance verified to reach the boss), so a wave
       // naturally splits across all of them and every adv starts on a

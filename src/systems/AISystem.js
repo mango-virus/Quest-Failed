@@ -1760,7 +1760,18 @@ export class AISystem {
           adv._trapRecoil = null
         }
       }
-      const softOpts = { softBlocked: softBlockedForAdv, softTraps: true }
+      // Cheater no-clip: the modded client ignores walls + locked doors
+      // entirely. Pass opts.noClip to the pathfinder (wall / door /
+      // void tiles become walkable) and bypass blockedForAdv (lock
+      // tiles drop out of the hard-block set). A "banned" cheater
+      // loses the privilege so the eject flee actually has to use
+      // real corridors.
+      const cheaterNoClip = adv.classId === 'cheater' && !adv._banned
+      const softOpts = {
+        softBlocked: softBlockedForAdv,
+        softTraps:   true,
+        noClip:      cheaterNoClip,
+      }
       // Add path jitter for non-flee goals so adventurers don't all march the
       // same straight line — they pick varied routes between rooms each repath.
       // Fleeing advs skip jitter (panic = beeline home). Event monsters KEEP
@@ -1770,7 +1781,7 @@ export class AISystem {
       const pathJitter = adv.goal?.type === 'FLEE' ? 0 : 0.6
       const path = PathfinderSystem.findPath(
         { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
-        blockedForAdv, softOpts,
+        cheaterNoClip ? null : blockedForAdv, softOpts,
       )
       // Phase: alive AI — if the pathfinder rejected at least one known
       // trap tile, occasionally have the adv shout about avoiding it.
@@ -1931,6 +1942,15 @@ export class AISystem {
     // Phase 6c: paranoid types move slower in unfamiliar rooms.
     // Without knowledge system (Phase 8) we just slow them whenever they're
     // not in a barracks/starter room — proxy for "unfamiliar".
+    // Cheater lag-spike self-stun — frozen while _lagStunUntil > now.
+    // Set by CombatSystem on a 5% per-attack roll: the high-damage swing
+    // costs them a brief stand-still window (the player's counter-play
+    // window). Banned cheaters lose the cheat entirely, so the freeze
+    // can't strand a fleeing one in a minion's range forever.
+    if ((adv._lagStunUntil ?? 0) > this._scene.time.now && !adv._banned) {
+      return
+    }
+
     const speedMul = this._paranoidSpeedMultiplier(adv)
     // Fleeing adventurers sprint — 1.1× their normal pace.  Sells the
     // "running away in panic" feel and helps unlucky lost-flee wanderers find
@@ -1943,7 +1963,14 @@ export class AISystem {
     const goalMul = adv.goal?.type === 'SCOUT_AHEAD'  ? SCOUT_SPEED_MULT
                   : adv.goal?.type === 'RESCUE_ALLY'  ? RESCUE_SPEED_MULT
                   : 1
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * goalMul * TS * delta) / 1000
+    // Cheater speed hack — 2× movement burst while _speedhackUntil > now,
+    // set by ClassAbilitySystem on its 12s/3s windowed ability. Stacks
+    // multiplicatively with flee / scout / song so a banned cheater
+    // running for the exit still benefits from any leftover sprint. The
+    // cheat shuts off automatically once the timestamp expires.
+    const cheaterSpeedhackActive = (adv._speedhackUntil ?? 0) > this._scene.time.now
+    const cheaterSpdMul = cheaterSpeedhackActive ? 2.0 : 1
+    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * goalMul * cheaterSpdMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -3539,6 +3566,13 @@ export class AISystem {
     // Bounty hunters are a high-value kill — they came for one of your
     // minions and pay out accordingly.
     if (adv.flags?.bountyHunter) goldMul *= Balance.BOUNTY_HUNTER_GOLD_MULT
+    // Dungeon event: PATCH 0.0.0 — "ban bounty". Killing a cheater
+    // during the event pays double, framing it as collecting the
+    // anti-cheat ban payout. Encourages the player to actually engage
+    // with the harder wave instead of turtling.
+    if (adv.classId === 'cheater' && (this._gameState._eventFlags ?? {}).patchZeroActive) {
+      goldMul *= Balance.PATCH_ZERO_KILL_GOLD_MULT ?? 2.0
+    }
     const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++

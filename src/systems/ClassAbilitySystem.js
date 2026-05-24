@@ -24,6 +24,7 @@ import { AbilityVfx }       from '../ui/AbilityVfx.js'
 import { Balance }          from '../config/balance.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { TILE }             from './DungeonGrid.js'
+import { rgbFloatingText, rgbParticleBurst } from '../util/cheaterVfx.js'
 
 // Ability defs. Cooldown buckets are: small 5–8s, medium 12–18s, large 30–60s.
 export const ABILITY_DEFS = {
@@ -62,6 +63,22 @@ export const ABILITY_DEFS = {
   twitch_viewers_choice: { id: 'viewers_choice', cooldownMs: 8000,                     label: 'Viewers Choice' }, // random auto-trigger
   twitch_chat_decides:   { id: 'chat_decides',   cooldownMs: 15000,                    label: 'Chat Decides' },
   // Twitch Subscriber Revenge is a passive — fires on death.
+
+  // ── Cheater ──────────────────────────────────────────────────────────
+  // Teleport hack — every 15s, snap to a random non-boss room. 20% of
+  // the time the cheat "desyncs" and they teleport to a random in-bounds
+  // tile instead (sometimes a wall, sometimes a trap-heavy room) — a
+  // window for the player to catch the no-clipping skid out of position.
+  cheater_teleport:      { id: 'teleport_hack', cooldownMs: 15000,                    label: 'Teleport', glitchChance: 0.20 },
+  // Aimhack — windowed instakill chance. Active for 2s out of every
+  // 8s. During the window, a % chance per attack to set damage =
+  // target HP (minions only; the boss and other advs are safe).
+  cheater_aimhack:       { id: 'aimhack',       cooldownMs:  8000, durationMs: 2000, label: 'Aimhack', instakillChance: 0.15 },
+  // Speed hack — random sprint bursts. Every ~12 s the modded client
+  // toggles a movement multiplier to 2× for ~3 s. AISystem reads
+  // _speedhackUntil and folds it into the step-distance calculation
+  // alongside the regular flee / song / scout multipliers.
+  cheater_speedhack:     { id: 'speedhack',     cooldownMs: 12000, durationMs: 3000, label: 'Speed Hack', spdMul: 2.0 },
 }
 
 export class ClassAbilitySystem {
@@ -243,6 +260,7 @@ export class ClassAbilitySystem {
           case 'barbarian':       this._considerBarbarian(adv, now); break
           case 'rogue':           this._considerRogue(adv, now);  break
           case 'twitch_streamer': this._considerTwitch(adv, now); break
+          case 'cheater':         this._considerCheater(adv, now); break
         }
       }
       // Inner Peace tick — Monk regen while active (any class can be regen-target
@@ -1130,6 +1148,142 @@ export class ClassAbilitySystem {
     // Phase 5c — Chat Decides label removed; the goal change is observable
     // (the streamer changes direction) and the combat log shows the call.
     EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'chat_decides', message: `Chat told ${adv.name}: ${pick.label}` })
+  }
+
+  // ── Cheater ──────────────────────────────────────────────────────────
+  // Two abilities on auto-fire:
+  //   • Teleport — pick a random non-boss / non-entry-hall room, snap
+  //     there. 20% chance the teleport "desyncs" to a random in-bounds
+  //     tile (counterbalance — sometimes lands in a wall or trap room).
+  //   • Aimhack — opens a 2 s instakill window every 8 s. CombatSystem
+  //     reads adv._aimhackUntil to gate the per-attack instakill roll.
+  // Banned cheaters skip both — once "reported" enough times the modded
+  // client is locked out and they have to flee like a regular adv.
+  _considerCheater(adv, now) {
+    // Reported & Banned — once the report counter (incremented by
+    // CombatSystem on each incoming hit from a dungeon-faction unit)
+    // crosses the threshold, the modded client is "locked out". Flip
+    // _banned on, push a FLEE goal with a dedicated reason, and emit
+    // the BANNED floater. After this point the no-clip pathfinder and
+    // aimhack hooks all gate themselves off via the same flag.
+    //
+    // PATCH 0.0.0 event — anti-cheat is OFF for the day. Skip the ban
+    // check entirely so cheaters can take unlimited hits without losing
+    // their cheats. Their only exit is death or a normal flee.
+    const patchZeroActive = !!(this._gameState._eventFlags?.patchZeroActive)
+    const reportThreshold = Balance.CHEATER_REPORT_BAN_THRESHOLD ?? 4
+    if (!patchZeroActive && !adv._banned && (adv._reportCount ?? 0) >= reportThreshold) {
+      adv._banned = true
+      adv.goal = { type: 'FLEE', reason: 'cheater_banned', context: null }
+      adv.aiState = 'fleeing'
+      adv.path = null
+      rgbFloatingText(this._scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 36,
+        'BANNED', { fontSize: '14px' })
+      EventBus.emit('CHEATER_BANNED', { adventurer: adv })
+    }
+    if (adv._banned) return
+
+    // Teleport — base 15 s cooldown, halved to 8 s during PATCH 0.0.0.
+    // Shallow-cloned def so AbilitySystem.canUse / markUsed read the
+    // event-buffed cooldown without mutating the baseline ABILITY_DEFS.
+    const tpDef = patchZeroActive
+      ? { ...ABILITY_DEFS.cheater_teleport, cooldownMs: Balance.PATCH_ZERO_TELEPORT_CD_MS ?? 8000 }
+      : ABILITY_DEFS.cheater_teleport
+    const tpReady = AbilitySystem.canUse(adv, tpDef, now)
+    if (tpReady.ready) {
+      AbilitySystem.markUsed(adv, tpDef, now)
+      this._fireCheaterTeleport(adv, tpDef)
+    }
+
+    // Aimhack (window 2 s every 8 s). Just opens the window; CombatSystem
+    // does the per-attack instakill roll while adv._aimhackUntil > now.
+    const ahDef = ABILITY_DEFS.cheater_aimhack
+    const ahReady = AbilitySystem.canUse(adv, ahDef, now)
+    if (ahReady.ready) {
+      AbilitySystem.markUsed(adv, ahDef, now)
+      adv._aimhackUntil = now + ahDef.durationMs
+      rgbFloatingText(this._scene, adv.worldX, adv.worldY - 28, 'AIMBOT')
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'aimhack', message: `${this._shortName(adv)} loaded an aimbot.` })
+    }
+
+    // Speed hack — 3 s sprint at 2× movement every 12 s. AISystem reads
+    // _speedhackUntil during the per-tick step calculation and folds in
+    // the multiplier, so the burst stacks cleanly on top of flee / scout
+    // / song-of-speed buffs (a fleeing banned cheater still runs fast
+    // through the regular flee multiplier; this just adds chaos when
+    // they're not on the run). PATCH 0.0.0 halves the cooldown (12→6s).
+    const shDef = patchZeroActive
+      ? { ...ABILITY_DEFS.cheater_speedhack, cooldownMs: Balance.PATCH_ZERO_SPEEDHACK_CD_MS ?? 6000 }
+      : ABILITY_DEFS.cheater_speedhack
+    const shReady = AbilitySystem.canUse(adv, shDef, now)
+    if (shReady.ready) {
+      AbilitySystem.markUsed(adv, shDef, now)
+      adv._speedhackUntil = now + shDef.durationMs
+      rgbFloatingText(this._scene, adv.worldX, adv.worldY - 32, 'SPEED HACK')
+      rgbParticleBurst(this._scene, adv.worldX, adv.worldY,
+        { count: 10, durationMs: 420, speed: 90 })
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'speedhack', message: `${this._shortName(adv)} kicked in a speed hack.` })
+    }
+  }
+
+  // Pick a destination room, snap the adv there, and emit the event so
+  // the renderer can fire glitch VFX at both ends. Glitch chance picks a
+  // raw in-bounds tile instead of a room — sometimes that's a wall (with
+  // no-clip movement they walk out next tick) or a deathtrap room.
+  _fireCheaterTeleport(adv, def) {
+    const dungeon = this._gameState?.dungeon
+    const rooms = dungeon?.rooms ?? []
+    const grid = this._scene?.dungeonGrid
+    if (!grid || rooms.length === 0) return
+
+    const fromX = adv.tileX, fromY = adv.tileY
+    let destTile = null
+    const glitch = Math.random() < (def?.glitchChance ?? 0)
+    if (glitch) {
+      // Desync — random in-bounds tile, no filtering. Lands wherever.
+      const w = grid.getWidth?.()  ?? 50
+      const h = grid.getHeight?.() ?? 50
+      destTile = { x: Math.floor(Math.random() * w), y: Math.floor(Math.random() * h) }
+    } else {
+      // Pick a non-boss, non-entry-hall room. Boss room is explicitly
+      // off-limits per the design (the cheater can't skip the gauntlet
+      // straight to the throne).
+      const candidates = rooms.filter(r =>
+        r.isActive !== false &&
+        r.definitionId !== 'boss_chamber' &&
+        r.definitionId !== 'entry_hall'
+      )
+      if (candidates.length === 0) return
+      const room = candidates[Math.floor(Math.random() * candidates.length)]
+      // Interior tile pick, similar to the wander picker — skips walls
+      // so the cheater actually lands on a floor.
+      const WT = Balance.WALL_THICKNESS
+      destTile = {
+        x: room.gridX + WT + Math.floor(Math.random() * Math.max(1, room.width  - 2 * WT)),
+        y: room.gridY + WT + Math.floor(Math.random() * Math.max(1, room.height - 2 * WT)),
+      }
+    }
+    if (!destTile) return
+    const TS = Balance.TILE_SIZE
+    adv.tileX  = destTile.x
+    adv.tileY  = destTile.y
+    adv.worldX = destTile.x * TS + TS / 2
+    adv.worldY = destTile.y * TS + TS / 2
+    adv.path = null
+    adv.pathIndex = 0
+    adv.pathTarget = null
+    rgbParticleBurst(this._scene, fromX * TS + TS / 2, fromY * TS + TS / 2,
+      { count: 14, durationMs: 500, speed: 110 })
+    rgbParticleBurst(this._scene, adv.worldX, adv.worldY,
+      { count: 14, durationMs: 500, speed: 110 })
+    rgbFloatingText(this._scene, adv.worldX, adv.worldY - 24,
+      glitch ? 'DESYNC' : 'TELEPORT')
+    EventBus.emit('CHEATER_TELEPORTED', {
+      adventurer: adv,
+      from: { x: fromX, y: fromY },
+      to:   { x: destTile.x, y: destTile.y },
+      glitched: glitch,
+    })
   }
 
   // ── Common helpers ───────────────────────────────────────────────────────

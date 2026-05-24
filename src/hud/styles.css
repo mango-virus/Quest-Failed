@@ -32,6 +32,36 @@ img { image-rendering: pixelated; }
   transition: opacity 80ms linear;
 }
 
+/* ---------- UIEditor side panel (src/ui/UIEditor.js) ----------
+   The panel is appended to <body> with id `uieditor-panel-{sceneKey}`.
+   Its buttons are bare HTML buttons that inherit the global reset on
+   line 10 (`background: none; border: none`) — which strips them down
+   to just the unicode arrow glyph, giving the user a click target of
+   ~10 px and zero hover feedback (cursor: none kills the pointer-
+   switch too). That presents as "buttons aren't pressable". Re-skin
+   them only inside the editor panel so the rest of the HUD stays as
+   it was. */
+[id^="uieditor-panel-"] button {
+  padding: 3px 7px;
+  min-width: 24px;
+  background: #2a2030;
+  color: #ffd0a0;
+  border: 1px solid #3a3045;
+  font: inherit;
+  text-align: center;
+  line-height: 1.2;
+  border-radius: 2px;
+}
+[id^="uieditor-panel-"] button:hover {
+  background: #3a3045;
+  border-color: #ff8830;
+  color: #ffe6c0;
+}
+[id^="uieditor-panel-"] button:active {
+  background: #1a1020;
+  transform: translateY(1px);
+}
+
 /* ---------- Tokens (palette: "Crypt Red" — default) ---------- */
 :root {
   --pix: 'Press Start 2P', monospace;
@@ -7590,6 +7620,31 @@ body {
 .qf-eventbanner.qf-eventbanner-arcane,  .qf-eventpill.qf-eventpill-arcane,  .qf-eventpill-tip.qf-eventpill-tip-arcane,  .qf-eventconfirm-card.qf-eventconfirm-arcane  { --ev-accent:#c64de8; --ev-bg:#1c0626; --ev-deep:#0d0212; --ev-text:#df8af2; --ev-sub:#efcaf6; }
 .qf-eventbanner.qf-eventbanner-crimson, .qf-eventpill.qf-eventpill-crimson, .qf-eventpill-tip.qf-eventpill-tip-crimson, .qf-eventconfirm-card.qf-eventconfirm-crimson { --ev-accent:#d23847; --ev-bg:#1c0305; --ev-deep:#0c0102; --ev-text:#e8606a; --ev-sub:#f0c0c4; }
 
+/* RGB colorTheme — PATCH 0.0.0 ships with this theme so the banner +
+   status pill visibly rainbow-cycle. Base palette is vivid magenta;
+   the CSS filter `hue-rotate` is animated 0→360° over 4s, which
+   rotates EVERY painted color (accent, text, icon, corners) through
+   the full spectrum in lockstep. Black borders/shadows have no hue,
+   so the structural outline stays crisp. Emoji icons (💾 etc.) also
+   rotate — intentional, matches the "everything is glitching" vibe.
+   The confirm-card selector is included for futureproofing even
+   though patch_zero never opens a SHOW_CONFIRM dialog. */
+.qf-eventbanner.qf-eventbanner-rgb,
+.qf-eventpill.qf-eventpill-rgb,
+.qf-eventpill-tip.qf-eventpill-tip-rgb,
+.qf-eventconfirm-card.qf-eventconfirm-rgb {
+  --ev-accent: #ff44ff;
+  --ev-bg:     #1a0220;
+  --ev-deep:   #0a0010;
+  --ev-text:   #ffaaff;
+  --ev-sub:    #ffd4ff;
+  animation: qf-rgb-hue-cycle 4s linear infinite;
+}
+@keyframes qf-rgb-hue-cycle {
+  from { filter: hue-rotate(0deg); }
+  to   { filter: hue-rotate(360deg); }
+}
+
 .qf-eventbanner {
   position: absolute;
   left: 50%;
@@ -9114,32 +9169,48 @@ body {
   color: #1a0a04;
 }
 
-/* "Turn off hints" — small dismissal link on tutorial bubbles. */
+/* "Turn off hints" / "skip intro" — pixel-button controls that match
+   the .qf-npc-choice buttons used by the intro's Whisper/Manage Alone
+   prompts. Sit in normal flow below the bubble text + choices so the
+   bubble pads cleanly around them (the previous absolute-positioned
+   plain-text version was easy to miss and didn't match the visual
+   language of the rest of the companion UI).
+
+   Only one of the two is ever shown at a time, gated by the .show
+   class added in NpcCompanion when the bubble is in tutorial / intro
+   replay mode. Without .show they're display:none so the bubble's
+   layout doesn't reserve space for them on bubbles that don't need
+   them. */
 .qf-npc-optout {
-  position: absolute;
-  left: 13px;
-  bottom: 8px;
-  font-family: var(--term);
-  font-size: 13px;
-  color: var(--text-mute);
+  display: none;
+  margin-top: 10px;
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  padding: 7px 10px;
+  background: var(--bg-2);
+  border: 2px solid var(--gold);
+  color: var(--gold-bright);
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s ease, color 0.15s ease;
+  image-rendering: pixelated;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.06),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5);
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.qf-npc-optout.show { opacity: 0.7; }
-/* Both `.qf-npc-optout` (turn off hints) and `.qf-npc-skip` (skip intro)
-   share this position absolute slot at the bubble's bottom-left, and the
-   skip element is later in source order than the opt-out. Without this
-   rule, the invisible (opacity 0) one still absorbs clicks at the slot
-   because nothing tells the browser otherwise — so the visible link feels
-   dead. Make the hidden one transparent to pointer events. */
-.qf-npc-optout:not(.show) { pointer-events: none; }
-/* Hover only brightens it when it is actually shown (tutorial bubbles).
-   Without the .show gate, hovering the bottom-left of ANY bubble — the
-   intro included — revealed the hidden control. */
-.qf-npc-optout.show:hover { opacity: 1; color: var(--blood-glow); }
-/* "skip intro" reuses the opt-out link styling but hovers gold, not red. */
-.qf-npc-skip.show:hover { color: var(--gold-bright); }
+.qf-npc-optout.show { display: inline-block; }
+/* "turn off hints" reads as destructive — fills red on hover so the
+   player understands they're dismissing future help. */
+.qf-npc-optout.show:hover {
+  background: var(--blood-glow);
+  color: #1a0a04;
+}
+/* "skip intro" is just fast-forward — fills gold on hover, matching
+   the choice-button hover treatment exactly. */
+.qf-npc-skip.show:hover {
+  background: var(--gold);
+  color: #1a0a04;
+}
 
 /* Tutorial / intro mode — gold-accented bubble so a "lesson" reads distinctly. */
 .qf-npc[data-tutorial="true"] .qf-npc-bubble {

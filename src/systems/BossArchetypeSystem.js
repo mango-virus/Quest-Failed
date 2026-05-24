@@ -114,6 +114,28 @@
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { createMinion, applyMinionScaling, applyBossLevelToMinion } from '../entities/Minion.js'
+import { TILE }     from './DungeonGrid.js'
+import { AbilityVfx } from '../ui/AbilityVfx.js'
+
+// Slime King Absorb & Excrete — Goopling roll pool, level-gated.
+//
+// Tier mapping comes from src/data/minionEvolutions.json — each of the
+// three slime chains is laid out as [T1, T2, T3, T4-elder]:
+//   Toxic   : slime3 → slime7 → slime8 → elder_slime1
+//   Acid    : slime2 → slime9 → slime1 → elder_slime2
+//   Frost   : slime4 → slime5 → slime6 → elder_slime3
+//
+// Per-tier pool = one entry from each chain at that tier so every spawn
+// has visual variety (random palette + ability mix).
+const GOOPLING_POOL_T1 = ['slime2', 'slime3', 'slime4']
+const GOOPLING_POOL_T2 = ['slime5', 'slime7', 'slime9']
+const GOOPLING_POOL_T3 = ['slime1', 'slime6', 'slime8']
+
+function _gooplingPoolForBossLevel(bossLv) {
+  if ((bossLv ?? 1) <= 4) return GOOPLING_POOL_T1
+  if ((bossLv ?? 1) <= 8) return GOOPLING_POOL_T2
+  return GOOPLING_POOL_T3
+}
 
 const MINION_TAG_ORC       = 'orc'
 const MINION_TAG_LIZARDMAN = 'lizardman'
@@ -362,11 +384,250 @@ export class BossArchetypeSystem {
   _onMinionDied(payload) {
     const m = payload?.minion
     if (!m) return
+
+    // Slime King — Absorb & Excrete. Runs BEFORE the orc handler bails on
+    // non-orc minions so it can fire for any of the player's dungeon
+    // minions (which are obviously not orc-tagged).
+    if (this._archId() === 'slime') {
+      this._onSlimeMinionDied(m)
+      // No early-return — we still let downstream orc/etc. handlers run
+      // in case a future archetype layer wants to react to the same death.
+    }
+
     if (!Array.isArray(m.tags) || !m.tags.includes(MINION_TAG_ORC)) return
     // Loot the Fallen now writes only `lootAtkBonus` (Warband owns the
     // live stats.attack recompute). Just zero the counter on death; the
     // next `_tickOrc` will see the missing orc and rebalance the cluster.
     m.lootAtkBonus = 0
+  }
+
+  // ── SLIME KING: Absorb & Excrete ──────────────────────────────────────
+  //
+  // Every player-side minion that dies in the dungeon gets swallowed by
+  // the King — it disappears from the minion roster entirely (no respawn
+  // at next dawn) and the King excretes a Goopling in his boss room. The
+  // Goopling is a runtime CLONE of a random existing slime minion type
+  // (slime1..slime9 + elder_slime1..3) — same sprite, same stats, same
+  // abilities — tagged `_isGoopling = true` so it stays a one-shot life
+  // (MinionAISystem.respawnAll skips it just like Hellgate imps).
+  //
+  // Spawn anchor is the boss room; we set the Goopling's `assignedRoomId`
+  // to the original minion's home room so the patrol AI naturally
+  // pathfinds it back toward where it came from. Adventurers it meets en
+  // route trigger the standard chase/attack behaviour (no special-casing
+  // needed — MinionAISystem already handles that).
+  //
+  // Exclusions match the user spec:
+  //   • Mini-slime (Slime Split mini-spawns)        — would feedback-loop
+  //   • Gooplings themselves                         — would feedback-loop
+  //   • Other one-shot specials (Imp / Vinekin /
+  //     Haunt Ghost / HoT spawn / Throne mini-boss
+  //     / Mercenary)                                  — own death rules
+  //   • Sacrificed / burnt minions                  — player chose this
+  //   • Adventurer-faction minions (raises / tames) — not "yours"
+  _onSlimeMinionDied(deadMinion) {
+    if (this._shouldSkipSlimeAbsorb(deadMinion)) return
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!bossRoom) return
+    const minionDefs = this._scene.cache.json.get('minionTypes') ?? []
+
+    // Level-gated tier pool — T1 (boss lv 1-4), T2 (5-8), T3 (9+).
+    const bossLv = this._gameState?.boss?.level ?? 1
+    const tieredPool = _gooplingPoolForBossLevel(bossLv)
+    const pool = tieredPool.filter(id => minionDefs.some(d => d.id === id))
+    if (pool.length === 0) return
+    const pickId = pool[Math.floor(Math.random() * pool.length)]
+    const def    = minionDefs.find(d => d.id === pickId)
+    if (!def) return
+
+    // Goopling literally pops OUT OF the boss — anchor the spawn at the
+    // boss's live tile and search outward for the first walkable tile.
+    // Boss world coords come from BossSystem (boss.tileX/tileY); falls
+    // back to boss room centre if the boss hasn't been tile-stamped yet
+    // (e.g. very early in a brand-new run before the first night tick).
+    const grid = this._scene?.dungeonGrid
+    const boss = this._gameState?.boss
+    const anchorX = (Number.isFinite(boss?.tileX) ? boss.tileX
+      : bossRoom.gridX + Math.floor(bossRoom.width / 2))
+    const anchorY = (Number.isFinite(boss?.tileY) ? boss.tileY
+      : bossRoom.gridY + Math.floor(bossRoom.height / 2))
+    let sx = anchorX, sy = anchorY
+    // 8-direction adjacent search from the boss's tile. Boss's own tile
+    // is checked LAST — gooplings prefer to step out so the boss sprite
+    // isn't obscured.
+    const offsets = [
+      [1, 0], [-1, 0], [0, 1], [0, -1],
+      [1, 1], [-1, 1], [1, -1], [-1, -1],
+      [0, 0],
+    ]
+    for (const [ox, oy] of offsets) {
+      const tx = anchorX + ox, ty = anchorY + oy
+      const t = grid?.getTileType?.(tx, ty)
+      if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) {
+        const occupied = (this._gameState.minions ?? []).some(mm =>
+          mm.aiState !== 'dead' && (mm.resources?.hp ?? 0) > 0 &&
+          mm.tileX === tx && mm.tileY === ty)
+        if (!occupied) { sx = tx; sy = ty; break }
+      }
+    }
+
+    // The Goopling's "home" is the room the absorbed minion was assigned
+    // to. The patrol AI uses assignedRoomId to pick wander targets and
+    // pathfind; dropping the goopling in the boss room with assignedRoomId
+    // pointing elsewhere makes it walk there on its own.
+    const homeRoomId = deadMinion.assignedRoomId ?? null
+
+    // Apply the boss's current scaling like any night-placed minion would
+    // get. The 4th option is the standard 'garrison' class — matches how
+    // Demon Hellgate imps are constructed. `bossLv` already captured for
+    // tier-pool selection above; reuse it.
+    const goopling = createMinion(def, { x: sx, y: sy }, homeRoomId, { class: 'garrison' })
+    applyBossLevelToMinion(goopling, bossLv)
+    goopling._isGoopling      = true
+    goopling._gooplingHomeId  = homeRoomId
+    goopling._gooplingOrigin  = deadMinion.id
+    // Mirror Hellgate-imp style stamping for the patrol picker's home tile.
+    const homeRoom = homeRoomId
+      ? (this._gameState.dungeon.rooms ?? []).find(r => r.instanceId === homeRoomId)
+      : null
+    goopling.homeTileX = homeRoom
+      ? homeRoom.gridX + Math.floor(homeRoom.width  / 2)
+      : sx
+    goopling.homeTileY = homeRoom
+      ? homeRoom.gridY + Math.floor(homeRoom.height / 2)
+      : sy
+
+    this._gameState.minions.push(goopling)
+    EventBus.emit('MINION_PLACED', { minion: goopling })
+
+    // Splice the absorbed minion out of the roster entirely so it can't
+    // respawn at dawn. (MinionAISystem.respawnAll's filters are all "this
+    // dead minion stays dead but stays in the array" — for Absorb the
+    // entity LITERALLY isn't there anymore.)
+    const minions = this._gameState.minions
+    const idx = minions.indexOf(deadMinion)
+    if (idx >= 0) minions.splice(idx, 1)
+
+    // +2 to the boss's max HP per absorption. Current HP also bumps so
+    // the boss isn't sitting at a lower fraction post-absorb (purely a
+    // small permanent buff, not a heal-and-cap interaction). `boss`
+    // already captured above for tile-anchor calculation — reuse it.
+    if (boss) {
+      boss.maxHp = (boss.maxHp ?? 0) + 2
+      boss.hp    = Math.min(boss.maxHp, (boss.hp ?? 0) + 2)
+    }
+
+    EventBus.emit('SLIME_ABSORBED', {
+      victimId:    deadMinion.instanceId,
+      gooplingId:  goopling.instanceId,
+      gooplingDef: pickId,
+      homeRoomId,
+    })
+
+    // ── VFX: absorb + excrete ────────────────────────────────────────
+    // Three-part animation reads as "minion dissolves → boss squeezes →
+    // goopling lands":
+    //   1. At the death tile: green particle burst + ring + "ABSORBED".
+    //   2. At the boss: one-shot "Slime excretion" overlay sprite —
+    //      9-frame Craftpix animation that visually shows the boss
+    //      birthing a goop blob. Played as a temporary sprite on top
+    //      of the boss; destroyed on animation complete so it doesn't
+    //      interfere with the boss's own state machine.
+    //   3. After a beat: lighter-green burst + ring + "+ GOOPLING" at
+    //      the Goopling's tile.
+    const deathX = (deadMinion.worldX ?? deadMinion.tileX * 32 + 16)
+    const deathY = (deadMinion.worldY ?? deadMinion.tileY * 32 + 16)
+    const goopX  = goopling.worldX
+    const goopY  = goopling.worldY
+    const GREEN  = 0x55cc77
+    const LIGHT_GREEN = 0x88ee99
+    AbilityVfx.particleBurst(this._scene, deathX, deathY, {
+      color: GREEN, count: 14, durationMs: 600, speed: 70, depth: 60,
+    })
+    AbilityVfx.pulseRing(this._scene, deathX, deathY, {
+      color: GREEN, fromR: 4, toR: 38, alpha: 0.85, durationMs: 500, depth: 59,
+    })
+    AbilityVfx.floatingText(this._scene, deathX, deathY - 14, 'ABSORBED', {
+      color: '#aaffbb', fontSize: '11px', durationMs: 900, driftY: -28, depth: 70,
+    })
+    // Boss spawn animation overlay — only fires if the texture loaded
+    // (Preload registers `slime-spawn-sheet`). Centred on the boss's
+    // live world position; runs once at the same scale as the boss
+    // sprite, then destroys itself.
+    this._playSlimeSpawnAnim()
+    // Excretion burst comes ~250ms later so the eye can register the
+    // distinct moments (death → spawn) instead of one flash.
+    this._scene.time?.delayedCall?.(250, () => {
+      if (!Number.isFinite(goopX) || !Number.isFinite(goopY)) return
+      AbilityVfx.particleBurst(this._scene, goopX, goopY, {
+        color: LIGHT_GREEN, count: 16, durationMs: 600, speed: 75, depth: 60,
+      })
+      AbilityVfx.pulseRing(this._scene, goopX, goopY, {
+        color: LIGHT_GREEN, fromR: 4, toR: 30, alpha: 0.85, durationMs: 480, depth: 59,
+      })
+      AbilityVfx.floatingText(this._scene, goopX, goopY - 14, '+ GOOPLING', {
+        color: '#bbffcc', fontSize: '11px', durationMs: 900, driftY: -28, depth: 70,
+      })
+    })
+  }
+
+  // Plays the slime-spawn overlay sprite on the boss. Lazy-creates the
+  // animation on first call (avoids touching Phaser anim cache in
+  // ctor before Preload has finished). Destroys itself on complete so
+  // a rapid sequence of absorptions can stack overlays without leaking.
+  _playSlimeSpawnAnim() {
+    const scene = this._scene
+    const boss  = this._gameState?.boss
+    if (!scene || !boss) return
+    if (!Number.isFinite(boss.worldX) || !Number.isFinite(boss.worldY)) return
+    if (!scene.textures?.exists?.('slime-spawn-sheet')) return
+
+    // Lazy anim registration. Frames 0..8 = first row of the 4-row sheet.
+    // 18fps gives ~500ms total duration — long enough to read, short
+    // enough that rapid absorptions don't overlap awkwardly.
+    if (!scene.anims.exists('slime-spawn-anim')) {
+      scene.anims.create({
+        key: 'slime-spawn-anim',
+        frames: scene.anims.generateFrameNumbers('slime-spawn-sheet', { start: 0, end: 8 }),
+        frameRate: 18,
+        repeat: 0,
+      })
+    }
+    // Match the boss sprite scale so the overlay sits proportionally
+    // over it. Boss sprite scale lives on the renderer; sample
+    // conservatively (BossRenderer applies BOSS_SPRITE_SCALE = ~2.0 to
+    // 128px sheets — same default here).
+    const overlay = scene.add.sprite(boss.worldX, boss.worldY, 'slime-spawn-sheet', 0)
+      .setOrigin(0.5, 0.55)        // slightly biased down so feet land near boss feet
+      .setScale(2.0)
+      .setDepth(65)                 // above particle burst (60), below floaters (70)
+    if (overlay.texture?.setFilter) {
+      overlay.texture.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    }
+    overlay.play('slime-spawn-anim')
+    overlay.once('animationcomplete', () => overlay.destroy())
+    // Safety: if the anim somehow never completes (scene torn down, etc.)
+    // GC the sprite after ~1.5s anyway.
+    scene.time?.delayedCall?.(1500, () => {
+      if (overlay.active) overlay.destroy()
+    })
+  }
+
+  _shouldSkipSlimeAbsorb(m) {
+    if (!m) return true
+    if (m.faction !== 'dungeon') return true              // only player minions
+    if (m._isGoopling)    return true                     // anti-feedback-loop
+    if (m._isMiniSlime)   return true                     // Slime Split babies
+    if (m._isMitosisAdd)  return true                     // boss-spawned adds — would feed boss its own splits
+    if (m.isBossAdd)      return true                     // generic boss-fight adds
+    if (m._isDemonImp)    return true
+    if (m._myconidSprout) return true
+    if (m._isHauntGhost)  return true
+    if (m.isHallOfTrialsSpawn) return true
+    if (m.isThroneMiniBoss)    return true
+    if (m._mercenary)     return true
+    if (m._sacrificed || m._burnt) return true            // deliberate destruction
+    return false
   }
 
   // ── ORC: Warband (live cluster recompute) ──────────────────────────────

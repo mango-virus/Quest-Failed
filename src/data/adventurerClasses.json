@@ -369,5 +369,27 @@
     "unlockLevel": 99,
     "description": "Pure thief. Spawns in the boss room and bolts for the exit. Will not stop to fight. Each one that escapes steals 10% of your gold.",
     "flavorText": "Snatch and giggle."
+  },
+  {
+    "id": "cheater",
+    "name": "Cheater",
+    "color": "0xff66ff",
+    "baseStats": {
+      "hp": 22,
+      "attack": 9,
+      "defense": 1,
+      "speed": 2.0
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "ranged",
+      "exploit",
+      "chaos"
+    ],
+    "unlockLevel": 2,
+    "spawnWeight": 0.25,
+    "description": "Modded client. No-clips walls, teleports between rooms, lands suspicious one-shots. Glass-cannon body — gets reported and banned if they take too many hits.",
+    "flavorText": "skill issue"
   }
 ]

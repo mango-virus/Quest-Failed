@@ -1343,6 +1343,12 @@
         { "t": "You scatter into bats and charm a hero mid-march, little king. Flashy. ...Effective, I will grant you. Effective.", "x": "cool" },
         { "t": "Your charmed thrall turns on their own until they kill a friend. Cruel. Sneaky. I did not expect to enjoy this. I do.", "x": "mischievous" },
         { "t": "Charm the heroes, let them gut each other. Lazy. Vicious. ...You know what? It works. Carry on.", "x": "smug" }
+      ],
+      "slime": [
+        { "t": "A Slime King. Hngh. The heroes will hit you. You will split. Now there are two of you. They hit those. Now there are four. Tedious for them. Excellent for us.", "x": "smug" },
+        { "t": "Every minion they kill in your halls gets eaten by the King and crawls back out wearing a different face. Hngh. Their kills become OUR reinforcements, little king. I am almost charmed by the disrespect.", "x": "mischievous" },
+        { "t": "A slime on the throne. Goofy. Stupid. Underrated. ...The heroes will laugh at it, swing once, and find themselves chasing FOUR of it across the room. Let them laugh.", "x": "evil" },
+        { "t": "Mitosis is patience, little king. They cannot one-shot what halves itself. Keep the boss room WIDE so your four little kings have somewhere to wobble. Build for the splits.", "x": "determined" }
       ]
     },
     "advClass": {
@@ -1426,6 +1432,12 @@
         { "t": "Here comes one in monster fancy-dress. It plays nice with minions — so the TRAPS must do the talking.", "x": "thinking" },
         { "t": "A cosplay adventurer. It came to play pretend. The dungeon, plays for keeps. Remind it.", "x": "evil" },
         { "t": "Look at it — a hero dressed as a monster. Hngh. Playing at being us. It will die a far worse actor than a corpse.", "x": "mocking-2" }
+      ],
+      "cheater": [
+        { "t": "A cheater. Modded client. It will walk through your walls, teleport past your traps, one-shot your boys with damage that does not exist. Hngh. The kingdom lets ANYONE in these days.", "x": "angry" },
+        { "t": "A cheater, little king. No skill. Just a hacked sword and the gall to use it. ...Hit it HARD — the body is paper. A few good blows and the anti-cheat does the rest.", "x": "aggressive" },
+        { "t": "Look at this one — wall-clipping into the boss chamber like the dungeon's a SUGGESTION. Hngh. Punch it until it gets banned. The kingdom polices its own — let them.", "x": "mocking-3" },
+        { "t": "A cheater. 'Skill issue,' it says. Hngh. The skill issue is YOURS, hero — none of mine has needed cheats since before your kingdom had walls.", "x": "smug" }
       ]
     },
     "event": {

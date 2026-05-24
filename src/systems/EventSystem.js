@@ -72,6 +72,9 @@ export class EventSystem {
     this._twitchTimers = []
     // Per-day raid counter — capped so a long day can't spawn endlessly.
     this._twitchRaidsToday = 0
+    // PATCH 0.0.0 timers — glitch tile flashes + admin console command
+    // roulette. Same teardown contract as the twitch timers.
+    this._patchZeroTimers = []
     // Looping timers for the day-long state-modifier events (Miasma chip
     // DoT, Tremor quakes). Torn down in _clearEffect and destroy().
     this._eventTimers = []
@@ -127,6 +130,7 @@ export class EventSystem {
     // Tear down any in-flight Twitch Con timers so a scene shutdown
     // mid-event doesn't leak Phaser timer events.
     this._stopTwitchConChaos()
+    this._stopPatchZeroChaos()
     this._stopEventTimers()
     // Drop any Arcane Storm cooldown scaling so it can't leak past a
     // scene teardown into a fresh run.
@@ -564,6 +568,18 @@ export class EventSystem {
         // engagement logic can branch.
         flags.cosplayContestActive = true
         break
+      case 'patch_zero':
+        // PATCH 0.0.0 — entire day's wave is cheater class (DayPhase /
+        // NightPhase wave-replacement hooks read patchZeroActive).
+        // Anti-cheat gate in ClassAbilitySystem disabled by the same
+        // flag. CombatSystem reads it for the bumped instakill chance
+        // and the 2× kill-gold ban bounty. ClassAbilitySystem uses it
+        // to halve teleport + speed-hack cooldowns. The two chaos
+        // timers (glitch tiles + console command roulette) are spun
+        // up here and torn down in _clearEffect.
+        flags.patchZeroActive = true
+        this._startPatchZeroChaos()
+        break
       case 'cartographers_convention':
         // DayPhase spawns 3 scholars instead of the normal wave; they
         // tour every non-boss room then flee, naturally feeding their
@@ -681,6 +697,10 @@ export class EventSystem {
         flags.twitchConActive = false
         // Stop every chaos timer so they don't bleed into the next day.
         this._stopTwitchConChaos()
+        break
+      case 'patch_zero':
+        flags.patchZeroActive = false
+        this._stopPatchZeroChaos()
         break
       case 'negotiation_day':
         // Outcome consumed in DayPhase. Clear here so the decision doesn't
@@ -1080,6 +1100,216 @@ export class EventSystem {
     this._twitchTimers = []
   }
 
+  // ── PATCH 0.0.0 chaos timers ──────────────────────────────────────────
+  // Two looping Phaser timers running for the day:
+  //   1. Glitch tiles — every ~1.2 s pick a random floor tile and fire
+  //      an RGB particle burst there. Purely cosmetic — sells the "the
+  //      whole server is glitching" vibe without any gameplay impact.
+  //   2. Console command roulette — every ~8 s pick from a curated list
+  //      of fake admin commands and fire its effect. A floating
+  //      "> /command" banner shows over the dungeon centre so the
+  //      player sees which exploit just dropped.
+  _startPatchZeroChaos() {
+    this._stopPatchZeroChaos()
+    const time = this._scene?.time
+    if (!time) return
+    this._patchZeroTimers.push(time.addEvent({
+      delay:    Balance.PATCH_ZERO_GLITCH_TILE_MS ?? 1200,
+      loop:     true,
+      callback: this._patchZeroGlitchTileTick,
+      callbackScope: this,
+    }))
+    this._patchZeroTimers.push(time.addEvent({
+      delay:    Balance.PATCH_ZERO_CONSOLE_CMD_MS ?? 8000,
+      loop:     true,
+      callback: this._patchZeroConsoleCmdTick,
+      callbackScope: this,
+    }))
+  }
+
+  _stopPatchZeroChaos() {
+    for (const t of this._patchZeroTimers) t?.remove?.(false)
+    this._patchZeroTimers = []
+  }
+
+  // Pick a random in-bounds floor tile and fire an RGB-cycling particle
+  // burst at its world center. No state changes — purely visual chaos.
+  _patchZeroGlitchTileTick() {
+    if (!this._gameState._eventFlags?.patchZeroActive) return
+    const grid = this._scene?.dungeonGrid
+    if (!grid?.getRoomAtTile) return
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    if (rooms.length === 0) return
+    const room = rooms[Math.floor(Math.random() * rooms.length)]
+    if (!room) return
+    const tx = room.gridX + Math.floor(Math.random() * room.width)
+    const ty = room.gridY + Math.floor(Math.random() * room.height)
+    const TS = Balance.TILE_SIZE
+    const wx = tx * TS + TS / 2
+    const wy = ty * TS + TS / 2
+    // Lazy import — keeps EventSystem free of UI cycles at module load.
+    import('../util/cheaterVfx.js').then(({ rgbParticleBurst }) => {
+      rgbParticleBurst(this._scene, wx, wy,
+        { count: 8, durationMs: 380, speed: 50, depth: 1.5 })
+    }).catch(() => {})
+  }
+
+  // Roulette of "admin console commands" that fire random server-side
+  // effects. Each entry is `{ name, fire }`. The pool sits inline so
+  // adding/removing commands is a one-place edit.
+  _patchZeroConsoleCmdTick() {
+    if (!this._gameState._eventFlags?.patchZeroActive) return
+    const cmds = [
+      { name: '/godmode_minion',  fire: () => this._cmdGodmodeMinion() },
+      { name: '/banhammer',       fire: () => this._cmdBanhammer() },
+      { name: '/give_gold',       fire: () => this._cmdGiveGold() },
+      { name: '/lag_switch',      fire: () => this._cmdLagSwitch() },
+      { name: '/buff_boss',       fire: () => this._cmdBuffBoss() },
+      { name: '/respawn',         fire: () => this._cmdRespawn() },
+      { name: '/fps_drop',        fire: () => this._cmdFpsDrop() },
+      { name: '/spawn_extra',     fire: () => this._cmdSpawnExtra() },
+    ]
+    const pick = cmds[Math.floor(Math.random() * cmds.length)]
+    if (!pick) return
+    // Banner floater over the dungeon centre — uses the same RGB
+    // helper as the cheater floaters so the visual language stays
+    // consistent across the event.
+    const grid = this._scene?.dungeonGrid
+    const w = (grid?.getWidth?.()  ?? 30) * Balance.TILE_SIZE
+    const h = (grid?.getHeight?.() ?? 30) * Balance.TILE_SIZE
+    import('../util/cheaterVfx.js').then(({ rgbFloatingText }) => {
+      rgbFloatingText(this._scene, w * 0.5, h * 0.5,
+        `> ${pick.name}`, { fontSize: '18px', durationMs: 1600, driftY: -40 })
+    }).catch(() => {})
+    EventBus.emit('PATCH_ZERO_CONSOLE_CMD', { cmd: pick.name })
+    try { pick.fire() } catch (e) { /* swallow — chaos shouldn't crash the day */ }
+  }
+
+  // ── Console command effects ───────────────────────────────────────────
+  // /godmode_minion — random dungeon-faction minion full-heals + 2× defense for 5 s.
+  _cmdGodmodeMinion() {
+    const alive = (this._gameState.minions ?? []).filter(m =>
+      m && m.faction === 'dungeon' && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0,
+    )
+    if (alive.length === 0) return
+    const m = alive[Math.floor(Math.random() * alive.length)]
+    if (m?.resources?.maxHp) m.resources.hp = m.resources.maxHp
+    if (m?.stats) {
+      m._godmodeOrigDef = m.stats.defense ?? 0
+      m.stats.defense = (m.stats.defense ?? 0) * 2
+      this._scene?.time?.delayedCall?.(5000, () => {
+        if (m?.stats && m._godmodeOrigDef != null) {
+          m.stats.defense = m._godmodeOrigDef
+          delete m._godmodeOrigDef
+        }
+      })
+    }
+  }
+
+  // /banhammer — instant-ban a random LIVE cheater. Set _reportCount
+  // past threshold so ClassAbilitySystem flips them on the next tick.
+  // Banned cheaters lose all cheats and forced-flee.
+  _cmdBanhammer() {
+    const cheaters = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a && a.classId === 'cheater' && !a._banned && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0,
+    )
+    if (cheaters.length === 0) return
+    const target = cheaters[Math.floor(Math.random() * cheaters.length)]
+    if (!target) return
+    // PATCH 0.0.0 disables the normal ban check — but /banhammer
+    // bypasses that by setting _banned directly. Mimic the same flee
+    // handoff so the rest of the pipeline runs.
+    target._banned = true
+    target.goal = { type: 'FLEE', reason: 'cheater_banned', context: null }
+    target.aiState = 'fleeing'
+    target.path = null
+    EventBus.emit('CHEATER_BANNED', { adventurer: target })
+  }
+
+  // /give_gold — drop a chunk of gold straight into the player's
+  // treasury. The broken patch hands out resources for free.
+  _cmdGiveGold() {
+    const amount = 20 + Math.floor(Math.random() * 30)   // 20-49 gold
+    if (this._gameState.player) {
+      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + amount
+    }
+    EventBus.emit('RESOURCES_AWARDED', { gold: amount, source: 'patch_zero_console' })
+  }
+
+  // /lag_switch — global time scale to 0.6 for 2 s, then snap back.
+  _cmdLagSwitch() {
+    const t = this._scene?.time
+    if (!t) return
+    const prev = t.timeScale ?? 1
+    t.timeScale = 0.6
+    setTimeout(() => { if (t) t.timeScale = prev }, 2000)
+  }
+
+  // /buff_boss — boss attack +50% for 5 s.
+  _cmdBuffBoss() {
+    const boss = this._gameState.boss
+    if (!boss) return
+    const baseAtk = boss.attack ?? 0
+    if (baseAtk <= 0) return
+    boss._patchZeroBuffOrigAtk = baseAtk
+    boss.attack = Math.round(baseAtk * 1.5)
+    this._scene?.time?.delayedCall?.(5000, () => {
+      if (boss && boss._patchZeroBuffOrigAtk != null) {
+        boss.attack = boss._patchZeroBuffOrigAtk
+        delete boss._patchZeroBuffOrigAtk
+      }
+    })
+  }
+
+  // /respawn — revive ONE dead dungeon-faction minion at full HP.
+  // Helpful for the player; the patch is "broken in their favor".
+  _cmdRespawn() {
+    const dead = (this._gameState.minions ?? []).filter(m =>
+      m && m.faction === 'dungeon' && (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0),
+    )
+    if (dead.length === 0) return
+    const m = dead[Math.floor(Math.random() * dead.length)]
+    if (!m) return
+    m.aiState = 'idle'
+    if (m.resources?.maxHp) m.resources.hp = m.resources.maxHp
+    m.tileX = m.homeTileX ?? m.tileX
+    m.tileY = m.homeTileY ?? m.tileY
+    const TS = Balance.TILE_SIZE
+    m.worldX = (m.tileX ?? 0) * TS + TS / 2
+    m.worldY = (m.tileY ?? 0) * TS + TS / 2
+    EventBus.emit('MINION_PLACED', { minion: m })
+  }
+
+  // /fps_drop — extra burst of glitch tiles for 1.5 s. Pure visual.
+  _cmdFpsDrop() {
+    const t = this._scene?.time
+    if (!t) return
+    for (let i = 0; i < 6; i++) {
+      t.delayedCall(i * 220, () => this._patchZeroGlitchTileTick())
+    }
+  }
+
+  // /spawn_extra — add one extra Cheater to the active wave. Spawns
+  // at a random non-boss-room floor tile (no-clip cheats handle the
+  // pathing from wherever they land).
+  _cmdSpawnExtra() {
+    const ai = this._scene?.aiSystem
+    if (!ai?.pickSpawnTile) return
+    const allClasses = this._scene?.cache?.json?.get?.('adventurerClasses') ?? []
+    const def = allClasses.find(c => c.id === 'cheater')
+    if (!def) return
+    const tile = ai.pickSpawnTile() ?? { x: 1, y: 1 }
+    // Lazy-import so EventSystem doesn't depend on the entities module
+    // at top level.
+    import('../entities/Adventurer.js').then(({ createAdventurer }) => {
+      const adv = createAdventurer(def, { x: tile.x, y: tile.y })
+      adv.spawnTileX = tile.x
+      adv.spawnTileY = tile.y
+      this._gameState.adventurers?.active?.push(adv)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+    }).catch(() => {})
+  }
+
   // All currently-alive `_twitchChaos` adventurers.
   _liveTwitchStreamers() {
     return (this._gameState.adventurers?.active ?? []).filter(a =>
@@ -1233,9 +1463,18 @@ export class EventSystem {
           case 0:   // charge the boss
             adv.goal = { type: 'SEEK_BOSS' }
             break
-          case 1: { // raid a random non-boss room
-            if (nonBossRooms.length > 0) {
-              const room = nonBossRooms[Math.floor(Math.random() * nonBossRooms.length)]
+          case 1: { // raid a random UNVISITED non-boss room
+            // Previously rolled from all non-boss rooms, which meant the
+            // 4s reroll cadence sent streamers back into rooms they'd
+            // already cleared — they ping-ponged between visited rooms
+            // and never made it to the boss. Match the chat-poll's
+            // unvisited filter so each freelance pick is a fresh
+            // destination. When every non-boss room has been visited,
+            // fall through to SEEK_BOSS instead of looping.
+            const visited = new Set(adv.visitedRooms ?? [])
+            const unvisited = nonBossRooms.filter(r => !visited.has(r.instanceId))
+            if (unvisited.length > 0) {
+              const room = unvisited[Math.floor(Math.random() * unvisited.length)]
               adv.goal = { type: 'EXPLORE_ROOM', roomId: room.instanceId }
             } else {
               adv.goal = { type: 'SEEK_BOSS' }

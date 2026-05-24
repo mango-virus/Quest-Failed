@@ -26,6 +26,7 @@
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { TILE }     from './DungeonGrid.js'
+import { AbilityVfx } from '../ui/AbilityVfx.js'
 
 const PREFIGHT_DELAY_MS = 1000   // banner pause before the first combat round
 const ROUND_INTERVAL_S  = 0.6    // seconds of cinematic combat between damage rounds
@@ -293,19 +294,26 @@ export class BossSystem {
     }
 
     // ── Hard fight-duration cap — absolute anti-freeze backstop ───────
-    // A real fight is ~1s prefight + at most 24 rounds × 0.6s ≈ 16s of
-    // fight-time. 30s is a generous ceiling. _fightT advances purely
-    // from the scaled delta every tick this fight runs, so this fires
-    // in bounded REAL time at EVERY speed (≈3.75s real at 8×, where
-    // the freeze was reported). If anything stalls the normal
-    // resolution path — combat-start gate, the per-round runner, the
-    // 24-round stalemate cap, an emptied _fightStates — _fighting would
-    // otherwise stay stuck true forever: the day can never end and the
-    // game appears frozen. This guarantees the fight ALWAYS resolves.
-    // Winner is decided by who still has HP, matching the stalemate
-    // cap's tie-break. _fightStates is non-null here (created above) so
-    // _endFight's roster loop is safe.
-    if (!this._fightEnded && this._fightT > 30) {
+    // A real fight is ~1s prefight + at most ROUND_CAP × 0.6s of
+    // combat-time (24 rounds for most bosses, 48 for slime — see the
+    // ROUND_CAP in _runOneRound). Wall-clock ceiling here needs to be
+    // strictly LONGER than the round cap can produce, otherwise this
+    // backstop fires before the gameplay cap resolves and the fight
+    // ends prematurely with a coarser tie-break. 35s covers slime's
+    // ~30s worst case with margin; 30s would be enough for any other
+    // archetype but the higher floor doesn't harm them.
+    //
+    // _fightT advances purely from the scaled delta every tick this
+    // fight runs, so this fires in bounded REAL time at EVERY speed
+    // (≈4.4s real at 8×, where the freeze was reported). If anything
+    // stalls the normal resolution path — combat-start gate, the
+    // per-round runner, the round-cap branch, an emptied _fightStates
+    // — _fighting would otherwise stay stuck true forever: the day
+    // can never end and the game appears frozen. This guarantees the
+    // fight ALWAYS resolves. Winner is decided by who still has HP,
+    // matching the stalemate cap's tie-break. _fightStates is non-null
+    // here (created above) so _endFight's roster loop is safe.
+    if (!this._fightEnded && this._fightT > 35) {
       const boss = this._gameState.boss
       this._endFight(boss && (boss.hp ?? 0) > 0 ? 'boss' : 'party')
       return
@@ -334,6 +342,11 @@ export class BossSystem {
 
     this._syncFightParty()
     this._tickFightBoss(dt)
+    // Slime King — each slime moves toward its own nearest adv every
+    // tick. Boss centroid (boss.worldX/Y) is re-derived from the alive
+    // slimes inside this call so the parent state machine that just
+    // ran in _tickFightBoss gets a fresh anchor for its next pass.
+    this._tickSlimes(dt)
     for (const fs of this._fightStates.values()) {
       this._tickFightAdv(fs, dt)
     }
@@ -1212,6 +1225,235 @@ export class BossSystem {
 
   // Round damage intercept. Returns true when the party's pooled damage
   // this round is absorbed by a decoy (which then shatters).
+  // ── SLIME KING: full visual Mitosis (multi-entity boss fight) ─────
+  //
+  // The slime boss fight tracks N independent slime entities in
+  // boss.slimes[]. Each entry: { id, hp, maxHp, worldX, worldY,
+  // generation, hasSplit }.
+  //
+  // Math: when a slime drops to 50% of its maxHp, it splits into 2
+  // children each with maxHp = parent.maxHp / 4. (Conservation: parent
+  // had maxHp/2 of HP left at split, children sum to that exactly.)
+  // Slimes at `generation >= 2` don't split further — the lifetime cap
+  // is 1 → 2 → 4 entities. `boss.hp` is mirrored each tick as the sum
+  // of all alive slimes' hp, so the existing `boss.hp <= 0` death
+  // check still triggers when every slime is down.
+  //
+  // Damage is distributed evenly across alive slimes each round.
+  // Boss.attack and any boss-side combat math is unchanged — the boss
+  // entity itself drives the fight-round state machine; the slimes are
+  // a damage-and-visuals layer on top.
+
+  // Called from _onIncoming when the fight starts. Wipes any leftover
+  // slimes from a prior fight and seeds one gen-0 entity at the boss's
+  // position with the full maxHp.
+  _initSlimesForFight(boss) {
+    if (!boss) return
+    if (this._archIdForBoss() !== 'slime') {
+      boss.slimes = null
+      return
+    }
+    // Each slime tracks its OWN absolute worldX/Y and moves
+    // independently (see _tickSlimes). boss.worldX/Y is recomputed each
+    // frame as the centroid of all alive slimes so the existing boss
+    // state machine + attack-range checks still operate against "where
+    // the cluster is". When the cluster scatters (each slime chasing a
+    // different adv), the centroid sits at their midpoint — the
+    // pooled-damage code path is now bypassed for slime via the
+    // per-attacker / per-slime targeting in _runOneRound.
+    //
+    // HP carry-over: the gen-0 slime spawns with boss.hp (the boss's
+    // CURRENT health, not its max) so multi-fight days work like every
+    // other archetype — damage taken in fight 1 carries over to fight 2.
+    // maxHp stays at boss.maxHp so the split threshold (50% of maxHp)
+    // still measures against the full pool. Caller (_onIncoming) is
+    // responsible for ordering: refill at hp<=0 + Soul Drain heal +
+    // any other HP mutation must happen BEFORE this runs.
+    const wx = Number.isFinite(boss.worldX) ? boss.worldX : 0
+    const wy = Number.isFinite(boss.worldY) ? boss.worldY : 0
+    const startHp = Math.max(1, Math.min(boss.maxHp, boss.hp ?? boss.maxHp))
+    boss.slimes = [{
+      id:         `slime_${Date.now()}_g0`,
+      hp:         startHp,
+      maxHp:      boss.maxHp,
+      worldX:     wx,
+      worldY:     wy,
+      generation: 0,
+      hasSplit:   false,
+    }]
+    // Keep the mirror clean from the start.
+    this._syncBossHpFromSlimes(boss)
+  }
+
+  // Per-slime independent movement — each alive slime drifts toward its
+  // own nearest live adventurer at a per-generation speed (smaller
+  // slimes scoot faster). Skipped while the boss state machine is in
+  // the lunge/slam action because those have their own positioning
+  // tweens at the cluster level.
+  _tickSlimes(dt) {
+    const boss = this._gameState.boss
+    if (!boss || !Array.isArray(boss.slimes) || boss.slimes.length === 0) return
+    const advs = [...this._fightStates.values()].filter(fs =>
+      fs.action !== 'dying' && fs.action !== 'dodge' &&
+      (fs.adv.resources?.hp ?? 0) > 0)
+    if (advs.length === 0) return
+    const TS = Balance.TILE_SIZE
+    const { clampX, clampY } = this._roomClamp()
+    for (const s of boss.slimes) {
+      if ((s.hp ?? 0) <= 0) continue
+      // Pick the nearest adv to THIS slime — each slime chooses its
+      // own target so the cluster naturally scatters when there are
+      // multiple advs in the chamber.
+      let target = null, bestD = Infinity
+      for (const fs of advs) {
+        const d = Math.hypot(fs.adv.worldX - s.worldX, fs.adv.worldY - s.worldY)
+        if (d < bestD) { bestD = d; target = fs }
+      }
+      if (!target) continue
+      const dx = target.adv.worldX - s.worldX
+      const dy = target.adv.worldY - s.worldY
+      const d = Math.hypot(dx, dy) || 1
+      // Slow approach speed scaled by generation — bigger blobs (gen 0)
+      // lumber, small ones (gen 2) skitter.
+      const baseSpeed = 0.9 * TS
+      const genMul = 1 + (s.generation ?? 0) * 0.25
+      const speed = baseSpeed * genMul
+      s.worldX += (dx / d) * speed * dt
+      s.worldY += (dy / d) * speed * dt
+      // Keep slimes inside the chamber.
+      s.worldX = clampX(s.worldX)
+      s.worldY = clampY(s.worldY)
+    }
+    // Re-derive the boss centroid so the parent state machine + every
+    // existing `boss.worldX/Y`-based read (slam radius, lunge target,
+    // VFX anchors, sprite-separation guard) operate on the cluster's
+    // current centre.
+    this._syncBossPosFromSlimes(boss)
+  }
+
+  // Average worldX/Y of all alive slimes → boss.worldX/Y. Single-slime
+  // case (gen 0 alive only) trivially equals that slime's position.
+  _syncBossPosFromSlimes(boss) {
+    if (!boss?.slimes?.length) return
+    let n = 0, sx = 0, sy = 0
+    for (const s of boss.slimes) {
+      if ((s.hp ?? 0) <= 0) continue
+      sx += s.worldX ?? 0
+      sy += s.worldY ?? 0
+      n++
+    }
+    if (n > 0) {
+      boss.worldX = sx / n
+      boss.worldY = sy / n
+    }
+  }
+
+  // Damage application — single entry point so the existing combat code
+  // can swap `boss.hp = ...` for a method call and stay agnostic about
+  // whether multiple slimes exist. For non-slime archetypes this is a
+  // 1-liner; for slime, distribute evenly across alive slimes, then
+  // check each for split, then sync the mirror.
+  _applyDamageToBoss(boss, dmg) {
+    if (this._archIdForBoss() === 'slime' && Array.isArray(boss.slimes) && boss.slimes.length > 0) {
+      const alive = boss.slimes.filter(s => (s.hp ?? 0) > 0)
+      if (alive.length === 0) {
+        boss.hp = 0
+        return
+      }
+      // Distribute evenly. Round up so every slime takes at least 1 hp
+      // per round when dmg < count (otherwise some rounds could deal 0
+      // to particular slimes and the fight would drag).
+      const per = Math.max(1, Math.ceil(dmg / alive.length))
+      for (const s of alive) {
+        s.hp = Math.max(0, (s.hp ?? 0) - per)
+      }
+      // Splits checked on a snapshot of `alive` — the array is mutated
+      // by splits (parent removed, children added), so iterating the
+      // post-mutation slimes would risk re-checking just-spawned children
+      // on the same round and infinite-recursing.
+      for (const s of alive) {
+        this._maybeSplitSlime(s)
+      }
+      this._syncBossHpFromSlimes(boss)
+    } else {
+      boss.hp = Math.max(0, (boss.hp ?? 0) - dmg)
+    }
+  }
+
+  // Per-slime split gate. Generation 2 slimes are the cap — they die
+  // normally. hasSplit guards against double-splitting on chained damage.
+  _maybeSplitSlime(slime) {
+    if (!slime || slime.hasSplit) return
+    if ((slime.generation ?? 0) >= 2) return
+    if ((slime.hp ?? 0) <= 0) return
+    if ((slime.hp ?? 0) > (slime.maxHp ?? 1) * 0.5) return
+    this._performSlimeSplit(slime)
+  }
+
+  // Replace `parent` in boss.slimes with 2 children. Children spawn at
+  // parent's position with a small left/right offset so the visual reads
+  // as a divide rather than a stack. Children's maxHp = parent.maxHp / 4
+  // (parent's HP-at-split was maxHp/2; conserve total).
+  _performSlimeSplit(parent) {
+    const boss = this._gameState?.boss
+    if (!boss?.slimes) return
+    parent.hasSplit = true
+    const idx = boss.slimes.indexOf(parent)
+    if (idx < 0) return
+    boss.slimes.splice(idx, 1)
+    const childMaxHp = Math.max(1, Math.floor((parent.maxHp ?? 0) / 4))
+    const OFFSET_PX = 26
+    const childGen = (parent.generation ?? 0) + 1
+    const parentX = parent.worldX ?? 0
+    const parentY = parent.worldY ?? 0
+    const created = []
+    for (let i = 0; i < 2; i++) {
+      const sign = (i === 0 ? -1 : 1)
+      const child = {
+        id:         `slime_${Date.now()}_g${childGen}_${i}_${Math.random().toString(36).slice(2, 5)}`,
+        hp:         childMaxHp,
+        maxHp:      childMaxHp,
+        worldX:     parentX + sign * OFFSET_PX,
+        worldY:     parentY,
+        generation: childGen,
+        hasSplit:   false,
+      }
+      boss.slimes.push(child)
+      created.push(child)
+    }
+    EventBus.emit('SLIME_MITOSIS_SPLIT', {
+      parentId:    parent.id,
+      generation:  childGen,
+      children:    created.map(c => ({ id: c.id, hp: c.hp, maxHp: c.maxHp })),
+    })
+    AbilityVfx.particleBurst(this._scene, parentX, parentY, {
+      color: 0x55cc77, count: 22, durationMs: 700, speed: 95, depth: 60,
+    })
+    AbilityVfx.pulseRing(this._scene, parentX, parentY, {
+      color: 0x55cc77, fromR: 8, toR: 64, alpha: 0.9, durationMs: 600, depth: 59,
+    })
+    this._floatText(parentX, parentY - 16, 'SPLIT!', '#aaffbb')
+    for (const c of created) {
+      AbilityVfx.particleBurst(this._scene, c.worldX, c.worldY, {
+        color: 0x88ee99, count: 10, durationMs: 500, speed: 60, depth: 58,
+      })
+      AbilityVfx.pulseRing(this._scene, c.worldX, c.worldY, {
+        color: 0x88ee99, fromR: 4, toR: 28, alpha: 0.85, durationMs: 450, depth: 57,
+      })
+    }
+  }
+
+  // Mirror boss.hp = sum of alive slime hps. Lets every existing
+  // `boss.hp <= 0` check (in this file and the DOM HP-bar overlay)
+  // keep working unchanged — when every slime is at 0, sum is 0,
+  // _runOneRound's death check fires _endFight('party').
+  _syncBossHpFromSlimes(boss) {
+    if (!boss?.slimes) return
+    let total = 0
+    for (const s of boss.slimes) total += Math.max(0, s.hp ?? 0)
+    boss.hp = total
+  }
+
   _tryDoppelgangerAbsorb() {
     if (!this._doppelActive()) return false
     const D = this._doppelDecoys ?? 0
@@ -1422,6 +1664,10 @@ export class BossSystem {
   // ── Public API ───────────────────────────────────────────────────────────
 
   isFinalDeath() { return (this._gameState.boss?.deathsRemaining ?? 0) <= 0 }
+
+  // Cheap accessor for the active boss archetype id — used by
+  // archetype-specific fight branches (e.g. Slime King Mitosis).
+  _archIdForBoss() { return this._gameState?.player?.bossArchetypeId ?? null }
 
   // Phase 9 — Batch G boss-attack-pact dispatcher. Called once per fight
   // round before the regular party/boss exchange. Each branch handles its
@@ -1637,6 +1883,17 @@ export class BossSystem {
       }
     }
 
+    // Slime King Mitosis — initialise the slime-entity array for this
+    // fight. The fight uses N independent boss entities (boss.slimes)
+    // tracked through splits; boss.hp stays in sync as the sum of all
+    // alive slimes so the standard `boss.hp <= 0` end-of-fight check
+    // still works (all dead → sum is 0). MUST run AFTER the refill /
+    // Soul Drain block above so the gen-0 slime spawns with the post-
+    // refill HP value — otherwise a wounded boss going into fight 2
+    // ends up at full HP because _initSlimesForFight read boss.hp
+    // before refill applied.
+    this._initSlimesForFight(boss)
+
     EventBus.emit('BOSS_FIGHT_STARTED', { triggeringAdventurer: adventurer })
 
     // Combat rounds begin after a banner pause — the cinematic dance plays
@@ -1715,7 +1972,13 @@ export class BossSystem {
     // (windup, channel, stun, dazed) consumed below.
     this._runBossPactAttacks(boss, defenders)
 
-    if (this._roundsRun >= 24) {
+    // Slime King runs 2× rounds because Mitosis spreads the same total
+    // HP across up to 4 entities — the party often needs more swings to
+    // clear all the small slimes than they would to drop one big boss
+    // at the same atk/def numbers. 48 rounds = ~29s of in-fight combat,
+    // still bounded by the 30s wall-clock backstop above.
+    const ROUND_CAP = this._archIdForBoss() === 'slime' ? 48 : 24
+    if (this._roundsRun >= ROUND_CAP) {
       // Hard cap to break stalemates.
       const partyFrac = defenders.reduce((s, fs) =>
         s + fs.adv.resources.hp / Math.max(1, fs.adv.resources.maxHp), 0) / defenders.length
@@ -1767,12 +2030,11 @@ export class BossSystem {
       const MINION_AGGRO_RANGE = 1.6 * TSb
       const MINION_REDIRECT_PROB = 0.35
 
-      let bossAtkPool = 0
-      // Side-allies contribute their attack stat directly to the boss pool
-      // (no minion-redirect — they're focused on the boss specifically).
-      for (const ally of sideAllies) {
-        bossAtkPool += ally.stats?.attack ?? 0
-      }
+      // ── Collect each attacker's attack value AFTER minion-redirect ──
+      // Pulled out of the pooled-damage path so the per-slime targeting
+      // branch below can re-use the same redirect outcomes. Each entry:
+      // { fs, advAtk } for advs that didn't get redirected to a minion.
+      const advAttackContribs = []
       for (const fs of attackers) {
         const advAtk = fs.adv.stats?.attack ?? 5
         let nearest = null
@@ -1794,26 +2056,101 @@ export class BossSystem {
             EventBus.emit('MINION_DIED', { minion: nearest, killerId: fs.adv.instanceId })
           }
         } else {
-          bossAtkPool += advAtk
+          advAttackContribs.push({ fs, advAtk })
         }
       }
 
-      let dmgToBoss = bossAtkPool > 0
-        ? Math.max(1, Math.floor((bossAtkPool - boss.defense) * (0.85 + Math.random() * 0.3)))
-        : 0
-      // Succubus Doppelgänger — the party may swing at an illusion instead
-      // of the real Queen; the decoy shatters and this round deals nothing.
-      if (dmgToBoss > 0 && this._tryDoppelgangerAbsorb()) dmgToBoss = 0
-      if (dmgToBoss > 0) {
-        boss.hp = Math.max(0, boss.hp - dmgToBoss)
-        this._roundLog.push({ side: 'party', damage: dmgToBoss })
-        // Big collected damage hit on the boss — float a single number
-        // (the pool result, not per-attacker) above the boss sprite.
-        // Crit-flag when it shaves >=10% of maxHP in one round.
-        const isHeavy = dmgToBoss >= Math.max(8, (boss.maxHp ?? 0) * 0.1)
-        this._floatDamage(boss.worldX, boss.worldY - 12, dmgToBoss, {
-          color: '#ffd166', crit: isHeavy,
-        })
+      // ── Slime King: per-attacker, per-slime damage routing ──────────
+      // Each adventurer (and side-ally) picks the slime nearest to THEM
+      // and damages that slime only — damage applied to one slime does
+      // NOT bleed into the others.
+      //
+      // CRITICAL: damage magnitude uses the SAME pooled formula as the
+      // non-slime path (sum attacks, subtract defense once, scale by
+      // variance). An earlier version subtracted boss.defense per hit
+      // which divided effective damage by attackerCount — slime fights
+      // dragged past the 24-round stalemate cap and resolved with
+      // "INTRUDER WITHDREW" even on near-full party HP. We compute the
+      // pool damage once, then split it across slimes proportional to
+      // each attacker's share who targeted that slime. Net: one slime
+      // can be focus-fired without affecting the others, while overall
+      // DPS stays in line with the other archetypes.
+      const isSlimeFight = this._archIdForBoss() === 'slime'
+        && Array.isArray(boss.slimes) && boss.slimes.length > 0
+      if (isSlimeFight) {
+        const aliveSlimes = boss.slimes.filter(s => (s.hp ?? 0) > 0)
+        if (aliveSlimes.length > 0) {
+          // Sum the pool for the same formula the non-slime path uses.
+          let pool = 0
+          for (const ally of sideAllies) pool += ally.stats?.attack ?? 0
+          for (const { advAtk } of advAttackContribs) pool += advAtk
+          const totalDmg = pool > 0
+            ? Math.max(1, Math.floor((pool - boss.defense) * (0.85 + Math.random() * 0.3)))
+            : 0
+          if (totalDmg > 0 && pool > 0) {
+            // Helper closure — pick the slime nearest to a given world point.
+            const pickNearestSlime = (wx, wy) => {
+              let best = aliveSlimes[0], bestD = Infinity
+              for (const s of aliveSlimes) {
+                if ((s.hp ?? 0) <= 0) continue
+                const d = Math.hypot(s.worldX - wx, s.worldY - wy)
+                if (d < bestD) { bestD = d; best = s }
+              }
+              return best
+            }
+            // Tally each attacker's share toward their nearest slime.
+            // Slime-keyed: { slime → { atkShare, sourceWorldX, sourceWorldY, color } }
+            const perSlime = new Map()
+            const addContrib = (target, atkShare, sx, sy, color) => {
+              const entry = perSlime.get(target)
+                ?? { atk: 0, sx, sy, color }
+              entry.atk += atkShare
+              perSlime.set(target, entry)
+            }
+            for (const { fs, advAtk } of advAttackContribs) {
+              const target = pickNearestSlime(fs.adv.worldX, fs.adv.worldY)
+              if (target) addContrib(target, advAtk, fs.adv.worldX, fs.adv.worldY, '#ffd166')
+            }
+            for (const ally of sideAllies) {
+              const advAtk = ally.stats?.attack ?? 0
+              if (advAtk <= 0) continue
+              const target = pickNearestSlime(ally.worldX ?? boss.worldX, ally.worldY ?? boss.worldY)
+              if (target) addContrib(target, advAtk, ally.worldX ?? 0, ally.worldY ?? 0, '#a0d0ff')
+            }
+            // Apply each slime's slice of the pool. Math.round on the
+            // share keeps totals close to totalDmg without overshooting
+            // wildly on small-pool rounds.
+            let appliedTotal = 0
+            for (const [target, entry] of perSlime) {
+              const slice = Math.max(1, Math.round(totalDmg * (entry.atk / pool)))
+              target.hp = Math.max(0, (target.hp ?? 0) - slice)
+              appliedTotal += slice
+              this._floatDamage(target.worldX, target.worldY - 12, slice, { color: entry.color })
+              // Check split immediately so a single big hit that crosses
+              // the 50% threshold spawns children this same round.
+              this._maybeSplitSlime(target)
+            }
+            this._syncBossHpFromSlimes(boss)
+            this._roundLog.push({ side: 'party', damage: appliedTotal })
+          }
+        }
+      } else {
+        // Non-slime: original pooled-damage path.
+        let bossAtkPool = 0
+        for (const ally of sideAllies) bossAtkPool += ally.stats?.attack ?? 0
+        for (const { advAtk } of advAttackContribs) bossAtkPool += advAtk
+        let dmgToBoss = bossAtkPool > 0
+          ? Math.max(1, Math.floor((bossAtkPool - boss.defense) * (0.85 + Math.random() * 0.3)))
+          : 0
+        if (dmgToBoss > 0 && this._tryDoppelgangerAbsorb()) dmgToBoss = 0
+        if (dmgToBoss > 0) {
+          this._applyDamageToBoss(boss, dmgToBoss)
+          this._roundLog.push({ side: 'party', damage: dmgToBoss })
+          const isHeavy = dmgToBoss >= Math.max(8, (boss.maxHp ?? 0) * 0.1)
+          this._floatDamage(boss.worldX, boss.worldY - 12, dmgToBoss, {
+            color: '#ffd166', crit: isHeavy,
+          })
+        }
       }
 
       // Phase 9 — Tyrant's Gaze: each boss-hit-taken costs minions in the
@@ -2163,6 +2500,14 @@ export class BossSystem {
 
     const boss = this._gameState.boss
 
+    // Slime King — wipe the multi-entity fight state so the boss reverts
+    // to a single-entity render between encounters. If the player wins
+    // another fight is staged via _onIncoming which re-initialises a
+    // fresh gen-0 slime; if the party wins (boss survived), the same
+    // re-init runs at the next BOSS_FIGHT_INCOMING so a multi-fight day
+    // gets a clean slime tree per encounter.
+    if (boss) boss.slimes = null
+
     // Tier 2 cinematic feedback — punctuate the killing blow with a
     // strong screen shake. The boss losing a life shakes harder than a
     // party defeat (the whole arena reels for the player's win).
@@ -2362,22 +2707,29 @@ function _pointInRoomBS(tx, ty, room) {
 // Phase 10b — summon a small number of dungeon-faction skeletons near the
 // boss chamber when the Summon Adds ability is unlocked. They join combat
 // via the existing MinionAISystem next tick.
-function _summonAddsNearBoss(scene, gameState, bossRoom, count) {
+// `opts.defId` overrides the default 'skeleton1' summon (Slime King Mitosis
+// passes its own slime def + sets `extraTags` so adds are skipped by Absorb).
+// `opts.tagBossAdd` toggles the `isBossAdd` marker (default true).
+// Returns the array of spawned minion objects so callers can attach VFX or
+// per-instance flags afterward.
+function _summonAddsNearBoss(scene, gameState, bossRoom, count, opts = {}) {
   const minionTypes = scene.cache.json.get('minionTypes') ?? []
-  const def = minionTypes.find(d => d.id === 'skeleton1') ?? minionTypes[0]
-  if (!def) return
+  const defId = opts.defId ?? 'skeleton1'
+  const def = minionTypes.find(d => d.id === defId) ?? minionTypes[0]
+  if (!def) return []
   const TS = 32
   const w = Balance.WALL_THICKNESS
   const innerW = Math.max(1, bossRoom.width - 2 * w)
+  const spawned = []
   for (let i = 0; i < count; i++) {
     const x = bossRoom.gridX + w + (i % innerW)
     const y = bossRoom.gridY + w
     const m = {
       instanceId:    `boss_add_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 4)}`,
       definitionId:  def.id,
-      name:          'Boss Add',
+      name:          opts.name ?? 'Boss Add',
       faction:       'dungeon',
-      isBossAdd:     true,
+      isBossAdd:     opts.tagBossAdd !== false,
       assignedRoomId: bossRoom.instanceId,
       homeTileX: x, homeTileY: y,
       tileX: x, tileY: y,
@@ -2392,9 +2744,13 @@ function _summonAddsNearBoss(scene, gameState, bossRoom, count) {
       equippedGear: [], killHistory: [], evolutionHistory: [],
       timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
     }
+    // Merge extra flag fields (e.g. `_isMitosisAdd: true`) from opts.flags.
+    if (opts.flags) Object.assign(m, opts.flags)
     gameState.minions ??= []
     gameState.minions.push(m)
+    spawned.push(m)
   }
+  return spawned
 }
 
 function _inOrAdjacentToRoom(adv, room) {

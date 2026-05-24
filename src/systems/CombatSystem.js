@@ -9,6 +9,7 @@
 
 import { EventBus }        from './EventBus.js'
 import { AbilityVfx }      from '../ui/AbilityVfx.js'
+import { rgbFloatingText } from '../util/cheaterVfx.js'
 import { MinionAbilities } from './MinionAbilities.js'
 import { Balance }         from '../config/balance.js'
 import { TILE }            from './DungeonGrid.js'
@@ -143,6 +144,64 @@ export class CombatSystem {
       target._cosplay
     ) {
       target._provoked = true
+    }
+
+    // ── Cheater offense hooks (attacker side) ─────────────────────────
+    // Skipped when the cheater has been "reported and banned" — the
+    // modded client is locked out at that point and they fight like
+    // a normal adv until they escape (or die).
+    if (attacker.classId === 'cheater' && !attacker._banned) {
+      // First-shot aimbot — first attack in each new room is auto-crit
+      // (2× the post-mitigation damage). Stored as an Array (not a Set)
+      // so SaveSystem's JSON.stringify round-trips it cleanly — Sets
+      // serialize to {} and the cheater would re-fire HEADSHOT in every
+      // room they'd already cleared on load.
+      const advRoom = this._scene.dungeonGrid?.getRoomAtTile?.(attacker.tileX, attacker.tileY)
+      if (advRoom?.instanceId) {
+        attacker._firstShotRooms ??= []
+        if (!attacker._firstShotRooms.includes(advRoom.instanceId)) {
+          attacker._firstShotRooms.push(advRoom.instanceId)
+          finalDmg = Math.max(1, finalDmg * 2)
+          rgbFloatingText(this._scene, target.worldX ?? 0,
+            (target.worldY ?? 0) - 22, 'HEADSHOT')
+        }
+      }
+      // Lag spike — 5% per attack: double damage but the cheater
+      // freezes for ~1 s after (AISystem reads _lagStunUntil to
+      // suppress movement, giving the player a counter-window).
+      if (Math.random() < (Balance.CHEATER_LAG_SPIKE_CHANCE ?? 0.05)) {
+        finalDmg = Math.max(1, finalDmg * 2)
+        attacker._lagStunUntil = now + (Balance.CHEATER_LAG_STUN_MS ?? 1000)
+        rgbFloatingText(this._scene, attacker.worldX ?? 0,
+          (attacker.worldY ?? 0) - 32, 'LAG SPIKE')
+      }
+      // Aimhack instakill — during the 2 s window every 8 s, % chance
+      // per swing to set damage = target's full HP. Minions only —
+      // bosses and other advs are off-limits (would feel awful).
+      // PATCH 0.0.0 event bumps the chance from 0.15 to 0.25.
+      const aimhackActive = (attacker._aimhackUntil ?? 0) > now
+      const patchZero = !!(this._gameState._eventFlags?.patchZeroActive)
+      const instakillChance = patchZero
+        ? (Balance.PATCH_ZERO_INSTAKILL_CHANCE ?? 0.25)
+        : (Balance.CHEATER_INSTAKILL_CHANCE ?? 0.15)
+      const targetIsMinion = target.faction === 'dungeon' && target !== this._gameState.boss
+      if (aimhackActive && targetIsMinion && Math.random() < instakillChance) {
+        finalDmg = Math.max(target.resources?.hp ?? 0, finalDmg)
+        rgbFloatingText(this._scene, target.worldX ?? 0,
+          (target.worldY ?? 0) - 40, 'AIMBOT', { fontSize: '14px' })
+      }
+    }
+
+    // ── Cheater defense hook (target side) ────────────────────────────
+    // Each minion / boss hit on a cheater increments their "reports"
+    // counter. At threshold the modded client is auto-banned — they
+    // lose all cheats and the next AI tick triggers a forced flee.
+    // ClassAbilitySystem._considerCheater consumes the threshold and
+    // emits the BANNED floater + flee handoff.
+    if (target.classId === 'cheater' && !target._banned && attacker.faction === 'dungeon') {
+      target._reportCount = (target._reportCount ?? 0) + 1
+      rgbFloatingText(this._scene, target.worldX ?? 0,
+        (target.worldY ?? 0) - 30, 'REPORTED')
     }
 
     target.resources.hp = Math.max(0, target.resources.hp - finalDmg)

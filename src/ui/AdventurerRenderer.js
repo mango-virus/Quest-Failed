@@ -14,6 +14,7 @@
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { entryDoorWorldCenter } from '../systems/DungeonGrid.js'
+import { rgbParticleBurst } from '../util/cheaterVfx.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
@@ -279,11 +280,58 @@ export class AdventurerRenderer {
     return 1 - t
   }
 
-  _onCombatHit({ sourceId }) {
+  _onCombatHit({ sourceId, targetId }) {
     const adv = this._gameState.adventurers?.active?.find(a => a.instanceId === sourceId)
     if (!adv) return
     const s = this._sprites[adv.instanceId]
     if (!s?.lpc) return
+
+    // Cheater attack VFX — fire a glitchy magenta particle burst at
+    // both the attacker and the target so the swing reads as a hack
+    // pulse, not a normal slash. Uses the cheater's rolled aura hue
+    // for the attacker-side burst (consistency with the body tint)
+    // and a fixed magenta on the target. Plus a brief horizontal
+    // sprite-jitter "screen tear" on the cheater themselves — the
+    // sprite snaps a few pixels left/right over ~120ms then settles.
+    // Banned cheaters skip the burst — their cheats are locked out.
+    if (adv.classId === 'cheater' && !adv._banned && targetId) {
+      // RGB-cycling burst at the cheater themselves on every swing —
+      // matches the ground halo + the floater colors so the visual
+      // language is consistent (everything rainbow, all the time).
+      rgbParticleBurst(this._scene, adv.worldX, adv.worldY - 12,
+        { count: 8, durationMs: 280, speed: 70 })
+      const target =
+        this._gameState.adventurers?.active?.find(a => a.instanceId === targetId) ??
+        this._gameState.minions?.find(m => m.instanceId === targetId) ??
+        (this._gameState.boss?.instanceId === targetId ? this._gameState.boss : null)
+      if (target && Number.isFinite(target.worldX)) {
+        // Second burst at the hit location — slightly denser so the
+        // impact reads as the focal point of the swing.
+        rgbParticleBurst(this._scene, target.worldX, target.worldY - 8,
+          { count: 10, durationMs: 320, speed: 90 })
+      }
+      // Screen-tear jitter on the cheater sprite. Two short tweens (10ms
+      // each direction, then settle) over the container's x offset so it
+      // reads as a frame skip / desync. Guarded by _glitchTweening so
+      // back-to-back attacks don't stack jitters and leave the sprite
+      // permanently offset.
+      if (s.container && !s._glitchTweening) {
+        s._glitchTweening = true
+        const baseX = s.container.x
+        const offset = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.floor(Math.random() * 3))
+        this._scene.tweens.add({
+          targets: s.container,
+          x: baseX + offset,
+          duration: 40,
+          yoyo: true,
+          repeat: 1,
+          onComplete: () => {
+            if (s.container) s.container.x = baseX
+            s._glitchTweening = false
+          },
+        })
+      }
+    }
     const cls = this._defMap?.[adv.classId]
     const tags = new Set(cls?.tags ?? [])
     let anim
@@ -481,6 +529,67 @@ export class AdventurerRenderer {
           }
         }
         s._lastBlight = blighted
+      }
+
+      // Cheater aura — per-cheater hue tint pulsing slightly so they read
+      // instantly as "wrong" across the dungeon. Suppressed when venom or
+      // blight is active (those colors carry urgent gameplay info) and
+      // when banned (the modded client is locked out — they look normal
+      // while fleeing). Aura hue is rolled once per cheater on first
+      // render and stamped on adv._cheaterHue for save stability.
+      //
+      // PAIRED with a persistent RGB-cycling ground halo (Phaser ellipse)
+      // beneath the sprite — full hue rotation every ~3 s, alpha pulse,
+      // position-follows the adv. Reads from any zoom level so the
+      // cheater silhouette pops even at full dungeon overview. Created
+      // lazily on first tick, destroyed on _destroySprite / ban.
+      if (adv.classId === 'cheater' && !adv._banned) {
+        if (adv._cheaterHue == null) {
+          const HUES = [0xff66ff, 0xff44aa, 0x66ffff, 0xffff44, 0x66ff66, 0xff8844]
+          adv._cheaterHue = HUES[Math.floor(Math.random() * HUES.length)]
+        }
+        if (stacks === 0 && !blighted && s.lpc?.image?.setTint) {
+          // Mild pulse — sine wave brightness on top of the base hue so
+          // the cheater visibly thrums rather than sitting on a flat tint.
+          const t = (this._scene.time.now ?? 0) * 0.004
+          const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t + (adv.spawnTileX ?? 0)))
+          const r = Math.min(255, Math.round(((adv._cheaterHue >> 16) & 0xff) * pulse))
+          const g = Math.min(255, Math.round(((adv._cheaterHue >>  8) & 0xff) * pulse))
+          const b = Math.min(255, Math.round(((adv._cheaterHue >>  0) & 0xff) * pulse))
+          s.lpc.image.setTint((r << 16) | (g << 8) | b)
+        }
+        // Persistent ground halo with full RGB hue rotation. Channels
+        // are sine waves 120° apart so all three peak at different
+        // phases — the result reads as a smooth red→yellow→green→
+        // cyan→blue→magenta→red cycle. Phase-offset by the adv's
+        // spawn tile so a pack of cheaters doesn't strobe in lockstep.
+        if (!s.cheaterHalo) {
+          s.cheaterHalo = this._scene.add.ellipse(
+            adv.worldX ?? 0, (adv.worldY ?? 0) + 18,
+            40, 14, 0xff66ff, 0.45
+          )
+          s.cheaterHalo.setDepth(2)   // under the sprite (sprite container is ~depth 5)
+        }
+        if (s.cheaterHalo.active) {
+          const t = (this._scene.time.now ?? 0) * 0.001
+          const phase = (adv.spawnTileX ?? 0) * 0.7
+          const r = Math.max(0, Math.min(255, Math.round(127 + 127 * Math.sin(t + phase))))
+          const g = Math.max(0, Math.min(255, Math.round(127 + 127 * Math.sin(t + phase + 2.094))))
+          const b = Math.max(0, Math.min(255, Math.round(127 + 127 * Math.sin(t + phase + 4.188))))
+          s.cheaterHalo.fillColor = (r << 16) | (g << 8) | b
+          // Alpha pulse — 0.30 to 0.55 — gives the halo a heartbeat feel.
+          s.cheaterHalo.fillAlpha = 0.30 + 0.25 * (0.5 + 0.5 * Math.sin(t * 1.6 + phase))
+          if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) {
+            s.cheaterHalo.setPosition(adv.worldX, adv.worldY + 18)
+          }
+        }
+      } else if (adv.classId === 'cheater' && adv._banned) {
+        // Banned cheater — modded client is locked out, halo goes dark.
+        if (s.lpc?.image?.clearTint) s.lpc.image.clearTint()
+        if (s.cheaterHalo?.active) {
+          s.cheaterHalo.destroy()
+          s.cheaterHalo = null
+        }
       }
     }
 
@@ -898,6 +1007,73 @@ export class AdventurerRenderer {
     // an existing baked class to borrow art from. Falls through to the normal
     // path when the class IS baked.
     const def = this._defMap?.[adv.classId]
+    // Cheater variant chaos — pool every baked class's variant list so a
+    // cheater can spawn as Knight-body + Mage-weapon + Bard-hat (or any
+    // other "shouldn't exist" combo). When the user bakes dedicated
+    // cheater variants, drop them into the manifest under "cheater" and
+    // this same logic still works (the cheater pool just becomes those
+    // baked variants instead of the shuffle). Save-stable: rolled once,
+    // persists on adv.spriteVariant across the run.
+    //
+    // Weapon → range sync: whichever source class the picked variant
+    // came from drives the cheater's gameplay attackRange. A Mage-
+    // variant cheater attacks at range 4, a Ranger-variant at range 5,
+    // a Knight/Rogue/Barbarian variant stays melee. Stamped onto
+    // adv.stats.attackRange so CombatSystem's reach check honours the
+    // weapon they're visibly holding instead of falling through to the
+    // default melee 1.
+    if (adv.classId === 'cheater' && !adv.spriteVariant) {
+      const dedicated = this._lpcVariantsByClass['cheater']
+      if (dedicated && dedicated.length > 0) {
+        const picked = dedicated[Math.floor(Math.random() * dedicated.length)]
+        adv.spriteVariant = `cheater/${picked}`
+      } else {
+        // Shuffle across ALL baked class pools as a fallback until
+        // dedicated cheater variants land.
+        const all = []
+        for (const [cId, list] of Object.entries(this._lpcVariantsByClass)) {
+          for (const v of list) all.push(`${cId}/${v}`)
+        }
+        if (all.length > 0) adv.spriteVariant = all[Math.floor(Math.random() * all.length)]
+      }
+      // Sync attackRange. Two paths:
+      //  1. Dedicated cheater variants (sourceCls === 'cheater') —
+      //     the class def has no attackRange of its own, so we map
+      //     directly from the variant's weapon name (read off
+      //     _lpcWeaponByVariant, populated from the manifest).
+      //  2. Cross-class shuffle fallback — the picked variant was
+      //     baked for another class (mage/ranger/bard), so the source
+      //     class's attackRange already encodes the range.
+      // Either way the result lands on adv.stats.attackRange and
+      // adv.attackRange so CombatSystem's reach check honours the
+      // weapon they're visibly holding.
+      if (adv.spriteVariant) {
+        const sourceCls = adv.spriteVariant.split('/')[0]
+        let resolvedRange = null
+        if (sourceCls === 'cheater') {
+          const wpn = this._lpcWeaponByVariant[adv.spriteVariant]
+          // Bows + slingshot at range 4 (matches Ranger/Bard); Crossbow
+          // at 5 (matches Bounty Hunter); all five staves at 4 (matches
+          // Mage). Anything else (melee blade/axe/mace/flail/scythe/cane)
+          // stays at the default melee 1.
+          const RANGE_BY_WEAPON = {
+            'Normal': 4, 'Great': 4, 'Recurve': 4, 'Slingshot': 4,
+            'Crossbow': 5,
+            'Simple staff': 4, 'Gnarled staff': 4, 'Diamond staff': 4,
+            'Loop staff': 4, 'S staff': 4,
+          }
+          resolvedRange = RANGE_BY_WEAPON[wpn] ?? null
+        } else {
+          const sourceDef = this._defMap?.[sourceCls]
+          resolvedRange = sourceDef?.baseStats?.attackRange ?? null
+        }
+        if (Number.isFinite(resolvedRange) && resolvedRange > 1) {
+          adv.stats ??= {}
+          adv.stats.attackRange = resolvedRange
+          adv.attackRange       = resolvedRange
+        }
+      }
+    }
     const sourceClassId =
       (this._lpcVariantsByClass[adv.classId]?.length ? adv.classId : null) ??
       def?.spriteSourceClassId ?? adv.classId
@@ -937,6 +1113,11 @@ export class AdventurerRenderer {
   _destroySprite(id) {
     const s = this._sprites[id]
     if (!s) return
+    // Cheater RGB ground halo lives outside the sprite container (so it
+    // can sit at its own depth UNDER the sprite). Has to be torn down
+    // explicitly or it'll persist forever after the cheater dies/flees.
+    if (s.cheaterHalo?.active) s.cheaterHalo.destroy()
+    s.cheaterHalo = null
     s.container.destroy()
     delete this._sprites[id]
   }

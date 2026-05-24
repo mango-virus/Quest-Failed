@@ -11,6 +11,7 @@ import { PauseManager }   from '../systems/PauseManager.js'
 import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { getRotatedDef } from '../util/roomRotation.js'
+import { pickWeightedClass } from '../util/classSpawn.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -311,6 +312,11 @@ export class NightPhase extends Phaser.Scene {
       const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
       if (cos) classes = [cos]
     }
+    // PATCH 0.0.0 — entire wave is cheater. Same bypass.
+    if (eventFlags.patchZeroActive) {
+      const ch = allClasses.find(c => c.id === 'cheater')
+      if (ch) classes = [ch]
+    }
     if (classes.length === 0) {
       gs.run.nextWavePreview = { day, count: 0, classIds: [], vendettaHunter: null, eventType: null }
       return this._emitPreviewUpdated()
@@ -409,7 +415,10 @@ export class NightPhase extends Phaser.Scene {
           ? carryVar
           : this._pickWaveVariant(chosenClass)
       } else {
-        chosenClass = classes[Math.floor(Math.random() * classes.length)].id
+        // Weighted pick — respects per-class spawnWeight (default 1.0).
+        // Cheater is 0.25 so ~4× rarer than a default class once
+        // unlocked at boss level 2.
+        chosenClass = (pickWeightedClass(classes) ?? classes[0]).id
         chosenVar = this._pickWaveVariant(chosenClass)
       }
       classIds.push(chosenClass)

@@ -79,13 +79,19 @@ export class PathfinderSystem {
         const nx = cx + dx, ny = cy + dy
         if (!this._inBounds(nx, ny, gw, gh)) continue
         const nKey = _k(nx, ny)
-        if (nKey !== eKey && !WALKABLE.has(tiles[ny][nx])) continue
+        // Cheater no-clip: when the caller passes opts.noClip the wall /
+        // door / void tile-type gates are skipped entirely. Pathfinder
+        // then routes through ANY in-bounds tile, including walls and
+        // VOID, so the Cheater straight-lines through the dungeon. We
+        // still treat the goal tile as walkable (existing semantics).
+        if (!opts?.noClip && nKey !== eKey && !WALKABLE.has(tiles[ny][nx])) continue
         // Doorway lane gate — keep all doorway crossings on the
         // canonical column/row so entities visibly walk straight
         // through the centre instead of diagonal-skimming the 2-tile
         // opening.  Allowed for the goal tile (so something parked on
-        // the secondary column is still reachable).
-        if (nKey !== eKey && dungeonGrid.isDoorBlocked?.(nx, ny)) continue
+        // the secondary column is still reachable). Cheaters skip this
+        // gate too — they're already phasing through walls.
+        if (!opts?.noClip && nKey !== eKey && dungeonGrid.isDoorBlocked?.(nx, ny)) continue
         // Solid decoration blocking — designer-placed objects that physically
         // occupy a floor tile (pillars, barrels, etc.). Goal tile is exempt
         // so something can still path to a unit standing next to a decor.

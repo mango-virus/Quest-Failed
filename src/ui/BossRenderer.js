@@ -64,6 +64,14 @@ export class BossRenderer {
     this._lastHp      = null
     this._hurtUntil   = 0
     this._dead        = false        // latched on BOSS_DEFEATED_FINAL
+
+    // Slime King — multi-entity boss fight. boss.slimes is populated by
+    // BossSystem when a slime fight starts and replaced as splits happen.
+    // Map<slime.id, Phaser.Sprite> so we can match sprites to slimes,
+    // scale per generation, and reap sprites whose slime is gone.
+    this._slimeSprites = new Map()
+    this._slimeHurtUntil = new Map()   // per-slime hurt-flash timestamp
+    this._slimeLastHp    = new Map()
     // Position sample for walk detection — see WALK_SAMPLE_MS comment above.
     this._sampleX     = null
     this._sampleY     = null
@@ -191,6 +199,12 @@ export class BossRenderer {
 
     // Doppelgänger decoys trail the Queen + mirror her animation.
     this._updateDecoys(boss)
+
+    // Slime King — render N independent slime sprites mirroring the
+    // boss.slimes array (BossSystem owns the array; we just visualise).
+    // While a slime fight is active, the main `_sprite` is hidden so
+    // sprites don't double up at the boss's logical position.
+    this._updateSlimeSprites(boss, animKey)
   }
 
   destroy() {
@@ -199,6 +213,11 @@ export class BossRenderer {
     EventBus.off('SUCCUBUS_DOPPEL_SHATTER', this._onDoppelShatter)
     EventBus.off('BOSS_FIGHT_RESOLVED',     this._onDoppelClear)
     this._clearDecoys()
+    // Slime King — reap any live slime sprites alongside the main one.
+    for (const sp of this._slimeSprites.values()) sp?.destroy?.()
+    this._slimeSprites.clear()
+    this._slimeHurtUntil.clear()
+    this._slimeLastHp.clear()
     this._container?.destroy()
     this._container = null
     this._sprite    = null
@@ -244,6 +263,134 @@ export class BossRenderer {
 
     this._container = c
     this._sprite    = sprite
+  }
+
+  // ── Slime King multi-entity rendering ───────────────────────────────────
+  //
+  // BossSystem owns the boss.slimes array (during a slime fight) — we
+  // mirror it visually. Each slime gets one sprite at its own world
+  // position, scaled by generation:
+  //   gen 0 → 1.00 × BOSS_SPRITE_SCALE  (original size)
+  //   gen 1 → 0.70 ×                    (mid)
+  //   gen 2 → 0.50 ×                    (small)
+  //
+  // The main `_sprite` is hidden while boss.slimes is active so we
+  // don't render a phantom boss at the logical boss.worldX/Y on top of
+  // the slimes. When boss.slimes empties (between fights), the main
+  // sprite is restored and slime sprites are torn down.
+  _generationScale(gen) {
+    if (gen >= 2) return 0.5
+    if (gen >= 1) return 0.7
+    return 1.0
+  }
+
+  _updateSlimeSprites(boss, animKey) {
+    const slimes = Array.isArray(boss?.slimes) ? boss.slimes : null
+    const active = slimes && slimes.length > 0
+
+    // No active slime fight → tear down any leftover sprites and
+    // unhide the main sprite.
+    if (!active) {
+      if (this._slimeSprites.size === 0) {
+        if (this._sprite && this._sprite.visible === false) {
+          this._sprite.setVisible(true)
+        }
+        return
+      }
+      for (const sp of this._slimeSprites.values()) sp?.destroy?.()
+      this._slimeSprites.clear()
+      this._slimeHurtUntil.clear()
+      this._slimeLastHp.clear()
+      if (this._sprite && this._sprite.visible === false) {
+        this._sprite.setVisible(true)
+      }
+      return
+    }
+
+    // Active fight — hide the primary sprite so we're not rendering it
+    // ON TOP of the gen-0 slime.
+    if (this._sprite && this._sprite.visible !== false) {
+      this._sprite.setVisible(false)
+    }
+
+    // Build/refresh sprite per slime. Each slime now owns its absolute
+    // worldX/Y (BossSystem._tickSlimes drifts them independently toward
+    // their own nearest adv), so we just mirror those coords here. The
+    // boss state machine reads boss.worldX/Y which gets re-derived each
+    // tick as the centroid of alive slimes — that's what keeps slam /
+    // lunge / attack-range checks meaningful even when the cluster
+    // scatters across the chamber.
+    const liveIds = new Set()
+    for (const s of slimes) {
+      liveIds.add(s.id)
+      const sx = s.worldX ?? 0
+      const sy = s.worldY ?? 0
+      let sp = this._slimeSprites.get(s.id)
+      if (!sp) {
+        sp = this._makeSlimeSprite(s, sx, sy)
+        if (!sp) continue
+        this._slimeSprites.set(s.id, sp)
+      }
+      const scale = BOSS_SPRITE_SCALE * this._generationScale(s.generation)
+      sp.setPosition(sx, sy)
+      sp.setScale(scale)
+      sp.setDepth(7 + sy * 0.0005)
+
+      // Hurt flash — per-slime HP drop check.
+      const prevHp = this._slimeLastHp.get(s.id)
+      if (prevHp != null && (s.hp ?? 0) < prevHp) {
+        this._slimeHurtUntil.set(s.id, this._scene.time.now + HURT_FLASH_MS)
+      }
+      this._slimeLastHp.set(s.id, s.hp ?? 0)
+      const hurtUntil = this._slimeHurtUntil.get(s.id) ?? 0
+      if (this._scene.time.now < hurtUntil) {
+        sp.setTint(0xff8888)
+      } else if (sp.tintTopLeft !== 0xffffff) {
+        sp.clearTint()
+      }
+
+      // Mirror the primary boss's animation so every slime moves in
+      // sync. Re-play on key change only so the per-slime sprites stay
+      // mid-frame instead of restarting every tick.
+      if (animKey && this._scene.anims.exists(animKey) && sp.anims?.getName?.() !== animKey) {
+        sp.play(animKey, true)
+      }
+
+      // Dead slime — fade out + destroy. Skip the rest of the per-slime
+      // logic for this entry; it'll be removed from boss.slimes on the
+      // next tick once the death-check fires fightEnd OR it just lingers
+      // visually until then.
+      if ((s.hp ?? 0) <= 0 && sp.alpha > 0.05) {
+        this._scene.tweens.add({
+          targets: sp,
+          alpha: 0,
+          scaleX: scale * 1.3,
+          scaleY: scale * 1.3,
+          duration: 280,
+          ease: 'Cubic.easeOut',
+        })
+      }
+    }
+
+    // Reap sprites whose slime is gone (e.g. parent removed at split).
+    for (const [id, sp] of [...this._slimeSprites.entries()]) {
+      if (liveIds.has(id)) continue
+      sp?.destroy?.()
+      this._slimeSprites.delete(id)
+      this._slimeHurtUntil.delete(id)
+      this._slimeLastHp.delete(id)
+    }
+  }
+
+  _makeSlimeSprite(slime, worldX, worldY) {
+    const s = this._scene
+    const key = `${this._spriteKey}-idle`
+    if (!s.textures?.exists?.(key)) return null
+    const sp = s.add.sprite(worldX ?? 0, worldY ?? 0, key, 0)
+      .setOrigin(0.5, 0.5)
+      .setScale(BOSS_SPRITE_SCALE * this._generationScale(slime.generation ?? 0))
+      .setDepth(8)
+    return sp
   }
 
   // ── Succubus Doppelgänger illusions ─────────────────────────────────────

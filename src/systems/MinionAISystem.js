@@ -1287,6 +1287,13 @@ export class MinionAISystem {
     // Pass-2: mini-slimes from Slime Split are temporary — wipe them all at
     // dawn (alive or dead) so they can't accumulate forever.
     this._gameState.minions = this._gameState.minions.filter(m => !m._isMiniSlime)
+    // Slime King Absorb & Excrete Gooplings are one-shot: a Goopling that
+    // dies stays dead (per user spec — no respawn). Alive ones DO persist
+    // across nights so the player keeps their goop-army between days,
+    // matching how regular night-spawned minions persist when they survive.
+    this._gameState.minions = this._gameState.minions.filter(
+      m => !(m._isGoopling && (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0))
+    )
 
     const bossLv = this._gameState.boss?.level ?? 1
     const day    = this._gameState.meta?.dayNumber ?? 1

@@ -68,6 +68,10 @@ const ATK_CLASSES = new Set([
   // Bounty hunters carry crossbows — crossbow combat is the thrust-oversize
   // animation, which lives in the _atk.png sheet.
   'bounty_hunter',
+  // Cheater — pulls from every weapon pool (longswords, halberds, scythes,
+  // crossbows, staves, glowsword). The oversize attack sheet keeps long
+  // weapons rendered at native 192×192 instead of being shrunk into 64×64.
+  'cheater',
 ]);
 const ATK_FRAME       = 192;          // frame size in atk sheet
 const ATK_COLS        = 8;            // max frames per row (thrust = 8)

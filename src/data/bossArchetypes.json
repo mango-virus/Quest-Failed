@@ -375,12 +375,12 @@
     "portraitAvailable": true,
     "headline": {
       "name": "Bat-Form Seduction",
-      "summary": "Shapeshift to a bat-swarm and charm an adventurer (once per boss level per day). They turn on their party until they kill an ally.",
+      "summary": "Shapeshift to a bat-swarm and charm an adventurer (once per boss level per day). They turn on their party until an ally dies.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Doppelgänger — in the boss fight, the Queen hides among seductive duplicates; the party shatters illusions before they can land a real blow, and she splits anew as the fight wears on.",
+        "text": "Doppelgänger — the Queen hides among illusory duplicates that the party must shatter to land a real hit.",
         "implemented": true
       }
     ],
@@ -402,24 +402,27 @@
   },
   {
     "id": "slime",
-    "name": "Pure Slime",
-    "tagline": "Coming soon",
+    "name": "Slime King",
+    "tagline": "Splits when struck, leaks little ones",
     "color": "0x55cc77",
-    "spriteFrame": null,
+    "spriteFrame": {
+      "col": 0,
+      "row": 0
+    },
     "portraitAvailable": true,
     "headline": {
-      "name": "???",
-      "summary": "Reach boss level 99 to unlock.",
-      "implemented": false
+      "name": "Absorb & Excrete",
+      "summary": "Dead minions get swallowed by the King — he excretes a random Goopling that waddles back to its post (+2 boss HP each).",
+      "implemented": true
     },
     "mechanics": [
       {
-        "text": "??? — locked until boss level 99.",
-        "implemented": false
+        "text": "Mitosis — at half HP, the King splits into two smaller slimes that each have their own health. They split again at half. Kill every last blob to win.",
+        "implemented": true
       }
     ],
-    "flavorText": "Something stirs in the ooze. Not yet, though.",
-    "description": "Coming soon",
+    "flavorText": "There is no killing it. There is only making more of it.",
+    "description": "Splits when struck, leaks little ones",
     "modifiers": {
       "goldGainMultiplier": 1,
       "minionXpMultiplier": 1,

@@ -1357,6 +1357,12 @@
         { "t": "You scatter into bats and charm a hero mid-march; they turn on their party until an ally lies dead. The maze barely lifts a claw. I admire an efficient master.", "x": "evil" },
         { "t": "Seduction as a weapon — the hero brings their own body to the betrayal, small one. Cruelty that makes the victim do the work is craftsmanship.", "x": "menacing" },
         { "t": "All charm and wings. Not my register — I am rather past charm — but the heroes die just the same, and dead is dead in any register. Carry on.", "x": "cool" }
+      ],
+      "slime": [
+        { "t": "Mm. A Slime King. The heroes will strike you and you will divide, small one. They will strike the halves; the halves will divide. Patience as architecture — a form of stillness I rather respect.", "x": "thinking" },
+        { "t": "Every minion that falls in your halls is swallowed by the King and crawls back out wearing a different shape, small one. Loss into gain — ages have taught me that very lesson. The slime knows it without being told.", "x": "menacing" },
+        { "t": "A goofy boss, small one. Ridiculous. ...Heroes underestimate the ridiculous, and the ridiculous outlives them by centuries. I have seen it happen many times.", "x": "smug" },
+        { "t": "Mitosis is a slow lesson taught in pieces, small one. Build the boss room WIDE so your four little kings have somewhere to scatter — and so your minions have room to crowd the chase. Space is half the strategy.", "x": "determined" }
       ]
     },
 
@@ -1438,6 +1444,12 @@
         { "t": "A cosplayer. An adorable little outfit, small one. ...I have worn my true shape for ten thousand years. It will make an adorable little corpse.", "x": "mocking" },
         { "t": "One in monster fancy-dress. It plays nicely with your minions — so the traps, small one, must be impolite enough for both.", "x": "thinking" },
         { "t": "A cosplay adventurer came to play pretend. The dungeon plays for keeps, small one, and so do I. Remind it, gently, with the floor.", "x": "menacing" }
+      ],
+      "cheater": [
+        { "t": "Mm. A cheater, small one. A modded client. It will walk through your walls, teleport past your traps, deal damage that the rules do not allow. ...I have outlived a great many cheaters. The rules outlive them too.", "x": "unimpressed" },
+        { "t": "A cheater in the halls, small one. No skill. A hacked sword and the gall to wield it. Hit it HARD — the body is paper. A few good blows and the kingdom's anti-cheat finishes the work for us.", "x": "aggressive" },
+        { "t": "Look at this one wall-clip through the locked door, small one. Pitiful. ...In ten thousand years I have learned this: the ones who break the rules are always the most fragile. Punish accordingly.", "x": "menacing" },
+        { "t": "A cheater. 'Skill issue,' it taunts, small one. ...Mm. None of mine has needed cheats since before your kingdom had walls. Show it what an HONEST monster looks like.", "x": "superior" }
       ]
     },
 

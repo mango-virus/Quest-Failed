@@ -1376,6 +1376,12 @@
         { "t": "Your charmed thrall turns on their own until they kill a friend. Cruelty with a wink.", "x": "winking" },
         { "t": "Another of my kind in charge. Finally — someone here with TASTE.", "x": "sexy" },
         { "t": "A Succubus Queen, ruling the dark. ...My liege, you and I are the same wicked thing. How could I be anything but utterly, helplessly yours?", "x": "obsessive-love" }
+      ],
+      "slime": [
+        { "t": "A Slime King upon the throne, my liege. Soft, silly, deceptively dangerous. ...I do love a boss the heroes laugh at right up until they're surrounded by FOUR of you.", "x": "smug" },
+        { "t": "Every minion that dies in your halls is swallowed by you and crawls back out as a Goopling, my liege. You make GAIN out of LOSS. ...I find that very romantic, somehow.", "x": "in-love" },
+        { "t": "You'll split at half health, my liege — two of you. Then four. They'll be fighting an army of YOU by the end. ...Watching them despair never gets old.", "x": "evil" },
+        { "t": "Goofy on the surface, vicious underneath, my liege. ...My favourite shape for a monster. Build the boss room WIDE so your four little kings have room to wobble — and to overwhelm.", "x": "proud-2" }
       ]
     },
     "advClass": {
@@ -1456,6 +1462,12 @@
         { "t": "A cosplayer. An adorable little outfit. It will make an adorable little corpse.", "x": "giggling" },
         { "t": "Here comes one in monster fancy-dress. They play nice with minions — so the TRAPS must talk.", "x": "changing-outfit" },
         { "t": "A cosplay adventurer. They came to play pretend. The dungeon plays for keeps.", "x": "evil" }
+      ],
+      "cheater": [
+        { "t": "A cheater, my liege — a modded client. They'll walk through your walls, teleport past your traps, deal damage that does not exist in the rules. ...The audacity. Bury them anyway.", "x": "angry" },
+        { "t": "Oh — a cheater. They no-clipped past the LOCKED door, my liege. ...That is a personal insult. To both of us. End them.", "x": "evil" },
+        { "t": "Don't panic, my liege. The cheater is GLASS. A few solid hits and the kingdom's anti-cheat takes them away itself. ...The audience reports them for us. Free justice.", "x": "winking" },
+        { "t": "'Skill issue,' the cheater says. ...My liege, the skill issue is theirs. None of yours has ever needed a hack. Show them what an HONEST monster can do.", "x": "determined" }
       ]
     },
     "event": {

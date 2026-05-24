@@ -199,8 +199,15 @@ function sampleVariant(rng, className, classPool) {
   v.head = pick(rng, heads);
   // Hair: every adventurer can roll any of the 26 palettes (incl. fantasy).
   v.hairColor = pick(rng, HAIR_ALL);
-  // Body: natural skin tones; Twitch Streamer occasionally rolls fantasy.
-  const bodyOpts = className === 'twitch_streamer' && rng() < 0.15
+  // Body: natural skin tones for most classes. Twitch Streamer occasionally
+  // rolls a fantasy palette (15%); Cheater leans into desync harder (30%)
+  // so the modded-client silhouette can include obviously-not-human skin
+  // (blue, bright green, dark green) without crowding the rest of the
+  // adventurer roster.
+  const fantasyChance = className === 'cheater' ? 0.30
+                       : className === 'twitch_streamer' ? 0.15
+                       : 0;
+  const bodyOpts = fantasyChance > 0 && rng() < fantasyChance
     ? [...BODY_NATURAL, ...BODY_FANTASY] : BODY_NATURAL;
   v.bodyColor = pick(rng, bodyOpts);
   // Cloth color — per-class override allowed (e.g. necromancer = dark only).

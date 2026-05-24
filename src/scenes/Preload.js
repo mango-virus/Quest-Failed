@@ -25,6 +25,7 @@ const BOSS_SKINS = [
   { id: 'lizardman', prefix: 'Lizardman3' },
   { id: 'myconid',   prefix: 'Mushroom3' },
   { id: 'orc',       prefix: 'orc3' },
+  { id: 'slime',     prefix: 'Slime3',    frameSize: 128 },
   { id: 'vampire',   prefix: 'Vampires3' },
   { id: 'wraith',    prefix: 'Ghost3' },
   // Succubus uses a custom asset pack with non-square frames per state and
@@ -104,6 +105,10 @@ const ADVENTURER_CLASS_IDS = [
   // Sprite-only class — bounty hunters spawn with `ranger` gameplay but
   // wear this dedicated baked sheet (assigned via spriteVariant in DayPhase).
   'bounty_hunter',
+  // Cheater — rare hostile adventurer (unlockLevel 2, spawnWeight 0.25)
+  // with dedicated max-chaos LPC variants (helmets + tophats + monster
+  // tails + every weapon LPC ships). 50 variants per the bake.
+  'cheater',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 50
 
@@ -123,6 +128,9 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // Bounty hunters carry crossbows — crossbow combat is thrust-oversize,
   // which lives in the _atk.png sheet.
   'bounty_hunter',
+  // Cheaters carry every weapon type — needs the oversize attack sheet
+  // so halberds, longswords, scythes, and staves render at native 192×192.
+  'cheater',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8
@@ -542,6 +550,15 @@ export class Preload extends Phaser.Scene {
         this.load.spritesheet(`${skin.id}-${s.key}`, folder + `${skin.prefix}_${s.file}${suffix}.png`, { frameWidth: fW, frameHeight: fH })
       }
     }
+
+    // Slime King — one-off "excretion" spritesheet played on the boss
+    // sprite whenever Absorb & Excrete produces a Goopling. Standard
+    // 4-row × 9-col Craftpix layout at 128px frames; only the first row
+    // is used (BossArchetypeSystem lazily registers the anim with frames
+    // 0..8 on first spawn).
+    this.load.spritesheet('slime-spawn-sheet',
+      'assets/sprites/slime/Slime_excretion.png',
+      { frameWidth: 128, frameHeight: 128 })
 
     // Minion sprite sheets — same craftpix pack, filenames normalized to
     // <state>.png on copy. Texture key = `minion-<id>-<state>`.

@@ -3,6 +3,7 @@
 // Phase 4: minimal stats + path state. Personality, knowledge, party come in later phases.
 
 import { Balance } from '../config/balance.js'
+import { generateCheaterName } from '../util/cheaterNames.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -33,9 +34,14 @@ export function createAdventurer(classDef, spawnTile, dungeonLevel = 1) {
   const baseStats = classDef.baseStats ?? {}
   const colorInt  = parseInt(classDef.color, 16) || 0xaabbcc
 
+  // Cheater class overrides the fantasy-name roll with a procedural
+  // leet-speak handle (xX_d4rk_l0rd_Xx, n0sc0pe, etc.) so they read
+  // instantly as an online-gamer skid rather than a noble adventurer.
+  const rolledName = classDef.id === 'cheater' ? generateCheaterName() : _generateName()
+
   return {
     instanceId:    _uid(),
-    name:          _generateName(),
+    name:          rolledName,
     classId:       classDef.id,
     classColor:    colorInt,
     personalityIds: [], // Phase 5

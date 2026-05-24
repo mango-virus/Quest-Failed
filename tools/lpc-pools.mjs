@@ -482,5 +482,140 @@ export const POOLS = {
   },
 };
 
+// ============================================================
+// Cheater — maximum-chaos pool. The whole point of this class is
+// "looks like a modded client with every cosmetic toggled on at once."
+// We deliberately let the sampler pick combinations that read as wrong:
+//   • mixed armor + civilian torso/legs/feet (Plate + Pantaloons + Tabi
+//     Socks; Sleeveless + Striped Formal Pants + Plated Toe; etc.)
+//   • bizarre headwear range — armored helms beside Christmas Hat,
+//     Wizard Hat, Tophat, Crown, Bicorne, Pirate Bandana, Eyepatches,
+//     Plain Mask, even Hijab. Forced 1.0 chance so every cheater wears
+//     SOMETHING on their head.
+//   • weapon chaos — every weapon LPC ships: swords, daggers, staves,
+//     scythe, flail, katana, glowsword, cane, plus all four bow types
+//     and crossbow + slingshot. Driven by the same `weapon` field every
+//     other class uses; AdventurerRenderer's variant→attackRange sync
+//     reads the source-class range so a Mage-staff cheater attacks at
+//     range 4, a bow-cheater at the appropriate ranged range.
+//   • mandatory multi-accessory roll: 2–4 picks per variant from the
+//     full wings + tails + gems + necklaces + scarves + bowties pool.
+//     Forces the "weighed down with hacks" silhouette every spawn.
+//   • sometimesShield 0.4 — random shield on ~40% of cheaters layered
+//     on top of whatever weapon they're already holding.
+// Fantasy body palettes (blue / bright_green / dark_green skin) are
+// rolled at 30% in bake-lpc-variants.mjs for cheaters — Twitch Streamer
+// is the only other class that can pull fantasy skin (15%).
+POOLS.cheater = {
+  bodyTypes: COMMON.bodyTypes,
+  heads: 'auto_human',
+  hair: 'all_human_hair',
+  beardChance: 0.5,
+  torso: [
+    // Mix every silhouette — armor next to civvies next to monk-bare.
+    'Plate', 'Leather',
+    'TShirt', 'TShirt Buttoned', 'TShirt Scoop', 'TShirt VNeck',
+    'Shortsleeve', 'Shortsleeve Polo', 'Shortsleeve Cardigan',
+    'Longsleeve', 'Longsleeve 2', 'Longsleeve 2 Buttoned',
+    'Longsleeve 2 Scoop', 'Longsleeve 2 VNeck', 'Longsleeve Polo',
+    'Cardigan',
+    'Obi', 'Obi Knot Left', 'Obi Knot Right',
+    'Original Sleeveless', 'Sleeveless 2', 'Sleeveless 2 Buttoned',
+  ],
+  legs: [
+    'Pants', 'Cuffed Pants', 'Long Pants', 'Pantaloons', 'Hose',
+    'Shorts', 'Short Shorts',
+    'Fur Pants', 'Striped Formal Pants', 'Formal Pants',
+  ],
+  feet: [
+    // Plate boots next to sandals next to tabi socks — peak desync.
+    'Plated Toe', 'Thick Plated Toe',
+    'Basic Boots', 'Folded Rim Boots', 'Revised Boots', 'Rimmed Boots',
+    'Basic Shoes', 'Revised Shoes', 'Sara Shoes',
+    'Slippers', 'Sandals', 'Ghillies', 'Ankle Socks', 'Tabi Socks',
+  ],
+  arms: {
+    items: ['Pauldrons', 'Epaulets', 'Mantal', 'Gloves', 'Cuffs', 'Lace Cuffs', 'Stud Ring'],
+    chance: 0.85,
+  },
+  headwear: {
+    // Every category of headwear in the LPC pack — helms, civvy hats,
+    // hoods, bandanas, glasses, crowns, eye patches, masks. Forced 1.0
+    // chance so EVERY cheater wears something — the "loadout slot is
+    // always equipped" feel.
+    items: [
+      // armored helms
+      'Greathelm', 'Close helm', 'Norman helm', 'Bascinet', 'Round bascinet',
+      'Pointed helm', 'Sugarloaf greathelm', 'Spangenhelm',
+      'Pigface bascinet', 'Pigface visor', 'Maximus', 'Mail',
+      'Armet', 'Simple Armet', 'Barbuta', 'Simple barbuta', 'Kettle helm',
+      'Morion',
+      // barbarian / horned
+      'Barbarian', 'Barbarian nasal', 'Barbarian Viking',
+      'Horned helmet', 'Horned visor', 'Viking spangenhelm',
+      // wizard / mage
+      'Wizard Hat Base', 'Wizard Hat Belt', 'Wizard Hat Buckle',
+      'Celestial Wizard Hat', 'Celestial Wizard Hat Second Color',
+      'Celestial Wizard Moon Hat', 'Celestial Wizard Moon Hat Second Color',
+      // civilian / formal / themed
+      'Formal Tophat', 'Christmas Hat', 'Crown', 'Tiara', 'Hijab',
+      'Tricorne', 'Tricorne Captain', 'Bicorne Athwart',
+      'Cavalier feather',
+      // ranger / pirate
+      'Leather Cap', 'Leather Cap Feather', 'Bonnie', 'Bonnie feather',
+      // hoods + bandanas
+      'Hood', 'Sack Cloth Hood',
+      'Bandana', 'Bordered Bandana', 'Pirate Bandana', 'Skull Bandana Overlay',
+      // glasses + masks
+      'Sunglasses', 'Shades', 'Round Glasses', 'Nerd Glasses', 'Halfmoon Glasses',
+      'Eyepatch Left', 'Eyepatch Right', 'Eyepatch Ambidextrous',
+      'Plain Mask',
+    ],
+    chance: 1.0,
+  },
+  accessory: {
+    // 2–4 stacked accessories per variant — wings + tails + necklaces
+    // + gems + scarves all layered on the same body. Forced chance 1.0
+    // so every cheater drips with cosmetic exploits.
+    items: [
+      // wings
+      'Bat Wings', 'Feathered Wings', 'Lizard Wings', 'Lizard Wings (Alt Colors)', 'Batlike Lizard Wings',
+      // tails
+      'Cat Tail', 'Wolf Tail', 'Fluffy Wolf Tail', 'Lizard tail', 'Lizard Tail (Alt Colors)',
+      // charms / gems
+      'Box Charm', 'Oval Charm', 'Ring Charm', 'Star Charm',
+      'Emerald cut Gem', 'Marquise cut Gem', 'Natural cut Gem', 'Pear cut Gem',
+      'Pearl Gem', 'Princess cut Gem', 'Round cut Gem', 'Trilliant cut Gem',
+      // necklaces
+      'Necklace', 'Large Beaded Necklace', 'Small Beaded Necklace',
+      'Chain Necklace', 'Simple Necklace',
+      // scarves / bowties
+      'Scarf', 'Bowtie', 'Bowtie 2',
+    ],
+    pickCount: { min: 2, max: 4 },
+    chance: 1.0,
+  },
+  weapon: {
+    // Every melee + ranged + magic option — the variant's weapon drives
+    // adv.stats.attackRange via the renderer's source-class lookup.
+    items: [
+      // melee — light / blade
+      'Dagger', 'Rapier', 'Scimitar', 'Saber', 'Katana', 'Glowsword',
+      // melee — heavy / blade
+      'Longsword', 'Arming Sword', 'Waraxe', 'Halberd', 'Spear', 'Mace', 'Flail',
+      // exotic
+      'Scythe', 'Cane',
+      // staves (will pair with crystal on Diamond/Loop)
+      'Simple staff', 'Gnarled staff', 'Diamond staff', 'Loop staff', 'S staff',
+      // ranged
+      'Normal', 'Great', 'Recurve', 'Crossbow', 'Slingshot',
+    ],
+    chance: 1.0,
+  },
+  // 40% of cheaters also wear a shield, layered on top of whatever
+  // weapon they're already holding — peak desync silhouette.
+  sometimesShield: 0.4,
+}
+
 // Per-class variant count for the bake.
 export const VARIANT_COUNT = 50;

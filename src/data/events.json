@@ -206,5 +206,13 @@
     "icon": "🥷",
     "colorTheme": "shadow",
     "minBossLevel": 2
+  },
+  {
+    "id": "patch_zero",
+    "title": "PATCH 0.0.0",
+    "notif": "The server pushed a broken patch. Every adventurer today is a Cheater — anti-cheat disabled, all cheats buffed, kills pay double. Random admin console commands fire on the dungeon as the build self-destructs.",
+    "icon": "💾",
+    "colorTheme": "rgb",
+    "minBossLevel": 2
   }
 ]

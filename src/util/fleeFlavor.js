@@ -64,6 +64,9 @@ const FLEE_REASON_FLAVOR = {
 
   // ── Despawn / forced exits ──────────────────────────────────────
   oscillation_at_exit: n => `${n} gives up wandering the entry and slips out.`,
+
+  // ── Cheater class ──────────────────────────────────────────────
+  cheater_banned:      n => `${n} got reported one too many times — anti-cheat boots them from the dungeon!`,
 }
 
 export function fleeReasonFlavor(reason, name, context = null) {

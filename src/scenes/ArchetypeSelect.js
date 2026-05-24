@@ -38,7 +38,10 @@ const UNLOCK_GATES = {
   vampire:  { requiredLevel: 5, label: 'REACH BOSS LV 5 TO UNLOCK', check: (m) => m >= 5 },
   wraith:   { requiredLevel: 6, label: 'REACH BOSS LV 6 TO UNLOCK', check: (m) => m >= 6 },
   succubus: { requiredLevel: 7, label: 'REACH BOSS LV 7 TO UNLOCK', check: (m) => m >= 7 },
-  slime:    { requiredLevel: 99, label: 'REACH BOSS LV 99 TO UNLOCK', check: (m) => m >= 99 },
+  // Slime King: previously a level-99 placeholder gate (no real boss).
+  // Now fully implemented (Absorb & Excrete + Mitosis) — unlocked from
+  // the start so the player can try it immediately. Easy to bump the
+  // gate up if it should feel more "earned".
 }
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────
@@ -131,6 +134,14 @@ export class ArchetypeSelect extends Phaser.Scene {
     this._selectedId  = null
     this._hoverId     = null
     this._lockedId    = null
+    // The lock-tooltip Text is created lazily on first hover of a locked
+    // boss (see _showLockTooltip). The scene instance is reused across
+    // visits, so without this reset the field still holds a reference
+    // to the PREVIOUS visit's now-destroyed Text — _showLockTooltip's
+    // existence check passes, setText/setPosition silently no-op on the
+    // dead object, and the "REACH BOSS LV N" hover label never appears
+    // on a second-or-later visit.
+    this._lockTooltip = null
 
     // Text render-resolution multiplier. The boss-picker camera scales
     // the whole 1280×720 design space to fit the canvas; on most

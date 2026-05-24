@@ -42,6 +42,11 @@ export class KnowledgeSystem {
     EventBus.on('TRAP_TRIGGERED', this._onTrapTriggered, this)
     EventBus.on('ADVENTURER_FLED', this._onAdventurerFled, this)
     EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
+    // Cheater wallhack — the modded client comes pre-loaded with every
+    // trap location and every minion in the dungeon. Pre-populates the
+    // adv's knowledge entries at FULL tier on entry so the pathfinder
+    // routes them around known threats from tick 1 (no learning curve).
+    EventBus.on('ADVENTURER_ENTERED_DUNGEON', this._onAdventurerEnteredForWallhack, this)
     EventBus.on('ROOM_PLACED',    this._onRoomMutated,   this)
     EventBus.on('ROOM_REMOVED',   this._onRoomMutated,   this)
     EventBus.on('TRAP_PLACED',    this._onTrapMutated,   this)
@@ -327,6 +332,47 @@ export class KnowledgeSystem {
   }
 
   // ── Trap awareness ────────────────────────────────────────────────────────
+
+  // Cheater wallhack — runs on ADVENTURER_ENTERED_DUNGEON. For a
+  // cheater, stamp the full dungeon's trap + minion-per-room intel
+  // directly into their knowledge map at FULL tier. PathfinderSystem
+  // then weights routes around them from tick 1 (no learning curve,
+  // no chat-line "got warned" feedback). Other classes still get
+  // intel the normal way via the shared-pool inheritance.
+  _onAdventurerEnteredForWallhack({ adventurer }) {
+    if (!adventurer || adventurer.classId !== 'cheater') return
+    _ensureAdvKnowledge(adventurer)
+    const today = this._gs.meta?.dayNumber ?? 1
+    // Every armed trap at FULL tier.
+    for (const trap of (this._gs.dungeon?.traps ?? [])) {
+      if (!trap || trap._disabledThisDay) continue
+      adventurer.knowledge.traps[trap.instanceId] = {
+        type:      trap.definitionId,
+        tileX:     trap.tileX,
+        tileY:     trap.tileY,
+        footprint: trap.footprint ?? { w: 1, h: 1 },
+        dangerTiles: this._trapDangerTiles(trap),
+        confirmed: true,
+        stale:     false,
+        dayLearned: today,
+      }
+    }
+    // Every minion's home room at FULL tier (per-room enemy list).
+    for (const m of (this._gs.minions ?? [])) {
+      if (!m || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction !== 'dungeon') continue
+      const roomId = m.assignedRoomId
+      if (!roomId) continue
+      const list = adventurer.knowledge.enemiesPerRoom[roomId] ??= []
+      list.push({
+        type:       m.definitionId,
+        instanceId: m.instanceId,
+        confirmed:  true,
+        stale:      false,
+        dayLearned: today,
+      })
+    }
+  }
 
   _onTrapTriggered({ trap, roomId }) {
     if (!trap) return

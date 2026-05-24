@@ -1436,6 +1436,12 @@
         { "t": "You scatter into bats and charm a hero mid-march — they turn on their party until an ally lies dead, Master! The maze barely lifts a finger! I admire an efficient master!", "x": "evil" },
         { "t": "Seduction as a weapon, Master — the hero brings their own body to the betrayal! Ooh — cruelty that makes the victim do all the work is pure craftsmanship!", "x": "mischievous" },
         { "t": "All charm and wings, Master — a Succubus Queen knows how to make a hero forget his own sword! ...Ooh, a genie can do a little of that too, if you ever need it. Charm AND a maze — the heroes never stand a chance!", "x": "sexy" }
+      ],
+      "slime": [
+        { "t": "A Slime King upon the throne, Master! The heroes will hit you. You'll SPLIT. They'll hit your two halves. THOSE split! Two becomes FOUR! Ooh — I do love a boss whose answer to being killed is to be MORE!", "x": "magic" },
+        { "t": "Every minion that dies in your halls gets SWALLOWED by the King and bubbles back out as a Goopling, Master! Loss into gain — the dungeon's accountant approves! ...Wait, that's me! I approve! Tee hee!", "x": "evil" },
+        { "t": "A glorious, disgusting, GOOFY boss, Master — and the heroes will absolutely underestimate the goop! That underestimation is itself a trap, and we did not even build it! Free traps! A genie's favourite price!", "x": "happy" },
+        { "t": "Park the Throne and the boss-room WIDE, Master! Once you split into four wobbly little kings, the heroes need ROOM to chase them all — and your minions need room to crowd the chase! Build it BIG!", "x": "building" }
       ]
     },
 
@@ -1518,6 +1524,12 @@
         { "t": "A cosplayer, Master! An adorable little outfit! ...A genie is mostly smoke and sparkle, my TRUE shape, thank you — it'll make an adorable little corpse!", "x": "taunting" },
         { "t": "One in monster fancy-dress, Master! It plays nicely with your minions — so the traps must be impolite enough for BOTH! Rude traps! Wish me rude traps!", "x": "evil" },
         { "t": "A cosplay adventurer came to play PRETEND, Master! The dungeon plays for KEEPS — and so does the genie! Remind it, gently, with the floor! Poof — lesson!", "x": "mischievous" }
+      ],
+      "cheater": [
+        { "t": "A CHEATER, Master! A modded client! It will no-clip through your walls, teleport past your traps, and one-shot your boys with damage that does NOT exist in the rules! A genie reads the rules! THIS one didn't!", "x": "shocked" },
+        { "t": "Look at that, Master — it just walked THROUGH the door we locked! ...A locked door is a PROMISE, and this one breaks promises! Ooh — I take that personally! GET it!", "x": "angry" },
+        { "t": "Don't panic, Master — the cheater is GLASS! Hit it HARD, just a few good blows, and the kingdom's anti-cheat ban-hammer takes it the rest of the way! Tee hee — the audience reports them itself! Free justice!", "x": "evil" },
+        { "t": "A modded hero strutting through the dungeon, Master — 'skill issue,' indeed! ...A genie was bound in a lamp for an eon by the actual rules — and YOU don't even break those! Show this one what an HONEST monster can do!", "x": "determined" }
       ]
     },
 

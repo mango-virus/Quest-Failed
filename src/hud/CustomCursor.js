@@ -37,6 +37,18 @@ const FRAMES = {
   click3: 'assets/sprites/cursor-click-3.png',
 }
 
+// Pixel offset (in display-space, after the 2× scale) from the element's
+// top-left to the visible TIP of the cursor-normal sprite. The source
+// PNG is 21×21 and the arrow tip sits at source pixel (7, 5); the CSS
+// scales it 2× to 42×42, so the displayed tip is at element (14, 10).
+// _onMove subtracts this from the mouse position so the tip — not the
+// sprite's top-left — ends up under the cursor (= the actual click
+// hotspot). Click-animation frames have tips that walk toward (0, 0)
+// in the source, which combined with this constant offset reads as a
+// brief lift on press.
+const TIP_X = 14
+const TIP_Y = 10
+
 const CLICK_FRAME_MS = 50
 const CLICK_SEQUENCE = ['click1', 'click2', 'click3', 'normal']
 
@@ -56,10 +68,12 @@ function _clearClickTimers() {
 
 function _onMove(e) {
   if (!_el) return
-  // Position the element's top-left at the mouse — the arrow tip lives
-  // at the source's top-left pixel, so (clientX, clientY) maps directly
-  // to the click hotspot without an offset.
-  _el.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`
+  // Shift the element so the visible tip of the arrow (source pixel
+  // (7, 5) → display pixel (14, 10) after the 2× scale) sits exactly on
+  // the mouse position. Without the offset the sprite's top-left sat at
+  // the mouse, leaving the visible tip 14 px right + 10 px down of where
+  // clicks actually registered.
+  _el.style.transform = `translate(${e.clientX - TIP_X}px, ${e.clientY - TIP_Y}px)`
 }
 
 // How long a non-primary button can be held before it's treated as a

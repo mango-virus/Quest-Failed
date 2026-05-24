@@ -183,11 +183,33 @@ export class BossFightOverlay {
       this._raf = requestAnimationFrame(() => this._tick())
       return
     }
+
+    // Slime King — multi-entity fight uses one bar per slime. The
+    // standard single-bar path runs for every other archetype (and for
+    // the slime archetype between split events when boss.slimes is
+    // null, which shouldn't happen mid-fight but is harmless).
+    const slimes = Array.isArray(boss.slimes) ? boss.slimes : null
+    if (slimes && slimes.length > 0) {
+      this._tickSlimeBars(slimes)
+    } else {
+      // Drop any leftover slime-bar refs if a fight just ended and the
+      // archetype is back to single-bar mode.
+      if (this._slimeBars && this._slimeBars.size > 0) {
+        this._slimeBarsIds = null
+        this._slimeBars.clear()
+        this._buildBar()
+      }
+      const cur = Math.max(0, boss.hp ?? 0)
+      const max = Math.max(1, boss.maxHp ?? 1)
+      this._applyBarFill(cur, max)
+      if (this._barText) this._barText.textContent = `${cur}  /  ${max}`
+    }
+
+    // Shake/flash trigger reads the boss.hp mirror — works the same for
+    // both single-boss and multi-slime fights since boss.hp is kept
+    // synced to the sum of all alive slime hps.
     const cur = Math.max(0, boss.hp ?? 0)
     const max = Math.max(1, boss.maxHp ?? 1)
-    this._applyBarFill(cur, max)
-    if (this._barText) this._barText.textContent = `${cur}  /  ${max}`
-
     if (this._lastHp != null && cur < this._lastHp) {
       const dmg = this._lastHp - cur
       const big = dmg >= Math.max(8, max * 0.08)
@@ -228,6 +250,90 @@ export class BossFightOverlay {
     // White chip-damage ghost — lags behind the fill so HP just lost
     // flashes white then drains away (mirrors the top-bar HP chip bar).
     if (this._barGhost) this._barGhost.style.width = pct
+  }
+
+  // ─── Slime King multi-bar ─────────────────────────────────────────
+  //
+  // Detects changes in boss.slimes (count or id-set) and rebuilds the
+  // bar DOM accordingly: one stacked sub-track per slime, each tracking
+  // its own hp / maxHp. Width-on-fill applied per slime through the
+  // same colour thresholds the single bar uses. Damage flashes / shakes
+  // still fire from the boss.hp sum-mirror in _tick.
+  _tickSlimeBars(slimes) {
+    const sig = slimes.map(s => s.id).join('|')
+    if (this._slimeBarsIds !== sig) {
+      this._slimeBarsIds = sig
+      this._buildSlimeBars(slimes)
+    }
+    if (!this._slimeBars) return
+    for (const s of slimes) {
+      const bar = this._slimeBars.get(s.id)
+      if (!bar) continue
+      const cur = Math.max(0, s.hp ?? 0)
+      const max = Math.max(1, s.maxHp ?? 1)
+      this._applyBarFillTo(bar, cur, max)
+      if (bar.text) bar.text.textContent = `${cur} / ${max}`
+    }
+  }
+
+  _buildSlimeBars(slimes) {
+    if (!this._bar) return
+    const arch = this._archetypeDef()
+    const name = (arch?.name ?? 'BOSS').toUpperCase()
+    this._bar.replaceChildren()
+    this._bar.appendChild(h('div', { className: 'qf-bossfight-bar-name' }, [
+      h('span', { className: 'qf-bossfight-bar-dia' }, '◆'),
+      h('span', null, name),
+      h('span', { className: 'qf-bossfight-bar-dia' }, '◆'),
+    ]))
+    // Stacked container — flex column, small gap. No new CSS classes:
+    // inline-style this so the change is self-contained.
+    const stack = document.createElement('div')
+    stack.style.cssText = 'display:flex; flex-direction:column; gap:3px; width:100%;'
+    this._slimeBars = new Map()
+    for (const s of slimes) {
+      const cur = Math.max(0, s.hp ?? 0)
+      const max = Math.max(1, s.maxHp ?? 1)
+      // Shorter tracks per slime so 4 bars don't crowd the screen at
+      // the deepest split. Re-uses the existing track/ghost/fill/text
+      // classes (same colour tokens, same chip-damage ghost).
+      let fillEl, ghostEl, textEl
+      const trackEl = h('div', {
+        className: 'qf-bossfight-bar-track',
+        style: 'height: 18px;',
+      }, [
+        h('div', { className: 'qf-bossfight-bar-ghost', ref: el => { ghostEl = el } }),
+        h('div', { className: 'qf-bossfight-bar-fill',  ref: el => { fillEl  = el } }),
+        h('div', { className: 'qf-bossfight-bar-text',  ref: el => { textEl  = el } }, `${cur} / ${max}`),
+      ])
+      stack.appendChild(trackEl)
+      this._slimeBars.set(s.id, { track: trackEl, fill: fillEl, ghost: ghostEl, text: textEl })
+      // Apply initial fill so a freshly-built bar shows the right
+      // width without waiting for the next animation frame.
+      this._applyBarFillTo(this._slimeBars.get(s.id), cur, max)
+    }
+    this._bar.appendChild(stack)
+    this._bar.classList.add('open')
+    // Wipe the single-bar refs so a later non-slime tick doesn't try
+    // to update destroyed elements.
+    this._barFill = null
+    this._barGhost = null
+    this._barText = null
+    this._barFlash = null
+    this._barTrack = null
+  }
+
+  _applyBarFillTo(bar, cur, max) {
+    if (!bar?.fill) return
+    const frac = Math.max(0, Math.min(1, cur / max))
+    let color = 'var(--blood)'
+    if (frac > 0.5)        color = 'var(--poison)'
+    else if (frac > 0.25)  color = 'var(--gold)'
+    else                   color = 'var(--hp-low, #ff5544)'
+    const pct = `${(frac * 100).toFixed(2)}%`
+    bar.fill.style.width      = pct
+    bar.fill.style.background = color
+    if (bar.ghost) bar.ghost.style.width = pct
   }
 
   // ─── Resolve ───────────────────────────────────────────────────
