@@ -179,6 +179,30 @@ function _rehydrateRunHistory(state) {
     if ('_heldByPlayer' in m) m._heldByPlayer = false
   }
 
+  // Boss pact-ability cooldowns — same scene.time contract as the
+  // adv/minion lists above. Every `_xxxReadyAt` / `_xxxUntil` /
+  // `_xxxNextTick` on the boss is stamped with `scene.time.now + N`;
+  // a saved value appears far-future on the next load (new scene's
+  // time starts at 0), which locks every pact ability "on cooldown"
+  // until wall-clock catches up — so the boss stops using Hellfire /
+  // Soul Drain / Doppelgangers / Petrify / etc. and just stands
+  // there. Strip the lot. Permanent fields on the boss (hp / level /
+  // lives / ability flags) are untouched.
+  const BOSS_TRANSIENT_KEYS = [
+    '_hellfireReadyAt', '_hellfireWindupUntil',
+    '_lightningReadyAt',
+    '_shockwaveReadyAt', '_shockwaveStunUntil',
+    '_spectralReadyAt',
+    '_vortexReadyAt',
+    '_soulDrainReadyAt', '_soulDrainChannelUntil', '_soulDrainNextTick',
+    '_doppelReadyAt', '_doppelActiveUntil',
+    '_petrifyReadyAt', '_petrifyBackfireUntil',
+    '_avengerDazeUntil', '_avengerBuffUntil',
+  ]
+  if (state.boss) {
+    for (const k of BOSS_TRANSIENT_KEYS) if (k in state.boss) delete state.boss[k]
+  }
+
   // Traps — same audit. The in-flight per-trap state fields
   // (fuseEndsAt / firedAt / per-victim hitAt map) are all
   // scene-time stamps; loading mid-day with stale values either

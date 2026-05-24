@@ -105,6 +105,17 @@ export class InspectPopup {
   // ── Hover panel ───────────────────────────────────────────────────
   _show({ kind, entity, defId = null, x = 0, y = 0 } = {}) {
     if (!kind || !entity) return
+    // Bail if the hovered entity died (or HP hit 0) since the popup
+    // opened. Without this, the DOM keeps rendering the original
+    // hover-start HP/ATK/DEF — the panel never re-renders mid-hover
+    // (intentional, to avoid flicker on cursor movement), so a target
+    // that gets burst down while the cursor lingers looks alive at,
+    // say, 12 HP until the cursor leaves the (now-dead) entity. Only
+    // adv/minion have a death state worth checking.
+    if (this._isEntityDead(kind, entity)) {
+      this._hide()
+      return
+    }
     const key = this._idOf(kind, entity)
     // Same entity still hovered — just reposition, keep the DOM.
     if (key === this._key && this._el) {
@@ -145,6 +156,18 @@ export class InspectPopup {
     this._el?.remove()
     this._el  = null
     this._key = null
+  }
+
+  // True if an adv/minion is dead or at 0 HP — used by _show to tear
+  // the popup down rather than render a stale corpse. Rooms / items /
+  // traps / placed have no death state and always return false.
+  _isEntityDead(kind, entity) {
+    if (kind !== 'adventurer' && kind !== 'minion') return false
+    if (!entity) return true
+    if (entity.aiState === 'dead') return true
+    const hp = entity.resources?.hp ?? entity.hp
+    if (Number.isFinite(hp) && hp <= 0) return true
+    return false
   }
 
   // ── Content (footer-style: stat boxes + flavor + ability lines) ────
