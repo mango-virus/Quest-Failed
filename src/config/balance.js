@@ -503,6 +503,18 @@ export const Balance = {
   // stay clean. 0.18 ≈ ~10% of all swings become triple-stack chaos.
   VFX_CHEATER_ATTACK_TRIPLE_CHANCE: 0.18,
 
+  // Boss attack VFX — sheet pool for pact attacks (Hellfire / Lightning
+  // / etc.) and per-archetype basic attacks. Single layer per fire,
+  // alt-sheet picked on roll. Colour row chosen by damage type for
+  // pacts, archetype identity for basics.
+  VFX_BOSS_ATTACK_ENABLED:     true,
+  VFX_BOSS_ATTACK_SCALE:       1.2,
+  VFX_BOSS_ATTACK_FPS:         28,
+  // Probability of picking the alt sheet instead of the primary. 0.4
+  // ≈ ~60% primary / 40% alt so the ability has a recognizable
+  // identity while still varying.
+  VFX_BOSS_ATTACK_ALT_CHANCE:  0.4,
+
   // Master toggle for kinetic camera shake on impactful events
   // (crits, big hits, Golem Earthquake, Beholder Petrify, etc.).
   // Flip to false to disable all screen shake without code changes.

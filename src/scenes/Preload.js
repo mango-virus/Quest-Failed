@@ -644,6 +644,32 @@ export class Preload extends Phaser.Scene {
     this.load.spritesheet('vfx-cheater-streak',   'assets/sprites/vfx/cheater-streak.png',   { frameWidth: 64, frameHeight: 64 })
     this.load.spritesheet('vfx-cheater-sigil',    'assets/sprites/vfx/cheater-sigil.png',    { frameWidth: 64, frameHeight: 64 })
 
+    // Boss attack VFX — 18 sheets shared across all dark-pact attacks
+    // AND per-archetype basic-attack visuals. Each has 9 colour-variant
+    // rows (canonical 0 orange, 1 pink, 2 cyan, 3 green, 4 yellow,
+    // 5 white, 6 tan, 7 crimson, 8 dark blue). BossAttackVfxSystem
+    // picks the row based on damage type (pacts) or archetype identity
+    // (basic attacks); column counts vary per file and are encoded in
+    // _registerBossAttackAnimations below.
+    this.load.spritesheet('vfx-boss-flame',       'assets/sprites/vfx/boss-flame.png',       { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-puff',        'assets/sprites/vfx/boss-puff.png',        { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-bolt',        'assets/sprites/vfx/boss-bolt.png',        { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-comet',       'assets/sprites/vfx/boss-comet.png',       { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-cross-slam',  'assets/sprites/vfx/boss-cross-slam.png',  { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-strike',      'assets/sprites/vfx/boss-strike.png',      { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-soul-wisp',   'assets/sprites/vfx/boss-soul-wisp.png',   { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-soul',        'assets/sprites/vfx/boss-soul.png',        { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-petrify',     'assets/sprites/vfx/boss-petrify.png',     { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-spores',      'assets/sprites/vfx/boss-spores.png',      { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-reeds',       'assets/sprites/vfx/boss-reeds.png',       { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-skull',       'assets/sprites/vfx/boss-skull.png',       { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-droplet',     'assets/sprites/vfx/boss-droplet.png',     { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-magic-burst', 'assets/sprites/vfx/boss-magic-burst.png', { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-charm',       'assets/sprites/vfx/boss-charm.png',       { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-slash',       'assets/sprites/vfx/boss-slash.png',       { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-quake',       'assets/sprites/vfx/boss-quake.png',       { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-rubble',      'assets/sprites/vfx/boss-rubble.png',      { frameWidth: 64, frameHeight: 64 })
+
     // ── Traps ─────────────────────────────────────────────────────────────
     // Sheets re-baked from the raw art into clean uniform grids by
     // tools/bake-traps.mjs. Frame dims mirror assets/sprites/traps/manifest.json.
@@ -715,6 +741,7 @@ export class Preload extends Phaser.Scene {
     this._registerJamPortalAnimation()
     this._registerHitSparkAnimations()
     this._registerCheaterAttackAnimations()
+    this._registerBossAttackAnimations()
     this._registerSoulBeaconAnimation()
     this._registerDarkDealDemonAnimations()
     this._registerSuccubusSpecialAnimations()
@@ -1012,6 +1039,53 @@ export class Preload extends Phaser.Scene {
       { key: 'vfx-cheater-ring',     cols: 14 },
       { key: 'vfx-cheater-streak',   cols:  9 },
       { key: 'vfx-cheater-sigil',    cols:  7 },
+    ]
+    const ROWS = 9
+    for (const { key, cols } of sheets) {
+      if (!this.textures.exists(key)) continue
+      const tex = this.textures.get(key)
+      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      for (let row = 0; row < ROWS; row++) {
+        const animKey = `${key}-${row}`
+        if (this.anims.exists(animKey)) continue
+        this.anims.create({
+          key: animKey,
+          frames:    this.anims.generateFrameNumbers(key, {
+            start: row * cols,
+            end:   row * cols + cols - 1,
+          }),
+          frameRate: fps,
+          repeat:    0,
+        })
+      }
+    }
+  }
+
+  // 162 one-shot animations (9 colour rows × 18 sheets) for boss attack
+  // VFX — shared pool used by BossAttackVfxSystem for both dark-pact
+  // attacks and per-archetype basic-attack visuals. Same pattern as the
+  // cheater sheets above; column counts vary per file.
+  _registerBossAttackAnimations() {
+    const fps = (typeof Balance !== 'undefined' && Balance.VFX_BOSS_ATTACK_FPS) || 28
+    const sheets = [
+      { key: 'vfx-boss-flame',       cols: 14 },
+      { key: 'vfx-boss-puff',        cols: 16 },
+      { key: 'vfx-boss-bolt',        cols:  8 },
+      { key: 'vfx-boss-comet',       cols:  9 },
+      { key: 'vfx-boss-cross-slam',  cols:  8 },
+      { key: 'vfx-boss-strike',      cols:  9 },
+      { key: 'vfx-boss-soul-wisp',   cols: 12 },
+      { key: 'vfx-boss-soul',        cols: 14 },
+      { key: 'vfx-boss-petrify',     cols: 12 },
+      { key: 'vfx-boss-spores',      cols: 14 },
+      { key: 'vfx-boss-reeds',       cols: 11 },
+      { key: 'vfx-boss-skull',       cols: 15 },
+      { key: 'vfx-boss-droplet',     cols: 16 },
+      { key: 'vfx-boss-magic-burst', cols: 18 },
+      { key: 'vfx-boss-charm',       cols:  9 },
+      { key: 'vfx-boss-slash',       cols: 14 },
+      { key: 'vfx-boss-quake',       cols: 10 },
+      { key: 'vfx-boss-rubble',      cols: 12 },
     ]
     const ROWS = 9
     for (const { key, cols } of sheets) {

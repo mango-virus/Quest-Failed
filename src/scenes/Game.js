@@ -60,6 +60,7 @@ import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
 import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
+import { BossAttackVfxSystem }    from '../systems/BossAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
 import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
 import { AbilityVfx }         from '../ui/AbilityVfx.js'
@@ -188,6 +189,10 @@ export class Game extends Phaser.Scene {
     // HitSparkSystem in the listener chain so the cheater layer paints
     // over the hit spark.
     this.cheaterAttackVfxSystem = new CheaterAttackVfxSystem(this, this.gameState)
+    // Pact + archetype-basic boss attack VFX. Layers on top of the
+    // existing pact telegraph/feedback (channel beams, rings, etc.)
+    // — adds punch without replacing the mechanical telegraph.
+    this.bossAttackVfxSystem    = new BossAttackVfxSystem(this, this.gameState)
     this.screenShakeSystem   = new ScreenShakeSystem(this)
     this.rivalBossShowdown   = new RivalBossShowdown(this, this.gameState)
     this.bossPactVfx         = new BossPactVfx(this, this.gameState)
@@ -408,6 +413,7 @@ export class Game extends Phaser.Scene {
     this.companionWorldFx?.destroy()
     this.hitSparkSystem?.destroy()
     this.cheaterAttackVfxSystem?.destroy()
+    this.bossAttackVfxSystem?.destroy()
     this.screenShakeSystem?.destroy()
     this.rivalBossShowdown?.destroy()
     this.bossPactVfx?.destroy()
