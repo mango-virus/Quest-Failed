@@ -110,6 +110,18 @@ function _rehydrateRunHistory(state) {
     '_summonGateUntil', '_focusActiveUntil', '_innerPeaceUntil',
     '_boneArmorUntil', '_invisibilityUntil', '_twitchEffectUntil',
     '_arcaneBurstQueued', '_madnessTargetId', '_wanderingGateCooldownDay',
+    // Knight + Bard buff windows — same scene.time-stamped contract;
+    // a saved value lingers as "in the future" after load and keeps
+    // the buff active until the new scene's clock catches up.
+    '_auraActiveUntil', '_tauntActiveUntil',
+    '_inspireActiveUntil', '_songSpeedActiveUntil',
+    // Cheater class ability windows + per-tick state. _aimhackUntil
+    // gates the per-attack instakill roll; _speedhackUntil gates the
+    // 2× movement burst; _lagStunUntil freezes movement after a lag
+    // spike. All scene.time-stamped — drop on load so the cheater
+    // doesn't load with a permanently-active aimbot window.
+    '_aimhackUntil', '_speedhackUntil', '_lagStunUntil',
+    '_lastReportFloaterAt',
     // Boss-archetype timed effects
     '_petrifiedUntil', '_fearAttackUntil', '_charmedAt',
     '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',

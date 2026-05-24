@@ -2082,7 +2082,17 @@ export class AISystem {
         // the snap-back; the commit branch sets tileX from wp.x when dist<0.5.
         const tilesGuard = this._dungeonGrid.getTiles?.()
         const guardRow   = tilesGuard?.[newTileY]
-        if (!guardRow || !PathfinderSystem.isWalkable(guardRow[newTileX])) {
+        // Cheater no-clip: the modded client phases through walls, so a
+        // wall-tile destination is legitimate for them. Skip the
+        // snap-back-to-walkable guard entirely and let tileX/Y latch onto
+        // the wall cell — otherwise every step into a wall would cancel
+        // the path and bounce them back to the prior tile, which both
+        // strands the cheater AND falsely trips the FLEE/stuck-in-entry
+        // 3 s timeout (worldX/Y advances, tileX/Y never does, never
+        // leaves entry hall → forced flee). Banned cheaters lose no-clip
+        // so they fall through to the normal guard like everyone else.
+        const cheaterNoClipMove = adv.classId === 'cheater' && !adv._banned
+        if (!cheaterNoClipMove && (!guardRow || !PathfinderSystem.isWalkable(guardRow[newTileX]))) {
           if (advLane || wpLane) {
             // Seam-shift boundary overshoot: world position legitimately
             // sits on the tile boundary (lane-centre shift puts targetWX/Y

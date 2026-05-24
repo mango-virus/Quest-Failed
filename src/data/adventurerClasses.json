@@ -388,7 +388,7 @@
       "chaos"
     ],
     "unlockLevel": 2,
-    "spawnWeight": 0.25,
+    "spawnWeight": 0.6,
     "description": "Modded client. No-clips walls, teleports between rooms, lands suspicious one-shots. Glass-cannon body — gets reported and banned if they take too many hits.",
     "flavorText": "skill issue"
   }

@@ -33,15 +33,16 @@ import { PlayerProfile }   from '../systems/PlayerProfile.js'
 // All gates read the same persistent `qf.player.maxBossLevel` value, so
 // hitting the highest required level unlocks every tier below it too.
 const UNLOCK_GATES = {
+  // Tier 1 unlocks — fully open by boss-level 3 across these three.
   myconid:  { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
-  orc:      { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
-  vampire:  { requiredLevel: 5, label: 'REACH BOSS LV 5 TO UNLOCK', check: (m) => m >= 5 },
-  wraith:   { requiredLevel: 6, label: 'REACH BOSS LV 6 TO UNLOCK', check: (m) => m >= 6 },
-  succubus: { requiredLevel: 7, label: 'REACH BOSS LV 7 TO UNLOCK', check: (m) => m >= 7 },
-  // Slime King: previously a level-99 placeholder gate (no real boss).
-  // Now fully implemented (Absorb & Excrete + Mitosis) — unlocked from
-  // the start so the player can try it immediately. Easy to bump the
-  // gate up if it should feel more "earned".
+  orc:      { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
+  vampire:  { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
+  // Tier 2 unlocks — open by boss-level 4. Slime King joins this tier
+  // (previously a lvl-99 placeholder, then unlocked-from-start while
+  // we shipped Absorb & Excrete + Mitosis).
+  wraith:   { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
+  slime:    { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
+  succubus: { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
 }
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────
@@ -448,21 +449,52 @@ export class ArchetypeSelect extends Phaser.Scene {
       // doesn't machine-gun.
       uiSfxHover(this)
       if (isLocked) {
-        // Anchor tooltip to the portrait's CURRENT position (post-editor),
-        // not the original slot centre — succubus' editor override moves
-        // the slot well off the cx/cy passed into _buildSlot.
+        // Locked: show the floating REACH-LV tooltip above the slot
+        // AND render a preview dossier on the right page with the
+        // body darkened + abilities masked as `???`. We deliberately
+        // do NOT call _select — that would change the persistent
+        // selection (highlight, _selectedId) to a boss the player
+        // can't actually run. Track `_dossierIsLocked` so pointerout
+        // knows to revert the dossier back to the real selection.
+        //
+        // ALSO swap the editor's activeBossId to the previewed boss.
+        // Without this, items pinned to that specific boss
+        // (succubus' custom name banner via upload-6's bossId pin
+        // being the canonical case) stay hidden — succubus' built-in
+        // boss-name image is visibility-false in the layout JSON
+        // because the upload-6 replaces it, so the dossier ends up
+        // with no name at all. Pointerout's _select revert call
+        // restores activeBossId to whatever was persistently
+        // selected, so pinned items snap back when the hover ends.
         const px = portrait.x ?? cx
         const py = portrait.y ?? cy
         const ph = portrait.displayHeight ?? hitH
         this._showLockTooltip(px, py - ph / 2 - 6, gate.label)
+        this.editor?.setActiveBoss(arch.id)
+        this._renderDossier(arch, { locked: true, gate })
+        this._dossierIsLocked = true
       } else {
         this._hideLockTooltip()
         this._select(arch.id)
+        this._dossierIsLocked = false
       }
     })
     hit.on('pointerout', () => {
       this._hideLockTooltip()
-      if (this._lockedId && this._lockedId !== arch.id) this._select(this._lockedId)
+      // Revert from a locked-preview dossier to whatever the player
+      // last persistently selected. Falls through to the click-locked
+      // boss first (via _select), then the last hovered unlocked boss
+      // (_selectedId, also via _select for highlight/accent sync). If
+      // neither exists, the locked preview simply lingers — the user
+      // hasn't picked anything yet, so there's nothing meaningful to
+      // revert to.
+      if (this._dossierIsLocked) {
+        this._dossierIsLocked = false
+        const revertId = this._lockedId || this._selectedId
+        if (revertId) this._select(revertId)
+      } else if (this._lockedId && this._lockedId !== arch.id) {
+        this._select(this._lockedId)
+      }
     })
     hit.on('pointerdown', () => {
       // Locked archetypes can't become the run's selected boss. Tooltip
@@ -639,7 +671,18 @@ export class ArchetypeSelect extends Phaser.Scene {
     this._decor?.reactToBoss(archId)
   }
 
-  _renderDossier(arch) {
+  _renderDossier(arch, opts = {}) {
+    // `locked: true` renders a teaser version of the right page for a
+    // locked boss — name + body sprite still show (so the player can
+    // see who they're unlocking), but the body is darkened, the
+    // ability cards are masked as ???, and a "REACH LV N TO UNLOCK"
+    // line replaces the flavor quote. The editor.register calls still
+    // run normally so the layout JSON applies the same per-boss
+    // positions for the previewed (locked) boss as for the unlocked
+    // one — only the contents change.
+    const locked = !!opts.locked
+    const gate   = opts.gate ?? null
+
     // Tear down previous dossier content (the static nameplate stays put).
     // Also unregister those entries from the editor so the new boss's items
     // can claim per-boss-prefixed names without leaving destroyed-object
@@ -698,30 +741,51 @@ export class ArchetypeSelect extends Phaser.Scene {
     this._cContent.add(sprite)
     this._dossierObjs.push(sprite)
     this.editor.register(sprite, `${prefix}boss-full-body`, { fallbackName: 'boss-full-body' })
+    // Locked: dim the body sprite + cool grey tint so the boss reads
+    // as silhouetted / out-of-reach without becoming unrecognisable.
+    // Tint applied AFTER editor.register so a layout-saved tint (none
+    // ships today) wouldn't get clobbered.
+    if (locked) {
+      sprite.setAlpha(0.45)
+      if (sprite.setTint) sprite.setTint(0x556677)
+    }
 
     // Ability plaques — the signature headline first, then supporting
     // mechanics. Each is a self-contained card centred on the page, so
-    // the layout is uniform across every boss.
+    // the layout is uniform across every boss. When locked, names are
+    // masked to "???" and bodies to a generic unlock hint so the cards
+    // still occupy the same shapes/positions (no layout reflow).
+    const LOCKED_NAME = '???'
+    const LOCKED_BODY = '— Defeat heroes to unlock this boss’s secrets —'
     let yCursor = this._dossierTop + 60
     const cardW = this._dossierW - 8
     if (arch.headline) {
       const r = this._renderAbilityCard(
-        cx, yCursor, cardW, arch.headline.name, arch.headline.summary, accent, true)
+        cx, yCursor, cardW,
+        locked ? LOCKED_NAME : arch.headline.name,
+        locked ? LOCKED_BODY : arch.headline.summary,
+        accent, true)
       yCursor = r.bottomY + 8
     }
     if (Array.isArray(arch.mechanics)) {
       for (const m of arch.mechanics) {
         const parsed = _parseMechanic(m?.text ?? '')
         const r = this._renderAbilityCard(
-          cx, yCursor, cardW, parsed.name, parsed.body, accent, false)
+          cx, yCursor, cardW,
+          locked ? LOCKED_NAME : parsed.name,
+          locked ? LOCKED_BODY : parsed.body,
+          accent, false)
         yCursor = r.bottomY + 8
       }
     }
 
     // Flavor — anchored to the bottom-band above the wax seal. Wrap
     // pulled well inside the page so the italic quote can't run past
-    // the right edge of the book.
-    if (arch.flavorText) {
+    // the right edge of the book. Suppressed entirely on the locked
+    // preview — the floating REACH-LV tooltip above the slot already
+    // communicates the gate, and showing it again on the dossier
+    // ended up reading as redundant chrome.
+    if (!locked && arch.flavorText) {
       const flav = this.add.text(cx, this._pageBottom - 60, `"${arch.flavorText}"`, {
         fontSize: '10px', color: '#7a6a4a', fontFamily: 'serif', fontStyle: 'italic',
         wordWrap: { width: this._dossierW - 50 }, align: 'center',

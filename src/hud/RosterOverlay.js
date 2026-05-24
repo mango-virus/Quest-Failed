@@ -103,6 +103,32 @@ export class RosterOverlay {
     return d?.name ?? r.definitionId ?? '—'
   }
 
+  // Location label for the roster row. For roamers (behaviorType:
+  // 'roam' — zombies / imps / gnolls / slimes / orcs) and Guard Post
+  // patrols + Demon Hellgate imps, look up the minion's CURRENT room
+  // by scanning room bounds against tileX/tileY. Falls back to the
+  // home room when the minion is on a doorway tile (between rooms) or
+  // genuinely outside any active room. For garrison / room-bound
+  // minions, just resolves the static assignedRoomId as before.
+  _minionLocationLabel(m) {
+    if (!m) return '—'
+    const isMobile = m.behaviorType === 'roam' || m._isDemonImp || m._isVampireThrall
+    if (!isMobile) return this._roomName(m.assignedRoomId)
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    const tx = m.tileX, ty = m.tileY
+    if (Number.isFinite(tx) && Number.isFinite(ty)) {
+      for (const r of rooms) {
+        if (tx >= r.gridX && tx < r.gridX + r.width &&
+            ty >= r.gridY && ty < r.gridY + r.height) {
+          const defs = this._cachedJson('rooms') ?? []
+          const d = defs.find(x => x.id === r.definitionId)
+          return d?.name ?? r.definitionId ?? '—'
+        }
+      }
+    }
+    return this._roomName(m.assignedRoomId)
+  }
+
   _minionDefinition(m) {
     const defs = this._cachedJson('minionTypes') ?? []
     return defs.find(d => d.id === m.definitionId)
@@ -289,7 +315,7 @@ export class RosterOverlay {
               verticalAlign: 'middle', boxShadow: `0 0 4px ${statusColor}`,
             },
           }),
-          `${status.toUpperCase()} · ${this._roomName(m.assignedRoomId)}`,
+          `${status.toUpperCase()} · ${this._minionLocationLabel(m)}`,
         ]),
       ]),
       // HP bar
@@ -371,7 +397,7 @@ export class RosterOverlay {
         h('span', { className: 'pix qf-roster-detail-kind' }, minionLabel(sel.definitionId).toUpperCase()),
         h('span', { style: { margin: '0 6px', color: 'var(--text-dim)' } }, '·'),
         ' stationed at ',
-        h('span', { style: { color: 'var(--poison)' } }, this._roomName(sel.assignedRoomId)),
+        h('span', { style: { color: 'var(--poison)' } }, this._minionLocationLabel(sel)),
       ]),
       // HP bar
       h('div', { className: 'bar', style: { marginBottom: '12px' } }, [

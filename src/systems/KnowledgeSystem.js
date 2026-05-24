@@ -867,12 +867,37 @@ export class KnowledgeSystem {
     // Minion-room weight — if this tile is in a room the adv knows
     // contains enemies, route around it (scaled by tier). The freshest
     // entry in the room's enemy list wins for tier purposes.
+    //
+    // Roamer-aware filter: an entry whose minion instance has moved
+    // OUT of this room (zombies / imps / gnolls / slimes / orcs now
+    // wander dungeon-wide via behaviorType: 'roam') or has died is
+    // skipped. Without this filter, the adventurer's intel says "two
+    // orcs in the Crypt!" even when both orcs have wandered into the
+    // entry hall, and the pathfinder routes 6× around an empty room.
+    // We resolve each entry's instanceId against live gameState and
+    // only count it if the minion is still alive AND its current tile
+    // sits inside this room's bounds.
     if (room?.instanceId) {
       const list = adv.knowledge.enemiesPerRoom?.[room.instanceId]
       if (Array.isArray(list) && list.length > 0) {
         let bestTier = null
         const rank = { FULL: 0, PARTIAL: 1, RUMOR: 2 }
+        const liveMinions = this._gs?.minions ?? []
+        const rx0 = room.gridX, ry0 = room.gridY
+        const rx1 = rx0 + room.width, ry1 = ry0 + room.height
         for (const e of list) {
+          // Live-presence check — skip entries whose minion has moved
+          // away or died. Entries without an instanceId fall through to
+          // the original behavior (legacy / synthetic intel rows).
+          if (e?.instanceId) {
+            const m = liveMinions.find(x => x?.instanceId === e.instanceId)
+            if (!m) continue
+            if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+            const mx = m.tileX, my = m.tileY
+            const inRoom = Number.isFinite(mx) && Number.isFinite(my) &&
+                           mx >= rx0 && mx < rx1 && my >= ry0 && my < ry1
+            if (!inRoom) continue
+          }
           const tier = this.tierForEntry(e)
           if (!tier) continue
           if (bestTier == null || (rank[tier] ?? 9) < (rank[bestTier] ?? 9)) {

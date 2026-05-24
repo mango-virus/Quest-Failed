@@ -1237,12 +1237,19 @@ export class EventSystem {
   }
 
   // /lag_switch — global time scale to 0.6 for 2 s, then snap back.
+  // Uses scene.time.delayedCall (not setTimeout) so the restore
+  // pauses cleanly with the game and auto-cancels if the scene shuts
+  // down before the 2 s elapses. Without this, a player pausing
+  // mid-lag-spike would see the speed restore fire on real time and
+  // the game would resume at 1.0× while still meant to be at 0.6×.
   _cmdLagSwitch() {
     const t = this._scene?.time
     if (!t) return
     const prev = t.timeScale ?? 1
     t.timeScale = 0.6
-    setTimeout(() => { if (t) t.timeScale = prev }, 2000)
+    t.delayedCall?.(2000, () => {
+      if (this._scene?.time) this._scene.time.timeScale = prev
+    })
   }
 
   // /buff_boss — boss attack +50% for 5 s.
@@ -1263,6 +1270,13 @@ export class EventSystem {
 
   // /respawn — revive ONE dead dungeon-faction minion at full HP.
   // Helpful for the player; the patch is "broken in their favor".
+  // We deliberately do NOT emit MINION_PLACED here — that event is
+  // the "player just built a new minion" signal and triggers
+  // KnowledgeSystem intel seeding, Pestilence HP-halving on first
+  // placement, NpcDirector flavor lines, etc. A console-command
+  // revive should slip back into play without retriggering those.
+  // The dedicated MINION_REVIVED event is purely informational so the
+  // renderer (or future systems) can react if they want.
   _cmdRespawn() {
     const dead = (this._gameState.minions ?? []).filter(m =>
       m && m.faction === 'dungeon' && (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0),
@@ -1277,7 +1291,7 @@ export class EventSystem {
     const TS = Balance.TILE_SIZE
     m.worldX = (m.tileX ?? 0) * TS + TS / 2
     m.worldY = (m.tileY ?? 0) * TS + TS / 2
-    EventBus.emit('MINION_PLACED', { minion: m })
+    EventBus.emit('MINION_REVIVED', { minion: m, source: 'patch_zero_console' })
   }
 
   // /fps_drop — extra burst of glitch tiles for 1.5 s. Pure visual.

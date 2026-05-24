@@ -198,10 +198,20 @@ export class CombatSystem {
     // lose all cheats and the next AI tick triggers a forced flee.
     // ClassAbilitySystem._considerCheater consumes the threshold and
     // emits the BANNED floater + flee handoff.
+    //
+    // The REPORTED floater is throttled to once every 2 s per cheater.
+    // During PATCH 0.0.0 the ban threshold is disabled (anti-cheat OFF)
+    // and the counter never trips, so without the throttle a cheater
+    // taking many hits per fight would spawn a floater on every swing
+    // and pile dozens of REPORTED labels above their head.
     if (target.classId === 'cheater' && !target._banned && attacker.faction === 'dungeon') {
       target._reportCount = (target._reportCount ?? 0) + 1
-      rgbFloatingText(this._scene, target.worldX ?? 0,
-        (target.worldY ?? 0) - 30, 'REPORTED')
+      const REPORT_FLOATER_COOLDOWN_MS = 2000
+      if (now - (target._lastReportFloaterAt ?? -Infinity) >= REPORT_FLOATER_COOLDOWN_MS) {
+        target._lastReportFloaterAt = now
+        rgbFloatingText(this._scene, target.worldX ?? 0,
+          (target.worldY ?? 0) - 30, 'REPORTED')
+      }
     }
 
     target.resources.hp = Math.max(0, target.resources.hp - finalDmg)

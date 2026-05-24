@@ -102,7 +102,19 @@ export class ArchetypeDecorOverlay {
     this._bubbleEl = h('div', { className: 'qf-cmpsel-bubble qf-archdec-bubble' },
       [this._nameEl, this._textEl])
 
-    this._companionEl = h('div', { className: 'qf-archdec-companion' }, [
+    // `data-id` cascades the per-companion `--cmp-accent` CSS var
+    // down to the .qf-archdec-bubble below (it inherits from
+    // .qf-cmpsel-bubble, which paints its border using
+    // `var(--cmp-accent)`). Without this attribute the variable is
+    // undefined and the border has no colour at all — adding it gives
+    // Lilith / Malakor / Zulgath / Safira the same coloured bubble
+    // border here that they get on the recruit screen and in-game.
+    // (See the matching `.qf-archdec-companion[data-id=...]` block in
+    // styles.css that maps each id to its accent value.)
+    this._companionEl = h('div', {
+      className: 'qf-archdec-companion',
+      dataset:   { id: c.id },
+    }, [
       this._bubbleEl,
       h('div', { className: 'qf-archdec-portrait' }, [this._imgEl]),
     ])

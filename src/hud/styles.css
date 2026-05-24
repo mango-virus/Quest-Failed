@@ -9317,6 +9317,14 @@ body {
 .qf-cmpsel-card[data-id="malakor"] { --cmp-accent: #a070dc; }
 .qf-cmpsel-card[data-id="zulgath"] { --cmp-accent: #ff8c2a; }
 .qf-cmpsel-card[data-id="safira"]  { --cmp-accent: #2caee8; }
+/* Same per-companion accent on the boss-select screen so the bubble
+   border matches the recruit-screen and in-game bubble. The bubble
+   inside .qf-archdec-companion is .qf-cmpsel-bubble (re-uses the same
+   class) and its `border-color: var(--cmp-accent)` inherits down. */
+.qf-archdec-companion[data-id="lilith"]  { --cmp-accent: #ff3782; }
+.qf-archdec-companion[data-id="malakor"] { --cmp-accent: #a070dc; }
+.qf-archdec-companion[data-id="zulgath"] { --cmp-accent: #ff8c2a; }
+.qf-archdec-companion[data-id="safira"]  { --cmp-accent: #2caee8; }
 .qf-cmpsel-card:hover {
   opacity: 0.9;
   transform: translateY(-6px);

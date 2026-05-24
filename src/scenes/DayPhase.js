@@ -686,7 +686,12 @@ export class DayPhase extends Phaser.Scene {
     // `nextWavePreview.vendettaHunter` so the IncomingWave panel matches
     // what actually spawns. Consume the pre-roll if it targets today;
     // otherwise fall back to the original Math.random gate.
-    const vendetta = this._pickActiveVendetta()
+    //
+    // SUPPRESSED during PATCH 0.0.0 — the event explicitly replaces the
+    // wave with cheaters only, so a non-cheater Ranger / Rogue / etc.
+    // vendetta hunter showing up mid-wave breaks the theme.
+    const patchZeroActive = !!(this._gameState._eventFlags?.patchZeroActive)
+    const vendetta = patchZeroActive ? null : this._pickActiveVendetta()
     let vendettaHunter = null
     const _preVend = (this._gameState.run?.nextWavePreview?.day === day)
       ? this._gameState.run.nextWavePreview?.vendettaHunter
@@ -716,7 +721,8 @@ export class DayPhase extends Phaser.Scene {
     // enter specifically to slay it. Spawned outside the wave count, like
     // the vendetta hunter; stronger than a normal adventurer and worth
     // extra gold (AISystem applies BOUNTY_HUNTER_GOLD_MULT on the kill).
-    const bountyTarget = (this._gameState.minions ?? []).find(m =>
+    // SUPPRESSED during PATCH 0.0.0 (same reason as the vendetta block).
+    const bountyTarget = patchZeroActive ? null : (this._gameState.minions ?? []).find(m =>
       m && m.hasBounty && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
     if (bountyTarget && Math.random() < Balance.BOUNTY_HUNTER_SPAWN_CHANCE) {
       const hClass = allClasses.find(c => c.id === 'ranger')
