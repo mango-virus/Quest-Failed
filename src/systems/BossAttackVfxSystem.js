@@ -43,7 +43,9 @@ const ROW = {
 // The row override skips the damage-type lookup — used when the pact
 // has a strong palette identity independent of its damage type.
 const PACT_MAP = {
-  hellfire_breath:  { sheets: ['vfx-boss-flame',       'vfx-boss-puff'],        dmgType: 'fire'      },
+  // hellfire alt swapped boss-puff → cheater-burst (chaotic flame
+  // roar) — puff was a sparse smoke.
+  hellfire_breath:  { sheets: ['vfx-boss-flame',       'vfx-cheater-burst'],    dmgType: 'fire'      },
   lightning_strike: { sheets: ['vfx-boss-bolt',        'vfx-boss-comet'],       dmgType: 'lightning' },
   shockwave_slam:   { sheets: ['vfx-boss-cross-slam',  'vfx-boss-strike'],      dmgType: 'physical'  },
   spectral_reach:   { sheets: ['vfx-cheater-portal',   'vfx-cheater-glitch'],   dmgType: 'shadow'    },
@@ -51,26 +53,41 @@ const PACT_MAP = {
   soul_drain:       { sheets: ['vfx-boss-soul-wisp',   'vfx-boss-soul'],        dmgType: 'shadow'    },
   doppelgangers:    { sheets: ['vfx-cheater-glitch',   'vfx-cheater-sunburst'], dmgType: 'magic'     },
   petrifying_stare: { sheets: ['vfx-boss-petrify',     'vfx-cheater-ring'],     dmgType: 'ice'       },
-  sundered_floor:   { sheets: ['vfx-boss-rubble',      'vfx-boss-quake'],       dmgType: 'shadow'    },
+  // sundered_floor swapped boss-rubble + boss-quake → quake-crack +
+  // billow. The originals were the same too-subtle sheets we rejected
+  // for Golem; reusing the new heavy ones lands the "floor breaking"
+  // metaphor correctly. Damage-row 8 (shadow) tints them dark.
+  sundered_floor:   { sheets: ['vfx-boss-quake-crack', 'vfx-boss-billow'],      dmgType: 'shadow'    },
 }
 
-// Boss archetype → { sheets: [primary, alt], row (signature) }
+// Boss archetype → { sheets: [primary, alt], row (signature),
+//                    scale? (multiplier on VFX_BOSS_ATTACK_SCALE) }
 // `row` is an explicit choice tied to archetype identity rather than
 // damage type — Golem reads as earthy (row 4) even though its hits
 // could be classed as "physical" (row 7), etc.
+// `scale` is optional per-archetype size bump for bosses whose
+// signature attacks should land with extra weight (Golem in particular
+// — its ground-impact effects need to feel hefty, not subtle).
 const ARCH_MAP = {
-  beholder:  { sheets: ['vfx-cheater-sigil',  'vfx-boss-magic-burst'], row: 2 },  // cyan eye
-  demon:     { sheets: ['vfx-boss-flame',     'vfx-boss-puff'],        row: 0 },  // fire
-  myconid:   { sheets: ['vfx-boss-spores',    'vfx-boss-reeds'],       row: 3 },  // green spore
-  wraith:    { sheets: ['vfx-boss-soul',      'vfx-boss-soul-wisp'],   row: 5 },  // white ghost (per user spec)
-  gnoll:     { sheets: ['vfx-boss-slash',     'vfx-cheater-streak'],   row: 7 },  // crimson blood
-  golem:     { sheets: ['vfx-boss-rubble',    'vfx-boss-quake'],       row: 4 },  // earthy yellow (per user spec)
-  lich:      { sheets: ['vfx-boss-skull',     'vfx-boss-soul'],        row: 8 },  // purple necromancy
-  lizardman: { sheets: ['vfx-boss-reeds',     'vfx-boss-puff'],        row: 3 },  // green venom
-  orc:       { sheets: ['vfx-boss-cross-slam','vfx-boss-strike'],      row: 7 },  // crimson rage
-  vampire:   { sheets: ['vfx-cheater-streak', 'vfx-boss-droplet'],     row: 7 },  // crimson blood
-  succubus:  { sheets: ['vfx-boss-charm',     'vfx-cheater-glitch'],   row: 1 },  // pink charm
-  slime:     { sheets: ['vfx-boss-droplet',   'vfx-boss-magic-burst'], row: 2 },  // cyan goo
+  beholder:  { sheets: ['vfx-cheater-sigil',     'vfx-boss-magic-burst'], row: 2 },  // cyan eye
+  // demon alt swapped boss-puff → boss-billow (heavy demonic smoke)
+  demon:     { sheets: ['vfx-boss-flame',        'vfx-boss-billow'],      row: 0 },  // fire
+  myconid:   { sheets: ['vfx-boss-spores',       'vfx-boss-reeds'],       row: 3 },  // green spore (reeds reads as fungal stalks)
+  wraith:    { sheets: ['vfx-boss-soul',         'vfx-boss-soul-wisp'],   row: 5 },  // white ghost (per user spec)
+  gnoll:     { sheets: ['vfx-boss-slash',        'vfx-cheater-streak'],   row: 7 },  // crimson blood
+  // Golem swapped from rubble/quake (too subtle) to tri-spoke ground
+  // crack + billowing dust plume; scaled 1.5× so the impact reads as
+  // heavy. Earthy yellow row reinforces the rock/stone identity.
+  golem:     { sheets: ['vfx-boss-quake-crack', 'vfx-boss-billow'],       row: 4, scale: 1.5 },
+  lich:      { sheets: ['vfx-boss-skull',        'vfx-boss-soul'],        row: 8 },  // purple necromancy
+  // lizardman alt swapped boss-puff → boss-droplet (venom splash)
+  lizardman: { sheets: ['vfx-boss-reeds',        'vfx-boss-droplet'],     row: 3 },  // green venom
+  orc:       { sheets: ['vfx-boss-cross-slam',   'vfx-boss-strike'],      row: 7 },  // crimson rage
+  vampire:   { sheets: ['vfx-cheater-streak',    'vfx-boss-droplet'],     row: 7 },  // crimson blood
+  // succubus primary swapped boss-charm (thin whips) → boss-magic-burst
+  // (firework petals in pink) so the charm hit has visual presence.
+  succubus:  { sheets: ['vfx-boss-magic-burst',  'vfx-cheater-glitch'],   row: 1 },  // pink charm
+  slime:     { sheets: ['vfx-boss-droplet',      'vfx-boss-magic-burst'], row: 2 },  // cyan goo
 }
 
 export class BossAttackVfxSystem {
@@ -161,7 +178,7 @@ export class BossAttackVfxSystem {
     if (!t) return
     const sheet = this._pickSheet(map.sheets)
     if (!sheet) return
-    this._spawn(t.worldX, t.worldY, sheet, map.row)
+    this._spawn(t.worldX, t.worldY, sheet, map.row, map.scale)
   }
 
   // ── Spawn helpers ─────────────────────────────────────────────
@@ -173,11 +190,11 @@ export class BossAttackVfxSystem {
     return Math.random() < altChance ? (alt ?? primary) : primary
   }
 
-  _spawn(wx, wy, sheet, row) {
+  _spawn(wx, wy, sheet, row, scaleMul = 1) {
     if (!this._scene.textures?.exists?.(sheet)) return
     const animKey = `${sheet}-${row}`
     if (!this._scene.anims?.exists?.(animKey)) return
-    const baseScale = Balance.VFX_BOSS_ATTACK_SCALE ?? 1.2
+    const baseScale = (Balance.VFX_BOSS_ATTACK_SCALE ?? 1.2) * scaleMul
     const scale = baseScale * (0.95 + Math.random() * 0.1)
     // Random 90° rotation jitter so successive casts of the same
     // ability don't visually overlap pixel-perfect on identical

@@ -669,6 +669,10 @@ export class Preload extends Phaser.Scene {
     this.load.spritesheet('vfx-boss-slash',       'assets/sprites/vfx/boss-slash.png',       { frameWidth: 64, frameHeight: 64 })
     this.load.spritesheet('vfx-boss-quake',       'assets/sprites/vfx/boss-quake.png',       { frameWidth: 64, frameHeight: 64 })
     this.load.spritesheet('vfx-boss-rubble',      'assets/sprites/vfx/boss-rubble.png',      { frameWidth: 64, frameHeight: 64 })
+    // Bigger ground-impact effects for the Golem archetype — the
+    // earlier rubble + quake picks read too subtle.
+    this.load.spritesheet('vfx-boss-quake-crack', 'assets/sprites/vfx/boss-quake-crack.png', { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-boss-billow',      'assets/sprites/vfx/boss-billow.png',      { frameWidth: 64, frameHeight: 64 })
 
     // ── Traps ─────────────────────────────────────────────────────────────
     // Sheets re-baked from the raw art into clean uniform grids by
@@ -1086,6 +1090,8 @@ export class Preload extends Phaser.Scene {
       { key: 'vfx-boss-slash',       cols: 14 },
       { key: 'vfx-boss-quake',       cols: 10 },
       { key: 'vfx-boss-rubble',      cols: 12 },
+      { key: 'vfx-boss-quake-crack', cols: 12 },
+      { key: 'vfx-boss-billow',      cols: 14 },
     ]
     const ROWS = 9
     for (const { key, cols } of sheets) {
