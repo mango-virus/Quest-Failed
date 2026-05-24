@@ -219,6 +219,13 @@ export class NpcCompanion {
   // ── incoming message ──────────────────────────────────────────────────────
   _onSay(payload) {
     if (!payload || this._mode === 'off') return
+    // Defensive bail — a previous-run NpcCompanion can survive briefly
+    // if HudRoot.destroy() is racing the next run's HudRoot construction.
+    // If our DOM element is no longer attached, swallow the say silently
+    // so a stale instance can't paint into the freshly-mounted bubble
+    // (the symptom was "Malakor saying Safira's idle lines" right after
+    // picking a new companion).
+    if (!this.el || !this.el.isConnected) return
     const special = payload.kind === 'tutorial' || payload.kind === 'intro'
     // A sticky tutorial/intro owns the bubble — ordinary lines can't cut in.
     if (this._msg?.sticky && !special) return

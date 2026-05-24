@@ -3414,6 +3414,16 @@ export class DungeonRenderer {
     const room = payload?.room
     if (!room) return
     const scene  = this._scene
+    // Defensive bail — if this DungeonRenderer's scene has already been
+    // torn down (Phaser stop event ran, scene.cameras.main is gone),
+    // an EventBus.off() race or a leaked subscription can still fire
+    // this listener. Without this guard the next line crashes with
+    // "Cannot read properties of undefined (reading 'shake')" and
+    // poisons the whole ROOM_PLACED emit chain (the rest of the
+    // listeners — and the brand-new boss room placement during
+    // createGameState — never get to run).
+    if (!scene || !scene.sys || scene.sys.isActive?.() === false) return
+    if (!scene.cameras?.main) return
     const px = room.gridX * TS, py = room.gridY * TS
     const pw = room.width  * TS, ph = room.height * TS
     const cx = px + pw / 2, cy = py + ph / 2

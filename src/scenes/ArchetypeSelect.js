@@ -106,6 +106,22 @@ export class ArchetypeSelect extends Phaser.Scene {
     // directly via a save state somehow.
     TitleMusic.ensurePlaying(this)
 
+    // Stop any in-flight gameplay scenes from a previous run. The
+    // player can reach here via main-menu → CompanionSelect →
+    // ArchetypeSelect WITHOUT the previous run's Game / HudScene /
+    // NightPhase / DayPhase ever being told to stop (scene.start only
+    // swaps the calling scene, not parallel scenes). The leak surfaces
+    // as the old DungeonRenderer's ROOM_PLACED listener firing inside
+    // createGameState below — its scene.cameras.main is null because
+    // Phaser already partially tore the scene down, and the boss-room
+    // placement throws. Also leaks the old NpcDirector, which is why
+    // companions speak each other's idle lines after a fresh pick.
+    const sm = this.scene
+    for (const key of ['Game', 'NightPhase', 'DayPhase', 'EndOfDay',
+                       'Graveyard', 'KnowledgeScreen', 'HudScene']) {
+      if (sm.isActive(key) || sm.isPaused(key)) sm.stop(key)
+    }
+
     // Design space is 1280×720 — a true 16:9 frame matching the locked
     // canvas. The layout was originally authored against a 1450-wide
     // space, which forced the camera to letterbox + downscale ~12% on a

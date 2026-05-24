@@ -26,6 +26,19 @@ export class CompanionSelect extends Phaser.Scene {
     // closed) MainMenuOverlay cleanly.
     if (this.scene.isActive('MainMenu')) this.scene.stop('MainMenu')
 
+    // Also stop any in-flight gameplay scenes from a previous run.
+    // scene.start only swaps the calling scene; parallel scenes (Game
+    // / HudScene / NightPhase / DayPhase) stay alive in the background
+    // unless we explicitly stop them. Without this, the previous run's
+    // DungeonRenderer + NpcDirector leak into the next: ROOM_PLACED
+    // crashes during createGameState in ArchetypeSelect, and the old
+    // companion's lines emit into the new bubble. ArchetypeSelect has
+    // a mirrored guard for the direct entry case.
+    for (const key of ['Game', 'NightPhase', 'DayPhase', 'EndOfDay',
+                       'Graveyard', 'KnowledgeScreen', 'HudScene']) {
+      if (this.scene.isActive(key) || this.scene.isPaused(key)) this.scene.stop(key)
+    }
+
     import('../hud/CompanionSelectOverlay.js').then(({ CompanionSelectOverlay }) => {
       if (!this.scene.isActive()) return
       const game = window.__game

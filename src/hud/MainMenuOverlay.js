@@ -42,6 +42,25 @@ const BOSS_VIDEO_NUMBERS = [2, 4, 5, 6, 9, 11, 12, 13, 14, 15, 16, 17]
 const BOSS_VIDEO_FLIP_NUMBERS = new Set([5, 11])
 const BOSS_VIDEO_PATH = (n) => `assets/title-screen/videos/bg${String(n).padStart(2, '0')}.mp4`
 
+// Mirrors PauseManager.GAMEPLAY_SCENES — the scene keys that hold all
+// the systems / renderers / event subscriptions belonging to an
+// in-flight run. We stop every one of them before booting CompanionSelect
+// or re-entering Game so the previous run's listeners can't leak into
+// the new one (e.g. an old DungeonRenderer responding to ROOM_PLACED
+// emitted during createGameState, or an old NpcDirector emitting old-
+// companion lines into the new bubble).
+const GAMEPLAY_SCENES = [
+  'Game', 'NightPhase', 'DayPhase', 'EndOfDay',
+  'Graveyard', 'KnowledgeScreen', 'HudScene',
+]
+
+function _stopAllGameplayScenes(sm) {
+  if (!sm) return
+  for (const key of GAMEPLAY_SCENES) {
+    if (sm.isActive(key) || sm.isPaused(key)) sm.stop(key)
+  }
+}
+
 export class MainMenuOverlay {
   constructor() {
     this._el = null
@@ -184,10 +203,13 @@ export class MainMenuOverlay {
           title: 'Jam Portal — enter the game-jam lobby',
           on: { click: () => this._openJamPortal() },
         }, [
+          // "VENTURE" label above the spinning portal — re-added so
+          // first-time players read the icon as a deliberate exit to
+          // the jam hub rather than just decoration. (Previously
+          // removed for visual quiet; the affordance cue is worth
+          // the extra noise.)
+          h('div', { className: 'pix qf-mm-jamportal-label' }, 'VENTURE'),
           h('div', { className: 'qf-mm-jamportal-sprite' }),
-          // Label removed at user request — the spinning portal sprite
-          // is recognisable on its own and the bare label was reading
-          // as noise next to the menu's terser button copy.
         ]),
         h('div', { className: 'qf-mm-bottom' }, [
           h('div', { className: 'pix mm-prompt qf-mm-prompt' },
@@ -421,7 +443,17 @@ export class MainMenuOverlay {
       case 'continue':
         if (!this._save) return
         this.close()
-        // Hand off to the Game scene with the saved state.
+        // Stop any in-flight gameplay scenes BEFORE handing off so the
+        // OLD Game / HudScene / NightPhase / DayPhase don't linger with
+        // their EventBus subscriptions live. Without this, a player who
+        // opens the main-menu overlay mid-run and clicks CONTINUE ends
+        // up with stale DungeonRenderer / NpcDirector listeners from
+        // the old run firing into the new one (observed as: ROOM_PLACED
+        // crashes during createGameState, companions speaking each
+        // other's lines). scene.start swaps the menu→Game in one
+        // direction but does NOT cascade-stop scenes running in
+        // parallel.
+        _stopAllGameplayScenes(game.scene)
         game.scene.start('Game', { gameState: this._save })
         break
       case 'new':
@@ -432,6 +464,8 @@ export class MainMenuOverlay {
         if (!PlayerProfile.hasName()) {
           this._promptForName(() => {
             this.close()
+            // Same cleanup as the continue path — see comment above.
+            _stopAllGameplayScenes(game.scene)
             // CompanionSelect runs first (pick a companion), then hands off
             // to ArchetypeSelect (boss picker).
             game.scene.start('CompanionSelect')
@@ -439,6 +473,7 @@ export class MainMenuOverlay {
           return
         }
         this.close()
+        _stopAllGameplayScenes(game.scene)
         game.scene.start('CompanionSelect')
         break
       case 'leader':

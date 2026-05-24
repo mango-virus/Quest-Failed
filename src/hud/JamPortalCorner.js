@@ -17,6 +17,11 @@ export class JamPortalCorner {
       title: 'Jam Portal — enter the game-jam lobby',
       on: { click: () => this._confirmLeave() },
     }, [
+      // Tiny "VENTURE" label above the sprite so first-time players
+      // know clicking the portal sends them out of the run to the
+      // jam hub. CSS positions it absolute, top-anchored so the
+      // sprite's footprint isn't shifted.
+      h('div', { className: 'pix qf-jamportal-corner-label' }, 'VENTURE'),
       h('div', { className: 'qf-jamportal-corner-sprite' }),
     ])
   }

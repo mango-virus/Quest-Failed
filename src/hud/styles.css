@@ -6786,7 +6786,13 @@ body {
 .qf-mm-jamportal-label {
   font-size: 10px;
   letter-spacing: 3px;
-  color: var(--blood);
+  /* See note on .qf-jamportal-corner-label — left padding nudges the
+     word right so it optically centers over the spinning portal
+     sprite (empirically tuned, > the letter-spacing value). */
+  padding-left: 10px;
+  /* Sky-blue — matches .qf-jamportal-corner-label so the portal
+     affordance reads the same across menu + HUD. */
+  color: #87ceeb;
   text-shadow: 1px 1px 0 #000;
   transition: color 140ms ease;
 }
@@ -6833,6 +6839,34 @@ body {
   66.66%  { background-position:  -60px  -60px; }
   83.33%  { background-position: -120px  -60px; }
 }
+/* "TRAVEL" hint floating above the corner portal. Absolute-positioned
+   off the button's top edge so it doesn't shift the 60×60 sprite
+   footprint; pointer-events: none keeps the click target on the sprite
+   itself. Matches the main-menu portal label colour palette. */
+.qf-jamportal-corner-label {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  /* letter-spacing adds trailing space after the last letter but none
+     before the first, so transform-based centering leaves the visible
+     glyphs huddled left of the bounding box. Left padding nudges the
+     word right so it optically centers over the portal. Empirically
+     tuned (matching the letter-spacing wasn't enough). */
+  padding-left: 8px;
+  /* Sky-blue picks the label out as a "portal / out-of-fiction"
+     affordance rather than a dungeon UI element (which leans red /
+     blood-coloured). Hover brightens to white. */
+  color: #87ceeb;
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: color 140ms ease;
+}
+.qf-jamportal-corner:hover .qf-jamportal-corner-label { color: #ffffff; }
 
 /* Bottom block tightened (margin-top 24→12, prompt margin-bottom
    14→8, quote margin-bottom 18→10, footer padding-top 14→8) so the

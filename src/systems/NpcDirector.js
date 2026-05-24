@@ -108,7 +108,52 @@ export class NpcDirector {
     // to drive. Each bank shares the same category keys + specifics
     // structure, so nothing downstream of here is companion-specific.
     this._companion = getCompanion(gameState?.meta?.companionId)
-    const bank  = scene?.cache?.json?.get(this._companion.linesKey) ?? null
+    // Resolve the dialogue bank through a self-checking helper rather
+    // than a direct cache.get — playtesters reported Malakor saying
+    // Safira-voiced lines (genie / "Master!" / lamp references). The
+    // companion id and bubble name were correct (Malakor) but the
+    // emitted line text came from safiraLines.json.
+    const bank = this._resolveBank(scene)
+    // Tag this instance with a unique id + lifecycle log so we can
+    // tell from the console whether a stale OLD NpcDirector is still
+    // firing into the new run's bubble. Each construction logs its
+    // companion + bank meta + a short instance tag; the same tag is
+    // included in every emit and in destroy(). If two different tags
+    // emit during the same run, that's the smoking gun for a leak.
+    // Per-instance tag — used by the suppressed-emit logs when the
+    // singleton bails fire. Kept minimal so re-enabling diagnostic
+    // console.info calls (during a future debug pass) is a one-line
+    // change rather than a re-architecture.
+    NpcDirector._instCounter = (NpcDirector._instCounter ?? 0) + 1
+    this._instTag = `#${NpcDirector._instCounter}`
+
+    // Singleton enforcement — only the most-recently-constructed
+    // instance is allowed to emit. The leak that motivated this:
+    // Game.shutdown wasn't running for the previous run's Game scene
+    // when the player went back to main menu and started a new run, so
+    // the OLD NpcDirector kept its EventBus subscriptions and kept
+    // emitting Safira lines into Malakor's bubble. Rather than chase
+    // Phaser's scene-lifecycle quirks, every new instance forcibly
+    // destroys any prior live instance + claims the active slot. _emit
+    // bails for any instance that isn't `_activeInstance`, so any
+    // leaked subscription that survives even destroy() can't push
+    // text. Module-scope state is fine here — NpcDirector is logically
+    // a singleton per game (one companion talks at a time).
+    //
+    // TODO (deferred 2026-05-24): this is a WORKAROUND for the root
+    // bug. Game.shutdown legitimately never runs on some scene-exit
+    // path (probably an in-game "main menu" navigation that skips
+    // PauseManager.saveAndExitToMenu). When that path is found and
+    // fixed, the singleton dance here + the defensive bails in
+    // DungeonRenderer._playCarveAnimation + NpcCompanion._onSay can
+    // all come out, along with the `[NpcDirector]` console logs
+    // currently left in for diagnosis. See memory:
+    // project_quest_failed_open_followups.md.
+    const prev = NpcDirector._activeInstance
+    if (prev && prev !== this) {
+      try { prev.destroy() } catch { /* swallow — workaround path */ }
+    }
+    NpcDirector._activeInstance = this
     this._cats  = bank?.categories ?? {}
     this._intro = bank?.intro ?? null
     // Keyed bespoke-line banks — specifics[domain][id] (boss / advClass /
@@ -146,11 +191,49 @@ export class NpcDirector {
   }
 
   destroy() {
+    // Latch BEFORE unsubscribing — _stageEmit / _flushEmit / _react
+    // can still race a pending event between off() calls; the flag
+    // short-circuits any subsequent emit so a leaked subscription
+    // can't push a stale line into the shared bubble.
+    this._destroyed = true
+    // Release the singleton slot if we still hold it (a force-destroy
+    // from a successor ctor will have already swapped _activeInstance).
+    if (NpcDirector._activeInstance === this) NpcDirector._activeInstance = null
     for (const [evt, fn] of this._unsubs) EventBus.off(evt, fn)
     this._unsubs = []
     if (this._timer) { clearInterval(this._timer); this._timer = null }
     if (this._emitTimer) { clearTimeout(this._emitTimer); this._emitTimer = null }
+    this._pendingEmit = null
     this._tutorials.clear()
+  }
+
+  // Self-checking bank resolver. Each bank's JSON ships a `meta.npcName`
+  // field — for the active companion's loaded bank to be the RIGHT one
+  // that name must equal `this._companion.name`. If not, the Phaser
+  // JSON cache returned the wrong content for the linesKey (cause TBD
+  // — observed in playtest as Malakor saying Safira-voice lines after
+  // the player switched companions between runs without refreshing).
+  // We scan every known bank key to find one whose npcName matches and
+  // recover with that. Always-runs sanity net; per-instance, no global
+  // state mutated.
+  _resolveBank(scene) {
+    const expect = this._companion.name?.toLowerCase()
+    const cache  = scene?.cache?.json
+    const direct = cache?.get(this._companion.linesKey) ?? null
+    if (!expect) return direct
+    const got = direct?.meta?.npcName?.toLowerCase()
+    if (got === expect) return direct
+    // Mismatch path — scan every known bank key for one whose meta
+    // npcName matches the active companion and recover with that.
+    // Silent in the happy/recovered case; re-enable the console.error
+    // calls here if a future regression needs diagnosing.
+    const KNOWN = ['npcLines', 'safiraLines', 'malakorLines', 'zulgathLines']
+    for (const key of KNOWN) {
+      if (key === this._companion.linesKey) continue
+      const b = cache?.get(key)
+      if (b?.meta?.npcName?.toLowerCase() === expect) return b
+    }
+    return direct
   }
 
   // ── wiring ────────────────────────────────────────────────────────────────
@@ -351,6 +434,16 @@ export class NpcDirector {
   // refused (returns false — _react may then queue a priority-3+ moment so
   // it isn't lost). When the window closes _flushEmit fires the survivor.
   _stageEmit(priority, payloadOut) {
+    // Defensive bail — a previous-run NpcDirector that didn't fully
+    // tear down (Phaser scene-stop race) can still respond to events
+    // and stage lines into the SHARED .qf-npc-bubble DOM element. That
+    // surfaces as "Malakor saying Safira's idle lines" right after the
+    // player picks a new companion. Skip the stage entirely if our
+    // scene is no longer active or our timer was already cleared by
+    // destroy() — both signal that this instance is on its way out.
+    if (this._destroyed) return false
+    const sceneActive = this._scene?.sys?.isActive?.()
+    if (sceneActive === false) return false
     if (this._pendingEmit) {
       if (priority > this._pendingEmit.priority) {
         this._pendingEmit = { priority, payload: payloadOut }
@@ -377,6 +470,15 @@ export class NpcDirector {
   }
 
   _emit(priority, payloadOut) {
+    // Hard-bail: a destroyed (leaked) instance must NEVER reach the
+    // emit path. Silently suppressed — re-enable the console.error
+    // here if you need to diagnose voice-leak regressions.
+    if (this._destroyed) return
+    // Singleton bail — a stale instance whose Game scene never
+    // shutdown is silently suppressed at the emit gate. The active-
+    // slot handover in ctor should have force-destroyed this already,
+    // but be defensive.
+    if (NpcDirector._activeInstance !== this) return
     // An immediate emit supersedes anything still in the coalescing window.
     this._cancelPendingEmit()
     const now = this._now()
@@ -554,6 +656,8 @@ export class NpcDirector {
   }
 
   _emitTutorial(out) {
+    if (this._destroyed) return
+    if (NpcDirector._activeInstance !== this) return
     // Sticky + top-priority — held until the player pages past the last panel.
     this._cancelPendingEmit()
     this._active = { priority: 4, endsAt: Infinity }

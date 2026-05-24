@@ -102,8 +102,10 @@ const THEME_KITS = {
   // mixed in for atmosphere.
   crypt:               ['skel_floor', 'skull_pile', 'skel_wall', 'chain_single', 'chain_pair', 'skull_relief'],
   catacombs:           ['skel_floor', 'skull_pile', 'skel_wall', 'chain_single', 'chain_pair', 'skull_relief'],
-  // Boss chamber gets a banner on top of the existing horror props.
-  boss_chamber:        ['banner', 'skel_floor', 'skull_pile', 'skel_wall', 'skull_relief'],
+  // Boss chamber leans on horror props — banner removed per request
+  // (was 'banner' first in the list; left a stripped-down kit so the
+  // chamber still gets skeletons / skull piles for atmosphere).
+  boss_chamber:        ['skel_floor', 'skull_pile', 'skel_wall', 'skull_relief'],
   throne_room:         ['banner', 'banner', 'statue', 'skull', 'skull_relief', 'vase'],
   // Sanctum — ritual floor + bookshelves + cauldron / vase for the
   // ceremonial-witchy feel.
