@@ -623,6 +623,27 @@ export class Preload extends Phaser.Scene {
     // every COMBAT_HIT and destroys.
     this.load.spritesheet('vfx-hit-spark', 'assets/sprites/vfx/hit-spark.png', { frameWidth: 64, frameHeight: 64 })
 
+    // Cheater attack VFX — eight chaotic effect sheets randomly drawn
+    // from per swing for that "modded client / glitch" feel. Same 9-row
+    // colour-variant layout as the hit-spark sheet; column count varies
+    // per file (encoded below in _registerCheaterAttackAnimations).
+    //   • cheater-burst    — 1216×576, 19 cols (chaotic scribble burst)
+    //   • cheater-glitch   —  896×576, 14 cols (data-corruption shower)
+    //   • cheater-portal   —  960×576, 15 cols (swirling ring → sparks)
+    //   • cheater-pinwheel —  576×576,  9 cols (5-point spiral)
+    //   • cheater-sunburst —  576×576,  9 cols (magic sunburst pinwheel)
+    //   • cheater-ring     —  896×576, 14 cols (circular runic ring)
+    //   • cheater-streak   —  576×576,  9 cols (S-curve streak)
+    //   • cheater-sigil    —  448×576,  7 cols (sharp star sigil)
+    this.load.spritesheet('vfx-cheater-burst',    'assets/sprites/vfx/cheater-burst.png',    { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-cheater-glitch',   'assets/sprites/vfx/cheater-glitch.png',   { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-cheater-portal',   'assets/sprites/vfx/cheater-portal.png',   { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-cheater-pinwheel', 'assets/sprites/vfx/cheater-pinwheel.png', { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-cheater-sunburst', 'assets/sprites/vfx/cheater-sunburst.png', { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-cheater-ring',     'assets/sprites/vfx/cheater-ring.png',     { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-cheater-streak',   'assets/sprites/vfx/cheater-streak.png',   { frameWidth: 64, frameHeight: 64 })
+    this.load.spritesheet('vfx-cheater-sigil',    'assets/sprites/vfx/cheater-sigil.png',    { frameWidth: 64, frameHeight: 64 })
+
     // ── Traps ─────────────────────────────────────────────────────────────
     // Sheets re-baked from the raw art into clean uniform grids by
     // tools/bake-traps.mjs. Frame dims mirror assets/sprites/traps/manifest.json.
@@ -693,6 +714,7 @@ export class Preload extends Phaser.Scene {
     this._registerDemonPortalAnimation()
     this._registerJamPortalAnimation()
     this._registerHitSparkAnimations()
+    this._registerCheaterAttackAnimations()
     this._registerSoulBeaconAnimation()
     this._registerDarkDealDemonAnimations()
     this._registerSuccubusSpecialAnimations()
@@ -970,6 +992,45 @@ export class Preload extends Phaser.Scene {
         frameRate: fps,
         repeat:    0,
       })
+    }
+  }
+
+  // 72 one-shot animations (9 colour rows × 8 sheets) for the cheater's
+  // wild attack VFX. CheaterAttackVfxSystem picks a random sheet + random
+  // row per swing so each hit looks visibly different — the "glitch"
+  // aesthetic depends on never repeating the same frame combo twice in a
+  // row. COLS differs per sheet (see Preload spritesheet entries above);
+  // ROWS is fixed at 9 (canonical to the VFX pack's colour layout).
+  _registerCheaterAttackAnimations() {
+    const fps = (typeof Balance !== 'undefined' && Balance.VFX_CHEATER_ATTACK_FPS) || 28
+    const sheets = [
+      { key: 'vfx-cheater-burst',    cols: 19 },
+      { key: 'vfx-cheater-glitch',   cols: 14 },
+      { key: 'vfx-cheater-portal',   cols: 15 },
+      { key: 'vfx-cheater-pinwheel', cols:  9 },
+      { key: 'vfx-cheater-sunburst', cols:  9 },
+      { key: 'vfx-cheater-ring',     cols: 14 },
+      { key: 'vfx-cheater-streak',   cols:  9 },
+      { key: 'vfx-cheater-sigil',    cols:  7 },
+    ]
+    const ROWS = 9
+    for (const { key, cols } of sheets) {
+      if (!this.textures.exists(key)) continue
+      const tex = this.textures.get(key)
+      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      for (let row = 0; row < ROWS; row++) {
+        const animKey = `${key}-${row}`
+        if (this.anims.exists(animKey)) continue
+        this.anims.create({
+          key: animKey,
+          frames:    this.anims.generateFrameNumbers(key, {
+            start: row * cols,
+            end:   row * cols + cols - 1,
+          }),
+          frameRate: fps,
+          repeat:    0,
+        })
+      }
     }
   }
 

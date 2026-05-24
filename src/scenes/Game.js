@@ -59,6 +59,7 @@ import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
+import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
 import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
 import { AbilityVfx }         from '../ui/AbilityVfx.js'
@@ -102,6 +103,27 @@ export class Game extends Phaser.Scene {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   create() {
+    // Phaser does NOT auto-invoke a `shutdown()` method on the user
+    // scene class when scene.stop() runs — it only fires a SHUTDOWN
+    // event on the scene's event emitter. Without this binding,
+    // Game.shutdown() is unreachable from the normal stop path, so
+    // EVERY system (DungeonRenderer, NpcDirector, AISystem,
+    // BossSystem, ...) leaks its EventBus subscriptions when the
+    // player ends a run and starts a new one. Symptoms observed:
+    // companion voice leak (Malakor speaking Safira's lines),
+    // ROOM_PLACED crash during createGameState (stale
+    // DungeonRenderer's listener firing on a half-torn-down scene),
+    // doubled chest-payout toasts (two AISystem instances both
+    // emitting TREASURE_PAYOUT). HudScene knew about this Phaser
+    // quirk and bound the same `events.once('shutdown', ...)`
+    // workaround at line 83 of its create(); Game was missing the
+    // same line, which is why all the workarounds piled up around
+    // its missing teardown.
+    //
+    // Use `once` so a single stop fires shutdown once and detaches;
+    // create() runs again on the next start with a fresh binding.
+    this.events.once('shutdown', this.shutdown, this)
+
     // Title music belongs to MainMenu / ArchetypeSelect only — kill
     // it on the way into the dungeon and hand off to the gameplay
     // playlist (shuffled in-run soundtrack).
@@ -162,6 +184,10 @@ export class Game extends Phaser.Scene {
     // Malakor. Reads gameState.meta.companionId; no-ops for the others.
     this.companionWorldFx    = new CompanionWorldFx(this, this.gameState)
     this.hitSparkSystem      = new HitSparkSystem(this, this.gameState)
+    // Wild glitch-burst overlay on every cheater swing — fires after
+    // HitSparkSystem in the listener chain so the cheater layer paints
+    // over the hit spark.
+    this.cheaterAttackVfxSystem = new CheaterAttackVfxSystem(this, this.gameState)
     this.screenShakeSystem   = new ScreenShakeSystem(this)
     this.rivalBossShowdown   = new RivalBossShowdown(this, this.gameState)
     this.bossPactVfx         = new BossPactVfx(this, this.gameState)
@@ -381,6 +407,7 @@ export class Game extends Phaser.Scene {
     this.combatFeedback?.destroy()
     this.companionWorldFx?.destroy()
     this.hitSparkSystem?.destroy()
+    this.cheaterAttackVfxSystem?.destroy()
     this.screenShakeSystem?.destroy()
     this.rivalBossShowdown?.destroy()
     this.bossPactVfx?.destroy()

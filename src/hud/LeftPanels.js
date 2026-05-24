@@ -408,6 +408,18 @@ export class LeftPanels {
       const lv = this._gameState.boss?.level ?? 1
       return Math.round(base * (1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, lv - 1)))
     }
+    // Minions ALSO scale with boss level — mirrors
+    // NightPhase._effectiveMinionCost so the card's price matches the
+    // actual debit on placement. Without this the player sees "12g"
+    // on a card and gets "insufficient gold" with 18g in the bank
+    // because placement was charging the scaled price (e.g. 19g at
+    // boss lvl 4 with the +20%/level multiplier).
+    if (cat.kind === 'minion') {
+      const lv    = this._gameState.boss?.level ?? 1
+      const lvMul = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, lv - 1)
+      const flagMul = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
+      return Math.max(0, Math.round(base * flagMul * lvMul))
+    }
     return base
   }
 

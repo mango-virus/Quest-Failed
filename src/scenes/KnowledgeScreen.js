@@ -103,6 +103,11 @@ export class KnowledgeScreen extends Phaser.Scene {
   }
 
   create() {
+    // Phaser doesn't auto-invoke shutdown() on the user scene class —
+    // it only fires a SHUTDOWN event. Bind it once so our cleanup
+    // runs on scene.stop(). See Game.create() for the longer
+    // explanation.
+    this.events.once('shutdown', this.shutdown, this)
     const { width: W, height: H } = applyUiCamera(this)
 
     // ── Backdrop ───────────────────────────────────────────────────────────

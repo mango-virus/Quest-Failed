@@ -483,6 +483,26 @@ export const Balance = {
   // Frame rate for the 14-frame hit-spark animation. ~28 fps = ~500 ms.
   VFX_HIT_SPARK_FPS:                28,
 
+  // Cheater attack VFX — wild glitch-burst layered on every cheater
+  // melee hit. Two sheets registered (burst + glitch), random sheet +
+  // random colour row per swing so each hit looks different. Banned
+  // cheaters skip the effect (they've lost the modded client).
+  VFX_CHEATER_ATTACK_ENABLED:       true,
+  // Sprite scale. Cheater swings are loud — bigger than hit-spark so
+  // the "wild" intent reads at a glance.
+  VFX_CHEATER_ATTACK_SCALE:         1.1,
+  // Frame rate for the cheater attack burst animations.
+  VFX_CHEATER_ATTACK_FPS:           30,
+  // Probability of layering a second sheet on top of the primary burst
+  // (0..1). With 8 sheets in the pool the layer-count escalation is the
+  // dominant chaos signal: 1 layer = normal swing, 2 = juicy, 3 = full
+  // glitch. 0.55 ≈ "most hits get a double-stack".
+  VFX_CHEATER_ATTACK_DOUBLE_CHANCE: 0.55,
+  // Probability of also layering a THIRD distinct sheet — only rolls
+  // when the double already triggered, so single-layer swings always
+  // stay clean. 0.18 ≈ ~10% of all swings become triple-stack chaos.
+  VFX_CHEATER_ATTACK_TRIPLE_CHANCE: 0.18,
+
   // Master toggle for kinetic camera shake on impactful events
   // (crits, big hits, Golem Earthquake, Beholder Petrify, etc.).
   // Flip to false to disable all screen shake without code changes.

@@ -143,6 +143,24 @@ export class ToastQueue {
       this._push('gold', 'GOLD LOOTED',
         `${amt}g stolen by ${adventurer?.name || 'a goblin'}.`)
     })
+    // TREASURE PAYOUT — sum of every placed treasure chest's
+    // tier.goldPerDay, awarded at NIGHT_PHASE_STARTED by AISystem.
+    // Without this toast the gold trickle is invisible.
+    //
+    // Dedupe per-day so a leaked old-run AISystem (the Game.shutdown
+    // bug documented in memory:project_quest_failed_open_followups.md)
+    // can't pop two toasts at once. The leaked instance's gold goes to
+    // an orphaned gameState that nothing reads; we just suppress its
+    // duplicate toast on the bubble side.
+    sub('TREASURE_PAYOUT', ({ gold } = {}) => {
+      const amt = gold ?? 0
+      if (amt <= 0) return
+      const day = window.__game?.scene?.getScene?.('Game')?.gameState?.meta?.dayNumber ?? -1
+      if (this._lastTreasurePayoutDay === day) return
+      this._lastTreasurePayoutDay = day
+      this._push('gold', 'TREASURE PAID',
+        `+${amt}g from your chests.`)
+    })
     // Generic SHOW_TOAST channel — lets in-canvas Phaser surfaces
     // (BossArchetypeUI "EARTHQUAKE armed" toasts, NightPhase placement
     // errors, etc.) route through the DOM ToastQueue under the new HUD

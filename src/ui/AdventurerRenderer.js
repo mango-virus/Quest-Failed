@@ -531,65 +531,33 @@ export class AdventurerRenderer {
         s._lastBlight = blighted
       }
 
-      // Cheater aura — per-cheater hue tint pulsing slightly so they read
-      // instantly as "wrong" across the dungeon. Suppressed when venom or
-      // blight is active (those colors carry urgent gameplay info) and
-      // when banned (the modded client is locked out — they look normal
-      // while fleeing). Aura hue is rolled once per cheater on first
-      // render and stamped on adv._cheaterHue for save stability.
+      // Cheater RGB-cycle tint — every cheater's sprite hue rotates
+      // through the full spectrum (red→yellow→green→cyan→blue→
+      // magenta→red) over ~6 s. Channels are sine waves 120° apart
+      // (same math as cheaterVfx._rgbAt) so all three peak at
+      // different phases and the result is always saturated.
+      // Phase-offset by the adv's spawn tile so a pack of cheaters
+      // doesn't strobe in lockstep. Suppressed when venom or blight
+      // is active (those tints carry urgent gameplay info) and when
+      // banned (the modded client is locked out — they look normal
+      // while fleeing).
       //
-      // PAIRED with a persistent RGB-cycling ground halo (Phaser ellipse)
-      // beneath the sprite — full hue rotation every ~3 s, alpha pulse,
-      // position-follows the adv. Reads from any zoom level so the
-      // cheater silhouette pops even at full dungeon overview. Created
-      // lazily on first tick, destroyed on _destroySprite / ban.
+      // Replaced the older per-cheater-hue + persistent ground halo
+      // — the sprite itself now carries the entire RGB read, which
+      // makes the cheater pop just as hard at the cluttered tile
+      // level without an extra ground ellipse to clean up.
       if (adv.classId === 'cheater' && !adv._banned) {
-        if (adv._cheaterHue == null) {
-          const HUES = [0xff66ff, 0xff44aa, 0x66ffff, 0xffff44, 0x66ff66, 0xff8844]
-          adv._cheaterHue = HUES[Math.floor(Math.random() * HUES.length)]
-        }
         if (stacks === 0 && !blighted && s.lpc?.image?.setTint) {
-          // Mild pulse — sine wave brightness on top of the base hue so
-          // the cheater visibly thrums rather than sitting on a flat tint.
-          const t = (this._scene.time.now ?? 0) * 0.004
-          const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t + (adv.spawnTileX ?? 0)))
-          const r = Math.min(255, Math.round(((adv._cheaterHue >> 16) & 0xff) * pulse))
-          const g = Math.min(255, Math.round(((adv._cheaterHue >>  8) & 0xff) * pulse))
-          const b = Math.min(255, Math.round(((adv._cheaterHue >>  0) & 0xff) * pulse))
-          s.lpc.image.setTint((r << 16) | (g << 8) | b)
-        }
-        // Persistent ground halo with full RGB hue rotation. Channels
-        // are sine waves 120° apart so all three peak at different
-        // phases — the result reads as a smooth red→yellow→green→
-        // cyan→blue→magenta→red cycle. Phase-offset by the adv's
-        // spawn tile so a pack of cheaters doesn't strobe in lockstep.
-        if (!s.cheaterHalo) {
-          s.cheaterHalo = this._scene.add.ellipse(
-            adv.worldX ?? 0, (adv.worldY ?? 0) + 18,
-            40, 14, 0xff66ff, 0.45
-          )
-          s.cheaterHalo.setDepth(2)   // under the sprite (sprite container is ~depth 5)
-        }
-        if (s.cheaterHalo.active) {
           const t = (this._scene.time.now ?? 0) * 0.001
           const phase = (adv.spawnTileX ?? 0) * 0.7
           const r = Math.max(0, Math.min(255, Math.round(127 + 127 * Math.sin(t + phase))))
           const g = Math.max(0, Math.min(255, Math.round(127 + 127 * Math.sin(t + phase + 2.094))))
           const b = Math.max(0, Math.min(255, Math.round(127 + 127 * Math.sin(t + phase + 4.188))))
-          s.cheaterHalo.fillColor = (r << 16) | (g << 8) | b
-          // Alpha pulse — 0.30 to 0.55 — gives the halo a heartbeat feel.
-          s.cheaterHalo.fillAlpha = 0.30 + 0.25 * (0.5 + 0.5 * Math.sin(t * 1.6 + phase))
-          if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) {
-            s.cheaterHalo.setPosition(adv.worldX, adv.worldY + 18)
-          }
+          s.lpc.image.setTint((r << 16) | (g << 8) | b)
         }
       } else if (adv.classId === 'cheater' && adv._banned) {
-        // Banned cheater — modded client is locked out, halo goes dark.
+        // Banned cheater — modded client is locked out, tint clears.
         if (s.lpc?.image?.clearTint) s.lpc.image.clearTint()
-        if (s.cheaterHalo?.active) {
-          s.cheaterHalo.destroy()
-          s.cheaterHalo = null
-        }
       }
     }
 
@@ -1113,9 +1081,10 @@ export class AdventurerRenderer {
   _destroySprite(id) {
     const s = this._sprites[id]
     if (!s) return
-    // Cheater RGB ground halo lives outside the sprite container (so it
-    // can sit at its own depth UNDER the sprite). Has to be torn down
-    // explicitly or it'll persist forever after the cheater dies/flees.
+    // Legacy: cheater ground halo lived outside the sprite container —
+    // removed when the RGB cycle moved onto the sprite itself. Keep
+    // the defensive teardown for any save that still has a halo
+    // reference parked on the sprite record.
     if (s.cheaterHalo?.active) s.cheaterHalo.destroy()
     s.cheaterHalo = null
     s.container.destroy()

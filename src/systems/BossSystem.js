@@ -82,6 +82,12 @@ export class BossSystem {
       this._gameState.boss.level    ??= this._gameState.meta?.dungeonLevel ?? 1
       this._gameState.boss.xp       ??= this._gameState.meta?.xp ?? 0
       this._gameState.boss.xpToNext ??= this._gameState.meta?.xpToNext ?? Balance.BOSS_XP_BASE
+      // Stable id used by per-hit subscribers (HitSparkSystem,
+      // CheaterAttackVfxSystem) to resolve the boss via `_findEntity`.
+      // There's only ever one boss, so a sentinel string suffices —
+      // adventurer instanceIds use `adv_<ts>_<rand>` so no collision.
+      // Backfilled here for legacy saves; fresh-init below sets it too.
+      this._gameState.boss.instanceId ??= 'boss'
       return
     }
 
@@ -90,6 +96,7 @@ export class BossSystem {
     const arch   = archs.find(a => a.id === archId)
     const fight  = arch?.baseFightStats ?? { hp: 200, attack: 12, defense: 10 }
     this._gameState.boss = {
+      instanceId:       'boss',   // stable id for per-hit COMBAT_HIT subscribers
       hp:               fight.hp,
       maxHp:            fight.hp,
       attack:           fight.attack,
@@ -2132,6 +2139,26 @@ export class BossSystem {
             }
             this._syncBossHpFromSlimes(boss)
             this._roundLog.push({ side: 'party', damage: appliedTotal })
+            // Per-attacker COMBAT_HIT for the slime path — mirrors the
+            // non-slime emission above. Without this, hit-spark and the
+            // cheater attack VFX go silent during the Mitosis fight.
+            // Slimes use a `.id` field (not `.instanceId`) and aren't in
+            // gameState.minions, so downstream `_findEntity` lookups
+            // can't resolve them. Targeting the parent boss instanceId
+            // is the pragmatic compromise — the VFX spawns at the boss's
+            // recorded worldX/Y, slightly off from the specific slime
+            // that took the hit but visually still inside the chamber.
+            for (const { fs, advAtk } of advAttackContribs) {
+              if (advAtk <= 0) continue
+              const share = Math.max(1, Math.ceil(totalDmg * (advAtk / pool)))
+              EventBus.emit('COMBAT_HIT', {
+                sourceId:   fs.adv.instanceId,
+                targetId:   boss.instanceId,
+                damage:     share,
+                damageType: fs.adv.damageType ?? 'physical',
+                isCritical: false,
+              })
+            }
           }
         }
       } else {
@@ -2150,6 +2177,27 @@ export class BossSystem {
           this._floatDamage(boss.worldX, boss.worldY - 12, dmgToBoss, {
             color: '#ffd166', crit: isHeavy,
           })
+          // Emit per-attacker COMBAT_HIT events so per-hit subscribers
+          // (HitSparkSystem, CheaterAttackVfxSystem, etc.) fire for
+          // boss-fight swings the same way they do for minion fights.
+          // Pre-existing boss combat is a pooled mechanic — one damage
+          // roll for the whole party — so without these synthetic events
+          // the cheater's wild attack VFX (and the standard hit spark)
+          // were invisible inside the throne room. Damage attribution:
+          // each attacker's share of dmgToBoss, proportional to their
+          // advAtk contribution; ceil so low-attack advs still cross
+          // the `damage > 0` gate in downstream listeners.
+          for (const { fs, advAtk } of advAttackContribs) {
+            if (advAtk <= 0) continue
+            const share = Math.max(1, Math.ceil(dmgToBoss * (advAtk / bossAtkPool)))
+            EventBus.emit('COMBAT_HIT', {
+              sourceId:   fs.adv.instanceId,
+              targetId:   boss.instanceId,
+              damage:     share,
+              damageType: fs.adv.damageType ?? 'physical',
+              isCritical: isHeavy,
+            })
+          }
         }
       }
 

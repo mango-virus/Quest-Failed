@@ -67,7 +67,7 @@ export class RivalBossShowdown {
     if (!adventurer?._rivalBoss) return
     if (!this.isActive()) return
     // Player won the showdown.
-    this._applyVictoryRewards()
+    this._applyVictoryRewards(adventurer)
     this._showBanner(`RIVAL BOSS DEFEATED`, '#ffd966')
     this._gameState._rivalShowdown = null
     EventBus.emit('RIVAL_BOSS_SHOWDOWN_END', { winner: 'player' })
@@ -99,7 +99,7 @@ export class RivalBossShowdown {
     }
   }
 
-  _applyVictoryRewards() {
+  _applyVictoryRewards(adv) {
     const player = this._gameState.player
     if (player) {
       player.gold = (player.gold ?? 0) + REWARD_GOLD
@@ -107,6 +107,18 @@ export class RivalBossShowdown {
         gold:   REWARD_GOLD,
         reason: 'rival_boss_defeated',
       })
+    }
+    // Stamp the reward onto the dying adv + its graveyard record so the
+    // post-wave summary's "+Ng LOOT" chip shows the actual gold gained.
+    // AISystem._kill zeroed both fields earlier in the same tick (its
+    // rival-boss branch defers gold to this system to avoid stacking),
+    // so without this fix the summary always reports +0g for the
+    // showdown kill even though player.gold went up by REWARD_GOLD.
+    if (adv) {
+      adv.goldDropped = (adv.goldDropped ?? 0) + REWARD_GOLD
+      const grave = this._gameState.adventurers?.graveyard ?? []
+      const entry = grave.find(g => g.instanceId === adv.instanceId)
+      if (entry) entry.goldDropped = (entry.goldDropped ?? 0) + REWARD_GOLD
     }
     const boss = this._gameState.boss
     if (boss) {

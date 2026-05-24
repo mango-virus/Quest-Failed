@@ -113,16 +113,30 @@ export class AISystem {
     // re-closes (sprite snaps to frame 0 via TreasureChestRenderer.update)
     // and pays its tier's gold/day to the player. An opened chest from
     // the previous day still pays — the steal already cost the player.
-    const itemsCache = this._scene.cache.json.get('items') ?? []
-    let chestPayout = 0
-    for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
-      const def = itemsCache.find(it => it.id === `treasure_chest_${chest.tier}`)
-      chestPayout += (def?.treasure?.goldPerDay ?? 0)
-      chest.opened = false
-    }
-    if (chestPayout > 0) {
-      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + chestPayout
-      EventBus.emit('TREASURE_PAYOUT', { gold: chestPayout })
+    //
+    // Per-day guard: NIGHT_PHASE_STARTED fires whenever NightPhase.create
+    // runs — which includes save-load (Continue from a mid-night save
+    // re-emits the event). Without this guard the player gets a fresh
+    // chest payout every time they continue, effectively duping gold by
+    // quit+continue cycling. We stamp the last paid day on player and
+    // skip if it matches the current day number.
+    const day = this._gameState.meta?.dayNumber ?? 0
+    const lastPaid = this._gameState.player?._lastChestPayoutDay
+    if (lastPaid !== day) {
+      const itemsCache = this._scene.cache.json.get('items') ?? []
+      let chestPayout = 0
+      for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
+        const def = itemsCache.find(it => it.id === `treasure_chest_${chest.tier}`)
+        chestPayout += (def?.treasure?.goldPerDay ?? 0)
+        chest.opened = false
+      }
+      if (chestPayout > 0) {
+        this._gameState.player.gold = (this._gameState.player.gold ?? 0) + chestPayout
+        EventBus.emit('TREASURE_PAYOUT', { gold: chestPayout })
+      }
+      // Stamp regardless of payout amount — re-running on the same day
+      // shouldn't even reset `chest.opened` twice.
+      if (this._gameState.player) this._gameState.player._lastChestPayoutDay = day
     }
     EventBus.emit('LOCKS_CHANGED')
   }

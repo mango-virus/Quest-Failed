@@ -31,6 +31,13 @@ export class EndOfDay extends Phaser.Scene {
   }
 
   create() {
+    // Phaser doesn't auto-invoke shutdown() on the user scene class —
+    // it only fires a SHUTDOWN event. Bind it once so our cleanup
+    // runs on scene.stop(). See Game.create() for the longer
+    // explanation. The defensive listener strip below is still useful
+    // because Phaser CAN re-run create() without firing shutdown when
+    // scene.restart is used, but the binding closes the main leak.
+    this.events.once('shutdown', this.shutdown, this)
     // Defensive cleanup — Phaser scene.start / scene.restart can re-run
     // create() without firing shutdown first, leaving stale EventBus
     // listeners from a previous EndOfDay session. Strip any existing

@@ -54,6 +54,11 @@ export class DayPhase extends Phaser.Scene {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   create() {
+    // Phaser doesn't auto-invoke shutdown() on the user scene class —
+    // it only fires a SHUTDOWN event. Bind it once so our cleanup
+    // runs on scene.stop(). See Game.create() for the longer
+    // explanation; this scene leaked the same way until it was fixed.
+    this.events.once('shutdown', this.shutdown, this)
     const { width: W, height: H } = applyUiCamera(this)
     // Reset per-day idempotency guards. Phaser reuses the same scene
     // instance across day-start invocations, so without this reset
