@@ -17,6 +17,10 @@ import { PauseMenu }       from './scenes/PauseMenu.js'
 import { Options }         from './scenes/Options.js'
 import { Leaderboard }     from './scenes/Leaderboard.js'
 import { installCustomCursor } from './hud/CustomCursor.js'
+// PerfHud — Ctrl+Shift+P toggles a per-system tick-time overlay.
+// Importing here just installs the key listener (idempotent); the
+// overlay itself only mounts when toggled on. Zero-cost when hidden.
+import './hud/PerfHud.js'
 
 // Future scenes registered here as they are built in later phases:
 // import { BossFight }     from './scenes/BossFight.js'

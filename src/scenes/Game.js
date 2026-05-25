@@ -1571,12 +1571,22 @@ export class Game extends Phaser.Scene {
         // console instead of a silent freeze. A boss fight that throws
         // every tick still self-terminates via BossSystem's 30s
         // _fightT hard cap (that timer advances before the throw).
+        // Per-system perf instrumentation. PerfHud (Ctrl+Shift+P) reads
+        // window.__perfStats to show per-system ms/sec budgets so we
+        // can see exactly which system is eating the frame at high
+        // entity counts. Zero-cost when the HUD isn't watching — just
+        // two perf.now() calls per wrapped tick. Buckets are
+        // accumulated, then drained by PerfHud on a 1Hz timer.
+        if (!window.__perfStats) window.__perfStats = {}
+        const _stats = window.__perfStats
         const tick = (sys, fn) => {
+          const t0 = performance.now()
           try { fn() }
           catch (err) {
             // eslint-disable-next-line no-console
             console.error(`[Game.update] ${sys}.update() threw — caught to keep the game loop alive:`, err)
           }
+          _stats[sys] = (_stats[sys] ?? 0) + (performance.now() - t0)
         }
         for (let i = 0; i < steps; i++) {
           // Boss fight runs at the same scaled rate as all other
@@ -1592,27 +1602,37 @@ export class Game extends Phaser.Scene {
           if (nowMs - budgetStart > STEP_BUDGET_MS) break
         }
       }
-      this.adventurerRenderer?.update()
-      this.emoteSystem?.update()
-      this.minionRenderer?.update()
-      this.bossRenderer?.update()
-      this.succubusBatRenderer?.update()
-      this.trapRenderer?.update()
-      this.lootPileRenderer?.update()
-      this.keyChestRenderer?.update()
-      this.lockRenderer?.update()
-      this.beaconRenderer?.update()
-      this.fountainRenderer?.update()
-      this.treasureChestRenderer?.update()
-      this.phylacteryRenderer?.update()
-      this.fungalCorpseRenderer?.update()
-      this.torchRenderer?.update()
-      this.cobwebRenderer?.update()
-      this.decorRenderer?.update()
-      this.bloodSplatRenderer?.update()
-      this.chatBubbles?.update()
-      this.replayGhostRenderer?.update()
-      this.cartographerOverlay?.tick()
+      // Renderer-tick instrumentation. Same shape as the simulation
+      // wrappers above — accumulates into window.__perfStats for
+      // PerfHud to read. Renderers run once per frame (no sub-stepping).
+      if (!window.__perfStats) window.__perfStats = {}
+      const _rstats = window.__perfStats
+      const rtick = (sys, fn) => {
+        const t0 = performance.now()
+        try { fn() } catch (err) { console.error(`[Game.update] ${sys} threw:`, err) }
+        _rstats[sys] = (_rstats[sys] ?? 0) + (performance.now() - t0)
+      }
+      rtick('adventurerRenderer',  () => this.adventurerRenderer?.update())
+      rtick('emoteSystem',         () => this.emoteSystem?.update())
+      rtick('minionRenderer',      () => this.minionRenderer?.update())
+      rtick('bossRenderer',        () => this.bossRenderer?.update())
+      rtick('succubusBatRenderer', () => this.succubusBatRenderer?.update())
+      rtick('trapRenderer',        () => this.trapRenderer?.update())
+      rtick('lootPileRenderer',    () => this.lootPileRenderer?.update())
+      rtick('keyChestRenderer',    () => this.keyChestRenderer?.update())
+      rtick('lockRenderer',        () => this.lockRenderer?.update())
+      rtick('beaconRenderer',      () => this.beaconRenderer?.update())
+      rtick('fountainRenderer',    () => this.fountainRenderer?.update())
+      rtick('treasureChestRenderer', () => this.treasureChestRenderer?.update())
+      rtick('phylacteryRenderer',  () => this.phylacteryRenderer?.update())
+      rtick('fungalCorpseRenderer', () => this.fungalCorpseRenderer?.update())
+      rtick('torchRenderer',       () => this.torchRenderer?.update())
+      rtick('cobwebRenderer',      () => this.cobwebRenderer?.update())
+      rtick('decorRenderer',       () => this.decorRenderer?.update())
+      rtick('bloodSplatRenderer',  () => this.bloodSplatRenderer?.update())
+      rtick('chatBubbles',         () => this.chatBubbles?.update())
+      rtick('replayGhostRenderer', () => this.replayGhostRenderer?.update())
+      rtick('cartographerOverlay', () => this.cartographerOverlay?.tick())
     } else {
       // Boss wanders its room during night at real time (cosmetic only).
       this.bossSystem?.update(delta)
