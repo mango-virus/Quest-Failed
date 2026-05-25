@@ -126,8 +126,12 @@ function _rehydrateRunHistory(state) {
     '_petrifiedUntil', '_fearAttackUntil', '_charmedAt',
     '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',
     '_lootingUntil', '_gloatUntil', '_spawnFadeEnd', '_leaveFadeEnd',
-    // AI tracking — scene-time based
-    '_lastAttackAt', '_waitMs', '_tileStuckMs', '_hardStuckMs',
+    // AI tracking — scene-time based. `lastAttackAt` (no underscore) is
+    // the real cooldown gate written by CombatSystem; a saved value from
+    // the previous session's scene clock makes `now - lastAttackAt`
+    // huge-negative on load → CombatSystem._tryAttack returns null
+    // forever → adv stops swinging.
+    'lastAttackAt', '_waitMs', '_tileStuckMs', '_hardStuckMs',
     '_oscNextAt', '_blightAcc', '_antiMagicNextPulseAt',
     '_fearPanicDeathTriggered', '_fearAttackArmed',
     '_fearFleeTriggered',
@@ -156,7 +160,12 @@ function _rehydrateRunHistory(state) {
   // scene-time stamp from the previous session, now far in the
   // future relative to the new scene's `time.now = 0`).
   const MIN_TRANSIENT_KEYS = [
-    '_lastAttackAt',
+    // `lastAttackAt` (no underscore) is the real cooldown gate written
+    // by CombatSystem._tryAttack; without stripping, a saved scene-time
+    // stamp makes the minion stop attacking after load and pins
+    // MinionRenderer's wantState to 'attack' so the sprite freezes on
+    // the attack anim's last frame.
+    'lastAttackAt',
     '_lastClericHealAt',
     '_raisedBardBuffUntil',
     '_doorPatLastCp',           // patroller door state — re-derives at runtime
