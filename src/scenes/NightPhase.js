@@ -197,9 +197,12 @@ export class NightPhase extends Phaser.Scene {
     // These bypass the normal class pool entirely. Compositions match
     // the corresponding _spawn*() methods in DayPhase exactly.
     if (eventFlags.lootGoblinHeistActive) {
+      // Post-day-9 extras matching DayPhase._spawnLootGoblinHeist.
+      const postTen = Math.max(0, day - 9) * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
+      const PACK = 5 + postTen
       gs.run.nextWavePreview = {
-        day, count: 5,
-        classIds: ['loot_goblin', 'loot_goblin', 'loot_goblin', 'loot_goblin', 'loot_goblin'],
+        day, count: PACK,
+        classIds: Array.from({ length: PACK }, () => 'loot_goblin'),
         eventType: 'lootGoblin',
         vendettaHunter: null,
       }
@@ -215,9 +218,12 @@ export class NightPhase extends Phaser.Scene {
       return this._emitPreviewUpdated()
     }
     if (eventFlags.cartographersConventionActive) {
+      // Post-day-9 extras matching DayPhase._spawnCartographers.
+      const postTen = Math.max(0, day - 9) * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
+      const PARTY = 3 + postTen
       gs.run.nextWavePreview = {
-        day, count: 3,
-        classIds: ['cartographer_scholar', 'cartographer_scholar', 'cartographer_scholar'],
+        day, count: PARTY,
+        classIds: Array.from({ length: PARTY }, () => 'cartographer_scholar'),
         eventType: 'cartographers',
         vendettaHunter: null,
       }
@@ -260,9 +266,12 @@ export class NightPhase extends Phaser.Scene {
       return this._emitPreviewUpdated()
     }
     if (eventFlags.zombieHordeActive) {
-      // Horde size scales with boss level — matches DayPhase._spawnZombieHorde.
+      // Horde size scales with boss level + post-day-9 escalation — matches
+      // DayPhase._spawnZombieHorde.
+      const postTen = Math.max(0, day - 9) * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
       const HORDE = Balance.ZOMBIE_HORDE_BASE
         + Balance.ZOMBIE_HORDE_PER_BOSS_LV * Math.max(0, bossLv - 1)
+        + postTen
       const Z = ['minion-zombie1', 'minion-zombie2', 'minion-zombie3']
       const prior = this._priorEventPreview(day, 'zombieHorde')
       const minionSheets = (prior && Array.isArray(prior.minionSheets)
@@ -279,7 +288,9 @@ export class NightPhase extends Phaser.Scene {
       return this._emitPreviewUpdated()
     }
     if (eventFlags.bountyHuntersActive) {
-      const PACK = 5
+      // Post-day-9 extras matching DayPhase._spawnBountyHunterWave.
+      const postTen = Math.max(0, day - 9) * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
+      const PACK = 5 + postTen
       const prior = this._priorEventPreview(day, 'bountyHunters')
       const bhVars = this.cache.json.get('adventurerManifest')?.variants?.bounty_hunter
       const spriteVariants = (prior && Array.isArray(prior.spriteVariants)

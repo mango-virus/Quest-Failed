@@ -1071,7 +1071,10 @@ export class DayPhase extends Phaser.Scene {
     const goblinDef  = allClasses.find(c => c.id === 'loot_goblin')
     if (!goblinDef) return []
 
-    const PACK_SIZE = 5
+    // Pack size grows post-day-9 in lockstep with the normal wave scaling
+    // (mirrors _normalWaveSize / _spawnDailyAdventurers).
+    const PACK_SIZE = 5 + Math.max(0, (this._gameState.meta?.dayNumber ?? 1) - 9)
+      * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
     const partyId   = `loot_goblin_pack_${Date.now()}`
     const spawned   = []
     for (let i = 0; i < PACK_SIZE; i++) {
@@ -1079,15 +1082,19 @@ export class DayPhase extends Phaser.Scene {
       const tile   = { x: cx + offset.x, y: cy + offset.y }
       const adv    = createAdventurer(goblinDef, tile)
       adv.partyId  = partyId
-      // Skip stat scaling and personalities — goblins are pure mooks. Lock
-      // the goal to FLEE up-front so AISystem's normal goal picker never
-      // chooses combat for them.
+      // Lock the goal to FLEE up-front so AISystem's normal goal picker
+      // never chooses combat for them.
       adv.goal     = { type: 'FLEE', reason: 'loot_heist' }
       adv.aiState  = 'fleeing'
       // Tell AdventurerRenderer NOT to snap this adv to the entry-hall
       // doorway — they spawn inside the boss room and bolt for the exit
       // from there.
       adv._spawnedInPlace = true
+      // Scale stats with boss level + day so late-game goblins are still
+      // worth chasing (they're loaded with gold — they need to be hard to
+      // catch). Applied after the spawn-in-place flag so the renderer's
+      // entry-snapping logic isn't disturbed.
+      this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
       this._gameState.adventurers.active.push(adv)
       spawned.push(adv)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
@@ -1114,7 +1121,9 @@ export class DayPhase extends Phaser.Scene {
       .filter(m => m && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
       .sort((a, b) => (b.level ?? 1) - (a.level ?? 1))[0] ?? null
     const bhVariants = this.cache.json.get('adventurerManifest')?.variants?.bounty_hunter
-    const PACK_SIZE = 5
+    // Pack size grows post-day-9 in lockstep with the normal wave scaling.
+    const PACK_SIZE = 5 + Math.max(0, (this._gameState.meta?.dayNumber ?? 1) - 9)
+      * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
     const partyId   = `bounty_pack_${Date.now()}`
     const spawned   = []
     // Consume the LPC variants NightPhase pre-rolled onto the preview so
@@ -1172,9 +1181,12 @@ export class DayPhase extends Phaser.Scene {
     const SHEETS = ['minion-zombie1', 'minion-zombie2', 'minion-zombie3']
     const partyId = `zombie_horde_${Date.now()}`
     const dungeonLv = this._gameState.boss?.level ?? 1
-    // Horde size scales with boss level so the swarm grows over the run.
+    // Horde size scales with boss level so the swarm grows over the run,
+    // plus a post-day-9 escalation matching the normal wave formula.
     const HORDE_SIZE = Balance.ZOMBIE_HORDE_BASE
       + Balance.ZOMBIE_HORDE_PER_BOSS_LV * Math.max(0, dungeonLv - 1)
+      + Math.max(0, (this._gameState.meta?.dayNumber ?? 1) - 9)
+        * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
     const spawned = []
     // Consume the sheet set NightPhase pre-rolled onto the IncomingWave
     // preview so the horde matches what the intel panels showed; roll
@@ -1290,6 +1302,11 @@ export class DayPhase extends Phaser.Scene {
     adv.stats.speed     = (adv.stats.speed ?? 1.4) * 2
     adv.partyId         = null
 
+    // Compound the boss-level + post-day-9 scaling ON TOP of the manual
+    // ×2 buffs above — a day-30 speedrunner needs to be vastly tougher
+    // than a day-5 one to remain a legendary threat.
+    this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
+
     this._gameState.adventurers.active.push(adv)
     aiSystem.pickInitialGoal(adv)
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
@@ -1316,7 +1333,9 @@ export class DayPhase extends Phaser.Scene {
     const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
     if (!spawn) return []
 
-    const PARTY_SIZE = 3
+    // Party size grows post-day-9 in lockstep with the normal wave scaling.
+    const PARTY_SIZE = 3 + Math.max(0, (this._gameState.meta?.dayNumber ?? 1) - 9)
+      * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
     const partyId    = `cartographers_${Date.now()}`
     const spawned    = []
     for (let i = 0; i < PARTY_SIZE; i++) {
@@ -1328,6 +1347,9 @@ export class DayPhase extends Phaser.Scene {
       const adv      = createAdventurer(scholarDef, tile)
       adv._cartographer = true
       adv.partyId       = partyId
+      // Scale stats with boss level + day so late-game scholars survive
+      // the dungeon long enough to finish the tour.
+      this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
       this._gameState.adventurers.active.push(adv)
       aiSystem.pickInitialGoal(adv)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
@@ -1390,6 +1412,9 @@ export class DayPhase extends Phaser.Scene {
       // Solo party id per rival — the rivalry is the entire point, no
       // shared-party perks.
       adv.partyId = `tournament_rival_${i}`
+      // Scale stats with boss level + day so tournament rivals remain a
+      // credible threat (and a real bloodsport) deep into the run.
+      this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
       this._gameState.adventurers.active.push(adv)
       // Scatter goal — head to a distinct non-boss room. AISystem flips
       // this to HUNT_RIVAL once the room is reached (or on timeout).
@@ -1472,6 +1497,9 @@ export class DayPhase extends Phaser.Scene {
       // death animation.
       adv._monster = true
       if (_rdMinionSheets[i]) adv._minionSheet = _rdMinionSheets[i]
+      // Scale stats with boss level + day so the rival pack remains a
+      // real fight in the late-game escalation window.
+      this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
       this._gameState.adventurers.active.push(adv)
       aiSystem.pickInitialGoal(adv)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
@@ -1495,6 +1523,9 @@ export class DayPhase extends Phaser.Scene {
     // boss-archetype skin (pre-rolled above so it matches the preview).
     rival._rivalBossSpriteKey = _rdBossSkin
     rival.name = `${_rdBossSkin.charAt(0).toUpperCase() + _rdBossSkin.slice(1)} Champion`
+    // Scale the rival boss like its pack — late-game throne showdowns
+    // need to keep pace with the player's escalating power curve.
+    this._scaleAdventurerByBossLevel(rival, this._gameState.boss?.level ?? 1)
     this._gameState.adventurers.active.push(rival)
     aiSystem.pickInitialGoal(rival)
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: rival })
