@@ -441,8 +441,15 @@ export class MainMenuOverlay {
     const game = window.__game
     if (!game) return
     switch (id) {
-      case 'continue':
-        if (!this._save) return
+      case 'continue': {
+        // Re-load from disk at click time, NOT at overlay-open time.
+        // `this._save` is captured in open() and would otherwise be
+        // stale if the player resumed gameplay in this same tab after
+        // the overlay opened and then returned to the menu — the
+        // captured snapshot would replay them back to an earlier day.
+        // Reading fresh here closes that window completely.
+        const fresh = SaveSystem.hasSave() ? SaveSystem.load() : null
+        if (!fresh) return
         this.close()
         // Stop any in-flight gameplay scenes BEFORE handing off so the
         // OLD Game / HudScene / NightPhase / DayPhase don't linger with
@@ -455,8 +462,9 @@ export class MainMenuOverlay {
         // direction but does NOT cascade-stop scenes running in
         // parallel.
         _stopAllGameplayScenes(game.scene)
-        game.scene.start('Game', { gameState: this._save })
+        game.scene.start('Game', { gameState: fresh })
         break
+      }
       case 'new':
         // Gate on having a player name — drives per-name boss-level
         // progression in PlayerProfile and the leaderboard. The old Phaser

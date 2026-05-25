@@ -643,8 +643,14 @@ export class MainMenu extends Phaser.Scene {
 
   // ─── Menu actions ──────────────────────────────────────────────────────
   _actContinue() {
-    if (!this._save) return
-    this.scene.start('Game', { gameState: this._save })
+    // Re-load from disk at click time, not at scene-create time.
+    // `this._save` was captured in create() and would otherwise be
+    // stale if the player resumed gameplay in this same tab after
+    // the title screen rendered and then returned. Mirror of the
+    // MainMenuOverlay (new HUD) fix.
+    const fresh = SaveSystem.hasSave() ? SaveSystem.load() : null
+    if (!fresh) return
+    this.scene.start('Game', { gameState: fresh })
   }
 
   _actNewEvil() {
