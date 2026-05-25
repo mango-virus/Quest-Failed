@@ -68,7 +68,13 @@ export class TrapSystem {
   update(delta) {
     if (!this._loaded) this.loadDefinitions()
     const traps = this._gameState.dungeon.traps
-    if (!traps?.length) { this._tickPoison(); return }
+    if (!traps?.length) { this._tickPoison(); this._clearTickCache(); return }
+
+    // Build per-tick target caches ONCE so _targets(def) doesn't re-filter
+    // the same arrays for every trap, and _isAdventurer can drop its
+    // O(advs) .includes() to an O(1) Set.has(). Big win when many traps
+    // share the same factionsHit value during day-phase waves.
+    this._buildTickCache()
 
     this._tickPoison()
 
@@ -93,6 +99,31 @@ export class TrapSystem {
       if (!def) continue
       this._evaluateTrap(trap, def)
     }
+
+    this._clearTickCache()
+  }
+
+  // Per-tick caches consumed by _targets / _isAdventurer.
+  //   _tickAdvs        — alive adv array (snapshot)
+  //   _tickMinions     — alive minion array (snapshot)
+  //   _tickAdvsAndMinions — concat reused for factionsHit==='all'
+  //   _tickAdvIds      — Set of alive adv instanceIds for O(1) is-adv check
+  // Cleared at end of update() so a stale snapshot can't leak across ticks.
+  _buildTickCache() {
+    this._tickAdvs = (this._gameState.adventurers.active ?? [])
+      .filter(a => a.aiState !== 'dead' && a.resources?.hp > 0)
+    this._tickMinions = (this._gameState.minions ?? [])
+      .filter(m => m.aiState !== 'dead' && m.resources?.hp > 0)
+    this._tickAdvsAndMinions = this._tickAdvs.concat(this._tickMinions)
+    this._tickAdvIds = new Set()
+    for (const a of this._tickAdvs) this._tickAdvIds.add(a.instanceId)
+  }
+
+  _clearTickCache() {
+    this._tickAdvs = null
+    this._tickMinions = null
+    this._tickAdvsAndMinions = null
+    this._tickAdvIds = null
   }
 
   _evaluateTrap(trap, def) {
@@ -493,8 +524,13 @@ export class TrapSystem {
   }
 
   // Entities a trap can damage — adventurers always; minions too when the
-  // trap's factionsHit is 'all' (area / contact hazards).
+  // trap's factionsHit is 'all' (area / contact hazards). Returns the
+  // per-tick cache built in update(); off-tick callers (e.g. tests) fall
+  // back to a fresh filter so the contract still holds.
   _targets(def) {
+    if (this._tickAdvs) {
+      return def.factionsHit === 'all' ? this._tickAdvsAndMinions : this._tickAdvs
+    }
     const advs = (this._gameState.adventurers.active ?? [])
       .filter(a => a.aiState !== 'dead' && a.resources?.hp > 0)
     if (def.factionsHit !== 'all') return advs
@@ -504,6 +540,7 @@ export class TrapSystem {
   }
 
   _isAdventurer(entity) {
+    if (this._tickAdvIds) return this._tickAdvIds.has(entity?.instanceId)
     return (this._gameState.adventurers.active ?? []).includes(entity)
   }
 
