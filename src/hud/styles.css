@@ -6998,7 +6998,8 @@ body {
 .qf-lb-tablepanel { display: flex; flex-direction: column; overflow: hidden; }
 .qf-lb-tablehead {
   display: grid;
-  grid-template-columns: 38px 38px 1fr 60px 60px 70px;
+  /* Columns: # | sprite | KEEPER | LV | DAYS | KILLS | ESCAPES */
+  grid-template-columns: 38px 38px 1fr 40px 60px 60px 70px;
   gap: 8px;
   padding: 8px 14px;
   border-bottom: 1px solid var(--line-2);
@@ -7009,7 +7010,8 @@ body {
 .qf-lb-tablebody { flex: 1; overflow: auto; }
 .qf-lb-row {
   display: grid;
-  grid-template-columns: 38px 38px 1fr 60px 60px 70px;
+  /* Columns: # | sprite | KEEPER | LV | DAYS | KILLS | ESCAPES */
+  grid-template-columns: 38px 38px 1fr 40px 60px 60px 70px;
   gap: 8px;
   padding: 8px 14px;
   width: 100%;

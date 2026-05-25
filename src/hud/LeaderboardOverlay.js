@@ -292,6 +292,9 @@ export class LeaderboardOverlay {
       accolade: rank <= 3 ? ACCOLADES[rank - 1] : null,
       isYou: !!(myName && r.player_name === myName),
       prePatch: r.id === PRE_NERF_ROW_ID,
+      // Boss level the run reached. Surfaced as "LV N" in the table
+      // row, the podium card, and the detail-panel subline.
+      bossLevel: Number(r.boss_level ?? 1),
       // LB_SHOW_COMPANIONS — companion id is left on the VM even when
       // the display flag is off so toggling the flag back on works
       // without re-normalising.
@@ -321,6 +324,31 @@ export class LeaderboardOverlay {
   //     and walked away, but never formally ended the run). Only ever
   //     rendered in the LIVE tab — the GLOBAL board filters stale
   //     rows out entirely so it doesn't read as a fake-active player.
+  // Small "LV N" badge for the run's peak boss level. Used on table
+  // rows so progression depth reads at a glance without opening the
+  // detail panel. Defensive: a missing / non-positive level renders
+  // nothing rather than "LV 0".
+  _bossLevelChip(level) {
+    const lv = Number(level)
+    if (!Number.isFinite(lv) || lv < 1) return null
+    return h('span', {
+      className: 'pix qf-lb-bosslvl-chip',
+      title: `Boss reached level ${lv}.`,
+      style: {
+        display: 'inline-block',
+        marginLeft: '6px',
+        padding: '1px 5px',
+        background: 'var(--bg-0)',
+        color: 'var(--gold)',
+        border: '1px solid var(--gold)',
+        fontSize: '7px',
+        letterSpacing: '0.5px',
+        verticalAlign: 'middle',
+        textShadow: '0 0 4px rgba(255,228,136,0.45)',
+      },
+    }, `LV ${lv}`)
+  }
+
   _liveChip(opts = {}) {
     if (!LB_SHOW_LIVE_RUNS) return null
     const paused = !!opts.paused
@@ -639,6 +667,7 @@ export class LeaderboardOverlay {
             h('span', { style: { textAlign: 'right' } }, '#'),
             h('span'),
             h('span', null, 'KEEPER'),
+            h('span', { style: { textAlign: 'right', color: 'var(--gold)' } }, 'LV'),
             h('span', { style: { textAlign: 'right' } }, 'DAYS'),
             h('span', { style: { textAlign: 'right', color: 'var(--blood)' } }, 'KILLS'),
             h('span', { style: { textAlign: 'right', color: 'var(--warn)' } }, 'ESCAPES'),
@@ -709,6 +738,9 @@ export class LeaderboardOverlay {
           textShadow: `0 0 6px ${c}66`,
         },
       }, entry.name),
+      // BOSS LV now renders as a framed box in the right-side stats
+      // block (see _podiumStatsBlock) — matches the visual language
+      // of the DAYS / KILLS frames stacked next to it.
       // Days/kills only stay here in the legacy (no-keeper) layout.
       // With a keeper, stats move to their own framed block on the
       // RIGHT side (see _podiumStatsBlock) so the card reads as
@@ -789,6 +821,23 @@ export class LeaderboardOverlay {
             style: { display: 'flex', justifyContent: 'center', marginBottom: '2px' },
           }, this._liveChip({ paused: entry.isStale, inline: false }))
         : null,
+      // BOSS LV — sits at the TOP of the stack so progression depth
+      // reads first. Gold-tinted (rank colour for top-3) to mark it as
+      // the "headline" stat while DAYS / KILLS carry the run details.
+      entry.bossLevel >= 1 ? miniFrame(
+        'BOSS LV',
+        h('div', {
+          className: 'pix',
+          style: {
+            fontSize: valueFontSize,
+            color: accent,
+            textShadow: `0 0 4px ${accent}88`,
+            marginTop: '1px',
+          },
+        }, String(entry.bossLevel)),
+        `${accent}88`,
+        `${accent}33`,
+      ) : null,
       miniFrame(
         'DAYS',
         h('div', {
@@ -931,6 +980,10 @@ export class LeaderboardOverlay {
           }, 'PRE NERF PATCH'),
         ]),
       ]),
+      h('span', {
+        className: 'pix qf-lb-row-cell',
+        style: { color: 'var(--gold)' },
+      }, String(r.bossLevel)),
       h('span', { className: 'pix qf-lb-row-cell' }, String(r.days)),
       h('span', {
         className: 'pix qf-lb-row-cell',
@@ -986,7 +1039,7 @@ export class LeaderboardOverlay {
             style: { color: sel.isYou ? 'var(--blood)' : 'var(--text)' },
           }, sel.name),
           h('div', { className: 'pix qf-lb-detail-sub' },
-            `${String(sel.boss).toUpperCase()} · ${sel.date}`),
+            `${String(sel.boss).toUpperCase()} · LV ${sel.bossLevel} · ${sel.date}`),
         ]),
       ]),
       // LB_SHOW_COMPANIONS — boss × companion narrative line + Keeper
