@@ -110,7 +110,18 @@ export class DayPhase extends Phaser.Scene {
     const spawnNow = () => {
       if (this._didSpawnToday) return
       this._didSpawnToday = true
-      const spawned = this._spawnDailyAdventurers() ?? []
+      // Failsafe: the entire spawn pipeline runs under a try/catch so a
+      // throw inside one path can never strand the day with no wave AND
+      // no end-day trigger. On throw we treat it as an unintended empty
+      // wave — _handleSpawnFailure surfaces it and the all-out timer in
+      // _refreshStats auto-rolls to night.
+      let spawned = []
+      try {
+        spawned = this._spawnDailyAdventurers() ?? []
+      } catch (err) {
+        console.error('[DayPhase] _spawnDailyAdventurers threw — falling through to rest-day failsafe:', err)
+        spawned = []
+      }
       // Event-replacement waves (speedrunner, cartographers, saboteur,
       // zombie horde, loot goblins, bounty-hunter pack, rival dungeon)
       // are event-specific — flag every member so they can never return
@@ -126,7 +137,18 @@ export class DayPhase extends Phaser.Scene {
         }
       }
       this._refreshStats()
-      if (spawned.length > 0) this._focusCameraOnEntry()
+      if (spawned.length > 0) {
+        this._focusCameraOnEntry()
+      } else if (!this._noSpawnReason) {
+        // Unintended zero-spawn (Negotiation Pay is the only INTENDED
+        // empty wave — _spawnDailyAdventurers tags `_noSpawnReason` for
+        // it). Anything else reaching here is a bug somewhere upstream
+        // (missing class JSON, replacement-event spawner returned [],
+        // etc.) — surface it so the player isn't left staring at an
+        // empty dungeon, then let _refreshStats's all-out timer end the
+        // day in 1.5s (same path as a normal cleared wave).
+        this._handleSpawnFailure()
+      }
     }
     if (_useNewHud) {
       const onFinish = ({ phase } = {}) => {
@@ -491,6 +513,11 @@ export class DayPhase extends Phaser.Scene {
   // ── Spawn ──────────────────────────────────────────────────────────────────
 
   _spawnDailyAdventurers() {
+    // Failsafe state — set to a string when a zero-spawn is intentional
+    // (Negotiation Pay, etc.) so spawnNow's post-spawn audit knows to
+    // skip the "wave failed to arrive" banner. Reset every call.
+    this._noSpawnReason = null
+
     const game = this.scene.get('Game')
     const aiSystem = game.aiSystem
     const personalitySystem = game.personalitySystem
@@ -658,7 +685,7 @@ export class DayPhase extends Phaser.Scene {
     // (free day). REFUSE = today's wave is +50%. Both apply to the same
     // day the modal called "tomorrow", so the player's framing matches.
     const eventFlags = this._gameState._eventFlags ?? {}
-    if (eventFlags.negotiationOutcome === 'pay')    return []
+    if (eventFlags.negotiationOutcome === 'pay')    { this._noSpawnReason = 'negotiation_pay'; return [] }
     if (eventFlags.negotiationOutcome === 'refuse') baseCount = Math.round(baseCount * 1.5)
     // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
     // count from yesterday's death-clip-going-viral roll.
@@ -838,6 +865,7 @@ export class DayPhase extends Phaser.Scene {
       : null
     let _previewCursor = 0
     for (let i = (returnLeaderInjected ? 1 : 0); i < count; i++) {
+     try {
       let cls
       let preRolledVariant = null
       if (_previewIds && _previewCursor < _previewIds.length) {
@@ -944,6 +972,14 @@ export class DayPhase extends Phaser.Scene {
       spawned.push(adv)
       aiSystem.pickInitialGoal(adv)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+     } catch (err) {
+      // Failsafe: a broken slot (corrupt class JSON, scaling math
+      // hiccup, personality roll failure, etc.) skips just that
+      // adventurer instead of aborting the whole wave. The rest of
+      // the party still enters; if every slot throws, spawnNow's
+      // post-spawn audit catches the empty result and rolls to night.
+      console.error('[DayPhase] Skipped broken adventurer slot:', err, { index: i })
+     }
     }
 
     // Detect + announce combos (only meaningful for parties of 2+)
@@ -1484,6 +1520,54 @@ export class DayPhase extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(32)
 
     // Auto-fade after 5s; player can manually dismiss
+    this.time.delayedCall(5000, () => {
+      this.tweens.add({
+        targets: [bg, title, sub], alpha: 0, duration: 800,
+        onComplete: () => { bg.destroy(); title.destroy(); sub.destroy() },
+      })
+    })
+  }
+
+  // Failsafe — fires when the day rolled in but zero adventurers ended
+  // up in the active list AND no intentional-no-spawn reason was tagged
+  // (the only intended case is Negotiation Pay, which sets
+  // `_noSpawnReason='negotiation_pay'`). We log full diagnostic context
+  // and surface a "rest day" banner so the player isn't left staring at
+  // an empty dungeon wondering whether the game broke. The actual day
+  // rollover is handled by _refreshStats's all-out timer (1.5s) — same
+  // path a normally-cleared wave takes.
+  _handleSpawnFailure() {
+    const gs = this._gameState
+    console.error('[DayPhase] Wave failed to spawn — falling through to rest-day failsafe', {
+      day:         gs?.meta?.dayNumber,
+      bossLevel:   gs?.boss?.level,
+      rooms:       gs?.dungeon?.rooms?.length,
+      entryHalls:  (gs?.dungeon?.rooms ?? []).filter(r => r.definitionId === 'entry_hall').length,
+      eventFlags:  gs?._eventFlags,
+      mechFlags:   gs?._mechanicFlags,
+    })
+    EventBus.emit('SPAWN_FAILSAFE_TRIGGERED', { day: gs?.meta?.dayNumber })
+
+    const W = this.uiW
+    const H = this.uiH
+    const pw = 560, ph = 100
+    const px = (W - pw) / 2
+    const py = H / 2 - ph / 2
+
+    const bg = this.add.graphics().setDepth(31)
+    glowPanel(bg, px, py, pw, ph, {
+      fill: 0x1a0e2a, border: 0xc890ff, glow: 0x7a3fc2,
+    })
+    const title = this.add.text(W / 2, py + 30, 'AN UNQUIET REST DAY', {
+      fontSize: '14px', color: '#e8d4ff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(32)
+    const sub = this.add.text(W / 2, py + 60,
+      'The wave never arrived. Your dungeon takes the day to itself.\n' +
+      '(If this happens repeatedly, the console has details.)', {
+        fontSize: '10px', color: '#d8c4ff', fontFamily: 'monospace',
+        align: 'center',
+      }).setOrigin(0.5).setDepth(32)
+
     this.time.delayedCall(5000, () => {
       this.tweens.add({
         targets: [bg, title, sub], alpha: 0, duration: 800,
