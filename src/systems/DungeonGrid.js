@@ -1067,11 +1067,19 @@ export class DungeonGrid {
     this._roomById   = new Map()
     for (const room of this._d.rooms) {
       this._indexRoom(room)
-      this._roomById.set(room.instanceId, room)
     }
   }
 
+  // Index a single room into BOTH lookup maps. Called by _rebuildLookup
+  // (rebuilds everything) AND by placeRoom (single-room incremental
+  // update). Bug 2026-05-25: _roomById was only being populated by
+  // _rebuildLookup, so freshly-placed rooms had a tile→id mapping but
+  // no id→room mapping — getRoomAtTile returned null for newly-placed
+  // rooms, which broke MOVE / SELL pickup on rooms placed after grid
+  // init. Both maps now live inside _indexRoom so any path that adds
+  // a room keeps them in lockstep.
   _indexRoom(room) {
+    this._roomById.set(room.instanceId, room)
     for (let dy = 0; dy < room.height; dy++) {
       for (let dx = 0; dx < room.width; dx++) {
         this._tileToRoom[`${room.gridX + dx},${room.gridY + dy}`] = room.instanceId
