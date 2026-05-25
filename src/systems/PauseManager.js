@@ -8,7 +8,6 @@
 import { SaveSystem } from './SaveSystem.js'
 import { EventBus } from './EventBus.js'
 import { Leaderboard } from './Leaderboard.js'
-import { PlayerProfile } from './PlayerProfile.js'
 import { isNewHudEnabled } from '../hud/HudRoot.js'
 
 // Scenes that should freeze when the pause menu opens. Only the ones that
@@ -169,52 +168,11 @@ export const PauseManager = {
     sm.start('MainMenu')
   },
 
-  // POST the player's current run as `end_cause: 'abandoned'`. Noise gate
-  // is tighter than the death path (day >= 3 OR kills >= 5) since
-  // abandons on a fresh run are more likely to be rage-quits than real
-  // attempts. Pact display names are resolved off any active scene's
-  // cache so the chronicle reads the named pacts, not raw ids.
+  // POST the player's current run as `end_cause: 'abandoned'`. Shared
+  // helper on Leaderboard handles the payload build, noise gate, and
+  // pact-name resolution — kept centralised so MainMenu's
+  // "ABANDON CURRENT RUN" confirm uses the exact same submission path.
   _submitAbandonedRun(gameState) {
-    try {
-      const tot    = gameState.run?.totals ?? {}
-      const player = gameState.player ?? {}
-      if (!player.bossArchetypeId) return
-      const days   = Number(player.totalDaysElapsed ?? gameState.meta?.dayNumber ?? 0)
-      const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
-      // Abandon-specific noise gate: skip if the run made almost no
-      // progress (rage-quit clutter).
-      if (days < 3 && kills < 5) return
-      // Resolve pact display names via any active scene's JSON cache —
-      // PauseManager is scene-free so we reach into window.__game.
-      const scenes = window.__game?.scene?.scenes ?? []
-      let dMechs = []
-      for (const s of scenes) {
-        const v = s?.cache?.json?.get?.('dungeonMechanics')
-        if (Array.isArray(v)) { dMechs = v; break }
-      }
-      const pactNames = (gameState.history?.pacts ?? []).map(p => {
-        const def = dMechs.find(d => d.id === p?.mechanicId)
-        if (def?.name) return def.name
-        return String(p?.mechanicId || '')
-          .split('_')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ')
-          .trim()
-      }).filter(Boolean)
-      const run = Leaderboard.buildRunPayload({
-        gameState,
-        endCause:   'abandoned',
-        playerName: PlayerProfile.getName?.() || 'ANON',
-        pactNames,
-      })
-      if (!run) return
-      Leaderboard.submitRun(run).catch(err => {
-        // eslint-disable-next-line no-console
-        console.warn('[Leaderboard] abandon submit failed:', err?.message)
-      })
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('[Leaderboard] abandon submit threw:', err?.message)
-    }
+    Leaderboard.submitAbandonedRun(gameState).catch(() => null)
   },
 }

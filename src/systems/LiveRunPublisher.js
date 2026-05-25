@@ -36,8 +36,48 @@ export class LiveRunPublisher {
   }
 
   destroy() {
+    // Final upsert before tearing down — backdate last_heartbeat_at so
+    // the row immediately reads as PAUSED on the leaderboard instead of
+    // showing as LIVE for the next ~10 minutes (until the natural
+    // stale window kicks in). Quit-to-menu now reflects "this player
+    // stepped away" right away.
+    //
+    // SAFE against finished runs: the RLS UPDATE policy on `runs` only
+    // permits updates where the EXISTING row's status='live', so if
+    // GameOverOverlay._submitRun or PauseManager._submitAbandonedRun
+    // already flipped the row to 'finished' / 'abandoned' before our
+    // shutdown fires, this upsert silently no-ops (0 rows affected).
+    this._sendPauseHeartbeat()
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
+  }
+
+  _sendPauseHeartbeat() {
+    try {
+      const gs = this._gameState
+      if (!gs?.meta?.runId)             return
+      if (!gs?.player?.bossArchetypeId) return
+      const pactNames = this._resolvePactNames()
+      const run = Leaderboard.buildRunPayload({
+        gameState:  gs,
+        // status stays 'live' — the row represents an in-progress run
+        // the player intends to resume. The backdated heartbeat alone
+        // is what flips the leaderboard chip from LIVE to PAUSED.
+        status:     'live',
+        endCause:   'in_progress',
+        playerName: PlayerProfile.getName?.() || 'ANON',
+        pactNames,
+      })
+      if (!run || !run.run_id) return
+      // 15 minutes ago — comfortably past the 10-min stale window in
+      // LeaderboardOverlay (LB_LIVE_STALE_MS). Could read that constant
+      // here but importing a HUD module from a systems module isn't
+      // worth the coupling for a one-line magic number.
+      run.last_heartbeat_at = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+      Leaderboard.submitRun(run).catch(() => null)
+    } catch {
+      // Swallow — pause-heartbeats are best-effort.
+    }
   }
 
   _wireEvents() {

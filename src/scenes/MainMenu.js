@@ -11,6 +11,7 @@
 // or a future dev panel takes over).
 
 import { SaveSystem }    from '../systems/SaveSystem.js'
+import { Leaderboard }   from '../systems/Leaderboard.js'
 import { TitleMusic }    from '../systems/TitleMusic.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
@@ -725,6 +726,14 @@ export class MainMenu extends Phaser.Scene {
     btnAbandon = pixelButton(this, W / 2 - 130, py + PH - 70, 120, 38, 'ABANDON', {
       danger: true, depth: 72, fontSize: 10,
       onClick: () => {
+        // Submit the (about-to-be-deleted) save's run to the
+        // leaderboard as 'abandoned' BEFORE wiping it. Without this,
+        // the live row sat in Supabase as an orphan and kept showing
+        // up on the leaderboard as PAUSED even though no save existed
+        // for the player to resume. Fire-and-forget — the new-run
+        // flow doesn't wait on the network call.
+        const save = SaveSystem.load?.()
+        if (save) Leaderboard.submitAbandonedRun(save).catch(() => {})
         SaveSystem.deleteSave()
         teardown()
         this._startNewRun()

@@ -1,9 +1,10 @@
 // LeaderboardOverlay — DOM port of moments.jsx → LeaderboardOverlay.
 //
-// Replaces the Phaser Leaderboard scene. Tab strip (GLOBAL / PERSONAL),
-// podium row (top 3 with gold/silver/bronze accolades), ranked table
-// (left), detail panel (right) with portrait + KEEPER narrative
-// (boss × companion) + stats + NOTABLE PACTS chips.
+// Replaces the Phaser Leaderboard scene. Tab strip (GLOBAL / LIVE /
+// PERSONAL), podium row (top 3 with gold/silver/bronze accolades),
+// ranked table (left), detail panel (right) with portrait + KEEPER
+// narrative (boss × companion) + stats + NOTABLE PACTS chips. The
+// LIVE tab is gated on the LB_SHOW_LIVE_RUNS feature flag.
 //
 // Data source: `src/systems/Leaderboard.js` → `fetchTop(N)`. Returns
 // rows shaped:
@@ -167,6 +168,12 @@ function _pick(arr, seed) {
 
 const TABS = [
   { id: 'global',   label: 'GLOBAL',   icon: '◆', color: 'var(--blood)' },
+  // LIVE tab — only shows status='live' rows (filtered for staleness).
+  // Conditionally included so flipping LB_SHOW_LIVE_RUNS=false hides
+  // the tab entirely too. Insertion order = tab order in the strip.
+  ...(LB_SHOW_LIVE_RUNS
+    ? [{ id: 'live', label: 'LIVE', icon: '◉', color: 'var(--blood-glow, #ff7777)' }]
+    : []),
   { id: 'personal', label: 'PERSONAL', icon: '☠', color: 'var(--gold)'  },
 ]
 
@@ -218,28 +225,21 @@ export class LeaderboardOverlay {
 
   async _loadRows() {
     try {
-      // Fetch a bit more than TOP_N so the stale-live filter can drop
-      // dead rows without truncating the visible podium below 3.
-      const fetchN = LB_SHOW_LIVE_RUNS ? Math.max(TOP_N + 25, 75) : TOP_N
+      // Fetch enough to cover finished + every live row (fresh OR
+      // stale). The per-tab filter in _filteredRows decides what's
+      // shown where. With live runs disabled, we still drop them at
+      // fetch-normalize time so rank numbering matches the legacy view.
+      const fetchN = LB_SHOW_LIVE_RUNS ? Math.max(TOP_N + 50, 100) : TOP_N
       const rows = await LeaderboardAPI.fetchTop(fetchN)
-      let filtered = rows || []
-      if (LB_SHOW_LIVE_RUNS) {
-        // Drop stale live rows (closed-tab / crashed-game orphans) so a
-        // dormant row doesn't claim a podium spot forever. Stale = live
-        // status with no heartbeat in the past LB_LIVE_STALE_MS.
-        const now = Date.now()
-        filtered = filtered.filter(r => {
-          if (r?.status !== 'live') return true
-          const lastBeat = Date.parse(r?.last_heartbeat_at ?? '')
-          if (!Number.isFinite(lastBeat)) return false
-          return (now - lastBeat) <= LB_LIVE_STALE_MS
-        })
-      } else {
-        // Live runs hidden entirely — filter them out before normalize
-        // so the rank numbering matches a finished-only board.
-        filtered = filtered.filter(r => r?.status !== 'live')
+      let prepared = rows || []
+      if (!LB_SHOW_LIVE_RUNS) {
+        prepared = prepared.filter(r => r?.status !== 'live')
       }
-      this._rows = filtered.slice(0, TOP_N).map((r, i) => this._normalize(r, i + 1))
+      // Normalize ALL rows (including stale-live). The VM carries
+      // status + isStale; _filteredRows applies tab-specific cuts.
+      // Rank here is the global fetch position; the LIVE tab re-ranks
+      // its own subset so "the leading live run" reads as #1.
+      this._rows = prepared.map((r, i) => this._normalize(r, i + 1))
       this._loading = false
     } catch (e) {
       this._error = e?.message || String(e)
@@ -298,34 +298,60 @@ export class LeaderboardOverlay {
       companionId: r.meta?.companionId ?? null,
       // LB_SHOW_LIVE_RUNS — status drives the LIVE chip + sort tag.
       // Defaults to 'finished' so legacy rows (no column / null) render
-      // exactly as before.
+      // exactly as before. `isStale` is true for live rows whose last
+      // heartbeat is older than LB_LIVE_STALE_MS — they're "paused"
+      // (player closed tab / went to menu) but the run isn't formally
+      // ended. The LIVE tab shows these with a PAUSED chip; GLOBAL
+      // filters them out (see _filteredRows).
       status: r.status ?? 'finished',
+      isStale: (() => {
+        if ((r.status ?? 'finished') !== 'live') return false
+        const lastBeat = Date.parse(r.last_heartbeat_at ?? '')
+        if (!Number.isFinite(lastBeat)) return true
+        return (Date.now() - lastBeat) > LB_LIVE_STALE_MS
+      })(),
       _raw: r,
     }
   }
 
-  // LB_SHOW_LIVE_RUNS — small pulsing red "LIVE" chip beside an
-  // in-progress run's name. Returns null when the flag is off or the
-  // row is finished/abandoned.
-  _liveChip() {
+  // LB_SHOW_LIVE_RUNS — chip beside an in-progress run's name. Two
+  // visual variants:
+  //   • Fresh heartbeat → green pulsing "LIVE" (player is right now).
+  //   • Stale heartbeat → orange static "PAUSED" (closed tab / saved
+  //     and walked away, but never formally ended the run). Only ever
+  //     rendered in the LIVE tab — the GLOBAL board filters stale
+  //     rows out entirely so it doesn't read as a fake-active player.
+  _liveChip(opts = {}) {
     if (!LB_SHOW_LIVE_RUNS) return null
+    const paused = !!opts.paused
+    // `inline: false` strips the left margin used for sitting beside
+    // a name — call with `{ inline: false }` when placing the chip on
+    // its own row (e.g., above the podium DAYS/KILLS stats block).
+    const inline = opts.inline !== false
+    const label = paused ? 'PAUSED' : 'LIVE'
+    const accent = paused ? '#ff9933' : '#33dd66'
+    const glow   = paused ? 'rgba(255,153,51,0.65)' : 'rgba(51,221,102,0.75)'
     return h('span', {
       className: 'pix qf-lb-live-chip',
-      title: 'Run in progress — heartbeat received within the last 10 minutes.',
+      title: paused
+        ? 'Run in progress but no heartbeat in the last 10 minutes — the player has stepped away.'
+        : 'Run in progress — actively playing.',
       style: {
         display: 'inline-block',
-        marginLeft: '6px',
+        marginLeft: inline ? '6px' : '0',
         padding: '1px 5px',
-        background: 'var(--blood)',
-        color: '#fff8e8',
-        border: '1px solid #2a0a0c',
+        background: accent,
+        color: '#0a0e16',
+        border: '1px solid #0a0e16',
         fontSize: '7px',
         letterSpacing: '0.5px',
         verticalAlign: 'middle',
-        boxShadow: '0 0 6px rgba(255,68,88,0.7)',
-        animation: 'qf-lb-live-pulse 1.6s ease-in-out infinite',
+        boxShadow: `0 0 6px ${glow}`,
+        // Pulse only on LIVE — PAUSED stays static so the eye reads
+        // "not currently moving" at a glance.
+        animation: paused ? null : 'qf-lb-live-pulse 1.6s ease-in-out infinite',
       },
-    }, 'LIVE')
+    }, label)
   }
 
   // ── LB_SHOW_COMPANIONS — companion chip (icon + name) ────────────────
@@ -521,7 +547,26 @@ export class LeaderboardOverlay {
   }
 
   _filteredRows() {
-    if (this._tab === 'global') return this._rows
+    if (this._tab === 'global') {
+      // GLOBAL shows ALL rows — finished, fresh-live (green LIVE chip),
+      // and stale-live (orange PAUSED chip). The chip variant makes the
+      // run state obvious at a glance; nothing is hidden, so the board
+      // is a complete view of every run anyone's started.
+      return this._rows.slice(0, TOP_N)
+    }
+    // LIVE tab — every in-progress run, fresh AND paused (stale). The
+    // chip variant differentiates them visually. Re-ranks 1..N within
+    // the live subset so the leading active run reads as #1 on this
+    // tab (accolades follow the in-tab rank).
+    if (this._tab === 'live') {
+      return this._rows
+        .filter(r => r.status === 'live')
+        .map((r, i) => ({
+          ...r,
+          rank:     i + 1,
+          accolade: i < 3 ? ACCOLADES[i] : null,
+        }))
+    }
     if (this._tab === 'personal') {
       let myName = null
       try { myName = PlayerProfile.getName?.() } catch {}
@@ -570,7 +615,9 @@ export class LeaderboardOverlay {
       return h('div', { className: 'qf-lb-empty' },
         this._tab === 'personal'
           ? '— no submitted runs yet. die and you shall be remembered. —'
-          : '— no entries in this view —')
+          : this._tab === 'live'
+            ? '— no live runs right now. begin a dungeon to claim the throne. —'
+            : '— no entries in this view —')
     }
     const top3 = rows.slice(0, 3)
     return h('div', { className: 'qf-lb-content' }, [
@@ -661,12 +708,7 @@ export class LeaderboardOverlay {
           fontSize: place === 1 ? '15px' : '13px',
           textShadow: `0 0 6px ${c}66`,
         },
-      }, [
-        entry.name,
-        // LB_SHOW_LIVE_RUNS — LIVE chip on the podium too. The chip's
-        // own marginLeft handles spacing from the name.
-        entry.status === 'live' ? this._liveChip() : null,
-      ]),
+      }, entry.name),
       // Days/kills only stay here in the legacy (no-keeper) layout.
       // With a keeper, stats move to their own framed block on the
       // RIGHT side (see _podiumStatsBlock) so the card reads as
@@ -738,6 +780,15 @@ export class LeaderboardOverlay {
         padding: '2px',
       },
     }, [
+      // LB_SHOW_LIVE_RUNS — chip sits ABOVE the stat frames so the run
+      // state reads top-down with the numbers. Centred horizontally;
+      // `inline: false` strips the chip's default left-margin (which
+      // was for sitting beside a name).
+      entry.status === 'live'
+        ? h('div', {
+            style: { display: 'flex', justifyContent: 'center', marginBottom: '2px' },
+          }, this._liveChip({ paused: entry.isStale, inline: false }))
+        : null,
       miniFrame(
         'DAYS',
         h('div', {
@@ -858,10 +909,12 @@ export class LeaderboardOverlay {
         }, [
           r.name,
           r.isYou && h('span', { className: 'pix qf-lb-row-youtag' }, ' · YOU'),
-          // LB_SHOW_LIVE_RUNS — pulsing LIVE chip for in-progress runs.
-          r.status === 'live' ? this._liveChip() : null,
           // LB_SHOW_COMPANIONS — companion chip beside the name.
           this._companionChip(r.companionId, { size: 12, fontSize: 7 }),
+          // LB_SHOW_LIVE_RUNS — green LIVE / orange PAUSED chip placed
+          // AFTER the companion chip so the status reads last (most
+          // recent state of the run).
+          r.status === 'live' ? this._liveChip({ paused: r.isStale }) : null,
           r.prePatch && h('span', {
             className: 'pix',
             style: {

@@ -137,6 +137,71 @@ export const Leaderboard = {
     return this.submitRun(run).catch(() => null)
   },
 
+  // Submit a saved-but-now-abandoned run from outside a scene context
+  // (e.g., MainMenu's "ABANDON CURRENT RUN" confirm, called when the
+  // player tosses a save to start fresh). Shares the noise gate +
+  // pact-name resolution with PauseManager's in-scene abandon path, so
+  // a leaderboard row gets flipped to status='abandoned' via the
+  // existing run_id upsert — orphan 'live' rows in the DB get cleaned
+  // up at the moment the player formally abandons the save.
+  //
+  // Returns a Promise that always resolves (never rejects) so callers
+  // can fire-and-forget without try/catch boilerplate. Resolves to
+  // null when the run is too thin to bother submitting (matches the
+  // PauseManager noise gate: days < 3 AND kills < 5) or when there's
+  // no bossArchetypeId on the gameState.
+  async submitAbandonedRun(gameState) {
+    try {
+      if (!gameState) return null
+      const tot    = gameState.run?.totals ?? {}
+      const player = gameState.player ?? {}
+      if (!player.bossArchetypeId) return null
+      const days   = Number(player.totalDaysElapsed ?? gameState.meta?.dayNumber ?? 0)
+      const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
+      // Abandon-specific noise gate (same as PauseManager): runs that
+      // made almost no progress are skipped to keep clutter down.
+      // The live row, if any, will stale-filter out of the leaderboard
+      // naturally; clearer to never submit at all for a "I just opened
+      // the game and clicked New Game" cancel.
+      if (days < 3 && kills < 5) return null
+      // Pact name resolution — same shape as PauseManager._submitAbandonedRun.
+      // Walks any active scene's JSON cache to find dungeonMechanics.
+      const scenes = window.__game?.scene?.scenes ?? []
+      let dMechs = []
+      for (const s of scenes) {
+        const v = s?.cache?.json?.get?.('dungeonMechanics')
+        if (Array.isArray(v)) { dMechs = v; break }
+      }
+      const pactNames = (gameState.history?.pacts ?? []).map(p => {
+        const def = dMechs.find(d => d.id === p?.mechanicId)
+        if (def?.name) return def.name
+        return String(p?.mechanicId || '')
+          .split('_')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+          .trim()
+      }).filter(Boolean)
+      // Player name — resolved lazily so this module stays free of
+      // PlayerProfile coupling. Falls back to 'ANON' when unavailable.
+      let playerName = 'ANON'
+      try {
+        const mod = await import('./PlayerProfile.js')
+        playerName = mod?.PlayerProfile?.getName?.() || 'ANON'
+      } catch {}
+      const run = this.buildRunPayload({
+        gameState,
+        endCause:   'abandoned',
+        playerName,
+        pactNames,
+        status:     'abandoned',
+      })
+      if (!run) return null
+      return await this.submitRun(run).catch(() => null)
+    } catch {
+      return null
+    }
+  },
+
   // GET top N runs. Default sort: days desc, kills desc.
   async fetchTop(limit = 50) {
     const order = 'days_survived.desc,total_kills.desc,created_at.asc'
