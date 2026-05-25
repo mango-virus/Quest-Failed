@@ -462,6 +462,25 @@ export class MainMenu extends Phaser.Scene {
       // name to "Mango" via the NameEntryPanel (case-insensitive).
       ...(PlayerProfile.getName().trim().toUpperCase() === 'MANGO' ? [
         {
+          // Skip-ahead for late-game wave testing. Stamps localStorage
+          // flags that ArchetypeSelect._beginRun reads after createGameState
+          // to bump meta.dayNumber + boss.level on the freshly-built state.
+          // Player still picks archetype + companion normally — only the
+          // starting day/level are overridden. Flags are one-shot (cleared
+          // immediately after consumption) so a follow-up NEW EVIL starts
+          // a normal day-1 run.
+          label: 'JUMP TO DAY 50',
+          sub:   'Late-game wave test (day 50, boss L7)',
+          glyph: '▶',
+          action: () => {
+            try {
+              localStorage.setItem('qf.dev.startDayNumber', '50')
+              localStorage.setItem('qf.dev.startBossLevel', '7')
+            } catch {}
+            this._actNewEvil()
+          },
+        },
+        {
           label: 'ROOM EDITOR',
           sub:   'Edit room layouts',
           glyph: '▤',

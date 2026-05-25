@@ -21,6 +21,7 @@
 
 import { createGameState } from '../state/GameState.js'
 import { SaveSystem }      from '../systems/SaveSystem.js'
+import { Balance }         from '../config/balance.js'
 import { COMPANIONS, DEFAULT_COMPANION } from '../systems/companions.js'
 import { TitleMusic }      from '../systems/TitleMusic.js'
 import { SfxVolume }       from '../systems/SfxVolume.js'
@@ -1068,10 +1069,66 @@ export class ArchetypeSelect extends Phaser.Scene {
       if (stored && COMPANIONS[stored]) companionId = stored
     } catch {}
     const state = createGameState(this._selectedId, rooms, companionId)
+    // Mango dev shortcut — MainMenu's "JUMP TO DAY 50" entry stamps these
+    // one-shot flags. Read + clear them here so a normal run started
+    // afterward doesn't pick up stale values. Plumbing the boss state
+    // before save means BossSystem._init's migration path takes over (it
+    // detects existing boss data and only fills missing fields) instead
+    // of fresh-initialising at level 1.
+    this._applyDevStartOverrides(state)
     SaveSystem.save(state)
     // Title music carries through into the dungeon; Game.create() ducks
     // it to a quieter background level via TitleMusic.duckForGameplay.
     this.scene.start('Game', { gameState: state })
+  }
+
+  // Consume the mango dev-start localStorage flags (set by MainMenu's
+  // "JUMP TO DAY 50" entry) and stamp the resulting overrides onto the
+  // freshly-built gameState. One-shot: flags are deleted immediately so
+  // the next NEW EVIL starts a normal day-1 run.
+  //
+  // - dayNumber: bumps meta.dayNumber (+ totalDaysElapsed) so DayPhase's
+  //   baseCount formula and any day-gated unlock/event roll behaves as
+  //   if N days had already elapsed.
+  // - bossLevel: pre-populates state.boss with archetype-base stats
+  //   scaled by the per-level deltas (HP/ATK/DEF), level, xpToNext.
+  //   BossSystem._init detects existing boss data and migrates fields
+  //   instead of fresh-initialising at level 1.
+  _applyDevStartOverrides(state) {
+    let devDay = 0, devLv = 0
+    try {
+      devDay = parseInt(localStorage.getItem('qf.dev.startDayNumber') ?? '0', 10) || 0
+      devLv  = parseInt(localStorage.getItem('qf.dev.startBossLevel') ?? '0', 10) || 0
+    } catch {}
+    try {
+      localStorage.removeItem('qf.dev.startDayNumber')
+      localStorage.removeItem('qf.dev.startBossLevel')
+    } catch {}
+    if (devDay > 1) {
+      state.meta.dayNumber = devDay
+      if (state.player) state.player.totalDaysElapsed = Math.max(0, devDay - 1)
+    }
+    if (devLv > 1) {
+      const archs = this.cache.json.get('bossArchetypes') ?? []
+      const arch  = archs.find(a => a.id === this._selectedId)
+      const base  = arch?.baseFightStats ?? { hp: 200, attack: 12, defense: 10 }
+      const lvOver = devLv - 1
+      const maxHp = base.hp + lvOver * (Balance.BOSS_HP_PER_LEVEL ?? 15)
+      state.boss = {
+        instanceId:       'boss',
+        hp:               maxHp,
+        maxHp,
+        attack:           base.attack  + lvOver * (Balance.BOSS_ATK_PER_LEVEL ?? 1),
+        defense:          base.defense + lvOver * (Balance.BOSS_DEF_PER_LEVEL ?? 1),
+        level:            devLv,
+        xp:               0,
+        xpToNext:         Math.round((Balance.BOSS_XP_BASE ?? 50) * Math.pow(Balance.BOSS_XP_SCALE ?? 1.5, lvOver)),
+        deathsRemaining:  Balance.BOSS_DEFEATS_TO_GAME_OVER ?? 3,
+        totalLivesEverHad: Balance.BOSS_DEFEATS_TO_GAME_OVER ?? 3,
+        unlockedAbilities: [],
+      }
+      console.info(`[Mango dev] Starting at day ${devDay} with boss level ${devLv} (HP ${maxHp} / ATK ${state.boss.attack} / DEF ${state.boss.defense}).`)
+    }
   }
 }
 
