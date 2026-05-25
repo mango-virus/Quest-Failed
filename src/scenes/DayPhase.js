@@ -499,12 +499,19 @@ export class DayPhase extends Phaser.Scene {
     const day     = this._gameState?.meta?.dayNumber ?? 1
     const lvOver  = Math.max(0, bossLv - 1)
     const dayOver = Math.max(0, day - 1)
-    if (lvOver === 0 && dayOver === 0 && bloodMoneyBonus === 0) return
-    const hpMul  = 1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
-                     + Balance.ADVENTURER_HP_PER_DAY        * dayOver
-                     + bloodMoneyBonus
-    const atkMul = 1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
-                     + Balance.ADVENTURER_ATK_PER_DAY       * dayOver
+    // Every-10-days tier — dramatic difficulty cliff at each decade.
+    // floor(day/10) so days 1–9 land on tier 0 (no bonus), 10–19 on
+    // tier 1, 20–29 on tier 2, etc. Compounds multiplicatively on top
+    // of the linear day/boss scaling below.
+    const tierIdx    = Math.floor(day / (Balance.ADVENTURER_TIER_DAYS || 10))
+    const tierHpMul  = Math.pow(Balance.ADVENTURER_TIER_HP_PER_TIER  ?? 1, tierIdx)
+    const tierAtkMul = Math.pow(Balance.ADVENTURER_TIER_ATK_PER_TIER ?? 1, tierIdx)
+    if (lvOver === 0 && dayOver === 0 && tierIdx === 0 && bloodMoneyBonus === 0) return
+    const hpMul  = (1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
+                       + Balance.ADVENTURER_HP_PER_DAY        * dayOver
+                       + bloodMoneyBonus) * tierHpMul
+    const atkMul = (1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
+                       + Balance.ADVENTURER_ATK_PER_DAY       * dayOver) * tierAtkMul
     adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
     adv.resources.hp    = adv.resources.maxHp
     adv.stats.attack    = Math.round(adv.stats.attack * atkMul)

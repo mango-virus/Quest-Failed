@@ -267,6 +267,15 @@ export const Balance = {
   ADVENTURER_ATK_PER_BOSS_LV:  0.07,   // +7%  attack per boss level above 1
   ADVENTURER_HP_PER_DAY:        0.04,   // +4%  maxHp per day above 1
   ADVENTURER_ATK_PER_DAY:       0.02,   // +2%  attack per day above 1
+  // Every-10-days tier multiplier — dramatic step in adv power at each
+  // decade boundary. Multiplies the linear scaling above so the jump is
+  // visible immediately at day 10 / 20 / 30. tierIndex = floor(day/10),
+  // so days 1–9 are tier 0 (×1.0), days 10–19 are tier 1 (×1.5 HP /
+  // ×1.3 ATK), 20–29 tier 2 (×2.25 / ×1.69), and so on compounding.
+  // Drives both the actual stat scaling AND the cosmetic display level.
+  ADVENTURER_TIER_DAYS:         10,
+  ADVENTURER_TIER_HP_PER_TIER:  1.5,
+  ADVENTURER_TIER_ATK_PER_TIER: 1.3,
   MINION_HP_PER_BOSS_LV:        0.20,   // +20% maxHp per boss level (bigger boss-level boost)
   MINION_ATK_PER_BOSS_LV:       0.12,   // +12% attack per boss level
   MINION_HP_PER_DAY:             0.06,   // +6%  maxHp per day (small day boost)
@@ -609,11 +618,18 @@ export const Balance = {
 export function adventurerDisplayLevel(bossLv = 1, day = 1, bloodMoneyBonus = 0) {
   const lvOver  = Math.max(0, Math.floor(bossLv || 1) - 1)
   const dayOver = Math.max(0, Math.floor(day   || 1) - 1)
-  const hpMul  = 1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
-                   + Balance.ADVENTURER_HP_PER_DAY       * dayOver
-                   + (bloodMoneyBonus || 0)
-  const atkMul = 1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
-                   + Balance.ADVENTURER_ATK_PER_DAY      * dayOver
+  // Every-10-days tier multiplier — mirrors _scaleAdventurerByBossLevel
+  // so the displayed LV jumps in lockstep with the actual stat cliff at
+  // day 10 / 20 / 30 / 40. Without this the LV chip would tick smoothly
+  // while the stats spike, leaving the player surprised by their hit.
+  const tierIdx    = Math.floor(Math.floor(day || 1) / (Balance.ADVENTURER_TIER_DAYS || 10))
+  const tierHpMul  = Math.pow(Balance.ADVENTURER_TIER_HP_PER_TIER  ?? 1, tierIdx)
+  const tierAtkMul = Math.pow(Balance.ADVENTURER_TIER_ATK_PER_TIER ?? 1, tierIdx)
+  const hpMul  = (1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
+                     + Balance.ADVENTURER_HP_PER_DAY       * dayOver
+                     + (bloodMoneyBonus || 0)) * tierHpMul
+  const atkMul = (1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
+                     + Balance.ADVENTURER_ATK_PER_DAY      * dayOver) * tierAtkMul
   // One level ≈ one boss-level's worth of average HP/ATK buff.
   const step = (Balance.ADVENTURER_HP_PER_BOSS_LV +
                 Balance.ADVENTURER_ATK_PER_BOSS_LV) / 2 || 0.085
