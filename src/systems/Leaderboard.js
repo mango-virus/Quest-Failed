@@ -70,7 +70,17 @@ export const Leaderboard = {
   // POST a single run row. Returns the inserted row on success, throws on
   // failure. Caller should swallow errors — a missed submission shouldn't
   // block the player from continuing.
+  //
+  // Dev-account guard: runs by "mango" (case-insensitive — same handle
+  // PlayerProfile.isCheatName matches on) never post. Mango bypasses
+  // every unlock gate, the 9999 gold floor, and the late-game JUMP-TO-
+  // DAY-50 shortcut; including those runs in the global leaderboard
+  // would muddy real-player rankings. Resolves to null silently so the
+  // rest of the end-of-run flow continues normally.
   async submitRun(run) {
+    if (String(run?.player_name ?? '').trim().toLowerCase() === 'mango') {
+      return null
+    }
     const res = await fetch(`${REST}/runs`, {
       method:  'POST',
       headers: { ...HEADERS, 'Prefer': 'return=representation' },
