@@ -390,15 +390,44 @@ export class AdventurerRenderer {
     const seen = new Set()
     const dt = this._scene.game.loop.delta
 
+    // Camera world-view bounds (with margin) for off-screen culling.
+    // Computed once per frame and reused for every adv. Margin keeps advs
+    // near the edge fully updated so chat bubbles / name labels don't pop
+    // as the camera scrolls into them. Followed adv ALWAYS passes the
+    // cull (camera is centred on them by definition).
+    const cam = this._scene.cameras?.main
+    const CULL_MARGIN = 200
+    const camLeft   = cam ? (cam.worldView.x - CULL_MARGIN) : -Infinity
+    const camRight  = cam ? (cam.worldView.x + cam.worldView.width + CULL_MARGIN) : Infinity
+    const camTop    = cam ? (cam.worldView.y - CULL_MARGIN) : -Infinity
+    const camBottom = cam ? (cam.worldView.y + cam.worldView.height + CULL_MARGIN) : Infinity
+
     for (const adv of active) {
       seen.add(adv.instanceId)
+      let s = this._sprites[adv.instanceId]
+      if (!s) s = this._createSprite(adv)
+      // Off-screen cull — hide the container, hide any side-attached
+      // labels (gold-carrier tag), and skip every per-tick state
+      // update (LPC anim, HP bar, badge re-render, fear/venom/blight
+      // recompute, doorway shadow lookup, etc.). When the adv comes
+      // back into view next frame the full pipeline re-runs and state
+      // catches up — one frame of stale rendering is acceptable for
+      // entities the player isn't looking at. Huge win at high adv
+      // counts when the camera is zoomed in on a fight.
+      const offScreen = adv.worldX < camLeft || adv.worldX > camRight ||
+                        adv.worldY < camTop  || adv.worldY > camBottom
+      if (offScreen) {
+        if (s.container && s.container.visible) s.container.setVisible(false)
+        const cullTag = this._carrierLabels?.[adv.instanceId]
+        if (cullTag && cullTag.visible) cullTag.setVisible(false)
+        continue
+      }
+      if (s.container && !s.container.visible) s.container.setVisible(true)
       // Phase D — keep the gold-coins icon glued above the adv carrying
       // stolen treasure. Sits just above the HP bar (y - 42) — chat
       // bubbles anchor higher (y - 30 extending up) so they don't clash.
       const tag = this._carrierLabels?.[adv.instanceId]
-      if (tag) tag.setPosition(adv.worldX, adv.worldY - 42)
-      let s = this._sprites[adv.instanceId]
-      if (!s) s = this._createSprite(adv)
+      if (tag) { tag.setPosition(adv.worldX, adv.worldY - 42); if (!tag.visible) tag.setVisible(true) }
       // Track movement direction for the LPC sprite — derived from the
       // last frame's worldX/Y delta. Stored on adv (transient, save-safe).
       const prevX = adv._lastWorldX ?? adv.worldX
