@@ -172,7 +172,7 @@ const TABS = [
   // Conditionally included so flipping LB_SHOW_LIVE_RUNS=false hides
   // the tab entirely too. Insertion order = tab order in the strip.
   ...(LB_SHOW_LIVE_RUNS
-    ? [{ id: 'live', label: 'LIVE', icon: '◉', color: 'var(--blood-glow, #ff7777)' }]
+    ? [{ id: 'live', label: 'LIVE', icon: '◉', color: '#33dd66' }]
     : []),
   { id: 'personal', label: 'PERSONAL', icon: '☠', color: 'var(--gold)'  },
 ]
