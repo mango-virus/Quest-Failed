@@ -136,13 +136,11 @@ export class BottomBar {
 
   _onModeClick(mode) {
     if (mode === 'place') {
-      // PLACE is a state indicator for "no tool armed", not an action.
-      // Clicking it used to auto-disarm an active MOVE/SELL by re-emitting
-      // the tool's toggle event, but that surprised players who hit PLACE
-      // expecting it to confirm placement / interact with the dungeon —
-      // they'd silently lose MOVE mode and think clicking on rooms had
-      // stopped working. Disarm paths now: re-click MOVE / SELL, ESC,
-      // right-click, BEGIN DAY.
+      // Disarm whichever tool is armed by emitting its toggle event again.
+      // NightPhase's _setToolMode treats same-mode click as cancel.
+      if (this._armedTool === 'move')  EventBus.emit('TOOL_MOVE')
+      else if (this._armedTool === 'sell') EventBus.emit('TOOL_SELL')
+      // If nothing armed, PLACE is already the resting state — no-op.
       return
     }
     if (mode === 'move') EventBus.emit('TOOL_MOVE')
