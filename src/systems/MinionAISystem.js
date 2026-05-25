@@ -160,9 +160,24 @@ export class MinionAISystem {
 
   update(delta) {
     const minions = this._gameState.minions
+    // Per-tick spatial cache: roomId → alive-adv[]. Lets _pickTarget skip
+    // iterating every adv on the map when `requireSameRoom` is true (the
+    // common case — most minions only engage in their home room). Built
+    // once here so all N minions amortize one O(advs) sweep instead of
+    // each doing their own.
+    this._tickAdvsByRoom = new Map()
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+      const r = this._dungeonGrid?.getRoomAtTile?.(a.tileX, a.tileY)
+      if (!r) continue
+      const arr = this._tickAdvsByRoom.get(r.instanceId)
+      if (arr) arr.push(a)
+      else this._tickAdvsByRoom.set(r.instanceId, [a])
+    }
     for (let i = 0; i < minions.length; i++) {
       this._tickMinion(minions[i], delta, i)
     }
+    this._tickAdvsByRoom = null
     // Phase 1b — patrolling minions close (and re-lock) doors behind them.
     // Generic — applies to every patrolling minion regardless of archetype
     // (Vampire Thralls, Demon Imps, Wraith Haunt Ghosts).
@@ -861,12 +876,18 @@ export class MinionAISystem {
     const canChaseFleeing = !isGarrison && !isStationaryForChase
 
     if (minion.faction === 'adventurer') {
-      // Defected minions hunt dungeon-faction minions (and skip adventurers)
+      // Defected minions hunt dungeon-faction minions (and skip adventurers).
+      // Manhattan-bounds early-exit before hypot keeps this cheap on large
+      // minion rosters.
+      const aggroCeil = Math.ceil(aggro)
       for (const m of this._gameState.minions) {
         if (m === minion || m.aiState === 'dead' || m.resources.hp <= 0) continue
         if (m.faction !== 'dungeon') continue
         if (this._dungeonGrid?.getTileType?.(m.tileX, m.tileY) === TILE.DOOR) continue
-        const d = Math.hypot(m.tileX - minion.tileX, m.tileY - minion.tileY)
+        const dxAbs = Math.abs(m.tileX - minion.tileX)
+        const dyAbs = Math.abs(m.tileY - minion.tileY)
+        if (dxAbs > aggroCeil || dyAbs > aggroCeil) continue
+        const d = Math.hypot(dxAbs, dyAbs)
         if (d > aggro) continue
         if (d < bestDist) { best = m; bestDist = d }
       }
@@ -882,7 +903,17 @@ export class MinionAISystem {
     const nowMs = this._scene.time?.now ?? 0
     const retaliateId = (minion._lastHitBy && (nowMs - (minion._lastHitAt ?? 0)) < RETALIATION_WINDOW_MS)
       ? minion._lastHitBy : null
-    for (const adv of this._gameState.adventurers.active) {
+    // Spatial-bucket fast path: when this minion is strictly same-room
+    // (garrison, or the standard ENGAGE_REQUIRES_SAME_ROOM rule with no
+    // alert/hunt/whisperer/guardpost override), iterate ONLY the advs
+    // bucketed into this minion's home room. Cuts the per-tick scan from
+    // O(minions × advs) to O(minions × advs-in-room). The non-same-room
+    // paths fall back to the full adv list because they legitimately
+    // engage across rooms.
+    const advPool = (requireSameRoom && this._tickAdvsByRoom)
+      ? (this._tickAdvsByRoom.get(homeRoom.instanceId) ?? [])
+      : this._gameState.adventurers.active
+    for (const adv of advPool) {
       if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
       const isRetaliationTarget = retaliateId && adv.instanceId === retaliateId
       // Phase 5c — Rogue Invisibility: minions ignore invisible advs.

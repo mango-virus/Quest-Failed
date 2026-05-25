@@ -2250,9 +2250,17 @@ export class AISystem {
     if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) return null
     const nowMs = this._scene?.time?.now ?? 0
     let best = null, bestDist = Infinity
+    // Manhattan-bounds early-exit BEFORE the per-pair hypot. With `reach`
+    // capped at ~6 tiles and minion counts climbing into the dozens on big
+    // dungeons, 95%+ of pairs are obviously out of range — the cheap
+    // bounds check culls them without the sqrt cost.
+    const reachCeil = Math.ceil(reach + 0.01)
     for (const m of this._gameState.minions) {
       if (m.aiState === 'dead' || m.resources.hp <= 0) continue
       if (m.faction === 'adventurer') continue
+      const dxAbs = Math.abs(m.tileX - adv.tileX)
+      const dyAbs = Math.abs(m.tileY - adv.tileY)
+      if (dxAbs > reachCeil || dyAbs > reachCeil) continue
       // Beast Master tame protection — a minion a Beast Master has tamed,
       // OR is actively trying to tame (recent _tameTargetedAt stamp from
       // ClassAbilitySystem), is off-limits to every other adventurer's
