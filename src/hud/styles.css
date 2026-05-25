@@ -7048,7 +7048,9 @@ body {
 
 .qf-lb-detail {
   padding: 16px;
-  display: flex; flex-direction: column; overflow: hidden;
+  display: flex; flex-direction: column; overflow: auto;
+  /* overflow: auto so the KEEPER narrative + a long pact list don't
+     clip the VIEW FULL CHRONICLE button at the bottom (was `hidden`). */
 }
 .qf-lb-detail-empty {
   align-items: center; justify-content: center;
@@ -7148,6 +7150,14 @@ body {
   background: var(--bg-0);
   border: 1px solid var(--info);
   color: var(--info); letter-spacing: 1px;
+}
+
+/* Pulsing LIVE chip on in-progress leaderboard rows (LB_SHOW_LIVE_RUNS).
+   Soft glow + brightness pulse so the eye picks it out at a glance
+   from the surrounding static chips. */
+@keyframes qf-lb-live-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 68, 88, 0.55); filter: brightness(0.95); }
+  50%      { box-shadow: 0 0 10px rgba(255, 68, 88, 0.95); filter: brightness(1.15); }
 }
 .qf-lb-fullchron {
   margin-top: 14px;

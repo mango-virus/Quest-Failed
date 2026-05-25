@@ -16,6 +16,7 @@ import { InquisitorSystem }   from '../systems/InquisitorSystem.js'
 import { BossSystem }         from '../systems/BossSystem.js'
 import { RoomBehaviorSystem } from '../systems/RoomBehaviorSystem.js'
 import { RunHistorySystem }   from '../systems/RunHistorySystem.js'
+import { LiveRunPublisher }  from '../systems/LiveRunPublisher.js'
 import { BossArchetypeSystem } from '../systems/BossArchetypeSystem.js'
 import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
@@ -201,6 +202,12 @@ export class Game extends Phaser.Scene {
     // Phase 31I — passive run-history aggregator. Subscribes to event bus
     // and folds counts into gameState.run.totals + history.pacts. No gameplay.
     this.runHistorySystem    = new RunHistorySystem(this, this.gameState)
+    // Live-run leaderboard heartbeat (2026-05-25). Upserts a 'live'
+    // row to Supabase on NIGHT_PHASE_STARTED + run start so other
+    // players can see the run in progress on the leaderboard. Fire-
+    // and-forget; network failures swallowed. Remove the construct
+    // (+ shutdown destroy) to disable the feature entirely.
+    this.liveRunPublisher    = new LiveRunPublisher(this, this.gameState)
     // Phase 1b — per-archetype headline mechanics (Orc Loot the Fallen, etc).
     this.bossArchetypeSystem = new BossArchetypeSystem(this, this.gameState)
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
@@ -437,6 +444,7 @@ export class Game extends Phaser.Scene {
     this.evolutionSystem?.destroy()
     this.classAbilitySystem?.destroy()
     this.runHistorySystem?.destroy()
+    this.liveRunPublisher?.destroy()
     this.knowledgeSystem?.destroy()
     this.knowledgeOverlay?.destroy()
     this.wantedPoster?.destroy()

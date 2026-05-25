@@ -34,7 +34,7 @@ export const Leaderboard = {
   //
   // endCause: 'death' | 'abandoned' | future codes — LeaderboardOverlay's
   // _thematicCause maps these to flavour phrases.
-  buildRunPayload({ gameState, endCause = 'death', playerName = 'ANON', pactNames = [] } = {}) {
+  buildRunPayload({ gameState, endCause = 'death', playerName = 'ANON', pactNames = [], status = 'finished' } = {}) {
     if (!gameState) return null
     const gs     = gameState
     const tot    = gs.run?.totals ?? {}
@@ -51,6 +51,17 @@ export const Leaderboard = {
       gold:          Number(tot.gold ?? player.soulEssence ?? 0),
       dark_power:    Number(player.darkPower ?? 0),
       end_cause:     String(endCause),
+      // Live-run plumbing (2026-05-25). `run_id` is the stable id from
+      // gameState.meta.runId — the unique index on the runs table makes
+      // upserts match this row, so a single run heartbeats one row from
+      // 'live' through to 'finished' / 'abandoned' instead of inserting
+      // duplicates. `status` drives the LIVE chip in LeaderboardOverlay
+      // and gates the RLS UPDATE policy (only live rows are updatable).
+      // `last_heartbeat_at` is set server-side via now() in heartbeats,
+      // but we include the field for shape consistency on submit paths.
+      status:            String(status),
+      run_id:            gs.meta?.runId ?? null,
+      last_heartbeat_at: new Date().toISOString(),
       meta: {
         roomsBuilt:      Number(tot.roomsBuilt ?? 0),
         minionsSummoned: Number(tot.minionsSummoned ?? 0),
@@ -74,9 +85,18 @@ export const Leaderboard = {
     }
   },
 
-  // POST a single run row. Returns the inserted row on success, throws on
-  // failure. Caller should swallow errors — a missed submission shouldn't
-  // block the player from continuing.
+  // POST or UPSERT a single run row. Returns the inserted/updated row
+  // on success, throws on failure. Caller should swallow errors — a
+  // missed submission shouldn't block the player from continuing.
+  //
+  // When `run.run_id` is set, the request is a PostgREST upsert on the
+  // `run_id` unique index (resolution=merge-duplicates), so:
+  //   • First heartbeat of a run → INSERT (status='live').
+  //   • Subsequent heartbeats   → UPDATE the same row.
+  //   • Run-end submit          → UPDATE the same row, flipping status
+  //                               to 'finished' / 'abandoned'.
+  // When `run_id` is null (legacy / no-runId path), it's a plain
+  // INSERT — back-compat for any caller that hasn't been migrated.
   //
   // Dev-account guard: runs by "mango" (case-insensitive — same handle
   // PlayerProfile.isCheatName matches on) never post. Mango bypasses
@@ -88,9 +108,14 @@ export const Leaderboard = {
     if (String(run?.player_name ?? '').trim().toLowerCase() === 'mango') {
       return null
     }
-    const res = await fetch(`${REST}/runs`, {
+    const hasRunId = !!run?.run_id
+    const url = hasRunId ? `${REST}/runs?on_conflict=run_id` : `${REST}/runs`
+    const prefer = hasRunId
+      ? 'resolution=merge-duplicates,return=representation'
+      : 'return=representation'
+    const res = await fetch(url, {
       method:  'POST',
-      headers: { ...HEADERS, 'Prefer': 'return=representation' },
+      headers: { ...HEADERS, 'Prefer': prefer },
       body:    JSON.stringify(run),
     })
     if (!res.ok) {
@@ -99,6 +124,17 @@ export const Leaderboard = {
     }
     const rows = await res.json()
     return rows?.[0] ?? null
+  },
+
+  // Lightweight heartbeat — convenience wrapper around submitRun that
+  // builds + sends a live-status payload. Called from LiveRunPublisher
+  // on NIGHT_PHASE_STARTED (and once at run start). Fire-and-forget at
+  // call sites; errors swallowed here so a flaky network never stutters
+  // the game loop.
+  heartbeatLiveRun(opts) {
+    const run = this.buildRunPayload({ ...opts, status: 'live', endCause: 'in_progress' })
+    if (!run || !run.run_id) return Promise.resolve(null)
+    return this.submitRun(run).catch(() => null)
   },
 
   // GET top N runs. Default sort: days desc, kills desc.

@@ -2,8 +2,8 @@
 //
 // Replaces the Phaser Leaderboard scene. Tab strip (GLOBAL / PERSONAL),
 // podium row (top 3 with gold/silver/bronze accolades), ranked table
-// (left), detail panel (right) with portrait + stats + CAUSE OF END
-// callout + NOTABLE PACTS chips + VIEW FULL CHRONICLE.
+// (left), detail panel (right) with portrait + KEEPER narrative
+// (boss × companion) + stats + NOTABLE PACTS chips.
 //
 // Data source: `src/systems/Leaderboard.js` → `fetchTop(N)`. Returns
 // rows shaped:
@@ -32,6 +32,19 @@ import { runCountUp } from './countUp.js'
 //      this file (search for `LB_SHOW_COMPANIONS`) and the
 //      `companionId:` line in Leaderboard.buildRunPayload.
 const LB_SHOW_COMPANIONS = true
+
+// Feature flag — fetch/show live (in-progress) runs alongside finished
+// ones. Live rows are tagged with a LIVE chip and filtered out if the
+// last heartbeat is older than LB_LIVE_STALE_MS (closed-tab orphans).
+// To fully remove: set this to `false` (instant rollback). Storage
+// keeps flowing — heartbeats from LiveRunPublisher still run in the
+// background, so re-enabling later just starts showing them again.
+const LB_SHOW_LIVE_RUNS = true
+// A live row is considered stale (closed tab, crashed game) when no
+// heartbeat has refreshed it in this many ms. Stale rows are silently
+// dropped from the rendered board. With heartbeats firing on every
+// NIGHT_PHASE_STARTED, a healthy run beats far more often than this.
+const LB_LIVE_STALE_MS = 10 * 60 * 1000   // 10 minutes
 
 // Pact rarity → chip colour. Mirrors the bright (c1) tones of the
 // PactPicker tome (src/hud/PactPicker.js RARITY) so a pact reads the
@@ -205,8 +218,28 @@ export class LeaderboardOverlay {
 
   async _loadRows() {
     try {
-      const rows = await LeaderboardAPI.fetchTop(TOP_N)
-      this._rows = (rows || []).map((r, i) => this._normalize(r, i + 1))
+      // Fetch a bit more than TOP_N so the stale-live filter can drop
+      // dead rows without truncating the visible podium below 3.
+      const fetchN = LB_SHOW_LIVE_RUNS ? Math.max(TOP_N + 25, 75) : TOP_N
+      const rows = await LeaderboardAPI.fetchTop(fetchN)
+      let filtered = rows || []
+      if (LB_SHOW_LIVE_RUNS) {
+        // Drop stale live rows (closed-tab / crashed-game orphans) so a
+        // dormant row doesn't claim a podium spot forever. Stale = live
+        // status with no heartbeat in the past LB_LIVE_STALE_MS.
+        const now = Date.now()
+        filtered = filtered.filter(r => {
+          if (r?.status !== 'live') return true
+          const lastBeat = Date.parse(r?.last_heartbeat_at ?? '')
+          if (!Number.isFinite(lastBeat)) return false
+          return (now - lastBeat) <= LB_LIVE_STALE_MS
+        })
+      } else {
+        // Live runs hidden entirely — filter them out before normalize
+        // so the rank numbering matches a finished-only board.
+        filtered = filtered.filter(r => r?.status !== 'live')
+      }
+      this._rows = filtered.slice(0, TOP_N).map((r, i) => this._normalize(r, i + 1))
       this._loading = false
     } catch (e) {
       this._error = e?.message || String(e)
@@ -263,8 +296,36 @@ export class LeaderboardOverlay {
       // the display flag is off so toggling the flag back on works
       // without re-normalising.
       companionId: r.meta?.companionId ?? null,
+      // LB_SHOW_LIVE_RUNS — status drives the LIVE chip + sort tag.
+      // Defaults to 'finished' so legacy rows (no column / null) render
+      // exactly as before.
+      status: r.status ?? 'finished',
       _raw: r,
     }
+  }
+
+  // LB_SHOW_LIVE_RUNS — small pulsing red "LIVE" chip beside an
+  // in-progress run's name. Returns null when the flag is off or the
+  // row is finished/abandoned.
+  _liveChip() {
+    if (!LB_SHOW_LIVE_RUNS) return null
+    return h('span', {
+      className: 'pix qf-lb-live-chip',
+      title: 'Run in progress — heartbeat received within the last 10 minutes.',
+      style: {
+        display: 'inline-block',
+        marginLeft: '6px',
+        padding: '1px 5px',
+        background: 'var(--blood)',
+        color: '#fff8e8',
+        border: '1px solid #2a0a0c',
+        fontSize: '7px',
+        letterSpacing: '0.5px',
+        verticalAlign: 'middle',
+        boxShadow: '0 0 6px rgba(255,68,88,0.7)',
+        animation: 'qf-lb-live-pulse 1.6s ease-in-out infinite',
+      },
+    }, 'LIVE')
   }
 
   // ── LB_SHOW_COMPANIONS — companion chip (icon + name) ────────────────
@@ -316,19 +377,39 @@ export class LeaderboardOverlay {
     ])
   }
 
+  // Resolve a boss archetype's display name ("Earth Golem", "Elder
+  // Lich", …) from bossArchetypes.json. Falls back to a humanised id
+  // if the cache hasn't loaded or the id isn't in the registry — so
+  // legacy / unknown bossIds still render readably.
+  _bossDisplayName(bossId) {
+    if (!bossId) return 'dungeon'
+    const list = this._cachedJson('bossArchetypes') ?? []
+    const def = list.find(b => b?.id === bossId)
+    if (def?.name) return def.name
+    return String(bossId).replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
+  }
+
   // LB_SHOW_COMPANIONS — detail-panel Keeper field + a one-line
   // boss × companion narrative. Sentence pattern reads like a small
   // chronicle entry instead of a stat row, so the run feels like a
   // story (rather than a row of numbers).
   _renderDetailCompanion(sel) {
     const c = getCompanion(sel.companionId)
-    const bossWord = String(sel.boss || 'dungeon').replace(/^./, ch => ch.toUpperCase())
+    // sel.boss is the SPRITE KIND (used to pick the portrait art), not
+    // the boss display name — and the mapping can collapse multiple
+    // archetypes onto one sprite, so reading `sel.boss` here would give
+    // wrong names (e.g. Earth Golem rendered as "Imp"). Resolve the
+    // display name from bossArchetypes.json keyed on `sel.bossId`
+    // (the raw archetype id); humanise the id as a final fallback.
+    const bossWord = this._bossDisplayName(sel.bossId)
     const days = sel.days || 0
     const dayWord = days === 1 ? 'day' : 'days'
-    const survived = sel.cause.toLowerCase().includes('indef')
-    // Subtle past/present tense flip — survived → "stands", else → "stood".
-    const verb = survived ? 'stands' : 'stood'
-    const narrative = `This dungeon ${verb} for ${days} ${dayWord} under the ${bossWord}, with ${c.name} at their side.`
+    // Narrative is past-tense — every row on the board represents a
+    // finished (or abandoned) run. (Previously this read `sel.cause`
+    // to maybe flip to "stands" for indefinite endings, but no live
+    // end_cause phrase ever matched the check, and the cause field
+    // has been removed from the panel entirely.)
+    const narrative = `This dungeon stood for ${days} ${dayWord} under the ${bossWord}, with ${c.name} at their side.`
     return h('div', {
       className: 'qf-lb-detail-keeper',
       style: {
@@ -580,7 +661,12 @@ export class LeaderboardOverlay {
           fontSize: place === 1 ? '15px' : '13px',
           textShadow: `0 0 6px ${c}66`,
         },
-      }, entry.name),
+      }, [
+        entry.name,
+        // LB_SHOW_LIVE_RUNS — LIVE chip on the podium too. The chip's
+        // own marginLeft handles spacing from the name.
+        entry.status === 'live' ? this._liveChip() : null,
+      ]),
       // Days/kills only stay here in the legacy (no-keeper) layout.
       // With a keeper, stats move to their own framed block on the
       // RIGHT side (see _podiumStatsBlock) so the card reads as
@@ -772,6 +858,8 @@ export class LeaderboardOverlay {
         }, [
           r.name,
           r.isYou && h('span', { className: 'pix qf-lb-row-youtag' }, ' · YOU'),
+          // LB_SHOW_LIVE_RUNS — pulsing LIVE chip for in-progress runs.
+          r.status === 'live' ? this._liveChip() : null,
           // LB_SHOW_COMPANIONS — companion chip beside the name.
           this._companionChip(r.companionId, { size: 12, fontSize: 7 }),
           r.prePatch && h('span', {
@@ -789,7 +877,6 @@ export class LeaderboardOverlay {
             },
           }, 'PRE NERF PATCH'),
         ]),
-        h('div', { className: 'qf-lb-row-cause' }, r.cause),
       ]),
       h('span', { className: 'pix qf-lb-row-cell' }, String(r.days)),
       h('span', {
@@ -809,7 +896,6 @@ export class LeaderboardOverlay {
         '— select a keeper to see their chronicle —')
     }
     const c = rankColor(sel.rank)
-    const survived = sel.cause.toLowerCase().includes('indef')
     return h('div', { className: 'panel bevel qf-lb-detail' }, [
       // Portrait + rank
       h('div', {
@@ -866,28 +952,20 @@ export class LeaderboardOverlay {
         this._detailStat('KILLS',   sel.kills,   'var(--blood)', '⚔'),
         this._detailStat('ESCAPES', sel.escapes, 'var(--warn)',  '↗'),
       ]),
-      // Cause of end
-      h('div', {
-        className: 'qf-lb-detail-cause',
-        style: {
-          borderLeft: `3px solid ${survived ? 'var(--gold)' : 'var(--blood)'}`,
-        },
-      }, [
-        h('div', { className: 'pix qf-lb-cause-label' },
-          survived ? '◇ FINAL STANDING' : '☠ CAUSE OF END'),
-        h('div', { className: 'qf-lb-cause-text' }, sel.cause),
-      ]),
+      // Cause-of-end block removed at user request — the thematic phrase
+      // wasn't earning its space alongside the keeper narrative + stats.
       // Notable pacts. Pulled from the normalized `sel.pacts` array
       // which _normalize() now walks across every plausible source
       // location (meta.pacts, history.pacts, run.history.pacts) so the
       // chips populate regardless of which writer path saved the row.
-      // Show up to 4; render a single italic placeholder when the run
-      // genuinely sealed no pacts.
+      // Show ALL pacts the run sealed — the chips container is
+      // flex-wrap so a long list just takes more rows; the detail panel
+      // scrolls (overflow:auto in styles.css) when needed.
       h('div', { className: 'qf-lb-detail-pacts' }, [
         h('div', { className: 'pix qf-lb-pacts-label' }, '◇ NOTABLE PACTS'),
         h('div', { className: 'qf-lb-pacts-chips' },
           sel.pacts && sel.pacts.length > 0
-            ? sel.pacts.slice(0, 4).map(p => {
+            ? sel.pacts.map(p => {
                 // Tint the chip by the pact's rarity (common → legendary).
                 const color = this._pactColor(p)
                 return h('span', {
@@ -909,21 +987,6 @@ export class LeaderboardOverlay {
                 },
               }, '— NO PACTS SEALED —')]
         ),
-      ]),
-      // View full chronicle — placeholder for the per-run event log
-      // feature. The leaderboard summary doesn't carry the full journal
-      // yet, so the button is shown in a disabled "coming soon" state
-      // (tooltip + greyed style) rather than firing a no-op click. When
-      // per-run logs ship, drop the disabled flag and wire the handler.
-      h('button', {
-        className: 'btn qf-lb-fullchron qf-lb-fullchron--disabled',
-        disabled: true,
-        'aria-disabled': 'true',
-        title: 'Coming soon — per-run chronicles will be recorded in a future update.',
-      }, [
-        h('span', { style: { color: 'var(--gold)' } }, '▶ '),
-        'VIEW FULL CHRONICLE',
-        h('span', { className: 'qf-lb-fullchron-soon' }, ' (coming soon)'),
       ]),
     ])
   }
