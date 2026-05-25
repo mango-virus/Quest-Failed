@@ -137,6 +137,39 @@ export const Leaderboard = {
     return this.submitRun(run).catch(() => null)
   },
 
+  // Flip any OTHER live rows by the same player_name (different
+  // run_id) to 'abandoned'. Called from LiveRunPublisher when a new
+  // run's first heartbeat fires — so save-overwrite paths (NEW EVIL,
+  // JUMP TO DAY 50, future paths) auto-clean the old live row without
+  // any per-call-site plumbing. Doing it at FIRST-HEARTBEAT time
+  // (rather than at NEW-EVIL click time) means backing out of
+  // CompanionSelect doesn't accidentally end the old run.
+  //
+  // Edge case: two physical players sharing a name would clobber each
+  // other's live rows. Acceptable for a friend-group game with unique
+  // names; revisit if collision becomes real.
+  //
+  // Fire-and-forget at the call site; returns the updated rows on
+  // success, null on any failure (network / RLS / etc.).
+  async abandonOtherLiveRunsByPlayer(playerName, currentRunId) {
+    try {
+      if (!playerName || !currentRunId) return null
+      if (String(playerName).trim().toLowerCase() === 'mango') return null   // dev account never writes
+      const url = `${REST}/runs?status=eq.live` +
+        `&player_name=eq.${encodeURIComponent(playerName)}` +
+        `&run_id=neq.${encodeURIComponent(currentRunId)}`
+      const res = await fetch(url, {
+        method:  'PATCH',
+        headers: { ...HEADERS, 'Prefer': 'return=representation' },
+        body:    JSON.stringify({ status: 'abandoned', end_cause: 'abandoned' }),
+      })
+      if (!res.ok) return null
+      return await res.json().catch(() => null)
+    } catch {
+      return null
+    }
+  },
+
   // Submit a saved-but-now-abandoned run from outside a scene context
   // (e.g., MainMenu's "ABANDON CURRENT RUN" confirm, called when the
   // player tosses a save to start fresh). Shares the noise gate +

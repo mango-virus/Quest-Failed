@@ -33,6 +33,13 @@ export class LiveRunPublisher {
     // player's row appears on any open leaderboard view without
     // waiting for the first NIGHT_PHASE_STARTED transition.
     this._beat()
+    // Auto-clean any OLD live row by this same player (different
+    // run_id). Catches save-overwrite paths (NEW EVIL, JUMP TO DAY 50,
+    // any future path) without needing per-call-site plumbing. Runs
+    // at FIRST-HEARTBEAT time, not at NEW-EVIL click time, so backing
+    // out of CompanionSelect before committing leaves the old row
+    // untouched.
+    this._abandonOldRunsByThisPlayer()
   }
 
   destroy() {
@@ -50,6 +57,18 @@ export class LiveRunPublisher {
     this._sendPauseHeartbeat()
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
+  }
+
+  async _abandonOldRunsByThisPlayer() {
+    try {
+      const runId = this._gameState?.meta?.runId
+      if (!runId) return
+      const playerName = PlayerProfile.getName?.() || 'ANON'
+      if (!playerName || playerName === 'ANON') return
+      await Leaderboard.abandonOtherLiveRunsByPlayer(playerName, runId)
+    } catch {
+      // Swallow — cleanup is best-effort.
+    }
   }
 
   _sendPauseHeartbeat() {

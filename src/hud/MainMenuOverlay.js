@@ -22,7 +22,6 @@
 import { h, mount } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
 import { SaveSystem } from '../systems/SaveSystem.js'
-import { Leaderboard } from '../systems/Leaderboard.js'
 import { SettingsOverlay } from './SettingsOverlay.js'
 import { ConfirmPopup } from './ConfirmPopup.js'
 import { EventBus } from '../systems/EventBus.js'
@@ -474,17 +473,18 @@ export class MainMenuOverlay {
         if (!PlayerProfile.hasName()) {
           this._promptForName(() => {
             this.close()
-            this._abandonExistingRunForLeaderboard()
             // Same cleanup as the continue path — see comment above.
             _stopAllGameplayScenes(game.scene)
             // CompanionSelect runs first (pick a companion), then hands off
-            // to ArchetypeSelect (boss picker).
+            // to ArchetypeSelect (boss picker). Leaderboard cleanup of any
+            // OLD live row happens automatically when the new run's
+            // LiveRunPublisher boots — so backing out of CompanionSelect
+            // here leaves the old row untouched.
             game.scene.start('CompanionSelect')
           })
           return
         }
         this.close()
-        this._abandonExistingRunForLeaderboard()
         _stopAllGameplayScenes(game.scene)
         game.scene.start('CompanionSelect')
         break
@@ -501,7 +501,6 @@ export class MainMenuOverlay {
           localStorage.setItem('qf.dev.startBossLevel', '7')
         } catch {}
         this.close()
-        this._abandonExistingRunForLeaderboard()
         _stopAllGameplayScenes(game.scene)
         game.scene.start('CompanionSelect')
         break
@@ -602,25 +601,6 @@ export class MainMenuOverlay {
       onClose: () => { this._settings = null },
     })
     this._settings.open()
-  }
-
-  // Called on any path that's about to overwrite the current save with
-  // a fresh run (NEW EVIL, JUMP TO DAY 50). Submits the existing save's
-  // run to the leaderboard as 'abandoned' so its 'live' row gets
-  // flipped — otherwise the row sits in the DB as an orphan and shows
-  // forever on the LIVE tab / as PAUSED on GLOBAL. Fire-and-forget so
-  // the new-run flow doesn't wait on the network.
-  //
-  // Safe to call when no save exists (early-exits) and when the run is
-  // tiny (the noise gate in Leaderboard.submitAbandonedRun skips
-  // runs with days<3 AND kills<5 so trivial "started and immediately
-  // restarted" attempts don't pollute the board).
-  _abandonExistingRunForLeaderboard() {
-    try {
-      const save = SaveSystem.hasSave?.() ? SaveSystem.load?.() : null
-      if (!save) return
-      Leaderboard.submitAbandonedRun(save).catch(() => null)
-    } catch {}
   }
 
   _openLeaderboard() {
