@@ -1977,6 +1977,19 @@ export class NightPhase extends Phaser.Scene {
         const room = grid.getRoomAtTile(tx, ty)
         if (room && (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall'))
           violations.push('Not in the boss room or entry hall')
+        // 2×2 floor traps (Spike Pit, Spike Pillar, Rotating Blades) eat
+        // most of the floor in a small room and feel oppressive — block
+        // them in any room the size of the Armoury (8×8 outer / 16 floor
+        // tiles) or smaller. Outer area <= 64 catches the armoury, guard
+        // post, sanctum, wandering gate, watchtower, etc. — anything
+        // 10-wide-or-deeper (barracks, treasury, trap factory, halls)
+        // still accepts them.
+        if (fp.w * fp.h >= 4 && room && (room.width * room.height) <= 64) {
+          const allRooms = this.cache.json.get('rooms') ?? []
+          const rDef = allRooms.find(d => d.id === room.definitionId)
+          const rName = rDef?.name ?? 'This room'
+          violations.push(`${rName} is too small for a 2×2 trap — place it in a larger room`)
+        }
         // Spike Pit must sit fully interior — footprint + surrounding ring
         // all floor (no wall/door/void touching it).
         if (def.placement === 'floor_interior') {
