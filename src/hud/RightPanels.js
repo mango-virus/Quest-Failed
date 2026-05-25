@@ -142,6 +142,18 @@ const LOG_KINDS = {
   event:       { color: 'var(--info)',      glyph: '◈' },
 }
 const LOG_MAX = 200
+// Hoisted from inside the per-event render — same Set rebuilt for every
+// log row was a small but real per-tick cost when the log was rebuilt
+// from scratch on every event. Kept here for both the incremental
+// _appendLogRow path and any future full-rebuild caller.
+const LOG_TEXT_COLOR_KINDS = new Set([
+  'kill', 'minion-lost', 'damage', 'room-down', 'steal',
+  'gold', 'flee', 'level',
+  'trap', 'leak', 'veteran',
+  'pact', 'spawn',
+  'day-phase', 'night-phase',
+  'boss-fight', 'ability', 'event',
+])
 
 export class RightPanels {
   constructor(gameState) {
@@ -730,49 +742,74 @@ export class RightPanels {
   }
 
   // ── DungeonLog ──────────────────────────────────────────────────
+  // Append-only DOM updates. Previously every log event triggered a
+  // full rebuild of all (up to 200) row elements via replaceChildren;
+  // at late-game wave counts that was 1000-4000 DOM creates/destroys
+  // per second and visibly janked the game. Now each event creates
+  // exactly one new <div>, optionally removes one old <div> when over
+  // cap, fades a single neighbour out of the "last 3" highlight, and
+  // schedules a single scroll-to-bottom per animation frame.
   _addLog(text, kind = 'info') {
-    this._logRows.push({ text, kind })
+    const row = { text, kind }
+    this._logRows.push(row)
     if (this._logRows.length > LOG_MAX) this._logRows.shift()
-    this._renderLog()
+    this._appendLogRow(row)
   }
 
-  _renderLog() {
+  // Build a single row element. Cheap (1 div + 2 spans).
+  _buildLogRowEl(row, recent = true) {
+    const meta = LOG_KINDS[row.kind] || LOG_KINDS.info
+    return h('div', {
+      className: 'log-row qf-log-row',
+      style: { opacity: recent ? 1 : 0.72 },
+    }, [
+      h('span', {
+        className: 'pix qf-log-glyph',
+        style: { color: meta.color, textShadow: `0 0 4px ${meta.color}` },
+      }, meta.glyph),
+      h('span', {
+        className: 'qf-log-text',
+        style: { color: LOG_TEXT_COLOR_KINDS.has(row.kind) ? meta.color : 'var(--text)' },
+      }, row.text),
+    ])
+  }
+
+  // O(1) per call — append the new row, fade the row that just slipped
+  // out of the "last 3" highlight, evict the oldest row if over cap,
+  // and queue a coalesced scroll-to-bottom.
+  _appendLogRow(row) {
     const body = this._refs.logBody
     if (!body) return
-    // Keep the rail element; replace just the row list.
-    const rows = this._logRows.map((row, idx) => {
-      const meta = LOG_KINDS[row.kind] || LOG_KINDS.info
-      const isRecent = idx >= this._logRows.length - 3
-      // Color the row TEXT (not just glyph) for every meaningful kind.
-      // Only generic `info` rows fall back to the default text color,
-      // so the log feels varied instead of mostly-white. Mirrors the
-      // original DungeonLog's full-color-row treatment.
-      const TEXT_COLOR_KINDS = new Set([
-        'kill', 'minion-lost', 'damage', 'room-down', 'steal',
-        'gold', 'flee', 'level',
-        'trap', 'leak', 'veteran',
-        'pact', 'spawn',
-        'day-phase', 'night-phase',
-        'boss-fight', 'ability', 'event',
-      ])
-      return h('div', {
-        className: 'log-row qf-log-row',
-        style: { opacity: isRecent ? 1 : 0.72 },
-      }, [
-        h('span', {
-          className: 'pix qf-log-glyph',
-          style: { color: meta.color, textShadow: `0 0 4px ${meta.color}` },
-        }, meta.glyph),
-        h('span', {
-          className: 'qf-log-text',
-          style: { color: TEXT_COLOR_KINDS.has(row.kind) ? meta.color : 'var(--text)' },
-        }, row.text),
-      ])
+    body.appendChild(this._buildLogRowEl(row, true))
+    // body.children[0] is the .qf-log-rail divider; log rows start at idx 1.
+    // The row that's now 4th from the end was opacity 1 a moment ago
+    // (it WAS one of the "recent" three); demote it.
+    const fadeIdx = body.children.length - 1 - 3
+    if (fadeIdx >= 1) {
+      const slipped = body.children[fadeIdx]
+      if (slipped && slipped.style) slipped.style.opacity = '0.72'
+    }
+    // Cap eviction — body.children includes the rail, so the row count
+    // is (length - 1). Loop in case multiple were stranded (defensive;
+    // _addLog only pushes one at a time).
+    while (body.children.length - 1 > LOG_MAX) {
+      body.removeChild(body.children[1])
+    }
+    this._scheduleLogScroll()
+  }
+
+  // Coalesce scroll-to-bottom writes into one per animation frame.
+  // Without this, `scrollTop = scrollHeight` was called once per event
+  // — each write forces a layout/reflow, so a 20-event burst meant
+  // 20 reflows.
+  _scheduleLogScroll() {
+    if (this._logScrollScheduled) return
+    this._logScrollScheduled = true
+    requestAnimationFrame(() => {
+      this._logScrollScheduled = false
+      const body = this._refs.logBody
+      if (body) body.scrollTop = body.scrollHeight
     })
-    // Keep rail (first child) intact; just replace rows after it.
-    body.replaceChildren(h('div', { className: 'qf-log-rail' }), ...rows)
-    // Scroll to bottom
-    body.scrollTop = body.scrollHeight
   }
 
   // ── Events ──────────────────────────────────────────────────────
