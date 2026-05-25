@@ -782,19 +782,6 @@ export class AISystem {
       a => a.partyId === adventurer.partyId && a.aiState !== 'dead'
     )
 
-    // Phase QW — raid_leader cascade-flee: if the dead adventurer was a
-    // raid_leader, every surviving party-mate panics and flees. Their
-    // morale was wholly tied to the leader.
-    const wasRaidLeader = adventurer.personalityIds?.includes('raid_leader')
-    if (wasRaidLeader && survivors.length > 0) {
-      EventBus.emit('RAID_LEADER_FELL', { leader: adventurer, partyId: adventurer.partyId })
-      const leaderName = adventurer?.name ?? 'their leader'
-      for (const s of survivors) {
-        if (s.aiState === 'fleeing') continue
-        this._setFleeGoal(s, 'raid_leader_dead', { leaderName })
-      }
-    }
-
     if (survivors.length === 0) {
       EventBus.emit('PARTY_WIPED', { partyId: adventurer.partyId, lastDead: adventurer })
       return
@@ -810,35 +797,6 @@ export class AISystem {
       }
     }
 
-    // Witness-an-ally-die panic flee — mirrors BossSystem._witnessAdvDeath,
-    // but for deaths during the day phase (traps, minions, friendly fire,
-    // any non-boss kill source). Roll once per surviving party-mate who
-    // was IN THE SAME ROOM as the death — out-of-sight allies don't see
-    // it happen so they don't panic. Personality scaling matches the
-    // boss-fight version: paranoid panics more, fearless/berserker
-    // ignore it entirely. Cap is Balance.WITNESS_DEATH_FLEE_MULT (~3%
-    // for a default personality) so most parties grit their teeth and
-    // press on.
-    const deathRoomId = this._dungeonGrid?.getRoomAtTile?.(
-      adventurer.tileX, adventurer.tileY,
-    )?.instanceId ?? null
-    if (deathRoomId) {
-      const mult = Balance.WITNESS_DEATH_FLEE_MULT ?? 0.10
-      for (const s of survivors) {
-        if (s.aiState === 'fleeing' || s.aiState === 'fled' || s.aiState === 'leaving') continue
-        const sRoomId = this._dungeonGrid.getRoomAtTile(s.tileX, s.tileY)?.instanceId ?? null
-        if (sRoomId !== deathRoomId) continue
-        const tags = this._personalitySystem?.getTags?.(s) ?? new Set()
-        if (tags.has?.('fearless') || tags.has?.('berserker')) continue
-        const w = this._personalitySystem?.getWeights?.(s) ?? {}
-        const chance = (w.fleeThreshold ?? 0.3) * mult
-        if (Math.random() < chance) {
-          this._setFleeGoal(s, 'panic_witnessed_death', {
-            allyName: adventurer.name ?? 'a comrade',
-          })
-        }
-      }
-    }
   }
 
   // When the party wins a boss fight, force every adventurer still in the dungeon

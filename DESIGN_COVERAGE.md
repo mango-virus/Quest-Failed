@@ -66,7 +66,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | paranoid | Paranoid | 5 | ✅ DONE | data + 0.55× movement in non-starter rooms (6c proxy until knowledge in Phase 8) |
 | party_loyal | Party Loyal | QW | ✅ DONE | AISystem rallies to DEFEND_ALLY goal when a party-mate drops below 40% HP; releases when ally heals back to 60%+ |
 | solo | Solo | QW | ✅ DONE | AISystem strips partyId on first tick (records formerPartyId on flags), emits SOLO_SPLIT |
-| raid_leader | Raid Leader | QW | ✅ DONE | AISystem._onAdventurerDied cascades flee to all surviving party-mates when a raid_leader falls (RAID_LEADER_FELL event) |
+| raid_leader | Raid Leader | QW | 🟡 FLAVOR-ONLY (cascade-flee removed 2026-05-25) | Cascade-flee on leader death was removed at user request — the witness-an-ally-die panic flee proved too punishing across the board. Personality data + chat lines remain; mechanical effect awaits the deferred personality rework |
 | completionist | Completionist | 5 | ✅ DONE | data + EXPLORE_ROOM steering |
 | cartographer | Cartographer | 5 | ✅ DONE | data + full-accuracy map share on flee (8 — KNOWLEDGE_CARTOGRAPHER_BOOST) |
 | vandal | Vandal | — | 🚫 REMOVED 2026-04-29 | Personality scrapped during Phase 5c ability rework. Trap-disarm role is now exclusive to Ranger's Trap Expert ability. JSON entry deleted from personalities.json + personalityCombos.json (vandal_speedrunner combo gone) + chatLines.json. TrapSystem._tryVandalDisarm logic removed. Old saves with vandal personality may fail to load (acceptable for jam). |
@@ -107,7 +107,7 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | greedy_cartographer_clash | Greedy + Cartographer | 5 | ✅ DONE | detected + banner |
 | paranoid_speedrunner_split | Paranoid + Speedrunner | 5 | ✅ DONE | combo banner + component effects produce the split organically: paranoid 0.55× speed in unfamiliar rooms, speed_runner faster movement — they drift apart by ~3 tiles within the first room |
 | martyr_vulture | Martyr + Vulture | QW | ✅ DONE | AISystem: vulture refuses to engage when a party-mate martyr is taunting (HP ≤ MARTYR_TAUNT_HP_FRACTION). Sets `flags.vultureWaitingForCarnage`, falls through to loot pickup once carnage drops gear |
-| raidleader_traumatized | Raid Leader + Traumatized | 5/QW | ✅ DONE | raid_leader cascade-flee fires from AISystem._onAdventurerDied when leader falls; traumatized survivor adds `fullKnowledgeOnFlee` flag — both effects compound when the combo is in play |
+| raidleader_traumatized | Raid Leader + Traumatized | 5/QW | 🟡 PARTIAL (raid_leader cascade-flee removed 2026-05-25) | Traumatized side still fires — sole survivor with `fullKnowledgeOnFlee` flag + panic flee on PARTY_WIPED. raid_leader side now flavor-only (cascade-flee removed), so the combo collapses to traumatized-only behaviour |
 | Other combos (8 more added) | — | 5/QW | ✅ DONE | underdog_cleric_fan: 1.5× extra XP mul (`BELIEVERS_BOOST` event); martyr_coward / solo_coward / loyal_traumatized: traumatized full-knowledge flee + solo split + cleric heal-ally all live; vandal_speedrunner: vandal disarm + speed_runner movement; beasttamer_necromancer: tame + raise both fire; greedy_cartographer / completionist_speedrunner / overconfident_paranoid / greedy_overconfident: produced organically by behaviorWeights |
 | Visible relationship icons above heads | — | QW | ✅ DONE | AdventurerRenderer renders ★ comboBadge to the right of any adv with activeCombos.length > 0 |
 | 💭 More combos | — | 5–10 | 💭 OPEN | grow as new tags land |

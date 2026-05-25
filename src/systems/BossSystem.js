@@ -582,7 +582,6 @@ export class BossSystem {
               fs.actionT     = 0
               fs.actionDur   = 0.6
               fs.dyingKilled = false
-              this._witnessAdvDeath(fs)
               continue
             }
 
@@ -2427,13 +2426,9 @@ export class BossSystem {
         fs.actionDur    = 0.6
         fs.dyingKilled  = false
         this._emitFx({ kind: 'strike', x: fs.adv.worldX, y: fs.adv.worldY })
-        this._witnessAdvDeath(fs)
         continue
       }
       if (fs.action === 'flee') continue
-      // _witnessAdvDeath above may have already flipped this fightState
-      // into flee for us (panic).  Skip the fleeThreshold check so we
-      // don't fire _beginFlee a second time for the same adventurer.
       if (fs.adv.aiState === 'fleeing' || !this._fightStates.has(fs.adv.instanceId)) continue
       if (this._shouldFleeBoss(fs.adv)) {
         this._beginFlee(fs)
@@ -2478,35 +2473,6 @@ export class BossSystem {
     }
   }
 
-  // Watching a teammate drop is rough.  Each surviving fightState rolls a
-  // personality-weighted panic chance; cowards break frequently, brave or
-  // berserker types almost never.  Reuses _beginFlee so the panicked
-  // adventurer gets the same handoff + 2× sprint as a normal flee.
-  _witnessAdvDeath(deadFs) {
-    if (!this._fightStates) return
-    const ps = this._scene.personalitySystem
-    for (const fs of this._fightStates.values()) {
-      if (fs === deadFs) continue
-      if (fs.action === 'flee' || fs.action === 'dying') continue
-      if (fs.adv.resources.hp <= 0) continue
-      const tags = ps?.getTags?.(fs.adv)
-      if (tags && (tags.has?.('fearless') || tags.has?.('berserker'))) continue
-      const w      = ps?.getWeights?.(fs.adv) ?? {}
-      // fleeThreshold scales the panic chance. With the default mult of
-      // 0.10: paranoid (0.6) → 6%, default (~0.3) → 3%, speed_runner
-      // (0.12) → 1.2%. Witnessing an ally die is rare enough to be a
-      // gut-punch moment, not an expected cascade. Tune via Balance.
-      const mult   = Balance.WITNESS_DEATH_FLEE_MULT ?? 0.10
-      const chance = (w.fleeThreshold ?? 0.3) * mult
-      if (Math.random() < chance) {
-        // Single emit — _beginFlee now folds the witnessed adventurer into
-        // ADVENTURER_BREAKING_FROM_BOSS so the chat log only shows one
-        // line per flee decision.
-        this._beginFlee(fs, deadFs.adv)
-      }
-    }
-  }
-
   // Personality-driven flee check.  Rolls once per threshold crossing so
   // most adventurers fight to the death — flee is rare, not guaranteed.
   // chance = threshold * 0.25: default(0.4)→10%, paranoid(0.6)→15%,
@@ -2533,16 +2499,9 @@ export class BossSystem {
   // slam against the interior boundary and never reach the handoff
   // threshold.  AISystem pathfinds through the actual doorway and the 2×
   // flee speed multiplier sells the "running away" feel.
-  _beginFlee(fs, witnessedAdv = null) {
-    EventBus.emit('ADVENTURER_BREAKING_FROM_BOSS', {
-      adventurer: fs.adv,
-      witnessed:  witnessedAdv,
-    })
-    this._handOffToAIFlee(
-      fs.adv,
-      witnessedAdv ? 'panic_witnessed_death' : 'fled_from_boss',
-      witnessedAdv ? { allyName: witnessedAdv.name ?? 'a comrade' } : null,
-    )
+  _beginFlee(fs) {
+    EventBus.emit('ADVENTURER_BREAKING_FROM_BOSS', { adventurer: fs.adv })
+    this._handOffToAIFlee(fs.adv, 'fled_from_boss', null)
   }
 
   _endFight(winner) {
