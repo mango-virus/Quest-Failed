@@ -160,12 +160,26 @@ export class RightPanels {
     this._gameState = gameState
     this._listeners = []
     this._logRows = []   // { text, kind }
+    // Per-day rolling counter for MINION_DIED — surfaced as a single
+    // end-of-day summary row instead of one row per dead minion. Resets
+    // on DAY_PHASE_BEGAN.
+    this._minionDeathsToday = 0
 
     this.el = this._build()
     this._wireEvents()
     this._renderIntel()
     this._renderWave()
     this._tickHandle = requestAnimationFrame(() => this._tick())
+  }
+
+  // Threshold above which the DungeonLog auto-quiets low-priority events
+  // (ability triggers). Picks up automatically during stampedes — the
+  // player sees only the headline beats (deaths, flees, boss, pacts,
+  // arrivals) until the wave thins out. 12 = a touch above day-22's
+  // typical wave size so it doesn't fire on normal play.
+  static get LOG_QUIET_ADV_COUNT() { return 12 }
+  _isHighAdvCount() {
+    return (this._gameState?.adventurers?.active?.length ?? 0) > RightPanels.LOG_QUIET_ADV_COUNT
   }
 
   _build() {
@@ -853,22 +867,21 @@ export class RightPanels {
     sub('ADVENTURER_FLED', () => {
       this._renderIntel()
     })
-    sub('MINION_DIED', ({ minion }) => {
-      const name = minion?.name || minion?.type || 'Minion'
-      // Minion loss is the player-NEGATIVE counterpart to ADVENTURER_DIED
-      // — the original DungeonLog drew this in blood-red while adventurer
-      // kills were green. New 'minion-lost' kind preserves that contrast.
-      this._addLog(`${name} fell.`, 'minion-lost')
+    // Per-day rolling counter — surfaced as a single end-of-day summary
+    // row instead of N individual "Minion X fell." entries. At day-22+
+    // wipe scenarios the per-death stream pushed everything else off
+    // the log within seconds. Per-minion notification still goes out
+    // via the MINION_DIED EventBus event itself (companion, sfx,
+    // knowledge all still see each death) — only the LOG is consolidated.
+    sub('MINION_DIED', () => {
+      this._minionDeathsToday++
     })
-    sub('TRAP_TRIGGERED', ({ def, adventurer, damage }) => {
-      const tn = def?.name || 'Trap'
-      const an = adventurer?.name || 'an adventurer'
-      const d  = damage != null ? ` (${damage} dmg)` : ''
-      // Traps get the warn-orange "action beat" color, matching the
-      // original DungeonLog (was previously dropping into the
-      // text-mute info color, which made them disappear visually).
-      this._addLog(`${tn} hits ${an}${d}.`, 'trap')
-    })
+    // TRAP_TRIGGERED individual lines removed — a trap that KILLS
+    // already produces an ADVENTURER_DIED row with the killerName,
+    // and non-lethal trap hits were the single biggest source of
+    // log noise during busy corridors. Trap-perf systems (sfx,
+    // knowledge, companion reactions) still see the event; the
+    // narrative DungeonLog just no longer prints a row per hit.
     sub('PACT_SEALED', ({ mechanicId, rarity }) => {
       const tag = rarity ? rarity.toUpperCase() : 'PACT'
       this._addLog(`${tag} pact sealed: ${pactLabel(mechanicId)}.`, 'pact')
@@ -876,10 +889,24 @@ export class RightPanels {
     sub('BOSS_LEVELED_UP', ({ toLevel }) => {
       this._addLog(`The boss ascends — level ${toLevel || '?'}.`, 'level')
     })
-    sub('DAY_PHASE_BEGAN',   () => this._addLog('Day phase begins — the invasion.', 'day-phase'))
+    sub('DAY_PHASE_BEGAN',   () => {
+      this._minionDeathsToday = 0
+      this._addLog('Day phase begins — the invasion.', 'day-phase')
+    })
     // Both day-begin and day-end share the same gold/amber color — they
     // bracket the same "day cycle" beat. Don't reuse night-phase here.
-    sub('DAY_PHASE_ENDED',   () => this._addLog('Day phase ends — the dust settles.', 'day-phase'))
+    sub('DAY_PHASE_ENDED',   () => {
+      // Single summary row for everything that died this day, if any.
+      // Surfaces above the day-end line so the chronology reads:
+      //   "Day phase ends — the dust settles."
+      //   "Day 22: 3 minions lost."
+      if (this._minionDeathsToday > 0) {
+        const n = this._minionDeathsToday
+        const day = this._gameState.meta?.dayNumber ?? '?'
+        this._addLog(`Day ${day}: ${n} minion${n === 1 ? '' : 's'} lost.`, 'minion-lost')
+      }
+      this._addLog('Day phase ends — the dust settles.', 'day-phase')
+    })
     sub('NIGHT_PHASE_BEGAN', () => {
       this._addLog('Night phase — build undisturbed.', 'night-phase')
       // Re-render the wave panel — NightPhase.create() has just pre-
@@ -937,10 +964,15 @@ export class RightPanels {
       const who = adventurer?.name || 'A goblin'
       this._addLog(`${who} escaped with ${amt}g stolen.`, 'steal')
     })
-    // Class abilities — only log when the payload carries a message so we
-    // don't spam the log with every passive aura tick.
+    // Class abilities — only log when the payload carries a message so
+    // we don't spam the log with every passive aura tick. Also gated by
+    // the high-adv-count quiet threshold: during a 13+ adv stampede,
+    // multi-target casts (mage/cleric/necromancer) fire faster than the
+    // log scrolls, so we suppress them and let the headline beats
+    // (deaths, flees, arrivals) stay readable.
     sub('ABILITY_TRIGGERED', ({ message } = {}) => {
       if (!message) return
+      if (this._isHighAdvCount()) return
       this._addLog(message, 'ability')
     })
     // Dungeon event announcement (boss-tier "something's coming" beat).

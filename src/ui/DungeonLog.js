@@ -106,37 +106,51 @@ export class DungeonLog {
       this._listeners.push([event, fn])
     }
 
+    // Per-day rolling counter — collapses MINION_DIED entries into a
+    // single end-of-day summary row (#4 cluster). Matches RightPanels.
+    this._minionDeathsToday = 0
+
     on('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
       this._add(`${adventurer.name} (${classLabel(adventurer.classId)}) enters.`, 'arrival')
     })
-    on('TRAP_TRIGGERED', ({ def, adventurer, damage }) => {
-      this._add(`${this._short(adventurer)} sprung ${def?.name ?? 'trap'} (${damage ?? 0} dmg).`, 'trap')
-    })
+    // TRAP_TRIGGERED line removed (#3 cluster) — trap kills already
+    // surface via ADVENTURER_DIED with killerName; non-lethal hits
+    // were the single biggest source of log noise.
     on('ADVENTURER_DIED', ({ adventurer, killerName }) => {
       // Event-spawned monster waves (zombie horde, rival dungeon) carry
       // `_monster` — skip their deaths so a bulk wipe doesn't flood the log.
       if (adventurer?._monster) return
       this._add(`${killerName ?? 'Something'} killed ${adventurer.name}.`, 'kill')
     })
-    // Flee flavor fires at the decision moment, not at dungeon exit.
-    // ADVENTURER_FLED still emits for cleanup pipelines (knowledge
-    // survivors, intel leaks), but the player-facing log line belongs
-    // on the moment the AI commits to running — otherwise the message
-    // shows up long after the player saw the adv start their flee.
     on('ADVENTURER_FLEE_DECIDED', ({ adventurer, reason, context }) => {
       this._add(fleeReasonFlavor(reason, adventurer.name, context), 'flee')
     })
-    on('MINION_DIED', ({ minion }) => {
-      this._add(`${this._minionName(minion)} fell.`, 'minion-down')
+    // MINION_DIED counted, surfaced as one row at day-end (#4 cluster).
+    on('MINION_DIED', () => {
+      this._minionDeathsToday++
     })
     on('ABILITY_TRIGGERED', ({ message }) => {
-      if (message) this._add(`✦ ${message}`, 'ability')
+      if (!message) return
+      // High-adv-count quiet gate (#5 cluster) — auto-suppress ability
+      // chatter during 13+ adv stampedes so headline beats stay readable.
+      if ((this._gameState?.adventurers?.active?.length ?? 0) > 12) return
+      this._add(`✦ ${message}`, 'ability')
     })
     on('PACT_SEALED', ({ mechanicId, rarity }) => {
       this._add(`Pact sealed: ${pactLabel(mechanicId)} (${rarity}).`, 'pact')
     })
-    on('DAY_PHASE_BEGAN', () => this._add('Day phase begins.', 'phase'))
-    on('DAY_PHASE_ENDED', () => this._add('Day phase ends.', 'phase'))
+    on('DAY_PHASE_BEGAN', () => {
+      this._minionDeathsToday = 0
+      this._add('Day phase begins.', 'phase')
+    })
+    on('DAY_PHASE_ENDED', () => {
+      if (this._minionDeathsToday > 0) {
+        const n = this._minionDeathsToday
+        const day = this._gameState.meta?.dayNumber ?? '?'
+        this._add(`Day ${day}: ${n} minion${n === 1 ? '' : 's'} lost.`, 'minion-down')
+      }
+      this._add('Day phase ends.', 'phase')
+    })
     on('NIGHT_PHASE_BEGAN', () => this._add('Night phase begins — build undisturbed.', 'phase'))
   }
 
