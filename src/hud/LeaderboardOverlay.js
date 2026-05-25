@@ -17,7 +17,21 @@ import { Overlay } from './Overlay.js'
 import { pixelSprite, spriteKindForDefId } from './sprites.js'
 import { Leaderboard as LeaderboardAPI } from '../systems/Leaderboard.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { COMPANIONS, getCompanion } from '../systems/companions.js'
 import { runCountUp } from './countUp.js'
+
+// Feature flag — show the companion the player used on each leaderboard
+// row, on the podium card, and in the detail panel (incl. a
+// boss × companion narrative line). Flip to `false` to fully hide the
+// feature without deleting any code; the rows in the DB still carry
+// `meta.companionId` so re-enabling later loses no data.
+//
+// To REMOVE entirely:
+//   1. Set this flag to `false` (instant rollback).
+//   2. Optional cleanup: delete the LB_SHOW_COMPANIONS code blocks in
+//      this file (search for `LB_SHOW_COMPANIONS`) and the
+//      `companionId:` line in Leaderboard.buildRunPayload.
+const LB_SHOW_COMPANIONS = true
 
 // Pact rarity → chip colour. Mirrors the bright (c1) tones of the
 // PactPicker tome (src/hud/PactPicker.js RARITY) so a pact reads the
@@ -206,15 +220,16 @@ export class LeaderboardOverlay {
     const myName = (() => {
       try { return PlayerProfile.getName?.() } catch { return null }
     })()
-    // Leak count can land under several keys depending on which writer
-    // path saved the row. Walk every plausible location so leaks always
-    // show even when the older fetch shape uses different naming.
-    const leaks =
-      r.meta?.leaks_count ??
-      r.meta?.leaks ??
-      r.leaks_count ??
-      r.leaks ??
-      r.run?.totals?.advsEscaped ??
+    // Adventurers-escaped count (column displayed as ESCAPES). Prefer
+    // the explicit `advsEscaped` count, fall back to `leak_events`
+    // (one per fled adv that carried intel — close approximation for
+    // older rows that wrote leak_events but not advsEscaped), then 0.
+    // The legacy `leaks_count` field counted INTEL ITEMS carried out,
+    // not escapes, so it's NOT in the chain — better to show 0 for
+    // rows that genuinely lack the data than a wildly inflated number.
+    const escapes =
+      r.meta?.advsEscaped ??
+      r.meta?.leak_events ??
       0
     // Pact names can land in meta.pacts (preferred) or run.history.pacts.
     // Normalise to a flat array of strings so the chip renderer doesn't
@@ -237,15 +252,124 @@ export class LeaderboardOverlay {
       boss:  spriteKindForDefId(r.boss_id),
       days:  r.days_survived ?? 0,
       kills: r.total_kills ?? 0,
-      leaks,
+      escapes,
       pacts,
       cause: _thematicCause(r.end_cause, r.id ?? r.created_at ?? r.player_name),
       date:  this._formatDate(r.created_at),
       accolade: rank <= 3 ? ACCOLADES[rank - 1] : null,
       isYou: !!(myName && r.player_name === myName),
       prePatch: r.id === PRE_NERF_ROW_ID,
+      // LB_SHOW_COMPANIONS — companion id is left on the VM even when
+      // the display flag is off so toggling the flag back on works
+      // without re-normalising.
+      companionId: r.meta?.companionId ?? null,
       _raw: r,
     }
+  }
+
+  // ── LB_SHOW_COMPANIONS — companion chip (icon + name) ────────────────
+  // Returns null when the feature is off or the row predates the
+  // feature (no companionId). `size` controls the icon px; `compact`
+  // hides the name text for the tightest spots.
+  _companionChip(companionId, opts = {}) {
+    if (!LB_SHOW_COMPANIONS || !companionId) return null
+    if (!COMPANIONS[companionId]) return null
+    const c = getCompanion(companionId)
+    const size = opts.size ?? 14
+    const compact = !!opts.compact
+    const fontSize = opts.fontSize ?? 8
+    const src = `${c.spriteDir}${c.restExpr}.webp`
+    return h('span', {
+      className: 'pix qf-lb-companion-chip',
+      title: `Keeper: ${c.name}`,
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        marginLeft: '6px',
+        padding: '1px 5px 1px 2px',
+        border: '1px solid var(--line-2)',
+        background: 'var(--bg-0)',
+        verticalAlign: 'middle',
+        fontSize: `${fontSize}px`,
+        color: 'var(--text-mute)',
+        letterSpacing: '0.5px',
+      },
+    }, [
+      h('img', {
+        src,
+        alt: c.name,
+        style: {
+          width: `${size}px`,
+          height: `${size}px`,
+          objectFit: 'cover',
+          objectPosition: '50% 0%',  // crop to head/shoulders
+          imageRendering: 'auto',
+          borderRadius: '50%',
+          background: 'var(--bg-1)',
+        },
+        // Hide the chip entirely if the sprite 404s — never show a
+        // broken-image box on the leaderboard.
+        onerror: (e) => { const p = e.currentTarget?.parentNode; if (p) p.style.display = 'none' },
+      }),
+      !compact && h('span', null, c.name.toUpperCase()),
+    ])
+  }
+
+  // LB_SHOW_COMPANIONS — detail-panel Keeper field + a one-line
+  // boss × companion narrative. Sentence pattern reads like a small
+  // chronicle entry instead of a stat row, so the run feels like a
+  // story (rather than a row of numbers).
+  _renderDetailCompanion(sel) {
+    const c = getCompanion(sel.companionId)
+    const bossWord = String(sel.boss || 'dungeon').replace(/^./, ch => ch.toUpperCase())
+    const days = sel.days || 0
+    const dayWord = days === 1 ? 'day' : 'days'
+    const survived = sel.cause.toLowerCase().includes('indef')
+    // Subtle past/present tense flip — survived → "stands", else → "stood".
+    const verb = survived ? 'stands' : 'stood'
+    const narrative = `This dungeon ${verb} for ${days} ${dayWord} under the ${bossWord}, with ${c.name} at their side.`
+    return h('div', {
+      className: 'qf-lb-detail-keeper',
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '6px 8px',
+        margin: '6px 0',
+        border: '1px solid var(--line-2)',
+        background: 'var(--bg-1)',
+      },
+    }, [
+      h('img', {
+        src: `${c.spriteDir}${c.restExpr}.webp`,
+        alt: c.name,
+        style: {
+          width: '28px',
+          height: '28px',
+          objectFit: 'cover',
+          objectPosition: '50% 0%',
+          borderRadius: '50%',
+          background: 'var(--bg-0)',
+          flex: '0 0 auto',
+        },
+        onerror: (e) => { const p = e.currentTarget?.parentNode; if (p) p.style.display = 'none' },
+      }),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 } }, [
+        h('div', {
+          className: 'pix',
+          style: { fontSize: '8px', color: 'var(--text-mute)', letterSpacing: '0.5px' },
+        }, `KEEPER · ${c.name.toUpperCase()}`),
+        h('div', {
+          style: {
+            fontSize: '11px',
+            color: 'var(--text)',
+            fontStyle: 'italic',
+            lineHeight: 1.3,
+          },
+        }, narrative),
+      ]),
+    ])
   }
 
   _formatDate(iso) {
@@ -389,7 +513,7 @@ export class LeaderboardOverlay {
             h('span', null, 'KEEPER'),
             h('span', { style: { textAlign: 'right' } }, 'DAYS'),
             h('span', { style: { textAlign: 'right', color: 'var(--blood)' } }, 'KILLS'),
-            h('span', { style: { textAlign: 'right', color: 'var(--warn)' } }, 'LEAKS'),
+            h('span', { style: { textAlign: 'right', color: 'var(--warn)' } }, 'ESCAPES'),
           ]),
           h('div', { className: 'qf-lb-tablebody' },
             rows.map(r => this._tableRow(r))
@@ -404,21 +528,38 @@ export class LeaderboardOverlay {
   _podiumCard(entry, place) {
     const c = rankColor(place)
     const active = this._selected === entry
-    return h('button', {
-      className: 'qf-lb-podium-card',
-      dataset: { place, active: active ? 'true' : 'false' },
-      style: {
-        '--rank-color': c,
-        background: active
-          ? `linear-gradient(180deg, ${c}26, var(--bg-2) 60%)`
-          : 'linear-gradient(180deg, var(--bg-2), var(--bg-1))',
-        borderColor: active ? c : 'var(--line-2)',
-        borderTop: `3px solid ${c}`,
-        boxShadow: active
-          ? `0 0 20px ${c}55, 0 4px 0 rgba(0,0,0,0.5)`
-          : '0 4px 0 rgba(0,0,0,0.5)',
-      },
-      on: { click: () => { this._selected = entry; this._rerender() } },
+    // LB_SHOW_COMPANIONS — when a companion is shown, the card flips to
+    // a horizontal layout: [big keeper sprite on the left | existing
+    // boss/name/stats column on the right]. Cards without a companion
+    // (legacy rows) keep the original vertical layout.
+    const showCompanion = LB_SHOW_COMPANIONS && entry.companionId && COMPANIONS[entry.companionId]
+    const cardStyle = {
+      '--rank-color': c,
+      background: active
+        ? `linear-gradient(180deg, ${c}26, var(--bg-2) 60%)`
+        : 'linear-gradient(180deg, var(--bg-2), var(--bg-1))',
+      borderColor: active ? c : 'var(--line-2)',
+      borderTop: `3px solid ${c}`,
+      boxShadow: active
+        ? `0 0 20px ${c}55, 0 4px 0 rgba(0,0,0,0.5)`
+        : '0 4px 0 rgba(0,0,0,0.5)',
+    }
+    if (showCompanion) {
+      cardStyle.display = 'flex'
+      cardStyle.flexDirection = 'row'
+      cardStyle.alignItems = 'stretch'
+      cardStyle.gap = '10px'
+    }
+    // The existing column of card content (rank → boss → name → accolade)
+    // is wrapped in its own flex column so the keeper sprite can sit
+    // alongside it without disturbing internal alignment. When the
+    // keeper is shown, the days/kills stats move into the keeper block
+    // (left side) — see _podiumCompanionSprite. When no keeper, stats
+    // stay here in their original spot.
+    const contentColumn = h('div', {
+      style: showCompanion
+        ? { display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '1 1 auto', minWidth: 0 }
+        : null,
     }, [
       h('div', {
         className: 'pix qf-lb-podium-badge',
@@ -431,24 +572,172 @@ export class LeaderboardOverlay {
       h('div', {
         className: 'qf-lb-podium-sprite',
         style: { borderColor: c },
-      }, _bossPortrait(entry.bossId, place === 1 ? 56 : 44)),
+      }, _bossPortrait(entry.bossId, place === 1 ? 80 : 64)),
       h('div', {
         className: 'pix qf-lb-podium-name',
         style: {
           color: c,
-          fontSize: place === 1 ? '12px' : '10px',
+          fontSize: place === 1 ? '15px' : '13px',
           textShadow: `0 0 6px ${c}66`,
         },
       }, entry.name),
-      h('div', { className: 'pix qf-lb-podium-stats' }, [
+      // Days/kills only stay here in the legacy (no-keeper) layout.
+      // With a keeper, stats move to their own framed block on the
+      // RIGHT side (see _podiumStatsBlock) so the card reads as
+      // [keeper | hero | stats] — three matching framed panels.
+      !showCompanion && h('div', { className: 'pix qf-lb-podium-stats' }, [
         h('span', null, `${entry.days}d`),
-        // Skull glyph removed at user request — kill count reads plain.
         h('span', { style: { color: 'var(--blood)' } }, `${entry.kills} KILLS`),
       ]),
       entry.accolade && h('div', {
         className: 'pix qf-lb-podium-accolade',
         style: { color: c, borderColor: c },
       }, entry.accolade),
+    ])
+    return h('button', {
+      className: 'qf-lb-podium-card',
+      dataset: { place, active: active ? 'true' : 'false' },
+      style: cardStyle,
+      on: { click: () => { this._selected = entry; this._rerender() } },
+    }, [
+      showCompanion ? this._podiumCompanionSprite(entry, place) : null,
+      contentColumn,
+      // Right-side stats block — mirrors the keeper block's width so
+      // the content column sits visually centred. Same framed-panel
+      // styling as the keeper sprite frame so the card reads as a
+      // balanced [keeper | hero | stats] triptych.
+      showCompanion ? this._podiumStatsBlock(entry, place) : null,
+    ])
+  }
+
+  // LB_SHOW_COMPANIONS — right-side framed stats panel for the podium
+  // card. Two stacked mini-frames (DAYS / KILLS) styled to match the
+  // keeper sprite's framing (rank-coloured border + glow). Sized to
+  // mirror the keeper block on the opposite side so the centre column
+  // stays centred.
+  _podiumStatsBlock(entry, place) {
+    const accent = rankColor(place)
+    // Mirror the keeper block's width so the centre column stays centred.
+    const w = place === 1 ? 84 : 64
+    const labelStyle = {
+      fontSize: '6px',
+      color: 'var(--text-mute)',
+      letterSpacing: '0.5px',
+    }
+    const valueFontSize = place === 1 ? '11px' : '9px'
+    const miniFrame = (labelText, valueNode, frameColor, glowColor) => h('div', {
+      style: {
+        background: 'var(--bg-1)',
+        border: `1px solid ${frameColor}`,
+        boxShadow: `0 0 4px ${glowColor}`,
+        padding: '2px 4px 3px',
+        textAlign: 'center',
+        width: '100%',
+        boxSizing: 'border-box',
+      },
+    }, [
+      h('div', { className: 'pix', style: labelStyle }, labelText),
+      valueNode,
+    ])
+    return h('div', {
+      className: 'qf-lb-podium-stats-block',
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        justifyContent: 'center',
+        gap: '4px',
+        flex: '0 0 auto',
+        width: `${w}px`,
+        padding: '2px',
+      },
+    }, [
+      miniFrame(
+        'DAYS',
+        h('div', {
+          className: 'pix',
+          style: {
+            fontSize: valueFontSize,
+            color: 'var(--text)',
+            textShadow: `0 0 4px ${accent}66`,
+            marginTop: '1px',
+          },
+        }, String(entry.days)),
+        `${accent}88`,
+        `${accent}33`,
+      ),
+      miniFrame(
+        'KILLS',
+        h('div', {
+          className: 'pix',
+          style: {
+            fontSize: valueFontSize,
+            color: 'var(--blood)',
+            textShadow: '0 0 4px rgba(255,68,88,0.6)',
+            marginTop: '1px',
+          },
+        }, String(entry.kills)),
+        'rgba(255,68,88,0.55)',
+        'rgba(255,68,88,0.25)',
+      ),
+    ])
+  }
+
+  // LB_SHOW_COMPANIONS — big keeper sprite block for the podium card's
+  // left side. Per-place sizing so the #1 keeper reads as the biggest.
+  // Self-contained so removing the feature is one delete.
+  _podiumCompanionSprite(entry, place) {
+    const c = getCompanion(entry.companionId)
+    const accent = rankColor(place)
+    const w = place === 1 ? 84 : 64
+    return h('div', {
+      className: 'qf-lb-podium-keeper',
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: '4px',
+        flex: '0 0 auto',
+        // Outer block has no background / border / padding — just lays
+        // out the sprite + name + stats. The yellow frame around the
+        // sprite itself is the only chrome, and it lives on the <img>
+        // below.
+        padding: '2px',
+        background: 'transparent',
+      },
+    }, [
+      h('img', {
+        src: `${c.spriteDir}${c.restExpr}.webp`,
+        alt: c.name,
+        style: {
+          width: `${w}px`,
+          // Tall aspect so the head + shoulders + a bit of chest read.
+          // Companions are framed quite differently across the four
+          // sprite sets; cover + top-anchor keeps them all centred on
+          // the face.
+          height: `${Math.round(w * 1.15)}px`,
+          objectFit: 'cover',
+          objectPosition: '50% 0%',
+          imageRendering: 'auto',
+          background: 'var(--bg-1)',
+          border: `1px solid ${accent}88`,
+          boxShadow: `0 0 8px ${accent}33`,
+        },
+        // Hide the keeper block entirely if the sprite 404s — never
+        // ship a broken-image box. Removing the parent keeps the card
+        // gracefully reflowing to its no-companion layout.
+        onerror: (e) => { const p = e.currentTarget?.parentNode; if (p) p.style.display = 'none' },
+      }),
+      h('div', {
+        className: 'pix',
+        style: {
+          color: accent,
+          fontSize: place === 1 ? '9px' : '8px',
+          letterSpacing: '0.5px',
+          textShadow: `0 0 4px ${accent}66`,
+        },
+      }, c.name.toUpperCase()),
     ])
   }
 
@@ -483,6 +772,8 @@ export class LeaderboardOverlay {
         }, [
           r.name,
           r.isYou && h('span', { className: 'pix qf-lb-row-youtag' }, ' · YOU'),
+          // LB_SHOW_COMPANIONS — companion chip beside the name.
+          this._companionChip(r.companionId, { size: 12, fontSize: 7 }),
           r.prePatch && h('span', {
             className: 'pix',
             style: {
@@ -507,8 +798,8 @@ export class LeaderboardOverlay {
       }, String(r.kills)),
       h('span', {
         className: 'pix qf-lb-row-cell',
-        style: { color: r.leaks > 0 ? 'var(--warn)' : 'var(--text-dim)' },
-      }, String(r.leaks)),
+        style: { color: r.escapes > 0 ? 'var(--warn)' : 'var(--text-dim)' },
+      }, String(r.escapes)),
     ])
   }
 
@@ -559,14 +850,21 @@ export class LeaderboardOverlay {
             `${String(sel.boss).toUpperCase()} · ${sel.date}`),
         ]),
       ]),
+      // LB_SHOW_COMPANIONS — boss × companion narrative line + Keeper
+      // field. Sits between the head and the stat grid. Renders nothing
+      // when the row predates the feature (no companionId) or the flag
+      // is off.
+      LB_SHOW_COMPANIONS && sel.companionId && COMPANIONS[sel.companionId]
+        ? this._renderDetailCompanion(sel)
+        : null,
       // Stat grid. Skull glyph removed from KILLS at user request —
       // the personal-tab tab icon still uses ☠. KILLS uses a sword
-      // mark so the trio (◇ DAYS · ⚔ KILLS · ⚠ LEAKS) reads as three
+      // mark so the trio (◇ DAYS · ⚔ KILLS · ↗ ESCAPES) reads as three
       // distinct beats without redundancy.
       h('div', { className: 'qf-lb-detail-stats' }, [
-        this._detailStat('DAYS',  sel.days,  'var(--text)',  '◇'),
-        this._detailStat('KILLS', sel.kills, 'var(--blood)', '⚔'),
-        this._detailStat('LEAKS', sel.leaks, 'var(--warn)',  '⚠'),
+        this._detailStat('DAYS',    sel.days,    'var(--text)',  '◇'),
+        this._detailStat('KILLS',   sel.kills,   'var(--blood)', '⚔'),
+        this._detailStat('ESCAPES', sel.escapes, 'var(--warn)',  '↗'),
       ]),
       // Cause of end
       h('div', {

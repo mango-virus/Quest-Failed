@@ -63,6 +63,13 @@ export const Leaderboard = {
         leaks_count:     Number(tot.intelLeaks ?? 0),
         leak_events:     Number(tot.leakEvents ?? 0),
         pacts:           Array.isArray(pactNames) ? pactNames : [],
+        // Companion the player ran with this game. Display-side gating
+        // lives in LeaderboardOverlay (LB_SHOW_COMPANIONS). Persisted
+        // unconditionally so we don't get a data gap if the display is
+        // turned off and back on later. To fully remove the feature,
+        // delete this line and the LB_SHOW_COMPANIONS code block in
+        // LeaderboardOverlay.
+        companionId:     gs.meta?.companionId ?? null,
       },
     }
   },
