@@ -390,7 +390,7 @@ Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Fa
 | Item | Phase | Status |
 |---|---|---|
 | Some traps need power from a Core room | QW | ✅ DONE | trapTypes flag `requiresPowerSource:true` on greed/mercy/echo_mine/curse_brand; TrapSystem._fireTrap checks `_hasPowerCore()` and silently fizzles (TRAP_FAILED_NO_POWER event) |
-| Minions need a Barracks within N rooms | 6 | ✅ DONE — DungeonGrid.hasBarracksWithinDistance + NightPhase validation |
+| Minions need a Barracks within N rooms | 6 | ❌ REMOVED 2026-05-25 — proximity rule dropped at user request. Owning a Barracks still gates roster-slot capacity, but the "within N rooms of a Barracks" placement check is gone. `MINION_BARRACKS_DISTANCE` constant removed; `hasBarracksWithinDistance` helper left in DungeonGrid as dormant utility |
 | Treasure rooms must be 3+ rooms deep | 3 | ✅ DONE — placement validation in DungeonGrid |
 | `minDepthFromBoss` / `requiresAdjacentTags` placement rules | 3 | ✅ DONE — validation hook exists |
 | `requiresPowerSource` validation | QW | ✅ DONE | enforced in TrapSystem._fireTrap — also surfaces TRAP_FAILED_NO_POWER for UI hooks |

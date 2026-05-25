@@ -1573,17 +1573,17 @@ Added to `bossArchetypes.json`: the_warden (detention/prison), the_pyromancer (f
 - Palette panel gained **tabs**: ROOMS / MINIONS, click to switch. Active tab highlighted with accent border.
 - All cards for the active tab tracked in `_paletteObjects` and torn down on tab switch (no leaks).
 - New unified `_selectItem(def, kind)` replaces `_selectRoom`. `_selectedKind` ('room'|'minion') drives preview shape (single-tile for minions, room rect for rooms) and which validator runs.
-- Minion placement validation: tile must be FLOOR/BOSS_FLOOR, must be inside a room, that room must have a barracks within `Balance.MINION_BARRACKS_DISTANCE` (default 3) — except when placing IN a barracks-tagged room.
+- Minion placement validation: tile must be FLOOR/BOSS_FLOOR, must be inside a non-special room, and the per-room cap (`Balance.MINIONS_PER_ROOM_CAP`, default 5) must not be exceeded. The earlier "barracks within N rooms" proximity rule was dropped 2026-05-25 — owning a Barracks still gates roster-slot capacity, but minions may now be placed in any non-special room as long as a slot is free.
 - Removal goes through the SELL tool, not right-click. Ctrl+Z still undoes the most recent placement (full refund).
 
 ### DungeonGrid additions
-- `hasBarracksWithinDistance(roomId, maxDist)` — BFS on room adjacency graph; treats `starter_barracks` and `crypt` as barracks-tagged.
+- `hasBarracksWithinDistance(roomId, maxDist)` — BFS on room adjacency graph; treats `starter_barracks` and `crypt` as barracks-tagged. Dormant since 2026-05-25 (the placement gate it served was removed); left in place as a generic graph utility.
 
 ### Balance constants added
 - `ATTACK_INTERVAL_MS: 900` (base attack cooldown)
 - `MELEE_RANGE_TILES: 1.5` / `AGGRO_RANGE_TILES: 5`
 - `ENGAGE_REQUIRES_SAME_ROOM: true` (kernel scope; 6b will add cross-room hunt)
-- `MINION_BARRACKS_DISTANCE: 3`
+- ~~`MINION_BARRACKS_DISTANCE: 3`~~ (removed 2026-05-25 — proximity gate dropped)
 - `FLEE_BUFFER: 0.05` (hysteresis on flee threshold)
 
 ### Game.js wiring

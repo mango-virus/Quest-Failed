@@ -1875,13 +1875,6 @@ export class NightPhase extends Phaser.Scene {
       // Room redesign 2026-04-30 — Throne Room hosts only its mini-boss.
       violations.push("Throne Room only houses its mini-boss")
     } else {
-      // Room redesign 2026-04-30 — Barracks is the only roster source.
-      // Crypt is no longer a barracks-equivalent for placement proximity.
-      const isBarracksRoom = room.definitionId === 'starter_barracks'
-      if (!isBarracksRoom &&
-          !this._dungeonGrid.hasBarracksWithinDistance(room.instanceId, Balance.MINION_BARRACKS_DISTANCE)) {
-        violations.push(`Need barracks within ${Balance.MINION_BARRACKS_DISTANCE} rooms`)
-      }
       // Per-room cap on player-placed (roster) minions. System-spawned
       // garrison units (Crypt bones, Hellgate imps, etc.) aren't counted
       // so a Crypt's 4 Risen Bones don't eat into the player's budget.

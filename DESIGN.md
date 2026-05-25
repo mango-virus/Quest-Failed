@@ -428,7 +428,7 @@ If the adventurers make it to the final room (the boss room) they attempt to fig
 
 ## Architectural rules
 
-Some traps need power from a Core room; minions need a Barracks within N rooms; treasure rooms must be 3+ rooms deep. Layout of the dungeon should be a puzzle.
+Some traps need power from a Core room; ~~minions need a Barracks within N rooms~~ (deviation noted 2026-05-25: minion placement proximity to a Barracks is no longer required — owning a Barracks still gates roster-slot capacity, but minions may be placed in any non-special room as long as a roster slot is free and the per-room cap isn't full); treasure rooms must be 3+ rooms deep. Layout of the dungeon should be a puzzle.
 
 ---
 

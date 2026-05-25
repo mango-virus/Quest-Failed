@@ -188,7 +188,6 @@ export const Balance = {
   MELEE_RANGE_TILES:         1.5,     // adventurer or minion in melee range
   AGGRO_RANGE_TILES:         5,       // minion engages within this many tiles in same room
   ENGAGE_REQUIRES_SAME_ROOM: true,    // Phase 6 kernel: minions don't chase outside home room
-  MINION_BARRACKS_DISTANCE:  3,       // architectural rule: barracks within N rooms
   MINIONS_PER_ROOM_CAP:      5,       // max player-placed roster minions in one room (system-spawned garrison ignored)
 
   // --- Adventurer flee ---
