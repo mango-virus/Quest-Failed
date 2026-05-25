@@ -1,14 +1,120 @@
+import { EventBus } from './EventBus.js'
+
 const SAVE_KEY = 'quest_failed_save'
 const CURRENT_VERSION = '1.1.0'
+
+// Heavy-array caps applied at SAVE time so a deep-day run doesn't
+// blow past the ~5 MB localStorage quota. Each cap keeps the MOST
+// RECENT N entries — older history is dropped from the save.
+// The LIVE gameState in memory is untouched; only the on-disk
+// payload is trimmed.
+//
+// Why this exists: a save at day ~30 with ~36 advs/day was hitting
+// QuotaExceededError silently — `localStorage.setItem` throws and
+// the catch below used to swallow it, leaving the OLD save in place.
+// Result: player quits at day 30, Continue replays day 27 (the last
+// successfully-written save). Fix: bound + surface failures.
+const CAP_GRAVEYARD       = 500    // ~36 advs/day → ~14 days of corpse history
+const CAP_HISTORY_EVENTS  = 200    // dungeon-log ring buffer; matches LOG_MAX in RightPanels
+const CAP_HISTORY_DAYS    = 100    // per-day rollup rows
+const CAP_HISTORY_PACTS   = 200    // sealed pacts; rarely > 50 in practice
+const CAP_KNOWN_ADVS      = 300    // returning-veteran roster
+
+// Aggressive caps applied as a RETRY when the first save still
+// busts the quota. Trades more history for fitting on disk —
+// always strictly better than silently losing the entire save.
+const CAP_RETRY = {
+  graveyard:      150,
+  historyEvents:  50,
+  historyDays:    30,
+  historyPacts:   100,
+  knownAdvs:      150,
+}
+
+// Build a slimmed JSON payload from the live gameState. The caller's
+// gameState object is never mutated — we shallow-copy arrays that
+// need trimming and reassign on the cloned wrapper. Smaller fields
+// pass through by reference (cheap).
+function _buildSavePayload(gameState, caps = null) {
+  const C = {
+    graveyard:     caps?.graveyard     ?? CAP_GRAVEYARD,
+    historyEvents: caps?.historyEvents ?? CAP_HISTORY_EVENTS,
+    historyDays:   caps?.historyDays   ?? CAP_HISTORY_DAYS,
+    historyPacts:  caps?.historyPacts  ?? CAP_HISTORY_PACTS,
+    knownAdvs:     caps?.knownAdvs     ?? CAP_KNOWN_ADVS,
+  }
+  // Shallow clone — only the top-level object + the slices we replace
+  // need fresh references. The rest stays pointer-identical to the
+  // live state, which keeps deep-copy cost off the save hot path.
+  const out = { ...gameState }
+  if (gameState.adventurers) {
+    out.adventurers = { ...gameState.adventurers }
+    const gv = gameState.adventurers.graveyard
+    if (Array.isArray(gv) && gv.length > C.graveyard) {
+      out.adventurers.graveyard = gv.slice(-C.graveyard)
+    }
+    const known = gameState.adventurers.known
+    if (Array.isArray(known) && known.length > C.knownAdvs) {
+      out.adventurers.known = known.slice(-C.knownAdvs)
+    }
+  }
+  if (gameState.history) {
+    out.history = { ...gameState.history }
+    const ev = gameState.history.events
+    if (Array.isArray(ev) && ev.length > C.historyEvents) {
+      out.history.events = ev.slice(-C.historyEvents)
+    }
+    const dys = gameState.history.days
+    if (Array.isArray(dys) && dys.length > C.historyDays) {
+      out.history.days = dys.slice(-C.historyDays)
+    }
+    const pcts = gameState.history.pacts
+    if (Array.isArray(pcts) && pcts.length > C.historyPacts) {
+      out.history.pacts = pcts.slice(-C.historyPacts)
+    }
+  }
+  return out
+}
 
 export const SaveSystem = {
   save(gameState) {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(gameState))
+      const payload = _buildSavePayload(gameState)
+      const json = JSON.stringify(payload)
+      localStorage.setItem(SAVE_KEY, json)
       return true
     } catch (e) {
-      console.error('[SaveSystem] Save failed:', e)
-      return false
+      // Quota error path — retry with aggressive caps before giving up.
+      // QuotaExceededError can appear as e.name === 'QuotaExceededError'
+      // (modern), code 22 / 1014 (legacy WebKit / Firefox), or a generic
+      // message. Try the retry on ANY save throw so a misdetected quota
+      // error doesn't end up silently dropping the save.
+      console.warn('[SaveSystem] Save failed on first try, retrying with aggressive trim:', e?.name ?? e)
+      try {
+        const slim = _buildSavePayload(gameState, CAP_RETRY)
+        const json = JSON.stringify(slim)
+        localStorage.setItem(SAVE_KEY, json)
+        console.info('[SaveSystem] Retry succeeded with slim payload — older history trimmed.')
+        // Tell the player so they understand why log history dropped.
+        try {
+          EventBus.emit('SHOW_TOAST', {
+            kind:    'leak',
+            message: 'Save trimmed: old history dropped (storage full)',
+          })
+        } catch {}
+        return true
+      } catch (e2) {
+        console.error('[SaveSystem] Save FAILED — storage quota exhausted. The current run will NOT persist past this point.', e2)
+        // Surface to the player so they don't think their progress is
+        // being saved while it's silently failing.
+        try {
+          EventBus.emit('SHOW_TOAST', {
+            kind:    'leak',
+            message: '⚠ SAVE FAILED — storage is full. Progress will not persist.',
+          })
+        } catch {}
+        return false
+      }
     }
   },
 
