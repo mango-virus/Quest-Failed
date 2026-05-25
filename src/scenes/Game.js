@@ -439,6 +439,18 @@ export class Game extends Phaser.Scene {
     // dimmed dungeon view — the overlay handles RISE AGAIN by starting
     // MainMenu itself. Otherwise (legacy), stop HudScene + start the
     // Phaser GameOver scene as before.
+    //
+    // Save deletion (fix 2026-05-25): wipe the save file the moment the
+    // run is ABSOLUTELY over (boss out of lives — Phylactery already
+    // would have intercepted earlier if applicable). The legacy Phaser
+    // GameOver scene called deleteSave on its own; the new DOM
+    // GameOverOverlay didn't, leaving the save in localStorage. Players
+    // could then click CONTINUE on the main menu and resume the dead
+    // run as if nothing happened. Deleting here covers BOTH HUD paths
+    // and survives the player closing the tab during the Game Over
+    // screen — there is no scenario in which a dead boss should leave
+    // a resumable save behind.
+    try { SaveSystem.deleteSave?.() } catch {}
     let useNewHud = true
     try { useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
     this.scene.stop('NightPhase')
