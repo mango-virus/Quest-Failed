@@ -440,21 +440,6 @@ export class LeaderboardOverlay {
           textShadow: `0 0 6px ${c}66`,
         },
       }, entry.name),
-      entry.prePatch && h('div', {
-        className: 'pix',
-        style: {
-          display: 'inline-block',
-          marginTop: '4px',
-          padding: '2px 6px',
-          background: '#b03a48',
-          color: '#fff8e8',
-          border: '1px solid #2a0a0c',
-          fontSize: place === 1 ? '9px' : '8px',
-          letterSpacing: '0.5px',
-          boxShadow: '0 0 6px rgba(176,58,72,0.8)',
-          textShadow: 'none',
-        },
-      }, 'PRE NERF PATCH'),
       h('div', { className: 'pix qf-lb-podium-stats' }, [
         h('span', null, `${entry.days}d`),
         // Skull glyph removed at user request — kill count reads plain.
