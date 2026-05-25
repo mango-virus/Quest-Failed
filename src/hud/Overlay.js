@@ -130,8 +130,12 @@ export class Overlay {
     const stage = document.getElementById('hud-stage') || document.body
     // When the companion docks beside this menu, left-pin the modal so
     // Lilith only overlaps its outer edge instead of covering content.
+    // Dock-shift tracks VISIBILITY, not silence: in MUTE the companion is
+    // still visible and HUD_MENU_OPENED still steps her out beside the
+    // modal, so the menu must shift to make room. Only HIDDEN ('off')
+    // skips the dock — there's no sprite to clear.
     const dockShift = !!this._opts.npcKind && this._opts.dock &&
-                      !userSettings.isCompanionSilent()
+                      userSettings.companionMode() !== 'off'
     this.el.classList.toggle('qf-npc-docked', dockShift)
     stage.appendChild(this.el)
     if (this._opts.npcKind) {
