@@ -114,6 +114,12 @@ export class DungeonGrid {
     this._d = dungeonState
     // Fast lookup: `${x},${y}` → instanceId
     this._tileToRoom = {}
+    // Fast lookup: instanceId → room object. Maintained in lockstep with
+    // _tileToRoom by _rebuildLookup. Cheap O(1) for getRoomAtTile vs. the
+    // previous rooms.find() linear scan — called 77+ times across hot
+    // tick paths (AISystem, MinionAISystem, TrapSystem, KnowledgeSystem),
+    // so the lookup cache is significant during day-phase waves.
+    this._roomById = new Map()
     this._rebuildLookup()
   }
 
@@ -474,7 +480,7 @@ export class DungeonGrid {
 
   getRoomAtTile(tileX, tileY) {
     const id = this._tileToRoom[`${tileX},${tileY}`]
-    return id ? this._d.rooms.find(r => r.instanceId === id) ?? null : null
+    return id ? (this._roomById.get(id) ?? null) : null
   }
 
   // Find the connection point that owns a DOOR tile. Returns { room, cp } or
@@ -1058,8 +1064,10 @@ export class DungeonGrid {
 
   _rebuildLookup() {
     this._tileToRoom = {}
+    this._roomById   = new Map()
     for (const room of this._d.rooms) {
       this._indexRoom(room)
+      this._roomById.set(room.instanceId, room)
     }
   }
 
