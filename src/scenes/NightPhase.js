@@ -374,7 +374,9 @@ export class NightPhase extends Phaser.Scene {
     if (eventFlags.negotiationOutcome === 'refuse') baseCount = Math.round(baseCount * 1.5)
     const subBonus = gs.player?.subscriberRevengeBonus ?? 0
     if (subBonus > 0) baseCount += subBonus
-    const count = Math.min(baseCount, classes.length * 2)
+    // Mirror DayPhase: no class-diversity cap. See the long comment at
+    // the matching call site in DayPhase._spawnDailyAdventurers.
+    const count = Math.max(0, Math.floor(baseCount))
 
     // Vendetta hunter pre-roll. DayPhase rolls 0.35 fresh; here we roll
     // it now and persist the outcome so the preview matches reality.

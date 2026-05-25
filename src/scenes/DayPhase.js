@@ -727,7 +727,14 @@ export class DayPhase extends Phaser.Scene {
     // Phase 8: roll for a returning leader (a fled adventurer brings a party back)
     const returningRecord = knowledgeSystem?.rollReturnLeader?.() ?? null
     let returnLeaderInjected = false
-    let count = Math.min(baseCount, classes.length * 2)
+    // Wave size = baseCount, no class-diversity ceiling. The old
+    // `Math.min(baseCount, classes.length * 2)` cap was a stale early-dev
+    // safety that silently discarded the post-day-9 escalation and every
+    // event multiplier (Guild Raid, Cursed Relic, Infamy Spike, etc.)
+    // once baseCount exceeded ~2× the eligible class roster (kicked in
+    // around day 25). LPC variants + the personality stack handle
+    // duplicate classes fine, so the cap no longer serves a purpose.
+    let count = Math.max(0, Math.floor(baseCount))
 
     // Phase 7b: vendetta hunter spawn — if active vendettas, 35% chance
     // one shows up. NightPhase pre-rolls this and stores the outcome on
