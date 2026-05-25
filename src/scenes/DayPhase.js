@@ -663,12 +663,14 @@ export class DayPhase extends Phaser.Scene {
       baseCount += gildedExtras
       this._gameState._mechanicFlags.gildedDemiseExtraAdvs = 0
     }
-    // Phase 9: Doomsday Clock — force the doomsday raid to exactly the
-    // promised size. Other modifiers (Gilded Demise extras, etc.) are
-    // overridden so the card's "4 adventurers" claim holds even when they
-    // stack onto the same day.
+    // Phase 9: Doomsday Clock — the pact promised a "guaranteed raid"
+    // 7 days after it was sealed. Doubles the day's natural wave (the
+    // doubling IS the entire tradeoff — the per-adv stat buff was
+    // removed so the price of the +500g bargain is sheer numbers, not
+    // also tougher individuals).
     if ((this._gameState._mechanicFlags ?? {}).doomsdayRaidToday) {
-      baseCount = Balance.MECHANIC_DOOMSDAY_RAID_SIZE
+      const mult = Balance.MECHANIC_DOOMSDAY_WAVE_MULT ?? 2
+      baseCount = Math.round(baseCount * mult)
     }
     // Phase 9: Architect's Vision + Summon Adds III — flat extra adv count per day.
     const extraAdvs = (this._gameState._mechanicFlags ?? {}).extraAdvsPerDay ?? 0

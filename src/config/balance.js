@@ -412,8 +412,11 @@ export const Balance = {
   // --- Batch E: timed/scheduled ---
   MECHANIC_DOOMSDAY_GOLD_BONUS:           500,    // gold gained on activate
   MECHANIC_DOOMSDAY_DAYS_UNTIL_RAID:      7,
-  MECHANIC_DOOMSDAY_RAID_SIZE:            4,
-  MECHANIC_DOOMSDAY_RAID_STAT_MULT:       2.0,    // 2× hp + atk + speed
+  // Doomsday raid no longer hard-sets the wave to a fixed size; it
+  // multiplies the day's normal baseCount instead so the "guaranteed
+  // legendary raid" actually scales with how deep the run is. Was a
+  // flat 4 (irrelevant past day ~25); now ×2 the natural wave size.
+  MECHANIC_DOOMSDAY_WAVE_MULT:            2,
   MECHANIC_LONG_GAME_INTERVAL_DAYS:       3,
   MECHANIC_INQUISITORS_GOLD_MULT:         5,
   MECHANIC_INQUISITORS_HP_MULT:           2.0,

@@ -109,7 +109,7 @@ export class AdventurerIntelPopup {
     baseCount = 1 + Math.floor((day - 1) / 2)
     if (flags.gildedDemiseExtraAdvs) baseCount += flags.gildedDemiseExtraAdvs ?? 0
     if (flags.extraAdvsPerDay)       baseCount += flags.extraAdvsPerDay ?? 0
-    if (flags.doomsdayRaidToday)     baseCount = Math.max(baseCount, 4)
+    if (flags.doomsdayRaidToday)     baseCount = Math.round(baseCount * 2)
     if (events.guildRaidActive)      baseCount *= 2
     // Eligible class pool — same gate DayPhase uses
     const allClasses = this._scene.cache.json.get('adventurerClasses') ?? []

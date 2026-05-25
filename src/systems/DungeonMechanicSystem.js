@@ -969,7 +969,9 @@ function _buildHandlerRegistry() {
 
     // ── Doomsday Clock ───────────────────────────────────────────────────
     // +500g on activate. On day N+7, set a flag; DayPhase reads it and
-    // injects a 4-adv raid; the entry handler doubles their stats.
+    // doubles the day's natural wave size (via MECHANIC_DOOMSDAY_WAVE_MULT).
+    // The per-adv 2× stat buff was removed — the doubled wave is now the
+    // entire tradeoff. No buff subscriber needed.
     doomsdayClock_activate: ({ subscribe, gameState }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.doomsdayClock = true
@@ -983,18 +985,6 @@ function _buildHandlerRegistry() {
       })
       subscribe('NIGHT_PHASE_STARTED', () => {
         gameState._mechanicFlags.doomsdayRaidToday = false
-      })
-      subscribe('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
-        if (!gameState._mechanicFlags.doomsdayRaidToday || !adventurer) return
-        if (adventurer._doomsdayBuffed) return
-        const m = Balance.MECHANIC_DOOMSDAY_RAID_STAT_MULT
-        adventurer.resources.maxHp = Math.round((adventurer.resources.maxHp ?? 0) * m)
-        adventurer.resources.hp    = adventurer.resources.maxHp
-        if (adventurer.stats?.attack != null) adventurer.stats.attack = Math.round(adventurer.stats.attack * m)
-        if (adventurer.stats?.speed  != null) adventurer.stats.speed  = adventurer.stats.speed * m
-        adventurer.flags ??= {}
-        adventurer.flags.doomsdayRaider = true
-        adventurer._doomsdayBuffed = true
       })
     },
     doomsdayClock_deactivate: ({ gameState }) => {

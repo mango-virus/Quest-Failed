@@ -365,7 +365,8 @@ export class NightPhase extends Phaser.Scene {
     const gildedExtras = (gs._mechanicFlags ?? {}).gildedDemiseExtraAdvs ?? 0
     if (gildedExtras > 0) baseCount += gildedExtras
     if ((gs._mechanicFlags ?? {}).doomsdayRaidToday) {
-      baseCount = Balance.MECHANIC_DOOMSDAY_RAID_SIZE ?? baseCount
+      const mult = Balance.MECHANIC_DOOMSDAY_WAVE_MULT ?? 2
+      baseCount = Math.round(baseCount * mult)
     }
     const extraAdvs = (gs._mechanicFlags ?? {}).extraAdvsPerDay ?? 0
     if (extraAdvs > 0) baseCount += extraAdvs

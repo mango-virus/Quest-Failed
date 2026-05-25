@@ -653,7 +653,7 @@
     "name": "Doomsday Clock",
     "symbol": "◷",
     "description": "Gain 500 gold immediately.",
-    "tradeoffDescription": "On the 7th day from now, a guaranteed legendary raid arrives — 4 adventurers at 2× normal stats.",
+    "tradeoffDescription": "On the 7th day from now, a guaranteed raid arrives — the wave is doubled in size.",
     "rarity": "legendary",
     "unlockLevel": 4,
     "weight": 1,
