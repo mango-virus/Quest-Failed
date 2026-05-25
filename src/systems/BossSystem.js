@@ -1609,18 +1609,21 @@ export class BossSystem {
 
   _wire() {
     const onIncoming = (payload) => this._onIncoming(payload)
-    // Clear death-pose freeze on two boundaries:
-    //   - BOSS_FIGHT_INCOMING: a same-day second adv party is arriving,
-    //     the boss has to be ready to fight again. Replaces the dead-
-    //     pose with the prefight banner.
-    //   - NIGHT_PHASE_STARTED: the next day begins, build phase needs
-    //     the boss alive in the chamber for placement / UI.
-    // The post-wave summary used to release here too, but the player
-    // request is "stay on the last death frame until the following
-    // night phase begins" — so the boss now stays visibly dead through
-    // the end-of-day summary popup. Night phase is the only natural
-    // release point for the no-second-fight case.
-    const onClearPose = () => { this._deathPoseUntil = 0 }
+    // Clear death-pose freeze ONLY on NIGHT_PHASE_STARTED — the boss
+    // stays visibly dead in the chamber for the rest of the day after
+    // a life is lost. Releasing the pose on BOSS_FIGHT_INCOMING used to
+    // be intentional (it let a same-day second party trigger a second
+    // fight, costing another life), but that was the multi-life-per-day
+    // bug — _onIncoming now refuses any post-death fight via the
+    // `_diedThisDay` gate, so there's nothing for the pose to make way
+    // for. Kept the BOSS_FIGHT_INCOMING binding off entirely.
+    const onClearPose = () => {
+      this._deathPoseUntil = 0
+      // Day boundary also re-arms the per-day life-loss gate so the
+      // boss can fight (and potentially lose another life) the next day.
+      const b = this._gameState?.boss
+      if (b) b._diedThisDay = false
+    }
     // Tier 3 — blood decals get cleared at night so they don't bleed
     // (heh) into the next day's build phase.
     const onClearDecals = () => { this._decalsG?.clear?.() }
@@ -1631,21 +1634,16 @@ export class BossSystem {
       if (!adventurer || !this._decalsG) return
       this._stampBloodDecal(adventurer.worldX, adventurer.worldY)
     }
-    // ORDER CRITICAL: onClearPose MUST be registered before onIncoming
-    // so that when BOSS_FIGHT_INCOMING fires, the death-pose freeze is
-    // released BEFORE _startFight checks _deathPoseUntil. Reversed
-    // order caused the second boss fight of a single day to fail to
-    // start when the first fight had killed the boss (lives > 0 but
-    // still death-posed) — _startFight saw stale _deathPoseUntil =
-    // Infinity, returned early, and the second party stood frozen at
-    // the throne while the day clock kept ticking.
-    EventBus.on('BOSS_FIGHT_INCOMING',    onClearPose)
+    // BOSS_FIGHT_INCOMING used to also clear the death pose so a
+    // second adv party could trigger a fresh fight the same day — that
+    // was the bug. Removed; _onIncoming now bails on `_diedThisDay`
+    // before any pose check would matter. Death pose only releases on
+    // NIGHT_PHASE_STARTED, alongside the per-day life-loss gate reset.
     EventBus.on('BOSS_FIGHT_INCOMING',    onIncoming)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearPose)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearDecals)
     EventBus.on('ADVENTURER_DIED',        onAdvDied)
     this._listeners = [
-      ['BOSS_FIGHT_INCOMING',    onClearPose],
       ['BOSS_FIGHT_INCOMING',    onIncoming],
       ['NIGHT_PHASE_STARTED',    onClearPose],
       ['NIGHT_PHASE_STARTED',    onClearDecals],
@@ -1830,19 +1828,25 @@ export class BossSystem {
 
   _onIncoming({ adventurer }) {
     if (this._fighting) return
+    const boss = this._gameState.boss
+    const now  = this._scene.time?.now ?? 0
+    // ONE LIFE PER DAY (2026-05-25): if the boss already fell this day
+    // (life decremented in _resolveFight), any later adv reaching the
+    // boss room must NOT trigger a fresh fight — the boss is a corpse
+    // in the throne chamber until next night. Hand the adv off to flee
+    // with 'boss_defeated' (same goal a winning party gets), so they
+    // exit the dungeon instead of standing on the throne tile waiting
+    // for a fight that will never start.
+    if (boss?._diedThisDay) {
+      if (adventurer) this._handOffToAIFlee(adventurer, 'boss_defeated')
+      return
+    }
     // Defensive: never start a fight on a dead-posed boss or after
     // final death. boss.hp <= 0 is NOT a sufficient block on its own —
     // between fights with deathsRemaining > 0 the boss still has lives
-    // left but lingers at 0 hp until the next fight refreshes it. Only
-    // bail when the boss is REALLY dead (final death, no phylactery)
-    // or when the death-pose freeze hasn't been cleared yet (a parallel
-    // listener on BOSS_FIGHT_INCOMING releases the pose immediately
-    // before this _startFight call so the second fight of the day can
-    // proceed). Previously the over-broad `boss.hp <= 0` check froze
-    // the second boss fight indefinitely when the first one killed
-    // (but didn't permanently defeat) the boss.
-    const boss = this._gameState.boss
-    const now  = this._scene.time?.now ?? 0
+    // left but lingers at 0 hp until the next fight refreshes it. The
+    // `_diedThisDay` gate above now catches the dominant case (life
+    // already lost today); these stay as belt-and-braces.
     if (this._deathPoseUntil > now) return
     if (this.isFinalDeath()) return
     this._fighting       = true
@@ -2579,6 +2583,9 @@ export class BossSystem {
     // still on the clock.
     if (winner === 'party' && boss && (boss.hp ?? 0) <= 0) {
       boss.deathsRemaining = Math.max(0, boss.deathsRemaining - 1)
+      // ONE LIFE PER DAY — _onIncoming reads this to refuse any later
+      // boss fight today. Cleared on NIGHT_PHASE_STARTED (see _wire).
+      boss._diedThisDay = true
     }
 
     // Phase 1b.4 — Lich Phylactery acts as a 4th life. When the boss runs
