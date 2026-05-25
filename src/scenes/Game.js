@@ -1588,13 +1588,40 @@ export class Game extends Phaser.Scene {
           }
           _stats[sys] = (_stats[sys] ?? 0) + (performance.now() - t0)
         }
+        // AI 30Hz throttle (ONLY at 1× speed). PerfHud measurements at
+        // day-22+ showed aiSystem + minionAiSystem combined eating
+        // 67% of the 1000ms/s CPU budget. Each adv's per-tick body
+        // (state machine, combat, knowledge, personality, trap-recoil,
+        // mimic-detection) is ~3ms at peak, multiplied by ~15 advs ×
+        // 60Hz = ~2700ms/s of demand against a 1000ms/s budget.
+        // Skipping every other tick halves that to ~1350ms/s and frees
+        // ~13ms per frame — the difference between 12fps and ~25fps.
+        //
+        // 2× delta on the tick that runs so game-time progression is
+        // unchanged: AI advances exactly as much per second, just in
+        // 33ms hops instead of 16ms hops. Combat reaction feel is
+        // slightly less smooth but well within the tolerance of a
+        // strategy-pace game.
+        //
+        // GATED to 1×. At 2/4/8× the sub-step loop runs the systems
+        // many times per frame (MAX_STEP=40ms cap), and skipping
+        // sub-steps would let single-step deltas grow past the cap →
+        // the same path-overshoot / wedge-the-fight bugs the sub-
+        // stepping was added to fix.
+        const _aiThrottle = (ts === 1)
+        if (_aiThrottle) this._aiFrameParity = ((this._aiFrameParity ?? 0) + 1) & 1
+        const _skipAi = _aiThrottle && (this._aiFrameParity === 0)
+
         for (let i = 0; i < steps; i++) {
           // Boss fight runs at the same scaled rate as all other
           // day-phase systems so x2/x4/x8 speed applies during the
           // boss encounter.
           tick('bossSystem',            () => this.bossSystem?.update(stepDt))
-          tick('aiSystem',              () => this.aiSystem?.update(stepDt))
-          tick('minionAiSystem',        () => this.minionAiSystem?.update(stepDt))
+          if (!_skipAi) {
+            const aiDt = _aiThrottle ? stepDt * 2 : stepDt
+            tick('aiSystem',            () => this.aiSystem?.update(aiDt))
+            tick('minionAiSystem',      () => this.minionAiSystem?.update(aiDt))
+          }
           tick('trapSystem',            () => this.trapSystem?.update(stepDt))
           tick('dungeonMechanicSystem', () => this.dungeonMechanicSystem?.tickDay(stepDt))
           tick('classAbilitySystem',    () => this.classAbilitySystem?.update(stepDt))
