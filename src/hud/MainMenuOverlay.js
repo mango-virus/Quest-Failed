@@ -277,6 +277,7 @@ export class MainMenuOverlay {
     // makes these entries appear / disappear without leaving the menu.
     if (PlayerProfile.isCheatName()) {
       items.push(
+        { id: 'jump50', label: 'JUMP TO DAY 50', sub: 'Late-game wave test (day 50, boss L7)', icon: '▶', color: 'var(--blood)' },
         { id: 'rooms', label: 'ROOM EDITOR', sub: 'Edit room layouts', icon: '▤', color: 'var(--poison)' },
         { id: 'tiles', label: 'TILESET EDITOR', sub: 'Author tile themes', icon: '▦', color: 'var(--info)' },
       )
@@ -478,6 +479,19 @@ export class MainMenuOverlay {
         break
       case 'leader':
         this._openLeaderboard()
+        break
+      case 'jump50':
+        // Mango dev shortcut — stamps one-shot localStorage flags that
+        // ArchetypeSelect._beginRun reads after createGameState to bump
+        // meta.dayNumber + boss.level. Falls through to the normal new-evil
+        // flow so the player still picks companion + archetype as usual.
+        try {
+          localStorage.setItem('qf.dev.startDayNumber', '50')
+          localStorage.setItem('qf.dev.startBossLevel', '7')
+        } catch {}
+        this.close()
+        _stopAllGameplayScenes(game.scene)
+        game.scene.start('CompanionSelect')
         break
       case 'rooms':
         this.close()
