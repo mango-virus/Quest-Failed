@@ -2492,9 +2492,12 @@ export class BossSystem {
       const tags = ps?.getTags?.(fs.adv)
       if (tags && (tags.has?.('fearless') || tags.has?.('berserker'))) continue
       const w      = ps?.getWeights?.(fs.adv) ?? {}
-      // fleeThreshold scales the panic chance — paranoid (0.6) → 24 %,
-      // default (~0.3) → 12 %, speed_runner (0.12) → 4.8 %.
-      const chance = (w.fleeThreshold ?? 0.3) * 0.4
+      // fleeThreshold scales the panic chance. With the default mult of
+      // 0.10: paranoid (0.6) → 6%, default (~0.3) → 3%, speed_runner
+      // (0.12) → 1.2%. Witnessing an ally die is rare enough to be a
+      // gut-punch moment, not an expected cascade. Tune via Balance.
+      const mult   = Balance.WITNESS_DEATH_FLEE_MULT ?? 0.10
+      const chance = (w.fleeThreshold ?? 0.3) * mult
       if (Math.random() < chance) {
         // Single emit — _beginFlee now folds the witnessed adventurer into
         // ADVENTURER_BREAKING_FROM_BOSS so the chat log only shows one

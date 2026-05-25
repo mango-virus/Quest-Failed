@@ -193,6 +193,13 @@ export const Balance = {
 
   // --- Adventurer flee ---
   FLEE_BUFFER:               0.05,    // hysteresis on fleeThreshold so adventurers don't oscillate
+  // Boss-fight: chance an adv breaks formation and flees when they
+  // SEE an ally die. Scales with the adv's own fleeThreshold so braver
+  // personalities resist (speed_runner ~0.12) and skittish ones panic
+  // sooner (paranoid ~0.6). At 0.10 a default-personality adv (~0.3)
+  // sees only ~3% chance per witness — death is rare, fights are
+  // grimmer. Was 0.40 (12% default / 24% paranoid) and felt too common.
+  WITNESS_DEATH_FLEE_MULT:   0.10,
 
   // --- Class abilities (Phase 6c) ---
   // Note: mana system removed in Phase 5b cooldown rework. Abilities are now
