@@ -732,14 +732,27 @@ export class DungeonGrid {
   }
 
   // Reachability gate for Begin Day. Returns the list of rooms NOT
-  // reachable from entry_hall via the doorway graph. Empty array == fully
-  // connected. Boss chamber counts as disconnected if no path exists; the
-  // player must place rooms bridging entry_hall to it.
+  // reachable from ANY entry hall via the doorway graph. Empty array ==
+  // fully connected. Boss chamber counts as disconnected if no path
+  // exists; the player must place rooms bridging an entry_hall to it.
+  //
+  // Multi-source BFS: at boss level 5+ the game forces a 2nd entry hall
+  // (3rd at lv10). Each entry hall is an independent spawn point, so
+  // any room reachable from ANY entry hall counts as connected. Seeding
+  // from only the first entry hall (the old behaviour) made the 2nd /
+  // 3rd entry halls — and any wing connected only through them — show
+  // up as disconnected, even when the dungeon was perfectly valid.
+  // Matches the "at least one entry hall" rule the key-chest placement
+  // validator already uses.
   getDisconnectedRooms() {
-    const entry = this._d.rooms.find(r => r.definitionId === 'entry_hall')
-    if (!entry) return [...this._d.rooms]
-    const reachable = new Set([entry.instanceId])
-    const queue = [entry.instanceId]
+    const entries = this._d.rooms.filter(r => r.definitionId === 'entry_hall')
+    if (entries.length === 0) return [...this._d.rooms]
+    const reachable = new Set()
+    const queue = []
+    for (const e of entries) {
+      reachable.add(e.instanceId)
+      queue.push(e.instanceId)
+    }
     while (queue.length) {
       const id = queue.shift()
       for (const n of this.getNeighborRooms(id)) {
