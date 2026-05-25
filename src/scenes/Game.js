@@ -748,108 +748,28 @@ export class Game extends Phaser.Scene {
     })
   }
 
-  // Per-event ambient overlays. Hooks DUNGEON_EVENT_BEGAN /
-  // DUNGEON_EVENT_ENDED so each event can paint its own scene-wide chrome
-  // (Blood Moon red wash, etc.) without each renderer needing its own
-  // event subscription. ENDED clears whatever was set.
-  _onDungeonEventBegan({ def }) {
-    if (def?.id === 'blood_moon_eclipse') {
-      this._buildBloodMoonOverlay()
-      return
-    }
-    // Day-long state-modifier events get a flat colour wash so the
-    // player sees the effect is live all day (same idea as Blood Moon).
-    const tints = {
-      dense_fog:    { color: 0xaab4be, alpha: 0.30 },
-      miasma:       { color: 0x4f7a3a, alpha: 0.24 },
-      arcane_storm: { color: 0x6a3acc, alpha: 0.20 },
-    }
-    const t = tints[def?.id]
-    if (t) this._buildEventTint(t.color, t.alpha)
+  // Per-event ambient overlays.
+  //
+  // [Removed 2026-05-25] Phaser-side `_buildBloodMoonOverlay` +
+  // `_buildEventTint` graphics overlays. Both drew a `cam.width × cam.height`
+  // fill at world (0,0) with `setScrollFactor(0)` — but in Phaser that
+  // does NOT make the graphics camera-relative. The rect rendered in
+  // WORLD coordinates as a fixed 1280×720 chunk of the play area,
+  // showing as a dark-red square that obscured rooms during Blood Moon
+  // Eclipse (and a wrong-colour square for fog / miasma / arcane
+  // storm). The DOM-side `EventFx` layer (`src/hud/EventFx.js` +
+  // `fx-bloodmoon` / `fx-fog` / `fx-miasma` / `fx-arcane` classes in
+  // styles.css) already paints the correct full-screen radial wash +
+  // vignette over the actual viewport via CSS — that's the gentle
+  // atmospheric red tint visible in the working screenshot. Removing
+  // the Phaser duplicate.
+  _onDungeonEventBegan(_payload) {
+    // No-op — DOM EventFx handles every event's scene-wide chrome.
   }
 
-  _onDungeonEventEnded({ def }) {
-    if (def?.id === 'blood_moon_eclipse') {
-      this._destroyBloodMoonOverlay()
-      return
-    }
-    this._destroyEventTint()
-  }
-
-  // Generic flat colour wash for day-long state events (fog / miasma /
-  // arcane storm). Kept separate from the Blood Moon overlay, which has
-  // its own two-band treatment.
-  _buildEventTint(color, alpha) {
-    if (this._eventTintOverlay) this._destroyEventTint()
-    if (!this.cameras?.main) return
-    const layer = this.add.graphics().setScrollFactor(0).setDepth(110).setAlpha(0)
-    const paint = () => {
-      const cm = this.cameras?.main
-      if (!cm) return
-      layer.clear()
-      layer.fillStyle(color, alpha)
-      layer.fillRect(0, 0, cm.width, cm.height)
-    }
-    paint()
-    this._eventTintOverlay = layer
-    this._eventTintPaint   = paint
-    this.tweens.add({ targets: layer, alpha: 1, duration: 650 })
-    this.scale.on('resize', paint, this)
-  }
-
-  _destroyEventTint() {
-    if (this._eventTintPaint) {
-      this.scale.off('resize', this._eventTintPaint, this)
-      this._eventTintPaint = null
-    }
-    const layer = this._eventTintOverlay
-    if (!layer) return
-    this._eventTintOverlay = null
-    this.tweens.add({
-      targets: layer, alpha: 0, duration: 400,
-      onComplete: () => layer.destroy(),
-    })
-  }
-
-  _buildBloodMoonOverlay() {
-    if (this._bloodMoonOverlay) return
-    const cam = this.cameras?.main
-    if (!cam) return
-    const w = cam.width, h = cam.height
-    const layer = this.add.graphics().setScrollFactor(0).setDepth(110).setAlpha(0)
-    // Soft red wash + brighter top-band vignette so the sky reads as
-    // bleeding without the world becoming unreadable.
-    layer.fillStyle(0xcc0033, 0.22)
-    layer.fillRect(0, 0, w, h)
-    layer.fillStyle(0x880022, 0.18)
-    layer.fillRect(0, 0, w, Math.round(h * 0.35))
-    this._bloodMoonOverlay = layer
-    this.tweens.add({ targets: layer, alpha: 1, duration: 650 })
-    // Resize listener so the overlay fills the canvas after window resize.
-    this._bloodMoonResize = () => {
-      if (!this._bloodMoonOverlay || !this.cameras?.main) return
-      const cm = this.cameras.main
-      this._bloodMoonOverlay.clear()
-      this._bloodMoonOverlay.fillStyle(0xcc0033, 0.22)
-      this._bloodMoonOverlay.fillRect(0, 0, cm.width, cm.height)
-      this._bloodMoonOverlay.fillStyle(0x880022, 0.18)
-      this._bloodMoonOverlay.fillRect(0, 0, cm.width, Math.round(cm.height * 0.35))
-    }
-    this.scale.on('resize', this._bloodMoonResize, this)
-  }
-
-  _destroyBloodMoonOverlay() {
-    if (this._bloodMoonResize) {
-      this.scale.off('resize', this._bloodMoonResize, this)
-      this._bloodMoonResize = null
-    }
-    const layer = this._bloodMoonOverlay
-    if (!layer) return
-    this._bloodMoonOverlay = null
-    this.tweens.add({
-      targets: layer, alpha: 0, duration: 400,
-      onComplete: () => layer.destroy(),
-    })
+  _onDungeonEventEnded(_payload) {
+    // No-op — DOM EventFx tears down its own chrome on
+    // DUNGEON_EVENT_ENDED.
   }
 
   // Phase-transition camera fade. Short, world-camera only — HUD stays
