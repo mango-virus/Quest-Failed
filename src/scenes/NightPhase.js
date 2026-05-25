@@ -99,6 +99,13 @@ export class NightPhase extends Phaser.Scene {
     this._pendingTradeOff = null
     // MOVE tool — the placed trap currently being relocated (or null).
     this._heldMoveTrap = null
+    // Disconnected-room highlighter — graphics + tracking set populated
+    // when a Begin Day attempt fails because one or more rooms can't
+    // reach the entry hall. Pulses red until the player fixes the
+    // connectivity (re-checked on every ROOM_PLACED / ROOM_REMOVED).
+    this._disconnectedHighlight = null
+    this._disconnectedRoomIds   = new Set()
+    this._disconnectErrorShown  = false
   }
 
   create() {
@@ -597,38 +604,62 @@ export class NightPhase extends Phaser.Scene {
           return
         }
       }
-      this._setToolMode(null)
+      this._setToolMode(null, 'build_select')
       this._selectItem(def, kind)
     })
     on('PHASE_TOGGLE_REQUEST', () => {
       if (this._gameState.meta?.phase === 'night') this._beginDay()
     })
-    on('TOOL_MOVE',   () => this._setToolMode('move'))
-    on('TOOL_SELL',   () => this._setToolMode('sell'))
+    on('TOOL_MOVE',   () => this._setToolMode('move', 'tool_move_btn'))
+    on('TOOL_SELL',   () => this._setToolMode('sell', 'tool_sell_btn'))
     // Phase 31D — any other action-bar button click also disarms a sticky
     // tool. The button's own effect still fires (whichever scene listens
     // for the OPEN_* / TIME_SCALE_SET event); we just make sure MOVE / SELL
     // don't linger after the player moves on.
-    const clearTool = () => this._setToolMode(null)
-    on('OPEN_MINION_ROSTER', clearTool)
-    on('OPEN_KNOWLEDGE_MAP', clearTool)
-    on('OPEN_ADV_INTEL',     clearTool)
-    on('OPEN_BOSS_OVERVIEW', clearTool)
-    on('OPEN_PAUSE_MENU',    clearTool)
-    on('TIME_SCALE_SET',     clearTool)
+    on('OPEN_MINION_ROSTER', () => this._setToolMode(null, 'open_roster'))
+    on('OPEN_KNOWLEDGE_MAP', () => this._setToolMode(null, 'open_knowledge'))
+    on('OPEN_ADV_INTEL',     () => this._setToolMode(null, 'open_adv_intel'))
+    on('OPEN_BOSS_OVERVIEW', () => this._setToolMode(null, 'open_boss_overview'))
+    on('OPEN_PAUSE_MENU',    () => this._setToolMode(null, 'open_pause_menu'))
+    on('TIME_SCALE_SET',     () => this._setToolMode(null, 'time_scale_set'))
+    // Connectivity highlight auto-refresh — when a room is added or
+    // removed, re-check what (if anything) is still disconnected and
+    // update the pulse. Clears entirely when the player fixes the issue.
+    const refreshDisc = () => this._refreshDisconnectedHighlight()
+    on('ROOM_PLACED',  refreshDisc)
+    on('ROOM_REMOVED', refreshDisc)
   }
 
   // Phase 31D — arm/cancel a build-mode tool. Clicking the action-bar tool
   // button toggles the mode; the next pointer click on a placed room
   // executes the action. Right-click / Esc / picking another build slot
   // all cancel the tool. Re-clicking the same tool also cancels.
-  _setToolMode(mode) {
+  //
+  // `source` is a short string ('user', 'build_select', 'open_panel',
+  // 'begin_day', etc.) recorded on the change for diagnostics — playtest
+  // is reporting move-mode exiting on void clicks and the static trace
+  // doesn't show a path that could do it, so we log every transition
+  // with its source until the culprit is identified.
+  _setToolMode(mode, source = 'unknown') {
     const next = (this._toolMode === mode) ? null : mode
     if (next === this._toolMode) return
+    const prev = this._toolMode
     this._toolMode = next
+    if (prev === 'move' && next === null) {
+      // The reported regression: something is clearing MOVE mode that
+      // shouldn't. Log a stack trace so a console screenshot pinpoints
+      // the caller, and toast it so the player sees it live without
+      // devtools. Trim to ~5 frames to keep both readable.
+      const trace = (new Error('stack').stack ?? '').split('\n').slice(2, 7).join('\n')
+      console.warn(`[NightPhase] MOVE mode cleared (source=${source})\n${trace}`)
+      EventBus.emit('SHOW_TOAST', {
+        message: `Move mode cleared (source: ${source})`,
+        type:    'info',
+      })
+    }
     // Selecting a tool cancels any pending placement.
     if (next) this._cancelSelection()
-    EventBus.emit('TOOL_MODE_CHANGED', { mode: next })
+    EventBus.emit('TOOL_MODE_CHANGED', { mode: next, source })
   }
 
   shutdown() {
@@ -637,6 +668,10 @@ export class NightPhase extends Phaser.Scene {
     this._preview = null
     this._rotLabel?.destroy()
     this._rotLabel = null
+    this._disconnectedHighlight?.destroy()
+    this._disconnectedHighlight = null
+    this._disconnectedRoomIds   = new Set()
+    this._disconnectErrorShown  = false
     if (this._hudListeners) {
       for (const [evt, fn] of this._hudListeners) EventBus.off(evt, fn, this)
       this._hudListeners = []
@@ -1288,6 +1323,10 @@ export class NightPhase extends Phaser.Scene {
       fontSize: '10px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
       backgroundColor: '#00000099', padding: { x: 4, y: 2 },
     }).setDepth(21).setVisible(false)
+    // Disconnected-room highlight lives in world space too. Depth 19 sits
+    // just under the placement preview so the preview never gets hidden
+    // by the pulse outline when the player is mid-placement.
+    this._disconnectedHighlight = gameScene.add.graphics().setDepth(19)
   }
 
   _selectItem(def, kind) {
@@ -1325,6 +1364,72 @@ export class NightPhase extends Phaser.Scene {
     this._rotLabel?.setVisible(false)
     this._previewTileX = -1
     this._previewTileY = -1
+  }
+
+  // ── Disconnected-room highlighter ─────────────────────────────────────────
+  // Surfaces the rooms blocking Begin Day as a pulsing red outline + pans
+  // the camera to the first one so the player can see it even if it's
+  // off-screen. Refreshed on every room placement/removal until the
+  // dungeon is fully reconnected; cleared on a successful Begin Day or
+  // scene shutdown.
+
+  _flagDisconnectedRooms(rooms) {
+    if (!Array.isArray(rooms) || rooms.length === 0) {
+      this._clearDisconnectedHighlight()
+      return
+    }
+    this._disconnectedRoomIds  = new Set(rooms.map(r => r.instanceId))
+    this._disconnectErrorShown = true
+    // Pan camera to the first offender so the player has a visual anchor
+    // even if the broken room is off-screen. Keeps current zoom.
+    const first = rooms[0]
+    const game  = this.scene.get('Game')
+    const cam   = game?.cameras?.main
+    if (first && game?._tweenCameraTo && cam) {
+      const cx = (first.gridX + first.width  / 2) * TS
+      const cy = (first.gridY + first.height / 2) * TS
+      game._tweenCameraTo(cx, cy, cam.zoom, 500, 'Sine.easeInOut')
+    }
+  }
+
+  _refreshDisconnectedHighlight() {
+    if (!this._disconnectErrorShown) return
+    const disc = this._dungeonGrid?.getDisconnectedRooms?.() ?? []
+    this._disconnectedRoomIds = new Set(disc.map(r => r.instanceId))
+    if (this._disconnectedRoomIds.size === 0) this._clearDisconnectedHighlight()
+  }
+
+  _clearDisconnectedHighlight() {
+    this._disconnectedRoomIds  = new Set()
+    this._disconnectErrorShown = false
+    this._disconnectedHighlight?.clear()
+  }
+
+  // Per-frame pulse render. Phaser calls update() on every active scene
+  // automatically; we no-op when nothing is flagged so the common case
+  // is free.
+  update(time) {
+    const g = this._disconnectedHighlight
+    if (!g || this._disconnectedRoomIds.size === 0) return
+    g.clear()
+    // Sin-wave alpha pulse, ~1.7s period. Floor at 0.45 so the outline
+    // is always visible even at the trough.
+    const pulse  = 0.5 + 0.5 * Math.sin(time / 270)
+    const alphaO = 0.55 + 0.40 * pulse
+    const alphaI = alphaO * 0.55
+    const rooms  = this._gameState.dungeon.rooms ?? []
+    for (const id of this._disconnectedRoomIds) {
+      const room = rooms.find(r => r.instanceId === id)
+      if (!room) continue
+      const x = room.gridX * TS
+      const y = room.gridY * TS
+      const w = room.width  * TS
+      const h = room.height * TS
+      g.lineStyle(4, 0xff2a2a, alphaO)
+      g.strokeRect(x + 1, y + 1, w - 2, h - 2)
+      g.lineStyle(2, 0xff8080, alphaI)
+      g.strokeRect(x + 5, y + 5, w - 10, h - 10)
+    }
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────
@@ -1908,6 +2013,40 @@ export class NightPhase extends Phaser.Scene {
     }
     if (fpTiles.some(c => occupied.has(`${c.x},${c.y}`)))
       violations.push('Overlaps another trap')
+
+    // Per-room trap cap (max 3 per room). Counts every trap whose
+    // primary room matches the target room — floor traps use their
+    // own tile, wall traps use the room they face INTO. The trap
+    // being relocated (MOVE tool) is excluded from the count so a
+    // pickup-and-drop in the same room doesn't trip the cap.
+    const targetRoom = (def.placement === 'wall')
+      ? (() => {
+          const facing = this._wallTrapFacing(tx, ty)
+          return facing ? grid.getRoomAtTile(tx + DIR[facing].dx, ty + DIR[facing].dy) : null
+        })()
+      : grid.getRoomAtTile(tx, ty)
+    if (targetRoom) {
+      let trapsInRoom = 0
+      for (const tr of (this._gameState.dungeon.traps ?? [])) {
+        if (tr === this._heldMoveTrap) continue
+        let trRoom
+        if (tr.placement === 'wall') {
+          // Wall-trap room = the room across the wall. Recompute from
+          // its facing if stored, otherwise fall back to the standing
+          // tile (most wall traps record `facing` at placement).
+          const f = tr.facing && DIR[tr.facing] ? tr.facing : null
+          trRoom = f
+            ? grid.getRoomAtTile(tr.tileX + DIR[f].dx, tr.tileY + DIR[f].dy)
+            : grid.getRoomAtTile(tr.tileX, tr.tileY)
+        } else {
+          trRoom = grid.getRoomAtTile(tr.tileX, tr.tileY)
+        }
+        if (trRoom && trRoom.instanceId === targetRoom.instanceId) trapsInRoom++
+      }
+      if (trapsInRoom >= 3) {
+        violations.push('Max 3 traps per room')
+      }
+    }
 
     // Overlap with a minion.
     const minionTiles = new Set((this._gameState.minions ?? [])
@@ -3399,9 +3538,15 @@ export class NightPhase extends Phaser.Scene {
       const extra = disconnected.length > 2 ? ` +${disconnected.length - 2} more` : ''
       const noun = disconnected.length === 1 ? 'room' : 'rooms'
       this._showPlacementError(`Disconnected ${noun}: ${names}${extra} — place adjacent to existing rooms`)
+      // Surface the offenders visually — pulsing red outline + pan to the
+      // first one. Stays until the player fixes connectivity or the next
+      // successful Begin Day.
+      this._flagDisconnectedRooms(disconnected)
       return
     }
 
+    // Day starts cleanly — make sure no stale highlight survives.
+    this._clearDisconnectedHighlight()
     this._gameState.meta.phase = 'day'
     if (_autosaveOn()) SaveSystem.save(this._gameState)
     EventBus.emit('NIGHT_PHASE_ENDED')
