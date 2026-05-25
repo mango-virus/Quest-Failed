@@ -600,13 +600,15 @@ As you play the game you should not have access to all rooms, minion types, and 
 
 After a minion kills 3+ adventurers, bounty hunters specifically enter the dungeon to slay it. The minion or monster can get a wanted poster and the poster includes the minion's name, kills, and current gear — making that minion feel famous.
 
-### Bounty hunter spec (2026-05-20)
+### Bounty hunter spec (2026-05-20, gating tightened 2026-05-25)
 
 - A minion earns a **bounty** at 3+ kills (`hasBounty` flag). The bounty persists until the minion dies.
-- While any minion carries a bounty, each day there's a chance (`BOUNTY_HUNTER_SPAWN_CHANCE`) a **bounty hunter** enters the dungeon — an extra arrival on top of the normal wave — targeting that minion specifically (it hunts the minion, then the boss if the minion is already dead).
+- A bounty hunter only enters when a wanted minion has **evolved** (its `evolutionHistory` is non-empty) — the kingdom only pays for trackers when the target is dangerous enough to warrant one.
+- When eligible, each day rolls `BOUNTY_TRACKER_SPAWN_CHANCE` (≈1 in 4) to spawn a **bounty hunter** as an extra arrival on top of the normal wave, targeting that minion specifically (it hunts the minion, then the boss if the minion is already dead).
+- **Suppressed during any active dungeon event** (Tournament, Saboteur, Twitch Con, Cosplay Contest, PATCH 0.0.0, Guild Raid, Infamy Spike, Negotiation REFUSE). Replacement events (Loot Goblin, Speedrunner, Cartographer, Rival Dungeon, Zombie Horde, Bounty Hunters event pack) replace the wave entirely so the tracker doesn't even check.
 - On entry, a **top-of-screen event banner** announces the hunter and names the targeted minion.
-- Bounty hunters are **stronger than a normal adventurer** — scaled by boss level like any adventurer, then buffed (`BOUNTY_HUNTER_HP_MULT` / `BOUNTY_HUNTER_ATK_MULT`).
-- Killing a bounty hunter pays out **extra gold** (`BOUNTY_HUNTER_GOLD_MULT`).
+- The per-day tracker is **stronger than the event pack** — scaled by boss level, then buffed by `BOUNTY_TRACKER_HP_MULT` / `BOUNTY_TRACKER_ATK_MULT` (above the event-pack `BOUNTY_HUNTER_HP_MULT` / `BOUNTY_HUNTER_ATK_MULT`) so the rarer appearance still bites.
+- Killing a bounty hunter (either path) pays out **extra gold** (`BOUNTY_HUNTER_GOLD_MULT`).
 - The HUD marks bountied minions: a gold ★ in the Minion Roster (and the ★ + level badge above the minion in the dungeon view).
 - Bounty hunters wear **dedicated LPC sprites** — a dark, leather-armoured, hooded, crossbow-carrying look, with sunglasses + a scarf on every variant (24 variants baked from the `bounty_hunter` recipe in `tools/lpc-pools.mjs`). Gameplay class stays `ranger`; only the spritesheet differs (assigned via `spriteVariant` at spawn).
 

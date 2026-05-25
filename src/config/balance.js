@@ -165,14 +165,23 @@ export const Balance = {
   ADVENTURER_BASE_TILES_PER_SEC: 1.5, // multiplied by class.speed
 
   // --- Bounty hunters ---
-  // When a minion has a bounty (earned at 3+ kills), a hunter has this
-  // chance each day to enter specifically to slay it. The hunter is scaled
-  // by boss level like any adventurer, THEN buffed by these mults — clearly
-  // stronger than a normal adventurer — and pays out extra gold on death.
-  BOUNTY_HUNTER_SPAWN_CHANCE: 0.5,
-  BOUNTY_HUNTER_HP_MULT:      1.6,
-  BOUNTY_HUNTER_ATK_MULT:     1.4,
-  BOUNTY_HUNTER_GOLD_MULT:    3,
+  // Two separate spawn paths share the kill-payout multiplier but otherwise
+  // have their own knobs:
+  //   PACK    — the "Bounty Hunters" dungeon event (replaces the whole wave
+  //             with a 5-pack via _spawnBountyHunterWave).
+  //   TRACKER — the per-day solo hunter that joins the normal wave when one
+  //             of the player's minions has a bounty (3+ kills) AND has
+  //             EVOLVED. Suppressed during any active dungeon event so it
+  //             doesn't dilute event theming. Bumped above the pack mults
+  //             so the rarer appearance is a meaningful threat to whatever
+  //             evolved minion drew them in.
+  BOUNTY_HUNTER_SPAWN_CHANCE:  0.5,  // (pack event — unused, reserved)
+  BOUNTY_HUNTER_HP_MULT:       1.6,  // event-pack hunters
+  BOUNTY_HUNTER_ATK_MULT:      1.4,  // event-pack hunters
+  BOUNTY_TRACKER_SPAWN_CHANCE: 0.25, // per-day, gated on evolved-wanted minion
+  BOUNTY_TRACKER_HP_MULT:      2.2,  // per-day tracker — stronger than pack
+  BOUNTY_TRACKER_ATK_MULT:     1.7,  // per-day tracker — stronger than pack
+  BOUNTY_HUNTER_GOLD_MULT:     3,    // shared: kill payout for both paths
 
   // --- Combat (Phase 6 kernel) ---
   ATTACK_INTERVAL_MS:        900,     // base time between attacks (scales by 1/speed)
@@ -180,6 +189,7 @@ export const Balance = {
   AGGRO_RANGE_TILES:         5,       // minion engages within this many tiles in same room
   ENGAGE_REQUIRES_SAME_ROOM: true,    // Phase 6 kernel: minions don't chase outside home room
   MINION_BARRACKS_DISTANCE:  3,       // architectural rule: barracks within N rooms
+  MINIONS_PER_ROOM_CAP:      5,       // max player-placed roster minions in one room (system-spawned garrison ignored)
 
   // --- Adventurer flee ---
   FLEE_BUFFER:               0.05,    // hysteresis on fleeThreshold so adventurers don't oscillate
@@ -263,7 +273,16 @@ export const Balance = {
   MINION_ATK_PER_DAY:            0.04,   // +4%  attack per day
   // Trap damage scales with boss level so traps keep pace with the
   // toughening adventurer waves — mirrors minion attack scaling.
-  TRAP_DAMAGE_PER_BOSS_LV:       0.12,   // +12% trap damage per boss level above 1
+  // Halved from 0.12 → 0.06 on 2026-05-24 (lv10 lands at ~1.54× base
+  // instead of 2.08×; traps still stack with pact/Engineer/Brand mults
+  // so the effective curve at high level is plenty without doubling
+  // the base too).
+  TRAP_DAMAGE_PER_BOSS_LV:       0.06,   // +6% trap damage per boss level above 1
+  // Bomb-only blast falloff. Damage at the centre tile = full scaled
+  // damage; damage at the edge of the splash radius = floor (30%).
+  // Linear gradient between. Rewards baiting advs onto the bomb tile
+  // itself, while a brush past the ring still hurts.
+  BOMB_FALLOFF_FLOOR:            0.30,
   // Minion gold-cost scales with boss level so prices keep pace with stats.
   // Slightly under the avg (HP+ATK)/2 stat-rate so minions feel a touch
   // more affordable at higher levels — small reward for progression.

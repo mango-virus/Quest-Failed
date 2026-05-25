@@ -752,15 +752,35 @@ export class DayPhase extends Phaser.Scene {
       vendettaHunter = hunter
     }
 
-    // Bounty hunter — when a dungeon minion has a bounty on its head
-    // (earned at 3+ kills), a specialist hunter has a chance each day to
-    // enter specifically to slay it. Spawned outside the wave count, like
-    // the vendetta hunter; stronger than a normal adventurer and worth
-    // extra gold (AISystem applies BOUNTY_HUNTER_GOLD_MULT on the kill).
-    // SUPPRESSED during PATCH 0.0.0 (same reason as the vendetta block).
-    const bountyTarget = patchZeroActive ? null : (this._gameState.minions ?? []).find(m =>
-      m && m.hasBounty && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
-    if (bountyTarget && Math.random() < Balance.BOUNTY_HUNTER_SPAWN_CHANCE) {
+    // Bounty hunter (TRACKER) — when a dungeon minion has a bounty on its
+    // head (earned at 3+ kills) AND has evolved into a stronger form, a
+    // specialist hunter has a chance each day to enter specifically to
+    // slay it. Spawned outside the wave count, like the vendetta hunter;
+    // buffed above the event-pack mults so the rarer appearance still
+    // bites, and pays out extra gold on death (shared GOLD_MULT).
+    //
+    // Suppressed during ANY active dungeon event — themed/buff/additive
+    // events shouldn't have a non-themed bounty hunter shoehorned into
+    // the same wave (Tournament's "3 named rivals" reads weird if a
+    // generic hunter shows up too, PATCH 0.0.0's cheaters-only theme
+    // breaks if a ranger sneaks in, etc.). Replacement events return
+    // earlier in this function so this gate only needs the additive/
+    // theme/buff flags.
+    const _ef = this._gameState._eventFlags ?? {}
+    const _eventActive = !!(
+      patchZeroActive ||
+      _ef.tournamentActive ||
+      _ef.saboteurActive ||
+      _ef.twitchConActive ||
+      _ef.cosplayContestActive ||
+      _ef.guildRaidActive ||
+      _ef.infamySpikeActive ||
+      _ef.negotiationOutcome === 'refuse'
+    )
+    const bountyTarget = _eventActive ? null : (this._gameState.minions ?? []).find(m =>
+      m && m.hasBounty && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 &&
+      Array.isArray(m.evolutionHistory) && m.evolutionHistory.length > 0)
+    if (bountyTarget && Math.random() < Balance.BOUNTY_TRACKER_SPAWN_CHANCE) {
       const hClass = allClasses.find(c => c.id === 'ranger')
                   ?? classes[Math.floor(Math.random() * classes.length)]
       const bhSpawn = aiSystem.pickSpawnTile() ?? spawn
@@ -781,11 +801,12 @@ export class DayPhase extends Phaser.Scene {
         const _bhv = _bhVariants[Math.floor(Math.random() * _bhVariants.length)]
         hunter.spriteVariant = `bounty_hunter/${_bhv.id}`
       }
-      // Scaled like any adventurer, then buffed — clearly stronger.
+      // Scaled like any adventurer, then buffed by the TRACKER mults
+      // (stronger than the event pack — the rare appearance earns it).
       this._scaleAdventurerByBossLevel(hunter, dungeonLv)
-      hunter.resources.maxHp = Math.round(hunter.resources.maxHp * Balance.BOUNTY_HUNTER_HP_MULT)
+      hunter.resources.maxHp = Math.round(hunter.resources.maxHp * Balance.BOUNTY_TRACKER_HP_MULT)
       hunter.resources.hp    = hunter.resources.maxHp
-      hunter.stats.attack    = Math.round((hunter.stats.attack ?? 0) * Balance.BOUNTY_HUNTER_ATK_MULT)
+      hunter.stats.attack    = Math.round((hunter.stats.attack ?? 0) * Balance.BOUNTY_TRACKER_ATK_MULT)
       this._gameState.adventurers.active.push(hunter)
       spawned.push(hunter)
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: hunter })

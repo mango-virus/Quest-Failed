@@ -461,9 +461,9 @@ Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Fa
 
 | Item | Phase | Status |
 |---|---|---|
-| Minion-kill threshold (3+) triggers bounty hunter spawn | 7/7b → fixed 2026-05-20 | ✅ DONE — *the row used to claim the vendetta-hunter spawn "covered" this; it did NOT — vendetta hunters have a different trigger (a relative's death/loot), and no `hasBounty`-driven spawn existed.* Now real: EvolutionSystem flags `hasBounty` at 3 kills, and DayPhase gives a daily `BOUNTY_HUNTER_SPAWN_CHANCE` roll to spawn a hunter targeting that minion (reuses the SEEK_VENDETTA "hunt this minion" goal) |
+| Minion-kill threshold (3+) triggers bounty hunter spawn | 7/7b → fixed 2026-05-20, gated 2026-05-25 | ✅ DONE — EvolutionSystem flags `hasBounty` at 3 kills, and DayPhase rolls `BOUNTY_TRACKER_SPAWN_CHANCE` (0.25) per day to spawn a hunter targeting that minion (SEEK_VENDETTA goal). Spawn now requires the wanted minion to have EVOLVED (non-empty `evolutionHistory`) AND no active dungeon event (Tournament/Saboteur/TwitchCon/Cosplay/PATCH 0.0.0/GuildRaid/InfamySpike/NegotiationRefuse) so it doesn't dilute event theming |
 | Bounty hunter arrival event banner | 7b | ✅ DONE (2026-05-20) — `BOUNTY_HUNTER_ARRIVED` → top-of-screen EventBanner naming the targeted minion |
-| Bounty hunters stronger than normal adventurers | 7b | ✅ DONE (2026-05-20) — boss-level scaled, then ×`BOUNTY_HUNTER_HP_MULT` (1.6) / ×`BOUNTY_HUNTER_ATK_MULT` (1.4) |
+| Bounty hunters stronger than normal adventurers | 7b → bumped 2026-05-25 | ✅ DONE — per-day tracker uses `BOUNTY_TRACKER_HP_MULT` (2.2) / `BOUNTY_TRACKER_ATK_MULT` (1.7), event pack stays at `BOUNTY_HUNTER_HP_MULT` (1.6) / `BOUNTY_HUNTER_ATK_MULT` (1.4) |
 | Bounty hunters worth extra gold | 7b | ✅ DONE (2026-05-20) — `goldMul ×BOUNTY_HUNTER_GOLD_MULT` (3) in the AISystem kill-reward chain |
 | Wanted poster UI (name, kills, gear) | 7b | ✅ DONE — popup banner top-right on MINION_BOUNTY_POSTED; auto-fades 5s |
 | Bounty-flagged minions feel "famous" | 7 | ✅ DONE — gold ★ above the sprite (paired with the LV badge), inspector banner, and a gold ★ in the Minion Roster list |
