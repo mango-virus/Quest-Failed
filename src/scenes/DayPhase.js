@@ -1556,17 +1556,17 @@ export class DayPhase extends Phaser.Scene {
   // Failsafe — fires when the day rolled in but zero adventurers ended
   // up in the active list AND no intentional-no-spawn reason was tagged
   // (the only intended case is Negotiation Pay, which sets
-  // `_noSpawnReason='negotiation_pay'`). We log full diagnostic context
-  // and surface a "rest day" banner so the player isn't left staring at
-  // an empty dungeon wondering whether the game broke. The actual day
-  // rollover is handled by _refreshStats's all-out timer (1.5s) — same
-  // path a normally-cleared wave takes.
+  // `_noSpawnReason='negotiation_pay'`). Logs full diagnostic context and
+  // emits SPAWN_FAILSAFE_TRIGGERED — EventBanner.js picks that up and
+  // renders the same themed DOM slate every Dungeon Event uses, so the
+  // rest-day notification matches the rest of the event UI instead of
+  // being a one-off Phaser panel. The actual day rollover is handled by
+  // _refreshStats's all-out timer (1.5s) — same path a normally-cleared
+  // wave takes.
   //
-  // Banner is intentionally heavy on diagnostics (day, boss level, entry
-  // count, every truthy event flag) so a playtester encountering a
-  // multi-day streak can read OR screenshot the cause without opening
-  // devtools. Persists 12s so it's screenshot-able. Also forwards a
-  // SHOW_TOAST so the DungeonLog gets a paper trail entry.
+  // Diagnostic payload (day, boss level, entry count, every truthy event
+  // flag) is included so a playtester encountering a multi-day streak can
+  // read/screenshot the cause off-screen without opening devtools.
   _handleSpawnFailure() {
     const gs = this._gameState
     const day        = gs?.meta?.dayNumber
@@ -1585,44 +1585,14 @@ export class DayPhase extends Phaser.Scene {
       mechFlags:   gs?._mechanicFlags,
       scheduledId: gs?.events?.scheduledId,
     })
-    EventBus.emit('SPAWN_FAILSAFE_TRIGGERED', { day, activeEventFlags: activeFlags })
-    // Paper trail in the in-game log so a player who closes the banner
+    EventBus.emit('SPAWN_FAILSAFE_TRIGGERED', {
+      day, bossLevel, entryHalls, activeEventFlags: activeFlags,
+    })
+    // Paper trail in the in-game log so a player who misses the banner
     // can still see what happened later.
     EventBus.emit('SHOW_TOAST', {
       message: `Day ${day}: wave failed to arrive (events: ${activeFlags.join(', ') || 'none'})`,
       type:    'error',
-    })
-
-    const W = this.uiW
-    const H = this.uiH
-    const pw = 560, ph = 132
-    const px = (W - pw) / 2
-    const py = H / 2 - ph / 2
-
-    const bg = this.add.graphics().setDepth(31)
-    glowPanel(bg, px, py, pw, ph, {
-      fill: 0x1a0e2a, border: 0xc890ff, glow: 0x7a3fc2,
-    })
-    const title = this.add.text(W / 2, py + 22, 'AN UNQUIET REST DAY', {
-      fontSize: '14px', color: '#e8d4ff', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(32)
-    const sub = this.add.text(W / 2, py + 50,
-      'The wave never arrived. Your dungeon takes the day to itself.', {
-        fontSize: '10px', color: '#d8c4ff', fontFamily: 'monospace', align: 'center',
-      }).setOrigin(0.5).setDepth(32)
-    const diagLines = [
-      `Day ${day}  ·  Boss Lv ${bossLevel}  ·  Entry Halls: ${entryHalls}`,
-      `Active events: ${activeFlags.length ? activeFlags.join(', ') : 'none'}`,
-    ]
-    const diag = this.add.text(W / 2, py + 82, diagLines.join('\n'), {
-      fontSize: '9px', color: '#8d76b8', fontFamily: 'monospace', align: 'center',
-    }).setOrigin(0.5).setDepth(32)
-
-    this.time.delayedCall(12000, () => {
-      this.tweens.add({
-        targets: [bg, title, sub, diag], alpha: 0, duration: 800,
-        onComplete: () => { bg.destroy(); title.destroy(); sub.destroy(); diag.destroy() },
-      })
     })
   }
 

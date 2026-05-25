@@ -69,6 +69,12 @@ export class EventBanner {
     // A bounty hunter entering gets the transient top banner only — it's a
     // one-off arrival, not a multi-day event, so no persistent pill.
     sub('BOUNTY_HUNTER_ARRIVED',   (p) => this._onBountyHunter(p))
+    // Spawn failsafe — the wave failed to arrive (some upstream bug, or a
+    // stuck event flag). DayPhase has already shown the all-out timer +
+    // rolled the day, but we still want the player to SEE that nothing
+    // happened and have the diagnostic context to share when reporting.
+    // Uses the same themed slate as a real Dungeon Event.
+    sub('SPAWN_FAILSAFE_TRIGGERED', (p) => this._onSpawnFailsafe(p))
   }
 
   _onBountyHunter({ minion } = {}) {
@@ -78,6 +84,18 @@ export class EventBanner {
       notif: `A bounty hunter has entered the dungeon to slay ${name}.`,
       icon: '🎯',
       colorTheme: 'ember',
+    } })
+  }
+
+  _onSpawnFailsafe({ day, bossLevel, entryHalls, activeEventFlags } = {}) {
+    const flags = Array.isArray(activeEventFlags) && activeEventFlags.length
+      ? activeEventFlags.join(', ')
+      : 'none'
+    this._onAnnounced({ def: {
+      title: 'AN UNQUIET REST DAY',
+      notif: `No wave arrived. Day ${day ?? '?'} · Boss Lv ${bossLevel ?? '?'} · Entry Halls: ${entryHalls ?? '?'} · Active events: ${flags}`,
+      icon: '☾',
+      colorTheme: 'violet',
     } })
   }
 
