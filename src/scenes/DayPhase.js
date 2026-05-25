@@ -588,10 +588,14 @@ export class DayPhase extends Phaser.Scene {
         // Match AISystem.pickSpawnTile — drop the adventurer at a random
         // entry hall doorway so the entry contract stays consistent.
         spawn = fallbackSpawn
-        this._statsTexts.activeCount.setText('Adventurers can\'t reach your boss — fix the path.')
+        // Optional-chain the legacy-chrome text update — `_statsTexts.activeCount`
+        // is never populated in the current HUD (the old top-bar chrome was
+        // moved to HudScene), so a bare `.setText` here used to throw
+        // TypeError → abort the whole wave → no adventurers spawned at all.
+        this._statsTexts?.activeCount?.setText('Adventurers can\'t reach your boss — fix the path.')
         this._showNoSpawnBanner()
       } else {
-        this._statsTexts.activeCount.setText('No entry hall — build one for adventurers.')
+        this._statsTexts?.activeCount?.setText('No entry hall — build one for adventurers.')
         this._showNoSpawnBanner()
         return
       }
