@@ -281,11 +281,20 @@ export class TrapSystem {
                     e.tileY >= trap.tileY && e.tileY < trap.tileY + fp.h
       if (!onPit) continue
       if (now - (trap.state.hitAt[e.instanceId] ?? -Infinity) < reHit) continue
+      // Snapshot the pre-hit revealed state. If the pit was ALREADY
+      // sprung (someone fell in earlier today) the spikes are exposed,
+      // so a victim forced over it now only takes HALF damage — they
+      // can see what they're stepping on. Pathfinder also tries to
+      // detour around revealed pits (see PathfinderSystem
+      // opts.avoidSprungTraps), so re-triggers should be rare to begin
+      // with — this is the "no other route" fallback.
+      const wasRevealed = !!trap.state.revealed
       trap.state.hitAt[e.instanceId] = now
       trap.state.revealed = true
       trap.state.firedAt  = now
 
-      const dmg    = this._modifiedDamage(trap, def)
+      let dmg = this._modifiedDamage(trap, def)
+      if (wasRevealed) dmg = Math.max(1, Math.round(dmg * 0.5))
       const roomId = this._roomIdAt(e.tileX, e.tileY)
       this._hitEntity(trap, def, e, roomId, dmg)
       EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: this._isAdventurer(e) ? e : null, roomId })

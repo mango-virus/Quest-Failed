@@ -196,6 +196,22 @@ export class DungeonGrid {
     return false
   }
 
+  // True if a non-solid trap that has ALREADY been sprung occupies this
+  // tile — spike pits stay open after the first victim falls in, so the
+  // spikes are visible. Adventurers should detour around when they can.
+  // Pathfinder treats these as SOFT_BLOCK_COST detours (passable as a
+  // last resort) when the caller passes `opts.avoidSprungTraps`.
+  isAvoidableSprungTrap(tx, ty) {
+    for (const t of this._d.traps ?? []) {
+      if (t.solid) continue
+      if (!t.state?.revealed) continue
+      const fp = t.footprint ?? { w: 1, h: 1 }
+      if (tx >= t.tileX && tx < t.tileX + fp.w &&
+          ty >= t.tileY && ty < t.tileY + fp.h) return true
+    }
+    return false
+  }
+
   // Rebuild the entire solid-decor set from current placed rooms. Call after
   // _reapplyAllRoomDefs() or any batch room mutation.
   rebuildSolidDecors() {

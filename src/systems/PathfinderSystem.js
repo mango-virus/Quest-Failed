@@ -106,6 +106,16 @@ export class PathfinderSystem {
           if (opts?.softTraps) softPenalty += SOFT_BLOCK_COST
           else continue
         }
+        // Sprung non-solid traps (spike pits whose spikes are visible
+        // after the first victim fell in) get the same heavy-detour
+        // treatment when the caller passes `opts.avoidSprungTraps`. The
+        // tile is still walkable — units will cross if there's no other
+        // route — but the cost biases them around. TrapSystem then halves
+        // the damage on the re-trigger that does happen.
+        if (nKey !== eKey && opts?.avoidSprungTraps &&
+            dungeonGrid.isAvoidableSprungTrap?.(nx, ny)) {
+          softPenalty += SOFT_BLOCK_COST
+        }
         // Mimic chests + any other dynamic blockers the caller wants
         // to route around (chest mimics on the floor, etc.). Goal tile
         // is exempt — the only way to reveal a chest is to walk onto it.

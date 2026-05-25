@@ -1770,9 +1770,10 @@ export class AISystem {
       // real corridors.
       const cheaterNoClip = adv.classId === 'cheater' && !adv._banned
       const softOpts = {
-        softBlocked: softBlockedForAdv,
-        softTraps:   true,
-        noClip:      cheaterNoClip,
+        softBlocked:      softBlockedForAdv,
+        softTraps:        true,
+        avoidSprungTraps: true,
+        noClip:           cheaterNoClip,
       }
       // Add path jitter for non-flee goals so adventurers don't all march the
       // same straight line — they pick varied routes between rooms each repath.
