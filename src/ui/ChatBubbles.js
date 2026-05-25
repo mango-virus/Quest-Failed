@@ -5,11 +5,14 @@
 
 import { EventBus } from '../systems/EventBus.js'
 
-const MIN_INTERVAL_MS      = 7000
-const MAX_INTERVAL_MS      = 15000
+// Ambient chatter cadence — bumped from 7-15s → 12-24s (and contextual
+// cooldown 2s → 3s) on 2026-05-25 so late-game waves of 30+ advs don't
+// blanket the screen with bubbles. Each adv still talks; just less often.
+const MIN_INTERVAL_MS      = 12000
+const MAX_INTERVAL_MS      = 24000
 const BUBBLE_LIFE_MS       = 2200
 const CONTEXTUAL_LIFE_MS   = 3000
-const CONTEXTUAL_COOLDOWN  = 2000
+const CONTEXTUAL_COOLDOWN  = 3000
 const FOURTH_WALL_CHANCE   = 0.08   // 8% of ambient chatter is 4th-wall
 
 export class ChatBubbles {
