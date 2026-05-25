@@ -105,6 +105,14 @@ function _hashStr(s) {
   return Math.abs(h)
 }
 
+// Specific leaderboard row id flagged as "pre nerf patch" — pinned by
+// row id (NOT player_name) so any future submissions under the same
+// "dark lord" name don't inherit the badge. Set 2026-05-25 after the
+// trap-scaling halving + 75%-of-maxHp cap + bomb falloff +
+// minions-per-room cap nerfs landed; this run predates all of them.
+// To retire the badge, set to -1.
+const PRE_NERF_ROW_ID = 18
+
 // Map a raw end_cause into a thematic phrase. Picks deterministically
 // from the appropriate phrase pool via run id, so every run keeps the
 // same flavor on every leaderboard refresh.
@@ -235,6 +243,7 @@ export class LeaderboardOverlay {
       date:  this._formatDate(r.created_at),
       accolade: rank <= 3 ? ACCOLADES[rank - 1] : null,
       isYou: !!(myName && r.player_name === myName),
+      prePatch: r.id === PRE_NERF_ROW_ID,
       _raw: r,
     }
   }
@@ -431,6 +440,21 @@ export class LeaderboardOverlay {
           textShadow: `0 0 6px ${c}66`,
         },
       }, entry.name),
+      entry.prePatch && h('div', {
+        className: 'pix',
+        style: {
+          display: 'inline-block',
+          marginTop: '4px',
+          padding: '2px 6px',
+          background: '#b03a48',
+          color: '#fff8e8',
+          border: '1px solid #2a0a0c',
+          fontSize: place === 1 ? '9px' : '8px',
+          letterSpacing: '0.5px',
+          boxShadow: '0 0 6px rgba(176,58,72,0.8)',
+          textShadow: 'none',
+        },
+      }, 'PRE NERF PATCH'),
       h('div', { className: 'pix qf-lb-podium-stats' }, [
         h('span', null, `${entry.days}d`),
         // Skull glyph removed at user request — kill count reads plain.
@@ -474,6 +498,20 @@ export class LeaderboardOverlay {
         }, [
           r.name,
           r.isYou && h('span', { className: 'pix qf-lb-row-youtag' }, ' · YOU'),
+          r.prePatch && h('span', {
+            className: 'pix',
+            style: {
+              marginLeft: '6px',
+              padding: '1px 5px',
+              background: '#b03a48',
+              color: '#fff8e8',
+              border: '1px solid #2a0a0c',
+              fontSize: '7px',
+              letterSpacing: '0.5px',
+              verticalAlign: 'middle',
+              boxShadow: '0 0 4px rgba(176,58,72,0.7)',
+            },
+          }, 'PRE NERF PATCH'),
         ]),
         h('div', { className: 'qf-lb-row-cause' }, r.cause),
       ]),
