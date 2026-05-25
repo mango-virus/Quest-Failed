@@ -187,14 +187,22 @@ export class TrapSystem {
     const radius = def.splashRadius ?? 5
     const cx = trap.tileX + 0.5
     const cy = trap.tileY + 0.5
-    const dmg    = this._modifiedDamage(trap, def)
-    const roomId = this._roomIdAt(trap.tileX, trap.tileY)
+    const fullDmg = this._modifiedDamage(trap, def)
+    const roomId  = this._roomIdAt(trap.tileX, trap.tileY)
+    // Linear falloff with a floor — full damage at the bomb tile, scaled
+    // down to BOMB_FALLOFF_FLOOR (30%) at the edge of the splash radius.
+    // Computed per-victim so two advs in the same blast can take wildly
+    // different damage depending on where they're standing.
+    const floor = Balance.BOMB_FALLOFF_FLOOR ?? 0.30
 
     const victims = this._targets(def).filter(e =>
       Math.hypot((e.tileX + 0.5) - cx, (e.tileY + 0.5) - cy) <= radius)
     let firstAdv = null
     for (const v of victims) {
       if (!firstAdv && this._isAdventurer(v)) firstAdv = v
+      const dist = Math.hypot((v.tileX + 0.5) - cx, (v.tileY + 0.5) - cy)
+      const fall = Math.max(floor, 1 - dist / radius)
+      const dmg  = Math.max(1, Math.round(fullDmg * fall))
       this._hitEntity(trap, def, v, roomId, dmg)
     }
 
