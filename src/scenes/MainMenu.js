@@ -112,7 +112,10 @@ export class MainMenu extends Phaser.Scene {
       kickOffAdventurerAtkLoad(this)
     })
     if (this._save) {
-      this._zKey = this.input.keyboard.addKey('Z')
+      // enableCapture=false so Phaser doesn't preventDefault 'Z'
+      // globally — that would silently steal the letter from any DOM
+      // input on top of the menu (NameEntryOverlay etc.).
+      this._zKey = this.input.keyboard.addKey('Z', false)
       this._zKey.on('down', () => this._actContinue())
     }
   }

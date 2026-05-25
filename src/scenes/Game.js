@@ -1346,7 +1346,15 @@ export class Game extends Phaser.Scene {
       this._clampCameraToPlayArea()
     })
 
-    this._keys = this.input.keyboard.addKeys('W,A,S,D')
+    // WASD camera scroll. Pass `enableCapture=false` so Phaser doesn't
+    // preventDefault the keystrokes globally — without this, any DOM
+    // input on top of the Game scene (rename-minion box in Roster /
+    // MinionInspector, name-change overlay, settings inputs) silently
+    // loses 'a' / 's' / 'd' / 'w' the player types into it. Phaser
+    // still updates the Key objects' .isDown state from the same
+    // keystroke; the per-frame camera-scroll read just doesn't lock
+    // out the browser's default text-input behaviour.
+    this._keys = this.input.keyboard.addKeys('W,A,S,D', false)
 
     // ESC opens the pause menu. Wired here as a fallback for when neither
     // NightPhase nor DayPhase has keyboard focus (e.g. during the
