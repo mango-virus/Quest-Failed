@@ -27,6 +27,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { PauseManager } from '../systems/PauseManager.js'
+import { SaveSystem }   from '../systems/SaveSystem.js'
 import { SettingsOverlay } from './SettingsOverlay.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { userSettings } from './userSettings.js'
@@ -64,8 +65,26 @@ export class PauseOverlay {
     // PauseManager.toggle() directly) mount the overlay too.
     sub('OPEN_PAUSE_MENU', () => PauseManager.toggle(null))
     sub('PAUSE_STATE_CHANGED', ({ isPaused }) => {
-      if (isPaused) this._mountOverlay()
-      else          this._unmountOverlay()
+      if (isPaused) {
+        // Autosave when the pause menu opens — defence-in-depth so that
+        // the player's "Save & Exit" snapshot is ALWAYS current, even if
+        // they linger on the menu before clicking. Without this the
+        // SaveAndExit handler ships whatever gameState we held at that
+        // exact instant; saving here guarantees the latest dayNumber /
+        // boss / minion state is committed before any quit-flow runs.
+        // Gated by the autosave setting + skip-if-game-over guard so a
+        // dead run can't accidentally resurrect itself.
+        try {
+          if (this._gameState
+              && (this._gameState.boss?.deathsRemaining ?? 1) > 0
+              && localStorage.getItem('qf.gameplay.autosave') !== 'false') {
+            SaveSystem.save(this._gameState)
+          }
+        } catch {}
+        this._mountOverlay()
+      } else {
+        this._unmountOverlay()
+      }
     })
   }
 

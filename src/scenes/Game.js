@@ -323,6 +323,36 @@ export class Game extends Phaser.Scene {
     window.addEventListener('focus', this._onTabVisibleBound)
     document.addEventListener('visibilitychange', this._onTabVisibleBound)
 
+    // Beforeunload autosave (fix 2026-05-25): the player closing the tab
+    // / refreshing / navigating away SHOULD preserve their current run.
+    // Previously the only autosaves fired at scene transitions (start of
+    // night phase, end of day, etc.) — close the tab mid-day-29 active
+    // fight and the last save was the start of night-before-day-29, so
+    // Continue dropped them at the prior night's build phase (the
+    // "actual day 27 point" bug). This snapshot catches every close
+    // path the player has, including hard tab closes and refreshes.
+    // Gated by the autosave setting so a player who explicitly disabled
+    // autosaves doesn't have one forced on them at quit.
+    this._onBeforeUnloadBound = () => {
+      try {
+        if (localStorage.getItem('qf.gameplay.autosave') === 'false') return
+        // Don't overwrite the save with a dead-boss state — game-over
+        // already deleted the save in _onBossFinal; re-saving here
+        // would resurrect the dead run.
+        if ((this.gameState?.boss?.deathsRemaining ?? 1) <= 0) return
+        if (this.gameState) SaveSystem.save(this.gameState)
+      } catch {}
+    }
+    window.addEventListener('beforeunload', this._onBeforeUnloadBound)
+    // visibilitychange → hidden also fires on mobile-style tab-hide that
+    // doesn't fire beforeunload (some browsers), and on focus loss when
+    // the OS suspends the tab. Defensive double-coverage; saves are
+    // idempotent.
+    this._onVisibilitySaveBound = () => {
+      if (document.visibilityState === 'hidden') this._onBeforeUnloadBound()
+    }
+    document.addEventListener('visibilitychange', this._onVisibilitySaveBound)
+
     // MiniMap lives on a dedicated HUD scene that doesn't share our world
     // camera's zoom/scroll. Launch it now and hand it the references it
     // needs to read camera state for the viewport indicator.
@@ -377,6 +407,14 @@ export class Game extends Phaser.Scene {
       window.removeEventListener('focus', this._onTabVisibleBound)
       document.removeEventListener('visibilitychange', this._onTabVisibleBound)
       this._onTabVisibleBound = null
+    }
+    if (this._onBeforeUnloadBound) {
+      window.removeEventListener('beforeunload', this._onBeforeUnloadBound)
+      this._onBeforeUnloadBound = null
+    }
+    if (this._onVisibilitySaveBound) {
+      document.removeEventListener('visibilitychange', this._onVisibilitySaveBound)
+      this._onVisibilitySaveBound = null
     }
     this.scene.stop('HudScene')
     this._dungeonRenderer?.destroy()
