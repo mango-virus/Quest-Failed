@@ -16,6 +16,7 @@
 
 import { EventBus }         from '../systems/EventBus.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
+import { Balance }          from '../config/balance.js'
 
 const MINION_SCALE     = 1.0    // native — 64 → 64 px, 128 → 128 px (NEAREST keeps it crisp)
 // Lich-raised undead are re-skinned to LPC adventurer sheets (frameSize 64),
@@ -477,6 +478,20 @@ export class MinionRenderer {
     if (dropRoom?.definitionId === 'boss_chamber') {
       this._showPlacementError("Can't place a minion in the boss chamber")
       return
+    }
+
+    // Per-room minion cap — same rule as fresh placement. Excludes the
+    // held minion from the count so a same-room re-drop doesn't trip the
+    // gate. NightPhase owns the canonical count helper; reach in rather
+    // than duplicate the filter.
+    if (dropRoom) {
+      const np = this._scene?.scene?.get?.('NightPhase')
+      const roomCap = Balance.MINIONS_PER_ROOM_CAP ?? 5
+      const inRoom  = np?._roomMinionCount?.(dropRoom.instanceId, m.instanceId) ?? 0
+      if (inRoom >= roomCap) {
+        this._showPlacementError(`Room full (${inRoom}/${roomCap} minions)`)
+        return
+      }
     }
 
     m.tileX  = tileX

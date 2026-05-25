@@ -1760,6 +1760,15 @@ export class NightPhase extends Phaser.Scene {
           !this._dungeonGrid.hasBarracksWithinDistance(room.instanceId, Balance.MINION_BARRACKS_DISTANCE)) {
         violations.push(`Need barracks within ${Balance.MINION_BARRACKS_DISTANCE} rooms`)
       }
+      // Per-room cap on player-placed (roster) minions. System-spawned
+      // garrison units (Crypt bones, Hellgate imps, etc.) aren't counted
+      // so a Crypt's 4 Risen Bones don't eat into the player's budget.
+      const roomCap = Balance.MINIONS_PER_ROOM_CAP ?? 5
+      const inRoom  = this._roomMinionCount(room.instanceId)
+      if (inRoom >= roomCap) {
+        violations.push(`Room full (${inRoom}/${roomCap} minions) — pick another room`)
+        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'room_minion_cap' })
+      }
     }
     // Each Barracks adds +10 roster slots. Garrison minions (Crypt et al.)
     // do not count toward this cap.
@@ -1798,6 +1807,21 @@ export class NightPhase extends Phaser.Scene {
     return (this._gameState.minions ?? [])
       .filter(m => (m.class ?? 'roster') === 'roster' && m.aiState !== 'dead')
       .length
+  }
+
+  // Live roster minions assigned to a specific room. Used by the per-room
+  // cap on placement + MOVE drops. Excludes dead and garrison-class units
+  // (system-spawned bones, imps, etc.) so room-bound auto-spawns don't
+  // eat into the player's per-room budget. Optional `exceptId` skips one
+  // minion — MinionRenderer passes the held minion's id so moving within
+  // the same room doesn't double-count it.
+  _roomMinionCount(roomId, exceptId = null) {
+    return (this._gameState.minions ?? []).filter(m =>
+      m.assignedRoomId === roomId &&
+      m.aiState !== 'dead' &&
+      (m.class ?? 'roster') === 'roster' &&
+      m.instanceId !== exceptId
+    ).length
   }
 
   _validateTrapPlacement(def, tx, ty) {
