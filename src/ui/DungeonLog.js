@@ -24,7 +24,7 @@ const ROW_H           = 16
 const ROW_PAD_X       = 8
 const ROW_GAP         = 6
 const PADDING         = 8
-const MAX_ROWS        = 64        // ring-buffer cap; UI shows the visible slice
+const MAX_ROWS        = 50        // ring-buffer cap; UI shows the visible slice
 const ROW_BORDER_W    = 2
 
 // Per-event colour scheme. Goal: a glance at the log tells the player

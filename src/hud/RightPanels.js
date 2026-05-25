@@ -141,7 +141,7 @@ const LOG_KINDS = {
   // ── Dungeon event announcement ────────────────────────────────
   event:       { color: 'var(--info)',      glyph: '◈' },
 }
-const LOG_MAX = 200
+const LOG_MAX = 50
 // Hoisted from inside the per-event render — same Set rebuilt for every
 // log row was a small but real per-tick cost when the log was rebuilt
 // from scratch on every event. Kept here for both the incremental
