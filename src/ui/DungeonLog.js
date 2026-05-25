@@ -109,9 +109,26 @@ export class DungeonLog {
     // Per-day rolling counter — collapses MINION_DIED entries into a
     // single end-of-day summary row (#4 cluster). Matches RightPanels.
     this._minionDeathsToday = 0
+    // Spawn-burst buffer — buffer at ADVENTURER_ENTERED_DUNGEON, flush
+    // at ADVENTURERS_SPAWNED. Per-name when wave < 8, summary when
+    // wave >= 8. Matches RightPanels.
+    this._pendingArrivals = []
 
     on('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
-      this._add(`${adventurer.name} (${classLabel(adventurer.classId)}) enters.`, 'arrival')
+      if (adventurer?._monster) return
+      this._pendingArrivals.push(adventurer)
+    })
+    on('ADVENTURERS_SPAWNED', () => {
+      const buf = this._pendingArrivals
+      if (!buf || buf.length === 0) return
+      if (buf.length < 8) {
+        for (const adv of buf) {
+          this._add(`${adv.name} (${classLabel(adv.classId)}) enters.`, 'arrival')
+        }
+      } else {
+        this._add(`Wave: ${buf.length} adventurers enter.`, 'arrival')
+      }
+      this._pendingArrivals = []
     })
     // TRAP_TRIGGERED line removed (#3 cluster) — trap kills already
     // surface via ADVENTURER_DIED with killerName; non-lethal hits

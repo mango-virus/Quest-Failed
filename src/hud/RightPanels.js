@@ -164,6 +164,12 @@ export class RightPanels {
     // end-of-day summary row instead of one row per dead minion. Resets
     // on DAY_PHASE_BEGAN.
     this._minionDeathsToday = 0
+    // Spawn-burst buffer — ADVENTURER_ENTERED_DUNGEON pushes here
+    // synchronously during _spawnDailyAdventurers' loop; flushed at
+    // ADVENTURERS_SPAWNED (fires the same tick, right after the loop).
+    // Lets us collapse a 12+ adv wave into one summary row instead of
+    // 12 separate "X (Class) entered the dungeon." lines.
+    this._pendingArrivals = []
 
     this.el = this._build()
     this._wireEvents()
@@ -833,12 +839,32 @@ export class RightPanels {
       this._listeners.push([event, fn])
     }
     sub('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
-      // Resolve the class id to its display name — `className` is never
-      // populated on the entity, so without this the log would print
-      // the raw dev id ("cosplay_adventurer entered the dungeon").
-      const cls  = adventurer?.className || this._classLabel(adventurer?.classId)
-      const name = adventurer?.name || 'Unnamed'
-      this._addLog(`${name} (${cls}) entered the dungeon.`, 'spawn')
+      // Buffer here; flush in the ADVENTURERS_SPAWNED handler. Per-name
+      // lines stay when the wave is small; large waves collapse to one
+      // summary row to avoid a 12+ line spawn burst at day-start.
+      // Event-spawned monsters (zombie horde, rival dungeon) are tagged
+      // `_monster` and don't show up in the narrative log at all —
+      // matches the existing skip in ADVENTURER_DIED below.
+      if (adventurer?._monster) return
+      this._pendingArrivals.push(adventurer)
+    })
+    sub('ADVENTURERS_SPAWNED', () => {
+      const buf = this._pendingArrivals
+      if (!buf || buf.length === 0) return
+      if (buf.length < 8) {
+        for (const adv of buf) {
+          const cls  = adv?.className || this._classLabel(adv?.classId)
+          const name = adv?.name || 'Unnamed'
+          this._addLog(`${name} (${cls}) entered the dungeon.`, 'spawn')
+        }
+      } else {
+        // One summary row covering the whole burst. Special-character
+        // arrivals (VETERAN / VENDETTA / BOUNTY / LEGENDARY) have their
+        // own dedicated listeners below that fire separately, so named
+        // beats still surface even when the regular arrival is folded.
+        this._addLog(`Wave: ${buf.length} adventurers enter.`, 'spawn')
+      }
+      this._pendingArrivals = []
     })
     sub('ADVENTURER_DIED', ({ adventurer, killerName }) => {
       // Event-spawned monster waves (zombie horde, rival dungeon) are
