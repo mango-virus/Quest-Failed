@@ -558,17 +558,15 @@ export class GameOver extends Phaser.Scene {
     const gs    = this._gameState ?? {}
     const tot   = gs.run?.totals ?? {}
     const player = gs.player ?? {}
-    const name   = (PlayerProfile.getName?.() || '').trim() || 'ANON'
     const days   = Number(player.totalDaysElapsed ?? gs.meta?.dayNumber ?? 0)
     const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
 
-    // Skip submissions that look like noise (player quit before any kills
-    // on day 1, or no boss picked).
-    if (!player.bossArchetypeId || (days <= 1 && kills === 0)) return
+    // Death-path noise gate. Abandons use a tighter gate in PauseManager.
+    if (days <= 1 && kills === 0) return
 
-    // Human-readable names of every pact sealed this run, so the
-    // leaderboard's chronicle can list them. Resolves the display name
-    // from dungeonMechanics.json, falling back to a humanized id.
+    // Resolve pact display names from dungeonMechanics.json, falling back
+    // to a humanised id when the def is missing. Helper expects a flat
+    // array of strings.
     const dMechs = this.cache.json.get('dungeonMechanics') ?? []
     const pactNames = (gs.history?.pacts ?? []).map(p => {
       const def = dMechs.find(d => d.id === p?.mechanicId)
@@ -580,25 +578,13 @@ export class GameOver extends Phaser.Scene {
         .trim()
     }).filter(Boolean)
 
-    const run = {
-      player_name:   name.slice(0, 32),
-      boss_id:       String(player.bossArchetypeId),
-      boss_level:    Number(gs.boss?.level ?? 1),
-      days_survived: days,
-      total_kills:   kills,
-      gold:          Number(tot.gold ?? player.soulEssence ?? 0),
-      dark_power:    Number(player.darkPower ?? 0),
-      end_cause:     'death',
-      meta: {
-        roomsBuilt:     Number(tot.roomsBuilt ?? 0),
-        minionsSummoned: Number(tot.minionsSummoned ?? 0),
-        minionsLost:    Number(tot.minionsLost ?? 0),
-        advsEscaped:    Number(tot.advsEscaped ?? 0),
-        dmgDealt:       Number(tot.dmgDealt ?? 0),
-        dmgTaken:       Number(tot.dmgTaken ?? 0),
-        pacts:          pactNames,
-      },
-    }
+    const run = Leaderboard.buildRunPayload({
+      gameState:  gs,
+      endCause:   'death',
+      playerName: PlayerProfile.getName?.() || 'ANON',
+      pactNames,
+    })
+    if (!run) return
 
     Leaderboard.submitRun(run).catch(err => {
       console.warn('[Leaderboard] submit failed:', err.message)

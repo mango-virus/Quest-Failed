@@ -23,6 +23,50 @@ const HEADERS = {
 }
 
 export const Leaderboard = {
+  // Build a leaderboard submission payload from current gameState.
+  // Shared by every submission path (death via GameOverOverlay/GameOver,
+  // abandon via PauseManager) so the schema stays in one place.
+  //
+  // Pact display names must be resolved by the caller (they own the
+  // Phaser cache reference; this helper stays scene-free). Returns null
+  // when there's no boss archetype set — sub-noise filters live in the
+  // caller since they're context-specific.
+  //
+  // endCause: 'death' | 'abandoned' | future codes — LeaderboardOverlay's
+  // _thematicCause maps these to flavour phrases.
+  buildRunPayload({ gameState, endCause = 'death', playerName = 'ANON', pactNames = [] } = {}) {
+    if (!gameState) return null
+    const gs     = gameState
+    const tot    = gs.run?.totals ?? {}
+    const player = gs.player   ?? {}
+    if (!player.bossArchetypeId) return null
+    const days   = Number(player.totalDaysElapsed ?? gs.meta?.dayNumber ?? 0)
+    const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
+    return {
+      player_name:   String(playerName || 'ANON').trim().slice(0, 32) || 'ANON',
+      boss_id:       String(player.bossArchetypeId),
+      boss_level:    Number(gs.boss?.level ?? 1),
+      days_survived: days,
+      total_kills:   kills,
+      gold:          Number(tot.gold ?? player.soulEssence ?? 0),
+      dark_power:    Number(player.darkPower ?? 0),
+      end_cause:     String(endCause),
+      meta: {
+        roomsBuilt:      Number(tot.roomsBuilt ?? 0),
+        minionsSummoned: Number(tot.minionsSummoned ?? 0),
+        minionsLost:     Number(tot.minionsLost ?? 0),
+        advsEscaped:     Number(tot.advsEscaped ?? 0),
+        dmgDealt:        Number(tot.dmgDealt ?? 0),
+        dmgTaken:        Number(tot.dmgTaken ?? 0),
+        // leaks_count lives in meta because the schema has no dedicated
+        // leaks column. LeaderboardOverlay reads it back from there.
+        leaks_count:     Number(tot.intelLeaks ?? 0),
+        leak_events:     Number(tot.leakEvents ?? 0),
+        pacts:           Array.isArray(pactNames) ? pactNames : [],
+      },
+    }
+  },
+
   // POST a single run row. Returns the inserted row on success, throws on
   // failure. Caller should swallow errors — a missed submission shouldn't
   // block the player from continuing.

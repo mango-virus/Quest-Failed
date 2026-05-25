@@ -82,40 +82,18 @@ export class GameOverOverlay {
       const gs     = this._gameState ?? {}
       const tot    = gs.run?.totals ?? {}
       const player = gs.player ?? {}
-      const name   = (PlayerProfile.getName?.() || '').trim() || 'ANON'
       const days   = Number(player.totalDaysElapsed ?? gs.meta?.dayNumber ?? 0)
       const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
-      // Skip noise — quitting before any kills on day 1, or no boss picked.
-      if (!player.bossArchetypeId || (days <= 1 && kills === 0)) return
-
-      const run = {
-        player_name:   name.slice(0, 32),
-        boss_id:       String(player.bossArchetypeId),
-        boss_level:    Number(gs.boss?.level ?? 1),
-        days_survived: days,
-        total_kills:   kills,
-        gold:          Number(tot.gold ?? player.soulEssence ?? 0),
-        dark_power:    Number(player.darkPower ?? 0),
-        end_cause:     'death',
-        meta: {
-          roomsBuilt:      Number(tot.roomsBuilt ?? 0),
-          minionsSummoned: Number(tot.minionsSummoned ?? 0),
-          minionsLost:     Number(tot.minionsLost ?? 0),
-          advsEscaped:     Number(tot.advsEscaped ?? 0),
-          dmgDealt:        Number(tot.dmgDealt ?? 0),
-          dmgTaken:        Number(tot.dmgTaken ?? 0),
-          // Phase 34 follow-up — leaderboard leaks_count plumbing.
-          // `intelLeaks` = total items of intel taken out of the dungeon
-          // by fled adventurers; `leakEvents` = number of leak events
-          // (one per fled adv). Stored in meta because the leaderboard
-          // schema doesn't have a dedicated leaks column yet.
-          leaks_count:     Number(tot.intelLeaks ?? 0),
-          leak_events:     Number(tot.leakEvents ?? 0),
-          // Sealed-pact names so the leaderboard's chronicle can list
-          // them — without this the detail panel always read "no pacts".
-          pacts:           this._pactNames(),
-        },
-      }
+      // Death-path noise gate — skip quitting before any kills on day 1
+      // (the abandon path uses a tighter day>=3 OR kills>=5 in PauseManager).
+      if (days <= 1 && kills === 0) return
+      const run = Leaderboard.buildRunPayload({
+        gameState:  gs,
+        endCause:   'death',
+        playerName: PlayerProfile.getName?.() || 'ANON',
+        pactNames:  this._pactNames(),
+      })
+      if (!run) return
       Leaderboard.submitRun(run).catch(err => {
         // eslint-disable-next-line no-console
         console.warn('[Leaderboard] submit failed:', err?.message)

@@ -191,25 +191,25 @@ export class PauseOverlay {
         this._openSettings()
         break
       case 'abandon':
-        // ABANDON RUN deletes the save outright — the player is committing
-        // to starting over, so CONTINUE shouldn't bring them back here.
-        // Confirm-abandon gating is a player preference; off → exit
-        // immediately, on → SHOW_CONFIRM with explicit warning copy.
+        // ABANDON RUN posts the run to the leaderboard, then deletes the
+        // save outright — the player is committing to starting over, so
+        // CONTINUE shouldn't bring them back here. Confirm-abandon gating
+        // is a player preference; off → exit immediately, on → SHOW_CONFIRM.
         if (userSettings.isConfirmAbandonEnabled()) {
           EventBus.emit('SHOW_CONFIRM', {
             title:        'ABANDON RUN',
-            message:      'All progress in this dungeon will be ERASED. Continue?',
+            message:      'This dungeon will be ERASED and your run posted to the leaderboard. Continue?',
             confirmLabel: 'ABANDON',
             cancelLabel:  'STAY',
             theme:        'crimson',
             onConfirm: () => {
               this.close()
-              setTimeout(() => PauseManager.abandonAndExitToMenu(), 50)
+              setTimeout(() => PauseManager.abandonAndExitToMenu(this._gameState), 50)
             },
           })
         } else {
           this.close()
-          setTimeout(() => PauseManager.abandonAndExitToMenu(), 50)
+          setTimeout(() => PauseManager.abandonAndExitToMenu(this._gameState), 50)
         }
         break
       case 'quit':
