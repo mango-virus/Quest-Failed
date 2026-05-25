@@ -836,6 +836,18 @@ export class AISystem {
       this._occupancy[`${a.tileX},${a.tileY}`] = a.instanceId
     }
 
+    // Per-frame A* pathfinder budget. Caps the number of full A* calls
+    // any single frame can make so a burst of simultaneous "path
+    // exhausted" / "goal target changed" / "room removed" events
+    // doesn't stack N expensive grid searches in the same tick (visible
+    // as a frame-time spike during day-22+ waves with many advs).
+    // Advs over budget keep their existing path (or wait one extra
+    // frame if path was null) — the queued repath fires next tick.
+    // Movement still tracks the current waypoint, so visible-side this
+    // looks like one extra ~16ms of "carry on doing what you were
+    // doing" rather than a freeze.
+    this._aiPathBudget = 6
+
     // Per-tick blocker caches — beacons / fountains / treasure chests are
     // soft-blockers for EVERY adv pathfind this tick. The previous code
     // rebuilt the Set per-adv inside _tickAdv even though the dungeon
@@ -1805,6 +1817,21 @@ export class AISystem {
       // jitter off they pathed an identical line in lockstep and a single
       // obstacle wedged the whole blob at once.
       const pathJitter = adv.goal?.type === 'FLEE' ? 0 : 0.6
+      // Per-frame A* budget gate. If we're out of repaths for this
+      // frame, leave the adv with their current (possibly null) path
+      // and try again next tick. The per-adv tick body bails right
+      // after this when path stays null — no movement that frame, but
+      // also no expensive A* call. Spreads frame-time spikes across
+      // ticks instead of stacking them. FLEEING advs bypass the budget
+      // so panic-routes are never delayed.
+      if (adv.goal?.type !== 'FLEE') {
+        if (this._aiPathBudget <= 0) {
+          // Leave adv.path as-is (null or stale). The tick body below
+          // returns when path is null/empty, so the adv just waits.
+          return
+        }
+        this._aiPathBudget--
+      }
       const path = PathfinderSystem.findPath(
         { x: adv.tileX, y: adv.tileY }, target, this._dungeonGrid, costFn, pathJitter,
         cheaterNoClip ? null : blockedForAdv, softOpts,
