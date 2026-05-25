@@ -836,6 +836,22 @@ export class AISystem {
       this._occupancy[`${a.tileX},${a.tileY}`] = a.instanceId
     }
 
+    // Per-tick blocker caches — beacons / fountains / treasure chests are
+    // soft-blockers for EVERY adv pathfind this tick. The previous code
+    // rebuilt the Set per-adv inside _tickAdv even though the dungeon
+    // state is identical across all advs that tick. Snapshot here, reuse
+    // per-adv. Locks need per-adv filtering (canAdvUnlockHere varies by
+    // class/keys), so we only stash the full LOCKED tile set; per-adv
+    // code still filters out the ones the adv can open.
+    this._tickSoftBlocked = new Set()
+    for (const b of this._gameState.dungeon?.beacons        ?? []) this._tickSoftBlocked.add(`${b.tileX},${b.tileY}`)
+    for (const f of this._gameState.dungeon?.fountains      ?? []) this._tickSoftBlocked.add(`${f.tileX},${f.tileY}`)
+    for (const c of this._gameState.dungeon?.treasureChests ?? []) this._tickSoftBlocked.add(`${c.tileX},${c.tileY}`)
+    // Per-tick list of locks that ANY adv might hard-block. Per-adv code
+    // skips locks the adv can unlock and adds the remaining doorTiles.
+    this._tickLockedLocks = (this._gameState.dungeon?.locks ?? [])
+      .filter(l => !l.unlocked && !l.broken)
+
     // Flee-decision broadcast. Many sites set adv.goal to FLEE (the
     // central _setFleeGoal helper, the oscillation/no_route/goal_lost
     // inline assignments, BossSystem._handOffToAIFlee, etc.). Rather
@@ -1734,21 +1750,28 @@ export class AISystem {
       // way to open. The pathfinder skips these entirely, so an adv with
       // no key / lockpick / break truly cannot route through a lock.
       // Applies to FLEE too — locks are real barriers.
+      // Iterate the per-tick LOCKED snapshot (already filters unlocked /
+      // broken) and only skip ones THIS adv can unlock.
       const blockedForAdv = new Set()
-      for (const lock of this._gameState.dungeon?.locks ?? []) {
-        if (lock.unlocked || lock.broken) continue
+      const lockedLocks = this._tickLockedLocks ?? (this._gameState.dungeon?.locks ?? [])
+        .filter(l => !l.unlocked && !l.broken)
+      for (const lock of lockedLocks) {
         if (this._canAdvUnlockHere(adv, lock)) continue
         for (const t of lock.doorTiles) blockedForAdv.add(`${t.x},${t.y}`)
       }
       // Collision items (Beacon / Fountain / Treasure Chest) are SOFT
-      // blockers — the adv routes around them when any other route
-      // exists, but walks THROUGH as a last resort rather than failing
-      // to path and fleeing "can't find a way through". Solid traps get
-      // the same treatment via the softTraps flag on the findPath call.
-      const softBlockedForAdv = new Set()
-      for (const b of this._gameState.dungeon?.beacons        ?? []) softBlockedForAdv.add(`${b.tileX},${b.tileY}`)
-      for (const f of this._gameState.dungeon?.fountains      ?? []) softBlockedForAdv.add(`${f.tileX},${f.tileY}`)
-      for (const c of this._gameState.dungeon?.treasureChests ?? []) softBlockedForAdv.add(`${c.tileX},${c.tileY}`)
+      // blockers — identical for every adv that tick, so we reuse the
+      // dungeon-wide snapshot built in update(). Clone (Set ctor) so
+      // per-adv trap-recoil additions below don't leak into the shared
+      // cache.
+      const softBlockedForAdv = this._tickSoftBlocked
+        ? new Set(this._tickSoftBlocked)
+        : new Set()
+      if (!this._tickSoftBlocked) {
+        for (const b of this._gameState.dungeon?.beacons        ?? []) softBlockedForAdv.add(`${b.tileX},${b.tileY}`)
+        for (const f of this._gameState.dungeon?.fountains      ?? []) softBlockedForAdv.add(`${f.tileX},${f.tileY}`)
+        for (const c of this._gameState.dungeon?.treasureChests ?? []) softBlockedForAdv.add(`${c.tileX},${c.tileY}`)
+      }
       // Trap recoil — _onTrapTriggeredAI stamps a tile set on the adv when
       // they survive a trap hit. Treat those tiles as soft-blocked for
       // ~3 s so the next path routes AWAY from the trap rather than
