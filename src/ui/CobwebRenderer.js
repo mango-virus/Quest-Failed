@@ -264,6 +264,12 @@ export class CobwebRenderer {
   // ── Render ────────────────────────────────────────────────────────────
 
   update() {
+    // LOD — cobwebs are static room decor; at wide zoom skip the
+    // per-frame iteration over every cobweb in every room. Resumes
+    // on zoom-in so any room rotation done while at LOD catches up.
+    const cam = this._scene.cameras?.main
+    if (cam && cam.zoom < 0.5) return
+
     const seen = new Set()
     for (const room of (this._gameState.dungeon?.rooms ?? [])) {
       this._syncRoomRotation(room)

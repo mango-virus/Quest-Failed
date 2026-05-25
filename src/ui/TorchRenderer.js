@@ -381,6 +381,15 @@ export class TorchRenderer {
   // ── Render ────────────────────────────────────────────────────────────
 
   update() {
+    // LOD — at wide-overview zoom (the common play mode per user
+    // playtests), skip the per-frame iteration over every torch in
+    // every room. Sprites keep their last position; the sine-based
+    // flicker pauses (barely visible at zoom ≤ 0.5 anyway, since the
+    // glow circle is sub-30px on screen). State resumes the next
+    // frame zoom climbs back above the threshold.
+    const cam = this._scene.cameras?.main
+    if (cam && cam.zoom < 0.5) return
+
     const seen = new Set()
     const now  = this._scene.time?.now ?? 0
     for (const room of (this._gameState.dungeon?.rooms ?? [])) {

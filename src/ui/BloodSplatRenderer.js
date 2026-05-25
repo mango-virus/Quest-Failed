@@ -266,6 +266,12 @@ export class BloodSplatRenderer {
   // ── Render ─────────────────────────────────────────────────────────────
 
   update() {
+    // LOD — at wide zoom, skip the per-frame alpha refresh across
+    // every decal. Decay only fires once per day-change (rare during
+    // play), so the alpha snap re-runs the first non-LOD frame.
+    const cam = this._scene.cameras?.main
+    if (cam && cam.zoom < 0.5) return
+
     const decals = this._gameState.dungeon?.deathDecals
     if (!Array.isArray(decals)) return
     const day = this._gameState.meta?.dayNumber ?? 1

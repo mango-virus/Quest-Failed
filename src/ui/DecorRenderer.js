@@ -628,6 +628,13 @@ export class DecorRenderer {
   // ── Render ─────────────────────────────────────────────────────────────
 
   update() {
+    // LOD — skip the per-frame iteration at wide zoom. Decor props
+    // don't move within a room (only move via room rotation, which
+    // happens in night phase and players zoom in to build), so
+    // sprites keep their last position safely. Resumes on zoom-in.
+    const cam = this._scene.cameras?.main
+    if (cam && cam.zoom < 0.5) return
+
     const seen = new Set()
     for (const room of (this._gameState.dungeon?.rooms ?? [])) {
       this._syncRoomRotation(room)
