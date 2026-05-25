@@ -1452,6 +1452,12 @@ export class NightPhase extends Phaser.Scene {
           // button again or BEGIN DAY fires. While holding a room, the
           // next click drops it; otherwise the click picks up the room
           // under the cursor (if any).
+          //
+          // MinionRenderer (in Game scene) owns held-minion drop on the same
+          // pointerdown. NightPhase fires first, so without this guard the
+          // drop click would also pick up the room under the cursor.
+          const game = this.scene.get('Game')
+          if (game?.minionRenderer?._heldMinion) return
           if (this._selected) {
             if (this._previewTileX >= 0) {
               this._confirmPlacement(this._previewTileX, this._previewTileY)
