@@ -283,6 +283,14 @@ export const Balance = {
   // Linear gradient between. Rewards baiting advs onto the bomb tile
   // itself, while a brush past the ring still hurts.
   BOMB_FALLOFF_FLOOR:            0.30,
+  // Per-hit trap damage cap as a fraction of the victim's maxHp. A
+  // single trap hit on an adventurer can deal at most this share, so
+  // a Mage (25 HP) caps at ~18 even from a centre-tile Bomb — they
+  // walk away near-death instead of instantly dying. Wounded advs
+  // can still be finished by a follow-up hit. Spike Pit's
+  // instakillChance bypasses this cap (the only legit one-shot).
+  // Minions and the boss are unaffected — full raw damage applies.
+  TRAP_MAX_ADV_DMG_FRAC:         0.75,
   // Minion gold-cost scales with boss level so prices keep pace with stats.
   // Slightly under the avg (HP+ATK)/2 stat-rate so minions feel a touch
   // more affordable at higher levels — small reward for progression.

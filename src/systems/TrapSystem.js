@@ -392,6 +392,17 @@ export class TrapSystem {
       damage = entity.resources.hp
       instakill = true
     }
+    // Per-hit cap as a fraction of the victim's maxHp. Prevents traps
+    // from one-shotting any adventurer (except Spike Pit's instakill
+    // chance, which sets `instakill = true` above and bypasses this).
+    // The cap also smooths out the "always-exactly-1-HP" feel of a
+    // flat clamp — squishies still take a chunky, variable hit
+    // proportional to their pool. Minions + boss are unaffected.
+    if (!instakill && this._isAdventurer(entity)) {
+      const maxHp = entity.resources?.maxHp ?? entity.resources?.hp ?? 0
+      const frac  = Balance.TRAP_MAX_ADV_DMG_FRAC ?? 0.75
+      if (maxHp > 0) damage = Math.min(damage, Math.floor(maxHp * frac))
+    }
     if (damage <= 0) return false
 
     entity.resources.hp = Math.max(0, entity.resources.hp - damage)
