@@ -59,9 +59,22 @@ export class ScreenShakeSystem {
     this._lastShake = now
   }
 
-  _onCombatHit({ damage, isCritical } = {}) {
+  _onCombatHit({ damage, isCritical, sourceId, targetId } = {}) {
     if (typeof damage !== 'number' || damage <= 0) return
     if (!isCritical && damage < BIG_HIT_DAMAGE_GATE) return
+    // Suppress shake whenever a minion is on either side of the hit. At
+    // high minion counts in late game the constant low-grade quaking
+    // from minion-vs-adv combat reads as noise — boss/trap/archetype-
+    // ability hits (Petrify, Earthquake, etc.) and pure adv-vs-boss
+    // damage are still shake-eligible. Source-string ids ('boss',
+    // 'tremor', 'venom', etc.) don't match any minion instanceId, so
+    // they're untouched by this filter.
+    const minions = this._scene.gameState?.minions
+    if (Array.isArray(minions) && minions.length > 0) {
+      for (const m of minions) {
+        if (m.instanceId === sourceId || m.instanceId === targetId) return
+      }
+    }
     this._shake('small')
   }
 
