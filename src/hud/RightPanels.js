@@ -457,6 +457,13 @@ export class RightPanels {
     const nextDay = (gs.meta.dayNumber ?? 1) + (phase === 'day' ? 1 : 0)
     const ADV_BASE = 2   // mirrors Balance.ADVENTURERS_PER_DAY_BASE default
     let count = ADV_BASE + Math.floor((nextDay - 1) / 2)
+    // Post-day-9 wave-size escalation — matches DayPhase spawn. The
+    // forecast surface needs to mirror this so the player sees the
+    // climbing wave size in the night-phase preview, not just at dawn.
+    const postTenAdvs = Math.max(0, nextDay - 9)
+    if (postTenAdvs > 0) {
+      count += postTenAdvs   // 1 extra per day past 9 — see Balance.ADVENTURER_POST10_EXTRA_PER_DAY
+    }
     const notes = []
     // Treasury rooms each add an adventurer (DayPhase formula).
     const treasuries = (gs.dungeon?.rooms ?? [])

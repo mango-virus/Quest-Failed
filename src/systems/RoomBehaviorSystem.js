@@ -91,7 +91,11 @@ export class RoomBehaviorSystem {
         (c.unlockLevel ?? 1) <= dungeonLv &&
         (c.unlockDay   ?? 1) <= day,
       )
-      const baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+      let baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+      // Post-day-9 wave-size escalation — matches DayPhase spawn so
+      // the Library class forecast covers the bigger waves too.
+      const postTenAdvs = Math.max(0, day - 9)
+      if (postTenAdvs > 0) baseCount += postTenAdvs * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
       const size = Math.max(0, Math.min(baseCount, classes.length * 2))
       const classCounts = {}
       for (let i = 0; i < size && classes.length; i++) {

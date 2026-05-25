@@ -337,6 +337,9 @@ export class NightPhase extends Phaser.Scene {
     // so the preview tracks the actual spawn exactly when no last-second
     // flags fire between night and day.
     let baseCount = (Balance.ADVENTURERS_PER_DAY_BASE ?? 2) + Math.floor((day - 1) / 2)
+    // Post-day-9 wave-size escalation — matches DayPhase spawn.
+    const postTenAdvs = Math.max(0, day - 9)
+    if (postTenAdvs > 0) baseCount += postTenAdvs * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
     const treasuryCount = (gs.dungeon?.rooms ?? [])
       .filter(r => r.definitionId === 'treasury' && r.isActive !== false).length
     if (treasuryCount > 0) baseCount += treasuryCount

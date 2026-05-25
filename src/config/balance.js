@@ -267,15 +267,30 @@ export const Balance = {
   ADVENTURER_ATK_PER_BOSS_LV:  0.07,   // +7%  attack per boss level above 1
   ADVENTURER_HP_PER_DAY:        0.04,   // +4%  maxHp per day above 1
   ADVENTURER_ATK_PER_DAY:       0.02,   // +2%  attack per day above 1
-  // Every-10-days tier multiplier — dramatic step in adv power at each
-  // decade boundary. Multiplies the linear scaling above so the jump is
-  // visible immediately at day 10 / 20 / 30. tierIndex = floor(day/10),
-  // so days 1–9 are tier 0 (×1.0), days 10–19 are tier 1 (×1.5 HP /
-  // ×1.3 ATK), 20–29 tier 2 (×2.25 / ×1.69), and so on compounding.
-  // Drives both the actual stat scaling AND the cosmetic display level.
-  ADVENTURER_TIER_DAYS:         10,
-  ADVENTURER_TIER_HP_PER_TIER:  1.5,
-  ADVENTURER_TIER_ATK_PER_TIER: 1.3,
+  // Post-day-9 compounding scaler — applies EVERY DAY past day 9, so the
+  // curve smoothly accelerates from day 10 onward instead of stepping at
+  // decade boundaries. postTen = max(0, day - 9); HP and ATK each
+  // multiplied by their per-tier base ^ postTen. Layered on top of the
+  // linear ADVENTURER_*_PER_DAY scaling above.
+  //
+  // Math: at 1.08 HP / 1.05 ATK per day past 9 →
+  //   day 10 (postTen 1):  ×1.08 HP, ×1.05 ATK
+  //   day 15 (postTen 6):  ×1.59 HP, ×1.34 ATK
+  //   day 20 (postTen 11): ×2.33 HP, ×1.71 ATK
+  //   day 30 (postTen 21): ×5.03 HP, ×2.79 ATK
+  //   day 50 (postTen 41): ×23.46 HP, ×7.39 ATK
+  //
+  // Same mirror applied in adventurerDisplayLevel so the cosmetic LV
+  // chip tracks the actual stat escalation.
+  ADVENTURER_POST10_HP_PER_DAY:  1.08,
+  ADVENTURER_POST10_ATK_PER_DAY: 1.05,
+  // Wave-size escalation past day 9 — every day adds an extra
+  // adventurer on top of the standard `1 + floor((day-1)/2)` curve.
+  // Applies to all 5 wave-count sites (DayPhase spawn + normalWaveSize,
+  // NightPhase rollNextWavePreview, RightPanels forecast, RoomBehavior
+  // Library preview). Treasury / Gold Rush / event modifiers stack on
+  // top of this bonus, same as before.
+  ADVENTURER_POST10_EXTRA_PER_DAY: 1,
   MINION_HP_PER_BOSS_LV:        0.20,   // +20% maxHp per boss level (bigger boss-level boost)
   MINION_ATK_PER_BOSS_LV:       0.12,   // +12% attack per boss level
   MINION_HP_PER_DAY:             0.06,   // +6%  maxHp per day (small day boost)
@@ -618,18 +633,19 @@ export const Balance = {
 export function adventurerDisplayLevel(bossLv = 1, day = 1, bloodMoneyBonus = 0) {
   const lvOver  = Math.max(0, Math.floor(bossLv || 1) - 1)
   const dayOver = Math.max(0, Math.floor(day   || 1) - 1)
-  // Every-10-days tier multiplier — mirrors _scaleAdventurerByBossLevel
-  // so the displayed LV jumps in lockstep with the actual stat cliff at
-  // day 10 / 20 / 30 / 40. Without this the LV chip would tick smoothly
-  // while the stats spike, leaving the player surprised by their hit.
-  const tierIdx    = Math.floor(Math.floor(day || 1) / (Balance.ADVENTURER_TIER_DAYS || 10))
-  const tierHpMul  = Math.pow(Balance.ADVENTURER_TIER_HP_PER_TIER  ?? 1, tierIdx)
-  const tierAtkMul = Math.pow(Balance.ADVENTURER_TIER_ATK_PER_TIER ?? 1, tierIdx)
+  // Post-day-9 compounding multiplier — mirrors
+  // _scaleAdventurerByBossLevel so the displayed LV climbs in lockstep
+  // with the actual stat escalation. By day 30 the LV chip reads ~50+
+  // for a level-1 boss run, which is the player's visible warning that
+  // each successive wave is sharper than the last.
+  const postTen   = Math.max(0, Math.floor(day || 1) - 9)
+  const post10Hp  = Math.pow(Balance.ADVENTURER_POST10_HP_PER_DAY  ?? 1, postTen)
+  const post10Atk = Math.pow(Balance.ADVENTURER_POST10_ATK_PER_DAY ?? 1, postTen)
   const hpMul  = (1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
                      + Balance.ADVENTURER_HP_PER_DAY       * dayOver
-                     + (bloodMoneyBonus || 0)) * tierHpMul
+                     + (bloodMoneyBonus || 0)) * post10Hp
   const atkMul = (1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
-                     + Balance.ADVENTURER_ATK_PER_DAY      * dayOver) * tierAtkMul
+                     + Balance.ADVENTURER_ATK_PER_DAY      * dayOver) * post10Atk
   // One level ≈ one boss-level's worth of average HP/ATK buff.
   const step = (Balance.ADVENTURER_HP_PER_BOSS_LV +
                 Balance.ADVENTURER_ATK_PER_BOSS_LV) / 2 || 0.085

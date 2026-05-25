@@ -499,19 +499,19 @@ export class DayPhase extends Phaser.Scene {
     const day     = this._gameState?.meta?.dayNumber ?? 1
     const lvOver  = Math.max(0, bossLv - 1)
     const dayOver = Math.max(0, day - 1)
-    // Every-10-days tier — dramatic difficulty cliff at each decade.
-    // floor(day/10) so days 1–9 land on tier 0 (no bonus), 10–19 on
-    // tier 1, 20–29 on tier 2, etc. Compounds multiplicatively on top
-    // of the linear day/boss scaling below.
-    const tierIdx    = Math.floor(day / (Balance.ADVENTURER_TIER_DAYS || 10))
-    const tierHpMul  = Math.pow(Balance.ADVENTURER_TIER_HP_PER_TIER  ?? 1, tierIdx)
-    const tierAtkMul = Math.pow(Balance.ADVENTURER_TIER_ATK_PER_TIER ?? 1, tierIdx)
-    if (lvOver === 0 && dayOver === 0 && tierIdx === 0 && bloodMoneyBonus === 0) return
+    // Post-day-9 compounding multiplier — every day past day 9 multiplies
+    // HP / ATK by a per-day base, on top of the linear scaling below.
+    // Smooth curve (no decade cliffs); at day 30 advs hit ~5× HP / ~3×
+    // ATK on top of normal level scaling. See Balance comment for table.
+    const postTen   = Math.max(0, day - 9)
+    const post10Hp  = Math.pow(Balance.ADVENTURER_POST10_HP_PER_DAY  ?? 1, postTen)
+    const post10Atk = Math.pow(Balance.ADVENTURER_POST10_ATK_PER_DAY ?? 1, postTen)
+    if (lvOver === 0 && dayOver === 0 && postTen === 0 && bloodMoneyBonus === 0) return
     const hpMul  = (1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
                        + Balance.ADVENTURER_HP_PER_DAY        * dayOver
-                       + bloodMoneyBonus) * tierHpMul
+                       + bloodMoneyBonus) * post10Hp
     const atkMul = (1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
-                       + Balance.ADVENTURER_ATK_PER_DAY       * dayOver) * tierAtkMul
+                       + Balance.ADVENTURER_ATK_PER_DAY       * dayOver) * post10Atk
     adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
     adv.resources.hp    = adv.resources.maxHp
     adv.stats.attack    = Math.round(adv.stats.attack * atkMul)
@@ -645,6 +645,11 @@ export class DayPhase extends Phaser.Scene {
 
     const day   = this._gameState.meta.dayNumber
     let baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+    // Post-day-9 wave-size escalation (2026-05-22). Every day past day 9
+    // adds an extra adventurer on top of the standard `+1 per 2 days`
+    // curve. Day 10 → +1, day 20 → +11, day 30 → +21, etc.
+    const postTenAdvs = Math.max(0, day - 9)
+    if (postTenAdvs > 0) baseCount += postTenAdvs * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
     // Room redesign 2026-04-30 — Treasury attracts greedy adventurers:
     // each active Treasury room adds +1 to the daily party size.
     const treasuryCount = (this._gameState.dungeon.rooms ?? [])
@@ -1508,6 +1513,9 @@ export class DayPhase extends Phaser.Scene {
   _normalWaveSize() {
     const day = this._gameState.meta?.dayNumber ?? 1
     let n = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
+    // Post-day-9 wave-size escalation — matches _spawnDailyAdventurers.
+    const postTenAdvs = Math.max(0, day - 9)
+    if (postTenAdvs > 0) n += postTenAdvs * (Balance.ADVENTURER_POST10_EXTRA_PER_DAY ?? 1)
     const treasuryCount = (this._gameState.dungeon?.rooms ?? [])
       .filter(r => r.definitionId === 'treasury' && r.isActive !== false).length
     n += treasuryCount
