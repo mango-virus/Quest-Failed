@@ -200,7 +200,11 @@ export class BossArchetypeSystem {
     this._renderHellgatePortal()
     // Demon: ensure daily-uses counter exists.
     if (this._archId() === 'demon') {
-      this._gameState._demon ??= { sacrificeUsesLeft: Balance.DEMON_SACRIFICE_USES_PER_DAY }
+      // +0.333 uses per boss-lv (floor adds ~1 every 3 lv).
+      const bossLv = this._gameState?.boss?.level ?? 1
+      const dailyUses = Balance.DEMON_SACRIFICE_USES_PER_DAY
+        + Math.floor(bossLv * Balance.DEMON_SACRIFICE_USES_PER_BOSS_LV)
+      this._gameState._demon ??= { sacrificeUsesLeft: dailyUses }
     }
     // Orc: capture pristine baselines for every existing orc on save-load /
     // scene boot. Without this, _tickOrc would treat the post-buff stats as
@@ -778,7 +782,10 @@ export class BossArchetypeSystem {
     // reach the N-slot ceiling, so total count never grows past N.
     if (this._archId() === 'demon') {
       this._gameState._demon ??= { sacrificeUsesLeft: 0 }
+      // +0.333 uses per boss-lv (lv10 = +3 → 4 uses/day).
+      const _demonBossLv = this._gameState?.boss?.level ?? 1
       this._gameState._demon.sacrificeUsesLeft = Balance.DEMON_SACRIFICE_USES_PER_DAY
+        + Math.floor(_demonBossLv * Balance.DEMON_SACRIFICE_USES_PER_BOSS_LV)
       // Disarm via the proper API so the UI hears DEMON_SACRIFICE_DISARMED
       // and snaps the button back to SACRIFICE — silent state mutation here
       // was the source of the "stuck on PICK A MINION" bug.
@@ -931,23 +938,44 @@ export class BossArchetypeSystem {
     const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!bossRoom) return
 
-    // Only freeze advs currently inside the boss chamber (the active fighters).
-    const targets = []
+    // Boss-level scaling: longer freeze + more distinct targets per fire.
+    // duration += 300ms per boss-lv beyond 1; targets = 1 + floor((lv-1)/3)
+    // (lv4=2, lv7=3, lv10=4). Pick distinct advs; if fewer advs available,
+    // freeze what's there.
+    const bossLv = this._gameState?.boss?.level ?? 1
+    const durationMs = Balance.BEHOLDER_PETRIFY_DURATION_MS
+      + Math.max(0, bossLv - 1) * Balance.BEHOLDER_PETRIFY_DURATION_PER_BOSS_LV_MS
+    const maxTargets = Balance.BEHOLDER_PETRIFY_TARGETS_BASE
+      + Math.floor(Math.max(0, bossLv - 1) / Balance.BEHOLDER_PETRIFY_LEVELS_PER_TARGET)
+
+    // Eligible advs: alive and currently inside the boss chamber (the active fighters).
+    const eligible = []
     for (const a of advs) {
       if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
       if (!_advInsideRoom(a, bossRoom)) continue
-      a._petrifiedUntil = now + Balance.BEHOLDER_PETRIFY_DURATION_MS
+      eligible.push(a)
+    }
+    if (eligible.length === 0) return
+
+    // Fisher-Yates partial shuffle to pick `maxTargets` distinct advs uniformly.
+    const pool = eligible.slice()
+    const pickN = Math.min(maxTargets, pool.length)
+    for (let i = 0; i < pickN; i++) {
+      const j = i + Math.floor(Math.random() * (pool.length - i))
+      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
+    }
+    const targets = pool.slice(0, pickN)
+    for (const a of targets) {
+      a._petrifiedUntil = now + durationMs
       // Status-text float (DungeonFx renders 'PETRIFIED' above the adv).
       EventBus.emit('STATUS_APPLIED', { targetId: a.instanceId, label: 'PETRIFIED' })
-      targets.push(a)
     }
-    if (targets.length === 0) return
 
     EventBus.emit('BEHOLDER_PETRIFY_FIRED', {
       targetIds:  targets.map(t => t.instanceId),
-      durationMs: Balance.BEHOLDER_PETRIFY_DURATION_MS,
+      durationMs,
     })
-    this._renderPetrifyVfx(boss, targets, Balance.BEHOLDER_PETRIFY_DURATION_MS)
+    this._renderPetrifyVfx(boss, targets, durationMs)
   }
 
   // Eye-beams from the boss to each target + a stone-crackle ring at the
@@ -1169,22 +1197,35 @@ export class BossArchetypeSystem {
       }
     }
 
-    // VAMPIRE: charm one random adv per spawning batch.
+    // VAMPIRE: charm N random advs per spawning batch (one per day baseline,
+    // +0.25 per boss-lv → 1 extra every 4 lv; lv10 = 1 + floor(10*0.25) = 3).
     if (this._archId() === 'vampire') {
+      const bossLv = this._gameState?.boss?.level ?? 1
+      const charmCount = Balance.VAMPIRE_CHARM_USES_PER_DAY_BASE
+        + Math.floor(bossLv * Balance.VAMPIRE_CHARM_USES_PER_BOSS_LV)
       const eligible = advs.filter(a => a && (a.resources?.hp ?? 0) > 0)
       if (eligible.length > 0) {
-        const pick = eligible[Math.floor(Math.random() * eligible.length)]
         const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         if (bossRoom) {
-          pick._charmed = true
-          EventBus.emit('STATUS_APPLIED', { targetId: pick.instanceId, label: 'CHARMED' })
-          // Detach from party for the walk so allies don't drag them back via
-          // FOLLOW_LEADER goals later.
-          pick._charmedFormerPartyId = pick.partyId ?? null
-          pick.partyId = null
-          pick.goal = { type: 'CHARM_WALK', roomId: bossRoom.instanceId }
-          pick.path = null
-          EventBus.emit('VAMPIRE_CHARM_MARKED', { advId: pick.instanceId })
+          // Fisher-Yates partial shuffle to pick distinct advs uniformly.
+          const pool = eligible.slice()
+          const pickN = Math.min(charmCount, pool.length)
+          for (let i = 0; i < pickN; i++) {
+            const j = i + Math.floor(Math.random() * (pool.length - i))
+            const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
+          }
+          for (let i = 0; i < pickN; i++) {
+            const pick = pool[i]
+            pick._charmed = true
+            EventBus.emit('STATUS_APPLIED', { targetId: pick.instanceId, label: 'CHARMED' })
+            // Detach from party for the walk so allies don't drag them back via
+            // FOLLOW_LEADER goals later.
+            pick._charmedFormerPartyId = pick.partyId ?? null
+            pick.partyId = null
+            pick.goal = { type: 'CHARM_WALK', roomId: bossRoom.instanceId }
+            pick.path = null
+            EventBus.emit('VAMPIRE_CHARM_MARKED', { advId: pick.instanceId })
+          }
         }
       }
     }
@@ -1319,9 +1360,12 @@ export class BossArchetypeSystem {
     const aliveRaised = (this._gameState.minions ?? []).filter(
       m => m._raisedFromAdvDeath && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0,
     ).length
+    // +0.5 cap per boss-lv (lv10 = +5 → 10 raised). bossLv already captured above.
+    const raisedCap = Balance.NECROMANCY_MAX_RAISED
+      + Math.floor(bossLv * Balance.NECROMANCY_MAX_RAISED_PER_BOSS_LV)
     const raiseCount = Math.max(0, Math.min(
       queue.length,
-      Balance.NECROMANCY_MAX_RAISED - aliveRaised,
+      raisedCap - aliveRaised,
     ))
 
     const raised = []
@@ -1519,7 +1563,11 @@ export class BossArchetypeSystem {
       adv._venomLastTickAt ??= 0
       if (now - adv._venomLastTickAt < Balance.LIZARDMAN_VENOM_TICK_INTERVAL_MS) continue
       adv._venomLastTickAt = now
-      const tickDmg = stacks * Balance.LIZARDMAN_VENOM_DMG_PER_STACK
+      // +0.5 dmg/stack per boss-lv (floor): lv10 = +5 → 6 dmg/stack/tick.
+      const bossLv = this._gameState?.boss?.level ?? 1
+      const dmgPerStack = Balance.LIZARDMAN_VENOM_DMG_PER_STACK
+        + Math.floor(bossLv * Balance.LIZARDMAN_VENOM_DMG_PER_BOSS_LV)
+      const tickDmg = stacks * dmgPerStack
       const before = adv.resources.hp
       adv.resources.hp = Math.max(0, before - tickDmg)
       EventBus.emit('COMBAT_HIT', {
@@ -1565,7 +1613,11 @@ export class BossArchetypeSystem {
         if (def > bestDeficit) { bestDeficit = def; target = ally }
       }
       if (!target) continue
-      const heal = Math.min(bestDeficit, Balance.NECROMANCY_CLERIC_HEAL_AMOUNT)
+      // +1 heal-per-tick per boss-lv beyond 1 (lv10 = +9 → 13/tick).
+      const bossLv = this._gameState?.boss?.level ?? 1
+      const healAmount = Balance.NECROMANCY_CLERIC_HEAL_AMOUNT
+        + (bossLv - 1) * Balance.NECROMANCY_CLERIC_HEAL_PER_BOSS_LV
+      const heal = Math.min(bestDeficit, healAmount)
       target.resources.hp += heal
       EventBus.emit('NECROMANCY_CLERIC_HEAL', {
         sourceId: m.instanceId,
@@ -1862,7 +1914,11 @@ export class BossArchetypeSystem {
 
   _expectedHuntersPackCount() {
     const lv = this._gameState?.boss?.level ?? 1
-    return Math.min(Balance.GNOLL_HUNTERS_PACK_MAX, Math.max(1, lv))
+    // +0.5 pack-max per boss-lv (floor): lv10 = +5 → cap 10. Pack size still
+    // scales with boss level (1-for-1) and is clamped by the new effective cap.
+    const cap = Balance.GNOLL_HUNTERS_PACK_MAX
+      + Math.floor(lv * Balance.GNOLL_HUNTERS_PACK_MAX_PER_BOSS_LV)
+    return Math.min(cap, Math.max(1, lv))
   }
 
   // Spawn enough free gnoll1 minions in the boss chamber to bring the pack
@@ -1888,9 +1944,13 @@ export class BossArchetypeSystem {
     const cx = bossRoom.gridX + Math.floor(bossRoom.width  / 2)
     const cy = bossRoom.gridY + Math.floor(bossRoom.height / 2)
 
+    // Use the effective (lv-scaled) cap for ring distribution so spawns spread
+    // evenly across the larger pack at high boss-lv.
+    const effectiveCap = Balance.GNOLL_HUNTERS_PACK_MAX
+      + Math.floor(bossLv * Balance.GNOLL_HUNTERS_PACK_MAX_PER_BOSS_LV)
     for (let i = 0; i < need; i++) {
       const idx   = totalCount + i
-      const angle = (idx / Balance.GNOLL_HUNTERS_PACK_MAX) * Math.PI * 2
+      const angle = (idx / Math.max(1, effectiveCap)) * Math.PI * 2
       const r = 2 + (idx % 2)
       const tx = cx + Math.round(Math.cos(angle) * r)
       const ty = cy + Math.round(Math.sin(angle) * r)
@@ -2064,9 +2124,15 @@ export class BossArchetypeSystem {
         // Randomize cooldown so subsequent charms don't clump.
         EventBus.emit('SUCCUBUS_FLIGHT_ENDED', {})
         s.flight = null
-        s.cooldownUntil = now
-          + (Balance.SUCCUBUS_CHARM_COOLDOWN_BASE_MS ?? 20000)
-          + Math.floor(Math.random() * (Balance.SUCCUBUS_CHARM_COOLDOWN_RAND_MS ?? 16000))
+        // -1s base + rand per boss-lv beyond 1; floored at 5000ms/4000ms so
+        // it doesn't collapse to zero (lv10 lands at 11000/7000 ms).
+        const _succBossLv = this._gameState?.boss?.level ?? 1
+        const _reduction = Math.max(0, _succBossLv - 1) * Balance.SUCCUBUS_CHARM_COOLDOWN_REDUCTION_PER_LV_MS
+        const _cdBase = Math.max(5000,
+          (Balance.SUCCUBUS_CHARM_COOLDOWN_BASE_MS ?? 20000) - _reduction)
+        const _cdRand = Math.max(4000,
+          (Balance.SUCCUBUS_CHARM_COOLDOWN_RAND_MS ?? 16000) - _reduction)
+        s.cooldownUntil = now + _cdBase + Math.floor(Math.random() * _cdRand)
         return
       }
       return
@@ -2546,11 +2612,18 @@ export class BossArchetypeSystem {
     const advs = this._gameState?.adventurers?.active ?? []
     const now = this._scene?.time?.now ?? 0
     const rooms = this._gameState?.dungeon?.rooms ?? []
+    // -2 from each threshold per boss-lv beyond 1, clamped to floors so even
+    // lv10 leaves panic-death at 80, friendly-fire at 55, flee at 30.
+    const bossLv = this._gameState?.boss?.level ?? 1
+    const reduction = Math.max(0, bossLv - 1) * Balance.WRAITH_FEAR_THRESHOLD_REDUCTION_PER_LV
+    const fleeThresh = Math.max(30, Balance.WRAITH_FEAR_FLEE_THRESHOLD            - reduction)
+    const ffThresh   = Math.max(55, Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD   - reduction)
+    const pdThresh   = Math.max(80, Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD     - reduction)
     for (const adv of advs) {
       if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const fear = adv._fear ?? 0
-      // 50% — panic flee to a random non-entry room (one-shot).
-      if (fear >= Balance.WRAITH_FEAR_FLEE_THRESHOLD && !adv._fearFleeTriggered) {
+      // 50% (lv-scaled) — panic flee to a random non-entry room (one-shot).
+      if (fear >= fleeThresh && !adv._fearFleeTriggered) {
         adv._fearFleeTriggered = true
         const candidates = rooms.filter(r =>
           r.definitionId !== 'entry_hall' && r.definitionId !== 'boss_chamber',
@@ -2566,7 +2639,7 @@ export class BossArchetypeSystem {
       // armed once when fear first hits 75, runs for FRIENDLY_FIRE_WINDOW_MS,
       // then clears so the adv resumes normal AI until they either hit 100%
       // panic-die or the run ends. _fearAttackArmed prevents re-arm.
-      if (fear >= Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD) {
+      if (fear >= ffThresh) {
         if (!adv._fearAttackArmed) {
           adv._fearAttackArmed = true
           adv._fearAttackUntil = now + Balance.WRAITH_FEAR_FRIENDLY_FIRE_WINDOW_MS
@@ -2598,7 +2671,7 @@ export class BossArchetypeSystem {
         }
       }
       // 100% — instant panic death. Drop gold like a normal kill, no XP.
-      if (fear >= Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD && !adv._fearPanicDeathTriggered) {
+      if (fear >= pdThresh && !adv._fearPanicDeathTriggered) {
         adv._fearPanicDeathTriggered = true
         adv.resources.hp = 0
         this._gameState.player ??= {}
@@ -2629,9 +2702,13 @@ export class BossArchetypeSystem {
     const liveHauntCount = (this._gameState?.minions ?? []).filter(m =>
       m._isHauntGhost && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0
     ).length
-    if (liveHauntCount >= Balance.WRAITH_HAUNT_MAX_ACTIVE) {
+    // +0.5 max per boss-lv (lv10 = +5 → cap 10 ghosts).
+    const _hauntBossLv = this._gameState?.boss?.level ?? 1
+    const hauntCap = Balance.WRAITH_HAUNT_MAX_ACTIVE
+      + Math.floor(_hauntBossLv * Balance.WRAITH_HAUNT_MAX_PER_BOSS_LV)
+    if (liveHauntCount >= hauntCap) {
       EventBus.emit('WRAITH_HAUNT_CAPPED', {
-        cap: Balance.WRAITH_HAUNT_MAX_ACTIVE,
+        cap: hauntCap,
         advId: deadAdv.instanceId ?? null,
       })
       return
@@ -2755,7 +2832,10 @@ export class BossArchetypeSystem {
         adv._sporeLastTickAt ??= 0
         if (now - adv._sporeLastTickAt < Balance.MYCONID_SPORE_TICK_INTERVAL_MS) continue
         adv._sporeLastTickAt = now
-        const dmg = Math.max(1, Math.round(bossLv * Balance.MYCONID_SPORE_DMG_PER_BOSS_LV))
+        // Switched to % maxHP per tick so spores keep biting through late-game
+        // adv HP curves. MYCONID_SPORE_DMG_PER_BOSS_LV (above) is superseded
+        // and left in place only for save / lookup compat.
+        const dmg = Math.max(1, Math.floor((adv.resources?.maxHp ?? 0) * Balance.MYCONID_SPORE_DMG_PCT_PER_TICK))
         const before = adv.resources.hp
         adv.resources.hp = Math.max(0, before - dmg)
         EventBus.emit('COMBAT_HIT', {

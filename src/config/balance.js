@@ -57,7 +57,14 @@ export const Balance = {
 
   // --- Phase 1b.3: Beholder Tyrant ---
   BEHOLDER_PETRIFY_INTERVAL_MS:    6000,  // gaze fires every 6 s during boss fight
-  BEHOLDER_PETRIFY_DURATION_MS:    2000,  // each fire freezes for 2 s
+  BEHOLDER_PETRIFY_DURATION_MS:    2000,  // each fire freezes for 2 s (lv-1 baseline)
+  BEHOLDER_PETRIFY_DURATION_PER_BOSS_LV_MS: 300,  // +300ms freeze per boss-lv beyond 1
+  // Original behaviour: petrify ALL advs in the boss room. Cap set
+  // high enough to be effectively unlimited at any realistic boss-room
+  // headcount — duration scaling is the actual late-game buff, not a
+  // target-count nerf. Lowering this hard-caps the crowd control.
+  BEHOLDER_PETRIFY_TARGETS_BASE:            99,
+  BEHOLDER_PETRIFY_LEVELS_PER_TARGET:        3,   // (kept for tunability; +1 target per 3 boss-lv on top of base)
   BEHOLDER_ANTIMAGIC_BASE_ROOMS:   2,     // 2 random rooms/day at boss lvl 1
   BEHOLDER_ANTIMAGIC_PER_BOSS_LV:  1,     // +1 marked room per boss level above 1
 
@@ -76,8 +83,10 @@ export const Balance = {
   // once. Dawn raises are clamped to (cap − currently-alive raised) so
   // a big kill day can't flood the dungeon with undead.
   NECROMANCY_MAX_RAISED:          5,
+  NECROMANCY_MAX_RAISED_PER_BOSS_LV: 0.5,  // +0.5 cap per boss-lv (floor) → cap = base + floor(bossLv/2)
   // Cleric retention: raised cleric heals adjacent minions per tick.
   NECROMANCY_CLERIC_HEAL_AMOUNT:  4,
+  NECROMANCY_CLERIC_HEAL_PER_BOSS_LV: 1,  // +1 heal-per-tick per boss-lv beyond 1
   NECROMANCY_CLERIC_HEAL_INTERVAL_MS: 2200,
   // Bard retention: raised bards aura nearby dungeon minions for +15% ATK
   // while in range. Buff is re-stamped every tick the minion is within
@@ -92,10 +101,12 @@ export const Balance = {
   // (Reused by Myconid Corpse Bloom — corpse touch adds 2 stacks per corpse.)
   LIZARDMAN_VENOM_TICK_INTERVAL_MS: 1000,
   LIZARDMAN_VENOM_DMG_PER_STACK:    1,
+  LIZARDMAN_VENOM_DMG_PER_BOSS_LV:  0.5,  // +0.5 dmg/stack per boss-lv (floor)
 
   // --- Phase 1b.7: Predator Myconid ---
   MYCONID_SPORE_INTERVAL_DAYS:        3,    // every Nth day, corridor rooms gas advs all day
-  MYCONID_SPORE_DMG_PER_BOSS_LV:      0.5,  // per-tick HP damage = bossLevel × this
+  MYCONID_SPORE_DMG_PER_BOSS_LV:      0.5,  // [superseded by MYCONID_SPORE_DMG_PCT_PER_TICK — kept for save-compat / lookups]
+  MYCONID_SPORE_DMG_PCT_PER_TICK:     0.015,// 1.5% adv maxHP per tick (auto-scales with adv HP curve)
   MYCONID_SPORE_TICK_INTERVAL_MS:     1000, // adv damage tick rate inside spore clouds
   MYCONID_CORPSE_LIFESPAN_DAYS:       3,    // fungal corpse lingers 3 days then sprouts
   MYCONID_CORPSE_VENOM_STACKS_ADDED:  2,    // stacks added per corpse on first touch
@@ -103,15 +114,19 @@ export const Balance = {
 
   // --- Phase 1b.9: Demon Lord ---
   DEMON_SACRIFICE_USES_PER_DAY:    1,    // Faustian sacrifice — once per day, burn a minion → kill a random adv
+  DEMON_SACRIFICE_USES_PER_BOSS_LV: 0.333, // +0.333 uses per boss-lv → floor adds ~1 every 3 lv
   DEMON_HELLGATE_BASE_STAT_FRAC:   0.10, // imps spawn at 10% of imp1 base stats at lvl 1
   DEMON_HELLGATE_STAT_PER_LV:      0.10, // +10% per boss level (no cap)
 
   // --- Phase 1b.10: Vampire Sovereign ---
   VAMPIRE_THRALL_ROAM_SWAP_MS:    6000,  // thrall reassigns to a random non-boss room every N ms
   VAMPIRE_BLOOD_TAX_VFX_MIN_DMG:    1,   // minimum damage to fire the red-streak VFX (saves performance)
+  VAMPIRE_CHARM_USES_PER_DAY_BASE: 1,
+  VAMPIRE_CHARM_USES_PER_BOSS_LV:  0.25, // +0.25 uses per boss-lv (1 extra every 4 lv)
 
   // --- Phase 1b.11: Gnoll Alpha ---
-  GNOLL_HUNTERS_PACK_MAX:           5,    // max free gnolls in boss room (lvl 5+ caps here)
+  GNOLL_HUNTERS_PACK_MAX:           5,    // max free gnolls in boss room (lvl 5+ caps here) — base
+  GNOLL_HUNTERS_PACK_MAX_PER_BOSS_LV: 0.5, // +0.5 pack-max per boss-lv (floor)
   GNOLL_BLOODLUST_PCT_PER_KILL:    0.03,  // +3% ATK per kill, no cap, resets at dawn
 
   // --- Phase 1b.12 (post-spec): Orc Veteran second ability — Warband ---
@@ -135,6 +150,7 @@ export const Balance = {
   // Bumped 2026-05-22 so she charms noticeably less often (was 7000/8000).
   SUCCUBUS_CHARM_COOLDOWN_BASE_MS:  20000,
   SUCCUBUS_CHARM_COOLDOWN_RAND_MS:  16000,
+  SUCCUBUS_CHARM_COOLDOWN_REDUCTION_PER_LV_MS: 1000,  // -1s base + rand cooldown per boss-lv beyond 1
 
   // --- Phase 1b.8: Dark Wraith ---
   WRAITH_FEAR_MAX:                       100,
@@ -145,10 +161,12 @@ export const Balance = {
   WRAITH_FEAR_FLEE_THRESHOLD:             50,
   WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD:    75,
   WRAITH_FEAR_PANIC_DEATH_THRESHOLD:      100,
+  WRAITH_FEAR_THRESHOLD_REDUCTION_PER_LV:  2, // -2 from each threshold per boss-lv beyond 1
   WRAITH_FEAR_FRIENDLY_FIRE_WINDOW_MS:  10000,
   WRAITH_HAUNT_DETECT_RANGE_TILES:         8, // detection sight range from spawn-room center
   WRAITH_HAUNT_PHASE_SPEED_TILES_PER_SEC:  1.6, // wall-phase travel speed
   WRAITH_HAUNT_MAX_ACTIVE:                 5,   // hard cap on simultaneous Haunt ghosts (Wraith was over-tuned otherwise)
+  WRAITH_HAUNT_MAX_PER_BOSS_LV:           0.5,  // +0.5 max per boss-lv (floor) → cap = base + floor(bossLv/2)
 
   // --- Minions ---
   MINION_RESPAWN_COST_GOLD: 5,
