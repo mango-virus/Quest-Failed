@@ -225,8 +225,17 @@ function _rehydrateRunHistory(state) {
     delete t.state.firedAt
     delete t.state.hitAt
     delete t.state.fuseLit
-    // exploded persists for visuals; revealed persists (knowledge).
-    // Both are booleans, not time-based.
+    // revealed persists (knowledge — spike pit stays revealed for the day).
+  }
+  // Bombs are one-shot consumables — once `state.exploded` is set the
+  // bomb is dead and TrapSystem.detonateBomb should have spliced it from
+  // the array. If one ever slips through (older save where a chain-loop
+  // throw skipped the splice), it'd render as a zombie sprite that
+  // never triggers again. Filter detonated bombs out on load as a
+  // backstop so the bug can't survive the fix.
+  if (Array.isArray(state.dungeon?.traps)) {
+    state.dungeon.traps = state.dungeon.traps.filter(t =>
+      !(t?.definitionId === 'bomb' && t?.state?.exploded))
   }
 
   return state

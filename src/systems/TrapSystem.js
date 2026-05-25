@@ -195,6 +195,16 @@ export class TrapSystem {
     // different damage depending on where they're standing.
     const floor = Balance.BOMB_FALLOFF_FLOOR ?? 0.30
 
+    // Consumable — the bomb is gone once it blows. SPLICE FIRST so even
+    // if downstream listeners (TRAP_TRIGGERED / TRAP_EXPLODED) or the
+    // chain-detonate loop throws, the bomb cannot survive in the array
+    // as a zombie. Use reference equality (`indexOf`) instead of an
+    // instanceId lookup so the splice can't miss even if state is odd.
+    const traps = this._gameState.dungeon.traps
+    const idx = traps.indexOf(trap)
+    if (idx >= 0) traps.splice(idx, 1)
+    EventBus.emit('TRAP_REMOVED', { trap, reason: 'detonated' })
+
     const victims = this._targets(def).filter(e =>
       Math.hypot((e.tileX + 0.5) - cx, (e.tileY + 0.5) - cy) <= radius)
     let firstAdv = null
@@ -221,12 +231,6 @@ export class TrapSystem {
         other.state.fuseEndsAt = Math.min(other.state.fuseEndsAt ?? Infinity, now + 200)
       }
     }
-
-    // Consumable — the bomb is gone once it blows.
-    const traps = this._gameState.dungeon.traps
-    const idx = traps.findIndex(t => t.instanceId === trap.instanceId)
-    if (idx >= 0) traps.splice(idx, 1)
-    EventBus.emit('TRAP_REMOVED', { trap, reason: 'detonated' })
   }
 
   // ── Area traps (spike pillar / rotating blades) ─────────────────────────────
