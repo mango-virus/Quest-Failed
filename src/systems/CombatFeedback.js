@@ -18,6 +18,13 @@ import { AbilityVfx }   from '../ui/AbilityVfx.js'
 
 const HEAD_OFFSET = 18   // px above target.worldY for the floating text
 const FLASH_MS    = 90
+// Per-target throttle window. At peak day-N combat a single target can
+// eat 5-10 hits/sec from multiple attackers; the early hits already gave
+// the player the kinetic feedback, and stacking text + tweens past that
+// just burns frame time. 150ms keeps a steady cadence on a heavily-hit
+// target without flooding Phaser's tween/text pool. Crits BYPASS the
+// throttle so they always read.
+const TARGET_VFX_THROTTLE_MS = 150
 
 export class CombatFeedback {
   constructor(scene, gameState) {
@@ -39,6 +46,12 @@ export class CombatFeedback {
 
     const target = this._findEntity(targetId)
     if (!target) return
+    // Per-target throttle. Skip ordinary hits arriving inside the
+    // window; crits always show. Stamp lives on the entity itself (one
+    // primitive field, save-safe — SaveSystem.strip ignores `_fbAt`).
+    const now = this._scene.time?.now ?? 0
+    if (!isCritical && now - (target._fbAt ?? -Infinity) < TARGET_VFX_THROTTLE_MS) return
+    target._fbAt = now
     const source = sourceId ? this._findEntity(sourceId) : null
 
     // White flash on the target's sprite. setTintFill REPLACES the

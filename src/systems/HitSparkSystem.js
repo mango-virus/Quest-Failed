@@ -38,6 +38,12 @@ const DAMAGE_ROW = {
 
 const DEFAULT_ROW = 7
 
+// Per-target throttle window. Matches CombatFeedback's value so a
+// single target doesn't accumulate two separate VFX stacks. Skipped
+// hits don't visibly disappear — the spark from the most recent hit
+// is still playing when the next one arrives.
+const TARGET_VFX_THROTTLE_MS = 150
+
 export class HitSparkSystem {
   constructor(scene, gameState) {
     this._scene     = scene
@@ -52,7 +58,7 @@ export class HitSparkSystem {
     this._listeners = []
   }
 
-  _onCombatHit({ targetId, damage, damageType }) {
+  _onCombatHit({ targetId, damage, damageType, isCritical }) {
     if (!Balance.VFX_HIT_SPARKS_ENABLED) return
     if (!targetId) return
     if (typeof damage !== 'number' || damage <= 0) return  // skip misses / dodges
@@ -66,6 +72,12 @@ export class HitSparkSystem {
 
     const target = this._findEntity(targetId)
     if (!target) return
+    // Per-target throttle — skip ordinary hits inside the window; the
+    // previous spark is still mid-animation and re-spawning at the same
+    // tile produces no extra visual information. Crits bypass.
+    const now = this._scene.time?.now ?? 0
+    if (!isCritical && now - (target._sparkAt ?? -Infinity) < TARGET_VFX_THROTTLE_MS) return
+    target._sparkAt = now
     const wx = target.worldX
     const wy = target.worldY
     if (typeof wx !== 'number' || typeof wy !== 'number') return

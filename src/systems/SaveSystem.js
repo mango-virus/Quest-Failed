@@ -150,6 +150,11 @@ function _rehydrateRunHistory(state) {
     // Tower Tax leak we already fixed via DAY_PHASE_STARTED reset, but
     // strip on load too so cross-save legacy state is clean.
     '_towerTaxFirstShotConsumed',
+    // Per-target VFX throttle stamps (CombatFeedback / HitSparkSystem) —
+    // scene.time.now timestamps. A saved future stamp from the previous
+    // session would block every floating-damage number and spark for
+    // the rest of the day post-load.
+    '_fbAt', '_sparkAt',
   ]
   for (const a of (state.adventurers.active ?? [])) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]
@@ -173,6 +178,9 @@ function _rehydrateRunHistory(state) {
     '_tameTargetedBy',
     // Retaliation lock (was missing — main minion-freeze cause)
     '_lastHitAt', '_lastHitBy',
+    // Per-target VFX throttle stamps (CombatFeedback / HitSparkSystem) —
+    // see ADV_TRANSIENT_KEYS for the same rationale.
+    '_fbAt', '_sparkAt',
   ]
   for (const m of (state.minions ?? [])) {
     for (const k of MIN_TRANSIENT_KEYS) if (k in m) delete m[k]
