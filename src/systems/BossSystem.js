@@ -2583,11 +2583,21 @@ export class BossSystem {
 
     // Phase 1b.4 — Lich Phylactery acts as a 4th life. When the boss runs
     // out of normal lives but the phylactery is still alive, instead of
-    // ending the run we revive the boss for one more death. Only the lich
-    // archetype can have a phylactery, and only one is ever placed.
+    // ending the run we revive the boss for one more death.
+    //
+    // Archetype gate (2026-05-22): EXPLICITLY check `bossArchetypeId ===
+    // 'lich'`. The BuildMenu's archetypeRestriction filter normally
+    // prevents non-Lich players from ever placing a phylactery, but a
+    // save imported between runs / a code path that bypasses the build
+    // menu / a future pact that fabricates one could leave a phylactery
+    // entity on a non-Lich boss's state. Without this guard, that boss
+    // would silently regain a life — the user-reported "boss is gaining
+    // a life on a non-Lich run" symptom. Defensive: even if
+    // gameState.phylactery exists, only Lich's revive path fires.
     const phyl = this._gameState?.phylactery
     const phylAlive = phyl && (phyl.resources?.hp ?? 0) > 0
-    if (winner === 'party' && boss && boss.deathsRemaining <= 0 && phylAlive) {
+    const isLich    = this._gameState?.player?.bossArchetypeId === 'lich'
+    if (winner === 'party' && boss && boss.deathsRemaining <= 0 && phylAlive && isLich) {
       boss.deathsRemaining = 1
       boss.hp              = boss.maxHp
       EventBus.emit('PHYLACTERY_REVIVED_BOSS', { phylactery: phyl })
