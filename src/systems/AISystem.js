@@ -3895,29 +3895,26 @@ export class AISystem {
     return entry ? entryDoorTile(entry) : null
   }
 
-  // Returns a spawn-door tile for a fresh adventurer, or null (caller should
-  // block day-start). Picks a RANDOM entry hall among those with a verified
-  // path to the boss chamber — DayPhase calls this once per adventurer, so a
-  // wave naturally splits across every connected entrance.
+  // Returns a spawn-door tile for a fresh adventurer, or null (no entry
+  // halls — caller should block day-start). Picks UNIFORMLY at random
+  // from every placed entry hall — DayPhase calls this once per adventurer,
+  // so a wave naturally splits across every entrance.
+  //
+  // No A* path filter (was: silently dropped entries whose doorway tile
+  // A* couldn't path from to the boss). Subtle gating in the pathfinder
+  // — door-lane convention, decor, traps, the start tile sometimes
+  // landing on the non-canonical column of a 2-tile-wide doorway — was
+  // dropping one of two perfectly usable entries and funneling whole
+  // waves through the other. The day-start gate already enforces
+  // dungeon-wide reachability via the doorway graph; trust it. If an
+  // individual adv really can't path from their spawn the AI's normal
+  // flee / stuck-in-wall handlers take over (same fallback DayPhase
+  // already uses when pickSpawnTile returns null).
   pickSpawnTile() {
-    const dungeon = this._gameState.dungeon
-    const boss = dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
-    if (!boss) return null
-
-    const bossCentre = {
-      x: boss.gridX + Math.floor(boss.width  / 2),
-      y: boss.gridY + Math.floor(boss.height / 2),
-    }
-    // An entry hall is a valid spawn point only if its doorway can still
-    // reach the boss — a walled-off entry would just strand the adventurer.
-    const valid = []
-    for (const entry of this._entryHalls()) {
-      const candidate = entryDoorTile(entry)
-      const path = PathfinderSystem.findPath(candidate, bossCentre, this._dungeonGrid)
-      if (path && path.length > 0) valid.push(candidate)
-    }
-    if (valid.length === 0) return null
-    return valid[Math.floor(Math.random() * valid.length)]
+    const halls = this._entryHalls()
+    if (halls.length === 0) return null
+    const entry = halls[Math.floor(Math.random() * halls.length)]
+    return entryDoorTile(entry)
   }
 
 }
