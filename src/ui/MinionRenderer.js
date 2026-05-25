@@ -112,6 +112,21 @@ export class MinionRenderer {
     const minions = this._gameState.minions ?? []
     const seen    = new Set()
 
+    // Camera world-view bounds (with margin) for off-screen culling.
+    // Same pattern as AdventurerRenderer (see commit 00b37f3): minions
+    // are mostly stationary (locked to assigned rooms), so at high
+    // counts in late-game waves 80%+ are usually off-camera at any
+    // moment — skipping their per-tick body (animation, HP bar, depth
+    // re-sort, mimic chest state, fear/venom badges) eliminates a lot
+    // of per-frame work. Held minions bypass the cull (they track the
+    // cursor, which is on-screen by definition).
+    const cam = this._scene.cameras?.main
+    const CULL_MARGIN = 200
+    const camLeft   = cam ? (cam.worldView.x - CULL_MARGIN) : -Infinity
+    const camRight  = cam ? (cam.worldView.x + cam.worldView.width + CULL_MARGIN) : Infinity
+    const camTop    = cam ? (cam.worldView.y - CULL_MARGIN) : -Infinity
+    const camBottom = cam ? (cam.worldView.y + cam.worldView.height + CULL_MARGIN) : Infinity
+
     for (const m of minions) {
       seen.add(m.instanceId)
       let s = this._sprites[m.instanceId]
@@ -124,6 +139,20 @@ export class MinionRenderer {
         s = this._createSprite(m)
       }
       if (!s) continue
+
+      // Off-screen cull. Held minion always passes (it's glued to the
+      // cursor). State recomputes the frame it re-enters view, so one
+      // frame of stale rendering is acceptable for entities the player
+      // isn't currently looking at.
+      const offScreen = !m._heldByPlayer && (
+        m.worldX < camLeft || m.worldX > camRight ||
+        m.worldY < camTop  || m.worldY > camBottom
+      )
+      if (offScreen) {
+        if (s.container && s.container.visible) s.container.setVisible(false)
+        continue
+      }
+      if (s.container && !s.container.visible) s.container.setVisible(true)
 
       // Evolution morph: if the minion's def changed since last render
       // (evolved or reset), swap textures + rescale in place. Cheaper than
