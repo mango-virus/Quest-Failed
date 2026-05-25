@@ -343,7 +343,7 @@ export const Balance = {
 
   // --- Dungeon mechanics (Phase 9) ---
   MECHANIC_OFFER_COUNT:                   3,      // cards shown at end-of-day
-  MECHANIC_TAXATION_HP_FRACTION:          0.05,   // 5% maxHP loss per new room
+  MECHANIC_TAXATION_HP_FRACTION:          0.05,   // 5% of CURRENT HP loss per new room (compounds down)
   MECHANIC_TAXATION_GOLD_PENALTY:         0.7,    // gold multiplier (less per kill)
   MECHANIC_BLOODBOUND_DAMAGE_MULT:        1.5,
 

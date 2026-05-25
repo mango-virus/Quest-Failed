@@ -3,7 +3,7 @@
     "id": "taxation_of_souls",
     "name": "Taxation of Souls",
     "symbol": "⍟",
-    "description": "Adventurers lose 5% max HP when entering a new room.",
+    "description": "Adventurers lose 5% of their current HP each time they enter a new room.",
     "tradeoffDescription": "Adventurers are already weakened on kill — you gain slightly less Gold per death.",
     "rarity": "common",
     "unlockLevel": 2,

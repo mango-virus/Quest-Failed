@@ -376,7 +376,11 @@ function _buildHandlerRegistry() {
       gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), taxationOfSouls: true }
       subscribe('ROOM_OBSERVED', ({ adventurer, firstVisit }) => {
         if (!firstVisit || !adventurer) return
-        const dmg = Math.max(1, Math.round((adventurer.resources?.maxHp ?? 0) * Balance.MECHANIC_TAXATION_HP_FRACTION))
+        // 5% of CURRENT HP — compounds down per room so a healthy adv
+        // loses a real chunk early and a wounded survivor only sheds a
+        // sliver (the tax can't itself kill them, and won't tip them into
+        // one-shot territory the way a flat max-HP tax used to).
+        const dmg = Math.max(1, Math.round((adventurer.resources?.hp ?? 0) * Balance.MECHANIC_TAXATION_HP_FRACTION))
         adventurer.resources.hp = Math.max(0, adventurer.resources.hp - dmg)
         EventBus.emit('TAXED', { adventurer, damage: dmg })
       })
