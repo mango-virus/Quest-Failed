@@ -3586,7 +3586,14 @@ export class AISystem {
     if (adv.classId === 'cheater' && (this._gameState._eventFlags ?? {}).patchZeroActive) {
       goldMul *= Balance.PATCH_ZERO_KILL_GOLD_MULT ?? 2.0
     }
-    const goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
+    let goldGained = Math.round(Balance.GOLD_PER_KILL * goldMul)
+    // Dungeon event: Zombie Horde — flat 2 gold per shambler regardless
+    // of pacts / mechanics / events. The horde is 14+ strong, so default
+    // kill gold (10/each × bonuses) would pay out wildly more than any
+    // normal wave; cap it so the event's reward feels proportionate to
+    // the threat. Hard override (not a multiplier) so Goldrush / Cursed
+    // Soil / Tax Season etc. don't accidentally re-inflate it.
+    if (adv.flags?.zombieShambler) goldGained = 2
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
     // Record the loot drop on both the live adv (the ADVENTURER_DIED

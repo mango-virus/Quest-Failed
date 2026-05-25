@@ -1219,7 +1219,9 @@ export class DayPhase extends Phaser.Scene {
       z.resources.hp    = z.resources.maxHp
       z.stats.attack    = Math.max(1, Math.round((z.stats.attack ?? 6) * 0.6))
       z.stats.speed     = (z.stats.speed ?? 1.4) * 0.55
-      z.flags = { noFlee: true }
+      // `zombieShambler` is read by AISystem._kill to flat-2-gold the
+      // kill payout — the horde is too large for default kill gold.
+      z.flags = { noFlee: true, zombieShambler: true }
       // Scale with boss level + day like a normal adventurer (applied on
       // top of the slow/weak multipliers above) so a late-game horde is
       // still a real threat instead of trivial chip damage.
