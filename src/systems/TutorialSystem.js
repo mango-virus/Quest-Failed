@@ -231,6 +231,134 @@ const TUTORIALS = [
     },
   },
 
+  // ── B-3. Items, tools, mechanic-specific teaches (2026-05-22) ─────────
+  // Each fires on the player's FIRST encounter with the mechanic and
+  // never again — TutorialSystem._popNext marks meta.seenTutorials[id]
+  // at show time so the popup is strictly one-shot per save.
+  {
+    id: 'firstMimicPlaced', title: 'Mimic',
+    lead: 'A CHEST THAT BITES BACK',
+    body: 'A Mimic sits perfectly still, disguised as a random treasure chest. You see it red-tinted so you can position it; adventurers see an ordinary chest. Any adventurer who tries to loot it is instantly devoured — but survivors of a kill flag THAT mimic as known and refuse to open it again.',
+    tips: [
+      'Mimics never move — place them where a chest would tempt an adventurer to detour.',
+      'A sprung mimic stays open for the rest of the day, then re-disguises at night.',
+      'Knowledge-aware adventurers can attack a known mimic — keep it guarded.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if (p?.minion?.definitionId === 'mimic') fire() }
+      EventBus.on('MINION_PLACED', fn)
+      return () => EventBus.off('MINION_PLACED', fn)
+    },
+  },
+  {
+    id: 'firstTreasureChest', title: 'Treasure Chest',
+    lead: 'RICHES — AND BAIT',
+    body: 'A Treasure Chest pays gold each end-of-day, scaled to its tier. The catch: greedy adventurers in the dungeon may try to loot it. If they open it they steal a percentage of your current gold — and have a chance to flee with the prize. Higher-tier chests pay more AND steal more.',
+    tips: [
+      'Daily payout fires whether or not the chest was opened — passive income either way.',
+      'Place chests behind your strongest defenses; an escape with stolen gold cuts deep.',
+      'Chests re-close every night — last day\'s theft doesn\'t carry over.',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('TREASURE_CHEST_PLACED', fn)
+      return () => EventBus.off('TREASURE_CHEST_PLACED', fn)
+    },
+  },
+  {
+    id: 'firstBeaconFountain', title: 'Beacon & Fountain',
+    lead: 'A PACT WITHIN A PACT',
+    body: 'The Soul-Bound Beacon comes as a pair with a Healing Fountain. The Beacon buffs every dungeon minion in its room (+ damage, + maxHP) scaling with boss level. The Fountain heals adventurers who reach it, once per adv per day. Place the buff in a kill-room and let the trade-off bite — or hide the Fountain where the guild can\'t find it.',
+    tips: [
+      'Beacon and Fountain spawn together at separate tiles — both stay until destroyed.',
+      'Fountain heal only fires once per adventurer per day — kill them before the second visit.',
+      'The aura is room-bound; a patrolling minion loses the buff when it leaves.',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('BEACON_PLACED', fn)
+      return () => EventBus.off('BEACON_PLACED', fn)
+    },
+  },
+  {
+    id: 'firstLibraryPlaced', title: 'Library of Whispers',
+    lead: 'KNOWLEDGE COMPOUNDS',
+    body: 'A Library forecasts the next day\'s wave. Each additional Library you build reveals a deeper tier of intel in the Adventurer Intel panel: 1 Library reveals classes, 2 reveals personalities, 3 reveals scaled stats, 4 reveals their planned route through your dungeon. Libraries unlock at boss levels 2 / 4 / 6 / 8.',
+    tips: [
+      'Open the ADV INTEL panel during the night to see what each Library has revealed.',
+      'Library forecast accounts for events too — a Guild Raid or Zombie Horde shows in the preview.',
+      'More Libraries = more tactical certainty. A 4-Library run plays nothing like a 1-Library run.',
+    ],
+    subscribe: (fire) => {
+      const fn = (p) => { if (p?.room?.definitionId === 'library_of_whispers') fire() }
+      EventBus.on('ROOM_PLACED', fn)
+      return () => EventBus.off('ROOM_PLACED', fn)
+    },
+  },
+  {
+    id: 'firstBossLifeLost', title: 'Three Lives',
+    lead: 'YOU FELL — BUT YOU RISE',
+    body: 'Your boss has three lives total. Each loss to the party permanently reduces the count — when it hits zero, the run ends for good. Two lives remain. Use the days you have left to rebuild defenses, level the boss, and seal pacts before the next fight reaches the throne.',
+    tips: [
+      'The deaths-remaining counter is the heart icons in the top-bar boss strip.',
+      'Use the breathing room — a level-up between fights can swing the next encounter.',
+      'A Phylactery Heart (Lich only) grants a 4th life if placed before the fatal blow.',
+    ],
+    subscribe: (fire) => {
+      // Only fires the first time the boss LOSES a fight — winning fights
+      // don't trigger it, so the player learns the 3-life mechanic at the
+      // exact moment they need to.
+      const fn = (p) => { if (p?.winner === 'party') fire() }
+      EventBus.on('BOSS_FIGHT_RESOLVED', fn)
+      return () => EventBus.off('BOSS_FIGHT_RESOLVED', fn)
+    },
+  },
+  {
+    id: 'firstMinionBounty', title: 'Bounty Posted',
+    lead: 'YOUR MINION HAS A PRICE',
+    body: 'A minion in your dungeon has racked up enough kills to attract attention — the guild has posted a bounty on it. From now on there\'s a chance each day for a specialist Bounty Hunter to enter, ignore everything else, and head straight for your veteran. Killing the hunter is gold-rich, but losing the minion erases their kill streak.',
+    tips: [
+      'The bountied minion shows a ★ marker in the Roster and on the dungeon map.',
+      'Funnel the hunter into a kill room before they reach your veteran.',
+      'A successful kill pays bonus gold — bounty hunters are worth more than normal adventurers.',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('MINION_BOUNTY_POSTED', fn)
+      return () => EventBus.off('MINION_BOUNTY_POSTED', fn)
+    },
+  },
+  {
+    id: 'firstMoveTool', title: 'Move Tool',
+    lead: 'PICK UP, RELOCATE, DROP',
+    body: 'The MOVE tool lets you pick up an already-placed minion or room and drop it somewhere else in the dungeon, free of charge. A picked-up entity follows your cursor; click a valid tile to drop it. Rooms carry their occupants and items with them when moved.',
+    tips: [
+      'Switch back to PLACE (or press the key again) to cancel a pickup without committing.',
+      'Move-drops are free — use it to re-layout your dungeon as the wave\'s threats change.',
+      'A minion dropped in a different room becomes assigned to that room\'s defense.',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('TOOL_MOVE', fn)
+      return () => EventBus.off('TOOL_MOVE', fn)
+    },
+  },
+  {
+    id: 'firstSellTool', title: 'Sell Tool',
+    lead: 'BACK INTO THE COFFERS',
+    body: 'The SELL tool removes a placed room, minion, trap, or item from the dungeon and refunds about half its gold cost. Use it to clear stale builds, free up cap slots, or rotate strategy between waves. The refund is based on what that specific copy actually cost — escalating-price rooms refund accordingly.',
+    tips: [
+      'Sell a known-by-the-guild trap to free a Trap Factory slot for a fresh trick.',
+      'Selling a Barracks frees its +10 roster slots — minions over the new cap die at dawn.',
+      'You can\'t sell the Entry Hall or Boss Chamber — they\'re permanent.',
+    ],
+    subscribe: (fire) => {
+      const fn = () => fire()
+      EventBus.on('TOOL_SELL', fn)
+      return () => EventBus.off('TOOL_SELL', fn)
+    },
+  },
+
   {
     id: 'firstDungeonEvent', title: 'Dungeon Event',
     lead: 'THE WORLD INTRUDES — NOT EVERY DAY IS NORMAL',
