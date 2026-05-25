@@ -1519,7 +1519,7 @@ export class NightPhase extends Phaser.Scene {
           this._showPlacementError('Placement cancelled')
           return
         }
-        if (this._toolMode) { this._setToolMode(null); return }
+        if (this._toolMode) { this._setToolMode(null, 'right_click'); return }
         if (this._selected) { this._cancelSelection(); return }
         return
       }
@@ -1619,7 +1619,7 @@ export class NightPhase extends Phaser.Scene {
         this._showPlacementError('Crucible cancelled')
         return
       }
-      if (this._toolMode) { this._setToolMode(null); return }
+      if (this._toolMode) { this._setToolMode(null, 'esc_key'); return }
       if (this._selected)  { this._cancelSelection(); return }
       PauseManager.toggle(this)
     })
@@ -3499,7 +3499,7 @@ export class NightPhase extends Phaser.Scene {
   _beginDay() {
     // Clear any sticky tool mode so the action bar's armed ring + the
     // next-night reset stay clean.
-    this._setToolMode(null)
+    this._setToolMode(null, 'begin_day')
     this._cancelSelection()
 
     const dungeon = this._gameState.dungeon
