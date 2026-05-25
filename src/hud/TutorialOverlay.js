@@ -27,7 +27,7 @@ export class TutorialOverlay {
     // (NpcDirector intercepts SHOW_TUTORIAL and fires onClose when the
     // player pages past the last panel). This standalone popup is only
     // the fallback for players who have hidden her.
-    if (userSettings.companionMode() !== 'off') return
+    if (!userSettings.isCompanionSilent()) return
     // If a previous tutorial is still open, fire its onClose then swap.
     if (this._overlay) this._dismiss(/* fireCb */ true)
     this._onCloseCb = onClose ?? null

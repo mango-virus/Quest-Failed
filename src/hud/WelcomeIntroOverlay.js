@@ -70,7 +70,7 @@ export class WelcomeIntroOverlay {
     // (NpcDirector handles NPC_DELIVER_INTRO and emits INTRO_DISMISSED on
     // the player's hint choice). This modal is only the fallback for a
     // player who has hidden her.
-    if (userSettings.companionMode() !== 'off') {
+    if (!userSettings.isCompanionSilent()) {
       EventBus.emit('NPC_DELIVER_INTRO')
       return
     }

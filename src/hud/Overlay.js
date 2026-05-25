@@ -131,7 +131,7 @@ export class Overlay {
     // When the companion docks beside this menu, left-pin the modal so
     // Lilith only overlaps its outer edge instead of covering content.
     const dockShift = !!this._opts.npcKind && this._opts.dock &&
-                      userSettings.companionMode() !== 'off'
+                      !userSettings.isCompanionSilent()
     this.el.classList.toggle('qf-npc-docked', dockShift)
     stage.appendChild(this.el)
     if (this._opts.npcKind) {

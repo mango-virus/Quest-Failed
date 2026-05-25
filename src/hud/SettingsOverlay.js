@@ -173,6 +173,13 @@ export class SettingsOverlay {
 
   _set(k, v) {
     this._draft[k] = v
+    // Tutorials are delivered by the companion. HIDING her would leave
+    // hints with no speaker, so picking HIDDEN also turns hints off; and
+    // turning hints back ON auto-unhides her so they have somewhere to go.
+    if (k === 'companion' && v === 'off')         this._draft.tutorials = false
+    if (k === 'tutorials' && v === true && this._draft.companion === 'off') {
+      this._draft.companion = 'normal'
+    }
     // Live previews — palette / scanlines / vignette / fullscreen swap
     // immediately so the player sees the effect before committing.
     if (k === 'palette') this._applyPalette(v)
@@ -283,9 +290,6 @@ export class SettingsOverlay {
         this._slider('SFX',     'sfx'),
         this._slider('AMBIENT', 'ambient'),
       ]),
-      this._section('VOICE', 'var(--rumor)', [
-        this._toggle('COMPANION SPEECH', 'speechSfx'),
-      ]),
     ])
   }
 
@@ -331,9 +335,10 @@ export class SettingsOverlay {
       this._toggle('AUTOSAVE',            'autosave'),
       this._toggle('GAMEPLAY HINTS',      'tutorials'),
       this._radio('COMPANION', 'companion', [
-        { v: 'off',    l: 'OFF' },
-        { v: 'quiet',  l: 'QUIET' },
         { v: 'normal', l: 'NORMAL' },
+        { v: 'quiet',  l: 'SAY LESS' },
+        { v: 'mute',   l: 'MUTE' },
+        { v: 'off',    l: 'HIDDEN' },
       ]),
     ])
   }

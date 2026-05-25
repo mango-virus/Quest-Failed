@@ -77,18 +77,29 @@ export const userSettings = {
     return _readBool(KEY.speechSfx) ?? DEFAULT_BOOL.speechSfx
   },
 
-  // Companion NPC (Lilith) visibility + chattiness.
-  //   'off'    — hidden entirely; NpcDirector stays silent, tutorials
-  //              fall back to the standalone TutorialOverlay popup.
-  //   'quiet'  — shown, but only notable events + tutorials (no idle
-  //              chatter, no minor build-action reactions).
+  // Companion NPC visibility + chattiness.
+  //   'off'    — HIDDEN. Sprite removed; tutorials + intro fall back to
+  //              the standalone TutorialOverlay / WelcomeIntroOverlay.
+  //              Picking this also flips `tutorials` off (SettingsOverlay).
+  //   'mute'   — MUTE. Sprite visible (idle animation only), but never
+  //              speaks. Tutorials + intro fall back to the standalone
+  //              popups, same as 'off'.
+  //   'quiet'  — SAY LESS. Shown, only notable events + tutorials (no
+  //              idle chatter, no minor build-action reactions).
   //   'normal' — full reactivity (default).
   companionMode() {
     try {
       const raw = localStorage.getItem(KEY.companion)
-      if (raw === 'off' || raw === 'quiet' || raw === 'normal') return raw
+      if (raw === 'off' || raw === 'mute' || raw === 'quiet' || raw === 'normal') return raw
     } catch {}
     return 'normal'
+  },
+  // True when the companion should produce no dialogue at all (either
+  // hidden or muted). Tutorial/intro routing falls back to the standalone
+  // popups in both cases.
+  isCompanionSilent() {
+    const m = this.companionMode()
+    return m === 'off' || m === 'mute'
   },
 
   // 'off' | 'low' | 'med' | 'high'. Numeric multiplier for emitters.

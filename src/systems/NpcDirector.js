@@ -358,7 +358,7 @@ export class NpcDirector {
     // Pact-broker lines — PactPicker routes the Grimoire's contextual
     // dialogue through Lilith. Shown straight away at high priority.
     this._on('NPC_BROKER_SAY', ({ text, expr } = {}) => {
-      if (!text || this._mode() === 'off') return
+      if (!text || userSettings.isCompanionSilent()) return
       this._stageEmit(3, { text, expr: expr || 'mischievous', priority: 3, holdMs: this._holdMs(text) })
     })
   }
@@ -368,7 +368,7 @@ export class NpcDirector {
 
   _react(spec, payload) {
     const mode = this._mode()
-    if (mode === 'off') return
+    if (mode === 'off' || mode === 'mute') return
     if (!this._introDone) return
     if (spec.nightOnly && this._gs?.meta?.phase === 'day') return
 
@@ -630,7 +630,7 @@ export class NpcDirector {
 
   // ── tutorials ─────────────────────────────────────────────────────────────
   _onTutorial({ title, lead, body, tips, onClose } = {}) {
-    if (this._mode() === 'off') return   // hidden → TutorialOverlay handles it
+    if (userSettings.isCompanionSilent()) return   // hidden/muted → TutorialOverlay handles it
     const id = `tut${++this._tutSeq}`
     this._tutorials.set(id, onClose ?? null)
     const pages = []
@@ -678,7 +678,7 @@ export class NpcDirector {
   // a choice (enable tutorial hints?) — the player's pick resolves via
   // _onChoice → INTRO_DISMISSED.
   _deliverIntro() {
-    if (this._mode() === 'off') return     // hidden → welcome popup handles it
+    if (userSettings.isCompanionSilent()) return     // hidden/muted → welcome popup handles it
     if (this._introDone || this._gs?.meta?.introSeen) return
     const pages = (this._intro?.pages ?? []).map(p => ({
       text: p.t, expr: p.x, choices: p.choices,
@@ -720,7 +720,7 @@ export class NpcDirector {
   // while the player lingers in the menu.
   _mentMenu(kind) {
     const mode = this._mode()
-    if (mode === 'off') return
+    if (mode === 'off' || mode === 'mute') return
     if (!this._introDone) return
     const cat = this._cats[`menu_${kind}`]
     if (!cat?.lines?.length) return
@@ -751,7 +751,7 @@ export class NpcDirector {
   // mash of clicks doesn't barf one poke line per millisecond.
   _pokeNow() {
     const mode = this._mode()
-    if (mode === 'off') return
+    if (mode === 'off' || mode === 'mute') return
     if (!this._introDone) return
     const now = this._now()
     // Tutorial / intro owns the bubble — don't barge a sticky.

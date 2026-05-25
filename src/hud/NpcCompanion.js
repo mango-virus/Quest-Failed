@@ -218,7 +218,7 @@ export class NpcCompanion {
 
   // ── incoming message ──────────────────────────────────────────────────────
   _onSay(payload) {
-    if (!payload || this._mode === 'off') return
+    if (!payload || this._mode === 'off' || this._mode === 'mute') return
     // Defensive bail — a previous-run NpcCompanion can survive briefly
     // if HudRoot.destroy() is racing the next run's HudRoot construction.
     // If our DOM element is no longer attached, swallow the say silently
@@ -433,19 +433,19 @@ export class NpcCompanion {
   }
 
   _applyMode() {
-    if (this._mode === 'off') {
-      // Hidden mid-sticky-message — resolve it so nothing downstream stalls
-      // (TutorialSystem's queue, or the intro → INTRO_DISMISSED handoff).
+    // Silent mid-sticky-message — resolve it so nothing downstream stalls
+    // (TutorialSystem's queue, or the intro → INTRO_DISMISSED handoff).
+    // Applies to both 'off' (hidden) and 'mute' (visible but silent).
+    if (this._mode === 'off' || this._mode === 'mute') {
       if (this._msg?.sticky) {
         if (this._msg.kind === 'intro') this._onChoice(true)
         else this._finishTutorial()
       } else {
         this._dismiss()
       }
-      this.el.style.display = 'none'
-    } else {
-      this.el.style.display = ''
     }
+    // Only 'off' hides the sprite. 'mute' keeps her visible (idle only).
+    this.el.style.display = (this._mode === 'off') ? 'none' : ''
   }
 
   destroy() {
