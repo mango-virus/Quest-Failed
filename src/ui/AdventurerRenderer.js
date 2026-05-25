@@ -402,6 +402,31 @@ export class AdventurerRenderer {
     const camTop    = cam ? (cam.worldView.y - CULL_MARGIN) : -Infinity
     const camBottom = cam ? (cam.worldView.y + cam.worldView.height + CULL_MARGIN) : Infinity
 
+    // LOD (level of detail) — when zoomed far enough out that HP bars /
+    // badges / sprite animation frames are visually subpixel anyway,
+    // skip the per-tick work that draws them. Sprite stays positioned
+    // so the silhouette is still on screen; player can see WHERE all
+    // the entities are without paying for HOW detailed each looks.
+    // Threshold 0.5 means anything ≤ half-zoom triggers LOD (default
+    // zoom is 1.0; zoom-min is 0.25 per Balance).
+    const camZoom = cam?.zoom ?? 1
+    const lod = camZoom < 0.5
+    // First frame after exiting LOD: invalidate every sprite's change-
+    // detection markers so the full per-tick body re-renders badges +
+    // HP bar state at full detail. Without this, a stable adv (no fear
+    // change, no HP change) would stay hidden until the next state flip.
+    if (this._lastLod && !lod) {
+      for (const id in this._sprites) {
+        const s = this._sprites[id]
+        if (!s) continue
+        s._lastFear = null
+        s._lastVenomStacks = null
+        s._lastBlight = null
+        s._lastHpFrac = null
+      }
+    }
+    this._lastLod = lod
+
     for (const adv of active) {
       seen.add(adv.instanceId)
       let s = this._sprites[adv.instanceId]
@@ -460,6 +485,28 @@ export class AdventurerRenderer {
           s._tournamentKillsShown = kills
           s.container.setScale(Math.pow(Balance.TOURNAMENT_RIVAL_KILL_SPRITE_MULT, kills))
         }
+      }
+      // LOD fast-path: at low zoom, skip HP bar / badge / anim work and
+      // hide the cosmetic overlay objects (sub-pixel at this scale
+      // anyway). Sprite container stays positioned so the entity is
+      // visible in the overview. State re-renders next non-LOD tick.
+      if (lod) {
+        if (s.hp?.visible)         s.hp.setVisible(false)
+        if (s.hpBg?.visible)       s.hpBg.setVisible(false)
+        if (s.lvLabel?.visible)    s.lvLabel.setVisible(false)
+        if (s.fearBg?.visible)     s.fearBg.setVisible(false)
+        if (s.fearFill?.visible)   s.fearFill.setVisible(false)
+        if (s.venomBadge?.visible) s.venomBadge.setVisible(false)
+        if (s.blightBadge?.visible) s.blightBadge.setVisible(false)
+        if (s.bubble?.visible)     s.bubble.setVisible(false)
+        if (s.bubbleLabel?.visible) s.bubbleLabel.setVisible(false)
+        if (s.veteranBadge?.visible) s.veteranBadge.setVisible(false)
+        if (s.markedBadge?.visible) s.markedBadge.setVisible(false)
+        // Spawn-fade alpha STILL applies in LOD so entries don't pop.
+        const _spawnA_lod = this._spawnAlpha(adv)
+        const _leaveA_lod = this._leaveAlpha(adv)
+        if (s.container) s.container.setAlpha(Math.min(_spawnA_lod, _leaveA_lod))
+        continue
       }
       const hpFrac = adv.resources.maxHp > 0
         ? Math.max(0, adv.resources.hp / adv.resources.maxHp) : 0

@@ -127,6 +127,28 @@ export class MinionRenderer {
     const camTop    = cam ? (cam.worldView.y - CULL_MARGIN) : -Infinity
     const camBottom = cam ? (cam.worldView.y + cam.worldView.height + CULL_MARGIN) : Infinity
 
+    // LOD — same threshold as AdventurerRenderer. At low zoom HP bars +
+    // badges + the lvLabel are sub-pixel; skip the per-tick redraw and
+    // hide them. Sprite container stays positioned so the overview view
+    // still shows where minions are. State re-renders next non-LOD tick
+    // (post-LOD invalidation pass below).
+    const camZoom = cam?.zoom ?? 1
+    const lod = camZoom < 0.5
+    if (this._lastLod && !lod) {
+      // Exiting LOD — clear change-detection markers so stable minions
+      // (no level change, no HP change since LOD began) re-render their
+      // overlays on the next non-LOD tick instead of staying hidden.
+      for (const id in this._sprites) {
+        const s = this._sprites[id]
+        if (!s) continue
+        s._lastLv = null
+        s._lastBounty = null
+        s._lastLootBonus = null
+        s.lastHp = null
+      }
+    }
+    this._lastLod = lod
+
     for (const m of minions) {
       seen.add(m.instanceId)
       let s = this._sprites[m.instanceId]
@@ -178,6 +200,16 @@ export class MinionRenderer {
       if (!m._heldByPlayer) {
         const baseDepth = isDead ? 1.6 : 7   // corpses below all live entities
         s.container.setDepth(baseDepth + m.worldY * 0.0005)
+      }
+      // LOD fast-path: at low zoom, hide the cosmetic overlays and
+      // skip the rest of the per-tick body. The minion sprite + corpse
+      // depth is already set above so the overview render is correct.
+      if (lod) {
+        if (s.hp?.visible)         s.hp.setVisible(false)
+        if (s.hpBg?.visible)       s.hpBg.setVisible(false)
+        if (s.lvLabel?.visible)    s.lvLabel.setVisible(false)
+        if (s.lootBadge?.visible)  s.lootBadge.setVisible(false)
+        continue
       }
 
       // Mimic disguise — render as a red-tinted Treasure Chest sprite at
