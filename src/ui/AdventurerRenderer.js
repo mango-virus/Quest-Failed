@@ -472,9 +472,18 @@ export class AdventurerRenderer {
           Math.abs(dx) <= 0.05 && Math.abs(dy) <= 0.05) {
         adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
       }
-      s.container.setPosition(adv.worldX, adv.worldY)
-      // Y-sort against the boss + minions: larger worldY draws on top.
-      s.container.setDepth(7 + adv.worldY * 0.0005)
+      // Stationary-entity gate — same pattern as MinionRenderer. Many
+      // advs sit at the same tile while fighting / healing / talking;
+      // skipping setPosition + setDepth when world coords haven't
+      // changed cuts the display-list churn that's part of the
+      // ~30ms/frame untracked Phaser overhead.
+      if (s._lastSetX !== adv.worldX || s._lastSetY !== adv.worldY) {
+        s.container.setPosition(adv.worldX, adv.worldY)
+        // Y-sort against the boss + minions: larger worldY draws on top.
+        s.container.setDepth(7 + adv.worldY * 0.0005)
+        s._lastSetX = adv.worldX
+        s._lastSetY = adv.worldY
+      }
       // Dungeon event: The Tournament — a rival visibly GROWS with every
       // rival it kills. Container scale = SPRITE_MULT ^ killCount, only
       // re-set when the kill count changes (cheap, stable). Buff stacks

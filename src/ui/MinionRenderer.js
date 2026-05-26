@@ -196,10 +196,24 @@ export class MinionRenderer {
       // adventurers always render OVER them — without this, an adv
       // walking onto the same tile as a corpse can be visually
       // occluded by it, which reads as "the body is blocking me".
-      s.container.setPosition(m.worldX, m.worldY)
-      if (!m._heldByPlayer) {
-        const baseDepth = isDead ? 1.6 : 7   // corpses below all live entities
-        s.container.setDepth(baseDepth + m.worldY * 0.0005)
+      // Stationary-entity gate. 100+ minions at night sit perfectly
+      // still; calling setPosition + setDepth on each every frame still
+      // pings Phaser's display list and is a measurable chunk of the
+      // ~30ms/frame "untracked" overhead PerfHud doesn't show. Only
+      // touch the container when world coords actually changed.
+      if (s._lastSetX !== m.worldX || s._lastSetY !== m.worldY) {
+        s.container.setPosition(m.worldX, m.worldY)
+        if (!m._heldByPlayer) {
+          const baseDepth = isDead ? 1.6 : 7   // corpses below all live entities
+          s.container.setDepth(baseDepth + m.worldY * 0.0005)
+        }
+        s._lastSetX = m.worldX
+        s._lastSetY = m.worldY
+      } else if (m._heldByPlayer) {
+        // Held-minion sprite has its own depth-100 lift; if the held
+        // state flipped between frames without a world-coord change
+        // (rare but possible) re-apply position so the lift kicks in.
+        s.container.setPosition(m.worldX, m.worldY)
       }
       // LOD fast-path: at low zoom, hide the cosmetic overlays and
       // skip the rest of the per-tick body. The minion sprite + corpse
