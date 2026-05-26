@@ -20,6 +20,7 @@ import { Leaderboard as LeaderboardAPI } from '../systems/Leaderboard.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { COMPANIONS, getCompanion } from '../systems/companions.js'
 import { runCountUp } from './countUp.js'
+import { EventBus } from '../systems/EventBus.js'
 
 // Feature flag — show the companion the player used on each leaderboard
 // row, on the podium card, and in the detail panel (incl. a
@@ -198,12 +199,18 @@ export class LeaderboardOverlay {
     this._error = null
     this._overlay = null
     this._cuCancel = null
-    // Set of canonicalized player names (trim + lowercase) that should
-    // paint a NEW chip on their podium card THIS open. Computed in
-    // `_loadRows` once the top-3 settles; hover-dismiss mutates it in
-    // place (so a re-render via `_rerender` doesn't re-paint a chip
-    // the player just cleared mid-session).
+    // Set of row ids (Supabase PK per run) that should paint a NEW chip
+    // on their podium card THIS open. Computed in `_loadRows` once the
+    // top-3 settles; hover-dismiss mutates it in place (so a re-render
+    // via `_rerender` doesn't re-paint a chip the player just cleared
+    // mid-session). Per-run identity means two runs by the same player
+    // produce two independent chips that dismiss separately.
     this._newPodiumAtOpen = new Set()
+    // EventBus handle for the NAME_CHANGED listener — bound in open(),
+    // released in close(). Re-snapshots + re-renders if the player
+    // renames while the overlay is up (so the new name's seen-set
+    // drives the chips instead of the previous name's).
+    this._onNameChanged = null
   }
 
   open() {
@@ -218,12 +225,28 @@ export class LeaderboardOverlay {
       onClose: () => {
         this._overlay = null
         this._cuCancel?.(); this._cuCancel = null
+        if (this._onNameChanged) {
+          EventBus.off('NAME_CHANGED', this._onNameChanged)
+          this._onNameChanged = null
+        }
         this._onClose?.()
       },
       body,
     })
     this._overlay.open()
     this._cuCancel = runCountUp(body)
+    // NAME_CHANGED listener — if the player renames mid-overlay (e.g.
+    // dev tools, future code paths), re-fetch + re-snapshot so the
+    // podium chips reflect the NEW name's seen-set instead of the
+    // previous name's. `_loadRows` is idempotent and async — it sets
+    // _loading=true (no flicker since we just re-render after) and
+    // re-populates _newPodiumAtOpen against the new name's data.
+    this._onNameChanged = () => {
+      if (!this._overlay) return
+      this._loading = true
+      this._loadRows()
+    }
+    EventBus.on('NAME_CHANGED', this._onNameChanged)
     this._loadRows()
   }
 

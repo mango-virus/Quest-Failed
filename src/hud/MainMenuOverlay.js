@@ -716,23 +716,12 @@ export class MainMenuOverlay {
       this._leaderboard = new LeaderboardOverlay({
         onClose: () => {
           this._leaderboard = null
-          // If the player hovered every NEW podium card while the
-          // overlay was open, the seen-set now covers the current
-          // top-3 → surgically clear the LEADERBOARD button's NEW
-          // badge from the main-menu DOM. Otherwise leave the badge
-          // in place (some NEW chip wasn't dismissed, badge stays live).
-          const myCanon = PlayerProfile.getName().trim().toLowerCase()
-          const ids = (Leaderboard.getCachedTop3?.() || [])
-            .filter(e => e && typeof e.id === 'string' && e.id &&
-                         (!myCanon ||
-                          (typeof e.name !== 'string') ||
-                          e.name.trim().toLowerCase() !== myCanon))
-            .map(e => e.id)
-          if (!PlayerProfile.hasUnseenNewLeaderboardIds(ids)) {
-            const badge = this._el?.querySelector(
-              '.qf-mm-item[data-id="leader"] .qf-mm-item-new')
-            badge?.remove()
-          }
+          // Re-sync menu-item badges. The leaderboard session may have
+          // populated the cached top-3 (if it was empty before) AND/OR
+          // mutated the seen-set via hover-dismisses — both directions
+          // need to land on the badge state. `_refreshMenuItems` walks
+          // all items and adds/removes badges based on current truth.
+          this._refreshMenuItems()
         },
       })
       this._leaderboard.open()
@@ -748,18 +737,13 @@ export class MainMenuOverlay {
       this._achievements = new AchievementsOverlay({
         onClose: () => {
           this._achievements = null
-          // Per-card hover-dismiss is the only thing that clears NEW
-          // chips now — opening + closing the popup without hovering
-          // anything leaves the badge alone. Only remove the menu-item
-          // badge DOM here if the seen-set has caught up to the full
-          // current achievement list (i.e. every previously-unseen id
-          // was hovered while the popup was open).
-          const allIds = (AchievementSystem.getDefinitions?.() || []).map(d => d.id)
-          if (!PlayerProfile.hasUnseenNewAchievements(allIds)) {
-            const badge = this._el?.querySelector(
-              '.qf-mm-item[data-id="achievements"] .qf-mm-item-new')
-            badge?.remove()
-          }
+          // Re-sync every menu-item badge against the current seen-set
+          // state. Handles both directions in one path: if the player
+          // hovered every NEW chip the ACHIEVEMENTS badge disappears;
+          // if the popup opened with a stale cache and fresh fetches
+          // arrived during the session, badges can also reappear.
+          // Simpler + more correct than the previous remove-only code.
+          this._refreshMenuItems()
         },
       })
       this._achievements.open()
