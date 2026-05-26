@@ -33,17 +33,21 @@ import { PlayerProfile }   from '../systems/PlayerProfile.js'
 // Each entry's `check(maxLvl)` returns true when the gate is satisfied.
 // All gates read the same persistent `qf.player.maxBossLevel` value, so
 // hitting the highest required level unlocks every tier below it too.
+//
+// Staggered progression — one boss unlocks at each new level reached,
+// so each milestone (lv 2 → 10) hands the player something new to try.
+// Unlocked from start: beholder, demon, gnoll. Then one boss per level
+// from lv 2 (golem) through lv 10 (slime).
 const UNLOCK_GATES = {
-  // Tier 1 unlocks — fully open by boss-level 3 across these three.
-  myconid:  { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
-  orc:      { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
-  vampire:  { requiredLevel: 3, label: 'REACH BOSS LV 3 TO UNLOCK', check: (m) => m >= 3 },
-  // Tier 2 unlocks — open by boss-level 4. Slime King joins this tier
-  // (previously a lvl-99 placeholder, then unlocked-from-start while
-  // we shipped Absorb & Excrete + Mitosis).
-  wraith:   { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
-  slime:    { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
-  succubus: { requiredLevel: 4, label: 'REACH BOSS LV 4 TO UNLOCK', check: (m) => m >= 4 },
+  golem:     { requiredLevel: 2,  label: 'REACH BOSS LV 2 TO UNLOCK',  check: (m) => m >= 2 },
+  lich:      { requiredLevel: 3,  label: 'REACH BOSS LV 3 TO UNLOCK',  check: (m) => m >= 3 },
+  lizardman: { requiredLevel: 4,  label: 'REACH BOSS LV 4 TO UNLOCK',  check: (m) => m >= 4 },
+  myconid:   { requiredLevel: 5,  label: 'REACH BOSS LV 5 TO UNLOCK',  check: (m) => m >= 5 },
+  orc:       { requiredLevel: 6,  label: 'REACH BOSS LV 6 TO UNLOCK',  check: (m) => m >= 6 },
+  vampire:   { requiredLevel: 7,  label: 'REACH BOSS LV 7 TO UNLOCK',  check: (m) => m >= 7 },
+  wraith:    { requiredLevel: 8,  label: 'REACH BOSS LV 8 TO UNLOCK',  check: (m) => m >= 8 },
+  succubus:  { requiredLevel: 9,  label: 'REACH BOSS LV 9 TO UNLOCK',  check: (m) => m >= 9 },
+  slime:     { requiredLevel: 10, label: 'REACH BOSS LV 10 TO UNLOCK', check: (m) => m >= 10 },
 }
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────
