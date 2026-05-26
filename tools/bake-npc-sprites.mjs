@@ -228,6 +228,35 @@ const COMPANIONS = {
     },
   },
 
+  // Luna — sixth keeper, also ships LOCKED on the recruit screen
+  // (teaser-only treatment matching Nocturna). Only an `idle` portrait
+  // is wired today — when more art ships, fill in the map, re-run this
+  // bake, expand `expressions` in companions.js, add a `linesKey` +
+  // dialogue bank, and call `PlayerProfile.unlockCompanion('luna')`
+  // at the chosen trigger (unlock condition TBD per user).
+  luna: {
+    srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/Luna',
+    outDir: 'assets/npc-luna',
+    map: {
+      'Luna Idle.png': 'idle',
+    },
+  },
+
+  // Rattle Bones — seventh keeper, also ships LOCKED. Same teaser-only
+  // treatment as Luna / Nocturna: one `idle` portrait, no dialogue,
+  // unlock condition TBD. Promotion path is identical: drop expression
+  // art into the source folder, expand the map, re-bake, register
+  // expressions in companions.js, add a dialogue bank, call
+  // `PlayerProfile.unlockCompanion('rattlebones')` at the chosen
+  // trigger. Source filename is lowercase `idle.png` (no companion
+  // prefix), unlike Luna / Nocturna whose source files are prefixed.
+  rattlebones: {
+    srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/Rattle Bones',
+    outDir: 'assets/npc-rattlebones',
+    map: {
+      'idle.png': 'idle',
+    },
+  },
 
   // Safira — fourth (and final) companion, a chaotic wish-granting genie.
   // 53 expressions. Tall portrait art (~1618×2400) like the humanoids, so

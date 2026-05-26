@@ -257,6 +257,73 @@ export const COMPANIONS = {
   // re-run the bake, expand `expressions` here, add her `linesKey` +
   // dialogue bank, and remove `locked` below (or call
   // PlayerProfile.unlockCompanion('nocturna') wherever the unlock fires).
+  // Luna — sixth keeper. Ships LOCKED on the recruit screen (same
+  // teaser-only treatment as Nocturna). Only an `idle` portrait is
+  // wired today; no `linesKey` because she has no banter bank yet —
+  // CompanionSelectOverlay skips locked ids from the speaker rotation,
+  // so a missing bank can't blow up the bicker code.
+  //
+  // When she becomes playable: drop the rest of her expression art into
+  // the source folder (`Quest-Failed assets/Companions/Luna`), fill out
+  // tools/bake-npc-sprites.mjs's `luna.map`, re-run the bake, expand
+  // `expressions` here, add her `linesKey` + dialogue bank, and remove
+  // `locked` below (or call `PlayerProfile.unlockCompanion('luna')`
+  // wherever the unlock fires — condition TBD).
+  luna: {
+    id:        'luna',
+    name:      'Luna',
+    tagline:   'A quiet keeper of the moon.',
+    traits:    [],
+    locked:    true,
+    // Tuned to match Nocturna's apparent height on the recruit screen.
+    // Bottom-anchored origin so any extra height grows UP rather than
+    // centred — keeps feet just above the name plate. Re-tune if Luna's
+    // source art proportions differ noticeably from Nocturna's.
+    portraitScale: 1.15,
+    portraitOrigin: '50% 100%',
+    portraitFlipX: false,
+    hudScale: 1.15,
+    spriteDir: 'assets/npc-luna/',
+    restExpr:  'idle',
+    // No dialogue bank yet — see header comment.
+    linesKey:  null,
+    expressions: ['idle'],
+  },
+
+  // Rattle Bones — seventh keeper. Ships LOCKED on the recruit screen
+  // (same teaser-only treatment as Luna + Nocturna). Only an `idle`
+  // portrait is wired today; no `linesKey` because she has no banter
+  // bank yet — CompanionSelectOverlay skips locked ids from the
+  // speaker rotation, so a missing bank can't blow up the bicker code.
+  //
+  // When she becomes playable: drop the rest of her expression art into
+  // the source folder (`Quest-Failed assets/Companions/Rattle Bones`),
+  // fill out `tools/bake-npc-sprites.mjs`'s `rattlebones.map`, re-run
+  // the bake, expand `expressions` here, add her `linesKey` + dialogue
+  // bank, and remove `locked` below (or call
+  // `PlayerProfile.unlockCompanion('rattlebones')` wherever the unlock
+  // fires — condition TBD).
+  rattlebones: {
+    id:        'rattlebones',
+    name:      'Rattle Bones',
+    tagline:   'Bone-clatter from the crypt — a skeletal keeper.',
+    traits:    [],
+    locked:    true,
+    // Tuned to match the other locked teasers (Luna / Nocturna). If
+    // her source art proportions differ noticeably, bump up/down — see
+    // the long iterations on Cinder & Marina in the git history for
+    // examples of how to balance scale against `portraitOrigin`.
+    portraitScale: 1.15,
+    portraitOrigin: '50% 100%',
+    portraitFlipX: false,
+    hudScale: 1.15,
+    spriteDir: 'assets/npc-rattlebones/',
+    restExpr:  'idle',
+    // No dialogue bank yet — see header comment.
+    linesKey:  null,
+    expressions: ['idle'],
+  },
+
   nocturna: {
     id:        'nocturna',
     name:      'Nocturna',
@@ -343,11 +410,16 @@ export function getCompanion(id) {
 // ids stay in the list — the overlay renders them silhouetted in-place and
 // skips them from banter / hover / click; never strip locked ids here.
 // Append new companions to the end; pagination auto-extends.
-export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath', 'nocturna']
+export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath', 'nocturna', 'rattlebones', 'luna']
 
 // Roster of companion ids that ship UNLOCKED out of the box — used by
-// PlayerProfile to seed the per-player unlock set on first run. Locked ids
-// (Nocturna + Zul'Gath, 2026-05-25) are NOT in this list and require an
-// explicit unlock call. Zul'Gath unlocks via the `hoard_lord` achievement
-// (10,000 gold in a single run); Nocturna's unlock condition is TBD.
+// PlayerProfile to seed the per-player unlock set on first run. Locked
+// ids are NOT in this list and require an explicit unlock call.
+//   • Zul'Gath unlocks via the `hoard_lord` achievement (10,000 gold
+//     in a single run).
+//   • Nocturna's unlock condition is TBD (character work in progress).
+//   • Luna's unlock condition is TBD — added 2026-05-26 as a teaser
+//     slot next to Nocturna with one shared `idle` sprite.
+//   • Rattle Bones' unlock condition is TBD — added 2026-05-26 as a
+//     third locked teaser, one idle sprite, no dialogue bank.
 export const STARTER_COMPANIONS = ['lilith', 'malakor', 'safira']
