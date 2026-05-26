@@ -814,21 +814,41 @@ export class LeaderboardOverlay {
     ])
     return h('button', {
       className: 'qf-lb-podium-card',
-      dataset: { place, active: active ? 'true' : 'false' },
+      // `data-canon` tags the button with the canonical player name so a
+      // hover-dismiss can clear EVERY chip belonging to the same player
+      // in one pass — needed because a single player can hold multiple
+      // top-3 runs (e.g. #1 and #2 are both "Bob"), but the seen-set
+      // dedups by name, so dismissing Bob anywhere has to clear Bob's
+      // chip everywhere on the podium. Empty string when no chip
+      // (canon = '' or self-row) so querySelector matches don't bleed.
+      dataset: {
+        place,
+        active: active ? 'true' : 'false',
+        canon: isNewPodium ? canonName : '',
+      },
       style: cardStyle,
       on: {
         click: () => { this._selected = entry; this._rerender() },
-        // NEW-chip dismiss on hover (same pattern as companion cards
-        // + achievement cards). Marks the canonical name known in
+        // NEW-chip dismiss on hover. Marks the canonical name known in
         // PlayerProfile, removes it from the in-memory snapshot, then
-        // fades + DOM-removes the chip on this card. Guard against
-        // re-firing if the chip was already cleared this open.
+        // fades + DOM-removes the chip on this card AND on any sibling
+        // podium cards owned by the same canon (same player's other
+        // runs). Guard against re-firing if already cleared this open.
         mouseenter: (e) => {
           if (!canonName || !this._newPodiumAtOpen?.has(canonName)) return
           PlayerProfile.markLeaderboardNameKnown?.(canonName)
           this._newPodiumAtOpen.delete(canonName)
-          const chip = e.currentTarget?.querySelector('.qf-lb-podium-new-chip')
-          if (chip) {
+          // Walk up to the podium container, then dismiss every chip
+          // whose parent card carries the same canon. CSS-attr selector
+          // escape: data-canon values are lowercased trimmed names; we
+          // sanitize against `"` just in case (player names theoretically
+          // can contain anything).
+          const podium = e.currentTarget?.closest?.('.qf-lb-podium') || e.currentTarget?.parentElement
+          const safe = String(canonName).replace(/"/g, '\\"')
+          const cards = podium?.querySelectorAll(`.qf-lb-podium-card[data-canon="${safe}"]`) || []
+          for (const card of cards) {
+            const chip = card.querySelector('.qf-lb-podium-new-chip')
+            if (!chip || chip.classList.contains('is-dismissing')) continue
             chip.classList.add('is-dismissing')
             setTimeout(() => chip.remove(), 260)
           }
