@@ -1,0 +1,445 @@
+[
+  {
+    "id": "first_spark",
+    "name": "First Spark",
+    "description": "Reach boss level 1.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 1,
+    "icon": "⚡"
+  },
+  {
+    "id": "rising_power",
+    "name": "Rising Power",
+    "description": "Reach boss level 2.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 2,
+    "icon": "🗿",
+    "reward": { "type": "boss", "id": "golem" }
+  },
+  {
+    "id": "hardened_throne",
+    "name": "Hardened Throne",
+    "description": "Reach boss level 3.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 3,
+    "icon": "☠️",
+    "reward": { "type": "boss", "id": "lich" }
+  },
+  {
+    "id": "crown_of_iron",
+    "name": "Crown of Iron",
+    "description": "Reach boss level 4.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 4,
+    "icon": "🦎",
+    "reward": { "type": "boss", "id": "lizardman" }
+  },
+  {
+    "id": "echoing_roar",
+    "name": "Echoing Roar",
+    "description": "Reach boss level 5.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 5,
+    "icon": "🍄",
+    "reward": { "type": "boss", "id": "myconid" }
+  },
+  {
+    "id": "sixth_seal",
+    "name": "Sixth Seal",
+    "description": "Reach boss level 6.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 6,
+    "icon": "⚔️",
+    "reward": { "type": "boss", "id": "orc" }
+  },
+  {
+    "id": "seventh_sigil",
+    "name": "Seventh Sigil",
+    "description": "Reach boss level 7.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 7,
+    "icon": "🧛",
+    "reward": { "type": "boss", "id": "vampire" }
+  },
+  {
+    "id": "spectral_reign",
+    "name": "Spectral Reign",
+    "description": "Reach boss level 8.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 8,
+    "icon": "👻",
+    "reward": { "type": "boss", "id": "wraith" }
+  },
+  {
+    "id": "witchbane",
+    "name": "Witchbane",
+    "description": "Reach boss level 9.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 9,
+    "icon": "💋",
+    "reward": { "type": "boss", "id": "succubus" }
+  },
+  {
+    "id": "dread_sovereign",
+    "name": "Dread Sovereign",
+    "description": "Reach boss level 10.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 10,
+    "icon": "💧",
+    "reward": { "type": "boss", "id": "slime" }
+  },
+  {
+    "id": "tyrant",
+    "name": "Tyrant",
+    "description": "Reach boss level 11.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 11,
+    "icon": "👑",
+    "title": "The Tyrant"
+  },
+  {
+    "id": "despot",
+    "name": "Despot",
+    "description": "Reach boss level 12.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 12,
+    "icon": "👁️",
+    "title": "The Despot"
+  },
+  {
+    "id": "worldbreaker",
+    "name": "Worldbreaker",
+    "description": "Reach boss level 13.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 13,
+    "icon": "💥",
+    "title": "Worldbreaker"
+  },
+  {
+    "id": "architect_of_ruin",
+    "name": "Architect of Ruin",
+    "description": "Reach boss level 14.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 14,
+    "icon": "🏛️",
+    "title": "Architect of Ruin"
+  },
+  {
+    "id": "endless_crown",
+    "name": "Endless Crown",
+    "description": "Reach boss level 15.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 15,
+    "icon": "💍",
+    "title": "Crowned Endless"
+  },
+  {
+    "id": "eldritch_throne",
+    "name": "Eldritch Throne",
+    "description": "Reach boss level 16.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 16,
+    "icon": "🔮",
+    "title": "Of the Eldritch Throne"
+  },
+  {
+    "id": "forgotten_god",
+    "name": "Forgotten God",
+    "description": "Reach boss level 17.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 17,
+    "icon": "⚰️",
+    "title": "The Forgotten God"
+  },
+  {
+    "id": "demilich_eternal",
+    "name": "Demilich Eternal",
+    "description": "Reach boss level 18.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 18,
+    "icon": "💀",
+    "title": "Demilich Eternal"
+  },
+  {
+    "id": "avatar_of_dread",
+    "name": "Avatar of Dread",
+    "description": "Reach boss level 19.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 19,
+    "icon": "😈",
+    "title": "Avatar of Dread"
+  },
+  {
+    "id": "throne_eternal",
+    "name": "Throne Eternal",
+    "description": "Reach boss level 20.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 20,
+    "icon": "🏆",
+    "title": "Of the Throne Eternal",
+    "legendary": true
+  },
+
+  {
+    "id": "first_blood",
+    "name": "First Blood",
+    "description": "Kill your first adventurer.",
+    "category": "combat",
+    "metric": "killsTotal",
+    "target": 1,
+    "icon": "🔪"
+  },
+  {
+    "id": "first_hire",
+    "name": "First Hire",
+    "description": "Recruit your first minion.",
+    "category": "progression",
+    "metric": "minionsPlacedTotal",
+    "target": 1,
+    "icon": "🧙"
+  },
+  {
+    "id": "first_trap",
+    "name": "First Trap",
+    "description": "Place your first trap.",
+    "category": "progression",
+    "metric": "trapsPlacedTotal",
+    "target": 1,
+    "icon": "🪤"
+  },
+  {
+    "id": "first_build",
+    "name": "First Build",
+    "description": "Place your first non-starter room.",
+    "category": "progression",
+    "metric": "nonStarterRoomsPlacedTotal",
+    "target": 1,
+    "icon": "🧱"
+  },
+  {
+    "id": "survivor",
+    "name": "Survivor",
+    "description": "Survive 10 days in a single run.",
+    "category": "progression",
+    "metric": "daysSurvivedMax",
+    "target": 10,
+    "icon": "⌛"
+  },
+
+  {
+    "id": "skirmisher",
+    "name": "Skirmisher",
+    "description": "Kill 50 adventurers across all runs.",
+    "category": "combat",
+    "metric": "killsTotal",
+    "target": 50,
+    "icon": "🗡️"
+  },
+  {
+    "id": "reaper",
+    "name": "Reaper",
+    "description": "Kill 500 adventurers across all runs.",
+    "category": "combat",
+    "metric": "killsTotal",
+    "target": 500,
+    "icon": "⚱️",
+    "title": "The Reaper"
+  },
+  {
+    "id": "soul_collector",
+    "name": "Soul Collector",
+    "description": "Earn 100 souls across all runs.",
+    "category": "economy",
+    "metric": "soulsTotal",
+    "target": 100,
+    "icon": "✨"
+  },
+  {
+    "id": "master_architect",
+    "name": "Master Architect",
+    "description": "Place 12 different room types across all runs.",
+    "category": "variety",
+    "metric": "roomTypesPlacedCount",
+    "target": 12,
+    "icon": "🏗️"
+  },
+  {
+    "id": "trapsmith",
+    "name": "Trapsmith",
+    "description": "Fire 6 different trap types across all runs.",
+    "category": "variety",
+    "metric": "trapTypesFiredCount",
+    "target": 6,
+    "icon": "⚙️"
+  },
+
+  {
+    "id": "architect",
+    "name": "Architect",
+    "description": "Place 15 rooms in a single run.",
+    "category": "progression",
+    "metric": "roomsInRunMax",
+    "target": 15,
+    "icon": "🏰"
+  },
+  {
+    "id": "swarm_lord",
+    "name": "Swarm Lord",
+    "description": "Recruit 30 minions in a single run.",
+    "category": "progression",
+    "metric": "minionsInRunMax",
+    "target": 30,
+    "icon": "🐝"
+  },
+  {
+    "id": "diverse_roster",
+    "name": "Diverse Roster",
+    "description": "Have 5 or more different minion types active simultaneously.",
+    "category": "variety",
+    "metric": "minionTypesActiveMax",
+    "target": 5,
+    "icon": "🎲"
+  },
+  {
+    "id": "long_watch",
+    "name": "Long Watch",
+    "description": "Survive 30 days in a single run.",
+    "category": "progression",
+    "metric": "daysSurvivedMax",
+    "target": 30,
+    "icon": "⏳"
+  },
+  {
+    "id": "daily_reaper",
+    "name": "Daily Reaper",
+    "description": "Kill 10 adventurers in a single day.",
+    "category": "combat",
+    "metric": "killsInDayMax",
+    "target": 10,
+    "icon": "⚡"
+  },
+
+  {
+    "id": "untouchable",
+    "name": "Untouchable",
+    "description": "Survive a full day without losing a single minion.",
+    "category": "mastery",
+    "metric": "noMinionsLostInDayEver",
+    "target": 1,
+    "icon": "💎",
+    "title": "The Untouched"
+  },
+  {
+    "id": "total_annihilation",
+    "name": "Total Annihilation",
+    "description": "Kill every member of a party in a single day.",
+    "category": "mastery",
+    "metric": "partyWipedInDayEver",
+    "target": 1,
+    "icon": "🔥"
+  },
+  {
+    "id": "trap_master",
+    "name": "Trap Master",
+    "description": "Kill 5 adventurers with traps in a single day.",
+    "category": "mastery",
+    "metric": "trapKillsInDayMax",
+    "target": 5,
+    "icon": "🎯"
+  },
+  {
+    "id": "class_hunter",
+    "name": "Class Hunter",
+    "description": "Defeat at least one adventurer of every regularly-spawnable class.",
+    "category": "variety",
+    "metric": "classesKilledCount",
+    "target": 11,
+    "icon": "🏹",
+    "title": "The Hunter",
+    "legendary": true
+  },
+  {
+    "id": "boss_slayer",
+    "name": "Boss Slayer",
+    "description": "Personally kill 10 adventurers with the boss in a single run.",
+    "category": "mastery",
+    "metric": "bossKillsInRunMax",
+    "target": 10,
+    "icon": "🪓",
+    "title": "The Executioner",
+    "legendary": true
+  },
+
+  {
+    "id": "endless_reign",
+    "name": "Endless Reign",
+    "description": "Survive 60 days in a single run.",
+    "category": "mastery",
+    "metric": "daysSurvivedMax",
+    "target": 60,
+    "icon": "♾️",
+    "title": "The Eternal",
+    "legendary": true
+  },
+  {
+    "id": "hoard_lord",
+    "name": "Hoard Lord",
+    "description": "Accumulate 10,000 gold in a single run.",
+    "category": "economy",
+    "metric": "goldInRunMax",
+    "target": 10000,
+    "icon": "💰",
+    "title": "The Hoarder",
+    "reward": { "type": "companion", "id": "zulgath" },
+    "legendary": true
+  },
+  {
+    "id": "veteran_exterminator",
+    "name": "Veteran Exterminator",
+    "description": "Defeat 25 veteran adventurers across all runs.",
+    "category": "combat",
+    "metric": "veteransKilled",
+    "target": 25,
+    "icon": "🎖️",
+    "title": "Veteran Hunter",
+    "legendary": true
+  },
+  {
+    "id": "keeper_of_keepers",
+    "name": "Keeper of Keepers",
+    "description": "Complete a run with every unlocked companion.",
+    "category": "variety",
+    "metric": "companionsCompletedCount",
+    "target": 4,
+    "icon": "🤝"
+  },
+  {
+    "id": "personality_profiler",
+    "name": "Personality Profiler",
+    "description": "Encounter 8 different adventurer personalities.",
+    "category": "variety",
+    "metric": "personalitiesSeenCount",
+    "target": 8,
+    "icon": "📖"
+  }
+]

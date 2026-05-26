@@ -289,6 +289,15 @@ export class LeaderboardOverlay {
       pacts,
       cause: _thematicCause(r.end_cause, r.id ?? r.created_at ?? r.player_name),
       date:  this._formatDate(r.created_at),
+      // Player-chosen title (e.g. "The Hoarder", "Crown of Iron"). Stored
+      // in the run's meta jsonb so it back-fills without a schema change.
+      // The podium / detail-panel sites prefer this over the legacy
+      // IMMORTAL / BUTCHER / CUNNING accolade — if a player has selected
+      // (or auto-equipped) a title, it owns the slot, otherwise the top-3
+      // accolade takes over so the podium never reads as bare.
+      title: (typeof r.meta?.active_title === 'string' && r.meta.active_title.trim())
+        ? r.meta.active_title.trim()
+        : null,
       accolade: rank <= 3 ? ACCOLADES[rank - 1] : null,
       isYou: !!(myName && r.player_name === myName),
       prePatch: r.id === PRE_NERF_ROW_ID,
@@ -749,10 +758,14 @@ export class LeaderboardOverlay {
         h('span', null, `${entry.days}d`),
         h('span', { style: { color: 'var(--blood)' } }, `${entry.kills} KILLS`),
       ]),
-      entry.accolade && h('div', {
+      // Title-or-accolade: player-chosen title (e.g. "The Hoarder")
+      // takes the slot when present; otherwise the legacy IMMORTAL /
+      // BUTCHER / CUNNING accolade fills it for top-3 podium ranks.
+      // Older runs with neither render the slot empty (no chip).
+      (entry.title || entry.accolade) && h('div', {
         className: 'pix qf-lb-podium-accolade',
         style: { color: c, borderColor: c },
-      }, entry.accolade),
+      }, entry.title || entry.accolade),
     ])
     return h('button', {
       className: 'qf-lb-podium-card',
@@ -1028,10 +1041,11 @@ export class LeaderboardOverlay {
               className: 'pix qf-lb-detail-rank',
               style: { color: c, textShadow: `0 0 8px ${c}55` },
             }, `#${String(sel.rank).padStart(2, '0')}`),
-            sel.accolade && h('span', {
+            // Title-or-accolade — same fallback rule as the podium card.
+            (sel.title || sel.accolade) && h('span', {
               className: 'pix qf-lb-detail-accolade',
               style: { color: c, borderColor: c },
-            }, sel.accolade),
+            }, sel.title || sel.accolade),
             sel.isYou && h('span', { className: 'pix qf-lb-detail-youtag' }, 'YOU'),
           ]),
           h('div', {

@@ -269,6 +269,7 @@ export class MainMenuOverlay {
         primary: true, enabled: !!this._save, color: 'var(--blood)' },
       { id: 'new', label: 'NEW EVIL', sub: 'Begin a new run', icon: '+', color: 'var(--gold)' },
       { id: 'leader', label: 'LEADERBOARD', sub: 'Global hall of evil', icon: '◆', color: 'var(--rumor)' },
+      { id: 'achievements', label: 'ACHIEVEMENTS', sub: 'Hall of trophies', icon: '🏆', color: 'var(--gold-bright, #ffd964)' },
     ]
     // ROOM EDITOR + TILESET EDITOR are dev surfaces — only shown when the
     // player's name is the cheat handle (PlayerProfile.isCheatName). Regular
@@ -491,6 +492,9 @@ export class MainMenuOverlay {
       case 'leader':
         this._openLeaderboard()
         break
+      case 'achievements':
+        this._openAchievements()
+        break
       case 'jump50':
         // Mango dev shortcut — stamps one-shot localStorage flags that
         // ArchetypeSelect._beginRun reads after createGameState to bump
@@ -612,6 +616,19 @@ export class MainMenuOverlay {
         onClose: () => { this._leaderboard = null },
       })
       this._leaderboard.open()
+    })
+  }
+
+  _openAchievements() {
+    if (this._achievements) return
+    // Lazy import — AchievementsOverlay pulls in AchievementSystem
+    // (which is already booted at this point but still nice to defer
+    // the DOM module until needed).
+    import('./AchievementsOverlay.js').then(({ AchievementsOverlay }) => {
+      this._achievements = new AchievementsOverlay({
+        onClose: () => { this._achievements = null },
+      })
+      this._achievements.open()
     })
   }
 

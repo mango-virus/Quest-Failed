@@ -9,8 +9,15 @@
 //   id, created_at, player_name, boss_id, boss_level, days_survived,
 //   total_kills, gold, dark_power, end_cause, meta(jsonb)
 //
+// Achievement bitmask (added 2026-05-25) lives inside `meta.achievement_bits`
+// — a string of '0'/'1' chars in canonical id order. No schema migration
+// needed (jsonb). Decoded on the read side via AchievementSystem.getOrderedIds().
+//
 // Sort order on fetch: days_survived desc, total_kills desc (tiebreak),
 // created_at asc (older runs win further ties).
+
+import { AchievementSystem } from './AchievementSystem.js'
+import { PlayerProfile }     from './PlayerProfile.js'
 
 const SUPABASE_URL  = 'https://atodgpvdmrdjtqrzvtks.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0b2RncHZkbXJkanRxcnp2dGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMTgwMDcsImV4cCI6MjA5MzU5NDAwN30.6OHUI6oCIr_TseFEq37PRyOTsExsGUc2bbnrlX_tf28'
@@ -42,6 +49,22 @@ export const Leaderboard = {
     if (!player.bossArchetypeId) return null
     const days   = Number(player.totalDaysElapsed ?? gs.meta?.dayNumber ?? 0)
     const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
+    // Achievement bitmask — '0'/'1' string in canonical id order. The
+    // receiver decodes via AchievementSystem.getOrderedIds() so the i-th
+    // char maps to the i-th id. Stored under `meta.achievement_bits`
+    // (jsonb) — no schema migration needed.
+    const orderedIds = AchievementSystem.getOrderedIds()
+    const achievementBits  = PlayerProfile.getAchievementBitmask(orderedIds)
+    const achievementCount = PlayerProfile.getUnlockedAchievements().size
+    // Active title — what the player has chosen to display next to their
+    // run row on the leaderboard. If they haven't picked one explicitly,
+    // PlayerProfile.getActiveTitle() auto-promotes the most-recently-
+    // unlocked title. Sent as a plain string so the leaderboard read
+    // side can render it without consulting the achievement registry;
+    // `null` when the player has zero title-bearing unlocks (e.g. fresh
+    // save — they keep the legacy ACCOLADES top-3 labels in that case).
+    const activeTitle = PlayerProfile.getActiveTitle()
+    const activeTitleName = activeTitle?.name ?? null
     return {
       player_name:   String(playerName || 'ANON').trim().slice(0, 32) || 'ANON',
       boss_id:       String(player.bossArchetypeId),
@@ -81,6 +104,17 @@ export const Leaderboard = {
         // delete this line and the LB_SHOW_COMPANIONS code block in
         // LeaderboardOverlay.
         companionId:     gs.meta?.companionId ?? null,
+        // Achievement state at submission time. `achievement_count` is a
+        // pre-decoded integer for the leaderboard chip (cheap display);
+        // `achievement_bits` is the full bitmask for the viewer-modal
+        // drill-down. Both can be absent on older rows — LeaderboardOverlay
+        // treats missing values as zero.
+        achievement_count: achievementCount,
+        achievement_bits:  achievementBits,
+        // Active title display string (see derivation above). Optional —
+        // older rows lack this and the leaderboard view falls back to
+        // the legacy IMMORTAL / BUTCHER / CUNNING accolades for top-3.
+        active_title:      activeTitleName,
       },
     }
   },

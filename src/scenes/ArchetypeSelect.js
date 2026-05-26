@@ -30,24 +30,30 @@ import { UIEditor }        from '../ui/UIEditor.js'
 import { PlayerProfile }   from '../systems/PlayerProfile.js'
 
 // Per-archetype unlock requirements. Empty entry = always unlocked.
-// Each entry's `check(maxLvl)` returns true when the gate is satisfied.
-// All gates read the same persistent `qf.player.maxBossLevel` value, so
-// hitting the highest required level unlocks every tier below it too.
+// Each entry's `check()` returns true when the gate is satisfied.
+//
+// True Approach-A gating (2026-05-25): bosses are unlocked by their
+// boss-level ACHIEVEMENT id, not by raw `maxBossLevel`. The achievement
+// system retroactively grants those achievements on first boot for any
+// save profile whose maxBossLevel already qualifies, so existing players
+// see no behaviour change — the gate just moved one level up the
+// abstraction stack. The `requiredLevel` field stays on each entry for
+// display purposes (the lock-state label still reads "REACH BOSS LV N").
 //
 // Staggered progression — one boss unlocks at each new level reached,
 // so each milestone (lv 2 → 10) hands the player something new to try.
 // Unlocked from start: beholder, demon, gnoll. Then one boss per level
-// from lv 2 (golem) through lv 10 (slime).
+// from lv 2 (golem / `rising_power`) through lv 10 (slime / `dread_sovereign`).
 const UNLOCK_GATES = {
-  golem:     { requiredLevel: 2,  label: 'REACH BOSS LV 2 TO UNLOCK',  check: (m) => m >= 2 },
-  lich:      { requiredLevel: 3,  label: 'REACH BOSS LV 3 TO UNLOCK',  check: (m) => m >= 3 },
-  lizardman: { requiredLevel: 4,  label: 'REACH BOSS LV 4 TO UNLOCK',  check: (m) => m >= 4 },
-  myconid:   { requiredLevel: 5,  label: 'REACH BOSS LV 5 TO UNLOCK',  check: (m) => m >= 5 },
-  orc:       { requiredLevel: 6,  label: 'REACH BOSS LV 6 TO UNLOCK',  check: (m) => m >= 6 },
-  vampire:   { requiredLevel: 7,  label: 'REACH BOSS LV 7 TO UNLOCK',  check: (m) => m >= 7 },
-  wraith:    { requiredLevel: 8,  label: 'REACH BOSS LV 8 TO UNLOCK',  check: (m) => m >= 8 },
-  succubus:  { requiredLevel: 9,  label: 'REACH BOSS LV 9 TO UNLOCK',  check: (m) => m >= 9 },
-  slime:     { requiredLevel: 10, label: 'REACH BOSS LV 10 TO UNLOCK', check: (m) => m >= 10 },
+  golem:     { requiredLevel: 2,  label: 'REACH BOSS LV 2 TO UNLOCK',  achId: 'rising_power' },
+  lich:      { requiredLevel: 3,  label: 'REACH BOSS LV 3 TO UNLOCK',  achId: 'hardened_throne' },
+  lizardman: { requiredLevel: 4,  label: 'REACH BOSS LV 4 TO UNLOCK',  achId: 'crown_of_iron' },
+  myconid:   { requiredLevel: 5,  label: 'REACH BOSS LV 5 TO UNLOCK',  achId: 'echoing_roar' },
+  orc:       { requiredLevel: 6,  label: 'REACH BOSS LV 6 TO UNLOCK',  achId: 'sixth_seal' },
+  vampire:   { requiredLevel: 7,  label: 'REACH BOSS LV 7 TO UNLOCK',  achId: 'seventh_sigil' },
+  wraith:    { requiredLevel: 8,  label: 'REACH BOSS LV 8 TO UNLOCK',  achId: 'spectral_reign' },
+  succubus:  { requiredLevel: 9,  label: 'REACH BOSS LV 9 TO UNLOCK',  achId: 'witchbane' },
+  slime:     { requiredLevel: 10, label: 'REACH BOSS LV 10 TO UNLOCK', achId: 'dread_sovereign' },
 }
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────
@@ -405,7 +411,7 @@ export class ArchetypeSelect extends Phaser.Scene {
 
     // Unlock gate — per-archetype, persisted in PlayerProfile across runs.
     const gate     = UNLOCK_GATES[arch.id] ?? null
-    const isLocked = !!gate && !gate.check(PlayerProfile.getMaxBossLevel())
+    const isLocked = !!gate && !PlayerProfile.isAchievementUnlocked(gate.achId)
 
     // Portrait — bestiary-pack 22×22 portrait if we have one for this boss,
     // else procedural silhouette.
@@ -1058,7 +1064,7 @@ export class ArchetypeSelect extends Phaser.Scene {
     // Defensive: refuse to start a run on a locked archetype even if
     // something other than the slot click ever set _selectedId.
     const gate = UNLOCK_GATES[this._selectedId]
-    if (gate && !gate.check(PlayerProfile.getMaxBossLevel())) return
+    if (gate && !PlayerProfile.isAchievementUnlocked(gate.achId)) return
 
     // Pass the rooms cache so createGameState picks up `theme` + `tileLayout`
     // edits the user authored in the Room Editor onto the boss chamber.

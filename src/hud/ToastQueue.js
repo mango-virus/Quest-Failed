@@ -33,12 +33,25 @@ const KIND_STYLE = {
   gold:   { color: 'var(--gold)',      glyph: '◐' },
   bounty: { color: 'var(--gold)',      glyph: '★' },
   info:   { color: 'var(--text-mute)', glyph: '◇' },
+  // Achievement unlock — bright-gold trophy chip. Same color family as
+  // level / bounty (celebratory) but distinct glyph so the player can
+  // pick it out of a busy run-end toast wash.
+  achievement: { color: 'var(--gold-bright, #ffd964)', glyph: '🏆' },
+  // Legendary achievement unlock — same trophy but bigger, brighter,
+  // longer-dwell, with a "RARE TROPHY" eyebrow above the title and a
+  // gold particle burst on arrival. Triggered when `def.legendary` is
+  // true on the unlocked achievement (currently 6 hand-picked endgame
+  // achievements in `src/data/achievements.json`).
+  legendary_achievement: { color: 'var(--gold-bright, #ffd964)', glyph: '🏆' },
 }
 
 // Bounty toasts get a longer dwell — they're the parchment-poster replacement
 // and carry 3 lines of info (header / type · kills · gear / italic flavor)
 // so they need more reading time than a one-line kill/damage chip.
 const BOUNTY_TTL = 9000
+// Legendary achievement toasts dwell even longer so the player has
+// time to register that something big happened.
+const LEGENDARY_TTL = 10000
 
 export class ToastQueue {
   constructor() {
@@ -52,8 +65,13 @@ export class ToastQueue {
   _push(kind, title, subtitle, opts = {}) {
     const meta = KIND_STYLE[kind] || KIND_STYLE.info
     const flavor = opts.flavor || null
+    const eyebrow = opts.eyebrow || null
+    const isLegendary = kind === 'legendary_achievement'
+    // Build the toast root. Legendary toasts get an extra wrapper class
+    // for the gold-burst frame + the optional eyebrow line ("RARE
+    // TROPHY") above the title.
     const t = h('div', {
-      className: `toast qf-toast${flavor ? ' qf-toast-bounty' : ''}`,
+      className: `toast qf-toast${flavor ? ' qf-toast-bounty' : ''}${isLegendary ? ' qf-toast-legendary' : ''}`,
       style: { borderLeftColor: meta.color, boxShadow: `inset 4px 0 0 ${meta.color}, 0 8px 24px rgba(0,0,0,0.5), 0 0 18px ${meta.color}33` },
     }, [
       h('div', { className: 'qf-toast-row' }, [
@@ -62,6 +80,10 @@ export class ToastQueue {
           style: { color: meta.color, textShadow: `0 0 6px ${meta.color}` },
         }, meta.glyph),
         h('div', { className: 'qf-toast-titlecol' }, [
+          eyebrow && h('div', {
+            className: 'pix qf-toast-eyebrow',
+            style: { color: meta.color },
+          }, eyebrow),
           h('div', {
             className: 'pix qf-toast-title',
             style: { color: meta.color },
@@ -80,10 +102,61 @@ export class ToastQueue {
       old.el.remove()
       clearTimeout(old._dismiss)
     }
-    const ttl = kind === 'bounty' ? BOUNTY_TTL : TOAST_TTL
+    const ttl = kind === 'bounty'                 ? BOUNTY_TTL
+              : kind === 'legendary_achievement'  ? LEGENDARY_TTL
+              : TOAST_TTL
     entry._dismiss = setTimeout(() => this._dismiss(entry), ttl)
     // Soft "arrives" chip — HudSfx rate-limits so a burst doesn't stack.
     HudSfx.playUi('toast')
+    // Legendary unlocks get a gold particle burst fountaining out from
+    // the toast's spawn point on the right edge of the screen. Pure
+    // DOM effect — no Phaser dependencies. Brief (~1s), then self-
+    // cleans. See `_spawnLegendaryBurst` below.
+    if (isLegendary) {
+      this._spawnLegendaryBurst(t)
+    }
+  }
+
+  // Spawn a ring of gold particles bursting outward from the toast's
+  // position. Each particle is a small absolutely-positioned div that
+  // animates via CSS keyframes from center → fountain trajectory, then
+  // fades. Auto-cleanup via `animationend`. Count + spread tuned to
+  // feel celebratory without overwhelming the page.
+  _spawnLegendaryBurst(toastEl) {
+    if (!toastEl || !toastEl.parentNode) return
+    const PARTICLE_COUNT = 22
+    const burst = h('div', { className: 'qf-toast-legendary-burst' })
+    // Anchor the burst to the toast's parent so its position tracks
+    // the toast stack naturally as the player scrolls / resizes.
+    toastEl.appendChild(burst)
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      // Fountain leftward (toward the game area). The toast sits on
+      // the right edge of the HUD, so particles flying right would
+      // clip off-screen — bias angles to [120°, 240°] (a 120° arc
+      // opening to the LEFT) for a clean fan-out into the play area.
+      const baseAngle = 120 + Math.random() * 120
+      const distance  = 70 + Math.random() * 90
+      const dx = Math.cos(baseAngle * Math.PI / 180) * distance
+      const dy = Math.sin(baseAngle * Math.PI / 180) * distance
+      // Slight per-particle randomization for an organic burst.
+      const delay = Math.random() * 80
+      const dur   = 700 + Math.random() * 400
+      const size  = 4 + Math.random() * 4
+      const p = h('span', {
+        className: 'qf-toast-legendary-particle',
+        style: {
+          width: `${size}px`,
+          height: `${size}px`,
+          '--dx': `${dx}px`,
+          '--dy': `${dy}px`,
+          animationDelay: `${delay}ms`,
+          animationDuration: `${dur}ms`,
+        },
+      })
+      burst.appendChild(p)
+    }
+    // Tear down the burst after the longest particle finishes.
+    setTimeout(() => burst.remove(), 1300)
   }
 
   _dismiss(entry) {
@@ -189,6 +262,36 @@ export class ToastQueue {
         `★ WANTED · ${name.toUpperCase()} ★`,
         `${typeName}  ·  ${kills} kill${kills === 1 ? '' : 's'}  ·  ${gear} gear`,
         { flavor: 'Hunters approach. Reinforce the wing.' },
+      )
+    })
+    // ACHIEVEMENT UNLOCKED — golden trophy chip with name + flavor line.
+    // Fired by AchievementSystem when a metric threshold is crossed.
+    // Reward callouts (e.g. "Unlocks: Golem") land in the flavor slot
+    // when the achievement has a reward attached.
+    //
+    // Legendary tier (data-driven via `def.legendary === true`) routes
+    // to a richer toast: "RARE TROPHY" eyebrow, gold-burst frame, 10s
+    // dwell, and a gold particle burst fountaining outward from the
+    // toast. Common unlocks use the basic golden trophy chip.
+    sub('ACHIEVEMENT_UNLOCKED', ({ def } = {}) => {
+      if (!def) return
+      let flavor = null
+      if (def.reward?.type === 'boss') {
+        flavor = `Unlocks boss: ${def.reward.id.toUpperCase()}`
+      } else if (def.reward?.type === 'companion') {
+        flavor = `Unlocks companion: ${def.reward.id.toUpperCase()}`
+      } else if (def.title) {
+        flavor = `Title earned: ${def.title}`
+      }
+      const isLegendary = !!def.legendary
+      this._push(
+        isLegendary ? 'legendary_achievement' : 'achievement',
+        isLegendary ? 'LEGENDARY UNLOCKED' : 'ACHIEVEMENT UNLOCKED',
+        def.name,
+        {
+          flavor: flavor || undefined,
+          eyebrow: isLegendary ? '✦  RARE TROPHY  ✦' : null,
+        },
       )
     })
   }

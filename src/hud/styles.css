@@ -2683,6 +2683,109 @@ body {
   white-space: normal;
 }
 
+/* Eyebrow line — small label above the title for special toasts.
+   Currently used by the legendary-achievement toast variant only. */
+.qf-toast-eyebrow {
+  font-size: 8px;
+  letter-spacing: 3px;
+  margin-bottom: 4px;
+  text-shadow: 0 0 6px currentColor;
+  opacity: 0.92;
+}
+
+/* Legendary achievement toast — fires on `def.legendary === true`
+   unlocks (the 6 hand-picked endgame achievements). Larger gold-burst
+   frame, ember inset glow, slow pulse animation, and a particle burst
+   spawned alongside (see `.qf-toast-legendary-burst` below). */
+.qf-toast-legendary {
+  position: relative;
+  overflow: visible;
+  background: linear-gradient(180deg, #2a1d06 0%, #1a1208 100%) !important;
+  border: 2px solid var(--gold-bright, #ffd964) !important;
+  box-shadow:
+    inset 0 0 18px color-mix(in srgb, var(--gold-bright, #ffd964) 22%, transparent),
+    inset 4px 0 0 var(--gold-bright, #ffd964),
+    0 0 0 2px #000,
+    0 8px 24px rgba(0, 0, 0, 0.65),
+    0 0 32px color-mix(in srgb, var(--gold-bright, #ffd964) 55%, transparent) !important;
+  animation: qf-toast-legendary-pulse 2.2s ease-in-out infinite;
+}
+.qf-toast-legendary .qf-toast-title {
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--gold-bright, #ffd964) 55%, transparent),
+               0 0 4px var(--gold-bright, #ffd964);
+}
+.qf-toast-legendary .qf-toast-subtitle {
+  color: #f0d878;
+}
+.qf-toast-legendary .qf-toast-glyph {
+  font-size: 22px;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gold-bright, #ffd964) 60%, transparent));
+}
+@keyframes qf-toast-legendary-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 18px color-mix(in srgb, var(--gold-bright, #ffd964) 22%, transparent),
+      inset 4px 0 0 var(--gold-bright, #ffd964),
+      0 0 0 2px #000,
+      0 8px 24px rgba(0, 0, 0, 0.65),
+      0 0 28px color-mix(in srgb, var(--gold-bright, #ffd964) 50%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 26px color-mix(in srgb, var(--gold-bright, #ffd964) 32%, transparent),
+      inset 4px 0 0 var(--gold-bright, #ffd964),
+      0 0 0 2px #000,
+      0 8px 24px rgba(0, 0, 0, 0.65),
+      0 0 42px color-mix(in srgb, var(--gold-bright, #ffd964) 75%, transparent);
+  }
+}
+
+/* Particle burst spawned alongside a legendary toast — a ring of
+   small gold sparks that fountain outward from the toast's position
+   and fade. Each particle gets per-element CSS variables (`--dx`,
+   `--dy`) set inline for trajectory; the keyframes animate from
+   origin (0,0) to (--dx, --dy) while fading + shrinking. */
+.qf-toast-legendary-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 200;
+}
+.qf-toast-legendary-particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+    #fff8dc 0%,
+    var(--gold-bright, #ffd964) 45%,
+    color-mix(in srgb, var(--gold-bright, #ffd964) 60%, transparent) 80%,
+    transparent 100%);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--gold-bright, #ffd964) 70%, transparent);
+  animation-name: qf-toast-legendary-particle-fly;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+@keyframes qf-toast-legendary-particle-fly {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(var(--dx, 60px), var(--dy, 60px)) scale(0.3);
+    opacity: 0;
+  }
+}
+
 /* ---------- Generic Overlay shell ---------- */
 .qf-overlay-head {
   display: flex;
@@ -6986,6 +7089,14 @@ body {
   padding: 2px 6px;
   border-width: 1px; border-style: solid;
   letter-spacing: 1px;
+  /* Player titles can be longer than the legacy IMMORTAL/BUTCHER/CUNNING
+     fixed strings (up to ~20 chars for "Veteran Exterminator"). Clamp +
+     ellipsis so cramped podium cards never explode. */
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
 }
 
 .qf-lb-main {
@@ -7084,6 +7195,13 @@ body {
   padding: 2px 6px;
   border-width: 1px; border-style: solid;
   letter-spacing: 1px;
+  /* Title-or-accolade may span 20-ish chars; clamp the chip so the
+     detail header layout stays clean even on the widest titles. */
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
 }
 .qf-lb-detail-youtag {
   font-size: 7px;
@@ -9877,6 +9995,1367 @@ body {
 @keyframes cmpsel-head-in   { from { opacity: 0; transform: translateY(-16px); } }
 @keyframes cmpsel-footer-in { from { opacity: 0; transform: translateY(20px); } }
 @keyframes cmpsel-card-in   { from { opacity: 0; transform: translateY(44px); } }
+
+/* ============================================================
+   Achievements (AchievementsOverlay) — Hall of Trophies screen
+   Full-screen DOM overlay opened from MainMenu's ACHIEVEMENTS button
+   + (Phase C) from the per-row 🏆 chip on the leaderboard. Same pix-
+   art / accent-border vocabulary as the recruit screen for visual
+   consistency. Scrolls vertically when the grid is taller than the
+   stage; tabs filter the grid by category.
+   ============================================================ */
+
+/* Centered HALL OF TROPHIES title in the Overlay shell's header bar.
+   The shared shell defaults to `justify-content: space-between` (title
+   left, close X right) — for the achievements overlay we want the
+   title centered. `:has(.qf-ach)` targets only the modal whose body is
+   an achievements overlay, so other Overlay-shell users (Leaderboard,
+   Settings, Pause, etc.) keep their left-aligned titles. */
+.modal:has(.qf-ach) .qf-overlay-head {
+  justify-content: center;
+  position: relative;
+}
+.modal:has(.qf-ach) .qf-overlay-close {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.qf-ach {
+  /* Sits inside the shared `Overlay` shell's modal box (1300×840) —
+     the shell provides the backdrop, header bar with title + close X,
+     and Esc / backdrop-click affordances. This is just the inner
+     body content, so it fills the available space. */
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  font-family: var(--ui, sans-serif);
+  overflow: hidden;
+  /* Per-category hero colors — applied to icons, card borders, name
+     shadows, reward chips, recent-strip icons, and the title chip's
+     source-category accent. Gold is reserved for ECONOMY (where it's
+     thematic) + the LEADERBOARD CTA + the run counter. The "boss" /
+     "companion" / "title" tokens drive reward-chip color by reward
+     type (data-reward-type) — not category — so a boss-unlock chip
+     reads oxblood regardless of the parent card's category. */
+  --qf-cat-progression:      #f0a040;   /* amber — forward motion */
+  --qf-cat-combat:           #ff3782;   /* blood pink */
+  --qf-cat-economy:          #f3c44a;   /* warm gold (the real gold) */
+  --qf-cat-variety:          #4dd6e6;   /* cyan / teal */
+  --qf-cat-mastery:          #b78bff;   /* royal violet */
+  --qf-reward-boss:          #d04040;   /* oxblood */
+  --qf-reward-companion:     #ff77b3;   /* rose pink */
+  --qf-reward-title:         #b78bff;   /* same violet as mastery */
+}
+
+/* Header band — inside the modal box, beneath the Overlay shell's
+   title bar. Compact horizontal row: counter on the left, title chip
+   centered, optional compare toggle on the right (viewer mode). The
+   shell's title bar (above this) already says "HALL OF TROPHIES" so we
+   skip the eyebrow + big title that the old full-screen layout had.
+   `z-index: 20` (higher than tabs row / recent strip / view-wrap, all
+   at z-index 4) so the title-picker dropdown — which is inside this
+   header's stacking context — paints above those elements when it
+   drops down below the title chip. */
+.qf-ach-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 14px 24px 6px;
+  z-index: 20;
+  position: relative;
+}
+.qf-ach-counter {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--gold-bright, #ffd964);
+}
+/* Wrap around the title chip so the picker can `position: absolute;
+   top: 100%` directly beneath it. */
+.qf-ach-titlechip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+/* Active-title chip in the header. Shows beneath the counter in self-
+   view only. Border + glow + name color inherit the SOURCE-CATEGORY
+   of the equipped title (via `data-source-cat`), so the chip is an
+   expressive readout of what the player is flexing: "The Hoarder"
+   reads gold (economy), "The Tyrant" reads amber (progression),
+   "The Hunter" reads cyan (variety), and so on. */
+.qf-ach-titlechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  border: 2px solid var(--qf-cat-mastery);   /* fallback */
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-cat-mastery) 38%, transparent);
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.qf-ach-titlechip:hover { transform: translateY(-1px); }
+
+/* Per-source-category accent. The label glyph (✦  TITLE) and the
+   title name inherit the same hue. */
+.qf-ach-titlechip[data-source-cat="progression"] {
+  border-color: var(--qf-cat-progression);
+  box-shadow: 0 0 0 2px #000,
+              0 0 18px color-mix(in srgb, var(--qf-cat-progression) 42%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="progression"] .qf-ach-titlechip-label,
+.qf-ach-titlechip[data-source-cat="progression"] .qf-ach-titlechip-name {
+  color: var(--qf-cat-progression);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--qf-cat-progression) 45%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="combat"] {
+  border-color: var(--qf-cat-combat);
+  box-shadow: 0 0 0 2px #000,
+              0 0 18px color-mix(in srgb, var(--qf-cat-combat) 42%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="combat"] .qf-ach-titlechip-label,
+.qf-ach-titlechip[data-source-cat="combat"] .qf-ach-titlechip-name {
+  color: var(--qf-cat-combat);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--qf-cat-combat) 45%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="economy"] {
+  border-color: var(--qf-cat-economy);
+  box-shadow: 0 0 0 2px #000,
+              0 0 18px color-mix(in srgb, var(--qf-cat-economy) 42%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="economy"] .qf-ach-titlechip-label,
+.qf-ach-titlechip[data-source-cat="economy"] .qf-ach-titlechip-name {
+  color: var(--qf-cat-economy);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--qf-cat-economy) 45%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="variety"] {
+  border-color: var(--qf-cat-variety);
+  box-shadow: 0 0 0 2px #000,
+              0 0 18px color-mix(in srgb, var(--qf-cat-variety) 42%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="variety"] .qf-ach-titlechip-label,
+.qf-ach-titlechip[data-source-cat="variety"] .qf-ach-titlechip-name {
+  color: var(--qf-cat-variety);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--qf-cat-variety) 45%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="mastery"] {
+  border-color: var(--qf-cat-mastery);
+  box-shadow: 0 0 0 2px #000,
+              0 0 18px color-mix(in srgb, var(--qf-cat-mastery) 42%, transparent);
+}
+.qf-ach-titlechip[data-source-cat="mastery"] .qf-ach-titlechip-label,
+.qf-ach-titlechip[data-source-cat="mastery"] .qf-ach-titlechip-name {
+  color: var(--qf-cat-mastery);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--qf-cat-mastery) 45%, transparent);
+}
+
+.qf-ach-titlechip-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+}
+.qf-ach-titlechip-name {
+  font-size: 14px;
+  letter-spacing: 3px;
+}
+.qf-ach-titlechip-count {
+  color: var(--text-mute);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+}
+/* Compare-with-you toggle — viewer-mode only (Phase C). Sits inline in
+   the header flex row beside the counter / title chip (was absolute-
+   positioned when the screen was full-screen; in the popup that put it
+   on top of the LEADERBOARD button). */
+.qf-ach-compare-toggle {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 8px 14px;
+}
+
+/* Tabs row — category filters on the left, prominent LEADERBOARD
+   destination button on the right. The leaderboard button is sized +
+   styled to read as a distinct CTA, not just another tab. */
+.qf-ach-tabsrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px 4px;
+  z-index: 4;
+  gap: 16px;
+}
+.qf-ach-tabs {
+  display: flex;
+  gap: 4px;
+}
+.qf-ach-tab {
+  font-family: var(--pix);
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 8px 18px;
+  background: var(--bg-1);
+  border: 2px solid var(--text-mute);
+  color: var(--text-mute);
+  cursor: pointer;
+  box-shadow: 0 0 0 2px #000;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+.qf-ach-tab:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+/* Active state — ALL tab keeps the neutral white look so it reads as
+   "no filter"; each per-category tab adopts that category's color
+   when active, reinforcing the color mapping the cards now use. */
+.qf-ach-tab.is-active {
+  color: var(--text);
+  border-color: var(--text);
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  box-shadow: 0 0 0 2px #000;
+}
+.qf-ach-tab.is-active[data-cat="progression"] {
+  color: var(--qf-cat-progression);
+  border-color: var(--qf-cat-progression);
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-cat-progression) 35%, transparent);
+}
+.qf-ach-tab.is-active[data-cat="combat"] {
+  color: var(--qf-cat-combat);
+  border-color: var(--qf-cat-combat);
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-cat-combat) 35%, transparent);
+}
+.qf-ach-tab.is-active[data-cat="economy"] {
+  color: var(--qf-cat-economy);
+  border-color: var(--qf-cat-economy);
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-cat-economy) 35%, transparent);
+}
+.qf-ach-tab.is-active[data-cat="variety"] {
+  color: var(--qf-cat-variety);
+  border-color: var(--qf-cat-variety);
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-cat-variety) 35%, transparent);
+}
+.qf-ach-tab.is-active[data-cat="mastery"] {
+  color: var(--qf-cat-mastery);
+  border-color: var(--qf-cat-mastery);
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-cat-mastery) 35%, transparent);
+}
+
+/* LEADERBOARD destination button — sits to the right of the category
+   tabs. Visually distinct from the tab strip: larger, gold-burst
+   styling, soft pulse animation, prominent trophy glyph. Reads as
+   "go here for the rankings," not "filter by leaderboard." */
+.qf-ach-lb-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--gold-bright, #ffd964) 95%, #fff),
+    var(--gold));
+  border: 2px solid #1a0a0a;
+  color: #1a0a0a;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    0 0 0 2px color-mix(in srgb, var(--gold-bright, #ffd964) 80%, #fff),
+    0 0 22px color-mix(in srgb, var(--gold-bright, #ffd964) 55%, transparent),
+    0 6px 16px rgba(0, 0, 0, 0.55);
+  /* Subtle pulse so the button continuously draws the eye without
+     getting annoying. Cubic timing for a soft in-out. */
+  animation: qf-ach-lb-pulse 2.6s ease-in-out infinite;
+  transition: transform 140ms ease;
+}
+.qf-ach-lb-btn:hover {
+  transform: translateY(-2px) scale(1.04);
+}
+.qf-ach-lb-btn.is-active {
+  /* When the leaderboard view is showing, dampen the pulse and use a
+     pressed-in look so the player knows they're already there. */
+  animation: none;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--gold-bright, #ffd964) 60%, #000),
+    color-mix(in srgb, var(--gold) 80%, #000));
+  color: #fff;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.45),
+    0 0 0 2px var(--gold-bright, #ffd964),
+    0 0 12px color-mix(in srgb, var(--gold-bright, #ffd964) 45%, transparent);
+  transform: none;
+}
+.qf-ach-lb-btn-glyph {
+  font-size: 22px;
+  line-height: 1;
+}
+.qf-ach-lb-btn-label {
+  font-size: 11px;
+  letter-spacing: 4px;
+  font-weight: 700;
+}
+@keyframes qf-ach-lb-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+      0 0 0 2px color-mix(in srgb, var(--gold-bright, #ffd964) 80%, #fff),
+      0 0 16px color-mix(in srgb, var(--gold-bright, #ffd964) 45%, transparent),
+      0 6px 16px rgba(0, 0, 0, 0.55);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+      0 0 0 2px color-mix(in srgb, var(--gold-bright, #ffd964) 80%, #fff),
+      0 0 34px color-mix(in srgb, var(--gold-bright, #ffd964) 70%, transparent),
+      0 6px 22px rgba(0, 0, 0, 0.65);
+  }
+}
+
+/* Recent-unlocks strip — sits between the tabs row and the view-wrap in
+   self-view. Three most-recent achievement cards, label on the left,
+   timeline on the right. Kept compact so it doesn't push the grid down
+   too far on shorter resolutions. Hidden when the player has nothing
+   unlocked yet (rendered to `null`). */
+.qf-ach-recent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 18px 4px;
+  margin: 0 auto;
+  width: 100%;
+  z-index: 4;
+}
+.qf-ach-recent-label {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 9px;
+  letter-spacing: 3px;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+.qf-ach-recent-list {
+  display: flex;
+  gap: 10px;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.qf-ach-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: var(--bg-1);
+  /* Neutral muted border by default — each item's icon supplies the
+     category-specific color via .qf-ach-recent-icon below. Keeping
+     the item border neutral prevents the strip from reading as three
+     different chunks of color competing with each other. */
+  border: 2px solid color-mix(in srgb, var(--text-mute) 80%, transparent);
+  box-shadow: 0 0 0 2px #000;
+  min-width: 0;
+  flex: 1 1 0;
+}
+.qf-ach-recent-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex: 0 0 auto;
+  text-shadow: 0 0 6px currentColor;
+}
+/* Inherit the new per-category color tokens so the icon in the recent
+   strip matches the icon on its card in the grid. */
+.qf-ach-recent-icon.qf-ach-icon--progression { color: var(--qf-cat-progression); }
+.qf-ach-recent-icon.qf-ach-icon--combat      { color: var(--qf-cat-combat); }
+.qf-ach-recent-icon.qf-ach-icon--economy     { color: var(--qf-cat-economy); }
+.qf-ach-recent-icon.qf-ach-icon--variety     { color: var(--qf-cat-variety); }
+.qf-ach-recent-icon.qf-ach-icon--mastery     { color: var(--qf-cat-mastery); }
+.qf-ach-recent-textcol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.qf-ach-recent-name {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.qf-ach-recent-time {
+  font-size: 9px;
+  color: var(--text-mute);
+  letter-spacing: 1px;
+}
+
+/* Title-picker popup — floating panel that drops in directly beneath
+   the title chip via `position: absolute; top: 100%` against the
+   `.qf-ach-titlechip-wrap` (a `position: relative` parent of both the
+   chip and the picker). Robust to header layout changes. */
+.qf-ach-titlepicker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  min-width: 320px;
+  max-width: 480px;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 2px #000,
+              0 0 24px color-mix(in srgb, var(--gold) 45%, transparent),
+              0 10px 30px rgba(0, 0, 0, 0.7);
+  padding: 12px;
+  display: none;
+}
+.qf-ach-titlepicker[data-open="true"] {
+  display: block;
+  animation: qf-ach-titlepicker-in 160ms ease-out;
+}
+@keyframes qf-ach-titlepicker-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.qf-ach-titlepicker-head {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  margin-bottom: 6px;
+}
+.qf-ach-titlepicker-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.qf-ach-titlepicker-row:hover {
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+  border-color: color-mix(in srgb, var(--gold) 40%, transparent);
+}
+.qf-ach-titlepicker-row.is-active {
+  background: color-mix(in srgb, var(--gold-bright, #ffd964) 18%, transparent);
+  border-color: var(--gold-bright, #ffd964);
+  box-shadow: inset 0 0 8px color-mix(in srgb, var(--gold-bright, #ffd964) 25%, transparent);
+}
+.qf-ach-titlepicker-name {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--gold-bright, #ffd964);
+}
+.qf-ach-titlepicker-sub {
+  font-size: 9px;
+  color: var(--text-mute);
+  letter-spacing: 1px;
+}
+
+/* View wrap — scrollable region that swaps between the category grid
+   and the leaderboard view. Same scrollbar styling for both. */
+.qf-ach-view-wrap {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Heavy horizontal padding — the Overlay shell draws a ~18px-wide
+     inset gold frame inside the modal box, and the 20px body padding
+     barely covers it. Add another 24px on each side here so cards
+     have clear visual breathing room from the frame regardless of
+     scrollbar state. */
+  padding: 10px 24px 8px;
+  z-index: 4;
+  box-sizing: border-box;
+}
+/* Alias for the old class so any in-flight DOM references still work. */
+.qf-ach-grid-wrap {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 36px 8px;
+  z-index: 4;
+}
+.qf-ach-grid {
+  display: grid;
+  /* 3 columns fits the 1300px modal much better than the old 4-col
+     layout that was tuned for full-screen — at 4 columns each card
+     was ~296px wide and badge+chip kept colliding with the name.
+     `minmax(0, 1fr)` (instead of plain `1fr`) is the classic fix for
+     unequal column widths in CSS grid: plain `1fr` resolves to
+     `minmax(auto, 1fr)` which won't shrink columns below their
+     content's intrinsic minimum, so any card with non-wrapping content
+     (e.g. a long reward chip like "Title: Architect of Ruin") pushes
+     its column wider than the others. `minmax(0, 1fr)` lets columns
+     shrink below content-min, forcing the 3 columns to stay equal. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* Card */
+.qf-ach-card {
+  position: relative;
+  background: var(--bg-1);
+  border: 2px solid var(--text-mute);
+  box-shadow: 0 0 0 2px #000, 0 4px 12px rgba(0, 0, 0, 0.5);
+  padding: 12px 14px;
+  min-height: 90px;
+  /* Locked = greyscale + dim. Unlocked overrides per-category below
+     (data-category="progression" / "combat" / "economy" / "variety"
+     / "mastery"). Border, glow, name shadow, and background tint all
+     pick up the category color so the grid reads as bands of color
+     rather than a flat wall of gold. */
+  filter: saturate(0.3) brightness(0.7);
+  opacity: 0.65;
+  transition: filter 200ms ease, opacity 200ms ease, border-color 200ms ease,
+              box-shadow 200ms ease, transform 200ms ease, background 200ms ease;
+}
+.qf-ach-card[data-unlocked="true"] { filter: none; opacity: 1; }
+.qf-ach-card:hover                  { transform: translateY(-2px); }
+
+/* Per-category unlocked card treatment — the border is darker (75%
+   mix into bg) so it reads as a metal frame instead of a glowing
+   colored band; the outer glow is gone (the card no longer "blooms"
+   color into the surrounding space); the bg-tint is a barely-there
+   3% mix so the grid still reads as color-banded on skim without
+   any single card looking saturated. The icon is now the only fully-
+   colored focal point on each card. */
+.qf-ach-card[data-unlocked="true"][data-category="progression"] {
+  border-color: color-mix(in srgb, var(--qf-cat-progression) 75%, #000);
+  background: color-mix(in srgb, var(--qf-cat-progression) 3%, var(--bg-1));
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.qf-ach-card[data-unlocked="true"][data-category="combat"] {
+  border-color: color-mix(in srgb, var(--qf-cat-combat) 75%, #000);
+  background: color-mix(in srgb, var(--qf-cat-combat) 3%, var(--bg-1));
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.qf-ach-card[data-unlocked="true"][data-category="economy"] {
+  border-color: color-mix(in srgb, var(--qf-cat-economy) 75%, #000);
+  background: color-mix(in srgb, var(--qf-cat-economy) 3%, var(--bg-1));
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.qf-ach-card[data-unlocked="true"][data-category="variety"] {
+  border-color: color-mix(in srgb, var(--qf-cat-variety) 75%, #000);
+  background: color-mix(in srgb, var(--qf-cat-variety) 3%, var(--bg-1));
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.qf-ach-card[data-unlocked="true"][data-category="mastery"] {
+  border-color: color-mix(in srgb, var(--qf-cat-mastery) 75%, #000);
+  background: color-mix(in srgb, var(--qf-cat-mastery) 4%, var(--bg-1));
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+/* Hover state — bring the glow back as a hover affordance so the
+   card lights up when the player engages with it, instead of glowing
+   constantly. */
+.qf-ach-card[data-unlocked="true"][data-category="progression"]:hover {
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5),
+              0 0 18px color-mix(in srgb, var(--qf-cat-progression) 35%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="combat"]:hover {
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5),
+              0 0 18px color-mix(in srgb, var(--qf-cat-combat) 35%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="economy"]:hover {
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5),
+              0 0 18px color-mix(in srgb, var(--qf-cat-economy) 35%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="variety"]:hover {
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5),
+              0 0 18px color-mix(in srgb, var(--qf-cat-variety) 35%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="mastery"]:hover {
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5),
+              0 0 18px color-mix(in srgb, var(--qf-cat-mastery) 35%, transparent);
+}
+
+/* Legendary tier — the six showcase achievements (LEGENDARY_IDS in
+   AchievementsOverlay.js). They get a thin holographic-style shimmer
+   stripe that sweeps across the card on a slow loop, plus a soft
+   persistent gold pulse + ember inner glow so they read as a
+   prestige tier above the rest. Only applies when unlocked — locked
+   legendary cards stay in the standard locked treatment. */
+.qf-ach-card[data-unlocked="true"][data-legendary="true"] {
+  position: relative;
+  overflow: hidden;
+  border-width: 2px;
+  border-color: var(--gold-bright, #ffd964);
+  background:
+    radial-gradient(ellipse at top, color-mix(in srgb, var(--gold-bright, #ffd964) 10%, transparent), transparent 70%),
+    color-mix(in srgb, var(--gold-bright, #ffd964) 6%, var(--bg-1));
+  box-shadow:
+    inset 0 0 22px color-mix(in srgb, var(--gold-bright, #ffd964) 12%, transparent),
+    0 0 0 2px #000,
+    0 4px 14px rgba(0, 0, 0, 0.55),
+    0 0 22px color-mix(in srgb, var(--gold-bright, #ffd964) 32%, transparent);
+  animation: qf-ach-legendary-pulse 3.6s ease-in-out infinite;
+}
+/* The sweep — a thin diagonal highlight stripe (built from a 100deg
+   linear-gradient with most of the band transparent) translates from
+   off-screen-left to off-screen-right every 5s, pauses briefly, then
+   loops. The diagonal angle + brief transparent core + brighter white
+   peak read as a moving glint of light catching the card. */
+.qf-ach-card[data-unlocked="true"][data-legendary="true"]::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 60%;
+  left: -80%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 38%,
+    color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent) 47%,
+    color-mix(in srgb, #fff 45%, transparent) 50%,
+    color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent) 53%,
+    transparent 62%,
+    transparent 100%
+  );
+  animation: qf-ach-legendary-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: screen;
+}
+/* Stack the card content above the shimmer pseudo-element (z-index: 0).
+   For `.qf-ach-card-row` we have to give it `position: relative` to
+   trigger z-index. For `.qf-ach-rarity` + `.qf-ach-compare-badge` we
+   MUST NOT touch `position` — they're already `position: absolute`
+   with top/right corner anchoring, and a `relative` override would
+   yank them out of the corner and dump them into document flow on
+   top of the title text. Bumping z-index alone is enough since
+   `absolute` creates its own stacking context inside the card. */
+.qf-ach-card[data-unlocked="true"][data-legendary="true"] .qf-ach-card-row {
+  position: relative;
+  z-index: 1;
+}
+.qf-ach-card[data-unlocked="true"][data-legendary="true"] .qf-ach-rarity,
+.qf-ach-card[data-unlocked="true"][data-legendary="true"] .qf-ach-compare-badge {
+  z-index: 2;
+}
+@keyframes qf-ach-legendary-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 22px color-mix(in srgb, var(--gold-bright, #ffd964) 12%, transparent),
+      0 0 0 2px #000,
+      0 4px 14px rgba(0, 0, 0, 0.55),
+      0 0 22px color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 30px color-mix(in srgb, var(--gold-bright, #ffd964) 20%, transparent),
+      0 0 0 2px #000,
+      0 4px 14px rgba(0, 0, 0, 0.55),
+      0 0 32px color-mix(in srgb, var(--gold-bright, #ffd964) 48%, transparent);
+  }
+}
+@keyframes qf-ach-legendary-sweep {
+  /* Sweep across the card from off-left to off-right, then pause off-
+     screen for ~half the cycle before restarting. The pause prevents
+     the effect from feeling like a busy, constant scroll. */
+  0%       { left: -80%; }
+  55%      { left: 180%; }
+  100%     { left: 180%; }
+}
+
+.qf-ach-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.qf-ach-card-col {
+  flex: 1;
+  min-width: 0;
+  /* Reserve right-edge space so the absolute-positioned `.qf-ach-rarity`
+     pill never overlaps the achievement name. Width tuned to the rarity
+     badge's max footprint (~52px badge + 8px right offset = 60px). */
+  padding-right: 56px;
+}
+
+/* Icon — pix-art glyph in a fixed-size badge. This is the "medal"
+   on each trophy card: it carries the category color (border + glyph
+   + glow) while everything else on the card stays neutral. The
+   radial-gradient bg gives the badge depth — a darker center fading
+   to near-black at the edges — so the glyph reads as embossed metal.
+   Locked cards keep the muted grey treatment. */
+.qf-ach-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: radial-gradient(circle at center, #1a1018, var(--bg-0));
+  border: 2px solid currentColor;
+  color: var(--text-mute);
+  box-shadow: 0 0 0 2px #000,
+              inset 0 0 8px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 0 10px currentColor,
+               0 0 4px currentColor;
+}
+/* Unlocked badges get a soft outer glow + subtle category-tinted
+   radial bg, so the medal pops off the dark card. The icon GLYPH +
+   BORDER color follow REWARD TYPE (not category) — that breaks the
+   monochrome where border + icon were the same hue, and creates an
+   instant visual cue for what the achievement awards. The category
+   tint stays on the badge bg + the card border, so the card still
+   reads as category-banded on skim. */
+.qf-ach-card[data-unlocked="true"] .qf-ach-icon {
+  box-shadow: 0 0 0 2px #000,
+              inset 0 0 10px rgba(0, 0, 0, 0.55),
+              0 0 12px color-mix(in srgb, currentColor 35%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="progression"] .qf-ach-icon {
+  background: radial-gradient(circle at center,
+              color-mix(in srgb, var(--qf-cat-progression) 14%, #1a1018), var(--bg-0));
+}
+.qf-ach-card[data-unlocked="true"][data-category="combat"] .qf-ach-icon {
+  background: radial-gradient(circle at center,
+              color-mix(in srgb, var(--qf-cat-combat) 14%, #1a1018), var(--bg-0));
+}
+.qf-ach-card[data-unlocked="true"][data-category="economy"] .qf-ach-icon {
+  background: radial-gradient(circle at center,
+              color-mix(in srgb, var(--qf-cat-economy) 14%, #1a1018), var(--bg-0));
+}
+.qf-ach-card[data-unlocked="true"][data-category="variety"] .qf-ach-icon {
+  background: radial-gradient(circle at center,
+              color-mix(in srgb, var(--qf-cat-variety) 14%, #1a1018), var(--bg-0));
+}
+.qf-ach-card[data-unlocked="true"][data-category="mastery"] .qf-ach-icon {
+  background: radial-gradient(circle at center,
+              color-mix(in srgb, var(--qf-cat-mastery) 14%, #1a1018), var(--bg-0));
+}
+/* Icon color by REWARD TYPE — pure-recognition (no reward, no title)
+   reads cream like an unclaimed plaque; reward-bearing cards adopt
+   the color of their reward chip so chip + medal share a hue, with
+   the card border in the contrasting category color. */
+.qf-ach-card[data-unlocked="true"][data-reward-type="recognition"] .qf-ach-icon {
+  color: #d8d2c4;   /* parchment cream */
+}
+.qf-ach-card[data-unlocked="true"][data-reward-type="boss"] .qf-ach-icon {
+  color: var(--qf-reward-boss);
+}
+.qf-ach-card[data-unlocked="true"][data-reward-type="companion"] .qf-ach-icon {
+  color: var(--qf-reward-companion);
+}
+.qf-ach-card[data-unlocked="true"][data-reward-type="title"] .qf-ach-icon {
+  color: var(--qf-reward-title);
+}
+
+/* Text — engraved-parchment feel. The name reads as a brass nameplate
+   on the trophy card; the colored "medal" is the icon. Keeping the
+   name neutral means each card has ONE focal point in its category
+   color (the icon) instead of three (border + icon + name) all
+   shouting the same hue. */
+.qf-ach-name {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+/* Unlocked cards get a parchment-cream name with a soft dark shadow
+   that gives an "engraved" look without adding another instance of
+   the category color. The per-category text-shadow is a very subtle
+   hue-tint (8% mix) so the name still feels keyed to its category
+   without competing with the icon. */
+.qf-ach-card[data-unlocked="true"] .qf-ach-name {
+  color: #ece2d2;       /* warm parchment */
+  text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.6);
+}
+.qf-ach-card[data-unlocked="true"][data-category="progression"] .qf-ach-name {
+  text-shadow: 0 1px 0 #000,
+               0 0 8px color-mix(in srgb, var(--qf-cat-progression) 12%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="combat"] .qf-ach-name {
+  text-shadow: 0 1px 0 #000,
+               0 0 8px color-mix(in srgb, var(--qf-cat-combat) 12%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="economy"] .qf-ach-name {
+  text-shadow: 0 1px 0 #000,
+               0 0 8px color-mix(in srgb, var(--qf-cat-economy) 12%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="variety"] .qf-ach-name {
+  text-shadow: 0 1px 0 #000,
+               0 0 8px color-mix(in srgb, var(--qf-cat-variety) 12%, transparent);
+}
+.qf-ach-card[data-unlocked="true"][data-category="mastery"] .qf-ach-name {
+  text-shadow: 0 1px 0 #000,
+               0 0 8px color-mix(in srgb, var(--qf-cat-mastery) 12%, transparent);
+}
+.qf-ach-desc {
+  font-size: 11px;
+  color: var(--text-mute);
+  line-height: 1.4;
+}
+
+/* Progress bar — shown for in-progress numeric achievements. */
+.qf-ach-progress {
+  margin-top: 8px;
+}
+.qf-ach-progress-track {
+  height: 6px;
+  background: var(--bg-0);
+  border: 1px solid var(--text-mute);
+  box-shadow: 0 0 0 1px #000;
+}
+.qf-ach-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--gold) 75%, transparent),
+    var(--gold-bright, #ffd964));
+}
+.qf-ach-progress-text {
+  margin-top: 4px;
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text-mute);
+}
+
+/* Reward chip — boss / companion / title unlock callout. Per-type
+   color (oxblood for boss, rose for companion, violet for title) so
+   the kind of reward reads at a glance instead of every chip being
+   uniformly gold-bordered. Each variant gets a soft background tint
+   + matching glow so the chip stands out against the card body. */
+.qf-ach-reward {
+  margin-top: 8px;
+  display: inline-block;
+  padding: 4px 8px;
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  border: 1px solid currentColor;
+  box-shadow: 0 0 0 1px #000;
+  background: transparent;
+  /* Keep the reward chip on a single line — at narrower card widths
+     (we're now in a 1300px popup, not full-screen) "♥ Unlocks
+     companion: ZULGATH" was wrapping mid-text and reading as broken.
+     `max-width: 100%` lets the chip shrink to its column; ellipsis
+     handles edge-case overflows on very long companion ids. */
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qf-ach-reward--boss {
+  color: var(--qf-reward-boss);
+  background: color-mix(in srgb, var(--qf-reward-boss) 10%, transparent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--qf-reward-boss) 50%, transparent);
+}
+.qf-ach-reward--companion {
+  color: var(--qf-reward-companion);
+  background: color-mix(in srgb, var(--qf-reward-companion) 10%, transparent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--qf-reward-companion) 50%, transparent);
+}
+.qf-ach-reward--title {
+  color: var(--qf-reward-title);
+  background: color-mix(in srgb, var(--qf-reward-title) 10%, transparent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--qf-reward-title) 50%, transparent);
+}
+
+/* Rarity badge — small "X% earned" pill in the card's top-right corner.
+   Rare achievements (< 10% of players) get a gold-bright burst; common
+   ones use a muted neutral. Only shows when the rarity sample has been
+   ingested (after the achievement leaderboard fetches). */
+.qf-ach-rarity {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 8px;
+  font-family: var(--pix);
+  background: var(--bg-0);
+  border: 1px solid var(--text-mute);
+  box-shadow: 0 0 0 1px #000;
+  color: var(--text-mute);
+  z-index: 1;
+}
+.qf-ach-rarity-pct {
+  font-size: 11px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.qf-ach-rarity-label {
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+  color: var(--text-dim);
+}
+.qf-ach-rarity--rare {
+  border-color: var(--gold-bright, #ffd964);
+  color: var(--gold-bright, #ffd964);
+  box-shadow: 0 0 0 1px #000,
+              0 0 10px color-mix(in srgb, var(--gold-bright, #ffd964) 45%, transparent);
+}
+.qf-ach-rarity--rare .qf-ach-rarity-label {
+  color: var(--gold-bright, #ffd964);
+}
+
+/* Compare-mode badge — small square in the card's top-right corner.
+   Phase C feature; classes here so the markup can sit in the DOM tree
+   even when the toggle is off (zero-cost when hidden). */
+.qf-ach-compare-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #000;
+  box-shadow: 0 0 0 1px var(--text-mute);
+  z-index: 1;
+}
+.qf-ach-compare-badge--both       { background: #4ade80; }
+.qf-ach-compare-badge--their-edge { background: #38bdf8; }
+.qf-ach-compare-badge--your-edge  { background: #fbbf24; }
+.qf-ach-compare-badge--neither    { background: var(--bg-0); }
+
+/* Footer + BACK button — REMOVED 2026-05-26 when the overlay was
+   converted to a popup using the shared Overlay shell. The shell's
+   close-X button + Esc + backdrop click cover all the dismissal paths
+   the BACK button used to handle. Rule preserved here as a no-op anchor
+   so any stale references in old CSS overrides don't bork. */
+.qf-ach-footer { display: none; }
+
+/* Scrollbar — keep it subtle but visible (default browser scrollbars
+   look out of place in a pix-art UI). Same rules apply to both the
+   legacy `.qf-ach-grid-wrap` and the unified `.qf-ach-view-wrap`. */
+.qf-ach-view-wrap::-webkit-scrollbar,
+.qf-ach-grid-wrap::-webkit-scrollbar {
+  width: 10px;
+}
+.qf-ach-view-wrap::-webkit-scrollbar-track,
+.qf-ach-grid-wrap::-webkit-scrollbar-track {
+  background: var(--bg-0);
+  border-left: 2px solid #000;
+}
+.qf-ach-view-wrap::-webkit-scrollbar-thumb,
+.qf-ach-grid-wrap::-webkit-scrollbar-thumb {
+  background: var(--bg-1);
+  border: 2px solid var(--gold);
+}
+
+/* ── Achievement leaderboard view ───────────────────────────────────── */
+
+.qf-ach-lb {
+  max-width: 1700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.qf-ach-lb-status {
+  text-align: center;
+  padding: 80px 24px;
+  font-family: var(--pix);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+}
+.qf-ach-lb-status--error { color: var(--warn); }
+
+/* YOUR RANK band — always-visible self-anchor at the top of the lb. */
+.qf-ach-lb-yourrank {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 2px #000,
+              inset 0 0 18px color-mix(in srgb, var(--gold) 18%, transparent);
+  gap: 16px;
+}
+.qf-ach-lb-yourrank-label {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--text-mute);
+}
+.qf-ach-lb-yourrank-value {
+  flex: 1;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--gold-bright, #ffd964);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--gold-bright, #ffd964) 40%, transparent);
+}
+.qf-ach-lb-yourrank-count {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text);
+}
+
+/* Top-3 podium — three boxed cards in a 1fr 1fr 1fr row. */
+/* Podium — three boss-portrait cards above the table, mirrors the
+   main run-leaderboard's `.qf-lb-podium-card` visual language: floating
+   `#N` badge at top, framed sprite, rank-colored top border + name.
+   DOM order is [#2, #1, #3] so the visual reads as a podium step
+   (silver-left, gold-center-tallest, bronze-right). Center column
+   slightly wider via `1.2fr` to give #1 visual prominence. */
+.qf-ach-lb-podium {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 12px;
+  /* `align-items: end` anchors all three cards to the same baseline
+     so taller #1 in the center grows UPWARD instead of all cards
+     stretching to match — that's what gives the podium-step look. */
+  align-items: end;
+  /* The badge floats above the card with `top: -16px`. Without padding,
+     the badge would clip against the view-wrap's overflow. */
+  padding-top: 22px;
+}
+/* Podium card — horizontal triptych: [companion sprite | center column
+   (badge + boss + name + title + count) | stats block]. Mirrors the
+   main run-leaderboard's full-featured card. */
+.qf-ach-lb-podium-card {
+  position: relative;
+  padding: 14px;
+  padding-top: 28px;
+  border: 2px solid var(--line-2, var(--text-mute));
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 10px;
+  min-height: 140px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+}
+.qf-ach-lb-podium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.5),
+              0 0 20px color-mix(in srgb, var(--rank-color, var(--gold)) 35%, transparent);
+}
+/* #1 sits taller than #2 / #3 to read as a proper podium step. */
+.qf-ach-lb-podium-card[data-rank="1"] { min-height: 200px; }
+.qf-ach-lb-podium-card[data-rank="2"] { min-height: 170px; }
+.qf-ach-lb-podium-card.is-you {
+  outline: 2px dashed var(--blood);
+  outline-offset: 2px;
+}
+
+/* Center column — boss + name + title + count. Sits between the
+   companion sprite (left) and the stats block (right). */
+.qf-ach-lb-podium-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Floating #N badge — sits above the card top, anchored to the rank
+   color via inline style. Matches `.qf-lb-podium-badge`. */
+.qf-ach-lb-podium-badge {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 36px;
+  background: var(--bg-0);
+  border: 2px solid currentColor;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.qf-ach-lb-podium-sprite {
+  padding: 4px;
+  background: var(--bg-0);
+  border: 1px solid currentColor;
+}
+.qf-ach-lb-podium-name {
+  letter-spacing: 2px;
+  text-align: center;
+}
+.qf-ach-lb-podium-title {
+  font-size: 7px;
+  padding: 2px 6px;
+  border-width: 1px;
+  border-style: solid;
+  letter-spacing: 1px;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+.qf-ach-lb-podium-count {
+  /* Legacy class — the trophy count is now rendered via the styled
+     `_podiumTrophyBlock` instead. Kept as a no-op for any stale refs. */
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--gold-bright, #ffd964);
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* Stylized trophy-count block — replaces the plain "🏆 6 / 45" text on
+   each podium card. Big rank-colored number with a soft glow, smaller
+   "/ total" beside it, and a thin progress bar showing % of all
+   achievements unlocked. The headline stat for an achievement
+   leaderboard, so it earns the visual prominence. */
+.qf-ach-lb-podium-trophies {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  width: 100%;
+  max-width: 180px;
+}
+.qf-ach-lb-podium-trophies-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--pix);
+  white-space: nowrap;
+}
+.qf-ach-lb-podium-trophies-glyph {
+  line-height: 1;
+}
+.qf-ach-lb-podium-trophies-num {
+  /* Inline style sets the actual font-size + color + text-shadow per
+     rank. This rule just sets the shared typography. */
+  letter-spacing: 2px;
+  line-height: 1;
+  font-weight: 700;
+}
+.qf-ach-lb-podium-trophies-of {
+  letter-spacing: 1px;
+  color: var(--text-mute);
+  line-height: 1;
+}
+/* Thin progress bar — % of total achievements unlocked. Rank-colored
+   fill so the bar matches the medal. Inset black border for that
+   pix-art "framed" look that the rest of the achievements UI uses. */
+.qf-ach-lb-podium-trophies-bar {
+  height: 5px;
+  width: 100%;
+  background: var(--bg-0);
+  border: 1px solid #000;
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.qf-ach-lb-podium-trophies-fill {
+  height: 100%;
+  /* gradient + box-shadow set inline per rank — this is just the
+     base block. */
+  transition: width 240ms ease-out;
+}
+
+/* Left-side companion (keeper) block — sprite + name beneath. */
+.qf-ach-lb-podium-keeper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 2px;
+}
+.qf-ach-lb-podium-keeper-name {
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+/* Right-side stats block — BOSS LV / DAYS / KILLS in stacked framed
+   mini-panels. Width matches the keeper block on the other side so
+   the center column stays visually centered. */
+.qf-ach-lb-podium-statsblock {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 2px;
+}
+.qf-ach-lb-podium-stat {
+  /* Inline styles drive border / glow per rank — these declarations
+     are layout-only so per-rank styling can override cleanly. */
+  min-height: 24px;
+}
+
+/* List header strip + ranked rows — grid mirrors `.qf-lb-tablehead`
+   / `.qf-lb-row`: rank | sprite | name | trophies | arrow. */
+.qf-ach-lb-listhead,
+.qf-ach-lb-row {
+  display: grid;
+  grid-template-columns: 38px 38px 1fr 90px 24px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+}
+.qf-ach-lb-listhead {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--text-mute);
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line-2, var(--text-mute));
+}
+.qf-ach-lb-list {
+  display: flex;
+  flex-direction: column;
+  /* No gap — the row's `border-bottom` provides the separator, matching
+     the main leaderboard's tighter table feel. */
+}
+.qf-ach-lb-row {
+  background: transparent;
+  border-bottom: 1px solid var(--line, var(--text-mute));
+  border-left-width: 3px;
+  border-left-style: solid;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 140ms ease;
+}
+.qf-ach-lb-row:hover {
+  background: var(--bg-1);
+}
+.qf-ach-lb-row[data-isyou="true"] {
+  background: linear-gradient(90deg, rgba(255, 68, 88, 0.18), transparent);
+}
+.qf-ach-lb-row-rank {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-align: right;
+}
+.qf-ach-lb-row-sprite {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-0);
+  border: 1px solid var(--line, var(--text-mute));
+  display: grid;
+  place-items: center;
+}
+.qf-ach-lb-row-textcol { min-width: 0; }
+.qf-ach-lb-row-name {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.qf-ach-lb-row-youtag {
+  color: var(--blood);
+  letter-spacing: 2px;
+}
+.qf-ach-lb-row-count {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-align: right;
+}
+.qf-ach-lb-row-arrow {
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-mute);
+}
+.qf-ach-lb-row:hover .qf-ach-lb-row-arrow { color: var(--gold); }
+
+/* Pinned YOU row when you're outside the top-50. The "…" label above
+   tells the player they skipped a chunk of the list. */
+.qf-ach-lb-pinned {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+}
+.qf-ach-lb-pinned-label {
+  text-align: center;
+  font-size: 16px;
+  letter-spacing: 8px;
+  color: var(--text-dim);
+  padding: 4px 0;
+}
+
+/* Placeholder podium card — shown in unfilled #2/#3 slots when the
+   leaderboard has fewer than 3 real players. Inert (no hover, no
+   click), dimmed so it clearly reads as "empty slot" rather than a
+   real entry. Outer dimensions match `.qf-ach-lb-podium-card` so
+   the row stays visually balanced. */
+.qf-ach-lb-podium-card--placeholder {
+  pointer-events: none;
+  opacity: 0.85;
+}
+.qf-ach-lb-podium-card--placeholder:hover {
+  transform: none;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Global stats panel — bordered block beneath the ranked list with
+   four cells (total keepers, avg trophies, rarest trophy, most popular
+   title). Always rendered when the leaderboard has data; fills the
+   empty space below sparse leaderboards and adds permanent context
+   even when the board is fully populated. */
+.qf-ach-lb-stats {
+  margin-top: 18px;
+  border: 2px solid var(--line-2, var(--text-mute));
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5);
+  padding: 14px 16px 16px;
+}
+.qf-ach-lb-stats-head {
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 12px;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.qf-ach-lb-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.qf-ach-lb-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: var(--bg-0);
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--text-mute));
+  box-shadow: 0 0 0 1px #000;
+  min-width: 0;
+}
+.qf-ach-lb-stat-label {
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  text-align: center;
+}
+.qf-ach-lb-stat-value {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--gold-bright, #ffd964);
+  text-align: center;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent);
+  /* Long titles like "Veteran Hunter" or rare-achievement names can
+     blow out the cell; ellipsize cleanly. */
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* ============================================================
    ArchetypeSelect — decorative surround (ArchetypeDecorOverlay)

@@ -202,6 +202,7 @@ export class Preload extends Phaser.Scene {
     this.load.json('items',             'src/data/items.json')
     this.load.json('events',            'src/data/events.json')
     this.load.json('npcLines',          'src/data/npcLines.json')
+    this.load.json('achievements',      'src/data/achievements.json')
     this.load.json('malakorLines',      'src/data/malakorLines.json')
     this.load.json('zulgathLines',      'src/data/zulgathLines.json')
     this.load.json('safiraLines',       'src/data/safiraLines.json')
@@ -791,6 +792,19 @@ export class Preload extends Phaser.Scene {
   // render time; DungeonRenderer falls back to procedural for any cell whose
   // sprite texture isn't registered.
   async _loadThemesAndStart() {
+    // Boot the AchievementSystem now that the cache has the data file —
+    // it subscribes to EventBus + does a retroactive scan of existing
+    // save state (so old saves auto-unlock anything their profile already
+    // qualifies for). Wrapped in try so a malformed data file doesn't
+    // block MainMenu from starting.
+    try {
+      const { AchievementSystem } = await import('../systems/AchievementSystem.js')
+      const defs = this.cache.json.get('achievements')
+      AchievementSystem.init(defs)
+    } catch (err) {
+      console.warn('[Preload] AchievementSystem init failed:', err)
+    }
+
     const startMain = () => {
       // Fade out the DOM boot loader in parallel with the MainMenu
       // scene-start (its CSS transition runs while Phaser is spinning

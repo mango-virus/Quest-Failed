@@ -1063,6 +1063,95 @@ The companion roster expands beyond the original four — additional companions 
 - **No banter on the recruit screen** *(deviation noted 2026-05-25: round-robin recruitment chatter was REMOVED — the chat bubbles ate too much vertical space and the bigger portraits the player wanted needed that room. Each companion's `recruit.banter` line bank stays in their dialogue JSON for the boss-select side panel and any future re-introduction, but it is no longer surfaced on the recruit screen itself. The recruit screen now shows pure portraits + name plates only — character / tagline / traits, no live conversation.)*
 - **Locked-card visual.** A locked companion still renders in its slot — the player sees the character's **silhouette** (the sprite is dimmed + desaturated so the pose, outfit and colour palette stay readable; the face/details are muted). A pixel-art **padlock badge** sits in the portrait's top-right corner and the plate shows the companion's **name** plus a `◆ LOCKED ◆` caption (tagline + traits hidden). Locked cards are **inert** — no banter, no hover-handed-turn, no click selection. The intent is "teased, not hidden": the player sees *who* is coming and roughly what they look like, but not what they sound like or what their full character is.
 - **Mystery placeholders.** When the visible roster doesn't divide evenly into pages of three, the **last partial page** is padded with neutral **"??? — COMING SOON"** placeholder cards (no portrait, just a giant `?` silhouette). Today: 5 real companions (4 unlocked + Nocturna locked) → 2 pages of 3, last page padded with 1 placeholder.
-- **Unlock plumbing.** Per-player unlocked-companion list persists to `localStorage` under `qf.companions.unlocked`. Seeded with the four starter companions on first read. The **cheat name** (`mango`) unlocks every companion in the registry. A new `PlayerProfile.unlockCompanion(id)` helper is the entry-point for individual unlocks once unlock conditions are wired up.
+- **Unlock plumbing.** Per-player unlocked-companion list persists to `localStorage` under `qf.companions.unlocked:<name>` — name-scoped (refactored 2026-05-26 along with achievement storage). Each name gets its own slot, seeded with the starter companions on first read. The **cheat name** (`mango`) unlocks every companion in the registry. A new `PlayerProfile.unlockCompanion(id)` helper is the entry-point for individual unlocks once unlock conditions are wired up.
 - **Fifth companion — Nocturna.** The first unlockable companion is **Nocturna**, a moonlit night-keeper (cat-girl witch carrying a grimoire). She ships **locked** on the recruit screen with only her idle portrait wired up — full expression bank, dialogue and unlock condition are deferred. Source art: `Quest-Failed assets/Main NPC 5 - Nocturna`, baked to `assets/npc-nocturna/`. Accent colour: twilight-violet (`#7c6cff` — distinct from Malakor's warmer purple).
 - **Unlock conditions — DEFERRED.** Specific unlock terms (boss-level requirement / specific event / achievement / etc.) for Nocturna and any future companions are **not yet decided**. The system is built so the unlock model can be plugged in later as a data edit + a single `unlockCompanion()` call at the right trigger point.
+
+## Achievements (2026-05-25)
+
+The game gets an **achievements section** that surfaces progression milestones, gates some content unlocks, and serves as long-term replay motivation. Reachable from the main menu (new button) and from the leaderboard (per-row chip + viewer modal — see leaderboard section below).
+
+- **Approach.** Achievements ARE the unlock layer for new content. Meeting the criteria for an achievement both records it on the achievements screen AND unlocks any associated reward (boss / companion). The existing implicit boss-level gate stays in place — the achievement system mirrors / surfaces it on the screen.
+- **Scope (first cut).** 45 achievements total:
+  - **20 boss-level achievements** — one per boss level 1–20. Levels 2–10 each unlock the corresponding boss archetype (Golem at lvl 2, Lich at lvl 3, …, Slime at lvl 10). Levels 11–20 are pure recognition (titles for the leaderboard's future title rewards).
+  - **25 non-level achievements** spanning easy onboarding, cumulative grind, single-run challenges, mastery feats, and variety completionist goals. Categories: progression / combat / economy / variety / mastery.
+- **Companion unlock — Zul'Gath via "Hoard Lord".** Accumulate 10,000 gold in a single run. Thematic — an ancient dragon recognises a fellow hoarder. Zul'Gath was previously a starter companion; he's now locked at first-boot and unlocks via this achievement. (Removed from `STARTER_COMPANIONS` in `src/systems/companions.js`.)
+- **Nocturna's unlock — STILL DEFERRED.** Will be assigned its own achievement once her character work is further along.
+- **No hidden achievements.** All 45 are visible from the start; locked ones show their name + description + reward chip, but with a greyscale icon + locked styling.
+- **Retroactive unlock.** On first boot of the achievements system with an existing save profile, any thresholds the player has already met fire their unlocks immediately (queued toasts). Important for not punishing existing players when the system ships.
+- **Icons.** Pix-font Unicode glyphs per-category for first cut: ▲ progression · ✦ combat · ◇ economy · ✧ variety · ★ mastery · ◆ boss unlock · ♥ companion unlock. Custom pixel-art icons land later as art bandwidth allows.
+- **Categories (final counts):** progression 27 · combat 5 · economy 2 · variety 6 · mastery 5.
+
+## Achievements leaderboard (2026-05-25)
+
+The achievement-rankings live **inside the achievements page itself**, not as add-ons to the main run-leaderboard. Separation of concerns: main leaderboard ranks runs; achievements page ranks achievements.
+
+- **Entry point.** A prominent gold-burst **LEADERBOARD button** sits next to the category-filter tabs in the achievements page — visually distinct (pulsing glow, brighter background, larger padding) so it reads as a destination rather than another filter. Pressing it swaps the achievement grid for the leaderboard view.
+- **Layout.**
+  - **YOUR RANK band** at the top: "#5 of 47 players · 17 / 45 unlocked." Always visible.
+  - **Top-3 podium** with gold/silver/bronze accent borders, matching the main leaderboard's accolade pattern.
+  - **Ranked list** of the top 50 players. Each row clickable.
+  - **YOUR row pinned** at the bottom of the list (with a "…" separator above) when you're outside the top 50.
+- **Click any row** → opens the AchievementsOverlay in viewer mode for that player. The same overlay used for self-view, just driven by the bitmask instead of localStorage.
+- **"Compare with you" toggle** on the viewer modal — colour-tags each card: 🟢 both · 🔵 their edge (chase target) · 🟡 your edge (your flex) · ⚪ neither.
+- **Storage.** `meta.achievement_bits` (string of `1`/`0` chars, one per achievement in canonical id order) + `meta.achievement_count` (pre-decoded integer). Stored in `meta` (jsonb) so no schema migration is needed. Submitted on every run-end via the existing leaderboard payload path.
+- **Data flow.** Lazy fetch on first activation via `Leaderboard.fetchTop(500)`; dedupe by player_name (latest run per player); sort by achievement_count desc; cache for the overlay's lifetime so re-entry is instant.
+- **Rarity stats / recent-unlocks feed** are deferred to a follow-up pass — the leaderboard tab + viewer + comparison mode is the v1.
+
+## Titles & player display (2026-05-25)
+
+17 of the 45 achievements grant **titles** (the 10 boss-level achievements at levels 11–20, plus 7 high-tier non-level achievements: Reaper, Untouchable, Class Hunter, Boss Slayer, Endless Reign, Hoard Lord → "The Hoarder", Veteran Exterminator). Titles are the leaderboard-visible boast.
+
+- **Active title.** Each player has exactly one active title at a time. It appears in the header chip on the achievements page and in the player's row chip on the main run-leaderboard (podium + detail panel — replaces the legacy IMMORTAL / BUTCHER / CUNNING accolades when present).
+- **Selection.** Click the active-title chip in the achievements header → a floating picker drops in beneath the chip with one row per unlocked title plus an **AUTO** row. Selecting a title pins it; selecting AUTO clears the pin so the active title auto-tracks the most-recently-unlocked title from then on.
+- **Default behaviour (no selection).** First title to unlock becomes active automatically; each subsequent unlock replaces the previous active title until the player makes an explicit selection. The AUTO row shows the current "most recent" target as its subtitle.
+- **Persistence.** Active-title id stored in `localStorage` under `qf.player.active_title_id:<name>` (`null` = AUTO). Unlock timestamps stored under `qf.achievements.timestamps:<name>` (drives both the recent-unlocks strip and the AUTO target). Both keys are name-scoped — mango's cheat unlocks don't leak into other player accounts.
+- **Leaderboard payload.** Sent as `meta.active_title` (display string) on every run submission. Older rows lacking the field render the legacy top-3 accolade exactly as before — backward-compatible.
+- **Long-title overflow.** The longest title is **"Veteran Exterminator"** (20 chars). Podium / detail chip styles clamp with `max-width` + ellipsis so cramped layouts never break.
+
+## Recent-unlocks strip (2026-05-25)
+
+The achievements page header (self-view only) shows a **RECENT UNLOCKS** strip above the grid — three most-recent unlocks with relative-time labels ("12 minutes ago" / "3 days ago" / "Just now"). Auto-hidden when the player has zero unlocks. Driven by the unlock-timestamps store, so it back-fills on first achievement-system boot from the retroactive scan.
+
+## Achievements popup + visual language (2026-05-26)
+
+The achievements screen is now a **centered popup** mirroring the main run-leaderboard — same 1300×840 dimensions, gold accent, unfurl animation, shared `Overlay` shell with backdrop + close X + Esc dismiss. The two read as sibling "Hall of X" surfaces. Closing the popup returns to whatever was underneath; opening it doesn't pause the game.
+
+- **Layout.** Header band (counter + active-title chip), category-filter tabs + LEADERBOARD button, recent-unlocks strip, scrollable 3-column grid of achievement cards. Header title "◆ HALL OF TROPHIES ◆" sits in the Overlay shell's title bar, centered.
+- **Per-card anatomy.** Pixel-art "trophy plaque" feel: dark wood card body + neutral parchment nameplate ("FIRST SPARK" etc. in cream `#ece2d2`) + one colored medal (the icon). The medal is the only fully-colored element on the card — three competing same-color elements (border + icon + name) used to fight for attention; now the icon owns the focal point.
+- **Two color axes per card.**
+  - **Border + bg tint** → CATEGORY (progression amber / combat blood-pink / economy gold / variety cyan / mastery violet)
+  - **Icon medal color** → REWARD TYPE (pure-recognition cream / boss-unlock oxblood / companion-unlock rose / title-grant violet)
+  - Reward chip below the description matches the icon color so the reward signal reads on both elements.
+- **Icon glyphs.** Every achievement has a thematic emoji glyph in `achievements.json` (⚡ First Spark, ☠ Hardened Throne, 🦎 Crown of Iron, 🍄 Echoing Roar, ⚔ Sixth Seal, 🧛 Seventh Sigil, 👻 Spectral Reign, 💋 Witchbane, 💧 Dread Sovereign, 👑 Tyrant, 💀 Demilich, 😈 Avatar of Dread, 🏆 Throne Eternal, 🔪 First Blood, 🪤 First Trap, 💰 Hoard Lord, etc.). Glyphs that default to text-presentation get a U+FE0F variation selector to force emoji rendering. Renders as native OS emoji color — the icon's hue is the OS palette, but the badge frame around it still inherits the reward-type color so reward-coding isn't lost.
+- **Legendary tier.** Six hand-picked endgame achievements (Throne Eternal, Endless Reign, Hoard Lord, Veteran Exterminator, Boss Slayer, Class Hunter) carry `legendary: true` in the data file. On their grid cards they get a persistent showcase treatment: animated linear-gradient shimmer sweep across the card, slow gold pulse, inner ember glow. The legendary flag also branches the unlock toast (see below).
+- **Hover affordances.** Cards have no outer glow at rest — the page reads calm. On hover, a per-category outer glow lights up at 35% intensity as the affordance.
+
+## Achievements leaderboard view (2026-05-26 overhaul)
+
+Inside the achievements popup, the LEADERBOARD button swaps the category grid for a full-featured leaderboard view that visually pairs with the main run-leaderboard.
+
+- **YOUR RANK band** at the top — always visible. Shows the player's local rank + total achievement count. Special states: `EXCLUDED (CHEAT)` for mango; `UNNAMED` for no name set; `NO DATA YET` when the board is empty.
+- **Podium step (2-1-3 layout).** Three cards, always rendered. DOM order is silver-left / gold-center-tallest / bronze-right with `grid-template-columns: 1fr 1.2fr 1fr` + `align-items: end` so cards step UPWARD into a real podium silhouette (200/170/140px heights). Each card is a triptych: [companion sprite | floating #N badge + boss portrait + player name + title chip + trophy block | achievement-derived stats]. Missing slots show inert "AWAITING CHALLENGER" placeholders so the layout reads balanced even on a sparse board.
+- **Trophy block.** The headline stat on each podium card: rank-colored big number with soft glow + `/ 45` denominator + thin progress bar showing % of total achievements unlocked. Bar gives an at-a-glance "how complete is this player" cue.
+- **Stats block.** Three mini-frames showing achievement-derived TOTAL ACCESS counts (not run stats):
+  - TITLES — count of unlocked title-bearing achievements (X / 17)
+  - BOSSES — 3 starters + count of unlocked boss-unlock achievements (X / 12 total)
+  - COMPANIONS — 3 starters + count of unlocked companion-unlock achievements (X / 4 total — scales as more companion unlocks ship)
+- **Ranked list** below the podium — top-50 keepers in a grid table mirroring the main leaderboard's row anatomy (rank | sprite | name | trophies | arrow), with rank-colored left border (gold/silver/bronze for top 3, blood-red for YOU). Click a row → opens the viewer modal for that player.
+- **YOU pinned** at the bottom when outside top-50, with an ellipsis separator above.
+- **Global stats panel** below the list — always visible when the board has data. Four cells: TOTAL KEEPERS / AVG TROPHIES / RAREST TROPHY / MOST POPULAR TITLE. Computed client-side from the in-memory player roster and the rarity sample already ingested.
+- **Viewer mode.** Click any player row → opens a SECOND achievements popup in viewer mode for that player. Shows their grid driven by their bitmask, NOT their local storage. The LEADERBOARD button is hidden in viewer mode (you're already in the comparison context), but a **COMPARE WITH YOU** toggle appears in the header — color-tags each card 🟢 both / 🔵 their edge / 🟡 your edge / ⚪ neither.
+
+## Legendary unlock celebration (2026-05-26)
+
+Legendary-tier achievements (the 6 with `legendary: true` in the data file) get a tier-aware unlock moment instead of the common golden trophy toast:
+
+- **RARE TROPHY eyebrow** above the title line.
+- **"LEGENDARY UNLOCKED"** header (instead of "ACHIEVEMENT UNLOCKED").
+- **Gold-bright frame** with 2px border + ember inset glow + slow 2.2s pulse animation.
+- **Larger glyph + title** (22px / 13px) with stronger gold-glow text shadow.
+- **10s dwell** instead of the standard 5s.
+- **22-particle gold burst** spawned alongside, fountaining leftward into the play area (the toast sits on the right edge of the HUD, so particles bias into the screen). CSS-animated via per-particle `--dx` / `--dy` trajectory vars; auto-cleanup after ~1.3s.
+
+Common achievement unlocks keep the unchanged golden trophy toast — the tier difference is the visible distinction.
