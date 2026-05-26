@@ -35,6 +35,18 @@ export const COMPANIONS = {
     hudScale: 1.15,
     spriteDir: 'assets/npc/',
     restExpr:  'smile',
+    // Pool of faces she swaps to when clicked / selected on the recruit
+    // screen — a random one is rolled per new selection so the reaction
+    // varies between picks. All entries must exist in `expressions[]`
+    // below. For Lilith: cute / flirty / sexy + her full lovestruck +
+    // smitten + preening register so a "you picked me!" reaction lands
+    // somewhere on her doting / flirty / playful axis every time.
+    pickedExprs: [
+      'cute', 'flirty', 'sexy', 'sexy-2',
+      'excited', 'giggling', 'winking',
+      'heart-eyes', 'in-love', 'lovestruck', 'swooning',
+      'adoring', 'preening',
+    ],
     // Phaser JSON-cache key (loaded in Preload).
     linesKey:  'npcLines',
     expressions: [
@@ -77,6 +89,17 @@ export const COMPANIONS = {
     // rude keeper resting on a grin reads wrong — idle suits him; idle-2
     // chosen over idle-1 for the default at the designer's request).
     restExpr:  'idle-2',
+    // Picked-face pool — rolled per new selection for variety. Lands on
+    // Malakor's "good choice, boss" register: evil approval, mischievous
+    // smirk, war-sergeant's salute, confident pride, commanding stance,
+    // smug satisfaction, mocking the rejected, battle-cry victory, or
+    // greedy gold-coin joy. No giddy joy faces — he's a rude sergeant,
+    // not a puppy.
+    pickedExprs: [
+      'evil', 'mischievous', 'salute',
+      'confident-1', 'confident-2', 'commanding', 'proud',
+      'battle-roar', 'smug', 'mocking', 'happy-gold',
+    ],
     linesKey:  'malakorLines',
     // 43 expressions. Adding more later: drop the PNGs in, extend
     // tools/bake-npc-sprites.mjs's map, re-run the bake, append ids here.
@@ -125,14 +148,51 @@ export const COMPANIONS = {
     //   hudBubbleScale — keeps the speech bubble at base height (his
     //     scaled-up wide sprite is still short — the normal scale-driven
     //     lift would fling the bubble too high).
-    portraitScale: 2.2,
-    portraitOrigin: '60% 100%',
+    // Bumped 2.2 → 2.9 (2026-05-25) so his head reaches the same vertical
+    // height as the humanoid companions on the recruit screen. His
+    // source art is a wide composition (~1.79 aspect) — at default
+    // contain-fit in the 410×620 portrait box, his IMG renders only
+    // 410×229 (width-constrained), leaving his face MUCH lower than the
+    // height-constrained humanoids. The 2.9× scale (bottom-anchored via
+    // `portraitOrigin: 65% 100%`) lifts his face from portrait y≈166
+    // back up to y≈89 — matching Lilith's at y≈92. His wings extend
+    // ~44px above the portrait box top, just clearing the header's
+    // sub-text. Keep `archScale` (boss-select side panel) at its
+    // original 2.3 since that surface has a different layout box.
+    //
+    // Origin x bumped through several iterations on 2026-05-25:
+    // 60% → 65% → 70%. Each 5% step shifts him ~39px further left in
+    // the card. At higher origin-x, more of his source sits to the left
+    // of the pivot, so the scale-up stretches further leftward; net
+    // visual is a leftward shift while his bottom stays anchored. By 70%
+    // his head sits comfortably toward the card's centre-right rather
+    // than crowding the right edge.
+    portraitScale: 2.9,
+    portraitOrigin: '70% 100%',
     archScale: 2.3,
     archOrigin: '60% 100%',
-    fadeMask: 'linear-gradient(to right, transparent 0%, #fff 42%, #fff 100%)',
-    // Sits on the right of the CompanionSelect line-up — mirror so he
-    // faces inward toward the others.
-    portraitFlipX: true,
+    // Tail-side fade — the source art's left half (his rear half:
+    // hind legs + tail) gradually dissolves so his long dragon body
+    // doesn't read as a hard-edged rectangle overflowing the card.
+    // Without flip (post-2026-05-25), source-left = visual-left, so the
+    // fade is on his back half as he faces right. Stops nudged 2026-05-25
+    // through a few iterations: 12%/58% → 18%/68% → 22%/72%. At the
+    // current values, the leftmost 22% of source is fully transparent,
+    // the fade zone covers 22-72% (a wide 50% region), and only the
+    // rightmost 28% (his head + front body / wings) stays solid. Tuned
+    // for the 2.9× scale + 65% origin where his rear half extends far
+    // off-card; the long fade tail makes the dissolve read as anatomy
+    // rather than a sharp horizontal slice.
+    fadeMask: 'linear-gradient(to right, transparent 0%, transparent 22%, #fff 72%, #fff 100%)',
+    // Under the paginator layout (2026-05-25) Zul'Gath sits at the LEFT
+    // of page 2, with Nocturna to his right. His wide body extends in the
+    // direction his head faces; flipping him so he faces Nocturna keeps
+    // his bulk on his own card instead of overflowing across hers. With
+    // `false` (no flip) the source art's natural right-facing pose lands
+    // correctly + the `fadeMask` (which fades source-left) puts the fade
+    // on his trailing tail-side, same as before. If he ever moves back
+    // beside neighbours on his RIGHT, flip this to `true` again.
+    portraitFlipX: false,
     hudScale: 2.5,
     hudBubbleScale: 1,
     hudImgOrigin: '0% 100%',
@@ -150,6 +210,17 @@ export const COMPANIONS = {
     spriteDir: 'assets/npc-zulgath/',
     // Neutral resting face — a dragon at ease, eons-bored.
     restExpr:  'idle',
+    // Picked-face pool — rolled per new selection. Zul'Gath registers
+    // being chosen via deadpan dragon-pride: commanding stance, menacing
+    // weight, the eons-old "you have chosen wisely" superior look, smug
+    // self-satisfaction, a sly wink, joking jovial, playful side, or
+    // even pulling out his handheld game like "alright, I'm staying".
+    // No squeal-with-delight faces — he's bored of squealing.
+    pickedExprs: [
+      'commanding', 'menacing', 'gaming',
+      'superior', 'self-satisfied', 'smug', 'proud',
+      'winking', 'joking', 'playful', 'mischievous', 'evil',
+    ],
     linesKey:  'zulgathLines',
     // 45 expressions. Adding more later: drop the PNGs in, extend
     // tools/bake-npc-sprites.mjs's map, re-run the bake, append ids here.
@@ -169,6 +240,45 @@ export const COMPANIONS = {
     ],
   },
 
+  // Nocturna — fifth keeper, ships LOCKED on the recruit screen. Only an
+  // `idle` portrait is wired up; the locked-card treatment dims/desaturates
+  // it into a silhouette while keeping the character's pose + colour
+  // teaser readable. No `linesKey` because she has no banter bank yet —
+  // CompanionSelectOverlay skips locked ids from the speaker rotation, so
+  // a missing bank can't blow up the bicker code.
+  //
+  // When she becomes playable: drop the rest of her expression art into
+  // the source folder, fill out tools/bake-npc-sprites.mjs's `nocturna.map`,
+  // re-run the bake, expand `expressions` here, add her `linesKey` +
+  // dialogue bank, and remove `locked` below (or call
+  // PlayerProfile.unlockCompanion('nocturna') wherever the unlock fires).
+  nocturna: {
+    id:        'nocturna',
+    name:      'Nocturna',
+    tagline:   'A keeper of the witching hour.',
+    traits:    [],
+    locked:    true,
+    // Her source art is tall + portrait, with the character filling most
+    // of the frame but reading visually smaller than Lilith / Safira when
+    // contained at scale 1. Bumped to 1.15 so her body matches the other
+    // humanoids at a glance. Paired with a bottom-anchored origin so the
+    // extra height grows UP (head goes higher) rather than centred (which
+    // would push her feet down over the name plate). NB: tuned for the
+    // 620px portrait box (post-banter-removal); was 1.25 in the prior
+    // 462px box, scaled back since the bigger box already magnifies her.
+    portraitScale: 1.15,
+    portraitOrigin: '50% 100%',
+    // Faces left in the source art; mirror so she leans inward toward the
+    // other cards in the grid.
+    portraitFlipX: true,
+    hudScale: 1.15,
+    spriteDir: 'assets/npc-nocturna/',
+    restExpr:  'idle',
+    // No dialogue bank yet — see header comment.
+    linesKey:  null,
+    expressions: ['idle'],
+  },
+
   safira: {
     id:        'safira',
     name:      'Safira',
@@ -185,6 +295,19 @@ export const COMPANIONS = {
     spriteDir: 'assets/npc-safira/',
     // Neutral resting face — a genie at ease, lamp-side.
     restExpr:  'idle',
+    // Picked-face pool — rolled per new selection. Peak-energy chaotic
+    // genie: full chaotic / crazy variants, the three wish-granting
+    // poses (she frames the player's pick as a wish), empowered surge,
+    // happy, winking, excited, smitten in-love, devoted flirty, and the
+    // hyper laughing register. Lots of variety because she has the
+    // largest expression bank of any companion (53 faces).
+    pickedExprs: [
+      'chaotic-1', 'chaotic-2',
+      'crazy-1', 'crazy-2',
+      'happy', 'winking', 'excited',
+      'wish-1', 'wish-2', 'wish-3',
+      'empowered', 'in-love-1', 'flirty-1', 'laughing',
+    ],
     linesKey:  'safiraLines',
     // 53 expressions. Adding more later: drop the PNGs in, extend
     // tools/bake-npc-sprites.mjs's map, re-run the bake, append ids here.
@@ -208,5 +331,15 @@ export function getCompanion(id) {
   return COMPANIONS[id] || COMPANIONS[DEFAULT_COMPANION]
 }
 
-// Stable display order for the CompanionSelect screen.
-export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath']
+// Stable display order for the CompanionSelect screen. The recruit screen
+// shows three companions at a time in a paginated row; this array is the
+// flat reading order across all pages (left→right, page 1 first). Locked
+// ids stay in the list — the overlay renders them silhouetted in-place and
+// skips them from banter / hover / click; never strip locked ids here.
+// Append new companions to the end; pagination auto-extends.
+export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath', 'nocturna']
+
+// Roster of companion ids that ship UNLOCKED out of the box — used by
+// PlayerProfile to seed the per-player unlock set on first run. Locked ids
+// (Nocturna today) are NOT in this list and require an explicit unlock call.
+export const STARTER_COMPANIONS = ['lilith', 'malakor', 'safira', 'zulgath']

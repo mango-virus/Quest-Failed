@@ -8818,9 +8818,10 @@ body {
      override for the others. */
   --npc-accent: #ff3782;
 }
-.qf-npc[data-companion-id="malakor"] { --npc-accent: #a070dc; }  /* purple */
-.qf-npc[data-companion-id="zulgath"] { --npc-accent: #ff8c2a; }  /* orange — shifted from gold 2026-05-22 so his bubble border doesn't read as tutorial gold */
-.qf-npc[data-companion-id="safira"]  { --npc-accent: #2caee8; }  /* sky    */
+.qf-npc[data-companion-id="malakor"]  { --npc-accent: #a070dc; }  /* purple */
+.qf-npc[data-companion-id="zulgath"]  { --npc-accent: #ff8c2a; }  /* orange — shifted from gold 2026-05-22 so his bubble border doesn't read as tutorial gold */
+.qf-npc[data-companion-id="safira"]   { --npc-accent: #2caee8; }  /* sky    */
+.qf-npc[data-companion-id="nocturna"] { --npc-accent: #7c6cff; }  /* twilight-violet — distinct from Malakor's warmer purple. Pre-wired here so Nocturna's in-game HUD inherits the right hue the moment she becomes unlockable; she doesn't render anywhere in-game yet. */
 /* Docked beside a menu — lift above the overlay backdrop (z:150). */
 .qf-npc[data-dock="menu"] { z-index: 160; }
 
@@ -9326,24 +9327,196 @@ body {
   color: var(--text-mute);
 }
 
-/* Two-card stage */
+/* Paginated stage — three cards visible at a time, flanked by ◀ / ▶
+   arrows that swap the visible page. Cards are at their original
+   single-row size — the pagination lets the roster scale beyond 4
+   without shrinking the art.
+   `position: relative` anchors the arrow buttons (which are absolutely
+   positioned at the stage edges, see `.qf-cmpsel-arrow` below) so a wide
+   sprite's overflow can never push them around or sit on top of them. */
 .qf-cmpsel-stage {
+  position: relative;
   flex: 1;
+  /* CRITICAL — width: 100% (2026-05-25). The parent .qf-cmpsel uses
+     `align-items: center`, which on a flex COLUMN sizes children to their
+     CONTENT width unless overridden. Without an explicit width, the stage
+     was only ~1298px (the cards row's width), so the absolutely-
+     positioned arrows at `left: 0` / `right: 0` were anchored to the
+     CARDS' edges, not the screen edges. Forcing full width lets the
+     arrows reach the actual stage bounds (~311px further outward on
+     each side, where the screen edges are). */
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Sized so up to FOUR companion cards fit the 1920-wide stage in one
-     row (3 today, room for a 4th later — see companions.js COMPANION_ORDER). */
-  gap: 34px;
-  padding: 8px 48px;
+  /* Horizontal padding dropped 2026-05-25 so absolute children anchor to
+     the actual stage bounds; the cards row centres itself in the
+     full-width content area regardless. Vertical padding kept so the
+     card row doesn't kiss the header / dots above and below. */
+  padding: 8px 0;
   z-index: 4;
+}
+/* Card row inside the stage — holds the visible cards and centres them
+   via the parent stage's `justify-content: center`. During a page swap
+   the row TEMPORARILY holds 6 cards (current + next page side-by-side)
+   while `_setPage` in CompanionSelectOverlay translates the strip
+   horizontally via inline transform + transition. Each new card crosses
+   the visible area one-by-one as the strip moves; cleanup removes the
+   outgoing page's cards once the slide lands. `will-change: transform`
+   hints the browser to promote the strip to a compositor layer so the
+   slide stays smooth even with Zul'Gath's wide scaled sprite painting
+   inside. */
+.qf-cmpsel-cards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  will-change: transform;
+}
+
+/* ── Page-slide performance optimisations ─────────────────────────────
+   During an active slide, the parent's `transform` transition is the
+   only motion we want — but several per-card decorations run filters /
+   animations / transitions that compete with the compositor and cause
+   visible jank. The `is-sliding` class (added by `_setPage` for the
+   duration of the slide) temporarily suppresses them, then restores
+   them when the class is removed at the slide's end:
+     • `filter: none` on portraits — drops the drop-shadow halo on the
+       selected card (filter re-rasterisation per frame is expensive)
+     • `animation: none` on portraits — pauses the `cmpsel-breathe`
+       infinite loop on the selected portrait (another per-frame cost)
+     • `transition: none` everywhere inside — prevents the filter
+       transition (220ms ease) from firing as the filter changes, and
+       prevents card hover transitions from triggering on accidental
+       mouseover during the slide
+     • `pointer-events: none` on cards — accidental hover during the
+       slide can't kick off any of the above
+   Result: the slide stays at 60fps because the compositor is only doing
+   the cards-element transform, nothing else. */
+.qf-cmpsel-cards.is-sliding > .qf-cmpsel-card {
+  pointer-events: none;
+  transition: none !important;
+}
+.qf-cmpsel-cards.is-sliding > .qf-cmpsel-card:hover {
+  transform: none;
+}
+.qf-cmpsel-cards.is-sliding .qf-cmpsel-portrait {
+  filter: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+/* Also layer-promote each portrait IMG during the slide so its
+   `transform: scale(...)` (Zul'Gath's 2.9×) + `mask-image` (his fade)
+   are cached as a texture and don't re-rasterise every frame as the
+   parent slides. `will-change` is scoped to the slide duration so the
+   memory cost (~1 layer per visible portrait) is transient. */
+.qf-cmpsel-cards.is-sliding .qf-cmpsel-portrait-img {
+  will-change: transform;
+}
+
+/* Page-flip arrow buttons. Pinned ABSOLUTELY to the stage's left + right
+   edges (not in the cards' flex flow) so a wide companion sprite's
+   overflow (Zul'Gath's wide-aspect dragon art) can never push them off-
+   screen or sit visually on top of their click target. The high
+   `z-index: 5` ensures pointer events reach the button even when a sprite
+   draws on top of them.
+   Tall enough to feel anchored to the card row, visually distinct from
+   the BACK / CONFIRM footer buttons. */
+.qf-cmpsel-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  width: 64px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  border: 2px solid var(--gold);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.06),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.55),
+    0 0 0 2px #000,
+    0 6px 16px rgba(0, 0, 0, 0.55);
+  color: var(--gold);
+  font-family: var(--pix);
+  font-size: 28px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 200ms ease;
+}
+/* Absolute positioning: pin to the stage's left + right edges. Walked
+   through several iterations 2026-05-25 — early values (24px / 4px / 0px)
+   were never really moving the arrows because the stage was content-
+   sized instead of full-width (see `.qf-cmpsel-stage`'s width: 100%
+   comment above); once that was fixed, `left: 0` finally meant the
+   actual screen edge, which turned out to be too far. Pulled back to
+   32px so the buttons have visible breathing room from the screen edge
+   without crowding the cards (still ~215px of clearance to the card row).
+   `top: 50%` + `transform: translateY(-50%)` vertically centres the
+   button against the card row regardless of card height. The hover lift
+   composes with the centring translate via `translate(±2px, -50%)` so
+   the button still rises on hover without un-centring vertically. */
+.qf-cmpsel-arrow--prev { left:  128px; transform: translateY(-50%); }
+.qf-cmpsel-arrow--next { right: 128px; transform: translateY(-50%); }
+.qf-cmpsel-arrow--prev:hover { transform: translate(-2px, -50%); }
+.qf-cmpsel-arrow--next:hover { transform: translate( 2px, -50%); }
+.qf-cmpsel-arrow:hover {
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.06),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.55),
+    0 0 0 2px #000,
+    0 8px 20px rgba(0, 0, 0, 0.6),
+    0 0 18px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.qf-cmpsel-arrow:disabled,
+.qf-cmpsel-arrow[aria-disabled="true"] {
+  opacity: 0.25;
+  cursor: not-allowed;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.04),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.4),
+    0 0 0 2px #000;
+}
+/* Re-apply the centring transform on the disabled-arrow rule too, so the
+   disabled state doesn't reset transform back to none and un-centre the
+   button. (Disabled keeps the same vertical centring as enabled, just
+   without the hover lift.) */
+.qf-cmpsel-arrow--prev:disabled,
+.qf-cmpsel-arrow--prev[aria-disabled="true"] { transform: translateY(-50%); }
+.qf-cmpsel-arrow--next:disabled,
+.qf-cmpsel-arrow--next[aria-disabled="true"] { transform: translateY(-50%); }
+/* Page indicator dots — one per page below the card row, the active page
+   filled, inactive pages hollow. Lives inside .qf-cmpsel-cards' parent
+   stage so a single line of dots sits centered under the row. */
+.qf-cmpsel-pagedots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+  z-index: 4;
+}
+.qf-cmpsel-pagedot {
+  width: 10px;
+  height: 10px;
+  background: var(--bg-1);
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 1px #000;
+  transition: background 160ms ease, transform 160ms ease;
+}
+.qf-cmpsel-pagedot[data-active="true"] {
+  background: var(--gold);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 1px #000, 0 0 10px color-mix(in srgb, var(--gold) 55%, transparent);
 }
 
 /* One companion card */
 /* Dim/select state uses `opacity` + `transform` only — NOT `filter`.
    The Phaser canvas churns every frame underneath this DOM overlay, so
    any `filter` on the cards (or drop-shadows on the big portraits) would
-   be re-composited 60×/sec and tank the framerate on weaker GPUs. */
+   be re-composited 60×/sec and tank the framerate on weaker GPUs.
+   (Per-portrait-IMAGE filters are kept — they apply to a static PNG, not
+   the whole composited tree, so the cost is paid once on hover/select.) */
 .qf-cmpsel-card {
   --cmp-accent: var(--blood);
   position: relative;
@@ -9360,19 +9533,23 @@ body {
    name tint on the recruit screen, AND parallel `--npc-accent` rules on
    the in-game .qf-npc element below. Each companion gets a distinct hue:
    Lilith pink (warm/flirty), Malakor purple (sinister/loyal), Zul'Gath
-   gold (ancient dragon, treasure-hoarder), Safira light blue (genie magic). */
-.qf-cmpsel-card[data-id="lilith"]  { --cmp-accent: #ff3782; }
-.qf-cmpsel-card[data-id="malakor"] { --cmp-accent: #a070dc; }
-.qf-cmpsel-card[data-id="zulgath"] { --cmp-accent: #ff8c2a; }
-.qf-cmpsel-card[data-id="safira"]  { --cmp-accent: #2caee8; }
+   gold (ancient dragon, treasure-hoarder), Safira light blue (genie magic),
+   Nocturna twilight-violet (cool moonlit witchery — distinct from Malakor's
+   warmer purple). */
+.qf-cmpsel-card[data-id="lilith"]   { --cmp-accent: #ff3782; }
+.qf-cmpsel-card[data-id="malakor"]  { --cmp-accent: #a070dc; }
+.qf-cmpsel-card[data-id="zulgath"]  { --cmp-accent: #ff8c2a; }
+.qf-cmpsel-card[data-id="safira"]   { --cmp-accent: #2caee8; }
+.qf-cmpsel-card[data-id="nocturna"] { --cmp-accent: #7c6cff; }
 /* Same per-companion accent on the boss-select screen so the bubble
    border matches the recruit-screen and in-game bubble. The bubble
    inside .qf-archdec-companion is .qf-cmpsel-bubble (re-uses the same
    class) and its `border-color: var(--cmp-accent)` inherits down. */
-.qf-archdec-companion[data-id="lilith"]  { --cmp-accent: #ff3782; }
-.qf-archdec-companion[data-id="malakor"] { --cmp-accent: #a070dc; }
-.qf-archdec-companion[data-id="zulgath"] { --cmp-accent: #ff8c2a; }
-.qf-archdec-companion[data-id="safira"]  { --cmp-accent: #2caee8; }
+.qf-archdec-companion[data-id="lilith"]   { --cmp-accent: #ff3782; }
+.qf-archdec-companion[data-id="malakor"]  { --cmp-accent: #a070dc; }
+.qf-archdec-companion[data-id="zulgath"]  { --cmp-accent: #ff8c2a; }
+.qf-archdec-companion[data-id="safira"]   { --cmp-accent: #2caee8; }
+.qf-archdec-companion[data-id="nocturna"] { --cmp-accent: #7c6cff; }
 .qf-cmpsel-card:hover {
   opacity: 0.9;
   transform: translateY(-6px);
@@ -9383,18 +9560,23 @@ body {
 }
 
 /* Chat bubble */
-/* Chat bubble — matched to the in-game companion bubble (.qf-npc-bubble):
-   same panel fill, bevel, layered shadow, two-layer down-tail and
-   term-font text that types out letter-by-letter. */
+/* Recruitment banter was dropped from CompanionSelect on 2026-05-25 to
+   free vertical space for bigger portraits, so these `.qf-cmpsel-bubble*`
+   rules are no longer used by the recruit screen itself. HOWEVER, the
+   boss-select side panel (`ArchetypeDecorOverlay`) reuses the same
+   classes for ITS chat bubble (the companion line on the right of the
+   bestiary book), so the rules are kept verbatim. Matched to the in-game
+   companion bubble (.qf-npc-bubble): same panel fill, bevel, layered
+   shadow, two-layer down-tail, term-font text that types out
+   letter-by-letter. */
 .qf-cmpsel-bubble {
   position: relative;
   /* Slimmer than the card — the flex column centres it. */
   width: 372px;
   min-height: 134px;
   background: var(--bg-1);
-  /* Per-companion accent — matches the in-game `.qf-npc-bubble` so both
-     surfaces feel like the same character's bubble. `--cmp-accent` is
-     set on the parent .qf-cmpsel-card[data-id=...] rules. */
+  /* Per-companion accent — `--cmp-accent` is set on the parent
+     .qf-archdec-companion[data-id=...] rules. */
   border: 2px solid var(--cmp-accent);
   box-shadow:
     inset 2px 2px 0 rgba(255, 255, 255, 0.05),
@@ -9449,13 +9631,26 @@ body {
   min-height: 22px;
 }
 
-/* Portrait */
+/* Portrait — bumped from 462px to 620px now that the bubble + 22px margin
+   above each card is gone. Eats most of the freed vertical space; the
+   plate below still has room. */
 .qf-cmpsel-portrait {
   position: relative;
-  height: 462px;
+  height: 620px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  /* The drop-shadow halo lives here (NOT on the IMG) — moved 2026-05-25.
+     When the filter was on the IMG, Zul'Gath's `mask-image` (fadeMask)
+     was clipping the shadow to his IMG's small 410×229 border-box,
+     producing a visible hard horizontal cutoff above his head once his
+     2.2× scale magnified the result up. Filtering at the portrait level
+     computes the shadow from the COMPOSITE portrait content (which
+     already contains the masked + transformed IMG), so the mask on the
+     IMG can no longer touch the shadow region — it extends freely past
+     the portrait's box. The transition lets the halo fade in / out on
+     hover-state changes (matches what was previously on the IMG). */
+  transition: filter 220ms ease;
 }
 /* Accent floor-glow pooled under the character on hover / select — grounds
    the figure and echoes the silhouette glow. */
@@ -9494,16 +9689,20 @@ body {
   width: auto;
   height: auto;
   image-rendering: auto;
-  transition: filter 220ms ease;
+  /* The hover/select drop-shadow halo moved up to `.qf-cmpsel-portrait`
+     (2026-05-25 — see the long comment on that rule) to avoid Zul'Gath's
+     mask-image clipping the shadow. This IMG keeps its other filters
+     intact (e.g., locked-state brightness/saturate silhouette). */
 }
-.qf-cmpsel-card:hover .qf-cmpsel-portrait-img,
-.qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait-img {
+.qf-cmpsel-card:hover .qf-cmpsel-portrait,
+.qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait {
   /* Layered halo — a tight bright rim hugs the silhouette, a wider soft
      glow fans out. Bright/saturated hues (Malakor purple, Zul'Gath gold)
      read fine at a single 32% layer, but lighter/cooler hues (Lilith pink,
      Safira blue) mix too far toward transparent and fade. Stacking two
      drop-shadows lifts every companion's glow while keeping the silhouette
-     crisp. */
+     crisp. Applied at the portrait level (not on the IMG) so a sprite's
+     `mask-image` can't clip the halo region. */
   filter: drop-shadow(0 0 6px  color-mix(in srgb, var(--cmp-accent) 70%, transparent))
           drop-shadow(0 0 22px color-mix(in srgb, var(--cmp-accent) 42%, transparent));
 }
@@ -9548,6 +9747,106 @@ body {
 }
 .qf-cmpsel-card[data-selected="true"] .qf-cmpsel-chosen { opacity: 1; }
 
+/* ── Locked + placeholder card treatments ──────────────────────────────
+   Locked cards still render their portrait so the player gets a teaser
+   read of the character (per the design ask — "silhouette form but still
+   showing character / color / details"). The portrait is dimmed +
+   desaturated to a silhouette while the rest of the card frame stays
+   bright, anchoring the slot in the grid. Mystery placeholders (no real
+   companion yet) share the same disabled posture but show a `?` glyph
+   instead of a sprite. */
+.qf-cmpsel-card[data-locked="true"],
+.qf-cmpsel-card--placeholder {
+  cursor: not-allowed;
+}
+/* Locked cards (an actual companion who isn't yet unlocked) get a SOFT
+   hover lift — the player should be able to browse the silhouette + read
+   the lock-state, but the lift is gentler than the unlocked cards' so it
+   still reads as "interactive-but-inactive". The lift is paired with a
+   small opacity bump so the silhouette pops slightly under the cursor. */
+.qf-cmpsel-card[data-locked="true"] {
+  opacity: 0.65;
+}
+.qf-cmpsel-card[data-locked="true"]:hover {
+  opacity: 0.82;
+  transform: translateY(-3px);
+}
+/* Placeholder cards (no companion behind them — just a `???` mystery
+   slot) stay fully inert. There's nothing to look at, so hover would
+   just lie. */
+.qf-cmpsel-card--placeholder {
+  --cmp-accent: #4a4a55;
+  opacity: 0.42;
+}
+.qf-cmpsel-card--placeholder:hover {
+  transform: none;
+  opacity: 0.42;
+}
+
+/* Silhouette treatment — dims to ~40% brightness and pulls saturation
+   back so the pose + outfit colour reads but the character can't be fully
+   recognised. Stays the same on hover (no halo upgrade). */
+.qf-cmpsel-card[data-locked="true"] .qf-cmpsel-portrait-img,
+.qf-cmpsel-card[data-locked="true"]:hover .qf-cmpsel-portrait-img {
+  filter: brightness(0.42) saturate(0.6) contrast(1.05);
+}
+.qf-cmpsel-card[data-locked="true"]:hover .qf-cmpsel-portrait::after {
+  opacity: 0;
+}
+/* No breathe-on-select animation for locked cards (they can't be
+   selected anyway — defensive guard for keyboard nav corner cases). */
+.qf-cmpsel-card[data-locked="true"][data-selected="true"] .qf-cmpsel-portrait {
+  animation: none;
+}
+
+/* Pixel-art padlock badge pinned to the portrait's top-right corner.
+   Sized so it reads at a glance without covering the silhouette's face. */
+.qf-cmpsel-lock-corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  border: 2px solid var(--cmp-accent);
+  box-shadow: 0 0 0 2px #000,
+              0 0 12px color-mix(in srgb, var(--cmp-accent) 40%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+.qf-cmpsel-lock-corner img {
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+}
+
+/* Caption that replaces the tagline + traits on locked cards. Pix font
+   for the brand-consistent "this is a system label, not lore" cue. */
+.qf-cmpsel-locked-label {
+  margin-top: 7px;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: color-mix(in srgb, var(--cmp-accent) 70%, var(--text-mute));
+}
+
+/* Mystery placeholder glyph — big "?" centered in the portrait box.
+   `align-self: center` overrides the portrait's `align-items: flex-end`
+   (which real companions need so their feet anchor to the bottom of the
+   620px portrait box) — without this override the `?` would also pin
+   to the bottom, sitting too low in the slot. */
+.qf-cmpsel-mystery {
+  align-self: center;
+  font-size: 220px;
+  line-height: 1;
+  letter-spacing: 4px;
+  color: var(--cmp-accent);
+  text-shadow: 0 0 28px color-mix(in srgb, var(--cmp-accent) 50%, transparent);
+  opacity: 0.6;
+}
+
 /* Footer */
 .qf-cmpsel-footer {
   display: flex;
@@ -9569,10 +9868,12 @@ body {
 .qf-cmpsel-head   { animation: cmpsel-head-in 420ms ease backwards; }
 .qf-cmpsel-footer { animation: cmpsel-footer-in 460ms ease backwards; animation-delay: 340ms; }
 .qf-cmpsel-card   { animation: cmpsel-card-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
-.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(1) { animation-delay: 90ms; }
-.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(2) { animation-delay: 230ms; }
-.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(3) { animation-delay: 370ms; }
-.qf-cmpsel-stage > .qf-cmpsel-card:nth-child(4) { animation-delay: 510ms; }
+/* Staggered card entrance — at most 3 cards visible per page. The intro
+   stagger only applies on the first mount; subsequent page swaps animate
+   via .qf-cmpsel-cards.is-swapping opacity fade instead. */
+.qf-cmpsel-cards > .qf-cmpsel-card:nth-child(1) { animation-delay:  90ms; }
+.qf-cmpsel-cards > .qf-cmpsel-card:nth-child(2) { animation-delay: 230ms; }
+.qf-cmpsel-cards > .qf-cmpsel-card:nth-child(3) { animation-delay: 370ms; }
 @keyframes cmpsel-head-in   { from { opacity: 0; transform: translateY(-16px); } }
 @keyframes cmpsel-footer-in { from { opacity: 0; transform: translateY(20px); } }
 @keyframes cmpsel-card-in   { from { opacity: 0; transform: translateY(44px); } }

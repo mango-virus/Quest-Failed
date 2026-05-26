@@ -213,6 +213,20 @@ const COMPANIONS = {
     },
   },
 
+  // Nocturna — fifth companion, ships LOCKED on the recruit screen. Only
+  // an idle portrait is needed today (she has no banter / expression bank
+  // yet — the lock-screen card uses just the one frame, silhouette-tinted).
+  // When she's unlockable, drop the rest of her expression art into the
+  // src folder, fill in the map, re-run this bake, and remove `locked` in
+  // companions.js.
+  nocturna: {
+    srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Main NPC 5 - Nocturna',
+    outDir: 'assets/npc-nocturna',
+    map: {
+      'idle.png': 'idle',
+    },
+  },
+
   // Safira — fourth (and final) companion, a chaotic wish-granting genie.
   // 53 expressions. Tall portrait art (~1618×2400) like the humanoids, so
   // the default width is fine — no per-companion override.
