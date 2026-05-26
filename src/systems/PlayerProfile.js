@@ -95,14 +95,6 @@ function _companionsNewSeenKeyFor(name)   { return `${COMPANIONS_NEW_SEEN_KEY_BA
 function _bossesNewSeenKeyFor(name)       { return `${BOSSES_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _leaderboardNewSeenKeyFor(name)  { return `${LEADERBOARD_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 
-// Canonicalize a player name for NEW-tag dedup: trim + lowercase. Two
-// runs by the same person under "Alice" and "alice " should dedup to a
-// single seen entry. Defensive null/non-string handling — returns ''
-// for anything that isn't a usable name.
-function _canonLbName(s) {
-  return typeof s === 'string' ? s.trim().toLowerCase() : ''
-}
-
 // Generic helpers shared by the achievement + companion seen-id sets.
 // `getSet` parses a stored JSON array into a Set<string>; `writeSet`
 // serialises back out. Both are best-effort and tolerate missing /
@@ -612,40 +604,39 @@ export const PlayerProfile = {
   },
 
   // ── Leaderboard top-3 NEW-tag tracking ──────────────────────────────
-  // Dedup key is the CANONICALIZED player name (trim + lowercase) — not
-  // the per-run row id. A given player appearing in the top-3 should
-  // pop NEW once per local player, regardless of how many runs they
-  // bank into the podium. The local player's own name is always
-  // filtered out by callers (no NEW signal on yourself).
+  // Dedup key is the per-RUN row id (Supabase PK, unique per run). Two
+  // runs by the same player produce two independent NEW chips that
+  // dismiss separately — matches the "each podium spot is its own
+  // notable thing" UX. Self-rows are filtered by callers (no NEW signal
+  // on your own run). Previous versions used canonical player names but
+  // that conflated multiple top-3 runs by the same player into a single
+  // dismiss-everywhere identity — wrong for podium-spot semantics.
 
-  getKnownLeaderboardNames() {
+  getKnownLeaderboardIds() {
     return _readIdSet(_leaderboardNewSeenKeyFor(this.getName()))
   },
 
-  // Mark a single podium player as known (hover-dismiss path). `name`
-  // is the raw player_name from the leaderboard row — gets canonicalized
-  // here so callers don't have to.
-  markLeaderboardNameKnown(name) {
-    const key = _canonLbName(name)
-    if (!key) return
+  // Mark a single podium run as known (hover-dismiss path). `id` is the
+  // Supabase row id of the run.
+  markLeaderboardIdKnown(id) {
+    if (!id || typeof id !== 'string') return
     if (!this.getName()) return
     const storeKey = _leaderboardNewSeenKeyFor(this.getName())
     const set = _readIdSet(storeKey)
-    if (set.has(key)) return
-    set.add(key)
+    if (set.has(id)) return
+    set.add(id)
     _writeIdSet(storeKey, set)
   },
 
-  // Returns true if any of the supplied podium player names is NOT in
-  // the player's seen set. `top3Names` is an array of raw player_name
-  // strings; canonicalized here. The local player's own name should be
-  // filtered out by the caller before passing in.
-  hasUnseenNewLeaderboardNames(top3Names) {
-    if (!Array.isArray(top3Names) || top3Names.length === 0) return false
-    const seen = this.getKnownLeaderboardNames()
-    for (const raw of top3Names) {
-      const key = _canonLbName(raw)
-      if (key && !seen.has(key)) return true
+  // Returns true if any of the supplied podium row ids is NOT in the
+  // player's seen set. `top3Ids` is an array of Supabase row id strings.
+  // The local player's own row should be filtered out by the caller
+  // (e.g. by skipping rows whose isYou is true).
+  hasUnseenNewLeaderboardIds(top3Ids) {
+    if (!Array.isArray(top3Ids) || top3Ids.length === 0) return false
+    const seen = this.getKnownLeaderboardIds()
+    for (const id of top3Ids) {
+      if (id && typeof id === 'string' && !seen.has(id)) return true
     }
     return false
   },

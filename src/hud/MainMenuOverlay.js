@@ -308,19 +308,24 @@ export class MainMenuOverlay {
                   PlayerProfile.hasUnseenNewBosses(getUnlockedBossIds()) },
       { id: 'leader', label: 'LEADERBOARD', sub: 'Global hall of evil', icon: '◆', color: 'var(--rumor)',
         // NEW badge fires when the last-known top-3 contains any
-        // player NAME the local player hasn't hover-acknowledged on
+        // run ROW ID the local player hasn't hover-acknowledged on
         // the leaderboard podium yet. Source for the top-3 list is
-        // `Leaderboard.getCachedTop3Names()` — written by every
-        // `fetchTop` call, so this badge stays live across sessions
-        // without firing its own fetch. Local player's own name is
-        // filtered so re-entering the top-3 with a better run never
-        // pops the badge for them. On first launch (no cache yet),
-        // the badge sits dark; opening the leaderboard once seeds it.
+        // `Leaderboard.getCachedTop3()` — written by every `fetchTop`
+        // call, so this badge stays live across sessions without
+        // firing its own fetch. Self-rows are filtered out (by
+        // canonical-name compare against the local player's name) so
+        // your own podium run never pops the badge. On first launch
+        // with no cache yet, the badge sits dark; opening the
+        // leaderboard once seeds it.
         newBadge: (() => {
           const myCanon = PlayerProfile.getName().trim().toLowerCase()
-          const names = (Leaderboard.getCachedTop3Names?.() || [])
-            .filter(n => typeof n === 'string' && n.trim().toLowerCase() !== myCanon)
-          return PlayerProfile.hasUnseenNewLeaderboardNames(names)
+          const ids = (Leaderboard.getCachedTop3?.() || [])
+            .filter(e => e && typeof e.id === 'string' && e.id &&
+                         (!myCanon ||
+                          (typeof e.name !== 'string') ||
+                          e.name.trim().toLowerCase() !== myCanon))
+            .map(e => e.id)
+          return PlayerProfile.hasUnseenNewLeaderboardIds(ids)
         })() },
       { id: 'achievements', label: 'ACHIEVEMENTS', sub: 'Hall of trophies', icon: '🏆',
         color: 'var(--gold-bright, #ffd964)',
@@ -714,13 +719,16 @@ export class MainMenuOverlay {
           // If the player hovered every NEW podium card while the
           // overlay was open, the seen-set now covers the current
           // top-3 → surgically clear the LEADERBOARD button's NEW
-          // badge from the main-menu DOM. Same pattern as the
-          // achievements onClose. Otherwise leave the badge in place
-          // (some NEW chip wasn't dismissed, badge stays live).
+          // badge from the main-menu DOM. Otherwise leave the badge
+          // in place (some NEW chip wasn't dismissed, badge stays live).
           const myCanon = PlayerProfile.getName().trim().toLowerCase()
-          const names = (Leaderboard.getCachedTop3Names?.() || [])
-            .filter(n => typeof n === 'string' && n.trim().toLowerCase() !== myCanon)
-          if (!PlayerProfile.hasUnseenNewLeaderboardNames(names)) {
+          const ids = (Leaderboard.getCachedTop3?.() || [])
+            .filter(e => e && typeof e.id === 'string' && e.id &&
+                         (!myCanon ||
+                          (typeof e.name !== 'string') ||
+                          e.name.trim().toLowerCase() !== myCanon))
+            .map(e => e.id)
+          if (!PlayerProfile.hasUnseenNewLeaderboardIds(ids)) {
             const badge = this._el?.querySelector(
               '.qf-mm-item[data-id="leader"] .qf-mm-item-new')
             badge?.remove()

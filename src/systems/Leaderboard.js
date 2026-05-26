@@ -279,39 +279,55 @@ export const Leaderboard = {
       throw new Error(`Leaderboard fetch failed: ${res.status} ${body}`)
     }
     const rows = await res.json()
-    // Side-effect: cache the current top-3 player names so the main
-    // menu's LEADERBOARD button can paint its NEW badge without firing
-    // its own fetch. The cache is global (the leaderboard is global) —
-    // each per-name seen-set is compared against this same cached list.
-    // Tolerant of a malformed response; only caches a usable shape.
+    // Side-effect: cache the current top-3 PAIRED (row id + player name)
+    // so the main menu's LEADERBOARD button can paint its NEW badge
+    // without firing its own fetch. The cache is global (the leaderboard
+    // is global) — each per-name seen-set is compared against this same
+    // cached list. Row id is the dedup key for the NEW-tag system
+    // (per-run granularity), player name is kept alongside for the
+    // self-filter (so the local player's own row never triggers the
+    // badge). Tolerant of a malformed response.
     try {
       if (Array.isArray(rows)) {
         const top3 = rows.slice(0, 3)
-          .map(r => (typeof r?.player_name === 'string' ? r.player_name : ''))
-          .filter(Boolean)
+          .filter(r => r && typeof r.id === 'string')
+          .map(r => ({
+            id:   r.id,
+            name: typeof r.player_name === 'string' ? r.player_name : '',
+          }))
         localStorage.setItem(TOP3_CACHE_KEY, JSON.stringify(top3))
       }
     } catch {}
     return rows
   },
 
-  // Read the cached top-3 player names from the most recent `fetchTop`.
-  // Returns an array of raw `player_name` strings (un-canonicalized — the
-  // caller dedups via PlayerProfile's NEW-tag helpers). Returns [] if
-  // no fetch has happened yet this browser. Safe to call before the
-  // overlay has opened — just won't paint the badge until first fetch.
-  getCachedTop3Names() {
+  // Read the cached top-3 (id + player_name pairs) from the most recent
+  // `fetchTop`. Returns [] if no fetch has happened yet this browser.
+  // Safe to call before the overlay has opened — just won't paint the
+  // badge until first fetch.
+  getCachedTop3() {
     try {
       const raw = localStorage.getItem(TOP3_CACHE_KEY)
       if (!raw) return []
       const arr = JSON.parse(raw)
-      return Array.isArray(arr) ? arr.filter(s => typeof s === 'string') : []
+      if (!Array.isArray(arr)) return []
+      // Tolerate the legacy format (array of bare name strings from
+      // pre-id versions) by coercing it into the new shape so old
+      // localStorage state doesn't break the badge logic. Legacy
+      // entries get a blank id — they'll never match a seen-set row id
+      // so they're harmless (badge just won't fire from them).
+      return arr.map(e => typeof e === 'string'
+        ? { id: '', name: e }
+        : (e && typeof e === 'object'
+            ? { id: typeof e.id === 'string' ? e.id : '',
+                name: typeof e.name === 'string' ? e.name : '' }
+            : { id: '', name: '' }))
     } catch { return [] }
   },
 }
 
 // Global localStorage slot — single source of truth for the most recent
-// top-3 player names. Re-written on every `fetchTop` call (one call per
-// leaderboard-overlay open). Used by MainMenuOverlay to paint the
+// top-3 row id+name pairs. Re-written on every `fetchTop` call (one call
+// per leaderboard-overlay open). Used by MainMenuOverlay to paint the
 // LEADERBOARD button's NEW badge without firing its own fetch.
 const TOP3_CACHE_KEY = 'qf.leaderboard.last_top3'
