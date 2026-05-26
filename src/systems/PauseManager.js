@@ -134,17 +134,40 @@ export const PauseManager = {
   // before booting back to the main menu. Skips the resume step since
   // we're stopping the scenes outright. Used by the new QUIT TO MAIN MENU
   // option (saves so the player can CONTINUE on next launch).
+  //
+  // CRITICAL: if the save fails (quota / storage error), we BLOCK the
+  // teardown with a confirmation modal. The player gets to decide
+  // whether to lose progress and quit anyway, or stay so they can
+  // free space / abandon / play to a death. Previously a failed save
+  // would silently roll back to whatever older save was on disk —
+  // the day-38 "rewind from day 42" bug.
   saveAndExitToMenu(gameState) {
     const sm = _sm()
     if (!sm) return
-    if (gameState) SaveSystem.save(gameState)
-    sm.stop('PauseMenu')
-    for (const key of GAMEPLAY_SCENES) {
-      if (sm.isActive(key) || sm.isPaused(key)) sm.stop(key)
+    const proceed = () => {
+      sm.stop('PauseMenu')
+      for (const key of GAMEPLAY_SCENES) {
+        if (sm.isActive(key) || sm.isPaused(key)) sm.stop(key)
+      }
+      _pausedKeys = []
+      _isPaused   = false
+      sm.start('MainMenu')
     }
-    _pausedKeys = []
-    _isPaused   = false
-    sm.start('MainMenu')
+    if (!gameState) { proceed(); return }
+    const ok = SaveSystem.save(gameState)
+    if (ok) { proceed(); return }
+    // Save failed — show a blocking confirm so the player can't quit
+    // unknowingly. Using SHOW_CONFIRM (the same EventBus channel
+    // PauseOverlay's ABANDON dialog uses) so it lands in the existing
+    // DOM ConfirmPopup with consistent styling.
+    EventBus.emit('SHOW_CONFIRM', {
+      title:        'SAVE FAILED',
+      message:      'Your run could not be saved (storage full). If you quit now, the most recent saved state will load on Continue — you will rewind to whichever day last saved successfully. Quit anyway?',
+      confirmLabel: 'QUIT ANYWAY',
+      cancelLabel:  'STAY',
+      theme:        'crimson',
+      onConfirm: () => proceed(),
+    })
   },
 
   // "Abandon Run" — POST the run to the leaderboard (so the player's

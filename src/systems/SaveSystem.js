@@ -19,6 +19,11 @@ const CAP_HISTORY_EVENTS  = 200    // dungeon-log ring buffer; matches LOG_MAX i
 const CAP_HISTORY_DAYS    = 100    // per-day rollup rows
 const CAP_HISTORY_PACTS   = 200    // sealed pacts; rarely > 50 in practice
 const CAP_KNOWN_ADVS      = 300    // returning-veteran roster
+// `knowledge.sharedPool.*` is per-CATEGORY (rooms/traps/minions/items/etc).
+// A flee event dumps every observed entity in that adv's knowledge into
+// the pool, so on a day-40+ run with 80 advs/day fleeing it can grow
+// fast. Cap each category to keep the most recently-leaked entries.
+const CAP_SHARED_POOL_PER_CAT = 400
 
 // Aggressive caps applied as a RETRY when the first save still
 // busts the quota. Trades more history for fitting on disk —
@@ -29,6 +34,7 @@ const CAP_RETRY = {
   historyDays:    30,
   historyPacts:   100,
   knownAdvs:      150,
+  sharedPoolPerCat: 150,
 }
 
 // Build a slimmed JSON payload from the live gameState. The caller's
@@ -37,11 +43,12 @@ const CAP_RETRY = {
 // pass through by reference (cheap).
 function _buildSavePayload(gameState, caps = null) {
   const C = {
-    graveyard:     caps?.graveyard     ?? CAP_GRAVEYARD,
-    historyEvents: caps?.historyEvents ?? CAP_HISTORY_EVENTS,
-    historyDays:   caps?.historyDays   ?? CAP_HISTORY_DAYS,
-    historyPacts:  caps?.historyPacts  ?? CAP_HISTORY_PACTS,
-    knownAdvs:     caps?.knownAdvs     ?? CAP_KNOWN_ADVS,
+    graveyard:        caps?.graveyard        ?? CAP_GRAVEYARD,
+    historyEvents:    caps?.historyEvents    ?? CAP_HISTORY_EVENTS,
+    historyDays:      caps?.historyDays      ?? CAP_HISTORY_DAYS,
+    historyPacts:     caps?.historyPacts     ?? CAP_HISTORY_PACTS,
+    knownAdvs:        caps?.knownAdvs        ?? CAP_KNOWN_ADVS,
+    sharedPoolPerCat: caps?.sharedPoolPerCat ?? CAP_SHARED_POOL_PER_CAT,
   }
   // Shallow clone — only the top-level object + the slices we replace
   // need fresh references. The rest stays pointer-identical to the
@@ -50,8 +57,15 @@ function _buildSavePayload(gameState, caps = null) {
   if (gameState.adventurers) {
     out.adventurers = { ...gameState.adventurers }
     const gv = gameState.adventurers.graveyard
-    if (Array.isArray(gv) && gv.length > C.graveyard) {
-      out.adventurers.graveyard = gv.slice(-C.graveyard)
+    if (Array.isArray(gv)) {
+      // Strip the bulky per-adv `knowledge` blob from graveyard
+      // entries — they're DEAD, the runtime never reads their
+      // knowledge again. Each knowledge object can be many KB on a
+      // long-lived adv that explored most of the dungeon.
+      const stripped = gv.map(_stripDeadAdvBulk)
+      out.adventurers.graveyard = stripped.length > C.graveyard
+        ? stripped.slice(-C.graveyard)
+        : stripped
     }
     const known = gameState.adventurers.known
     if (Array.isArray(known) && known.length > C.knownAdvs) {
@@ -73,7 +87,53 @@ function _buildSavePayload(gameState, caps = null) {
       out.history.pacts = pcts.slice(-C.historyPacts)
     }
   }
+  // Trim the shared knowledge pool — accumulates across every flee, no
+  // built-in cap. On a deep-day run with many escapees this can dwarf
+  // every other field combined. Each category gets independent trim so
+  // the player still loads with USEFUL recent intel; only ancient
+  // entries get dropped from the save.
+  if (gameState.knowledge?.sharedPool) {
+    const pool = gameState.knowledge.sharedPool
+    const trimmedPool = {}
+    let trimmedAny = false
+    for (const key of Object.keys(pool)) {
+      const cat = pool[key]
+      if (cat && typeof cat === 'object' && !Array.isArray(cat)) {
+        const entries = Object.entries(cat)
+        if (entries.length > C.sharedPoolPerCat) {
+          // Keep the LAST N (Object.entries iteration order is
+          // insertion order in modern engines; this loses oldest).
+          trimmedPool[key] = Object.fromEntries(entries.slice(-C.sharedPoolPerCat))
+          trimmedAny = true
+        } else {
+          trimmedPool[key] = cat
+        }
+      } else {
+        trimmedPool[key] = cat
+      }
+    }
+    if (trimmedAny) {
+      out.knowledge = { ...gameState.knowledge, sharedPool: trimmedPool }
+    }
+  }
   return out
+}
+
+// Drop the heaviest transient fields from a graveyard entry so they
+// don't bloat the save. Keeps display fields (name, classId, dayDied,
+// killerName, etc.) intact for the Graveyard / GameOver readers.
+function _stripDeadAdvBulk(adv) {
+  if (!adv) return adv
+  // Cheap presence check — only clone when there's something to drop.
+  if (!adv.knowledge && !adv.path && !adv.pathHistory && !adv.priorPathHistory) {
+    return adv
+  }
+  const slim = { ...adv }
+  delete slim.knowledge
+  delete slim.path
+  delete slim.pathHistory
+  delete slim.priorPathHistory
+  return slim
 }
 
 export const SaveSystem = {
@@ -82,6 +142,15 @@ export const SaveSystem = {
       const payload = _buildSavePayload(gameState)
       const json = JSON.stringify(payload)
       localStorage.setItem(SAVE_KEY, json)
+      // Verify-after-write — read the stored payload back and confirm
+      // the meta we wrote actually landed. Some browsers (Safari
+      // private mode, quota-exhausted Chrome under specific paths)
+      // can fail setItem silently rather than throwing. Without this
+      // check the load path would return a stale earlier save and the
+      // player rewinds to an old day on Continue.
+      if (!_verifySavedMeta(payload)) {
+        throw new Error('save verification failed: written meta does not match read-back meta')
+      }
       return true
     } catch (e) {
       // Quota error path — retry with aggressive caps before giving up.
@@ -94,6 +163,9 @@ export const SaveSystem = {
         const slim = _buildSavePayload(gameState, CAP_RETRY)
         const json = JSON.stringify(slim)
         localStorage.setItem(SAVE_KEY, json)
+        if (!_verifySavedMeta(slim)) {
+          throw new Error('save verification failed on retry')
+        }
         console.info('[SaveSystem] Retry succeeded with slim payload — older history trimmed.')
         // Tell the player so they understand why log history dropped.
         try {
@@ -106,11 +178,17 @@ export const SaveSystem = {
       } catch (e2) {
         console.error('[SaveSystem] Save FAILED — storage quota exhausted. The current run will NOT persist past this point.', e2)
         // Surface to the player so they don't think their progress is
-        // being saved while it's silently failing.
+        // being saved while it's silently failing. SAVE_FAILED carries
+        // structured detail so the pause / quit flow can BLOCK with a
+        // modal rather than rely on a fleeting toast.
         try {
           EventBus.emit('SHOW_TOAST', {
             kind:    'leak',
             message: '⚠ SAVE FAILED — storage is full. Progress will not persist.',
+          })
+          EventBus.emit('SAVE_FAILED', {
+            reason: 'quota',
+            dayNumber: gameState?.meta?.dayNumber ?? null,
           })
         } catch {}
         return false
@@ -143,6 +221,28 @@ export const SaveSystem = {
   deleteSave() {
     localStorage.removeItem(SAVE_KEY)
   },
+}
+
+// Read the SAVE_KEY back from localStorage and confirm its meta matches
+// the payload we just tried to write. Returns false on any mismatch
+// (silent failure, wrong key, parse error). Cheap — only deserialises
+// the meta block, not the full payload.
+function _verifySavedMeta(payload) {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    if (!raw) return false
+    const stored = JSON.parse(raw)
+    const wroteDay = payload?.meta?.dayNumber
+    const wrotePhase = payload?.meta?.phase
+    const wroteRunId = payload?.meta?.runId
+    return (
+      stored?.meta?.dayNumber === wroteDay &&
+      stored?.meta?.phase     === wrotePhase &&
+      stored?.meta?.runId     === wroteRunId
+    )
+  } catch {
+    return false
+  }
 }
 
 function _migrate(state) {
