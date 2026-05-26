@@ -152,6 +152,14 @@ export class AchievementsOverlay {
     if (this._overlay) return
     installHudSfxDelegates()
     ensureStageScaled()
+    // Mark the overlay as seen for the current player — clears the
+    // "NEW" badge next to the ACHIEVEMENTS button on the main menu.
+    // Skip in viewer mode (drilled into another player's grid via
+    // leaderboard click) — that doesn't count as the player having
+    // engaged with the achievements page in self-view.
+    if (!this._viewer) {
+      PlayerProfile.markAchievementsSeen()
+    }
     this._el = this._renderBody()
     this._keyHandler = (e) => this._onKey(e)
     this._overlay = new Overlay({

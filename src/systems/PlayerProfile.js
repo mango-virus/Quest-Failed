@@ -31,6 +31,13 @@ const ACHIEVEMENT_METRICS_KEY_BASE   = 'qf.achievements.metrics'
 const TITLES_KEY_BASE                = 'qf.player.titles'
 const ACHIEVEMENT_TIMESTAMPS_KEY_BASE = 'qf.achievements.timestamps'
 const ACTIVE_TITLE_ID_KEY_BASE        = 'qf.player.active_title_id'
+// Per-name flag — set the first time the player opens the achievements
+// overlay (any mode). Drives the "NEW" badge next to the ACHIEVEMENTS
+// item on the main menu: visible only while this flag is unset for the
+// current name, cleared once the player has actually looked at the page.
+// Stored as the literal string '1' for presence detection — value
+// content doesn't matter; only the key's existence does.
+const ACHIEVEMENTS_SEEN_KEY_BASE      = 'qf.player.achievements_seen'
 
 // Legacy global keys — wiped at module load (Option A from the user's
 // 2026-05-26 decision). Any data here was pre-refactor pollution and
@@ -70,6 +77,7 @@ function _metricsKeyFor(name)         { return `${ACHIEVEMENT_METRICS_KEY_BASE}:
 function _titlesKeyFor(name)          { return `${TITLES_KEY_BASE}:${(name ?? '').trim()}` }
 function _timestampsKeyFor(name)      { return `${ACHIEVEMENT_TIMESTAMPS_KEY_BASE}:${(name ?? '').trim()}` }
 function _activeTitleIdKeyFor(name)   { return `${ACTIVE_TITLE_ID_KEY_BASE}:${(name ?? '').trim()}` }
+function _achievementsSeenKeyFor(name){ return `${ACHIEVEMENTS_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 
 // One-time cleanup of the legacy global keys. Runs at module load.
 // Idempotent — removeItem on a missing key is a no-op. Once every dev
@@ -386,6 +394,23 @@ export const PlayerProfile = {
         localStorage.setItem(_activeTitleIdKeyFor(name), String(id))
       }
     } catch {}
+  },
+
+  // ── "Achievements seen" badge state (per-name) ──────────────────────
+  // The main menu shows a "NEW" badge beside the ACHIEVEMENTS button
+  // until the player has opened the overlay at least once. Once they
+  // do, `markAchievementsSeen()` flips a per-name flag and the badge
+  // doesn't show again FOR THAT NAME. Switching to a fresh name will
+  // surface the badge again (each player gets the introduction).
+
+  hasSeenAchievements() {
+    try { return localStorage.getItem(_achievementsSeenKeyFor(this.getName())) === '1' }
+    catch { return false }
+  },
+
+  markAchievementsSeen() {
+    try { localStorage.setItem(_achievementsSeenKeyFor(this.getName()), '1') }
+    catch {}
   },
 
   // Pack the unlocked-achievement set into a compact bitmask string for

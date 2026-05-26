@@ -260,6 +260,13 @@ export class MainMenuOverlay {
         h('div', { className: 'pix qf-mm-item-label' }, m.label),
         h('div', { className: 'qf-mm-item-sub' }, m.sub),
       ]),
+      // "NEW" badge — appears beside the label on items the player
+      // hasn't engaged with yet (currently just the ACHIEVEMENTS entry
+      // via `newBadge: !PlayerProfile.hasSeenAchievements()`). Cleared
+      // by the surgical DOM removal in `_openAchievements`'s onClose
+      // path so the badge disappears immediately after first use,
+      // without re-running the item's entrance animation.
+      m.newBadge && h('span', { className: 'pix qf-mm-item-new' }, 'NEW'),
     ])
   }
 
@@ -269,7 +276,12 @@ export class MainMenuOverlay {
         primary: true, enabled: !!this._save, color: 'var(--blood)' },
       { id: 'new', label: 'NEW EVIL', sub: 'Begin a new run', icon: '+', color: 'var(--gold)' },
       { id: 'leader', label: 'LEADERBOARD', sub: 'Global hall of evil', icon: '◆', color: 'var(--rumor)' },
-      { id: 'achievements', label: 'ACHIEVEMENTS', sub: 'Hall of trophies', icon: '🏆', color: 'var(--gold-bright, #ffd964)' },
+      { id: 'achievements', label: 'ACHIEVEMENTS', sub: 'Hall of trophies', icon: '🏆',
+        color: 'var(--gold-bright, #ffd964)',
+        // Show a "NEW" badge until the player has opened the page once
+        // for their current name. Cleared by PlayerProfile.markAchievementsSeen
+        // (called by AchievementsOverlay.open).
+        newBadge: !PlayerProfile.hasSeenAchievements() },
     ]
     // ROOM EDITOR + TILESET EDITOR are dev surfaces — only shown when the
     // player's name is the cheat handle (PlayerProfile.isCheatName). Regular
@@ -626,7 +638,15 @@ export class MainMenuOverlay {
     // the DOM module until needed).
     import('./AchievementsOverlay.js').then(({ AchievementsOverlay }) => {
       this._achievements = new AchievementsOverlay({
-        onClose: () => { this._achievements = null },
+        onClose: () => {
+          this._achievements = null
+          // Player has now seen the page — clear the "NEW" badge from
+          // the main-menu item. Surgical removal (vs re-rendering the
+          // whole menu) so the item's entrance animation doesn't re-fire.
+          const badge = this._el?.querySelector(
+            '.qf-mm-item[data-id="achievements"] .qf-mm-item-new')
+          badge?.remove()
+        },
       })
       this._achievements.open()
     })
