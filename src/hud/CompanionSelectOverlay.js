@@ -27,10 +27,12 @@
 import { h } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
 import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
+import { EventBus } from '../systems/EventBus.js'
 import {
   COMPANION_ORDER, COMPANIONS, DEFAULT_COMPANION,
 } from '../systems/companions.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { AchievementSystem } from '../systems/AchievementSystem.js'
 
 const STORE_KEY  = 'qf.companion'
 const PAGE_SIZE  = 3
@@ -405,13 +407,14 @@ export class CompanionSelectOverlay {
       },
       // Locked cards: HOVER works (plays the hover SFX + lifts visually
       // via the `:hover` CSS rules below) so the player can browse the
-      // locked companion's silhouette, but CLICK is blocked — they
-      // can't be selected as the run keeper until they're unlocked.
-      // The `not-allowed` cursor is set in CSS to telegraph that.
-      // Unlocked cards bind both hover + click as normal.
+      // locked companion's silhouette. CLICK now routes to a denied-
+      // feedback handler (shake + tooltip + toast + error SFX) instead
+      // of being a no-op — players get explicit feedback that the
+      // companion isn't unlocked yet. Unlocked cards play the normal
+      // UI click sound + run the selection logic.
       on: {
         mouseenter: () => this._hover(),
-        ...(locked ? {} : { click: () => this._select(id) }),
+        click: locked ? () => this._onLockedClick(id) : () => this._select(id),
       },
     }
     if (locked) cardAttrs['aria-disabled'] = 'true'
@@ -607,6 +610,78 @@ export class CompanionSelectOverlay {
     HudSfx.playUi('hover')
   }
 
+  // Click on a LOCKED companion card. Plays the error SFX + mounts an
+  // inline tooltip centered on the character. The shake animation +
+  // top-right toast emit were dropped 2026-05-26 per user request —
+  // the single centered tooltip carries the message clearly enough
+  // and the layout reads quieter without the wiggle.
+  _onLockedClick(id) {
+    HudSfx.playUi('denied')
+    this._showLockedTip(id)
+  }
+
+  // Build the locked-companion message. Generic format for every
+  // companion: `🔒 NAME IS LOCKED`. (The earlier achievement-specific
+  // Zul'Gath callout was dropped 2026-05-26 — the user preferred the
+  // simpler uniform message across the board.)
+  _lockedMessage(id) {
+    const cmp  = COMPANIONS[id]
+    const name = (cmp?.name || id).toUpperCase()
+    return `🔒  ${name} IS LOCKED`
+  }
+
+  // Mount an inline tooltip centered on the clicked locked card.
+  // Renders as two stacked lines:
+  //   Line 1 — `🔒 NAME IS LOCKED` (always shown)
+  //   Line 2 — Achievement name that grants this companion (only
+  //            when there IS a wired unlock achievement; companions
+  //            without one show just line 1).
+  // Auto-removes itself after ~2s, or earlier if the player clicks
+  // the same card again (replaces the existing tooltip in-place).
+  // Appended to the card so it inherits the card's positioning context;
+  // CSS positions it absolutely centered (translate(-50%, -50%)) over
+  // the portrait.
+  _showLockedTip(id) {
+    const ref = this._refs?.[id]
+    if (!ref?.card) return
+    // Tear down any existing tip on this card before showing a new one.
+    const existing = ref.card.querySelector('.qf-cmpsel-locked-tip')
+    if (existing) existing.remove()
+    const msg = this._lockedMessage(id)
+    const achDef = this._findUnlockAchievement(id)
+    const tip = h('div', { className: 'pix qf-cmpsel-locked-tip' }, [
+      h('div', { className: 'qf-cmpsel-locked-tip-title' }, msg),
+      achDef && h('div', { className: 'qf-cmpsel-locked-tip-sub' },
+        `${achDef.name} ACHIEVEMENT`),
+    ])
+    ref.card.appendChild(tip)
+    // Trigger the fade-in via a class flip on the next frame so the
+    // initial-render opacity:0 → opacity:1 transition lands.
+    requestAnimationFrame(() => tip.classList.add('is-visible'))
+    // Auto-dismiss with a fade-out. Short message = short dwell.
+    setTimeout(() => {
+      tip.classList.remove('is-visible')
+      setTimeout(() => tip.remove(), 240)
+    }, 2500)
+  }
+
+  // Find the achievement definition whose reward unlocks this
+  // companion id, if any. Walks `AchievementSystem.getDefinitions()`
+  // looking for `reward.type === 'companion'` + `reward.id === id`.
+  // Returns the def (with .name etc.) or null if no achievement is
+  // wired to unlock this companion yet (most locked teasers today).
+  _findUnlockAchievement(companionId) {
+    try {
+      const defs = AchievementSystem.getDefinitions?.() || []
+      for (const def of defs) {
+        if (def?.reward?.type === 'companion' && def.reward.id === companionId) {
+          return def
+        }
+      }
+    } catch {}
+    return null
+  }
+
   _select(id) {
     if (!COMPANIONS[id]) return
     if (!this._isUnlocked(id)) return
@@ -617,6 +692,9 @@ export class CompanionSelectOverlay {
     // name that isn't visible. Click is silently ignored; user can try
     // again once the slide settles (~600ms).
     if (this._isSliding) return
+    // UI click chip — confirms the click registered for an unlocked
+    // companion. Locked clicks play `denied` via _onLockedClick instead.
+    HudSfx.playUi('click')
     this._selected = id
     // Roll a fresh picked-emote for the new selection — variety per
     // click. `_applySelected` (called below or via `_setPage`'s render)

@@ -24,6 +24,7 @@ const UI_VOL = {
   hover:        0.55,  // soft hover whisper — still subtle, now audible
   click:        2.50,  // Press button.wav — needs heavy boost to cut through
   click_danger: 1.80,  // sacrifice / abandon — louder so it feels weighty
+  denied:       1.60,  // locked-companion click / disallowed action
   toast:        0.65,  // toast appear chip
   tab:          0.70,  // tab switch in overlays
   open_panel:   0.90,  // overlay open
@@ -43,6 +44,7 @@ const UI_KEY = {
   hover:        'sfx-btn-hover',     // dedicated cursor-hover chip
   click:        'sfx-btn-click',     // dedicated press-button chip
   click_danger: 'sfx-error',         // descending tone for destructive choice
+  denied:       'sfx-error',         // same error.wav as click_danger; semantic alias for "locked / disallowed"
   toast:        'sfx-door-open',     // gentle "arrives" feel
   tab:          'sfx-chest-open',    // hollow flip
   open_panel:   'sfx-chest-open',
@@ -54,6 +56,7 @@ const COOLDOWN = {
   hover:        80,
   click:        90,
   click_danger: 200,
+  denied:       180,
   toast:        180,
   tab:          120,
   open_panel:   200,

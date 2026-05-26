@@ -254,7 +254,36 @@ const COMPANIONS = {
     srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/Rattle Bones',
     outDir: 'assets/npc-rattlebones',
     map: {
+      // Source filename was `idle.png`, replaced 2026-05-26 with the
+      // redrawn `idle_2.png`. The OUTPUT id stays `idle` (the in-game
+      // expression key), so nothing downstream needs to change.
+      'idle_2.png': 'idle',
+    },
+  },
+
+  // The Necroknight — eighth keeper, also ships LOCKED. Skeletal warrior
+  // archetype: armored undead knight with a green spectral aura. Same
+  // teaser-only treatment as Luna / Rattle Bones / Nocturna: one `idle`
+  // portrait, no dialogue, unlock condition TBD. Promotion path identical
+  // to the other locked teasers. Source filename is lowercase `idle.png`
+  // (no companion prefix).
+  necroknight: {
+    srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/The Necroknight',
+    outDir: 'assets/npc-necroknight',
+    map: {
       'idle.png': 'idle',
+    },
+  },
+
+  // Spectra — ninth keeper, ships LOCKED (same teaser-only treatment
+  // as the other unlock-pending companions). Single `idle` portrait,
+  // no dialogue, unlock condition TBD. Source filename is `Idle.png`
+  // with a capital I — case matters for the map key.
+  spectra: {
+    srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/Spectra',
+    outDir: 'assets/npc-spectra',
+    map: {
+      'Idle.png': 'idle',
     },
   },
 

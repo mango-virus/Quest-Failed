@@ -22,10 +22,17 @@ export const COMPANIONS = {
     // Player-facing "what this keeper is like to play with" descriptors,
     // shown on the CompanionSelect card.
     traits:    ['gentle guidance', 'warmth', 'encouragement'],
-    // CompanionSelect portrait tuning — `portraitScale` evens out the two
-    // companions' on-screen size (their source art is framed differently);
+    // CompanionSelect portrait tuning — bumped from 0.88 → 1.15 → 1.05
+    // (final). At 1.15 (matching the locked teasers' raw scale) she
+    // and the other starters read SLIGHTLY too big, because the
+    // starter sources are tight-cropped (figure dominates canvas)
+    // while the locked-teaser sources have more surrounding whitespace.
+    // 1.05 brings starter and teaser apparent heights into visual
+    // parity. Bottom-anchored origin keeps her feet on the name plate.
+    // 560px bake → ~651px displayed = downscale, no quality loss.
     // `portraitFlipX` mirrors the sprite so they can face each other.
-    portraitScale: 0.88,
+    portraitScale: 1.05,
+    portraitOrigin: '50% 100%',
     portraitFlipX: false,
     // In-game HUD portrait scale — multiplier on the .qf-npc-img sprite.
     // Lets a companion whose art wastes frame space (e.g. tall wings) be
@@ -77,7 +84,15 @@ export const COMPANIONS = {
     name:      'Malakor',
     tagline:   'Rude, sinister, loyal to the bone.',
     traits:    ['blunt truth', 'no hand-holding', 'fierce loyalty'],
-    portraitScale: 1,
+    // Scaled 1.05 → 1.15 (a little bigger) with `portraitOrigin`
+    // shifted from `'50% 100%'` (pure bottom anchor) → `'50% 88%'`
+    // → `'50% 75%'`. The Y value controls how the 1.15× scale-up
+    // distributes between upward and downward growth: at 75%, about
+    // 25% of the growth pushes the image down, sliding his body
+    // further into the card. Wings still overflow the top of the
+    // portrait box (by design — see hudScale comment below).
+    portraitScale: 1.15,
+    portraitOrigin: '50% 65%',
     portraitFlipX: true,
     // Malakor's sprite carries tall wings above his head, so at a shared
     // frame height his BODY renders smaller than Lilith's. Scale his HUD
@@ -324,6 +339,75 @@ export const COMPANIONS = {
     expressions: ['idle'],
   },
 
+  // The Necroknight — eighth keeper. Ships LOCKED on the recruit screen
+  // (same teaser-only treatment as the other unlock-pending companions).
+  // Armored undead warrior with a spectral-green aura — the
+  // `--cmp-accent` token in styles.css is set to a phosphor green so
+  // his hover/select halo reads as ghostfire instead of the default
+  // blood-red. Only an `idle` portrait is wired today; no `linesKey`
+  // because he has no banter bank yet — CompanionSelectOverlay skips
+  // locked ids from the speaker rotation, so a missing bank is safe.
+  //
+  // When he becomes playable: drop the rest of his expression art into
+  // the source folder (`Quest-Failed assets/Companions/The Necroknight`),
+  // fill out `tools/bake-npc-sprites.mjs`'s `necroknight.map`, re-run
+  // the bake, expand `expressions` here, add his `linesKey` + dialogue
+  // bank, and remove `locked` below (or call
+  // `PlayerProfile.unlockCompanion('necroknight')` wherever the unlock
+  // fires — condition TBD).
+  necroknight: {
+    id:        'necroknight',
+    name:      'Necroknight',
+    tagline:   'Sworn to no king, served by every restless dead.',
+    traits:    [],
+    locked:    true,
+    // Tuned to match the other locked teasers. Re-tune if his source
+    // art reads visually larger or smaller than Nocturna in the card.
+    portraitScale: 1.15,
+    portraitOrigin: '50% 100%',
+    portraitFlipX: false,
+    hudScale: 1.15,
+    spriteDir: 'assets/npc-necroknight/',
+    restExpr:  'idle',
+    // No dialogue bank yet — see header comment.
+    linesKey:  null,
+    expressions: ['idle'],
+  },
+
+  // Spectra — ninth keeper. Ships LOCKED on the recruit screen (same
+  // teaser-only treatment as the other unlock-pending companions).
+  // Only an `idle` portrait is wired today; no `linesKey` because she
+  // has no banter bank yet — CompanionSelectOverlay skips locked ids
+  // from the speaker rotation, so a missing bank is safe.
+  //
+  // When she becomes playable: drop the rest of her expression art into
+  // the source folder (`Quest-Failed assets/Companions/Spectra`), fill
+  // out `tools/bake-npc-sprites.mjs`'s `spectra.map`, re-run the bake,
+  // expand `expressions` here, add her `linesKey` + dialogue bank, and
+  // remove `locked` below (or call
+  // `PlayerProfile.unlockCompanion('spectra')` wherever the unlock
+  // fires — condition TBD).
+  spectra: {
+    id:        'spectra',
+    name:      'Spectra',
+    tagline:   'A wraith\'s whisper at the edge of every shadow.',
+    traits:    [],
+    locked:    true,
+    // Tuned to match the other locked teasers. Re-tune if her source
+    // art reads visually larger or smaller than the rest in the card.
+    portraitScale: 1.15,
+    portraitOrigin: '50% 100%',
+    // Flipped 2026-05-26 — her source art faces one way; mirror so
+    // she faces inward toward the other cards on Page 3.
+    portraitFlipX: true,
+    hudScale: 1.15,
+    spriteDir: 'assets/npc-spectra/',
+    restExpr:  'idle',
+    // No dialogue bank yet — see header comment.
+    linesKey:  null,
+    expressions: ['idle'],
+  },
+
   nocturna: {
     id:        'nocturna',
     name:      'Nocturna',
@@ -361,7 +445,13 @@ export const COMPANIONS = {
     // Zul'Gath) and faces RIGHT, toward Zul'Gath. The studio art faces
     // right already, so no mirror is needed. If she ends up facing the
     // wrong way in the recruit screen, flipping this one boolean fixes it.
-    portraitScale: 1,
+    // Bumped from 1 → 1.15 → 1.05 (final). At 1.15 (matching the
+    // locked teasers' raw scale) the starters read SLIGHTLY too big
+    // because their source art is tight-cropped while the locked-
+    // teaser sources have more whitespace. 1.05 brings her into
+    // visual parity with the locked teasers' apparent heights.
+    portraitScale: 1.05,
+    portraitOrigin: '50% 100%',
     portraitFlipX: false,
     // In-game HUD sprite scale — matched to Lilith / Malakor.
     hudScale: 1.15,
@@ -410,7 +500,7 @@ export function getCompanion(id) {
 // ids stay in the list — the overlay renders them silhouetted in-place and
 // skips them from banter / hover / click; never strip locked ids here.
 // Append new companions to the end; pagination auto-extends.
-export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath', 'nocturna', 'rattlebones', 'luna']
+export const COMPANION_ORDER = ['lilith', 'rattlebones', 'safira', 'necroknight', 'nocturna', 'malakor', 'zulgath', 'luna', 'spectra']
 
 // Roster of companion ids that ship UNLOCKED out of the box — used by
 // PlayerProfile to seed the per-player unlock set on first run. Locked
@@ -422,4 +512,8 @@ export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath', 'noctu
 //     slot next to Nocturna with one shared `idle` sprite.
 //   • Rattle Bones' unlock condition is TBD — added 2026-05-26 as a
 //     third locked teaser, one idle sprite, no dialogue bank.
+//   • The Necroknight's unlock condition is TBD — added 2026-05-26 as
+//     a fourth locked teaser, one idle sprite, green spectral accent.
+//   • Spectra's unlock condition is TBD — added 2026-05-26 as a fifth
+//     locked teaser, one idle sprite.
 export const STARTER_COMPANIONS = ['lilith', 'malakor', 'safira']

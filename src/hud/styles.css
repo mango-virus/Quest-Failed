@@ -9703,22 +9703,28 @@ body {
    gold (ancient dragon, treasure-hoarder), Safira light blue (genie magic),
    Nocturna twilight-violet (cool moonlit witchery — distinct from Malakor's
    warmer purple). */
-.qf-cmpsel-card[data-id="lilith"]   { --cmp-accent: #ff3782; }
-.qf-cmpsel-card[data-id="malakor"]  { --cmp-accent: #a070dc; }
-.qf-cmpsel-card[data-id="zulgath"]  { --cmp-accent: #ff8c2a; }
-.qf-cmpsel-card[data-id="safira"]   { --cmp-accent: #2caee8; }
-.qf-cmpsel-card[data-id="nocturna"] { --cmp-accent: #7c6cff; }
-.qf-cmpsel-card[data-id="luna"]     { --cmp-accent: #ffffff; }
+.qf-cmpsel-card[data-id="lilith"]      { --cmp-accent: #ff3782; }
+.qf-cmpsel-card[data-id="malakor"]     { --cmp-accent: #ff3a3a; }
+.qf-cmpsel-card[data-id="zulgath"]     { --cmp-accent: #ff8c2a; }
+.qf-cmpsel-card[data-id="safira"]      { --cmp-accent: #2caee8; }
+.qf-cmpsel-card[data-id="nocturna"]    { --cmp-accent: #7c6cff; }
+.qf-cmpsel-card[data-id="rattlebones"] { --cmp-accent: #ffe34d; }
+.qf-cmpsel-card[data-id="luna"]        { --cmp-accent: #ffffff; }
+.qf-cmpsel-card[data-id="necroknight"] { --cmp-accent: #4dff7a; }
+.qf-cmpsel-card[data-id="spectra"]     { --cmp-accent: #9b4dff; }
 /* Same per-companion accent on the boss-select screen so the bubble
    border matches the recruit-screen and in-game bubble. The bubble
    inside .qf-archdec-companion is .qf-cmpsel-bubble (re-uses the same
    class) and its `border-color: var(--cmp-accent)` inherits down. */
-.qf-archdec-companion[data-id="lilith"]   { --cmp-accent: #ff3782; }
-.qf-archdec-companion[data-id="malakor"]  { --cmp-accent: #a070dc; }
-.qf-archdec-companion[data-id="zulgath"]  { --cmp-accent: #ff8c2a; }
-.qf-archdec-companion[data-id="safira"]   { --cmp-accent: #2caee8; }
-.qf-archdec-companion[data-id="nocturna"] { --cmp-accent: #7c6cff; }
-.qf-archdec-companion[data-id="luna"]     { --cmp-accent: #ffffff; }
+.qf-archdec-companion[data-id="lilith"]      { --cmp-accent: #ff3782; }
+.qf-archdec-companion[data-id="malakor"]     { --cmp-accent: #ff3a3a; }
+.qf-archdec-companion[data-id="zulgath"]     { --cmp-accent: #ff8c2a; }
+.qf-archdec-companion[data-id="safira"]      { --cmp-accent: #2caee8; }
+.qf-archdec-companion[data-id="nocturna"]    { --cmp-accent: #7c6cff; }
+.qf-archdec-companion[data-id="rattlebones"] { --cmp-accent: #ffe34d; }
+.qf-archdec-companion[data-id="luna"]        { --cmp-accent: #ffffff; }
+.qf-archdec-companion[data-id="necroknight"] { --cmp-accent: #4dff7a; }
+.qf-archdec-companion[data-id="spectra"]     { --cmp-accent: #9b4dff; }
 .qf-cmpsel-card:hover {
   opacity: 0.9;
   transform: translateY(-6px);
@@ -9823,17 +9829,19 @@ body {
 }
 /* Accent floor-glow pooled under the character on hover / select — grounds
    the figure and echoes the silhouette glow. */
+/* Ground-glow ellipse at the bottom of each portrait — DISABLED
+   2026-05-26 per user request. The radial-gradient haloed the
+   nameplate area in the companion's accent color (red for Malakor,
+   pink for Lilith, cyan for Safira, etc.) on hover / select, which
+   read as a heavy red wash on the dark background. The character
+   silhouette halo (`.qf-cmpsel-card[data-selected="true"]
+   .qf-cmpsel-portrait` drop-shadow filter below) still provides
+   the per-companion accent cue on selection.
+   Rule preserved as a no-op via `content: none` rather than deleted
+   — keeps the historical context + the related override at line 9970
+   below from becoming an orphan reference. */
 .qf-cmpsel-portrait::after {
-  content: '';
-  position: absolute;
-  bottom: 4px; left: 50%;
-  transform: translateX(-50%);
-  width: 68%; height: 32px;
-  background: radial-gradient(ellipse,
-    color-mix(in srgb, var(--cmp-accent) 55%, transparent) 0%, transparent 78%);
-  opacity: 0;
-  transition: opacity 220ms ease;
-  pointer-events: none;
+  content: none;
 }
 .qf-cmpsel-card:hover .qf-cmpsel-portrait::after,
 .qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait::after { opacity: 1; }
@@ -9999,6 +10007,65 @@ body {
   font-size: 11px;
   letter-spacing: 4px;
   color: color-mix(in srgb, var(--cmp-accent) 70%, var(--text-mute));
+}
+
+/* Locked-card click feedback — added 2026-05-26. Player clicks a
+   locked companion → CompanionSelectOverlay._onLockedClick mounts an
+   inline tooltip via _showLockedTip. The previous shake animation
+   was retired by user request — the centered tooltip alone carries
+   the feedback cleanly enough without the wiggle. (Keyframe rule
+   removed; if you ever want it back, see commit 990db01 for the
+   `@keyframes qf-cmpsel-shake` + `.is-shaking` class shape.) */
+
+/* Floating tooltip centered on the locked card. Two stacked lines:
+   line 1 = `🔒 NAME IS LOCKED` (always); line 2 = the unlocking
+   achievement's name (only when one is wired). Positioned over the
+   character (vertical + horizontal center of the card) so it reads
+   as "this CHARACTER is locked" rather than a detached floating chip
+   above the card. Initial state is invisible; the `.is-visible`
+   class toggles opacity + a small slide-in. */
+.qf-cmpsel-locked-tip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-50% + 6px));
+  /* Vertical stack for the title + optional sub-line. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 18px;
+  background: linear-gradient(180deg, #2a0a0c, #1a0608);
+  border: 2px solid var(--blood, #ff4d6a);
+  white-space: nowrap;
+  box-shadow: 0 0 0 2px #000,
+              0 0 18px rgba(255, 77, 106, 0.55),
+              0 6px 14px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease, transform 220ms ease;
+  z-index: 10;
+}
+.qf-cmpsel-locked-tip.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+.qf-cmpsel-locked-tip-title {
+  color: #ffe2e2;
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px rgba(255, 77, 106, 0.5);
+}
+/* Sub-line = the unlocking achievement's name. Smaller + gold-bright
+   so it reads as "here's WHAT to chase" beneath the locked headline,
+   visually distinct from the red title line. */
+.qf-cmpsel-locked-tip-sub {
+  color: var(--gold-bright, #ffd964);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--gold-bright, #ffd964) 50%, transparent);
 }
 
 /* Mystery placeholder glyph — big "?" centered in the portrait box.
