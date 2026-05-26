@@ -284,20 +284,44 @@ export class LeaderboardOverlay {
         const n = PlayerProfile.getName?.() ?? ''
         return typeof n === 'string' ? n.trim().toLowerCase() : ''
       })()
+      // Temporary diagnostic — auto-on so the per-row decision shows up
+      // in the console without the user opting in. Strip once the
+      // leaderboard NEW-chip flow is verified working in the wild.
+      const _diag = []
       for (const r of top3) {
-        if (!r || r.isYou) continue
+        if (!r) { _diag.push({ skip: 'no-row' }); continue }
+        if (r.isYou) { _diag.push({ skip: 'isYou', name: r.name }); continue }
         const rowId = r._raw?.id
-        if (!rowId || typeof rowId !== 'string') continue
+        if (!rowId || typeof rowId !== 'string') {
+          _diag.push({ skip: 'bad-id', rowIdType: typeof rowId, rowId, name: r.name })
+          continue
+        }
         // Belt-and-braces self-filter (canonical name compare in case
         // `isYou` missed a case-mismatched submission).
         if (myCanon) {
           const rawName = r._raw?.player_name ?? r.name ?? ''
           const canon = typeof rawName === 'string' ? rawName.trim().toLowerCase() : ''
-          if (canon && canon === myCanon) continue
+          if (canon && canon === myCanon) {
+            _diag.push({ skip: 'self-canon', canon, myCanon })
+            continue
+          }
         }
-        if (!seen.has(rowId)) newSet.add(rowId)
+        if (seen.has(rowId)) {
+          _diag.push({ skip: 'already-seen', rowId, name: r.name })
+          continue
+        }
+        newSet.add(rowId)
+        _diag.push({ add: true, rowId, name: r.name })
       }
       this._newPodiumAtOpen = newSet
+      console.info('[lb-new-snapshot]', {
+        activeName: PlayerProfile.getName?.(),
+        myCanon,
+        seenSize: seen.size,
+        top3Count: top3.length,
+        newSize: newSet.size,
+        decisions: _diag,
+      })
       this._loading = false
     } catch (e) {
       this._error = e?.message || String(e)
@@ -760,6 +784,17 @@ export class LeaderboardOverlay {
     const rowId = (typeof entry?._raw?.id === 'string') ? entry._raw.id : ''
     const isNewPodium = !entry?.isYou && !!rowId &&
                         this._newPodiumAtOpen?.has(rowId)
+    // Temporary diagnostic — pair with [lb-new-snapshot] log so we can
+    // see whether render decisions match snapshot decisions for each
+    // podium spot. Remove once verified working.
+    console.info('[lb-new-render]', {
+      place,
+      name: entry?.name,
+      rowId,
+      isYou: !!entry?.isYou,
+      snapshotHas: rowId ? !!this._newPodiumAtOpen?.has(rowId) : 'n/a',
+      isNewPodium,
+    })
     // LB_SHOW_COMPANIONS — when a companion is shown, the card flips to
     // a horizontal layout: [big keeper sprite on the left | existing
     // boss/name/stats column on the right]. Cards without a companion
