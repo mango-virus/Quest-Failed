@@ -289,10 +289,14 @@ export const Leaderboard = {
     // badge). Tolerant of a malformed response.
     try {
       if (Array.isArray(rows)) {
+        // Coerce `r.id` to a string — Supabase returns numeric (bigint)
+        // PKs as JSON numbers, so `typeof r.id === 'string'` filters
+        // them all out and leaves the cache empty. `String(r.id)` works
+        // uniformly for string uuids, numeric bigints, etc.
         const top3 = rows.slice(0, 3)
-          .filter(r => r && typeof r.id === 'string')
+          .filter(r => r && r.id != null)
           .map(r => ({
-            id:   r.id,
+            id:   String(r.id),
             name: typeof r.player_name === 'string' ? r.player_name : '',
           }))
         localStorage.setItem(TOP3_CACHE_KEY, JSON.stringify(top3))

@@ -642,26 +642,31 @@ export const PlayerProfile = {
   },
 
   // Mark a single podium run as known (hover-dismiss path). `id` is the
-  // Supabase row id of the run.
+  // Supabase row id of the run — coerced to string for storage since
+  // Supabase bigint PKs come in as numbers.
   markLeaderboardIdKnown(id) {
-    if (!id || typeof id !== 'string') return
+    if (id == null) return
+    const key = String(id)
+    if (!key) return
     if (!this.getName()) return
     const storeKey = _leaderboardNewSeenKeyFor(this.getName())
     const set = _readIdSet(storeKey)
-    if (set.has(id)) return
-    set.add(id)
+    if (set.has(key)) return
+    set.add(key)
     _writeIdSet(storeKey, set)
   },
 
   // Returns true if any of the supplied podium row ids is NOT in the
-  // player's seen set. `top3Ids` is an array of Supabase row id strings.
-  // The local player's own row should be filtered out by the caller
-  // (e.g. by skipping rows whose isYou is true).
+  // player's seen set. `top3Ids` is an array of Supabase row id strings
+  // (or anything coercible to string — defensive). The local player's
+  // own row should be filtered out by the caller before passing in.
   hasUnseenNewLeaderboardIds(top3Ids) {
     if (!Array.isArray(top3Ids) || top3Ids.length === 0) return false
     const seen = this.getKnownLeaderboardIds()
     for (const id of top3Ids) {
-      if (id && typeof id === 'string' && !seen.has(id)) return true
+      if (id == null) continue
+      const key = String(id)
+      if (key && !seen.has(key)) return true
     }
     return false
   },
