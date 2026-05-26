@@ -266,6 +266,14 @@ export class Game extends Phaser.Scene {
 
     // Respawn dead minions when night starts (Phase 6 kernel)
     EventBus.on('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
+    // Phase 9 — Pact of the Marionette: MinionRenderer's per-sprite
+    // pointerdown calls event.stopPropagation, which blocks the scene-
+    // level pointerdown handler where _tryMarionettePossess used to
+    // exclusively run. Subscribing to the MINION_CLICKED event the
+    // sprite handler emits bypasses propagation entirely — same minion
+    // ref, no tile-find needed. The scene-level path still works as a
+    // fallback (click on a tile a sprite doesn't cover).
+    EventBus.on('MINION_CLICKED',       this._onMinionClickedForMarionette, this)
     // Phase 10: third boss defeat → game over
     EventBus.on('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     // Re-clamp zoom whenever the dungeon grid expands so min zoom tracks map size
@@ -386,6 +394,7 @@ export class Game extends Phaser.Scene {
 
   shutdown() {
     EventBus.off('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
+    EventBus.off('MINION_CLICKED',       this._onMinionClickedForMarionette, this)
     EventBus.off('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     EventBus.off('GRID_EXPANDED',        this._onGridExpanded,  this)
     EventBus.off('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
@@ -1292,8 +1301,11 @@ export class Game extends Phaser.Scene {
     })
   }
 
-  // Phase 9 — Marionette possession. Click handler: if pact active and not
-  // yet used today, pick the minion under the cursor and start possessing.
+  // Phase 9 — Marionette possession. Two entry points feed into
+  // _possessMinion: the scene-level pointerdown (tile-find, catches
+  // clicks on tiles a sprite doesn't cover) and the MINION_CLICKED
+  // EventBus subscription (direct ref, bypasses the sprite's
+  // stopPropagation that blocks the scene handler).
   _tryMarionettePossess(pointer) {
     const flags = this.gameState?._mechanicFlags ?? {}
     if (!flags.pactOfTheMarionette) return
@@ -1306,7 +1318,31 @@ export class Game extends Phaser.Scene {
       m.faction === 'dungeon' && m.aiState !== 'dead' &&
       m.tileX === tx && m.tileY === ty
     )
+    this._possessMinion(minion)
+  }
+
+  // Sprite-level pointerdown in MinionRenderer calls stopPropagation,
+  // so the scene-level _tryMarionettePossess never fires for clicks
+  // that land on a minion's sprite (the dominant case). This subscriber
+  // covers that gap — same gating, same possession step.
+  _onMinionClickedForMarionette({ minion, pointer } = {}) {
     if (!minion) return
+    if (this.gameState?.meta?.phase !== 'day') return
+    if (pointer?.rightButtonDown?.()) return   // right-click reserved for other UI flows
+    const flags = this.gameState?._mechanicFlags ?? {}
+    if (!flags.pactOfTheMarionette) return
+    if (flags.marionetteUsedToday) return
+    if (flags.possessedMinionId) return
+    if (minion.faction !== 'dungeon' || minion.aiState === 'dead') return
+    this._possessMinion(minion)
+  }
+
+  // Shared possession step. Called from both _tryMarionettePossess
+  // (scene pointerdown) and _onMinionClickedForMarionette (sprite click).
+  _possessMinion(minion) {
+    if (!minion) return
+    const flags = this.gameState._mechanicFlags ?? (this.gameState._mechanicFlags = {})
+    if (flags.possessedMinionId) return
     flags.possessedMinionId  = minion.instanceId
     flags.marionetteUsedToday = true
     minion._marionetteLastStepAt = 0
