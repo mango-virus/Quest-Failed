@@ -284,41 +284,6 @@ export const COMPANIONS = {
     expressions: ['idle'],
   },
 
-  // Cinder & Marina — sixth keeper. Two-in-one companion: Cinder is a
-  // lava elemental, Marina is a water elemental — they share a single
-  // sprite. Ships LOCKED on the recruit screen (same locked-card
-  // silhouette treatment as Nocturna). Only an `idle` portrait is wired
-  // up today; no `linesKey` because they have no banter bank yet —
-  // CompanionSelectOverlay skips locked ids from the speaker rotation.
-  //
-  // When they become playable: drop the rest of their expression art into
-  // the source folder (`Quest-Failed assets/Companions/Cinder and Marina`),
-  // fill out tools/bake-npc-sprites.mjs's `cindermarina.map`, re-run the
-  // bake, expand `expressions` here, add a `linesKey` + dialogue bank,
-  // and call `PlayerProfile.unlockCompanion('cindermarina')` wherever
-  // the unlock fires (condition TBD — same as Nocturna).
-  cindermarina: {
-    id:        'cindermarina',
-    name:      'Cinder & Marina',
-    tagline:   'Twin elementals — the flame and the tide, bound together.',
-    traits:    [],
-    locked:    true,
-    // The source art has the two figures occupying ~60% of the canvas
-    // (lots of surrounding whitespace), so they need a higher scale
-    // than the humanoid companions to match Nocturna's apparent
-    // height. Bisected the tries: 1.3 (too short), 1.8 (overflowed),
-    // 1.55 (too tall) → 1.4 lands them at Nocturna's height. Bottom-
-    // anchored origin so the extra height grows UP rather than centred.
-    portraitScale: 1.4,
-    portraitOrigin: '50% 100%',
-    portraitFlipX: false,
-    hudScale: 1.15,
-    spriteDir: 'assets/npc-cindermarina/',
-    restExpr:  'idle',
-    // No dialogue bank yet — see header comment.
-    linesKey:  null,
-    expressions: ['idle'],
-  },
 
   safira: {
     id:        'safira',
@@ -378,14 +343,11 @@ export function getCompanion(id) {
 // ids stay in the list — the overlay renders them silhouetted in-place and
 // skips them from banter / hover / click; never strip locked ids here.
 // Append new companions to the end; pagination auto-extends.
-export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath', 'nocturna', 'cindermarina']
+export const COMPANION_ORDER = ['lilith', 'malakor', 'safira', 'zulgath', 'nocturna']
 
 // Roster of companion ids that ship UNLOCKED out of the box — used by
 // PlayerProfile to seed the per-player unlock set on first run. Locked ids
-// are NOT in this list and require an explicit unlock call.
-//   • Zul'Gath unlocks via the `hoard_lord` achievement (10,000 gold in
-//     a single run).
-//   • Nocturna's unlock condition is TBD (character work in progress).
-//   • Cinder & Marina's unlock condition is TBD — added 2026-05-26 as
-//     a teaser slot next to Nocturna with one shared `idle` sprite.
+// (Nocturna + Zul'Gath, 2026-05-25) are NOT in this list and require an
+// explicit unlock call. Zul'Gath unlocks via the `hoard_lord` achievement
+// (10,000 gold in a single run); Nocturna's unlock condition is TBD.
 export const STARTER_COMPANIONS = ['lilith', 'malakor', 'safira']

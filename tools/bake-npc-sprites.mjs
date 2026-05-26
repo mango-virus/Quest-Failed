@@ -228,30 +228,6 @@ const COMPANIONS = {
     },
   },
 
-  // Cinder & Marina — sixth keeper, also ships LOCKED on the recruit
-  // screen (same teaser-only treatment as Nocturna). Two-in-one
-  // companion: Cinder is a lava elemental, Marina is a water elemental,
-  // sharing a single sprite. Only an `idle` portrait is wired today —
-  // when more art ships, fill in the map, re-run this bake, expand
-  // `expressions` in companions.js, add a `linesKey` + dialogue bank,
-  // and call `PlayerProfile.unlockCompanion('cindermarina')` at the
-  // chosen trigger (unlock condition TBD per user).
-  //
-  // Their source art has the two figures occupying only ~60% of the
-  // canvas (lots of surrounding whitespace), so they need a higher
-  // `portraitScale` than the humanoid companions to match Nocturna's
-  // apparent height on the recruit screen. With scale 1.3 in a 620px
-  // portrait box, the effective render is ~806px tall — well within
-  // a 1000px-wide bake's natural height (~1500px), so the image stays
-  // crisp without any visible upscaling blur.
-  cindermarina: {
-    srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/Cinder and Marina',
-    outDir: 'assets/npc-cindermarina',
-    width: 1000,
-    map: {
-      'Cinder and Marina idle.png': 'idle',
-    },
-  },
 
   // Safira — fourth (and final) companion, a chaotic wish-granting genie.
   // 53 expressions. Tall portrait art (~1618×2400) like the humanoids, so

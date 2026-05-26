@@ -1091,14 +1091,14 @@ export class AchievementsOverlay {
     // unlock fires. Titles is achievement-only (no starter titles).
     //
     // COMPANIONS denominator uses `COMPANION_ORDER.length` (the FULL
-    // registry, currently 6 — lilith, malakor, safira, zulgath, nocturna,
-    // cindermarina) rather than starters + achievement-unlockable. This
-    // matches what the player sees on the recruit screen, where all 6
-    // are visible (the 2 locked ones with no unlock condition yet still
-    // appear as silhouette teasers). Pre-fix the denominator was `3 + 1
-    // = 4` which read as a bug since the recruit screen shows 6. As
-    // Nocturna + Cinder & Marina get their unlock conditions wired up,
-    // the max reachable numerator grows toward 6 organically.
+    // registry, currently 5 — lilith, malakor, safira, zulgath,
+    // nocturna) rather than starters + achievement-unlockable. This
+    // matches what the player sees on the recruit screen, where all
+    // companions are visible (locked ones without unlock conditions
+    // still appear as silhouette teasers). Pre-fix the denominator
+    // was `3 + 1 = 4` which read as a bug since the recruit screen
+    // shows more companions than that. As Nocturna gets her unlock
+    // condition wired up, the max reachable numerator grows organically.
     const achCounts = this._playerAchievementCounts(player.achievementBits)
     const maxAch    = this._maxAchievementCounts()
     const counts = {
