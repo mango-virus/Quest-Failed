@@ -5,15 +5,35 @@
 
 import { EventBus } from '../systems/EventBus.js'
 
-// Ambient chatter cadence — bumped from 7-15s → 12-24s (and contextual
-// cooldown 2s → 3s) on 2026-05-25 so late-game waves of 30+ advs don't
-// blanket the screen with bubbles. Each adv still talks; just less often.
+// Ambient chatter cadence. The base interval is what each adv targets;
+// _scheduleNextChat() lengthens it on big waves so total bubbles/sec
+// stays bounded regardless of how many advs are alive (see
+// AMBIENT_TARGET_RATE_HZ below). Bumped from 7-15s → 12-24s on
+// 2026-05-25; per-adv scaling layered on 2026-05-26.
 const MIN_INTERVAL_MS      = 12000
 const MAX_INTERVAL_MS      = 24000
 const BUBBLE_LIFE_MS       = 2200
 const CONTEXTUAL_LIFE_MS   = 3000
 const CONTEXTUAL_COOLDOWN  = 3000
 const FOURTH_WALL_CHANCE   = 0.08   // 8% of ambient chatter is 4th-wall
+
+// Target rate of ambient bubbles per second across the whole wave.
+// At 80 advs and 1.5 Hz target, each adv chats every ~53s — visually
+// the chatter density on screen stays roughly constant whether the
+// wave is 5 or 80 strong. Contextual events (trap fired, ally died,
+// etc.) bypass this; only the timer-based ambient is scaled.
+const AMBIENT_TARGET_RATE_HZ = 1.5
+
+// Hard cap on concurrently-rendered bubbles. Past this, new bubble
+// creation drops silently — the bubbles are pure flavour, no
+// gameplay depends on seeing every line. Contextual events still
+// fire FIRST so the priority moments aren't the ones dropped.
+const MAX_CONCURRENT_BUBBLES = 12
+
+// Off-camera bubble cull — bubbles whose owner is outside the
+// camera viewport (plus margin) skip their per-frame position
+// update. Matches the cull margin / pattern used in MinionRenderer.
+const BUBBLE_CULL_MARGIN_PX = 200
 
 export class ChatBubbles {
   constructor(scene, gameState) {
@@ -109,16 +129,34 @@ export class ChatBubbles {
       this._scheduleNextChat(adv.instanceId, now)
     }
 
-    // Position update + expiration
+    // Position update + expiration. Each bubble carries its owning
+    // `adv` reference directly (set in _createBubble), so per-frame
+    // lookup is O(1) instead of an Array.find() per bubble — that
+    // .find() was the dominant cost in late-game waves (10 bubbles
+    // x 80 advs = 800 scans/frame, ~50k ops/sec at 60fps).
+    //
+    // Off-camera cull skips the setPosition() call when the adv is
+    // off-screen. The container's stale position is fine; it'll be
+    // refreshed the moment the camera pans it back into view.
+    const cam = this._scene.cameras?.main
+    const camLeft   = cam ? (cam.worldView.x - BUBBLE_CULL_MARGIN_PX) : -Infinity
+    const camRight  = cam ? (cam.worldView.x + cam.worldView.width  + BUBBLE_CULL_MARGIN_PX) : Infinity
+    const camTop    = cam ? (cam.worldView.y - BUBBLE_CULL_MARGIN_PX) : -Infinity
+    const camBottom = cam ? (cam.worldView.y + cam.worldView.height + BUBBLE_CULL_MARGIN_PX) : Infinity
+
     for (const id of Object.keys(this._bubbles)) {
       const b = this._bubbles[id]
       if (now >= b.expiresAt) {
         this._destroyBubble(id)
         continue
       }
-      const adv = this._gameState.adventurers.active.find(a => a.instanceId === id)
-      if (!adv) { this._destroyBubble(id); continue }
-      b.container.setPosition(adv.worldX, adv.worldY - 30)
+      const adv = b.adv
+      // Defensive — if the adv reference was lost (re-creation race,
+      // graveyard cleanup), drop the bubble.
+      if (!adv || adv.aiState === 'dead') { this._destroyBubble(id); continue }
+      const wx = adv.worldX, wy = adv.worldY
+      if (wx < camLeft || wx > camRight || wy < camTop || wy > camBottom) continue
+      b.container.setPosition(wx, wy - 30)
     }
   }
 
@@ -167,7 +205,17 @@ export class ChatBubbles {
   // ── Bubble creation ──────────────────────────────────────────────────────
 
   _scheduleNextChat(advId, now) {
-    const dur = MIN_INTERVAL_MS + Math.random() * (MAX_INTERVAL_MS - MIN_INTERVAL_MS)
+    // Per-adv interval scales UP with the active adv count so the
+    // total ambient bubble rate stays roughly AMBIENT_TARGET_RATE_HZ
+    // regardless of wave size. With 5 advs the base 12-24s window
+    // applies (well under the target rate — fine). With 80 advs each
+    // adv is pushed to ~53s avg so the wave collectively still emits
+    // ~1.5 ambient bubbles/sec, not 4-5/sec.
+    const base = MIN_INTERVAL_MS + Math.random() * (MAX_INTERVAL_MS - MIN_INTERVAL_MS)
+    const advCount = Math.max(1, (this._gameState.adventurers?.active ?? []).length)
+    // Required per-adv interval to hit the wave-wide target rate.
+    const targetPerAdvMs = (advCount / AMBIENT_TARGET_RATE_HZ) * 1000
+    const dur = Math.max(base, targetPerAdvMs)
     this._nextChatAt[advId] = now + dur
   }
 
@@ -193,6 +241,15 @@ export class ChatBubbles {
     // Event-spawned monsters (zombie horde, rival-dungeon invaders) are
     // not chatty adventurers — they never show speech bubbles.
     if (!adv || adv._monster) return
+    // Concurrent-cap safety net. Pure flavour — silently drop new
+    // bubbles past the cap so a pathological "everyone bubbles at
+    // once" frame can't spike DOM/Phaser allocation. Contextual
+    // events (which take CONTEXTUAL_LIFE_MS, longer than ambient)
+    // tend to win the existing slots since they fire on a per-adv
+    // priority cooldown; ambient drops first when at cap.
+    const currentCount = Object.keys(this._bubbles).length
+    if (currentCount >= MAX_CONCURRENT_BUBBLES && !this._bubbles[adv.instanceId]) return
+
     const c   = this._scene.add.container(adv.worldX, adv.worldY - 30).setDepth(11)
     const txt = this._scene.add.text(0, 0, line, {
       fontSize: '9px', color: '#e0e6f0', fontFamily: 'monospace',
@@ -202,6 +259,9 @@ export class ChatBubbles {
 
     this._bubbles[adv.instanceId] = {
       container: c,
+      // Stash the adv reference here so update()'s per-frame loop
+      // does O(1) lookup instead of Array.find() over active advs.
+      adv,
       expiresAt: this._scene.time.now + lifeMs,
     }
 
