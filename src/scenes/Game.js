@@ -1516,49 +1516,40 @@ export class Game extends Phaser.Scene {
           }
           _stats[sys] = (_stats[sys] ?? 0) + (performance.now() - t0)
         }
-        // AI 30Hz throttle (ONLY at 1× speed). PerfHud measurements at
-        // day-22+ showed aiSystem + minionAiSystem combined eating
-        // 67% of the 1000ms/s CPU budget. Each adv's per-tick body
-        // (state machine, combat, knowledge, personality, trap-recoil,
-        // mimic-detection) is ~3ms at peak, multiplied by ~15 advs ×
-        // 60Hz = ~2700ms/s of demand against a 1000ms/s budget.
-        // Skipping every other tick halves that to ~1350ms/s and frees
-        // ~13ms per frame — the difference between 12fps and ~25fps.
+        // AI half-rate throttle — fires at EVERY speed, not just 1×.
         //
-        // 2× delta on the tick that runs so game-time progression is
-        // unchanged: AI advances exactly as much per second, just in
-        // 33ms hops instead of 16ms hops. Combat reaction feel is
-        // slightly less smooth but well within the tolerance of a
-        // strategy-pace game.
+        // Originally gated to 1× to protect sub-step precision at high
+        // speeds. PerfHud data at day-50 mango run (speed:8x, advs:55,
+        // minions:110) proved that gating was the wrong call: at 8×
+        // the sub-step loop runs AI 10×/frame across 165 entities,
+        // burning the entire CPU budget and dropping to 12fps. The
+        // user can't perceive 40ms vs 80ms tick precision at 12fps
+        // anyway — the simulation is already updating in 80ms+ visible
+        // hops.
         //
-        // GATED to 1×. At 2/4/8× the sub-step loop runs the systems
-        // many times per frame (MAX_STEP=40ms cap), and skipping
-        // sub-steps would let single-step deltas grow past the cap →
-        // the same path-overshoot / wedge-the-fight bugs the sub-
-        // stepping was added to fix.
-        const _aiThrottle = (ts === 1)
-        if (_aiThrottle) this._aiFrameParity = ((this._aiFrameParity ?? 0) + 1) & 1
-        const _skipAi = _aiThrottle && (this._aiFrameParity === 0)
-        // Per-second tick counter for PerfHud (verifies the throttle is
-        // actually firing). Drained alongside the per-system ms bucket.
+        // Per-sub-step parity (not per-frame) so the throttle does
+        // useful work at high speeds where one frame contains many
+        // sub-steps. At 1×: 1 sub-step/frame → AI ticks every other
+        // frame (30Hz, same as before). At 8×: 10 sub-steps/frame →
+        // AI ticks 5×/frame (every other sub-step). Each AI tick uses
+        // 2× delta so total game-time covered is identical.
         if (!window.__perfCounts) window.__perfCounts = {}
-        if (!_skipAi) {
-          window.__perfCounts.aiTicks = (window.__perfCounts.aiTicks ?? 0) + 1
-        }
         window.__perfCounts.gameUpdates = (window.__perfCounts.gameUpdates ?? 0) + 1
         window.__perfCounts.timeScale = ts
         window.__perfCounts.advCount = (this.gameState?.adventurers?.active?.length ?? 0)
         window.__perfCounts.minionCount = (this.gameState?.minions ?? []).filter(m => m?.aiState !== 'dead').length
 
         for (let i = 0; i < steps; i++) {
+          this._aiSubstepParity = ((this._aiSubstepParity ?? 0) + 1) & 1
+          const _skipAi = this._aiSubstepParity === 0
           // Boss fight runs at the same scaled rate as all other
           // day-phase systems so x2/x4/x8 speed applies during the
           // boss encounter.
           tick('bossSystem',            () => this.bossSystem?.update(stepDt))
           if (!_skipAi) {
-            const aiDt = _aiThrottle ? stepDt * 2 : stepDt
-            tick('aiSystem',            () => this.aiSystem?.update(aiDt))
-            tick('minionAiSystem',      () => this.minionAiSystem?.update(aiDt))
+            tick('aiSystem',            () => this.aiSystem?.update(stepDt * 2))
+            tick('minionAiSystem',      () => this.minionAiSystem?.update(stepDt * 2))
+            window.__perfCounts.aiTicks = (window.__perfCounts.aiTicks ?? 0) + 1
           }
           tick('trapSystem',            () => this.trapSystem?.update(stepDt))
           tick('dungeonMechanicSystem', () => this.dungeonMechanicSystem?.tickDay(stepDt))
