@@ -1540,15 +1540,19 @@ export class Game extends Phaser.Scene {
         window.__perfCounts.minionCount = (this.gameState?.minions ?? []).filter(m => m?.aiState !== 'dead').length
 
         for (let i = 0; i < steps; i++) {
-          this._aiSubstepParity = ((this._aiSubstepParity ?? 0) + 1) & 1
-          const _skipAi = this._aiSubstepParity === 0
+          this._aiSubstepCounter = ((this._aiSubstepCounter ?? 0) + 1) % 3
+          const _skipAi = this._aiSubstepCounter !== 0
           // Boss fight runs at the same scaled rate as all other
           // day-phase systems so x2/x4/x8 speed applies during the
           // boss encounter.
           tick('bossSystem',            () => this.bossSystem?.update(stepDt))
           if (!_skipAi) {
-            tick('aiSystem',            () => this.aiSystem?.update(stepDt * 2))
-            tick('minionAiSystem',      () => this.minionAiSystem?.update(stepDt * 2))
+            // 1-in-3 throttle (20Hz at 1×, ~3 ticks/frame at 8×).
+            // Bumped from 1-in-2 after PerfHud showed aiSystem still
+            // dominant at 359ms/s post-half-rate. 3× delta keeps total
+            // game-time per real second identical.
+            tick('aiSystem',            () => this.aiSystem?.update(stepDt * 3))
+            tick('minionAiSystem',      () => this.minionAiSystem?.update(stepDt * 3))
             window.__perfCounts.aiTicks = (window.__perfCounts.aiTicks ?? 0) + 1
           }
           tick('trapSystem',            () => this.trapSystem?.update(stepDt))
