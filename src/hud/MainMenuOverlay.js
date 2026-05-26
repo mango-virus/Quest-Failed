@@ -326,19 +326,37 @@ export class MainMenuOverlay {
         // the leaderboard podium yet. Source for the top-3 list is
         // `Leaderboard.getCachedTop3()` — written by every `fetchTop`
         // call, so this badge stays live across sessions without
-        // firing its own fetch. Self-rows are filtered out (by
-        // canonical-name compare against the local player's name) so
-        // your own podium run never pops the badge. On first launch
-        // with no cache yet, the badge sits dark; opening the
-        // leaderboard once seeds it.
+        // firing its own fetch. Self-rows are filtered out by
+        // canonical-name compare against the local player's name.
+        //
+        // Optimistic-default: when the cache is empty (fresh browser,
+        // post-v2-migration session, or a prefetch that hasn't landed
+        // yet) we DON'T have data to compare against, so we fire the
+        // badge anyway. Opening the leaderboard once populates the
+        // cache and seeds the real comparison; the badge then settles
+        // to the accurate "any unseen id?" state on subsequent renders.
+        // Without this default, fresh sessions never see the badge
+        // until they manually open the overlay — which is the very
+        // thing the badge is supposed to encourage them to do.
         newBadge: (() => {
           const myCanon = PlayerProfile.getName().trim().toLowerCase()
-          const ids = (Leaderboard.getCachedTop3?.() || [])
+          const cached = Leaderboard.getCachedTop3?.() || []
+          // Optimistic-on when there's nothing cached yet — see comment
+          // above. The prefetch fired in `open()` will resolve shortly
+          // and re-sync (which may then HIDE the badge if everything's
+          // already in the seen-set, but only after we have real data).
+          if (cached.length === 0) return true
+          const ids = cached
             .filter(e => e && typeof e.id === 'string' && e.id &&
                          (!myCanon ||
                           (typeof e.name !== 'string') ||
                           e.name.trim().toLowerCase() !== myCanon))
             .map(e => e.id)
+          // After filtering self-rows, if the cache only contained
+          // your own runs, `ids` is empty → nothing to flag — return
+          // false here (not optimistic, since we DO have data and it's
+          // genuinely empty for the badge's purpose).
+          if (ids.length === 0) return false
           return PlayerProfile.hasUnseenNewLeaderboardIds(ids)
         })() },
       { id: 'achievements', label: 'ACHIEVEMENTS', sub: 'Hall of trophies', icon: '🏆',
