@@ -218,12 +218,13 @@ const COMPANIONS = {
   // yet — the lock-screen card uses just the one frame, silhouette-tinted).
   // When she's unlockable, drop the rest of her expression art into the
   // src folder, fill in the map, re-run this bake, and remove `locked` in
-  // companions.js.
+  // companions.js. Source file renamed 2026-05-25: `idle.png` →
+  // `Nocturna Idle.png` (the redrawn sit-pose art replaces the original).
   nocturna: {
     srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Main NPC 5 - Nocturna',
     outDir: 'assets/npc-nocturna',
     map: {
-      'idle.png': 'idle',
+      'Nocturna Idle.png': 'idle',
     },
   },
 
