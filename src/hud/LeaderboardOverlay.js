@@ -284,20 +284,47 @@ export class LeaderboardOverlay {
         const n = PlayerProfile.getName?.() ?? ''
         return typeof n === 'string' ? n.trim().toLowerCase() : ''
       })()
+      // Diagnostic — if no chips end up painted on a player who should be
+      // seeing them (e.g. brand new name, empty seen-set, populated
+      // leaderboard), log the per-row decision so the failure path is
+      // observable in the browser console without instrumenting render
+      // paths separately. Cheap (3 rows max), behind a one-shot toggle
+      // via window.__qfLbNewDebug = true to opt in deliberately.
+      const debug = (typeof window !== 'undefined' && window.__qfLbNewDebug === true)
       for (const r of top3) {
-        if (!r || r.isYou) continue
+        if (!r) { if (debug) console.debug('[lb-new] skip: row missing'); continue }
+        if (r.isYou) { if (debug) console.debug('[lb-new] skip: isYou', r.name); continue }
         const rowId = r._raw?.id
-        if (!rowId || typeof rowId !== 'string') continue
+        if (!rowId || typeof rowId !== 'string') {
+          if (debug) console.debug('[lb-new] skip: bad rowId', { rowId, name: r.name }); continue
+        }
         // Belt-and-braces self-filter (canonical name compare in case
         // `isYou` missed a case-mismatched submission).
         if (myCanon) {
           const rawName = r._raw?.player_name ?? r.name ?? ''
           const canon = typeof rawName === 'string' ? rawName.trim().toLowerCase() : ''
-          if (canon && canon === myCanon) continue
+          if (canon && canon === myCanon) {
+            if (debug) console.debug('[lb-new] skip: self by canon', { canon, myCanon })
+            continue
+          }
         }
-        if (!seen.has(rowId)) newSet.add(rowId)
+        if (seen.has(rowId)) {
+          if (debug) console.debug('[lb-new] skip: already seen', { rowId, name: r.name })
+          continue
+        }
+        newSet.add(rowId)
+        if (debug) console.debug('[lb-new] ADD', { rowId, name: r.name })
       }
       this._newPodiumAtOpen = newSet
+      if (debug) {
+        console.debug('[lb-new] snapshot summary', {
+          activeName: PlayerProfile.getName?.(),
+          seenSize:   seen.size,
+          top3Count:  top3.length,
+          newCount:   newSet.size,
+          newIds:     [...newSet],
+        })
+      }
       this._loading = false
     } catch (e) {
       this._error = e?.message || String(e)
