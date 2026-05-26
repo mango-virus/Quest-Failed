@@ -305,27 +305,45 @@ export const COMPANIONS = {
     expressions: ['idle'],
   },
 
-  // Rattle Bones — seventh keeper. Ships LOCKED on the recruit screen
-  // (same teaser-only treatment as Luna + Nocturna). Only an `idle`
-  // portrait is wired today; no `linesKey` because she has no banter
-  // bank yet — CompanionSelectOverlay skips locked ids from the
-  // speaker rotation, so a missing bank can't blow up the bicker code.
+  // Rattle Bones — seventh keeper. Macabre Jester archetype: a skeleton
+  // court-jester three centuries dead, who finds the whole death business
+  // hilarious. Gallows humour, theatrical, breaks the fourth wall as
+  // showman-with-audience. He/him.
   //
-  // When she becomes playable: drop the rest of her expression art into
-  // the source folder (`Quest-Failed assets/Companions/Rattle Bones`),
-  // fill out `tools/bake-npc-sprites.mjs`'s `rattlebones.map`, re-run
-  // the bake, expand `expressions` here, add her `linesKey` + dialogue
-  // bank, and remove `locked` below (or call
-  // `PlayerProfile.unlockCompanion('rattlebones')` wherever the unlock
-  // fires — condition TBD).
+  // Locked behind the `curtain_call` achievement (2026-05-26): kill 100
+  // adventurers with traps in a single run. Thematic — a comedian skeleton
+  // wants a perfect setup-punchline show before he'll sign on as keeper.
+  // AchievementSystem fires PlayerProfile.unlockCompanion('rattlebones')
+  // when the threshold is met. See `src/data/achievements.json`.
+  //
+  // Dialogue bank + registry are FULL — only the sprite art is in
+  // progress. Until the rest of his expressions land, the recruit card
+  // shows him as a silhouette teaser (locked treatment), with the unlock
+  // tooltip pointing to Curtain Call. When the sprites arrive:
+  //   1. Drop them into `Quest-Failed assets/Companions/Rattle Bones`
+  //   2. Fill out the `rattlebones.map` block in
+  //      `tools/bake-npc-sprites.mjs` (one entry per expression below)
+  //   3. Re-run `npm run bake:npc -- rattlebones`
+  //   4. Verify every id in `expressions` resolves to a .webp under
+  //      `assets/npc-rattlebones/`
+  // The `locked` flag STAYS true — the achievement unlock handles flipping
+  // his playable state per-player automatically (same pattern as Zul'Gath
+  // + `hoard_lord`).
+  //
+  // Yellow accent halo (#ffe34d) is set in styles.css. CompanionSelect
+  // shows his tagline + a "CURTAIN CALL ACHIEVEMENT" tooltip on locked
+  // click (CompanionSelectOverlay._findUnlockAchievement walks
+  // `reward.type === 'companion'` defs to find it).
   rattlebones: {
     id:        'rattlebones',
     name:      'Rattle Bones',
-    tagline:   'Bone-clatter from the crypt — a skeletal keeper.',
-    traits:    [],
+    tagline:   "Three centuries dead and still cracking jokes — the crypt's resident comic.",
+    // Player-facing "what this keeper is like to play with" descriptors,
+    // shown on the CompanionSelect card.
+    traits:    ['gallows humour', 'showman flair', 'practical bone-tips'],
     locked:    true,
     // Tuned to match the other locked teasers (Luna / Nocturna). If
-    // her source art proportions differ noticeably, bump up/down — see
+    // his source art proportions differ noticeably, bump up/down — see
     // the long iterations on Cinder & Marina in the git history for
     // examples of how to balance scale against `portraitOrigin`.
     portraitScale: 1.15,
@@ -333,10 +351,51 @@ export const COMPANIONS = {
     portraitFlipX: false,
     hudScale: 1.15,
     spriteDir: 'assets/npc-rattlebones/',
+    // Neutral resting face — the long-dead jester at rest, jaw slightly
+    // ajar, bones at ease. Falls back to plain 'idle' if 'idle-2' isn't
+    // baked yet; NpcCompanion handles missing-sprite gracefully.
     restExpr:  'idle',
-    // No dialogue bank yet — see header comment.
-    linesKey:  null,
-    expressions: ['idle'],
+    // Picked-face pool — rolled per new selection on the recruit screen
+    // so the reaction to "you picked me!" varies between picks. Lands on
+    // Rattle Bones' performer register: laughing/cackling delight,
+    // mischievous smirk, theatrical bow, smug pride, peace-sign cheek,
+    // chef-kiss approval. No quiet/melancholy faces — picking him is a
+    // moment for the jester to MUG for the camera.
+    pickedExprs: [
+      'laughing', 'laughing-hard', 'cackling',
+      'mocking', 'smug', 'mischievous', 'evil-grin',
+      'excited', 'winking', 'theatrical-bow',
+      'chef-kiss', 'peace-sign',
+    ],
+    linesKey:  'rattleBonesLines',
+    // 46 expressions, grouped by tonal register. Each id must match a
+    // baked `<id>.webp` under `assets/npc-rattlebones/`. The dialogue
+    // bank in `src/data/rattleBonesLines.json` only ever references ids
+    // from this list, so if the bake is missing one the bank still
+    // works (NpcCompanion falls back gracefully). Add ids here ONLY
+    // after the matching sprite ships.
+    expressions: [
+      // Idle / quiet beats
+      'idle', 'idle-2', 'bored', 'sleeping',
+      // Laughing register — the comedy hits
+      'laughing', 'laughing-hard', 'cackling', 'crying-laughing', 'chef-kiss',
+      // Mischievous / smug — the jester smirking
+      'mischievous', 'mischievous-2', 'smug', 'mocking', 'winking', 'evil-grin',
+      // Excited / shocked — big reactions
+      'excited', 'surprised', 'shocked', 'mind-blown', 'mock-horror',
+      // Theatrical / performer
+      'theatrical-bow', 'narrating', 'pointing', 'singing', 'dancing', 'taunting',
+      // Quiet / thoughtful
+      'thinking', 'whisper', 'confused', 'melancholy', 'nostalgic',
+      // Dismissive / annoyed
+      'eye-roll', 'unimpressed', 'annoyed', 'disgusted',
+      // Pride / victory
+      'proud', 'gloating', 'applauding', 'victorious',
+      // Warm / affectionate
+      'affectionate', 'sweet', 'clapping',
+      // Skeleton-specific physical gags
+      'falling-apart', 'jaw-dropped', 'peace-sign', 'salute',
+    ],
   },
 
   // The Necroknight — eighth keeper. Ships LOCKED on the recruit screen

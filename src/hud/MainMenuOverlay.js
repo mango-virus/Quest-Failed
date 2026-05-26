@@ -27,6 +27,9 @@ import { ConfirmPopup } from './ConfirmPopup.js'
 import { EventBus } from '../systems/EventBus.js'
 import { installHudSfxDelegates } from './HudSfx.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { AchievementSystem } from '../systems/AchievementSystem.js'
+import { getUnlockedBossIds } from '../data/bossUnlocks.js'
+import { Leaderboard } from '../systems/Leaderboard.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
 
 // Title-screen boss video pool. File pattern is `assets/title-screen/
@@ -96,6 +99,19 @@ export class MainMenuOverlay {
     this._render()
     this._spawnNextBossVideo()
     window.addEventListener('keydown', this._keyHandler)
+    // Listen for player-name swaps from ANY source (NameEntryOverlay
+    // confirm path is already wired locally, but a name swap could
+    // also originate from the legacy Options scene or future surfaces).
+    // Refresh per-name UI in-place: the player-name pill, then the
+    // NEW badges (driven by the new name's seen-sets). No full
+    // re-render — that would re-fire menu-item entrance animations
+    // and recreate the boss-video element without a src.
+    this._onNameChanged = () => {
+      if (this._closed || !this._el) return
+      this._refreshPlayerName()
+      this._refreshMenuItems()
+    }
+    EventBus.on('NAME_CHANGED', this._onNameChanged)
   }
 
   close() {
@@ -113,6 +129,10 @@ export class MainMenuOverlay {
     this._el = null
     this._refs = null
     window.removeEventListener('keydown', this._keyHandler)
+    if (this._onNameChanged) {
+      EventBus.off('NAME_CHANGED', this._onNameChanged)
+      this._onNameChanged = null
+    }
     this._settings?.close()
     this._settings = null
     this._confirm?.destroy()
@@ -274,14 +294,46 @@ export class MainMenuOverlay {
     const items = [
       { id: 'continue', label: 'CONTINUE', sub: this._continueSub(), icon: '▶',
         primary: true, enabled: !!this._save, color: 'var(--blood)' },
-      { id: 'new', label: 'NEW EVIL', sub: 'Begin a new run', icon: '+', color: 'var(--gold)' },
-      { id: 'leader', label: 'LEADERBOARD', sub: 'Global hall of evil', icon: '◆', color: 'var(--rumor)' },
+      { id: 'new', label: 'NEW EVIL', sub: 'Begin a new run', icon: '+', color: 'var(--gold)',
+        // Cross-surface NEW badge — fires if EITHER an unlocked companion
+        // OR an unlocked boss is still tagged on its respective select
+        // screen. Both surfaces clear their own tags via hover-dismiss,
+        // and once the underlying seen-set has no unseen unlocked ids
+        // left on either side, this OR collapses to false and the badge
+        // goes away. Drives the player to the start-a-run flow when they
+        // have something fresh to encounter at picking time.
+        newBadge: PlayerProfile.hasUnseenNewCompanions(
+                    [...PlayerProfile.getUnlockedCompanions()]
+                  ) ||
+                  PlayerProfile.hasUnseenNewBosses(getUnlockedBossIds()) },
+      { id: 'leader', label: 'LEADERBOARD', sub: 'Global hall of evil', icon: '◆', color: 'var(--rumor)',
+        // NEW badge fires when the last-known top-3 contains any
+        // player NAME the local player hasn't hover-acknowledged on
+        // the leaderboard podium yet. Source for the top-3 list is
+        // `Leaderboard.getCachedTop3Names()` — written by every
+        // `fetchTop` call, so this badge stays live across sessions
+        // without firing its own fetch. Local player's own name is
+        // filtered so re-entering the top-3 with a better run never
+        // pops the badge for them. On first launch (no cache yet),
+        // the badge sits dark; opening the leaderboard once seeds it.
+        newBadge: (() => {
+          const myCanon = PlayerProfile.getName().trim().toLowerCase()
+          const names = (Leaderboard.getCachedTop3Names?.() || [])
+            .filter(n => typeof n === 'string' && n.trim().toLowerCase() !== myCanon)
+          return PlayerProfile.hasUnseenNewLeaderboardNames(names)
+        })() },
       { id: 'achievements', label: 'ACHIEVEMENTS', sub: 'Hall of trophies', icon: '🏆',
         color: 'var(--gold-bright, #ffd964)',
-        // Show a "NEW" badge until the player has opened the page once
-        // for their current name. Cleared by PlayerProfile.markAchievementsSeen
-        // (called by AchievementsOverlay.open).
-        newBadge: !PlayerProfile.hasSeenAchievements() },
+        // Show a "NEW" badge whenever there's an achievement in the data
+        // file the player hasn't been introduced to yet. Drives both the
+        // first-time-player intro (fresh seen-set → all current ids are
+        // unseen → badge shows) AND the "we just added a new achievement,
+        // tag comes back" behavior (seen-set lacks the new id → badge
+        // shows). Cleared when the player opens the overlay — at which
+        // point AchievementsOverlay calls markAchievementsKnown(allIds).
+        newBadge: PlayerProfile.hasUnseenNewAchievements(
+          (AchievementSystem.getDefinitions?.() || []).map(d => d.id)
+        ) },
     ]
     // ROOM EDITOR + TILESET EDITOR are dev surfaces — only shown when the
     // player's name is the cheat handle (PlayerProfile.isCheatName). Regular
@@ -432,13 +484,45 @@ export class MainMenuOverlay {
   // the items untouched, so the per-item entrance animations don't re-fire.
   // Flipping into / out of "mango" rebuilds so ROOM/TILESET editors appear
   // or disappear without leaving the menu and coming back.
+  //
+  // For ordinary renames, also surgically swap the per-item NEW badges so
+  // they reflect the NEW player's seen-set instead of the previous name's.
+  // Without this, 123 → LJ would leave LJ looking at 123's stale badges
+  // until the menu was fully torn down and reopened. The badge state is
+  // the only per-name UI on these items today (other than the player-pill,
+  // already handled by _refreshPlayerName); if that changes, extend the
+  // sync block below to cover the new fields.
   _refreshMenuItems() {
     const host = this._refs?.menuItems
     if (!host) return
     const items = this._menuItems()
-    if (items.length === host.children.length) return    // no add/remove
-    host.replaceChildren()
-    items.forEach((m, i) => host.appendChild(this._renderItem(m, i)))
+    if (items.length !== host.children.length) {
+      // Full rebuild when the item set itself changed (cheat-name toggle).
+      host.replaceChildren()
+      items.forEach((m, i) => host.appendChild(this._renderItem(m, i)))
+      return
+    }
+    // Count unchanged: walk the existing DOM and sync each NEW badge in
+    // place. Adding the badge inserts the same `.qf-mm-item-new` span the
+    // initial render would have, in the same slot (last child of the
+    // item button), so the cleared-state DOM and the live-state DOM are
+    // structurally identical — only the badge presence differs.
+    for (let i = 0; i < items.length; i++) {
+      const m  = items[i]
+      const el = host.children[i]
+      if (!el) continue
+      const existing = el.querySelector(':scope > .qf-mm-item-new')
+      const shouldShow = !!m.newBadge
+      if (shouldShow && !existing) {
+        // Build a span identical to the one `_renderItem` produces.
+        const badge = document.createElement('span')
+        badge.className = 'pix qf-mm-item-new'
+        badge.textContent = 'NEW'
+        el.appendChild(badge)
+      } else if (!shouldShow && existing) {
+        existing.remove()
+      }
+    }
   }
 
   // ─── Keybinds + actions ────────────────────────────────────────
@@ -625,7 +709,23 @@ export class MainMenuOverlay {
     // (it pulls in network helpers).
     import('./LeaderboardOverlay.js').then(({ LeaderboardOverlay }) => {
       this._leaderboard = new LeaderboardOverlay({
-        onClose: () => { this._leaderboard = null },
+        onClose: () => {
+          this._leaderboard = null
+          // If the player hovered every NEW podium card while the
+          // overlay was open, the seen-set now covers the current
+          // top-3 → surgically clear the LEADERBOARD button's NEW
+          // badge from the main-menu DOM. Same pattern as the
+          // achievements onClose. Otherwise leave the badge in place
+          // (some NEW chip wasn't dismissed, badge stays live).
+          const myCanon = PlayerProfile.getName().trim().toLowerCase()
+          const names = (Leaderboard.getCachedTop3Names?.() || [])
+            .filter(n => typeof n === 'string' && n.trim().toLowerCase() !== myCanon)
+          if (!PlayerProfile.hasUnseenNewLeaderboardNames(names)) {
+            const badge = this._el?.querySelector(
+              '.qf-mm-item[data-id="leader"] .qf-mm-item-new')
+            badge?.remove()
+          }
+        },
       })
       this._leaderboard.open()
     })
@@ -640,12 +740,18 @@ export class MainMenuOverlay {
       this._achievements = new AchievementsOverlay({
         onClose: () => {
           this._achievements = null
-          // Player has now seen the page — clear the "NEW" badge from
-          // the main-menu item. Surgical removal (vs re-rendering the
-          // whole menu) so the item's entrance animation doesn't re-fire.
-          const badge = this._el?.querySelector(
-            '.qf-mm-item[data-id="achievements"] .qf-mm-item-new')
-          badge?.remove()
+          // Per-card hover-dismiss is the only thing that clears NEW
+          // chips now — opening + closing the popup without hovering
+          // anything leaves the badge alone. Only remove the menu-item
+          // badge DOM here if the seen-set has caught up to the full
+          // current achievement list (i.e. every previously-unseen id
+          // was hovered while the popup was open).
+          const allIds = (AchievementSystem.getDefinitions?.() || []).map(d => d.id)
+          if (!PlayerProfile.hasUnseenNewAchievements(allIds)) {
+            const badge = this._el?.querySelector(
+              '.qf-mm-item[data-id="achievements"] .qf-mm-item-new')
+            badge?.remove()
+          }
         },
       })
       this._achievements.open()

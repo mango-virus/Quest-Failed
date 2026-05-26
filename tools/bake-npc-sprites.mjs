@@ -253,11 +253,90 @@ const COMPANIONS = {
   rattlebones: {
     srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/Rattle Bones',
     outDir: 'assets/npc-rattlebones',
+    // Macabre Jester skeleton — full 46-expression bank planned. The
+    // dialogue bank (`src/data/rattleBonesLines.json`) and companion
+    // registry (`src/systems/companions.js`) ALREADY reference every id
+    // listed below as a comment placeholder. As sprite art lands in
+    // the source folder, move each line out of the placeholder block
+    // and into the live `map` above the closing brace — output id stays
+    // the same (the in-game expression key), only the source filename
+    // changes. Re-run `node tools/bake-npc-sprites.mjs rattlebones`
+    // after each batch to ship the new faces.
     map: {
       // Source filename was `idle.png`, replaced 2026-05-26 with the
       // redrawn `idle_2.png`. The OUTPUT id stays `idle` (the in-game
       // expression key), so nothing downstream needs to change.
       'idle_2.png': 'idle',
+
+      // Pending sprite delivery — uncomment + set source filename as each
+      // expression ships. All 46 ids match the `expressions` block in
+      // `src/systems/companions.js` and are already referenced in the
+      // dialogue bank.
+      //
+      //   // Idle / quiet beats
+      //   '<srcname>.png': 'idle-2',
+      //   '<srcname>.png': 'bored',
+      //   '<srcname>.png': 'sleeping',
+      //
+      //   // Laughing register
+      //   '<srcname>.png': 'laughing',
+      //   '<srcname>.png': 'laughing-hard',
+      //   '<srcname>.png': 'cackling',
+      //   '<srcname>.png': 'crying-laughing',
+      //   '<srcname>.png': 'chef-kiss',
+      //
+      //   // Mischievous / smug
+      //   '<srcname>.png': 'mischievous',
+      //   '<srcname>.png': 'mischievous-2',
+      //   '<srcname>.png': 'smug',
+      //   '<srcname>.png': 'mocking',
+      //   '<srcname>.png': 'winking',
+      //   '<srcname>.png': 'evil-grin',
+      //
+      //   // Excited / shocked
+      //   '<srcname>.png': 'excited',
+      //   '<srcname>.png': 'surprised',
+      //   '<srcname>.png': 'shocked',
+      //   '<srcname>.png': 'mind-blown',
+      //   '<srcname>.png': 'mock-horror',
+      //
+      //   // Theatrical / performer
+      //   '<srcname>.png': 'theatrical-bow',
+      //   '<srcname>.png': 'narrating',
+      //   '<srcname>.png': 'pointing',
+      //   '<srcname>.png': 'singing',
+      //   '<srcname>.png': 'dancing',
+      //   '<srcname>.png': 'taunting',
+      //
+      //   // Quiet / thoughtful
+      //   '<srcname>.png': 'thinking',
+      //   '<srcname>.png': 'whisper',
+      //   '<srcname>.png': 'confused',
+      //   '<srcname>.png': 'melancholy',
+      //   '<srcname>.png': 'nostalgic',
+      //
+      //   // Dismissive / annoyed
+      //   '<srcname>.png': 'eye-roll',
+      //   '<srcname>.png': 'unimpressed',
+      //   '<srcname>.png': 'annoyed',
+      //   '<srcname>.png': 'disgusted',
+      //
+      //   // Pride / victory
+      //   '<srcname>.png': 'proud',
+      //   '<srcname>.png': 'gloating',
+      //   '<srcname>.png': 'applauding',
+      //   '<srcname>.png': 'victorious',
+      //
+      //   // Warm / affectionate
+      //   '<srcname>.png': 'affectionate',
+      //   '<srcname>.png': 'sweet',
+      //   '<srcname>.png': 'clapping',
+      //
+      //   // Skeleton-specific physical gags
+      //   '<srcname>.png': 'falling-apart',
+      //   '<srcname>.png': 'jaw-dropped',
+      //   '<srcname>.png': 'peace-sign',
+      //   '<srcname>.png': 'salute',
     },
   },
 

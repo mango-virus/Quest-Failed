@@ -28,6 +28,7 @@ import { SfxVolume }       from '../systems/SfxVolume.js'
 import { applyUiCamera, pixelLock, FONT_HEAD, uiSfxHover, uiSfxClick } from '../ui/UIKit.js'
 import { UIEditor }        from '../ui/UIEditor.js'
 import { PlayerProfile }   from '../systems/PlayerProfile.js'
+import { UNLOCK_GATES, ALL_BOSS_IDS, getUnlockedBossIds } from '../data/bossUnlocks.js'
 
 // Per-archetype unlock requirements. Empty entry = always unlocked.
 // Each entry's `check()` returns true when the gate is satisfied.
@@ -44,17 +45,10 @@ import { PlayerProfile }   from '../systems/PlayerProfile.js'
 // so each milestone (lv 2 → 10) hands the player something new to try.
 // Unlocked from start: beholder, demon, gnoll. Then one boss per level
 // from lv 2 (golem / `rising_power`) through lv 10 (slime / `dread_sovereign`).
-const UNLOCK_GATES = {
-  golem:     { requiredLevel: 2,  label: 'REACH BOSS LV 2 TO UNLOCK',  achId: 'rising_power' },
-  lich:      { requiredLevel: 3,  label: 'REACH BOSS LV 3 TO UNLOCK',  achId: 'hardened_throne' },
-  lizardman: { requiredLevel: 4,  label: 'REACH BOSS LV 4 TO UNLOCK',  achId: 'crown_of_iron' },
-  myconid:   { requiredLevel: 5,  label: 'REACH BOSS LV 5 TO UNLOCK',  achId: 'echoing_roar' },
-  orc:       { requiredLevel: 6,  label: 'REACH BOSS LV 6 TO UNLOCK',  achId: 'sixth_seal' },
-  vampire:   { requiredLevel: 7,  label: 'REACH BOSS LV 7 TO UNLOCK',  achId: 'seventh_sigil' },
-  wraith:    { requiredLevel: 8,  label: 'REACH BOSS LV 8 TO UNLOCK',  achId: 'spectral_reign' },
-  succubus:  { requiredLevel: 9,  label: 'REACH BOSS LV 9 TO UNLOCK',  achId: 'witchbane' },
-  slime:     { requiredLevel: 10, label: 'REACH BOSS LV 10 TO UNLOCK', achId: 'dread_sovereign' },
-}
+//
+// UNLOCK_GATES + ALL_BOSS_IDS now live in `src/data/bossUnlocks.js` so the
+// main-menu NEW-tag cross-wiring (NEW EVIL button) can compute the
+// unlocked-boss set without re-implementing the gate logic. Imported above.
 
 // ─── Layout constants (design space 1280 × 720) ──────────────────────────────
 
@@ -182,6 +176,17 @@ export class ArchetypeSelect extends Phaser.Scene {
       Math.ceil((this.uiSf || 1) * (window.devicePixelRatio || 1))))
     this._archetypes = (this.cache.json.get('bossArchetypes') ?? []).slice()
       .sort((a, b) => a.name.localeCompare(b.name))
+
+    // ── NEW-tag bookkeeping (per-player) ────────────────────────────────
+    // Auto-detect: anything UNLOCKED that isn't in the persisted seen-set
+    // paints a NEW pill. Hover dismisses (per-id, via the hit-rect's
+    // pointerover handler below). No bulk-seed on first open — that was
+    // the bug that suppressed every NEW tag on existing rosters. With
+    // the seed gone, fresh players DO see NEW on every starter boss
+    // (and starter companion on the recruit screen) the first time
+    // they open the picker; one quick hover-pass dismisses each.
+    // That's the trade-off the auto-detect approach signed up for.
+    this._newBossesAtRender = PlayerProfile.getKnownBossIds()
 
     // ── Pick a book scale that fills the viewport without clipping. The book
     // sprite is square; we want it to take ~92% of the available height while
@@ -459,6 +464,55 @@ export class ArchetypeSelect extends Phaser.Scene {
       })
     }
 
+    // "NEW" pill — painted just above the portrait on unlocked bosses
+    // the player hasn't been introduced to yet. Matches the visual style
+    // of the main-menu / achievements / companion NEW badge (red/pink
+    // pulsing pixel pill). Click-through (no input enabled); pointerover
+    // on the hit rect below dismisses it. Locked bosses skip the pill
+    // entirely — they get NEW only after they unlock (matches
+    // CompanionSelectOverlay's "only after unlock" rule).
+    //
+    // IMPORTANT: pill lives at the SCENE ROOT (not inside `_cContent`).
+    // The same comment on `lockGfx` above explains why — adding to the
+    // bestiary-book container makes the overlay subject to whatever
+    // alpha animation / mask / sibling z-order the book is doing, even
+    // bringToTop didn't reliably land it on top. Scene root + a high
+    // depth (9100) keeps it visibly above the book at all times.
+    const isBossNew = !isLocked && !this._newBossesAtRender.has(arch.id)
+    if (isBossNew) {
+      // Position pill above the portrait. Defer one tick so any editor
+      // layout-JSON override on the portrait has applied first (same
+      // reason the lock glyph defers — succubus' custom x/y/scale).
+      this.time.delayedCall(0, () => {
+        if (!portrait || portrait.scene !== this) return
+        const px = portrait.x ?? cx
+        const py = portrait.y ?? cy
+        const ph = portrait.displayHeight ?? slotPx
+        const top = py - ph / 2 - 6
+        // Scene-root container, high depth so it paints above the book.
+        const pill = this.add.container(px, top).setDepth(9100)
+        const w = 26, hgt = 11
+        const bg = this.add.graphics()
+        bg.fillStyle(0xff4d6a, 1)
+        bg.fillRect(-w/2, -hgt/2, w, hgt)
+        bg.lineStyle(1, 0x2a0a0c, 1)
+        bg.strokeRect(-w/2 + 0.5, -hgt/2 + 0.5, w - 1, hgt - 1)
+        const label = this.add.text(0, 0, 'NEW', {
+          fontFamily: FONT_HEAD, fontSize: '7px', color: '#fff8e8',
+        }).setOrigin(0.5, 0.5).setResolution(this._textRes)
+        pill.add([bg, label])
+        // Soft red glow + pulse — gentle scale 1.0 ↔ 1.08, looped.
+        const tween = this.tweens.add({
+          targets: pill, scale: 1.08, duration: 900, yoyo: true,
+          repeat: -1, ease: 'Sine.easeInOut',
+        })
+        // Re-bind into the slot record so pointerover can find + remove
+        // them on dismiss (the closure below picks them up via this._slots).
+        const rec = this._slots.find(s => s.archId === arch.id)
+        if (rec) { rec.newPill = pill; rec.newPillTween = tween }
+      })
+    }
+
     // Hit area follows the portrait's CURRENT displayed bounds. Editor
     // overrides can resize a slot to a non-default scale (e.g. succubus
     // ships at scaleX=1.671 vs the other bosses' 2.859), so a fixed
@@ -475,6 +529,27 @@ export class ArchetypeSelect extends Phaser.Scene {
       // throttles to one chime per 80 ms so dragging across slots
       // doesn't machine-gun.
       uiSfxHover(this)
+      // NEW-tag dismiss on hover (unlocked + still tagged only).
+      // Persists the dismissal, drops the id from the in-memory snapshot
+      // so a sibling re-render won't re-paint, then fades + destroys
+      // the pill container. Locked bosses never had a pill in the first
+      // place so this is a safe no-op for them.
+      if (!isLocked && this._newBossesAtRender && !this._newBossesAtRender.has(arch.id)) {
+        PlayerProfile.markBossKnown(arch.id)
+        this._newBossesAtRender.add(arch.id)
+        const rec = this._slots.find(s => s.archId === arch.id)
+        const pill = rec?.newPill
+        if (pill && pill.scene === this) {
+          rec.newPillTween?.stop?.()
+          this.tweens.add({
+            targets: pill, alpha: 0, scale: 1.18, duration: 220,
+            ease: 'Sine.easeOut',
+            onComplete: () => pill.destroy(),
+          })
+          rec.newPill = null
+          rec.newPillTween = null
+        }
+      }
       if (isLocked) {
         // Locked: show the floating REACH-LV tooltip above the slot
         // AND render a preview dossier on the right page with the
@@ -533,7 +608,13 @@ export class ArchetypeSelect extends Phaser.Scene {
     })
     this._cContent.add(hit)
 
-    this._slots.push({ archId: arch.id, portrait, hit, lockGfx, isLocked })
+    this._slots.push({
+      archId: arch.id, portrait, hit, lockGfx, isLocked,
+      // NEW-tag references — populated asynchronously by the delayedCall
+      // above (newPill = Phaser container, newPillTween = the pulse tween).
+      // Pointerover removes both when the player dismisses the tag.
+      newPill: null, newPillTween: null,
+    })
   }
 
   // Floating "REACH BOSS LV N TO UNLOCK" label that appears above a

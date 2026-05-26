@@ -38,6 +38,18 @@ const ACTIVE_TITLE_ID_KEY_BASE        = 'qf.player.active_title_id'
 // Stored as the literal string '1' for presence detection — value
 // content doesn't matter; only the key's existence does.
 const ACHIEVEMENTS_SEEN_KEY_BASE      = 'qf.player.achievements_seen'
+// Per-id NEW-tag tracking (per-name) for the reusable "NEW" badge system.
+// Stored as a JSON array of ids the player has been "introduced to" (either
+// by opening the relevant overlay, by snapshot-on-first-open, or by
+// hover-dismissing a single card). When a new id appears in the achievement
+// data file / companion registry that isn't in the player's set, the NEW
+// tag renders. Auto-detect approach — designer doesn't have to flag anything,
+// the diff between "what exists in code" vs "what's in the seen set" drives
+// the tag. See AchievementsOverlay + CompanionSelectOverlay for the renders.
+const ACHIEVEMENTS_NEW_SEEN_KEY_BASE  = 'qf.player.achievements_newseen'
+const COMPANIONS_NEW_SEEN_KEY_BASE    = 'qf.player.companions_newseen'
+const BOSSES_NEW_SEEN_KEY_BASE        = 'qf.player.bosses_newseen'
+const LEADERBOARD_NEW_SEEN_KEY_BASE   = 'qf.player.leaderboard_newseen'
 
 // Legacy global keys — wiped at module load (Option A from the user's
 // 2026-05-26 decision). Any data here was pre-refactor pollution and
@@ -78,6 +90,34 @@ function _titlesKeyFor(name)          { return `${TITLES_KEY_BASE}:${(name ?? ''
 function _timestampsKeyFor(name)      { return `${ACHIEVEMENT_TIMESTAMPS_KEY_BASE}:${(name ?? '').trim()}` }
 function _activeTitleIdKeyFor(name)   { return `${ACTIVE_TITLE_ID_KEY_BASE}:${(name ?? '').trim()}` }
 function _achievementsSeenKeyFor(name){ return `${ACHIEVEMENTS_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
+function _achievementsNewSeenKeyFor(name) { return `${ACHIEVEMENTS_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
+function _companionsNewSeenKeyFor(name)   { return `${COMPANIONS_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
+function _bossesNewSeenKeyFor(name)       { return `${BOSSES_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
+function _leaderboardNewSeenKeyFor(name)  { return `${LEADERBOARD_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
+
+// Canonicalize a player name for NEW-tag dedup: trim + lowercase. Two
+// runs by the same person under "Alice" and "alice " should dedup to a
+// single seen entry. Defensive null/non-string handling — returns ''
+// for anything that isn't a usable name.
+function _canonLbName(s) {
+  return typeof s === 'string' ? s.trim().toLowerCase() : ''
+}
+
+// Generic helpers shared by the achievement + companion seen-id sets.
+// `getSet` parses a stored JSON array into a Set<string>; `writeSet`
+// serialises back out. Both are best-effort and tolerate missing /
+// corrupt entries by returning an empty Set / no-oping respectively.
+function _readIdSet(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    return new Set(Array.isArray(arr) ? arr.filter(s => typeof s === 'string') : [])
+  } catch { return new Set() }
+}
+function _writeIdSet(key, set) {
+  try { localStorage.setItem(key, JSON.stringify([...set])) } catch {}
+}
 
 // One-time cleanup of the legacy global keys. Runs at module load.
 // Idempotent — removeItem on a missing key is a no-op. Once every dev
@@ -86,6 +126,35 @@ function _achievementsSeenKeyFor(name){ return `${ACHIEVEMENTS_SEEN_KEY_BASE}:${
 ;(function _cleanupLegacyGlobalKeys() {
   try {
     for (const k of LEGACY_GLOBAL_KEYS) localStorage.removeItem(k)
+  } catch {}
+})()
+
+// One-time migration — wipe over-eager NEW-tag seen-set seeds across all
+// per-name slots. The initial version of the NEW-tag system bulk-seeded
+// every currently-unlocked id into the seen-set on first open, which
+// suppressed NEW tags from ever appearing on existing rosters. That
+// behavior was removed (auto-detect is now strict — no seeding), but
+// the data those buggy opens wrote is still in localStorage and would
+// keep hiding the tags. Detected via a version flag; runs once per
+// browser, then never again. Safe across multiple player names (walks
+// all matching keys, not just the active name).
+const NEWSEEN_MIGRATION_FLAG = 'qf.player.newseen_seed_reset_v1'
+;(function _resetOverEagerNewSeenSeeds() {
+  try {
+    if (localStorage.getItem(NEWSEEN_MIGRATION_FLAG) === '1') return
+    const prefixes = [
+      ACHIEVEMENTS_NEW_SEEN_KEY_BASE + ':',
+      COMPANIONS_NEW_SEEN_KEY_BASE + ':',
+      BOSSES_NEW_SEEN_KEY_BASE + ':',
+      LEADERBOARD_NEW_SEEN_KEY_BASE + ':',
+    ]
+    const toRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && prefixes.some(p => k.startsWith(p))) toRemove.push(k)
+    }
+    for (const k of toRemove) localStorage.removeItem(k)
+    localStorage.setItem(NEWSEEN_MIGRATION_FLAG, '1')
   } catch {}
 })()
 
@@ -411,6 +480,174 @@ export const PlayerProfile = {
   markAchievementsSeen() {
     try { localStorage.setItem(_achievementsSeenKeyFor(this.getName()), '1') }
     catch {}
+  },
+
+  // ── Per-id NEW-tag tracking (per-name) ──────────────────────────────
+  // The reusable "NEW" badge system — same visual as the menu-bar
+  // achievement intro badge, surfaced wherever the player encounters a
+  // newly-added thing for the first time. Auto-detect: when an id
+  // appears in code that's NOT in the player's seen-set, it renders as
+  // NEW. Hover (companion card) / opening the overlay (achievements)
+  // dismisses by adding the id to the seen-set.
+  //
+  // Achievements: opening AchievementsOverlay marks ALL current ids as
+  // seen (replaces the old binary `markAchievementsSeen` flag for the
+  // menu-badge logic; the old method still flips for backward compat
+  // but is no longer the source of truth).
+  // Companions: hovering an UNLOCKED card marks just that id as seen.
+  // The first-ever open of CompanionSelectOverlay also bulk-snapshots
+  // every CURRENTLY-UNLOCKED companion id so the existing-content
+  // baseline doesn't pop NEW on every starter for fresh players.
+
+  getKnownAchievementIds() {
+    return _readIdSet(_achievementsNewSeenKeyFor(this.getName()))
+  },
+
+  // Add `ids` to the player's seen-achievement set. Idempotent — re-adds
+  // are no-ops. No-ops on an empty name (pre-name slot) so the
+  // unnamed-player slot doesn't accumulate noise.
+  markAchievementsKnown(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return
+    if (!this.getName()) return
+    const key = _achievementsNewSeenKeyFor(this.getName())
+    const set = _readIdSet(key)
+    let dirty = false
+    for (const id of ids) {
+      if (typeof id === 'string' && id && !set.has(id)) { set.add(id); dirty = true }
+    }
+    if (dirty) _writeIdSet(key, set)
+  },
+
+  // Returns true if any id in `allIds` is NOT in the player's seen set.
+  // Drives the main-menu NEW badge: as long as there's an achievement
+  // the player hasn't been introduced to, the badge shows.
+  hasUnseenNewAchievements(allIds) {
+    if (!Array.isArray(allIds) || allIds.length === 0) return false
+    const seen = this.getKnownAchievementIds()
+    for (const id of allIds) if (!seen.has(id)) return true
+    return false
+  },
+
+  getKnownCompanionIds() {
+    return _readIdSet(_companionsNewSeenKeyFor(this.getName()))
+  },
+
+  // Mark a single companion as known (hover-dismiss path).
+  markCompanionKnown(id) {
+    if (!id || typeof id !== 'string') return
+    if (!this.getName()) return
+    const key = _companionsNewSeenKeyFor(this.getName())
+    const set = _readIdSet(key)
+    if (set.has(id)) return
+    set.add(id)
+    _writeIdSet(key, set)
+  },
+
+  // Bulk-snapshot many ids at once. Used by CompanionSelectOverlay's
+  // first-ever open to seed the baseline so fresh players don't see
+  // NEW on every starter card. Idempotent.
+  markCompanionsKnown(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return
+    if (!this.getName()) return
+    const key = _companionsNewSeenKeyFor(this.getName())
+    const set = _readIdSet(key)
+    let dirty = false
+    for (const id of ids) {
+      if (typeof id === 'string' && id && !set.has(id)) { set.add(id); dirty = true }
+    }
+    if (dirty) _writeIdSet(key, set)
+  },
+
+  // Returns true if any UNLOCKED companion id in `unlockedIds` is NOT in
+  // the player's seen set. Drives the cross-surface "NEW EVIL" main-menu
+  // badge: if a freshly-unlocked companion has not been hover-dismissed
+  // on the recruit screen yet, the main menu's start-a-run button glows.
+  // Pass the result of `getUnlockedCompanions()` (as a Set or array).
+  hasUnseenNewCompanions(unlockedIds) {
+    const ids = Array.isArray(unlockedIds) ? unlockedIds : [...(unlockedIds || [])]
+    if (ids.length === 0) return false
+    const seen = this.getKnownCompanionIds()
+    for (const id of ids) if (!seen.has(id)) return true
+    return false
+  },
+
+  // ── Boss-archetype NEW-tag tracking ─────────────────────────────────
+  // Same shape as the companion side. The boss-select scene (Phaser-
+  // rendered, src/scenes/ArchetypeSelect.js) reads + writes these to
+  // paint and dismiss the NEW pill above unlocked boss portraits. The
+  // main-menu NEW EVIL badge OR's the boss + companion checks together.
+
+  getKnownBossIds() {
+    return _readIdSet(_bossesNewSeenKeyFor(this.getName()))
+  },
+
+  markBossKnown(id) {
+    if (!id || typeof id !== 'string') return
+    if (!this.getName()) return
+    const key = _bossesNewSeenKeyFor(this.getName())
+    const set = _readIdSet(key)
+    if (set.has(id)) return
+    set.add(id)
+    _writeIdSet(key, set)
+  },
+
+  markBossesKnown(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return
+    if (!this.getName()) return
+    const key = _bossesNewSeenKeyFor(this.getName())
+    const set = _readIdSet(key)
+    let dirty = false
+    for (const id of ids) {
+      if (typeof id === 'string' && id && !set.has(id)) { set.add(id); dirty = true }
+    }
+    if (dirty) _writeIdSet(key, set)
+  },
+
+  hasUnseenNewBosses(unlockedIds) {
+    const ids = Array.isArray(unlockedIds) ? unlockedIds : [...(unlockedIds || [])]
+    if (ids.length === 0) return false
+    const seen = this.getKnownBossIds()
+    for (const id of ids) if (!seen.has(id)) return true
+    return false
+  },
+
+  // ── Leaderboard top-3 NEW-tag tracking ──────────────────────────────
+  // Dedup key is the CANONICALIZED player name (trim + lowercase) — not
+  // the per-run row id. A given player appearing in the top-3 should
+  // pop NEW once per local player, regardless of how many runs they
+  // bank into the podium. The local player's own name is always
+  // filtered out by callers (no NEW signal on yourself).
+
+  getKnownLeaderboardNames() {
+    return _readIdSet(_leaderboardNewSeenKeyFor(this.getName()))
+  },
+
+  // Mark a single podium player as known (hover-dismiss path). `name`
+  // is the raw player_name from the leaderboard row — gets canonicalized
+  // here so callers don't have to.
+  markLeaderboardNameKnown(name) {
+    const key = _canonLbName(name)
+    if (!key) return
+    if (!this.getName()) return
+    const storeKey = _leaderboardNewSeenKeyFor(this.getName())
+    const set = _readIdSet(storeKey)
+    if (set.has(key)) return
+    set.add(key)
+    _writeIdSet(storeKey, set)
+  },
+
+  // Returns true if any of the supplied podium player names is NOT in
+  // the player's seen set. `top3Names` is an array of raw player_name
+  // strings; canonicalized here. The local player's own name should be
+  // filtered out by the caller before passing in.
+  hasUnseenNewLeaderboardNames(top3Names) {
+    if (!Array.isArray(top3Names) || top3Names.length === 0) return false
+    const seen = this.getKnownLeaderboardNames()
+    for (const raw of top3Names) {
+      const key = _canonLbName(raw)
+      if (key && !seen.has(key)) return true
+    }
+    return false
   },
 
   // Pack the unlocked-achievement set into a compact bitmask string for

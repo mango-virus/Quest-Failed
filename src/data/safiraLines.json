@@ -52,7 +52,15 @@
       { "t": "The dragon has seen a thousand of these scenes, Master. I haven't! Every single second is the BEST second I've had since 47 BC. Pick the fresh genie!", "x": "excited" },
       { "t": "She purrs. He growls. The dragon hums. I SPARKLE, Master. The night needs at least one keeper who sparkles. (It's me. It's always going to be me.)", "x": "magic" },
       { "t": "Zul'Gath waits patiently. I waited eons WITHOUT being patient — gave up on it entirely. Now I'm pure ENERGY. Pick energy, Master!", "x": "chaotic-2" },
-      { "t": "Three keepers, Master — and exactly ONE of us is genuinely DELIGHTED you exist. The others are too cool to admit it. I have no cool.", "x": "in-love-2" }
+      { "t": "Three keepers, Master — and exactly ONE of us is genuinely DELIGHTED you exist. The others are too cool to admit it. I have no cool.", "x": "in-love-2" },
+      { "t": "Rattle Bones! The SKELETON! Master, oh — okay, he is FUNNY, I will grant the bone-man that, but he is also LOUD and I was supposed to be the loud one tonight! UNFAIR!", "x": "pouting" },
+      { "t": "The jester tells JOKES, Master — and I LOVE jokes, I do, but a joke ends and a WISH lasts forever! Eee — pick the keeper whose bit you can re-spend, sparkly-ly!", "x": "winking" },
+      { "t": "Rattle Bones has been dead THREE HUNDRED years, Master, and I was in a lamp for EONS — which sounds worse? Mine. Mine is worse. The genie should win on suffering POINTS alone!", "x": "chaotic-2" },
+      { "t": "Skeleton, sweetie — DO stop rattling, I'm trying to sparkle and your bone-clatter is THROWING my smoke! Master, pick the keeper with COORDINATION, the jester is a one-man traffic jam!", "x": "impatient" },
+      { "t": "He calls you 'skull-pal'! SKULL-pal, Master! I call you MASTER — the difference is RESPECT, with sparkle, with all the sparkle, ALL of it!", "x": "in-love-1" },
+      { "t": "Rattle Bones makes you LAUGH, Master, and I LOVE that for you — but I grant you whatever you LAUGH AT next! Eee, the genie is the upgrade! Multipliers everywhere!", "x": "magic" },
+      { "t": "Listen to the bone-man go — he is FUNNY, Master, I won't lie, I am giggling — but giggles run out and wishes do NOT, the genie is the better long-term investment!", "x": "laughing" },
+      { "t": "Three hundred years of crypt taught him to crack wise about death — eons in a lamp taught ME to crack wise about EXISTENCE itself, Master! Bigger scope! Choose the bigger scope!", "x": "wish-3" }
     ]
   },
   "categories": {

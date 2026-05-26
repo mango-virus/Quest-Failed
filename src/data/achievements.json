@@ -414,6 +414,18 @@
     "legendary": true
   },
   {
+    "id": "curtain_call",
+    "name": "Curtain Call",
+    "description": "Kill 100 adventurers with traps in a single run.",
+    "category": "combat",
+    "metric": "trapKillsInRunMax",
+    "target": 100,
+    "icon": "🎭",
+    "title": "The Showrunner",
+    "reward": { "type": "companion", "id": "rattlebones" },
+    "legendary": true
+  },
+  {
     "id": "veteran_exterminator",
     "name": "Veteran Exterminator",
     "description": "Defeat 25 veteran adventurers across all runs.",

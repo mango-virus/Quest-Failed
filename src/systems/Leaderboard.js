@@ -278,6 +278,40 @@ export const Leaderboard = {
       const body = await res.text().catch(() => '')
       throw new Error(`Leaderboard fetch failed: ${res.status} ${body}`)
     }
-    return res.json()
+    const rows = await res.json()
+    // Side-effect: cache the current top-3 player names so the main
+    // menu's LEADERBOARD button can paint its NEW badge without firing
+    // its own fetch. The cache is global (the leaderboard is global) —
+    // each per-name seen-set is compared against this same cached list.
+    // Tolerant of a malformed response; only caches a usable shape.
+    try {
+      if (Array.isArray(rows)) {
+        const top3 = rows.slice(0, 3)
+          .map(r => (typeof r?.player_name === 'string' ? r.player_name : ''))
+          .filter(Boolean)
+        localStorage.setItem(TOP3_CACHE_KEY, JSON.stringify(top3))
+      }
+    } catch {}
+    return rows
+  },
+
+  // Read the cached top-3 player names from the most recent `fetchTop`.
+  // Returns an array of raw `player_name` strings (un-canonicalized — the
+  // caller dedups via PlayerProfile's NEW-tag helpers). Returns [] if
+  // no fetch has happened yet this browser. Safe to call before the
+  // overlay has opened — just won't paint the badge until first fetch.
+  getCachedTop3Names() {
+    try {
+      const raw = localStorage.getItem(TOP3_CACHE_KEY)
+      if (!raw) return []
+      const arr = JSON.parse(raw)
+      return Array.isArray(arr) ? arr.filter(s => typeof s === 'string') : []
+    } catch { return [] }
   },
 }
+
+// Global localStorage slot — single source of truth for the most recent
+// top-3 player names. Re-written on every `fetchTop` call (one call per
+// leaderboard-overlay open). Used by MainMenuOverlay to paint the
+// LEADERBOARD button's NEW badge without firing its own fetch.
+const TOP3_CACHE_KEY = 'qf.leaderboard.last_top3'

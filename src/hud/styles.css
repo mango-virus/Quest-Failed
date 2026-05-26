@@ -10635,17 +10635,30 @@ body {
   box-shadow: 0 0 0 2px #000, 0 4px 12px rgba(0, 0, 0, 0.5);
   padding: 12px 14px;
   min-height: 90px;
-  /* Locked = greyscale + dim. Unlocked overrides per-category below
-     (data-category="progression" / "combat" / "economy" / "variety"
-     / "mastery"). Border, glow, name shadow, and background tint all
-     pick up the category color so the grid reads as bands of color
-     rather than a flat wall of gold. */
-  filter: saturate(0.3) brightness(0.7);
-  opacity: 0.65;
-  transition: filter 200ms ease, opacity 200ms ease, border-color 200ms ease,
+  /* Border, glow, name shadow, and background tint all pick up the
+     category color so the grid reads as bands of color rather than a
+     flat wall of gold. The dim/desaturate for locked cards moved to
+     `.qf-ach-card-body` (an inner wrapper) so the NEW chip — which is
+     a direct child of the card OUTSIDE the body — can render at full
+     brightness regardless. See `.qf-ach-card-body` rule below. */
+  transition: border-color 200ms ease,
               box-shadow 200ms ease, transform 200ms ease, background 200ms ease;
 }
-.qf-ach-card[data-unlocked="true"] { filter: none; opacity: 1; }
+/* Inner wrapper that carries the lock-dim filter. Stays in normal flow
+   (no positioning) so the card still auto-sizes to its content via the
+   row inside the body. The NEW chip is the body's SIBLING (direct child
+   of the card) so it sits outside this filter scope and pulses bright
+   on locked cards too. Note: applying `filter` to the body creates a
+   new containing block for the body's absolutely-positioned descendants
+   (compareBadge + rarityChip + the rarity rules) — they now resolve
+   relative to the body instead of the card. Since the body fills the
+   card's content area via normal flow, positions look identical. */
+.qf-ach-card-body {
+  filter: saturate(0.3) brightness(0.7);
+  opacity: 0.65;
+  transition: filter 200ms ease, opacity 200ms ease;
+}
+.qf-ach-card[data-unlocked="true"] .qf-ach-card-body { filter: none; opacity: 1; }
 .qf-ach-card:hover                  { transform: translateY(-2px); }
 
 /* Per-category unlocked card treatment — the border is darker (75%
@@ -10987,6 +11000,122 @@ body {
   color: var(--qf-reward-title);
   background: color-mix(in srgb, var(--qf-reward-title) 10%, transparent);
   text-shadow: 0 0 6px color-mix(in srgb, var(--qf-reward-title) 50%, transparent);
+}
+
+/* "NEW" chip on an achievement card — top-LEFT corner so it doesn't
+   collide with the rarity badge (top-right). Visual matches the main-menu
+   "NEW" badge (`.qf-mm-item-new`) so the two read as the same signal:
+   red/pink pulsing pixel pill. Painted only on cards whose id was UNSEEN
+   at the moment `AchievementsOverlay.open()` ran (see _newAtOpen logic). */
+.qf-ach-new-chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #fff8e8;
+  background: linear-gradient(180deg, #ff4d6a, #c2304a);
+  border: 2px solid #2a0a0c;
+  box-shadow: 0 0 0 1px #ff8aa0,
+              0 0 10px rgba(255, 77, 106, 0.55),
+              0 2px 0 rgba(0, 0, 0, 0.45);
+  animation: qf-mm-item-new-pulse-static 1.8s ease-in-out infinite;
+  /* Click-through so the chip never eats card-level events. Card-level
+     `mouseenter` is what dismisses it. */
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 220ms ease, transform 220ms ease;
+  /* Note: the lock-dim filter lives on `.qf-ach-card-body` (a SUBTREE
+     of the card), not the card itself. The NEW chip is a direct child
+     of the card — sibling of the body — so it's outside the filter
+     scope and renders bright on locked + unlocked cards alike. No
+     filter override needed here (CSS `filter` can't be un-set from a
+     descendant anyway, so a structural fix was the only way). */
+}
+/* Hover-dismiss animation — fade + slight scale-up before DOM removal. */
+.qf-ach-new-chip.is-dismissing {
+  opacity: 0;
+  transform: scale(1.18);
+  animation: none;
+}
+/* Same pulse rhythm as `qf-mm-item-new-pulse` but without the menu's
+   translateY(-50%) anchor (these chips aren't vertically centered on a
+   bar — they sit top-left of the card). Standalone keyframes so adding
+   the menu's anchor transform doesn't double-apply. */
+@keyframes qf-mm-item-new-pulse-static {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 1px #ff8aa0,
+                0 0 10px rgba(255, 77, 106, 0.5),
+                0 2px 0 rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 1px #ffb0bc,
+                0 0 22px rgba(255, 77, 106, 0.85),
+                0 2px 0 rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* "NEW" tag on a CompanionSelect card — sits just above the name plate
+   per the design spec. Same red/pink pulsing pill as the achievement +
+   menu badges so all three read as the same kind of signal. `is-dismissing`
+   modifier triggers a fade-out + slight scale-up when hover marks the
+   companion as known (handler removes the element ~260ms later). */
+.qf-cmpsel-new-tag {
+  display: inline-block;
+  margin: 0 auto 4px;
+  padding: 3px 9px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #fff8e8;
+  background: linear-gradient(180deg, #ff4d6a, #c2304a);
+  border: 2px solid #2a0a0c;
+  box-shadow: 0 0 0 1px #ff8aa0,
+              0 0 12px rgba(255, 77, 106, 0.6),
+              0 2px 0 rgba(0, 0, 0, 0.45);
+  animation: qf-mm-item-new-pulse-static 1.8s ease-in-out infinite;
+  /* Click-through so the card's own click handler still receives the
+     event — the tag is purely decorative. */
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.qf-cmpsel-new-tag.is-dismissing {
+  opacity: 0;
+  transform: scale(1.18);
+}
+
+/* "NEW" chip on a leaderboard podium card — top-LEFT corner of the
+   card, just outside the rank badge column. Same red/pink pulsing pill
+   as every other NEW-tag surface. Painted only when the underlying
+   player NAME is in the local player's `_newPodiumAtOpen` snapshot —
+   that is, a player who entered the top-3 since the local player
+   last hover-acknowledged them. Hover on the card dismisses; self-rows
+   never paint this chip. */
+.qf-lb-podium-new-chip {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  padding: 4px 9px;
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #fff8e8;
+  background: linear-gradient(180deg, #ff4d6a, #c2304a);
+  border: 2px solid #2a0a0c;
+  box-shadow: 0 0 0 1px #ff8aa0,
+              0 0 10px rgba(255, 77, 106, 0.55),
+              0 2px 0 rgba(0, 0, 0, 0.45);
+  animation: qf-mm-item-new-pulse-static 1.8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.qf-lb-podium-new-chip.is-dismissing {
+  opacity: 0;
+  transform: scale(1.18);
+  animation: none;
 }
 
 /* Rarity badge — small "X% earned" pill in the card's top-right corner.

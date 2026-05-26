@@ -83,7 +83,15 @@
       { "t": "Malakor will exhaust himself defending you, small one. Admirable. He will need rest. I will be there during the rest.", "x": "nostalgic" },
       { "t": "Three keepers. One throne. ...The shortest math problem of the night, small one. Pick the dragon.", "x": "self-satisfied" },
       { "t": "Lilith will tell you you are unforgettable. You are, small one. Briefly. I have unforgotten a great many of you. The dragon keeps a ledger.", "x": "smug" },
-      { "t": "The lamp-girl waited eons to serve, small one. I have been free to serve for eons. The difference matters when the night is long.", "x": "confident" }
+      { "t": "The lamp-girl waited eons to serve, small one. I have been free to serve for eons. The difference matters when the night is long.", "x": "confident" },
+      { "t": "Mm. Rattle Bones. The jester. ...Three centuries dead, small one — a respectable run for a humanoid, though I have outslept that twice over. I will allow him the bow.", "x": "wistful" },
+      { "t": "The skeleton finds death funny, small one. ...He should. He is good at it. Funny does not, however, hold a throne — I have seen far too many comic keepers eaten.", "x": "thinking" },
+      { "t": "Rattle Bones cracks his bone-puns and the dungeon laughs. The dungeon also laughs at fools, small one. I would urge you to know the difference before you commit.", "x": "joking" },
+      { "t": "The jester remembers the kingdom he served. I remember the kingdom BEFORE that one. We both remember well — only one of us has the perspective to use it.", "x": "nostalgic" },
+      { "t": "Mm. Rattle Bones is dear, in his way. Loud. Performative. ...I have watched courts laugh until the day they were sacked. Pick the keeper who outlasts the laughter, small one.", "x": "superior" },
+      { "t": "The skeleton is FRIENDLY, small one. Charming. Wonderful at parties. Wars are not parties — and the kingdom's coming with a war.", "x": "cool" },
+      { "t": "Rattle Bones has been telling the same six jokes for three centuries. I have been gathering material for ten times that. ...Pick the older library, small one.", "x": "smug" },
+      { "t": "He calls you 'boss', I call you 'small one'. Both are affectionate, both are accurate. The difference: when I say small one, you HEAR the years behind it.", "x": "self-satisfied" }
     ]
   },
   "categories": {

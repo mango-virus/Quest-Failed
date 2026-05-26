@@ -99,6 +99,11 @@ export class CompanionSelectOverlay {
     this._initialMount = true
     this._keyHandler   = (e) => this._onKey(e)
     this._wheelHandler = (e) => this._onWheel(e)
+    // Set of companion ids the player has been "introduced to" — snapshot
+    // captured in `open()`. Render reads this; hover-dismiss mutates it
+    // in-place (so a re-render via _renderPage doesn't re-paint NEW on
+    // an already-dismissed card mid-session).
+    this._newAtRender = new Set()
   }
 
   open() {
@@ -130,6 +135,17 @@ export class CompanionSelectOverlay {
         this._selected = stored
       }
     } catch {}
+
+    // ── NEW-tag bookkeeping (per-player) ────────────────────────────────
+    // Auto-detect: any UNLOCKED companion whose id isn't in the persisted
+    // seen-set paints a NEW tag above its name plate. Hover dismisses
+    // (per-id, via the card's mouseenter handler). No bulk-seed — that
+    // anti-pattern was suppressing every NEW tag on existing rosters by
+    // marking everything seen on first open. With it removed, fresh
+    // players DO see NEW on every starter card the first time the
+    // screen opens; one quick hover-pass dismisses each. That's the
+    // trade-off the auto-detect approach signed up for.
+    this._newAtRender = PlayerProfile.getKnownCompanionIds()
 
     // Always open on page 1 (2026-05-25 per user request) — players land
     // on the same consistent starting view every visit, regardless of
@@ -385,7 +401,17 @@ export class CompanionSelectOverlay {
 
     // Locked cards hide the tagline + traits behind a "LOCKED" caption so
     // the character read isn't fully spoiled before the unlock.
-    const plateKids = [h('div', { className: 'pix qf-cmpsel-name' }, c.name)]
+    const plateKids = []
+    // "NEW" tag — sits just above the name plate on companions the player
+    // hasn't been introduced to yet. Only renders on UNLOCKED cards per
+    // the design ("only after unlock"); locked teasers stay tag-free until
+    // they actually unlock. Hover-dismiss is wired on `mouseenter` (alongside
+    // the hover-SFX call) further down.
+    const isNew = !locked && !this._newAtRender.has(id)
+    if (isNew) {
+      plateKids.push(h('span', { className: 'pix qf-cmpsel-new-tag' }, 'NEW'))
+    }
+    plateKids.push(h('div', { className: 'pix qf-cmpsel-name' }, c.name))
     if (locked) {
       plateKids.push(h('div', { className: 'pix qf-cmpsel-locked-label' }, '◆  LOCKED  ◆'))
     } else {
@@ -413,7 +439,23 @@ export class CompanionSelectOverlay {
       // companion isn't unlocked yet. Unlocked cards play the normal
       // UI click sound + run the selection logic.
       on: {
-        mouseenter: () => this._hover(),
+        mouseenter: (e) => {
+          this._hover()
+          // NEW-tag dismiss on hover (unlocked + still tagged only).
+          // Marks this companion as known in PlayerProfile (persists),
+          // updates the in-memory snapshot so a sibling re-render won't
+          // re-paint it, and fades + removes the tag chip from THIS card
+          // without re-rendering the whole row.
+          if (!locked && this._newAtRender && !this._newAtRender.has(id)) {
+            PlayerProfile.markCompanionKnown(id)
+            this._newAtRender.add(id)
+            const tag = e.currentTarget?.querySelector('.qf-cmpsel-new-tag')
+            if (tag) {
+              tag.classList.add('is-dismissing')
+              setTimeout(() => tag.remove(), 260)
+            }
+          }
+        },
         click: locked ? () => this._onLockedClick(id) : () => this._select(id),
       },
     }

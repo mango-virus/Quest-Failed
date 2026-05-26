@@ -53,6 +53,11 @@ const DEFAULT_METRICS = {
   bossKillsInRunMax:          0,
   killsInDayMax:              0,
   trapKillsInDayMax:          0,
+  // Best-in-a-single-run count of adventurer kills credited to traps.
+  // Gates the legendary `curtain_call` achievement (which unlocks Rattle
+  // Bones). Mirrors `bossKillsInRunMax`'s tracking shape — incremented
+  // in `_onAdventurerDied` whenever a death is sourced to a trap.
+  trapKillsInRunMax:          0,
   minionsInRunMax:            0,
   roomsInRunMax:              0,
   minionTypesActiveMax:       0,
@@ -173,6 +178,10 @@ class AchievementSystemImpl {
       roomsPlaced:       0,
       minionsPlaced:     0,
       bossKills:         0,
+      // Trap-credited kills this run. Used to track best-of-any-run for
+      // the `curtain_call` legendary (Rattle Bones unlock — 100 trap kills
+      // in a single run). Mirrors the bossKills pattern.
+      trapKills:         0,
       // Live-set of active minion types this run (for minionTypesActiveMax).
       activeMinionTypes: new Set(),
     }
@@ -251,6 +260,11 @@ class AchievementSystemImpl {
       if (this._dayState.trapKills > this._metrics.trapKillsInDayMax) {
         this._metrics.trapKillsInDayMax = this._dayState.trapKills
       }
+      // Per-run trap-kill total (for Curtain Call → Rattle Bones unlock).
+      this._runState.trapKills += 1
+      if (this._runState.trapKills > this._metrics.trapKillsInRunMax) {
+        this._metrics.trapKillsInRunMax = this._runState.trapKills
+      }
     }
     const isBoss = cause === 'boss' || killerId === 'boss' ||
                    killerId === 'boss-archetype'
@@ -276,6 +290,7 @@ class AchievementSystemImpl {
     this._checkMetric('killsTotal')
     this._checkMetric('killsInDayMax')
     this._checkMetric('trapKillsInDayMax')
+    this._checkMetric('trapKillsInRunMax')
     this._checkMetric('bossKillsInRunMax')
     this._checkMetric('veteransKilled')
     this._checkMetric('classesKilledCount')

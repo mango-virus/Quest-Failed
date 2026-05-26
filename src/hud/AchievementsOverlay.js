@@ -141,6 +141,12 @@ export class AchievementsOverlay {
     // in viewer mode for that player. We retain a reference so close()
     // can tear it down cleanly.
     this._playerViewer   = null
+    // Achievement IDs that were UNSEEN at the moment `open()` ran. Per-
+    // card rendering reads this to decide whether to paint the NEW chip.
+    // open() recomputes it from PlayerProfile.getKnownAchievementIds()
+    // and then marks the current id list as seen, so the next open of
+    // this overlay (and the main-menu badge) sees them as known.
+    this._newAtOpen      = new Set()
   }
 
   // Open as a centered popup using the shared `Overlay` shell — same
@@ -158,7 +164,27 @@ export class AchievementsOverlay {
     // leaderboard click) — that doesn't count as the player having
     // engaged with the achievements page in self-view.
     if (!this._viewer) {
+      // Legacy binary "ever opened" flag — preserved for backward compat
+      // with any older code paths still reading it (none should remain).
       PlayerProfile.markAchievementsSeen()
+      // Capture the pre-open seen-set into the in-memory snapshot used
+      // by per-card rendering. The chip is painted on every card whose
+      // id is NOT in this set. Hovering an individual card (mouseenter
+      // on `.qf-ach-card`) is the ONLY thing that dismisses its chip —
+      // it adds the id to PlayerProfile's persisted set AND to this
+      // in-memory snapshot, then fades the chip out. Opening the popup
+      // does NOT bulk-mark anything (intentional — the player asked for
+      // explicit per-card acknowledgement). The main-menu badge logic
+      // (`PlayerProfile.hasUnseenNewAchievements`) automatically clears
+      // once the player has hovered every flagged card, since it reads
+      // the same per-id seen-set from disk.
+      this._newAtOpen = new Set()
+      const knownIds  = PlayerProfile.getKnownAchievementIds()
+      for (const def of this._defs) {
+        if (def?.id && !knownIds.has(def.id)) this._newAtOpen.add(def.id)
+      }
+    } else {
+      this._newAtOpen = new Set()
     }
     this._el = this._renderBody()
     this._keyHandler = (e) => this._onKey(e)
@@ -492,10 +518,19 @@ export class AchievementsOverlay {
         dataset: { rewardType: 'boss' },
       }, `◆ Unlocks ${def.reward.id.replace(/_/g, ' ').toUpperCase()}`)
     } else if (rewardType === 'companion') {
+      // Pull the display name from the COMPANIONS registry so "rattlebones"
+      // → "RATTLE BONES" (with the space) and "zulgath" → "ZUL'GATH" (with
+      // the apostrophe) instead of the squashed id-derived string. Falls
+      // back to the id if the companion is somehow missing from the
+      // registry. Format matches the boss chip's brevity ("◆ Unlocks
+      // BEHOLDER") — the heart icon + chip color already signal "this
+      // unlocks a companion", so the redundant "companion:" label is
+      // dropped (it was overflowing the card width on longer names).
+      const cName = (COMPANIONS[def.reward.id]?.name || def.reward.id).toUpperCase()
       rewardChip = h('div', {
         className: 'qf-ach-reward qf-ach-reward--companion',
         dataset: { rewardType: 'companion' },
-      }, `♥ Unlocks companion: ${def.reward.id.replace(/_/g, ' ').toUpperCase()}`)
+      }, `♥ Unlocks ${cName}`)
     } else if (rewardType === 'title') {
       // Title-granting achievements show their title here as the reward.
       rewardChip = h('div', {
@@ -533,6 +568,18 @@ export class AchievementsOverlay {
       ])
     }
 
+    // "NEW" chip — paints in the top-LEFT corner of any card whose id was
+    // UNSEEN at the moment `open()` ran (i.e. added to achievements.json
+    // since the player last opened this overlay). open() already marked
+    // every current id as seen, so the chip only renders on this one
+    // visit — closing + reopening the overlay clears it. Self-view only
+    // (viewer mode browses someone else's grid). Visual matches the
+    // main-menu NEW badge so the two read as the same kind of signal.
+    let newChip = null
+    if (!this._viewer && this._newAtOpen?.has(def.id)) {
+      newChip = h('span', { className: 'pix qf-ach-new-chip' }, 'NEW')
+    }
+
     // Compare-mode badge (Phase C). 🟢 both / 🔵 they have, you don't /
     // 🟡 you have, they don't / ⚪ neither.
     let compareBadge = null
@@ -564,17 +611,52 @@ export class AchievementsOverlay {
         // 'boss' | 'companion' | 'title' | 'recognition'.
         rewardType: rewardType,
       },
+      // NEW-chip hover dismiss — the ONLY way to clear an achievement's
+      // NEW chip per the design (matches the companion-card pattern).
+      // Marks just this id known in PlayerProfile (persisted), removes
+      // it from the in-memory snapshot so a sibling re-render won't
+      // re-paint, fades the chip out, and removes it from the DOM. Self-
+      // view only — viewer mode is browsing someone else's grid and
+      // shouldn't mutate the local player's state.
+      on: this._viewer ? undefined : {
+        mouseenter: (e) => {
+          if (!this._newAtOpen?.has(def.id)) return
+          PlayerProfile.markAchievementsKnown([def.id])
+          this._newAtOpen.delete(def.id)
+          const chip = e.currentTarget?.querySelector('.qf-ach-new-chip')
+          if (chip) {
+            chip.classList.add('is-dismissing')
+            setTimeout(() => chip.remove(), 260)
+          }
+        },
+      },
     }
+    // `.qf-ach-card-body` exists so the locked-card desaturation filter
+    // can be applied to a SUBTREE of the card instead of the whole card.
+    // CSS `filter` applies at composite time to the parent + ALL its
+    // descendants, with no way for a descendant to opt back out (a child
+    // `filter: none` just adds an identity filter — it doesn't escape).
+    // The body wraps ONLY the icon-+-text row, leaving compareBadge,
+    // rarityChip, and newChip as direct children of the card so their
+    // absolute positions still resolve relative to the card itself
+    // (preserving the corner placements they had before the refactor)
+    // AND they all sit outside the dim filter so the NEW chip pulses
+    // bright on locked cards. The rarity + compare chips reading at
+    // full brightness on locked cards is fine — they're informational
+    // overlays, not part of the "you don't have this" visual cue.
     return h('div', cardAttrs, [
       compareBadge,
       rarityChip,
-      h('div', { className: 'qf-ach-card-row' }, [
-        h('div', { className: `pix qf-ach-icon qf-ach-icon--${def.category}` }, icon),
-        h('div', { className: 'qf-ach-card-col' }, [
-          h('div', { className: 'pix qf-ach-name' }, def.name),
-          h('div', { className: 'qf-ach-desc' }, def.description),
-          progressEl,
-          rewardChip,
+      newChip,
+      h('div', { className: 'qf-ach-card-body' }, [
+        h('div', { className: 'qf-ach-card-row' }, [
+          h('div', { className: `pix qf-ach-icon qf-ach-icon--${def.category}` }, icon),
+          h('div', { className: 'qf-ach-card-col' }, [
+            h('div', { className: 'pix qf-ach-name' }, def.name),
+            h('div', { className: 'qf-ach-desc' }, def.description),
+            progressEl,
+            rewardChip,
+          ]),
         ]),
       ]),
     ])

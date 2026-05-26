@@ -116,7 +116,15 @@
       { "t": "Safira is bouncing again. Hngh. A keeper who cannot stand still cannot stand a watch, little king. Pick the keeper who can.", "x": "bored" },
       { "t": "Lilith coos. Safira squeals. I bark — when the bark gets your throne another night. Pick the noise that PAYS, little king.", "x": "mocking-2" },
       { "t": "The dragon will give you years of advice you cannot use yet, little king. I will give you the order you need NOW. Tonight, only one of us is useful.", "x": "confident-2" },
-      { "t": "Safira talks to people who are not in the room, little king. Cute. Madness does not guard a door. I do — and I am NOT cute, which is the point.", "x": "eye-roll" }
+      { "t": "Safira talks to people who are not in the room, little king. Cute. Madness does not guard a door. I do — and I am NOT cute, which is the point.", "x": "eye-roll" },
+      { "t": "Rattle Bones. Hngh. The skeleton. He JOKES, little king. A throne is not a STAGE — and a keeper who treats it like one will get his boss killed for the punchline.", "x": "unimpressed" },
+      { "t": "The bone-man is funny. I will grant him that. Funny does not stop a knight at the door, little king. A wall does. I have always been the wall.", "x": "cool" },
+      { "t": "Listen to the skeleton clatter. Three hundred years of the same routine, little king. I have been a sergeant under a HUNDRED bosses — and I never reused the same plan twice.", "x": "mocking" },
+      { "t": "Rattle Bones thinks death is HILARIOUS. Hngh. The dead are not laughing, little king. They are dead. I keep the LIVING. He keeps the bit.", "x": "bored" },
+      { "t": "The jester will tell you nothing matters, because he is past it all. I will tell you everything matters, because we are NOT yet past it. Pick the one who is still in the fight.", "x": "determined" },
+      { "t": "Skeleton calls you 'boss' — fine, I will allow it, the bone-man and I agree on that one. But where I say boss with respect, he says it like a comedy callback. There is a difference.", "x": "mocking-2" },
+      { "t": "Rattle Bones has been dead three hundred years, little king. Hngh. I have stayed loyal that long without dying ONCE — and that is the only legacy that holds a throne.", "x": "confident-2" },
+      { "t": "The jester would tell you to laugh at the kingdom. I would tell you to BURY the kingdom. Only one of those scares them tomorrow morning, little king.", "x": "commanding" }
     ]
   },
   "categories": {

@@ -198,6 +198,12 @@ export class LeaderboardOverlay {
     this._error = null
     this._overlay = null
     this._cuCancel = null
+    // Set of canonicalized player names (trim + lowercase) that should
+    // paint a NEW chip on their podium card THIS open. Computed in
+    // `_loadRows` once the top-3 settles; hover-dismiss mutates it in
+    // place (so a re-render via `_rerender` doesn't re-paint a chip
+    // the player just cleared mid-session).
+    this._newPodiumAtOpen = new Set()
   }
 
   open() {
@@ -240,6 +246,33 @@ export class LeaderboardOverlay {
       // Rank here is the global fetch position; the LIVE tab re-ranks
       // its own subset so "the leading live run" reads as #1.
       this._rows = prepared.map((r, i) => this._normalize(r, i + 1))
+      // NEW-tag bookkeeping for the podium. After rows normalize,
+      // capture which of the current top-3 player names are NOT in the
+      // local player's seen-set. The podium card uses this to decide
+      // whether to paint a NEW chip. Self-rows are filtered out — the
+      // local player can't be "a new player on the podium" to themselves.
+      // The dedup key is the CANONICALIZED player name (trim + lowercase),
+      // so a player with multiple runs in the top-3 fires NEW once total.
+      // Filters BOTH on `r.isYou` AND on canonical-name equality with the
+      // local player — `r.isYou` is computed via case-sensitive ===, so
+      // a row with `player_name: "alice"` saved when the local player
+      // was "Alice" would slip past. Defense in depth catches it here.
+      const top3 = (this._rows || []).slice(0, 3)
+      const newSet = new Set()
+      const seen   = PlayerProfile.getKnownLeaderboardNames?.() || new Set()
+      const myCanon = (() => {
+        const n = PlayerProfile.getName?.() ?? ''
+        return typeof n === 'string' ? n.trim().toLowerCase() : ''
+      })()
+      for (const r of top3) {
+        if (!r || r.isYou) continue
+        const raw  = r._raw?.player_name ?? r.name ?? ''
+        const canon = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+        if (!canon) continue
+        if (myCanon && canon === myCanon) continue  // belt-and-braces self-filter
+        if (!seen.has(canon)) newSet.add(canon)
+      }
+      this._newPodiumAtOpen = newSet
       this._loading = false
     } catch (e) {
       this._error = e?.message || String(e)
@@ -694,6 +727,18 @@ export class LeaderboardOverlay {
   _podiumCard(entry, place) {
     const c = rankColor(place)
     const active = this._selected === entry
+    // Should this podium card paint a NEW chip? Computed against the
+    // pre-`_loadRows` seen-set snapshot in `_newPodiumAtOpen` (canonical
+    // names: trim + lowercase). Hover-dismiss removes the canon from
+    // the snapshot in place + writes to PlayerProfile. Self-rows are
+    // already filtered out at snapshot time, so this also serves as a
+    // belt-and-braces "no NEW on yourself" guard.
+    const canonName = (() => {
+      const raw = entry?._raw?.player_name ?? entry?.name ?? ''
+      return typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+    })()
+    const isNewPodium = !entry?.isYou && canonName &&
+                        this._newPodiumAtOpen?.has(canonName)
     // LB_SHOW_COMPANIONS — when a companion is shown, the card flips to
     // a horizontal layout: [big keeper sprite on the left | existing
     // boss/name/stats column on the right]. Cards without a companion
@@ -771,8 +816,31 @@ export class LeaderboardOverlay {
       className: 'qf-lb-podium-card',
       dataset: { place, active: active ? 'true' : 'false' },
       style: cardStyle,
-      on: { click: () => { this._selected = entry; this._rerender() } },
+      on: {
+        click: () => { this._selected = entry; this._rerender() },
+        // NEW-chip dismiss on hover (same pattern as companion cards
+        // + achievement cards). Marks the canonical name known in
+        // PlayerProfile, removes it from the in-memory snapshot, then
+        // fades + DOM-removes the chip on this card. Guard against
+        // re-firing if the chip was already cleared this open.
+        mouseenter: (e) => {
+          if (!canonName || !this._newPodiumAtOpen?.has(canonName)) return
+          PlayerProfile.markLeaderboardNameKnown?.(canonName)
+          this._newPodiumAtOpen.delete(canonName)
+          const chip = e.currentTarget?.querySelector('.qf-lb-podium-new-chip')
+          if (chip) {
+            chip.classList.add('is-dismissing')
+            setTimeout(() => chip.remove(), 260)
+          }
+        },
+      },
     }, [
+      // NEW chip — paints in the top-LEFT corner of the podium card
+      // when this card's player just entered the local player's top-3
+      // view. Matches the visual of the other NEW pills (red/pink
+      // pulsing pixel pill). Click-through; the card's own mouseenter
+      // dismisses it. Self-rows never receive a chip (filtered above).
+      isNewPodium && h('span', { className: 'pix qf-lb-podium-new-chip' }, 'NEW'),
       showCompanion ? this._podiumCompanionSprite(entry, place) : null,
       contentColumn,
       // Right-side stats block — mirrors the keeper block's width so
