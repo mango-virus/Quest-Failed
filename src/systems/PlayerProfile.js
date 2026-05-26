@@ -121,16 +121,24 @@ function _writeIdSet(key, set) {
   } catch {}
 })()
 
-// One-time migration — wipe over-eager NEW-tag seen-set seeds across all
-// per-name slots. The initial version of the NEW-tag system bulk-seeded
-// every currently-unlocked id into the seen-set on first open, which
-// suppressed NEW tags from ever appearing on existing rosters. That
-// behavior was removed (auto-detect is now strict — no seeding), but
-// the data those buggy opens wrote is still in localStorage and would
-// keep hiding the tags. Detected via a version flag; runs once per
-// browser, then never again. Safe across multiple player names (walks
-// all matching keys, not just the active name).
-const NEWSEEN_MIGRATION_FLAG = 'qf.player.newseen_seed_reset_v1'
+// Two one-time migrations of NEW-tag seen-set state, each gated by its
+// own flag so they run exactly once each per browser.
+//
+// **v1** wiped ALL `*_newseen:*` slots once — fix for an early bug where
+// opening a screen bulk-seeded every currently-unlocked id into the
+// seen-set, suppressing NEW tags from ever appearing on existing rosters.
+//
+// **v2** wipes the LEADERBOARD slots specifically — re-baselines every
+// player to "the current top-3 is NEW to me" so the system is ready to
+// fire properly for everyone going forward. Without this, players who
+// had accumulated leaderboard seen-set state during testing of the
+// previous (canonical-name-keyed) implementation would stay suppressed
+// on the new (row-id-keyed) implementation. After v2 runs, the seen-set
+// is empty for every player, so the current top-3 fires NEW once per
+// player; subsequent runs entering the top-3 fire NEW too as new ids
+// arrive. Existing entries stay acknowledged after the first hover.
+const NEWSEEN_MIGRATION_FLAG    = 'qf.player.newseen_seed_reset_v1'
+const NEWSEEN_LB_MIGRATION_FLAG = 'qf.player.newseen_lb_reset_v2'
 ;(function _resetOverEagerNewSeenSeeds() {
   try {
     if (localStorage.getItem(NEWSEEN_MIGRATION_FLAG) === '1') return
@@ -147,6 +155,23 @@ const NEWSEEN_MIGRATION_FLAG = 'qf.player.newseen_seed_reset_v1'
     }
     for (const k of toRemove) localStorage.removeItem(k)
     localStorage.setItem(NEWSEEN_MIGRATION_FLAG, '1')
+  } catch {}
+})()
+;(function _resetLeaderboardNewSeenForRowIdSwitchover() {
+  try {
+    if (localStorage.getItem(NEWSEEN_LB_MIGRATION_FLAG) === '1') return
+    const prefix = LEADERBOARD_NEW_SEEN_KEY_BASE + ':'
+    const toRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith(prefix)) toRemove.push(k)
+    }
+    for (const k of toRemove) localStorage.removeItem(k)
+    // Also nuke the cached top-3 so the next `fetchTop` re-writes it in
+    // the current `{id, name}` shape (legacy bare-string entries had
+    // empty ids and could never fire the badge anyway).
+    localStorage.removeItem('qf.leaderboard.last_top3')
+    localStorage.setItem(NEWSEEN_LB_MIGRATION_FLAG, '1')
   } catch {}
 })()
 

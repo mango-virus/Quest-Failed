@@ -99,6 +99,20 @@ export class MainMenuOverlay {
     this._render()
     this._spawnNextBossVideo()
     window.addEventListener('keydown', this._keyHandler)
+    // Background prefetch of the top-3 leaderboard so the LEADERBOARD
+    // button's NEW badge can compute correctly on the very first menu
+    // render of a session (when the cache might be empty — e.g. a fresh
+    // browser, or someone who renamed to a brand-new name and hasn't
+    // opened the leaderboard yet under it). The fetch is fire-and-forget;
+    // when it resolves it writes the global cache, and we then re-sync
+    // the menu badges so the LEADERBOARD pill can appear retroactively
+    // without the player needing to open the overlay first.
+    Leaderboard.fetchTop?.(3)
+      .then(() => {
+        if (this._closed || !this._el) return
+        this._refreshMenuItems()
+      })
+      .catch(() => {})
     // Listen for player-name swaps from ANY source (NameEntryOverlay
     // confirm path is already wired locally, but a name swap could
     // also originate from the legacy Options scene or future surfaces).
