@@ -29,6 +29,11 @@ const UI_VOL = {
   tab:          0.70,  // tab switch in overlays
   open_panel:   0.90,  // overlay open
   close_panel:  0.75,  // overlay close
+  // Unlock-notification overlay chips — celebratory, slightly punchier.
+  // Both files are well-mixed at source, so base ~1.0 reads fine without
+  // overpowering the ambient menu music.
+  unlock_reward:      1.10,  // boss / companion / title card pops in
+  unlock_achievement: 1.10,  // achievement card pops in (gold trophy)
 }
 
 // Global UI-boost multiplier — mirrors SfxSystem.SFX_BOOST (1.5) so the
@@ -49,6 +54,8 @@ const UI_KEY = {
   tab:          'sfx-chest-open',    // hollow flip
   open_panel:   'sfx-chest-open',
   close_panel:  'sfx-close-door',
+  unlock_reward:      'sfx-unlock-reward',      // boss / companion / title card
+  unlock_achievement: 'sfx-unlock-achievement', // achievement card
 }
 
 // Per-cue cooldown (ms) — prevents back-to-back clicks from layering.
@@ -61,6 +68,11 @@ const COOLDOWN = {
   tab:          120,
   open_panel:   200,
   close_panel:  150,
+  // Unlock chips need a long cooldown — back-to-back card advances
+  // through the queue (Enter / Space spam) shouldn't layer the same
+  // sound on top of itself.
+  unlock_reward:      300,
+  unlock_achievement: 300,
 }
 
 const _lastAt = {}

@@ -374,6 +374,14 @@ export class Preload extends Phaser.Scene {
     // click animation art.
     this.load.audio('sfx-cursor-click', 'assets/audio/sfx-cursor-click.mp3')
 
+    // Unlock-notification SFX — UnlockNotificationOverlay plays one per
+    // card as the player walks the queue on first main-menu return after
+    // a run that earned achievements / companions / bosses / titles.
+    // `unlock-reward` fires for boss / companion / title cards; the
+    // achievement SFX fires for achievement cards specifically.
+    this.load.audio('sfx-unlock-reward',      'assets/audio/unlocked-reward.mp3')
+    this.load.audio('sfx-unlock-achievement', 'assets/audio/achievement-unlocked.mp3')
+
     // Gameplay SFX — managed by SfxSystem.
     this.load.audio('sfx-death',          'assets/audio/adventurer and minion death.wav')
     this.load.audio('sfx-archer-shoot',   'assets/audio/archer long range shoot.mp3')

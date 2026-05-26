@@ -50,6 +50,12 @@ const ACHIEVEMENTS_NEW_SEEN_KEY_BASE  = 'qf.player.achievements_newseen'
 const COMPANIONS_NEW_SEEN_KEY_BASE    = 'qf.player.companions_newseen'
 const BOSSES_NEW_SEEN_KEY_BASE        = 'qf.player.bosses_newseen'
 const LEADERBOARD_NEW_SEEN_KEY_BASE   = 'qf.player.leaderboard_newseen'
+// Per-name queue of "earned during a run but not yet celebrated on the
+// main menu" unlock entries. Drained by `UnlockNotificationOverlay` on
+// the first main-menu open after the unlocks happened — each entry pops
+// a full-card notification with sprite + sound. Survives sessions, so
+// quitting the browser mid-celebration doesn't lose the moment.
+const PENDING_UNLOCKS_KEY_BASE        = 'qf.player.pending_unlocks'
 
 // Legacy global keys — wiped at module load (Option A from the user's
 // 2026-05-26 decision). Any data here was pre-refactor pollution and
@@ -94,6 +100,7 @@ function _achievementsNewSeenKeyFor(name) { return `${ACHIEVEMENTS_NEW_SEEN_KEY_
 function _companionsNewSeenKeyFor(name)   { return `${COMPANIONS_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _bossesNewSeenKeyFor(name)       { return `${BOSSES_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _leaderboardNewSeenKeyFor(name)  { return `${LEADERBOARD_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
+function _pendingUnlocksKeyFor(name)      { return `${PENDING_UNLOCKS_KEY_BASE}:${(name ?? '').trim()}` }
 
 // Generic helpers shared by the achievement + companion seen-id sets.
 // `getSet` parses a stored JSON array into a Set<string>; `writeSet`
@@ -669,6 +676,45 @@ export const PlayerProfile = {
       if (key && !seen.has(key)) return true
     }
     return false
+  },
+
+  // ── Pending-unlocks queue (per-name) ────────────────────────────────
+  // Queue of "things earned in-game that haven't been celebrated yet"
+  // — drained by UnlockNotificationOverlay on the first main-menu open
+  // after they were earned. Each entry is `{ type, id, ...metadata, ts }`
+  // where `type` is one of `'achievement' | 'companion' | 'boss' | 'title'`
+  // and the metadata varies per type (achievement uses just id; title
+  // also carries the title string; etc.). Persisted across sessions so
+  // quitting the browser between earning and viewing doesn't lose the
+  // moment. Ordering is preserved (FIFO).
+
+  queueUnlock(entry) {
+    if (!entry || typeof entry !== 'object') return
+    if (!entry.type || typeof entry.type !== 'string') return
+    if (!this.getName()) return
+    const key = _pendingUnlocksKeyFor(this.getName())
+    try {
+      const raw = localStorage.getItem(key)
+      const arr = raw ? JSON.parse(raw) : []
+      const list = Array.isArray(arr) ? arr : []
+      list.push({ ...entry, ts: Date.now() })
+      localStorage.setItem(key, JSON.stringify(list))
+    } catch {}
+  },
+
+  getPendingUnlocks() {
+    if (!this.getName()) return []
+    try {
+      const raw = localStorage.getItem(_pendingUnlocksKeyFor(this.getName()))
+      if (!raw) return []
+      const arr = JSON.parse(raw)
+      return Array.isArray(arr) ? arr : []
+    } catch { return [] }
+  },
+
+  clearPendingUnlocks() {
+    if (!this.getName()) return
+    try { localStorage.removeItem(_pendingUnlocksKeyFor(this.getName())) } catch {}
   },
 
   // Pack the unlocked-achievement set into a compact bitmask string for

@@ -34,6 +34,20 @@
 
 import { EventBus } from './EventBus.js'
 import { PlayerProfile } from './PlayerProfile.js'
+import { UNLOCK_GATES } from '../data/bossUnlocks.js'
+
+// Reverse-lookup helper for the unlock-notification queue. Given the
+// achievement id that just unlocked, returns the boss-archetype id it
+// gates (if any) so the queue can push a "NEW BOSS UNLOCKED" card.
+// UNLOCK_GATES maps boss id → { achId, ... }, so we have to scan
+// values; the table is small (~9 entries) so the linear walk is cheap.
+function _bossUnlockedByAchievement(achId) {
+  if (!achId) return null
+  for (const [bossId, gate] of Object.entries(UNLOCK_GATES)) {
+    if (gate?.achId === achId) return bossId
+  }
+  return null
+}
 
 // Default career-metric shape. Used as the seed when `getAchievementMetrics()`
 // returns {} (first-ever boot). Adding a new metric: append a default here
@@ -520,7 +534,14 @@ class AchievementSystemImpl {
     return this._metrics[metric] ?? 0
   }
 
-  _unlock(def) {
+  // `opts.fromRetroactive=true` — caller is the boot-time scan that
+  // backfills missing achievement unlock state for save data created
+  // before this code shipped. We deliberately SKIP queuing notification
+  // entries in that path so existing players don't get a flood of
+  // unlock cards on the next main-menu open for stuff they earned long
+  // before the notification system existed. Live in-game checks
+  // (`_checkMetric`) use the default `false` and queue normally.
+  _unlock(def, opts = {}) {
     const isFresh = PlayerProfile.unlockAchievement(def.id)
     if (!isFresh) return
     // Apply rewards:
@@ -536,6 +557,24 @@ class AchievementSystemImpl {
     }
     if (def.title) {
       PlayerProfile.unlockTitle(def.id, def.title)
+    }
+    // Queue full-card unlock notifications for the next main-menu open.
+    // Live unlocks only — retroactive boot-scan unlocks skip the queue.
+    // Ordering: achievement first (worked-for), then the reward(s) it
+    // grants — feels like a "you earned it → here's what it gives you"
+    // sequence.
+    if (!opts.fromRetroactive) {
+      PlayerProfile.queueUnlock({ type: 'achievement', id: def.id })
+      if (def.reward?.type === 'companion' && def.reward.id) {
+        PlayerProfile.queueUnlock({ type: 'companion', id: def.reward.id, achId: def.id })
+      }
+      const bossId = _bossUnlockedByAchievement(def.id)
+      if (bossId) {
+        PlayerProfile.queueUnlock({ type: 'boss', id: bossId, achId: def.id })
+      }
+      if (def.title) {
+        PlayerProfile.queueUnlock({ type: 'title', id: def.id, title: def.title, achId: def.id })
+      }
     }
     // Tell the world — toast UI, HUD chips, leaderboard sync, etc.
     EventBus.emit('ACHIEVEMENT_UNLOCKED', { id: def.id, def })
@@ -566,7 +605,7 @@ class AchievementSystemImpl {
     // so a 5-unlock retro can still all be on-screen briefly).
     let delay = 900
     for (const def of pending) {
-      setTimeout(() => this._unlock(def), delay)
+      setTimeout(() => this._unlock(def, { fromRetroactive: true }), delay)
       delay += 700
     }
   }

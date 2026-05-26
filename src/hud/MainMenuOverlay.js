@@ -126,6 +126,34 @@ export class MainMenuOverlay {
       this._refreshMenuItems()
     }
     EventBus.on('NAME_CHANGED', this._onNameChanged)
+    // First-main-menu-open-after-unlocks celebration. If the pending-
+    // unlocks queue has entries (filled by AchievementSystem._unlock
+    // during the last run), pop the UnlockNotificationOverlay 250ms
+    // after the menu renders — gives the menu's per-item entrance
+    // animations time to settle so the modal doesn't fight for
+    // attention. Overlay drains + clears the queue itself; the menu
+    // doesn't need to do anything else. Lazy import keeps the overlay
+    // off the main bundle on sessions where nothing was unlocked.
+    if ((PlayerProfile.getPendingUnlocks?.() || []).length > 0) {
+      setTimeout(() => {
+        if (this._closed || !this._el) return
+        import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {
+          if (this._closed || !this._el) return
+          if (this._unlockOverlay) return
+          this._unlockOverlay = new UnlockNotificationOverlay({
+            onClose: () => {
+              this._unlockOverlay = null
+              // Queue is already cleared by the overlay itself; just
+              // re-sync badges in case any unlock affected them (e.g.
+              // a new companion now counts as "unseen" on the recruit
+              // screen). Cheap, no-op if nothing changed.
+              if (!this._closed && this._el) this._refreshMenuItems()
+            },
+          })
+          this._unlockOverlay.open()
+        }).catch(() => {})
+      }, 250)
+    }
   }
 
   close() {
@@ -153,6 +181,12 @@ export class MainMenuOverlay {
     this._confirm = null
     this._nameEntry?.close()
     this._nameEntry = null
+    // Close the unlock-notification overlay if it's still up (player
+    // hits NEW EVIL / CONTINUE / QUIT during the celebration). Its
+    // close handler also calls clearPendingUnlocks(), so they don't
+    // replay.
+    this._unlockOverlay?.close()
+    this._unlockOverlay = null
   }
 
   // ─── Rendering ─────────────────────────────────────────────────

@@ -11118,6 +11118,203 @@ body {
   animation: none;
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   UnlockNotificationOverlay — first-main-menu-open celebration cards
+   ───────────────────────────────────────────────────────────────────── */
+
+/* The card lives inside the Overlay shell's centered modal box. It's a
+   vertical stack: per-type banner, large centerpiece (portrait / sprite /
+   icon / title chip), name, subtitle, footer with queue counter + hint.
+   Click-anywhere advances (handler bound by the JS). Per-type color
+   comes from the data-type attribute on the card root. */
+.qf-unlock-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 18px 16px 12px;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  /* Each card scale-fades in. Re-key the animation each render by
+     swapping the DOM node (JS does this on advance), so the entrance
+     plays per-card without polluting the shell. */
+  animation: qf-unlock-card-in 320ms cubic-bezier(0.16, 1.04, 0.49, 1.02) both;
+}
+@keyframes qf-unlock-card-in {
+  0%   { opacity: 0; transform: scale(0.78) translateY(8px); filter: brightness(1.6); }
+  60%  { opacity: 1; transform: scale(1.04) translateY(0);  filter: brightness(1.2); }
+  100% { opacity: 1; transform: scale(1.00) translateY(0);  filter: brightness(1.0); }
+}
+
+/* Banner — the top-row label that calls out what TYPE of thing the
+   player just earned. Color-coded via [data-type] selectors below. */
+.qf-unlock-banner {
+  font-family: var(--pix);
+  font-size: 11px;
+  letter-spacing: 3px;
+  padding: 5px 14px;
+  border: 2px solid currentColor;
+  background: color-mix(in srgb, currentColor 10%, var(--bg-1));
+  text-shadow: 0 0 8px currentColor;
+  /* Subtle pulse so the banner reads as alive. Slow enough not to
+     be distracting. */
+  animation: qf-unlock-banner-pulse 2.4s ease-in-out infinite;
+}
+@keyframes qf-unlock-banner-pulse {
+  0%, 100% { box-shadow: 0 0 12px color-mix(in srgb, currentColor 40%, transparent); }
+  50%      { box-shadow: 0 0 24px color-mix(in srgb, currentColor 80%, transparent); }
+}
+
+/* Centerpiece frame — large square panel that holds the per-type
+   artwork. Per-type subclasses tune the inner element. */
+.qf-unlock-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 220px;
+  height: 220px;
+  padding: 10px;
+  background: var(--bg-0);
+  border: 2px solid currentColor;
+  box-shadow: 0 0 0 1px #000,
+              0 0 24px color-mix(in srgb, currentColor 55%, transparent),
+              inset 0 0 16px color-mix(in srgb, currentColor 10%, transparent);
+  position: relative;
+  /* Radial glow underneath the centerpiece — particle-y burst feel
+     without shipping a particle system. Tracks the current accent. */
+}
+.qf-unlock-art::after {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background: radial-gradient(circle,
+              color-mix(in srgb, currentColor 35%, transparent) 0%,
+              transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+  animation: qf-unlock-glow-pulse 2.6s ease-in-out infinite;
+}
+@keyframes qf-unlock-glow-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.95; transform: scale(1.08); }
+}
+
+/* Centerpiece children — boss portrait & companion sprite both use
+   `background-image` (URL/img patterns); achievement uses an emoji glyph;
+   title uses big pixel text. */
+.qf-unlock-art-img {
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+}
+.qf-unlock-art--companion .qf-unlock-art-img,
+.qf-unlock-art--companion img.qf-unlock-art-img {
+  object-fit: contain;
+  object-position: center bottom;
+}
+.qf-unlock-art--achievement .qf-unlock-art-icon {
+  font-size: 96px;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px currentColor);
+  /* Slight bounce on appear, syncs with the card's scale-in */
+  animation: qf-unlock-icon-pop 480ms cubic-bezier(0.16, 1.2, 0.49, 1.02) both;
+}
+@keyframes qf-unlock-icon-pop {
+  0%   { transform: scale(0.6) rotate(-8deg); }
+  60%  { transform: scale(1.18) rotate(2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.qf-unlock-art--title .qf-unlock-art-title {
+  font-family: var(--pix);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: 2.5px;
+  text-shadow: 0 0 12px currentColor;
+  padding: 0 14px;
+  word-break: break-word;
+}
+.qf-unlock-art-placeholder {
+  font-size: 80px;
+  opacity: 0.6;
+}
+
+/* Text row — name (big pixel font) + tagline / description below. */
+.qf-unlock-name {
+  font-family: var(--pix);
+  font-size: 18px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px currentColor;
+  margin-top: 4px;
+}
+.qf-unlock-subtitle {
+  font-size: 12px;
+  color: var(--text-mute);
+  max-width: 460px;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* Footer — fills out the bottom of the card with the queue counter +
+   the advance hint. Counter is gold; hint is muted. */
+.qf-unlock-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 6px;
+}
+.qf-unlock-counter {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-shadow: 0 0 6px var(--gold);
+}
+.qf-unlock-hint {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+}
+
+/* ── Per-type color theming ────────────────────────────────────────── */
+
+/* Achievement: gold, trophy-y */
+.qf-unlock-card[data-type="achievement"]            { color: var(--gold); }
+.qf-unlock-card[data-type="achievement"] .qf-unlock-name {
+  text-shadow: 0 0 12px var(--gold);
+}
+
+/* Boss: blood-red, dangerous */
+.qf-unlock-card[data-type="boss"]                   { color: var(--blood); }
+.qf-unlock-card[data-type="boss"] .qf-unlock-name {
+  text-shadow: 0 0 12px var(--blood);
+}
+
+/* Companion: warm gold by default — per-companion CSS vars
+   (--cmp-accent-rattlebones etc.) further tint individual cards via
+   the JS-resolved accent variable. */
+.qf-unlock-card[data-type="companion"]              { color: var(--gold-bright, #ffd964); }
+.qf-unlock-card[data-type="companion"] .qf-unlock-name {
+  text-shadow: 0 0 12px var(--gold-bright, #ffd964);
+}
+
+/* Title: gold-bright (matches the title chip in the achievements
+   counter band) */
+.qf-unlock-card[data-type="title"]                  { color: var(--gold-bright, #ffd964); }
+.qf-unlock-card[data-type="title"] .qf-unlock-name {
+  text-shadow: 0 0 12px var(--gold-bright, #ffd964);
+}
+
 /* Rarity badge — small "X% earned" pill in the card's top-right corner.
    Rare achievements (< 10% of players) get a gold-bright burst; common
    ones use a muted neutral. Only shows when the rarity sample has been
