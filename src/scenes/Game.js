@@ -1539,6 +1539,16 @@ export class Game extends Phaser.Scene {
         const _aiThrottle = (ts === 1)
         if (_aiThrottle) this._aiFrameParity = ((this._aiFrameParity ?? 0) + 1) & 1
         const _skipAi = _aiThrottle && (this._aiFrameParity === 0)
+        // Per-second tick counter for PerfHud (verifies the throttle is
+        // actually firing). Drained alongside the per-system ms bucket.
+        if (!window.__perfCounts) window.__perfCounts = {}
+        if (!_skipAi) {
+          window.__perfCounts.aiTicks = (window.__perfCounts.aiTicks ?? 0) + 1
+        }
+        window.__perfCounts.gameUpdates = (window.__perfCounts.gameUpdates ?? 0) + 1
+        window.__perfCounts.timeScale = ts
+        window.__perfCounts.advCount = (this.gameState?.adventurers?.active?.length ?? 0)
+        window.__perfCounts.minionCount = (this.gameState?.minions ?? []).filter(m => m?.aiState !== 'dead').length
 
         for (let i = 0; i < steps; i++) {
           // Boss fight runs at the same scaled rate as all other

@@ -74,6 +74,7 @@ export class PerfHud {
 
   _sample() {
     const stats = window.__perfStats || {}
+    const counts = window.__perfCounts || {}
     const fps = this._frames
     this._frames = 0
     const entries = Object.entries(stats)
@@ -84,12 +85,22 @@ export class PerfHud {
     // Clear the bucket so the next 1s window measures fresh time.
     for (const k of Object.keys(stats)) stats[k] = 0
 
+    const aiTicks      = counts.aiTicks ?? 0
+    const gameUpdates  = counts.gameUpdates ?? 0
+    const tsLabel      = counts.timeScale != null ? `${counts.timeScale}x` : '?'
+    const advs         = counts.advCount ?? 0
+    const minions      = counts.minionCount ?? 0
+    counts.aiTicks = 0
+    counts.gameUpdates = 0
+
     const totalMs = entries.reduce((s, [, ms]) => s + ms, 0)
     // 60fps × 16.6ms/frame = ~1000ms/sec available CPU budget.
     // A system reporting >100ms/sec is eating >10% of the budget.
     const fmt = (ms) => ms.toFixed(1).padStart(6)
     const lines = [
       `PerfHud  ${fps}fps  ${totalMs.toFixed(1)}ms/s tracked`,
+      `speed:${tsLabel}  advs:${advs}  minions:${minions}`,
+      `AI ${aiTicks}/sec  (game ${gameUpdates}/sec)`,
       '─'.repeat(36),
       ...entries.map(([k, ms]) => `${fmt(ms)}ms  ${k}`),
     ]
