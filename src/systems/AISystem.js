@@ -31,6 +31,12 @@ const GLOAT_DURATION_MS            = 1500   // freeze in place this long
 const SCOUT_CHANCE                 = 0.15   // roll on _pickNextGoal
 const SCOUT_MIN_DISTANCE           = 10     // unvisited room must be at least this far
 const SCOUT_SPEED_MULT             = 1.2    // scouts move slightly faster
+// Fleeing adventurers sprint hard for the exit. Bumped 1.1 → 1.6
+// (2026-05-27) so end-of-day clears faster when many advs are heading
+// home at once — combined with the splice-on-door-contact change in
+// the FLEE atExitEdge handler, the conga line at the doorway resolves
+// in a fraction of the time it used to.
+const FLEE_SPEED_MULT              = 1.6
 const RESCUE_HP_FRACTION           = 0.20   // ally must be below this to rescue
 const RESCUE_RANGE                 = 12     // tiles between rescuer and ally
 const RESCUE_SPEED_MULT            = 1.3    // rescuer moves faster
@@ -1321,28 +1327,21 @@ export class AISystem {
     const atExitEdge = exitEntry != null
 
     // If fleeing and physically RETURNING to the entry_hall's exit edge
-    // (must have left at some point), leave the dungeon.  Mirrors the
-    // entry flow: snap to the doorway center, idle while fading out,
-    // then splice + emit ADVENTURER_FLED when the fade completes.
+    // (must have left at some point), leave the dungeon. Snap to the
+    // doorway center for the visual flourish, then splice IMMEDIATELY
+    // — no 600 ms fade-out hold (2026-05-27).
+    //
+    // The old fade-and-then-splice path made every fleeing adv occupy
+    // the door tile for 600 ms before despawning. With many advs at
+    // end-of-day this stacked into a visible queue and the player had
+    // to wait for each one. Splice-on-contact keeps the "they reached
+    // the door, they're gone" beat without the wait. Pairs with the
+    // FLEE_SPEED_MULT bump so the doorway clears fast.
     if (adv.goal?.type === 'FLEE' && atExitEdge && adv._leftEntry) {
-      const now = this._scene?.time?.now ?? 0
-      if (adv._leaveFadeEnd == null) {
-        const door = this._entryDoorWorldCenter(exitEntry)
-        if (door) {
-          adv.tileX  = door.tileX
-          adv.tileY  = door.tileY
-          adv.worldX = door.worldX
-          adv.worldY = door.worldY
-        }
-        adv.path = null
-        adv.aiState = 'leaving'
-        adv._leaveFadeStart = now
-        adv._leaveFadeEnd   = now + 600
-        return
-      }
-      if (now < adv._leaveFadeEnd) return
-
-      // Phase 9: Sealed Paths — 50% chance to reroute fleeing adventurers back into the dungeon
+      // Phase 9: Sealed Paths — 50% chance to reroute fleeing
+      // adventurers back into the dungeon. Fires BEFORE the splice (so
+      // reroute can still happen) but is now a single-tick decision
+      // instead of waiting until a fade completed.
       if ((this._gameState._mechanicFlags ?? {}).sealedPaths && !adv._sealedPathsChecked) {
         adv._sealedPathsChecked = true
         if (Math.random() < Balance.MECHANIC_SEALED_PATHS_BLOCK_CHANCE) {
@@ -1351,17 +1350,23 @@ export class AISystem {
           )
           if (rooms.length > 0) {
             const dest = rooms[Math.floor(Math.random() * rooms.length)]
-            adv.aiState         = 'walking'
-            adv.goal            = { type: 'EXPLORE_ROOM', roomId: dest.instanceId }
-            adv.path            = null
-            adv._leaveFadeEnd   = null
-            adv._leaveFadeStart = null
+            adv.aiState = 'walking'
+            adv.goal    = { type: 'EXPLORE_ROOM', roomId: dest.instanceId }
+            adv.path    = null
             EventBus.emit('SEALED_PATHS_BLOCKED', { adventurer: adv, roomId: dest.instanceId })
             return
           }
         }
       }
-
+      // Snap to the doorway center for the "they walked through the
+      // door" visual, then splice in the same tick.
+      const door = this._entryDoorWorldCenter(exitEntry)
+      if (door) {
+        adv.tileX  = door.tileX
+        adv.tileY  = door.tileY
+        adv.worldX = door.worldX
+        adv.worldY = door.worldY
+      }
       adv.aiState = 'fled'
       this._gameState.adventurers.active.splice(idx, 1)
       EventBus.emit('ADVENTURER_FLED', {
@@ -2098,10 +2103,11 @@ export class AISystem {
     }
 
     const speedMul = this._paranoidSpeedMultiplier(adv)
-    // Fleeing adventurers sprint — 1.1× their normal pace.  Sells the
-    // "running away in panic" feel and helps unlucky lost-flee wanderers find
-    // the entry hall faster.
-    const fleeMul  = adv.aiState === 'fleeing' ? 1.1 : 1
+    // Fleeing adventurers sprint — FLEE_SPEED_MULT × their normal pace.
+    // Sells the "running away in panic" feel and (more importantly)
+    // clears the end-of-day exit queue at the entry hall doorway
+    // before the player has time to get bored.
+    const fleeMul  = adv.aiState === 'fleeing' ? FLEE_SPEED_MULT : 1
     // Phase 5c — Bard Song of Speed: same-party advs within 2 tiles of a
     // speed-song-active Bard move 20% faster.
     const songMul  = this._songOfSpeedMul(adv)
