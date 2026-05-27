@@ -1963,13 +1963,71 @@ export class AISystem {
           if (room) trappedRoomIds.add(room.instanceId)
         }
       }
+      // Minion-room avoidance (preserved from the previous per-tile cost
+      // system, 2026-05-27). KnowledgeSystem.costMultiplierForTile used to
+      // weight any room the adv knew contained living minions; when we
+      // dropped per-tile trap detour we accidentally removed minion-room
+      // avoidance too. Restore it here with the same tier-scaled formula
+      // and live-presence filter (skip dead/wandered-out minions) — so
+      // strategic minion placement still herds advs around the long way.
+      // Precomputed per-path so the cost-fn doesn't redo the room+entry
+      // scan per A* expansion.
+      const minionRoomCost = new Map()
+      if (useKnowledgeCost && adv.knowledge?.enemiesPerRoom && this._knowledgeSystem) {
+        const liveMinions = this._gameState?.minions ?? []
+        const rank = { FULL: 0, PARTIAL: 1, RUMOR: 2 }
+        for (const roomIdStr of Object.keys(adv.knowledge.enemiesPerRoom)) {
+          const list = adv.knowledge.enemiesPerRoom[roomIdStr]
+          if (!Array.isArray(list) || list.length === 0) continue
+          // Object keys are strings; instanceIds may be numbers — match both.
+          const room = this._gameState.dungeon?.rooms?.find(r =>
+            r.instanceId === roomIdStr || r.instanceId === Number(roomIdStr))
+          if (!room) continue
+          const rx0 = room.gridX, ry0 = room.gridY
+          const rx1 = rx0 + room.width, ry1 = ry0 + room.height
+          let bestTier = null
+          for (const e of list) {
+            // Live-presence filter — skip entries whose minion has
+            // wandered out (roaming families) or died. Entries without
+            // an instanceId fall through (legacy / synthetic intel).
+            if (e?.instanceId) {
+              const m = liveMinions.find(x => x?.instanceId === e.instanceId)
+              if (!m) continue
+              if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+              const inRoom = Number.isFinite(m.tileX) && Number.isFinite(m.tileY) &&
+                m.tileX >= rx0 && m.tileX < rx1 && m.tileY >= ry0 && m.tileY < ry1
+              if (!inRoom) continue
+            }
+            const tier = this._knowledgeSystem.tierForEntry?.(e)
+            if (!tier) continue
+            if (bestTier == null || (rank[tier] ?? 9) < (rank[bestTier] ?? 9)) bestTier = tier
+          }
+          if (bestTier) {
+            const scale = this._knowledgeSystem.costMultiplierForTier?.(bestTier) ?? 1
+            const mult  = 1 + (Balance.KNOWLEDGE_DANGER_ROOM_MULT - 1) * scale
+            minionRoomCost.set(room.instanceId, mult)
+          }
+        }
+      }
       const costFn = (tx, ty) => {
-        if (!useKnowledgeCost || trappedRoomIds.size === 0) return 1
+        if (!useKnowledgeCost) return 1
         const room = this._dungeonGrid?.getRoomAtTile?.(tx, ty)
-        if (room && trappedRoomIds.has(room.instanceId)) {
+        if (!room) return 1
+        // Locked-room defensive cost (matches legacy
+        // KnowledgeSystem.costMultiplierForTile behavior — locked doors
+        // are hard-blocked via blockedForAdv but this guards any bypass
+        // path like a teleporter or cheater noclip). Runs regardless of
+        // trap/minion knowledge so a fresh adv with empty buckets still
+        // gets the safety check.
+        if (room.locked) return 9999
+        // Trap room wins over minion room — same priority as the old
+        // costMultiplierForTile (trap is the more localized hazard).
+        if (trappedRoomIds.has(room.instanceId)) {
           trapRejectsThisPath++
           return ROOM_TRAP_PENALTY
         }
+        const mm = minionRoomCost.get(room.instanceId)
+        if (mm != null) return mm
         return 1
       }
       // Phase: items — HARD-block every locked-door tile this adv has no
@@ -2067,7 +2125,7 @@ export class AISystem {
       // Diagnostic: log each path computation with its key inputs so we
       // can correlate "stuck adv" warnings to actual A* output.
       this._aiDiag(adv,
-        `path: ${path ? path.length : 0} tiles | from=(${adv.tileX},${adv.tileY}) to=(${target.x},${target.y}) goal=${adv.goal?.type ?? '(none)'} panicWalk=${panicWalk} useKnowCost=${useKnowledgeCost} trapRejects=${trapRejectsThisPath} trappedRooms=${trappedRoomIds.size}`)
+        `path: ${path ? path.length : 0} tiles | from=(${adv.tileX},${adv.tileY}) to=(${target.x},${target.y}) goal=${adv.goal?.type ?? '(none)'} panicWalk=${panicWalk} useKnowCost=${useKnowledgeCost} trapRejects=${trapRejectsThisPath} trappedRooms=${trappedRoomIds.size} minionRooms=${minionRoomCost.size}`)
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
         // "no route exists".  Only treat the former as a true arrival; the
