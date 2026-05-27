@@ -94,10 +94,7 @@ export class UnlockNotificationOverlay {
     this._overlay = new Overlay({
       // The shell title stays generic — the per-card banner (which
       // changes type-to-type as the player advances) lives INSIDE the
-      // body so it can be swapped without rebuilding the shell. The
-      // shell's accent is fixed to the first card's color since the
-      // shell doesn't expose a per-frame setter; the per-type theming
-      // shows up via the card body's data-type styling instead.
+      // body so it can be swapped without rebuilding the shell.
       title:     '✦  UNLOCK  ✦',
       // Compact modal — tightened 560×580 → 460×480 so the celebration
       // reads as an intimate spotlight rather than a half-empty dialog.
@@ -105,7 +102,11 @@ export class UnlockNotificationOverlay {
       // styles.css does the rest.
       width:     460,
       height:    480,
-      accent:    theme.accent,
+      // Modal shell border stays fixed blood-red across all card types
+      // so the OUTER chrome reads as a consistent "unlock" frame. The
+      // per-type accent (gold / blood / gold-bright / --cmp-accent)
+      // shows up INSIDE the card on the banner / art / name / button.
+      accent:    'var(--blood)',
       // 'unfurl' is the same dramatic flourish the achievements +
       // leaderboard popups use — fits the celebratory tone here.
       animation: 'unfurl',
@@ -223,12 +224,13 @@ export class UnlockNotificationOverlay {
       h('div', { className: 'pix qf-unlock-name' }, this._nameFor(entry)),
       this._subtitleFor(entry) &&
         h('div', { className: 'qf-unlock-subtitle' }, this._subtitleFor(entry)),
-      // Footer — queue counter on the left, advance/close button on
-      // the right. The button is the obvious affordance; Enter / Space
-      // / card-click still work as keyboard / power-user shortcuts.
-      // stopPropagation on the button's click prevents the card's
-      // click-anywhere handler from double-firing (which would skip
-      // two cards instead of one).
+      // Footer — counter in the bottom-LEFT corner (position: absolute),
+      // button centered horizontally on the same row. The grid-like
+      // layout means the button stays dead-centered regardless of the
+      // counter's width ("1 / 2" vs "10 / 12"). Enter / Space and the
+      // card click-anywhere shortcut still advance too.
+      // stopPropagation on the button's click prevents the card-level
+      // click handler from also firing (which would skip two cards).
       h('div', { className: 'qf-unlock-footer' }, [
         h('span', { className: 'pix qf-unlock-counter' }, `${idx} / ${total}`),
         h('button', {
@@ -239,12 +241,7 @@ export class UnlockNotificationOverlay {
               this._advance()
             },
           },
-        }, [
-          h('span', { className: 'pix qf-unlock-next-label' },
-            (idx === total) ? 'CLOSE  ✖' : 'NEXT  ›'),
-          h('span', { className: 'pix qf-unlock-next-keyhint' },
-            '[ ENTER ]'),
-        ]),
+        }, (idx === total) ? 'CLOSE  ✖' : 'NEXT  ›'),
       ]),
     ])
     return card

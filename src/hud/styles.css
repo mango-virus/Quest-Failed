@@ -11267,15 +11267,25 @@ body {
   font-style: italic;
 }
 
-/* Footer — fills out the bottom of the card with the queue counter +
-   the advance hint. Counter is gold; hint is muted. */
+/* Footer — counter pinned to the bottom-left corner, button centered
+   on the row. Using position:absolute on the counter (rather than a
+   3-column grid) keeps the button perfectly centered regardless of
+   the counter's width ("1 / 2" vs "10 / 12"). */
 .qf-unlock-footer {
   margin-top: auto;
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   width: 100%;
   padding: 0 6px;
+  min-height: 44px;
+}
+.qf-unlock-footer .qf-unlock-counter {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .qf-unlock-counter {
   font-family: var(--pix);
@@ -11291,27 +11301,28 @@ body {
    press transforms. We only override:
    1. background/border → per-type accent (via currentColor cascade
       from the card's data-type styling)
-   2. text-shadow + glow → matches the accent
-   3. internal two-row layout → big label above small keyboard hint
-   The base .btn class enforces flex centering with `display: inline-
-   flex`; we re-declare `flex-direction: column` to stack our two rows.
+   2. text color → white with text-shadow for the BEGIN-DAY look
+   3. outer pulse glow → filter:drop-shadow (so it doesn't trample
+      the inset bevels the .btn class provides)
+   The base .btn class enforces flex centering already; we leave the
+   row layout alone so the label is dead-center in the button.
 
    IMPORTANT: the JSX must use `className: 'btn qf-unlock-next'` (not
    `btn primary`) so the blood-red primary gradient doesn't override
    the per-type tinting below. */
 .qf-unlock-next {
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  padding: 8px 18px 6px;
-  /* Tinted gradient that follows the per-type accent. The 32%/16% mix
+  /* Tinted gradient that follows the per-type accent. The 38/18 mix
      gives a darker bottom edge for the BEGIN-DAY-style raised look. */
   background: linear-gradient(180deg,
                 color-mix(in srgb, currentColor 38%, var(--bg-1)) 0%,
                 color-mix(in srgb, currentColor 18%, var(--bg-0)) 100%);
   border: 1px solid color-mix(in srgb, currentColor 70%, #000);
   color: #fff;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+  font-size: 11px;
+  letter-spacing: 3px;
+  padding: 10px 22px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65),
+               0 0 8px color-mix(in srgb, currentColor 60%, transparent);
   /* Pulse the outer glow only (don't trample .btn's inset bevels). */
   animation: qf-unlock-next-pulse 2.4s ease-in-out infinite;
 }
@@ -11328,21 +11339,6 @@ body {
   border-color: currentColor;
   /* Stop the pulse on hover so the brightened state reads cleanly. */
   animation: none;
-}
-.qf-unlock-next-label {
-  font-family: var(--pix);
-  font-size: 11px;
-  letter-spacing: 3px;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7),
-               0 0 8px color-mix(in srgb, currentColor 60%, transparent);
-}
-.qf-unlock-next-keyhint {
-  font-family: var(--pix);
-  font-size: 6px;
-  letter-spacing: 2px;
-  opacity: 0.55;
-  /* Subtle so the keyboard hint is discoverable but the visual
-     emphasis stays on the big label. */
 }
 
 /* ── Per-type color theming ────────────────────────────────────────── */
