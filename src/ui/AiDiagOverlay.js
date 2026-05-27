@@ -102,11 +102,11 @@ export class AiDiagOverlay {
       const noProg    = now - (adv._loopBestAt ?? now)
       const noProgS   = (noProg / 1000).toFixed(1)
       const panic     = (adv._panicWalkUntil ?? 0) > now
-      const bias      = adv._trapSideBias
-      const biasStr   = bias === 1 ? '→' : bias === -1 ? '←' : '?'
 
-      // Two-line label: goal on top, status on bottom.
-      const text = `${goal} ${biasStr}\nd=${dist ?? '?'} t=${noProgS}s${panic ? ' WALK' : ''}`
+      // Two-line label: goal on top, status on bottom. Trap side-bias
+      // arrow removed 2026-05-27 with the move to room-level trap
+      // avoidance — no per-adv side preference exists anymore.
+      const text = `${goal}\nd=${dist ?? '?'} t=${noProgS}s${panic ? ' WALK' : ''}`
 
       let color = '#88ff88'                                  // green — moving fine
       if (panic)                  color = '#ff4488'           // pink — panic-walk active

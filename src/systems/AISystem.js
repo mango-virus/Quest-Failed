@@ -59,20 +59,17 @@ const LOOT_PILE_TTL_MS             = 30000  // piles vanish if untouched
 // SEEK_HEAL / INVESTIGATE_NOISE preserve SEEK_TREASURE without calling
 // _pickNextGoal); only the day-42 bug pattern burns through the budget.
 const MAX_CHEST_SEEKS_PER_DAY      = 3
-// Pathfinder penalty multiplier per known-trap tile. Used by AVOID_TRAP
-// in the pathfinder cost function. Higher = stronger detour.
-const TRAP_AVOID_PENALTY           = 8.0
-const TRAP_AVOID_PENALTY_WARNED    = 18.0   // when warned by a party-mate
-// Per-adv stable side-preference for routing AROUND a known trap.
-// Two equal-cost routes (one left of the trap, one right) cause ping-pong
-// in the pathfinder because the per-call jitter flips on each re-path.
-// Each adv gets a +1/-1 bias rolled once at first use (lazy-init in the
-// path block); tiles in the trap's 1-tile danger ring on the NON-preferred
-// side get a tiny extra cost (5% per ring tile) so equal-length routes
-// resolve to the same side for the same adv. Effect is too small to
-// override real cost differences — pure tiebreaker. (2026-05-27)
-const TRAP_SIDE_BIAS_PER_TILE      = 0.05
-const TRAP_SIDE_BIAS_RING          = 2     // tiles around trap to apply bias
+// Pathfinder cost multiplier for any tile inside a room that this adv
+// knows contains at least one trap. Coarse, ROOM-level avoidance instead
+// of per-tile dodging — every tile in the trapped room gets the same
+// multiplier, so A* prefers routes that don't transit the room but
+// happily walks straight through if no alternative exists. Replaces the
+// per-tile penalty + per-adv side-bias (both removed 2026-05-27) which
+// produced visible ping-pong loops as A* threaded between adjacent
+// trap tiles and the side-tiebreaker re-rolled per replan. With this
+// multiplier an alt route can be up to ~5× as long as the trapped-room
+// route before they take the trap — strong preference, never absolute.
+const ROOM_TRAP_PENALTY            = 5.0
 // Cap on consecutive EXPLORE_ROOM goal picks before forcing SEEK_BOSS. On-
 // screen F4 diagnostics (2026-05-27) showed advs cycling between 2-3 rooms
 // indefinitely because _pickNextGoal kept returning another EXPLORE_ROOM
@@ -1928,73 +1925,52 @@ export class AISystem {
         this._despawn(adv, idx, 'no_target')
         return
       }
-      // Phase 8: weight tiles by this adventurer's knowledge (avoid known
-      // traps) — but skip knowledge weighting when fleeing.  A panicking
-      // adventurer takes the fastest route home, traps be damned.
-      // Phase: alive AI — wrap the cost fn so:
-      //   • known traps cost more when this adv was recently warned
-      //   • we count rejected trap tiles → ~12% chance to fire avoidTrap
-      //     chat line (so the dodge reads visibly to the player)
-      // Panic-walk override (anti-ping-pong watchdog, 2026-05-27). When
-      // the adv has been failing to make progress for 5+ seconds, the
-      // watchdog at the top of _tickAdventurer set `_panicWalkUntil`.
-      // While active, skip trap-knowledge cost weighting AND don't apply
-      // the sprung-trap soft-block (set further down on softOpts). The
-      // pathfinder picks the most direct route — through traps if needed.
+      // Phase 8: weight tiles by this adventurer's knowledge (avoid known-
+      // trapped ROOMS at the room level) — but skip knowledge weighting
+      // when fleeing. A panicking adventurer takes the fastest route home,
+      // traps be damned.
+      //
+      // Per-tile detour + per-adv side-bias removed 2026-05-27: they
+      // produced visible ping-pong loops as A* threaded between adjacent
+      // trap tiles and the side tiebreaker re-rolled per replan. Now
+      // every tile inside a known-trapped room gets the same multiplier
+      // (ROOM_TRAP_PENALTY), so there's no in-room ambiguity at all.
+      //
+      // Panic-walk override (anti-ping-pong watchdog). When the
+      // watchdog at the top of _tickAdventurer set `_panicWalkUntil`,
+      // skip trap-knowledge cost weighting AND don't apply the sprung-
+      // trap soft-block (set further down on softOpts). The pathfinder
+      // picks the most direct route — through traps if needed.
       const panicWalk = (adv._panicWalkUntil ?? 0) > this._scene.time.now
       const useKnowledgeCost = this._knowledgeSystem && adv.goal?.type !== 'FLEE' && !panicWalk
       let trapRejectsThisPath = 0
-      const warned = (adv._warnedUntil ?? 0) > this._scene.time.now
-      // Per-adv trap-side bias (anti-ping-pong, 2026-05-27). Lazy-init at
-      // first use so old saves work without a migration. Stable for the
-      // adv's lifetime — two equal-cost left-vs-right routes around the
-      // same trap always resolve to the same side for this adv, killing
-      // the per-call jitter flip-flop that produced visible "running
-      // back and forth" loops near sprung spike pits.
-      if (adv._trapSideBias == null) {
-        adv._trapSideBias = Math.random() < 0.5 ? -1 : 1
+      // Room-level trap avoidance (replaces per-tile detour + side-bias,
+      // 2026-05-27). Pre-compute the set of room instanceIds this adv
+      // knows contain at least one trap. The cost-fn applies a uniform
+      // multiplier to ALL tiles inside any such room, regardless of
+      // which tile holds the trap — so A* prefers routes that detour
+      // around the whole room but walks straight through if no
+      // alternative exists. Per-tile detour caused ping-pong loops as
+      // A* threaded between adjacent trap tiles and the side-tiebreaker
+      // re-rolled per replan; coarse room-level avoidance has no such
+      // multi-route ambiguity inside a single room (every tile is equal
+      // cost), so the watchdog no longer has to fix in-room oscillation.
+      const trappedRoomIds = new Set()
+      if (useKnowledgeCost && adv.knowledge?.traps) {
+        for (const t of Object.values(adv.knowledge.traps)) {
+          if (!t || typeof t.tileX !== 'number') continue
+          const room = this._dungeonGrid?.getRoomAtTile?.(t.tileX, t.tileY)
+          if (room) trappedRoomIds.add(room.instanceId)
+        }
       }
-      const trapSideBias = adv._trapSideBias
-      // Pre-collect this adv's known trap CENTERS once per path call so
-      // the cost-fn closure below doesn't re-iterate every neighbour
-      // expansion. Cheap — usually 0-3 traps per adv.
-      const advKnownTraps = (useKnowledgeCost && adv.knowledge?.traps)
-        ? Object.values(adv.knowledge.traps).filter(t => t)
-        : []
       const costFn = (tx, ty) => {
-        if (!useKnowledgeCost) return 1
-        const base = this._knowledgeSystem.costMultiplierForTile(adv, tx, ty)
-        if (base > 1) {
+        if (!useKnowledgeCost || trappedRoomIds.size === 0) return 1
+        const room = this._dungeonGrid?.getRoomAtTile?.(tx, ty)
+        if (room && trappedRoomIds.has(room.instanceId)) {
           trapRejectsThisPath++
-          return base * (warned ? TRAP_AVOID_PENALTY_WARNED : TRAP_AVOID_PENALTY)
+          return ROOM_TRAP_PENALTY
         }
-        // Trap-side bias: tiles around a known trap on the adv's NON-
-        // preferred side get a tiny extra cost. Tiebreaker only — too
-        // small to override genuinely cheaper routes, but enough to
-        // consistently pick the same side on each re-path so the
-        // pathfinder's per-call jitter doesn't flip the route. Skipped
-        // when the tile already has a real trap penalty (handled above).
-        let sideAdj = 0
-        for (const tr of advKnownTraps) {
-          const fp = tr.footprint ?? { w: 1, h: 1 }
-          // Compute the SIGNED displacement from the trap's centre.
-          const cx = tr.tileX + fp.w / 2 - 0.5
-          const cy = tr.tileY + fp.h / 2 - 0.5
-          const dx = tx - cx
-          const dy = ty - cy
-          const ax = Math.abs(dx)
-          const ay = Math.abs(dy)
-          // Only apply in the ring around the trap (skip far tiles).
-          if (ax > TRAP_SIDE_BIAS_RING && ay > TRAP_SIDE_BIAS_RING) continue
-          if (ax === 0 && ay === 0) continue
-          // Sign of the dominant axis = which side of the trap this tile
-          // sits on. Compare against the adv's stable bias.
-          const sign = ax >= ay ? Math.sign(dx) : Math.sign(dy)
-          if (sign !== 0 && sign !== trapSideBias) {
-            sideAdj += TRAP_SIDE_BIAS_PER_TILE
-          }
-        }
-        return base + sideAdj
+        return 1
       }
       // Phase: items — HARD-block every locked-door tile this adv has no
       // way to open. The pathfinder skips these entirely, so an adv with
@@ -2091,7 +2067,7 @@ export class AISystem {
       // Diagnostic: log each path computation with its key inputs so we
       // can correlate "stuck adv" warnings to actual A* output.
       this._aiDiag(adv,
-        `path: ${path ? path.length : 0} tiles | from=(${adv.tileX},${adv.tileY}) to=(${target.x},${target.y}) goal=${adv.goal?.type ?? '(none)'} panicWalk=${panicWalk} useKnowCost=${useKnowledgeCost} trapRejects=${trapRejectsThisPath} bias=${adv._trapSideBias ?? '?'}`)
+        `path: ${path ? path.length : 0} tiles | from=(${adv.tileX},${adv.tileY}) to=(${target.x},${target.y}) goal=${adv.goal?.type ?? '(none)'} panicWalk=${panicWalk} useKnowCost=${useKnowledgeCost} trapRejects=${trapRejectsThisPath} trappedRooms=${trappedRoomIds.size}`)
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
         // "no route exists".  Only treat the former as a true arrival; the
