@@ -503,53 +503,76 @@ export class EventSystem {
     EventBus.emit('SHOW_TOAST', { message: 'The cursed relic festers in your hoard…', type: 'leak' })
   }
 
-  // ── Sacrificial Altar (random cost + random reward) ────────────────────
-  // The altar offers a blind bargain: accept and the runtime rolls one
-  // cost from a filtered pool (boss life / half gold / half pacts / half
-  // roster minions) and one reward (+2/5/8/10% permanent minion stats).
-  // Cost pool is filtered to non-trivial entries: zeros are skipped so
-  // the player can never get a "free reward" by being broke; boss-life is
-  // dropped when only one life is left so the altar can't end the run on
-  // RNG. Reward accumulates on player._altarMinionStatBuff and is read by
+  // ── Sacrificial Altar (KNOWN cost + random reward) ─────────────────────
+  // Per user direction (2026-05-27 v2): the cost is rolled BEFORE the
+  // modal opens so the player sees exactly what they're committing to;
+  // only the reward stays a mystery. Cost pool is filtered to non-
+  // trivial entries (zero gold / zero pacts / single roster minion all
+  // dropped) so the bargain can never resolve to a free reward, and
+  // boss-life is dropped at 1 life so the altar can't end the run on RNG.
+  // Reward accumulates on player._altarMinionStatBuff and is read by
   // applyMinionScaling, so it survives every rescale + carries to future
   // placements automatically.
   _promptSacrificialAltar() {
     const flags = this._gameState._eventFlags
     if (flags.sacrificialAltarDecided) return
+    const gs = this._gameState
+    const player = gs.player
+    if (!player) return
+
+    // Pre-roll the cost so the player sees what they'll pay before
+    // accepting. _rollAltarCost returns null when the pool is empty —
+    // in that case the altar declines the bargain entirely.
+    const rolled = this._rollAltarCost()
+    if (!rolled) {
+      flags.sacrificialAltarDecided = true
+      EventBus.emit('SHOW_TOAST', {
+        message: 'The altar finds nothing worth taking and crumbles to dust.',
+        type: 'info', duration: 4500,
+      })
+      EventBus.emit('SACRIFICIAL_ALTAR_RESOLVED', { cost: 'none', reward: 0, totalReward: player._altarMinionStatBuff ?? 0 })
+      return
+    }
+
+    // Stash the roll on the event flags so onConfirm can apply the
+    // exact cost the player saw (vs re-rolling and surprising them).
+    flags.sacrificialAltarCost = rolled
 
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('sacrificial_altar'),
       message:
-        `The altar hungers. Pay an unknown price; gain unknown power.\n\n` +
-        `POSSIBLE PRICES (one rolled at random):\n` +
-        `  • A boss life\n` +
-        `  • Half your active pacts (random)\n` +
-        `  • Half your roster minions (random — no revival)\n` +
-        `  • Half your current gold\n\n` +
+        `The altar demands a price for its power.\n\n` +
+        `THE ALTAR WILL TAKE:\n` +
+        `  ► ${rolled.label}\n\n` +
         `POSSIBLE REWARDS (one rolled at random):\n` +
         `  • Permanent +2% / +5% / +8% / +10% to all minion stats\n\n` +
-        `Refusing costs nothing. Accepting commits to whatever rolls.`,
+        `Refusing costs nothing. Accepting commits to the unknown reward.`,
       confirmLabel: 'ACCEPT THE BARGAIN',
       cancelLabel:  'WALK AWAY',
       onConfirm: () => {
         flags.sacrificialAltarDecided = true
         this._resolveSacrificialAltar()
       },
-      onCancel: () => { flags.sacrificialAltarDecided = true },
+      onCancel: () => {
+        flags.sacrificialAltarDecided = true
+        flags.sacrificialAltarCost = null
+      },
     })
   }
 
-  // Rolls cost (filtered) + reward, applies both, surfaces toasts so the
-  // player knows what landed. Each branch is self-contained for clarity.
-  _resolveSacrificialAltar() {
+  // Build the cost pool, drop trivial/catastrophic options, pick one.
+  // Returns null when nothing is eligible (avoids the free-reward case).
+  // Returned object carries:
+  //   kind   — 'life' | 'gold' | 'pacts' | 'minions'
+  //   label  — human-readable string used in the prompt header
+  //   data   — kind-specific payload used by _resolveSacrificialAltar
+  //            (the exact minions / pacts pre-selected so the rolled
+  //            "Half your roster" promise is honoured by the SAME set
+  //            the player saw — no second-roll surprise).
+  _rollAltarCost() {
     const gs = this._gameState
     const player = gs.player
-    if (!player) return
-
-    // ── Build the cost pool dynamically, dropping trivial / catastrophic
-    //    options. Avoids the "blind bargain becomes free reward" edge case
-    //    and the "RNG ends the run at 1 boss-life" failure mode.
-    const costPool = []
+    if (!player) return null
     const roster = (gs.minions ?? []).filter(m =>
       m && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 &&
       m.faction === 'dungeon' &&
@@ -558,67 +581,114 @@ export class EventSystem {
       // — exclude them. Only "free" roster minions are eligible.
       m.class !== 'garrison' && !m._isGoopling && !m._isDemonImp &&
       !m._isHauntGhost && !m._isVampireThrall && !m._myconidSprout)
-    if (roster.length >= 2)                        costPool.push('minions')
-    if ((player.gold ?? 0) >= 10)                  costPool.push('gold')
-    if ((gs.activeMechanics ?? []).length >= 2)    costPool.push('pacts')
-    if ((gs.boss?.deathsRemaining ?? 0) > 1)       costPool.push('life')
-    // Per user direction (2026-05-27): never grant a free reward. If the
-    // cost pool is empty (no minions, no gold, no pacts, on last life)
-    // the altar refuses the bargain entirely — the player simply gets a
-    // flavour toast and walks away with nothing. Prevents "desperate
-    // run accepts blindly and gets a permanent buff for free."
-    if (costPool.length === 0) {
-      EventBus.emit('SHOW_TOAST', {
-        message: 'The altar finds nothing worth taking and crumbles to dust.',
-        type: 'info', duration: 4500,
-      })
-      EventBus.emit('SACRIFICIAL_ALTAR_RESOLVED', { cost: 'none', reward: 0, totalReward: player._altarMinionStatBuff ?? 0 })
-      return
-    }
-    const costKind = costPool[Math.floor(Math.random() * costPool.length)]
+    const activePacts = (gs.activeMechanics ?? []).slice()
 
-    // ── Apply the cost.
+    const costPool = []
+    if (roster.length >= 2)                      costPool.push('minions')
+    if ((player.gold ?? 0) >= 10)                costPool.push('gold')
+    if (activePacts.length >= 2)                 costPool.push('pacts')
+    if ((gs.boss?.deathsRemaining ?? 0) > 1)     costPool.push('life')
+    if (costPool.length === 0) return null
+    const kind = costPool[Math.floor(Math.random() * costPool.length)]
+
+    if (kind === 'life') {
+      const left = gs.boss?.deathsRemaining ?? 0
+      return { kind, label: `A boss life (${left} → ${left - 1} remaining)` }
+    }
+    if (kind === 'gold') {
+      const lost = Math.floor((player.gold ?? 0) / 2)
+      return { kind, label: `Half your gold (-${lost}g)`, data: { lost } }
+    }
+    if (kind === 'pacts') {
+      const n = Math.floor(activePacts.length / 2)
+      // Fisher-Yates partial shuffle to pre-select which N pacts get
+      // burned. Store the IDs so resolve removes the SAME pacts the
+      // player implicitly committed to (no second-roll).
+      const shuffled = activePacts.slice()
+      for (let i = 0; i < n; i++) {
+        const j = i + Math.floor(Math.random() * (shuffled.length - i))
+        const tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp
+      }
+      const removed = shuffled.slice(0, n)
+      return {
+        kind,
+        label: `${n} of your ${activePacts.length} active pacts (random)`,
+        data: { removedPactIds: removed },
+      }
+    }
+    if (kind === 'minions') {
+      const n = Math.floor(roster.length / 2)
+      const shuffled = roster.slice()
+      for (let i = 0; i < n; i++) {
+        const j = i + Math.floor(Math.random() * (shuffled.length - i))
+        const tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp
+      }
+      const sacrificed = shuffled.slice(0, n)
+      // Persist instanceIds (not refs) — flags are JSON-serialised by
+      // SaveSystem and a save/load between prompt + accept must still
+      // resolve to the same minions.
+      const sacrificedIds = sacrificed.map(m => m.instanceId).filter(Boolean)
+      return {
+        kind,
+        label: `${n} of your ${roster.length} roster minions (random — no revival)`,
+        data: { sacrificedIds },
+      }
+    }
+    return null
+  }
+
+  // Apply the pre-rolled cost + roll the random reward. Cost data comes
+  // from flags.sacrificialAltarCost (stamped during _promptSacrificialAltar)
+  // so the same items the player committed to are the ones consumed.
+  _resolveSacrificialAltar() {
+    const gs = this._gameState
+    const player = gs.player
+    if (!player) return
+    const flags = gs._eventFlags ?? {}
+    const rolled = flags.sacrificialAltarCost
+    if (!rolled) return
+    const costKind = rolled.kind
+
+    // ── Apply the cost. Pre-rolled at prompt time (see _rollAltarCost),
+    //    so this branch just consumes the captured data — no re-roll.
     let costText = ''
     if (costKind === 'life') {
       gs.boss.deathsRemaining = Math.max(1, (gs.boss.deathsRemaining ?? 1) - 1)
       costText = `A boss life was taken (${gs.boss.deathsRemaining} remaining)`
       EventBus.emit('BOSS_LIFE_LOST', { source: 'sacrificial_altar' })
     } else if (costKind === 'gold') {
-      const lost = Math.floor((player.gold ?? 0) / 2)
-      player.gold = (player.gold ?? 0) - lost
+      // Use the captured `lost` from the roll so the player loses exactly
+      // what the modal showed (vs re-floored on a stale balance).
+      const lost = rolled.data?.lost ?? Math.floor((player.gold ?? 0) / 2)
+      player.gold = Math.max(0, (player.gold ?? 0) - lost)
       costText = `Half your gold was taken (-${lost}g)`
     } else if (costKind === 'pacts') {
-      const ids = [...(gs.activeMechanics ?? [])]
-      const n = Math.floor(ids.length / 2)
-      // Fisher-Yates partial shuffle to pick `n` distinct pacts uniformly.
-      for (let i = 0; i < n; i++) {
-        const j = i + Math.floor(Math.random() * (ids.length - i))
-        const tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp
-      }
-      const removed = ids.slice(0, n)
+      const removed = rolled.data?.removedPactIds ?? []
       const dms = this._scene?.dungeonMechanicSystem
-      for (const id of removed) dms?.deactivate?.(id)
-      costText = `Half your pacts were undone (${n} stripped)`
+      // Defensive: a pact could have been deactivated between prompt
+      // and accept (e.g. another event). Skip any ids no longer active.
+      const active = new Set(gs.activeMechanics ?? [])
+      const actuallyRemoved = removed.filter(id => active.has(id))
+      for (const id of actuallyRemoved) dms?.deactivate?.(id)
+      costText = `${actuallyRemoved.length} pact${actuallyRemoved.length === 1 ? '' : 's'} undone`
     } else if (costKind === 'minions') {
-      const ids = roster.slice()
-      const n = Math.floor(ids.length / 2)
-      for (let i = 0; i < n; i++) {
-        const j = i + Math.floor(Math.random() * (ids.length - i))
-        const tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp
-      }
-      const sacrificed = ids.slice(0, n)
-      for (const m of sacrificed) {
+      const ids = rolled.data?.sacrificedIds ?? []
+      let count = 0
+      for (const id of ids) {
+        const idx = (gs.minions ?? []).findIndex(m => m && m.instanceId === id)
+        if (idx < 0) continue                      // already dead / despawned since prompt
+        const m = gs.minions[idx]
+        gs.minions.splice(idx, 1)
         // Splice from the live roster; emit MINION_DIED with a perma flag
         // so renderers clean up sprites and MinionAISystem.respawnAll
         // skips them at the next dawn. No boss XP awarded.
-        const idx = gs.minions.indexOf(m)
-        if (idx >= 0) gs.minions.splice(idx, 1)
         EventBus.emit('MINION_DIED', { minion: m, source: 'altar_sacrifice', perma: true })
+        count++
       }
-      costText = `Half your roster was claimed (${n} minions sacrificed forever)`
+      costText = `${count} minion${count === 1 ? '' : 's'} sacrificed forever`
     }
-    // Note: 'none' costKind is unreachable — the early return above
-    // already short-circuits the empty-cost-pool case.
+    // Clear the stamped roll so the next event-fire starts fresh.
+    flags.sacrificialAltarCost = null
 
     // ── Roll the reward (uniform over the four tiers) and stack it.
     const rewardTiers = [0.02, 0.05, 0.08, 0.10]
@@ -1292,6 +1362,7 @@ export class EventSystem {
         break
       case 'sacrificial_altar':
         flags.sacrificialAltarDecided = false
+        flags.sacrificialAltarCost    = null
         break
       case 'demons_wager':
         flags.demonsWagerDecided = false
