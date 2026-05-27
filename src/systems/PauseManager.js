@@ -162,7 +162,7 @@ export const PauseManager = {
     // DOM ConfirmPopup with consistent styling.
     EventBus.emit('SHOW_CONFIRM', {
       title:        'SAVE FAILED',
-      message:      'Your run could not be saved (storage full). If you quit now, the most recent saved state will load on Continue — you will rewind to whichever day last saved successfully. Quit anyway?',
+      message:      'If you quit now, the most recent saved state will load on Continue — you will rewind to whichever day last saved successfully. Quit anyway?',
       confirmLabel: 'QUIT ANYWAY',
       cancelLabel:  'STAY',
       theme:        'crimson',
