@@ -53,6 +53,20 @@ export class ChatBubbles {
     EventBus.on('ADVENTURER_DIED',      this._onAdventurerDied,    this)
     EventBus.on('ADVENTURER_FLED',      this._onAdventurerFled,    this)
     EventBus.on('NIGHT_PHASE_STARTED',  this._onNightStarted,      this)
+    // Tier 1/2/3 reactions (2026-05-27) — fill in the chatter gaps
+    // the player was missing. Each listener picks a brief line from
+    // the matching `byEvent.<bucket>` pool and shows it via
+    // _showContextualBubble (respects the per-adv 3 s cooldown).
+    EventBus.on('MINION_OBSERVED',          this._onMinionObserved,    this)
+    EventBus.on('BOSS_LEVELED_UP',          this._onBossLeveledUp,     this)
+    EventBus.on('PHYLACTERY_DESTROYED',     this._onPhylacteryShattered, this)
+    EventBus.on('MIMIC_SPRUNG',             this._onMimicSprung,       this)
+    EventBus.on('COMBAT_HIT',               this._onCombatHit,         this)
+    EventBus.on('ADVENTURER_ENTERED_DUNGEON', this._onAdvEnteredForVeteran, this)
+    EventBus.on('DUNGEON_EVENT_ANNOUNCED',  this._onDungeonEventAnnounced, this)
+    EventBus.on('STATUS_APPLIED',           this._onStatusApplied,     this)
+    EventBus.on('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
+    EventBus.on('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
     // Adventurer-goal reaction lines. Each event carries `{ adventurer }`
     // and pulls one random line from the matching `byEvent.<key>` pool.
     for (const key of [
@@ -79,6 +93,16 @@ export class ChatBubbles {
     EventBus.off('ADVENTURER_DIED',      this._onAdventurerDied,    this)
     EventBus.off('ADVENTURER_FLED',      this._onAdventurerFled,    this)
     EventBus.off('NIGHT_PHASE_STARTED',  this._onNightStarted,      this)
+    EventBus.off('MINION_OBSERVED',          this._onMinionObserved,    this)
+    EventBus.off('BOSS_LEVELED_UP',          this._onBossLeveledUp,     this)
+    EventBus.off('PHYLACTERY_DESTROYED',     this._onPhylacteryShattered, this)
+    EventBus.off('MIMIC_SPRUNG',             this._onMimicSprung,       this)
+    EventBus.off('COMBAT_HIT',               this._onCombatHit,         this)
+    EventBus.off('ADVENTURER_ENTERED_DUNGEON', this._onAdvEnteredForVeteran, this)
+    EventBus.off('DUNGEON_EVENT_ANNOUNCED',  this._onDungeonEventAnnounced, this)
+    EventBus.off('STATUS_APPLIED',           this._onStatusApplied,     this)
+    EventBus.off('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
+    EventBus.off('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
     for (const [key, handler] of Object.entries(this._goalHandlers ?? {})) {
       EventBus.off(`SAY_${key}`, handler)
     }
@@ -91,6 +115,21 @@ export class ChatBubbles {
     if (!this._lines) this._lines = this._scene.cache.json.get('chatLines') ?? {}
     const now = this._scene.time.now
 
+    // Lone survivor check (Tier 1) — when active count drops to 1
+    // (and there were more before), fire a one-shot loneSurvivor line
+    // on whoever's left. Flag clears overnight in _onNightStarted.
+    const active = this._gameState.adventurers.active
+    if (!this._loneSurvivorFired && active.length === 1) {
+      const survivor = active[0]
+      if (survivor && survivor.aiState !== 'dead' && (survivor.resources?.hp ?? 0) > 0) {
+        this._loneSurvivorFired = true
+        this._showContextualBubble(survivor, this._pickEventLine('loneSurvivor'))
+      }
+    } else if (active.length > 1) {
+      // Re-arm if wave grows (multi-wave day).
+      this._loneSurvivorFired = false
+    }
+
     for (const adv of this._gameState.adventurers.active) {
       const prevState = this._lastAiState[adv.instanceId]
       const curState  = adv.aiState
@@ -102,6 +141,19 @@ export class ChatBubbles {
           this._showContextualBubble(adv, this._pickEventLine('combatStart'))
         } else if (prevState === 'fighting' && (curState === 'walking' || curState === 'idle')) {
           this._showContextualBubble(adv, this._pickEventLine('combatWon'))
+        }
+      }
+
+      // Tier 3 — echo personality follow-leader transition. Sticky
+      // per-(adv, leader) so an echo doesn't keep shouting every
+      // replan; only re-fires if the leader changes (rare).
+      const goalType = adv.goal?.type
+      const lastGoal = this._lastGoalType?.[adv.instanceId]
+      this._lastGoalType ??= {}
+      this._lastGoalType[adv.instanceId] = goalType
+      if (goalType === 'FOLLOW_LEADER' && lastGoal !== 'FOLLOW_LEADER') {
+        if ((adv.personalityIds ?? []).includes('echo')) {
+          this._showContextualBubble(adv, this._pickEventLine('echoFollowLeader'))
         }
       }
 
@@ -168,11 +220,70 @@ export class ChatBubbles {
     this._showContextualBubble(adventurer, this._pickEventLine('trapTriggered'))
   }
 
-  _onRoomObserved({ adventurer, firstVisit }) {
+  _onRoomObserved({ adventurer, firstVisit, roomId }) {
     if (!adventurer) return
     if (!firstVisit && Math.random() > 0.25) return   // only react ~25% for revisits
     const key = firstVisit ? 'firstRoom' : 'knownRoom'
     this._showContextualBubble(adventurer, this._pickEventLine(key))
+
+    // Tier 2/3 extensions on room observation:
+    //
+    // (a) Trap spotted — if the adv has any known trap in this room
+    //     (intel from prior survivors or personal sighting), fire
+    //     `trapSpotted`. Sticky per-(adv, room) so the same room
+    //     entry doesn't re-fire on every revisit.
+    // (b) Locked door blocked — if the room is gated by a lock the
+    //     adv lacks the key for, fire `lockedDoorBlocked`. Same
+    //     sticky-per-room rule.
+    // (c) Room-type-flavored line — pull from byRoomType[def.id] if
+    //     the room has a recognised type bucket. Falls back silently
+    //     when no bucket exists (most generic rooms).
+    if (!firstVisit || !roomId) return
+    this._roomReactionFired ??= {}
+    this._roomReactionFired[adventurer.instanceId] ??= {}
+    if (this._roomReactionFired[adventurer.instanceId][roomId]) return
+    this._roomReactionFired[adventurer.instanceId][roomId] = true
+
+    const knownTraps = adventurer.knowledge?.traps ?? {}
+    const trapInRoom = Object.values(knownTraps).some(t => {
+      const tx = t?.tileX, ty = t?.tileY
+      const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+      if (!room) return false
+      return tx >= room.gridX && tx < room.gridX + room.width
+          && ty >= room.gridY && ty < room.gridY + room.height
+    })
+    if (trapInRoom) {
+      this._showContextualBubble(adventurer, this._pickEventLine('trapSpotted'))
+      return  // one reaction per room entry is plenty
+    }
+
+    const locks = this._gameState.dungeon?.locks ?? []
+    const lockBlocking = locks.some(l => {
+      if (!l || l.unlocked || l.broken) return false
+      // Lock counts if any of its doorTiles touch this room AND the
+      // adv has no matching key.
+      const hasKey = (adventurer.keys ?? []).includes(l.id)
+      if (hasKey) return false
+      const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+      if (!room) return false
+      return (l.doorTiles ?? []).some(t =>
+        t.x >= room.gridX && t.x < room.gridX + room.width &&
+        t.y >= room.gridY && t.y < room.gridY + room.height,
+      )
+    })
+    if (lockBlocking) {
+      this._showContextualBubble(adventurer, this._pickEventLine('lockedDoorBlocked'))
+      return
+    }
+
+    // Room-type flavor — only fires if byRoomType[def.id] exists in
+    // the JSON. Most rooms fall back to silence here (the firstRoom
+    // line above already covered the generic "I'm in a room" beat).
+    const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+    const typeLines = this._lines?.byRoomType?.[room?.definitionId]
+    if (Array.isArray(typeLines) && typeLines.length) {
+      this._showContextualBubble(adventurer, typeLines[Math.floor(Math.random() * typeLines.length)])
+    }
   }
 
   _onBossFightIncoming({ adventurer }) {
@@ -201,6 +312,167 @@ export class ChatBubbles {
     this._lastContextualAt = {}
     this._lastAiState      = {}
     this._lowHpNotified    = {}
+    // Tier 1/2/3 per-day one-shot flags also reset overnight.
+    this._sightedMinionTypes = {}   // advId → bool (one shout per day)
+    this._sawDungeonEvent    = false
+    this._loneSurvivorFired  = false
+    this._veteranGreeted     = {}   // advId → bool
+    this._lastGoalType       = {}   // advId → previous goal.type (echo detection)
+    this._roomReactionFired  = {}   // advId → roomId → bool
+  }
+
+  // ── Tier 1/2/3 contextual reactions ─────────────────────────────────────
+  //
+  // All of these route through `_showContextualBubble` so they respect
+  // the per-adv 3 s cooldown — a critical-hit cascade or noisy minion
+  // sighting won't replace whatever the adv is currently saying.
+
+  // MINION_OBSERVED fires from KnowledgeSystem the first time an adv
+  // sees a given minion definitionId (per day). We bubble a brief
+  // "spotted!" line — sticky per (adv, type) so the same adv doesn't
+  // shout every time they re-enter the same minion's room.
+  _onMinionObserved({ advId } = {}) {
+    if (!advId) return
+    const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === advId)
+    if (!adv) return
+    this._sightedMinionTypes ??= {}
+    if (this._sightedMinionTypes[advId]) return  // already shouted once today
+    this._sightedMinionTypes[advId] = true
+    this._showContextualBubble(adv, this._pickEventLine('minionSighted'))
+  }
+
+  // BOSS_LEVELED_UP — pick a single random alive adv (not at-boss) to
+  // call it out. Reads as "they felt it from across the dungeon."
+  _onBossLeveledUp() {
+    const candidates = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.aiState !== 'dead' && a.goal?.type !== 'AT_BOSS',
+    )
+    if (candidates.length === 0) return
+    const reactor = candidates[Math.floor(Math.random() * candidates.length)]
+    this._showContextualBubble(reactor, this._pickEventLine('bossLeveled'))
+  }
+
+  // PHYLACTERY_DESTROYED — big moment. Up to 3 random survivors cheer
+  // (the rest are about to flee, the bubble factory handles overlap).
+  _onPhylacteryShattered() {
+    const survivors = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0,
+    )
+    if (survivors.length === 0) return
+    // Pool sample N (3 max) so we don't spawn 12 bubbles on a big wave.
+    const sample = []
+    const pool = survivors.slice()
+    const n = Math.min(3, pool.length)
+    for (let i = 0; i < n; i++) {
+      const j = Math.floor(Math.random() * pool.length)
+      sample.push(pool.splice(j, 1)[0])
+    }
+    for (const adv of sample) {
+      this._showContextualBubble(adv, this._pickEventLine('phylacteryShattered'))
+    }
+  }
+
+  // MIMIC_SPRUNG — opener dies instantly; the SHOCK is from the rest
+  // of the party. Filter to nearby living advs in the same room as
+  // the mimic (party-wise reaction, not the whole dungeon).
+  _onMimicSprung({ mimic, opener } = {}) {
+    if (!mimic) return
+    const partyId = opener?.partyId
+    const reactors = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.instanceId !== opener?.instanceId &&
+      a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 &&
+      (!partyId || a.partyId === partyId),
+    )
+    if (reactors.length === 0) return
+    // One witness reacts — keeps the moment punchy without a wave of bubbles.
+    const reactor = reactors[Math.floor(Math.random() * reactors.length)]
+    this._showContextualBubble(reactor, this._pickEventLine('mimicSprung'))
+  }
+
+  // COMBAT_HIT — fired by CombatSystem with isCritical flag. We split
+  // into critLanded (attacker is an adv) vs critTaken (target is an
+  // adv). Non-critical hits ignored. Adv-vs-adv crits (Hall of Madness
+  // attack-ally, Twitch beef) fire the landed reaction on the attacker
+  // and skip the target's panic so the moment reads cleanly.
+  _onCombatHit({ sourceId, targetId, isCritical } = {}) {
+    if (!isCritical) return
+    const advs = this._gameState.adventurers?.active ?? []
+    const attacker = advs.find(a => a.instanceId === sourceId)
+    const target   = advs.find(a => a.instanceId === targetId)
+    if (attacker) {
+      this._showContextualBubble(attacker, this._pickEventLine('critLanded'))
+    } else if (target) {
+      this._showContextualBubble(target, this._pickEventLine('critTaken'))
+    }
+  }
+
+  // ADVENTURER_ENTERED_DUNGEON — fire the veteran-swagger line on
+  // returning advs (escapeCount > 0). Sticky per-adv so the line only
+  // fires once per spawn, not every wave they've returned.
+  _onAdvEnteredForVeteran({ adventurer } = {}) {
+    if (!adventurer) return
+    const ec = adventurer.escapeCount ?? adventurer.knownEscapeCount ?? 0
+    if (ec <= 0) return
+    if (this._veteranGreeted?.[adventurer.instanceId]) return
+    this._veteranGreeted ??= {}
+    this._veteranGreeted[adventurer.instanceId] = true
+    this._showContextualBubble(adventurer, this._pickEventLine('veteranReturn'))
+  }
+
+  // DUNGEON_EVENT_ANNOUNCED — once per event-day. Random alive adv
+  // notices the brewing thing.
+  _onDungeonEventAnnounced() {
+    if (this._sawDungeonEvent) return
+    const candidates = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.aiState !== 'dead',
+    )
+    if (candidates.length === 0) return
+    this._sawDungeonEvent = true
+    const reactor = candidates[Math.floor(Math.random() * candidates.length)]
+    this._showContextualBubble(reactor, this._pickEventLine('dungeonEventAnnounced'))
+  }
+
+  // STATUS_APPLIED — fire on CHARMED label so the new thrall shouts a
+  // last line before they walk to the boss. Adv has _charmed=true at
+  // emit time so the chat is their final voluntary moment. Other
+  // status labels (PETRIFIED, INVISIBLE, etc.) are silent here so we
+  // don't drown the screen — those have their own VFX feedback.
+  _onStatusApplied({ targetId, label } = {}) {
+    if (label !== 'CHARMED') return
+    const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === targetId)
+    if (!adv) return
+    this._showContextualBubble(adv, this._pickEventLine('charmedByVampire'))
+  }
+
+  // NECROMANCY_RAISED — at dawn, dead advs rise as undead. The raised
+  // entities are minions (no bubble surface) — but living advs in
+  // the dungeon REACT to their fallen allies coming back wrong. Fire
+  // the witness reaction on a random living non-AT_BOSS adv.
+  _onNecromancyRaised({ count } = {}) {
+    if (!count) return
+    const witnesses = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0,
+    )
+    if (witnesses.length === 0) return
+    const reactor = witnesses[Math.floor(Math.random() * witnesses.length)]
+    this._showContextualBubble(reactor, this._pickEventLine('raisedAsUndead'))
+  }
+
+  // DAY_PHASE_BEGAN — fire the "day is late" tension line once at
+  // the start of any day past DAY_LATE_THRESHOLD. The line lives in
+  // the chat bucket; this trigger is just "we've been here a while
+  // and tomorrow's about to hit different." Random adv reacts.
+  _onDayBeganLate() {
+    const day = this._gameState.meta?.dayNumber ?? 1
+    if (day < 10) return                              // late = day 10+
+    if (this._dayLateGreetedDay === day) return       // once per day
+    const candidates = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0,
+    )
+    if (candidates.length === 0) return
+    this._dayLateGreetedDay = day
+    const reactor = candidates[Math.floor(Math.random() * candidates.length)]
+    this._showContextualBubble(reactor, this._pickEventLine('dayGettingLate'))
   }
 
   // ── Bubble creation ──────────────────────────────────────────────────────

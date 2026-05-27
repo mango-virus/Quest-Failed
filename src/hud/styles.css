@@ -9285,6 +9285,12 @@ body {
   bottom: calc(360px + (var(--npc-bubble-scale, 1) - 1) * 350px + var(--npc-bubble-lift, 0px));
   width: 300px;
   padding: 9px 13px 11px;
+  /* Soft rounded corners to match the in-world adventurer chat
+     bubbles (Bubble.js CORNER_R = 4 px) — same comic-book feel
+     across surfaces. The tail sits at left:112px so the rounded
+     corners stay clear of it. Applies to both corner-dock (in-game)
+     and menu-dock (boss-select / companion-select screens). */
+  border-radius: 6px;
   /* Slightly transparent (82% bg-1) so the bubble doesn't block the view
      of the dungeon behind it. Text + border stay fully opaque on their
      own layer so readability is unaffected. Tutorial / intro bubbles
@@ -9784,6 +9790,10 @@ body {
   width: 372px;
   min-height: 134px;
   background: var(--bg-1);
+  /* Soft rounded corners to match the in-world chat bubbles
+     (Bubble.js CORNER_R = 4 px) and the in-game companion bubble.
+     Tail centered at 50% so the corners stay clear. */
+  border-radius: 6px;
   /* Per-companion accent — `--cmp-accent` is set on the parent
      .qf-archdec-companion[data-id=...] rules. */
   border: 2px solid var(--cmp-accent);

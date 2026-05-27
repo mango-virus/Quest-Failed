@@ -917,6 +917,229 @@
       "Eyes up. This thing will be dangerous.",
       "I'm scared. Doing it anyway.",
       "We didn't come this far to stop here."
+    ],
+
+    "bossLeveled": [
+      "It got STRONGER. How?",
+      "Did the boss level up?",
+      "Power spike. Felt that.",
+      "Boss is buffed. Watch out.",
+      "Something just changed. Hostile change.",
+      "It's not the same boss. Reset.",
+      "The boss is evolving. Bad news.",
+      "Tougher than before. Notable."
+    ],
+
+    "phylacteryShattered": [
+      "The HEART! It broke!",
+      "Phylactery's gone! GO GO GO!",
+      "We got the heart. RUN!",
+      "It's done. The boss is mortal.",
+      "WE BROKE THE HEART!",
+      "Boss can't come back now!",
+      "Heart shattered. Time to leave.",
+      "Mission complete. Out NOW.",
+      "Last life on the boss. We won."
+    ],
+
+    "loneSurvivor": [
+      "I'm... the only one left.",
+      "Just me now. Just me.",
+      "Solo run. Not by choice.",
+      "Everyone's down. I'm alone.",
+      "Last one standing. Help.",
+      "Where did everyone GO?",
+      "I'm the last. RUN.",
+      "Party's dead. I'm out.",
+      "Alone now. Nope nope nope."
+    ],
+
+    "minionSighted": [
+      "Hostile! Eyes on it!",
+      "Tagged a minion!",
+      "Threat spotted!",
+      "Contact, contact!",
+      "Got eyes on one!",
+      "Hostile incoming!"
+    ],
+
+    "charmedByVampire": [
+      "...yes. Yes my liege.",
+      "I serve. I obey.",
+      "The blood is sweet.",
+      "Sorry, party. New employer.",
+      "I... see things differently now.",
+      "I'm one of them now."
+    ],
+
+    "raisedAsUndead": [
+      "Cassie?! She's UP?",
+      "They raised our dead.",
+      "We fight our own corpses now?",
+      "The fallen are walking. Wrong.",
+      "Necromancy. Of course.",
+      "Yesterday's dead, today's enemies.",
+      "Oh that's awful. Awful."
+    ],
+
+    "mimicSprung": [
+      "IT'S A MIMIC!",
+      "The chest has TEETH!",
+      "FAKE CHEST! FAKE!",
+      "Treasure bit me!",
+      "I HATE this dungeon!"
+    ],
+
+    "trapSpotted": [
+      "I see the trap. Around.",
+      "Trap there. Going wide.",
+      "Not stepping on that.",
+      "Trap noted. Detour.",
+      "I'll go around. Thanks."
+    ],
+
+    "critLanded": [
+      "CRIT! Take that!",
+      "Right in the weak spot!",
+      "Nailed it!",
+      "Perfect hit!",
+      "BOOM. Critical!"
+    ],
+
+    "critTaken": [
+      "GHK! That hurt!",
+      "Right through my guard!",
+      "Critical hit on me?!",
+      "OW. OW OW OW.",
+      "That was a big one."
+    ],
+
+    "lockedDoorBlocked": [
+      "Locked. Need a key.",
+      "Door's sealed. Find a key.",
+      "Can't get through here.",
+      "Where's the key for this?",
+      "Locked tight. Detour."
+    ],
+
+    "roomTypeFirstSeen": [],
+
+    "veteranReturn": [
+      "Back for round two.",
+      "Miss me, dungeon?",
+      "Round two. Fight!",
+      "Same place. Different result.",
+      "I remember this layout.",
+      "Returning champion, baby.",
+      "I died here last time. Not today."
+    ],
+
+    "echoFollowLeader": [
+      "Wherever you go, leader.",
+      "Right behind you.",
+      "Lead on. I follow.",
+      "I'm with you.",
+      "Steps where you step."
+    ],
+
+    "dungeonEventAnnounced": [
+      "Something's coming. Feel it.",
+      "Big event. Brace up.",
+      "Dungeon's doing something.",
+      "Tension just spiked.",
+      "Bad timing. Always."
+    ],
+
+    "dayGettingLate": [
+      "Sun's going. We should too.",
+      "Late. Heading back soon.",
+      "Time's up shortly.",
+      "Don't want to be here at dusk.",
+      "Last push. Then home."
+    ]
+  },
+
+  "byRoomType": {
+    "catacombs": [
+      "Catacombs. The dead don't rest.",
+      "Bones everywhere. Lovely.",
+      "Crypt vibes. I hate it.",
+      "Don't disturb the dead. Too late."
+    ],
+    "crypt": [
+      "Bones everywhere. Lovely.",
+      "I should pray. I won't.",
+      "Crypt. Stay sharp."
+    ],
+    "throne_room": [
+      "A throne. Someone rules here.",
+      "Big chair. Bigger problem.",
+      "Empty throne. Where's the king?"
+    ],
+    "library_of_whispers": [
+      "Library? In a dungeon?",
+      "These books are humming.",
+      "Don't read out loud."
+    ],
+    "treasury": [
+      "Treasury! Hello, gold.",
+      "Look at all this LOOT.",
+      "Pockets, prepare yourselves."
+    ],
+    "armory": [
+      "Armory. Free upgrades?",
+      "Weapons on weapons.",
+      "I'll just take one. Maybe two."
+    ],
+    "sanctum": [
+      "Sanctum. Holy. Or cursed.",
+      "Smells like incense and dread.",
+      "Quiet voice in my head says go back."
+    ],
+    "mimic_vault": [
+      "Too many chests. Trap.",
+      "This room is THE trap.",
+      "Not touching anything."
+    ],
+    "hall_of_madness": [
+      "Why is the floor moving?",
+      "My ears are wrong here.",
+      "Hall of Madness. Apt."
+    ],
+    "hall_of_trials": [
+      "Trials? Whose tests are these?",
+      "Pass or die. Got it.",
+      "Brace up. This room is graded."
+    ],
+    "trap_factory": [
+      "Where the traps come from.",
+      "Trap factory. Of course.",
+      "Don't touch the conveyor."
+    ],
+    "wandering_gate": [
+      "Did this gate just move?",
+      "The doors aren't where they were.",
+      "Wandering gate. Map's wrong."
+    ],
+    "wishing_well": [
+      "A well. I want a coin.",
+      "Wishing well. Don't.",
+      "Looks calm. It isn't."
+    ],
+    "watchtower": [
+      "High ground. Useful.",
+      "Watchtower. Who watches?",
+      "Long sightlines. Good and bad."
+    ],
+    "veil_of_forgetting": [
+      "Why are we here again?",
+      "I forgot my plan.",
+      "The veil. Don't linger."
+    ],
+    "false_exit": [
+      "Wait, this isn't the exit?",
+      "False exit. Of course.",
+      "Cruel. Very cruel."
     ]
   },
 
