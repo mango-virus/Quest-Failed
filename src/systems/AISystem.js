@@ -1125,6 +1125,42 @@ export class AISystem {
           adv._loopBestDist   = dist  // reset so we don't re-trigger
           adv._loopBestAt     = wNow
           this._aiDiag(adv, `WATCHDOG FIRED panic-walk +3s | goal=${goalTypeKey} target=(${tgt.x},${tgt.y}) dist=${dist}`)
+
+          // Stuck-EXPLORE_ROOM escalation (2026-05-27, follow-up to the
+          // streak-cap fix). The streak cap at the EXPLORE_ROOM arrival
+          // handler only fires when the adv REACHES a room. If the room
+          // is unreachable (blocked by other advs, trapped tile chain,
+          // bad pathing), they never arrive → streak stays at 0 →
+          // they loop forever even though the watchdog is firing.
+          // Player's latest screenshots show 12+ advs all stuck on
+          // EXPLORE_ROOM at d=9..14 with WALK active.
+          //
+          // Fix: when the watchdog fires on EXPLORE_ROOM, treat it as
+          // a "give up on this room" event. Mark it visited so the
+          // personality system won't re-pick it, bump the streak, and
+          // either force SEEK_BOSS (if the cap is hit) or re-roll the
+          // goal. After 5 watchdog fires (~25s total stuck) they
+          // commit to the throne whether they know where it is or not
+          // (knowledge gate in _goalToTile handles the redirect to
+          // exploration if not).
+          if (adv.goal?.type === 'EXPLORE_ROOM') {
+            adv.visitedRooms ??= []
+            if (adv.goal.roomId != null && !adv.visitedRooms.includes(adv.goal.roomId)) {
+              adv.visitedRooms.push(adv.goal.roomId)
+            }
+            adv._exploreStreak = (adv._exploreStreak ?? 0) + 1
+            if (adv._exploreStreak >= EXPLORE_STREAK_CAP) {
+              adv._exploreStreak = 0
+              adv.goal = { type: 'SEEK_BOSS' }
+              EventBus.emit('SAY_seekBoss', { adventurer: adv })
+              this._aiDiag(adv, `STREAK CAP via watchdog → SEEK_BOSS`)
+            } else {
+              const next = this._pickNextGoal(adv)
+              adv.goal = next
+              if (next?.type !== 'EXPLORE_ROOM') adv._exploreStreak = 0
+              this._aiDiag(adv, `gave up on EXPLORE_ROOM → ${next?.type ?? '?'} (streak=${adv._exploreStreak})`)
+            }
+          }
         }
         // Diagnostic: warn every ~1s when an adv is in the no-progress
         // window (3-5s) but not yet panic-walked. Catches the case
