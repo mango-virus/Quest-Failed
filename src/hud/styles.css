@@ -8985,10 +8985,12 @@ body {
      override for the others. */
   --npc-accent: #ff3782;
 }
-.qf-npc[data-companion-id="malakor"]  { --npc-accent: #a070dc; }  /* purple */
-.qf-npc[data-companion-id="zulgath"]  { --npc-accent: #ff8c2a; }  /* orange — shifted from gold 2026-05-22 so his bubble border doesn't read as tutorial gold */
-.qf-npc[data-companion-id="safira"]   { --npc-accent: #2caee8; }  /* sky    */
-.qf-npc[data-companion-id="nocturna"] { --npc-accent: #7c6cff; }  /* twilight-violet — distinct from Malakor's warmer purple. Pre-wired here so Nocturna's in-game HUD inherits the right hue the moment she becomes unlockable; she doesn't render anywhere in-game yet. */
+.qf-npc[data-companion-id="malakor"]     { --npc-accent: #a070dc; }  /* purple */
+.qf-npc[data-companion-id="zulgath"]     { --npc-accent: #ff8c2a; }  /* orange — shifted from gold 2026-05-22 so his bubble border doesn't read as tutorial gold */
+.qf-npc[data-companion-id="safira"]      { --npc-accent: #2caee8; }  /* sky    */
+.qf-npc[data-companion-id="nocturna"]    { --npc-accent: #7c6cff; }  /* twilight-violet — distinct from Malakor's warmer purple. Pre-wired here so Nocturna's in-game HUD inherits the right hue the moment she becomes unlockable; she doesn't render anywhere in-game yet. */
+.qf-npc[data-companion-id="rattlebones"] { --npc-accent: #ffe34d; }  /* jester-yellow — matches the recruit-screen + boss-select-screen accent */
+.qf-npc[data-companion-id="spectra"]     { --npc-accent: #9b4dff; }  /* pastel ghost-purple — matches the recruit-screen + boss-select-screen accent */
 /* Docked beside a menu — lift above the overlay backdrop (z:150). */
 .qf-npc[data-dock="menu"] { z-index: 160; }
 
@@ -9071,10 +9073,12 @@ body {
    each companion's presence FEELS slightly different (Lilith gentle,
    Malakor slow & ominous, Zul'Gath ancient & languid, Safira quick &
    bright). Drift particle speeds below get the same treatment. */
-.qf-npc[data-companion-id="lilith"]  .qf-npc-aura { animation-duration: 4.8s; }
-.qf-npc[data-companion-id="malakor"] .qf-npc-aura { animation-duration: 6.4s; }
-.qf-npc[data-companion-id="zulgath"] .qf-npc-aura { animation-duration: 7.8s; }
-.qf-npc[data-companion-id="safira"]  .qf-npc-aura { animation-duration: 3.6s; }
+.qf-npc[data-companion-id="lilith"]      .qf-npc-aura { animation-duration: 4.8s; }
+.qf-npc[data-companion-id="malakor"]     .qf-npc-aura { animation-duration: 6.4s; }
+.qf-npc[data-companion-id="zulgath"]     .qf-npc-aura { animation-duration: 7.8s; }
+.qf-npc[data-companion-id="safira"]      .qf-npc-aura { animation-duration: 3.6s; }
+.qf-npc[data-companion-id="rattlebones"] .qf-npc-aura { animation-duration: 4.2s; }  /* theatrical-quick — like a stage spotlight breathing */
+.qf-npc[data-companion-id="spectra"]     .qf-npc-aura { animation-duration: 3.0s; }  /* twitchy / phone-vibration energy */
 
 /* Rising accent-coloured particles drifting up out of the portrait
    silhouette — a thin column of motion that reinforces the halo above. */
