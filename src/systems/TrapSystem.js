@@ -155,11 +155,11 @@ export class TrapSystem {
 
     const dmg    = this._modifiedDamage(trap, def)
     const roomId = this._roomIdAt(target.tileX, target.tileY)
-    this._hitEntity(trap, def, target, roomId, dmg)
+    const damaged = !!this._hitEntity(trap, def, target, roomId, dmg)
     if (def.dot) this._applyPoison(target, def.dot, trap.instanceId)
 
     trap.state.firedAt = now
-    EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: target, roomId })
+    EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: target, roomId, damaged })
     EventBus.emit('TRAP_FIRED', { trap, def, targetId: target.instanceId })
   }
 
@@ -239,15 +239,16 @@ export class TrapSystem {
     const victims = this._targets(def).filter(e =>
       Math.hypot((e.tileX + 0.5) - cx, (e.tileY + 0.5) - cy) <= radius)
     let firstAdv = null
+    let damaged  = false
     for (const v of victims) {
       if (!firstAdv && this._isAdventurer(v)) firstAdv = v
       const dist = Math.hypot((v.tileX + 0.5) - cx, (v.tileY + 0.5) - cy)
       const fall = Math.max(floor, 1 - dist / radius)
       const dmg  = Math.max(1, Math.round(fullDmg * fall))
-      this._hitEntity(trap, def, v, roomId, dmg)
+      if (this._hitEntity(trap, def, v, roomId, dmg)) damaged = true
     }
 
-    EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: firstAdv, roomId })
+    EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: firstAdv, roomId, damaged })
     EventBus.emit('TRAP_EXPLODED', { trap, def, worldX: cx * TS, worldY: cy * TS, radius })
 
     // Chain-detonate nearby bombs — light their fuses on a short delay so
@@ -292,10 +293,13 @@ export class TrapSystem {
 
     const dmg    = this._modifiedDamage(trap, def)
     const roomId = this._roomIdAt(trap.tileX, trap.tileY)
-    for (const v of victims) this._hitEntity(trap, def, v, roomId, dmg)
+    let damaged  = false
+    for (const v of victims) {
+      if (this._hitEntity(trap, def, v, roomId, dmg)) damaged = true
+    }
 
     trap.state.firedAt = now
-    this._announce(trap, def, roomId, victims.find(v => this._isAdventurer(v)))
+    this._announce(trap, def, roomId, victims.find(v => this._isAdventurer(v)), damaged)
     EventBus.emit('TRAP_FIRED', { trap, def })
   }
 
@@ -327,8 +331,8 @@ export class TrapSystem {
       let dmg = this._modifiedDamage(trap, def)
       if (wasRevealed) dmg = Math.max(1, Math.round(dmg * 0.5))
       const roomId = this._roomIdAt(e.tileX, e.tileY)
-      this._hitEntity(trap, def, e, roomId, dmg)
-      EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: this._isAdventurer(e) ? e : null, roomId })
+      const damaged = !!this._hitEntity(trap, def, e, roomId, dmg)
+      EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: this._isAdventurer(e) ? e : null, roomId, damaged })
       EventBus.emit('TRAP_FIRED', { trap, def })
     }
   }
@@ -355,9 +359,9 @@ export class TrapSystem {
       st.hitAt[e.instanceId] = now
       const dmg    = this._modifiedDamage(trap, def)
       const roomId = this._roomIdAt(sx, sy)
-      this._hitEntity(trap, def, e, roomId, dmg)
+      const damaged = !!this._hitEntity(trap, def, e, roomId, dmg)
       st.firedAt = now
-      this._announce(trap, def, roomId, this._isAdventurer(e) ? e : null)
+      this._announce(trap, def, roomId, this._isAdventurer(e) ? e : null, damaged)
       EventBus.emit('TRAP_FIRED', { trap, def })
     }
   }
@@ -516,11 +520,11 @@ export class TrapSystem {
 
   // Throttled TRAP_TRIGGERED — keeps continuous traps from spamming knowledge
   // updates / emotes every tick while still flagging them as discovered.
-  _announce(trap, def, roomId, adventurer) {
+  _announce(trap, def, roomId, adventurer, damaged = false) {
     const now = this._scene.time.now
     if (now - (trap.state._lastAnnounce ?? -Infinity) < ANNOUNCE_GAP_MS) return
     trap.state._lastAnnounce = now
-    EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: adventurer ?? null, roomId })
+    EventBus.emit('TRAP_TRIGGERED', { trap, def, adventurer: adventurer ?? null, roomId, damaged })
   }
 
   // Entities a trap can damage — adventurers always; minions too when the

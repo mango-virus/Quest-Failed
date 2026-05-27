@@ -480,12 +480,27 @@ function _rehydrateRunHistory(state) {
   // makes it spam-hit (last-hit timestamps stale).
   // Permanent flags (`_disabledThisDay`, `_brandBlessed`) are kept —
   // they're not time-based and represent real per-day state.
-  for (const t of (state.dungeon?.traps ?? [])) {
+  for (const t of (state.dungeon?.traps ?? []) ) {
+    // Top-level scene.time fire-cooldown on LOS / area traps — without
+    // stripping, a saved future timestamp keeps the trap "still cooling
+    // down" forever after reload (it never fires again until the new
+    // scene clock catches up).
+    delete t.cooldownUntil
     if (!t.state) continue
     delete t.state.fuseEndsAt
     delete t.state.firedAt
     delete t.state.hitAt
     delete t.state.fuseLit
+    // Per-entity 4-second damage lockout. ALSO scene.time-stamped — a
+    // saved value from the previous session is "in the future" relative
+    // to the new scene clock, so _hitEntity's `if (now < cd) return false`
+    // gate makes the trap silently stop damaging that adv (or every adv
+    // that was hit before save). Match the same pattern as `hitAt` above.
+    delete t.state.advDmgCooldownUntil
+    // Throttle stamp for TRAP_TRIGGERED announces (every 2s). Stale
+    // future value would block the trap from announcing itself on
+    // first fire after reload.
+    delete t.state._lastAnnounce
     // revealed persists (knowledge — spike pit stays revealed for the day).
   }
   // Bombs are one-shot consumables — once `state.exploded` is set the

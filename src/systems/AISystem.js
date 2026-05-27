@@ -630,7 +630,7 @@ export class AISystem {
   }
 
   // Trap firings are noise too.
-  _onTrapTriggeredAI({ trap, x, y, adventurer }) {
+  _onTrapTriggeredAI({ trap, x, y, adventurer, damaged }) {
     const tx = trap?.tileX ?? x ?? adventurer?.tileX
     const ty = trap?.tileY ?? y ?? adventurer?.tileY
     if (tx == null || ty == null) return
@@ -639,7 +639,16 @@ export class AISystem {
     // most once every few seconds. A trap that fires repeatedly would
     // otherwise thrash their path every tick, which the oscillation
     // failsafe reads as "stuck" and wrongly flees them.
-    if (adventurer && adventurer.aiState !== 'dead' && adventurer.aiState !== 'fleeing') {
+    //
+    // Gated on `damaged === true` (2026-05-27): spike pits emit
+    // TRAP_TRIGGERED every 600ms while an adv stands on them, but
+    // _hitEntity returns false during the 4-second per-entity damage
+    // lockout. Clearing the path on those "fire but didn't damage"
+    // events caused re-pathing thrash — jitter (60% per tile) could
+    // resolve a different direction each clear, flipping the adv back
+    // and forth over the same trap. Only react when damage actually
+    // happened, which keeps knowledge fresh AND avoids the thrash.
+    if (damaged && adventurer && adventurer.aiState !== 'dead' && adventurer.aiState !== 'fleeing') {
       const now = this._scene?.time?.now ?? 0
       if (now - (adventurer._trapRepathAt ?? -Infinity) > 3000) {
         adventurer._trapRepathAt = now
