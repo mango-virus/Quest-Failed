@@ -73,6 +73,13 @@ const TRAP_AVOID_PENALTY_WARNED    = 18.0   // when warned by a party-mate
 // override real cost differences — pure tiebreaker. (2026-05-27)
 const TRAP_SIDE_BIAS_PER_TILE      = 0.05
 const TRAP_SIDE_BIAS_RING          = 2     // tiles around trap to apply bias
+// Cap on consecutive EXPLORE_ROOM goal picks before forcing SEEK_BOSS. On-
+// screen F4 diagnostics (2026-05-27) showed advs cycling between 2-3 rooms
+// indefinitely because _pickNextGoal kept returning another EXPLORE_ROOM
+// each time one was reached. Forcing SEEK_BOSS after this many in a row
+// guarantees forward progress; any non-EXPLORE_ROOM goal pick resets the
+// counter, so normal exploration of a long dungeon still works.
+const EXPLORE_STREAK_CAP           = 5
 // Beast Master tame protection — how long a minion stays off-limits to
 // other adventurers' melee after a Beast Master last stamped it as a
 // tame target. ClassAbilitySystem refreshes the stamp every tick the
@@ -3383,7 +3390,24 @@ export class AISystem {
       // Note: per-tick room-change detection in _tickAdventurer already
       // emitted ADVENTURER_ROOM_CHANGED when the adventurer first crossed
       // into this room — no need to re-emit here. (Was a duplicate.)
-      adv.goal = this._pickNextGoal(adv)
+      //
+      // EXPLORE_ROOM cycle cap (anti-room-bounce, 2026-05-27). On-screen
+      // F4 diagnostics showed advs stuck cycling between 2-3 rooms forever
+      // because _pickNextGoal kept returning another EXPLORE_ROOM. After
+      // EXPLORE_STREAK_CAP consecutive room-arrivals, force SEEK_BOSS so
+      // the adv stops wandering and commits to the throne. Streak resets
+      // any time _pickNextGoal returns something other than EXPLORE_ROOM
+      // (treasure, scout, regroup, etc.) — those are real progress.
+      adv._exploreStreak = (adv._exploreStreak ?? 0) + 1
+      const next = this._pickNextGoal(adv)
+      if (next?.type === 'EXPLORE_ROOM' && adv._exploreStreak >= EXPLORE_STREAK_CAP) {
+        adv._exploreStreak = 0
+        adv.goal = { type: 'SEEK_BOSS' }
+        EventBus.emit('SAY_seekBoss', { adventurer: adv })
+      } else {
+        adv.goal = next
+        if (next?.type !== 'EXPLORE_ROOM') adv._exploreStreak = 0
+      }
       return
     }
     // Dungeon event: The Tournament — rival reached its scatter room.

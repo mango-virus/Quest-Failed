@@ -361,6 +361,15 @@ function _rehydrateRunHistory(state) {
     // session would block every floating-damage number and spark for
     // the rest of the day post-load.
     '_fbAt', '_sparkAt',
+    // Anti-ping-pong watchdog + AI-diag overlay fields (2026-05-27). All
+    // scene.time.now-stamped — a saved value carries forward as a huge
+    // future timestamp after load (visible as `t=-1229.1s` in the F4
+    // overlay), which keeps panic-walk active forever and freezes the
+    // progress baseline so the watchdog never re-arms. _exploreStreak is
+    // a plain counter but also reset on load so a saved mid-cycle adv
+    // gets a fresh shot at exploring the post-load dungeon.
+    '_loopGoalKey', '_loopBestDist', '_loopBestAt', '_panicWalkUntil',
+    '_diagLastGoal', '_lastDiagAt', '_exploreStreak',
   ]
   for (const a of (state.adventurers.active ?? [])) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]
