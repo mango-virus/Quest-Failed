@@ -2665,6 +2665,25 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Coalesced × N pill (2026-05-27) — surfaces the batch count on toasts
+   and dungeon-log rows that fold multiple same-kind events into one.
+   Inline-block so it sits next to the title text without breaking the
+   row; gold-tinted bg + brighter foreground so it reads as a chip
+   rather than baked-in title text. */
+.qf-coalesce-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px 0;
+  background: color-mix(in srgb, var(--gold-bright, #ffd964) 18%, transparent);
+  color: var(--gold-bright, #ffd964);
+  font-size: 9px;
+  letter-spacing: 1px;
+  border: 1px solid color-mix(in srgb, var(--gold-bright, #ffd964) 35%, transparent);
+  border-radius: 2px;
+  vertical-align: 1px;
+  line-height: 1.2;
+  text-shadow: none;
+}
 /* Bounty / wanted-poster toast — parchment-flavored variant. */
 .qf-toast-bounty {
   background: linear-gradient(180deg, #261a06 0%, #18120a 100%) !important;

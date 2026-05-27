@@ -149,8 +149,6 @@ export class ToastQueue {
     const c = this._coalesce[key]
     const stillActive = c && c.entry && !c.entry._dismissing
       && (now - c.lastAt) < COALESCE_WINDOW_MS
-    const titleFormatter = opts.titleFormatter
-      ?? ((base, count) => `${base} × ${count}`)
     if (stillActive) {
       c.count += 1
       if (contextItem && !c.contexts.includes(contextItem)
@@ -159,7 +157,7 @@ export class ToastQueue {
       }
       c.lastAt = now
       const titleEl = c.entry.el.querySelector('.qf-toast-title')
-      if (titleEl) titleEl.textContent = titleFormatter(c.baseTitle, c.count, c.entry)
+      if (titleEl) this._renderCoalescedTitle(titleEl, c, opts.titleFormatter)
       const subEl = c.entry.el.querySelector('.qf-toast-subtitle')
       if (subEl) {
         subEl.textContent = c.contexts.length > 0
@@ -182,6 +180,29 @@ export class ToastQueue {
       contexts: contextItem ? [contextItem] : [],
       count: 1,
       lastAt: now,
+    }
+  }
+
+  // Render the title slot for a coalesced toast. Default rendering is
+  // `<baseTitle><pill: × N>`. A custom titleFormatter (e.g. PARTY WIPED
+  // at full-wave kill count) returning a non-null string overrides
+  // entirely — that path drops the pill since the formatter implies a
+  // bespoke headline.
+  _renderCoalescedTitle(titleEl, c, titleFormatter) {
+    titleEl.textContent = ''
+    const custom = titleFormatter
+      ? titleFormatter(c.baseTitle, c.count, c.entry)
+      : null
+    if (custom != null) {
+      titleEl.appendChild(document.createTextNode(custom))
+      return
+    }
+    titleEl.appendChild(document.createTextNode(c.baseTitle))
+    if (c.count > 1) {
+      const pill = document.createElement('span')
+      pill.className = 'qf-coalesce-pill'
+      pill.textContent = `× ${c.count}`
+      titleEl.appendChild(pill)
     }
   }
 
@@ -269,7 +290,7 @@ export class ToastQueue {
       const titleFormatter = (base, count) => {
         const waveSize = this._currentWaveSize ?? 0
         if (waveSize > 0 && count >= waveSize) return 'PARTY WIPED'
-        return `${base} × ${count}`
+        return null  // null → default rendering (base + × N pill)
       }
       this._pushCoalesced(
         'kill', 'ADVENTURER_DIED',
@@ -290,6 +311,15 @@ export class ToastQueue {
     })
     sub('ROOM_DESTROYED', ({ roomName } = {}) => {
       this._push('damage', 'ROOM DESTROYED', roomName || 'A chamber has fallen.')
+    })
+    // PHYLACTERY_DESTROYED — one-shot dramatic headline. Fires once
+    // per heart break, BEFORE the cascade of per-adv FLEE_DECIDED
+    // events the destruction triggers. Non-coalesced (PHYLACTERY can
+    // only break once per run anyway) and uses the kill kind so the
+    // glyph + colour reads as "boss-tier event."
+    sub('PHYLACTERY_DESTROYED', () => {
+      this._push('kill', 'PHYLACTERY DESTROYED',
+        'The boss\'s last life is broken — the hunters break for the exit.')
     })
     sub('INTEL_LEAKED', ({ roomName } = {}) => {
       // Coalesced — escape cascades fire 5–15 of these at end-of-day.

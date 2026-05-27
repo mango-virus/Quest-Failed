@@ -143,7 +143,12 @@ export class DungeonLog {
       this._add(fleeReasonFlavor(reason, adventurer.name, context), 'flee')
     })
     // MINION_DIED counted, surfaced as one row at day-end (#4 cluster).
-    on('MINION_DIED', () => {
+    // Player-placed minions only — `class === 'garrison'` filters out
+    // boss-archetype auto-spawns (gnoll pack, revenants, imps, raised
+    // undead, slime gooplings) that the player never paid for. See
+    // RightPanels MINION_DIED handler for full rationale.
+    on('MINION_DIED', ({ minion } = {}) => {
+      if (minion?.class === 'garrison') return
       this._minionDeathsToday++
     })
     on('ABILITY_TRIGGERED', ({ message }) => {

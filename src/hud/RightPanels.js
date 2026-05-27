@@ -848,16 +848,47 @@ export class RightPanels {
         ? c.contexts.join(', ')
           + (c.count > c.contexts.length ? `, +${c.count - c.contexts.length} more` : '')
         : ''
-      const textFormatter = opts.textFormatter
-        ?? ((base, count, ctx) => ctx ? `${base} × ${count} — ${ctx}` : `${base} × ${count}`)
-      const newText = textFormatter(c.baseText, c.count, ctxList)
+      // Effective base — `coalescedBase` lets the caller swap a long
+      // first-fire flavor line ("Eryn sees the phylactery destroyed
+      // and breaks for the exit!") for a brief headline ("Phylactery
+      // destroyed") once the row coalesces. The first fire keeps the
+      // flavor; from count=2 onward we use the brief.
+      const effectiveBase = c.coalescedBase ?? c.baseText
+      // Custom formatter (non-null return) overrides the entire row
+      // text — e.g. "Wave wiped." at full-wave kill count. Otherwise
+      // we compose default rendering:
+      //   <effectiveBase><pill: × N><" — ctxList">
+      const customText = opts.textFormatter
+        ? opts.textFormatter(effectiveBase, c.count, ctxList)
+        : null
       const span = c.rowEl.querySelector('.qf-log-text')
-      if (span) span.textContent = newText
-      c.row.text = newText
+      if (span) {
+        span.textContent = ''
+        if (customText != null) {
+          span.appendChild(document.createTextNode(customText))
+          c.row.text = customText
+        } else {
+          span.appendChild(document.createTextNode(effectiveBase))
+          if (c.count > 1) {
+            const pill = document.createElement('span')
+            pill.className = 'qf-coalesce-pill'
+            pill.textContent = `× ${c.count}`
+            span.appendChild(pill)
+          }
+          if (ctxList) {
+            span.appendChild(document.createTextNode(` — ${ctxList}`))
+          }
+          c.row.text = ctxList
+            ? `${effectiveBase} × ${c.count} — ${ctxList}`
+            : `${effectiveBase} × ${c.count}`
+        }
+      }
       return
     }
     // First fire — push a normal row, then bookkeep so subsequent fires
-    // know which row to mutate.
+    // know which row to mutate. `coalescedBase` (optional) is stashed
+    // so the next fire can swap the long flavor-line baseText for a
+    // brief headline (see effectiveBase use in the stillActive branch).
     const firstText = contextItem ? `${baseText} — ${contextItem}` : baseText
     this._addLog(firstText, kind)
     const rowEl = this._refs.logBody?.lastChild ?? null
@@ -866,6 +897,7 @@ export class RightPanels {
       row,
       rowEl,
       baseText,
+      coalescedBase: opts.coalescedBase ?? null,
       contexts: contextItem ? [contextItem] : [],
       count: 1,
       lastAt: now,
@@ -973,10 +1005,10 @@ export class RightPanels {
       // Coalesced — busy days fire 15–25 of these in seconds. Swap to
       // "Party wiped." when the full wave dies in the burst, mirroring
       // the ToastQueue PARTY WIPED headline.
-      const textFormatter = (base, count, ctx) => {
+      const textFormatter = (_base, count) => {
         const waveSize = this._currentWaveSize ?? 0
         if (waveSize > 0 && count >= waveSize) return 'Wave wiped.'
-        return ctx ? `${base} × ${count} — ${ctx}` : `${base} × ${count}`
+        return null  // null → default rendering (base + × N pill + ctx)
       }
       this._addLogCoalesced('Adv slain', 'kill', 'ADVENTURER_DIED',
         killerName ? `${name} by ${killerName}` : name,
@@ -995,18 +1027,12 @@ export class RightPanels {
       // defeated, cartographer tour, etc.) hits every active adv in
       // the same tick. We bucket per reason so distinct flee causes
       // keep distinct rows; first fire of a bucket is the full
-      // flavored line, subsequent fires within 1500ms mutate to
-      // "<reason brief> × N — name1, name2, +X more".
+      // flavored line; from count=2 onward the row swaps to the brief
+      // headline (`coalescedBase`) + × N pill + name list.
       const brief = FLEE_REASON_BRIEF[reason] ?? 'flee'
-      const textFormatter = (_base, count, ctx) => {
-        // Capitalize first letter for log readability.
-        const headline = brief.charAt(0).toUpperCase() + brief.slice(1)
-        return ctx
-          ? `${headline} × ${count} — ${ctx}`
-          : `${headline} × ${count}`
-      }
+      const headline = brief.charAt(0).toUpperCase() + brief.slice(1)
       this._addLogCoalesced(flavor, 'flee', `FLEE_${reason || 'unknown'}`,
-        name, { textFormatter })
+        name, { coalescedBase: headline })
     })
     // ADVENTURER_FLED still fires at exit time — keep the intel-leak
     // rerender on that boundary since intel ledger updates depend on
@@ -1021,7 +1047,20 @@ export class RightPanels {
     // the log within seconds. Per-minion notification still goes out
     // via the MINION_DIED EventBus event itself (companion, sfx,
     // knowledge all still see each death) — only the LOG is consolidated.
-    sub('MINION_DIED', () => {
+    sub('MINION_DIED', ({ minion } = {}) => {
+      // Only count PLAYER-PLACED minions toward the "lost" tally.
+      // Garrison-class auto-spawns (gnoll hunters pack, catacombs
+      // revenants, demon imps, raised undead, slime gooplings, etc.)
+      // either auto-respawn next dawn or are free spawns the player
+      // never paid for. Counting them inflated the day-end summary
+      // wildly — a Lich run with ~5 raised skeletons + 2 catacombs
+      // revenants + 1 player minion could show "28 lost" on a busy
+      // day where the player actually lost 1.
+      //
+      // The `class === 'garrison'` check matches the canonical flag
+      // every boss-archetype free-spawn path uses in
+      // BossArchetypeSystem (lines 488, 1496, 1994, 2072, 2346, etc.).
+      if (minion?.class === 'garrison') return
       this._minionDeathsToday++
     })
     // TRAP_TRIGGERED individual lines removed — a trap that KILLS
@@ -1122,6 +1161,13 @@ export class RightPanels {
         'Intel leaked', 'leak', 'INTEL_LEAKED',
         roomName || null,
       )
+    })
+    // PHYLACTERY_DESTROYED — single dramatic headline fired BEFORE the
+    // per-adv FLEE_DECIDED cascade hits. Non-coalesced (heart can only
+    // break once per run). Uses 'kill' kind for the strong red glyph
+    // so it reads as a major event in the feed.
+    sub('PHYLACTERY_DESTROYED', () => {
+      this._addLog('★ The phylactery shatters — the hunters break for the exit!', 'kill')
     })
     // Gold steal — loot goblin escaped with gold.
     sub('LOOT_GOBLIN_ESCAPED', ({ stolen, adventurer } = {}) => {
