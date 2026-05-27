@@ -489,6 +489,19 @@ export class MinionRenderer {
     if (this._heldMinion) return
     if (this._isPlacingMinion()) return
     if (!this._isMoveModeArmed()) return
+    // Mimic Vault spawn lock (2026-05-27). Mimics that spawn from the
+    // Mimic Vault room are tied to the room — they re-bait at dawn,
+    // they sit in the room's reserved slots, and the room's
+    // bait-chest pairing depends on the spawn location staying put.
+    // Player-PLACED mimics (built via BuildMenu, no
+    // `isMimicVaultSpawn` flag) stay movable like any other player-
+    // built minion. Surface a placement-error toast so the player
+    // sees WHY their click did nothing.
+    if (m.isMimicVaultSpawn) {
+      const np = this._scene?.scene?.get?.('NightPhase')
+      np?._showPlacementError?.('Vault mimics can\'t be moved')
+      return
+    }
     this._beginPickup(m)
   }
 
