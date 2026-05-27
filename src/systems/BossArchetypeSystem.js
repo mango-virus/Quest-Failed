@@ -1180,14 +1180,36 @@ export class BossArchetypeSystem {
     if (advs.length === 0) return
 
     // LICH: Phylactery hunt rolls.
+    //
+    // Knowledge gate (2026-05-27): hunts require the adv to actually
+    // KNOW about the heart — via personal observation last run or via
+    // inherited shared-pool intel. An adv with no knowledge of the heart
+    // will never auto-target it from spawn (matches every other beelining
+    // goal in the system: SEEK_TREASURE, SEEK_HEAL, SEEK_KEY_CHEST are
+    // all knowledge-gated the same way). Room-find rolls in
+    // `_lichOnAdvRoomChanged` are NOT gated because the adv is standing
+    // in the heart's room — observation is automatic at that point.
+    //
+    // Heart-life gate (2026-05-27): when the boss is currently kept alive
+    // by the heart (`boss._onHeartLife`), every adv WHO KNOWS about the
+    // heart auto-hunts. Without knowledge they fall through to normal
+    // wave behaviour — they'll head to the throne, get bounced by the
+    // _diedThisDay handoff, and flee. The previous `noNormalLivesLeft`
+    // gate never fired in practice because the revive at fight-resolution
+    // bumps deathsRemaining back to 1 immediately.
     if (this._archId() === 'lich') {
       const phyl = this._gameState?.phylactery
       if (phyl && (phyl.resources?.hp ?? 0) > 0) {
         const boss = this._gameState?.boss
-        const noNormalLivesLeft = (boss?.deathsRemaining ?? 0) <= 0
+        const onHeartLife = !!boss?._onHeartLife
         for (const adv of advs) {
           if (!adv) continue
-          const hunt = noNormalLivesLeft ||
+          // Knowledge gate — adv must have heart in their personal
+          // knowledge bucket (KnowledgeSystem copies from shared pool on
+          // spawn so inherited intel counts).
+          const knowsHeart = !!adv.knowledge?.items?.[phyl.instanceId]
+          if (!knowsHeart) continue
+          const hunt = onHeartLife ||
             Math.random() < Balance.LICH_PHYLACTERY_HUNT_CHANCE
           if (!hunt) continue
           adv._huntPhylactery = true
@@ -1280,7 +1302,9 @@ export class BossArchetypeSystem {
     phyl._lastTickAt = now
 
     const advs = this._gameState?.adventurers?.active ?? []
+    const boss = this._gameState?.boss
     let totalDmg = 0
+    let totalBossBleed = 0
     let attackerName = null
     for (const a of advs) {
       if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
@@ -1296,6 +1320,25 @@ export class BossArchetypeSystem {
         damage:     dmg,
         damageType: 'phylactery_attack',
       })
+      // Heart→boss damage mirror (2026-05-27, balance nerf). The heart
+      // is bound to the boss's life force, so every blow that lands on
+      // the heart bleeds the boss for the same amount. 1:1 magnitude.
+      //
+      // Notes on the wipe-windows: between fights with boss.hp==0,
+      // `_onIncoming` refills hp to maxHp on the next BOSS_FIGHT_INCOMING,
+      // so chip damage in death-pose is wasted. Damage during an active
+      // fight, between fights with hp>0 (boss survived last fight), and
+      // pre-first-fight chip damage all carry into the next fight.
+      //
+      // No COMBAT_HIT emit for this — that event triggers VFX (damage
+      // numbers floating above the target) and aggro/retaliation, both
+      // of which would misfire on the boss sitting in its chamber out-
+      // of-fight. The dedicated BOSS_HEART_BLEED event below lets any
+      // future HP-bar or VFX layer subscribe deliberately.
+      if (boss) {
+        boss.hp = Math.max(0, (boss.hp ?? 0) - dmg)
+        totalBossBleed += dmg
+      }
       if (phyl.resources.hp <= 0) break
     }
     if (totalDmg > 0) {
@@ -1304,6 +1347,14 @@ export class BossArchetypeSystem {
         damage:      totalDmg,
         attackerName,
         hp:          phyl.resources.hp,
+      })
+    }
+    if (totalBossBleed > 0 && boss) {
+      EventBus.emit('BOSS_HEART_BLEED', {
+        damage:       totalBossBleed,
+        attackerName,
+        hp:           boss.hp,
+        maxHp:        boss.maxHp,
       })
     }
     // Lich Necromancy: per-tick ability ticks for raised dead.
@@ -2594,11 +2645,19 @@ export class BossArchetypeSystem {
     }
     adv._phylRoomRolled = true
     // Same desperation rule the spawn-time roll uses — when the boss is
-    // already on its phylactery life, every adv that finds the room
-    // commits to attacking it, no roll.
+    // already on its phylactery life (`_onHeartLife`), every adv that
+    // finds the room commits to attacking it, no roll. The previous
+    // `noNormalLivesLeft` gate (deathsRemaining<=0) was effectively
+    // dead code because the revive bumps deathsRemaining back to 1
+    // immediately at fight resolution; the flag captures the intended
+    // "boss is currently borrowing a life from the heart" state.
+    //
+    // No knowledge gate here — the adv is physically standing in the
+    // heart's room when this fires, so KnowledgeSystem.observeRoomContents
+    // has already recorded the heart in adv.knowledge.items.
     const boss = this._gameState?.boss
-    const noNormalLivesLeft = (boss?.deathsRemaining ?? 0) <= 0
-    if (!noNormalLivesLeft && Math.random() >= Balance.LICH_PHYLACTERY_ROOM_FIND_CHANCE) return
+    const onHeartLife = !!boss?._onHeartLife
+    if (!onHeartLife && Math.random() >= Balance.LICH_PHYLACTERY_ROOM_FIND_CHANCE) return
     adv._huntPhylactery = true
     adv.goalStack ??= []
     if (adv.goal) adv.goalStack.push(adv.goal)

@@ -2607,6 +2607,16 @@ export class BossSystem {
     if (winner === 'party' && boss && boss.deathsRemaining <= 0 && phylAlive && isLich) {
       boss.deathsRemaining = 1
       boss.hp              = boss.maxHp
+      // Heart-life flag (2026-05-27): once the heart has revived the boss
+      // for the first time, every subsequent life is "borrowed" from the
+      // phylactery. BossArchetypeSystem reads this to drive desperation-
+      // mode hunt behaviour, and AISystem reads it to redirect SEEK_BOSS
+      // adventurers (who know about the heart) to HUNT_PHYLACTERY instead
+      // of wasting trips to the throne. The flag is monotonic — once set,
+      // it stays set for the rest of the run. The boss "going back to a
+      // normal life" never happens in code (lives only decrement, heart
+      // can only revive, not restore), so no clear-path is needed.
+      boss._onHeartLife = true
       EventBus.emit('PHYLACTERY_REVIVED_BOSS', { phylactery: phyl })
     }
 

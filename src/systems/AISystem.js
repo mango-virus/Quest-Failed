@@ -2744,6 +2744,34 @@ export class AISystem {
       return { x: trap.tileX, y: trap.tileY }
     }
     if (adv.goal.type === 'SEEK_BOSS') {
+      // Heart-life redirect (2026-05-27, Lich balance pass). When the
+      // boss is currently borrowing a life from the heart, the throne
+      // is a wasted trip — `_diedThisDay` already bounced this day's
+      // fight and the next arrival gets handed off to flee. Redirect
+      // advs who KNOW about the heart to HUNT_PHYLACTERY here, before
+      // they take a step.
+      //
+      // Knowledge-gated: an adv without `knowledge.items[phylId]` keeps
+      // SEEK_BOSS and walks to the throne as normal — they'll get the
+      // standard `_diedThisDay` flee handoff. They don't get free
+      // omniscient awareness of where the heart sits just because the
+      // boss is on heart-life. Mirrors the same rule applied to spawn-
+      // time hunt rolls.
+      //
+      // Stack-push preserves the SEEK_BOSS goal so the adv resumes
+      // throne-bound behaviour if the heart dies mid-walk.
+      const bossState = this._gameState.boss
+      const phyl      = this._gameState.phylactery
+      const phylAlive = phyl && (phyl.resources?.hp ?? 0) > 0
+      if (bossState?._onHeartLife && phylAlive &&
+          adv.knowledge?.items?.[phyl.instanceId]) {
+        adv.goalStack ??= []
+        adv.goalStack.push(adv.goal)
+        adv._huntPhylactery = true
+        adv.goal = { type: 'HUNT_PHYLACTERY', roomId: phyl.roomId }
+        adv.path = null
+        return this._goalToTile(adv)
+      }
       const boss = dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
       if (!boss) return null
       return {
