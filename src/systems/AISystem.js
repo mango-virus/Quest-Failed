@@ -645,31 +645,16 @@ export class AISystem {
         adventurer._trapRepathAt = now
         adventurer.path = null
       }
-      // Recoil: soft-block the trap's footprint + 1-tile ring (and LOS
-      // dangerTiles, if any) for this adv for ~3 s. KnowledgeSystem's
-      // standard cost multiplier (6× for FULL-tier) isn't strong enough
-      // when the goal sits just past the trap — the pathfinder still
-      // routes through and the adv tanks re-hits every cooldownMs. A
-      // SOFT_BLOCK_COST equivalent forces the detour while still allowing
-      // walk-through when there's literally no other route. Listener
-      // order: KnowledgeSystem is wired first in Game.js, so the trap's
-      // knowledge entry (with dangerTiles) is already populated by the
-      // time we read it here.
-      if (trap) {
-        const recoil = adventurer._trapRecoil ?? { tiles: new Set(), expireAt: 0 }
-        const fp = trap.footprint ?? { w: 1, h: 1 }
-        for (let rx = trap.tileX - 1; rx < trap.tileX + fp.w + 1; rx++) {
-          for (let ry = trap.tileY - 1; ry < trap.tileY + fp.h + 1; ry++) {
-            recoil.tiles.add(`${rx},${ry}`)
-          }
-        }
-        const lane = adventurer.knowledge?.traps?.[trap.instanceId]?.dangerTiles
-        if (Array.isArray(lane)) {
-          for (const d of lane) recoil.tiles.add(`${d.x},${d.y}`)
-        }
-        recoil.expireAt = now + 3000
-        adventurer._trapRecoil = recoil
-      }
+      // Recoil tile-collection REMOVED 2026-05-27. The recoil mechanism
+      // used to soft-block the trap's footprint + 1-tile ring + danger-
+      // Tiles for ~3 s, forcing per-tile detour after a hit. That's the
+      // exact behavior the user asked us to remove — coarse room-level
+      // trap avoidance (ROOM_TRAP_PENALTY in the path block) now handles
+      // post-hit re-routing at the room level instead. KnowledgeSystem
+      // also populates adv.knowledge.traps on TRAP_TRIGGERED so the
+      // newly-known trap immediately joins trappedRoomIds on next
+      // path. The _trapRepathAt cooldown above still forces a re-path
+      // so the new knowledge actually gets used right away.
     }
   }
 
@@ -2056,19 +2041,16 @@ export class AISystem {
         for (const f of this._gameState.dungeon?.fountains      ?? []) softBlockedForAdv.add(`${f.tileX},${f.tileY}`)
         for (const c of this._gameState.dungeon?.treasureChests ?? []) softBlockedForAdv.add(`${c.tileX},${c.tileY}`)
       }
-      // Trap recoil — _onTrapTriggeredAI stamps a tile set on the adv when
-      // they survive a trap hit. Treat those tiles as soft-blocked for
-      // ~3 s so the next path routes AWAY from the trap rather than
-      // weighing-by-6 the same route and walking back through.
-      const recoil = adv._trapRecoil
-      if (recoil) {
-        const now = this._scene?.time?.now ?? 0
-        if (now < (recoil.expireAt ?? 0)) {
-          for (const k of recoil.tiles) softBlockedForAdv.add(k)
-        } else {
-          adv._trapRecoil = null
-        }
-      }
+      // Trap recoil — DISABLED 2026-05-27. Used to soft-block the
+      // trap's footprint + 1-tile ring + dangerTiles for ~3 s after a
+      // hit. Per-tile detour like this is exactly what the user asked
+      // us to remove — the +100K SOFT_BLOCK_COST stamp overrode the
+      // 5× ROOM_TRAP_PENALTY and re-introduced the per-tile dodging
+      // (ping-pong around the just-hit trap). With room-level trap
+      // avoidance the adv already knows the room is dangerous and
+      // pays 5× to be there; no need for an additional per-tile stamp.
+      // Just expire the field so old saves clean up on their own.
+      if (adv._trapRecoil) adv._trapRecoil = null
       // Cheater no-clip: the modded client ignores walls + locked doors
       // entirely. Pass opts.noClip to the pathfinder (wall / door /
       // void tiles become walkable) and bypass blockedForAdv (lock
@@ -2078,12 +2060,20 @@ export class AISystem {
       const cheaterNoClip = adv.classId === 'cheater' && !adv._banned
       const softOpts = {
         softBlocked:      softBlockedForAdv,
+        // Solid traps (pillars / blades / cannons) stay as +SOFT_BLOCK_COST
+        // physical obstacles — they're walls you can walk through as a
+        // last resort. NOT knowledge-based avoidance: this applies to
+        // every adv regardless of intel, because the tile is physically
+        // occupied.
         softTraps:        true,
-        // Sprung-trap soft-block disabled during panic-walk so the
-        // pathfinder picks a direct route through the trap instead of
-        // looping forever around it. Adv triggers the trap, takes the
-        // damage (or dies), loop is broken either way.
-        avoidSprungTraps: !panicWalk,
+        // Sprung-trap soft-block (+SOFT_BLOCK_COST per sprung-pit tile)
+        // DISABLED 2026-05-27. It was the engine-level per-tile detour
+        // that made advs zig-zag around spike pits inside a room. With
+        // ROOM_TRAP_PENALTY (5×) already discouraging entry, once an
+        // adv DOES enter a trapped room they should walk straight
+        // through — eat the damage, no dodging. panicWalk no longer
+        // matters here since sprung-trap avoidance is off for everyone.
+        avoidSprungTraps: false,
         noClip:           cheaterNoClip,
       }
       // Add path jitter for non-flee goals so adventurers don't all march the
