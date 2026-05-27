@@ -1744,17 +1744,32 @@ export class DayPhase extends Phaser.Scene {
     if (!line) {
       const classBucket = lookup[adv.classId] ?? lookup.default ?? {}
       const killerKey   = this._resolveKillerKey(killerId)
-      // Lookup chain: per-trap-id (e.g. "spike_pit") → generic "trap"
-      // → bucket default → global default → "...".
-      // The generic "trap" step (2026-05-27) — _resolveKillerKey returns
-      // trap.definitionId for trap deaths so the previously hand-written
-      // classBucket.trap pools never fired. Fall through to them before
-      // hitting `default`.
-      const trapEntry = classBucket[killerKey]
-        ?? (this._gameState.dungeon?.traps?.some(t => t.instanceId === killerId)
-            ? classBucket.trap
-            : null)
-      const lines = trapEntry ?? classBucket.default ?? lookup.default?.default ?? ['...']
+      // Lookup chain (most specific → most generic):
+      //   1. classBucket[killerKey]    — per-class per-killer-id (e.g.
+      //                                   knight × "spike_pit")
+      //   2. classBucket.trap          — per-class generic trap pool,
+      //                                   only if killerId really is
+      //                                   a trap (avoids matching
+      //                                   "boss" or "minion" deaths)
+      //   3. lookup.default[killerKey] — global per-killer-id fallback
+      //                                   (e.g. shared "spike_pit"
+      //                                   pool in the default class
+      //                                   bucket — added 2026-05-27)
+      //   4. classBucket.default       — per-class catch-all
+      //   5. lookup.default.default    — global catch-all
+      //   6. "..."                     — defensive
+      //
+      // The killer-key trap step exists because _resolveKillerKey
+      // returns trap.definitionId for trap deaths and the legacy data
+      // has hand-keyed generic "trap" pools per class — without step 2
+      // those pools would never fire.
+      const isTrapKiller = !!this._gameState.dungeon?.traps?.some(t => t.instanceId === killerId)
+      const lines = classBucket[killerKey]
+        ?? (isTrapKiller ? classBucket.trap : null)
+        ?? lookup.default?.[killerKey]
+        ?? classBucket.default
+        ?? lookup.default?.default
+        ?? ['...']
       line = lines[Math.floor(Math.random() * lines.length)]
     }
 

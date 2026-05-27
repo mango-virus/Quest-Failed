@@ -88,7 +88,58 @@
       "minion":  ["Didn't see that coming.", "Fair fight, actually.", "Tell someone.", "At least I tried."],
       "boss":    ["The boss was... something.", "Bigger than I expected.", "Underestimated it.", "Fair."],
       "trap":    ["Who puts a trap THERE.", "Ow.", "Trap. Smart.", "I saw it. I stepped on it."],
-      "default": ["Aaargh!", "Tell my family.", "Ungh.", "Not like this...", "Almost...", "Worth a shot.", "I'll be back."]
+      "default": ["Aaargh!", "Tell my family.", "Ungh.", "Not like this...", "Almost...", "Worth a shot.", "I'll be back."],
+      "shooting_arrows": [
+        "Pincushion. Of course.",
+        "Arrows from the WALLS?",
+        "Death by archery wall.",
+        "Twang. Twang. Twang. Done.",
+        "I will never trust a corridor."
+      ],
+      "bomb": [
+        "I HEARD the click.",
+        "BOOM. That's the noise.",
+        "Boom-trap. Classic.",
+        "Should have stayed back.",
+        "The fuse was short."
+      ],
+      "cannon": [
+        "CANNON. Indoors?!",
+        "Big iron ball. Goodbye.",
+        "Volume of cannon: too high.",
+        "From which dungeon armory...",
+        "A whole CANNON."
+      ],
+      "spike_pillar": [
+        "Pillar of spikes. Excellent.",
+        "Vertical death. Polished.",
+        "I should have looked UP.",
+        "Wasn't on the ceiling. Was."
+      ],
+      "dragon_trap": [
+        "There's a DRAGON in the trap?",
+        "Fire. Where there was no fire.",
+        "Dragon-themed. Cute.",
+        "Burning. Burning is BAD."
+      ],
+      "spike_pit": [
+        "Floor opened. Floor SHOULD NOT.",
+        "Pit. Spikes. Predictable.",
+        "I forgot to check the floor.",
+        "Classic spike pit. Classic me."
+      ],
+      "rotating_blades": [
+        "Blades. Spinning. Bad.",
+        "Cuisinart corridor.",
+        "Should've crouched. Didn't.",
+        "The blades were FAST."
+      ],
+      "saw_blade": [
+        "Saw blade. Loud. Effective.",
+        "Through the floorboards.",
+        "I HEARD it coming.",
+        "The whirring should've warned me."
+      ]
     }
   },
 

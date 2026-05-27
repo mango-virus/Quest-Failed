@@ -356,16 +356,35 @@ export class ChatBubbles {
 
   // MINION_OBSERVED fires from KnowledgeSystem the first time an adv
   // sees a given minion definitionId (per day). We bubble a brief
-  // "spotted!" line — sticky per (adv, type) so the same adv doesn't
-  // shout every time they re-enter the same minion's room.
-  _onMinionObserved({ advId } = {}) {
+  // "spotted!" line — per-family-specific where the data has a
+  // matching `byMinionType` bucket, generic `minionSighted` otherwise.
+  //
+  // Sticky per (adv) — only one minion-sighting shout per adv per
+  // day, even if they see multiple new types. Prevents a wave of
+  // chatter when an adv walks into a multi-minion room. The first
+  // sighting wins (whichever specific type triggered the event).
+  _onMinionObserved({ advId, minionId } = {}) {
     if (!advId) return
     const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === advId)
     if (!adv) return
     this._sightedMinionTypes ??= {}
     if (this._sightedMinionTypes[advId]) return  // already shouted once today
     this._sightedMinionTypes[advId] = true
-    this._showContextualBubble(adv, this._pickEventLine('minionSighted'))
+
+    // Resolve the minion's family name from its definitionId.
+    // Minion ids are like "skeleton1" / "skeleton2" / "skeleton3" —
+    // strip the trailing tier digit to get the family ("skeleton").
+    // Some non-tiered ids (e.g. "orc_veteran", "demon_lord") are
+    // their own family and match the byMinionType keys directly.
+    const minion = (this._gameState.minions ?? []).find(m => m.instanceId === minionId)
+    const defId  = minion?.definitionId ?? ''
+    const family = defId.replace(/\d+$/, '')  // strip trailing tier digit
+    const familyLines = this._lines?.byMinionType?.[family]
+    if (Array.isArray(familyLines) && familyLines.length) {
+      this._showContextualBubble(adv, familyLines[Math.floor(Math.random() * familyLines.length)])
+    } else {
+      this._showContextualBubble(adv, this._pickEventLine('minionSighted'))
+    }
   }
 
   // BOSS_LEVELED_UP — pick a single random alive adv (not at-boss) to

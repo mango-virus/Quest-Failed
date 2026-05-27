@@ -1101,6 +1101,194 @@
     ]
   },
 
+  "byMinionType": {
+    "skeleton": [
+      "SKELETON. Cleaning duty.",
+      "Bones. Bones. Bones.",
+      "Skeleton tag. Smash it.",
+      "Bony bastard.",
+      "Re-kill it!"
+    ],
+    "goblin": [
+      "GOBLIN! Easy fight.",
+      "Goblin scout. Watch the pockets.",
+      "Goblins. Numerous. Annoying.",
+      "Mind the daggers.",
+      "Small but vicious."
+    ],
+    "orc": [
+      "AN ORC! Hold formation!",
+      "Big orc. Big problem.",
+      "Orcs hit HARD.",
+      "Brace yourselves!",
+      "Tusks incoming!"
+    ],
+    "orc_veteran": [
+      "Orc veteran. Killed before.",
+      "This one's experienced.",
+      "Veteran orc. Bad news.",
+      "Battle-scarred. Lethal.",
+      "Don't underestimate this one."
+    ],
+    "gnoll": [
+      "Gnolls. Hyena-people.",
+      "Watch the laugh!",
+      "Pack hunters. Stay close.",
+      "Gnoll incoming!"
+    ],
+    "gnoll_alpha": [
+      "Alpha gnoll! Take it first!",
+      "Pack leader. Kill it!",
+      "The big gnoll is here.",
+      "Alpha gnoll. Priority target."
+    ],
+    "imp": [
+      "Imp! Don't trust it.",
+      "Little devil!",
+      "Imp. Slippery.",
+      "Watch the fire!",
+      "Tiny menace."
+    ],
+    "demon": [
+      "DEMON. Holy water out!",
+      "Demon. Of course.",
+      "Greater fiend!",
+      "Don't make eye contact."
+    ],
+    "demon_lord": [
+      "Demon LORD! Run!",
+      "That's the big one.",
+      "Lordling. Catastrophe.",
+      "Major demon. Major problem."
+    ],
+    "ent": [
+      "ENT! The trees walk!",
+      "Tree-monster. Burn it?",
+      "Wooden giant.",
+      "Don't get crushed."
+    ],
+    "ghost": [
+      "Ghost. Weapons phase through.",
+      "Spectral. Annoying.",
+      "Can we even hit this?",
+      "Cold. So cold."
+    ],
+    "dark_wraith": [
+      "Wraith! Fear incoming!",
+      "Don't look at it.",
+      "Dark wraith! Hold morale!",
+      "The dread is creeping in."
+    ],
+    "golem": [
+      "Stone golem. Slow but deadly.",
+      "Big rock. Hit harder.",
+      "Golem. Bring picks.",
+      "Hits like a wall."
+    ],
+    "golem_warden": [
+      "Golem warden! Heavy hitter.",
+      "Wardens are tough.",
+      "Living wall.",
+      "This one HURTS."
+    ],
+    "mushroom": [
+      "Mushroom! Don't inhale!",
+      "Spore-thing.",
+      "Hold breath!",
+      "Fungus monster. Gross."
+    ],
+    "myconid_stalker": [
+      "Stalker fungus!",
+      "Cloak of spores.",
+      "Predator mushroom. Bad.",
+      "Cover your face!"
+    ],
+    "lizardman": [
+      "Lizardman! Watch the bite!",
+      "Scaly bastard.",
+      "Venomous? Yes.",
+      "Lizard kin. Quick."
+    ],
+    "serpent_captain": [
+      "Captain class! Tough fight.",
+      "Serpent leader. Lethal.",
+      "Watch the venom!",
+      "Captain in the room."
+    ],
+    "slime": [
+      "Slime. Splits when hit.",
+      "Goo. Just goo.",
+      "Slime — don't hit too hard.",
+      "It... divides."
+    ],
+    "elder_slime": [
+      "Elder slime! Big one!",
+      "Heavy slime. It SPLITS.",
+      "Ancient ooze. Stay back.",
+      "This slime is OLD."
+    ],
+    "beholder": [
+      "Beholder! Don't look UP.",
+      "Eye-tyrant!",
+      "Many eyes. All bad.",
+      "Cover the gaze!"
+    ],
+    "beholder_tyrant": [
+      "TYRANT! Big eye-thing!",
+      "Beholder lord!",
+      "Watch the central eye!",
+      "Maximum eye energy."
+    ],
+    "rat": [
+      "Rats. Fast and many.",
+      "Plague rat?",
+      "Don't get nibbled.",
+      "Rat swarm incoming."
+    ],
+    "plant": [
+      "Plant monster!",
+      "Vines! Watch the vines!",
+      "Carnivorous flora!",
+      "Why does it have teeth?"
+    ],
+    "mimic": [
+      "MIMIC! TRAP CHEST!",
+      "Don't touch chests!",
+      "Faker. Spotted.",
+      "I'm done with chests."
+    ],
+    "zombie": [
+      "Zombie. Aim for the head.",
+      "Walking corpse!",
+      "Slow but persistent.",
+      "Headshots, people!"
+    ],
+    "vampire_minion": [
+      "Vampire thrall!",
+      "Blood-drinker!",
+      "Holy symbols UP!",
+      "Don't let it bite."
+    ],
+    "vampire_sovereign": [
+      "SOVEREIGN! THE LORD!",
+      "Bow or die. Maybe both.",
+      "Master vampire.",
+      "Holy water, all of it!"
+    ],
+    "lich": [
+      "LICH! Find the phylactery!",
+      "Spellcaster. Interrupt!",
+      "Death-mage!",
+      "Don't let it cast!"
+    ],
+    "elder_lich": [
+      "ELDER LICH! Worst case!",
+      "Ancient spellcaster!",
+      "Lich at MAX rank.",
+      "We are very dead."
+    ]
+  },
+
   "byRoomType": {
     "catacombs": [
       "Catacombs. The dead don't rest.",
