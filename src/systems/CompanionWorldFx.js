@@ -12,10 +12,24 @@
 //   • Malakor — extra purple combat-spark burst on every COMBAT_HIT, on
 //               top of CombatFeedback's existing damage number. Reads
 //               as "the war-priest's wrath is in the air."
-//   • Zul'Gath — handled in CoinBurstRenderer (beefier coin burst) and
-//               DungeonRenderer (treasury gold-haze overlay) — NOT here.
-//   • Safira  — DOM-only cursor sparkles, handled in CompanionCursor —
-//               also NOT here.
+//
+// Other companions' world VFX live elsewhere:
+//   • Zul'Gath — handled in CoinBurstRenderer (beefier coin burst:
+//               multiplied count, bigger gold label, gold pulse-ring
+//               at the pickup point). NOT here.
+//   • Safira  — DOM-only cursor sparkles, handled in CompanionCursor.
+//               NOT here.
+//   • Rattle Bones, Spectra — no world VFX yet; HUD accent + dialogue
+//               only. (Spectra also has the ghost-flicker opacity
+//               overlay on her own portrait, handled in NpcCompanion.)
+//
+// REMOVED 2026-05-27 per user instruction (no replacement planned):
+//   • Lilith pink-wash on boss room
+//   • Zul'Gath gold-haze on treasury
+// Both were originally pitched as DungeonRenderer room overlays. The
+// header used to mention them as living "in DungeonRenderer — NOT here"
+// but they are NOT in DungeonRenderer or anywhere else — those features
+// are intentionally cut. Don't re-add without explicit user approval.
 //
 // All draws use AbilityVfx so they respect the user's particle quality
 // setting (off / low / med / high) and skip cleanly if the target's
