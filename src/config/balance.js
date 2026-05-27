@@ -34,7 +34,16 @@ export const Balance = {
 
   // --- Boss progression ---
   BOSS_XP_BASE:      50,   // XP needed to reach lv 2
-  BOSS_XP_SCALE:    1.5,   // XP curve: xpForLv(n) = BASE * SCALE^(n-1)
+  BOSS_XP_SCALE:    1.4,   // XP curve: xpForLv(n) = BASE * SCALE^(n-1)
+                           // Tuned 2026-05-27 from 1.5 → 1.4 so the
+                           // 20-step progression (achievements ladder
+                           // tops out at lv 20) is actually reachable
+                           // by a committed player. Old 1.5 put lv 20
+                           // around day 178 (effectively unreachable);
+                           // 1.4 lands it near day 105 at 100% kills,
+                           // ~day 130 at realistic kill rates. Early
+                           // levels (1–10) feel near-identical; the
+                           // change compresses the late-game tail.
   BOSS_XP_PER_KILL:  10,   // boss XP awarded per adventurer kill
   // Boss fight-stat growth per level. Applied additively on every
   // BOSS_LEVELED_UP so it stacks cleanly with ability/event modifiers.
