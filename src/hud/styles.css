@@ -9235,7 +9235,13 @@ body {
   bottom: calc(360px + (var(--npc-bubble-scale, 1) - 1) * 350px + var(--npc-bubble-lift, 0px));
   width: 300px;
   padding: 9px 13px 11px;
-  background: var(--bg-1);
+  /* Slightly transparent (82% bg-1) so the bubble doesn't block the view
+     of the dungeon behind it. Text + border stay fully opaque on their
+     own layer so readability is unaffected. Tutorial / intro bubbles
+     override to full opacity further down — sticky messages need
+     maximum visibility and aren't a "blocking the view" problem because
+     the player is meant to stop and read them anyway. */
+  background: color-mix(in srgb, var(--bg-1) 82%, transparent);
   /* Per-companion accent on the border + a soft outer halo so each
      companion's bubble reads as theirs at a glance. The tail keeps its
      black outline + dark fill (see ::before / ::after below) so the
@@ -9289,7 +9295,10 @@ body {
 .qf-npc-bubble::after {         /* fill */
   bottom: -11px;
   border-width: 12px 11px 0 0;
-  border-color: var(--bg-1) transparent transparent transparent;
+  /* Matches the bubble background's 82% alpha so the tail blends with
+     the bubble fill instead of looking like a solid notch under a
+     translucent box. */
+  border-color: color-mix(in srgb, var(--bg-1) 82%, transparent) transparent transparent transparent;
 }
 
 .qf-npc-eyebrow {
@@ -9398,8 +9407,13 @@ body {
   color: #1a0a04;
 }
 
-/* Tutorial / intro mode — gold-accented bubble so a "lesson" reads distinctly. */
+/* Tutorial / intro mode — gold-accented bubble so a "lesson" reads
+   distinctly. Also restores FULL opacity on the background (the base
+   rule sets 82% alpha to not block the dungeon view) — sticky messages
+   are modal-by-design and the player is meant to stop and read them,
+   so the see-through-the-bubble concern doesn't apply here. */
 .qf-npc[data-tutorial="true"] .qf-npc-bubble {
+  background: var(--bg-1);
   border-color: var(--gold);
   box-shadow:
     inset 2px 2px 0 rgba(255, 255, 255, 0.06),
