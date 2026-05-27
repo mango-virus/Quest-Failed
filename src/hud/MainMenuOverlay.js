@@ -413,9 +413,10 @@ export class MainMenuOverlay {
     // makes these entries appear / disappear without leaving the menu.
     if (PlayerProfile.isCheatName()) {
       items.push(
-        { id: 'jump50', label: 'JUMP TO DAY 50', sub: 'Late-game wave test (day 50, boss L7)', icon: '▶', color: 'var(--blood)' },
-        { id: 'rooms', label: 'ROOM EDITOR', sub: 'Edit room layouts', icon: '▤', color: 'var(--poison)' },
-        { id: 'tiles', label: 'TILESET EDITOR', sub: 'Author tile themes', icon: '▦', color: 'var(--info)' },
+        { id: 'jump50',     label: 'JUMP TO DAY 50',  sub: 'Late-game wave test (day 50, boss L7)', icon: '▶', color: 'var(--blood)' },
+        { id: 'rooms',      label: 'ROOM EDITOR',     sub: 'Edit room layouts',                     icon: '▤', color: 'var(--poison)' },
+        { id: 'tiles',      label: 'TILESET EDITOR',  sub: 'Author tile themes',                    icon: '▦', color: 'var(--info)' },
+        { id: 'testunlock', label: 'TEST UNLOCKS',    sub: 'Fire sample of each card type',         icon: '✦', color: 'var(--gold-bright, #ffd964)' },
       )
     }
     items.push(
@@ -683,6 +684,14 @@ export class MainMenuOverlay {
         this.close()
         game.scene.start('TilesetEditor')
         break
+      case 'testunlock':
+        // Dev-only entry (mango gate) — queues one of each unlock card
+        // type + fires the UnlockNotificationOverlay right here so the
+        // designer can sanity-check the four card layouts without
+        // grinding an actual unlock. Uses real ids that exist in the
+        // shipped data so the sprites/portraits resolve normally.
+        this._testFireUnlocks()
+        break
       case 'options':
         this._openSettings()
         break
@@ -814,6 +823,42 @@ export class MainMenuOverlay {
       })
       this._achievements.open()
     })
+  }
+
+  // Dev-only helper — wired to the mango-gated TEST UNLOCKS menu item.
+  // Pushes a sample entry of each card type to the pending-unlocks
+  // queue (mirrors what `AchievementSystem._unlock` would do in real
+  // play) and immediately opens the notification overlay. Reuses real
+  // ids that ship in the data so sprites / portraits / names all
+  // resolve as they would in a live unlock. On close the overlay
+  // clears the queue normally — no special cleanup required.
+  _testFireUnlocks() {
+    if (this._unlockOverlay) return
+    // 1 achievement (no reward) + 1 boss + 1 companion + 1 title.
+    // Order mirrors the live "you earned it → here's what it gives you"
+    // sequence the real _unlock funnel produces.
+    try {
+      PlayerProfile.queueUnlock({ type: 'achievement', id: 'first_trap' })
+      PlayerProfile.queueUnlock({ type: 'boss',        id: 'lich',        achId: 'hardened_throne' })
+      PlayerProfile.queueUnlock({ type: 'companion',   id: 'rattlebones', achId: 'curtain_call' })
+      PlayerProfile.queueUnlock({
+        type: 'title',
+        id:    'curtain_call',
+        title: 'The Showrunner',
+        achId: 'curtain_call',
+      })
+    } catch {}
+    import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {
+      if (this._closed || !this._el) return
+      if (this._unlockOverlay) return
+      this._unlockOverlay = new UnlockNotificationOverlay({
+        onClose: () => {
+          this._unlockOverlay = null
+          if (!this._closed && this._el) this._refreshMenuItems()
+        },
+      })
+      this._unlockOverlay.open()
+    }).catch(() => {})
   }
 
   destroy() { this.close() }
