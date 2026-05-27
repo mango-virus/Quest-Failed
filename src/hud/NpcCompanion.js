@@ -62,6 +62,23 @@ export class NpcCompanion {
     this._imgTxDocked = this._companion.hudOffsetXDocked ?? 0
     this._imgTyDocked = this._companion.hudOffsetYDocked ?? 0
     this._mode      = userSettings.companionMode()
+    // Variant rotation (Spectra and any future companion with multiple
+    // sprite poses per emotion). `variantGroups` maps a SEMANTIC id (the
+    // value dialogue banks use in `x:`) to a list of variant file
+    // basenames in `spriteDir`. When set, _setExpression picks a random
+    // variant from the group each time the semantic id fires. Companions
+    // without variantGroups behave exactly as before — the file name is
+    // the semantic id.
+    this._variantGroups = this._companion.variantGroups ?? null
+    // Ghost-flicker overlay (Spectra). On each expression change, roll a
+    // dice — with probability `ghostFlickerRate` the sprite renders at
+    // `ghostFlickerAlpha` opacity instead of full alpha. Solid-only
+    // expressions (the spooky "she means it" set) are exempt — they
+    // always render full alpha for impact. Off by default for every
+    // other companion (rate stays 0 → no roll, full opacity always).
+    this._flickerRate  = this._companion.ghostFlickerRate  ?? 0
+    this._flickerAlpha = this._companion.ghostFlickerAlpha ?? 0.7
+    this._solidOnly    = new Set(this._companion.solidOnlyExpressions ?? [])
     this._curExpr   = null
     this._frontIsA  = true
     this._exprToken = 0
@@ -184,8 +201,16 @@ export class NpcCompanion {
   _on(evt, fn) { EventBus.on(evt, fn); this._listeners.push([evt, fn]) }
 
   _preloadAll() {
+    const seen = new Set()
     for (const id of this._expressions) {
-      const im = new Image(); im.src = this._dir + id + '.webp'
+      // Resolve to all variant files for this semantic id; companions
+      // without variantGroups have one file per id (the id itself).
+      const variants = this._variantGroups?.[id] ?? [id]
+      for (const v of variants) {
+        if (seen.has(v)) continue
+        seen.add(v)
+        const im = new Image(); im.src = this._dir + v + '.webp'
+      }
     }
   }
 
@@ -202,17 +227,42 @@ export class NpcCompanion {
     if (!this._expressions.includes(expr)) expr = this._rest
     if (expr === this._curExpr) return
     this._curExpr = expr
+    // Resolve the SEMANTIC id to a concrete variant file. For companions
+    // with no `variantGroups`, the file basename is just the id itself.
+    // For Spectra and similar, a random pick from the group rotates poses
+    // across deliveries so 100+ source sprites all see screen-time.
+    const variants = this._variantGroups?.[expr]
+    const file = (Array.isArray(variants) && variants.length > 0)
+      ? variants[Math.floor(Math.random() * variants.length)]
+      : expr
+    // Ghost-flicker overlay (Spectra). Dice-roll once per delivery; the
+    // chosen opacity stays for this expression's full on-screen duration
+    // (don't strobe mid-line). Solid-only expressions skip the roll
+    // entirely and always render full alpha.
+    const flickerExempt = this._solidOnly.has(expr)
+    const flicker = !flickerExempt && this._flickerRate > 0 &&
+                    Math.random() < this._flickerRate
+    const targetAlpha = flicker ? this._flickerAlpha : 1
     const token = ++this._exprToken
     const back  = this._frontIsA ? this._imgB : this._imgA
     const front = this._frontIsA ? this._imgA : this._imgB
     const swap = () => {
       if (token !== this._exprToken) return
+      // Drive front-image alpha via the `--npc-front-alpha` CSS variable
+      // (see `.qf-npc-img.front` rule in styles.css). Setting opacity as a
+      // RAW inline style here previously leaked into the next swap — when
+      // the image lost the `.front` class it kept its inline opacity and
+      // stayed visible behind the new front, producing the "stacked
+      // sprites" bug. Driving alpha through the CSS variable means the
+      // base `.qf-npc-img { opacity: 0 }` rule re-applies cleanly once
+      // `.front` is removed, regardless of any leftover --npc-front-alpha.
+      back.style.setProperty('--npc-front-alpha', String(targetAlpha))
       back.classList.add('front')
       front.classList.remove('front')
       this._frontIsA = !this._frontIsA
     }
     back.onload = swap
-    back.src = this._dir + expr + '.webp'
+    back.src = this._dir + file + '.webp'
     if (back.complete && back.naturalWidth) swap()
   }
 

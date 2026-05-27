@@ -72,6 +72,14 @@ const DEFAULT_METRICS = {
   // Bones). Mirrors `bossKillsInRunMax`'s tracking shape — incremented
   // in `_onAdventurerDied` whenever a death is sourced to a trap.
   trapKillsInRunMax:          0,
+  // Longest streak of consecutive days survived in a single run during
+  // which the boss took ZERO damage from ANY source — adventurer hits,
+  // mechanic self-costs (Lightning HP cost), summon-add toll, etc. Once
+  // a single damage event lands, the run's no-hit streak FREEZES — no
+  // further days are added even if subsequent days are clean. The player
+  // has to start a fresh run to climb again. Gates the legendary
+  // `flawless_reign` achievement (Spectra unlock — 30 days untouched).
+  daysSurvivedNoHitMax:       0,
   minionsInRunMax:            0,
   roomsInRunMax:              0,
   minionTypesActiveMax:       0,
@@ -198,6 +206,15 @@ class AchievementSystemImpl {
       trapKills:         0,
       // Live-set of active minion types this run (for minionTypesActiveMax).
       activeMinionTypes: new Set(),
+      // No-hit run tracking (Flawless Reign legendary — Spectra unlock).
+      // `bossEverDamagedThisRun` flips to true the FIRST time the boss
+      // takes any damage from any source in the run (combat, mechanic
+      // self-cost, summon-add toll). Once true, it stays true for the
+      // rest of the run — `daysSurvivedNoHit` stops incrementing.
+      // The counter rolls up into the career metric `daysSurvivedNoHitMax`
+      // at each DAY_PHASE_ENDED while the flag is still false.
+      bossEverDamagedThisRun: false,
+      daysSurvivedNoHit:      0,
     }
   }
 
@@ -234,6 +251,22 @@ class AchievementSystemImpl {
     on('DAY_PHASE_ENDED',         (p) => this._onDayPhaseEnded(p))
     on('GAME_STATE_LOADED',       (p) => this._onGameStateLoaded(p))
     on('SHOW_GAME_OVER',          (p) => this._onGameOver(p))
+    // Flawless Reign damage tracking — three signal paths, all flip the
+    // per-run no-hit flag the same way. Splitting per-source emits keeps
+    // existing payload shapes intact; we just normalise here.
+    on('BOSS_DAMAGED',            (p) => this._onBossDamaged(p?.amount))
+    on('SUMMON_ADD_DEATH_BOSS_TOLL', (p) => this._onBossDamaged(p?.amount))
+    on('PACT_BOSS_LIGHTNING_FIRED', (p) => this._onBossDamaged(p?.selfCost))
+  }
+
+  // Flawless Reign damage signal — flips the per-run flag the first
+  // time the boss loses HP from any source in a run. Once flipped, the
+  // run's no-hit streak is frozen for the remainder of the run; the
+  // player has to start a fresh run to chase 30 days clean.
+  _onBossDamaged(amount) {
+    if (!(amount > 0)) return
+    if (this._runState.bossEverDamagedThisRun) return  // already flagged
+    this._runState.bossEverDamagedThisRun = true
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────
@@ -473,6 +506,17 @@ class AchievementSystemImpl {
       if (aliveMinions) {
         this._metrics.noMinionsLostInDayEver = 1
         this._checkMetric('noMinionsLostInDayEver')
+      }
+    }
+    // Flawless Reign — increment the no-hit run counter ONLY if the boss
+    // hasn't taken any damage yet this run. Once the flag is flipped, the
+    // counter freezes (no further increments) until the next run starts
+    // (`_onGameStateLoaded` calls `_resetRunState` which clears both).
+    if (!this._runState.bossEverDamagedThisRun) {
+      this._runState.daysSurvivedNoHit += 1
+      if (this._runState.daysSurvivedNoHit > this._metrics.daysSurvivedNoHitMax) {
+        this._metrics.daysSurvivedNoHitMax = this._runState.daysSurvivedNoHit
+        this._checkMetric('daysSurvivedNoHitMax')
       }
     }
     this._persistMetrics()

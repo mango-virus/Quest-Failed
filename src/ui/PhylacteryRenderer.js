@@ -51,13 +51,19 @@ export class PhylacteryRenderer {
     const candidates = [phyl.spriteKey, 'heart-full'].filter(Boolean)
     const spriteKey  = candidates.find(k => s.textures?.exists?.(k))
     let sprite = null
+    let baseScale = 1
     if (spriteKey) {
-      sprite = s.add.sprite(0, 0, spriteKey).setOrigin(0.5).setScale(1.2)
+      baseScale = 1.2
+      sprite = s.add.sprite(0, 0, spriteKey).setOrigin(0.5).setScale(baseScale)
       sprite.texture?.setFilter?.(Phaser.Textures.FilterMode.NEAREST)
     } else {
       // Fallback diamond if no heart texture is loaded.
       sprite = s.add.rectangle(0, 0, 18, 18, 0xee2255, 1).setStrokeStyle(2, 0xffaaaa, 1)
     }
+    // Stash the resting scale so the breathing animation in update()
+    // can pulse around the correct baseline regardless of whether the
+    // sprite is the 1.2x heart texture or the 1.0x fallback rectangle.
+    this._baseScale = baseScale
 
     const hpY = -16
     const hpBg   = s.add.rectangle(0,                   hpY, this._hpBarW, 3, 0x220a06, 0.95).setOrigin(0.5)
@@ -109,6 +115,18 @@ export class PhylacteryRenderer {
     if (this._sprite?.setTint) {
       if (now < this._hurtUntil) this._sprite.setTint(0xffaaaa)
       else                        this._sprite.clearTint()
+    }
+
+    // Breathing pulse — subtle sine-driven scale wobble around the
+    // resting baseline so the heart visibly reads as "alive." Period
+    // ~2.5 s (slow inhale-exhale rhythm), amplitude ±4% of base, which
+    // is just enough to be noticed without competing with the hurt
+    // flash or pulling attention from gameplay. Composes orthogonally
+    // with the tint flash above (scale and tint are independent).
+    if (this._sprite?.setScale) {
+      const base = this._baseScale ?? 1
+      const breathe = base + Math.sin(now * 0.0025) * 0.04 * base
+      this._sprite.setScale(breathe)
     }
   }
 }

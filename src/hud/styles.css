@@ -9241,7 +9241,14 @@ body {
   transform: translate(var(--npc-img-tx-docked, 0px), var(--npc-img-ty-docked, 0px))
              scale(var(--npc-img-scale, 1));
 }
-.qf-npc-img.front { opacity: 1; }
+/* Front image opacity is driven by `--npc-front-alpha` (default 1). Ghost-
+   flicker companions (Spectra) flip this to ~0.7 per delivery via inline
+   style on the front image. Using a CSS var lets the `.front` rule own
+   opacity — when an image LOSES the `.front` class, the base `opacity: 0`
+   rule applies regardless of any leftover inline alpha. Without this,
+   the previous front's inline opacity would linger and the old sprite
+   would stay visible behind the new front — the "stacked sprites" bug. */
+.qf-npc-img.front { opacity: var(--npc-front-alpha, 1); }
 
 @keyframes qf-npc-bob {
   0%, 100% { transform: translateY(0)    rotate(0deg); }

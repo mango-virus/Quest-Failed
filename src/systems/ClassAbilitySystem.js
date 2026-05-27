@@ -1051,6 +1051,34 @@ export class ClassAbilitySystem {
   // ── Twitch Streamer ──────────────────────────────────────────────────────
 
   _considerTwitch(adv, now) {
+    // Boss-down handling — once the boss falls in a fight, AISystem.
+    // _onBossFightResolved sweeps every alive adv into FLEE. Streamers
+    // need the same lock applied to BOTH chat abilities: Chat Decides
+    // can flip the goal back to SEEK_BOSS / EXPLORE_ROOM (undoing the
+    // flee), and Viewers Choice keeps the slot animation popping over
+    // the streamer's head while they should be sprinting for the exit.
+    // Mirrors the same `boss.hp > 0` gate AISystem uses on chat_poll
+    // (Phase 10b). HP refreshes to maxHp at the START of the next
+    // fight (see BossSystem._init / pre-fight setup), so this window
+    // is exactly "boss is currently down" — once the next fight kicks
+    // off the streamer's chat rolls re-enable.
+    //
+    // We also push the FLEE goal here in case the streamer wasn't
+    // alive when `_onBossFightResolved` ran (late-spawn waves arriving
+    // after the boss has been downed the same day). Skipped while
+    // the streamer is mid-combat or already fleeing.
+    if ((this._gameState.boss?.hp ?? 1) <= 0) {
+      const isCombatLocked = adv.aiState === 'fighting' || adv.aiState === 'fleeing' ||
+                             adv.aiState === 'fled' || adv.aiState === 'leaving' ||
+                             adv.aiState === 'dead'
+      if (!isCombatLocked && adv.goal?.type !== 'FLEE') {
+        adv.goal    = { type: 'FLEE', reason: 'boss_defeated' }
+        adv.aiState = 'fleeing'
+        adv.path    = null
+      }
+      return
+    }
+
     // Viewers Choice — random RNG buff/debuff every ~8s on cooldown.
     const vcDef = ABILITY_DEFS.twitch_viewers_choice
     const ready = AbilitySystem.canUse(adv, vcDef, now)

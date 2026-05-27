@@ -434,6 +434,173 @@ const COMPANIONS = {
       'worried.png':                   'worried',
     },
   },
+
+  // Spectra — teen-ghost otaku companion. 113 source PNGs grouped into
+  // ~62 semantic expression IDs. Variants get `-N` suffixes (`happy`,
+  // `happy-2`, `happy-3`). Companion registry's `variantGroups` maps each
+  // semantic id back to its variant list so NpcCompanion can rotate at
+  // display time — see companions.js.
+  //
+  // Two deliberate drops:
+  //   • `idle 1 see through.png` — user instruction. The ghost-flicker
+  //     opacity overlay (NpcCompanion) gives this effect to every variant
+  //     for free, so a dedicated see-through idle would just double up.
+  //   • `weeb 4` doesn't exist in source — `weeb 5-Photoroom.png` becomes
+  //     `weeb-4` so the variant ids stay gap-free.
+  //
+  // Naming notes:
+  //   • Source PNGs use `-Photoroom` suffix (artist's BG-removal export).
+  //     Three sources don't have it: `Idle.png`, `idle 1 see through.png`
+  //     (dropped), `looking in mirror.png`.
+  //   • Source filename misspelling `mischevious` → corrected to `mischievous`.
+  //   • `cheerful` collapses into `happy-3` (visual variant of happy).
+  //   • `pro gamer` collapses into `gaming-2` (gamer-pose variant).
+  //   • `using ghost powers` joins `ghostly power 1/2` as `ghost-power-3`.
+  //   • Spooky group (`scary`, `skulls`, `ghost-power-*`) and the
+  //     teasing/seductive/sexy group get special handling in the
+  //     companions.js registry (rare flavor + solidOnly flicker exempt).
+  spectra: {
+    srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/Spectra',
+    outDir: 'assets/npc-spectra',
+    map: {
+      // Idle / quiet beats
+      'Idle.png':                                          'idle',
+      'idle 2-Photoroom.png':                              'idle-2',
+      'bored 1-Photoroom.png':                             'bored',
+      'bored 2-Photoroom.png':                             'bored-2',
+      'sleeping 1-Photoroom.png':                          'sleeping',
+      'sleeping 2-Photoroom.png':                          'sleeping-2',
+      'yawning-Photoroom.png':                             'yawning',
+
+      // Generic emotional baseline
+      'happy 1-Photoroom.png':                             'happy',
+      'happy 2-Photoroom.png':                             'happy-2',
+      'cheerful-Photoroom.png':                            'happy-3',
+      'excited 1-Photoroom.png':                           'excited',
+      'excited 2-Photoroom.png':                           'excited-2',
+      'sad-Photoroom.png':                                 'sad',
+      'upset-Photoroom.png':                               'upset',
+      'crying-Photoroom.png':                              'crying',
+      'proud-Photoroom.png':                               'proud',
+      'confused 1-Photoroom.png':                          'confused',
+      'confused 2-Photoroom.png':                          'confused-2',
+      'shocked-Photoroom.png':                             'shocked',
+      'surprised-Photoroom.png':                           'surprised',
+      'thinking-Photoroom.png':                            'thinking',
+      'focused 1-Photoroom.png':                           'focused',
+      'focused 2-Photoroom.png':                           'focused-2',
+      'annoyed-Photoroom.png':                             'annoyed',
+
+      // Anger register
+      'angry-Photoroom.png':                               'angry',
+      'chibi rage-Photoroom.png':                          'chibi-rage',
+      'anime dramatic anger-Photoroom.png':                'dramatic-anger',
+
+      // Positive register
+      'laughing-Photoroom.png':                            'laughing',
+      'laughing 2-Photoroom.png':                          'laughing-2',
+      'smug-Photoroom.png':                                'smug',
+      'mischevious-Photoroom.png':                         'mischievous',
+      'winking-Photoroom.png':                             'winking',
+
+      // General poses
+      'pointing-Photoroom.png':                            'pointing',
+      'explaining something-Photoroom.png':                'explaining',
+      'looking-away-Photoroom.png':                        'looking-away',
+
+      // Anime reactions
+      'sparkle eyes-Photoroom.png':                        'sparkle-eyes',
+      'anime bishie sparkles-Photoroom.png':               'bishie-sparkles',
+      'anime gasp 1-Photoroom.png':                        'anime-gasp',
+      'anime gasp 2-Photoroom.png':                        'anime-gasp-2',
+      'sweatdrop worried-Photoroom.png':                   'sweatdrop',
+      'anime nose bleed-Photoroom.png':                    'nose-bleed',
+      'heart eyes-Photoroom.png':                          'heart-eyes',
+      'anime heart eyes-Photoroom.png':                    'heart-eyes-2',
+      'anime wibbly mouth about to cry-Photoroom.png':     'wibbly-mouth',
+      'senpai notice (excited at being noticed by senpai) 1-Photoroom.png': 'senpai-notice',
+      'senpai notice (excited at being noticed by senpai) 2-Photoroom.png': 'senpai-notice-2',
+      'senpai notice (excited at being noticed by senpai) 3-Photoroom.png': 'senpai-notice-3',
+      'blushing 1-Photoroom.png':                          'blushing',
+      'blushing 2-Photoroom.png':                          'blushing-2',
+      'looking cute 1-Photoroom.png':                      'looking-cute',
+      'looking cute 2-Photoroom.png':                      'looking-cute-2',
+      'looking cute 3-Photoroom.png':                      'looking-cute-3',
+      'weeb-Photoroom.png':                                'weeb',
+      'weeb 2-Photoroom.png':                              'weeb-2',
+      'weeb 3-Photoroom.png':                              'weeb-3',
+      'weeb 5-Photoroom.png':                              'weeb-4',
+      'watching anime 1-Photoroom.png':                    'watching-anime',
+      'watching anime 2-Photoroom.png':                    'watching-anime-2',
+      'reading manga 1-Photoroom.png':                     'reading-manga',
+      'reading manga 2-Photoroom.png':                     'reading-manga-2',
+      'reading manga 3-Photoroom.png':                     'reading-manga-3',
+      'reading manga 4-Photoroom.png':                     'reading-manga-4',
+      'taking photo excited-Photoroom.png':                'taking-photo',
+
+      // Gamer
+      'gaming-Photoroom.png':                              'gaming',
+      'pro gamer-Photoroom.png':                           'gaming-2',
+      'button mashing-Photoroom.png':                      'button-mashing',
+      'twitch streamer 1-Photoroom.png':                   'streaming',
+      'twitch streamer 2-Photoroom.png':                   'streaming-2',
+      'twitch streamer 3-Photoroom.png':                   'streaming-3',
+      'rage quit-Photoroom.png':                           'rage-quit',
+      'gg victory-Photoroom.png':                          'gg-victory',
+      'texting 1-Photoroom.png':                           'texting',
+      'texting 2-Photoroom.png':                           'texting-2',
+      'phone scrolling-Photoroom.png':                     'phone-scrolling',
+
+      // Snacks
+      'eating snacks 1-Photoroom.png':                     'eating-snacks',
+      'eating snacks 2-Photoroom.png':                     'eating-snacks-2',
+      'cheeks stuffed-Photoroom.png':                      'cheeks-stuffed',
+      'pocky mouth 1-Photoroom.png':                       'pocky-mouth',
+      'pocky mouth 2-Photoroom.png':                       'pocky-mouth-2',
+      'chip-bag-shake (tipping crumbs out)-Photoroom.png': 'chip-bag-shake',
+      'juice-box-sip-Photoroom.png':                       'juice-box-sip',
+      'peering into empty chip bag-Photoroom.png':         'empty-bag',
+      'caught snacking-Photoroom.png':                     'caught-snacking',
+
+      // Distracted
+      'distracted-Photoroom.png':                          'distracted',
+      'distracted 2-Photoroom.png':                        'distracted-2',
+      'distracted 3-Photoroom.png':                        'distracted-3',
+      'distracted 4-Photoroom.png':                        'distracted-4',
+      'doodling-absently 1-Photoroom.png':                 'doodling',
+      'doodling absently 2-Photoroom.png':                 'doodling-2',
+      'looking in mirror.png':                             'mirror-check',
+
+      // Fan / hobby
+      'holding favorite plush 1-Photoroom.png':            'plush-hug',
+      'holding favorite plush 2-Photoroom.png':            'plush-hug-2',
+      'holding favorite plush 3-Photoroom.png':            'plush-hug-3',
+      'holding favorite plush 4-Photoroom.png':            'plush-hug-4',
+      'holding favorite plush 5-Photoroom.png':            'plush-hug-5',
+      'holding multiple plushies 1-Photoroom.png':         'holding-plushies',
+      'holding multiple plushies 2-Photoroom.png':         'holding-plushies-2',
+      'holding tons of anime plushies-Photoroom.png':      'holding-plushies-3',
+      'holding up anime figure 1-Photoroom.png':           'figure-collection',
+      'holding up anime figure 2-Photoroom.png':           'figure-collection-2',
+      'holding multiple figures-Photoroom.png':            'figure-collection-3',
+
+      // Teasing / flirty (rare flavor)
+      'teasing 1-Photoroom.png':                           'teasing',
+      'teasing 2-Photoroom.png':                           'teasing-2',
+      'teasing 3-Photoroom.png':                           'teasing-3',
+      'teasing 4-Photoroom.png':                           'teasing-4',
+      'teasing 5-Photoroom.png':                           'teasing-5',
+      'seductive-Photoroom.png':                           'seductive',
+      'sexy-Photoroom.png':                                'sexy',
+
+      // Spooky (rare, solidOnly — exempt from ghost-flicker overlay)
+      'scary-Photoroom.png':                               'scary',
+      'surrounded by skulls-Photoroom.png':                'skulls',
+      'ghostly power 1-Photoroom.png':                     'ghost-power',
+      'ghostly power 2-Photoroom.png':                     'ghost-power-2',
+      'using ghost powers-Photoroom.png':                  'ghost-power-3',
+    },
+  },
 }
 
 async function bakeCompanion(id, cfg) {

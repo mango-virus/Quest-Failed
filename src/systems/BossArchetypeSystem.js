@@ -1282,15 +1282,37 @@ export class BossArchetypeSystem {
         EventBus.emit('PHYLACTERY_DESTROYED', { phylactery: phyl })
         // Drop the entity from gameState now that VFX/UI has had its event.
         this._gameState.phylactery = null
-        // Surviving hunters head home.
+        // One heart per run (2026-05-27): destruction is permanent. The
+        // player can't place a new phylactery for the rest of this run.
+        // Latches on the player state so it survives save/load and the
+        // night build phase. ONLY destruction (this path) sets the flag —
+        // selling or moving the heart emits PHYLACTERY_REMOVED instead
+        // and leaves the flag clear, so the player can freely reposition
+        // a still-alive heart without losing the option to re-place it.
+        this._gameState.player ??= {}
+        this._gameState.player._phylacteryDestroyedThisRun = true
+        // Heart destruction = end-of-day (2026-05-27). Mirror the "boss
+        // killed" path: every active adv flees as if the boss had just
+        // fallen, and `_diedThisDay` latches on the boss so any later-
+        // arriving wave is bounced by `_onIncoming`'s existing handoff.
+        // The boss itself is still alive (revive bumped deathsRemaining
+        // to 1 earlier); they just can't be fought again until tomorrow.
+        //
+        // AT_BOSS advs are skipped — they're inside an active fight
+        // BossSystem owns; the fight runs to its natural resolution and
+        // BossSystem dispatches its own flee on survivors. Already-
+        // fleeing advs are also skipped so we don't reset their reason.
+        const boss = this._gameState?.boss
+        if (boss) boss._diedThisDay = true
         for (const a of this._gameState?.adventurers?.active ?? []) {
-          if (a._huntPhylactery) {
-            a._huntPhylactery = false
-            if (a.goal?.type === 'HUNT_PHYLACTERY') {
-              a.goal = { type: 'FLEE', reason: 'phylactery_destroyed' }
-              a.aiState = 'fleeing'
-              a.path = null
-            }
+          if (!a) continue
+          if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+          if (a.goal?.type === 'AT_BOSS') continue
+          a._huntPhylactery = false
+          if (a.goal?.type !== 'FLEE') {
+            a.goal = { type: 'FLEE', reason: 'phylactery_destroyed' }
+            a.aiState = 'fleeing'
+            a.path = null
           }
         }
       }

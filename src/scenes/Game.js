@@ -144,7 +144,32 @@ export class Game extends Phaser.Scene {
     this._isMangoCheat = PlayerProfile.isCheatName()
     if (this._isMangoCheat) this._applyMangoCheatUnlocks()
 
-    this.dungeonGrid         = new DungeonGrid(this.gameState.dungeon)
+    // Lifecycle registry. Every system + renderer constructed below is
+    // wrapped in `track(...)`, which pushes it onto this._lifecycle and
+    // returns it for assignment. Game.shutdown() iterates the list (in
+    // LIFO order) and calls .destroy() on each — no parallel destroy
+    // chain to maintain, so a newly-added system can never leak its
+    // EventBus subscriptions across runs by being forgotten in shutdown.
+    //
+    // This pattern replaced the prior hand-maintained destroy chain
+    // after BossArchetypeSystem leaked (vampire-charm-on-every-archetype
+    // bug, 2026-05-27): the constructor was added in create() but the
+    // matching destroy call was never added in shutdown(), so the
+    // previous run's instance kept reacting to ADVENTURERS_SPAWNED on
+    // the new run with stale archetype state.
+    //
+    // Skipping `destroy` gracefully — track() ignores any instance that
+    // doesn't expose a destroy() method, so wrapping a plain helper
+    // (e.g. DungeonGrid, which is pure data) is harmless.
+    this._lifecycle = []
+    const track = (instance) => {
+      if (instance && typeof instance.destroy === 'function') {
+        this._lifecycle.push(instance)
+      }
+      return instance
+    }
+
+    this.dungeonGrid         = track(new DungeonGrid(this.gameState.dungeon))
 
     // Re-apply current room definitions to every placed room so tile grids are
     // always derived from the definition, not stale data baked by a previous
@@ -154,77 +179,77 @@ export class Game extends Phaser.Scene {
     // Do this BEFORE creating DungeonRenderer so the first draw sees clean data.
     this._reapplyAllRoomDefs()
 
-    this._dungeonRenderer    = new DungeonRenderer(this, this.gameState)
+    this._dungeonRenderer    = track(new DungeonRenderer(this, this.gameState))
     // Phase: items — push every saved lock onto cp.locked so the
     // DungeonRenderer's first draw picks the locked door variant. The
     // LOCKS_CHANGED listener handles every subsequent mutation.
     this._syncLockedCPs()
-    this.personalitySystem   = new PersonalitySystem(this)
+    this.personalitySystem   = track(new PersonalitySystem(this))
     this.personalitySystem.loadDefinitions()
 
     // Phase 6e: cache archetype modifiers on gameState for easy cross-system lookup
     this._cacheArchetypeModifiers()
-    this.combatSystem        = new CombatSystem(this, this.gameState)
-    this.knowledgeSystem     = new KnowledgeSystem(this, this.gameState, this.dungeonGrid)
-    this.aiSystem            = new AISystem(this, this.gameState, this.dungeonGrid, this.personalitySystem, this.combatSystem, this.knowledgeSystem)
-    this.minionAiSystem      = new MinionAISystem(this, this.gameState, this.dungeonGrid, this.combatSystem)
-    this.trapSystem          = new TrapSystem(this, this.gameState, this.dungeonGrid)
+    this.combatSystem        = track(new CombatSystem(this, this.gameState))
+    this.knowledgeSystem     = track(new KnowledgeSystem(this, this.gameState, this.dungeonGrid))
+    this.aiSystem            = track(new AISystem(this, this.gameState, this.dungeonGrid, this.personalitySystem, this.combatSystem, this.knowledgeSystem))
+    this.minionAiSystem      = track(new MinionAISystem(this, this.gameState, this.dungeonGrid, this.combatSystem))
+    this.trapSystem          = track(new TrapSystem(this, this.gameState, this.dungeonGrid))
     this.trapSystem.loadDefinitions()
-    this.evolutionSystem     = new EvolutionSystem(this, this.gameState)
+    this.evolutionSystem     = track(new EvolutionSystem(this, this.gameState))
     this.evolutionSystem.loadDefinitions()
-    this.minionEvolutionSystem = new MinionEvolutionSystem(this, this.gameState)
-    this.dungeonMechanicSystem = new DungeonMechanicSystem(this, this.gameState)
+    this.minionEvolutionSystem = track(new MinionEvolutionSystem(this, this.gameState))
+    this.dungeonMechanicSystem = track(new DungeonMechanicSystem(this, this.gameState))
     this.dungeonMechanicSystem.loadDefinitions()
-    this.newspaperSystem     = new NewspaperSystem(this, this.gameState)
-    this.inquisitorSystem    = new InquisitorSystem(this, this.gameState, this.dungeonMechanicSystem, this.personalitySystem)
-    this.bossSystem          = new BossSystem(this, this.gameState)
-    this.sfxSystem           = new SfxSystem(this, this.gameState)
-    this.eventSystem         = new EventSystem(this, this.gameState)
-    this.combatFeedback      = new CombatFeedback(this, this.gameState)
+    this.newspaperSystem     = track(new NewspaperSystem(this, this.gameState))
+    this.inquisitorSystem    = track(new InquisitorSystem(this, this.gameState, this.dungeonMechanicSystem, this.personalitySystem))
+    this.bossSystem          = track(new BossSystem(this, this.gameState))
+    this.sfxSystem           = track(new SfxSystem(this, this.gameState))
+    this.eventSystem         = track(new EventSystem(this, this.gameState))
+    this.combatFeedback      = track(new CombatFeedback(this, this.gameState))
     // Per-companion world-space VFX layered onto combat/death — pink
     // hearts on adv death for Lilith, purple sparks on every hit for
     // Malakor. Reads gameState.meta.companionId; no-ops for the others.
-    this.companionWorldFx    = new CompanionWorldFx(this, this.gameState)
-    this.hitSparkSystem      = new HitSparkSystem(this, this.gameState)
+    this.companionWorldFx    = track(new CompanionWorldFx(this, this.gameState))
+    this.hitSparkSystem      = track(new HitSparkSystem(this, this.gameState))
     // Wild glitch-burst overlay on every cheater swing — fires after
     // HitSparkSystem in the listener chain so the cheater layer paints
     // over the hit spark.
-    this.cheaterAttackVfxSystem = new CheaterAttackVfxSystem(this, this.gameState)
+    this.cheaterAttackVfxSystem = track(new CheaterAttackVfxSystem(this, this.gameState))
     // Pact + archetype-basic boss attack VFX. Layers on top of the
     // existing pact telegraph/feedback (channel beams, rings, etc.)
     // — adds punch without replacing the mechanical telegraph.
-    this.bossAttackVfxSystem    = new BossAttackVfxSystem(this, this.gameState)
-    this.screenShakeSystem   = new ScreenShakeSystem(this)
-    this.rivalBossShowdown   = new RivalBossShowdown(this, this.gameState)
-    this.bossPactVfx         = new BossPactVfx(this, this.gameState)
-    this.roomBehaviorSystem  = new RoomBehaviorSystem(this, this.gameState)
-    this.classAbilitySystem  = new ClassAbilitySystem(this, this.gameState)
+    this.bossAttackVfxSystem    = track(new BossAttackVfxSystem(this, this.gameState))
+    this.screenShakeSystem   = track(new ScreenShakeSystem(this))
+    this.rivalBossShowdown   = track(new RivalBossShowdown(this, this.gameState))
+    this.bossPactVfx         = track(new BossPactVfx(this, this.gameState))
+    this.roomBehaviorSystem  = track(new RoomBehaviorSystem(this, this.gameState))
+    this.classAbilitySystem  = track(new ClassAbilitySystem(this, this.gameState))
     // Phase 31I — passive run-history aggregator. Subscribes to event bus
     // and folds counts into gameState.run.totals + history.pacts. No gameplay.
-    this.runHistorySystem    = new RunHistorySystem(this, this.gameState)
+    this.runHistorySystem    = track(new RunHistorySystem(this, this.gameState))
     // Live-run leaderboard heartbeat (2026-05-25). Upserts a 'live'
     // row to Supabase on NIGHT_PHASE_STARTED + run start so other
     // players can see the run in progress on the leaderboard. Fire-
-    // and-forget; network failures swallowed. Remove the construct
-    // (+ shutdown destroy) to disable the feature entirely.
-    this.liveRunPublisher    = new LiveRunPublisher(this, this.gameState)
+    // and-forget; network failures swallowed. Remove the construct line
+    // to disable the feature entirely.
+    this.liveRunPublisher    = track(new LiveRunPublisher(this, this.gameState))
     // Phase 1b — per-archetype headline mechanics (Orc Loot the Fallen, etc).
-    this.bossArchetypeSystem = new BossArchetypeSystem(this, this.gameState)
+    this.bossArchetypeSystem = track(new BossArchetypeSystem(this, this.gameState))
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
-    this.adventurerRenderer  = new AdventurerRenderer(this, this.gameState)
-    this.emoteSystem         = new EmoteSystem(this, this.gameState, this.adventurerRenderer)
-    this.minionRenderer      = new MinionRenderer(this, this.gameState)
-    this.trapRenderer        = new TrapRenderer(this, this.gameState)
-    this.lootPileRenderer    = new LootPileRenderer(this, this.gameState)
-    this.keyChestRenderer    = new KeyChestRenderer(this, this.gameState)
-    this.lockRenderer        = new LockRenderer(this, this.gameState)
-    this.beaconRenderer      = new BeaconRenderer(this, this.gameState)
-    this.fountainRenderer    = new FountainRenderer(this, this.gameState)
-    this.treasureChestRenderer = new TreasureChestRenderer(this, this.gameState)
-    this.darkDealDemonRenderer = new DarkDealDemonRenderer(this, this.gameState)
-    this.gamblerImpRenderer    = new GamblerImpRenderer(this, this.gameState)
-    this.phylacteryRenderer  = new PhylacteryRenderer(this, this.gameState)
-    this.fungalCorpseRenderer = new FungalCorpseRenderer(this, this.gameState)
+    this.adventurerRenderer  = track(new AdventurerRenderer(this, this.gameState))
+    this.emoteSystem         = track(new EmoteSystem(this, this.gameState, this.adventurerRenderer))
+    this.minionRenderer      = track(new MinionRenderer(this, this.gameState))
+    this.trapRenderer        = track(new TrapRenderer(this, this.gameState))
+    this.lootPileRenderer    = track(new LootPileRenderer(this, this.gameState))
+    this.keyChestRenderer    = track(new KeyChestRenderer(this, this.gameState))
+    this.lockRenderer        = track(new LockRenderer(this, this.gameState))
+    this.beaconRenderer      = track(new BeaconRenderer(this, this.gameState))
+    this.fountainRenderer    = track(new FountainRenderer(this, this.gameState))
+    this.treasureChestRenderer = track(new TreasureChestRenderer(this, this.gameState))
+    this.darkDealDemonRenderer = track(new DarkDealDemonRenderer(this, this.gameState))
+    this.gamblerImpRenderer    = track(new GamblerImpRenderer(this, this.gameState))
+    this.phylacteryRenderer  = track(new PhylacteryRenderer(this, this.gameState))
+    this.fungalCorpseRenderer = track(new FungalCorpseRenderer(this, this.gameState))
     // MinionInspector and WantedPoster have DOM ports under the new HUD
     // (src/hud/MinionInspectorOverlay.js + the ToastQueue 'bounty' kind).
     // Gate the Phaser constructions so they don't double-fire under the
@@ -232,12 +257,12 @@ export class Game extends Phaser.Scene {
     let _useNewHud = true
     try { _useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
     if (!_useNewHud) {
-      this.minionInspector   = new MinionInspector(this, this.gameState)
+      this.minionInspector   = track(new MinionInspector(this, this.gameState))
     }
-    this.chatBubbles         = new ChatBubbles(this, this.gameState)
-    this.knowledgeOverlay      = new KnowledgeOverlay(this, this.gameState, this.knowledgeSystem)
+    this.chatBubbles         = track(new ChatBubbles(this, this.gameState))
+    this.knowledgeOverlay      = track(new KnowledgeOverlay(this, this.gameState, this.knowledgeSystem))
     if (!_useNewHud) {
-      this.wantedPoster      = new WantedPoster(this, this.gameState)
+      this.wantedPoster      = track(new WantedPoster(this, this.gameState))
     }
     // Replay Ghost trail removed at user request (2026-05-21) — a
     // returning Hero no longer draws their prior-run path on the dungeon
@@ -248,21 +273,21 @@ export class Game extends Phaser.Scene {
     // BossFightOverlay moved to HudScene — it uses scene.uiW/uiH which
     // only HudScene sets via applyUiCamera. Game scene retains the
     // camera-zoom hooks below that pair with the overlay's intro slate.
-    this.bossRenderer        = new BossRenderer(this, this.gameState)
-    this.succubusBatRenderer = new SuccubusBatRenderer(this, this.gameState)
-    this.coinBurstRenderer   = new CoinBurstRenderer(this, this.gameState)
-    this.sellFxRenderer      = new SellFxRenderer(this)
-    this.torchRenderer       = new TorchRenderer(this, this.gameState)
-    this.cobwebRenderer      = new CobwebRenderer(this, this.gameState)
-    this.decorRenderer       = new DecorRenderer(this, this.gameState)
-    this.bloodSplatRenderer  = new BloodSplatRenderer(this, this.gameState)
+    this.bossRenderer        = track(new BossRenderer(this, this.gameState))
+    this.succubusBatRenderer = track(new SuccubusBatRenderer(this, this.gameState))
+    this.coinBurstRenderer   = track(new CoinBurstRenderer(this, this.gameState))
+    this.sellFxRenderer      = track(new SellFxRenderer(this))
+    this.torchRenderer       = track(new TorchRenderer(this, this.gameState))
+    this.cobwebRenderer      = track(new CobwebRenderer(this, this.gameState))
+    this.decorRenderer       = track(new DecorRenderer(this, this.gameState))
+    this.bloodSplatRenderer  = track(new BloodSplatRenderer(this, this.gameState))
     // Companion NPC brain — constructed before TutorialSystem so its
     // INTRO_DISMISSED handler registers first and her welcome line is
     // queued ahead of the first tutorial.
-    this.npcDirector         = new NpcDirector(this, this.gameState)
-    this.tutorialSystem      = new TutorialSystem(this, this.gameState)
-    this.sunderedFloorRenderer = new SunderedFloorRenderer(this)
-    this.cartographerOverlay   = new CartographerOverlay(this, this.gameState)
+    this.npcDirector         = track(new NpcDirector(this, this.gameState))
+    this.tutorialSystem      = track(new TutorialSystem(this, this.gameState))
+    this.sunderedFloorRenderer = track(new SunderedFloorRenderer(this))
+    this.cartographerOverlay   = track(new CartographerOverlay(this, this.gameState))
 
     // Respawn dead minions when night starts (Phase 6 kernel)
     EventBus.on('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
@@ -433,59 +458,21 @@ export class Game extends Phaser.Scene {
       this._onVisibilitySaveBound = null
     }
     this.scene.stop('HudScene')
-    this._dungeonRenderer?.destroy()
-    this.adventurerRenderer?.destroy()
-    this.emoteSystem?.destroy()
-    this.minionRenderer?.destroy()
-    this.trapRenderer?.destroy()
-    this.lootPileRenderer?.destroy()
-    this.keyChestRenderer?.destroy()
-    this.lockRenderer?.destroy()
-    this.beaconRenderer?.destroy()
-    this.fountainRenderer?.destroy()
-    this.treasureChestRenderer?.destroy()
-    this.darkDealDemonRenderer?.destroy()
-    this.gamblerImpRenderer?.destroy()
-    this.minionInspector?.destroy()
-    this.chatBubbles?.destroy()
-    this.aiSystem?.destroy()
-    this.trapSystem?.destroy()
-    this.evolutionSystem?.destroy()
-    this.classAbilitySystem?.destroy()
-    this.runHistorySystem?.destroy()
-    this.liveRunPublisher?.destroy()
-    this.knowledgeSystem?.destroy()
-    this.knowledgeOverlay?.destroy()
-    this.wantedPoster?.destroy()
-    this.replayGhostRenderer?.destroy()
-    this.dungeonMechanicSystem?.destroy()
-    this.newspaperSystem?.destroy()
-    this.inquisitorSystem?.destroy()
-    this.bossSystem?.destroy()
-    this.sfxSystem?.destroy()
-    this.eventSystem?.destroy()
-    this.combatFeedback?.destroy()
-    this.companionWorldFx?.destroy()
-    this.hitSparkSystem?.destroy()
-    this.cheaterAttackVfxSystem?.destroy()
-    this.bossAttackVfxSystem?.destroy()
-    this.screenShakeSystem?.destroy()
-    this.rivalBossShowdown?.destroy()
-    this.bossPactVfx?.destroy()
-    // bossFightOverlay lives in HudScene now — that scene's shutdown handles it.
-    this.roomBehaviorSystem?.destroy()
-    this.bossRenderer?.destroy()
-    this.succubusBatRenderer?.destroy()
-    this.coinBurstRenderer?.destroy()
-    this.sellFxRenderer?.destroy()
-    this.torchRenderer?.destroy()
-    this.cobwebRenderer?.destroy()
-    this.decorRenderer?.destroy()
-    this.bloodSplatRenderer?.destroy()
-    this.tutorialSystem?.destroy()
-    this.npcDirector?.destroy()
-    this.sunderedFloorRenderer?.destroy()
-    this.cartographerOverlay?.destroy()
+
+    // Tear down every system / renderer registered via track() in create().
+    // Iterating a registry replaced the prior 50-line hand-maintained
+    // destroy chain — that pattern silently leaked any system whose
+    // destroy call was forgotten (e.g. BossArchetypeSystem, which caused
+    // the vampire-charm-on-every-archetype bug because the leaked
+    // previous-run instance kept reacting to ADVENTURERS_SPAWNED with
+    // stale archetype state). Reverse order so teardown mirrors
+    // construction — safer if any destroy() reads sibling system state.
+    for (let i = this._lifecycle.length - 1; i >= 0; i--) {
+      const obj = this._lifecycle[i]
+      try { obj.destroy() }
+      catch (e) { console.error('[Game] destroy failed for', obj?.constructor?.name, e) }
+    }
+    this._lifecycle = []
   }
 
   _onBossFinal() {

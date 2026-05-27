@@ -891,6 +891,15 @@ export class AISystem {
     for (const b of this._gameState.dungeon?.beacons        ?? []) this._tickSoftBlocked.add(`${b.tileX},${b.tileY}`)
     for (const f of this._gameState.dungeon?.fountains      ?? []) this._tickSoftBlocked.add(`${f.tileX},${f.tileY}`)
     for (const c of this._gameState.dungeon?.treasureChests ?? []) this._tickSoftBlocked.add(`${c.tileX},${c.tileY}`)
+    // NOTE: `gameState.phylactery` is intentionally NOT added here.
+    // The Lich heart must be freely walk-through so non-hunter advs
+    // (and even other hunters routing to a different cardinal slot)
+    // can cross its tile if their path runs through the room. Hunters
+    // path to a cardinal neighbour via the explicit logic in
+    // `_goalToTile` HUNT_PHYLACTERY — they don't rely on a soft-block
+    // here. If you ever feel the urge to add the heart to this set,
+    // don't: it'll trap any adv whose only route to the boss room
+    // (or any room past the heart) runs through the heart's tile.
     // Per-tick list of locks that ANY adv might hard-block. Per-adv code
     // skips locks the adv can unlock and adds the remaining doorTiles.
     this._tickLockedLocks = (this._gameState.dungeon?.locks ?? [])
@@ -2745,32 +2754,60 @@ export class AISystem {
     }
     if (adv.goal.type === 'SEEK_BOSS') {
       // Heart-life redirect (2026-05-27, Lich balance pass). When the
-      // boss is currently borrowing a life from the heart, the throne
-      // is a wasted trip — `_diedThisDay` already bounced this day's
-      // fight and the next arrival gets handed off to flee. Redirect
-      // advs who KNOW about the heart to HUNT_PHYLACTERY here, before
-      // they take a step.
+      // boss is currently borrowing a life from the heart, NOBODY walks
+      // to the throne — `_diedThisDay` already bounced this day's fight
+      // and there's a more important target somewhere in the dungeon.
       //
-      // Knowledge-gated: an adv without `knowledge.items[phylId]` keeps
-      // SEEK_BOSS and walks to the throne as normal — they'll get the
-      // standard `_diedThisDay` flee handoff. They don't get free
-      // omniscient awareness of where the heart sits just because the
-      // boss is on heart-life. Mirrors the same rule applied to spawn-
-      // time hunt rolls.
+      //   Knows the heart  → HUNT_PHYLACTERY, beeline to its tile.
+      //   No heart intel   → EXPLORE_ROOM on a random non-boss /
+      //                      non-entry room they haven't visited yet.
+      //                      They'll find the heart by wandering; the
+      //                      moment they step into its room,
+      //                      `_lichOnAdvRoomChanged` auto-converts them
+      //                      to a hunter (100% in heart-life mode).
       //
       // Stack-push preserves the SEEK_BOSS goal so the adv resumes
-      // throne-bound behaviour if the heart dies mid-walk.
+      // throne-bound behaviour if the heart dies mid-walk and the
+      // boss-life economy resets to "normal life remaining" — though
+      // in practice the heart dying with deathsRemaining<=0 ends the
+      // run, so the stacked goal is mostly defensive.
       const bossState = this._gameState.boss
       const phyl      = this._gameState.phylactery
       const phylAlive = phyl && (phyl.resources?.hp ?? 0) > 0
-      if (bossState?._onHeartLife && phylAlive &&
-          adv.knowledge?.items?.[phyl.instanceId]) {
-        adv.goalStack ??= []
-        adv.goalStack.push(adv.goal)
-        adv._huntPhylactery = true
-        adv.goal = { type: 'HUNT_PHYLACTERY', roomId: phyl.roomId }
-        adv.path = null
-        return this._goalToTile(adv)
+      if (bossState?._onHeartLife && phylAlive) {
+        if (adv.knowledge?.items?.[phyl.instanceId]) {
+          adv.goalStack ??= []
+          adv.goalStack.push(adv.goal)
+          adv._huntPhylactery = true
+          adv.goal = { type: 'HUNT_PHYLACTERY', roomId: phyl.roomId }
+          adv.path = null
+          return this._goalToTile(adv)
+        }
+        // Searching path — pick an unvisited non-boss room. Falls back
+        // to ANY non-boss / non-entry room if everything's been
+        // visited (one more sweep lets them re-cross the heart's
+        // room). Degenerate "no rooms left" case falls through to the
+        // original SEEK_BOSS behaviour as a last resort so the goal
+        // resolution doesn't return null and stall the adv.
+        const visited = new Set(adv.visitedRooms ?? [])
+        const rooms = this._gameState.dungeon?.rooms ?? []
+        const isSearchable = (r) =>
+          r.definitionId !== 'boss_chamber' &&
+          r.definitionId !== 'entry_hall' &&
+          !r.locked
+        let pool = rooms.filter(r => isSearchable(r) && !visited.has(r.instanceId))
+        if (pool.length === 0) pool = rooms.filter(isSearchable)
+        if (pool.length > 0) {
+          const pick = pool[Math.floor(Math.random() * pool.length)]
+          adv.goalStack ??= []
+          adv.goalStack.push(adv.goal)
+          adv.goal = { type: 'EXPLORE_ROOM', roomId: pick.instanceId }
+          adv.path = null
+          return this._goalToTile(adv)
+        }
+        // No non-boss rooms to search → degenerate dungeon. Fall
+        // through to the standard SEEK_BOSS path below so the adv
+        // isn't goal-less.
       }
       const boss = dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
       if (!boss) return null
@@ -2824,7 +2861,37 @@ export class AISystem {
         adv.aiState = 'fleeing'
         return this._goalToTile(adv)
       }
-      return { x: phyl.tileX, y: phyl.tileY }
+      // Path to a cardinal neighbour of the heart, NOT the heart tile
+      // itself. The heart entity doesn't register with PathfinderSystem
+      // (it's not in DungeonGrid's tile pool), so without this the adv
+      // walks straight onto the heart's tile and stands on top of it —
+      // visually wrong (they should attack from beside) and crowds out
+      // every other hunter who also wants the same tile.
+      //
+      // BossArchetypeSystem.tick() applies damage to any HUNT_PHYLACTERY
+      // adv within Manhattan d <= 1, so a cardinal neighbour is enough
+      // to land the hit. With 4 cardinals available, up to 4 hunters
+      // can be in-range simultaneously; extra hunters queue at d=2 and
+      // don't damage the heart until a slot opens.
+      const NEIGHBORS = [
+        { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
+        { dx: 0, dy: 1 }, { dx: 0,  dy: -1 },
+      ]
+      let best = null, bestD = Infinity
+      for (const { dx, dy } of NEIGHBORS) {
+        const nx = phyl.tileX + dx
+        const ny = phyl.tileY + dy
+        const tt = this._dungeonGrid?.getTileType?.(nx, ny)
+        if (tt == null) continue
+        if (!PathfinderSystem.isWalkable(tt)) continue
+        const d = Math.abs(adv.tileX - nx) + Math.abs(adv.tileY - ny)
+        if (d < bestD) { best = { x: nx, y: ny }; bestD = d }
+      }
+      // Defensive fallback — if every cardinal neighbour is somehow
+      // unwalkable (heart wedged against walls in a malformed room?),
+      // fall back to the heart's tile so the adv at least reaches
+      // melee range instead of giving up entirely.
+      return best ?? { x: phyl.tileX, y: phyl.tileY }
     }
     // Phase 1b.10 — Vampire Charm: walk to the boss itself (not just the room).
     // Route to the boss's current tile so the adv tracks the boss as it moves.
@@ -3257,7 +3324,19 @@ export class AISystem {
       const phyl = this._gameState.phylactery
       if (!phyl || (phyl.resources?.hp ?? 0) <= 0) {
         adv.goal = this._pickNextGoal(adv)
+        return
       }
+      // Adjacent to the heart → flip to fighting state so
+      // AdventurerRenderer plays the attack animation. The actual
+      // damage tick lives in BossArchetypeSystem.tick() and only
+      // checks goal type + Manhattan d≤1, so without this the adv was
+      // silently dealing damage while looking idle. Heart-destroyed
+      // cleanup in BossArchetypeSystem (`_huntPhylactery` block, ~1265)
+      // resets aiState to 'fleeing' when the heart dies, so we don't
+      // need a manual clear path here.
+      const dx = Math.abs(adv.tileX - phyl.tileX)
+      const dy = Math.abs(adv.tileY - phyl.tileY)
+      if (dx + dy <= 1) adv.aiState = 'fighting'
       return
     }
     // Phase 1b.10 — Vampire Charm: arrived at the boss room. Hold the adv

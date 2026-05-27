@@ -227,7 +227,7 @@
     "portraitAvailable": true,
     "headline": {
       "name": "Phylactery",
-      "summary": "Place a Heart item in any room as a hidden extra life. If found, it's gone for good.",
+      "summary": "Place a Heart in any room as a hidden extra life. Adventurers who learn of it will hunt the heart over the boss — and every hit on it wounds the boss too.",
       "implemented": true
     },
     "mechanics": [

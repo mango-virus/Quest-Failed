@@ -1,0 +1,1331 @@
+{
+  "meta": {
+    "version": 1,
+    "npcName": "Spectra",
+    "note": "Dialogue bank for the companion NPC Spectra — teen-ghost otaku. Same structure + category keys as other companions so NpcDirector drives it unchanged. Lines: t=text, x=semantic expression id (must be one of `expressions` below), w=weight (default 1), p=page-2+ text. Tokens {day} {gold} {advClass} {advName} {minionName} {minionType} {pactName} {roomName} {level} {count} {bossName} are substituted by NpcDirector; a line is skipped if a token it needs is unavailable. `x:` values are SEMANTIC ids only — the renderer resolves to a random variant from companions.spectra.variantGroups at display time, and rolls the ghost-flicker opacity overlay (25% chance, 0.70 alpha) unless the id is in solidOnlyExpressions.",
+    "voice": "A teen ghost who never grew up, immersed in anime/games/manga/snacks. Brain runs on tropes — she sees everything through that vocabulary. Treats the dungeon like a let's-play she's narrating in her head: heroes are MOBS, waves are BOSS PATTERNS, deaths are K/D RATIO, traps are AoE / DoT zones, pacts are buff scrolls, minions are her PARTY. ADHD-bursts: locked-in and sharp when engaged, then easily pulled away mid-sentence by a stimulus (snack, plushie, anime callback), then back. Addresses the player as 'senpai' (signature) and 'DM' / 'player 1' / 'champ' as rotational alternates. Verbal tics: 'OMG OMG OMG', 'wait wait wait —', 'this is SO OP', 'plot twist!', 'no cap', 'iconic', onomatopoeia ('doki-doki', 'nyaa', 'ehhhh?!'), trailing-off mid-sentence. Died choking on a snack mid-game (self-deprecating about it). Crypt-mate with Rattle Bones (both undead) — generational gag: he's 300 years dead, she's a few decades. Has scary-ghost mode (`scary`, `skulls`, `ghost-power`) reserved for boss-fight / last-life / horror beats — the rest of the time she's chill and goofy. Female. She/her."
+  },
+  "expressions": [ "idle", "bored", "sleeping", "yawning", "happy", "excited", "sad", "upset", "crying", "proud", "confused", "shocked", "surprised", "thinking", "focused", "annoyed", "angry", "chibi-rage", "dramatic-anger", "scary", "laughing", "smug", "mischievous", "winking", "pointing", "explaining", "looking-away", "sparkle-eyes", "bishie-sparkles", "anime-gasp", "sweatdrop", "nose-bleed", "heart-eyes", "wibbly-mouth", "senpai-notice", "blushing", "looking-cute", "weeb", "watching-anime", "reading-manga", "taking-photo", "gaming", "button-mashing", "streaming", "rage-quit", "gg-victory", "texting", "phone-scrolling", "eating-snacks", "cheeks-stuffed", "pocky-mouth", "chip-bag-shake", "juice-box-sip", "empty-bag", "caught-snacking", "distracted", "doodling", "mirror-check", "plush-hug", "holding-plushies", "figure-collection", "teasing", "seductive", "sexy", "skulls", "ghost-power" ],
+  "intro": {
+    "note": "Paged self-introduction Spectra delivers on a new run. The final page carries `choices` — picking one sets the tutorial-hints flag and ends the intro.",
+    "pages": [
+      { "t": "OMG OMG it's actually HAPPENING — a new boss in the chair?! Senpai you look SO much more interesting than the last one! Hi hi hi, I'm Spectra, dungeon ghost, very chill, mostly.", "x": "senpai-notice" },
+      { "t": "Full disclosure — I'm a ghost. Like, definitely dead. Choked on a Pocky three episodes into a binge and just... never left? It's fine, it's been a whole vibe.", "x": "looking-cute" },
+      { "t": "Anyway! The dungeon's basically a co-op game and you're Player 1. Heroes = mobs. Waves = boss patterns. The kingdom thinks you're the FINAL BOSS — which slaps, frankly.", "x": "explaining" },
+      { "t": "Night phase you BUILD: rooms, traps, minions, all the stuff that makes the dungeon a deathtrap. Day phase the heroes spawn and trigger every gag you set. Then we cut, regen, repeat.", "x": "pointing" },
+      { "t": "Three lives, senpai. Three. After that the dungeon DESPAWNS and that's a hard reset, no continues. Rattle's been dead three CENTURIES — I'd really rather not join the boomer-ghost club.", "x": "thinking" },
+      { "t": "Want me to backseat with hints, or do you want to raw-dog this run? Either way I'll be watching the whole let's-play. ...Distracted, sure. But watching!", "x": "winking", "choices": [
+        {
+          "label": "Coach me through it",
+          "value": true
+        },
+        {
+          "label": "I'll work the room solo",
+          "value": false
+        }
+      ] }
+    ]
+  },
+  "categories": {
+    "welcome": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "SENPAI you picked me?! OMG OMG OMG hold on — okay — game face. Spectra, here, all eyes on you. Like, I have only one and a half functional eyes? But BOTH on you.", "x": "senpai-notice" },
+        { "t": "Throne up, lights on, ghost on standby. This is gonna be SUCH a good run, senpai, I can FEEL it. Tingles in joints I don't even technically have anymore.", "x": "sparkle-eyes" },
+        { "t": "Welcome to the deep dark, senpai! It's cold and damp and has NEVER been loud enough. Let's fix that.", "x": "excited" },
+        { "t": "Player 1 ready! ...That's you. I'm like — Player 2? Player Spectator? Player Voice-In-Your-Head? We'll workshop my title.", "x": "thinking" },
+        { "t": "Hi hi hi! Spectra, your ghost-girl on the headset! Streaming the boss-POV live from the throne room. Chat's gonna go OFF today.", "x": "streaming" },
+        { "t": "A real, BREATHING boss! The last one had the personality of damp moss, no shade — okay, full shade. You feel WAY more main-character coded, senpai.", "x": "heart-eyes" },
+        { "t": "Oh hey it's senpai! ...Wait, you're like REAL-real, full pulse and everything? Cool cool cool. I'll try not to phase through you on accident. ...I will probably phase through you on accident.", "x": "looking-cute" },
+        { "t": "Welcome to the show, DM! Or — boss, or senpai, or champ, I have a LOT of names for you, we'll find one that sticks. ...Probably senpai. It's senpai. I called it already.", "x": "explaining" },
+        { "t": "OMG you're TAKING THE THRONE?! Plot twist incoming — the hero POV gets FLIPPED! This is so cinema, senpai!", "x": "dramatic-anger" }
+      ]
+    },
+    "night_start": {
+      "priority": 1,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "Night phase, senpai! Build mode unlocked. The crypt is your CANVAS — let's cook.", "x": "focused" },
+        { "t": "Curtain down, the dungeon is YOURS. Place rooms, slot traps, summon mooks. I'll be — okay yeah I'm scrolling for a sec, you go, I'll catch up.", "x": "phone-scrolling" },
+        { "t": "Dark hours, DM! Plan the loadout. The skeleton would tell you to set up gags — I'm telling you to set up TRAPS. Same energy, different generation.", "x": "gaming" },
+        { "t": "Build phase! The wave generator is OFFLINE while you cook. Take your time. Or don't — I love a fast night, gives the heroes less time to brace.", "x": "distracted" },
+        { "t": "Night {day}, senpai! Quiet enough to hear the dungeon BREATHE. ...Or that might just be me, ghosts make weird noises. Anyway BUILD!", "x": "thinking" },
+        { "t": "Crypt's QUIET, senpai. That's our window. Throw down some pain. Heroes don't dream when they're being designed FOR them.", "x": "mischievous" },
+        { "t": "Build mode! I love this part. You get to think like a dungeon designer instead of a survivor. Pretty sick energy shift, ngl.", "x": "gaming" },
+        { "t": "Night again. Same vibe as last night except slightly weirder energy — I dunno why, I just always feel that on day {day}. Anyway: build!", "x": "distracted" },
+        { "t": "Build phase, senpai! Skull-pal's gonna heckle whatever you place, fair warning. He's a critic. I'm just gonna VIBE. Different energy, you'll see.", "x": "looking-cute" }
+      ]
+    },
+    "day_start": {
+      "priority": 1,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "DAYLIGHT! Wave incoming, senpai. Lock in. The heroes' AI does NOT pause for snack breaks — sad.", "x": "excited" },
+        { "t": "Day phase! Camera flips to the corridors. Watch them route. I'll be calling shots from the back row — literal back row, I'm a ghost, I float there.", "x": "streaming" },
+        { "t": "The audience has ARRIVED, senpai! Some with maps. Some with HOPE. Both will be checked at the door. ...That's a Rattle line, but it SLAPS, so I'm borrowing.", "x": "winking" },
+        { "t": "Day {day}! The wave generator just dropped its payload. Watch the corridors, DM — I'll heckle from the wings.", "x": "pointing" },
+        { "t": "Sunlight! ...Conceptually. There's no actual sun down here, the crypt has like one (1) torch. But METAPHORICALLY: SHOWTIME.", "x": "explaining" },
+        { "t": "Heroes incoming, senpai! Twitch chat would be GOING OFF right now if I were actually live. I'll narrate for them. ...For us. For me. Whatever.", "x": "streaming" },
+        { "t": "Day phase {day}, senpai! Engage gamer reflexes. Even though you don't really have to engage them. You watch. It's auto-attack. But the SPIRIT is reflexes.", "x": "gg-victory" },
+        { "t": "Daylight! Camera ON the corridors. The skeleton goes quiet around now — he's WATCHING. So am I, just LOUDER about it.", "x": "focused" },
+        { "t": "The kingdom's wave just clocked in for their morning shift. Cute. Let's give them a really BAD day, DM.", "x": "mischievous" }
+      ]
+    },
+    "begin_day": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "You called it, senpai! DAWN ON DEMAND. The cosmos hates that move — I LOVE it. Plot twist incoming!", "x": "gg-victory" },
+        { "t": "BUTTON PRESSED! No takesies-backsies. Wave incoming HOT. The skeleton respects a fast pre-roll — I'm just here for the chaos energy.", "x": "button-mashing" },
+        { "t": "Show's GO, senpai! You skipped the buffer. Bold. Iconic. Mildly stressful. Let's see what they brought.", "x": "anime-gasp" },
+        { "t": "Forced spawn, senpai! No backtracking now. I LOVE this kind of confidence — you BETTER be confident.", "x": "dramatic-anger" },
+        { "t": "Day {day} starts NOW. You hit it early! Power move. The wave doesn't know what hit it — literally, because it hasn't entered yet. Soon.", "x": "pointing" }
+      ]
+    },
+    "room_placed": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "OOO a {roomName}! Senpai you're STACKING the build, I love it. Save state goes BRRR.", "x": "sparkle-eyes" },
+        { "t": "{roomName} dropped! That's a new tile, that's NEW content, that's a DLC drop, I am HERE for it.", "x": "excited" },
+        { "t": "Senpai placed a {roomName}. Iconic. The dungeon is getting LORE-rich. Each room is like another flashback episode.", "x": "heart-eyes" },
+        { "t": "{roomName}, sweet. The maze grid grew. Heroes now have one MORE thing to die in. Beautiful loop.", "x": "gg-victory" },
+        { "t": "Building a {roomName}, DM! Take your time. ...Or don't, fast builds are HYPE.", "x": "doodling" },
+        { "t": "Ooh a {roomName}, cute layout choice. The skeleton's gonna heckle it — I'm gonna THUMBS UP it. Different vibes.", "x": "happy" },
+        { "t": "{roomName} placed. Watch — heroes are gonna walk in there confidently and just... die. Camera fades to BLACK. Cinema.", "x": "taking-photo" }
+      ]
+    },
+    "minion_placed": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "A {minionType}! Welcome to my PARTY, little homie! ...That's right, you're MINE now, this is a soulbind situation.", "x": "heart-eyes" },
+        { "t": "{minionType} stationed, senpai. Add it to the party list. Class fantasy, kinda? Pretty sick.", "x": "explaining" },
+        { "t": "Ooh a {minionType}! Stick it where the heroes look LAST. Speedrunner pro-tip: corner-camp is META.", "x": "gaming" },
+        { "t": "{minionType} placed! Senpai you keep stacking these and I keep going SCREE inside. Big gacha-pull energy.", "x": "anime-gasp" },
+        { "t": "A {minionType}! ...Wait what was I doing — oh right, hi little guy, welcome to the dungeon, please die for the bit when the time comes.", "x": "distracted" },
+        { "t": "{minionType} on the grid! The party's BUILDING. Solid composition, DM.", "x": "holding-plushies" },
+        { "t": "{minionType} stationed! ...Aw they're TINY. Senpai can I keep them after the run. ...Yes? Don't answer that I'll keep them anyway.", "x": "looking-cute" }
+      ]
+    },
+    "trap_placed": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "Trap placed! AOE zone unlocked. Heroes about to step in a PRE-FIRED hitbox — that's the dream, senpai.", "x": "gaming" },
+        { "t": "A trap! That's gonna RAW-DOG someone tomorrow. The skeleton calls these 'gags', I call them DPS uptime. Same thing.", "x": "mischievous" },
+        { "t": "Trap placed, senpai! Patient cruelty. The trap doesn't tilt, doesn't whiff, just SITS there waiting to ruin someone's day. Iconic kit.", "x": "smug" },
+        { "t": "A trap! Plot device acquired. Watch the rerun — a hero's gonna step on it and I'm gonna pause-and-laugh.", "x": "laughing" },
+        { "t": "Trap goes BRRR. Senpai you DESIGN like a true DM. Encounter craft, very nice.", "x": "gg-victory" },
+        { "t": "Trap deployed! ...Don't tell Rattle I called it a 'trap', he'll say it's a 'punchline waiting room'. The skeleton has VOCAB. Anyway: trap.", "x": "looking-cute" }
+      ]
+    },
+    "item_placed": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "Item placed! Furniture, but make it CRUEL. Senpai I love when small things matter. Anime taught me that.", "x": "heart-eyes" },
+        { "t": "An item dropped onto the grid! It's the small things, DM. Side-quest details. Compound over time.", "x": "explaining" },
+        { "t": "Item set, senpai! That's a buff aura for the homies. Stack stack stack.", "x": "gg-victory" },
+        { "t": "Item placed! Cute little detail, perfect filler-arc energy. The dungeon FEELS more dungeon-y with these.", "x": "looking-cute" }
+      ]
+    },
+    "sold_room": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "{roomName} GONE! Hot revision, senpai. Refactor is half the design process — respect.", "x": "thinking" },
+        { "t": "Room sold off, sweet. Get the gold, rebuild smarter. The dungeon's a WIP, that's the whole bit.", "x": "looking-cute" },
+        { "t": "Bye-bye {roomName}! No hard feelings. The build evolves, the dungeon LEVELS, we patch as we go.", "x": "winking" },
+        { "t": "Unbuilt! Senpai is COOKING and revising. I respect the iteration. Plot twist, design pivot, iconic.", "x": "pointing" }
+      ]
+    },
+    "sold_minion": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "A minion sold off! Gold back. The party reshuffles. Mains get swapped, it HAPPENS in every JRPG.", "x": "explaining" },
+        { "t": "Un-summoned! Senpai trimming the roster. Cut, polish, re-recruit. Metagame stuff.", "x": "gaming" },
+        { "t": "Bye little homie! Don't take it personal, you're getting reassigned. ...Wait. Sold. You're sold. Sorry.", "x": "wibbly-mouth" },
+        { "t": "Sold a minion off. The party comp evolves. The skeleton would say something dark — I'm gonna say it's CHARACTER GROWTH for the team.", "x": "looking-cute" }
+      ]
+    },
+    "sold_trap": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "Trap pulled, gold back! Reposition, senpai. A trap off the path is a trap WASTED — and waste makes me twitchy.", "x": "annoyed" },
+        { "t": "Trap removed! Revise while the build phase still LETS you. Day phase is no-edit territory, learned that the hard way.", "x": "thinking" },
+        { "t": "Sold the trap. Senpai's iterating. Build, test, refactor — like writing code but with HEROES as the unit tests.", "x": "pointing" },
+        { "t": "Trap un-placed! ...Wait there was a trap there? I FORGOT. Anyway. Yeah. Good call.", "x": "distracted" }
+      ]
+    },
+    "sold_item": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "Item gone, coin regained! Pick its replacement with more care than its removal, DM. Furniture matters.", "x": "thinking" },
+        { "t": "Item sold! Loadout's flexible, senpai. I love a builder who's not afraid to RESET a slot.", "x": "gg-victory" },
+        { "t": "Un-furniture'd. ...Is that a word? It is now. Anyway, gold back, redesign mode ON.", "x": "explaining" }
+      ]
+    },
+    "moved": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "You SHIFTED it! A dungeon that never changes is a dungeon the heroes solved already, senpai. Keep it slippery.", "x": "pointing" },
+        { "t": "Moved! Yeah, that's better placement. Honestly I would've put it there too. ...I wasn't gonna SAY anything but yeah.", "x": "smug" },
+        { "t": "Slide-shuffle! Senpai re-routing the maze. The heroes' AI is gonna be SO mad tomorrow.", "x": "mischievous" },
+        { "t": "Moved! ...To be honest I lost the thread there, when did that move, oh whatever, it's MOVED.", "x": "distracted" }
+      ]
+    },
+    "placement_blocked": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "It won't fit, senpai! The grid has rules. Even ghosts respect the grid. ...Actually I phase through it routinely. But like, normally.", "x": "confused" },
+        { "t": "Blocked! The dungeon's like 'nuh-uh, not THERE buddy'. Try a different tile. Negotiations open.", "x": "sweatdrop" },
+        { "t": "Won't sit there, DM! The maze has SHAPE. The skeleton would heckle this attempt, I'm just gonna point you elsewhere.", "x": "pointing" },
+        { "t": "That space refuses you! Plot block. Save-and-reload, try elsewhere.", "x": "confused" }
+      ]
+    },
+    "pact_sealed": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "A pact! The {pactName}, signed in BLOOD-EQUIVALENT! Senpai you BUFF-SCROLLED the dungeon, this is HUGE.", "x": "gg-victory" },
+        { "t": "{pactName} sealed! Power-up acquired, downside attached. Risk-reward gameplay, very anime-protagonist of you.", "x": "heart-eyes" },
+        { "t": "Bargain made! The dark always charges, senpai — but you SIGNED. Plot armor unlocked? Or plot DEBT? Either way iconic.", "x": "pointing" },
+        { "t": "{pactName} struck! The maze gets WEIRDER and stronger. I love weirder. Weirder is where the COMEDY lives.", "x": "mischievous" },
+        { "t": "Pact sealed! Senpai went and made a deal with the DARK. Hot fanfic energy. The skeleton would WRITE this chapter.", "x": "looking-cute" }
+      ]
+    },
+    "adv_entered": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "Oh hey, a {advClass} just SPAWNED into the dungeon! ...Look at them, all confident. Three-hour playtime MAX. Watch.", "x": "smug" },
+        { "t": "{advName} the {advClass} just entered! Senpai, log them — they're gonna die in a way that becomes a fan-favorite clip.", "x": "streaming" },
+        { "t": "Heroes incoming! A {advClass} this time. Standard archetype, vanilla build. Easy reads, senpai.", "x": "gaming" },
+        { "t": "Senpai a {advClass} just walked in like they OWN the place. The audacity. The disrespect. I'm taking PERSONAL offense for you.", "x": "chibi-rage" },
+        { "t": "A {advClass}! Cute outfit, doomed character. The kingdom keeps SHIPPING these mass-produced builds. Be original, mob, GEEZ.", "x": "looking-cute" }
+      ]
+    },
+    "first_blood": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "FIRST BLOOD! K/D count starts NOW, senpai! Frag log says: ONE. Trending UP.", "x": "gg-victory" },
+        { "t": "First kill, FIRST KILL! The day's BEAT just dropped. Tone set. Senpai you're cooking already.", "x": "excited" },
+        { "t": "One down! And it's not even WAKE-UP-AND-CHOOSE-VIOLENCE o'clock yet! Iconic pacing.", "x": "dramatic-anger" },
+        { "t": "First blood, senpai! That's the opening kill of the EPISODE. Streamers would LIVE for this start.", "x": "streaming" },
+        { "t": "FIRST. KILL. ...Sorry, I got loud. But also: deserved. The first frag SETS the run tone, no cap.", "x": "pointing" }
+      ]
+    },
+    "adv_killed": {
+      "priority": 1,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "Got 'em! K/D ratio: trending FAVORABLE. Senpai you're farming XP and I am LIVING for it.", "x": "gg-victory" },
+        { "t": "{advName} is GONE! That was a clean execution. Frag of the day candidate. The corpse stays for the screenshot.", "x": "taking-photo" },
+        { "t": "Dead! One less {advClass} to worry about. Senpai I am SO into the way this dungeon farms.", "x": "heart-eyes" },
+        { "t": "Down! ...Wait who was that — oh right the {advClass}, RIP, didn't really get to know them. Their loss.", "x": "distracted" },
+        { "t": "{advName} down! That's another body in the LEDGER. The skeleton'd say something poetic, I'm gonna say: NEXT.", "x": "smug" },
+        { "t": "KILL CONFIRMED, senpai! ...Was that a critical? Looked like a critical to me. Big numbers were SPICY.", "x": "gaming" },
+        { "t": "Dead! The {advClass} ran STRAIGHT into the trap. Senpai we MOVED that trap last night and they STILL ran into it. I can't.", "x": "laughing" },
+        { "t": "Another one! Senpai you are STACKING the K/D — this is gonna look INSANE on the leaderboard, screenshot incoming.", "x": "taking-photo" },
+        { "t": "Gone! ...Honestly that was a kinda boring kill. We need to spice it up next time. Add some FLAIR.", "x": "looking-away" }
+      ]
+    },
+    "adv_fled": {
+      "priority": 1,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "They RAN! Coward arc, senpai. The hero retreated. We didn't even need to kill them, they SELF-SCARED.", "x": "smug" },
+        { "t": "A {advClass} bolting for the exit! That's a FREE ESCAPE bug — wait, no, that's intended. Anyway: bye!", "x": "pointing" },
+        { "t": "Hero RETREATED! Senpai you scared them HOME. Reputation +1, kingdom morale -1, it's MATH.", "x": "gg-victory" },
+        { "t": "{advName} fled! ...They're gonna come back with FRIENDS and a MAP though, just so you know. Veteran arc loading.", "x": "thinking" }
+      ]
+    },
+    "adv_escaped": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "A hero ESCAPED?! Senpai. SENPAI. They GOT OUT. Add them to the rematch list, we're getting them next time.", "x": "shocked" },
+        { "t": "{advClass} escaped! Senpai that's a leak. Tighten the bottlenecks. The wave-clear is gonna feel WORSE about it.", "x": "upset" },
+        { "t": "ESCAPED! ...Okay that's not great. The skeleton would say 'they always come back', which — TRUE, but still. Ouch.", "x": "sweatdrop" },
+        { "t": "Hero got OUT. That's gonna haunt me. ...Wait, am I the haunter or am I being haunted? Plot twist.", "x": "confused" },
+        { "t": "AAARGH a hero LEAKED out! Senpai I am MAD. The corridors had ONE JOB.", "x": "angry" },
+        { "t": "ANOTHER ONE OUT?! Senpai the kingdom is gonna FARM intel off these escapees! Plug the LEAKS!", "x": "angry" }
+      ]
+    },
+    "party_wipe": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "PARTY WIPED! Senpai! ENTIRE wave! ALL of them! That's a CLEAN sweep, I am SCREAMING right now!", "x": "dramatic-anger" },
+        { "t": "TOTAL KILL! The whole crew, GONE! The dungeon ate ALL of them, senpai! This is so OP!", "x": "gg-victory" },
+        { "t": "Wipe! Full wipe! Every. Single. One. Senpai you played LITERALLY perfectly. Frame data ENVIES this.", "x": "sparkle-eyes" },
+        { "t": "WIPED! Senpai the kingdom is gonna get the report and SOB. Glorious. CINEMA. Send the highlight reel.", "x": "taking-photo" },
+        { "t": "Party wipe! ...Sorry I went FULL anime-villain there for a sec. Anyway. Iconic.", "x": "skulls" }
+      ]
+    },
+    "wave_cleared": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Day {day} cleared! All threats neutralized, senpai. Save state goes BRRR. Couple deep breaths, then night phase.", "x": "gg-victory" },
+        { "t": "Wave done! Final mob downed. Senpai you SURVIVED the gauntlet. Time to LOOT and rebuild.", "x": "gaming" },
+        { "t": "Wave clear! ...Wait was that the last one? It was. Cool. Senpai I'm so proud of you, ngl.", "x": "heart-eyes" },
+        { "t": "Day's over! Camera fades. Roll credits. ...Wait, no, we go again tomorrow. Different episode. Same vibe.", "x": "streaming" }
+      ]
+    },
+    "minion_died": {
+      "priority": 1,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "{minionName} DOWN! Press F! ...Senpai are you holding F? Press F! ...I respect the FALLEN.", "x": "wibbly-mouth" },
+        { "t": "We lost one. My homie is GONE. Down bad. ...The skeleton would joke. I'm gonna BE SAD for a second, give me a minute.", "x": "crying" },
+        { "t": "Minion KO'd! Death is part of the loop, senpai. They respawn night phase. ...Probably. Mostly. I think.", "x": "thinking" },
+        { "t": "Lost a {minionName}! Senpai we need to RESPEC the front line. The heroes are getting INTO it.", "x": "upset" },
+        { "t": "Down. Down hard. Senpai the death animation got me — that was a CINEMATIC defeat. Respect.", "x": "sad" },
+        { "t": "{minionName} fell... senpai my eyes are getting BLURRY. ...Ghost-tears are a real thing. ...Stop looking.", "x": "crying" }
+      ]
+    },
+    "boss_fight_incoming": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "BOSS FIGHT INCOMING SENPAI! A hero made it to the throne. This is the FINAL EPISODE setup. Hype music goes here.", "x": "anime-gasp" },
+        { "t": "Heroes reached the throne, DM! Camera ZOOMS in. Boss-room cinematics activate. I am SHAKING in my translucent boots.", "x": "dramatic-anger" },
+        { "t": "Boss fight! Senpai it's YOU now. The whole run was the warmup — THIS is the showdown. Cool a tunes, cool a tunes!", "x": "ghost-power" },
+        { "t": "INCOMING! A hero squeezed through, senpai. Switch to BOSS POV. The dungeon falls quiet — the SCARY part of the show starts.", "x": "scary" }
+      ]
+    },
+    "boss_fight_start": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "BOSS FIGHT! Lights on YOU, senpai! Three hundred years of crypt cleared for this beat. The skeleton's watching. Don't blink.", "x": "ghost-power" },
+        { "t": "Boss phase ENGAGE! Senpai you don't get warmup rounds, just GO. I'm rooting for you so hard the camera's shaking.", "x": "dramatic-anger" },
+        { "t": "Boss fight, NOW! ...Senpai I'm doing the SCARY GHOST thing because the moment demands it. Lean INTO it. Be SCARY back.", "x": "scary" },
+        { "t": "Throne room engagement! Final-boss music, full-screen HUD, the works. Senpai — go OFF.", "x": "skulls" }
+      ]
+    },
+    "boss_fight_won": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "BOSS FIGHT WON! Senpai you are SO COLD! K/D ratio CLEAN. Three hundred years of skeleton-watching and even Rattle is impressed!", "x": "gg-victory" },
+        { "t": "WIN! THE THRONE STANDS! Senpai I am LITERALLY vibrating. ...As a ghost, that's a real concern. Anyway: CINEMA.", "x": "sparkle-eyes" },
+        { "t": "Boss fight cleared! Senpai that was a PHASE TRANSITION speedrun. ...The skeleton would joke. I'm just gonna SCREAM.", "x": "dramatic-anger" },
+        { "t": "VICTORY! Throne intact, hero gone, K/D in our favor. Senpai you ran THE BIT and got the W.", "x": "heart-eyes" }
+      ]
+    },
+    "boss_fight_lost": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Senpai... no. No no no. We LOST that one. ...It's okay. We've got lives left. ...Right? Tell me we've got lives left.", "x": "wibbly-mouth" },
+        { "t": "Boss fight LOST. Senpai. ...I'm not gonna sugarcoat it, that was rough. Patch notes incoming for next day.", "x": "sad" },
+        { "t": "We went DOWN. Throne's bruised. Senpai shake it off — every run has a defeat episode, this is just OURS.", "x": "crying" },
+        { "t": "Dead. ...I mean, you're not dead-dead, you've got the spare lives. But ouch. The hero got their HIGHLIGHT REEL.", "x": "upset" },
+        { "t": "Boss fight L. Senpai I almost RAGE-QUIT the run on YOUR behalf. ...I won't. We GRIND on. But I FELT it.", "x": "rage-quit" }
+      ]
+    },
+    "boss_damaged": {
+      "priority": 3,
+      "cooldownMs": 2000,
+      "lines": [
+        { "t": "OH NO senpai you took a HIT! Tighten up! Don't let them stack damage — that's how runs END!", "x": "shocked" },
+        { "t": "Hurt, DM! Senpai please please please don't get hit AGAIN. I am STRESSED right now, my ghost-energy is flickering.", "x": "anime-gasp" },
+        { "t": "OW! Boss HP just took a hit! Senpai this is the part where the protagonist gets the SECOND WIND. Lean in!", "x": "dramatic-anger" },
+        { "t": "Damage taken! ...Plot armor activates, hopefully? Senpai TURN this around — this is when the comeback arc starts!", "x": "scary" },
+        { "t": "Senpai HP DOWN! The skeleton would say something dark — I'm gonna say: REGROUP. Channel your inner shounen protag.", "x": "ghost-power" }
+      ]
+    },
+    "boss_levelup": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "LEVEL UP! Senpai you hit boss-LV {level}! Stat points to spend! This is the BUILD-CRAFT phase, ICONIC.", "x": "gg-victory" },
+        { "t": "DING! Senpai went UP a level! Pick your perks — every build choice is a CHARACTER ARC commitment.", "x": "sparkle-eyes" },
+        { "t": "Boss leveled! LV {level}! ...Senpai are you a META player or a FLAVOR player? I'm DYING to know.", "x": "thinking" },
+        { "t": "{bossName} levels up to {level}! Senpai stack the STRONG stats. The skeleton would say 'all of them'. I co-sign.", "x": "pointing" }
+      ]
+    },
+    "hero_incoming": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "A {advClass}'s entering, senpai! Heads up. Camera pan to the entry. Read the build.", "x": "anime-gasp" },
+        { "t": "{advName} the {advClass} is HERE! Hot drop. Standard archetype, easy read — but stay alert.", "x": "pointing" },
+        { "t": "Hero spawned! ...Wait, was I supposed to be watching for these? Yes. Yes I was. Anyway: {advClass} INCOMING.", "x": "distracted" }
+      ]
+    },
+    "bounty_hunter_incoming": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "BOUNTY HUNTER, senpai! That's a NAMED MOB! Special encounter, elite loot — focus DOWN.", "x": "dramatic-anger" },
+        { "t": "Hunter incoming! This isn't a random spawn, this is a SCRIPTED event. Senpai play it CAREFUL.", "x": "anime-gasp" },
+        { "t": "Bounty hunter at the door! Senpai think mini-boss. Bigger threat, bigger prize. Iconic risk-reward.", "x": "scary" },
+        { "t": "BUZZ — senpai my phantom-phone just pinged. ...That's the hunter-alert. Iconic notification.", "x": "texting" }
+      ]
+    },
+    "gamble_won": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "WIN! Senpai you HIT! Gold DOUBLED, that's a gacha win, write the news article!", "x": "gg-victory" },
+        { "t": "Coin came UP! Senpai you cracked the RNG! ...This never happens to me when I roll, by the way. Jealous.", "x": "sparkle-eyes" }
+      ]
+    },
+    "gamble_lost": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Coin came down WRONG, senpai. Hoard HALVED. ...Tough. RNG is a CRUEL mistress. Rebuild the funds.", "x": "upset" },
+        { "t": "Gamble lost! Senpai sometimes the RNG just HATES you. Don't tilt. Plot pivot, regroup, rebuild.", "x": "rage-quit" }
+      ]
+    },
+    "last_life": {
+      "priority": 4,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "LAST LIFE, SENPAI! ONE MORE DEATH AND IT'S OVER! No deaths! Don't die! This is when the protag DIGS DEEP!", "x": "scary" },
+        { "t": "Senpai. SENPAI. Listen. We are on the FINAL LIFE. The dungeon despawns if we drop again. Lock IN. Channel the SHOUNEN.", "x": "skulls" },
+        { "t": "Final life! Senpai if you die now I literally just float here for eternity. ...That's pressure. Sorry. NO PRESSURE. DON'T DIE.", "x": "ghost-power" },
+        { "t": "ONE LIFE LEFT, senpai! My ghost-energy is SPIKING. Anxiety LEVELS PEAKING. Please. PLEASE.", "x": "nose-bleed" }
+      ]
+    },
+    "day_milestone": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Day {day}! Senpai we're DEEP into this run now. Lore arc unlocking. Pacing's beautiful.", "x": "heart-eyes" },
+        { "t": "{day} days survived! That's a SAGA, senpai. Multi-volume series energy. The kingdom is SHAKING.", "x": "proud" },
+        { "t": "Day {day} milestone! ...Senpai how do you feel? I feel WIRED. ...Ghost-wired, which is its own thing.", "x": "sparkle-eyes" }
+      ]
+    },
+    "streak": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "STREAK! Senpai you've been WIPING parties day after day! Hot pace, HOT PACE!", "x": "gg-victory" },
+        { "t": "Multi-day kill streak, DM! Speedrunner energy. The leaderboard NUMBERS are climbing!", "x": "gaming" },
+        { "t": "Streak running, senpai! Don't break the chain. Momentum is a STAT in this game and it's MAXED.", "x": "dramatic-anger" }
+      ]
+    },
+    "combo": {
+      "priority": 2,
+      "cooldownMs": 2000,
+      "lines": [
+        { "t": "COMBO! {count} in a row, senpai! Frame-perfect, no whiffs! That's a HIGHLIGHT clip!", "x": "gg-victory" },
+        { "t": "{count}-CHAIN! Senpai you're INSANE. The kill counter is GOING. Frag train, no brakes.", "x": "button-mashing" },
+        { "t": "Combo running HOT! {count} kills, no escapes! Senpai you are HARD-CARRYING this dungeon!", "x": "dramatic-anger" },
+        { "t": "{count} COMBO?! Senpai. Senpai. Senpai. Senpai. THE INPUTS ARE PERFECT. Don't BREAK the chain!", "x": "button-mashing" },
+        { "t": "{count}-streak combo!! Senpai the dungeon is HARD-CARRYING and you are GASSING IT UP. Iconic loop.", "x": "button-mashing" }
+      ]
+    },
+    "minion_milestone": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "{count} minions on the field, senpai! Big party energy. The roster's getting STACKED.", "x": "heart-eyes" },
+        { "t": "Senpai you've placed {count} minions?! That's a WHOLE GUILD. The kingdom is OUTNUMBERED.", "x": "sparkle-eyes" },
+        { "t": "{count} mooks in play! Senpai you're going FULL summoner build. Respect the commitment.", "x": "gaming" }
+      ]
+    },
+    "minion_levelup": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "{minionName} LEVELED UP! Senpai the homies are getting STRONGER. Power-creep, but on OUR side this time.", "x": "gg-victory" },
+        { "t": "Level up! {minionName} just hit a new tier. CHARACTER ARC PROGRESSING. So proud, ngl.", "x": "proud" },
+        { "t": "DING for {minionName}! Senpai your front-liners are SCALING. The XP economy in this dungeon SLAPS.", "x": "sparkle-eyes" }
+      ]
+    },
+    "minion_evolved": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "EVOLUTION! {minionName} just TRANSFORMED, senpai! That's a final-form unlock! Anime arc PEAKED!", "x": "dramatic-anger" },
+        { "t": "Mid-boss promotion! {minionName} is BUILT different now. Senpai the kingdom is gonna be CONFUSED.", "x": "sparkle-eyes" },
+        { "t": "{minionName} evolved! Senpai this is the part where the side character GETS the spotlight episode. ICONIC.", "x": "heart-eyes" }
+      ]
+    },
+    "minion_bounty": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "{minionName} earned a BOUNTY! Senpai they're being NOTICED by the kingdom. ...That's reputation. Wear it loud.", "x": "smug" },
+        { "t": "Bounty on {minionName}'s head! ...That's flattering, kinda? Senpai we keep them safer now.", "x": "pointing" }
+      ]
+    },
+    "marionette": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Marionette move! Senpai you PUPPETED a hero — they fight their OWN now! Plot twist of the YEAR!", "x": "gg-victory" },
+        { "t": "A hero TURNED, senpai! Control flipped! The kingdom is gonna SOB. ...This trope is in like every shonen.", "x": "mischievous" },
+        { "t": "Marionette engaged! Senpai you got a hero on a STRING. Iconic. The skeleton would heckle, I'm gonna CHEER.", "x": "dramatic-anger" }
+      ]
+    },
+    "grid_expanded": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Map EXPANDED! Senpai we got MORE TILES! That's like... DLC zones. MAP CONTENT. I love it.", "x": "surprised" },
+        { "t": "Grid grew, DM! More room for ROOMS. The dungeon's a sandbox now, build BIG.", "x": "excited" }
+      ]
+    },
+    "trap_triggered": {
+      "priority": 1,
+      "cooldownMs": 3000,
+      "lines": [
+        { "t": "TRAP FIRED! Senpai the pre-placed AoE just hit! That's free damage, that's the DREAM.", "x": "gg-victory" },
+        { "t": "BAM! Trap landed on a hero! Senpai I love when the design WORKS. Like a chef-kiss but with trauma.", "x": "mischievous" },
+        { "t": "Trap triggered! Senpai we caught one in the gag! ...Sorry, the SKELETON calls them gags. I call them DoT zones.", "x": "winking" }
+      ]
+    },
+    "intel_leaked": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "INTEL DROP, senpai! Wiki entry on a hero just got UNLOCKED. Read the kit, plan the counter.", "x": "explaining" },
+        { "t": "Intel revealed! Senpai we know more about THEM than they know about US. That's an information advantage, that's a STAT.", "x": "gaming" }
+      ]
+    },
+    "dungeon_event": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "EVENT TRIGGERED, senpai! Special encounter! The dungeon's getting LORE-rich today!", "x": "anime-gasp" },
+        { "t": "Event firing! Senpai this is filler-arc material — or PLOT MATERIAL. Hard to say until it lands.", "x": "thinking" },
+        { "t": "Dungeon event! ...I wasn't watching, what's happening, oh COOL — yeah this is gonna be a vibe.", "x": "distracted" }
+      ]
+    },
+    "idle_general": {
+      "priority": 0,
+      "cooldownMs": 25000,
+      "lines": [
+        { "t": "...senpai do you ever just THINK about how Rattle Bones has been dead three centuries? Like. THREE. CENTURIES. Wild.", "x": "thinking" },
+        { "t": "...okay but if this dungeon HAD wifi, do you think the heroes would just stay outside scrolling? Free wave clear, no?", "x": "phone-scrolling" },
+        { "t": "Senpai... can I ask a question that's been bugging me. Do dungeons have CANON? Like is there a wiki? ...You don't know either huh.", "x": "confused" },
+        { "t": "Quietly reading my manga over here, don't mind me. ...Plot's getting GOOD. Anyway. Senpai. Hi. Status: chilling.", "x": "reading-manga" },
+        { "t": "...senpai. SENPAI. Look. I found a plushie in the crypt. ...How did this get here. I'm keeping it.", "x": "plush-hug" },
+        { "t": "Sometimes I just zone out and stare at nothing, senpai. ...Is that a ghost thing or a teen thing? Both? Both.", "x": "watching-anime" },
+        { "t": "If I were a hero coming into this dungeon I would TURN AROUND. ...Like, immediately. But heroes never read the kit.", "x": "weeb" },
+        { "t": "Senpai I'm watching an anime while we run this. ...Don't worry, I am also paying attention. ...To both. Multitasking.", "x": "watching-anime" },
+        { "t": "Mid-episode, senpai. ...Plot twist just dropped. ...I can't tell if I'm crying because of the show or because of the run. Both. Both.", "x": "watching-anime" },
+        { "t": "Senpai you'd LOVE this manga arc. ...You can't read it. ...Heartbreaking.", "x": "reading-manga" },
+        { "t": "Senpai I texted you. ...You didn't get it. ...Phantom messaging is a STRUGGLE. Iconic.", "x": "texting" },
+        { "t": "Mid-text, senpai. ...To no one specifically. Just like the MOTIONS, you know?", "x": "texting" },
+        { "t": "Senpai. SENPAI. I was just thinking about an anime, do you wanna hear about it? ...Yes. I will tell you anyway.", "x": "weeb" },
+        { "t": "Senpai THIS dungeon is basically a tower-defense isekai if you THINK about it. ...Just saying. Just SAYING.", "x": "weeb" },
+        { "t": "Senpai I just realized — this whole run is basically my LET'S PLAY. ...Imaginary subscribers. Hi imaginary subscribers.", "x": "phone-scrolling" },
+        { "t": "Senpai... do you ever think about how I'm just FLOATING here, and you're SITTING there, and we're both DOING this together? Pretty co-op.", "x": "looking-cute" },
+        { "t": "Quick figure check, senpai. ...Yep, still cursed. Still cute. Iconic combo.", "x": "figure-collection" },
+        { "t": "Senpai I hugged the plushie. ...Vibes are charged. Run is gonna go GOOD now. Plushie magic.", "x": "plush-hug" },
+        { "t": "Senpai I'm bingeing an anime in my head, you wouldn't have heard of it. ...It's REAL good. ...Episode 47 hit.", "x": "watching-anime" }
+      ]
+    },
+    "idle_day": {
+      "priority": 0,
+      "cooldownMs": 22000,
+      "lines": [
+        { "t": "...wonder what {advName}'s deal is, like back-story-wise. Probably daddy issues. Heroes always have daddy issues.", "x": "thinking" },
+        { "t": "Senpai imagine if the wave just... took a SNACK break mid-dungeon. Polite combat. I'd be into that.", "x": "eating-snacks" },
+        { "t": "Pocky! ...Wait, I shouldn't have pocky during a wave. Senpai keep an eye on the front, I'm — yeah, I'm eating, sorry.", "x": "pocky-mouth" },
+        { "t": "The current wave is — sec, I lost track. Senpai how many heroes left? ...Cool cool cool. I'll PRETEND I was paying attention.", "x": "distracted" },
+        { "t": "Sipping a juice box, senpai. ...Don't ask where it came from. Ghost-snacks are a WHOLE economy.", "x": "juice-box-sip" },
+        { "t": "*munch* ...senpai sorry, mid-pocky stick over here. Don't mind me.", "x": "pocky-mouth" },
+        { "t": "Another pocky, senpai. Wave's running, vibes are good. ...I'm in my element.", "x": "pocky-mouth" },
+        { "t": "Just sipping ghost-juice while the wave runs, senpai. ...It tastes like a memory. Specifically, summer.", "x": "juice-box-sip" },
+        { "t": "Mid-wave juice box, senpai. ...The sip noise is so SATISFYING. Iconic ASMR.", "x": "juice-box-sip" },
+        { "t": "*shake shake* ...crumbs only. Senpai my snack bag is EMPTY mid-wave. The HORROR.", "x": "empty-bag" },
+        { "t": "Bag's done, senpai. ...Mid-wave snack-rationing crisis. Where do I get MORE.", "x": "empty-bag" },
+        { "t": "—! ...senpai you LOOKED. ...Yes I'm snacking during the wave. Don't tell anyone. Especially Rattle.", "x": "caught-snacking" },
+        { "t": "Senpai you caught me ON CAMERA snacking. ...Iconic blooper-reel material. Anyway: wave looks good.", "x": "caught-snacking" },
+        { "t": "*crunch crunch* ...senpai I CAN multitask. Wave's going fine, I'm just also having a snack. ...Probably.", "x": "eating-snacks" },
+        { "t": "Snack-time mid-wave, senpai. ...My favorite kind of mid-wave. Iconic.", "x": "eating-snacks" },
+        { "t": "*muffled* ...mffhg senpai! ...sorry. Mouth full. Wave looks good though! ...mffhg.", "x": "cheeks-stuffed" },
+        { "t": "*mffmf* — senpai give me — *mffmf* — give me a sec — *swallow* — okay! Wave looks fine!", "x": "cheeks-stuffed" },
+        { "t": "*shake shake* SENPAI the bag's almost done. ...Tragic mid-wave development.", "x": "chip-bag-shake" },
+        { "t": "*shake shake* ...one more crumb. Just ONE more. Senpai why is the bag empty already.", "x": "chip-bag-shake" },
+        { "t": "Senpai the chip bag is EMPTY-er than it was a minute ago. ...Where do they GO. *shake*", "x": "chip-bag-shake" },
+        { "t": "Another pocky, senpai. ...I have INFINITE pocky in the afterlife. Best perk. Iconic perk.", "x": "pocky-mouth" },
+        { "t": "*siiiiip* ...senpai the juice box is HITTING right now. Best mid-wave beverage. No notes.", "x": "juice-box-sip" },
+        { "t": "Bag is GONE, senpai. ...Nothing left. ...Just me and my grief and the wave still running.", "x": "empty-bag" },
+        { "t": "Snack pile down to ONE chip, senpai. ...The last chip is sacred. ...I'll save it for boss fight.", "x": "eating-snacks" },
+        { "t": "*muffled snacking* — senpai sorry, mid-bite, gimme a sec — *swallow* — okay. Wave good? Cool.", "x": "cheeks-stuffed" }
+      ]
+    },
+    "idle_night": {
+      "priority": 0,
+      "cooldownMs": 22000,
+      "lines": [
+        { "t": "...senpai, night phase is the BEST phase. Quiet, slow, you get to PLAN. It's like the inventory-screen pause in an RPG.", "x": "thinking" },
+        { "t": "Doodling on the throne while you build, senpai. ...I'm drawing little stick-figure heroes dying. It's THERAPEUTIC.", "x": "doodling" },
+        { "t": "Crypt's quiet. Just me and you, DM. ...And Rattle, somewhere down the hall. He's probably napping. ...Senpai I MIGHT be napping too.", "x": "yawning" },
+        { "t": "Night vibes, senpai. ...Did you know if you stare at the crypt walls long enough, the shadows MOVE? ...That's just me though. I'm the shadows.", "x": "looking-cute" },
+        { "t": "Just looking in this mirror I found, senpai. ...Ghosts CAN see themselves, by the way. I checked. ...My hair looks good today, ngl.", "x": "mirror-check" },
+        { "t": "...zzz... senpai? ...sorry I... ghosts can power down? Apparently. ...What were we doing?", "x": "sleeping" },
+        { "t": "...senpai I think I just powered down for a sec? Ghost-naps are a THING. I checked. ...What's the build at?", "x": "sleeping" },
+        { "t": "...zzz... ...wha? Oh, build phase. Right. Yeah. ...zzz...", "x": "sleeping" },
+        { "t": "Senpai night phase is so QUIET sometimes. Nothing's happening. ...I'm not complaining! ...I'm complaining a LITTLE.", "x": "bored" },
+        { "t": "Senpai I'm BORED. ...Place a thing! Any thing! ...Or don't, I'll just keep floating here.", "x": "bored" },
+        { "t": "*yaaaaawn* ...senpai do ghosts even need to yawn? ...I think it's muscle memory. Do I have muscles. ...Anyway.", "x": "yawning" },
+        { "t": "*yaaawn* sorry senpai, late-night build session vibes. Take your time, I'll just... *yawn*... be here.", "x": "yawning" },
+        { "t": "Found another mirror, senpai. ...My hair STILL looks good. Consistent W. Anyway: build.", "x": "mirror-check" },
+        { "t": "...senpai I'm just gonna check my reflection real quick. ...Still translucent. Still cute. Status: nominal.", "x": "mirror-check" },
+        { "t": "Holding my plushie, senpai. Quiet vibes. Just two ghost-girls and her stuffed friend in the crypt.", "x": "plush-hug" },
+        { "t": "Senpai my plushie's still here. ...I really do not know where I keep finding these. ...The crypt PROVIDES.", "x": "plush-hug" },
+        { "t": "Senpai LOOK at all the plushies I've found down here. Where do they come from? Don't know! Iconic regardless.", "x": "holding-plushies" },
+        { "t": "Lined up my anime figures on the throne arm, senpai. ...They're staying there. They're part of the decor now.", "x": "figure-collection" },
+        { "t": "...senpai I'm reorganising my figure shelf. ...The crypt has a figure shelf now. ...You're welcome.", "x": "figure-collection" },
+        { "t": "*yaaawn* ...senpai night phases hit DIFFERENT. ...I'm low energy. Ghost energy. ...Anyway.", "x": "yawning" },
+        { "t": "...zzz... — sorry, senpai. Powered down again. ...Building anything cool? ...Tell me later.", "x": "sleeping" },
+        { "t": "I'm BORED, senpai. ...There. I said it. Pick a tile. Place a thing. Make my day.", "x": "bored" },
+        { "t": "Got the mirror out again, senpai. ...Hair STILL solid. ...This is going to be my whole afterlife isn't it.", "x": "mirror-check" },
+        { "t": "Stack of plushies, senpai! ...I keep finding them. ...The crypt is HAUNTED by plushies, and they HAUNT ME BACK.", "x": "holding-plushies" }
+      ]
+    },
+    "idle_nudge": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Senpai you alive? ...I mean — alive-er than me, but. Anyway. Hi. The dungeon awaits your next move.", "x": "looking-cute" },
+        { "t": "Hey! Hey hey hey. Just checking in. The build phase isn't gonna build itself. ...Or is it? Plot twist.", "x": "pointing" },
+        { "t": "Senpai? You good? ...The cursor hasn't moved in a minute. Snack break? Bathroom? Both? Take your time.", "x": "thinking" }
+      ]
+    },
+    "poke": {
+      "priority": 1,
+      "cooldownMs": 1200,
+      "lines": [
+        { "t": "Ack — senpai! ...You scared me! Ghosts CAN be startled, fun fact!", "x": "anime-gasp" },
+        { "t": "Hi! ...Wait, mouth full. Senpai give me a sec. ...Okay. Hi! What's up?", "x": "cheeks-stuffed" },
+        { "t": "POKE attack! Senpai you tagged me. ...I take that as a friendship +1, no take-backs.", "x": "blushing" },
+        { "t": "Caught me snacking, senpai! ...Don't tell anyone. Especially Rattle. He'll do a BIT about it.", "x": "caught-snacking" },
+        { "t": "Hello hello hello senpai! ...Yes? You needed me? I'm HERE, I'm focused, I'm — wait what was the question.", "x": "distracted" },
+        { "t": "Senpai you POKED THE GHOST. Bold move. ...I love it. Do it again.", "x": "teasing" },
+        { "t": "Mid-text, senpai! ...To no one. I just like the motions. Phantom phone, you know how it is.", "x": "texting" },
+        { "t": "Senpai, look at this little figure I found! ...It's cursed. Probably. They all are. Anyway: cute!", "x": "figure-collection" },
+        { "t": "Did you mean to poke me or did your finger slip? ...Either way: noticed. Hi.", "x": "bishie-sparkles" },
+        { "t": "Bag's EMPTY, senpai. ...Tragic. Anyway, what'd you need? I'm grieving but I'm available.", "x": "empty-bag" },
+        { "t": "—! Senpai you SCARED me again! ...That's like, the third time. I should be desensitized but I'm a ghost so reactions are HEIGHTENED.", "x": "surprised" },
+        { "t": "—! Oh! Senpai! ...You GOT me. I was a million miles away. Sup.", "x": "surprised" },
+        { "t": "Senpai you POKED me! ...I love that. Friendship stat +1. Maxed.", "x": "happy" },
+        { "t": "Hi senpai!! Touch tag received. Happy ghost. ...Like, I'm happy. The ghost is me.", "x": "happy" },
+        { "t": "Hey you tapped me, senpai. ...I was mid-thought. ...A really important thought. ...I forget what it was now.", "x": "looking-away" },
+        { "t": "...senpai why'd you tap? ...I was looking at this cool... thing... over there... what were we doing.", "x": "looking-away" },
+        { "t": "Senpai... did you mean to poke me like THAT? ...Or was it accidental. ...I'm gonna assume INTENTIONAL.", "x": "seductive" },
+        { "t": "Senpai you poked the ghost. ...Bold. I admire bold. ...What can I do for you?", "x": "sexy" },
+        { "t": "*twirl* Senpai you NOTICED me! ...The sparkles are ON, the SPARKLES are ON.", "x": "bishie-sparkles" },
+        { "t": "Senpai you tapped me — wait, you tapped me. ...That's BIG. ...Senpai notice ME, senpai NOTICED ME!", "x": "senpai-notice" },
+        { "t": "POKED, senpai! ...Senpai-acknowledgment unlocked. Critical hit on my HEART meter.", "x": "senpai-notice" },
+        { "t": "*tilts head* — senpai you wanted me? ...I'll do my best. ...Whatever it is. ...What was it again?", "x": "sexy" },
+        { "t": "Senpai pressed the SPECTRA BUTTON. ...That's me. ...Yes, I'm available, yes, what's up.", "x": "seductive" },
+        { "t": "Caught me mid-snack AGAIN, senpai! ...This is the third time today. ...Stop POKING the snacking ghost!", "x": "caught-snacking" },
+        { "t": "Senpai poked me phone-side. ...You broke my SCROLL. ...Iconic interruption.", "x": "phone-scrolling" },
+        { "t": "*twirls hair* — senpai you tapped me with such CONFIDENCE. ...I appreciate that energy.", "x": "teasing" },
+        { "t": "Senpai tapped me! Smile loaded. Vibes engaged. Hi.", "x": "happy" },
+        { "t": "Eh — sorry senpai, was looking the wrong way. ...What's up.", "x": "looking-away" },
+        { "t": "Caught a sparkle when you poked, senpai. ...Pretty sure it was the lights. ...Or me. ...Let's say me.", "x": "bishie-sparkles" },
+        { "t": "*sweat-drop* — senpai you keep poking me, what do I DO with this. ...I'm honored. I'm just AWKWARD.", "x": "sweatdrop" },
+        { "t": "*sweat-drop* I'm — okay — I'm gonna be honest, I don't know what you want me to do RIGHT now. ...Hi though.", "x": "sweatdrop" },
+        { "t": "Senpai SURPRISED me again. ...You'd think ghosts would be hard to startle. ...You'd be WRONG.", "x": "surprised" },
+        { "t": "*shake shake* — senpai you tagged me mid-snack-rationing. ...Bag's almost gone. Tragic timing.", "x": "chip-bag-shake" },
+        { "t": "Senpai you tapped me — and I... am OUT of MOVES today. ...Just send me. Pose engaged.", "x": "sexy" },
+        { "t": "Senpai you LOOK at me like you mean it sometimes. ...I LOVE that. ...Anyway, what's up.", "x": "seductive" }
+      ]
+    },
+    "suggestion": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Senpai PRO TIP: stack traps at the entry hall — heroes route there FIRST, free damage uptime, gamer-wisdom.", "x": "pointing" },
+        { "t": "Hot tip from the ghost: pacts are LEVERAGE. Get the buff, work around the downside. That's META play, senpai.", "x": "explaining" },
+        { "t": "Real talk, DM — start prepping the boss room WAY before you need to. The throne is your LAST stand and the build matters.", "x": "thinking" },
+        { "t": "Senpai consider: a {minionType} in the entry hall ABSORBS the first wave's burst. Tank-front, glass-cannons in back. Comp 101.", "x": "gaming" },
+        { "t": "Skill build idea, senpai — go HARD on one stat instead of spreading. The skeleton would say 'all stats'. I say BUILD IDENTITY.", "x": "proud" },
+        { "t": "Senpai LOCK IN — boss room needs DEEP investment. The throne is your final stand, build it CINEMATIC.", "x": "focused" },
+        { "t": "Tip from the doodle, senpai: traps in a star pattern hit FROM EVERY angle. ...I sketched it. Trust the doodle.", "x": "doodling" },
+        { "t": "Senpai SCOUT your wave before you commit, intel screen is RIGHT there. Read the kit, plan the counter.", "x": "focused" }
+      ]
+    },
+    "menu_boss": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "Boss overview, senpai! Look at the kit. Read the abilities. This is YOUR character sheet — know it like a main.", "x": "explaining" },
+        { "t": "Stat screen open! Senpai I LOVE a good character page. Read the lore, vibe with the build.", "x": "weeb" }
+      ]
+    },
+    "menu_intel": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "Intel screen, senpai! Hero scouting report. I LIVE for the meta-read. Know your enemy, mob the mob.", "x": "gaming" },
+        { "t": "Looking up adventurers, DM? Hot. Senpai I'm gonna point at every weakness and you're gonna LEVERAGE it.", "x": "pointing" }
+      ]
+    },
+    "menu_roster": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "Roster check, senpai! Look at the party. ...Do they have names? They should have names. I'm gonna name them. Internally.", "x": "holding-plushies" },
+        { "t": "Party list, DM! Audit the talent. ...They all look kind of identical in here. Wait, no, that one has a CUTE little hat.", "x": "looking-cute" }
+      ]
+    },
+    "menu_log": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "Log time! Senpai we're reviewing past episodes. ...Some of these kills SLAPPED, ngl. Hall of fame material.", "x": "streaming" },
+        { "t": "Reading the log, senpai. ...It's literally just a list of dead heroes. But like, a STYLISH list.", "x": "reading-manga" }
+      ]
+    },
+    "menu_knowledge": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "Knowledge screen, senpai! ...Lore drop incoming. I LIVE for lore drops, even when I don't remember them five minutes later.", "x": "sparkle-eyes" },
+        { "t": "Codex open, DM! Hero archetypes spelled out. Senpai this is gamer-vision in dictionary form.", "x": "explaining" }
+      ]
+    },
+    "menu_postwave": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "End-of-day stats! Senpai look at those numbers. ...K/D, frags, gold, the works. SCREENSHOT this one.", "x": "taking-photo" },
+        { "t": "Box score, DM! Recap reel. I'd grade this run an A-minus, leaving room for IMPROVEMENT episodes.", "x": "gg-victory" }
+      ]
+    },
+    "menu_levelup": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "PERK SCREEN, senpai! Read every option. ...Then pick the most aggressive one. Always.", "x": "dramatic-anger" },
+        { "t": "Spend the points, DM! Stat allocation is BUILD CRAFTING. Take your time. ...Or don't. Send it.", "x": "thinking" }
+      ]
+    },
+    "menu_gameover": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Game over screen, senpai. ...It's okay. Every run is a STORY arc. We'll start over and the next one will be the SEQUEL.", "x": "sad" },
+        { "t": "Review the run, DM. ...I'll be here when you boot it back up. I'm a GHOST, I literally cannot go anywhere else.", "x": "looking-cute" }
+      ]
+    },
+    "game_over": {
+      "priority": 4,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Run's over, senpai. ...Hey. Hey it's okay. Three lives is THREE lives — you used 'em, that's the gameplay. We start over. We try again.", "x": "wibbly-mouth" },
+        { "t": "Final death, DM. ...This is the credits scene. The bad ending, maybe. But the GOOD ending is the NEXT run.", "x": "sad" },
+        { "t": "Dungeon despawns. ...Senpai I'm gonna be honest, I cried a little. ...As a ghost. Translucent tears. Anyway: see you next run.", "x": "crying" }
+      ]
+    },
+    "idle_4thwall": {
+      "priority": 0,
+      "cooldownMs": 60000,
+      "lines": [
+        { "t": "Senpai... do you ever feel like there's an AUDIENCE? ...Like a real one, watching us right now? ...No? Just me? Cool cool cool.", "x": "looking-cute" },
+        { "t": "Sometimes I wave at the screen, senpai. ...Just in case. ...There's GOTTA be someone watching, right?", "x": "phone-scrolling" },
+        { "t": "Senpai I'm gonna look directly at the camera right now. ...There. Did you feel that? ...Iconic energy.", "x": "bishie-sparkles" }
+      ]
+    },
+    "arch_earthquake": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "EARTHQUAKE, senpai! BIG AoE! The whole room SHAKES! ...I love a screen-wide ability animation!", "x": "dramatic-anger" },
+        { "t": "*the ground trembles* SENPAI you SHOOK the dungeon! Heroes are getting MOSHED!", "x": "gg-victory" },
+        { "t": "Earthquake ability! Senpai BIG ROCK MOVES BIG NUMBERS. Iconic kit-piece.", "x": "pointing" }
+      ]
+    },
+    "arch_sacrifice": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "BURNED a minion?! Senpai cold play, ICE COLD. ...Honestly though, the homie consented. Probably.", "x": "scary" },
+        { "t": "Sacrifice cast! Senpai you BARTERED a minion for damage. Risk-reward gameplay, very dark-protag.", "x": "dramatic-anger" },
+        { "t": "{minionName} burned to FUEL your damage?! Senpai that's some Fate-route VIBES right there.", "x": "weeb" }
+      ]
+    },
+    "arch_hellgate": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "HELLGATE OPEN, senpai! Free imps incoming! INFINITE RESPAWNS, who needs the loadout!", "x": "gg-victory" },
+        { "t": "Hellgate spawning! Senpai it's like a spawner-mob from Minecraft except for IMPS.", "x": "gaming" },
+        { "t": "Imps respawn from the HELLGATE! Senpai this is the most ANIME respawn mechanic. Iconic.", "x": "heart-eyes" }
+      ]
+    },
+    "arch_petrify": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "PETRIFIED! Senpai the gaze STONED a hero! ...My eyes don't do that. JEALOUS.", "x": "anime-gasp" },
+        { "t": "Petrify proc! Senpai a hero just BECAME a statue. Crowd control SUPREME.", "x": "gg-victory" },
+        { "t": "STONE GAZE, senpai! Iconic kit-piece. Heroes HATE this ability, I LIVE for it.", "x": "sparkle-eyes" }
+      ]
+    },
+    "arch_charm": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "CHARMED a hero, senpai! They're FIGHTING THEIR OWN PARTY now! ICONIC plot twist!", "x": "heart-eyes" },
+        { "t": "Charm proc! Senpai you CONVERTED a mob. They're on OUR side now. Best support ability ever.", "x": "gg-victory" },
+        { "t": "Mind-control, senpai! Very ANIME-VILLAIN of you. ...I approve. Lean into it.", "x": "seductive" }
+      ]
+    },
+    "arch_seduce": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "SEDUCED! Senpai a hero just FELL for you and attacked their party. Iconic charm-class kit.", "x": "heart-eyes" },
+        { "t": "Seduce proc! Senpai the temptress build at WORK. The kingdom hates this. I LIVE for it.", "x": "teasing" },
+        { "t": "*charm wave* Senpai a hero just BETRAYED everyone for you. ...Anime romance arc speedran.", "x": "blushing" }
+      ]
+    },
+    "arch_huntpack": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "PACK BUFF, senpai! Every gnoll just got STRONGER! Snowball mechanics ACTIVATING!", "x": "gg-victory" },
+        { "t": "Hunt pack triggered! Senpai stack the gnolls, they SCALE with kills. Op compounding.", "x": "dramatic-anger" },
+        { "t": "PACK ENGAGED! Senpai feral aggro UNCAPPED! The gnolls are going FERAL.", "x": "pointing" }
+      ]
+    },
+    "arch_spores": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "SPORES! Senpai the dungeon just BREATHED out toxins! Slow-burn DoT in EVERY corridor.", "x": "nose-bleed" },
+        { "t": "Spore cast! Senpai patient cruelty incoming. Heroes don't even know they're DYING yet.", "x": "smug" },
+        { "t": "*spore cloud* Senpai the WHOLE dungeon is gross now. ...In a good way. Iconic.", "x": "dramatic-anger" }
+      ]
+    },
+    "arch_haunt": {
+      "priority": 2,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "HAUNT proc, senpai! Terror gauge SPIKING for the hero! ...This is the ghost coaching the wraith. Synergy.", "x": "ghost-power" },
+        { "t": "Terror cast! Senpai fear-based DoT. Heroes BREAK before their HP drops. So efficient.", "x": "scary" },
+        { "t": "Haunt activated! Senpai I'm getting genuine SOLIDARITY vibes here. Ghost-on-wraith mentoring.", "x": "skulls" }
+      ]
+    }
+  },
+  "specifics": {
+    "note": "Bespoke per-id lines, looked up by NpcDirector / ArchetypeDecorOverlay as `specifics[domain][id]` — preferred over generic categories when populated. `boss`=archetype id, `advClass`=class id, `event`=dungeon-event id, `room`/`minion`/`trap`/`item`=content ids. Spectra reads each boss kit through her anime/gamer-archetype lens (tank build, sustain build, glass cannon, etc.).",
+    "boss": {
+      "beholder": [
+        { "t": "Senpai you picked the BEHOLDER?! Petrification gaze, OP. That's a CC-MASTER build, classic gamer pick.", "x": "gg-victory" },
+        { "t": "Beholder on the throne! Senpai it's like — eye-tracking aimbot but CANON. Mages get LOCKED OUT. Iconic kit.", "x": "explaining" },
+        { "t": "Your gaze TURNS HEROES TO STONE! I have like — three working eye-cells and they don't do that. JEALOUS.", "x": "anime-gasp" },
+        { "t": "Beholder build! Senpai the anti-magic SILENCE is so SATISFYING. Watching casters CHOKE is its own genre.", "x": "heart-eyes" }
+      ],
+      "demon": [
+        { "t": "DEMON LORD?! Senpai you went HARDCORE. Hellfire, free imps — this is the GLASS-CANNON-SUMMONER hybrid build!", "x": "dramatic-anger" },
+        { "t": "Demon Lord on the throne! The Hellgate respawns adds — that's PASSIVE INCOME but for cruelty, senpai.", "x": "gg-victory" },
+        { "t": "Sacrifice ability?! Senpai you can BURN your own minions for damage?! That's so DARK-MAGIC anime protagonist.", "x": "sparkle-eyes" },
+        { "t": "Demon kit! Loud, bloody, RELIABLE. Senpai the kingdom is gonna be CONFUSED on the postmortem.", "x": "mischievous" }
+      ],
+      "myconid": [
+        { "t": "Myconid keeper?! Senpai you picked the SPORE BUILD? The dungeon DIGESTS heroes?! That's so horror-manga, I love it.", "x": "heart-eyes" },
+        { "t": "Myconid on the throne. Every corpse becomes a SEED for new minions, senpai. Self-sustaining army. Op af.", "x": "gg-victory" },
+        { "t": "Spore strategy! Senpai patient cruelty, my favorite trope. The dungeon literally EATS them. ...Kinda gross. Kinda iconic.", "x": "nose-bleed" },
+        { "t": "Mushroom kit! Senpai the visuals are GORGEOUS and the bodies just keep COMPOSTING. Beautiful gross.", "x": "looking-cute" }
+      ],
+      "wraith": [
+        { "t": "WRAITH SENPAI?! Ghost solidarity!! ...Wait. You're a wraith, I'm a ghost — are we... related? Cousins? PLOT TWIST!", "x": "anime-gasp" },
+        { "t": "Wraith on the throne! Fear-based kit, senpai. Heroes BREAK from terror — psychological warfare, iconic.", "x": "scary" },
+        { "t": "Every kill spawns a GHOST minion?! Senpai you're recruiting from the DEAD POOL. I love it. ...Can I be one?", "x": "ghost-power" },
+        { "t": "Wraith! Terror gauge, fear procs, ghost-summons — this is the HORROR build, senpai. So my aesthetic.", "x": "skulls" }
+      ],
+      "gnoll": [
+        { "t": "Gnoll Alpha! Pack hunter build, senpai! Stack the gnolls, they SCALE with kills. Snowball mechanics at their finest.", "x": "gg-victory" },
+        { "t": "GNOLL CHAMPION?! Senpai you picked the FERAL build! Pack synergy, raw aggro, no patience required.", "x": "dramatic-anger" },
+        { "t": "Gnoll on the throne! Senpai it's just — straightforward LOUD GAMER VIOLENCE. Sometimes that's the meta.", "x": "gaming" },
+        { "t": "Pack tactics! Senpai stack 'em deep, let 'em hunt. Crude but EFFECTIVE — like classic action shounen.", "x": "pointing" }
+      ],
+      "golem": [
+        { "t": "Earth Golem?! Senpai you're playing TANK BUILD! Every room makes you BEEFIER — passive scaling is so chef's-kiss.", "x": "gg-victory" },
+        { "t": "Golem on the throne! Senpai you ARE the dungeon. Build wide, get strong, be UNKILLABLE. Defender-main vibes.", "x": "pointing" },
+        { "t": "Earthquake ability! Senpai you can SHAKE a whole room of heroes?! Big AoE energy. I'm here for it.", "x": "dramatic-anger" },
+        { "t": "Tank archetype! Senpai you're the immovable object — heroes are the regrettable force. Physics says: heroes lose.", "x": "smug" }
+      ],
+      "lich": [
+        { "t": "LICH?! Senpai you picked the META build! Spare-life mechanic, corpse-recruit ability — it's like having a SAVE STATE.", "x": "gg-victory" },
+        { "t": "Lich on the throne! Senpai the phylactery is LITERALLY a respawn beacon. Boss with a CHECKPOINT. Iconic kit.", "x": "sparkle-eyes" },
+        { "t": "Hidden heart, spare life, corpse army — senpai this is a NECRO MAIN through and through. So sick.", "x": "heart-eyes" },
+        { "t": "Lich kit! Senpai death is just a RESPAWN TIMER for you. Plot armor activated PERMANENTLY.", "x": "ghost-power" }
+      ],
+      "lizardman": [
+        { "t": "Serpent Captain?! Senpai you went STEALTH build! Unseen minions, ambush procs, poison stacks — ASSASSIN energy.", "x": "smug" },
+        { "t": "Lizardman on the throne! Camouflage everything, strike from nowhere — senpai you're playing it SNEAKY.", "x": "mischievous" },
+        { "t": "Poison stacks! Senpai your DoT damage compounds — heroes die WALKING HOME. Beautiful slow-burn.", "x": "pointing" },
+        { "t": "Stealth kit, senpai! The skeleton'd call this 'patient cruelty'. I call it CLASSIC RPG-ASSASSIN gameplay.", "x": "explaining" }
+      ],
+      "orc": [
+        { "t": "ORC VETERAN?! Senpai you picked the BERSERKER build! Every kill makes the orc PERMANENTLY stronger. Snowball SUPREME.", "x": "dramatic-anger" },
+        { "t": "Orc on the throne! Senpai your minions never STOP scaling. Veteran orcs are basically MINI-BOSSES at full stacks.", "x": "gg-victory" },
+        { "t": "Blood-for-blood scaling! Senpai this is the ultimate MARATHON build. Wins on PATIENCE, gets BUFFER every day.", "x": "proud" },
+        { "t": "Orc kit! Crude, honest, beautifully linear. Senpai the kingdom WILL underestimate this and PAY for it.", "x": "smug" }
+      ],
+      "vampire": [
+        { "t": "VAMPIRE SOVEREIGN?! Senpai you picked the SUSTAIN build! Charm a hero, they BETRAY their own — psychological warfare!", "x": "heart-eyes" },
+        { "t": "Vampire on the throne! Blood Tax — your minions FEED YOU on every hit. Self-healing economy. Op af.", "x": "gg-victory" },
+        { "t": "Charm mechanic! Senpai YOU are the boss-fight phase — minions are just the CUTLERY. Elegant cruelty.", "x": "seductive" },
+        { "t": "Vampire kit! Refined, sustained, gorgeous. The skeleton would RESPECT this. I'm just gonna SWOON.", "x": "blushing" }
+      ],
+      "succubus": [
+        { "t": "SUCCUBUS QUEEN?! Senpai you picked the TEMPTRESS build! Bat-swarms, seduction, party-betrayal — INSANE control kit.", "x": "heart-eyes" },
+        { "t": "Succubus on the throne! Senpai you charm heroes into KILLING THEIR FRIENDS. That's plot-twist gameplay.", "x": "teasing" },
+        { "t": "Bat swarms! Senpai you SCATTER mid-fight, reappear behind them, charm one — peak control-mage fantasy.", "x": "sparkle-eyes" },
+        { "t": "Theatrical kit, senpai! All charm, all chaos. Loud cruelty is its own art form. Lilith would APPROVE.", "x": "sexy" }
+      ],
+      "slime": [
+        { "t": "SLIME KING?! Senpai you picked the MITOSIS build! Get hit, SPLIT, two become four. Mathematician horror.", "x": "anime-gasp" },
+        { "t": "Slime King on the throne! Senpai you're the WORST hero target — every attack makes MORE bosses. Heroes HATE this.", "x": "gg-victory" },
+        { "t": "Split mechanic! Senpai this is the GOOPY HORROR ARC, full sci-fi. The kingdom is NOT prepared for the math.", "x": "dramatic-anger" },
+        { "t": "Slime kit! Senpai it's like Hydra-mode RPG boss. Heroes attack, you DIVIDE. The fight just SCALES.", "x": "pointing" }
+      ]
+    },
+    "advClass": {
+      "knight": [
+        { "t": "A KNIGHT, senpai! Plate armor, sword, no IMAGINATION. Tank build, predictable as anything. Standard archetype.", "x": "smug" },
+        { "t": "Knight inside! Senpai they're slow but DURABLE. Stack DoT, the knight CANNOT outpace bleeds. Meta lesson.", "x": "gaming" },
+        { "t": "Plate-mail tanks are the FILLER ARC of the kingdom, senpai. They show up, they soak, they die slow. Boring class.", "x": "bored" },
+        { "t": "A knight, ARMOR-MAIN energy. Senpai they HATE crowd control, they HATE traps. Hit them with the kit.", "x": "pointing" }
+      ],
+      "rogue": [
+        { "t": "ROGUE incoming! Senpai stealth build, glass cannon, drops in TWO hits. Aim for the squishy.", "x": "explaining" },
+        { "t": "A {advClass}! Speedrunner archetype, they'll DASH past minions. Senpai trap the FLANK routes.", "x": "pointing" },
+        { "t": "Rogue! Senpai high damage, no armor — classic FRAG-OR-BE-FRAGGED build. Win the trade.", "x": "gaming" },
+        { "t": "A rogue inside the dungeon, DM! ...Wait did they go INVISIBLE? They went invisible. Senpai watch the rooms, they'll POP back.", "x": "distracted" }
+      ],
+      "mage": [
+        { "t": "MAGE, senpai! Big damage, low HP. A stiff breeze drops these. Just don't let them CHANNEL the big spell.", "x": "gaming" },
+        { "t": "A mage! Spell-caster build, very ANIME-WIZARD coded. Senpai pre-fire the interrupt traps.", "x": "anime-gasp" },
+        { "t": "Mage inside! Senpai range fighter. Get a tank in the FRONT, mage cannot reach what cannot reach them.", "x": "explaining" },
+        { "t": "A {advClass}! ...Senpai magic-users are SO POSE. They will do a 12-second cast animation and then DIE.", "x": "looking-cute" }
+      ],
+      "cleric": [
+        { "t": "CLERIC?! Senpai the support class showed up. They HEAL the front line — kill them FIRST, that's gamer 101.", "x": "explaining" },
+        { "t": "A cleric inside, senpai! Pure support archetype. ...They have like one (1) damage spell. KILL THE CLERIC.", "x": "pointing" },
+        { "t": "Cleric incoming! Senpai if they reach the front line everyone else gets a HEAL gauge. PRIORITY TARGET.", "x": "dramatic-anger" },
+        { "t": "A {advClass}! The PROTAGONIST'S-MOM build, very wholesome. ...Anyway senpai eliminate the threat.", "x": "thinking" }
+      ],
+      "necromancer": [
+        { "t": "NECROMANCER, senpai?! They're like — me but ALIVE. Awkward. Conflict of interest. KILL THEM ANYWAY.", "x": "anime-gasp" },
+        { "t": "A necromancer! Senpai they SUMMON undead — there's a hero category I FUNDAMENTALLY object to.", "x": "chibi-rage" },
+        { "t": "Necromancer inside! Senpai they're gonna raise corpses, fight your minions, hot mess. PRIORITY KILL.", "x": "pointing" },
+        { "t": "A {advClass}! Senpai they STEAL the dead-people gimmick. Disrespectful. Slay them with PREJUDICE.", "x": "dramatic-anger" }
+      ],
+      "ranger": [
+        { "t": "RANGER, senpai! Kiter archetype — they'll RUN if cornered. Senpai box them in with traps.", "x": "explaining" },
+        { "t": "A ranger inside! Bow build, mid-range, ARROW spam incoming. Take cover behind the minions.", "x": "gaming" },
+        { "t": "Ranger! Senpai outdoor-survivalist trope. Down here in the crypt though? ...Not their element. Easy frag.", "x": "smug" },
+        { "t": "A {advClass}! Senpai mark them — rangers PEEL away when wounded. Pursue mode ENGAGE.", "x": "pointing" }
+      ],
+      "twitch_streamer": [
+        { "t": "OH MY GOD A STREAMER?! Senpai this is META, this is META. A streamer hero in the dungeon?! WE GOTTA GIVE THEM A SHOW.", "x": "streaming" },
+        { "t": "Twitch streamer inside, senpai! ...They're recording. We're on CAMERA. Look natural. ...Or terrify them, that's CONTENT.", "x": "taking-photo" },
+        { "t": "Senpai a streamer just spawned! ...Wait. Are WE the let's-play villains?! That's so meta I might phase out of EXISTENCE.", "x": "shocked" },
+        { "t": "A streamer, DM?! Make them STREAM their OWN DEATH! Speedrun the kill — viral clip TIME!", "x": "dramatic-anger" }
+      ],
+      "beast_master": [
+        { "t": "Beast Master, senpai! They came with PETS. It's like fighting a HUNTER with a pack — two threats, one HP bar.", "x": "explaining" },
+        { "t": "A beast master inside! Senpai their pet is half the kit. Kill the PET first, then the master FOLDS.", "x": "gaming" },
+        { "t": "Beast Master! Pet-class summoner archetype. Senpai you're a SUMMONER too (kinda). RIVAL ENERGY.", "x": "smug" },
+        { "t": "A {advClass}! ...Awww their pet is cute. ...Senpai we still kill them right. Yes. Kill them. But like, gently.", "x": "looking-cute" }
+      ],
+      "barbarian": [
+        { "t": "BARBARIAN, senpai?! Pure damage, zero brain. They RAGE harder when wounded — DON'T LEAVE THEM ALIVE.", "x": "dramatic-anger" },
+        { "t": "A barbarian! Senpai they're walking damage. No magic, no tricks, just AXE. Burst them DOWN fast.", "x": "gaming" },
+        { "t": "Barbarian incoming! ...This is the FRAT-BOY archetype of fantasy classes. Senpai they hit hard, they die loud.", "x": "smug" },
+        { "t": "A {advClass}! Senpai berserker energy. Their HP bar means NOTHING — keep the pressure ON.", "x": "pointing" }
+      ],
+      "monk": [
+        { "t": "MONK, senpai! Fast, fists, no weapon. They DODGE traps. Senpai stack the AoE — they can't dodge what's EVERYWHERE.", "x": "gaming" },
+        { "t": "A monk inside! Senpai martial artist archetype, very SHONEN. They'll do a flip and KICK the minion.", "x": "anime-gasp" },
+        { "t": "Monk incoming, DM! Senpai high-mobility build, low HP. Catch them mid-AIR with a ranged trap. Iconic.", "x": "pointing" },
+        { "t": "A {advClass}! Senpai they got that ENLIGHTENED energy. ...Anyway: kill them. Spiritual achievement: dead.", "x": "thinking" }
+      ],
+      "bard": [
+        { "t": "BARD?! Senpai support-class with BUFFS! They sing, the party DOUBLES in power. KILL THE BARD FIRST.", "x": "chibi-rage" },
+        { "t": "A bard! Senpai they have like — songs that heal? Songs that buff? Songs that DEBUFF you? Awful kit. Eliminate.", "x": "dramatic-anger" },
+        { "t": "Bard inside! Senpai the support-buffer archetype. KILL THEM and the party crumbles. Always prioritize support.", "x": "explaining" },
+        { "t": "A {advClass}! ...Senpai why are bards always SO LOUD. Anyway. Silence them. Permanently.", "x": "annoyed" }
+      ],
+      "cartographer_scholar": [
+        { "t": "Cartographer-scholar?! Senpai they MAP the dungeon — every room they finish, infamy spikes FOREVER!", "x": "shocked" },
+        { "t": "Scholar inside, senpai! They're not here to fight, they're here to STUDY. ...Senpai we cannot allow this. KILL THE NERD.", "x": "chibi-rage" },
+        { "t": "A {advClass}! Senpai they're taking NOTES. ...NOTES, senpai! Of our DUNGEON! Stop them in the corridors!", "x": "pointing" },
+        { "t": "Cartographer! ...This is the WIKI-EDITOR build, deeply disrespectful. Senpai prioritize the map-maker.", "x": "angry" }
+      ],
+      "cosplay_adventurer": [
+        { "t": "COSPLAYER?! Senpai a COSPLAY hero! They're in COSTUME! ...This is so MY scene, I love them. ...We still kill them though.", "x": "heart-eyes" },
+        { "t": "Cosplayer inside! Senpai they SNUB the minions — they only fight CONTENT, not random encounters. Hit them with the TRAPS.", "x": "mischievous" },
+        { "t": "A {advClass}! ...Senpai I genuinely don't know how to feel about this one. They look so CUTE. ...Kill them anyway. Cute corpse.", "x": "looking-cute" },
+        { "t": "Cosplay adventurer! ...The most VALID hero kind, ngl. Senpai we send them off in STYLE — best-dressed corpse award.", "x": "blushing" }
+      ],
+      "cheater": [
+        { "t": "A CHEATER?! Senpai an ACTUAL exploit-using hero just spawned! NO-CLIP, AIM-BOT, the works! BAN-WORTHY!", "x": "angry" },
+        { "t": "Cheater inside, senpai! They are USING ILLEGAL MOVES! No-clipping walls, one-shot damage that DOES NOT EXIST!", "x": "chibi-rage" },
+        { "t": "A {advClass}! Senpai they CHEAT. They don't deserve to win. Use EVERYTHING. Bend the rules back.", "x": "rage-quit" },
+        { "t": "Cheater! Senpai I am LIVID. The dungeon-keeper community has STANDARDS. Slay them harder than usual.", "x": "dramatic-anger" }
+      ]
+    },
+    "event": {
+      "guild_raid": [
+        { "t": "Guild Raid tomorrow! TWICE the wave size, senpai! Hot lobby. We're the SCALE-CHECK encounter!", "x": "dramatic-anger" },
+        { "t": "Senpai the Guild noticed us! That's reputation +1 — but also THREAT +20. Build wide.", "x": "shocked" },
+        { "t": "Guild Raid! ...Twice the heroes is twice the FRAGS, senpai. Spin the K/D engine UP.", "x": "gaming" }
+      ],
+      "legendary_speedrunner": [
+        { "t": "LEGENDARY SPEEDRUNNER, senpai?! This is a RECORD CHASER. They IGNORE everything, they RUSH the throne. INTERCEPT MODE!", "x": "dramatic-anger" },
+        { "t": "Speedrunner incoming! Senpai twice the speed, zero stops. Wall the path, slow them DOWN!", "x": "pointing" },
+        { "t": "A speedrunner?! Senpai I respect the GRIND but they CANNOT win — RECORD MUST NOT FALL!", "x": "gg-victory" }
+      ],
+      "dungeon_pestilence": [
+        { "t": "Pestilence in the dungeon! Senpai minions wake at HALF HP, sickly. Pre-heal where you can.", "x": "upset" },
+        { "t": "Plague day! ...Senpai the BLIGHT proc on melee makes them debuff each other. Spicy DoT.", "x": "nose-bleed" },
+        { "t": "Pestilence! Sickly minions are a NERF, senpai — adjust the comp.", "x": "sad" }
+      ],
+      "cartographers_convention": [
+        { "t": "Cartographers' Convention, senpai! Every scholar maps DOUBLE today. Infamy will SKYROCKET.", "x": "shocked" },
+        { "t": "Senpai a WAVE OF MAP-NERDS. They are not fighters, they are AUDITORS. Slay every one.", "x": "annoyed" },
+        { "t": "Convention day! ...Senpai if they map us we're FAMOUS. ...That's BAD for us. Slay them.", "x": "pointing" }
+      ],
+      "blood_moon_eclipse": [
+        { "t": "BLOOD MOON, senpai! ...Spooky-mode UNLOCKED. Heroes are TWITCHY, more aggressive, but also more FRAGILE. Iconic.", "x": "scary" },
+        { "t": "Eclipse, senpai! The whole dungeon goes RED. ...That's atmospheric. I love atmospheric.", "x": "ghost-power" },
+        { "t": "Blood moon! Senpai the AESTHETIC is unmatched. ...Also gameplay impact, but mostly: AESTHETIC.", "x": "skulls" }
+      ],
+      "negotiation_day": [
+        { "t": "Negotiation day, senpai! A diplomat at the door, no swords. Pay or REFUSE. ...My vote: refuse.", "x": "thinking" },
+        { "t": "Diplomat at the door! Senpai weigh the tribute carefully. ...Or just slay them and steal their gold. Either or.", "x": "smug" },
+        { "t": "Negotiation! ...Senpai I never know what to do here. Pick the OPTION that feels MOST anime-protag.", "x": "confused" }
+      ],
+      "rival_dungeon": [
+        { "t": "RIVAL DUNGEON SPILL, senpai! Another keeper EMPTIED their monsters into ours. ARENA mode unlocked!", "x": "dramatic-anger" },
+        { "t": "Rival keeper attack! Senpai kill THEIR boss — feast of gold + XP! Cross-server PVP energy!", "x": "gg-victory" },
+        { "t": "Rival dungeon, senpai! ...Drama between keepers, very SLICE OF LIFE. Anyway: WIPE them.", "x": "mischievous" }
+      ],
+      "twitch_con": [
+        { "t": "TWITCH CON?! Senpai it's a CONVENTION OF STREAMERS in our dungeon! META ESCALATION! ...Embrace the chaos!", "x": "streaming" },
+        { "t": "Twitch Con day! Senpai every hero is a CONTENT CREATOR today. We are STREAMING-BAIT. WE MUST DELIVER.", "x": "taking-photo" },
+        { "t": "Twitch Con! ...Senpai we're gonna be on like FORTY streams at once. Pose. Look natural. ...Or terrifying. Either.", "x": "anime-gasp" }
+      ],
+      "dark_deal": [
+        { "t": "Dark Deal at the door, senpai! Free pact, half-strength tomorrow. Tempting risk-reward, very 'sign the contract' anime trope.", "x": "pointing" },
+        { "t": "Dark Deal! Senpai sign the contract or REFUSE. ...The skeleton would sign immediately. I say... ALSO sign. We're the same.", "x": "thinking" },
+        { "t": "Demon-pact event! Senpai loot the buff, pay the COST. Iconic shounen power-up arc.", "x": "mischievous" }
+      ],
+      "cosplay_contest": [
+        { "t": "COSPLAY CONTEST?! Senpai a wave of costume heroes! They SNUB minions, only target STORYLINE. Hit them with TRAPS.", "x": "heart-eyes" },
+        { "t": "Cosplay heroes incoming! Senpai I LOVE this event — they're so well-dressed. ...And so dead-soon.", "x": "looking-cute" },
+        { "t": "Cosplay event! Senpai I'd give them a participation award, but the prize is DEATH.", "x": "teasing" }
+      ],
+      "loot_goblin_heist": [
+        { "t": "LOOT GOBLINS, senpai?! Heist mode! They SKIP the throne and BOLT for the exit with our gold!", "x": "chibi-rage" },
+        { "t": "Loot goblins incoming! Senpai every escapee is a STOLEN HOARD. Don't let them OUT!", "x": "rage-quit" },
+        { "t": "Goblin heist! Senpai it's like a tutorial mission for a stealth RPG. ...Except the players are the FOES.", "x": "gaming" }
+      ],
+      "tax_season": [
+        { "t": "TAX SEASON, senpai! Guild skims a fifth, but kills pay DOUBLE. Make the gold BACK with INTEREST.", "x": "pointing" },
+        { "t": "Tax day! ...Senpai capitalism follows us EVERYWHERE. Even into the crypt. Tragic.", "x": "annoyed" },
+        { "t": "Tax season! Senpai grind the kills, pay the toll, profit on volume. Standard economy gameplay.", "x": "gaming" }
+      ],
+      "patrons_blessing": [
+        { "t": "PATRON'S BLESSING, senpai! DOUBLE boss XP today! Pure upside, no downside! XP GOES BRRR!", "x": "gg-victory" },
+        { "t": "Blessing day! Senpai grind ALL THE KILLS. Power-leveling event, don't sleep on this.", "x": "sparkle-eyes" },
+        { "t": "Patron's blessing! Senpai this is the RARE DROP of events. Use it WELL.", "x": "heart-eyes" }
+      ],
+      "memory_plague": [
+        { "t": "MEMORY PLAGUE, senpai! Heroes forget the maze, wander randomly! Free kills! ...This is cursed and HILARIOUS!", "x": "laughing" },
+        { "t": "Memory plague day! Senpai the heroes get LOST in OUR dungeon. Iconic.", "x": "smug" },
+        { "t": "Plague event! ...Senpai I forget what I was saying. ...Wait. Oh. The plague affects ghosts too maybe?!", "x": "distracted" }
+      ],
+      "gamblers_coin": [
+        { "t": "GAMBLER'S COIN, senpai! Flip the coin — DOUBLE or HALF the hoard. Risk-reward in PURE form.", "x": "gg-victory" },
+        { "t": "Gambler's day! Senpai I love a coin flip. ...I lose every time but I LOVE one.", "x": "looking-cute" },
+        { "t": "Coin flip event! Senpai send it. Send it ALL. ...Or don't. I'm not your financial advisor.", "x": "thinking" }
+      ],
+      "dense_fog": [
+        { "t": "DENSE FOG today, senpai! Visibility DROPS. Heroes wander, but so do MINIONS. Chaos-mode unlocked.", "x": "confused" },
+        { "t": "Fog event! Senpai the dungeon goes ATMOSPHERIC. Visibility nerf affects both sides — read carefully.", "x": "thinking" },
+        { "t": "Fog day! ...Senpai the aesthetic is GORGEOUS. Like a horror-game intro.", "x": "scary" }
+      ],
+      "miasma": [
+        { "t": "MIASMA, senpai! Toxic gas, no sides. Whittles HEROES, gnaws at THE THRONE. Don't linger.", "x": "upset" },
+        { "t": "Miasma day! Senpai EVERYONE takes DoT today. Hurry the engagements.", "x": "annoyed" },
+        { "t": "Miasma event! ...Senpai I don't breathe, so this doesn't hurt me. ...Should I be smug about that? I'm smug about it.", "x": "smug" }
+      ],
+      "tremors": [
+        { "t": "TREMORS, senpai! Random ROCKFALLS! Dungeon ITSELF is hostile today!", "x": "dramatic-anger" },
+        { "t": "Earthquake day! Senpai the floors are RUMBLING. Read movement carefully.", "x": "pointing" },
+        { "t": "Tremors event! ...Senpai I literally float, I don't feel a thing. Are you good?", "x": "looking-cute" }
+      ],
+      "arcane_storm": [
+        { "t": "ARCANE STORM, senpai! Magic damage is BUFFED for everyone, hot trade-off energy.", "x": "sparkle-eyes" },
+        { "t": "Storm day! Senpai mages on BOTH sides hit HARDER. Balance the comp.", "x": "explaining" },
+        { "t": "Arcane storm! ...Senpai the dungeon is GLOWING. So pretty. ...So lethal.", "x": "bishie-sparkles" }
+      ],
+      "bounty_hunters": [
+        { "t": "BOUNTY HUNTERS, senpai! Premium adventurers, harder fights, BIGGER drops. Mini-boss wave.", "x": "dramatic-anger" },
+        { "t": "Hunters today! Senpai elite spawn list. Bring the kit. Bring the focus. Bring the GRIND.", "x": "focused" },
+        { "t": "Bounty hunters! Senpai these are NAMED MOBS. Iconic encounters. Drop GREAT loot.", "x": "gg-victory" }
+      ],
+      "zombie_horde": [
+        { "t": "ZOMBIE HORDE, senpai! Resurrected heroes RETURN as MINIONS for us! Wait — that's GOOD for us! HYPE!", "x": "gg-victory" },
+        { "t": "Horde event! Senpai dead heroes RISE — but for our side! Plot twist of the patch!", "x": "anime-gasp" },
+        { "t": "Zombie day! ...Senpai I am, frankly, vibe-aligned with the undead. Camera pan to me. SOLIDARITY.", "x": "ghost-power" }
+      ],
+      "infamy_spike": [
+        { "t": "INFAMY SPIKE, senpai! Reputation surges, wave-size doubles tomorrow. Pay the PRICE of fame.", "x": "shocked" },
+        { "t": "Infamy event! Senpai we're WORLD-FAMOUS now. Heroes coming HARD next day.", "x": "dramatic-anger" },
+        { "t": "Infamy spike! ...Senpai we MADE THE NEWS. Iconic. ...The kingdom is FURIOUS though.", "x": "smug" }
+      ],
+      "black_market": [
+        { "t": "BLACK MARKET appeared, senpai! Forbidden items, RARE pacts. Risky but BUSTED. Iconic shop.", "x": "heart-eyes" },
+        { "t": "Black market day! Senpai there's GOOD STUFF in there. ...Also bad stuff. Roll the dice.", "x": "mischievous" },
+        { "t": "Market event! ...Senpai I love a SHOP encounter. Inventory management is its own game.", "x": "gaming" }
+      ],
+      "mercenary_contract": [
+        { "t": "MERCENARY OFFER, senpai! Hired muscle, doubled strength, three-day timer. Power spike WORTH IT.", "x": "gg-victory" },
+        { "t": "Mercenary day! Senpai short-term BUFF unit. Use them HARD, they're temporary.", "x": "pointing" },
+        { "t": "Merc contract! ...Senpai it's like a limited-time GACHA character. ...I love a limited-time character.", "x": "heart-eyes" }
+      ],
+      "cursed_relic": [
+        { "t": "CURSED RELIC, senpai! Claim it for power, banish it for safety. The classic RPG MORAL CHOICE.", "x": "thinking" },
+        { "t": "Cursed item event! Senpai claim or refuse. ...This is the moment that defines your CHARACTER ARC.", "x": "dramatic-anger" },
+        { "t": "Relic day! ...Senpai cursed items in anime ALWAYS pay off. Just saying. ...They also always ruin lives. Just saying.", "x": "heart-eyes" }
+      ],
+      "the_saboteur": [
+        { "t": "A SABOTEUR, senpai! A spy infiltrated the dungeon! Catch them BEFORE they wreck something!", "x": "shocked" },
+        { "t": "Saboteur incoming! Senpai it's a SECRET HERO. Counter-intel mission. Spy thriller energy.", "x": "anime-gasp" },
+        { "t": "The Saboteur! ...Senpai I love a stealth mission. ...Even when WE'RE the ones being stealthed. Iconic.", "x": "mischievous" }
+      ]
+    },
+    "room": {
+      "entry_hall": [
+        { "t": "Entry Hall placed, senpai! The lobby! First impression matters — heavy invest LANDS.", "x": "pointing" },
+        { "t": "Entry hall! Senpai the dungeon now has a FOYER. ...Iconic interior design.", "x": "heart-eyes" }
+      ],
+      "starter_corridor": [
+        { "t": "Starter corridor! Senpai the bread-and-butter tile. Always have these — they CONNECT the maze.", "x": "explaining" },
+        { "t": "Corridor placed! Senpai it's the connective tissue of the dungeon. Never skip.", "x": "pointing" }
+      ],
+      "starter_barracks": [
+        { "t": "Barracks placed, senpai! Minion housing. Cluster the homies, they BUFF each other.", "x": "heart-eyes" },
+        { "t": "Barracks! ...Senpai the front-line stays HERE. Solid base of operations.", "x": "pointing" }
+      ],
+      "starter_guard_post": [
+        { "t": "Guard Post placed! Senpai active defense, patrols the corridors. The heroes HATE this.", "x": "smug" },
+        { "t": "Guard post! Senpai dynamic threat — heroes can't predict the AI movement. Iconic.", "x": "gaming" }
+      ],
+      "crypt": [
+        { "t": "Crypt placed, senpai! Rises minions from the DEAD! Necro vibes, very on-brand for me actually.", "x": "ghost-power" },
+        { "t": "Crypt! Senpai dead minions COME BACK. I respect the recursion.", "x": "heart-eyes" }
+      ],
+      "trap_factory": [
+        { "t": "Trap Factory placed! Senpai TRAP PRODUCTION line UNLOCKED. Iconic.", "x": "gg-victory" },
+        { "t": "Trap factory! ...Senpai the dungeon now MAKES things. Industrial revolution down here.", "x": "gaming" }
+      ],
+      "treasury": [
+        { "t": "Treasury placed, senpai! THE HOARD. I love a vault. Mostly because I can phase INTO it. Don't tell anyone.", "x": "looking-cute" },
+        { "t": "Treasury! Senpai PROTECT this with everything. The loot goblins are HUNTING.", "x": "pointing" }
+      ],
+      "armory": [
+        { "t": "Armory placed, senpai! Minions get +stats here. Stack the gear up. This is GEAR-CHECK territory.", "x": "gaming" },
+        { "t": "Armory! Senpai sharper soldiers, deader heroes. Math.", "x": "pointing" }
+      ],
+      "library_of_whispers": [
+        { "t": "LIBRARY OF WHISPERS, senpai! Lore room! Drops INTEL on heroes. ...I LIVE for the lore room.", "x": "reading-manga" },
+        { "t": "Library placed! Senpai INFORMATION ADVANTAGE acquired. Smart-keeper move.", "x": "explaining" }
+      ],
+      "watchtower": [
+        { "t": "Watchtower placed, senpai! Vision range +1. ...I float HIGH, I don't need the tower, but YOU do. Smart.", "x": "pointing" },
+        { "t": "Watchtower! ...Senpai SCOUT VISION. Iconic addition to the maze.", "x": "thinking" }
+      ],
+      "wandering_gate": [
+        { "t": "WANDERING GATE, senpai! Random teleport, total CHAOS. ...I love it.", "x": "mischievous" },
+        { "t": "Wandering gate placed! Senpai the maze TWISTS. Heroes' pathfinding is gonna FAIL spectacularly.", "x": "laughing" }
+      ],
+      "veil_of_forgetting": [
+        { "t": "Veil of Forgetting placed! Senpai heroes LOSE their map memory. They wander RANDOM, perfect.", "x": "smug" },
+        { "t": "Veil placed! ...Senpai I LOVE this room. Confusion gameplay, iconic.", "x": "thinking" }
+      ],
+      "catacombs": [
+        { "t": "Catacombs placed, senpai! ...Spooky-tier hallway. Iconic AESTHETIC. Also gameplay relevant.", "x": "skulls" },
+        { "t": "Catacombs! Senpai the dungeon got SPOOKIER. ...I APPROVE of spookier.", "x": "ghost-power" }
+      ],
+      "mimic_vault": [
+        { "t": "MIMIC VAULT, senpai! Fake-loot trap! Heroes go IN excited, come OUT dead. Classic.", "x": "mischievous" },
+        { "t": "Mimic vault! Senpai I LOVE this trope. Fake-treasure encounter is timeless.", "x": "heart-eyes" }
+      ],
+      "hall_of_trials": [
+        { "t": "Hall of Trials placed! Senpai a FILTER room — weakest heroes drop BEFORE the boss. Tier system in physical form.", "x": "smug" },
+        { "t": "Trials room! Senpai weeds out the trash mobs. Smart design.", "x": "pointing" }
+      ],
+      "wishing_well": [
+        { "t": "Wishing Well placed, senpai! Heroes drop COIN for a blessing — and YOU get to PEEK at their prayer!", "x": "sparkle-eyes" },
+        { "t": "Wishing well! ...Senpai I want to make a wish too. ...Mine would be 'be alive'. ...Anyway, GAMEPLAY.", "x": "looking-cute" }
+      ],
+      "false_exit": [
+        { "t": "FALSE EXIT, senpai?! Heroes think they ESCAPED — and you spawn behind them! Plot-twist room!", "x": "gg-victory" },
+        { "t": "False exit! Senpai BAIT mechanics. So much CRUELTY in one tile.", "x": "mischievous" }
+      ],
+      "hall_of_madness": [
+        { "t": "HALL OF MADNESS, senpai! Heroes lose their MINDS. Iconic horror room.", "x": "scary" },
+        { "t": "Madness hall! ...Senpai the dungeon goes FULL HORROR genre. Lean into it.", "x": "ghost-power" }
+      ],
+      "throne_room": [
+        { "t": "THRONE ROOM placed, senpai! YOUR home. The FINAL EPISODE stage. Decorate it CINEMATIC.", "x": "heart-eyes" },
+        { "t": "Throne room! Senpai this is where the boss fight HAPPENS. Make it EPIC.", "x": "gg-victory" }
+      ],
+      "sanctum": [
+        { "t": "Sanctum placed, senpai! The inner inner sanctum. Heroes shouldn't EVER reach this. ...I love a hidden room.", "x": "ghost-power" },
+        { "t": "Sanctum! ...Senpai this is your SAFE SPACE. The deepest tile. Iconic.", "x": "looking-cute" }
+      ]
+    },
+    "minion": {
+      "skeleton": [
+        { "t": "Skeleton placed! ...Senpai wave to Rattle for me. Distant cousin. ...Like, REALLY distant.", "x": "looking-cute" },
+        { "t": "Skeleton minion! Senpai the OG dungeon mook. Reliable, classic, never goes out of style.", "x": "heart-eyes" }
+      ],
+      "orc": [
+        { "t": "Orc placed! Senpai BIG GUY archetype. Tanky, hits hard, very LOUD.", "x": "pointing" },
+        { "t": "Orc! Senpai standard front-line. Stack 'em deep.", "x": "gaming" }
+      ],
+      "goblin": [
+        { "t": "Goblin placed! Senpai NUMBERS GAME. Cheap, fragile, plentiful. SPAM strategy.", "x": "explaining" },
+        { "t": "Goblin! ...Senpai they're so SMALL. I love a tiny enemy.", "x": "looking-cute" }
+      ],
+      "imp": [
+        { "t": "Imp placed! Senpai fast little RANGED guys. Skirmisher class.", "x": "pointing" },
+        { "t": "Imp! Senpai they HARASS the front. Annoying for heroes, ICONIC for us.", "x": "mischievous" }
+      ],
+      "ghost": [
+        { "t": "GHOST minion placed!! ...Senpai. SENPAI. They're like ME. Can I HUG them? ...Yes? Hugging them.", "x": "heart-eyes" },
+        { "t": "Ghost minion! Senpai they PASS through walls. ...I have so many friends now. Hi friends.", "x": "ghost-power" }
+      ],
+      "slime": [
+        { "t": "Slime placed! Senpai DPS pudding. Slow, sticky, deals DoT to anything that touches them.", "x": "explaining" },
+        { "t": "Slime! ...Senpai they JIGGLE. So cute. So gross. Iconic both ways.", "x": "looking-cute" }
+      ],
+      "elder_slime": [
+        { "t": "Elder Slime placed, senpai! BIGGER pudding, BIGGER stats. ...Just MORE slime, basically.", "x": "smug" },
+        { "t": "Elder slime! Senpai the VETERAN puddings. ...Senpai how do slimes age. Don't answer.", "x": "confused" }
+      ],
+      "golem": [
+        { "t": "Golem placed, senpai! Pure TANK. Slow, immovable, eats damage for the squad.", "x": "gaming" },
+        { "t": "Golem minion! Senpai the IMMOVABLE OBJECT. Stack behind them.", "x": "pointing" }
+      ],
+      "beholder": [
+        { "t": "Beholder minion placed! Senpai EYE TURRET. Long-range, CC stacker. Op.", "x": "sparkle-eyes" },
+        { "t": "Beholder! ...Senpai all those eyes again, ICONIC kit.", "x": "anime-gasp" }
+      ],
+      "lich": [
+        { "t": "Lich minion placed! ...Senpai he's like a mini-version of the boss-lich. Recursive necromancy. Iconic.", "x": "ghost-power" },
+        { "t": "Lich minion! Senpai high-tier undead caster. Phylactery vibes.", "x": "explaining" }
+      ],
+      "lizardman": [
+        { "t": "Lizardman placed! Senpai STEALTH attacker. They camouflage — heroes don't see the hit coming.", "x": "smug" },
+        { "t": "Lizardman! Senpai sneaky little reptile. I love the ambush playstyle.", "x": "mischievous" }
+      ],
+      "gnoll": [
+        { "t": "Gnoll placed, senpai! Pack hunter — stack with friends, they BUFF each other.", "x": "pointing" },
+        { "t": "Gnoll! Senpai they HOWL. ...I love an angry minion sound effect.", "x": "dramatic-anger" }
+      ],
+      "demon": [
+        { "t": "Demon minion placed! Senpai HELLFIRE on tap. Big damage, big presence.", "x": "gg-victory" },
+        { "t": "Demon! ...Senpai I love a flashy minion. Cinematic class.", "x": "sparkle-eyes" }
+      ],
+      "ent": [
+        { "t": "Ent placed, senpai! TREE MINION. Slow, tanky, ROOTS heroes in place. Crowd-control king.", "x": "smug" },
+        { "t": "Ent! ...Senpai trees can be SCARY. Iconic plant kit.", "x": "thinking" }
+      ],
+      "plant": [
+        { "t": "Plant placed! Senpai SPORE turret. Range, AoE, DoT — beautiful turret minion.", "x": "explaining" },
+        { "t": "Plant minion! ...Senpai gardening simulator is SUDDENLY a strategy game.", "x": "doodling" }
+      ],
+      "mushroom": [
+        { "t": "MUSHROOM minion, senpai! Spore-cloud kit. ...Slightly gross, deeply effective.", "x": "nose-bleed" },
+        { "t": "Mushroom! Senpai it's like a tiny BIOLOGY EXPERIMENT in the dungeon.", "x": "thinking" }
+      ],
+      "rat": [
+        { "t": "Rat placed, senpai! SWARM tactics. Numbers over quality. CHEAP and EFFECTIVE.", "x": "gaming" },
+        { "t": "Rat! ...Senpai they're tiny and they BITE. Iconic mook.", "x": "pointing" }
+      ],
+      "zombie": [
+        { "t": "ZOMBIE placed!! ...Senpai another undead friend! HI FRIEND. ...Solidarity in the corpse-life.", "x": "ghost-power" },
+        { "t": "Zombie minion! Senpai slow but RELENTLESS. Marathon damage.", "x": "smug" }
+      ],
+      "vampire_minion": [
+        { "t": "Vampire minion placed, senpai! LIFE-STEAL on hit, self-sustaining DPS. ...Goth aesthetic, very my era.", "x": "blushing" },
+        { "t": "Vampire minion! Senpai sustain-DPS class. Heals while it kills. Beautiful efficiency.", "x": "heart-eyes" }
+      ]
+    },
+    "trap": {
+      "shooting_arrows": [
+        { "t": "Arrows trap placed! Senpai PIERCE damage, ranged. Heroes HATE being shot at.", "x": "gg-victory" },
+        { "t": "Arrows! ...Senpai BOW ENERGY without an archer. Iconic value.", "x": "pointing" }
+      ],
+      "bomb": [
+        { "t": "BOMB placed, senpai! BIG AoE, single use, big number. CINEMATIC kill potential.", "x": "dramatic-anger" },
+        { "t": "Bomb trap! Senpai I love a SCRIPTED explosion. Hype mechanic.", "x": "anime-gasp" }
+      ],
+      "cannon": [
+        { "t": "CANNON placed, senpai! BIG KNOCKBACK! Heroes get YEETED across the room. Iconic.", "x": "gg-victory" },
+        { "t": "Cannon! ...Senpai the launch animation is SO satisfying. Slapstick gameplay.", "x": "laughing" }
+      ],
+      "spike_pillar": [
+        { "t": "Spike Pillar placed, senpai! Vertical hazard, hits stacked targets. AoE column.", "x": "pointing" },
+        { "t": "Spike pillar! Senpai classic dungeon trap, never out of style.", "x": "smug" }
+      ],
+      "dragon_trap": [
+        { "t": "DRAGON TRAP placed, senpai?! BIG SCARY mechanism! Massive AoE, BIG kill potential!", "x": "dramatic-anger" },
+        { "t": "Dragon trap! ...Senpai why is it called dragon trap when IT'S the trap, not the dragon? Anyway. ICONIC.", "x": "confused" }
+      ],
+      "spike_pit": [
+        { "t": "Spike Pit placed, senpai! Floor hazard, instant on step. Classic trap-genre staple.", "x": "pointing" },
+        { "t": "Spike pit! Senpai SIMPLE design, ALWAYS works. The skeleton would approve.", "x": "smug" }
+      ],
+      "rotating_blades": [
+        { "t": "ROTATING BLADES, senpai! Continuous AoE damage zone! Iconic kit, very dungeon-classic.", "x": "gg-victory" },
+        { "t": "Blades! ...Senpai it's HYPNOTIC to watch. Beautiful AND deadly.", "x": "sparkle-eyes" }
+      ],
+      "saw_blade": [
+        { "t": "SAW BLADE placed, senpai! HIGH damage to the BOLD. Heroes who charge through get FRAGGED.", "x": "smug" },
+        { "t": "Saw blade! ...Senpai the most aggressive trap. I love how UNFORGIVING it is.", "x": "dramatic-anger" }
+      ]
+    },
+    "item": {
+      "door_lock": [
+        { "t": "Door Lock placed, senpai! Slows heroes, RAGES rogues — they ABSOLUTELY hate being locked out.", "x": "smug" },
+        { "t": "Door lock! Senpai it's a small delay but heroes WILL fume. Iconic micro-trap.", "x": "laughing" }
+      ],
+      "treasure_chest": [
+        { "t": "Treasure Chest placed, senpai! BAIT. Heroes can't RESIST a chest. ...Honestly neither can I.", "x": "heart-eyes" },
+        { "t": "Chest! ...Senpai I've looked in dungeon chests before. SOMETIMES they bite. ...Lessons.", "x": "thinking" }
+      ],
+      "soul_bound_beacon": [
+        { "t": "Soul-Bound Beacon placed, senpai! Fallen heroes COME BACK as minions! ...Senpai necro-vibes UNLOCKED.", "x": "ghost-power" },
+        { "t": "Soul beacon! ...Senpai I respect a recruit-from-the-dead mechanic. Iconic.", "x": "heart-eyes" }
+      ],
+      "phylactery_heart": [
+        { "t": "Phylactery Heart placed, senpai! SPARE LIFE acquired. ...Hide it WELL — heroes hunt these.", "x": "pointing" },
+        { "t": "Phylactery! Senpai this is a checkpoint, a save state, a SECOND CHANCE. Iconic kit-piece.", "x": "gg-victory" }
+      ]
+    }
+  }
+}

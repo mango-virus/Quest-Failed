@@ -149,8 +149,20 @@ export class ArchetypeDecorOverlay {
         }
       }
     }
-    for (const expr of ids) {
-      const im = new Image(); im.src = c.spriteDir + expr + '.webp'
+    // Expand semantic ids to their variant files (Spectra etc.) so every
+    // variant is preloaded, not just the semantic name itself.
+    const groups = c.variantGroups || null
+    const files = new Set()
+    for (const id of ids) {
+      const variants = groups?.[id]
+      if (Array.isArray(variants) && variants.length) {
+        for (const v of variants) files.add(v)
+      } else {
+        files.add(id)
+      }
+    }
+    for (const f of files) {
+      const im = new Image(); im.src = c.spriteDir + f + '.webp'
     }
   }
 
@@ -191,6 +203,8 @@ export class ArchetypeDecorOverlay {
       malakor: 'Pick your monster, then. The adventurers are already marching — and they will not gut themselves.',
       zulgath: 'Mm. Choose your monster, small one. I have watched every shape of dungeon-master rise and fall — whichever you crown, I have seen its ending before.',
       safira:  'Ooh, a CHOICE, Master! Pick the boss you wish to be and — *poof* — I grant it. Choose well; I get dreadfully attached to whatever you pick.',
+      rattlebones: 'Pick your monster, skull-pal! The skeleton has watched every flavour of doom climb that throne — surprise me. Or don\'t! Either way is funny.',
+      spectra: 'OMG OMG senpai you get to PICK YOUR BOSS?! Like a character select?! Wait wait — read the kit first, this is BIG, plot twist incoming!',
     }
     this._say(greets[c.id] ?? greets.lilith, c.restExpr)
   }
@@ -215,7 +229,22 @@ export class ArchetypeDecorOverlay {
     const valid = c.expressions.includes(expr) ? expr : c.restExpr
     if (valid === this._curExpr) return
     this._curExpr = valid
-    this._imgEl.src = c.spriteDir + valid + '.webp'
+    // Variant rotation (Spectra). Resolve the semantic id to a random
+    // variant file when a group exists; otherwise the file is the id.
+    const variants = c.variantGroups?.[valid]
+    const file = (Array.isArray(variants) && variants.length > 0)
+      ? variants[Math.floor(Math.random() * variants.length)]
+      : valid
+    // Ghost-flicker (Spectra). Same per-pick alpha roll as NpcCompanion's
+    // in-game render path. Solid-only set is exempt for "she means it"
+    // moments to land at full intensity.
+    const flickerRate  = c.ghostFlickerRate  ?? 0
+    const flickerAlpha = c.ghostFlickerAlpha ?? 0.7
+    const solidOnly    = c.solidOnlyExpressions
+    const exempt = Array.isArray(solidOnly) && solidOnly.includes(valid)
+    const flicker = !exempt && flickerRate > 0 && Math.random() < flickerRate
+    this._imgEl.style.opacity = String(flicker ? flickerAlpha : 1)
+    this._imgEl.src = c.spriteDir + file + '.webp'
   }
 
   // Type a line letter-by-letter, with the same cadence + per-letter speech

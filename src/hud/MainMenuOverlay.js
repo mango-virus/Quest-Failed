@@ -834,18 +834,20 @@ export class MainMenuOverlay {
   // clears the queue normally — no special cleanup required.
   _testFireUnlocks() {
     if (this._unlockOverlay) return
-    // 1 achievement (no reward) + 1 boss + 1 companion + 1 title.
-    // Order mirrors the live "you earned it → here's what it gives you"
-    // sequence the real _unlock funnel produces.
+    // 1 achievement (no reward) + 1 boss + 2 companions (rattle + spectra
+    // — exercise the ghost-flicker variant rotation in the unlock card) +
+    // 1 title. Order mirrors the live "you earned it → here's what it
+    // gives you" sequence the real _unlock funnel produces.
     try {
       PlayerProfile.queueUnlock({ type: 'achievement', id: 'first_trap' })
       PlayerProfile.queueUnlock({ type: 'boss',        id: 'lich',        achId: 'hardened_throne' })
       PlayerProfile.queueUnlock({ type: 'companion',   id: 'rattlebones', achId: 'curtain_call' })
+      PlayerProfile.queueUnlock({ type: 'companion',   id: 'spectra',     achId: 'flawless_reign' })
       PlayerProfile.queueUnlock({
         type: 'title',
-        id:    'curtain_call',
-        title: 'The Showrunner',
-        achId: 'curtain_call',
+        id:    'flawless_reign',
+        title: 'The Flawless',
+        achId: 'flawless_reign',
       })
     } catch {}
     import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {

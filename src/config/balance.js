@@ -521,6 +521,26 @@ export const Balance = {
   // instead of biting + engaging. See AISystem._tryTriggerMimic /
   // _springMimic for the new path.
 
+  // --- Mimic Vault cursed chest (one per active Mimic Vault) ---
+  // Visual tier picked randomly in [MIN, MAX]. On open: no immediate gold
+  // debit. If the opener reaches the entry hall alive, the player loses
+  // MIMIC_CURSE_ESCAPE_PCT% of CURRENT gold (compounds across multiple
+  // cursed-chest escapes in the same day). Dying clears the curse with
+  // no penalty. See AISystem._tryOpenTreasureChest + _kill cleanup +
+  // _onAdvFled.
+  MIMIC_CURSED_CHEST_TIER_MIN:    1,
+  MIMIC_CURSED_CHEST_TIER_MAX:   10,
+  MIMIC_CURSE_ESCAPE_PCT:        25,   // % of current player gold debited on escape
+
+  // --- Treasury auto-spawn chests (one set per active Treasury) ---
+  // Each Treasury auto-spawns TREASURY_CHEST_COUNT free chests at day-
+  // start, random tier in [MIN, MAX]. These are flagged `_treasurySpawn:
+  // true` so the sell tool refuses to refund gold on them (they were
+  // free). See RoomBehaviorSystem._onDayStart.
+  TREASURY_CHEST_COUNT:           4,
+  TREASURY_CHEST_TIER_MIN:        1,
+  TREASURY_CHEST_TIER_MAX:        5,
+
   // --- Rarity-driven offering weights (Phase 9) ---
   // Each Dark Pact card draw first picks a rarity TIER using these weights,
   // then picks a random pact within that tier. The numbers below are the

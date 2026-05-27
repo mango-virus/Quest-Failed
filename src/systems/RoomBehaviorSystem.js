@@ -34,11 +34,25 @@ export class RoomBehaviorSystem {
     // gated on NIGHT_PHASE_STARTED, which fires at the START of the build
     // phase — before the player can place anything — so newly-built rooms
     // sat empty until the night AFTER they were placed.
+    //
+    // Phase 2026-05-27 — also fire the same per-room spawn logic on
+    // ROOM_PLACED so a freshly placed Crypt / Mimic Vault / Hall of
+    // Trials / Throne Room / Treasury populates IMMEDIATELY during the
+    // build phase. The player sees what they bought right when they
+    // drop the room instead of waiting for dawn. The spawn helpers are
+    // idempotent (skip-if-already-populated checks per room id) so a
+    // MOVE of a populated room — which also re-emits ROOM_PLACED — is
+    // safely a no-op (the existing inhabitants ride along inside the
+    // room footprint via NightPhase's move-drop logic).
     EventBus.on('DAY_PHASE_STARTED',   this._onDayStart,   this)
+    EventBus.on('ROOM_PLACED',         this._onRoomPlaced, this)
+    EventBus.on('ROOM_REMOVED',        this._onRoomRemoved, this)
     EventBus.on('ADVENTURER_ROOM_CHANGED', this._onRoomChanged, this)
     this._listeners = [
       ['NIGHT_PHASE_STARTED', this._onNightStart],
       ['DAY_PHASE_STARTED',   this._onDayStart],
+      ['ROOM_PLACED',         this._onRoomPlaced],
+      ['ROOM_REMOVED',        this._onRoomRemoved],
       ['ADVENTURER_ROOM_CHANGED', this._onRoomChanged],
     ]
   }
@@ -49,6 +63,8 @@ export class RoomBehaviorSystem {
     }
     EventBus.off('NIGHT_PHASE_STARTED', this._onNightStart, this)
     EventBus.off('DAY_PHASE_STARTED',   this._onDayStart,   this)
+    EventBus.off('ROOM_PLACED',         this._onRoomPlaced, this)
+    EventBus.off('ROOM_REMOVED',        this._onRoomRemoved, this)
     EventBus.off('ADVENTURER_ROOM_CHANGED', this._onRoomChanged, this)
   }
 
@@ -178,129 +194,325 @@ export class RoomBehaviorSystem {
     const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
     const baseDef = minionTypes.find(d => d.id === 'skeleton1') ?? minionTypes[0]
     if (!baseDef) return
-    const TS = 32
 
-    // Room redesign 2026-04-30 — Crypt spawns up to 4 garrison Risen Bones,
-    // refilling each day. Garrison minions are room-bound (cannot patrol or
-    // chase outside the Crypt) and do NOT count toward the Barracks roster
-    // cap.
-    const crypts = (this._gameState.dungeon.rooms ?? []).filter(r =>
-      r.definitionId === 'crypt' && r.isActive !== false
-    )
-    for (const room of crypts) {
-      const alreadyHere = (this._gameState.minions ?? [])
-        .filter(m => m.assignedRoomId === room.instanceId && m.isCryptSpawn).length
-      const toSpawn = Math.max(0, 4 - alreadyHere)
-      for (let i = 0; i < toSpawn; i++) {
-        // Spread the spawn points so they don't all stack on one tile.
-        const x = room.gridX + Balance.WALL_THICKNESS + (i % Math.max(1, room.width - 2 * Balance.WALL_THICKNESS))
-        const y = room.gridY + Math.floor(room.height / 2)
-        const m = {
-          instanceId:    `crypt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
-          definitionId:  baseDef.id,
-          name:          'Risen Bones',
-          faction:       'dungeon',
-          class:         'garrison',
-          isCryptSpawn:  true,
-          assignedRoomId: room.instanceId,
-          behaviorType:  baseDef.behaviorType ?? 'patrol',
-          homeTileX: x, homeTileY: y, tileX: x, tileY: y,
-          worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
-          stats: { ...(baseDef.baseStats ?? { hp: 30, attack: 8, defense: 4, speed: 1 }) },
-          resources: { hp: baseDef.baseStats?.hp ?? 30, maxHp: baseDef.baseStats?.hp ?? 30 },
-          aiState: 'idle', level: 1, xp: 0,
-          tags: [...(baseDef.tags ?? []), 'undead'],
-          equippedGear: [], killHistory: [], evolutionHistory: [],
-          timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
-        }
-        this._gameState.minions ??= []
-        this._gameState.minions.push(m)
-        EventBus.emit('CRYPT_SPAWNED', { minion: m, roomId: room.instanceId })
-      }
+    for (const room of (this._gameState.dungeon.rooms ?? [])) {
+      if (room.isActive === false) continue
+      this._spawnRoomContents(room, minionTypes, baseDef)
     }
-
-    // Mimic Vault: spawn 2 chest-disguised mimics each day. Mimics start
-    // in 'chest' state — a red-tinted Treasure Chest sprite (per-mimic
-    // random tier) to the player, an ordinary chest to the adv AI.
-    // Adventurers within 1 tile of a 'chest'-state mimic THEY DON'T KNOW
-    // ABOUT trigger AISystem._tryTriggerMimic: the chest open animation
-    // plays, the opener is instantly killed, knowledge propagates to all
-    // alive advs + the shared pool, and the mimic transitions to
-    // 'sprung' (visibly open) for the rest of the day. At
-    // NIGHT_PHASE_STARTED, AISystem._resetSprungMimics flips them back
-    // to 'chest'. Knowledge-aware advs see through the disguise and may
-    // attack the mimic instead (it counter-attacks via the retaliation
-    // window in MinionAISystem).
-    const vaults = (this._gameState.dungeon.rooms ?? []).filter(r =>
-      r.definitionId === 'mimic_vault' && r.isActive !== false
-    )
-    if (vaults.length > 0) {
-      const mimicDef = minionTypes.find(d => d.id === 'mimic') ?? baseDef
-      for (const room of vaults) {
-        const aliveMimics = (this._gameState.minions ?? []).filter(m =>
-          m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead'
-        ).length
-        const mimicSlots = [
-          [room.gridX + Balance.WALL_THICKNESS, room.gridY + Balance.WALL_THICKNESS],
-          [room.gridX + room.width - Balance.WALL_THICKNESS - 1, room.gridY + room.height - Balance.WALL_THICKNESS - 1],
-        ]
-        const occupiedTiles = new Set(
-          (this._gameState.minions ?? [])
-            .filter(m => m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead')
-            .map(m => `${m.tileX},${m.tileY}`)
-        )
-        let mimicSpawned = 0
-        for (const [x, y] of mimicSlots) {
-          if (aliveMimics + mimicSpawned >= 2) break
-          if (occupiedTiles.has(`${x},${y}`)) continue
-          const m = this._makeGarrison(mimicDef, room, {
-            tileX: x, tileY: y,
-            namePrefix: 'Mimic',
-            extra: {
-              isMimicVaultSpawn: true,
-              isMimic:    true,
-              mimicState: 'chest',                              // 'chest' | 'sprung'
-              chestTier:  1 + Math.floor(Math.random() * 10),   // random visual tier 1..10
-            },
-          })
-          this._gameState.minions.push(m)
-          mimicSpawned++
-        }
-      }
-    }
-
-    // Room redesign 2026-04-30 — Hall of Trials: at day start, if no
-    // garrison alive in this Hall, spawn one random T2 evolved minion.
-    const trialHalls = (this._gameState.dungeon.rooms ?? []).filter(r =>
-      r.definitionId === 'hall_of_trials' && r.isActive !== false
-    )
-    if (trialHalls.length > 0) {
-      const tier2Pool = minionTypes.filter(d =>
-        /[a-z_]+2$/.test(d.id) && d.id !== 'beholder2'  // exclude super-rare or boss-tier
-      )
-      for (const room of trialHalls) {
-        const aliveHere = (this._gameState.minions ?? []).filter(m =>
-          m.assignedRoomId === room.instanceId && m.isHallOfTrialsSpawn && m.aiState !== 'dead'
-        ).length
-        if (aliveHere > 0) continue
-        const def = tier2Pool[Math.floor(Math.random() * tier2Pool.length)]
-        if (!def) continue
-        const cx = room.gridX + Math.floor(room.width / 2)
-        const cy = room.gridY + Math.floor(room.height / 2)
-        const m = this._makeGarrison(def, room, {
-          tileX: cx, tileY: cy,
-          extra: { isHallOfTrialsSpawn: true },
-        })
-        this._gameState.minions.push(m)
-        EventBus.emit('HALL_OF_TRIALS_SPAWNED', { minion: m, roomId: room.instanceId })
-      }
-    }
-
-    // Throne Room — spawn at day start so a freshly-built throne room
-    // has its mini-boss ready for the first wave of the day. The same
-    // helper also fires from _onNightStart so a killed mini-boss can
-    // respawn during the night build phase (user request 2026-05-22).
+    // Throne Room helper already iterates all thrones internally and
+    // handles its idempotent skip-if-alive check.
     this._spawnThroneMinibosses()
+  }
+
+  // Fired when DungeonGrid.placeRoom finishes. For FRESH placements we
+  // populate spawn-rooms immediately so the player sees what they
+  // bought during the build phase. MOVE drops are skipped — the
+  // original inhabitants are re-attached by NightPhase's
+  // _heldRoomItems / _heldRoomMinions carry-on-drop logic AFTER this
+  // event fires, so spawning now would create duplicates (the helpers'
+  // skip-if-already-populated guards can't see the not-yet-restored
+  // carry buffer).
+  _onRoomPlaced({ room, isMove }) {
+    if (!room || room.isActive === false) return
+    if (isMove) return
+    const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
+    const baseDef = minionTypes.find(d => d.id === 'skeleton1') ?? minionTypes[0]
+    if (!baseDef) return
+    this._spawnRoomContents(room, minionTypes, baseDef)
+    if (room.definitionId === 'throne_room') this._spawnThroneMinibosses()
+  }
+
+  // Fired when DungeonGrid.removeRoom finishes. Cleans up auto-spawned
+  // chests + garrison minions that were tied to this room so Ctrl+Z
+  // undo of a spawn-room doesn't leave orphans drifting in gameState.
+  //
+  // Safe across the three remove paths:
+  //   * SELL — `_finalizeRoomSell` strips contents before removeRoom,
+  //     so cleanup finds nothing.
+  //   * MOVE pickup — chests carried into `_heldRoomItems` are already
+  //     gone from `dungeon.treasureChests`; minions are tagged
+  //     `_heldByPlayer = true` so the filter excludes them.
+  //   * UNDO (Ctrl+Z) — nothing is pre-cleaned, so this is the path
+  //     that actually does the work.
+  _onRoomRemoved({ room }) {
+    if (!room) return
+    const id = room.instanceId
+    // Strip auto-spawn chests tied to this room.
+    const chests = this._gameState.dungeon?.treasureChests
+    if (Array.isArray(chests)) {
+      this._gameState.dungeon.treasureChests = chests.filter(c =>
+        !((c._treasurySpawn || c._mimicCursed) && c.assignedRoomId === id),
+      )
+    }
+    // Strip garrison minions tied to this room — but NEVER touch a
+    // minion the player is currently holding (move-pickup path).
+    const mins = this._gameState.minions
+    if (Array.isArray(mins)) {
+      this._gameState.minions = mins.filter(m =>
+        !(m.class === 'garrison' && m.assignedRoomId === id && !m._heldByPlayer),
+      )
+    }
+  }
+
+  // Dispatcher: route to the per-room-type spawn helper. Anything not
+  // listed here has no auto-spawn behavior.
+  _spawnRoomContents(room, minionTypes, baseDef) {
+    switch (room.definitionId) {
+      case 'crypt':          return this._spawnCryptUndead(room, baseDef)
+      case 'mimic_vault':    return this._spawnMimicVault(room, minionTypes, baseDef)
+      case 'hall_of_trials': return this._spawnHallOfTrialsElite(room, minionTypes)
+      case 'treasury':       return this._refillTreasury(room)
+      // throne_room is handled by _spawnThroneMinibosses() (which
+      // iterates all thrones internally) — see callers.
+    }
+  }
+
+  // ── Per-room spawn helpers ───────────────────────────────────────────────
+  //
+  // Each is idempotent: it tops up to the room's target population and
+  // no-ops when the room is already full. Called from both _onDayStart
+  // (daily refill) and _onRoomPlaced (immediate spawn on placement /
+  // move).
+
+  // Room redesign 2026-04-30 — Crypt spawns up to 4 garrison Risen Bones.
+  // Garrison minions are room-bound (cannot patrol or chase outside the
+  // Crypt) and do NOT count toward the Barracks roster cap.
+  _spawnCryptUndead(room, baseDef) {
+    const TS = 32
+    const alreadyHere = (this._gameState.minions ?? [])
+      .filter(m => m.assignedRoomId === room.instanceId && m.isCryptSpawn).length
+    const toSpawn = Math.max(0, 4 - alreadyHere)
+    for (let i = 0; i < toSpawn; i++) {
+      // Spread the spawn points so they don't all stack on one tile.
+      const x = room.gridX + Balance.WALL_THICKNESS + (i % Math.max(1, room.width - 2 * Balance.WALL_THICKNESS))
+      const y = room.gridY + Math.floor(room.height / 2)
+      const m = {
+        instanceId:    `crypt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
+        definitionId:  baseDef.id,
+        name:          'Risen Bones',
+        faction:       'dungeon',
+        class:         'garrison',
+        isCryptSpawn:  true,
+        assignedRoomId: room.instanceId,
+        behaviorType:  baseDef.behaviorType ?? 'patrol',
+        homeTileX: x, homeTileY: y, tileX: x, tileY: y,
+        worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
+        stats: { ...(baseDef.baseStats ?? { hp: 30, attack: 8, defense: 4, speed: 1 }) },
+        resources: { hp: baseDef.baseStats?.hp ?? 30, maxHp: baseDef.baseStats?.hp ?? 30 },
+        aiState: 'idle', level: 1, xp: 0,
+        tags: [...(baseDef.tags ?? []), 'undead'],
+        equippedGear: [], killHistory: [], evolutionHistory: [],
+        timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
+      }
+      this._gameState.minions ??= []
+      this._gameState.minions.push(m)
+      EventBus.emit('CRYPT_SPAWNED', { minion: m, roomId: room.instanceId })
+    }
+  }
+
+  // Mimic Vault: spawn 2 chest-disguised mimics + 1 cursed chest.
+  //
+  // Mimics start in 'chest' state — a red-tinted Treasure Chest sprite
+  // (per-mimic random tier) to the player, an ordinary chest to the adv
+  // AI. Adventurers within 1 tile of a 'chest'-state mimic THEY DON'T
+  // KNOW ABOUT trigger AISystem._tryTriggerMimic: the chest open
+  // animation plays, the opener is instantly killed, knowledge
+  // propagates to all alive advs + the shared pool, and the mimic
+  // transitions to 'sprung' (visibly open) for the rest of the day.
+  // At NIGHT_PHASE_STARTED, AISystem._resetSprungMimics flips them
+  // back to 'chest'. Knowledge-aware advs see through the disguise
+  // and may attack the mimic instead (it counter-attacks via the
+  // retaliation window in MinionAISystem).
+  //
+  // The cursed chest looks like an ordinary treasure chest (random
+  // visual tier) but carries the `_mimicCursed` flag. When an adv
+  // opens it, no immediate gold debit fires; instead the adv is
+  // tagged `_mimicCursedCarrier` and forced into ESCAPE_WITH_LOOT.
+  // If they reach the entry hall alive, the player loses 25% of
+  // current gold (Balance.MIMIC_CURSE_ESCAPE_PCT). Dying clears the
+  // flag with no penalty.
+  //
+  // Slot allocation: build the full interior tile list, pick the two
+  // fixed mimic anchors first, then drop the cursed chest on a
+  // remaining tile so it can never overlap a mimic.
+  _spawnMimicVault(room, minionTypes, baseDef) {
+    const mimicDef = minionTypes.find(d => d.id === 'mimic') ?? baseDef
+    const aliveMimics = (this._gameState.minions ?? []).filter(m =>
+      m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead'
+    ).length
+    const mimicSlots = [
+      [room.gridX + Balance.WALL_THICKNESS, room.gridY + Balance.WALL_THICKNESS],
+      [room.gridX + room.width - Balance.WALL_THICKNESS - 1, room.gridY + room.height - Balance.WALL_THICKNESS - 1],
+    ]
+    const occupiedTiles = new Set(
+      (this._gameState.minions ?? [])
+        .filter(m => m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead')
+        .map(m => `${m.tileX},${m.tileY}`)
+    )
+    let mimicSpawned = 0
+    for (const [x, y] of mimicSlots) {
+      if (aliveMimics + mimicSpawned >= 2) break
+      if (occupiedTiles.has(`${x},${y}`)) continue
+      const m = this._makeGarrison(mimicDef, room, {
+        tileX: x, tileY: y,
+        namePrefix: 'Mimic',
+        extra: {
+          isMimicVaultSpawn: true,
+          isMimic:    true,
+          mimicState: 'chest',                              // 'chest' | 'sprung'
+          chestTier:  1 + Math.floor(Math.random() * 10),   // random visual tier 1..10
+        },
+      })
+      this._gameState.minions.push(m)
+      mimicSpawned++
+    }
+
+    // Cursed chest — one per vault. Looked up by the duck-typed pair
+    // `_mimicCursed + assignedRoomId` (NOT instanceId-encoded room id)
+    // so a MOVE of the Mimic Vault — which spawns a fresh room
+    // instanceId and asks NightPhase to rebind assignedRoomId on the
+    // carried chest — still resolves to the same chest. Position and
+    // tier persist across days so adv knowledge entries (which
+    // observe tileX/tileY/tier on room entry) stay accurate.
+    // Day-start only resets `opened` to false so the bait re-arms.
+    this._gameState.dungeon.treasureChests ??= []
+    const existing = this._gameState.dungeon.treasureChests.find(c =>
+      c._mimicCursed && c.assignedRoomId === room.instanceId,
+    )
+    if (existing) {
+      existing.opened = false
+      return
+    }
+    // First spawn — pick a tile that isn't already taken by a
+    // mimic (or any other room-placed item). Tile + tier are
+    // locked in from this point on.
+    const mimicTileKeys = new Set(
+      (this._gameState.minions ?? [])
+        .filter(m => m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead')
+        .map(m => `${m.tileX},${m.tileY}`),
+    )
+    const interiorCandidates = []
+    const ix0 = room.gridX + Balance.WALL_THICKNESS
+    const iy0 = room.gridY + Balance.WALL_THICKNESS
+    const ix1 = room.gridX + room.width  - Balance.WALL_THICKNESS - 1
+    const iy1 = room.gridY + room.height - Balance.WALL_THICKNESS - 1
+    for (let y = iy0; y <= iy1; y++) {
+      for (let x = ix0; x <= ix1; x++) {
+        if (mimicTileKeys.has(`${x},${y}`)) continue
+        interiorCandidates.push([x, y])
+      }
+    }
+    if (interiorCandidates.length === 0) return
+    const [cx, cy] = interiorCandidates[Math.floor(Math.random() * interiorCandidates.length)]
+    const tier = Balance.MIMIC_CURSED_CHEST_TIER_MIN +
+                 Math.floor(Math.random() * (Balance.MIMIC_CURSED_CHEST_TIER_MAX - Balance.MIMIC_CURSED_CHEST_TIER_MIN + 1))
+    this._gameState.dungeon.treasureChests.push({
+      instanceId:     `mimic_cursed_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      tileX: cx, tileY: cy,
+      tier,
+      opened:         false,
+      _mimicCursed:   true,
+      assignedRoomId: room.instanceId,
+    })
+    EventBus.emit('TREASURE_CHEST_PLACED', {
+      tier, tileX: cx, tileY: cy, cursed: true, mimicVaultRoomId: room.instanceId,
+    })
+  }
+
+  // Room redesign 2026-05-27 — Treasury: auto-spawn TREASURY_CHEST_COUNT
+  // free chests inside the room. First placement picks positions + tiers
+  // once and locks them in; subsequent calls just flip `opened` back to
+  // false on the existing chests and top up any missing slots.
+  // Existing-set is identified by `_treasurySpawn + assignedRoomId`
+  // (duck-typed, not by instanceId), so a MOVE of the room — which
+  // rebinds assignedRoomId on the carried chests via NightPhase's
+  // _heldRoomItems carry-restore — still resolves correctly across the
+  // new room instanceId. Tagged `_treasurySpawn: true` so the sell tool
+  // refuses to refund gold (they were free).
+  _refillTreasury(room) {
+    this._gameState.dungeon.treasureChests ??= []
+    const want    = Balance.TREASURY_CHEST_COUNT
+    const tierMin = Balance.TREASURY_CHEST_TIER_MIN
+    const tierMax = Balance.TREASURY_CHEST_TIER_MAX
+    // Reset `opened` on this room's existing batch (might be < want
+    // if first-spawn lost slots to player-placed items below).
+    const existing = this._gameState.dungeon.treasureChests
+      .filter(c => c._treasurySpawn && c.assignedRoomId === room.instanceId)
+    for (const c of existing) c.opened = false
+    if (existing.length >= want) return
+    // Top up: find tiles not already taken by an existing chest or
+    // any other player-placed item / minion in this room.
+    const taken = new Set()
+    for (const c of (this._gameState.dungeon.treasureChests ?? [])) taken.add(`${c.tileX},${c.tileY}`)
+    for (const b of (this._gameState.dungeon.beacons        ?? [])) taken.add(`${b.tileX},${b.tileY}`)
+    for (const f of (this._gameState.dungeon.fountains      ?? [])) taken.add(`${f.tileX},${f.tileY}`)
+    for (const k of (this._gameState.dungeon.keyChests      ?? [])) taken.add(`${k.tileX},${k.tileY}`)
+    const phyl = this._gameState.phylactery
+    if (phyl?.tileX != null) taken.add(`${phyl.tileX},${phyl.tileY}`)
+    for (const m of (this._gameState.minions ?? [])) {
+      if (m.aiState === 'dead') continue
+      if (m.assignedRoomId === room.instanceId) taken.add(`${m.tileX},${m.tileY}`)
+    }
+    const candidates = []
+    const ix0 = room.gridX + Balance.WALL_THICKNESS
+    const iy0 = room.gridY + Balance.WALL_THICKNESS
+    const ix1 = room.gridX + room.width  - Balance.WALL_THICKNESS - 1
+    const iy1 = room.gridY + room.height - Balance.WALL_THICKNESS - 1
+    for (let y = iy0; y <= iy1; y++) {
+      for (let x = ix0; x <= ix1; x++) {
+        if (taken.has(`${x},${y}`)) continue
+        candidates.push([x, y])
+      }
+    }
+    // Fisher-Yates shuffle so first-spawn positions vary per room.
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
+    }
+    const usedSlotIdxs = new Set(existing.map(c => c._treasurySlotIdx ?? -1))
+    let candIdx = 0
+    let placed = 0
+    for (let slot = 0; slot < want && candIdx < candidates.length; slot++) {
+      if (usedSlotIdxs.has(slot)) continue
+      const [cx, cy] = candidates[candIdx++]
+      const tier = tierMin + Math.floor(Math.random() * (tierMax - tierMin + 1))
+      this._gameState.dungeon.treasureChests.push({
+        instanceId:       `treasury_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${slot}`,
+        tileX: cx, tileY: cy,
+        tier,
+        opened:           false,
+        _treasurySpawn:   true,
+        _treasurySlotIdx: slot,
+        assignedRoomId:   room.instanceId,
+      })
+      placed++
+    }
+    if (placed > 0) {
+      EventBus.emit('TREASURY_REFILLED', { roomId: room.instanceId, count: placed })
+    }
+  }
+
+  // Room redesign 2026-04-30 — Hall of Trials: if no garrison alive in
+  // this Hall, spawn one random T2 evolved minion. Killed mid-day, it
+  // doesn't respawn until the next call.
+  _spawnHallOfTrialsElite(room, minionTypes) {
+    const aliveHere = (this._gameState.minions ?? []).filter(m =>
+      m.assignedRoomId === room.instanceId && m.isHallOfTrialsSpawn && m.aiState !== 'dead'
+    ).length
+    if (aliveHere > 0) return
+    const tier2Pool = minionTypes.filter(d =>
+      /[a-z_]+2$/.test(d.id) && d.id !== 'beholder2'  // exclude super-rare or boss-tier
+    )
+    const def = tier2Pool[Math.floor(Math.random() * tier2Pool.length)]
+    if (!def) return
+    const cx = room.gridX + Math.floor(room.width / 2)
+    const cy = room.gridY + Math.floor(room.height / 2)
+    const m = this._makeGarrison(def, room, {
+      tileX: cx, tileY: cy,
+      extra: { isHallOfTrialsSpawn: true },
+    })
+    this._gameState.minions.push(m)
+    EventBus.emit('HALL_OF_TRIALS_SPAWNED', { minion: m, roomId: room.instanceId })
   }
 
   // ── False Exit + room redesign hooks — react on room change ──────────────

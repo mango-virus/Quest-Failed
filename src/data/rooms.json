@@ -1551,7 +1551,7 @@
             "undead",
             "garrison_spawner"
         ],
-        "description": "Spawns up to 4 Risen Bones (garrison, room-bound). Refills to 4 each Night Phase. Garrison minions cannot leave this room and do not count toward the Barracks cap.",
+        "description": "Spawns up to 4 Risen Bones (garrison, room-bound). Refills to 4 at the start of each day. Garrison minions cannot leave this room and do not count toward the Barracks cap.",
         "flavorText": "They always come back. That's the point.",
         "theme": null,
         "doorTheme": null,
@@ -2042,7 +2042,7 @@
             "bait"
         ],
         "onNightStart": "treasury_refillChests",
-        "description": "Generates a small Gold stipend at end of Day. Increases adventurer arrival rate. Spawns 4 chests; adventurers can grab them and must escape the dungeon alive to keep the gold (deaths return loot). Chests refill nightly; daily stipend is unaffected by theft.",
+        "description": "Generates a small Gold stipend at end of Day. Increases adventurer arrival rate. Auto-spawns 4 free treasure chests inside the room at the start of each day; adventurers can grab them and must escape the dungeon alive to keep the gold (deaths return loot). Chests refresh daily and cannot be sold individually. Daily stipend is unaffected by theft.",
         "flavorText": "The shinier it gets, the louder it sings.",
         "theme": null,
         "doorTheme": null,
@@ -2465,7 +2465,7 @@
             "intel"
         ],
         "onNightStart": "library_revealNextParty",
-        "description": "Reveals next party intel the night before. Tier scales with boss level: L4 size + classes; L6 + personalities; L8 + stats & equipment; L10 + planned route.",
+        "description": "Reveals next party intel the night before — size, class composition, and per-adventurer details on the Adventurer Intel panel. Without a Library, that panel falls through to the 'INTEL UNKNOWN' empty state.",
         "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
         "theme": null,
         "doorTheme": null,
@@ -3496,7 +3496,7 @@
             "looks_like_treasury"
         ],
         "onAdventurerEnter": "mimicVault_onEnter",
-        "description": "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) that respawn nightly, plus 1 false chest — if grabbed, it steals gold from the adventurer.",
+        "description": "Looks identical to a Treasury on the map. Spawns 2 Mimics (garrison, room-bound) disguised as treasure chests — any adventurer who tries to loot one is instantly devoured. Also spawns 1 Cursed Chest (random sprite tier) — if an adventurer opens it and escapes the dungeon alive, you lose 25% of your current gold. Cursed adventurers who die en route trigger no penalty. Mimics and the Cursed Chest cannot be sold or moved individually (sell the whole room to remove them). All three refresh at the start of each day.",
         "flavorText": "It even has the right sparkle.",
         "theme": null,
         "doorTheme": null,
@@ -3789,7 +3789,7 @@
             "garrison_spawner",
             "elite"
         ],
-        "description": "Spawns a random Tier-2 evolved minion (garrison, room-bound) at Night Phase if none are alive in the room. If killed, does not respawn that night. Cap scales with boss level.",
+        "description": "Spawns a random Tier-2 evolved minion (garrison, room-bound) at the start of each day if none are alive in the room. If killed mid-day, does not respawn the same day — refills at the next day-start. Cap scales with boss level.",
         "flavorText": "Only the proven walk these stones.",
         "theme": null,
         "doorTheme": null,
@@ -4443,7 +4443,7 @@
             "friendly_fire"
         ],
         "onAdventurerEnter": "hallOfMadness_friendlyFireRoll",
-        "description": "Adventurers in this room have a % chance to attack each other instead of moving on. (Heavy implementation lift — needs new AI state.)",
+        "description": "On first entry, each adventurer rolls 60% to lock onto a party-mate in the room and attack them on sight. Frenzy ends when the target dies, leaves the room, or the frenzied adventurer leaves; their previous goal then resumes.",
         "flavorText": "He looked at me and I saw the rest of them looking back.",
         "theme": null,
         "doorTheme": null,
@@ -4730,7 +4730,7 @@
             "garrison_spawner",
             "no_other_minions"
         ],
-        "description": "Spawns 1 Mini-Boss (garrison, room-bound) that scales with boss level (T1 â†’ T2 â†’ T3). No other minions may be placed in this room. Respawns nightly. Cap scales with boss level.",
+        "description": "Spawns 1 Mini-Boss (random Tier-3 minion, garrison, room-bound) with double base stats further scaled by boss level. No other minions may be placed in this room. Respawns at the start of each day if killed. Cap scales with boss level.",
         "flavorText": "Every kingdom has a deputy. Mine has teeth.",
         "theme": null,
         "doorTheme": null,

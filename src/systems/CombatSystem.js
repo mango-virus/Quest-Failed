@@ -632,24 +632,21 @@ export class CombatSystem {
     return Math.max(1, Math.floor(mit * variance))
   }
 
-  // Phase QW — Is the given room ID inside or adjacent (within 2 tile gap)
-  // to an active Armory room? Used for the armory minion-attack buff.
+  // Is the given room ID an Armory itself, or door-connected to one?
+  // Used for the Armory's minion-attack buff. Matches the description
+  // ("directly door-connected rooms") and mirrors Watchtower / Sanctum's
+  // door-connected pattern via DungeonGrid.getNeighborRooms — earlier
+  // geometric proximity check (any room within ~2 tiles) was a stale
+  // pre-doorway-snap heuristic.
   _isAdjacentToActiveArmory(roomId) {
     const rooms = this._gameState.dungeon.rooms ?? []
     const homeRoom = rooms.find(r => r.instanceId === roomId)
     if (!homeRoom) return false
     if (homeRoom.definitionId === 'armory' && homeRoom.isActive !== false) return true
-    for (const r of rooms) {
-      if (r.definitionId !== 'armory' || r.isActive === false) continue
-      const ax2 = homeRoom.gridX + homeRoom.width  - 1
-      const ay2 = homeRoom.gridY + homeRoom.height - 1
-      const bx2 = r.gridX + r.width  - 1
-      const by2 = r.gridY + r.height - 1
-      const dx = Math.max(0, Math.max(homeRoom.gridX - bx2, r.gridX - ax2))
-      const dy = Math.max(0, Math.max(homeRoom.gridY - by2, r.gridY - ay2))
-      if (Math.max(dx, dy) <= 2) return true
-    }
-    return false
+    const grid = this._scene?.dungeonGrid
+    if (!grid?.getNeighborRooms) return false
+    const neighbors = grid.getNeighborRooms(roomId) ?? []
+    return neighbors.some(n => n.definitionId === 'armory' && n.isActive !== false)
   }
 
   // Phase 5c — apply Knight Protective Aura damage reduction.

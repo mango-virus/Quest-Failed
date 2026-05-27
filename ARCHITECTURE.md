@@ -16,16 +16,12 @@ Top-down reverse roguelike. Player is the dungeon Boss/Architect. NPC adventurer
 Several systems were retired in cleanup passes. Older sections of this document still describe them; treat any mention of these as historical, not current.
 
 **2026-05-02 cleanup:**
-- **Soul Essence currency** → renamed to **gold**. Field is `gameState.player.gold`; balance constants are `STARTING_GOLD`, `GOLD_PER_KILL`, `DEV_INFINITE_GOLD`, `MINION_RESPAWN_COST_GOLD`. Archetype modifier renamed `goldGainMultiplier`. Mechanic constant `MECHANIC_TAXATION_GOLD_PENALTY`.
 - **Daily upkeep** → removed entirely. `EssenceSystem.js` is gone. `upkeepCost` fields stripped from JSON data and entity factories. Placement cost is the only economy pressure.
 - **Reputation system** → removed entirely. `ReputationSystem.js` is gone. Difficulty scales purely off boss level. Legendary heroes still appear at a flat 5% per spawn in `DayPhase._spawnAdventurers`. Guild raids dropped.
 - **Loot pickup mechanic** → removed entirely. `LootSystem.js`, `LootRenderer.js`, `LootGreedSystem.js`, `LootItem.js`, and `MimicRenderer.js` are gone. `gameState.loot.dungeon` is gone. Adventurer kills drop gold directly. Treasury rooms still pay a flat daily gold stipend; chests / hidden keys / vendetta-on-equip / vulture-loot-grab / mimic chest disguise / Greed Trap / `LOOT_PICKED_UP` / `LOOT_SCAVENGED` / `TREASURY_CHEST_*` / `MIMIC_REVEAL_*` events are all gone. Mimics in the Mimic Vault now spawn as plain hostile garrison minions.
 
 **2026-05-04 cleanup:**
 - **Sleep goal** → removed. Adventurers no longer rest mid-dungeon. `ADVENTURER_SLEEPING` event is dead. The barracks regen-when-empty cosmetic is unrelated.
-
-**2026-05-05 cleanup:**
-- **Dark Power currency** → retired. Was the long-term unlock currency; the design collapsed to a single Gold currency. `gameState.player.darkPower` field still loads from old saves but is ignored. Boss-archetype evolution-tree `cost` fields, ability `powerCostToUnlock`, and `startingDarkPower` are no-ops. Currency-migration to Gold is partial — some unlock buttons may display stale costs until that pass lands. `DARK_POWER_*` events are gone.
 
 **Replacement layer (added since 2026-05-02):**
 - **Item entities** — Door Lock + Key Chest (forced-pair placement, locked doors block until keyed), Soul-Bound Beacon + Healing Fountain (forced-pair, room buff with adventurer-tradeoff), Treasure Chest (10 tiers — pay daily gold, may be looted by tempted advs), Phylactery Heart (Lich-only, spare life). All defined in `src/data/items.json`.
@@ -55,12 +51,11 @@ Several systems were retired in cleanup passes. Older sections of this document 
 
 ## Currencies
 
-> **2026-05-05: Dark Power was retired.** Gold is the only currency in the game now. The strikethrough rows below preserve historical context but do not reflect runtime behavior. Lingering `darkPower` / `souls` field references in code (e.g. GameOver leaderboard submit, `run.totals.souls` counter) default to 0 and are inert — a follow-up cleanup pass is owed.
+Gold is the only currency in the game.
 
 | Currency | Name | Earned By | Spent On |
 |---|---|---|---|
 | Build  | **Gold**       | Adventurer kills, treasury room daily stipend, treasure-chest passive income | One-time placement cost of rooms / traps / minions / items |
-| ~~Upgrade~~ | ~~**Dark Power**~~ | ~~Adventurer kills (secondary, lower rate), boss kills, dungeon level-ups~~ | ~~Minion evolution, boss upgrades, unlocking new room/trap/minion types~~ — *all costs converted to Gold or removed.* |
 
 There is no daily upkeep — the only economy pressure is placement cost. Rooms, traps, and minions never shut off after placement.
 
@@ -68,7 +63,6 @@ There is no daily upkeep — the only economy pressure is placement cost. Rooms,
 - Boss room: pre-placed (fixed position, never removed)
 - 3 starter rooms: pre-placed (free placement cost)
 - Gold: tunable constant (`STARTING_GOLD` in `src/config/balance.js`)
-- ~~Dark Power: 0~~ *(currency retired)*
 - All amounts designed to be tweaked without code changes
 
 ---
@@ -216,8 +210,7 @@ GameState {
   player: {
     bossArchetypeId: string,
     bossEvolution: BossEvolutionState,
-    soulEssence: number,             // legacy field name; displayed as "Gold"
-    darkPower: number,               // RETIRED 2026-05-05 — defaults to 0; no system writes/reads it any longer
+    soulEssence: number,             // on-disk field name for Gold (kept for save compat)
     totalKills: number,
     totalDaysElapsed: number
   },
@@ -395,9 +388,7 @@ All game content lives in `src/data/`. Adding new content never requires code ch
     { x: 3, y: 0, direction: "N" },  // relative tile, which wall
     { x: 3, y: 5, direction: "S" }
   ],
-  upkeepCost: 5,              // Soul Essence per day; 0 = free (starter rooms)
-  essenceCostToPlace: 20,     // one-time placement cost
-  powerCostToUnlock: 0,       // (Dark Power retired 2026-05-05) historically Dark Power; field still parsed but inert
+  essenceCostToPlace: 20,     // one-time placement cost (Gold)
   unlockLevel: 1,             // minimum dungeon level to see it in the palette
   placementRules: {
     minDepthFromBoss: 0,
@@ -467,7 +458,7 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
   id: "taxation_of_souls",
   name: "Taxation of Souls",
   description: "Adventurers lose 5% max HP when entering a new room.",
-  tradeoffDescription: "Adventurers are already weakened on kill — you gain slightly less Soul Essence per death.",
+  tradeoffDescription: "Adventurers are already weakened on kill — you gain slightly less Gold per death.",
   unlockLevel: 2,
   weight: 4,
   availableToArchetypes: "all",    // or array of archetype IDs
@@ -492,9 +483,8 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
     damageType: "physical",
     abilities: []
   },
-  goldCost: 10,                   // gold to place (was essenceCostToPlace; Soul Essence retired 2026-05-02)
+  goldCost: 10,                   // gold to place
   // upkeepCost / essenceCostToPlace fields retired with EssenceSystem.
-  // powerCostToUnlock retired with Dark Power 2026-05-05; ignored if present.
   unlockLevel: 1,
   evolutionPaths: [
     // Conditions checked against KillEntry[] by EvolutionSystem
@@ -545,7 +535,7 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
   name: "The Lich",
   description: "Undead synergies, soul economy. Weak to clerics.",
   modifiers: {
-    goldGainMultiplier: 1.2,            // (was essenceGainMultiplier; Soul Essence retired)
+    goldGainMultiplier: 1.2,
     minionXpMultiplier: 1.0,
     availableRoomTags: [],              // no restrictions beyond defaults
     blockedRoomTags: [],
@@ -554,14 +544,12 @@ Combos use tags, not specific personality IDs, so they apply automatically to ne
   },
   startingRooms: ["boss_chamber", "starter_corridor", "starter_barracks", "starter_crypt"],
   startingGold: 30,                     // overrides Balance.STARTING_GOLD if set
-  // startingEssence / startingDarkPower fields retired (Soul Essence 2026-05-02,
-  // Dark Power 2026-05-05). Stale data in saves is ignored on load.
   baseFightStats: { hp: 200, attack: 15, defense: 10, abilities: ["soul_drain"] },
   evolutionTree: [
     {
       id: "raise_dead",
       name: "Raise Dead",
-      cost: 30,                         // gold (was Dark Power; currency migration in progress)
+      cost: 30,                         // gold
       description: "Summon undead adds during the boss fight.",
       requiresLevel: 3,
       statDeltas: {},
@@ -641,7 +629,7 @@ SUCCUBUS_TRANSFORM_OUT / SUCCUBUS_TRANSFORM_IN / SUCCUBUS_BAT_FLYING_OUT /
 
 # Retired (do not emit, kept for grep):
 ADVENTURER_SLEEPING                       ← Sleep goal removed 2026-05-04
-ROOM_DEACTIVATED / ESSENCE_WARNING / ESSENCE_CRITICAL  ← Soul Essence retired 2026-05-02
+ROOM_DEACTIVATED / ESSENCE_WARNING / ESSENCE_CRITICAL  ← upkeep economy retired 2026-05-02
 GEAR_DROPPED / GEAR_EQUIPPED_TO_MINION / VENDETTA_CREATED  ← LootSystem retired 2026-05-02
 KNOWLEDGE_SHARED                          ← replaced by sharedPool rebuild on ADVENTURER_FLED
 ```
@@ -747,10 +735,9 @@ Manages `AdventurerKnowledge` per adventurer. Knowledge is per-entity (rooms, tr
 Subscribes to `COMBAT_KILL`. For each kill event, checks the killer minion's kill history against all evolution paths in its MinionTypeDefinition. When a condition is met, applies stat deltas, grants new ability, updates minion name, emits `MINION_EVOLVED`.
 
 ### ~~EssenceSystem~~ (RETIRED)
-Soul Essence + nightly upkeep was cut. The two-currency model collapsed
-to a single Gold currency; rooms / traps / minions have no recurring
-cost. No system file exists for this anymore — kept as a historical
-reference only. `ESSENCE_WARNING` and `ROOM_DEACTIVATED` events are gone.
+Nightly upkeep was cut. Rooms / traps / minions have no recurring cost.
+No system file exists for this anymore — kept as a historical reference
+only. `ESSENCE_WARNING` and `ROOM_DEACTIVATED` events are gone.
 
 ### DungeonMechanicSystem (`src/systems/DungeonMechanicSystem.js`)
 - `activateMechanic(mechanicId, gameState)` — calls `onActivate` handler, adds to `activeMechanics`
@@ -849,7 +836,7 @@ DungeonRenderer, AdventurerRenderer, MinionRenderer, BossRenderer, TrapRenderer,
 2. Room preview sprite follows cursor, snaps to 32px grid
 3. `DungeonGrid.validatePlacement()` runs every tick — preview tints red/green
 4. Violation tooltips show on invalid placement
-5. Left-click confirms placement: `DungeonGrid.placeRoom()` → auto-routes corridors → tilemap updates → Soul Essence deducted
+5. Left-click confirms placement: `DungeonGrid.placeRoom()` → auto-routes corridors → tilemap updates → Gold deducted
 6. Right-click cancels
 
 **Corridor auto-routing** (triggered after every room placement):
@@ -973,7 +960,7 @@ Phase 6e closes out the orphaned phase-6 items that the kernel/b/c/d phases didn
 - Game.create caches `gameState.player.archetypeModifiers` at boot from the chosen archetype's JSON entry. Other systems read from there.
 - **Minion stats**: NightPhase._confirmMinionPlacement applies `minionStatMultiplier` to attack/defense/maxHp at placement time (Tyrant 2×, Architect implicit ~0.85×).
 - **Minion XP**: EvolutionSystem._onCombatKill multiplies the kill XP by `minionXpMultiplier` (Beast Lord 1.6×).
-- **Essence gain**: AISystem._kill multiplies SOUL_ESSENCE_PER_KILL by `essenceGainMultiplier` (Lich 1.2×).
+- **Gold gain**: AISystem._kill multiplies GOLD_PER_KILL by `goldGainMultiplier` (Lich 1.2×).
 - **Room cost**: NightPhase._confirmPlacement applies `roomCostMultiplier` to essenceCostToPlace (Tyrant 2×, Architect 0.75×).
 - **Trap palette filter**: NightPhase._renderTrapCards filters by `blockedTrapTypes` (Beast Lord blocks `'*'` → no traps shown).
 
@@ -1257,7 +1244,7 @@ Cut at user request: the on-floor prior-run path trail read as a confusing debug
 
 ### Boss evolution tree
 - New `src/data/bossAbilities.json` with 6 nodes across 3 tiers. Each node has `powerCost`, `requires[]`, `effect` ID.
-- `BossSystem` persists `gameState.boss.unlockedAbilities[]`. Public API: `getAvailableAbilities(filterAffordable)` and `unlockAbility(id)` — validates ownership / requires / cost, ~~deducts Dark Power~~ (Dark Power retired 2026-05-05; cost path is currently no-op pending follow-up to switch to Gold), applies passive stat bonuses.
+- `BossSystem` persists `gameState.boss.unlockedAbilities[]`. Public API: `getAvailableAbilities(filterAffordable)` and `unlockAbility(id)` — validates ownership / requires / cost, applies passive stat bonuses.
 - EndOfDay scene gains "BOSS UPGRADES (N DP)" button → modal with full ability grid (state colours: owned green ✓ / available purple / locked dim).
 - `_resolve()` reads owned abilities each fight: `soul_drain` → boss starts at 125% HP; `summon_adds` → 2 skeleton helpers via `_summonAddsNearBoss`; `second_wind` → one-time +30 HP if boss < 20%; `necrotic_aura` → 5% maxHp AOE per round.
 
@@ -1680,7 +1667,7 @@ The personality + class roster now matches the 23 entries in the original game d
 - `update(delta)` is called with timeScale-adjusted delta — DayPhase pause/2x/4x feeds in here
 - Per-adventurer state machine: walking → reaches boss → instant kill (Phase 6/10 will replace with combat)
 - `pickSpawnTile()` finds the deepest-from-boss room with a valid path to the boss; returns null if dungeon has no entrance reachable to boss
-- On death: emits `ADVENTURER_DIED`, awards `SOUL_ESSENCE_PER_KILL` ~~+ `DARK_POWER_PER_KILL`~~ (Dark Power retired 2026-05-05), moves entity to graveyard
+- On death: emits `ADVENTURER_DIED`, awards `GOLD_PER_KILL`, moves entity to graveyard
 
 ### AdventurerRenderer (`src/ui/AdventurerRenderer.js`)
 - Owned by Game scene; renders one Container per active adventurer (depth 8, above corridors and rooms)

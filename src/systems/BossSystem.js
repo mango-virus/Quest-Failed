@@ -1359,30 +1359,42 @@ export class BossSystem {
   // whether multiple slimes exist. For non-slime archetypes this is a
   // 1-liner; for slime, distribute evenly across alive slimes, then
   // check each for split, then sync the mirror.
+  //
+  // Emits BOSS_DAMAGED with the actual HP delta on every successful
+  // damage application — listeners (AchievementSystem's Flawless Reign
+  // tracker, future damage-dealt VFX) rely on this single emit point.
+  // We wrap the existing logic in a before/after hp snapshot so the
+  // emit's `amount` reflects what actually landed (after clamps).
   _applyDamageToBoss(boss, dmg) {
+    const hpBefore = boss?.hp ?? 0
     if (this._archIdForBoss() === 'slime' && Array.isArray(boss.slimes) && boss.slimes.length > 0) {
       const alive = boss.slimes.filter(s => (s.hp ?? 0) > 0)
       if (alive.length === 0) {
         boss.hp = 0
-        return
+      } else {
+        // Distribute evenly. Round up so every slime takes at least 1 hp
+        // per round when dmg < count (otherwise some rounds could deal 0
+        // to particular slimes and the fight would drag).
+        const per = Math.max(1, Math.ceil(dmg / alive.length))
+        for (const s of alive) {
+          s.hp = Math.max(0, (s.hp ?? 0) - per)
+        }
+        // Splits checked on a snapshot of `alive` — the array is mutated
+        // by splits (parent removed, children added), so iterating the
+        // post-mutation slimes would risk re-checking just-spawned children
+        // on the same round and infinite-recursing.
+        for (const s of alive) {
+          this._maybeSplitSlime(s)
+        }
+        this._syncBossHpFromSlimes(boss)
       }
-      // Distribute evenly. Round up so every slime takes at least 1 hp
-      // per round when dmg < count (otherwise some rounds could deal 0
-      // to particular slimes and the fight would drag).
-      const per = Math.max(1, Math.ceil(dmg / alive.length))
-      for (const s of alive) {
-        s.hp = Math.max(0, (s.hp ?? 0) - per)
-      }
-      // Splits checked on a snapshot of `alive` — the array is mutated
-      // by splits (parent removed, children added), so iterating the
-      // post-mutation slimes would risk re-checking just-spawned children
-      // on the same round and infinite-recursing.
-      for (const s of alive) {
-        this._maybeSplitSlime(s)
-      }
-      this._syncBossHpFromSlimes(boss)
     } else {
       boss.hp = Math.max(0, (boss.hp ?? 0) - dmg)
+    }
+    const hpAfter = boss?.hp ?? 0
+    const taken = Math.max(0, hpBefore - hpAfter)
+    if (taken > 0) {
+      EventBus.emit('BOSS_DAMAGED', { amount: taken, hpBefore, hpAfter, source: 'combat' })
     }
   }
 

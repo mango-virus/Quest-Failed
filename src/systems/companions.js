@@ -436,38 +436,133 @@ export const COMPANIONS = {
     expressions: ['idle'],
   },
 
-  // Spectra — ninth keeper. Ships LOCKED on the recruit screen (same
-  // teaser-only treatment as the other unlock-pending companions).
-  // Only an `idle` portrait is wired today; no `linesKey` because she
-  // has no banter bank yet — CompanionSelectOverlay skips locked ids
-  // from the speaker rotation, so a missing bank is safe.
+  // Spectra — ninth keeper. Teen-ghost otaku, anime/games/manga/snacks
+  // and gets distracted easily. Ships LOCKED on the recruit screen
+  // behind the legendary `flawless_reign` achievement (survive 30 days
+  // in a single run without the boss taking any damage) — once that
+  // fires, `AchievementSystem._unlock` calls `PlayerProfile.unlockCompanion('spectra')`
+  // and she becomes available like Rattle's curtain_call path.
   //
-  // When she becomes playable: drop the rest of her expression art into
-  // the source folder (`Quest-Failed assets/Companions/Spectra`), fill
-  // out `tools/bake-npc-sprites.mjs`'s `spectra.map`, re-run the bake,
-  // expand `expressions` here, add her `linesKey` + dialogue bank, and
-  // remove `locked` below (or call
-  // `PlayerProfile.unlockCompanion('spectra')` wherever the unlock
-  // fires — condition TBD).
+  // Two systems unique to Spectra that other companions don't use:
+  //   • `variantGroups` — maps a SEMANTIC expression id (what the
+  //     dialogue bank's `x:` references) to a list of variant webp
+  //     basenames in `spriteDir`. NpcCompanion._setExpression picks
+  //     a random variant per delivery so all 113 source sprites see
+  //     screen-time. ArchetypeDecorOverlay does the same for the
+  //     boss-select screen. Audit treats the bank as semantic-only
+  //     (66 ids) — variants are an art-rotation detail, not a balance
+  //     concern. Without `variantGroups`, the renderer's behaviour is
+  //     identical to every other companion (file basename = id).
+  //   • `ghostFlickerRate` / `ghostFlickerAlpha` — 25% of deliveries
+  //     render at 0.70 alpha instead of 1.0. Sells the ghost identity
+  //     without needing per-emotion see-through variants. The flicker
+  //     dice is rolled once per expression change and the alpha holds
+  //     for the full on-screen duration of that line (no strobing
+  //     mid-typewriter). `solidOnlyExpressions` are exempt — the
+  //     "scary ghost mode" beats land at full intensity always.
   spectra: {
     id:        'spectra',
     name:      'Spectra',
-    tagline:   'A wraith\'s whisper at the edge of every shadow.',
-    traits:    [],
+    tagline:   "A teen ghost with a head full of tropes — the dungeon's resident weeb.",
+    traits:    ['anime brain', 'gamer reflexes', 'snack-fueled chaos'],
     locked:    true,
-    // Tuned to match the other locked teasers. Re-tune if her source
-    // art reads visually larger or smaller than the rest in the card.
     portraitScale: 1.15,
     portraitOrigin: '50% 100%',
-    // Flipped 2026-05-26 — her source art faces one way; mirror so
-    // she faces inward toward the other cards on Page 3.
     portraitFlipX: true,
     hudScale: 1.15,
     spriteDir: 'assets/npc-spectra/',
+    // Neutral resting face — the ghost in default form. NOT the
+    // see-through idle (that source PNG was deliberately dropped from
+    // the bake) since the runtime ghost-flicker covers transparency.
     restExpr:  'idle',
-    // No dialogue bank yet — see header comment.
-    linesKey:  null,
-    expressions: ['idle'],
+    // ── Ghost-flicker overlay ──
+    // 25% chance per delivery to render at 0.70 alpha. NpcCompanion's
+    // _setExpression rolls this once when the expression changes and
+    // the chosen opacity holds for the full line. Spooky-group
+    // expressions (below) are exempt so they always land full alpha.
+    ghostFlickerRate:  0.25,
+    ghostFlickerAlpha: 0.70,
+    solidOnlyExpressions: ['scary', 'skulls', 'ghost-power'],
+    // Picked-face pool — rolled per recruit-screen selection. Lands on
+    // her brightest "you picked me!" beats: anime-girl reactions, gamer
+    // victory, cuteness, sparkle moments. No quiet/melancholy or spooky
+    // poses — picking Spectra is a moment for her to GEEK OUT.
+    pickedExprs: [
+      'senpai-notice', 'sparkle-eyes', 'bishie-sparkles', 'heart-eyes',
+      'gg-victory', 'looking-cute', 'excited', 'weeb',
+      'teasing', 'taking-photo', 'happy', 'blushing',
+    ],
+    linesKey:  'spectraLines',
+    // 66 semantic expression ids covering 113 source sprites via the
+    // variantGroups map below. Dialogue bank `x:` may only reference
+    // ids from THIS list — renderer falls back to `restExpr` for any
+    // unrecognised id.
+    expressions: [
+      // Idle / quiet (4)
+      'idle', 'bored', 'sleeping', 'yawning',
+      // Generic emotional baseline (12)
+      'happy', 'excited', 'sad', 'upset', 'crying', 'proud',
+      'confused', 'shocked', 'surprised', 'thinking', 'focused', 'annoyed',
+      // Anger register (4)
+      'angry', 'chibi-rage', 'dramatic-anger', 'scary',
+      // Positive (4)
+      'laughing', 'smug', 'mischievous', 'winking',
+      // General poses (3)
+      'pointing', 'explaining', 'looking-away',
+      // Anime reactions (14)
+      'sparkle-eyes', 'bishie-sparkles', 'anime-gasp', 'sweatdrop',
+      'nose-bleed', 'heart-eyes', 'wibbly-mouth', 'senpai-notice',
+      'blushing', 'looking-cute', 'weeb', 'watching-anime',
+      'reading-manga', 'taking-photo',
+      // Gamer (7)
+      'gaming', 'button-mashing', 'streaming', 'rage-quit',
+      'gg-victory', 'texting', 'phone-scrolling',
+      // Snacks (7)
+      'eating-snacks', 'cheeks-stuffed', 'pocky-mouth', 'chip-bag-shake',
+      'juice-box-sip', 'empty-bag', 'caught-snacking',
+      // Distracted (3)
+      'distracted', 'doodling', 'mirror-check',
+      // Fan / hobby (3)
+      'plush-hug', 'holding-plushies', 'figure-collection',
+      // Teasing / flirty — rare flavor beats (3)
+      'teasing', 'seductive', 'sexy',
+      // Spooky — rare, solid-only (2)
+      'skulls', 'ghost-power',
+    ],
+    // Semantic id → list of variant webp basenames in `spriteDir`. Any
+    // id NOT in this map falls back to a single-file lookup (basename
+    // === id). NpcCompanion._setExpression picks at random from the
+    // group; _preloadAll walks all of them so the cache is warm.
+    variantGroups: {
+      'idle':              ['idle', 'idle-2'],
+      'bored':             ['bored', 'bored-2'],
+      'sleeping':          ['sleeping', 'sleeping-2'],
+      'happy':             ['happy', 'happy-2', 'happy-3'],
+      'excited':           ['excited', 'excited-2'],
+      'confused':          ['confused', 'confused-2'],
+      'focused':           ['focused', 'focused-2'],
+      'laughing':          ['laughing', 'laughing-2'],
+      'anime-gasp':        ['anime-gasp', 'anime-gasp-2'],
+      'heart-eyes':        ['heart-eyes', 'heart-eyes-2'],
+      'senpai-notice':     ['senpai-notice', 'senpai-notice-2', 'senpai-notice-3'],
+      'blushing':          ['blushing', 'blushing-2'],
+      'looking-cute':      ['looking-cute', 'looking-cute-2', 'looking-cute-3'],
+      'weeb':              ['weeb', 'weeb-2', 'weeb-3', 'weeb-4'],
+      'watching-anime':    ['watching-anime', 'watching-anime-2'],
+      'reading-manga':     ['reading-manga', 'reading-manga-2', 'reading-manga-3', 'reading-manga-4'],
+      'gaming':            ['gaming', 'gaming-2'],
+      'streaming':         ['streaming', 'streaming-2', 'streaming-3'],
+      'texting':           ['texting', 'texting-2'],
+      'eating-snacks':     ['eating-snacks', 'eating-snacks-2'],
+      'pocky-mouth':       ['pocky-mouth', 'pocky-mouth-2'],
+      'distracted':        ['distracted', 'distracted-2', 'distracted-3', 'distracted-4'],
+      'doodling':          ['doodling', 'doodling-2'],
+      'plush-hug':         ['plush-hug', 'plush-hug-2', 'plush-hug-3', 'plush-hug-4', 'plush-hug-5'],
+      'holding-plushies':  ['holding-plushies', 'holding-plushies-2', 'holding-plushies-3'],
+      'figure-collection': ['figure-collection', 'figure-collection-2', 'figure-collection-3'],
+      'teasing':           ['teasing', 'teasing-2', 'teasing-3', 'teasing-4', 'teasing-5'],
+      'ghost-power':       ['ghost-power', 'ghost-power-2', 'ghost-power-3'],
+    },
   },
 
   nocturna: {

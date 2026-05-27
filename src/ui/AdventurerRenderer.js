@@ -200,39 +200,6 @@ export class AdventurerRenderer {
       adventurer.worldY = door.worldY
     }
 
-    // Arrival flourish — expanding-and-fading dust puff at the doorway,
-    // scheduled to fire when this adv's fade-in BEGINS so the puff
-    // lines up with the visible "pop". Geometry is drawn around the
-    // graphics' LOCAL (0,0) and the graphics object is positioned at
-    // the doorway — that way `scale` tweens cause the puff to expand
-    // around its centre instead of drifting diagonally toward the
-    // world origin (which is what happened when I drew at world
-    // coords directly).
-    if (door) {
-      const fireAt = Math.max(0, start - now)
-      this._scene.time.delayedCall(fireAt, () => {
-        if (!this._scene || !this._scene.add) return
-        const puff = this._scene.add.graphics()
-          .setPosition(door.worldX, door.worldY - 6)
-          .setDepth(20)
-        // Solid (non-blended) light fill is more reliably visible over
-        // the dungeon floor than ADD blending. Two stacked circles for
-        // a chunkier "poof" silhouette.
-        puff.fillStyle(0xfff4d0, 0.85)
-        puff.fillCircle(0, 0, 7)
-        puff.fillStyle(0xe8c898, 0.55)
-        puff.fillCircle(-3, -2, 5)
-        puff.fillCircle(3,  2, 5)
-        this._scene.tweens.add({
-          targets: puff,
-          scale:   2.6,
-          alpha:   0,
-          duration: 520,
-          ease:    'Quad.easeOut',
-          onComplete: () => puff.destroy(),
-        })
-      })
-    }
   }
 
   // World-space center of the doorway rect of the entry hall `adv` spawned

@@ -177,7 +177,7 @@ export class InspectPopup {
     else if (kind === 'minion')     parts = this._minionContent(entity)
     else if (kind === 'adventurer') parts = this._advContent(entity)
     else if (kind === 'item')       parts = this._itemContent(entity)
-    else if (kind === 'placed')     parts = this._placedContent(defId)
+    else if (kind === 'placed')     parts = this._placedContent(defId, entity)
     else if (kind === 'trap')       parts = this._trapContent(entity, defId)
     return parts.filter(Boolean)
   }
@@ -305,7 +305,11 @@ export class InspectPopup {
 
   // Placed construction item (treasure chest / beacon / fountain / key
   // chest / phylactery / door lock) — resolved from items.json by defId.
-  _placedContent(defId) {
+  // Mimic Vault cursed chest gets its own bespoke content (the regular
+  // items.json def describes a normal tier-N chest, none of which is
+  // true for the cursed version).
+  _placedContent(defId, entity) {
+    if (entity?._mimicCursed) return this._cursedChestContent()
     const def = this._itemsDef(defId)
     if (!def) return []
     const boxes = []
@@ -315,6 +319,18 @@ export class InspectPopup {
     if (boxes.length)    parts.push(this._statsGrid(boxes))
     if (def.description) parts.push(this._descLine(def.description))
     return parts
+  }
+
+  _cursedChestContent() {
+    return [
+      this._statsGrid([['PENALTY', '25% gold on escape']]),
+      this._descLine(
+        "Disguised as a treasure chest. Adventurers see ordinary loot and " +
+        "want to steal it. If the opener escapes the dungeon alive, you " +
+        "lose 25% of your current gold. Killing them en route nullifies " +
+        "the curse. Refreshes daily; cannot be sold or moved individually.",
+      ),
+    ]
   }
 
   // Placed trap — resolved from trapTypes.json (currently empty, so this
@@ -336,7 +352,10 @@ export class InspectPopup {
     if (kind === 'minion')     return (entity.name || this._minionName(entity) || 'Minion').toUpperCase()
     if (kind === 'adventurer') return (entity.name || 'Adventurer').toUpperCase()
     if (kind === 'item')       return 'DROPPED LOOT'
-    if (kind === 'placed')     return (this._itemsDef(defId)?.name || 'Item').toUpperCase()
+    if (kind === 'placed') {
+      if (entity?._mimicCursed) return 'CURSED CHEST'
+      return (this._itemsDef(defId)?.name || 'Item').toUpperCase()
+    }
     if (kind === 'trap')       return (this._trapDef(defId)?.name || 'Trap').toUpperCase()
     return ''
   }

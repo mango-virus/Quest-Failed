@@ -57,9 +57,12 @@ export class TreasureChestRenderer {
       if (!c.opened && s.frame?.name !== 0)        s.setFrame(0)
       else if (c.opened && !s.anims?.isPlaying && s.frame?.name !== 3) s.setFrame(3)
 
-      // Cursed Relic (event chest) — blacken the chest and pulse a
-      // purple aura under it so the curse reads at a glance.
-      if (c._cursed) {
+      // Cursed Relic (event chest) + Mimic Vault cursed chest — blacken
+      // the chest and pulse a purple aura under it so the curse reads
+      // at a glance. The Mimic Vault chest uses the same visual but a
+      // different gameplay flag (`_mimicCursed`) so the DayPhase wave-
+      // doubling check stays scoped to the event chest only.
+      if (c._cursed || c._mimicCursed) {
         s.setTint(0x4a2660)
         let g = this._glows[c.instanceId]
         if (!g) {

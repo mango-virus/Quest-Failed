@@ -420,6 +420,20 @@ function _rehydrateRunHistory(state) {
     if ('_heldByPlayer' in m) m._heldByPlayer = false
   }
 
+  // Phylactery scene-time fields — same family as `lastAttackAt` on
+  // minions/advs. `_lastTickAt` is stamped against scene.time.now and
+  // gates the LICH_PHYLACTERY_DMG_INTERVAL_MS damage tick; a saved
+  // future-stamp keeps `now - _lastTickAt < 800ms` true after load
+  // until wall-clock catches up, so the heart silently stops taking
+  // damage from hunters even though they're cardinal-adjacent and on
+  // HUNT_PHYLACTERY. `_destroyedEmitted` is the one-shot guard around
+  // PHYLACTERY_DESTROYED; the live entity should never have it set
+  // (gameState.phylactery is nulled on destroy), but strip defensively.
+  if (state.phylactery) {
+    delete state.phylactery._lastTickAt
+    delete state.phylactery._destroyedEmitted
+  }
+
   // Boss pact-ability cooldowns — same scene.time contract as the
   // adv/minion lists above. Every `_xxxReadyAt` / `_xxxUntil` /
   // `_xxxNextTick` on the boss is stamped with `scene.time.now + N`;

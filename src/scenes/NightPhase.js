@@ -2506,6 +2506,13 @@ export class NightPhase extends Phaser.Scene {
     }
     if (def.id === 'phylactery_heart') {
       const isMove = this._heldMoveItem?.kind === 'phylactery'
+      // One heart per run — destruction is permanent. BuildMenu already
+      // hides the chip, but keep this defensive guard in case anything
+      // (hotkey, cheat path, future shortcut) bypasses that filter.
+      if (!isMove && this._gameState.player?._phylacteryDestroyedThisRun) {
+        this._showPlacementError('Phylactery destroyed — only one per run')
+        return
+      }
       if (!isMove && this._gameState.phylactery) {
         this._showPlacementError('Phylactery already placed')
         return

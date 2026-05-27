@@ -316,7 +316,10 @@ export class DungeonGrid {
     // rooms loaded with pre-authored cps (e.g. entry_hall's external N).
     this._autoConnect(room)
 
-    EventBus.emit('ROOM_PLACED', { room })
+    // `isMove` flags re-placement from NightPhase's MOVE-drop path so
+    // listeners (e.g. RoomBehaviorSystem) can skip first-time spawn
+    // logic that would otherwise duplicate carried-along inhabitants.
+    EventBus.emit('ROOM_PLACED', { room, isMove: !!opts.isMove })
     return room
   }
 

@@ -862,11 +862,15 @@ export class BuildMenu {
   _itemDefs() {
     const all      = this._scene.cache.json.get('items') ?? []
     const archId   = this._gameState.player?.bossArchetypeId
-    const phylAlreadyPlaced = !!this._gameState.phylactery
+    const phylAlreadyPlaced     = !!this._gameState.phylactery
+    // Once-destroyed-per-run flag — set by BossArchetypeSystem the
+    // moment hunters break the heart. Hides the chip permanently so
+    // the player can't rebuild a phylactery this run.
+    const phylDestroyedThisRun  = !!this._gameState.player?._phylacteryDestroyedThisRun
     return all.filter(it => {
       if (it.hidden) return false   // pseudo-items used by forced-placement only
       if (it.archetypeRestriction && it.archetypeRestriction !== archId) return false
-      if (it.id === 'phylactery_heart' && phylAlreadyPlaced) return false
+      if (it.id === 'phylactery_heart' && (phylAlreadyPlaced || phylDestroyedThisRun)) return false
       return true
     }).sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
   }

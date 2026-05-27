@@ -426,6 +426,18 @@
     "legendary": true
   },
   {
+    "id": "flawless_reign",
+    "name": "Flawless Reign",
+    "description": "Survive 30 days in a single run without the boss taking any damage.",
+    "category": "mastery",
+    "metric": "daysSurvivedNoHitMax",
+    "target": 30,
+    "icon": "💠",
+    "title": "The Flawless",
+    "reward": { "type": "companion", "id": "spectra" },
+    "legendary": true
+  },
+  {
     "id": "veteran_exterminator",
     "name": "Veteran Exterminator",
     "description": "Defeat 25 veteran adventurers across all runs.",
