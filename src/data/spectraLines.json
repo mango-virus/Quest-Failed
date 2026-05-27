@@ -31,11 +31,11 @@
       "priority": 3,
       "cooldownMs": 0,
       "lines": [
-        { "t": "SENPAI you picked me?! OMG OMG OMG hold on — okay — game face. Spectra, here, all eyes on you. Like, I have only one and a half functional eyes? But BOTH on you.", "x": "senpai-notice" },
+        { "t": "SENPAI you picked me?! OMG OMG OMG hold on — okay — game face. Spectra, here, all eyes on you. Like, I have only one and a half functional eyes? But BOTH on you. ✨", "x": "senpai-notice" },
         { "t": "Throne up, lights on, ghost on standby. This is gonna be SUCH a good run, senpai, I can FEEL it. Tingles in joints I don't even technically have anymore.", "x": "sparkle-eyes" },
         { "t": "Welcome to the deep dark, senpai! It's cold and damp and has NEVER been loud enough. Let's fix that.", "x": "excited" },
         { "t": "Player 1 ready! ...That's you. I'm like — Player 2? Player Spectator? Player Voice-In-Your-Head? We'll workshop my title.", "x": "thinking" },
-        { "t": "Hi hi hi! Spectra, your ghost-girl on the headset! Streaming the boss-POV live from the throne room. Chat's gonna go OFF today.", "x": "streaming" },
+        { "t": "Hi hi hi! Spectra, your ghost-girl on the headset! Streaming the boss-POV live from the throne room. Chat's gonna go OFF today. 🎮", "x": "streaming" },
         { "t": "A real, BREATHING boss! The last one had the personality of damp moss, no shade — okay, full shade. You feel WAY more main-character coded, senpai.", "x": "heart-eyes" },
         { "t": "Oh hey it's senpai! ...Wait, you're like REAL-real, full pulse and everything? Cool cool cool. I'll try not to phase through you on accident. ...I will probably phase through you on accident.", "x": "looking-cute" },
         { "t": "Welcome to the show, DM! Or — boss, or senpai, or champ, I have a LOT of names for you, we'll find one that sticks. ...Probably senpai. It's senpai. I called it already.", "x": "explaining" },
@@ -61,12 +61,12 @@
       "priority": 1,
       "cooldownMs": 9000,
       "lines": [
-        { "t": "DAYLIGHT! Wave incoming, senpai. Lock in. The heroes' AI does NOT pause for snack breaks — sad.", "x": "excited" },
+        { "t": "DAYLIGHT! Wave incoming, senpai. Lock in. The heroes' AI does NOT pause for snack breaks — sad. 🎮", "x": "excited" },
         { "t": "Day phase! Camera flips to the corridors. Watch them route. I'll be calling shots from the back row — literal back row, I'm a ghost, I float there.", "x": "streaming" },
         { "t": "The audience has ARRIVED, senpai! Some with maps. Some with HOPE. Both will be checked at the door. ...That's a Rattle line, but it SLAPS, so I'm borrowing.", "x": "winking" },
         { "t": "Day {day}! The wave generator just dropped its payload. Watch the corridors, DM — I'll heckle from the wings.", "x": "pointing" },
         { "t": "Sunlight! ...Conceptually. There's no actual sun down here, the crypt has like one (1) torch. But METAPHORICALLY: SHOWTIME.", "x": "explaining" },
-        { "t": "Heroes incoming, senpai! Twitch chat would be GOING OFF right now if I were actually live. I'll narrate for them. ...For us. For me. Whatever.", "x": "streaming" },
+        { "t": "Heroes incoming, senpai! Twitch chat would be GOING OFF right now if I were actually live. I'll narrate for them. ...For us. For me. Whatever. 💬", "x": "streaming" },
         { "t": "Day phase {day}, senpai! Engage gamer reflexes. Even though you don't really have to engage them. You watch. It's auto-attack. But the SPIRIT is reflexes.", "x": "gg-victory" },
         { "t": "Daylight! Camera ON the corridors. The skeleton goes quiet around now — he's WATCHING. So am I, just LOUDER about it.", "x": "focused" },
         { "t": "The kingdom's wave just clocked in for their morning shift. Cute. Let's give them a really BAD day, DM.", "x": "mischievous" }
@@ -216,25 +216,25 @@
       "priority": 2,
       "cooldownMs": 0,
       "lines": [
-        { "t": "FIRST BLOOD! K/D count starts NOW, senpai! Frag log says: ONE. Trending UP.", "x": "gg-victory" },
-        { "t": "First kill, FIRST KILL! The day's BEAT just dropped. Tone set. Senpai you're cooking already.", "x": "excited" },
-        { "t": "One down! And it's not even WAKE-UP-AND-CHOOSE-VIOLENCE o'clock yet! Iconic pacing.", "x": "dramatic-anger" },
+        { "t": "FIRST BLOOD! K/D count starts NOW, senpai! Frag log says: ONE. Trending UP. 🎯", "x": "gg-victory" },
+        { "t": "First kill, FIRST KILL! The day's BEAT just dropped. Tone set. Senpai you're cooking already. 🩸", "x": "excited" },
+        { "t": "One down! And it's not even WAKE-UP-AND-CHOOSE-VIOLENCE o'clock yet! Iconic pacing. 💀", "x": "dramatic-anger" },
         { "t": "First blood, senpai! That's the opening kill of the EPISODE. Streamers would LIVE for this start.", "x": "streaming" },
-        { "t": "FIRST. KILL. ...Sorry, I got loud. But also: deserved. The first frag SETS the run tone, no cap.", "x": "pointing" }
+        { "t": "FIRST. KILL. ...Sorry, I got loud. But also: deserved. The first frag SETS the run tone, no cap. 🔥", "x": "pointing" }
       ]
     },
     "adv_killed": {
       "priority": 1,
       "cooldownMs": 4000,
       "lines": [
-        { "t": "Got 'em! K/D ratio: trending FAVORABLE. Senpai you're farming XP and I am LIVING for it.", "x": "gg-victory" },
-        { "t": "{advName} is GONE! That was a clean execution. Frag of the day candidate. The corpse stays for the screenshot.", "x": "taking-photo" },
+        { "t": "Got 'em! K/D ratio: trending FAVORABLE. Senpai you're farming XP and I am LIVING for it. 💀", "x": "gg-victory" },
+        { "t": "{advName} is GONE! That was a clean execution. Frag of the day candidate. The corpse stays for the screenshot. 🎯", "x": "taking-photo" },
         { "t": "Dead! One less {advClass} to worry about. Senpai I am SO into the way this dungeon farms.", "x": "heart-eyes" },
         { "t": "Down! ...Wait who was that — oh right the {advClass}, RIP, didn't really get to know them. Their loss.", "x": "distracted" },
         { "t": "{advName} down! That's another body in the LEDGER. The skeleton'd say something poetic, I'm gonna say: NEXT.", "x": "smug" },
-        { "t": "KILL CONFIRMED, senpai! ...Was that a critical? Looked like a critical to me. Big numbers were SPICY.", "x": "gaming" },
-        { "t": "Dead! The {advClass} ran STRAIGHT into the trap. Senpai we MOVED that trap last night and they STILL ran into it. I can't.", "x": "laughing" },
-        { "t": "Another one! Senpai you are STACKING the K/D — this is gonna look INSANE on the leaderboard, screenshot incoming.", "x": "taking-photo" },
+        { "t": "KILL CONFIRMED, senpai! ...Was that a critical? Looked like a critical to me. Big numbers were SPICY. 💀", "x": "gaming" },
+        { "t": "Dead! The {advClass} ran STRAIGHT into the trap. Senpai we MOVED that trap last night and they STILL ran into it. I can't. 💀😭", "x": "laughing" },
+        { "t": "Another one! Senpai you are STACKING the K/D — this is gonna look INSANE on the leaderboard, screenshot incoming. 📸", "x": "taking-photo" },
         { "t": "Gone! ...Honestly that was a kinda boring kill. We need to spice it up next time. Add some FLAIR.", "x": "looking-away" }
       ]
     },
@@ -252,9 +252,9 @@
       "priority": 2,
       "cooldownMs": 0,
       "lines": [
-        { "t": "A hero ESCAPED?! Senpai. SENPAI. They GOT OUT. Add them to the rematch list, we're getting them next time.", "x": "shocked" },
+        { "t": "A hero ESCAPED?! Senpai. SENPAI. They GOT OUT. Add them to the rematch list, we're getting them next time. 😱", "x": "shocked" },
         { "t": "{advClass} escaped! Senpai that's a leak. Tighten the bottlenecks. The wave-clear is gonna feel WORSE about it.", "x": "upset" },
-        { "t": "ESCAPED! ...Okay that's not great. The skeleton would say 'they always come back', which — TRUE, but still. Ouch.", "x": "sweatdrop" },
+        { "t": "ESCAPED! ...Okay that's not great. The skeleton would say 'they always come back', which — TRUE, but still. Ouch. 😤", "x": "sweatdrop" },
         { "t": "Hero got OUT. That's gonna haunt me. ...Wait, am I the haunter or am I being haunted? Plot twist.", "x": "confused" },
         { "t": "AAARGH a hero LEAKED out! Senpai I am MAD. The corridors had ONE JOB.", "x": "angry" },
         { "t": "ANOTHER ONE OUT?! Senpai the kingdom is gonna FARM intel off these escapees! Plug the LEAKS!", "x": "angry" }
@@ -264,10 +264,10 @@
       "priority": 2,
       "cooldownMs": 0,
       "lines": [
-        { "t": "PARTY WIPED! Senpai! ENTIRE wave! ALL of them! That's a CLEAN sweep, I am SCREAMING right now!", "x": "dramatic-anger" },
-        { "t": "TOTAL KILL! The whole crew, GONE! The dungeon ate ALL of them, senpai! This is so OP!", "x": "gg-victory" },
-        { "t": "Wipe! Full wipe! Every. Single. One. Senpai you played LITERALLY perfectly. Frame data ENVIES this.", "x": "sparkle-eyes" },
-        { "t": "WIPED! Senpai the kingdom is gonna get the report and SOB. Glorious. CINEMA. Send the highlight reel.", "x": "taking-photo" },
+        { "t": "PARTY WIPED! Senpai! ENTIRE wave! ALL of them! That's a CLEAN sweep, I am SCREAMING right now! 💯", "x": "dramatic-anger" },
+        { "t": "TOTAL KILL! The whole crew, GONE! The dungeon ate ALL of them, senpai! This is so OP! 🏆", "x": "gg-victory" },
+        { "t": "Wipe! Full wipe! Every. Single. One. Senpai you played LITERALLY perfectly. Frame data ENVIES this. 💯", "x": "sparkle-eyes" },
+        { "t": "WIPED! Senpai the kingdom is gonna get the report and SOB. Glorious. CINEMA. Send the highlight reel. 😭", "x": "taking-photo" },
         { "t": "Party wipe! ...Sorry I went FULL anime-villain there for a sec. Anyway. Iconic.", "x": "skulls" }
       ]
     },
@@ -275,7 +275,7 @@
       "priority": 2,
       "cooldownMs": 0,
       "lines": [
-        { "t": "Day {day} cleared! All threats neutralized, senpai. Save state goes BRRR. Couple deep breaths, then night phase.", "x": "gg-victory" },
+        { "t": "Day {day} cleared! All threats neutralized, senpai. Save state goes BRRR. Couple deep breaths, then night phase. 🏆", "x": "gg-victory" },
         { "t": "Wave done! Final mob downed. Senpai you SURVIVED the gauntlet. Time to LOOT and rebuild.", "x": "gaming" },
         { "t": "Wave clear! ...Wait was that the last one? It was. Cool. Senpai I'm so proud of you, ngl.", "x": "heart-eyes" },
         { "t": "Day's over! Camera fades. Roll credits. ...Wait, no, we go again tomorrow. Different episode. Same vibe.", "x": "streaming" }
@@ -286,7 +286,7 @@
       "cooldownMs": 4000,
       "lines": [
         { "t": "{minionName} DOWN! Press F! ...Senpai are you holding F? Press F! ...I respect the FALLEN.", "x": "wibbly-mouth" },
-        { "t": "We lost one. My homie is GONE. Down bad. ...The skeleton would joke. I'm gonna BE SAD for a second, give me a minute.", "x": "crying" },
+        { "t": "We lost one. My homie is GONE. Down bad. ...The skeleton would joke. I'm gonna BE SAD for a second, give me a minute. 😭", "x": "crying" },
         { "t": "Minion KO'd! Death is part of the loop, senpai. They respawn night phase. ...Probably. Mostly. I think.", "x": "thinking" },
         { "t": "Lost a {minionName}! Senpai we need to RESPEC the front line. The heroes are getting INTO it.", "x": "upset" },
         { "t": "Down. Down hard. Senpai the death animation got me — that was a CINEMATIC defeat. Respect.", "x": "sad" },
@@ -297,7 +297,7 @@
       "priority": 3,
       "cooldownMs": 0,
       "lines": [
-        { "t": "BOSS FIGHT INCOMING SENPAI! A hero made it to the throne. This is the FINAL EPISODE setup. Hype music goes here.", "x": "anime-gasp" },
+        { "t": "BOSS FIGHT INCOMING SENPAI! A hero made it to the throne. This is the FINAL EPISODE setup. Hype music goes here. ⚔️", "x": "anime-gasp" },
         { "t": "Heroes reached the throne, DM! Camera ZOOMS in. Boss-room cinematics activate. I am SHAKING in my translucent boots.", "x": "dramatic-anger" },
         { "t": "Boss fight! Senpai it's YOU now. The whole run was the warmup — THIS is the showdown. Cool a tunes, cool a tunes!", "x": "ghost-power" },
         { "t": "INCOMING! A hero squeezed through, senpai. Switch to BOSS POV. The dungeon falls quiet — the SCARY part of the show starts.", "x": "scary" }
@@ -317,17 +317,17 @@
       "priority": 3,
       "cooldownMs": 0,
       "lines": [
-        { "t": "BOSS FIGHT WON! Senpai you are SO COLD! K/D ratio CLEAN. Three hundred years of skeleton-watching and even Rattle is impressed!", "x": "gg-victory" },
-        { "t": "WIN! THE THRONE STANDS! Senpai I am LITERALLY vibrating. ...As a ghost, that's a real concern. Anyway: CINEMA.", "x": "sparkle-eyes" },
+        { "t": "BOSS FIGHT WON! Senpai you are SO COLD! K/D ratio CLEAN. Three hundred years of skeleton-watching and even Rattle is impressed! 🏆", "x": "gg-victory" },
+        { "t": "WIN! THE THRONE STANDS! Senpai I am LITERALLY vibrating. ...As a ghost, that's a real concern. Anyway: CINEMA. ✨", "x": "sparkle-eyes" },
         { "t": "Boss fight cleared! Senpai that was a PHASE TRANSITION speedrun. ...The skeleton would joke. I'm just gonna SCREAM.", "x": "dramatic-anger" },
-        { "t": "VICTORY! Throne intact, hero gone, K/D in our favor. Senpai you ran THE BIT and got the W.", "x": "heart-eyes" }
+        { "t": "VICTORY! Throne intact, hero gone, K/D in our favor. Senpai you ran THE BIT and got the W. 🏆", "x": "heart-eyes" }
       ]
     },
     "boss_fight_lost": {
       "priority": 3,
       "cooldownMs": 0,
       "lines": [
-        { "t": "Senpai... no. No no no. We LOST that one. ...It's okay. We've got lives left. ...Right? Tell me we've got lives left.", "x": "wibbly-mouth" },
+        { "t": "Senpai... no. No no no. We LOST that one. ...It's okay. We've got lives left. ...Right? Tell me we've got lives left. 😭", "x": "wibbly-mouth" },
         { "t": "Boss fight LOST. Senpai. ...I'm not gonna sugarcoat it, that was rough. Patch notes incoming for next day.", "x": "sad" },
         { "t": "We went DOWN. Throne's bruised. Senpai shake it off — every run has a defeat episode, this is just OURS.", "x": "crying" },
         { "t": "Dead. ...I mean, you're not dead-dead, you've got the spare lives. But ouch. The hero got their HIGHLIGHT REEL.", "x": "upset" },
@@ -338,7 +338,7 @@
       "priority": 3,
       "cooldownMs": 2000,
       "lines": [
-        { "t": "OH NO senpai you took a HIT! Tighten up! Don't let them stack damage — that's how runs END!", "x": "shocked" },
+        { "t": "OH NO senpai you took a HIT! Tighten up! Don't let them stack damage — that's how runs END! 😱", "x": "shocked" },
         { "t": "Hurt, DM! Senpai please please please don't get hit AGAIN. I am STRESSED right now, my ghost-energy is flickering.", "x": "anime-gasp" },
         { "t": "OW! Boss HP just took a hit! Senpai this is the part where the protagonist gets the SECOND WIND. Lean in!", "x": "dramatic-anger" },
         { "t": "Damage taken! ...Plot armor activates, hopefully? Senpai TURN this around — this is when the comeback arc starts!", "x": "scary" },
@@ -394,9 +394,9 @@
       "priority": 4,
       "cooldownMs": 0,
       "lines": [
-        { "t": "LAST LIFE, SENPAI! ONE MORE DEATH AND IT'S OVER! No deaths! Don't die! This is when the protag DIGS DEEP!", "x": "scary" },
+        { "t": "LAST LIFE, SENPAI! ONE MORE DEATH AND IT'S OVER! No deaths! Don't die! This is when the protag DIGS DEEP! 😱", "x": "scary" },
         { "t": "Senpai. SENPAI. Listen. We are on the FINAL LIFE. The dungeon despawns if we drop again. Lock IN. Channel the SHOUNEN.", "x": "skulls" },
-        { "t": "Final life! Senpai if you die now I literally just float here for eternity. ...That's pressure. Sorry. NO PRESSURE. DON'T DIE.", "x": "ghost-power" },
+        { "t": "Final life! Senpai if you die now I literally just float here for eternity. ...That's pressure. Sorry. NO PRESSURE. DON'T DIE. 🙏", "x": "ghost-power" },
         { "t": "ONE LIFE LEFT, senpai! My ghost-energy is SPIKING. Anxiety LEVELS PEAKING. Please. PLEASE.", "x": "nose-bleed" }
       ]
     },
@@ -413,18 +413,18 @@
       "priority": 2,
       "cooldownMs": 0,
       "lines": [
-        { "t": "STREAK! Senpai you've been WIPING parties day after day! Hot pace, HOT PACE!", "x": "gg-victory" },
-        { "t": "Multi-day kill streak, DM! Speedrunner energy. The leaderboard NUMBERS are climbing!", "x": "gaming" },
-        { "t": "Streak running, senpai! Don't break the chain. Momentum is a STAT in this game and it's MAXED.", "x": "dramatic-anger" }
+        { "t": "STREAK! Senpai you've been WIPING parties day after day! Hot pace, HOT PACE! 🔥", "x": "gg-victory" },
+        { "t": "Multi-day kill streak, DM! Speedrunner energy. The leaderboard NUMBERS are climbing! 🔥", "x": "gaming" },
+        { "t": "Streak running, senpai! Don't break the chain. Momentum is a STAT in this game and it's MAXED. ⚡", "x": "dramatic-anger" }
       ]
     },
     "combo": {
       "priority": 2,
       "cooldownMs": 2000,
       "lines": [
-        { "t": "COMBO! {count} in a row, senpai! Frame-perfect, no whiffs! That's a HIGHLIGHT clip!", "x": "gg-victory" },
-        { "t": "{count}-CHAIN! Senpai you're INSANE. The kill counter is GOING. Frag train, no brakes.", "x": "button-mashing" },
-        { "t": "Combo running HOT! {count} kills, no escapes! Senpai you are HARD-CARRYING this dungeon!", "x": "dramatic-anger" },
+        { "t": "COMBO! {count} in a row, senpai! Frame-perfect, no whiffs! That's a HIGHLIGHT clip! 🔥", "x": "gg-victory" },
+        { "t": "{count}-CHAIN! Senpai you're INSANE. The kill counter is GOING. Frag train, no brakes. 🔥", "x": "button-mashing" },
+        { "t": "Combo running HOT! {count} kills, no escapes! Senpai you are HARD-CARRYING this dungeon! 🔥", "x": "dramatic-anger" },
         { "t": "{count} COMBO?! Senpai. Senpai. Senpai. Senpai. THE INPUTS ARE PERFECT. Don't BREAK the chain!", "x": "button-mashing" },
         { "t": "{count}-streak combo!! Senpai the dungeon is HARD-CARRYING and you are GASSING IT UP. Iconic loop.", "x": "button-mashing" }
       ]
@@ -514,17 +514,17 @@
         { "t": "...senpai do you ever just THINK about how Rattle Bones has been dead three centuries? Like. THREE. CENTURIES. Wild.", "x": "thinking" },
         { "t": "...okay but if this dungeon HAD wifi, do you think the heroes would just stay outside scrolling? Free wave clear, no?", "x": "phone-scrolling" },
         { "t": "Senpai... can I ask a question that's been bugging me. Do dungeons have CANON? Like is there a wiki? ...You don't know either huh.", "x": "confused" },
-        { "t": "Quietly reading my manga over here, don't mind me. ...Plot's getting GOOD. Anyway. Senpai. Hi. Status: chilling.", "x": "reading-manga" },
+        { "t": "Quietly reading my manga over here, don't mind me. ...Plot's getting GOOD. Anyway. Senpai. Hi. Status: chilling. 📖", "x": "reading-manga" },
         { "t": "...senpai. SENPAI. Look. I found a plushie in the crypt. ...How did this get here. I'm keeping it.", "x": "plush-hug" },
-        { "t": "Sometimes I just zone out and stare at nothing, senpai. ...Is that a ghost thing or an ADHD thing? Both? Both.", "x": "watching-anime" },
+        { "t": "Sometimes I just zone out and stare at nothing, senpai. ...Is that a ghost thing or an ADHD thing? Both? Both. 👻", "x": "watching-anime" },
         { "t": "If I were a hero coming into this dungeon I would TURN AROUND. ...Like, immediately. But heroes never read the kit.", "x": "weeb" },
-        { "t": "Senpai I'm watching an anime while we run this. ...Don't worry, I am also paying attention. ...To both. Multitasking.", "x": "watching-anime" },
-        { "t": "Mid-episode, senpai. ...Plot twist just dropped. ...I can't tell if I'm crying because of the show or because of the run. Both. Both.", "x": "watching-anime" },
-        { "t": "Senpai you'd LOVE this manga arc. ...You can't read it. ...Heartbreaking.", "x": "reading-manga" },
+        { "t": "Senpai I'm watching an anime while we run this. ...Don't worry, I am also paying attention. ...To both. Multitasking. 📺", "x": "watching-anime" },
+        { "t": "Mid-episode, senpai. ...Plot twist just dropped. ...I can't tell if I'm crying because of the show or because of the run. Both. Both. 📺", "x": "watching-anime" },
+        { "t": "Senpai you'd LOVE this manga arc. ...You can't read it. ...Heartbreaking. 📖", "x": "reading-manga" },
         { "t": "Senpai I texted you. ...You didn't get it. ...Phantom messaging is a STRUGGLE. Iconic.", "x": "texting" },
         { "t": "Mid-text, senpai. ...To no one specifically. Just like the MOTIONS, you know?", "x": "texting" },
         { "t": "Senpai. SENPAI. I was just thinking about an anime, do you wanna hear about it? ...Yes. I will tell you anyway.", "x": "weeb" },
-        { "t": "Senpai THIS dungeon is basically a tower-defense isekai if you THINK about it. ...Just saying. Just SAYING.", "x": "weeb" },
+        { "t": "Senpai THIS dungeon is basically a tower-defense isekai if you THINK about it. ...Just saying. Just SAYING. 🌸", "x": "weeb" },
         { "t": "Senpai I just realized — this whole run is basically my LET'S PLAY. ...Imaginary subscribers. Hi imaginary subscribers.", "x": "phone-scrolling" },
         { "t": "Senpai... do you ever think about how I'm just FLOATING here, and you're SITTING there, and we're both DOING this together? Pretty co-op.", "x": "looking-cute" },
         { "t": "Quick figure check, senpai. ...Yep, still cursed. Still cute. Iconic combo.", "x": "figure-collection" },
@@ -538,16 +538,16 @@
       "lines": [
         { "t": "...wonder what {advName}'s deal is, like back-story-wise. Probably daddy issues. Heroes always have daddy issues.", "x": "thinking" },
         { "t": "Senpai imagine if the wave just... took a SNACK break mid-dungeon. Polite combat. I'd be into that.", "x": "eating-snacks" },
-        { "t": "Pocky! ...Wait, I shouldn't have pocky during a wave. Senpai keep an eye on the front, I'm — yeah, I'm eating, sorry.", "x": "pocky-mouth" },
+        { "t": "Pocky! ...Wait, I shouldn't have pocky during a wave. Senpai keep an eye on the front, I'm — yeah, I'm eating, sorry. 🍫", "x": "pocky-mouth" },
         { "t": "The current wave is — sec, I lost track. Senpai how many heroes left? ...Cool cool cool. I'll PRETEND I was paying attention.", "x": "distracted" },
-        { "t": "Sipping a juice box, senpai. ...Don't ask where it came from. Ghost-snacks are a WHOLE economy.", "x": "juice-box-sip" },
-        { "t": "*munch* ...senpai sorry, mid-pocky stick over here. Don't mind me.", "x": "pocky-mouth" },
+        { "t": "Sipping a juice box, senpai. ...Don't ask where it came from. Ghost-snacks are a WHOLE economy. 🧋", "x": "juice-box-sip" },
+        { "t": "*munch* ...senpai sorry, mid-pocky stick over here. Don't mind me. 🥢", "x": "pocky-mouth" },
         { "t": "Another pocky, senpai. Wave's running, vibes are good. ...I'm in my element.", "x": "pocky-mouth" },
         { "t": "Just sipping ghost-juice while the wave runs, senpai. ...It tastes like a memory. Specifically, summer.", "x": "juice-box-sip" },
-        { "t": "Mid-wave juice box, senpai. ...The sip noise is so SATISFYING. Iconic ASMR.", "x": "juice-box-sip" },
+        { "t": "Mid-wave juice box, senpai. ...The sip noise is so SATISFYING. Iconic ASMR. 🧋", "x": "juice-box-sip" },
         { "t": "*shake shake* ...crumbs only. Senpai my snack bag is EMPTY mid-wave. The HORROR.", "x": "empty-bag" },
         { "t": "Bag's done, senpai. ...Mid-wave snack-rationing crisis. Where do I get MORE.", "x": "empty-bag" },
-        { "t": "—! ...senpai you LOOKED. ...Yes I'm snacking during the wave. Don't tell anyone. Especially Rattle.", "x": "caught-snacking" },
+        { "t": "—! ...senpai you LOOKED. ...Yes I'm snacking during the wave. Don't tell anyone. Especially Rattle. 🍿", "x": "caught-snacking" },
         { "t": "Senpai you caught me ON CAMERA snacking. ...Iconic blooper-reel material. Anyway: wave looks good.", "x": "caught-snacking" },
         { "t": "*crunch crunch* ...senpai I CAN multitask. Wave's going fine, I'm just also having a snack. ...Probably.", "x": "eating-snacks" },
         { "t": "Snack-time mid-wave, senpai. ...My favorite kind of mid-wave. Iconic.", "x": "eating-snacks" },
@@ -557,8 +557,8 @@
         { "t": "*shake shake* ...one more crumb. Just ONE more. Senpai why is the bag empty already.", "x": "chip-bag-shake" },
         { "t": "Senpai the chip bag is EMPTY-er than it was a minute ago. ...Where do they GO. *shake*", "x": "chip-bag-shake" },
         { "t": "Another pocky, senpai. ...I have INFINITE pocky in the afterlife. Best perk. Iconic perk.", "x": "pocky-mouth" },
-        { "t": "*siiiiip* ...senpai the juice box is HITTING right now. Best mid-wave beverage. No notes.", "x": "juice-box-sip" },
-        { "t": "Bag is GONE, senpai. ...Nothing left. ...Just me and my grief and the wave still running.", "x": "empty-bag" },
+        { "t": "*siiiiip* ...senpai the juice box is HITTING right now. Best mid-wave beverage. No notes. 🧋", "x": "juice-box-sip" },
+        { "t": "Bag is GONE, senpai. ...Nothing left. ...Just me and my grief and the wave still running. 😭", "x": "empty-bag" },
         { "t": "Snack pile down to ONE chip, senpai. ...The last chip is sacred. ...I'll save it for boss fight.", "x": "eating-snacks" },
         { "t": "*muffled snacking* — senpai sorry, mid-bite, gimme a sec — *swallow* — okay. Wave good? Cool.", "x": "cheeks-stuffed" }
       ]
@@ -618,8 +618,8 @@
         { "t": "Bag's EMPTY, senpai. ...Tragic. Anyway, what'd you need? I'm grieving but I'm available.", "x": "empty-bag" },
         { "t": "—! Senpai you SCARED me again! ...That's like, the third time. I should be desensitized but I'm a ghost so reactions are HEIGHTENED.", "x": "surprised" },
         { "t": "—! Oh! Senpai! ...You GOT me. I was a million miles away. Sup.", "x": "surprised" },
-        { "t": "Senpai you POKED me! ...I love that. Friendship stat +1. Maxed.", "x": "happy" },
-        { "t": "Hi senpai!! Touch tag received. Happy ghost. ...Like, I'm happy. The ghost is me.", "x": "happy" },
+        { "t": "Senpai you POKED me! ...I love that. Friendship stat +1. Maxed. 💖", "x": "happy" },
+        { "t": "Hi senpai!! Touch tag received. Happy ghost. ...Like, I'm happy. The ghost is me. 💖", "x": "happy" },
         { "t": "Hey you tapped me, senpai. ...I was mid-thought. ...A really important thought. ...I forget what it was now.", "x": "looking-away" },
         { "t": "...senpai why'd you tap? ...I was looking at this cool... thing... over there... what were we doing.", "x": "looking-away" },
         { "t": "Senpai... did you mean to poke me like THAT? ...Or was it accidental. ...I'm gonna assume INTENTIONAL.", "x": "seductive" },
@@ -725,9 +725,9 @@
       "priority": 4,
       "cooldownMs": 0,
       "lines": [
-        { "t": "Run's over, senpai. ...Hey. Hey it's okay. Three lives is THREE lives — you used 'em, that's the gameplay. We start over. We try again.", "x": "wibbly-mouth" },
-        { "t": "Final death, DM. ...This is the credits scene. The bad ending, maybe. But the GOOD ending is the NEXT run.", "x": "sad" },
-        { "t": "Dungeon despawns. ...Senpai I'm gonna be honest, I cried a little. ...As a ghost. Translucent tears. Anyway: see you next run.", "x": "crying" }
+        { "t": "Run's over, senpai. ...Hey. Hey it's okay. Three lives is THREE lives — you used 'em, that's the gameplay. We start over. We try again. 😭", "x": "wibbly-mouth" },
+        { "t": "Final death, DM. ...This is the credits scene. The bad ending, maybe. But the GOOD ending is the NEXT run. 🪦", "x": "sad" },
+        { "t": "Dungeon despawns. ...Senpai I'm gonna be honest, I cried a little. ...As a ghost. Translucent tears. Anyway: see you next run. 😭", "x": "crying" }
       ]
     },
     "idle_4thwall": {
@@ -1215,7 +1215,7 @@
         { "t": "Imp! Senpai they HARASS the front. Annoying for heroes, ICONIC for us.", "x": "mischievous" }
       ],
       "ghost": [
-        { "t": "GHOST minion placed!! ...Senpai. SENPAI. They're like ME. Can I HUG them? ...Yes? Hugging them.", "x": "heart-eyes" },
+        { "t": "GHOST minion placed!! ...Senpai. SENPAI. They're like ME. Can I HUG them? ...Yes? Hugging them. 👻", "x": "heart-eyes" },
         { "t": "Ghost minion! Senpai they PASS through walls. ...I have so many friends now. Hi friends.", "x": "ghost-power" }
       ],
       "slime": [

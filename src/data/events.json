@@ -178,7 +178,7 @@
   {
     "id": "black_market",
     "title": "BLACK MARKET",
-    "notif": "A smuggler visits tonight — pay 50 gold for a free random unlocked minion, delivered to your dungeon.",
+    "notif": "A smuggler visits tonight — pay gold (price scales with day + boss level) for a free random unlocked minion, delivered to your dungeon.",
     "icon": "🛒",
     "colorTheme": "gold",
     "minBossLevel": 1
@@ -186,7 +186,7 @@
   {
     "id": "mercenary_contract",
     "title": "MERCENARY CONTRACT",
-    "notif": "A mercenary captain offers a contract tonight — pay 120 gold to hire an elite double-stat minion for 3 days.",
+    "notif": "A mercenary captain offers a contract tonight — pay gold (price scales with day + boss level) to hire an elite double-stat minion for 3 days.",
     "icon": "🗡️",
     "colorTheme": "blue",
     "minBossLevel": 2

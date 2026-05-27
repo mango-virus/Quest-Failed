@@ -799,6 +799,11 @@ export class LeaderboardOverlay {
     // (left side) — see _podiumCompanionSprite. When no keeper, stats
     // stay here in their original spot.
     const contentColumn = h('div', {
+      // Class added so the #1-podium legendary-shimmer CSS can lift this
+      // column above the sweep ::before without yanking the badge (which
+      // is `position: absolute` and uses the CARD as its containing block)
+      // into a different positioning context.
+      className: 'qf-lb-podium-content-col',
       style: showCompanion
         ? { display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '1 1 auto', minWidth: 0 }
         : null,

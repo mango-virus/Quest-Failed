@@ -2,7 +2,7 @@
 // `src/ui/BossFightOverlay.js` cinematic. Three pieces:
 //
 //   1. Intro slate — full-screen translucent backdrop + centered card on
-//      BOSS_FIGHT_INCOMING. Boss portrait (Phaser texture → <canvas>
+//      BOSS_FIGHT_STARTED. Boss portrait (Phaser texture → <canvas>
 //      snapshot), name, tagline, diamond ornament, lives remaining.
 //      Fade in 400ms / hold 1000ms / fade out 400ms.
 //
@@ -16,6 +16,16 @@
 //      REPELLED" green / "YOU LOST A LIFE" red), ~1.8s hold + 600ms
 //      fade-out. HP bar and vignette fade away alongside.
 //
+// Why BOSS_FIGHT_STARTED, not BOSS_FIGHT_INCOMING:
+// AISystem fires BOSS_FIGHT_INCOMING when an adv reaches the boss
+// chamber tile. BossSystem then runs its own _onIncoming with three
+// bail-out gates (boss already fell this day, boss is in death-pose
+// window, run is in final-death state). If any of those bail, no
+// fight actually starts and BOSS_FIGHT_RESOLVED never fires — so an
+// overlay listening to INCOMING would open the bar and never close
+// it. BOSS_FIGHT_STARTED fires AFTER those bail-outs pass, so it
+// only triggers for fights that will actually resolve.
+//
 // Vignette: 4-layer black edge strips for the "dim around the fight"
 // look. Persists for the duration of the fight; fades on resolve.
 //
@@ -26,18 +36,15 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { userSettings } from './userSettings.js'
 
-const SLATE_FADE_IN_MS  = 400
-const SLATE_HOLD_MS     = 1000
-const SLATE_FADE_OUT_MS = 400
-const RESULT_HOLD_MS    = 1800
-const RESULT_FADE_MS    = 600
+// Slate timing constants were retired alongside the full-screen intro
+// + result slates — both now ride the shared EventBanner (HUD_BANNER
+// event), which owns its own fade/hold timings. Vignette + HP bar
+// continue to handle their own simple opacity transitions.
 
 export class BossFightOverlay {
   constructor(gameState) {
     this._gs        = gameState
     this._listeners = []
-    this._slateTimer  = null
-    this._resultTimer = null
     this._raf         = 0
     this._lastHp      = null
     this._shakeUntil  = 0
@@ -55,35 +62,35 @@ export class BossFightOverlay {
 
   _build() {
     // One root element; sub-pieces toggle .open class to show.
+    // The intro + result slates were moved to the shared EventBanner
+    // (see _onIncoming / _onResolved — they emit HUD_BANNER now), so
+    // only the vignette + bottom HP bar live on this overlay.
     this.el = h('div', { className: 'qf-bossfight', id: 'qf-bossfight' }, [
       h('div', { className: 'qf-bossfight-vignette',
                  ref: el => { this._vignette = el } }),
-      h('div', { className: 'qf-bossfight-slate',
-                 ref: el => { this._slate = el } }),
       h('div', { className: 'qf-bossfight-bar',
                  ref: el => { this._bar = el } }),
-      h('div', { className: 'qf-bossfight-result',
-                 ref: el => { this._result = el } }),
     ])
     this._stage.appendChild(this.el)
   }
 
   _wireEvents() {
     const sub = (event, fn) => { EventBus.on(event, fn); this._listeners.push([event, fn]) }
-    sub('BOSS_FIGHT_INCOMING', () => this._onIncoming())
+    sub('BOSS_FIGHT_STARTED', () => this._onIncoming())
     sub('BOSS_FIGHT_RESOLVED', (p) => this._onResolved(p))
   }
 
-  // ─── Intro slate + bar build ───────────────────────────────────
+  // ─── Bar build + intro banner ──────────────────────────────────
   _onIncoming() {
     this._buildVignette()
-    // The intro slate is a once-per-day "BOSS FIGHT" announcement — a
-    // second (or later) party reaching the boss room on the same day
-    // drops straight into the bar + vignette with no slate.
+    // The intro "BOSS FIGHT" announcement now rides the shared
+    // EventBanner (top-of-gameplay slam-in slate). Fires once per day
+    // — a second (or later) party reaching the boss room on the same
+    // day skips the banner and goes straight to bar + vignette.
     const day = this._gs.meta?.dayNumber ?? 0
     if (day !== this._introShownDay) {
       this._introShownDay = day
-      this._buildIntroSlate()
+      this._announceIntro()
     }
     this._buildBar()
     this._lastHp = this._gs.boss?.hp ?? null
@@ -96,42 +103,18 @@ export class BossFightOverlay {
     this._vignette.classList.add('open')
   }
 
-  _buildIntroSlate() {
-    if (!this._slate) return
-    const arch = this._archetypeDef()
-    const name    = (arch?.name ?? 'BOSS').toUpperCase()
-    const tagline = arch?.tagline ?? arch?.description ?? '— ancient threat —'
-    const lives   = this._gs.boss?.deathsRemaining ?? '?'
-
-    // Portrait snapshot from the live Phaser texture so it matches the
-    // in-game sprite, not the bestiary bust.
-    const portraitCanvas = this._snapshotBossSprite()
-
-    this._slate.replaceChildren()
-    this._slate.appendChild(h('div', { className: 'qf-bossfight-slate-wash' }))
-    this._slate.appendChild(h('div', { className: 'qf-bossfight-slate-card' }, [
-      h('div', { className: 'qf-bossfight-slate-tag' }, '◆  B O S S   F I G H T  ◆'),
-      h('div', { className: 'qf-bossfight-slate-row' }, [
-        portraitCanvas
-          ? h('div', { className: 'qf-bossfight-slate-portrait' }, portraitCanvas)
-          : null,
-        h('div', { className: 'qf-bossfight-slate-textcol' }, [
-          h('div', { className: 'qf-bossfight-slate-name' }, name),
-          h('div', { className: 'qf-bossfight-slate-tagline' }, tagline),
-        ]),
-      ]),
-      h('div', { className: 'qf-bossfight-slate-lives' }, `LIVES REMAINING — ${lives}`),
-    ]))
-    this._slate.classList.add('open')
-
-    if (this._slateTimer) clearTimeout(this._slateTimer)
-    this._slateTimer = setTimeout(() => {
-      this._slate.classList.add('fading')
-      this._slateTimer = setTimeout(() => {
-        this._slate.classList.remove('open', 'fading')
-        this._slateTimer = null
-      }, SLATE_FADE_OUT_MS)
-    }, SLATE_FADE_IN_MS + SLATE_HOLD_MS)
+  _announceIntro() {
+    const arch  = this._archetypeDef()
+    const name  = (arch?.name ?? 'BOSS').toUpperCase()
+    const lives = this._gs.boss?.deathsRemaining ?? '?'
+    const livesLabel = lives === 1 ? 'life' : 'lives'
+    EventBus.emit('HUD_BANNER', {
+      title:      'BOSS FIGHT',
+      notif:      `${name} — ${lives} ${livesLabel} remaining`,
+      icon:       '⚔️',
+      colorTheme: 'accent',
+      kicker:     '◆  B O S S   F I G H T  ◆',
+    })
   }
 
   _buildBar() {
@@ -338,7 +321,7 @@ export class BossFightOverlay {
 
   // ─── Resolve ───────────────────────────────────────────────────
   _onResolved({ winner, deathsRemaining, bossHpRemaining } = {}) {
-    // Tear down bar + vignette in parallel with showing the result.
+    // Tear down bar + vignette in parallel with firing the result banner.
     this._barActive = false
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0 }
     if (this._bar)      this._bar.classList.add('fading')
@@ -347,82 +330,45 @@ export class BossFightOverlay {
       this._bar?.classList.remove('open', 'fading')
       this._vignette?.classList.remove('open', 'fading')
     }, 600)
-    this._buildResultSlate(winner, deathsRemaining, bossHpRemaining)
+    this._announceResult(winner, deathsRemaining, bossHpRemaining)
   }
 
-  _buildResultSlate(winner, deathsRemaining, bossHpRemaining) {
-    if (!this._result) return
+  _announceResult(winner, deathsRemaining, bossHpRemaining) {
     // A "party" winner can mean two different things: the boss actually
     // died (hp <= 0 → life lost) OR the 24-round stalemate cap resolved in
     // the party's favour on HP-fraction while the boss is still alive
     // (BossSystem only decrements deathsRemaining on actual death). Showing
     // "YOU LOST A LIFE" in the stalemate case is misleading — the lives
-    // count is unchanged. Use bossHpRemaining to pick the accurate slate.
-    const partyWon  = winner === 'party'
-    const lifeLost  = partyWon && (bossHpRemaining ?? 0) <= 0
-    this._result.replaceChildren()
-    this._result.classList.toggle('party-won', partyWon)
-    this._result.classList.toggle('boss-won',  !partyWon)
-    let title, sub
+    // count is unchanged. Use bossHpRemaining to pick the accurate banner.
+    const partyWon = winner === 'party'
+    const lifeLost = partyWon && (bossHpRemaining ?? 0) <= 0
+    let title, notif, icon, colorTheme
     if (lifeLost) {
-      title = 'YOU LOST A LIFE'
-      sub   = `Lives remaining: ${deathsRemaining ?? '?'}`
+      title      = 'YOU LOST A LIFE'
+      notif      = `Lives remaining: ${deathsRemaining ?? '?'}`
+      icon       = '💀'
+      colorTheme = 'accent'
     } else if (partyWon) {
-      title = 'INTRUDER WITHDREW'
-      sub   = 'The dungeon held — for now.'
+      title      = 'INTRUDER WITHDREW'
+      notif      = 'The dungeon held — for now.'
+      icon       = '🏃'
+      colorTheme = 'bone'
     } else {
-      title = 'INTRUDER REPELLED'
-      sub   = 'The dungeon endures.'
+      title      = 'INTRUDER REPELLED'
+      notif      = 'The dungeon endures.'
+      icon       = '🛡️'
+      colorTheme = 'green'
     }
-    this._result.appendChild(h('div', { className: 'qf-bossfight-result-wash' }))
-    this._result.appendChild(h('div', { className: 'qf-bossfight-result-card' }, [
-      h('div', { className: 'qf-bossfight-result-title' }, title),
-      h('div', { className: 'qf-bossfight-result-sub' },   sub),
-    ]))
-    this._result.classList.add('open')
-
-    if (this._resultTimer) clearTimeout(this._resultTimer)
-    this._resultTimer = setTimeout(() => {
-      this._result.classList.add('fading')
-      this._resultTimer = setTimeout(() => {
-        this._result.classList.remove('open', 'fading', 'party-won', 'boss-won')
-        this._resultTimer = null
-      }, RESULT_FADE_MS)
-    }, RESULT_HOLD_MS)
+    EventBus.emit('HUD_BANNER', {
+      title, notif, icon, colorTheme,
+      kicker: '◆  B O S S   F I G H T  ◆',
+    })
   }
 
   // ─── Helpers ───────────────────────────────────────────────────
-  // Pull the first idle frame of the active boss spritesheet from the
-  // Phaser texture cache and paint it onto a canvas. Returns null if
-  // the texture isn't loaded yet (in which case the slate just omits
-  // the portrait).
-  _snapshotBossSprite() {
-    const skin = this._gs.player?.bossArchetypeId
-    if (!skin) return null
-    const game = window.__game
-    const tex  = game?.textures?.get?.(`${skin}-idle`)
-    if (!tex || !tex.frameTotal) return null
-    const frame = tex.get(0)
-    if (!frame) return null
-    const src = frame.source?.image
-    if (!src) return null
-    try {
-      const fw = frame.cutWidth || frame.width
-      const fh = frame.cutHeight || frame.height
-      const canvas = document.createElement('canvas')
-      canvas.width  = fw
-      canvas.height = fh
-      canvas.className = 'qf-bossfight-portrait-canvas'
-      const ctx = canvas.getContext('2d')
-      ctx.imageSmoothingEnabled = false
-      ctx.drawImage(src,
-        frame.cutX || 0, frame.cutY || 0, fw, fh,
-        0, 0, fw, fh)
-      return canvas
-    } catch {
-      return null
-    }
-  }
+  // (The `_snapshotBossSprite` portrait helper was retired 2026-05-27
+  // alongside the full-screen intro slate that consumed it. The new
+  // top-of-gameplay banner is icon + text only.)
 
   _archetypeDef() {
     const game = window.__game
@@ -441,8 +387,6 @@ export class BossFightOverlay {
     for (const [event, fn] of this._listeners) EventBus.off(event, fn)
     this._listeners = []
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0 }
-    if (this._slateTimer)  { clearTimeout(this._slateTimer);  this._slateTimer  = null }
-    if (this._resultTimer) { clearTimeout(this._resultTimer); this._resultTimer = null }
     this.el?.remove()
   }
 }

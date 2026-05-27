@@ -835,11 +835,17 @@ export class DayPhase extends Phaser.Scene {
     }
 
     if (returningRecord) {
-      const partySize = Math.min(
-        Math.max(Balance.KNOWLEDGE_RETURN_PARTY_SIZE_MIN, baseCount),
-        Balance.KNOWLEDGE_RETURN_PARTY_SIZE_MAX
-      )
-      count = partySize
+      // The veteran leads today's wave. Phase-8 logic ALSO clamped the
+      // whole wave to a `KNOWLEDGE_RETURN_PARTY_SIZE_MAX` ceiling (4)
+      // which was fine when natural waves were 3-5 advs, but by late
+      // game (e.g. day 52 = ~70 base) that ceiling silently shrank the
+      // wave to 4 — the user-reported "only 4 entered on day 52,
+      // sometimes" bug, where 'sometimes' matched the
+      // KNOWLEDGE_RETURN_CHANCE (35%) roll. The MAX constant was retired
+      // 2026-05-27 (see balance.js); only the MIN floor remains so
+      // veteran-led waves on very early days (when baseCount might be 1)
+      // still spawn at least a 2-adv party.
+      count = Math.max(baseCount, Balance.KNOWLEDGE_RETURN_PARTY_SIZE_MIN)
       // The returning veteran leads the wave, carrying their accumulated map.
       const leaderClass = allClasses.find(c => c.id === returningRecord.classId) ?? classes[0]
       const ldSpawn = aiSystem.pickSpawnTile() ?? spawn

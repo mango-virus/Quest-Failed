@@ -3006,6 +3006,16 @@ export class NightPhase extends Phaser.Scene {
   _sellRefund(kind, entity) {
     const items = () => this.cache.json.get('items') ?? []
     if (kind === 'treasureChest') {
+      // Auto-spawned chests were placed for free by their host room —
+      // selling the room (or the chest individually, if that path is
+      // ever opened up) MUST NOT credit gold for them. Otherwise the
+      // player could place a Treasury (40g), get 4 free chests, sell
+      // the room and pocket more than the room cost.
+      //   _treasurySpawn  — Treasury auto-spawn batch
+      //   _mimicCursed    — Mimic Vault cursed chest (also can't be
+      //                      sold individually; this is the room-sell
+      //                      cascade path).
+      if (entity?._treasurySpawn || entity?._mimicCursed) return 0
       const d = items().find(it => it.id === `treasure_chest_${entity.tier}`)
       return Math.floor((d?.goldCost ?? 0) * 0.5)
     }
@@ -3018,6 +3028,12 @@ export class NightPhase extends Phaser.Scene {
       return Math.floor((d?.goldCost ?? 0) * 0.5)
     }
     if (kind === 'minion') {
+      // Garrison minions (Crypt Risen Bones, Mimic Vault mimics, Hall
+      // of Trials elite, Throne Room mini-boss, Catacombs revenants)
+      // are auto-spawned for free by their host room. Selling the
+      // host room must NOT refund gold for them. They were never
+      // paid for in the first place.
+      if (entity?.class === 'garrison') return 0
       const d = (this.cache.json.get('minionTypes') ?? []).find(x => x.id === entity.definitionId)
       return Math.floor((d?.goldCost ?? 0) * 0.5)
     }

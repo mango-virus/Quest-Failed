@@ -37,14 +37,18 @@ const MIN_GAP = 3
 const MAX_GAP = 3
 
 // ── Day-long state-modifier event tuning ───────────────────────────────
-// Miasma — chip damage to everything, every tick.
+// Miasma — chip damage to everything, every tick. Damage per tick is
+// computed as a % of each target's maxHp (Balance.MIASMA_TICK_PCT_PER_TICK)
+// so the chip-damage feel survives the post-day-9 HP curve. The old
+// flat MIASMA_TICK_DMG = 2 became cosmetic by day ~20 (~3% of an adv's
+// HP over their entire 60-90s run).
 const MIASMA_TICK_MS  = 2000
-const MIASMA_TICK_DMG = 2
 // Tremors — a quake strikes a random room on this interval. Each
-// successive quake this day hits TREMOR_DMG_STEP harder than the last.
+// successive quake this day hits harder than the last. Per-quake damage
+// is now % of each target's maxHp (Balance.TREMOR_PCT_*) for the same
+// HP-curve reason; flat scaling capped quake damage around ~1.5% of
+// a late-game adv's HP.
 const TREMOR_INTERVAL_MS = 8000
-const TREMOR_DMG         = 14
-const TREMOR_DMG_STEP    = 6
 // Arcane Storm — class-ability cooldowns multiplied by this while active.
 const ARCANE_STORM_COOLDOWN_SCALE = 0.4
 
@@ -272,7 +276,16 @@ export class EventSystem {
   _promptBlackMarket() {
     const flags = this._gameState._eventFlags
     if (flags.blackMarketDecided) return
-    const price = 50
+    // Scale by (day - 1) and (bossLv - 1) so the gold cost tracks
+    // player wealth. See Balance.EVENT_BLACK_MARKET_* for the curve;
+    // anchored to ~10% of the day-50 treasury (~2,000g at day 50 / lv 10).
+    const _day    = this._gameState.meta?.dayNumber ?? 1
+    const _bossLv = this._gameState.boss?.level     ?? 1
+    const price = Math.round(
+      Balance.EVENT_BLACK_MARKET_BASE_COST
+      + Math.max(0, _day    - 1) * Balance.EVENT_BLACK_MARKET_PER_DAY
+      + Math.max(0, _bossLv - 1) * Balance.EVENT_BLACK_MARKET_PER_BOSS_LV
+    )
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('black_market'),
       message:
@@ -306,7 +319,18 @@ export class EventSystem {
   _promptMercenary() {
     const flags = this._gameState._eventFlags
     if (flags.mercenaryDecided) return
-    const price = 120
+    // Scale by (day - 1) and (bossLv - 1) so the gold cost tracks
+    // player wealth. See Balance.EVENT_MERCENARY_* for the curve;
+    // anchored to ~25% of the day-50 treasury (~5,000g at day 50 / lv 10).
+    // Steeper than Black Market because the reward — a Tier 3 elite with
+    // doubled stats for 3 days — is a far bigger combat asset.
+    const _day    = this._gameState.meta?.dayNumber ?? 1
+    const _bossLv = this._gameState.boss?.level     ?? 1
+    const price = Math.round(
+      Balance.EVENT_MERCENARY_BASE_COST
+      + Math.max(0, _day    - 1) * Balance.EVENT_MERCENARY_PER_DAY
+      + Math.max(0, _bossLv - 1) * Balance.EVENT_MERCENARY_PER_BOSS_LV
+    )
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('mercenary_contract'),
       message:
@@ -378,18 +402,33 @@ export class EventSystem {
   // — into the boss room. TreasureChestRenderer paints it with a purple-
   // black glow; DayPhase swells waves while it exists; the player can
   // SELL it like any treasure chest to lift the curse.
+  //
+  // Tier scales with boss level so the reward stays proportional to the
+  // era. Previously the chest was hardcoded tier 5 (80g/day), which by
+  // day 50 was dwarfed by the wave-doubling kill income (+660g/day) and
+  // made the curse a net-positive grab. Now:
+  //   bossLv 1  → tier 4   (55g/day)
+  //   bossLv 5  → tier 6   (110g/day)
+  //   bossLv 10 → tier 9   (230g/day)
+  //   bossLv 12+ → tier 10 (300g/day, capped)
   _placeCursedRelic() {
     const rooms = this._gameState.dungeon?.rooms ?? []
     const bossRoom = rooms.find(r => r.definitionId === 'boss_chamber') ?? rooms[0]
     if (!bossRoom) return
     const tx = bossRoom.gridX + Math.floor((bossRoom.width  ?? 1) / 2)
     const ty = bossRoom.gridY + Math.floor((bossRoom.height ?? 1) / 2)
+    const bossLv = this._gameState.boss?.level ?? 1
+    const tier = Math.max(1, Math.min(
+      Balance.EVENT_CURSED_RELIC_TIER_MAX ?? 10,
+      (Balance.EVENT_CURSED_RELIC_TIER_BASE ?? 4)
+        + Math.floor(Math.max(0, bossLv - 1) / 2) * (Balance.EVENT_CURSED_RELIC_TIER_PER_2_LV ?? 1)
+    ))
     this._gameState.dungeon.treasureChests ??= []
     this._gameState.dungeon.treasureChests.push({
       instanceId: `cursed_relic_${Date.now()}`,
-      tileX: tx, tileY: ty, tier: 5, opened: false, _cursed: true,
+      tileX: tx, tileY: ty, tier, opened: false, _cursed: true,
     })
-    EventBus.emit('TREASURE_CHEST_PLACED', { tier: 5, tileX: tx, tileY: ty, cursed: true })
+    EventBus.emit('TREASURE_CHEST_PLACED', { tier, tileX: tx, tileY: ty, cursed: true })
     EventBus.emit('SHOW_TOAST', { message: 'The cursed relic festers in your hoard…', type: 'leak' })
   }
 
@@ -558,6 +597,14 @@ export class EventSystem {
         break
       case 'loot_goblin_heist':
         flags.lootGoblinHeistActive = true
+        // Seed the daily-loss-cap accumulator. Each escapee compounds
+        // 10% off the current treasury; without a cap, a late-game
+        // pack of 46 goblins fully escaping = 99.2% gold lost. We
+        // snapshot today's starting treasury so _onAdventurerFled can
+        // refuse a steal once the player has already lost
+        // LOOT_GOBLIN_DAILY_LOSS_CAP_PCT of it.
+        flags.lootGoblinStartGold = this._gameState.player?.gold ?? 0
+        flags.lootGoblinStolenToday = 0
         break
       case 'legendary_speedrunner':
         // DayPhase spawns the lone speedrunner instead of the regular wave.
@@ -718,6 +765,8 @@ export class EventSystem {
         break
       case 'loot_goblin_heist':
         flags.lootGoblinHeistActive = false
+        flags.lootGoblinStartGold = null
+        flags.lootGoblinStolenToday = null
         break
       case 'legendary_speedrunner':
         flags.legendarySpeedrunnerActive = false
@@ -816,13 +865,30 @@ export class EventSystem {
   }
 
   // Loot Goblin Heist: every escapee skims 10% of the current treasury.
-  // Stacks per goblin so a full pack escaping cuts gold by ~46% (0.9^6).
+  // Stacks per goblin, capped at LOOT_GOBLIN_DAILY_LOSS_CAP_PCT of the
+  // gold the player held when the event started. Without the cap, the
+  // pack scaling (5 + (day-9)) makes the event run-ending late game
+  // (day 50 = 46 goblins, full escape = 99% gold lost). With the cap,
+  // the worst-case loss is bounded but individual goblin escapes still
+  // sting (per-goblin steal stays a flat 10%, just truncated to the
+  // remaining cap budget once we're at the floor).
   _onAdventurerFled({ adventurer }) {
     if (adventurer?.classId !== 'loot_goblin') return
     const player = this._gameState.player
     if (!player) return
-    const stolen = Math.floor((player.gold ?? 0) * 0.10)
+    const flags = this._gameState._eventFlags ?? {}
+    const startGold = flags.lootGoblinStartGold ?? (player.gold ?? 0)
+    const stolenToday = flags.lootGoblinStolenToday ?? 0
+    const cap = Math.floor(startGold * (Balance.LOOT_GOBLIN_DAILY_LOSS_CAP_PCT ?? 0.5))
+    const remaining = Math.max(0, cap - stolenToday)
+    // Per-goblin raw take: 10% of current treasury (unchanged compounding
+    // behaviour up to the cap). Truncated to the remaining cap budget so
+    // the LAST goblin to escape may steal less than 10% — keeps the cap
+    // hard while preserving the "each escape compounds" feel up to it.
+    const raw = Math.floor((player.gold ?? 0) * 0.10)
+    const stolen = Math.min(raw, remaining)
     player.gold = Math.max(0, (player.gold ?? 0) - stolen)
+    flags.lootGoblinStolenToday = stolenToday + stolen
     // Stamp the take on the adventurer so RunHistorySystem folds it into
     // the adventurers.known record the post-wave summary reads.
     adventurer.goldStolen = (adventurer.goldStolen ?? 0) + stolen
@@ -852,18 +918,24 @@ export class EventSystem {
   // boss is whittled toward — but never below — a 25% HP floor.
   _miasmaTick() {
     if (!this._gameState._eventFlags?.miasmaActive) return
-    const dmg = MIASMA_TICK_DMG
+    // % of maxHp per tick, floored at 1 dmg so very-low-HP entities
+    // still take a chip. Same pattern as MYCONID_SPORE_DMG_PCT_PER_TICK.
+    const pct = Balance.MIASMA_TICK_PCT_PER_TICK ?? 0.004
+    const dmgFor = (maxHp) => Math.max(1, Math.round((maxHp ?? 0) * pct))
     for (const a of this._gameState.adventurers?.active ?? []) {
       if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+      const dmg = dmgFor(a.resources?.maxHp)
       a.resources.hp = Math.max(0, a.resources.hp - dmg)
     }
     for (const m of this._gameState.minions ?? []) {
       if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      const dmg = dmgFor(m.resources?.maxHp)
       m.resources.hp = Math.max(1, m.resources.hp - dmg)
     }
     const boss = this._gameState.boss
     if (boss && (boss.hp ?? 0) > 0 && boss.maxHp) {
       const floor = Math.max(1, Math.round(boss.maxHp * 0.25))
+      const dmg = dmgFor(boss.maxHp)
       boss.hp = Math.max(floor, boss.hp - dmg)
     }
   }
@@ -884,13 +956,24 @@ export class EventSystem {
       e && e.tileX >= room.gridX && e.tileX < room.gridX + (room.width ?? 1) &&
       e.tileY >= room.gridY && e.tileY < room.gridY + (room.height ?? 1)
 
-    // Escalating damage — quake #1 = TREMOR_DMG, each later quake adds a step.
-    const dmg = TREMOR_DMG + TREMOR_DMG_STEP * (this._tremorCount ?? 0)
+    // Escalating damage as a fraction of each target's maxHp — first
+    // quake = TREMOR_PCT_BASE, each later quake adds TREMOR_PCT_STEP,
+    // capped per-hit at TREMOR_PCT_CAP so a late-day quake can't insta-
+    // kill. Final per-target damage is computed against THAT target's
+    // own maxHp, so a frail mage and a tanky knight both lose a
+    // proportional chunk in the same quake.
+    const tremorPct = Math.min(
+      Balance.TREMOR_PCT_CAP ?? 0.15,
+      (Balance.TREMOR_PCT_BASE ?? 0.03)
+        + (Balance.TREMOR_PCT_STEP ?? 0.015) * (this._tremorCount ?? 0)
+    )
     this._tremorCount = (this._tremorCount ?? 0) + 1
+    const dmgFor = (maxHp) => Math.max(1, Math.round((maxHp ?? 0) * tremorPct))
 
     for (const a of this._gameState.adventurers?.active ?? []) {
       if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
       if (!inRoom(a)) continue
+      const dmg = dmgFor(a.resources?.maxHp)
       a.resources.hp = Math.max(0, a.resources.hp - dmg)
       EventBus.emit('COMBAT_HIT', {
         sourceId: 'tremor', targetId: a.instanceId,
@@ -900,6 +983,7 @@ export class EventSystem {
     for (const m of this._gameState.minions ?? []) {
       if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
       if (!inRoom(m)) continue
+      const dmg = dmgFor(m.resources?.maxHp)
       m.resources.hp = Math.max(1, m.resources.hp - dmg)
       EventBus.emit('COMBAT_HIT', {
         sourceId: 'tremor', targetId: m.instanceId,
@@ -1515,12 +1599,21 @@ export class EventSystem {
   // ── Mechanic 3 — Endless raids ─────────────────────────────────────────
   // Every ~9s, show a big "RAID INCOMING!" banner and spawn a small squad
   // of twitch_streamers at the dungeon entry. They auto-tag `_twitchChaos`
-  // via _onAdventurerEntered. Capped: stop after TWITCH_CON_RAID_MAX_PER_DAY
-  // raids, or once there are already too many streamers active.
+  // via _onAdventurerEntered. Two caps: total raids/day (now scales with
+  // day past day 10 so late-game floods feel real) and active-streamer
+  // count (TWITCH_CON_RAID_STREAMER_CAP — keeps things from running away).
   _twitchRaidTick() {
     if (!this._gameState._eventFlags?.twitchConActive) return
-    // Cap 1 — total raids this day.
-    if (this._twitchRaidsToday >= Balance.TWITCH_CON_RAID_MAX_PER_DAY) return
+    // Cap 1 — total raids this day. Scales with day past day 10 so late
+    // game Twitch Con actually plays like a flood. Day 10: 2 raids,
+    // Day 20: 5, Day 30: 8, Day 50: 14 (capped by the streamer cap
+    // before all those raids realistically fire).
+    const _day = this._gameState.meta?.dayNumber ?? 1
+    const _raidCap = Math.floor(
+      Balance.TWITCH_CON_RAID_MAX_BASE
+      + Math.max(0, _day - 10) * Balance.TWITCH_CON_RAID_MAX_PER_DAY_PAST_10
+    )
+    if (this._twitchRaidsToday >= _raidCap) return
     // Cap 2 — don't pile on if the dungeon is already swamped.
     if (this._liveTwitchStreamers().length >= Balance.TWITCH_CON_RAID_STREAMER_CAP) return
 

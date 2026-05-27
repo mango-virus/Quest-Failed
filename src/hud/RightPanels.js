@@ -142,6 +142,45 @@ const LOG_KINDS = {
   event:       { color: 'var(--info)',      glyph: '◈' },
 }
 const LOG_MAX = 50
+// Coalesce window for burst-prone log entries (2026-05-27). See
+// _addLogCoalesced. Same window as ToastQueue.COALESCE_WINDOW_MS so
+// both surfaces fold the same burst into one row / one toast.
+const LOG_COALESCE_WINDOW_MS    = 1500
+const LOG_MAX_COALESCE_CONTEXTS = 3
+
+// Brief one-phrase summaries of each flee reason for the coalesced
+// "N flee — <brief>" log line. When a mass-flee event triggers
+// (heart destroyed, boss killed, cartographer tour, rival squad
+// scatter), this gives the player a one-line headline of WHY
+// everyone left rather than N copies of the per-adv flavor line.
+// Unknown reasons fall back to plain "flee".
+const FLEE_REASON_BRIEF = {
+  phylactery_destroyed:    'phylactery destroyed',
+  phylactery_gone:         'phylactery unguarded',
+  boss_defeated:           'boss defeated',
+  boss_stalemate:          'boss stalemate',
+  fled_from_boss:          'nerve broken at the boss',
+  tour_complete:           'cartographers leave',
+  saboteur_done:           'saboteurs done',
+  rival_boss_defeated:     'rival boss falls',
+  rival_squad_scatter:     'rival squad scatters',
+  treasure_escape:         'treasure stolen',
+  wraith_fear_window_ended:'fear breaks',
+  oscillation:             'lost in the dungeon',
+  oscillation_at_exit:     'wandered the entry',
+  goal_unreachable:        'no route to goal',
+  blocked_by_lock:         'locked out',
+  no_route:                'boxed in',
+  goal_lost:               'target gone',
+  low_hp_retreat:          'bleeding out',
+  coward_panic:            'panic',
+  whisperer_panic:         'whispers',
+  traumatized_panic:       'last one standing',
+  raid_leader_dead:        'leader fell',
+  panic_witnessed_death:   'witnessed ally fall',
+  out_of_arrows:           'out of arrows',
+  cheater_banned:          'anti-cheat',
+}
 // Hoisted from inside the per-event render — same Set rebuilt for every
 // log row was a small but real per-tick cost when the log was rebuilt
 // from scratch on every event. Kept here for both the incremental
@@ -776,6 +815,63 @@ export class RightPanels {
     this._appendLogRow(row)
   }
 
+  // Coalesce a same-key log entry. First fire pushes a fresh row;
+  // subsequent fires within COALESCE_WINDOW_MS mutate the latest row
+  // for that key to "<baseText> × N — <contexts>, +X more" instead
+  // of appending a new line.
+  //
+  // Mirrors ToastQueue._pushCoalesced but operates on the dungeon-log
+  // scroll. The two are independent — a coalesced toast and a
+  // coalesced log are independent decisions. We don't share state.
+  //
+  // opts:
+  //   contextItem      — string detail to add to the context list
+  //                      (room name, adv name). Duplicates filtered.
+  //   textFormatter    — (base, count, contextsJoined) → string for
+  //                      callers that want a different shape (e.g.
+  //                      "Wave wiped." at full kill count). Defaults
+  //                      to "<base> × <count>[ — <contextsJoined>]".
+  _addLogCoalesced(baseText, kind, key, contextItem, opts = {}) {
+    this._logCoalesce ??= {}
+    const now = performance.now()
+    const c = this._logCoalesce[key]
+    const stillActive = c && c.row && c.rowEl && c.rowEl.parentNode
+      && (now - c.lastAt) < LOG_COALESCE_WINDOW_MS
+    if (stillActive) {
+      c.count += 1
+      if (contextItem && !c.contexts.includes(contextItem)
+          && c.contexts.length < LOG_MAX_COALESCE_CONTEXTS) {
+        c.contexts.push(contextItem)
+      }
+      c.lastAt = now
+      const ctxList = c.contexts.length > 0
+        ? c.contexts.join(', ')
+          + (c.count > c.contexts.length ? `, +${c.count - c.contexts.length} more` : '')
+        : ''
+      const textFormatter = opts.textFormatter
+        ?? ((base, count, ctx) => ctx ? `${base} × ${count} — ${ctx}` : `${base} × ${count}`)
+      const newText = textFormatter(c.baseText, c.count, ctxList)
+      const span = c.rowEl.querySelector('.qf-log-text')
+      if (span) span.textContent = newText
+      c.row.text = newText
+      return
+    }
+    // First fire — push a normal row, then bookkeep so subsequent fires
+    // know which row to mutate.
+    const firstText = contextItem ? `${baseText} — ${contextItem}` : baseText
+    this._addLog(firstText, kind)
+    const rowEl = this._refs.logBody?.lastChild ?? null
+    const row = this._logRows[this._logRows.length - 1] ?? null
+    this._logCoalesce[key] = {
+      row,
+      rowEl,
+      baseText,
+      contexts: contextItem ? [contextItem] : [],
+      count: 1,
+      lastAt: now,
+    }
+  }
+
   // Build a single row element. Cheap (1 div + 2 spans).
   _buildLogRowEl(row, recent = true) {
     const meta = LOG_KINDS[row.kind] || LOG_KINDS.info
@@ -848,7 +944,9 @@ export class RightPanels {
       if (adventurer?._monster) return
       this._pendingArrivals.push(adventurer)
     })
-    sub('ADVENTURERS_SPAWNED', () => {
+    sub('ADVENTURERS_SPAWNED', ({ adventurers } = {}) => {
+      // Stash wave size for the kill-coalesce → "Wave wiped." path.
+      this._currentWaveSize = Array.isArray(adventurers) ? adventurers.length : 0
       const buf = this._pendingArrivals
       if (!buf || buf.length === 0) return
       if (buf.length < 8) {
@@ -872,8 +970,17 @@ export class RightPanels {
       // kill lines — skip their death messages so the feed stays readable.
       if (adventurer?._monster) return
       const name = adventurer?.name || 'Adventurer'
-      const k = killerName ? ` by ${killerName}` : ''
-      this._addLog(`${name} slain${k}.`, 'kill')
+      // Coalesced — busy days fire 15–25 of these in seconds. Swap to
+      // "Party wiped." when the full wave dies in the burst, mirroring
+      // the ToastQueue PARTY WIPED headline.
+      const textFormatter = (base, count, ctx) => {
+        const waveSize = this._currentWaveSize ?? 0
+        if (waveSize > 0 && count >= waveSize) return 'Wave wiped.'
+        return ctx ? `${base} × ${count} — ${ctx}` : `${base} × ${count}`
+      }
+      this._addLogCoalesced('Adv slain', 'kill', 'ADVENTURER_DIED',
+        killerName ? `${name} by ${killerName}` : name,
+        { textFormatter })
     })
     // ADVENTURER_FLEE_DECIDED fires at the moment the AI commits to a
     // FLEE goal — the player sees the flavor line in real time
@@ -884,7 +991,22 @@ export class RightPanels {
     sub('ADVENTURER_FLEE_DECIDED', ({ adventurer, reason, context }) => {
       const name = adventurer?.name || 'Adventurer'
       const flavor = fleeReasonFlavor(reason, name, context)
-      this._addLog(flavor, 'flee')
+      // Coalesced by REASON — a mass-flee event (heart destroyed, boss
+      // defeated, cartographer tour, etc.) hits every active adv in
+      // the same tick. We bucket per reason so distinct flee causes
+      // keep distinct rows; first fire of a bucket is the full
+      // flavored line, subsequent fires within 1500ms mutate to
+      // "<reason brief> × N — name1, name2, +X more".
+      const brief = FLEE_REASON_BRIEF[reason] ?? 'flee'
+      const textFormatter = (_base, count, ctx) => {
+        // Capitalize first letter for log readability.
+        const headline = brief.charAt(0).toUpperCase() + brief.slice(1)
+        return ctx
+          ? `${headline} × ${count} — ${ctx}`
+          : `${headline} × ${count}`
+      }
+      this._addLogCoalesced(flavor, 'flee', `FLEE_${reason || 'unknown'}`,
+        name, { textFormatter })
     })
     // ADVENTURER_FLED still fires at exit time — keep the intel-leak
     // rerender on that boundary since intel ledger updates depend on
@@ -948,10 +1070,18 @@ export class RightPanels {
     // ── Additional event coverage ──────────────────────────────────
     // Room loss — distinct from minion loss, gets its own glyph.
     sub('ROOM_DAMAGED', ({ roomName }) => {
-      this._addLog(`${roomName || 'A room'} damaged.`, 'damage')
+      this._addLogCoalesced(
+        'Room damaged', 'damage', 'ROOM_DAMAGED',
+        roomName || null,
+      )
     })
     sub('ROOM_DESTROYED', ({ roomName }) => {
-      this._addLog(`${roomName || 'A room'} destroyed.`, 'room-down')
+      // Coalesced — chain-collapse events (lategame raid against a
+      // wing of damaged rooms) can fire several of these in seconds.
+      this._addLogCoalesced(
+        'Room destroyed', 'room-down', 'ROOM_DESTROYED',
+        roomName || null,
+      )
     })
     // Boss fight — bright-red beats so the boss-room moment stands out.
     sub('BOSS_FIGHT_STARTED', () => {
@@ -966,7 +1096,13 @@ export class RightPanels {
     // Veteran / vendetta / legendary returners — all warn-orange.
     sub('VETERAN_APPROACHING', ({ adventurer } = {}) => {
       const n = adventurer?.name || 'A returning adventurer'
-      this._addLog(`${n} returns to the dungeon.`, 'veteran')
+      // Coalesced — knowledge-return waves can land 3–5 vets at once.
+      // Vendetta / bounty / legendary listeners below stay per-shot
+      // (they're rare and individually flavoured).
+      this._addLogCoalesced(
+        'Returning adventurer', 'veteran', 'VETERAN_APPROACHING',
+        n,
+      )
     })
     sub('VENDETTA_HUNTER_ARRIVED', ({ adventurer } = {}) => {
       const n = adventurer?.name || 'A vendetta hunter'
@@ -982,7 +1118,10 @@ export class RightPanels {
     })
     // Intel leaks — flee already covers most, but explicit emit can fire too.
     sub('INTEL_LEAKED', ({ roomName } = {}) => {
-      this._addLog(`Intel leaked${roomName ? ` — ${roomName}` : ''}.`, 'leak')
+      this._addLogCoalesced(
+        'Intel leaked', 'leak', 'INTEL_LEAKED',
+        roomName || null,
+      )
     })
     // Gold steal — loot goblin escaped with gold.
     sub('LOOT_GOBLIN_ESCAPED', ({ stolen, adventurer } = {}) => {

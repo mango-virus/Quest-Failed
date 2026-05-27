@@ -7148,6 +7148,65 @@ body {
   text-transform: uppercase;
 }
 
+/* #1 podium — apply the legendary-achievement shimmer treatment so the
+   top-of-the-leaderboard card reads as a prestige tier above #2/#3.
+   Reuses the EXACT keyframes (qf-ach-legendary-pulse + qf-ach-legendary-
+   sweep) defined for legendary achievement cards so the two surfaces
+   share a visual language — pulsing gold box-shadow + a slow diagonal
+   highlight stripe sweeping across the card on a 5s loop. */
+.qf-lb-podium-card[data-place="1"] {
+  /* clip-path bounds the sweep stripe to the card body BUT allows the
+     #1 badge to overflow upward (badge sits at top:-16px and is 36px
+     tall — -20px gives a small safety margin). overflow:hidden would
+     have clipped the badge too. */
+  clip-path: inset(-20px 0 0 0);
+  animation: qf-ach-legendary-pulse 3.6s ease-in-out infinite;
+}
+.qf-lb-podium-card[data-place="1"]::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 60%;
+  left: -80%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 38%,
+    color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent) 47%,
+    color-mix(in srgb, #fff 45%, transparent) 50%,
+    color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent) 53%,
+    transparent 62%,
+    transparent 100%
+  );
+  animation: qf-ach-legendary-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: screen;
+}
+/* Lift the card's content above the shimmer ::before so the sweep reads
+   as a back-layer glint, not a wash over the content. The podium card
+   is always `display: flex`, so its direct children are flex items —
+   and per the Flexbox spec, flex items with `z-index != auto` create a
+   stacking context EVEN IF position is static. That sidesteps the
+   gotcha where adding `position: relative` to contentColumn would
+   re-parent the badge (which is `position: absolute; top: -16px`
+   inside contentColumn) into the column instead of the card, dragging
+   it visually inside the card body.
+
+   contentColumn carries `.qf-lb-podium-content-col` (added in
+   LeaderboardOverlay.js specifically for this hook). The keeper +
+   stats blocks (only present when LB_SHOW_COMPANIONS=true) get the
+   same lift. The NEW chip is `position: absolute` from its own rule,
+   so a plain z-index bump works there too. */
+.qf-lb-podium-card[data-place="1"] > .qf-lb-podium-content-col,
+.qf-lb-podium-card[data-place="1"] > .qf-lb-podium-keeper,
+.qf-lb-podium-card[data-place="1"] > .qf-lb-podium-stats-block {
+  z-index: 1;
+}
+.qf-lb-podium-card[data-place="1"] > .qf-lb-podium-new-chip {
+  z-index: 2;
+}
+
 .qf-lb-main {
   flex: 1;
   display: grid;
@@ -7579,20 +7638,14 @@ body {
   z-index: 8;     /* between FX (5) and HUD chrome (9–10) */
 }
 .qf-bossfight-vignette,
-.qf-bossfight-slate,
-.qf-bossfight-bar,
-.qf-bossfight-result {
+.qf-bossfight-bar {
   position: absolute;
   pointer-events: none;
   opacity: 0;
   transition: opacity 400ms ease;
 }
 .qf-bossfight-vignette.open,
-.qf-bossfight-slate.open,
-.qf-bossfight-bar.open,
-.qf-bossfight-result.open      { opacity: 1; }
-.qf-bossfight-slate.fading,
-.qf-bossfight-result.fading,
+.qf-bossfight-bar.open         { opacity: 1; }
 .qf-bossfight-bar.fading,
 .qf-bossfight-vignette.fading  { opacity: 0; }
 
@@ -7606,88 +7659,18 @@ body {
   transition: opacity 500ms ease;
 }
 
-/* ─── Intro slate ──────────────────────────────────────────────── */
-.qf-bossfight-slate { inset: 0; }
-.qf-bossfight-slate-wash {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-}
-.qf-bossfight-slate-card {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, calc(-50% - 60px));
-  width: 820px;
-  padding: 28px 36px;
-  background: #0c0712;
-  border: 4px solid var(--blood);
-  box-shadow: 6px 6px 0 #4a0c14, 0 0 32px rgba(220, 60, 80, 0.35);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-}
-.qf-bossfight-slate-tag {
-  font-family: var(--pix);
-  font-size: 14px;
-  color: var(--blood-glow);
-  letter-spacing: 5px;
-  text-shadow: 1px 1px 0 #000;
-}
-.qf-bossfight-slate-row {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  width: 100%;
-}
-.qf-bossfight-slate-portrait {
-  width: 132px;
-  height: 132px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  background: #1a0c16;
-  border: 2px solid var(--blood);
-  box-shadow: inset 0 0 20px rgba(220, 60, 80, 0.25);
-}
-.qf-bossfight-portrait-canvas {
-  width: 112px;
-  height: 112px;
-  image-rendering: pixelated;
-}
-.qf-bossfight-slate-textcol {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  text-align: center;
-}
-.qf-bossfight-slate-name {
-  font-family: var(--pix);
-  font-size: 36px;
-  color: #fff5cc;
-  letter-spacing: 4px;
-  text-shadow: 2px 2px 0 #3a0810, 0 0 14px rgba(220, 60, 80, 0.45);
-}
-.qf-bossfight-slate-tagline {
-  font-family: var(--body);
-  font-size: 16px;
-  color: var(--text-dim);
-  font-style: italic;
-  letter-spacing: 1px;
-}
-.qf-bossfight-slate-lives {
-  font-family: var(--pix);
-  font-size: 12px;
-  color: var(--text-mute);
-  letter-spacing: 5px;
-}
+/* The full-screen intro slate (.qf-bossfight-slate*) + result slate
+   (.qf-bossfight-result*) classes used to live here. Both were
+   retired 2026-05-27 when the boss-fight intro / result moved to the
+   shared top-of-gameplay EventBanner (HUD_BANNER event). */
 
 /* ─── Bottom HP bar ────────────────────────────────────────────── */
+/* Sits just above the ActionBar (.qf-bottombar, height = --hud-bottom
+   = 116px). 14px gap reads as "pinned to the bottom of the gameplay
+   area" without colliding with the action-bar buttons during a fight. */
 .qf-bossfight-bar {
   left: 50%;
-  bottom: 200px;
+  bottom: calc(var(--hud-bottom) + 14px);
   transform: translateX(-50%);
   width: 720px;
   padding: 14px 18px 16px;
@@ -7760,52 +7743,9 @@ body {
   text-shadow: 2px 2px 0 #000;
 }
 
-/* ─── Result slate ─────────────────────────────────────────────── */
-.qf-bossfight-result { inset: 0; }
-.qf-bossfight-result-wash {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-}
-.qf-bossfight-result-card {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 560px;
-  padding: 28px 36px;
-  background: #1a0606;
-  border: 3px solid var(--blood);
-  box-shadow: 4px 4px 0 #4a0c14;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.qf-bossfight-result.boss-won .qf-bossfight-result-card {
-  background: #06140a;
-  border-color: #33dd66;
-  box-shadow: 4px 4px 0 #114422;
-}
-.qf-bossfight-result-title {
-  font-family: var(--pix);
-  font-size: 28px;
-  letter-spacing: 4px;
-  text-shadow: 2px 2px 0 #000;
-}
-.qf-bossfight-result.party-won .qf-bossfight-result-title {
-  color: #ff7777;
-}
-.qf-bossfight-result.boss-won .qf-bossfight-result-title {
-  color: #88ffaa;
-}
-.qf-bossfight-result-sub {
-  font-family: var(--body);
-  font-size: 14px;
-  letter-spacing: 1px;
-}
-.qf-bossfight-result.party-won .qf-bossfight-result-sub { color: #ffcccc; }
-.qf-bossfight-result.boss-won  .qf-bossfight-result-sub { color: #cceedd; }
+/* Result slate (.qf-bossfight-result*) retired 2026-05-27 — see the
+   note above the bar; the post-fight banner ("INTRUDER REPELLED",
+   "YOU LOST A LIFE", etc.) now rides the shared EventBanner. */
 
 /* ═════════════════════════════════════════════════════════════════
    Event Banner — cinematic Dungeon Event announcement slate

@@ -75,6 +75,15 @@ export class EventBanner {
     // happened and have the diagnostic context to share when reporting.
     // Uses the same themed slate as a real Dungeon Event.
     sub('SPAWN_FAILSAFE_TRIGGERED', (p) => this._onSpawnFailsafe(p))
+    // Generic HUD banner — any system can fire this with
+    // { title, notif, icon, colorTheme, kicker? } and get the same
+    // event-banner slam-in slate. Used by BossFightOverlay for fight
+    // intro / result and by the phylactery hooks below.
+    sub('HUD_BANNER',              (p) => this._onAnnounced({ def: p ?? {} }))
+    // Phylactery flavor banners — Lich-specific run beats that deserve
+    // the same cinematic weight as a Dungeon Event.
+    sub('PHYLACTERY_DESTROYED',    ()  => this._onPhylacteryDestroyed())
+    sub('PHYLACTERY_REVIVED_BOSS', ()  => this._onPhylacteryRevive())
   }
 
   _onBountyHunter({ minion } = {}) {
@@ -96,6 +105,26 @@ export class EventBanner {
       notif: `No wave arrived. Day ${day ?? '?'} · Boss Lv ${bossLevel ?? '?'} · Entry Halls: ${entryHalls ?? '?'} · Active events: ${flags}`,
       icon: '☾',
       colorTheme: 'violet',
+    } })
+  }
+
+  _onPhylacteryDestroyed() {
+    this._onAnnounced({ def: {
+      title:  'PHYLACTERY DESTROYED',
+      notif:  "The lich's heart is shattered. One more death and the run is over.",
+      icon:   '💔',
+      colorTheme: 'soul',
+      kicker: '◆  DARK OMEN  ◆',
+    } })
+  }
+
+  _onPhylacteryRevive() {
+    this._onAnnounced({ def: {
+      title:  'LICH REVIVES',
+      notif:  'The phylactery burns a charge — the lich rises again.',
+      icon:   '💀',
+      colorTheme: 'violet',
+      kicker: '◆  UNDEATH RENEWED  ◆',
     } })
   }
 
@@ -156,7 +185,7 @@ export class EventBanner {
         h('span', { className: 'qf-eventbanner-corner br' }),
         h('div',  { className: 'qf-eventbanner-flash' }),
         h('div',  { className: 'qf-eventbanner-inner' }, [
-          h('div', { className: 'qf-eventbanner-kicker' }, '◆  DUNGEON EVENT  ◆'),
+          h('div', { className: 'qf-eventbanner-kicker' }, def.kicker ?? '◆  DUNGEON EVENT  ◆'),
           h('div', { className: 'qf-eventbanner-row' }, [
             def.icon ? h('span', { className: 'qf-eventbanner-icon' }, def.icon) : null,
             h('div', { className: 'qf-eventbanner-title' }, def.title ?? ''),

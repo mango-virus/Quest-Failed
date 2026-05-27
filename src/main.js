@@ -1,3 +1,30 @@
+// Dev preview visibility shim. The Claude Code preview pane (and some
+// other embedded-browser hosts) ship the page in a context that reports
+// `document.hidden: true` / `document.visibilityState: 'hidden'`, which
+// the browser uses as the trigger for background-throttling setTimeout,
+// rAF, and paint. That breaks any code in the preview that polls on a
+// timer, and it lets the game's WebGL render loop stall — leading to
+// "preview stuck on Boot" symptoms even after Boot's own setTimeout
+// gate was removed.
+//
+// Override the Page Visibility API to always report visible, gated to
+// localhost so this never ships to real users. If `document.hidden`
+// is already false (a real, focused browser tab), the override is a
+// no-op — it just keeps reporting false. The override is installed
+// here at the top of main.js so it lands before ANY downstream code
+// reads visibility (Phaser, the canvas recovery handler below, etc.).
+;(() => {
+  try {
+    const h = location.hostname
+    if (h !== 'localhost' && h !== '127.0.0.1') return
+    Object.defineProperty(document, 'hidden',          { get: () => false,    configurable: true })
+    Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true })
+    // Fire one synthetic visibilitychange so any code that snapshotted
+    // the value during module init can resync.
+    document.dispatchEvent(new Event('visibilitychange'))
+  } catch { /* defineProperty unavailable / page in a weird sandbox — drop silently */ }
+})()
+
 import { Boot }            from './scenes/Boot.js'
 import { Preload }         from './scenes/Preload.js'
 import { MainMenu }        from './scenes/MainMenu.js'

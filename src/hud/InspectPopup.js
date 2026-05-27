@@ -232,9 +232,10 @@ export class InspectPopup {
     const hp    = m.resources?.hp ?? m.stats?.hp ?? '?'
     const maxHp = m.resources?.maxHp ?? hp
     const boxes = [
-      ['HP',  `${hp}/${maxHp}`],
-      ['ATK', m.stats?.attack ?? '?'],
-      ['LV',  m.level ?? 1],
+      ['TIER', this._minionTier(m)],
+      ['HP',   `${hp}/${maxHp}`],
+      ['ATK',  m.stats?.attack ?? '?'],
+      ['LV',   m.level ?? 1],
     ]
     const def = this._minionDef(m)
     // Converted thralls share the vampire_minion1 def but roam in the open
@@ -367,11 +368,15 @@ export class InspectPopup {
   }
 
   // ── JSON-cache lookups ────────────────────────────────────────────
+  // Accept both arrays (rooms, minionTypes, adventurerClasses, items,
+  // trapTypes, personalities — flat lists) AND plain objects
+  // (minionEvolutions — keyed by starter id). Mirrors RosterOverlay's
+  // _cachedJson so both surfaces resolve the same JSON shapes.
   _cachedJson(key) {
     const scenes = window.__game?.scene?.scenes || []
     for (const s of scenes) {
       const v = s.cache?.json?.get?.(key)
-      if (Array.isArray(v)) return v
+      if (Array.isArray(v) || (v && typeof v === 'object')) return v
     }
     return null
   }
@@ -383,6 +388,26 @@ export class InspectPopup {
   _advDef(a)       { return (this._cachedJson('adventurerClasses') ?? []).find(x => x.id === a.classId) || null }
   _itemsDef(defId) { return defId ? ((this._cachedJson('items') ?? []).find(d => d.id === defId) || null) : null }
   _trapDef(defId)  { return defId ? ((this._cachedJson('trapTypes') ?? []).find(d => d.id === defId) || null) : null }
+
+  // Tier = the minion's position in its evolution chain: chain[0] is T1,
+  // chain[1] T2, chain[2] T3. The definitionId mutates up the chain on
+  // each evolution, so the current id directly encodes the tier.
+  // Mirrors RosterOverlay._tierOf — same logic, kept inline so this
+  // module stays self-contained. Fallback to def.tier or T1 for
+  // minions outside any evolution chain (mimics, garrison spawns).
+  _minionTier(m) {
+    const id     = m?.definitionId
+    const chains = this._cachedJson('minionEvolutions') ?? {}
+    for (const data of Object.values(chains)) {
+      const chain = data?.chain
+      if (Array.isArray(chain)) {
+        const i = chain.indexOf(id)
+        if (i !== -1) return `T${i + 1}`
+      }
+    }
+    const def = this._minionDef(m)
+    return def?.tier ? `T${def.tier}` : 'T1'
+  }
 
   destroy() {
     EventBus.off('SHOW_INSPECT', this._onShow)

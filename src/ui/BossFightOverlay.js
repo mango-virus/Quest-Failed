@@ -5,7 +5,7 @@
 // Boss-fight cinematic overlay, lives on HudScene so it can use the
 // scene's uiW / uiH (set by applyUiCamera). Renders three pieces:
 //
-//   1. Intro slate — full-screen card on BOSS_FIGHT_INCOMING. Boss
+//   1. Intro slate — full-screen card on BOSS_FIGHT_STARTED. Boss
 //      portrait, name (serif), tagline, red diamond ornament. Fades
 //      in over 0.4 s, holds 1.0 s, fades out 0.4 s. The boss-room
 //      action stays visible behind the slate's translucent backdrop.
@@ -17,6 +17,15 @@
 //
 //   3. Result slate — small banner on BOSS_FIGHT_RESOLVED ("Intruder
 //      Repelled" / "You Lost a Life"), ~2 s, then everything fades.
+//
+// Why BOSS_FIGHT_STARTED, not BOSS_FIGHT_INCOMING: AISystem fires
+// BOSS_FIGHT_INCOMING when an adv reaches the boss tile, but
+// BossSystem then runs its own _onIncoming with three bail-out gates
+// (boss already fell this day, boss in death-pose window, run is in
+// final-death state). When any bail, no fight runs and
+// BOSS_FIGHT_RESOLVED never fires — opening the overlay on INCOMING
+// would leave it stuck on screen. BOSS_FIGHT_STARTED fires AFTER
+// those gates pass, so it only triggers for fights that will resolve.
 
 import { EventBus }           from '../systems/EventBus.js'
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelDiamond } from './UIKit.js'
@@ -49,12 +58,12 @@ export class BossFightOverlay {
 
     this._onIncoming = this._onIncoming.bind(this)
     this._onResolved = this._onResolved.bind(this)
-    EventBus.on('BOSS_FIGHT_INCOMING', this._onIncoming)
+    EventBus.on('BOSS_FIGHT_STARTED', this._onIncoming)
     EventBus.on('BOSS_FIGHT_RESOLVED', this._onResolved)
   }
 
   destroy() {
-    EventBus.off('BOSS_FIGHT_INCOMING', this._onIncoming)
+    EventBus.off('BOSS_FIGHT_STARTED', this._onIncoming)
     EventBus.off('BOSS_FIGHT_RESOLVED', this._onResolved)
     this._destroySlate()
     this._destroyBar()

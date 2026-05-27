@@ -24,6 +24,16 @@ const MAX_TOASTS = 4
 const TOAST_TTL  = 6500
 const FADE_OUT   = 280
 
+// Coalesce window for burst-prone events (2026-05-27). When multiple
+// events of the same coalesce-key fire within this window, they fold
+// into the FIRST event's toast — the title gains "× N", the subtitle
+// lists up to MAX_COALESCE_CONTEXTS items + "+X more", and the TTL is
+// reset so the toast stays visible while the burst continues. Kills
+// intel-leak / kill / room-damage spam at end-of-day and during
+// doomsday raids without dropping any information.
+const COALESCE_WINDOW_MS    = 1500
+const MAX_COALESCE_CONTEXTS = 3
+
 const KIND_STYLE = {
   level:  { color: 'var(--gold)',      glyph: '★' },
   pact:   { color: 'var(--info)',      glyph: '▣' },
@@ -117,6 +127,64 @@ export class ToastQueue {
     }
   }
 
+  // Coalesce a same-key event into the running batch. First fire of a
+  // key pushes a fresh toast and stashes its entry; subsequent fires
+  // within COALESCE_WINDOW_MS mutate that toast's title to "X × N",
+  // append context strings to the subtitle (capped at
+  // MAX_COALESCE_CONTEXTS with "+X more" overflow), and reset the
+  // dismissal timer so the toast survives the burst.
+  //
+  // opts:
+  //   contextItem      — one human-readable detail (room name, adv name)
+  //                      to add to the comma list. Duplicates are
+  //                      filtered so an adv attacking the same room
+  //                      doesn't double-list it.
+  //   titleFormatter   — (baseTitle, count, entry) → string. Lets the
+  //                      caller swap to a special headline at certain
+  //                      thresholds (e.g. "PARTY WIPED" at full-wave
+  //                      kill count). Defaults to "<baseTitle> × N".
+  _pushCoalesced(kind, key, baseTitle, baseSubtitle, contextItem, opts = {}) {
+    this._coalesce ??= {}
+    const now = performance.now()
+    const c = this._coalesce[key]
+    const stillActive = c && c.entry && !c.entry._dismissing
+      && (now - c.lastAt) < COALESCE_WINDOW_MS
+    const titleFormatter = opts.titleFormatter
+      ?? ((base, count) => `${base} × ${count}`)
+    if (stillActive) {
+      c.count += 1
+      if (contextItem && !c.contexts.includes(contextItem)
+          && c.contexts.length < MAX_COALESCE_CONTEXTS) {
+        c.contexts.push(contextItem)
+      }
+      c.lastAt = now
+      const titleEl = c.entry.el.querySelector('.qf-toast-title')
+      if (titleEl) titleEl.textContent = titleFormatter(c.baseTitle, c.count, c.entry)
+      const subEl = c.entry.el.querySelector('.qf-toast-subtitle')
+      if (subEl) {
+        subEl.textContent = c.contexts.length > 0
+          ? c.contexts.join(', ')
+            + (c.count > c.contexts.length ? `, +${c.count - c.contexts.length} more` : '')
+          : c.baseSubtitle
+      }
+      // Reset dismissal so the toast lives through the burst.
+      clearTimeout(c.entry._dismiss)
+      c.entry._dismiss = setTimeout(() => this._dismiss(c.entry), TOAST_TTL)
+      return
+    }
+    // First fire (or stale window) — push a normal toast and bookkeep.
+    this._push(kind, baseTitle, baseSubtitle)
+    const entry = this._toasts[this._toasts.length - 1]
+    this._coalesce[key] = {
+      entry,
+      baseTitle,
+      baseSubtitle: baseSubtitle ?? '',
+      contexts: contextItem ? [contextItem] : [],
+      count: 1,
+      lastAt: now,
+    }
+  }
+
   // Spawn a ring of gold particles bursting outward from the toast's
   // position. Each particle is a small absolutely-positioned div that
   // animates via CSS keyframes from center → fountain trajectory, then
@@ -183,18 +251,54 @@ export class ToastQueue {
       const tag = rarity ? rarity.toUpperCase() : 'PACT'
       this._push('pact', `${tag} PACT SEALED`, mechanicId || '')
     })
+    // Track current wave's spawn size so the kill coalesce can swap to
+    // a single "PARTY WIPED" headline when the whole wave dies in the
+    // burst. Reset every ADVENTURERS_SPAWNED — a new wave starts a new
+    // count. _currentWaveKillsCounted lets us only escalate to PARTY
+    // WIPED at the precise moment kills == wave size, not on every
+    // subsequent coalesce update.
+    sub('ADVENTURERS_SPAWNED', ({ adventurers } = {}) => {
+      this._currentWaveSize = Array.isArray(adventurers) ? adventurers.length : 0
+    })
     sub('ADVENTURER_DIED', ({ adventurer, killerName } = {}) => {
       const n = adventurer?.name || 'Adventurer'
-      this._push('kill', 'KILL', killerName ? `${n} fell to ${killerName}.` : `${n} fell.`)
+      const subtitle = killerName ? `${n} fell to ${killerName}.` : `${n} fell.`
+      // Coalesced — busy days fire 15–25 of these in seconds. At full-
+      // wave kill count (no escapes), the headline swaps to "PARTY
+      // WIPED" via the titleFormatter for a punchier read.
+      const titleFormatter = (base, count) => {
+        const waveSize = this._currentWaveSize ?? 0
+        if (waveSize > 0 && count >= waveSize) return 'PARTY WIPED'
+        return `${base} × ${count}`
+      }
+      this._pushCoalesced(
+        'kill', 'ADVENTURER_DIED',
+        'KILL',
+        subtitle,
+        adventurer?.name || null,
+        { titleFormatter },
+      )
     })
     sub('ROOM_DAMAGED', ({ roomName } = {}) => {
-      this._push('damage', 'ROOM DAMAGED', roomName || 'Structural integrity falling.')
+      // Coalesced — a single fight can land 4–8 hits on the same room.
+      this._pushCoalesced(
+        'damage', 'ROOM_DAMAGED',
+        'ROOM DAMAGED',
+        roomName || 'Structural integrity falling.',
+        roomName || null,
+      )
     })
     sub('ROOM_DESTROYED', ({ roomName } = {}) => {
       this._push('damage', 'ROOM DESTROYED', roomName || 'A chamber has fallen.')
     })
     sub('INTEL_LEAKED', ({ roomName } = {}) => {
-      this._push('leak', 'INTEL LEAKED', roomName || 'They learned more than you wanted.')
+      // Coalesced — escape cascades fire 5–15 of these at end-of-day.
+      this._pushCoalesced(
+        'leak', 'INTEL_LEAKED',
+        'INTEL LEAKED',
+        roomName || 'They learned more than you wanted.',
+        roomName || null,
+      )
     })
     // VETERAN APPROACHING — fires when an adventurer who's previously
     // escaped re-enters the dungeon. RunHistorySystem stamps
@@ -205,8 +309,15 @@ export class ToastQueue {
         ?? adventurer.knownEscapeCount
         ?? (adventurer.isVeteran ? 1 : 0)
       if (escapeCount > 0) {
-        this._push('damage', 'HERO APPROACHING',
-          `${adventurer.name || 'A returning adventurer'} is back for more.`)
+        // Coalesced — a wave of returning veterans (knowledge return /
+        // vendetta hunters) can fire 3–5 of these in the same spawn tick.
+        const name = adventurer.name || 'A returning adventurer'
+        this._pushCoalesced(
+          'damage', 'VETERAN_APPROACHING',
+          'HERO APPROACHING',
+          `${name} is back for more.`,
+          adventurer.name || null,
+        )
       }
     })
     // GOLD LOOTED — the canonical "they stole your treasure" event is

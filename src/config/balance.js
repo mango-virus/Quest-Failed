@@ -270,8 +270,10 @@ export const Balance = {
   KNOWLEDGE_INHERIT_FRACTION:      0.5,    // fraction of shared pool a new adventurer inherits
   KNOWLEDGE_INHERIT_ACCURACY:      0.7,    // accuracy of inherited intel (rumour vs witnessed)
   KNOWLEDGE_RETURN_CHANCE:         0.35,   // chance a fled adventurer returns next day with their party
-  KNOWLEDGE_RETURN_PARTY_SIZE_MIN: 2,
-  KNOWLEDGE_RETURN_PARTY_SIZE_MAX: 4,
+  KNOWLEDGE_RETURN_PARTY_SIZE_MIN: 2,      // floor for veteran-led waves (only matters when natural baseCount < 2, i.e. very early days)
+  // KNOWLEDGE_RETURN_PARTY_SIZE_MAX retired 2026-05-27 — was clamping wave
+  // size to 4 on every veteran-return day, silently shrinking late-game
+  // waves from ~70 to 4 (see DayPhase.js "returningRecord" comment).
   KNOWLEDGE_RETURN_MAX_AGE_DAYS:   3,      // a survivor is only eligible to personally return if they fled within this many days
   KNOWLEDGE_VETERAN_HP_MULT:       1.2,    // returning veterans are tougher than a fresh adventurer
   KNOWLEDGE_VETERAN_ATK_MULT:      1.15,   // ...and hit a little harder
@@ -347,6 +349,81 @@ export const Balance = {
   MINION_COST_PER_BOSS_LV:      0.20,   // +20% gold cost per boss level above 1
   TRAP_COST_PER_BOSS_LV:        0.20,   // +20% trap gold cost per boss level (mirrors minions)
   UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
+
+  // --- Dungeon event: Miasma (% maxHp chip damage) ---
+  // Pre-2026-05-27 this was a flat 2 dmg per 2s tick. Late-game advs
+  // sit around 2,500-5,500 HP, so the flat value was ~1-3% of an adv's
+  // HP over their entire 60-90s run — completely cosmetic. Now ticks
+  // scale with each target's maxHp so the chip-damage feel survives
+  // the late-game HP curve. 0.4%/tick × ~30 ticks per adv lifespan
+  // ≈ 12% maxHP lost per adv from miasma alone.
+  // Same pattern as MYCONID_SPORE_DMG_PCT_PER_TICK (1.5%).
+  MIASMA_TICK_PCT_PER_TICK:       0.004,
+
+  // --- Dungeon event: Tremors (% maxHp per quake) ---
+  // Pre-2026-05-27 was flat 14 / +6 per quake. Same problem — capped
+  // around ~80 dmg per quake, vs 5k late-game adv HP = ~1.5%. Now
+  // each quake hits for a % of the target's maxHp, escalating per
+  // quake within the day, capped per-hit so a late-day quake can't
+  // instakill. Code comment in _tremorTick says "Invaders can be
+  // killed by the collapse" — under flat scaling that was no longer
+  // true late game; under % scaling it's true again at any era.
+  TREMOR_PCT_BASE:                0.03,    // first quake: 3% maxHP
+  TREMOR_PCT_STEP:                0.015,   // +1.5% per subsequent quake
+  TREMOR_PCT_CAP:                 0.15,    // single-hit max 15% maxHP
+
+  // --- Dungeon event: Loot Goblin Heist (compounding-loss cap) ---
+  // Each goblin that escapes steals 10% of CURRENT gold (multiplicative
+  // compounding). Pack size scales with day: 5 + (day-9). At day 50
+  // the pack is 46 goblins; without a cap, 10 escapees = 65% gold lost
+  // and a full-pack escape = 99% gold lost (run-ending). Cap below
+  // limits the total daily loss to a fixed fraction of the gold the
+  // player held when the day started — see EventSystem._onAdventurerFled.
+  LOOT_GOBLIN_DAILY_LOSS_CAP_PCT: 0.50,    // hard floor: never lose >50% of day-start gold
+
+  // --- Dungeon event: Twitch Con (raid count scales with day) ---
+  // Pre-2026-05-27 the cap was a flat 2 raids per day. With each raid
+  // bringing 2-3 streamers, that's at most 6 extras — invisible against
+  // a 66-adv day-50 wave. Scaling the cap with day past day 10 makes
+  // late-game Twitch Con actually feel like a flood. Streamer count is
+  // also gated by TWITCH_CON_RAID_STREAMER_CAP (20 active max), so this
+  // can't run away.
+  TWITCH_CON_RAID_MAX_BASE:           2,    // base raids/day (was the flat cap)
+  TWITCH_CON_RAID_MAX_PER_DAY_PAST_10: 0.3, // +0.3 raids per day past day 10 (floor)
+
+  // --- Dungeon event: Cursed Relic (chest tier scales with boss level) ---
+  // Pre-2026-05-27 the cursed relic was always a tier-5 chest (80g/day).
+  // Cost (wave doubling) scales hard — at day 50, +66 advs/day = ~660g
+  // extra kill income, dwarfing the 80g chest. Now the chest tier
+  // scales with boss level so the reward stays proportional to the era:
+  //   bossLv 1  → tier 5  (80g/day)  — same as the old hardcoded value (no regression)
+  //   bossLv 5  → tier 7  (145g/day)
+  //   bossLv 9  → tier 9  (230g/day)
+  //   bossLv 11+ → tier 10 (300g/day, capped)
+  EVENT_CURSED_RELIC_TIER_BASE:        5,    // bossLv 1: tier 5 (matches the old flat value)
+  EVENT_CURSED_RELIC_TIER_PER_2_LV:    1,    // +1 tier per 2 boss levels (lv 9 → tier 9, lv 11+ → cap)
+  EVENT_CURSED_RELIC_TIER_MAX:        10,    // hard cap at the highest existing chest tier
+
+  // --- Dungeon event purchase costs (Black Market + Mercenary) ---
+  // Both events let the player pay gold for a guaranteed reward. Pre-
+  // 2026-05-27 they were flat 50g / 120g — fine at day 1 but trivially
+  // worth it by day ~15 once the player's treasury was 1k+. Now both
+  // scale linearly by (day - 1) and (bossLv - 1) so the gold cost
+  // tracks the player's expected wealth. Anchor points (assuming a
+  // ~20k treasury at day 50 from playtest):
+  //   Black Market day 50 / lv 10 ≈ 2,000g  (≈10% of treasury)
+  //   Mercenary    day 50 / lv 10 ≈ 5,000g  (≈25% of treasury)
+  // Per-bossLv is weighted ~3× per-day so power (boss level) drives
+  // cost more than calendar time — mirrors how content gates by
+  // boss level elsewhere (T2/T3 minions, dungeon mechanics, etc.).
+  // Mercenary scales steeper than Black Market because its reward is
+  // a much bigger combat asset (Tier 3 elite, doubled stats, 3 days).
+  EVENT_BLACK_MARKET_BASE_COST:    50,
+  EVENT_BLACK_MARKET_PER_DAY:      25,
+  EVENT_BLACK_MARKET_PER_BOSS_LV:  80,
+  EVENT_MERCENARY_BASE_COST:      120,
+  EVENT_MERCENARY_PER_DAY:         60,
+  EVENT_MERCENARY_PER_BOSS_LV:    220,
 
   // --- Zombie Horde dungeon event ---
   // Horde size scales hard with boss level — a late-game horde should
@@ -546,9 +623,18 @@ export const Balance = {
   // start, random tier in [MIN, MAX]. These are flagged `_treasurySpawn:
   // true` so the sell tool refuses to refund gold on them (they were
   // free). See RoomBehaviorSystem._onDayStart.
+  //
+  // Tier cap is intentionally low (1–3, average ~22g/day per chest,
+  // ~85g/day with four chests). A Treasury room costs 40 gold, so
+  // it still pays itself back inside the first day. Widening the
+  // range to 1–5 was tested but obsoleted hand-placed chests entirely
+  // (~160g/day average for free vs ~3-day payback on a manually
+  // bought chest) AND opened a sell-and-rebuild reroll exploit
+  // (20g per reroll for a +180g/day swing between worst and best
+  // rolls). T4–T10 stay as the only path to high-tier chests.
   TREASURY_CHEST_COUNT:           4,
   TREASURY_CHEST_TIER_MIN:        1,
-  TREASURY_CHEST_TIER_MAX:        5,
+  TREASURY_CHEST_TIER_MAX:        3,
 
   // --- Rarity-driven offering weights (Phase 9) ---
   // Each Dark Pact card draw first picks a rarity TIER using these weights,
@@ -628,7 +714,9 @@ export const Balance = {
   TWITCH_CON_RAID_INTERVAL_MS:       9000,  // endless-raid spawn cadence
   TWITCH_CON_RAID_SQUAD_MIN:         2,     // raid squad size, inclusive
   TWITCH_CON_RAID_SQUAD_MAX:         3,
-  TWITCH_CON_RAID_MAX_PER_DAY:       2,     // hard cap on raids per day (lowered from 5 — long days were running endless)
+  // TWITCH_CON_RAID_MAX_PER_DAY retired 2026-05-27 — flat cap was trivial
+  // late game. Replaced by TWITCH_CON_RAID_MAX_BASE + TWITCH_CON_RAID_MAX_PER_DAY_PAST_10
+  // (see "Twitch Con (raid count scales with day)" section above).
 
   // --- Cheater class ---
   CHEATER_INSTAKILL_CHANCE:    0.15,   // per-attack chance during aimhack window to one-shot a minion
