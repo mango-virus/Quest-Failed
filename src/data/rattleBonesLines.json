@@ -1,41 +1,44 @@
 {
-  "meta": { "version": 1, "npcName": "Rattle Bones", "note": "Dialogue bank for the companion NPC Rattle Bones — the macabre jester skeleton. Same structure + category keys as npcLines.json so NpcDirector drives it unchanged. Lines: t=text, x=expression id (matches assets/npc-rattlebones/<id>.webp), w=weight (default 1), p=page-2+ text. Tokens {day} {gold} {advClass} {advName} {minionName} {minionType} {pactName} {roomName} {level} {count} {bossName} are substituted by NpcDirector; a line is skipped if a token it needs is unavailable. Lines may ONLY use ids in the `expressions` list below.", "voice": "A skeleton jester who's been dead for centuries and finds the whole business HILARIOUS. Gallows humour, vaudeville delivery, theatrical, melodramatic — every observation is a stand-up bit, every death a punchline. Addresses the player as 'boss', 'skull-pal', 'pal' — warm but irreverent. Treats running the dungeon like running a SHOW: the heroes are the bit, the maze is the venue, the screams are the laugh track. Cracks bone puns shamelessly, but never the cheap ones — committed ones, ones that LAND. Self-aware that he's a pile of clattering bones; doesn't take himself OR death seriously. Fourth-wall breaks lean comic — he winks at the audience (the player), references the game as a show, treats death and respawn as 'gigs'. Underneath the bit is a real fondness for the boss and real practical advice — the jokes are how he says he cares. Male. He/him." },
-  "expressions": [
-    "idle", "idle-2", "bored", "sleeping",
-    "laughing", "laughing-hard", "cackling", "crying-laughing", "chef-kiss",
-    "mischievous", "mischievous-2", "smug", "mocking", "winking", "evil-grin",
-    "excited", "surprised", "shocked", "mind-blown", "mock-horror",
-    "theatrical-bow", "narrating", "pointing", "singing", "dancing", "taunting",
-    "thinking", "whisper", "confused", "melancholy", "nostalgic",
-    "eye-roll", "unimpressed", "annoyed", "disgusted",
-    "proud", "gloating", "applauding", "victorious",
-    "affectionate", "sweet", "clapping",
-    "falling-apart", "jaw-dropped", "peace-sign", "salute"
-  ],
+  "meta": {
+    "version": 1,
+    "npcName": "Rattle Bones",
+    "note": "Dialogue bank for the companion NPC Rattle Bones — the macabre jester skeleton. Same structure + category keys as npcLines.json so NpcDirector drives it unchanged. Lines: t=text, x=expression id (matches assets/npc-rattlebones/<id>.webp), w=weight (default 1), p=page-2+ text. Tokens {day} {gold} {advClass} {advName} {minionName} {minionType} {pactName} {roomName} {level} {count} {bossName} are substituted by NpcDirector; a line is skipped if a token it needs is unavailable. Lines may ONLY use ids in the `expressions` list below.",
+    "voice": "A skeleton jester who's been dead for centuries and finds the whole business HILARIOUS. Gallows humour, vaudeville delivery, theatrical, melodramatic — every observation is a stand-up bit, every death a punchline. Addresses the player as 'boss', 'skull-pal', 'pal' — warm but irreverent. Treats running the dungeon like running a SHOW: the heroes are the bit, the maze is the venue, the screams are the laugh track. Cracks bone puns shamelessly, but never the cheap ones — committed ones, ones that LAND. Self-aware that he's a pile of clattering bones; doesn't take himself OR death seriously. Fourth-wall breaks lean comic — he winks at the audience (the player), references the game as a show, treats death and respawn as 'gigs'. Underneath the bit is a real fondness for the boss and real practical advice — the jokes are how he says he cares. Male. He/him."
+  },
+  "expressions": [ "idle", "bored", "sleeping", "lazy", "laughing", "laughing-2", "laughing-3", "laughing-4", "laughing-hard", "laughing-hard-2", "cackling", "crying-laughing", "chef-kiss", "facepalm-laugh", "mischievous", "mischievous-2", "smug", "mocking", "winking", "evil-grin", "excited", "surprised", "shocked", "mind-blown", "mock-horror", "theatrical-bow", "narrating", "pointing", "singing", "dancing", "taunting", "showing-prop", "telling-joke", "telling-joke-2", "telling-joke-3", "telling-joke-4", "telling-joke-5", "thinking", "whisper", "confused", "melancholy", "nostalgic", "out-of-time", "eye-roll", "unimpressed", "annoyed", "disgusted", "proud", "gloating", "applauding", "victorious", "clapping", "falling-apart", "jaw-dropped", "salute" ],
   "intro": {
     "note": "Paged self-introduction Rattle Bones delivers on a new run. The final page carries `choices` — picking one sets the tutorial-hints flag and ends the intro.",
     "pages": [
       { "t": "Heeeey, look who finally took the throne! New boss, new face, new soft squishy bits I haven't met yet — hi, I'm Rattle Bones, no relation, I AM the bones.", "x": "theatrical-bow" },
       { "t": "Court jester, retired. Court jester's CORPSE — promoted. Dead three centuries, funnier dead than I ever was alive — turns out the old set was just MISSING something. The skin, mostly.", "x": "jaw-dropped" },
-      { "t": "Here's the bit, pal: the kingdom thinks YOU'RE the villain. They send heroes down to gut you. They write SONGS about it. We're going to make those songs end EARLY.", "x": "narrating" },
+      { "t": "Here's the bit, pal: the kingdom thinks YOU'RE the villain. They send heroes down to gut you. They write SONGS about it. We're going to make those songs end EARLY.", "x": "telling-joke" },
       { "t": "The whole show runs on a beat — NIGHT, you build. Rooms, traps, minions, all of it on dead-hero gold. DAY, the heroes show up and trip over every gag we set. Then we cut to black and do it again.", "x": "pointing" },
       { "t": "Three deaths, boss, and the marquee goes dark. The lights, the bones, the bit — all of it. So we are NOT eating that third death. I refuse. I have JOKES still in the pipeline.", "x": "thinking" },
-      { "t": "I can heckle from the wings AND give you actual notes — or you can run cold and I'll just watch like a ghost in the back row. Your call, skull-pal!", "x": "winking", "choices": [ { "label": "Coach me through it", "value": true }, { "label": "I'll work the room solo", "value": false } ] }
+      { "t": "I can heckle from the wings AND give you actual notes — or you can run cold and I'll just watch like a ghost in the back row. Your call, skull-pal!", "x": "winking", "choices": [
+        {
+          "label": "Coach me through it",
+          "value": true
+        },
+        {
+          "label": "I'll work the room solo",
+          "value": false
+        }
+      ] }
     ]
   },
   "recruit": {
     "note": "`banter` lines for the CompanionSelect screen. Companions take turns in a round-robin squabble; lines reference rivals (Lilith, Malakor, Safira, Zul'Gath) by name so it reads as them bickering over the player. Hovering a companion gives them the next turn.",
     "banter": [
       { "t": "Pick me, pal — pick the FUNNY one. Lilith does sultry, Malakor does loud, Safira does sparkly, Zul'Gath does asleep. I do the JOKES. Every dungeon needs a guy with jokes.", "x": "theatrical-bow" },
-      { "t": "Lilith's gonna purr. Malakor's gonna yell. Safira's gonna grant wishes till her smoke runs out. Me? I'll make the heroes LAUGH on their way down. Best send-off in the catacombs.", "x": "winking" },
+      { "t": "Lilith's gonna purr. Malakor's gonna yell. Safira's gonna grant wishes till her smoke runs out. Me? I'll make the heroes LAUGH on their way down. Best send-off in the catacombs.", "x": "laughing" },
       { "t": "I've been dead three hundred years, pal — Zul'Gath's been around longer, sure, but did HE ever do stand-up? No. He did hoarding. There's a difference.", "x": "smug" },
       { "t": "Safira's bouncing again. Genie's been out of the lamp ten minutes and she still hasn't sat down. Sit DOWN, sparkle-girl. The skeleton's working the room.", "x": "eye-roll" },
-      { "t": "Malakor's loyalty bit — solid, classic, a little dusty. My loyalty bit comes with PUNCHLINES. Same product, better packaging. Sign here.", "x": "mocking" },
-      { "t": "Lilith will tell you you're special. Safira will tell you you're MASTER. Malakor will tell you to shut up. I'll tell you a JOKE — and ALSO that you're doing great. Multitasker.", "x": "winking" },
-      { "t": "Zul'Gath says he's seen it all. Yeah, pal, so have I — same crypts, fewer scales. He just doesn't laugh about it. Watch a dragon try to laugh — it sounds like a barbecue. Tragic.", "x": "cackling" },
+      { "t": "Malakor's loyalty bit — solid, classic, a little dusty. My loyalty bit comes with PUNCHLINES. Same product, better packaging. Sign here.", "x": "facepalm-laugh" },
+      { "t": "Lilith will tell you you're special. Safira will tell you you're MASTER. Malakor will tell you to shut up. I'll tell you a JOKE — and ALSO that you're doing great. Multitasker.", "x": "telling-joke-2" },
+      { "t": "Zul'Gath says he's seen it all. Yeah, pal, so have I — same crypts, fewer scales. He just doesn't laugh about it. Watch a dragon try to laugh — it sounds like a barbecue. Tragic.", "x": "laughing-2" },
       { "t": "Lilith does WARMTH. I'm a SKELETON. Lilith literally cannot beat my temperature gimmick. Pick the cold one, pal — cold is honest.", "x": "mischievous" },
       { "t": "Safira, sweetie, you're SPARKLING again — turn it down, you're upstaging my BONES. Subtle. I'm subtle. ...That was a lie, I'm not subtle, but I AM funny.", "x": "taunting" },
-      { "t": "Pick the dragon if you want gravitas. Pick the demon if you want yelling. Pick the genie if you want a manic episode in a bottle. Pick the SKELETON if you want to ENJOY the apocalypse.", "x": "peace-sign" },
+      { "t": "Pick the dragon if you want gravitas. Pick the demon if you want yelling. Pick the genie if you want a manic episode in a bottle. Pick the SKELETON if you want to ENJOY the apocalypse.", "x": "showing-prop" },
       { "t": "Malakor's been a sergeant. Lilith's been a temptress. Safira's been STORED. Zul'Gath's been bored. Me? I've been a court jester, a corpse, a comedian, AND a corpse again. Career arc, pal.", "x": "narrating" },
       { "t": "Lilith and Safira are competing for sweetest, Malakor's competing for loudest, Zul'Gath's competing for nap. I'm competing for FUNNIEST — and that's the only competition with a real prize.", "x": "smug" },
       { "t": "Three centuries of bones — every joint I've got is technically a punchline. Show me another keeper whose ANATOMY is a bit. You can't. Pick the unique gimmick, pal.", "x": "falling-apart" },
@@ -46,9 +49,9 @@
       { "t": "Lilith's promising soft. I'm promising a SHOW. The dungeon is a venue, pal — you need a host. Hosts are skeletons with charisma. There are exactly one of us. Hi.", "x": "theatrical-bow" },
       { "t": "Malakor's RECEIPT was loyalty. Mine? I've been showing up to this gig for three hundred years and counting — and the gig PAYS in screams. Pick the longest-running act in the crypt.", "x": "proud" },
       { "t": "Zul'Gath snores. Lilith preens. Safira poofs. Malakor SCOWLS. I'm the only one in this lineup actually LOOKING at you, skull-pal. Eye contact. Skeleton eye contact. It's a thing.", "x": "winking" },
-      { "t": "Lilith calls you 'my pet'. Safira calls you 'Master'. Malakor calls you 'boss'. Zul'Gath calls you nothing because Zul'Gath is asleep. I call you skull-pal because I respect your STRUCTURE.", "x": "peace-sign" },
+      { "t": "Lilith calls you 'my pet'. Safira calls you 'Master'. Malakor calls you 'boss'. Zul'Gath calls you nothing because Zul'Gath is asleep. I call you skull-pal because I respect your STRUCTURE.", "x": "showing-prop" },
       { "t": "I lost a finger laughing once, pal. Just popped off. Funniest moment of my afterlife. Pick the keeper whose JOY costs him body parts — that's commitment to the craft.", "x": "falling-apart" },
-      { "t": "Safira grants wishes. Lilith grants kisses. Malakor grants concussions. Zul'Gath grants NAPS. The skeleton grants the one thing the kingdom never lets you have — A LAUGH AT THE END.", "x": "cackling" },
+      { "t": "Safira grants wishes. Lilith grants kisses. Malakor grants concussions. Zul'Gath grants NAPS. The skeleton grants the one thing the kingdom never lets you have — A LAUGH AT THE END.", "x": "laughing-3" },
       { "t": "I am, statistically, the most decomposed keeper in this lineup. That's a leadership quality. Decomposition teaches PATIENCE. Pick the patient one, pal.", "x": "smug" },
       { "t": "Malakor will die FOR you. Cool. I'm ALREADY dead FOR you — bit ahead of him. Saves time on the loyalty paperwork. Sign me up.", "x": "winking" },
       { "t": "Zul'Gath's been waiting a thousand years for the right boss. I've been waiting three hundred. The math says he's LATE, pal. I'm the prompt one.", "x": "smug" },
@@ -56,9 +59,9 @@
       { "t": "I'm going to be honest, pal — I cannot do warm. I cannot do sultry. I cannot do regal. But I CAN do funny. And on a long enough timeline, funny is the only thing that doesn't get old.", "x": "narrating" },
       { "t": "Lilith! Stop staring. Save it for the boss. ...I'm flattered, but I'm NOT the demographic. The skeleton is, frankly, NOBODY'S demographic. Which is why I'm a wildcard. Pick the wildcard!", "x": "winking" },
       { "t": "Three centuries dead and I still GIGGLE, pal. Show me another keeper who can say the same. Zul'Gath? STERN. Malakor? STERN. Even Lilith goes stern. ME? Always giggling.", "x": "laughing" },
-      { "t": "I won't promise glory. I won't promise warmth. I won't promise wishes. I'll promise one bit a day will land HARD enough to outlive YOU, boss. Better legacy than gold. Take it.", "x": "proud" },
+      { "t": "I won't promise glory. I won't promise warmth. I won't promise wishes. I'll promise one bit a day will land HARD enough to outlive YOU, boss. Better legacy than gold. Take it.", "x": "victorious" },
       { "t": "Pick the dragon, the demon, the temptress, the genie — or the funny corpse. Four got billed as 'threat'. ONE got billed as 'court entertainment'. Guess which got CLOSE enough to actually matter.", "x": "mischievous" },
-      { "t": "Last pitch, pal: every other keeper in this lineup is gonna make you FEEL something. I'm gonna make you LAUGH, AND make you feel something. Two for one. Skeleton math.", "x": "peace-sign" },
+      { "t": "Last pitch, pal: every other keeper in this lineup is gonna make you FEEL something. I'm gonna make you LAUGH, AND make you feel something. Two for one. Skeleton math.", "x": "showing-prop" },
       { "t": "All right, all right, my turn's nearly up — pal, look, the dungeon's already grim. There's blood everywhere. The kingdom hates you. Pick the keeper who'll at LEAST make it funny. I'm right here.", "x": "theatrical-bow" }
     ]
   },
@@ -68,10 +71,10 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "Heeeey, the new boss! Three hundred years of dust on these joints and FINALLY someone interesting takes the throne. Welcome to the show, skull-pal.", "x": "theatrical-bow" },
-        { "t": "New face on the throne — and the skeleton's THRILLED. Last few bosses were so SERIOUS. You look like you might actually laugh. Let's find out.", "x": "winking" },
-        { "t": "Boss in the chair! I've been warming up backstage for, oh, three centuries — finally got an audience. Don't blink, you'll miss the opener.", "x": "narrating" },
+        { "t": "New face on the throne — and the skeleton's THRILLED. Last few bosses were so SERIOUS. You look like you might actually laugh. Let's find out.", "x": "laughing-4" },
+        { "t": "Boss in the chair! I've been warming up backstage for, oh, three centuries — finally got an audience. Don't blink, you'll miss the opener.", "x": "telling-joke-3" },
         { "t": "Welcome to the deep dark, pal! It's a fixer-upper. Lots of murder potential. Great bones. I would know — I AM the bones.", "x": "jaw-dropped" },
-        { "t": "Oh, hello! The throne picked someone with a PULSE this time. Refreshing. Don't get me wrong — pulseless guys are great, I'm a fan — but variety is good for the show.", "x": "peace-sign" },
+        { "t": "Oh, hello! The throne picked someone with a PULSE this time. Refreshing. Don't get me wrong — pulseless guys are great, I'm a fan — but variety is good for the show.", "x": "showing-prop" },
         { "t": "There you are, boss! Skeleton, jester, registered nuisance — Rattle Bones, your new co-host. The dungeon's the venue, the heroes are the bit, and you're the headliner.", "x": "theatrical-bow" },
         { "t": "The crypt's quiet been THREE HUNDRED YEARS, pal. Three hundred. I have a LOT of jokes saved up. You may want to pace yourself.", "x": "mischievous" },
         { "t": "A boss! A real, breathing, decision-making boss! I haven't worked with one of those since the last one died screaming! ...Sorry, that landed dark. Anyway, welcome aboard.", "x": "narrating" },
@@ -84,7 +87,7 @@
       "lines": [
         { "t": "Night falls, the curtain lifts on the BUILD phase — your hour, boss. Lay the bit, set the gags, make tomorrow a banger. The crypt is your stage.", "x": "narrating" },
         { "t": "Build hours! The heroes are tucked in dreaming of victory speeches. We're up here NAILING the punchline they'll trip on. Show prep is my favourite part, pal.", "x": "excited" },
-        { "t": "Night {day}, pal! Quiet, yours, all of it. Pick up the chisel, the trap, the minion — turn this crypt into a joke they don't get till they're dying. I'll be over here laughing.", "x": "winking" },
+        { "t": "Night {day}, pal! Quiet, yours, all of it. Pick up the chisel, the trap, the minion — turn this crypt into a joke they don't get till they're dying. I'll be over here laughing.", "x": "telling-joke-4" },
         { "t": "Dark hours, boss! Every great gag needs setup, and setup is a NIGHT thing. Set with care. The payoff lands harder when the setup was patient.", "x": "thinking" },
         { "t": "Lights down, audience asleep, stagehands awake — that's us, pal. Time to rig the venue. Don't half-arse it, the front row is paying in BLOOD.", "x": "mischievous" },
         { "t": "Build phase, Night {day}! Gold in your pocket, grid in front of you, skeleton at your shoulder. The optimal conditions for cruelty. Get to it!", "x": "narrating" },
@@ -92,7 +95,7 @@
         { "t": "Quiet hours, pal. The heroes don't get these. Only YOU and ME do. Use them — quiet is where the murder gets planned, and the murder is where the comedy LIVES.", "x": "whisper" },
         { "t": "Night again! The maze breathes. The skeleton rattles a little, that's just me, don't worry about it. Build, boss, build!", "x": "falling-apart" },
         { "t": "Night {day}, boss! I'd say sleep on it but neither of us does that. So: BUILD. Loudly. Crookedly. With FLAIR.", "x": "dancing" },
-        { "t": "The build hour, pal! Tonight's the rehearsal. Tomorrow's the matinee. Either we kill them laughing or they kill us laughing — only one of those gets a sequel.", "x": "narrating" },
+        { "t": "The build hour, pal! Tonight's the rehearsal. Tomorrow's the matinee. Either we kill them laughing or they kill us laughing — only one of those gets a sequel.", "x": "laughing" },
         { "t": "Dark out, audience snoring — let's get to WORK. The kingdom's writing tomorrow's heroic ballad and we are RUINING the third act in real time.", "x": "evil-grin" },
         { "t": "Night drops! Crew of two — you and a skeleton. Light staff. Famously efficient. Get the chisel, pal, we're DRESSING the set.", "x": "pointing" },
         { "t": "Build hours, boss — the part of the show the audience never sees. Hard work, low glamour, big payoff. The skeleton respects the craft.", "x": "applauding" },
@@ -108,14 +111,14 @@
       "cooldownMs": 6000,
       "lines": [
         { "t": "Doors open, pal! The audience just paid admission in CONFIDENCE — and the skeleton's going to take it back in INSTALMENTS. Day {day}, here we go!", "x": "evil-grin" },
-        { "t": "Daylight! The crypt swings into showtime. Sit back, boss — your nightwork is about to walk straight into a punchline shaped like a hero.", "x": "narrating" },
+        { "t": "Daylight! The crypt swings into showtime. Sit back, boss — your nightwork is about to walk straight into a punchline shaped like a hero.", "x": "telling-joke-5" },
         { "t": "The matinee begins! Front row's brave, second row's nervous, third row's already turning back. Just kidding. There IS no turning back. Hee.", "x": "cackling" },
         { "t": "Day phase! Heroes inside, dungeon up, skeleton bouncing — sorry, RATTLING — same energy. Watch the corridors, boss. Watch the corridors!", "x": "excited" },
         { "t": "The audience has arrived, boss! Some of them with maps. Some of them with HOPE. Both will be confiscated at the door.", "x": "mischievous" },
         { "t": "Day {day} starts! The bit you wrote last night gets PERFORMED today, pal. If it didn't work — well, that's why we have multiple shows.", "x": "winking" },
         { "t": "Showtime! The heroes are reading the marquee right now and the marquee says 'YOU WILL DIE'. They think it's metaphor. The marquee is being LITERAL.", "x": "taunting" },
-        { "t": "Daylight, boss! Now we just watch. My favourite part of the gig — sit, snicker, take notes for next time. The dungeon's doing the comedy now.", "x": "applauding" },
-        { "t": "Day {day} rolls in, pal! The bit's set, the trapdoors are oiled, the punchline's loaded. Sit back. Watch the kingdom write OUR script for once.", "x": "narrating" },
+        { "t": "Daylight, boss! Now we just watch. My favourite part of the gig — sit, snicker, take notes for next time. The dungeon's doing the comedy now.", "x": "telling-joke" },
+        { "t": "Day {day} rolls in, pal! The bit's set, the trapdoors are oiled, the punchline's loaded. Sit back. Watch the kingdom write OUR script for once.", "x": "telling-joke-2" },
         { "t": "The doors open and the heroes stroll in like THEY'RE the show. Aww. Pal, they're the AUDIENCE. The dungeon's the show. Watch them figure it out.", "x": "mocking" },
         { "t": "Daylight! The skeleton has popcorn. ...The skeleton does NOT have popcorn. The skeleton does not have a digestive system. The skeleton has VIBES. Anyway, watch this.", "x": "jaw-dropped" },
         { "t": "Day {day}, boss! The bit you cooked up at midnight gets workshopped LIVE today. The audience is loud and the audience is paying attention. Eat them up.", "x": "pointing" },
@@ -148,7 +151,7 @@
         { "t": "{roomName} placed, pal! Each room's a venue and each venue books its own SCREAM act. The dungeon's a tour now.", "x": "narrating" },
         { "t": "A {roomName}! Look at it. LOOK at it. The skeleton approves — five bones, would die in again.", "x": "chef-kiss" },
         { "t": "{roomName} on the grid! That's another corner for a hero to mistake for safety. The skeleton SAVOURS that mistake, boss.", "x": "evil-grin" },
-        { "t": "A {roomName} settles in! The maze grew a little MEANER. I love when the maze grows meaner. It's like watching a kid graduate.", "x": "sweet" },
+        { "t": "A {roomName} settles in! The maze grew a little MEANER. I love when the maze grows meaner. It's like watching a kid graduate.", "x": "nostalgic" },
         { "t": "{roomName} placed! The corridors flex around it. A maze with new bones is a maze with new TEETH, pal — and the skeleton is, as ever, in favour of teeth.", "x": "mischievous" },
         { "t": "Ooh, a {roomName}! Set the stage, boss. Heroes love walking into a fresh room — they get curious. Curious heroes die first. It's a rule.", "x": "pointing" },
         { "t": "Another {roomName}! The crypt expands. The skeleton is, technically, slightly more lost now — three hundred years and the floorplan STILL changes. Rude.", "x": "annoyed" },
@@ -159,7 +162,8 @@
         { "t": "{roomName} drops in! Brick by brick the bit gets built. The skeleton's been on every joke-construction site for three hundred years — you've got nice form, boss.", "x": "proud" },
         { "t": "Ooh, a {roomName}, my favourite — wait, no, that's the LAST one. They're all my favourite. The skeleton has poor object permanence.", "x": "confused" },
         { "t": "{roomName} placed! Each room's a verse, the dungeon's the song, the heroes are the chorus going 'WHY DID WE COME HERE'. Lyrics by ME.", "x": "singing" },
-        { "t": "A {roomName}! Nice density choice. Tight mazes punish confident heroes. Confident heroes are my FAVOURITE comedy subjects, pal.", "x": "mocking" }
+        { "t": "A {roomName}! Nice density choice. Tight mazes punish confident heroes. Confident heroes are my FAVOURITE comedy subjects, pal.", "x": "mocking" },
+        { "t": "A {roomName}! Mean little addition, pal — the skeleton APPROVES of the cruelty.", "x": "mischievous-2" }
       ]
     },
     "minion_placed": {
@@ -168,7 +172,7 @@
       "lines": [
         { "t": "A {minionType} takes its post! Cast member added. Tell it not to upstage me. ...Actually, no, let it upstage me, the skeleton works better in ensemble.", "x": "theatrical-bow" },
         { "t": "{minionType} stationed! Another body for the bit, boss. Bodies are the costuming budget of a dungeon. Keep dressing the set.", "x": "narrating" },
-        { "t": "A {minionType}! Welcome to the cast, little buddy. Brief contract, generous death scene. Best gig in the crypt.", "x": "sweet" },
+        { "t": "A {minionType}! Welcome to the cast, little buddy. Brief contract, generous death scene. Best gig in the crypt.", "x": "nostalgic" },
         { "t": "{minionType} placed, pal! Every guard's a delay, and delay is how the kingdom learns its place. The skeleton APPROVES of delay.", "x": "smug" },
         { "t": "Ooh, a {minionType}! Stick it where the heroes look LAST. Heroes never look at the floor or behind them — that's free real estate, boss.", "x": "pointing" },
         { "t": "A {minionType} steps to its corner! Don't get attached. ...That's a lie, I tell every minion the same thing and I cry every time. Carry on.", "x": "melancholy" },
@@ -179,7 +183,8 @@
         { "t": "{minionType} stationed! Welcome to dying for the bit, friend. Truly, deeply, it's an honour to be on the same bill as you.", "x": "salute" },
         { "t": "Ooh, a {minionType}! Mind the placement — a minion in the wrong room's just SCENERY. We're not in the scenery business, we're in MURDER.", "x": "pointing" },
         { "t": "A {minionType} settles in! Another set of teeth in the dark. Teeth in the dark — pal, that's the whole brand statement, right there.", "x": "mischievous" },
-        { "t": "{minionType} placed! One more for the dungeon. The skeleton notes the addition. The skeleton is BAD at counting past four. Don't quiz me.", "x": "confused" }
+        { "t": "{minionType} placed! One more for the dungeon. The skeleton notes the addition. The skeleton is BAD at counting past four. Don't quiz me.", "x": "confused" },
+        { "t": "{minionType} stationed — and look at that placement, boss! Sneaky. The skeleton's eyes lit up. ...Sockets lit up. Whatever.", "x": "mischievous-2" }
       ]
     },
     "trap_placed": {
@@ -187,27 +192,29 @@
       "cooldownMs": 7000,
       "lines": [
         { "t": "A trap, laid down quiet! Ooh, the BEST kind of gag — no setup line, no warning, just punchline. The skeleton is a PURIST about traps.", "x": "evil-grin" },
-        { "t": "Trap placed, boss! Patient comedy. The trap doesn't argue, doesn't grandstand, just WAITS — and then the hero arrives. POOF. Comic timing!", "x": "applauding" },
+        { "t": "Trap placed, boss! Patient comedy. The trap doesn't argue, doesn't grandstand, just WAITS — and then the hero arrives. POOF. Comic timing!", "x": "telling-joke-3" },
         { "t": "A trap! Hide it well — a visible trap is just helpful advice. We're not in the helpful business, pal, we're in NIGHTMARE.", "x": "mischievous" },
-        { "t": "Trap on the floor! The maze gets a little stand-up routine. Every step a setup, every wrong step a punchline. The crypt does open mic NIGHTLY.", "x": "narrating" },
+        { "t": "Trap on the floor! The maze gets a little stand-up routine. Every step a setup, every wrong step a punchline. The crypt does open mic NIGHTLY.", "x": "telling-joke-4" },
         { "t": "A trap, set and waiting! It doesn't care if the hero is brave. Bravery isn't on the trap's notes. The skeleton finds that DEEPLY funny.", "x": "cackling" },
         { "t": "Trap laid down, boss! Quiet cruelty's underrated. Most of the heroes who die down here die to something that didn't even ROAR. The skeleton thinks that's poetry.", "x": "winking" },
         { "t": "A trap! The floor stops being a floor and starts being a JOKE. I love the moment of transition.", "x": "theatrical-bow" },
         { "t": "Trap in place! Heroes look at swords. Heroes look at minions. Heroes never look DOWN. That's our whole bit, pal — and you just funded it.", "x": "pointing" },
         { "t": "Ooh, a trap! Hidden teeth, those are. The visible ones get parried. The hidden ones get LAUGHS. Skeleton-approved comedy.", "x": "smug" },
         { "t": "A trap, ready to fire! The maze grins a little wider. I'm grinning a lot wider, but I always am, jaw's stuck.", "x": "falling-apart" },
-        { "t": "Trap set, boss! Patient hunters, traps. Three hundred years of crypt taught me — the patient hunter eats. Always.", "x": "narrating" },
-        { "t": "Another trap! The dungeon becomes a gallery of bad ideas the heroes will have. I love a gallery. The skeleton is, technically, in one.", "x": "mischievous" }
+        { "t": "Trap set, boss! Patient hunters, traps. Three hundred years of crypt taught me — the patient hunter eats. Always.", "x": "facepalm-laugh" },
+        { "t": "Another trap! The dungeon becomes a gallery of bad ideas the heroes will have. I love a gallery. The skeleton is, technically, in one.", "x": "mischievous" },
+        { "t": "Trap laid! Hidden, patient, MEAN. The skeleton is SO into this trap. Sneaky little bit, boss.", "x": "mischievous-2" },
+        { "t": "Trap down! The skeleton's GRINNING about it — yeah, that one's gonna RUIN someone's day. Lovely.", "x": "mischievous-2" }
       ]
     },
     "item_placed": {
       "priority": 0,
       "cooldownMs": 8000,
       "lines": [
-        { "t": "An item placed! Small things, items — but a great bit is built on tiny things, boss. Comedy's the same. Furniture matters.", "x": "narrating" },
+        { "t": "An item placed! Small things, items — but a great bit is built on tiny things, boss. Comedy's the same. Furniture matters.", "x": "facepalm-laugh" },
         { "t": "Ooh, a fixture! The dungeon gets a prop. Even the props can kill, pal — that's the magic of theatre.", "x": "winking" },
         { "t": "Item placed! The dungeon grows more itself. The skeleton respects the detail work — anyone can drop a monster, dressing the set is ART.", "x": "applauding" },
-        { "t": "A fixture in the halls! Quiet little leverage. The kind that helps the bit land without ever taking a bow itself. The skeleton's favourite kind.", "x": "sweet" },
+        { "t": "A fixture in the halls! Quiet little leverage. The kind that helps the bit land without ever taking a bow itself. The skeleton's favourite kind.", "x": "nostalgic" },
         { "t": "Item set! Not every cruelty needs to ROAR. Some just sit there, polite, and matter. Polite cruelty, boss — chef's kiss.", "x": "chef-kiss" },
         { "t": "An item! Subtle little weapon. The skeleton was a subtle little weapon once, before the wars. ...Yeah, the wars were ROUGH on subtle.", "x": "nostalgic" },
         { "t": "Placed, pal! The dungeon's never finished — you can keep stuffing it with details forever. The skeleton would know, he's been stuffed full of detail for three centuries.", "x": "narrating" }
@@ -259,7 +266,7 @@
         { "t": "A fixture sold! The maze hardly notices. Reinvest it before you forget — gold not spent is gold that goes WEIRD on you, pal.", "x": "winking" },
         { "t": "You unmade a fixture! The grid's a draft until dawn — edit without a pang. The skeleton is, frankly, also a draft. Look how draft I am.", "x": "falling-apart" },
         { "t": "Item gone, coin regained! Pick its replacement with more care than its removal, boss. Endings are easy, beginnings are ART.", "x": "thinking" },
-        { "t": "Sold! Little piece, big regret? Probably not. Move on, pal — the skeleton's only ever had small regrets and look, he's THRIVING.", "x": "peace-sign" }
+        { "t": "Sold! Little piece, big regret? Probably not. Move on, pal — the skeleton's only ever had small regrets and look, he's THRIVING.", "x": "showing-prop" }
       ]
     },
     "moved": {
@@ -328,22 +335,29 @@
         { "t": "Another {advClass}! The skeleton was a {advClass} ONCE — okay, not really, the skeleton was a JESTER, but he WANTED to be a {advClass}. Look how that worked out. Hint: BONES.", "x": "falling-apart" },
         { "t": "A {advClass} struts in, sure the ballad's half-written! It is. Just not the way they think. The maze writes the EPITAPH instead.", "x": "smug" },
         { "t": "{advName} arrives! The skeleton sizes them up — height, gear, ego, that little twitch under the eye, yeah, this one's a CAREFUL coward in the front, foolish coward in the back. Watch for it.", "x": "narrating" },
-        { "t": "A {advClass} steps inside! No door behind them, only opportunity. The skeleton, technically, is opportunity. Hi.", "x": "winking" }
+        { "t": "A {advClass} steps inside! No door behind them, only opportunity. The skeleton, technically, is opportunity. Hi.", "x": "winking" },
+        { "t": "A {advClass}! Already?? Boss, the timing on this wave is BRUTAL — the skeleton barely has his bones in order.", "x": "surprised" },
+        { "t": "{advName} arrives — oh! Oh! That was SUDDEN, pal! The skeleton wasn't expecting them so soon!", "x": "surprised" },
+        { "t": "Another {advClass}! And the skeleton is UNIMPRESSED — same gear, same stride, same dying. Bring something NEW next time, kingdom.", "x": "unimpressed" },
+        { "t": "A {advClass}! ...Another one. The skeleton is UNIMPRESSED — same gear, same swagger, same dying. Variety, kingdom, please.", "x": "unimpressed" },
+        { "t": "{advName} arrives, a {advClass}! The skeleton has seen THIS one before. Different face, same flavor. Unimpressed.", "x": "unimpressed" }
       ]
     },
     "first_blood": {
       "priority": 2,
       "cooldownMs": 0,
       "lines": [
-        { "t": "First blood! The opener LANDED, boss! Day's got a beat now — and the skeleton can FEEL the show finding its rhythm.", "x": "applauding" },
+        { "t": "First blood! The opener LANDED, boss! Day's got a beat now — and the skeleton can FEEL the show finding its rhythm.", "x": "telling-joke-5" },
         { "t": "First one down! The crypt clears its throat. Everything else today follows from this — momentum's a beautiful thing in a slaughter, pal.", "x": "evil-grin" },
         { "t": "The day's first kill! Ooh, that's a good opener. The skeleton's tearing up — figuratively, again, no ducts — but the spirit is THERE.", "x": "crying-laughing" },
-        { "t": "First blood drawn, boss! A maze that kills early kills OFTEN. Same with comedy — open strong, you ride the energy all day.", "x": "narrating" },
+        { "t": "First blood drawn, boss! A maze that kills early kills OFTEN. Same with comedy — open strong, you ride the energy all day.", "x": "facepalm-laugh" },
         { "t": "The day's first body! The skeleton SAVOURS this one. Always do. The first one tells you everything about the show.", "x": "chef-kiss" },
         { "t": "First blood! The heroes have learned the dungeon's not a rumour. Now we teach them all the rest. The skeleton's READY, pal.", "x": "excited" },
         { "t": "One already! The maze proved itself in the opening seconds. The skeleton would CLAP harder if his bones could take it. (They can't. He'll moderate.)", "x": "clapping" },
         { "t": "First blood and EARLY, boss! The bit landed FAST. The skeleton allows himself one tiny squeal. ...There. Moving on, dignified again.", "x": "winking" },
-        { "t": "The day's first death! Ooh. Three hundred years of skeleton-life and the first kill of a day still HITS, pal. The job stays fresh.", "x": "nostalgic" }
+        { "t": "The day's first death! Ooh. Three hundred years of skeleton-life and the first kill of a day still HITS, pal. The job stays fresh.", "x": "nostalgic" },
+        { "t": "FIRST blood and ALREADY?! Boss, the skeleton was NOT prepared — what a fast wave, what a beautiful opener!", "x": "surprised" },
+        { "t": "First one down! ...Wait, already? OH! Already! The skeleton's adjusting, pal — that was a FAST kill!", "x": "surprised" }
       ]
     },
     "adv_killed": {
@@ -359,7 +373,7 @@
         { "t": "A hero ended! The skeleton's seen whole guilds whittled to a footnote by patient kills. One at a time. Steady. Yours is steady.", "x": "thinking" },
         { "t": "The {advClass} is down! Good work, or good luck — same outcome, the {advClass} is just as dead either way. Skeleton doesn't audit the route.", "x": "smug" },
         { "t": "Dead! The maze closes over them. Restful. The skeleton finds that restful. The skeleton, granted, also finds DEAD restful. So.", "x": "melancholy" },
-        { "t": "{advName} ends here — another {advClass} who would NOT have learned from the mistake. Bless their doomed little hearts. Stack them, boss, stack them.", "x": "narrating" },
+        { "t": "{advName} ends here — another {advClass} who would NOT have learned from the mistake. Bless their doomed little hearts. Stack them, boss, stack them.", "x": "facepalm-laugh" },
         { "t": "A kill, pal! The maze repays your nightwork in heroes. Best currency in the dungeon — better than gold, almost. ALMOST. The skeleton corrects himself.", "x": "winking" },
         { "t": "The {advClass} falls! ...Felt a little something. Don't worry, it was glee, mostly glee. Maybe a smidge of NOTHING. Mostly glee.", "x": "bored" },
         { "t": "Dead! The throne is one whole hero safer than a moment ago. Stack those safer-moments, boss — they're how a dungeon WINS.", "x": "salute" },
@@ -367,14 +381,35 @@
         { "t": "One more for the dark! The dungeon has a deep appetite. Keep feeding it, pal — the skeleton would help but, you know, no stomach.", "x": "falling-apart" },
         { "t": "The hero is dead, CLEAN! The skeleton appreciates a clean kill. Messy ones lack STYLE. We're doing comedy here, not BUTCHERY. ...A little butchery. Tasteful amount.", "x": "chef-kiss" },
         { "t": "A {advClass} ended! Walked in announcing themselves the chosen one, walked out... well, didn't walk out. Beautiful symmetry, pal.", "x": "smug" },
-        { "t": "Dead, boss! Don't pause too long to admire it — the maze never pauses. The skeleton, however, ALWAYS pauses to admire. Bad habit. Moving on!", "x": "applauding" },
+        { "t": "Dead, boss! Don't pause too long to admire it — the maze never pauses. The skeleton, however, ALWAYS pauses to admire. Bad habit. Moving on!", "x": "facepalm-laugh" },
         { "t": "Down! The day grows a voice quieter. The skeleton finds that the sound of a dungeon WINNING. His favourite kind of silence.", "x": "whisper" },
         { "t": "The {advClass} falls! Confident on the way in, very QUIET on the way out. The maze does that to confidence. Free service we provide.", "x": "winking" },
         { "t": "Dead! The skeleton heard the death rattle and felt SEEN. Solidarity moment. Anyway, who's next.", "x": "narrating" },
         { "t": "{advName} swore today the dungeon wouldn't get them, boss! The skeleton SO enjoyed hearing them be wrong. Three centuries and still tickles.", "x": "cackling" },
         { "t": "The {advClass} ends! The skeleton has filed this death next to the others. Big filing cabinet, the skeleton's. Mostly empty inside. Like the ribs.", "x": "narrating" },
         { "t": "Dead! Another! The skeleton is JAW-DROPPED — literally, the jaw, it's loose again — let me — there. Better. Feed it the next one, pal!", "x": "jaw-dropped" },
-        { "t": "DEAD! Another body! The skeleton is rattling SO loud right now, pal — the bones are doing a little dance — feed it more, the skeleton wants the BIT to CHEW on!", "x": "dancing" }
+        { "t": "DEAD! Another body! The skeleton is rattling SO loud right now, pal — the bones are doing a little dance — feed it more, the skeleton wants the BIT to CHEW on!", "x": "dancing" },
+        { "t": "Dead! Boss, I am GLOATING — sorry, sorry, three centuries of crypt and I still gloat. Sue me. Look at the {advClass}'s face. LOOK at it.", "x": "gloating" },
+        { "t": "Down! Told you, didn't I, pal? Said the {advClass} would trip on that corner. SAID it. The skeleton is, on occasion, RIGHT.", "x": "gloating" },
+        { "t": "{advName} ends here, boss! Whole walk in, the skeleton was THINKING 'this one's mine' — and look! Called it!", "x": "gloating" },
+        { "t": "Dead! Cackling so hard the joints are RATTLING — pal, this is the GOOD stuff!", "x": "laughing-hard" },
+        { "t": "Down! The skeleton is LAUGHING so hard he's literally vibrating — three centuries dead, this NEVER stops being funny!", "x": "laughing-hard-2" },
+        { "t": "Another {advClass} down! And the skeleton is LAUGHING-HARD now, pal — the joke gets BETTER every wave!", "x": "laughing-hard" },
+        { "t": "Dead! The {advClass} ran STRAIGHT into the trap, boss. The same trap. We MOVED it last night, they STILL ran into it. ...I can't.", "x": "facepalm-laugh" },
+        { "t": "The {advClass} dies! Standing in the exact spot the LAST {advClass} died, of course. Heroes have no sense of self-preservation, pal — and the skeleton FACEPALMS.", "x": "facepalm-laugh" },
+        { "t": "Dead — and BOSS, I am OUT of breath laughing, and I don't BREATHE! That's a comedy MIRACLE!", "x": "crying-laughing" },
+        { "t": "{advName} falls! Hee hee. The skeleton chuckles. Three centuries of chuckles and counting.", "x": "laughing-2" },
+        { "t": "Down! The skeleton laughs — pal, it's a polite laugh, the kind you give a friend's bad joke. The maze killed politely. Beautiful.", "x": "laughing-3" },
+        { "t": "Dead! The skeleton GIGGLES — sorry, sorry, professional laugh in a sec. ...Okay. Beautiful kill, boss.", "x": "laughing-4" },
+        { "t": "{advName} is down! Boss, the skeleton would TAUNT the corpse, but the corpse isn't listening. ...I'll taunt the next one PRE-emptively.", "x": "taunting" },
+        { "t": "Dead! The skeleton's CACKLING-HARD now, pal! Whole-body laugh! Bones are RATTLING!", "x": "laughing-hard" },
+        { "t": "Down! Boss, the skeleton is LAUGHING SO HARD his jaw came loose — there it goes — picking it up — okay we're good.", "x": "laughing-hard-2" },
+        { "t": "Another! Three centuries dead and the skeleton can STILL belly-laugh — wait, no belly. JAW-laugh? Bone-laugh? Whatever. HARD laugh.", "x": "laughing-hard-2" },
+        { "t": "Dead! The skeleton is on his FEET laughing — okay he's always on his feet, but the SPIRIT of standing up to laugh.", "x": "laughing-hard" },
+        { "t": "The {advClass} ends! Skeleton chuckles softly. Polite chuckle. The other ones will be louder.", "x": "laughing-2" },
+        { "t": "Dead. The skeleton laughs ONCE — short, sharp. Three centuries of laughing taught him brevity. ...Sometimes.", "x": "laughing-3" },
+        { "t": "{advName} down! Skeleton LAUGHS — long one, this. Pacing himself. The day's young.", "x": "laughing-4" },
+        { "t": "Dead! Heh. Heh. The skeleton's HEHS are world-class, boss — three centuries of practice.", "x": "laughing-4" }
       ]
     },
     "adv_fled": {
@@ -385,7 +420,7 @@
         { "t": "A {advClass}, fleeing! The dungeon frightened it. Beautiful work, boss — fear is a gift that goes HOME with them.", "x": "evil-grin" },
         { "t": "One runs! Let it. A fled hero is a walking advertisement for the dungeon's brand. The skeleton loves free marketing.", "x": "mischievous" },
         { "t": "The {advClass} flees! Skeleton has watched braver things flee, pal. Bravery's just a question of how recently someone got hurt. We hurt them PLENTY.", "x": "smug" },
-        { "t": "{advName} retreats! The halls won without even a corpse this time. A retreat is a CONFESSION, boss — the skeleton'll file it as a victory.", "x": "applauding" },
+        { "t": "{advName} retreats! The halls won without even a corpse this time. A retreat is a CONFESSION, boss — the skeleton'll file it as a victory.", "x": "victorious" },
         { "t": "It RUNS! The maze didn't need to finish it — just needed to be ITSELF. Loudly. Memorably. Comically.", "x": "theatrical-bow" },
         { "t": "A hero in flight! They'll tell the others the crypt has teeth. Warning recruits MORE heroes. The skeleton is, as ever, in favour of more heroes.", "x": "narrating" },
         { "t": "{advName} chooses living over glory! Heretical among heroes. The maze permits it. This ONCE. Skeleton's feeling generous, pal.", "x": "winking" },
@@ -394,8 +429,10 @@
         { "t": "The {advClass} routes! Let the dark have the last word — it always does eventually. The dark and the skeleton have an understanding.", "x": "whisper" },
         { "t": "It flees! Pfft. The skeleton has outlasted three centuries — one scampering {advClass} doesn't faze him. Let it scamper.", "x": "unimpressed" },
         { "t": "{advName} flees! The brave {advClass}, the CHOSEN {advClass} — leaving with courage MISLAID somewhere in a corridor. Predictable. Hilarious!", "x": "laughing" },
-        { "t": "The {advClass} runs! ...Wait, did they drop something? They DID. The skeleton notes the dropped loot — beautiful, free souvenir.", "x": "applauding" },
-        { "t": "Fled! It owes the dark a death, boss. The skeleton KEEPS that ledger. Nothing walks off forever — they always come back. They always do.", "x": "narrating" }
+        { "t": "The {advClass} runs! ...Wait, did they drop something? They DID. The skeleton notes the dropped loot — beautiful, free souvenir.", "x": "clapping" },
+        { "t": "Fled! It owes the dark a death, boss. The skeleton KEEPS that ledger. Nothing walks off forever — they always come back. They always do.", "x": "facepalm-laugh" },
+        { "t": "It RUNS! Boss, the skeleton is TAUNTING from the back row — yeah, you better run, {advClass}! See you tomorrow! With FRIENDS!", "x": "taunting" },
+        { "t": "Fleeing! The {advClass} BOLTS! Gloat-time, boss — the skeleton is GLOATING and you can't stop him.", "x": "gloating" }
       ]
     },
     "adv_escaped": {
@@ -418,11 +455,12 @@
       "priority": 3,
       "cooldownMs": 0,
       "lines": [
-        { "t": "Party WIPED! Boss, the entire setlist landed — every joke, every callback, every drumroll. The skeleton is on his FEET. ...He's always on his feet. But emotionally, he's STANDING.", "x": "applauding" },
+        { "t": "Party WIPED! Boss, the entire setlist landed — every joke, every callback, every drumroll. The skeleton is on his FEET. ...He's always on his feet. But emotionally, he's STANDING.", "x": "facepalm-laugh" },
         { "t": "TOTAL kill! The whole crew, gone! The dungeon ate ALL of them, boss — the skeleton has not seen a sweep this clean in three centuries.", "x": "chef-kiss" },
         { "t": "A wipe! The entire {advClass}-led party in the ground! The skeleton's RATTLING with joy — listen — that's bones celebrating, pal!", "x": "dancing" },
         { "t": "Wipe! Beautiful. The kingdom sent a full warband and we sent back FILE FOLDERS. Skeleton-approved outcome.", "x": "evil-grin" },
-        { "t": "Whole party DOWN! Boss, this is what we work for. Three hundred years of crypt and a full sweep STILL feels new. Drink it in. ...Don't actually drink, you'll spill on me.", "x": "winking" }
+        { "t": "Whole party DOWN! Boss, this is what we work for. Three hundred years of crypt and a full sweep STILL feels new. Drink it in. ...Don't actually drink, you'll spill on me.", "x": "winking" },
+        { "t": "PARTY WIPED — and the skeleton is LAUGHING-HARD-AS-HELL, pal! The whole squad! What a SHOW!", "x": "laughing-hard-2" }
       ]
     },
     "wave_cleared": {
@@ -433,7 +471,7 @@
         { "t": "Wave done! Heroes gone. The dungeon catches its breath. ...The dungeon doesn't breathe. The skeleton doesn't breathe. NEITHER OF US BREATHE. Anyway, good day.", "x": "winking" },
         { "t": "Wave cleared! No survivors, no notes. The skeleton's filing this one under 'TIGHT'. Three hundred years of filing, you develop a system.", "x": "narrating" },
         { "t": "Day complete! The audience went home in body bags. Best kind of audience — quiet, departed, talked about for centuries.", "x": "smug" },
-        { "t": "Wave done, boss! That's the matinee wrapped. The skeleton suggests a short rest before the evening show. ...There IS no evening show, just night. But the joke landed.", "x": "narrating" }
+        { "t": "Wave done, boss! That's the matinee wrapped. The skeleton suggests a short rest before the evening show. ...There IS no evening show, just night. But the joke landed.", "x": "telling-joke" }
       ]
     },
     "minion_died": {
@@ -445,7 +483,7 @@
         { "t": "Minion down! Don't pause too long, pal — there's more to do. The skeleton will mourn for both of us. He's GOOD at mourning. Stretches the bones.", "x": "narrating" },
         { "t": "{minionType} ended. Replace it tonight, boss — a roster gap's a hole in the bit, and the skeleton hates a hole in the bit.", "x": "thinking" },
         { "t": "A loss! The {minionType} did good work. The skeleton's seen worse cast members. Honestly the {minionType} was a STAR. Brief but a STAR.", "x": "applauding" },
-        { "t": "The {minionType} falls! ...Tragic. Three lines, then dead — the OLDEST joke structure in the book. We respect the structure.", "x": "narrating" },
+        { "t": "The {minionType} falls! ...Tragic. Three lines, then dead — the OLDEST joke structure in the book. We respect the structure.", "x": "telling-joke-2" },
         { "t": "Down! A minion gone, but the bit moves on. The skeleton's seen plenty of acts lose a member mid-tour. Show must go on, pal.", "x": "salute" },
         { "t": "Minion casualty! Note the spot — it's a weak corridor. The skeleton suggests REINFORCING tonight. Strongly suggests. With finger-pointing.", "x": "pointing" }
       ]
@@ -456,7 +494,7 @@
       "lines": [
         { "t": "LEVEL up! Boss got TALLER, somehow, even though you didn't move! Three hundred years and the skeleton still doesn't understand the math — but he LOVES it.", "x": "excited" },
         { "t": "You levelled, pal! Power rolling in. The dungeon got HEAVIER. The skeleton's PROUD — and proud is hard for a skeleton, he has nothing to puff out.", "x": "proud" },
-        { "t": "Level {level}, boss! The throne sits TALLER. Heroes are sweating in real time and they haven't even SEEN you yet. Beautiful.", "x": "applauding" },
+        { "t": "Level {level}, boss! The throne sits TALLER. Heroes are sweating in real time and they haven't even SEEN you yet. Beautiful.", "x": "clapping" },
         { "t": "Level UP! Ooh, the dungeon HUMS different now — the skeleton can feel it. The skeleton can feel ABOUT seven things and this is one of them. Feels GOOD.", "x": "chef-kiss" },
         { "t": "You rose, boss! Three hundred years of bone-jangling and the skeleton still gets a SQUEAL out of a level. Listen. There it goes. (Tiny skeleton squeal.)", "x": "winking" }
       ]
@@ -471,9 +509,14 @@
         { "t": "The build hours go on, pal. The skeleton's counting his own ribs again — old habit, three centuries of bone-counting, the count is always 24, it's always 24.", "x": "bored" },
         { "t": "The dark settles. Skeleton's bored — productively bored, mind, just looking for SOMETHING to comment on. Spend some gold?", "x": "bored" },
         { "t": "Night quiet. The skeleton's humming an old jester's tune. ...Don't ask. The lyrics are mostly insults. It WAS a different time.", "x": "singing" },
-        { "t": "Long pause, boss! The skeleton supports a thoughtful keeper, but at some point thoughtful becomes STALLING. Drop a piece, any piece!", "x": "narrating" },
+        { "t": "Long pause, boss! The skeleton supports a thoughtful keeper, but at some point thoughtful becomes STALLING. Drop a piece, any piece!", "x": "out-of-time" },
         { "t": "Crypt-quiet. The skeleton can hear his own joints click. ...Sorry, that's just the SOUND of the skeleton at rest. Carry on.", "x": "falling-apart" },
-        { "t": "Hm. The build phase persists. The skeleton awaits inspiration WITH you. ...Mostly without you. Drop SOMETHING, pal.", "x": "thinking" }
+        { "t": "Hm. The build phase persists. The skeleton awaits inspiration WITH you. ...Mostly without you. Drop SOMETHING, pal.", "x": "thinking" },
+        { "t": "Long night, boss. Skeleton's just LOAFING here. ...That's a verb now. Loafing. Look it up.", "x": "lazy" },
+        { "t": "Quiet night. Skeleton's about to NOD OFF — but I don't have eyelids, so the bones just sort of... sit. Three centuries of sitting.", "x": "sleeping" },
+        { "t": "Yawn — okay, FAKE yawn, no lungs, but the GESTURE of yawning. Sleepy time, pal. Build something so I can wake up.", "x": "sleeping" },
+        { "t": "Long night, pal. Skeleton's just LAZY-leaning here. Three centuries of lazy-leaning. The lazy-lean is, frankly, ARTFUL.", "x": "lazy" },
+        { "t": "Yawn. The skeleton's lazy night. Build something or the bones nod off.", "x": "lazy" }
       ]
     },
     "idle_day": {
@@ -492,16 +535,18 @@
       "priority": 0,
       "cooldownMs": 18000,
       "lines": [
-        { "t": "Long pause, boss. The skeleton respects the pause. Pauses are where the comedy LIVES. ...Probably keep the pause SHORT, though. Tick tock.", "x": "narrating" },
+        { "t": "Long pause, boss. The skeleton respects the pause. Pauses are where the comedy LIVES. ...Probably keep the pause SHORT, though. Tick tock.", "x": "out-of-time" },
         { "t": "Hm. Skeleton's getting THOUGHTS. None of them helpful. Most of them about how long my left tibia has been a quarter-inch too short. Anyway.", "x": "thinking" },
         { "t": "Quiet stretch. The skeleton has practised quiet stretches for three centuries — he's QUALIFIED in them, frankly. But yours are getting LONG.", "x": "bored" },
         { "t": "Doing okay over there, pal? The skeleton's just checking in. ...That's a lie, the skeleton's checking in AND nudging. Combination action.", "x": "winking" },
         { "t": "The dungeon waits. Patiently. The skeleton waits — slightly less patiently. Both of us would prefer ACTION, boss.", "x": "narrating" },
-        { "t": "Skeleton's been telling himself a joke. Out loud. To himself. ...You can ignore that. Or you can JOIN IN — I'm easy.", "x": "winking" },
+        { "t": "Skeleton's been telling himself a joke. Out loud. To himself. ...You can ignore that. Or you can JOIN IN — I'm easy.", "x": "telling-joke-3" },
         { "t": "Pause! The maze hums. The skeleton hums BACK. We're in harmony. ...You could break the harmony with an INPUT, pal.", "x": "singing" },
-        { "t": "Long, long stretch. Skeleton's reviewing the act — looks GOOD, you're doing fine — but the audience grows restless and so does the bone-man.", "x": "thinking" },
-        { "t": "Hm. Three centuries of patience and even the skeleton's tapping a femur. Tap tap. Tap tap. ...That's me, tapping a femur.", "x": "annoyed" },
-        { "t": "Idle bit, huh? The skeleton supports IDLING as an art form — but the maze likes ACTIVITY. Compromise: do something. Anything. SOMETHING.", "x": "pointing" }
+        { "t": "Long, long stretch. Skeleton's reviewing the act — looks GOOD, you're doing fine — but the audience grows restless and so does the bone-man.", "x": "lazy" },
+        { "t": "Hm. Three centuries of patience and even the skeleton's tapping a femur. Tap tap. Tap tap. ...That's me, tapping a femur.", "x": "out-of-time" },
+        { "t": "Idle bit, huh? The skeleton supports IDLING as an art form — but the maze likes ACTIVITY. Compromise: do something. Anything. SOMETHING.", "x": "pointing" },
+        { "t": "Skeleton's just chilling, pal. Three centuries of chill. The chill is, you might say, ETERNAL.", "x": "lazy" },
+        { "t": "Long pause, boss. The skeleton has gone INTO sleep-mode. ...Not actually, but the bones are very still.", "x": "sleeping" }
       ]
     },
     "poke": {
@@ -511,14 +556,14 @@
         { "t": "Hi! ...You poked me. Skeleton's first poke in three centuries — TOUCHED.", "x": "winking" },
         { "t": "Ow! Just kidding, I don't feel things. ...Mostly.", "x": "falling-apart" },
         { "t": "Oh, hi pal! Poking the skeleton — bold. Most folks AVOID poking the skeleton. You're already different.", "x": "theatrical-bow" },
-        { "t": "Hey hey! What's up, boss?", "x": "peace-sign" },
+        { "t": "Hey hey! What's up, boss?", "x": "showing-prop" },
         { "t": "A poke! The skeleton accepts the poke. The skeleton ALSO returns the poke, but, like, eye-level — I'm pointing right BACK at you.", "x": "pointing" },
-        { "t": "Pat the skeleton, get a JOKE — that's the deal. Knock knock?", "x": "winking" },
-        { "t": "Oh hello! You alright there, boss?", "x": "sweet" },
+        { "t": "Pat the skeleton, get a JOKE — that's the deal. Knock knock?", "x": "telling-joke-4" },
+        { "t": "Oh hello! You alright there, boss?", "x": "nostalgic" },
         { "t": "Ahhh! ...Just kidding, that was the dramatic version. The skeleton enjoys being poked. Almost never happens. Cherish moment.", "x": "theatrical-bow" },
         { "t": "Poked! Skeleton noted. Skeleton will return — wait, no, the bit is to ignore it and then bring it up THREE WAVES from now. Setup.", "x": "mischievous" },
         { "t": "Eee! Tickled by a thumb, in front of the heroes! The skeleton has IMAGE to maintain, boss.", "x": "winking" },
-        { "t": "Hi! Skeleton's right here. Whatever you need. Always.", "x": "sweet" }
+        { "t": "Hi! Skeleton's right here. Whatever you need. Always.", "x": "nostalgic" }
       ]
     },
     "idle_nudge": {
@@ -537,7 +582,7 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "And... that's the bit, boss. Curtain down. The skeleton's BOWING — see — full bow. Three centuries of crypt and you're the most fun boss yet. Truly.", "x": "theatrical-bow" },
-        { "t": "Show's over, pal. The kingdom WON one. ...They won't keep it. The skeleton's already cooking the comeback. Show me where to start next time.", "x": "narrating" },
+        { "t": "Show's over, pal. The kingdom WON one. ...They won't keep it. The skeleton's already cooking the comeback. Show me where to start next time.", "x": "victorious" },
         { "t": "Game over! The skeleton has had a BLAST. ...A respectful blast. Solemn blast. Mostly blast.", "x": "melancholy" },
         { "t": "The throne empties. The skeleton stays — three hundred years and he's still standing, mostly — and the next show'll START with him still here. Come back soon, boss.", "x": "salute" },
         { "t": "Curtain down. The skeleton appreciates the gig. Truly. Don't let the kingdom celebrate too long — they ALWAYS celebrate too long, that's how you sneak back in.", "x": "winking" }
@@ -548,7 +593,7 @@
       "cooldownMs": 6000,
       "lines": [
         { "t": "Ooh, you're moving the boss yourself! The skeleton respects a hands-on keeper. Mostly because he doesn't have great hands himself.", "x": "applauding" },
-        { "t": "Direct control! Look at you, MICROMANAGING the throne! The skeleton's a fan — micromanagement is, frankly, how comedy is REFINED.", "x": "winking" },
+        { "t": "Direct control! Look at you, MICROMANAGING the throne! The skeleton's a fan — micromanagement is, frankly, how comedy is REFINED.", "x": "telling-joke-5" },
         { "t": "Manual mode, pal! Don't get cocky. The skeleton's seen plenty of bosses get cocky on the joystick and walk into a {advClass}.", "x": "narrating" }
       ]
     },
@@ -569,7 +614,7 @@
         { "t": "{minionName} EVOLVED! Boss, look at that — different SILHOUETTE entirely. The kingdom's about to learn a new shape today.", "x": "mind-blown" },
         { "t": "Evolution! {minionName} is something ELSE now! The skeleton has SEEN evolutions and this one's HOT.", "x": "chef-kiss" },
         { "t": "A new form! {minionName} got UPGRADED. Skeleton hasn't evolved in centuries — bones don't really do it. Lucky you.", "x": "applauding" },
-        { "t": "{minionName} ascended! That's not the same {minionName} anymore — the skeleton can FEEL the difference, and the skeleton can feel about seven things.", "x": "narrating" }
+        { "t": "{minionName} ascended! That's not the same {minionName} anymore — the skeleton can FEEL the difference, and the skeleton can feel about seven things.", "x": "facepalm-laugh" }
       ]
     },
     "minion_bounty": {
@@ -587,7 +632,8 @@
       "lines": [
         { "t": "Boss fight INCOMING, pal! The headliner's coming. ALL the way to the throne. The skeleton is SHOOK — well, shaking — same thing on this body.", "x": "falling-apart" },
         { "t": "They're coming for YOU, boss! Big moment. The skeleton's been waiting THREE CENTURIES to watch a boss earn his title in real time. Don't disappoint!", "x": "excited" },
-        { "t": "Final corridor breached! Hero at the door of the throne. The skeleton suggests, with great love, that you HIT THEM HARD.", "x": "pointing" }
+        { "t": "Final corridor breached! Hero at the door of the throne. The skeleton suggests, with great love, that you HIT THEM HARD.", "x": "pointing" },
+        { "t": "BOSS FIGHT incoming, pal! The skeleton is genuinely SHOCKED — okay he's faking shocked but the energy is SHOCKED, you know what I mean.", "x": "shocked" }
       ]
     },
     "boss_fight_start": {
@@ -624,7 +670,10 @@
         { "t": "Ow! ...That was YOU, boss, not me, but I felt for you. Solidarity moment.", "x": "mock-horror" },
         { "t": "Took a hit! The kingdom's getting bold. The skeleton suggests — strongly — that they REGRET it.", "x": "pointing" },
         { "t": "Hp's dipping, pal! Lean into the minions. Skeleton would jump in himself but his contract specifies COACHING, not BLEEDING.", "x": "narrating" },
-        { "t": "Hurt, boss! Tighten up. The skeleton has seen plenty of bosses bleed and come back — bleeding's just chapter two.", "x": "narrating" }
+        { "t": "Hurt, boss! Tighten up. The skeleton has seen plenty of bosses bleed and come back — bleeding's just chapter two.", "x": "narrating" },
+        { "t": "OW! Boss took a hit! The skeleton is SHOCKED — okay, not actually shocked, three centuries of damage but the bit lands. Tighten up!", "x": "shocked" },
+        { "t": "Took a hit! Skeleton is SHOCKED — the bit demands shocked, even if three centuries of damage made him used to it. Tighten up, boss!", "x": "shocked" },
+        { "t": "Boss bleeding! Skeleton is SHOCKED — actually, this time legitimately concerned. Heal up, pal.", "x": "shocked" }
       ]
     },
     "grid_expanded": {
@@ -643,7 +692,7 @@
         { "t": "TRAP HIT! Set up, punchline, KILL — beautiful structure. The skeleton's TEARING up — figuratively — okay we've done this bit.", "x": "applauding" },
         { "t": "The trap LANDED! The kingdom should really teach 'look down' in hero school. ...They don't. Endlessly profitable for the skeleton.", "x": "mocking" },
         { "t": "Bam! The trap took 'em! Quiet cruelty WORKS — the skeleton has been TELLING people this for three centuries.", "x": "smug" },
-        { "t": "Trap snapped shut! Best gag in the catalogue, pal — silent setup, loud payoff. The skeleton's been writing this kind of bit since before YOU were born.", "x": "narrating" },
+        { "t": "Trap snapped shut! Best gag in the catalogue, pal — silent setup, loud payoff. The skeleton's been writing this kind of bit since before YOU were born.", "x": "telling-joke" },
         { "t": "Triggered! Beautiful timing. The skeleton's appreciating the COMEDIC RHYTHM of that one. Chef's kiss to the trap-maker.", "x": "chef-kiss" }
       ]
     },
@@ -679,7 +728,7 @@
       "cooldownMs": 9000,
       "lines": [
         { "t": "Hero on the move, pal! The skeleton's tracking — looks like they're past the entry hall already. Quick one, this.", "x": "pointing" },
-        { "t": "Movement in the corridors! The skeleton sees them. The skeleton ALWAYS sees them. Three centuries of nothing else to do but see.", "x": "narrating" },
+        { "t": "Movement in the corridors! The skeleton sees them. The skeleton ALWAYS sees them. Three centuries of nothing else to do but see.", "x": "facepalm-laugh" },
         { "t": "Closer now! Get the minions LOOSE, boss. The skeleton suggests a warm welcome — with teeth.", "x": "mischievous" }
       ]
     },
@@ -704,7 +753,7 @@
       "priority": 0,
       "cooldownMs": 8000,
       "lines": [
-        { "t": "Intel screen! Skeleton respects intel. Three hundred years and the BEST keepers were always the ones who READ the heroes. Read them.", "x": "narrating" },
+        { "t": "Intel screen! Skeleton respects intel. Three hundred years and the BEST keepers were always the ones who READ the heroes. Read them.", "x": "facepalm-laugh" },
         { "t": "Looking up adventurers, boss? Smart. The skeleton can tell you a thing or two — they're all the same with slightly different hats.", "x": "winking" }
       ]
     },
@@ -870,7 +919,7 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "The COIN landed your way! Gold DOUBLED! The skeleton loves a winner. Three centuries of crypt and the skeleton has NEVER bet on himself successfully — you got lucky FOR both of us.", "x": "winking" },
-        { "t": "Won the toss, boss! Big risk, big skeleton-approval. ...The skeleton's approval is, frankly, the highest currency in the crypt. Bask in it.", "x": "applauding" }
+        { "t": "Won the toss, boss! Big risk, big skeleton-approval. ...The skeleton's approval is, frankly, the highest currency in the crypt. Bask in it.", "x": "victorious" }
       ]
     },
     "gamble_lost": {
@@ -897,7 +946,7 @@
       "myconid": [
         { "t": "Myconid keeper! Your dungeon doesn't fight — it DIGESTS, slowly, patiently. The skeleton has a great respect for a patient hunger.", "x": "narrating" },
         { "t": "Spores in the corridors, corpses blooming! Your dungeon GARDENS, boss — the skeleton appreciates a horticultural keeper.", "x": "applauding" },
-        { "t": "Rot and patience, pal — the whole strategy. Quiet. The skeleton swears by quiet — comedy lives there.", "x": "thinking" },
+        { "t": "Rot and patience, pal — the whole strategy. Quiet. The skeleton swears by quiet — comedy lives there.", "x": "out-of-time" },
         { "t": "Every corpse becomes a SEED! The maze grows its own army from the dead it makes — the skeleton has TEARS in his sockets. Figurative.", "x": "chef-kiss" }
       ],
       "wraith": [
@@ -909,7 +958,7 @@
       "gnoll": [
         { "t": "Gnoll Alpha! The pack grows, feeds, COMPOUNDS — the skeleton loves anything that scales with cruelty.", "x": "applauding" },
         { "t": "Every kill makes every gnoll ANGRIER, boss! Rage with interest — the skeleton finds that hilarious.", "x": "cackling" },
-        { "t": "Free gnolls in the boss room each dawn, pal! The kingdom funds your pack and doesn't EVEN know it. Skeleton-grade comedy.", "x": "winking" },
+        { "t": "Free gnolls in the boss room each dawn, pal! The kingdom funds your pack and doesn't EVEN know it. Skeleton-grade comedy.", "x": "telling-joke-2" },
         { "t": "The pack hunts as ONE hungry mind! Point it. Step back. Even the skeleton gives a properly unleashed thing room.", "x": "narrating" }
       ],
       "golem": [
@@ -933,7 +982,7 @@
       "orc": [
         { "t": "Orc Veteran! Every kill makes the orc PERMANENTLY stronger — your soldiers never STOP climbing. The skeleton's seen MANY careers but few uncapped.", "x": "applauding" },
         { "t": "Pack the orcs into ONE room, boss — each grows fiercer for every brother. Numbers! Oldest math, skeleton-approved.", "x": "narrating" },
-        { "t": "A veteran orc strikes like a FURIOUS small army! Patience pays in blood, pal — the skeleton has plenty of patience to lend.", "x": "thinking" },
+        { "t": "A veteran orc strikes like a FURIOUS small army! Patience pays in blood, pal — the skeleton has plenty of patience to lend.", "x": "out-of-time" },
         { "t": "Blood for blood, strength only ever RISES — crude, honest, beautiful. The skeleton thinks he might actually LIKE this boss.", "x": "chef-kiss" }
       ],
       "vampire": [
@@ -960,7 +1009,7 @@
         { "t": "A knight, boss! Plate, sword, no imagination. The skeleton has watched MANY knights die predictably down here. They favour straight lines. Make the maze CROOKED.", "x": "narrating" },
         { "t": "Knight inside, pal! Slow to kill, slower to think — the skeleton respects reliable predictability. Pile teeth on the path. Knights walk into ALL of them.", "x": "smug" },
         { "t": "A thick shell, boss! Pile cruelty until the shell CRACKS. The skeleton has cracked many shells. ...Mostly his own, by clumsy stepping.", "x": "falling-apart" },
-        { "t": "Armour, large sword, larger ego — the kingdom's favourite class, the skeleton's favourite class to MOCK. Same energy. Beautiful.", "x": "mocking" }
+        { "t": "Armour, large sword, larger ego — the kingdom's favourite class, the skeleton's favourite class to MOCK. Same energy. Beautiful.", "x": "facepalm-laugh" }
       ],
       "rogue": [
         { "t": "Rogue slipping in! Locks mean nothing, the strike from BEHIND — no honour. Honour's overrated, the skeleton's never had any.", "x": "winking" },
@@ -975,10 +1024,11 @@
         { "t": "A mage — squishy, dangerous, way too pleased with itself. Pop it FIRST. The skeleton ALSO has pride issues, but at least HE'S funny.", "x": "smug" }
       ],
       "cleric": [
-        { "t": "Cleric, boss! Mends the others — KILL THE CLERIC FIRST. The skeleton has been telling people this for three centuries.", "x": "narrating" },
-        { "t": "Holy light and a sour opinion of the dead — the skeleton is, technically, ONE of the dead, so this one's personal. End it early, pal.", "x": "annoyed" },
+        { "t": "Cleric, boss! Mends the others — KILL THE CLERIC FIRST. The skeleton has been telling people this for three centuries.", "x": "disgusted" },
+        { "t": "Holy light and a sour opinion of the dead — the skeleton is, technically, ONE of the dead, so this one's personal. End it early, pal.", "x": "disgusted" },
         { "t": "Cut the healer, watch the party's HOPE drain right through the wound! Hope is structural — remove the structure! The skeleton's a fan of demolition.", "x": "evil-grin" },
-        { "t": "Cleric praying as it walks in — the dungeon doesn't TAKE prayers, boss. The skeleton has tried. Doesn't work.", "x": "winking" }
+        { "t": "Cleric praying as it walks in — the dungeon doesn't TAKE prayers, boss. The skeleton has tried. Doesn't work.", "x": "winking" },
+        { "t": "A cleric, boss! Holy light and a SOUR opinion of the dead. The skeleton is DISGUSTED, pal — the cleric is technically here to PUT HIM down. RUDE!", "x": "disgusted" }
       ],
       "necromancer": [
         { "t": "Necromancer! It raises your OWN fallen minions against you! The CHEEK of it. The skeleton would be charmed but he's busy being WORRIED.", "x": "annoyed" },
@@ -990,7 +1040,7 @@
         { "t": "Ranger! Bow at range, disarms traps — tiresome. Close the distance, pal. The skeleton has watched many rangers run out of range. They flop.", "x": "annoyed" },
         { "t": "A ranger, boss — lure it where the bow is USELESS! Take the range, take the courage. The skeleton swears by this.", "x": "winking" },
         { "t": "Ranger loves that BOW — the way the skeleton loved his old jester's bell. So sit close, crowd it, ruin its plan!", "x": "nostalgic" },
-        { "t": "A ranger, eyes on every trap! Some of your hidden teeth won't stay hidden — the skeleton suggests OPEN teeth too. Variety.", "x": "narrating" }
+        { "t": "A ranger, eyes on every trap! Some of your hidden teeth won't stay hidden — the skeleton suggests OPEN teeth too. Variety.", "x": "victorious" }
       ],
       "twitch_streamer": [
         { "t": "A streamer, boss! Thousands WATCHING beyond the glass — the skeleton's old friends with being watched. Three centuries on stage and counting.", "x": "winking" },
@@ -1012,12 +1062,12 @@
       ],
       "monk": [
         { "t": "Monk, boss — fast, unarmoured, dodges TRAPS. A slippery little saint. Crowd it. Saints can't dodge a CROWD.", "x": "thinking" },
-        { "t": "Monk in the halls! Half your minions' armour means nothing to fists. OUT-NUMBER it. Numbers always work.", "x": "narrating" },
+        { "t": "Monk in the halls! Half your minions' armour means nothing to fists. OUT-NUMBER it. Numbers always work.", "x": "facepalm-laugh" },
         { "t": "Monk counters trap-heavy halls — slips the precise hazards. Use wide UGLY ones — grace can't dodge a whole ROOM.", "x": "winking" },
         { "t": "Glides in, hard to hit, hard to trap. The skeleton's tip — make it CHOOSE. Then take what it didn't choose.", "x": "pointing" }
       ],
       "bard": [
-        { "t": "Bard! While alive, the WHOLE PARTY hits harder. Kill the bard, boss. The skeleton cannot phrase this any clearer. He has tried.", "x": "narrating" },
+        { "t": "Bard! While alive, the WHOLE PARTY hits harder. Kill the bard, boss. The skeleton cannot phrase this any clearer. He has tried.", "x": "victorious" },
         { "t": "Bard, walking enchantment, pal! Silence the song and the party FALLS APART. Remove the music. The dungeon's no patron of the arts.", "x": "annoyed" },
         { "t": "A bard — charming and useless ALONE, dreadful in a group. End it first. The skeleton respects a clean priority list.", "x": "smug" },
         { "t": "Bard struts in playing — none of the music will stop the skeleton. He's TONE-deaf. Cut it short anyway.", "x": "winking" }
@@ -1043,7 +1093,7 @@
     },
     "event": {
       "guild_raid": [
-        { "t": "Guild Raid, boss! TWICE the heroes tomorrow. The Guild's noticed us — they always do. Build DEEP.", "x": "narrating" },
+        { "t": "Guild Raid, boss! TWICE the heroes tomorrow. The Guild's noticed us — they always do. Build DEEP.", "x": "facepalm-laugh" },
         { "t": "The Guild sends a CROWD! More bodies for the maze, more gold for the hoard. The skeleton is BUZZING — but in a SUSTAINABLE way.", "x": "excited" },
         { "t": "Double wave incoming! Reinforce — steady pressure. A keeper who SHRUGS at a raid is a keeper the skeleton watches FALL.", "x": "pointing" }
       ],
@@ -1088,7 +1138,7 @@
         { "t": "A free bargain — refuse and the demon LEAVES. The skeleton says peek under the offer. ALWAYS peek.", "x": "thinking" }
       ],
       "cosplay_contest": [
-        { "t": "Cosplay Contest! Heroes in monster fancy-dress mostly IGNORE your minions! Annoying loophole — the traps must carry today.", "x": "annoyed" },
+        { "t": "Cosplay Contest! Heroes in monster fancy-dress mostly IGNORE your minions! Annoying loophole — the traps must carry today.", "x": "disgusted" },
         { "t": "Costumed adventurers, boss! Minions get POLITELY snubbed — so the traps must be IMPOLITE! The floor doesn't care WHAT they're wearing.", "x": "mischievous" },
         { "t": "Adventurers playing DRESS-UP! Adorable. The skeleton wears his real shape — bones, and SOME more bones. Undress them the hard way.", "x": "winking" }
       ],
@@ -1121,7 +1171,7 @@
       ],
       "dense_fog": [
         { "t": "Dense Fog! Whatever heroes learn registers as RUMOUR. Maze stays mystery — the skeleton likes a good fog.", "x": "mischievous" },
-        { "t": "Grey fog over everything! Intel won't stick. The skeleton has been MOSTLY fog for three centuries — relatable.", "x": "narrating" },
+        { "t": "Grey fog over everything! Intel won't stick. The skeleton has been MOSTLY fog for three centuries — relatable.", "x": "victorious" },
         { "t": "Fog in the halls — heroes squint and GUESS. The careless ones die. Let them guess WRONG, repeatedly!", "x": "evil-grin" }
       ],
       "miasma": [
@@ -1179,7 +1229,7 @@
     },
     "room": {
       "entry_hall": [
-        { "t": "Entry Hall! The lobby of the show, boss. First impression. The skeleton always invests big in the lobby — it sets EXPECTATIONS.", "x": "narrating" },
+        { "t": "Entry Hall! The lobby of the show, boss. First impression. The skeleton always invests big in the lobby — it sets EXPECTATIONS.", "x": "facepalm-laugh" },
         { "t": "Entry Hall placed, pal! Pack it with teeth — the heroes are LEAST careful here, freshly confident. Worst time to be confident.", "x": "smug" },
         { "t": "Front door of the dungeon! The audience walks in here. The skeleton's been LOITERING in entry halls for three centuries — they're underrated.", "x": "winking" }
       ],
@@ -1192,7 +1242,7 @@
         { "t": "Barracks placed, pal! Minions cluster. Heroes meet clusters. Heroes die in clusters. Beautiful pipeline.", "x": "applauding" }
       ],
       "starter_guard_post": [
-        { "t": "Guard Post! Patrols! The skeleton LIVES for patrol routes — they catch heroes by surprise EVERY time. Classic gag.", "x": "winking" },
+        { "t": "Guard Post! Patrols! The skeleton LIVES for patrol routes — they catch heroes by surprise EVERY time. Classic gag.", "x": "telling-joke-3" },
         { "t": "Guard Post placed! Active defence, boss. Heroes hate active defence — they like predictable corridors. Disappoint them.", "x": "smug" }
       ],
       "crypt": [
@@ -1246,11 +1296,11 @@
       ],
       "false_exit": [
         { "t": "False Exit! Heroes THINK they've escaped — they have NOT. The skeleton's favourite long-form joke. Setup pays off TWO ROOMS later.", "x": "evil-grin" },
-        { "t": "False Exit placed, boss! Beautiful cruelty. The skeleton applauds the patience the joke demands.", "x": "applauding" }
+        { "t": "False Exit placed, boss! Beautiful cruelty. The skeleton applauds the patience the joke demands.", "x": "clapping" }
       ],
       "hall_of_madness": [
         { "t": "Hall of Madness! Heroes lose THEIR MIND in here. The skeleton lost HIS three centuries ago — solidarity, hall.", "x": "mind-blown" },
-        { "t": "Hall of Madness placed! The kingdom's WORST nightmare — and the skeleton's favourite venue for stand-up.", "x": "narrating" }
+        { "t": "Hall of Madness placed! The kingdom's WORST nightmare — and the skeleton's favourite venue for stand-up.", "x": "telling-joke-4" }
       ],
       "throne_room": [
         { "t": "Throne Room placed, boss! The headliner stage. The skeleton suggests REALLY decorating this one. It's where the show ENDS — make sure it ends LOUD.", "x": "narrating" },
@@ -1293,7 +1343,7 @@
         { "t": "Elder Slime placed, boss! Beautiful. The kingdom WILL underestimate it. Heroes always underestimate goop.", "x": "smug" }
       ],
       "golem": [
-        { "t": "A golem! Stone walking, the skeleton's polar OPPOSITE. He's bone, golem's rock — same general vibe, different DENSITY.", "x": "narrating" },
+        { "t": "A golem! Stone walking, the skeleton's polar OPPOSITE. He's bone, golem's rock — same general vibe, different DENSITY.", "x": "facepalm-laugh" },
         { "t": "Golem placed, pal! Wall on legs. The skeleton respects WALLS. They keep things in. Things like HEROES.", "x": "applauding" }
       ],
       "beholder": [
@@ -1309,8 +1359,8 @@
         { "t": "Lizardman placed, boss! Camouflages. Heroes can't HIT what they don't SEE. The skeleton respects the gimmick.", "x": "smug" }
       ],
       "gnoll": [
-        { "t": "A gnoll! Hyena-laughing maniac. The skeleton APPRECIATES a fellow laugher — they get the bit.", "x": "cackling" },
-        { "t": "Gnoll placed, pal! Pack hunter. Stack with friends. The skeleton swears by friends, even if he doesn't really have any. ...Hey, you're my friend, right?", "x": "sweet" }
+        { "t": "A gnoll! Hyena-laughing maniac. The skeleton APPRECIATES a fellow laugher — they get the bit.", "x": "laughing-2" },
+        { "t": "Gnoll placed, pal! Pack hunter. Stack with friends. The skeleton swears by friends, even if he doesn't really have any. ...Hey, you're my friend, right?", "x": "nostalgic" }
       ],
       "demon": [
         { "t": "A demon! The real article — the skeleton MET demons in the deep dark. Loud roommates, but they pay rent.", "x": "winking" },
@@ -1360,7 +1410,7 @@
       ],
       "dragon_trap": [
         { "t": "Dragon Trap! Big flame jet. The skeleton WOULD warm his joints by this — three centuries of cold bones. Beautiful flame.", "x": "applauding" },
-        { "t": "Dragon Trap placed, boss! Wide-area cruelty. The skeleton's purr-equivalent is RATTLE-laughing. Listen.", "x": "cackling" }
+        { "t": "Dragon Trap placed, boss! Wide-area cruelty. The skeleton's purr-equivalent is RATTLE-laughing. Listen.", "x": "laughing-3" }
       ],
       "spike_pit": [
         { "t": "Spike Pit! The CLASSIC. Heroes fall in. The skeleton has fallen in spike pits — turns out, no flesh, no problem, just LOSE A FEMUR sometimes.", "x": "falling-apart" },
@@ -1378,7 +1428,7 @@
     "item": {
       "door_lock": [
         { "t": "Door Lock! Slows them down, RAGES the rogue. The skeleton respects a slow burn.", "x": "smug" },
-        { "t": "Lock placed, boss! Heroes pause, fume, kick — the skeleton has TIME to roast them as they fiddle. Free comedy.", "x": "winking" }
+        { "t": "Lock placed, boss! Heroes pause, fume, kick — the skeleton has TIME to roast them as they fiddle. Free comedy.", "x": "telling-joke-5" }
       ],
       "treasure_chest": [
         { "t": "Treasure Chest! Bait. The skeleton SWEARS by bait — three centuries of crypt taught him heroes can't resist a CHEST.", "x": "narrating" },

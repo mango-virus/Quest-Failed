@@ -352,49 +352,52 @@ export const COMPANIONS = {
     hudScale: 1.15,
     spriteDir: 'assets/npc-rattlebones/',
     // Neutral resting face — the long-dead jester at rest, jaw slightly
-    // ajar, bones at ease. Falls back to plain 'idle' if 'idle-2' isn't
-    // baked yet; NpcCompanion handles missing-sprite gracefully.
+    // ajar, bones at ease.
     restExpr:  'idle',
     // Picked-face pool — rolled per new selection on the recruit screen
     // so the reaction to "you picked me!" varies between picks. Lands on
-    // Rattle Bones' performer register: laughing/cackling delight,
-    // mischievous smirk, theatrical bow, smug pride, peace-sign cheek,
-    // chef-kiss approval. No quiet/melancholy faces — picking him is a
-    // moment for the jester to MUG for the camera.
+    // Rattle Bones' performer register: laughing variants, cackling
+    // delight, mischievous smirk, theatrical bow, smug pride, chef-kiss
+    // approval, joke-telling poses. No quiet/melancholy faces — picking
+    // him is a moment for the jester to MUG for the camera.
     pickedExprs: [
-      'laughing', 'laughing-hard', 'cackling',
+      'laughing', 'laughing-2', 'laughing-3', 'laughing-hard',
+      'cackling', 'crying-laughing', 'facepalm-laugh',
       'mocking', 'smug', 'mischievous', 'evil-grin',
       'excited', 'winking', 'theatrical-bow',
-      'chef-kiss', 'peace-sign',
+      'chef-kiss', 'telling-joke', 'telling-joke-3',
     ],
     linesKey:  'rattleBonesLines',
-    // 46 expressions, grouped by tonal register. Each id must match a
-    // baked `<id>.webp` under `assets/npc-rattlebones/`. The dialogue
-    // bank in `src/data/rattleBonesLines.json` only ever references ids
-    // from this list, so if the bake is missing one the bank still
-    // works (NpcCompanion falls back gracefully). Add ids here ONLY
-    // after the matching sprite ships.
+    // 55 expressions delivered 2026-05-26 — full sprite set baked into
+    // `assets/npc-rattlebones/`. Each id must match a baked `<id>.webp`.
+    // The dialogue bank in `src/data/rattleBonesLines.json` only ever
+    // references ids from this list. NpcCompanion falls back gracefully
+    // to `restExpr` for any unrecognized id.
     expressions: [
-      // Idle / quiet beats
-      'idle', 'idle-2', 'bored', 'sleeping',
-      // Laughing register — the comedy hits
-      'laughing', 'laughing-hard', 'cackling', 'crying-laughing', 'chef-kiss',
-      // Mischievous / smug — the jester smirking
+      // Idle / quiet beats (4)
+      'idle', 'bored', 'sleeping', 'lazy',
+      // Laughing register — the comedy hits (10)
+      'laughing', 'laughing-2', 'laughing-3', 'laughing-4',
+      'laughing-hard', 'laughing-hard-2', 'cackling', 'crying-laughing',
+      'chef-kiss', 'facepalm-laugh',
+      // Mischievous / smug — the jester smirking (6)
       'mischievous', 'mischievous-2', 'smug', 'mocking', 'winking', 'evil-grin',
-      // Excited / shocked — big reactions
+      // Excited / shocked — big reactions (5)
       'excited', 'surprised', 'shocked', 'mind-blown', 'mock-horror',
-      // Theatrical / performer
-      'theatrical-bow', 'narrating', 'pointing', 'singing', 'dancing', 'taunting',
-      // Quiet / thoughtful
-      'thinking', 'whisper', 'confused', 'melancholy', 'nostalgic',
-      // Dismissive / annoyed
+      // Theatrical / performer (7)
+      'theatrical-bow', 'narrating', 'pointing', 'singing', 'dancing',
+      'taunting', 'showing-prop',
+      // Telling-a-joke variants — stand-up poses for joke delivery (5)
+      'telling-joke', 'telling-joke-2', 'telling-joke-3', 'telling-joke-4',
+      'telling-joke-5',
+      // Quiet / thoughtful (6)
+      'thinking', 'whisper', 'confused', 'melancholy', 'nostalgic', 'out-of-time',
+      // Dismissive / annoyed (4)
       'eye-roll', 'unimpressed', 'annoyed', 'disgusted',
-      // Pride / victory
-      'proud', 'gloating', 'applauding', 'victorious',
-      // Warm / affectionate
-      'affectionate', 'sweet', 'clapping',
-      // Skeleton-specific physical gags
-      'falling-apart', 'jaw-dropped', 'peace-sign', 'salute',
+      // Pride / victory (5)
+      'proud', 'gloating', 'applauding', 'victorious', 'clapping',
+      // Skeleton-specific physical gags (3)
+      'falling-apart', 'jaw-dropped', 'salute',
     ],
   },
 
