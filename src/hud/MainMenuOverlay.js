@@ -413,7 +413,7 @@ export class MainMenuOverlay {
     // makes these entries appear / disappear without leaving the menu.
     if (PlayerProfile.isCheatName()) {
       items.push(
-        { id: 'jump50',     label: 'JUMP TO DAY 50',  sub: 'Late-game wave test (day 50, boss L7)', icon: '▶', color: 'var(--blood)' },
+        { id: 'jump50',     label: 'JUMP TO DAY 50',  sub: 'Late-game wave test (day 50, boss L12)', icon: '▶', color: 'var(--blood)' },
         { id: 'rooms',      label: 'ROOM EDITOR',     sub: 'Edit room layouts',                     icon: '▤', color: 'var(--poison)' },
         { id: 'tiles',      label: 'TILESET EDITOR',  sub: 'Author tile themes',                    icon: '▦', color: 'var(--info)' },
         { id: 'testunlock', label: 'TEST UNLOCKS',    sub: 'Fire sample of each card type',         icon: '✦', color: 'var(--gold-bright, #ffd964)' },
@@ -668,9 +668,11 @@ export class MainMenuOverlay {
         // ArchetypeSelect._beginRun reads after createGameState to bump
         // meta.dayNumber + boss.level. Falls through to the normal new-evil
         // flow so the player still picks companion + archetype as usual.
+        // Boss lv 12 ≈ the realistic level a committed player reaches by
+        // day 50 (XP curve BASE 50, SCALE 1.4, ~700 kills @ 10 XP/kill).
         try {
           localStorage.setItem('qf.dev.startDayNumber', '50')
-          localStorage.setItem('qf.dev.startBossLevel', '7')
+          localStorage.setItem('qf.dev.startBossLevel', '12')
         } catch {}
         this.close()
         _stopAllGameplayScenes(game.scene)

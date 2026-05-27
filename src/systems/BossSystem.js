@@ -88,6 +88,11 @@ export class BossSystem {
       // adventurer instanceIds use `adv_<ts>_<rand>` so no collision.
       // Backfilled here for legacy saves; fresh-init below sets it too.
       this._gameState.boss.instanceId ??= 'boss'
+      // Day-scaling recompute — covers the mango "JUMP TO DAY 50"
+      // cheat and any legacy save loaded after the day-scaling system
+      // landed. Without this, the boss HP bar shows the stale level-
+      // only HP until the first fight kicks off.
+      this._recomputeBossFightStats()
       return
     }
 
@@ -112,6 +117,10 @@ export class BossSystem {
       xp:       0,
       xpToNext: Balance.BOSS_XP_BASE,
     }
+    // Fresh-init at day 1 — the recompute will produce the same numbers
+    // as the literal init above (no level/day scaling at day 1, level 1)
+    // but keep the call for parity with the migration branch above.
+    this._recomputeBossFightStats()
   }
 
   // ── Ability tree (Phase 10b) ─────────────────────────────────────────────
@@ -301,26 +310,18 @@ export class BossSystem {
     }
 
     // ── Hard fight-duration cap — absolute anti-freeze backstop ───────
-    // A real fight is ~1s prefight + at most ROUND_CAP × 0.6s of
-    // combat-time (24 rounds for most bosses, 48 for slime — see the
-    // ROUND_CAP in _runOneRound). Wall-clock ceiling here needs to be
-    // strictly LONGER than the round cap can produce, otherwise this
-    // backstop fires before the gameplay cap resolves and the fight
-    // ends prematurely with a coarser tie-break. 35s covers slime's
-    // ~30s worst case with margin; 30s would be enough for any other
-    // archetype but the higher floor doesn't harm them.
+    // With the round cap removed (2026-05-27), this 60-second
+    // wall-clock ceiling is the ONLY safety net guaranteeing fights
+    // resolve. Without it a stalemate (both sides regenerating, or
+    // numbers tuned so neither can kill the other) would freeze the
+    // game — _fighting would stay stuck true, the day would never end.
     //
     // _fightT advances purely from the scaled delta every tick this
     // fight runs, so this fires in bounded REAL time at EVERY speed
-    // (≈4.4s real at 8×, where the freeze was reported). If anything
-    // stalls the normal resolution path — combat-start gate, the
-    // per-round runner, the round-cap branch, an emptied _fightStates
-    // — _fighting would otherwise stay stuck true forever: the day
-    // can never end and the game appears frozen. This guarantees the
-    // fight ALWAYS resolves. Winner is decided by who still has HP,
-    // matching the stalemate cap's tie-break. _fightStates is non-null
-    // here (created above) so _endFight's roster loop is safe.
-    if (!this._fightEnded && this._fightT > 35) {
+    // (≈7.5s real at 8×). Winner is decided by who still has HP.
+    // _fightStates is non-null here (created above) so _endFight's
+    // roster loop is safe.
+    if (!this._fightEnded && this._fightT > 60) {
       const boss = this._gameState.boss
       this._endFight(boss && (boss.hp ?? 0) > 0 ? 'boss' : 'party')
       return
@@ -1651,15 +1652,23 @@ export class BossSystem {
     // was the bug. Removed; _onIncoming now bails on `_diedThisDay`
     // before any pose check would matter. Death pose only releases on
     // NIGHT_PHASE_STARTED, alongside the per-day life-loss gate reset.
+    // Recompute boss stats on every level-up so the top-bar HP +
+    // BossOverviewOverlay numbers reflect the new power immediately.
+    // _init handles the save-load / mango-cheat case; _onIncoming
+    // handles fight start. Since scaling is purely level-based now,
+    // we don't need to refresh on day boundary.
+    const onLeveledUp = () => this._recomputeBossFightStats()
     EventBus.on('BOSS_FIGHT_INCOMING',    onIncoming)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearPose)
     EventBus.on('NIGHT_PHASE_STARTED',    onClearDecals)
     EventBus.on('ADVENTURER_DIED',        onAdvDied)
+    EventBus.on('BOSS_LEVELED_UP',        onLeveledUp)
     this._listeners = [
       ['BOSS_FIGHT_INCOMING',    onIncoming],
       ['NIGHT_PHASE_STARTED',    onClearPose],
       ['NIGHT_PHASE_STARTED',    onClearDecals],
       ['ADVENTURER_DIED',        onAdvDied],
+      ['BOSS_LEVELED_UP',        onLeveledUp],
     ]
   }
 
@@ -1838,6 +1847,57 @@ export class BossSystem {
 
   // ── Internals ────────────────────────────────────────────────────────────
 
+  // Recompute boss.maxHp / .attack / .defense from the archetype base
+  // + boss-level scaling. Stats are purely a function of boss.level —
+  // day count doesn't factor in. The boss grows when the player kills
+  // adventurers (XP → level-ups).
+  //
+  // Math: stat = (baseFightStat + BOSS_*_PER_LEVEL × lvOver)
+  //               × BOSS_*_PER_LEVEL_MUL ^ lvOver
+  // The additive (BOSS_*_PER_LEVEL) and multiplicative (BOSS_*_PER_LEVEL_MUL)
+  // components stack — additive keeps the per-level "+15 HP" feel that
+  // BossLevelUpOverlay shows the player; multiplicative drives the
+  // exponential late-game growth.
+  //
+  // Called from _init (so fresh saves + the mango "JUMP TO DAY 50"
+  // cheat reflect the boss level immediately), BOSS_LEVELED_UP (so the
+  // top-bar HP updates on each level), and _onIncoming (belt-and-
+  // braces at fight start).
+  //
+  // Preserves the current HP fraction across rescale so a wounded
+  // boss mid-day doesn't full-heal between fights.
+  _recomputeBossFightStats() {
+    const boss = this._gameState.boss
+    if (!boss) return
+    const archId = this._gameState.player?.bossArchetypeId
+    const archs  = this._scene.cache.json.get('bossArchetypes') ?? []
+    const arch   = archs.find(a => a.id === archId)
+    const base   = arch?.baseFightStats ?? { hp: 200, attack: 12, defense: 10 }
+
+    const level  = Math.max(1, boss.level ?? 1)
+    const lvOver = level - 1
+
+    // Additive linear baseline (matches BOSS_*_PER_LEVEL display in
+    // BossLevelUpOverlay) — at lv 1 this collapses to the base stat.
+    const lvlHp  = (base.hp      ?? 200) + (Balance.BOSS_HP_PER_LEVEL  ?? 15) * lvOver
+    const lvlAtk = (base.attack  ?? 12)  + (Balance.BOSS_ATK_PER_LEVEL ?? 1)  * lvOver
+    const lvlDef = (base.defense ?? 10)  + (Balance.BOSS_DEF_PER_LEVEL ?? 1)  * lvOver
+
+    // Multiplicative per-level scaling — drives late-game exponential
+    // growth so the boss keeps pace with adventurer power.
+    const mulHp  = Math.pow(Balance.BOSS_HP_PER_LEVEL_MUL  ?? 1, lvOver)
+    const mulAtk = Math.pow(Balance.BOSS_ATK_PER_LEVEL_MUL ?? 1, lvOver)
+    const mulDef = Math.pow(Balance.BOSS_DEF_PER_LEVEL_MUL ?? 1, lvOver)
+
+    const prevHpFrac = boss.maxHp > 0 ? (boss.hp / boss.maxHp) : 1
+    boss.maxHp   = Math.round(lvlHp  * mulHp)
+    boss.attack  = Math.round(lvlAtk * mulAtk)
+    boss.defense = Math.round(lvlDef * mulDef)
+    // Preserve HP fraction across the rescale. The downstream
+    // refill-if-zero block in _onIncoming handles the post-respawn case.
+    boss.hp = Math.max(0, Math.min(boss.maxHp, Math.round(boss.maxHp * prevHpFrac)))
+  }
+
   _onIncoming({ adventurer }) {
     if (this._fighting) return
     const boss = this._gameState.boss
@@ -1880,6 +1940,11 @@ export class BossSystem {
     // Pre-fight setup; ability effects happen here so they are visible
     // during the prefight banner / opening dance.
     if (boss) {
+      // Recompute effective fight stats from base + level + day scaling.
+      // Mutates boss.maxHp / .attack / .defense in place and preserves
+      // current HP fraction (so a survivor of an earlier same-day fight
+      // doesn't full-heal between fights). See _recomputeBossFightStats.
+      this._recomputeBossFightStats()
       const owned = new Set(boss.unlockedAbilities ?? [])
       // Respawn refresh — ONLY when the boss is actually down (drained to
       // 0 and lingering between fights after a non-final life loss). A
@@ -1994,20 +2059,15 @@ export class BossSystem {
     // (windup, channel, stun, dazed) consumed below.
     this._runBossPactAttacks(boss, defenders)
 
-    // Slime King runs 2× rounds because Mitosis spreads the same total
-    // HP across up to 4 entities — the party often needs more swings to
-    // clear all the small slimes than they would to drop one big boss
-    // at the same atk/def numbers. 48 rounds = ~29s of in-fight combat,
-    // still bounded by the 30s wall-clock backstop above.
-    const ROUND_CAP = this._archIdForBoss() === 'slime' ? 48 : 24
-    if (this._roundsRun >= ROUND_CAP) {
-      // Hard cap to break stalemates.
-      const partyFrac = defenders.reduce((s, fs) =>
-        s + fs.adv.resources.hp / Math.max(1, fs.adv.resources.maxHp), 0) / defenders.length
-      const bossFrac  = boss.hp / Math.max(1, boss.maxHp)
-      this._endFight(partyFrac > bossFrac ? 'party' : 'boss')
-      return
-    }
+    // Round cap removed 2026-05-27 — fights now run until one side
+    // actually dies (or until the 35s wall-clock backstop in
+    // _tickFightAnim fires as the absolute anti-freeze net). The
+    // previous 24-round cap (48 for Slime King) was tuned around the
+    // pre-day-scaling boss, where 24 rounds was usually enough to
+    // resolve. With the new day-scaling math the boss can survive
+    // longer past day ~25, and a 24-round HP-fraction tie-break
+    // resolved most late-game fights in the boss's favor too quickly.
+    // Letting fights play out reveals the actual balance.
     this._roundsRun++
 
     // Succubus Doppelgänger — re-conjure decoys if boss HP has crossed a
@@ -2103,11 +2163,16 @@ export class BossSystem {
         const aliveSlimes = boss.slimes.filter(s => (s.hp ?? 0) > 0)
         if (aliveSlimes.length > 0) {
           // Sum the pool for the same formula the non-slime path uses.
+          // Percentage defense (see BOSS_DEF_PERCENT_K — atk × (1 − def/(def+K)))
+          // mirrors the non-slime path so the two share the same scaling
+          // behaviour at high days.
           let pool = 0
           for (const ally of sideAllies) pool += ally.stats?.attack ?? 0
           for (const { advAtk } of advAttackContribs) pool += advAtk
+          const sDefK   = Balance.BOSS_DEF_PERCENT_K ?? 50
+          const sDefRed = (boss.defense ?? 0) / ((boss.defense ?? 0) + sDefK)
           const totalDmg = pool > 0
-            ? Math.max(1, Math.floor((pool - boss.defense) * (0.85 + Math.random() * 0.3)))
+            ? Math.max(1, Math.floor(pool * (1 - sDefRed) * (0.85 + Math.random() * 0.3)))
             : 0
           if (totalDmg > 0 && pool > 0) {
             // Helper closure — pick the slime nearest to a given world point.
@@ -2177,12 +2242,20 @@ export class BossSystem {
           }
         }
       } else {
-        // Non-slime: original pooled-damage path.
+        // Non-slime: pooled-damage path. Defense is applied as a
+        // PERCENTAGE reduction (def / (def + K)) rather than flat
+        // subtraction — the old `atkPool - boss.defense` formula broke
+        // at high days when adv ATK scaled into the hundreds while
+        // boss DEF stayed under 30. The percentage form asymptotes to
+        // 100% reduction without ever reaching it, so the boss is
+        // never invulnerable but always tankily mitigates.
         let bossAtkPool = 0
         for (const ally of sideAllies) bossAtkPool += ally.stats?.attack ?? 0
         for (const { advAtk } of advAttackContribs) bossAtkPool += advAtk
+        const defK    = Balance.BOSS_DEF_PERCENT_K ?? 50
+        const defRed  = (boss.defense ?? 0) / ((boss.defense ?? 0) + defK)
         let dmgToBoss = bossAtkPool > 0
-          ? Math.max(1, Math.floor((bossAtkPool - boss.defense) * (0.85 + Math.random() * 0.3)))
+          ? Math.max(1, Math.floor(bossAtkPool * (1 - defRed) * (0.85 + Math.random() * 0.3)))
           : 0
         if (dmgToBoss > 0 && this._tryDoppelgangerAbsorb()) dmgToBoss = 0
         if (dmgToBoss > 0) {

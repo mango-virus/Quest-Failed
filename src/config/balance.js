@@ -55,6 +55,47 @@ export const Balance = {
   BOSS_ATK_PER_LEVEL:  1,
   BOSS_DEF_PER_LEVEL:  1,
 
+  // --- Boss level-based multiplicative scaling (added 2026-05-27) ---
+  // The boss's late-game power growth is tied to BOSS LEVEL, not day
+  // count. Killing adventurers feeds boss XP → boss levels → boss
+  // scales up. Player engagement (high kill rate) drives boss strength;
+  // a passive run keeps the boss weaker.
+  //
+  // Math: stat = (baseFightStat + BOSS_*_PER_LEVEL × lvOver)
+  //               × BOSS_*_PER_LEVEL_MUL ^ lvOver
+  //   where lvOver = boss.level - 1.
+  //
+  // Tuning targets (after 2026-05-27 dial-down):
+  //   Lv 1 : 200 HP /  12 ATK /  10 DEF  (DEF reduction 17%)
+  //   Lv 5 : 743 HP /  33 ATK /  27 DEF  (DEF reduction 35%)
+  //   Lv 8 : 1,856 HP / 58 ATK /  46 DEF  (DEF reduction 48%)
+  //   Lv 10: 3,343 HP / 87 ATK /  69 DEF  (DEF reduction 58%)
+  //   Lv 12: 6,541 HP / 132 ATK / 102 DEF (DEF reduction 67%)
+  //   Lv 15: 16,743 HP / 285 ATK / 208 DEF (DEF reduction 81%)
+  //
+  // Previously these multipliers were 1.40/1.23/1.23, which made the
+  // boss feel too tanky from lv 5 onward (lv 12 had 17k HP, 81% DEF
+  // reduction — basically unkillable inside the 60s wall-clock cap).
+  // The new curve still ramps exponentially but the early/mid-game
+  // (lv 1-8) is roughly half the HP it was, and lv 12 lands at ~6.5k
+  // HP — beatable by a coordinated day-50 party in 20-40 rounds.
+  // Tune up if late-game feels trivial; tune down further if early
+  // levels still feel sluggish.
+  BOSS_HP_PER_LEVEL_MUL:     1.30,   // was 1.40
+  BOSS_ATK_PER_LEVEL_MUL:    1.18,   // was 1.23
+  BOSS_DEF_PER_LEVEL_MUL:    1.18,   // was 1.23
+
+  // Percentage-based defense for damage TO the boss.
+  // Old formula: dmgToBoss = max(1, atkPool − boss.defense)
+  // New formula: dmgToBoss = max(1, atkPool × (1 − boss.defense / (boss.defense + K)))
+  //
+  // At K=50: def=10 → 17% reduction, def=50 → 50%, def=200 → 80%,
+  // def=500 → 91%. Asymptotes to 1.0 — boss is NEVER invulnerable
+  // but high day-scaled defense always meaningfully cuts damage.
+  // Old flat-subtraction formula became useless past day 20 because
+  // adv ATK scaled into the hundreds while boss DEF stayed under 30.
+  BOSS_DEF_PERCENT_K:        50,
+
   // --- Boss ---
   BOSS_DEFEATS_TO_GAME_OVER: 3,
 

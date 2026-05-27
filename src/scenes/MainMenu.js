@@ -474,12 +474,17 @@ export class MainMenu extends Phaser.Scene {
           // immediately after consumption) so a follow-up NEW EVIL starts
           // a normal day-1 run.
           label: 'JUMP TO DAY 50',
-          sub:   'Late-game wave test (day 50, boss L7)',
+          sub:   'Late-game wave test (day 50, boss L12)',
           glyph: '▶',
           action: () => {
             try {
               localStorage.setItem('qf.dev.startDayNumber', '50')
-              localStorage.setItem('qf.dev.startBossLevel', '7')
+              // Boss lv 12 — what a committed player realistically
+              // reaches by day 50 given the XP curve (BASE 50, SCALE
+              // 1.4) and typical wave-size growth. ~700 kills at 10
+              // XP/kill ≈ 7000 XP ≈ level 12. Was lv 7 before, which
+              // looked weak next to the day-50-scaled adventurers.
+              localStorage.setItem('qf.dev.startBossLevel', '12')
             } catch {}
             this._actNewEvil()
           },
