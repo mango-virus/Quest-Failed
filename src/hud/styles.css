@@ -7147,36 +7147,48 @@ body {
 .qf-lb-content { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
 .qf-lb-podium {
   display: grid;
+  /* #1 column slightly wider than the side columns. Width differences
+     are intentionally subtle — the visual hierarchy of 1 > 2 > 3 comes
+     primarily from the per-place min-height ladder below. */
   grid-template-columns: 1fr 1.2fr 1fr;
   gap: 12px;
   align-items: end;
   /* Leave room above each card for the #N badge, which is absolutely
-     positioned at top: -16px (height 36px) — without this padding the
+     positioned at top: -20px (height 44px) — without this padding the
      badge clips against .qf-lb-content's overflow: hidden, hiding the
      #1 marker above the tallest podium card. */
-  padding-top: 22px;
+  padding-top: 26px;
 }
 .qf-lb-podium-empty { min-height: 100px; }
 .qf-lb-podium-card {
   position: relative;
   padding: 14px;
-  padding-top: 28px;
+  padding-top: 30px;
   border-width: 2px; border-style: solid;
   cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
-  min-height: 110px;
+  /* Min-height ladder — #1 tallest, #2 middle, #3 (default) shortest.
+     2026-05-27 tuning landed on 125/190/220 — slightly wider gap
+     between #2 and #3 so the podium step feels more decisive. The
+     per-card .open / .fading transitions still ride opacity, so
+     taller cards don't affect any animation timing. */
+  min-height: 125px;
   transition: all 160ms;
 }
-.qf-lb-podium-card[data-place="1"] { min-height: 160px; }
-.qf-lb-podium-card[data-place="2"] { min-height: 130px; }
+.qf-lb-podium-card[data-place="1"] { min-height: 220px; }
+.qf-lb-podium-card[data-place="2"] { min-height: 190px; }
 .qf-lb-podium-badge {
   position: absolute;
-  top: -16px; left: 50%; transform: translateX(-50%);
-  width: 36px; height: 36px;
+  /* Badge sits half-above the card edge — top: -(height/2) + small
+     overlap so it visually "perches" on the card border. With the
+     2026-05-27 size bump (36→44px, 12→16px font) the badge reads
+     more decisively from across the room without dwarfing the card. */
+  top: -20px; left: 50%; transform: translateX(-50%);
+  width: 44px; height: 44px;
   background: var(--bg-0);
   border: 2px solid currentColor;
   display: grid; place-items: center;
-  font-size: 12px; letter-spacing: 1px;
+  font-size: 16px; letter-spacing: 1px;
 }
 .qf-lb-podium-sprite {
   padding: 4px; background: var(--bg-0);
@@ -11567,9 +11579,10 @@ body {
      so taller #1 in the center grows UPWARD instead of all cards
      stretching to match — that's what gives the podium-step look. */
   align-items: end;
-  /* The badge floats above the card with `top: -16px`. Without padding,
-     the badge would clip against the view-wrap's overflow. */
-  padding-top: 22px;
+  /* The badge floats above the card with `top: -20px` (after the
+     44px size bump). Without padding, the badge would clip against
+     the view-wrap's overflow. */
+  padding-top: 26px;
 }
 /* Podium card — horizontal triptych: [companion sprite | center column
    (badge + boss + name + title + count) | stats block]. Mirrors the
@@ -11577,14 +11590,14 @@ body {
 .qf-ach-lb-podium-card {
   position: relative;
   padding: 14px;
-  padding-top: 28px;
+  padding-top: 30px;
   border: 2px solid var(--line-2, var(--text-mute));
   cursor: pointer;
   display: flex;
   flex-direction: row;
   align-items: stretch;
   gap: 10px;
-  min-height: 140px;
+  min-height: 160px;
   transition: transform 160ms ease, box-shadow 160ms ease;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
 }
@@ -11593,9 +11606,12 @@ body {
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.5),
               0 0 20px color-mix(in srgb, var(--rank-color, var(--gold)) 35%, transparent);
 }
-/* #1 sits taller than #2 / #3 to read as a proper podium step. */
-.qf-ach-lb-podium-card[data-rank="1"] { min-height: 200px; }
-.qf-ach-lb-podium-card[data-rank="2"] { min-height: 170px; }
+/* #1 sits taller than #2 / #3 to read as a proper podium step.
+   2026-05-27 tuning landed on 160/230/260 — same wider-gap shape as
+   the run-leaderboard podium so the two surfaces stay visually
+   consistent. */
+.qf-ach-lb-podium-card[data-rank="1"] { min-height: 260px; }
+.qf-ach-lb-podium-card[data-rank="2"] { min-height: 230px; }
 .qf-ach-lb-podium-card.is-you {
   outline: 2px dashed var(--blood);
   outline-offset: 2px;
@@ -11613,19 +11629,21 @@ body {
 }
 
 /* Floating #N badge — sits above the card top, anchored to the rank
-   color via inline style. Matches `.qf-lb-podium-badge`. */
+   color via inline style. Matches `.qf-lb-podium-badge` (2026-05-27
+   size bump 36→44px, 12→16px font; top offset adjusted so the badge
+   still half-overlaps the card edge). */
 .qf-ach-lb-podium-badge {
   position: absolute;
-  top: -16px;
+  top: -20px;
   left: 50%;
   transform: translateX(-50%);
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   background: var(--bg-0);
   border: 2px solid currentColor;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 16px;
   letter-spacing: 1px;
 }
 .qf-ach-lb-podium-sprite {

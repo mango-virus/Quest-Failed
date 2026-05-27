@@ -798,14 +798,23 @@ export class LeaderboardOverlay {
     // keeper is shown, the days/kills stats move into the keeper block
     // (left side) — see _podiumCompanionSprite. When no keeper, stats
     // stay here in their original spot.
+    // Per-place sizing — bigger cards (#1 > #2 > #3) get larger sprites
+    // + fonts so the content visibly fills the per-card min-height
+    // ladder (220 / 190 / 125 in CSS). Tuned 2026-05-27 alongside the
+    // vertical-step bump.
+    const portraitSize = place === 1 ? 96 : place === 2 ? 76 : 60
+    const nameFontSize = place === 1 ? '17px' : place === 2 ? '14px' : '12px'
     const contentColumn = h('div', {
       // Class added so the #1-podium legendary-shimmer CSS can lift this
       // column above the sweep ::before without yanking the badge (which
       // is `position: absolute` and uses the CARD as its containing block)
       // into a different positioning context.
+      // `justifyContent: 'center'` vertically centres the content within
+      // the card's min-height so it doesn't anchor to the top with a
+      // hole of empty space below.
       className: 'qf-lb-podium-content-col',
       style: showCompanion
-        ? { display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '1 1 auto', minWidth: 0 }
+        ? { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: '1 1 auto', minWidth: 0, gap: '8px' }
         : null,
     }, [
       h('div', {
@@ -819,12 +828,12 @@ export class LeaderboardOverlay {
       h('div', {
         className: 'qf-lb-podium-sprite',
         style: { borderColor: c },
-      }, _bossPortrait(entry.bossId, place === 1 ? 80 : 64)),
+      }, _bossPortrait(entry.bossId, portraitSize)),
       h('div', {
         className: 'pix qf-lb-podium-name',
         style: {
           color: c,
-          fontSize: place === 1 ? '15px' : '13px',
+          fontSize: nameFontSize,
           textShadow: `0 0 6px ${c}66`,
         },
       }, entry.name),
@@ -894,14 +903,16 @@ export class LeaderboardOverlay {
   // stays centred.
   _podiumStatsBlock(entry, place) {
     const accent = rankColor(place)
-    // Mirror the keeper block's width so the centre column stays centred.
-    const w = place === 1 ? 84 : 64
+    // Per-place width — mirrors the keeper block + matches the
+    // per-card min-height ladder (220 / 190 / 125). The centre
+    // column stays centred because both flanks have equal width.
+    const w = place === 1 ? 96 : place === 2 ? 76 : 60
     const labelStyle = {
-      fontSize: '6px',
+      fontSize: place === 1 ? '7px' : '6px',
       color: 'var(--text-mute)',
       letterSpacing: '0.5px',
     }
-    const valueFontSize = place === 1 ? '11px' : '9px'
+    const valueFontSize = place === 1 ? '13px' : place === 2 ? '10px' : '9px'
     const miniFrame = (labelText, valueNode, frameColor, glowColor) => h('div', {
       style: {
         background: 'var(--bg-1)',
@@ -992,14 +1003,20 @@ export class LeaderboardOverlay {
   _podiumCompanionSprite(entry, place) {
     const c = getCompanion(entry.companionId)
     const accent = rankColor(place)
-    const w = place === 1 ? 84 : 64
+    // Per-place sizing — matches _podiumStatsBlock + portrait + name
+    // so the keeper, hero, and stats columns all scale together.
+    const w = place === 1 ? 96 : place === 2 ? 76 : 60
+    const nameFontSize = place === 1 ? '10px' : place === 2 ? '9px' : '8px'
     return h('div', {
       className: 'qf-lb-podium-keeper',
       style: {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'flex-start',
+        // Vertically centre the sprite + name within the card's
+        // min-height so the keeper doesn't anchor to the top with a
+        // hole of empty space below (matches the content-col change).
+        justifyContent: 'center',
         gap: '4px',
         flex: '0 0 auto',
         // Outer block has no background / border / padding — just lays
@@ -1036,7 +1053,7 @@ export class LeaderboardOverlay {
         className: 'pix',
         style: {
           color: accent,
-          fontSize: place === 1 ? '9px' : '8px',
+          fontSize: nameFontSize,
           letterSpacing: '0.5px',
           textShadow: `0 0 4px ${accent}66`,
         },
