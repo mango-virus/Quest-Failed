@@ -41,6 +41,17 @@ const LOOT_SIGHT_RANGE             = 14     // tiles between adv and dropped pil
 const LOOT_CHANCE                  = 0.45   // per-adv roll on pile drop
 const LOOT_DURATION_MS             = 2500   // looting freeze
 const LOOT_PILE_TTL_MS             = 30000  // piles vanish if untouched
+// SEEK_TREASURE repick budget (anti-thrash, 2026-05-27). When the sticky
+// pick + interrupt-and-repick cycle still ends up firing SEEK_TREASURE
+// more than this many times in one day for one adv, we conclude the adv
+// genuinely can't reach any chest (geometry, blockers, etc.) and set
+// `adv.flags.chestGivenUp` so the chest pull is skipped for the rest of
+// the day. Both counter + flag reset in `_onNightStartedAI` (the
+// NIGHT_PHASE_STARTED handler). 3 is generous — normal flow only
+// re-picks once per uninterrupted run (stack-based interrupts like
+// SEEK_HEAL / INVESTIGATE_NOISE preserve SEEK_TREASURE without calling
+// _pickNextGoal); only the day-42 bug pattern burns through the budget.
+const MAX_CHEST_SEEKS_PER_DAY      = 3
 // Pathfinder penalty multiplier per known-trap tile. Used by AVOID_TRAP
 // in the pathfinder cost function. Higher = stronger detour.
 const TRAP_AVOID_PENALTY           = 8.0
@@ -108,6 +119,11 @@ export class AISystem {
       // Phase: items — fresh day, fountain is usable again. Knowledge of
       // fountain locations carries over (knownFountains persists).
       a.fountainUsedToday = false
+      // SEEK_TREASURE anti-thrash counter resets per day so yesterday's
+      // unreachable chest doesn't permanently disable today's chest pulls.
+      // `flags.chestGivenUp` latches per day; clear here in lockstep.
+      a._chestSeekCount = 0
+      if (a.flags) a.flags.chestGivenUp = false
     }
     // Phase D — Treasure Chest passive payout + reset. Every placed chest
     // re-closes (sprite snaps to frame 0 via TreasureChestRenderer.update)
@@ -184,6 +200,22 @@ export class AISystem {
     const tags = this._personalitySystem?.getTags(adv) ?? new Set()
     if (tags.has('anti_loot')) return null
     const greedy = tags.has('greedy') || tags.has('vulture') || tags.has('loot_seeker')
+    // ── Sticky pick (anti-thrash, 2026-05-27) ───────────────────────────
+    // When `_pickNextGoal` is repeatedly called mid-walk (combat scuffle,
+    // INVESTIGATE_NOISE roll, REGROUP_AT_PARTY trigger, etc.) and the adv
+    // is already on a SEEK_TREASURE goal, prefer the previously-targeted
+    // chest as long as it's still in the candidate pool. Without this,
+    // every repick re-rolls each chest's temptPct independently, so two
+    // equal-tier chests with the same temptPct flip the adv's heading
+    // ~50/50 each time → multi-room ping-pong (day-42 bug report).
+    // Greedy advs are already deterministic (highest tier wins) but we
+    // still want the stickiness for them — if a higher-tier chest gets
+    // placed mid-day, that override is fine; the previous-target check
+    // re-validates against the live `chests` list each call.
+    if (adv.goal?.type === 'SEEK_TREASURE' && adv.goal.chestId) {
+      const prev = chests.find(c => c.instanceId === adv.goal.chestId)
+      if (prev) return prev
+    }
     const itemsCache = this._scene.cache.json.get('items') ?? []
     for (const chest of chests) {
       if (greedy) return chest
@@ -3316,11 +3348,27 @@ export class AISystem {
     // Phase D — Treasure chest pull. Greedy types always go for the
     // highest-tier unopened chest; everyone else rolls each chest's
     // tempt %. Skipped if the adv is already carrying stolen gold.
-    if (!adv.stolenGold) {
-      const chest = this._maybePickTreasureChest(adv)
-      if (chest) {
-        EventBus.emit('SAY_seekTreasure', { adventurer: adv })
-        return { type: 'SEEK_TREASURE', chestId: chest.instanceId }
+    //
+    // Anti-thrash budget (2026-05-27): each adv gets MAX_CHEST_SEEKS_PER_DAY
+    // SEEK_TREASURE picks per day. After that, `flags.chestGivenUp` latches
+    // for the rest of the day and we fall through to the normal goal flow.
+    // Pairs with the sticky-pick in `_maybePickTreasureChest`: the sticky
+    // keeps each pick on the SAME chest, the budget caps how many distinct
+    // "I'm trying for a chest" sessions one adv can spawn per day.
+    // Re-counts the SAME SEEK_TREASURE goal as one pick even when interrupt-
+    // and-repick keeps re-entering this branch with the same chest, so a
+    // genuinely unreachable chest can't sink an adv's whole day.
+    if (!adv.stolenGold && !(adv.flags?.chestGivenUp)) {
+      if ((adv._chestSeekCount ?? 0) >= MAX_CHEST_SEEKS_PER_DAY) {
+        adv.flags ??= {}
+        adv.flags.chestGivenUp = true
+      } else {
+        const chest = this._maybePickTreasureChest(adv)
+        if (chest) {
+          adv._chestSeekCount = (adv._chestSeekCount ?? 0) + 1
+          EventBus.emit('SAY_seekTreasure', { adventurer: adv })
+          return { type: 'SEEK_TREASURE', chestId: chest.instanceId }
+        }
       }
     }
 

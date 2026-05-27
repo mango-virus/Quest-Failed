@@ -366,6 +366,24 @@ function _rehydrateRunHistory(state) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]
   }
 
+  // Day-42 SEEK_TREASURE ping-pong recovery (2026-05-27). A bug report
+  // showed advs cycling indefinitely between two unopened chests because
+  // every `_pickNextGoal` re-roll could flip the temptPct winner. The
+  // fix landed in AISystem (sticky chest pick + per-day repick budget),
+  // but EXISTING saves still have advs mid-cycle. Pre-charging
+  // `_chestSeekCount` to the cap means: the adv keeps their current
+  // SEEK_TREASURE attempt (one fair try at finishing the open they were
+  // already walking toward), but any interrupt-and-repick after this
+  // load short-circuits the chest pull → they fall through to normal
+  // goal selection and the loop breaks. Keep this MAX in sync with
+  // MAX_CHEST_SEEKS_PER_DAY in src/systems/AISystem.js.
+  const MAX_CHEST_SEEKS_PER_DAY_LOAD = 3
+  for (const a of (state.adventurers.active ?? [])) {
+    if (a?.goal?.type === 'SEEK_TREASURE') {
+      a._chestSeekCount = MAX_CHEST_SEEKS_PER_DAY_LOAD
+    }
+  }
+
   // Same treatment for minions — was a known freeze cause (loaded
   // minions stuck in perma-retaliate because `_lastHitAt` was a
   // scene-time stamp from the previous session, now far in the
