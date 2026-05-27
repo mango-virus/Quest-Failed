@@ -223,12 +223,28 @@ export class UnlockNotificationOverlay {
       h('div', { className: 'pix qf-unlock-name' }, this._nameFor(entry)),
       this._subtitleFor(entry) &&
         h('div', { className: 'qf-unlock-subtitle' }, this._subtitleFor(entry)),
-      // Footer — queue counter + advance hint.
+      // Footer — queue counter on the left, advance/close button on
+      // the right. The button is the obvious affordance; Enter / Space
+      // / card-click still work as keyboard / power-user shortcuts.
+      // stopPropagation on the button's click prevents the card's
+      // click-anywhere handler from double-firing (which would skip
+      // two cards instead of one).
       h('div', { className: 'qf-unlock-footer' }, [
         h('span', { className: 'pix qf-unlock-counter' }, `${idx} / ${total}`),
-        h('span', { className: 'pix qf-unlock-hint' },
-          (idx === total) ? '› PRESS ENTER TO CLOSE'
-                          : '› PRESS ENTER FOR NEXT'),
+        h('button', {
+          className: 'btn qf-unlock-next',
+          on: {
+            click: (e) => {
+              e.stopPropagation()
+              this._advance()
+            },
+          },
+        }, [
+          h('span', { className: 'pix qf-unlock-next-label' },
+            (idx === total) ? 'CLOSE  ✖' : 'NEXT  ›'),
+          h('span', { className: 'pix qf-unlock-next-keyhint' },
+            '[ ENTER ]'),
+        ]),
       ]),
     ])
     return card

@@ -11284,11 +11284,69 @@ body {
   color: var(--gold);
   text-shadow: 0 0 6px var(--gold);
 }
-.qf-unlock-hint {
+
+/* The NEXT / CLOSE button on the unlock card. Visual borrows from the
+   per-type accent (currentColor cascades from the card's data-type
+   styling) so each card's button glows in the matching color. Two
+   stacked rows inside: the big "NEXT ›" label + a small "[ ENTER ]"
+   keyboard-hint subscript so the keyboard option stays discoverable. */
+.qf-unlock-next {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 18px 6px;
+  background: color-mix(in srgb, currentColor 14%, var(--bg-1));
+  border: 2px solid currentColor;
+  color: currentColor;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px #000,
+              0 0 14px color-mix(in srgb, currentColor 50%, transparent),
+              0 2px 0 rgba(0, 0, 0, 0.5);
+  transition: transform 120ms ease,
+              background 120ms ease,
+              box-shadow 120ms ease;
+  /* Soft pulse so the button reads as the active affordance — same
+     cadence as the banner so they feel related, not competing. */
+  animation: qf-unlock-next-pulse 2.4s ease-in-out infinite;
+}
+@keyframes qf-unlock-next-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px #000,
+                          0 0 14px color-mix(in srgb, currentColor 50%, transparent),
+                          0 2px 0 rgba(0, 0, 0, 0.5); }
+  50%      { box-shadow: 0 0 0 1px #000,
+                          0 0 22px color-mix(in srgb, currentColor 85%, transparent),
+                          0 2px 0 rgba(0, 0, 0, 0.5); }
+}
+.qf-unlock-next:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, currentColor 28%, var(--bg-1));
+  /* Stop the pulse on hover so the brightened state reads cleanly
+     instead of competing with the rhythm. */
+  animation: none;
+  box-shadow: 0 0 0 1px #000,
+              0 0 24px color-mix(in srgb, currentColor 95%, transparent),
+              0 3px 0 rgba(0, 0, 0, 0.5);
+}
+.qf-unlock-next:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 1px #000,
+              0 0 16px color-mix(in srgb, currentColor 60%, transparent),
+              0 1px 0 rgba(0, 0, 0, 0.5);
+}
+.qf-unlock-next-label {
   font-family: var(--pix);
-  font-size: 9px;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-shadow: 0 0 8px currentColor;
+}
+.qf-unlock-next-keyhint {
+  font-family: var(--pix);
+  font-size: 6px;
   letter-spacing: 2px;
-  color: var(--text-mute);
+  opacity: 0.55;
+  /* Subtle so the keyboard hint is discoverable but the visual
+     emphasis stays on the big NEXT label. */
 }
 
 /* ── Per-type color theming ────────────────────────────────────────── */
