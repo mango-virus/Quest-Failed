@@ -1890,9 +1890,16 @@ export class BossSystem {
     const mulDef = Math.pow(Balance.BOSS_DEF_PER_LEVEL_MUL ?? 1, lvOver)
 
     const prevHpFrac = boss.maxHp > 0 ? (boss.hp / boss.maxHp) : 1
-    boss.maxHp   = Math.round(lvlHp  * mulHp)
-    boss.attack  = Math.round(lvlAtk * mulAtk)
-    boss.defense = Math.round(lvlDef * mulDef)
+    // Sacrificial Altar boss-stat buff — multiplicative accumulator on
+    // `player._altarBossStatBuff` (set by altar reward rolls). Applied
+    // here in the recompute so the buff survives every BOSS_LEVELED_UP
+    // rescale + every _onIncoming refresh. Same pattern as
+    // applyMinionScaling's altar-minion-buff hook.
+    const altarBuff = this._gameState?.player?._altarBossStatBuff ?? 0
+    const altarMul  = 1 + altarBuff
+    boss.maxHp   = Math.round(lvlHp  * mulHp  * altarMul)
+    boss.attack  = Math.round(lvlAtk * mulAtk * altarMul)
+    boss.defense = Math.round(lvlDef * mulDef * altarMul)
     // Preserve HP fraction across the rescale. The downstream
     // refill-if-zero block in _onIncoming handles the post-respawn case.
     boss.hp = Math.max(0, Math.min(boss.maxHp, Math.round(boss.maxHp * prevHpFrac)))

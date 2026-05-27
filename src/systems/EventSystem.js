@@ -545,7 +545,10 @@ export class EventSystem {
         `THE ALTAR WILL TAKE:\n` +
         `  ► ${rolled.label}\n\n` +
         `POSSIBLE REWARDS (one rolled at random):\n` +
-        `  • Permanent +2% / +5% / +8% / +10% to all minion stats\n\n` +
+        `  • Permanent +3% or +10% to all minion stats\n` +
+        `  • Permanent +3% or +10% to boss stats\n` +
+        `  • +1 boss level (instant)\n` +
+        `  • A free Dark Pact of your choice\n\n` +
         `Refusing costs nothing. Accepting commits to the unknown reward.`,
       confirmLabel: 'ACCEPT THE BARGAIN',
       cancelLabel:  'WALK AWAY',
@@ -690,20 +693,61 @@ export class EventSystem {
     // Clear the stamped roll so the next event-fire starts fresh.
     flags.sacrificialAltarCost = null
 
-    // ── Roll the reward (uniform over the four tiers) and stack it.
-    const rewardTiers = [0.02, 0.05, 0.08, 0.10]
-    const reward = rewardTiers[Math.floor(Math.random() * rewardTiers.length)]
-    player._altarMinionStatBuff = (player._altarMinionStatBuff ?? 0) + reward
-    // Rescale every live minion through applyMinionScaling so the new
-    // multiplier lands immediately. Future placements pick it up via the
-    // same code path.
-    this._reapplyMinionScalingAll()
-    const rewardText = `+${(reward * 100).toFixed(0)}% permanent minion stats (total: +${(player._altarMinionStatBuff * 100).toFixed(0)}%)`
+    // ── Roll the reward (uniform over the six tiers) and apply it.
+    //
+    //   minion_3   — +3% minion stats permanently
+    //   minion_10  — +10% minion stats permanently
+    //   boss_3     — +3% boss stats permanently (HP/ATK/DEF)
+    //   boss_10    — +10% boss stats permanently
+    //   boss_level — top up XP and force one level-up via _awardBossXp
+    //                (fires the normal celebration + grid expansion +
+    //                minion rescale, same as a natural level)
+    //   free_pact  — opens the Grimoire (PactPicker via SHOW_DARK_PACT);
+    //                player picks any of the 3 offered pacts. Existing
+    //                PACT_SEALED pipeline handles activation.
+    const REWARDS = ['minion_3', 'minion_10', 'boss_3', 'boss_10', 'boss_level', 'free_pact']
+    const rewardKind = REWARDS[Math.floor(Math.random() * REWARDS.length)]
+    let rewardText = ''
+    if (rewardKind === 'minion_3' || rewardKind === 'minion_10') {
+      const pct = rewardKind === 'minion_3' ? 0.03 : 0.10
+      player._altarMinionStatBuff = (player._altarMinionStatBuff ?? 0) + pct
+      this._reapplyMinionScalingAll()
+      rewardText = `+${(pct * 100).toFixed(0)}% permanent minion stats (total: +${(player._altarMinionStatBuff * 100).toFixed(0)}%)`
+    } else if (rewardKind === 'boss_3' || rewardKind === 'boss_10') {
+      const pct = rewardKind === 'boss_3' ? 0.03 : 0.10
+      player._altarBossStatBuff = (player._altarBossStatBuff ?? 0) + pct
+      // Re-run the boss-stat recompute so the new multiplier lands
+      // immediately. Subsequent BOSS_LEVELED_UP rescales pick the buff
+      // up via _recomputeBossFightStats which now reads the buff field.
+      this._scene?.bossSystem?._recomputeBossFightStats?.()
+      rewardText = `+${(pct * 100).toFixed(0)}% permanent boss stats (total: +${(player._altarBossStatBuff * 100).toFixed(0)}%)`
+    } else if (rewardKind === 'boss_level') {
+      const boss = gs.boss
+      if (boss) {
+        // Top up XP to threshold and let _awardBossXp drive the loop.
+        // Fires BOSS_LEVELED_UP + BOSS_LEVEL_CHANGED naturally so the
+        // celebration overlay, grid expansion, minion rescale, archetype
+        // hooks, achievements — all of it — react as if the level was
+        // earned by kills.
+        const need = Math.max(0, (boss.xpToNext ?? Balance.BOSS_XP_BASE) - (boss.xp ?? 0))
+        boss.xp = (boss.xp ?? 0) + need
+        this._scene?.aiSystem?._awardBossXp?.()
+        rewardText = `+1 boss level (now ${boss.level})`
+      }
+    } else if (rewardKind === 'free_pact') {
+      // Open the standard Grimoire. The player picks one of three
+      // offered pacts; existing PACT_SEALED flow activates it.
+      // Defer the emit a tick so the SHOW_TOAST below renders before
+      // the modal occludes the screen.
+      this._scene?.time?.delayedCall?.(50, () => EventBus.emit('SHOW_DARK_PACT'))
+      rewardText = 'Free Dark Pact — choose your bargain in the Grimoire'
+    }
 
     EventBus.emit('SACRIFICIAL_ALTAR_RESOLVED', {
       cost:   costKind,
-      reward: reward,
-      totalReward: player._altarMinionStatBuff,
+      reward: rewardKind,
+      altarMinionBuff: player._altarMinionStatBuff ?? 0,
+      altarBossBuff:   player._altarBossStatBuff   ?? 0,
     })
     EventBus.emit('SHOW_TOAST', { message: `Altar: ${costText}`, type: 'leak', duration: 4500 })
     EventBus.emit('SHOW_TOAST', { message: `Altar: ${rewardText}`, type: 'gold',  duration: 4500 })
