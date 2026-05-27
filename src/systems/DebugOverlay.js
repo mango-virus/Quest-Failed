@@ -1,8 +1,12 @@
 // Debug overlay state — small persisted toggle store for designer-facing
 // visualisations that the player can hide.
 //
-//   showCollision  — paint blocking/walkable tinting over the dungeon grid
-//   showDoors      — connection-point dots on each room's wall
+//   showCollision     — paint blocking/walkable tinting over the dungeon grid
+//   showDoors         — connection-point dots on each room's wall
+//   aiDiagnostics     — console-log per-adv goal changes, path recomputes,
+//                       watchdog fires, and "stuck" warnings every ~1s for
+//                       any adv that's been no-progress >3s. Used to diagnose
+//                       ping-pong loops in the wild. Toggle via F4.
 //
 // Stored in localStorage under qf.debugOverlay so toggles survive reloads.
 // Listeners (DungeonRenderer + HUD) call subscribe() to redraw when state
@@ -11,7 +15,7 @@
 import { EventBus } from './EventBus.js'
 
 const LS_KEY = 'qf.debugOverlay'
-const DEFAULTS = { showCollision: false, showDoors: true }
+const DEFAULTS = { showCollision: false, showDoors: true, aiDiagnostics: false }
 
 let _state = { ...DEFAULTS }
 
@@ -30,6 +34,7 @@ function _persist() {
 export const DebugOverlay = {
   get showCollision() { return _state.showCollision },
   get showDoors()     { return _state.showDoors },
+  get aiDiagnostics() { return _state.aiDiagnostics },
 
   set(key, value) {
     if (!(key in DEFAULTS)) return

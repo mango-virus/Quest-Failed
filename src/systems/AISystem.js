@@ -7,6 +7,7 @@ import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { MinionAbilities }  from './MinionAbilities.js'
 import { Balance }          from '../config/balance.js'
+import { DebugOverlay }     from './DebugOverlay.js'
 import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './DungeonGrid.js'
 import { minionLabel, roomLabel } from '../util/displayNames.js'
 
@@ -430,6 +431,20 @@ export class AISystem {
       EventBus.emit('SAY_healed', { adventurer: adv })
       return
     }
+  }
+
+  // ── Diagnostic helper (anti-ping-pong investigation, 2026-05-27) ────
+  // No-op stub. Originally logged AI state to console when DebugOverlay
+  // .aiDiagnostics was on (F4 toggle), but per user request 2026-05-27
+  // the on-screen AiDiagOverlay carries all the visible diagnostics
+  // now — no console spam, even when the flag is on. Kept as a no-op
+  // so the existing call sites (watchdog fire, path recompute, goal
+  // change, stuck warnings) don't have to be deleted; if we ever want
+  // console logging again, just restore the body here. NB: also keep
+  // the call sites so the per-adv `_diagLastGoal` / `_lastDiagAt`
+  // bookkeeping fields stay populated (other code may read them).
+  _aiDiag(_adv, _msg) {
+    /* on-screen-only diagnostics — see src/ui/AiDiagOverlay.js */
   }
 
   // Find the closest unopened key chest reachable by `adv` given the
@@ -1102,7 +1117,25 @@ export class AISystem {
           adv.path            = null  // force re-path with the new flag
           adv._loopBestDist   = dist  // reset so we don't re-trigger
           adv._loopBestAt     = wNow
+          this._aiDiag(adv, `WATCHDOG FIRED panic-walk +3s | goal=${goalTypeKey} target=(${tgt.x},${tgt.y}) dist=${dist}`)
         }
+        // Diagnostic: warn every ~1s when an adv is in the no-progress
+        // window (3-5s) but not yet panic-walked. Catches the case
+        // where the watchdog WOULD fire but something else (goal change,
+        // path null) keeps resetting it just before the 5s mark.
+        const noProgressMs = wNow - (adv._loopBestAt ?? wNow)
+        if (noProgressMs > 3000 && (wNow - (adv._lastDiagAt ?? 0)) > 1000) {
+          adv._lastDiagAt = wNow
+          this._aiDiag(adv,
+            `STUCK ${(noProgressMs / 1000).toFixed(1)}s | tile=(${adv.tileX},${adv.tileY}) goal=${goalTypeKey} target=(${tgt.x},${tgt.y}) dist=${dist} bestDist=${adv._loopBestDist} panicWalk=${(adv._panicWalkUntil ?? 0) > wNow}`)
+        }
+      }
+      // Diagnostic: log every goal change so we can see if the adv is
+      // goal-flickering (cause of ping-pong that the watchdog can't fix
+      // because the progress baseline keeps resetting).
+      if (adv._diagLastGoal !== goalTypeKey) {
+        this._aiDiag(adv, `goal: ${adv._diagLastGoal ?? '(none)'} -> ${goalTypeKey}`)
+        adv._diagLastGoal = goalTypeKey
       }
     }
     // AT_BOSS adventurers are owned by BossSystem.  Skip every other AI
@@ -1994,6 +2027,10 @@ export class AISystem {
           EventBus.emit('SAY_avoidTrap', { adventurer: adv })
         }
       }
+      // Diagnostic: log each path computation with its key inputs so we
+      // can correlate "stuck adv" warnings to actual A* output.
+      this._aiDiag(adv,
+        `path: ${path ? path.length : 0} tiles | from=(${adv.tileX},${adv.tileY}) to=(${target.x},${target.y}) goal=${adv.goal?.type ?? '(none)'} panicWalk=${panicWalk} useKnowCost=${useKnowledgeCost} trapRejects=${trapRejectsThisPath} bias=${adv._trapSideBias ?? '?'}`)
       if (!path || path.length === 0) {
         // An empty path means either "already at goal" (start === target) or
         // "no route exists".  Only treat the former as a true arrival; the

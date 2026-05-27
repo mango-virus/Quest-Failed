@@ -22,6 +22,7 @@ import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
+import { AiDiagOverlay }      from '../ui/AiDiagOverlay.js'
 import { MinionRenderer }     from '../ui/MinionRenderer.js'
 import { TrapRenderer }       from '../ui/TrapRenderer.js'
 import { LootPileRenderer }   from '../ui/LootPileRenderer.js'
@@ -237,6 +238,11 @@ export class Game extends Phaser.Scene {
     this.bossArchetypeSystem = track(new BossArchetypeSystem(this, this.gameState))
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
     this.adventurerRenderer  = track(new AdventurerRenderer(this, this.gameState))
+    // F4-toggled on-screen AI diagnostics: per-adv floating labels showing
+    // goal, distance-to-target, time-since-progress, and panic-walk state.
+    // Color-coded for stuck-detection. No-op when DebugOverlay.aiDiagnostics
+    // is off (its default). Used to debug pathing ping-pongs in the wild.
+    this.aiDiagOverlay       = track(new AiDiagOverlay(this, this.gameState))
     this.emoteSystem         = track(new EmoteSystem(this, this.gameState, this.adventurerRenderer))
     this.minionRenderer      = track(new MinionRenderer(this, this.gameState))
     this.trapRenderer        = track(new TrapRenderer(this, this.gameState))

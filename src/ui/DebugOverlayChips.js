@@ -53,6 +53,14 @@ export function mountDebugChips(scene, opts = {}) {
   const onKey = (e) => {
     if (e.key === 'F2') { DebugOverlay.toggle('showCollision'); e.preventDefault?.() }
     else if (e.key === 'F3') { DebugOverlay.toggle('showDoors'); e.preventDefault?.() }
+    else if (e.key === 'F4') {
+      const on = DebugOverlay.toggle('aiDiagnostics')
+      e.preventDefault?.()
+      // Print a hint banner so the player knows what just happened.
+      console.log(on
+        ? '[AI-DIAG] enabled — watch for [AI-DIAG] log lines (goal changes, path recomputes, watchdog fires, stuck warnings). Toggle off with F4.'
+        : '[AI-DIAG] disabled')
+    }
   }
   scene.input.keyboard.on('keydown', onKey)
 
