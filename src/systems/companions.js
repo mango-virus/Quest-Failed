@@ -484,17 +484,24 @@ export const COMPANIONS = {
     ghostFlickerAlpha: 0.70,
     solidOnlyExpressions: ['scary', 'skulls', 'ghost-power'],
     // Picked-face pool — rolled per recruit-screen selection. Restricted
-    // to her four core interest registers (gamer / anime / weeb / snacks)
+    // to her hobby registers (gamer / anime / weeb / snacks / plushies)
     // per user request — picking Spectra should ALWAYS land on a pose
     // that screams one of her hobbies, never a generic "happy" face.
-    // No quiet/melancholy/flirty/spooky poses — picking her is a moment
-    // for her to GEEK OUT on-brand.
+    // Includes anime-trope emotional poses (chibi-rage, sweatdrop,
+    // wibbly-mouth, dramatic-anger) because they're anime-coded even
+    // when negative — the random pool reads as her geeking out in
+    // whichever anime mode she's in that day.
     pickedExprs: [
-      // Anime / weeb reactions (7)
+      // Anime / weeb reactions (10)
       'senpai-notice', 'sparkle-eyes', 'bishie-sparkles', 'heart-eyes',
       'looking-cute', 'weeb', 'taking-photo',
-      // Anime / manga media consumption (2)
+      'anime-gasp', 'nose-bleed', 'blushing',
+      // Anime dramatic / emphatic poses (4)
+      'dramatic-anger', 'chibi-rage', 'sweatdrop', 'wibbly-mouth',
+      // Media consumption (2)
       'watching-anime', 'reading-manga',
+      // Anime fan / hobby — plushies + figures (3)
+      'plush-hug', 'holding-plushies', 'figure-collection',
       // Gamer poses (4)
       'gaming', 'button-mashing', 'gg-victory', 'streaming',
       // Snack-time beats (4)
