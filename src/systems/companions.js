@@ -483,14 +483,22 @@ export const COMPANIONS = {
     ghostFlickerRate:  0.25,
     ghostFlickerAlpha: 0.70,
     solidOnlyExpressions: ['scary', 'skulls', 'ghost-power'],
-    // Picked-face pool — rolled per recruit-screen selection. Lands on
-    // her brightest "you picked me!" beats: anime-girl reactions, gamer
-    // victory, cuteness, sparkle moments. No quiet/melancholy or spooky
-    // poses — picking Spectra is a moment for her to GEEK OUT.
+    // Picked-face pool — rolled per recruit-screen selection. Restricted
+    // to her four core interest registers (gamer / anime / weeb / snacks)
+    // per user request — picking Spectra should ALWAYS land on a pose
+    // that screams one of her hobbies, never a generic "happy" face.
+    // No quiet/melancholy/flirty/spooky poses — picking her is a moment
+    // for her to GEEK OUT on-brand.
     pickedExprs: [
+      // Anime / weeb reactions (7)
       'senpai-notice', 'sparkle-eyes', 'bishie-sparkles', 'heart-eyes',
-      'gg-victory', 'looking-cute', 'excited', 'weeb',
-      'teasing', 'taking-photo', 'happy', 'blushing',
+      'looking-cute', 'weeb', 'taking-photo',
+      // Anime / manga media consumption (2)
+      'watching-anime', 'reading-manga',
+      // Gamer poses (4)
+      'gaming', 'button-mashing', 'gg-victory', 'streaming',
+      // Snack-time beats (4)
+      'cheeks-stuffed', 'pocky-mouth', 'eating-snacks', 'caught-snacking',
     ],
     linesKey:  'spectraLines',
     // 66 semantic expression ids covering 113 source sprites via the
