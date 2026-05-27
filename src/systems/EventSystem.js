@@ -112,6 +112,54 @@ export class EventSystem {
     on('TINKERER_PICK', (p) => this._onTinkererPicked(p ?? {}))
     // Demon's Wager — clicking the demon NPC opens the wager modal.
     on('DEMON_WAGER_NPC_CLICKED', () => this._promptDemonsWager())
+    // Dev-only — mango-gated TEST EVENT button forces an event to fire
+    // immediately for testing. Bypasses the 3-day cadence + eligibility
+    // filter. See _onDevForceEvent below.
+    on('DEV_FORCE_EVENT', (p) => this._onDevForceEvent(p ?? {}))
+  }
+
+  // Dev-only force-fire path used by the mango TEST EVENT picker. Tears
+  // down any in-progress event for today, sets the picked event as the
+  // schedule, then immediately applies its effect AND fires its
+  // announce-UI hooks so the modal / NPC / chest spawns right away.
+  // Skips the eligibility filter so even back-to-back identical events
+  // can be tested. Resets nextEventDay to the next normal cadence slot
+  // after the forced event resolves.
+  _onDevForceEvent({ eventId } = {}) {
+    if (!eventId) return
+    const def = this._defs.find(d => d.id === eventId)
+    if (!def) return
+    const ev = this._gameState.events
+    // Tear down any in-progress event first so its day-end cleanup runs.
+    if (ev?.scheduledId) {
+      const prev = this._defs.find(d => d.id === ev.scheduledId)
+      if (prev) this._clearEffect(prev)
+    }
+    // Clear single-shot decision flags so the new event's prompt re-fires.
+    const flags = this._gameState._eventFlags ?? (this._gameState._eventFlags = {})
+    flags.sacrificialAltarDecided = false
+    flags.demonsWagerDecided      = false
+    flags.tinkerersWorkshopDecided = false
+    flags.blackMarketDecided      = false
+    flags.mercenaryDecided        = false
+    flags.cursedRelicDecided      = false
+    flags.gamblerDecided          = false
+    flags.negotiationDecided      = false
+
+    const today = this._gameState.meta?.dayNumber ?? 1
+    ev.scheduledId  = def.id
+    ev.scheduledDay = today
+
+    // Fire the announce events so EventBanner + DUNGEON_EVENT_ANNOUNCED
+    // listeners react. Then immediately apply the day-time effect for
+    // events that have one (most replacement waves / day-long buffs).
+    EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: today, dev: true })
+    this._dispatchAnnounceUi(def)
+    // For events whose primary effect plays out during the DAY (most),
+    // also fire _applyEffect so the test actually sees the in-game
+    // consequence on the next dawn (or now, if already daytime).
+    this._applyEffect(def)
+    EventBus.emit('DUNGEON_EVENT_BEGAN', { def, dev: true })
   }
 
   // Gambler's Coin — fired by GamblerImpRenderer when the player clicks

@@ -2268,6 +2268,123 @@ body {
   border-color: var(--text-mute);
 }
 
+/* ═════════════════════════════════════════════════════════════════
+   Dev-only TEST EVENT button + picker (mango player only).
+   DevEventsButton.js. The button itself sits in the bottom-left
+   corner of the HUD; clicking it opens a grid of every dungeon
+   event. Picking one force-fires it via DEV_FORCE_EVENT.
+   ═════════════════════════════════════════════════════════════════ */
+.qf-dev-events-btn {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 9000;
+  padding: 6px 12px;
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #ffd964;
+  background: rgba(20, 12, 16, 0.92);
+  border: 1px solid #ffd964;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 8px rgba(255, 217, 100, 0.55);
+  transition: transform 120ms, box-shadow 120ms, color 120ms;
+}
+.qf-dev-events-btn:hover {
+  color: #fff;
+  box-shadow: 0 0 14px rgba(255, 217, 100, 0.85);
+  transform: translateY(-1px);
+}
+.qf-dev-events-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.78);
+  pointer-events: auto;
+}
+.qf-dev-events-card-wrap {
+  position: relative;
+  background: linear-gradient(180deg, #1d1611, #0e0a07);
+  border: 2px solid #ffd964;
+  padding: 22px 22px 16px;
+  width: min(880px, 94vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  font-family: var(--pix);
+  text-align: center;
+}
+.qf-dev-events-title {
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: #ffd964;
+  margin-bottom: 4px;
+}
+.qf-dev-events-flavor {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--text-mute);
+  margin: 0 auto 14px;
+  max-width: 640px;
+  line-height: 1.5;
+}
+.qf-dev-events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.qf-dev-events-card {
+  cursor: pointer;
+  background: linear-gradient(180deg, #2a1f14, #14100a);
+  border: 1px solid color-mix(in srgb, #ffd964 35%, transparent);
+  padding: 10px 8px;
+  font-family: var(--pix);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: border-color 120ms, transform 120ms, box-shadow 120ms;
+}
+.qf-dev-events-card:hover {
+  border-color: #ffd964;
+  box-shadow: 0 0 10px rgba(255, 217, 100, 0.55);
+  transform: translateY(-1px);
+}
+.qf-dev-events-card-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.qf-dev-events-card-name {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #ffd964;
+  text-align: center;
+  word-break: break-word;
+}
+.qf-dev-events-card-id {
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: var(--text-mute);
+  font-family: monospace;
+}
+.qf-dev-events-close {
+  cursor: pointer;
+  display: inline-block;
+  padding: 5px 12px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  border: 1px solid var(--line-2);
+}
+.qf-dev-events-close:hover {
+  color: var(--text);
+  border-color: var(--text-mute);
+}
+
 /* Tinkerer's Workshop badge — pinned to the top-right corner of an
    upgraded room's card icon. Gold-on-black "★ UPGRADED" pill with a
    subtle pulse so it reads as a celebratory tag. Native browser

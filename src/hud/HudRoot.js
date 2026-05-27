@@ -35,6 +35,7 @@ import { PostWaveOverlay }      from './PostWaveOverlay.js'
 import { GameOverOverlay }      from './GameOverOverlay.js'
 import { PactPicker }           from './PactPicker.js'
 import { TinkererPicker }       from './TinkererPicker.js'
+import { DevEventsButton }      from './DevEventsButton.js'
 import { DungeonFx }            from './DungeonFx.js'
 import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
@@ -130,6 +131,10 @@ export class HudRoot {
     this._pactPicker      = new PactPicker(this._gameState)
     // Tinkerer's Workshop event — self-mounts on SHOW_TINKERER_OFFER.
     this._tinkererPicker  = new TinkererPicker()
+    // Mango-only dev affordance — small floating button that force-fires
+    // any dungeon event for testing. Self-gates on PlayerProfile.isCheatName()
+    // so the button doesn't appear for real players.
+    this._devEventsButton = new DevEventsButton()
     mount(this._stage, this._panels.map(p => p.el))
     // DungeonFx, BossFightOverlay, and EventBanner self-mount into
     // #hud-stage. Must be constructed AFTER the mount() above — that call
@@ -312,6 +317,7 @@ export class HudRoot {
     this._gameOverOverlay?.destroy();this._gameOverOverlay = null
     this._pactPicker?.destroy();     this._pactPicker = null
     this._tinkererPicker?.destroy(); this._tinkererPicker = null
+    this._devEventsButton?.destroy(); this._devEventsButton = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
     this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
