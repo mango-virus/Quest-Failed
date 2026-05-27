@@ -129,12 +129,10 @@ export class HudRoot {
     this._postWaveOverlay = new PostWaveOverlay(this._gameState)
     this._gameOverOverlay = new GameOverOverlay(this._gameState)
     this._pactPicker      = new PactPicker(this._gameState)
-    // Tinkerer's Workshop event — self-mounts on SHOW_TINKERER_OFFER.
+    // Tinkerer's Workshop event — self-mounts on SHOW_TINKERER_OFFER
+    // (lazy — its constructor doesn't append anything, so it's safe to
+    // build BEFORE the mount() below).
     this._tinkererPicker  = new TinkererPicker()
-    // Mango-only dev affordance — small floating button that force-fires
-    // any dungeon event for testing. Self-gates on PlayerProfile.isCheatName()
-    // so the button doesn't appear for real players.
-    this._devEventsButton = new DevEventsButton()
     mount(this._stage, this._panels.map(p => p.el))
     // DungeonFx, BossFightOverlay, and EventBanner self-mount into
     // #hud-stage. Must be constructed AFTER the mount() above — that call
@@ -147,6 +145,13 @@ export class HudRoot {
     this._eventFx         = new EventFx(this._gameState)
     this._bossFightOverlay = new BossFightOverlay(this._gameState)
     this._eventBanner      = new EventBanner(this._gameState)
+    // Mango-only dev affordance — small floating button that force-fires
+    // any dungeon event for testing. Self-gates on PlayerProfile.isCheatName()
+    // so the button doesn't appear for real players. MUST construct
+    // AFTER the mount() above — its constructor appends to #hud-stage
+    // immediately, and mount() would otherwise wipe it (same reason
+    // DungeonFx / EventFx are constructed down here).
+    this._devEventsButton  = new DevEventsButton()
     // Full-screen coin-flip sequence for The Gambler's Coin event.
     this._coinFlip         = new CoinFlipCinematic()
     // Pass the BottomBar's archetype-slot ref so the strip mounts INSIDE
