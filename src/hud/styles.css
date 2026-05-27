@@ -10529,6 +10529,13 @@ body {
   z-index: 50;
   min-width: 320px;
   max-width: 480px;
+  /* Cap height so a long title list (Mango cheat unlocks ~17 of them)
+     never spills past the modal/viewport bottom. Internal scroll picks
+     up the overflow. `min(70vh, 560px)` keeps the picker bounded both
+     in tiny windows and on tall monitors. */
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  overflow-x: hidden;
   background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
   border: 2px solid var(--gold);
   box-shadow: 0 0 0 2px #000,
@@ -10536,6 +10543,19 @@ body {
               0 10px 30px rgba(0, 0, 0, 0.7);
   padding: 12px;
   display: none;
+}
+/* Match the rest of the achievements overlay's scrollbar styling so
+   the internal scroll doesn't look like a vanilla browser bar. */
+.qf-ach-titlepicker::-webkit-scrollbar { width: 8px; }
+.qf-ach-titlepicker::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--bg-0) 80%, transparent);
+}
+.qf-ach-titlepicker::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--gold) 35%, transparent);
+  border-radius: 2px;
+}
+.qf-ach-titlepicker::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--gold) 55%, transparent);
 }
 .qf-ach-titlepicker[data-open="true"] {
   display: block;
