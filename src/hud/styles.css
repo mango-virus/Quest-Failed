@@ -11427,19 +11427,20 @@ body {
   text-shadow: 0 0 12px var(--blood);
 }
 
-/* Companion: warm gold by default — per-companion CSS vars
-   (--cmp-accent-rattlebones etc.) further tint individual cards via
-   the JS-resolved accent variable. */
-.qf-unlock-card[data-type="companion"]              { color: var(--gold-bright, #ffd964); }
+/* Companion: PINK accent (2026-05-27) — unified across the cast.
+   Was gold-bright with a per-companion override; now a single pink
+   tone so the "new companion" moment reads consistently. */
+.qf-unlock-card[data-type="companion"]              { color: #ff6fa3; }
 .qf-unlock-card[data-type="companion"] .qf-unlock-name {
-  text-shadow: 0 0 12px var(--gold-bright, #ffd964);
+  text-shadow: 0 0 12px #ff6fa3;
 }
 
-/* Title: gold-bright (matches the title chip in the achievements
-   counter band) */
-.qf-unlock-card[data-type="title"]                  { color: var(--gold-bright, #ffd964); }
+/* Title: PURPLE accent (2026-05-27) — was gold-bright but that
+   collided with achievement (also gold). Purple lets titles own
+   their own colour band. */
+.qf-unlock-card[data-type="title"]                  { color: #b85cff; }
 .qf-unlock-card[data-type="title"] .qf-unlock-name {
-  text-shadow: 0 0 12px var(--gold-bright, #ffd964);
+  text-shadow: 0 0 12px #b85cff;
 }
 
 /* Rarity badge — small "X% earned" pill in the card's top-right corner.

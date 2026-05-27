@@ -39,14 +39,20 @@ const TYPE_THEMES = {
     sfx:    'unlock_reward',
   },
   companion: {
-    // Companion cards override `accent` with the companion's own
-    // `--cmp-accent` color when available — see `_themeFor` below.
-    accent: 'var(--blood)',
+    // Companion cards use a unified PINK accent (2026-05-27) for the
+    // banner / name / frame glow. The per-companion --cmp-accent
+    // override that used to drive jester-yellow / twilight-violet
+    // banners is intentionally retired — keeps the "new companion"
+    // moment visually consistent across the cast.
+    accent: '#ff6fa3',
     banner: '♥  NEW COMPANION  ♥',
     sfx:    'unlock_reward',
   },
   title: {
-    accent: 'var(--gold-bright, #ffd964)',
+    // Title cards switched gold-bright → PURPLE (2026-05-27) so they
+    // read distinctly from achievement (gold) cards. The achievement
+    // card stays gold; titles now own purple.
+    accent: '#b85cff',
     banner: '✦  NEW TITLE  ✦',
     sfx:    'unlock_reward',
   },
@@ -184,19 +190,14 @@ export class UnlockNotificationOverlay {
 
   // ── Per-entry theme + card builders ─────────────────────────────────
 
-  // Resolve the theme for a queue entry. Companions can override the
-  // accent with their own `--cmp-accent` token (jester-yellow for
-  // Rattle Bones, twilight-violet for Nocturna, etc.) so the modal
-  // glow matches the character.
+  // Resolve the theme for a queue entry. Companions used to override
+  // their accent with the per-companion `--cmp-accent` token (jester
+  // yellow for Rattle Bones, twilight-violet for Nocturna, etc.) but
+  // the unified pink accent (2026-05-27) makes the "new companion"
+  // beat read consistently across the cast — the override is retired.
+  // Per-type accents now flow straight from TYPE_THEMES.
   _themeFor(entry) {
     const base = TYPE_THEMES[entry?.type] ?? TYPE_THEMES.achievement
-    if (entry?.type === 'companion' && entry?.id) {
-      // Try the registry's accent first via a synthetic data attr; if
-      // CSS doesn't have a per-companion --cmp-accent, the modal falls
-      // back to the base blood accent (no visual harm).
-      const cmpAccent = `var(--cmp-accent-${entry.id}, ${base.accent})`
-      return { ...base, accent: cmpAccent }
-    }
     return base
   }
 
