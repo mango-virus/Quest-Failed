@@ -272,13 +272,31 @@ export const Leaderboard = {
   // GET top N runs. Default sort: days desc, kills desc.
   async fetchTop(limit = 50) {
     const order = 'days_survived.desc,total_kills.desc,created_at.asc'
-    const url   = `${REST}/runs?select=*&order=${order}&limit=${limit}`
+    // Fetch extra rows so the post-fetch blocklist filter (test names —
+    // see BLOCKED_NAMES below) can't shrink us below `limit`. Pulling
+    // limit + BLOCKED_NAMES.size is a cheap upper bound that handles the
+    // worst case where every blocked row happens to land in the top N.
+    const fetchLimit = limit + BLOCKED_NAMES.size
+    const url   = `${REST}/runs?select=*&order=${order}&limit=${fetchLimit}`
     const res   = await fetch(url, { headers: HEADERS })
     if (!res.ok) {
       const body = await res.text().catch(() => '')
       throw new Error(`Leaderboard fetch failed: ${res.status} ${body}`)
     }
-    const rows = await res.json()
+    let rows = await res.json()
+    // Client-side blocklist — strips known test entries before they hit
+    // any UI (LeaderboardOverlay + AchievementsOverlay both flow through
+    // here). Supabase RLS denies DELETE for the anon key, so we can't
+    // drop them server-side from this client; this filter is the next-
+    // best thing until someone runs a SQL-editor DELETE. Case-insensitive
+    // exact match on player_name (after trim) — matches how submissions
+    // are normalized in buildRunPayload (trim + slice 32).
+    if (Array.isArray(rows) && BLOCKED_NAMES.size) {
+      rows = rows.filter(r => {
+        const n = String(r?.player_name ?? '').trim().toLowerCase()
+        return !BLOCKED_NAMES.has(n)
+      }).slice(0, limit)
+    }
     // Side-effect: cache the current top-3 PAIRED (row id + player name)
     // so the main menu's LEADERBOARD button can paint its NEW badge
     // without firing its own fetch. The cache is global (the leaderboard
@@ -335,3 +353,26 @@ export const Leaderboard = {
 // per leaderboard-overlay open). Used by MainMenuOverlay to paint the
 // LEADERBOARD button's NEW badge without firing its own fetch.
 const TOP3_CACHE_KEY = 'qf.leaderboard.last_top3'
+
+// Test-account blocklist. Rows whose `player_name` matches (case-
+// insensitive, trimmed) are stripped from `fetchTop` before any UI
+// touches them — covers both the run leaderboard and the achievement
+// leaderboard since both flow through that one fetch.
+//
+// Why client-side: Supabase RLS denies DELETE for the anon key (only
+// public SELECT + INSERT are allowed), so this client can't drop the
+// rows from the DB. The actual cleanup is a one-liner in the Supabase
+// SQL editor:
+//   DELETE FROM runs WHERE lower(trim(player_name)) IN ('ahga','jutedsx',...);
+// Once that's run, this list becomes dead code and can be emptied — but
+// leaving it populated is harmless if anyone re-submits under these
+// names from a stale browser tab.
+const BLOCKED_NAMES = new Set([
+  'ahga',
+  'jutedsx',
+  'asdg',
+  '87-0',
+  'test',
+  'dsf',
+  '4578',
+])
