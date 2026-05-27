@@ -297,10 +297,13 @@ export class UnlockNotificationOverlay {
         ])
       }
       case 'title': {
-        // Titles don't have artwork — render the title text BIG inside
-        // a styled chip. This is the centerpiece itself.
+        // Crown glyph as the centerpiece so the card reads the same
+        // structure as the other three types (icon/portrait in the
+        // frame, text NAME below). The title text itself moves to the
+        // name slot. Previously this duplicated the title in both
+        // slots — confusing repetition.
         return h('div', { className: 'qf-unlock-art qf-unlock-art--title' }, [
-          h('div', { className: 'pix qf-unlock-art-title' }, entry.title || '—'),
+          h('div', { className: 'qf-unlock-art-icon' }, '👑'),
         ])
       }
       default:

@@ -11237,7 +11237,11 @@ body {
   object-fit: contain;
   object-position: center bottom;
 }
-.qf-unlock-art--achievement .qf-unlock-art-icon {
+/* Achievement icon (emoji) + title crown share the same centerpiece
+   styling — both are emoji-style glyphs that need a drop-shadow glow
+   in the current accent color and a tiny rotate-bounce on appear. */
+.qf-unlock-art--achievement .qf-unlock-art-icon,
+.qf-unlock-art--title       .qf-unlock-art-icon {
   font-size: 78px;
   line-height: 1;
   filter: drop-shadow(0 0 12px currentColor);
@@ -11248,15 +11252,6 @@ body {
   0%   { transform: scale(0.6) rotate(-8deg); }
   60%  { transform: scale(1.18) rotate(2deg); }
   100% { transform: scale(1) rotate(0); }
-}
-.qf-unlock-art--title .qf-unlock-art-title {
-  font-family: var(--pix);
-  font-size: 20px;
-  line-height: 1.15;
-  letter-spacing: 2.5px;
-  text-shadow: 0 0 12px currentColor;
-  padding: 0 10px;
-  word-break: break-word;
 }
 .qf-unlock-art-placeholder {
   font-size: 80px;
