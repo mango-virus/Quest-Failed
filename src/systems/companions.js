@@ -502,8 +502,12 @@ export const COMPANIONS = {
       'watching-anime', 'reading-manga',
       // Anime fan / hobby — plushies + figures (3)
       'plush-hug', 'holding-plushies', 'figure-collection',
-      // Gamer poses (4)
-      'gaming', 'button-mashing', 'gg-victory', 'streaming',
+      // Gamer poses (3)
+      'gaming', 'button-mashing', 'gg-victory',
+      // Streamer / content-creator beats (3) — headset+mic, phone-on,
+      // mid-text. All read as "she's in creator mode" which is her
+      // most-on-brand recruit-screen energy.
+      'streaming', 'phone-scrolling', 'texting',
       // Snack-time beats (4)
       'cheeks-stuffed', 'pocky-mouth', 'eating-snacks', 'caught-snacking',
     ],
