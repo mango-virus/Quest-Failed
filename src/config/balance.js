@@ -65,25 +65,26 @@ export const Balance = {
   //               × BOSS_*_PER_LEVEL_MUL ^ lvOver
   //   where lvOver = boss.level - 1.
   //
-  // Tuning targets (after 2026-05-27 dial-down):
+  // Tuning targets (after 2026-05-27 second dial-down):
   //   Lv 1 : 200 HP /  12 ATK /  10 DEF  (DEF reduction 17%)
-  //   Lv 5 : 743 HP /  33 ATK /  27 DEF  (DEF reduction 35%)
-  //   Lv 8 : 1,856 HP / 58 ATK /  46 DEF  (DEF reduction 48%)
-  //   Lv 10: 3,343 HP / 87 ATK /  69 DEF  (DEF reduction 58%)
-  //   Lv 12: 6,541 HP / 132 ATK / 102 DEF (DEF reduction 67%)
-  //   Lv 15: 16,743 HP / 285 ATK / 208 DEF (DEF reduction 81%)
+  //   Lv 5 : 539 HP /  25 ATK /  22 DEF  (DEF reduction 30%)
+  //   Lv 8 : 1,141 HP /  37 ATK /  32 DEF (DEF reduction 39%)
+  //   Lv 10: 1,776 HP /  49 ATK /  43 DEF (DEF reduction 46%)
+  //   Lv 12: 2,712 HP /  66 ATK /  60 DEF (DEF reduction 55%)
+  //   Lv 15: 5,623 HP / 110 ATK /  92 DEF (DEF reduction 65%)
   //
-  // Previously these multipliers were 1.40/1.23/1.23, which made the
-  // boss feel too tanky from lv 5 onward (lv 12 had 17k HP, 81% DEF
-  // reduction — basically unkillable inside the 60s wall-clock cap).
-  // The new curve still ramps exponentially but the early/mid-game
-  // (lv 1-8) is roughly half the HP it was, and lv 12 lands at ~6.5k
-  // HP — beatable by a coordinated day-50 party in 20-40 rounds.
+  // Lineage: 1.40/1.23/1.23 (initial) → 1.30/1.18/1.18 (first
+  // dial-down) → 1.20/1.10/1.10 (current, after playtest showed
+  // even the dialed-down curve was still too heavy mid/late game).
+  // Boss is now beatable in well under the 60s wall-clock cap at
+  // all levels by a coordinated late-day party, while still scaling
+  // up enough to be threatening (lv 15 boss takes ~50 rounds for a
+  // day-50 party to chew through).
   // Tune up if late-game feels trivial; tune down further if early
   // levels still feel sluggish.
-  BOSS_HP_PER_LEVEL_MUL:     1.30,   // was 1.40
-  BOSS_ATK_PER_LEVEL_MUL:    1.18,   // was 1.23
-  BOSS_DEF_PER_LEVEL_MUL:    1.18,   // was 1.23
+  BOSS_HP_PER_LEVEL_MUL:     1.20,   // was 1.30
+  BOSS_ATK_PER_LEVEL_MUL:    1.10,   // was 1.18
+  BOSS_DEF_PER_LEVEL_MUL:    1.10,   // was 1.18
 
   // Percentage-based defense for damage TO the boss.
   // Old formula: dmgToBoss = max(1, atkPool − boss.defense)
