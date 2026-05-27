@@ -99,8 +99,12 @@ export class UnlockNotificationOverlay {
       // shell doesn't expose a per-frame setter; the per-type theming
       // shows up via the card body's data-type styling instead.
       title:     '✦  UNLOCK  ✦',
-      width:     560,
-      height:    580,
+      // Compact modal — tightened 560×580 → 460×480 so the celebration
+      // reads as an intimate spotlight rather than a half-empty dialog.
+      // The card inside fills the box; padding + per-element sizing in
+      // styles.css does the rest.
+      width:     460,
+      height:    480,
       accent:    theme.accent,
       // 'unfurl' is the same dramatic flourish the achievements +
       // leaderboard popups use — fits the celebratory tone here.

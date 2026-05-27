@@ -11132,8 +11132,11 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 14px;
-  padding: 18px 16px 12px;
+  /* Tighter vertical rhythm — banner / art / name / subtitle hug each
+     other so the card reads as one composed block, not a sparse list.
+     Footer floats to the bottom via `margin-top: auto`. */
+  gap: 10px;
+  padding: 12px 14px 10px;
   width: 100%;
   height: 100%;
   text-align: center;
@@ -11169,15 +11172,17 @@ body {
   50%      { box-shadow: 0 0 24px color-mix(in srgb, currentColor 80%, transparent); }
 }
 
-/* Centerpiece frame — large square panel that holds the per-type
-   artwork. Per-type subclasses tune the inner element. */
+/* Centerpiece frame — square panel that holds the per-type artwork.
+   Per-type subclasses tune the inner element. Sized 175px so the card
+   reads compactly while still letting the sprite breathe inside the
+   pixel border + ambient glow. */
 .qf-unlock-art {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 220px;
-  height: 220px;
-  padding: 10px;
+  width: 175px;
+  height: 175px;
+  padding: 8px;
   background: var(--bg-0);
   border: 2px solid currentColor;
   box-shadow: 0 0 0 1px #000,
@@ -11220,7 +11225,7 @@ body {
   object-position: center bottom;
 }
 .qf-unlock-art--achievement .qf-unlock-art-icon {
-  font-size: 96px;
+  font-size: 78px;
   line-height: 1;
   filter: drop-shadow(0 0 12px currentColor);
   /* Slight bounce on appear, syncs with the card's scale-in */
@@ -11233,11 +11238,11 @@ body {
 }
 .qf-unlock-art--title .qf-unlock-art-title {
   font-family: var(--pix);
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.15;
   letter-spacing: 2.5px;
   text-shadow: 0 0 12px currentColor;
-  padding: 0 14px;
+  padding: 0 10px;
   word-break: break-word;
 }
 .qf-unlock-art-placeholder {
@@ -11257,7 +11262,7 @@ body {
 .qf-unlock-subtitle {
   font-size: 12px;
   color: var(--text-mute);
-  max-width: 460px;
+  max-width: 360px;
   line-height: 1.4;
   font-style: italic;
 }
