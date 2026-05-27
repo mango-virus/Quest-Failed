@@ -188,7 +188,16 @@ export const COMPANIONS = {
     // his head sits comfortably toward the card's centre-right rather
     // than crowding the right edge.
     portraitScale: 2.9,
-    portraitOrigin: '70% 100%',
+    // Origin x dropped from 70% -> 60% on 2026-05-27 to compensate for the
+    // `portraitFlipX: true` swap. Pre-flip, the 70% pivot put his face near
+    // the right of the card and his tail extended off-left (where his card
+    // had no neighbour). Post-flip, that same 70% pivot pushed his bulk
+    // off the RIGHT edge — user feedback "pushed too far to the right".
+    // Dropping to 60% mirrors the pivot's distance-from-centre across the
+    // flip so his face now sits near the LEFT edge of his card (facing
+    // Luna) and his tail extends off-right (faded by the mask, no neighbour
+    // on that side either since he's on the rightmost card of page 3).
+    portraitOrigin: '60% 100%',
     archScale: 2.3,
     archOrigin: '60% 100%',
     // Tail-side fade — the source art's left half (his rear half:
@@ -204,15 +213,13 @@ export const COMPANIONS = {
     // off-card; the long fade tail makes the dissolve read as anatomy
     // rather than a sharp horizontal slice.
     fadeMask: 'linear-gradient(to right, transparent 0%, transparent 22%, #fff 72%, #fff 100%)',
-    // Under the paginator layout (2026-05-25) Zul'Gath sits at the LEFT
-    // of page 2, with Nocturna to his right. His wide body extends in the
-    // direction his head faces; flipping him so he faces Nocturna keeps
-    // his bulk on his own card instead of overflowing across hers. With
-    // `false` (no flip) the source art's natural right-facing pose lands
-    // correctly + the `fadeMask` (which fades source-left) puts the fade
-    // on his trailing tail-side, same as before. If he ever moves back
-    // beside neighbours on his RIGHT, flip this to `true` again.
-    portraitFlipX: false,
+    // After the 2026-05-27 swap with Spectra, Zul'Gath sits at the RIGHT
+    // of page 3 with Luna to his LEFT. His source art faces RIGHT, so we
+    // flip him so he faces LEFT inward toward Luna. The `fadeMask` (a
+    // left-to-right gradient) flips with the element under `scaleX(-1)`,
+    // which keeps the fade on his trailing tail-side after the flip — so
+    // his bulk still spills off his own card edge rather than across Luna.
+    portraitFlipX: true,
     hudScale: 2.5,
     hudBubbleScale: 1,
     hudImgOrigin: '0% 100%',
@@ -468,7 +475,11 @@ export const COMPANIONS = {
     locked:    true,
     portraitScale: 1.15,
     portraitOrigin: '50% 100%',
-    portraitFlipX: true,
+    // After the 2026-05-27 swap with Zul'Gath, Spectra sits at the LEFT
+    // of page 3 with Luna to her RIGHT. Her source art faces LEFT, so
+    // we leave her unflipped — natural pose has her looking inward
+    // toward Luna.
+    portraitFlipX: false,
     hudScale: 1.15,
     spriteDir: 'assets/npc-spectra/',
     // Neutral resting face — the ghost in default form. NOT the
@@ -676,7 +687,7 @@ export function getCompanion(id) {
 // ids stay in the list — the overlay renders them silhouetted in-place and
 // skips them from banter / hover / click; never strip locked ids here.
 // Append new companions to the end; pagination auto-extends.
-export const COMPANION_ORDER = ['lilith', 'rattlebones', 'safira', 'necroknight', 'nocturna', 'malakor', 'zulgath', 'luna', 'spectra']
+export const COMPANION_ORDER = ['lilith', 'rattlebones', 'safira', 'necroknight', 'nocturna', 'malakor', 'spectra', 'luna', 'zulgath']
 
 // Roster of companion ids that ship UNLOCKED out of the box — used by
 // PlayerProfile to seed the per-player unlock set on first run. Locked
