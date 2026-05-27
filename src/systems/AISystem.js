@@ -80,6 +80,18 @@ const TRAP_SIDE_BIAS_RING          = 2     // tiles around trap to apply bias
 // guarantees forward progress; any non-EXPLORE_ROOM goal pick resets the
 // counter, so normal exploration of a long dungeon still works.
 const EXPLORE_STREAK_CAP           = 5
+// Position-stagnation watchdog (2026-05-27). The pathTarget-based watchdog
+// further down resets its progress baseline every time the goal flips,
+// because pathTarget changes too. That blind-spots the classic chokepoint
+// loop: adv walks toward room A, hits trap, replan picks room B, walks
+// back, replan picks room A again, etc. Distance to current target drops
+// each step so the baseline keeps moving, but the adv physically oscillates
+// in a small radius. This watchdog tracks the adv's tile position directly
+// (anchor + Chebyshev radius); independent of goals/targets, so goal-churn
+// can't fool it. STAG_RADIUS = 3 means the adv must move >3 tiles (5×5
+// Chebyshev box) from the anchor for the timer to reset.
+const STAG_RADIUS_TILES            = 3
+const STAG_TIMEOUT_MS              = 5000
 // Beast Master tame protection — how long a minion stays off-limits to
 // other adventurers' melee after a Beast Master last stamped it as a
 // tame target. ClassAbilitySystem refreshes the stamp every tick the
@@ -1125,42 +1137,7 @@ export class AISystem {
           adv._loopBestDist   = dist  // reset so we don't re-trigger
           adv._loopBestAt     = wNow
           this._aiDiag(adv, `WATCHDOG FIRED panic-walk +3s | goal=${goalTypeKey} target=(${tgt.x},${tgt.y}) dist=${dist}`)
-
-          // Stuck-EXPLORE_ROOM escalation (2026-05-27, follow-up to the
-          // streak-cap fix). The streak cap at the EXPLORE_ROOM arrival
-          // handler only fires when the adv REACHES a room. If the room
-          // is unreachable (blocked by other advs, trapped tile chain,
-          // bad pathing), they never arrive → streak stays at 0 →
-          // they loop forever even though the watchdog is firing.
-          // Player's latest screenshots show 12+ advs all stuck on
-          // EXPLORE_ROOM at d=9..14 with WALK active.
-          //
-          // Fix: when the watchdog fires on EXPLORE_ROOM, treat it as
-          // a "give up on this room" event. Mark it visited so the
-          // personality system won't re-pick it, bump the streak, and
-          // either force SEEK_BOSS (if the cap is hit) or re-roll the
-          // goal. After 5 watchdog fires (~25s total stuck) they
-          // commit to the throne whether they know where it is or not
-          // (knowledge gate in _goalToTile handles the redirect to
-          // exploration if not).
-          if (adv.goal?.type === 'EXPLORE_ROOM') {
-            adv.visitedRooms ??= []
-            if (adv.goal.roomId != null && !adv.visitedRooms.includes(adv.goal.roomId)) {
-              adv.visitedRooms.push(adv.goal.roomId)
-            }
-            adv._exploreStreak = (adv._exploreStreak ?? 0) + 1
-            if (adv._exploreStreak >= EXPLORE_STREAK_CAP) {
-              adv._exploreStreak = 0
-              adv.goal = { type: 'SEEK_BOSS' }
-              EventBus.emit('SAY_seekBoss', { adventurer: adv })
-              this._aiDiag(adv, `STREAK CAP via watchdog → SEEK_BOSS`)
-            } else {
-              const next = this._pickNextGoal(adv)
-              adv.goal = next
-              if (next?.type !== 'EXPLORE_ROOM') adv._exploreStreak = 0
-              this._aiDiag(adv, `gave up on EXPLORE_ROOM → ${next?.type ?? '?'} (streak=${adv._exploreStreak})`)
-            }
-          }
+          this._escalateStuckExplore(adv)
         }
         // Diagnostic: warn every ~1s when an adv is in the no-progress
         // window (3-5s) but not yet panic-walked. Catches the case
@@ -1179,6 +1156,47 @@ export class AISystem {
       if (adv._diagLastGoal !== goalTypeKey) {
         this._aiDiag(adv, `goal: ${adv._diagLastGoal ?? '(none)'} -> ${goalTypeKey}`)
         adv._diagLastGoal = goalTypeKey
+      }
+
+      // Position-stagnation watchdog (2026-05-27 follow-up). The pathTarget
+      // tracker above resets every time the goal flips (because pathTarget
+      // changes too) — so an adv ping-ponging between two EXPLORE_ROOM
+      // goals around a trapped chokepoint never trips it: dist-to-target
+      // drops each step even though their tile position oscillates in
+      // place. Player's screenshots showed exactly this: 12+ advs stuck
+      // walking up to a trap, turning around, walking to the other room,
+      // and repeating, with the pathTarget watchdog never escalating.
+      //
+      // This watchdog tracks the adv's actual tile position via an anchor
+      // + Chebyshev radius. As long as they stay within STAG_RADIUS_TILES
+      // of the anchor, the timer runs; only a move >RADIUS away resets the
+      // anchor. Independent of goals, so goal-churn can't fool it.
+      // Gated on aiState === 'walking' && pathTarget so we don't false-fire
+      // on intentionally stationary states (fighting, looting, idle, etc.).
+      if (adv.aiState === 'walking' && adv.pathTarget) {
+        const ax = adv._stagAnchorX
+        const ay = adv._stagAnchorY
+        const farFromAnchor = (ax == null || ay == null) ||
+          Math.max(Math.abs(adv.tileX - ax), Math.abs(adv.tileY - ay)) > STAG_RADIUS_TILES
+        if (farFromAnchor) {
+          adv._stagAnchorX  = adv.tileX
+          adv._stagAnchorY  = adv.tileY
+          adv._stagAnchorAt = wNow
+        } else if (wNow - (adv._stagAnchorAt ?? wNow) > STAG_TIMEOUT_MS) {
+          adv._panicWalkUntil = wNow + 3000
+          adv.path            = null
+          adv._stagAnchorX    = adv.tileX
+          adv._stagAnchorY    = adv.tileY
+          adv._stagAnchorAt   = wNow
+          this._aiDiag(adv, `STAG WATCHDOG FIRED panic-walk +3s | goal=${goalTypeKey} pos=(${adv.tileX},${adv.tileY})`)
+          this._escalateStuckExplore(adv)
+        }
+      } else {
+        // Not actively walking — clear the anchor so the timer doesn't
+        // carry over once they resume movement.
+        adv._stagAnchorX  = null
+        adv._stagAnchorY  = null
+        adv._stagAnchorAt = null
       }
     }
     // AT_BOSS adventurers are owned by BossSystem.  Skip every other AI
@@ -3605,6 +3623,36 @@ export class AISystem {
       return
     }
 
+  }
+
+  // Stuck-EXPLORE_ROOM escalation. Called from both watchdogs (pathTarget
+  // and position-stagnation) when they fire. If the adv's current goal is
+  // EXPLORE_ROOM, marks the unreachable room as visited (so the
+  // personality picker won't re-select it — cartographer + scout already
+  // respect visitedRooms), bumps _exploreStreak, and either forces
+  // SEEK_BOSS (cap hit) or re-rolls the goal via _pickNextGoal. After
+  // EXPLORE_STREAK_CAP give-ups (~25s of stuckness) the adv hard-commits
+  // to the throne — the knowledge gate in _goalToTile handles the
+  // redirect-to-exploration case if they don't yet know the path there.
+  // No-op if the goal isn't EXPLORE_ROOM. (2026-05-27)
+  _escalateStuckExplore(adv) {
+    if (adv.goal?.type !== 'EXPLORE_ROOM') return
+    adv.visitedRooms ??= []
+    if (adv.goal.roomId != null && !adv.visitedRooms.includes(adv.goal.roomId)) {
+      adv.visitedRooms.push(adv.goal.roomId)
+    }
+    adv._exploreStreak = (adv._exploreStreak ?? 0) + 1
+    if (adv._exploreStreak >= EXPLORE_STREAK_CAP) {
+      adv._exploreStreak = 0
+      adv.goal = { type: 'SEEK_BOSS' }
+      EventBus.emit('SAY_seekBoss', { adventurer: adv })
+      this._aiDiag(adv, `STREAK CAP via watchdog → SEEK_BOSS`)
+    } else {
+      const next = this._pickNextGoal(adv)
+      adv.goal = next
+      if (next?.type !== 'EXPLORE_ROOM') adv._exploreStreak = 0
+      this._aiDiag(adv, `gave up on EXPLORE_ROOM → ${next?.type ?? '?'} (streak=${adv._exploreStreak})`)
+    }
   }
 
   // Neighbour rooms reachable from `room` via its connectionPoints.

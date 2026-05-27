@@ -370,6 +370,12 @@ function _rehydrateRunHistory(state) {
     // gets a fresh shot at exploring the post-load dungeon.
     '_loopGoalKey', '_loopBestDist', '_loopBestAt', '_panicWalkUntil',
     '_diagLastGoal', '_lastDiagAt', '_exploreStreak',
+    // Position-stagnation watchdog anchor (independent of the pathTarget
+    // watchdog — catches goal-flip ping-pong around chokepoints/traps
+    // where pathTarget changes faster than position does). _stagAnchorAt
+    // is scene.time-stamped so it MUST strip; the X/Y are just stale
+    // anchor coords that should rebuild from the adv's post-load tile.
+    '_stagAnchorX', '_stagAnchorY', '_stagAnchorAt',
   ]
   for (const a of (state.adventurers.active ?? [])) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]
