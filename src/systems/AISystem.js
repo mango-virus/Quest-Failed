@@ -1066,6 +1066,45 @@ export class AISystem {
       adv.path = null
       return
     }
+    // ── Anti-ping-pong watchdog (2026-05-27) ────────────────────────────
+    // If the adv has been failing to make any meaningful progress toward
+    // their pathTarget for 5+ seconds (visible "running back and forth"
+    // loop around a known trap), flip them into PANIC-WALK mode for the
+    // next 3 seconds: the path block reads `_panicWalkUntil` and disables
+    // BOTH the trap-knowledge cost weighting AND the sprung-trap soft-
+    // block. The pathfinder then picks the most direct route — even if
+    // that means walking straight through the trap. The adv triggers
+    // the trap, takes damage (or dies), and the loop is broken.
+    // Resets on goal change so a normal "switched to a new objective"
+    // doesn't get punished as no-progress.
+    {
+      const wNow = this._scene?.time?.now ?? 0
+      const goalTypeKey = adv.goal?.type ?? 'none'
+      if (adv._loopGoalKey !== goalTypeKey || adv._loopBestDist == null) {
+        // Goal changed (or first time) — reset the watchdog baseline.
+        adv._loopGoalKey  = goalTypeKey
+        adv._loopBestDist = null
+        adv._loopBestAt   = wNow
+      }
+      // Use pathTarget when present (the actual A* destination); fall
+      // back to nothing — we can't measure progress without a target.
+      const tgt = adv.pathTarget
+      if (tgt && typeof tgt.x === 'number' && typeof tgt.y === 'number') {
+        const dist = Math.abs(adv.tileX - tgt.x) + Math.abs(adv.tileY - tgt.y)
+        const best = adv._loopBestDist
+        if (best == null || dist < best - 0.5) {
+          // Made meaningful progress — reset the timer.
+          adv._loopBestDist = dist
+          adv._loopBestAt   = wNow
+        } else if (wNow - (adv._loopBestAt ?? wNow) > 5000) {
+          // 5+ seconds without progress — confirmed loop. Panic-walk.
+          adv._panicWalkUntil = wNow + 3000
+          adv.path            = null  // force re-path with the new flag
+          adv._loopBestDist   = dist  // reset so we don't re-trigger
+          adv._loopBestAt     = wNow
+        }
+      }
+    }
     // AT_BOSS adventurers are owned by BossSystem.  Skip every other AI
     // branch and free our occupancy entry so the 4th party member can
     // path through the doorway tile this one used to hold.  Without the
@@ -1802,7 +1841,14 @@ export class AISystem {
       //   • known traps cost more when this adv was recently warned
       //   • we count rejected trap tiles → ~12% chance to fire avoidTrap
       //     chat line (so the dodge reads visibly to the player)
-      const useKnowledgeCost = this._knowledgeSystem && adv.goal?.type !== 'FLEE'
+      // Panic-walk override (anti-ping-pong watchdog, 2026-05-27). When
+      // the adv has been failing to make progress for 5+ seconds, the
+      // watchdog at the top of _tickAdventurer set `_panicWalkUntil`.
+      // While active, skip trap-knowledge cost weighting AND don't apply
+      // the sprung-trap soft-block (set further down on softOpts). The
+      // pathfinder picks the most direct route — through traps if needed.
+      const panicWalk = (adv._panicWalkUntil ?? 0) > this._scene.time.now
+      const useKnowledgeCost = this._knowledgeSystem && adv.goal?.type !== 'FLEE' && !panicWalk
       let trapRejectsThisPath = 0
       const warned = (adv._warnedUntil ?? 0) > this._scene.time.now
       // Per-adv trap-side bias (anti-ping-pong, 2026-05-27). Lazy-init at
@@ -1905,7 +1951,11 @@ export class AISystem {
       const softOpts = {
         softBlocked:      softBlockedForAdv,
         softTraps:        true,
-        avoidSprungTraps: true,
+        // Sprung-trap soft-block disabled during panic-walk so the
+        // pathfinder picks a direct route through the trap instead of
+        // looping forever around it. Adv triggers the trap, takes the
+        // damage (or dies), loop is broken either way.
+        avoidSprungTraps: !panicWalk,
         noClip:           cheaterNoClip,
       }
       // Add path jitter for non-flee goals so adventurers don't all march the
