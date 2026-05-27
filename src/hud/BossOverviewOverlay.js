@@ -138,6 +138,8 @@ export class BossOverviewOverlay {
     const xpMax = gs.boss?.xpToNext ?? 100
     const level = gs.boss?.level ?? 1
     const lives = gs.boss?.deathsRemaining ?? 3
+    const atk   = gs.boss?.attack  ?? 0
+    const def   = gs.boss?.defense ?? 0
     const hpPct = maxHp > 0 ? (hp / maxHp) * 100 : 0
     const xpPct = xpMax > 0 ? Math.min(100, (xp / xpMax) * 100) : 0
     const archName = (arch?.name || archId).toUpperCase()
@@ -196,6 +198,37 @@ export class BossOverviewOverlay {
         ]),
         h('div', { className: 'bar xp' }, [
           h('div', { className: 'fill', style: { width: `${xpPct}%` } }),
+        ]),
+        // Live combat stats — ATK / DEF chips. Sits with HP/XP rather
+        // than the run-totals tally below because these are state
+        // values the boss carries into every fight, not historical
+        // counters. Per-level growth via BOSS_ATK_PER_LEVEL /
+        // BOSS_DEF_PER_LEVEL means the numbers climb visibly as the
+        // boss earns XP — important for the player to see "I'm
+        // hitting for 17 / soaking 15" when planning the next fight.
+        h('div', { className: 'qf-boss-statpair' }, [
+          h('div', { className: 'qf-boss-statchip' }, [
+            h('span', {
+              className: 'qf-boss-statchip-icon',
+              style: { color: 'var(--gold)' },
+            }, '⚔'),
+            h('span', { className: 'pix qf-boss-statchip-label' }, 'ATK'),
+            h('span', {
+              className: 'pix qf-boss-statchip-value',
+              style: { color: 'var(--gold)' },
+            }, String(atk)),
+          ]),
+          h('div', { className: 'qf-boss-statchip' }, [
+            h('span', {
+              className: 'qf-boss-statchip-icon',
+              style: { color: 'var(--info)' },
+            }, '◈'),
+            h('span', { className: 'pix qf-boss-statchip-label' }, 'DEF'),
+            h('span', {
+              className: 'pix qf-boss-statchip-value',
+              style: { color: 'var(--info)' },
+            }, String(def)),
+          ]),
         ]),
       ]),
       // Tally
