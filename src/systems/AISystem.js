@@ -2969,6 +2969,21 @@ export class AISystem {
       }
       const boss = dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
       if (!boss) return null
+      // Knowledge gate (2026-05-27). Advs may only path DIRECTLY to the
+      // boss when they actually know where it is — they've visited it
+      // OR inherited briefing AND have an unbroken chain of known rooms
+      // from their current room. Otherwise they keep the SEEK_BOSS goal
+      // but walk toward the nearest unvisited room instead, discovering
+      // the dungeon until the chain links up. Also tightens the
+      // Legendary Speed Runner event (they still skip combat/scout/
+      // treasure via _pickNextGoal but no longer cheat their way to
+      // the throne with omniscient room awareness).
+      if (!this._knowsBossLocation(adv)) {
+        const explore = this._exploreFallbackForSeekBoss(adv)
+        if (explore) return explore
+        // Nothing left to explore — fall through to boss tile so the
+        // adv isn't stranded goal-less in a degenerate dungeon.
+      }
       return {
         x: boss.gridX + Math.floor(boss.width  / 2),
         y: boss.gridY + Math.floor(boss.height / 2),
@@ -3433,6 +3448,21 @@ export class AISystem {
     }
 
     if (adv.goal.type === 'SEEK_BOSS') {
+      // Knowledge-gated SEEK_BOSS (2026-05-27). When the adv doesn't
+      // know where the boss is, _goalToTile resolves their pathTarget
+      // to an unvisited room's center instead. Arrivals at THAT tile
+      // must NOT hand off to BossSystem — that would phantom-trigger
+      // BOSS_FIGHT_INCOMING from across the map. Verify the adv is
+      // actually standing in the boss room before the handoff. If not,
+      // they just arrived at an exploration target — clear the path so
+      // the next replan re-resolves (either to the boss now that the
+      // chain may have linked up via the just-observed room, or to the
+      // next unvisited room).
+      const hereRoom = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+      if (!hereRoom || hereRoom.definitionId !== 'boss_chamber') {
+        adv.path = null
+        return
+      }
       // Only redirect to FLEE on TRUE death (no lives left, no
       // phylactery). A non-final death leaves boss.hp at 0 ("death
       // pose") between fights but the boss is still alive overall —
@@ -3539,6 +3569,98 @@ export class AISystem {
       return
     }
 
+  }
+
+  // Neighbour rooms reachable from `room` via its connectionPoints.
+  // Mirrors the pattern in DungeonGrid._unpairNeighbourCps: each cp
+  // points one tile in cp.direction into the next room. External cps
+  // (dungeon edge) yield nothing. (2026-05-27 — knowledge-gated SEEK_BOSS)
+  _getRoomNeighbors(room) {
+    if (!room) return []
+    const DIR = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }
+    const out = []
+    for (const cp of room.connectionPoints ?? []) {
+      if (cp.external) continue
+      const v = DIR[cp.direction]
+      if (!v) continue
+      const tx = room.gridX + cp.x + v[0]
+      const ty = room.gridY + cp.y + v[1]
+      const other = this._dungeonGrid?.getRoomAtTile?.(tx, ty)
+      if (other && other.instanceId !== room.instanceId && !out.includes(other)) {
+        out.push(other)
+      }
+    }
+    return out
+  }
+
+  // True iff `adv` knows where the boss is — i.e. (a) they have a
+  // knowledge entry for the boss room (visited it, or inherited briefing
+  // from a returning veteran), AND (b) there's an unbroken chain of
+  // known rooms (via connectionPoints) from their current room back to
+  // the boss room. Without (b), they might know the throne exists but
+  // have never walked or been briefed on a route there, so they should
+  // NOT be able to path directly — they have to explore until the chain
+  // links up.
+  //
+  // Knowledge sources (KnowledgeSystem.js):
+  //   - Visiting a room (ADVENTURER_ROOM_CHANGED → observeCurrentRoom)
+  //   - Briefing on spawn (initKnowledgeForSpawn inherits a fraction of
+  //     the shared pool from prior survivors; veterans inherit 100%)
+  //
+  // Used by the SEEK_BOSS branch of _goalToTile to gate direct-to-boss
+  // pathing (and, transitively, by speedrunner — they still skip combat/
+  // scout/treasure via _pickNextGoal, but no longer cheat their way to
+  // the throne). BFS is capped at 200 visits as a safety belt against a
+  // pathological dungeon. (2026-05-27)
+  _knowsBossLocation(adv) {
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+    const boss  = rooms.find(r => r.definitionId === 'boss_chamber')
+    if (!boss) return false
+    const known = adv.knowledge?.rooms ?? {}
+    if (!known[boss.instanceId]) return false
+    const here = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+    if (!here) return false
+    if (here.instanceId === boss.instanceId) return true
+    const seen = new Set([here.instanceId])
+    const queue = [here]
+    let safety = 200
+    while (queue.length && safety-- > 0) {
+      const r = queue.shift()
+      for (const n of this._getRoomNeighbors(r)) {
+        if (seen.has(n.instanceId)) continue
+        if (n.instanceId === boss.instanceId) return true
+        // Can only traverse rooms the adv knows about.
+        if (!known[n.instanceId]) continue
+        seen.add(n.instanceId)
+        queue.push(n)
+      }
+    }
+    return false
+  }
+
+  // Fallback target for an adv whose goal is SEEK_BOSS but who doesn't
+  // know where the boss is. Picks the nearest unvisited non-boss,
+  // unlocked room and returns its center tile — the adv keeps the
+  // SEEK_BOSS goal but walks toward unexplored territory. When they
+  // enter that room, observeCurrentRoom links it into their knowledge;
+  // the next replan may then resolve straight to the boss. Returns null
+  // only in degenerate dungeons where nothing else is left to explore;
+  // the caller falls through to the boss tile so the adv isn't
+  // stranded goal-less. (2026-05-27)
+  _exploreFallbackForSeekBoss(adv) {
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+    const visited = new Set(adv.visitedRooms ?? [])
+    let best = null, bestDist = Infinity
+    for (const room of rooms) {
+      if (room.definitionId === 'boss_chamber') continue
+      if (visited.has(room.instanceId)) continue
+      if (room.locked) continue
+      const cx = room.gridX + Math.floor(room.width  / 2)
+      const cy = room.gridY + Math.floor(room.height / 2)
+      const d = Math.hypot(adv.tileX - cx, adv.tileY - cy)
+      if (d < bestDist) { best = { x: cx, y: cy }; bestDist = d }
+    }
+    return best
   }
 
   // Average tile position of all living party-mates other than `adv`.
