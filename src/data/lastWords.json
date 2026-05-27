@@ -38,7 +38,7 @@
     },
     "twitch_streamer": {
       "minion":  ["Chat, did you see that? CHAT!", "F in the chat...", "RIP my run, FeelsBadMan.", "Chat I'm out... PogChamp?", "PauseChamp... no wait.", "Guys I'm dying on stream! GUYS!", "NotLikeThis NotLikeThis NotLikeThis"],
-      "boss":    ["Clip it!", "MaxLOL", "...gg, dungeon.", "This is so going on the highlight reel.", "The boss got me. My viewers will avenge this.", "Died to the boss. First time on stream. Not first time overall."],
+      "boss":    ["Clip it!", "MaxLOL", "...gg, dungeon.", "This is so going on the highlight reel.", "The boss got me. My viewers will avenge this.", "Died to the boss. First time on stream."],
       "trap":    ["WAIT WAIT CHAT DID YOU SEE THAT", "Trap jumpscare PogChamp", "My chat voted to go left. I went right.", "That's a clip. That is absolutely a clip."],
       "default": ["Rage quit... incoming.", "I'm out. F for me.", "I'll respawn at spawn. Wait—", "Moment of silence please.", "Someone clip this."]
     },

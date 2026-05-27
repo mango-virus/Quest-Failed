@@ -4,6 +4,7 @@ import { Balance, adventurerDisplayLevel } from '../config/balance.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
+import { createBubble } from '../ui/Bubble.js'
 // CombatLog removed in Phase 31C — DungeonLog (HudScene right column) replaces it.
 import { DossierPanel }   from '../ui/DossierPanel.js'
 import { PauseManager }   from '../systems/PauseManager.js'
@@ -1747,27 +1748,19 @@ export class DayPhase extends Phaser.Scene {
       line = lines[Math.floor(Math.random() * lines.length)]
     }
 
-    // Add to the Game scene at world-space coords so the camera handles
-    // zoom/scroll projection automatically (avoids manual world→screen math).
+    // Render via the shared BubbleFactory — pixel-art square bubble
+    // with blood-red border, wrapped Press Start 2P text (capped at
+    // 3 lines). Lifecycle is the bubble's own fade-up + delayed fade-
+    // out; lifeMs covers the visible hold, the factory handles the
+    // exit tween.
     const gameScene = this.scene.get('Game')
-    const wx = adv.worldX
-    const wy = adv.worldY - 16
-
-    const txt = gameScene.add.text(wx, wy, `"${line}"`, {
-      fontSize: '9px', color: PALETTE.textBright, fontFamily: 'monospace',
-      fontStyle: 'italic', backgroundColor: '#10141c', padding: { x: 4, y: 2 },
-    }).setOrigin(0.5, 1).setDepth(28).setAlpha(0)
-
-    gameScene.tweens.add({
-      targets: txt, alpha: 1, y: wy - 8, duration: 220,
-      onComplete: () => {
-        gameScene.time.delayedCall(2500, () => {
-          gameScene.tweens.add({
-            targets: txt, alpha: 0, y: wy - 20, duration: 600,
-            onComplete: () => txt.destroy(),
-          })
-        })
-      },
+    createBubble(gameScene, {
+      x:      adv.worldX,
+      y:      adv.worldY - 16,
+      text:   `"${line}"`,
+      kind:   'death',
+      depth:  28,
+      lifeMs: 2800,
     })
   }
 

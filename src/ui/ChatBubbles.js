@@ -4,6 +4,7 @@
 // transitions, low HP, ally death, fleeing, boss room.
 
 import { EventBus } from '../systems/EventBus.js'
+import { createBubble } from './Bubble.js'
 
 // Ambient chatter cadence. The base interval is what each adv targets;
 // _scheduleNextChat() lengthens it on big waves so total bubbles/sec
@@ -250,12 +251,21 @@ export class ChatBubbles {
     const currentCount = Object.keys(this._bubbles).length
     if (currentCount >= MAX_CONCURRENT_BUBBLES && !this._bubbles[adv.instanceId]) return
 
-    const c   = this._scene.add.container(adv.worldX, adv.worldY - 30).setDepth(11)
-    const txt = this._scene.add.text(0, 0, line, {
-      fontSize: '9px', color: '#e0e6f0', fontFamily: 'monospace',
-      backgroundColor: '#10141c', padding: { x: 4, y: 2 },
-    }).setOrigin(0.5, 1)
-    c.add(txt)
+    // Build via the shared BubbleFactory — pixel-art square bubble
+    // with downward tail, wrapped Press Start 2P text (140 px max,
+    // capped at 3 lines), scale-pop entrance. Container origin is
+    // the tail tip; we anchor it at (worldX, worldY - 30) so the
+    // tail points at the adv's head — same offset the old single-
+    // line render used.
+    const c = createBubble(this._scene, {
+      x:     adv.worldX,
+      y:     adv.worldY - 30,
+      text:  line,
+      kind:  'chat',
+      depth: 11,
+      // No auto-lifeMs — this module manages its own expiry timer
+      // via expiresAt + the per-frame update() sweep below.
+    })
 
     this._bubbles[adv.instanceId] = {
       container: c,

@@ -21,6 +21,7 @@
 import { EventBus }         from './EventBus.js'
 import { AbilitySystem }    from './AbilitySystem.js'
 import { AbilityVfx }       from '../ui/AbilityVfx.js'
+import { createBubble }     from '../ui/Bubble.js'
 import { Balance }          from '../config/balance.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { TILE }             from './DungeonGrid.js'
@@ -1116,38 +1117,56 @@ export class ClassAbilitySystem {
   }
 
   _fireSlotAnimation(adv, effects, finalPick) {
-    const x = adv.worldX, y = adv.worldY - 38
-    const txt = this._scene.add.text(x, y, '???', {
-      fontSize: '12px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 3, backgroundColor: '#222266',
-    }).setOrigin(0.5).setPadding(3, 2, 3, 2).setDepth(20)
+    // Streamer slot animation — same pixel-art bubble shape as
+    // ambient chat and death floats, but with the twitch-purple
+    // border + a "CHAT ROLLED" eyebrow above the rolling label.
+    // Cycles 8 random labels at 70ms each, then settles on the final
+    // pick. No auto lifeMs — the cycle tick orchestrates its own
+    // settle + fade-out via container.fadeOut().
+    const bubble = createBubble(this._scene, {
+      x:       adv.worldX,
+      y:       adv.worldY - 38,
+      text:    '???',
+      kind:    'streamer',
+      eyebrow: 'Chat Rolled',
+      depth:   20,
+    })
+
     let cycles = 0
     const total = 8
     const interval = 70
+
     const followUpdate = () => {
-      if (!txt.active) return
-      // Self-destruct if the streamer leaves the active list — prevents
-      // the slot text snapping to world (0, 0) (upper-left corner).
+      if (!bubble.active) return
+      // Self-destruct if the streamer leaves the active list —
+      // prevents the bubble snapping to world (0, 0).
       if (!this._gameState.adventurers.active.includes(adv)) {
         this._scene.events.off('update', followUpdate)
-        if (txt.active) txt.destroy()
+        if (bubble.active) bubble.killNow()
         return
       }
       if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) {
-        txt.setPosition(adv.worldX, adv.worldY - 38)
+        bubble.setPosition(adv.worldX, adv.worldY - 38)
       }
     }
     this._scene.events.on('update', followUpdate)
+
     const tick = () => {
-      if (!txt.active) { this._scene.events.off('update', followUpdate); return }
+      if (!bubble.active) { this._scene.events.off('update', followUpdate); return }
       cycles++
       if (cycles >= total) {
-        txt.setText(finalPick.label)
-        this._scene.tweens.add({ targets: txt, alpha: 0, duration: 700, delay: 600, onComplete: () => { this._scene.events.off('update', followUpdate); txt.destroy() } })
+        bubble.setBubbleText(finalPick.label)
+        // Linger briefly so the player can read the final pick, then
+        // graceful fade-out via the factory.
+        this._scene.time.delayedCall(600, () => {
+          if (!bubble.active) return
+          this._scene.events.off('update', followUpdate)
+          bubble.fadeOut(500)
+        })
         return
       }
       const opt = effects[Math.floor(Math.random() * effects.length)]
-      txt.setText(opt.label)
+      bubble.setBubbleText(opt.label)
       this._scene.time.delayedCall(interval, tick)
     }
     tick()
