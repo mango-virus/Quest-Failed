@@ -435,7 +435,7 @@ const COMPANIONS = {
     },
   },
 
-  // Spectra — teen-ghost otaku companion. 113 source PNGs grouped into
+  // Spectra — ghost-girl otaku companion. 113 source PNGs grouped into
   // ~62 semantic expression IDs. Variants get `-N` suffixes (`happy`,
   // `happy-2`, `happy-3`). Companion registry's `variantGroups` maps each
   // semantic id back to its variant list so NpcCompanion can rotate at

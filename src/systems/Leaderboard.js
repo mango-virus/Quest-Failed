@@ -49,6 +49,18 @@ export const Leaderboard = {
     if (!player.bossArchetypeId) return null
     const days   = Number(player.totalDaysElapsed ?? gs.meta?.dayNumber ?? 0)
     const kills  = Number(tot.advsKilled ?? player.totalKills ?? 0)
+    // Day-0 gate: refuse to submit until the player has actually
+    // completed a day. `totalDaysElapsed` starts at 0 and only
+    // increments at end-of-day-phase (DayPhase.js), so a brand-new run
+    // — sitting in the night-1 build phase, or partway through day 1 —
+    // reports days=0. Without this gate, the LiveRunPublisher's
+    // run-start heartbeat (fired the instant Game.create() runs) and
+    // the NIGHT_PHASE_STARTED heartbeat for night 1 both inserted a
+    // 'live' row with 0 days survived, polluting the leaderboard with
+    // "I clicked NEW EVIL and walked away" entries. submitAbandonedRun
+    // has a stricter days<3 && kills<5 gate already, so this only
+    // affects the live-heartbeat and direct-death-on-day-1 paths.
+    if (days < 1) return null
     // Achievement bitmask — '0'/'1' string in canonical id order. The
     // receiver decodes via AchievementSystem.getOrderedIds() so the i-th
     // char maps to the i-th id. Stored under `meta.achievement_bits`

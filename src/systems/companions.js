@@ -436,7 +436,7 @@ export const COMPANIONS = {
     expressions: ['idle'],
   },
 
-  // Spectra — ninth keeper. Teen-ghost otaku, anime/games/manga/snacks
+  // Spectra — ninth keeper. Ghost-girl otaku, anime/games/manga/snacks
   // and gets distracted easily. Ships LOCKED on the recruit screen
   // behind the legendary `flawless_reign` achievement (survive 30 days
   // in a single run without the boss taking any damage) — once that
@@ -463,7 +463,7 @@ export const COMPANIONS = {
   spectra: {
     id:        'spectra',
     name:      'Spectra',
-    tagline:   "A teen ghost with a head full of tropes — the dungeon's resident weeb.",
+    tagline:   "A ghost with a head full of tropes — the dungeon's resident weeb.",
     traits:    ['anime brain', 'gamer reflexes', 'snack-fueled chaos'],
     locked:    true,
     portraitScale: 1.15,
