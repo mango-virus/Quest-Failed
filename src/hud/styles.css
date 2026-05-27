@@ -11122,6 +11122,19 @@ body {
    UnlockNotificationOverlay — first-main-menu-open celebration cards
    ───────────────────────────────────────────────────────────────────── */
 
+/* Header chrome — center the "UNLOCK" title and hide the close X. The
+   close affordance is the NEXT/CLOSE button at the bottom (more
+   discoverable in context); the X was redundant. Scoped via :has() so
+   only the unlock modal is affected — other Overlay-shell users
+   (Leaderboard / Achievements / Settings / Pause) keep their normal
+   left-aligned title + X. */
+.modal:has(.qf-unlock-card) .qf-overlay-head {
+  justify-content: center;
+}
+.modal:has(.qf-unlock-card) .qf-overlay-close {
+  display: none;
+}
+
 /* The card lives inside the Overlay shell's centered modal box. It's a
    vertical stack: per-type banner, large centerpiece (portrait / sprite /
    icon / title chip), name, subtitle, footer with queue counter + hint.
