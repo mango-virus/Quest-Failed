@@ -2774,7 +2774,13 @@ export class AISystem {
       const bossState = this._gameState.boss
       const phyl      = this._gameState.phylactery
       const phylAlive = phyl && (phyl.resources?.hp ?? 0) > 0
-      if (bossState?._onHeartLife && phylAlive) {
+      // Same-day rest gate (2026-05-27): if the boss has already fallen
+      // this day, the redirect pauses — no new advs get rerouted away
+      // from the throne. `_diedThisDay` already bounces same-day SEEK_BOSS
+      // arrivals via _onIncoming's handoff, so the redirect would just
+      // be moving them around for no reason. Resumes on next NIGHT_PHASE
+      // when the flag clears.
+      if (bossState?._onHeartLife && !bossState?._diedThisDay && phylAlive) {
         if (adv.knowledge?.items?.[phyl.instanceId]) {
           adv.goalStack ??= []
           adv.goalStack.push(adv.goal)

@@ -1199,9 +1199,24 @@ export class BossArchetypeSystem {
     // bumps deathsRemaining back to 1 immediately.
     if (this._archId() === 'lich') {
       const phyl = this._gameState?.phylactery
-      if (phyl && (phyl.resources?.hp ?? 0) > 0) {
-        const boss = this._gameState?.boss
-        const onHeartLife = !!boss?._onHeartLife
+      const boss = this._gameState?.boss
+      const onHeartLife = !!boss?._onHeartLife
+      // Heart-life gate (2026-05-27, design refresh): the heart is
+      // invisible-as-target until it has saved the boss once. Before
+      // the first revive, NO adventurer auto-hunts the heart at spawn
+      // — the player is free to hide the heart and have it sit
+      // unmolested while the normal-life economy plays out. The moment
+      // the heart revives the boss (`boss._onHeartLife` flips true in
+      // BossSystem._resolveFight), every knowledgeable adv in every
+      // subsequent wave commits to the heart instead of the throne.
+      // Replaces the prior 15%-baseline spawn-roll
+      // (LICH_PHYLACTERY_HUNT_CHANCE) which leaked pre-revive hunters
+      // and conflicted with the "only after revive" intent.
+      //
+      // Same-day rest gate: also pause on `_diedThisDay`. The day the
+      // boss falls (revive or not), no new hunters spawn — the heart
+      // gets a guaranteed safe day before the dungeon resumes hunting.
+      if (onHeartLife && !boss?._diedThisDay && phyl && (phyl.resources?.hp ?? 0) > 0) {
         for (const adv of advs) {
           if (!adv) continue
           // Knowledge gate — adv must have heart in their personal
@@ -1209,9 +1224,6 @@ export class BossArchetypeSystem {
           // spawn so inherited intel counts).
           const knowsHeart = !!adv.knowledge?.items?.[phyl.instanceId]
           if (!knowsHeart) continue
-          const hunt = onHeartLife ||
-            Math.random() < Balance.LICH_PHYLACTERY_HUNT_CHANCE
-          if (!hunt) continue
           adv._huntPhylactery = true
           adv.goal = { type: 'HUNT_PHYLACTERY', roomId: phyl.roomId }
           adv.path = null
@@ -1318,13 +1330,39 @@ export class BossArchetypeSystem {
       }
       return
     }
+    const boss = this._gameState?.boss
+    // Same-day rest period (2026-05-27): once the boss has fallen this
+    // day (whether or not the fall triggered a heart-revive), no more
+    // damage lands on the heart for the rest of the day. The flag is
+    // `_diedThisDay`, set in BossSystem._resolveFight and cleared in
+    // _onNightStartedAI overnight. Combined with the gates on
+    // _onAdvsSpawned / _lichOnAdvRoomChanged / SEEK_BOSS-redirect,
+    // this makes the day OF a death/revive a guaranteed "wounds are
+    // licked" pause — the dungeon-wide heart hunt resumes next day.
+    // We bail BEFORE _lastTickAt advances so subsequent fresh days
+    // resume on a clean 800ms cadence rather than firing a backlog.
+    if (boss?._diedThisDay) {
+      // One-shot cleanup of in-flight hunters when _diedThisDay flips.
+      // Runs every tick during the rest period but no-ops after the
+      // first pass when no HUNT_PHYLACTERY advs remain. Sends them home
+      // with the same `boss_defeated` reason any post-fight flee uses
+      // — to them, the boss is "gone" and there's nothing more to do.
+      for (const a of this._gameState?.adventurers?.active ?? []) {
+        if (a?.goal?.type !== 'HUNT_PHYLACTERY') continue
+        if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+        a._huntPhylactery = false
+        a.goal = { type: 'FLEE', reason: 'boss_defeated' }
+        a.aiState = 'fleeing'
+        a.path = null
+      }
+      return
+    }
     const now = this._scene?.time?.now ?? 0
     phyl._lastTickAt ??= 0
     if (now - phyl._lastTickAt < Balance.LICH_PHYLACTERY_DMG_INTERVAL_MS) return
     phyl._lastTickAt = now
 
     const advs = this._gameState?.adventurers?.active ?? []
-    const boss = this._gameState?.boss
     let totalDmg = 0
     let totalBossBleed = 0
     let attackerName = null
@@ -2666,20 +2704,22 @@ export class BossArchetypeSystem {
       return
     }
     adv._phylRoomRolled = true
-    // Same desperation rule the spawn-time roll uses — when the boss is
-    // already on its phylactery life (`_onHeartLife`), every adv that
-    // finds the room commits to attacking it, no roll. The previous
-    // `noNormalLivesLeft` gate (deathsRemaining<=0) was effectively
-    // dead code because the revive bumps deathsRemaining back to 1
-    // immediately at fight resolution; the flag captures the intended
-    // "boss is currently borrowing a life from the heart" state.
+    // Heart-life gate (2026-05-27, design refresh): the heart is
+    // invisible-as-target until it has saved the boss once. Pre-revive,
+    // an adventurer can walk through the heart's room without forming
+    // any intent to attack it — they just take note (observation still
+    // records it in adv.knowledge.items, so they'll act on it later if
+    // the boss ever heart-revives during their lifetime). Post-revive,
+    // every adv crossing the room commits, no roll. Replaces the prior
+    // 20%-baseline LICH_PHYLACTERY_ROOM_FIND_CHANCE that leaked
+    // pre-revive conversions.
     //
-    // No knowledge gate here — the adv is physically standing in the
-    // heart's room when this fires, so KnowledgeSystem.observeRoomContents
-    // has already recorded the heart in adv.knowledge.items.
+    // Same-day rest gate: also pause on `_diedThisDay` so the day of a
+    // boss death/revive doesn't auto-convert anyone — the heart gets
+    // its safe day before hunters mobilise again next morning.
     const boss = this._gameState?.boss
     const onHeartLife = !!boss?._onHeartLife
-    if (!onHeartLife && Math.random() >= Balance.LICH_PHYLACTERY_ROOM_FIND_CHANCE) return
+    if (!onHeartLife || boss?._diedThisDay) return
     adv._huntPhylactery = true
     adv.goalStack ??= []
     if (adv.goal) adv.goalStack.push(adv.goal)
