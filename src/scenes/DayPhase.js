@@ -1744,7 +1744,17 @@ export class DayPhase extends Phaser.Scene {
     if (!line) {
       const classBucket = lookup[adv.classId] ?? lookup.default ?? {}
       const killerKey   = this._resolveKillerKey(killerId)
-      const lines = classBucket[killerKey] ?? classBucket.default ?? lookup.default?.default ?? ['...']
+      // Lookup chain: per-trap-id (e.g. "spike_pit") → generic "trap"
+      // → bucket default → global default → "...".
+      // The generic "trap" step (2026-05-27) — _resolveKillerKey returns
+      // trap.definitionId for trap deaths so the previously hand-written
+      // classBucket.trap pools never fired. Fall through to them before
+      // hitting `default`.
+      const trapEntry = classBucket[killerKey]
+        ?? (this._gameState.dungeon?.traps?.some(t => t.instanceId === killerId)
+            ? classBucket.trap
+            : null)
+      const lines = trapEntry ?? classBucket.default ?? lookup.default?.default ?? ['...']
       line = lines[Math.floor(Math.random() * lines.length)]
     }
 

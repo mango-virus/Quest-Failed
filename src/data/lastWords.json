@@ -66,6 +66,24 @@
       "trap":    ["No song for traps. Not dignified enough.", "The trap struck mid-verse.", "A discordant end.", "I was going to write about this. Past tense."],
       "default": ["Every ballad needs a third act.", "I'll finish this in the next life.", "An audience of none...", "My patrons won't be pleased.", "The music... stops."]
     },
+    "cartographer_scholar": {
+      "minion":  ["The map... is incomplete...", "I almost finished the layout.", "Mark this room as hostile.", "My notes... save them.", "Such a poor specimen of cartography to die on."],
+      "boss":    ["The boss room. Coordinates noted.", "A footnote in the atlas.", "I shall be a paragraph at best.", "Document this for the next scholar."],
+      "trap":    ["A trap not on my map?", "Cartographic failure!", "I'll add it. Posthumously.", "Where IS the index for this room?"],
+      "default": ["The thesis remains... unwritten.", "Field notes will explain.", "My index cards are color-coded.", "Knowledge dies with me."]
+    },
+    "cheater": {
+      "minion":  ["RIGGED. RIGGED!", "Lag killed me. Lag.", "Server-side hit. Unfair.", "Anti-cheat got me. RUDE.", "I had aimbot on. HOW.", "Skill issue. On their part."],
+      "boss":    ["Boss has DEV mode on.", "That fight was scripted.", "Hard counter. Reported.", "I'll respawn with better mods.", "The boss is BANNED next time."],
+      "trap":    ["Trap was off-screen. Cheap.", "Damage tick was insane.", "Trap was MODDED.", "Latency spike. Convenient."],
+      "default": ["RAGE QUIT. RAGE. QUIT.", "I'm uninstalling.", "1-star review incoming.", "I demand a refund.", "Mods asleep. Naturally."]
+    },
+    "cosplay_adventurer": {
+      "minion":  ["This wasn't in the script!", "My costume is RUINED.", "Stay in character... stay...", "Photos... were they good?", "I will die canon-accurate."],
+      "boss":    ["The villain monologue was rushed.", "We didn't even get to the third act.", "Cancel the panel.", "A fitting death for the role.", "The costume held up well. Mostly."],
+      "trap":    ["The prop was real?!", "Method acting has limits.", "The trap broke the fourth wall.", "I didn't see THIS in rehearsals."],
+      "default": ["Roll credits.", "Cut. Cut!", "My performance... my LEGACY...", "Tell the convention I tried.", "End scene."]
+    },
     "default": {
       "minion":  ["Didn't see that coming.", "Fair fight, actually.", "Tell someone.", "At least I tried."],
       "boss":    ["The boss was... something.", "Bigger than I expected.", "Underestimated it.", "Fair."],

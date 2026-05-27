@@ -67,6 +67,28 @@ export class ChatBubbles {
     EventBus.on('STATUS_APPLIED',           this._onStatusApplied,     this)
     EventBus.on('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
     EventBus.on('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
+    // Boss-ability sightings — wired as a single shared "felt that"
+    // reaction across every signature ability. Lines live in the
+    // bossAbilityFelt bucket. Each event throttled per-day so a
+    // beholder's 6 s gaze cooldown doesn't spam.
+    for (const evt of [
+      'GOLEM_EARTHQUAKE_FIRED',
+      'BEHOLDER_PETRIFY_FIRED',
+      'DEMON_SACRIFICE_FIRED',
+      'PACT_BOSS_HELLFIRE_FIRED',
+      'PACT_BOSS_LIGHTNING_FIRED',
+      'PACT_BOSS_SHOCKWAVE_FIRED',
+      'PACT_BOSS_SPECTRAL_FIRED',
+      'PACT_BOSS_VORTEX_FIRED',
+      'PACT_BOSS_PETRIFY_FIRED',
+      'FINAL_BREATH_TRIGGERED',
+      'CULL_TRIGGERED',
+    ]) {
+      const handler = () => this._onBossAbilityFelt(evt)
+      this._bossAbilityHandlers ??= {}
+      this._bossAbilityHandlers[evt] = handler
+      EventBus.on(evt, handler)
+    }
     // Adventurer-goal reaction lines. Each event carries `{ adventurer }`
     // and pulls one random line from the matching `byEvent.<key>` pool.
     for (const key of [
@@ -103,6 +125,10 @@ export class ChatBubbles {
     EventBus.off('STATUS_APPLIED',           this._onStatusApplied,     this)
     EventBus.off('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
     EventBus.off('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
+    for (const [evt, handler] of Object.entries(this._bossAbilityHandlers ?? {})) {
+      EventBus.off(evt, handler)
+    }
+    this._bossAbilityHandlers = {}
     for (const [key, handler] of Object.entries(this._goalHandlers ?? {})) {
       EventBus.off(`SAY_${key}`, handler)
     }
@@ -319,6 +345,7 @@ export class ChatBubbles {
     this._veteranGreeted     = {}   // advId → bool
     this._lastGoalType       = {}   // advId → previous goal.type (echo detection)
     this._roomReactionFired  = {}   // advId → roomId → bool
+    this._bossAbilityFiredToday = {} // eventName → bool (per-day throttle)
   }
 
   // ── Tier 1/2/3 contextual reactions ─────────────────────────────────────
@@ -456,6 +483,23 @@ export class ChatBubbles {
     if (witnesses.length === 0) return
     const reactor = witnesses[Math.floor(Math.random() * witnesses.length)]
     this._showContextualBubble(reactor, this._pickEventLine('raisedAsUndead'))
+  }
+
+  // Boss-ability "felt that" reaction. Single shared bucket across
+  // every signature emit (earthquake, petrify, hellfire, etc.) so
+  // the player gets a consistent "the boss did something big"
+  // chorus from advs in the dungeon. Per-day throttle keyed on the
+  // event name so a 6 s beholder gaze doesn't spam.
+  _onBossAbilityFelt(eventName) {
+    this._bossAbilityFiredToday ??= {}
+    if (this._bossAbilityFiredToday[eventName]) return
+    this._bossAbilityFiredToday[eventName] = true
+    const candidates = (this._gameState.adventurers?.active ?? []).filter(a =>
+      a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && a.goal?.type !== 'AT_BOSS',
+    )
+    if (candidates.length === 0) return
+    const reactor = candidates[Math.floor(Math.random() * candidates.length)]
+    this._showContextualBubble(reactor, this._pickEventLine('bossAbilityFelt'))
   }
 
   // DAY_PHASE_BEGAN — fire the "day is late" tension line once at

@@ -187,6 +187,37 @@
       "Something feels off.",
       "Keep moving.",
       "Not my first dungeon."
+    ],
+    "cartographer_scholar": [
+      "Mapping as we go.",
+      "This corridor's new.",
+      "Sketch later. Survive first.",
+      "Layout doesn't match my notes.",
+      "Updating the atlas.",
+      "Three new rooms today.",
+      "The geometry is wrong here.",
+      "I'll publish a paper on this."
+    ],
+    "cheater": [
+      "Stop reporting me. I'm fine.",
+      "Wallhack on. Don't tell mods.",
+      "Anti-cheat is napping again.",
+      "Ping is great today.",
+      "Sub goal: don't get banned.",
+      "Aim assist? Never heard of it.",
+      "Refresh rate looking SMOOTH.",
+      "Just lucky. Very lucky.",
+      "Mods are afk. We feast."
+    ],
+    "cosplay_adventurer": [
+      "Stay in character. STAY in character.",
+      "My costume took weeks.",
+      "Photos later, fighting now.",
+      "This is canon-accurate.",
+      "I rolled a 20. Mentally.",
+      "Method adventuring.",
+      "The pauldrons are foam. Don't tell.",
+      "I am the character today."
     ]
   },
 
@@ -917,6 +948,17 @@
       "Eyes up. This thing will be dangerous.",
       "I'm scared. Doing it anyway.",
       "We didn't come this far to stop here."
+    ],
+
+    "bossAbilityFelt": [
+      "What WAS that?!",
+      "The boss did SOMETHING.",
+      "Felt that across the dungeon.",
+      "Big magic just happened.",
+      "Power surge. Brace up.",
+      "Pressure spike!",
+      "The walls just SHOOK.",
+      "Cover! COVER!"
     ],
 
     "bossLeveled": [
