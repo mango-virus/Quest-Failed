@@ -649,16 +649,13 @@ export class NightPhase extends Phaser.Scene {
     const prev = this._toolMode
     this._toolMode = next
     if (prev === 'move' && next === null) {
-      // The reported regression: something is clearing MOVE mode that
-      // shouldn't. Log a stack trace so a console screenshot pinpoints
-      // the caller, and toast it so the player sees it live without
-      // devtools. Trim to ~5 frames to keep both readable.
+      // Silent diagnostic — kept as a console-only paper trail in case
+      // another phantom MOVE-clear regression turns up. The user-facing
+      // toast was removed once we identified the PLACE-button auto-
+      // disarm as the original culprit. Trim the stack to ~5 frames
+      // so it's still readable from a console screenshot.
       const trace = (new Error('stack').stack ?? '').split('\n').slice(2, 7).join('\n')
       console.warn(`[NightPhase] MOVE mode cleared (source=${source})\n${trace}`)
-      EventBus.emit('SHOW_TOAST', {
-        message: `Move mode cleared (source: ${source})`,
-        type:    'info',
-      })
     }
     // Selecting a tool cancels any pending placement.
     if (next) this._cancelSelection()
