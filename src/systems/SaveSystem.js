@@ -138,6 +138,28 @@ function _stripDeadAdvBulk(adv) {
 
 export const SaveSystem = {
   save(gameState) {
+    // Night-only save gate (added 2026-05-27). Saving mid-day captures
+    // transient in-flight state (active adventurers, pathfinder caches,
+    // half-resolved trap firings, etc.) — if any of that state ends up
+    // stuck (looping wave, frozen pathfinder, leaked listener), the
+    // save serialises the BROKEN state and reloading drops the player
+    // straight back into the broken day with no clean recovery path.
+    //
+    // By only persisting saves when phase === 'night', the save file
+    // always represents a clean checkpoint: no live adventurers, boss
+    // ready for tomorrow, dungeon laid out, build phase entered. A
+    // beforeunload or pause-save attempted mid-day silently no-ops —
+    // the player loses unsaved mid-day progress, but gains a guaranteed
+    // recoverable state on reload.
+    //
+    // Legit save points (NIGHT_PHASE_STARTED, end-of-day after the
+    // phase flip, ArchetypeSelect run-start, pact-sealed, intro-
+    // dismissed) all run with phase === 'night' so this is a no-op
+    // for them. The blocked path is the mid-day beforeunload + the
+    // PauseManager / PauseOverlay save when the player paused mid-day.
+    if (gameState?.meta?.phase === 'day') {
+      return false
+    }
     try {
       const payload = _buildSavePayload(gameState)
       const json = JSON.stringify(payload)
