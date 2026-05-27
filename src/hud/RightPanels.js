@@ -148,6 +148,30 @@ const LOG_MAX = 50
 const LOG_COALESCE_WINDOW_MS    = 1500
 const LOG_MAX_COALESCE_CONTEXTS = 3
 
+// Brief one-phrase headlines for each class-ability id. Used by the
+// coalesced ABILITY_TRIGGERED log row — first fire keeps the full
+// flavor message ("X loaded an aimbot."), subsequent fires within
+// 1500 ms swap the row to "<brief> × N — name1, name2, +X more".
+// Unknown ability ids fall back to a Title-Cased version of the id.
+const ABILITY_BRIEF = {
+  aimhack:        'Aimhack loaded',
+  speedhack:      'Speed hack engaged',
+  focus:          'Focus',
+  inner_peace:    'Inner Peace',
+  cleric_heal:    'Heal',
+  resurrection:   'Resurrection',
+  arcane_burst:   'Arcane Burst',
+  summon_undead:  'Summon Undead',
+  bone_armor:     'Bone Armor',
+  volley:         'Volley',
+  viewers_choice: 'Viewers Choice',
+  chat_decides:   'Chat Decides',
+  trap_expert:    'Trap',
+  tame_beast:     'Tame Beast',
+  invisibility:   'Vanish',
+  scout_ahead:    'Scout Ahead',
+}
+
 // Brief one-phrase summaries of each flee reason for the coalesced
 // "N flee — <brief>" log line. When a mass-flee event triggers
 // (heart destroyed, boss killed, cartographer tour, rival squad
@@ -1181,10 +1205,24 @@ export class RightPanels {
     // multi-target casts (mage/cleric/necromancer) fire faster than the
     // log scrolls, so we suppress them and let the headline beats
     // (deaths, flees, arrivals) stay readable.
-    sub('ABILITY_TRIGGERED', ({ message } = {}) => {
+    sub('ABILITY_TRIGGERED', ({ message, abilityId, adventurer } = {}) => {
       if (!message) return
       if (this._isHighAdvCount()) return
-      this._addLog(message, 'ability')
+      // Coalesced by ABILITY ID — multiple cheaters firing aimhack /
+      // speedhack on independent cooldowns used to flood the log with
+      // 5–15 per-adv ability lines. First fire keeps the full flavor
+      // ("X loaded an aimbot."), subsequent fires within 1500ms swap
+      // to the brief headline with × N pill + name list. Different
+      // ability ids stay in different rows.
+      const brief = ABILITY_BRIEF[abilityId]
+        ?? (abilityId
+          ? abilityId.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+          : 'Ability')
+      this._addLogCoalesced(
+        message, 'ability', `ABILITY_${abilityId || 'unknown'}`,
+        adventurer?.name || null,
+        { coalescedBase: brief },
+      )
     })
     // Dungeon event announcement (boss-tier "something's coming" beat).
     sub('DUNGEON_EVENT_ANNOUNCED', ({ def } = {}) => {
