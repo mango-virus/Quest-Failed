@@ -56,6 +56,16 @@ const MAX_CHEST_SEEKS_PER_DAY      = 3
 // in the pathfinder cost function. Higher = stronger detour.
 const TRAP_AVOID_PENALTY           = 8.0
 const TRAP_AVOID_PENALTY_WARNED    = 18.0   // when warned by a party-mate
+// Per-adv stable side-preference for routing AROUND a known trap.
+// Two equal-cost routes (one left of the trap, one right) cause ping-pong
+// in the pathfinder because the per-call jitter flips on each re-path.
+// Each adv gets a +1/-1 bias rolled once at first use (lazy-init in the
+// path block); tiles in the trap's 1-tile danger ring on the NON-preferred
+// side get a tiny extra cost (5% per ring tile) so equal-length routes
+// resolve to the same side for the same adv. Effect is too small to
+// override real cost differences — pure tiebreaker. (2026-05-27)
+const TRAP_SIDE_BIAS_PER_TILE      = 0.05
+const TRAP_SIDE_BIAS_RING          = 2     // tiles around trap to apply bias
 // Beast Master tame protection — how long a minion stays off-limits to
 // other adventurers' melee after a Beast Master last stamped it as a
 // tame target. ClassAbilitySystem refreshes the stamp every tick the
@@ -1790,6 +1800,22 @@ export class AISystem {
       const useKnowledgeCost = this._knowledgeSystem && adv.goal?.type !== 'FLEE'
       let trapRejectsThisPath = 0
       const warned = (adv._warnedUntil ?? 0) > this._scene.time.now
+      // Per-adv trap-side bias (anti-ping-pong, 2026-05-27). Lazy-init at
+      // first use so old saves work without a migration. Stable for the
+      // adv's lifetime — two equal-cost left-vs-right routes around the
+      // same trap always resolve to the same side for this adv, killing
+      // the per-call jitter flip-flop that produced visible "running
+      // back and forth" loops near sprung spike pits.
+      if (adv._trapSideBias == null) {
+        adv._trapSideBias = Math.random() < 0.5 ? -1 : 1
+      }
+      const trapSideBias = adv._trapSideBias
+      // Pre-collect this adv's known trap CENTERS once per path call so
+      // the cost-fn closure below doesn't re-iterate every neighbour
+      // expansion. Cheap — usually 0-3 traps per adv.
+      const advKnownTraps = (useKnowledgeCost && adv.knowledge?.traps)
+        ? Object.values(adv.knowledge.traps).filter(t => t)
+        : []
       const costFn = (tx, ty) => {
         if (!useKnowledgeCost) return 1
         const base = this._knowledgeSystem.costMultiplierForTile(adv, tx, ty)
@@ -1797,7 +1823,33 @@ export class AISystem {
           trapRejectsThisPath++
           return base * (warned ? TRAP_AVOID_PENALTY_WARNED : TRAP_AVOID_PENALTY)
         }
-        return base
+        // Trap-side bias: tiles around a known trap on the adv's NON-
+        // preferred side get a tiny extra cost. Tiebreaker only — too
+        // small to override genuinely cheaper routes, but enough to
+        // consistently pick the same side on each re-path so the
+        // pathfinder's per-call jitter doesn't flip the route. Skipped
+        // when the tile already has a real trap penalty (handled above).
+        let sideAdj = 0
+        for (const tr of advKnownTraps) {
+          const fp = tr.footprint ?? { w: 1, h: 1 }
+          // Compute the SIGNED displacement from the trap's centre.
+          const cx = tr.tileX + fp.w / 2 - 0.5
+          const cy = tr.tileY + fp.h / 2 - 0.5
+          const dx = tx - cx
+          const dy = ty - cy
+          const ax = Math.abs(dx)
+          const ay = Math.abs(dy)
+          // Only apply in the ring around the trap (skip far tiles).
+          if (ax > TRAP_SIDE_BIAS_RING && ay > TRAP_SIDE_BIAS_RING) continue
+          if (ax === 0 && ay === 0) continue
+          // Sign of the dominant axis = which side of the trap this tile
+          // sits on. Compare against the adv's stable bias.
+          const sign = ax >= ay ? Math.sign(dx) : Math.sign(dy)
+          if (sign !== 0 && sign !== trapSideBias) {
+            sideAdj += TRAP_SIDE_BIAS_PER_TILE
+          }
+        }
+        return base + sideAdj
       }
       // Phase: items — HARD-block every locked-door tile this adv has no
       // way to open. The pathfinder skips these entirely, so an adv with
