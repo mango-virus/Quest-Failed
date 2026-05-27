@@ -2800,7 +2800,11 @@ export class AISystem {
       adv.flags ??= {}
       if (adv.flags._madnessEntryRoom !== room.instanceId) {
         adv.flags._madnessEntryRoom = room.instanceId
-        if (!adv.flags.madnessTargetId && Math.random() < 0.60) {
+        // Tinkerer's Workshop "Total Frenzy" — chance bumped to 90%
+        // (was 60%) when the Hall of Madness type is upgraded.
+        const madnessChance = (this._gameState._tinkeredRoomTypes ?? []).includes('hall_of_madness')
+          ? 0.90 : 0.60
+        if (!adv.flags.madnessTargetId && Math.random() < madnessChance) {
           const others = this._gameState.adventurers.active.filter(o =>
             o !== adv && o.aiState !== 'dead' && (o.resources?.hp ?? 0) > 0 &&
             this._dungeonGrid.getRoomAtTile(o.tileX, o.tileY)?.instanceId === room.instanceId
@@ -4101,7 +4105,10 @@ export class AISystem {
       const aliveRevenants = (this._gameState.minions ?? []).filter(m =>
         m.assignedRoomId === deathRoom.instanceId && m.isCatacombsRevenant && m.aiState !== 'dead'
       ).length
-      if (aliveRevenants < 2) {
+      // Tinkerer's Workshop "Restless Tomb" — cap +1 (3 max) when type
+      // is upgraded.
+      const revenantCap = (this._gameState._tinkeredRoomTypes ?? []).includes('catacombs') ? 3 : 2
+      if (aliveRevenants < revenantCap) {
         const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
         const revenantDef = minionTypes.find(d => d.id === 'skeleton2') ?? minionTypes[0]
         if (revenantDef) {
@@ -4428,12 +4435,28 @@ export class AISystem {
   _awardBossXp() {
     const boss = this._gameState.boss
     if (!boss) return
-    boss.xp = (boss.xp ?? 0) + Balance.BOSS_XP_PER_KILL
+    // Tinkerer's Workshop "Oracle's Tome" — +1 boss XP per kill per
+    // active Library when the library_of_whispers type is upgraded.
+    // Cumulative — more libraries = more bonus XP.
+    let bonus = 0
+    if ((this._gameState._tinkeredRoomTypes ?? []).includes('library_of_whispers')) {
+      bonus = (this._gameState.dungeon?.rooms ?? [])
+        .filter(r => r.definitionId === 'library_of_whispers' && r.isActive !== false).length
+    }
+    boss.xp = (boss.xp ?? 0) + Balance.BOSS_XP_PER_KILL + bonus
     while (boss.xp >= (boss.xpToNext ?? Balance.BOSS_XP_BASE)) {
       boss.xp -= boss.xpToNext
-      boss.level = (boss.level ?? 1) + 1
+      const oldLevel = boss.level ?? 1
+      boss.level = oldLevel + 1
       boss.xpToNext = this._xpToNextLevel(boss.level)
+      // BOSS_LEVELED_UP — celebratory listeners (achievements, chat
+      // bubbles, level-up overlay, grid expansion). Fires ONLY on up.
       EventBus.emit('BOSS_LEVELED_UP', { newLevel: boss.level })
+      // BOSS_LEVEL_CHANGED — bidirectional listeners (BuildMenu re-
+      // render, minion rescale, archetype-system live recompute).
+      // The Demon's Wager event emits this with delta=-1 to drive
+      // level-DOWN behaviour without firing the celebratory listeners.
+      EventBus.emit('BOSS_LEVEL_CHANGED', { newLevel: boss.level, oldLevel, delta: +1 })
     }
   }
 

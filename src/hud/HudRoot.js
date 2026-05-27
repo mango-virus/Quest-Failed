@@ -34,6 +34,7 @@ import { PhaseTransition }      from './PhaseTransition.js'
 import { PostWaveOverlay }      from './PostWaveOverlay.js'
 import { GameOverOverlay }      from './GameOverOverlay.js'
 import { PactPicker }           from './PactPicker.js'
+import { TinkererPicker }       from './TinkererPicker.js'
 import { DungeonFx }            from './DungeonFx.js'
 import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
@@ -127,6 +128,8 @@ export class HudRoot {
     this._postWaveOverlay = new PostWaveOverlay(this._gameState)
     this._gameOverOverlay = new GameOverOverlay(this._gameState)
     this._pactPicker      = new PactPicker(this._gameState)
+    // Tinkerer's Workshop event — self-mounts on SHOW_TINKERER_OFFER.
+    this._tinkererPicker  = new TinkererPicker()
     mount(this._stage, this._panels.map(p => p.el))
     // DungeonFx, BossFightOverlay, and EventBanner self-mount into
     // #hud-stage. Must be constructed AFTER the mount() above — that call
@@ -308,6 +311,7 @@ export class HudRoot {
     this._postWaveOverlay?.destroy();this._postWaveOverlay = null
     this._gameOverOverlay?.destroy();this._gameOverOverlay = null
     this._pactPicker?.destroy();     this._pactPicker = null
+    this._tinkererPicker?.destroy(); this._tinkererPicker = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
     this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null

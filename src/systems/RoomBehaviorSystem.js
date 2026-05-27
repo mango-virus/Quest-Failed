@@ -84,7 +84,12 @@ export class RoomBehaviorSystem {
       r.definitionId === 'treasury' && r.isActive !== false
     )
     if (treasuries.length > 0) {
-      const stipend = 5 * treasuries.length
+      // Tinkerer's Workshop "Golden Vault" — +50% stipend when Treasury
+      // type is upgraded. The chest-tier bonus is handled separately in
+      // _refillTreasury.
+      const treasuryTinkered = this._isTinkered('treasury')
+      const perRoom = treasuryTinkered ? 7.5 : 5
+      const stipend = Math.round(perRoom * treasuries.length)
       this._gameState.player.gold = (this._gameState.player.gold ?? 0) + stipend
       EventBus.emit('TREASURY_STIPEND', { amount: stipend, treasuryCount: treasuries.length })
     }
@@ -134,25 +139,41 @@ export class RoomBehaviorSystem {
     if (veils.length > 0 && this._scene?.dungeonGrid && this._gameState.knowledge?.sharedPool) {
       const pool = this._gameState.knowledge.sharedPool
       const erased = new Set()
+      // Tinkerer's Workshop "Deeper Veil" — also wipes 2-hop neighbours
+      // when the type is upgraded. Builds the wipe set as the union of
+      // direct neighbours and their neighbours (still excluding boss /
+      // entry rooms so chokepoints aren't unwiped).
+      const deepVeil = this._isTinkered('veil_of_forgetting')
+      const wipeTargets = new Set()
       for (const veil of veils) {
         const neighbors = this._scene.dungeonGrid.getNeighborRooms(veil.instanceId) ?? []
         for (const n of neighbors) {
           if (n.definitionId === 'boss_chamber' || n.definitionId === 'entry_hall') continue
-          delete pool.rooms?.[n.instanceId]
-          delete pool.enemiesPerRoom?.[n.instanceId]
-          // Trap and loot intel are keyed by item id but stamped with a roomId — wipe matching entries.
-          if (pool.traps) {
-            for (const tid of Object.keys(pool.traps)) {
-              if (pool.traps[tid]?.roomId === n.instanceId) delete pool.traps[tid]
+          wipeTargets.add(n.instanceId)
+          if (deepVeil) {
+            const second = this._scene.dungeonGrid.getNeighborRooms(n.instanceId) ?? []
+            for (const m of second) {
+              if (m.definitionId === 'boss_chamber' || m.definitionId === 'entry_hall') continue
+              if (m.definitionId === 'veil_of_forgetting') continue
+              wipeTargets.add(m.instanceId)
             }
           }
-          if (pool.loot) {
-            for (const lid of Object.keys(pool.loot)) {
-              if (pool.loot[lid]?.roomId === n.instanceId) delete pool.loot[lid]
-            }
-          }
-          erased.add(n.instanceId)
         }
+      }
+      for (const roomId of wipeTargets) {
+        delete pool.rooms?.[roomId]
+        delete pool.enemiesPerRoom?.[roomId]
+        if (pool.traps) {
+          for (const tid of Object.keys(pool.traps)) {
+            if (pool.traps[tid]?.roomId === roomId) delete pool.traps[tid]
+          }
+        }
+        if (pool.loot) {
+          for (const lid of Object.keys(pool.loot)) {
+            if (pool.loot[lid]?.roomId === roomId) delete pool.loot[lid]
+          }
+        }
+        erased.add(roomId)
       }
       if (erased.size > 0) {
         EventBus.emit('VEIL_ERASED_INTEL', { roomIds: [...erased] })
@@ -281,7 +302,10 @@ export class RoomBehaviorSystem {
     const TS = 32
     const alreadyHere = (this._gameState.minions ?? [])
       .filter(m => m.assignedRoomId === room.instanceId && m.isCryptSpawn).length
-    const toSpawn = Math.max(0, 4 - alreadyHere)
+    // Tinkerer's Workshop "Crowded Crypt" — cap +2 (6 total) when type
+    // is upgraded.
+    const cryptCap = this._isTinkered('crypt') ? 6 : 4
+    const toSpawn = Math.max(0, cryptCap - alreadyHere)
     for (let i = 0; i < toSpawn; i++) {
       // Spread the spawn points so they don't all stack on one tile.
       const x = room.gridX + Balance.WALL_THICKNESS + (i % Math.max(1, room.width - 2 * Balance.WALL_THICKNESS))
@@ -340,10 +364,19 @@ export class RoomBehaviorSystem {
     const aliveMimics = (this._gameState.minions ?? []).filter(m =>
       m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead'
     ).length
+    // Tinkerer's Workshop "Hungry Vault" — +2 mimic slots when type is
+    // upgraded. Extra slots placed at the remaining inner corners.
+    const mimicCap = this._isTinkered('mimic_vault') ? 4 : 2
     const mimicSlots = [
       [room.gridX + Balance.WALL_THICKNESS, room.gridY + Balance.WALL_THICKNESS],
       [room.gridX + room.width - Balance.WALL_THICKNESS - 1, room.gridY + room.height - Balance.WALL_THICKNESS - 1],
     ]
+    if (mimicCap > 2) {
+      mimicSlots.push(
+        [room.gridX + room.width - Balance.WALL_THICKNESS - 1, room.gridY + Balance.WALL_THICKNESS],
+        [room.gridX + Balance.WALL_THICKNESS, room.gridY + room.height - Balance.WALL_THICKNESS - 1],
+      )
+    }
     const occupiedTiles = new Set(
       (this._gameState.minions ?? [])
         .filter(m => m.assignedRoomId === room.instanceId && m.isMimicVaultSpawn && m.aiState !== 'dead')
@@ -351,7 +384,7 @@ export class RoomBehaviorSystem {
     )
     let mimicSpawned = 0
     for (const [x, y] of mimicSlots) {
-      if (aliveMimics + mimicSpawned >= 2) break
+      if (aliveMimics + mimicSpawned >= mimicCap) break
       if (occupiedTiles.has(`${x},${y}`)) continue
       const m = this._makeGarrison(mimicDef, room, {
         tileX: x, tileY: y,
@@ -472,10 +505,14 @@ export class RoomBehaviorSystem {
     const usedSlotIdxs = new Set(existing.map(c => c._treasurySlotIdx ?? -1))
     let candIdx = 0
     let placed = 0
+    // Tinkerer's Workshop "Golden Vault" — auto-spawned chests roll +1
+    // tier (clamped to tierMax) when the Treasury type is upgraded.
+    const tinkeredBump = this._isTinkered('treasury') ? 1 : 0
     for (let slot = 0; slot < want && candIdx < candidates.length; slot++) {
       if (usedSlotIdxs.has(slot)) continue
       const [cx, cy] = candidates[candIdx++]
-      const tier = tierMin + Math.floor(Math.random() * (tierMax - tierMin + 1))
+      let tier = tierMin + Math.floor(Math.random() * (tierMax - tierMin + 1))
+      tier = Math.min(10, tier + tinkeredBump)
       this._gameState.dungeon.treasureChests.push({
         instanceId:       `treasury_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${slot}`,
         tileX: cx, tileY: cy,
@@ -500,10 +537,13 @@ export class RoomBehaviorSystem {
       m.assignedRoomId === room.instanceId && m.isHallOfTrialsSpawn && m.aiState !== 'dead'
     ).length
     if (aliveHere > 0) return
-    const tier2Pool = minionTypes.filter(d =>
-      /[a-z_]+2$/.test(d.id) && d.id !== 'beholder2'  // exclude super-rare or boss-tier
+    // Tinkerer's Workshop "Champion Trials" — spawn Tier 3 instead of
+    // Tier 2 when the room type is upgraded.
+    const tierRegex = this._isTinkered('hall_of_trials') ? /[a-z_]+3$/ : /[a-z_]+2$/
+    const tierPool = minionTypes.filter(d =>
+      tierRegex.test(d.id) && !d.id.startsWith('beholder')  // exclude super-rare or boss-tier
     )
-    const def = tier2Pool[Math.floor(Math.random() * tier2Pool.length)]
+    const def = tierPool[Math.floor(Math.random() * tierPool.length)]
     if (!def) return
     const cx = room.gridX + Math.floor(room.width / 2)
     const cy = room.gridY + Math.floor(room.height / 2)
@@ -581,11 +621,19 @@ export class RoomBehaviorSystem {
                    !(noBoss && r.definitionId === 'boss_chamber'))
     const anyBuilt = rooms.filter(r => r.definitionId !== 'boss_chamber')
 
+    // Tinkerer's Workshop "Skewed Gate" — boss-chamber teleport chance
+    // bumped from 5% to 15% when the type is upgraded. Re-slices the
+    // probability buckets so neighbor / any-built / boss sum to 1.0:
+    //   default: 60% neighbor / 35% any-built / 5% boss
+    //   tinkered: 55% neighbor / 30% any-built / 15% boss
+    const tinkeredGate = this._isTinkered('wandering_gate')
+    const neighborMax = tinkeredGate ? 0.55 : 0.60
+    const anyBuiltMax = tinkeredGate ? 0.85 : 0.95
     const roll = Math.random()
     let target = null
-    if (roll < 0.60 && neighbors.length > 0) {
+    if (roll < neighborMax && neighbors.length > 0) {
       target = neighbors[Math.floor(Math.random() * neighbors.length)]
-    } else if (roll < 0.95 && anyBuilt.length > 0) {
+    } else if (roll < anyBuiltMax && anyBuilt.length > 0) {
       target = anyBuilt[Math.floor(Math.random() * anyBuilt.length)]
     } else if (boss) {
       target = boss
@@ -629,10 +677,13 @@ export class RoomBehaviorSystem {
       (m.resources?.hp ?? 0) > 0
     )
     if (strikers.length === 0) return
+    // Tinkerer's Workshop "Cannonade" — Watchtower first-strike damage
+    // doubled when the type is upgraded.
+    const watchMul = this._isTinkered('watchtower') ? 2 : 1
     let totalDmg = 0
     for (const m of strikers) {
       if ((adv.resources?.hp ?? 0) <= 0) break
-      const dmg = cs._computeDamage(m, adv)
+      const dmg = Math.round(cs._computeDamage(m, adv) * watchMul)
       adv.resources.hp = Math.max(0, (adv.resources?.hp ?? 0) - dmg)
       totalDmg += dmg
       EventBus.emit('COMBAT_HIT', {
@@ -716,6 +767,9 @@ export class RoomBehaviorSystem {
     const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver
     const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver
     const MINIBOSS_DOUBLER = 2   // base stats × 2 before boss-level scaling
+    // Tinkerer's Workshop "Tyrant Throne" — +50% HP and +50% ATK on top
+    // of MINIBOSS_DOUBLER and boss-level scaling.
+    const tinkeredThrone = this._isTinkered('throne_room') ? 1.5 : 1
     for (const room of thrones) {
       const aliveHere = (this._gameState.minions ?? []).filter(m =>
         m.assignedRoomId === room.instanceId && m.isThroneMiniBoss && m.aiState !== 'dead'
@@ -738,8 +792,8 @@ export class RoomBehaviorSystem {
           _mbDisplayScale:   2.0,
         },
         statsOverride: {
-          hp:      Math.floor((baseStats.hp      ?? 60) * MINIBOSS_DOUBLER * hpMult),
-          attack:  Math.floor((baseStats.attack  ?? 12) * MINIBOSS_DOUBLER * atkMult),
+          hp:      Math.floor((baseStats.hp      ?? 60) * MINIBOSS_DOUBLER * hpMult * tinkeredThrone),
+          attack:  Math.floor((baseStats.attack  ?? 12) * MINIBOSS_DOUBLER * atkMult * tinkeredThrone),
           defense: Math.floor((baseStats.defense ??  6) * MINIBOSS_DOUBLER * hpMult),
           speed:   baseStats.speed ?? 1,
         },
@@ -750,7 +804,10 @@ export class RoomBehaviorSystem {
   }
 
   _rollWishingWell(adv) {
-    const heads = Math.random() < 0.5
+    // Tinkerer's Workshop "Cursed Well" — coin lands on CURSE 70% of
+    // the time (was 50/50) when the type is upgraded.
+    const curseChance = this._isTinkered('wishing_well') ? 0.70 : 0.50
+    const heads = Math.random() >= curseChance
     if (heads) {
       // Buff: +3 ATK, +20 maxHp, full heal
       adv.stats ??= {}
@@ -785,6 +842,25 @@ export class RoomBehaviorSystem {
     adv.path = null
     adv.goal = { type: 'AT_BOSS' }
     adv.aiState = 'fighting'
+    // Tinkerer's Workshop "Painful Landing" — when False Exit type is
+    // upgraded, the trapped fleer also takes 25% maxHp on arrival.
+    if (this._isTinkered('false_exit') && adv.resources) {
+      const dmg = Math.max(1, Math.round((adv.resources.maxHp ?? 0) * 0.25))
+      adv.resources.hp = Math.max(0, (adv.resources.hp ?? 0) - dmg)
+      EventBus.emit('COMBAT_HIT', {
+        sourceId:   'false_exit',
+        targetId:   adv.instanceId,
+        damage:     dmg,
+        damageType: 'physical',
+      })
+    }
     EventBus.emit('FALSE_EXIT_TELEPORTED', { adventurer: adv })
+  }
+
+  // Tinkerer's Workshop helper — returns true when the given room
+  // definitionId has been upgraded via the Workshop event. Defensive
+  // against missing gameState fields so old saves work unchanged.
+  _isTinkered(definitionId) {
+    return (this._gameState._tinkeredRoomTypes ?? []).includes(definitionId)
   }
 }

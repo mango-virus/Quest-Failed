@@ -131,9 +131,11 @@ export class RivalBossShowdown {
       boss.xp = (boss.xp ?? 0) + need
       while (boss.xp >= (boss.xpToNext ?? Balance.BOSS_XP_BASE)) {
         boss.xp -= boss.xpToNext
-        boss.level = (boss.level ?? 1) + 1
+        const oldLevel = boss.level ?? 1
+        boss.level = oldLevel + 1
         boss.xpToNext = this._xpToNextLevel(boss.level)
         EventBus.emit('BOSS_LEVELED_UP', { newLevel: boss.level, source: 'rival_boss_kill' })
+        EventBus.emit('BOSS_LEVEL_CHANGED', { newLevel: boss.level, oldLevel, delta: +1, source: 'rival_boss_kill' })
         // Stop after one level even if leftover XP would chain-up.
         break
       }

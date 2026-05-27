@@ -31,8 +31,20 @@ export function applyMinionScaling(minion, bossLevel, day = 1) {
   }
   const lvOver  = Math.max(0, (bossLevel ?? 1) - 1)
   const dayOver = Math.max(0, (day ?? 1) - 1)
-  const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver + Balance.MINION_HP_PER_DAY  * dayOver
-  const atkMult = 1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver + Balance.MINION_ATK_PER_DAY * dayOver
+  // Sacrificial Altar reward — accumulator on player._altarMinionStatBuff
+  // (stamped by EventSystem._resolveSacrificialAltar). Multiplies every
+  // minion's final maxHp + attack so the bargain compounds across multiple
+  // altar accepts and applies to future placements automatically. Read
+  // lazily via window.__game so this module stays gameState-free.
+  let altarBuff = 0
+  try {
+    const scenes = (typeof window !== 'undefined' ? window.__game?.scene?.scenes : null) ?? []
+    const gs = scenes.find(s => s?.gameState)?.gameState
+    altarBuff = gs?.player?._altarMinionStatBuff ?? 0
+  } catch { /* no global available — non-fatal */ }
+  const altarMul = 1 + altarBuff
+  const hpMult  = (1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver + Balance.MINION_HP_PER_DAY  * dayOver) * altarMul
+  const atkMult = (1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver + Balance.MINION_ATK_PER_DAY * dayOver) * altarMul
   minion.resources.maxHp = Math.round(minion._baseMaxHp * hpMult)
   minion.resources.hp    = minion.resources.maxHp
   minion.stats.attack    = Math.round(minion._baseAtk   * atkMult)

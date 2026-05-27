@@ -236,6 +236,15 @@ export class NightPhase extends Phaser.Scene {
       }
       return this._emitPreviewUpdated()
     }
+    // Speedrun Channel — entire wave is locked to one random class
+    // (pre-rolled by EventSystem at announce). NOT an early-return —
+    // we fall through to the normal wave-size roll below, then force
+    // every previewed adv's classId to the locked class right before
+    // the preview object is built (see the speedrun lock block below).
+    const _srLockedClass = (gs.events?.scheduledId === 'speedrun_channel'
+      || eventFlags.speedrunChannelActive)
+      ? eventFlags.speedrunChannelClassId
+      : null
     // The Tournament is now ADDITIVE (the 3 rivals join the normal
     // daily wave, they don't replace it). So we DON'T early-return here
     // — we fall through to the normal wave roll below, then append the
@@ -435,7 +444,13 @@ export class NightPhase extends Phaser.Scene {
       const carryVar   = reusableVariants[i]
       const stillEligible = carryClass && classes.some(c => c.id === carryClass)
       let chosenClass, chosenVar
-      if (stillEligible) {
+      if (_srLockedClass) {
+        // Speedrun Channel — every previewed adv is the locked class.
+        // Variant freshly picked from the locked class's pool so
+        // sprites stay varied within the same class.
+        chosenClass = _srLockedClass
+        chosenVar = this._pickWaveVariant(chosenClass)
+      } else if (stillEligible) {
         chosenClass = carryClass
         // Reuse the prior variant only if it's a string. Falls through
         // to a fresh pick when this is a save from before variant
@@ -1910,9 +1925,13 @@ export class NightPhase extends Phaser.Scene {
       .filter(r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
     const f = this._gameState._mechanicFlags ?? {}
     const perBarracks = f.minionSlotsPerBarracks ?? 10
+    // Tinkerer's Workshop "Drill Sergeant" — +5 slots per barracks (15
+    // total each) when the type is upgraded.
+    const tinkerBonus = (this._gameState._tinkeredRoomTypes ?? []).includes('starter_barracks')
+      ? barracksCount * 5 : 0
     const bonus   = f.maxMinionSlotBonus ?? 0
     const penalty = f.longGameMinionSlotPenalty ?? 0
-    return Math.max(0, barracksCount * perBarracks + bonus - penalty)
+    return Math.max(0, barracksCount * perBarracks + tinkerBonus + bonus - penalty)
   }
 
   _rosterUsed() {
@@ -2116,8 +2135,12 @@ export class NightPhase extends Phaser.Scene {
       .filter(r => r.definitionId === 'trap_factory' && r.isActive !== false).length
     const f = this._gameState._mechanicFlags ?? {}
     const perFactory = f.trapSlotsPerFactory ?? 5
+    // Tinkerer's Workshop "Assembly Line" — +3 slots per factory (8
+    // total each) when the type is upgraded.
+    const tinkerBonus = (this._gameState._tinkeredRoomTypes ?? []).includes('trap_factory')
+      ? factoryCount * 3 : 0
     const bonus = f.maxTrapSlotBonus ?? 0
-    return Math.max(0, factoryCount * perFactory + bonus)
+    return Math.max(0, factoryCount * perFactory + tinkerBonus + bonus)
   }
 
   _trapUsed() {

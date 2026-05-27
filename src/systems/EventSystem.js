@@ -28,7 +28,7 @@ import { EventBus }         from './EventBus.js'
 import { Balance }          from '../config/balance.js'
 import { AbilitySystem }    from './AbilitySystem.js'
 import { createAdventurer } from '../entities/Adventurer.js'
-import { createMinion }     from '../entities/Minion.js'
+import { createMinion, applyMinionScaling } from '../entities/Minion.js'
 import { entryDoorTile }    from './DungeonGrid.js'
 
 // Fixed 3-day cadence — every event fires exactly 3 days after the prior
@@ -107,6 +107,11 @@ export class EventSystem {
     on('GAMBLER_IMP_CLICKED', this._onGamblerImpClicked)
     // Gambler's Coin — the player chose DOUBLE OR NOTHING in the cinematic.
     on('GAMBLER_DOUBLE_REQUEST', this._onGamblerDoubleRequest)
+    // Tinkerer's Workshop — the HUD picker emits this when the player
+    // picks one of the 3 offered upgrade cards.
+    on('TINKERER_PICK', (p) => this._onTinkererPicked(p ?? {}))
+    // Demon's Wager — clicking the demon NPC opens the wager modal.
+    on('DEMON_WAGER_NPC_CLICKED', () => this._promptDemonsWager())
   }
 
   // Gambler's Coin — fired by GamblerImpRenderer when the player clicks
@@ -208,6 +213,24 @@ export class EventSystem {
     if (def.id === 'black_market')       this._promptBlackMarket()
     if (def.id === 'mercenary_contract') this._promptMercenary()
     if (def.id === 'cursed_relic')       this._promptCursedRelic()
+    // New events (2026-05-27)
+    if (def.id === 'sacrificial_altar')  this._promptSacrificialAltar()
+    // demons_wager — like Gambler's Coin, doesn't prompt at announce.
+    // DemonWagerRenderer spawns the NPC in the boss room; clicking it
+    // fires DEMON_WAGER_NPC_CLICKED which surfaces the wager modal via
+    // _onDemonWagerNpcClicked.
+    if (def.id === 'tinkerers_workshop') this._promptTinkerersWorkshop()
+    // speedrun_channel — roll the class HERE (at announce) so the
+    // NightPhase wave-preview can lock to it too. Stored on _eventFlags
+    // so DayPhase reads the same value when spawning the actual wave.
+    if (def.id === 'speedrun_channel') {
+      const flags = this._gameState._eventFlags ?? (this._gameState._eventFlags = {})
+      if (!flags.speedrunChannelClassId) {
+        flags.speedrunChannelClassId = this._pickSpeedrunClass()
+      }
+    }
+    // speedrun_channel resolves at DAY_PHASE_BEGAN via the wave-replace
+    // flag, same pattern as zombie_horde / bounty_hunters.
   }
 
   // Theme / icon / title for an event's SHOW_CONFIRM modal — pulled from
@@ -430,6 +453,364 @@ export class EventSystem {
     })
     EventBus.emit('TREASURE_CHEST_PLACED', { tier, tileX: tx, tileY: ty, cursed: true })
     EventBus.emit('SHOW_TOAST', { message: 'The cursed relic festers in your hoard…', type: 'leak' })
+  }
+
+  // ── Sacrificial Altar (random cost + random reward) ────────────────────
+  // The altar offers a blind bargain: accept and the runtime rolls one
+  // cost from a filtered pool (boss life / half gold / half pacts / half
+  // roster minions) and one reward (+2/5/8/10% permanent minion stats).
+  // Cost pool is filtered to non-trivial entries: zeros are skipped so
+  // the player can never get a "free reward" by being broke; boss-life is
+  // dropped when only one life is left so the altar can't end the run on
+  // RNG. Reward accumulates on player._altarMinionStatBuff and is read by
+  // applyMinionScaling, so it survives every rescale + carries to future
+  // placements automatically.
+  _promptSacrificialAltar() {
+    const flags = this._gameState._eventFlags
+    if (flags.sacrificialAltarDecided) return
+
+    EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('sacrificial_altar'),
+      message:
+        `The altar hungers. Pay an unknown price; gain unknown power.\n\n` +
+        `POSSIBLE PRICES (one rolled at random):\n` +
+        `  • A boss life\n` +
+        `  • Half your active pacts (random)\n` +
+        `  • Half your roster minions (random — no revival)\n` +
+        `  • Half your current gold\n\n` +
+        `POSSIBLE REWARDS (one rolled at random):\n` +
+        `  • Permanent +2% / +5% / +8% / +10% to all minion stats\n\n` +
+        `Refusing costs nothing. Accepting commits to whatever rolls.`,
+      confirmLabel: 'ACCEPT THE BARGAIN',
+      cancelLabel:  'WALK AWAY',
+      onConfirm: () => {
+        flags.sacrificialAltarDecided = true
+        this._resolveSacrificialAltar()
+      },
+      onCancel: () => { flags.sacrificialAltarDecided = true },
+    })
+  }
+
+  // Rolls cost (filtered) + reward, applies both, surfaces toasts so the
+  // player knows what landed. Each branch is self-contained for clarity.
+  _resolveSacrificialAltar() {
+    const gs = this._gameState
+    const player = gs.player
+    if (!player) return
+
+    // ── Build the cost pool dynamically, dropping trivial / catastrophic
+    //    options. Avoids the "blind bargain becomes free reward" edge case
+    //    and the "RNG ends the run at 1 boss-life" failure mode.
+    const costPool = []
+    const roster = (gs.minions ?? []).filter(m =>
+      m && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 &&
+      m.faction === 'dungeon' &&
+      // Garrison minions belong to rooms (Risen Bones, Revenants, Mini-
+      // Bosses). Sacrificing those would break the room's refill logic
+      // — exclude them. Only "free" roster minions are eligible.
+      m.class !== 'garrison' && !m._isGoopling && !m._isDemonImp &&
+      !m._isHauntGhost && !m._isVampireThrall && !m._myconidSprout)
+    if (roster.length >= 2)                        costPool.push('minions')
+    if ((player.gold ?? 0) >= 10)                  costPool.push('gold')
+    if ((gs.activeMechanics ?? []).length >= 2)    costPool.push('pacts')
+    if ((gs.boss?.deathsRemaining ?? 0) > 1)       costPool.push('life')
+    // Per user direction (2026-05-27): never grant a free reward. If the
+    // cost pool is empty (no minions, no gold, no pacts, on last life)
+    // the altar refuses the bargain entirely — the player simply gets a
+    // flavour toast and walks away with nothing. Prevents "desperate
+    // run accepts blindly and gets a permanent buff for free."
+    if (costPool.length === 0) {
+      EventBus.emit('SHOW_TOAST', {
+        message: 'The altar finds nothing worth taking and crumbles to dust.',
+        type: 'info', duration: 4500,
+      })
+      EventBus.emit('SACRIFICIAL_ALTAR_RESOLVED', { cost: 'none', reward: 0, totalReward: player._altarMinionStatBuff ?? 0 })
+      return
+    }
+    const costKind = costPool[Math.floor(Math.random() * costPool.length)]
+
+    // ── Apply the cost.
+    let costText = ''
+    if (costKind === 'life') {
+      gs.boss.deathsRemaining = Math.max(1, (gs.boss.deathsRemaining ?? 1) - 1)
+      costText = `A boss life was taken (${gs.boss.deathsRemaining} remaining)`
+      EventBus.emit('BOSS_LIFE_LOST', { source: 'sacrificial_altar' })
+    } else if (costKind === 'gold') {
+      const lost = Math.floor((player.gold ?? 0) / 2)
+      player.gold = (player.gold ?? 0) - lost
+      costText = `Half your gold was taken (-${lost}g)`
+    } else if (costKind === 'pacts') {
+      const ids = [...(gs.activeMechanics ?? [])]
+      const n = Math.floor(ids.length / 2)
+      // Fisher-Yates partial shuffle to pick `n` distinct pacts uniformly.
+      for (let i = 0; i < n; i++) {
+        const j = i + Math.floor(Math.random() * (ids.length - i))
+        const tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp
+      }
+      const removed = ids.slice(0, n)
+      const dms = this._scene?.dungeonMechanicSystem
+      for (const id of removed) dms?.deactivate?.(id)
+      costText = `Half your pacts were undone (${n} stripped)`
+    } else if (costKind === 'minions') {
+      const ids = roster.slice()
+      const n = Math.floor(ids.length / 2)
+      for (let i = 0; i < n; i++) {
+        const j = i + Math.floor(Math.random() * (ids.length - i))
+        const tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp
+      }
+      const sacrificed = ids.slice(0, n)
+      for (const m of sacrificed) {
+        // Splice from the live roster; emit MINION_DIED with a perma flag
+        // so renderers clean up sprites and MinionAISystem.respawnAll
+        // skips them at the next dawn. No boss XP awarded.
+        const idx = gs.minions.indexOf(m)
+        if (idx >= 0) gs.minions.splice(idx, 1)
+        EventBus.emit('MINION_DIED', { minion: m, source: 'altar_sacrifice', perma: true })
+      }
+      costText = `Half your roster was claimed (${n} minions sacrificed forever)`
+    }
+    // Note: 'none' costKind is unreachable — the early return above
+    // already short-circuits the empty-cost-pool case.
+
+    // ── Roll the reward (uniform over the four tiers) and stack it.
+    const rewardTiers = [0.02, 0.05, 0.08, 0.10]
+    const reward = rewardTiers[Math.floor(Math.random() * rewardTiers.length)]
+    player._altarMinionStatBuff = (player._altarMinionStatBuff ?? 0) + reward
+    // Rescale every live minion through applyMinionScaling so the new
+    // multiplier lands immediately. Future placements pick it up via the
+    // same code path.
+    this._reapplyMinionScalingAll()
+    const rewardText = `+${(reward * 100).toFixed(0)}% permanent minion stats (total: +${(player._altarMinionStatBuff * 100).toFixed(0)}%)`
+
+    EventBus.emit('SACRIFICIAL_ALTAR_RESOLVED', {
+      cost:   costKind,
+      reward: reward,
+      totalReward: player._altarMinionStatBuff,
+    })
+    EventBus.emit('SHOW_TOAST', { message: `Altar: ${costText}`, type: 'leak', duration: 4500 })
+    EventBus.emit('SHOW_TOAST', { message: `Altar: ${rewardText}`, type: 'gold',  duration: 4500 })
+  }
+
+  // Walk every live minion through applyMinionScaling using its captured
+  // bossLevel + scaledDay (preserved on the instance). The function reads
+  // the new player._altarMinionStatBuff every call, so the stat boost
+  // applies on next recompute.
+  _reapplyMinionScalingAll() {
+    const gs = this._gameState
+    const bossLv = gs.boss?.level ?? 1
+    const day    = gs.meta?.dayNumber ?? 1
+    for (const m of gs.minions ?? []) {
+      if (!m || m.aiState === 'dead') continue
+      applyMinionScaling(m, m.bossLevel ?? bossLv, m._scaledDay ?? day)
+    }
+  }
+
+  // ── Demon's Wager (boss-level coin flip) ───────────────────────────────
+  // Click the demon NPC during night → coin-flip modal. Stake the boss's
+  // level. WIN → +1 level (regular up-path). LOSE → -1 level (down-path
+  // routed via BOSS_LEVEL_CHANGED, no celebratory listeners fire).
+  // Refused at boss level 1 (demon dismisses; nothing to take).
+  _promptDemonsWager() {
+    const flags = this._gameState._eventFlags
+    if (flags.demonsWagerDecided) return
+    const bossLv = this._gameState.boss?.level ?? 1
+    if (bossLv <= 1) {
+      // The demon won't gamble with a "weak" boss — no level to lose.
+      // Surface a flavour toast so the player understands why no modal.
+      flags.demonsWagerDecided = true
+      EventBus.emit('SHOW_TOAST', {
+        message: 'The demon sneers — "you have nothing worth taking" — and vanishes.',
+        type: 'info', duration: 4500,
+      })
+      return
+    }
+    EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('demons_wager'),
+      message:
+        `A demon offers a coin flip:\n\n` +
+        `WAGER your current boss level (${bossLv}) on the flip.\n` +
+        `WIN — level up immediately (${bossLv} → ${bossLv + 1}).\n` +
+        `LOSE — drop a level (${bossLv} → ${bossLv - 1}). Stats, unlocks, and minion power all diminish.\n\n` +
+        `DECLINE — send the demon away.`,
+      confirmLabel: 'WAGER',
+      cancelLabel:  'DECLINE',
+      onConfirm: () => {
+        flags.demonsWagerDecided = true
+        EventBus.emit('DEMON_WAGER_NPC_DISMISS')
+        this._resolveDemonsWager()
+      },
+      onCancel: () => {
+        flags.demonsWagerDecided = true
+        EventBus.emit('DEMON_WAGER_NPC_DISMISS')
+      },
+    })
+  }
+
+  _resolveDemonsWager() {
+    const boss = this._gameState.boss
+    if (!boss) return
+    const won = Math.random() < 0.5
+    const oldLevel = boss.level ?? 1
+    // Demon-themed cinematic — reuses the CoinFlipCinematic event shape
+    // with a `theme: 'demon'` marker so the renderer can swap palette + SFX.
+    EventBus.emit('DEMON_WAGER_FLIP', {
+      won, oldLevel,
+      newLevel: oldLevel + (won ? +1 : -1),
+      theme: 'demon',
+    })
+    if (won) {
+      // Top up XP to threshold + use the existing level-up path so all
+      // celebratory listeners (achievements, chat bubbles, level-up
+      // overlay, grid expansion, gnoll-pack-refill, etc.) fire normally.
+      const need = Math.max(0, (boss.xpToNext ?? Balance.BOSS_XP_BASE) - (boss.xp ?? 0))
+      boss.xp = (boss.xp ?? 0) + need
+      const tmpAi = this._scene?.aiSystem
+      tmpAi?._awardBossXp?.()
+      return
+    }
+    // LOSE — manual level decrement that mirrors the up-path's stat
+    // deltas without firing BOSS_LEVELED_UP. BOSS_LEVEL_CHANGED with
+    // delta=-1 drives BuildMenu re-render + minion rescale.
+    const newLevel = Math.max(1, oldLevel - 1)
+    boss.maxHp   = Math.max(1, (boss.maxHp   ?? 0) - (Balance.BOSS_HP_PER_LEVEL  ?? 15))
+    boss.attack  = Math.max(1, (boss.attack  ?? 0) - (Balance.BOSS_ATK_PER_LEVEL ?? 1))
+    boss.defense = Math.max(0, (boss.defense ?? 0) - (Balance.BOSS_DEF_PER_LEVEL ?? 1))
+    boss.hp      = Math.min(boss.hp ?? boss.maxHp, boss.maxHp)
+    boss.level   = newLevel
+    // Recompute xpToNext for the new (lower) level + clamp current xp.
+    const raw = Balance.BOSS_XP_BASE * Math.pow(Balance.BOSS_XP_SCALE, newLevel - 1)
+    boss.xpToNext = Math.ceil(raw / 10) * 10
+    boss.xp = Math.min(boss.xp ?? 0, boss.xpToNext)
+    EventBus.emit('BOSS_LEVEL_CHANGED', { newLevel, oldLevel, delta: -1, source: 'demons_wager' })
+    EventBus.emit('BOSS_DIMINISHED', { newLevel, oldLevel })
+    // Use the existing "error" sound channel — no new SFX file needed.
+    EventBus.emit('SFX_PLAY', { id: 'error' })
+  }
+
+  // ── Tinkerer's Workshop (per-room-type permanent upgrade) ──────────────
+  // The goblin offers 3 unique upgrades drawn from room types the player
+  // CURRENTLY OWNS that aren't already tinkered. Picking applies the
+  // upgrade to that room TYPE — every current AND future placement of
+  // that type benefits. Build menu surfaces an "★ UPGRADED" badge on
+  // the upgraded type's card with hover-tooltip describing the effect.
+  _promptTinkerersWorkshop() {
+    const flags = this._gameState._eventFlags
+    if (flags.tinkerersWorkshopDecided) return
+
+    // Catalog of upgrades — keyed by room definitionId. Each entry has a
+    // human-readable name + short description (used by the build-menu
+    // hover tooltip + the picker modal). The mechanical effects are
+    // wired into the individual systems (RoomBehaviorSystem, AISystem,
+    // etc.) which check gameState._tinkeredRoomTypes for the type id.
+    const TINKER_CATALOG = this._tinkerCatalog()
+
+    // Eligible room types: those the player currently has placed AND not
+    // already tinkered AND for which we have an upgrade defined.
+    const placed = new Set((this._gameState.dungeon?.rooms ?? [])
+      .map(r => r.definitionId)
+      .filter(id => id && id !== 'boss_chamber' && id !== 'entry_hall'))
+    const tinkered = new Set(this._gameState._tinkeredRoomTypes ?? [])
+    const eligible = [...placed].filter(id => TINKER_CATALOG[id] && !tinkered.has(id))
+
+    if (eligible.length === 0) {
+      // Nothing to upgrade — flavour out the event so the player
+      // understands why no picker.
+      flags.tinkerersWorkshopDecided = true
+      EventBus.emit('SHOW_TOAST', {
+        message: 'The tinkerer shrugs — your dungeon has nothing left to improve. He moves on.',
+        type: 'info', duration: 4500,
+      })
+      return
+    }
+
+    // Fisher-Yates partial shuffle to pick up to 3 distinct types.
+    const pool = eligible.slice()
+    const offerCount = Math.min(3, pool.length)
+    for (let i = 0; i < offerCount; i++) {
+      const j = i + Math.floor(Math.random() * (pool.length - i))
+      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
+    }
+    const offers = pool.slice(0, offerCount).map(id => ({
+      roomId:      id,
+      name:        TINKER_CATALOG[id].name,
+      description: TINKER_CATALOG[id].description,
+    }))
+
+    EventBus.emit('SHOW_TINKERER_OFFER', { offers })
+  }
+
+  // Apply a tinkerer pick. Routed via EventBus from the picker UI
+  // (HUD overlay listens for SHOW_TINKERER_OFFER and emits this when the
+  // player picks a card).
+  _onTinkererPicked({ roomId }) {
+    if (!roomId) return
+    const gs = this._gameState
+    gs._tinkeredRoomTypes ??= []
+    if (!gs._tinkeredRoomTypes.includes(roomId)) gs._tinkeredRoomTypes.push(roomId)
+    EventBus.emit('TINKERER_UPGRADE_APPLIED', { roomId })
+    EventBus.emit('SHOW_TOAST', {
+      message: `${roomId.replace(/_/g, ' ')} upgraded — affects all current + future rooms of this type`,
+      type: 'gold', duration: 4500,
+    })
+  }
+
+  // The full upgrade catalog — 19 rooms, one entry each. Keep
+  // descriptions short (build-menu hover tooltips have limited room).
+  _tinkerCatalog() {
+    return {
+      starter_corridor:    { name: 'Greased Corridor',
+                             description: 'Minions fighting inside a corridor take 25% less damage (hard to pin down).' },
+      starter_barracks:    { name: 'Drill Sergeant',
+                             description: '+5 roster slots per barracks (15 total each).' },
+      starter_guard_post:  { name: 'Eagle Eye',
+                             description: 'Guard-post minions deal +25% damage when ambushing connected rooms.' },
+      crypt:               { name: 'Crowded Crypt',
+                             description: 'Crypt holds +2 Risen Bones (6 total).' },
+      trap_factory:        { name: 'Assembly Line',
+                             description: '+3 trap slots per trap factory (8 total each).' },
+      treasury:            { name: 'Golden Vault',
+                             description: 'Treasury stipend +50%; auto-spawned chests roll +1 tier higher.' },
+      armory:              { name: 'Weaponsmith',
+                             description: 'Armory ATK aura strength doubled.' },
+      library_of_whispers: { name: "Oracle's Tome",
+                             description: '+1 boss XP per adventurer kill, per active Library (cumulative).' },
+      watchtower:          { name: 'Cannonade',
+                             description: 'Watchtower first-strike damage doubled.' },
+      wandering_gate:      { name: 'Skewed Gate',
+                             description: 'Wandering Gate boss-chamber teleport chance bumped to 15% (was 5%).' },
+      veil_of_forgetting:  { name: 'Deeper Veil',
+                             description: 'Veil also wipes 2-hop neighbour intel each night.' },
+      catacombs:           { name: 'Restless Tomb',
+                             description: 'Catacombs cap +1 Revenant (3 max).' },
+      mimic_vault:         { name: 'Hungry Vault',
+                             description: 'Mimic Vault holds +2 mimics; they re-seed faster after being spotted.' },
+      hall_of_trials:      { name: 'Champion Trials',
+                             description: 'Hall of Trials garrison spawn is Tier 3 instead of Tier 2.' },
+      wishing_well:        { name: 'Cursed Well',
+                             description: 'Wishing Well coin lands on CURSE 70% of the time (was 50%).' },
+      false_exit:          { name: 'Painful Landing',
+                             description: 'Fleers teleported by False Exit also take 25% maxHp damage on arrival.' },
+      hall_of_madness:     { name: 'Total Frenzy',
+                             description: 'Hall of Madness friendly-fire chance bumped to 90% (was 60%).' },
+      throne_room:         { name: 'Tyrant Throne',
+                             description: 'Throne Room mini-boss gains +50% HP and +50% ATK on top of normal scaling.' },
+      sanctum:             { name: "Sanctum's Heart",
+                             description: 'Sanctum HP regen rate doubled.' },
+    }
+  }
+
+  // ── Speedrun Channel (wave-class lock) ─────────────────────────────────
+  // Pick a random class from the curated pool. DayPhase reads this flag
+  // when building today's wave and locks every spawn to this class.
+  _pickSpeedrunClass() {
+    // Curated pool — excludes event-only / monster / cheater classes that
+    // shouldn't appear in normal waves AND twitch_streamer (per user
+    // direction: streamer is already an event class via Twitch Con).
+    const SPEEDRUN_POOL = [
+      'knight', 'rogue', 'mage', 'cleric', 'ranger',
+      'barbarian', 'monk', 'bard', 'necromancer', 'beast_master',
+    ]
+    return SPEEDRUN_POOL[Math.floor(Math.random() * SPEEDRUN_POOL.length)]
   }
 
   // Mercenaries serve a fixed contract then walk off the job. Checked
@@ -717,7 +1098,21 @@ export class EventSystem {
       case 'black_market':
       case 'mercenary_contract':
       case 'cursed_relic':
+      case 'sacrificial_altar':
+      case 'demons_wager':
+      case 'tinkerers_workshop':
         // All resolved at announce via their night modal. No day effect.
+        break
+      case 'speedrun_channel':
+        // DayPhase reads `speedrunChannelClassId` to lock today's wave
+        // to one random class (see _spawnDailyAdventurers). The id is
+        // pre-rolled at announce time (_dispatchAnnounceUi) so the
+        // night-phase wave preview can show the correct locked class.
+        // Defensive: if announce somehow didn't roll one, pick now.
+        flags.speedrunChannelActive = true
+        if (!flags.speedrunChannelClassId) {
+          flags.speedrunChannelClassId = this._pickSpeedrunClass()
+        }
         break
       case 'the_saboteur':
         // DayPhase replaces the wave with the lone Saboteur (_spawnSaboteur).
@@ -846,6 +1241,19 @@ export class EventSystem {
         break
       case 'cursed_relic':
         flags.cursedRelicDecided = false
+        break
+      case 'sacrificial_altar':
+        flags.sacrificialAltarDecided = false
+        break
+      case 'demons_wager':
+        flags.demonsWagerDecided = false
+        break
+      case 'tinkerers_workshop':
+        flags.tinkerersWorkshopDecided = false
+        break
+      case 'speedrun_channel':
+        flags.speedrunChannelActive  = false
+        flags.speedrunChannelClassId = null
         break
       case 'the_saboteur':
         flags.saboteurActive = false

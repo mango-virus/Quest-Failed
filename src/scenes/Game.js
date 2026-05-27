@@ -33,6 +33,7 @@ import { FountainRenderer }   from '../ui/FountainRenderer.js'
 import { TreasureChestRenderer } from '../ui/TreasureChestRenderer.js'
 import { DarkDealDemonRenderer } from '../ui/DarkDealDemonRenderer.js'
 import { GamblerImpRenderer }    from '../ui/GamblerImpRenderer.js'
+import { DemonWagerRenderer }    from '../ui/DemonWagerRenderer.js'
 import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
 import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
@@ -254,6 +255,9 @@ export class Game extends Phaser.Scene {
     this.treasureChestRenderer = track(new TreasureChestRenderer(this, this.gameState))
     this.darkDealDemonRenderer = track(new DarkDealDemonRenderer(this, this.gameState))
     this.gamblerImpRenderer    = track(new GamblerImpRenderer(this, this.gameState))
+    // Demon's Wager NPC — clones the gambler imp pattern with crimson
+    // tinting + DEMON_WAGER_NPC_CLICKED event instead of GAMBLER_*.
+    this.demonWagerRenderer    = track(new DemonWagerRenderer(this, this.gameState))
     this.phylacteryRenderer  = track(new PhylacteryRenderer(this, this.gameState))
     this.fungalCorpseRenderer = track(new FungalCorpseRenderer(this, this.gameState))
     // MinionInspector and WantedPoster have DOM ports under the new HUD
@@ -311,6 +315,11 @@ export class Game extends Phaser.Scene {
     EventBus.on('GRID_EXPANDED',        this._onGridExpanded,  this)
     // Boss levels up → expand grid + scale all live minions.
     EventBus.on('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
+    // Boss level DROPS (Demon's Wager loss) → rescale every live
+    // minion downward via applyBossLevelToMinion. Only fires on
+    // negative deltas — positive deltas are owned by _onBossLeveledUp
+    // above (which also grows the grid + bumps boss stats).
+    EventBus.on('BOSS_LEVEL_CHANGED', this._onBossLevelChanged, this)
     // Room Builder saved a room def — rewrite tile grids for all placed
     // instances so structural changes appear immediately without remove + re-place.
     EventBus.on('ROOM_DEF_SAVED',       this._onRoomDefSaved,   this)
@@ -429,6 +438,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     EventBus.off('GRID_EXPANDED',        this._onGridExpanded,  this)
     EventBus.off('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
+    EventBus.off('BOSS_LEVEL_CHANGED', this._onBossLevelChanged, this)
     EventBus.off('ROOM_DEF_SAVED',       this._onRoomDefSaved,  this)
     EventBus.off('ROOMS_ALL_RESET',      this._onRoomsAllReset, this)
     EventBus.off('LOCKS_CHANGED',        this._syncLockedCPs,   this)
@@ -1160,6 +1170,31 @@ export class Game extends Phaser.Scene {
       m.resources.maxHp = Math.round(m.resources.maxHp * (newHpM / oldHpM))
       m.resources.hp    = Math.round(m.resources.maxHp * hpFrac)
       m.stats.attack    = Math.round(m.stats.attack    * (newAtkM / oldAtkM))
+      m.bossLevel       = newLevel
+    }
+  }
+
+  // BOSS_LEVEL_CHANGED — only handles the DOWN case (Demon's Wager loss).
+  // Boss stat decrement is already applied by EventSystem._resolveDemonsWager
+  // when the wager resolves. This handler rescales every live minion to
+  // the new (lower) level so their HP/ATK shrink in lockstep. The grid
+  // is deliberately NOT shrunk (would orphan placed rooms). The up-path
+  // is owned by _onBossLeveledUp above — skipping positive deltas here
+  // avoids double-rescaling.
+  _onBossLevelChanged({ delta, newLevel } = {}) {
+    if (!(delta < 0)) return
+    for (const m of this.gameState.minions ?? []) {
+      if (m.aiState === 'dead') continue
+      const oldLv  = m.bossLevel ?? 1
+      if (oldLv <= newLevel) continue
+      const oldHpM  = 1 + Balance.MINION_HP_PER_BOSS_LV  * (oldLv    - 1)
+      const newHpM  = 1 + Balance.MINION_HP_PER_BOSS_LV  * (newLevel - 1)
+      const oldAtkM = 1 + Balance.MINION_ATK_PER_BOSS_LV * (oldLv    - 1)
+      const newAtkM = 1 + Balance.MINION_ATK_PER_BOSS_LV * (newLevel - 1)
+      const hpFrac  = m.resources.maxHp > 0 ? m.resources.hp / m.resources.maxHp : 1
+      m.resources.maxHp = Math.max(1, Math.round(m.resources.maxHp * (newHpM / oldHpM)))
+      m.resources.hp    = Math.max(1, Math.round(m.resources.maxHp * hpFrac))
+      m.stats.attack    = Math.max(1, Math.round(m.stats.attack    * (newAtkM / oldAtkM)))
       m.bossLevel       = newLevel
     }
   }

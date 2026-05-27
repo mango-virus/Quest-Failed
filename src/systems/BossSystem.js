@@ -2309,7 +2309,10 @@ export class BossSystem {
         const sanctumCount = (this._gameState.dungeon.rooms ?? [])
           .filter(r => r.definitionId === 'sanctum' && r.isActive !== false).length
         if (sanctumCount > 0) {
-          const regen = 8 * sanctumCount
+          // Tinkerer's Workshop "Sanctum's Heart" — regen rate doubled
+          // when the Sanctum type is upgraded (16/round instead of 8).
+          const sanctumMul = (this._gameState._tinkeredRoomTypes ?? []).includes('sanctum') ? 2 : 1
+          const regen = 8 * sanctumCount * sanctumMul
           const before = boss.hp
           boss.hp = Math.min(boss.maxHp, boss.hp + regen)
           if (boss.hp > before) {

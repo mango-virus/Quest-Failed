@@ -37,6 +37,10 @@ export class CoinFlipCinematic {
     const sub = (evt, fn) => { EventBus.on(evt, fn); this._listeners.push([evt, fn]) }
     sub('GAMBLER_COIN_FLIP',     (p) => this._play(p))
     sub('GAMBLER_DOUBLE_RESULT', (p) => this._onDoubleResult(p))
+    // Demon's Wager — boss-level coin flip with sinister theming. Reuses
+    // the same flip cinematic; renders crimson/black palette + boss-
+    // level verdict text via the `theme:'demon'` payload.
+    sub('DEMON_WAGER_FLIP',      (p) => this._playDemon(p))
   }
 
   // First flip — builds the overlay shell, then runs the flip sequence.
@@ -62,6 +66,86 @@ export class CoinFlipCinematic {
     this._el.classList.add('show')
 
     this._runFlip(payload, 1)
+  }
+
+  // Demon's Wager variant — same flip cinematic, sinister palette +
+  // boss-level verdict text. Reuses the existing flip-and-reveal
+  // mechanics; just swaps strings and applies the `qf-coinflip-demon`
+  // CSS class so the palette flips to crimson/black.
+  _playDemon(payload = {}) {
+    if (this._active) this._teardown()
+    this._active = true
+    this._isDemon = true
+    this._stageEl = h('div', { className: 'qf-coinflip-stage' })
+    this._el = h('div', { className: 'qf-coinflip qf-coinflip-demon' }, [
+      h('div', { className: 'qf-coinflip-dim' }),
+      h('div', { className: 'qf-coinflip-flash' }),
+      this._stageEl,
+    ])
+    this._el.addEventListener('click', () => {
+      if (this._revealed) this._dismiss()
+    })
+    this._stage.appendChild(this._el)
+    // eslint-disable-next-line no-unused-expressions
+    this._el.offsetHeight
+    this._el.classList.add('show')
+    this._runDemonFlip(payload)
+  }
+
+  _runDemonFlip({ won = false, oldLevel = 1, newLevel = 1 } = {}) {
+    this._clearTimers()
+    if (this._cancelTween) { this._cancelTween(); this._cancelTween = null }
+    this._won        = won
+    this._canDouble  = false
+    this._revealed   = false
+    this._el.classList.remove('flipping', 'landed', 'revealed')
+
+    const coin = h('div', { className: 'qf-coinflip-coin' }, [
+      h('div', { className: 'qf-coinflip-face heads' }, [
+        h('span', { className: 'qf-coinflip-glyph' }, '👁️'),
+        h('span', { className: 'qf-coinflip-facelabel' }, 'EYE'),
+      ]),
+      h('div', { className: 'qf-coinflip-face tails' }, [
+        h('span', { className: 'qf-coinflip-glyph' }, '☠'),
+        h('span', { className: 'qf-coinflip-facelabel' }, 'SKULL'),
+      ]),
+    ])
+    this._coin = coin
+
+    const verdict = won ? 'BOSS RISES' : 'BOSS DIMINISHED'
+    this._result = h('div', { className: 'qf-coinflip-result' }, [
+      h('div', { className: 'qf-coinflip-verdict' }, verdict),
+      h('div', { className: 'qf-coinflip-payout' }, [
+        h('span', { className: 'qf-coinflip-old' }, `LV ${oldLevel}`),
+        h('span', { className: 'arrow' }, '➜'),
+        h('span', { className: 'qf-coinflip-new' }, `LV ${newLevel}`),
+      ]),
+    ])
+    this._footerEl = h('div', { className: 'qf-coinflip-footer' })
+
+    this._stageEl.replaceChildren(
+      h('div', { className: 'qf-coinflip-kicker' }, '◆  THE DEMON\'S WAGER  ◆'),
+      h('div', { className: 'qf-coinflip-title' }, "THE DEMON'S WAGER"),
+      h('div', { className: 'qf-coinflip-coinwrap' }, [coin]),
+      this._result,
+      this._footerEl,
+    )
+
+    this._after(FLIP_DELAY_MS, () => this._startFlip())
+    this._after(FLIP_DELAY_MS + FLIP_DUR_MS, () => this._revealDemon())
+  }
+
+  _revealDemon() {
+    if (!this._el) return
+    this._revealed = true
+    this._el.classList.remove('flipping')
+    this._el.classList.add('landed', 'revealed')
+    this._result.classList.add(this._won ? 'win' : 'lose')
+    EventBus.emit('DEMON_WAGER_REVEALED', { won: this._won })
+    this._footerEl.replaceChildren(
+      h('div', { className: 'qf-coinflip-hint' }, 'click to continue'),
+    )
+    this._after(AUTO_CLOSE_MS, () => this._dismiss())
   }
 
   // Second flip (double or nothing) — re-runs on the existing overlay.
@@ -216,6 +300,7 @@ export class CoinFlipCinematic {
     this._revealed = false
     this._awaitingDouble = false
     this._canDouble = false
+    this._isDemon = false
   }
 
   destroy() {

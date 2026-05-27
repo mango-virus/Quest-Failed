@@ -33,6 +33,32 @@ const CATEGORIES = [
   { id: 'ITEMS',   kind: 'item',   icon: '◆', color: 'var(--info)',   cache: 'items',       unlockKey: null },
 ]
 
+// Tinkerer's Workshop upgrade catalog — name + description per room type,
+// used by the build-card "★ UPGRADED" badge's hover tooltip. Mirrors
+// EventSystem._tinkerCatalog (source of truth) so the picker modal and
+// the build menu can never disagree on what the upgrade does.
+const TINKERER_BADGE_INFO = {
+  starter_corridor:    { name: 'Greased Corridor',   description: 'Minions fighting in a corridor take 25% less damage.' },
+  starter_barracks:    { name: 'Drill Sergeant',     description: '+5 roster slots per barracks (15 total each).' },
+  starter_guard_post:  { name: 'Eagle Eye',          description: 'Guard-post minions deal +25% damage when ambushing.' },
+  crypt:               { name: 'Crowded Crypt',      description: 'Crypt holds +2 Risen Bones (6 total).' },
+  trap_factory:        { name: 'Assembly Line',      description: '+3 trap slots per trap factory (8 total each).' },
+  treasury:            { name: 'Golden Vault',       description: 'Stipend +50%; auto-chests roll +1 tier.' },
+  armory:              { name: 'Weaponsmith',        description: 'Armory ATK aura strength doubled.' },
+  library_of_whispers: { name: "Oracle's Tome",      description: '+1 boss XP per adv kill, per active Library.' },
+  watchtower:          { name: 'Cannonade',          description: 'Watchtower first-strike damage doubled.' },
+  wandering_gate:      { name: 'Skewed Gate',        description: 'Boss-chamber teleport chance bumped to 15% (was 5%).' },
+  veil_of_forgetting:  { name: 'Deeper Veil',        description: 'Also wipes 2-hop neighbour intel each night.' },
+  catacombs:           { name: 'Restless Tomb',      description: 'Catacombs cap +1 Revenant (3 max).' },
+  mimic_vault:         { name: 'Hungry Vault',       description: 'Mimic Vault holds +2 mimics; re-seed faster after spotting.' },
+  hall_of_trials:      { name: 'Champion Trials',    description: 'Garrison spawn is Tier 3 instead of Tier 2.' },
+  wishing_well:        { name: 'Cursed Well',        description: 'Coin lands on CURSE 70% (was 50%).' },
+  false_exit:          { name: 'Painful Landing',    description: 'Fleers teleported here also take 25% maxHp on arrival.' },
+  hall_of_madness:     { name: 'Total Frenzy',       description: 'Friendly-fire chance bumped to 90% (was 60%).' },
+  throne_room:         { name: 'Tyrant Throne',      description: 'Mini-boss +50% HP and +50% ATK on top of scaling.' },
+  sanctum:             { name: "Sanctum's Heart",    description: 'Boss HP regen rate doubled.' },
+}
+
 // ── Knowledge-category color scheme ─────────────────────────────────
 // ONE 4-category palette shared across all three knowledge surfaces
 // (this mini-map, the KnowledgeScreen menu, the big Knowledge Map
@@ -431,12 +457,21 @@ export class LeftPanels {
     const bossLevel = this._gameState.boss?.level ?? 1
     const gold = this._gameState.player?.gold ?? 0
 
+    // Tinkerer's Workshop upgrades — gameState._tinkeredRoomTypes is a
+    // flat list of room definitionIds that the player has chosen to
+    // upgrade. The card paints a "★ UPGRADED" badge with a hover
+    // tooltip describing the upgrade effect (looked up via the catalog
+    // mirrored from EventSystem._tinkerCatalog).
+    const tinkered = new Set(this._gameState._tinkeredRoomTypes ?? [])
+
     const cards = defs.map(def => {
       const cost = this._costFor(def, cat)
       const reqLevel = def.unlockLevel ?? 1
       const locked = reqLevel > bossLevel
       const cantAfford = !locked && gold < cost
       const active = !locked && this._selectedKey === def.id
+      const isTinkered = cat.kind === 'room' && tinkered.has(def.id)
+      const tinkerInfo = isTinkered ? TINKERER_BADGE_INFO[def.id] : null
       return h('button', {
         className: 'qf-build-card',
         dataset: {
@@ -444,6 +479,7 @@ export class LeftPanels {
           active: active ? 'true' : 'false',
           locked: locked ? 'true' : 'false',
           cantAfford: cantAfford ? 'true' : 'false',
+          tinkered: isTinkered ? 'true' : 'false',
         },
         style: { '--cat-color': cat.color },
         disabled: locked,
@@ -454,6 +490,15 @@ export class LeftPanels {
           locked && h('div', { className: 'qf-build-card-lock' }, [
             h('span', { className: 'pix' }, `🔒 LV ${reqLevel}`),
           ]),
+          // Tinkerer badge — golden "★ UPGRADED" tag pinned to the top-
+          // right of the icon, native browser tooltip carries the
+          // upgrade description text on hover.
+          isTinkered && h('div', {
+            className: 'qf-build-card-tinkered',
+            title: tinkerInfo
+              ? `${tinkerInfo.name} — ${tinkerInfo.description}`
+              : 'Upgraded by the Tinkerer',
+          }, '★ UPGRADED'),
         ]),
         h('div', { className: 'qf-build-card-name pix' }, def.name || def.id),
         h('div', { className: 'qf-build-card-cost' }, [
@@ -827,6 +872,13 @@ export class LeftPanels {
     })
     // Re-render when level unlocks new content or pacts add gating.
     sub('BOSS_LEVELED_UP', () => { this._kickRoomPrecache(); this._renderGrid(); this._renderMap() })
+    // BOSS_LEVEL_CHANGED — fires on both up AND down (Demon's Wager
+    // can demote the boss). Re-render the build menu so newly-locked
+    // / newly-unlocked items reflect immediately.
+    sub('BOSS_LEVEL_CHANGED', () => this._renderGrid())
+    // Tinkerer's Workshop — when the player picks an upgrade, the card
+    // for that room type needs to paint the "★ UPGRADED" badge.
+    sub('TINKERER_UPGRADE_APPLIED', () => this._renderGrid())
     // Game scene is guaranteed active by the time night begins —
     // retry precache in case LeftPanels was constructed before the
     // scene booted (or before themesprite textures finished loading).

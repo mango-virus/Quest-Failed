@@ -214,5 +214,37 @@
     "icon": "💾",
     "colorTheme": "rgb",
     "minBossLevel": 2
+  },
+  {
+    "id": "sacrificial_altar",
+    "title": "THE SACRIFICIAL ALTAR",
+    "notif": "A blood altar rises in your boss chamber tonight — sacrifice an unknown price for an unknown permanent buff to all your minions.",
+    "icon": "🩸",
+    "colorTheme": "blood",
+    "minBossLevel": 1
+  },
+  {
+    "id": "demons_wager",
+    "title": "THE DEMON'S WAGER",
+    "notif": "A demon offers a wager tonight — your boss level on a coin flip. WIN: level up immediately. LOSE: drop a level and lose every benefit that came with it.",
+    "icon": "👹",
+    "colorTheme": "violet",
+    "minBossLevel": 2
+  },
+  {
+    "id": "tinkerers_workshop",
+    "title": "THE TINKERER'S WORKSHOP",
+    "notif": "A goblin tinkerer arrives tonight — pick one of three room upgrades. The chosen upgrade affects every current and future room of that type for the rest of the run.",
+    "icon": "🛠️",
+    "colorTheme": "gold",
+    "minBossLevel": 1
+  },
+  {
+    "id": "speedrun_channel",
+    "title": "THE SPEEDRUN CHANNEL",
+    "notif": "A speedrun stream raids your dungeon — every adventurer in today's wave is the same random class. Run start! Let's go!",
+    "icon": "📺",
+    "colorTheme": "accent",
+    "minBossLevel": 1
   }
 ]

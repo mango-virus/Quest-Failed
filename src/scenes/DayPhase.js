@@ -642,6 +642,15 @@ export class DayPhase extends Phaser.Scene {
       const ch = allClasses.find(c => c.id === 'cheater')
       if (ch) classes = [ch]
     }
+    // Dungeon event: Speedrun Channel — entire wave is locked to the
+    // class EventSystem rolled at announce (stored on _eventFlags so
+    // the IncomingWave panel + the actual spawn agree). All other wave
+    // logic (size, returning veteran, etc.) is preserved.
+    const _srClassId = (this._gameState._eventFlags ?? {}).speedrunChannelClassId
+    if (_srClassId) {
+      const sr = allClasses.find(c => c.id === _srClassId)
+      if (sr) classes = [sr]
+    }
     if (classes.length === 0) return
 
     const day   = this._gameState.meta.dayNumber

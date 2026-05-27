@@ -460,9 +460,47 @@ export class CombatSystem {
     // Phase QW — Armory adjacency buff: dungeon minions in (or adjacent to) an
     // active Armory room get +2 attack per swing. Cheap room-existence check
     // since attacker.faction tells us if this is a minion swing.
+    // Tinkerer's Workshop "Weaponsmith" — buff doubled (+4) when the
+    // Armory type is upgraded.
+    const tinkered = this._gameState._tinkeredRoomTypes ?? []
     if (attacker.faction === 'dungeon' && attacker.assignedRoomId) {
       if (this._isAdjacentToActiveArmory(attacker.assignedRoomId)) {
-        raw += 2
+        const armoryBonus = tinkered.includes('armory') ? 4 : 2
+        raw += armoryBonus
+      }
+    }
+
+    // Tinkerer's Workshop "Eagle Eye" — guard-post-assigned minions
+    // deal +25% damage when ambushing into a connected room (their
+    // assignedRoomId is the guard post, and they're hitting an adv in
+    // a room reachable via the guard-post's neighbours).
+    if (tinkered.includes('starter_guard_post') &&
+        attacker.faction === 'dungeon' && attacker.assignedRoomId) {
+      const grid = this._scene?.dungeonGrid
+      const home = (this._gameState.dungeon?.rooms ?? [])
+        .find(r => r.instanceId === attacker.assignedRoomId)
+      if (home?.definitionId === 'starter_guard_post' && grid?.getRoomAtTile) {
+        // Attacker is hitting a target inside or near the guard post —
+        // the buff is meaningful when the target is in an ADJACENT
+        // room (true ambush) rather than already inside the post.
+        const targetRoom = grid.getRoomAtTile(target.tileX, target.tileY)
+        if (targetRoom && targetRoom.instanceId !== home.instanceId) {
+          raw = Math.round(raw * 1.25)
+        }
+      }
+    }
+
+    // Tinkerer's Workshop "Greased Corridor" — minions defending inside
+    // a corridor take 25% less damage (slippery to pin down). Inverse
+    // sense: applied as a damage REDUCTION when the TARGET is a minion
+    // standing inside a corridor.
+    if (tinkered.includes('starter_corridor') &&
+        target.faction === 'dungeon' &&
+        Number.isFinite(target.tileX) && Number.isFinite(target.tileY)) {
+      const grid = this._scene?.dungeonGrid
+      const here = grid?.getRoomAtTile?.(target.tileX, target.tileY)
+      if (here?.definitionId === 'starter_corridor') {
+        raw = Math.round(raw * 0.75)
       }
     }
 

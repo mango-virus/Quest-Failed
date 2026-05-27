@@ -635,13 +635,16 @@ export class ClassAbilitySystem {
   }
 
   _findHealTarget(cleric) {
+    // Party gating REMOVED 2026-05-27 — clerics now heal any wounded adv
+    // in range, regardless of party. Previously the heal was gated to
+    // `cleric.partyId === adv.partyId`, which silently disabled
+    // healing during events that spawn party-less waves (Saboteur,
+    // Speedrunner lone, etc.) and broke any cross-party support play.
+    // Range + HP-fraction gates still apply.
     let best = null, bestFrac = Balance.CLERIC_HEAL_TARGET_THRESHOLD ?? 0.7
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
       if (adv === cleric) continue
-      // A cleric with no party (e.g. severed by Schism) has no allies to
-      // heal — heals nobody. Otherwise restrict to same-party allies.
-      if (!cleric.partyId || adv.partyId !== cleric.partyId) continue
       const frac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
       if (frac >= bestFrac) continue
       const d = Math.hypot(adv.tileX - cleric.tileX, adv.tileY - cleric.tileY)
@@ -662,8 +665,10 @@ export class ClassAbilitySystem {
       if (cleric.classId !== 'cleric') continue
       if (cleric === falling) continue
       if (cleric.aiState === 'dead' || cleric.resources?.hp <= 0) continue
-      // No party (Schism-severed) → cannot resurrect anyone.
-      if (!cleric.partyId || cleric.partyId !== falling.partyId) continue
+      // Party gating REMOVED 2026-05-27 — see _findHealTarget for the
+      // same rationale. Clerics now resurrect any falling adv they can
+      // reach, regardless of party. Ability still gated by per-day
+      // use count (1) so each cleric brings exactly one revive.
       const ready = AbilitySystem.canUse(cleric, ABILITY_DEFS.cleric_resurrection, this._scene.time.now)
       if (!ready.ready) continue
       // Spend the use.

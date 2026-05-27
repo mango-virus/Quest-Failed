@@ -2145,6 +2145,154 @@ body {
   box-shadow: 0 0 8px rgba(0,0,0,0.7);
 }
 
+/* Tinkerer's Workshop picker modal — 3 (or fewer) upgrade cards in a
+   row, matching the gold event-confirm chrome. Backdrop click + Esc
+   close ("walk away"). The room-instance affected by each upgrade is
+   chosen by the player here; the BuildMenu badge marks the upgraded
+   room TYPE. */
+.qf-tinkerer-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 9100;
+  pointer-events: auto;
+}
+.qf-tinkerer-card {
+  position: relative;
+  background: linear-gradient(180deg, #1d1611, #0e0a07);
+  border: 2px solid var(--gold-bright, #ffd964);
+  box-shadow:
+    0 0 28px color-mix(in srgb, var(--gold-bright, #ffd964) 35%, transparent),
+    0 8px 30px rgba(0, 0, 0, 0.7);
+  padding: 30px 28px 22px;
+  max-width: 820px;
+  width: min(820px, 92vw);
+  text-align: center;
+  font-family: var(--pix);
+}
+.qf-tinkerer-corner {
+  position: absolute;
+  width: 18px; height: 18px;
+  border: 2px solid var(--gold-bright, #ffd964);
+}
+.qf-tinkerer-corner.tl { top: -2px;    left: -2px;    border-right: none; border-bottom: none; }
+.qf-tinkerer-corner.tr { top: -2px;    right: -2px;   border-left:  none; border-bottom: none; }
+.qf-tinkerer-corner.bl { bottom: -2px; left: -2px;    border-right: none; border-top:    none; }
+.qf-tinkerer-corner.br { bottom: -2px; right: -2px;   border-left:  none; border-top:    none; }
+.qf-tinkerer-kicker {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold-bright, #ffd964);
+  margin-bottom: 6px;
+}
+.qf-tinkerer-title {
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--gold-bright, #ffd964);
+  margin-bottom: 10px;
+}
+.qf-tinkerer-flavor {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  margin: 0 auto 18px;
+  max-width: 640px;
+  line-height: 1.5;
+}
+.qf-tinkerer-offers {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.qf-tinkerer-offer {
+  cursor: pointer;
+  background: linear-gradient(180deg, #2a1f14, #14100a);
+  border: 1px solid color-mix(in srgb, var(--gold-bright, #ffd964) 50%, transparent);
+  padding: 14px 16px;
+  min-width: 220px;
+  max-width: 260px;
+  flex: 1 1 220px;
+  color: var(--text);
+  font-family: var(--pix);
+  text-align: left;
+  transition: transform 120ms, border-color 120ms, box-shadow 120ms;
+}
+.qf-tinkerer-offer:hover {
+  border-color: var(--gold-bright, #ffd964);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--gold-bright, #ffd964) 50%, transparent);
+  transform: translateY(-2px);
+}
+.qf-tinkerer-offer-name {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--gold-bright, #ffd964);
+  margin-bottom: 6px;
+}
+.qf-tinkerer-offer-room {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text-mute);
+  margin-bottom: 8px;
+}
+.qf-tinkerer-offer-desc {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 10px;
+  min-height: 60px;
+}
+.qf-tinkerer-offer-pick {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--gold-bright, #ffd964);
+  text-align: center;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent);
+}
+.qf-tinkerer-walk-away {
+  display: inline-block;
+  cursor: pointer;
+  padding: 6px 14px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  border: 1px solid var(--line-2);
+  transition: color 120ms, border-color 120ms;
+}
+.qf-tinkerer-walk-away:hover {
+  color: var(--text);
+  border-color: var(--text-mute);
+}
+
+/* Tinkerer's Workshop badge — pinned to the top-right corner of an
+   upgraded room's card icon. Gold-on-black "★ UPGRADED" pill with a
+   subtle pulse so it reads as a celebratory tag. Native browser
+   tooltip on `title` carries the upgrade-effect text on hover. */
+.qf-build-card-tinkered {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 5px;
+  font-family: var(--pix);
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: var(--gold-bright, #ffd964);
+  background: rgba(20,12,16,0.92);
+  border: 1px solid var(--gold-bright, #ffd964);
+  box-shadow: 0 0 6px rgba(255,217,100,0.55);
+  pointer-events: auto;   /* still need pointer events for the title tooltip */
+  z-index: 2;
+  animation: qf-build-card-tinkered-pulse 2.6s ease-in-out infinite;
+}
+@keyframes qf-build-card-tinkered-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(255,217,100,0.45); }
+  50%      { box-shadow: 0 0 12px rgba(255,217,100,0.85); }
+}
+
 .qf-build-card-name {
   font-size: 8px;
   letter-spacing: 0.5px;
@@ -8484,6 +8632,46 @@ body {
 }
 
 /* ═════════════════════════════════════════════════════════════════
+   The Demon's Wager — sinister theme override on top of the gambler
+   cinematic. Swaps the gold/yellow palette to crimson/black + flips
+   the verdict-text colour mapping (winning a level is positive but
+   styled with menacing crimson, losing a level is the same shade of
+   washed-out dread).
+   ═════════════════════════════════════════════════════════════════ */
+.qf-coinflip-demon .qf-coinflip-dim {
+  background:
+    radial-gradient(ellipse at center,
+      rgba(80, 8, 12, 0.65) 0%,
+      rgba(4, 1, 1, 0.96) 70%);
+}
+.qf-coinflip-demon .qf-coinflip-kicker {
+  color: #ff5560;
+  text-shadow: 0 0 10px rgba(255, 90, 96, 0.65);
+}
+.qf-coinflip-demon .qf-coinflip-title {
+  color: #ff8a8a;
+  text-shadow: 2px 2px 0 #1a0303, 0 0 22px rgba(220, 40, 50, 0.7);
+}
+.qf-coinflip-demon .qf-coinflip-face {
+  border-color: #5a0c12;
+  box-shadow:
+    inset 0 0 0 4px rgba(255, 180, 180, 0.28),
+    inset 0 -10px 22px rgba(60, 6, 10, 0.85),
+    0 0 36px rgba(220, 40, 50, 0.55);
+}
+.qf-coinflip-demon .qf-coinflip-face.heads {
+  background: radial-gradient(circle at 38% 32%, #ffb0b0 0%, #c83040 46%, #6a0c14 100%);
+}
+.qf-coinflip-demon .qf-coinflip-face.tails {
+  background: radial-gradient(circle at 38% 32%, #d0a0a0 0%, #8a2030 46%, #3a0408 100%);
+}
+.qf-coinflip-demon .qf-coinflip-payout .arrow { color: #ff5560; }
+.qf-coinflip-demon .qf-coinflip-result.win  .qf-coinflip-verdict { color: #ff8a8a; }
+.qf-coinflip-demon .qf-coinflip-result.lose .qf-coinflip-verdict { color: #ff5560; }
+.qf-coinflip-demon .qf-coinflip-result.win  .qf-coinflip-new { color: #ffb0b0; }
+.qf-coinflip-demon .qf-coinflip-result.lose .qf-coinflip-new { color: #c83040; }
+
+/* ═════════════════════════════════════════════════════════════════
    Event FX — ambient dungeon-wide atmosphere for active events
    (EventFx.js — wash / vignette / drifting blobs / particles / lightning)
    ═════════════════════════════════════════════════════════════════ */
@@ -11427,6 +11615,9 @@ body {
   text-shadow: 0 0 12px var(--blood);
 }
 
+/* Companion: warm gold by default — per-companion CSS vars
+   (--cmp-accent-rattlebones etc.) further tint individual cards via
+   the JS-resolved accent variable. */
 /* Companion: PINK accent (2026-05-27) — unified across the cast.
    Was gold-bright with a per-companion override; now a single pink
    tone so the "new companion" moment reads consistently. */
