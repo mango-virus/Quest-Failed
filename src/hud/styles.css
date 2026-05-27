@@ -11285,60 +11285,56 @@ body {
   text-shadow: 0 0 6px var(--gold);
 }
 
-/* The NEXT / CLOSE button on the unlock card. Visual borrows from the
-   per-type accent (currentColor cascades from the card's data-type
-   styling) so each card's button glows in the matching color. Two
-   stacked rows inside: the big "NEXT ›" label + a small "[ ENTER ]"
-   keyboard-hint subscript so the keyboard option stays discoverable. */
+/* The NEXT / CLOSE button on the unlock card. Built on the existing
+   `.btn` chunky-bevel system (used by BEGIN DAY etc.) — so it inherits
+   the top-highlight inset, dark drop shadow, hover sheen sweep, lift +
+   press transforms. We only override:
+   1. background/border → per-type accent (via currentColor cascade
+      from the card's data-type styling)
+   2. text-shadow + glow → matches the accent
+   3. internal two-row layout → big label above small keyboard hint
+   The base .btn class enforces flex centering with `display: inline-
+   flex`; we re-declare `flex-direction: column` to stack our two rows.
+
+   IMPORTANT: the JSX must use `className: 'btn qf-unlock-next'` (not
+   `btn primary`) so the blood-red primary gradient doesn't override
+   the per-type tinting below. */
 .qf-unlock-next {
-  display: inline-flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
   padding: 8px 18px 6px;
-  background: color-mix(in srgb, currentColor 14%, var(--bg-1));
-  border: 2px solid currentColor;
-  color: currentColor;
-  cursor: pointer;
-  box-shadow: 0 0 0 1px #000,
-              0 0 14px color-mix(in srgb, currentColor 50%, transparent),
-              0 2px 0 rgba(0, 0, 0, 0.5);
-  transition: transform 120ms ease,
-              background 120ms ease,
-              box-shadow 120ms ease;
-  /* Soft pulse so the button reads as the active affordance — same
-     cadence as the banner so they feel related, not competing. */
+  /* Tinted gradient that follows the per-type accent. The 32%/16% mix
+     gives a darker bottom edge for the BEGIN-DAY-style raised look. */
+  background: linear-gradient(180deg,
+                color-mix(in srgb, currentColor 38%, var(--bg-1)) 0%,
+                color-mix(in srgb, currentColor 18%, var(--bg-0)) 100%);
+  border: 1px solid color-mix(in srgb, currentColor 70%, #000);
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+  /* Pulse the outer glow only (don't trample .btn's inset bevels). */
   animation: qf-unlock-next-pulse 2.4s ease-in-out infinite;
 }
 @keyframes qf-unlock-next-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px #000,
-                          0 0 14px color-mix(in srgb, currentColor 50%, transparent),
-                          0 2px 0 rgba(0, 0, 0, 0.5); }
-  50%      { box-shadow: 0 0 0 1px #000,
-                          0 0 22px color-mix(in srgb, currentColor 85%, transparent),
-                          0 2px 0 rgba(0, 0, 0, 0.5); }
+  0%, 100% { filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 50%, transparent)); }
+  50%      { filter: drop-shadow(0 0 14px color-mix(in srgb, currentColor 95%, transparent)); }
 }
 .qf-unlock-next:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, currentColor 28%, var(--bg-1));
-  /* Stop the pulse on hover so the brightened state reads cleanly
-     instead of competing with the rhythm. */
+  /* .btn:hover already provides translateY(-1px) + sheen sweep; we
+     just brighten the background gradient to match the accent. */
+  background: linear-gradient(180deg,
+                color-mix(in srgb, currentColor 60%, var(--bg-1)) 0%,
+                color-mix(in srgb, currentColor 30%, var(--bg-0)) 100%);
+  border-color: currentColor;
+  /* Stop the pulse on hover so the brightened state reads cleanly. */
   animation: none;
-  box-shadow: 0 0 0 1px #000,
-              0 0 24px color-mix(in srgb, currentColor 95%, transparent),
-              0 3px 0 rgba(0, 0, 0, 0.5);
-}
-.qf-unlock-next:active {
-  transform: translateY(1px);
-  box-shadow: 0 0 0 1px #000,
-              0 0 16px color-mix(in srgb, currentColor 60%, transparent),
-              0 1px 0 rgba(0, 0, 0, 0.5);
 }
 .qf-unlock-next-label {
   font-family: var(--pix);
   font-size: 11px;
   letter-spacing: 3px;
-  text-shadow: 0 0 8px currentColor;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7),
+               0 0 8px color-mix(in srgb, currentColor 60%, transparent);
 }
 .qf-unlock-next-keyhint {
   font-family: var(--pix);
@@ -11346,7 +11342,7 @@ body {
   letter-spacing: 2px;
   opacity: 0.55;
   /* Subtle so the keyboard hint is discoverable but the visual
-     emphasis stays on the big NEXT label. */
+     emphasis stays on the big label. */
 }
 
 /* ── Per-type color theming ────────────────────────────────────────── */
