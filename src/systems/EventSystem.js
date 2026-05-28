@@ -1608,10 +1608,20 @@ export class EventSystem {
     this._tremorCount = (this._tremorCount ?? 0) + 1
     const dmgFor = (maxHp) => Math.max(1, Math.round((maxHp ?? 0) * tremorPct))
 
+    // Track the largest per-target damage so the floating label + the
+    // TREMOR_STRUCK event have a meaningful number to display. With
+    // percent-based damage every target's `dmg` differs; the prior
+    // code referenced a loop-local `dmg` outside both loops, throwing
+    // ReferenceError when the second loop was empty (or the first if
+    // both were empty). Aggregating here is crash-safe AND gives the
+    // player a sensible peak-damage readout. (2026-05-27 freeze fix —
+    // EventSystem.js:1632 ReferenceError on day 56.)
+    let maxDmg = 0
     for (const a of this._gameState.adventurers?.active ?? []) {
       if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
       if (!inRoom(a)) continue
       const dmg = dmgFor(a.resources?.maxHp)
+      if (dmg > maxDmg) maxDmg = dmg
       a.resources.hp = Math.max(0, a.resources.hp - dmg)
       EventBus.emit('COMBAT_HIT', {
         sourceId: 'tremor', targetId: a.instanceId,
@@ -1622,6 +1632,7 @@ export class EventSystem {
       if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
       if (!inRoom(m)) continue
       const dmg = dmgFor(m.resources?.maxHp)
+      if (dmg > maxDmg) maxDmg = dmg
       m.resources.hp = Math.max(1, m.resources.hp - dmg)
       EventBus.emit('COMBAT_HIT', {
         sourceId: 'tremor', targetId: m.instanceId,
@@ -1629,8 +1640,11 @@ export class EventSystem {
       })
     }
     this._scene?.cameras?.main?.shake?.(360, 0.012)
-    this._tremorLabel(room, dmg)
-    EventBus.emit('TREMOR_STRUCK', { roomId: room.instanceId, damage: dmg })
+    // Skip the floating "-N" label when nothing was actually hit
+    // (empty room). The screen-shake still fires so the tremor reads
+    // as a real environmental event; the misleading "-0" is just gone.
+    if (maxDmg > 0) this._tremorLabel(room, maxDmg)
+    EventBus.emit('TREMOR_STRUCK', { roomId: room.instanceId, damage: maxDmg })
   }
 
   // Floating "EARTHQUAKE -dmg" label above the struck room's center —
