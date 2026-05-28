@@ -561,7 +561,7 @@ export class EventSystem {
         ]),
         h('div', { className: 'qf-altar-prompt-row reward' }, [
           h('div', { className: 'qf-altar-prompt-label pix' }, 'REWARD'),
-          h('div', { className: 'qf-altar-prompt-value pix' }, 'random buff'),
+          h('div', { className: 'qf-altar-prompt-value pix' }, 'RANDOM BUFF'),
         ]),
       ]),
       confirmLabel: 'ACCEPT THE BARGAIN',
