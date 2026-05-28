@@ -182,6 +182,11 @@ export class DungeonMechanicSystem {
         if (adv.tileX === pit.tileX && adv.tileY === pit.tileY) {
           const dmg = Math.max(1, Math.floor((adv.resources.maxHp ?? 0) * dmgFrac))
           adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
+          // Death attribution — a sundered-floor pit that kills is credited
+          // to the boss (the dungeon's mechanic) so it doesn't show as
+          // "Unknown" in the graveyard.
+          adv._lastHitBy   = 'boss'
+          adv._lastHitType = 'collapse'
           adv._sunderedStunUntil = now + stunMs
         }
       }
@@ -221,6 +226,11 @@ export class DungeonMechanicSystem {
       if (adv.aiState === 'dead' || adv.aiState === 'leaving') continue
       if (!onEmptyFloor(adv.tileX, adv.tileY)) continue
       adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
+      // Death attribution — cursed-soil ticks credit the boss so a kill on
+      // a standing-still adv (parked on a corridor tile) doesn't read as
+      // "Unknown" in the graveyard.
+      adv._lastHitBy   = 'boss'
+      adv._lastHitType = 'curse'
     }
     for (const m of (this._gameState.minions ?? [])) {
       if (m.aiState === 'dead') continue

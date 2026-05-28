@@ -119,14 +119,15 @@ export const MinionAbilities = {
     const id = attacker.definitionId
     if (!id) return   // adventurer attacker — nothing to do here
 
-    // Rat — Plague Bite: stack a poison DoT every hit.
+    // Rat — Plague Bite: stack a poison DoT every hit. `source` records
+    // the minion so a poison-tick kill is credited to it (not "Unknown").
     if (RAT_IDS.has(id)) {
-      this._applyDot(target, scene, { type: 'poison', dmgPerTick: 1, intervalMs: 1000, ticksLeft: 5 })
+      this._applyDot(target, scene, { type: 'poison', dmgPerTick: 1, intervalMs: 1000, ticksLeft: 5, source: attacker.instanceId })
     }
 
-    // Demon — Hellfire Brand: 3-tick burn DoT on every hit.
+    // Demon — Hellfire Brand: 3-tick burn DoT on every hit. `source` as above.
     if (DEMON_IDS.has(id)) {
-      this._applyDot(target, scene, { type: 'burn', dmgPerTick: 2, intervalMs: 1000, ticksLeft: 3 })
+      this._applyDot(target, scene, { type: 'burn', dmgPerTick: 2, intervalMs: 1000, ticksLeft: 3, source: attacker.instanceId })
     }
 
     // Vampire — Bloodthirst: heal attacker for 50% of damage dealt.
@@ -310,6 +311,13 @@ export const MinionAbilities = {
           d._lastTickAt = now
           d.ticksLeft -= 1
           entity.resources.hp = Math.max(0, entity.resources.hp - d.dmgPerTick)
+          // Death attribution — stamp the DoT's source minion + element so
+          // a poison/burn that lands the killing blow (often on a standing-
+          // still adv) is credited to that minion in the graveyard. Without
+          // this, _kill falls back to the 'dot' hint, which _lookupKillerName
+          // can't resolve → "Unknown (physical)".
+          if (d.source) entity._lastHitBy = d.source
+          if (d.type)   entity._lastHitType = d.type
           if (scene) {
             const color = d.type === 'burn' ? '#ff7733' : '#88dd44'
             AbilityVfx.floatingText(scene, entity.worldX ?? 0, (entity.worldY ?? 0) - 14, `-${d.dmgPerTick}`, { color })
