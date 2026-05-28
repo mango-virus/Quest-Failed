@@ -85,6 +85,16 @@ export class BossRenderer {
     this._onFinalDeath = () => { this._dead = true }
     EventBus.on('BOSS_DEFEATED_FINAL', this._onFinalDeath)
 
+    // Solo Leveling — when Jinwoo wins his duel he "extracts" the boss on
+    // "Arise.": _shadowRevived forces the boss to STAND (overriding the death
+    // pose) while it sits at 0 HP mid-outro; boss.shadowClaimed then gives it
+    // the blue shadow-flame + tint for the rest of the run.
+    this._shadowRevived = false
+    this._claimedFlame  = null
+    this._claimedTinted = false
+    this._onReviveAsShadow = () => { this._shadowRevived = true }
+    EventBus.on('BOSS_REVIVE_AS_SHADOW', this._onReviveAsShadow)
+
     // Succubus Doppelgänger — translucent illusion duplicates that flank
     // the Queen during the boss fight. Driven entirely by BossSystem's
     // SUCCUBUS_DOPPEL_* events (only ever fired for the succubus archetype),
@@ -197,6 +207,12 @@ export class BossRenderer {
       this._sprite.play(animKey, true)
     }
 
+    // Solo Leveling — once the boss is alive again (next day, HP refilled) the
+    // revive-override is moot; drop it so normal poses resume. The claimed
+    // shadow-flame + blue tint persist for the rest of the run.
+    if (this._shadowRevived && (boss.hp ?? 0) > 0) this._shadowRevived = false
+    if (boss.shadowClaimed) { this._ensureClaimedFlame(); this._applyClaimedTint() }
+
     // Doppelgänger decoys trail the Queen + mirror her animation.
     this._updateDecoys(boss)
 
@@ -209,6 +225,8 @@ export class BossRenderer {
 
   destroy() {
     EventBus.off('BOSS_DEFEATED_FINAL', this._onFinalDeath)
+    EventBus.off('BOSS_REVIVE_AS_SHADOW', this._onReviveAsShadow)
+    this._claimedFlame?.destroy?.(); this._claimedFlame = null
     EventBus.off('SUCCUBUS_DOPPEL_SPLIT',   this._onDoppelSplit)
     EventBus.off('SUCCUBUS_DOPPEL_SHATTER', this._onDoppelShatter)
     EventBus.off('BOSS_FIGHT_RESOLVED',     this._onDoppelClear)
@@ -225,6 +243,10 @@ export class BossRenderer {
 
   _pickState() {
     if (this._dead) return 'death'
+    // Solo Leveling — a freshly-revived shadow boss stands instead of holding
+    // its death pose (it's Jinwoo's shadow now, at 0 HP mid-outro). Auto-clears
+    // in update() once the boss is alive again (next day).
+    if (this._shadowRevived) return this._isMoving ? 'walk' : 'idle'
     // Death pose is owned by BossSystem: _deathPoseUntil is a ~4s
     // timestamp on a non-final life loss (collapse → recover) or
     // Infinity on the final death, cleared to 0 when a new fight starts
@@ -241,6 +263,37 @@ export class BossRenderer {
     if (action === 'chase') return 'run'
     if (this._isMoving) return 'walk'
     return 'idle'
+  }
+
+  // Solo Leveling — attach the looping blue shadow-flame behind the boss once
+  // it's been claimed (same VFX the shadow minions wear). Scaled to engulf the
+  // boss sprite; sent to back so the boss renders in front.
+  _ensureClaimedFlame() {
+    if (this._claimedFlame || !this._container || !this._sprite) return
+    if (!this._scene.textures.exists('vfx-shadow-flame')) return
+    if (!this._scene.anims.exists('vfx-shadow-flame-loop')) {
+      const tex = this._scene.textures.get('vfx-shadow-flame')
+      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      this._scene.anims.create({
+        key: 'vfx-shadow-flame-loop',
+        frames: this._scene.anims.generateFrameNumbers('vfx-shadow-flame', { start: 0, end: 5 }),
+        frameRate: 10, repeat: -1,
+      })
+    }
+    const dsz = this._sprite.displayHeight || 96
+    const Sf  = Math.max(1.6, dsz / 40)
+    const flame = this._scene.add.sprite(0, -6 * Sf, 'vfx-shadow-flame', 0).setOrigin(0.5, 0.5).setScale(Sf)
+    flame.anims.play('vfx-shadow-flame-loop', true)
+    this._container.add(flame)
+    this._container.sendToBack(flame)
+    this._claimedFlame = flame
+  }
+
+  // Blue→black gradient tint, matching the extracted shadow minions.
+  _applyClaimedTint() {
+    if (this._claimedTinted || !this._sprite) return
+    this._sprite.setTint(0x4a8bff, 0x4a8bff, 0x0a0a16, 0x0a0a16)
+    this._claimedTinted = true
   }
 
   _build(boss) {

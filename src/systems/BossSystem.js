@@ -2477,6 +2477,9 @@ export class BossSystem {
   _beginDuelOutro(kind, adv, boss) {
     if (this._duelOutro) return
     this._fireDuelClimaxFx(kind)   // boss-shatter / dark burst + finale card (+ win slow-mo)
+    // WIN: collapse the boss now so "Arise." (BossRenderer _shadowRevived) reads
+    // as a real revive. BossRenderer reads _deathPoseUntil for the down pose.
+    if (kind === 'win') this._deathPoseUntil = Infinity
     this._duelOutro = {
       kind, phase: 'stand', t: 0, adv, boss,
       said: 0, ariseDone: false, portalSpawned: false,

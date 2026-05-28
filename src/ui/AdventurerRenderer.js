@@ -96,6 +96,8 @@ export class AdventurerRenderer {
     EventBus.on('ADVENTURER_DIED',     this._onAdvDied,  this)
     EventBus.on('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAll,   this)
+    // Solo Leveling — fade Jinwoo out as he steps into his portal (win outro).
+    EventBus.on('SHADOW_MONARCH_FADE', this._onMonarchFade, this)
     // Myconid Corpse Bloom — when a fungal corpse sprouts a Vinekin, take
     // down the dead-adv body sprite that's been parked on the death tile
     // since ADVENTURER_DIED. The Vinekin replaces it as the room occupant.
@@ -263,6 +265,14 @@ export class AdventurerRenderer {
     const span = Math.max(1, adv._leaveFadeEnd - adv._leaveFadeStart)
     const t = Math.max(0, Math.min(1, (now - adv._leaveFadeStart) / span))
     return 1 - t
+  }
+
+  // Solo Leveling — Jinwoo's portal fade-out (win outro). 1 → 0 over ~700ms
+  // from the stamp set by _onMonarchFade.
+  _monarchFadeAlpha(s) {
+    if (!s || s._fadeOutAt == null) return 1
+    const now = this._scene?.time?.now ?? 0
+    return Math.max(0, 1 - (now - s._fadeOutAt) / 700)
   }
 
   _onCombatHit({ sourceId, targetId }) {
@@ -525,7 +535,7 @@ export class AdventurerRenderer {
         // Spawn-fade alpha STILL applies in LOD so entries don't pop.
         const _spawnA_lod = this._spawnAlpha(adv)
         const _leaveA_lod = this._leaveAlpha(adv)
-        if (s.container) s.container.setAlpha(Math.min(_spawnA_lod, _leaveA_lod))
+        if (s.container) s.container.setAlpha(Math.min(_spawnA_lod, _leaveA_lod) * this._monarchFadeAlpha(s))
         continue
       }
       const hpFrac = adv.resources.maxHp > 0
@@ -554,7 +564,7 @@ export class AdventurerRenderer {
       const ty = (adv.worldY / TS) | 0
       const inDoorwayShadow = this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)
       const shadowA = inDoorwayShadow ? 0.55 : 1
-      const fadeA  = Math.min(spawnA, leaveA) * shadowA
+      const fadeA  = Math.min(spawnA, leaveA) * shadowA * this._monarchFadeAlpha(s)
       if (s.container) s.container.setAlpha(fadeA)
 
       // Rival Dungeon boss is big enough to overflow a 2-tile doorway. While
@@ -822,6 +832,7 @@ export class AdventurerRenderer {
     EventBus.off('ADVENTURER_DIED',     this._onAdvDied,  this)
     EventBus.off('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAll,   this)
+    EventBus.off('SHADOW_MONARCH_FADE', this._onMonarchFade, this)
     EventBus.off('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     EventBus.off('COMBAT_HIT',          this._onCombatHit, this)
     EventBus.off('MYCONID_CORPSE_SPROUTED', this._onMyconidSprouted, this)
@@ -1242,6 +1253,13 @@ export class AdventurerRenderer {
 
   _onRemove({ adventurer }) {
     if (adventurer?.instanceId) this._destroySprite(adventurer.instanceId)
+  }
+
+  // Solo Leveling — start Jinwoo's fade-out (win outro). Stamps the sprite
+  // record; update() multiplies a 1→0 alpha over ~0.7s into the container.
+  _onMonarchFade({ adventurer } = {}) {
+    const s = this._sprites[adventurer?.instanceId]
+    if (s) s._fadeOutAt = this._scene.time.now
   }
 
   // Myconid Corpse Bloom — sprout consumed the corpse, so take the body
