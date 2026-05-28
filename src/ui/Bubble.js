@@ -61,7 +61,7 @@ const KIND_STYLE = {
   // vertical gradient on the text with a soft blue glow, echoing the
   // "ARISE" shadow-monarch typography.
   shadow: {
-    borderColor: 0x2e6bff,
+    borderColor: 0x000000,
     bgColor:     0x070b16,
     textColor:   '#bfe0ff',    // flat fallback if gradient unsupported
     gradient:    [[0, '#ffffff'], [0.4, '#cfe9ff'], [0.75, '#5fa8ff'], [1, '#1e63ff']],
