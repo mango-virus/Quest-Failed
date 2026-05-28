@@ -43,6 +43,15 @@ const DECOY_TINT    = 0xffaad6
 const DECOY_ALPHA   = 0.5
 const DECOY_STEP_PX = 46
 
+// Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used to give
+// a claimed boss the SAME cycling blue↔black flame the shadow minions wear.
+function _lerpHex(a, b, k) {
+  const r  = Math.round((a >> 16 & 255) + ((b >> 16 & 255) - (a >> 16 & 255)) * k)
+  const g  = Math.round((a >> 8  & 255) + ((b >> 8  & 255) - (a >> 8  & 255)) * k)
+  const bl = Math.round((a       & 255) + ((b       & 255) - (a       & 255)) * k)
+  return (r << 16) | (g << 8) | bl
+}
+
 export class BossRenderer {
   constructor(scene, gameState) {
     this._scene     = scene
@@ -211,7 +220,17 @@ export class BossRenderer {
     // revive-override is moot; drop it so normal poses resume. The claimed
     // shadow-flame + blue tint persist for the rest of the run.
     if (this._shadowRevived && (boss.hp ?? 0) > 0) this._shadowRevived = false
-    if (boss.shadowClaimed) { this._ensureClaimedFlame(); this._applyClaimedTint() }
+    if (boss.shadowClaimed) {
+      this._ensureClaimedFlame()
+      this._applyClaimedTint()
+      if (this._claimedFlame) {
+        // Same cycling blue↔black flame tint the shadow minions wear.
+        const k   = (Math.sin(this._scene.time.now / 650) + 1) / 2
+        const top = _lerpHex(0x0a2a6b, 0x4aa0ff, k)   // deep-blue → bright-blue
+        const bot = _lerpHex(0x02040a, 0x123a8c, k)   // near-black → deep-blue
+        this._claimedFlame.setTint(top, top, bot, bot)
+      }
+    }
 
     // Doppelgänger decoys trail the Queen + mirror her animation.
     this._updateDecoys(boss)
