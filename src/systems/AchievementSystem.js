@@ -87,6 +87,12 @@ const DEFAULT_METRICS = {
   // has to start a fresh run to climb again. Gates the legendary
   // `flawless_reign` achievement (Spectra unlock — 30 days untouched).
   daysSurvivedNoHitMax:       0,
+  // Best global-leaderboard placement, stored as a SCORE so the
+  // achievement system's `>= target` comparison works (rank is
+  // lower-is-better). score = max(0, 4 - rank): #1 → 3, #2 → 2, #3 → 1,
+  // outside top-3 → 0. Updated by recordLeaderboardRank(); gates the
+  // three leaderboard_top1/2/3 legendaries (targets 3 / 2 / 1).
+  leaderboardBestRankScore:   0,
   minionsInRunMax:            0,
   roomsInRunMax:              0,
   minionTypesActiveMax:       0,
@@ -782,6 +788,24 @@ class AchievementSystemImpl {
   getTitleColorById(id) {
     const def = this._byId.get(id)
     return def?.titleColor ?? null
+  }
+
+  // Record a global-leaderboard placement (1/2/3). Called by
+  // MainMenuOverlay once it has resolved the player's rank from the
+  // fetched leaderboard rows. Keeps the BEST placement ever (highest
+  // score) and checks the three leaderboard legendaries. Idempotent —
+  // re-recording the same/worse rank is a no-op.
+  recordLeaderboardRank(rank) {
+    if (!this._inited || !this._metrics) return
+    const r = Number(rank)
+    if (!Number.isFinite(r) || r < 1) return
+    const score = Math.max(0, 4 - r)   // #1→3, #2→2, #3→1, else 0
+    if (score <= 0) return
+    if (score > (this._metrics.leaderboardBestRankScore ?? 0)) {
+      this._metrics.leaderboardBestRankScore = score
+      this._persistMetrics()
+    }
+    this._checkMetric('leaderboardBestRankScore')
   }
   isUnlocked(id) { return PlayerProfile.isAchievementUnlocked(id) }
   getProgress(id) {

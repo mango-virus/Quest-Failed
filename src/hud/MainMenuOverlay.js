@@ -600,6 +600,10 @@ export class MainMenuOverlay {
     if (myRowIdx < 0) return
     const myRow = top3[myRowIdx]
     const rank = myRowIdx + 1
+    // Record the placement for the leaderboard_top1/2/3 achievements
+    // (idempotent — keeps the best rank ever). Fires the unlock card(s)
+    // alongside the celebration below.
+    AchievementSystem.recordLeaderboardRank?.(rank)
     PlayerProfile.queueUnlock?.({
       type:        'leaderboard',
       rank,

@@ -725,5 +725,41 @@
     "title": "Menagerie Lord",
     "titleFx": "arcane",
     "legendary": true
+  },
+  {
+    "id": "leaderboard_top3",
+    "name": "Bronze Standard",
+    "description": "Place in the top 3 on the global leaderboard.",
+    "category": "mastery",
+    "metric": "leaderboardBestRankScore",
+    "target": 1,
+    "icon": "🥉",
+    "title": "The Bronze Crown",
+    "titleFx": "bronze",
+    "legendary": true
+  },
+  {
+    "id": "leaderboard_top2",
+    "name": "Silver Standard",
+    "description": "Reach #2 on the global leaderboard.",
+    "category": "mastery",
+    "metric": "leaderboardBestRankScore",
+    "target": 2,
+    "icon": "🥈",
+    "title": "The Silver Crown",
+    "titleFx": "silver",
+    "legendary": true
+  },
+  {
+    "id": "leaderboard_top1",
+    "name": "Gold Standard",
+    "description": "Reach #1 on the global leaderboard.",
+    "category": "mastery",
+    "metric": "leaderboardBestRankScore",
+    "target": 3,
+    "icon": "🥇",
+    "title": "The Golden Crown",
+    "titleFx": "champion",
+    "legendary": true
   }
 ]
