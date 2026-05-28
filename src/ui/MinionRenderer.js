@@ -401,11 +401,26 @@ export class MinionRenderer {
         // anything aligned with the adventurers (shouldn't happen for raised
         // dead, but covers the edge case cleanly).
         const baseTint     = s._raisedDeadTint ?? 0xffffff
-        const expectedTint = factionFlagged ? 0x88ff99 : baseTint
+        let expectedTint = factionFlagged ? 0x88ff99 : baseTint
+        // Solo Leveling — Jinwoo's extracted shadows wear a dark violet
+        // tint (matches the cursed-chest palette) instead of the ally-green.
+        if (m._shadowExtracted) expectedTint = 0x9b6fd0
         if (s._lastTint !== expectedTint) {
           s.sprite.setTint(expectedTint)
           s._lastTint = expectedTint
         }
+      }
+
+      // Solo Leveling — pulsing purple aura beneath a shadow minion (same
+      // visual language as cursed chests). Added as a container child so it
+      // inherits position, visibility and teardown automatically.
+      if (m._shadowExtracted) {
+        if (!s.shadowGlow) {
+          s.shadowGlow = this._scene.add.ellipse(0, 6, 30, 18, 0x9b2fe0, 0.5)
+          s.container.add(s.shadowGlow)
+          s.container.sendToBack(s.shadowGlow)
+        }
+        s.shadowGlow.setAlpha(0.22 + 0.26 * Math.sin(now / 280))
       }
 
       // Status badge — combined bounty star + level, in one centred label.

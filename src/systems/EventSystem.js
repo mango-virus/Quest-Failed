@@ -125,6 +125,13 @@ export class EventSystem {
     // this when its reveal animation finishes (or the player dismisses
     // early). Applies the pending reward effect at that point.
     on('SACRIFICIAL_ALTAR_SPIN_DONE', () => this._onAltarSpinDone())
+    // Solo Leveling — Shadow Extraction. Every dungeon minion that dies
+    // while Jinwoo is in the dungeon (and he's under the 10-shadow cap)
+    // is raised as a shadow on his side. When Jinwoo himself leaves or
+    // dies, his shadows vanish with him.
+    on('MINION_DIED',     (p) => this._onMinionDiedShadowExtraction(p ?? {}))
+    on('ADVENTURER_DIED', (p) => this._onShadowMonarchGone(p ?? {}))
+    on('ADVENTURER_FLED', (p) => this._onShadowMonarchGone(p ?? {}))
   }
 
   // Dev-only force-fire path used by the mango TEST EVENT picker. Tears
@@ -188,6 +195,103 @@ export class EventSystem {
     const goldAfter = won ? goldBefore * 2 : 0
     player.gold = goldAfter
     EventBus.emit('GAMBLER_DOUBLE_RESULT', { won, goldBefore, goldAfter })
+  }
+
+  // ── Solo Leveling — Shadow Extraction ──────────────────────────────────
+  // Max simultaneous shadows Jinwoo can field. (His army cap.)
+  static SHADOW_CAP = 10
+
+  // The live Shadow Monarch (Sung Jinwoo) instance, or null if he's not in
+  // the dungeon / already dead.
+  _liveShadowMonarch() {
+    return (this._gameState.adventurers?.active ?? [])
+      .find(a => a?._shadowMonarch && a.aiState !== 'dead') ?? null
+  }
+
+  _countShadows() {
+    let n = 0
+    for (const m of this._gameState.minions ?? []) {
+      if (m?._shadowExtracted && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0) n++
+    }
+    return n
+  }
+
+  // A dungeon minion fell while Jinwoo is present → raise its shadow on his
+  // side (faction-flip, full HP, follows + fights the dungeon like a
+  // necromancer summon). Capped at SHADOW_CAP. No-op unless solo_leveling
+  // is live, Jinwoo is alive, and the fallen unit was a dungeon minion
+  // (never re-raise a shadow, a tamed beast, or a necro summon).
+  _onMinionDiedShadowExtraction({ minion } = {}) {
+    if (!(this._gameState._eventFlags ?? {}).soloLevelingActive) return
+    if (!minion || minion.faction !== 'dungeon') return
+    if (minion._shadowExtracted) return
+    if (this._countShadows() >= EventSystem.SHADOW_CAP) return
+    const jinwoo = this._liveShadowMonarch()
+    if (!jinwoo) return
+    this._extractShadow(minion, jinwoo)
+  }
+
+  // Build a shadow copy of `src` (a fallen dungeon minion) on Jinwoo's
+  // side. Mirrors ClassAbilitySystem._createSummonedUndead but clones the
+  // dead minion's type/stats so the shadow looks + fights like what it
+  // rose from. The `_shadowExtracted` flag drives the dark glow
+  // (MinionRenderer) and excludes it from the 1:1 throne duel (BossSystem).
+  _extractShadow(src, jinwoo) {
+    const TS = Balance.TILE_SIZE
+    const tileX = src.tileX, tileY = src.tileY
+    const shadow = {
+      instanceId: `shadow_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      definitionId: src.definitionId,
+      name: null, color: 0x9b2fe0, sigil: 'S',
+      tileX, tileY,
+      worldX: src.worldX ?? (tileX * TS + TS / 2),
+      worldY: src.worldY ?? (tileY * TS + TS / 2),
+      homeTileX: tileX, homeTileY: tileY,
+      assignedRoomId: null,
+      behaviorType: 'guard',
+      tags: [...(src.tags ?? [])],
+      damageType: src.damageType ?? 'physical',
+      attackRange: src.attackRange ?? 1,
+      faction: 'adventurer', factionExpiresOn: null,
+      raisedByAdvId: jinwoo.instanceId, tamedByAdvId: null,
+      isMiniBoss: false,
+      stats: {
+        hp:      src.stats?.hp      ?? src.resources?.maxHp ?? 8,
+        attack:  src.stats?.attack  ?? 3,
+        defense: src.stats?.defense ?? 0,
+        // Keep pace with the 2×-speed Monarch so the army doesn't trail off.
+        speed:   jinwoo.stats?.speed ?? src.stats?.speed ?? 1.4,
+        abilities: [...(src.stats?.abilities ?? [])],
+      },
+      resources: {
+        hp:    src.resources?.maxHp ?? src.resources?.hp ?? 8,
+        maxHp: src.resources?.maxHp ?? src.resources?.hp ?? 8,
+      },
+      level: src.level ?? 1, xp: 0,
+      aiState: 'idle', currentTargetId: null, deathDay: null, killHistory: [],
+      _shadowExtracted: true,
+    }
+    this._gameState.minions.push(shadow)
+    EventBus.emit('MINION_SUMMONED', { minion: shadow, summoner: jinwoo })
+    EventBus.emit('SHADOW_EXTRACTED', { minion: shadow, monarch: jinwoo })
+  }
+
+  // Jinwoo left the dungeon (died or — rare — fled). His shadows are bound
+  // to him: they vanish the moment he's gone.
+  _onShadowMonarchGone({ adventurer } = {}) {
+    if (!adventurer?._shadowMonarch) return
+    this._despawnShadows()
+  }
+
+  // Remove every shadow from the roster outright — their sprites are culled
+  // on the renderer's next tick. Splicing (vs marking dead) guarantees no
+  // faction='adventurer' entries linger into the next day.
+  _despawnShadows() {
+    const list = this._gameState.minions
+    if (!Array.isArray(list)) return
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i]?._shadowExtracted) list.splice(i, 1)
+    }
   }
 
   destroy() {
@@ -1584,6 +1688,9 @@ export class EventSystem {
         break
       case 'solo_leveling':
         flags.soloLevelingActive = false
+        // Belt-and-suspenders: drop any shadows still on the roster so
+        // faction='adventurer' minions never persist into the next day.
+        this._despawnShadows()
         break
       case 'goblin_market':
         // The peddler packs up — prices revert. Null the map + tell the
