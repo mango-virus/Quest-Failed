@@ -189,7 +189,11 @@ export class InspectPopup {
       style: { gridTemplateColumns: `repeat(${boxes.length}, 1fr)` },
     }, boxes.map(([label, value]) => h('div', { className: 'qf-inspect-stat' }, [
       h('div', { className: 'pix qf-inspect-stat-label' }, label),
-      h('div', { className: 'pix qf-inspect-stat-value' }, String(value)),
+      // The ∞ glyph isn't in the pixel font, so the `pix` class renders it as
+      // a tiny fallback. Drop `pix` for it and size it up so it reads clearly.
+      String(value) === '∞'
+        ? h('div', { className: 'qf-inspect-stat-value', style: { fontSize: '22px', lineHeight: '1', fontWeight: 'bold' } }, '∞')
+        : h('div', { className: 'pix qf-inspect-stat-value' }, String(value)),
     ])))
   }
 

@@ -582,7 +582,9 @@ export class AdvIntelOverlay {
             title: 'returning hero',
           }, '★ HERO'),
         ]),
-        h('div', { className: 'pix qf-advintel-card-class' }, `${classLabel} · LV ${lv}`),
+        h('div', { className: 'pix qf-advintel-card-class' }, lv === '∞'
+          ? [`${classLabel} · LV `, h('span', { style: { fontFamily: 'system-ui, sans-serif', fontSize: '15px', fontWeight: 'bold', lineHeight: '1' } }, '∞')]
+          : `${classLabel} · LV ${lv}`),
         h('div', { className: 'qf-advintel-card-stats' }, [
           h('span', null, [h('span', { style: { color: 'var(--hp)' } }, 'HP'), ' ', _statsRevealed ? String(hp) : '?']),
           h('span', null, [h('span', { style: { color: 'var(--blood)' } }, 'ATK'), ' ', _statsRevealed ? String(atk) : '?']),
@@ -659,8 +661,9 @@ export class AdvIntelOverlay {
             this._renderAdvSprite(sel),
           ]),
           h('div', { className: 'qf-advintel-detail-info' }, [
-            h('div', { className: 'pix qf-advintel-detail-class' },
-              `${classLabel} · LV ${lv}`),
+            h('div', { className: 'pix qf-advintel-detail-class' }, lv === '∞'
+              ? [`${classLabel} · LV `, h('span', { style: { fontFamily: 'system-ui, sans-serif', fontSize: '17px', fontWeight: 'bold', lineHeight: '1' } }, '∞')]
+              : `${classLabel} · LV ${lv}`),
             h('div', {
               className: 'pix qf-advintel-detail-name',
               style: { color: redacted ? 'var(--text-dim)' : 'var(--text)' },
