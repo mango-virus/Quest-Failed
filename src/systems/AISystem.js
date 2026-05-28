@@ -2883,6 +2883,19 @@ export class AISystem {
     }
 
     adv.goal = { type: 'FLEE', reason, context }
+    // 50% chance to flee toward a False Exit (if one exists) instead of a
+    // real entry hall — the adv mistakes the fake door for a way out.
+    // _fleeExitTile routes them to the false exit; on arrival
+    // RoomBehaviorSystem teleports them to a random room and clears this
+    // flag, after which they flee to a REAL entry. Matches DESIGN:
+    // "Adventurers fleeing ... have a chance to flee here instead of the
+    // Entry Hall." (2026-05-27 — was incidental-on-cross, now a roll.)
+    const falseExits = (this._gameState.dungeon?.rooms ?? []).filter(r =>
+      r.definitionId === 'false_exit' && r.isActive !== false)
+    if (falseExits.length > 0 && Math.random() < 0.5) {
+      const fe = falseExits[Math.floor(Math.random() * falseExits.length)]
+      adv.goal.fleeViaFalseExitId = fe.instanceId
+    }
     adv.aiState = 'fleeing'
     adv.path = null
   }
@@ -4791,6 +4804,24 @@ export class AISystem {
   // adventurer moves between two equidistant exits. Returns null if there
   // are no entry halls at all.
   _fleeExitTile(adv) {
+    // False Exit detour (2026-05-27). When _setFleeGoal rolled the 50%
+    // false-exit flee, head for that room's center first — entering it
+    // fires RoomBehaviorSystem's teleport, which scatters the adv to a
+    // random room and clears `fleeViaFalseExitId`, after which this
+    // falls through to a real entry hall. If the false exit was removed
+    // (sold / dungeon edit) mid-flee, drop the flag and flee normally.
+    const feId = adv.goal?.fleeViaFalseExitId
+    if (feId) {
+      const fe = (this._gameState.dungeon?.rooms ?? []).find(r =>
+        r.instanceId === feId && r.definitionId === 'false_exit' && r.isActive !== false)
+      if (fe) {
+        return {
+          x: fe.gridX + Math.floor(fe.width  / 2),
+          y: fe.gridY + Math.floor(fe.height / 2),
+        }
+      }
+      if (adv.goal) adv.goal.fleeViaFalseExitId = null
+    }
     const halls = this._entryHalls()
     if (halls.length === 0) return null
     let entry = adv.goal?.fleeEntryId

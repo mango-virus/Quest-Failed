@@ -910,6 +910,14 @@ export class RoomBehaviorSystem {
     adv.worldY = ty * TS + TS / 2
     adv.path = null
     adv._falseExitTpAt = this._scene?.time?.now ?? 0
+    // Now that they've been dumped in a random room, drop the false-exit
+    // flee routing and the locked-on entry so the next _fleeExitTile pick
+    // (they keep the FLEE goal) heads for the nearest REAL entry hall
+    // from the new spot — "flee to the correct entryway after teleport."
+    if (adv.goal && adv.goal.type === 'FLEE') {
+      adv.goal.fleeViaFalseExitId = null
+      adv.goal.fleeEntryId        = null
+    }
     // Tinkerer's Workshop "Painful Landing" — when False Exit type is
     // upgraded, the trapped fleer also takes 25% maxHp on arrival.
     if (this._isTinkered('false_exit') && adv.resources) {
