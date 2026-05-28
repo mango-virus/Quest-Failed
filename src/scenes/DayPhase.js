@@ -1416,6 +1416,12 @@ export class DayPhase extends Phaser.Scene {
     adv.isLegendary    = true   // legendary chrome + entrance pulse
     adv.name           = 'Sung Jinwoo'
     adv.partyId        = null
+    // Pin the closest on-disk LPC look to Jinwoo: rogue/v11 = MESSY BLACK
+    // hair + a SCIMITAR + white shirt + muscular build. (A bespoke "black
+    // coat" bake needs the LPC source pack, which isn't in the repo — see
+    // Phase 2 notes.) AdventurerRenderer renders adv-rogue-v11 directly
+    // from this pin instead of rolling a random rogue variant.
+    adv.spriteVariant  = 'rogue/v11'
     // He commits — never flees.
     adv.flags = { ...(adv.flags ?? {}), noFlee: true }
 
