@@ -79,6 +79,18 @@ export class MainMenu extends Phaser.Scene {
         game?._mainMenuOverlay?.close()
         game._mainMenuOverlay = null
       })
+      // Background-load the oversize attack sheets here too. The newhud title
+      // screen is the DOM MainMenuOverlay, but THIS Phaser scene still owns the
+      // loader — and newhud is the default, so without this the `_atk` sheets
+      // never stream in and every adventurer's slash/thrust silently falls back
+      // to the shrunk, often weaponless 64px row (most glaring on Jinwoo, whose
+      // Scimitar swing is oversize-only). Same 3s delay + 4-parallel throttle as
+      // the legacy branch so the load doesn't compete with title-screen video.
+      this.time.delayedCall(3000, () => {
+        if (!this.scene.isActive()) return
+        this.load.maxParallelDownloads = 4
+        kickOffAdventurerAtkLoad(this)
+      })
       return
     }
 

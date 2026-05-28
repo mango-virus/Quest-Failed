@@ -352,6 +352,17 @@ export class AdventurerRenderer {
         originY: LPC_BODY_ORIGIN_Y,
       }
     }
+    // Lazily upgrade to the `_atk` texture once it streams in. The atk load is
+    // 3s-delayed + throttled (see AdventurerAtkLoader), so a sprite created
+    // before its sheet lands gets atkTextureKey=null at creation. Without this
+    // re-check it would stay stuck on the shrunk 64px slash/thrust forever —
+    // most visible on Jinwoo, who spawns mid-run via the event (after the title
+    // screen) and whose 64px slash row is weaponless (Scimitar swing is
+    // oversize-only). Resolving here means the next swing uses the atk sheet.
+    if (!s.lpc.atkTextureKey && ATK_ANIMS.has(anim)) {
+      const atkKey = `${s.lpc.textureKey}-atk`
+      if (this._scene.textures.exists(atkKey)) s.lpc.atkTextureKey = atkKey
+    }
     const useAtk = ATK_ANIMS.has(anim) && s.lpc.atkTextureKey
     const baseKey = useAtk ? s.lpc.atkTextureKey : s.lpc.textureKey
     const targetDir = anim === 'hurt' ? 'down' : dir
