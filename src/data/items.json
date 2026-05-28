@@ -47,7 +47,7 @@
   {
     "id": "soul_bound_beacon",
     "name": "Soul-Bound Beacon",
-    "description": "A glowing pedestal that empowers every minion in the same room (+30% damage and HP, scales with boss level). You must immediately place a Healing Fountain in another room — adventurers can use it once per day to heal to full.",
+    "description": "A glowing pedestal that empowers every minion in the same room (+30% damage and HP, scales with boss level). You must immediately place a Healing Fountain in another room — adventurers heal to full there and carry a regenerating blessing into the fight against your boss.",
     "spriteKey": "item-soul-beacon",
     "tags": [
       "beacon",
@@ -60,7 +60,7 @@
   {
     "id": "healing_fountain",
     "name": "Healing Fountain",
-    "description": "Heals any adventurer who touches it to full HP — once per day per adventurer. Required as the trade-off for placing a Soul-Bound Beacon.",
+    "description": "Heals any adventurer who touches it to full HP and grants a regenerating blessing (~4% max HP/sec for 15s) that keeps healing them — even mid-fight against your boss. Re-usable all day. Required as the trade-off for placing a Soul-Bound Beacon.",
     "spriteKey": "item-healing-fountain",
     "tags": [
       "fountain",

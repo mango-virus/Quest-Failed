@@ -398,6 +398,12 @@ function _rehydrateRunHistory(state) {
     // timestamp keeps the effect active longer than intended.
     '_scatterUntil', '_warnedUntil', '_lastAvoidTrapAt', '_lastWarnAt',
     '_lastTameAt',
+    // Healing Fountain blessing — _fountainBlessUntil gates the per-tick
+    // regen and _fountainTouchAt gates the instant re-heal; both are
+    // scene.time-stamped, so a saved value lingers as "in the future"
+    // after load (regen would phantom-heal until the clock catches up).
+    // _fountainRegenAcc is just a sub-1 carry float — reset it too.
+    '_fountainBlessUntil', '_fountainTouchAt', '_fountainRegenAcc',
     // Anti-magic / silence
     '_provoked', '_invisible',
     // Tower Tax leak we already fixed via DAY_PHASE_STARTED reset, but

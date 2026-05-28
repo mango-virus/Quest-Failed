@@ -415,7 +415,11 @@ export class AISystem {
   // not on a higher-priority goal), set SEEK_HEAL targeting the closest
   // known unblocked fountain.
   _maybeSeekHeal(adv) {
-    if (adv.fountainUsedToday) return
+    // Once-per-day cap removed 2026-05-27 — advs now re-seek a fountain
+    // whenever they drop below LOW_HP_THRESHOLD. The "only when actually
+    // low" gate below is self-limiting (a freshly-healed adv is at full
+    // HP and won't re-seek until damaged again), so no extra cooldown
+    // is needed here.
     if (adv.aiState === 'fleeing' || adv.aiState === 'dead') return
     const hpFrac = adv.resources.hp / Math.max(1, adv.resources.maxHp)
     if (hpFrac >= Balance.LOW_HP_THRESHOLD) return
@@ -445,18 +449,26 @@ export class AISystem {
     EventBus.emit('SAY_seekHeal', { adventurer: adv })
   }
 
-  // Proximity-based heal when adv steps onto/adjacent to a fountain. One
-  // free heal-to-full per adv per day. Marks fountainUsedToday so they
-  // don't loop back later in the same day.
+  // Proximity heal when an adv steps onto / adjacent to a fountain.
+  // Reworked 2026-05-27: no longer once-per-day. On contact the adv is
+  // healed to full AND granted the Fountain Blessing — a heal-over-time
+  // (FOUNTAIN_BLESS_REGEN_PCT/sec for FOUNTAIN_BLESS_DURATION_MS) that
+  // persists into the boss fight (ticked in _tickAdventurer). The
+  // instant top-up is gated by FOUNTAIN_REHEAL_COOLDOWN_MS so standing
+  // on the fountain doesn't re-fire every frame; re-touching after the
+  // cooldown refreshes both the heal and the blessing. The blessing is
+  // granted even at full HP (so an adv topping off before the throne
+  // still carries regen into the fight).
   _tryHealAtFountain(adv) {
-    if (adv.fountainUsedToday) return
-    if (adv.resources.hp >= adv.resources.maxHp) return
+    const now = this._scene?.time?.now ?? 0
+    if (now < (adv._fountainTouchAt ?? 0)) return
     for (const f of this._gameState.dungeon?.fountains ?? []) {
       const d = Math.max(Math.abs(f.tileX - adv.tileX), Math.abs(f.tileY - adv.tileY))
       if (d > 1) continue
-      const healed = adv.resources.maxHp - adv.resources.hp
-      adv.resources.hp = adv.resources.maxHp
-      adv.fountainUsedToday = true
+      const healed = Math.max(0, adv.resources.maxHp - adv.resources.hp)
+      adv.resources.hp        = adv.resources.maxHp
+      adv._fountainTouchAt    = now + Balance.FOUNTAIN_REHEAL_COOLDOWN_MS
+      adv._fountainBlessUntil = now + Balance.FOUNTAIN_BLESS_DURATION_MS
       EventBus.emit('FOUNTAIN_HEAL_USED', { adventurer: adv, fountain: f, healed })
       EventBus.emit('SAY_healed', { adventurer: adv })
       return
@@ -1031,6 +1043,30 @@ export class AISystem {
     if (adv.resources.hp <= 0) {
       this._kill(adv, idx, adv._lastHitBy ?? 'unknown')
       return
+    }
+    // Healing Fountain blessing tick (2026-05-27). Granted on fountain
+    // touch in _tryHealAtFountain; heals a % of maxHp per second while
+    // active. Runs here — above the AT_BOSS early-return below — so it
+    // ticks even while the adv is locked in the boss fight, which is the
+    // whole point: BossSystem reads adv.resources.hp live each combat
+    // tick, so this regen directly extends how long they survive the
+    // boss. Fractional regen is accumulated so small per-frame amounts
+    // aren't lost to integer rounding.
+    {
+      const bNow = this._scene?.time?.now ?? 0
+      if ((adv._fountainBlessUntil ?? 0) > bNow) {
+        if (adv.resources.hp < adv.resources.maxHp) {
+          const tick = adv.resources.maxHp * Balance.FOUNTAIN_BLESS_REGEN_PCT * (delta / 1000)
+          adv._fountainRegenAcc = (adv._fountainRegenAcc ?? 0) + tick
+          if (adv._fountainRegenAcc >= 1) {
+            const whole = Math.floor(adv._fountainRegenAcc)
+            adv._fountainRegenAcc -= whole
+            adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + whole)
+          }
+        }
+      } else if (adv._fountainRegenAcc) {
+        adv._fountainRegenAcc = 0
+      }
     }
     // Vampire charm — a charmed adventurer must walk to the boss to be
     // turned into a thrall; they NEVER flee. Soft panics (low HP, coward,

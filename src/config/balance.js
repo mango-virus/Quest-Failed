@@ -275,6 +275,17 @@ export const Balance = {
   CLERIC_HEAL_TARGET_THRESHOLD: 0.8,  // heal an ally below this HP fraction
   HEAL_RANGE_TILES:          2,       // cleric heal-ally range
   LOW_HP_THRESHOLD:          0.4,     // adventurer triggers low-hp behavior (HEAL / FLEE) below this fraction
+  // Healing Fountain blessing (2026-05-27 rework). Touching a fountain
+  // grants a heal-over-time that PERSISTS INTO THE BOSS FIGHT — the
+  // fountain's whole purpose is to make the boss fight harder, not just
+  // top advs off beforehand. Regenerates FOUNTAIN_BLESS_REGEN_PCT of the
+  // adv's max HP per second for FOUNTAIN_BLESS_DURATION_MS. Re-touching a
+  // fountain refreshes it; FOUNTAIN_REHEAL_COOLDOWN_MS gates the instant
+  // top-up so standing on the fountain doesn't re-fire every frame.
+  // The once-per-day cap is removed — advs heal whenever they're low.
+  FOUNTAIN_BLESS_REGEN_PCT:    0.04,   // 4% max HP / sec while blessed
+  FOUNTAIN_BLESS_DURATION_MS:  15000,  // 15s of regen per fountain touch
+  FOUNTAIN_REHEAL_COOLDOWN_MS: 6000,   // min gap between instant full-heals
   MARTYR_TAUNT_HP_FRACTION:  0.3,     // martyr triggers taunt at this HP%
   PARANOID_SPEED_MULTIPLIER: 0.55,    // paranoid moves this much slower in unfamiliar rooms
 
