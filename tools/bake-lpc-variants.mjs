@@ -335,7 +335,41 @@ const ANIM_FALLBACK = {
   'shadow/child': { idle: 'walk', run: 'walk' },
 };
 
+// Animation names a weapon layer path can end in (the per-anim weapon art
+// dirs). A weapon layer's sourceDir already encodes its animation, e.g.
+// `weapon/sword/scimitar/walk` (foreground) or `.../walk/behind`.
+const WEAPON_PATH_ANIMS = new Set([
+  'walk', 'slash', 'thrust', 'shoot', 'spellcast', 'hurt', 'idle', 'run',
+  'backslash', 'halfslash', 'climb', 'jump', 'sit', 'emote', 'combat_idle',
+]);
+
 function resolveLayerSourceForAnim(rng, layerSourceDir, animFile, animName, lockedColor) {
+  // ── Weapon layers ─────────────────────────────────────────────────────
+  // Weapons are laid out per-animation: the layer path is the anim dir
+  // itself (`weapon/<type>/<name>/<anim>[/behind]`) holding a single
+  // `<name>.png` (or `<color>.png`). The generic "append <animFile>" path
+  // below never matches these, so handle them explicitly: a weapon layer
+  // only fills ITS OWN animation row (a `walk` layer also fills idle/run so
+  // the carried weapon doesn't blink out when the adv stands still).
+  if (layerSourceDir.startsWith('weapon/')) {
+    const segs = layerSourceDir.split('/');
+    const isBehind = segs[segs.length - 1] === 'behind';
+    const layerAnim = isBehind ? segs[segs.length - 2] : segs[segs.length - 1];
+    if (WEAPON_PATH_ANIMS.has(layerAnim)) {
+      const matches = layerAnim === animName ||
+        (layerAnim === 'walk' && (animName === 'idle' || animName === 'run'));
+      if (!matches) return null;
+      const dir = path.join(ssRoot, layerSourceDir);
+      if (!fs.existsSync(dir)) return null;
+      if (lockedColor) {
+        const lp = path.join(dir, `${lockedColor}.png`);
+        if (fs.existsSync(lp)) return lp;
+      }
+      const pngs = fs.readdirSync(dir).filter((f) => f.endsWith('.png'));
+      return pngs.length ? path.join(dir, pngs[0]) : null;
+    }
+  }
+
   const subdir = path.join(ssRoot, layerSourceDir, animName);
   const subdirIsDir = fs.existsSync(subdir) && fs.statSync(subdir).isDirectory();
   // A locked color wins FIRST when this item ships a matching color-variant
@@ -492,12 +526,24 @@ async function compositeVariant(rng, variant, outFile) {
       if (!src) continue;
       if (layer.palettes && layer.palettes.length) {
         const remapped = await applyPaletteSwap(src, layer.palettes);
+        if (remapped.width > LAYOUT.width || remapped.height > LAYOUT.height) {
+          console.warn(`  ! skip oversized layer "${layer.itemName}" ${remapped.width}x${remapped.height} (>${LAYOUT.width}x${LAYOUT.height})`);
+          continue;
+        }
         composites.push({
           input: remapped.buffer,
           raw: { width: remapped.width, height: remapped.height, channels: 4 },
           top: row.y, left: 0,
         });
       } else {
+        // Guard against oversize source art (e.g. 128px weapon sheets) that
+        // can't fit the 64px base sheet — skip with a warning rather than
+        // crash the whole bake.
+        const meta = await sharp(src).metadata();
+        if ((meta.width || 0) > LAYOUT.width || (meta.height || 0) > LAYOUT.height) {
+          console.warn(`  ! skip oversized layer "${layer.itemName}" ${meta.width}x${meta.height} (>${LAYOUT.width}x${LAYOUT.height})`);
+          continue;
+        }
         composites.push({ input: src, top: row.y, left: 0 });
       }
     }

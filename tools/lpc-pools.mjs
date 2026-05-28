@@ -641,8 +641,13 @@ POOLS.shadow_monarch = {
   torso:         ['Frock coat'],
   legs:          ['Long Pants'],
   feet:          ['Basic Shoes'],
+  // Saber, not Scimitar: the scimitar (and katana) ship ONLY oversize 128px
+  // art that can't composite into the 64px base sheet, so it rendered
+  // invisible. The saber is a curved single-edged blade (visually ~a
+  // scimitar) that DOES ship standard 64px walk/slash art, so it actually
+  // shows in-hand.
   weapon: {
-    items: ['Scimitar'],
+    items: ['Saber'],
     chance: 1.0,
   },
 }
