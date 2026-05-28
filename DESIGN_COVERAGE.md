@@ -180,6 +180,21 @@ New **6th rarity tier** (`damned`, rendered solid black). Devil's-bargain pacts:
 | the_martyrs_curse | The Martyr's Curse | DP | ✅ DONE | Curse: minion death heals advs within 4 tiles 25% HP. Bribe: +800g |
 | trapless_halls | Trapless Halls | DP | ✅ DONE | Curse: NightPhase placement validation blocks new traps. Bribe: trapDamageMult x1.5 + 600g |
 
+### 5b. Legendary expansion (2026-05-28 — ✅ 8 new, pool 8→16 legendaries; headless-verified 25/25)
+
+Normal-schema legendaries (massive upside/downside). Boss-stat boons flow through `BossSystem._recomputeBossFightStats` (per-stat multipliers, verified via real recompute). Boss-fight-internal effects (invincibility window, HP-scaled attack, 5× damage) verified at flag + code-inspection level — **want a live boss-fight playtest**.
+
+| ID | Name | Phase | Status | Notes |
+|---|---|---|---|---|
+| colossus_heart | Colossus Heart | LG | ✅ DONE | HP x2 + atk x0.5 via recompute boon (verified 400/6). BOSS_STATS_DIRTY forces refresh |
+| the_apex_tyrant | The Apex Tyrant | LG | ✅ DONE | HP x2/atk x1.5/def x1.5 (recompute, verified 400/18/15); waves x2 permanent (DayPhase apexTyrant) |
+| avatar_of_ruin | Avatar of Ruin | LG | ✅ DONE | maxHP x0.5 (recompute, verified 100); invincible first 10s (_applyDamageToBoss + _fightStartedAt). **Playtest** |
+| wrath_unbound | Wrath Unbound | LG | ✅ DONE | up to +100% atk as HP falls (bossAtk hook); +50% dmg taken (_applyDamageToBoss). **Playtest** |
+| crown_of_avarice | Crown of Avarice | LG | ✅ DONE | gold x2 (AISystem goldMul + treasury); every 5th day hero raid (DayPhase wave x2 + +50% adv stats). Verified cadence+buff |
+| the_iron_price | The Iron Price | LG | ✅ DONE | minions x2 (CombatSystem) + traps x2 (trapDamageMult); gold income zeroed (AISystem goldMul=0 + treasury x0) |
+| sudden_death | Sudden Death | LG | ✅ DONE | everyone x5: CombatSystem + trapDamageMult + boss fight (_applyDamageToBoss + bossAtk). **Playtest** |
+| the_undying_court | The Undying Court | LG | ✅ DONE | ADVENTURER_DIED queue -> NIGHT spawn undead minion (stats carried, verified); full slots sacrifice 2 (verified); living advs +2%/member |
+
 ---
 
 ## 6. Dungeon room types

@@ -129,6 +129,19 @@ A new **variant** of dark pact: pacts that are overwhelmingly *negative* — a p
 23. **The Martyr's Curse** — Curse: when a minion dies, adventurers in that room heal 25% of their max HP. / Bribe: +800g.
 24. **Trapless Halls** — Curse: you can no longer place new traps for the rest of the run (existing traps remain). / Bribe: existing traps +50% damage + 600g.
 
+### Legendary pacts expansion (added 2026-05-28 — 8 new, pool 8→16)
+
+Normal-schema legendaries (perk = "The Deal", cost = "The Price") tuned for **massive upside / massive downside**. Several boost boss stats (⚔️), wired through `BossSystem._recomputeBossFightStats` (per-stat multipliers, same place the altar buff + damned curses live).
+
+1. ⚔️ **Colossus Heart** — Up: boss max HP doubled. / Down: boss attacks 50% slower (attack ×0.5).
+2. ⚔️ **The Apex Tyrant** — Up: boss +100% max HP, +50% attack & defense. / Down: every adventurer wave is doubled for the rest of the run.
+3. ⚔️ **Avatar of Ruin** — Up: boss is invincible for the first 10 seconds of every boss fight. / Down: boss max HP cut by 50%.
+4. ⚔️ **Wrath Unbound** — Up: boss gains up to +100% attack as its HP falls. / Down: boss takes +50% more damage.
+5. **Crown of Avarice** — Up: all gold income doubled. / Down: every 5th day a guaranteed hero-grade raid (wave doubled, +50% adventurer stats).
+6. **The Iron Price** — Up: your minions and traps deal double damage. / Down: you can never earn gold again (no kills, no treasure).
+7. **Sudden Death** — Up: your minions, traps and boss deal 5× damage. / Down: so do the adventurers — everyone is glass, every hit lethal.
+8. **The Undying Court** — Up: every adventurer who dies rises the next night as an undead minion of its class (stats carried over). / Down: each occupies 2 minion slots and buffs living adventurers; with no free slots, 2 of your minions are sacrificed to make room.
+
 The trade-off should really make you think before choosing them. **I want tons and tons of different mechanics and trade offs to be added.**
 
 ---

@@ -712,6 +712,35 @@ export const Balance = {
   // Blind Architect — minimap + intel disabled; bribe gold (stand-in for the
   // "perfect-day preview" idea, which needs forecast wiring — see notes).
   MECHANIC_BLIND_ARCHITECT_BRIBE_GOLD:    400,
+
+  // --- LEGENDARY pacts (2026-05-28 — massive upside / massive downside) ---
+  // Colossus Heart — boss max HP doubled; attacks 50% slower (atk halved).
+  MECHANIC_COLOSSUS_HP_MULT:              2.0,
+  MECHANIC_COLOSSUS_ATK_MULT:             0.5,
+  // The Apex Tyrant — boss +100% HP, +50% atk & def; all waves doubled (run).
+  MECHANIC_APEX_HP_MULT:                  2.0,
+  MECHANIC_APEX_ATK_MULT:                 1.5,
+  MECHANIC_APEX_DEF_MULT:                 1.5,
+  MECHANIC_APEX_WAVE_MULT:                2,
+  // Avatar of Ruin — boss invincible the first 10s of each fight; max HP -50%.
+  MECHANIC_AVATAR_HP_MULT:                0.5,
+  MECHANIC_AVATAR_INVULN_MS:              10000,
+  // Wrath Unbound — up to +100% boss attack as HP drops; boss takes +50% dmg.
+  MECHANIC_WRATH_MAX_ATK_BONUS:           1.0,   // +100% at 0 HP, scales with missing HP
+  MECHANIC_WRATH_DMG_TAKEN_MULT:          1.5,
+  // Crown of Avarice — all gold income doubled; guaranteed hero raid every 5 days.
+  MECHANIC_AVARICE_GOLD_MULT:             2.0,
+  MECHANIC_AVARICE_RAID_INTERVAL_DAYS:    5,
+  MECHANIC_AVARICE_RAID_WAVE_MULT:        2,
+  MECHANIC_AVARICE_RAID_HERO_BUFF:        0.5,   // +50% stats to that day's adventurers
+  // The Iron Price — minions + traps deal 2x damage; you can never earn gold.
+  MECHANIC_IRON_PRICE_DMG_MULT:           2.0,
+  // Sudden Death — everyone (yours + adventurers) deals 5x damage.
+  MECHANIC_SUDDEN_DEATH_DMG_MULT:         5.0,
+  // The Undying Court — dead adventurers rise as undead minions of their class.
+  MECHANIC_UNDYING_COURT_SLOTS_PER:       2,     // each court member occupies this many slots
+  MECHANIC_UNDYING_COURT_DISPLACE:        2,     // full slots -> kill this many random minions
+  MECHANIC_UNDYING_COURT_LIVING_BUFF_PER: 0.02,  // +2% living-adv stats per court member
   MECHANIC_INQUISITORS_HP_MULT:           2.0,
   MECHANIC_INQUISITORS_ATK_MULT:          1.5,
 

@@ -114,6 +114,19 @@ export class CombatSystem {
       if (attackerIsDungeon || targetIsDungeon) finalDmg = Math.max(1, finalDmg * 2)
     }
 
+    // LEGENDARY pact damage multipliers.
+    const _lpf = this._gameState._mechanicFlags
+    if (_lpf) {
+      // The Iron Price — your minions (dungeon faction / boss) deal 2x damage.
+      if (_lpf.theIronPrice && (attacker.faction === 'dungeon' || attacker === this._gameState.boss)) {
+        finalDmg = Math.max(1, Math.round(finalDmg * (Balance.MECHANIC_IRON_PRICE_DMG_MULT ?? 2)))
+      }
+      // Sudden Death — EVERYONE deals 5x (yours and the adventurers alike).
+      if (_lpf.suddenDeath) {
+        finalDmg = Math.max(1, Math.round(finalDmg * (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5)))
+      }
+    }
+
     // Ambush bonus: minions with behaviorType 'ambush' (plant2, imp2, etc.)
     // that just revealed get a one-shot 1.5× damage on their next attack.
     // Flag is set by MinionAbilities._tickAmbushHidden on the hidden→visible

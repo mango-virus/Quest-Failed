@@ -4465,6 +4465,8 @@ export class AISystem {
     if (flags.taxationOfSouls) goldMul *= Balance.MECHANIC_TAXATION_GOLD_PENALTY
     if (flags.goldRush)        goldMul *= Balance.MECHANIC_GOLD_RUSH_GOLD_MULT
     if (flags.famishedDark)    goldMul *= Balance.MECHANIC_FAMISHED_DARK_GOLD_MULT  // DAMNED — kills pay half
+    if (flags.crownOfAvarice)  goldMul *= Balance.MECHANIC_AVARICE_GOLD_MULT        // LEGENDARY — gold x2
+    if (flags.theIronPrice)    goldMul  = 0                                          // LEGENDARY — no gold income
     if (flags.gildedDemise)    goldMul *= Balance.MECHANIC_GILDED_DEMISE_GOLD_MULT
     if (flags.inquisitorsMark && adv.flags?.inquisitorsMark) {
       goldMul *= Balance.MECHANIC_INQUISITORS_GOLD_MULT

@@ -410,6 +410,21 @@ function _buffCurrentMinions(gameState, { hp = 0, atk = 0, def = 0 } = {}) {
   }
 }
 
+// Approximate the roster slot cap (mirrors NightPhase._rosterCap minus the
+// tinker bonus) so The Undying Court can tell when slots are full and it must
+// sacrifice minions to make room.
+function _rosterCapApprox(gameState) {
+  const f = gameState._mechanicFlags ?? {}
+  const barracks = (gameState.dungeon?.rooms ?? [])
+    .filter(r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
+  const perB    = f.minionSlotsPerBarracks ?? 10
+  const bonus   = f.maxMinionSlotBonus ?? 0
+  const penalty = f.longGameMinionSlotPenalty ?? 0
+  let total = barracks * perB + bonus - penalty
+  if (f.theHollowHorde) total = Math.floor(total * 0.5)
+  return Math.max(0, total)
+}
+
 // ── Handler registry ──────────────────────────────────────────────────────
 // Each handler is (ctx) => void. Use ctx.subscribe(event, fn) for bus listeners
 // so they unwire automatically on deactivate.
@@ -2035,6 +2050,188 @@ function _buildHandlerRegistry() {
     blindArchitect_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.blindArchitect = false
       try { document.getElementById('hud-stage')?.classList.remove('qf-blind-architect') } catch {}
+    },
+
+    // ── LEGENDARY · Colossus Heart ───────────────────────────────────────
+    // Boss max HP x2 / attacks 50% slower (atk x0.5). Read in recompute.
+    colossusHeart_activate: ({ gameState }) => {
+      (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).colossusHeart = true
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+    colossusHeart_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.colossusHeart = false
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+
+    // ── LEGENDARY · The Apex Tyrant ──────────────────────────────────────
+    // Boss +100% HP, +50% atk & def (recompute); all waves doubled (DayPhase).
+    theApexTyrant_activate: ({ gameState }) => {
+      (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).apexTyrant = true
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+    theApexTyrant_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.apexTyrant = false
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+
+    // ── LEGENDARY · Avatar of Ruin ───────────────────────────────────────
+    // Boss max HP -50% (recompute); invincible first 10s of each fight
+    // (_applyDamageToBoss reads avatarOfRuin + _fightStartedAt).
+    avatarOfRuin_activate: ({ gameState }) => {
+      (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).avatarOfRuin = true
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+    avatarOfRuin_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.avatarOfRuin = false
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+
+    // ── LEGENDARY · Wrath Unbound ────────────────────────────────────────
+    // Boss attack scales up to +100% as HP falls (boss-fight bossAtk hook);
+    // boss takes +50% damage (_applyDamageToBoss). Pure flag — dynamic per round.
+    wrathUnbound_activate: ({ gameState }) => {
+      (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).wrathUnbound = true
+    },
+    wrathUnbound_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.wrathUnbound = false
+    },
+
+    // ── LEGENDARY · Crown of Avarice ─────────────────────────────────────
+    // All gold income x2 (AISystem goldMul + treasury); every Nth day a
+    // guaranteed hero-grade raid (DayPhase wave x2 + +50% adv stats here).
+    crownOfAvarice_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.crownOfAvarice = true
+      f.avariceDayCount ??= 0
+      subscribe('DAY_PHASE_STARTED', () => {
+        const n = (gameState._mechanicFlags.avariceDayCount ?? 0) + 1
+        gameState._mechanicFlags.avariceDayCount = n
+        const interval = Balance.MECHANIC_AVARICE_RAID_INTERVAL_DAYS ?? 5
+        gameState._mechanicFlags.avariceRaidToday = (n % interval === 0)
+        if (gameState._mechanicFlags.avariceRaidToday) {
+          EventBus.emit('SHOW_TOAST', { text: 'Crown of Avarice — a hero-grade raid descends!', kind: 'warn' })
+        }
+      })
+      subscribe('NIGHT_PHASE_STARTED', () => { gameState._mechanicFlags.avariceRaidToday = false })
+      subscribe('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
+        if (!gameState._mechanicFlags.avariceRaidToday || !adventurer || adventurer._avariceHero) return
+        adventurer._avariceHero = true
+        const b = 1 + (Balance.MECHANIC_AVARICE_RAID_HERO_BUFF ?? 0.5)
+        if (adventurer.resources) {
+          adventurer.resources.maxHp = Math.round((adventurer.resources.maxHp ?? 0) * b)
+          adventurer.resources.hp    = adventurer.resources.maxHp
+        }
+        if (adventurer.stats?.attack != null) adventurer.stats.attack = Math.round(adventurer.stats.attack * b)
+      })
+    },
+    crownOfAvarice_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.crownOfAvarice = false
+    },
+
+    // ── LEGENDARY · The Iron Price ───────────────────────────────────────
+    // Minions deal 2x (CombatSystem) + traps 2x (trapDamageMult); gold income
+    // zeroed (AISystem goldMul=0 + treasury x0).
+    theIronPrice_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theIronPrice = true
+      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_IRON_PRICE_DMG_MULT ?? 2)
+    },
+    theIronPrice_deactivate: ({ gameState }) => {
+      if (!gameState._mechanicFlags) return
+      gameState._mechanicFlags.theIronPrice = false
+      const m = Balance.MECHANIC_IRON_PRICE_DMG_MULT ?? 2
+      gameState._mechanicFlags.trapDamageMult = (gameState._mechanicFlags.trapDamageMult ?? 1) / m
+    },
+
+    // ── LEGENDARY · Sudden Death ─────────────────────────────────────────
+    // Everyone deals 5x: CombatSystem (minion<->adv), TrapSystem (trapDamageMult),
+    // boss fight (_applyDamageToBoss party->boss + bossAtk boss->party).
+    suddenDeath_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.suddenDeath = true
+      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5)
+    },
+    suddenDeath_deactivate: ({ gameState }) => {
+      if (!gameState._mechanicFlags) return
+      gameState._mechanicFlags.suddenDeath = false
+      const m = Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5
+      gameState._mechanicFlags.trapDamageMult = (gameState._mechanicFlags.trapDamageMult ?? 1) / m
+    },
+
+    // ── LEGENDARY · The Undying Court ────────────────────────────────────
+    // Adventurers that die are queued; at night they rise as undead minions
+    // of their class (stats carried over). With no free roster slots, 2 random
+    // minions are sacrificed to make room. Living adventurers are buffed +2%
+    // per court member.
+    theUndyingCourt_activate: ({ subscribe, gameState, scene }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theUndyingCourt = true
+      f.undyingCourtQueue ??= []
+      f.undyingCourtCount ??= 0
+      subscribe('ADVENTURER_DIED', ({ adventurer }) => {
+        if (!adventurer) return
+        gameState._mechanicFlags.undyingCourtQueue.push({
+          classId: adventurer.classId ?? 'adventurer',
+          name:    adventurer.name ?? adventurer.classId ?? 'Adventurer',
+          maxHp:   Math.max(1, Math.round(adventurer.resources?.maxHp ?? adventurer.resources?.hp ?? 20)),
+          attack:  Math.max(1, Math.round(adventurer.stats?.attack ?? 5)),
+          defense: Math.max(0, Math.round(adventurer.stats?.defense ?? 0)),
+        })
+      })
+      subscribe('NIGHT_PHASE_STARTED', () => {
+        const queue = gameState._mechanicFlags.undyingCourtQueue ?? []
+        if (queue.length === 0) return
+        const defs = scene?.cache?.json?.get('minionTypes') ?? []
+        const baseDef = defs[0]
+        if (!baseDef) { gameState._mechanicFlags.undyingCourtQueue = []; return }
+        const bossRoom = gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+        const bossLevel = gameState.boss?.level ?? 1
+        const cap = _rosterCapApprox(gameState)
+        for (const snap of queue) {
+          // Make room: if the roster is full, sacrifice random roster minions.
+          let roster = (gameState.minions ?? []).filter(m => m.faction === 'dungeon' && m.aiState !== 'dead' && (m.class ?? 'roster') === 'roster')
+          if (roster.length >= cap && cap > 0) {
+            const victims = [...roster].sort(() => Math.random() - 0.5).slice(0, Balance.MECHANIC_UNDYING_COURT_DISPLACE ?? 2)
+            for (const v of victims) {
+              const idx = gameState.minions.indexOf(v)
+              if (idx >= 0) gameState.minions.splice(idx, 1)
+              EventBus.emit('MINION_REMOVED', { minion: v, reason: 'undying_court' })
+            }
+          }
+          const tx = (bossRoom?.gridX ?? 1) + 1
+          const ty = (bossRoom?.gridY ?? 1) + 1
+          const minion = createMinion(baseDef, { x: tx, y: ty }, bossRoom?.instanceId ?? null, { class: 'roster', bossLevel })
+          // Carry the fallen hero's combat stats (its "kit" in stat terms).
+          minion._baseMaxHp = snap.maxHp
+          minion._baseAtk   = snap.attack
+          if (minion.stats) minion.stats.defense = snap.defense
+          applyBossLevelToMinion(minion, bossLevel)
+          minion._undeadCourt = true
+          minion._raisedFromAdvDeath = true
+          minion.displayName = 'Risen ' + snap.name
+          gameState.minions.push(minion)
+          gameState._mechanicFlags.undyingCourtCount = (gameState._mechanicFlags.undyingCourtCount ?? 0) + 1
+          EventBus.emit('MINION_PLACED', { minion })
+          EventBus.emit('UNDYING_COURT_RISEN', { minion, fromClass: snap.classId })
+        }
+        gameState._mechanicFlags.undyingCourtQueue = []
+      })
+      // Living adventurers grow stronger as the court swells.
+      subscribe('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
+        if (!adventurer || adventurer._courtBuffed) return
+        const count = gameState._mechanicFlags.undyingCourtCount ?? 0
+        if (count <= 0) return
+        adventurer._courtBuffed = true
+        const b = 1 + (Balance.MECHANIC_UNDYING_COURT_LIVING_BUFF_PER ?? 0.02) * count
+        if (adventurer.resources) {
+          adventurer.resources.maxHp = Math.round((adventurer.resources.maxHp ?? 0) * b)
+          adventurer.resources.hp    = adventurer.resources.maxHp
+        }
+        if (adventurer.stats?.attack != null) adventurer.stats.attack = Math.round(adventurer.stats.attack * b)
+      })
+    },
+    theUndyingCourt_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theUndyingCourt = false
     },
   }
 }

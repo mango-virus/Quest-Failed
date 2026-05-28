@@ -90,10 +90,14 @@ export class RoomBehaviorSystem {
       // _refillTreasury.
       const treasuryTinkered = this._isTinkered('treasury')
       const perRoom = treasuryTinkered ? 7.5 : 5
-      // DAMNED · Famine's Grip — treasure-room payouts pay 50% less.
-      const famineMul = (this._gameState._mechanicFlags ?? {}).faminesGrip
-        ? (Balance.MECHANIC_FAMINES_GRIP_PAYOUT_MULT ?? 0.5) : 1
-      const stipend = Math.round(perRoom * treasuries.length * famineMul)
+      // Pact modifiers on treasure-room income:
+      //   DAMNED Famine's Grip x0.5; LEGENDARY Crown of Avarice x2; Iron Price x0.
+      const tf = this._gameState._mechanicFlags ?? {}
+      let goldMul = 1
+      if (tf.faminesGrip)    goldMul *= (Balance.MECHANIC_FAMINES_GRIP_PAYOUT_MULT ?? 0.5)
+      if (tf.crownOfAvarice) goldMul *= (Balance.MECHANIC_AVARICE_GOLD_MULT ?? 2)
+      if (tf.theIronPrice)   goldMul  = 0
+      const stipend = Math.round(perRoom * treasuries.length * goldMul)
       this._gameState.player.gold = (this._gameState.player.gold ?? 0) + stipend
       EventBus.emit('TREASURY_STIPEND', { amount: stipend, treasuryCount: treasuries.length })
     }

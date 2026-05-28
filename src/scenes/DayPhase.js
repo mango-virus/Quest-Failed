@@ -724,6 +724,12 @@ export class DayPhase extends Phaser.Scene {
     // Phase 9: Architect's Vision + Summon Adds III — flat extra adv count per day.
     const extraAdvs = (this._gameState._mechanicFlags ?? {}).extraAdvsPerDay ?? 0
     if (extraAdvs > 0) baseCount += extraAdvs
+    // LEGENDARY · The Apex Tyrant — all adventurer waves doubled for the rest of the run.
+    if ((this._gameState._mechanicFlags ?? {}).apexTyrant) baseCount *= 2
+    // LEGENDARY · Crown of Avarice — guaranteed hero-grade raid every Nth day (wave doubled).
+    if ((this._gameState._mechanicFlags ?? {}).avariceRaidToday) {
+      baseCount = Math.round(baseCount * (Balance.MECHANIC_AVARICE_RAID_WAVE_MULT ?? 2))
+    }
     // Dungeon event: Guild Raid — double the day's wave size as steady
     // pressure (longer wave, not a single surge — handled here at the
     // baseCount stage so the existing trickle/cadence logic stretches it

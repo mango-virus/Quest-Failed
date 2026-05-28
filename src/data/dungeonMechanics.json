@@ -1806,5 +1806,161 @@
     ],
     "exclusiveWith": [],
     "synergyWith": []
+  },
+  {
+    "id": "colossus_heart",
+    "name": "Colossus Heart",
+    "symbol": "⛰",
+    "description": "Your boss's maximum HP is doubled.",
+    "tradeoffDescription": "The boss attacks 50% slower — a mountain that strikes like one.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "colossusHeart_activate",
+    "onDeactivate": "colossusHeart_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_apex_tyrant",
+    "name": "The Apex Tyrant",
+    "symbol": "♔",
+    "description": "Your boss gains +100% maximum HP and +50% attack and defense.",
+    "tradeoffDescription": "Your power draws champions — every adventurer wave is doubled for the rest of the run.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "theApexTyrant_activate",
+    "onDeactivate": "theApexTyrant_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "avatar_of_ruin",
+    "name": "Avatar of Ruin",
+    "symbol": "⊛",
+    "description": "Your boss is invincible for the first 10 seconds of every boss fight.",
+    "tradeoffDescription": "The boss's maximum HP is cut in half — a brief god, then glass.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "avatarOfRuin_activate",
+    "onDeactivate": "avatarOfRuin_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "wrath_unbound",
+    "name": "Wrath Unbound",
+    "symbol": "⤋",
+    "description": "The boss gains up to +100% attack as its HP falls — most savage at death's door.",
+    "tradeoffDescription": "The boss takes +50% more damage.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "wrathUnbound_activate",
+    "onDeactivate": "wrathUnbound_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "crown_of_avarice",
+    "name": "Crown of Avarice",
+    "symbol": "♛",
+    "description": "All gold income is doubled.",
+    "tradeoffDescription": "Every 5th day a guaranteed hero-grade raid arrives — double the wave, +50% adventurer stats.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "crownOfAvarice_activate",
+    "onDeactivate": "crownOfAvarice_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_iron_price",
+    "name": "The Iron Price",
+    "symbol": "⚒",
+    "description": "Your minions and traps deal double damage.",
+    "tradeoffDescription": "You can no longer earn gold — no kills, no treasure, nothing. Fight with what you have.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "theIronPrice_activate",
+    "onDeactivate": "theIronPrice_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "trap",
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "sudden_death",
+    "name": "Sudden Death",
+    "symbol": "☠",
+    "description": "Your minions, traps and boss deal 5× damage — every fight is instant.",
+    "tradeoffDescription": "So do the adventurers. Everyone is glass; a single hit can end anything.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "suddenDeath_activate",
+    "onDeactivate": "suddenDeath_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "damage"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_undying_court",
+    "name": "The Undying Court",
+    "symbol": "♰",
+    "description": "Every adventurer who dies in your dungeon rises the next night as an undead minion of its own class, keeping its kit — forever.",
+    "tradeoffDescription": "Each occupies 2 minion slots and makes living adventurers stronger; with no free slots, 2 of your minions are sacrificed to make room.",
+    "rarity": "legendary",
+    "unlockLevel": 5,
+    "weight": 7,
+    "availableToArchetypes": "all",
+    "onActivate": "theUndyingCourt_activate",
+    "onDeactivate": "theUndyingCourt_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "undead"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
   }
 ]
