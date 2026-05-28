@@ -349,14 +349,23 @@ export class BossSystem {
     if (!room) return
 
     this._syncFightParty()
-    this._tickFightBoss(dt)
-    // Slime King — each slime moves toward its own nearest adv every
-    // tick. Boss centroid (boss.worldX/Y) is re-derived from the alive
-    // slimes inside this call so the parent state machine that just
-    // ran in _tickFightBoss gets a fresh anchor for its next pass.
-    this._tickSlimes(dt)
-    for (const fs of this._fightStates.values()) {
-      this._tickFightAdv(fs, dt)
+    // Solo Leveling — when the sole combatant is the Shadow Monarch, the
+    // standard orbit-dance is replaced by a bespoke 1:1 duel: both fighters
+    // range across the whole arena trading blows (see _tickDuel). The damage
+    // model (_runOneRound) is untouched — this only swaps the MOVEMENT layer.
+    this._updateDuelMode()
+    if (this._duelMode) {
+      this._tickDuel(dt)
+    } else {
+      this._tickFightBoss(dt)
+      // Slime King — each slime moves toward its own nearest adv every
+      // tick. Boss centroid (boss.worldX/Y) is re-derived from the alive
+      // slimes inside this call so the parent state machine that just
+      // ran in _tickFightBoss gets a fresh anchor for its next pass.
+      this._tickSlimes(dt)
+      for (const fs of this._fightStates.values()) {
+        this._tickFightAdv(fs, dt)
+      }
     }
     if (this._combatStarted && !this._fightEnded) {
       this._tickFightCombat(dt)
@@ -1035,6 +1044,173 @@ export class BossSystem {
     fs.homeAngle += (Math.random() - 0.5) * Math.PI * 0.6
   }
 
+  // ── Solo Leveling — bespoke Shadow Monarch duel ─────────────────────────
+  // The standard fight has every invader ORBIT the boss. For the Monarch's
+  // 1-on-1 that reads as a trash-mob skirmish; instead both fighters roam the
+  // whole arena, converge for a clash, break apart, and re-engage from a new
+  // angle — a moving battle. Movement/FX only; _runOneRound still owns damage.
+
+  // Enter/exit duel mode each tick. Active only when the SOLE combatant is the
+  // Shadow Monarch (his shadows never join the throne — strict 1:1) and the
+  // boss isn't a multi-entity Slime King (whose centroid is slime-derived).
+  _updateDuelMode() {
+    const states = this._fightStates ? [...this._fightStates.values()] : []
+    const sole   = states.length === 1 ? states[0] : null
+    const boss   = this._gameState.boss
+    const on = !!(sole && sole.adv && sole.adv._shadowMonarch && boss && !boss.slimes)
+    if (on && !this._duel) this._duel = this._makeDuelState(sole, boss)
+    if (!on) this._duel = null
+    this._duelMode = on
+  }
+
+  _makeDuelState(fs, boss) {
+    const D = {
+      phase: 'square_off', t: 0, dur: 0.7,
+      advAnchor:  { x: fs.adv.worldX, y: fs.adv.worldY },
+      bossAnchor: { x: boss.worldX,   y: boss.worldY },
+      clash:      { x: boss.worldX,   y: boss.worldY },
+      clashAngle: Math.random() * Math.PI * 2,
+      clashSpin:  (Math.random() < 0.5 ? 1 : -1),
+      nextFxT:    0,
+      blinkFired: false,
+    }
+    this._pickDuelAnchors(D)
+    return D
+  }
+
+  // Pick two anchor points on OPPOSITE sides of the room (through its centre
+  // at a random axis), plus a jittered clash point — so successive clashes
+  // wander across the whole chamber instead of always meeting at centre.
+  _pickDuelAnchors(D) {
+    const { clampX, clampY } = this._roomClamp()
+    const minX = clampX(-1e9), maxX = clampX(1e9)
+    const minY = clampY(-1e9), maxY = clampY(1e9)
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+    const halfX = (maxX - minX) / 2, halfY = (maxY - minY) / 2
+    const th = Math.random() * Math.PI * 2
+    const s  = 0.62
+    D.advAnchor  = { x: clampX(cx + Math.cos(th) * halfX * s), y: clampY(cy + Math.sin(th) * halfY * s) }
+    D.bossAnchor = { x: clampX(cx - Math.cos(th) * halfX * s), y: clampY(cy - Math.sin(th) * halfY * s) }
+    D.clash      = { x: clampX(cx + (Math.random() - 0.5) * halfX * 0.7),
+                     y: clampY(cy + (Math.random() - 0.5) * halfY * 0.7) }
+  }
+
+  _tickDuel(dt) {
+    const TS   = Balance.TILE_SIZE
+    const boss = this._gameState.boss
+    const states = this._fightStates ? [...this._fightStates.values()] : []
+    const fs   = states[0]
+    if (!fs || !boss) return
+    const adv  = fs.adv
+    const { clampX, clampY } = this._roomClamp()
+
+    // Once a side is down (or the fight is resolving) freeze the dance so the
+    // collapse + climax play out cleanly — _runOneRound/_endFight take over.
+    const advDown  = (adv.resources?.hp ?? 0) <= 0 || fs.action === 'dying'
+    const bossDown = (boss.hp ?? 0) <= 0
+    if (this._fightEnded || advDown || bossDown) {
+      adv.tileX  = Math.floor(adv.worldX  / TS); adv.tileY  = Math.floor(adv.worldY  / TS)
+      boss.tileX = Math.floor(boss.worldX / TS); boss.tileY = Math.floor(boss.worldY / TS)
+      return
+    }
+
+    const D = this._duel ?? (this._duel = this._makeDuelState(fs, boss))
+    D.t += dt
+
+    const moveTo = (e, tx, ty, speed) => {
+      const dx = tx - e.worldX, dy = ty - e.worldY
+      const d  = Math.hypot(dx, dy)
+      if (d <= 0.01) return 0
+      const step = Math.min(d, speed * dt)
+      e.worldX = clampX(e.worldX + (dx / d) * step)
+      e.worldY = clampY(e.worldY + (dy / d) * step)
+      return d - step
+    }
+    const shake = (dur, mag) => this._scene.cameras?.main?.shake?.(dur, mag)
+
+    switch (D.phase) {
+      case 'square_off': {
+        // Both stride to opposite anchors and face off.
+        moveTo(adv,  D.advAnchor.x,  D.advAnchor.y,  Math.max(2.4, (adv.stats?.speed ?? 2)) * TS)
+        moveTo(boss, D.bossAnchor.x, D.bossAnchor.y, 2.8 * TS)
+        if (D.t >= D.dur) {
+          // Sometimes the Monarch blinks straight onto the boss instead.
+          if (Math.random() < 0.28) { D.phase = 'blink'; D.t = 0; D.dur = 0.42; D.blinkFired = false }
+          else                      { D.phase = 'charge'; D.t = 0; D.dur = 0.6 }
+        }
+        break
+      }
+      case 'charge': {
+        // Both dash toward the clash point from their corners.
+        moveTo(adv,  D.clash.x, D.clash.y, 11 * TS)
+        moveTo(boss, D.clash.x, D.clash.y, 7.5 * TS)
+        this._emitFx({ kind: 'shadow_trail', x: adv.worldX, y: adv.worldY })
+        if (Math.random() < 0.5) this._emitFx({ kind: 'lunge_trail', x: boss.worldX, y: boss.worldY })
+        const between = Math.hypot(adv.worldX - boss.worldX, adv.worldY - boss.worldY)
+        if (between < 1.15 * TS || D.t >= D.dur) {
+          D.phase = 'clash'; D.t = 0; D.dur = 0.7 + Math.random() * 0.3
+          D.clashAngle = Math.atan2(adv.worldY - boss.worldY, adv.worldX - boss.worldX)
+          D.nextFxT = 0
+          this._emitFx({ kind: 'monarch_burst', x: (adv.worldX + boss.worldX) / 2, y: (adv.worldY + boss.worldY) / 2 })
+          shake(120, 0.004)
+        }
+        break
+      }
+      case 'clash': {
+        // Whirl around the clash point on opposite sides, trading blows.
+        D.clashAngle += dt * 5.2 * D.clashSpin
+        const R  = 0.62 * TS
+        moveTo(adv,  D.clash.x + Math.cos(D.clashAngle) * R, D.clash.y + Math.sin(D.clashAngle) * R, 9 * TS)
+        moveTo(boss, D.clash.x - Math.cos(D.clashAngle) * R, D.clash.y - Math.sin(D.clashAngle) * R, 9 * TS)
+        D.nextFxT -= dt
+        if (D.nextFxT <= 0) {
+          D.nextFxT = 0.11 + Math.random() * 0.06
+          const mx = (adv.worldX + boss.worldX) / 2, my = (adv.worldY + boss.worldY) / 2
+          if (Math.random() < 0.6) this._emitFx({ kind: 'shadow_slash', x: mx, y: my, ang: D.clashAngle })
+          else                     this._emitFx({ kind: 'strike', x: adv.worldX, y: adv.worldY, color: 0xff5544 })
+          shake(60, 0.0018)
+        }
+        if (D.t >= D.dur) {
+          D.phase = 'breakaway'; D.t = 0; D.dur = 0.4
+          this._pickDuelAnchors(D)
+          this._emitFx({ kind: 'monarch_burst', x: D.clash.x, y: D.clash.y })
+        }
+        break
+      }
+      case 'breakaway': {
+        // Both leap back to fresh opposite anchors, then re-square.
+        moveTo(adv,  D.advAnchor.x,  D.advAnchor.y,  10 * TS)
+        moveTo(boss, D.bossAnchor.x, D.bossAnchor.y, 8 * TS)
+        if (D.t >= D.dur) { D.phase = 'square_off'; D.t = 0; D.dur = 0.35 }
+        break
+      }
+      case 'blink': {
+        if (!D.blinkFired && D.t > 0.12) {
+          D.blinkFired = true
+          this._emitFx({ kind: 'shadow_dash', x: adv.worldX, y: adv.worldY })   // vanish
+          const ba = Math.random() * Math.PI * 2
+          adv.worldX = clampX(boss.worldX + Math.cos(ba) * 0.7 * TS)
+          adv.worldY = clampY(boss.worldY + Math.sin(ba) * 0.7 * TS)
+          this._emitFx({ kind: 'shadow_dash', x: adv.worldX, y: adv.worldY })   // reappear
+          this._emitFx({ kind: 'shadow_slash', x: (adv.worldX + boss.worldX) / 2, y: (adv.worldY + boss.worldY) / 2, ang: ba })
+          shake(90, 0.003)
+        }
+        if (D.t >= D.dur) {
+          D.phase = 'clash'; D.t = 0; D.dur = 0.7
+          D.clash = { x: boss.worldX, y: boss.worldY }
+          D.clashAngle = Math.atan2(adv.worldY - boss.worldY, adv.worldX - boss.worldX)
+          D.nextFxT = 0
+        }
+        break
+      }
+    }
+
+    // Keep tile coords live so AI range checks / room queries read the duel
+    // positions (AISystem skips AT_BOSS advs, so nothing else updates these).
+    adv.tileX  = Math.floor(adv.worldX  / TS); adv.tileY  = Math.floor(adv.worldY  / TS)
+    boss.tileX = Math.floor(boss.worldX / TS); boss.tileY = Math.floor(boss.worldY / TS)
+  }
+
   // Phase 5c — returns the fight-state with the highest aggro (or just the
   // first non-dying/dodging entry if no aggro is tracked yet). Used by
   // _pickBossAction to detect "the target I should be focused on is running."
@@ -1072,6 +1248,11 @@ export class BossSystem {
     else if (p.kind === 'cast')        p.dur = 0.28
     else if (p.kind === 'dodge')       p.dur = 0.30
     else if (p.kind === 'taunt')       p.dur = 0.55
+    // Solo Leveling — Shadow Monarch duel VFX (blue-black).
+    else if (p.kind === 'shadow_trail')  p.dur = 0.30
+    else if (p.kind === 'shadow_dash')   p.dur = 0.28
+    else if (p.kind === 'shadow_slash')  p.dur = 0.30
+    else if (p.kind === 'monarch_burst') p.dur = 0.50
     else                                p.dur = 0.20
     // Hard cap the particle pool. _tickFightFx redraws every live
     // particle (each is ~10 Graphics ops) once per sub-step — up to
@@ -1612,6 +1793,47 @@ export class BossSystem {
           g.strokeCircle(p.tx, p.ty, 5 + phase * 5)
           break
         }
+        case 'shadow_trail': {
+          // Faint blue after-image dot left by a charging/dashing Monarch.
+          g.fillStyle(0x4aa0ff, alpha * 0.55)
+          g.fillCircle(p.x, p.y, 5)
+          g.fillStyle(0xbfe3ff, alpha * 0.45)
+          g.fillCircle(p.x, p.y, 2.5)
+          break
+        }
+        case 'shadow_dash': {
+          // Vertical blue after-image streak marking a shadow-blink endpoint.
+          const hgt = 26 + phase * 12
+          g.lineStyle(3, 0x4aa0ff, alpha * 0.85)
+          for (let i = -1; i <= 1; i++) {
+            g.beginPath()
+            g.moveTo(p.x + i * 4, p.y - hgt * 0.6)
+            g.lineTo(p.x + i * 4, p.y + hgt * 0.4)
+            g.strokePath()
+          }
+          g.fillStyle(0xffffff, alpha * 0.6)
+          g.fillCircle(p.x, p.y, 3)
+          break
+        }
+        case 'shadow_slash': {
+          // Bright blue crescent arc swung along the clash angle.
+          const ang = p.ang ?? 0
+          const r   = 10 + phase * 16
+          g.lineStyle(7, 0x4aa0ff, alpha * 0.6)
+          g.beginPath(); g.arc(p.x, p.y, r * 0.92, ang - 0.8, ang + 0.8); g.strokePath()
+          g.lineStyle(4, 0xffffff, alpha * 0.9)
+          g.beginPath(); g.arc(p.x, p.y, r, ang - 0.9, ang + 0.9); g.strokePath()
+          break
+        }
+        case 'monarch_burst': {
+          // Blue shockwave ring — clash impact / breakaway burst.
+          const r = 0.4 * TS + phase * 2.2 * TS
+          g.lineStyle(4, 0x6ab8ff, alpha)
+          g.strokeCircle(p.x, p.y, r)
+          g.lineStyle(2, 0xdff0ff, alpha * 0.6)
+          g.strokeCircle(p.x, p.y, r * 0.6)
+          break
+        }
       }
     }
     // Drop dead particles
@@ -1948,6 +2170,8 @@ export class BossSystem {
     this._roundLog       = []
     this._secondWindUsed = false
     this._roundsRun      = 0
+    this._duelMode       = false   // Solo Leveling — recomputed per tick
+    this._duel           = null
     // Belt-and-braces: clear any leaked floating-damage-number count
     // (e.g. tweens torn down without firing onComplete) so a fresh
     // fight always starts with the full concurrent-floater budget.
@@ -2821,6 +3045,8 @@ export class BossSystem {
     this._fightCombatT   = 0
     this._fightStates    = null
     this._bossState      = null
+    this._duelMode       = false
+    this._duel           = null
     if (this._fxGraphics)  this._fxGraphics.clear()
     if (this._fxParticles) this._fxParticles.length = 0
   }
