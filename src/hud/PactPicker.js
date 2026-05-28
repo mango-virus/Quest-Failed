@@ -579,7 +579,7 @@ export class PactPicker {
       h('div', { className: 'qf-ip-pact qf-ip-pact-deal' }, [
         h('div', { className: 'qf-ip-pact-head' }, [
           h('span', { className: 'qf-ip-pact-glyph' }, '☽'),
-          h('span', { className: 'pix qf-ip-pact-word' }, 'The Deal'),
+          h('span', { className: 'pix qf-ip-pact-word' }, rarKey === 'damned' ? 'The Bribe' : 'The Deal'),
         ]),
         h('div', { className: 'pix qf-ip-pact-body' },
           this._colorize(pact?.description || '—')),
@@ -587,7 +587,7 @@ export class PactPicker {
       h('div', { className: 'qf-ip-pact qf-ip-pact-price' }, [
         h('div', { className: 'qf-ip-pact-head' }, [
           h('span', { className: 'qf-ip-pact-glyph' }, '☠'),
-          h('span', { className: 'pix qf-ip-pact-word' }, 'The Price'),
+          h('span', { className: 'pix qf-ip-pact-word' }, rarKey === 'damned' ? 'The Curse' : 'The Price'),
         ]),
         h('div', { className: 'pix qf-ip-pact-body' },
           this._colorize(pact?.tradeoffDescription || '—')),
