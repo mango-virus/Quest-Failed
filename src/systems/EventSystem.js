@@ -116,6 +116,10 @@ export class EventSystem {
     // immediately for testing. Bypasses the 3-day cadence + eligibility
     // filter. See _onDevForceEvent below.
     on('DEV_FORCE_EVENT', (p) => this._onDevForceEvent(p ?? {}))
+    // Sacrificial Altar slot-reveal cinematic — AltarRewardSlot fires
+    // this when its reveal animation finishes (or the player dismisses
+    // early). Applies the pending reward effect at that point.
+    on('SACRIFICIAL_ALTAR_SPIN_DONE', () => this._onAltarSpinDone())
   }
 
   // Dev-only force-fire path used by the mango TEST EVENT picker. Tears
@@ -690,7 +694,7 @@ export class EventSystem {
     // Clear the stamped roll so the next event-fire starts fresh.
     flags.sacrificialAltarCost = null
 
-    // ── Roll the reward (uniform over the six tiers) and apply it.
+    // ── Roll the reward (uniform over the six tiers).
     //
     //   minion_3   — +3% minion stats permanently
     //   minion_10  — +10% minion stats permanently
@@ -702,52 +706,93 @@ export class EventSystem {
     //   free_pact  — opens the Grimoire (PactPicker via SHOW_DARK_PACT);
     //                player picks any of the 3 offered pacts. Existing
     //                PACT_SEALED pipeline handles activation.
+    //
+    // The reward roll is DECIDED here but the actual effect is APPLIED
+    // by _applyAltarReward, invoked after the slot-machine reveal
+    // cinematic (AltarRewardSlot.js) finishes via SACRIFICIAL_ALTAR_SPIN_DONE.
+    // The cinematic is purely cosmetic — if the player dismisses it
+    // early the reward still lands.
     const REWARDS = ['minion_3', 'minion_10', 'boss_3', 'boss_10', 'boss_level', 'free_pact']
     const rewardKind = REWARDS[Math.floor(Math.random() * REWARDS.length)]
-    let rewardText = ''
-    if (rewardKind === 'minion_3' || rewardKind === 'minion_10') {
-      const pct = rewardKind === 'minion_3' ? 0.03 : 0.10
-      player._altarMinionStatBuff = (player._altarMinionStatBuff ?? 0) + pct
-      this._reapplyMinionScalingAll()
-      rewardText = `+${(pct * 100).toFixed(0)}% permanent minion stats (total: +${(player._altarMinionStatBuff * 100).toFixed(0)}%)`
-    } else if (rewardKind === 'boss_3' || rewardKind === 'boss_10') {
-      const pct = rewardKind === 'boss_3' ? 0.03 : 0.10
-      player._altarBossStatBuff = (player._altarBossStatBuff ?? 0) + pct
-      // Re-run the boss-stat recompute so the new multiplier lands
-      // immediately. Subsequent BOSS_LEVELED_UP rescales pick the buff
-      // up via _recomputeBossFightStats which now reads the buff field.
-      this._scene?.bossSystem?._recomputeBossFightStats?.()
-      rewardText = `+${(pct * 100).toFixed(0)}% permanent boss stats (total: +${(player._altarBossStatBuff * 100).toFixed(0)}%)`
-    } else if (rewardKind === 'boss_level') {
-      const boss = gs.boss
-      if (boss) {
-        // Top up XP to threshold and let _awardBossXp drive the loop.
-        // Fires BOSS_LEVELED_UP + BOSS_LEVEL_CHANGED naturally so the
-        // celebration overlay, grid expansion, minion rescale, archetype
-        // hooks, achievements — all of it — react as if the level was
-        // earned by kills.
-        const need = Math.max(0, (boss.xpToNext ?? Balance.BOSS_XP_BASE) - (boss.xp ?? 0))
-        boss.xp = (boss.xp ?? 0) + need
-        this._scene?.aiSystem?._awardBossXp?.()
-        rewardText = `+1 boss level (now ${boss.level})`
-      }
-    } else if (rewardKind === 'free_pact') {
-      // Open the standard Grimoire. The player picks one of three
-      // offered pacts; existing PACT_SEALED flow activates it.
-      // Defer the emit a tick so the SHOW_TOAST below renders before
-      // the modal occludes the screen.
-      this._scene?.time?.delayedCall?.(50, () => EventBus.emit('SHOW_DARK_PACT'))
-      rewardText = 'Free Dark Pact — choose your bargain in the Grimoire'
-    }
+    const rewardLabel = this._altarRewardLabel(rewardKind, player)
 
     EventBus.emit('SACRIFICIAL_ALTAR_RESOLVED', {
       cost:   costKind,
       reward: rewardKind,
-      altarMinionBuff: player._altarMinionStatBuff ?? 0,
-      altarBossBuff:   player._altarBossStatBuff   ?? 0,
     })
     EventBus.emit('SHOW_TOAST', { message: `Altar: ${costText}`, type: 'leak', duration: 4500 })
-    EventBus.emit('SHOW_TOAST', { message: `Altar: ${rewardText}`, type: 'gold',  duration: 4500 })
+
+    // Kick off the slot-reel cinematic; the reward applies on its
+    // dismiss callback. Stash the rolled reward + label on flags so a
+    // save/load mid-spin can resume cleanly.
+    flags.sacrificialAltarPendingReward = { rewardKind, rewardLabel }
+    EventBus.emit('SACRIFICIAL_ALTAR_SPIN', { rewardKind, rewardLabel })
+  }
+
+  // Human-readable text for the slot-reveal "YOU RECEIVED" line + the
+  // post-resolve toast. Computed at roll time so it can show the
+  // BEFORE/AFTER stack total in the same string.
+  _altarRewardLabel(rewardKind, player) {
+    if (rewardKind === 'minion_3') {
+      const total = (player._altarMinionStatBuff ?? 0) + 0.03
+      return `+3% permanent minion stats (total: +${(total * 100).toFixed(0)}%)`
+    }
+    if (rewardKind === 'minion_10') {
+      const total = (player._altarMinionStatBuff ?? 0) + 0.10
+      return `+10% permanent minion stats (total: +${(total * 100).toFixed(0)}%)`
+    }
+    if (rewardKind === 'boss_3') {
+      const total = (player._altarBossStatBuff ?? 0) + 0.03
+      return `+3% permanent boss stats (total: +${(total * 100).toFixed(0)}%)`
+    }
+    if (rewardKind === 'boss_10') {
+      const total = (player._altarBossStatBuff ?? 0) + 0.10
+      return `+10% permanent boss stats (total: +${(total * 100).toFixed(0)}%)`
+    }
+    if (rewardKind === 'boss_level') {
+      const nextLv = (this._gameState.boss?.level ?? 1) + 1
+      return `+1 boss level — now Lv ${nextLv}`
+    }
+    if (rewardKind === 'free_pact') {
+      return 'Free Dark Pact — choose in the Grimoire'
+    }
+    return ''
+  }
+
+  // AltarRewardSlot fires this once its reveal animation finishes (or
+  // the player dismisses early). Applies the rolled reward effect.
+  _onAltarSpinDone() {
+    const gs = this._gameState
+    const player = gs.player
+    if (!player) return
+    const flags = gs._eventFlags ?? {}
+    const pending = flags.sacrificialAltarPendingReward
+    if (!pending) return
+    flags.sacrificialAltarPendingReward = null
+    const { rewardKind, rewardLabel } = pending
+
+    if (rewardKind === 'minion_3' || rewardKind === 'minion_10') {
+      const pct = rewardKind === 'minion_3' ? 0.03 : 0.10
+      player._altarMinionStatBuff = (player._altarMinionStatBuff ?? 0) + pct
+      this._reapplyMinionScalingAll()
+    } else if (rewardKind === 'boss_3' || rewardKind === 'boss_10') {
+      const pct = rewardKind === 'boss_3' ? 0.03 : 0.10
+      player._altarBossStatBuff = (player._altarBossStatBuff ?? 0) + pct
+      this._scene?.bossSystem?._recomputeBossFightStats?.()
+    } else if (rewardKind === 'boss_level') {
+      const boss = gs.boss
+      if (boss) {
+        const need = Math.max(0, (boss.xpToNext ?? Balance.BOSS_XP_BASE) - (boss.xp ?? 0))
+        boss.xp = (boss.xp ?? 0) + need
+        this._scene?.aiSystem?._awardBossXp?.()
+      }
+    } else if (rewardKind === 'free_pact') {
+      // Slot has already closed by the time this fires — open the
+      // Grimoire on the next tick so transitions don't overlap.
+      this._scene?.time?.delayedCall?.(50, () => EventBus.emit('SHOW_DARK_PACT'))
+    }
+
+    EventBus.emit('SHOW_TOAST', { message: `Altar: ${rewardLabel}`, type: 'gold',  duration: 4500 })
   }
 
   // Walk every live minion through applyMinionScaling using its captured
@@ -1402,8 +1447,9 @@ export class EventSystem {
         flags.cursedRelicDecided = false
         break
       case 'sacrificial_altar':
-        flags.sacrificialAltarDecided = false
-        flags.sacrificialAltarCost    = null
+        flags.sacrificialAltarDecided        = false
+        flags.sacrificialAltarCost           = null
+        flags.sacrificialAltarPendingReward  = null
         break
       case 'demons_wager':
         flags.demonsWagerDecided = false

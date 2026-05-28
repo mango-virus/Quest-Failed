@@ -36,6 +36,7 @@ import { GameOverOverlay }      from './GameOverOverlay.js'
 import { PactPicker }           from './PactPicker.js'
 import { TinkererPicker }       from './TinkererPicker.js'
 import { DevEventsButton }      from './DevEventsButton.js'
+import { AltarRewardSlot }      from './AltarRewardSlot.js'
 import { DungeonFx }            from './DungeonFx.js'
 import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
@@ -133,6 +134,9 @@ export class HudRoot {
     // (lazy — its constructor doesn't append anything, so it's safe to
     // build BEFORE the mount() below).
     this._tinkererPicker  = new TinkererPicker()
+    // Sacrificial Altar slot-reveal cinematic — self-mounts on
+    // SACRIFICIAL_ALTAR_SPIN (also lazy, safe to build pre-mount).
+    this._altarRewardSlot = new AltarRewardSlot()
     mount(this._stage, this._panels.map(p => p.el))
     // DungeonFx, BossFightOverlay, and EventBanner self-mount into
     // #hud-stage. Must be constructed AFTER the mount() above — that call
@@ -322,6 +326,7 @@ export class HudRoot {
     this._gameOverOverlay?.destroy();this._gameOverOverlay = null
     this._pactPicker?.destroy();     this._pactPicker = null
     this._tinkererPicker?.destroy(); this._tinkererPicker = null
+    this._altarRewardSlot?.destroy(); this._altarRewardSlot = null
     this._devEventsButton?.destroy(); this._devEventsButton = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
     this._eventFx?.destroy();        this._eventFx = null

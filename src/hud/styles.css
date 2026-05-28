@@ -2269,6 +2269,154 @@ body {
 }
 
 /* ═════════════════════════════════════════════════════════════════
+   Sacrificial Altar reward reveal — slot-machine cinematic.
+   AltarRewardSlot.js spins a vertical emoji reel that lands on the
+   winning reward, then fades in the reward name + CONTINUE button.
+   ═════════════════════════════════════════════════════════════════ */
+.qf-altar-slot-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9300;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center,
+    rgba(60, 4, 6, 0.7) 0%,
+    rgba(3, 1, 1, 0.95) 70%);
+  opacity: 0;
+  pointer-events: auto;
+  animation: qf-altar-slot-fadein 220ms ease-out forwards;
+}
+.qf-altar-slot-modal.closing { animation: qf-altar-slot-fadeout 280ms ease-in forwards; }
+@keyframes qf-altar-slot-fadein  { to { opacity: 1; } }
+@keyframes qf-altar-slot-fadeout { to { opacity: 0; } }
+
+.qf-altar-slot-card {
+  position: relative;
+  background: linear-gradient(180deg, #1c0a0c, #07020303);
+  border: 2px solid #c83040;
+  padding: 26px 24px 18px;
+  width: min(420px, 92vw);
+  text-align: center;
+  font-family: var(--pix);
+  box-shadow: 0 0 36px rgba(200, 48, 64, 0.5);
+}
+.qf-altar-slot-title {
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #ff8a8a;
+  text-shadow: 0 0 12px rgba(220, 40, 50, 0.7);
+  margin-bottom: 18px;
+}
+
+/* Reel window — single-row viewport over the tall emoji strip. The
+   --final-y CSS var is driven by JS so we don't have to hardcode the
+   winning row offset. */
+.qf-altar-slot-reel-wrap {
+  position: relative;
+  width: 200px;
+  height: 96px;             /* one row tall — matches ROW_H in the JS */
+  margin: 0 auto;
+  border: 1px solid #6a1018;
+  background: rgba(8, 2, 3, 0.95);
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 18px rgba(200, 48, 64, 0.4),
+    0 0 14px rgba(200, 48, 64, 0.35);
+}
+.qf-altar-slot-window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.qf-altar-slot-strip {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+.qf-altar-slot-row {
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qf-altar-slot-emoji {
+  font-size: 56px;
+  line-height: 1;
+  /* The emoji font's default vertical-align gives weird half-pixel
+     drift on some platforms — pin to baseline. */
+  display: inline-block;
+}
+.qf-altar-slot-fade {
+  position: absolute;
+  left: 0; right: 0;
+  height: 18px;
+  pointer-events: none;
+}
+.qf-altar-slot-fade.top    { top: 0;    background: linear-gradient(180deg, rgba(8,2,3,0.95) 0%, transparent 100%); }
+.qf-altar-slot-fade.bottom { bottom: 0; background: linear-gradient(  0deg, rgba(8,2,3,0.95) 0%, transparent 100%); }
+
+/* Reveal panel — hidden until the reel lands. The .revealed class is
+   added a beat after landing so the eye registers the stop first,
+   then the reward text fades in. */
+.qf-altar-slot-reveal {
+  margin-top: 18px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 320ms ease, transform 320ms ease;
+}
+.qf-altar-slot-modal.revealed .qf-altar-slot-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+.qf-altar-slot-reveal-kicker {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #ff5560;
+  margin-bottom: 6px;
+}
+.qf-altar-slot-reveal-name {
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: #ffd964;
+  text-shadow: 0 0 14px rgba(255, 217, 100, 0.7);
+  margin-bottom: 6px;
+}
+.qf-altar-slot-reveal-detail {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.qf-altar-slot-continue {
+  cursor: pointer;
+  font-family: var(--pix);
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 8px 22px;
+  color: #ffd964;
+  background: rgba(20, 12, 16, 0.92);
+  border: 1px solid #ffd964;
+  box-shadow: 0 0 10px rgba(255, 217, 100, 0.55);
+  transition: color 120ms, box-shadow 120ms, transform 120ms;
+}
+.qf-altar-slot-continue:hover {
+  color: #fff;
+  box-shadow: 0 0 16px rgba(255, 217, 100, 0.85);
+  transform: translateY(-1px);
+}
+
+/* The reel's winning row gets a subtle pulse once landed so the
+   eye is drawn to it before the reveal panel fades in. */
+.qf-altar-slot-modal.landed .qf-altar-slot-reel-wrap {
+  animation: qf-altar-slot-pulse 1.2s ease-in-out infinite;
+}
+@keyframes qf-altar-slot-pulse {
+  0%, 100% { box-shadow: inset 0 0 18px rgba(200, 48, 64, 0.4), 0 0 14px rgba(200, 48, 64, 0.35); }
+  50%      { box-shadow: inset 0 0 26px rgba(255, 217, 100, 0.55), 0 0 24px rgba(255, 217, 100, 0.7); }
+}
+
+/* ═════════════════════════════════════════════════════════════════
    Dev-only TEST EVENT button + picker (mango player only).
    DevEventsButton.js. The button itself sits in the bottom-left
    corner of the HUD; clicking it opens a grid of every dungeon
