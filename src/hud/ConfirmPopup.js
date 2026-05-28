@@ -54,6 +54,13 @@ export class ConfirmPopup {
     const icon         = p.icon          ?? ev?.icon       ?? null
     const kicker       = p.kicker        ?? (ev ? '◆  DUNGEON EVENT  ◆' : null)
     const message      = p.message       ?? 'Are you sure?'
+    // Optional `messageNode` payload — when present (a DOM element or
+    // array of elements built by the caller), it REPLACES the plain
+    // `message` string in the body slot. Used by callers that need
+    // styled / mixed-content message bodies (Sacrificial Altar's
+    // PAY/REWARD typography, etc.). Plain-string callers are
+    // unaffected.
+    const messageNode  = p.messageNode    ?? null
     const confirmLabel = p.confirmLabel  ?? 'YES'
     const cancelLabel  = p.cancelLabel   ?? 'CANCEL'
     // Force-choice mode locks the prompt open until the player commits
@@ -83,7 +90,7 @@ export class ConfirmPopup {
           h('div', { className: 'qf-eventconfirm-title' }, title),
         ].filter(Boolean)),
         h('div', { className: 'qf-eventconfirm-rule' }),
-        h('div', { className: 'qf-eventconfirm-message' }, message),
+        h('div', { className: 'qf-eventconfirm-message' }, messageNode ?? message),
         h('div', { className: 'qf-eventconfirm-buttons' }, [
           h('button', {
             className: 'qf-eventconfirm-btn cancel',

@@ -30,6 +30,11 @@ import { AbilitySystem }    from './AbilitySystem.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { createMinion, applyMinionScaling } from '../entities/Minion.js'
 import { entryDoorTile }    from './DungeonGrid.js'
+// `h` is the DOM-tree helper used by every HUD component. Imported
+// here so per-event SHOW_CONFIRM payloads can build styled message
+// bodies (vs the default plain-string message) — see
+// _promptSacrificialAltar's messageNode below.
+import { h }                from '../hud/dom.js'
 
 // Fixed 3-day cadence — every event fires exactly 3 days after the prior
 // one resolved. Set MIN_GAP === MAX_GAP for a deterministic schedule.
@@ -544,13 +549,21 @@ export class EventSystem {
 
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('sacrificial_altar'),
-      // Option A copy (2026-05-27) — minimal cost + cryptic reward. The
-      // resolve-time toast tells the player exactly what they got;
-      // before commit they just see the price and "random buff." See
-      // earlier prompts (and git history) for the verbose variant.
-      message:
-        `PAY: ${rolled.label}\n\n` +
-        `REWARD: random buff`,
+      // Styled DOM body (2026-05-27 v3) — the PAY / REWARD lines are
+      // the actual decision the player is making, so they should read
+      // as headline rows, not body text. Two-row stack with the LABEL
+      // small + dim and the VALUE big + bold + theme-coloured. CSS
+      // class hooks live in styles.css under .qf-altar-prompt-*.
+      messageNode: h('div', { className: 'qf-altar-prompt' }, [
+        h('div', { className: 'qf-altar-prompt-row pay' }, [
+          h('div', { className: 'qf-altar-prompt-label pix' }, 'PAY'),
+          h('div', { className: 'qf-altar-prompt-value pix' }, rolled.label),
+        ]),
+        h('div', { className: 'qf-altar-prompt-row reward' }, [
+          h('div', { className: 'qf-altar-prompt-label pix' }, 'REWARD'),
+          h('div', { className: 'qf-altar-prompt-value pix' }, 'random buff'),
+        ]),
+      ]),
       confirmLabel: 'ACCEPT THE BARGAIN',
       cancelLabel:  'WALK AWAY',
       onConfirm: () => {
