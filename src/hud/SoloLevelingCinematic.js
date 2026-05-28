@@ -101,21 +101,22 @@ export class SoloLevelingCinematic {
   font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#a9c6e8; }
 @keyframes qf-sl-finale-pop { 0%{opacity:0; transform:scale(.6); filter:blur(6px)}
   60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }
-.qf-sl-duelhud { position:absolute; top:calc(9vh + 10px); left:50%; transform:translateX(-50%);
-  z-index:35; pointer-events:none; display:flex; align-items:center; gap:14px;
+.qf-sl-duelhud { position:absolute; top:calc(9vh + 14px); left:50%; transform:translateX(-50%);
+  z-index:35; pointer-events:none; display:flex; align-items:center; gap:20px;
   font-family:'Press Start 2P','Courier New',monospace; opacity:0; transition:opacity .5s ease; }
 .qf-sl-duelhud.show { opacity:1; }
-.qf-sl-duelhud .qf-sl-side { display:flex; flex-direction:column; gap:5px; width:min(34vw,360px); }
+.qf-sl-duelhud .qf-sl-side { display:flex; flex-direction:column; gap:8px; width:min(42vw,500px); }
 .qf-sl-duelhud .qf-sl-side.right { align-items:flex-end; }
-.qf-sl-duelhud .qf-sl-name { font-size:clamp(8px,1vw,12px); letter-spacing:2px; white-space:nowrap; }
+.qf-sl-duelhud .qf-sl-name { font-size:clamp(11px,1.5vw,18px); letter-spacing:2px; white-space:nowrap; }
 .qf-sl-duelhud .qf-sl-side.left  .qf-sl-name { color:#bfe3ff; text-shadow:0 0 10px rgba(74,160,255,.8); }
 .qf-sl-duelhud .qf-sl-side.right .qf-sl-name { color:#ffc2b8; text-shadow:0 0 10px rgba(255,80,60,.8); }
-.qf-sl-duelhud .qf-sl-track { width:100%; height:12px; background:rgba(4,8,16,.82);
-  border:2px solid rgba(120,150,200,.45); border-radius:2px; overflow:hidden; position:relative; }
+.qf-sl-duelhud .qf-sl-track { width:100%; height:26px; background:rgba(4,8,16,.85);
+  border:3px solid rgba(120,150,200,.5); border-radius:3px; overflow:hidden; position:relative;
+  box-shadow:0 0 14px rgba(58,139,255,.35); }
 .qf-sl-duelhud .qf-sl-fill { position:absolute; top:0; bottom:0; width:100%; transition:width .16s linear; }
 .qf-sl-duelhud .qf-sl-side.left  .qf-sl-fill { left:0;  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); }
 .qf-sl-duelhud .qf-sl-side.right .qf-sl-fill { right:0; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
-.qf-sl-duelhud .qf-sl-vs { font-size:clamp(12px,1.6vw,20px); color:#e8eefc; text-shadow:0 0 10px rgba(120,150,220,.8); }`
+.qf-sl-duelhud .qf-sl-vs { font-size:clamp(18px,2.4vw,34px); color:#e8eefc; text-shadow:0 0 12px rgba(120,150,220,.85); }`
     const el = document.createElement('style')
     el.id = 'qf-sl-duel-css'
     el.textContent = css
@@ -362,10 +363,6 @@ export class SoloLevelingCinematic {
     this._showLetterbox()
     this._showDuelHud(bossName)
     if (this._vs) this._vs.remove()
-    const pct = Math.round((buff - 1) * 100)
-    const sub = shadows > 0
-      ? `STATS MATCHED  ·  +${pct}%  ·  ${shadows} SHADOW${shadows === 1 ? '' : 'S'}`
-      : 'STATS MATCHED  ·  EVEN TERMS'
     this._vs = h('div', { className: 'qf-sl-vs' }, [
       h('div', { className: 'qf-sl-vs-dim' }),
       h('div', { className: 'qf-sl-vs-row' }, [
@@ -373,7 +370,6 @@ export class SoloLevelingCinematic {
         h('div', { className: 'qf-sl-vs-mark' }, 'VS'),
         h('div', { className: 'qf-sl-vs-side right' }, String(bossName).toUpperCase()),
       ]),
-      h('div', { className: 'qf-sl-vs-sub' }, sub),
     ])
     this._vs.addEventListener('click', () => this._dismissVs())
     this._stage.appendChild(this._vs)

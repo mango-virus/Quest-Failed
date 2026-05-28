@@ -76,12 +76,18 @@ export class BossFightOverlay {
 
   _wireEvents() {
     const sub = (event, fn) => { EventBus.on(event, fn); this._listeners.push([event, fn]) }
-    sub('BOSS_FIGHT_STARTED', () => this._onIncoming())
+    sub('BOSS_FIGHT_STARTED', (p) => this._onIncoming(p))
     sub('BOSS_FIGHT_RESOLVED', (p) => this._onResolved(p))
   }
 
   // ─── Bar build + intro banner ──────────────────────────────────
-  _onIncoming() {
+  _onIncoming(payload) {
+    // Solo Leveling — the Shadow Monarch duel runs its OWN cinematic HUD
+    // (letterbox + two-bar header + finale via SoloLevelingCinematic). Suppress
+    // the standard boss-fight chrome (vignette + bottom HP bar + "BOSS FIGHT"
+    // banner + result slate) for his duel so the two don't double up.
+    if (payload?.triggeringAdventurer?._shadowMonarch) { this._isDuel = true; return }
+    this._isDuel = false
     this._buildVignette()
     // The intro "BOSS FIGHT" announcement now rides the shared
     // EventBanner (top-of-gameplay slam-in slate). Fires once per day
@@ -330,6 +336,9 @@ export class BossFightOverlay {
       this._bar?.classList.remove('open', 'fading')
       this._vignette?.classList.remove('open', 'fading')
     }, 600)
+    // Solo Leveling — the duel shows its own win/loss finale card; skip the
+    // standard result banner so they don't double up.
+    if (this._isDuel) { this._isDuel = false; return }
     this._announceResult(winner, deathsRemaining, bossHpRemaining)
   }
 
