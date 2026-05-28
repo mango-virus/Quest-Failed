@@ -26,6 +26,7 @@ export class SoloLevelingCinematic {
     this._vs = null         // duel VS card
     this._vignette = null   // persistent edge shadow
     this._letterbox = null  // duel cinematic bars
+    this._finale = null     // duel win/loss climax card
     if (!this._stage) return
     this._ensureDuelCss()
     this._wire()
@@ -61,7 +62,26 @@ export class SoloLevelingCinematic {
 .qf-sl-beatlabel.enrage { color:#ffd2ca; text-shadow:0 0 18px rgba(255,64,40,.95), 0 2px 0 #1a0202; }
 .qf-sl-beatlabel.show { animation:qf-sl-beat-anim 1.5s cubic-bezier(.2,.9,.2,1) forwards; }
 @keyframes qf-sl-beat-anim { 0%{opacity:0; transform:scale(.7)} 16%{opacity:1; transform:scale(1.06)}
-  72%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }`
+  72%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }
+.qf-sl-finale { position:absolute; inset:0; z-index:36; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; opacity:0; transition:opacity .4s ease; }
+.qf-sl-finale.show { opacity:1; }
+.qf-sl-finale.closing { opacity:0; }
+.qf-sl-finale::before { content:''; position:absolute; inset:0;
+  background:radial-gradient(circle at 50% 50%, rgba(3,8,20,.0) 30%, rgba(2,4,10,.72) 100%); }
+.qf-sl-finale-kicker { position:relative; font-family:'Press Start 2P','Courier New',monospace;
+  font-size:clamp(9px,1.1vw,13px); letter-spacing:5px; color:#7fb4ff;
+  text-shadow:0 0 12px rgba(74,160,255,.8); }
+.qf-sl-finale-title { position:relative; font-family:'Press Start 2P','Courier New',monospace;
+  font-size:clamp(20px,3.4vw,44px); letter-spacing:3px;
+  animation:qf-sl-finale-pop .6s cubic-bezier(.18,.9,.25,1) both; }
+.qf-sl-finale.win  .qf-sl-finale-title { color:#dff0ff; text-shadow:0 0 26px rgba(74,160,255,.95), 0 3px 0 #02040a; }
+.qf-sl-finale.loss .qf-sl-finale-title { color:#ffd6cf; text-shadow:0 0 26px rgba(255,70,46,.9), 0 3px 0 #1a0202; }
+.qf-sl-finale-sub { position:relative; font-family:'Press Start 2P','Courier New',monospace;
+  font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#a9c6e8; }
+@keyframes qf-sl-finale-pop { 0%{opacity:0; transform:scale(.6); filter:blur(6px)}
+  60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }`
     const el = document.createElement('style')
     el.id = 'qf-sl-duel-css'
     el.textContent = css
@@ -75,6 +95,8 @@ export class SoloLevelingCinematic {
     sub('SHADOW_MONARCH_DUEL', (p) => this._onDuel(p ?? {}))
     // Rising-arc phase beats — boss enrage / Monarch power surge.
     sub('SHADOW_MONARCH_DUEL_BEAT', (p) => this._onDuelBeat(p ?? {}))
+    // Duel climax — shadow execution (win) / last stand (loss).
+    sub('SHADOW_MONARCH_DUEL_END', (p) => this._onDuelEnd(p ?? {}))
     // Lift the vignette (and tear down any lingering card) the moment the
     // Monarch is gone, or at day end as a catch-all.
     sub('ADVENTURER_DIED', (p) => { if (p?.adventurer?._shadowMonarch) this._end() })
@@ -181,6 +203,30 @@ export class SoloLevelingCinematic {
     this._after(1550, () => lbl.remove())
   }
 
+  // ── Duel climax — shadow execution (win) / last stand (loss) ──────────────
+  // Uses raw setTimeout (NOT _after) so the card outlives _end() — which fires
+  // moments later on the Monarch's death/flee and would otherwise clear the
+  // removal timer, stranding the card on screen.
+  _onDuelEnd({ result, bossName = 'THE BOSS' } = {}) {
+    if (this._finale) this._finale.remove()
+    const win = result === 'win'
+    const card = h('div', { className: `qf-sl-finale ${win ? 'win' : 'loss'}` }, [
+      h('div', { className: 'qf-sl-finale-kicker' }, win ? '◆  SOLO LEVELING  ◆' : '◆  THE LIGHT DIMS  ◆'),
+      h('div', { className: 'qf-sl-finale-title' }, win ? 'THE MONARCH PREVAILS' : 'THE MONARCH FALLS'),
+      h('div', { className: 'qf-sl-finale-sub' },
+        win ? `${String(bossName).toUpperCase()} IS NO MORE` : `${String(bossName).toUpperCase()} STANDS UNBROKEN`),
+    ])
+    this._finale = card
+    this._stage.appendChild(card)
+    // eslint-disable-next-line no-unused-expressions
+    card.offsetHeight
+    card.classList.add('show')
+    setTimeout(() => {
+      card.classList.add('closing')
+      setTimeout(() => { card.remove(); if (this._finale === card) this._finale = null }, 520)
+    }, 2800)
+  }
+
   // ── Duel VS card ─────────────────────────────────────────────────────────
   _onDuel({ bossName = 'YOUR BOSS', shadows = 0, buff = 1 } = {}) {
     this._showLetterbox()
@@ -242,5 +288,6 @@ export class SoloLevelingCinematic {
     this._vs?.remove(); this._vs = null
     this._vignette?.remove(); this._vignette = null
     this._letterbox?.remove(); this._letterbox = null
+    this._finale?.remove(); this._finale = null
   }
 }

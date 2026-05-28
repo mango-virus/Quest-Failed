@@ -2944,6 +2944,9 @@ export class BossSystem {
   _endFight(winner) {
     if (this._fightEnded) return
     this._fightEnded = true
+    // Capture duel state BEFORE the reset block clears it — drives the bespoke
+    // Shadow Monarch climax below.
+    const wasDuel = !!this._duelMode
 
     const boss = this._gameState.boss
 
@@ -2981,6 +2984,29 @@ export class BossSystem {
       window.setTimeout(() => {
         if (this._scene?.time) this._scene.time.timeScale = 1
       }, 400)
+    }
+
+    // Solo Leveling — bespoke duel climax. WIN: the boss shatters into shadow
+    // (rides the slow-mo above). LOSS: the Monarch falls in a final dark burst.
+    // Pure FX + a DOM finale pop (SHADOW_MONARCH_DUEL_END); the kill/flee +
+    // achievement are still handled by the standard roster loop below.
+    if (wasDuel && boss) {
+      const monarch = this._fightStates ? [...this._fightStates.values()][0]?.adv : null
+      if (winner === 'party' && (boss.hp ?? 0) <= 0) {
+        for (let i = 0; i < 6; i++) {
+          this._emitFx({ kind: 'monarch_burst', x: boss.worldX + (Math.random() - 0.5) * 22, y: boss.worldY + (Math.random() - 0.5) * 22 })
+        }
+        this._emitFx({ kind: 'shadow_dash',  x: boss.worldX, y: boss.worldY })
+        this._emitFx({ kind: 'shadow_slash', x: boss.worldX, y: boss.worldY, ang: Math.random() * Math.PI * 2 })
+        this._scene.cameras?.main?.shake?.(380, 0.011)
+        EventBus.emit('SHADOW_MONARCH_DUEL_END', { result: 'win', bossName: this._duelBossName() })
+      } else if (winner === 'boss') {
+        const fx = monarch ?? boss
+        this._emitFx({ kind: 'shadow_dash',  x: fx.worldX, y: fx.worldY })
+        this._emitFx({ kind: 'monarch_burst', x: fx.worldX, y: fx.worldY })
+        this._scene.cameras?.main?.shake?.(300, 0.008)
+        EventBus.emit('SHADOW_MONARCH_DUEL_END', { result: 'loss', bossName: this._duelBossName() })
+      }
     }
     const finalParty = []
 
