@@ -58,6 +58,9 @@ const DEFAULT_METRICS = {
   killsTotal:                 0,
   soulsTotal:                 0,
   veteransKilled:             0,
+  // Best single-run veteran-kill count (gates Veteran Exterminator —
+  // 50 veterans in ONE run). Career total stays in veteransKilled.
+  veteransKilledInRunMax:     0,
   // Career cumulative adventurer kills credited to traps (across ALL
   // runs). Gates Curtain Call (Rattle Bones unlock) — changed from the
   // per-run `trapKillsInRunMax` so the player can grind it over time.
@@ -204,6 +207,10 @@ class AchievementSystemImpl {
       roomsPlaced:       0,
       minionsPlaced:     0,
       bossKills:         0,
+      // Veterans (returning escapees) killed this run — feeds the per-run
+      // best `veteransKilledInRunMax` (Veteran Exterminator). Career total
+      // is the separate metric `veteransKilled` (Veteran's Bane).
+      veteransKilled:    0,
       // Trap-credited kills this run. Feeds the per-run best
       // (trapKillsInRunMax) + rolls into the career trapKillsTotal that
       // now gates Curtain Call (Rattle Bones unlock — 500 trap kills
@@ -300,6 +307,10 @@ class AchievementSystemImpl {
     // Veterans (escapeCount > 0 means they fled a previous run and returned).
     if ((adv?.escapeCount ?? 0) > 0) {
       this._metrics.veteransKilled += 1
+      this._runState.veteransKilled = (this._runState.veteransKilled ?? 0) + 1
+      if (this._runState.veteransKilled > this._metrics.veteransKilledInRunMax) {
+        this._metrics.veteransKilledInRunMax = this._runState.veteransKilled
+      }
     }
     // Killer-source tracking — trap kills (per-day for Trap Master) +
     // boss kills (per-run for Boss Slayer).
@@ -349,6 +360,7 @@ class AchievementSystemImpl {
     this._checkMetric('trapKillsTotal')
     this._checkMetric('bossKillsInRunMax')
     this._checkMetric('veteransKilled')
+    this._checkMetric('veteransKilledInRunMax')
     this._checkMetric('classesKilledCount')
   }
 
