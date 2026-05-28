@@ -2015,9 +2015,17 @@ export class BossSystem {
       m?._shadowExtracted && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length)
     const buff = 1 + 0.10 * shadows
     adv.resources = adv.resources ?? {}
-    adv.resources.maxHp = Math.max(1, Math.round((boss.maxHp ?? 1) * buff))
-    adv.resources.hp    = adv.resources.maxHp
+    // Match the boss's MAX HP, but preserve the HP fraction he walked in with
+    // (he is NOT full-healed on entry). e.g. arrives at 50% → still 50% of the
+    // new boss-matched max. Capture the fraction BEFORE swapping maxHp.
+    const prevMax = adv.resources.maxHp ?? adv.resources.hp ?? 1
+    const prevHp  = adv.resources.hp ?? prevMax
+    const hpFrac  = prevMax > 0 ? Math.max(0, Math.min(1, prevHp / prevMax)) : 1
+    adv.resources.maxHp = Math.max(1, Math.round(boss.maxHp ?? 1))
+    adv.resources.hp    = Math.max(1, Math.round(adv.resources.maxHp * hpFrac))
     adv.stats = adv.stats ?? {}
+    // Attack/defense still scale with the shadow army (he hits harder the more
+    // shadows he's claimed); only MAX HP is a flat 1:1 match per design.
     adv.stats.attack    = Math.max(1, Math.round((boss.attack ?? 1) * buff))
     adv.stats.defense   = Math.max(0, Math.round((boss.defense ?? 0) * buff))
     const archId   = this._gameState.player?.bossArchetypeId

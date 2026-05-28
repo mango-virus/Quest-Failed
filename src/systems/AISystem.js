@@ -3943,8 +3943,11 @@ export class AISystem {
     return !!(
       adv?._bossRoyaleInvader ||   // Boss Royale gauntlet (11 boss invaders)
       adv?._monsterInvader   ||   // Rival Dungeon pack (monsters)
-      adv?._rivalBoss        ||   // Rival Dungeon champion
-      adv?._shadowMonarch         // Solo Leveling (never explores / detours)
+      adv?._rivalBoss             // Rival Dungeon champion
+      // NOTE: Sung Jinwoo (_shadowMonarch) is deliberately EXCLUDED — like the
+      // Speed Runner he keeps a SEEK_BOSS goal but must DISCOVER the throne by
+      // exploring (the knowledge-gated SEEK_BOSS + _exploreFallbackForSeekBoss
+      // path). He doesn't magically know where the boss is.
     )
   }
 
@@ -4024,9 +4027,11 @@ export class AISystem {
     // treasure, no chest detours, no personality variants) so they march
     // straight at the boss room every replan.
     if (adv._speedrunner) return { type: 'SEEK_BOSS' }
-    // Dungeon event: Solo Leveling — the Shadow Monarch always marches on
-    // the throne. He cuts through (and raises) whatever minions intercept
-    // him en route, but never explores or detours.
+    // Dungeon event: Solo Leveling — the Shadow Monarch hunts the throne, but
+    // he does NOT start out knowing where it is (excluded from _beelinesBoss).
+    // This SEEK_BOSS goal is therefore knowledge-gated: he EXPLORES room to
+    // room (via the SEEK_BOSS explore-fallback), cutting through + raising the
+    // minions he meets, until he discovers the boss room — then marches on it.
     if (adv._shadowMonarch) return { type: 'SEEK_BOSS' }
     // Dungeon event: Boss Royale — every invading boss cooperates and
     // beelines the throne (no exploration, no friendly fire). Same pure
