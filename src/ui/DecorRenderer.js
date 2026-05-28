@@ -98,10 +98,11 @@ const TEX = {
 // explicitly listed.
 const THEME_KITS = {
   // Themed rooms now lean on their kit props so each room type reads
-  // distinctly. Generic horror props (skeletons / chains) still appear
-  // mixed in for atmosphere.
-  crypt:               ['skel_floor', 'skull_pile', 'skel_wall', 'chain_single', 'chain_pair', 'skull_relief'],
-  catacombs:           ['skel_floor', 'skull_pile', 'skel_wall', 'chain_single', 'chain_pair', 'skull_relief'],
+  // distinctly. Generic horror props (skeletons / skulls) still appear
+  // mixed in for atmosphere. (Chain props removed from the pool per
+  // user request 2026-05-27.)
+  crypt:               ['skel_floor', 'skull_pile', 'skel_wall', 'skull_relief'],
+  catacombs:           ['skel_floor', 'skull_pile', 'skel_wall', 'skull_relief'],
   // Boss chamber leans on horror props — banner removed per request
   // (was 'banner' first in the list; left a stripped-down kit so the
   // chamber still gets skeletons / skull piles for atmosphere).
@@ -117,17 +118,17 @@ const THEME_KITS = {
   // Armory — forge centrepiece + weapon racks + anvils + crates.
   armory:              ['forge', 'weapon_rack', 'weapon_rack', 'anvil', 'crate', 'skel_floor'],
   // Trap factory — workshop kit: forge + anvil + cauldron + crates.
-  trap_factory:        ['forge', 'anvil', 'cauldron', 'weapon_rack', 'crate', 'skel_floor', 'chain_single'],
+  trap_factory:        ['forge', 'anvil', 'cauldron', 'weapon_rack', 'crate', 'skel_floor'],
   library_of_whispers: ['bookshelf', 'bookshelf', 'bookshelf', 'ritual_circle', 'vase', 'skull'],
-  hall_of_trials:      ['skel_wall', 'chain_pair', 'chain_single', 'weapon_rack'],
-  wandering_gate:      ['skel_wall', 'chain_single'],
-  hall_of_madness:     ['skel_floor', 'skull_pile', 'skull', 'chain_single', 'skull_relief', 'ritual_circle'],
+  hall_of_trials:      ['skel_wall', 'weapon_rack'],
+  wandering_gate:      ['skel_wall'],
+  hall_of_madness:     ['skel_floor', 'skull_pile', 'skull', 'skull_relief', 'ritual_circle'],
   // Wishing well — the well centerpiece + bones / scattered offerings
   // from past supplicants.
-  wishing_well:        ['well', 'skull_pile', 'skull', 'sack', 'chain_single'],
-  false_exit:          ['skel_floor', 'skull', 'chain_single'],
+  wishing_well:        ['well', 'skull_pile', 'skull', 'sack'],
+  false_exit:          ['skel_floor', 'skull'],
   entry_hall:          [],
-  _default:            ['skel_floor', 'skull', 'chain_single'],
+  _default:            ['skel_floor', 'skull'],
 }
 
 // Kinds that should appear AT MOST ONCE per room (large centrepieces /
