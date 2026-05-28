@@ -55,7 +55,7 @@ export class SoloLevelingCinematic {
   background:linear-gradient(0deg,#02040a 0%, #03050e 70%, rgba(3,5,14,0) 100%);
   box-shadow:0 -1px 0 rgba(74,160,255,.5), 0 -6px 18px -6px rgba(58,139,255,.6); }
 .qf-sl-letterbox.show .qf-sl-bar { transform:scaleY(1); }
-.qf-sl-corner { position:absolute; top:14px; left:14px; z-index:21; pointer-events:none;
+.qf-sl-corner { position:absolute; top:14px; left:14px; z-index:42; pointer-events:none;
   font-family:'Press Start 2P','Courier New',monospace; opacity:0; transition:opacity .4s ease; }
 .qf-sl-corner.show { opacity:1; }
 .qf-sl-corner-name { font-size:11px; letter-spacing:2px; color:#bfe3ff;
