@@ -2629,7 +2629,8 @@ body {
 .qf-build-card-tinkered {
   position: absolute;
   top: 4px;
-  right: 4px;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 2px 5px;
   font-family: var(--pix);
   font-size: 7px;
@@ -2641,6 +2642,7 @@ body {
   pointer-events: auto;   /* still need pointer events for the title tooltip */
   z-index: 2;
   animation: qf-build-card-tinkered-pulse 2.6s ease-in-out infinite;
+  white-space: nowrap;    /* keep the "★ UPGRADED" pill on one line */
 }
 @keyframes qf-build-card-tinkered-pulse {
   0%, 100% { box-shadow: 0 0 6px rgba(255,217,100,0.45); }
