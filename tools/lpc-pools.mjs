@@ -641,13 +641,14 @@ POOLS.shadow_monarch = {
   torso:         ['Frock coat'],
   legs:          ['Long Pants'],
   feet:          ['Basic Shoes'],
-  // Saber, not Scimitar: the scimitar (and katana) ship ONLY oversize 128px
-  // art that can't composite into the 64px base sheet, so it rendered
-  // invisible. The saber is a curved single-edged blade (visually ~a
-  // scimitar) that DOES ship standard 64px walk/slash art, so it actually
-  // shows in-hand.
+  // Scimitar: ships ONLY oversize 128px art (walk_128 + slash_128), no standard
+  // 64px frames. The swing (slash_128) renders through the oversize `_atk` sheet
+  // — bake-weapons.cjs upscales the 128px frames to 192px into the slash rows —
+  // so the blade IS visible mid-attack. It has no 64px carry art, so the main
+  // 64px sheet's walk/idle/run show him empty-handed between swings (acceptable
+  // trade-off for the canonical scimitar look the design called for).
   weapon: {
-    items: ['Saber'],
+    items: ['Scimitar'],
     chance: 1.0,
   },
 }
