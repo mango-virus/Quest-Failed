@@ -2376,7 +2376,10 @@ export class BossSystem {
       ((adv.resources?.maxHp ?? 0) > 0 ? (adv.resources.hp ?? 0) / adv.resources.maxHp : 1)
     const p = this._duelWinChance(h)
     const winner = Math.random() < p ? 'monarch' : 'boss'
-    const totalRounds = 8 + Math.floor(Math.random() * 5)   // 8–12 rounds (~5–7s)
+    // Long, suspenseful duel — ~3.5× the old length. Rounds fire every
+    // ROUND_INTERVAL_S (0.6s), so 30–44 rounds ≈ 18–26s of fight at 1× speed
+    // (more clash cycles + later phase beats). Scales down with game speed.
+    const totalRounds = 30 + Math.floor(Math.random() * 15)   // 30–44 rounds (~18–26s)
     const bossStart = boss.hp ?? boss.maxHp ?? 1
     const jinStart  = adv.resources?.hp ?? adv.resources?.maxHp ?? 1
     const winnerMax   = winner === 'monarch' ? (adv.resources?.maxHp ?? 1) : (boss.maxHp ?? 1)
