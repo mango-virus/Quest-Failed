@@ -650,6 +650,12 @@ export class DayPhase extends Phaser.Scene {
     // Rare/late classes (necromancer, twitch_streamer, beast_master, bard)
     // use unlockLevel 3 so they appear once the boss has levelled up twice.
     let classes = allClasses.filter(c =>
+      // Sung Jinwoo (shadow_monarch) is event-ONLY: he spawns solely via
+      // _spawnSoloLeveling. Hard-exclude him from the normal-wave pool (which
+      // also feeds pickWeightedClass + the bounty-hunter / returning-veteran
+      // fallbacks) so the unkillable Monarch can never leak into a regular
+      // wave even if his unlockLevel were ever changed.
+      c.id !== 'shadow_monarch' &&
       (c.unlockLevel ?? 1) <= dungeonLv &&
       (c.unlockDay   ?? 1) <= dayNum,
     )
