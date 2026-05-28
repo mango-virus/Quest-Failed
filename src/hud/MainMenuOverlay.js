@@ -72,6 +72,7 @@ export class MainMenuOverlay {
     this._leaderboard = null
     this._confirm = null
     this._nameEntry = null
+    this._devTools = null
     this._hovered = 'continue'
     this._save = null
     this._closed = false
@@ -189,6 +190,8 @@ export class MainMenuOverlay {
     this._confirm = null
     this._nameEntry?.close()
     this._nameEntry = null
+    this._devTools?.close()
+    this._devTools = null
     // Close the unlock-notification overlay if it's still up (player
     // hits NEW EVIL / CONTINUE / QUIT during the celebration). Its
     // close handler also calls clearPendingUnlocks(), so they don't
@@ -439,26 +442,17 @@ export class MainMenuOverlay {
         mailBadge: (GameRequests.getCachedPlayerMail?.() ?? 0) +
                    (GameRequests.getCachedAdminMail?.() ?? 0) },
     ]
-    // ROOM EDITOR + TILESET EDITOR are dev surfaces — only shown when the
-    // player's name is the cheat handle (PlayerProfile.isCheatName). Regular
-    // players don't see them at all. The menu-items list is re-rendered
-    // (surgically) on name change so flipping into / out of the cheat name
-    // makes these entries appear / disappear without leaving the menu.
+    // Dev surfaces (editors, day-jump, notification tests) are mango-only
+    // and live behind a SINGLE "DEV TOOLS" row that opens DevToolsOverlay —
+    // they used to be listed individually here, but the growing list ran
+    // off the bottom of the panel. One row keeps the menu compact and
+    // scales as more tools are added (just edit DEV_TOOL_GROUPS in
+    // DevToolsOverlay.js + add the matching _activate case). The menu-items
+    // list is re-rendered (surgically) on name change so this row appears /
+    // disappears when flipping into / out of the cheat name.
     if (PlayerProfile.isCheatName()) {
       items.push(
-        { id: 'jump50',     label: 'JUMP TO DAY 50',  sub: 'Late-game wave test (day 50, boss L12)', icon: '▶', color: 'var(--blood)' },
-        { id: 'rooms',      label: 'ROOM EDITOR',     sub: 'Edit room layouts',                     icon: '▤', color: 'var(--poison)' },
-        { id: 'tiles',      label: 'TILESET EDITOR',  sub: 'Author tile themes',                    icon: '▦', color: 'var(--info)' },
-        { id: 'testunlock', label: 'TEST UNLOCKS',    sub: 'Fire sample of each card type',         icon: '✦', color: 'var(--gold-bright, #ffd964)' },
-        // Test rigs for the top-3 celebration. Each fires the leaderboard
-        // unlock card at the chosen rank with sample boss / level / day /
-        // kill data so the designer can sanity-check the gold/silver/
-        // bronze theming + confetti without grinding a real podium run.
-        // Does NOT burn the celebrated-runId gate (the test handler doesn't
-        // touch PlayerProfile.setCelebratedTop3RunId).
-        { id: 'testtop1',   label: 'TEST TOP-3 #1',   sub: 'Fire champion (gold) podium card',      icon: '★', color: '#ffd964' },
-        { id: 'testtop2',   label: 'TEST TOP-3 #2',   sub: 'Fire runner-up (silver) podium card',   icon: '★', color: '#d9e2ec' },
-        { id: 'testtop3',   label: 'TEST TOP-3 #3',   sub: 'Fire podium-finish (bronze) card',      icon: '★', color: '#e09858' },
+        { id: 'devtools', label: 'DEV TOOLS', sub: 'Editors · day-jump · tests', icon: '⚙', color: 'var(--poison)' },
       )
     }
     items.push(
@@ -800,6 +794,13 @@ export class MainMenuOverlay {
       case 'requests':
         this._openGameRequests()
         break
+      case 'devtools':
+        // Mango-only — opens the consolidated dev panel. Each tool in
+        // the panel routes its id back through _activate (so the cases
+        // below are still the single source of truth for what each
+        // shortcut does).
+        this._openDevTools()
+        break
       case 'jump50':
         // Mango dev shortcut — stamps one-shot localStorage flags that
         // ArchetypeSelect._beginRun reads after createGameState to bump
@@ -997,6 +998,23 @@ export class MainMenuOverlay {
       })
       this._requests.open()
     })
+  }
+
+  // Mango-only — opens the consolidated DevToolsOverlay. The overlay
+  // routes each tool's id back through _activate(id), so this method
+  // only handles construction / lifecycle. Lazy import keeps the dev
+  // panel off the bundle for ordinary players (who never see the row).
+  _openDevTools() {
+    if (this._devTools) return
+    import('./DevToolsOverlay.js').then(({ DevToolsOverlay }) => {
+      if (this._closed || !this._el) return
+      if (this._devTools) return
+      this._devTools = new DevToolsOverlay({
+        onAction: (id) => this._activate(id),
+        onClose:  () => { this._devTools = null },
+      })
+      this._devTools.open()
+    }).catch(() => {})
   }
 
   // Dev-only helper — wired to the mango-gated TEST UNLOCKS menu item.

@@ -7417,6 +7417,73 @@ body {
 }
 .qf-mm-item-primary:hover .qf-mm-item-sub { color: rgba(255,255,255,0.85); }
 
+/* ── Dev Tools panel (DevToolsOverlay) ──────────────────────────────── */
+/* Mango-only modal that consolidates the dev shortcuts that used to
+   spill off the main menu. Tool rows mirror the main-menu item look
+   (icon + centered label/sub) but stacked into category groups. */
+.qf-devtools {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 2px;
+}
+.qf-devtools-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qf-devtools-grouphead {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-mute);
+  padding: 0 2px 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--poison) 30%, transparent);
+  margin-bottom: 2px;
+}
+.qf-devtools-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Tool button — built on .btn, themed by the per-tool --item-color
+   var (set inline in the JSX) for the hover border + icon glow. */
+.qf-devtools-tool {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 9px 18px;
+  text-align: center;
+}
+.qf-devtools-tool:hover { border-color: var(--item-color); }
+.qf-devtools-tool-icon {
+  font-size: 16px;
+  color: var(--item-color);
+  opacity: 0.7;
+}
+.qf-devtools-tool:hover .qf-devtools-tool-icon {
+  opacity: 1;
+  text-shadow: 0 0 6px var(--item-color);
+}
+.qf-devtools-tool-textcol { min-width: 0; text-align: center; }
+.qf-devtools-tool-label {
+  font-size: 13px;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+.qf-devtools-tool:hover .qf-devtools-tool-label {
+  color: var(--item-color);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--item-color) 35%, transparent);
+}
+.qf-devtools-tool-sub {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-mute);
+}
+
 /* "NEW" badge — small attention-grabbing pill on menu items the player
    hasn't engaged with yet. Currently used on the ACHIEVEMENTS entry
    until the player opens the overlay once (per-name flag via
