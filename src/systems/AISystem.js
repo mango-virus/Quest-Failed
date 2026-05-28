@@ -1132,6 +1132,22 @@ export class AISystem {
       adv.path    = null
       adv.aiState = 'walking'
     }
+    // Solo Leveling — Sung Jinwoo NEVER flees the dungeon. Any flee goal
+    // (panic, low HP, fear, day-end "all out", or the post-duel boss_defeated
+    // handoff) is turned straight back into SEEK_BOSS — he marches back at the
+    // throne. The ONLY exception is when the player's boss is truly dead (no
+    // lives left): his work is done and he may leave. This catches every flee
+    // path, including the duel's _handOffToAIFlee, so he fights to the death.
+    if (adv._shadowMonarch && adv.goal?.type === 'FLEE') {
+      const boss = this._gameState.boss
+      const bossDead = !!boss && (boss.deathsRemaining ?? 1) <= 0
+      if (!bossDead) {
+        const next = this._pickNextGoal(adv)
+        adv.goal    = (next && next.type !== 'FLEE') ? next : { type: 'SEEK_BOSS' }
+        adv.path    = null
+        adv.aiState = 'walking'
+      }
+    }
     // Succubus charm — adv hunts down a former ally and attacks them.
     // Self-destructs after killing 1 ally, or after 5s of finding nothing.
     if (adv.aiState === 'charmed') {

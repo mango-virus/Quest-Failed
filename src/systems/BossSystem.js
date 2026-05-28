@@ -2618,6 +2618,9 @@ export class BossSystem {
   // chance = threshold * 0.25: default(0.4)→10%, paranoid(0.6)→15%,
   // traumatized(0.95)→24%, speed_runner(0.12)→3%.
   _shouldFleeBoss(adv) {
+    // Solo Leveling — Sung Jinwoo NEVER withdraws from the duel. He fights the
+    // boss until one of them is dead, no HP-threshold retreat.
+    if (adv?._shadowMonarch) return false
     const hp     = adv.resources.hp
     const maxHp  = adv.resources.maxHp ?? 1
     const hpFrac = hp / Math.max(1, maxHp)
