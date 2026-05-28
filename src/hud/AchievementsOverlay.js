@@ -676,8 +676,20 @@ export class AchievementsOverlay {
       })
     }
 
+    // Non-legendary title achievements: tint the EARNED card's border +
+    // bg with the title's own color so the card reflects the title (not
+    // its category color — e.g. combat's pink on Reaper / Untouchable).
+    // Legendary cards keep their showcase shimmer border. Only applied
+    // once unlocked, matching the category-border rules.
+    const cardTitleColor = (isUnlocked && def.title && !def.legendary)
+      ? titleColorById(def.id) : null
+
     const cardAttrs = {
       className: 'qf-ach-card',
+      style: cardTitleColor
+        ? { borderColor: cardTitleColor,
+            background: `color-mix(in srgb, ${cardTitleColor} 5%, var(--bg-1))` }
+        : undefined,
       dataset: {
         id:        def.id,
         category:  def.category,
