@@ -540,16 +540,13 @@ export class EventSystem {
 
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('sacrificial_altar'),
+      // Option A copy (2026-05-27) — minimal cost + cryptic reward. The
+      // resolve-time toast tells the player exactly what they got;
+      // before commit they just see the price and "random buff." See
+      // earlier prompts (and git history) for the verbose variant.
       message:
-        `The altar demands a price for its power.\n\n` +
-        `THE ALTAR WILL TAKE:\n` +
-        `  ► ${rolled.label}\n\n` +
-        `POSSIBLE REWARDS (one rolled at random):\n` +
-        `  • Permanent +3% or +10% to all minion stats\n` +
-        `  • Permanent +3% or +10% to boss stats\n` +
-        `  • +1 boss level (instant)\n` +
-        `  • A free Dark Pact of your choice\n\n` +
-        `Refusing costs nothing. Accepting commits to the unknown reward.`,
+        `PAY: ${rolled.label}\n\n` +
+        `REWARD: random buff`,
       confirmLabel: 'ACCEPT THE BARGAIN',
       cancelLabel:  'WALK AWAY',
       onConfirm: () => {
