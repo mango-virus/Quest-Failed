@@ -34,7 +34,8 @@ import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { PlayerProfile }     from '../systems/PlayerProfile.js'
 import { Leaderboard }       from '../systems/Leaderboard.js'
 import { COMPANIONS, getCompanion, COMPANION_ORDER } from '../systems/companions.js'
-import { titleFxClassById, titleFxBorderClassById, titleColorById } from './titleFx.js'
+import { titleFxClassById, titleFxBorderClassById, titleColorById,
+         titleFxClassByName, titleFxBorderClassByName, titleColorByName } from './titleFx.js'
 
 // Filter tabs. The LEADERBOARD entry is intentionally NOT in this list —
 // it's its own prominent button (see `_render` below) so it reads as a
@@ -437,6 +438,30 @@ export class AchievementsOverlay {
         ` · ${titleCount} unlocked  ▼`),
       titleCount === 1 && h('span', { className: 'qf-ach-titlechip-count' }, '  ▼'),
     ])
+  }
+
+  // Achievement-leaderboard podium title chip — fx titles get the
+  // animated gradient border + gradient text; color titles get their
+  // solid color on words + border; plain titles fall back to the rank
+  // color. Resolved by NAME (remote player's title string).
+  _lbTitleChip(title, rankColor) {
+    const fxBorder = titleFxBorderClassByName(title)
+    if (fxBorder) {
+      return h('div', { className: ('pix qf-ach-lb-podium-title ' + fxBorder).trim() }, [
+        h('span', { className: titleFxClassByName(title) }, title),
+      ])
+    }
+    const tColor = titleColorByName(title)
+    if (tColor) {
+      return h('div', {
+        className: 'pix qf-ach-lb-podium-title',
+        style: { color: tColor, borderColor: tColor },
+      }, title)
+    }
+    return h('div', {
+      className: 'pix qf-ach-lb-podium-title',
+      style: { color: rankColor, borderColor: rankColor },
+    }, title)
   }
 
   _renderTitlePicker() {
@@ -1240,12 +1265,11 @@ export class AchievementsOverlay {
           textShadow: `0 0 6px ${c}66`,
         },
       }, isYou ? `${player.name} · YOU` : player.name),
-      // Title chip — when the player has an active title, show it here
-      // (matches the main lb's accolade chip slot).
-      player.activeTitle && h('div', {
-        className: 'pix qf-ach-lb-podium-title',
-        style: { color: c, borderColor: c },
-      }, player.activeTitle),
+      // Title chip — render with the title's OWN look (fx gradient border
+      // + gradient text, or solid title color), resolved by name since
+      // this is a remote player's title string. Falls back to the rank
+      // color for plain titles.
+      player.activeTitle && this._lbTitleChip(player.activeTitle, c),
       // Trophy count — the headline stat for this leaderboard. Built as
       // a stylized block: trophy glyph + big rank-colored number + "/45"
       // + progress bar fill showing % of total achievements unlocked.
