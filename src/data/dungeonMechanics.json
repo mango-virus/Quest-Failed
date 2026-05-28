@@ -1849,7 +1849,7 @@
     "id": "avatar_of_ruin",
     "name": "Avatar of Ruin",
     "symbol": "⊛",
-    "description": "Your boss is invincible for the first 10 seconds of every boss fight.",
+    "description": "Your boss is invincible for the first 5 seconds of every boss fight.",
     "tradeoffDescription": "The boss's maximum HP is cut in half — a brief god, then glass.",
     "rarity": "legendary",
     "unlockLevel": 5,

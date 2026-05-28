@@ -135,7 +135,7 @@ Normal-schema legendaries (perk = "The Deal", cost = "The Price") tuned for **ma
 
 1. ⚔️ **Colossus Heart** — Up: boss max HP doubled. / Down: boss attacks 50% slower (attack ×0.5).
 2. ⚔️ **The Apex Tyrant** — Up: boss +100% max HP, +50% attack & defense. / Down: every adventurer wave is doubled for the rest of the run.
-3. ⚔️ **Avatar of Ruin** — Up: boss is invincible for the first 10 seconds of every boss fight. / Down: boss max HP cut by 50%.
+3. ⚔️ **Avatar of Ruin** — Up: boss is invincible for the first 5 seconds of every boss fight. / Down: boss max HP cut by 50%.
 4. ⚔️ **Wrath Unbound** — Up: boss gains up to +100% attack as its HP falls. / Down: boss takes +50% more damage.
 5. **Crown of Avarice** — Up: all gold income doubled. / Down: every 5th day a guaranteed hero-grade raid (wave doubled, +50% adventurer stats).
 6. **The Iron Price** — Up: your minions and traps deal double damage. / Down: you can never earn gold again (no kills, no treasure).

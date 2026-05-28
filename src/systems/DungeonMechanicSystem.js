@@ -2173,6 +2173,10 @@ function _buildHandlerRegistry() {
         gameState._mechanicFlags.undyingCourtQueue.push({
           classId: adventurer.classId ?? 'adventurer',
           name:    adventurer.name ?? adventurer.classId ?? 'Adventurer',
+          level:   adventurer.level ?? 1,
+          // LPC sheet id so MinionRenderer draws the risen minion as the dead
+          // adventurer's sprite (tinted) — the "of its own class" look.
+          spriteVariant: adventurer.spriteVariant ?? null,
           maxHp:   Math.max(1, Math.round(adventurer.resources?.maxHp ?? adventurer.resources?.hp ?? 20)),
           attack:  Math.max(1, Math.round(adventurer.stats?.attack ?? 5)),
           defense: Math.max(0, Math.round(adventurer.stats?.defense ?? 0)),
@@ -2182,7 +2186,9 @@ function _buildHandlerRegistry() {
         const queue = gameState._mechanicFlags.undyingCourtQueue ?? []
         if (queue.length === 0) return
         const defs = scene?.cache?.json?.get('minionTypes') ?? []
-        const baseDef = defs[0]
+        // Same base the Lich Necromancy uses; the dead adv's sprite is layered
+        // on top via _raisedSpriteVariant so it reads as an undead of its class.
+        const baseDef = defs.find(d => d.id === 'skeleton1') ?? defs[0]
         if (!baseDef) { gameState._mechanicFlags.undyingCourtQueue = []; return }
         const bossRoom = gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         const bossLevel = gameState.boss?.level ?? 1
@@ -2201,14 +2207,23 @@ function _buildHandlerRegistry() {
           const tx = (bossRoom?.gridX ?? 1) + 1
           const ty = (bossRoom?.gridY ?? 1) + 1
           const minion = createMinion(baseDef, { x: tx, y: ty }, bossRoom?.instanceId ?? null, { class: 'roster', bossLevel })
-          // Carry the fallen hero's combat stats (its "kit" in stat terms).
+          // Rise as an undead of the fallen hero's class — mirror the Lich's
+          // Necromancy recipe: class-tinted adventurer sprite + carried stats +
+          // class-kit retention (range / damage type / tags).
+          minion.isUndead             = true
+          minion._undeadCourt         = true
+          minion._raisedFromAdvDeath  = true
+          minion._raisedClassId       = snap.classId
+          minion._raisedAdvName       = snap.name
+          minion._raisedSpriteVariant = snap.spriteVariant ?? null
+          minion.displayName          = 'Risen ' + snap.name
+          // Carry the hero's combat profile, then re-apply its class kit (range,
+          // damage type, tags) the same way the Lich raise does.
           minion._baseMaxHp = snap.maxHp
           minion._baseAtk   = snap.attack
           if (minion.stats) minion.stats.defense = snap.defense
           applyBossLevelToMinion(minion, bossLevel)
-          minion._undeadCourt = true
-          minion._raisedFromAdvDeath = true
-          minion.displayName = 'Risen ' + snap.name
+          try { scene?.bossArchetypeSystem?._applyClassRetentionBuffs?.(minion, snap.classId) } catch {}
           gameState.minions.push(minion)
           gameState._mechanicFlags.undyingCourtCount = (gameState._mechanicFlags.undyingCourtCount ?? 0) + 1
           EventBus.emit('MINION_PLACED', { minion })

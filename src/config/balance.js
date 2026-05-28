@@ -724,7 +724,7 @@ export const Balance = {
   MECHANIC_APEX_WAVE_MULT:                2,
   // Avatar of Ruin — boss invincible the first 10s of each fight; max HP -50%.
   MECHANIC_AVATAR_HP_MULT:                0.5,
-  MECHANIC_AVATAR_INVULN_MS:              10000,
+  MECHANIC_AVATAR_INVULN_MS:              5000,
   // Wrath Unbound — up to +100% boss attack as HP drops; boss takes +50% dmg.
   MECHANIC_WRATH_MAX_ATK_BONUS:           1.0,   // +100% at 0 HP, scales with missing HP
   MECHANIC_WRATH_DMG_TAKEN_MULT:          1.5,

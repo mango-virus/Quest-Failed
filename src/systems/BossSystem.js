@@ -578,7 +578,7 @@ export class BossSystem {
             // AOE damage + hit-flash on each victim — fleeing adventurers
             // still take the hit while they're in range.
             const def   = fs.adv.stats?.defense ?? 0
-            const taken = Math.max(1, Math.floor(boss.attack * SLAM_DMG_FRAC - def))
+            const taken = Math.max(1, Math.floor(this._bossAtkScaled(boss) * SLAM_DMG_FRAC - def))
             fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - taken)
             this._emitFx({ kind: 'strike', x: fs.adv.worldX, y: fs.adv.worldY })
             if (this._roundLog) {
@@ -1619,6 +1619,21 @@ export class BossSystem {
   // tracker, future damage-dealt VFX) rely on this single emit point.
   // We wrap the existing logic in a before/after hp snapshot so the
   // emit's `amount` reflects what actually landed (after clamps).
+  // LEGENDARY · scaled boss attack — Wrath Unbound (up to +100% as HP falls)
+  // and Sudden Death (5x). Routed through EVERY boss-damage path (melee, slam,
+  // and the ability/AOE attacks) so the legendary scales all of them, not just
+  // the basic swing.
+  _bossAtkScaled(boss) {
+    const f = this._gameState?._mechanicFlags ?? {}
+    let atk = boss?.attack ?? 0
+    if (f.wrathUnbound) {
+      const missing = 1 - Math.max(0, Math.min(1, (boss?.hp ?? 0) / Math.max(1, boss?.maxHp ?? 1)))
+      atk *= (1 + (Balance.MECHANIC_WRATH_MAX_ATK_BONUS ?? 1) * missing)
+    }
+    if (f.suddenDeath) atk *= (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5)
+    return atk
+  }
+
   _applyDamageToBoss(boss, dmg) {
     // LEGENDARY pact modifiers on incoming boss damage:
     const lf  = this._gameState?._mechanicFlags ?? {}
@@ -2017,7 +2032,7 @@ export class BossSystem {
         const targets = [...defenders]
           .sort((a, b) => Math.hypot(a.adv.worldX - boss.worldX, a.adv.worldY - boss.worldY) - Math.hypot(b.adv.worldX - boss.worldX, b.adv.worldY - boss.worldY))
           .slice(0, Balance.MECHANIC_HELLFIRE_TARGETS)
-        const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_HELLFIRE_DMG_MULT))
+        const dmg = Math.max(1, Math.floor(this._bossAtkScaled(boss) * Balance.MECHANIC_HELLFIRE_DMG_MULT))
         for (const fs of targets) {
           fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - dmg)
         }
@@ -2039,7 +2054,7 @@ export class BossSystem {
         if (score > bestScore) { bestScore = score; target = fs }
       }
       if (target) {
-        const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_LIGHTNING_DMG_MULT))
+        const dmg = Math.max(1, Math.floor(this._bossAtkScaled(boss) * Balance.MECHANIC_LIGHTNING_DMG_MULT))
         target.adv.resources.hp = Math.max(0, target.adv.resources.hp - dmg)
         const cost = Math.max(1, Math.floor((boss.maxHp ?? 0) * Balance.MECHANIC_LIGHTNING_BOSS_HP_COST_FRAC))
         boss.hp = Math.max(0, (boss.hp ?? 0) - cost)
@@ -2050,7 +2065,7 @@ export class BossSystem {
 
     // ── Shockwave Slam ──
     if (flags.shockwaveSlam && (boss._shockwaveReadyAt ?? 0) <= now && (boss._shockwaveStunUntil ?? 0) <= now) {
-      const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SHOCKWAVE_DMG_MULT))
+      const dmg = Math.max(1, Math.floor(this._bossAtkScaled(boss) * Balance.MECHANIC_SHOCKWAVE_DMG_MULT))
       for (const fs of defenders) {
         fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - dmg)
       }
@@ -2069,7 +2084,7 @@ export class BossSystem {
       if (nearest) {
         boss.worldX = nearest.adv.worldX - Balance.TILE_SIZE
         boss.worldY = nearest.adv.worldY
-        const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SPECTRAL_REACH_DMG_MULT))
+        const dmg = Math.max(1, Math.floor(this._bossAtkScaled(boss) * Balance.MECHANIC_SPECTRAL_REACH_DMG_MULT))
         nearest.adv.resources.hp = Math.max(0, nearest.adv.resources.hp - dmg)
         boss._spectralReadyAt = now + Balance.MECHANIC_SPECTRAL_REACH_COOLDOWN_MS
         EventBus.emit('PACT_BOSS_SPECTRAL_FIRED', { x: boss.worldX, y: boss.worldY, targetId: nearest.adv.instanceId, damage: dmg })
@@ -2110,7 +2125,7 @@ export class BossSystem {
           boss._soulDrainNextTick = now + Balance.MECHANIC_SOUL_DRAIN_TICK_MS
           const target = defenders.find(fs => fs.adv.instanceId === boss._soulDrainTargetId)
           if (target) {
-            const dmg = Math.max(1, Math.floor(boss.attack * Balance.MECHANIC_SOUL_DRAIN_DMG_MULT * 0.34))
+            const dmg = Math.max(1, Math.floor(this._bossAtkScaled(boss) * Balance.MECHANIC_SOUL_DRAIN_DMG_MULT * 0.34))
             target.adv.resources.hp = Math.max(0, target.adv.resources.hp - dmg)
             const heal = Math.floor(dmg * Balance.MECHANIC_SOUL_DRAIN_HEAL_FRAC)
             boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + heal)
@@ -3016,7 +3031,7 @@ export class BossSystem {
     if (sideAllies.length > 0 && boss.hp > 0) {
       const victim = sideAllies[Math.floor(Math.random() * sideAllies.length)]
       const def    = victim.stats?.defense ?? 0
-      const taken  = Math.max(1, Math.floor((boss.attack ?? 0) * (0.85 + Math.random() * 0.3) - def))
+      const taken  = Math.max(1, Math.floor(this._bossAtkScaled(boss) * (0.85 + Math.random() * 0.3) - def))
       victim.resources.hp = Math.max(0, (victim.resources.hp ?? 0) - taken)
       this._roundLog.push({ side: 'boss', damage: taken, targetId: victim.instanceId, kind: 'ally_strike' })
       this._emitFx({ kind: 'strike', x: victim.worldX ?? boss.worldX, y: victim.worldY ?? boss.worldY, color: 0xff6644 })
@@ -3101,14 +3116,7 @@ export class BossSystem {
         } else if (suppressed) {
           this._roundLog.push({ side: 'boss', damage: 0, targetId: target.adv.instanceId, kind: 'pact_suppressed' })
         } else {
-          let bossAtk = boss.attack
-          // LEGENDARY · Wrath Unbound — up to +100% attack as the boss's HP falls.
-          if (aFlags.wrathUnbound) {
-            const missing = 1 - Math.max(0, Math.min(1, (boss.hp ?? 0) / Math.max(1, boss.maxHp ?? 1)))
-            bossAtk *= (1 + (Balance.MECHANIC_WRATH_MAX_ATK_BONUS ?? 1) * missing)
-          }
-          // LEGENDARY · Sudden Death — the boss deals 5x.
-          if (aFlags.suddenDeath) bossAtk *= (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5)
+          let bossAtk = this._bossAtkScaled(boss)   // LEGENDARY Wrath/Sudden Death applied
           // Phase 9 — Avenger's Rite: +25% damage during 10s buff window after a minion died.
           if (aFlags.avengersRite && (boss._avengerBuffUntil ?? 0) > now) {
             bossAtk *= Balance.MECHANIC_AVENGER_BUFF_MULT

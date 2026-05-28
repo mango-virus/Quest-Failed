@@ -188,12 +188,12 @@ Normal-schema legendaries (massive upside/downside). Boss-stat boons flow throug
 |---|---|---|---|---|
 | colossus_heart | Colossus Heart | LG | ✅ DONE | HP x2 + atk x0.5 via recompute boon (verified 400/6). BOSS_STATS_DIRTY forces refresh |
 | the_apex_tyrant | The Apex Tyrant | LG | ✅ DONE | HP x2/atk x1.5/def x1.5 (recompute, verified 400/18/15); waves x2 permanent (DayPhase apexTyrant) |
-| avatar_of_ruin | Avatar of Ruin | LG | ✅ DONE | maxHP x0.5 (recompute, verified 100); invincible first 10s (_applyDamageToBoss + _fightStartedAt). **Playtest** |
-| wrath_unbound | Wrath Unbound | LG | ✅ DONE | up to +100% atk as HP falls (bossAtk hook); +50% dmg taken (_applyDamageToBoss). **Playtest** |
+| avatar_of_ruin | Avatar of Ruin | LG | ✅ DONE | maxHP x0.5 (recompute, verified 100); invincible first **5s** (_applyDamageToBoss + _fightStartedAt). **Playtest** |
+| wrath_unbound | Wrath Unbound | LG | ✅ DONE | up to +100% atk as HP falls + +50% dmg taken. Now via `_bossAtkScaled` on ALL boss-damage sites (melee/slam/abilities), verified ×1.5@50%/×2@0. |
 | crown_of_avarice | Crown of Avarice | LG | ✅ DONE | gold x2 (AISystem goldMul + treasury); every 5th day hero raid (DayPhase wave x2 + +50% adv stats). Verified cadence+buff |
 | the_iron_price | The Iron Price | LG | ✅ DONE | minions x2 (CombatSystem) + traps x2 (trapDamageMult); gold income zeroed (AISystem goldMul=0 + treasury x0) |
-| sudden_death | Sudden Death | LG | ✅ DONE | everyone x5: CombatSystem + trapDamageMult + boss fight (_applyDamageToBoss + bossAtk). **Playtest** |
-| the_undying_court | The Undying Court | LG | ✅ DONE | ADVENTURER_DIED queue -> NIGHT spawn undead minion (stats carried, verified); full slots sacrifice 2 (verified); living advs +2%/member |
+| sudden_death | Sudden Death | LG | ✅ DONE | everyone x5: CombatSystem (minion<->adv) + trapDamageMult + boss fight (_applyDamageToBoss intake + `_bossAtkScaled` on ALL boss-damage sites). |
+| the_undying_court | The Undying Court | LG | ✅ DONE | Class-accurate raise (mirrors Lich): skeleton1 base + `_raisedClassId`/`_raisedSpriteVariant` (renders as the dead adv) + carried stats + `bossArchetypeSystem._applyClassRetentionBuffs` for the kit. Full slots sacrifice 2; living advs +2%/member. Verified. |
 
 ---
 
