@@ -1896,6 +1896,10 @@ export class NightPhase extends Phaser.Scene {
 
   _validateMinionPlacement(def, tx, ty) {
     const violations = []
+    // DAMNED · The Insomniac — no building on a locked night.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+      violations.push('The Insomniac — no building tonight')
+    }
     const tile = this._dungeonGrid.getTileType(tx, ty)
     if (tile !== TILE.FLOOR && tile !== TILE.BOSS_FLOOR) {
       violations.push('Must place on a room floor')
@@ -2113,6 +2117,10 @@ export class NightPhase extends Phaser.Scene {
       if ((this._gameState._mechanicFlags ?? {}).traplessHalls) {
         violations.push('Trapless Halls — you can place no new traps')
         EventBus.emit('PLACEMENT_BLOCKED', { reason: 'trapless_halls' })
+      }
+      // DAMNED · The Insomniac — no building at all on a locked night.
+      if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+        violations.push('The Insomniac — no building tonight')
       }
       const cap = this._trapCap()
       const used = this._trapUsed()
@@ -2535,6 +2543,10 @@ export class NightPhase extends Phaser.Scene {
   // Common floor-tile guard for placeable items inside non-boss/non-entry
   // rooms with collision (Beacon + Fountain). Returns { valid, reason, room }.
   _validateRoomFloorPlacement(tx, ty, opts = {}) {
+    // DAMNED · The Insomniac — no building on a locked night.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+      return { valid: false, reason: 'The Insomniac — no building tonight' }
+    }
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)
     if (!room) return { valid: false, reason: 'Place inside a room' }
     if (room.definitionId === 'boss_chamber') return { valid: false, reason: 'Not in boss chamber' }

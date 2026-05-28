@@ -6773,6 +6773,10 @@ body {
 /* Drain the ambient ritual circle to a colder, dimmer cast for the black hand. */
 .qf-pact-picker[data-grimoire="black"] .qf-ip-circle { filter: saturate(0.25) brightness(0.62); }
 
+/* DAMNED · Blind Architect — hide the knowledge minimap while the curse is
+   active. The class is toggled on #hud-stage by the pact's handler. */
+.qf-blind-architect .qf-minimap { display: none !important; }
+
 /* ── Left page — the summoning circle ──
    A ritual circle traces itself in on every page-turn, then slowly
    counter-rotates; the pact's name, tier and rarity word sit on the

@@ -93,6 +93,11 @@ export class AdvIntelOverlay {
 
   open() {
     if (this._overlay) return
+    // DAMNED · Blind Architect — the adventurer-intel panel is disabled.
+    if (this._gameState?._mechanicFlags?.blindArchitect) {
+      EventBus.emit('SHOW_TOAST', { text: 'Blind Architect — you have no intel.', kind: 'warn' })
+      return
+    }
     this._selIdx = this._pendingSelIdx ?? 0
     this._pendingSelIdx = null
     this._overlay = new Overlay({

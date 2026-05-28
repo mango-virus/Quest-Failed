@@ -1936,6 +1936,106 @@ function _buildHandlerRegistry() {
     pactOfGlass_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.pactOfGlass = false
     },
+
+    // ── DAMNED · The Insomniac ───────────────────────────────────────────
+    // Bribe: gold lump. Curse: every Nth night gives no build phase — the
+    // NightPhase placement validations reject everything while
+    // insomniacLockTonight is set (cleared at dawn).
+    theInsomniac_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theInsomniac = true
+      f.insomniacNightCount ??= 0
+      const bribe = Balance.MECHANIC_INSOMNIAC_BRIBE_GOLD ?? 600
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'insomniac_bribe' })
+      subscribe('NIGHT_PHASE_STARTED', () => {
+        const n = (gameState._mechanicFlags.insomniacNightCount ?? 0) + 1
+        gameState._mechanicFlags.insomniacNightCount = n
+        const interval = Balance.MECHANIC_INSOMNIAC_INTERVAL_NIGHTS ?? 3
+        const locked = (n % interval === 0)
+        gameState._mechanicFlags.insomniacLockTonight = locked
+        if (locked) {
+          EventBus.emit('INSOMNIAC_LOCKED', { night: n })
+          EventBus.emit('SHOW_TOAST', { text: 'The Insomniac — no building tonight.', kind: 'warn' })
+        }
+      })
+      subscribe('DAY_PHASE_STARTED', () => { gameState._mechanicFlags.insomniacLockTonight = false })
+    },
+    theInsomniac_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) {
+        gameState._mechanicFlags.theInsomniac = false
+        gameState._mechanicFlags.insomniacLockTonight = false
+      }
+    },
+
+    // ── DAMNED · Crumbling Halls ─────────────────────────────────────────
+    // Bribe: gold + trap slots. Curse: at the start of every night a random
+    // room is destroyed with its contents — NEVER the Boss Chamber or an
+    // Entry Hall (and never a fixed room). Uses the Game scene's DungeonGrid
+    // (the same instance NightPhase uses, so removal stays consistent).
+    crumblingHalls_activate: ({ subscribe, gameState, scene }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.crumblingHalls = true
+      const bribe = Balance.MECHANIC_CRUMBLING_BRIBE_GOLD ?? 600
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'crumbling_halls_bribe' })
+      f.maxTrapSlotBonus = (f.maxTrapSlotBonus ?? 0) + (Balance.MECHANIC_CRUMBLING_TRAP_SLOTS ?? 3)
+      subscribe('NIGHT_PHASE_STARTED', () => {
+        const grid  = scene?.dungeonGrid
+        const rooms = gameState.dungeon?.rooms ?? []
+        const eligible = rooms.filter(r =>
+          r.definitionId !== 'boss_chamber' &&
+          r.definitionId !== 'entry_hall' &&
+          !(r.placementRules?.fixed))
+        if (eligible.length === 0) return
+        const victim = eligible[Math.floor(Math.random() * eligible.length)]
+        // Drop minions homed to the doomed room.
+        const minions = gameState.minions ?? []
+        for (let i = minions.length - 1; i >= 0; i--) {
+          if (minions[i]?.assignedRoomId === victim.instanceId) {
+            const m = minions[i]; minions.splice(i, 1)
+            EventBus.emit('MINION_REMOVED', { minion: m, reason: 'crumbling_halls' })
+          }
+        }
+        // Drop traps inside the room footprint.
+        const traps = gameState.dungeon?.traps ?? []
+        for (let i = traps.length - 1; i >= 0; i--) {
+          const t = traps[i]
+          if (t && t.tileX >= victim.gridX && t.tileX < victim.gridX + victim.width &&
+                   t.tileY >= victim.gridY && t.tileY < victim.gridY + victim.height) {
+            traps.splice(i, 1)
+            EventBus.emit('TRAP_REMOVED', { trap: t, refund: 0 })
+          }
+        }
+        // Remove the room itself (same call the Sell tool uses on any room).
+        try { grid?.removeRoom?.(victim.instanceId) }
+        catch (e) { console.warn('[crumbling_halls] removeRoom failed:', e?.message) }
+        EventBus.emit('ROOM_REMOVED', { room: victim, reason: 'crumbling_halls' })
+        EventBus.emit('CRUMBLING_HALLS_DESTROYED', { roomId: victim.instanceId })
+        EventBus.emit('SHOW_TOAST', { text: 'Crumbling Halls — a room collapses to dust!', kind: 'warn' })
+      })
+    },
+    crumblingHalls_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.crumblingHalls = false
+    },
+
+    // ── DAMNED · Blind Architect ─────────────────────────────────────────
+    // Bribe: gold lump (stand-in for the "perfect-day preview" idea — see
+    // DESIGN notes). Curse: the minimap is hidden (scoped CSS class on
+    // #hud-stage) and the adventurer-intel panel is gated shut
+    // (AdvIntelOverlay.open reads blindArchitect).
+    blindArchitect_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.blindArchitect = true
+      const bribe = Balance.MECHANIC_BLIND_ARCHITECT_BRIBE_GOLD ?? 400
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'blind_architect_bribe' })
+      try { document.getElementById('hud-stage')?.classList.add('qf-blind-architect') } catch {}
+    },
+    blindArchitect_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.blindArchitect = false
+      try { document.getElementById('hud-stage')?.classList.remove('qf-blind-architect') } catch {}
+    },
   }
 }
 

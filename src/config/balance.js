@@ -702,6 +702,16 @@ export const Balance = {
   MECHANIC_FAMINES_GRIP_BRIBE_GOLD:       800,
   // Pact of Glass bribe — minions are free to place for the sealing night.
   // (Curse multiplier MECHANIC_GLASS_HP_MULT is defined above.)
+  // The Insomniac — every Nth night gives no build phase; bribe gold.
+  MECHANIC_INSOMNIAC_INTERVAL_NIGHTS:     3,
+  MECHANIC_INSOMNIAC_BRIBE_GOLD:          600,
+  // Crumbling Halls — destroy a random room each night (never boss/entry);
+  // bribe gold + trap slots.
+  MECHANIC_CRUMBLING_BRIBE_GOLD:          600,
+  MECHANIC_CRUMBLING_TRAP_SLOTS:          3,
+  // Blind Architect — minimap + intel disabled; bribe gold (stand-in for the
+  // "perfect-day preview" idea, which needs forecast wiring — see notes).
+  MECHANIC_BLIND_ARCHITECT_BRIBE_GOLD:    400,
   MECHANIC_INQUISITORS_HP_MULT:           2.0,
   MECHANIC_INQUISITORS_ATK_MULT:          1.5,
 

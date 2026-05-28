@@ -1745,5 +1745,66 @@
     ],
     "exclusiveWith": [],
     "synergyWith": []
+  },
+  {
+    "id": "the_insomniac",
+    "name": "The Insomniac",
+    "symbol": "☽",
+    "description": "On sealing: gain 600 gold at once.",
+    "tradeoffDescription": "Every third night you get no build phase — no rooms, minions or traps may be placed.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theInsomniac_activate",
+    "onDeactivate": "theInsomniac_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "build",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "crumbling_halls",
+    "name": "Crumbling Halls",
+    "symbol": "⌂",
+    "description": "On sealing: gain 600 gold and +3 trap slots.",
+    "tradeoffDescription": "At the start of every night a random room — never the Boss Chamber or an Entry Hall — is destroyed with everything in it.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "crumblingHalls_activate",
+    "onDeactivate": "crumblingHalls_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "room",
+      "attrition",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "blind_architect",
+    "name": "Blind Architect",
+    "symbol": "⊝",
+    "description": "On sealing: gain 400 gold at once.",
+    "tradeoffDescription": "Your minimap and adventurer-intel panel are disabled for the rest of the run.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "blindArchitect_activate",
+    "onDeactivate": "blindArchitect_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "knowledge",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
   }
 ]

@@ -110,7 +110,7 @@ A new **variant** of dark pact: pacts that are overwhelmingly *negative* — a p
 4. **Hollow Crown** — Curse: boss max HP permanently −50%. / Bribe: a free Legendary pact.
 5. **Pact of Glass** — Curse: all minion max HP halved for the rest of the run. / Bribe: all minions cost 0 gold for that night phase only (minions placed that night give 0 sell value, to block resale abuse).
 6. **Sleepless Throne** — Curse: the boss begins every boss fight at 50% HP. / Bribe: +10 max minion slots.
-7. **Blind Architect** — Curse: minimap and adventurer-intel panel disabled for the rest of the run. / Bribe: a one-time perfect-day preview (full enemy preview next day).
+7. **Blind Architect** — Curse: minimap and adventurer-intel panel disabled for the rest of the run. / Bribe: a one-time perfect-day preview (full enemy preview next day). *(deviation noted 2026-05-28: shipped with a +400g gold bribe as a stand-in — the "perfect-day preview" bribe needs the forecast/intel-reveal system wired, deferred as a follow-up.)*
 8. **Brittle Bones** — Curse: any minion struck while below 50% HP shatters instantly (dies). / Bribe: all current minions +25% damage (permanent).
 9. **Crumbling Halls** — Curse: at the start of every night phase for the rest of the run, a random placed room is destroyed along with everything in it. **Never destroys the Boss Chamber or any Entry Hall** (those are exempt from the roll). / Bribe: +600g + trap slots.
 10. **The Bleeding Crown** — Curse: the boss loses 2% of its max HP permanently every day. / Bribe: +1200g.

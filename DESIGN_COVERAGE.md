@@ -148,22 +148,22 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | Tradeoff display in offering UI | — | 9 | ✅ DONE | Each card shows tradeoffDescription in gold italic |
 | 💭 Many more mechanics | — | 9–10 | 💭 OPEN — TARGET EXCEEDED (audit 2026-05-22) | aim was ≥30 by 1.0; current pool: **64** in `src/data/dungeonMechanics.json`. |
 
-### 5a. Damned Pacts — solid-black tier (spec'd 2026-05-28, ⏳ PENDING implementation)
+### 5a. Damned Pacts — solid-black tier (2026-05-28 — ✅ all 24 implemented + headless-tested; 3 flow/UI ones flagged for playtest)
 
 New **6th rarity tier** (`damned`, rendered solid black). Devil's-bargain pacts: `description` = the small one-time bribe (the green "Deal", paid in `onActivate`), `tradeoffDescription` = the huge permanent curse (the red "Price"). Schema is NOT inverted — that mapping renders correctly in the existing Deal/Price UI. **Delivery:** 10% chance the Dark Pact grimoire is black → offers an all-Damned hand; otherwise Damned pacts mix into the normal pool at Epic draw weight (the tier just before Legendary — weight 10). Permanent + unlimited stacking like normal pacts. Schema reuse — no new fields. Gold-lump bribes are flat (values provisional, see DESIGN.md). Full spec lives in DESIGN.md § "Damned Pacts". Tier wiring touches `PactCard.js` / `PactPicker.js` (add `damned` to RARITY maps + RARITY_GLYPH), `DungeonMechanicSystem._weightedSample` / `TIER_WEIGHTS` + `getOfferings`, and the DarkPact popup (`DarkPactPopup.js` / `PactPicker.js`) for the black-grimoire roll.
 
 | ID | Name | Phase | Status | Notes |
 |---|---|---|---|---|
-| _delivery_ | Black-grimoire + damned tier | DP | ⏳ PENDING | 10% black-grimoire all-damned hand; `damned` rarity at Epic weight (10) in normal pool; new tier colour/glyph/stamp in PactCard/PactPicker |
+| _delivery_ | Black-grimoire + damned tier | DP | ✅ DONE | 10% black-grimoire all-damned hand (PactPicker `_rollBlackGrimoire`); `damned` rarity at Epic weight in normal pool (getOfferings + TIER_WEIGHTS); solid-black tier colour/glyph/stamp in PactPicker + PactCard; visually verified |
 | the_leech | The Leech | DP | ✅ DONE | Curse: −8% current gold each dawn (DAY_PHASE_STARTED). Bribe: +800g on seal. Committed dcf9f7c |
 | famished_dark | Famished Dark | DP | ✅ DONE | Curse: kills give 50% less gold (AISystem goldMul). Bribe: +1500g |
 | the_open_gate | The Open Gate | DP | ✅ DONE | Curse: +10 adventurers/day (extraAdvsPerDay). Bribe: +1500g |
 | hollow_crown | Hollow Crown | DP | ✅ DONE | Curse: boss max HP −50% (recompute curseMul + BOSS_STATS_DIRTY). Bribe: free Legendary pact |
 | pact_of_glass | Pact of Glass | DP | ✅ DONE | Curse: minion max HP halved (applyMinionScaling pactOfGlass). Bribe: glassFreeNight free placement + _noSellValue |
 | sleepless_throne | Sleepless Throne | DP | ✅ DONE | Curse: boss starts fights at 50% HP (_onIncoming cap). Bribe: +10 minion slots |
-| blind_architect | Blind Architect | DP | ⏳ PENDING | Curse: minimap + intel panel disabled (run). Bribe: one-time perfect-day preview |
+| blind_architect | Blind Architect | DP | ✅ DONE | Curse: minimap hidden (`.qf-blind-architect .qf-minimap` class on #hud-stage) + intel popup gated (AdvIntelOverlay.open). Bribe: +400g (DEVIATION — gold stand-in for the "perfect-day preview", which needs forecast wiring). **Needs playtest** (HUD hide + save-load re-apply) |
 | brittle_bones | Brittle Bones | DP | ✅ DONE | Curse: minion struck <50% HP shatters (CombatSystem). Bribe: current minions +25% dmg |
-| crumbling_halls | Crumbling Halls | DP | ⏳ PENDING | Curse: each night start, destroy a random room + contents (run) — **NEVER boss_chamber or entry_hall** (exempt from the roll). Must run inside NightPhase (owns DungeonGrid). Bribe: +600g + trap slots |
+| crumbling_halls | Crumbling Halls | DP | ✅ DONE | Curse: on NIGHT_PHASE_STARTED, destroy a random room + its minions/traps via shared DungeonGrid.removeRoom — **excludes boss_chamber, entry_hall, fixed rooms** (verified). Bribe: +600g + 3 trap slots. **Needs playtest** (room-graph/render after destruction) |
 | the_bleeding_crown | The Bleeding Crown | DP | ✅ DONE | Curse: boss −2% max HP/day (bleedingCrownDays in recompute). Bribe: +1200g |
 | the_sealed_vault | The Sealed Vault | DP | ✅ DONE | Curse: _executeSellAt gated on theSealedVault. Bribe: +1500g |
 | mounting_debt | Mounting Debt | DP | ✅ DONE | Curse: +5% build cost/day (mountingDebtMult in applyMerchantPrice). Bribe: +1000g |
@@ -172,7 +172,7 @@ New **6th rarity tier** (`damned`, rendered solid black). Devil's-bargain pacts:
 | the_wasting | The Wasting | DP | ✅ DONE | Curse: −5% minion max HP/day (wastingDays in applyMinionScaling). Bribe: evolveAllOnce |
 | the_hunger | The Hunger | DP | ✅ DONE | Curse: each dawn 20% of minions spliced permanently. Bribe: +1000g |
 | brittle_engines | Brittle Engines | DP | ✅ DONE | Curse: TRAP_FIRED -> trap._broken (TrapSystem skips). Bribe: trapDamageMult x2 |
-| the_insomniac | The Insomniac | DP | ⏳ PENDING | Curse: no build phase every 3rd night. Bribe: +600g |
+| the_insomniac | The Insomniac | DP | ✅ DONE | Curse: every 3rd night insomniacLockTonight blocks all 3 placement validations (NightPhase). Bribe: +600g. **Needs playtest** (build-lock UX) |
 | famines_grip | Famine's Grip | DP | ✅ DONE | Curse: treasury stipend x0.5 (RoomBehaviorSystem faminesGrip). Bribe: +800g |
 | pact_of_the_last_heart | Pact of the Last Heart | DP | ✅ DONE | Curse: boss → 1 heart (deathsRemaining=1, cap lives=1). Bribe: free Legendary pact. Committed dcf9f7c |
 | the_unteachable | The Unteachable | DP | ✅ DONE | Curse: MinionEvolutionSystem._onCombatKill bails on flag. Bribe: +1000g |
