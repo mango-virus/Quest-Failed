@@ -18,6 +18,39 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 
+// Solo Leveling — the 'shadowmonarch' banner theme: a black↔blue SWEEPING
+// gradient instead of the static violet palette. Injected once at runtime so
+// it lives alongside the other themes without editing styles.css.
+function _ensureShadowMonarchBannerCss() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('qf-sl-eventbanner-css')) return
+  const style = document.createElement('style')
+  style.id = 'qf-sl-eventbanner-css'
+  style.textContent = `
+.qf-eventbanner.qf-eventbanner-shadowmonarch,
+.qf-eventpill.qf-eventpill-shadowmonarch,
+.qf-eventpill-tip.qf-eventpill-tip-shadowmonarch {
+  --ev-accent:#3a8bff; --ev-bg:#08121f; --ev-deep:#02060e;
+  --ev-text:#bfe0ff; --ev-sub:#dcecff;
+}
+.qf-eventbanner-shadowmonarch .qf-eventbanner-inner {
+  background: linear-gradient(110deg,
+    #02060e 0%, #061226 15%, #1f5fd0 37%, #5aa8ff 50%, #1f5fd0 63%, #061226 85%, #02060e 100%);
+  background-size: 300% 100%;
+  animation: qf-sl-banner-sweep 3.2s linear infinite;
+}
+.qf-eventpill.qf-eventpill-shadowmonarch {
+  background: linear-gradient(110deg, #02060e, #0a1b38 45%, #1f5fd0 50%, #0a1b38 55%, #02060e);
+  background-size: 280% 100%;
+  animation: qf-sl-banner-sweep 3.2s linear infinite;
+}
+@keyframes qf-sl-banner-sweep {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}`
+  document.head.appendChild(style)
+}
+
 const FADE_IN_MS  = 350
 const HOLD_MS     = 7600   // banner stays fully visible for this long before fading
 const FADE_OUT_MS = 600
@@ -31,6 +64,7 @@ export class EventBanner {
 
     this._stage = document.getElementById('hud-stage')
     if (!this._stage) return
+    _ensureShadowMonarchBannerCss()
     this._build()
     this._wireEvents()
     // A save loaded mid-event won't replay DUNGEON_EVENT_ANNOUNCED — restore
