@@ -33,6 +33,7 @@ import { Leaderboard } from '../systems/Leaderboard.js'
 import { GameRequests } from '../systems/GameRequests.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
 import { TitlePickerOverlay } from './TitlePickerOverlay.js'
+import { WhatsNewOverlay } from './WhatsNewOverlay.js'
 import {
   titleFxClassById, titleFxBorderClassById, titleColorById,
 } from './titleFx.js'
@@ -77,6 +78,7 @@ export class MainMenuOverlay {
     this._confirm = null
     this._nameEntry = null
     this._devTools = null
+    this._whatsNew = null
     this._hovered = 'continue'
     this._save = null
     this._closed = false
@@ -129,6 +131,7 @@ export class MainMenuOverlay {
         // simultaneously climb and fall).
         this._maybeQueueLeaderboardDemotion(rows)
         this._maybeFireUnlockOverlay()
+        this._maybeAutoOpenWhatsNew()
       })
       .catch(() => {
         // Fetch failed (offline / Supabase down) — still fire any
@@ -139,6 +142,7 @@ export class MainMenuOverlay {
         // gate hasn't been burned yet.
         if (this._closed || !this._el) return
         this._maybeFireUnlockOverlay()
+        this._maybeAutoOpenWhatsNew()
       })
     // Same idea for the GAME REQUESTS mail-chip — prefetch counts so
     // the ✉ badge can render on first paint. Caches the result inside
@@ -205,6 +209,8 @@ export class MainMenuOverlay {
     this._titlePicker = null
     this._devTools?.close()
     this._devTools = null
+    this._whatsNew?.close()
+    this._whatsNew = null
     // Close the unlock-notification overlay if it's still up (player
     // hits NEW EVIL / CONTINUE / QUIT during the celebration). Its
     // close handler also calls clearPendingUnlocks(), so they don't
@@ -474,6 +480,11 @@ export class MainMenuOverlay {
       )
     }
     items.push(
+      // Permanent re-open of the recent-updates panel. NEW badge shows
+      // while there's an update the player hasn't acknowledged yet (same
+      // badge mechanism as ACHIEVEMENTS); cleared once they open it.
+      { id: 'whatsnew', label: "WHAT'S NEW", sub: 'Recent updates & additions', icon: '✨',
+        color: 'var(--gold-bright, #ffd964)', newBadge: WhatsNewOverlay.hasUnseen() },
       { id: 'options', label: 'OPTIONS', sub: 'Audio · controls', icon: '◇', color: 'var(--warn)' },
       { id: 'quit', label: 'QUIT', sub: 'Return to the mortal realm', icon: '✖', color: 'var(--text-mute)' },
     )
@@ -771,6 +782,12 @@ export class MainMenuOverlay {
             // in case any unlock affected them (e.g. a new companion
             // now counts as "unseen" on the recruit screen).
             if (!this._closed && this._el) this._refreshMenuItems()
+            // Chain the What's New auto-pop AFTER the celebration so a
+            // returning-after-update player who also had unlocks never
+            // misses it. The pending-unlocks queue is now cleared, so
+            // _maybeAutoOpenWhatsNew's "skip if unlocks pending" gate
+            // passes; the once-per-session flag still prevents a repeat.
+            if (!this._closed && this._el) this._maybeAutoOpenWhatsNew()
           },
         })
         this._unlockOverlay.open()
@@ -928,6 +945,9 @@ export class MainMenuOverlay {
         break
       case 'requests':
         this._openGameRequests()
+        break
+      case 'whatsnew':
+        this._openWhatsNew()
         break
       case 'devtools':
         // Mango-only — opens the consolidated dev panel. Each tool in
@@ -1153,6 +1173,37 @@ export class MainMenuOverlay {
       })
       this._devTools.open()
     }).catch(() => {})
+  }
+
+  // Open the recent-updates panel. On close it marks everything seen, so
+  // the NEW badge clears — re-sync the menu items so the badge disappears
+  // without re-running the entrance animations.
+  _openWhatsNew() {
+    if (this._whatsNew) return
+    this._whatsNew = new WhatsNewOverlay({
+      onClose: () => {
+        this._whatsNew = null
+        if (!this._closed && this._el) this._refreshMenuItems()
+      },
+    })
+    this._whatsNew.open()
+  }
+
+  // Auto-pop the WHAT'S NEW panel once per session when there's an update
+  // the player hasn't seen — so a returning player catches up on first
+  // launch. Skipped when an unlock / top-3 celebration is queued (that
+  // takes the spotlight; the NEW badge still flags the update for manual
+  // open) so two popups never stack. The 400ms delay lets the menu's
+  // entrance animations settle first.
+  _maybeAutoOpenWhatsNew() {
+    if (MainMenuOverlay._whatsNewAutoShown) return
+    if (!WhatsNewOverlay.hasUnseen()) return
+    if ((PlayerProfile.getPendingUnlocks?.() || []).length > 0) return
+    MainMenuOverlay._whatsNewAutoShown = true
+    setTimeout(() => {
+      if (this._closed || !this._el || this._whatsNew || this._unlockOverlay) return
+      this._openWhatsNew()
+    }, 400)
   }
 
   // Dev-only helper — wired to the mango-gated TEST UNLOCKS menu item.
