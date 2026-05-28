@@ -270,8 +270,10 @@ export class EventSystem {
         hp:      shadowHp,
         attack:  shadowAtk,
         defense: shadowDef,
-        // Match the 2×-speed Monarch so the army fans out across the dungeon fast.
-        speed:   jinwoo.stats?.speed ?? src.stats?.speed ?? 1.4,
+        // 1.5× base speed — fast, but NOT as fast as the 2×-base Monarch, so
+        // the shadow army trails him rather than matching pace. Jinwoo's speed
+        // is 2× base, so 0.75× his speed = 1.5× base.
+        speed:   (jinwoo.stats?.speed ?? 2.8) * 0.75,
         abilities: [...(src.stats?.abilities ?? [])],
       },
       resources: {

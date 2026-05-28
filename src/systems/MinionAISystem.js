@@ -550,7 +550,10 @@ export class MinionAISystem {
         this._die(minion, idx)
         return
       }
-      if (owner.stats?.speed) minion.stats.speed = owner.stats.speed
+      // Necro raises / beast tames keep pace with their owner. Shadows keep
+      // their OWN 1.5×-base speed set at extraction (slower than the 2×-base
+      // Monarch) — don't override it back to his pace each tick.
+      if (owner.stats?.speed && !minion._shadowExtracted) minion.stats.speed = owner.stats.speed
       // Necro raises / beast tames LEASH to their owner. Jinwoo's extracted
       // shadows do NOT — they fan out and hunt the dungeon's own minions
       // (target selection below is dungeon-wide for them). They still die with
