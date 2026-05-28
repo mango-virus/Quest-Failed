@@ -140,6 +140,9 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // Cheaters carry every weapon type — needs the oversize attack sheet
   // so halberds, longswords, scythes, and staves render at native 192×192.
   'cheater',
+  // Sung Jinwoo (Solo Leveling) — Saber whose swing only exists as 192×192
+  // slash_oversize art; needs the atk sheet to show the blade mid-attack.
+  'shadow_monarch',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8

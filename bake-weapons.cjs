@@ -72,6 +72,10 @@ const ATK_CLASSES = new Set([
   // crossbows, staves, glowsword). The oversize attack sheet keeps long
   // weapons rendered at native 192×192 instead of being shrunk into 64×64.
   'cheater',
+  // Sung Jinwoo (Solo Leveling event) — melee Saber whose only swing art is
+  // the 192×192 slash_oversize sheet. Without the atk sheet his blade is
+  // invisible mid-attack (the oversize slash can't fit the 64×64 main sheet).
+  'shadow_monarch',
 ]);
 const ATK_FRAME       = 192;          // frame size in atk sheet
 const ATK_COLS        = 8;            // max frames per row (thrust = 8)

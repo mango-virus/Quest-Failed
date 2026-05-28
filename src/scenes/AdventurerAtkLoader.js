@@ -17,13 +17,24 @@ const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
   'twitch_streamer', 'beast_master', 'barbarian', 'monk', 'bard',
   'cartographer_scholar', 'cosplay_adventurer',
+  // Sung Jinwoo (Solo Leveling) — single canonical variant; see the count
+  // override below so we don't request v02..v50.
+  'shadow_monarch',
 ]
 const ADVENTURER_ATK_CLASSES = new Set([
   'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
   'mage', 'cleric', 'necromancer', 'ranger', 'bard',
   'cosplay_adventurer',
+  // Jinwoo's Saber swing only exists as 192×192 slash_oversize art — the atk
+  // sheet is what makes his blade visible mid-attack.
+  'shadow_monarch',
 ])
 const ADVENTURER_VARIANTS_PER_CLASS = 50
+// Per-class override for named one-off characters that ship fewer than the
+// default 50 baked variants. Keeps the loader from firing missing-file
+// requests for v02..v50 (which would 404 in the console).
+const ADVENTURER_VARIANT_COUNT = { shadow_monarch: 1 }
+const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8
 const ADVENTURER_ATK_ANIM_LAYOUT = {
@@ -45,7 +56,7 @@ export function kickOffAdventurerAtkLoad(scene) {
 
   for (const id of ADVENTURER_CLASS_IDS) {
     if (!ADVENTURER_ATK_CLASSES.has(id)) continue
-    for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+    for (let i = 1; i <= advVariantCount(id); i++) {
       const v   = `v${String(i).padStart(2, '0')}`
       const key = `adv-${id}-${v}-atk`
       // Skip if already loaded (Phaser's loader would warn otherwise).
@@ -73,7 +84,7 @@ export function kickOffAdventurerAtkLoad(scene) {
 export function registerAdventurerAtkAnims(scene) {
   for (const id of ADVENTURER_CLASS_IDS) {
     if (!ADVENTURER_ATK_CLASSES.has(id)) continue
-    for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+    for (let i = 1; i <= advVariantCount(id); i++) {
       const v   = `v${String(i).padStart(2, '0')}`
       const key = `adv-${id}-${v}-atk`
       if (!scene.textures.exists(key)) continue
