@@ -89,7 +89,9 @@ export class DarkDealDemonRenderer {
       .setDepth(40)
       .setOrigin(0.5, 0.85)         // anchor near feet so the body sits above the floor
       .setInteractive({ useHandCursor: true })
-    sprite.on('pointerdown', () => EventBus.emit('SHOW_DARK_PACT'))
+    // The Dark Deal demon always deals from the BLACK grimoire — its hand is
+    // pure Damned pacts (devil's bargains), never the ordinary purple offer.
+    sprite.on('pointerdown', () => EventBus.emit('SHOW_DARK_PACT', { forceBlack: true }))
     sprite.play('event-dark-deal-demon-appear')
     sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE_KEY + 'event-dark-deal-demon-appear',
       () => sprite.play('event-dark-deal-demon-idle'),

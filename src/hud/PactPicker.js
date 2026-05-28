@@ -246,17 +246,18 @@ export class PactPicker {
     this._sheetTimer  = 0
     this._chatterTimer = 0
 
-    this._listener = () => this.open()
+    this._listener = (payload) => this.open(payload)
     EventBus.on('SHOW_DARK_PACT', this._listener)
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
-  open() {
+  open(opts = {}) {
     if (this._el) return
     // Roll the grimoire's colour ONCE per opening (held across rerolls):
-    // a black grimoire (10%) deals an all-Damned hand of curses.
-    this._blackGrimoire = this._rollBlackGrimoire()
+    // a black grimoire (10%) deals an all-Damned hand of curses. Callers can
+    // force it — the Dark Deal demon always presents the black grimoire.
+    this._blackGrimoire = opts?.forceBlack ? true : this._rollBlackGrimoire()
     this._offers = this._fetchOffers()
     // Mandatory modal with no exit — if there is genuinely nothing to
     // offer, resolve immediately so EndOfDay isn't soft-locked.
