@@ -13,7 +13,11 @@
 //   SELL      — emits TOOL_SELL (NightPhase toggles 'sell' mode)
 //   BEGIN DAY — emits PHASE_TOGGLE_REQUEST
 //   1×/2×/4×/8× — emits TIME_SCALE_SET { scale: N }, matching ActionBar's
-//                 SPEED_STEPS = [1, 2, 4, 8]
+//                 SPEED_STEPS = [1, 2, 4, 8]. From day HYPER_UNLOCK_DAY (30)
+//                 onward the bar swaps to [1, 4, 8, 16] — 2× is dropped and
+//                 16× takes its place in the rightmost slot. Buttons rebuild
+//                 on DAY_PHASE_STARTED so the swap happens at the day-30
+//                 transition without a reload.
 //   ROSTER / KNOWLEDGE / ADV INTEL / MENU — emit the corresponding OPEN_*
 //
 // Subscribes to TOOL_MODE_CHANGED to keep the armed-tool highlight in sync
@@ -23,8 +27,14 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { Balance } from '../config/balance.js'
 
-const SPEED_STEPS = [1, 2, 4, 8]
+const SPEED_STEPS_EARLY = [1, 2, 4, 8]
+const SPEED_STEPS_HYPER = [1, 4, 8, 16]
+
+function _stepsForDay(day) {
+  return day >= (Balance.HYPER_UNLOCK_DAY ?? 30) ? SPEED_STEPS_HYPER : SPEED_STEPS_EARLY
+}
 
 export class BottomBar {
   constructor(gameState) {
@@ -84,14 +94,10 @@ export class BottomBar {
             style: { display: 'none' },
           }, [
             h('span', { className: 'pix qf-bb-speed-label' }, '⏵ SPEED'),
-            h('div', { className: 'qf-bb-speed-btns' },
-              SPEED_STEPS.map(s => h('button', {
-                className: 'qf-bb-speed-btn',
-                dataset: { speed: s },
-                ref: el => { this._refs[`speed_${s}`] = el },
-                on: { click: () => this._onSpeedClick(s) },
-              }, `${s}×`))
-            ),
+            h('div', {
+              className: 'qf-bb-speed-btns',
+              ref: el => { this._refs.speedBtnsBox = el },
+            }, this._renderSpeedBtns(_stepsForDay(this._gameState?.meta?.dayNumber ?? 1))),
           ]),
           // Archetype action slot — BossArchetypeStrip mounts EARTHQUAKE
           // / SACRIFICE buttons here during day phase so they don't float
@@ -128,6 +134,10 @@ export class BottomBar {
       ]),
     ])
 
+    // Cache the step-set we mounted with so _rebuildSpeedBtns can detect
+    // an actual change vs. a redundant day-start rebuild.
+    this._renderedSteps = _stepsForDay(this._gameState?.meta?.dayNumber ?? 1)
+
     // Initial: PLACE active, 1× speed active (will sync on first tick).
     this._setArmedMode('place')
     this._setActiveSpeed(1)
@@ -152,6 +162,47 @@ export class BottomBar {
     EventBus.emit('TIME_SCALE_SET', { scale })
   }
 
+  // Build (or rebuild) the speed-button row to match the current day's
+  // unlock tier. Returns the array of <button> elements; caller mounts.
+  _renderSpeedBtns(steps) {
+    // Drop stale refs for buttons that will no longer exist, so
+    // _setActiveSpeed's `if (!el) continue` filter cleans up after a swap.
+    for (const k of Object.keys(this._refs ?? {})) {
+      if (k.startsWith('speed_')) this._refs[k] = null
+    }
+    return steps.map(s => h('button', {
+      className: 'qf-bb-speed-btn',
+      dataset: { speed: s },
+      ref: el => { this._refs[`speed_${s}`] = el },
+      on: { click: () => this._onSpeedClick(s) },
+    }, `${s}×`))
+  }
+
+  // Rebuild speed buttons in-place when the day crosses HYPER_UNLOCK_DAY.
+  // Idempotent — bails when the step set hasn't changed so we don't
+  // thrash the DOM every day transition. Restores the active highlight
+  // after the swap; if the previously-active scale is no longer a valid
+  // step (e.g. was on 2× when 30 hit), drops it onto the nearest tier.
+  _rebuildSpeedBtns() {
+    const day = this._gameState?.meta?.dayNumber ?? 1
+    const steps = _stepsForDay(day)
+    const prevSteps = this._renderedSteps ?? []
+    if (prevSteps.length === steps.length && prevSteps.every((s, i) => s === steps[i])) return
+    const box = this._refs?.speedBtnsBox
+    if (!box) return
+    box.replaceChildren(...this._renderSpeedBtns(steps))
+    this._renderedSteps = steps
+    // Reapply highlight against the new set. If the prior scale is gone
+    // (e.g. 2× post-unlock), snap to the nearest valid tier and notify so
+    // DayPhase's _timeScale follows the UI.
+    let active = this._currentSpeed
+    if (!steps.includes(active)) {
+      active = steps.reduce((best, s) => Math.abs(s - this._currentSpeed) < Math.abs(best - this._currentSpeed) ? s : best, steps[0])
+      EventBus.emit('TIME_SCALE_SET', { scale: active })
+    }
+    this._setActiveSpeed(active)
+  }
+
   _setArmedMode(mode) {
     // mode is one of 'place' | 'move' | 'sell'. 'place' means no Phaser
     // tool armed (default state).
@@ -165,7 +216,12 @@ export class BottomBar {
 
   _setActiveSpeed(scale) {
     this._currentSpeed = scale
-    for (const s of SPEED_STEPS) {
+    // Iterate the union of both step sets so buttons that are CURRENTLY
+    // mounted (and ones that aren't) all get correctly toggled — the
+    // `if (!el)` guard handles members of the set that aren't rendered
+    // right now.
+    const allSteps = [...new Set([...SPEED_STEPS_EARLY, ...SPEED_STEPS_HYPER])]
+    for (const s of allSteps) {
       const el = this._refs[`speed_${s}`]
       if (!el) continue
       el.classList.toggle('active', s === scale)
@@ -190,6 +246,15 @@ export class BottomBar {
     // Reset speed to 1× whenever a day ends (mirrors ActionBar).
     sub('DAY_PHASE_ENDED',   () => this._setActiveSpeed(1))
     sub('NIGHT_PHASE_BEGAN', () => this._setActiveSpeed(1))
+    // Rebuild the speed buttons at the start of each day so the day-30
+    // 2× → 16× swap actually takes effect when the player crosses the
+    // unlock day. _rebuildSpeedBtns is a no-op when the set hasn't
+    // changed, so this is cheap to fire every day.
+    sub('DAY_PHASE_STARTED', () => this._rebuildSpeedBtns())
+    // Also catch the load path — when continuing a save into day 30+,
+    // the initial _build ran before SaveSystem rehydrated the day count.
+    // Re-check on Game.js's load-completed broadcast.
+    sub('GAME_STATE_LOADED', () => this._rebuildSpeedBtns())
   }
 
   _tick() {

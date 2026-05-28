@@ -228,6 +228,12 @@ export const Balance = {
   TIME_SCALE_FAST: 2,
   TIME_SCALE_FASTEST: 4,
   TIME_SCALE_ULTRA: 8,
+  // Endgame speed — only available from day HYPER_UNLOCK_DAY onwards. When
+  // unlocked the speed bar swaps 2× out for 16× (see BottomBar.js); the
+  // 50ms STEP_BUDGET_MS frame-breaker in Game.update keeps it safe under
+  // heavy late-game waves even if the CPU can't deliver true 16×.
+  TIME_SCALE_HYPER: 16,
+  HYPER_UNLOCK_DAY: 30,
 
   // --- Adventurers ---
   ADVENTURERS_PER_DAY_BASE: 1,        // adds +1 every 2 days

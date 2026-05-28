@@ -86,11 +86,16 @@ export class DayPhase extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
     // Time-scale keyboard shortcuts (replaces the bottom-bar buttons that
     // were removed with the chrome strip). Numeric digits work without modifiers.
+    // SIX maps to 16× (hyper) — only accepted from day HYPER_UNLOCK_DAY (30)
+    // onwards; before then, TWO maps to 2× as usual. _setTimeScale clamps
+    // mismatched scales to the right tier for the current day so the keybind
+    // is safe to leave wired in either state.
     this.input.keyboard?.on('keydown-SPACE', () => this._setTimeScale(Balance.TIME_SCALE_PAUSED))
     this.input.keyboard?.on('keydown-ONE',   () => this._setTimeScale(Balance.TIME_SCALE_NORMAL))
     this.input.keyboard?.on('keydown-TWO',   () => this._setTimeScale(Balance.TIME_SCALE_FAST))
     this.input.keyboard?.on('keydown-FOUR',  () => this._setTimeScale(Balance.TIME_SCALE_FASTEST))
     this.input.keyboard?.on('keydown-EIGHT', () => this._setTimeScale(Balance.TIME_SCALE_ULTRA))
+    this.input.keyboard?.on('keydown-SIX',   () => this._setTimeScale(Balance.TIME_SCALE_HYPER))
 
     this._dossierPanel = new DossierPanel(this, this._gameState)
 
@@ -383,6 +388,31 @@ export class DayPhase extends Phaser.Scene {
   }
 
   _setTimeScale(scale) {
+    // Day-30 unlock — the speed bar swaps 2× for 16× at HYPER_UNLOCK_DAY.
+    // Clamp at the source so every entry point (BottomBar button, keybind,
+    // TIME_SCALE_SET event, legacy chrome) ends up on a tier that's
+    // currently in the visible button set. Without this, a stale keypress
+    // or external emit could land on a value that has no matching button
+    // and the active-highlight would silently desync.
+    const day = this._gameState?.meta?.dayNumber ?? 1
+    const hyperUnlocked = day >= (Balance.HYPER_UNLOCK_DAY ?? 30)
+    const requested = scale
+    if (hyperUnlocked && scale === Balance.TIME_SCALE_FAST) {
+      // 2× is hidden post-unlock — kick a stale TWO keypress up to 4×.
+      scale = Balance.TIME_SCALE_FASTEST
+    } else if (!hyperUnlocked && scale === Balance.TIME_SCALE_HYPER) {
+      // 16× isn't available yet — kick a SIX keypress down to 8×.
+      scale = Balance.TIME_SCALE_ULTRA
+    }
+    // When we clamped, re-broadcast so HUD surfaces (BottomBar highlight,
+    // legacy ActionBar speed-idx) snap to the actually-applied tier instead
+    // of the requested one. Safe to re-emit — DayPhase's own TIME_SCALE_SET
+    // listener will call _setTimeScale(scale) again, hit the no-clamp path,
+    // and not re-emit.
+    if (scale !== requested) {
+      EventBus.emit('TIME_SCALE_SET', { scale })
+    }
+
     this._timeScale = scale
     this.time.timeScale = scale === 0 ? 0.001 : scale
 
