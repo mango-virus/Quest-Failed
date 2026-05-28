@@ -813,13 +813,35 @@ export class MinionAISystem {
     // (cross-room A* via _engageTarget). This runs before the home-room gate
     // below (which would otherwise return null for their assignedRoomId=null).
     if (minion._shadowExtracted) {
+      // Sticky — keep hunting the current quarry until it's dead, so the army
+      // doesn't re-pick (and re-clump) every tick.
+      if (minion.currentTargetId) {
+        const cur = this._gameState.minions.find(m => m.instanceId === minion.currentTargetId)
+        if (cur && cur.faction === 'dungeon' && cur.aiState !== 'dead' && (cur.resources?.hp ?? 0) > 0) {
+          return cur
+        }
+      }
+      // Load-balance: tally how many OTHER shadows are already locked onto each
+      // dungeon minion, then pick the nearest one with the FEWEST claimants.
+      // This fans the army out across the dungeon instead of every shadow
+      // dogpiling the single nearest target (the "all run around together"
+      // clump). CLAIM_WEIGHT is large so a far UNclaimed minion always beats a
+      // near already-claimed one.
+      const claims = {}
+      for (const sh of this._gameState.minions) {
+        if (sh !== minion && sh._shadowExtracted && sh.aiState !== 'dead' && sh.currentTargetId) {
+          claims[sh.currentTargetId] = (claims[sh.currentTargetId] ?? 0) + 1
+        }
+      }
+      const CLAIM_WEIGHT = 1000
       let best = null
-      let bestD = Infinity
+      let bestScore = Infinity
       for (const m of this._gameState.minions) {
         if (m === minion || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
         if (m.faction !== 'dungeon') continue
         const d = Math.hypot(m.tileX - minion.tileX, m.tileY - minion.tileY)
-        if (d < bestD) { best = m; bestD = d }
+        const score = (claims[m.instanceId] ?? 0) * CLAIM_WEIGHT + d
+        if (score < bestScore) { bestScore = score; best = m }
       }
       return best
     }
