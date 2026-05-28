@@ -282,10 +282,20 @@ export class AchievementsOverlay {
     // category-derived chip tint). Plain title → category tint as before.
     const titleFxBorder = activeTitle ? titleFxBorderClassById(activeTitle.id) : ''
     const titleColor    = (activeTitle && !titleFxBorder) ? titleColorById(activeTitle.id) : null
+    // Category tint ONLY for a title with neither fx nor color (legacy
+    // fallback — every title has one now). Omitting data-source-cat
+    // otherwise stops its higher-specificity border/glow rules from
+    // overriding the fx gradient border / inline color border.
+    const useCatTint = !!activeTitle && !titleFxBorder && !titleColor
     const titleChip = activeTitle ? h('button', {
       className: ('pix qf-ach-titlechip ' + titleFxBorder).trimEnd(),
-      dataset: { sourceCat: titleSourceCat },
-      style: titleColor ? { borderColor: titleColor } : undefined,
+      dataset: useCatTint ? { sourceCat: titleSourceCat } : undefined,
+      // Color titles paint border + matching glow inline (wins over the
+      // base chip shadow). fx titles get their gradient border from the
+      // class + the scoped .qf-ach-titlechip.qf-titlefx-border glow rule.
+      style: titleColor
+        ? { borderColor: titleColor, boxShadow: `0 0 0 2px #000, 0 0 16px ${titleColor}66` }
+        : undefined,
       on: { click: () => this._toggleTitlePicker() },
     }, [
       h('span', { className: 'qf-ach-titlechip-label' }, '✦  TITLE'),

@@ -13661,6 +13661,14 @@ body {
   to   { background-position: center, 0%   center; }
 }
 
+/* The equipped-title chip, when its title has an fx: recolor the outer
+   glow halo to the fx's glow (otherwise the base chip's category-tinted
+   box-shadow — e.g. green — clashes with the gradient border). Scoped to
+   two classes so it beats the base .qf-ach-titlechip shadow. */
+.qf-ach-titlechip.qf-titlefx-border {
+  box-shadow: 0 0 0 2px #000, 0 0 16px var(--tfx-glow, transparent);
+}
+
 /* Gradients cycle between a saturated base tone and a brighter sheen peak
    (base → light → lightest → light → base) — no dark stops, so the sweep
    never drops the text to a dim/colorless point. */
