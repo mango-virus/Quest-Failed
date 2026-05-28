@@ -11464,6 +11464,28 @@ body {
               0 0 18px color-mix(in srgb, var(--qf-cat-mastery) 35%, transparent);
 }
 
+/* DIFFICULTY-TIER borders — bronze (easy) / silver (medium) override the
+   category border (placed after the category rules so they win at equal
+   specificity). GOLD = legendary, handled by the showcase rule below
+   (legendary cards carry data-tier="gold" but no gold rule here, so the
+   shimmer treatment governs). Only earned cards are tinted. */
+.qf-ach-card[data-unlocked="true"][data-tier="bronze"] {
+  border-color: #c8803c;
+  background: color-mix(in srgb, #c8803c 4%, var(--bg-1));
+}
+.qf-ach-card[data-unlocked="true"][data-tier="silver"] {
+  border-color: #c2ccd8;
+  background: color-mix(in srgb, #c2ccd8 4%, var(--bg-1));
+}
+.qf-ach-card[data-unlocked="true"][data-tier="bronze"]:hover {
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5),
+              0 0 18px rgba(200, 128, 60, 0.35);
+}
+.qf-ach-card[data-unlocked="true"][data-tier="silver"]:hover {
+  box-shadow: 0 0 0 2px #000, 0 4px 10px rgba(0, 0, 0, 0.5),
+              0 0 18px rgba(194, 204, 216, 0.4);
+}
+
 /* Legendary tier — the six showcase achievements (LEGENDARY_IDS in
    AchievementsOverlay.js). They get a thin holographic-style shimmer
    stripe that sweeps across the card on a slow loop, plus a soft

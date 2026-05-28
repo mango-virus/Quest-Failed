@@ -54,6 +54,23 @@ const TABS = [
   { id: 'mastery',     label: 'MASTERY' },
 ]
 
+// Difficulty TIER for the card border: gold = legendary/hard, silver =
+// medium, bronze = easy/early. gold is data-driven (def.legendary, drawn
+// by the showcase shimmer rule). The bronze set below lists the easy/
+// intro achievements; everything else non-legendary is silver (medium).
+const TIER_BRONZE_IDS = new Set([
+  // Early boss levels + first-time intros.
+  'first_spark', 'rising_power', 'hardened_throne', 'crown_of_iron', 'echoing_roar',
+  'first_blood', 'first_hire', 'first_trap', 'first_build',
+  // Low-bar milestones reached in normal early play.
+  'survivor', 'skirmisher', 'soul_collector', 'trapsmith', 'diverse_roster',
+  'daily_reaper', 'total_annihilation', 'trap_master', 'personality_profiler',
+])
+function achievementTier(def) {
+  if (def?.legendary) return 'gold'
+  return TIER_BRONZE_IDS.has(def?.id) ? 'bronze' : 'silver'
+}
+
 // Pseudo-tab id for the leaderboard view. Stored in `_activeTab` so the
 // rest of the render plumbing (active highlight, view selection) can
 // branch on it without a separate boolean.
@@ -676,23 +693,15 @@ export class AchievementsOverlay {
       })
     }
 
-    // Non-legendary title achievements: tint the EARNED card's border +
-    // bg with the title's own color so the card reflects the title (not
-    // its category color — e.g. combat's pink on Reaper / Untouchable).
-    // Legendary cards keep their showcase shimmer border. Only applied
-    // once unlocked, matching the category-border rules.
-    const cardTitleColor = (isUnlocked && def.title && !def.legendary)
-      ? titleColorById(def.id) : null
-
     const cardAttrs = {
       className: 'qf-ach-card',
-      style: cardTitleColor
-        ? { borderColor: cardTitleColor,
-            background: `color-mix(in srgb, ${cardTitleColor} 5%, var(--bg-1))` }
-        : undefined,
       dataset: {
         id:        def.id,
         category:  def.category,
+        // Difficulty tier drives the border color (bronze/silver/gold) —
+        // see achievementTier() + the [data-tier] CSS. gold == legendary
+        // (showcase shimmer rule).
+        tier:      achievementTier(def),
         unlocked:  isUnlocked ? 'true' : 'false',
         // Legendary tier — data-driven via `def.legendary` in
         // `achievements.json`. Drives the CSS `[data-legendary="true"]`
