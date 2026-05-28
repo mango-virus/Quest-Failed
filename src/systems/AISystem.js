@@ -648,6 +648,17 @@ export class AISystem {
     if (!victim || victim.aiState === 'dead' || victim.aiState === 'fleeing') return
     const hpFrac = victim.resources.hp / Math.max(1, victim.resources.maxHp)
     if (hpFrac > RESCUE_HP_FRACTION) return
+    // Only rescue against a LIVE MINION attacker. Environmental damage
+    // (traps, tremors, boss AoE) has no attacker tile to pull aggro from
+    // — _goalToTile's RESCUE_ALLY branch then falls back to the victim's
+    // OWN tile, marching the rescuer straight onto the same hazard. With
+    // the trap damage lockout removed (every contact hurts), a spike pit
+    // hits the trapped ally every ~600ms; each hit re-triggered rescue
+    // and piled the whole party onto the trap, shuffling back and forth
+    // as they were repeatedly struck (the reported bug). Gate to minions.
+    const isMinionAttacker = (this._gameState.minions ?? []).some(m =>
+      m.instanceId === attackerId && m.aiState !== 'dead')
+    if (!isMinionAttacker) return
     const advs = this._gameState.adventurers?.active ?? []
     let best = null, bestDist = RESCUE_RANGE
     for (const adv of advs) {
