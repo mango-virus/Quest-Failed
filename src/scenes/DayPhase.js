@@ -1436,6 +1436,8 @@ export class DayPhase extends Phaser.Scene {
     aiSystem.pickInitialGoal(adv)
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
     EventBus.emit('LEGENDARY_HERO_ARRIVED',     { adventurer: adv })
+    // Kick the cinematic layer (entrance title card + shadow vignette).
+    EventBus.emit('SOLO_LEVELING_BEGAN', { adventurer: adv })
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
     return [adv]
   }

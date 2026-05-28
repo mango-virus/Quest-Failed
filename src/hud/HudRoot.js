@@ -42,6 +42,7 @@ import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
+import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
 import { JamPortalCorner }      from './JamPortalCorner.js'
@@ -158,6 +159,10 @@ export class HudRoot {
     this._devEventsButton  = new DevEventsButton()
     // Full-screen coin-flip sequence for The Gambler's Coin event.
     this._coinFlip         = new CoinFlipCinematic()
+    // Solo Leveling — Shadow Monarch entrance title card + shadow vignette.
+    // Same post-mount() construction rule as the others (appends to
+    // #hud-stage immediately).
+    this._soloLeveling     = new SoloLevelingCinematic()
     // Pass the BottomBar's archetype-slot ref so the strip mounts INSIDE
     // the bar rather than floating above it (which used to cover the
     // dungeon view during day phase).
@@ -333,6 +338,7 @@ export class HudRoot {
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
     this._eventBanner?.destroy();    this._eventBanner = null
     this._coinFlip?.destroy();       this._coinFlip = null
+    this._soloLeveling?.destroy();   this._soloLeveling = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
     const canvas = window.__game?.canvas
     if (this._onPointerMove)  canvas?.removeEventListener('pointermove',  this._onPointerMove)

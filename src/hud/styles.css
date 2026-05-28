@@ -13923,3 +13923,136 @@ body {
   .qf-titlefx { background-position: 50% center; }
   .qf-titlefx-border { background-position: center, 50% center; }
 }
+
+/* ============================================================
+   Solo Leveling — Shadow Monarch cinematics (SoloLevelingCinematic.js)
+   ============================================================ */
+
+/* Persistent dark-violet edge vignette while the Monarch is in the dungeon.
+   Sits over the game canvas but below interactive HUD chrome, and never
+   eats pointer events. */
+.qf-sl-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 600ms ease;
+  background:
+    radial-gradient(ellipse at center,
+      rgba(0,0,0,0) 48%,
+      rgba(40,12,70,0.30) 78%,
+      rgba(18,4,34,0.62) 100%);
+}
+.qf-sl-vignette.show { opacity: 1; animation: qf-sl-vignette-pulse 5.5s ease-in-out infinite; }
+@keyframes qf-sl-vignette-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.18); }
+}
+
+/* Full-screen entrance title card. */
+.qf-sl-entrance {
+  position: absolute;
+  inset: 0;
+  z-index: 9100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms ease;
+  overflow: hidden;
+}
+.qf-sl-entrance.show    { opacity: 1; pointer-events: auto; }
+.qf-sl-entrance.closing { opacity: 0; transition: opacity 460ms ease; }
+
+.qf-sl-dim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, rgba(28,8,48,0.55) 0%, rgba(6,2,12,0.92) 75%);
+}
+/* Faint drifting shadow tendrils behind the text — two slow conic sweeps. */
+.qf-sl-tendrils {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 30% 60%, rgba(123,47,224,0.22) 0%, rgba(0,0,0,0) 40%),
+    radial-gradient(circle at 72% 35%, rgba(80,30,160,0.20) 0%, rgba(0,0,0,0) 42%);
+  animation: qf-sl-tendrils-drift 9s ease-in-out infinite alternate;
+}
+@keyframes qf-sl-tendrils-drift {
+  0%   { transform: translate(-2%, 1%) scale(1.0); }
+  100% { transform: translate(3%, -2%) scale(1.08); }
+}
+
+.qf-sl-stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.qf-sl-kicker {
+  font-family: var(--pix);
+  font-size: 13px;
+  letter-spacing: 6px;
+  color: #c9a9ff;
+  text-shadow: 0 0 12px rgba(155,47,224,0.7);
+  opacity: 0;
+  transform: translateY(8px);
+}
+.qf-sl-kicker.in { animation: qf-sl-fade-up 600ms ease forwards; }
+.qf-sl-title {
+  font-family: var(--pix);
+  font-size: 30px;
+  letter-spacing: 4px;
+  color: #efe2ff;
+  text-shadow: 0 0 18px rgba(123,47,224,0.85), 0 2px 0 #1a0633;
+  opacity: 0;
+  transform: translateY(12px);
+}
+.qf-sl-title.in { animation: qf-sl-fade-up 700ms ease forwards; }
+.qf-sl-arise {
+  font-family: var(--pix);
+  font-size: 64px;
+  letter-spacing: 8px;
+  color: #ffffff;
+  text-shadow:
+    0 0 24px rgba(155,47,224,1),
+    0 0 48px rgba(123,47,224,0.8);
+  opacity: 0;
+  transform: scale(2.2);
+  margin-top: 6px;
+}
+.qf-sl-arise.in { animation: qf-sl-arise-slam 520ms cubic-bezier(0.2,0.8,0.2,1) forwards; }
+@keyframes qf-sl-fade-up {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes qf-sl-arise-slam {
+  0%   { opacity: 0; transform: scale(2.2); }
+  60%  { opacity: 1; transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* White-violet flash that punches in on the ARISE beat. */
+.qf-sl-entrance.flash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(220,200,255,0.55), rgba(123,47,224,0) 60%);
+  animation: qf-sl-flash 420ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes qf-sl-flash {
+  0%   { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qf-sl-vignette.show,
+  .qf-sl-tendrils,
+  .qf-sl-kicker.in, .qf-sl-title.in, .qf-sl-arise.in,
+  .qf-sl-entrance.flash::after { animation: none; }
+  .qf-sl-kicker.in, .qf-sl-title.in { opacity: 1; transform: none; }
+  .qf-sl-arise.in { opacity: 1; transform: scale(1); }
+}
