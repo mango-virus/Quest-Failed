@@ -8,13 +8,40 @@
 // re-renders to show the "★ UPGRADED" badge.
 //
 // Visual treatment matches the gold-themed event-confirm chrome —
-// corner brackets + golden ribbon + cog/star motif. Backdrop-click and
-// Esc dismiss the picker WITHOUT a pick (player walks away). The event
-// fires once per announce so dismissing without picking forfeits the
-// upgrade — same forfeit semantics as Cursed Relic's BANISH.
+// corner brackets + gold accents. Compact card layout (2026-05-27 v3):
+// big room emoji + upgrade name + one-line effect, whole card is the
+// click target (no separate "PICK" button). Backdrop-click + Esc
+// dismiss without a pick (player walks away — forfeit semantics same
+// as Cursed Relic's BANISH).
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+
+// Distinct emoji per room type — gives players a visual at-a-glance
+// cue beyond the name. Keep these intentionally varied so adjacent
+// cards never share the same glyph. Falls back to '⚒️' (workshop
+// hammer) for any room id not in this map.
+const ROOM_EMOJI = {
+  starter_corridor:    '↔️',
+  starter_barracks:    '🏰',
+  starter_guard_post:  '🛡️',
+  crypt:               '💀',
+  trap_factory:        '⚙️',
+  treasury:            '💰',
+  armory:              '⚔️',
+  library_of_whispers: '📜',
+  watchtower:          '👁️',
+  wandering_gate:      '🌀',
+  veil_of_forgetting:  '🌫️',
+  catacombs:           '🪦',
+  mimic_vault:         '📦',
+  hall_of_trials:      '🏛️',
+  wishing_well:        '💧',
+  false_exit:          '🚪',
+  hall_of_madness:     '🤯',
+  throne_room:         '👑',
+  sanctum:             '✨',
+}
 
 export class TinkererPicker {
   constructor() {
@@ -34,9 +61,6 @@ export class TinkererPicker {
     if (!Array.isArray(offers) || offers.length === 0) return
     const stage = document.getElementById('hud-stage') ?? document.body
 
-    // Cards laid out in a row. Title bar + flavour text + close hint
-    // underneath so the player can walk away if none of the three
-    // upgrades fit their build.
     this._el = h('div', {
       className: 'qf-tinkerer-modal',
       on: {
@@ -50,10 +74,6 @@ export class TinkererPicker {
         h('span', { className: 'qf-tinkerer-corner br' }),
         h('div', { className: 'qf-tinkerer-kicker' }, '◆  DUNGEON EVENT  ◆'),
         h('div', { className: 'qf-tinkerer-title pix' }, '🛠️  THE TINKERER\'S WORKSHOP'),
-        h('div', { className: 'qf-tinkerer-flavor pix' },
-          'A goblin tinkerer offers to upgrade ONE of your current room types. ' +
-          'The upgrade applies to every current AND future room of that type ' +
-          'for the rest of the run.'),
         h('div', { className: 'qf-tinkerer-offers' },
           offers.map(o => this._renderOffer(o))
         ),
@@ -70,20 +90,15 @@ export class TinkererPicker {
   }
 
   _renderOffer(offer) {
+    const emoji = ROOM_EMOJI[offer.roomId] ?? '⚒️'
     return h('button', {
       className: 'qf-tinkerer-offer',
       on: { click: () => this._pick(offer) },
     }, [
+      h('div', { className: 'qf-tinkerer-offer-icon' }, emoji),
       h('div', { className: 'qf-tinkerer-offer-name pix' }, offer.name),
-      h('div', { className: 'qf-tinkerer-offer-room pix' },
-        `Affects: ${this._humanizeRoomId(offer.roomId)}`),
-      h('div', { className: 'qf-tinkerer-offer-desc' }, offer.description),
-      h('div', { className: 'qf-tinkerer-offer-pick pix' }, '★ PICK'),
+      h('div', { className: 'qf-tinkerer-offer-desc pix' }, offer.description),
     ])
-  }
-
-  _humanizeRoomId(id) {
-    return String(id ?? '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   }
 
   _pick(offer) {

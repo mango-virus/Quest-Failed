@@ -2193,65 +2193,57 @@ body {
   color: var(--gold-bright, #ffd964);
   margin-bottom: 10px;
 }
-.qf-tinkerer-flavor {
-  font-size: 10px;
-  letter-spacing: 0.5px;
-  color: var(--text);
-  margin: 0 auto 18px;
-  max-width: 640px;
-  line-height: 1.5;
-}
+/* .qf-tinkerer-flavor retired 2026-05-27 — long flavour paragraph
+   removed in favour of the cards speaking for themselves. */
 .qf-tinkerer-offers {
   display: flex;
   justify-content: center;
   gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin: 18px 0;
 }
+/* Compact tile — emoji + name + one-line effect, whole card clickable.
+   Hover bumps the border + glow so the player can tell it's a pick. */
 .qf-tinkerer-offer {
   cursor: pointer;
   background: linear-gradient(180deg, #2a1f14, #14100a);
   border: 1px solid color-mix(in srgb, var(--gold-bright, #ffd964) 50%, transparent);
-  padding: 14px 16px;
-  min-width: 220px;
-  max-width: 260px;
-  flex: 1 1 220px;
+  padding: 16px 14px 14px;
+  min-width: 200px;
+  max-width: 240px;
+  flex: 1 1 200px;
   color: var(--text);
   font-family: var(--pix);
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
   transition: transform 120ms, border-color 120ms, box-shadow 120ms;
 }
 .qf-tinkerer-offer:hover {
   border-color: var(--gold-bright, #ffd964);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--gold-bright, #ffd964) 50%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--gold-bright, #ffd964) 55%, transparent);
   transform: translateY(-2px);
 }
+.qf-tinkerer-offer-icon {
+  font-size: 38px;
+  line-height: 1;
+}
 .qf-tinkerer-offer-name {
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 1.5px;
   color: var(--gold-bright, #ffd964);
-  margin-bottom: 6px;
-}
-.qf-tinkerer-offer-room {
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: var(--text-mute);
-  margin-bottom: 8px;
+  text-shadow: 0 0 10px rgba(255, 217, 100, 0.55);
 }
 .qf-tinkerer-offer-desc {
   font-size: 10px;
-  line-height: 1.5;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
   color: var(--text);
-  margin-bottom: 10px;
-  min-height: 60px;
-}
-.qf-tinkerer-offer-pick {
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--gold-bright, #ffd964);
-  text-align: center;
-  padding-top: 6px;
-  border-top: 1px solid color-mix(in srgb, var(--gold-bright, #ffd964) 30%, transparent);
+  /* Hint pixel-font typography is wide — reserve consistent height
+     for 1-2 line descriptions so adjacent cards align vertically. */
+  min-height: 28px;
 }
 .qf-tinkerer-walk-away {
   display: inline-block;
