@@ -375,7 +375,7 @@ export class MainMenuOverlay {
       // submissions for mango to triage). Different colour family than
       // NEW so both can co-exist if needed; positioned on the opposite
       // edge so they don't overlap.
-      m.mailBadge && m.mailBadge > 0 && h('span', { className: 'pix qf-mm-item-mail' }, [
+      m.mailBadge > 0 && h('span', { className: 'pix qf-mm-item-mail' }, [
         h('span', { className: 'qf-mm-item-mail-icon' }, '✉'),
         ' ',
         String(m.mailBadge),
@@ -450,7 +450,7 @@ export class MainMenuOverlay {
         newBadge: PlayerProfile.hasUnseenNewAchievements(
           (AchievementSystem.getDefinitions?.() || []).map(d => d.id)
         ) },
-      { id: 'requests', label: 'GAME REQUESTS', sub: 'Tell the dev what you want next', icon: '✉',
+      { id: 'requests', label: 'GAME REQUESTS', sub: 'Requests and feedback', icon: '✉',
         color: 'var(--rumor)',
         // Per-name NEW badge — fires until the player has opened the
         // overlay at least once. Cleared in _openGameRequests after

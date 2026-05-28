@@ -7509,6 +7509,14 @@ body {
   gap: 6px;
   align-items: stretch;
 }
+/* CONTINUE + NEW EVIL keep their original full-width treatment, stacked
+   one per row above the 2-column grid of secondary actions. They're the
+   two primary entry points, so they read as banners rather than half-width
+   cells. Everything else (LEADERBOARD, ACHIEVEMENTS, …) flows in the grid. */
+.qf-mm-item[data-id="continue"],
+.qf-mm-item[data-id="new"] {
+  grid-column: 1 / -1;
+}
 .qf-mm-item {
   width: 100%;
   justify-content: center;
