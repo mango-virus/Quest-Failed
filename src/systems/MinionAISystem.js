@@ -551,16 +551,22 @@ export class MinionAISystem {
         return
       }
       if (owner.stats?.speed) minion.stats.speed = owner.stats.speed
-      const FOLLOW_LEASH_TILES = 3
-      const distToOwner = Math.hypot(
-        owner.tileX - minion.tileX,
-        owner.tileY - minion.tileY,
-      )
-      if (distToOwner > FOLLOW_LEASH_TILES) {
-        minion.aiState = 'following'
-        minion.currentTargetId = null
-        this._walkAlongPath(minion, { x: owner.tileX, y: owner.tileY }, delta)
-        return
+      // Necro raises / beast tames LEASH to their owner. Jinwoo's extracted
+      // shadows do NOT — they fan out and hunt the dungeon's own minions
+      // (target selection below is dungeon-wide for them). They still die with
+      // the Monarch via the owner-gone check above.
+      if (!minion._shadowExtracted) {
+        const FOLLOW_LEASH_TILES = 3
+        const distToOwner = Math.hypot(
+          owner.tileX - minion.tileX,
+          owner.tileY - minion.tileY,
+        )
+        if (distToOwner > FOLLOW_LEASH_TILES) {
+          minion.aiState = 'following'
+          minion.currentTargetId = null
+          this._walkAlongPath(minion, { x: owner.tileX, y: owner.tileY }, delta)
+          return
+        }
       }
     }
 
@@ -587,6 +593,12 @@ export class MinionAISystem {
     // gap or idle next to the owner. Other faction='dungeon' minions
     // return home / patrol.
     minion.currentTargetId = null
+    // Shadows with no hunt target (dungeon cleared) hold position — they never
+    // leash back to the Monarch.
+    if (minion._shadowExtracted) {
+      minion.aiState = 'idle'
+      return
+    }
     const closeOwnerId = minion.raisedByAdvId ?? minion.tamedByAdvId ?? null
     if (closeOwnerId) {
       const owner = this._gameState.adventurers.active.find(
@@ -795,6 +807,23 @@ export class MinionAISystem {
   // ── Targeting ──────────────────────────────────────────────────────────────
 
   _pickTarget(minion) {
+    // Solo Leveling — extracted shadows are dungeon-wide hunters. They have no
+    // home room and ignore the aggro-range gate: they relentlessly seek the
+    // nearest living dungeon-faction minion ANYWHERE on the map and march on it
+    // (cross-room A* via _engageTarget). This runs before the home-room gate
+    // below (which would otherwise return null for their assignedRoomId=null).
+    if (minion._shadowExtracted) {
+      let best = null
+      let bestD = Infinity
+      for (const m of this._gameState.minions) {
+        if (m === minion || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        if (m.faction !== 'dungeon') continue
+        const d = Math.hypot(m.tileX - minion.tileX, m.tileY - minion.tileY)
+        if (d < bestD) { best = m; bestD = d }
+      }
+      return best
+    }
+
     const homeRoom = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
     if (!homeRoom) return null
 

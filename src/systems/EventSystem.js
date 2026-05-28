@@ -240,6 +240,16 @@ export class EventSystem {
   _extractShadow(src, jinwoo) {
     const TS = Balance.TILE_SIZE
     const tileX = src.tileX, tileY = src.tileY
+    // Risen shadows are STRONGER than they were in life — the Monarch's power
+    // reforges them. Buff over the source minion's stats so they can carve
+    // through the dungeon's other minions.
+    const SHADOW_HP_MULT  = 1.8
+    const SHADOW_ATK_MULT = 1.8
+    const SHADOW_DEF_BONUS = 3
+    const srcMaxHp  = src.resources?.maxHp ?? src.resources?.hp ?? src.stats?.hp ?? 8
+    const shadowHp  = Math.max(1, Math.round(srcMaxHp * SHADOW_HP_MULT))
+    const shadowAtk = Math.max(1, Math.round((src.stats?.attack ?? 3) * SHADOW_ATK_MULT))
+    const shadowDef = (src.stats?.defense ?? 0) + SHADOW_DEF_BONUS
     const shadow = {
       instanceId: `shadow_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       definitionId: src.definitionId,
@@ -257,16 +267,16 @@ export class EventSystem {
       raisedByAdvId: jinwoo.instanceId, tamedByAdvId: null,
       isMiniBoss: false,
       stats: {
-        hp:      src.stats?.hp      ?? src.resources?.maxHp ?? 8,
-        attack:  src.stats?.attack  ?? 3,
-        defense: src.stats?.defense ?? 0,
-        // Keep pace with the 2×-speed Monarch so the army doesn't trail off.
+        hp:      shadowHp,
+        attack:  shadowAtk,
+        defense: shadowDef,
+        // Match the 2×-speed Monarch so the army fans out across the dungeon fast.
         speed:   jinwoo.stats?.speed ?? src.stats?.speed ?? 1.4,
         abilities: [...(src.stats?.abilities ?? [])],
       },
       resources: {
-        hp:    src.resources?.maxHp ?? src.resources?.hp ?? 8,
-        maxHp: src.resources?.maxHp ?? src.resources?.hp ?? 8,
+        hp:    shadowHp,
+        maxHp: shadowHp,
       },
       level: src.level ?? 1, xp: 0,
       aiState: 'idle', currentTargetId: null, deathDay: null, killHistory: [],
