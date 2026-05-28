@@ -633,10 +633,10 @@ POOLS.shadow_monarch = {
   hair:          ['Spiked2'],
   hairColorPool: ['black'],
   bodyColorPool: ['light'],
-  clothColorPool:['black'],
+  clothColorPool:['charcoal'],
   metalColorPool:['steel'],
   beardChance:   0,
-  torso:         ['Trench coat'],
+  torso:         ['Frock coat'],
   legs:          ['Long Pants'],
   feet:          ['Basic Shoes'],
   weapon: {

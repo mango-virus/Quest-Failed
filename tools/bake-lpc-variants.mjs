@@ -426,10 +426,15 @@ function buildLayerManifest(variant) {
   add(variant.eyebrows);
   add(variant.hair);
   add(variant.beard);
-  add(variant.torso);
-  add(variant.legs);
-  add(variant.feet);
-  add(variant.arms);
+  // Pass the chosen clothColor as a locked variant for the wearables.
+  // Palette-recolor items (e.g. Trench coat, material:cloth) ignore it and
+  // use the palette swap; fixed color-VARIANT items (e.g. Frock coat, which
+  // ships black.png/charcoal.png/… instead of a recolor) lock to the
+  // matching color PNG when one exists, else fall back to a random variant.
+  add(variant.torso, { lockedColor: variant.clothColor });
+  add(variant.legs,  { lockedColor: variant.clothColor });
+  add(variant.feet,  { lockedColor: variant.clothColor });
+  add(variant.arms,  { lockedColor: variant.clothColor });
   add(variant.headwear);
   for (const a of variant.accessories) add(a);
   if (variant.weapon) add(variant.weapon);
