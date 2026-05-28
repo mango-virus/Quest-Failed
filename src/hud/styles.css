@@ -13626,13 +13626,17 @@ body {
   -webkit-text-fill-color: transparent;
   color: transparent;
   background-image: var(--tfx-grad);
-  background-size: 220% auto;
-  background-repeat: no-repeat;
+  background-size: 200% auto;
+  /* repeat-x (not no-repeat) so the tiled gradient ALWAYS covers the text
+     no matter where the sweep is — with no-repeat the swept gradient
+     slid partly off the box, leaving transparent (colorless) glyphs. The
+     gradients start+end on the same color, so the tile seam is invisible. */
+  background-repeat: repeat-x;
   filter: drop-shadow(0 0 6px var(--tfx-glow, transparent));
   animation: qf-tfx-sweep var(--tfx-dur, 3.2s) linear infinite;
 }
 @keyframes qf-tfx-sweep {
-  from { background-position: 220% center; }
+  from { background-position: 200% center; }
   to   { background-position: 0%   center; }
 }
 
@@ -13645,13 +13649,15 @@ body {
   background:
     linear-gradient(var(--tfx-inner, #0d0a10), var(--tfx-inner, #0d0a10)) padding-box,
     var(--tfx-grad) border-box;
-  background-size: auto, 220% auto;
-  background-repeat: no-repeat;
-  background-position: center, 220% center;
+  background-size: auto, 200% auto;
+  /* inner fill no-repeat (it's a solid that covers); gradient border layer
+     repeat-x so it always covers the border ring during the sweep. */
+  background-repeat: no-repeat, repeat-x;
+  background-position: center, 200% center;
   animation: qf-tfx-bdsweep var(--tfx-dur, 3.2s) linear infinite;
 }
 @keyframes qf-tfx-bdsweep {
-  from { background-position: center, 220% center; }
+  from { background-position: center, 200% center; }
   to   { background-position: center, 0%   center; }
 }
 
