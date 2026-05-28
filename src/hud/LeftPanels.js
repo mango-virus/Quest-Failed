@@ -26,6 +26,7 @@ import { snapshotMinion, snapshotItem, snapshotTrap, snapshotRoomMini } from './
 import { getRoomThumbnail, precacheRoomThumbnails } from './roomThumbnailCache.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { applyMerchantPrice, merchantPriceMult } from '../util/merchantPricing.js'
+import { trapCap, rosterCap } from '../util/slotCaps.js'
 
 const CATEGORIES = [
   { id: 'ROOMS',   kind: 'room',   icon: '◰', color: 'var(--blood)',  cache: 'rooms',       unlockKey: 'rooms' },
@@ -263,26 +264,22 @@ export class LeftPanels {
   }
 
   // ── Slot counter (trap / minion capacity) ───────────────────────
-  // Trap slots come from Trap Factories (×5 each); minion roster slots
-  // from Barracks (×10 each). Shown above the grid on those two tabs.
+  // Trap slots come from Trap Factories (×3 each, +1 each if tinkered);
+  // minion roster slots from Barracks (×10 each, +5 each if tinkered).
+  // These MUST stay in lockstep with NightPhase._trapCap() / _rosterCap()
+  // (the caps actually enforced at placement) or the display lies.
   _slotInfo(cat) {
     const gs = this._gameState
     const d  = gs.dungeon ?? {}
-    const f  = gs._mechanicFlags ?? {}
+    // Caps come from the shared src/util/slotCaps.js so the display always
+    // matches what NightPhase actually enforces at placement.
     if (cat.kind === 'trap') {
-      const factories = (d.rooms ?? []).filter(
-        r => r.definitionId === 'trap_factory' && r.isActive !== false).length
-      const cap = Math.max(0, factories * (f.trapSlotsPerFactory ?? 5) + (f.maxTrapSlotBonus ?? 0))
-      return { label: 'TRAP SLOTS', used: (d.traps ?? []).length, cap }
+      return { label: 'TRAP SLOTS', used: (d.traps ?? []).length, cap: trapCap(gs) }
     }
     if (cat.kind === 'minion') {
-      const barracks = (d.rooms ?? []).filter(
-        r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
-      const cap = Math.max(0, barracks * (f.minionSlotsPerBarracks ?? 10)
-        + (f.maxMinionSlotBonus ?? 0) - (f.longGameMinionSlotPenalty ?? 0))
       const used = (gs.minions ?? []).filter(
         m => (m.class ?? 'roster') === 'roster' && m.aiState !== 'dead').length
-      return { label: 'MINION SLOTS', used, cap }
+      return { label: 'MINION SLOTS', used, cap: rosterCap(gs) }
     }
     return null
   }

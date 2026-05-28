@@ -24,6 +24,7 @@
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { createMinion, applyBossLevelToMinion } from '../entities/Minion.js'
+import { rosterCap } from '../util/slotCaps.js'
 
 export class DungeonMechanicSystem {
   constructor(scene, gameState) {
@@ -408,21 +409,6 @@ function _buffCurrentMinions(gameState, { hp = 0, atk = 0, def = 0 } = {}) {
     if (def && m.stats) m.stats.defense = Math.round((m.stats.defense ?? 0) * (1 + def))
     applyBossLevelToMinion(m, bossLv)
   }
-}
-
-// Approximate the roster slot cap (mirrors NightPhase._rosterCap minus the
-// tinker bonus) so The Undying Court can tell when slots are full and it must
-// sacrifice minions to make room.
-function _rosterCapApprox(gameState) {
-  const f = gameState._mechanicFlags ?? {}
-  const barracks = (gameState.dungeon?.rooms ?? [])
-    .filter(r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
-  const perB    = f.minionSlotsPerBarracks ?? 10
-  const bonus   = f.maxMinionSlotBonus ?? 0
-  const penalty = f.longGameMinionSlotPenalty ?? 0
-  let total = barracks * perB + bonus - penalty
-  if (f.theHollowHorde) total = Math.floor(total * 0.5)
-  return Math.max(0, total)
 }
 
 // ── Handler registry ──────────────────────────────────────────────────────
@@ -2192,7 +2178,7 @@ function _buildHandlerRegistry() {
         if (!baseDef) { gameState._mechanicFlags.undyingCourtQueue = []; return }
         const bossRoom = gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         const bossLevel = gameState.boss?.level ?? 1
-        const cap = _rosterCapApprox(gameState)
+        const cap = rosterCap(gameState)
         for (const snap of queue) {
           // Make room: if the roster is full, sacrifice random roster minions.
           let roster = (gameState.minions ?? []).filter(m => m.faction === 'dungeon' && m.aiState !== 'dead' && (m.class ?? 'roster') === 'roster')

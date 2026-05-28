@@ -13,6 +13,7 @@ import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { getRotatedDef } from '../util/roomRotation.js'
 import { pickWeightedClass } from '../util/classSpawn.js'
 import { applyMerchantPrice } from '../util/merchantPricing.js'
+import { trapCap, rosterCap } from '../util/slotCaps.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -1952,22 +1953,9 @@ export class NightPhase extends Phaser.Scene {
     return applyMerchantPrice(this._gameState, def?.id, scaled)
   }
 
-  _rosterCap() {
-    const barracksCount = (this._gameState.dungeon.rooms ?? [])
-      .filter(r => r.definitionId === 'starter_barracks' && r.isActive !== false).length
-    const f = this._gameState._mechanicFlags ?? {}
-    const perBarracks = f.minionSlotsPerBarracks ?? 10
-    // Tinkerer's Workshop "Drill Sergeant" — +5 slots per barracks (15
-    // total each) when the type is upgraded.
-    const tinkerBonus = (this._gameState._tinkeredRoomTypes ?? []).includes('starter_barracks')
-      ? barracksCount * 5 : 0
-    const bonus   = f.maxMinionSlotBonus ?? 0
-    const penalty = f.longGameMinionSlotPenalty ?? 0
-    let total = barracksCount * perBarracks + tinkerBonus + bonus - penalty
-    // DAMNED · The Hollow Horde — maximum minion slots halved.
-    if (f.theHollowHorde) total = Math.floor(total * 0.5)
-    return Math.max(0, total)
-  }
+  // Roster + trap caps are the single-source-of-truth in src/util/slotCaps.js
+  // so the build-menu display (LeftPanels) and placement enforcement can't drift.
+  _rosterCap() { return rosterCap(this._gameState) }
 
   _rosterUsed() {
     return (this._gameState.minions ?? [])
@@ -2170,22 +2158,7 @@ export class NightPhase extends Phaser.Scene {
     // Goblin Market repricing (one night) — applied last to match display.
     return applyMerchantPrice(this._gameState, def?.id, Math.max(0, Math.round(cost)))
   }
-  _trapCap() {
-    const factoryCount = (this._gameState.dungeon.rooms ?? [])
-      .filter(r => r.definitionId === 'trap_factory' && r.isActive !== false).length
-    const f = this._gameState._mechanicFlags ?? {}
-    // Base +3 slots per factory (lowered from +5 on 2026-05-27 to pair
-    // with the per-room trap cap drop from 3 → 1; traps are now a
-    // scarce premium asset, not a default chokepoint stack).
-    const perFactory = f.trapSlotsPerFactory ?? 3
-    // Tinkerer's Workshop "Assembly Line" — +1 extra slot per factory
-    // (4 total each) when the type is upgraded. Was +3 pre-rebalance,
-    // dropped to +1 to keep the upgrade proportional to the new base.
-    const tinkerBonus = (this._gameState._tinkeredRoomTypes ?? []).includes('trap_factory')
-      ? factoryCount * 1 : 0
-    const bonus = f.maxTrapSlotBonus ?? 0
-    return Math.max(0, factoryCount * perFactory + tinkerBonus + bonus)
-  }
+  _trapCap() { return trapCap(this._gameState) }
 
   _trapUsed() {
     return (this._gameState.dungeon.traps ?? []).length
