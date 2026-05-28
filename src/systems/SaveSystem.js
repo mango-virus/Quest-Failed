@@ -119,6 +119,28 @@ function _buildSavePayload(gameState, caps = null) {
   return out
 }
 
+// Auto-rewind a save that's somehow in mid-day state. This should be
+// impossible after the night-only save guard (SaveSystem.save() refuses
+// when phase === 'day'), but legacy saves written before that guard
+// shipped — or any future bug that slips past the guard — could leave
+// a player with a broken mid-day save that re-runs the same stuck day
+// every reload. Detecting this on load + clearing the transient state
+// gives them a guaranteed clean checkpoint.
+//
+// The mutation:
+//   * `meta.phase` → 'night' so the game boots into the build phase.
+//   * `adventurers.active` → [] so no stale advs come back to life.
+//   * `meta._rewoundOnLoad` flag tagged so Game.create() can fire a
+//     SHOW_TOAST after the HUD mounts (the toast subscriber doesn't
+//     exist yet at load time — emitting here would be lost).
+function _autoRewindIfMidDay(state) {
+  if (state?.meta?.phase !== 'day') return
+  console.warn('[SaveSystem] Loaded save was in day phase — auto-rewinding to night.')
+  state.meta.phase = 'night'
+  if (state.adventurers) state.adventurers.active = []
+  state.meta._rewoundOnLoad = true
+}
+
 // Drop the heaviest transient fields from a graveyard entry so they
 // don't bloat the save. Keeps display fields (name, classId, dayDied,
 // killerName, etc.) intact for the Graveyard / GameOver readers.
@@ -224,12 +246,15 @@ export const SaveSystem = {
       if (!raw) return null
       const state = JSON.parse(raw)
       if (!state?.meta?.version) return null
+      let migrated = state
       if (state.meta.version !== CURRENT_VERSION) {
-        const migrated = _migrate(state)
+        migrated = _migrate(state)
         if (!migrated) return null
-        return _rehydrateRunHistory(migrated)
       }
-      return _rehydrateRunHistory(state)
+      const ready = _rehydrateRunHistory(migrated)
+      if (!ready) return null
+      _autoRewindIfMidDay(ready)
+      return ready
     } catch (e) {
       console.error('[SaveSystem] Load failed:', e)
       return null

@@ -128,6 +128,23 @@ export class Game extends Phaser.Scene {
     // create() runs again on the next start with a fresh binding.
     this.events.once('shutdown', this.shutdown, this)
 
+    // Auto-rewind notification — SaveSystem.load() detects a save that
+    // was somehow in mid-day phase, clears the active-adv array, and
+    // flips it back to night, marking `meta._rewoundOnLoad = true`.
+    // We defer the toast by ~800ms so the HUD's ToastQueue has time to
+    // subscribe (HUD mounts in HudScene, started in parallel with Game).
+    // Without the delay the SHOW_TOAST emit happens before any subscriber
+    // exists and the toast is silently lost.
+    if (this.gameState?.meta?._rewoundOnLoad) {
+      delete this.gameState.meta._rewoundOnLoad
+      this.time.delayedCall(800, () => {
+        EventBus.emit('SHOW_TOAST', {
+          message: 'Save rewound — the in-progress day was cleared.',
+          type:    'info',
+        })
+      })
+    }
+
     // Title music belongs to MainMenu / ArchetypeSelect only — kill
     // it on the way into the dungeon and hand off to the gameplay
     // playlist (shuffled in-run soundtrack).
