@@ -1469,12 +1469,32 @@ export class AISystem {
       } else {
         adv._hardStuckMs = (adv._hardStuckMs ?? 0) + delta
         if (adv._hardStuckMs > Balance.STUCK_FAILSAFE_MS) {
-          // eslint-disable-next-line no-console
-          console.log('[stuck-failsafe] adv', adv.instanceId, 'pinned at',
-            adv.tileX, adv.tileY, 'for >',
-            Balance.STUCK_FAILSAFE_MS, 'ms — auto-kill')
-          this._kill(adv, idx, 'stuck_failsafe')
-          return
+          // Boss Royale invaders + the Rival Dungeon boss legitimately
+          // QUEUE at the throne: ~11 rush the boss chamber at once and
+          // only as many as fit the doorway funnel can convert to AT_BOSS
+          // (fighting) at a time. The overflow sits in SEEK_BOSS, pinned
+          // by occupancy — which this failsafe was auto-killing, surfacing
+          // as the "stuck in the middle of the room, then die" bug. Don't
+          // cull them: shove them forward along their path (or replan) so
+          // the funnel keeps flowing, and reset the timer. The boss fight
+          // always resolves (combatants die → interior tiles free up, or
+          // the boss dies → everyone flees), so the queue drains without a
+          // day-end hang — same nudge the soft oscillation detector gives
+          // noFlee event waves above.
+          if (adv._bossRoyaleInvader || adv._rivalBoss) {
+            if (!this._shoveAlongPath(adv, 4)) {
+              adv.path = null
+              adv.goal = this._pickNextGoal(adv)
+            }
+            adv._hardStuckMs = 0
+          } else {
+            // eslint-disable-next-line no-console
+            console.log('[stuck-failsafe] adv', adv.instanceId, 'pinned at',
+              adv.tileX, adv.tileY, 'for >',
+              Balance.STUCK_FAILSAFE_MS, 'ms — auto-kill')
+            this._kill(adv, idx, 'stuck_failsafe')
+            return
+          }
         }
       }
     } else {
@@ -1684,7 +1704,13 @@ export class AISystem {
         if (adv._roomRevisits > STARVATION_ROOM_REVISITS &&
             adv.aiState !== 'dead' && adv.aiState !== 'fleeing' &&
             adv.goal?.type !== 'AT_BOSS' &&
-            !adv._saboteur && !adv._speedrunner && !adv._tournamentRival) {
+            // Dedicated event roles beeline / pile at the throne by design
+            // and must not be starved out while queued. Boss Royale
+            // invaders (11 converging at once) and the Rival Dungeon boss
+            // jam at the boss-room doorway waiting their turn to fight —
+            // culling them mid-queue made the whole gauntlet self-destruct.
+            !adv._saboteur && !adv._speedrunner && !adv._tournamentRival &&
+            !adv._bossRoyaleInvader && !adv._rivalBoss) {
           // Death attribution — credit "Starvation" so the graveyard /
           // toast / log read "killed by Starvation" instead of "Unknown".
           // _lookupKillerName resolves the 'starvation' id to its label.
@@ -3167,7 +3193,18 @@ export class AISystem {
       // Legendary Speed Runner event (they still skip combat/scout/
       // treasure via _pickNextGoal but no longer cheat their way to
       // the throne with omniscient room awareness).
-      if (!this._knowsBossLocation(adv)) {
+      //
+      // EXEMPTION — event invaders that exist solely to challenge the
+      // throne (Boss Royale gauntlet, Rival Dungeon champion) bypass the
+      // gate and path straight to the boss. They're invading bosses who
+      // came for the throne and know exactly where it is; gating them
+      // shunts them into the explore fallback, where — having gone
+      // straight to SEEK_BOSS with no EXPLORE_ROOM phase to populate
+      // visitedRooms — the fallback keeps targeting the room they're
+      // already standing in and they freeze mid-dungeon (the "stuck in
+      // these rooms" bug). Speedrunner stays gated by design.
+      const beelinesBoss = adv._bossRoyaleInvader || adv._rivalBoss
+      if (!beelinesBoss && !this._knowsBossLocation(adv)) {
         const explore = this._exploreFallbackForSeekBoss(adv)
         if (explore) return explore
         // Nothing left to explore — fall through to boss tile so the
