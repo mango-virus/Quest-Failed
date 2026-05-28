@@ -226,9 +226,23 @@ export class EventSystem {
     if (!(this._gameState._eventFlags ?? {}).soloLevelingActive) return
     if (!minion || minion.faction !== 'dungeon') return
     if (minion._shadowExtracted) return
+    // Hard cap — never more than SHADOW_CAP (10) shadows alive at once.
     if (this._countShadows() >= EventSystem.SHADOW_CAP) return
     const jinwoo = this._liveShadowMonarch()
     if (!jinwoo) return
+    // Shadows can't raise more shadows — only JINWOO raises. If the fallen
+    // minion's last hit came from one of his shadows (or any adventurer-side
+    // minion), skip. This stops the army chain-multiplying as it clears rooms.
+    const killer = (this._gameState.minions ?? []).find(m => m.instanceId === minion._lastHitBy)
+    if (killer && killer.faction !== 'dungeon') return
+    // Only raise minions that fell in the SAME ROOM Jinwoo is standing in
+    // (his shadows hunting elsewhere don't create new shadows across the map).
+    const grid = this._scene?.dungeonGrid
+    if (grid?.getRoomAtTile) {
+      const minRoom = grid.getRoomAtTile(minion.tileX, minion.tileY)?.instanceId ?? null
+      const jinRoom = grid.getRoomAtTile(jinwoo.tileX, jinwoo.tileY)?.instanceId ?? null
+      if (!minRoom || minRoom !== jinRoom) return
+    }
     this._extractShadow(minion, jinwoo)
   }
 
