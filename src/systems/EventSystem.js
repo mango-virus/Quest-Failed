@@ -608,13 +608,18 @@ export class EventSystem {
     if (costPool.length === 0) return null
     const kind = costPool[Math.floor(Math.random() * costPool.length)]
 
+    // Labels are ALL-CAPS to match the pixel-font headline treatment
+    // of the PAY/REWARD prompt rows (see _promptSacrificialAltar +
+    // .qf-altar-prompt-value styling). Numeric values stay digits;
+    // lowercase 'g' in gold + lowercase '—' em-dash are kept for
+    // readability (raw-caps "G" reads as a separate word).
     if (kind === 'life') {
       const left = gs.boss?.deathsRemaining ?? 0
-      return { kind, label: `A boss life (${left} → ${left - 1} remaining)` }
+      return { kind, label: `A BOSS LIFE (${left} → ${left - 1} REMAINING)` }
     }
     if (kind === 'gold') {
       const lost = Math.floor((player.gold ?? 0) / 2)
-      return { kind, label: `Half your gold (-${lost}g)`, data: { lost } }
+      return { kind, label: `HALF YOUR GOLD (-${lost}g)`, data: { lost } }
     }
     if (kind === 'pacts') {
       const n = Math.floor(activePacts.length / 2)
@@ -629,7 +634,7 @@ export class EventSystem {
       const removed = shuffled.slice(0, n)
       return {
         kind,
-        label: `${n} of your ${activePacts.length} active pacts (random)`,
+        label: `${n} OF YOUR ${activePacts.length} ACTIVE PACTS (RANDOM)`,
         data: { removedPactIds: removed },
       }
     }
@@ -647,7 +652,7 @@ export class EventSystem {
       const sacrificedIds = sacrificed.map(m => m.instanceId).filter(Boolean)
       return {
         kind,
-        label: `${n} of your ${roster.length} roster minions (random — no revival)`,
+        label: `${n} OF YOUR ${roster.length} ROSTER MINIONS (RANDOM — NO REVIVAL)`,
         data: { sacrificedIds },
       }
     }
