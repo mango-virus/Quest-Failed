@@ -109,7 +109,7 @@
     "triggerCondition": "stepped_on",
     "baseDamage": 40,
     "damageType": "physical",
-    "instakillChance": 0.15,
+    "instakillChance": 0.01,
     "cooldownMs": 600,
     "factionsHit": "all",
     "spriteKey": "trap-spike-pit"
