@@ -502,15 +502,18 @@ export const Balance = {
   // beeline the throne together, so the threat is concentration: a wall
   // of boss-tier HP rushing the boss simultaneously.
   //
-  // Tuning lineage: started at a flat ×2.0 (HP+ATK) with a 3s stagger —
-  // far too easy vs a built late-game dungeon (the boss soloed each lone
-  // arrival). 2026-05-27 overhaul: dropped the stagger, split HP/ATK, and
-  // cranked HP hard so a meaningful number SURVIVE the hall gauntlet to
-  // reach the boss. At day 50 the adv curve puts the base invader at
-  // ~14,288 HP / ~251 ATK → ×5 HP = ~71k HP each (~786k total across 11),
-  // ×3 ATK = ~753 ATK each. Knobs — dial down if unwinnable, up if soft.
+  // Tuning lineage: ×2.0 flat + 3s stagger (trivial) → dropped stagger,
+  // split HP/ATK, HP ×5 / ATK ×3 (still "did very little damage"). The
+  // damage problem is the boss's PERCENTAGE defense: dmg = pool × (1 −
+  // def/(def+50)). A pact-stacked late-game boss can sit at high DEF and
+  // mitigate 80%+ of any pool, so ATK has to be cranked HARD to land real
+  // damage — it's a linear lever fighting an asymptotic wall. 2026-05-27
+  // round 3: ATK ×3 → ×8. At day 50 the base invader is ~251 ATK → ×8 =
+  // ~2,010 ATK each (~22k pooled across 11 on the throne); even an 80%-
+  // mitigating boss then eats ~4.4k/round. HP held at ×5 (~71k each) —
+  // survival wasn't the complaint, damage was. Knobs; dial freely.
   BOSS_ROYALE_HP_MULT:          5.0,
-  BOSS_ROYALE_ATK_MULT:         3.0,
+  BOSS_ROYALE_ATK_MULT:         8.0,
   BOSS_ROYALE_KILL_GOLD:        200,   // flat gold per invader killed (no other bonus)
 
   // --- Rival Dungeon challenge buffs (2026-05-27, re-tuned) ---
@@ -520,13 +523,16 @@ export const Balance = {
   // champion. The whole pack now BEELINES the boss (see AISystem
   // _pickNextGoal _monsterInvader branch) and is 2.5× a normal wave, so
   // it reads as a genuine overrun: a horde of tougher-than-yours monsters
-  // all converging on the throne behind a tank champion. All four knobs.
+  // all converging on the throne behind a tank champion. ATK cranked
+  // (1.5 → 3.0, round 3) for the same percentage-defense reason as Boss
+  // Royale + so they punch through your minions faster en route. The
+  // champion also gets PACK_ATK_MULT now (was HP-only). All knobs.
   //   PACK_HP_MULT  2.0 → day-50 monster 3,170 → ~6,340 HP
-  //   PACK_ATK_MULT 1.5 → day-50 monster 154   → ~231 ATK
+  //   PACK_ATK_MULT 3.0 → day-50 monster 154   → ~462 ATK
   //   BOSS_HP_MULT  3.0 → day-50 rival boss 13,584 → ~40,750 HP
   //   PACK_SIZE_MULT 2.5 → ~66 → ~165 monsters (a true horde)
   RIVAL_DUNGEON_PACK_HP_MULT:   2.0,
-  RIVAL_DUNGEON_PACK_ATK_MULT:  1.5,
+  RIVAL_DUNGEON_PACK_ATK_MULT:  3.0,
   RIVAL_DUNGEON_BOSS_HP_MULT:   3.0,
   RIVAL_DUNGEON_PACK_SIZE_MULT: 2.5,
 

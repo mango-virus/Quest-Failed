@@ -1601,6 +1601,9 @@ export class DayPhase extends Phaser.Scene {
     this._scaleAdventurerByBossLevel(rival, this._gameState.boss?.level ?? 1)
     rival.resources.maxHp = Math.round(rival.resources.maxHp * (Balance.RIVAL_DUNGEON_BOSS_HP_MULT ?? 1))
     rival.resources.hp    = rival.resources.maxHp
+    // Champion hits as hard as its pack (was HP-only) so it isn't a wet
+    // noodle once it reaches the throne.
+    rival.stats.attack    = Math.round(rival.stats.attack * (Balance.RIVAL_DUNGEON_PACK_ATK_MULT ?? 1))
     this._gameState.adventurers.active.push(rival)
     aiSystem.pickInitialGoal(rival)
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: rival })
