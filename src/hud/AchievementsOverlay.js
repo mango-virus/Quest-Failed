@@ -614,7 +614,7 @@ export class AchievementsOverlay {
         dataset: { rewardType: 'title' },
         style: tColor ? { '--qf-reward-title': tColor } : undefined,
       }, [
-        '✦ Title: ',
+        '✦ ',
         h('span', { className: titleFxClassById(def.id) }, def.title),
       ])
     }
