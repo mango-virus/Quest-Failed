@@ -57,6 +57,19 @@ const KIND_STYLE = {
     popInMs:     150,
     fadeOutMs:   400,
   },
+  // Solo Leveling — Sung Jinwoo's bubbles. Inky dark bubble + a white→blue
+  // vertical gradient on the text with a soft blue glow, echoing the
+  // "ARISE" shadow-monarch typography.
+  shadow: {
+    borderColor: 0x2e6bff,
+    bgColor:     0x070b16,
+    textColor:   '#bfe0ff',    // flat fallback if gradient unsupported
+    gradient:    [[0, '#ffffff'], [0.4, '#cfe9ff'], [0.75, '#5fa8ff'], [1, '#1e63ff']],
+    glow:        { color: '#3a8bff', blur: 6 },
+    stroke:      { color: '#0a224f', thickness: 1 },
+    popInMs:     170,
+    fadeOutMs:   280,
+  },
 }
 
 /**
@@ -213,6 +226,20 @@ function _buildWrappedText(scene, content, style) {
     align:       'center',
   }
   const t = scene.add.text(0, 0, _fitTextToCap(scene, content, opts), opts)
+  // Optional glow + stroke (Jinwoo's 'shadow' kind). Set before the gradient
+  // so the final fill re-render carries them.
+  if (style.stroke) t.setStroke(style.stroke.color, style.stroke.thickness)
+  if (style.glow)   t.setShadow(0, 0, style.glow.color, style.glow.blur, false, true)
+  // Optional vertical gradient fill — a CanvasGradient spanning the text's
+  // measured height (top → bottom colour stops). The text is already laid out
+  // at this point so t.height is valid; chat bubbles never reflow in place so
+  // the canvas-space gradient stays aligned for the bubble's whole life.
+  if (style.gradient && t.context && typeof t.context.createLinearGradient === 'function') {
+    const h = Math.max(1, t.height)
+    const grad = t.context.createLinearGradient(0, 0, 0, h)
+    for (const [stop, col] of style.gradient) grad.addColorStop(stop, col)
+    t.setFill(grad)
+  }
   return t
 }
 

@@ -611,7 +611,8 @@ export class ChatBubbles {
       x:     adv.worldX,
       y:     adv.worldY - 30,
       text:  line,
-      kind:  'chat',
+      // Jinwoo's bubbles use the white→blue gradient 'shadow' treatment.
+      kind:  this._isShadowMonarch(adv) ? 'shadow' : 'chat',
       depth: 11,
       // No auto-lifeMs — this module manages its own expiry timer
       // via expiresAt + the per-frame update() sweep below.
