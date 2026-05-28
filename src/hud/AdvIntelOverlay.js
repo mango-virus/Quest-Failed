@@ -525,7 +525,10 @@ export class AdvIntelOverlay {
     const def = this._classDef(adv)
     const name = adv.name || 'Unnamed'
     const classLabel = (def?.name || adv.classId || 'Adventurer').toUpperCase()
-    const lv = adv.displayLevel ?? adv.level ?? adv.lv ?? 1
+    // Sung Jinwoo's level reads as ∞ (flavour only — never used in any stat
+    // calc; his real `level` is untouched).
+    const lv = (adv._shadowMonarch || adv.classId === 'shadow_monarch')
+      ? '∞' : (adv.displayLevel ?? adv.level ?? adv.lv ?? 1)
     const veteran = this._isVeteran(adv)
     const redacted = !!adv.redacted
 
@@ -607,7 +610,9 @@ export class AdvIntelOverlay {
     const def = this._classDef(sel)
     const name = sel.name || 'Unnamed'
     const classLabel = (def?.name || sel.classId || 'Adventurer').toUpperCase()
-    const lv = sel.level ?? sel.lv ?? 1
+    // Jinwoo's level shows as ∞ (flavour only — see card renderer above).
+    const lv = (sel._shadowMonarch || sel.classId === 'shadow_monarch')
+      ? '∞' : (sel.level ?? sel.lv ?? 1)
     // Library tier reveals — drives which sections of the detail card
     // are visible. Stats / resists / weak-to require Tier 3 (3+ Libs);
     // personalities require Tier 2 (2+ Libs); planned route requires

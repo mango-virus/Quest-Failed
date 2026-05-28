@@ -260,7 +260,8 @@ export class InspectPopup {
     const hp    = a.resources?.hp ?? a.stats?.hp ?? '?'
     const maxHp = a.resources?.maxHp ?? hp
     const boxes = [
-      ['LV',  a.displayLevel ?? a.level ?? 1],
+      // Jinwoo's level reads as ∞ (flavour only — his real level is untouched).
+      ['LV',  (a._shadowMonarch || a.classId === 'shadow_monarch') ? '∞' : (a.displayLevel ?? a.level ?? 1)],
       ['HP',  `${hp}/${maxHp}`],
       ['ATK', a.stats?.attack ?? '?'],
     ]
