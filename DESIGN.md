@@ -1207,3 +1207,18 @@ Legendary-tier achievements (the 6 with `legendary: true` in the data file) get 
 - **22-particle gold burst** spawned alongside, fountaining leftward into the play area (the toast sits on the right edge of the HUD, so particles bias into the screen). CSS-animated via per-particle `--dx` / `--dy` trajectory vars; auto-cleanup after ~1.3s.
 
 Common achievement unlocks keep the unchanged golden trophy toast — the tier difference is the visible distinction.
+
+## Solo Leveling — Epic Boss Duel (2026-05-28)
+
+*(Back-documenting: the Solo Leveling event itself — the rare **Shadow Monarch** invader "Sung Jinwoo", his persistent black-flame aura, shadow-extraction minions, stat-matched boss duel, entrance/VS cinematic and legendary achievement — shipped earlier but was never recorded in this file. This section captures the feature and the duel-cinematic overhaul the designer asked for.)*
+
+The standard boss fight treats every invader the same: they orbit the boss and trade abstract damage rounds. For the Shadow Monarch that reads as anticlimactic — a legendary 1-on-1 should feel like a *duel*, not a trash-mob skirmish. The throne-room fight between Jinwoo and the boss is therefore reworked into a bespoke cinematic. **Everything below applies ONLY to the Jinwoo-vs-boss duel** (the sole-combatant Shadow Monarch case); all other boss fights are unchanged. The duel stays strictly **1:1** — his extracted shadows do *not* appear in the throne room (they clear the halls; the duel is just him and the boss).
+
+- **Roaming clash choreography.** Instead of Jinwoo orbiting a near-stationary boss, **both fighters range across the whole arena trading blows**. They converge on a shared point, exchange a flurry, then break apart to opposite sides of the room and re-engage from a new angle — repeatedly, all over the chamber. The fight should never look like two figures standing next to each other; it should look like a moving battle.
+- **Director layer (camera + time).** When the duel begins: cinematic **letterbox bars** frame the screen for its duration, the camera **pushes in** on the throne room, and key clashes punch with **hitstop** (a brief slow-motion freeze) plus **screen shake**. The killing blow lands in hard slow-motion.
+- **Signature Monarch moves.** Jinwoo fights with bespoke blue-black VFX — **shadow-dash blinks** (he flickers across the room to reappear at the boss), **flame-slash arcs**, and **dark eruptions** on impact — distinct from the generic yellow strike sparks every other adventurer uses.
+- **Rising phase beats.** The duel has an arc, not a flat damage race. Scripted one-shot moments fire at HP thresholds — the boss **enrages** when wounded; Jinwoo hits a **power surge** (flame flares brighter, the screen pulses) when pushed low — each punctuated by one of his battle-cry lines.
+- **Two climaxes.** *Jinwoo wins:* a slow-motion **shadow execution** — a final dash, a blue-white flash, the boss dissolving into shadow. *The boss kills Jinwoo* (the rare path that grants the legendary achievement): a **last stand** — he drops to one knee, his flame guttering, before the finishing blow lands. The loss is framed as earned, not abrupt.
+- **Framing & audio.** A live **two-bar duel header** (THE SHADOW MONARCH vs the boss, both HP bars updating in real time) frames the fight, his unique chat lines fire on the duel's beats, and an impact/music sting marks the clash where audio assets allow.
+
+Intent: the Shadow Monarch's arrival is already the rarest, most theatrical event in the game — the fight that pays it off should match.

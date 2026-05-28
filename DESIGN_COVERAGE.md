@@ -1036,6 +1036,27 @@ Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Fa
 
 ---
 
+## Solo Leveling event — Shadow Monarch (back-documented 2026-05-28)
+
+The rare Shadow Monarch invader ("Sung Jinwoo") and his bespoke duel. The base feature shipped earlier without coverage rows; recorded here alongside the epic-duel cinematic overhaul.
+
+| id | item | phase | status | notes |
+|----|------|-------|--------|-------|
+| sl-event | `solo_leveling` event + `shadow_monarch` class (event-only, `unlockLevel 99`); spawns only during the event | SL P1 | ✅ DONE | DayPhase `_spawnSoloLeveling` pins variant + `_shadowMonarch`; normal-wave filter excludes the class |
+| sl-aura | Persistent blue↔black cycling flame aura + glow on Jinwoo; shadow minions get the matched cycled flame; flame extinguishes on a shadow's death | SL P1 | ✅ DONE | AdventurerRenderer `_attachShadowMonarchAura` + per-frame lerp tint; MinionRenderer shadow flame cycle + death removal |
+| sl-shadows | Shadow Extraction — Jinwoo revives killed dungeon minions as faction-flipped shadows (cap 4, same-room only, normal stats, can't revive others, hunt other minions) | SL P1 | ✅ DONE | EventSystem `_extractShadow`; MinionAISystem hunting + door-seam fix |
+| sl-invuln | Jinwoo can't loot/open chests/mimics, can't flee unless boss dead, never withdraws from the duel, can't be killed by anything but the boss (10% HP floor across all damage paths) | SL P1 | ✅ DONE | AISystem/CombatSystem/TrapSystem/BossArchetypeSystem 10% floor; FLEE→SEEK_BOSS interception |
+| sl-duel-match | Boss duel: Jinwoo's maxHP matched to boss (keeps entry HP%), atk/def scale with shadow count; strictly 1:1 (shadows excluded from throne) | SL P1 | ✅ DONE | BossSystem `_matchShadowMonarchToBoss`; emits `SHADOW_MONARCH_DUEL` |
+| sl-cinematic-entrance | Entrance title card (SOLO LEVELING / THE SHADOW MONARCH / ARISE) + persistent vignette + VS card at the throne; black-blue event banner | SL P3 | ✅ DONE | `SoloLevelingCinematic.js`; EventBanner shadowmonarch theme |
+| sl-achievement | Legendary achievement only when the boss kills Jinwoo during the duel | SL P4 | ✅ DONE | AchievementSystem `_onAdventurerDied` isBoss gate |
+| sl-duel-movement | **Epic duel: both fighters roam the arena trading blows (clash → break → re-engage), not orbiting; signature blue-black Monarch VFX (shadow-dash, flame-slash, eruption)** | SL P5 | ⏳ PENDING | bespoke `_tickDuel` in BossSystem; duel-only, 1:1 |
+| sl-duel-director | **Director layer: letterbox bars, camera push-in, hitstop + shake on clashes, slow-mo killing blow** | SL P5 | ⏳ PENDING | SoloLevelingCinematic + CSS; time.timeScale + camera coordination with Game.js |
+| sl-duel-beats | **Rising phase beats: boss enrage + Jinwoo power surge at HP thresholds, with battle-cry lines** | SL P5 | ⏳ PENDING | one-shot HP-gated triggers |
+| sl-duel-climax | **Two climaxes: slow-mo shadow execution (win) / last-stand kneel + finishing blow (loss)** | SL P5 | ⏳ PENDING | `_endFight` duel branch + DOM pops |
+| sl-duel-framing | **Live two-bar duel HUD header (Monarch vs boss HP), beat-synced chat lines, impact/music sting** | SL P5 | ⏳ PENDING | DOM header; SfxSystem sting if assets exist |
+
+---
+
 ## How to keep this file honest
 
 - **At every phase exit**: update statuses for items tagged in that phase. If a row is still PENDING or PARTIAL when the phase ends, either fix it or get explicit user approval to defer.
