@@ -199,6 +199,61 @@
     "title": "Of the Throne Eternal",
     "legendary": true
   },
+  {
+    "id": "umbral_ascendant",
+    "name": "Umbral Ascendant",
+    "description": "Reach boss level 21.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 21,
+    "icon": "🌑",
+    "title": "The Umbral Ascendant",
+    "legendary": true
+  },
+  {
+    "id": "devourer_of_stars",
+    "name": "Devourer of Stars",
+    "description": "Reach boss level 22.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 22,
+    "icon": "🌟",
+    "title": "Devourer of Stars",
+    "legendary": true
+  },
+  {
+    "id": "herald_of_oblivion",
+    "name": "Herald of Oblivion",
+    "description": "Reach boss level 23.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 23,
+    "icon": "🕳️",
+    "title": "Herald of Oblivion",
+    "legendary": true
+  },
+  {
+    "id": "empyrean_dread",
+    "name": "Empyrean Dread",
+    "description": "Reach boss level 24.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 24,
+    "icon": "☄️",
+    "title": "The Empyrean Dread",
+    "legendary": true
+  },
+  {
+    "id": "the_last_god",
+    "name": "The Last God",
+    "description": "Reach boss level 25.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 25,
+    "icon": "🌌",
+    "title": "The Last God",
+    "legendary": true
+  },
 
   {
     "id": "first_blood",
@@ -416,10 +471,10 @@
   {
     "id": "curtain_call",
     "name": "Curtain Call",
-    "description": "Kill 1000 adventurers with traps in a single run.",
+    "description": "Kill 500 adventurers with traps in a single run.",
     "category": "combat",
     "metric": "trapKillsInRunMax",
-    "target": 1000,
+    "target": 500,
     "icon": "🎭",
     "title": "The Showrunner",
     "reward": { "type": "companion", "id": "rattlebones" },
