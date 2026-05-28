@@ -1078,6 +1078,7 @@ export class BossSystem {
       bossEnraged: false,
       monarchSurged: false,
       enrageMul: 1,
+      hpEmitT: 0,   // throttle for the live duel-HUD HP feed
     }
     this._pickDuelAnchors(D)
     return D
@@ -1123,6 +1124,19 @@ export class BossSystem {
     D.t += dt
     this._checkDuelBeats(D, adv, boss)
 
+    // Feed the live duel HUD (Monarch vs boss HP bars), throttled ~8/s — CSS
+    // width transitions smooth the steps between the 0.6s damage rounds.
+    D.hpEmitT += dt
+    if (D.hpEmitT >= 0.12) {
+      D.hpEmitT = 0
+      const aMax = adv.resources?.maxHp ?? adv.resources?.hp ?? 1
+      const bMax = boss.maxHp ?? boss.hp ?? 1
+      EventBus.emit('SHADOW_MONARCH_DUEL_HP', {
+        advFrac:  aMax > 0 ? Math.max(0, Math.min(1, (adv.resources?.hp ?? 0) / aMax)) : 0,
+        bossFrac: bMax > 0 ? Math.max(0, Math.min(1, (boss.hp ?? 0) / bMax)) : 0,
+      })
+    }
+
     const moveTo = (e, tx, ty, speed) => {
       const dx = tx - e.worldX, dy = ty - e.worldY
       const d  = Math.hypot(dx, dy)
@@ -1160,6 +1174,7 @@ export class BossSystem {
           this._emitFx({ kind: 'monarch_burst', x: (adv.worldX + boss.worldX) / 2, y: (adv.worldY + boss.worldY) / 2 })
           shake(120, 0.004)
           this._hitstop(60, 0.2)   // punch of weight as they collide
+          EventBus.emit('SHADOW_MONARCH_DUEL_CLASH')
         }
         break
       }
@@ -1201,6 +1216,7 @@ export class BossSystem {
           this._emitFx({ kind: 'shadow_dash', x: adv.worldX, y: adv.worldY })   // reappear
           this._emitFx({ kind: 'shadow_slash', x: (adv.worldX + boss.worldX) / 2, y: (adv.worldY + boss.worldY) / 2, ang: ba })
           shake(90, 0.003)
+          EventBus.emit('SHADOW_MONARCH_BLINK')
         }
         if (D.t >= D.dur) {
           D.phase = 'clash'; D.t = 0; D.dur = 0.7

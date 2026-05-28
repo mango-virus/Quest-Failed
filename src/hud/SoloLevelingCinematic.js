@@ -27,6 +27,9 @@ export class SoloLevelingCinematic {
     this._vignette = null   // persistent edge shadow
     this._letterbox = null  // duel cinematic bars
     this._finale = null     // duel win/loss climax card
+    this._duelHud = null    // live two-bar HP header
+    this._advFill = null
+    this._bossFill = null
     if (!this._stage) return
     this._ensureDuelCss()
     this._wire()
@@ -81,7 +84,22 @@ export class SoloLevelingCinematic {
 .qf-sl-finale-sub { position:relative; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#a9c6e8; }
 @keyframes qf-sl-finale-pop { 0%{opacity:0; transform:scale(.6); filter:blur(6px)}
-  60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }`
+  60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }
+.qf-sl-duelhud { position:absolute; top:calc(9vh + 10px); left:50%; transform:translateX(-50%);
+  z-index:35; pointer-events:none; display:flex; align-items:center; gap:14px;
+  font-family:'Press Start 2P','Courier New',monospace; opacity:0; transition:opacity .5s ease; }
+.qf-sl-duelhud.show { opacity:1; }
+.qf-sl-duelhud .qf-sl-side { display:flex; flex-direction:column; gap:5px; width:min(34vw,360px); }
+.qf-sl-duelhud .qf-sl-side.right { align-items:flex-end; }
+.qf-sl-duelhud .qf-sl-name { font-size:clamp(8px,1vw,12px); letter-spacing:2px; white-space:nowrap; }
+.qf-sl-duelhud .qf-sl-side.left  .qf-sl-name { color:#bfe3ff; text-shadow:0 0 10px rgba(74,160,255,.8); }
+.qf-sl-duelhud .qf-sl-side.right .qf-sl-name { color:#ffc2b8; text-shadow:0 0 10px rgba(255,80,60,.8); }
+.qf-sl-duelhud .qf-sl-track { width:100%; height:12px; background:rgba(4,8,16,.82);
+  border:2px solid rgba(120,150,200,.45); border-radius:2px; overflow:hidden; position:relative; }
+.qf-sl-duelhud .qf-sl-fill { position:absolute; top:0; bottom:0; width:100%; transition:width .16s linear; }
+.qf-sl-duelhud .qf-sl-side.left  .qf-sl-fill { left:0;  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); }
+.qf-sl-duelhud .qf-sl-side.right .qf-sl-fill { right:0; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
+.qf-sl-duelhud .qf-sl-vs { font-size:clamp(12px,1.6vw,20px); color:#e8eefc; text-shadow:0 0 10px rgba(120,150,220,.8); }`
     const el = document.createElement('style')
     el.id = 'qf-sl-duel-css'
     el.textContent = css
@@ -97,6 +115,8 @@ export class SoloLevelingCinematic {
     sub('SHADOW_MONARCH_DUEL_BEAT', (p) => this._onDuelBeat(p ?? {}))
     // Duel climax — shadow execution (win) / last stand (loss).
     sub('SHADOW_MONARCH_DUEL_END', (p) => this._onDuelEnd(p ?? {}))
+    // Live duel HUD HP feed.
+    sub('SHADOW_MONARCH_DUEL_HP', (p) => this._onDuelHp(p ?? {}))
     // Lift the vignette (and tear down any lingering card) the moment the
     // Monarch is gone, or at day end as a catch-all.
     sub('ADVENTURER_DIED', (p) => { if (p?.adventurer?._shadowMonarch) this._end() })
@@ -123,6 +143,7 @@ export class SoloLevelingCinematic {
   _end() {
     this._clearTimers()
     this._hideLetterbox()
+    this._hideDuelHud()
     if (this._el) { this._el.remove(); this._el = null }
     if (this._vs) { this._vs.remove(); this._vs = null }
     if (this._vignette) {
@@ -227,9 +248,50 @@ export class SoloLevelingCinematic {
     }, 2800)
   }
 
+  // ── Live two-bar duel HUD ─────────────────────────────────────────────────
+  // A persistent header framing the fight: THE SHADOW MONARCH (blue, left) vs
+  // the boss (red, right), each bar depleting toward the centre VS. Fed by
+  // SHADOW_MONARCH_DUEL_HP; CSS width transitions smooth the round-step jumps.
+  _showDuelHud(bossName) {
+    if (this._duelHud) this._duelHud.remove()
+    const advFill  = h('div', { className: 'qf-sl-fill' })
+    const bossFill = h('div', { className: 'qf-sl-fill' })
+    this._advFill = advFill
+    this._bossFill = bossFill
+    this._duelHud = h('div', { className: 'qf-sl-duelhud' }, [
+      h('div', { className: 'qf-sl-side left' }, [
+        h('div', { className: 'qf-sl-name' }, 'THE SHADOW MONARCH'),
+        h('div', { className: 'qf-sl-track' }, [advFill]),
+      ]),
+      h('div', { className: 'qf-sl-vs' }, 'VS'),
+      h('div', { className: 'qf-sl-side right' }, [
+        h('div', { className: 'qf-sl-name' }, String(bossName).toUpperCase()),
+        h('div', { className: 'qf-sl-track' }, [bossFill]),
+      ]),
+    ])
+    this._stage.appendChild(this._duelHud)
+    // eslint-disable-next-line no-unused-expressions
+    this._duelHud.offsetHeight
+    this._duelHud.classList.add('show')
+  }
+
+  _onDuelHp({ advFrac = 1, bossFrac = 1 } = {}) {
+    if (this._advFill)  this._advFill.style.width  = `${Math.round(advFrac  * 100)}%`
+    if (this._bossFill) this._bossFill.style.width = `${Math.round(bossFrac * 100)}%`
+  }
+
+  _hideDuelHud() {
+    if (!this._duelHud) return
+    const hud = this._duelHud
+    this._duelHud = null; this._advFill = null; this._bossFill = null
+    hud.classList.remove('show')
+    setTimeout(() => hud.remove(), 500)
+  }
+
   // ── Duel VS card ─────────────────────────────────────────────────────────
   _onDuel({ bossName = 'YOUR BOSS', shadows = 0, buff = 1 } = {}) {
     this._showLetterbox()
+    this._showDuelHud(bossName)
     if (this._vs) this._vs.remove()
     const pct = Math.round((buff - 1) * 100)
     const sub = shadows > 0
@@ -289,5 +351,7 @@ export class SoloLevelingCinematic {
     this._vignette?.remove(); this._vignette = null
     this._letterbox?.remove(); this._letterbox = null
     this._finale?.remove(); this._finale = null
+    this._duelHud?.remove(); this._duelHud = null
+    this._advFill = null; this._bossFill = null
   }
 }

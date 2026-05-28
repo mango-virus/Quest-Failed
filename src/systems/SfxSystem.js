@@ -232,6 +232,26 @@ export class SfxSystem {
     on('GAMBLER_COIN_FLIP',       this._onCoinFlip)
     on('GAMBLER_DOUBLE_REQUEST',  this._onCoinFlip)
     on('GAMBLER_COIN_REVEALED',   this._onCoinRevealed)
+
+    // ── Solo Leveling — Shadow Monarch duel cues ────────────────────────
+    on('SHADOW_MONARCH_DUEL_CLASH', this._onDuelClash)   // melee swing per clash
+    on('SHADOW_MONARCH_BLINK',      this._onTeleport)    // shadow-dash blink
+    on('SHADOW_MONARCH_DUEL_BEAT',  this._onDuelBeat)    // enrage / power surge
+  }
+
+  // Solo Leveling duel — one melee swing per clash collision (rate-limited so
+  // back-to-back clashes can't stack into noise).
+  _onDuelClash() {
+    const now = this._now()
+    if (now - (this._lastDuelClashAt ?? 0) < 140) return
+    this._lastDuelClashAt = now
+    this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2')
+    this._meleeAlt = this._meleeAlt === 0 ? 1 : 0
+  }
+
+  _onDuelBeat({ kind } = {}) {
+    if (kind === 'enrage')     this._play('sfx-boss-attack')
+    else if (kind === 'surge') this._play('sfx-revive')
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
