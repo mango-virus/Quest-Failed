@@ -1186,6 +1186,43 @@ export class MinionAISystem {
       if (!isFollowingAlly) return
     }
 
+    // Shadow army — move straight to the PLAIN tile centre, bypassing the
+    // ½-tile doorway-lane shift + lane L-shape logic below. The diagnosis
+    // (shadows frozen at the first doorway): at 2× speed the lane-centre
+    // target lands exactly on a doorway seam (world coord = N×TS), the
+    // dist<0.5 snap parks the minion ON that seam, and every subsequent
+    // approach/lane waypoint re-targets the same seam — so it never moves off
+    // it. Shadows are ethereal; single-file lane prettiness isn't needed, and
+    // A* already routes them down the canonical (walkable) door column, so a
+    // dead-simple centre-to-centre step is both correct and deadlock-proof.
+    if (minion._shadowExtracted) {
+      const cx = targetTile.x * TS + TS / 2
+      const cy = targetTile.y * TS + TS / 2
+      const sdx = cx - minion.worldX
+      const sdy = cy - minion.worldY
+      const sdist = Math.hypot(sdx, sdy)
+      const sStep = (minion.stats.speed * TS * delta) / 1000
+      if (sStep >= sdist || sdist < 0.5) {
+        minion.worldX = cx
+        minion.worldY = cy
+      } else {
+        minion.worldX += (sdx / sdist) * sStep
+        minion.worldY += (sdy / sdist) * sStep
+      }
+      const sntx = Math.floor(minion.worldX / TS)
+      const snty = Math.floor(minion.worldY / TS)
+      const sTiles = this._dungeonGrid?.getTiles?.()
+      const sWalk = !!sTiles?.[snty] && PathfinderSystem.isWalkable(sTiles[snty][sntx])
+      if (this._dungeonGrid?.isDoorBlocked?.(sntx, snty) || !sWalk) {
+        minion.tileX = targetTile.x
+        minion.tileY = targetTile.y
+      } else {
+        minion.tileX = sntx
+        minion.tileY = snty
+      }
+      return
+    }
+
     // Lane-centred world target — see DungeonGrid.getLaneCenterWorld.
     // Canonical doorway lane tiles + their floor approach/exit tiles
     // shift ½-tile so minions and summons walk through the geometric
