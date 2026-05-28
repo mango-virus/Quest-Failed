@@ -335,6 +335,15 @@ const ANIM_FALLBACK = {
   'shadow/child': { idle: 'walk', run: 'walk' },
 };
 
+// GENERAL anim fallback applied to EVERY layer (after any per-dir override).
+// `run` and `idle` are newer LPC animations that many clothing items don't
+// ship — without this, a coat/pants/etc. that lacks run art simply vanishes
+// during the run animation. Both reuse `walk` (run = same foot-cycle shape,
+// idle ≈ first walk frame). The composite copies the source top-left and the
+// renderer samples only the first N frames per row, so a 9-frame walk strip
+// overflowing the 8-frame run block is harmless.
+const GENERAL_ANIM_FALLBACK = { run: 'walk', idle: 'walk' };
+
 // Animation names a weapon layer path can end in (the per-anim weapon art
 // dirs). A weapon layer's sourceDir already encodes its animation, e.g.
 // `weapon/sword/scimitar/walk` (foreground) or `.../walk/behind`.
@@ -389,17 +398,15 @@ function resolveLayerSourceForAnim(rng, layerSourceDir, animFile, animName, lock
   if (subdirIsDir) {
     return pickColorVariant(rng, subdir);
   }
-  // Anim fallback — e.g. Shadow's idle/run reuse walk.  The composite
-  // step copies the source PNG straight into the row (top-left aligned),
-  // and the renderer only samples the first N frames per row, so the
-  // larger walk-shadow strip overflowing into unused sheet space is
-  // harmless.
-  const fallback = ANIM_FALLBACK[layerSourceDir]?.[animName];
-  if (fallback) {
-    const fbSubdir = path.join(ssRoot, layerSourceDir, fallback);
-    if (fs.existsSync(fbSubdir) && fs.statSync(fbSubdir).isDirectory()) {
-      return pickColorVariant(rng, fbSubdir);
-    }
+  // Anim fallback — per-dir override (e.g. Shadow) first, then the GENERAL
+  // run/idle -> walk rule so any clothing item missing those newer anims
+  // reuses its walk art instead of vanishing. Re-resolve with the fallback
+  // anim (handles flat files, color-variant subdirs, and lockedColor the
+  // same way). walk has no fallback, so this can't recurse forever.
+  const fbAnim = ANIM_FALLBACK[layerSourceDir]?.[animName]
+    ?? GENERAL_ANIM_FALLBACK[animName];
+  if (fbAnim && fbAnim !== animName) {
+    return resolveLayerSourceForAnim(rng, layerSourceDir, `${fbAnim}.png`, fbAnim, lockedColor);
   }
   return null;
 }
