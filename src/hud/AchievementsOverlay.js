@@ -269,44 +269,7 @@ export class AchievementsOverlay {
     // picker popup); hidden in viewer mode (we don't know the other
     // player's active title locally, and changing the chip wouldn't
     // make sense for someone else's screen).
-    const activeTitle = this._viewer ? null : PlayerProfile.getActiveTitle()
-    const titleCount  = this._viewer ? 0 : PlayerProfile.getUnlockedTitles().length
-    // Source-category for the active title — the chip border + glow
-    // inherit the category color of the achievement that granted it,
-    // so "The Hoarder" reads gold (economy), "The Tyrant" reads amber
-    // (progression), "The Hunter" reads cyan (variety), etc.
-    const titleSourceDef = activeTitle ? AchievementSystem.getDefinition(activeTitle.id) : null
-    const titleSourceCat = titleSourceDef?.category || 'mastery'
-    // fx title → animated gradient border + gradient name. Non-fx title
-    // with a titleColor → solid color on the border + name (overrides the
-    // category-derived chip tint). Plain title → category tint as before.
-    const titleFxBorder = activeTitle ? titleFxBorderClassById(activeTitle.id) : ''
-    const titleColor    = (activeTitle && !titleFxBorder) ? titleColorById(activeTitle.id) : null
-    // Category tint ONLY for a title with neither fx nor color (legacy
-    // fallback — every title has one now). Omitting data-source-cat
-    // otherwise stops its higher-specificity border/glow rules from
-    // overriding the fx gradient border / inline color border.
-    const useCatTint = !!activeTitle && !titleFxBorder && !titleColor
-    const titleChip = activeTitle ? h('button', {
-      className: ('pix qf-ach-titlechip ' + titleFxBorder).trimEnd(),
-      dataset: useCatTint ? { sourceCat: titleSourceCat } : undefined,
-      // Color titles paint border + matching glow inline (wins over the
-      // base chip shadow). fx titles get their gradient border from the
-      // class + the scoped .qf-ach-titlechip.qf-titlefx-border glow rule.
-      style: titleColor
-        ? { borderColor: titleColor, boxShadow: `0 0 0 2px #000, 0 0 16px ${titleColor}66` }
-        : undefined,
-      on: { click: () => this._toggleTitlePicker() },
-    }, [
-      h('span', { className: 'qf-ach-titlechip-label' }, '✦  TITLE'),
-      h('span', {
-        className: ('qf-ach-titlechip-name ' + titleFxClassById(activeTitle.id)).trimEnd(),
-        style: titleColor ? { color: titleColor } : undefined,
-      }, activeTitle.name),
-      titleCount > 1 && h('span', { className: 'qf-ach-titlechip-count' },
-        ` · ${titleCount} unlocked  ▼`),
-      titleCount === 1 && h('span', { className: 'qf-ach-titlechip-count' }, '  ▼'),
-    ]) : null
+    const titleChip = this._buildTitleChip()
 
     // Title chip + picker share a `position: relative` wrapper so the
     // picker can `position: absolute; top: 100%` directly under the
@@ -425,6 +388,40 @@ export class AchievementsOverlay {
   // an "AUTO" option. The `data-open` attribute drives visibility (CSS
   // toggles display: none / block). Click outside or pick a title to
   // close — handled via the document-level click listener bound on toggle.
+  // Build the equipped-title chip. Self-contained (reads PlayerProfile
+  // fresh) so _selectTitle can rebuild it on a title swap and the
+  // border / fx / color / glow all reflect the NEW title — the old
+  // in-place name-only patch left the chip styled for the previous one.
+  _buildTitleChip() {
+    const activeTitle = this._viewer ? null : PlayerProfile.getActiveTitle()
+    if (!activeTitle) return null
+    const titleCount = PlayerProfile.getUnlockedTitles().length
+    const sourceCat  = AchievementSystem.getDefinition(activeTitle.id)?.category || 'mastery'
+    // fx title → animated gradient border + gradient name. Color title →
+    // solid color on border + name + matching glow. Plain (no fx/color)
+    // → category tint via data-source-cat (legacy fallback).
+    const fxBorder = titleFxBorderClassById(activeTitle.id)
+    const tColor   = fxBorder ? null : titleColorById(activeTitle.id)
+    const useCatTint = !fxBorder && !tColor
+    return h('button', {
+      className: ('pix qf-ach-titlechip ' + fxBorder).trimEnd(),
+      dataset: useCatTint ? { sourceCat } : undefined,
+      style: tColor
+        ? { borderColor: tColor, boxShadow: `0 0 0 2px #000, 0 0 16px ${tColor}66` }
+        : undefined,
+      on: { click: () => this._toggleTitlePicker() },
+    }, [
+      h('span', { className: 'qf-ach-titlechip-label' }, '✦  TITLE'),
+      h('span', {
+        className: ('qf-ach-titlechip-name ' + titleFxClassById(activeTitle.id)).trimEnd(),
+        style: tColor ? { color: tColor } : undefined,
+      }, activeTitle.name),
+      titleCount > 1 && h('span', { className: 'qf-ach-titlechip-count' },
+        ` · ${titleCount} unlocked  ▼`),
+      titleCount === 1 && h('span', { className: 'qf-ach-titlechip-count' }, '  ▼'),
+    ])
+  }
+
   _renderTitlePicker() {
     const titles = PlayerProfile.getUnlockedTitles()
     if (!titles.length) return null
@@ -496,11 +493,16 @@ export class AchievementsOverlay {
       document.removeEventListener('click', this._outsideClickHandler)
       this._outsideClickHandler = null
     }
-    // Update the chip text in-place — rerender the whole overlay is
-    // overkill, so just patch the chip's name span.
-    const newTitle = PlayerProfile.getActiveTitle()
-    const nameEl = this._el?.querySelector('.qf-ach-titlechip-name')
-    if (nameEl && newTitle) nameEl.textContent = newTitle.name
+    // Rebuild the chip + picker so the new title's border / fx / color /
+    // glow all apply (patching only the name text left the chip styled
+    // for the previously-equipped title). Replace the wrap's children in
+    // place — cheaper than re-rendering the whole overlay, and
+    // _renderTitlePicker re-sets this._titlePickerEl via its ref.
+    const wrap = this._el?.querySelector('.qf-ach-titlechip-wrap')
+    if (wrap) {
+      const chip = this._buildTitleChip()
+      wrap.replaceChildren(...[chip, this._renderTitlePicker()].filter(Boolean))
+    }
   }
 
   // Pick the right inner view for the active tab. Wrapped this way so
