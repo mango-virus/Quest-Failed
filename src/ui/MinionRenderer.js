@@ -400,27 +400,49 @@ export class MinionRenderer {
         // creation as `_raisedDeadTint`. Faction-flag green still wins for
         // anything aligned with the adventurers (shouldn't happen for raised
         // dead, but covers the edge case cleanly).
-        const baseTint     = s._raisedDeadTint ?? 0xffffff
-        let expectedTint = factionFlagged ? 0x88ff99 : baseTint
-        // Solo Leveling — Jinwoo's extracted shadows wear a dark violet
-        // tint (matches the cursed-chest palette) instead of the ally-green.
-        if (m._shadowExtracted) expectedTint = 0x9b6fd0
-        if (s._lastTint !== expectedTint) {
-          s.sprite.setTint(expectedTint)
-          s._lastTint = expectedTint
+        // Solo Leveling — Jinwoo's extracted shadows wear a blue→black vertical
+        // gradient (Shadow Monarch palette) via a 4-corner tint: blue top
+        // corners, near-black bottom corners.
+        if (m._shadowExtracted) {
+          if (s._lastTint !== 'shadowGrad') {
+            s.sprite.setTint(0x4a8bff, 0x4a8bff, 0x0a0a16, 0x0a0a16)
+            s._lastTint = 'shadowGrad'
+          }
+        } else {
+          const baseTint     = s._raisedDeadTint ?? 0xffffff
+          const expectedTint = factionFlagged ? 0x88ff99 : baseTint
+          if (s._lastTint !== expectedTint) {
+            s.sprite.setTint(expectedTint)
+            s._lastTint = expectedTint
+          }
         }
       }
 
-      // Solo Leveling — pulsing purple aura beneath a shadow minion (same
-      // visual language as cursed chests). Added as a container child so it
-      // inherits position, visibility and teardown automatically.
-      if (m._shadowExtracted) {
-        if (!s.shadowGlow) {
-          s.shadowGlow = this._scene.add.ellipse(0, 6, 30, 18, 0x9b2fe0, 0.5)
-          s.container.add(s.shadowGlow)
-          s.container.sendToBack(s.shadowGlow)
+      // Solo Leveling — the same looping black-flame aura Jinwoo wears, behind
+      // each shadow minion. Created once as a container child (inherits the
+      // minion's position / visibility / teardown). Scaled to the sprite's
+      // rendered height so it engulfs the minion like an aura regardless of
+      // minion size; sent to back so the minion always renders in front.
+      if (m._shadowExtracted && !s.shadowFlame && this._scene.textures.exists('vfx-shadow-flame')) {
+        if (!this._scene.anims.exists('vfx-shadow-flame-loop')) {
+          const tex = this._scene.textures.get('vfx-shadow-flame')
+          if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+          this._scene.anims.create({
+            key: 'vfx-shadow-flame-loop',
+            frames: this._scene.anims.generateFrameNumbers('vfx-shadow-flame', { start: 0, end: 5 }),
+            frameRate: 10,
+            repeat: -1,
+          })
         }
-        s.shadowGlow.setAlpha(0.22 + 0.26 * Math.sin(now / 280))
+        const dsz = s.sprite?.displayHeight || 48
+        const Sf  = dsz / 49   // ~1.3 for a 64px sprite — engulf + slight rise
+        const flame = this._scene.add.sprite(2 * Sf, -4 * Sf, 'vfx-shadow-flame', 0)
+          .setOrigin(0.5, 0.5)
+          .setScale(Sf)
+        flame.anims.play('vfx-shadow-flame-loop', true)
+        s.container.add(flame)
+        s.container.sendToBack(flame)
+        s.shadowFlame = flame
       }
 
       // Status badge — combined bounty star + level, in one centred label.
