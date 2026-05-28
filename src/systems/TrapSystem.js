@@ -417,17 +417,18 @@ export class TrapSystem {
     // The Saboteur is invulnerable while disarming — traps can't touch them.
     if (entity._invulnerable) return false
     const now = this._scene.time.now
-    // Per-entity 4 s damage lockout for this specific trap. Centralised
-    // here (rather than at each call site) so it covers stepped-on,
-    // saw, LOS, area, and bomb traps uniformly. The stepped-on / saw
-    // call sites have their own shorter per-entity cooldowns (def.cooldownMs)
-    // that still drive the visual re-fire cadence — this just guarantees
-    // a single trap can't damage the same entity twice within 4 s, even
-    // when global trap cooldowns are shorter.
-    if (entity.instanceId && trap.state) {
-      trap.state.advDmgCooldownUntil ??= {}
-      if (now < (trap.state.advDmgCooldownUntil[entity.instanceId] ?? 0)) return false
-    }
+    // Per-entity 4 s damage lockout REMOVED 2026-05-27. It sat on top of
+    // each trap's own fire-rate cooldown (the per-entity `hitAt` gate on
+    // stepped-on / saw traps, and the per-trap `cooldownUntil` on LOS /
+    // area traps) and suppressed damage if the same entity contacted the
+    // trap again within 4 s. Player-visible effect: crossing a 2×2 spike
+    // pit, or stepping off-and-back-on, landed only ONE hit and the rest
+    // read as "walked over the trap and took nothing." Per the design
+    // call (keep room-level avoidance, but ANY actual contact must hurt),
+    // each trap now damages purely on its own cooldownMs cadence. The
+    // per-hit maxHp cap + instakill + Monk dodge below still apply, so a
+    // single touch still can't one-shot (outside the spike pit's 1%
+    // instakill roll).
     // Monk Focus — 30% dodge vs traps (adventurers only carry this flag).
     if (entity._focusActiveUntil && now < entity._focusActiveUntil && Math.random() < 0.30) {
       AbilityVfx.floatingText?.(this._scene, entity.worldX, entity.worldY - 18, 'DODGED', { color: '#eeeeff' })
@@ -460,10 +461,6 @@ export class TrapSystem {
     entity.resources.hp = Math.max(0, entity.resources.hp - damage)
     entity._lastHitBy   = trap.instanceId
     entity._lastHitType = def.damageType ?? 'physical'
-    if (entity.instanceId && trap.state) {
-      trap.state.advDmgCooldownUntil ??= {}
-      trap.state.advDmgCooldownUntil[entity.instanceId] = now + 4000
-    }
 
     EventBus.emit('COMBAT_HIT', {
       sourceId: trap.instanceId, targetId: entity.instanceId,
