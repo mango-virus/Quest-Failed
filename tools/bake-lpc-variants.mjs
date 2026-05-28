@@ -218,6 +218,9 @@ function sampleVariant(rng, className, classPool) {
     ? classPool.clothColorPool
     : CLOTH_ALL;
   v.clothColor = pick(rng, clothPool);
+  // Optional per-class FEET color override (e.g. shadow_monarch wants black
+  // shoes while the rest of the outfit is charcoal). Falls back to clothColor.
+  v.feetColor = classPool.feetColor ?? null;
   // Metal color (one shared finish for all metal pieces) — per-class override allowed.
   v.metalColor = pick(rng, (classPool.metalColorPool?.length) ? classPool.metalColorPool : METAL_ALL);
   // Nose / eyebrows render at zPos 105 / 106 — ON TOP of the head
@@ -333,16 +336,23 @@ const ANIM_FALLBACK = {
 };
 
 function resolveLayerSourceForAnim(rng, layerSourceDir, animFile, animName, lockedColor) {
-  // Try `<dir>/<animFile>` first (single-color item).
+  const subdir = path.join(ssRoot, layerSourceDir, animName);
+  const subdirIsDir = fs.existsSync(subdir) && fs.statSync(subdir).isDirectory();
+  // A locked color wins FIRST when this item ships a matching color-variant
+  // in its `<animName>/` subdir — even if a flat single-color `<animFile>`
+  // also exists. Several items (e.g. shoes/basic) ship BOTH a default
+  // walk.png AND walk/<color>.png; without this the flat default shadowed
+  // the variants and the lock never took (cream shoes despite a black.png).
+  if (lockedColor && subdirIsDir) {
+    const locked = path.join(subdir, `${lockedColor}.png`);
+    if (fs.existsSync(locked)) return locked;
+  }
+  // Try `<dir>/<animFile>` (single-color item).
   const direct = path.join(ssRoot, layerSourceDir, animFile);
   if (fs.existsSync(direct)) return direct;
-  // Try `<dir>/<animName>/<color>.png` (color-variant item).
-  const subdir = path.join(ssRoot, layerSourceDir, animName);
-  if (fs.existsSync(subdir) && fs.statSync(subdir).isDirectory()) {
-    if (lockedColor) {
-      const locked = path.join(subdir, `${lockedColor}.png`);
-      if (fs.existsSync(locked)) return locked;
-    }
+  // Try `<dir>/<animName>/<color>.png` (color-variant item) — random pick
+  // when no color was locked (or the locked one wasn't available).
+  if (subdirIsDir) {
     return pickColorVariant(rng, subdir);
   }
   // Anim fallback — e.g. Shadow's idle/run reuse walk.  The composite
@@ -433,7 +443,7 @@ function buildLayerManifest(variant) {
   // matching color PNG when one exists, else fall back to a random variant.
   add(variant.torso, { lockedColor: variant.clothColor });
   add(variant.legs,  { lockedColor: variant.clothColor });
-  add(variant.feet,  { lockedColor: variant.clothColor });
+  add(variant.feet,  { lockedColor: variant.feetColor || variant.clothColor });
   add(variant.arms,  { lockedColor: variant.clothColor });
   add(variant.headwear);
   for (const a of variant.accessories) add(a);

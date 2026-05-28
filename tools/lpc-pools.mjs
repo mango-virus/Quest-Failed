@@ -634,8 +634,10 @@ POOLS.shadow_monarch = {
   hairColorPool: ['black'],
   bodyColorPool: ['light'],
   clothColorPool:['charcoal'],
+  feetColor:     'black',     // black shoes (rest of outfit is charcoal)
   metalColorPool:['steel'],
   beardChance:   0,
+  noses:         null,        // no nose overlay
   torso:         ['Frock coat'],
   legs:          ['Long Pants'],
   feet:          ['Basic Shoes'],
