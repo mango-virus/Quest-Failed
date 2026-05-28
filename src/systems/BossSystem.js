@@ -1975,6 +1975,11 @@ export class BossSystem {
           _summonAddsNearBoss(this._scene, this._gameState, bossRoom, 2)
         }
       }
+      // Solo Leveling — the Shadow Monarch duels the boss on equal terms:
+      // his stats are set to the boss's right here (after the recompute),
+      // then amplified by every shadow he extracted on the way in. Done
+      // AFTER _recomputeBossFightStats so it reads the final boss numbers.
+      if (adventurer?._shadowMonarch) this._matchShadowMonarchToBoss(adventurer, boss)
     }
 
     // Slime King Mitosis — initialise the slime-entity array for this
@@ -1995,6 +2000,27 @@ export class BossSystem {
     this._scene.time.delayedCall(PREFIGHT_DELAY_MS, () => {
       this._combatStarted = true
     })
+  }
+
+  // Solo Leveling — match Sung Jinwoo's combat stats to the boss for a 1:1
+  // duel, then amplify by his shadow army: +10% per extracted shadow, capped
+  // at +100% (10 shadows). With no shadows it's an even coin-flip; fed a big
+  // army it's a near-unstoppable Monarch — so the player's hall defense (how
+  // many minions he claimed en route) is the lever. His shadows themselves
+  // are EXCLUDED from the throne fight (see the sideAllies filter) so the
+  // duel stays strictly 1:1; the army's job was clearing the halls.
+  _matchShadowMonarchToBoss(adv, boss) {
+    if (!adv || !boss) return
+    const shadows = Math.min(10, (this._gameState.minions ?? []).filter(m =>
+      m?._shadowExtracted && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length)
+    const buff = 1 + 0.10 * shadows
+    adv.resources = adv.resources ?? {}
+    adv.resources.maxHp = Math.max(1, Math.round((boss.maxHp ?? 1) * buff))
+    adv.resources.hp    = adv.resources.maxHp
+    adv.stats = adv.stats ?? {}
+    adv.stats.attack    = Math.max(1, Math.round((boss.attack ?? 1) * buff))
+    adv.stats.defense   = Math.max(0, Math.round((boss.defense ?? 0) * buff))
+    EventBus.emit('SHADOW_MONARCH_DUEL', { adventurer: adv, boss, shadows, buff })
   }
 
   // Runs every frame from _tickFightAnim once combat has started.  Fires one
@@ -2101,6 +2127,10 @@ export class BossSystem {
       ? (this._gameState.minions ?? []).filter(m =>
           m.faction === 'adventurer' &&
           (m.raisedByAdvId || m.tamedByAdvId) &&
+          // Solo Leveling — Jinwoo's shadows DON'T pile onto the boss; the
+          // throne is a strict 1:1 duel. (Necromancer / beast-master allies
+          // still join normally.)
+          !m._shadowExtracted &&
           m.aiState !== 'dead' &&
           (m.resources?.hp ?? 0) > 0 &&
           _pointInRoomBS(m.tileX, m.tileY, bossRoomForAllies))
