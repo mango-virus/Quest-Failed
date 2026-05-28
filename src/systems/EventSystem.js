@@ -1053,8 +1053,16 @@ export class EventSystem {
       const j = i + Math.floor(Math.random() * (pool.length - i))
       const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
     }
+    // Build a roomId → display-name lookup from rooms.json so the picker
+    // can label each card with the AFFECTED room (some upgrade names like
+    // "Oracle's Tome" / "Cannonade" / "Tyrant Throne" don't make the
+    // target room obvious from the name + description alone).
+    const roomDefs = this._scene?.cache?.json?.get?.('rooms') ?? []
+    const roomNameById = new Map(roomDefs.map(r => [r.id, r.name]))
+
     const offers = pool.slice(0, offerCount).map(id => ({
       roomId:      id,
+      roomName:    roomNameById.get(id) ?? id.replace(/_/g, ' '),
       name:        TINKER_CATALOG[id].name,
       description: TINKER_CATALOG[id].description,
     }))

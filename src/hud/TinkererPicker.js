@@ -91,11 +91,22 @@ export class TinkererPicker {
 
   _renderOffer(offer) {
     const emoji = ROOM_EMOJI[offer.roomId] ?? '⚒️'
+    // Always surface the target room name on the card — several upgrades
+    // (Skewed Gate, Tyrant Throne, Cannonade, etc.) have flavour names
+    // that don't telegraph which room they actually affect, so a small
+    // "UPGRADES <Room>" label sits between the emoji and the upgrade
+    // name so the player can never mistake the target.
+    const roomLabel = offer.roomName
+      ? `UPGRADES ${String(offer.roomName).toUpperCase()}`
+      : ''
     return h('button', {
       className: 'qf-tinkerer-offer',
       on: { click: () => this._pick(offer) },
     }, [
       h('div', { className: 'qf-tinkerer-offer-icon' }, emoji),
+      roomLabel
+        ? h('div', { className: 'qf-tinkerer-offer-room pix' }, roomLabel)
+        : null,
       h('div', { className: 'qf-tinkerer-offer-name pix' }, offer.name),
       h('div', { className: 'qf-tinkerer-offer-desc pix' }, offer.description),
     ])

@@ -2230,6 +2230,18 @@ body {
   font-size: 38px;
   line-height: 1;
 }
+/* Small label naming the room being upgraded — sits above the upgrade's
+   flavour name so the player always knows the target, even when the
+   upgrade name itself doesn't include the room (e.g. "Tyrant Throne",
+   "Cannonade", "Oracle's Tome"). Muted brass tone to stay subordinate
+   to the gold upgrade name below it. */
+.qf-tinkerer-offer-room {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: color-mix(in srgb, var(--gold-bright, #ffd964) 65%, transparent);
+  opacity: 0.92;
+  margin-top: -2px;
+}
 .qf-tinkerer-offer-name {
   font-size: 13px;
   letter-spacing: 1.5px;
