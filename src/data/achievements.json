@@ -197,6 +197,7 @@
     "target": 20,
     "icon": "🏆",
     "title": "Of the Throne Eternal",
+    "titleFx": "goldshine",
     "legendary": true
   },
   {
@@ -208,6 +209,7 @@
     "target": 21,
     "icon": "🌑",
     "title": "The Umbral Ascendant",
+    "titleFx": "void",
     "legendary": true
   },
   {
@@ -219,6 +221,7 @@
     "target": 22,
     "icon": "🌟",
     "title": "Devourer of Stars",
+    "titleFx": "arcane",
     "legendary": true
   },
   {
@@ -230,6 +233,7 @@
     "target": 23,
     "icon": "🕳️",
     "title": "Herald of Oblivion",
+    "titleFx": "spectral",
     "legendary": true
   },
   {
@@ -241,6 +245,7 @@
     "target": 24,
     "icon": "☄️",
     "title": "The Empyrean Dread",
+    "titleFx": "inferno",
     "legendary": true
   },
   {
@@ -252,6 +257,7 @@
     "target": 25,
     "icon": "🌌",
     "title": "The Last God",
+    "titleFx": "prismatic",
     "legendary": true
   },
 
@@ -431,6 +437,7 @@
     "target": 11,
     "icon": "🏹",
     "title": "The Hunter",
+    "titleFx": "steel",
     "legendary": true
   },
   {
@@ -442,6 +449,7 @@
     "target": 10,
     "icon": "🪓",
     "title": "The Executioner",
+    "titleFx": "crimson",
     "legendary": true
   },
 
@@ -454,6 +462,7 @@
     "target": 60,
     "icon": "♾️",
     "title": "The Eternal",
+    "titleFx": "frost",
     "legendary": true
   },
   {
@@ -465,6 +474,7 @@
     "target": 10000,
     "icon": "💰",
     "title": "The Hoarder",
+    "titleFx": "goldshine",
     "reward": { "type": "companion", "id": "zulgath" },
     "legendary": true
   },
@@ -477,6 +487,7 @@
     "target": 500,
     "icon": "🎭",
     "title": "The Showrunner",
+    "titleFx": "bone",
     "reward": { "type": "companion", "id": "rattlebones" },
     "legendary": true
   },
@@ -489,6 +500,7 @@
     "target": 30,
     "icon": "💠",
     "title": "The Flawless",
+    "titleFx": "frost",
     "reward": { "type": "companion", "id": "spectra" },
     "legendary": true
   },
@@ -501,6 +513,7 @@
     "target": 25,
     "icon": "🎖️",
     "title": "Veteran Hunter",
+    "titleFx": "crimson",
     "legendary": true
   },
   {
