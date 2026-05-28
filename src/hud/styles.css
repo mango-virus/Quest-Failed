@@ -7968,12 +7968,17 @@ body {
   border-width: 1px; border-style: solid;
   letter-spacing: 1px;
   /* Player titles can be longer than the legacy IMMORTAL/BUTCHER/CUNNING
-     fixed strings (up to ~20 chars for "Veteran Exterminator"). Clamp +
-     ellipsis so cramped podium cards never explode. */
-  max-width: 160px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+     fixed strings (e.g. "Of the Throne Eternal", "Veteran Exterminator").
+     Wrap to TWO lines centered instead of clipping with an ellipsis —
+     the old `max-width:160px; nowrap; overflow:hidden` cut long titles
+     off mid-word on the cramped podium cards (2026-05-27). max-width is
+     now tied to the card; overflow-wrap breaks a stray over-long single
+     word so nothing escapes the chip. */
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.25;
   text-transform: uppercase;
 }
 
