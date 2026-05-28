@@ -539,10 +539,8 @@ export class RoomBehaviorSystem {
     if (aliveHere > 0) return
     // Tinkerer's Workshop "Champion Trials" — spawn Tier 3 instead of
     // Tier 2 when the room type is upgraded.
-    const tierRegex = this._isTinkered('hall_of_trials') ? /[a-z_]+3$/ : /[a-z_]+2$/
-    const tierPool = minionTypes.filter(d =>
-      tierRegex.test(d.id) && !d.id.startsWith('beholder')  // exclude super-rare or boss-tier
-    )
+    const tier = this._isTinkered('hall_of_trials') ? 3 : 2
+    const tierPool = this._tierPoolByChain(minionTypes, tier, new Set(['beholder2']))
     const def = tierPool[Math.floor(Math.random() * tierPool.length)]
     if (!def) return
     const cx = room.gridX + Math.floor(room.width / 2)
@@ -704,6 +702,30 @@ export class RoomBehaviorSystem {
     })
   }
 
+  // Build a tier-N pool from the evolution chains (minionEvolutions.json).
+  // tier = 1 → chain[0] (starters), 2 → chain[1], 3 → chain[2], etc.
+  // Skips ids in `excludeIds`. Also filters to ids ENDING IN A DIGIT —
+  // a clean discriminator that drops the boss-tier final forms (named
+  // entries like `gnoll_alpha`, `demon_lord`, `beholder_tyrant`,
+  // `elder_slime1`, etc.) without needing an explicit allowlist.
+  //
+  // Used by Hall of Trials (tier 2) and Throne Room (tier 3) for the
+  // garrison spawn pool. Replaces the legacy `/[a-z_]+N$/` regex which
+  // wrongly classified slimes (slime3 ends in 3 but is chain[0] / T1
+  // of its own chain; the real T3 slimes are slime8 / slime1 / slime6).
+  _tierPoolByChain(minionTypes, tier, excludeIds = new Set()) {
+    const chains = this._scene.cache.json.get('minionEvolutions') ?? {}
+    const ids = new Set()
+    for (const data of Object.values(chains)) {
+      const chain = data?.chain
+      if (Array.isArray(chain) && chain[tier - 1] && /\d$/.test(chain[tier - 1])) {
+        ids.add(chain[tier - 1])
+      }
+    }
+    for (const ex of excludeIds) ids.delete(ex)
+    return minionTypes.filter(d => ids.has(d.id))
+  }
+
   // Room redesign 2026-04-30 — shared garrison-minion factory used by
   // Mimic Vault, Hall of Trials, Throne Room. Mirrors the inline Crypt
   // shape (kept inline for back-compat) but with a fixed class:'garrison'
@@ -757,10 +779,15 @@ export class RoomBehaviorSystem {
     )
     if (thrones.length === 0) return
     const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
-    // Tier-3 pool — same id-ends-in-3 convention HoT uses for T2.
-    // Excludes the boss-tier slime4 sequence and leaves elder_slime3,
-    // ent3, goblin3, imp3, plant3, rat3, skeleton3, slime3, zombie3.
-    const tier3Pool = minionTypes.filter(d => /[a-z_]+3$/.test(d.id))
+    // Tier-3 pool, sourced from evolution-chain position (chain[2])
+    // rather than the legacy `[a-z_]+3$` regex. The regex broke for
+    // slimes because the slime chains are arbitrarily named
+    // ([slime3, slime7, slime8, elder_slime1] etc.) — `slime3` is
+    // actually chain[0] (T1) of its own chain, not T3 anywhere. The
+    // chain-position lookup picks slime8 / slime1 / slime6 as the
+    // true T3 slimes, which then display the correct TIER badge in
+    // the InspectPopup.
+    const tier3Pool = this._tierPoolByChain(minionTypes, 3)
     if (tier3Pool.length === 0) return
     const dungeonLv = this._gameState.boss?.level ?? 1
     const lvOver  = dungeonLv - 1
