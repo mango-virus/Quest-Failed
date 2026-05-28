@@ -1219,7 +1219,19 @@ export class MinionAISystem {
     // path computation never starts from a blocked tile.
     const ntx = Math.floor(minion.worldX / TS)
     const nty = Math.floor(minion.worldY / TS)
-    if (this._dungeonGrid?.isDoorBlocked?.(ntx, nty)) {
+    // Never latch tileX/tileY onto a non-walkable cell. The ½-tile doorway-lane
+    // shift combined with a LARGE per-step move (fast followers — Jinwoo's
+    // 2×-speed shadow army) can overshoot the lane and floor() into the wall
+    // column beside the 2-wide opening, or onto the pathfinder-blocked
+    // secondary door tile. Latching there makes the next _walkAlongPath
+    // findPath START from a non-walkable tile and return null → the minion
+    // freezes at the doorway forever (reported: shadows stuck at the first
+    // door). Snap to the explicit target waypoint instead — it always comes
+    // from the pathfinder (the walkable canonical lane / next step), so the
+    // following findPath always starts somewhere it can route out of.
+    const gTiles = this._dungeonGrid?.getTiles?.()
+    const ntWalkable = !!gTiles?.[nty] && PathfinderSystem.isWalkable(gTiles[nty][ntx])
+    if (this._dungeonGrid?.isDoorBlocked?.(ntx, nty) || !ntWalkable) {
       minion.tileX = targetTile.x
       minion.tileY = targetTile.y
     } else {
