@@ -68,6 +68,12 @@ export const Leaderboard = {
     const orderedIds = AchievementSystem.getOrderedIds()
     const achievementBits  = PlayerProfile.getAchievementBitmask(orderedIds)
     const achievementCount = PlayerProfile.getUnlockedAchievements().size
+    // Per-metric career snapshot (added 2026-05-27) — lets the
+    // achievement viewer draw progress bars for OTHER players showing
+    // how close they are to each metric-based achievement, mirroring
+    // the self-view. Keyed by metric name, resolved against def.metric
+    // on the read side. Absent on rows submitted before this shipped.
+    const achMetrics = AchievementSystem.getMetricsSnapshot()
     // Active title — what the player has chosen to display next to their
     // run row on the leaderboard. If they haven't picked one explicitly,
     // PlayerProfile.getActiveTitle() auto-promotes the most-recently-
@@ -123,6 +129,10 @@ export const Leaderboard = {
         // treats missing values as zero.
         achievement_count: achievementCount,
         achievement_bits:  achievementBits,
+        // Career metric snapshot for the viewer's progress bars (see
+        // derivation above). Older rows lack this; the viewer treats a
+        // missing snapshot as "no progress data" and shows no bars.
+        ach_metrics:       achMetrics,
         // Active title display string (see derivation above). Optional —
         // older rows lack this and the leaderboard view falls back to
         // the legacy IMMORTAL / BUTCHER / CUNNING accolades for top-3.

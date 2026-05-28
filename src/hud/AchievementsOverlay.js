@@ -15,8 +15,10 @@
 //   • self (default) — `unlockedSet` comes from PlayerProfile;
 //     in-progress numeric metrics show their current progress.
 //   • other (Phase C) — `unlockedSet` comes from another player's
-//     leaderboard-row bitmask; no progress bars (we don't know their
-//     numerics, only what's binary-unlocked); optional "Compare with
+//     leaderboard-row bitmask. Progress bars now show too, sourced
+//     from the career-metric snapshot submitted with their row
+//     (meta.ach_metrics → viewer.metrics); rows submitted before the
+//     snapshot existed simply omit the bars. Optional "Compare with
 //     you" toggle re-colours the cards by both/their-edge/your-edge.
 //
 // State lives in AchievementSystem (data + progress tracking) and
@@ -493,9 +495,12 @@ export class AchievementsOverlay {
     const isUnlocked = unlockedSet.has(def.id)
     const icon       = def.icon || CATEGORY_FALLBACK_ICON[def.category] || '◆'
     const target     = def.target ?? 1
-    // Progress is only meaningful in self-view; viewer-mode has no
-    // per-metric numerics for other players (just binary unlock state).
-    const progress   = this._viewer ? null : AchievementSystem.getProgress(def.id)
+    // Self-view reads live progress from AchievementSystem. Viewer-mode
+    // reads the remote player's submitted metric snapshot — null on
+    // legacy rows (no snapshot) so the bar is skipped, same as before.
+    const progress   = this._viewer
+      ? this._viewerProgress(def)
+      : AchievementSystem.getProgress(def.id)
 
     // Reward-type classification — drives BOTH the reward chip's color
     // AND the icon medal color. Boss-unlock / companion-unlock / title-
@@ -662,6 +667,20 @@ export class AchievementsOverlay {
     ])
   }
 
+  // Remote player's progress toward an achievement, read from the metric
+  // snapshot that shipped with their leaderboard row (viewer.metrics,
+  // keyed by metric name). Returns null when there's no snapshot (rows
+  // submitted before the snapshot existed) or the metric is absent /
+  // non-numeric — _card then skips the progress bar, matching the
+  // legacy viewer behavior. Self-view never calls this (it reads
+  // AchievementSystem.getProgress directly).
+  _viewerProgress(def) {
+    const metrics = this._viewer?.metrics
+    if (!metrics || typeof metrics !== 'object') return null
+    const v = metrics[def?.metric]
+    return (typeof v === 'number' && isFinite(v)) ? v : null
+  }
+
   // Which unlocked-id set are we showing? Self = PlayerProfile;
   // viewer = decode the bitmask we were handed at construction.
   _unlockedSet() {
@@ -733,6 +752,11 @@ export class AchievementsOverlay {
             name,
             achievementCount: Number(r.meta?.achievement_count ?? 0),
             achievementBits:  String(r.meta?.achievement_bits ?? ''),
+            // Per-metric career snapshot for the viewer's progress bars.
+            // Null on rows that predate the snapshot (meta.ach_metrics
+            // absent) → viewer shows no bars, same as the legacy behavior.
+            achMetrics:       (r.meta?.ach_metrics && typeof r.meta.ach_metrics === 'object')
+              ? r.meta.ach_metrics : null,
             bossId:           r.boss_id ?? null,
             bossLevel:        Number(r.boss_level ?? 0),
             days:             Number(r.days_survived ?? 0),
@@ -1357,7 +1381,14 @@ export class AchievementsOverlay {
   _openPlayerViewer(player) {
     if (this._playerViewer) return
     this._playerViewer = new AchievementsOverlay({
-      viewer:  { name: player.name, bitmask: player.achievementBits },
+      viewer:  {
+        name:    player.name,
+        bitmask: player.achievementBits,
+        // Career metric snapshot → drives the per-card progress bars in
+        // viewer mode (how close THIS player is to each achievement).
+        // null on legacy rows → _viewerProgress returns null → no bars.
+        metrics: player.achMetrics,
+      },
       onClose: () => { this._playerViewer = null },
     })
     this._playerViewer.open()

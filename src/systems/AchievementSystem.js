@@ -725,6 +725,23 @@ class AchievementSystemImpl {
   // Ordered ids for the leaderboard bitmask. Order must be stable across
   // sessions — definition file order is the canonical position.
   getOrderedIds() { return this._defs.map(d => d.id) }
+
+  // Snapshot of every metric the achievement set references, mapped to
+  // its current resolved value (scalar metrics + set-count metrics).
+  // JSON-serializable — submitted to the leaderboard under
+  // `meta.ach_metrics` so the achievement viewer can draw progress bars
+  // for OTHER players (how close they are to each metric-based
+  // achievement), exactly the way self-view does. The read side looks
+  // up `def.metric` against this map. Compact (~25 keys of small ints).
+  getMetricsSnapshot() {
+    const snap = {}
+    for (const def of this._defs) {
+      const m = def?.metric
+      if (!m || m in snap) continue
+      snap[m] = this._getProgress(m)
+    }
+    return snap
+  }
 }
 
 // Singleton export — same pattern as PlayerProfile / SaveSystem.
