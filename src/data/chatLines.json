@@ -1098,6 +1098,23 @@
       "Time's up shortly.",
       "Don't want to be here at dusk.",
       "Last push. Then home."
+    ],
+
+    "starvation": [
+      "I... can't find the way...",
+      "How long have I been walking?",
+      "All the rooms look the same now.",
+      "Rations gone. Strength gone.",
+      "I should have packed more bread.",
+      "The walls are spinning.",
+      "I just need to sit down. Just for a moment.",
+      "Did I already pass this corner?",
+      "Lost. Hungry. Cold.",
+      "Tell my guild I tried.",
+      "Why is the floor so warm and inviting.",
+      "I came in here yesterday, right? Right?",
+      "The torch is dimming. So am I.",
+      "Maybe if I close my eyes for a bit..."
     ]
   },
 

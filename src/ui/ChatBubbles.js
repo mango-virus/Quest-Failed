@@ -98,6 +98,7 @@ export class ChatBubbles {
       'pickedKey', 'unlockedDoor', 'lockpicked', 'brokeDoor', 'seekKey',
       'seekHeal', 'healed',
       'seekTreasure', 'stoleTreasure', 'escapingWithLoot',
+      'starvation',
     ]) {
       const handler = ({ adventurer }) => {
         if (adventurer) this._showContextualBubble(adventurer, this._pickEventLine(key))

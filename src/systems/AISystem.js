@@ -89,6 +89,20 @@ const EXPLORE_STREAK_CAP           = 5
 // Chebyshev box) from the anchor for the timer to reset.
 const STAG_RADIUS_TILES            = 3
 const STAG_TIMEOUT_MS              = 5000
+// Starvation failsafe (2026-05-27). After every other anti-loop mechanism
+// (knowledge gate, EXPLORE_ROOM streak cap, give-up escalation, position-
+// stagnation watchdog, panic-walk through traps), if an adv has STILL
+// re-entered already-visited rooms this many times in a single day,
+// they're definitively in a multi-room loop the AI can't solve — kill
+// them via flavor "starvation" so they stop wasting tick budget.
+//
+// We count REVISITS (entries to rooms the adv has been in before), not
+// raw transitions, so a legit linear sweep of a giant 30+-room dungeon
+// doesn't trip the failsafe. Normal play backtracks a few times (chest
+// → locked door, fountain → goal, regroup detours); 20 revisits is well
+// past that and only happens when the adv is bouncing between the same
+// 2-4 rooms repeatedly.
+const STARVATION_ROOM_REVISITS     = 20
 // Beast Master tame protection — how long a minion stays off-limits to
 // other adventurers' melee after a Beast Master last stamped it as a
 // tame target. ClassAbilitySystem refreshes the stamp every tick the
@@ -1596,6 +1610,32 @@ export class AISystem {
           adventurer: adv, fromRoomId: prev, toRoomId: curRoomId,
         })
         this._maybeWarnParty(adv, curRoomId)
+        // Starvation failsafe (2026-05-27). Only count REVISITS — entries
+        // to rooms the adv has been in before. A legit linear sweep of a
+        // giant dungeon (every room once, then exit) tallies zero revisits;
+        // a 4-room ping-pong loop racks them up fast. Threshold:
+        // STARVATION_ROOM_REVISITS. Skip advs already fighting the boss,
+        // fleeing, or with a dedicated event role (saboteur, speedrunner,
+        // tournament rival) so we don't murder a legitimately-busy adv.
+        // After the kill, return — this adv is out of the array now and
+        // the rest of the tick is moot.
+        adv._roomsEntered ??= {}   // {roomId: true} — JSON-safe per the
+                                   // GameState invariant (no Sets/Maps).
+        if (adv._roomsEntered[curRoomId]) {
+          adv._roomRevisits = (adv._roomRevisits ?? 0) + 1
+        } else {
+          adv._roomsEntered[curRoomId] = true
+        }
+        if (adv._roomRevisits > STARVATION_ROOM_REVISITS &&
+            adv.aiState !== 'dead' && adv.aiState !== 'fleeing' &&
+            adv.goal?.type !== 'AT_BOSS' &&
+            !adv._saboteur && !adv._speedrunner && !adv._tournamentRival) {
+          adv._lastHitBy   = null
+          adv._lastHitType = 'starvation'
+          EventBus.emit('SAY_starvation', { adventurer: adv })
+          this._kill(adv, idx, null)
+          return
+        }
         // Fountain / chest / key-chest discovery now rides on
         // KnowledgeSystem.observeRoomContents (called from
         // observeCurrentRoom). The old _maybeDiscoverFountain helper was
