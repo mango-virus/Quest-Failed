@@ -17,9 +17,11 @@
 //   • other (Phase C) — `unlockedSet` comes from another player's
 //     leaderboard-row bitmask. Progress bars now show too, sourced
 //     from the career-metric snapshot submitted with their row
-//     (meta.ach_metrics → viewer.metrics); rows submitted before the
-//     snapshot existed simply omit the bars. Optional "Compare with
-//     you" toggle re-colours the cards by both/their-edge/your-edge.
+//     (meta.ach_metrics → viewer.metrics). Rows submitted before the
+//     snapshot existed fall back to a partial snapshot derived from
+//     their run-summary columns (boss level / days) — see
+//     _achMetricsFromRow. Optional "Compare with you" toggle re-colours
+//     the cards by both/their-edge/your-edge.
 //
 // State lives in AchievementSystem (data + progress tracking) and
 // PlayerProfile (persisted unlock set). This overlay is pure DOM display.
@@ -32,6 +34,7 @@ import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { PlayerProfile }     from '../systems/PlayerProfile.js'
 import { Leaderboard }       from '../systems/Leaderboard.js'
 import { COMPANIONS, getCompanion, COMPANION_ORDER } from '../systems/companions.js'
+import { titleFxClassById } from './titleFx.js'
 
 // Category-filter tabs. The LEADERBOARD entry is intentionally NOT in
 // this list — it's its own prominent button (see `_render` below) so it
@@ -274,7 +277,7 @@ export class AchievementsOverlay {
       on: { click: () => this._toggleTitlePicker() },
     }, [
       h('span', { className: 'qf-ach-titlechip-label' }, '✦  TITLE'),
-      h('span', { className: 'qf-ach-titlechip-name' }, activeTitle.name),
+      h('span', { className: ('qf-ach-titlechip-name ' + titleFxClassById(activeTitle.id)).trimEnd() }, activeTitle.name),
       titleCount > 1 && h('span', { className: 'qf-ach-titlechip-count' },
         ` · ${titleCount} unlocked  ▼`),
       titleCount === 1 && h('span', { className: 'qf-ach-titlechip-count' }, '  ▼'),
@@ -423,7 +426,7 @@ export class AchievementsOverlay {
         className: 'qf-ach-titlepicker-row' + (activeId === t.id ? ' is-active' : ''),
         on: { click: () => this._selectTitle(t.id) },
       }, [
-        h('span', { className: 'pix qf-ach-titlepicker-name' }, '✦ ' + t.name),
+        h('span', { className: ('pix qf-ach-titlepicker-name ' + titleFxClassById(t.id)).trimEnd() }, '✦ ' + t.name),
       ])),
     ])
   }
@@ -681,6 +684,34 @@ export class AchievementsOverlay {
     return (typeof v === 'number' && isFinite(v)) ? v : null
   }
 
+  // Resolve a leaderboard row's metric snapshot for the viewer's progress
+  // bars. Prefers the FULL career snapshot submitted with the row
+  // (meta.ach_metrics, present on runs submitted after the snapshot
+  // shipped). For older rows that lack it, derives a PARTIAL fallback
+  // from the run-summary columns every row already has:
+  //   • boss_level    → maxBossLevel
+  //   • days_survived → daysSurvivedMax
+  // so the prominent progression achievements ("reach boss level N",
+  // "survive N days") still show bars on legacy rows. These are the
+  // latest run's figures, so they can understate a career best from an
+  // earlier run — but any achievement already cleared shows as unlocked
+  // (no bar) anyway, so the approximation only ever affects still-locked
+  // rows where it reads as a reasonable "how close" indicator. Cumulative
+  // metrics (career kills, rooms placed, type-sets, …) aren't faithfully
+  // recoverable from one run's summary, so they stay absent until the
+  // player resubmits with a full snapshot. Returns null when neither the
+  // snapshot nor the fallback yields anything → viewer shows no bars.
+  _achMetricsFromRow(r) {
+    const snap = r?.meta?.ach_metrics
+    if (snap && typeof snap === 'object') return snap
+    const fallback = {}
+    const bossLevel = Number(r?.boss_level ?? 0)
+    const days      = Number(r?.days_survived ?? 0)
+    if (bossLevel > 0) fallback.maxBossLevel    = bossLevel
+    if (days > 0)      fallback.daysSurvivedMax = days
+    return Object.keys(fallback).length ? fallback : null
+  }
+
   // Which unlocked-id set are we showing? Self = PlayerProfile;
   // viewer = decode the bitmask we were handed at construction.
   _unlockedSet() {
@@ -753,10 +784,11 @@ export class AchievementsOverlay {
             achievementCount: Number(r.meta?.achievement_count ?? 0),
             achievementBits:  String(r.meta?.achievement_bits ?? ''),
             // Per-metric career snapshot for the viewer's progress bars.
-            // Null on rows that predate the snapshot (meta.ach_metrics
-            // absent) → viewer shows no bars, same as the legacy behavior.
-            achMetrics:       (r.meta?.ach_metrics && typeof r.meta.ach_metrics === 'object')
-              ? r.meta.ach_metrics : null,
+            // Prefers the full submitted snapshot; falls back to a partial
+            // one derived from the row's run-summary columns for legacy
+            // rows (see _achMetricsFromRow). Null only when neither yields
+            // anything → viewer shows no bars (the original behavior).
+            achMetrics:       this._achMetricsFromRow(r),
             bossId:           r.boss_id ?? null,
             bossLevel:        Number(r.boss_level ?? 0),
             days:             Number(r.days_survived ?? 0),

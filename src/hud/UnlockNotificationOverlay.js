@@ -23,6 +23,7 @@ import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { AchievementSystem }  from '../systems/AchievementSystem.js'
 import { COMPANIONS }         from '../systems/companions.js'
 import { UNLOCK_GATES }       from '../data/bossUnlocks.js'
+import { titleFxClass }       from './titleFx.js'
 
 // Per-type theming. Drives the modal accent + the type-banner label
 // shown at the top of every card. The accent string is a CSS var (or
@@ -279,8 +280,12 @@ export class UnlockNotificationOverlay {
       // Centerpiece — boss portrait / companion sprite / achievement
       // icon / title chip, depending on type.
       this._renderArt(entry),
-      // Name + subtitle row.
-      h('div', { className: 'pix qf-unlock-name' }, this._nameFor(entry)),
+      // Name + subtitle row. Legendary fx titles clip their animated
+      // gradient over the name (overrides the purple title-card accent).
+      h('div', {
+        className: ('pix qf-unlock-name ' +
+          (entry.type === 'title' && entry.titleFx ? titleFxClass(entry.titleFx) : '')).trimEnd(),
+      }, this._nameFor(entry)),
       this._subtitleFor(entry) &&
         h('div', { className: 'qf-unlock-subtitle' }, this._subtitleFor(entry)),
       // Footer — counter in the bottom-LEFT corner (position: absolute),

@@ -21,6 +21,7 @@ import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { COMPANIONS, getCompanion } from '../systems/companions.js'
 import { runCountUp } from './countUp.js'
 import { EventBus } from '../systems/EventBus.js'
+import { titleFxClassByName } from './titleFx.js'
 
 // Feature flag — show the companion the player used on each leaderboard
 // row, on the podium card, and in the detail panel (incl. a
@@ -853,7 +854,13 @@ export class LeaderboardOverlay {
       // BUTCHER / CUNNING accolade fills it for top-3 podium ranks.
       // Older runs with neither render the slot empty (no chip).
       (entry.title || entry.accolade) && h('div', {
-        className: 'pix qf-lb-podium-accolade',
+        // Title visual-effect (legendary fx titles) clips an animated
+        // gradient over the text; -webkit-text-fill-color: transparent in
+        // the fx class wins over the inline rank `color`, so the gradient
+        // shows while the border keeps the rank tint. Accolades (no title)
+        // render plain with the rank color.
+        className: 'pix qf-lb-podium-accolade' +
+          (entry.title ? (' ' + titleFxClassByName(entry.title)).trimEnd() : ''),
         style: { color: c, borderColor: c },
       }, entry.title || entry.accolade),
     ])
@@ -1164,7 +1171,8 @@ export class LeaderboardOverlay {
             }, `#${String(sel.rank).padStart(2, '0')}`),
             // Title-or-accolade — same fallback rule as the podium card.
             (sel.title || sel.accolade) && h('span', {
-              className: 'pix qf-lb-detail-accolade',
+              className: 'pix qf-lb-detail-accolade' +
+                (sel.title ? (' ' + titleFxClassByName(sel.title)).trimEnd() : ''),
               style: { color: c, borderColor: c },
             }, sel.title || sel.accolade),
             sel.isYou && h('span', { className: 'pix qf-lb-detail-youtag' }, 'YOU'),

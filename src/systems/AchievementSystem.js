@@ -575,6 +575,11 @@ class AchievementSystemImpl {
     if (metric === 'classesKilledCount')       return this._sets.classesKilled.size
     if (metric === 'personalitiesSeenCount')   return this._sets.personalitiesSeen.size
     if (metric === 'companionsCompletedCount') return this._sets.companionsCompleted.size
+    // Live-computed from PlayerProfile (not a stored metric) — counts how
+    // many companions the player has unlocked. Gates "The Whole Coven"
+    // (target = total companion count). Re-checked after every
+    // unlockCompanion + on the retroactive boot scan.
+    if (metric === 'companionsUnlockedCount')  return PlayerProfile.getUnlockedCompanions?.()?.size ?? 0
     return this._metrics[metric] ?? 0
   }
 
@@ -598,6 +603,10 @@ class AchievementSystemImpl {
     //     Active title auto-promotes to the latest unlock.
     if (def.reward?.type === 'companion' && def.reward.id) {
       PlayerProfile.unlockCompanion(def.reward.id)
+      // This unlock may complete "The Whole Coven" (all companions). Re-
+      // check that metric now. Safe from recursion — whole_coven's reward
+      // is a title, not a companion, so it won't loop back here.
+      this._checkMetric('companionsUnlockedCount')
     }
     if (def.title) {
       PlayerProfile.unlockTitle(def.id, def.title)
@@ -617,7 +626,7 @@ class AchievementSystemImpl {
         PlayerProfile.queueUnlock({ type: 'boss', id: bossId, achId: def.id })
       }
       if (def.title) {
-        PlayerProfile.queueUnlock({ type: 'title', id: def.id, title: def.title, achId: def.id })
+        PlayerProfile.queueUnlock({ type: 'title', id: def.id, title: def.title, titleFx: def.titleFx ?? null, achId: def.id })
       }
     }
     // Tell the world — toast UI, HUD chips, leaderboard sync, etc.
@@ -712,6 +721,28 @@ class AchievementSystemImpl {
   // at internal state directly.
   getDefinitions() { return this._defs.slice() }
   getDefinition(id) { return this._byId.get(id) || null }
+
+  // Title visual-effect lookup. Titles are stored / submitted as plain
+  // strings (PlayerProfile, leaderboard meta), so render sites that only
+  // have the title NAME resolve its fx by name. Returns the `titleFx`
+  // string ('rainbow' | 'frost' | …) or null if the title has no effect.
+  // Built lazily into a Map on first call.
+  getTitleFxByName(name) {
+    if (!name) return null
+    if (!this._titleFxByName) {
+      this._titleFxByName = new Map()
+      for (const d of this._defs) {
+        if (d.title && d.titleFx) this._titleFxByName.set(d.title, d.titleFx)
+      }
+    }
+    return this._titleFxByName.get(name) ?? null
+  }
+  // By achievement id — used where the granting def is known (title chip
+  // sources its def via getActiveTitle().id).
+  getTitleFxById(id) {
+    const def = this._byId.get(id)
+    return def?.titleFx ?? null
+  }
   isUnlocked(id) { return PlayerProfile.isAchievementUnlocked(id) }
   getProgress(id) {
     const def = this._byId.get(id)

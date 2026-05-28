@@ -13582,3 +13582,102 @@ body {
     inset 0 0 0 1px rgba(0,0,0,0.4),
     0 0 12px rgba(107, 160, 58, 0.5);
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Title visual effects (qf-titlefx-*) — the "super special" legendary
+   titles. Each clips an animated gradient to the text + adds a coloured
+   glow via drop-shadow. Shared sweep keyframe; per-fx palette + glow.
+   Applied wherever a title renders (leaderboard podium/detail, the
+   in-game title chip, the title picker, the unlock card) via the
+   helpers in src/hud/titleFx.js.
+
+   NB: `-webkit-text-fill-color: transparent` wins over any inline
+   `color` a render site sets (e.g. leaderboard rank tint), so the
+   gradient shows through regardless. inline-block makes background-clip
+   reliable across browsers.
+   ───────────────────────────────────────────────────────────────────── */
+.qf-titlefx {
+  display: inline-block;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background-size: 220% auto;
+  background-repeat: no-repeat;
+  animation: qf-tfx-sweep 3.2s linear infinite;
+}
+@keyframes qf-tfx-sweep {
+  from { background-position: 0%   center; }
+  to   { background-position: 220% center; }
+}
+
+.qf-titlefx-rainbow {
+  background-image: linear-gradient(90deg,#ff3b3b,#ff9e2c,#ffe600,#3bff6b,#2cd0ff,#9b5cff,#ff3b3b);
+  filter: drop-shadow(0 0 5px rgba(255,255,255,0.4));
+}
+.qf-titlefx-prismatic {
+  background-image: linear-gradient(90deg,#ffd76b,#ff6fd8,#7b9bff,#5bffd0,#ffe66b,#ff6fd8,#ffd76b);
+  animation-duration: 2.2s;
+  filter: drop-shadow(0 0 7px rgba(255,255,255,0.55));
+}
+.qf-titlefx-goldshine {
+  background-image: linear-gradient(90deg,#a87b22,#ffe9a0,#fff7df,#ffe9a0,#a87b22);
+  filter: drop-shadow(0 0 5px rgba(255,210,100,0.45));
+}
+.qf-titlefx-steel {
+  background-image: linear-gradient(90deg,#5a6470,#c8d2dc,#ffffff,#c8d2dc,#5a6470);
+  filter: drop-shadow(0 0 4px rgba(200,220,255,0.4));
+}
+.qf-titlefx-bloodstorm {
+  background-image: linear-gradient(90deg,#5a0a12,#c8334a,#ff5066,#c8334a,#5a0a12);
+  animation-duration: 2.6s;
+  filter: drop-shadow(0 0 6px rgba(200,40,60,0.55));
+}
+.qf-titlefx-crimson {
+  background-image: linear-gradient(90deg,#7a1020,#e23048,#ff6b7e,#e23048,#7a1020);
+  filter: drop-shadow(0 0 5px rgba(226,48,72,0.5));
+}
+.qf-titlefx-inferno {
+  background-image: linear-gradient(90deg,#7a2400,#ff6a00,#ffd000,#ff6a00,#7a2400);
+  animation-duration: 1.8s;
+  filter: drop-shadow(0 0 6px rgba(255,120,0,0.6));
+}
+.qf-titlefx-molten {
+  background-image: linear-gradient(90deg,#3a0a00,#b83000,#ff8a1e,#ffd000,#b83000,#3a0a00);
+  filter: drop-shadow(0 0 5px rgba(255,90,0,0.5));
+}
+.qf-titlefx-frost {
+  background-image: linear-gradient(90deg,#5fa8c8,#bff0ff,#ffffff,#bff0ff,#5fa8c8);
+  filter: drop-shadow(0 0 6px rgba(160,230,255,0.55));
+}
+.qf-titlefx-spectral {
+  background-image: linear-gradient(90deg,#1a5a3a,#5fffb0,#d0ffe6,#5fffb0,#1a5a3a);
+  filter: drop-shadow(0 0 6px rgba(95,255,176,0.5));
+}
+.qf-titlefx-toxic {
+  background-image: linear-gradient(90deg,#3a6a00,#9bff1e,#e6ff8a,#9bff1e,#3a6a00);
+  filter: drop-shadow(0 0 6px rgba(155,255,30,0.5));
+}
+.qf-titlefx-arcane {
+  background-image: linear-gradient(90deg,#3a1a6a,#9b5cff,#e0bfff,#9b5cff,#3a1a6a);
+  filter: drop-shadow(0 0 6px rgba(155,92,255,0.55));
+}
+.qf-titlefx-blueprint {
+  background-image: linear-gradient(90deg,#0a3a6a,#3bb0ff,#bfe6ff,#3bb0ff,#0a3a6a);
+  filter: drop-shadow(0 0 5px rgba(59,176,255,0.45));
+}
+.qf-titlefx-bone {
+  background-image: linear-gradient(90deg,#8a8474,#efe8d0,#ffffff,#efe8d0,#8a8474);
+  filter: drop-shadow(0 0 4px rgba(239,232,208,0.45));
+}
+.qf-titlefx-void {
+  background-image: linear-gradient(90deg,#2a0a3a,#7b2cff,#c060ff,#7b2cff,#2a0a3a);
+  animation-duration: 2.6s;
+  filter: drop-shadow(0 0 7px rgba(160,60,255,0.6));
+}
+
+/* Respect reduced-motion: freeze the sweep but keep the gradient + glow
+   so the title still reads as special, just static. */
+@media (prefers-reduced-motion: reduce) {
+  .qf-titlefx { animation: none; background-position: 50% center; }
+}
