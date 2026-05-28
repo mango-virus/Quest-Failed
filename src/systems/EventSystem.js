@@ -909,19 +909,27 @@ export class EventSystem {
       tmpAi?._awardBossXp?.()
       return
     }
-    // LOSE — manual level decrement that mirrors the up-path's stat
-    // deltas without firing BOSS_LEVELED_UP. BOSS_LEVEL_CHANGED with
-    // delta=-1 drives BuildMenu re-render + minion rescale.
+    // LOSE — drop a level. Stats re-derive from the canonical formula
+    // in BossSystem._recomputeBossFightStats (additive + multiplicative
+    // per-level scaling, plus the altar boss-stat buff if any) — NOT a
+    // manual `-15 HP` subtract. The manual approach (used pre-2026-05-27)
+    // wildly under-counted the drop at high levels because the real
+    // formula stacks a 1.20^lvOver multiplier on HP and 1.10^lvOver on
+    // ATK/DEF, so a lv 10 → 9 demotion needs to shed ~25% maxHp (1728 →
+    // 1376), not just 15. The recompute function also snapshots + restores
+    // the HP FRACTION across the rescale, so a wounded boss mid-fight
+    // doesn't full-heal on a demotion.
     const newLevel = Math.max(1, oldLevel - 1)
-    boss.maxHp   = Math.max(1, (boss.maxHp   ?? 0) - (Balance.BOSS_HP_PER_LEVEL  ?? 15))
-    boss.attack  = Math.max(1, (boss.attack  ?? 0) - (Balance.BOSS_ATK_PER_LEVEL ?? 1))
-    boss.defense = Math.max(0, (boss.defense ?? 0) - (Balance.BOSS_DEF_PER_LEVEL ?? 1))
-    boss.hp      = Math.min(boss.hp ?? boss.maxHp, boss.maxHp)
     boss.level   = newLevel
     // Recompute xpToNext for the new (lower) level + clamp current xp.
     const raw = Balance.BOSS_XP_BASE * Math.pow(Balance.BOSS_XP_SCALE, newLevel - 1)
     boss.xpToNext = Math.ceil(raw / 10) * 10
     boss.xp = Math.min(boss.xp ?? 0, boss.xpToNext)
+    // Re-derive maxHp / attack / defense from the new level. _recompute-
+    // BossFightStats reads boss.level + the archetype's baseFightStats
+    // + the altar boss-stat buff (if any) and snapshots/restores the
+    // HP fraction across the rescale.
+    this._scene?.bossSystem?._recomputeBossFightStats?.()
     EventBus.emit('BOSS_LEVEL_CHANGED', { newLevel, oldLevel, delta: -1, source: 'demons_wager' })
     EventBus.emit('BOSS_DIMINISHED', { newLevel, oldLevel })
     // Use the existing "error" sound channel — no new SFX file needed.
