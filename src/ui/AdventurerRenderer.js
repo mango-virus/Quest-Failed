@@ -18,6 +18,14 @@ import { rgbParticleBurst } from '../util/cheaterVfx.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
+// Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used for
+// Jinwoo's RGB-style blue↔black flame cycle.
+function _lerpHex(a, b, k) {
+  const r = Math.round((a >> 16 & 255) + ((b >> 16 & 255) - (a >> 16 & 255)) * k)
+  const g = Math.round((a >> 8  & 255) + ((b >> 8  & 255) - (a >> 8  & 255)) * k)
+  const bl = Math.round((a       & 255) + ((b       & 255) - (a       & 255)) * k)
+  return (r << 16) | (g << 8) | bl
+}
 // LPC sheets ship at 64×64 per frame; render at 0.75 so adventurers come in
 // at ~48px tall — about 1.5 dungeon tiles, a readable size for top-down view.
 const LPC_SCALE = 0.75
@@ -438,6 +446,16 @@ export class AdventurerRenderer {
       if (s.container && !s.container.visible) s.container.setVisible(true)
       // Solo Leveling — pulse Jinwoo's violet flame-aura glow while on-screen.
       if (s.shadowGlow) s.shadowGlow.setAlpha(0.16 + 0.20 * Math.sin(this._scene.time.now / 320))
+      // Jinwoo's OWN flame cycles a blue↔black vertical gradient (RGB-style
+      // colour shift via a 4-corner tint that lerps over time). His shadow
+      // minions keep their plain flame — that's rendered by MinionRenderer and
+      // untouched here.
+      if (s.shadowFlame) {
+        const k   = (Math.sin(this._scene.time.now / 650) + 1) / 2   // 0..1 cycle
+        const top = _lerpHex(0x0a2a6b, 0x4aa0ff, k)   // deep-blue → bright-blue
+        const bot = _lerpHex(0x02040a, 0x123a8c, k)   // near-black → deep-blue
+        s.shadowFlame.setTint(top, top, bot, bot)
+      }
       // Phase D — keep the gold-coins icon glued above the adv carrying
       // stolen treasure. Sits just above the HP bar (y - 42) — chat
       // bubbles anchor higher (y - 30 extending up) so they don't clash.
