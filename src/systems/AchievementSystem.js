@@ -110,6 +110,10 @@ const DEFAULT_METRICS = {
   // CAREER one-shot booleans (stored as 0/1)
   partyWipedInDayEver:        0,
   noMinionsLostInDayEver:     0,
+  // Defeated Sung Jinwoo in the Solo Leveling event — gates monarch_slayer
+  // (→ necroknight companion). Seeded here so it persists + appears in the
+  // metric snapshot; set to 1 by the boss-fight resolution handler.
+  shadowMonarchDefeated:      0,
   // CAREER sets — persisted as arrays, hydrated to Sets in memory
   roomTypesPlaced:            [],
   trapTypesFired:             [],
