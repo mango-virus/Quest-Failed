@@ -761,5 +761,203 @@
     "title": "The Golden Crown",
     "titleFx": "champion",
     "legendary": true
+  },
+
+  {
+    "id": "first_event",
+    "name": "Disturbance",
+    "description": "Experience your first dungeon event.",
+    "category": "variety",
+    "metric": "eventsSeenTotal",
+    "target": 1,
+    "icon": "🎲"
+  },
+  {
+    "id": "event_regular",
+    "name": "Regular Attendee",
+    "description": "Experience 5 different dungeon events.",
+    "category": "variety",
+    "metric": "eventTypesSeenCount",
+    "target": 5,
+    "icon": "📅",
+    "title": "The Regular",
+    "titleColor": "#ff9a6b"
+  },
+  {
+    "id": "open_house",
+    "name": "Open House",
+    "description": "Welcome 100 adventurers into your dungeon across all runs.",
+    "category": "variety",
+    "metric": "adventurersEnteredTotal",
+    "target": 100,
+    "icon": "🚪"
+  },
+  {
+    "id": "landlord",
+    "name": "Landlord",
+    "description": "Survive 50 total days across all runs.",
+    "category": "mastery",
+    "metric": "daysSurvivedTotal",
+    "target": 50,
+    "icon": "🏚️",
+    "title": "The Landlord",
+    "titleColor": "#4a78ff"
+  },
+  {
+    "id": "petty_cash",
+    "name": "Petty Cash",
+    "description": "Earn 10,000 gold across all runs.",
+    "category": "economy",
+    "metric": "goldEarnedTotal",
+    "target": 10000,
+    "icon": "🪙"
+  },
+  {
+    "id": "boss_brawler",
+    "name": "Brawler",
+    "description": "Personally kill 10 adventurers with the boss across all runs.",
+    "category": "combat",
+    "metric": "bossKillsTotal",
+    "target": 10,
+    "icon": "🥊"
+  },
+  {
+    "id": "acceptable_losses",
+    "name": "Acceptable Losses",
+    "description": "Lose 25 minions across all runs.",
+    "category": "combat",
+    "metric": "minionsLostTotal",
+    "target": 25,
+    "icon": "⚰️",
+    "title": "The Pragmatist",
+    "titleColor": "#9a9a3c"
+  },
+  {
+    "id": "persistent",
+    "name": "Persistence",
+    "description": "Finish 5 runs.",
+    "category": "progression",
+    "metric": "runsEndedTotal",
+    "target": 5,
+    "icon": "🔁",
+    "title": "The Undeterred",
+    "titleColor": "#7acfff"
+  },
+  {
+    "id": "trap_tinkerer",
+    "name": "Tinkerer",
+    "description": "Spring 50 traps across all runs.",
+    "category": "variety",
+    "metric": "trapsFiredTotal",
+    "target": 50,
+    "icon": "🔧"
+  },
+  {
+    "id": "punching_bag",
+    "name": "Punching Bag",
+    "description": "Let your boss soak up 5,000 total damage.",
+    "category": "mastery",
+    "metric": "bossDamageTakenTotal",
+    "target": 5000,
+    "icon": "🛡️"
+  },
+
+  {
+    "id": "event_veteran",
+    "name": "Storm-Tested",
+    "description": "Experience 30 dungeon events across all runs.",
+    "category": "variety",
+    "metric": "eventsSeenTotal",
+    "target": 30,
+    "icon": "🌩️"
+  },
+  {
+    "id": "event_connoisseur",
+    "name": "Event Connoisseur",
+    "description": "Experience 20 different dungeon events.",
+    "category": "variety",
+    "metric": "eventTypesSeenCount",
+    "target": 20,
+    "icon": "🎟️"
+  },
+  {
+    "id": "innkeeper",
+    "name": "Innkeeper of the Damned",
+    "description": "Welcome 2,000 adventurers into your dungeon across all runs.",
+    "category": "variety",
+    "metric": "adventurersEnteredTotal",
+    "target": 2000,
+    "icon": "🏰"
+  },
+  {
+    "id": "eternal_host",
+    "name": "Eternal Host",
+    "description": "Survive 500 total days across all runs.",
+    "category": "mastery",
+    "metric": "daysSurvivedTotal",
+    "target": 500,
+    "icon": "🕰️",
+    "title": "Eternal Host",
+    "titleColor": "#6c5cff"
+  },
+  {
+    "id": "magnate",
+    "name": "Magnate",
+    "description": "Earn 250,000 gold across all runs.",
+    "category": "economy",
+    "metric": "goldEarnedTotal",
+    "target": 250000,
+    "icon": "💰",
+    "title": "The Magnate",
+    "titleColor": "#2ec4b6"
+  },
+  {
+    "id": "headsman",
+    "name": "Headsman",
+    "description": "Personally kill 400 adventurers with the boss across all runs.",
+    "category": "combat",
+    "metric": "bossKillsTotal",
+    "target": 400,
+    "icon": "⚔️",
+    "title": "The Headsman",
+    "titleColor": "#ff5cc8"
+  },
+  {
+    "id": "martyrmaker",
+    "name": "Martyrmaker",
+    "description": "Lose 500 minions across all runs.",
+    "category": "combat",
+    "metric": "minionsLostTotal",
+    "target": 500,
+    "icon": "💀"
+  },
+  {
+    "id": "campaigner",
+    "name": "Campaigner",
+    "description": "Finish 30 runs.",
+    "category": "progression",
+    "metric": "runsEndedTotal",
+    "target": 30,
+    "icon": "🗺️"
+  },
+  {
+    "id": "munitions_expert",
+    "name": "Munitions Expert",
+    "description": "Spring 1,000 traps across all runs.",
+    "category": "variety",
+    "metric": "trapsFiredTotal",
+    "target": 1000,
+    "icon": "🧨"
+  },
+  {
+    "id": "the_unbreaking",
+    "name": "Unbreaking",
+    "description": "Let your boss soak up 250,000 total damage.",
+    "category": "mastery",
+    "metric": "bossDamageTakenTotal",
+    "target": 250000,
+    "icon": "🛡️",
+    "title": "The Unbreaking",
+    "titleColor": "#b6e84a"
   }
 ]

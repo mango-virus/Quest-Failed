@@ -68,6 +68,16 @@ const DEFAULT_METRICS = {
   minionsPlacedTotal:         0,
   trapsPlacedTotal:           0,
   nonStarterRoomsPlacedTotal: 0,
+  // CAREER cumulative (added 2026-05-28 — event + activity achievements)
+  eventsSeenTotal:            0,   // dungeon events experienced (DUNGEON_EVENT_BEGAN)
+  adventurersEnteredTotal:    0,   // adventurers that entered the dungeon
+  daysSurvivedTotal:          0,   // total days survived across ALL runs
+  goldEarnedTotal:            0,   // cumulative gold awarded
+  bossKillsTotal:             0,   // career kills credited to the boss
+  minionsLostTotal:           0,   // career minion deaths
+  runsEndedTotal:             0,   // runs that reached game-over
+  trapsFiredTotal:            0,   // career trap activations (not placements)
+  bossDamageTakenTotal:       0,   // cumulative damage the boss has taken
   // CAREER best-of-any-run maxes
   daysSurvivedMax:            0,
   goldInRunMax:               0,
@@ -104,6 +114,7 @@ const DEFAULT_METRICS = {
   trapTypesFired:             [],
   classesKilled:              [],
   personalitiesSeen:          [],
+  eventTypesSeen:             [],
   companionsCompleted:        [],
 }
 
@@ -202,6 +213,7 @@ class AchievementSystemImpl {
       classesKilled:       new Set(this._metrics.classesKilled || []),
       personalitiesSeen:   new Set(this._metrics.personalitiesSeen || []),
       companionsCompleted: new Set(this._metrics.companionsCompleted || []),
+      eventTypesSeen:      new Set(this._metrics.eventTypesSeen || []),
     }
     this._resetRunState()
     this._resetDayState()
@@ -267,6 +279,7 @@ class AchievementSystemImpl {
     on('RESOURCES_AWARDED',       (p) => this._onResourcesAwarded(p))
     on('DAY_PHASE_BEGAN',         () => this._onDayPhaseBegan())
     on('DAY_PHASE_ENDED',         (p) => this._onDayPhaseEnded(p))
+    on('DUNGEON_EVENT_BEGAN',     (p) => this._onDungeonEventBegan(p))
     on('GAME_STATE_LOADED',       (p) => this._onGameStateLoaded(p))
     on('SHOW_GAME_OVER',          (p) => this._onGameOver(p))
     // Flawless Reign damage tracking — three signal paths, all flip the
@@ -283,8 +296,24 @@ class AchievementSystemImpl {
   // player has to start a fresh run to chase 30 days clean.
   _onBossDamaged(amount) {
     if (!(amount > 0)) return
-    if (this._runState.bossEverDamagedThisRun) return  // already flagged
+    // Career cumulative boss damage taken (The Unbreaking / Punching Bag).
+    this._metrics.bossDamageTakenTotal = (this._metrics.bossDamageTakenTotal ?? 0) + amount
+    this._persistMetrics()
+    this._checkMetric('bossDamageTakenTotal')
+    if (this._runState.bossEverDamagedThisRun) return  // no-hit streak already broken
     this._runState.bossEverDamagedThisRun = true
+  }
+
+  // Dungeon event experienced (Disturbance / Eventful / event-type sets).
+  _onDungeonEventBegan(payload) {
+    this._metrics.eventsSeenTotal = (this._metrics.eventsSeenTotal ?? 0) + 1
+    const id = payload?.def?.id || null
+    if (id && !this._sets.eventTypesSeen.has(id)) {
+      this._sets.eventTypesSeen.add(id)
+      this._checkMetric('eventTypesSeenCount')
+    }
+    this._persistMetrics()
+    this._checkMetric('eventsSeenTotal')
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────
@@ -345,6 +374,8 @@ class AchievementSystemImpl {
       if (this._runState.bossKills > this._metrics.bossKillsInRunMax) {
         this._metrics.bossKillsInRunMax = this._runState.bossKills
       }
+      // Career boss-kill count (Brawler / The Headsman).
+      this._metrics.bossKillsTotal = (this._metrics.bossKillsTotal ?? 0) + 1
     }
     // Track party-wipe — find the adv's party and increment its killed count.
     if (adv?.partyId != null) {
@@ -365,6 +396,7 @@ class AchievementSystemImpl {
     this._checkMetric('trapKillsInRunMax')
     this._checkMetric('trapKillsTotal')
     this._checkMetric('bossKillsInRunMax')
+    this._checkMetric('bossKillsTotal')
     this._checkMetric('veteransKilled')
     this._checkMetric('veteransKilledInRunMax')
     this._checkMetric('classesKilledCount')
@@ -373,6 +405,10 @@ class AchievementSystemImpl {
   _onAdventurerEntered(payload) {
     const adv = payload?.adventurer || payload?.adv || null
     if (!adv) return
+    // Career count of adventurers that crossed the threshold (Open House
+    // / Innkeeper of the Damned).
+    this._metrics.adventurersEnteredTotal = (this._metrics.adventurersEnteredTotal ?? 0) + 1
+    this._checkMetric('adventurersEnteredTotal')
     // Track personality seen.
     const p = adv.personalityId || adv.personality || null
     if (p && !this._sets.personalitiesSeen.has(p)) {
@@ -429,7 +465,11 @@ class AchievementSystemImpl {
 
   _onMinionDied(payload) {
     this._dayState.minionsLost += 1
-    // No metric crossing here — Untouchable is evaluated at DAY_PHASE_ENDED.
+    // Career minion-death count (Acceptable Losses / Martyrmaker). The
+    // per-day Untouchable check still happens at DAY_PHASE_ENDED.
+    this._metrics.minionsLostTotal = (this._metrics.minionsLostTotal ?? 0) + 1
+    this._persistMetrics()
+    this._checkMetric('minionsLostTotal')
   }
 
   _onMinionRemoved() {
@@ -454,13 +494,17 @@ class AchievementSystemImpl {
   }
 
   _onTrapFired(payload) {
+    // Career trap-activation count (Tinkerer / Munitions Expert) — counts
+    // every fire, distinct from trapsPlacedTotal (placements).
+    this._metrics.trapsFiredTotal = (this._metrics.trapsFiredTotal ?? 0) + 1
+    this._checkMetric('trapsFiredTotal')
     const def = payload?.def || payload?.trap?.definition || null
     const type = def?.id || payload?.trap?.definitionId || null
     if (type && !this._sets.trapTypesFired.has(type)) {
       this._sets.trapTypesFired.add(type)
-      this._persistMetrics()
       this._checkMetric('trapTypesFiredCount')
     }
+    this._persistMetrics()
   }
 
   _onRoomPlaced(payload) {
@@ -493,6 +537,11 @@ class AchievementSystemImpl {
       this._metrics.soulsTotal += souls
       this._checkMetric('soulsTotal')
     }
+    if (gold > 0) {
+      // Career cumulative gold earned (Petty Cash / The Magnate).
+      this._metrics.goldEarnedTotal = (this._metrics.goldEarnedTotal ?? 0) + gold
+      this._checkMetric('goldEarnedTotal')
+    }
     // For Hoard Lord — Hoard Lord cares about PEAK gold in a single run,
     // not cumulative. Read the gameState's current gold after the award.
     if (gold > 0) {
@@ -523,6 +572,10 @@ class AchievementSystemImpl {
       this._metrics.daysSurvivedMax = day
       this._checkMetric('daysSurvivedMax')
     }
+    // Career cumulative days survived across ALL runs (Landlord / Eternal
+    // Host) — one per day-phase ended.
+    this._metrics.daysSurvivedTotal = (this._metrics.daysSurvivedTotal ?? 0) + 1
+    this._checkMetric('daysSurvivedTotal')
     // Untouchable — if NO minions died today AND the player had at least
     // one minion deployed at any point today, flip the career flag.
     // We approximate "at least one deployed" by checking gameState.minions
@@ -566,6 +619,9 @@ class AchievementSystemImpl {
   }
 
   _onGameOver(payload) {
+    // Career count of runs that reached game-over (Persistence / Campaigner).
+    this._metrics.runsEndedTotal = (this._metrics.runsEndedTotal ?? 0) + 1
+    this._checkMetric('runsEndedTotal')
     // A run "completed" — fulfils Keeper of Keepers if this companion
     // hasn't already counted. The Keeper achievement requires completing
     // a run with EACH unlocked companion. We track the set by id.
@@ -573,9 +629,9 @@ class AchievementSystemImpl {
     const companionId = gs?.meta?.companionId || payload?.companionId || null
     if (companionId && !this._sets.companionsCompleted.has(companionId)) {
       this._sets.companionsCompleted.add(companionId)
-      this._persistMetrics()
       this._checkMetric('companionsCompletedCount')
     }
+    this._persistMetrics()
   }
 
   // ── Threshold checks + unlock pipeline ────────────────────────────────
@@ -602,6 +658,7 @@ class AchievementSystemImpl {
     if (metric === 'classesKilledCount')       return this._sets.classesKilled.size
     if (metric === 'personalitiesSeenCount')   return this._sets.personalitiesSeen.size
     if (metric === 'companionsCompletedCount') return this._sets.companionsCompleted.size
+    if (metric === 'eventTypesSeenCount')      return this._sets.eventTypesSeen.size
     // Live-computed from PlayerProfile (not a stored metric) — counts how
     // many companions the player has unlocked. Gates "The Whole Coven"
     // (target = total companion count). Re-checked after every
@@ -731,6 +788,7 @@ class AchievementSystemImpl {
     this._metrics.classesKilled       = Array.from(this._sets.classesKilled)
     this._metrics.personalitiesSeen   = Array.from(this._sets.personalitiesSeen)
     this._metrics.companionsCompleted = Array.from(this._sets.companionsCompleted)
+    this._metrics.eventTypesSeen      = Array.from(this._sets.eventTypesSeen)
     PlayerProfile.setAchievementMetrics(this._metrics)
   }
 

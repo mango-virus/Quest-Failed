@@ -66,6 +66,9 @@ const TIER_BRONZE_IDS = new Set([
   // Low-bar milestones reached in normal early play.
   'survivor', 'skirmisher', 'soul_collector', 'trapsmith', 'diverse_roster',
   'daily_reaper', 'total_annihilation', 'trap_master', 'personality_profiler',
+  // Event / activity intro tier (2026-05-28).
+  'first_event', 'event_regular', 'open_house', 'landlord', 'petty_cash',
+  'boss_brawler', 'acceptable_losses', 'persistent', 'trap_tinkerer', 'punching_bag',
 ])
 function achievementTier(def) {
   if (def?.legendary) return 'gold'
