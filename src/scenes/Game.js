@@ -713,6 +713,12 @@ export class Game extends Phaser.Scene {
   }
 
   _onNightStart() {
+    // Apply any pending grid growth FIRST — it shifts boss + minion tile
+    // coords and re-anchors the dungeon. Doing it before respawnAll
+    // ensures revived dead minions land at the right (post-shift) tiles,
+    // and before trapSystem.resetAll so traps are at their final coords
+    // when state is wiped fresh. (2026-05-27 — symmetric grid expansion.)
+    this._applyPendingGridGrowth()
     // Apply evolution resets BEFORE respawn so the starter def's stats are
     // in place when respawnAll full-heals dead minions to maxHp.
     this.minionEvolutionSystem?.applyResets()
@@ -1151,14 +1157,16 @@ export class Game extends Phaser.Scene {
     // unlocks once any boss has hit level 4.
     PlayerProfile.recordBossLevel(newLevel)
 
-    // Expand the grid by 5 tiles each axis, capped at 100×100.
-    const cap = 100
-    const grow = 5
-    const oldW = this.gameState.dungeon.gridWidth
-    const oldH = this.gameState.dungeon.gridHeight
-    const newW = Math.min(cap, oldW + grow)
-    const newH = Math.min(cap, oldH + grow)
-    if (newW !== oldW || newH !== oldH) this.dungeonGrid.expandGrid(newW, newH)
+    // Grid expansion is DEFERRED to the next NIGHT_PHASE_STARTED — see
+    // _applyPendingGridGrowth. BOSS_LEVELED_UP can fire mid-day off an
+    // adventurer kill, and the new symmetric (+5-each-side) growth has
+    // to shift every existing entity's tile coords. Doing that with
+    // live advs walking + path arrays in flight would scatter them.
+    // Queueing the growth and applying at night means by the time we
+    // re-anchor everything, advs are gone and only stationary minions
+    // remain.
+    this.gameState.meta._pendingGridGrowth =
+      (this.gameState.meta._pendingGridGrowth ?? 0) + 1
 
     // Scale the boss's own fight stats. Additive per level so it layers
     // cleanly on top of ability bonuses (+4 ATK / +5 DEF) and event
@@ -1188,6 +1196,99 @@ export class Game extends Phaser.Scene {
       m.resources.hp    = Math.round(m.resources.maxHp * hpFrac)
       m.stats.attack    = Math.round(m.stats.attack    * (newAtkM / oldAtkM))
       m.bossLevel       = newLevel
+    }
+  }
+
+  // Apply any boss-level-up grid expansion that was queued during the day.
+  // Each pending level adds +5 tiles on EACH side (+10 per axis), capped
+  // at 100×100. With non-zero leftOffset/topOffset the existing dungeon
+  // is re-anchored inside the larger grid, so every entity's tile coord
+  // shifts by (+leftOffset, +topOffset). DungeonGrid.expandGrid handles
+  // dungeon-side entities (rooms, traps, fountains, etc.); this helper
+  // handles everything outside the dungeon object's ownership (boss,
+  // minions, defensive adv shift, knowledge buckets). Called from
+  // _onNightStart. (2026-05-27 — symmetric grid expansion.)
+  _applyPendingGridGrowth() {
+    const pending = this.gameState.meta?._pendingGridGrowth ?? 0
+    if (pending <= 0) return
+    const cap = 100
+    const PER_SIDE = 5
+    const oldW = this.gameState.dungeon.gridWidth
+    const oldH = this.gameState.dungeon.gridHeight
+    // Each pending level → +PER_SIDE on each side → +2*PER_SIDE per axis.
+    const totalGrowAxis = 2 * PER_SIDE * pending
+    const newW = Math.min(cap, oldW + totalGrowAxis)
+    const newH = Math.min(cap, oldH + totalGrowAxis)
+    this.gameState.meta._pendingGridGrowth = 0
+    const growW = newW - oldW
+    const growH = newH - oldH
+    if (growW <= 0 && growH <= 0) return
+    // Split growth evenly between sides — if growth is odd, the extra
+    // tile goes to the right/bottom (matching the original behavior).
+    const leftOff = Math.floor(growW / 2)
+    const topOff  = Math.floor(growH / 2)
+    this.dungeonGrid.expandGrid(newW, newH, leftOff, topOff)
+    this._shiftExternalEntitiesAfterGrowth(leftOff, topOff)
+    // Camera bounds depend on grid size — re-clamp so the player can pan
+    // into the new tiles.
+    this._clampCameraToPlayArea?.()
+  }
+
+  // Shift everything in gameState that has tile coords but lives OUTSIDE
+  // gameState.dungeon (DungeonGrid handles its own). Boss, minions,
+  // defensive adv shift (should be empty at night), and knowledge
+  // mirrors (sharedPool + survivors[].knowledge) that store trap
+  // tileX/tileY/dangerTiles as copies. (2026-05-27 — symmetric grid.)
+  _shiftExternalEntitiesAfterGrowth(dx, dy) {
+    if (dx === 0 && dy === 0) return
+    const TS = Balance.TILE_SIZE
+    // Boss — may have its own tile / world coords on some archetypes.
+    const boss = this.gameState.boss
+    if (boss) {
+      if (typeof boss.tileX  === 'number') { boss.tileX  += dx; boss.tileY  += dy }
+      if (typeof boss.worldX === 'number') { boss.worldX += dx * TS; boss.worldY += dy * TS }
+    }
+    // Minions — stationary at night. Shift tile + world; clear any
+    // in-flight pathing so MinionAISystem replans from new coords.
+    for (const m of this.gameState.minions ?? []) {
+      if (typeof m.tileX  === 'number') { m.tileX  += dx; m.tileY  += dy }
+      if (typeof m.worldX === 'number') { m.worldX += dx * TS; m.worldY += dy * TS }
+      if (m._patrolTarget) { m._patrolTarget.x += dx; m._patrolTarget.y += dy }
+      m._chasePath = null
+    }
+    // Active adventurers — should be empty at night, but defensive in
+    // case a charmed thrall or undead-return adv survived into night.
+    for (const a of this.gameState.adventurers?.active ?? []) {
+      if (typeof a.tileX  === 'number') { a.tileX  += dx; a.tileY  += dy }
+      if (typeof a.worldX === 'number') { a.worldX += dx * TS; a.worldY += dy * TS }
+      a.path = null
+      a.pathTarget = null
+      this._shiftTrapKnowledge(a.knowledge?.traps, dx, dy)
+    }
+    // Knowledge buckets that store trap coords as copies. Without the
+    // shift, returning-veteran briefings would point at the OLD coords
+    // and the pathfinder's room-trap avoidance would mis-identify which
+    // room the trap is in.
+    this._shiftTrapKnowledge(this.gameState.knowledge?.sharedPool?.traps, dx, dy)
+    for (const s of this.gameState.knowledge?.survivors ?? []) {
+      this._shiftTrapKnowledge(s?.knowledge?.traps, dx, dy)
+    }
+  }
+
+  // Shift the tileX/tileY (and any dangerTiles[].x/y) on every entry in a
+  // trap-knowledge bucket. Bucket shape is { [trapId]: { tileX, tileY,
+  // dangerTiles?: [{x,y}], ... } } — same on sharedPool, on each
+  // survivor's snapshot, and on each live adv's in-progress knowledge.
+  _shiftTrapKnowledge(traps, dx, dy) {
+    if (!traps) return
+    for (const t of Object.values(traps)) {
+      if (!t) continue
+      if (typeof t.tileX === 'number') { t.tileX += dx; t.tileY += dy }
+      if (Array.isArray(t.dangerTiles)) {
+        for (const d of t.dangerTiles) {
+          if (typeof d?.x === 'number') { d.x += dx; d.y += dy }
+        }
+      }
     }
   }
 

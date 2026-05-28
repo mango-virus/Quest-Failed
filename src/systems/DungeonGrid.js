@@ -797,18 +797,88 @@ export class DungeonGrid {
     return this._d.rooms.filter(r => !reachable.has(r.instanceId))
   }
 
-  expandGrid(newWidth, newHeight) {
+  // Expand the dungeon grid to (newWidth, newHeight). When leftOffset /
+  // topOffset are non-zero, the existing tiles are placed at that offset
+  // inside the new grid — so the dungeon effectively gains space on the
+  // LEFT (`leftOffset`) and TOP (`topOffset`) as well as the right /
+  // bottom. All dungeon-side entities (rooms, traps, fountains, chests,
+  // beacons, locks, lootPiles, phylactery, items, decorations) get their
+  // tile coordinates shifted by (+leftOffset, +topOffset) to match. The
+  // tile lookup is rebuilt at the end.
+  //
+  // External-to-dungeon entities (boss, minions, in-flight adventurers,
+  // knowledge buckets in gameState.knowledge) live OUTSIDE this object's
+  // ownership; the caller (Game._applyPendingGridGrowth) handles their
+  // shift. We emit GRID_EXPANDED with both the new size AND the offset
+  // so listeners can update accordingly.
+  //
+  // Backward-compatible: with leftOffset/topOffset both 0, behaves
+  // exactly like the original right/bottom-only growth.
+  expandGrid(newWidth, newHeight, leftOffset = 0, topOffset = 0) {
     const oldH = this._d.gridHeight
     const oldW = this._d.gridWidth
-    for (let y = 0; y < oldH; y++) {
-      while (this._d.tiles[y].length < newWidth) this._d.tiles[y].push(TILE.VOID)
-    }
-    while (this._d.tiles.length < newHeight) {
-      this._d.tiles.push(new Array(newWidth).fill(TILE.VOID))
+    if (leftOffset === 0 && topOffset === 0) {
+      // Fast path — original behavior. Append-only.
+      for (let y = 0; y < oldH; y++) {
+        while (this._d.tiles[y].length < newWidth) this._d.tiles[y].push(TILE.VOID)
+      }
+      while (this._d.tiles.length < newHeight) {
+        this._d.tiles.push(new Array(newWidth).fill(TILE.VOID))
+      }
+    } else {
+      // Re-build the entire tile grid so old tiles land at (leftOffset, topOffset).
+      const newTiles = []
+      for (let y = 0; y < newHeight; y++) {
+        newTiles.push(new Array(newWidth).fill(TILE.VOID))
+      }
+      for (let y = 0; y < oldH; y++) {
+        const srcRow = this._d.tiles[y] ?? []
+        const dstRow = newTiles[y + topOffset]
+        if (!dstRow) continue
+        for (let x = 0; x < oldW; x++) {
+          dstRow[x + leftOffset] = srcRow[x] ?? TILE.VOID
+        }
+      }
+      this._d.tiles = newTiles
+      // Shift every dungeon-side entity coord by (+leftOffset, +topOffset)
+      // so its in-grid position is unchanged after the re-anchor.
+      const dx = leftOffset, dy = topOffset
+      for (const room of this._d.rooms ?? []) {
+        room.gridX += dx
+        room.gridY += dy
+      }
+      for (const trap of this._d.traps ?? []) {
+        if (typeof trap.tileX === 'number') { trap.tileX += dx; trap.tileY += dy }
+      }
+      for (const f of this._d.fountains ?? []) {
+        if (typeof f.tileX === 'number') { f.tileX += dx; f.tileY += dy }
+      }
+      for (const c of this._d.treasureChests ?? []) {
+        if (typeof c.tileX === 'number') { c.tileX += dx; c.tileY += dy }
+      }
+      for (const b of this._d.beacons ?? []) {
+        if (typeof b.tileX === 'number') { b.tileX += dx; b.tileY += dy }
+      }
+      for (const p of this._d.lootPiles ?? []) {
+        if (typeof p.tileX === 'number') { p.tileX += dx; p.tileY += dy }
+      }
+      for (const it of this._d.items ?? []) {
+        if (typeof it.tileX === 'number') { it.tileX += dx; it.tileY += dy }
+      }
+      for (const lock of this._d.locks ?? []) {
+        if (Array.isArray(lock.doorTiles)) {
+          for (const t of lock.doorTiles) { t.x += dx; t.y += dy }
+        }
+      }
+      if (this._d.phylactery && typeof this._d.phylactery.tileX === 'number') {
+        this._d.phylactery.tileX += dx
+        this._d.phylactery.tileY += dy
+      }
+      this._rebuildLookup()
     }
     this._d.gridWidth = newWidth
     this._d.gridHeight = newHeight
-    EventBus.emit('GRID_EXPANDED', { newWidth, newHeight })
+    EventBus.emit('GRID_EXPANDED', { newWidth, newHeight, leftOffset, topOffset })
   }
 
   // Call after loading a save to restore tile index
