@@ -345,6 +345,11 @@ export class EventSystem {
   // First use (2026-05-27): Treasure Hunters can't fire if the player owns
   // no treasure chests — there'd be nothing to rob.
   _eventPrecondMet(def) {
+    // Solo Leveling is DISABLED in the natural rotation for now — only the
+    // mango TEST EVENT picker (DEV_FORCE_EVENT) can fire it, and that path
+    // bypasses _eligibleEvents entirely (see _onDevForceEvent). Flip this
+    // back to allow it to roll organically.
+    if (def.id === 'solo_leveling') return false
     if (def.id === 'treasure_hunters') {
       return (this._gameState.dungeon?.treasureChests ?? []).length > 0
     }
