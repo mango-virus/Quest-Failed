@@ -462,6 +462,16 @@ export class MainMenu extends Phaser.Scene {
         glyph: '❖',
         action: () => this.scene.start('Leaderboard'),
       },
+      {
+        // Parity with the DOM main menu (MainMenuOverlay). The
+        // GameRequestsOverlay is a DOM overlay that mounts to
+        // #hud-stage or falls back to document.body, so it works fine
+        // even from the legacy Phaser title screen.
+        label: 'GAME REQUESTS',
+        sub:   'Tell the dev what you want next',
+        glyph: '✉',
+        action: () => this._actGameRequests(),
+      },
       // Dev-only entries — visible only when the player has set their
       // name to "Mango" via the NameEntryPanel (case-insensitive).
       ...(PlayerProfile.getName().trim().toUpperCase() === 'MANGO' ? [
@@ -682,6 +692,20 @@ export class MainMenu extends Phaser.Scene {
 
   _actOptions() {
     this.scene.start('Options')
+  }
+
+  _actGameRequests() {
+    if (this._gameRequests) return
+    // Mark seen at open — mirrors the DOM main menu's behavior. The
+    // legacy menu doesn't render a NEW chip, but we still maintain the
+    // per-name flag so flipping to newhud preserves the seen state.
+    try { PlayerProfile.markGameRequestsSeen?.() } catch {}
+    import('../hud/GameRequestsOverlay.js').then(({ GameRequestsOverlay }) => {
+      this._gameRequests = new GameRequestsOverlay({
+        onClose: () => { this._gameRequests = null },
+      })
+      this._gameRequests.open()
+    })
   }
 
   _actQuit() {

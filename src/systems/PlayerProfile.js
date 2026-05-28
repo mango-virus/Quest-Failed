@@ -38,6 +38,10 @@ const ACTIVE_TITLE_ID_KEY_BASE        = 'qf.player.active_title_id'
 // Stored as the literal string '1' for presence detection — value
 // content doesn't matter; only the key's existence does.
 const ACHIEVEMENTS_SEEN_KEY_BASE      = 'qf.player.achievements_seen'
+// Per-name flag — set the first time the player opens the Game Requests
+// overlay. Drives the "NEW" badge beside the GAME REQUESTS menu item
+// (same shape as ACHIEVEMENTS_SEEN). One-shot per name.
+const GAME_REQUESTS_SEEN_KEY_BASE     = 'qf.player.game_requests_seen'
 // Per-id NEW-tag tracking (per-name) for the reusable "NEW" badge system.
 // Stored as a JSON array of ids the player has been "introduced to" (either
 // by opening the relevant overlay, by snapshot-on-first-open, or by
@@ -96,6 +100,7 @@ function _titlesKeyFor(name)          { return `${TITLES_KEY_BASE}:${(name ?? ''
 function _timestampsKeyFor(name)      { return `${ACHIEVEMENT_TIMESTAMPS_KEY_BASE}:${(name ?? '').trim()}` }
 function _activeTitleIdKeyFor(name)   { return `${ACTIVE_TITLE_ID_KEY_BASE}:${(name ?? '').trim()}` }
 function _achievementsSeenKeyFor(name){ return `${ACHIEVEMENTS_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
+function _gameRequestsSeenKeyFor(name){ return `${GAME_REQUESTS_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _achievementsNewSeenKeyFor(name) { return `${ACHIEVEMENTS_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _companionsNewSeenKeyFor(name)   { return `${COMPANIONS_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _bossesNewSeenKeyFor(name)       { return `${BOSSES_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
@@ -503,6 +508,20 @@ export const PlayerProfile = {
 
   markAchievementsSeen() {
     try { localStorage.setItem(_achievementsSeenKeyFor(this.getName()), '1') }
+    catch {}
+  },
+
+  // ── "Game Requests seen" badge state (per-name) ─────────────────────
+  // Mirrors the achievements-seen pattern. The main menu shows a "NEW"
+  // badge beside the GAME REQUESTS button until the player has opened
+  // the overlay at least once. Per-name so each new identity gets the
+  // intro tag once.
+  hasSeenGameRequests() {
+    try { return localStorage.getItem(_gameRequestsSeenKeyFor(this.getName())) === '1' }
+    catch { return false }
+  },
+  markGameRequestsSeen() {
+    try { localStorage.setItem(_gameRequestsSeenKeyFor(this.getName()), '1') }
     catch {}
   },
 

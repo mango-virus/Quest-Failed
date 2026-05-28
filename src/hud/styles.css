@@ -12616,3 +12616,343 @@ body {
   opacity: 1;
   transform: translateY(0) scale(1);
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   GameRequestsOverlay — feedback / bug / wishlist modal.
+   Lives inside the generic .qf-overlay-body. Two modes (submit / inbox)
+   share the same root container so swapping doesn't reflow the modal.
+   ───────────────────────────────────────────────────────────────────── */
+.qf-greq-root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 18px;
+  font-family: var(--ui);
+}
+/* Eyebrow line (non-mango players see this in place of the toggle). */
+.qf-greq-headernote {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text-mute);
+  line-height: 1.55;
+  padding: 8px 10px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+/* Mode toggle row (mango only). */
+.qf-greq-toggle {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.qf-greq-toggle-btn {
+  flex: 1 1 0;
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 8px 10px;
+  color: var(--text-mute);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.qf-greq-toggle-btn:hover {
+  color: var(--text);
+  background: var(--bg-2);
+}
+.qf-greq-toggle-btn.active {
+  color: var(--bg-0);
+  background: var(--rumor);
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,0.18),
+    inset 0 0 0 1px rgba(0,0,0,0.4);
+}
+
+/* ── Submit form ──────────────────────────────────────────────────── */
+.qf-greq-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.qf-greq-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.qf-greq-labelrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.qf-greq-label {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  opacity: 0.85;
+}
+.qf-greq-counter {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-mute);
+}
+.qf-greq-input {
+  font-family: var(--ui);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-0);
+  border: none;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  padding: 8px 10px;
+  outline: none;
+  transition: box-shadow 120ms ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+.qf-greq-input::placeholder {
+  color: var(--text-mute);
+  opacity: 0.7;
+}
+.qf-greq-input:focus {
+  box-shadow:
+    inset 0 0 0 1px var(--rumor),
+    0 0 8px rgba(92, 200, 216, 0.25);
+}
+.qf-greq-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-mute) 50%),
+                    linear-gradient(135deg, var(--text-mute) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) calc(50% - 2px),
+    calc(100% - 9px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 26px;
+  cursor: pointer;
+}
+.qf-greq-textarea {
+  resize: vertical;
+  min-height: 110px;
+  max-height: 240px;
+  line-height: 1.45;
+  font-family: var(--ui);
+}
+.qf-greq-radios {
+  display: flex;
+  gap: 6px;
+}
+.qf-greq-radio {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 8px 6px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-mute);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.qf-greq-radio:hover {
+  color: var(--text);
+  background: var(--bg-2);
+}
+.qf-greq-radio.active {
+  color: var(--bg-0);
+  background: var(--gold);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,0.18),
+    inset 0 0 0 1px rgba(0,0,0,0.4);
+}
+.qf-greq-radio input {
+  /* Hide the native radio — the label IS the affordance. */
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Context-disclosure note above the submit button. */
+.qf-greq-note {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-mute);
+  line-height: 1.5;
+  padding: 7px 9px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.qf-greq-note-icon {
+  color: var(--rumor);
+  margin-right: 4px;
+}
+
+/* Status line — populated after a submit attempt. */
+.qf-greq-status {
+  min-height: 14px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--text-mute);
+}
+.qf-greq-status-ok      { color: var(--poison); }
+.qf-greq-status-err     { color: var(--blood-glow); }
+.qf-greq-status-pending { color: var(--rumor); }
+
+.qf-greq-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+.qf-greq-submit {
+  font-family: var(--pix);
+  font-size: 11px;
+  letter-spacing: 3px;
+  padding: 10px 28px;
+  background: var(--blood);
+  color: #fff8e8;
+  border: none;
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,0.2),
+    inset 0 0 0 1px rgba(0,0,0,0.45),
+    0 0 14px rgba(200, 51, 74, 0.4);
+  cursor: pointer;
+  transition: background 120ms ease, transform 80ms ease;
+}
+.qf-greq-submit:hover { background: var(--blood-glow); transform: translateY(-1px); }
+.qf-greq-submit:active { transform: translateY(0); }
+.qf-greq-submit:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+/* ── Inbox (mango only) ───────────────────────────────────────────── */
+.qf-greq-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.qf-greq-inbox-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qf-greq-filterselect { flex: 1 1 auto; max-width: 280px; }
+.qf-greq-inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 4px;   /* leave room for the scrollbar so cards don't touch */
+}
+.qf-greq-inbox-empty {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  text-align: center;
+  padding: 24px 12px;
+}
+.qf-greq-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.qf-greq-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.qf-greq-card-cat {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--rumor);
+  padding: 2px 6px;
+  background: rgba(92, 200, 216, 0.12);
+  box-shadow: inset 0 0 0 1px var(--rumor);
+}
+.qf-greq-card-feel {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--warn);
+  padding: 2px 6px;
+  background: rgba(232, 154, 60, 0.12);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+.qf-greq-card-status {
+  font-size: 7px;
+  letter-spacing: 1px;
+  margin-left: auto;
+  padding: 2px 6px;
+  color: var(--text-mute);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.qf-greq-card-status[data-status="shipped"] {
+  color: var(--poison);
+  box-shadow: inset 0 0 0 1px var(--poison);
+}
+.qf-greq-card-status[data-status="planned"] {
+  color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+.qf-greq-card-status[data-status="triaged"] {
+  color: var(--info);
+  box-shadow: inset 0 0 0 1px var(--info);
+}
+.qf-greq-card-status[data-status="wontfix"] {
+  color: var(--blood);
+  box-shadow: inset 0 0 0 1px var(--blood);
+}
+.qf-greq-card-title {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text);
+  margin-top: 2px;
+}
+.qf-greq-card-body {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text);
+  opacity: 0.92;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.qf-greq-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-mute);
+}
+.qf-greq-card-author { color: var(--gold); }
+.qf-greq-card-sep    { opacity: 0.5; }
+.qf-greq-card-ctx    { color: var(--rumor); opacity: 0.85; }
+.qf-greq-card-notes {
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.45;
+  color: var(--text-mute);
+  padding: 6px 8px;
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.qf-greq-card-notes-label {
+  color: var(--gold);
+  letter-spacing: 2px;
+  margin-right: 4px;
+}

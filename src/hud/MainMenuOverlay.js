@@ -405,6 +405,12 @@ export class MainMenuOverlay {
         newBadge: PlayerProfile.hasUnseenNewAchievements(
           (AchievementSystem.getDefinitions?.() || []).map(d => d.id)
         ) },
+      { id: 'requests', label: 'GAME REQUESTS', sub: 'Tell the dev what you want next', icon: '✉',
+        color: 'var(--rumor)',
+        // Per-name NEW badge — fires until the player has opened the
+        // overlay at least once. Cleared in _openGameRequests after
+        // PlayerProfile.markGameRequestsSeen.
+        newBadge: !PlayerProfile.hasSeenGameRequests() },
     ]
     // ROOM EDITOR + TILESET EDITOR are dev surfaces — only shown when the
     // player's name is the cheat handle (PlayerProfile.isCheatName). Regular
@@ -663,6 +669,9 @@ export class MainMenuOverlay {
       case 'achievements':
         this._openAchievements()
         break
+      case 'requests':
+        this._openGameRequests()
+        break
       case 'jump50':
         // Mango dev shortcut — stamps one-shot localStorage flags that
         // ArchetypeSelect._beginRun reads after createGameState to bump
@@ -824,6 +833,25 @@ export class MainMenuOverlay {
         },
       })
       this._achievements.open()
+    })
+  }
+
+  _openGameRequests() {
+    if (this._requests) return
+    // Mark seen at open so the NEW badge clears immediately, even if the
+    // player closes the overlay without submitting anything. Mirrors the
+    // achievement intro-badge flow — seeing the page counts as engagement.
+    PlayerProfile.markGameRequestsSeen?.()
+    import('./GameRequestsOverlay.js').then(({ GameRequestsOverlay }) => {
+      this._requests = new GameRequestsOverlay({
+        onClose: () => {
+          this._requests = null
+          // Surgically clear the NEW chip without re-running the entrance
+          // animation on the rest of the menu.
+          this._refreshMenuItems()
+        },
+      })
+      this._requests.open()
     })
   }
 
