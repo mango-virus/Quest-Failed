@@ -1007,11 +1007,13 @@ export class AdventurerRenderer {
           repeat: -1,
         })
       }
-      // 1.7× so the flame fully engulfs his ~0.75-scale body; feet-anchored so
-      // it rises from the ground around him.
-      const flame = this._scene.add.sprite(0, 0, 'vfx-shadow-flame', 0)
-        .setOrigin(0.5, 0.85)
-        .setScale(1.7)
+      // Centre-anchored and positioned so the flame's CONTENT centre lands on
+      // Jinwoo's body centre (~container 0,-13). The flame art leans slightly
+      // up-and-left within its frame, so x=+7 / y=-11 (with origin 0.5,0.5)
+      // compensates that lean; 2.3× engulfs his ~0.75-scale body.
+      const flame = this._scene.add.sprite(7, -11, 'vfx-shadow-flame', 0)
+        .setOrigin(0.5, 0.5)
+        .setScale(2.3)
       flame.anims.play('vfx-shadow-flame-loop', true)
       c.add(flame)
       c.sendToBack(flame)
@@ -1021,8 +1023,8 @@ export class AdventurerRenderer {
     // (same colour language as his extracted shadows) so the near-black flame
     // reads against dark floors. Pulse alpha is driven per-frame in update().
     if (this._scene.textures.exists('vfx-soft-glow')) {
-      const glow = this._scene.add.image(0, -16, 'vfx-soft-glow')
-        .setScale(0.8)
+      const glow = this._scene.add.image(0, -13, 'vfx-soft-glow')
+        .setScale(0.95)
         .setTint(0x9b2fe0)
         .setBlendMode(Phaser.BlendModes.SCREEN)
       c.add(glow)
