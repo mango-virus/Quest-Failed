@@ -82,7 +82,12 @@ export class GameRequestsOverlay {
       title:    '',
       body:     '',
     }
-    this._inbox = { loading: false, rows: [], error: null, filter: 'all' }
+    this._inbox  = { loading: false, rows: [], error: null, filter: 'all' }
+    this._mymail = { loading: false, rows: [], error: null }
+    // Confirmation state for delete in the admin inbox — { id } means
+    // the card is showing a confirm-cancel bar instead of the delete
+    // button.
+    this._confirmDelete = null
     this._overlay = new Overlay({
       title:    'GAME REQUESTS',
       width:    560,
@@ -120,25 +125,34 @@ export class GameRequestsOverlay {
     if (this._mode === 'inbox' && this._isMango) {
       return [header, this._renderInbox()]
     }
+    if (this._mode === 'mymail') {
+      return [header, this._renderMyMail()]
+    }
     return [header, this._renderSubmit()]
   }
 
   _renderHeader() {
-    // Mode toggle (mango only). Sits above the form/inbox; uses the
-    // existing pill-button styles for consistency.
-    if (!this._isMango) {
-      return h('div', { className: 'qf-greq-headernote pix' }, SUBMIT_NOTE)
-    }
-    return h('div', { className: 'qf-greq-toggle' }, [
-      h('button', {
-        className: 'qf-greq-toggle-btn' + (this._mode === 'submit' ? ' active' : ''),
-        on: { click: () => this._setMode('submit') },
-      }, '+ NEW REQUEST'),
-      h('button', {
-        className: 'qf-greq-toggle-btn' + (this._mode === 'inbox' ? ' active' : ''),
-        on: { click: () => this._setMode('inbox') },
-      }, '⌕ INBOX'),
-    ])
+    // Three-mode tab strip:
+    //   [+ NEW REQUEST]   submit form (everyone)
+    //   [✉ MY MAIL]       this player's submissions + replies (everyone)
+    //   [⌕ INBOX]         all submissions, admin controls (mango only)
+    //
+    // Mail-count chip on MY MAIL / INBOX reads from GameRequests cached
+    // counts so the badge fires the moment the tab loads (no flicker).
+    const playerMail = GameRequests.getCachedPlayerMail?.() ?? 0
+    const adminMail  = GameRequests.getCachedAdminMail?.()  ?? 0
+    const tabs = [
+      { id: 'submit', label: '+ NEW REQUEST', count: 0 },
+      { id: 'mymail', label: '✉ MY MAIL',    count: playerMail },
+    ]
+    if (this._isMango) tabs.push({ id: 'inbox', label: '⌕ INBOX', count: adminMail })
+    return h('div', { className: 'qf-greq-toggle' }, tabs.map(t => h('button', {
+      className: 'qf-greq-toggle-btn' + (this._mode === t.id ? ' active' : ''),
+      on: { click: () => this._setMode(t.id) },
+    }, [
+      t.label,
+      t.count > 0 && h('span', { className: 'qf-greq-toggle-count' }, String(t.count)),
+    ].filter(Boolean))))
   }
 
   _setMode(mode) {
@@ -146,7 +160,8 @@ export class GameRequestsOverlay {
     this._mode = mode
     HudSfx?.playUi?.('tab')
     this._rerenderBody()
-    if (mode === 'inbox') this._loadInbox()
+    if (mode === 'inbox')  this._loadInbox()
+    if (mode === 'mymail') this._loadMyMail()
   }
 
   // ── Submit form ────────────────────────────────────────────────────
@@ -361,6 +376,7 @@ export class GameRequestsOverlay {
     if (ctx.totalKills != null)    ctxParts.push(`${ctx.totalKills} kills`)
     const created = this._fmtDate(row.created_at)
     const status  = STATUS_LABELS[row.status] ?? (row.status ?? 'NEW').toUpperCase()
+    const isConfirming = this._confirmDelete === row.id
     return h('div', { className: 'qf-greq-card' }, [
       h('div', { className: 'qf-greq-card-head' }, [
         h('span', { className: 'pix qf-greq-card-cat' }, cat.toUpperCase()),
@@ -376,12 +392,100 @@ export class GameRequestsOverlay {
         ctxParts.length > 0 && h('span', { className: 'qf-greq-card-sep' }, '·'),
         ctxParts.length > 0 && h('span', { className: 'qf-greq-card-ctx' }, ctxParts.join(' · ')),
       ].filter(Boolean)),
-      row.notes && h('div', { className: 'qf-greq-card-notes pix' }, [
-        h('span', { className: 'qf-greq-card-notes-label' }, 'NOTES'),
-        ' ',
-        row.notes,
+
+      // ── ADMIN CONTROLS ─────────────────────────────────────────────
+      // Status dropdown + editable notes + delete button. Status changes
+      // hit PATCH on change; notes save on blur (so mango can edit
+      // freely without spamming PATCH per keystroke); delete shows an
+      // inline confirm/cancel bar before firing.
+      h('div', { className: 'qf-greq-card-admin' }, [
+        h('div', { className: 'qf-greq-card-adminrow' }, [
+          h('span', { className: 'pix qf-greq-card-adminlabel' }, 'STATUS'),
+          h('select', {
+            className: 'qf-greq-input qf-greq-select qf-greq-card-statussel',
+            disabled: isConfirming || undefined,
+            on: { change: (e) => this._onStatusChange(row, e.target.value) },
+          }, Object.keys(STATUS_LABELS).map(s => h('option', {
+            value: s, selected: s === (row.status ?? 'new') ? '' : undefined,
+          }, STATUS_LABELS[s]))),
+          isConfirming
+            ? h('div', { className: 'qf-greq-confirmrow' }, [
+                h('span', { className: 'pix qf-greq-confirmtxt' }, 'Delete?'),
+                h('button', {
+                  className: 'qf-greq-card-delconfirm',
+                  on: { click: () => this._confirmAndDelete(row) },
+                }, 'YES, DELETE'),
+                h('button', {
+                  className: 'qf-greq-card-delcancel',
+                  on: { click: () => { this._confirmDelete = null; this._renderInboxRows() } },
+                }, 'CANCEL'),
+              ])
+            : h('button', {
+                className: 'qf-greq-card-del',
+                title: 'Delete this request',
+                on: { click: () => { this._confirmDelete = row.id; this._renderInboxRows() } },
+              }, '🗑 DELETE'),
+        ]),
+        h('div', { className: 'qf-greq-card-adminrow qf-greq-card-adminnotesrow' }, [
+          h('span', { className: 'pix qf-greq-card-adminlabel' }, 'NOTES'),
+          h('textarea', {
+            className: 'qf-greq-input qf-greq-textarea qf-greq-card-notesedit',
+            rows: 2,
+            placeholder: 'Reply to the player (visible in their MY MAIL)',
+            on: {
+              blur: (e) => this._onNotesBlur(row, e.target.value),
+            },
+          }, row.notes ?? ''),
+        ]),
       ]),
     ].filter(Boolean))
+  }
+
+  async _onStatusChange(row, newStatus) {
+    if (!newStatus || newStatus === row.status) return
+    HudSfx?.playUi?.('tab')
+    const res = await GameRequests.update(row.id, { status: newStatus })
+    if (res.ok) {
+      row.status = newStatus
+      // Local mutation — re-render only the rows, not the whole inbox,
+      // so mango doesn't lose scroll position.
+      this._renderInboxRows()
+    } else {
+      HudSfx?.playUi?.('denied')
+      // Roll back the dropdown selection by re-rendering against the
+      // unchanged row.
+      this._renderInboxRows()
+    }
+  }
+
+  async _onNotesBlur(row, newNotes) {
+    const trimmed = newNotes == null ? '' : String(newNotes).trim()
+    const current = (row.notes ?? '').trim()
+    if (trimmed === current) return
+    const patch = { notes: trimmed.length === 0 ? null : trimmed }
+    const res = await GameRequests.update(row.id, patch)
+    if (res.ok) {
+      row.notes = patch.notes
+      HudSfx?.playUi?.('tab')
+    } else {
+      HudSfx?.playUi?.('denied')
+      // Re-render restores the old notes from row.notes.
+      this._renderInboxRows()
+    }
+  }
+
+  async _confirmAndDelete(row) {
+    const res = await GameRequests.remove(row.id)
+    if (res.ok) {
+      HudSfx?.playUi?.('close_panel')
+      this._inbox.rows = this._inbox.rows.filter(r => r.id !== row.id)
+      this._confirmDelete = null
+      this._renderInboxRows()
+    } else {
+      HudSfx?.playUi?.('denied')
+      this._confirmDelete = null
+      this._renderInboxRows()
+    }
   }
 
   async _loadInbox() {
@@ -399,6 +503,116 @@ export class GameRequestsOverlay {
       this._inbox.error = res.error || 'Could not load.'
     }
     this._renderInboxRows()
+    // Mark admin mail as seen — the chip clears next time the main
+    // menu refreshes its items. (The cached count is also zeroed
+    // immediately so the active tab's chip clears on the spot.)
+    GameRequests.markAdminMailSeen?.()
+    // Re-render header so the count chip drops.
+    this._refreshHeaderOnly()
+  }
+
+  // ── MY MAIL (every player — their own submissions + replies) ───────
+  _renderMyMail() {
+    return h('div', { className: 'qf-greq-inbox' }, [
+      h('div', { className: 'qf-greq-inbox-filters' }, [
+        h('span', { className: 'pix qf-greq-label' }, 'YOUR SUBMISSIONS'),
+        h('button', {
+          className: 'qf-greq-toggle-btn',
+          on: { click: () => this._loadMyMail() },
+        }, '↻ REFRESH'),
+      ]),
+      h('div', {
+        className: 'qf-greq-inbox-list',
+        ref: el => { this._mymailListEl = el },
+      }, this._renderMyMailContent()),
+    ])
+  }
+
+  _renderMyMailContent() {
+    const mm = this._mymail
+    if (mm.loading) return [h('div', { className: 'qf-greq-inbox-empty pix' }, 'Loading…')]
+    if (mm.error)   return [h('div', { className: 'qf-greq-inbox-empty pix qf-greq-status-err' }, mm.error)]
+    if (mm.rows.length === 0) {
+      return [h('div', { className: 'qf-greq-inbox-empty pix' }, 'You haven’t submitted anything yet. Send your first request from the + NEW REQUEST tab.')]
+    }
+    return mm.rows.map(r => this._renderMyMailCard(r))
+  }
+
+  _renderMyMailRows() {
+    if (!this._mymailListEl) return
+    this._mymailListEl.replaceChildren(...this._renderMyMailContent())
+  }
+
+  _renderMyMailCard(row) {
+    const cat = CATEGORY_LABELS[row.category] ?? row.category
+    const created = this._fmtDate(row.created_at)
+    const updated = this._fmtDate(row.updated_at ?? row.created_at)
+    const status  = STATUS_LABELS[row.status] ?? (row.status ?? 'NEW').toUpperCase()
+    const hasReply = row.status && row.status !== 'new'
+    return h('div', { className: 'qf-greq-card' + (hasReply ? ' qf-greq-card-hasreply' : '') }, [
+      h('div', { className: 'qf-greq-card-head' }, [
+        h('span', { className: 'pix qf-greq-card-cat' }, cat.toUpperCase()),
+        h('span', { className: 'pix qf-greq-card-status', dataset: { status: row.status ?? 'new' } }, status),
+      ]),
+      h('div', { className: 'pix qf-greq-card-title' }, row.title),
+      h('div', { className: 'qf-greq-card-body' }, row.body),
+      h('div', { className: 'qf-greq-card-foot pix' }, [
+        h('span', { className: 'qf-greq-card-time' }, `sent ${created}`),
+        hasReply && h('span', { className: 'qf-greq-card-sep' }, '·'),
+        hasReply && h('span', { className: 'qf-greq-card-ctx' }, `updated ${updated}`),
+      ].filter(Boolean)),
+      // Dev reply panel — only shown when status moved past 'new'.
+      // Either explicit notes from mango or a fallback "marked as X"
+      // line based on status alone (so a quick status flip still
+      // gives the player a visible reply).
+      hasReply && h('div', { className: 'qf-greq-card-notes pix' }, [
+        h('span', { className: 'qf-greq-card-notes-label' }, 'DEV REPLY'),
+        ' ',
+        row.notes ? row.notes : this._statusFallbackReply(row.status),
+      ]),
+    ])
+  }
+
+  _statusFallbackReply(status) {
+    switch (status) {
+      case 'triaged': return 'Marked as seen — thanks for sending this in!'
+      case 'planned': return 'Planned for a future update.'
+      case 'shipped': return 'Shipped in a recent update — thanks for the idea!'
+      case 'wontfix': return 'Not planned right now (could change later).'
+      default:        return 'Status updated.'
+    }
+  }
+
+  async _loadMyMail() {
+    const playerName = (PlayerProfile.getName?.() ?? '').trim() || 'ANON'
+    this._mymail.loading = true
+    this._mymail.error = null
+    this._renderMyMailRows()
+    const res = await GameRequests.list({ limit: 200, playerName })
+    this._mymail.loading = false
+    if (res.ok) {
+      this._mymail.rows = res.rows
+      this._mymail.error = null
+    } else {
+      this._mymail.rows = []
+      this._mymail.error = res.error || 'Could not load.'
+    }
+    this._renderMyMailRows()
+    // Player mail badge cleared on view — stamps "now" so future
+    // status flips are the only thing that re-fires the chip.
+    GameRequests.markPlayerMailSeen?.(playerName)
+    this._refreshHeaderOnly()
+  }
+
+  // Surgically re-render only the header (tab strip) so count chips
+  // update without disrupting the active tab body. Used after mark-
+  // seen so the count drops immediately.
+  _refreshHeaderOnly() {
+    if (!this._rootEl) return
+    const firstChild = this._rootEl.firstChild
+    if (!firstChild) return
+    const newHeader = this._renderHeader()
+    this._rootEl.replaceChild(newHeader, firstChild)
   }
 
   _fmtBossName(id) {

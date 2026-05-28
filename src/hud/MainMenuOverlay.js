@@ -30,6 +30,7 @@ import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { getUnlockedBossIds } from '../data/bossUnlocks.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
+import { GameRequests } from '../systems/GameRequests.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
 
 // Title-screen boss video pool. File pattern is `assets/title-screen/
@@ -108,11 +109,37 @@ export class MainMenuOverlay {
     // the menu badges so the LEADERBOARD pill can appear retroactively
     // without the player needing to open the overlay first.
     Leaderboard.fetchTop?.(3)
-      .then(() => {
+      .then((rows) => {
         if (this._closed || !this._el) return
         this._refreshMenuItems()
+        // Top-3 celebration check — queues an entry on PlayerProfile's
+        // pending-unlocks list if the player's most recent finished run
+        // placed in the top 3. The fire below picks it up alongside any
+        // achievement cards already queued from the run.
+        this._maybeQueueTop3Celebration(rows)
+        this._maybeFireUnlockOverlay()
       })
-      .catch(() => {})
+      .catch(() => {
+        // Fetch failed (offline / Supabase down) — still fire any
+        // achievement unlocks already queued from the just-finished run.
+        // The top-3 celebration is naturally skipped (we can't know
+        // placement without the fetch); a later main-menu visit with
+        // working network will catch it as long as the celebrated-runId
+        // gate hasn't been burned yet.
+        if (this._closed || !this._el) return
+        this._maybeFireUnlockOverlay()
+      })
+    // Same idea for the GAME REQUESTS mail-chip — prefetch counts so
+    // the ✉ badge can render on first paint. Caches the result inside
+    // GameRequests; we just trigger a re-sync of the menu items when
+    // the fetch lands.
+    GameRequests.prefetchUnreadCounts?.({
+      playerName: PlayerProfile.getName?.(),
+      isMango:    !!PlayerProfile.isCheatName?.(),
+    }).then(() => {
+      if (this._closed || !this._el) return
+      this._refreshMenuItems()
+    }).catch(() => {})
     // Listen for player-name swaps from ANY source (NameEntryOverlay
     // confirm path is already wired locally, but a name swap could
     // also originate from the legacy Options scene or future surfaces).
@@ -126,34 +153,15 @@ export class MainMenuOverlay {
       this._refreshMenuItems()
     }
     EventBus.on('NAME_CHANGED', this._onNameChanged)
-    // First-main-menu-open-after-unlocks celebration. If the pending-
-    // unlocks queue has entries (filled by AchievementSystem._unlock
-    // during the last run), pop the UnlockNotificationOverlay 250ms
-    // after the menu renders — gives the menu's per-item entrance
-    // animations time to settle so the modal doesn't fight for
-    // attention. Overlay drains + clears the queue itself; the menu
-    // doesn't need to do anything else. Lazy import keeps the overlay
-    // off the main bundle on sessions where nothing was unlocked.
-    if ((PlayerProfile.getPendingUnlocks?.() || []).length > 0) {
-      setTimeout(() => {
-        if (this._closed || !this._el) return
-        import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {
-          if (this._closed || !this._el) return
-          if (this._unlockOverlay) return
-          this._unlockOverlay = new UnlockNotificationOverlay({
-            onClose: () => {
-              this._unlockOverlay = null
-              // Queue is already cleared by the overlay itself; just
-              // re-sync badges in case any unlock affected them (e.g.
-              // a new companion now counts as "unseen" on the recruit
-              // screen). Cheap, no-op if nothing changed.
-              if (!this._closed && this._el) this._refreshMenuItems()
-            },
-          })
-          this._unlockOverlay.open()
-        }).catch(() => {})
-      }, 250)
-    }
+    // Unlock-celebration overlay firing is now driven by the leaderboard
+    // fetch above — fetch resolve (success or failure) calls
+    // _maybeFireUnlockOverlay, which checks PlayerProfile's pending-
+    // unlocks queue and opens the overlay if anything's in it. This
+    // ordering ensures the optional top-3 celebration card (queued by
+    // _maybeQueueTop3Celebration once we have the row data) is in the
+    // queue BEFORE the overlay snapshots it at construction time. If
+    // the queue had been drained while the fetch was still in flight,
+    // any late-arriving top-3 entry would have been silently cleared.
   }
 
   close() {
@@ -335,6 +343,16 @@ export class MainMenuOverlay {
       // path so the badge disappears immediately after first use,
       // without re-running the item's entrance animation.
       m.newBadge && h('span', { className: 'pix qf-mm-item-new' }, 'NEW'),
+      // Mail-icon badge — used by GAME REQUESTS to signal that there's
+      // unseen mail (a dev reply to the player's submission, or new
+      // submissions for mango to triage). Different colour family than
+      // NEW so both can co-exist if needed; positioned on the opposite
+      // edge so they don't overlap.
+      m.mailBadge && m.mailBadge > 0 && h('span', { className: 'pix qf-mm-item-mail' }, [
+        h('span', { className: 'qf-mm-item-mail-icon' }, '✉'),
+        ' ',
+        String(m.mailBadge),
+      ]),
     ])
   }
 
@@ -410,7 +428,16 @@ export class MainMenuOverlay {
         // Per-name NEW badge — fires until the player has opened the
         // overlay at least once. Cleared in _openGameRequests after
         // PlayerProfile.markGameRequestsSeen.
-        newBadge: !PlayerProfile.hasSeenGameRequests() },
+        newBadge: !PlayerProfile.hasSeenGameRequests(),
+        // Mail-icon chip — count of unseen replies (for the player) +
+        // unseen new submissions (for mango). Sourced from the in-
+        // memory cache populated by GameRequests.prefetchUnreadCounts
+        // (fired in open(), and again on overlay close so a viewed
+        // tab clears its chip on the next render). Sum so a single
+        // ✉ chip serves both purposes — clicking GAME REQUESTS lands
+        // on whatever tab has mail.
+        mailBadge: (GameRequests.getCachedPlayerMail?.() ?? 0) +
+                   (GameRequests.getCachedAdminMail?.() ?? 0) },
     ]
     // ROOM EDITOR + TILESET EDITOR are dev surfaces — only shown when the
     // player's name is the cheat handle (PlayerProfile.isCheatName). Regular
@@ -599,6 +626,30 @@ export class MainMenuOverlay {
         el.appendChild(badge)
       } else if (!shouldShow && existing) {
         existing.remove()
+      }
+      // Mail-icon badge — same sync pattern, on the opposite edge.
+      // Count > 0 → show; otherwise drop. Re-stamping the count text
+      // each refresh keeps it accurate when the prefetch resolves.
+      const mailEl = el.querySelector(':scope > .qf-mm-item-mail')
+      const mailCount = m.mailBadge ?? 0
+      if (mailCount > 0) {
+        if (mailEl) {
+          // Refresh just the count text (icon is a child span).
+          const txtNode = Array.from(mailEl.childNodes).find(n => n.nodeType === Node.TEXT_NODE && /\d/.test(n.textContent))
+          if (txtNode) txtNode.textContent = String(mailCount)
+        } else {
+          const badge = document.createElement('span')
+          badge.className = 'pix qf-mm-item-mail'
+          const icon = document.createElement('span')
+          icon.className = 'qf-mm-item-mail-icon'
+          icon.textContent = '✉'
+          badge.appendChild(icon)
+          badge.appendChild(document.createTextNode(' '))
+          badge.appendChild(document.createTextNode(String(mailCount)))
+          el.appendChild(badge)
+        }
+      } else if (mailEl) {
+        mailEl.remove()
       }
     }
   }
@@ -846,8 +897,21 @@ export class MainMenuOverlay {
       this._requests = new GameRequestsOverlay({
         onClose: () => {
           this._requests = null
-          // Surgically clear the NEW chip without re-running the entrance
-          // animation on the rest of the menu.
+          // Re-prefetch counts after close — any tab the player viewed
+          // (MY MAIL / INBOX) called markSeen on its way through, so a
+          // fresh fetch will return the updated counts. Then re-sync
+          // menu items so the ✉ chip drops without re-running entrance
+          // animations.
+          GameRequests.prefetchUnreadCounts?.({
+            playerName: PlayerProfile.getName?.(),
+            isMango:    !!PlayerProfile.isCheatName?.(),
+          }).then(() => {
+            if (this._closed || !this._el) return
+            this._refreshMenuItems()
+          }).catch(() => {})
+          // Sync immediately too so the ✉ chip clears from any view-
+          // tab the player already touched (cached counts were zeroed
+          // by markSeen synchronously).
           this._refreshMenuItems()
         },
       })

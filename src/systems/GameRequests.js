@@ -5,10 +5,14 @@
 // just shapes payloads and reads results.
 //
 // ──────────────────────────────────────────────────────────────────────
-// ONE-TIME SUPABASE SETUP — paste this into the SQL editor in the
-// Supabase dashboard (Project → SQL Editor → New query), hit RUN:
+// SUPABASE SETUP — paste these blocks into the SQL editor in the
+// Supabase dashboard (Project → SQL Editor → New query), hit RUN.
+// Both blocks are idempotent (use IF NOT EXISTS / DROP IF EXISTS) so
+// running them twice is safe.
 //
-//   create table game_requests (
+// ── BLOCK 1: initial table + insert/select policies ────────────────
+//
+//   create table if not exists game_requests (
 //     id          uuid primary key default gen_random_uuid(),
 //     created_at  timestamptz default now(),
 //     player_name text not null,
@@ -21,18 +25,46 @@
 //     notes       text
 //   );
 //   alter table game_requests enable row level security;
+//   drop policy if exists "insert valid" on game_requests;
 //   create policy "insert valid" on game_requests for insert with check (
 //     length(title) between 5 and 80
 //     and length(body) between 10 and 1500
 //     and category in ('bug','difficulty','boss','item','companion','room','achievement','mechanic','other')
 //     and (feeling is null or feeling in ('too_easy','too_hard','just_right'))
 //   );
+//   drop policy if exists "select all" on game_requests;
 //   create policy "select all" on game_requests for select using (true);
 //
-// That's it. The table is created, RLS is enabled, and the policies
-// allow anyone with the anon key to INSERT (validated) and SELECT.
-// UPDATE / DELETE have no policies so they're denied — manage status /
-// notes via the Supabase dashboard.
+// ── BLOCK 2: in-game admin controls (added 2026-05-27) ─────────────
+// Adds updated_at column + auto-bump trigger so player MY-MAIL inboxes
+// know when a reply lands. Opens UPDATE (status / notes only) and
+// DELETE policies — mango's in-game inbox uses these to flag requests
+// as shipped/wontfix and to delete spam. UI-side gated by isCheatName.
+//
+//   alter table game_requests add column if not exists updated_at timestamptz default now();
+//
+//   create or replace function _bump_game_requests_updated_at() returns trigger as $$
+//   begin
+//     new.updated_at = now();
+//     return new;
+//   end;
+//   $$ language plpgsql;
+//
+//   drop trigger if exists bump_game_requests_updated_at on game_requests;
+//   create trigger bump_game_requests_updated_at
+//     before update on game_requests
+//     for each row execute function _bump_game_requests_updated_at();
+//
+//   drop policy if exists "update any" on game_requests;
+//   create policy "update any" on game_requests for update
+//     using (true)
+//     with check (status in ('new','triaged','planned','shipped','wontfix'));
+//
+//   drop policy if exists "delete any" on game_requests;
+//   create policy "delete any" on game_requests for delete using (true);
+//
+// That's it. Run both blocks (or just block 2 if you already ran
+// block 1 earlier).
 // ──────────────────────────────────────────────────────────────────────
 //
 // Schema notes:
@@ -73,6 +105,15 @@ const RATELIMIT_KEY      = 'qf.gameRequests.rateLimit'
 const MIN_INTERVAL_MS    = 60_000           // 1 per minute
 const DAILY_CAP          = 10               // 10 per 24h
 const DAILY_WINDOW_MS    = 24 * 60 * 60 * 1000
+
+// Mail badge tracking — when did the player / admin last view their
+// respective inbox? Stored per-name as an ISO timestamp. A submission's
+// updated_at > playerLastSeenAt means the player has unread mail; a
+// row's created_at > adminLastSeenAt means mango has a new request to
+// triage. Cleared by markPlayerMailSeen / markAdminMailSeen, which
+// stamp `now()`.
+const PLAYER_MAIL_SEEN_KEY = 'qf.gameRequests.playerMailSeen'   // value: { '<nameLower>': ISO }
+const ADMIN_MAIL_SEEN_KEY  = 'qf.gameRequests.adminMailSeen'    // value: ISO timestamp string (mango is singular)
 
 function _readRateBuckets() {
   try {
@@ -220,13 +261,16 @@ export const GameRequests = {
   // above; a determined player could fetch this too, but the inbox view
   // is gated behind PlayerProfile.isCheatName()).
   //
-  // opts: { limit = 100, since = null (ISO string) }
-  async list({ limit = 100, since = null } = {}) {
+  // opts: { limit = 100, since = null (ISO string), playerName = null }
+  // When playerName is set, the query filters server-side to rows owned
+  // by that name (used by the MY MAIL view).
+  async list({ limit = 100, since = null, playerName = null } = {}) {
     const params = new URLSearchParams()
     params.set('select', '*')
     params.set('order',  'created_at.desc')
     params.set('limit',  String(Math.min(Math.max(limit, 1), 500)))
-    if (since) params.set('created_at', `gte.${since}`)
+    if (since)      params.set('created_at',  `gte.${since}`)
+    if (playerName) params.set('player_name', `eq.${playerName}`)
     try {
       const res = await fetch(`${REST}/game_requests?${params.toString()}`, {
         method:  'GET',
@@ -240,5 +284,174 @@ export const GameRequests = {
     } catch (err) {
       return { ok: false, error: `Network error: ${err?.message ?? err}`, rows: [] }
     }
+  },
+
+  // ── Admin actions (mango-gated UI-side) ─────────────────────────────
+  // The Supabase UPDATE policy lets the anon key change any row's
+  // status / notes / etc., and the server-side check constraint pins
+  // status to the valid enum. mango's UI is the only surface that
+  // exposes these affordances, and PlayerProfile.isCheatName() gates
+  // the admin controls in GameRequestsOverlay before render.
+
+  // Update a row by id. `patch` is { status?, notes? } — anything else
+  // is dropped client-side as a soft guard (the RLS check constraint
+  // also protects on the server).
+  async update(id, patch = {}) {
+    if (!id) return { ok: false, error: 'Missing id.' }
+    const allowed = {}
+    if (Object.prototype.hasOwnProperty.call(patch, 'status')) {
+      const VALID = ['new','triaged','planned','shipped','wontfix']
+      if (!VALID.includes(patch.status)) return { ok: false, error: 'Invalid status.' }
+      allowed.status = patch.status
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'notes')) {
+      allowed.notes = patch.notes == null ? null : String(patch.notes).slice(0, 2000)
+    }
+    if (Object.keys(allowed).length === 0) return { ok: false, error: 'Nothing to update.' }
+    try {
+      const res = await fetch(`${REST}/game_requests?id=eq.${encodeURIComponent(id)}`, {
+        method:  'PATCH',
+        headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+        body:    JSON.stringify(allowed),
+      })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        return { ok: false, error: `Could not save (${res.status}). ${text}`.trim() }
+      }
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: `Network error: ${err?.message ?? err}` }
+    }
+  },
+
+  // Delete a row by id. mango-only via UI gate; RLS allows it via the
+  // open delete policy.
+  async remove(id) {
+    if (!id) return { ok: false, error: 'Missing id.' }
+    try {
+      const res = await fetch(`${REST}/game_requests?id=eq.${encodeURIComponent(id)}`, {
+        method:  'DELETE',
+        headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+      })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        return { ok: false, error: `Could not delete (${res.status}). ${text}`.trim() }
+      }
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: `Network error: ${err?.message ?? err}` }
+    }
+  },
+
+  // ── Mail-badge tracking ─────────────────────────────────────────────
+  // Two distinct mail counts:
+  //   • PLAYER MAIL — rows owned by `playerName` whose updated_at is
+  //     newer than the player's last MY MAIL view AND whose status has
+  //     moved past 'new'. So a fresh submission doesn't fire mail
+  //     against the player themselves — only mango's reply does.
+  //   • ADMIN MAIL — rows whose created_at is newer than the admin's
+  //     last INBOX view. New submissions count; admin edits don't.
+  //
+  // Both cached at module level; populated by prefetchUnreadCounts()
+  // and read synchronously by hasCached* / getCached* getters. Cache
+  // is per-name so flipping handles invalidates the previous count.
+  _cache: { playerName: null, playerMail: 0, adminMail: 0, fetchedAt: 0 },
+
+  _getPlayerMailSeen(playerName) {
+    try {
+      const raw = localStorage.getItem(PLAYER_MAIL_SEEN_KEY)
+      const obj = raw ? JSON.parse(raw) : {}
+      const key = String(playerName ?? '').trim().toLowerCase()
+      return obj?.[key] ?? null
+    } catch { return null }
+  },
+  _setPlayerMailSeen(playerName, isoTs) {
+    try {
+      const raw = localStorage.getItem(PLAYER_MAIL_SEEN_KEY)
+      const obj = raw ? JSON.parse(raw) : {}
+      const key = String(playerName ?? '').trim().toLowerCase()
+      if (key) obj[key] = isoTs
+      localStorage.setItem(PLAYER_MAIL_SEEN_KEY, JSON.stringify(obj))
+    } catch {}
+  },
+  _getAdminMailSeen() {
+    try { return localStorage.getItem(ADMIN_MAIL_SEEN_KEY) ?? null } catch { return null }
+  },
+  _setAdminMailSeen(isoTs) {
+    try { localStorage.setItem(ADMIN_MAIL_SEEN_KEY, isoTs) } catch {}
+  },
+
+  // Stamp "right now" as the player's last-seen marker. Called when
+  // GameRequestsOverlay opens the MY MAIL tab.
+  markPlayerMailSeen(playerName) {
+    this._setPlayerMailSeen(playerName ?? PlayerProfile.getName?.() ?? '', new Date().toISOString())
+    // Zero the cached count so the next main-menu render hides the
+    // chip without waiting for another prefetch.
+    if (this._cache.playerName?.toLowerCase() === String(playerName ?? PlayerProfile.getName?.() ?? '').toLowerCase()) {
+      this._cache.playerMail = 0
+    }
+  },
+  // Stamp "right now" as mango's last-seen marker. Called when the
+  // INBOX tab opens.
+  markAdminMailSeen() {
+    this._setAdminMailSeen(new Date().toISOString())
+    this._cache.adminMail = 0
+  },
+
+  getCachedPlayerMail() { return this._cache.playerMail ?? 0 },
+  getCachedAdminMail()  { return this._cache.adminMail  ?? 0 },
+
+  // Fetch fresh counts and update the cache. Called by MainMenuOverlay
+  // when the menu opens (and after submit / admin update). Non-blocking
+  // for the caller — the menu renders immediately with the previous
+  // cached counts, and a `MAIL_COUNTS_UPDATED` event fires when the
+  // fetch resolves so the menu can refresh badges in place.
+  async prefetchUnreadCounts({ playerName, isMango = false, onUpdated = null } = {}) {
+    const name = String(playerName ?? PlayerProfile.getName?.() ?? '').trim()
+    if (!name) return { playerMail: 0, adminMail: 0 }
+    this._cache.playerName = name
+    this._cache.fetchedAt = Date.now()
+
+    // PLAYER MAIL — rows owned by this name with updated_at > lastSeen
+    // and status !== 'new'. We over-fetch and filter client-side because
+    // PostgREST's `gt` only accepts one column at a time and we want
+    // composite logic (status≠new AND updated_at>seen).
+    let playerMail = 0
+    try {
+      const seen = this._getPlayerMailSeen(name) ?? new Date(0).toISOString()
+      const params = new URLSearchParams()
+      params.set('select', 'id,status,updated_at')
+      params.set('player_name', `eq.${name}`)
+      params.set('updated_at', `gt.${seen}`)
+      params.set('status', 'in.(triaged,planned,shipped,wontfix)')
+      params.set('limit', '100')
+      const res = await fetch(`${REST}/game_requests?${params.toString()}`, { headers: HEADERS })
+      if (res.ok) {
+        const rows = await res.json()
+        playerMail = Array.isArray(rows) ? rows.length : 0
+      }
+    } catch {}
+
+    // ADMIN MAIL (mango only) — rows with created_at > admin lastSeen.
+    let adminMail = 0
+    if (isMango) {
+      try {
+        const seen = this._getAdminMailSeen() ?? new Date(0).toISOString()
+        const params = new URLSearchParams()
+        params.set('select', 'id,created_at')
+        params.set('created_at', `gt.${seen}`)
+        params.set('limit', '500')
+        const res = await fetch(`${REST}/game_requests?${params.toString()}`, { headers: HEADERS })
+        if (res.ok) {
+          const rows = await res.json()
+          adminMail = Array.isArray(rows) ? rows.length : 0
+        }
+      } catch {}
+    }
+
+    this._cache.playerMail = playerMail
+    this._cache.adminMail  = adminMail
+    try { onUpdated?.({ playerMail, adminMail }) } catch {}
+    return { playerMail, adminMail }
   },
 }
