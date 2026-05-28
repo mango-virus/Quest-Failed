@@ -2331,6 +2331,10 @@ export class BossSystem {
     const prevMax = adv.resources.maxHp ?? adv.resources.hp ?? 1
     const prevHp  = adv.resources.hp ?? prevMax
     const hpFrac  = prevMax > 0 ? Math.max(0, Math.min(1, prevHp / prevMax)) : 1
+    // The duel OUTCOME is a weighted coin flip on this entry HP fraction (see
+    // _duelWinChance + the scripted resolution in _runDuelRound). Stash it so
+    // the winner is rolled once at the first combat round.
+    this._duelEntryHpFrac = hpFrac
     adv.resources.maxHp = Math.max(1, Math.round(boss.maxHp ?? 1))
     adv.resources.hp    = Math.max(1, Math.round(adv.resources.maxHp * hpFrac))
     adv.stats = adv.stats ?? {}
@@ -2341,7 +2345,83 @@ export class BossSystem {
     const archId   = this._gameState.player?.bossArchetypeId
     const bossName = (this._scene?.cache?.json?.get?.('bossArchetypes') ?? [])
       .find(a => a.id === archId)?.name ?? 'YOUR BOSS'
-    EventBus.emit('SHADOW_MONARCH_DUEL', { adventurer: adv, boss, shadows, buff, bossName })
+    EventBus.emit('SHADOW_MONARCH_DUEL', {
+      adventurer: adv, boss, shadows, buff, bossName,
+      winChance: this._duelWinChance(hpFrac),
+    })
+  }
+
+  // Solo Leveling — the duel's outcome is decided by a weighted coin flip on
+  // Jinwoo's HP fraction WHEN THE FIGHT STARTS (not by the combat sim):
+  //   70–100% HP → Monarch favoured (ramps to 90% at full)
+  //   40–60%  HP → a true 50/50 coin flip
+  //   10–39%  HP → boss favoured (down to 10% at one-tenth HP)
+  // Clamped to [10%, 90%] so an upset is always possible.
+  _duelWinChance(h) {
+    h = Math.max(0, Math.min(1, h ?? 1))
+    let p
+    if      (h >= 0.60) p = 0.50 + (h - 0.60) / 0.40 * 0.40   // 0.60→.50 … 1.0→.90
+    else if (h >= 0.40) p = 0.50                              // coin-flip plateau
+    else                p = 0.50 - (0.40 - h) / 0.30 * 0.40   // 0.40→.50 … 0.10→.10
+    return Math.max(0.10, Math.min(0.90, p))
+  }
+
+  // Roll the winner once (weighted by entry HP) and lay out a HP-drain plan:
+  // the loser bleeds to 0 over ~8–12 rounds while the winner settles at a
+  // 30–55% survivor margin. _runDuelRound walks both bars to this outcome.
+  _buildDuelScript(adv, boss) {
+    const h = this._duelEntryHpFrac ??
+      ((adv.resources?.maxHp ?? 0) > 0 ? (adv.resources.hp ?? 0) / adv.resources.maxHp : 1)
+    const p = this._duelWinChance(h)
+    const winner = Math.random() < p ? 'monarch' : 'boss'
+    const totalRounds = 8 + Math.floor(Math.random() * 5)   // 8–12 rounds (~5–7s)
+    const bossStart = boss.hp ?? boss.maxHp ?? 1
+    const jinStart  = adv.resources?.hp ?? adv.resources?.maxHp ?? 1
+    const winnerMax   = winner === 'monarch' ? (adv.resources?.maxHp ?? 1) : (boss.maxHp ?? 1)
+    const winnerStart = winner === 'monarch' ? jinStart : bossStart
+    let survivorTarget = Math.round(winnerMax * (0.30 + Math.random() * 0.25))
+    survivorTarget = Math.max(1, Math.min(survivorTarget, winnerStart - 1))
+    return { winner, totalRounds, round: 0, p, bossStart, jinStart, survivorTarget }
+  }
+
+  // One scripted duel round — walk both HP bars toward the planned outcome
+  // (monotonic, no heals), with strike FX + floating numbers so it still reads
+  // as a live exchange. Ends the fight when the loser's bar empties.
+  _runDuelRound() {
+    if (this._fightEnded) return
+    const boss = this._gameState.boss
+    const states = this._fightStates ? [...this._fightStates.values()] : []
+    const fs = states[0]
+    if (!fs || !boss) return
+    const adv = fs.adv
+    const D = this._duel
+    if (!D) return
+    if (!D.script) D.script = this._buildDuelScript(adv, boss)
+    const sc = D.script
+    sc.round++
+    const last = sc.round >= sc.totalRounds
+    const t = last ? 1 : Math.min(0.97, (sc.round / sc.totalRounds) * (0.9 + Math.random() * 0.2))
+    const lerp = (a, b) => Math.max(0, Math.round(a + (b - a) * t))
+    let bossTo, jinTo
+    if (sc.winner === 'monarch') { bossTo = lerp(sc.bossStart, 0); jinTo = lerp(sc.jinStart, sc.survivorTarget) }
+    else                         { jinTo  = lerp(sc.jinStart, 0);  bossTo = lerp(sc.bossStart, sc.survivorTarget) }
+    if (last) { if (sc.winner === 'monarch') bossTo = 0; else jinTo = 0 }
+    const bossPrev = boss.hp ?? sc.bossStart
+    const jinPrev  = adv.resources?.hp ?? sc.jinStart
+    boss.hp = Math.min(bossPrev, Math.max(0, bossTo))            // never heal
+    adv.resources.hp = Math.min(jinPrev, Math.max(0, jinTo))
+    const bossDmg = Math.round(bossPrev - boss.hp)
+    const jinDmg  = Math.round(jinPrev - adv.resources.hp)
+    if (bossDmg > 0) {
+      this._emitFx({ kind: 'strike', x: boss.worldX, y: boss.worldY, color: 0x4aa0ff })
+      this._floatDamage(boss.worldX, boss.worldY - 12, bossDmg, { color: '#7fc0ff' })
+    }
+    if (jinDmg > 0) {
+      this._emitFx({ kind: 'strike', x: adv.worldX, y: adv.worldY, color: 0xff5544 })
+      this._floatDamage(adv.worldX, adv.worldY - 12, jinDmg, { color: '#ff8866' })
+    }
+    if (boss.hp <= 0) { this._endFight('party'); return }
+    if ((adv.resources.hp ?? 0) <= 0) { fs.action = 'dying'; this._endFight('boss'); return }
   }
 
   // Runs every frame from _tickFightAnim once combat has started.  Fires one
@@ -2358,7 +2438,11 @@ export class BossSystem {
     let rounds = 0
     while (this._fightCombatT >= ROUND_INTERVAL_S && rounds < 3) {
       this._fightCombatT -= ROUND_INTERVAL_S
-      this._runOneRound()
+      // Solo Leveling — the duel uses a scripted HP-drain toward a winner rolled
+      // from entry HP%, instead of the emergent combat sim. Movement/FX/beats
+      // still run from _tickDuel; this just owns the HP + outcome.
+      if (this._duelMode) this._runDuelRound()
+      else                this._runOneRound()
       rounds++
       if (this._fightEnded) break
     }
