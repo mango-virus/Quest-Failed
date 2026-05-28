@@ -66,6 +66,14 @@ const TYPE_THEMES = {
     banner: '★  TOP 3  ★',
     sfx:    'unlock_reward',
   },
+  // Leaderboard DEMOTION — the negative counterpart to the top-3
+  // celebration, fired when someone knocks the player off (or down) the
+  // podium. Sickly desaturated crimson, ominous "boss death" stinger.
+  demotion: {
+    accent: '#b3414f',
+    banner: '✖  DETHRONED  ✖',
+    sfx:    'demote',
+  },
 }
 
 // Rank → theme overrides for leaderboard cards. Resolved in _themeFor.
@@ -133,18 +141,26 @@ export class UnlockNotificationOverlay {
     // render inside the same shell — extra room is a strict upgrade
     // for them too.
     const hasLeaderboard = this._queue.some(e => e?.type === 'leaderboard')
+    const hasDemotion    = this._queue.some(e => e?.type === 'demotion')
+    // Both the top-3 celebration AND the demotion use the big dramatic
+    // centerpiece, so both upsize the shell. The shell title leans on
+    // whichever dramatic card is present (celebration wins if somehow
+    // both are queued — practically mutually exclusive per fetch).
+    const isDramatic = hasLeaderboard || hasDemotion
     this._overlay = new Overlay({
       // The shell title stays generic — the per-card banner (which
       // changes type-to-type as the player advances) lives INSIDE the
       // body so it can be swapped without rebuilding the shell.
-      title:     hasLeaderboard ? '★  HALL OF FAME  ★' : '✦  UNLOCK  ✦',
+      title:     hasLeaderboard ? '★  HALL OF FAME  ★'
+               : hasDemotion    ? '✖  THE THRONE SHIFTS  ✖'
+               :                  '✦  UNLOCK  ✦',
       // Compact modal — tightened 560×580 → 460×480 so the celebration
       // reads as an intimate spotlight rather than a half-empty dialog.
       // The card inside fills the box; padding + per-element sizing in
-      // styles.css does the rest. Leaderboard finales upsize the shell
-      // so the dramatic centerpiece has room to live.
-      width:     hasLeaderboard ? 560 : 460,
-      height:    hasLeaderboard ? 620 : 480,
+      // styles.css does the rest. Dramatic cards (podium / demotion)
+      // upsize the shell so the centerpiece has room to live.
+      width:     isDramatic ? 560 : 460,
+      height:    isDramatic ? 620 : 480,
       // Modal shell border stays fixed blood-red across all card types
       // so the OUTER chrome reads as a consistent "unlock" frame. The
       // per-type accent (gold / blood / gold-bright / --cmp-accent)
@@ -249,6 +265,10 @@ export class UnlockNotificationOverlay {
     const idx   = this._index + 1
     const theme = this._themeFor(entry)
     const isLb  = entry?.type === 'leaderboard'
+    const isDemote = entry?.type === 'demotion'
+    // Both the podium celebration and the demotion replace the small
+    // chip banner with a big two-line dramatic headline.
+    const isDramatic = isLb || isDemote
     // Per-rank dramatic headlines that REPLACE the small chip banner
     // for leaderboard cards. The chip works for achievement/boss/etc.
     // because each card is "look what unlocked"; the top-3 celebration
@@ -259,7 +279,9 @@ export class UnlockNotificationOverlay {
       2: { eyebrow: '★   TOP 3 LEADERBOARD   ★', big: 'RUNNER-UP'     },
       3: { eyebrow: '★   TOP 3 LEADERBOARD   ★', big: 'PODIUM FINISH' },
     }
-    const lbCopy = isLb ? (LB_HEADLINES[entry.rank] || LB_HEADLINES[3]) : null
+    const dramaCopy = isLb     ? (LB_HEADLINES[entry.rank] || LB_HEADLINES[3])
+                    : isDemote ? this._demotionHeadline(entry)
+                    :            null
     const card = h('div', {
       className: 'qf-unlock-card',
       dataset:   { type: entry?.type ?? 'unknown' },
@@ -271,10 +293,10 @@ export class UnlockNotificationOverlay {
       // without needing a shell-title setter (the shell doesn't have
       // one). Leaderboard uses a big two-line headline; other types
       // use the compact chip banner.
-      isLb
+      isDramatic
         ? h('div', { className: 'qf-unlock-lb-headline' }, [
-            h('div', { className: 'pix qf-unlock-lb-headline-top' }, lbCopy.eyebrow),
-            h('div', { className: 'pix qf-unlock-lb-headline-big' }, lbCopy.big),
+            h('div', { className: 'pix qf-unlock-lb-headline-top' }, dramaCopy.eyebrow),
+            h('div', { className: 'pix qf-unlock-lb-headline-big' }, dramaCopy.big),
           ])
         : h('div', { className: 'pix qf-unlock-banner' }, theme.banner),
       // Centerpiece — boss portrait / companion sprite / achievement
@@ -301,7 +323,8 @@ export class UnlockNotificationOverlay {
       h('div', { className: 'qf-unlock-footer' }, [
         h('span', { className: 'pix qf-unlock-counter' }, `${idx} / ${total}`),
         h('button', {
-          className: 'btn qf-unlock-next' + (isLb ? ' qf-unlock-next--lb' : ''),
+          className: 'btn qf-unlock-next' + (isLb ? ' qf-unlock-next--lb' : '')
+                   + (isDemote ? ' qf-unlock-next--demote' : ''),
           on: {
             click: (e) => {
               e.stopPropagation()
@@ -310,7 +333,9 @@ export class UnlockNotificationOverlay {
           },
         }, isLb
             ? 'CLAIM GLORY  ✦'
-            : ((idx === total) ? 'CLOSE  ✖' : 'NEXT  ›')),
+            : isDemote
+              ? 'RECLAIM IT  ⚔'
+              : ((idx === total) ? 'CLOSE  ✖' : 'NEXT  ›')),
       ]),
     ])
     return card
@@ -434,6 +459,31 @@ export class UnlockNotificationOverlay {
           ]),
         ])
       }
+      case 'demotion': {
+        // The negative mirror of the leaderboard celebration scene:
+        //   0  haze — slow, dim downward smoulder (vs the bright sunburst)
+        //   1  ash — 12 embers raining DOWNWARD (vs confetti bursting out)
+        //   2  stamp — a toppling crown over a big descending arrow,
+        //              with the lost rank crossed out beneath it
+        // Everything reads "falling / fading" so the demotion lands as a
+        // loss, not a reward.
+        const fromRank = entry.fromRank ?? 1
+        return h('div', {
+          className: 'qf-unlock-art qf-unlock-art--demotion',
+        }, [
+          h('div', { className: 'qf-unlock-demote-haze' }),
+          h('div', { className: 'qf-unlock-demote-ash' }, [
+            h('span'), h('span'), h('span'), h('span'),
+            h('span'), h('span'), h('span'), h('span'),
+            h('span'), h('span'), h('span'), h('span'),
+          ]),
+          h('div', { className: 'qf-unlock-demote-stamp' }, [
+            h('div', { className: 'qf-unlock-demote-crown' }, '👑'),
+            h('div', { className: 'qf-unlock-demote-arrow' }, '▼'),
+            h('div', { className: 'pix qf-unlock-demote-lostrank' }, `#${fromRank}`),
+          ]),
+        ])
+      }
       default:
         return h('div', { className: 'qf-unlock-art' })
     }
@@ -476,6 +526,12 @@ export class UnlockNotificationOverlay {
         if (arch?.name) return arch.name
         return (rawId || 'your reign').replace(/_/g, ' ').toUpperCase()
       }
+      case 'demotion': {
+        // Where you are NOW. The art shows the struck-out OLD rank as
+        // the dramatic hero numeral, so this slot only states the new
+        // standing — the two don't repeat the same number.
+        return entry.toRank ? `FALLEN TO #${entry.toRank}` : 'FALLEN OFF THE PODIUM'
+      }
       default:
         return entry.id || ''
     }
@@ -511,8 +567,28 @@ export class UnlockNotificationOverlay {
         const kills = entry.kills     ?? '?'
         return `Boss Lv ${lv}  ·  ${days} days  ·  ${kills} kills`
       }
+      case 'demotion': {
+        // Flavour jab — the throne is no longer yours.
+        return entry.toRank
+          ? 'Your grip on the throne is slipping. Climb back.'
+          : 'Another tyrant has seized your place in the top 3.'
+      }
       default:
         return ''
+    }
+  }
+
+  // Two-line dramatic headline for a demotion card. "DETHRONED" reads
+  // hardest when the player held #1; falling from #2/#3 gets the softer
+  // "KNOCKED DOWN". The eyebrow notes whether they're still clinging to
+  // the podium or have been cast off entirely.
+  _demotionHeadline(entry) {
+    const lostCrown = (entry?.fromRank ?? 0) === 1
+    const offPodium = !entry?.toRank
+    return {
+      eyebrow: offPodium ? '✖   CAST FROM THE PODIUM   ✖'
+                         : '✖   YOUR STANDING SLIPS   ✖',
+      big:     lostCrown ? 'DETHRONED' : 'KNOCKED DOWN',
     }
   }
 }

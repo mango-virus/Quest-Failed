@@ -40,6 +40,8 @@ const DEV_TOOL_GROUPS = [
       { id: 'testtop1',   label: 'TEST TOP-3 #1', sub: 'Champion (gold) podium card',      icon: '★', color: '#ffd964' },
       { id: 'testtop2',   label: 'TEST TOP-3 #2', sub: 'Runner-up (silver) podium card',   icon: '★', color: '#d9e2ec' },
       { id: 'testtop3',   label: 'TEST TOP-3 #3', sub: 'Podium-finish (bronze) card',      icon: '★', color: '#e09858' },
+      { id: 'testdemoteoff',  label: 'TEST DEMOTION ✦ OFF',  sub: 'Dethroned — fell off the podium',  icon: '▼', color: '#d0566a' },
+      { id: 'testdemoteslip', label: 'TEST DEMOTION ✦ SLIP', sub: 'Knocked down — #1 → #2 on podium',  icon: '▼', color: '#d0566a' },
     ],
   },
 ]

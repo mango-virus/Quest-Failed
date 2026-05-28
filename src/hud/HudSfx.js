@@ -34,6 +34,7 @@ const UI_VOL = {
   // overpowering the ambient menu music.
   unlock_reward:      1.10,  // boss / companion / title card pops in
   unlock_achievement: 1.10,  // achievement card pops in (gold trophy)
+  demote:             1.20,  // leaderboard-demotion card — ominous, weighty
 }
 
 // Global UI-boost multiplier — mirrors SfxSystem.SFX_BOOST (1.5) so the
@@ -56,6 +57,7 @@ const UI_KEY = {
   close_panel:  'sfx-close-door',
   unlock_reward:      'sfx-unlock-reward',      // boss / companion / title card
   unlock_achievement: 'sfx-unlock-achievement', // achievement card
+  demote:             'sfx-boss-death',          // dethroned — "the mighty have fallen"
 }
 
 // Per-cue cooldown (ms) — prevents back-to-back clicks from layering.
@@ -73,6 +75,7 @@ const COOLDOWN = {
   // sound on top of itself.
   unlock_reward:      300,
   unlock_achievement: 300,
+  demote:             300,
 }
 
 const _lastAt = {}

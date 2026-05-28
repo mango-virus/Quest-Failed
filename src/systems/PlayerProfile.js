@@ -71,6 +71,14 @@ const CELEBRATED_TOP3_KEY_BASE        = 'qf.player.celebrated_top3'
 // the main menu, so we cache the id at submit time so MainMenuOverlay
 // can resolve it later when checking top-3 placement.
 const LAST_FINISHED_RUNID_KEY_BASE    = 'qf.player.last_finished_runid'
+// Per-name memory of the best PODIUM rank (1/2/3, or 0 = not on podium)
+// the player held as of the last main-menu leaderboard fetch. Compared
+// against the freshly-fetched standing each menu open so a DROP (someone
+// overtook them / they fell off the top 3) fires the "demoted" card —
+// the negative counterpart to the top-3 celebration. Seeded on first
+// visit so a player who was already below their historical peak before
+// this feature shipped doesn't get a spurious demotion notification.
+const LEADERBOARD_STANDING_KEY_BASE   = 'qf.player.leaderboard_standing'
 
 // Legacy global keys — wiped at module load (Option A from the user's
 // 2026-05-26 decision). Any data here was pre-refactor pollution and
@@ -119,6 +127,7 @@ function _leaderboardNewSeenKeyFor(name)  { return `${LEADERBOARD_NEW_SEEN_KEY_B
 function _pendingUnlocksKeyFor(name)      { return `${PENDING_UNLOCKS_KEY_BASE}:${(name ?? '').trim()}` }
 function _celebratedTop3KeyFor(name)      { return `${CELEBRATED_TOP3_KEY_BASE}:${(name ?? '').trim()}` }
 function _lastFinishedRunIdKeyFor(name)   { return `${LAST_FINISHED_RUNID_KEY_BASE}:${(name ?? '').trim()}` }
+function _leaderboardStandingKeyFor(name) { return `${LEADERBOARD_STANDING_KEY_BASE}:${(name ?? '').trim()}` }
 
 // Generic helpers shared by the achievement + companion seen-id sets.
 // `getSet` parses a stored JSON array into a Set<string>; `writeSet`
@@ -777,6 +786,29 @@ export const PlayerProfile = {
     const who = (name ?? this.getName() ?? '').trim()
     if (!who || !runId) return
     try { localStorage.setItem(_lastFinishedRunIdKeyFor(who), String(runId)) } catch {}
+  },
+
+  // Last-known leaderboard PODIUM standing (1/2/3 = top-3 position held,
+  // 0 = not on the podium). Persisted per-name so the main menu can
+  // detect a DROP between visits and fire the demotion notification.
+  // Returns -1 to mean "never recorded" (distinct from 0 = recorded as
+  // off-podium) so the caller can seed without false-firing on a player
+  // whose first observed standing is already off the podium.
+  getLastPodiumRank(name) {
+    const who = (name ?? this.getName() ?? '').trim()
+    if (!who) return -1
+    try {
+      const raw = localStorage.getItem(_leaderboardStandingKeyFor(who))
+      if (raw == null) return -1
+      const n = parseInt(raw, 10)
+      return Number.isFinite(n) ? n : -1
+    } catch { return -1 }
+  },
+  setLastPodiumRank(name, rank) {
+    const who = (name ?? this.getName() ?? '').trim()
+    if (!who) return
+    const n = Number.isFinite(rank) ? Math.max(0, Math.floor(rank)) : 0
+    try { localStorage.setItem(_leaderboardStandingKeyFor(who), String(n)) } catch {}
   },
 
   // Pack the unlocked-achievement set into a compact bitmask string for

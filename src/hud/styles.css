@@ -12682,6 +12682,214 @@ body {
   animation: none;
 }
 
+/* ── Leaderboard DEMOTION card — the negative mirror of the podium ───── */
+/* Sickly desaturated crimson. The currentColor cascade carries it into
+   the headline / name / art frame / button, exactly like the lb card
+   carries its rank tier — only the palette + the "falling" motion change
+   the read from triumph to loss. */
+.qf-unlock-card[data-type="demotion"] { color: #d0566a; }
+.qf-unlock-card[data-type="demotion"] .qf-unlock-name {
+  font-size: 20px;
+  margin-top: 8px;
+  text-shadow: 0 0 14px currentColor;
+}
+.qf-unlock-card[data-type="demotion"] .qf-unlock-subtitle {
+  font-family: var(--pix);
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-style: normal;
+  color: color-mix(in srgb, currentColor 70%, #c9c0c2);
+  text-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent);
+  padding: 6px 14px;
+  border-top:    1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  margin-top: 4px;
+}
+
+/* Art frame — dark + desaturated, with a SLOW ominous breathe (vs the
+   lb frame's bright excited pulse). */
+.qf-unlock-art--demotion {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 240px;
+  border: 2px solid color-mix(in srgb, currentColor 55%, #000);
+  background:
+    radial-gradient(closest-side,
+      color-mix(in srgb, currentColor 12%, transparent) 0%,
+      transparent 80%),
+    #080406;
+  box-shadow:
+    0 0 0 1px #000,
+    0 0 18px color-mix(in srgb, currentColor 30%, transparent),
+    inset 0 0 30px rgba(0, 0, 0, 0.7);
+  animation: qf-unlock-demote-frame 4s ease-in-out infinite;
+}
+.qf-unlock-art--demotion::after { content: none; display: none; }
+@keyframes qf-unlock-demote-frame {
+  0%, 100% { box-shadow: 0 0 0 1px #000, 0 0 14px color-mix(in srgb, currentColor 22%, transparent), inset 0 0 30px rgba(0,0,0,0.7); }
+  50%      { box-shadow: 0 0 0 1px #000, 0 0 26px color-mix(in srgb, currentColor 42%, transparent), inset 0 0 40px rgba(0,0,0,0.82); }
+}
+
+/* Downward smoulder haze — a dim radial low-glow rising from the bottom,
+   the opposite of the lb sunburst's bright rotating rays. */
+.qf-unlock-demote-haze {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(120% 80% at 50% 118%,
+      color-mix(in srgb, currentColor 26%, transparent) 0%,
+      transparent 60%);
+  opacity: 0.7;
+  filter: blur(2px);
+  animation: qf-unlock-demote-haze 5s ease-in-out infinite;
+}
+@keyframes qf-unlock-demote-haze {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.8; }
+}
+
+/* Falling embers/ash — 12 motes drifting DOWNWARD then fading, the
+   inverse of the lb confetti bursting outward. */
+.qf-unlock-demote-ash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.qf-unlock-demote-ash span {
+  position: absolute;
+  top: -6%;
+  width: 4px;
+  height: 4px;
+  background: color-mix(in srgb, currentColor 75%, #000);
+  box-shadow: 0 0 6px color-mix(in srgb, currentColor 60%, transparent);
+  opacity: 0;
+  animation: qf-unlock-demote-ash 3.4s linear infinite;
+}
+@keyframes qf-unlock-demote-ash {
+  0%   { transform: translateY(0)     scale(1);   opacity: 0; }
+  12%  { opacity: 0.9; }
+  100% { transform: translateY(250px) scale(0.5); opacity: 0; }
+}
+.qf-unlock-demote-ash span:nth-child(1)  { left:  8%; animation-delay: 0.0s;  }
+.qf-unlock-demote-ash span:nth-child(2)  { left: 16%; animation-delay: 1.1s;  }
+.qf-unlock-demote-ash span:nth-child(3)  { left: 24%; animation-delay: 0.5s;  }
+.qf-unlock-demote-ash span:nth-child(4)  { left: 33%; animation-delay: 2.0s;  }
+.qf-unlock-demote-ash span:nth-child(5)  { left: 41%; animation-delay: 0.9s;  }
+.qf-unlock-demote-ash span:nth-child(6)  { left: 49%; animation-delay: 1.6s;  }
+.qf-unlock-demote-ash span:nth-child(7)  { left: 57%; animation-delay: 0.2s;  }
+.qf-unlock-demote-ash span:nth-child(8)  { left: 65%; animation-delay: 2.4s;  }
+.qf-unlock-demote-ash span:nth-child(9)  { left: 73%; animation-delay: 1.3s;  }
+.qf-unlock-demote-ash span:nth-child(10) { left: 81%; animation-delay: 0.7s;  }
+.qf-unlock-demote-ash span:nth-child(11) { left: 89%; animation-delay: 1.9s;  }
+.qf-unlock-demote-ash span:nth-child(12) { left: 95%; animation-delay: 2.7s;  }
+
+/* Stamp — toppling crown over a descending arrow, then the struck-out
+   lost rank as the dramatic hero numeral. */
+.qf-unlock-demote-stamp {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-top: -4px;
+}
+/* Crown — desaturated + red-tinted, drops in then tilts as if slipping
+   off a head. */
+.qf-unlock-demote-crown {
+  font-size: 52px;
+  line-height: 1;
+  filter:
+    grayscale(0.55)
+    drop-shadow(0 0 12px color-mix(in srgb, currentColor 60%, transparent))
+    drop-shadow(0 4px 6px rgba(0, 0, 0, 0.85));
+  animation:
+    qf-unlock-demote-crown-in  700ms cubic-bezier(0.36, 0, 0.66, -0.3) 1,
+    qf-unlock-demote-crown-sag 3.2s  ease-in-out 700ms infinite;
+  transform-origin: center bottom;
+}
+@keyframes qf-unlock-demote-crown-in {
+  0%   { transform: translateY(-40px) rotate(0deg);   opacity: 0; }
+  60%  { transform: translateY(4px)   rotate(-14deg); opacity: 1; }
+  100% { transform: translateY(0)     rotate(-10deg); opacity: 1; }
+}
+@keyframes qf-unlock-demote-crown-sag {
+  0%, 100% { transform: translateY(0)   rotate(-10deg); }
+  50%      { transform: translateY(3px) rotate(-16deg); }
+}
+/* Descending arrow — pulses downward, the visual antonym of the rising
+   medal bob. */
+.qf-unlock-demote-arrow {
+  font-size: 30px;
+  line-height: 1;
+  color: currentColor;
+  margin-top: -2px;
+  text-shadow: 0 0 14px currentColor;
+  animation: qf-unlock-demote-arrow 1.5s ease-in-out infinite;
+}
+@keyframes qf-unlock-demote-arrow {
+  0%, 100% { transform: translateY(0);   opacity: 0.7; }
+  50%      { transform: translateY(6px); opacity: 1; }
+}
+/* Lost rank — the rank they no longer hold, struck through. */
+.qf-unlock-demote-lostrank {
+  position: relative;
+  font-family: var(--pix);
+  font-size: 64px;
+  line-height: 1;
+  letter-spacing: 3px;
+  color: color-mix(in srgb, currentColor 70%, #555);
+  margin-top: -2px;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.85), 0 0 16px color-mix(in srgb, currentColor 45%, transparent);
+  animation: qf-unlock-demote-rank-in 800ms cubic-bezier(0.16, 1, 0.3, 1) 1;
+}
+/* The strike — a slash through the dead rank. */
+.qf-unlock-demote-lostrank::after {
+  content: '';
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  top: 52%;
+  height: 5px;
+  background: #ff4458;
+  box-shadow: 0 0 10px #ff4458;
+  transform: rotate(-12deg);
+  transform-origin: center;
+  animation: qf-unlock-demote-strike 500ms ease-out 600ms both;
+}
+@keyframes qf-unlock-demote-rank-in {
+  0%   { transform: scale(1.3);  opacity: 0; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes qf-unlock-demote-strike {
+  0%   { transform: rotate(-12deg) scaleX(0); opacity: 0; }
+  100% { transform: rotate(-12deg) scaleX(1); opacity: 1; }
+}
+
+/* Demotion button — subdued; a faint ominous glow rather than the lb
+   button's confident pulse. Inherits the crimson currentColor. */
+.qf-unlock-next--demote {
+  font-size: 11px;
+  padding: 11px 26px;
+  letter-spacing: 3px;
+  border: 2px solid color-mix(in srgb, currentColor 70%, #000);
+}
+
+/* Reduced-motion: drop the perpetual loops, keep the static composition
+   so the card still reads as a loss. */
+@media (prefers-reduced-motion: reduce) {
+  .qf-unlock-art--demotion,
+  .qf-unlock-demote-haze,
+  .qf-unlock-demote-ash span,
+  .qf-unlock-demote-crown,
+  .qf-unlock-demote-arrow { animation: none; }
+  .qf-unlock-demote-crown { transform: rotate(-10deg); }
+  .qf-unlock-demote-lostrank::after { animation: none; transform: rotate(-12deg) scaleX(1); opacity: 1; }
+}
+
 /* Rarity badge — small "X% earned" pill in the card's top-right corner.
    Rare achievements (< 10% of players) get a gold-bright burst; common
    ones use a muted neutral. Only shows when the rarity sample has been

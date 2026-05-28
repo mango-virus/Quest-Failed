@@ -122,6 +122,12 @@ export class MainMenuOverlay {
         // placed in the top 3. The fire below picks it up alongside any
         // achievement cards already queued from the run.
         this._maybeQueueTop3Celebration(rows)
+        // Demotion check — the negative counterpart: if the player USED
+        // to hold a podium spot and has since been knocked down / off,
+        // queue the "dethroned" card. Runs after the celebration check
+        // (the two are mutually exclusive for a given fetch — you can't
+        // simultaneously climb and fall).
+        this._maybeQueueLeaderboardDemotion(rows)
         this._maybeFireUnlockOverlay()
       })
       .catch(() => {
@@ -698,6 +704,50 @@ export class MainMenuOverlay {
     PlayerProfile.setCelebratedTop3RunId?.(name, lastRunId)
   }
 
+  // Demotion check — fires the "dethroned" notification when the player
+  // has LOST ground on the podium since the last main-menu visit. The
+  // negative mirror of _maybeQueueTop3Celebration.
+  //
+  // Standing grain: PODIUM rank by NAME (best/lowest 1-based index among
+  // the fetched top-3 rows whose player_name matches), 0 = not on the
+  // podium. We track the player's STANDING (not a specific run) because
+  // demotion is about being overtaken by OTHERS — any of your runs
+  // holding a slot counts, and you lose it when someone surpasses it.
+  //
+  // Fires when: a previously-recorded standing existed AND the new one
+  // is strictly worse (a higher rank number, or off the podium). Seeded
+  // silently on the first observation (getLastPodiumRank === -1) so a
+  // player who was already below their historical peak when this feature
+  // shipped doesn't get a spurious card. Always re-stamps the standing
+  // so re-climbing resets the baseline and the next drop can fire again.
+  _maybeQueueLeaderboardDemotion(rows) {
+    if (!Array.isArray(rows)) return
+    const name = PlayerProfile.getName?.()
+    if (!name) return
+    const me = name.trim().toLowerCase()
+    const top3 = rows.slice(0, 3)
+    let current = 0   // 0 = not on the podium
+    top3.forEach((r, i) => {
+      if (String(r?.player_name ?? '').trim().toLowerCase() === me) {
+        const rank = i + 1
+        if (current === 0 || rank < current) current = rank
+      }
+    })
+    const prev = PlayerProfile.getLastPodiumRank?.(name) ?? -1
+    // prev === -1 → never recorded: seed silently, no notification.
+    // A drop = previously on the podium (prev >= 1) and now strictly
+    // worse (off the podium, or a higher rank number).
+    const dropped = prev >= 1 && (current === 0 || current > prev)
+    if (dropped) {
+      PlayerProfile.queueUnlock?.({
+        type:     'demotion',
+        fromRank: prev,
+        toRank:   current,   // 0 = off the podium entirely
+      })
+    }
+    PlayerProfile.setLastPodiumRank?.(name, current)
+  }
+
   // Fire the UnlockNotificationOverlay if the pending-unlocks queue has
   // anything in it (achievement / boss / companion / title cards from
   // the just-finished run, OR the leaderboard top-3 celebration card
@@ -920,6 +970,9 @@ export class MainMenuOverlay {
       case 'testtop1': this._testFireTop3(1); break
       case 'testtop2': this._testFireTop3(2); break
       case 'testtop3': this._testFireTop3(3); break
+      // Demotion cards — dethroned off the podium vs slipped within it.
+      case 'testdemoteoff':  this._testFireDemotion(1, 0); break
+      case 'testdemoteslip': this._testFireDemotion(1, 2); break
       case 'options':
         this._openSettings()
         break
@@ -1158,6 +1211,32 @@ export class MainMenuOverlay {
         bossLevel: 12,
         days:      51,
         kills:     742,
+      })
+    } catch {}
+    import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {
+      if (this._closed || !this._el) return
+      if (this._unlockOverlay) return
+      this._unlockOverlay = new UnlockNotificationOverlay({
+        onClose: () => {
+          this._unlockOverlay = null
+          if (!this._closed && this._el) this._refreshMenuItems()
+        },
+      })
+      this._unlockOverlay.open()
+    }).catch(() => {})
+  }
+
+  // Dev-only — fires the leaderboard DEMOTION card without touching the
+  // persisted standing (PlayerProfile.setLastPodiumRank), so it can be
+  // re-fired indefinitely. `fromRank` = the podium spot they held;
+  // `toRank` = where they fell (0 / falsy = off the podium entirely).
+  _testFireDemotion(fromRank, toRank) {
+    if (this._unlockOverlay) return
+    try {
+      PlayerProfile.queueUnlock({
+        type:     'demotion',
+        fromRank,
+        toRank:   toRank || 0,
       })
     } catch {}
     import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {
