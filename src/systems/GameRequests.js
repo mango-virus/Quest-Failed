@@ -27,8 +27,8 @@
 //   alter table game_requests enable row level security;
 //   drop policy if exists "insert valid" on game_requests;
 //   create policy "insert valid" on game_requests for insert with check (
-//     length(title) between 5 and 80
-//     and length(body) between 10 and 1500
+//     length(title) between 1 and 80
+//     and length(body) between 1 and 1500
 //     and category in ('bug','difficulty','boss','item','companion','room','achievement','mechanic','other')
 //     and (feeling is null or feeling in ('too_easy','too_hard','just_right'))
 //   );
@@ -206,9 +206,13 @@ export const GameRequests = {
     if (!this.CATEGORIES.includes(category)) return { error: 'Pick a category.' }
     const trimmedTitle = String(title ?? '').trim()
     const trimmedBody  = String(body ?? '').trim()
-    if (trimmedTitle.length < 5)   return { error: 'Title must be at least 5 characters.' }
+    // No minimum length other than "must not be empty" — players can
+    // send a one-liner if that's all they need. The maximums stay so
+    // the table doesn't grow unbounded and the inbox cards still
+    // render at a sane size.
+    if (trimmedTitle.length === 0) return { error: 'Add a title.' }
     if (trimmedTitle.length > 80)  return { error: 'Title must be 80 characters or fewer.' }
-    if (trimmedBody.length < 10)   return { error: 'Description must be at least 10 characters.' }
+    if (trimmedBody.length === 0)  return { error: 'Add a description.' }
     if (trimmedBody.length > 1500) return { error: 'Description must be 1500 characters or fewer.' }
     // Feeling only applies to the difficulty bucket; ignore on other
     // categories so a stale radio selection doesn't bleed in.
