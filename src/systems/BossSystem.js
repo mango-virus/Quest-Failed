@@ -2482,7 +2482,7 @@ export class BossSystem {
     if (kind === 'win') this._deathPoseUntil = Infinity
     this._duelOutro = {
       kind, phase: 'stand', t: 0, adv, boss,
-      said: 0, ariseDone: false, portalSpawned: false,
+      said: 0, ariseSaid: false, ariseDone: false, portalSpawned: false,
       portalSprite: null, portalX: 0, portalY: 0,
     }
   }
@@ -2532,33 +2532,38 @@ export class BossSystem {
     const adv  = O.adv
     const boss = this._gameState.boss
     const syncTiles = (e) => { if (e) { e.tileX = Math.floor(e.worldX / TS); e.tileY = Math.floor(e.worldY / TS) } }
+    // Drive the LPC renderer: stand idle through the cutscene; the win WALK
+    // phase overrides to 'walking' so the proper directional walk anim plays
+    // (otherwise his lingering 'fighting' state keeps him mid-swing).
+    if (adv) adv.aiState = (O.kind === 'win' && O.phase === 'walk') ? 'walking' : 'idle'
 
     if (O.kind === 'loss') {
-      // Stand in place, speak two defeat lines, THEN die (death anim) + summary.
-      if (O.said < 1 && O.t > 0.3) { O.said = 1; this._monarchSay(adv, this._monarchLine('shadowMonarchDefeat', '...impossible.')) }
-      if (O.said < 2 && O.t > 2.1) { O.said = 2; this._monarchSay(adv, this._monarchLine('shadowMonarchDefeat', 'Not... like this.')) }
-      if (O.t > 4.0) { this._finishDuelOutro(); return }
+      // Stand in place, speak two defeat lines (held a beat each), THEN die.
+      if (O.said < 1 && O.t > 0.4) { O.said = 1; this._monarchSay(adv, this._monarchLine('shadowMonarchDefeat', '...impossible.'), 3400) }
+      if (O.said < 2 && O.t > 3.6) { O.said = 2; this._monarchSay(adv, this._monarchLine('shadowMonarchDefeat', 'Not... like this.'), 3400) }
+      if (O.t > 6.8) { this._finishDuelOutro(); return }
       syncTiles(adv); syncTiles(boss)
       return
     }
 
-    // WIN — stand → "Arise." (boss revives w/ flame) → portal → walk in → fade.
+    // WIN — stand → "Arise." (2s beat) → boss revives → portal → walk in → fade.
     switch (O.phase) {
       case 'stand':
-        if (O.said < 1 && O.t > 0.3) { O.said = 1; this._monarchSay(adv, this._monarchLine('shadowMonarchVictory', 'Too weak.')) }
-        if (O.said < 2 && O.t > 2.0) { O.said = 2; this._monarchSay(adv, this._monarchLine('shadowMonarchVictory', 'Kneel.')) }
-        if (O.t > 3.4) { O.phase = 'arise'; O.t = 0 }
+        if (O.said < 1 && O.t > 0.4) { O.said = 1; this._monarchSay(adv, this._monarchLine('shadowMonarchVictory', 'Too weak.'), 3400) }
+        if (O.said < 2 && O.t > 3.8) { O.said = 2; this._monarchSay(adv, this._monarchLine('shadowMonarchVictory', 'Kneel.'), 3400) }
+        if (O.t > 7.2) { O.phase = 'arise'; O.t = 0 }
         break
       case 'arise':
-        if (!O.ariseDone) {
+        // Say "Arise." first, then wait 2s before the boss actually rises.
+        if (!O.ariseSaid && O.t > 0.1) { O.ariseSaid = true; this._monarchSay(adv, 'Arise.', 3200) }
+        if (!O.ariseDone && O.t > 2.1) {
           O.ariseDone = true
-          this._monarchSay(adv, 'Arise.', 2800)
           boss.shadowClaimed = true                        // persists for the rest of the run
           EventBus.emit('BOSS_REVIVE_AS_SHADOW', { boss })  // BossRenderer: stand + blue flame
           this._emitFx({ kind: 'monarch_burst', x: boss.worldX, y: boss.worldY })
           this._scene.cameras?.main?.shake?.(180, 0.005)
         }
-        if (O.t > 1.5) { O.phase = 'portal'; O.t = 0 }
+        if (O.t > 3.6) { O.phase = 'portal'; O.t = 0 }     // beat after the revive
         break
       case 'portal':
         if (!O.portalSpawned) { O.portalSpawned = true; this._spawnShadowPortal(O) }
@@ -2567,6 +2572,8 @@ export class BossSystem {
       case 'walk': {
         const dx = O.portalX - adv.worldX, dy = O.portalY - adv.worldY
         const d  = Math.hypot(dx, dy)
+        // Face the direction of travel so the walk anim points the right way.
+        adv._lpcDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')
         if (d > 6) {
           const step = Math.min(d, 3.5 * TS * dt)
           adv.worldX += (dx / d) * step
