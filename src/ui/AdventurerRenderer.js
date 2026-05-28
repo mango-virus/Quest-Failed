@@ -96,6 +96,7 @@ export class AdventurerRenderer {
     // instead of all popping in at once. _spawnQueueNextAt tracks the next
     // free slot in scene-time ms; each new adv starts fading at that time.
     this._spawnQueueNextAt = 0
+    this._spawnQueueCount  = 0   // wave entry index — drives stagger ramp
     EventBus.on('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     // Replay the attack animation on every swing — without this, the
     // attack anim only plays once when aiState first flips to 'fighting'
@@ -175,8 +176,17 @@ export class AdventurerRenderer {
   _onAdvEntered({ adventurer }) {
     if (!adventurer) return
     const now = this._scene?.time?.now ?? 0
-    const FADE_MS    = 600
-    const STAGGER_MS = 700
+    const FADE_MS = 600
+    // Stagger gap COMPRESSES as the wave grows (2026-05-27). A fixed
+    // 700ms gap meant a 50-strong late-game wave took ~35s just to walk
+    // in. Now the first few keep a readable trickle, then the gap ramps
+    // down to a floor so big waves pour in fast. _spawnQueueCount tracks
+    // the wave's entry index (reset with _spawnQueueNextAt in _clearAll).
+    const idx = this._spawnQueueCount ?? 0
+    this._spawnQueueCount = idx + 1
+    const STAGGER_MS = idx < 5  ? 350    // first 5 — visible one-by-one
+                     : idx < 12 ? 200    // next chunk — brisk
+                     :            90     // the rest — rapid-fire floor
     const start = Math.max(now, this._spawnQueueNextAt)
     adventurer._spawnFadeStart = start
     adventurer._spawnFadeEnd   = start + FADE_MS
@@ -1202,5 +1212,6 @@ export class AdventurerRenderer {
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
     // Reset the spawn-fade stagger queue so the next day starts fresh.
     this._spawnQueueNextAt = 0
+    this._spawnQueueCount  = 0
   }
 }
