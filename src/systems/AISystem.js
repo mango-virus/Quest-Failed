@@ -3966,17 +3966,17 @@ export class AISystem {
   // forget: _exploreFallbackForSeekBoss (below) guarantees a gated role
   // EXPLORES toward the boss instead of freezing, so the worst case for a
   // forgotten flag is "wanders to the throne" rather than "stuck in a
-  // room and dies". Speedrunner is deliberately excluded — the gate is
-  // meant to make it discover the throne by exploring.
+  // room and dies".
   _beelinesBoss(adv) {
     return !!(
       adv?._bossRoyaleInvader ||   // Boss Royale gauntlet (11 boss invaders)
       adv?._monsterInvader   ||   // Rival Dungeon pack (monsters)
-      adv?._rivalBoss             // Rival Dungeon champion
-      // NOTE: Sung Jinwoo (_shadowMonarch) is deliberately EXCLUDED — like the
-      // Speed Runner he keeps a SEEK_BOSS goal but must DISCOVER the throne by
-      // exploring (the knowledge-gated SEEK_BOSS + _exploreFallbackForSeekBoss
-      // path). He doesn't magically know where the boss is.
+      adv?._rivalBoss        ||   // Rival Dungeon champion
+      adv?._speedrunner           // Legendary Speed Runner — has the route memorized; always knows where the throne is
+      // NOTE: Sung Jinwoo (_shadowMonarch) is deliberately EXCLUDED — he
+      // keeps a SEEK_BOSS goal but must DISCOVER the throne by exploring
+      // (the knowledge-gated SEEK_BOSS + _exploreFallbackForSeekBoss path).
+      // He doesn't magically know where the boss is.
     )
   }
 
