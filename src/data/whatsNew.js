@@ -14,6 +14,17 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 4,
+    version: '0.1.5',
+    date: 'May 2026',
+    title: 'The Damned Grimoire',
+    items: [
+      { icon: '☠', text: 'A new Damned tier of dark pacts joins the Grimoire — true devil’s bargains that pair a small bribe with a far steeper curse.' },
+      { icon: '📕', text: 'Sometimes the Grimoire opens jet black: a hand of nothing but Damned pacts, where every choice costs you.' },
+      { icon: '😈', text: 'Strike the Dark Deal demon’s bargain and the black grimoire is always what you’re dealt.' },
+    ],
+  },
+  {
     id: 3,
     version: '0.1.4',
     date: 'May 2026',
