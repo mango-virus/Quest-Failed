@@ -900,7 +900,12 @@ export class EventSystem {
   _resolveDemonsWager() {
     const boss = this._gameState.boss
     if (!boss) return
-    const won = Math.random() < 0.5
+    // The demon's coin is loaded — 40% WIN / 60% LOSE. The wager looks
+    // like a fair coin flip to the player (heads/tails), but the demon
+    // always weights the odds in his favour. Flavour-justified by the
+    // demon being, well, a demon; mechanically gates the +level reward
+    // behind a real risk so it isn't a free expected-value gain.
+    const won = Math.random() < 0.4
     const oldLevel = boss.level ?? 1
     // Demon-themed cinematic — reuses the CoinFlipCinematic event shape
     // with a `theme: 'demon'` marker so the renderer can swap palette + SFX.
