@@ -262,5 +262,13 @@
     "icon": "🗝️",
     "colorTheme": "gold",
     "minBossLevel": 1
+  },
+  {
+    "id": "goblin_market",
+    "title": "GOBLIN MARKET",
+    "notif": "A goblin peddler sets up shop tonight only — every price in the build menu is scrambled. Some are steep bargains, others are shameless ripoffs. Check the tags and stock up on the deals.",
+    "icon": "🪙",
+    "colorTheme": "gold",
+    "minBossLevel": 1
   }
 ]

@@ -12,6 +12,7 @@ import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { getRotatedDef } from '../util/roomRotation.js'
 import { pickWeightedClass } from '../util/classSpawn.js'
+import { applyMerchantPrice } from '../util/merchantPricing.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -1029,7 +1030,8 @@ export class NightPhase extends Phaser.Scene {
         fontFamily: 'monospace', fontStyle: 'bold',
       }).setDepth(11).setAlpha(titleAlpha)
 
-      const dynCost   = DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+      const dynCost   = applyMerchantPrice(this._gameState, def.id,
+        DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? []))
       const costStr   = dynCost > 0 ? `${dynCost} gold` : 'FREE'
       const costColor = isLocked ? PALETTE.textDim
                       : dynCost > 0 ? PALETTE.textCyan
@@ -1937,7 +1939,10 @@ export class NightPhase extends Phaser.Scene {
     const m = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
     const bossLv = this._gameState.boss?.level ?? 1
     const lvMul  = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
-    return Math.max(0, Math.round(base * m * lvMul))
+    const scaled = Math.max(0, Math.round(base * m * lvMul))
+    // Goblin Market repricing (one night). Applied last so this charge
+    // matches LeftPanels._costFor's display exactly.
+    return applyMerchantPrice(this._gameState, def?.id, scaled)
   }
 
   _rosterCap() {
@@ -2142,7 +2147,8 @@ export class NightPhase extends Phaser.Scene {
     // price gap over minions as the run progresses.
     const bossLv = this._gameState.boss?.level ?? 1
     cost *= 1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
-    return Math.max(0, Math.round(cost))
+    // Goblin Market repricing (one night) — applied last to match display.
+    return applyMerchantPrice(this._gameState, def?.id, Math.max(0, Math.round(cost)))
   }
   _trapCap() {
     const factoryCount = (this._gameState.dungeon.rooms ?? [])
@@ -2197,9 +2203,12 @@ export class NightPhase extends Phaser.Scene {
     // charge. Anything else is a fresh placement and pays effectiveRoomCost.
     const arch = this._gameState.player?.archetypeModifiers
     const roomMul = arch?.roomCostMultiplier ?? 1
+    // Goblin Market repricing applied to the base room cost (before the
+    // archetype roomMul) so it matches LeftPanels._costFor's display.
     const baseCost = this._heldMoveRoom
       ? 0
-      : DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+      : applyMerchantPrice(this._gameState, def.id,
+          DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? []))
     const cost = Math.round(baseCost * roomMul)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
@@ -2661,7 +2670,7 @@ export class NightPhase extends Phaser.Scene {
         return
       }
     }
-    const cost = def.goldCost ?? 0
+    const cost = applyMerchantPrice(this._gameState, def.id, def.goldCost ?? 0)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD && this._gameState.player.gold < cost) {
       this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
       return
@@ -2734,7 +2743,7 @@ export class NightPhase extends Phaser.Scene {
     const here = (this._gameState.dungeon.beacons ?? []).filter(b => b.roomId === v.room.instanceId)
     if (here.length > 0) { this._showPlacementError('Max 1 Beacon per room'); return }
 
-    const cost = def.goldCost ?? 0
+    const cost = applyMerchantPrice(this._gameState, def.id, def.goldCost ?? 0)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD && this._gameState.player.gold < cost) {
       this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
       return
@@ -2777,7 +2786,7 @@ export class NightPhase extends Phaser.Scene {
         return
       }
     }
-    const cost = isMove ? 0 : (def.goldCost ?? 0)
+    const cost = isMove ? 0 : applyMerchantPrice(this._gameState, def.id, def.goldCost ?? 0)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
         this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)

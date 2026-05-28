@@ -302,6 +302,56 @@ export class EventSystem {
     }
     // speedrun_channel resolves at DAY_PHASE_BEGAN via the wave-replace
     // flag, same pattern as zombie_horde / bounty_hunters.
+    // Goblin Market — reprice the build menu for THIS night. Rolled here
+    // (at announce) so the prices + badges are live the moment the build
+    // night starts; guarded against re-roll on save/load re-entry.
+    if (def.id === 'goblin_market')      this._rollGoblinMarketPrices()
+  }
+
+  // Goblin Market — roll a one-night buy-price multiplier for every
+  // purchasable room / minion / trap / item. Discounts are capped at 0.5
+  // (50% off) so they can never be cheaper than the 50%-of-base refund
+  // (no buy-low/sell-back arbitrage); markups go up to +300% ("outrageous
+  // ripoffs"). Only changed entries are stored, so the map doubles as the
+  // "which cards show a badge" set. Idempotent — a stored map means we've
+  // already rolled (save/load mid-night re-enters _dispatchAnnounceUi).
+  _rollGoblinMarketPrices() {
+    const flags = this._gameState._eventFlags ?? (this._gameState._eventFlags = {})
+    if (flags.goblinMarketPrices) return   // already rolled this night
+    const cache = this._scene?.cache?.json
+    const ids = []
+    const collect = (arr, skip) => {
+      for (const d of (arr ?? [])) {
+        if (!d?.id) continue
+        if (skip && skip(d)) continue
+        ids.push(d.id)
+      }
+    }
+    collect(cache?.get?.('rooms'), d =>
+      d.id === 'boss_chamber' || d.id === 'entry_hall' || d.placementRules?.fixed)
+    collect(this._minionTypes)
+    collect(cache?.get?.('trapTypes'))
+    collect(cache?.get?.('items'), d => (d.goldCost ?? 0) <= 0)   // free items can't be repriced
+
+    // Discount % (off) and markup % (up) menus — round values so the
+    // build-menu badges read cleanly ("-30%", "+150%").
+    const DISCOUNTS = [0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10]
+    const MARKUPS   = [0.50, 1.00, 1.50, 2.00, 2.50, 3.00]
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
+
+    const map = {}
+    for (const id of ids) {
+      const r = Math.random()
+      if (r < 0.35) {
+        map[id] = +(1 - pick(DISCOUNTS)).toFixed(2)        // 0.50 .. 0.90
+      } else if (r < 0.80) {
+        map[id] = +(1 + pick(MARKUPS)).toFixed(2)          // 1.50 .. 4.00
+      }
+      // else: unchanged — not stored (no badge, mult defaults to 1)
+    }
+    flags.goblinMarketPrices = map
+    // Build menu (LeftPanels) re-renders on this so prices + badges update.
+    EventBus.emit('GOBLIN_MARKET_PRICES_SET', { prices: map })
   }
 
   // Theme / icon / title for an event's SHOW_CONFIRM modal — pulled from
@@ -1524,6 +1574,12 @@ export class EventSystem {
         break
       case 'treasure_hunters':
         flags.treasureHuntersActive = false
+        break
+      case 'goblin_market':
+        // The peddler packs up — prices revert. Null the map + tell the
+        // build menu to drop the badges and show normal prices again.
+        flags.goblinMarketPrices = null
+        EventBus.emit('GOBLIN_MARKET_PRICES_SET', { prices: null })
         break
       case 'dark_deal':
         // Restore boss maxHp captured at apply time. Use the snapshot —

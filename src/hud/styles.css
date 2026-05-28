@@ -2661,6 +2661,34 @@ body {
   50%      { box-shadow: 0 0 12px rgba(255,217,100,0.85); }
 }
 
+/* Goblin Market discount / markup badge — top-left corner of the card
+   icon (the tinkered "★ UPGRADED" pill sits top-center, so no clash).
+   Green = a deal, red = a ripoff. */
+.qf-build-card-price-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 2px 5px;
+  font-family: var(--pix);
+  font-size: 8px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  background: rgba(8, 10, 14, 0.9);
+  white-space: nowrap;
+  z-index: 2;
+  pointer-events: none;
+}
+.qf-build-card-price-badge.discount {
+  color: var(--hp-high, #79e36b);
+  text-shadow: 0 0 6px rgba(121, 227, 107, 0.6);
+}
+.qf-build-card-price-badge.markup {
+  color: var(--hp-low, #e8556b);
+  text-shadow: 0 0 6px rgba(232, 85, 107, 0.6);
+}
+
 .qf-build-card-name {
   font-size: 8px;
   letter-spacing: 0.5px;

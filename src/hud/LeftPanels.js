@@ -25,6 +25,7 @@ import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
 import { snapshotMinion, snapshotItem, snapshotTrap, snapshotRoomMini } from './inGameSnapshot.js'
 import { getRoomThumbnail, precacheRoomThumbnails } from './roomThumbnailCache.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
+import { applyMerchantPrice, merchantPriceMult } from '../util/merchantPricing.js'
 
 const CATEGORIES = [
   { id: 'ROOMS',   kind: 'room',   icon: '◰', color: 'var(--blood)',  cache: 'rooms',       unlockKey: 'rooms' },
@@ -424,29 +425,35 @@ export class LeftPanels {
   // truth — so the displayed price matches what placement actually
   // charges, including freeFirstN free copies and escalating costStep.
   _costFor(def, cat) {
+    let raw
     if (cat.kind === 'room') {
-      return DungeonGrid.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+      raw = DungeonGrid.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+    } else {
+      const base = def.goldCost ?? def.cost ?? 0
+      // Traps scale with boss level (mirrors NightPhase._effectiveTrapCost) so
+      // the build-menu price matches what placement actually charges.
+      if (cat.kind === 'trap') {
+        const lv = this._gameState.boss?.level ?? 1
+        raw = Math.round(base * (1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, lv - 1)))
+      } else if (cat.kind === 'minion') {
+        // Minions ALSO scale with boss level — mirrors
+        // NightPhase._effectiveMinionCost so the card's price matches the
+        // actual debit on placement. Without this the player sees "12g"
+        // on a card and gets "insufficient gold" with 18g in the bank
+        // because placement was charging the scaled price (e.g. 19g at
+        // boss lvl 4 with the +20%/level multiplier).
+        const lv    = this._gameState.boss?.level ?? 1
+        const lvMul = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, lv - 1)
+        const flagMul = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
+        raw = Math.max(0, Math.round(base * flagMul * lvMul))
+      } else {
+        raw = base
+      }
     }
-    const base = def.goldCost ?? def.cost ?? 0
-    // Traps scale with boss level (mirrors NightPhase._effectiveTrapCost) so
-    // the build-menu price matches what placement actually charges.
-    if (cat.kind === 'trap') {
-      const lv = this._gameState.boss?.level ?? 1
-      return Math.round(base * (1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, lv - 1)))
-    }
-    // Minions ALSO scale with boss level — mirrors
-    // NightPhase._effectiveMinionCost so the card's price matches the
-    // actual debit on placement. Without this the player sees "12g"
-    // on a card and gets "insufficient gold" with 18g in the bank
-    // because placement was charging the scaled price (e.g. 19g at
-    // boss lvl 4 with the +20%/level multiplier).
-    if (cat.kind === 'minion') {
-      const lv    = this._gameState.boss?.level ?? 1
-      const lvMul = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, lv - 1)
-      const flagMul = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
-      return Math.max(0, Math.round(base * flagMul * lvMul))
-    }
-    return base
+    // Goblin Market — apply the one-night repricing multiplier LAST so the
+    // displayed price exactly matches what the placement charge sites
+    // (which route through the same applyMerchantPrice helper) debit.
+    return applyMerchantPrice(this._gameState, def.id, raw)
   }
 
   _renderGrid() {
@@ -472,6 +479,14 @@ export class LeftPanels {
       const active = !locked && this._selectedKey === def.id
       const isTinkered = cat.kind === 'room' && tinkered.has(def.id)
       const tinkerInfo = isTinkered ? TINKERER_BADGE_INFO[def.id] : null
+      // Goblin Market — discount / markup badge. Only when a repricing is
+      // active for this def AND the (effective) price isn't free.
+      const mktMult = merchantPriceMult(this._gameState, def.id)
+      const showMkt = mktMult !== 1 && cost > 0
+      const mktKind = mktMult < 1 ? 'discount' : 'markup'
+      const mktPct  = mktMult < 1
+        ? `-${Math.round((1 - mktMult) * 100)}%`
+        : `+${Math.round((mktMult - 1) * 100)}%`
       return h('button', {
         className: 'qf-build-card',
         dataset: {
@@ -499,6 +514,12 @@ export class LeftPanels {
               ? `${tinkerInfo.name} — ${tinkerInfo.description}`
               : 'Upgraded by the Tinkerer',
           }, '★ UPGRADED'),
+          // Goblin Market price badge — top-left, green for a discount,
+          // red for a markup. Shown only while the market is repricing.
+          showMkt && h('div', {
+            className: `qf-build-card-price-badge ${mktKind}`,
+            title: mktKind === 'discount' ? 'Goblin Market discount' : 'Goblin Market markup',
+          }, mktPct),
         ]),
         h('div', { className: 'qf-build-card-name pix' }, def.name || def.id),
         h('div', { className: 'qf-build-card-cost' }, [
@@ -879,6 +900,9 @@ export class LeftPanels {
     // Tinkerer's Workshop — when the player picks an upgrade, the card
     // for that room type needs to paint the "★ UPGRADED" badge.
     sub('TINKERER_UPGRADE_APPLIED', () => this._renderGrid())
+    // Goblin Market — prices + discount/markup badges change when the
+    // event sets (announce) or clears (day-end) its repricing map.
+    sub('GOBLIN_MARKET_PRICES_SET', () => this._renderGrid())
     // Game scene is guaranteed active by the time night begins —
     // retry precache in case LeftPanels was constructed before the
     // scene booted (or before themesprite textures finished loading).
