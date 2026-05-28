@@ -503,16 +503,21 @@ export class AchievementsOverlay {
   // Does an achievement belong under the given tab?
   //   all        — everything
   //   companions — its reward unlocks a companion
-  //   titles     — it grants a title
-  //   <category> — its category matches (mastery today; others fall here
-  //                too if re-added). An achievement can match more than
-  //                one tab (e.g. a mastery legendary that grants a title
-  //                shows in both MASTERY and TITLES) — that's intended;
-  //                ALL still shows it once.
+  //   titles     — its HEADLINE reward is a title (grants a title AND
+  //                doesn't also unlock a companion/boss). This mirrors
+  //                the card's rewardType classification (companion/boss
+  //                win the chip over a title), so an achievement like
+  //                Curtain Call — which unlocks Rattle Bones AND grants
+  //                "The Showrunner" — lives under COMPANIONS only, where
+  //                its card actually reads as a companion unlock.
+  //   <category> — its category matches (mastery today). A mastery
+  //                legendary that grants a pure title still shows in both
+  //                MASTERY and TITLES — intended; ALL lists it once.
   _defMatchesTab(def, tab) {
     if (tab === 'all')        return true
     if (tab === 'companions') return def.reward?.type === 'companion'
-    if (tab === 'titles')     return !!def.title
+    if (tab === 'titles')     return !!def.title &&
+      def.reward?.type !== 'companion' && def.reward?.type !== 'boss'
     return def.category === tab
   }
 
