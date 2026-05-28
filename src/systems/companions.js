@@ -687,7 +687,7 @@ export function getCompanion(id) {
 // ids stay in the list — the overlay renders them silhouetted in-place and
 // skips them from banter / hover / click; never strip locked ids here.
 // Append new companions to the end; pagination auto-extends.
-export const COMPANION_ORDER = ['lilith', 'rattlebones', 'safira', 'necroknight', 'nocturna', 'malakor', 'spectra', 'luna', 'zulgath']
+export const COMPANION_ORDER = ['lilith', 'safira', 'rattlebones', 'necroknight', 'nocturna', 'malakor', 'spectra', 'luna', 'zulgath']
 
 // Roster of companion ids that ship UNLOCKED out of the box — used by
 // PlayerProfile to seed the per-player unlock set on first run. Locked
