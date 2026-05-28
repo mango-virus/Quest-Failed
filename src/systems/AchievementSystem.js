@@ -201,7 +201,7 @@ class AchievementSystemImpl {
       minionsPlaced:     0,
       bossKills:         0,
       // Trap-credited kills this run. Used to track best-of-any-run for
-      // the `curtain_call` legendary (Rattle Bones unlock — 100 trap kills
+      // the `curtain_call` legendary (Rattle Bones unlock — 1000 trap kills
       // in a single run). Mirrors the bossKills pattern.
       trapKills:         0,
       // Live-set of active minion types this run (for minionTypesActiveMax).

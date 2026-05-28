@@ -416,10 +416,10 @@
   {
     "id": "curtain_call",
     "name": "Curtain Call",
-    "description": "Kill 100 adventurers with traps in a single run.",
+    "description": "Kill 1000 adventurers with traps in a single run.",
     "category": "combat",
     "metric": "trapKillsInRunMax",
-    "target": 100,
+    "target": 1000,
     "icon": "🎭",
     "title": "The Showrunner",
     "reward": { "type": "companion", "id": "rattlebones" },
