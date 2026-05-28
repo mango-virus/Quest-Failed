@@ -47,13 +47,12 @@ export class SoloLevelingCinematic {
     const css = `
 .qf-sl-letterbox { position:absolute; inset:0; pointer-events:none; z-index:34; }
 .qf-sl-letterbox .qf-sl-bar { position:absolute; left:0; right:0; height:9vh;
-  background:linear-gradient(180deg,#02040a 0%, #03050e 70%, rgba(3,5,14,0) 100%);
+  background:#02040a;
   transform:scaleY(0); transition:transform .55s cubic-bezier(.16,.84,.3,1); }
 .qf-sl-letterbox .qf-sl-bar.top    { top:0;    transform-origin:top;
-  box-shadow:0 1px 0 rgba(74,160,255,.5), 0 6px 18px -6px rgba(58,139,255,.6); }
+  box-shadow:0 2px 0 rgba(74,160,255,.55), 0 12px 26px -10px rgba(58,139,255,.55); }
 .qf-sl-letterbox .qf-sl-bar.bottom { bottom:0; transform-origin:bottom;
-  background:linear-gradient(0deg,#02040a 0%, #03050e 70%, rgba(3,5,14,0) 100%);
-  box-shadow:0 -1px 0 rgba(74,160,255,.5), 0 -6px 18px -6px rgba(58,139,255,.6); }
+  box-shadow:0 -2px 0 rgba(74,160,255,.55), 0 -12px 26px -10px rgba(58,139,255,.55); }
 .qf-sl-letterbox.show .qf-sl-bar { transform:scaleY(1); }
 /* Anchored to the top-left of the DUNGEON VIEW (inside the left HUD column +
    below the top HUD zone), not the screen corner — otherwise it lands on top
