@@ -416,18 +416,21 @@ export const GameRequests = {
     this._cache.playerName = name
     this._cache.fetchedAt = Date.now()
 
-    // PLAYER MAIL — rows owned by this name with updated_at > lastSeen
-    // and status !== 'new'. We over-fetch and filter client-side because
-    // PostgREST's `gt` only accepts one column at a time and we want
-    // composite logic (status≠new AND updated_at>seen).
+    // PLAYER MAIL — rows owned by this name that mango has touched since
+    // the player last opened MY MAIL. "Touched" = status moved past 'new'
+    // OR notes were written. Both are admin-only actions (players can't
+    // set status or notes at submit time), so this never fires on the
+    // player's own fresh submission — only on a genuine dev reply.
+    //   updated_at > lastSeen      → newer than the player's last view
+    //   or(status≠new, notes≠null) → mango changed status and/or replied
     let playerMail = 0
     try {
       const seen = this._getPlayerMailSeen(name) ?? new Date(0).toISOString()
       const params = new URLSearchParams()
-      params.set('select', 'id,status,updated_at')
+      params.set('select', 'id,status,notes,updated_at')
       params.set('player_name', `eq.${name}`)
       params.set('updated_at', `gt.${seen}`)
-      params.set('status', 'in.(triaged,planned,shipped,wontfix)')
+      params.set('or', '(status.neq.new,notes.not.is.null)')
       params.set('limit', '100')
       const res = await fetch(`${REST}/game_requests?${params.toString()}`, { headers: HEADERS })
       if (res.ok) {
