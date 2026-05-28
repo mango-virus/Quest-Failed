@@ -674,6 +674,12 @@ export class Preload extends Phaser.Scene {
     // picks the row based on damage type (pacts) or archetype identity
     // (basic attacks); column counts vary per file and are encoded in
     // _registerBossAttackAnimations below.
+    // Solo Leveling — Sung Jinwoo's persistent black-flame aura (6 frames,
+    // 64×64 vertical strip) + a soft radial glow (tinted violet at runtime)
+    // so the near-black flame reads as an aura against dark floors. Both are
+    // rendered behind his sprite by AdventurerRenderer.
+    this.load.spritesheet('vfx-shadow-flame',     'assets/sprites/vfx/shadow-monarch-flame.png', { frameWidth: 64, frameHeight: 64 })
+    this.load.image('vfx-soft-glow',              'assets/sprites/vfx/soft-glow.png')
     this.load.spritesheet('vfx-boss-flame',       'assets/sprites/vfx/boss-flame.png',       { frameWidth: 64, frameHeight: 64 })
     this.load.spritesheet('vfx-boss-puff',        'assets/sprites/vfx/boss-puff.png',        { frameWidth: 64, frameHeight: 64 })
     this.load.spritesheet('vfx-boss-bolt',        'assets/sprites/vfx/boss-bolt.png',        { frameWidth: 64, frameHeight: 64 })

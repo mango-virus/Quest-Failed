@@ -436,6 +436,8 @@ export class AdventurerRenderer {
         continue
       }
       if (s.container && !s.container.visible) s.container.setVisible(true)
+      // Solo Leveling — pulse Jinwoo's violet flame-aura glow while on-screen.
+      if (s.shadowGlow) s.shadowGlow.setAlpha(0.16 + 0.20 * Math.sin(this._scene.time.now / 320))
       // Phase D — keep the gold-coins icon glued above the adv carrying
       // stolen treasure. Sits just above the HP bar (y - 42) — chat
       // bubbles anchor higher (y - 30 extending up) so they don't clash.
@@ -975,8 +977,58 @@ export class AdventurerRenderer {
       this._wireSpriteInput(adv, lpc.image)
     }
 
+    // Solo Leveling — Sung Jinwoo is wreathed in a persistent black-flame aura.
+    // A pulsing violet glow + the looping black-flame sheet are inserted BEHIND
+    // the LPC sprite so he always renders in front of his own flames.
+    if (lpc && (adv.classId === 'shadow_monarch' ||
+                adv._shadowMonarch ||
+                adv.spriteVariant?.startsWith('shadow_monarch/'))) {
+      this._attachShadowMonarchAura(sprite)
+    }
+
     this._sprites[adv.instanceId] = sprite
     return sprite
+  }
+
+  // Build the Shadow Monarch's always-on black-flame aura and slot it behind
+  // his sprite. Order (back→front): violet glow → black flame → LPC sprite.
+  // sendToBack pushes each to index 0, so adding the flame first then the glow
+  // leaves glow(0) < flame(1) < lpc — i.e. Jinwoo overlaid in front of both.
+  _attachShadowMonarchAura(s) {
+    const c = s.container
+    if (this._scene.textures.exists('vfx-shadow-flame')) {
+      if (!this._scene.anims.exists('vfx-shadow-flame-loop')) {
+        const tex = this._scene.textures.get('vfx-shadow-flame')
+        if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+        this._scene.anims.create({
+          key: 'vfx-shadow-flame-loop',
+          frames: this._scene.anims.generateFrameNumbers('vfx-shadow-flame', { start: 0, end: 5 }),
+          frameRate: 10,
+          repeat: -1,
+        })
+      }
+      // 1.7× so the flame fully engulfs his ~0.75-scale body; feet-anchored so
+      // it rises from the ground around him.
+      const flame = this._scene.add.sprite(0, 0, 'vfx-shadow-flame', 0)
+        .setOrigin(0.5, 0.85)
+        .setScale(1.7)
+      flame.anims.play('vfx-shadow-flame-loop', true)
+      c.add(flame)
+      c.sendToBack(flame)
+      s.shadowFlame = flame
+    }
+    // Pulsing violet aura around his body — a soft radial glow tinted violet
+    // (same colour language as his extracted shadows) so the near-black flame
+    // reads against dark floors. Pulse alpha is driven per-frame in update().
+    if (this._scene.textures.exists('vfx-soft-glow')) {
+      const glow = this._scene.add.image(0, -16, 'vfx-soft-glow')
+        .setScale(0.8)
+        .setTint(0x9b2fe0)
+        .setBlendMode(Phaser.BlendModes.SCREEN)
+      c.add(glow)
+      c.sendToBack(glow)
+      s.shadowGlow = glow
+    }
   }
 
   // Pick (or fetch the previously-picked) LPC variant for this adventurer
