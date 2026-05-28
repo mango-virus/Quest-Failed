@@ -1413,6 +1413,13 @@ export class EventSystem {
         // events.scheduledId (the flag isn't set until now, day-begin).
         flags.treasureHuntersActive = true
         break
+      case 'solo_leveling':
+        // DayPhase spawns ONLY Sung Jinwoo (the Shadow Monarch) instead of
+        // the normal wave. He beelines the boss, raises fallen minions as
+        // shadows, and duels the boss stat-matched. _spawnSoloLeveling reads
+        // this flag.
+        flags.soloLevelingActive = true
+        break
       case 'dark_deal':
         // The demon NPC + pact-pick flow happens in night phase via
         // DarkDealDemonRenderer; if the player accepted, that flow set
@@ -1574,6 +1581,9 @@ export class EventSystem {
         break
       case 'treasure_hunters':
         flags.treasureHuntersActive = false
+        break
+      case 'solo_leveling':
+        flags.soloLevelingActive = false
         break
       case 'goblin_market':
         // The peddler packs up — prices revert. Null the map + tell the

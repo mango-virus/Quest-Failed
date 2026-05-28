@@ -391,5 +391,28 @@
     "spawnWeight": 0.6,
     "description": "Modded client. No-clips walls, teleports between rooms, lands suspicious one-shots. Glass-cannon body — gets reported and banned if they take too many hits.",
     "flavorText": "skill issue"
+  },
+  {
+    "id": "shadow_monarch",
+    "name": "Sung Jinwoo",
+    "color": "0x6a3fb0",
+    "spriteSourceClassId": "rogue",
+    "baseStats": {
+      "hp": 90,
+      "attack": 16,
+      "defense": 9,
+      "speed": 1.4,
+      "attackRange": 1.5
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "shadow_monarch",
+      "boss_slayer"
+    ],
+    "unlockLevel": 99,
+    "rarity": "legendary",
+    "description": "The Shadow Monarch. Enters alone, raises your fallen minions as his shadow army, and marches on the throne to duel the boss as an equal. Moves twice as fast, shrugs off your defenses, and grows stronger with every shadow he claims.",
+    "flavorText": "Arise."
   }
 ]

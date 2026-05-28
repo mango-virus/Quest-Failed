@@ -666,6 +666,17 @@ export class CombatSystem {
       mit = Math.floor(mit * Balance.MECHANIC_WHISPERER_PARTY_DAMAGE_MULT)
     }
 
+    // Solo Leveling — the Shadow Monarch (Sung Jinwoo) shrugs off your
+    // defenders and butchers them: he takes 50% less damage from minions
+    // and deals 50% more damage to them. (Trap reduction lives in
+    // TrapSystem; the boss duel is stat-matched separately in BossSystem.)
+    if (target._shadowMonarch && _isMinionAttacker(attacker)) {
+      mit = Math.max(1, Math.floor(mit * 0.5))
+    }
+    if (attacker._shadowMonarch && target.faction === 'dungeon') {
+      mit = Math.floor(mit * 1.5)
+    }
+
     const variance = 1 + (Math.random() - 0.5) * 0.3
     return Math.max(1, Math.floor(mit * variance))
   }

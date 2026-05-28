@@ -451,6 +451,10 @@ export class TrapSystem {
       const frac  = Balance.TRAP_MAX_ADV_DMG_FRAC ?? 0.75
       if (maxHp > 0) damage = Math.min(damage, Math.floor(maxHp * frac))
     }
+    // Solo Leveling — the Shadow Monarch takes 50% less trap damage
+    // (mirrors his -50% minion-damage passive in CombatSystem). Applied
+    // after the cap so it stacks on top of the squishy-protection clamp.
+    if (entity._shadowMonarch) damage = Math.floor(damage * 0.5)
     if (damage <= 0) return false
 
     entity.resources.hp = Math.max(0, entity.resources.hp - damage)

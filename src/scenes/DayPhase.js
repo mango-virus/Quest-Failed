@@ -573,6 +573,12 @@ export class DayPhase extends Phaser.Scene {
     if ((this._gameState._eventFlags ?? {}).legendarySpeedrunnerActive) {
       return this._spawnLegendarySpeedrunner()
     }
+    // Dungeon event: Solo Leveling — replaces the normal wave with a lone
+    // named adventurer (Sung Jinwoo, the Shadow Monarch) who beelines the
+    // boss, raises fallen minions as shadows, and duels the boss.
+    if ((this._gameState._eventFlags ?? {}).soloLevelingActive) {
+      return this._spawnSoloLeveling()
+    }
     // Dungeon event: Cartographer's Convention — replaces the normal
     // wave with 3 scholars that tour every non-boss room then leave.
     if ((this._gameState._eventFlags ?? {}).cartographersConventionActive) {
@@ -1377,6 +1383,48 @@ export class DayPhase extends Phaser.Scene {
     // ×2 buffs above — a day-30 speedrunner needs to be vastly tougher
     // than a day-5 one to remain a legendary threat.
     this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
+
+    this._gameState.adventurers.active.push(adv)
+    aiSystem.pickInitialGoal(adv)
+    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+    EventBus.emit('LEGENDARY_HERO_ARRIVED',     { adventurer: adv })
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
+    return [adv]
+  }
+
+  // Dungeon event: Solo Leveling — one named adventurer enters: Sung
+  // Jinwoo, the Shadow Monarch (shadow_monarch class). He beelines the
+  // boss (AISystem _shadowMonarch branch), moves at 2× speed, takes 50%
+  // less from minions/traps and deals 50% more to minions (CombatSystem /
+  // TrapSystem), raises fallen minions as shadows (EventSystem, Phase 1b),
+  // and duels the boss stat-matched (BossSystem, Phase 1c). Replaces the
+  // whole wave — he comes alone.
+  _spawnSoloLeveling() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+
+    const def = (this.cache.json.get('adventurerClasses') ?? [])
+      .find(c => c.id === 'shadow_monarch')
+    if (!def) return []
+
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+
+    const adv = createAdventurer(def, { x: spawn.x, y: spawn.y })
+    adv._shadowMonarch = true   // AISystem beeline + CombatSystem/TrapSystem passives
+    adv.isLegendary    = true   // legendary chrome + entrance pulse
+    adv.name           = 'Sung Jinwoo'
+    adv.partyId        = null
+    // He commits — never flees.
+    adv.flags = { ...(adv.flags ?? {}), noFlee: true }
+
+    // Scale on the boss-level + day curve so he stays a credible threat
+    // late game, THEN double his speed (the Monarch is preternaturally
+    // fast). His hall HP/ATK are just to survive the trip + shred minions;
+    // the throne duel re-derives his stats from the boss (Phase 1c).
+    this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
+    adv.stats.speed = (adv.stats.speed ?? 1.4) * 2
 
     this._gameState.adventurers.active.push(adv)
     aiSystem.pickInitialGoal(adv)

@@ -270,5 +270,13 @@
     "icon": "🪙",
     "colorTheme": "gold",
     "minBossLevel": 1
+  },
+  {
+    "id": "solo_leveling",
+    "title": "SOLO LEVELING",
+    "notif": "One man enters — the Shadow Monarch. He ignores nothing, raises your fallen minions as his shadow army, and marches on your throne to duel you as an equal. Arise.",
+    "icon": "🗡️",
+    "colorTheme": "violet",
+    "minBossLevel": 1
   }
 ]

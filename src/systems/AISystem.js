@@ -3959,6 +3959,10 @@ export class AISystem {
     // treasure, no chest detours, no personality variants) so they march
     // straight at the boss room every replan.
     if (adv._speedrunner) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Solo Leveling — the Shadow Monarch always marches on
+    // the throne. He cuts through (and raises) whatever minions intercept
+    // him en route, but never explores or detours.
+    if (adv._shadowMonarch) return { type: 'SEEK_BOSS' }
     // Dungeon event: Boss Royale — every invading boss cooperates and
     // beelines the throne (no exploration, no friendly fire). Same pure
     // SEEK_BOSS flow as the speedrunner so all 11 converge on the boss.
