@@ -74,6 +74,10 @@ export class EventSystem {
     gameState.events.lastEventId  ??= null
     gameState.events.scheduledId  ??= null
     gameState.events.scheduledDay ??= null
+    // Shuffle-bag tracking — ids that have already fired in the current
+    // bag. _eligibleEvents draws only from not-yet-fired events; when the
+    // bag empties it resets, so the whole roster cycles before any repeat.
+    gameState.events.firedThisRun ??= []
     gameState._eventFlags         ??= {}
 
     // Active Phaser timer events for the Twitch Con chaos mechanics. Held
@@ -352,12 +356,28 @@ export class EventSystem {
 
   _eligibleEvents() {
     // Every event is eligible from day one — no boss-level or day-count
-    // gate. The only filters are the no-repeat rule (an event can't fire
-    // twice in a row) plus per-event state PRECONDITIONS (see _eventPrecondMet).
-    // (`minBossLevel` in events.json is now vestigial — kept as a
-    // difficulty-tier hint, not enforced.)
-    const lastId = this._gameState.events.lastEventId
-    return this._defs.filter(d => d.id !== lastId && this._eventPrecondMet(d))
+    // gate. (`minBossLevel` in events.json is now vestigial — kept as a
+    // difficulty-tier hint, not enforced.) Filters, in order:
+    //   1. PRECONDITIONS (_eventPrecondMet) — defines the draw universe.
+    //   2. SHUFFLE BAG — draw only from events not yet fired this run, so
+    //      the whole roster cycles before any repeat. When the bag empties
+    //      (every precondition-eligible event has fired), it resets and a
+    //      fresh cycle begins.
+    //   3. NO BACK-TO-BACK — never the event that fired immediately before,
+    //      as long as another option remains (covers a bag reset landing on
+    //      the just-fired event, or a 1-event bag).
+    const ev = this._gameState.events
+    ev.firedThisRun ??= []
+    const fired = new Set(ev.firedThisRun)
+    const universe = this._defs.filter(d => this._eventPrecondMet(d))
+    let bag = universe.filter(d => !fired.has(d.id))
+    if (bag.length === 0) {
+      // Bag exhausted — reset and start a fresh cycle from the full universe.
+      ev.firedThisRun = []
+      bag = universe
+    }
+    const noRepeat = bag.filter(d => d.id !== ev.lastEventId)
+    return noRepeat.length > 0 ? noRepeat : bag
   }
 
   // Conditional-eligibility gate. Most events are always eligible (returns
@@ -1443,6 +1463,10 @@ export class EventSystem {
     const def = this._defs.find(d => d.id === id)
     this._clearEffect(def)
     ev.lastEventId  = id
+    // Mark this event spent in the current shuffle bag so _eligibleEvents
+    // won't draw it again until the whole roster has cycled (then resets).
+    ev.firedThisRun ??= []
+    if (!ev.firedThisRun.includes(id)) ev.firedThisRun.push(id)
     // Gap is measured from the day the event actually FIRED, not from
     // `meta.dayNumber` here — by DAY_PHASE_ENDED the day counter has
     // already rolled to the next day, so reading it gave an off-by-one
