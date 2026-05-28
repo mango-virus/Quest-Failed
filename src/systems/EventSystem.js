@@ -254,16 +254,11 @@ export class EventSystem {
   _extractShadow(src, jinwoo) {
     const TS = Balance.TILE_SIZE
     const tileX = src.tileX, tileY = src.tileY
-    // Risen shadows are STRONGER than they were in life — the Monarch's power
-    // reforges them. Buff over the source minion's stats so they can carve
-    // through the dungeon's other minions.
-    const SHADOW_HP_MULT  = 1.8
-    const SHADOW_ATK_MULT = 1.8
-    const SHADOW_DEF_BONUS = 3
-    const srcMaxHp  = src.resources?.maxHp ?? src.resources?.hp ?? src.stats?.hp ?? 8
-    const shadowHp  = Math.max(1, Math.round(srcMaxHp * SHADOW_HP_MULT))
-    const shadowAtk = Math.max(1, Math.round((src.stats?.attack ?? 3) * SHADOW_ATK_MULT))
-    const shadowDef = (src.stats?.defense ?? 0) + SHADOW_DEF_BONUS
+    // Normal stats — a shadow is a straight 1:1 copy of the minion it rose
+    // from (no Monarch stat buff).
+    const shadowHp  = Math.max(1, src.resources?.maxHp ?? src.resources?.hp ?? src.stats?.hp ?? 8)
+    const shadowAtk = Math.max(1, src.stats?.attack ?? 3)
+    const shadowDef = src.stats?.defense ?? 0
     const shadow = {
       instanceId: `shadow_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       definitionId: src.definitionId,
