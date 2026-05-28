@@ -137,6 +137,16 @@ export class ChatBubbles {
     for (const id of Object.keys(this._bubbles)) this._destroyBubble(id)
   }
 
+  // True while a chat bubble is currently displayed above this
+  // adventurer. EmoteSystem checks this to suppress emotion bubbles
+  // while a chat line is up — the two render in the same spot above the
+  // head, so the chat line wins. The `_bubbles` entry only exists while
+  // the bubble is live (expiry / death cleanup in update() removes it),
+  // so this never permanently blocks emotes.
+  hasActiveBubble(advId) {
+    return !!this._bubbles[advId]
+  }
+
   // Called every Game.update() during day phase.
   update() {
     if (!this._lines) this._lines = this._scene.cache.json.get('chatLines') ?? {}

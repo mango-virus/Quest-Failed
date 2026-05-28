@@ -281,6 +281,11 @@ export class EmoteSystem {
     // Event-spawned monsters (zombie horde, rival-dungeon invaders) don't
     // emote — they're monsters, not adventurers.
     if (adv._monster) return
+    // Don't stack an emotion bubble on top of a chat bubble — they render
+    // in the same spot above the head, so the text chat line wins. The
+    // emote is skipped (not queued); a later trigger can fire once the
+    // chat bubble expires.
+    if (this._scene.chatBubbles?.hasActiveBubble?.(adv.instanceId)) return
     if (Math.random() >= TRIGGER_CHANCE) return
 
     const now = this._scene.time.now
