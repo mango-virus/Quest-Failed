@@ -246,5 +246,13 @@
     "icon": "📺",
     "colorTheme": "accent",
     "minBossLevel": 1
+  },
+  {
+    "id": "boss_royale",
+    "title": "BOSS ROYALE",
+    "notif": "Every rival overlord descends at once — one of each kind, 11 bosses storming the dungeon for a single day, all hunting your throne. No adventurers today. Survive the gauntlet.",
+    "icon": "👑",
+    "colorTheme": "crimson",
+    "minBossLevel": 1
   }
 ]

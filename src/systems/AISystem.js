@@ -3864,6 +3864,10 @@ export class AISystem {
     // treasure, no chest detours, no personality variants) so they march
     // straight at the boss room every replan.
     if (adv._speedrunner) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Boss Royale — every invading boss cooperates and
+    // beelines the throne (no exploration, no friendly fire). Same pure
+    // SEEK_BOSS flow as the speedrunner so all 11 converge on the boss.
+    if (adv._bossRoyaleInvader) return { type: 'SEEK_BOSS' }
     // Dungeon event: The Saboteur — tours the dungeon disabling every
     // trap, then flees. Never picks a combat or exploration goal.
     if (adv._saboteur) return this._nextSaboteurGoal(adv)
@@ -4268,6 +4272,10 @@ export class AISystem {
     // the threat. Hard override (not a multiplier) so Goldrush / Cursed
     // Soil / Tax Season etc. don't accidentally re-inflate it.
     if (adv.flags?.zombieShambler) goldGained = 2
+    // Dungeon event: Boss Royale — flat 200 gold per slain invader boss
+    // (no other bonus, per design). Hard override so pacts / events /
+    // veteran mults can't inflate the gauntlet payout beyond the set bounty.
+    if (adv._bossRoyaleInvader) goldGained = Balance.BOSS_ROYALE_KILL_GOLD ?? 200
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
     // Record the loot drop on both the live adv (the ADVENTURER_DIED

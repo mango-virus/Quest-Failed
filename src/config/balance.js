@@ -479,6 +479,40 @@ export const Balance = {
   ZOMBIE_HORDE_BASE:            16,    // shamblers at boss level 1
   ZOMBIE_HORDE_PER_BOSS_LV:      8,    // +8 shamblers per boss level above 1
 
+  // --- Boss Royale dungeon event ---
+  // Instead of the normal wave, one of EVERY OTHER boss archetype (11,
+  // excluding the player's own) storms the dungeon for a single day, all
+  // beelining the throne together. Designed as a *very hard* gauntlet.
+  //
+  // Each invader uses the rival_boss_invader stat line (150/13/6 base)
+  // scaled by the adventurer curve (boss-level + day + post-day-9 tail),
+  // THEN multiplied by BOSS_ROYALE_STAT_MULT. At day 50 / lv 10 the adv
+  // curve alone puts the invader at ~13,584 HP / ~251 ATK; ×2.0 lands
+  // each at ~27,000 HP / ~502 ATK — 11 of those grouped on the throne
+  // out-damage the boss's whole HP bar in a single round, so the player
+  // MUST funnel-kill them in the halls with minions + traps.
+  // Tuned 2.0 per design call (2026-05-27) — dial down if unwinnable.
+  BOSS_ROYALE_STAT_MULT:        2.0,
+  BOSS_ROYALE_KILL_GOLD:        200,   // flat gold per invader killed (no other bonus)
+  BOSS_ROYALE_SPAWN_INTERVAL_MS: 3000, // one invader enters every 3 GAME-seconds
+                                       // (DayPhase.time runs on game-time, so the
+                                       // cadence auto-respects the speed multiplier)
+
+  // --- Rival Dungeon challenge buffs (2026-05-27) ---
+  // The base Rival Dungeon spawned a same-size wave of monster_invaders
+  // (base 35 HP — *below* the adventurer average) + one rival boss, so
+  // it read as a reskinned normal day. These mults make the invading
+  // dungeon's troops genuinely elite: bigger, tougher than your own
+  // random wave, led by a tank boss. All four are knobs.
+  //   PACK_HP_MULT  1.6 → day-50 monster 3,170 → ~5,070 HP
+  //   PACK_ATK_MULT 1.3 → day-50 monster 154   → ~200 ATK
+  //   BOSS_HP_MULT  2.0 → day-50 rival boss 13,584 → ~27,000 HP
+  //   PACK_SIZE_MULT 1.25 → ~66 → ~82 monsters (they out-number you)
+  RIVAL_DUNGEON_PACK_HP_MULT:   1.6,
+  RIVAL_DUNGEON_PACK_ATK_MULT:  1.3,
+  RIVAL_DUNGEON_BOSS_HP_MULT:   2.0,
+  RIVAL_DUNGEON_PACK_SIZE_MULT: 1.25,
+
   // --- Mini-boss / vendetta / vulture / wraith ---
   MINIBOSS_HP_MULT:                3.0,
   MINIBOSS_ATTACK_MULT:            1.6,

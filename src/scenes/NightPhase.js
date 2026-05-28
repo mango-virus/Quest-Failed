@@ -281,6 +281,26 @@ export class NightPhase extends Phaser.Scene {
       }
       return this._emitPreviewUpdated()
     }
+    // Boss Royale — one of every OTHER boss archetype (excluding the
+    // player's own) storms the dungeon. Preview shows the full roster as
+    // rival_boss_invader stubs, each wearing its archetype boss skin via
+    // the parallel `bossSkins` array (AdvIntelOverlay reads bossSkins[i]).
+    // Check scheduledId too (not just the active flag) so the preview
+    // shows during the PLANNING night — the flag isn't set until
+    // DAY_PHASE_BEGAN, same as the speedrun_channel lock above.
+    if (eventFlags.bossRoyaleActive || gs.events?.scheduledId === 'boss_royale') {
+      const archetypes = this.cache.json.get('bossArchetypes') ?? []
+      const playerArch = gs.player?.bossArchetypeId
+      const roster = archetypes.filter(a => a?.id && a.id !== playerArch).map(a => a.id)
+      gs.run.nextWavePreview = {
+        day, count: roster.length,
+        classIds: roster.map(() => 'rival_boss_invader'),
+        eventType: 'bossRoyale',
+        bossSkins: roster.slice(),
+        vendettaHunter: null,
+      }
+      return this._emitPreviewUpdated()
+    }
     if (eventFlags.zombieHordeActive) {
       // Horde size scales with boss level + post-day-9 escalation — matches
       // DayPhase._spawnZombieHorde.

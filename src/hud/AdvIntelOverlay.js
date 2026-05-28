@@ -182,8 +182,12 @@ export class AdvIntelOverlay {
       if (Array.isArray(preview.minionSheets) && preview.minionSheets[i]) {
         stub._minionSheet = preview.minionSheets[i]
       }
-      if (preview.bossSkin && classId === 'rival_boss_invader') {
-        stub._rivalBossSpriteKey = preview.bossSkin
+      // Rival boss skin — Boss Royale carries a per-slot `bossSkins[]`
+      // (each invader is a different archetype); Rival Dungeon carries a
+      // single `bossSkin` for its lone champion. Prefer the per-slot array.
+      if (classId === 'rival_boss_invader') {
+        const skin = preview.bossSkins?.[i] ?? preview.bossSkin
+        if (skin) stub._rivalBossSpriteKey = skin
       }
       return stub
     })

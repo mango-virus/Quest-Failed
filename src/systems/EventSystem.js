@@ -1340,6 +1340,11 @@ export class EventSystem {
       case 'rival_dungeon':
         flags.rivalDungeonActive = true
         break
+      case 'boss_royale':
+        // DayPhase spawns the 11-boss gauntlet (one per other archetype)
+        // instead of the normal wave. _spawnBossRoyale reads this flag.
+        flags.bossRoyaleActive = true
+        break
       case 'dark_deal':
         // The demon NPC + pact-pick flow happens in night phase via
         // DarkDealDemonRenderer; if the player accepted, that flow set
@@ -1495,6 +1500,9 @@ export class EventSystem {
         break
       case 'rival_dungeon':
         flags.rivalDungeonActive = false
+        break
+      case 'boss_royale':
+        flags.bossRoyaleActive = false
         break
       case 'dark_deal':
         // Restore boss maxHp captured at apply time. Use the snapshot —
