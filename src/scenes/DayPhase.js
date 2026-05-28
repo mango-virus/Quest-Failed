@@ -1011,6 +1011,14 @@ export class DayPhase extends Phaser.Scene {
         adv._cosplayPassive = Math.random() < 0.75
       }
 
+      // Dungeon event: Treasure Hunters — every adv in today's wave is
+      // here for the loot only. Tag so AISystem._pickNextGoal routes them
+      // to the nearest unopened chest and ignores the boss + exploration.
+      // pickInitialGoal (below) then picks SEEK_TREASURE for them.
+      if ((this._gameState._eventFlags ?? {}).treasureHuntersActive) {
+        adv._treasureHunter = true
+      }
+
       // Phase 7b: scale adventurer stats with dungeon level
       this._scaleAdventurerByBossLevel(adv, dungeonLv)
 

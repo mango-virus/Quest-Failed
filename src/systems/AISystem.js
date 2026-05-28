@@ -204,6 +204,21 @@ export class AISystem {
     EventBus.emit('LOCKS_CHANGED')
   }
 
+  // Nearest unopened treasure chest by Manhattan tile distance — NOT
+  // knowledge-gated (used by the Treasure Hunters event, whose looters
+  // have a "treasure map" and target any live chest). Returns a chest
+  // entry from gameState.dungeon.treasureChests, or null if none unopened.
+  _nearestUnopenedChest(adv) {
+    const chests = (this._gameState.dungeon?.treasureChests ?? []).filter(c => !c.opened)
+    if (chests.length === 0) return null
+    let best = null, bestD = Infinity
+    for (const c of chests) {
+      const d = Math.abs(c.tileX - adv.tileX) + Math.abs(c.tileY - adv.tileY)
+      if (d < bestD) { bestD = d; best = c }
+    }
+    return best
+  }
+
   // ── Treasure Chest ──────────────────────────────────────────────────
   // Iterate unopened chests highest-tier first. Greedy / vulture /
   // loot_seeker advs always pick the top tier they can reach. Other advs
@@ -392,8 +407,12 @@ export class AISystem {
       EventBus.emit('TREASURE_STOLEN', { adv, gold: stolen, tier: chest.tier })
       EventBus.emit('SAY_stoleTreasure', { adventurer: adv })
       // Roll for escape goal — if hit, the adv abandons everything and
-      // sprints for the exit.
-      if (Math.random() < (tr.escapeChance ?? 0.30)) {
+      // sprints for the exit. Treasure Hunters ALWAYS bolt the instant
+      // they've got loot (that's the whole point — grab and run), so they
+      // skip the roll. (The `stolenGold > 0` guard at the top also stops
+      // them robbing a second chest, and _pickNextGoal re-routes any that
+      // somehow don't escape straight to ESCAPE_WITH_LOOT.)
+      if (adv._treasureHunter || Math.random() < (tr.escapeChance ?? 0.30)) {
         adv.goalStack = []   // wipe stack — escape supersedes everything
         adv.goal = { type: 'ESCAPE_WITH_LOOT' }
         adv.path = null
@@ -3910,6 +3929,19 @@ export class AISystem {
     // lone champion and the event was trivial; now the whole horde converges
     // on the boss so it reads as a genuine overrun (2026-05-27 re-tune).
     if (adv._monsterInvader) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Treasure Hunters — here for the LOOT only. They
+    // ignore the boss + exploration entirely: rush the nearest unopened
+    // chest (SEEK_TREASURE, bypassing the normal knowledge gate — they
+    // have a treasure map), and flee the instant they've grabbed loot.
+    // If every chest is already looted (or there are none reachable),
+    // they leave empty-handed so the day can end.
+    if (adv._treasureHunter) {
+      if ((adv.stolenGold ?? 0) > 0) return { type: 'ESCAPE_WITH_LOOT' }
+      const chest = this._nearestUnopenedChest(adv)
+      return chest
+        ? { type: 'SEEK_TREASURE', chestId: chest.instanceId }
+        : { type: 'FLEE', reason: 'no_loot_left' }
+    }
     // Dungeon event: The Saboteur — tours the dungeon disabling every
     // trap, then flees. Never picks a combat or exploration goal.
     if (adv._saboteur) return this._nextSaboteurGoal(adv)

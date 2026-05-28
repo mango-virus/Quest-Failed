@@ -2871,6 +2871,15 @@ export class NightPhase extends Phaser.Scene {
       c.tileX === tx && c.tileY === ty
     )
     if (treasureHit) {
+      // Treasure Hunters event — chests are locked from selling the night
+      // it's announced so the player can't dodge the raid by cashing out.
+      // The `treasureHuntersActive` flag isn't set until day-begin, so on
+      // the ANNOUNCE night we gate on the scheduled event id instead.
+      const _ef = this._gameState._eventFlags ?? {}
+      if (_ef.treasureHuntersActive || this._gameState.events?.scheduledId === 'treasure_hunters') {
+        this._showPlacementError("Treasure Hunters are coming — you can't sell chests tonight!")
+        return
+      }
       const def    = (this.cache.json.get('items') ?? []).find(it => it.id === `treasure_chest_${treasureHit.tier}`)
       const refund = this._sellRefund('treasureChest', treasureHit)
       this._promptSell(
@@ -2966,6 +2975,16 @@ export class NightPhase extends Phaser.Scene {
     const minions   = (this._gameState.minions ?? []).filter(m => m.aiState !== 'dead' && inside(m))
     const traps     = (this._gameState.dungeon.traps ?? []).filter(t => inside(t))
     const chests    = (this._gameState.dungeon.treasureChests ?? []).filter(c => inside(c))
+    // Treasure Hunters lock chests from being cashed out the night they're
+    // announced — selling a ROOM that contains chests would dodge that, so
+    // refuse it too. (Gate on scheduledId: the active flag isn't set until
+    // day-begin.) Rooms with no chests sell normally.
+    const _ef = this._gameState._eventFlags ?? {}
+    if (chests.length > 0 &&
+        (_ef.treasureHuntersActive || this._gameState.events?.scheduledId === 'treasure_hunters')) {
+      this._showPlacementError("Treasure Hunters are coming — you can't sell rooms holding chests tonight!")
+      return
+    }
     const keyChests = (this._gameState.dungeon.keyChests ?? []).filter(c => inside(c))
     // A beacon/fountain pair is pulled in if EITHER half sits in the room.
     const fountains = this._gameState.dungeon.fountains ?? []

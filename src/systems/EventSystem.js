@@ -217,11 +217,23 @@ export class EventSystem {
 
   _eligibleEvents() {
     // Every event is eligible from day one — no boss-level or day-count
-    // gate. The only filter is the no-repeat rule: an event can't fire
-    // twice in a row. (`minBossLevel` in events.json is now vestigial —
-    // kept as a difficulty-tier hint, not enforced.)
+    // gate. The only filters are the no-repeat rule (an event can't fire
+    // twice in a row) plus per-event state PRECONDITIONS (see _eventPrecondMet).
+    // (`minBossLevel` in events.json is now vestigial — kept as a
+    // difficulty-tier hint, not enforced.)
     const lastId = this._gameState.events.lastEventId
-    return this._defs.filter(d => d.id !== lastId)
+    return this._defs.filter(d => d.id !== lastId && this._eventPrecondMet(d))
+  }
+
+  // Conditional-eligibility gate. Most events are always eligible (returns
+  // true); a few only make sense when the game is in a particular state.
+  // First use (2026-05-27): Treasure Hunters can't fire if the player owns
+  // no treasure chests — there'd be nothing to rob.
+  _eventPrecondMet(def) {
+    if (def.id === 'treasure_hunters') {
+      return (this._gameState.dungeon?.treasureChests ?? []).length > 0
+    }
+    return true
   }
 
   _pickEvent() {
@@ -1345,6 +1357,12 @@ export class EventSystem {
         // instead of the normal wave. _spawnBossRoyale reads this flag.
         flags.bossRoyaleActive = true
         break
+      case 'treasure_hunters':
+        // DayPhase tags every spawned adv _treasureHunter; AISystem routes
+        // them to chests (ignore the boss). The night sell-block keys off
+        // events.scheduledId (the flag isn't set until now, day-begin).
+        flags.treasureHuntersActive = true
+        break
       case 'dark_deal':
         // The demon NPC + pact-pick flow happens in night phase via
         // DarkDealDemonRenderer; if the player accepted, that flow set
@@ -1503,6 +1521,9 @@ export class EventSystem {
         break
       case 'boss_royale':
         flags.bossRoyaleActive = false
+        break
+      case 'treasure_hunters':
+        flags.treasureHuntersActive = false
         break
       case 'dark_deal':
         // Restore boss maxHp captured at apply time. Use the snapshot —

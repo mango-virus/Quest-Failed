@@ -254,5 +254,13 @@
     "icon": "👑",
     "colorTheme": "crimson",
     "minBossLevel": 1
+  },
+  {
+    "id": "treasure_hunters",
+    "title": "TREASURE HUNTERS",
+    "notif": "Word of your hoard got out — today's whole wave is here for the loot. They ignore your throne entirely, rush your treasure chests, and flee once they've robbed them. Guard your gold. (You can't sell chests tonight.)",
+    "icon": "🗝️",
+    "colorTheme": "gold",
+    "minBossLevel": 1
   }
 ]
