@@ -1289,11 +1289,11 @@ export class AISystem {
             goal:          adv.goal?.type ?? null,
             aiState:       adv.aiState,
           })
-          // Light diagnostic so playtesters can see it in the console
-          // without enabling extra logging.
-          // eslint-disable-next-line no-console
-          console.log('[stuck-unstuck] adv', adv.instanceId, 'at', adv.tileX, adv.tileY,
-            'goal:', adv.goal?.type, 'state:', adv.aiState)
+          // Diagnostic routed through _aiDiag (no-op stub by default; the
+          // F4 on-screen overlay surfaces these without spamming the
+          // console). Previously a raw console.log that fired per-stuck-
+          // tick — fine with 10 advs, an unreadable torrent at 95+.
+          this._aiDiag(adv, `stuck-unstuck at (${adv.tileX},${adv.tileY}) goal=${adv.goal?.type ?? '(none)'} state=${adv.aiState}`)
         }
       }
 
