@@ -97,6 +97,7 @@ export class Game extends Phaser.Scene {
     this._dragOrigin         = null
     this._keys               = null
     this._followId           = null
+    this._duelCamLock        = false   // Solo Leveling — lock camera during the duel
     this.bossRenderer        = null
   }
 
@@ -839,6 +840,7 @@ export class Game extends Phaser.Scene {
   _onDayEnded() {
     // Clear follow state silently — DayPhase UI is already tearing down.
     this._followId = null
+    this._duelCamLock = false   // safety: never leave the duel lock set across phases
     // The intel/knowledge heat map button lives on DayPhase, which is
     // shutting down. The overlay graphics live on this (Game) scene and
     // would otherwise stay visible into the night. Force-off here so the
@@ -1005,6 +1007,11 @@ export class Game extends Phaser.Scene {
     if (!this._cam) return
     const boss = this.gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!boss) return
+    // Solo Leveling — lock the camera on the throne for the whole duel: the
+    // zoom-in plays, then the player can't pan/zoom until the fight resolves
+    // (released in _onBossFightZoomOut). Wired ONLY to SHADOW_MONARCH_DUEL.
+    this._duelCamLock = true
+    this._dragOrigin = null
     const bx = (boss.gridX + boss.width  / 2) * TS
     const by = (boss.gridY + boss.height / 2) * TS
     // Snapshot only once — successive incoming events during a single
@@ -1026,6 +1033,9 @@ export class Game extends Phaser.Scene {
   }
 
   _onBossFightZoomOut() {
+    // Release the duel camera lock the moment the fight resolves (before the
+    // early-return, so it always clears even if the snapshot is missing).
+    this._duelCamLock = false
     if (!this._cam || !this._preFightCam) return
     const snap = this._preFightCam
     this._tweenCameraTo(snap.worldCX, snap.worldCY, snap.zoom, 700, 'Sine.easeInOut',
@@ -1368,6 +1378,7 @@ export class Game extends Phaser.Scene {
   _setupInput() {
     // (Browser context menu suppressed game-wide in main.js.)
     this.input.on('pointerdown', (p) => {
+      if (this._duelCamLock) return   // Solo Leveling duel — world input frozen
       if (p.middleButtonDown() || (p.rightButtonDown() && !this._isCorridorMode())) {
         this._dragOrigin = { x: p.x + this._cam.scrollX, y: p.y + this._cam.scrollY }
         if (this._followId) this._setFollow(null)
@@ -1400,6 +1411,7 @@ export class Game extends Phaser.Scene {
     this.input.on('pointerup', () => { this._dragOrigin = null })
 
     this.input.on('wheel', (pointer, _o, _dx, dy) => {
+      if (this._duelCamLock) return   // Solo Leveling duel — zoom locked
       // Let HudScene's BuildMenu eat wheels that happen over the slot
       // grid — without this guard, the wheel both scrolls the menu AND
       // zooms the dungeon view at the same time. Bounds-check is
@@ -1602,7 +1614,7 @@ export class Game extends Phaser.Scene {
     const possessedId = this.gameState?._mechanicFlags?.possessedMinionId
     if (possessedId) {
       this._tickMarionette(_time, delta)
-    } else {
+    } else if (!this._duelCamLock) {
       if (this._keys.W.isDown) this._cam.scrollY -= speed
       if (this._keys.S.isDown) this._cam.scrollY += speed
       if (this._keys.A.isDown) this._cam.scrollX -= speed
@@ -1612,7 +1624,7 @@ export class Game extends Phaser.Scene {
     // Smooth camera follow (day phase only). Suspended while the boss-
     // fight cinematic tween owns the camera so the follow lerp doesn't
     // drag scroll back toward the lead adventurer mid-zoom.
-    if (this._followId && this.gameState.meta.phase === 'day' && !this._fightCamActive) {
+    if (this._followId && this.gameState.meta.phase === 'day' && !this._fightCamActive && !this._duelCamLock) {
       const adv = this.gameState.adventurers.active.find(a => a.instanceId === this._followId)
       if (adv) {
         const tx = adv.worldX - this._cam.centerX
@@ -1631,7 +1643,7 @@ export class Game extends Phaser.Scene {
     // the boss-fight cinematic tween is running so it can place the
     // camera on the boss room without the clamp pulling it back to a
     // fitted-centre position each frame.
-    if (!this._fightCamActive) this._clampCameraToPlayArea()
+    if (!this._fightCamActive && !this._duelCamLock) this._clampCameraToPlayArea()
 
     // Door open/close animations always tick at real time — the visual
     // shouldn't depend on time scale (and the entry-hall door auto-opens at

@@ -340,7 +340,7 @@ export class SoloLevelingCinematic {
     this._bossFill = bossFill
     this._duelHud = h('div', { className: 'qf-sl-duelhud' }, [
       h('div', { className: 'qf-sl-side left' }, [
-        h('div', { className: 'qf-sl-name' }, 'THE SHADOW MONARCH'),
+        h('div', { className: 'qf-sl-name' }, 'SUNG JINWOO'),
         h('div', { className: 'qf-sl-track' }, [advFill]),
       ]),
       h('div', { className: 'qf-sl-vs' }, 'VS'),
@@ -379,7 +379,7 @@ export class SoloLevelingCinematic {
     this._vs = h('div', { className: 'qf-sl-vs' }, [
       h('div', { className: 'qf-sl-vs-dim' }),
       h('div', { className: 'qf-sl-vs-row' }, [
-        h('div', { className: 'qf-sl-vs-side left' }, 'THE SHADOW MONARCH'),
+        h('div', { className: 'qf-sl-vs-side left' }, 'SUNG JINWOO'),
         h('div', { className: 'qf-sl-vs-mark' }, 'VS'),
         h('div', { className: 'qf-sl-vs-side right' }, String(bossName).toUpperCase()),
       ]),
