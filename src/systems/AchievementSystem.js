@@ -393,12 +393,13 @@ class AchievementSystemImpl {
         }
       }
     }
-    // Solo Leveling — Sung Jinwoo (the Shadow Monarch) only dies when the
-    // player BEATS him; if he wins the duel he flees instead (ADVENTURER_FLED).
-    // So his death here is exactly the "you defeated the Monarch" feat that
-    // grants the legendary 'monarch_slayer' achievement (→ Necroknight
-    // companion + "King of the Dead" title). One-shot latch metric.
-    if (adv?._shadowMonarch) {
+    // Solo Leveling — the legendary 'monarch_slayer' achievement (→ Necroknight
+    // companion + "King of the Dead" title) is earned ONLY when the player's
+    // BOSS kills Sung Jinwoo in the throne-room duel. Jinwoo is unkillable by
+    // anything else (minions, traps, abilities all floor him at 10%), so a boss
+    // kill is the sole qualifying death — gate explicitly on `isBoss` so no
+    // other death source can ever grant it. One-shot latch metric.
+    if (adv?._shadowMonarch && isBoss) {
       this._metrics.shadowMonarchDefeated = 1
     }
     this._persistMetrics()
