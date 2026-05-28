@@ -510,14 +510,19 @@ export class AchievementsOverlay {
   //                Curtain Call — which unlocks Rattle Bones AND grants
   //                "The Showrunner" — lives under COMPANIONS only, where
   //                its card actually reads as a companion unlock.
-  //   <category> — its category matches (mastery today). A mastery
-  //                legendary that grants a pure title still shows in both
-  //                MASTERY and TITLES — intended; ALL lists it once.
+  //   mastery    — EVERY legendary achievement (regardless of its
+  //                category), so the tab is the complete legendary
+  //                showcase. An achievement can match more than one tab
+  //                (a legendary that grants a title shows in MASTERY and
+  //                TITLES) — intended; ALL lists it once.
+  //   <category> — fallback: category match (no other category tab ships
+  //                today, kept for forward-compat).
   _defMatchesTab(def, tab) {
     if (tab === 'all')        return true
     if (tab === 'companions') return def.reward?.type === 'companion'
     if (tab === 'titles')     return !!def.title &&
       def.reward?.type !== 'companion' && def.reward?.type !== 'boss'
+    if (tab === 'mastery')    return !!def.legendary
     return def.category === tab
   }
 
