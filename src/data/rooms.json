@@ -1810,7 +1810,7 @@
             "gateway",
             "trap_source"
         ],
-        "description": "Each Trap Factory adds +5 trap slots to your global trap pool. Gateway: without a Trap Factory, no traps can be placed.",
+        "description": "Each Trap Factory adds +3 trap slots to your global trap pool. Only 1 trap per room. Gateway: without a Trap Factory, no traps can be placed.",
         "flavorText": "Mechanisms. So many mechanisms.",
         "theme": null,
         "doorTheme": null,

@@ -42,7 +42,7 @@ const TINKERER_BADGE_INFO = {
   starter_barracks:    { name: 'Drill Sergeant',    description: '+5 roster slots per Barracks' },
   starter_guard_post:  { name: 'Eagle Eye',         description: '+25% Guard Post ambush damage' },
   crypt:               { name: 'Crowded Crypt',     description: '+2 Risen Bones per Crypt (6 total)' },
-  trap_factory:        { name: 'Assembly Line',     description: '+3 trap slots per Trap Factory' },
+  trap_factory:        { name: 'Assembly Line',     description: '+1 trap slot per Trap Factory' },
   treasury:            { name: 'Golden Vault',      description: 'Treasury stipend +50% · chests +1 tier' },
   armory:              { name: 'Weaponsmith',       description: 'Armory ATK aura doubled' },
   library_of_whispers: { name: "Oracle's Tome",     description: '+1 boss XP per kill, per Library' },

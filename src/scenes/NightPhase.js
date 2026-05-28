@@ -1989,28 +1989,18 @@ export class NightPhase extends Phaser.Scene {
         const room = grid.getRoomAtTile(tx, ty)
         if (room && (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall'))
           violations.push('Not in the boss room or entry hall')
-        // 2×2 floor traps (Spike Pit, Spike Pillar, Rotating Blades) eat
-        // most of the floor in a small room and feel oppressive — block
-        // them in any room the size of the Armoury (8×8 outer / 16 floor
-        // tiles) or smaller. Outer area <= 64 catches the armoury, guard
-        // post, sanctum, wandering gate, watchtower, etc. — anything
-        // 10-wide-or-deeper (barracks, treasury, trap factory, halls)
-        // still accepts them.
-        if (fp.w * fp.h >= 4 && room && (room.width * room.height) <= 64) {
-          const allRooms = this.cache.json.get('rooms') ?? []
-          const rDef = allRooms.find(d => d.id === room.definitionId)
-          const rName = rDef?.name ?? 'This room'
-          violations.push(`${rName} is too small for a 2×2 trap — place it in a larger room`)
-        }
-        // Spike Pit must sit fully interior — footprint + surrounding ring
-        // all floor (no wall/door/void touching it).
-        if (def.placement === 'floor_interior') {
-          let ringOK = true
-          for (let dy = -1; dy <= fp.h && ringOK; dy++)
-            for (let dx = -1; dx <= fp.w && ringOK; dx++)
-              if (grid.getTileType(tx + dx, ty + dy) !== TILE.FLOOR) ringOK = false
-          if (!ringOK) violations.push('Must sit fully inside a room (away from walls)')
-        }
+        // Restrictions retired 2026-05-27 per user direction:
+        //   • 2×2-trap small-room block (was: outer-area <= 64 rejects
+        //     Spike Pit / Spike Pillar / Rotating Blades from rooms
+        //     like Armoury / Guard Post / Sanctum). 2×2 traps now
+        //     drop anywhere they physically fit.
+        //   • Spike Pit `floor_interior` ring requirement (was:
+        //     footprint + surrounding ring must all be floor — no
+        //     walls / doors / void touching). Spike Pits now drop
+        //     adjacent to walls.
+        // The trap def's `placement === 'floor_interior'` field is
+        // kept on the data side for forward-compat but no longer gates
+        // anything in this validator.
       }
     }
 
@@ -2039,11 +2029,14 @@ export class NightPhase extends Phaser.Scene {
     if (fpTiles.some(c => occupied.has(`${c.x},${c.y}`)))
       violations.push('Overlaps another trap')
 
-    // Per-room trap cap (max 3 per room). Counts every trap whose
-    // primary room matches the target room — floor traps use their
-    // own tile, wall traps use the room they face INTO. The trap
-    // being relocated (MOVE tool) is excluded from the count so a
-    // pickup-and-drop in the same room doesn't trip the cap.
+    // Per-room trap cap (max 1 per room, lowered from 3 on 2026-05-27
+    // per user direction). Counts every trap whose primary room matches
+    // the target room — floor traps use their own tile, wall traps use
+    // the room they face INTO. Wall and floor traps share the same
+    // count, so a single wall-mounted Arrow Wall blocks any floor trap
+    // in that room and vice versa. The trap being relocated (MOVE
+    // tool) is excluded from the count so a pickup-and-drop in the
+    // same room doesn't trip the cap.
     const targetRoom = (def.placement === 'wall')
       ? (() => {
           const facing = this._wallTrapFacing(tx, ty)
@@ -2068,8 +2061,8 @@ export class NightPhase extends Phaser.Scene {
         }
         if (trRoom && trRoom.instanceId === targetRoom.instanceId) trapsInRoom++
       }
-      if (trapsInRoom >= 3) {
-        violations.push('Max 3 traps per room')
+      if (trapsInRoom >= 1) {
+        violations.push('Only 1 trap per room')
       }
     }
 
@@ -2080,15 +2073,16 @@ export class NightPhase extends Phaser.Scene {
     if (fpTiles.some(c => minionTiles.has(`${c.x},${c.y}`)))
       violations.push('Tile occupied by a minion')
 
-    // Trap Factory gateway — each Factory adds +5 trap slots. Skipped when
-    // relocating an already-placed trap (the MOVE tool is gold/slot-neutral).
+    // Trap Factory gateway — each Factory adds +3 trap slots (was +5,
+    // lowered 2026-05-27 per user direction). Skipped when relocating
+    // an already-placed trap (the MOVE tool is gold/slot-neutral).
     if (!this._heldMoveTrap) {
       const cap = this._trapCap()
       const used = this._trapUsed()
       if (cap === 0) {
         violations.push('Build a Trap Factory to unlock traps')
       } else if (used >= cap) {
-        violations.push(`Trap pool full (${used}/${cap}) — build another Trap Factory for +5 slots`)
+        violations.push(`Trap pool full (${used}/${cap}) — build another Trap Factory for +3 slots`)
         EventBus.emit('PLACEMENT_BLOCKED', { reason: 'trap_pool_full' })
       }
       if (this._effectiveTrapCost(def) > this._gameState.player.gold) {
@@ -2134,11 +2128,15 @@ export class NightPhase extends Phaser.Scene {
     const factoryCount = (this._gameState.dungeon.rooms ?? [])
       .filter(r => r.definitionId === 'trap_factory' && r.isActive !== false).length
     const f = this._gameState._mechanicFlags ?? {}
-    const perFactory = f.trapSlotsPerFactory ?? 5
-    // Tinkerer's Workshop "Assembly Line" — +3 slots per factory (8
-    // total each) when the type is upgraded.
+    // Base +3 slots per factory (lowered from +5 on 2026-05-27 to pair
+    // with the per-room trap cap drop from 3 → 1; traps are now a
+    // scarce premium asset, not a default chokepoint stack).
+    const perFactory = f.trapSlotsPerFactory ?? 3
+    // Tinkerer's Workshop "Assembly Line" — +1 extra slot per factory
+    // (4 total each) when the type is upgraded. Was +3 pre-rebalance,
+    // dropped to +1 to keep the upgrade proportional to the new base.
     const tinkerBonus = (this._gameState._tinkeredRoomTypes ?? []).includes('trap_factory')
-      ? factoryCount * 3 : 0
+      ? factoryCount * 1 : 0
     const bonus = f.maxTrapSlotBonus ?? 0
     return Math.max(0, factoryCount * perFactory + tinkerBonus + bonus)
   }
