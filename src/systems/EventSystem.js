@@ -284,10 +284,9 @@ export class EventSystem {
         hp:      shadowHp,
         attack:  shadowAtk,
         defense: shadowDef,
-        // 1.5× base speed — fast, but NOT as fast as the 2×-base Monarch, so
-        // the shadow army trails him rather than matching pace. Jinwoo's speed
-        // is 2× base, so 0.75× his speed = 1.5× base.
-        speed:   (jinwoo.stats?.speed ?? 2.8) * 0.75,
+        // Normal speed — the shadow keeps the natural movement speed of the
+        // minion it rose from (no Monarch speed buff).
+        speed:   src.stats?.speed ?? 1.0,
         abilities: [...(src.stats?.abilities ?? [])],
       },
       resources: {
