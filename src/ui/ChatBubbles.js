@@ -575,6 +575,10 @@ export class ChatBubbles {
   // Shows a contextual bubble, bypassing the walking-only restriction.
   // Per-adventurer cooldown prevents rapid stacking.
   _showContextualBubble(adv, line) {
+    // Jinwoo never uses the generic event lines — swap in one of his own for
+    // any contextual reaction (combat start, low HP, boss room, …). This is
+    // the single chokepoint every contextual bubble routes through.
+    if (this._isShadowMonarch(adv)) line = this._shadowMonarchLine()
     if (!adv || !line || adv.aiState === 'dead') return
     const now  = this._scene.time.now
     const last = this._lastContextualAt[adv.instanceId] ?? 0
@@ -641,7 +645,27 @@ export class ChatBubbles {
 
   // ── Line selection ────────────────────────────────────────────────────────
 
+  // Sung Jinwoo speaks ONLY in his own voice — never the generic class /
+  // personality / fourth-wall chatter. True for the Solo Leveling event's
+  // named adventurer (classId/spriteVariant `shadow_monarch`, flag set in
+  // DayPhase).
+  _isShadowMonarch(adv) {
+    return !!adv && (
+      adv._shadowMonarch ||
+      adv.classId === 'shadow_monarch' ||
+      (typeof adv.spriteVariant === 'string' && adv.spriteVariant.startsWith('shadow_monarch'))
+    )
+  }
+
+  _shadowMonarchLine() {
+    const pool = this._lines?.shadowMonarch ?? []
+    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null
+  }
+
   _pickLine(adv) {
+    // Jinwoo overrides everything with his own iconic lines.
+    if (this._isShadowMonarch(adv)) return this._shadowMonarchLine()
+
     const byClass       = this._lines.byClass       ?? {}
     const byPersonality = this._lines.byPersonality ?? {}
     const fourthWall    = this._lines.fourthWall    ?? []

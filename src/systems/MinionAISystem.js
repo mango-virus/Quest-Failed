@@ -1145,7 +1145,16 @@ export class MinionAISystem {
     const enteringDoor = this._dungeonGrid?.getCpForDoorTile?.(targetTile.x, targetTile.y)
     if (enteringDoor && !enteringDoor.cp.open) {
       this._scene?._dungeonRenderer?.openDoor(enteringDoor.cp)
-      return
+      // Dungeon minions HOLD at the doorway until the 0.5 s open animation
+      // finishes (so they don't visibly phase through a closed door while
+      // patrolling). Owner-following allies — necromancer raises, beast-master
+      // tames, and Jinwoo's shadow army — instead walk through as it opens,
+      // exactly like the adventurer they follow (AISystem opens-on-step, never
+      // pauses). Without this the per-door 0.5 s pause compounds across every
+      // doorway and a fast owner (the 2x-speed Shadow Monarch) leaves his army
+      // stranded behind each door. They still trigger the open above.
+      const isFollowingAlly = minion.raisedByAdvId || minion.tamedByAdvId
+      if (!isFollowingAlly) return
     }
 
     // Lane-centred world target — see DungeonGrid.getLaneCenterWorld.

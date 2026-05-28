@@ -389,6 +389,10 @@ export class AISystem {
   // adv switches to ESCAPE_WITH_LOOT (entry-hall beeline). Otherwise
   // they continue with their original goal carrying the prize.
   _tryOpenTreasureChest(adv) {
+    // Sung Jinwoo has no interest in the dungeon's gold — he's here for the
+    // boss alone. Skip the proximity loot entirely so he never pops a chest
+    // he happens to beeline past on his way to the throne.
+    if (adv._shadowMonarch) return
     if (adv.stolenGold > 0) return   // already carrying — don't rob another
     for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
       if (chest.opened) continue
