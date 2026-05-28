@@ -2425,6 +2425,17 @@ export class BossSystem {
       this._emitFx({ kind: 'strike', x: adv.worldX, y: adv.worldY, color: 0xff5544 })
       this._floatDamage(adv.worldX, adv.worldY - 12, jinDmg, { color: '#ff8866' })
     }
+    // Final HP push so the duel-HUD bars land on the TRUE value before the
+    // fight ends — _tickDuel's per-frame feed stops the instant a side is down,
+    // otherwise the bar freezes a sliver short of empty.
+    const aMax = adv.resources?.maxHp ?? 1
+    const bMax = boss.maxHp ?? 1
+    if (boss.hp <= 0 || (adv.resources.hp ?? 0) <= 0) {
+      EventBus.emit('SHADOW_MONARCH_DUEL_HP', {
+        advFrac:  aMax > 0 ? Math.max(0, Math.min(1, (adv.resources?.hp ?? 0) / aMax)) : 0,
+        bossFrac: bMax > 0 ? Math.max(0, Math.min(1, (boss.hp ?? 0) / bMax)) : 0,
+      })
+    }
     if (boss.hp <= 0) { this._endFight('party'); return }
     if ((adv.resources.hp ?? 0) <= 0) { fs.action = 'dying'; this._endFight('boss'); return }
   }
