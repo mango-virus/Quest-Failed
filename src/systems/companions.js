@@ -445,8 +445,8 @@ export const COMPANIONS = {
 
   // Spectra — ninth keeper. Ghost-girl otaku, anime/games/manga/snacks
   // and gets distracted easily. Ships LOCKED on the recruit screen
-  // behind the legendary `flawless_reign` achievement (survive 30 days
-  // in a single run without the boss taking any damage) — once that
+  // behind the legendary `flawless_reign` achievement (survive the first
+  // 30 days of a run without the boss taking any damage) — once that
   // fires, `AchievementSystem._unlock` calls `PlayerProfile.unlockCompanion('spectra')`
   // and she becomes available like Rattle's curtain_call path.
   //

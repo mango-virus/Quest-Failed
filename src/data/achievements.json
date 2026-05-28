@@ -428,7 +428,7 @@
   {
     "id": "flawless_reign",
     "name": "Flawless Reign",
-    "description": "Survive 30 days in a single run without the boss taking any damage.",
+    "description": "Survive the first 30 days of a run without your boss taking any damage.",
     "category": "mastery",
     "metric": "daysSurvivedNoHitMax",
     "target": 30,
