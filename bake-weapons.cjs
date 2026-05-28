@@ -72,21 +72,11 @@ const ATK_CLASSES = new Set([
   // crossbows, staves, glowsword). The oversize attack sheet keeps long
   // weapons rendered at native 192×192 instead of being shrunk into 64×64.
   'cheater',
-  // Sung Jinwoo (Solo Leveling event) — carries a 64px Saber but SWINGS the
-  // Scimitar (see ATK_WEAPON_OVERRIDE below). Either way the swing only exists
-  // as oversize art, so it needs the _atk sheet to be visible mid-attack.
+  // Sung Jinwoo (Solo Leveling event) — melee Saber whose only swing art is
+  // the 192×192 slash_oversize sheet. Without the atk sheet his blade is
+  // invisible mid-attack (the oversize slash can't fit the 64×64 main sheet).
   'shadow_monarch',
 ]);
-// Classes whose attack SWING uses a different blade than the one they carry.
-// The carry weapon (manifest `weapon`, e.g. Jinwoo's Saber) is what the main
-// 64px sheet shows during walk/idle/run; the override weapon is composited into
-// the oversize `_atk` swing sheet instead. Used for blades like the Scimitar
-// that ship ONLY oversize art (no 64px carry frames) — we carry a look-alike
-// that does, and swing the real thing via the atk sheet. For these classes we
-// skip the main-sheet re-bake entirely (bake-lpc-variants already produced the
-// correct carry, and re-baking would ghost-strip the slash row with the carry
-// blade's shape, leaving holes the override blade wouldn't cover).
-const ATK_WEAPON_OVERRIDE = { shadow_monarch: 'Scimitar' };
 const ATK_FRAME       = 192;          // frame size in atk sheet
 const ATK_COLS        = 8;            // max frames per row (thrust = 8)
 const ATK_ROW_COUNT   = 8;            // 4 slash dirs + 4 thrust dirs
@@ -411,28 +401,6 @@ async function processVariant(className, variant, idx, total) {
   const bodyType = variant.bodyType === 'muscular' ? 'muscular'
                  : variant.bodyType === 'female'   ? 'female'
                  :                                   'male';
-
-  // Split-blade classes (e.g. Jinwoo: carries a Saber, swings a Scimitar).
-  // The carry weapon is already baked into the main sheet by bake-lpc-variants,
-  // and its oversize swing art was skipped — so charPath's slash row holds a
-  // clean, weaponless body. Build the _atk swing sheet with the OVERRIDE blade
-  // over that clean body and leave the main sheet untouched (re-baking would
-  // ghost-strip the slash body with the carry blade's shape, which the override
-  // blade wouldn't fully cover).
-  const atkOverrideName = ATK_WEAPON_OVERRIDE[className];
-  if (atkOverrideName && ATK_CLASSES.has(className)) {
-    const atkDef = WEAPON_DEFS[atkOverrideName];
-    if (!atkDef) {
-      console.warn(`  No def found for atk-override weapon "${atkOverrideName}" (${className}/${variant.id})`);
-      return;
-    }
-    const atkVariantFile = pickVariant(atkDef, variant);
-    const atkBuf  = await buildAttackSheet(charPath, atkDef, atkVariantFile, bodyType);
-    const atkPath = path.join(ADV, className, variant.id + '_atk.png');
-    fs.writeFileSync(atkPath, atkBuf);
-    process.stdout.write(`\r  [${idx + 1}/${total}] ${className}/${variant.id} (carry ${weaponName} / swing ${atkOverrideName})          `);
-    return;
-  }
 
   const layers = getLayers(def);
 

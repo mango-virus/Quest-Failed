@@ -641,16 +641,11 @@ POOLS.shadow_monarch = {
   torso:         ['Frock coat'],
   legs:          ['Long Pants'],
   feet:          ['Basic Shoes'],
-  // Hybrid blade — Saber for the CARRY pose, Scimitar for the SWING:
-  //  • The Saber ships standard 64px walk art, so the main 64px sheet shows him
-  //    holding it during walk/idle/run (its oversize slash is skipped, leaving a
-  //    clean weaponless body in the slash row).
-  //  • The Scimitar is the design's intended swing blade but ships ONLY oversize
-  //    128px art. bake-weapons.cjs's ATK_WEAPON_OVERRIDE swaps it in for the
-  //    `_atk` swing sheet (slash_128 upscaled 128->192), composited over the
-  //    Saber's clean slash-row body — so he draws the curved Scimitar mid-attack.
-  // This pool entry is the CARRY weapon; the swing override lives in
-  // bake-weapons.cjs (ATK_WEAPON_OVERRIDE.shadow_monarch = 'Scimitar').
+  // Saber, not Scimitar: the scimitar (and katana) ship ONLY oversize 128px
+  // art that can't composite into the 64px base sheet, so it rendered
+  // invisible. The saber is a curved single-edged blade (visually ~a
+  // scimitar) that DOES ship standard 64px walk/slash art, so it actually
+  // shows in-hand.
   weapon: {
     items: ['Saber'],
     chance: 1.0,
