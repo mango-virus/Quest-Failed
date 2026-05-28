@@ -13611,8 +13611,8 @@ body {
   animation: qf-tfx-sweep 3.2s linear infinite;
 }
 @keyframes qf-tfx-sweep {
-  from { background-position: 0%   center; }
-  to   { background-position: 220% center; }
+  from { background-position: 220% center; }
+  to   { background-position: 0%   center; }
 }
 
 .qf-titlefx-rainbow {
