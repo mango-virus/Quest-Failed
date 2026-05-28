@@ -1054,6 +1054,12 @@ The rare Shadow Monarch invader ("Sung Jinwoo") and his bespoke duel. The base f
 | sl-duel-beats | **Rising phase beats: boss enrage + Jinwoo power surge at HP thresholds, with battle-cry lines** | SL P5 | ✅ DONE | `_checkDuelBeats` emits SHADOW_MONARCH_DUEL_BEAT (enrage@50%, surge@25%); DOM pulse+label; surge routes a Jinwoo line via ChatBubbles |
 | sl-duel-climax | **Two climaxes: slow-mo shadow execution (win) / last-stand kneel + finishing blow (loss)** | SL P5 | ✅ DONE | `_endFight` duel branch (shadow-shatter on win / dark burst on loss) + SHADOW_MONARCH_DUEL_END DOM finale card |
 | sl-duel-framing | **Live two-bar duel HUD header (Monarch vs boss HP), beat-synced chat lines, impact/music sting** | SL P5 | ✅ DONE | DOM duel header fed by throttled SHADOW_MONARCH_DUEL_HP; SfxSystem clash/blink/beat cues + existing boss-death sting |
+| sl-duel-len | Duel runs ~3.5× longer (30–44 rounds ≈ 18–26s) for suspense; loser's HP bar empties on the killing blow | SL P5 | ✅ DONE | `_buildDuelScript` totalRounds; final SHADOW_MONARCH_DUEL_HP push before `_endFight` |
+| sl-duel-camlock | Camera locks on the throne for the whole duel (no pan/zoom) until the fight resolves; clicking Jinwoo's exploration bar re-locks follow | SL P5 | ✅ DONE | `_duelCamLock` gates drag/wheel/WASD/follow/clamp; SHADOW_MONARCH_FOLLOW → _setFollow |
+| sl-outro-loss | **Defeat outro: Jinwoo stands + speaks closing lines → death anim → short delay → post-wave summary; +1000g bounty** | SL P6 | ⏳ PENDING | defer _killAdv via duel-outro state; keep him in active to hold the summary; flat +1000g |
+| sl-outro-win | **Win outro: Jinwoo stands + closing lines → "Arise." → boss revives w/ blue shadow-flame → blue portal fades in → Jinwoo walks in + fades → summary** | SL P6 | ⏳ PENDING | duel-outro state machine; BossRenderer revive-as-shadow hook; AdventurerRenderer fade hook; baked blue portal asset |
+| sl-boss-claimed | **After a Monarch win the boss keeps the shadow-flame + blue tint for the REST OF THE RUN (cosmetic, persisted)** | SL P6 | ⏳ PENDING | `boss.shadowClaimed` flag (save-safe, non-stripped); BossRenderer renders flame when set |
+| sl-portal-blue | Blue-recolored portal asset (hue-shift of demon_portal) for the win-outro exit | SL P6 | ⏳ PENDING | bake `demon_portal` → blue variant; load in Preload + spin anim |
 
 ---
 

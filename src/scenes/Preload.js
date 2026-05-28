@@ -636,6 +636,11 @@ export class Preload extends Phaser.Scene {
     // 96×64 sheet, 3 cols × 2 rows, each frame 32×32. 6-frame looping portal.
     this.load.spritesheet('demon-portal', 'assets/sprites/demon_portal.png', { frameWidth: 32, frameHeight: 32 })
 
+    // ── Shadow portal (Solo Leveling — Jinwoo's win-outro exit) ────────────
+    // Blue hue-shift of the demon portal (tools/bake-shadow-portal.cjs). Same
+    // 96×64 / 6-frame layout. Jinwoo walks into this and fades away on a win.
+    this.load.spritesheet('shadow-portal', 'assets/sprites/shadow_portal.png', { frameWidth: 32, frameHeight: 32 })
+
     // ── Game-jam portal (MainMenu hyperlink to the jam lobby) ────────────
     // 96×64 sheet, 3 cols × 2 rows, each frame 32×32. 6-frame looping portal.
     this.load.spritesheet('jam-portal', 'assets/sprites/jam_portal.png', { frameWidth: 32, frameHeight: 32 })
@@ -771,6 +776,7 @@ export class Preload extends Phaser.Scene {
     this._registerAdventurerAttackAnimations()
     this._registerEmoteAnimations()
     this._registerDemonPortalAnimation()
+    this._registerShadowPortalAnimation()
     this._registerJamPortalAnimation()
     this._registerHitSparkAnimations()
     this._registerCheaterAttackAnimations()
@@ -1025,6 +1031,19 @@ export class Preload extends Phaser.Scene {
     this.anims.create({
       key:       'demon-portal-spin',
       frames:    this.anims.generateFrameNumbers('demon-portal', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat:    -1,
+    })
+  }
+
+  _registerShadowPortalAnimation() {
+    if (!this.textures.exists('shadow-portal')) return
+    if (this.anims.exists('shadow-portal-spin')) return
+    const tex = this.textures.get('shadow-portal')
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    this.anims.create({
+      key:       'shadow-portal-spin',
+      frames:    this.anims.generateFrameNumbers('shadow-portal', { start: 0, end: 5 }),
       frameRate: 8,
       repeat:    -1,
     })

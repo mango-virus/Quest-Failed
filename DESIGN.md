@@ -1222,3 +1222,21 @@ The standard boss fight treats every invader the same: they orbit the boss and t
 - **Framing & audio.** A live **two-bar duel header** (THE SHADOW MONARCH vs the boss, both HP bars updating in real time) frames the fight, his unique chat lines fire on the duel's beats, and an impact/music sting marks the clash where audio assets allow.
 
 Intent: the Shadow Monarch's arrival is already the rarest, most theatrical event in the game — the fight that pays it off should match.
+
+### Duel win/loss outro cutscenes (2026-05-28)
+
+When the duel resolves, the post-wave summary is **held back** until a short scripted outro plays out, so the player sees the ending in full. (Mechanically free: Jinwoo stays in the active-adventurer list during the outro, so the day-end auto-timer doesn't fire until he's gone.) The camera stays locked on the throne for the whole outro.
+
+**If the boss kills Jinwoo (the rare achievement path):**
+1. On the killing blow he **stops and stands** (no death animation yet) and speaks a couple of in-character closing lines (defiant / unbroken-in-defeat).
+2. *Then* his **death animation** plays.
+3. A short beat later the active list clears and the **post-wave summary** appears as normal.
+4. The player is awarded **+1000 gold** for slaying him (a flat bounty on top of nothing else — no double-count with normal kill gold).
+
+**If Jinwoo wins (your boss falls):**
+1. He **stands** over the fallen boss and speaks closing lines, ending on **"Arise."** (a normal chat bubble).
+2. On "Arise.", the **boss sprite revives visually** — it stands back up wreathed in the same **blue shadow-flame + tint** his extracted shadow minions wear.
+3. A **portal fades in** in the boss room — the existing demon-portal sprite, **recolored blue** (hue-shifted, baked as a separate asset).
+4. Jinwoo **walks to the portal and fades away** — that's how he leaves the dungeon (no normal flee-to-exit).
+5. Once he's gone, the **post-wave summary** appears.
+6. **Lasting mark:** the boss **keeps the shadow-flame + blue-tint visual for the rest of the run** — it's now part of Jinwoo's army. *(Purely cosmetic — the boss is still the player's boss and is otherwise unaffected; it only ever loses the one life from the defeat. Persisted via a flag on the boss so it survives save/load and shows on every later appearance.)* *(Reconciliation note: the boss does NOT dissolve/leave with Jinwoo — keeping it flame-marked for the run takes precedence over the earlier "he takes it as a shadow" idea, since those conflict.)*
