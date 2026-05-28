@@ -339,9 +339,9 @@
   {
     "id": "soul_collector",
     "name": "Soul Collector",
-    "description": "Earn 100 souls across all runs.",
-    "category": "economy",
-    "metric": "soulsTotal",
+    "description": "Reap the souls of 100 fallen adventurers across all runs.",
+    "category": "combat",
+    "metric": "killsTotal",
     "target": 100,
     "icon": "✨"
   },
