@@ -401,7 +401,19 @@ export const Balance = {
   // can still be finished by a follow-up hit. Spike Pit's
   // instakillChance bypasses this cap (the only legit one-shot).
   // Minions and the boss are unaffected — full raw damage applies.
-  TRAP_MAX_ADV_DMG_FRAC:         0.75,
+  //
+  // Three-zone curve (2026-05-27): trap damage on adventurers is clamped
+  // between a per-trap FLOOR and this CAP, both as a fraction of the
+  // victim's max HP. Cap (lowered 0.75 → 0.30) tames the near-lethal
+  // early game; the floor keeps traps meaningful late (flat scaling
+  // falls to ~1% of max HP by day 50 otherwise). Between the two, the
+  // flat boss-level-scaled damage applies, preserving per-trap identity.
+  TRAP_MAX_ADV_DMG_FRAC:         0.30,
+  // Late-game floor: each trap deals AT LEAST (baseDamage × this) of the
+  // victim's max HP. Spike pit base 40 → 10%; cannon 30 → 7.5%; arrow
+  // 6 → 1.5%. Auto-scales with adventurer HP so traps never become
+  // cosmetic, while preserving the relative danger of each trap.
+  TRAP_MIN_ADV_DMG_PER_BASE:     0.0025,
   // Minion gold-cost scales with boss level so prices keep pace with stats.
   // Slightly under the avg (HP+ATK)/2 stat-rate so minions feel a touch
   // more affordable at higher levels — small reward for progression.

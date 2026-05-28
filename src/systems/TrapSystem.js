@@ -419,6 +419,19 @@ export class TrapSystem {
     // The Saboteur is invulnerable while disarming — traps can't touch them.
     if (entity._invulnerable) return false
     const now = this._scene.time.now
+    // One-time-per-trap rule (2026-05-27): each ADVENTURER can be damaged
+    // by a given trap instance only ONCE. trap.state is wiped every night
+    // (resetAll) and advs don't persist across days, so this is
+    // effectively "once per trap per adventurer." Each trap is a single
+    // toll — re-crossings and continuous/area traps no longer chip the
+    // same adv repeatedly. Marked only AFTER damage actually lands (so a
+    // Monk dodge below doesn't burn the one-shot). Minions / boss are
+    // exempt — the rule is adventurer-specific per design.
+    const onceGated = this._isAdventurer(entity) && entity.instanceId && trap.state
+    if (onceGated) {
+      trap.state.hitOnce ??= {}
+      if (trap.state.hitOnce[entity.instanceId]) return false
+    }
     // Per-entity 4 s damage lockout REMOVED 2026-05-27. It sat on top of
     // each trap's own fire-rate cooldown (the per-entity `hitAt` gate on
     // stepped-on / saw traps, and the per-trap `cooldownUntil` on LOS /
@@ -443,16 +456,26 @@ export class TrapSystem {
       damage = entity.resources.hp
       instakill = true
     }
-    // Per-hit cap as a fraction of the victim's maxHp. Prevents traps
-    // from one-shotting any adventurer (except Spike Pit's instakill
-    // chance, which sets `instakill = true` above and bypasses this).
-    // The cap also smooths out the "always-exactly-1-HP" feel of a
-    // flat clamp — squishies still take a chunky, variable hit
-    // proportional to their pool. Minions + boss are unaffected.
+    // Three-zone clamp (2026-05-27) — adventurers only, instakill exempt.
+    // Damage is clamped between a per-trap FLOOR and a CAP, both % of the
+    // victim's max HP:
+    //   • CAP  (TRAP_MAX_ADV_DMG_FRAC, 30%) tames the near-lethal early
+    //     game — a day-1 spike pit chunks ~30% instead of ~75%.
+    //   • FLOOR (baseDamage × TRAP_MIN_ADV_DMG_PER_BASE × maxHp) keeps
+    //     traps meaningful late game, where flat scaling otherwise drops
+    //     to ~1% of a 4,000+ HP adventurer. Spike pit floors at 10%,
+    //     arrow at 1.5%, etc. — relative danger preserved.
+    // Between the two, the flat boss-level-scaled damage applies, so each
+    // trap keeps its hand-tuned mid-game identity.
     if (!instakill && this._isAdventurer(entity)) {
       const maxHp = entity.resources?.maxHp ?? entity.resources?.hp ?? 0
-      const frac  = Balance.TRAP_MAX_ADV_DMG_FRAC ?? 0.75
-      if (maxHp > 0) damage = Math.min(damage, Math.floor(maxHp * frac))
+      if (maxHp > 0) {
+        const capFrac   = Balance.TRAP_MAX_ADV_DMG_FRAC ?? 0.30
+        const floorFrac = (def.baseDamage ?? 0) * (Balance.TRAP_MIN_ADV_DMG_PER_BASE ?? 0)
+        const cap   = Math.floor(maxHp * capFrac)
+        const floor = Math.min(cap, Math.floor(maxHp * floorFrac))  // floor never exceeds cap
+        damage = Math.max(floor, Math.min(damage, cap))
+      }
     }
     // Solo Leveling — the Shadow Monarch takes 50% less trap damage
     // (mirrors his -50% minion-damage passive in CombatSystem). Applied
@@ -466,6 +489,9 @@ export class TrapSystem {
     entity.resources.hp = Math.max(_smFloor, entity.resources.hp - damage)
     entity._lastHitBy   = trap.instanceId
     entity._lastHitType = def.damageType ?? 'physical'
+    // Damage landed — burn this adv's one-shot for this trap (see the
+    // one-time-per-trap gate at the top).
+    if (onceGated) trap.state.hitOnce[entity.instanceId] = true
 
     EventBus.emit('COMBAT_HIT', {
       sourceId: trap.instanceId, targetId: entity.instanceId,
