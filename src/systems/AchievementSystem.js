@@ -388,6 +388,14 @@ class AchievementSystemImpl {
         }
       }
     }
+    // Solo Leveling — Sung Jinwoo (the Shadow Monarch) only dies when the
+    // player BEATS him; if he wins the duel he flees instead (ADVENTURER_FLED).
+    // So his death here is exactly the "you defeated the Monarch" feat that
+    // grants the legendary 'monarch_slayer' achievement (→ Necroknight
+    // companion + "King of the Dead" title). One-shot latch metric.
+    if (adv?._shadowMonarch) {
+      this._metrics.shadowMonarchDefeated = 1
+    }
     this._persistMetrics()
     // Check threshold-based metrics that may have just crossed.
     this._checkMetric('killsTotal')
@@ -400,6 +408,7 @@ class AchievementSystemImpl {
     this._checkMetric('veteransKilled')
     this._checkMetric('veteransKilledInRunMax')
     this._checkMetric('classesKilledCount')
+    this._checkMetric('shadowMonarchDefeated')
   }
 
   _onAdventurerEntered(payload) {

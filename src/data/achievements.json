@@ -959,5 +959,18 @@
     "icon": "🛡️",
     "title": "The Unbreaking",
     "titleColor": "#b6e84a"
+  },
+  {
+    "id": "monarch_slayer",
+    "name": "Monarch Slayer",
+    "description": "Defeat Sung Jinwoo, the Shadow Monarch.",
+    "category": "mastery",
+    "metric": "shadowMonarchDefeated",
+    "target": 1,
+    "icon": "👑",
+    "reward": { "type": "companion", "id": "necroknight" },
+    "title": "King of the Dead",
+    "titleFx": "shadowmonarch",
+    "legendary": true
   }
 ]
