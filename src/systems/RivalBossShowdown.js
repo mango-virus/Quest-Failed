@@ -58,7 +58,12 @@ export class RivalBossShowdown {
       advId:  adventurer.instanceId,
       startedAt: this._scene?.time?.now ?? 0,
     }
-    this._squadFlee(adventurer.instanceId)
+    // NOTE: the squad-scatter (force the rest of the pack to FLEE when the
+    // champion arrives) was REMOVED 2026-05-27. The Rival Dungeon re-tune
+    // makes the whole pack beeline + swarm the boss together — scattering
+    // them would gut the very threat the overhaul is built around. The
+    // showdown now just frames the champion's arrival; the pack keeps
+    // rushing. _squadFlee is left defined but intentionally uncalled.
     this._showBanner(`RIVAL BOSS APPROACHES`, '#ff8866')
     EventBus.emit('RIVAL_BOSS_SHOWDOWN_BEGIN', { adventurer })
   }

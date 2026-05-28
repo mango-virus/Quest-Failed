@@ -3904,12 +3904,15 @@ export class AISystem {
     // beelines the throne (no exploration, no friendly fire). Same pure
     // SEEK_BOSS flow as the speedrunner so all 11 converge on the boss.
     if (adv._bossRoyaleInvader) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Rival Dungeon — the ENTIRE invading pack (monsters +
+    // champion) beelines the throne together. Previously the pack wandered
+    // room-to-room like a normal wave, so the only real boss-threat was the
+    // lone champion and the event was trivial; now the whole horde converges
+    // on the boss so it reads as a genuine overrun (2026-05-27 re-tune).
+    if (adv._monsterInvader) return { type: 'SEEK_BOSS' }
     // Dungeon event: The Saboteur — tours the dungeon disabling every
     // trap, then flees. Never picks a combat or exploration goal.
     if (adv._saboteur) return this._nextSaboteurGoal(adv)
-    // NOTE: the Rival Dungeon boss intentionally has NO beeline shortcut
-    // here — it explores room-to-room like the regular monster invaders
-    // until the normal goal flow converges on the boss room.
     // Dungeon event: The Tournament — a rival's goal-picking is fully
     // owned by the bloodsport flow (scatter → hunt → seek boss). It never
     // runs the normal personality/scout/treasure goal picker. While any

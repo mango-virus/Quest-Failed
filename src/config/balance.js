@@ -497,32 +497,38 @@ export const Balance = {
   //
   // Each invader uses the rival_boss_invader stat line (150/13/6 base)
   // scaled by the adventurer curve (boss-level + day + post-day-9 tail),
-  // THEN multiplied by BOSS_ROYALE_STAT_MULT. At day 50 / lv 10 the adv
-  // curve alone puts the invader at ~13,584 HP / ~251 ATK; ×2.0 lands
-  // each at ~27,000 HP / ~502 ATK — 11 of those grouped on the throne
-  // out-damage the boss's whole HP bar in a single round, so the player
-  // MUST funnel-kill them in the halls with minions + traps.
-  // Tuned 2.0 per design call (2026-05-27) — dial down if unwinnable.
-  BOSS_ROYALE_STAT_MULT:        2.0,
+  // THEN multiplied by the HP / ATK mults below. All 11 spawn AT ONCE
+  // (no stagger — a trickle let the boss pick them off one at a time) and
+  // beeline the throne together, so the threat is concentration: a wall
+  // of boss-tier HP rushing the boss simultaneously.
+  //
+  // Tuning lineage: started at a flat ×2.0 (HP+ATK) with a 3s stagger —
+  // far too easy vs a built late-game dungeon (the boss soloed each lone
+  // arrival). 2026-05-27 overhaul: dropped the stagger, split HP/ATK, and
+  // cranked HP hard so a meaningful number SURVIVE the hall gauntlet to
+  // reach the boss. At day 50 the adv curve puts the base invader at
+  // ~14,288 HP / ~251 ATK → ×5 HP = ~71k HP each (~786k total across 11),
+  // ×3 ATK = ~753 ATK each. Knobs — dial down if unwinnable, up if soft.
+  BOSS_ROYALE_HP_MULT:          5.0,
+  BOSS_ROYALE_ATK_MULT:         3.0,
   BOSS_ROYALE_KILL_GOLD:        200,   // flat gold per invader killed (no other bonus)
-  BOSS_ROYALE_SPAWN_INTERVAL_MS: 3000, // one invader enters every 3 GAME-seconds
-                                       // (DayPhase.time runs on game-time, so the
-                                       // cadence auto-respects the speed multiplier)
 
-  // --- Rival Dungeon challenge buffs (2026-05-27) ---
+  // --- Rival Dungeon challenge buffs (2026-05-27, re-tuned) ---
   // The base Rival Dungeon spawned a same-size wave of monster_invaders
-  // (base 35 HP — *below* the adventurer average) + one rival boss, so
-  // it read as a reskinned normal day. These mults make the invading
-  // dungeon's troops genuinely elite: bigger, tougher than your own
-  // random wave, led by a tank boss. All four are knobs.
-  //   PACK_HP_MULT  1.6 → day-50 monster 3,170 → ~5,070 HP
-  //   PACK_ATK_MULT 1.3 → day-50 monster 154   → ~200 ATK
-  //   BOSS_HP_MULT  2.0 → day-50 rival boss 13,584 → ~27,000 HP
-  //   PACK_SIZE_MULT 1.25 → ~66 → ~82 monsters (they out-number you)
-  RIVAL_DUNGEON_PACK_HP_MULT:   1.6,
-  RIVAL_DUNGEON_PACK_ATK_MULT:  1.3,
-  RIVAL_DUNGEON_BOSS_HP_MULT:   2.0,
-  RIVAL_DUNGEON_PACK_SIZE_MULT: 1.25,
+  // (base 35 HP — *below* the adventurer average) that WANDERED room-to-
+  // room like a normal wave, so the only real boss-threat was the lone
+  // champion. The whole pack now BEELINES the boss (see AISystem
+  // _pickNextGoal _monsterInvader branch) and is 2.5× a normal wave, so
+  // it reads as a genuine overrun: a horde of tougher-than-yours monsters
+  // all converging on the throne behind a tank champion. All four knobs.
+  //   PACK_HP_MULT  2.0 → day-50 monster 3,170 → ~6,340 HP
+  //   PACK_ATK_MULT 1.5 → day-50 monster 154   → ~231 ATK
+  //   BOSS_HP_MULT  3.0 → day-50 rival boss 13,584 → ~40,750 HP
+  //   PACK_SIZE_MULT 2.5 → ~66 → ~165 monsters (a true horde)
+  RIVAL_DUNGEON_PACK_HP_MULT:   2.0,
+  RIVAL_DUNGEON_PACK_ATK_MULT:  1.5,
+  RIVAL_DUNGEON_BOSS_HP_MULT:   3.0,
+  RIVAL_DUNGEON_PACK_SIZE_MULT: 2.5,
 
   // --- Mini-boss / vendetta / vulture / wraith ---
   MINIBOSS_HP_MULT:                3.0,

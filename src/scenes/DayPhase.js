@@ -76,12 +76,6 @@ export class DayPhase extends Phaser.Scene {
     // resume their movement straight away.
     const _activeOnLoad = this._gameState?.adventurers?.active?.length ?? 0
     this._didSpawnToday = _activeOnLoad > 0
-    // Reset Boss Royale staggered-spawn state every day (the scene
-    // instance is reused across days). A stale _bossRoyaleSpawnPending
-    // from a prior run would otherwise lock today's end-day flow.
-    this._clearBossRoyaleTimer()
-    this._bossRoyaleSpawnPending = false
-    this._bossRoyaleQueue = null
     // Phase 31C — top bar / stats row / follow indicator / bottom bar +
     // CombatLog all moved to HudScene (BossTopBar / DungeonLog / ActionBar).
     // The legacy methods stay on the class as dead code; their internal
@@ -263,9 +257,6 @@ export class DayPhase extends Phaser.Scene {
   shutdown() {
     this.time.timeScale = 1
     this._allOutTimer?.remove(false)
-    this._clearBossRoyaleTimer()
-    this._bossRoyaleSpawnPending = false
-    this._bossRoyaleQueue = null
     this._unwireEvents()
     if (this._hudListeners) {
       for (const [evt, fn] of this._hudListeners) EventBus.off(evt, fn, this)
@@ -510,10 +501,6 @@ export class DayPhase extends Phaser.Scene {
   // (auto-timer) when active.length hits 0, but the player can also click the
   // button at that moment. Otherwise it's locked.
   _isEndDayEnabled() {
-    // Locked while Boss Royale still has invaders queued to enter — the
-    // dungeon goes briefly empty between staggered spawns and we don't
-    // want the player ending the day to skip the rest of the gauntlet.
-    if (this._bossRoyaleSpawnPending) return false
     return (this._gameState?.adventurers?.active?.length ?? 0) === 0
   }
 
@@ -1629,16 +1616,10 @@ export class DayPhase extends Phaser.Scene {
   // beelining the throne TOGETHER (no friendly fire — they cooperate).
   // Replaces the normal wave entirely.
   //
-  // Invaders are staggered in one every BOSS_ROYALE_SPAWN_INTERVAL_MS of
-  // GAME-time. DayPhase.time is scaled by the speed multiplier (see
-  // _setTimeScale → this.time.timeScale = scale), so the cadence holds at
-  // any speed and pauses with the game.
-  //
-  // While spawns are still pending we set _bossRoyaleSpawnPending so the
-  // all-out auto-end timer AND the END DAY button stay locked during the
-  // brief windows where the dungeon is momentarily empty between staggered
-  // entries — otherwise a fast player could end the day (and skip the rest
-  // of the gauntlet) the instant the first invader died.
+  // All 11 spawn AT ONCE (no stagger). An earlier 3s trickle made the
+  // event trivial — the boss soloed each lone arrival before the next
+  // came. Spawning the whole pack simultaneously means they mass on the
+  // throne together and overwhelm, which is the whole point.
   _spawnBossRoyale() {
     const game = this.scene.get('Game')
     const aiSystem = game.aiSystem
@@ -1650,32 +1631,12 @@ export class DayPhase extends Phaser.Scene {
     const roster = archetypes.filter(a => a?.id && a.id !== playerArch)
     if (roster.length === 0) return []
 
-    this._bossRoyaleQueue        = roster.slice()
-    this._bossRoyalePartyId      = `boss_royale_${Date.now()}`
-    this._bossRoyaleSpawnPending = true
+    const partyId = `boss_royale_${Date.now()}`
     const spawned = []
-
-    // First invader enters immediately so dawn isn't dead air.
-    const first = this._spawnOneRoyaleInvader(this._bossRoyaleQueue.shift())
-    if (first) spawned.push(first)
-
-    // Stagger the rest in on the game-time clock, one per interval.
-    this._clearBossRoyaleTimer()
-    this._bossRoyaleTimer = this.time.addEvent({
-      delay:    Balance.BOSS_ROYALE_SPAWN_INTERVAL_MS ?? 3000,
-      loop:     true,
-      callback: () => {
-        const next = this._bossRoyaleQueue?.shift()
-        if (next) this._spawnOneRoyaleInvader(next)
-        // Drop the spawn gate once the queue is drained so the normal
-        // all-out end-day flow resumes when the dungeon finally clears.
-        if (!this._bossRoyaleQueue || this._bossRoyaleQueue.length === 0) {
-          this._bossRoyaleSpawnPending = false
-          this._clearBossRoyaleTimer()
-        }
-      },
-      callbackScope: this,
-    })
+    for (const archetype of roster) {
+      const adv = this._spawnOneRoyaleInvader(archetype, partyId)
+      if (adv) spawned.push(adv)
+    }
 
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
     return spawned
@@ -1683,8 +1644,8 @@ export class DayPhase extends Phaser.Scene {
 
   // Spawn one Boss Royale invader wearing `archetype`'s boss skin. Uses the
   // rival_boss_invader stat line + the adventurer scaling curve, then the
-  // BOSS_ROYALE_STAT_MULT for the very-hard gauntlet tuning.
-  _spawnOneRoyaleInvader(archetype) {
+  // BOSS_ROYALE HP / ATK mults for the very-hard gauntlet tuning.
+  _spawnOneRoyaleInvader(archetype, partyId) {
     if (!archetype) return null
     const game = this.scene.get('Game')
     const aiSystem = game.aiSystem
@@ -1699,7 +1660,7 @@ export class DayPhase extends Phaser.Scene {
     const adv = createAdventurer(bossDef, tile)
     adv._bossRoyaleInvader  = true   // AISystem: SEEK_BOSS beeline + 200g kill gold
     adv._monster            = true   // minion death anim, no chat bubbles / emotes
-    adv.partyId             = this._bossRoyalePartyId
+    adv.partyId             = partyId
     // Bosses commit — they're here to win, never flee.
     adv.flags = { ...(adv.flags ?? {}), noFlee: true }
     adv.isLegendary         = true   // legendary chrome/border (no per-invader announce)
@@ -1709,25 +1670,18 @@ export class DayPhase extends Phaser.Scene {
     adv.name = archetype.name ?? `${archetype.id} Boss`
 
     // Scale on the adventurer curve (boss-level + day + post-day-9 tail),
-    // then ×BOSS_ROYALE_STAT_MULT.
+    // then ×HP / ×ATK mults (HP cranked harder so they survive the gauntlet).
     this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
-    const mult = Balance.BOSS_ROYALE_STAT_MULT ?? 1
-    adv.resources.maxHp = Math.round(adv.resources.maxHp * mult)
+    const hpMul  = Balance.BOSS_ROYALE_HP_MULT  ?? 1
+    const atkMul = Balance.BOSS_ROYALE_ATK_MULT ?? 1
+    adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
     adv.resources.hp    = adv.resources.maxHp
-    adv.stats.attack    = Math.round(adv.stats.attack * mult)
+    adv.stats.attack    = Math.round(adv.stats.attack * atkMul)
 
     this._gameState.adventurers.active.push(adv)
     aiSystem.pickInitialGoal(adv)
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
     return adv
-  }
-
-  // Tear down the staggered-spawn timer. Safe to call when none is running.
-  _clearBossRoyaleTimer() {
-    if (this._bossRoyaleTimer) {
-      this._bossRoyaleTimer.remove(false)
-      this._bossRoyaleTimer = null
-    }
   }
 
   // Best-estimate of how many adventurers a normal (event-free) wave
@@ -1847,9 +1801,7 @@ export class DayPhase extends Phaser.Scene {
       `Gold: ${s.player.gold}  ·  XP: ${s.meta?.xp ?? 0}/${s.meta?.xpToNext ?? 100}  ·  Kills: ${s.player.totalKills}`
     )
     const n = s.adventurers.active.length
-    // Boss Royale staggers invaders in over time — don't auto-end during
-    // the empty gaps between entries while more are still queued.
-    if (n === 0 && this._allOutTimer == null && !this._bossRoyaleSpawnPending) {
+    if (n === 0 && this._allOutTimer == null) {
       this._statsTexts?.activeCount?.setText('All adventurers out — day ends shortly')
       this._allOutTimer = this.time.delayedCall(1500, () => this._endDay(), [], this)
     } else if (n > 0) {
