@@ -191,11 +191,21 @@ export class SoloLevelingCinematic {
   // gone / day end).
   _showLetterbox() {
     if (this._letterbox) return
+    const botBar = h('div', { className: 'qf-sl-bar bottom' })
     this._letterbox = h('div', { className: 'qf-sl-letterbox' }, [
       h('div', { className: 'qf-sl-bar top' }),
-      h('div', { className: 'qf-sl-bar bottom' }),
+      botBar,
     ])
     this._stage.appendChild(this._letterbox)
+    // Keep the action/bottom bar fully visible during the duel — anchor the
+    // bottom letterbox bar just ABOVE it (rather than over it) so HUD controls
+    // stay usable. Use offsetHeight (local layout px) NOT getBoundingClientRect
+    // (screen px): #hud-stage is transform-scaled, and the CSS `bottom` offset
+    // lives in the same pre-scale local space as offsetHeight. Falls back to
+    // the screen edge if the bottom bar isn't present (e.g. night phase).
+    const chrome = document.querySelector('.qf-bottombar')
+    const offset = chrome ? chrome.offsetHeight : 0
+    if (offset > 0) botBar.style.bottom = `${offset}px`
     // eslint-disable-next-line no-unused-expressions
     this._letterbox.offsetHeight
     this._letterbox.classList.add('show')
