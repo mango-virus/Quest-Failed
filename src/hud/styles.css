@@ -11734,6 +11734,10 @@ body {
   background: color-mix(in srgb, var(--qf-reward-title) 10%, transparent);
   text-shadow: 0 0 6px color-mix(in srgb, var(--qf-reward-title) 50%, transparent);
 }
+/* fx title name inside a reward chip — keep it inline so the chip's
+   single-line ellipsis truncation still applies to the gradient text
+   (the base .qf-titlefx uses inline-block, which would break ellipsis). */
+.qf-ach-reward .qf-titlefx { display: inline; }
 
 /* "NEW" chip on an achievement card — top-LEFT corner so it doesn't
    collide with the rarity badge (top-right). Visual matches the main-menu

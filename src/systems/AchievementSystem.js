@@ -58,6 +58,10 @@ const DEFAULT_METRICS = {
   killsTotal:                 0,
   soulsTotal:                 0,
   veteransKilled:             0,
+  // Career cumulative adventurer kills credited to traps (across ALL
+  // runs). Gates Curtain Call (Rattle Bones unlock) — changed from the
+  // per-run `trapKillsInRunMax` so the player can grind it over time.
+  trapKillsTotal:             0,
   minionsPlacedTotal:         0,
   trapsPlacedTotal:           0,
   nonStarterRoomsPlacedTotal: 0,
@@ -200,9 +204,10 @@ class AchievementSystemImpl {
       roomsPlaced:       0,
       minionsPlaced:     0,
       bossKills:         0,
-      // Trap-credited kills this run. Used to track best-of-any-run for
-      // the `curtain_call` legendary (Rattle Bones unlock — 500 trap kills
-      // in a single run). Mirrors the bossKills pattern.
+      // Trap-credited kills this run. Feeds the per-run best
+      // (trapKillsInRunMax) + rolls into the career trapKillsTotal that
+      // now gates Curtain Call (Rattle Bones unlock — 500 trap kills
+      // ACROSS ALL RUNS). Mirrors the bossKills pattern.
       trapKills:         0,
       // Live-set of active minion types this run (for minionTypesActiveMax).
       activeMinionTypes: new Set(),
@@ -307,11 +312,14 @@ class AchievementSystemImpl {
       if (this._dayState.trapKills > this._metrics.trapKillsInDayMax) {
         this._metrics.trapKillsInDayMax = this._dayState.trapKills
       }
-      // Per-run trap-kill total (for Curtain Call → Rattle Bones unlock).
+      // Per-run trap-kill best (still tracked for any per-run achievements).
       this._runState.trapKills += 1
       if (this._runState.trapKills > this._metrics.trapKillsInRunMax) {
         this._metrics.trapKillsInRunMax = this._runState.trapKills
       }
+      // Career cumulative trap kills (for Curtain Call → Rattle Bones
+      // unlock — now an across-all-runs total, not single-run).
+      this._metrics.trapKillsTotal = (this._metrics.trapKillsTotal ?? 0) + 1
     }
     const isBoss = cause === 'boss' || killerId === 'boss' ||
                    killerId === 'boss-archetype'
@@ -338,6 +346,7 @@ class AchievementSystemImpl {
     this._checkMetric('killsInDayMax')
     this._checkMetric('trapKillsInDayMax')
     this._checkMetric('trapKillsInRunMax')
+    this._checkMetric('trapKillsTotal')
     this._checkMetric('bossKillsInRunMax')
     this._checkMetric('veteransKilled')
     this._checkMetric('classesKilledCount')

@@ -541,10 +541,17 @@ export class AchievementsOverlay {
       }, `♥ Unlocks ${cName}`)
     } else if (rewardType === 'title') {
       // Title-granting achievements show their title here as the reward.
+      // The title NAME is wrapped in an fx span so legendary fx titles
+      // shimmer here too. The span is forced back to `display: inline`
+      // (see .qf-ach-reward .qf-titlefx in styles.css) so the chip's
+      // ellipsis truncation still works on long names.
       rewardChip = h('div', {
         className: 'qf-ach-reward qf-ach-reward--title',
         dataset: { rewardType: 'title' },
-      }, `✦ Title: ${def.title}`)
+      }, [
+        '✦ Title: ',
+        h('span', { className: titleFxClassById(def.id) }, def.title),
+      ])
     }
 
     // Rarity badge — appears once the leaderboard sample has been

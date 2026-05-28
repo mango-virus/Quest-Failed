@@ -318,7 +318,7 @@ export const COMPANIONS = {
   // showman-with-audience. He/him.
   //
   // Locked behind the `curtain_call` achievement (2026-05-26): kill 500
-  // adventurers with traps in a single run. Thematic — a comedian skeleton
+  // adventurers with traps across all runs. Thematic — a comedian skeleton
   // wants a perfect setup-punchline show before he'll sign on as keeper.
   // AchievementSystem fires PlayerProfile.unlockCompanion('rattlebones')
   // when the threshold is met. See `src/data/achievements.json`.
