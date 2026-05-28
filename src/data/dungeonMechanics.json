@@ -1310,5 +1310,46 @@
     "synergyWith": [
       "gold_rush"
     ]
+  },
+  {
+    "id": "the_leech",
+    "name": "The Leech",
+    "symbol": "☟",
+    "description": "On sealing: gain 800 gold at once.",
+    "tradeoffDescription": "You lose 8% of your current gold every dawn — for the rest of the run.",
+    "rarity": "damned",
+    "unlockLevel": 2,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theLeech_activate",
+    "onDeactivate": "theLeech_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_the_last_heart",
+    "name": "Pact of the Last Heart",
+    "symbol": "☥",
+    "description": "On sealing: claim a free Legendary pact of fate's choosing.",
+    "tradeoffDescription": "Your boss is reduced to a single heart — one lost boss fight ends the run, and you can never regain a heart.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfTheLastHeart_activate",
+    "onDeactivate": "pactOfTheLastHeart_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
   }
 ]

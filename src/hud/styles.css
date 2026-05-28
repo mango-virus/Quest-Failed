@@ -6741,6 +6741,38 @@ body {
 .qf-ip-book-wrap.pages-hidden .qf-ip-page,
 .qf-ip-book-wrap.is-shut .qf-ip-page { opacity: 0; }
 
+/* ── Black grimoire — an all-Damned hand ──
+   The purple tome is rendered to charred black via a grayscale+darken
+   filter. Because that also darkens the cream pages, the page text is
+   re-lit to ash-parchment / blood tones so it stays legible; the chrome
+   (bookmarks, ritual circle, stamp) already runs black-with-blood off the
+   `damned` rarity vars set by _renderPage. */
+.qf-ip[data-grimoire="black"] .qf-ip-book {
+  filter: drop-shadow(0 24px 34px rgba(0,0,0,0.9)) grayscale(1) brightness(0.30) contrast(1.18);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-page { color: #d8c8b0; }
+.qf-ip[data-grimoire="black"] .qf-ip-pg-kicker { color: #b8a890; }
+.qf-ip[data-grimoire="black"] .qf-ip-summon-name {
+  color: #ecdcc6; text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-summon-stamp {
+  color: #d4555f; border-color: #d4555f; opacity: 0.95;
+}
+.qf-ip[data-grimoire="black"] .qf-ip-pact-deal .qf-ip-pact-word {
+  color: #e0bb63; text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-pact-deal .qf-ip-pact-body { color: #ddccac; }
+.qf-ip[data-grimoire="black"] .qf-ip-pact-price .qf-ip-pact-word {
+  color: #ff7a82; text-shadow: 0 0 6px rgba(180,20,28,0.6);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-pact-price .qf-ip-pact-body {
+  color: #f2a4a8; text-shadow: 0 0 2px rgba(0,0,0,0.7);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-sign-label { color: #b8a890; }
+.qf-ip[data-grimoire="black"] .qf-ip-sign-line { border-bottom-color: #c8b8a0; }
+/* Drain the ambient ritual circle to a colder, dimmer cast for the black hand. */
+.qf-pact-picker[data-grimoire="black"] .qf-ip-circle { filter: saturate(0.25) brightness(0.62); }
+
 /* ── Left page — the summoning circle ──
    A ritual circle traces itself in on every page-turn, then slowly
    counter-rotates; the pact's name, tier and rarity word sit on the

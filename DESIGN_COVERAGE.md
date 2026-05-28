@@ -148,6 +148,38 @@ Every concrete deliverable from `DESIGN.md`, mapped to the phase it lands in and
 | Tradeoff display in offering UI | — | 9 | ✅ DONE | Each card shows tradeoffDescription in gold italic |
 | 💭 Many more mechanics | — | 9–10 | 💭 OPEN — TARGET EXCEEDED (audit 2026-05-22) | aim was ≥30 by 1.0; current pool: **64** in `src/data/dungeonMechanics.json`. |
 
+### 5a. Damned Pacts — solid-black tier (spec'd 2026-05-28, ⏳ PENDING implementation)
+
+New **6th rarity tier** (`damned`, rendered solid black). Devil's-bargain pacts: `description` = the small one-time bribe (the green "Deal", paid in `onActivate`), `tradeoffDescription` = the huge permanent curse (the red "Price"). Schema is NOT inverted — that mapping renders correctly in the existing Deal/Price UI. **Delivery:** 10% chance the Dark Pact grimoire is black → offers an all-Damned hand; otherwise Damned pacts mix into the normal pool at Epic draw weight (the tier just before Legendary — weight 10). Permanent + unlimited stacking like normal pacts. Schema reuse — no new fields. Gold-lump bribes are flat (values provisional, see DESIGN.md). Full spec lives in DESIGN.md § "Damned Pacts". Tier wiring touches `PactCard.js` / `PactPicker.js` (add `damned` to RARITY maps + RARITY_GLYPH), `DungeonMechanicSystem._weightedSample` / `TIER_WEIGHTS` + `getOfferings`, and the DarkPact popup (`DarkPactPopup.js` / `PactPicker.js`) for the black-grimoire roll.
+
+| ID | Name | Phase | Status | Notes |
+|---|---|---|---|---|
+| _delivery_ | Black-grimoire + damned tier | DP | ⏳ PENDING | 10% black-grimoire all-damned hand; `damned` rarity at Epic weight (10) in normal pool; new tier colour/glyph/stamp in PactCard/PactPicker |
+| the_leech | The Leech | DP | ⏳ PENDING | Curse: −8% current gold each dawn. Bribe: +800g on seal |
+| famished_dark | Famished Dark | DP | ⏳ PENDING | Curse: kills give 50% less gold (run). Bribe: +1500g |
+| the_open_gate | The Open Gate | DP | ⏳ PENDING | Curse: +10 adventurers/day permanently. Bribe: +1500g |
+| hollow_crown | Hollow Crown | DP | ⏳ PENDING | Curse: boss max HP −50% permanently. Bribe: free Legendary pact |
+| pact_of_glass | Pact of Glass | DP | ⏳ PENDING | Curse: minion max HP halved (run). Bribe: minions free that night phase, 0 sell value for them |
+| sleepless_throne | Sleepless Throne | DP | ⏳ PENDING | Curse: boss starts every fight at 50% HP. Bribe: +10 minion slots |
+| blind_architect | Blind Architect | DP | ⏳ PENDING | Curse: minimap + intel panel disabled (run). Bribe: one-time perfect-day preview |
+| brittle_bones | Brittle Bones | DP | ⏳ PENDING | Curse: minion struck <50% HP shatters instantly. Bribe: current minions +25% dmg |
+| crumbling_halls | Crumbling Halls | DP | ⏳ PENDING | Curse: each night start, destroy a random room + contents (run). Bribe: +600g + trap slots |
+| the_bleeding_crown | The Bleeding Crown | DP | ⏳ PENDING | Curse: boss −2% max HP permanently each day. Bribe: +1200g |
+| the_sealed_vault | The Sealed Vault | DP | ⏳ PENDING | Curse: can never sell anything (run). Bribe: +1500g |
+| mounting_debt | Mounting Debt | DP | ⏳ PENDING | Curse: +5% build cost/day compounding. Bribe: +1000g |
+| tribute_of_flesh | Tribute of Flesh | DP | ⏳ PENDING | Curse: each escaped adv loots 20g from treasury. Bribe: +700g |
+| the_hollow_horde | The Hollow Horde | DP | ⏳ PENDING | Curse: max minion slots halved (run). Bribe: current minions +20% all stats |
+| the_wasting | The Wasting | DP | ⏳ PENDING | Curse: end of day, surviving minions −5% max HP permanently. Bribe: evolve all current minions +1 tier |
+| the_hunger | The Hunger | DP | ⏳ PENDING | Curse: each dawn 20% of minions die permanently (no revive). Bribe: +1000g |
+| brittle_engines | Brittle Engines | DP | ⏳ PENDING | Curse: traps break permanently after one firing. Bribe: traps +100% dmg |
+| the_insomniac | The Insomniac | DP | ⏳ PENDING | Curse: no build phase every 3rd night. Bribe: +600g |
+| famines_grip | Famine's Grip | DP | ⏳ PENDING | Curse: treasure rooms + items pay 50% less. Bribe: +800g |
+| pact_of_the_last_heart | Pact of the Last Heart | DP | ⏳ PENDING | Curse: boss → 1 heart (deathsRemaining=1, cap lives=1, no regain). Bribe: free Legendary pact |
+| the_unteachable | The Unteachable | DP | ⏳ PENDING | Curse: minions can't gain XP/evolve (run). Bribe: +1000g |
+| cursed_blood | Cursed Blood | DP | ⏳ PENDING | Curse: each minion death damages boss 3% max HP. Bribe: +1000g |
+| the_martyrs_curse | The Martyr's Curse | DP | ⏳ PENDING | Curse: minion death heals advs in room 25% HP. Bribe: +800g |
+| trapless_halls | Trapless Halls | DP | ⏳ PENDING | Curse: can't place new traps (run); existing stay. Bribe: existing traps +50% dmg + 600g |
+
 ---
 
 ## 6. Dungeon room types

@@ -97,7 +97,10 @@ export class DungeonMechanicSystem {
   // pact is eligible from day 1, with rarity weighting (TIER_WEIGHTS in
   // _weightedSample) preserving the "legendaries are rare" feel. The
   // dungeonLevel param is still accepted so callers don't need to change.
-  getOfferings(count, archetypeId, dungeonLevel = 1) {
+  // opts.onlyDamned — when true (a "black grimoire" hand), draw exclusively
+  // from the Damned (solid-black) tier so every offered card is a curse.
+  getOfferings(count, archetypeId, dungeonLevel = 1, opts = {}) {
+    const onlyDamned = !!opts.onlyDamned
     const active = new Set(this._gameState.activeMechanics)
     // Bug fix — JSON modifiers expose `blockedMechanicTags` (array of tag
     // strings), not `blockedMechanics` (mechanic IDs). Match by tag.
@@ -106,6 +109,9 @@ export class DungeonMechanicSystem {
     const availableTags = new Set(mods.availableMechanicTags ?? [])
     const candidates = this.allDefinitions().filter(def => {
       if (active.has(def.id)) return false
+      // Black-grimoire hands draw only from the damned tier; the normal
+      // (purple) pool keeps damned pacts mixed in at their epic-equal weight.
+      if (onlyDamned && def.rarity !== 'damned') return false
       const defTags = def.tags ?? []
       // Block if any of this def's tags is in the archetype's blocked set
       if (defTags.some(t => blockedTags.has(t))) return false
@@ -295,15 +301,17 @@ const TIER_WEIGHTS = {
   rare:      Balance.MECHANIC_RARITY_WEIGHT_RARE      ?? 15,
   epic:      Balance.MECHANIC_RARITY_WEIGHT_EPIC      ?? 10,
   legendary: Balance.MECHANIC_RARITY_WEIGHT_LEGENDARY ?? 5,
+  // Damned (solid-black) pacts mix into the normal pool at epic weight.
+  damned:    Balance.MECHANIC_RARITY_WEIGHT_DAMNED    ?? 12,
 }
-const TIER_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary']
+const TIER_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'damned']
 
 // Draws `count` unique pacts from `pool`, picking a rarity tier first
 // according to TIER_WEIGHTS then a random pact within that tier. If the
 // chosen tier is exhausted its weight collapses to 0 for the next draws.
 function _weightedSample(pool, count) {
   if (pool.length === 0) return []
-  const buckets = { common: [], uncommon: [], rare: [], epic: [], legendary: [] }
+  const buckets = { common: [], uncommon: [], rare: [], epic: [], legendary: [], damned: [] }
   for (const def of pool) {
     const tier = def.rarity ?? 'common'
     if (buckets[tier]) buckets[tier].push(def)
@@ -1501,6 +1509,62 @@ function _buildHandlerRegistry() {
         gameState._mechanicFlags.pactOfTheMarionette = false
         gameState._mechanicFlags.possessedMinionId = null
       }
+    },
+
+    // ── DAMNED · The Leech ───────────────────────────────────────────────
+    // Devil's bargain: a one-time gold bribe on sealing, then the dungeon
+    // bleeds 8% of your treasury every dawn for the rest of the run.
+    theLeech_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theLeech = true
+      // Bribe — paid once, immediately.
+      const bribe = Balance.MECHANIC_LEECH_BRIBE_GOLD ?? 800
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'leech_bribe' })
+      // Curse — drain a slice of the treasury at the start of every day.
+      subscribe('DAY_PHASE_STARTED', () => {
+        const frac = Balance.MECHANIC_LEECH_GOLD_DRAIN_FRACTION ?? 0.08
+        const held = gameState.player.gold ?? 0
+        const drain = Math.floor(held * frac)
+        if (drain <= 0) return
+        gameState.player.gold = held - drain
+        EventBus.emit('LEECH_DRAINED', { amount: drain, remaining: gameState.player.gold })
+      })
+    },
+    theLeech_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theLeech = false
+    },
+
+    // ── DAMNED · Pact of the Last Heart ──────────────────────────────────
+    // Bribe: a free Legendary pact. Curse: the boss is capped at a single
+    // heart (one lost boss fight ends the run) and can never regain a life.
+    pactOfTheLastHeart_activate: ({ gameState, system }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.lastHeart = true
+      // Curse — collapse the boss's lives to a single heart, forever.
+      const lives = Balance.MECHANIC_LAST_HEART_LIVES ?? 1
+      if (gameState.boss) {
+        gameState.boss.deathsRemaining   = Math.min(gameState.boss.deathsRemaining ?? lives, lives)
+        gameState.boss.totalLivesEverHad = lives
+      }
+      // Bribe — grant a free random Legendary pact (not already active).
+      let grantedId = null
+      let grantedName = null
+      const pool = system.allDefinitions().filter(d =>
+        d.rarity === 'legendary' &&
+        !system.isActive(d.id) &&
+        d.id !== 'pact_of_the_last_heart'
+      )
+      if (pool.length > 0) {
+        const pickDef = pool[Math.floor(Math.random() * pool.length)]
+        grantedId = pickDef.id
+        grantedName = pickDef.name ?? pickDef.id
+        system.activate(pickDef.id)
+      }
+      EventBus.emit('LAST_HEART_SEALED', { grantedId, grantedName })
+    },
+    pactOfTheLastHeart_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.lastHeart = false
     },
   }
 }

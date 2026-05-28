@@ -627,6 +627,15 @@ export const Balance = {
   MECHANIC_DOOMSDAY_WAVE_MULT:            2,
   MECHANIC_LONG_GAME_INTERVAL_DAYS:       3,
   MECHANIC_INQUISITORS_GOLD_MULT:         5,
+
+  // --- Damned pacts (solid-black tier) ---
+  // The Leech — drains a slice of your treasury at the start of every day,
+  // forever. Bribe is a one-time gold lump paid the moment you seal it.
+  MECHANIC_LEECH_GOLD_DRAIN_FRACTION:     0.08,   // lose 8% of current gold each dawn
+  MECHANIC_LEECH_BRIBE_GOLD:              800,    // one-time gold paid on sealing
+  // Pact of the Last Heart — caps the boss at a single life and grants a
+  // free Legendary pact as the bribe (set in handler, no constant needed).
+  MECHANIC_LAST_HEART_LIVES:              1,      // boss reduced to this many hearts
   MECHANIC_INQUISITORS_HP_MULT:           2.0,
   MECHANIC_INQUISITORS_ATK_MULT:          1.5,
 
@@ -753,6 +762,12 @@ export const Balance = {
   MECHANIC_RARITY_WEIGHT_RARE:      20,
   MECHANIC_RARITY_WEIGHT_EPIC:      12,
   MECHANIC_RARITY_WEIGHT_LEGENDARY:  7,
+  // Damned (solid-black) pacts mix into the normal purple-grimoire pool at
+  // the same draw weight as Epic — "the tier just before legendary".
+  MECHANIC_RARITY_WEIGHT_DAMNED:    12,
+  // Chance the nightly Dark Pact grimoire opens BLACK instead of purple —
+  // a black grimoire offers an all-Damned hand (every card is a curse).
+  MECHANIC_BLACK_GRIMOIRE_CHANCE:   0.10,
 
   // --- AI failsafes ---
   // If an adventurer has not changed tile for this long (in ms) and is

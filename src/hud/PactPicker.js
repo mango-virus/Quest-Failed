@@ -26,6 +26,7 @@
 
 import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { Balance } from '../config/balance.js'
 
 // Recoloured magic-book sheets. Open/Close are 4×3 (12 frames of 272px);
 // the page-turns are 4×4 (16 frames). Frame order is left→right, top→bottom.
@@ -49,9 +50,12 @@ const RARITY = {
   rare:      { c1: '#ffd86a', c2: '#c8951f', c3: '#5a3c08', glow: 'rgba(255,206,90,0.72)',  label: 'RARE',      stamp: 'BINDING',   weight: 2 },
   epic:      { c1: '#e2a6f2', c2: '#8a3cc0', c3: '#3a1858', glow: 'rgba(212,124,242,0.78)', label: 'EPIC',      stamp: 'ANCIENT',   weight: 3 },
   legendary: { c1: '#ff8a96', c2: '#cc3346', c3: '#5a1018', glow: 'rgba(255,96,112,0.92)',  label: 'LEGENDARY', stamp: 'FORBIDDEN', weight: 4 },
+  // Damned — solid black. A desaturated charcoal gradient with a faint
+  // blood sheen so the void-black tome still reads against the dark UI.
+  damned:    { c1: '#7a6a72', c2: '#1c1a1f', c3: '#040405', glow: 'rgba(150,30,40,0.88)',   label: 'DAMNED',    stamp: 'DAMNED',    weight: 5 },
 }
 const RARITY_GLYPH = {
-  common: '❖', uncommon: '✦', rare: '✠', epic: '❂', legendary: '⛧',
+  common: '❖', uncommon: '✦', rare: '✠', epic: '❂', legendary: '⛧', damned: '☠',
 }
 
 // Lilith — the dungeon keeper — is the broker of the Grimoire. She
@@ -63,7 +67,7 @@ const RARITY_GLYPH = {
 // keeper the player chose has a real sprite for it.
 const VIEW_EXPR = {
   common: 'smug', uncommon: 'mischievous', rare: 'laughing',
-  epic: 'evil', legendary: 'excited',
+  epic: 'evil', legendary: 'excited', damned: 'evil',
 }
 
 const LINES = {
@@ -83,6 +87,14 @@ const LINES = {
   openLegendary: [
     'One of these pages reeks of the old power… turn carefully.',
     'The tome offers a forbidden bargain tonight. I would know.',
+  ],
+  // Spoken when the grimoire opens BLACK — an all-Damned hand. Every page
+  // is a curse with only a sliver of bribe. There is no safe choice here.
+  openDamned: [
+    'Black, tonight. The grimoire only opens this colour when it is hungry.',
+    'Every page here is a wound. Choose which one you can live around.',
+    'No bargains tonight — only debts wearing the shape of gifts.',
+    'The black tome. I would say "choose wisely," but… well.',
   ],
   // Periodic chatter while the player browses — funny, sinister, and a
   // little fourth-wall.
@@ -144,6 +156,12 @@ const LINES = {
       'My hands tremble at this one. Sign it… sign it.',
       'Legendary. The word means "the story they tell afterward."',
       'That page was sealed away for a reason. The reason was screaming.',
+    ],
+    damned: [
+      'A damned page. The bribe is real. So is everything that comes after.',
+      'Read the small print. Then read the large print. The large print wins.',
+      'You may take the coin. The coin, however, also takes you.',
+      'This one does not bargain. It simply collects, and collects, and collects.',
     ],
   },
   // Optional jab keyed by a pact's primary tag (see _viewLine).
@@ -236,6 +254,9 @@ export class PactPicker {
 
   open() {
     if (this._el) return
+    // Roll the grimoire's colour ONCE per opening (held across rerolls):
+    // a black grimoire (10%) deals an all-Damned hand of curses.
+    this._blackGrimoire = this._rollBlackGrimoire()
     this._offers = this._fetchOffers()
     // Mandatory modal with no exit — if there is genuinely nothing to
     // offer, resolve immediately so EndOfDay isn't soft-locked.
@@ -292,13 +313,26 @@ export class PactPicker {
 
   // ── Offers ──────────────────────────────────────────────────────────────
 
+  // Black grimoire (10%) → an all-Damned hand. Force via localStorage
+  // `qf.forceGrimoire` = 'black' | 'purple' for testing.
+  _rollBlackGrimoire() {
+    try {
+      const forced = localStorage.getItem('qf.forceGrimoire')
+      if (forced === 'black')  return true
+      if (forced === 'purple') return false
+    } catch {}
+    const chance = Balance.MECHANIC_BLACK_GRIMOIRE_CHANCE ?? 0.10
+    return Math.random() < chance
+  }
+
   _fetchOffers() {
     const game      = window.__game
     const gameScene = game?.scene?.getScene?.('Game')
     const sys       = gameScene?.dungeonMechanicSystem
     const archId    = this._gameState.player?.bossArchetypeId
     const dLv       = this._gameState.boss?.level ?? 1
-    if (sys?.getOfferings) return sys.getOfferings(3, archId, dLv) ?? []
+    const opts      = { onlyDamned: !!this._blackGrimoire }
+    if (sys?.getOfferings) return sys.getOfferings(3, archId, dLv, opts) ?? []
     const defs = this._cachedJson('dungeonMechanics') ?? []
     const pool = [...defs]
     const out  = []
@@ -355,7 +389,10 @@ export class PactPicker {
     // Mandatory modal — no backdrop dismiss, no Esc, no walk-away.
     this._el = h('div', {
       className: 'qf-pact-picker qf-ip',
-      dataset: { legendary: hasLegendary ? 'true' : 'false' },
+      dataset: {
+        legendary: hasLegendary ? 'true' : 'false',
+        grimoire:  this._blackGrimoire ? 'black' : 'purple',
+      },
     }, [
       h('div', { className: 'qf-ip-circle' }),
       h('div', { className: 'qf-ip-candle qf-ip-candle-l' }),
@@ -479,9 +516,13 @@ export class PactPicker {
         this._showPages(true)
         this._renderFooterOpen()
         this._busy = false
-        const hasLeg = this._offers.some(o => (o?.rarity ?? '') === 'legendary')
-        this._brokerSay(hasLeg ? pick(LINES.openLegendary) : pick(LINES.open),
-          hasLeg ? 'excited' : 'evil')
+        if (this._blackGrimoire) {
+          this._brokerSay(pick(LINES.openDamned), 'evil')
+        } else {
+          const hasLeg = this._offers.some(o => (o?.rarity ?? '') === 'legendary')
+          this._brokerSay(hasLeg ? pick(LINES.openLegendary) : pick(LINES.open),
+            hasLeg ? 'excited' : 'evil')
+        }
       },
     })
   }

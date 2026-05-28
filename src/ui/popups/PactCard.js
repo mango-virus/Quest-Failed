@@ -11,6 +11,9 @@ export const RARITIES = {
   rare:      { color: CRYPT.goldCss,   label: 'RARE',      hex: 0xe8c34a, weight: 2 },
   epic:      { color: '#c47cf2',       label: 'EPIC',      hex: 0xc47cf2, weight: 3 },
   legendary: { color: CRYPT.accent2Css,label: 'LEGENDARY', hex: 0xff5566, weight: 4 },
+  // Damned — solid black tier (devil's-bargain curses). Blood-tinted edge
+  // so the near-black card still reads; weight 4 → gets the epic+ glow.
+  damned:    { color: '#d4555f',       label: 'DAMNED',    hex: 0x6e2630, weight: 4 },
 }
 
 // Per-pact flavor lines. One per mechanic in dungeonMechanics.json so no
@@ -96,6 +99,11 @@ export const PACT_FLAVOR = {
   pact_of_the_reaper:      'the harvest is patient, but never late',
   pact_of_the_crucible:    'what survives the fire was always steel',
   pact_of_the_marionette:  "you don't notice the strings until they pull",
+
+  // Damned (solid-black) pacts — devil's bargains: a sliver of bribe, a
+  // lifetime of curse.
+  the_leech:               'it drinks slowly. it never stops drinking.',
+  pact_of_the_last_heart:  'one heartbeat left to spend — spend it well',
 }
 export const DEFAULT_FLAVOR = 'they will not remember signing this'
 

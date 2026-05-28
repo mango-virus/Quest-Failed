@@ -89,6 +89,46 @@ If all the adventures have been killed, or decided to leave the dungeon because 
 
 **Active pact pool total:** 64.
 
+### Damned Pacts — solid-black tier (added 2026-05-28, spec'd — not yet implemented)
+
+A new **variant** of dark pact: pacts that are overwhelmingly *negative* — a permanent curse with a huge downside — paired with only a tiny one-time benefit. They are the structural inverse of a normal pact: where a normal pact's headline is the perk and the trade-off is the cost, a Damned pact's headline **is the curse**, and the "trade-off" is a small **bribe paid once the moment you seal it** (a "devil's bargain"). The bribe is "very little benefit" precisely because it's a single up-front payout against a cost you carry the rest of the run.
+
+**Tier identity.** Each existing rarity has a colour (common = bone-grey, uncommon = green, rare = gold, epic = purple, legendary = blood-red). Damned pacts are a **6th tier rendered solid black** — proposed rarity id `damned`, stamp **"DAMNED"**, glyph proposed ☠ (exact black fill + hairline edge + glyph finalised in implementation, since pure `#000` would vanish against the dark crypt UI).
+
+**How the player encounters them (devil's-bargain delivery):**
+- When a Dark Pact pick fires, there is a **10% chance the grimoire is black instead of the usual purple**. A black grimoire offers an entire hand of **all-Damned** pacts.
+- The other 90% (purple grimoire): Damned pacts may still appear mixed into the normal pool, drawn at the **same weight as Epic** pacts — the tier just before Legendary (epic weight 10 vs legendary 5, so slightly more common than a legendary).
+- Damned pacts are **permanent** and **stack with no limit**, exactly like normal pacts — they simply carry far bigger downsides.
+
+**Schema reuse (no new fields):** the existing pact card paints `description` as the green **"The Deal"** (boon) and `tradeoffDescription` as the red **"The Price"** (cost). That framing already fits a devil's bargain perfectly, so the schema is **not inverted**: `description` = the small one-time **bribe** (`"On sealing: …"`, the tiny Deal), `tradeoffDescription` = the huge permanent **curse** (the ruinous Price). The bribe is paid once in `onActivate`; the curse installs alongside it. Renders correctly in every existing surface (picker Deal/Price, detail popup boon▲/bane▼) with no UI changes. Gold-lump bribes are **flat numbers** (per user) — provisional values below, tweakable.
+
+**The 24 Damned pacts (locked 2026-05-28):**
+
+1. **The Leech** — Curse: lose 8% of your current gold every dawn. / Bribe: +800g on sealing.
+2. **Famished Dark** — Curse: adventurer kills grant 50% less gold for the rest of the run. / Bribe: +1500g.
+3. **The Open Gate** — Curse: +10 adventurers enter the dungeon every day, permanently. / Bribe: +1500g.
+4. **Hollow Crown** — Curse: boss max HP permanently −50%. / Bribe: a free Legendary pact.
+5. **Pact of Glass** — Curse: all minion max HP halved for the rest of the run. / Bribe: all minions cost 0 gold for that night phase only (minions placed that night give 0 sell value, to block resale abuse).
+6. **Sleepless Throne** — Curse: the boss begins every boss fight at 50% HP. / Bribe: +10 max minion slots.
+7. **Blind Architect** — Curse: minimap and adventurer-intel panel disabled for the rest of the run. / Bribe: a one-time perfect-day preview (full enemy preview next day).
+8. **Brittle Bones** — Curse: any minion struck while below 50% HP shatters instantly (dies). / Bribe: all current minions +25% damage (permanent).
+9. **Crumbling Halls** — Curse: at the start of every night phase for the rest of the run, a random placed room is destroyed along with everything in it. / Bribe: +600g + trap slots.
+10. **The Bleeding Crown** — Curse: the boss loses 2% of its max HP permanently every day. / Bribe: +1200g.
+11. **The Sealed Vault** — Curse: you can never sell anything (rooms/minions/traps) again. / Bribe: +1500g.
+12. **Mounting Debt** — Curse: each day, the gold cost of all rooms/minions/traps rises +5% (compounding). / Bribe: +1000g.
+13. **Tribute of Flesh** — Curse: every adventurer who escapes alive loots 20g straight from your treasury. / Bribe: +700g.
+14. **The Hollow Horde** — Curse: your maximum minion slots are halved for the rest of the run. / Bribe: every current minion +20% to all stats.
+15. **The Wasting** — Curse: at the end of each day, every surviving minion permanently loses 5% of its max HP. / Bribe: all current minions evolve by 1 tier (where possible).
+16. **The Hunger** — Curse: each dawn, 20% of your minions die permanently (no revives for these). / Bribe: +1000g.
+17. **Brittle Engines** — Curse: every trap breaks permanently after firing once (gone for good, not per-day). / Bribe: traps deal +100% damage.
+18. **The Insomniac** — Curse: every 3rd night you get no build phase (skipped straight to day). / Bribe: +600g.
+19. **Famine's Grip** — Curse: treasure rooms and items pay 50% less gold. / Bribe: +800g.
+20. **Pact of the Last Heart** — Curse: the boss is permanently reduced to **1 heart** (lives = 1, cannot regain) — the next lost boss fight ends the run. / Bribe: a free Legendary pact.
+21. **The Unteachable** — Curse: your minions can no longer gain XP or evolve for the rest of the run. / Bribe: +1000g.
+22. **Cursed Blood** — Curse: every minion death anywhere damages the boss for 3% of max HP. / Bribe: +1000g.
+23. **The Martyr's Curse** — Curse: when a minion dies, adventurers in that room heal 25% of their max HP. / Bribe: +800g.
+24. **Trapless Halls** — Curse: you can no longer place new traps for the rest of the run (existing traps remain). / Bribe: existing traps +50% damage + 600g.
+
 The trade-off should really make you think before choosing them. **I want tons and tons of different mechanics and trade offs to be added.**
 
 ---
@@ -811,6 +851,7 @@ In-scene popup shown after Post-Wave Summary, **only when the boss leveled up on
 - Header: "NIGHTFALL · CHOOSE ONE / DARK · PACT".
 - **Three cards** (existing `DungeonMechanicSystem.getOfferings(3, ...)`), each showing glyph, rarity tag (Common/Rare/Epic/Legendary), name, description, flavor text.
 - Buttons: `⟳ Reroll All (1×)` — rerolls the three cards once per night, then becomes disabled. `Seal the Pact ⏵` — confirms selected card. **No skip option.**
+- **Black grimoire variant (Damned pacts, added 2026-05-28):** when this popup fires there is a **10% chance the grimoire is rendered solid black instead of purple**, in which case all three offered cards are drawn from the **Damned** pool (all-curse pacts — see "Damned Pacts" above). On a normal (90%) purple grimoire, Damned pacts can still surface mixed into the regular offer, drawn at Epic weight (the tier just before Legendary).
 
 ### Pause Menu redesign
 
