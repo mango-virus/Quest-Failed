@@ -300,6 +300,10 @@ export class AISystem {
   // NIGHT_PHASE_STARTED resets it back to 'chest' for the next day.
   _tryTriggerMimic(adv) {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
+    // Sung Jinwoo ignores chests entirely — he never opens a real one
+    // (_tryOpenTreasureChest) and never springs a mimic disguised as one.
+    // He marches past, eyes on the boss.
+    if (adv._shadowMonarch) return
     for (const m of (this._gameState.minions ?? [])) {
       if (!m.isMimic) continue
       if (m.mimicState !== 'chest') continue
