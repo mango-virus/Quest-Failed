@@ -200,7 +200,7 @@ export class EventSystem {
 
   // ── Solo Leveling — Shadow Extraction ──────────────────────────────────
   // Max simultaneous shadows Jinwoo can field. (His army cap.)
-  static SHADOW_CAP = 10
+  static SHADOW_CAP = 4
 
   // The live Shadow Monarch (Sung Jinwoo) instance, or null if he's not in
   // the dungeon / already dead.
