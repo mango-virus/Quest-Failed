@@ -1049,11 +1049,11 @@ The rare Shadow Monarch invader ("Sung Jinwoo") and his bespoke duel. The base f
 | sl-duel-match | Boss duel: Jinwoo's maxHP matched to boss (keeps entry HP%), atk/def scale with shadow count; strictly 1:1 (shadows excluded from throne) | SL P1 | ✅ DONE | BossSystem `_matchShadowMonarchToBoss`; emits `SHADOW_MONARCH_DUEL` |
 | sl-cinematic-entrance | Entrance title card (SOLO LEVELING / THE SHADOW MONARCH / ARISE) + persistent vignette + VS card at the throne; black-blue event banner | SL P3 | ✅ DONE | `SoloLevelingCinematic.js`; EventBanner shadowmonarch theme |
 | sl-achievement | Legendary achievement only when the boss kills Jinwoo during the duel | SL P4 | ✅ DONE | AchievementSystem `_onAdventurerDied` isBoss gate |
-| sl-duel-movement | **Epic duel: both fighters roam the arena trading blows (clash → break → re-engage), not orbiting; signature blue-black Monarch VFX (shadow-dash, flame-slash, eruption)** | SL P5 | ⏳ PENDING | bespoke `_tickDuel` in BossSystem; duel-only, 1:1 |
-| sl-duel-director | **Director layer: letterbox bars, camera push-in, hitstop + shake on clashes, slow-mo killing blow** | SL P5 | ⏳ PENDING | SoloLevelingCinematic + CSS; time.timeScale + camera coordination with Game.js |
-| sl-duel-beats | **Rising phase beats: boss enrage + Jinwoo power surge at HP thresholds, with battle-cry lines** | SL P5 | ⏳ PENDING | one-shot HP-gated triggers |
-| sl-duel-climax | **Two climaxes: slow-mo shadow execution (win) / last-stand kneel + finishing blow (loss)** | SL P5 | ⏳ PENDING | `_endFight` duel branch + DOM pops |
-| sl-duel-framing | **Live two-bar duel HUD header (Monarch vs boss HP), beat-synced chat lines, impact/music sting** | SL P5 | ⏳ PENDING | DOM header; SfxSystem sting if assets exist |
+| sl-duel-movement | **Epic duel: both fighters roam the arena trading blows (clash → break → re-engage), not orbiting; signature blue-black Monarch VFX (shadow-dash, flame-slash, eruption)** | SL P5 | ✅ DONE | bespoke `_tickDuel` in BossSystem (square_off→charge→clash→breakaway + blink); duel-only, 1:1; movement/FX only, `_runOneRound` still owns damage. **Live in-game visual pass pending** (screenshots time out on the canvas). |
+| sl-duel-director | **Director layer: letterbox bars, camera push-in, hitstop + shake on clashes, slow-mo killing blow** | SL P5 | ✅ DONE | SoloLevelingCinematic letterbox (self-injected CSS); orphaned fight-cam push-in wired to SHADOW_MONARCH_DUEL/BOSS_FIGHT_RESOLVED; `_hitstop` on clash; existing kill slow-mo |
+| sl-duel-beats | **Rising phase beats: boss enrage + Jinwoo power surge at HP thresholds, with battle-cry lines** | SL P5 | ✅ DONE | `_checkDuelBeats` emits SHADOW_MONARCH_DUEL_BEAT (enrage@50%, surge@25%); DOM pulse+label; surge routes a Jinwoo line via ChatBubbles |
+| sl-duel-climax | **Two climaxes: slow-mo shadow execution (win) / last-stand kneel + finishing blow (loss)** | SL P5 | ✅ DONE | `_endFight` duel branch (shadow-shatter on win / dark burst on loss) + SHADOW_MONARCH_DUEL_END DOM finale card |
+| sl-duel-framing | **Live two-bar duel HUD header (Monarch vs boss HP), beat-synced chat lines, impact/music sting** | SL P5 | ✅ DONE | DOM duel header fed by throttled SHADOW_MONARCH_DUEL_HP; SfxSystem clash/blink/beat cues + existing boss-death sting |
 
 ---
 
