@@ -302,6 +302,20 @@ export class EventSystem {
     }
   }
 
+  // Build a styled messageNode for a SHOW_CONFIRM payload. Each row is
+  // { kind, label, value } where kind is one of: cost / reward / wager
+  // / win / lose / skip (drives the color theme via .qf-event-prompt-row
+  // CSS variants). Used by every event prompt below — keeps the
+  // headline-row typography consistent across the suite.
+  _eventPromptNode(rows) {
+    return h('div', { className: 'qf-event-prompt' },
+      rows.map(r => h('div', { className: `qf-event-prompt-row ${r.kind ?? ''}` }, [
+        h('div', { className: 'qf-event-prompt-label pix' }, r.label),
+        h('div', { className: 'qf-event-prompt-value pix' }, r.value),
+      ]))
+    )
+  }
+
   // ── Night-phase choice events ──────────────────────────────────────────
   // Black Market / Mercenary Contract / Cursed Relic — all surface a
   // SHOW_CONFIRM modal at announce. Each guards against re-prompt on a
@@ -368,10 +382,10 @@ export class EventSystem {
     )
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('black_market'),
-      message:
-        `A smuggler slips into your hoard:\n\n` +
-        `BUY — pay ${price} gold for a free random minion, delivered tonight.\n` +
-        `DECLINE — wave the smuggler off.`,
+      messageNode: this._eventPromptNode([
+        { kind: 'cost',   label: 'PAY',    value: `${price}g` },
+        { kind: 'reward', label: 'REWARD', value: '1 RANDOM UNLOCKED MINION' },
+      ]),
       confirmLabel: `BUY (${price}g)`,
       cancelLabel:  'DECLINE',
       onConfirm: () => {
@@ -413,11 +427,10 @@ export class EventSystem {
     )
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('mercenary_contract'),
-      message:
-        `A mercenary captain offers a contract:\n\n` +
-        `HIRE — pay ${price} gold for an elite (Tier 3) minion that fights\n` +
-        `for 3 days, then walks off the job.\n` +
-        `DECLINE — turn the contract down.`,
+      messageNode: this._eventPromptNode([
+        { kind: 'cost',   label: 'PAY',    value: `${price}g` },
+        { kind: 'reward', label: 'REWARD', value: 'ELITE TIER-3 MINION (3 DAYS)' },
+      ]),
       confirmLabel: `HIRE (${price}g)`,
       cancelLabel:  'DECLINE',
       onConfirm: () => {
@@ -461,13 +474,24 @@ export class EventSystem {
   _promptCursedRelic() {
     const flags = this._gameState._eventFlags
     if (flags.cursedRelicDecided) return
+    // Preview the relic chest's tier + gold/day so the player can see
+    // the offer before deciding. Mirrors the formula in
+    // _placeCursedRelic (which runs again on confirm — single source
+    // of truth for the chest itself; this is just the preview).
+    const _crLv = this._gameState.boss?.level ?? 1
+    const _crTier = Math.max(1, Math.min(
+      Balance.EVENT_CURSED_RELIC_TIER_MAX ?? 10,
+      (Balance.EVENT_CURSED_RELIC_TIER_BASE ?? 4)
+        + Math.floor(Math.max(0, _crLv - 1) / 2) * (Balance.EVENT_CURSED_RELIC_TIER_PER_2_LV ?? 1)
+    ))
+    const _crItems = this._scene?.cache?.json?.get?.('items') ?? []
+    const _crGoldPerDay = _crItems.find(i => i.id === `treasure_chest_${_crTier}`)?.treasure?.goldPerDay ?? 0
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('cursed_relic'),
-      message:
-        `A cursed relic — a chest gorged with gold — surfaces in your hoard:\n\n` +
-        `CLAIM — keep the chest (it pays gold every day). But its dark pull\n` +
-        `swells every adventurer wave for as long as it sits in your dungeon.\n` +
-        `BANISH — be rid of it.`,
+      messageNode: this._eventPromptNode([
+        { kind: 'reward', label: 'REWARD', value: `TIER ${_crTier} CHEST (${_crGoldPerDay}g/DAY)` },
+        { kind: 'cost',   label: 'CURSE',  value: 'EVERY ADVENTURER WAVE DOUBLES WHILE KEPT' },
+      ]),
       confirmLabel: 'CLAIM',
       cancelLabel:  'BANISH',
       onConfirm: () => {
@@ -554,15 +578,9 @@ export class EventSystem {
       // as headline rows, not body text. Two-row stack with the LABEL
       // small + dim and the VALUE big + bold + theme-coloured. CSS
       // class hooks live in styles.css under .qf-altar-prompt-*.
-      messageNode: h('div', { className: 'qf-altar-prompt' }, [
-        h('div', { className: 'qf-altar-prompt-row pay' }, [
-          h('div', { className: 'qf-altar-prompt-label pix' }, 'PAY'),
-          h('div', { className: 'qf-altar-prompt-value pix' }, rolled.label),
-        ]),
-        h('div', { className: 'qf-altar-prompt-row reward' }, [
-          h('div', { className: 'qf-altar-prompt-label pix' }, 'REWARD'),
-          h('div', { className: 'qf-altar-prompt-value pix' }, 'RANDOM BUFF'),
-        ]),
+      messageNode: this._eventPromptNode([
+        { kind: 'cost',   label: 'PAY',    value: rolled.label },
+        { kind: 'reward', label: 'REWARD', value: 'RANDOM BUFF' },
       ]),
       confirmLabel: 'ACCEPT THE BARGAIN',
       cancelLabel:  'WALK AWAY',
@@ -848,12 +866,11 @@ export class EventSystem {
     }
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('demons_wager'),
-      message:
-        `A demon offers a coin flip:\n\n` +
-        `WAGER your current boss level (${bossLv}) on the flip.\n` +
-        `WIN — level up immediately (${bossLv} → ${bossLv + 1}).\n` +
-        `LOSE — drop a level (${bossLv} → ${bossLv - 1}). Stats, unlocks, and minion power all diminish.\n\n` +
-        `DECLINE — send the demon away.`,
+      messageNode: this._eventPromptNode([
+        { kind: 'wager', label: 'WAGER', value: `BOSS LEVEL (${bossLv})` },
+        { kind: 'win',   label: 'WIN',   value: `LV ${bossLv} → ${bossLv + 1}` },
+        { kind: 'lose',  label: 'LOSE',  value: `LV ${bossLv} → ${bossLv - 1}` },
+      ]),
       confirmLabel: 'WAGER',
       cancelLabel:  'DECLINE',
       onConfirm: () => {
@@ -1062,12 +1079,15 @@ export class EventSystem {
     const flags = this._gameState._eventFlags
     if (flags.gamblerDecided) return
     const goldNow = this._gameState.player?.gold ?? 0
+    const goldDouble = goldNow * 2
+    const goldHalve  = Math.floor(goldNow / 2)
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('gamblers_coin'),
-      message:
-        `A grinning imp flips a coin:\n\n` +
-        `WAGER — 50/50: double your ${goldNow} gold, or lose half.\n` +
-        `DECLINE — keep your gold and send the imp away.`,
+      messageNode: this._eventPromptNode([
+        { kind: 'wager', label: 'WAGER', value: `YOUR GOLD (${goldNow}g)` },
+        { kind: 'win',   label: 'WIN',   value: `DOUBLE → ${goldDouble}g` },
+        { kind: 'lose',  label: 'LOSE',  value: `HALVE → ${goldHalve}g` },
+      ]),
       confirmLabel: 'WAGER',
       cancelLabel:  'DECLINE',
       onConfirm: () => {
@@ -1111,10 +1131,11 @@ export class EventSystem {
     const tribute   = Math.floor(goldNow * 0.25)
     EventBus.emit('SHOW_CONFIRM', {
       event: this._eventConfirmMeta('negotiation_day'),
-      message:
-        `The Adventurer's Guild offers a deal:\n\n` +
-        `PAY ${tribute} gold (25% of treasury) — no adventurers tomorrow.\n` +
-        `REFUSE — tomorrow's wave is +50%.`,
+      messageNode: this._eventPromptNode([
+        { kind: 'cost',   label: 'PAY',    value: `${tribute}g (25% OF TREASURY)` },
+        { kind: 'skip',   label: 'SKIP',   value: 'NO WAVE TOMORROW' },
+        { kind: 'lose',   label: 'REFUSE', value: '+50% WAVE TOMORROW' },
+      ]),
       confirmLabel: `PAY ${tribute}`,
       cancelLabel:  'REFUSE',
       onConfirm: () => {

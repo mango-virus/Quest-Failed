@@ -2269,66 +2269,100 @@ body {
 }
 
 /* ═════════════════════════════════════════════════════════════════
-   Sacrificial Altar prompt body — PAY / REWARD typography.
-   Drives the two-row decision panel inside the SHOW_CONFIRM modal.
-   Built by EventSystem._promptSacrificialAltar via the messageNode
-   payload (see ConfirmPopup). The label rows are small + dim and
-   the value rows are big + theme-coloured so the player's eye
-   immediately lands on the actual decision content.
+   Generic event-prompt body — small LABEL + big VALUE rows used by
+   every dungeon-event SHOW_CONFIRM modal that opts in via the
+   messageNode payload (see ConfirmPopup). The original styling
+   shipped for the Sacrificial Altar; generalised here so Demon's
+   Wager / Gambler's Coin / Black Market / Mercenary / Cursed Relic /
+   Negotiation share the same headline-row typography.
+
+   Row color variants drive the visual mood:
+     .cost   — what you pay (blood red)
+     .reward — what you gain (gold)
+     .wager  — what's at stake (violet)
+     .win    — positive outcome (green)
+     .lose   — negative outcome (blood red)
+     .skip   — neutral consequence (white-ish)
+
+   All rules SCOPED under .qf-eventconfirm-message so the specificity
+   beats the message-block defaults defined later in the stylesheet.
    ═════════════════════════════════════════════════════════════════ */
-/* Rules SCOPED under .qf-eventconfirm-message so they override the
-   confirm-message's font-size / color defaults (defined later in this
-   stylesheet — equal-specificity loses on cascade order, so we bump
-   each rule's specificity with the parent class). */
-.qf-eventconfirm-message .qf-altar-prompt {
+.qf-eventconfirm-message .qf-event-prompt {
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 4px 0 6px;
 }
-.qf-eventconfirm-message .qf-altar-prompt-row {
+.qf-eventconfirm-message .qf-event-prompt-row {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  position: relative;
 }
-.qf-eventconfirm-message .qf-altar-prompt-label {
+.qf-eventconfirm-message .qf-event-prompt-label {
   font-size: 9px;
   letter-spacing: 4px;
   color: var(--text-mute);
   opacity: 0.85;
 }
-.qf-eventconfirm-message .qf-altar-prompt-value {
+.qf-eventconfirm-message .qf-event-prompt-value {
   font-size: 18px;
   letter-spacing: 1px;
   line-height: 1.3;
   text-align: center;
 }
-/* PAY value — blood red, sharp. Reads as "the cost." */
-.qf-eventconfirm-message .qf-altar-prompt-row.pay .qf-altar-prompt-label { color: #d05050; }
-.qf-eventconfirm-message .qf-altar-prompt-row.pay .qf-altar-prompt-value {
-  color: #ff8a8a;
-  text-shadow: 0 0 10px rgba(220, 60, 70, 0.6);
-}
-/* REWARD value — gold, slightly glowing. Reads as "the prize." */
-.qf-eventconfirm-message .qf-altar-prompt-row.reward .qf-altar-prompt-label { color: #c8a040; }
-.qf-eventconfirm-message .qf-altar-prompt-row.reward .qf-altar-prompt-value {
-  color: #ffd964;
-  letter-spacing: 2px;
-  text-shadow: 0 0 12px rgba(255, 217, 100, 0.65);
-}
-/* Thin dotted divider between the two rows — sells the "two-part
-   decision" framing without taking visual weight. */
-.qf-eventconfirm-message .qf-altar-prompt-row.reward {
-  position: relative;
+/* Thin dotted divider on every row past the first — sells the
+   "stacked outcomes" framing without taking visual weight. */
+.qf-eventconfirm-message .qf-event-prompt-row + .qf-event-prompt-row {
   padding-top: 12px;
 }
-.qf-eventconfirm-message .qf-altar-prompt-row.reward::before {
+.qf-eventconfirm-message .qf-event-prompt-row + .qf-event-prompt-row::before {
   content: '';
   position: absolute;
   top: 0;
   left: 30%; right: 30%;
-  border-top: 1px dashed rgba(200, 160, 64, 0.35);
+  border-top: 1px dashed rgba(200, 160, 64, 0.30);
+}
+/* COST — blood red. */
+.qf-eventconfirm-message .qf-event-prompt-row.cost .qf-event-prompt-label { color: #d05050; }
+.qf-eventconfirm-message .qf-event-prompt-row.cost .qf-event-prompt-value {
+  color: #ff8a8a;
+  text-shadow: 0 0 10px rgba(220, 60, 70, 0.6);
+}
+/* REWARD — gold. */
+.qf-eventconfirm-message .qf-event-prompt-row.reward .qf-event-prompt-label { color: #c8a040; }
+.qf-eventconfirm-message .qf-event-prompt-row.reward .qf-event-prompt-value {
+  color: #ffd964;
+  letter-spacing: 2px;
+  text-shadow: 0 0 12px rgba(255, 217, 100, 0.65);
+}
+/* WAGER — violet (what's at stake in coin-flip events). */
+.qf-eventconfirm-message .qf-event-prompt-row.wager .qf-event-prompt-label { color: #a878d8; }
+.qf-eventconfirm-message .qf-event-prompt-row.wager .qf-event-prompt-value {
+  color: #d0a0ff;
+  text-shadow: 0 0 12px rgba(180, 120, 240, 0.6);
+}
+/* WIN — green (positive coin-flip outcome). */
+.qf-eventconfirm-message .qf-event-prompt-row.win .qf-event-prompt-label { color: #4faa68; }
+.qf-eventconfirm-message .qf-event-prompt-row.win .qf-event-prompt-value {
+  color: #86e89a;
+  text-shadow: 0 0 12px rgba(122, 226, 142, 0.55);
+}
+/* LOSE — blood red (negative coin-flip outcome). Same palette as cost
+   but lives on its own class so callers can use both in one modal
+   (e.g. the Demon Wager body) without overloading semantics. */
+.qf-eventconfirm-message .qf-event-prompt-row.lose .qf-event-prompt-label { color: #d05050; }
+.qf-eventconfirm-message .qf-event-prompt-row.lose .qf-event-prompt-value {
+  color: #ff8a8a;
+  text-shadow: 0 0 10px rgba(220, 60, 70, 0.6);
+}
+/* SKIP — neutral white-ish (used when the consequence is neither a
+   gain nor a loss — Negotiation Day's "no wave tomorrow" outcome). */
+.qf-eventconfirm-message .qf-event-prompt-row.skip .qf-event-prompt-label { color: var(--text-mute); }
+.qf-eventconfirm-message .qf-event-prompt-row.skip .qf-event-prompt-value {
+  color: var(--text);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.18);
 }
 
 /* ═════════════════════════════════════════════════════════════════
