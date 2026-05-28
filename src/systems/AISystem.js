@@ -675,7 +675,7 @@ export class AISystem {
   }
 
   // Trap firings are noise too.
-  _onTrapTriggeredAI({ trap, x, y, adventurer, damaged }) {
+  _onTrapTriggeredAI({ trap, x, y, adventurer }) {
     const tx = trap?.tileX ?? x ?? adventurer?.tileX
     const ty = trap?.tileY ?? y ?? adventurer?.tileY
     if (tx == null || ty == null) return
@@ -693,23 +693,21 @@ export class AISystem {
     // resolve a different direction each clear, flipping the adv back
     // and forth over the same trap. Only react when damage actually
     // happened, which keeps knowledge fresh AND avoids the thrash.
-    if (damaged && adventurer && adventurer.aiState !== 'dead' && adventurer.aiState !== 'fleeing') {
-      const now = this._scene?.time?.now ?? 0
-      if (now - (adventurer._trapRepathAt ?? -Infinity) > 3000) {
-        adventurer._trapRepathAt = now
-        adventurer.path = null
-      }
-      // Recoil tile-collection REMOVED 2026-05-27. The recoil mechanism
-      // used to soft-block the trap's footprint + 1-tile ring + danger-
-      // Tiles for ~3 s, forcing per-tile detour after a hit. That's the
-      // exact behavior the user asked us to remove — coarse room-level
-      // trap avoidance (ROOM_TRAP_PENALTY in the path block) now handles
-      // post-hit re-routing at the room level instead. KnowledgeSystem
-      // also populates adv.knowledge.traps on TRAP_TRIGGERED so the
-      // newly-known trap immediately joins trappedRoomIds on next
-      // path. The _trapRepathAt cooldown above still forces a re-path
-      // so the new knowledge actually gets used right away.
-    }
+    // We deliberately do NOT clear adventurer.path on a trap hit.
+    //
+    // Forcing a repath the instant they're hit — while they're mid-way
+    // across the trapped room — let the now-5× ROOM_TRAP_PENALTY (plus
+    // the 60% path jitter) reverse their direction back out the way they
+    // came; the next repath sent them forward again, and they ping-ponged
+    // back and forth over the trap every few seconds (the reported bug,
+    // worst on spike pits which re-fire every 600 ms). Letting their
+    // already-committed path finish carries them straight out the far
+    // side — a single hit, capped by the 4 s per-entity damage lockout in
+    // TrapSystem._hitEntity. The trap knowledge that gates future routing
+    // is recorded independently by KnowledgeSystem's own TRAP_TRIGGERED
+    // handler (it populates adv.knowledge.traps), so the room joins this
+    // adv's trapped-room avoidance set on their NEXT natural repath and
+    // they steer around it then — no mid-crossing reversal, no loop.
   }
 
   // True if a live hostile minion is within melee range of the adventurer.
@@ -1481,7 +1479,7 @@ export class AISystem {
           // the boss dies → everyone flees), so the queue drains without a
           // day-end hang — same nudge the soft oscillation detector gives
           // noFlee event waves above.
-          if (adv._bossRoyaleInvader || adv._rivalBoss) {
+          if (this._beelinesBoss(adv)) {
             if (!this._shoveAlongPath(adv, 4)) {
               adv.path = null
               adv.goal = this._pickNextGoal(adv)
@@ -1705,12 +1703,12 @@ export class AISystem {
             adv.aiState !== 'dead' && adv.aiState !== 'fleeing' &&
             adv.goal?.type !== 'AT_BOSS' &&
             // Dedicated event roles beeline / pile at the throne by design
-            // and must not be starved out while queued. Boss Royale
-            // invaders (11 converging at once) and the Rival Dungeon boss
-            // jam at the boss-room doorway waiting their turn to fight —
-            // culling them mid-queue made the whole gauntlet self-destruct.
+            // and must not be starved out while queued (single source of
+            // truth: _beelinesBoss — Boss Royale gauntlet, the whole Rival
+            // Dungeon pack, Shadow Monarch, …). Culling them mid-queue made
+            // the gauntlet self-destruct.
             !adv._saboteur && !adv._speedrunner && !adv._tournamentRival &&
-            !adv._bossRoyaleInvader && !adv._rivalBoss) {
+            !this._beelinesBoss(adv)) {
           // Death attribution — credit "Starvation" so the graveyard /
           // toast / log read "killed by Starvation" instead of "Unknown".
           // _lookupKillerName resolves the 'starvation' id to its label.
@@ -3195,16 +3193,15 @@ export class AISystem {
       // the throne with omniscient room awareness).
       //
       // EXEMPTION — event invaders that exist solely to challenge the
-      // throne (Boss Royale gauntlet, Rival Dungeon champion) bypass the
-      // gate and path straight to the boss. They're invading bosses who
-      // came for the throne and know exactly where it is; gating them
-      // shunts them into the explore fallback, where — having gone
-      // straight to SEEK_BOSS with no EXPLORE_ROOM phase to populate
-      // visitedRooms — the fallback keeps targeting the room they're
-      // already standing in and they freeze mid-dungeon (the "stuck in
-      // these rooms" bug). Speedrunner stays gated by design.
-      const beelinesBoss = adv._bossRoyaleInvader || adv._rivalBoss
-      if (!beelinesBoss && !this._knowsBossLocation(adv)) {
+      // throne bypass the gate and path straight to the boss (single
+      // source of truth: _beelinesBoss — add future beeline-event flags
+      // there, in ONE place). They came for the throne and know exactly
+      // where it is, so they rush it rather than wander. Speedrunner is
+      // intentionally NOT exempt (the gate is meant to make it discover
+      // the throne) — and even gated roles can no longer freeze here:
+      // _exploreFallbackForSeekBoss now walks them OUTWARD through
+      // unentered rooms toward the boss instead of stranding them.
+      if (!this._beelinesBoss(adv) && !this._knowsBossLocation(adv)) {
         const explore = this._exploreFallbackForSeekBoss(adv)
         if (explore) return explore
         // Nothing left to explore — fall through to boss tile so the
@@ -3894,22 +3891,56 @@ export class AISystem {
     return false
   }
 
+  // SINGLE SOURCE OF TRUTH — does this adventurer beeline the throne by
+  // design? These are the event roles that return { type: 'SEEK_BOSS' }
+  // unconditionally from _pickNextGoal with no EXPLORE phase: they exist
+  // to rush + fight the boss, so they BYPASS the SEEK_BOSS knowledge gate
+  // (path straight to the throne) AND the stuck/starvation cull failsafes
+  // (so they're not culled while queued at the boss-room doorway).
+  //
+  // *** ADDING A FUTURE BEELINE EVENT? Add its flag HERE, in this one
+  // place — the gate + both failsafes all read this. *** And even if you
+  // forget: _exploreFallbackForSeekBoss (below) guarantees a gated role
+  // EXPLORES toward the boss instead of freezing, so the worst case for a
+  // forgotten flag is "wanders to the throne" rather than "stuck in a
+  // room and dies". Speedrunner is deliberately excluded — the gate is
+  // meant to make it discover the throne by exploring.
+  _beelinesBoss(adv) {
+    return !!(
+      adv?._bossRoyaleInvader ||   // Boss Royale gauntlet (11 boss invaders)
+      adv?._monsterInvader   ||   // Rival Dungeon pack (monsters)
+      adv?._rivalBoss        ||   // Rival Dungeon champion
+      adv?._shadowMonarch         // Solo Leveling (never explores / detours)
+    )
+  }
+
   // Fallback target for an adv whose goal is SEEK_BOSS but who doesn't
-  // know where the boss is. Picks the nearest unvisited non-boss,
-  // unlocked room and returns its center tile — the adv keeps the
-  // SEEK_BOSS goal but walks toward unexplored territory. When they
-  // enter that room, observeCurrentRoom links it into their knowledge;
-  // the next replan may then resolve straight to the boss. Returns null
-  // only in degenerate dungeons where nothing else is left to explore;
-  // the caller falls through to the boss tile so the adv isn't
-  // stranded goal-less. (2026-05-27)
+  // know where the boss is yet. Walks them toward the nearest room they
+  // have NOT YET ENTERED so they discover the dungeon; once they enter
+  // it, observeCurrentRoom links it into their knowledge and the next
+  // replan may resolve straight to the boss. When every non-boss room
+  // has been entered, returns null and the caller paths straight to the
+  // throne — so the adv always makes forward progress.
+  //
+  // CRITICAL (2026-05-28): keyed on `_roomsEntered` (stamped on EVERY
+  // room entry, for every adv — see the room-change handler) NOT
+  // `visitedRooms`. visitedRooms is only filled by the EXPLORE_ROOM goal
+  // flow, so advs that go straight to SEEK_BOSS (event beeliners, and any
+  // future role) never populate it — the old code then kept returning the
+  // room they were already standing in, producing zero movement: they
+  // froze in place across the dungeon (the reported Boss Royale / Rival
+  // Dungeon bug). We also explicitly skip the room the adv is currently
+  // in so the target is always somewhere to move TO. Using _roomsEntered
+  // makes this safe for ANY SEEK_BOSS adventurer, present or future.
   _exploreFallbackForSeekBoss(adv) {
     const rooms = this._gameState?.dungeon?.rooms ?? []
-    const visited = new Set(adv.visitedRooms ?? [])
+    const entered = adv._roomsEntered ?? {}
+    const hereId = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId
     let best = null, bestDist = Infinity
     for (const room of rooms) {
       if (room.definitionId === 'boss_chamber') continue
-      if (visited.has(room.instanceId)) continue
+      if (room.instanceId === hereId) continue   // never target the room we're in
+      if (entered[room.instanceId]) continue     // skip rooms already entered
       if (room.locked) continue
       const cx = room.gridX + Math.floor(room.width  / 2)
       const cy = room.gridY + Math.floor(room.height / 2)
