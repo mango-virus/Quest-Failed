@@ -635,7 +635,7 @@ class AchievementSystemImpl {
         PlayerProfile.queueUnlock({ type: 'boss', id: bossId, achId: def.id })
       }
       if (def.title) {
-        PlayerProfile.queueUnlock({ type: 'title', id: def.id, title: def.title, titleFx: def.titleFx ?? null, achId: def.id })
+        PlayerProfile.queueUnlock({ type: 'title', id: def.id, title: def.title, titleFx: def.titleFx ?? null, titleColor: def.titleColor ?? null, achId: def.id })
       }
     }
     // Tell the world — toast UI, HUD chips, leaderboard sync, etc.
@@ -751,6 +751,25 @@ class AchievementSystemImpl {
   getTitleFxById(id) {
     const def = this._byId.get(id)
     return def?.titleFx ?? null
+  }
+
+  // Static per-title color (for non-fx "normal" titles). Same name→value
+  // lookup shape as the fx resolver — render sites that only have the
+  // title string resolve the color by name; sites with the def use the
+  // id. Returns a hex string or null.
+  getTitleColorByName(name) {
+    if (!name) return null
+    if (!this._titleColorByName) {
+      this._titleColorByName = new Map()
+      for (const d of this._defs) {
+        if (d.title && d.titleColor) this._titleColorByName.set(d.title, d.titleColor)
+      }
+    }
+    return this._titleColorByName.get(name) ?? null
+  }
+  getTitleColorById(id) {
+    const def = this._byId.get(id)
+    return def?.titleColor ?? null
   }
   isUnlocked(id) { return PlayerProfile.isAchievementUnlocked(id) }
   getProgress(id) {

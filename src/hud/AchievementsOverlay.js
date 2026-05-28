@@ -34,7 +34,7 @@ import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { PlayerProfile }     from '../systems/PlayerProfile.js'
 import { Leaderboard }       from '../systems/Leaderboard.js'
 import { COMPANIONS, getCompanion, COMPANION_ORDER } from '../systems/companions.js'
-import { titleFxClassById, titleFxBorderClassById } from './titleFx.js'
+import { titleFxClassById, titleFxBorderClassById, titleColorById } from './titleFx.js'
 
 // Filter tabs. The LEADERBOARD entry is intentionally NOT in this list —
 // it's its own prominent button (see `_render` below) so it reads as a
@@ -277,13 +277,22 @@ export class AchievementsOverlay {
     // (progression), "The Hunter" reads cyan (variety), etc.
     const titleSourceDef = activeTitle ? AchievementSystem.getDefinition(activeTitle.id) : null
     const titleSourceCat = titleSourceDef?.category || 'mastery'
+    // fx title → animated gradient border + gradient name. Non-fx title
+    // with a titleColor → solid color on the border + name (overrides the
+    // category-derived chip tint). Plain title → category tint as before.
+    const titleFxBorder = activeTitle ? titleFxBorderClassById(activeTitle.id) : ''
+    const titleColor    = (activeTitle && !titleFxBorder) ? titleColorById(activeTitle.id) : null
     const titleChip = activeTitle ? h('button', {
-      className: ('pix qf-ach-titlechip ' + titleFxBorderClassById(activeTitle.id)).trimEnd(),
+      className: ('pix qf-ach-titlechip ' + titleFxBorder).trimEnd(),
       dataset: { sourceCat: titleSourceCat },
+      style: titleColor ? { borderColor: titleColor } : undefined,
       on: { click: () => this._toggleTitlePicker() },
     }, [
       h('span', { className: 'qf-ach-titlechip-label' }, '✦  TITLE'),
-      h('span', { className: ('qf-ach-titlechip-name ' + titleFxClassById(activeTitle.id)).trimEnd() }, activeTitle.name),
+      h('span', {
+        className: ('qf-ach-titlechip-name ' + titleFxClassById(activeTitle.id)).trimEnd(),
+        style: titleColor ? { color: titleColor } : undefined,
+      }, activeTitle.name),
       titleCount > 1 && h('span', { className: 'qf-ach-titlechip-count' },
         ` · ${titleCount} unlocked  ▼`),
       titleCount === 1 && h('span', { className: 'qf-ach-titlechip-count' }, '  ▼'),
@@ -428,12 +437,19 @@ export class AchievementsOverlay {
           '(most recent: ' + (sorted[0]?.name || '—') + ')'),
       ]),
       // One row per unlocked title (most-recent first).
-      ...sorted.map(t => h('button', {
-        className: 'qf-ach-titlepicker-row' + (activeId === t.id ? ' is-active' : ''),
-        on: { click: () => this._selectTitle(t.id) },
-      }, [
-        h('span', { className: ('pix qf-ach-titlepicker-name ' + titleFxClassById(t.id)).trimEnd() }, '✦ ' + t.name),
-      ])),
+      ...sorted.map(t => {
+        const fxCls  = titleFxClassById(t.id)
+        const tColor = fxCls ? null : titleColorById(t.id)
+        return h('button', {
+          className: 'qf-ach-titlepicker-row' + (activeId === t.id ? ' is-active' : ''),
+          on: { click: () => this._selectTitle(t.id) },
+        }, [
+          h('span', {
+            className: ('pix qf-ach-titlepicker-name ' + fxCls).trimEnd(),
+            style: tColor ? { color: tColor } : undefined,
+          }, '✦ ' + t.name),
+        ])
+      }),
     ])
   }
 
@@ -577,11 +593,16 @@ export class AchievementsOverlay {
       // shimmer here too. The span is forced back to `display: inline`
       // (see .qf-ach-reward .qf-titlefx in styles.css) so the chip's
       // ellipsis truncation still works on long names.
+      // fx titles → animated gradient border + gradient text. Non-fx
+      // titles with a titleColor → recolor the whole chip cohesively by
+      // overriding the --qf-reward-title var (drives text, border,
+      // text-shadow glow, AND the chip bg tint in one shot).
+      const fxBorder = titleFxBorderClassById(def.id)
+      const tColor   = fxBorder ? null : titleColorById(def.id)
       rewardChip = h('div', {
-        // Border classes make the chip's frame sweep the same gradient as
-        // the title text (no-op string when the title has no fx).
-        className: ('qf-ach-reward qf-ach-reward--title ' + titleFxBorderClassById(def.id)).trimEnd(),
+        className: ('qf-ach-reward qf-ach-reward--title ' + fxBorder).trimEnd(),
         dataset: { rewardType: 'title' },
+        style: tColor ? { '--qf-reward-title': tColor } : undefined,
       }, [
         '✦ Title: ',
         h('span', { className: titleFxClassById(def.id) }, def.title),

@@ -280,11 +280,14 @@ export class UnlockNotificationOverlay {
       // Centerpiece — boss portrait / companion sprite / achievement
       // icon / title chip, depending on type.
       this._renderArt(entry),
-      // Name + subtitle row. Legendary fx titles clip their animated
-      // gradient over the name (overrides the purple title-card accent).
+      // Name + subtitle row. fx titles clip their animated gradient over
+      // the name; non-fx titles with a titleColor paint it solid (both
+      // override the default purple title-card accent).
       h('div', {
         className: ('pix qf-unlock-name ' +
           (entry.type === 'title' && entry.titleFx ? titleFxClass(entry.titleFx) : '')).trimEnd(),
+        style: (entry.type === 'title' && !entry.titleFx && entry.titleColor)
+          ? { color: entry.titleColor } : undefined,
       }, this._nameFor(entry)),
       this._subtitleFor(entry) &&
         h('div', { className: 'qf-unlock-subtitle' }, this._subtitleFor(entry)),

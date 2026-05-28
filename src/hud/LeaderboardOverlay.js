@@ -21,7 +21,7 @@ import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { COMPANIONS, getCompanion } from '../systems/companions.js'
 import { runCountUp } from './countUp.js'
 import { EventBus } from '../systems/EventBus.js'
-import { titleFxClassByName } from './titleFx.js'
+import { titleFxClassByName, titleFxBorderClassByName, titleColorByName } from './titleFx.js'
 
 // Feature flag — show the companion the player used on each leaderboard
 // row, on the podium card, and in the detail panel (incl. a
@@ -756,6 +756,33 @@ export class LeaderboardOverlay {
     ])
   }
 
+  // Build the title-or-accolade chip shared by the podium card + detail
+  // panel. Three looks, mirroring the in-game title displays:
+  //   • fx title    — animated gradient border on the chip + gradient
+  //                   text in an inner span (the full "special" look).
+  //   • color title — solid per-title color on both the words and border.
+  //   • plain title / accolade — falls back to the rank color (gold /
+  //                   silver / bronze etc.).
+  // `baseClass` is the per-site chip class; `tag` is 'div' (podium) or
+  // 'span' (detail).
+  _titleChipNode(entry, rankColor, baseClass, tag = 'div') {
+    const title    = entry.title
+    const accolade = entry.accolade
+    if (!title && !accolade) return null
+    const fxBorder = title ? titleFxBorderClassByName(title) : ''
+    if (title && fxBorder) {
+      return h(tag, { className: (baseClass + ' ' + fxBorder).trim() }, [
+        h('span', { className: titleFxClassByName(title) }, title),
+      ])
+    }
+    const color = title ? titleColorByName(title) : null
+    if (title && color) {
+      return h(tag, { className: baseClass, style: { color, borderColor: color } }, title)
+    }
+    return h(tag, { className: baseClass, style: { color: rankColor, borderColor: rankColor } },
+      title || accolade)
+  }
+
   _podiumCard(entry, place) {
     const c = rankColor(place)
     const active = this._selected === entry
@@ -853,16 +880,8 @@ export class LeaderboardOverlay {
       // takes the slot when present; otherwise the legacy IMMORTAL /
       // BUTCHER / CUNNING accolade fills it for top-3 podium ranks.
       // Older runs with neither render the slot empty (no chip).
-      (entry.title || entry.accolade) && h('div', {
-        // Title visual-effect (legendary fx titles) clips an animated
-        // gradient over the text; -webkit-text-fill-color: transparent in
-        // the fx class wins over the inline rank `color`, so the gradient
-        // shows while the border keeps the rank tint. Accolades (no title)
-        // render plain with the rank color.
-        className: 'pix qf-lb-podium-accolade' +
-          (entry.title ? (' ' + titleFxClassByName(entry.title)).trimEnd() : ''),
-        style: { color: c, borderColor: c },
-      }, entry.title || entry.accolade),
+      (entry.title || entry.accolade) &&
+        this._titleChipNode(entry, c, 'pix qf-lb-podium-accolade', 'div'),
     ])
     return h('button', {
       className: 'qf-lb-podium-card',
@@ -1170,11 +1189,8 @@ export class LeaderboardOverlay {
               style: { color: c, textShadow: `0 0 8px ${c}55` },
             }, `#${String(sel.rank).padStart(2, '0')}`),
             // Title-or-accolade — same fallback rule as the podium card.
-            (sel.title || sel.accolade) && h('span', {
-              className: 'pix qf-lb-detail-accolade' +
-                (sel.title ? (' ' + titleFxClassByName(sel.title)).trimEnd() : ''),
-              style: { color: c, borderColor: c },
-            }, sel.title || sel.accolade),
+            (sel.title || sel.accolade) &&
+              this._titleChipNode(sel, c, 'pix qf-lb-detail-accolade', 'span'),
             sel.isYou && h('span', { className: 'pix qf-lb-detail-youtag' }, 'YOU'),
           ]),
           h('div', {

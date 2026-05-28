@@ -106,7 +106,8 @@
     "metric": "maxBossLevel",
     "target": 11,
     "icon": "👑",
-    "title": "The Tyrant"
+    "title": "The Tyrant",
+    "titleColor": "#e0445e"
   },
   {
     "id": "despot",
@@ -116,7 +117,8 @@
     "metric": "maxBossLevel",
     "target": 12,
     "icon": "👁️",
-    "title": "The Despot"
+    "title": "The Despot",
+    "titleColor": "#a86cff"
   },
   {
     "id": "worldbreaker",
@@ -126,7 +128,8 @@
     "metric": "maxBossLevel",
     "target": 13,
     "icon": "💥",
-    "title": "Worldbreaker"
+    "title": "Worldbreaker",
+    "titleColor": "#ff7a2c"
   },
   {
     "id": "architect_of_ruin",
@@ -136,7 +139,8 @@
     "metric": "maxBossLevel",
     "target": 14,
     "icon": "🏛️",
-    "title": "Architect of Ruin"
+    "title": "Architect of Ruin",
+    "titleColor": "#b0763a"
   },
   {
     "id": "endless_crown",
@@ -146,7 +150,8 @@
     "metric": "maxBossLevel",
     "target": 15,
     "icon": "💍",
-    "title": "Crowned Endless"
+    "title": "Crowned Endless",
+    "titleColor": "#f3c44a"
   },
   {
     "id": "eldritch_throne",
@@ -156,7 +161,8 @@
     "metric": "maxBossLevel",
     "target": 16,
     "icon": "🔮",
-    "title": "Of the Eldritch Throne"
+    "title": "Of the Eldritch Throne",
+    "titleColor": "#46d6b0"
   },
   {
     "id": "forgotten_god",
@@ -166,7 +172,8 @@
     "metric": "maxBossLevel",
     "target": 17,
     "icon": "⚰️",
-    "title": "The Forgotten God"
+    "title": "The Forgotten God",
+    "titleColor": "#9aa6b2"
   },
   {
     "id": "demilich_eternal",
@@ -176,7 +183,8 @@
     "metric": "maxBossLevel",
     "target": 18,
     "icon": "💀",
-    "title": "Demilich Eternal"
+    "title": "Demilich Eternal",
+    "titleColor": "#8fd46b"
   },
   {
     "id": "avatar_of_dread",
@@ -186,7 +194,8 @@
     "metric": "maxBossLevel",
     "target": 19,
     "icon": "😈",
-    "title": "Avatar of Dread"
+    "title": "Avatar of Dread",
+    "titleColor": "#ff3b6b"
   },
   {
     "id": "throne_eternal",
@@ -324,7 +333,8 @@
     "metric": "killsTotal",
     "target": 500,
     "icon": "⚱️",
-    "title": "The Reaper"
+    "title": "The Reaper",
+    "titleColor": "#8a98a6"
   },
   {
     "id": "soul_collector",
@@ -408,7 +418,8 @@
     "metric": "noMinionsLostInDayEver",
     "target": 1,
     "icon": "💎",
-    "title": "The Untouched"
+    "title": "The Untouched",
+    "titleColor": "#9fe8ff"
   },
   {
     "id": "total_annihilation",

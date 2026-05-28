@@ -51,3 +51,14 @@ export function titleFxBorderClassByName(name) {
   const fx = AchievementSystem.getTitleFxByName?.(name) ?? null
   return titleFxBorderClass(fx)
 }
+
+// ── Static per-title color (non-fx "normal" titles) ─────────────────
+// Returns the hex color for a title, or null if it has none (or has an
+// fx instead — fx wins). Render sites apply this as inline color +
+// borderColor so the words and frame share the title's signature color.
+export function titleColorById(id) {
+  return AchievementSystem.getTitleColorById?.(id) ?? null
+}
+export function titleColorByName(name) {
+  return AchievementSystem.getTitleColorByName?.(name) ?? null
+}
