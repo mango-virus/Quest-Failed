@@ -1685,10 +1685,13 @@ export class AISystem {
             adv.aiState !== 'dead' && adv.aiState !== 'fleeing' &&
             adv.goal?.type !== 'AT_BOSS' &&
             !adv._saboteur && !adv._speedrunner && !adv._tournamentRival) {
-          adv._lastHitBy   = null
+          // Death attribution — credit "Starvation" so the graveyard /
+          // toast / log read "killed by Starvation" instead of "Unknown".
+          // _lookupKillerName resolves the 'starvation' id to its label.
+          adv._lastHitBy   = 'starvation'
           adv._lastHitType = 'starvation'
           EventBus.emit('SAY_starvation', { adventurer: adv })
-          this._kill(adv, idx, null)
+          this._kill(adv, idx, 'starvation')
           return
         }
         // Fountain / chest / key-chest discovery now rides on
@@ -4590,6 +4593,10 @@ export class AISystem {
 
   _lookupKillerName(killerId) {
     if (!killerId) return 'Unknown'
+    // Self-inflicted / cause-only deaths (no entity killer). The starvation
+    // failsafe culls advs stuck looping rooms; credit "Starvation" so the
+    // graveyard reads "killed by Starvation" rather than "Unknown".
+    if (killerId === 'starvation') return 'Starvation'
     if (killerId === 'boss') {
       const archId = this._gameState.player?.bossArchetypeId
       const arch   = this._scene.cache.json.get('bossArchetypes')
