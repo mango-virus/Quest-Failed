@@ -872,14 +872,17 @@ export const Balance = {
 // with the stat scaling so players see incoming waves visibly getting
 // stronger. PURELY COSMETIC — it changes no stats, it just mirrors the
 // multipliers DayPhase._scaleAdventurerByBossLevel applies.
-export function adventurerDisplayLevel(bossLv = 1, day = 1, bloodMoneyBonus = 0) {
+// SINGLE SOURCE OF TRUTH for adventurer HP/ATK stat scaling — boss-level
+// + day + post-day-9 compounding + blood-money HP bonus. Used by:
+//   • DayPhase._scaleAdventurerByBossLevel — the REAL stat scaling at spawn
+//   • adventurerDisplayLevel (below) — the cosmetic LV chip
+//   • AdvIntelOverlay wave preview — so the "(incoming)" HP/ATK match what
+//     the adventurers will actually spawn with (not the class base)
+// NOTE: speed is intentionally NOT scaled — only HP and ATK.
+export function adventurerScaleMultipliers(bossLv = 1, day = 1, bloodMoneyBonus = 0) {
   const lvOver  = Math.max(0, Math.floor(bossLv || 1) - 1)
   const dayOver = Math.max(0, Math.floor(day   || 1) - 1)
-  // Post-day-9 compounding multiplier — mirrors
-  // _scaleAdventurerByBossLevel so the displayed LV climbs in lockstep
-  // with the actual stat escalation. By day 30 the LV chip reads ~50+
-  // for a level-1 boss run, which is the player's visible warning that
-  // each successive wave is sharper than the last.
+  // Post-day-9 compounding multiplier (smooth curve, no decade cliffs).
   const postTen   = Math.max(0, Math.floor(day || 1) - 9)
   const post10Hp  = Math.pow(Balance.ADVENTURER_POST10_HP_PER_DAY  ?? 1, postTen)
   const post10Atk = Math.pow(Balance.ADVENTURER_POST10_ATK_PER_DAY ?? 1, postTen)
@@ -888,6 +891,15 @@ export function adventurerDisplayLevel(bossLv = 1, day = 1, bloodMoneyBonus = 0)
                      + (bloodMoneyBonus || 0)) * post10Hp
   const atkMul = (1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
                      + Balance.ADVENTURER_ATK_PER_DAY      * dayOver) * post10Atk
+  return { hpMul, atkMul }
+}
+
+export function adventurerDisplayLevel(bossLv = 1, day = 1, bloodMoneyBonus = 0) {
+  // Derives the cosmetic LV chip from the same multipliers the real stat
+  // scaling uses, so the displayed LV climbs in lockstep with the actual
+  // escalation. By day 30 the chip reads ~50+ for a level-1 boss run —
+  // the player's visible warning that each wave is sharper than the last.
+  const { hpMul, atkMul } = adventurerScaleMultipliers(bossLv, day, bloodMoneyBonus)
   // One level ≈ one boss-level's worth of average HP/ATK buff.
   const step = (Balance.ADVENTURER_HP_PER_BOSS_LV +
                 Balance.ADVENTURER_ATK_PER_BOSS_LV) / 2 || 0.085

@@ -32,7 +32,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { snapshotAdventurerEntity } from './inGameSnapshot.js'
-import { adventurerDisplayLevel } from '../config/balance.js'
+import { adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
 
 const THREAT_TIERS = [
   { label: 'CRITICAL', color: 'var(--blood)',  min: 75 },
@@ -215,18 +215,27 @@ export class AdvIntelOverlay {
     // The wave's display level — the same value DayPhase will stamp on
     // every adventurer when they actually spawn, so the preview matches.
     const level = this._waveLevel()
+    // Scale HP/ATK to what they'll actually spawn with (shared formula),
+    // so the preview doesn't show tiny class-base numbers next to a huge
+    // scaled LV. Speed isn't scaled in-game, so it stays at the base.
+    const { hpMul, atkMul } = this._waveScaleMuls()
+    const hp  = Math.round((baseStats.hp     ?? baseStats.maxHp ?? 30) * hpMul)
+    const atk = Math.round((baseStats.attack ?? baseStats.atk   ?? 5)  * atkMul)
     return {
       classId,
       spriteVariant,
       name: name + ' (incoming)',
       level,
       stats: {
-        hp:     baseStats.hp     ?? baseStats.maxHp ?? 30,
-        attack: baseStats.attack ?? baseStats.atk   ?? 5,
+        hp,
+        attack: atk,
         speed:  baseStats.speed  ?? baseStats.spd   ?? 1.0,
         resists: def?.resists ?? [],
         weakTo:  def?.weakTo  ?? def?.vulnerableToElements ?? [],
       },
+      // Mirror the scaled HP onto resources so the panel's
+      // resources.maxHp-first read (and the threat score) pick it up.
+      resources: { hp, maxHp: hp },
       isVeteran: false,
       redacted: false,
     }
@@ -244,13 +253,24 @@ export class AdvIntelOverlay {
         ? `Avenger of ${hunter.avengeeName}`
         : 'Vendetta Hunter',
       level: this._waveLevel(),  // matches the level stamped at spawn
-      stats: {
-        hp:     (baseStats.hp     ?? 30) + 10,
-        attack: (baseStats.attack ?? 5)  + 2,
-        speed:  baseStats.speed  ?? 1.0,
-        resists: def?.resists ?? [],
-        weakTo:  def?.weakTo  ?? def?.vulnerableToElements ?? [],
-      },
+      // Vendetta hunters are slightly tougher than base (+10 HP / +2 ATK),
+      // then scaled by the same wave multipliers so the preview tracks the
+      // displayed LV. Speed isn't scaled in-game, so it stays at the base.
+      ...(() => {
+        const { hpMul, atkMul } = this._waveScaleMuls()
+        const hp  = Math.round(((baseStats.hp     ?? 30) + 10) * hpMul)
+        const atk = Math.round(((baseStats.attack ?? 5)  + 2)  * atkMul)
+        return {
+          stats: {
+            hp,
+            attack: atk,
+            speed:  baseStats.speed ?? 1.0,
+            resists: def?.resists ?? [],
+            weakTo:  def?.weakTo  ?? def?.vulnerableToElements ?? [],
+          },
+          resources: { hp, maxHp: hp },
+        }
+      })(),
       // A vendetta hunter is a NEW adventurer come to avenge a fallen
       // comrade — they have not personally raided this dungeon before,
       // so they are not a "veteran" in the been-here-before sense.
@@ -355,11 +375,30 @@ export class AdvIntelOverlay {
     )
   }
 
+  // HP/ATK scaling multipliers for the upcoming wave — same boss-level +
+  // day + blood-money inputs as _waveLevel (and the SAME shared formula
+  // DayPhase uses at spawn), so the preview's "(incoming)" HP/ATK match
+  // both the displayed LV and the stats the advs will actually have.
+  _waveScaleMuls() {
+    const gs = this._gameState
+    const phase = gs?.meta?.phase
+    const nextDay = (gs?.meta?.dayNumber ?? 1) + (phase === 'day' ? 1 : 0)
+    return adventurerScaleMultipliers(
+      gs?.boss?.level ?? 1,
+      nextDay,
+      gs?._mechanicFlags?.bloodMoneyHpBonus ?? 0,
+    )
+  }
+
   _threatScore(adv) {
     // Rough heuristic — combine LV, hp, atk into a 0..100 score.
     const lv  = adv.displayLevel ?? adv.level ?? adv.lv ?? 1
     const atk = adv.stats?.attack ?? adv.atk ?? 5
-    const hp  = adv.stats?.hp ?? adv.resources?.maxHp ?? adv.hp ?? 30
+    // HP comes from resources.maxHp — that's the scaled actual pool that
+    // _scaleAdventurerByBossLevel writes. stats.hp is the unscaled class
+    // base (never updated by scaling), so reading it first showed a tiny
+    // wrong number on high-day/level advs. Matches InspectPopup.
+    const hp  = adv.resources?.maxHp ?? adv.stats?.hp ?? adv.hp ?? 30
     const score = lv * 8 + atk * 2 + Math.min(40, hp / 2)
     return Math.max(0, Math.min(100, Math.round(score)))
   }
@@ -496,7 +535,8 @@ export class AdvIntelOverlay {
     // redacted. Day phase always shows the live numbers (Library
     // irrelevant once the adv is in front of you).
     const _statsRevealed = this._canReveal(TIER_STATS)
-    const hp  = _statsRevealed ? (adv.stats?.hp ?? adv.hp ?? 30) : '?'
+    // HP from resources.maxHp (scaled actual), not stats.hp (unscaled base).
+    const hp  = _statsRevealed ? (adv.resources?.maxHp ?? adv.stats?.hp ?? adv.hp ?? 30) : '?'
     const atk = _statsRevealed ? (adv.stats?.attack ?? adv.atk ?? 5) : '?'
     const spd = _statsRevealed ? (adv.stats?.speed ?? adv.spd ?? 1.0) : '?'
 
@@ -577,7 +617,8 @@ export class AdvIntelOverlay {
     const _routeRevealed         = this._canReveal(TIER_ROUTE)
     const libCount               = this._libraryCount()
     const isNight                = this._gameState.meta?.phase === 'night'
-    const hp  = sel.stats?.hp ?? sel.hp ?? 30
+    // HP from resources.maxHp (scaled actual), not stats.hp (unscaled base).
+    const hp  = sel.resources?.maxHp ?? sel.stats?.hp ?? sel.hp ?? 30
     const atk = sel.stats?.attack ?? sel.atk ?? 5
     const spd = sel.stats?.speed ?? sel.spd ?? 1.0
     const resists = def?.resists ?? sel.stats?.resists ?? []
