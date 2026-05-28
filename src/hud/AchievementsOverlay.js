@@ -537,11 +537,14 @@ export class AchievementsOverlay {
   _renderGrid() {
     const unlocked = this._unlockedSet()
     const myUnlocked = this._viewer ? PlayerProfile.getUnlockedAchievements() : null
-    const cards = []
-    for (const def of this._defs) {
-      if (!this._defMatchesTab(def, this._activeTab)) continue
-      cards.push(this._card(def, unlocked, myUnlocked))
-    }
+    // Order every tab by difficulty tier — bronze first, then silver,
+    // then gold at the bottom. Stable within a tier (preserves the
+    // achievements.json order, e.g. boss levels stay in level order).
+    const TIER_RANK = { bronze: 0, silver: 1, gold: 2 }
+    const cards = this._defs
+      .filter(def => this._defMatchesTab(def, this._activeTab))
+      .sort((a, b) => (TIER_RANK[achievementTier(a)] ?? 1) - (TIER_RANK[achievementTier(b)] ?? 1))
+      .map(def => this._card(def, unlocked, myUnlocked))
     return h('div', { className: 'qf-ach-grid' }, cards)
   }
 
