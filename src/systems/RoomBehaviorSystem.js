@@ -726,6 +726,32 @@ export class RoomBehaviorSystem {
     return minionTypes.filter(d => ids.has(d.id))
   }
 
+  // Apex pool — the FINAL link of every evolution chain, regardless of
+  // chain length. A 3-link family yields its T3 apex (beholder_tyrant,
+  // goblin3, …); the 4-link slime chains yield their T4 elder
+  // (elder_slime1/2/3). Used by the Throne Room so a slime throne can
+  // roll the T4 elder instead of being stuck on the penultimate T3.
+  //
+  // Unlike _tierPoolByChain there's NO `/\d$/` digit-suffix filter —
+  // that test silently excluded every NAMED final form (beholder_tyrant,
+  // demon_lord, dark_wraith, gnoll_alpha, golem_warden, elder_lich,
+  // serpent_captain) from any pool it built. The apex of a chain is
+  // always a real minion def, so we take all of them and just intersect
+  // with minionTypes. (2026-05-27 — throne T4 / apex spawning)
+  _apexPoolByChain(minionTypes, excludeIds = new Set()) {
+    const chains = this._scene.cache.json.get('minionEvolutions') ?? {}
+    const ids = new Set()
+    for (const data of Object.values(chains)) {
+      const chain = data?.chain
+      if (Array.isArray(chain) && chain.length > 0) {
+        const apex = chain[chain.length - 1]
+        if (apex) ids.add(apex)
+      }
+    }
+    for (const ex of excludeIds) ids.delete(ex)
+    return minionTypes.filter(d => ids.has(d.id))
+  }
+
   // Room redesign 2026-04-30 — shared garrison-minion factory used by
   // Mimic Vault, Hall of Trials, Throne Room. Mirrors the inline Crypt
   // shape (kept inline for back-compat) but with a fixed class:'garrison'
@@ -779,16 +805,16 @@ export class RoomBehaviorSystem {
     )
     if (thrones.length === 0) return
     const minionTypes = this._scene.cache.json.get('minionTypes') ?? []
-    // Tier-3 pool, sourced from evolution-chain position (chain[2])
-    // rather than the legacy `[a-z_]+3$` regex. The regex broke for
-    // slimes because the slime chains are arbitrarily named
-    // ([slime3, slime7, slime8, elder_slime1] etc.) — `slime3` is
-    // actually chain[0] (T1) of its own chain, not T3 anywhere. The
-    // chain-position lookup picks slime8 / slime1 / slime6 as the
-    // true T3 slimes, which then display the correct TIER badge in
-    // the InspectPopup.
-    const tier3Pool = this._tierPoolByChain(minionTypes, 3)
-    if (tier3Pool.length === 0) return
+    // Apex pool — each evolution chain's FINAL form. 3-link families
+    // contribute their T3 apex (beholder_tyrant, goblin3, …); the
+    // 4-link slime chains contribute their T4 elder (elder_slime1/2/3),
+    // so a slime throne can now roll the true Tier-4. Replaces the old
+    // fixed-T3 lookup (which couldn't reach slime T4 and — via its
+    // `/\d$/` filter — silently excluded every named final form). The
+    // mini-boss stat doubler + boss-level scaling below still apply on
+    // top, so these are beefed-up apexes. (2026-05-27)
+    const apexPool = this._apexPoolByChain(minionTypes)
+    if (apexPool.length === 0) return
     const dungeonLv = this._gameState.boss?.level ?? 1
     const lvOver  = dungeonLv - 1
     const hpMult  = 1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver
@@ -802,7 +828,7 @@ export class RoomBehaviorSystem {
         m.assignedRoomId === room.instanceId && m.isThroneMiniBoss && m.aiState !== 'dead'
       ).length
       if (aliveHere > 0) continue
-      const def = tier3Pool[Math.floor(Math.random() * tier3Pool.length)]
+      const def = apexPool[Math.floor(Math.random() * apexPool.length)]
       const cx = room.gridX + Math.floor(room.width / 2)
       const cy = room.gridY + Math.floor(room.height / 2)
       const baseStats = def.baseStats ?? { hp: 60, attack: 12, defense: 6, speed: 1 }

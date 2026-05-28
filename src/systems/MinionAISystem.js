@@ -1301,11 +1301,12 @@ export class MinionAISystem {
     )
     // Throne Room mini-bosses are the same shape — kill drops the
     // tagged entity entirely so the next _spawnThroneMinibosses pass
-    // rolls a fresh random Tier-3 with double-base stats. Without this
-    // filter, respawnAll would resurrect the dead mini-boss at full HP
-    // and applyResets would demote its Tier-3 def to a Tier-1 base,
-    // mirroring the HoT regression but worse — the mini-boss would
-    // come back puny.
+    // rolls a fresh random chain-APEX (each family's final form — T3
+    // for 3-link chains, T4 elder slime for the 4-link slime chains)
+    // with double-base stats. Without this filter, respawnAll would
+    // resurrect the dead mini-boss at full HP and applyResets would
+    // demote its apex def to a Tier-1 base, mirroring the HoT
+    // regression but worse — the mini-boss would come back puny.
     this._gameState.minions = this._gameState.minions.filter(
       m => !(m.isThroneMiniBoss && (m.aiState === 'dead' || m.resources.hp <= 0))
     )
