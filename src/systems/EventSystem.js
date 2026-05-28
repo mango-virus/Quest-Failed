@@ -272,10 +272,12 @@ export class EventSystem {
     if (def.id === 'cursed_relic')       this._promptCursedRelic()
     // New events (2026-05-27)
     if (def.id === 'sacrificial_altar')  this._promptSacrificialAltar()
-    // demons_wager — like Gambler's Coin, doesn't prompt at announce.
-    // DemonWagerRenderer spawns the NPC in the boss room; clicking it
-    // fires DEMON_WAGER_NPC_CLICKED which surfaces the wager modal via
-    // _onDemonWagerNpcClicked.
+    // demons_wager — auto-prompts at announce per user direction
+    // (2026-05-27). The DemonWagerRenderer NPC still spawns as visual
+    // flavour during the night, but the modal no longer waits for a
+    // click. Clicking the demon AFTER the modal is up is a no-op
+    // because _promptDemonsWager early-returns on demonsWagerDecided.
+    if (def.id === 'demons_wager')       this._promptDemonsWager()
     if (def.id === 'tinkerers_workshop') this._promptTinkerersWorkshop()
     // speedrun_channel — roll the class HERE (at announce) so the
     // NightPhase wave-preview can lock to it too. Stored on _eventFlags
