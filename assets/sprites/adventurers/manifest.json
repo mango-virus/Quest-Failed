@@ -15321,6 +15321,28 @@
         "crystal": null,
         "shield": "Heater Shield Base"
       }
+    ],
+    "shadow_monarch": [
+      {
+        "id": "v01",
+        "bodyType": "male",
+        "bodyColor": "light",
+        "hairColor": "black",
+        "clothColor": "black",
+        "metalColor": "steel",
+        "head": "Human Male",
+        "hair": "Spiked2",
+        "beard": null,
+        "torso": "Trench coat",
+        "legs": "Long Pants",
+        "feet": "Basic Shoes",
+        "arms": null,
+        "headwear": null,
+        "accessories": [],
+        "weapon": "Scimitar",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {

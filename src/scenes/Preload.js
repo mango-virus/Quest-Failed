@@ -109,8 +109,17 @@ const ADVENTURER_CLASS_IDS = [
   // with dedicated max-chaos LPC variants (helmets + tophats + monster
   // tails + every weapon LPC ships). 50 variants per the bake.
   'cheater',
+  // Sung Jinwoo (Solo Leveling event) — a NAMED character with exactly one
+  // canonical baked variant (shadow_monarch/v01). See the count override
+  // below so we don't request v02..v50.
+  'shadow_monarch',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 50
+// Per-class override for classes that ship fewer than the default 50 baked
+// variants (named one-off characters). Keeps preload from firing dozens of
+// missing-file requests for variants that don't exist.
+const ADVENTURER_VARIANT_COUNT = { shadow_monarch: 1 }
+const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 
 // Classes whose combat animation is slash or thrust ship a separate
 // `_atk.png` at 192×192 frames so long weapons (longsword, halberd, spear)
@@ -591,7 +600,7 @@ export class Preload extends Phaser.Scene {
     this.load.json('adventurerManifest', 'assets/sprites/adventurers/manifest.json')
     this.load.json('adventurerLayout',   'assets/sprites/adventurers/layout.json')
     for (const id of ADVENTURER_CLASS_IDS) {
-      for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+      for (let i = 1; i <= advVariantCount(id); i++) {
         const v = `v${String(i).padStart(2, '0')}`
         this.load.spritesheet(`adv-${id}-${v}`,
           `assets/sprites/adventurers/${id}/${v}.png`,
@@ -921,7 +930,7 @@ export class Preload extends Phaser.Scene {
     if (!layout) return
     const cols = Math.floor(layout.width / layout.frame) // 13
     for (const id of ADVENTURER_CLASS_IDS) {
-      for (let i = 1; i <= ADVENTURER_VARIANTS_PER_CLASS; i++) {
+      for (let i = 1; i <= advVariantCount(id); i++) {
         const v = `v${String(i).padStart(2, '0')}`
         const key = `adv-${id}-${v}`
         if (!this.textures.exists(key)) continue

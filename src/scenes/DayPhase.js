@@ -1,6 +1,6 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
-import { Balance, adventurerDisplayLevel } from '../config/balance.js'
+import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
@@ -527,22 +527,13 @@ export class DayPhase extends Phaser.Scene {
 
   _scaleAdventurerByBossLevel(adv, bossLv) {
     const bloodMoneyBonus = this._gameState?._mechanicFlags?.bloodMoneyHpBonus ?? 0
-    const day     = this._gameState?.meta?.dayNumber ?? 1
-    const lvOver  = Math.max(0, bossLv - 1)
-    const dayOver = Math.max(0, day - 1)
-    // Post-day-9 compounding multiplier — every day past day 9 multiplies
-    // HP / ATK by a per-day base, on top of the linear scaling below.
-    // Smooth curve (no decade cliffs); at day 30 advs hit ~5× HP / ~3×
-    // ATK on top of normal level scaling. See Balance comment for table.
-    const postTen   = Math.max(0, day - 9)
-    const post10Hp  = Math.pow(Balance.ADVENTURER_POST10_HP_PER_DAY  ?? 1, postTen)
-    const post10Atk = Math.pow(Balance.ADVENTURER_POST10_ATK_PER_DAY ?? 1, postTen)
-    if (lvOver === 0 && dayOver === 0 && postTen === 0 && bloodMoneyBonus === 0) return
-    const hpMul  = (1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
-                       + Balance.ADVENTURER_HP_PER_DAY        * dayOver
-                       + bloodMoneyBonus) * post10Hp
-    const atkMul = (1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
-                       + Balance.ADVENTURER_ATK_PER_DAY       * dayOver) * post10Atk
+    const day = this._gameState?.meta?.dayNumber ?? 1
+    // Multipliers come from the shared adventurerScaleMultipliers (balance.js)
+    // so the LV chip + the AdvIntelOverlay wave preview stay in exact lockstep
+    // with this real stat scaling. (hpMul/atkMul both clamp to 1 at day 1 /
+    // boss-lv 1 with no blood-money, so the early-out below skips needless work.)
+    if (bossLv <= 1 && day <= 1 && bloodMoneyBonus === 0) return
+    const { hpMul, atkMul } = adventurerScaleMultipliers(bossLv, day, bloodMoneyBonus)
     adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
     adv.resources.hp    = adv.resources.maxHp
     adv.stats.attack    = Math.round(adv.stats.attack * atkMul)
@@ -1416,12 +1407,11 @@ export class DayPhase extends Phaser.Scene {
     adv.isLegendary    = true   // legendary chrome + entrance pulse
     adv.name           = 'Sung Jinwoo'
     adv.partyId        = null
-    // Pin the closest on-disk LPC look to Jinwoo: rogue/v11 = MESSY BLACK
-    // hair + a SCIMITAR + white shirt + muscular build. (A bespoke "black
-    // coat" bake needs the LPC source pack, which isn't in the repo — see
-    // Phase 2 notes.) AdventurerRenderer renders adv-rogue-v11 directly
-    // from this pin instead of rolling a random rogue variant.
-    adv.spriteVariant  = 'rogue/v11'
+    // Pin the bespoke Jinwoo sprite: shadow_monarch/v01 — black spiky hair,
+    // black trench coat, black pants/shoes, a steel scimitar — baked from
+    // the LPC pack via tools/bake-lpc-variants.mjs (POOLS.shadow_monarch).
+    // AdventurerRenderer renders adv-shadow_monarch-v01 directly.
+    adv.spriteVariant  = 'shadow_monarch/v01'
     // He commits — never flees.
     adv.flags = { ...(adv.flags ?? {}), noFlee: true }
 

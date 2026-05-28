@@ -617,5 +617,33 @@ POOLS.cheater = {
   sometimesShield: 0.4,
 }
 
+// ============================================================
+// Shadow Monarch — Sung Jinwoo (Solo Leveling event). A NAMED character,
+// so every slot is locked to one option + every palette is pinned: the
+// bake is deterministic (one variant = the canonical Jinwoo look).
+//   • black spiky hair, light skin
+//   • black trench coat + black long pants + black shoes (clothColorPool black)
+//   • a single steel scimitar (dual-wield isn't an LPC layer)
+// Bake with: node tools/bake-lpc-variants.mjs "<lpc-root>" assets/sprites/adventurers 1 shadow_monarch
+// (Hair swap candidates if "Spiked2" reads wrong: Messy2, Messy3, Cowlick,
+//  Bedhead, Unkempt, Halfmessy.)
+POOLS.shadow_monarch = {
+  bodyTypes:     ['male'],
+  heads:         ['Human Male'],
+  hair:          ['Spiked2'],
+  hairColorPool: ['black'],
+  bodyColorPool: ['light'],
+  clothColorPool:['black'],
+  metalColorPool:['steel'],
+  beardChance:   0,
+  torso:         ['Trench coat'],
+  legs:          ['Long Pants'],
+  feet:          ['Basic Shoes'],
+  weapon: {
+    items: ['Scimitar'],
+    chance: 1.0,
+  },
+}
+
 // Per-class variant count for the bake.
 export const VARIANT_COUNT = 50;

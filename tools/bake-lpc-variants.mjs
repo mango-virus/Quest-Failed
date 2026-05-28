@@ -197,8 +197,10 @@ function sampleVariant(rng, className, classPool) {
     heads = [];
   }
   v.head = pick(rng, heads);
-  // Hair: every adventurer can roll any of the 26 palettes (incl. fantasy).
-  v.hairColor = pick(rng, HAIR_ALL);
+  // Hair: every adventurer can roll any of the 26 palettes (incl. fantasy),
+  // unless the class locks it via hairColorPool (named characters do — e.g.
+  // shadow_monarch = always black).
+  v.hairColor = pick(rng, (classPool.hairColorPool?.length) ? classPool.hairColorPool : HAIR_ALL);
   // Body: natural skin tones for most classes. Twitch Streamer occasionally
   // rolls a fantasy palette (15%); Cheater leans into desync harder (30%)
   // so the modded-client silhouette can include obviously-not-human skin
@@ -209,14 +211,15 @@ function sampleVariant(rng, className, classPool) {
                        : 0;
   const bodyOpts = fantasyChance > 0 && rng() < fantasyChance
     ? [...BODY_NATURAL, ...BODY_FANTASY] : BODY_NATURAL;
-  v.bodyColor = pick(rng, bodyOpts);
+  // Body color — per-class override allowed (named characters lock their skin tone).
+  v.bodyColor = pick(rng, (classPool.bodyColorPool?.length) ? classPool.bodyColorPool : bodyOpts);
   // Cloth color — per-class override allowed (e.g. necromancer = dark only).
   const clothPool = (classPool.clothColorPool && classPool.clothColorPool.length)
     ? classPool.clothColorPool
     : CLOTH_ALL;
   v.clothColor = pick(rng, clothPool);
-  // Metal color (one shared finish for all metal pieces — armor, helm, pauldrons).
-  v.metalColor = pick(rng, METAL_ALL);
+  // Metal color (one shared finish for all metal pieces) — per-class override allowed.
+  v.metalColor = pick(rng, (classPool.metalColorPool?.length) ? classPool.metalColorPool : METAL_ALL);
   // Nose / eyebrows render at zPos 105 / 106 — ON TOP of the head
   // sprite (zPos 100). For non-human heads (cosplay_adventurer's
   // monster heads) the head art has its own facial features built in,
@@ -385,8 +388,14 @@ function buildLayerManifest(variant) {
     let li = 1;
     while (item.def[`layer_${li}`]) {
       const layer = item.def[`layer_${li}`];
-      // Skip oversized custom_animation layers (we're 64x64-only).
-      if (layer.custom_animation) { li++; continue; }
+      // A layer may declare a `custom_animation` (an OVERSIZE attack sheet,
+      // e.g. a weapon's slash_128). We can't bake the oversize frames into
+      // the 64×64 sheet — BUT many such layers ALSO ship standard 64×64
+      // per-bodytype art (a weapon's `walk` carry + `slash` swing). Use that
+      // standard art (resolveLayerSourceForAnim returns null for any anim it
+      // lacks, so oversize-only anims are simply skipped per-row). Without
+      // this, every weapon was dropped from the base sheet — visible only
+      // via the separate _atk pipeline, which this project no longer bakes.
       const srcDir = dirForBodyType(layer, variant.bodyType);
       if (srcDir) {
         layers.push({
