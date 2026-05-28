@@ -36,16 +36,22 @@ import { Leaderboard }       from '../systems/Leaderboard.js'
 import { COMPANIONS, getCompanion, COMPANION_ORDER } from '../systems/companions.js'
 import { titleFxClassById } from './titleFx.js'
 
-// Category-filter tabs. The LEADERBOARD entry is intentionally NOT in
-// this list — it's its own prominent button (see `_render` below) so it
-// reads as a destination rather than a filter.
+// Filter tabs. The LEADERBOARD entry is intentionally NOT in this list —
+// it's its own prominent button (see `_render` below) so it reads as a
+// destination rather than a filter.
+//
+// `companions` + `titles` are reward-based pseudo-tabs (not `category`
+// values): companions = achievements whose reward unlocks a companion;
+// titles = achievements that grant a title. `mastery` is still a real
+// category (the legendary showcase). The old progression / combat /
+// economy / variety category tabs were removed 2026-05-28 — those
+// achievements still exist + keep their category (for icon tint), they
+// just live under ALL now. See `_defMatchesTab`.
 const TABS = [
-  { id: 'all',          label: 'ALL' },
-  { id: 'progression',  label: 'PROGRESSION' },
-  { id: 'combat',       label: 'COMBAT' },
-  { id: 'economy',      label: 'ECONOMY' },
-  { id: 'variety',      label: 'VARIETY' },
-  { id: 'mastery',      label: 'MASTERY' },
+  { id: 'all',         label: 'ALL' },
+  { id: 'companions',  label: 'COMPANIONS' },
+  { id: 'titles',      label: 'TITLES' },
+  { id: 'mastery',     label: 'MASTERY' },
 ]
 
 // Pseudo-tab id for the leaderboard view. Stored in `_activeTab` so the
@@ -488,10 +494,26 @@ export class AchievementsOverlay {
     const myUnlocked = this._viewer ? PlayerProfile.getUnlockedAchievements() : null
     const cards = []
     for (const def of this._defs) {
-      if (this._activeTab !== 'all' && def.category !== this._activeTab) continue
+      if (!this._defMatchesTab(def, this._activeTab)) continue
       cards.push(this._card(def, unlocked, myUnlocked))
     }
     return h('div', { className: 'qf-ach-grid' }, cards)
+  }
+
+  // Does an achievement belong under the given tab?
+  //   all        — everything
+  //   companions — its reward unlocks a companion
+  //   titles     — it grants a title
+  //   <category> — its category matches (mastery today; others fall here
+  //                too if re-added). An achievement can match more than
+  //                one tab (e.g. a mastery legendary that grants a title
+  //                shows in both MASTERY and TITLES) — that's intended;
+  //                ALL still shows it once.
+  _defMatchesTab(def, tab) {
+    if (tab === 'all')        return true
+    if (tab === 'companions') return def.reward?.type === 'companion'
+    if (tab === 'titles')     return !!def.title
+    return def.category === tab
   }
 
   _card(def, unlockedSet, myUnlockedSet) {

@@ -11082,6 +11082,20 @@ body {
   box-shadow: 0 0 0 2px #000,
               0 0 16px color-mix(in srgb, var(--qf-cat-mastery) 35%, transparent);
 }
+/* Reward-based tabs — borrow the reward chip colors so the tab tint
+   matches the chips inside it (companion = heart color, title = purple). */
+.qf-ach-tab.is-active[data-cat="companions"] {
+  color: var(--qf-reward-companion);
+  border-color: var(--qf-reward-companion);
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-reward-companion) 35%, transparent);
+}
+.qf-ach-tab.is-active[data-cat="titles"] {
+  color: var(--qf-reward-title);
+  border-color: var(--qf-reward-title);
+  box-shadow: 0 0 0 2px #000,
+              0 0 16px color-mix(in srgb, var(--qf-reward-title) 35%, transparent);
+}
 
 /* LEADERBOARD destination button — sits to the right of the category
    tabs. Visually distinct from the tab strip: larger, gold-burst
