@@ -947,7 +947,8 @@ export class MainMenuOverlay {
         this._openGameRequests()
         break
       case 'whatsnew':
-        this._openWhatsNew()
+        // Menu button shows the FULL changelog history, not just unseen.
+        this._openWhatsNew(true)
         break
       case 'devtools':
         // Mango-only — opens the consolidated dev panel. Each tool in
@@ -1177,10 +1178,12 @@ export class MainMenuOverlay {
 
   // Open the recent-updates panel. On close it marks everything seen, so
   // the NEW badge clears — re-sync the menu items so the badge disappears
-  // without re-running the entrance animations.
-  _openWhatsNew() {
+  // without re-running the entrance animations. `full` (menu button) shows
+  // the whole changelog; the auto-pop leaves it false to show only unseen.
+  _openWhatsNew(full = false) {
     if (this._whatsNew) return
     this._whatsNew = new WhatsNewOverlay({
+      full,
       onClose: () => {
         this._whatsNew = null
         if (!this._closed && this._el) this._refreshMenuItems()

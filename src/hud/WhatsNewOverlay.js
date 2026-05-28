@@ -50,18 +50,29 @@ export class WhatsNewOverlay {
 
   constructor(opts = {}) {
     this._onClose = opts.onClose ?? null
+    // `full` mode (menu button) shows the entire changelog history; the
+    // default (auto-pop) shows only what the player missed since last visit.
+    this._full = !!opts.full
     this._overlay = null
   }
 
   open() {
     if (this._overlay) return false
-    // Show the unseen updates; if the player is already caught up (opened
-    // via the menu button with nothing new), show the latest entry so the
-    // panel is never empty.
-    const unseen = WhatsNewOverlay.unseenEntries()
-    const entries = unseen.length
-      ? unseen
-      : WHATS_NEW.slice().sort((a, b) => (b.id ?? 0) - (a.id ?? 0)).slice(0, 1)
+
+    // Pick the entries + intro line based on mode.
+    const allNewestFirst = WHATS_NEW.slice().sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
+    let entries, intro
+    if (this._full) {
+      // Menu button: the complete changelog, newest first.
+      entries = allNewestFirst
+      intro   = 'RECENT UPDATES · NEWEST FIRST'
+    } else {
+      // Auto-pop: only the unseen updates. If the player is already caught
+      // up (nothing new), fall back to the latest entry so it's never empty.
+      const unseen = WhatsNewOverlay.unseenEntries()
+      entries = unseen.length ? unseen : allNewestFirst.slice(0, 1)
+      intro   = unseen.length ? 'SINCE YOU WERE LAST HERE' : 'YOU’RE ALL CAUGHT UP — LATEST UPDATE'
+    }
 
     const body = h('div', {
       style: { display: 'flex', flexDirection: 'column', gap: '14px', padding: '2px 2px 6px' },
@@ -72,7 +83,7 @@ export class WhatsNewOverlay {
           fontSize: '10px', letterSpacing: '2px', color: 'var(--text-mute)',
           textAlign: 'center', marginBottom: '2px',
         },
-      }, unseen.length ? 'SINCE YOU WERE LAST HERE' : 'YOU’RE ALL CAUGHT UP — LATEST UPDATE'),
+      }, intro),
       ...entries.map(e => this._renderEntry(e)),
     ])
 
