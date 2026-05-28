@@ -962,7 +962,7 @@
   },
   {
     "id": "monarch_slayer",
-    "name": "Monarch Slayer",
+    "name": "Arise",
     "description": "Defeat Sung Jinwoo, the Shadow Monarch.",
     "category": "mastery",
     "metric": "shadowMonarchDefeated",
