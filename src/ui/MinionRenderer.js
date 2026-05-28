@@ -18,6 +18,16 @@ import { EventBus }         from '../systems/EventBus.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
 
+// Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used to
+// give the shadow minions the same RGB-style blue↔black flame cycle Jinwoo
+// wears (matched to his "previous" palette — his own flame is now bluer).
+function _lerpHex(a, b, k) {
+  const r  = Math.round((a >> 16 & 255) + ((b >> 16 & 255) - (a >> 16 & 255)) * k)
+  const g  = Math.round((a >> 8  & 255) + ((b >> 8  & 255) - (a >> 8  & 255)) * k)
+  const bl = Math.round((a       & 255) + ((b       & 255) - (a       & 255)) * k)
+  return (r << 16) | (g << 8) | bl
+}
+
 const MINION_SCALE     = 1.0    // native — 64 → 64 px, 128 → 128 px (NEAREST keeps it crisp)
 // Lich-raised undead are re-skinned to LPC adventurer sheets (frameSize 64),
 // which AdventurerRenderer renders at 0.75. Match that here so a raised dead
@@ -443,6 +453,16 @@ export class MinionRenderer {
         s.container.add(flame)
         s.container.sendToBack(flame)
         s.shadowFlame = flame
+      }
+
+      // Cycle the shadow minion's flame tint each frame — the same RGB-style
+      // blue↔black gradient sweep Jinwoo has (matched palette). Jinwoo's own
+      // flame runs a bluer variant so he reads as uniquely "more blue".
+      if (m._shadowExtracted && s.shadowFlame) {
+        const k   = (Math.sin(now / 650) + 1) / 2   // 0..1 cycle
+        const top = _lerpHex(0x0a2a6b, 0x4aa0ff, k)  // deep-blue → bright-blue
+        const bot = _lerpHex(0x02040a, 0x123a8c, k)  // near-black → deep-blue
+        s.shadowFlame.setTint(top, top, bot, bot)
       }
 
       // Status badge — combined bounty star + level, in one centred label.

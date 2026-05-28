@@ -452,8 +452,11 @@ export class AdventurerRenderer {
       // untouched here.
       if (s.shadowFlame) {
         const k   = (Math.sin(this._scene.time.now / 650) + 1) / 2   // 0..1 cycle
-        const top = _lerpHex(0x0a2a6b, 0x4aa0ff, k)   // deep-blue → bright-blue
-        const bot = _lerpHex(0x02040a, 0x123a8c, k)   // near-black → deep-blue
+        // Jinwoo runs a UNIQUELY bluer variant than his shadow minions: even
+        // the darkest corner stays a clear deep-blue (no near-black), and the
+        // top sweeps up to a bright sky-blue so the colour reads strongly.
+        const top = _lerpHex(0x2a72e6, 0x86d0ff, k)   // bright-blue → sky-blue
+        const bot = _lerpHex(0x0a2a6b, 0x2e7bff, k)   // deep-blue → bright-blue
         s.shadowFlame.setTint(top, top, bot, bot)
       }
       // Phase D — keep the gold-coins icon glued above the adv carrying
