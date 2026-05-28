@@ -11,8 +11,9 @@
 //   - colosseum_lockGates (ADVENTURER_ENTERED_ROOM) — spawns a wave of 3
 //     skeleton warriors when an adventurer first enters a Colosseum room.
 //   - falseExit_teleport (ADVENTURER_ROOM_CHANGED) — when a fleeing
-//     adventurer crosses through a False Exit, teleport them adjacent to
-//     the boss chamber instead of letting them escape.
+//     adventurer crosses through a False Exit, teleport them to a RANDOM
+//     room (not boss / entry / another false exit) instead of letting
+//     them escape — the fake door leads deeper into the dungeon.
 //
 // All behaviors are no-ops when their host room doesn't exist.
 
@@ -562,9 +563,13 @@ export class RoomBehaviorSystem {
 
     if (room.definitionId === 'false_exit') {
       // Only "trigger" when the adventurer is fleeing — i.e. their goal type
-      // is FLEE and they think they're heading out.
+      // is FLEE and they think they're heading out. Short per-adv cooldown
+      // so a fleer can't bounce instantly between two false exits.
       if (adventurer.goal?.type === 'FLEE') {
-        this._teleportToNearBoss(adventurer)
+        const now = this._scene?.time?.now ?? 0
+        if (now - (adventurer._falseExitTpAt ?? -Infinity) > 3000) {
+          this._teleportFromFalseExit(adventurer)
+        }
       }
     }
 
@@ -880,21 +885,31 @@ export class RoomBehaviorSystem {
 
   // [Removed 2026-04-30] _lockColosseumGates — colosseum room retired.
 
-  _teleportToNearBoss(adv) {
-    // Twitch Streamers never get teleported into the boss chamber — chat
-    // chaos must not shortcut them past the dungeon into the throne room.
-    if (adv?.classId === 'twitch_streamer') return
-    const boss = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
-    if (!boss) return
-    const tx = boss.gridX + Math.floor(boss.width / 2)
-    const ty = boss.gridY + Math.floor(boss.height / 2) + 1
-    adv.tileX = tx; adv.tileY = ty
+  // False Exit teleport (2026-05-27 rework). Previously dumped the
+  // fleeing adv at the boss chamber (AT_BOSS). Per design it now
+  // scatters them to a RANDOM room — they thought the door led out, but
+  // it led deeper in. Excludes the boss chamber (the old too-harsh
+  // behavior), entry halls (no free escape — defeats the trap's purpose),
+  // and false_exit rooms (no instant re-trigger). They keep the FLEE
+  // goal, so from the new random spot they re-path to the nearest real
+  // exit — the fake door just buys the dungeon a detour and exposes
+  // them to whatever's between here and the way out.
+  _teleportFromFalseExit(adv) {
+    const rooms = (this._gameState.dungeon.rooms ?? []).filter(r =>
+      r.isActive !== false &&
+      r.definitionId !== 'false_exit' &&
+      r.definitionId !== 'entry_hall' &&
+      r.definitionId !== 'boss_chamber')
+    if (rooms.length === 0) return
+    const target = rooms[Math.floor(Math.random() * rooms.length)]
+    const tx = target.gridX + Math.floor(target.width / 2)
+    const ty = target.gridY + Math.floor(target.height / 2)
     const TS = 32
+    adv.tileX = tx; adv.tileY = ty
     adv.worldX = tx * TS + TS / 2
     adv.worldY = ty * TS + TS / 2
     adv.path = null
-    adv.goal = { type: 'AT_BOSS' }
-    adv.aiState = 'fighting'
+    adv._falseExitTpAt = this._scene?.time?.now ?? 0
     // Tinkerer's Workshop "Painful Landing" — when False Exit type is
     // upgraded, the trapped fleer also takes 25% maxHp on arrival.
     if (this._isTinkered('false_exit') && adv.resources) {
@@ -907,7 +922,11 @@ export class RoomBehaviorSystem {
         damageType: 'physical',
       })
     }
-    EventBus.emit('FALSE_EXIT_TELEPORTED', { adventurer: adv })
+    EventBus.emit('FALSE_EXIT_TELEPORTED', {
+      adventurer: adv,
+      destinationRoomId: target.instanceId,
+      destinationDefId:  target.definitionId,
+    })
   }
 
   // Tinkerer's Workshop helper — returns true when the given room

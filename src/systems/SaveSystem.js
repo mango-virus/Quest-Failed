@@ -398,6 +398,10 @@ function _rehydrateRunHistory(state) {
     // timestamp keeps the effect active longer than intended.
     '_scatterUntil', '_warnedUntil', '_lastAvoidTrapAt', '_lastWarnAt',
     '_lastTameAt',
+    // False Exit re-trigger cooldown — scene.time-stamped; a saved
+    // future value would block the teleport until the new clock catches
+    // up. Drop on load.
+    '_falseExitTpAt',
     // Healing Fountain blessing — _fountainBlessUntil gates the per-tick
     // regen and _fountainTouchAt gates the instant re-heal; both are
     // scene.time-stamped, so a saved value lingers as "in the future"
