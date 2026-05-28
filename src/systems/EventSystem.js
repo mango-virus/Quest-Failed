@@ -820,9 +820,19 @@ export class EventSystem {
     } else if (rewardKind === 'boss_level') {
       const boss = gs.boss
       if (boss) {
+        const oldLevel = boss.level ?? 1
         const need = Math.max(0, (boss.xpToNext ?? Balance.BOSS_XP_BASE) - (boss.xp ?? 0))
         boss.xp = (boss.xp ?? 0) + need
         this._scene?.aiSystem?._awardBossXp?.()
+        // Mid-night level grant — the natural EndOfDay drain chain isn't
+        // running, so manually chain into the SHOW_BOSS_LEVEL_UP →
+        // SHOW_DARK_PACT celebration sequence so the player sees the same
+        // overlay + pact picker they get from a normal end-of-day level-up.
+        const newLevel = boss.level ?? oldLevel
+        if (newLevel > oldLevel) {
+          this._scene?.time?.delayedCall?.(50, () =>
+            this._chainLevelUpCelebration(oldLevel, newLevel))
+        }
       }
     } else if (rewardKind === 'free_pact') {
       // Slot has already closed by the time this fires — open the
@@ -907,6 +917,21 @@ export class EventSystem {
       boss.xp = (boss.xp ?? 0) + need
       const tmpAi = this._scene?.aiSystem
       tmpAi?._awardBossXp?.()
+      // The natural end-of-day chain (SHOW_BOSS_LEVEL_UP → SHOW_DARK_PACT)
+      // is owned by EndOfDay.js, which isn't active mid-night. Wire a one-
+      // shot listener for the cinematic-done signal (CoinFlipCinematic
+      // emits DEMON_WAGER_CINEMATIC_DONE on _teardown for the demon
+      // variant) so the celebration overlay + Grimoire pact picker open
+      // AFTER the coin animation finishes, not on top of it. Fires for
+      // both auto-close + click-to-dismiss paths.
+      const newLevel = boss.level ?? oldLevel
+      if (newLevel > oldLevel) {
+        const onCinematicDone = () => {
+          EventBus.off('DEMON_WAGER_CINEMATIC_DONE', onCinematicDone)
+          this._chainLevelUpCelebration(oldLevel, newLevel)
+        }
+        EventBus.on('DEMON_WAGER_CINEMATIC_DONE', onCinematicDone)
+      }
       return
     }
     // LOSE — drop a level. Stats re-derive from the canonical formula
@@ -934,6 +959,50 @@ export class EventSystem {
     EventBus.emit('BOSS_DIMINISHED', { newLevel, oldLevel })
     // Use the existing "error" sound channel — no new SFX file needed.
     EventBus.emit('SFX_PLAY', { id: 'error' })
+  }
+
+  // Open the level-up celebration overlay + Dark Pact picker for a mid-
+  // night level grant (Demon's Wager WIN, Altar boss_level reward).
+  //
+  // Mirrors the EndOfDay.js drain pattern: emit SHOW_BOSS_LEVEL_UP for
+  // every level gained (one popup per level for multi-level grants —
+  // though current callers only ever grant +1), then on dismissal emit
+  // SHOW_DARK_PACT once per level. Listeners are one-shots tied to this
+  // helper's lifetime so a second mid-night grant later in the same
+  // night spins up its own clean chain.
+  _chainLevelUpCelebration(fromLevel, toLevel) {
+    const queue = []
+    for (let lv = fromLevel; lv < toLevel; lv++) {
+      queue.push({ fromLevel: lv, toLevel: lv + 1 })
+    }
+    if (queue.length === 0) return
+    let pactPicksRemaining = queue.length
+
+    const onLevelUpDismissed = () => {
+      if (queue.length > 0) {
+        EventBus.emit('SHOW_BOSS_LEVEL_UP', queue.shift())
+        return
+      }
+      EventBus.off('BOSS_LEVEL_UP_DISMISSED', onLevelUpDismissed)
+      // After every queued level-up popup is dismissed, open the Grimoire —
+      // one pact pick per level gained. Subsequent picks chain through
+      // onPactSealed (deferred a beat to let the sealed picker animate out).
+      pactPicksRemaining--
+      EventBus.emit('SHOW_DARK_PACT')
+    }
+    const onPactSealed = () => {
+      if (pactPicksRemaining > 0) {
+        pactPicksRemaining--
+        this._scene?.time?.delayedCall?.(600, () => EventBus.emit('SHOW_DARK_PACT'))
+        return
+      }
+      EventBus.off('DARK_PACT_SEALED', onPactSealed)
+    }
+    EventBus.on('BOSS_LEVEL_UP_DISMISSED', onLevelUpDismissed)
+    EventBus.on('DARK_PACT_SEALED',        onPactSealed)
+
+    // Kick the chain off with the first queued level-up.
+    EventBus.emit('SHOW_BOSS_LEVEL_UP', queue.shift())
   }
 
   // ── Tinkerer's Workshop (per-room-type permanent upgrade) ──────────────

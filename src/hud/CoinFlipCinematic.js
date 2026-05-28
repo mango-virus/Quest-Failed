@@ -287,6 +287,15 @@ export class CoinFlipCinematic {
   }
 
   _teardown() {
+    // Capture the demon-flavour flag BEFORE reset so we can emit the
+    // post-cinematic chain event for the Demon's Wager path. The
+    // EventSystem listens for DEMON_WAGER_CINEMATIC_DONE on a WIN to
+    // chain into the SHOW_BOSS_LEVEL_UP → SHOW_DARK_PACT celebration
+    // sequence (matches the end-of-day level-up flow). Fires whether
+    // the player clicked CONTINUE or the auto-close timer hit, and
+    // for both win + lose paths (the listener inside the wager only
+    // wires on win, so a lose teardown is a harmless no-op).
+    const wasDemon = this._isDemon
     this._clearTimers()
     if (this._cancelTween) { this._cancelTween(); this._cancelTween = null }
     this._el?.remove()
@@ -301,6 +310,7 @@ export class CoinFlipCinematic {
     this._awaitingDouble = false
     this._canDouble = false
     this._isDemon = false
+    if (wasDemon) EventBus.emit('DEMON_WAGER_CINEMATIC_DONE')
   }
 
   destroy() {
