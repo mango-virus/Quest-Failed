@@ -1073,6 +1073,11 @@ export class BossSystem {
       clashSpin:  (Math.random() < 0.5 ? 1 : -1),
       nextFxT:    0,
       blinkFired: false,
+      // Phase beats (fire once each): boss enrage at half HP, Monarch power
+      // surge at quarter HP. enrageMul speeds the dance up once enraged.
+      bossEnraged: false,
+      monarchSurged: false,
+      enrageMul: 1,
     }
     this._pickDuelAnchors(D)
     return D
@@ -1116,6 +1121,7 @@ export class BossSystem {
 
     const D = this._duel ?? (this._duel = this._makeDuelState(fs, boss))
     D.t += dt
+    this._checkDuelBeats(D, adv, boss)
 
     const moveTo = (e, tx, ty, speed) => {
       const dx = tx - e.worldX, dy = ty - e.worldY
@@ -1159,7 +1165,7 @@ export class BossSystem {
       }
       case 'clash': {
         // Whirl around the clash point on opposite sides, trading blows.
-        D.clashAngle += dt * 5.2 * D.clashSpin
+        D.clashAngle += dt * 5.2 * D.clashSpin * (D.enrageMul ?? 1)
         const R  = 0.62 * TS
         moveTo(adv,  D.clash.x + Math.cos(D.clashAngle) * R, D.clash.y + Math.sin(D.clashAngle) * R, 9 * TS)
         moveTo(boss, D.clash.x - Math.cos(D.clashAngle) * R, D.clash.y - Math.sin(D.clashAngle) * R, 9 * TS)
@@ -1210,6 +1216,36 @@ export class BossSystem {
     // positions (AISystem skips AT_BOSS advs, so nothing else updates these).
     adv.tileX  = Math.floor(adv.worldX  / TS); adv.tileY  = Math.floor(adv.worldY  / TS)
     boss.tileX = Math.floor(boss.worldX / TS); boss.tileY = Math.floor(boss.worldY / TS)
+  }
+
+  _duelBossName() {
+    const archId = this._gameState.player?.bossArchetypeId
+    return (this._scene?.cache?.json?.get?.('bossArchetypes') ?? [])
+      .find(a => a.id === archId)?.name ?? 'YOUR BOSS'
+  }
+
+  // Rising-arc phase beats — each fires exactly once. The boss ENRAGES at half
+  // HP (red burst + harder dance); the Monarch POWER-SURGES at quarter HP (blue
+  // burst + a battle-cry line, routed through ChatBubbles). Pure presentation —
+  // emits SHADOW_MONARCH_DUEL_BEAT for the DOM pulse/label + chat line.
+  _checkDuelBeats(D, adv, boss) {
+    if (this._fightEnded) return
+    const bMax = boss.maxHp ?? boss.hp ?? 1
+    if (!D.bossEnraged && bMax > 0 && (boss.hp ?? 0) / bMax <= 0.5) {
+      D.bossEnraged = true
+      D.enrageMul   = 1.18
+      this._emitFx({ kind: 'shockwave', x: boss.worldX, y: boss.worldY })
+      this._scene.cameras?.main?.shake?.(260, 0.007)
+      EventBus.emit('SHADOW_MONARCH_DUEL_BEAT', { kind: 'enrage', adventurer: adv, boss, bossName: this._duelBossName() })
+    }
+    const aMax = adv.resources?.maxHp ?? adv.resources?.hp ?? 1
+    if (!D.monarchSurged && aMax > 0 && (adv.resources?.hp ?? 0) / aMax <= 0.25) {
+      D.monarchSurged = true
+      this._emitFx({ kind: 'monarch_burst', x: adv.worldX, y: adv.worldY })
+      this._emitFx({ kind: 'monarch_burst', x: adv.worldX, y: adv.worldY })
+      this._scene.cameras?.main?.shake?.(220, 0.006)
+      EventBus.emit('SHADOW_MONARCH_DUEL_BEAT', { kind: 'surge', adventurer: adv, boss })
+    }
   }
 
   // Brief global hitstop — freeze the action for a beat so a clash lands with

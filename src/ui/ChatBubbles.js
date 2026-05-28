@@ -67,6 +67,8 @@ export class ChatBubbles {
     EventBus.on('STATUS_APPLIED',           this._onStatusApplied,     this)
     EventBus.on('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
     EventBus.on('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
+    // Solo Leveling — Jinwoo barks a battle-cry on his duel power-surge beat.
+    EventBus.on('SHADOW_MONARCH_DUEL_BEAT', this._onDuelBeat,          this)
     // Boss-ability sightings — wired as a single shared "felt that"
     // reaction across every signature ability. Lines live in the
     // bossAbilityFelt bucket. Each event throttled per-day so a
@@ -126,6 +128,7 @@ export class ChatBubbles {
     EventBus.off('STATUS_APPLIED',           this._onStatusApplied,     this)
     EventBus.off('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
     EventBus.off('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
+    EventBus.off('SHADOW_MONARCH_DUEL_BEAT', this._onDuelBeat,          this)
     for (const [evt, handler] of Object.entries(this._bossAbilityHandlers ?? {})) {
       EventBus.off(evt, handler)
     }
@@ -574,6 +577,14 @@ export class ChatBubbles {
 
   // Shows a contextual bubble, bypassing the walking-only restriction.
   // Per-adventurer cooldown prevents rapid stacking.
+  // Solo Leveling duel beat — only the Monarch's power-surge fires a line (the
+  // enrage beat belongs to the boss, which doesn't speak). The line is swapped
+  // to one of Jinwoo's own inside _showContextualBubble regardless.
+  _onDuelBeat({ kind, adventurer } = {}) {
+    if (kind !== 'surge' || !adventurer) return
+    this._showContextualBubble(adventurer, this._shadowMonarchLine())
+  }
+
   _showContextualBubble(adv, line) {
     // Jinwoo never uses the generic event lines — swap in one of his own for
     // any contextual reaction (combat start, low HP, boss room, …). This is

@@ -46,7 +46,22 @@ export class SoloLevelingCinematic {
 .qf-sl-letterbox .qf-sl-bar.bottom { bottom:0; transform-origin:bottom;
   background:linear-gradient(0deg,#02040a 0%, #03050e 70%, rgba(3,5,14,0) 100%);
   box-shadow:0 -1px 0 rgba(74,160,255,.5), 0 -6px 18px -6px rgba(58,139,255,.6); }
-.qf-sl-letterbox.show .qf-sl-bar { transform:scaleY(1); }`
+.qf-sl-letterbox.show .qf-sl-bar { transform:scaleY(1); }
+.qf-sl-pulse { position:absolute; inset:0; pointer-events:none; z-index:33; opacity:0;
+  animation:qf-sl-pulse-anim .75s ease-out forwards; }
+.qf-sl-pulse.surge  { background:radial-gradient(circle at 50% 55%, rgba(74,160,255,0) 42%, rgba(74,160,255,.34) 100%);
+  box-shadow:inset 0 0 120px 40px rgba(58,139,255,.5); }
+.qf-sl-pulse.enrage { background:radial-gradient(circle at 50% 55%, rgba(255,42,30,0) 42%, rgba(255,42,30,.3) 100%);
+  box-shadow:inset 0 0 120px 40px rgba(255,42,30,.46); }
+@keyframes qf-sl-pulse-anim { 0%{opacity:0} 22%{opacity:1} 100%{opacity:0} }
+.qf-sl-beatlabel { position:absolute; left:0; right:0; top:28%; text-align:center; z-index:35;
+  pointer-events:none; font-family:'Press Start 2P','Courier New',monospace;
+  font-size:clamp(15px,2.5vw,32px); letter-spacing:4px; opacity:0; }
+.qf-sl-beatlabel.surge  { color:#cfe9ff; text-shadow:0 0 18px rgba(74,160,255,.95), 0 2px 0 #02040a; }
+.qf-sl-beatlabel.enrage { color:#ffd2ca; text-shadow:0 0 18px rgba(255,64,40,.95), 0 2px 0 #1a0202; }
+.qf-sl-beatlabel.show { animation:qf-sl-beat-anim 1.5s cubic-bezier(.2,.9,.2,1) forwards; }
+@keyframes qf-sl-beat-anim { 0%{opacity:0; transform:scale(.7)} 16%{opacity:1; transform:scale(1.06)}
+  72%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }`
     const el = document.createElement('style')
     el.id = 'qf-sl-duel-css'
     el.textContent = css
@@ -58,6 +73,8 @@ export class SoloLevelingCinematic {
     sub('SOLO_LEVELING_BEGAN', () => this._onBegan())
     // Duel VS card when the Monarch reaches the throne.
     sub('SHADOW_MONARCH_DUEL', (p) => this._onDuel(p ?? {}))
+    // Rising-arc phase beats — boss enrage / Monarch power surge.
+    sub('SHADOW_MONARCH_DUEL_BEAT', (p) => this._onDuelBeat(p ?? {}))
     // Lift the vignette (and tear down any lingering card) the moment the
     // Monarch is gone, or at day end as a catch-all.
     sub('ADVENTURER_DIED', (p) => { if (p?.adventurer?._shadowMonarch) this._end() })
@@ -147,6 +164,21 @@ export class SoloLevelingCinematic {
     this._letterbox = null
     lb.classList.remove('show')
     setTimeout(() => lb.remove(), 600)
+  }
+
+  // ── Phase beats — screen pulse + a punched-in label ───────────────────────
+  _onDuelBeat({ kind } = {}) {
+    if (kind !== 'surge' && kind !== 'enrage') return
+    const pulse = h('div', { className: `qf-sl-pulse ${kind}` })
+    this._stage.appendChild(pulse)
+    this._after(820, () => pulse.remove())
+    const text = kind === 'enrage' ? 'ENRAGED' : 'POWER SURGE'
+    const lbl  = h('div', { className: `qf-sl-beatlabel ${kind}` }, text)
+    this._stage.appendChild(lbl)
+    // eslint-disable-next-line no-unused-expressions
+    lbl.offsetHeight
+    lbl.classList.add('show')
+    this._after(1550, () => lbl.remove())
   }
 
   // ── Duel VS card ─────────────────────────────────────────────────────────
