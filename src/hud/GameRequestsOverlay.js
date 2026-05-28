@@ -88,6 +88,11 @@ export class GameRequestsOverlay {
     // the card is showing a confirm-cancel bar instead of the delete
     // button.
     this._confirmDelete = null
+    // Per-row dirty-edit cache so the SEND REPLY button has something
+    // to commit. Keyed by row.id → { status?, notes? } holding values
+    // that differ from what's on the server. Cleared after a successful
+    // PATCH or when the inbox is refreshed (server wins on refresh).
+    this._unsavedEdits = new Map()
     this._overlay = new Overlay({
       title:    'GAME REQUESTS',
       width:    560,
@@ -394,83 +399,170 @@ export class GameRequestsOverlay {
       ].filter(Boolean)),
 
       // ── ADMIN CONTROLS ─────────────────────────────────────────────
-      // Status dropdown + editable notes + delete button. Status changes
-      // hit PATCH on change; notes save on blur (so mango can edit
-      // freely without spamming PATCH per keystroke); delete shows an
-      // inline confirm/cancel bar before firing.
-      h('div', { className: 'qf-greq-card-admin' }, [
-        h('div', { className: 'qf-greq-card-adminrow' }, [
-          h('span', { className: 'pix qf-greq-card-adminlabel' }, 'STATUS'),
-          h('select', {
-            className: 'qf-greq-input qf-greq-select qf-greq-card-statussel',
-            disabled: isConfirming || undefined,
-            on: { change: (e) => this._onStatusChange(row, e.target.value) },
-          }, Object.keys(STATUS_LABELS).map(s => h('option', {
-            value: s, selected: s === (row.status ?? 'new') ? '' : undefined,
-          }, STATUS_LABELS[s]))),
-          isConfirming
-            ? h('div', { className: 'qf-greq-confirmrow' }, [
-                h('span', { className: 'pix qf-greq-confirmtxt' }, 'Delete?'),
-                h('button', {
-                  className: 'qf-greq-card-delconfirm',
-                  on: { click: () => this._confirmAndDelete(row) },
-                }, 'YES, DELETE'),
-                h('button', {
-                  className: 'qf-greq-card-delcancel',
-                  on: { click: () => { this._confirmDelete = null; this._renderInboxRows() } },
-                }, 'CANCEL'),
-              ])
-            : h('button', {
-                className: 'qf-greq-card-del',
-                title: 'Delete this request',
-                on: { click: () => { this._confirmDelete = row.id; this._renderInboxRows() } },
-              }, '🗑 DELETE'),
-        ]),
-        h('div', { className: 'qf-greq-card-adminrow qf-greq-card-adminnotesrow' }, [
-          h('span', { className: 'pix qf-greq-card-adminlabel' }, 'NOTES'),
-          h('textarea', {
-            className: 'qf-greq-input qf-greq-textarea qf-greq-card-notesedit',
-            rows: 2,
-            placeholder: 'Reply to the player (visible in their MY MAIL)',
-            on: {
-              blur: (e) => this._onNotesBlur(row, e.target.value),
-            },
-          }, row.notes ?? ''),
-        ]),
-      ]),
+      // Status dropdown + editable notes + delete + explicit SEND REPLY.
+      // Status / notes edits are staged locally in `_unsavedEdits` and
+      // only land in Supabase when mango clicks SEND REPLY — that way
+      // they can change a few things across cards and commit each one
+      // deliberately, without surprise "save on blur" behavior.
+      this._renderAdminControls(row, { isConfirming }),
     ].filter(Boolean))
   }
 
-  async _onStatusChange(row, newStatus) {
-    if (!newStatus || newStatus === row.status) return
-    HudSfx?.playUi?.('tab')
-    const res = await GameRequests.update(row.id, { status: newStatus })
-    if (res.ok) {
-      row.status = newStatus
-      // Local mutation — re-render only the rows, not the whole inbox,
-      // so mango doesn't lose scroll position.
-      this._renderInboxRows()
+  // ── Admin controls + SEND REPLY ──────────────────────────────────
+  // Builds the lower half of an inbox card: status dropdown + delete
+  // (top row), notes textarea (middle row), SEND REPLY button (bottom).
+  // Dropdown / textarea handlers stage values into _unsavedEdits; only
+  // SEND REPLY actually PATCHes the row.
+  _renderAdminControls(row, { isConfirming } = {}) {
+    const edits     = this._unsavedEdits.get(row.id) || {}
+    const curStatus = edits.status !== undefined ? edits.status : (row.status ?? 'new')
+    const curNotes  = edits.notes  !== undefined ? edits.notes  : (row.notes  ?? '')
+    return h('div', { className: 'qf-greq-card-admin' }, [
+      h('div', { className: 'qf-greq-card-adminrow' }, [
+        h('span', { className: 'pix qf-greq-card-adminlabel' }, 'STATUS'),
+        h('select', {
+          className: 'qf-greq-input qf-greq-select qf-greq-card-statussel',
+          disabled: isConfirming || undefined,
+          on: { change: (e) => this._stageEdit(row, { status: e.target.value }) },
+        }, Object.keys(STATUS_LABELS).map(s => h('option', {
+          value: s, selected: s === curStatus ? '' : undefined,
+        }, STATUS_LABELS[s]))),
+        isConfirming
+          ? h('div', { className: 'qf-greq-confirmrow' }, [
+              h('span', { className: 'pix qf-greq-confirmtxt' }, 'Delete?'),
+              h('button', {
+                className: 'qf-greq-card-delconfirm',
+                on: { click: () => this._confirmAndDelete(row) },
+              }, 'YES, DELETE'),
+              h('button', {
+                className: 'qf-greq-card-delcancel',
+                on: { click: () => { this._confirmDelete = null; this._renderInboxRows() } },
+              }, 'CANCEL'),
+            ])
+          : h('button', {
+              className: 'qf-greq-card-del',
+              title: 'Delete this request',
+              on: { click: () => { this._confirmDelete = row.id; this._renderInboxRows() } },
+            }, '🗑 DELETE'),
+      ]),
+      h('div', { className: 'qf-greq-card-adminrow qf-greq-card-adminnotesrow' }, [
+        h('span', { className: 'pix qf-greq-card-adminlabel' }, 'NOTES'),
+        h('textarea', {
+          className: 'qf-greq-input qf-greq-textarea qf-greq-card-notesedit',
+          rows: 2,
+          placeholder: 'Reply to the player (visible in their MY MAIL)',
+          on: {
+            // Stage on every keystroke so the SEND REPLY button can
+            // light up the instant there's something to send. No
+            // re-render here — the typing element stays focused; only
+            // the SEND button's disabled state updates.
+            input: (e) => this._stageEdit(row, { notes: e.target.value }, { skipRerender: true }),
+          },
+        }, curNotes),
+      ]),
+      // Bottom row — explicit save action. Disabled until there's a
+      // diff against the server-side state. Button label flashes to
+      // "✓ SENT" briefly after a successful PATCH so mango sees the
+      // commit actually landed (the dropdown / notes don't move, so
+      // without this the UI is silent on success).
+      h('div', { className: 'qf-greq-card-adminrow qf-greq-card-sendrow' }, [
+        h('span', {
+          className: 'qf-greq-card-dirtyhint pix',
+          ref: el => { this._dirtyHintRefs = this._dirtyHintRefs ?? {}; this._dirtyHintRefs[row.id] = el },
+        }, this._isRowDirty(row) ? 'UNSAVED CHANGES' : ''),
+        h('button', {
+          className: 'qf-greq-card-send',
+          disabled: !this._isRowDirty(row) || undefined,
+          ref: el => { this._sendBtnRefs = this._sendBtnRefs ?? {}; this._sendBtnRefs[row.id] = el },
+          on: { click: () => this._sendReply(row) },
+        }, '✉ SEND REPLY'),
+      ]),
+    ])
+  }
+
+  // Whether the row has any pending edits relative to the server state.
+  // Compares the dirty cache against row.status / row.notes; empty
+  // string and null are treated equivalent for notes (Supabase stores
+  // empty notes as null after a save).
+  _isRowDirty(row) {
+    const edits = this._unsavedEdits.get(row.id)
+    if (!edits) return false
+    if (edits.status !== undefined && edits.status !== (row.status ?? 'new')) return true
+    if (edits.notes  !== undefined) {
+      const serverNotes = row.notes ?? ''
+      const newNotes    = edits.notes ?? ''
+      if (newNotes !== serverNotes) return true
+    }
+    return false
+  }
+
+  // Stage an edit in the dirty cache and (by default) re-render the
+  // inbox rows so the dropdown selection + send button state update.
+  // Pass `{ skipRerender: true }` when the change came from a keystroke
+  // inside the notes textarea — we don't want to recreate the textarea
+  // every keystroke (that kills the cursor position).
+  _stageEdit(row, patch, { skipRerender = false } = {}) {
+    const prev = this._unsavedEdits.get(row.id) || {}
+    const next = { ...prev, ...patch }
+    // Drop keys that match the server state so _isRowDirty stays accurate.
+    if (next.status !== undefined && next.status === (row.status ?? 'new'))   delete next.status
+    if (next.notes  !== undefined && (next.notes ?? '') === (row.notes ?? '')) delete next.notes
+    if (Object.keys(next).length === 0) this._unsavedEdits.delete(row.id)
+    else                                this._unsavedEdits.set(row.id, next)
+    if (skipRerender) {
+      // Just toggle the SEND REPLY button's enabled state + UNSAVED hint.
+      const btn  = this._sendBtnRefs?.[row.id]
+      const hint = this._dirtyHintRefs?.[row.id]
+      const dirty = this._isRowDirty(row)
+      if (btn)  btn.disabled = !dirty
+      if (hint) hint.textContent = dirty ? 'UNSAVED CHANGES' : ''
     } else {
-      HudSfx?.playUi?.('denied')
-      // Roll back the dropdown selection by re-rendering against the
-      // unchanged row.
       this._renderInboxRows()
     }
   }
 
-  async _onNotesBlur(row, newNotes) {
-    const trimmed = newNotes == null ? '' : String(newNotes).trim()
-    const current = (row.notes ?? '').trim()
-    if (trimmed === current) return
-    const patch = { notes: trimmed.length === 0 ? null : trimmed }
+  async _sendReply(row) {
+    const edits = this._unsavedEdits.get(row.id)
+    if (!edits || !this._isRowDirty(row)) return
+    HudSfx?.playUi?.('click')
+    const btn = this._sendBtnRefs?.[row.id]
+    if (btn) btn.disabled = true
+    const patch = {}
+    if (edits.status !== undefined) patch.status = edits.status
+    if (edits.notes  !== undefined) {
+      const trimmed = (edits.notes ?? '').trim()
+      patch.notes = trimmed.length === 0 ? null : trimmed
+    }
     const res = await GameRequests.update(row.id, patch)
     if (res.ok) {
-      row.notes = patch.notes
-      HudSfx?.playUi?.('tab')
+      // Commit dirty values to the local row + clear from the cache so
+      // the next render shows the saved state.
+      if (patch.status !== undefined) row.status = patch.status
+      if (patch.notes  !== undefined) row.notes  = patch.notes
+      this._unsavedEdits.delete(row.id)
+      HudSfx?.playUi?.('unlock_reward')
+      // Transient "✓ SENT" feedback — restore label after a moment.
+      if (btn) {
+        btn.textContent = '✓ SENT'
+        btn.classList.add('qf-greq-card-send-sent')
+        setTimeout(() => {
+          // Could be unmounted by now (mango refreshed or switched
+          // tabs); guard before touching.
+          if (!btn.isConnected) return
+          btn.classList.remove('qf-greq-card-send-sent')
+          this._renderInboxRows()
+        }, 1400)
+      } else {
+        this._renderInboxRows()
+      }
     } else {
       HudSfx?.playUi?.('denied')
-      // Re-render restores the old notes from row.notes.
-      this._renderInboxRows()
+      if (btn) {
+        btn.disabled = false
+        btn.textContent = '✉ SEND REPLY'
+      }
+      // Could surface res.error in a status line; leaving the dirty
+      // state intact so mango can retry by clicking again.
     }
   }
 
@@ -479,6 +571,8 @@ export class GameRequestsOverlay {
     if (res.ok) {
       HudSfx?.playUi?.('close_panel')
       this._inbox.rows = this._inbox.rows.filter(r => r.id !== row.id)
+      // Drop any unsaved-edit state for the now-deleted row.
+      this._unsavedEdits.delete(row.id)
       this._confirmDelete = null
       this._renderInboxRows()
     } else {
@@ -492,6 +586,10 @@ export class GameRequestsOverlay {
     if (!this._isMango) return
     this._inbox.loading = true
     this._inbox.error = null
+    // Refresh = server wins. Any in-flight unsaved edits are dropped —
+    // mango would expect the freshly-pulled values to show, not a
+    // mash-up of stale dirty fields and fresh server data.
+    this._unsavedEdits.clear()
     this._renderInboxRows()
     const res = await GameRequests.list({ limit: 200 })
     this._inbox.loading = false
