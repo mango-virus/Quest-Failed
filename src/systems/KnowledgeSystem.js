@@ -673,8 +673,16 @@ export class KnowledgeSystem {
 
   // ── Dungeon mutation → stale knowledge ────────────────────────────────────
 
-  _onRoomMutated({ room }) {
+  _onRoomMutated({ room, isMove }) {
     if (!room?.instanceId) return
+    // MOVE-drops preserve the room's instanceId (NightPhase passes
+    // preserveInstanceId to placeRoom), so the room IS the same room
+    // logically — the adv's intel about it remains accurate. Skip the
+    // stale-mark so moves don't compound a one-tier intel downgrade
+    // every time the player rearranges. Fresh ROOM_PLACED (a brand-new
+    // build) and any ROOM_REMOVED for a non-move (sell, undo) still
+    // mark stale as before.
+    if (isMove) return
     _setStaleInPool(this._gs.knowledge, 'rooms', room.instanceId)
     for (const s of this._gs.knowledge.survivors) {
       if (s.knowledge?.rooms?.[room.instanceId]) s.knowledge.rooms[room.instanceId].stale = true

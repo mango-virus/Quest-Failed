@@ -2193,8 +2193,18 @@ export class NightPhase extends Phaser.Scene {
     // Pass dungeonLevel so placeRoom's internal validatePlacement check
     // doesn't default to 1 and reject any room with unlockLevel > 1 — that
     // was silently making "newly unlocked" rooms unplaceable.
+    // `isMove` is keyed on `_heldMoveRoomInstanceId` (set by EITHER the
+    // MOVE tool's _executeMoveAt OR the legacy left-click pickup
+    // _tryPickupRoom) so both paths preserve adventurer knowledge.
+    // `preserveInstanceId` reuses the picked-up room's old id so adv
+    // knowledge entries keyed on the old id naturally carry across the
+    // move — without this, the new room gets a fresh _uid() and all
+    // "what's in this room" intel orphans.
+    const wasPickup = !!this._heldMoveRoomInstanceId
     const room = this._dungeonGrid.placeRoom(rotDef, placeTx, placeTy, {
-      dungeonLevel: this._gameState.boss?.level ?? 1,
+      dungeonLevel:       this._gameState.boss?.level ?? 1,
+      isMove:             wasPickup,
+      preserveInstanceId: this._heldMoveRoomInstanceId || null,
     })
     if (room) {
       // Stamp the rotation the room was placed at so a future MOVE
@@ -2292,6 +2302,7 @@ export class NightPhase extends Phaser.Scene {
       this._heldMoveRoomRotation = null
       this._heldMoveCaptureW     = null
       this._heldMoveCaptureH     = null
+      this._heldMoveRoomInstanceId = null
       this._lastPlaced = { kind: 'room', entity: room, goldCost: cost }
       // A relocated room fires ROOM_MOVED (not ROOM_PLACED) so the
       // companion comments on the move rather than a fresh build.
@@ -3304,6 +3315,16 @@ export class NightPhase extends Phaser.Scene {
     // checks `_heldMoveRoom` and skips the goldCost debit. (Selling is the
     // only way to convert a placed room back into gold.)
     this._heldMoveRoom = true
+    // Capture the original room's instanceId so the drop in
+    // _confirmPlacement can re-use it for the new room. Without this,
+    // placeRoom generates a fresh _uid() for the moved room — orphaning
+    // all adventurer knowledge entries keyed on the OLD id (rooms,
+    // enemiesPerRoom, etc.), which read as "the dungeon forgot what's
+    // in this room" the next day. Same effect as the player intentionally
+    // wiping intel via repeated pickup-drop. Preserving the id is
+    // semantically right (the moved room IS the same room, just
+    // relocated) and removes the abuse vector.
+    this._heldMoveRoomInstanceId = room.instanceId
     // Capture the room's rotation + footprint at pickup time. Offsets
     // collected below are in this captured frame, NOT the def's default
     // frame. _confirmPlacement uses these to compute net rotation
@@ -3366,7 +3387,9 @@ export class NightPhase extends Phaser.Scene {
     }
     this._heldRoomItems = carriedItems
 
-    this._dungeonGrid.removeRoom(room.instanceId)
+    // isMove flag stops KnowledgeSystem's stale-mark — preserveInstanceId
+    // on the drop will reuse this id so adv knowledge transfers cleanly.
+    this._dungeonGrid.removeRoom(room.instanceId, { isMove: true })
     this._rotation = 0
     this._selectItem(def, 'room')
     this._refreshStats()
@@ -3463,7 +3486,16 @@ export class NightPhase extends Phaser.Scene {
     }
     if (locksChanged) EventBus.emit('LOCKS_CHANGED')
 
-    this._dungeonGrid.removeRoom(room.instanceId)
+    // Capture the picked-up room's id and remove with isMove flag so:
+    //   * KnowledgeSystem skips the stale-mark on this pickup
+    //   * The drop in _confirmPlacement passes preserveInstanceId so
+    //     the rebuilt room reuses the old id — adventurer intel keyed
+    //     on it transfers naturally instead of orphaning.
+    // Unlike _executeMoveAt (gold-neutral MOVE tool), this pickup
+    // refunds the room cost; the player still pays full price on
+    // re-place, just with their intel intact.
+    this._heldMoveRoomInstanceId = room.instanceId
+    this._dungeonGrid.removeRoom(room.instanceId, { isMove: true })
     this._rotation = 0
 
     // Switch to rooms tab so the card and placement preview are visible
@@ -3510,6 +3542,10 @@ export class NightPhase extends Phaser.Scene {
     this._heldMoveRoomRotation = null
     this._heldMoveCaptureW     = null
     this._heldMoveCaptureH     = null
+    // Picked-up room id — cleared on cancel so a stale id from an
+    // abandoned pickup doesn't leak into the next placement (which
+    // would wrongly try to reuse the dead room's instanceId).
+    this._heldMoveRoomInstanceId = null
     // Held items have no AI cleanup, so if the player cancels mid-move
     // we restore them to gameState at their original pre-pickup tiles
     // rather than silently destroy them. The room they belonged to is

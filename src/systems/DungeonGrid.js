@@ -268,7 +268,12 @@ export class DungeonGrid {
     if (!check.valid) return null
 
     const room = {
-      instanceId: _uid(),
+      // `preserveInstanceId` lets NightPhase's MOVE-drop path reuse
+      // the original room's id so adventurer knowledge keyed on it
+      // (rooms / enemiesPerRoom / traps' roomId / etc.) carries
+      // naturally across the move. Fresh placements pass null /
+      // undefined and fall through to _uid().
+      instanceId: opts.preserveInstanceId || _uid(),
       definitionId: definition.id,
       gridX,
       gridY,
@@ -323,7 +328,7 @@ export class DungeonGrid {
     return room
   }
 
-  removeRoom(instanceId) {
+  removeRoom(instanceId, opts = {}) {
     const idx = this._d.rooms.findIndex(r => r.instanceId === instanceId)
     if (idx === -1) return false
     const room = this._d.rooms[idx]
@@ -339,7 +344,10 @@ export class DungeonGrid {
     this._d.rooms.splice(idx, 1)
     this._rebuildLookup()
 
-    EventBus.emit('ROOM_REMOVED', { room })
+    // `isMove` flags MOVE pickup so listeners (KnowledgeSystem stale-
+    // mark, RoomBehaviorSystem cleanup) can distinguish a real removal
+    // from a transient "removed → about to be re-placed at same id" hop.
+    EventBus.emit('ROOM_REMOVED', { room, isMove: !!opts.isMove })
     return true
   }
 
