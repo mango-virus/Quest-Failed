@@ -35,6 +35,7 @@
 import { EventBus } from './EventBus.js'
 import { PlayerProfile } from './PlayerProfile.js'
 import { UNLOCK_GATES } from '../data/bossUnlocks.js'
+import { ACHIEVEMENT_BIT_ORDER } from '../data/achievementBitOrder.js'
 
 // Reverse-lookup helper for the unlock-notification queue. Given the
 // achievement id that just unlocked, returns the boss-archetype id it
@@ -884,9 +885,24 @@ class AchievementSystemImpl {
     return PlayerProfile.getUnlockedAchievements().size
   }
   getTotalCount() { return this._defs.length }
-  // Ordered ids for the leaderboard bitmask. Order must be stable across
-  // sessions — definition file order is the canonical position.
-  getOrderedIds() { return this._defs.map(d => d.id) }
+  // Ordered ids for the leaderboard bitmask. Bit positions are LOCKED by the
+  // append-only ACHIEVEMENT_BIT_ORDER list (src/data/achievementBitOrder.js)
+  // — NOT the achievements.json display order — so reordering / inserting
+  // achievements in the JSON can never again shift an existing bit and
+  // corrupt old leaderboard rows (the level-19-player-shows-level-25 bug).
+  // Any live definition not yet in that list is appended at the END (beyond
+  // every older row's mask length, so it can't misalign them) with a warn so
+  // it gets locked into the list.
+  getOrderedIds() {
+    const locked = new Set(ACHIEVEMENT_BIT_ORDER)
+    const extras = this._defs.map(d => d.id).filter(id => !locked.has(id))
+    if (extras.length) {
+      console.warn('[AchievementSystem] achievements missing from ' +
+        'ACHIEVEMENT_BIT_ORDER — append them there to lock their leaderboard ' +
+        'bit position:', extras)
+    }
+    return [...ACHIEVEMENT_BIT_ORDER, ...extras]
+  }
 
   // Snapshot of every metric the achievement set references, mapped to
   // its current resolved value (scalar metrics + set-count metrics).

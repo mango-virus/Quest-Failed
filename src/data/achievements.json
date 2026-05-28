@@ -210,67 +210,6 @@
     "legendary": true
   },
   {
-    "id": "umbral_ascendant",
-    "name": "Umbral Ascendant",
-    "description": "Reach boss level 21.",
-    "category": "progression",
-    "metric": "maxBossLevel",
-    "target": 21,
-    "icon": "🌑",
-    "title": "The Umbral Ascendant",
-    "titleFx": "void",
-    "legendary": true
-  },
-  {
-    "id": "devourer_of_stars",
-    "name": "Devourer of Stars",
-    "description": "Reach boss level 22.",
-    "category": "progression",
-    "metric": "maxBossLevel",
-    "target": 22,
-    "icon": "🌟",
-    "title": "Devourer of Stars",
-    "titleFx": "arcane",
-    "legendary": true
-  },
-  {
-    "id": "herald_of_oblivion",
-    "name": "Herald of Oblivion",
-    "description": "Reach boss level 23.",
-    "category": "progression",
-    "metric": "maxBossLevel",
-    "target": 23,
-    "icon": "🕳️",
-    "title": "Herald of Oblivion",
-    "titleFx": "spectral",
-    "legendary": true
-  },
-  {
-    "id": "empyrean_dread",
-    "name": "Empyrean Dread",
-    "description": "Reach boss level 24.",
-    "category": "progression",
-    "metric": "maxBossLevel",
-    "target": 24,
-    "icon": "☄️",
-    "title": "The Empyrean Dread",
-    "titleFx": "inferno",
-    "legendary": true
-  },
-  {
-    "id": "the_last_god",
-    "name": "The Last God",
-    "description": "Reach boss level 25.",
-    "category": "progression",
-    "metric": "maxBossLevel",
-    "target": 25,
-    "icon": "🌌",
-    "title": "The Last God",
-    "titleFx": "prismatic",
-    "legendary": true
-  },
-
-  {
     "id": "first_blood",
     "name": "First Blood",
     "description": "Kill your first adventurer.",
@@ -971,6 +910,66 @@
     "reward": { "type": "companion", "id": "necroknight" },
     "title": "King of the Dead",
     "titleFx": "shadowmonarch",
+    "legendary": true
+  },
+  {
+    "id": "umbral_ascendant",
+    "name": "Umbral Ascendant",
+    "description": "Reach boss level 21.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 21,
+    "icon": "🌑",
+    "title": "The Umbral Ascendant",
+    "titleFx": "void",
+    "legendary": true
+  },
+  {
+    "id": "devourer_of_stars",
+    "name": "Devourer of Stars",
+    "description": "Reach boss level 22.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 22,
+    "icon": "🌟",
+    "title": "Devourer of Stars",
+    "titleFx": "arcane",
+    "legendary": true
+  },
+  {
+    "id": "herald_of_oblivion",
+    "name": "Herald of Oblivion",
+    "description": "Reach boss level 23.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 23,
+    "icon": "🕳️",
+    "title": "Herald of Oblivion",
+    "titleFx": "spectral",
+    "legendary": true
+  },
+  {
+    "id": "empyrean_dread",
+    "name": "Empyrean Dread",
+    "description": "Reach boss level 24.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 24,
+    "icon": "☄️",
+    "title": "The Empyrean Dread",
+    "titleFx": "inferno",
+    "legendary": true
+  },
+  {
+    "id": "the_last_god",
+    "name": "The Last God",
+    "description": "Reach boss level 25.",
+    "category": "progression",
+    "metric": "maxBossLevel",
+    "target": 25,
+    "icon": "🌌",
+    "title": "The Last God",
+    "titleFx": "prismatic",
     "legendary": true
   }
 ]
