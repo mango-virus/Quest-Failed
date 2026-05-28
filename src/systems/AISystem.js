@@ -4313,6 +4313,18 @@ export class AISystem {
   // ── Death / despawn ────────────────────────────────────────────────────────
 
   _kill(adv, idx, killerHint) {
+    // Solo Leveling — Sung Jinwoo can ONLY be slain by the boss duel itself.
+    // BossSystem._killAdv stamps _lastHitBy='boss' for the duel; that's the
+    // sole killer allowed through. Every other lethal source routed here
+    // (minions, traps, charm, starvation, pestilence, …) is refused — he's
+    // clamped to 10% max HP and survives. (Boss ABILITIES like the demon
+    // sacrifice never reach _kill; they're floored in BossArchetypeSystem.)
+    if (adv?._shadowMonarch && (adv._lastHitBy ?? killerHint) !== 'boss') {
+      adv.resources = adv.resources ?? {}
+      const floor = Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10))
+      adv.resources.hp = Math.max(floor, adv.resources.hp ?? floor)
+      return
+    }
     // Phase 5c — Cleric Resurrection: if a same-party Cleric still has the
     // ability today, revive the falling adv at 30% HP and skip death.
     if (this._scene.classAbilitySystem?.attemptClericResurrect?.(adv)) {
@@ -4403,6 +4415,7 @@ export class AISystem {
     const flags = this._gameState._mechanicFlags ?? {}
     if (flags.taxationOfSouls) goldMul *= Balance.MECHANIC_TAXATION_GOLD_PENALTY
     if (flags.goldRush)        goldMul *= Balance.MECHANIC_GOLD_RUSH_GOLD_MULT
+    if (flags.famishedDark)    goldMul *= Balance.MECHANIC_FAMISHED_DARK_GOLD_MULT  // DAMNED — kills pay half
     if (flags.gildedDemise)    goldMul *= Balance.MECHANIC_GILDED_DEMISE_GOLD_MULT
     if (flags.inquisitorsMark && adv.flags?.inquisitorsMark) {
       goldMul *= Balance.MECHANIC_INQUISITORS_GOLD_MULT

@@ -855,7 +855,7 @@ export class BossArchetypeSystem {
       if (!adv || (adv.resources?.hp ?? 0) <= 0) continue
       if (!_advInsideRoom(adv, room)) continue
       const before = adv.resources.hp
-      adv.resources.hp = Math.max(0, before - dmg)
+      adv.resources.hp = Math.max(this._shadowFloor(adv), before - dmg)
       hits.push({ advId: adv.instanceId, dmg })
       EventBus.emit('COMBAT_HIT', {
         sourceId:   'boss',
@@ -1237,7 +1237,10 @@ export class BossArchetypeSystem {
       const bossLv = this._gameState?.boss?.level ?? 1
       const charmCount = Balance.VAMPIRE_CHARM_USES_PER_DAY_BASE
         + Math.floor(bossLv * Balance.VAMPIRE_CHARM_USES_PER_BOSS_LV)
-      const eligible = advs.filter(a => a && (a.resources?.hp ?? 0) > 0)
+      // Sung Jinwoo can't be charmed — the vampire can't turn the Shadow
+      // Monarch into a thrall (that would "kill"/remove him; only the boss
+      // duel can take him down).
+      const eligible = advs.filter(a => a && (a.resources?.hp ?? 0) > 0 && !a._shadowMonarch)
       if (eligible.length > 0) {
         const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         if (bossRoom) {
@@ -1680,7 +1683,7 @@ export class BossArchetypeSystem {
         + Math.floor(bossLv * Balance.LIZARDMAN_VENOM_DMG_PER_BOSS_LV)
       const tickDmg = stacks * dmgPerStack
       const before = adv.resources.hp
-      adv.resources.hp = Math.max(0, before - tickDmg)
+      adv.resources.hp = Math.max(this._shadowFloor(adv), before - tickDmg)
       EventBus.emit('COMBAT_HIT', {
         sourceId:   'venom',
         targetId:   adv.instanceId,
@@ -2315,6 +2318,7 @@ export class BossArchetypeSystem {
     for (let i = advs.length - 1; i >= 0; i--) {
       const adv = advs[i]
       if (!adv?._charmed) continue
+      if (adv._shadowMonarch) continue   // defensive: never convert Jinwoo
       if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const boss = this._gameState.boss
       if (!boss) continue
@@ -2473,6 +2477,17 @@ export class BossArchetypeSystem {
     EventBus.emit('DEMON_SACRIFICE_DISARMED', {})
   }
 
+  // Solo Leveling — Sung Jinwoo can't be killed by boss ABILITIES (only the
+  // boss duel itself). Returns the minimum HP a damage tick may leave him at
+  // (10% of max); 0 for everyone else. Used as the floor in
+  // `Math.max(this._shadowFloor(adv), before - dmg)` so the subsequent
+  // `hp <= 0` death emit naturally skips him.
+  _shadowFloor(adv) {
+    return adv?._shadowMonarch
+      ? Math.max(1, Math.ceil((adv.resources?.maxHp ?? 1) * 0.10))
+      : 0
+  }
+
   // payload: { minionId } — fired by the UI when the player clicks one of
   // their own minions while the sacrifice is armed.
   _fireSacrifice(payload) {
@@ -2483,9 +2498,11 @@ export class BossArchetypeSystem {
       this._disarmSacrifice()
       return
     }
-    // Pick a random alive adv in the dungeon.
+    // Pick a random alive adv in the dungeon. Sung Jinwoo is exempt — the
+    // sacrifice (an instant-kill boss ability) can't take the Shadow Monarch;
+    // only the boss duel itself can.
     const advs = (this._gameState?.adventurers?.active ?? [])
-      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && !a._shadowMonarch)
     if (advs.length === 0) {
       this._disarmSacrifice()
       EventBus.emit('DEMON_SACRIFICE_NO_TARGETS', {})
@@ -2792,7 +2809,9 @@ export class BossArchetypeSystem {
         }
       }
       // 100% — instant panic death. Drop gold like a normal kill, no XP.
-      if (fear >= pdThresh && !adv._fearPanicDeathTriggered) {
+      // Sung Jinwoo is immune — fear (a boss ability) can't kill the Shadow
+      // Monarch; only the boss duel can.
+      if (fear >= pdThresh && !adv._fearPanicDeathTriggered && !adv._shadowMonarch) {
         adv._fearPanicDeathTriggered = true
         adv.resources.hp = 0
         this._gameState.player ??= {}
@@ -2958,7 +2977,7 @@ export class BossArchetypeSystem {
         // and left in place only for save / lookup compat.
         const dmg = Math.max(1, Math.floor((adv.resources?.maxHp ?? 0) * Balance.MYCONID_SPORE_DMG_PCT_PER_TICK))
         const before = adv.resources.hp
-        adv.resources.hp = Math.max(0, before - dmg)
+        adv.resources.hp = Math.max(this._shadowFloor(adv), before - dmg)
         EventBus.emit('COMBAT_HIT', {
           sourceId:   'spores',
           targetId:   adv.instanceId,

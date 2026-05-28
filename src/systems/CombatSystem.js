@@ -214,7 +214,13 @@ export class CombatSystem {
       }
     }
 
-    target.resources.hp = Math.max(0, target.resources.hp - finalDmg)
+    // Solo Leveling — Sung Jinwoo can't be dropped below 10% max HP by
+    // minions (only the boss duel can finish him). Floor the hit here so his
+    // HP bar visibly bottoms out at 10% instead of flashing to 0 before
+    // AISystem._kill bounces him back.
+    const _smFloor = target._shadowMonarch
+      ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
+    target.resources.hp = Math.max(_smFloor, target.resources.hp - finalDmg)
 
     const damageType = attacker.damageType
       ?? attacker.stats?.damageType

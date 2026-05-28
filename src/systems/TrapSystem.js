@@ -388,7 +388,9 @@ export class TrapSystem {
       if (!p) continue
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) { adv.flags.trapPoison = null; continue }
       while (now >= p.nextTickAt && p.nextTickAt <= p.endsAt) {
-        adv.resources.hp = Math.max(0, adv.resources.hp - p.dps)
+        const _smFloor = adv._shadowMonarch
+          ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+        adv.resources.hp = Math.max(_smFloor, adv.resources.hp - p.dps)
         EventBus.emit('COMBAT_HIT', {
           sourceId: p.sourceId, targetId: adv.instanceId,
           damage: p.dps, damageType: p.damageType, isCritical: false,
@@ -458,7 +460,10 @@ export class TrapSystem {
     if (entity._shadowMonarch) damage = Math.floor(damage * 0.5)
     if (damage <= 0) return false
 
-    entity.resources.hp = Math.max(0, entity.resources.hp - damage)
+    // Jinwoo floors at 10% max HP — traps can't kill the Shadow Monarch.
+    const _smFloor = entity._shadowMonarch
+      ? Math.max(1, Math.ceil((entity.resources.maxHp ?? 1) * 0.10)) : 0
+    entity.resources.hp = Math.max(_smFloor, entity.resources.hp - damage)
     entity._lastHitBy   = trap.instanceId
     entity._lastHitType = def.damageType ?? 'physical'
 
