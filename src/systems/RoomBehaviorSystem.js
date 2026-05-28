@@ -90,7 +90,10 @@ export class RoomBehaviorSystem {
       // _refillTreasury.
       const treasuryTinkered = this._isTinkered('treasury')
       const perRoom = treasuryTinkered ? 7.5 : 5
-      const stipend = Math.round(perRoom * treasuries.length)
+      // DAMNED · Famine's Grip — treasure-room payouts pay 50% less.
+      const famineMul = (this._gameState._mechanicFlags ?? {}).faminesGrip
+        ? (Balance.MECHANIC_FAMINES_GRIP_PAYOUT_MULT ?? 0.5) : 1
+      const stipend = Math.round(perRoom * treasuries.length * famineMul)
       this._gameState.player.gold = (this._gameState.player.gold ?? 0) + stipend
       EventBus.emit('TREASURY_STIPEND', { amount: stipend, treasuryCount: treasuries.length })
     }

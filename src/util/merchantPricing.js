@@ -25,6 +25,11 @@ export function merchantPriceMult(gameState, defId) {
 export function applyMerchantPrice(gameState, defId, cost) {
   if (!cost) return cost
   const mult = merchantPriceMult(gameState, defId)
-  if (mult === 1) return cost
-  return Math.max(0, Math.round(cost * mult))
+  // DAMNED · Mounting Debt — build costs inflate 5%/day (compounding). The
+  // multiplier lives on _mechanicFlags.mountingDebtMult so both the display
+  // (LeftPanels._costFor) and the charge sites stay in sync.
+  const debtMul = gameState?._mechanicFlags?.mountingDebtMult ?? 1
+  const eff = mult * debtMul
+  if (eff === 1) return cost
+  return Math.max(0, Math.round(cost * eff))
 }

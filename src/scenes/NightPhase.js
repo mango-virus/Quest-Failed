@@ -1935,6 +1935,9 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _effectiveMinionCost(def) {
+    // DAMNED · Pact of Glass bribe — minions are free to place for the
+    // sealing build phase only.
+    if ((this._gameState._mechanicFlags ?? {}).glassFreeNight) return 0
     const base = def?.goldCost ?? 0
     const m = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
     const bossLv = this._gameState.boss?.level ?? 1
@@ -1956,7 +1959,10 @@ export class NightPhase extends Phaser.Scene {
       ? barracksCount * 5 : 0
     const bonus   = f.maxMinionSlotBonus ?? 0
     const penalty = f.longGameMinionSlotPenalty ?? 0
-    return Math.max(0, barracksCount * perBarracks + tinkerBonus + bonus - penalty)
+    let total = barracksCount * perBarracks + tinkerBonus + bonus - penalty
+    // DAMNED · The Hollow Horde — maximum minion slots halved.
+    if (f.theHollowHorde) total = Math.floor(total * 0.5)
+    return Math.max(0, total)
   }
 
   _rosterUsed() {
@@ -2102,6 +2108,12 @@ export class NightPhase extends Phaser.Scene {
     // lowered 2026-05-27 per user direction). Skipped when relocating
     // an already-placed trap (the MOVE tool is gold/slot-neutral).
     if (!this._heldMoveTrap) {
+      // DAMNED · Trapless Halls — no NEW traps may be placed (relocating an
+      // already-placed trap via the MOVE tool is still allowed).
+      if ((this._gameState._mechanicFlags ?? {}).traplessHalls) {
+        violations.push('Trapless Halls — you can place no new traps')
+        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'trapless_halls' })
+      }
       const cap = this._trapCap()
       const used = this._trapUsed()
       if (cap === 0) {
@@ -2359,6 +2371,9 @@ export class NightPhase extends Phaser.Scene {
     const bossLevel = this._gameState.boss?.level ?? 1
     const dayNumber = this._gameState.meta?.dayNumber ?? 1
     const minion = createMinion(def, { x: tx, y: ty }, room?.instanceId ?? null, { bossLevel, dayNumber })
+    // DAMNED · Pact of Glass — minions placed free during the bribe night
+    // can never be sold back for gold (anti free-recycle abuse).
+    if ((this._gameState._mechanicFlags ?? {}).glassFreeNight) minion._noSellValue = true
 
     // Phase 6e: apply archetype-gated stat multiplier (e.g. Tyrant 2×, Architect 0.85×)
     const arch = this._gameState.player?.archetypeModifiers
@@ -2874,6 +2889,11 @@ export class NightPhase extends Phaser.Scene {
   _executeSellAt(tx, ty) {
     // Selling is a build-phase action only — never during the day.
     if (this._gameState.meta?.phase !== 'night') return
+    // DAMNED · The Sealed Vault — selling is forbidden for the rest of the run.
+    if ((this._gameState._mechanicFlags ?? {}).theSealedVault) {
+      this._showPlacementError('The Sealed Vault is shut — you can sell nothing.')
+      return
+    }
 
     // Treasure Chest.
     const treasureHit = (this._gameState.dungeon.treasureChests ?? []).find(c =>
@@ -3108,6 +3128,9 @@ export class NightPhase extends Phaser.Scene {
       return Math.floor((d?.goldCost ?? 0) * 0.5)
     }
     if (kind === 'minion') {
+      // DAMNED · Pact of Glass — minions placed free on the bribe night
+      // carry no resale value.
+      if (entity?._noSellValue) return 0
       // Garrison minions (Crypt Risen Bones, Mimic Vault mimics, Hall
       // of Trials elite, Throne Room mini-boss, Catacombs revenants)
       // are auto-spawned for free by their host room. Selling the

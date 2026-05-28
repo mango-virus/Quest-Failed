@@ -1351,5 +1351,399 @@
     ],
     "exclusiveWith": [],
     "synergyWith": []
+  },
+  {
+    "id": "famished_dark",
+    "name": "Famished Dark",
+    "symbol": "⊗",
+    "description": "On sealing: gain 1500 gold at once.",
+    "tradeoffDescription": "Adventurer kills grant 50% less gold — for the rest of the run.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "famishedDark_activate",
+    "onDeactivate": "famishedDark_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_open_gate",
+    "name": "The Open Gate",
+    "symbol": "⊏",
+    "description": "On sealing: gain 1500 gold at once.",
+    "tradeoffDescription": "+10 adventurers enter the dungeon every day — permanently.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theOpenGate_activate",
+    "onDeactivate": "theOpenGate_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "adventurer",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "hollow_crown",
+    "name": "Hollow Crown",
+    "symbol": "♚",
+    "description": "On sealing: claim a free Legendary pact of fate's choosing.",
+    "tradeoffDescription": "Your boss's maximum HP is permanently cut in half.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "hollowCrown_activate",
+    "onDeactivate": "hollowCrown_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_bleeding_crown",
+    "name": "The Bleeding Crown",
+    "symbol": "⸸",
+    "description": "On sealing: gain 1200 gold at once.",
+    "tradeoffDescription": "The boss loses 2% of its maximum HP, permanently, every day.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theBleedingCrown_activate",
+    "onDeactivate": "theBleedingCrown_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "sleepless_throne",
+    "name": "Sleepless Throne",
+    "symbol": "☼",
+    "description": "On sealing: gain +10 maximum minion slots.",
+    "tradeoffDescription": "The boss begins every boss fight at only 50% HP.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "sleeplessThrone_activate",
+    "onDeactivate": "sleeplessThrone_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "minion",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "tribute_of_flesh",
+    "name": "Tribute of Flesh",
+    "symbol": "⊺",
+    "description": "On sealing: gain 700 gold at once.",
+    "tradeoffDescription": "Every adventurer who escapes alive loots 20 gold from your treasury.",
+    "rarity": "damned",
+    "unlockLevel": 2,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "tributeOfFlesh_activate",
+    "onDeactivate": "tributeOfFlesh_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "adventurer",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "cursed_blood",
+    "name": "Cursed Blood",
+    "symbol": "🩸",
+    "description": "On sealing: gain 1000 gold at once.",
+    "tradeoffDescription": "Every minion that dies anywhere damages the boss for 3% of its max HP.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "cursedBlood_activate",
+    "onDeactivate": "cursedBlood_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "boss",
+      "minion",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_hollow_horde",
+    "name": "The Hollow Horde",
+    "symbol": "⛬",
+    "description": "On sealing: every current minion gains +20% to all stats.",
+    "tradeoffDescription": "Your maximum minion slots are halved for the rest of the run.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theHollowHorde_activate",
+    "onDeactivate": "theHollowHorde_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "slot",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "brittle_bones",
+    "name": "Brittle Bones",
+    "symbol": "⫰",
+    "description": "On sealing: all current minions deal +25% damage.",
+    "tradeoffDescription": "Any minion struck while below 50% HP shatters instantly.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "brittleBones_activate",
+    "onDeactivate": "brittleBones_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "damage",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_wasting",
+    "name": "The Wasting",
+    "symbol": "⋙",
+    "description": "On sealing: all current minions evolve one tier (where possible).",
+    "tradeoffDescription": "At the end of each day, every surviving minion permanently loses 5% of its max HP.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theWasting_activate",
+    "onDeactivate": "theWasting_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "attrition",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_hunger",
+    "name": "The Hunger",
+    "symbol": "⫤",
+    "description": "On sealing: gain 1000 gold at once.",
+    "tradeoffDescription": "Each dawn, 20% of your minions die permanently — no revival.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theHunger_activate",
+    "onDeactivate": "theHunger_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "attrition",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_unteachable",
+    "name": "The Unteachable",
+    "symbol": "⊖",
+    "description": "On sealing: gain 1000 gold at once.",
+    "tradeoffDescription": "Your minions can no longer gain XP or evolve for the rest of the run.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theUnteachable_activate",
+    "onDeactivate": "theUnteachable_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "evolution",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_martyrs_curse",
+    "name": "The Martyr's Curse",
+    "symbol": "⳥",
+    "description": "On sealing: gain 800 gold at once.",
+    "tradeoffDescription": "When a minion dies, nearby adventurers heal 25% of their max HP.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theMartyrsCurse_activate",
+    "onDeactivate": "theMartyrsCurse_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "adventurer",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "mounting_debt",
+    "name": "Mounting Debt",
+    "symbol": "⛀",
+    "description": "On sealing: gain 1000 gold at once.",
+    "tradeoffDescription": "Every day, the gold cost of all rooms, minions and traps rises 5% — compounding.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "mountingDebt_activate",
+    "onDeactivate": "mountingDebt_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "the_sealed_vault",
+    "name": "The Sealed Vault",
+    "symbol": "⛬",
+    "description": "On sealing: gain 1500 gold at once.",
+    "tradeoffDescription": "You can never sell anything — rooms, minions or traps — again.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "theSealedVault_activate",
+    "onDeactivate": "theSealedVault_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "brittle_engines",
+    "name": "Brittle Engines",
+    "symbol": "⚙",
+    "description": "On sealing: all traps deal +100% damage.",
+    "tradeoffDescription": "Every trap breaks permanently after firing once.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "brittleEngines_activate",
+    "onDeactivate": "brittleEngines_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "damage",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "trapless_halls",
+    "name": "Trapless Halls",
+    "symbol": "⊘",
+    "description": "On sealing: existing traps deal +50% damage, and gain 600 gold.",
+    "tradeoffDescription": "You can place no new traps for the rest of the run.",
+    "rarity": "damned",
+    "unlockLevel": 3,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "traplessHalls_activate",
+    "onDeactivate": "traplessHalls_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "trap",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "famines_grip",
+    "name": "Famine's Grip",
+    "symbol": "⊘",
+    "description": "On sealing: gain 800 gold at once.",
+    "tradeoffDescription": "Treasure rooms and items pay 50% less gold.",
+    "rarity": "damned",
+    "unlockLevel": 2,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "faminesGrip_activate",
+    "onDeactivate": "faminesGrip_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "gold",
+      "economy",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
+  },
+  {
+    "id": "pact_of_glass",
+    "name": "Pact of Glass",
+    "symbol": "◇",
+    "description": "On sealing: every minion is free to place during the next build phase.",
+    "tradeoffDescription": "All your minions' maximum HP is permanently halved.",
+    "rarity": "damned",
+    "unlockLevel": 4,
+    "weight": 12,
+    "availableToArchetypes": "all",
+    "onActivate": "pactOfGlass_activate",
+    "onDeactivate": "pactOfGlass_deactivate",
+    "onDailyTick": null,
+    "tags": [
+      "minion",
+      "damned"
+    ],
+    "exclusiveWith": [],
+    "synergyWith": []
   }
 ]

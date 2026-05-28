@@ -84,7 +84,7 @@ export class TrapSystem {
     for (const trap of [...traps]) {
       const def = this._defs[trap.definitionId]
       if (!def) continue
-      if (trap._disabledThisDay) continue   // disarmed by a Ranger / mechanic
+      if (trap._disabledThisDay || trap._broken) continue   // disarmed (Ranger/mechanic) or shattered (Brittle Engines)
       if (def.id === 'saw_blade') this._tickSaw(trap, def)
       if (def.triggerCondition === 'proximity' && trap.state.fuseLit &&
           !trap.state.exploded && now >= (trap.state.fuseEndsAt ?? Infinity)) {
@@ -94,7 +94,7 @@ export class TrapSystem {
 
     // Trigger evaluation — splice-safe copy (bomb detonation mutates traps[]).
     for (const trap of [...traps]) {
-      if (trap.state?.exploded || trap._disabledThisDay) continue
+      if (trap.state?.exploded || trap._disabledThisDay || trap._broken) continue
       const def = this._defs[trap.definitionId]
       if (!def) continue
       this._evaluateTrap(trap, def)

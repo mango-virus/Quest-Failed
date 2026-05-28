@@ -23,7 +23,7 @@
 
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
-import { createMinion } from '../entities/Minion.js'
+import { createMinion, applyBossLevelToMinion } from '../entities/Minion.js'
 
 export class DungeonMechanicSystem {
   constructor(scene, gameState) {
@@ -381,6 +381,33 @@ function _despawnSummonAdds(gameState) {
   gameState.minions = gameState.minions.filter(m => !m._summonedAdd)
   const removed = before - gameState.minions.length
   if (removed > 0) EventBus.emit('SUMMON_ADDS_DESPAWNED', { count: removed })
+}
+
+// Grant a free random Legendary pact (not already active) — the bribe for
+// several Damned pacts (Hollow Crown, Pact of the Last Heart). Returns the
+// granted pact's id/name (or nulls if the legendary pool is exhausted).
+function _grantFreeLegendaryPact(system, excludeId) {
+  const pool = system.allDefinitions().filter(d =>
+    d.rarity === 'legendary' && !system.isActive(d.id) && d.id !== excludeId)
+  if (pool.length === 0) return { grantedId: null, grantedName: null }
+  const pickDef = pool[Math.floor(Math.random() * pool.length)]
+  system.activate(pickDef.id)
+  return { grantedId: pickDef.id, grantedName: pickDef.name ?? pickDef.id }
+}
+
+// Apply a permanent stat buff to every alive dungeon minion (the bribe for
+// Hollow Horde / Brittle Bones). Bumps the recorded BASE stats so the buff
+// survives later level-up rescales, then re-applies scaling.
+function _buffCurrentMinions(gameState, { hp = 0, atk = 0, def = 0 } = {}) {
+  const bossLv = gameState.boss?.level ?? 1
+  for (const m of (gameState.minions ?? [])) {
+    if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+    if (m._baseMaxHp == null || m._baseAtk == null) applyBossLevelToMinion(m, bossLv) // init bases
+    if (hp)  m._baseMaxHp = Math.round((m._baseMaxHp ?? 0) * (1 + hp))
+    if (atk) m._baseAtk   = Math.round((m._baseAtk ?? 0) * (1 + atk))
+    if (def && m.stats) m.stats.defense = Math.round((m.stats.defense ?? 0) * (1 + def))
+    applyBossLevelToMinion(m, bossLv)
+  }
 }
 
 // ── Handler registry ──────────────────────────────────────────────────────
@@ -1565,6 +1592,349 @@ function _buildHandlerRegistry() {
     },
     pactOfTheLastHeart_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.lastHeart = false
+    },
+
+    // ── DAMNED · Famished Dark ───────────────────────────────────────────
+    // Bribe: gold lump. Curse: kills pay half gold (AISystem goldMul read).
+    famishedDark_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.famishedDark = true
+      const bribe = Balance.MECHANIC_FAMISHED_DARK_BRIBE_GOLD ?? 1500
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'famished_dark_bribe' })
+    },
+    famishedDark_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.famishedDark = false
+    },
+
+    // ── DAMNED · The Open Gate ───────────────────────────────────────────
+    // Bribe: gold lump. Curse: +10 adventurers/day (DayPhase extraAdvsPerDay).
+    theOpenGate_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theOpenGate = true
+      f.extraAdvsPerDay = (f.extraAdvsPerDay ?? 0) + (Balance.MECHANIC_OPEN_GATE_EXTRA_ADVS ?? 10)
+      const bribe = Balance.MECHANIC_OPEN_GATE_BRIBE_GOLD ?? 1500
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'open_gate_bribe' })
+    },
+    theOpenGate_deactivate: ({ gameState }) => {
+      if (!gameState._mechanicFlags) return
+      gameState._mechanicFlags.theOpenGate = false
+      gameState._mechanicFlags.extraAdvsPerDay = Math.max(0,
+        (gameState._mechanicFlags.extraAdvsPerDay ?? 0) - (Balance.MECHANIC_OPEN_GATE_EXTRA_ADVS ?? 10))
+    },
+
+    // ── DAMNED · Hollow Crown ────────────────────────────────────────────
+    // Bribe: free Legendary pact. Curse: boss max HP halved (recompute reads
+    // the flag); emit BOSS_STATS_DIRTY so the top-bar updates immediately.
+    hollowCrown_activate: ({ gameState, system }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.hollowCrown = true
+      const { grantedId, grantedName } = _grantFreeLegendaryPact(system, 'hollow_crown')
+      EventBus.emit('BOSS_STATS_DIRTY')
+      EventBus.emit('HOLLOW_CROWN_SEALED', { grantedId, grantedName })
+    },
+    hollowCrown_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.hollowCrown = false
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+
+    // ── DAMNED · The Bleeding Crown ──────────────────────────────────────
+    // Bribe: gold lump. Curse: boss loses 2% max HP permanently each day
+    // (recompute reads bleedingCrownDays; daily tick bumps it + recomputes).
+    theBleedingCrown_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theBleedingCrown = true
+      f.bleedingCrownDays ??= 0
+      const bribe = Balance.MECHANIC_BLEEDING_CROWN_BRIBE_GOLD ?? 1200
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'bleeding_crown_bribe' })
+      subscribe('DAY_PHASE_STARTED', () => {
+        gameState._mechanicFlags.bleedingCrownDays = (gameState._mechanicFlags.bleedingCrownDays ?? 0) + 1
+        EventBus.emit('BOSS_STATS_DIRTY')
+      })
+    },
+    theBleedingCrown_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theBleedingCrown = false
+      EventBus.emit('BOSS_STATS_DIRTY')
+    },
+
+    // ── DAMNED · Sleepless Throne ────────────────────────────────────────
+    // Bribe: +10 minion slots. Curse: boss starts every fight at 50% HP
+    // (BossSystem._onIncoming reads the flag).
+    sleeplessThrone_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.sleeplessThrone = true
+      f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + (Balance.MECHANIC_SLEEPLESS_THRONE_SLOT_BRIBE ?? 10)
+    },
+    sleeplessThrone_deactivate: ({ gameState }) => {
+      if (!gameState._mechanicFlags) return
+      gameState._mechanicFlags.sleeplessThrone = false
+      gameState._mechanicFlags.maxMinionSlotBonus = Math.max(0,
+        (gameState._mechanicFlags.maxMinionSlotBonus ?? 0) - (Balance.MECHANIC_SLEEPLESS_THRONE_SLOT_BRIBE ?? 10))
+    },
+
+    // ── DAMNED · Tribute of Flesh ────────────────────────────────────────
+    // Bribe: gold lump. Curse: each escaped adventurer loots gold from you.
+    tributeOfFlesh_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.tributeOfFlesh = true
+      const bribe = Balance.MECHANIC_TRIBUTE_BRIBE_GOLD ?? 700
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'tribute_bribe' })
+      subscribe('ADVENTURER_FLED', () => {
+        const loot = Balance.MECHANIC_TRIBUTE_GOLD_PER_ESCAPE ?? 20
+        const before = gameState.player.gold ?? 0
+        gameState.player.gold = Math.max(0, before - loot)
+        EventBus.emit('TRIBUTE_LOOTED', { amount: Math.min(loot, before) })
+      })
+    },
+    tributeOfFlesh_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.tributeOfFlesh = false
+    },
+
+    // ── DAMNED · Cursed Blood ────────────────────────────────────────────
+    // Bribe: gold lump. Curse: every minion death damages the boss for 3%
+    // max HP (floored at 1 HP — won't itself end the run, like Soul Tether).
+    cursedBlood_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.cursedBlood = true
+      const bribe = Balance.MECHANIC_CURSED_BLOOD_BRIBE_GOLD ?? 1000
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'cursed_blood_bribe' })
+      subscribe('MINION_DIED', ({ minion }) => {
+        if (!minion || !gameState.boss) return
+        const dmg = Math.max(1, Math.round((gameState.boss.maxHp ?? 0) * (Balance.MECHANIC_CURSED_BLOOD_BOSS_DMG_FRAC ?? 0.03)))
+        gameState.boss.hp = Math.max(1, (gameState.boss.hp ?? 0) - dmg)
+        EventBus.emit('CURSED_BLOOD_BOSS_HURT', { amount: dmg })
+      })
+    },
+    cursedBlood_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.cursedBlood = false
+    },
+
+    // ── DAMNED · The Hollow Horde ────────────────────────────────────────
+    // Bribe: all current minions +20% to all stats. Curse: max minion slots
+    // halved (NightPhase._rosterCap reads theHollowHorde).
+    theHollowHorde_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theHollowHorde = true
+      const b = Balance.MECHANIC_HOLLOW_HORDE_STAT_BUFF ?? 0.2
+      _buffCurrentMinions(gameState, { hp: b, atk: b, def: b })
+    },
+    theHollowHorde_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theHollowHorde = false
+    },
+
+    // ── DAMNED · Brittle Bones ───────────────────────────────────────────
+    // Bribe: current minions +25% damage. Curse: a minion struck below 50%
+    // HP shatters instantly (CombatSystem reads brittleBones).
+    brittleBones_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.brittleBones = true
+      _buffCurrentMinions(gameState, { atk: Balance.MECHANIC_BRITTLE_BONES_DMG_BUFF ?? 0.25 })
+    },
+    brittleBones_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.brittleBones = false
+    },
+
+    // ── DAMNED · The Wasting ─────────────────────────────────────────────
+    // Bribe: evolve all current minions one tier. Curse: every surviving
+    // minion sheds 5% max HP at the end of each day (compounding). The
+    // penalty lives as wastingDays, read in applyMinionScaling so it survives
+    // level-up rescales; the nightly tick bumps it and re-applies scaling.
+    theWasting_activate: ({ subscribe, gameState, scene }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theWasting = true
+      f.wastingDays ??= 0
+      scene?.minionEvolutionSystem?.evolveAllOnce?.()
+      subscribe('NIGHT_PHASE_STARTED', () => {
+        gameState._mechanicFlags.wastingDays = (gameState._mechanicFlags.wastingDays ?? 0) + 1
+        const bossLv = gameState.boss?.level ?? 1
+        for (const m of (gameState.minions ?? [])) {
+          if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+          applyBossLevelToMinion(m, bossLv)
+        }
+        EventBus.emit('WASTING_TICK', { days: gameState._mechanicFlags.wastingDays })
+      })
+    },
+    theWasting_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theWasting = false
+    },
+
+    // ── DAMNED · The Hunger ──────────────────────────────────────────────
+    // Bribe: gold lump. Curse: each dawn, 20% of your minions die permanently
+    // (spliced from gameState.minions so they never respawn).
+    theHunger_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theHunger = true
+      const bribe = Balance.MECHANIC_HUNGER_BRIBE_GOLD ?? 1000
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'hunger_bribe' })
+      subscribe('DAY_PHASE_STARTED', () => {
+        const alive = (gameState.minions ?? []).filter(m => m.faction === 'dungeon' && m.aiState !== 'dead')
+        const n = Math.floor(alive.length * (Balance.MECHANIC_HUNGER_DEATH_FRAC ?? 0.2))
+        if (n <= 0) return
+        const victims = [...alive].sort(() => Math.random() - 0.5).slice(0, n)
+        for (const v of victims) {
+          const idx = gameState.minions.indexOf(v)
+          if (idx >= 0) gameState.minions.splice(idx, 1)
+          EventBus.emit('MINION_REMOVED', { minion: v, reason: 'hunger' })
+        }
+        EventBus.emit('HUNGER_DEVOURED', { count: victims.length })
+      })
+    },
+    theHunger_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theHunger = false
+    },
+
+    // ── DAMNED · The Unteachable ─────────────────────────────────────────
+    // Bribe: gold lump. Curse: minions can't gain XP/evolve (MinionEvolution
+    // System._onCombatKill bails on the flag).
+    theUnteachable_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theUnteachable = true
+      const bribe = Balance.MECHANIC_UNTEACHABLE_BRIBE_GOLD ?? 1000
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'unteachable_bribe' })
+    },
+    theUnteachable_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theUnteachable = false
+    },
+
+    // ── DAMNED · The Martyr's Curse ──────────────────────────────────────
+    // Bribe: gold lump. Curse: when a minion dies, adventurers within a few
+    // tiles of the death heal 25% of their max HP.
+    theMartyrsCurse_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theMartyrsCurse = true
+      const bribe = Balance.MECHANIC_MARTYR_BRIBE_GOLD ?? 800
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'martyr_bribe' })
+      subscribe('MINION_DIED', ({ minion }) => {
+        if (!minion) return
+        const advs = gameState.adventurers?.active ?? []
+        const R    = Balance.MECHANIC_MARTYR_RADIUS_TILES ?? 4
+        const frac = Balance.MECHANIC_MARTYR_HEAL_FRAC ?? 0.25
+        const mx = minion.tileX ?? 0, my = minion.tileY ?? 0
+        for (const a of advs) {
+          if (!a?.resources || a.aiState === 'dead') continue
+          const d = Math.hypot((a.tileX ?? 0) - mx, (a.tileY ?? 0) - my)
+          if (d > R) continue
+          const heal = Math.round((a.resources.maxHp ?? 0) * frac)
+          if (heal <= 0) continue
+          a.resources.hp = Math.min(a.resources.maxHp ?? heal, (a.resources.hp ?? 0) + heal)
+          EventBus.emit('MARTYR_HEAL', { adventurerId: a.instanceId, amount: heal })
+        }
+      })
+    },
+    theMartyrsCurse_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theMartyrsCurse = false
+    },
+
+    // ── DAMNED · Mounting Debt ───────────────────────────────────────────
+    // Bribe: gold lump. Curse: build costs inflate 5%/day, compounding
+    // (applyMerchantPrice reads mountingDebtMult).
+    mountingDebt_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.mountingDebt = true
+      f.mountingDebtMult ??= 1
+      const bribe = Balance.MECHANIC_MOUNTING_DEBT_BRIBE_GOLD ?? 1000
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'mounting_debt_bribe' })
+      subscribe('DAY_PHASE_STARTED', () => {
+        const step = 1 + (Balance.MECHANIC_MOUNTING_DEBT_PER_DAY ?? 0.05)
+        gameState._mechanicFlags.mountingDebtMult = (gameState._mechanicFlags.mountingDebtMult ?? 1) * step
+        EventBus.emit('MOUNTING_DEBT_TICK', { mult: gameState._mechanicFlags.mountingDebtMult })
+      })
+    },
+    mountingDebt_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) {
+        gameState._mechanicFlags.mountingDebt = false
+        gameState._mechanicFlags.mountingDebtMult = 1   // lift the inflation
+      }
+    },
+
+    // ── DAMNED · The Sealed Vault ────────────────────────────────────────
+    // Bribe: gold lump. Curse: selling is forbidden (NightPhase._executeSellAt).
+    theSealedVault_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.theSealedVault = true
+      const bribe = Balance.MECHANIC_SEALED_VAULT_BRIBE_GOLD ?? 1500
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'sealed_vault_bribe' })
+    },
+    theSealedVault_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.theSealedVault = false
+    },
+
+    // ── DAMNED · Brittle Engines ─────────────────────────────────────────
+    // Bribe: traps +100% damage (trapDamageMult, read by TrapSystem). Curse:
+    // each trap breaks permanently the moment it fires (sets trap._broken,
+    // which the TrapSystem trigger loops skip).
+    brittleEngines_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.brittleEngines = true
+      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_BRITTLE_ENGINES_DMG_MULT ?? 2)
+      subscribe('TRAP_FIRED', ({ trap }) => { if (trap) trap._broken = true })
+    },
+    brittleEngines_deactivate: ({ gameState }) => {
+      if (!gameState._mechanicFlags) return
+      gameState._mechanicFlags.brittleEngines = false
+      const m = Balance.MECHANIC_BRITTLE_ENGINES_DMG_MULT ?? 2
+      gameState._mechanicFlags.trapDamageMult = (gameState._mechanicFlags.trapDamageMult ?? 1) / m
+    },
+
+    // ── DAMNED · Trapless Halls ──────────────────────────────────────────
+    // Bribe: existing traps +50% damage + gold. Curse: no NEW traps may be
+    // placed (NightPhase placement validation reads traplessHalls).
+    traplessHalls_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.traplessHalls = true
+      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_TRAPLESS_HALLS_DMG_MULT ?? 1.5)
+      const bribe = Balance.MECHANIC_TRAPLESS_HALLS_BRIBE_GOLD ?? 600
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'trapless_halls_bribe' })
+    },
+    traplessHalls_deactivate: ({ gameState }) => {
+      if (!gameState._mechanicFlags) return
+      gameState._mechanicFlags.traplessHalls = false
+      const m = Balance.MECHANIC_TRAPLESS_HALLS_DMG_MULT ?? 1.5
+      gameState._mechanicFlags.trapDamageMult = (gameState._mechanicFlags.trapDamageMult ?? 1) / m
+    },
+
+    // ── DAMNED · Famine's Grip ───────────────────────────────────────────
+    // Bribe: gold lump. Curse: treasure-room payouts pay 50% less
+    // (RoomBehaviorSystem treasury stipend reads faminesGrip).
+    faminesGrip_activate: ({ gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.faminesGrip = true
+      const bribe = Balance.MECHANIC_FAMINES_GRIP_BRIBE_GOLD ?? 800
+      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'famines_grip_bribe' })
+    },
+    faminesGrip_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.faminesGrip = false
+    },
+
+    // ── DAMNED · Pact of Glass ───────────────────────────────────────────
+    // Bribe: minions free to place during the sealing build phase only
+    // (NightPhase._effectiveMinionCost reads glassFreeNight; those minions
+    // are marked _noSellValue). Curse: all minion max HP halved permanently
+    // (applyMinionScaling reads pactOfGlass for current + future minions).
+    pactOfGlass_activate: ({ subscribe, gameState }) => {
+      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
+      f.pactOfGlass = true
+      f.glassFreeNight = true
+      const bossLv = gameState.boss?.level ?? 1
+      for (const m of (gameState.minions ?? [])) {
+        if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+        applyBossLevelToMinion(m, bossLv)   // re-apply scaling -> half HP now
+      }
+      subscribe('DAY_PHASE_STARTED', () => { gameState._mechanicFlags.glassFreeNight = false })
+    },
+    pactOfGlass_deactivate: ({ gameState }) => {
+      if (gameState._mechanicFlags) gameState._mechanicFlags.pactOfGlass = false
     },
   }
 }

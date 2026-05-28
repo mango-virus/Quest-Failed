@@ -112,7 +112,7 @@ A new **variant** of dark pact: pacts that are overwhelmingly *negative* — a p
 6. **Sleepless Throne** — Curse: the boss begins every boss fight at 50% HP. / Bribe: +10 max minion slots.
 7. **Blind Architect** — Curse: minimap and adventurer-intel panel disabled for the rest of the run. / Bribe: a one-time perfect-day preview (full enemy preview next day).
 8. **Brittle Bones** — Curse: any minion struck while below 50% HP shatters instantly (dies). / Bribe: all current minions +25% damage (permanent).
-9. **Crumbling Halls** — Curse: at the start of every night phase for the rest of the run, a random placed room is destroyed along with everything in it. / Bribe: +600g + trap slots.
+9. **Crumbling Halls** — Curse: at the start of every night phase for the rest of the run, a random placed room is destroyed along with everything in it. **Never destroys the Boss Chamber or any Entry Hall** (those are exempt from the roll). / Bribe: +600g + trap slots.
 10. **The Bleeding Crown** — Curse: the boss loses 2% of its max HP permanently every day. / Bribe: +1200g.
 11. **The Sealed Vault** — Curse: you can never sell anything (rooms/minions/traps) again. / Bribe: +1500g.
 12. **Mounting Debt** — Curse: each day, the gold cost of all rooms/minions/traps rises +5% (compounding). / Bribe: +1000g.

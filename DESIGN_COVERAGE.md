@@ -155,30 +155,30 @@ New **6th rarity tier** (`damned`, rendered solid black). Devil's-bargain pacts:
 | ID | Name | Phase | Status | Notes |
 |---|---|---|---|---|
 | _delivery_ | Black-grimoire + damned tier | DP | ⏳ PENDING | 10% black-grimoire all-damned hand; `damned` rarity at Epic weight (10) in normal pool; new tier colour/glyph/stamp in PactCard/PactPicker |
-| the_leech | The Leech | DP | ⏳ PENDING | Curse: −8% current gold each dawn. Bribe: +800g on seal |
-| famished_dark | Famished Dark | DP | ⏳ PENDING | Curse: kills give 50% less gold (run). Bribe: +1500g |
-| the_open_gate | The Open Gate | DP | ⏳ PENDING | Curse: +10 adventurers/day permanently. Bribe: +1500g |
-| hollow_crown | Hollow Crown | DP | ⏳ PENDING | Curse: boss max HP −50% permanently. Bribe: free Legendary pact |
-| pact_of_glass | Pact of Glass | DP | ⏳ PENDING | Curse: minion max HP halved (run). Bribe: minions free that night phase, 0 sell value for them |
-| sleepless_throne | Sleepless Throne | DP | ⏳ PENDING | Curse: boss starts every fight at 50% HP. Bribe: +10 minion slots |
+| the_leech | The Leech | DP | ✅ DONE | Curse: −8% current gold each dawn (DAY_PHASE_STARTED). Bribe: +800g on seal. Committed dcf9f7c |
+| famished_dark | Famished Dark | DP | ✅ DONE | Curse: kills give 50% less gold (AISystem goldMul). Bribe: +1500g |
+| the_open_gate | The Open Gate | DP | ✅ DONE | Curse: +10 adventurers/day (extraAdvsPerDay). Bribe: +1500g |
+| hollow_crown | Hollow Crown | DP | ✅ DONE | Curse: boss max HP −50% (recompute curseMul + BOSS_STATS_DIRTY). Bribe: free Legendary pact |
+| pact_of_glass | Pact of Glass | DP | ✅ DONE | Curse: minion max HP halved (applyMinionScaling pactOfGlass). Bribe: glassFreeNight free placement + _noSellValue |
+| sleepless_throne | Sleepless Throne | DP | ✅ DONE | Curse: boss starts fights at 50% HP (_onIncoming cap). Bribe: +10 minion slots |
 | blind_architect | Blind Architect | DP | ⏳ PENDING | Curse: minimap + intel panel disabled (run). Bribe: one-time perfect-day preview |
-| brittle_bones | Brittle Bones | DP | ⏳ PENDING | Curse: minion struck <50% HP shatters instantly. Bribe: current minions +25% dmg |
-| crumbling_halls | Crumbling Halls | DP | ⏳ PENDING | Curse: each night start, destroy a random room + contents (run). Bribe: +600g + trap slots |
-| the_bleeding_crown | The Bleeding Crown | DP | ⏳ PENDING | Curse: boss −2% max HP permanently each day. Bribe: +1200g |
-| the_sealed_vault | The Sealed Vault | DP | ⏳ PENDING | Curse: can never sell anything (run). Bribe: +1500g |
-| mounting_debt | Mounting Debt | DP | ⏳ PENDING | Curse: +5% build cost/day compounding. Bribe: +1000g |
-| tribute_of_flesh | Tribute of Flesh | DP | ⏳ PENDING | Curse: each escaped adv loots 20g from treasury. Bribe: +700g |
-| the_hollow_horde | The Hollow Horde | DP | ⏳ PENDING | Curse: max minion slots halved (run). Bribe: current minions +20% all stats |
-| the_wasting | The Wasting | DP | ⏳ PENDING | Curse: end of day, surviving minions −5% max HP permanently. Bribe: evolve all current minions +1 tier |
-| the_hunger | The Hunger | DP | ⏳ PENDING | Curse: each dawn 20% of minions die permanently (no revive). Bribe: +1000g |
-| brittle_engines | Brittle Engines | DP | ⏳ PENDING | Curse: traps break permanently after one firing. Bribe: traps +100% dmg |
+| brittle_bones | Brittle Bones | DP | ✅ DONE | Curse: minion struck <50% HP shatters (CombatSystem). Bribe: current minions +25% dmg |
+| crumbling_halls | Crumbling Halls | DP | ⏳ PENDING | Curse: each night start, destroy a random room + contents (run) — **NEVER boss_chamber or entry_hall** (exempt from the roll). Must run inside NightPhase (owns DungeonGrid). Bribe: +600g + trap slots |
+| the_bleeding_crown | The Bleeding Crown | DP | ✅ DONE | Curse: boss −2% max HP/day (bleedingCrownDays in recompute). Bribe: +1200g |
+| the_sealed_vault | The Sealed Vault | DP | ✅ DONE | Curse: _executeSellAt gated on theSealedVault. Bribe: +1500g |
+| mounting_debt | Mounting Debt | DP | ✅ DONE | Curse: +5% build cost/day (mountingDebtMult in applyMerchantPrice). Bribe: +1000g |
+| tribute_of_flesh | Tribute of Flesh | DP | ✅ DONE | Curse: each escaped adv loots 20g (ADVENTURER_FLED). Bribe: +700g |
+| the_hollow_horde | The Hollow Horde | DP | ✅ DONE | Curse: max minion slots halved (NightPhase._rosterCap). Bribe: current minions +20% all stats |
+| the_wasting | The Wasting | DP | ✅ DONE | Curse: −5% minion max HP/day (wastingDays in applyMinionScaling). Bribe: evolveAllOnce |
+| the_hunger | The Hunger | DP | ✅ DONE | Curse: each dawn 20% of minions spliced permanently. Bribe: +1000g |
+| brittle_engines | Brittle Engines | DP | ✅ DONE | Curse: TRAP_FIRED -> trap._broken (TrapSystem skips). Bribe: trapDamageMult x2 |
 | the_insomniac | The Insomniac | DP | ⏳ PENDING | Curse: no build phase every 3rd night. Bribe: +600g |
-| famines_grip | Famine's Grip | DP | ⏳ PENDING | Curse: treasure rooms + items pay 50% less. Bribe: +800g |
-| pact_of_the_last_heart | Pact of the Last Heart | DP | ⏳ PENDING | Curse: boss → 1 heart (deathsRemaining=1, cap lives=1, no regain). Bribe: free Legendary pact |
-| the_unteachable | The Unteachable | DP | ⏳ PENDING | Curse: minions can't gain XP/evolve (run). Bribe: +1000g |
-| cursed_blood | Cursed Blood | DP | ⏳ PENDING | Curse: each minion death damages boss 3% max HP. Bribe: +1000g |
-| the_martyrs_curse | The Martyr's Curse | DP | ⏳ PENDING | Curse: minion death heals advs in room 25% HP. Bribe: +800g |
-| trapless_halls | Trapless Halls | DP | ⏳ PENDING | Curse: can't place new traps (run); existing stay. Bribe: existing traps +50% dmg + 600g |
+| famines_grip | Famine's Grip | DP | ✅ DONE | Curse: treasury stipend x0.5 (RoomBehaviorSystem faminesGrip). Bribe: +800g |
+| pact_of_the_last_heart | Pact of the Last Heart | DP | ✅ DONE | Curse: boss → 1 heart (deathsRemaining=1, cap lives=1). Bribe: free Legendary pact. Committed dcf9f7c |
+| the_unteachable | The Unteachable | DP | ✅ DONE | Curse: MinionEvolutionSystem._onCombatKill bails on flag. Bribe: +1000g |
+| cursed_blood | Cursed Blood | DP | ✅ DONE | Curse: minion death damages boss 3% max HP (MINION_DIED, floored at 1). Bribe: +1000g |
+| the_martyrs_curse | The Martyr's Curse | DP | ✅ DONE | Curse: minion death heals advs within 4 tiles 25% HP. Bribe: +800g |
+| trapless_halls | Trapless Halls | DP | ✅ DONE | Curse: NightPhase placement validation blocks new traps. Bribe: trapDamageMult x1.5 + 600g |
 
 ---
 

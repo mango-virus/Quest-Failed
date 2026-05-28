@@ -44,6 +44,8 @@ export class MinionEvolutionSystem {
   // ── Kill / evolve ─────────────────────────────────────────────────────────
 
   _onCombatKill({ sourceId, targetId }) {
+    // DAMNED · The Unteachable — minions can no longer gain XP / evolve.
+    if ((this._gameState._mechanicFlags ?? {}).theUnteachable) return
     const minion = (this._gameState.minions ?? []).find(m => m.instanceId === sourceId)
     if (!minion || minion.aiState === 'dead') return
     // Phase 1b.8 — Wraith Haunt ghosts are locked to ghost2; they don't
@@ -93,6 +95,15 @@ export class MinionEvolutionSystem {
       EventBus.emit('MINIBOSS_PROMOTED', { minion })
     }
     EventBus.emit('MINION_EVOLVED', { minion, fromIdx: idx, toIdx: idx + 1, isFinal })
+  }
+
+  // DAMNED · The Wasting bribe — evolve every alive dungeon minion one tier
+  // (no-op for minions already at their final form, per _evolve's guard).
+  evolveAllOnce() {
+    for (const m of (this._gameState.minions ?? [])) {
+      if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+      this._evolve(m)
+    }
   }
 
   // ── Death / reset ─────────────────────────────────────────────────────────

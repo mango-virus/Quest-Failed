@@ -222,6 +222,18 @@ export class CombatSystem {
       ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
     target.resources.hp = Math.max(_smFloor, target.resources.hp - finalDmg)
 
+    // DAMNED · Brittle Bones — a dungeon minion that drops below half HP from
+    // a hit shatters outright (the existing `killed` check below handles the
+    // death + MINION_DIED emit once hp is 0).
+    if (target.faction === 'dungeon' && target.resources.hp > 0) {
+      const _bb = this._gameState._mechanicFlags ?? {}
+      if (_bb.brittleBones &&
+          target.resources.hp < (target.resources.maxHp ?? 1) * (Balance.MECHANIC_BRITTLE_BONES_SHATTER_FRAC ?? 0.5)) {
+        target.resources.hp = 0
+        EventBus.emit('BRITTLE_BONES_SHATTERED', { minionId: target.instanceId })
+      }
+    }
+
     const damageType = attacker.damageType
       ?? attacker.stats?.damageType
       ?? 'physical'

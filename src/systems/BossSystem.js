@@ -1663,12 +1663,17 @@ export class BossSystem {
     EventBus.on('NIGHT_PHASE_STARTED',    onClearDecals)
     EventBus.on('ADVENTURER_DIED',        onAdvDied)
     EventBus.on('BOSS_LEVELED_UP',        onLeveledUp)
+    // Damned pacts (Hollow Crown / Bleeding Crown) mutate boss-HP via flags
+    // read in _recomputeBossFightStats; this lets them force an immediate
+    // recompute so the top-bar reflects the curse without waiting for a fight.
+    EventBus.on('BOSS_STATS_DIRTY',       onLeveledUp)
     this._listeners = [
       ['BOSS_FIGHT_INCOMING',    onIncoming],
       ['NIGHT_PHASE_STARTED',    onClearPose],
       ['NIGHT_PHASE_STARTED',    onClearDecals],
       ['ADVENTURER_DIED',        onAdvDied],
       ['BOSS_LEVELED_UP',        onLeveledUp],
+      ['BOSS_STATS_DIRTY',       onLeveledUp],
     ]
   }
 
@@ -1897,7 +1902,15 @@ export class BossSystem {
     // applyMinionScaling's altar-minion-buff hook.
     const altarBuff = this._gameState?.player?._altarBossStatBuff ?? 0
     const altarMul  = 1 + altarBuff
-    boss.maxHp   = Math.round(lvlHp  * mulHp  * altarMul)
+    // Damned-pact boss-HP curses (HP only — attack/defense unaffected):
+    //   Hollow Crown halves max HP; The Bleeding Crown sheds 2%/day.
+    const f = this._gameState?._mechanicFlags ?? {}
+    let curseMul = 1
+    if (f.hollowCrown) curseMul *= (Balance.MECHANIC_HOLLOW_CROWN_HP_MULT ?? 0.5)
+    if (f.theBleedingCrown && (f.bleedingCrownDays ?? 0) > 0) {
+      curseMul *= Math.pow(1 - (Balance.MECHANIC_BLEEDING_CROWN_HP_LOSS_PER_DAY ?? 0.02), f.bleedingCrownDays)
+    }
+    boss.maxHp   = Math.max(1, Math.round(lvlHp  * mulHp  * altarMul * curseMul))
     boss.attack  = Math.round(lvlAtk * mulAtk * altarMul)
     boss.defense = Math.round(lvlDef * mulDef * altarMul)
     // Preserve HP fraction across the rescale. The downstream
@@ -1960,6 +1973,11 @@ export class BossSystem {
       // via a healing ability, an external heal, or the day-end reset.
       if ((boss.hp ?? 0) <= 0) {
         boss.hp = boss.maxHp
+      }
+      // DAMNED · Sleepless Throne — the boss never enters a fight above 50%.
+      if ((this._gameState._mechanicFlags ?? {}).sleeplessThrone) {
+        const cap = Math.floor((boss.maxHp ?? 0) * (Balance.MECHANIC_SLEEPLESS_THRONE_START_HP_FRAC ?? 0.5))
+        boss.hp = Math.max(1, Math.min(boss.hp ?? boss.maxHp, cap))
       }
       // Soul Drain ability — heals +25% maxHP at the start of every
       // fight (may overheal, capped at 125% maxHP). A deliberate healing

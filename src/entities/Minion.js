@@ -37,13 +37,22 @@ export function applyMinionScaling(minion, bossLevel, day = 1) {
   // altar accepts and applies to future placements automatically. Read
   // lazily via window.__game so this module stays gameState-free.
   let altarBuff = 0
+  // Damned-pact minion-HP curses, read lazily from gameState (same global
+  // lookup as the altar buff so this module stays gameState-free):
+  //   Pact of Glass halves max HP; The Wasting sheds 5%/day (compounding).
+  let curseHpMul = 1
   try {
     const scenes = (typeof window !== 'undefined' ? window.__game?.scene?.scenes : null) ?? []
     const gs = scenes.find(s => s?.gameState)?.gameState
     altarBuff = gs?.player?._altarMinionStatBuff ?? 0
+    const f = gs?._mechanicFlags ?? {}
+    if (f.pactOfGlass) curseHpMul *= (Balance.MECHANIC_GLASS_HP_MULT ?? 0.5)
+    if (f.theWasting && (f.wastingDays ?? 0) > 0) {
+      curseHpMul *= Math.pow(1 - (Balance.MECHANIC_WASTING_HP_LOSS_PER_DAY ?? 0.05), f.wastingDays)
+    }
   } catch { /* no global available — non-fatal */ }
   const altarMul = 1 + altarBuff
-  const hpMult  = (1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver + Balance.MINION_HP_PER_DAY  * dayOver) * altarMul
+  const hpMult  = (1 + Balance.MINION_HP_PER_BOSS_LV  * lvOver + Balance.MINION_HP_PER_DAY  * dayOver) * altarMul * curseHpMul
   const atkMult = (1 + Balance.MINION_ATK_PER_BOSS_LV * lvOver + Balance.MINION_ATK_PER_DAY * dayOver) * altarMul
   minion.resources.maxHp = Math.round(minion._baseMaxHp * hpMult)
   minion.resources.hp    = minion.resources.maxHp

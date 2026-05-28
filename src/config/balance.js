@@ -636,6 +636,60 @@ export const Balance = {
   // Pact of the Last Heart — caps the boss at a single life and grants a
   // free Legendary pact as the bribe (set in handler, no constant needed).
   MECHANIC_LAST_HEART_LIVES:              1,      // boss reduced to this many hearts
+  // Famished Dark — kills pay half gold; bribe is a big gold lump.
+  MECHANIC_FAMISHED_DARK_GOLD_MULT:       0.5,
+  MECHANIC_FAMISHED_DARK_BRIBE_GOLD:      1500,
+  // The Open Gate — +10 adventurers every day, forever; bribe gold lump.
+  MECHANIC_OPEN_GATE_EXTRA_ADVS:          10,
+  MECHANIC_OPEN_GATE_BRIBE_GOLD:          1500,
+  // Hollow Crown — boss max HP halved permanently; bribe = free Legendary.
+  MECHANIC_HOLLOW_CROWN_HP_MULT:          0.5,
+  // The Bleeding Crown — boss loses 2% max HP per day (compounding); bribe gold.
+  MECHANIC_BLEEDING_CROWN_HP_LOSS_PER_DAY: 0.02,
+  MECHANIC_BLEEDING_CROWN_BRIBE_GOLD:     1200,
+  // Sleepless Throne — boss starts each fight at 50% HP; bribe +10 minion slots.
+  MECHANIC_SLEEPLESS_THRONE_START_HP_FRAC: 0.5,
+  MECHANIC_SLEEPLESS_THRONE_SLOT_BRIBE:   10,
+  // Tribute of Flesh — each escaped adventurer loots gold from your treasury.
+  MECHANIC_TRIBUTE_GOLD_PER_ESCAPE:       20,
+  MECHANIC_TRIBUTE_BRIBE_GOLD:            700,
+  // Cursed Blood — every minion death damages the boss for 3% max HP; bribe gold.
+  MECHANIC_CURSED_BLOOD_BOSS_DMG_FRAC:    0.03,
+  MECHANIC_CURSED_BLOOD_BRIBE_GOLD:       1000,
+  // Pact of Glass — minion max HP halved (read in applyMinionScaling).
+  MECHANIC_GLASS_HP_MULT:                 0.5,
+  // The Hollow Horde — minion slots halved; bribe = current minions +20% stats.
+  MECHANIC_HOLLOW_HORDE_STAT_BUFF:        0.20,
+  // Brittle Bones — a minion struck below 50% HP shatters; bribe +25% minion dmg.
+  MECHANIC_BRITTLE_BONES_SHATTER_FRAC:    0.5,
+  MECHANIC_BRITTLE_BONES_DMG_BUFF:        0.25,
+  // The Wasting — surviving minions lose 5% max HP each day (compounding);
+  // bribe evolves all current minions one tier.
+  MECHANIC_WASTING_HP_LOSS_PER_DAY:       0.05,
+  // The Hunger — 20% of your minions die permanently each dawn; bribe gold.
+  MECHANIC_HUNGER_DEATH_FRAC:             0.20,
+  MECHANIC_HUNGER_BRIBE_GOLD:             1000,
+  // The Unteachable — minions can't gain XP / evolve; bribe gold.
+  MECHANIC_UNTEACHABLE_BRIBE_GOLD:        1000,
+  // The Martyr's Curse — minion death heals nearby adventurers 25% max HP; bribe gold.
+  MECHANIC_MARTYR_HEAL_FRAC:              0.25,
+  MECHANIC_MARTYR_RADIUS_TILES:           4,
+  MECHANIC_MARTYR_BRIBE_GOLD:             800,
+  // Mounting Debt — build costs rise 5%/day (compounding); bribe gold.
+  MECHANIC_MOUNTING_DEBT_PER_DAY:         0.05,
+  MECHANIC_MOUNTING_DEBT_BRIBE_GOLD:      1000,
+  // The Sealed Vault — selling is forbidden for the rest of the run; bribe gold.
+  MECHANIC_SEALED_VAULT_BRIBE_GOLD:       1500,
+  // Brittle Engines — traps break after one firing; bribe traps +100% dmg.
+  MECHANIC_BRITTLE_ENGINES_DMG_MULT:      2.0,
+  // Trapless Halls — no new traps; bribe existing traps +50% dmg + gold.
+  MECHANIC_TRAPLESS_HALLS_DMG_MULT:       1.5,
+  MECHANIC_TRAPLESS_HALLS_BRIBE_GOLD:     600,
+  // Famine's Grip — treasure-room payouts halved; bribe gold.
+  MECHANIC_FAMINES_GRIP_PAYOUT_MULT:      0.5,
+  MECHANIC_FAMINES_GRIP_BRIBE_GOLD:       800,
+  // Pact of Glass bribe — minions are free to place for the sealing night.
+  // (Curse multiplier MECHANIC_GLASS_HP_MULT is defined above.)
   MECHANIC_INQUISITORS_HP_MULT:           2.0,
   MECHANIC_INQUISITORS_ATK_MULT:          1.5,
 
