@@ -402,7 +402,7 @@
       "attack": 16,
       "defense": 9,
       "speed": 1.4,
-      "attackRange": 1.5
+      "attackRange": 1
     },
     "startingResources": {},
     "tags": [
