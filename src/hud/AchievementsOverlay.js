@@ -657,15 +657,17 @@ export class AchievementsOverlay {
       // titles with a titleColor → recolor the whole chip cohesively by
       // overriding the --qf-reward-title var (drives text, border,
       // text-shadow glow, AND the chip bg tint in one shot).
-      const fxBorder = titleFxBorderClassById(def.id)
-      const tColor   = fxBorder ? null : titleColorById(def.id)
-      rewardChip = h('div', {
-        className: ('qf-ach-reward qf-ach-reward--title ' + fxBorder).trimEnd(),
-        dataset: { rewardType: 'title' },
-        style: tColor ? { '--qf-reward-title': tColor } : undefined,
-      }, [
-        h('span', { className: titleFxClassById(def.id) }, def.title),
-      ])
+      rewardChip = this._buildTitleRewardChip(def)
+    }
+
+    // Some achievements grant a companion (or boss) AND a title (e.g. "Arise"
+    // → Necroknight + "King of the Dead"). The single rewardType above can
+    // only pick one, so render a SECOND title chip here when the primary
+    // reward wasn't the title itself — otherwise the title is silently
+    // dropped from the card.
+    let titleChip = null
+    if (def.title && rewardType !== 'title') {
+      titleChip = this._buildTitleRewardChip(def)
     }
 
     // Rarity badge — appears once the leaderboard sample has been
@@ -789,9 +791,28 @@ export class AchievementsOverlay {
             h('div', { className: 'qf-ach-desc' }, def.description),
             progressEl,
             rewardChip,
+            titleChip,
           ]),
         ]),
       ]),
+    ])
+  }
+
+  // Build the title reward chip for `def`. fx titles → animated gradient
+  // border + gradient text; non-fx titles with a titleColor recolor the
+  // whole chip via the --qf-reward-title var. The title NAME is wrapped in
+  // an fx span (forced back to display:inline in CSS so ellipsis truncation
+  // still works). Shared by the primary title-reward branch and the
+  // secondary chip for achievements that grant a companion/boss AND a title.
+  _buildTitleRewardChip(def) {
+    const fxBorder = titleFxBorderClassById(def.id)
+    const tColor   = fxBorder ? null : titleColorById(def.id)
+    return h('div', {
+      className: ('qf-ach-reward qf-ach-reward--title ' + fxBorder).trimEnd(),
+      dataset: { rewardType: 'title' },
+      style: tColor ? { '--qf-reward-title': tColor } : undefined,
+    }, [
+      h('span', { className: titleFxClassById(def.id) }, def.title),
     ])
   }
 
