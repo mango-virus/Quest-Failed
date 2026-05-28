@@ -25,8 +25,32 @@ export class SoloLevelingCinematic {
     this._el = null         // entrance overlay
     this._vs = null         // duel VS card
     this._vignette = null   // persistent edge shadow
+    this._letterbox = null  // duel cinematic bars
     if (!this._stage) return
+    this._ensureDuelCss()
     this._wire()
+  }
+
+  // Self-inject the duel cinematic CSS (letterbox bars + future duel HUD)
+  // rather than editing the shared styles.css — keeps this feature's styling
+  // self-contained. Same pattern EventBanner uses for its theme CSS.
+  _ensureDuelCss() {
+    if (document.getElementById('qf-sl-duel-css')) return
+    const css = `
+.qf-sl-letterbox { position:absolute; inset:0; pointer-events:none; z-index:34; }
+.qf-sl-letterbox .qf-sl-bar { position:absolute; left:0; right:0; height:9vh;
+  background:linear-gradient(180deg,#02040a 0%, #03050e 70%, rgba(3,5,14,0) 100%);
+  transform:scaleY(0); transition:transform .55s cubic-bezier(.16,.84,.3,1); }
+.qf-sl-letterbox .qf-sl-bar.top    { top:0;    transform-origin:top;
+  box-shadow:0 1px 0 rgba(74,160,255,.5), 0 6px 18px -6px rgba(58,139,255,.6); }
+.qf-sl-letterbox .qf-sl-bar.bottom { bottom:0; transform-origin:bottom;
+  background:linear-gradient(0deg,#02040a 0%, #03050e 70%, rgba(3,5,14,0) 100%);
+  box-shadow:0 -1px 0 rgba(74,160,255,.5), 0 -6px 18px -6px rgba(58,139,255,.6); }
+.qf-sl-letterbox.show .qf-sl-bar { transform:scaleY(1); }`
+    const el = document.createElement('style')
+    el.id = 'qf-sl-duel-css'
+    el.textContent = css
+    document.head.appendChild(el)
   }
 
   _wire() {
@@ -59,6 +83,7 @@ export class SoloLevelingCinematic {
 
   _end() {
     this._clearTimers()
+    this._hideLetterbox()
     if (this._el) { this._el.remove(); this._el = null }
     if (this._vs) { this._vs.remove(); this._vs = null }
     if (this._vignette) {
@@ -100,8 +125,33 @@ export class SoloLevelingCinematic {
     this._after(420, () => this._el?.classList.remove('flash'))
   }
 
+  // ── Duel cinematic letterbox ──────────────────────────────────────────────
+  // Slide black bars in from top + bottom for the duration of the duel, framing
+  // the throne-room fight like a cutscene. Lifted in _end() (duel over / Monarch
+  // gone / day end).
+  _showLetterbox() {
+    if (this._letterbox) return
+    this._letterbox = h('div', { className: 'qf-sl-letterbox' }, [
+      h('div', { className: 'qf-sl-bar top' }),
+      h('div', { className: 'qf-sl-bar bottom' }),
+    ])
+    this._stage.appendChild(this._letterbox)
+    // eslint-disable-next-line no-unused-expressions
+    this._letterbox.offsetHeight
+    this._letterbox.classList.add('show')
+  }
+
+  _hideLetterbox() {
+    if (!this._letterbox) return
+    const lb = this._letterbox
+    this._letterbox = null
+    lb.classList.remove('show')
+    setTimeout(() => lb.remove(), 600)
+  }
+
   // ── Duel VS card ─────────────────────────────────────────────────────────
   _onDuel({ bossName = 'YOUR BOSS', shadows = 0, buff = 1 } = {}) {
+    this._showLetterbox()
     if (this._vs) this._vs.remove()
     const pct = Math.round((buff - 1) * 100)
     const sub = shadows > 0
@@ -159,5 +209,6 @@ export class SoloLevelingCinematic {
     this._el?.remove(); this._el = null
     this._vs?.remove(); this._vs = null
     this._vignette?.remove(); this._vignette = null
+    this._letterbox?.remove(); this._letterbox = null
   }
 }

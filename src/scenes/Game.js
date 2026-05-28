@@ -378,6 +378,12 @@ export class Game extends Phaser.Scene {
     // Boss-fight music — starts when adventurer enters boss room, fades out on resolve.
     EventBus.on('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
     EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
+    // Solo Leveling — cinematic camera push-in onto the throne for the Shadow
+    // Monarch duel ONLY (regular fights keep their normal framing). Reuses the
+    // midpoint-aware, follow-suspending fight-cam tween. Zoom-out on resolve is
+    // a no-op unless a duel push-in actually snapshotted the pre-fight view.
+    EventBus.on('SHADOW_MONARCH_DUEL',  this._onBossFightZoomIn,  this)
+    EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossFightZoomOut, this)
     // Persist the save the moment the intro is dismissed so `meta.introSeen`
     // hits disk immediately. The run-start save (ArchetypeSelect) is written
     // BEFORE the intro plays, so without this a player who quits during
@@ -474,6 +480,8 @@ export class Game extends Phaser.Scene {
     EventBus.off('DAY_PHASE_ENDED',      this._onPhaseFadeOut, this)
     EventBus.off('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
+    EventBus.off('SHADOW_MONARCH_DUEL',  this._onBossFightZoomIn,  this)
+    EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightZoomOut, this)
     EventBus.off('INTRO_DISMISSED',      this._onIntroDismissed, this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
     this.scale.off('resize', this._onSceneResize, this)

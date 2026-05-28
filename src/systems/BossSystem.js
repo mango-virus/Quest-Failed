@@ -1153,6 +1153,7 @@ export class BossSystem {
           D.nextFxT = 0
           this._emitFx({ kind: 'monarch_burst', x: (adv.worldX + boss.worldX) / 2, y: (adv.worldY + boss.worldY) / 2 })
           shake(120, 0.004)
+          this._hitstop(60, 0.2)   // punch of weight as they collide
         }
         break
       }
@@ -1209,6 +1210,21 @@ export class BossSystem {
     // positions (AISystem skips AT_BOSS advs, so nothing else updates these).
     adv.tileX  = Math.floor(adv.worldX  / TS); adv.tileY  = Math.floor(adv.worldY  / TS)
     boss.tileX = Math.floor(boss.worldX / TS); boss.tileY = Math.floor(boss.worldY / TS)
+  }
+
+  // Brief global hitstop — freeze the action for a beat so a clash lands with
+  // weight. No-op once the fight is resolving (the killing-blow slow-mo in
+  // _endFight owns the clock then). Restores to 1 — the Game scene's rest
+  // timeScale, same value _endFight restores to — and only if the fight is
+  // still live when the window expires, so it can't cut short a kill slow-mo.
+  _hitstop(ms = 60, scale = 0.2) {
+    if (this._fightEnded) return
+    const t = this._scene?.time
+    if (!t) return
+    t.timeScale = scale
+    window.setTimeout(() => {
+      if (this._scene?.time && !this._fightEnded) this._scene.time.timeScale = 1
+    }, ms)
   }
 
   // Phase 5c — returns the fight-state with the highest aggro (or just the
