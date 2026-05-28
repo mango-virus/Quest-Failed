@@ -13614,88 +13614,67 @@ body {
    gradient shows through regardless. inline-block makes background-clip
    reliable across browsers.
    ───────────────────────────────────────────────────────────────────── */
+/* Each fx variant sets per-fx CSS vars (--tfx-grad gradient, --tfx-glow
+   glow color, optional --tfx-dur sweep duration). The text class
+   (.qf-titlefx) AND the border class (.qf-titlefx-border) both consume
+   those vars, so a title's animated word-coloring and its border use the
+   exact same swept gradient. */
 .qf-titlefx {
   display: inline-block;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  background-image: var(--tfx-grad);
   background-size: 220% auto;
   background-repeat: no-repeat;
-  animation: qf-tfx-sweep 3.2s linear infinite;
+  filter: drop-shadow(0 0 6px var(--tfx-glow, transparent));
+  animation: qf-tfx-sweep var(--tfx-dur, 3.2s) linear infinite;
 }
 @keyframes qf-tfx-sweep {
   from { background-position: 220% center; }
   to   { background-position: 0%   center; }
 }
 
-.qf-titlefx-rainbow {
-  background-image: linear-gradient(90deg,#ff3b3b,#ff9e2c,#ffe600,#3bff6b,#2cd0ff,#9b5cff,#ff3b3b);
-  filter: drop-shadow(0 0 5px rgba(255,255,255,0.4));
+/* Animated gradient BORDER — paints the same --tfx-grad as the border via
+   the padding-box/border-box double-background trick, swept in sync with
+   the text. Use ALONGSIDE a qf-titlefx-<fx> class (which sets --tfx-grad).
+   --tfx-inner is the element's fill color (override per surface). */
+.qf-titlefx-border {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--tfx-inner, #0d0a10), var(--tfx-inner, #0d0a10)) padding-box,
+    var(--tfx-grad) border-box;
+  background-size: auto, 220% auto;
+  background-repeat: no-repeat;
+  background-position: center, 220% center;
+  animation: qf-tfx-bdsweep var(--tfx-dur, 3.2s) linear infinite;
 }
-.qf-titlefx-prismatic {
-  background-image: linear-gradient(90deg,#ffd76b,#ff6fd8,#7b9bff,#5bffd0,#ffe66b,#ff6fd8,#ffd76b);
-  animation-duration: 2.2s;
-  filter: drop-shadow(0 0 7px rgba(255,255,255,0.55));
+@keyframes qf-tfx-bdsweep {
+  from { background-position: center, 220% center; }
+  to   { background-position: center, 0%   center; }
 }
-.qf-titlefx-goldshine {
-  background-image: linear-gradient(90deg,#a87b22,#ffe9a0,#fff7df,#ffe9a0,#a87b22);
-  filter: drop-shadow(0 0 5px rgba(255,210,100,0.45));
-}
-.qf-titlefx-steel {
-  background-image: linear-gradient(90deg,#5a6470,#c8d2dc,#ffffff,#c8d2dc,#5a6470);
-  filter: drop-shadow(0 0 4px rgba(200,220,255,0.4));
-}
-.qf-titlefx-bloodstorm {
-  background-image: linear-gradient(90deg,#5a0a12,#c8334a,#ff5066,#c8334a,#5a0a12);
-  animation-duration: 2.6s;
-  filter: drop-shadow(0 0 6px rgba(200,40,60,0.55));
-}
-.qf-titlefx-crimson {
-  background-image: linear-gradient(90deg,#7a1020,#e23048,#ff6b7e,#e23048,#7a1020);
-  filter: drop-shadow(0 0 5px rgba(226,48,72,0.5));
-}
-.qf-titlefx-inferno {
-  background-image: linear-gradient(90deg,#7a2400,#ff6a00,#ffd000,#ff6a00,#7a2400);
-  animation-duration: 1.8s;
-  filter: drop-shadow(0 0 6px rgba(255,120,0,0.6));
-}
-.qf-titlefx-molten {
-  background-image: linear-gradient(90deg,#3a0a00,#b83000,#ff8a1e,#ffd000,#b83000,#3a0a00);
-  filter: drop-shadow(0 0 5px rgba(255,90,0,0.5));
-}
-.qf-titlefx-frost {
-  background-image: linear-gradient(90deg,#5fa8c8,#bff0ff,#ffffff,#bff0ff,#5fa8c8);
-  filter: drop-shadow(0 0 6px rgba(160,230,255,0.55));
-}
-.qf-titlefx-spectral {
-  background-image: linear-gradient(90deg,#1a5a3a,#5fffb0,#d0ffe6,#5fffb0,#1a5a3a);
-  filter: drop-shadow(0 0 6px rgba(95,255,176,0.5));
-}
-.qf-titlefx-toxic {
-  background-image: linear-gradient(90deg,#3a6a00,#9bff1e,#e6ff8a,#9bff1e,#3a6a00);
-  filter: drop-shadow(0 0 6px rgba(155,255,30,0.5));
-}
-.qf-titlefx-arcane {
-  background-image: linear-gradient(90deg,#3a1a6a,#9b5cff,#e0bfff,#9b5cff,#3a1a6a);
-  filter: drop-shadow(0 0 6px rgba(155,92,255,0.55));
-}
-.qf-titlefx-blueprint {
-  background-image: linear-gradient(90deg,#0a3a6a,#3bb0ff,#bfe6ff,#3bb0ff,#0a3a6a);
-  filter: drop-shadow(0 0 5px rgba(59,176,255,0.45));
-}
-.qf-titlefx-bone {
-  background-image: linear-gradient(90deg,#8a8474,#efe8d0,#ffffff,#efe8d0,#8a8474);
-  filter: drop-shadow(0 0 4px rgba(239,232,208,0.45));
-}
-.qf-titlefx-void {
-  background-image: linear-gradient(90deg,#2a0a3a,#7b2cff,#c060ff,#7b2cff,#2a0a3a);
-  animation-duration: 2.6s;
-  filter: drop-shadow(0 0 7px rgba(160,60,255,0.6));
-}
+
+.qf-titlefx-rainbow   { --tfx-grad: linear-gradient(90deg,#ff3b3b,#ff9e2c,#ffe600,#3bff6b,#2cd0ff,#9b5cff,#ff3b3b); --tfx-glow: rgba(255,255,255,0.4); }
+.qf-titlefx-prismatic { --tfx-grad: linear-gradient(90deg,#ffd76b,#ff6fd8,#7b9bff,#5bffd0,#ffe66b,#ff6fd8,#ffd76b); --tfx-glow: rgba(255,255,255,0.55); --tfx-dur: 2.2s; }
+.qf-titlefx-goldshine { --tfx-grad: linear-gradient(90deg,#a87b22,#ffe9a0,#fff7df,#ffe9a0,#a87b22); --tfx-glow: rgba(255,210,100,0.45); }
+.qf-titlefx-steel     { --tfx-grad: linear-gradient(90deg,#5a6470,#c8d2dc,#ffffff,#c8d2dc,#5a6470); --tfx-glow: rgba(200,220,255,0.4); }
+.qf-titlefx-bloodstorm{ --tfx-grad: linear-gradient(90deg,#5a0a12,#c8334a,#ff5066,#c8334a,#5a0a12); --tfx-glow: rgba(200,40,60,0.55); --tfx-dur: 2.6s; }
+.qf-titlefx-crimson   { --tfx-grad: linear-gradient(90deg,#7a1020,#e23048,#ff6b7e,#e23048,#7a1020); --tfx-glow: rgba(226,48,72,0.5); }
+.qf-titlefx-inferno   { --tfx-grad: linear-gradient(90deg,#7a2400,#ff6a00,#ffd000,#ff6a00,#7a2400); --tfx-glow: rgba(255,120,0,0.6); --tfx-dur: 1.8s; }
+.qf-titlefx-molten    { --tfx-grad: linear-gradient(90deg,#3a0a00,#b83000,#ff8a1e,#ffd000,#b83000,#3a0a00); --tfx-glow: rgba(255,90,0,0.5); }
+.qf-titlefx-frost     { --tfx-grad: linear-gradient(90deg,#5fa8c8,#bff0ff,#ffffff,#bff0ff,#5fa8c8); --tfx-glow: rgba(160,230,255,0.55); }
+.qf-titlefx-spectral  { --tfx-grad: linear-gradient(90deg,#1a5a3a,#5fffb0,#d0ffe6,#5fffb0,#1a5a3a); --tfx-glow: rgba(95,255,176,0.5); }
+.qf-titlefx-toxic     { --tfx-grad: linear-gradient(90deg,#3a6a00,#9bff1e,#e6ff8a,#9bff1e,#3a6a00); --tfx-glow: rgba(155,255,30,0.5); }
+.qf-titlefx-arcane    { --tfx-grad: linear-gradient(90deg,#3a1a6a,#9b5cff,#e0bfff,#9b5cff,#3a1a6a); --tfx-glow: rgba(155,92,255,0.55); }
+.qf-titlefx-blueprint { --tfx-grad: linear-gradient(90deg,#0a3a6a,#3bb0ff,#bfe6ff,#3bb0ff,#0a3a6a); --tfx-glow: rgba(59,176,255,0.45); }
+.qf-titlefx-bone      { --tfx-grad: linear-gradient(90deg,#8a8474,#efe8d0,#ffffff,#efe8d0,#8a8474); --tfx-glow: rgba(239,232,208,0.45); }
+.qf-titlefx-void      { --tfx-grad: linear-gradient(90deg,#2a0a3a,#7b2cff,#c060ff,#7b2cff,#2a0a3a); --tfx-glow: rgba(160,60,255,0.6); --tfx-dur: 2.6s; }
 
 /* Respect reduced-motion: freeze the sweep but keep the gradient + glow
    so the title still reads as special, just static. */
 @media (prefers-reduced-motion: reduce) {
-  .qf-titlefx { animation: none; background-position: 50% center; }
+  .qf-titlefx, .qf-titlefx-border { animation: none; }
+  .qf-titlefx { background-position: 50% center; }
+  .qf-titlefx-border { background-position: center, 50% center; }
 }

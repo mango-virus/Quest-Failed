@@ -34,7 +34,7 @@ import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { PlayerProfile }     from '../systems/PlayerProfile.js'
 import { Leaderboard }       from '../systems/Leaderboard.js'
 import { COMPANIONS, getCompanion, COMPANION_ORDER } from '../systems/companions.js'
-import { titleFxClassById } from './titleFx.js'
+import { titleFxClassById, titleFxBorderClassById } from './titleFx.js'
 
 // Filter tabs. The LEADERBOARD entry is intentionally NOT in this list —
 // it's its own prominent button (see `_render` below) so it reads as a
@@ -278,7 +278,7 @@ export class AchievementsOverlay {
     const titleSourceDef = activeTitle ? AchievementSystem.getDefinition(activeTitle.id) : null
     const titleSourceCat = titleSourceDef?.category || 'mastery'
     const titleChip = activeTitle ? h('button', {
-      className: 'pix qf-ach-titlechip',
+      className: ('pix qf-ach-titlechip ' + titleFxBorderClassById(activeTitle.id)).trimEnd(),
       dataset: { sourceCat: titleSourceCat },
       on: { click: () => this._toggleTitlePicker() },
     }, [
@@ -578,7 +578,9 @@ export class AchievementsOverlay {
       // (see .qf-ach-reward .qf-titlefx in styles.css) so the chip's
       // ellipsis truncation still works on long names.
       rewardChip = h('div', {
-        className: 'qf-ach-reward qf-ach-reward--title',
+        // Border classes make the chip's frame sweep the same gradient as
+        // the title text (no-op string when the title has no fx).
+        className: ('qf-ach-reward qf-ach-reward--title ' + titleFxBorderClassById(def.id)).trimEnd(),
         dataset: { rewardType: 'title' },
       }, [
         '✦ Title: ',

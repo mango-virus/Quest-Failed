@@ -34,3 +34,20 @@ export function titleFxClassById(id) {
   const fx = AchievementSystem.getTitleFxById?.(id) ?? null
   return titleFxClass(fx)
 }
+
+// ── Animated gradient BORDER ────────────────────────────────────────
+// Returns `'qf-titlefx-<fx> qf-titlefx-border'` (the per-fx VAR-setting
+// class + the border consumer — NOT the text-clip base class). Put this
+// on a bordered title element (reward chip, title chip) so its border
+// sweeps the same gradient as the title's animated word-coloring.
+export function titleFxBorderClass(fx) {
+  return fx ? `qf-titlefx-${fx} qf-titlefx-border` : ''
+}
+export function titleFxBorderClassById(id) {
+  const fx = AchievementSystem.getTitleFxById?.(id) ?? null
+  return titleFxBorderClass(fx)
+}
+export function titleFxBorderClassByName(name) {
+  const fx = AchievementSystem.getTitleFxByName?.(name) ?? null
+  return titleFxBorderClass(fx)
+}
