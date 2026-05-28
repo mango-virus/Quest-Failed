@@ -2020,7 +2020,10 @@ export class BossSystem {
     adv.stats = adv.stats ?? {}
     adv.stats.attack    = Math.max(1, Math.round((boss.attack ?? 1) * buff))
     adv.stats.defense   = Math.max(0, Math.round((boss.defense ?? 0) * buff))
-    EventBus.emit('SHADOW_MONARCH_DUEL', { adventurer: adv, boss, shadows, buff })
+    const archId   = this._gameState.player?.bossArchetypeId
+    const bossName = (this._scene?.cache?.json?.get?.('bossArchetypes') ?? [])
+      .find(a => a.id === archId)?.name ?? 'YOUR BOSS'
+    EventBus.emit('SHADOW_MONARCH_DUEL', { adventurer: adv, boss, shadows, buff, bossName })
   }
 
   // Runs every frame from _tickFightAnim once combat has started.  Fires one

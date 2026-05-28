@@ -30,6 +30,7 @@ import { AbilitySystem }    from './AbilitySystem.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { createMinion, applyMinionScaling } from '../entities/Minion.js'
 import { entryDoorTile }    from './DungeonGrid.js'
+import { AbilityVfx }       from '../ui/AbilityVfx.js'
 // `h` is the DOM-tree helper used by every HUD component. Imported
 // here so per-event SHOW_CONFIRM payloads can build styled message
 // bodies (vs the default plain-string message) — see
@@ -274,6 +275,16 @@ export class EventSystem {
     this._gameState.minions.push(shadow)
     EventBus.emit('MINION_SUMMONED', { minion: shadow, summoner: jinwoo })
     EventBus.emit('SHADOW_EXTRACTED', { minion: shadow, monarch: jinwoo })
+    // Extraction VFX — a purple "ARISE" pop + shadow burst ring at the
+    // raised minion (world-space; the screen-space cinematics live in
+    // SoloLevelingCinematic).
+    const scene = this._scene
+    if (scene) {
+      AbilityVfx.floatingText(scene, shadow.worldX, shadow.worldY - 16, 'ARISE', {
+        color: '#c9a9ff', fontSize: '13px',
+      })
+      AbilityVfx.pulseRing(scene, shadow.worldX, shadow.worldY, { color: 0x9b2fe0 })
+    }
   }
 
   // Jinwoo left the dungeon (died or — rare — fled). His shadows are bound

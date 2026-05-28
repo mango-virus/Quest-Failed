@@ -14056,3 +14056,68 @@ body {
   .qf-sl-kicker.in, .qf-sl-title.in { opacity: 1; transform: none; }
   .qf-sl-arise.in { opacity: 1; transform: scale(1); }
 }
+
+/* Duel VS card — fighting-game-style intro when the Monarch reaches the
+   throne. Brief, auto-dismisses (or click to skip). */
+.qf-sl-vs {
+  position: absolute;
+  inset: 0;
+  z-index: 9100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+.qf-sl-vs.show    { opacity: 1; pointer-events: auto; }
+.qf-sl-vs.closing { opacity: 0; transition: opacity 400ms ease; }
+.qf-sl-vs-dim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6,2,12,0) 0%, rgba(20,6,38,0.78) 50%, rgba(6,2,12,0) 100%);
+}
+.qf-sl-vs-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.qf-sl-vs-side {
+  font-family: var(--pix);
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: #efe2ff;
+  text-shadow: 0 0 14px rgba(123,47,224,0.8), 0 2px 0 #1a0633;
+  max-width: 280px;
+  text-align: center;
+}
+.qf-sl-vs-side.left  { animation: qf-sl-vs-in-left  460ms cubic-bezier(0.2,0.8,0.2,1) both; }
+.qf-sl-vs-side.right {
+  color: #ffd2d2;
+  text-shadow: 0 0 14px rgba(224,60,60,0.7), 0 2px 0 #330808;
+  animation: qf-sl-vs-in-right 460ms cubic-bezier(0.2,0.8,0.2,1) both;
+}
+.qf-sl-vs-mark {
+  font-family: var(--pix);
+  font-size: 34px;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(155,47,224,1);
+  animation: qf-sl-arise-slam 460ms cubic-bezier(0.2,0.8,0.2,1) both;
+  animation-delay: 180ms;
+}
+.qf-sl-vs-sub {
+  position: relative;
+  font-family: var(--pix);
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #c9a9ff;
+  text-shadow: 0 0 10px rgba(155,47,224,0.6);
+}
+@keyframes qf-sl-vs-in-left  { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes qf-sl-vs-in-right { from { opacity: 0; transform: translateX(40px);  } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .qf-sl-vs-side.left, .qf-sl-vs-side.right, .qf-sl-vs-mark { animation: none; opacity: 1; transform: none; }
+}

@@ -23,6 +23,7 @@ export class SoloLevelingCinematic {
     this._listeners = []
     this._timers = []
     this._el = null         // entrance overlay
+    this._vs = null         // duel VS card
     this._vignette = null   // persistent edge shadow
     if (!this._stage) return
     this._wire()
@@ -31,6 +32,8 @@ export class SoloLevelingCinematic {
   _wire() {
     const sub = (evt, fn) => { EventBus.on(evt, fn); this._listeners.push([evt, fn]) }
     sub('SOLO_LEVELING_BEGAN', () => this._onBegan())
+    // Duel VS card when the Monarch reaches the throne.
+    sub('SHADOW_MONARCH_DUEL', (p) => this._onDuel(p ?? {}))
     // Lift the vignette (and tear down any lingering card) the moment the
     // Monarch is gone, or at day end as a catch-all.
     sub('ADVENTURER_DIED', (p) => { if (p?.adventurer?._shadowMonarch) this._end() })
@@ -57,6 +60,7 @@ export class SoloLevelingCinematic {
   _end() {
     this._clearTimers()
     if (this._el) { this._el.remove(); this._el = null }
+    if (this._vs) { this._vs.remove(); this._vs = null }
     if (this._vignette) {
       const v = this._vignette
       this._vignette = null
@@ -96,6 +100,38 @@ export class SoloLevelingCinematic {
     this._after(420, () => this._el?.classList.remove('flash'))
   }
 
+  // ── Duel VS card ─────────────────────────────────────────────────────────
+  _onDuel({ bossName = 'YOUR BOSS', shadows = 0, buff = 1 } = {}) {
+    if (this._vs) this._vs.remove()
+    const pct = Math.round((buff - 1) * 100)
+    const sub = shadows > 0
+      ? `STATS MATCHED  ·  +${pct}%  ·  ${shadows} SHADOW${shadows === 1 ? '' : 'S'}`
+      : 'STATS MATCHED  ·  EVEN TERMS'
+    this._vs = h('div', { className: 'qf-sl-vs' }, [
+      h('div', { className: 'qf-sl-vs-dim' }),
+      h('div', { className: 'qf-sl-vs-row' }, [
+        h('div', { className: 'qf-sl-vs-side left' }, 'THE SHADOW MONARCH'),
+        h('div', { className: 'qf-sl-vs-mark' }, 'VS'),
+        h('div', { className: 'qf-sl-vs-side right' }, String(bossName).toUpperCase()),
+      ]),
+      h('div', { className: 'qf-sl-vs-sub' }, sub),
+    ])
+    this._vs.addEventListener('click', () => this._dismissVs())
+    this._stage.appendChild(this._vs)
+    // eslint-disable-next-line no-unused-expressions
+    this._vs.offsetHeight
+    this._vs.classList.add('show')
+    this._after(2600, () => this._dismissVs())
+  }
+
+  _dismissVs() {
+    if (!this._vs) return
+    const el = this._vs
+    this._vs = null
+    el.classList.add('closing')
+    setTimeout(() => el.remove(), 420)
+  }
+
   _dismissEntrance() {
     if (!this._el) return
     const el = this._el
@@ -121,6 +157,7 @@ export class SoloLevelingCinematic {
     this._listeners = []
     this._clearTimers()
     this._el?.remove(); this._el = null
+    this._vs?.remove(); this._vs = null
     this._vignette?.remove(); this._vignette = null
   }
 }
