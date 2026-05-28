@@ -450,6 +450,15 @@ export class MainMenuOverlay {
         { id: 'rooms',      label: 'ROOM EDITOR',     sub: 'Edit room layouts',                     icon: '▤', color: 'var(--poison)' },
         { id: 'tiles',      label: 'TILESET EDITOR',  sub: 'Author tile themes',                    icon: '▦', color: 'var(--info)' },
         { id: 'testunlock', label: 'TEST UNLOCKS',    sub: 'Fire sample of each card type',         icon: '✦', color: 'var(--gold-bright, #ffd964)' },
+        // Test rigs for the top-3 celebration. Each fires the leaderboard
+        // unlock card at the chosen rank with sample boss / level / day /
+        // kill data so the designer can sanity-check the gold/silver/
+        // bronze theming + confetti without grinding a real podium run.
+        // Does NOT burn the celebrated-runId gate (the test handler doesn't
+        // touch PlayerProfile.setCelebratedTop3RunId).
+        { id: 'testtop1',   label: 'TEST TOP-3 #1',   sub: 'Fire champion (gold) podium card',      icon: '★', color: '#ffd964' },
+        { id: 'testtop2',   label: 'TEST TOP-3 #2',   sub: 'Fire runner-up (silver) podium card',   icon: '★', color: '#d9e2ec' },
+        { id: 'testtop3',   label: 'TEST TOP-3 #3',   sub: 'Fire podium-finish (bronze) card',      icon: '★', color: '#e09858' },
       )
     }
     items.push(
@@ -570,6 +579,74 @@ export class MainMenuOverlay {
       onCancel: () => { this._nameEntry = null },
     })
     this._nameEntry.open()
+  }
+
+  // Top-3 leaderboard celebration check — called after Leaderboard.fetchTop
+  // resolves on main menu open. Given the fetched rows, looks up the
+  // player's most recent finished run by runId; if it's in the top 3
+  // AND we haven't already celebrated this specific run, queues a
+  // 'leaderboard' unlock card and persists the celebrated runId.
+  //
+  // Match key: run_id (NOT player_name) — survives mid-run name changes,
+  // correctly distinguishes between multiple runs by the same player,
+  // and naturally fires again for a new run if it also places top-3.
+  _maybeQueueTop3Celebration(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) return
+    const name = PlayerProfile.getName?.()
+    if (!name) return
+    const lastRunId = PlayerProfile.getLastFinishedRunId?.(name)
+    if (!lastRunId) return
+    const celebratedId = PlayerProfile.getCelebratedTop3RunId?.(name)
+    if (celebratedId && celebratedId === lastRunId) return
+    const top3 = rows.slice(0, 3)
+    const myRowIdx = top3.findIndex(r =>
+      r?.run_id === lastRunId &&
+      String(r?.player_name ?? '').trim().toLowerCase() === name.trim().toLowerCase()
+    )
+    if (myRowIdx < 0) return
+    const myRow = top3[myRowIdx]
+    const rank = myRowIdx + 1
+    PlayerProfile.queueUnlock?.({
+      type:        'leaderboard',
+      rank,
+      runId:       lastRunId,
+      bossId:      myRow.boss_id,
+      bossLevel:   myRow.boss_level,
+      days:        myRow.days_survived,
+      kills:       myRow.total_kills,
+      companionId: myRow.meta?.companionId,
+    })
+    PlayerProfile.setCelebratedTop3RunId?.(name, lastRunId)
+  }
+
+  // Fire the UnlockNotificationOverlay if the pending-unlocks queue has
+  // anything in it (achievement / boss / companion / title cards from
+  // the just-finished run, OR the leaderboard top-3 celebration card
+  // queued by _maybeQueueTop3Celebration above). Called from both the
+  // success and failure branches of the leaderboard fetch chain so that
+  // achievements still celebrate even if the fetch failed.
+  //
+  // 250ms delay so the menu's per-item entrance animations finish first.
+  // Lazy import keeps the overlay off the main bundle on sessions where
+  // nothing was unlocked.
+  _maybeFireUnlockOverlay() {
+    if ((PlayerProfile.getPendingUnlocks?.() || []).length === 0) return
+    setTimeout(() => {
+      if (this._closed || !this._el || this._unlockOverlay) return
+      import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {
+        if (this._closed || !this._el || this._unlockOverlay) return
+        this._unlockOverlay = new UnlockNotificationOverlay({
+          onClose: () => {
+            this._unlockOverlay = null
+            // Queue is cleared by the overlay itself; re-sync badges
+            // in case any unlock affected them (e.g. a new companion
+            // now counts as "unseen" on the recruit screen).
+            if (!this._closed && this._el) this._refreshMenuItems()
+          },
+        })
+        this._unlockOverlay.open()
+      }).catch(() => {})
+    }, 250)
   }
 
   // Swap just the player-name button without re-rendering the whole menu.
@@ -754,6 +831,9 @@ export class MainMenuOverlay {
         // shipped data so the sprites/portraits resolve normally.
         this._testFireUnlocks()
         break
+      case 'testtop1': this._testFireTop3(1); break
+      case 'testtop2': this._testFireTop3(2); break
+      case 'testtop3': this._testFireTop3(3); break
       case 'options':
         this._openSettings()
         break
@@ -942,6 +1022,39 @@ export class MainMenuOverlay {
         id:    'flawless_reign',
         title: 'The Flawless',
         achId: 'flawless_reign',
+      })
+    } catch {}
+    import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {
+      if (this._closed || !this._el) return
+      if (this._unlockOverlay) return
+      this._unlockOverlay = new UnlockNotificationOverlay({
+        onClose: () => {
+          this._unlockOverlay = null
+          if (!this._closed && this._el) this._refreshMenuItems()
+        },
+      })
+      this._unlockOverlay.open()
+    }).catch(() => {})
+  }
+
+  // Dev-only — fires the top-3 celebration overlay at the chosen rank
+  // with sample run data. Does NOT touch PlayerProfile.setCelebratedTop3RunId
+  // so the test path can be re-fired indefinitely. The boss id is one
+  // that always ships (the_lich), so the portrait inset resolves. The
+  // numeric stats are recognisable "designer test" values rather than
+  // round numbers so a real-run card and a test-run card don't get
+  // confused in screenshots.
+  _testFireTop3(rank) {
+    if (this._unlockOverlay) return
+    try {
+      PlayerProfile.queueUnlock({
+        type:      'leaderboard',
+        rank,
+        runId:     `test-top${rank}-${Date.now()}`,
+        bossId:    'the_lich',
+        bossLevel: 12,
+        days:      51,
+        kills:     742,
       })
     } catch {}
     import('./UnlockNotificationOverlay.js').then(({ UnlockNotificationOverlay }) => {

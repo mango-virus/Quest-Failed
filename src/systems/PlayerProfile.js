@@ -60,6 +60,17 @@ const LEADERBOARD_NEW_SEEN_KEY_BASE   = 'qf.player.leaderboard_newseen'
 // a full-card notification with sprite + sound. Survives sessions, so
 // quitting the browser mid-celebration doesn't lose the moment.
 const PENDING_UNLOCKS_KEY_BASE        = 'qf.player.pending_unlocks'
+// Per-name memory for the top-3 leaderboard celebration. Stores the
+// runId of the most recently celebrated qualifying run so the
+// celebration fires once per qualifying run — a new run that also
+// places top-3 re-fires (different runId), but re-opening the main
+// menu after celebrating doesn't.
+const CELEBRATED_TOP3_KEY_BASE        = 'qf.player.celebrated_top3'
+// Per-name cache of the last finished run's runId. The save (which
+// holds meta.runId) is deleted on game-over before the player reaches
+// the main menu, so we cache the id at submit time so MainMenuOverlay
+// can resolve it later when checking top-3 placement.
+const LAST_FINISHED_RUNID_KEY_BASE    = 'qf.player.last_finished_runid'
 
 // Legacy global keys — wiped at module load (Option A from the user's
 // 2026-05-26 decision). Any data here was pre-refactor pollution and
@@ -106,6 +117,8 @@ function _companionsNewSeenKeyFor(name)   { return `${COMPANIONS_NEW_SEEN_KEY_BA
 function _bossesNewSeenKeyFor(name)       { return `${BOSSES_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _leaderboardNewSeenKeyFor(name)  { return `${LEADERBOARD_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _pendingUnlocksKeyFor(name)      { return `${PENDING_UNLOCKS_KEY_BASE}:${(name ?? '').trim()}` }
+function _celebratedTop3KeyFor(name)      { return `${CELEBRATED_TOP3_KEY_BASE}:${(name ?? '').trim()}` }
+function _lastFinishedRunIdKeyFor(name)   { return `${LAST_FINISHED_RUNID_KEY_BASE}:${(name ?? '').trim()}` }
 
 // Generic helpers shared by the achievement + companion seen-id sets.
 // `getSet` parses a stored JSON array into a Set<string>; `writeSet`
@@ -734,6 +747,36 @@ export const PlayerProfile = {
   clearPendingUnlocks() {
     if (!this.getName()) return
     try { localStorage.removeItem(_pendingUnlocksKeyFor(this.getName())) } catch {}
+  },
+
+  // Top-3 celebration memory — see CELEBRATED_TOP3_KEY_BASE.
+  // Returns the runId of the most recently celebrated qualifying run
+  // (or null if the player has never placed top-3).
+  getCelebratedTop3RunId(name) {
+    const who = (name ?? this.getName() ?? '').trim()
+    if (!who) return null
+    try { return localStorage.getItem(_celebratedTop3KeyFor(who)) || null }
+    catch { return null }
+  },
+  setCelebratedTop3RunId(name, runId) {
+    const who = (name ?? this.getName() ?? '').trim()
+    if (!who || !runId) return
+    try { localStorage.setItem(_celebratedTop3KeyFor(who), String(runId)) } catch {}
+  },
+
+  // Last finished run's runId — cached at game-over submit time so the
+  // main-menu top-3 check can resolve which run to look up after the
+  // gameplay save has been deleted.
+  getLastFinishedRunId(name) {
+    const who = (name ?? this.getName() ?? '').trim()
+    if (!who) return null
+    try { return localStorage.getItem(_lastFinishedRunIdKeyFor(who)) || null }
+    catch { return null }
+  },
+  setLastFinishedRunId(name, runId) {
+    const who = (name ?? this.getName() ?? '').trim()
+    if (!who || !runId) return
+    try { localStorage.setItem(_lastFinishedRunIdKeyFor(who), String(runId)) } catch {}
   },
 
   // Pack the unlocked-achievement set into a compact bitmask string for

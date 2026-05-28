@@ -56,6 +56,34 @@ const TYPE_THEMES = {
     banner: '✦  NEW TITLE  ✦',
     sfx:    'unlock_reward',
   },
+  // Leaderboard top-3 celebration. The actual accent + banner are
+  // resolved dynamically in _themeFor based on the entry's `rank`
+  // field (1 = gold/champion, 2 = silver/runner-up, 3 = bronze/podium).
+  // This entry holds the fallback values used if rank is missing.
+  leaderboard: {
+    accent: 'var(--gold-bright, #ffd964)',
+    banner: '★  TOP 3  ★',
+    sfx:    'unlock_reward',
+  },
+}
+
+// Rank → theme overrides for leaderboard cards. Resolved in _themeFor.
+const LEADERBOARD_RANK_THEMES = {
+  1: {
+    accent: 'var(--gold-bright, #ffd964)',
+    banner: '★ ★ ★   CHAMPION   ★ ★ ★',
+    sfx:    'unlock_reward',
+  },
+  2: {
+    accent: '#cad6e0',   // silver
+    banner: '★ ★   RUNNER-UP   ★ ★',
+    sfx:    'unlock_reward',
+  },
+  3: {
+    accent: '#d18b4a',   // bronze
+    banner: '★   PODIUM FINISH   ★',
+    sfx:    'unlock_reward',
+  },
 }
 
 // Boss archetype display data. Pulled from the Phaser JSON cache at
@@ -97,17 +125,25 @@ export class UnlockNotificationOverlay {
     const theme = this._themeFor(first)
     const body  = this._renderCard(first)
     this._cardEl = body
+    // When a top-3 celebration card is queued anywhere, upsize the
+    // shell + retitle it so the finale has room to breathe and reads
+    // as a HALL OF FAME moment rather than a generic unlock. Cards
+    // that come before it (achievements / companions / etc.) still
+    // render inside the same shell — extra room is a strict upgrade
+    // for them too.
+    const hasLeaderboard = this._queue.some(e => e?.type === 'leaderboard')
     this._overlay = new Overlay({
       // The shell title stays generic — the per-card banner (which
       // changes type-to-type as the player advances) lives INSIDE the
       // body so it can be swapped without rebuilding the shell.
-      title:     '✦  UNLOCK  ✦',
+      title:     hasLeaderboard ? '★  HALL OF FAME  ★' : '✦  UNLOCK  ✦',
       // Compact modal — tightened 560×580 → 460×480 so the celebration
       // reads as an intimate spotlight rather than a half-empty dialog.
       // The card inside fills the box; padding + per-element sizing in
-      // styles.css does the rest.
-      width:     460,
-      height:    480,
+      // styles.css does the rest. Leaderboard finales upsize the shell
+      // so the dramatic centerpiece has room to live.
+      width:     hasLeaderboard ? 560 : 460,
+      height:    hasLeaderboard ? 620 : 480,
       // Modal shell border stays fixed blood-red across all card types
       // so the OUTER chrome reads as a consistent "unlock" frame. The
       // per-type accent (gold / blood / gold-bright / --cmp-accent)
@@ -197,8 +233,12 @@ export class UnlockNotificationOverlay {
   // beat read consistently across the cast — the override is retired.
   // Per-type accents now flow straight from TYPE_THEMES.
   _themeFor(entry) {
-    const base = TYPE_THEMES[entry?.type] ?? TYPE_THEMES.achievement
-    return base
+    // Leaderboard cards have rank-specific theming (gold/silver/bronze)
+    // — fall back to the generic 'leaderboard' theme if rank is missing.
+    if (entry?.type === 'leaderboard') {
+      return LEADERBOARD_RANK_THEMES[entry.rank] ?? TYPE_THEMES.leaderboard
+    }
+    return TYPE_THEMES[entry?.type] ?? TYPE_THEMES.achievement
   }
 
   // The modal body — a single card whose internals dispatch on type.
@@ -207,6 +247,18 @@ export class UnlockNotificationOverlay {
     const total = this._queue.length
     const idx   = this._index + 1
     const theme = this._themeFor(entry)
+    const isLb  = entry?.type === 'leaderboard'
+    // Per-rank dramatic headlines that REPLACE the small chip banner
+    // for leaderboard cards. The chip works for achievement/boss/etc.
+    // because each card is "look what unlocked"; the top-3 celebration
+    // needs to scream PODIUM. The two-line layout reads as a real
+    // award-ceremony title rather than a metadata label.
+    const LB_HEADLINES = {
+      1: { eyebrow: '★   TOP 3 LEADERBOARD   ★', big: 'CHAMPION'      },
+      2: { eyebrow: '★   TOP 3 LEADERBOARD   ★', big: 'RUNNER-UP'     },
+      3: { eyebrow: '★   TOP 3 LEADERBOARD   ★', big: 'PODIUM FINISH' },
+    }
+    const lbCopy = isLb ? (LB_HEADLINES[entry.rank] || LB_HEADLINES[3]) : null
     const card = h('div', {
       className: 'qf-unlock-card',
       dataset:   { type: entry?.type ?? 'unknown' },
@@ -216,8 +268,14 @@ export class UnlockNotificationOverlay {
     }, [
       // Per-type banner. Lives inside the body so it swaps per card
       // without needing a shell-title setter (the shell doesn't have
-      // one). Color comes from the card's data-type attribute via CSS.
-      h('div', { className: 'pix qf-unlock-banner' }, theme.banner),
+      // one). Leaderboard uses a big two-line headline; other types
+      // use the compact chip banner.
+      isLb
+        ? h('div', { className: 'qf-unlock-lb-headline' }, [
+            h('div', { className: 'pix qf-unlock-lb-headline-top' }, lbCopy.eyebrow),
+            h('div', { className: 'pix qf-unlock-lb-headline-big' }, lbCopy.big),
+          ])
+        : h('div', { className: 'pix qf-unlock-banner' }, theme.banner),
       // Centerpiece — boss portrait / companion sprite / achievement
       // icon / title chip, depending on type.
       this._renderArt(entry),
@@ -235,14 +293,16 @@ export class UnlockNotificationOverlay {
       h('div', { className: 'qf-unlock-footer' }, [
         h('span', { className: 'pix qf-unlock-counter' }, `${idx} / ${total}`),
         h('button', {
-          className: 'btn qf-unlock-next',
+          className: 'btn qf-unlock-next' + (isLb ? ' qf-unlock-next--lb' : ''),
           on: {
             click: (e) => {
               e.stopPropagation()
               this._advance()
             },
           },
-        }, (idx === total) ? 'CLOSE  ✖' : 'NEXT  ›'),
+        }, isLb
+            ? 'CLAIM GLORY  ✦'
+            : ((idx === total) ? 'CLOSE  ✖' : 'NEXT  ›')),
       ]),
     ])
     return card
@@ -307,6 +367,65 @@ export class UnlockNotificationOverlay {
           h('div', { className: 'qf-unlock-art-icon' }, '👑'),
         ])
       }
+      case 'leaderboard': {
+        // Layered stage:
+        //   0  sunburst — slow rotating conic-gradient godrays
+        //   1  rings — three concentric pulses rippling outward
+        //   2  bossart — DIMMED watermark backdrop (the boss looms)
+        //   3  confetti — 12 multi-color particles
+        //   4  stamp — medal glyph + giant rank number front-and-center
+        // The portrait moving to a watermark (vs the original tiny
+        // corner inset) makes the boss part of the celebration scene
+        // instead of a side-note, and gives the badge real estate to
+        // grow into the hero element.
+        const rank = entry.rank ?? 3
+        const bossId = String(entry.bossId || '').replace(/^the_/, '')
+        const medalGlyph = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
+        return h('div', {
+          className: 'qf-unlock-art qf-unlock-art--leaderboard',
+          dataset:   { rank: String(rank) },
+        }, [
+          // Rotating sunburst godrays. Repeating-conic-gradient gives
+          // a 15-ray star pattern; the spin animation rotates it slowly
+          // so light sweeps continuously across the card.
+          h('div', { className: 'qf-unlock-lb-sunburst' }),
+          // Ripple rings — three concentric pulses staggered so a new
+          // ring starts every ~0.8s. Reads as a "energy" radiating from
+          // the rank stamp.
+          h('div', { className: 'qf-unlock-lb-rings' }, [
+            h('span'), h('span'), h('span'),
+          ]),
+          // Boss portrait — dimmed watermark backdrop filling the
+          // frame. Reminds the player WHICH run earned the slot while
+          // not stealing focus from the rank stamp on top.
+          bossId
+            ? h('div', {
+                className: 'qf-unlock-lb-bossart',
+                style: {
+                  backgroundImage:  `url('assets/ui/bestiary/portraits/${bossId}_p.png')`,
+                  backgroundSize:   'contain',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'center',
+                  imageRendering:   'pixelated',
+                },
+              })
+            : null,
+          // Confetti sparkles — 12 particles, alternating accent-color
+          // and white via nth-child selectors in CSS.
+          h('div', { className: 'qf-unlock-lb-confetti' }, [
+            h('span'), h('span'), h('span'), h('span'),
+            h('span'), h('span'), h('span'), h('span'),
+            h('span'), h('span'), h('span'), h('span'),
+          ]),
+          // The stamp — medal emoji bobbing above the giant rank
+          // number. Stacked vertically so the medal is the "look at me"
+          // attention-grabber and the rank is the punchline.
+          h('div', { className: 'qf-unlock-lb-stamp' }, [
+            h('div', { className: 'qf-unlock-lb-medal' }, medalGlyph),
+            h('div', { className: 'pix qf-unlock-lb-rank' }, `#${rank}`),
+          ]),
+        ])
+      }
       default:
         return h('div', { className: 'qf-unlock-art' })
     }
@@ -330,6 +449,25 @@ export class UnlockNotificationOverlay {
       }
       case 'title':
         return entry.title || ''
+      case 'leaderboard': {
+        // Show the boss archetype name so the player remembers WHICH
+        // run made the podium. The leaderboard rows + the test fire
+        // path both pass `boss_id` values that may carry the legacy
+        // `the_` prefix ('the_lich') OR be stripped ('lich'), so look
+        // up by both. Final fallback humanises the id ('the_lich' →
+        // 'THE LICH') so the player never sees a raw underscored key.
+        const archs = _readBossArchetypes()
+        const rawId    = String(entry.bossId || '').toLowerCase()
+        const stripped = rawId.replace(/^the_/, '')
+        const arch = archs.find(a => {
+          const aId = String(a?.id || '').toLowerCase()
+          return aId === rawId
+              || aId === stripped
+              || aId.replace(/^the_/, '') === stripped
+        })
+        if (arch?.name) return arch.name
+        return (rawId || 'your reign').replace(/_/g, ' ').toUpperCase()
+      }
       default:
         return entry.id || ''
     }
@@ -355,6 +493,15 @@ export class UnlockNotificationOverlay {
       case 'title': {
         const def = AchievementSystem.getDefinition?.(entry.achId)
         return def?.name ? `Earned via ${def.name}` : ''
+      }
+      case 'leaderboard': {
+        // Run summary line — mirrors the columns shown in the
+        // leaderboard table (boss level / days survived / kills) so
+        // the player sees the same stats that earned them the slot.
+        const lv    = entry.bossLevel ?? '?'
+        const days  = entry.days      ?? '?'
+        const kills = entry.kills     ?? '?'
+        return `Boss Lv ${lv}  ·  ${days} days  ·  ${kills} kills`
       }
       default:
         return ''

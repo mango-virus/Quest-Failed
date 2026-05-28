@@ -12069,107 +12069,308 @@ body {
   color: #e09858;   /* podium bronze — warm copper */
 }
 
-/* Leaderboard art frame — square stage with the giant rank badge
-   center-stage, the boss portrait inset in the bottom-right corner,
-   and the confetti sparkle layer behind everything. */
+/* ── Leaderboard top-3 celebration card ─────────────────────────────── */
+/* The leaderboard art frame is purposely BIGGER than the other types
+   so the medal + rank stamp fill it — the trick that makes the card
+   feel like an award ceremony instead of a metadata chip. The boss
+   portrait lives BEHIND everything as a dimmed watermark (vs the
+   tiny corner inset other cards use), so the stamp gets centre stage. */
 .qf-unlock-art--leaderboard {
   position: relative;
-  overflow: visible;
-}
-.qf-unlock-art--leaderboard::after {
-  /* Override the generic ::after halo with a stronger rank-tier glow. */
+  overflow: hidden;
+  width: 100%;
+  min-height: 240px;
+  /* Inner card frame styling — heavy border tinted by currentColor +
+     a subtle bg so the sunburst rays don't blend into the modal void. */
+  border: 2px solid color-mix(in srgb, currentColor 60%, #000);
   background:
     radial-gradient(closest-side,
-      color-mix(in srgb, currentColor 38%, transparent) 0%,
-      transparent 70%);
-  opacity: 1;
-}
-
-/* Big rank badge — the "#1" / "#2" / "#3" centerpiece. Uses the pix
-   font, sized large, with a strong outer glow that pulses gently. */
-.qf-unlock-lb-rank {
-  position: relative;
-  z-index: 2;
-  font-family: var(--pix);
-  font-size: 64px;
-  letter-spacing: 3px;
-  color: currentColor;
-  text-shadow:
-    0 0 14px currentColor,
-    0 0 28px color-mix(in srgb, currentColor 60%, transparent),
-    0 3px 0 rgba(0, 0, 0, 0.85);
-  animation: qf-unlock-lb-rank-pulse 1.6s ease-in-out infinite;
-}
-@keyframes qf-unlock-lb-rank-pulse {
-  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 70%, transparent)); }
-  50%      { transform: scale(1.06); filter: drop-shadow(0 0 18px color-mix(in srgb, currentColor 95%, transparent)); }
-}
-/* Initial pop on card mount — overrides the looped pulse for the first
-   0.6s so the badge lands with an exciting punch-in. */
-.qf-unlock-lb-rank {
-  animation: qf-unlock-lb-rank-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 1,
-             qf-unlock-lb-rank-pulse 1.6s ease-in-out 600ms infinite;
-}
-@keyframes qf-unlock-lb-rank-in {
-  0%   { transform: scale(0.2) rotate(-15deg); opacity: 0; }
-  60%  { transform: scale(1.25) rotate(6deg);  opacity: 1; }
-  100% { transform: scale(1)    rotate(0);     opacity: 1; }
-}
-
-/* Boss portrait inset — small "this is the run" reminder pinned to
-   the corner of the art frame. */
-.qf-unlock-lb-bossart {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 56px;
-  height: 56px;
-  border: 2px solid color-mix(in srgb, currentColor 70%, #000);
-  background-color: rgba(0, 0, 0, 0.4);
+      color-mix(in srgb, currentColor 14%, transparent) 0%,
+      transparent 78%),
+    #0a0608;
   box-shadow:
     0 0 0 1px #000,
-    0 0 10px color-mix(in srgb, currentColor 45%, transparent);
-  z-index: 1;
+    0 0 22px color-mix(in srgb, currentColor 45%, transparent),
+    inset 0 0 24px color-mix(in srgb, currentColor 18%, transparent);
+  /* Card-level glow pulse — picks up the rank-tier color. */
+  animation: qf-unlock-lb-frame-glow 2.6s ease-in-out infinite;
+}
+/* The generic ::after halo is replaced with the inset box-shadow above —
+   suppress it so the two effects don't stack into a muddy blur. */
+.qf-unlock-art--leaderboard::after { content: none; display: none; }
+
+@keyframes qf-unlock-lb-frame-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 1px #000,
+                0 0 18px color-mix(in srgb, currentColor 35%, transparent),
+                inset 0 0 22px color-mix(in srgb, currentColor 15%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 1px #000,
+                0 0 36px color-mix(in srgb, currentColor 75%, transparent),
+                inset 0 0 30px color-mix(in srgb, currentColor 28%, transparent);
+  }
 }
 
-/* Confetti sparkle layer — eight CSS-driven sparkle dots that drift
-   outward + fade, looping. Decorative only; the badge + portrait sit
-   above them via z-index. */
+/* ── Sunburst godrays — slow rotating starburst behind everything ──── */
+/* Repeating-conic-gradient gives a 15-ray pattern (24deg per cycle,
+   8deg ray + 16deg gap). Oversize the element via negative inset so
+   the rotation doesn't reveal corners. */
+.qf-unlock-lb-sunburst {
+  position: absolute;
+  /* A centered SQUARE sized larger than the card's diagonal so the
+     spinning rays always cover the full frame. The old `inset: -40%`
+     made a RECTANGLE; because the art frame is much wider than tall,
+     the rectangle's short top/bottom edge swept into the visible area
+     mid-rotation and left a dark triangular wedge with no rays.
+     `aspect-ratio: 1` forces a square while width tracks the parent;
+     160% comfortably exceeds the diagonal at every rotation angle. */
+  top: 50%;
+  left: 50%;
+  width: 160%;
+  aspect-ratio: 1 / 1;
+  z-index: 0;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, currentColor 38%, transparent) 0deg 8deg,
+    transparent                                        8deg 24deg
+  );
+  opacity: 0.55;
+  filter: blur(1px);
+  /* The transform must carry the centering translate AND the spin —
+     the keyframe re-states translate(-50%,-50%) so the rotate doesn't
+     drop it (which would knock the square off-center each frame). */
+  transform: translate(-50%, -50%);
+  animation: qf-unlock-lb-sunburst-spin 22s linear infinite;
+}
+@keyframes qf-unlock-lb-sunburst-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg);   }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ── Ripple rings — three concentric pulses ─────────────────────────── */
+.qf-unlock-lb-rings {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.qf-unlock-lb-rings span {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 12px currentColor;
+}
+.qf-unlock-lb-rings span:nth-child(1) { animation: qf-unlock-lb-ring 2.6s ease-out 0.0s infinite; }
+.qf-unlock-lb-rings span:nth-child(2) { animation: qf-unlock-lb-ring 2.6s ease-out 0.85s infinite; }
+.qf-unlock-lb-rings span:nth-child(3) { animation: qf-unlock-lb-ring 2.6s ease-out 1.7s infinite; }
+@keyframes qf-unlock-lb-ring {
+  0%   { transform: scale(0.35); opacity: 0.9; }
+  100% { transform: scale(3.6);  opacity: 0;   }
+}
+
+/* ── Boss portrait watermark backdrop ───────────────────────────────── */
+/* Fills the art frame at low opacity so the boss reads as the "scene"
+   the celebration is happening in, without competing with the stamp.
+   Sat/brightness dampened so the rank-tier glow on top stays the
+   dominant color cue. */
+.qf-unlock-lb-bossart {
+  position: absolute;
+  inset: 18px;
+  z-index: 2;
+  opacity: 0.20;
+  filter: saturate(0.5) brightness(0.85) contrast(1.1);
+  mix-blend-mode: screen;
+}
+
+/* ── Confetti — 12 particles, alternating accent + white ────────────── */
 .qf-unlock-lb-confetti {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: 3;
 }
 .qf-unlock-lb-confetti span {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 8px;
-  height: 8px;
-  background: currentColor;
+  width: 10px;
+  height: 10px;
   border: 1px solid #000;
-  box-shadow: 0 0 8px currentColor;
   opacity: 0;
   transform: translate(-50%, -50%);
-  animation: qf-unlock-lb-confetti 1.8s ease-out infinite;
+  animation: qf-unlock-lb-confetti 2.0s ease-out infinite;
 }
-/* Stagger each of the 8 sparkles with a different angle + delay so the
-   whole layer reads as a continuous gentle shower rather than a sync
-   pulse. Using nth-child rather than per-element vars keeps the JSX
-   minimal (just <span> tags). */
-.qf-unlock-lb-confetti span:nth-child(1) { --ang:  20deg; animation-delay: 0.0s; }
-.qf-unlock-lb-confetti span:nth-child(2) { --ang:  65deg; animation-delay: 0.22s; }
-.qf-unlock-lb-confetti span:nth-child(3) { --ang: 110deg; animation-delay: 0.45s; }
-.qf-unlock-lb-confetti span:nth-child(4) { --ang: 155deg; animation-delay: 0.65s; }
-.qf-unlock-lb-confetti span:nth-child(5) { --ang: 200deg; animation-delay: 0.88s; }
-.qf-unlock-lb-confetti span:nth-child(6) { --ang: 245deg; animation-delay: 1.08s; }
-.qf-unlock-lb-confetti span:nth-child(7) { --ang: 290deg; animation-delay: 1.30s; }
-.qf-unlock-lb-confetti span:nth-child(8) { --ang: 335deg; animation-delay: 1.55s; }
+/* Alternate accent-tier colour with crisp white sparkles for a mixed
+   shower (gold + white reads as celebration; mono-gold reads as a
+   loading indicator). */
+.qf-unlock-lb-confetti span:nth-child(odd)  {
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+.qf-unlock-lb-confetti span:nth-child(even) {
+  background: #fff;
+  box-shadow: 0 0 10px #fff,
+              0 0 18px color-mix(in srgb, currentColor 50%, transparent);
+}
+.qf-unlock-lb-confetti span:nth-child(1)  { --ang:   0deg; animation-delay: 0.00s; }
+.qf-unlock-lb-confetti span:nth-child(2)  { --ang:  30deg; animation-delay: 0.15s; }
+.qf-unlock-lb-confetti span:nth-child(3)  { --ang:  60deg; animation-delay: 0.30s; }
+.qf-unlock-lb-confetti span:nth-child(4)  { --ang:  90deg; animation-delay: 0.45s; }
+.qf-unlock-lb-confetti span:nth-child(5)  { --ang: 120deg; animation-delay: 0.60s; }
+.qf-unlock-lb-confetti span:nth-child(6)  { --ang: 150deg; animation-delay: 0.75s; }
+.qf-unlock-lb-confetti span:nth-child(7)  { --ang: 180deg; animation-delay: 0.90s; }
+.qf-unlock-lb-confetti span:nth-child(8)  { --ang: 210deg; animation-delay: 1.05s; }
+.qf-unlock-lb-confetti span:nth-child(9)  { --ang: 240deg; animation-delay: 1.20s; }
+.qf-unlock-lb-confetti span:nth-child(10) { --ang: 270deg; animation-delay: 1.35s; }
+.qf-unlock-lb-confetti span:nth-child(11) { --ang: 300deg; animation-delay: 1.50s; }
+.qf-unlock-lb-confetti span:nth-child(12) { --ang: 330deg; animation-delay: 1.65s; }
 @keyframes qf-unlock-lb-confetti {
-  0%   { transform: translate(-50%, -50%) rotate(var(--ang, 0deg)) translateY(0)      scale(1);   opacity: 0; }
-  15%  { opacity: 1; }
-  100% { transform: translate(-50%, -50%) rotate(var(--ang, 0deg)) translateY(-100px) scale(0.4); opacity: 0; }
+  0%   { transform: translate(-50%, -50%) rotate(var(--ang, 0deg)) translateY(0)      scale(0.6) rotate(0deg);   opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(var(--ang, 0deg)) translateY(-140px) scale(0.3) rotate(180deg); opacity: 0; }
+}
+
+/* ── The stamp — medal glyph + huge rank number ─────────────────────── */
+.qf-unlock-lb-stamp {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  /* Lift the stamp slightly so the medal + rank read like a single
+     pinned trophy rather than centre-floating text. */
+  margin-top: -6px;
+}
+
+/* Medal emoji — bigger, bobs gently, picks up a drop-shadow in the
+   accent color so the gold/silver/bronze tier reinforces the rank
+   even though the emoji itself is fixed-color. */
+.qf-unlock-lb-medal {
+  font-size: 64px;
+  line-height: 1;
+  filter:
+    drop-shadow(0 0 14px color-mix(in srgb, currentColor 65%, transparent))
+    drop-shadow(0 4px 6px rgba(0, 0, 0, 0.8));
+  animation:
+    qf-unlock-lb-medal-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 1,
+    qf-unlock-lb-medal-bob 2.4s ease-in-out 700ms infinite;
+  transform-origin: center;
+}
+@keyframes qf-unlock-lb-medal-in {
+  0%   { transform: scale(0) rotate(-180deg); opacity: 0; }
+  70%  { transform: scale(1.2) rotate(15deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0);       opacity: 1; }
+}
+@keyframes qf-unlock-lb-medal-bob {
+  0%, 100% { transform: translateY(0)    rotate(-3deg); }
+  50%      { transform: translateY(-5px) rotate(3deg);  }
+}
+
+/* Giant rank number — punchline below the medal. */
+.qf-unlock-lb-rank {
+  font-family: var(--pix);
+  font-size: 96px;
+  line-height: 1;
+  letter-spacing: 4px;
+  color: currentColor;
+  margin-top: -4px;
+  text-shadow:
+    0 0 18px currentColor,
+    0 0 38px color-mix(in srgb, currentColor 70%, transparent),
+    0 5px 0 rgba(0, 0, 0, 0.9),
+    0 0 2px #000;
+  /* Two-stage animation: dramatic pop-in then gentle pulse. */
+  animation:
+    qf-unlock-lb-rank-in    750ms cubic-bezier(0.16, 1, 0.3, 1) 1,
+    qf-unlock-lb-rank-pulse 1.6s  ease-in-out 750ms infinite;
+}
+@keyframes qf-unlock-lb-rank-in {
+  0%   { transform: scale(0.15) rotate(-20deg); opacity: 0; }
+  55%  { transform: scale(1.35) rotate(8deg);   opacity: 1; }
+  100% { transform: scale(1)    rotate(0);      opacity: 1; }
+}
+@keyframes qf-unlock-lb-rank-pulse {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 8px  color-mix(in srgb, currentColor 70%, transparent)); }
+  50%      { transform: scale(1.04); filter: drop-shadow(0 0 22px color-mix(in srgb, currentColor 95%, transparent)); }
+}
+
+/* ── Dramatic two-line headline — replaces the chip banner for lb ──── */
+.qf-unlock-lb-headline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+.qf-unlock-lb-headline-top {
+  font-family: var(--pix);
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--text-mute);
+  opacity: 0.85;
+}
+.qf-unlock-lb-headline-big {
+  font-family: var(--pix);
+  font-size: 28px;
+  letter-spacing: 6px;
+  color: currentColor;
+  text-shadow:
+    0 0 16px currentColor,
+    0 0 32px color-mix(in srgb, currentColor 60%, transparent),
+    0 2px 0 rgba(0, 0, 0, 0.85);
+  animation: qf-unlock-lb-headline-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 1;
+}
+@keyframes qf-unlock-lb-headline-in {
+  0%   { transform: scale(0.5);  opacity: 0; letter-spacing: 0px; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1);    letter-spacing: 6px; }
+}
+
+/* ── Subtitle (run stats) styled as a podium ribbon ─────────────────── */
+.qf-unlock-card[data-type="leaderboard"] .qf-unlock-subtitle {
+  font-family: var(--pix);
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  font-style: normal;
+  color: color-mix(in srgb, currentColor 80%, #fff);
+  text-shadow: 0 0 8px color-mix(in srgb, currentColor 50%, transparent);
+  padding: 6px 14px;
+  border-top:    1px solid color-mix(in srgb, currentColor 40%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  margin-top: 4px;
+}
+.qf-unlock-card[data-type="leaderboard"] .qf-unlock-name {
+  font-size: 22px;
+  margin-top: 8px;
+}
+
+/* ── Leaderboard CLAIM-GLORY button override ─────────────────────────── */
+/* Override of .qf-unlock-next — bigger, more confident, with a
+   permanent strong glow rather than the gentle pulse other buttons
+   get. The currentColor cascade carries the rank-tier accent. */
+.qf-unlock-next--lb {
+  font-size: 12px;
+  padding: 12px 30px;
+  letter-spacing: 4px;
+  border: 2px solid color-mix(in srgb, currentColor 85%, #000);
+  animation: qf-unlock-lb-cta-pulse 1.8s ease-in-out infinite;
+}
+@keyframes qf-unlock-lb-cta-pulse {
+  0%, 100% { filter: drop-shadow(0 0 8px  color-mix(in srgb, currentColor 60%, transparent)); }
+  50%      { filter: drop-shadow(0 0 22px color-mix(in srgb, currentColor 95%, transparent)); }
+}
+.qf-unlock-next--lb:hover {
+  /* Stop the pulse on hover so .btn's hover lift reads cleanly. */
+  animation: none;
 }
 
 /* Rarity badge — small "X% earned" pill in the card's top-right corner.

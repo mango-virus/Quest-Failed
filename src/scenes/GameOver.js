@@ -586,6 +586,14 @@ export class GameOver extends Phaser.Scene {
     })
     if (!run) return
 
+    // Cache the runId so MainMenuOverlay's top-3 check can resolve
+    // which run to look up after the gameplay save is deleted.
+    const runId = gs.meta?.runId
+    const playerName = PlayerProfile.getName?.()
+    if (runId && playerName) {
+      PlayerProfile.setLastFinishedRunId?.(playerName, runId)
+    }
+
     Leaderboard.submitRun(run).catch(err => {
       console.warn('[Leaderboard] submit failed:', err.message)
     })

@@ -8,6 +8,7 @@
 import { SaveSystem } from './SaveSystem.js'
 import { EventBus } from './EventBus.js'
 import { Leaderboard } from './Leaderboard.js'
+import { PlayerProfile } from './PlayerProfile.js'
 import { isNewHudEnabled } from '../hud/HudRoot.js'
 
 // Scenes that should freeze when the pause menu opens. Only the ones that
@@ -196,6 +197,13 @@ export const PauseManager = {
   // pact-name resolution — kept centralised so MainMenu's
   // "ABANDON CURRENT RUN" confirm uses the exact same submission path.
   _submitAbandonedRun(gameState) {
+    // Cache the runId for MainMenuOverlay's top-3 check — even an
+    // abandoned run still gets celebrated if it placed in the top 3.
+    const runId = gameState?.meta?.runId
+    const playerName = PlayerProfile.getName?.()
+    if (runId && playerName) {
+      PlayerProfile.setLastFinishedRunId?.(playerName, runId)
+    }
     Leaderboard.submitAbandonedRun(gameState).catch(() => null)
   },
 }

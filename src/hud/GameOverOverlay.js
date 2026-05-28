@@ -94,6 +94,15 @@ export class GameOverOverlay {
         pactNames:  this._pactNames(),
       })
       if (!run) return
+      // Cache the runId so MainMenuOverlay's top-3 check can resolve
+      // "which run was this" after the gameplay save is deleted.
+      // Independent of the submit succeeding — if the network's down,
+      // we still want to celebrate on next leaderboard fetch.
+      const runId = gs.meta?.runId
+      const playerName = PlayerProfile.getName?.()
+      if (runId && playerName) {
+        PlayerProfile.setLastFinishedRunId?.(playerName, runId)
+      }
       Leaderboard.submitRun(run).catch(err => {
         // eslint-disable-next-line no-console
         console.warn('[Leaderboard] submit failed:', err?.message)
