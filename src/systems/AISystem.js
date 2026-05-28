@@ -4523,6 +4523,10 @@ export class AISystem {
     // (no other bonus, per design). Hard override so pacts / events /
     // veteran mults can't inflate the gauntlet payout beyond the set bounty.
     if (adv._bossRoyaleInvader) goldGained = Balance.BOSS_ROYALE_KILL_GOLD ?? 200
+    // Solo Leveling — slaying Sung Jinwoo (only the boss can, in the duel) pays
+    // a flat 1000-gold bounty. Hard override so it's exactly 1000 (no pact /
+    // event / veteran inflation, and no double with the normal kill gold).
+    if (adv._shadowMonarch) goldGained = 1000
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
     // Record the loot drop on both the live adv (the ADVENTURER_DIED

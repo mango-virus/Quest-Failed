@@ -69,6 +69,9 @@ export class ChatBubbles {
     EventBus.on('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
     // Solo Leveling — Jinwoo barks a battle-cry on his duel power-surge beat.
     EventBus.on('SHADOW_MONARCH_DUEL_BEAT', this._onDuelBeat,          this)
+    // Solo Leveling — speak a SPECIFIC scripted line (duel outro / "Arise.")
+    // in Jinwoo's shadow bubble, bypassing the random-line swap.
+    EventBus.on('SHADOW_MONARCH_SAY',       this._onShadowMonarchSay,  this)
     // Boss-ability sightings — wired as a single shared "felt that"
     // reaction across every signature ability. Lines live in the
     // bossAbilityFelt bucket. Each event throttled per-day so a
@@ -129,6 +132,7 @@ export class ChatBubbles {
     EventBus.off('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
     EventBus.off('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
     EventBus.off('SHADOW_MONARCH_DUEL_BEAT', this._onDuelBeat,          this)
+    EventBus.off('SHADOW_MONARCH_SAY',       this._onShadowMonarchSay,  this)
     for (const [evt, handler] of Object.entries(this._bossAbilityHandlers ?? {})) {
       EventBus.off(evt, handler)
     }
@@ -583,6 +587,15 @@ export class ChatBubbles {
   _onDuelBeat({ kind, adventurer } = {}) {
     if (kind !== 'surge' || !adventurer) return
     this._showContextualBubble(adventurer, this._shadowMonarchLine())
+  }
+
+  // Show a SPECIFIC scripted line (duel-outro closing lines, "Arise.") in
+  // Jinwoo's shadow bubble. Goes straight to _createBubble so the exact text
+  // is used (no random-line swap, no contextual cooldown).
+  _onShadowMonarchSay({ adventurer, text, lifeMs } = {}) {
+    if (!adventurer || !text) return
+    this._destroyBubble(adventurer.instanceId)
+    this._createBubble(adventurer, text, lifeMs ?? 2600)
   }
 
   _showContextualBubble(adv, line) {

@@ -1445,5 +1445,23 @@
     "Death is only the beginning — for them.",
     "I'll face the boss alone.",
     "Rise, and serve."
+  ],
+  "shadowMonarchVictory": [
+    "Is that all your dungeon had?",
+    "You fought well. It wasn't enough.",
+    "Another throne falls.",
+    "You were strong. Now you're mine.",
+    "Rest. Your watch is over.",
+    "The dungeon is silent now.",
+    "A worthy soldier. Rise."
+  ],
+  "shadowMonarchDefeat": [
+    "...impossible.",
+    "So — this dungeon has teeth.",
+    "Not... like this.",
+    "Heh. Finally, a real fight.",
+    "I will return.",
+    "You've earned this one.",
+    "The shadows... grow cold."
   ]
 }
