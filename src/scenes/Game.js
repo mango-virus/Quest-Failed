@@ -350,6 +350,9 @@ export class Game extends Phaser.Scene {
     EventBus.on('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
     EventBus.on('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.on('ADVENTURER_FLED',      this._onAdvRemoved,   this)
+    // Solo Leveling — clicking Jinwoo's exploration HP bar re-locks the camera
+    // onto him (same follow used when he enters).
+    EventBus.on('SHADOW_MONARCH_FOLLOW', this._onShadowMonarchFollow, this)
     // Loot Goblin Heist — red floater at the goblin's last position + toast
     // banner so the player notices the gold drain.
     EventBus.on('LOOT_GOBLIN_ESCAPED',  this._onLootGoblinEscaped, this)
@@ -468,6 +471,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
     EventBus.off('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.off('ADVENTURER_FLED',      this._onAdvRemoved,   this)
+    EventBus.off('SHADOW_MONARCH_FOLLOW', this._onShadowMonarchFollow, this)
     EventBus.off('ADVENTURERS_SPAWNED',  this._onAdvsSpawned,  this)
     EventBus.off('LOOT_GOBLIN_ESCAPED',  this._onLootGoblinEscaped, this)
     EventBus.off('DUNGEON_EVENT_BEGAN',  this._onDungeonEventBegan, this)
@@ -742,6 +746,12 @@ export class Game extends Phaser.Scene {
 
   _onAdvClicked({ adventurer }) {
     this._setFollow(adventurer.instanceId)
+  }
+
+  // Solo Leveling — clicking Jinwoo's exploration HP bar re-locks the camera
+  // onto him (same follow path as clicking his sprite / the auto-lock on entry).
+  _onShadowMonarchFollow({ id } = {}) {
+    if (id) this._setFollow(id)
   }
 
   _onAdvRemoved({ adventurer }) {

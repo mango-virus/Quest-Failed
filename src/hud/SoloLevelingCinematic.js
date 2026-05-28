@@ -33,6 +33,7 @@ export class SoloLevelingCinematic {
     this._cornerHp = null   // persistent upper-left HP bar (before the duel)
     this._cornerFill = null
     this._cornerNum = null
+    this._cornerAdvId = null  // Jinwoo's instanceId, for click-to-refollow
     this._duelStarted = false
     if (!this._stage) return
     this._ensureDuelCss()
@@ -59,9 +60,11 @@ export class SoloLevelingCinematic {
    of the boss-status panel. Uses the shared HUD layout vars so it tracks the
    panel sizes. */
 .qf-sl-corner { position:absolute; top:calc(var(--hud-top, 96px) + 14px);
-  left:calc(var(--hud-side, 320px) + 14px); z-index:42; pointer-events:none;
-  font-family:'Press Start 2P','Courier New',monospace; opacity:0; transition:opacity .4s ease; }
+  left:calc(var(--hud-side, 320px) + 14px); z-index:42; pointer-events:auto; cursor:pointer;
+  font-family:'Press Start 2P','Courier New',monospace; opacity:0;
+  transition:opacity .4s ease, filter .15s ease, transform .15s ease; }
 .qf-sl-corner.show { opacity:1; }
+.qf-sl-corner:hover { filter:brightness(1.18) drop-shadow(0 0 8px rgba(74,160,255,.7)); transform:scale(1.03); }
 .qf-sl-corner-name { font-size:11px; letter-spacing:2px; color:#bfe3ff;
   text-shadow:0 0 10px rgba(74,160,255,.85), 0 2px 0 #02040a; margin-bottom:5px; }
 .qf-sl-corner-track { position:relative; width:230px; height:15px; background:rgba(4,8,16,.85);
@@ -157,8 +160,9 @@ export class SoloLevelingCinematic {
   // Built lazily on the first HP feed (i.e. once Jinwoo has actually spawned),
   // updated live, and suppressed once the duel begins (the two-bar duel header
   // takes over there).
-  _onCornerHp({ frac = 1, hp, maxHp, name } = {}) {
+  _onCornerHp({ frac = 1, hp, maxHp, name, instanceId } = {}) {
     if (this._duelStarted) return
+    if (instanceId != null) this._cornerAdvId = instanceId
     if (!this._cornerHp) this._buildCornerHp(name)
     if (this._cornerFill) this._cornerFill.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`
     if (this._cornerNum && hp != null && maxHp != null) this._cornerNum.textContent = `${hp} / ${maxHp}`
@@ -170,10 +174,15 @@ export class SoloLevelingCinematic {
     const num  = h('div', { className: 'qf-sl-corner-num' }, '')
     this._cornerFill = fill
     this._cornerNum  = num
-    this._cornerHp = h('div', { className: 'qf-sl-corner' }, [
+    this._cornerHp = h('div', { className: 'qf-sl-corner', title: 'Click to follow the Shadow Monarch' }, [
       h('div', { className: 'qf-sl-corner-name' }, String(name || 'THE SHADOW MONARCH').toUpperCase()),
       h('div', { className: 'qf-sl-corner-track' }, [fill, num]),
     ])
+    // Click the bar to re-lock the camera onto Jinwoo (same follow used when
+    // he enters). Game scene handles SHADOW_MONARCH_FOLLOW → _setFollow.
+    this._cornerHp.addEventListener('click', () => {
+      if (this._cornerAdvId != null) EventBus.emit('SHADOW_MONARCH_FOLLOW', { id: this._cornerAdvId })
+    })
     this._stage.appendChild(this._cornerHp)
     // eslint-disable-next-line no-unused-expressions
     this._cornerHp.offsetHeight

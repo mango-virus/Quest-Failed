@@ -970,6 +970,7 @@ export class AISystem {
       if (jin) {
         const mx = jin.resources?.maxHp ?? jin.resources?.hp ?? 1
         EventBus.emit('SHADOW_MONARCH_HP', {
+          instanceId: jin.instanceId,
           hp:    Math.max(0, Math.round(jin.resources?.hp ?? 0)),
           maxHp: Math.max(1, Math.round(mx)),
           frac:  mx > 0 ? Math.max(0, Math.min(1, (jin.resources?.hp ?? 0) / mx)) : 0,
