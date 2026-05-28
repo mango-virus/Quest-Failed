@@ -27,9 +27,13 @@ export class SoloLevelingCinematic {
     this._vignette = null   // persistent edge shadow
     this._letterbox = null  // duel cinematic bars
     this._finale = null     // duel win/loss climax card
-    this._duelHud = null    // live two-bar HP header
+    this._duelHud = null    // live two-bar HP header (during the duel)
     this._advFill = null
     this._bossFill = null
+    this._cornerHp = null   // persistent upper-left HP bar (before the duel)
+    this._cornerFill = null
+    this._cornerNum = null
+    this._duelStarted = false
     if (!this._stage) return
     this._ensureDuelCss()
     this._wire()
@@ -51,6 +55,18 @@ export class SoloLevelingCinematic {
   background:linear-gradient(0deg,#02040a 0%, #03050e 70%, rgba(3,5,14,0) 100%);
   box-shadow:0 -1px 0 rgba(74,160,255,.5), 0 -6px 18px -6px rgba(58,139,255,.6); }
 .qf-sl-letterbox.show .qf-sl-bar { transform:scaleY(1); }
+.qf-sl-corner { position:absolute; top:14px; left:14px; z-index:21; pointer-events:none;
+  font-family:'Press Start 2P','Courier New',monospace; opacity:0; transition:opacity .4s ease; }
+.qf-sl-corner.show { opacity:1; }
+.qf-sl-corner-name { font-size:11px; letter-spacing:2px; color:#bfe3ff;
+  text-shadow:0 0 10px rgba(74,160,255,.85), 0 2px 0 #02040a; margin-bottom:5px; }
+.qf-sl-corner-track { position:relative; width:230px; height:15px; background:rgba(4,8,16,.85);
+  border:2px solid rgba(120,150,200,.5); border-radius:2px; overflow:hidden;
+  box-shadow:0 0 12px rgba(58,139,255,.4); }
+.qf-sl-corner-fill { position:absolute; left:0; top:0; bottom:0; width:100%;
+  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); transition:width .18s linear; }
+.qf-sl-corner-num { position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  font-size:8px; color:#dff0ff; text-shadow:0 1px 2px #000; }
 .qf-sl-pulse { position:absolute; inset:0; pointer-events:none; z-index:33; opacity:0;
   animation:qf-sl-pulse-anim .75s ease-out forwards; }
 .qf-sl-pulse.surge  { background:radial-gradient(circle at 50% 55%, rgba(74,160,255,0) 42%, rgba(74,160,255,.34) 100%);
@@ -117,6 +133,8 @@ export class SoloLevelingCinematic {
     sub('SHADOW_MONARCH_DUEL_END', (p) => this._onDuelEnd(p ?? {}))
     // Live duel HUD HP feed.
     sub('SHADOW_MONARCH_DUEL_HP', (p) => this._onDuelHp(p ?? {}))
+    // Persistent corner HP bar feed (while Jinwoo roams, before the duel).
+    sub('SHADOW_MONARCH_HP', (p) => this._onCornerHp(p ?? {}))
     // Lift the vignette (and tear down any lingering card) the moment the
     // Monarch is gone, or at day end as a catch-all.
     sub('ADVENTURER_DIED', (p) => { if (p?.adventurer?._shadowMonarch) this._end() })
@@ -125,8 +143,44 @@ export class SoloLevelingCinematic {
   }
 
   _onBegan() {
+    this._duelStarted = false   // corner HP bar is allowed again this event
     this._startVignette()
     this._playEntrance()
+  }
+
+  // ── Persistent corner HP bar (upper-left, before the duel) ────────────────
+  // Built lazily on the first HP feed (i.e. once Jinwoo has actually spawned),
+  // updated live, and suppressed once the duel begins (the two-bar duel header
+  // takes over there).
+  _onCornerHp({ frac = 1, hp, maxHp, name } = {}) {
+    if (this._duelStarted) return
+    if (!this._cornerHp) this._buildCornerHp(name)
+    if (this._cornerFill) this._cornerFill.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`
+    if (this._cornerNum && hp != null && maxHp != null) this._cornerNum.textContent = `${hp} / ${maxHp}`
+  }
+
+  _buildCornerHp(name) {
+    if (this._cornerHp) return
+    const fill = h('div', { className: 'qf-sl-corner-fill' })
+    const num  = h('div', { className: 'qf-sl-corner-num' }, '')
+    this._cornerFill = fill
+    this._cornerNum  = num
+    this._cornerHp = h('div', { className: 'qf-sl-corner' }, [
+      h('div', { className: 'qf-sl-corner-name' }, String(name || 'THE SHADOW MONARCH').toUpperCase()),
+      h('div', { className: 'qf-sl-corner-track' }, [fill, num]),
+    ])
+    this._stage.appendChild(this._cornerHp)
+    // eslint-disable-next-line no-unused-expressions
+    this._cornerHp.offsetHeight
+    this._cornerHp.classList.add('show')
+  }
+
+  _hideCornerHp() {
+    if (!this._cornerHp) return
+    const el = this._cornerHp
+    this._cornerHp = null; this._cornerFill = null; this._cornerNum = null
+    el.classList.remove('show')
+    setTimeout(() => el.remove(), 400)
   }
 
   // ── Persistent vignette ────────────────────────────────────────────────
@@ -142,6 +196,8 @@ export class SoloLevelingCinematic {
 
   _end() {
     this._clearTimers()
+    this._duelStarted = false
+    this._hideCornerHp()
     this._hideLetterbox()
     this._hideDuelHud()
     if (this._el) { this._el.remove(); this._el = null }
@@ -300,6 +356,9 @@ export class SoloLevelingCinematic {
 
   // ── Duel VS card ─────────────────────────────────────────────────────────
   _onDuel({ bossName = 'YOUR BOSS', shadows = 0, buff = 1 } = {}) {
+    // Hand off from the persistent corner bar to the cinematic two-bar header.
+    this._duelStarted = true
+    this._hideCornerHp()
     this._showLetterbox()
     this._showDuelHud(bossName)
     if (this._vs) this._vs.remove()
@@ -363,5 +422,7 @@ export class SoloLevelingCinematic {
     this._finale?.remove(); this._finale = null
     this._duelHud?.remove(); this._duelHud = null
     this._advFill = null; this._bossFill = null
+    this._cornerHp?.remove(); this._cornerHp = null
+    this._cornerFill = null; this._cornerNum = null
   }
 }

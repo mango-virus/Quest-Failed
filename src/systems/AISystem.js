@@ -959,6 +959,25 @@ export class AISystem {
   update(delta) {
     const active = this._gameState.adventurers.active
 
+    // Solo Leveling — throttled HP feed (~10/s) for the persistent corner HP
+    // bar (SoloLevelingCinematic) shown while Jinwoo roams the dungeon. Only
+    // emits when a live Shadow Monarch is present; the bar hides itself once
+    // the boss duel begins (the duel has its own two-bar header).
+    this._smHpAccum = (this._smHpAccum ?? 0) + delta
+    if (this._smHpAccum >= 100) {
+      this._smHpAccum = 0
+      const jin = active.find(a => a._shadowMonarch && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+      if (jin) {
+        const mx = jin.resources?.maxHp ?? jin.resources?.hp ?? 1
+        EventBus.emit('SHADOW_MONARCH_HP', {
+          hp:    Math.max(0, Math.round(jin.resources?.hp ?? 0)),
+          maxHp: Math.max(1, Math.round(mx)),
+          frac:  mx > 0 ? Math.max(0, Math.min(1, (jin.resources?.hp ?? 0) / mx)) : 0,
+          name:  jin.name ?? 'THE SHADOW MONARCH',
+        })
+      }
+    }
+
     // Tile occupancy map for this tick — used to keep adventurers from
     // physically overlapping each other while walking. Built once per
     // update so every adventurer sees a consistent snapshot.
