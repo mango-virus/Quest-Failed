@@ -433,7 +433,15 @@ export class MinionRenderer {
       // minion's position / visibility / teardown). Scaled to the sprite's
       // rendered height so it engulfs the minion like an aura regardless of
       // minion size; sent to back so the minion always renders in front.
-      if (m._shadowExtracted && !s.shadowFlame && this._scene.textures.exists('vfx-shadow-flame')) {
+      // A dead shadow minion loses its flame — the aura is extinguished the
+      // moment it falls, leaving just the corpse. Destroyed (not hidden) so it
+      // can't re-spawn while the corpse lingers; the creation guard below also
+      // skips dead minions.
+      if (isDead && s.shadowFlame) {
+        s.shadowFlame.destroy()
+        s.shadowFlame = null
+      }
+      if (m._shadowExtracted && !isDead && !s.shadowFlame && this._scene.textures.exists('vfx-shadow-flame')) {
         if (!this._scene.anims.exists('vfx-shadow-flame-loop')) {
           const tex = this._scene.textures.get('vfx-shadow-flame')
           if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
@@ -458,7 +466,7 @@ export class MinionRenderer {
       // Cycle the shadow minion's flame tint each frame — the same RGB-style
       // blue↔black gradient sweep Jinwoo has (matched palette). Jinwoo's own
       // flame runs a bluer variant so he reads as uniquely "more blue".
-      if (m._shadowExtracted && s.shadowFlame) {
+      if (m._shadowExtracted && !isDead && s.shadowFlame) {
         const k   = (Math.sin(now / 650) + 1) / 2   // 0..1 cycle
         const top = _lerpHex(0x0a2a6b, 0x4aa0ff, k)  // deep-blue → bright-blue
         const bot = _lerpHex(0x02040a, 0x123a8c, k)  // near-black → deep-blue
