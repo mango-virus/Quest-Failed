@@ -398,7 +398,7 @@
     "id": "untouchable",
     "name": "Untouchable",
     "description": "Survive a full day without losing a single minion.",
-    "category": "mastery",
+    "category": "combat",
     "metric": "noMinionsLostInDayEver",
     "target": 1,
     "icon": "💎",
@@ -408,7 +408,7 @@
     "id": "total_annihilation",
     "name": "Total Annihilation",
     "description": "Kill every member of a party in a single day.",
-    "category": "mastery",
+    "category": "combat",
     "metric": "partyWipedInDayEver",
     "target": 1,
     "icon": "🔥"
@@ -417,7 +417,7 @@
     "id": "trap_master",
     "name": "Trap Master",
     "description": "Kill 5 adventurers with traps in a single day.",
-    "category": "mastery",
+    "category": "combat",
     "metric": "trapKillsInDayMax",
     "target": 5,
     "icon": "🎯"
