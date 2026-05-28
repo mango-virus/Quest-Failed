@@ -32,6 +32,10 @@ import { getUnlockedBossIds } from '../data/bossUnlocks.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
 import { GameRequests } from '../systems/GameRequests.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
+import { TitlePickerOverlay } from './TitlePickerOverlay.js'
+import {
+  titleFxClassById, titleFxBorderClassById, titleColorById,
+} from './titleFx.js'
 
 // Title-screen boss video pool. File pattern is `assets/title-screen/
 // videos/bgNN.mp4` where NN is the zero-padded number from the list
@@ -151,6 +155,7 @@ export class MainMenuOverlay {
     this._onNameChanged = () => {
       if (this._closed || !this._el) return
       this._refreshPlayerName()
+      this._refreshTitlePill()
       this._refreshMenuItems()
     }
     EventBus.on('NAME_CHANGED', this._onNameChanged)
@@ -190,6 +195,8 @@ export class MainMenuOverlay {
     this._confirm = null
     this._nameEntry?.close()
     this._nameEntry = null
+    this._titlePicker?.close()
+    this._titlePicker = null
     this._devTools?.close()
     this._devTools = null
     // Close the unlock-notification overlay if it's still up (player
@@ -257,6 +264,11 @@ export class MainMenuOverlay {
           // their name from the title screen at any time (drives the
           // per-name boss-level unlock progression in PlayerProfile).
           this._renderPlayerName(),
+          // Equipped-title pill — shows the title the player is currently
+          // wearing (rendered in its own fx/colour), click to change it
+          // via TitlePickerOverlay. Hidden entirely until they unlock
+          // their first title.
+          this._renderTitlePill(),
           h('div', { className: 'pix qf-mm-eyebrow-sm mm-logo-eyebrow' },
             'YOUR REIGN, MY LORD'),
           h('div', {
@@ -529,6 +541,71 @@ export class MainMenuOverlay {
     ])
   }
 
+  // ─── Equipped title ────────────────────────────────────────────
+  // Pill beneath the player-name button showing the title the player is
+  // currently wearing — drawn in the title's own signature look (animated
+  // gradient for the legendary fx titles, solid signature colour for the
+  // normal coloured ones, gold fallback otherwise). Click opens the
+  // TitlePickerOverlay so they can swap it without leaving the menu.
+  // Returns null (renders nothing) until the player has unlocked a title.
+  _renderTitlePill() {
+    const active = PlayerProfile.getActiveTitle()
+    // Wrap so _refreshTitlePill can surgically swap the inner pill on
+    // change without re-rendering the whole panel head (which would
+    // recreate the boss-video element and blank the stage).
+    return h('div', {
+      className: 'qf-mm-titlepill-wrap',
+      ref: el => { this._refs = { ...(this._refs || {}), titlePill: el } },
+    }, active ? [this._buildTitlePillButton(active)] : [])
+  }
+
+  _buildTitlePillButton(active) {
+    const count    = PlayerProfile.getUnlockedTitles().length
+    const fxBorder = titleFxBorderClassById(active.id)
+    const tColor   = fxBorder ? null : titleColorById(active.id)
+    return h('button', {
+      className: ('qf-mm-titlepill ' + fxBorder).trimEnd(),
+      title: `Change your equipped title (currently ${active.name})`,
+      'aria-label': `Change equipped title from ${active.name}`,
+      style: tColor
+        ? { borderColor: tColor, boxShadow: `0 0 16px ${tColor}55` }
+        : undefined,
+      on: { click: () => this._openTitlePicker() },
+    }, [
+      h('div', { className: 'pix qf-mm-titlepill-eyebrow' },
+        count > 1 ? 'EQUIPPED TITLE · CLICK TO CHANGE'
+                  : 'EQUIPPED TITLE'),
+      h('div', { className: 'qf-mm-titlepill-row' }, [
+        h('span', { className: 'qf-mm-titlepill-icon' }, '✦'),
+        h('span', {
+          className: ('pix qf-mm-titlepill-name ' + titleFxClassById(active.id)).trimEnd(),
+          style: tColor ? { color: tColor } : undefined,
+        }, active.name),
+        count > 1 && h('span', { className: 'qf-mm-titlepill-count' },
+          `· ${count} unlocked ▼`),
+      ]),
+    ])
+  }
+
+  // Open the standalone title picker. Refreshes the pill on every pick so
+  // the menu reflects the new title live while the modal stays open.
+  _openTitlePicker() {
+    if (this._titlePicker) return
+    this._titlePicker = new TitlePickerOverlay({
+      onChange: () => this._refreshTitlePill(),
+      onClose:  () => { this._titlePicker = null; this._refreshTitlePill() },
+    })
+    this._titlePicker.open()
+  }
+
+  // Surgically rebuild the title pill in place (e.g. after a pick).
+  _refreshTitlePill() {
+    const wrap = this._refs?.titlePill
+    if (!wrap) return
+    const active = PlayerProfile.getActiveTitle()
+    wrap.replaceChildren(...(active ? [this._buildTitlePillButton(active)] : []))
+  }
+
   // Open NameEntryOverlay seeded with the current name (if any). Saves on
   // confirm and surgically refreshes the player-name pill so the rest of
   // the menu (boss-video chain in particular) keeps playing untouched.
@@ -546,6 +623,9 @@ export class MainMenuOverlay {
         PlayerProfile.setName(n)
         this._nameEntry = null
         this._refreshPlayerName()
+        // Titles are per-name — swapping names swaps the unlocked set, so
+        // re-derive the equipped-title pill for the new identity.
+        this._refreshTitlePill()
         this._refreshMenuItems()
       },
       onCancel: () => { this._nameEntry = null },
@@ -567,6 +647,7 @@ export class MainMenuOverlay {
         PlayerProfile.setName(n)
         this._nameEntry = null
         this._refreshPlayerName()
+        this._refreshTitlePill()
         this._refreshMenuItems()
         if (typeof after === 'function') after()
       },
