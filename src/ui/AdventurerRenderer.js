@@ -1007,11 +1007,12 @@ export class AdventurerRenderer {
           repeat: -1,
         })
       }
-      // Centre-anchored and positioned so the flame's CONTENT centre lands on
-      // Jinwoo's body centre (~container 0,-13). The flame art leans slightly
-      // up-and-left within its frame, so x=+7 / y=-11 (with origin 0.5,0.5)
-      // compensates that lean; 2.3× engulfs his ~0.75-scale body.
-      const flame = this._scene.add.sprite(7, -11, 'vfx-shadow-flame', 0)
+      // Centre-anchored (origin 0.5,0.5) and positioned so the flame's measured
+      // content BASE sits at Jinwoo's feet (~container y+6.5) and rises up
+      // around his body. The flame art leans up-and-left in its frame, so x=+7
+      // re-centres it horizontally; y=-30 drops the base to his feet; 2.3×
+      // engulfs his ~0.75-scale body.
+      const flame = this._scene.add.sprite(7, -30, 'vfx-shadow-flame', 0)
         .setOrigin(0.5, 0.5)
         .setScale(2.3)
       flame.anims.play('vfx-shadow-flame-loop', true)
