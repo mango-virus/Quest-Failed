@@ -2353,17 +2353,19 @@ export class BossSystem {
 
   // Solo Leveling — the duel's outcome is decided by a weighted coin flip on
   // Jinwoo's HP fraction WHEN THE FIGHT STARTS (not by the combat sim):
-  //   70–100% HP → Monarch favoured (ramps to 90% at full)
+  //   90–100% HP → GUARANTEED Monarch win
+  //   60–89%  HP → Monarch favoured (ramps 50% → 100% across the band)
   //   40–60%  HP → a true 50/50 coin flip
   //   10–39%  HP → boss favoured (down to 10% at one-tenth HP)
-  // Clamped to [10%, 90%] so an upset is always possible.
+  // Low end is clamped to 10% so an upset (Monarch win) is still possible there.
   _duelWinChance(h) {
     h = Math.max(0, Math.min(1, h ?? 1))
     let p
-    if      (h >= 0.60) p = 0.50 + (h - 0.60) / 0.40 * 0.40   // 0.60→.50 … 1.0→.90
+    if      (h >= 0.90) p = 1.00                              // 90–100% → always win
+    else if (h >= 0.60) p = 0.50 + (h - 0.60) / 0.30 * 0.50   // 0.60→.50 … 0.90→1.0
     else if (h >= 0.40) p = 0.50                              // coin-flip plateau
     else                p = 0.50 - (0.40 - h) / 0.30 * 0.40   // 0.40→.50 … 0.10→.10
-    return Math.max(0.10, Math.min(0.90, p))
+    return Math.max(0.10, Math.min(1.00, p))
   }
 
   // Roll the winner once (weighted by entry HP) and lay out a HP-drain plan:
