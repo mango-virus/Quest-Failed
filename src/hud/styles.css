@@ -7499,7 +7499,16 @@ body {
   color: var(--text-mute); letter-spacing: 1px;
 }
 
-.qf-mm-items { display: flex; flex-direction: column; gap: 6px; }
+/* Two-column grid (2026-05-27) — the menu grew to 8 items and a single
+   tall column read as cluttered. Lay them out side-by-side, two per row,
+   flowing top-to-bottom. align-items:stretch keeps both buttons in a row
+   the same height even when one's sub-line wraps to two lines. */
+.qf-mm-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
 .qf-mm-item {
   width: 100%;
   justify-content: center;
