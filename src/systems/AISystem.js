@@ -2125,10 +2125,25 @@ export class AISystem {
           }
         }
       }
+      // The room the adv is STANDING IN right now. Tiles in this room are
+      // exempt from the trap/minion avoidance penalty below — see the
+      // commit-to-cross note in the cost-fn. (2026-05-27)
+      const currentRoomId = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId ?? null
       const costFn = (tx, ty) => {
         if (!useKnowledgeCost) return 1
         const room = this._dungeonGrid?.getRoomAtTile?.(tx, ty)
         if (!room) return 1
+        // Commit-to-cross (2026-05-27 floor-spike oscillation fix). The
+        // room the adv is ALREADY inside gets no avoidance penalty. The
+        // 5× trap penalty is meant to deter ENTERING a trapped room from
+        // outside — but once the adv is in it, penalizing it just makes
+        // A* prefer backtracking out and detouring around. Combined with
+        // the per-path jitter (and the spike re-clearing the path every
+        // ~4s on each hit), that flip-flops the route and produces the
+        // "walk over the floor spikes, back out, walk in again" loop the
+        // player kept seeing. Exempting the current room means once they
+        // commit they cross via the shortest path and leave.
+        if (room.instanceId === currentRoomId) return 1
         // Locked-room defensive cost (matches legacy
         // KnowledgeSystem.costMultiplierForTile behavior — locked doors
         // are hard-blocked via blockedForAdv but this guards any bypass
