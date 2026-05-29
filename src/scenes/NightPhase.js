@@ -3379,11 +3379,24 @@ export class NightPhase extends Phaser.Scene {
     let forceRoomMove = false
     if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
       const hereRoom = this._dungeonGrid.getRoomAtTile?.(tx, ty)
+      // Normally only a flagged DISCONNECTED room may be moved (drag the island
+      // back onto the graph). Exception: when the disconnected offender is
+      // itself UNMOVABLE — an isolated boss chamber or a fixed room — there's no
+      // way to drag the island, so allow moving ANY room and let the player
+      // bridge a CONNECTED room over to it instead. The boss/fixed room itself
+      // still can't be picked up (the room-move body below rejects it with the
+      // proper message).
+      const allRooms       = this.cache.json.get('rooms') ?? []
+      const dungeonRooms   = this._gameState.dungeon?.rooms ?? []
+      const isUnmovable = (r) => !r || r.definitionId === 'boss_chamber' ||
+        !!(allRooms.find(d => d.id === r.definitionId)?.placementRules?.fixed)
+      const offenderUnmovable = [...this._disconnectedRoomIds]
+        .some(id => isUnmovable(dungeonRooms.find(r => r.instanceId === id)))
       const canFix = this._disconnectErrorShown && hereRoom &&
-        this._disconnectedRoomIds.has(hereRoom.instanceId)
+        (this._disconnectedRoomIds.has(hereRoom.instanceId) || offenderUnmovable)
       if (!canFix) {
         this._showPlacementError(this._disconnectErrorShown
-          ? 'The Insomniac — only a disconnected room may be moved'
+          ? 'The Insomniac — move a room to reconnect the dungeon (disconnected rooms glow red)'
           : 'The Insomniac — the dungeon is sealed tonight')
         return
       }
