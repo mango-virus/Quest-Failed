@@ -15,6 +15,16 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 7,
+    version: '0.1.8',
+    date: 'May 2026',
+    title: 'Wave Tracker & Treasury',
+    items: [
+      { icon: '📊', text: 'A bar under the day counter tracks your kills vs escapes each wave.' },
+      { icon: '💎', text: 'Treasure chests and the treasury now pay more as your dungeon grows.' },
+    ],
+  },
+  {
     id: 6,
     version: '0.1.7',
     date: 'May 2026',
