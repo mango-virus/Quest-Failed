@@ -36,6 +36,15 @@ const BOOK = {
   turnF: 'assets/sprites/pact-book/Turning_pages_left.png',
   turnB: 'assets/sprites/pact-book/Turning_pages_right.png',
 }
+// Black-leather variant for the all-Damned "black grimoire" — same sheets
+// recoloured (blue leather -> near-black) by tools/recolor-pact-book-black.mjs,
+// keeping the gold filigree and cream pages intact.
+const BOOK_BLACK = {
+  open:  'assets/sprites/pact-book-black/Open_book.png',
+  close: 'assets/sprites/pact-book-black/Close_book.png',
+  turnF: 'assets/sprites/pact-book-black/Turning_pages_left.png',
+  turnB: 'assets/sprites/pact-book-black/Turning_pages_right.png',
+}
 // The book starts on frame 0 (the closed cover) and opens to frame 11
 // (full spread); the close runs the whole way back to a fully-shut book.
 // The page-turn sheets are 4×4 but their 16th cell (frame 15) is an
@@ -359,6 +368,9 @@ export class PactPicker {
 
   _build() {
     const hasLegendary = this._offers.some(o => (o?.rarity ?? '') === 'legendary')
+    // Black grimoire uses the black-leather sprite set (gold writing intact);
+    // normal pacts use the purple book.
+    const book = this._blackGrimoire ? BOOK_BLACK : BOOK
 
     // One layer per sheet, each with its background-image set ONCE so the
     // browser never re-decodes mid-animation. Inactive layers sit at a
@@ -366,13 +378,13 @@ export class PactPicker {
     // decoded bitmap dropped, which flashed the book blank on the next
     // page-turn; 0.004 keeps them painted (decode warm) yet invisible.
     this._layerOpen  = h('div', { className: 'qf-ip-book-layer',
-      style: { backgroundImage: `url(${BOOK.open})`,  backgroundSize: '400% 300%' } })
+      style: { backgroundImage: `url(${book.open})`,  backgroundSize: '400% 300%' } })
     this._layerTurnF = h('div', { className: 'qf-ip-book-layer',
-      style: { backgroundImage: `url(${BOOK.turnF})`, backgroundSize: '400% 400%', opacity: '0.004' } })
+      style: { backgroundImage: `url(${book.turnF})`, backgroundSize: '400% 400%', opacity: '0.004' } })
     this._layerTurnB = h('div', { className: 'qf-ip-book-layer',
-      style: { backgroundImage: `url(${BOOK.turnB})`, backgroundSize: '400% 400%', opacity: '0.004' } })
+      style: { backgroundImage: `url(${book.turnB})`, backgroundSize: '400% 400%', opacity: '0.004' } })
     this._layerClose = h('div', { className: 'qf-ip-book-layer',
-      style: { backgroundImage: `url(${BOOK.close})`, backgroundSize: '400% 300%', opacity: '0.004' } })
+      style: { backgroundImage: `url(${book.close})`, backgroundSize: '400% 300%', opacity: '0.004' } })
     this._bookEl    = h('div', { className: 'qf-ip-book' }, [
       this._layerOpen, this._layerTurnF, this._layerTurnB, this._layerClose,
     ])

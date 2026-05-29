@@ -1787,35 +1787,35 @@ body {
   animation: pulse-glow 2.4s ease-in-out infinite;
 }
 
-/* Pay-to-revive button — anchored to the far left of the bar (sits just below
-   the construction menu), styled to match BEGIN DAY: a .btn.primary with the
-   same padding + pulse-glow. */
+/* Pay-to-revive — a compact GREEN action in the right menu group, next to
+   ROSTER (minion-management corner). Inherits .qf-bb-menu sizing; the green
+   fill marks it as an action rather than a nav button. */
 .qf-bb-revive {
-  position: absolute;
-  left: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  animation: pulse-glow 2.4s ease-in-out infinite;
+  gap: 5px;
+  background: linear-gradient(180deg, var(--poison) 0%, #3f6322 100%);
+  border-color: #8fce5a;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
 }
-.qf-bb-revive .qf-bb-revive-main { display: inline-flex; align-items: center; gap: 6px; }
-.qf-bb-revive .qf-bb-revive-icon { font-size: 13px; line-height: 1; }
+.qf-bb-revive:hover {
+  background: linear-gradient(180deg, #7fb845 0%, var(--poison) 100%);
+}
+.qf-bb-revive .qf-bb-revive-icon { color: #eaffd6; }
 .qf-bb-revive .qf-bb-revive-cost {
-  font-size: 9px;
-  letter-spacing: 1px;
-  color: var(--gold-bright, #ffd964);
-  padding-left: 8px;
-  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: #eaffd6;
+  padding-left: 5px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
 }
 .qf-bb-revive.cant-afford {
-  opacity: 0.55;
-  animation: none;
+  opacity: 0.5;
   cursor: not-allowed;
+  filter: grayscale(0.4);
 }
-.qf-bb-revive.cant-afford .qf-bb-revive-cost { color: var(--hp-low, #ff6b6b); }
+.qf-bb-revive.cant-afford .qf-bb-revive-cost { color: #ffd2cf; }
 
 /* Speed control (day phase) */
 .qf-bb-speed {
@@ -6772,35 +6772,13 @@ body {
 .qf-ip-book-wrap.is-shut .qf-ip-page { opacity: 0; }
 
 /* ── Black grimoire — an all-Damned hand ──
-   The purple tome is rendered to charred black via a grayscale+darken
-   filter. Because that also darkens the cream pages, the page text is
-   re-lit to ash-parchment / blood tones so it stays legible; the chrome
-   (bookmarks, ritual circle, stamp) already runs black-with-blood off the
-   `damned` rarity vars set by _renderPage. */
-.qf-ip[data-grimoire="black"] .qf-ip-book {
-  filter: drop-shadow(0 24px 34px rgba(0,0,0,0.9)) grayscale(1) brightness(0.30) contrast(1.18);
-}
-.qf-ip[data-grimoire="black"] .qf-ip-page { color: #d8c8b0; }
-.qf-ip[data-grimoire="black"] .qf-ip-pg-kicker { color: #b8a890; }
-.qf-ip[data-grimoire="black"] .qf-ip-summon-name {
-  color: #ecdcc6; text-shadow: 0 1px 2px rgba(0,0,0,0.85);
-}
+   The book is a real recoloured sprite now (black leather, gold filigree and
+   cream pages intact — tools/recolor-pact-book-black.mjs), so NO darkening
+   filter is applied and the cream pages keep their normal dark page text. We
+   only tint the DAMNED stamp blood-red and cool the ambient ritual circle. */
 .qf-ip[data-grimoire="black"] .qf-ip-summon-stamp {
-  color: #d4555f; border-color: #d4555f; opacity: 0.95;
+  color: #d4555f; border-color: #d4555f;
 }
-.qf-ip[data-grimoire="black"] .qf-ip-pact-deal .qf-ip-pact-word {
-  color: #e0bb63; text-shadow: 0 1px 2px rgba(0,0,0,0.85);
-}
-.qf-ip[data-grimoire="black"] .qf-ip-pact-deal .qf-ip-pact-body { color: #ddccac; }
-.qf-ip[data-grimoire="black"] .qf-ip-pact-price .qf-ip-pact-word {
-  color: #ff7a82; text-shadow: 0 0 6px rgba(180,20,28,0.6);
-}
-.qf-ip[data-grimoire="black"] .qf-ip-pact-price .qf-ip-pact-body {
-  color: #f2a4a8; text-shadow: 0 0 2px rgba(0,0,0,0.7);
-}
-.qf-ip[data-grimoire="black"] .qf-ip-sign-label { color: #b8a890; }
-.qf-ip[data-grimoire="black"] .qf-ip-sign-line { border-bottom-color: #c8b8a0; }
-/* Drain the ambient ritual circle to a colder, dimmer cast for the black hand. */
 .qf-pact-picker[data-grimoire="black"] .qf-ip-circle { filter: saturate(0.25) brightness(0.62); }
 
 /* DAMNED · Blind Architect — hide the knowledge minimap while the curse is
