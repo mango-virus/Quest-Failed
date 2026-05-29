@@ -210,7 +210,7 @@
   {
     "id": "patch_zero",
     "title": "PATCH 0.0.0",
-    "notif": "The server pushed a broken patch. Every adventurer today is a Cheater — anti-cheat disabled, all cheats buffed, kills pay double. Random admin console commands fire on the dungeon as the build self-destructs.",
+    "notif": "A broken patch hits — every adventurer today is a buffed Cheater, anti-cheat off, and kills pay double. Random admin commands fire on the dungeon.",
     "icon": "💾",
     "colorTheme": "rgb",
     "minBossLevel": 2
@@ -226,7 +226,7 @@
   {
     "id": "demons_wager",
     "title": "THE DEMON'S WAGER",
-    "notif": "A demon offers a wager tonight — your boss level on a coin flip. WIN: level up immediately. LOSE: drop a level and lose every benefit that came with it.",
+    "notif": "A demon wagers your boss level on a coin flip — WIN: level up now. LOSE: drop a level and lose every benefit it brought.",
     "icon": "👹",
     "colorTheme": "violet",
     "minBossLevel": 2
@@ -234,7 +234,7 @@
   {
     "id": "tinkerers_workshop",
     "title": "THE TINKERER'S WORKSHOP",
-    "notif": "A goblin tinkerer arrives tonight — pick one of three room upgrades. The chosen upgrade affects every current and future room of that type for the rest of the run.",
+    "notif": "A goblin tinkerer arrives tonight — pick one of three room upgrades. It applies to every room of that type for the rest of the run.",
     "icon": "🛠️",
     "colorTheme": "gold",
     "minBossLevel": 1
@@ -250,7 +250,7 @@
   {
     "id": "boss_royale",
     "title": "BOSS ROYALE",
-    "notif": "Every rival overlord descends at once — one of each kind, 11 bosses storming the dungeon for a single day, all hunting your throne. No adventurers today. Survive the gauntlet.",
+    "notif": "Every rival overlord descends at once — 11 bosses storm your throne for a single day, no adventurers. Survive the gauntlet.",
     "icon": "👑",
     "colorTheme": "crimson",
     "minBossLevel": 1
@@ -258,7 +258,7 @@
   {
     "id": "treasure_hunters",
     "title": "TREASURE HUNTERS",
-    "notif": "Word of your hoard got out — a raiding party storms in for your gold, not your throne. They ransack the dungeon and flee with everything they can carry: let the whole wave escape and you lose up to 80% of your treasury — cut them down before they get out and your gold stays safe. (Treasure chests can't be sold tonight.)",
+    "notif": "Raiders storm in for your GOLD, not your throne. Let the whole wave escape and you lose up to 80% of your treasury — cut them down to keep it safe.",
     "icon": "🗝️",
     "colorTheme": "gold",
     "minBossLevel": 1
@@ -266,7 +266,7 @@
   {
     "id": "goblin_market",
     "title": "GOBLIN MARKET",
-    "notif": "A goblin peddler sets up shop tonight only — every price in the build menu is scrambled. Some are steep bargains, others are shameless ripoffs. Check the tags and stock up on the deals.",
+    "notif": "A goblin peddler sets up shop tonight only — every build-menu price is scrambled into bargains or ripoffs. Check the tags and grab the deals.",
     "icon": "🪙",
     "colorTheme": "gold",
     "minBossLevel": 1
@@ -274,7 +274,7 @@
   {
     "id": "solo_leveling",
     "title": "SOLO LEVELING",
-    "notif": "One man enters — the Shadow Monarch. He ignores nothing, raises your fallen minions as his shadow army, and marches on your throne to duel you as an equal. Arise.",
+    "notif": "One man enters — the Shadow Monarch. He raises your fallen minions as his shadow army and marches on your throne to duel you. Arise.",
     "icon": "🗡️",
     "colorTheme": "shadowmonarch",
     "minBossLevel": 1
