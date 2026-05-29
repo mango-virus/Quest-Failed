@@ -14,14 +14,15 @@
 <!--
   Boot loader — visible the moment the HTML parses (before Phaser even
   initializes). Uses the same Crypt CSS tokens as the rest of the HUD
-  (.panel.bevel.ornate corner brackets, --blood / --gold / --pix). The
+  (.panel.bevel, --blood / --gold / --pix; the ornate red corner brackets
+  were removed). The
   bar is filled by Preload._wireBootLoader (32 discrete blocks); the
   flavour line cycles per load category; the sconces sine-flicker via
   CSS keyframes. Removed from the DOM by Preload._dismissBootLoader
   once asset loading finishes.
 -->
 <div id="boot-loader" class="boot-loader" role="status" aria-live="polite">
-  <div class="boot-loader__panel panel bevel ornate">
+  <div class="boot-loader__panel panel bevel">
     <div class="boot-loader__title">
       <i class="diamond gold sm"></i>
       <span>LOADING THE CRYPT</span>
