@@ -3041,8 +3041,10 @@ export class NightPhase extends Phaser.Scene {
         h('div', { className: 'qf-event-prompt-label pix' }, lbl),
         h('div', { className: 'qf-event-prompt-value pix' }, val),
       ])
+    // No explicit PAY row — the cost lives on the UPGRADE button itself
+    // (`UPGRADE (${cost}g)` below) so showing it again here would be a
+    // duplicate readout.
     const messageNode = h('div', { className: 'qf-event-prompt' }, [
-      _row('cost',   'PAY',     `${cost}g`),
       _row('reward', 'UPGRADE', rewardValue),
       _row('win',    'HP',      `${curHp} → ${nHp}`),
       _row('win',    'ATK',     `${curAtk} → ${nAtk}`),
