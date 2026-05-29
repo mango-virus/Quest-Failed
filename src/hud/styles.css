@@ -11738,7 +11738,9 @@ body {
 .qf-ach-card {
   position: relative;
   background: var(--bg-1);
-  border: 2px solid var(--text-mute);
+  /* Thin 1px frame — the per-category / per-tier / legendary rules below only
+     override border-COLOR, so they all inherit this width. Colours unchanged. */
+  border: 1px solid var(--text-mute);
   box-shadow: 0 0 0 2px #000, 0 4px 12px rgba(0, 0, 0, 0.5);
   padding: 12px 14px;
   min-height: 90px;
@@ -11855,7 +11857,7 @@ body {
 .qf-ach-card[data-unlocked="true"][data-legendary="true"] {
   position: relative;
   overflow: hidden;
-  border-width: 2px;
+  border-width: 1px;
   border-color: var(--gold-bright, #ffd964);
   background:
     radial-gradient(ellipse at top, color-mix(in srgb, var(--gold-bright, #ffd964) 10%, transparent), transparent 70%),
