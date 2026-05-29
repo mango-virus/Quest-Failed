@@ -155,6 +155,11 @@ export class DayPhase extends Phaser.Scene {
         // day in 1.5s (same path as a normal cleared wave).
         this._handleSpawnFailure()
       }
+      // Wave-progress bar (TopBar): publish the day's threat count + label so
+      // the bar under DAY knows its denominator. adventurers.active is fully
+      // populated here (normal wave + any additive event entrants like the
+      // Tournament rivals / Saboteur).
+      EventBus.emit('DAY_WAVE_INFO', this._waveInfo())
     }
     if (_useNewHud) {
       const onFinish = ({ phase } = {}) => {
@@ -1758,6 +1763,27 @@ export class DayPhase extends Phaser.Scene {
   // extras. Mirrors the `baseCount` build-up in the regular spawn flow
   // (minus event modifiers). Used by replacement events (Rival Dungeon)
   // that want to match the wave the player would otherwise have faced.
+  // Wave-progress bar descriptor for the TopBar (DAY_WAVE_INFO payload):
+  //   { total, label, mode }
+  //   mode 'bar'   — fixed-size wave; bar fills green (kills) + orange (escapes)
+  //   mode 'count' — endless/unknown wave (Twitch Con); numbers only, no fill
+  //   mode 'none'  — no wave today (intended rest day); hide the bar
+  // total counts every threat in adventurers.active at day start (all share
+  // the ADVENTURER_DIED / ADVENTURER_FLED events the bar tallies).
+  _waveInfo() {
+    const ef = this._gameState._eventFlags ?? {}
+    const n  = (this._gameState.adventurers?.active ?? []).length
+    if (this._noSpawnReason || n === 0) return { total: 0, label: '', mode: 'none' }
+    if (ef.twitchConActive)       return { total: null, label: 'STREAMERS',      mode: 'count' }
+    if (ef.bossRoyaleActive)      return { total: n,    label: 'INVADERS',       mode: 'bar' }
+    if (ef.rivalDungeonActive)    return { total: n,    label: 'INVADERS',       mode: 'bar' }
+    if (ef.zombieHordeActive)     return { total: n,    label: 'HORDE',          mode: 'bar' }
+    if (ef.bountyHuntersActive)   return { total: n,    label: 'HUNTERS',        mode: 'bar' }
+    if (ef.soloLevelingActive)    return { total: n,    label: 'SHADOW MONARCH', mode: 'bar' }
+    if (ef.lootGoblinHeistActive) return { total: n,    label: 'RAIDERS',        mode: 'bar' }
+    return { total: n, label: 'ADVENTURERS', mode: 'bar' }
+  }
+
   _normalWaveSize() {
     const day = this._gameState.meta?.dayNumber ?? 1
     let n = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)

@@ -19,6 +19,8 @@ export class TopBar {
     this._gameState = gameState
     this._listeners = []
     this._tweenCancel = null
+    // Wave-progress bar state — driven by DAY_WAVE_INFO + the kill/flee events.
+    this._wave = { total: 0, killed: 0, escaped: 0, label: '', mode: 'none' }
 
     // Cached previous values so we only mutate the DOM on change.
     this._prev = {
@@ -118,13 +120,22 @@ export class TopBar {
       // CENTER — day stamp
       h('div', { className: 'qf-topbar-center' }, [
         h('div', {
-          className: 'pix qf-phase-eyebrow',
-          ref: el => { this._refs.phaseEyebrow = el },
-        }, 'NIGHTFALL · BUILD'),
-        h('div', {
           className: 'pix qf-day-number',
           ref: el => { this._refs.dayNumber = el },
         }, 'DAY 1'),
+        // WAVE PROGRESS — total threats today, filled green (killed) +
+        // orange (escaped). Shown only during the day phase (see _renderWaveBar).
+        h('div', {
+          className: 'qf-wave',
+          ref: el => { this._refs.wave = el },
+          style: { display: 'none' },
+        }, [
+          h('div', { className: 'qf-wave-track' }, [
+            h('div', { className: 'qf-wave-killed',  ref: el => { this._refs.waveKilled  = el } }),
+            h('div', { className: 'qf-wave-escaped', ref: el => { this._refs.waveEscaped = el } }),
+          ]),
+          h('div', { className: 'pix qf-wave-readout', ref: el => { this._refs.waveReadout = el } }),
+        ]),
       ]),
 
       // RIGHT — treasury
@@ -359,6 +370,62 @@ export class TopBar {
     // Re-render buff slots when a new pact seals or one drops off.
     sub('PACT_SEALED',     () => this._renderBuffSlots())
     sub('PACT_DEACTIVATED', () => this._renderBuffSlots())
+
+    // ── Wave-progress bar ──────────────────────────────────────────
+    // DayPhase publishes the day's threat count + label at day start;
+    // each kill / escape tallies into the bar.
+    sub('DAY_WAVE_INFO', (info) => {
+      this._wave = { total: info?.total ?? 0, killed: 0, escaped: 0,
+                     label: info?.label ?? '', mode: info?.mode ?? 'none' }
+      this._renderWaveBar()
+    })
+    sub('ADVENTURER_DIED', () => {
+      if (this._wave.mode === 'none') return
+      this._wave.killed++
+      this._renderWaveBar()
+    })
+    sub('ADVENTURER_FLED', () => {
+      if (this._wave.mode === 'none') return
+      this._wave.escaped++
+      this._renderWaveBar()
+    })
+    // Hide the bar outside the day phase (build night has no wave).
+    const hideWave = () => { this._wave.mode = 'none'; this._renderWaveBar() }
+    sub('NIGHT_PHASE_STARTED', hideWave)
+    sub('DAY_PHASE_ENDED',     hideWave)
+  }
+
+  // Render the wave-progress bar from `this._wave`. Green = killed, orange =
+  // escaped, dim remainder = still in the dungeon / yet to arrive. Hidden when
+  // mode 'none'; numbers-only (no fill) for endless waves (mode 'count').
+  _renderWaveBar() {
+    const w = this._wave
+    const box = this._refs.wave
+    if (!box) return
+    if (w.mode === 'none') { box.style.display = 'none'; return }
+    box.style.display = ''
+
+    const { killed: k, escaped: e, total: t, mode } = w
+    if (mode === 'bar' && t > 0) {
+      // Clamp so the two fills never exceed the track.
+      const killPct = Math.min(100, (k / t) * 100)
+      const escPct  = Math.min(100 - killPct, (e / t) * 100)
+      if (this._refs.waveKilled)  this._refs.waveKilled.style.width  = `${killPct}%`
+      if (this._refs.waveEscaped) this._refs.waveEscaped.style.width = `${escPct}%`
+    } else {
+      // Endless / unknown total — no fill target.
+      if (this._refs.waveKilled)  this._refs.waveKilled.style.width  = '0%'
+      if (this._refs.waveEscaped) this._refs.waveEscaped.style.width = '0%'
+    }
+
+    const ro = this._refs.waveReadout
+    if (ro) {
+      const parts = []
+      if (w.label && w.label !== 'ADVENTURERS') parts.push(`${w.label}  `)
+      parts.push(`<span class="k">☠ ${k}</span>  <span class="e">↗ ${e}</span>`)
+      if (mode === 'bar' && t > 0) parts.push(`  <span class="t">/ ${t}</span>`)
+      ro.innerHTML = parts.join('')
+    }
   }
 
   // Pull values from gameState; write DOM only on change. Runs ~60 Hz.
@@ -387,8 +454,6 @@ export class TopBar {
       this._refs.dayNumber.textContent = `${label} ${day}`
       this._refs.dayNumber.classList.toggle('phase-night', phase === 'night')
       this._refs.dayNumber.classList.toggle('phase-day',   phase === 'day')
-      this._refs.phaseEyebrow.textContent =
-        phase === 'night' ? 'NIGHTFALL · BUILD' : 'DAWN · INVASION'
       this._prev.day   = day
       this._prev.phase = phase
     }
