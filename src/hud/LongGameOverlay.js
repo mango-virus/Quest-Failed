@@ -26,6 +26,7 @@ export class LongGameOverlay {
       width:    760,
       height:   400,
       accent:   'var(--info)',
+      frame:    'plain',   // subtle main-menu edge instead of the accent frame
       onClose:  () => { this._overlay = null },
       body: h('div', { className: 'qf-longgame-body' }, [
         h('div', { className: 'pix qf-longgame-tagline' },

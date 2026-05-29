@@ -161,11 +161,12 @@ export class UnlockNotificationOverlay {
       // upsize the shell so the centerpiece has room to live.
       width:     isDramatic ? 560 : 460,
       height:    isDramatic ? 620 : 480,
-      // Modal shell border stays fixed blood-red across all card types
-      // so the OUTER chrome reads as a consistent "unlock" frame. The
-      // per-type accent (gold / blood / gold-bright / --cmp-accent)
-      // shows up INSIDE the card on the banner / art / name / button.
+      // Outer shell uses the subtle plain main-menu edge, matching the other
+      // overlays. The per-type accent (gold / blood / gold-bright /
+      // --cmp-accent) still shows up INSIDE the card on the banner / art /
+      // name / button.
       accent:    'var(--blood)',
+      frame:     'plain',   // subtle main-menu edge instead of the accent frame
       // 'unfurl' is the same dramatic flourish the achievements +
       // leaderboard popups use — fits the celebratory tone here.
       animation: 'unfurl',

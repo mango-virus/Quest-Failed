@@ -49,6 +49,7 @@ export class TutorialOverlay {
       width:           600,
       height,
       accent:          'var(--gold)',
+      frame:           'plain',   // subtle main-menu edge instead of the accent frame
       closeOnBackdrop: false,
       onClose:         () => { this._overlay = null },
       body: h('div', { className: 'qf-tutorial-body' }, [
