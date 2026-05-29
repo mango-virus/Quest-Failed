@@ -98,6 +98,7 @@ export class KnowledgeMapOverlay {
       width:  1400,
       height: 840,
       accent: 'var(--rumor)',
+      frame:  'plain',   // subtle main-menu edge instead of the accent frame
       animation: 'unfurl',
       onClose: () => { this._overlay = null },
       body:   this._renderBody(),

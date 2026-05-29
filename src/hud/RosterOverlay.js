@@ -53,6 +53,7 @@ export class RosterOverlay {
       width:  1300,
       height: 780,
       accent: 'var(--poison)',
+      frame:  'plain',   // subtle main-menu edge instead of the accent frame
       onClose: () => { this._overlay = null },
       body:   this._renderBody(),
     })

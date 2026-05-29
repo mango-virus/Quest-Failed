@@ -97,6 +97,7 @@ export class PauseOverlay {
       width:   760,
       height:  640,
       accent:  'var(--blood)',
+      frame:   'plain',   // subtle main-menu edge instead of the accent frame
       onClose: () => {
         // Overlay close came from ESC / X button / backdrop click — ask
         // PauseManager to resume, which will fire PAUSE_STATE_CHANGED

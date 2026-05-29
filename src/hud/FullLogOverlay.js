@@ -87,6 +87,7 @@ export class FullLogOverlay {
       width:    1100,
       height:   840,
       accent:   'var(--blood)',
+      frame:    'plain',   // subtle main-menu edge instead of the accent frame
       animation: 'unfurl',
       onClose: () => { this._overlay = null; this._onClose?.() },
       body:    this._renderBody(),

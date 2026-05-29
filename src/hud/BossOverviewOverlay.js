@@ -41,6 +41,7 @@ export class BossOverviewOverlay {
       width:  1300,
       height: 820,
       accent: 'var(--blood)',
+      frame:  'plain',   // subtle main-menu edge instead of the accent frame
       onClose: () => { this._overlay = null },
       body:   this._renderBody(),
     })
