@@ -2150,8 +2150,9 @@ export class NightPhase extends Phaser.Scene {
     if (fpTiles.some(c => minionTiles.has(`${c.x},${c.y}`)))
       violations.push('Tile occupied by a minion')
 
-    // Trap Factory gateway — each Factory adds +3 trap slots (was +5,
-    // lowered 2026-05-27 per user direction). Skipped when relocating
+    // Trap Factory gateway — the first Factory grants 5 trap slots, each
+    // additional one adds +3 (2026-05-29; the room is the only source of trap
+    // slots, so without one no traps can be placed). Skipped when relocating
     // an already-placed trap (the MOVE tool is gold/slot-neutral).
     if (!this._heldMoveTrap) {
       // DAMNED · Trapless Halls — no NEW traps may be placed (relocating an
