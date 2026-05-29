@@ -554,8 +554,10 @@ export class PactPicker {
 
     const svgWrap = h('div', { className: 'qf-ip-summon-svg' })
     svgWrap.innerHTML = SUMMON_SVG
+    // One pip per rarity rank: lit count = weight + 1, so common shows 1 and
+    // DAMNED (the 6th tier, weight 5) shows all 6. Six slots total.
     const pips = []
-    for (let k = 0; k < 5; k++) {
+    for (let k = 0; k < 6; k++) {
       pips.push(h('span', { className: 'qf-ip-summon-pip' + (k <= rar.weight ? ' is-on' : '') }))
     }
     mount(this._pageL, [
