@@ -118,3 +118,38 @@ export function totalReviveCost(gameState, minionDefs, chains = null) {
   for (const m of fallenRevivable(gameState)) sum += reviveCost(gameState, byId[m.definitionId], ctx)
   return sum
 }
+
+// Per-fallen-minion revive candidates, each stamped with its individual cost
+// (evolution-aware) and maxHp (used only as a deterministic tiebreak). Feeds
+// both the partial-revive plan and the choice-popup previews.
+export function reviveCandidates(gameState, minionDefs, chains = null) {
+  const byId = {}
+  for (const d of (minionDefs ?? [])) byId[d.id] = d
+  const ctx = { defsById: byId, chains }
+  return fallenRevivable(gameState).map(m => ({
+    instanceId: m.instanceId,
+    cost:       reviveCost(gameState, byId[m.definitionId], ctx),
+    maxHp:      m.resources?.maxHp ?? 0,
+  }))
+}
+
+// Greedily choose which fallen minions to bring back within `budget` gold.
+//   mode 'strongest' → most expensive first; skips any that don't fit but keeps
+//                      going so leftover gold still pulls back cheaper ones.
+//   mode 'quantity'  → cheapest first → maximizes the NUMBER revived.
+// Ties (equal cost) prefer the higher-maxHp minion, then a stable id order, so
+// the result is deterministic. Returns { ids, cost, count }.
+export function planRevive(candidates, budget, mode = 'strongest') {
+  const dir = mode === 'quantity' ? 1 : -1   // asc cost vs desc cost
+  const sorted = [...(candidates ?? [])].sort((a, b) =>
+    (a.cost - b.cost) * dir
+    || (b.maxHp - a.maxHp)
+    || (a.instanceId < b.instanceId ? -1 : a.instanceId > b.instanceId ? 1 : 0)
+  )
+  const ids = []
+  let cost = 0
+  for (const c of sorted) {
+    if (cost + c.cost <= budget) { ids.push(c.instanceId); cost += c.cost }
+  }
+  return { ids, cost, count: ids.length }
+}

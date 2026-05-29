@@ -20,7 +20,7 @@ import { LiveRunPublisher }  from '../systems/LiveRunPublisher.js'
 import { BossArchetypeSystem } from '../systems/BossArchetypeSystem.js'
 import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
-import { fallenRevivable, totalReviveCost } from '../util/minionRevive.js'
+import { fallenRevivable, totalReviveCost, reviveCandidates, planRevive } from '../util/minionRevive.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
 import { AiDiagOverlay }      from '../ui/AiDiagOverlay.js'
@@ -774,22 +774,64 @@ export class Game extends Phaser.Scene {
     const fallen = fallenRevivable(gs)
     if (fallen.length === 0) return
     const minionDefs = this.cache.json.get('minionTypes') ?? []
-    const cost = totalReviveCost(gs, minionDefs, this.cache.json.get('minionEvolutions'))
-    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
-      if ((gs.player?.gold ?? 0) < cost) {
-        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
-        return
-      }
-      gs.player.gold -= cost
+    const chains     = this.cache.json.get('minionEvolutions')
+    const total      = totalReviveCost(gs, minionDefs, chains)
+    const have       = gs.player?.gold ?? 0
+
+    // Can afford everyone (or dev infinite gold) — revive all, as before.
+    if (Balance.DEV_INFINITE_GOLD || have >= total) {
+      if (!Balance.DEV_INFINITE_GOLD && total > 0) gs.player.gold -= total
+      this._finishRevive(null)
+      return
     }
-    const revived = this.minionAiSystem?.reviveFallen() ?? 0
-    if (revived > 0) {
-      try {
-        // Dedicated REVIVE-button sound — plays once per successful press.
-        const key = this.cache.audio.exists('sfx-revive-minions') ? 'sfx-revive-minions'
-                  : this.cache.audio.exists('sfx-revive')          ? 'sfx-revive' : null
-        if (key) this.sound.play(key, { volume: 0.7 })
-      } catch { /* audio not ready — non-fatal */ }
+
+    // Can't afford all → plan both priorities so the player can choose.
+    const candidates = reviveCandidates(gs, minionDefs, chains)
+    const strongest  = planRevive(candidates, have, 'strongest')
+    const quantity   = planRevive(candidates, have, 'quantity')
+
+    // Can't even afford the cheapest one — no choice to make, just say so.
+    if (strongest.count === 0 && quantity.count === 0) {
+      const costs = candidates.map(c => c.cost).filter(c => c > 0)
+      const cheapest = costs.length ? Math.min(...costs) : 0
+      EventBus.emit('SHOW_TOAST', {
+        message: `Not enough gold to revive any (cheapest is ${cheapest}g).`,
+        type: 'error',
+      })
+      return
+    }
+
+    // Otherwise hand the strength-vs-quantity tradeoff to the player.
+    EventBus.emit('SHOW_REVIVE_CHOICE', {
+      fallenCount: fallen.length,
+      totalCost:   total,
+      have,
+      strongest,
+      quantity,
+      onPick: (mode) => {
+        const plan = mode === 'quantity' ? quantity : strongest
+        if (plan.cost > 0) gs.player.gold -= plan.cost
+        this._finishRevive(plan.ids)
+      },
+    })
+  }
+
+  // Shared revive completion: revives the chosen set (null = all), plays the
+  // press SFX, and toasts how many are still fallen after a partial revive.
+  _finishRevive(ids) {
+    const revived = this.minionAiSystem?.reviveFallen(ids) ?? 0
+    if (revived <= 0) return
+    try {
+      const key = this.cache.audio.exists('sfx-revive-minions') ? 'sfx-revive-minions'
+                : this.cache.audio.exists('sfx-revive')          ? 'sfx-revive' : null
+      if (key) this.sound.play(key, { volume: 0.7 })
+    } catch { /* audio not ready — non-fatal */ }
+    const remaining = fallenRevivable(this.gameState).length
+    if (remaining > 0) {
+      EventBus.emit('SHOW_TOAST', {
+        message: `Revived ${revived} — ${remaining} still fallen.`,
+        type: 'success',
+      })
     }
   }
 

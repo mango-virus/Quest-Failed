@@ -1468,8 +1468,15 @@ export class MinionAISystem {
   // the sprite next frame. Permanent-death specials are excluded via
   // fallenRevivable's shared predicate, so they're never touched. Returns the
   // number revived.
-  reviveFallen() {
-    const fallen = fallenRevivable(this._gameState)
+  // `instanceIds` (array or Set) restricts the revive to that subset — used by
+  // the pay-to-revive partial flow when the player can't afford everyone. Omit
+  // to revive all fallen revivable.
+  reviveFallen(instanceIds = null) {
+    let fallen = fallenRevivable(this._gameState)
+    if (instanceIds) {
+      const set = instanceIds instanceof Set ? instanceIds : new Set(instanceIds)
+      fallen = fallen.filter(m => set.has(m.instanceId))
+    }
     if (fallen.length === 0) return 0
     const bossLv = this._gameState.boss?.level ?? 1
     const day    = this._gameState.meta?.dayNumber ?? 1

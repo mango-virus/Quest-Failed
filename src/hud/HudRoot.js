@@ -19,6 +19,7 @@ import { RightPanels } from './RightPanels.js'
 import { ToastQueue }          from './ToastQueue.js'
 import { PauseOverlay }        from './PauseOverlay.js'
 import { ConfirmPopup }        from './ConfirmPopup.js'
+import { ReviveChoicePopup }   from './ReviveChoicePopup.js'
 import { RosterOverlay }       from './RosterOverlay.js'
 import { BossOverviewOverlay } from './BossOverviewOverlay.js'
 import { PactDetailPopup }     from './PactDetailPopup.js'
@@ -113,6 +114,7 @@ export class HudRoot {
     // so they don't take up slots in the panels list.
     this._pauseOverlay   = new PauseOverlay(this._gameState)
     this._confirmPopup   = new ConfirmPopup()
+    this._reviveChoicePop = new ReviveChoicePopup()
     this._rosterOverlay  = new RosterOverlay(this._gameState)
     this._bossOverlay    = new BossOverviewOverlay(this._gameState)
     this._pactDetailPop  = new PactDetailPopup()
@@ -316,6 +318,7 @@ export class HudRoot {
     this._phaseListeners = []
     this._pauseOverlay?.destroy();   this._pauseOverlay = null
     this._confirmPopup?.destroy();   this._confirmPopup = null
+    this._reviveChoicePop?.destroy(); this._reviveChoicePop = null
     this._rosterOverlay?.destroy();  this._rosterOverlay = null
     this._bossOverlay?.destroy();    this._bossOverlay = null
     this._pactDetailPop?.destroy();  this._pactDetailPop = null
