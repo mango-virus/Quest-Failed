@@ -2,7 +2,7 @@
   {
     "id": "shooting_arrows",
     "name": "Shooting Arrows",
-    "description": "Wall-mounted. Looses an arrow at the first adventurer in its line of sight. Light impact damage plus a poison that bleeds them for 10 seconds. Infinite use. Cannot share a wall segment with a doorway.",
+    "description": "Wall-mounted. Arrows the first adventurer in line of sight — light damage + 10s poison. Infinite use; can’t sit on a doorway wall.",
     "unlockLevel": 4,
     "goldCost": 30,
     "placement": "wall",
@@ -21,7 +21,7 @@
   {
     "id": "bomb",
     "name": "Bomb",
-    "description": "A floor charge. When an adventurer strays within 2 tiles a 3-second fuse lights, then it detonates for major damage across a 5-tile radius — friend and foe alike. Single use; it breaks when it blows.",
+    "description": "Floor charge. A 3s fuse lights when an adventurer comes within 2 tiles, then it detonates across 5 tiles — hits friend and foe. Single use.",
     "unlockLevel": 5,
     "goldCost": 35,
     "placement": "floor",
@@ -43,7 +43,7 @@
   {
     "id": "cannon",
     "name": "Cannon",
-    "description": "A 2x2 emplacement that fires a cannonball down its facing. Rotate with R before placing. Solid — adventurers and minions must walk around it. Infinite use.",
+    "description": "2x2 emplacement firing a cannonball down its facing (rotate with R). Solid — everyone routes around it. Infinite use.",
     "unlockLevel": 7,
     "goldCost": 45,
     "placement": "floor",
@@ -61,7 +61,7 @@
   {
     "id": "spike_pillar",
     "name": "Spike Pillar",
-    "description": "A 2x2 pillar that jabs spikes into every tile within 1 step of its body. Solid — adventurers and minions route around it. Damages anything caught beside it.",
+    "description": "2x2 pillar that jabs spikes at anything within 1 tile. Solid — everyone routes around it. Infinite use.",
     "unlockLevel": 3,
     "goldCost": 20,
     "placement": "floor",
@@ -80,7 +80,7 @@
   {
     "id": "dragon_trap",
     "name": "Dragon Trap",
-    "description": "Wall-mounted maw that breathes fire at the first adventurer in its line of sight. Heavy fire damage. Infinite use. Cannot share a wall segment with a doorway.",
+    "description": "Wall-mounted maw that breathes heavy fire at the first adventurer in line of sight. Infinite use; can’t sit on a doorway wall.",
     "unlockLevel": 8,
     "goldCost": 55,
     "placement": "wall",
@@ -98,7 +98,7 @@
   {
     "id": "spike_pit",
     "name": "Spike Pit",
-    "description": "A 2x2 disguised pit. The first adventurer to step on it falls onto the spikes for heavy damage, with a chance of instant death. Once sprung it stays open for the rest of the day; it re-hides next night. Must be placed fully inside a room.",
+    "description": "2x2 disguised pit. First adventurer to step on it takes heavy damage (chance of instakill). Stays open till dawn, then re-hides.",
     "unlockLevel": 6,
     "goldCost": 40,
     "placement": "floor_interior",
@@ -135,7 +135,7 @@
   {
     "id": "saw_blade",
     "name": "Saw Blade",
-    "description": "A saw that runs back and forth along a straight horizontal track. Heavy damage to anything the blade rolls over. The track stays walkable — time it wrong and you lose a leg.",
+    "description": "Slides along a horizontal track, shredding anything it rolls over. The track stays walkable — mind the timing.",
     "unlockLevel": 6,
     "goldCost": 35,
     "placement": "floor",
