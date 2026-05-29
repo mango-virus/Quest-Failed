@@ -55,9 +55,13 @@ export class DungeonMechanicSystem {
     this._defs = Object.fromEntries(defs.map(d => [d.id, d]))
     this._loaded = true
 
-    // Re-activate any mechanics already in saved state (subscribes their listeners)
+    // Re-activate any mechanics already in saved state. This re-subscribes
+    // their listeners, but must NOT re-apply one-time seal effects (gold
+    // bribes, free-pact grants, cumulative slot/damage bonuses, one-shot
+    // minion buffs) — those are already baked into the saved gameState.
+    // `fresh` defaults to false here so handlers skip those effects on reload.
     for (const id of this._gameState.activeMechanics) {
-      this._runActivate(id)
+      this._runActivate(id, false)
     }
   }
 
@@ -81,7 +85,9 @@ export class DungeonMechanicSystem {
       if (this.isActive(conflictId)) this.deactivate(conflictId)
     }
     this._gameState.activeMechanics.push(mechanicId)
-    this._runActivate(mechanicId)
+    // fresh=true — this is a player sealing the pact, so one-time seal effects
+    // (gold bribes, free-pact grants, slot/damage bonuses, minion buffs) fire.
+    this._runActivate(mechanicId, true)
     EventBus.emit('MECHANIC_ACTIVATED', { mechanicId, def })
   }
 
@@ -248,7 +254,11 @@ export class DungeonMechanicSystem {
 
   // ── Internals ─────────────────────────────────────────────────────────────
 
-  _runActivate(mechanicId) {
+  // `fresh` is true only when the player seals a pact via activate(); it is
+  // false on reload re-activation from loadDefinitions(). Handlers gate their
+  // one-time seal effects on ctx.fresh so a quit-to-menu/refresh doesn't
+  // re-grant gold, re-grant free pacts, or re-stack bonuses.
+  _runActivate(mechanicId, fresh = false) {
     const def = this._defs[mechanicId]
     if (!def) return
     const handler = this._handlers[def.onActivate]
@@ -257,7 +267,7 @@ export class DungeonMechanicSystem {
       return
     }
     this._state[mechanicId] ??= {}
-    handler(this._ctx(mechanicId))
+    handler(this._ctx(mechanicId, fresh))
   }
 
   _runDeactivate(mechanicId) {
@@ -274,12 +284,13 @@ export class DungeonMechanicSystem {
     this._state[mechanicId] = {}
   }
 
-  _ctx(mechanicId) {
+  _ctx(mechanicId, fresh = false) {
     return {
       scene:      this._scene,
       gameState:  this._gameState,
       system:     this,
       mechanicId,
+      fresh,
       state:      mechanicId ? (this._state[mechanicId] ??= {}) : null,
       subscribe:  (event, fn) => {
         EventBus.on(event, fn)
@@ -1018,12 +1029,14 @@ function _buildHandlerRegistry() {
     // doubles the day's natural wave size (via MECHANIC_DOOMSDAY_WAVE_MULT).
     // The per-adv 2× stat buff was removed — the doubled wave is now the
     // entire tradeoff. No buff subscriber needed.
-    doomsdayClock_activate: ({ subscribe, gameState }) => {
+    doomsdayClock_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.doomsdayClock = true
-      gameState.player.gold = (gameState.player.gold ?? 0) + Balance.MECHANIC_DOOMSDAY_GOLD_BONUS
-      EventBus.emit('RESOURCES_AWARDED', { gold: Balance.MECHANIC_DOOMSDAY_GOLD_BONUS, reason: 'doomsday_bargain' })
-      f.doomsdayRaidDay = (gameState.meta?.dayNumber ?? 1) + Balance.MECHANIC_DOOMSDAY_DAYS_UNTIL_RAID
+      if (fresh) {
+        gameState.player.gold = (gameState.player.gold ?? 0) + Balance.MECHANIC_DOOMSDAY_GOLD_BONUS
+        EventBus.emit('RESOURCES_AWARDED', { gold: Balance.MECHANIC_DOOMSDAY_GOLD_BONUS, reason: 'doomsday_bargain' })
+        f.doomsdayRaidDay = (gameState.meta?.dayNumber ?? 1) + Balance.MECHANIC_DOOMSDAY_DAYS_UNTIL_RAID
+      }
       subscribe('DAY_PHASE_STARTED', () => {
         if ((gameState.meta?.dayNumber ?? 1) === gameState._mechanicFlags.doomsdayRaidDay) {
           gameState._mechanicFlags.doomsdayRaidToday = true
@@ -1144,9 +1157,9 @@ function _buildHandlerRegistry() {
       if (gameState._mechanicFlags) gameState._mechanicFlags.summonAddsII = false
     },
 
-    summonAddsIII_activate: ({ subscribe, gameState, scene }) => {
+    summonAddsIII_activate: ({ subscribe, gameState, scene, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), summonAddsIII: true }
-      f.extraAdvsPerDay = (f.extraAdvsPerDay ?? 0) + Balance.MECHANIC_SUMMON_ADDS_III_EXTRA_ADVS
+      if (fresh) f.extraAdvsPerDay = (f.extraAdvsPerDay ?? 0) + Balance.MECHANIC_SUMMON_ADDS_III_EXTRA_ADVS
       subscribe('DAY_PHASE_STARTED', () => _spawnSummonAdds(scene, gameState, 3, Balance.MECHANIC_SUMMON_ADDS_III_COUNT))
       subscribe('NIGHT_PHASE_STARTED', () => _despawnSummonAdds(gameState))
     },
@@ -1159,11 +1172,11 @@ function _buildHandlerRegistry() {
     },
 
     // ── Drill Sergeant — +5 minion slots, +50% minion gold cost ─────────
-    drillSergeant_activate: ({ gameState }) => {
+    drillSergeant_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.drillSergeant = true
-      f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + Balance.MECHANIC_DRILL_SERGEANT_SLOTS
       f.minionGoldCostMult = Math.max(f.minionGoldCostMult ?? 1, Balance.MECHANIC_DRILL_SERGEANT_GOLD_MULT)
+      if (fresh) f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + Balance.MECHANIC_DRILL_SERGEANT_SLOTS
     },
     drillSergeant_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
@@ -1187,10 +1200,10 @@ function _buildHandlerRegistry() {
     },
 
     // ── The Cull — +10 minion slots, weakest culled at end of day ───────
-    theCull_activate: ({ subscribe, gameState }) => {
+    theCull_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theCull = true
-      f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + Balance.MECHANIC_CULL_SLOTS
+      if (fresh) f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + Balance.MECHANIC_CULL_SLOTS
       subscribe('NIGHT_PHASE_STARTED', () => {
         const alive = (gameState.minions ?? []).filter(m =>
           m.faction === 'dungeon' && m.aiState !== 'dead' && !m._summonedAdd
@@ -1215,11 +1228,11 @@ function _buildHandlerRegistry() {
     },
 
     // ── Trap Mason's Touch — +5 trap slots, +50% trap gold cost ─────────
-    trapMasonsTouch_activate: ({ gameState }) => {
+    trapMasonsTouch_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.trapMasonsTouch = true
-      f.maxTrapSlotBonus = (f.maxTrapSlotBonus ?? 0) + Balance.MECHANIC_TRAP_MASON_SLOTS
       f.trapGoldCostMult = Math.max(f.trapGoldCostMult ?? 1, Balance.MECHANIC_TRAP_MASON_GOLD_MULT)
+      if (fresh) f.maxTrapSlotBonus = (f.maxTrapSlotBonus ?? 0) + Balance.MECHANIC_TRAP_MASON_SLOTS
     },
     trapMasonsTouch_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
@@ -1243,10 +1256,10 @@ function _buildHandlerRegistry() {
     },
 
     // ── Forbidden Workshop — +10 trap slots, 25% disabled at dawn ──────
-    forbiddenWorkshop_activate: ({ subscribe, gameState }) => {
+    forbiddenWorkshop_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.forbiddenWorkshop = true
-      f.maxTrapSlotBonus = (f.maxTrapSlotBonus ?? 0) + Balance.MECHANIC_FORBIDDEN_WORKSHOP_SLOTS
+      if (fresh) f.maxTrapSlotBonus = (f.maxTrapSlotBonus ?? 0) + Balance.MECHANIC_FORBIDDEN_WORKSHOP_SLOTS
       subscribe('DAY_PHASE_STARTED', () => {
         const traps = gameState.dungeon?.traps ?? []
         const disableCount = Math.floor(traps.length * Balance.MECHANIC_FORBIDDEN_WORKSHOP_DISABLE_FRAC)
@@ -1265,12 +1278,14 @@ function _buildHandlerRegistry() {
     },
 
     // ── Architect's Vision — +3 minion + +3 trap slots, +1 adv/day ─────
-    architectsVision_activate: ({ gameState }) => {
+    architectsVision_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.architectsVision = true
-      f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + Balance.MECHANIC_ARCHITECTS_VISION_MIN_SLOTS
-      f.maxTrapSlotBonus   = (f.maxTrapSlotBonus   ?? 0) + Balance.MECHANIC_ARCHITECTS_VISION_TRAP_SLOTS
-      f.extraAdvsPerDay    = (f.extraAdvsPerDay    ?? 0) + Balance.MECHANIC_ARCHITECTS_VISION_EXTRA_ADVS
+      if (fresh) {
+        f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + Balance.MECHANIC_ARCHITECTS_VISION_MIN_SLOTS
+        f.maxTrapSlotBonus   = (f.maxTrapSlotBonus   ?? 0) + Balance.MECHANIC_ARCHITECTS_VISION_TRAP_SLOTS
+        f.extraAdvsPerDay    = (f.extraAdvsPerDay    ?? 0) + Balance.MECHANIC_ARCHITECTS_VISION_EXTRA_ADVS
+      }
     },
     architectsVision_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
@@ -1542,13 +1557,15 @@ function _buildHandlerRegistry() {
     // ── DAMNED · The Leech ───────────────────────────────────────────────
     // Devil's bargain: a one-time gold bribe on sealing, then the dungeon
     // bleeds 8% of your treasury every dawn for the rest of the run.
-    theLeech_activate: ({ subscribe, gameState }) => {
+    theLeech_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theLeech = true
-      // Bribe — paid once, immediately.
-      const bribe = Balance.MECHANIC_LEECH_BRIBE_GOLD ?? 800
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'leech_bribe' })
+      // Bribe — paid once, immediately (only on the actual seal, not on reload).
+      if (fresh) {
+        const bribe = Balance.MECHANIC_LEECH_BRIBE_GOLD ?? 800
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'leech_bribe' })
+      }
       // Curse — drain a slice of the treasury at the start of every day.
       subscribe('DAY_PHASE_STARTED', () => {
         const frac = Balance.MECHANIC_LEECH_GOLD_DRAIN_FRACTION ?? 0.08
@@ -1566,9 +1583,10 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Pact of the Last Heart ──────────────────────────────────
     // Bribe: a free Legendary pact. Curse: the boss is capped at a single
     // heart (one lost boss fight ends the run) and can never regain a life.
-    pactOfTheLastHeart_activate: ({ gameState, system }) => {
+    pactOfTheLastHeart_activate: ({ gameState, system, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.lastHeart = true
+      if (!fresh) return   // boss-lives collapse + free pact already saved on reload
       // Curse — collapse the boss's lives to a single heart, forever.
       const lives = Balance.MECHANIC_LAST_HEART_LIVES ?? 1
       if (gameState.boss) {
@@ -1597,12 +1615,14 @@ function _buildHandlerRegistry() {
 
     // ── DAMNED · Famished Dark ───────────────────────────────────────────
     // Bribe: gold lump. Curse: kills pay half gold (AISystem goldMul read).
-    famishedDark_activate: ({ gameState }) => {
+    famishedDark_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.famishedDark = true
-      const bribe = Balance.MECHANIC_FAMISHED_DARK_BRIBE_GOLD ?? 1500
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'famished_dark_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_FAMISHED_DARK_BRIBE_GOLD ?? 1500
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'famished_dark_bribe' })
+      }
     },
     famishedDark_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.famishedDark = false
@@ -1610,13 +1630,15 @@ function _buildHandlerRegistry() {
 
     // ── DAMNED · The Open Gate ───────────────────────────────────────────
     // Bribe: gold lump. Curse: +10 adventurers/day (DayPhase extraAdvsPerDay).
-    theOpenGate_activate: ({ gameState }) => {
+    theOpenGate_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theOpenGate = true
-      f.extraAdvsPerDay = (f.extraAdvsPerDay ?? 0) + (Balance.MECHANIC_OPEN_GATE_EXTRA_ADVS ?? 10)
-      const bribe = Balance.MECHANIC_OPEN_GATE_BRIBE_GOLD ?? 1500
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'open_gate_bribe' })
+      if (fresh) {
+        f.extraAdvsPerDay = (f.extraAdvsPerDay ?? 0) + (Balance.MECHANIC_OPEN_GATE_EXTRA_ADVS ?? 10)
+        const bribe = Balance.MECHANIC_OPEN_GATE_BRIBE_GOLD ?? 1500
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'open_gate_bribe' })
+      }
     },
     theOpenGate_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
@@ -1628,12 +1650,14 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Hollow Crown ────────────────────────────────────────────
     // Bribe: free Legendary pact. Curse: boss max HP halved (recompute reads
     // the flag); emit BOSS_STATS_DIRTY so the top-bar updates immediately.
-    hollowCrown_activate: ({ gameState, system }) => {
+    hollowCrown_activate: ({ gameState, system, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.hollowCrown = true
-      const { grantedId, grantedName } = _grantFreeLegendaryPact(system, 'hollow_crown')
-      EventBus.emit('BOSS_STATS_DIRTY')
-      EventBus.emit('HOLLOW_CROWN_SEALED', { grantedId, grantedName })
+      EventBus.emit('BOSS_STATS_DIRTY')   // re-derive the halved boss HP (safe to re-run)
+      if (fresh) {
+        const { grantedId, grantedName } = _grantFreeLegendaryPact(system, 'hollow_crown')
+        EventBus.emit('HOLLOW_CROWN_SEALED', { grantedId, grantedName })
+      }
     },
     hollowCrown_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.hollowCrown = false
@@ -1643,13 +1667,15 @@ function _buildHandlerRegistry() {
     // ── DAMNED · The Bleeding Crown ──────────────────────────────────────
     // Bribe: gold lump. Curse: boss loses 2% max HP permanently each day
     // (recompute reads bleedingCrownDays; daily tick bumps it + recomputes).
-    theBleedingCrown_activate: ({ subscribe, gameState }) => {
+    theBleedingCrown_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theBleedingCrown = true
       f.bleedingCrownDays ??= 0
-      const bribe = Balance.MECHANIC_BLEEDING_CROWN_BRIBE_GOLD ?? 1200
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'bleeding_crown_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_BLEEDING_CROWN_BRIBE_GOLD ?? 1200
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'bleeding_crown_bribe' })
+      }
       subscribe('DAY_PHASE_STARTED', () => {
         gameState._mechanicFlags.bleedingCrownDays = (gameState._mechanicFlags.bleedingCrownDays ?? 0) + 1
         EventBus.emit('BOSS_STATS_DIRTY')
@@ -1663,10 +1689,10 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Sleepless Throne ────────────────────────────────────────
     // Bribe: +10 minion slots. Curse: boss starts every fight at 50% HP
     // (BossSystem._onIncoming reads the flag).
-    sleeplessThrone_activate: ({ gameState }) => {
+    sleeplessThrone_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.sleeplessThrone = true
-      f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + (Balance.MECHANIC_SLEEPLESS_THRONE_SLOT_BRIBE ?? 10)
+      if (fresh) f.maxMinionSlotBonus = (f.maxMinionSlotBonus ?? 0) + (Balance.MECHANIC_SLEEPLESS_THRONE_SLOT_BRIBE ?? 10)
     },
     sleeplessThrone_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
@@ -1677,12 +1703,14 @@ function _buildHandlerRegistry() {
 
     // ── DAMNED · Tribute of Flesh ────────────────────────────────────────
     // Bribe: gold lump. Curse: each escaped adventurer loots gold from you.
-    tributeOfFlesh_activate: ({ subscribe, gameState }) => {
+    tributeOfFlesh_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.tributeOfFlesh = true
-      const bribe = Balance.MECHANIC_TRIBUTE_BRIBE_GOLD ?? 700
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'tribute_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_TRIBUTE_BRIBE_GOLD ?? 700
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'tribute_bribe' })
+      }
       subscribe('ADVENTURER_FLED', () => {
         const loot = Balance.MECHANIC_TRIBUTE_GOLD_PER_ESCAPE ?? 20
         const before = gameState.player.gold ?? 0
@@ -1697,12 +1725,14 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Cursed Blood ────────────────────────────────────────────
     // Bribe: gold lump. Curse: every minion death damages the boss for 3%
     // max HP (floored at 1 HP — won't itself end the run, like Soul Tether).
-    cursedBlood_activate: ({ subscribe, gameState }) => {
+    cursedBlood_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.cursedBlood = true
-      const bribe = Balance.MECHANIC_CURSED_BLOOD_BRIBE_GOLD ?? 1000
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'cursed_blood_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_CURSED_BLOOD_BRIBE_GOLD ?? 1000
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'cursed_blood_bribe' })
+      }
       subscribe('MINION_DIED', ({ minion }) => {
         if (!minion || !gameState.boss) return
         const dmg = Math.max(1, Math.round((gameState.boss.maxHp ?? 0) * (Balance.MECHANIC_CURSED_BLOOD_BOSS_DMG_FRAC ?? 0.03)))
@@ -1717,11 +1747,13 @@ function _buildHandlerRegistry() {
     // ── DAMNED · The Hollow Horde ────────────────────────────────────────
     // Bribe: all current minions +20% to all stats. Curse: max minion slots
     // halved (NightPhase._rosterCap reads theHollowHorde).
-    theHollowHorde_activate: ({ gameState }) => {
+    theHollowHorde_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theHollowHorde = true
-      const b = Balance.MECHANIC_HOLLOW_HORDE_STAT_BUFF ?? 0.2
-      _buffCurrentMinions(gameState, { hp: b, atk: b, def: b })
+      if (fresh) {
+        const b = Balance.MECHANIC_HOLLOW_HORDE_STAT_BUFF ?? 0.2
+        _buffCurrentMinions(gameState, { hp: b, atk: b, def: b })
+      }
     },
     theHollowHorde_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.theHollowHorde = false
@@ -1730,10 +1762,10 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Brittle Bones ───────────────────────────────────────────
     // Bribe: current minions +25% damage. Curse: a minion struck below 50%
     // HP shatters instantly (CombatSystem reads brittleBones).
-    brittleBones_activate: ({ gameState }) => {
+    brittleBones_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.brittleBones = true
-      _buffCurrentMinions(gameState, { atk: Balance.MECHANIC_BRITTLE_BONES_DMG_BUFF ?? 0.25 })
+      if (fresh) _buffCurrentMinions(gameState, { atk: Balance.MECHANIC_BRITTLE_BONES_DMG_BUFF ?? 0.25 })
     },
     brittleBones_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.brittleBones = false
@@ -1744,11 +1776,11 @@ function _buildHandlerRegistry() {
     // minion sheds 5% max HP at the end of each day (compounding). The
     // penalty lives as wastingDays, read in applyMinionScaling so it survives
     // level-up rescales; the nightly tick bumps it and re-applies scaling.
-    theWasting_activate: ({ subscribe, gameState, scene }) => {
+    theWasting_activate: ({ subscribe, gameState, scene, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theWasting = true
       f.wastingDays ??= 0
-      scene?.minionEvolutionSystem?.evolveAllOnce?.()
+      if (fresh) scene?.minionEvolutionSystem?.evolveAllOnce?.()
       subscribe('NIGHT_PHASE_STARTED', () => {
         gameState._mechanicFlags.wastingDays = (gameState._mechanicFlags.wastingDays ?? 0) + 1
         const bossLv = gameState.boss?.level ?? 1
@@ -1766,12 +1798,14 @@ function _buildHandlerRegistry() {
     // ── DAMNED · The Hunger ──────────────────────────────────────────────
     // Bribe: gold lump. Curse: each dawn, 20% of your minions die permanently
     // (spliced from gameState.minions so they never respawn).
-    theHunger_activate: ({ subscribe, gameState }) => {
+    theHunger_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theHunger = true
-      const bribe = Balance.MECHANIC_HUNGER_BRIBE_GOLD ?? 1000
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'hunger_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_HUNGER_BRIBE_GOLD ?? 1000
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'hunger_bribe' })
+      }
       subscribe('DAY_PHASE_STARTED', () => {
         const alive = (gameState.minions ?? []).filter(m => m.faction === 'dungeon' && m.aiState !== 'dead')
         const n = Math.floor(alive.length * (Balance.MECHANIC_HUNGER_DEATH_FRAC ?? 0.2))
@@ -1792,12 +1826,14 @@ function _buildHandlerRegistry() {
     // ── DAMNED · The Unteachable ─────────────────────────────────────────
     // Bribe: gold lump. Curse: minions can't gain XP/evolve (MinionEvolution
     // System._onCombatKill bails on the flag).
-    theUnteachable_activate: ({ gameState }) => {
+    theUnteachable_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theUnteachable = true
-      const bribe = Balance.MECHANIC_UNTEACHABLE_BRIBE_GOLD ?? 1000
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'unteachable_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_UNTEACHABLE_BRIBE_GOLD ?? 1000
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'unteachable_bribe' })
+      }
     },
     theUnteachable_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.theUnteachable = false
@@ -1806,12 +1842,14 @@ function _buildHandlerRegistry() {
     // ── DAMNED · The Martyr's Curse ──────────────────────────────────────
     // Bribe: gold lump. Curse: when a minion dies, adventurers within a few
     // tiles of the death heal 25% of their max HP.
-    theMartyrsCurse_activate: ({ subscribe, gameState }) => {
+    theMartyrsCurse_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theMartyrsCurse = true
-      const bribe = Balance.MECHANIC_MARTYR_BRIBE_GOLD ?? 800
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'martyr_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_MARTYR_BRIBE_GOLD ?? 800
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'martyr_bribe' })
+      }
       subscribe('MINION_DIED', ({ minion }) => {
         if (!minion) return
         const advs = gameState.adventurers?.active ?? []
@@ -1836,13 +1874,15 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Mounting Debt ───────────────────────────────────────────
     // Bribe: gold lump. Curse: build costs inflate 5%/day, compounding
     // (applyMerchantPrice reads mountingDebtMult).
-    mountingDebt_activate: ({ subscribe, gameState }) => {
+    mountingDebt_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.mountingDebt = true
       f.mountingDebtMult ??= 1
-      const bribe = Balance.MECHANIC_MOUNTING_DEBT_BRIBE_GOLD ?? 1000
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'mounting_debt_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_MOUNTING_DEBT_BRIBE_GOLD ?? 1000
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'mounting_debt_bribe' })
+      }
       subscribe('DAY_PHASE_STARTED', () => {
         const step = 1 + (Balance.MECHANIC_MOUNTING_DEBT_PER_DAY ?? 0.05)
         gameState._mechanicFlags.mountingDebtMult = (gameState._mechanicFlags.mountingDebtMult ?? 1) * step
@@ -1858,12 +1898,14 @@ function _buildHandlerRegistry() {
 
     // ── DAMNED · The Sealed Vault ────────────────────────────────────────
     // Bribe: gold lump. Curse: selling is forbidden (NightPhase._executeSellAt).
-    theSealedVault_activate: ({ gameState }) => {
+    theSealedVault_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theSealedVault = true
-      const bribe = Balance.MECHANIC_SEALED_VAULT_BRIBE_GOLD ?? 1500
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'sealed_vault_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_SEALED_VAULT_BRIBE_GOLD ?? 1500
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'sealed_vault_bribe' })
+      }
     },
     theSealedVault_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.theSealedVault = false
@@ -1873,10 +1915,10 @@ function _buildHandlerRegistry() {
     // Bribe: traps +100% damage (trapDamageMult, read by TrapSystem). Curse:
     // each trap breaks permanently the moment it fires (sets trap._broken,
     // which the TrapSystem trigger loops skip).
-    brittleEngines_activate: ({ subscribe, gameState }) => {
+    brittleEngines_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.brittleEngines = true
-      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_BRITTLE_ENGINES_DMG_MULT ?? 2)
+      if (fresh) f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_BRITTLE_ENGINES_DMG_MULT ?? 2)
       subscribe('TRAP_FIRED', ({ trap }) => { if (trap) trap._broken = true })
     },
     brittleEngines_deactivate: ({ gameState }) => {
@@ -1889,13 +1931,15 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Trapless Halls ──────────────────────────────────────────
     // Bribe: existing traps +50% damage + gold. Curse: no NEW traps may be
     // placed (NightPhase placement validation reads traplessHalls).
-    traplessHalls_activate: ({ gameState }) => {
+    traplessHalls_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.traplessHalls = true
-      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_TRAPLESS_HALLS_DMG_MULT ?? 1.5)
-      const bribe = Balance.MECHANIC_TRAPLESS_HALLS_BRIBE_GOLD ?? 600
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'trapless_halls_bribe' })
+      if (fresh) {
+        f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_TRAPLESS_HALLS_DMG_MULT ?? 1.5)
+        const bribe = Balance.MECHANIC_TRAPLESS_HALLS_BRIBE_GOLD ?? 600
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'trapless_halls_bribe' })
+      }
     },
     traplessHalls_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
@@ -1907,12 +1951,14 @@ function _buildHandlerRegistry() {
     // ── DAMNED · Famine's Grip ───────────────────────────────────────────
     // Bribe: gold lump. Curse: treasure-room payouts pay 50% less
     // (RoomBehaviorSystem treasury stipend reads faminesGrip).
-    faminesGrip_activate: ({ gameState }) => {
+    faminesGrip_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.faminesGrip = true
-      const bribe = Balance.MECHANIC_FAMINES_GRIP_BRIBE_GOLD ?? 800
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'famines_grip_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_FAMINES_GRIP_BRIBE_GOLD ?? 800
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'famines_grip_bribe' })
+      }
     },
     faminesGrip_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.faminesGrip = false
@@ -1923,14 +1969,19 @@ function _buildHandlerRegistry() {
     // (NightPhase._effectiveMinionCost reads glassFreeNight; those minions
     // are marked _noSellValue). Curse: all minion max HP halved permanently
     // (applyMinionScaling reads pactOfGlass for current + future minions).
-    pactOfGlass_activate: ({ subscribe, gameState }) => {
+    pactOfGlass_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.pactOfGlass = true
-      f.glassFreeNight = true
-      const bossLv = gameState.boss?.level ?? 1
-      for (const m of (gameState.minions ?? [])) {
-        if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
-        applyBossLevelToMinion(m, bossLv)   // re-apply scaling -> half HP now
+      if (fresh) {
+        // Free-placement window + immediate half-HP rescale fire once on seal.
+        // On reload the flag is already set (so scaling stays halved) and the
+        // saved minions already carry the reduced HP, so neither is re-applied.
+        f.glassFreeNight = true
+        const bossLv = gameState.boss?.level ?? 1
+        for (const m of (gameState.minions ?? [])) {
+          if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+          applyBossLevelToMinion(m, bossLv)   // re-apply scaling -> half HP now
+        }
       }
       subscribe('DAY_PHASE_STARTED', () => { gameState._mechanicFlags.glassFreeNight = false })
     },
@@ -1942,13 +1993,15 @@ function _buildHandlerRegistry() {
     // Bribe: gold lump. Curse: every Nth night gives no build phase — the
     // NightPhase placement validations reject everything while
     // insomniacLockTonight is set (cleared at dawn).
-    theInsomniac_activate: ({ subscribe, gameState }) => {
+    theInsomniac_activate: ({ subscribe, gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theInsomniac = true
       f.insomniacNightCount ??= 0
-      const bribe = Balance.MECHANIC_INSOMNIAC_BRIBE_GOLD ?? 600
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'insomniac_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_INSOMNIAC_BRIBE_GOLD ?? 600
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'insomniac_bribe' })
+      }
       subscribe('NIGHT_PHASE_STARTED', () => {
         const ff = gameState._mechanicFlags
         // Advance the night counter ONCE per game-day. meta.dayNumber only
@@ -1994,13 +2047,15 @@ function _buildHandlerRegistry() {
     // room is destroyed with its contents — NEVER the Boss Chamber or an
     // Entry Hall (and never a fixed room). Uses the Game scene's DungeonGrid
     // (the same instance NightPhase uses, so removal stays consistent).
-    crumblingHalls_activate: ({ subscribe, gameState, scene }) => {
+    crumblingHalls_activate: ({ subscribe, gameState, scene, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.crumblingHalls = true
-      const bribe = Balance.MECHANIC_CRUMBLING_BRIBE_GOLD ?? 600
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'crumbling_halls_bribe' })
-      f.maxTrapSlotBonus = (f.maxTrapSlotBonus ?? 0) + (Balance.MECHANIC_CRUMBLING_TRAP_SLOTS ?? 3)
+      if (fresh) {
+        const bribe = Balance.MECHANIC_CRUMBLING_BRIBE_GOLD ?? 600
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'crumbling_halls_bribe' })
+        f.maxTrapSlotBonus = (f.maxTrapSlotBonus ?? 0) + (Balance.MECHANIC_CRUMBLING_TRAP_SLOTS ?? 3)
+      }
       subscribe('NIGHT_PHASE_STARTED', () => {
         const grid  = scene?.dungeonGrid
         const rooms = gameState.dungeon?.rooms ?? []
@@ -2045,12 +2100,15 @@ function _buildHandlerRegistry() {
     // DESIGN notes). Curse: the minimap is hidden (scoped CSS class on
     // #hud-stage) and the adventurer-intel panel is gated shut
     // (AdvIntelOverlay.open reads blindArchitect).
-    blindArchitect_activate: ({ gameState }) => {
+    blindArchitect_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.blindArchitect = true
-      const bribe = Balance.MECHANIC_BLIND_ARCHITECT_BRIBE_GOLD ?? 400
-      gameState.player.gold = (gameState.player.gold ?? 0) + bribe
-      EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'blind_architect_bribe' })
+      if (fresh) {
+        const bribe = Balance.MECHANIC_BLIND_ARCHITECT_BRIBE_GOLD ?? 400
+        gameState.player.gold = (gameState.player.gold ?? 0) + bribe
+        EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'blind_architect_bribe' })
+      }
+      // DOM is rebuilt on reload, so the minimap-hiding class must be re-applied every activation.
       try { document.getElementById('hud-stage')?.classList.add('qf-blind-architect') } catch {}
     },
     blindArchitect_deactivate: ({ gameState }) => {
@@ -2137,10 +2195,10 @@ function _buildHandlerRegistry() {
     // ── LEGENDARY · The Iron Price ───────────────────────────────────────
     // Minions deal 2x (CombatSystem) + traps 2x (trapDamageMult); gold income
     // zeroed (AISystem goldMul=0 + treasury x0).
-    theIronPrice_activate: ({ gameState }) => {
+    theIronPrice_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.theIronPrice = true
-      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_IRON_PRICE_DMG_MULT ?? 2)
+      if (fresh) f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_IRON_PRICE_DMG_MULT ?? 2)
     },
     theIronPrice_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
@@ -2152,10 +2210,10 @@ function _buildHandlerRegistry() {
     // ── LEGENDARY · Sudden Death ─────────────────────────────────────────
     // Everyone deals 5x: CombatSystem (minion<->adv), TrapSystem (trapDamageMult),
     // boss fight (_applyDamageToBoss party->boss + bossAtk boss->party).
-    suddenDeath_activate: ({ gameState }) => {
+    suddenDeath_activate: ({ gameState, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
       f.suddenDeath = true
-      f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5)
+      if (fresh) f.trapDamageMult = (f.trapDamageMult ?? 1) * (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5)
     },
     suddenDeath_deactivate: ({ gameState }) => {
       if (!gameState._mechanicFlags) return
