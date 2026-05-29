@@ -495,6 +495,11 @@ export class EventSystem {
     // click. Clicking the demon AFTER the modal is up is a no-op
     // because _promptDemonsWager early-returns on demonsWagerDecided.
     if (def.id === 'demons_wager')       this._promptDemonsWager()
+    // Dark Deal — auto-prompt a mandatory ACCEPT-only modal so the player gets
+    // their black-grimoire pact without having to find + click the demon in the
+    // boss room. The demon still spawns as flavour; sealing the pact (the only
+    // path forward) sets darkDealAccepted via DarkDealDemonRenderer.
+    if (def.id === 'dark_deal')          this._promptDarkDeal()
     if (def.id === 'tinkerers_workshop') this._promptTinkerersWorkshop()
     // speedrun_channel — roll the class HERE (at announce) so the
     // NightPhase wave-preview can lock to it too. Stored on _eventFlags
@@ -1489,6 +1494,29 @@ export class EventSystem {
         flags.negotiationOutcome = 'refuse'
         flags.negotiationDecided = true
       },
+    })
+  }
+
+  // Dark Deal — a mandatory ACCEPT-only modal in the black-and-gray 'shadow'
+  // slate (matching the other event-choice popups, minus a refuse option). The
+  // bargain can't be declined: the only button opens the black grimoire
+  // (PactPicker, forceBlack → all-damned hand), which is itself non-skippable
+  // ("the night will not begin until a pact is sealed"). Guarded against
+  // re-prompt once the pact is already accepted (save/load mid-night).
+  _promptDarkDeal() {
+    const flags = this._gameState._eventFlags ?? (this._gameState._eventFlags = {})
+    if (flags.darkDealAccepted) return
+    EventBus.emit('SHOW_CONFIRM', {
+      event: this._eventConfirmMeta('dark_deal'),
+      theme: 'shadow',          // black + gray slate for the demon's bargain
+      messageNode: this._eventPromptNode([
+        { kind: 'reward', label: 'GAIN', value: 'A FREE PACT FROM THE BLACK GRIMOIRE' },
+        { kind: 'lose',   label: 'COST', value: "HALF THE BOSS'S HP TODAY" },
+      ]),
+      confirmLabel: 'ACCEPT DEAL',
+      hideCancel:   true,        // the bargain cannot be refused
+      forceChoice:  true,        // locked open — no backdrop / Esc dismissal
+      onConfirm: () => EventBus.emit('SHOW_DARK_PACT', { forceBlack: true }),
     })
   }
 

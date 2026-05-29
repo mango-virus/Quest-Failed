@@ -66,7 +66,7 @@
   {
     "id": "dark_deal",
     "title": "DARK DEAL",
-    "notif": "A demon waits in your boss room tonight — click it to take a FREE dark pact, at the cost of half the boss's HP for the day.",
+    "notif": "A demon offers a FREE pact from the black grimoire — at the cost of half the boss's HP for the day. The bargain cannot be refused.",
     "icon": "😈",
     "colorTheme": "violet",
     "minBossLevel": 1

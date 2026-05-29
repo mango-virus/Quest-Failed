@@ -63,13 +63,17 @@ export class ConfirmPopup {
     const messageNode  = p.messageNode    ?? null
     const confirmLabel = p.confirmLabel  ?? 'YES'
     const cancelLabel  = p.cancelLabel   ?? 'CANCEL'
+    // `hideCancel` drops the cancel button entirely — for mandatory prompts
+    // (e.g. Dark Deal) where the only path forward is the confirm action.
+    // Implies forceChoice (no backdrop / Esc escape hatch either).
+    const hideCancel   = !!p.hideCancel
     // Force-choice mode locks the prompt open until the player commits
     // to a button. Defaults true for Dungeon Event decisions (they have
     // run-altering consequences and shouldn't be auto-cancelled by a
     // stray click outside the card); other callers can opt in via the
     // payload. When forceChoice is on, both backdrop clicks and the Esc
     // key become no-ops.
-    const forceChoice = p.forceChoice ?? !!ev
+    const forceChoice = p.forceChoice ?? (!!ev || hideCancel)
     this._forceChoice = forceChoice
     const stage = document.getElementById('hud-stage') ?? document.body
 
@@ -92,7 +96,7 @@ export class ConfirmPopup {
         h('div', { className: 'qf-eventconfirm-rule' }),
         h('div', { className: 'qf-eventconfirm-message' }, messageNode ?? message),
         h('div', { className: 'qf-eventconfirm-buttons' }, [
-          h('button', {
+          hideCancel ? null : h('button', {
             className: 'qf-eventconfirm-btn cancel',
             on: { click: () => this._click('cancel') },
           }, cancelLabel),
@@ -100,7 +104,7 @@ export class ConfirmPopup {
             className: 'qf-eventconfirm-btn confirm',
             on: { click: () => this._click('confirm') },
           }, confirmLabel),
-        ]),
+        ].filter(Boolean)),
       ].filter(Boolean)),
     ])
     stage.appendChild(this._el)
