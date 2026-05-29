@@ -7,17 +7,23 @@
 // placement, and the Hollow Horde halving was missing from the display); this
 // module exists to prevent that recurring.
 
-// Trap slots: Trap Factories grant `trapSlotsPerFactory` each (default 3, +1
-// each when the type is tinkered into "Assembly Line"), plus any flat bonus.
+// Trap slots: by default the FIRST Trap Factory grants 5 slots and each
+// additional one adds +3 (so 1 → 5, 2 → 8, 3 → 11, 4 → 14, 5 → 17 at the
+// per-boss-level room cap). The "Assembly Line" tinker adds +1 per factory on
+// top. Pact override (`trapSlotsPerFactory`, e.g. Trap Mason's Touch) replaces
+// the default ramp with a flat per-factory value.
 export function trapCap(gameState) {
   const f = gameState?._mechanicFlags ?? {}
   const factories = (gameState?.dungeon?.rooms ?? [])
     .filter(r => r.definitionId === 'trap_factory' && r.isActive !== false).length
-  const perFactory  = f.trapSlotsPerFactory ?? 3
+  const perFactoryOverride = f.trapSlotsPerFactory   // pact: flat slots per factory
+  const factoryBase = perFactoryOverride != null
+    ? factories * perFactoryOverride
+    : (factories > 0 ? 5 + (factories - 1) * 3 : 0)
   const tinkerBonus = (gameState?._tinkeredRoomTypes ?? []).includes('trap_factory')
     ? factories * 1 : 0
   const bonus = f.maxTrapSlotBonus ?? 0
-  return Math.max(0, factories * perFactory + tinkerBonus + bonus)
+  return Math.max(0, factoryBase + tinkerBonus + bonus)
 }
 
 // Minion roster slots: Barracks grant `minionSlotsPerBarracks` each (default

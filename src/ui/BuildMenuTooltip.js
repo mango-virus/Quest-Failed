@@ -28,7 +28,7 @@ const ROOM_SUMMARIES = {
   starter_barracks:     '+10 roster minion slots. Required for any patrolling minions.',
   starter_guard_post:   'Minions hunt adventurers in connected rooms, then return.',
   crypt:                'Garrison of 4 Risen Bones. Room-bound, refills daily.',
-  trap_factory:         '+5 trap slots. Required to place any traps.',
+  trap_factory:         '+5 trap slots (each additional Factory: +3). Required to place any traps.',
   treasury:             'Daily gold stipend + 4 auto-spawned free chests. Pulls more adventurers.',
   armory:               '+ATK to minions in connected rooms.',
   library_of_whispers:  "Reveals next party's intel the night before.",

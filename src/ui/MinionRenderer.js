@@ -114,12 +114,28 @@ export class MinionRenderer {
     // While a minion is held, its world position tracks the cursor each
     // frame. Tile coords are kept in sync so the AI/render reads correctly
     // when the player drops them. AI itself is paused via _heldByPlayer.
+    //
+    // Re-project the pointer through THIS scene's camera every frame instead
+    // of reading the cached `ptr.worldX` / `ptr.worldY` — Phaser updates that
+    // cache via `pointer.updateWorldPoint(camera)` from whichever active
+    // scene's input plugin ran most recently, and with NightPhase launched on
+    // top of Game both scenes share the same pointer. On fast cursor moves the
+    // cached worldX could momentarily reflect NightPhase's camera state, which
+    // placed the held minion well off-camera for a frame and triggered Phaser's
+    // per-object culling — the sprite would briefly "disappear" mid-drag. The
+    // explicit transform always uses Game's dungeon camera. The Finite check is
+    // belt-and-suspenders against any frame where the pointer hasn't initialised.
     if (this._heldMinion) {
       const ptr = this._scene.input.activePointer
-      this._heldMinion.worldX = ptr.worldX
-      this._heldMinion.worldY = ptr.worldY
-      this._heldMinion.tileX  = Math.floor(ptr.worldX / TS)
-      this._heldMinion.tileY  = Math.floor(ptr.worldY / TS)
+      const cam = this._scene.cameras?.main
+      const wp  = cam ? cam.getWorldPoint(ptr.x ?? 0, ptr.y ?? 0)
+                      : { x: ptr.worldX, y: ptr.worldY }
+      if (Number.isFinite(wp.x) && Number.isFinite(wp.y)) {
+        this._heldMinion.worldX = wp.x
+        this._heldMinion.worldY = wp.y
+        this._heldMinion.tileX  = Math.floor(wp.x / TS)
+        this._heldMinion.tileY  = Math.floor(wp.y / TS)
+      }
     }
 
     // Keep the hover label glued above the hovered minion.
