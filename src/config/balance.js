@@ -410,10 +410,14 @@ export const Balance = {
   // flat boss-level-scaled damage applies, preserving per-trap identity.
   TRAP_MAX_ADV_DMG_FRAC:         0.30,
   // Late-game floor: each trap deals AT LEAST (baseDamage × this) of the
-  // victim's max HP. Spike pit base 40 → 10%; cannon 30 → 7.5%; arrow
-  // 6 → 1.5%. Auto-scales with adventurer HP so traps never become
-  // cosmetic, while preserving the relative danger of each trap.
-  TRAP_MIN_ADV_DMG_PER_BASE:     0.0025,
+  // victim's max HP. Spike pit base 40 → 5%; bomb 50 → 6.25%; cannon/saw
+  // 30 → 3.75%; dragon 35 → 4.4%; arrow 6 → 0.75%. Auto-scales with
+  // adventurer HP so traps never become cosmetic, while preserving the
+  // relative danger of each trap.
+  // Halved 2026-05-28 (0.0025 → 0.00125): the original floor made late-game
+  // traps too lethal against high-HP adventurers; this keeps them a
+  // meaningful toll without being a real killer.
+  TRAP_MIN_ADV_DMG_PER_BASE:     0.00125,
   // Minion gold-cost scales with boss level so prices keep pace with stats.
   // Slightly under the avg (HP+ATK)/2 stat-rate so minions feel a touch
   // more affordable at higher levels — small reward for progression.
