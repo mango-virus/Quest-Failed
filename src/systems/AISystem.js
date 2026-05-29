@@ -3934,17 +3934,23 @@ export class AISystem {
     return out
   }
 
-  // True iff `adv` knows where the boss is — i.e. (a) they have a
-  // knowledge entry for the boss room (visited it, or inherited briefing
-  // from a returning veteran), AND (b) there's an unbroken chain of
-  // known rooms (via connectionPoints) from their current room back to
-  // the boss room. Without (b), they might know the throne exists but
-  // have never walked or been briefed on a route there, so they should
-  // NOT be able to path directly — they have to explore until the chain
-  // links up.
+  // True iff the boss is reachable along a KNOWN route — i.e. (a) the boss
+  // room is known, AND (b) there's an unbroken chain of known rooms (via
+  // connectionPoints) from the adv's current room back to the boss room.
+  // Without (b) they might know the throne exists but have no charted route
+  // there, so they keep exploring until the chain links up.
+  //
+  // "Known" is COLLECTIVE: a room counts if it's in the shared knowledge pool
+  // (gameState.knowledge.sharedPool.rooms) OR this adv has personally seen it
+  // this wave. So once any prior survivor charts the boss room + a connecting
+  // route, that knowledge lives in the shared pool and EVERY later adventurer
+  // marches straight in along it instead of re-exploring the whole dungeon —
+  // even brand-new arrivals who never inherited a full briefing. (2026-05-29:
+  // switched from per-adv knowledge to the shared pool per design.)
   //
   // Knowledge sources (KnowledgeSystem.js):
-  //   - Visiting a room (ADVENTURER_ROOM_CHANGED → observeCurrentRoom)
+  //   - Visiting a room (ADVENTURER_ROOM_CHANGED → observeCurrentRoom), which
+  //     feeds the shared pool when survivors share at end of day / on death
   //   - Briefing on spawn (initKnowledgeForSpawn inherits a fraction of
   //     the shared pool from prior survivors; veterans inherit 100%)
   //
@@ -3957,8 +3963,10 @@ export class AISystem {
     const rooms = this._gameState?.dungeon?.rooms ?? []
     const boss  = rooms.find(r => r.definitionId === 'boss_chamber')
     if (!boss) return false
-    const known = adv.knowledge?.rooms ?? {}
-    if (!known[boss.instanceId]) return false
+    const shared   = this._gameState?.knowledge?.sharedPool?.rooms ?? {}
+    const personal = adv.knowledge?.rooms ?? {}
+    const isKnown  = (id) => !!(shared[id] || personal[id])
+    if (!isKnown(boss.instanceId)) return false
     const here = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
     if (!here) return false
     if (here.instanceId === boss.instanceId) return true
@@ -3970,8 +3978,8 @@ export class AISystem {
       for (const n of this._getRoomNeighbors(r)) {
         if (seen.has(n.instanceId)) continue
         if (n.instanceId === boss.instanceId) return true
-        // Can only traverse rooms the adv knows about.
-        if (!known[n.instanceId]) continue
+        // Can only traverse rooms that are known (shared pool or personal).
+        if (!isKnown(n.instanceId)) continue
         seen.add(n.instanceId)
         queue.push(n)
       }
