@@ -1079,6 +1079,12 @@ export class BossSystem {
       monarchSurged: false,
       enrageMul: 1,
       hpEmitT: 0,   // throttle for the live duel-HUD HP feed
+      // Occasional in-fight bark cadence. First line lands ~4-7s in (after the
+      // opening square-off) so the duel doesn't open on chatter; then every
+      // ~6-9s. Lines come from the shadowMonarchFight pool via _monarchSay,
+      // which routes through SHADOW_MONARCH_SAY → ChatBubbles (bypasses the
+      // duel suppression gate that mutes his generic exploring chatter).
+      nextSayT: 4 + Math.random() * 3,
     }
     this._pickDuelAnchors(D)
     return D
@@ -1127,6 +1133,15 @@ export class BossSystem {
     const D = this._duel ?? (this._duel = this._makeDuelState(fs, boss))
     D.t += dt
     this._checkDuelBeats(D, adv, boss)
+
+    // Occasional in-fight bark — a line that matches Jinwoo and the moment.
+    // Routes through _monarchSay so it bypasses ChatBubbles' duel-suppression
+    // gate (his generic exploring chatter is muted for the whole duel).
+    D.nextSayT -= dt
+    if (D.nextSayT <= 0) {
+      D.nextSayT = 6 + Math.random() * 3
+      this._monarchSay(adv, this._monarchLine('shadowMonarchFight', 'Too weak.'), 2800)
+    }
 
     // Feed the live duel HUD (Monarch vs boss HP bars), throttled ~8/s — CSS
     // width transitions smooth the steps between the 0.6s damage rounds.

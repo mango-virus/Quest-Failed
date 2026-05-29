@@ -1236,6 +1236,8 @@ The standard boss fight treats every invader the same: they orbit the boss and t
 
 Intent: the Shadow Monarch's arrival is already the rarest, most theatrical event in the game — the fight that pays it off should match.
 
+**Duel chatter discipline (2026-05-28).** Jinwoo's normal *exploring* chat lines are **suppressed for the whole duel + win/loss outro** — they were leaking through generic contextual/ambient triggers mid-fight and after a result. During the duel he instead throws **occasional combat-flavoured barks** (a dedicated fight-line pool — "Show me everything you have.", "You'll make a fine shadow.", etc.) on a ~6–9s cadence, plus a bark on his power-surge beat. Only these scripted lines and the outro's closing lines speak once the duel begins; his wandering exploring pool resumes only on a future appearance. On the **loss** path, his death animation is given a **3-second hold** before the post-wave summary pops, so the death reads fully.
+
 ### Duel win/loss outro cutscenes (2026-05-28)
 
 When the duel resolves, the post-wave summary is **held back** until a short scripted outro plays out, so the player sees the ending in full. (Mechanically free: Jinwoo stays in the active-adventurer list during the outro, so the day-end auto-timer doesn't fire until he's gone.) The camera stays locked on the throne for the whole outro.

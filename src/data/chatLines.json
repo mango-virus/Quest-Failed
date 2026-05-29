@@ -1446,6 +1446,23 @@
     "I'll face the boss alone.",
     "Rise, and serve."
   ],
+  "shadowMonarchFight": [
+    "Is this your dungeon's champion?",
+    "Stronger than the rest. Still not enough.",
+    "Show me everything you have.",
+    "You'll make a fine shadow.",
+    "Keep fighting. It changes nothing.",
+    "I've killed bigger.",
+    "Good. Don't fall too easily.",
+    "Your reign ends tonight.",
+    "Come, then.",
+    "Hit me again.",
+    "You can't kill what's already dead.",
+    "Closer. Almost.",
+    "Bleed for me.",
+    "I feel your strength fading.",
+    "This is where you kneel."
+  ],
   "shadowMonarchVictory": [
     "Is that all your dungeon had?",
     "You fought well. It wasn't enough.",
