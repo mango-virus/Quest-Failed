@@ -179,7 +179,9 @@ export class TopBar {
       name: (def.name || def.id).toUpperCase(),
       rarity: rarity.toUpperCase(),
       color: this._rarityColor(rarity),
-      glyph: this._glyphForRarity(rarity),
+      // The pact's own thematic emoji (dungeonMechanics.json `symbol`);
+      // falls back to a per-rarity glyph only if a pact has no symbol.
+      glyph: def.symbol || this._glyphForRarity(rarity),
       boon:  def.description ?? null,
       bane:  def.tradeoffDescription ?? null,
       flavorText: def.flavorText ?? null,
@@ -188,6 +190,7 @@ export class TopBar {
 
   _rarityColor(rarity) {
     switch (rarity) {
+      case 'damned':    return '#b06bd9'   // forbidden violet — the 6th tier
       case 'legendary': return 'var(--blood)'
       case 'epic':      return 'var(--info)'
       case 'rare':      return 'var(--gold)'

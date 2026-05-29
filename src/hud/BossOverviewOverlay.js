@@ -120,6 +120,19 @@ export class BossOverviewOverlay {
     return ids.map(id => defs.find(d => d.id === id)).filter(Boolean)
   }
 
+  // Pact rarity → tier colour (mirrors TopBar._rarityColor so the boss
+  // overview, the in-game pact strip and the grimoire all agree on hue).
+  _rarityColor(rarity) {
+    switch (String(rarity || 'common').toLowerCase()) {
+      case 'damned':    return '#b06bd9'   // forbidden violet — the 6th tier
+      case 'legendary': return 'var(--blood)'
+      case 'epic':      return 'var(--info)'
+      case 'rare':      return 'var(--gold)'
+      case 'uncommon':  return 'var(--poison)'
+      default:          return 'var(--text-mute)'
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────
   _renderBody() {
     return h('div', { className: 'qf-boss-body' }, [
@@ -393,7 +406,7 @@ export class BossOverviewOverlay {
   }
 
   _pactRow(p) {
-    const color = p.color || 'var(--info)'
+    const color = this._rarityColor(p.rarity)
     return h('div', {
       className: 'qf-boss-pact-row',
       style: { '--pact-color': color },
@@ -405,7 +418,7 @@ export class BossOverviewOverlay {
       h('span', {
         className: 'pix qf-boss-pact-glyph',
         style: { color, textShadow: `0 0 6px ${color}` },
-      }, p.glyph || '▣'),
+      }, p.symbol || '▣'),
       h('div', { className: 'qf-boss-pact-textcol' }, [
         h('span', { className: 'pix qf-boss-pact-name' }, p.name || p.id),
         h('span', {
@@ -417,7 +430,7 @@ export class BossOverviewOverlay {
   }
 
   _pactRowExpanded(p) {
-    const color = p.color || 'var(--info)'
+    const color = this._rarityColor(p.rarity)
     return h('div', {
       className: 'qf-boss-pact-expanded',
       style: { '--pact-color': color },
@@ -426,7 +439,7 @@ export class BossOverviewOverlay {
         h('span', {
           className: 'pix qf-boss-pact-glyph',
           style: { color, textShadow: `0 0 6px ${color}` },
-        }, p.glyph || '▣'),
+        }, p.symbol || '▣'),
         h('span', { className: 'pix qf-boss-pact-name' }, p.name || p.id),
         h('span', {
           className: 'pix qf-boss-pact-rarity',

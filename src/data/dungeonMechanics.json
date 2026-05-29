@@ -2,7 +2,7 @@
   {
     "id": "taxation_of_souls",
     "name": "Taxation of Souls",
-    "symbol": "⍟",
+    "symbol": "👻",
     "description": "Adventurers lose 5% of their current HP each time they enter a new room.",
     "tradeoffDescription": "Adventurers are already weakened on kill — you gain slightly less Gold per death.",
     "rarity": "common",
@@ -22,7 +22,7 @@
   {
     "id": "bloodbound",
     "name": "Bloodbound",
-    "symbol": "✕",
+    "symbol": "🩸",
     "description": "Your minions deal +50% damage but die permanently instead of respawning overnight.",
     "tradeoffDescription": "Every minion lost is gone forever. Your dungeon slowly hollows out if you're not careful.",
     "rarity": "rare",
@@ -45,7 +45,7 @@
   {
     "id": "gold_rush",
     "name": "Gold Rush",
-    "symbol": "⊚",
+    "symbol": "💰",
     "description": "Adventurers drop double gold when they die.",
     "tradeoffDescription": "One extra adventurer enters the dungeon each day. More prey, more risk.",
     "rarity": "common",
@@ -67,7 +67,7 @@
   {
     "id": "undying_horde",
     "name": "Undying Horde",
-    "symbol": "♺",
+    "symbol": "🧟",
     "description": "When a minion dies, 40% chance it rises as a weaker undead — half HP, fights until truly destroyed.",
     "tradeoffDescription": "Undead minions cannot evolve and die permanently if killed again. Your strongest minions become shambling echoes.",
     "rarity": "rare",
@@ -90,7 +90,7 @@
   {
     "id": "sealed_paths",
     "name": "Sealed Paths",
-    "symbol": "↺",
+    "symbol": "🔀",
     "description": "Fleeing adventurers have a 50% chance to get turned around and rerouted deeper into the dungeon.",
     "tradeoffDescription": "Cornered adventurers fight with desperate fury — they deal 25% more damage when below their flee threshold.",
     "rarity": "uncommon",
@@ -110,7 +110,7 @@
   {
     "id": "pack_synergy",
     "name": "Pack Synergy",
-    "symbol": "⁂",
+    "symbol": "🐺",
     "description": "Minions deal +15% damage per other allied minion in the same room, up to +60%.",
     "tradeoffDescription": "Solo minions gain no bonus. Your dungeon rewards dense packing — spread coverage gets weaker.",
     "rarity": "common",
@@ -130,7 +130,7 @@
   {
     "id": "hasty_architect",
     "name": "The Hasty Architect",
-    "symbol": "⌂",
+    "symbol": "🔨",
     "description": "During the Night Phase, you receive a 50% discount on traps.",
     "tradeoffDescription": "All traps have a 25% chance to fail or jam when triggered.",
     "rarity": "uncommon",
@@ -150,7 +150,7 @@
   {
     "id": "great_erasure",
     "name": "Pact of the Great Erasure",
-    "symbol": "⌫",
+    "symbol": "🧽",
     "description": "Adventurers retain zero knowledge of the dungeon when they escape — every party that returns starts blind.",
     "tradeoffDescription": "Adventurers arrive with 2× base Health, Damage, and Speed.",
     "rarity": "legendary",
@@ -170,7 +170,7 @@
   {
     "id": "schism",
     "name": "Schism",
-    "symbol": "⋔",
+    "symbol": "💔",
     "description": "Adventurer parties splinter on entry — every adventurer paths solo, with no party loyalty, no healing, no shared buffs.",
     "tradeoffDescription": "Solo adventurers never flee. They fight to the death.",
     "rarity": "rare",
@@ -190,7 +190,7 @@
   {
     "id": "glory_hounds",
     "name": "Glory Hounds",
-    "symbol": "✯",
+    "symbol": "🎖️",
     "description": "Adventurers refuse to retreat — they fight on no matter how wounded they are.",
     "tradeoffDescription": "Adventurers below 30% HP deal +50% damage.",
     "rarity": "rare",
@@ -210,7 +210,7 @@
   {
     "id": "sworn_rivals",
     "name": "Sworn Rivals",
-    "symbol": "⇆",
+    "symbol": "⚔️",
     "description": "Two adventurers in each party are bound as sworn rivals. When both fall below half HP, they break formation and attack each other on sight.",
     "tradeoffDescription": "While both rivals are at full HP, each one deals +25% damage.",
     "rarity": "epic",
@@ -230,7 +230,7 @@
   {
     "id": "famine_decree",
     "name": "Famine Decree",
-    "symbol": "⊝",
+    "symbol": "🥀",
     "description": "Adventurers at less than half HP deal −50% damage. Wound them and they wither.",
     "tradeoffDescription": "Adventurers at full HP deal +50% damage. Fresh-faced parties hit like trucks.",
     "rarity": "uncommon",
@@ -250,7 +250,7 @@
   {
     "id": "gilded_demise",
     "name": "Gilded Demise",
-    "symbol": "⊙",
+    "symbol": "🪙",
     "description": "Adventurers drop +50% gold when they die.",
     "tradeoffDescription": "Every 50 gold earned today raises tomorrow's adventurer count by 1.",
     "rarity": "uncommon",
@@ -270,7 +270,7 @@
   {
     "id": "pyramid_scheme",
     "name": "Pyramid Scheme",
-    "symbol": "◬",
+    "symbol": "🔺",
     "description": "The first kill each day grants 5× gold.",
     "tradeoffDescription": "Every subsequent kill that day grants only 50% of normal gold.",
     "rarity": "common",
@@ -290,7 +290,7 @@
   {
     "id": "ransom_note",
     "name": "Ransom Note",
-    "symbol": "※",
+    "symbol": "📝",
     "description": "Every adventurer who escapes the dungeon pays you a 5g ransom.",
     "tradeoffDescription": "Adventurers move 25% faster — harder to catch before they bolt.",
     "rarity": "common",
@@ -310,7 +310,7 @@
   {
     "id": "tax_the_living",
     "name": "Tax the Living",
-    "symbol": "⊞",
+    "symbol": "🧾",
     "description": "Every adventurer entering the dungeon pays you a 3g toll.",
     "tradeoffDescription": "Adventurers arrive at +20% HP — they paid extra to be tougher.",
     "rarity": "common",
@@ -330,7 +330,7 @@
   {
     "id": "tower_tax",
     "name": "Tower Tax",
-    "symbol": "♖",
+    "symbol": "🏹",
     "description": "Every ranged adventurer's first attack of the day misses entirely.",
     "tradeoffDescription": "Every attack after that first miss deals +30% damage.",
     "rarity": "common",
@@ -350,7 +350,7 @@
   {
     "id": "crusaders_curse",
     "name": "Crusader's Curse",
-    "symbol": "✟",
+    "symbol": "✝️",
     "description": "Healer classes (Cleric, Bard) cannot heal in your dungeon.",
     "tradeoffDescription": "Healer adventurers arrive with +50% HP to compensate.",
     "rarity": "rare",
@@ -370,7 +370,7 @@
   {
     "id": "kennel_discipline",
     "name": "Kennel Discipline",
-    "symbol": "↯",
+    "symbol": "💨",
     "description": "All your minions move 50% faster.",
     "tradeoffDescription": "Minions cannot patrol — they stand still in their assigned room until something walks in.",
     "rarity": "uncommon",
@@ -390,7 +390,7 @@
   {
     "id": "ironhide_rite",
     "name": "Ironhide Rite",
-    "symbol": "⛨",
+    "symbol": "🛡️",
     "description": "Your minions take 50% less damage from melee attackers.",
     "tradeoffDescription": "Minions take 100% more damage from ranged attackers.",
     "rarity": "rare",
@@ -410,7 +410,7 @@
   {
     "id": "frenzy_pact",
     "name": "Frenzy Pact",
-    "symbol": "⤊",
+    "symbol": "😤",
     "description": "When an ally minion dies in a room, every surviving minion in that room gains +25% damage for the day. Stacks. No cap.",
     "tradeoffDescription": "Each stack also gives those minions −25% defense. Also no cap.",
     "rarity": "epic",
@@ -430,7 +430,7 @@
   {
     "id": "last_stand_doctrine",
     "name": "Last Stand Doctrine",
-    "symbol": "†",
+    "symbol": "🗡️",
     "description": "Minions deal +100% damage when they are the last surviving ally in their room.",
     "tradeoffDescription": "Minions who triggered Last Stand return at 50% HP the next day, drained from the effort.",
     "rarity": "rare",
@@ -450,7 +450,7 @@
   {
     "id": "mage_hunt",
     "name": "Mage Hunt",
-    "symbol": "⌖",
+    "symbol": "🎯",
     "description": "Your minions deal +50% damage against ranged adventurer classes.",
     "tradeoffDescription": "Minions deal −25% damage against melee classes. Knights and Barbarians are now your hardest matchup.",
     "rarity": "common",
@@ -470,7 +470,7 @@
   {
     "id": "vampires_toll",
     "name": "Vampire's Toll",
-    "symbol": "⛧",
+    "symbol": "🧛",
     "description": "Every adventurer killed in your dungeon heals the boss for 5% of max HP.",
     "tradeoffDescription": "Every adventurer who escapes alive damages the boss for 5% of max HP.",
     "rarity": "common",
@@ -490,7 +490,7 @@
   {
     "id": "tyrants_gaze",
     "name": "Tyrant's Gaze",
-    "symbol": "◉",
+    "symbol": "👁️",
     "description": "Each time the boss lands a hit during a boss fight, every minion in the boss chamber gains +1 attack for the rest of the day (stacks).",
     "tradeoffDescription": "Each time the boss takes a hit during the fight, every minion in the boss chamber loses 1 HP.",
     "rarity": "epic",
@@ -510,7 +510,7 @@
   {
     "id": "soul_tether",
     "name": "Soul Tether",
-    "symbol": "⚯",
+    "symbol": "🔗",
     "description": "When a minion dies in the boss chamber, the boss heals for 10% of max HP.",
     "tradeoffDescription": "When a minion dies anywhere else in the dungeon, the boss takes 5% max HP damage.",
     "rarity": "uncommon",
@@ -530,7 +530,7 @@
   {
     "id": "avengers_rite",
     "name": "Avenger's Rite",
-    "symbol": "✷",
+    "symbol": "😡",
     "description": "Whenever a minion dies, the boss enrages: +25% damage for 10 seconds during boss fights.",
     "tradeoffDescription": "When an adventurer first enters the boss chamber, the boss is dazed for 5 seconds (no attacks).",
     "rarity": "uncommon",
@@ -550,7 +550,7 @@
   {
     "id": "final_breath",
     "name": "Final Breath",
-    "symbol": "☧",
+    "symbol": "🫁",
     "description": "Once per run, when the boss is about to die in a boss fight, instead revive at 50% HP and full-heal every minion in the dungeon.",
     "tradeoffDescription": "After the revive triggers, the boss permanently deals −25% damage for the rest of the run.",
     "rarity": "legendary",
@@ -570,7 +570,7 @@
   {
     "id": "false_maps",
     "name": "False Maps",
-    "symbol": "⊠",
+    "symbol": "🗺️",
     "description": "Adventurer intel of your dungeon is scrambled — every room they think they know is labelled wrong.",
     "tradeoffDescription": "When an adventurer enters a room and realizes the intel was wrong, they enrage: +50% damage for 30 seconds.",
     "rarity": "epic",
@@ -590,7 +590,7 @@
   {
     "id": "whispered_lies",
     "name": "Whispered Lies",
-    "symbol": "⸮",
+    "symbol": "🤥",
     "description": "Adventurer trap intel is poisoned with extra fake trap markers pointing at empty floor tiles.",
     "tradeoffDescription": "Real traps still work — but adventurers waste pathfinding effort routing around bait tiles, sometimes routing into your real ones.",
     "rarity": "rare",
@@ -610,7 +610,7 @@
   {
     "id": "open_book",
     "name": "Open Book",
-    "symbol": "☰",
+    "symbol": "📖",
     "description": "Your traps deal 2× damage and your minions take 50% less damage. They knew, they came anyway.",
     "tradeoffDescription": "Adventurers see every trap and minion in your dungeon from the moment they spawn.",
     "rarity": "epic",
@@ -631,7 +631,7 @@
   {
     "id": "whisperers_tongue",
     "name": "Whisperer's Tongue",
-    "symbol": "❞",
+    "symbol": "👂",
     "description": "Your minions can hear adventurers up to 5 tiles away and engage them through walls.",
     "tradeoffDescription": "Adventurers know the location of every minion you've placed.",
     "rarity": "rare",
@@ -651,7 +651,7 @@
   {
     "id": "doomsday_clock",
     "name": "Doomsday Clock",
-    "symbol": "◷",
+    "symbol": "⏰",
     "description": "Gain 500 gold immediately.",
     "tradeoffDescription": "On the 7th day from now, a guaranteed raid arrives — the wave is doubled in size.",
     "rarity": "legendary",
@@ -671,7 +671,7 @@
   {
     "id": "the_long_game",
     "name": "The Long Game",
-    "symbol": "∞",
+    "symbol": "⏳",
     "description": "Every 3 days, you receive a free random rare pact at dawn.",
     "tradeoffDescription": "Every 3 days, you also lose one random minion permanently AND your maximum minion slots drop by 1.",
     "rarity": "legendary",
@@ -691,7 +691,7 @@
   {
     "id": "inquisitors_mark",
     "name": "Inquisitor's Mark",
-    "symbol": "⊕",
+    "symbol": "🏷️",
     "description": "Each day, one adventurer is marked. Killing the marked one grants 5× gold.",
     "tradeoffDescription": "The marked adventurer arrives with 2× HP and +50% damage.",
     "rarity": "rare",
@@ -711,7 +711,7 @@
   {
     "id": "summon_adds_i",
     "name": "Summon Adds I",
-    "symbol": "❶",
+    "symbol": "1️⃣",
     "description": "At the start of each day, 2 random Tier-1 minions appear in the boss chamber. They guard the room and despawn at day's end.",
     "tradeoffDescription": "When a summoned add dies, the boss loses 5% of max HP.",
     "rarity": "uncommon",
@@ -734,7 +734,7 @@
   {
     "id": "summon_adds_ii",
     "name": "Summon Adds II",
-    "symbol": "❷",
+    "symbol": "2️⃣",
     "description": "At the start of each day, 2 random Tier-2 minions appear in the boss chamber. They guard the room and despawn at day's end.",
     "tradeoffDescription": "Adventurers entering the boss chamber deal +25% damage.",
     "rarity": "rare",
@@ -757,7 +757,7 @@
   {
     "id": "summon_adds_iii",
     "name": "Summon Adds III",
-    "symbol": "❸",
+    "symbol": "3️⃣",
     "description": "At the start of each day, 1 random Tier-3 minion (the strongest forms) appears in the boss chamber.",
     "tradeoffDescription": "Every day for the rest of the run, +1 adventurer enters the dungeon.",
     "rarity": "legendary",
@@ -780,7 +780,7 @@
   {
     "id": "drill_sergeant",
     "name": "Drill Sergeant",
-    "symbol": "▥",
+    "symbol": "🪖",
     "description": "+5 maximum minion slots regardless of Barracks count.",
     "tradeoffDescription": "All minions cost 50% more gold to place.",
     "rarity": "uncommon",
@@ -800,7 +800,7 @@
   {
     "id": "endless_garrison",
     "name": "Endless Garrison",
-    "symbol": "▦",
+    "symbol": "🏰",
     "description": "Each Barracks grants 15 minion slots instead of 10.",
     "tradeoffDescription": "All minions deal 15% less damage — they're overcrowded.",
     "rarity": "rare",
@@ -820,7 +820,7 @@
   {
     "id": "the_cull",
     "name": "The Cull",
-    "symbol": "▤",
+    "symbol": "🪓",
     "description": "+10 maximum minion slots flat.",
     "tradeoffDescription": "At the end of each day, your weakest alive minion is permanently culled.",
     "rarity": "rare",
@@ -840,7 +840,7 @@
   {
     "id": "trap_masons_touch",
     "name": "Trap Mason's Touch",
-    "symbol": "◫",
+    "symbol": "🧱",
     "description": "+5 maximum trap slots regardless of Trap Factory count.",
     "tradeoffDescription": "All traps cost 50% more gold to place.",
     "rarity": "uncommon",
@@ -860,7 +860,7 @@
   {
     "id": "trapsmiths_guild",
     "name": "Trapsmith's Guild",
-    "symbol": "▧",
+    "symbol": "🪤",
     "description": "Each Trap Factory grants 10 trap slots instead of 5.",
     "tradeoffDescription": "All traps deal 25% less damage — quantity over quality.",
     "rarity": "rare",
@@ -880,7 +880,7 @@
   {
     "id": "forbidden_workshop",
     "name": "Forbidden Workshop",
-    "symbol": "▨",
+    "symbol": "🏭",
     "description": "+10 maximum trap slots flat.",
     "tradeoffDescription": "Each dawn, 25% of your placed traps are randomly disabled for that day.",
     "rarity": "rare",
@@ -900,7 +900,7 @@
   {
     "id": "architects_vision",
     "name": "Architect's Vision",
-    "symbol": "▩",
+    "symbol": "📐",
     "description": "+3 maximum minion slots and +3 maximum trap slots.",
     "tradeoffDescription": "+1 adventurer enters the dungeon each day.",
     "rarity": "rare",
@@ -921,7 +921,7 @@
   {
     "id": "hellfire_breath",
     "name": "Hellfire Breath",
-    "symbol": "✺",
+    "symbol": "🔥",
     "description": "Boss gains a cone fire-breath attack during boss fights — every 8 seconds, AoE damage to up to 3 adventurers in front.",
     "tradeoffDescription": "The breath has a 3-second windup; the boss does not attack while charging it.",
     "rarity": "rare",
@@ -942,7 +942,7 @@
   {
     "id": "lightning_strike",
     "name": "Lightning Strike",
-    "symbol": "ϟ",
+    "symbol": "⚡",
     "description": "Boss can summon a lightning bolt at the highest-damage adventurer every 6 seconds during boss fights. Big single-target damage.",
     "tradeoffDescription": "Each cast costs the boss 3% of max HP.",
     "rarity": "rare",
@@ -963,7 +963,7 @@
   {
     "id": "shockwave_slam",
     "name": "Shockwave Slam",
-    "symbol": "◎",
+    "symbol": "💥",
     "description": "Every 10 seconds during boss fights, the boss slams the ground — AoE damage to all adventurers in the boss chamber.",
     "tradeoffDescription": "The boss is stunned for 2 seconds after each slam.",
     "rarity": "rare",
@@ -984,7 +984,7 @@
   {
     "id": "spectral_reach",
     "name": "Spectral Reach",
-    "symbol": "‡",
+    "symbol": "🌫️",
     "description": "Every 5 seconds during boss fights, the boss teleports adjacent to the closest adventurer and instantly strikes.",
     "tradeoffDescription": "The boss attacks 25% more slowly all day.",
     "rarity": "rare",
@@ -1005,7 +1005,7 @@
   {
     "id": "dark_vortex",
     "name": "Dark Vortex",
-    "symbol": "❂",
+    "symbol": "🌀",
     "description": "Every 12 seconds during boss fights, the boss pulls all adventurers in the boss chamber 2 tiles toward itself.",
     "tradeoffDescription": "The vortex also pulls your minions in the boss chamber, disrupting their positions.",
     "rarity": "uncommon",
@@ -1026,7 +1026,7 @@
   {
     "id": "soul_drain",
     "name": "Soul Drain",
-    "symbol": "☋",
+    "symbol": "💜",
     "description": "Every 12 seconds during boss fights, the boss channels a beam at one adventurer for 3 seconds, dealing damage and healing the boss for half that amount.",
     "tradeoffDescription": "The boss can't move or block while channeling.",
     "rarity": "epic",
@@ -1047,7 +1047,7 @@
   {
     "id": "doppelgangers",
     "name": "Doppelgangers",
-    "symbol": "⧉",
+    "symbol": "👥",
     "description": "Every 5 seconds during boss fights, the boss conjures 3 illusory copies for 4 seconds.",
     "tradeoffDescription": "The real boss only deals 50% damage during the illusion window.",
     "rarity": "epic",
@@ -1068,7 +1068,7 @@
   {
     "id": "petrifying_stare",
     "name": "Petrifying Stare",
-    "symbol": "⬢",
+    "symbol": "🗿",
     "description": "Every 15 seconds during boss fights, the boss freezes one random adventurer in the chamber for 5 seconds.",
     "tradeoffDescription": "There's a 25% chance per cast that the stare backfires and stuns the boss for 3 seconds instead.",
     "rarity": "rare",
@@ -1089,7 +1089,7 @@
   {
     "id": "cursed_soil",
     "name": "Cursed Soil",
-    "symbol": "▒",
+    "symbol": "🪦",
     "description": "Adventurer kills inside rooms grant +50% gold.",
     "tradeoffDescription": "Empty floor tiles in your dungeon deal 1 damage per second to anyone standing on them, including your minions.",
     "rarity": "rare",
@@ -1109,7 +1109,7 @@
   {
     "id": "sundered_floor",
     "name": "Sundered Floor",
-    "symbol": "▣",
+    "symbol": "🕳️",
     "description": "Each day, a random floor tile becomes a pitfall — telegraphed for 5 seconds, then anyone standing on it takes 25% max HP damage and is briefly stunned. The tile turns pitch black after triggering.",
     "tradeoffDescription": "There's a 5% chance the pitfall opens under one of your minions instead.",
     "rarity": "rare",
@@ -1130,7 +1130,7 @@
   {
     "id": "pact_of_the_mirror",
     "name": "Pact of the Mirror",
-    "symbol": "◐",
+    "symbol": "🪞",
     "description": "At each dawn, one of your minions is duplicated — a free copy at half HP appears beside it.",
     "tradeoffDescription": "When either twin dies, both die.",
     "rarity": "legendary",
@@ -1150,7 +1150,7 @@
   {
     "id": "pact_of_the_cartographer",
     "name": "Pact of the Cartographer",
-    "symbol": "⌘",
+    "symbol": "🧭",
     "description": "At day start, the planned path of every adventurer is revealed to you in advance.",
     "tradeoffDescription": "Adventurers move 25% faster.",
     "rarity": "uncommon",
@@ -1170,7 +1170,7 @@
   {
     "id": "pact_of_the_jester",
     "name": "Pact of the Jester",
-    "symbol": "❖",
+    "symbol": "🃏",
     "description": "All trap costs are reduced by 75% and traps deal +50% damage.",
     "tradeoffDescription": "Trap names are scrambled in your build menu — you don't know which trap you're placing until after it's down.",
     "rarity": "epic",
@@ -1190,7 +1190,7 @@
   {
     "id": "pact_of_the_whisperer",
     "name": "Pact of the Whisperer",
-    "symbol": "☾",
+    "symbol": "😱",
     "description": "One adventurer per day is marked — they panic-flee on sight of any of your minions.",
     "tradeoffDescription": "The marked adventurer's party gains +50% damage out of revenge.",
     "rarity": "rare",
@@ -1210,7 +1210,7 @@
   {
     "id": "pact_of_the_brand",
     "name": "Pact of the Brand",
-    "symbol": "✸",
+    "symbol": "🔆",
     "description": "Each night you choose one trap to 'bless' — its next firing deals 5× damage.",
     "tradeoffDescription": "After firing, the blessed trap is destroyed.",
     "rarity": "uncommon",
@@ -1230,7 +1230,7 @@
   {
     "id": "pact_of_the_reaper",
     "name": "Pact of the Reaper",
-    "symbol": "⸸",
+    "symbol": "💀",
     "description": "When an adventurer dies in a room, the next adventurer to enter that room is cursed: −25% HP and −25% damage.",
     "tradeoffDescription": "The cursed adventurer's curse is visible to their party — they sometimes skip the room entirely.",
     "rarity": "uncommon",
@@ -1250,7 +1250,7 @@
   {
     "id": "pact_of_the_crucible",
     "name": "Pact of the Crucible",
-    "symbol": "⟁",
+    "symbol": "⚗️",
     "description": "Once per run, you may sacrifice one minion to instantly evolve another in the same room to the next tier.",
     "tradeoffDescription": "The sacrificed minion's level is lost; the evolved minion keeps its current XP.",
     "rarity": "legendary",
@@ -1270,7 +1270,7 @@
   {
     "id": "pact_of_the_marionette",
     "name": "Pact of the Marionette",
-    "symbol": "Ψ",
+    "symbol": "🎭",
     "description": "Once per day, left-click any of your minions during the day phase to possess it. WASD moves the puppet; it auto-attacks adventurers in melee range.",
     "tradeoffDescription": "While possessed, every other minion in the dungeon stands idle. You lose possession if the puppet is killed or the day ends.",
     "rarity": "legendary",
@@ -1291,7 +1291,7 @@
   {
     "id": "blood_money",
     "name": "Blood Money",
-    "symbol": "≣",
+    "symbol": "💵",
     "description": "Each adventurer killed permanently adds +1 gold per night. The bodies pile up, the gold flows.",
     "tradeoffDescription": "Every 5th kill permanently boosts all future adventurers by +2% HP. The dungeon's legend grows.",
     "rarity": "epic",
@@ -1314,7 +1314,7 @@
   {
     "id": "the_leech",
     "name": "The Leech",
-    "symbol": "☟",
+    "symbol": "💉",
     "description": "On sealing: gain 800 gold at once.",
     "tradeoffDescription": "You lose 8% of your current gold every dawn — for the rest of the run.",
     "rarity": "damned",
@@ -1335,7 +1335,7 @@
   {
     "id": "pact_of_the_last_heart",
     "name": "Pact of the Last Heart",
-    "symbol": "☥",
+    "symbol": "🫀",
     "description": "On sealing: claim a free Legendary pact of fate's choosing.",
     "tradeoffDescription": "Your boss is reduced to a single heart — one lost boss fight ends the run, and you can never regain a heart.",
     "rarity": "damned",
@@ -1355,7 +1355,7 @@
   {
     "id": "famished_dark",
     "name": "Famished Dark",
-    "symbol": "⊗",
+    "symbol": "🌑",
     "description": "On sealing: gain 1500 gold at once.",
     "tradeoffDescription": "Adventurer kills grant 50% less gold — for the rest of the run.",
     "rarity": "damned",
@@ -1376,7 +1376,7 @@
   {
     "id": "the_open_gate",
     "name": "The Open Gate",
-    "symbol": "⊏",
+    "symbol": "🚪",
     "description": "On sealing: gain 1500 gold at once.",
     "tradeoffDescription": "+10 adventurers enter the dungeon every day — permanently.",
     "rarity": "damned",
@@ -1396,7 +1396,7 @@
   {
     "id": "hollow_crown",
     "name": "Hollow Crown",
-    "symbol": "♚",
+    "symbol": "👑",
     "description": "On sealing: claim a free Legendary pact of fate's choosing.",
     "tradeoffDescription": "Your boss's maximum HP is permanently cut in half.",
     "rarity": "damned",
@@ -1416,7 +1416,7 @@
   {
     "id": "the_bleeding_crown",
     "name": "The Bleeding Crown",
-    "symbol": "⸸",
+    "symbol": "🩸",
     "description": "On sealing: gain 1200 gold at once.",
     "tradeoffDescription": "The boss loses 2% of its maximum HP, permanently, every day.",
     "rarity": "damned",
@@ -1436,7 +1436,7 @@
   {
     "id": "sleepless_throne",
     "name": "Sleepless Throne",
-    "symbol": "☼",
+    "symbol": "🪑",
     "description": "On sealing: gain +10 maximum minion slots.",
     "tradeoffDescription": "The boss begins every boss fight at only 50% HP.",
     "rarity": "damned",
@@ -1457,7 +1457,7 @@
   {
     "id": "tribute_of_flesh",
     "name": "Tribute of Flesh",
-    "symbol": "⊺",
+    "symbol": "🥩",
     "description": "On sealing: gain 700 gold at once.",
     "tradeoffDescription": "Every adventurer who escapes alive loots 20 gold from your treasury.",
     "rarity": "damned",
@@ -1499,7 +1499,7 @@
   {
     "id": "the_hollow_horde",
     "name": "The Hollow Horde",
-    "symbol": "⛬",
+    "symbol": "🧟",
     "description": "On sealing: every current minion gains +20% to all stats.",
     "tradeoffDescription": "Your maximum minion slots are halved for the rest of the run.",
     "rarity": "damned",
@@ -1520,7 +1520,7 @@
   {
     "id": "brittle_bones",
     "name": "Brittle Bones",
-    "symbol": "⫰",
+    "symbol": "🦴",
     "description": "On sealing: all current minions deal +25% damage.",
     "tradeoffDescription": "Any minion struck while below 50% HP shatters instantly.",
     "rarity": "damned",
@@ -1541,7 +1541,7 @@
   {
     "id": "the_wasting",
     "name": "The Wasting",
-    "symbol": "⋙",
+    "symbol": "🦠",
     "description": "On sealing: all current minions evolve one tier (where possible).",
     "tradeoffDescription": "At the end of each day, every surviving minion permanently loses 5% of its max HP.",
     "rarity": "damned",
@@ -1562,7 +1562,7 @@
   {
     "id": "the_hunger",
     "name": "The Hunger",
-    "symbol": "⫤",
+    "symbol": "🍖",
     "description": "On sealing: gain 1000 gold at once.",
     "tradeoffDescription": "Each dawn, 20% of your minions die permanently — no revival.",
     "rarity": "damned",
@@ -1583,7 +1583,7 @@
   {
     "id": "the_unteachable",
     "name": "The Unteachable",
-    "symbol": "⊖",
+    "symbol": "🚫",
     "description": "On sealing: gain 1000 gold at once.",
     "tradeoffDescription": "Your minions can no longer gain XP or evolve for the rest of the run.",
     "rarity": "damned",
@@ -1604,7 +1604,7 @@
   {
     "id": "the_martyrs_curse",
     "name": "The Martyr's Curse",
-    "symbol": "⳥",
+    "symbol": "😇",
     "description": "On sealing: gain 800 gold at once.",
     "tradeoffDescription": "When a minion dies, nearby adventurers heal 25% of their max HP.",
     "rarity": "damned",
@@ -1625,7 +1625,7 @@
   {
     "id": "mounting_debt",
     "name": "Mounting Debt",
-    "symbol": "⛀",
+    "symbol": "💸",
     "description": "On sealing: gain 1000 gold at once.",
     "tradeoffDescription": "Every day, the gold cost of all rooms, minions and traps rises 5% — compounding.",
     "rarity": "damned",
@@ -1646,7 +1646,7 @@
   {
     "id": "the_sealed_vault",
     "name": "The Sealed Vault",
-    "symbol": "⛬",
+    "symbol": "🔒",
     "description": "On sealing: gain 1500 gold at once.",
     "tradeoffDescription": "You can never sell anything — rooms, minions or traps — again.",
     "rarity": "damned",
@@ -1667,7 +1667,7 @@
   {
     "id": "brittle_engines",
     "name": "Brittle Engines",
-    "symbol": "⚙",
+    "symbol": "⚙️",
     "description": "On sealing: all traps deal +100% damage.",
     "tradeoffDescription": "Every trap breaks permanently after firing once.",
     "rarity": "damned",
@@ -1688,7 +1688,7 @@
   {
     "id": "trapless_halls",
     "name": "Trapless Halls",
-    "symbol": "⊘",
+    "symbol": "🚧",
     "description": "On sealing: existing traps deal +50% damage, and gain 600 gold.",
     "tradeoffDescription": "You can place no new traps for the rest of the run.",
     "rarity": "damned",
@@ -1708,7 +1708,7 @@
   {
     "id": "famines_grip",
     "name": "Famine's Grip",
-    "symbol": "⊘",
+    "symbol": "🍂",
     "description": "On sealing: gain 800 gold at once.",
     "tradeoffDescription": "Treasure rooms and items pay 50% less gold.",
     "rarity": "damned",
@@ -1729,7 +1729,7 @@
   {
     "id": "pact_of_glass",
     "name": "Pact of Glass",
-    "symbol": "◇",
+    "symbol": "🔷",
     "description": "On sealing: every minion is free to place during the next build phase.",
     "tradeoffDescription": "All your minions' maximum HP is permanently halved.",
     "rarity": "damned",
@@ -1749,7 +1749,7 @@
   {
     "id": "the_insomniac",
     "name": "The Insomniac",
-    "symbol": "☽",
+    "symbol": "🌙",
     "description": "On sealing: gain 600 gold at once.",
     "tradeoffDescription": "Every third night you get no build phase — no rooms, minions or traps may be placed.",
     "rarity": "damned",
@@ -1769,7 +1769,7 @@
   {
     "id": "crumbling_halls",
     "name": "Crumbling Halls",
-    "symbol": "⌂",
+    "symbol": "🏚️",
     "description": "On sealing: gain 600 gold and +3 trap slots.",
     "tradeoffDescription": "At the start of every night a random room — never the Boss Chamber or an Entry Hall — is destroyed with everything in it.",
     "rarity": "damned",
@@ -1790,7 +1790,7 @@
   {
     "id": "blind_architect",
     "name": "Blind Architect",
-    "symbol": "⊝",
+    "symbol": "🙈",
     "description": "On sealing: gain 400 gold at once.",
     "tradeoffDescription": "Your minimap and adventurer-intel panel are disabled for the rest of the run.",
     "rarity": "damned",
@@ -1810,7 +1810,7 @@
   {
     "id": "colossus_heart",
     "name": "Colossus Heart",
-    "symbol": "⛰",
+    "symbol": "❤️",
     "description": "Your boss's maximum HP is doubled.",
     "tradeoffDescription": "The boss attacks 50% slower — a mountain that strikes like one.",
     "rarity": "legendary",
@@ -1829,7 +1829,7 @@
   {
     "id": "the_apex_tyrant",
     "name": "The Apex Tyrant",
-    "symbol": "♔",
+    "symbol": "🦖",
     "description": "Your boss gains +100% maximum HP and +50% attack and defense.",
     "tradeoffDescription": "Your power draws champions — every adventurer wave is doubled for the rest of the run.",
     "rarity": "legendary",
@@ -1848,7 +1848,7 @@
   {
     "id": "avatar_of_ruin",
     "name": "Avatar of Ruin",
-    "symbol": "⊛",
+    "symbol": "😈",
     "description": "Your boss is invincible for the first 5 seconds of every boss fight.",
     "tradeoffDescription": "The boss's maximum HP is cut in half — a brief god, then glass.",
     "rarity": "legendary",
@@ -1867,7 +1867,7 @@
   {
     "id": "wrath_unbound",
     "name": "Wrath Unbound",
-    "symbol": "⤋",
+    "symbol": "👿",
     "description": "The boss gains up to +100% attack as its HP falls — most savage at death's door.",
     "tradeoffDescription": "The boss takes +50% more damage.",
     "rarity": "legendary",
@@ -1886,7 +1886,7 @@
   {
     "id": "crown_of_avarice",
     "name": "Crown of Avarice",
-    "symbol": "♛",
+    "symbol": "🤑",
     "description": "All gold income is doubled.",
     "tradeoffDescription": "Every 5th day a guaranteed hero-grade raid arrives — double the wave, +50% adventurer stats.",
     "rarity": "legendary",
@@ -1906,7 +1906,7 @@
   {
     "id": "the_iron_price",
     "name": "The Iron Price",
-    "symbol": "⚒",
+    "symbol": "⚒️",
     "description": "Your minions and traps deal double damage.",
     "tradeoffDescription": "You can no longer earn gold — no kills, no treasure, nothing. Fight with what you have.",
     "rarity": "legendary",
@@ -1927,7 +1927,7 @@
   {
     "id": "sudden_death",
     "name": "Sudden Death",
-    "symbol": "☠",
+    "symbol": "☠️",
     "description": "Your minions, traps and boss deal 5× damage — every fight is instant.",
     "tradeoffDescription": "So do the adventurers. Everyone is glass; a single hit can end anything.",
     "rarity": "legendary",
@@ -1946,7 +1946,7 @@
   {
     "id": "the_undying_court",
     "name": "The Undying Court",
-    "symbol": "♰",
+    "symbol": "⚰️",
     "description": "Every adventurer who dies in your dungeon rises the next night as an undead minion of its own class, keeping its kit — forever.",
     "tradeoffDescription": "Each occupies 2 minion slots and makes living adventurers stronger; with no free slots, 2 of your minions are sacrificed to make room.",
     "rarity": "legendary",
