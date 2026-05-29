@@ -1031,6 +1031,11 @@ export class DayPhase extends Phaser.Scene {
       // pickInitialGoal (below) then picks SEEK_TREASURE for them.
       if ((this._gameState._eventFlags ?? {}).treasureHuntersActive) {
         adv._treasureHunter = true
+        // Tally the raiding party as we tag it so EventSystem's liquid-gold
+        // skim splits the 80% loss cap into equal per-raider shares (a full
+        // breakthrough = the cap; killing raiders lowers the loss).
+        const f = this._gameState._eventFlags
+        f.treasureRaidPartySize = (f.treasureRaidPartySize ?? 0) + 1
       }
 
       // Phase 7b: scale adventurer stats with dungeon level

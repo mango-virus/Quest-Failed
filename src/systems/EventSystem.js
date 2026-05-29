@@ -42,6 +42,18 @@ import { h }                from '../hud/dom.js'
 const MIN_GAP = 3
 const MAX_GAP = 3
 
+// ── Treasure Raid (2026-05-29) ─────────────────────────────────────────────
+// A recurring wealth raid on its OWN cadence, independent of the
+// MIN_GAP/MAX_GAP dungeon-event rotation. Fires every RAID_INTERVAL_DAYS
+// (first on day 10). `treasure_hunters` is pulled out of the random shuffle
+// bag (see _eventPrecondMet) and ONLY fires via this track. On a raid day the
+// whole wave arrives as treasure hunters who skim LIQUID gold on escape;
+// TREASURE_RAID_LOSS_CAP_PCT bounds the total the raid can carry off (the
+// player always keeps the remainder — 20% at the default 0.80). The two
+// balance knobs are the interval and the cap.
+const RAID_INTERVAL_DAYS        = 10
+const TREASURE_RAID_LOSS_CAP_PCT = 0.80
+
 // ── Day-long state-modifier event tuning ───────────────────────────────
 // Miasma — chip damage to everything, every tick. Damage per tick is
 // computed as a % of each target's maxHp (Balance.MIASMA_TICK_PCT_PER_TICK)
@@ -71,6 +83,9 @@ export class EventSystem {
     // events slice both end up with a valid structure.
     gameState.events ??= {}
     gameState.events.nextEventDay ??= this._initialNextDay()
+    // Treasure Raid track — independent of the regular event cadence above.
+    gameState.events.nextRaidDay  ??= RAID_INTERVAL_DAYS
+    gameState.events.scheduledIsRaid ??= false
     gameState.events.lastEventId  ??= null
     gameState.events.scheduledId  ??= null
     gameState.events.scheduledDay ??= null
@@ -435,9 +450,10 @@ export class EventSystem {
     // If the boss DIES to it (Jinwoo wins the duel), _onDayPhaseEnded throws it
     // back into the shuffle bag so it can recur without waiting for the full
     // roster to cycle — see the re-queue there.
-    if (def.id === 'treasure_hunters') {
-      return (this._gameState.dungeon?.treasureChests ?? []).length > 0
-    }
+    // Treasure Hunters is no longer a random-pool event — it fires exclusively
+    // on the dedicated 10-day Treasure Raid track (see _maybeScheduleRaid).
+    // Keep it out of the shuffle bag entirely so it never double-fires.
+    if (def.id === 'treasure_hunters') return false
     return true
   }
 
@@ -462,6 +478,10 @@ export class EventSystem {
       if (def) this._dispatchAnnounceUi(def)
       return
     }
+    // Treasure Raid — its own 10-day track, checked BEFORE (and preempting)
+    // the regular event roll. If tonight is a raid night, schedule it and
+    // return so no regular event also fires today (collision rule: raid wins).
+    if (this._maybeScheduleRaid(today)) return
     if (today < (ev.nextEventDay ?? this._initialNextDay())) return
 
     const def = this._pickEvent()
@@ -473,6 +493,30 @@ export class EventSystem {
     ev.scheduledDay = today
     EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: today })
     this._dispatchAnnounceUi(def)
+  }
+
+  // Treasure Raid scheduler — fires `treasure_hunters` on its own 10-day
+  // cadence (day 10, 20, 30, …), separate from the regular event rotation.
+  // Returns true when it schedules a raid for tonight (caller then skips the
+  // regular event roll). On a collision with a regular event day, the raid
+  // takes priority and that regular slot is forfeited (nextEventDay advanced),
+  // so the normal cadence simply resumes afterward.
+  _maybeScheduleRaid(today) {
+    const ev = this._gameState.events
+    if (today < (ev.nextRaidDay ?? RAID_INTERVAL_DAYS)) return false
+    const def = this._defs.find(d => d.id === 'treasure_hunters')
+    if (!def) return false
+    ev.scheduledId     = 'treasure_hunters'
+    ev.scheduledDay    = today
+    ev.scheduledIsRaid = true
+    // Collision: a regular event was also due today — forfeit that slot so the
+    // raid wins, and the regular cadence resumes from today.
+    if (today >= (ev.nextEventDay ?? this._initialNextDay())) {
+      ev.nextEventDay = today + this._rollGap()
+    }
+    EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: today, raid: true })
+    this._dispatchAnnounceUi(def)
+    return true
   }
 
   // Some events surface UI during the night phase (modals, demon spawn,
@@ -1533,6 +1577,20 @@ export class EventSystem {
     const id = ev.scheduledId
     if (!id) return
     const def = this._defs.find(d => d.id === id)
+    // Treasure Raid — its own track. Clear the raid, reschedule the next one,
+    // and DON'T touch the shuffle bag / regular cadence (treasure_hunters
+    // isn't in the random pool, so it never participates in lastEventId /
+    // firedThisRun / nextEventDay).
+    if (ev.scheduledIsRaid) {
+      this._clearEffect(def)
+      const firedDay = ev.scheduledDay ?? this._gameState.meta?.dayNumber ?? 1
+      ev.nextRaidDay     = firedDay + RAID_INTERVAL_DAYS
+      ev.scheduledIsRaid = false
+      ev.scheduledId     = null
+      ev.scheduledDay    = null
+      EventBus.emit('DUNGEON_EVENT_ENDED', { def })
+      return
+    }
     this._clearEffect(def)
     ev.lastEventId  = id
     // Mark this event spent in the current shuffle bag so _eligibleEvents
@@ -1659,6 +1717,13 @@ export class EventSystem {
         // them to chests (ignore the boss). The night sell-block keys off
         // events.scheduledId (the flag isn't set until now, day-begin).
         flags.treasureHuntersActive = true
+        // Treasure Raid liquid-gold skim (choice B): snapshot the day-start
+        // treasury so _skimTreasureRaider can carry off each escapee's share,
+        // capped at TREASURE_RAID_LOSS_CAP_PCT of it (player keeps the rest).
+        // partySize is stamped by DayPhase as it tags the wave.
+        flags.treasureRaidStartGold   = this._gameState.player?.gold ?? 0
+        flags.treasureRaidStolenToday = 0
+        flags.treasureRaidPartySize   = 0
         break
       case 'solo_leveling':
         // DayPhase spawns ONLY Sung Jinwoo (the Shadow Monarch) instead of
@@ -1819,7 +1884,10 @@ export class EventSystem {
         flags.bossRoyaleActive = false
         break
       case 'treasure_hunters':
-        flags.treasureHuntersActive = false
+        flags.treasureHuntersActive   = false
+        flags.treasureRaidStartGold   = null
+        flags.treasureRaidStolenToday = 0
+        flags.treasureRaidPartySize   = 0
         break
       case 'solo_leveling':
         flags.soloLevelingActive = false
@@ -1929,6 +1997,40 @@ export class EventSystem {
   // sting (per-goblin steal stays a flat 10%, just truncated to the
   // remaining cap budget once we're at the floor).
   _onAdventurerFled({ adventurer }) {
+    this._skimLootGoblin(adventurer)
+    this._skimTreasureRaider(adventurer)
+  }
+
+  // Treasure Raid liquid-gold skim (choice B). Each raider that ESCAPES the
+  // dungeon carries off an equal share of TREASURE_RAID_LOSS_CAP_PCT of the
+  // day-start treasury (perHead = cap ÷ party-size). So a full-wave breakthrough
+  // takes the whole cap (player keeps 20% at the default 0.80), killing raiders
+  // proportionally reduces the loss, and a wipe costs the player nothing —
+  // killed raiders never reach this handler. Mirrors the loot-goblin daily-cap
+  // accumulator below. partySize is stamped by DayPhase as the wave is tagged.
+  _skimTreasureRaider(adventurer) {
+    if (!adventurer?._treasureHunter) return
+    const flags = this._gameState._eventFlags ?? {}
+    if (!flags.treasureHuntersActive) return
+    const player = this._gameState.player
+    if (!player) return
+    const startGold   = flags.treasureRaidStartGold ?? (player.gold ?? 0)
+    const partySize   = Math.max(1, flags.treasureRaidPartySize ?? 1)
+    const cap         = Math.floor(startGold * TREASURE_RAID_LOSS_CAP_PCT)
+    const stolenSoFar = flags.treasureRaidStolenToday ?? 0
+    const remaining   = Math.max(0, cap - stolenSoFar)
+    const perHead     = Math.floor((startGold * TREASURE_RAID_LOSS_CAP_PCT) / partySize)
+    const stolen      = Math.max(0, Math.min(perHead, remaining, player.gold ?? 0))
+    if (stolen <= 0) return
+    player.gold = Math.max(0, (player.gold ?? 0) - stolen)
+    flags.treasureRaidStolenToday = stolenSoFar + stolen
+    // Stamp the take on the adventurer so RunHistorySystem + the post-wave
+    // summary fold it into their "Ng STOLEN" record.
+    adventurer.goldStolen = (adventurer.goldStolen ?? 0) + stolen
+    EventBus.emit('TREASURE_RAID_SKIM', { adventurer, stolen })
+  }
+
+  _skimLootGoblin(adventurer) {
     if (adventurer?.classId !== 'loot_goblin') return
     const player = this._gameState.player
     if (!player) return

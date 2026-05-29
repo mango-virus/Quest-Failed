@@ -402,7 +402,7 @@ export class AISystem {
     // boss alone. Skip the proximity loot entirely so he never pops a chest
     // he happens to beeline past on his way to the throne.
     if (adv._shadowMonarch) return
-    if (adv.stolenGold > 0) return   // already carrying — don't rob another
+    if (adv.stolenGold > 0 || adv._raiderLooted) return   // already carrying — don't rob another
     for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
       if (chest.opened) continue
       const d = Math.max(Math.abs(chest.tileX - adv.tileX), Math.abs(chest.tileY - adv.tileY))
@@ -411,13 +411,25 @@ export class AISystem {
       const itemsCache = this._scene.cache.json.get('items') ?? []
       const def = itemsCache.find(it => it.id === `treasure_chest_${chest.tier}`)
       const tr  = def?.treasure ?? {}
-      const playerGold = this._gameState.player.gold ?? 0
-      const stolen = Math.max(0, Math.floor(playerGold * (tr.stealPct ?? 10) / 100))
-      this._gameState.player.gold = Math.max(0, playerGold - stolen)
-      adv.stolenGold = (adv.stolenGold ?? 0) + stolen
-      adv.stolenFromChestTier = chest.tier
+      // Treasure-Raid raiders don't debit gold per-chest — their loss is the
+      // liquid-gold skim taken when they ESCAPE (EventSystem._skimTreasureRaider),
+      // capped across the whole raid. The chest is still "robbed" for flavor
+      // (re-arms next night like any chest; income is opened-independent). The
+      // _raiderLooted latch sends them to ESCAPE_WITH_LOOT (vs the stolenGold
+      // latch normal proximity-loot uses). Non-raid adventurers keep the
+      // classic stealPct% proximity-loot debit.
+      let stolen = 0
+      if (adv._treasureHunter) {
+        adv._raiderLooted = true
+      } else {
+        const playerGold = this._gameState.player.gold ?? 0
+        stolen = Math.max(0, Math.floor(playerGold * (tr.stealPct ?? 10) / 100))
+        this._gameState.player.gold = Math.max(0, playerGold - stolen)
+        adv.stolenGold = (adv.stolenGold ?? 0) + stolen
+        adv.stolenFromChestTier = chest.tier
+      }
       EventBus.emit('TREASURE_CHEST_OPENED', { chest, adv, stolen })
-      EventBus.emit('TREASURE_STOLEN', { adv, gold: stolen, tier: chest.tier })
+      if (stolen > 0) EventBus.emit('TREASURE_STOLEN', { adv, gold: stolen, tier: chest.tier })
       EventBus.emit('SAY_stoleTreasure', { adventurer: adv })
       // Roll for escape goal — if hit, the adv abandons everything and
       // sprints for the exit. Treasure Hunters ALWAYS bolt the instant
@@ -4112,7 +4124,7 @@ export class AISystem {
     // If every chest is already looted (or there are none reachable),
     // they leave empty-handed so the day can end.
     if (adv._treasureHunter) {
-      if ((adv.stolenGold ?? 0) > 0) return { type: 'ESCAPE_WITH_LOOT' }
+      if ((adv.stolenGold ?? 0) > 0 || adv._raiderLooted) return { type: 'ESCAPE_WITH_LOOT' }
       const chest = this._nearestUnopenedChest(adv)
       return chest
         ? { type: 'SEEK_TREASURE', chestId: chest.instanceId }
