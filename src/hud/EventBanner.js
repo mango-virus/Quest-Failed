@@ -66,7 +66,15 @@ function _ensureDamnedBannerCss() {
 .qf-eventpill-tip.qf-eventpill-tip-damned {
   --ev-accent:#e01225; --ev-bg:#0a0406; --ev-deep:#030101;
   --ev-text:#ff5560; --ev-sub:#f0bdc0;
-}`
+}
+/* Persistent pills live in a centered flex row so the active-event pill and
+   the no-build curse pill sit side-by-side, the PAIR centered — instead of
+   both stacking at dead-centre. A single visible pill stays centered alone. */
+.qf-eventpill-row {
+  position: absolute; left: 50%; top: 132px; transform: translateX(-50%);
+  display: flex; gap: 8px; align-items: center; z-index: 7; pointer-events: none;
+}
+.qf-eventpill-row .qf-eventpill { position: static; left: auto; top: auto; transform: none; }`
   document.head.appendChild(style)
 }
 
@@ -94,6 +102,10 @@ export class EventBanner {
 
   _build() {
     this.el = h('div', { className: 'qf-eventbanner' })
+    // Centered flex row holding the persistent pills. Both the active-event
+    // pill and the no-build curse pill live here, so when both are up they sit
+    // side-by-side with the pair centered (a single one stays centered alone).
+    this._pillRow = h('div', { className: 'qf-eventpill-row' })
     // Persistent status pill. Unlike the banner above — which fades after
     // a few seconds — this stays up for the whole event (announce → end)
     // so the player always knows an event is in effect. Hovering it
@@ -109,10 +121,19 @@ export class EventBanner {
       h('span', { className: 'qf-eventpill-icon' }, ''),
       h('span', { className: 'qf-eventpill-label' }, ''),
     ])
+    // No-build curse pill (damned black+red). Toggled open for the whole
+    // locked night (INSOMNIAC_LOCKED → DAY_PHASE_BEGAN) alongside any event.
+    this._lockPill = h('div', { className: 'qf-eventpill qf-eventpill-damned' }, [
+      h('span', { className: 'qf-eventpill-dot' }),
+      h('span', { className: 'qf-eventpill-icon' }, '☽'),
+      h('span', { className: 'qf-eventpill-label' }, 'NO BUILDING'),
+    ])
+    this._pillRow.appendChild(this._pill)
+    this._pillRow.appendChild(this._lockPill)
     // Hover tooltip — the active event's "what it does" description.
     this._pillTip = h('div', { className: 'qf-eventpill-tip' })
     this._stage.appendChild(this.el)
-    this._stage.appendChild(this._pill)
+    this._stage.appendChild(this._pillRow)
     this._stage.appendChild(this._pillTip)
   }
 
@@ -120,6 +141,11 @@ export class EventBanner {
     const sub = (event, fn) => { EventBus.on(event, fn); this._listeners.push([event, fn]) }
     sub('DUNGEON_EVENT_ANNOUNCED', (p) => { this._onAnnounced(p); this._showPill(p?.def) })
     sub('DUNGEON_EVENT_ENDED',     ()  => this._hidePill())
+    // DAMNED · The Insomniac — persistent no-build pill, up for the whole
+    // locked night so it can sit beside an active-event pill. Shown on the
+    // lock (night start), cleared when the build phase ends (day begins).
+    sub('INSOMNIAC_LOCKED',        ()  => this._lockPill?.classList.add('open'))
+    sub('DAY_PHASE_BEGAN',         ()  => this._lockPill?.classList.remove('open'))
     // A bounty hunter entering gets the transient top banner only — it's a
     // one-off arrival, not a multi-day event, so no persistent pill.
     sub('BOUNTY_HUNTER_ARRIVED',   (p) => this._onBountyHunter(p))
@@ -209,6 +235,12 @@ export class EventBanner {
   // (new run / save load). gameState.events.scheduledId holds the active
   // event id; the def is looked up from the events JSON cache.
   _restoreActiveEvent() {
+    // A save loaded mid-locked-night won't replay INSOMNIAC_LOCKED — restore
+    // the no-build pill straight from the flag (cleared at dawn, so a truthy
+    // value means we're sitting in the locked build phase).
+    if (this._gameState?._mechanicFlags?.insomniacLockTonight) {
+      this._lockPill?.classList.add('open')
+    }
     const id = this._gameState?.events?.scheduledId
     if (!id) return
     const scenes = window.__game?.scene?.scenes || []
@@ -274,7 +306,7 @@ export class EventBanner {
     this._listeners = []
     this._clearTimers()
     this.el?.remove()
-    this._pill?.remove()
+    this._pillRow?.remove()   // removes both the event pill + the no-build pill
     this._pillTip?.remove()
   }
 }
