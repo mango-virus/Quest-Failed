@@ -15,6 +15,17 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 9,
+    version: '0.1.10',
+    date: 'May 2026',
+    title: 'Trap Upkeep & Treasure Raids',
+    items: [
+      { icon: '🪤', text: 'Traps can now break after firing on an adventurer.' },
+      { icon: '🔧', text: 'New REBUILD button restores broken traps for gold at night.' },
+      { icon: '🗝️', text: 'Treasure Hunters now raid every 10 days for up to 80% of your gold.' },
+    ],
+  },
+  {
     id: 8,
     version: '0.1.9',
     date: 'May 2026',
