@@ -264,14 +264,14 @@ export class CompanionSelectOverlay {
     this._cardsEl = h('div', { className: 'qf-cmpsel-cards' })
 
     this._prevBtn = h('button', {
-      className: 'qf-cmpsel-arrow qf-cmpsel-arrow--prev',
+      className: 'btn qf-cmpsel-arrow qf-cmpsel-arrow--prev',
       type: 'button',
       'aria-label': 'Previous page',
       on: { click: () => this._setPage(this._pageIdx - 1) },
     }, '◀')
 
     this._nextBtn = h('button', {
-      className: 'qf-cmpsel-arrow qf-cmpsel-arrow--next',
+      className: 'btn qf-cmpsel-arrow qf-cmpsel-arrow--next',
       type: 'button',
       'aria-label': 'Next page',
       on: { click: () => this._setPage(this._pageIdx + 1) },

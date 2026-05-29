@@ -10559,70 +10559,36 @@ body {
    draws on top of them.
    Tall enough to feel anchored to the card row, visually distinct from
    the BACK / CONFIRM footer buttons. */
+/* Page-flip arrows reuse the shared `.btn` skin (matching the BACK button on
+   this screen — dark bg-2 fill, line-2 border, pixel font, bevel + hover
+   sheen) by carrying the `.btn` class in markup. This rule only owns what's
+   arrow-specific: absolute edge-positioning, the bigger ◀/▶ glyph, and
+   re-applying the vertical-centring transform across the hover/active/disabled
+   states so `.btn`'s own translateY transforms don't knock the button off
+   centre. (Pinned 128px in from each screen edge — see the long history note
+   that used to live here; `top: 50%` + `translateY(-50%)` centres against the
+   card row regardless of card height.) */
 .qf-cmpsel-arrow {
   position: absolute;
   top: 50%;
   z-index: 5;
-  width: 64px;
-  height: 96px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
-  border: 2px solid var(--gold);
-  box-shadow:
-    inset 2px 2px 0 rgba(255, 255, 255, 0.06),
-    inset -2px -2px 0 rgba(0, 0, 0, 0.55),
-    0 0 0 2px #000,
-    0 6px 16px rgba(0, 0, 0, 0.55);
-  color: var(--gold);
-  font-family: var(--pix);
-  font-size: 28px;
-  cursor: pointer;
-  user-select: none;
-  transition: transform 140ms ease, box-shadow 140ms ease, opacity 200ms ease;
+  font-size: 34px;       /* the ◀/▶ glyph — larger than .btn's 10px label */
+  line-height: 1;
+  padding: 26px 24px;    /* big flank buttons for the tall card row, keeping the .btn skin */
 }
-/* Absolute positioning: pin to the stage's left + right edges. Walked
-   through several iterations 2026-05-25 — early values (24px / 4px / 0px)
-   were never really moving the arrows because the stage was content-
-   sized instead of full-width (see `.qf-cmpsel-stage`'s width: 100%
-   comment above); once that was fixed, `left: 0` finally meant the
-   actual screen edge, which turned out to be too far. Pulled back to
-   32px so the buttons have visible breathing room from the screen edge
-   without crowding the cards (still ~215px of clearance to the card row).
-   `top: 50%` + `transform: translateY(-50%)` vertically centres the
-   button against the card row regardless of card height. The hover lift
-   composes with the centring translate via `translate(±2px, -50%)` so
-   the button still rises on hover without un-centring vertically. */
 .qf-cmpsel-arrow--prev { left:  128px; transform: translateY(-50%); }
 .qf-cmpsel-arrow--next { right: 128px; transform: translateY(-50%); }
+/* Compose the hover lift / active press WITH the -50% centring so .btn:hover
+   (translateY(-1px)) and .btn:active (translateY(2px)) can't un-centre them. */
 .qf-cmpsel-arrow--prev:hover { transform: translate(-2px, -50%); }
 .qf-cmpsel-arrow--next:hover { transform: translate( 2px, -50%); }
-.qf-cmpsel-arrow:hover {
-  box-shadow:
-    inset 2px 2px 0 rgba(255, 255, 255, 0.06),
-    inset -2px -2px 0 rgba(0, 0, 0, 0.55),
-    0 0 0 2px #000,
-    0 8px 20px rgba(0, 0, 0, 0.6),
-    0 0 18px color-mix(in srgb, var(--gold) 35%, transparent);
-}
+.qf-cmpsel-arrow:active { transform: translateY(-50%) scale(0.97); }
 .qf-cmpsel-arrow:disabled,
 .qf-cmpsel-arrow[aria-disabled="true"] {
-  opacity: 0.25;
+  opacity: 0.3;
   cursor: not-allowed;
-  box-shadow:
-    inset 2px 2px 0 rgba(255, 255, 255, 0.04),
-    inset -2px -2px 0 rgba(0, 0, 0, 0.4),
-    0 0 0 2px #000;
+  transform: translateY(-50%);
 }
-/* Re-apply the centring transform on the disabled-arrow rule too, so the
-   disabled state doesn't reset transform back to none and un-centre the
-   button. (Disabled keeps the same vertical centring as enabled, just
-   without the hover lift.) */
-.qf-cmpsel-arrow--prev:disabled,
-.qf-cmpsel-arrow--prev[aria-disabled="true"] { transform: translateY(-50%); }
-.qf-cmpsel-arrow--next:disabled,
-.qf-cmpsel-arrow--next[aria-disabled="true"] { transform: translateY(-50%); }
 /* Page indicator dots — one per page below the card row, the active page
    filled, inactive pages hollow. Lives inside .qf-cmpsel-cards' parent
    stage so a single line of dots sits centered under the row. */
