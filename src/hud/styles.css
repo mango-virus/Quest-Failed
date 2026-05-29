@@ -1802,20 +1802,36 @@ body {
 .qf-bb-revive:hover {
   background: linear-gradient(180deg, #7fb845 0%, var(--poison) 100%);
 }
-.qf-bb-revive .qf-bb-revive-icon { color: #eaffd6; }
+/* Cost readout: coin sprite + gold number (no "g"), divided from the label. */
 .qf-bb-revive .qf-bb-revive-cost {
-  font-size: 8px;
-  letter-spacing: 0.5px;
-  color: #eaffd6;
-  padding-left: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 6px;
   border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+.qf-bb-revive .qf-bb-revive-coin {
+  width: 11px;
+  height: 11px;
+  background-image: url('../../assets/ui/coin.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+  flex: 0 0 auto;
+}
+.qf-bb-revive .qf-bb-revive-cost-num {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--gold-bright, #ffd964);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
 }
 .qf-bb-revive.cant-afford {
   opacity: 0.5;
   cursor: not-allowed;
   filter: grayscale(0.4);
 }
-.qf-bb-revive.cant-afford .qf-bb-revive-cost { color: #ffd2cf; }
+.qf-bb-revive.cant-afford .qf-bb-revive-cost-num { color: #ffd2cf; }
 
 /* Speed control (day phase) */
 .qf-bb-speed {

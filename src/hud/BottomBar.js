@@ -123,9 +123,11 @@ export class BottomBar {
             style: { display: 'none' },
             on: { click: () => this._onReviveClick() },
           }, [
-            h('span', { className: 'qf-bb-menu-icon qf-bb-revive-icon' }, '⚰'),
             h('span', { ref: el => { this._refs.reviveLabel = el } }, 'REVIVE'),
-            h('span', { className: 'qf-bb-revive-cost', ref: el => { this._refs.reviveCost = el } }, ''),
+            h('span', { className: 'qf-bb-revive-cost' }, [
+              h('span', { className: 'qf-bb-revive-coin' }),
+              h('span', { className: 'qf-bb-revive-cost-num', ref: el => { this._refs.reviveCost = el } }, ''),
+            ]),
           ]),
           h('button', {
             className: 'btn qf-bb-menu',
@@ -203,8 +205,8 @@ export class BottomBar {
     const afford = (gs.player?.gold ?? 0) >= cost
     btn.style.display = ''
     btn.classList.toggle('cant-afford', !afford)
-    if (this._refs.reviveLabel) this._refs.reviveLabel.textContent = ` REVIVE (${fallen.length})`
-    if (this._refs.reviveCost)  this._refs.reviveCost.textContent  = `${cost}g`
+    if (this._refs.reviveLabel) this._refs.reviveLabel.textContent = `REVIVE ${fallen.length}`
+    if (this._refs.reviveCost)  this._refs.reviveCost.textContent  = `${cost}`
   }
 
   // Build (or rebuild) the speed-button row to match the current day's
