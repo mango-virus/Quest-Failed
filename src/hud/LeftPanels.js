@@ -30,7 +30,7 @@ import { trapCap, rosterCap } from '../util/slotCaps.js'
 const CATEGORIES = [
   { id: 'ROOMS',   kind: 'room',   icon: '◰', color: 'var(--blood)',  cache: 'rooms',       unlockKey: 'rooms' },
   { id: 'MINIONS', kind: 'minion', icon: '✦', color: 'var(--poison)', cache: 'minionTypes', unlockKey: 'minionTypes' },
-  { id: 'TRAPS',   kind: 'trap',   icon: '⚒', color: 'var(--warn)',   cache: 'trapTypes',   unlockKey: 'trapTypes' },
+  { id: 'TRAPS',   kind: 'trap',   icon: '⚒', color: 'var(--rumor)',  cache: 'trapTypes',   unlockKey: 'trapTypes' },
   { id: 'ITEMS',   kind: 'item',   icon: '◆', color: 'var(--info)',   cache: 'items',       unlockKey: null },
 ]
 
