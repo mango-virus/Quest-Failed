@@ -224,6 +224,81 @@ export class AISystem {
     return best
   }
 
+  // Nearest unopened chest the RAID has DISCOVERED THIS raid (2026-05-29).
+  // Gated on "the chest's room has been physically visited by some living
+  // raider today" (union of every raider's visitedRooms) rather than on
+  // adv.knowledge.treasureChests — because fresh adventurers inherit the
+  // shared knowledge pool at spawn, and gating on the knowledge bucket let
+  // raiders "already know" every chest a prior wave's survivor had logged
+  // (the "raiders always know where the chest is" bug). Tying chest-targeting
+  // to visitedRooms forces the raid to actually scout for itself: a chest
+  // becomes targetable the moment any raider sets foot in its room, the whole
+  // wave converges, and once every room's been swept + every found chest
+  // looted the raid leaves. Aggressive (nearest, no temptPct roll) so an
+  // informed raider always commits. Boss-chamber chests are excluded (raiders
+  // never enter the throne — see the pathfinding hard-block below); disguised
+  // mimics are excluded too (real-chest list only — proximity trigger still
+  // springs one if a raider wanders adjacent). Returns a chest or null.
+  _nearestRaidKnownChest(adv) {
+    const visitedRooms = new Set()
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      if (!a._treasureHunter || a.aiState === 'dead') continue
+      for (const id of (a.visitedRooms ?? [])) visitedRooms.add(id)
+    }
+    if (visitedRooms.size === 0) return null
+    const chests = (this._gameState.dungeon?.treasureChests ?? []).filter(c => {
+      if (c.opened) return false
+      const room = this._dungeonGrid?.getRoomAtTile?.(c.tileX, c.tileY)
+      if (!room) return false
+      if (room.definitionId === 'boss_chamber') return false
+      return visitedRooms.has(room.instanceId)
+    })
+    if (chests.length === 0) return null
+    let best = null, bestD = Infinity
+    for (const c of chests) {
+      const d = Math.abs(c.tileX - adv.tileX) + Math.abs(c.tileY - adv.tileY)
+      if (d < bestD) { bestD = d; best = c }
+    }
+    return best
+  }
+
+  // Closest room the RAID hasn't explored yet (room centre, Euclidean),
+  // excluding the boss chamber — used by the Treasure Hunters explore-to-find
+  // fallback. The raid shares scouting (2026-05-29): a room counts as explored
+  // once ANY living raider has set foot in it (union of every raider's
+  // visitedRooms), so the wave collectively sweeps the dungeon instead of each
+  // raider re-touring every room. Raiders also fan out — a room another raider
+  // is already walking to (its EXPLORE_ROOM goal) is "claimed" and skipped, so
+  // the wave splits across the map; if every remaining room is claimed we fall
+  // back to the nearest unexplored one (a little overlap beats idling, and
+  // never returns null while a room is still unseen, so nobody flees early).
+  // Returns null only when the raid has collectively visited everything.
+  _nearestRaidUnexploredRoom(adv) {
+    const visited = new Set()
+    const claimed = new Set()
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      if (!a._treasureHunter || a.aiState === 'dead') continue
+      for (const id of (a.visitedRooms ?? [])) visited.add(id)
+      if (a !== adv && a.goal?.type === 'EXPLORE_ROOM' && a.goal.roomId != null) {
+        claimed.add(a.goal.roomId)
+      }
+    }
+    let bestUnclaimed = null, bestUnclaimedD = Infinity
+    let bestAny = null, bestAnyD = Infinity
+    for (const room of (this._gameState.dungeon?.rooms ?? [])) {
+      if (room.definitionId === 'boss_chamber') continue
+      if (visited.has(room.instanceId)) continue
+      const cx = room.gridX + Math.floor(room.width / 2)
+      const cy = room.gridY + Math.floor(room.height / 2)
+      const d = Math.hypot(adv.tileX - cx, adv.tileY - cy)
+      if (d < bestAnyD) { bestAny = room; bestAnyD = d }
+      if (!claimed.has(room.instanceId) && d < bestUnclaimedD) {
+        bestUnclaimed = room; bestUnclaimedD = d
+      }
+    }
+    return bestUnclaimed ?? bestAny
+  }
+
   // ── Treasure Chest ──────────────────────────────────────────────────
   // Iterate unopened chests highest-tier first. Greedy / vulture /
   // loot_seeker advs always pick the top tier they can reach. Other advs
@@ -1496,13 +1571,18 @@ export class AISystem {
               return
             }
             // noFlee advs (zombie horde, tournament rivals, rival-dungeon
-            // monsters) must NEVER be converted to FLEE by the failsafe —
-            // that's the "event wave walks in then immediately bolts" bug.
-            // Just replanning isn't enough either: a monster wedged at a
-            // doorway re-plans the same route and keeps pacing. Shove it
-            // forward along its own path past the chokepoint instead; if
-            // it has no usable path, fall back to a replan.
-            if (adv.flags?.noFlee) {
+            // monsters) AND Treasure-Hunter raiders must NEVER be converted to
+            // FLEE by this failsafe — that's the "event wave walks in then
+            // immediately bolts" bug. Raiders fan out to explore the WHOLE
+            // dungeon hunting chests (2026-05-29); a full wave crowding the
+            // doorways trips the oscillation detector, and fleeing them mid-
+            // search both spams the log ("lost in the dungeon") and aborts the
+            // hunt. Just replanning isn't enough either: a body wedged at a
+            // doorway re-plans the same route and keeps pacing. Shove it forward
+            // along its own path past the chokepoint instead; if it has no
+            // usable path, fall back to a replan. The hard-stuck failsafe below
+            // still clears anyone genuinely pinned, so no day-end hang.
+            if (adv.flags?.noFlee || adv._treasureHunter) {
               if (!this._shoveAlongPath(adv, 4)) {
                 adv.path = null
                 adv.goal = this._pickNextGoal(adv)
@@ -2245,6 +2325,21 @@ export class AISystem {
       for (const lock of lockedLocks) {
         if (this._canAdvUnlockHere(adv, lock)) continue
         for (const t of lock.doorTiles) blockedForAdv.add(`${t.x},${t.y}`)
+      }
+      // Treasure Hunters raid (2026-05-29): raiders are here for LOOT and must
+      // NEVER enter the boss chamber — not even as a transit shortcut. Hard-
+      // block every boss-room tile so the pathfinder routes entirely around it;
+      // if a target is only reachable through the throne, the raider gives up
+      // on it rather than walking in and waking the boss.
+      if (adv._treasureHunter) {
+        for (const room of (this._gameState.dungeon?.rooms ?? [])) {
+          if (room.definitionId !== 'boss_chamber') continue
+          for (let ry = room.gridY; ry < room.gridY + room.height; ry++) {
+            for (let rx = room.gridX; rx < room.gridX + room.width; rx++) {
+              blockedForAdv.add(`${rx},${ry}`)
+            }
+          }
+        }
       }
       // Collision items (Beacon / Fountain / Treasure Chest) are SOFT
       // blockers — identical for every adv that tick, so we reuse the
@@ -3913,9 +4008,18 @@ export class AISystem {
     adv._exploreStreak = (adv._exploreStreak ?? 0) + 1
     if (adv._exploreStreak >= EXPLORE_STREAK_CAP) {
       adv._exploreStreak = 0
-      adv.goal = { type: 'SEEK_BOSS' }
-      EventBus.emit('SAY_seekBoss', { adventurer: adv })
-      this._aiDiag(adv, `STREAK CAP via watchdog → SEEK_BOSS`)
+      // Treasure-Hunter raiders never hard-commit to the boss — re-pick through
+      // the raid flow instead (next unvisited room, or flee once every room has
+      // been explored). The stuck room was just marked visited above, so the
+      // re-pick can't re-select it and exploration keeps advancing.
+      if (adv._treasureHunter) {
+        adv.goal = this._pickNextGoal(adv)
+        this._aiDiag(adv, `STREAK CAP (raider) → ${adv.goal?.type ?? '?'}`)
+      } else {
+        adv.goal = { type: 'SEEK_BOSS' }
+        EventBus.emit('SAY_seekBoss', { adventurer: adv })
+        this._aiDiag(adv, `STREAK CAP via watchdog → SEEK_BOSS`)
+      }
     } else {
       const next = this._pickNextGoal(adv)
       adv.goal = next
@@ -4117,18 +4221,24 @@ export class AISystem {
     // lone champion and the event was trivial; now the whole horde converges
     // on the boss so it reads as a genuine overrun (2026-05-27 re-tune).
     if (adv._monsterInvader) return { type: 'SEEK_BOSS' }
-    // Dungeon event: Treasure Hunters — here for the LOOT only. They
-    // ignore the boss + exploration entirely: rush the nearest unopened
-    // chest (SEEK_TREASURE, bypassing the normal knowledge gate — they
-    // have a treasure map), and flee the instant they've grabbed loot.
-    // If every chest is already looted (or there are none reachable),
-    // they leave empty-handed so the day can end.
+    // Dungeon event: Treasure Hunters — here for the LOOT only; they ignore
+    // the boss entirely. As of 2026-05-29 they respect the knowledge system
+    // like normal advs (no treasure map), but the raid shares discoveries:
+    //   1. Beeline the nearest chest ANY living raider knows about — the moment
+    //      one raider spots a chest, the whole raid converges on it to loot it.
+    //   2. Flee the instant they're carrying loot.
+    //   3. No known chest left to grab → help SCOUT the dungeon: head to the
+    //      nearest room the RAID hasn't explored yet (shared map — a room
+    //      counts as seen once any raider enters it, and raiders fan out to
+    //      different rooms). Once the raid has collectively visited every room
+    //      AND every found chest is looted, there's nothing left → they leave.
     if (adv._treasureHunter) {
       if ((adv.stolenGold ?? 0) > 0 || adv._raiderLooted) return { type: 'ESCAPE_WITH_LOOT' }
-      const chest = this._nearestUnopenedChest(adv)
-      return chest
-        ? { type: 'SEEK_TREASURE', chestId: chest.instanceId }
-        : { type: 'FLEE', reason: 'no_loot_left' }
+      const chest = this._nearestRaidKnownChest(adv)
+      if (chest) return { type: 'SEEK_TREASURE', chestId: chest.instanceId }
+      const room = this._nearestRaidUnexploredRoom(adv)
+      if (room) return { type: 'EXPLORE_ROOM', roomId: room.instanceId }
+      return { type: 'FLEE', reason: 'no_loot_left' }
     }
     // Dungeon event: The Saboteur — tours the dungeon disabling every
     // trap, then flees. Never picks a combat or exploration goal.

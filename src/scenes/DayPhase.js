@@ -695,6 +695,13 @@ export class DayPhase extends Phaser.Scene {
       const sr = allClasses.find(c => c.id === _srClassId)
       if (sr) classes = [sr]
     }
+    // Treasure Hunters raid — exclude Twitch Streamers + Cheaters from the
+    // loot-raid wave (matches the NightPhase preview filter so the IncomingWave
+    // panel and the actual spawn agree). Kept after the single-class event
+    // replacements so it only trims the normal pool.
+    if ((this._gameState._eventFlags ?? {}).treasureHuntersActive) {
+      classes = classes.filter(c => c.id !== 'twitch_streamer' && c.id !== 'cheater')
+    }
     if (classes.length === 0) return
 
     const day   = this._gameState.meta.dayNumber
@@ -787,7 +794,17 @@ export class DayPhase extends Phaser.Scene {
     const spawned   = []
 
     // Phase 8: roll for a returning leader (a fled adventurer brings a party back)
-    const returningRecord = knowledgeSystem?.rollReturnLeader?.() ?? null
+    let returningRecord = knowledgeSystem?.rollReturnLeader?.() ?? null
+    // Treasure Hunters raid — Twitch Streamers and Cheaters are barred from the
+    // loot-raid wave (see the class-pool filter above), so a returning veteran
+    // of either class doesn't get to lead one either. rollReturnLeader is
+    // side-effect-free, so dropping the record here is safe (no survivor state
+    // desync) — that veteran simply doesn't return on a raid day.
+    if (returningRecord
+        && (this._gameState._eventFlags ?? {}).treasureHuntersActive
+        && (returningRecord.classId === 'twitch_streamer' || returningRecord.classId === 'cheater')) {
+      returningRecord = null
+    }
     let returnLeaderInjected = false
     // Wave size = baseCount, no class-diversity ceiling. The old
     // `Math.min(baseCount, classes.length * 2)` cap was a stale early-dev
@@ -807,8 +824,18 @@ export class DayPhase extends Phaser.Scene {
     // SUPPRESSED during PATCH 0.0.0 — the event explicitly replaces the
     // wave with cheaters only, so a non-cheater Ranger / Rogue / etc.
     // vendetta hunter showing up mid-wave breaks the theme.
+    // Also suppressed during a Treasure Hunters raid when the vendetta's
+    // claimant class is Twitch Streamer or Cheater — those classes are barred
+    // from the loot-raid wave (see the class-pool filter above + the
+    // returning-veteran guard below), so a vendetta hunter of either class
+    // would punch a hole in that filter.
     const patchZeroActive = !!(this._gameState._eventFlags?.patchZeroActive)
-    const vendetta = patchZeroActive ? null : this._pickActiveVendetta()
+    let vendetta = patchZeroActive ? null : this._pickActiveVendetta()
+    if (vendetta
+        && (this._gameState._eventFlags ?? {}).treasureHuntersActive
+        && (vendetta.claimantClass === 'twitch_streamer' || vendetta.claimantClass === 'cheater')) {
+      vendetta = null
+    }
     let vendettaHunter = null
     const _preVend = (this._gameState.run?.nextWavePreview?.day === day)
       ? this._gameState.run.nextWavePreview?.vendettaHunter
