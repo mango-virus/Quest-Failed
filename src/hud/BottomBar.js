@@ -29,6 +29,7 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { Balance } from '../config/balance.js'
 import { fallenRevivable, totalReviveCost } from '../util/minionRevive.js'
+import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
 
 const SPEED_STEPS_EARLY = [1, 2, 4, 8]
 const SPEED_STEPS_HYPER = [1, 4, 8, 16]
@@ -129,6 +130,21 @@ export class BottomBar {
               h('span', { className: 'qf-bb-revive-cost-num', ref: el => { this._refs.reviveCost = el } }, ''),
             ]),
           ]),
+          // Rebuild broken traps — blue sibling of REVIVE. Shown only at night
+          // when traps have broken (the 1% wear-and-tear). Reuses the revive
+          // button's cost/coin/cant-afford styling via the shared classes.
+          h('button', {
+            className: 'btn qf-bb-menu qf-bb-revive qf-bb-rebuild',
+            ref: el => { this._refs.rebuildBtn = el },
+            style: { display: 'none' },
+            on: { click: () => this._onRebuildClick() },
+          }, [
+            h('span', { ref: el => { this._refs.rebuildLabel = el } }, 'REBUILD'),
+            h('span', { className: 'qf-bb-revive-cost' }, [
+              h('span', { className: 'qf-bb-revive-coin' }),
+              h('span', { className: 'qf-bb-revive-cost-num', ref: el => { this._refs.rebuildCost = el } }, ''),
+            ]),
+          ]),
           h('button', {
             className: 'btn qf-bb-menu',
             on: { click: () => EventBus.emit('OPEN_MINION_ROSTER') },
@@ -219,6 +235,37 @@ export class BottomBar {
     btn.classList.toggle('cant-afford', !afford)
     if (this._refs.reviveLabel) this._refs.reviveLabel.textContent = `REVIVE ${fallen.length}`
     if (this._refs.reviveCost)  this._refs.reviveCost.textContent  = `${cost}`
+  }
+
+  // ── Rebuild-broken-traps button ──────────────────────────────────
+  _onRebuildClick() {
+    // Game.js re-checks affordability + locked-night before charging.
+    EventBus.emit('REBUILD_TRAPS_REQUEST')
+  }
+
+  // Raw trapTypes array from the JSON cache, for rebuild-cost lookups.
+  _allTrapDefs() {
+    const scenes = window.__game?.scene?.scenes || []
+    for (const s of scenes) {
+      const arr = s.cache?.json?.get?.('trapTypes')
+      if (Array.isArray(arr)) return arr
+    }
+    return []
+  }
+
+  // Show the REBUILD button only at night when traps have broken; update its
+  // count + total cost (half each trap's build cost), dim when unaffordable.
+  _renderRebuildBtn(gs) {
+    const btn = this._refs.rebuildBtn
+    if (!btn) return
+    const broken = (gs?.meta?.phase === 'night') ? brokenTraps(gs) : []
+    if (broken.length === 0) { btn.style.display = 'none'; return }
+    const cost   = totalTrapRebuildCost(gs, this._allTrapDefs())
+    const afford = (gs.player?.gold ?? 0) >= cost
+    btn.style.display = ''
+    btn.classList.toggle('cant-afford', !afford)
+    if (this._refs.rebuildLabel) this._refs.rebuildLabel.textContent = `REBUILD ${broken.length}`
+    if (this._refs.rebuildCost)  this._refs.rebuildCost.textContent  = `${cost}`
   }
 
   // Build (or rebuild) the speed-button row to match the current day's
@@ -339,6 +386,14 @@ export class BottomBar {
     if (reviveSig !== this._prevReviveSig) {
       this._prevReviveSig = reviveSig
       this._renderReviveBtn(gs)
+    }
+    // Rebuild-broken-traps button — refresh on broken-count / gold / phase.
+    const rebuildSig = (phase === 'night')
+      ? `${brokenTraps(gs).length}:${gs.player?.gold ?? 0}`
+      : 'off'
+    if (rebuildSig !== this._prevRebuildSig) {
+      this._prevRebuildSig = rebuildSig
+      this._renderRebuildBtn(gs)
     }
     this._tickHandle = requestAnimationFrame(() => this._tick())
   }

@@ -1873,6 +1873,17 @@ body {
 }
 .qf-bb-revive.cant-afford .qf-bb-revive-cost-num { color: #ffd2cf; }
 
+/* REBUILD TRAPS — same layout as REVIVE, recoloured BLUE (var(--rumor),
+   matching the recoloured TRAPS category). Reuses the .qf-bb-revive cost /
+   coin / cant-afford child rules above. */
+.qf-bb-revive.qf-bb-rebuild {
+  background: linear-gradient(180deg, var(--rumor) 0%, #1d6b78 100%);
+  border-color: #7fdce8;
+}
+.qf-bb-revive.qf-bb-rebuild:hover {
+  background: linear-gradient(180deg, #7fdce8 0%, var(--rumor) 100%);
+}
+
 /* Speed control (day phase) */
 .qf-bb-speed {
   display: inline-flex;

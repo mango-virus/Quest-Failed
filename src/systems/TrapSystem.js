@@ -33,6 +33,11 @@ const LOS_MAX_TILES   = 48      // safety cap on a line-of-sight scan
 const POISON_TICK_MS  = 1000
 const ANNOUNCE_GAP_MS = 2000    // throttle TRAP_TRIGGERED so continuous traps don't spam
 
+// Wear-and-tear: each time a trap FIRES and damages an adventurer it has this
+// chance to break apart. Rolled once per firing (deduped on state.firedAt) so
+// multi-hit traps (saw blade) break at the same rate as single-shot ones.
+const TRAP_BREAK_CHANCE = 0.01
+
 export class TrapSystem {
   constructor(scene, gameState, dungeonGrid) {
     this._scene       = scene
@@ -40,9 +45,16 @@ export class TrapSystem {
     this._dungeonGrid = dungeonGrid
     this._defs        = {}
     this._loaded      = false
+    // Per-trap last-rolled firing timestamp, so the 1% break roll fires once
+    // per firing even when a single discharge emits TRAP_TRIGGERED per victim.
+    this._breakRolledAt = {}
+    this._onTrapTriggeredBreak = this._maybeBreakTrap.bind(this)
+    EventBus.on('TRAP_TRIGGERED', this._onTrapTriggeredBreak)
   }
 
-  destroy() {}
+  destroy() {
+    EventBus.off('TRAP_TRIGGERED', this._onTrapTriggeredBreak)
+  }
 
   loadDefinitions() {
     if (this._loaded) return
@@ -60,6 +72,61 @@ export class TrapSystem {
       trap.cooldownUntil   = 0
       trap.state           = {}
       trap._disabledThisDay = false   // Ranger Trap Expert clears overnight
+    }
+  }
+
+  // ── 1% wear-and-tear break ────────────────────────────────────────────────
+  // Fired off TRAP_TRIGGERED. Rolls ONCE per firing (deduped on the firing
+  // timestamp) when the trap actually damaged an adventurer. On a break the
+  // trap shatters (sell FX), is pulled from the live array, and is recorded on
+  // dungeon._brokenTraps so the night-phase REBUILD button can restore it.
+  _maybeBreakTrap({ trap, def, adventurer, damaged } = {}) {
+    if (!damaged || !trap || !def || !adventurer) return
+    if (trap._broken) return
+    const fired = trap.state?.firedAt ?? 0
+    if ((this._breakRolledAt[trap.instanceId] ?? -1) === fired) return
+    this._breakRolledAt[trap.instanceId] = fired
+    if (Math.random() >= TRAP_BREAK_CHANCE) return
+    this._breakTrap(trap, def)
+  }
+
+  _breakTrap(trap, def) {
+    const dungeon = this._gameState.dungeon
+    const traps = dungeon?.traps
+    if (!traps) return
+    // Only break traps still LIVE on the board. Consumables (bombs) splice
+    // themselves out before emitting TRAP_TRIGGERED, so breaking one here would
+    // resurrect a spent one-shot into _brokenTraps and let the player rebuild
+    // it at half price — guard against that.
+    const i = traps.indexOf(trap)
+    if (i < 0) return
+    // Shatter VFX FIRST (the sell break-into-pieces), while the live sprite
+    // still exists for SellFxRenderer to clone. ENTITY_SOLD with no refund =
+    // shatter only (no gold floater / coin sound).
+    const fp = trap.footprint ?? { w: 1, h: 1 }
+    EventBus.emit('ENTITY_SOLD', {
+      kind: 'trap', instanceId: trap.instanceId,
+      worldX: (trap.tileX + fp.w / 2) * TS, worldY: (trap.tileY + fp.h / 2) * TS,
+      width: fp.w, height: fp.h,
+    })
+    // Pull it from the live array (splice-safe: the tick loops over a copy).
+    traps.splice(i, 1)
+    // Record a placement snapshot for the REBUILD button. Preserve the
+    // instanceId so adventurer intel keyed on it isn't orphaned on rebuild.
+    dungeon._brokenTraps ??= []
+    dungeon._brokenTraps.push({
+      definitionId: trap.definitionId,
+      tileX: trap.tileX, tileY: trap.tileY,
+      facing: trap.facing, placement: trap.placement,
+      footprint: trap.footprint, rotation: trap.rotation ?? 0,
+      instanceId: trap.instanceId,
+    })
+    EventBus.emit('TRAP_BROKEN', { def, tileX: trap.tileX, tileY: trap.tileY })
+    // Placement "thunk" on break (per design — the build noise, not the sell one).
+    const keys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3']
+    const key  = keys[Math.floor(Math.random() * keys.length)]
+    if (this._scene?.cache?.audio?.exists?.(key)) {
+      try { this._scene.sound.play(key, { volume: 0.7 }) } catch {}
     }
   }
 

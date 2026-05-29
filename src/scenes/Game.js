@@ -21,6 +21,8 @@ import { BossArchetypeSystem } from '../systems/BossArchetypeSystem.js'
 import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
 import { fallenRevivable, totalReviveCost, reviveCandidates, planRevive } from '../util/minionRevive.js'
+import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
+import { createTrap }          from '../entities/Trap.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
 import { AiDiagOverlay }      from '../ui/AiDiagOverlay.js'
@@ -341,6 +343,9 @@ export class Game extends Phaser.Scene {
     // Pay-to-revive (2026-05-28): the night-phase REVIVE button (LeftPanels)
     // asks to bring fallen roster minions back for gold.
     EventBus.on('REVIVE_FALLEN_REQUEST', this._onReviveFallenRequest, this)
+    // Pay-to-rebuild (2026-05-29): the night-phase REBUILD button (BottomBar)
+    // asks to bring traps that broke during the day back for gold.
+    EventBus.on('REBUILD_TRAPS_REQUEST', this._onRebuildTrapsRequest, this)
     // Lost-at-day-start: any fallen minion the player didn't pay to revive
     // during the build phase is purged when the day begins.
     EventBus.on('DAY_PHASE_STARTED',     this._purgeUnrevivedFallen,  this)
@@ -480,6 +485,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
     EventBus.off('MINION_CLICKED',       this._onMinionClickedForMarionette, this)
     EventBus.off('REVIVE_FALLEN_REQUEST', this._onReviveFallenRequest, this)
+    EventBus.off('REBUILD_TRAPS_REQUEST', this._onRebuildTrapsRequest, this)
     EventBus.off('DAY_PHASE_STARTED',     this._purgeUnrevivedFallen,  this)
     EventBus.off('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     EventBus.off('GRID_EXPANDED',        this._onGridExpanded,  this)
@@ -830,6 +836,69 @@ export class Game extends Phaser.Scene {
     if (remaining > 0) {
       EventBus.emit('SHOW_TOAST', {
         message: `Revived ${revived} — ${remaining} still fallen.`,
+        type: 'success',
+      })
+    }
+  }
+
+  // Pay-to-rebuild (2026-05-29) — the night-phase REBUILD button. Traps have a
+  // 1% chance to break after firing on an adventurer (TrapSystem removes them
+  // and snapshots them onto dungeon._brokenTraps). This charges gold here (the
+  // single charge site) at half each trap's current build cost, then restores
+  // every broken trap to dungeon.traps at its original tile/facing with fresh
+  // state so the renderer + TrapSystem pick them straight back up. No-ops
+  // outside the night/build phase, when nothing is broken, on a locked
+  // (Insomniac) night, or when the player can't afford the full batch.
+  _onRebuildTrapsRequest() {
+    const gs = this.gameState
+    if (!gs || gs.meta?.phase !== 'night') return
+    // The Insomniac — a sealed night blocks all building, rebuilds included.
+    if (gs._mechanicFlags?.insomniacLockTonight) {
+      EventBus.emit('SHOW_TOAST', {
+        message: 'The Insomniac — the dungeon is sealed tonight.',
+        type: 'error',
+      })
+      return
+    }
+    const broken = brokenTraps(gs)
+    if (broken.length === 0) return
+    const trapDefs = this.cache.json.get('trapTypes') ?? []
+    const total    = totalTrapRebuildCost(gs, trapDefs)
+    const have     = gs.player?.gold ?? 0
+
+    if (!Balance.DEV_INFINITE_GOLD && have < total) {
+      EventBus.emit('SHOW_TOAST', {
+        message: `Not enough gold to rebuild traps (need ${total}g).`,
+        type: 'error',
+      })
+      return
+    }
+    if (!Balance.DEV_INFINITE_GOLD && total > 0) gs.player.gold -= total
+
+    const byId = {}
+    for (const d of trapDefs) byId[d.id] = d
+    const dungeon = gs.dungeon
+    dungeon.traps ??= []
+    let rebuilt = 0
+    for (const snap of broken) {
+      const def = byId[snap.definitionId]
+      if (!def) continue
+      const trap = createTrap(def, { tileX: snap.tileX, tileY: snap.tileY, facing: snap.facing })
+      trap.instanceId = snap.instanceId   // keep the original id so knowledge/refs reconnect
+      dungeon.traps.push(trap)
+      rebuilt++
+    }
+    dungeon._brokenTraps = []
+
+    if (rebuilt > 0) {
+      try {
+        const keys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3'].filter(k => this.cache.audio.exists(k))
+        const key  = keys.length ? keys[Math.floor(Math.random() * keys.length)] : null
+        if (key) this.sound.play(key, { volume: 0.7 })
+      } catch { /* audio not ready — non-fatal */ }
+      EventBus.emit('TRAPS_REBUILT', { count: rebuilt })
+      EventBus.emit('SHOW_TOAST', {
+        message: `Rebuilt ${rebuilt} trap${rebuilt === 1 ? '' : 's'}.`,
         type: 'success',
       })
     }
