@@ -137,7 +137,13 @@ function _ensureBossTierBannerCss() {
 .qf-eventpill.qf-eventpill-boss::after {
   content: 'BOSS';
   position: absolute;
-  top: -8px; left: 50%;
+  /* Anchor the chip's BOTTOM to the pill's TOP — so the whole chip sits ABOVE
+     the pill regardless of its height (no overlap). 4px gap is the breathing
+     room between chip and pill. */
+  top: auto;
+  bottom: 100%;
+  margin-bottom: 4px;
+  left: 50%;
   transform: translateX(-50%);
   padding: 1px 6px 0;
   background: #ffcb5c;
