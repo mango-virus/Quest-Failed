@@ -28,6 +28,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { Balance } from '../config/balance.js'
+import { fallenRevivable, totalReviveCost } from '../util/minionRevive.js'
 
 const SPEED_STEPS_EARLY = [1, 2, 4, 8]
 const SPEED_STEPS_HYPER = [1, 4, 8, 16]
@@ -58,6 +59,21 @@ export class BottomBar {
     ]
 
     const root = h('div', { className: 'qf-bottombar' }, [
+      // Pay-to-revive button — anchored to the far left of the bar (sits just
+      // below the construction menu), styled like BEGIN DAY. Shown only at
+      // night when revivable minions have fallen; refreshed in _tick.
+      h('button', {
+        className: 'btn primary qf-bb-revive',
+        ref: el => { this._refs.reviveBtn = el },
+        style: { display: 'none' },
+        on: { click: () => this._onReviveClick() },
+      }, [
+        h('span', { className: 'qf-bb-revive-main' }, [
+          h('span', { className: 'qf-bb-revive-icon' }, '⚰'),
+          h('span', { ref: el => { this._refs.reviveLabel = el } }, 'REVIVE FALLEN'),
+        ]),
+        h('span', { className: 'qf-bb-revive-cost', ref: el => { this._refs.reviveCost = el } }, ''),
+      ]),
       h('div', { className: 'qf-bottombar-console' }, [
         // BUILD MODES
         h('div', { className: 'qf-bb-group qf-bb-modes' }, [
@@ -160,6 +176,38 @@ export class BottomBar {
   _onSpeedClick(scale) {
     this._setActiveSpeed(scale)
     EventBus.emit('TIME_SCALE_SET', { scale })
+  }
+
+  // ── Pay-to-revive button ─────────────────────────────────────────
+  _onReviveClick() {
+    // Game.js re-checks affordability (and blocks with feedback if short),
+    // so just fire the request — keeps gold logic in one place.
+    EventBus.emit('REVIVE_FALLEN_REQUEST')
+  }
+
+  // Raw minionTypes array from the JSON cache, for revive-cost lookups.
+  _allMinionDefs() {
+    const scenes = window.__game?.scene?.scenes || []
+    for (const s of scenes) {
+      const arr = s.cache?.json?.get?.('minionTypes')
+      if (Array.isArray(arr)) return arr
+    }
+    return []
+  }
+
+  // Show the REVIVE button only at night when revivable minions have fallen;
+  // update its count + cost, and dim it when the player can't afford it.
+  _renderReviveBtn(gs) {
+    const btn = this._refs.reviveBtn
+    if (!btn) return
+    const fallen = (gs?.meta?.phase === 'night') ? fallenRevivable(gs) : []
+    if (fallen.length === 0) { btn.style.display = 'none'; return }
+    const cost   = totalReviveCost(gs, this._allMinionDefs())
+    const afford = (gs.player?.gold ?? 0) >= cost
+    btn.style.display = ''
+    btn.classList.toggle('cant-afford', !afford)
+    if (this._refs.reviveLabel) this._refs.reviveLabel.textContent = `REVIVE FALLEN (${fallen.length})`
+    if (this._refs.reviveCost)  this._refs.reviveCost.textContent  = `${cost}g`
   }
 
   // Build (or rebuild) the speed-button row to match the current day's
@@ -272,6 +320,14 @@ export class BottomBar {
       this._refs.beginBtn.style.display = isNight ? '' : 'none'
       this._refs.speedBox.style.display = isNight ? 'none' : ''
       this._prev.phase = phase
+    }
+    // Pay-to-revive button — refresh on fallen-count / gold / phase change.
+    const reviveSig = (phase === 'night')
+      ? `${fallenRevivable(gs).length}:${gs.player?.gold ?? 0}`
+      : 'off'
+    if (reviveSig !== this._prevReviveSig) {
+      this._prevReviveSig = reviveSig
+      this._renderReviveBtn(gs)
     }
     this._tickHandle = requestAnimationFrame(() => this._tick())
   }

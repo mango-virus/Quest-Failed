@@ -1787,6 +1787,36 @@ body {
   animation: pulse-glow 2.4s ease-in-out infinite;
 }
 
+/* Pay-to-revive button — anchored to the far left of the bar (sits just below
+   the construction menu), styled to match BEGIN DAY: a .btn.primary with the
+   same padding + pulse-glow. */
+.qf-bb-revive {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+.qf-bb-revive .qf-bb-revive-main { display: inline-flex; align-items: center; gap: 6px; }
+.qf-bb-revive .qf-bb-revive-icon { font-size: 13px; line-height: 1; }
+.qf-bb-revive .qf-bb-revive-cost {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--gold-bright, #ffd964);
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+}
+.qf-bb-revive.cant-afford {
+  opacity: 0.55;
+  animation: none;
+  cursor: not-allowed;
+}
+.qf-bb-revive.cant-afford .qf-bb-revive-cost { color: var(--hp-low, #ff6b6b); }
+
 /* Speed control (day phase) */
 .qf-bb-speed {
   display: inline-flex;

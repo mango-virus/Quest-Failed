@@ -25,7 +25,6 @@ import { snapshotMinion, snapshotItem, snapshotTrap, snapshotRoomMini } from './
 import { getRoomThumbnail, precacheRoomThumbnails } from './roomThumbnailCache.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { applyMerchantPrice, merchantPriceMult, buildScaleMul } from '../util/merchantPricing.js'
-import { fallenRevivable, totalReviveCost } from '../util/minionRevive.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
 
 const CATEGORIES = [
@@ -216,12 +215,6 @@ export class LeftPanels {
             h('span', { className: 'qf-cat-label' }, cat.id),
           ]))
         ),
-        // Pay-to-revive bar — shown only at night when minions have fallen.
-        // Filled by _renderReviveBar (refreshed on count/gold change in _tick).
-        h('div', {
-          ref: el => { this._refs.reviveBar = el },
-          style: { display: 'none', padding: '5px 9px 0' },
-        }),
         // Slot counter (traps / minions) — filled by _renderSlots
         h('div', {
           ref: el => { this._refs.slots = el },
@@ -303,50 +296,6 @@ export class LeftPanels {
         color: full ? 'var(--hp-low)' : 'var(--gold-bright)',
       } }, `${info.used} / ${info.cap}`),
     ])
-  }
-
-  // ── Pay-to-revive bar ───────────────────────────────────────────
-  // Raw (unfiltered) minionTypes array from the JSON cache, for revive-cost
-  // lookups (a fallen minion's def may not be in the buildable list).
-  _allMinionDefs() {
-    const scenes = window.__game?.scene?.scenes || []
-    for (const s of scenes) {
-      const arr = s.cache?.json?.get?.('minionTypes')
-      if (Array.isArray(arr)) return arr
-    }
-    return []
-  }
-
-  // Shown only during the night build phase, and only when revivable minions
-  // have fallen. Reviving costs gold (50% of each minion's current build cost,
-  // via the shared util) and is the ONLY way to bring them back — unrevived
-  // fallen are lost at dawn. Emits REVIVE_FALLEN_REQUEST; Game.js charges + revives.
-  _renderReviveBar() {
-    const el = this._refs.reviveBar
-    if (!el) return
-    const gs = this._gameState
-    const fallen = (gs?.meta?.phase === 'night') ? fallenRevivable(gs) : []
-    if (fallen.length === 0) { el.style.display = 'none'; return }
-    const cost   = totalReviveCost(gs, this._allMinionDefs())
-    const afford = (gs.player?.gold ?? 0) >= cost
-    el.style.display = 'block'
-    mount(el, h('button', {
-      className: 'btn',
-      style: {
-        width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        gap: '8px', borderColor: 'var(--poison)',
-        opacity: afford ? '1' : '0.55', cursor: afford ? 'pointer' : 'not-allowed',
-      },
-      // Game.js re-checks affordability and blocks if short, so the click is
-      // safe either way; the guard here just avoids a pointless event.
-      on: { click: () => { if (afford) EventBus.emit('REVIVE_FALLEN_REQUEST') } },
-    }, [
-      h('span', { className: 'pix', style: { fontSize: '9px', letterSpacing: '0.5px' } },
-        `⚰ REVIVE ${fallen.length} FALLEN`),
-      h('span', { className: 'pix', style: {
-        fontSize: '9px', color: afford ? 'var(--gold-bright)' : 'var(--hp-low)',
-      } }, `${cost}g`),
-    ]))
   }
 
   _currentCategory() {
@@ -1014,15 +963,6 @@ export class LeftPanels {
     if (slotSig !== this._prevSlotSig) {
       this._prevSlotSig = slotSig
       this._renderSlots()
-    }
-    // Pay-to-revive bar — refresh when the fallen count or gold changes (gold
-    // is in the signature so the affordability styling updates after a spend).
-    const reviveSig = (gs.meta?.phase === 'night')
-      ? `${fallenRevivable(gs).length}:${gs.player?.gold ?? 0}`
-      : 'off'
-    if (reviveSig !== this._prevReviveSig) {
-      this._prevReviveSig = reviveSig
-      this._renderReviveBar()
     }
     // Re-render the mini-map whenever the adventurers' knowledge shifts.
     // The active party learns rooms / traps / minions / items mid-day,
