@@ -431,11 +431,10 @@ export class EventSystem {
   // First use (2026-05-27): Treasure Hunters can't fire if the player owns
   // no treasure chests — there'd be nothing to rob.
   _eventPrecondMet(def) {
-    // Solo Leveling is DISABLED in the natural rotation for now — only the
-    // mango TEST EVENT picker (DEV_FORCE_EVENT) can fire it, and that path
-    // bypasses _eligibleEvents entirely (see _onDevForceEvent). Flip this
-    // back to allow it to roll organically.
-    if (def.id === 'solo_leveling') return false
+    // Solo Leveling rolls organically like any other event (enabled 2026-05-28).
+    // If the boss DIES to it (Jinwoo wins the duel), _onDayPhaseEnded throws it
+    // back into the shuffle bag so it can recur without waiting for the full
+    // roster to cycle — see the re-queue there.
     if (def.id === 'treasure_hunters') {
       return (this._gameState.dungeon?.treasureChests ?? []).length > 0
     }
@@ -1512,7 +1511,18 @@ export class EventSystem {
     // Mark this event spent in the current shuffle bag so _eligibleEvents
     // won't draw it again until the whole roster has cycled (then resets).
     ev.firedThisRun ??= []
-    if (!ev.firedThisRun.includes(id)) ev.firedThisRun.push(id)
+    // Solo Leveling — if the boss DIED to Jinwoo this run (he won the duel, so
+    // the boss lost a life), throw the event back into the pool: don't mark it
+    // spent (and drop any stale entry), so it stays eligible and can recur
+    // without waiting for the whole roster to cycle. boss._diedThisDay is set
+    // in BossSystem._endFight on a life loss and cleared next night; on a
+    // solo_leveling day the duel is the only fight, so it's true iff Jinwoo won.
+    const soloBossDied = id === 'solo_leveling' && !!this._gameState.boss?._diedThisDay
+    if (soloBossDied) {
+      ev.firedThisRun = ev.firedThisRun.filter(x => x !== 'solo_leveling')
+    } else if (!ev.firedThisRun.includes(id)) {
+      ev.firedThisRun.push(id)
+    }
     // Gap is measured from the day the event actually FIRED, not from
     // `meta.dayNumber` here — by DAY_PHASE_ENDED the day counter has
     // already rolled to the next day, so reading it gave an off-by-one
