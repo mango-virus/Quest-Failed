@@ -10167,8 +10167,8 @@ body {
   /* --npc-bubble-lift raises the corner bubble for a companion that needs
      it (default 0 — no-op for the humanoids; docked has its own rule). */
   bottom: calc(360px + (var(--npc-bubble-scale, 1) - 1) * 350px + var(--npc-bubble-lift, 0px));
-  width: 300px;
-  padding: 9px 13px 11px;
+  width: 250px;
+  padding: 7px 11px 9px;
   /* Soft rounded corners to match the in-world adventurer chat
      bubbles (Bubble.js CORNER_R = 4 px) — same comic-book feel
      across surfaces. The tail sits at left:112px so the rounded
@@ -10207,7 +10207,7 @@ body {
   /* Same scale-aware lift as the corner bubble, against the taller
      docked portrait box (570px). */
   bottom: calc(600px + (var(--npc-bubble-scale, 1) - 1) * 570px);
-  width: 332px;
+  width: 286px;
 }
 .qf-npc-bubble.open {
   opacity: 1;
@@ -10243,33 +10243,39 @@ body {
 
 .qf-npc-eyebrow {
   font-family: var(--pix);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 1px;
   color: var(--gold);
-  margin-bottom: 7px;
+  margin-bottom: 5px;
   text-transform: uppercase;
 }
 .qf-npc-text {
   font-family: var(--term);
-  font-size: 17px;
+  font-size: 14px;
   line-height: 1.32;
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
-  min-height: 22px;
-  max-height: 280px;
+  min-height: 20px;
+  max-height: 220px;
   overflow: hidden;
 }
 .qf-npc-cont {
   font-size: 14px;
   color: var(--gold-bright);
   text-align: right;
-  margin-top: 6px;
-  height: 16px;
+  /* Collapsed by default so a single-page message has NO empty line
+     reserved beneath it — the indicator only takes layout space once a
+     continuation is actually offered (`.show`, added for paged lines). */
+  margin-top: 0;
+  height: 0;
+  overflow: hidden;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 .qf-npc-cont.show {
+  margin-top: 6px;
+  height: 16px;
   opacity: 1;
   animation: qf-npc-cont-pulse 1s ease-in-out infinite;
 }
