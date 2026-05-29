@@ -175,7 +175,19 @@ export class Game extends Phaser.Scene {
     // mid-session requires a refresh. The same flag also drives the
     // 9999-gold floor refilled every update tick (see update()).
     this._isMangoCheat = PlayerProfile.isCheatName()
-    if (this._isMangoCheat) this._applyMangoCheatUnlocks()
+    if (this._isMangoCheat) {
+      this._applyMangoCheatUnlocks()
+    } else {
+      // Per-name saves (2026-05-29) made mid-session name switches a real
+      // workflow. A prior mango-session in this page would have mutated the
+      // JSON cache (unlockLevel = 1 on every gated def) and that mutation
+      // doesn't revert on a name change — so a player who tested as mango
+      // and switched to a real name kept seeing everything unlocked. Revert
+      // here, on every non-mango Game-scene boot, using the snapshot
+      // _applyMangoCheatUnlocks stamped on the game instance. No-op if the
+      // cheat never ran in this page session.
+      this._revertMangoCheatUnlocks()
+    }
 
     // Lifecycle registry. Every system + renderer constructed below is
     // wrapped in `track(...)`, which pushes it onto this._lifecycle and
@@ -679,14 +691,29 @@ export class Game extends Phaser.Scene {
   // until the page reloads (next run by a non-cheat name will need a
   // refresh to restore gates).
   _applyMangoCheatUnlocks() {
-    // 1) Stamp unlockLevel = 1 on every gated def.
+    // 1) Stamp unlockLevel = 1 on every gated def — and SNAPSHOT the original
+    //    value first, so _revertMangoCheatUnlocks can restore it cleanly
+    //    when the player switches off the cheat name. The snapshot lives on
+    //    the Phaser game instance (survives scene restarts in the same page
+    //    session, but gone after a real page reload — which gets a fresh
+    //    JSON cache and doesn't need the revert). Idempotent: a snapshot
+    //    that already exists is preserved (re-snapshotting after the cache
+    //    is already mutated would store 1s and break the revert path).
+    const game = this.game
+    game._mangoUnlockSnap = game._mangoUnlockSnap ?? {}
+    const snap = game._mangoUnlockSnap
     const keys = ['rooms', 'minionTypes', 'trapTypes', 'items']
     let touched = 0
     for (const key of keys) {
       const defs = this.cache.json.get(key)
       if (!Array.isArray(defs)) continue
+      snap[key] = snap[key] ?? {}
       for (const def of defs) {
-        if (def && (def.unlockLevel ?? 1) > 1) { def.unlockLevel = 1; touched++ }
+        if (def && (def.unlockLevel ?? 1) > 1) {
+          if (!(def.id in snap[key])) snap[key][def.id] = def.unlockLevel
+          def.unlockLevel = 1
+          touched++
+        }
       }
     }
     // 2) Back-fill the allowlists in gameState.unlocks so any IDs added
@@ -712,6 +739,38 @@ export class Game extends Phaser.Scene {
     if ((p.gold ?? 0) < Game.MANGO_GOLD_FLOOR) p.gold = Game.MANGO_GOLD_FLOOR
 
     console.info(`[Mango cheat] Unlocked every room/minion/trap/item (${touched} defs flattened); gold pinned at ${Game.MANGO_GOLD_FLOOR}.`)
+  }
+
+  // Revert the mango-cheat cache mutation: walk the snapshot stored on the
+  // game instance by _applyMangoCheatUnlocks and restore each def's original
+  // unlockLevel, then drop the snapshot. No-op when there's no snapshot (the
+  // cheat never ran in this page session). Called on every non-mango Game-
+  // scene boot so a player who tests as mango and switches to a real name
+  // gets correct unlock-gating without a page reload.
+  //
+  // NOTE: the gameState.unlocks allowlists back-filled in step (2) above are
+  // per-save and per-name (SaveSystem is name-scoped as of 2026-05-29), so
+  // they need no separate revert — a non-mango Game boot loads that name's
+  // own gameState whose unlocks reflect their actual progress.
+  _revertMangoCheatUnlocks() {
+    const snap = this.game?._mangoUnlockSnap
+    if (!snap) return
+    const keys = ['rooms', 'minionTypes', 'trapTypes', 'items']
+    let restored = 0
+    for (const key of keys) {
+      const bucket = snap[key]
+      if (!bucket) continue
+      const defs = this.cache.json.get(key)
+      if (!Array.isArray(defs)) continue
+      const byId = {}
+      for (const d of defs) if (d?.id) byId[d.id] = d
+      for (const id of Object.keys(bucket)) {
+        const def = byId[id]
+        if (def) { def.unlockLevel = bucket[id]; restored++ }
+      }
+    }
+    this.game._mangoUnlockSnap = null
+    if (restored > 0) console.info(`[Mango cheat] Reverted cache mutation — restored ${restored} unlockLevel values.`)
   }
 
   // Reapply current room definitions to every placed room instance.
