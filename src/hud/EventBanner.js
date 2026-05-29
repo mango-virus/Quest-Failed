@@ -120,9 +120,13 @@ function _ensureBossTierBannerCss() {
   animation: qf-evb-boss-shake 360ms ease-out 1 both;
 }
 
-/* Pill — ambient gold pulse + a "BOSS" chip stitched to the top-right
-   corner. Relative positioning so the ::after badge anchors to the pill. */
-.qf-eventpill.qf-eventpill-boss {
+/* Pill — ambient gold pulse + a "BOSS" chip stitched to the top centre.
+   Selector is scoped under .qf-eventpill-row so it outweighs the damned
+   injector's "qf-eventpill-row qf-eventpill { position: static }" rule
+   (equal-class injectors load order otherwise wins the cascade). The
+   position:relative makes the pill the containing block for the chip
+   so left:50% + translateX(-50%) centres against THE PILL, not the row. */
+.qf-eventpill-row .qf-eventpill.qf-eventpill-boss {
   position: relative;
   animation: qf-evp-boss-pulse 2400ms ease-in-out infinite;
 }
@@ -133,7 +137,8 @@ function _ensureBossTierBannerCss() {
 .qf-eventpill.qf-eventpill-boss::after {
   content: 'BOSS';
   position: absolute;
-  top: -8px; right: -10px;
+  top: -8px; left: 50%;
+  transform: translateX(-50%);
   padding: 1px 6px 0;
   background: #ffcb5c;
   color: #1a0f04;
