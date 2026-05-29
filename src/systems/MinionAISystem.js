@@ -13,6 +13,7 @@ import { Balance }          from '../config/balance.js'
 import { TILE }             from './DungeonGrid.js'
 import { applyMinionScaling } from '../entities/Minion.js'
 import { AbilityVfx }       from '../ui/AbilityVfx.js'
+import { isPermadeadAtDawn, fallenRevivable } from '../util/minionRevive.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -1363,135 +1364,127 @@ export class MinionAISystem {
   // Phase 6d: defected minions (faction='adventurer') are removed entirely — temporary tame/raise
   // does not persist past the night. (Bloodbound mechanic in Phase 9 will disable revival.)
   respawnAll() {
-    this._gameState.minions = this._gameState.minions.filter(m => m.faction !== 'adventurer')
-
-    // Phase 9: Bloodbound — dead minions are gone forever, no revival
     const flags = this._gameState._mechanicFlags ?? {}
+
+    // Bloodbound loss count for the UI, measured BEFORE the strip below
+    // (Bloodbound makes every fallen minion a permanent loss — folded into
+    // isPermadeadAtDawn).
+    let bloodboundLost = 0
     if (flags.bloodbound) {
-      const before = this._gameState.minions.length
-      this._gameState.minions = this._gameState.minions.filter(
-        m => m.aiState !== 'dead' && m.resources.hp > 0
-      )
-      const lost = before - this._gameState.minions.length
-      if (lost > 0) EventBus.emit('BLOODBOUND_LOSSES', { count: lost })
+      bloodboundLost = this._gameState.minions.filter(m =>
+        m.faction !== 'adventurer' && (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0)
+      ).length
     }
-    // Phase 9: Undying Horde — undead minions that die again are gone permanently
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m.isUndead && m.aiState === 'dead')
-    )
-    // Phase 1b.9 — Demon Hellgate imps don't respawn. Killed (or sacrificed,
-    // though those are stripped on burn) imps stay dead; the Hellgate emits a
-    // fresh batch of N=bossLevel imps each dawn from BossArchetypeSystem.
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m._isDemonImp && (m.aiState === 'dead' || m.resources.hp <= 0))
-    )
-    // Phase 1b.7 — Myconid Corpse Bloom Vinekins are one-shot. Each fungal
-    // corpse only sprouts a single Vinekin; if it dies, the slot is gone for
-    // good (unless another corpse blooms). Otherwise the cap on simultaneous
-    // corpses is meaningless and Vinekin numbers compound week over week.
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m._myconidSprout && (m.aiState === 'dead' || m.resources.hp <= 0))
-    )
-    // Phase 1b.8 — Wraith Haunt ghosts are spectres bound to one specific
-    // death. If killed, they don't reform; the boss has to claim a fresh
-    // adventurer to spawn another one. Without this, ghosts accumulate every
-    // night and Wraith snowballs uncontrollably.
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m._isHauntGhost && (m.aiState === 'dead' || m.resources.hp <= 0))
-    )
-    // Hall of Trials spawns are one-shot. The room's promise is "one
-    // random Tier-2 minion per day, and if it dies it doesn't come
-    // back" — letting respawnAll revive a killed HoT spawn put it back
-    // alive next dawn, AND MinionEvolutionSystem.applyResets would
-    // demote it to its Tier-1 base (skeleton2 → skeleton1, etc.),
-    // which is the "respawning as T1" bug the player reported. Filter
-    // dead HoT spawns out permanently here; RoomBehaviorSystem.
-    // _onDayStart then sees no alive HoT spawn in the room and rolls
-    // a FRESH random Tier-2 — the design's intended replacement.
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m.isHallOfTrialsSpawn && (m.aiState === 'dead' || m.resources.hp <= 0))
-    )
-    // Throne Room mini-bosses are the same shape — kill drops the
-    // tagged entity entirely so the next _spawnThroneMinibosses pass
-    // rolls a fresh random chain-APEX (each family's final form — T3
-    // for 3-link chains, T4 elder slime for the 4-link slime chains)
-    // with double-base stats. Without this filter, respawnAll would
-    // resurrect the dead mini-boss at full HP and applyResets would
-    // demote its apex def to a Tier-1 base, mirroring the HoT
-    // regression but worse — the mini-boss would come back puny.
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m.isThroneMiniBoss && (m.aiState === 'dead' || m.resources.hp <= 0))
-    )
-    // Mercenary-contract minions don't revive — if the hire falls in
-    // battle, the contract is over. (Surviving mercenaries are removed
-    // separately by EventSystem when their 3-day contract expires.)
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m._mercenary && (m.aiState === 'dead' || m.resources.hp <= 0))
-    )
-    // Pass-2: mini-slimes from Slime Split are temporary — wipe them all at
-    // dawn (alive or dead) so they can't accumulate forever.
-    this._gameState.minions = this._gameState.minions.filter(m => !m._isMiniSlime)
-    // Slime King Absorb & Excrete Gooplings are one-shot: a Goopling that
-    // dies stays dead (per user spec — no respawn). Alive ones DO persist
-    // across nights so the player keeps their goop-army between days,
-    // matching how regular night-spawned minions persist when they survive.
-    this._gameState.minions = this._gameState.minions.filter(
-      m => !(m._isGoopling && (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0))
-    )
+
+    // Strip every permanent-death minion at dawn. isPermadeadAtDawn
+    // (util/minionRevive.js) is the SINGLE definition of "stays dead" —
+    // defectors, Bloodbound losses, re-died Undying-Horde undead, Demon
+    // imps, Myconid sprouts, Wraith haunt ghosts, Hall-of-Trials elites,
+    // Throne mini-bosses, mercenaries, mini-slimes and gooplings. The
+    // pay-to-revive button reads the SAME predicate, so it can never
+    // resurrect a unit meant to stay down.
+    this._gameState.minions = this._gameState.minions.filter(m => !isPermadeadAtDawn(m, flags))
+    if (flags.bloodbound && bloodboundLost > 0) EventBus.emit('BLOODBOUND_LOSSES', { count: bloodboundLost })
 
     const bossLv = this._gameState.boss?.level ?? 1
     const day    = this._gameState.meta?.dayNumber ?? 1
 
     for (const m of this._gameState.minions) {
-      // Phase 7b: track times-killed-and-respawned for vengeful_wraith evolution
-      if (m.aiState === 'dead' || m.resources.hp <= 0) {
+      const dead = m.aiState === 'dead' || m.resources.hp <= 0
+      if (dead) {
+        // Pay-to-revive (2026-05-28): player ROSTER minions are NO LONGER
+        // auto-revived for free at dawn. They stay fallen (aiState 'dead', in
+        // place) until the player pays at the night-phase REVIVE button
+        // (reviveFallen), and are purged at day start if left unrevived.
+        if ((m.class ?? 'roster') === 'roster') continue
+        // Auto-managed GARRISON spawns that survived the permadead strip above
+        // (Gnoll hunters pack, Crypt risen bones, Catacombs revenants, …) keep
+        // their free dawn revival, exactly as before — their host room /
+        // archetype system counts on it (e.g. _refillHuntersPack). They were
+        // never player-built, so they're never in the pay-to-revive pool.
         m.timesKilledAndRespawned = (m.timesKilledAndRespawned ?? 0) + 1
         EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
-        // A minion that died loses the XP it earned — it revives next
-        // dawn as a fresh level-1 recruit. (Evolution is reverted
-        // separately by MinionEvolutionSystem.applyResets.)
+        // Revives as a fresh level-1 instance (lost its XP on death). Evolution
+        // was already reverted at night start by applyResets.
         m.level = 1
         m.xp    = 0
       }
-      // Re-apply day+boss scaling each dawn so retained minions stay competitive.
-      // applyMinionScaling always recomputes from _baseMaxHp/_baseAtk, never stacks.
-      applyMinionScaling(m, bossLv, day)
-      // Phase 9 — Last Stand Doctrine: minions that triggered the bonus
-      // respawn drained at 50% HP next day (overrides the full-heal above).
-      if (m._lastStandUsed) {
-        m.resources.hp = Math.max(1, Math.floor((m.resources.maxHp ?? 0) * Balance.MECHANIC_LAST_STAND_RESPAWN_HP_FRAC))
-        m._lastStandUsed = false
-      }
-      m.tileX  = m.homeTileX
-      m.tileY  = m.homeTileY
-      m.worldX = m.homeTileX * TS + TS / 2
-      m.worldY = m.homeTileY * TS + TS / 2
-      m.aiState = 'idle'
-      m.currentTargetId = null
-      m.deathDay = null
-      // Pass-1: bank any pickpocketed gold from minions that survived the day
-      // (Goblin / Mimic). Death-time crediting is handled in _die.
-      if (m._stolenGold > 0 && this._gameState.player) {
-        this._gameState.player.gold = (this._gameState.player.gold ?? 0) + m._stolenGold
-        m._stolenGold = 0
-      }
-      // Pass-3: Lizardman Lurk — re-anchor to a random corner of the home
-      // room each dawn so they don't telegraph by always sitting on the
-      // same tile.
-      if (m.definitionId === 'lizardman1' || m.definitionId === 'lizardman2') {
-        MinionAbilities._placeLizardmanInCorner(m, this._gameState)
-      }
-      // Pass-3: clear behavior-state accumulators (teleport timer, demon
-      // sense flag, scavenger target) so they restart each day.
-      m._teleAccum     = 0
-      m._demonSensing  = false
-      m._patrolTarget  = null
-      m._patrolAccum   = 0
-      m._chasePath     = null
-      // Clear per-fight ability flags so Vinekin Snare re-arms and Lizardman
-      // Camouflage re-hides each night.
-      MinionAbilities.resetOneShotsForNight(m)
+      this._dawnRefresh(m, bossLv, day)
     }
+  }
+
+  // Per-minion "fresh dawn" reset — rescale to the current boss level / day,
+  // full-heal, return home, clear per-night ability + behaviour state. Shared
+  // by respawnAll (living survivors) and reviveFallen (paid revives) so the
+  // two can never drift apart.
+  _dawnRefresh(m, bossLv, day) {
+    // Re-apply day+boss scaling each dawn so retained minions stay competitive.
+    // applyMinionScaling always recomputes from _baseMaxHp/_baseAtk, never stacks.
+    applyMinionScaling(m, bossLv, day)
+    // Phase 9 — Last Stand Doctrine: minions that triggered the bonus
+    // respawn drained at 50% HP next day (overrides the full-heal above).
+    if (m._lastStandUsed) {
+      m.resources.hp = Math.max(1, Math.floor((m.resources.maxHp ?? 0) * Balance.MECHANIC_LAST_STAND_RESPAWN_HP_FRAC))
+      m._lastStandUsed = false
+    }
+    m.tileX  = m.homeTileX
+    m.tileY  = m.homeTileY
+    m.worldX = m.homeTileX * TS + TS / 2
+    m.worldY = m.homeTileY * TS + TS / 2
+    m.aiState = 'idle'
+    m.currentTargetId = null
+    m.deathDay = null
+    // Pass-1: bank any pickpocketed gold from minions that survived the day
+    // (Goblin / Mimic). Death-time crediting is handled in _die.
+    if (m._stolenGold > 0 && this._gameState.player) {
+      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + m._stolenGold
+      m._stolenGold = 0
+    }
+    // Pass-3: Lizardman Lurk — re-anchor to a random corner of the home
+    // room each dawn so they don't telegraph by always sitting on the
+    // same tile.
+    if (m.definitionId === 'lizardman1' || m.definitionId === 'lizardman2') {
+      MinionAbilities._placeLizardmanInCorner(m, this._gameState)
+    }
+    // Pass-3: clear behavior-state accumulators (teleport timer, demon
+    // sense flag, scavenger target) so they restart each day.
+    m._teleAccum     = 0
+    m._demonSensing  = false
+    m._patrolTarget  = null
+    m._patrolAccum   = 0
+    m._chasePath     = null
+    // Clear per-fight ability flags so Vinekin Snare re-arms and Lizardman
+    // Camouflage re-hides each night.
+    MinionAbilities.resetOneShotsForNight(m)
+  }
+
+  // Pay-to-revive (2026-05-28): bring every currently-fallen revivable minion
+  // back to life. Gold is charged by the caller (Game._onReviveFallenRequest)
+  // BEFORE this runs — this method only performs the revive transform, which
+  // reproduces the old free dawn-revive exactly: reset to level 1 (it died,
+  // so it loses earned XP; evolution was already reverted by
+  // MinionEvolutionSystem.applyResets at night start), then the shared dawn
+  // refresh full-heals + returns it home. The polling MinionRenderer recreates
+  // the sprite next frame. Permanent-death specials are excluded via
+  // fallenRevivable's shared predicate, so they're never touched. Returns the
+  // number revived.
+  reviveFallen() {
+    const fallen = fallenRevivable(this._gameState)
+    if (fallen.length === 0) return 0
+    const bossLv = this._gameState.boss?.level ?? 1
+    const day    = this._gameState.meta?.dayNumber ?? 1
+    for (const m of fallen) {
+      // Track times-killed-and-respawned for vengeful_wraith evolution.
+      m.timesKilledAndRespawned = (m.timesKilledAndRespawned ?? 0) + 1
+      EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
+      // A revived minion returns as a fresh level-1 recruit (lost its XP on
+      // death). Evolution was already reverted at night start by applyResets.
+      m.level = 1
+      m.xp    = 0
+      this._dawnRefresh(m, bossLv, day)
+    }
+    EventBus.emit('MINIONS_REVIVED', { count: fallen.length })
+    return fallen.length
   }
 }
 

@@ -2051,9 +2051,11 @@ export class DayPhase extends Phaser.Scene {
     const active = this._gameState.adventurers.active
     while (active.length > 0) active.shift()
 
-    // Refill boss + minion HP for the next day.  Dead minions stay dead —
-    // the player has to re-place them at night — but anyone still standing
-    // tops up to full so the dungeon resets to a clean state each cycle.
+    // Refill boss + minion HP for the next day. Fallen roster minions stay
+    // dead — the player pays to bring them back at the night-phase REVIVE
+    // button (MinionAISystem.reviveFallen), or loses them at dawn — but
+    // anyone still standing tops up to full so the dungeon resets cleanly.
+    // (Garrison / archetype spawns still auto-revive via respawnAll.)
     if (this._gameState.boss) {
       this._gameState.boss.hp = this._gameState.boss.maxHp
     }

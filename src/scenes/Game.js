@@ -20,6 +20,7 @@ import { LiveRunPublisher }  from '../systems/LiveRunPublisher.js'
 import { BossArchetypeSystem } from '../systems/BossArchetypeSystem.js'
 import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
+import { fallenRevivable, totalReviveCost } from '../util/minionRevive.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
 import { AiDiagOverlay }      from '../ui/AiDiagOverlay.js'
@@ -337,6 +338,12 @@ export class Game extends Phaser.Scene {
     // ref, no tile-find needed. The scene-level path still works as a
     // fallback (click on a tile a sprite doesn't cover).
     EventBus.on('MINION_CLICKED',       this._onMinionClickedForMarionette, this)
+    // Pay-to-revive (2026-05-28): the night-phase REVIVE button (LeftPanels)
+    // asks to bring fallen roster minions back for gold.
+    EventBus.on('REVIVE_FALLEN_REQUEST', this._onReviveFallenRequest, this)
+    // Lost-at-day-start: any fallen minion the player didn't pay to revive
+    // during the build phase is purged when the day begins.
+    EventBus.on('DAY_PHASE_STARTED',     this._purgeUnrevivedFallen,  this)
     // Phase 10: third boss defeat → game over
     EventBus.on('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     // Re-clamp zoom whenever the dungeon grid expands so min zoom tracks map size
@@ -472,6 +479,8 @@ export class Game extends Phaser.Scene {
   shutdown() {
     EventBus.off('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
     EventBus.off('MINION_CLICKED',       this._onMinionClickedForMarionette, this)
+    EventBus.off('REVIVE_FALLEN_REQUEST', this._onReviveFallenRequest, this)
+    EventBus.off('DAY_PHASE_STARTED',     this._purgeUnrevivedFallen,  this)
     EventBus.off('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
     EventBus.off('GRID_EXPANDED',        this._onGridExpanded,  this)
     EventBus.off('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
@@ -751,6 +760,50 @@ export class Game extends Phaser.Scene {
     // BOSS_FIGHT_RESOLVED already handled this — this is a belt-and-suspenders
     // guard to ensure boss music never leaks into the night phase.
     GameplayMusic.bossFightEnd(true)
+  }
+
+  // Pay-to-revive (2026-05-28) — the night-phase REVIVE button. Charges gold
+  // here (the single charge site), then MinionAISystem.reviveFallen performs
+  // the revive transform. Cost + eligibility come from the shared
+  // util/minionRevive helpers, so this charge always matches the price the
+  // build menu displays. No-ops outside the night/build phase or when there's
+  // nothing fallen.
+  _onReviveFallenRequest() {
+    const gs = this.gameState
+    if (!gs || gs.meta?.phase !== 'night') return
+    const fallen = fallenRevivable(gs)
+    if (fallen.length === 0) return
+    const minionDefs = this.cache.json.get('minionTypes') ?? []
+    const cost = totalReviveCost(gs, minionDefs)
+    if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
+      if ((gs.player?.gold ?? 0) < cost) {
+        EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })
+        return
+      }
+      gs.player.gold -= cost
+    }
+    const revived = this.minionAiSystem?.reviveFallen() ?? 0
+    if (revived > 0) {
+      try {
+        const key = this.cache.audio.exists('sfx-necro-summon') ? 'sfx-necro-summon'
+                  : this.cache.audio.exists('sfx-build-1')       ? 'sfx-build-1' : null
+        if (key) this.sound.play(key, { volume: 0.6 })
+      } catch { /* audio not ready — non-fatal */ }
+    }
+  }
+
+  // Lost-at-day-start: when the day begins, any fallen minion the player
+  // didn't pay to revive during the build phase is gone for good. Uses the
+  // shared predicate so only revivable fallen are purged — permanent-death
+  // specials were already stripped by respawnAll at night start.
+  _purgeUnrevivedFallen() {
+    const gs = this.gameState
+    if (!gs?.minions?.length) return
+    const lost = fallenRevivable(gs)
+    if (lost.length === 0) return
+    const lostIds = new Set(lost.map(m => m.instanceId))
+    gs.minions = gs.minions.filter(m => !lostIds.has(m.instanceId))
+    EventBus.emit('MINIONS_LOST_FALLEN', { count: lost.length })
   }
 
   // ── Camera follow ─────────────────────────────────────────────────────────

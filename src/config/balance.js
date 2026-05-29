@@ -440,6 +440,12 @@ export const Balance = {
   // "hard sink": late costs outpace income so gold stays genuinely scarce.
   BUILD_COST_PER_BOSS_LV:       0.20,   // +20% per boss level above 1 (all buildables)
   BUILD_COST_PER_DAY:           0.12,   // +12% per day past day 9 (all buildables)
+  // Pay-to-revive (2026-05-28): fallen roster minions no longer auto-revive
+  // free at dawn. A night-phase REVIVE button brings them back for this
+  // fraction of each minion's CURRENT (day-scaled) build cost — cheaper than
+  // re-buying, and it keeps their dungeon position. Unrevived fallen are lost
+  // at day start. See util/minionRevive.js + MinionAISystem.reviveFallen.
+  BUILD_REVIVE_COST_FRAC:       0.5,    // revive = 50% of current build cost, per minion
   UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
 
   // --- Dungeon event: Miasma (% maxHp chip damage) ---
