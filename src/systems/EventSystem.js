@@ -1511,7 +1511,6 @@ export class EventSystem {
       theme: 'shadow',          // black + gray slate for the demon's bargain
       messageNode: this._eventPromptNode([
         { kind: 'reward', label: 'GAIN', value: 'A FREE PACT FROM THE BLACK GRIMOIRE' },
-        { kind: 'lose',   label: 'COST', value: "HALF THE BOSS'S HP TODAY" },
       ]),
       confirmLabel: 'ACCEPT DEAL',
       hideCancel:   true,        // the bargain cannot be refused
@@ -1669,18 +1668,10 @@ export class EventSystem {
         flags.soloLevelingActive = true
         break
       case 'dark_deal':
-        // The demon NPC + pact-pick flow happens in night phase via
-        // DarkDealDemonRenderer; if the player accepted, that flow set
-        // _eventFlags.darkDealAccepted. Halve boss maxHp for THIS day
-        // only — restored in _clearEffect at DAY_PHASE_ENDED.
-        if (flags.darkDealAccepted) {
-          const boss = this._gameState.boss
-          if (boss?.maxHp) {
-            flags.darkDealOriginalMaxHp = boss.maxHp
-            boss.maxHp = Math.max(1, Math.floor(boss.maxHp * 0.5))
-            boss.hp    = Math.min(boss.hp ?? boss.maxHp, boss.maxHp)
-          }
-        }
+        // The pact-pick happens in night phase (DarkDealDemonRenderer + the
+        // mandatory ACCEPT popup). There is NO extra cost — the free pact is
+        // drawn from the black grimoire, and the chosen damned pact's own curse
+        // IS the price. Nothing to apply at day start.
         break
       case 'tax_season': {
         // Guild tax — skim 20% of the treasury the instant the day
@@ -1843,18 +1834,9 @@ export class EventSystem {
         EventBus.emit('GOBLIN_MARKET_PRICES_SET', { prices: null })
         break
       case 'dark_deal':
-        // Restore boss maxHp captured at apply time. Use the snapshot —
-        // DON'T just × 2, since other systems may have modified maxHp
-        // mid-day (boss-archetype level-up, etc.). Skip if no snapshot
-        // (deal wasn't accepted).
-        if (flags.darkDealAccepted && flags.darkDealOriginalMaxHp) {
-          const boss = this._gameState.boss
-          if (boss) {
-            const frac = (boss.maxHp > 0) ? (boss.hp / boss.maxHp) : 1
-            boss.maxHp = flags.darkDealOriginalMaxHp
-            boss.hp    = Math.round(boss.maxHp * frac)
-          }
-        }
+        // No HP penalty to restore — the deal is free. Just reset the per-event
+        // flags (darkDealOriginalMaxHp is legacy; cleared in case an old save
+        // carried one from the previous half-HP-cost design).
         flags.darkDealAccepted       = false
         flags.darkDealOriginalMaxHp  = null
         break
