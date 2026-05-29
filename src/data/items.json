@@ -55,7 +55,7 @@
       "buff"
     ],
     "goldCost": 120,
-    "unlockLevel": 3
+    "unlockLevel": 5
   },
   {
     "id": "healing_fountain",
@@ -221,7 +221,7 @@
       "chest"
     ],
     "goldCost": 366,
-    "unlockLevel": 9,
+    "unlockLevel": 10,
     "maxPerDungeon": 1,
     "tier": 8,
     "treasure": {
@@ -241,7 +241,7 @@
       "chest"
     ],
     "goldCost": 414,
-    "unlockLevel": 10,
+    "unlockLevel": 12,
     "maxPerDungeon": 1,
     "tier": 9,
     "treasure": {
@@ -261,7 +261,7 @@
       "chest"
     ],
     "goldCost": 480,
-    "unlockLevel": 11,
+    "unlockLevel": 14,
     "maxPerDungeon": 1,
     "tier": 10,
     "treasure": {

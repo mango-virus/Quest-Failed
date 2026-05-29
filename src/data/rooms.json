@@ -2019,7 +2019,7 @@
         "goldCost": 40,
         "costStep": 30,
         "powerCostToUnlock": 0,
-        "unlockLevel": 3,
+        "unlockLevel": 2,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -2442,7 +2442,7 @@
         "connectionPoints": [],
         "goldCost": 26,
         "powerCostToUnlock": 0,
-        "unlockLevel": 2,
+        "unlockLevel": 4,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 4,
@@ -3044,7 +3044,7 @@
         "connectionPoints": [],
         "goldCost": 28,
         "powerCostToUnlock": 0,
-        "unlockLevel": 6,
+        "unlockLevel": 7,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -3259,7 +3259,7 @@
         "goldCost": 38,
         "costStep": 26,
         "powerCostToUnlock": 0,
-        "unlockLevel": 7,
+        "unlockLevel": 8,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 2,
@@ -3483,7 +3483,7 @@
         "connectionPoints": [],
         "goldCost": 38,
         "powerCostToUnlock": 0,
-        "unlockLevel": 7,
+        "unlockLevel": 9,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -3772,7 +3772,7 @@
         "goldCost": 46,
         "costStep": 30,
         "powerCostToUnlock": 0,
-        "unlockLevel": 7,
+        "unlockLevel": 10,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -3974,7 +3974,7 @@
         "connectionPoints": [],
         "goldCost": 28,
         "powerCostToUnlock": 0,
-        "unlockLevel": 8,
+        "unlockLevel": 12,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -4172,7 +4172,7 @@
         "connectionPoints": [],
         "goldCost": 34,
         "powerCostToUnlock": 0,
-        "unlockLevel": 8,
+        "unlockLevel": 11,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -4431,7 +4431,7 @@
         "connectionPoints": [],
         "goldCost": 46,
         "powerCostToUnlock": 0,
-        "unlockLevel": 9,
+        "unlockLevel": 13,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -4714,7 +4714,7 @@
         "goldCost": 65,
         "costStep": 45,
         "powerCostToUnlock": 0,
-        "unlockLevel": 9,
+        "unlockLevel": 14,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -4906,7 +4906,7 @@
         "connectionPoints": [],
         "goldCost": 85,
         "powerCostToUnlock": 0,
-        "unlockLevel": 10,
+        "unlockLevel": 15,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,

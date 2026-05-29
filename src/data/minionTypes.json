@@ -19,7 +19,7 @@
     },
     "goldCost": 20,
     "powerCostToUnlock": 0,
-    "unlockLevel": 7,
+    "unlockLevel": 10,
     "evolutionPaths": [],
     "tags": [
       "aberration",
@@ -80,7 +80,7 @@
     },
     "goldCost": 26,
     "powerCostToUnlock": 0,
-    "unlockLevel": 9,
+    "unlockLevel": 13,
     "evolutionPaths": [],
     "tags": [
       "fiend",
@@ -231,7 +231,7 @@
     },
     "goldCost": 22,
     "powerCostToUnlock": 0,
-    "unlockLevel": 8,
+    "unlockLevel": 11,
     "evolutionPaths": [],
     "tags": [
       "plant",
@@ -324,7 +324,7 @@
     },
     "goldCost": 16,
     "powerCostToUnlock": 0,
-    "unlockLevel": 5,
+    "unlockLevel": 8,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -385,7 +385,7 @@
     },
     "goldCost": 14,
     "powerCostToUnlock": 0,
-    "unlockLevel": 4,
+    "unlockLevel": 6,
     "evolutionPaths": [],
     "tags": [
       "gnoll",
@@ -540,7 +540,7 @@
     },
     "goldCost": 30,
     "powerCostToUnlock": 0,
-    "unlockLevel": 10,
+    "unlockLevel": 14,
     "evolutionPaths": [],
     "tags": [
       "construct",
@@ -603,7 +603,7 @@
     },
     "goldCost": 14,
     "powerCostToUnlock": 0,
-    "unlockLevel": 4,
+    "unlockLevel": 7,
     "evolutionPaths": [],
     "tags": [
       "fiend",
@@ -695,7 +695,7 @@
     },
     "goldCost": 22,
     "powerCostToUnlock": 0,
-    "unlockLevel": 8,
+    "unlockLevel": 12,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -756,7 +756,7 @@
     },
     "goldCost": 12,
     "powerCostToUnlock": 0,
-    "unlockLevel": 3,
+    "unlockLevel": 4,
     "evolutionPaths": [],
     "tags": [
       "lizardman",
@@ -880,7 +880,7 @@
     },
     "goldCost": 12,
     "powerCostToUnlock": 0,
-    "unlockLevel": 3,
+    "unlockLevel": 4,
     "evolutionPaths": [],
     "tags": [
       "orc",
@@ -1120,7 +1120,7 @@
     },
     "goldCost": 10,
     "powerCostToUnlock": 0,
-    "unlockLevel": 2,
+    "unlockLevel": 3,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -1270,7 +1270,7 @@
     },
     "goldCost": 10,
     "powerCostToUnlock": 0,
-    "unlockLevel": 2,
+    "unlockLevel": 3,
     "evolutionPaths": [],
     "tags": [
       "ooze",
@@ -1300,7 +1300,7 @@
     },
     "goldCost": 12,
     "powerCostToUnlock": 0,
-    "unlockLevel": 3,
+    "unlockLevel": 5,
     "evolutionPaths": [],
     "tags": [
       "ooze",
@@ -1480,7 +1480,7 @@
     },
     "goldCost": 18,
     "powerCostToUnlock": 0,
-    "unlockLevel": 6,
+    "unlockLevel": 9,
     "evolutionPaths": [],
     "tags": [
       "vampire",
@@ -1541,7 +1541,7 @@
     },
     "goldCost": 8,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 2,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -1942,7 +1942,7 @@
     },
     "goldCost": 35,
     "powerCostToUnlock": 0,
-    "unlockLevel": 10,
+    "unlockLevel": 15,
     "evolutionPaths": [],
     "tags": [
       "mimic",
