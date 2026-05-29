@@ -68,6 +68,7 @@ export class DevToolsOverlay {
       width:     520,
       height:    560,
       accent:    'var(--poison)',
+      frame:     'plain',   // subtle main-menu edge instead of the accent frame
       animation: 'panel',
       onClose: () => {
         this._overlay = null

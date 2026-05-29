@@ -92,6 +92,7 @@ export class WhatsNewOverlay {
       width:     560,
       height:    560,
       accent:    'var(--gold-bright, #ffd964)',
+      frame:     'plain',   // subtle main-menu edge instead of the gold frame
       animation: 'unfurl',
       onClose: () => {
         // Mark everything seen so it won't re-pop until the next update.

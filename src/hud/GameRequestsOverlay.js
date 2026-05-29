@@ -98,6 +98,7 @@ export class GameRequestsOverlay {
       width:    560,
       height:   640,
       accent:   'var(--rumor, #5cc0ff)',
+      frame:    'plain',   // subtle main-menu edge instead of the accent frame
       onClose:  () => this._onClose?.(),
       scrollLock: false,
       animation: 'panel',

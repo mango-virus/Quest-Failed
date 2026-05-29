@@ -227,6 +227,7 @@ export class AchievementsOverlay {
       width:     1300,
       height:    840,
       accent:    'var(--gold)',
+      frame:     'plain',   // subtle main-menu edge instead of the gold frame
       animation: 'unfurl',
       onClose:   () => this._onOverlayClose(),
       body:      this._el,

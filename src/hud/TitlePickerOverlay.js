@@ -32,6 +32,7 @@ export class TitlePickerOverlay {
       width:  560,
       height: 640,
       accent: 'var(--gold)',
+      frame:  'plain',   // subtle main-menu edge instead of the gold frame
       onClose: () => { this._overlay = null; this._onClose?.() },
       body:   this._renderBody(),
     })

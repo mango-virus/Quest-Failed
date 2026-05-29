@@ -92,6 +92,7 @@ export class SettingsOverlay {
       width:   860,
       height:  540,
       accent:  'var(--blood)',
+      frame:   'plain',   // subtle main-menu edge instead of the accent frame
       onClose: () => this._onCancel(),
       body:    this._renderBody(),
     })
