@@ -43,6 +43,10 @@ export class Overlay {
       accent:   opts.accent   ?? 'var(--blood)',
       onClose:  opts.onClose  ?? null,
       animation: opts.animation ?? 'panel',   // 'panel' | 'unfurl'
+      // Frame style: 'ornate' (default) = the accent-coloured double border +
+      // glow; 'plain' = a single subtle line matching the main-menu edge
+      // (2px solid var(--line-2)), no accent ring/glow.
+      frame:    opts.frame    ?? 'ornate',
       scrollLock: opts.scrollLock ?? false,
       closeOnBackdrop: opts.closeOnBackdrop ?? true,
     }
@@ -58,6 +62,7 @@ export class Overlay {
 
   _build() {
     const o = this._opts
+    const plain = o.frame === 'plain'
     const root = h('div', {
       className: 'overlay',
       on: o.closeOnBackdrop ? {
@@ -76,15 +81,20 @@ export class Overlay {
           width:  `${o.width}px`,
           height: `${o.height}px`,
           background: 'var(--bg-1)',
-          border: `2px solid ${o.accent}`,
-          boxShadow: [
+          // Plain frame = a single subtle line like the main-menu edge; ornate
+          // frame = the accent-coloured double border + outer glow.
+          border: plain ? '2px solid var(--line-2)' : `2px solid ${o.accent}`,
+          boxShadow: (plain ? [
+            'inset 0 0 32px rgba(0,0,0,0.55)',
+            '0 24px 60px rgba(0,0,0,0.75)',
+          ] : [
             'inset 0 0 0 6px #000',
             `inset 0 0 0 8px ${o.accent}`,
             'inset 0 0 0 12px #000',
             'inset 0 0 32px rgba(0,0,0,0.55)',
             '0 24px 60px rgba(0,0,0,0.75)',
             `0 0 80px ${o.accent}33`,
-          ].join(', '),
+          ]).join(', '),
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
@@ -100,7 +110,7 @@ export class Overlay {
           h('button', {
             className: 'qf-overlay-close',
             title: 'Close',
-            style: { borderColor: o.accent },
+            style: { borderColor: plain ? 'var(--line-2)' : o.accent },
             on: { click: () => this.close() },
           }, '×'),
         ]),

@@ -222,6 +222,9 @@ export class LeaderboardOverlay {
       width:    1300,
       height:   840,
       accent:   'var(--gold)',
+      // Subtle single-line frame (matches the main-menu edge) instead of the
+      // loud gold double-border + glow.
+      frame:    'plain',
       animation: 'unfurl',
       onClose: () => {
         this._overlay = null
