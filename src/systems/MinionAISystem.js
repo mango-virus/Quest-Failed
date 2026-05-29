@@ -1212,16 +1212,19 @@ export class MinionAISystem {
       if (!isFollowingAlly) return
     }
 
-    // Shadow army — move straight to the PLAIN tile centre, bypassing the
-    // ½-tile doorway-lane shift + lane L-shape logic below. The diagnosis
-    // (shadows frozen at the first doorway): at 2× speed the lane-centre
-    // target lands exactly on a doorway seam (world coord = N×TS), the
-    // dist<0.5 snap parks the minion ON that seam, and every subsequent
-    // approach/lane waypoint re-targets the same seam — so it never moves off
-    // it. Shadows are ethereal; single-file lane prettiness isn't needed, and
-    // A* already routes them down the canonical (walkable) door column, so a
-    // dead-simple centre-to-centre step is both correct and deadlock-proof.
-    if (minion._shadowExtracted) {
+    // Owner-following allies (necromancer raises, beast-master tames) AND
+    // extracted shadows — all skip the ½-tile doorway-lane shift + lane
+    // L-shape logic below. The diagnosis (shadows frozen at the first doorway,
+    // then later reported with necromancer summons stuck in doors): the
+    // lane-centre target lands exactly on a doorway seam (world coord = N×TS)
+    // and the dist<0.5 snap parks the follower ON that seam, with every
+    // subsequent approach/lane waypoint re-targeting the same seam — so it
+    // never moves off it. Hits faster at 2× speed (shadows) but surfaces on
+    // any speed-matched follower whose step lands near the seam. Followers
+    // don't need the single-file lane prettiness, and A* already routes them
+    // down the canonical (walkable) door column, so a dead-simple
+    // centre-to-centre step is both correct and deadlock-proof.
+    if (minion._shadowExtracted || minion.raisedByAdvId || minion.tamedByAdvId) {
       const cx = targetTile.x * TS + TS / 2
       const cy = targetTile.y * TS + TS / 2
       const sdx = cx - minion.worldX
