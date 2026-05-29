@@ -149,8 +149,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 40
+    ]
   },
   {
     "id": "elder_slime2",
@@ -180,8 +179,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 40
+    ]
   },
   {
     "id": "elder_slime3",
@@ -211,8 +209,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 40
+    ]
   },
   {
     "id": "ent1",
@@ -830,8 +827,7 @@
     ],
     "vulnerableToElements": [
       "fire"
-    ],
-    "hpBarYOffset": 30
+    ]
   },
   {
     "id": "mushroom2",
@@ -862,8 +858,7 @@
     ],
     "vulnerableToElements": [
       "fire"
-    ],
-    "hpBarYOffset": 30
+    ]
   },
   {
     "id": "orc1",
@@ -953,8 +948,7 @@
     ],
     "vulnerableToElements": [
       "fire"
-    ],
-    "hpBarYOffset": 30
+    ]
   },
   {
     "id": "plant2",
@@ -984,8 +978,7 @@
     ],
     "vulnerableToElements": [
       "fire"
-    ],
-    "hpBarYOffset": 30
+    ]
   },
   {
     "id": "plant3",
@@ -1015,8 +1008,7 @@
     ],
     "vulnerableToElements": [
       "fire"
-    ],
-    "hpBarYOffset": 30
+    ]
   },
   {
     "id": "rat1",
@@ -1226,8 +1218,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime2",
@@ -1257,8 +1248,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime3",
@@ -1288,8 +1278,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime4",
@@ -1319,8 +1308,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime5",
@@ -1350,8 +1338,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime6",
@@ -1381,8 +1368,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime7",
@@ -1412,8 +1398,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime8",
@@ -1443,8 +1428,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "slime9",
@@ -1474,8 +1458,7 @@
     ],
     "vulnerableToElements": [
       "ice"
-    ],
-    "hpBarYOffset": 20
+    ]
   },
   {
     "id": "vampire_minion1",

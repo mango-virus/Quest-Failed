@@ -769,6 +769,37 @@ export class MinionRenderer {
     return 1.0
   }
 
+  // Transparent rows above the art in frame 0 of `key` (frame px, 0..fs).
+  // Used to anchor the HP bar / status badge just above the minion's actual
+  // visible top instead of the (often empty) frame top. Measured once per
+  // texture key via an offscreen canvas, then cached. Returns 0 on any
+  // failure so callers fall back to frame-top anchoring.
+  _visibleTopPadding(key, fs) {
+    this._topPadCache ??= {}
+    if (key in this._topPadCache) return this._topPadCache[key]
+    let pad = 0
+    try {
+      const img = this._scene.textures.get(key)?.getSourceImage?.()
+      if (img) {
+        const cv = this._padCanvas ??= document.createElement('canvas')
+        const cx = cv.getContext('2d', { willReadFrequently: true })
+        cv.width = fs; cv.height = fs
+        cx.clearRect(0, 0, fs, fs)
+        cx.drawImage(img, 0, 0, fs, fs, 0, 0, fs, fs)   // frame 0 = top-left cell
+        const data = cx.getImageData(0, 0, fs, fs).data
+        // Require a few opaque pixels per row so stray AA specks don't count.
+        const need = Math.max(2, Math.round(fs * 0.03))
+        for (let y = 0; y < fs; y++) {
+          let c = 0
+          for (let x = 0; x < fs; x++) if (data[(y * fs + x) * 4 + 3] > 50) c++
+          if (c >= need) { pad = y; break }
+        }
+      }
+    } catch { pad = 0 }
+    this._topPadCache[key] = pad
+    return pad
+  }
+
   // Resolve the best available animation key for a given prefix+state+facing.
   // Tries the exact key first, then other directions, then a fallback state.
   // Returns null only for `death` with no death sheet (sprite stays on last frame,
@@ -827,16 +858,18 @@ export class MinionRenderer {
     const fs          = def.frameSize ?? 64
     const displaySize = fs * baseScale * dispScale
     const hpBarW      = Math.round(displaySize * 0.55)
-    // HP bar sits just above the sprite's top edge (a few pixels of gap so
-    // it reads clearly without feeling detached). Frame size varies by
-    // minion (64 vs 128) so the base auto-scales.
+    // HP bar + status badge sit just above the sprite's ACTUAL visible top
+    // edge — auto-detected (and cached) per texture, NOT anchored to the
+    // frame top. Many minion frames (especially the 128px ones) leave a lot
+    // of empty space above the art, which previously floated the bar + the
+    // star/LV badge way above the character's head. `_visibleTopPadding`
+    // measures the transparent rows above frame 0's art so every minion's
+    // badge lands directly above it regardless of frame padding.
     //
-    // Per-minion tuning: if `def.hpBarYOffset` is set in minionTypes.json
-    // it nudges the bar Y. Positive values move it DOWN (use this when a
-    // sprite's art only fills the bottom of its frame, like the
-    // plant/mushroom/coconut minions where the default would float far
-    // above the visible character).
-    const hpY         = -displaySize / 2 - 4 + (def.hpBarYOffset ?? 0)
+    // `def.hpBarYOffset` is kept as an optional manual nudge on top (rarely
+    // needed now that the position is measured; positive = down).
+    const topPad      = this._visibleTopPadding(idleKey, fs)
+    const hpY         = (topPad - fs / 2) * (baseScale * dispScale) - 4 + (def.hpBarYOffset ?? 0)
 
     const hpBg = s.add.rectangle(0,            hpY, hpBarW, 2, 0x220a06, 0.9).setOrigin(0.5).setVisible(false)
     const hp   = s.add.rectangle(-hpBarW / 2,  hpY, hpBarW, 2, 0xcc4422, 1).setOrigin(0, 0.5).setVisible(false)
