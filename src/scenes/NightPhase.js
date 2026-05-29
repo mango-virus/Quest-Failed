@@ -15,6 +15,7 @@ import { pickWeightedClass } from '../util/classSpawn.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
 import { upgradeCost, nextTierInfo } from '../util/minionRevive.js'
+import { h } from '../hud/dom.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -3028,17 +3029,29 @@ export class NightPhase extends Phaser.Scene {
     }
     const nextName = (nextDef?.name ?? info.nextId ?? 'next tier').toUpperCase()
     const curHp = minion.resources.maxHp, curAtk = minion.stats.attack
-    const finalTag = info.isFinalNext ? '   ★ MINI-BOSS' : ''
-    const message =
-      `Upgrade ${label.toUpperCase()} → ${nextName}?\n` +
-      `Tier ${info.currentTier}  →  Tier ${info.nextTier}${finalTag}\n\n` +
-      `HP    ${curHp}  →  ${nHp}\n` +
-      `ATK   ${curAtk}  →  ${nAtk}\n\n` +
-      `Cost: ${cost} gold`
+    const rewardValue = info.isFinalNext
+      ? `${nextName} · TIER ${info.nextTier} · ★ MINI-BOSS`
+      : `${nextName} · TIER ${info.nextTier}`
+    // Mirror the dungeon-event PAY/REWARD typography (Mercenary Contract /
+    // Black Market / Cursed Relic …). The shared .qf-event-prompt-row CSS
+    // variants drive the per-row colour: cost = red, reward = gold, win =
+    // green — so the upgrade confirm reads with the same headline layout.
+    const _row = (kind, lbl, val) =>
+      h('div', { className: `qf-event-prompt-row ${kind}` }, [
+        h('div', { className: 'qf-event-prompt-label pix' }, lbl),
+        h('div', { className: 'qf-event-prompt-value pix' }, val),
+      ])
+    const messageNode = h('div', { className: 'qf-event-prompt' }, [
+      _row('cost',   'PAY',     `${cost}g`),
+      _row('reward', 'UPGRADE', rewardValue),
+      _row('win',    'HP',      `${curHp} → ${nHp}`),
+      _row('win',    'ATK',     `${curAtk} → ${nAtk}`),
+    ])
 
     EventBus.emit('SHOW_CONFIRM', {
-      message,
-      confirmLabel: 'UPGRADE',
+      title:        `UPGRADE ${label.toUpperCase()}`,
+      messageNode,
+      confirmLabel: `UPGRADE (${cost}g)`,
       cancelLabel:  'CANCEL',
       theme:        'gold',
       onConfirm: () => {
