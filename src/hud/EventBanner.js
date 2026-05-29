@@ -51,6 +51,25 @@ function _ensureShadowMonarchBannerCss() {
   document.head.appendChild(style)
 }
 
+// Damned-grimoire curse banner theme: pure black slate with blood-red accents,
+// distinct from the dark-red 'crimson' event theme. Used by the damned-pact
+// curse notifications (e.g. The Insomniac's no-build night). Injected once at
+// runtime so it lives alongside the other themes without editing styles.css.
+function _ensureDamnedBannerCss() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('qf-damned-eventbanner-css')) return
+  const style = document.createElement('style')
+  style.id = 'qf-damned-eventbanner-css'
+  style.textContent = `
+.qf-eventbanner.qf-eventbanner-damned,
+.qf-eventpill.qf-eventpill-damned,
+.qf-eventpill-tip.qf-eventpill-tip-damned {
+  --ev-accent:#e01225; --ev-bg:#0a0406; --ev-deep:#030101;
+  --ev-text:#ff5560; --ev-sub:#f0bdc0;
+}`
+  document.head.appendChild(style)
+}
+
 const FADE_IN_MS  = 350
 const HOLD_MS     = 7600   // banner stays fully visible for this long before fading
 const FADE_OUT_MS = 600
@@ -65,6 +84,7 @@ export class EventBanner {
     this._stage = document.getElementById('hud-stage')
     if (!this._stage) return
     _ensureShadowMonarchBannerCss()
+    _ensureDamnedBannerCss()
     this._build()
     this._wireEvents()
     // A save loaded mid-event won't replay DUNGEON_EVENT_ANNOUNCED — restore

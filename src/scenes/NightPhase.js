@@ -1734,6 +1734,12 @@ export class NightPhase extends Phaser.Scene {
     } else {
       check = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
     }
+    // DAMNED · The Insomniac — force every placement preview invalid on a
+    // locked night (catches rooms / locks / key chests the per-kind validators
+    // above don't gate), so the cursor reads red and matches the commit gate.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+      check = { valid: false, violations: ['The Insomniac — no building tonight'] }
+    }
     this._previewValid = check.valid
 
     const color = check.valid ? 0x00cc66 : 0xcc2222
@@ -2165,6 +2171,16 @@ export class NightPhase extends Phaser.Scene {
 
   _confirmPlacement(tx, ty) {
     if (!this._selected) return
+
+    // DAMNED · The Insomniac — no building at all on a locked night. Single
+    // authoritative gate covering EVERY placement kind (rooms / locks / key
+    // chests used to slip past the per-validator checks, letting the player
+    // keep building through the curse). Blocks here + shows the error toast;
+    // the night-start curse banner already told them why.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+      this._showPlacementError('The Insomniac — no building tonight')
+      return
+    }
 
     if (this._selectedKind === 'minion') {
       this._confirmMinionPlacement(tx, ty)

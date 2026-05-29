@@ -1957,7 +1957,16 @@ function _buildHandlerRegistry() {
         gameState._mechanicFlags.insomniacLockTonight = locked
         if (locked) {
           EventBus.emit('INSOMNIAC_LOCKED', { night: n })
-          EventBus.emit('SHOW_TOAST', { text: 'The Insomniac — no building tonight.', kind: 'warn' })
+          // Event-style cinematic slate in the damned grimoire's black+red so
+          // the player can't miss that building is sealed this night (the small
+          // toast was too easy to overlook).
+          EventBus.emit('HUD_BANNER', {
+            title:      'THE INSOMNIAC',
+            notif:      'A curse from the damned grimoire grips the dungeon — no rooms, minions, or traps may be placed this night.',
+            icon:       '☽',
+            colorTheme: 'damned',
+            kicker:     '◆  DAMNED CURSE  ◆',
+          })
         }
       })
       subscribe('DAY_PHASE_STARTED', () => { gameState._mechanicFlags.insomniacLockTonight = false })
