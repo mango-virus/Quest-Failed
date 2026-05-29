@@ -58,23 +58,44 @@ async function recolor(file) {
   const { data, info } = await sharp(path.join(SRC, file))
     .ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const { width, height, channels } = info
-  let hit = 0
+  let leather = 0, pages = 0, gold = 0
   for (let i = 0; i < data.length; i += channels) {
     if (data[i + 3] === 0) continue
     const [h, s, l] = rgb2hsl(data[i], data[i + 1], data[i + 2])
-    // Blue leather band (same as the purple tool). Map to a near-black with a
-    // faint cool tint, keeping the light/shadow gradient so it reads as black
-    // leather rather than a flat fill. Gold filigree (~45), cream pages (~50)
-    // and wood (~30) are outside this band and stay untouched.
     if (h >= 178 && h <= 262 && s > 0.12) {
+      // Blue leather -> near-black (keep the light/shadow gradient so it reads
+      // as black leather, not a flat fill).
       const [r, g, b] = hsl2rgb(265, s * 0.18, l * 0.22)
       data[i] = r; data[i + 1] = g; data[i + 2] = b
-      hit++
+      leather++
+    } else if (
+      // GOLD filigree/lettering — preserve verbatim. Gold forms a hue
+      // "horseshoe": orange midtones (h~38-46) + yellow highlights (S>=0.78).
+      // Parchment is a yellow blob at h~48 that sits BETWEEN gold's two arms,
+      // so neither a pure hue nor a pure lightness cut separates them — but
+      // this two-clause gate does (measured against the asset's real clusters):
+      //   - highlights: any warm hue with S>=0.78 (parchment maxes at ~S0.70)
+      //   - orange midtones: h 38-46, mid-light, moderate sat (parchment fill
+      //     is h~48 and excluded; page-edge shadows are h<=36 and excluded)
+      // Gold's DARK outline (h~18, L~0.35) is intentionally NOT preserved — it
+      // darkens with the pages, which is invisible on a black book and keeps
+      // the parchment shadows from leaking through.
+      (h >= 12 && h <= 64) &&
+      (s >= 0.78 || (h >= 38 && h <= 46 && l >= 0.52 && s >= 0.42))
+    ) {
+      gold++
+      // leave original RGB untouched
+    } else if (h >= 10 && h <= 64 && l >= 0.16 && l < 0.95) {
+      // Warm parchment pages + gold's dark outline -> dark neutral charcoal,
+      // matching the old grayscale-filter "dark pages" look the player liked.
+      const [r, g, b] = hsl2rgb(40, 0.07, l * 0.30)
+      data[i] = r; data[i + 1] = g; data[i + 2] = b
+      pages++
     }
   }
   await sharp(data, { raw: { width, height, channels } })
     .png().toFile(path.join(OUT, file))
-  console.log(`  ${file.padEnd(26)} ${width}x${height}  (${hit} px blackened)`)
+  console.log(`  ${file.padEnd(26)} ${width}x${height}  (leather ${leather}, pages ${pages}, gold ${gold})`)
 }
 
 fs.mkdirSync(OUT, { recursive: true })

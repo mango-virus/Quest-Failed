@@ -6772,13 +6772,29 @@ body {
 .qf-ip-book-wrap.is-shut .qf-ip-page { opacity: 0; }
 
 /* ── Black grimoire — an all-Damned hand ──
-   The book is a real recoloured sprite now (black leather, gold filigree and
-   cream pages intact — tools/recolor-pact-book-black.mjs), so NO darkening
-   filter is applied and the cream pages keep their normal dark page text. We
-   only tint the DAMNED stamp blood-red and cool the ambient ritual circle. */
-.qf-ip[data-grimoire="black"] .qf-ip-summon-stamp {
-  color: #d4555f; border-color: #d4555f;
+   The book is a recoloured sprite (tools/recolor-pact-book-black.mjs): black
+   leather, gold writing/filigree intact, and DARK pages. No CSS darkening
+   filter is applied. Because the pages are dark, the page text is re-lit to
+   ash-parchment / blood tones; the DAMNED stamp is blood-red and the ambient
+   circle is cooled. */
+.qf-ip[data-grimoire="black"] .qf-ip-page { color: #d8c8b0; }
+.qf-ip[data-grimoire="black"] .qf-ip-pg-kicker { color: #b8a890; }
+.qf-ip[data-grimoire="black"] .qf-ip-summon-name {
+  color: #ecdcc6; text-shadow: 0 1px 2px rgba(0,0,0,0.85);
 }
+.qf-ip[data-grimoire="black"] .qf-ip-summon-stamp { color: #d4555f; border-color: #d4555f; }
+.qf-ip[data-grimoire="black"] .qf-ip-pact-deal .qf-ip-pact-word {
+  color: #e0bb63; text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-pact-deal .qf-ip-pact-body { color: #ddccac; }
+.qf-ip[data-grimoire="black"] .qf-ip-pact-price .qf-ip-pact-word {
+  color: #ff7a82; text-shadow: 0 0 6px rgba(180,20,28,0.6);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-pact-price .qf-ip-pact-body {
+  color: #f2a4a8; text-shadow: 0 0 2px rgba(0,0,0,0.7);
+}
+.qf-ip[data-grimoire="black"] .qf-ip-sign-label { color: #b8a890; }
+.qf-ip[data-grimoire="black"] .qf-ip-sign-line { border-bottom-color: #c8b8a0; }
 .qf-pact-picker[data-grimoire="black"] .qf-ip-circle { filter: saturate(0.25) brightness(0.62); }
 
 /* DAMNED · Blind Architect — hide the knowledge minimap while the curse is
