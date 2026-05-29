@@ -421,8 +421,25 @@ export const Balance = {
   // Minion gold-cost scales with boss level so prices keep pace with stats.
   // Slightly under the avg (HP+ATK)/2 stat-rate so minions feel a touch
   // more affordable at higher levels — small reward for progression.
+  // (Legacy names; the live scaling now flows through buildScaleMul in
+  // util/merchantPricing.js, which reads BUILD_COST_PER_BOSS_LV below.)
   MINION_COST_PER_BOSS_LV:      0.20,   // +20% gold cost per boss level above 1
   TRAP_COST_PER_BOSS_LV:        0.20,   // +20% trap gold cost per boss level (mirrors minions)
+  // --- Unified build-cost scaling (minions / traps / rooms / items) ---
+  // The single source of truth for how EVERY buildable's gold price climbs
+  // over a run, applied via buildScaleMul (util/merchantPricing.js) at both
+  // the build-menu display and the placement-charge sites.
+  //   costMul = 1 + BUILD_COST_PER_BOSS_LV·(bossLv−1)
+  //               + BUILD_COST_PER_DAY·max(0, day−9)
+  // WHY a DAY term (added 2026-05-28): income scales hard with the calendar
+  // (wave size balloons ~1.5×/day, flat 10g/kill → 1,260g/day by day 90)
+  // while the old boss-level-only cost curve plateaus (~lv10-15). Result was
+  // a late-game gold flood where nothing cost a meaningful share of income.
+  // The day term ramps only post-day-9 (mirrors the wave-size escalation),
+  // so early game — where gold is correctly tight — is untouched. Tuned as a
+  // "hard sink": late costs outpace income so gold stays genuinely scarce.
+  BUILD_COST_PER_BOSS_LV:       0.20,   // +20% per boss level above 1 (all buildables)
+  BUILD_COST_PER_DAY:           0.12,   // +12% per day past day 9 (all buildables)
   UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
 
   // --- Dungeon event: Miasma (% maxHp chip damage) ---

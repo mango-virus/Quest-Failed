@@ -8,7 +8,7 @@
 
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel } from './UIKit.js'
 import { MINION_ABILITY_INFO } from '../systems/MinionAbilities.js'
-import { Balance }              from '../config/balance.js'
+import { buildScaleMul }        from '../util/merchantPricing.js'
 import { DungeonGrid }          from '../systems/DungeonGrid.js'
 
 const W = 270             // panel width (px, design-space)
@@ -208,11 +208,10 @@ export class BuildMenuTooltip {
     if (kind === 'trap' && (gameState?._mechanicFlags ?? {}).hastyArchitect) {
       cost = Math.max(0, Math.round(cost * 0.5))
     }
-    // Minion costs scale with boss level (mirrors NightPhase + BuildMenu).
+    // Minion costs scale with boss level + day (shared buildScaleMul, mirrors
+    // NightPhase + BuildMenu) so the tooltip price matches the actual debit.
     if (kind === 'minion') {
-      const bossLv = gameState?.boss?.level ?? 1
-      const lvMul  = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
-      cost = Math.max(0, Math.round(cost * lvMul))
+      cost = Math.max(0, Math.round(cost * buildScaleMul(gameState)))
     }
     return cost
   }

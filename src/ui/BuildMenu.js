@@ -14,6 +14,7 @@
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelTabs, pixelDiamond, pixelLock, uiSfxHover, uiSfxClick } from './UIKit.js'
 import { EventBus }          from '../systems/EventBus.js'
 import { Balance }           from '../config/balance.js'
+import { buildScaleMul }     from '../util/merchantPricing.js'
 import { SfxVolume }         from '../systems/SfxVolume.js'
 import { BuildMenuTooltip }  from './BuildMenuTooltip.js'
 import { ThemeManager, readCellEntry, spriteCoverage } from '../systems/ThemeManager.js'
@@ -408,13 +409,11 @@ export class BuildMenu {
     if (kind === 'trap' && (this._gameState._mechanicFlags ?? {}).hastyArchitect) {
       cost = Math.max(0, Math.round(cost * Balance.MECHANIC_HASTY_ARCHITECT_TRAP_DISCOUNT))
     }
-    // Minion costs scale with boss level so prices keep pace with stats.
-    // Mirrors NightPhase._effectiveMinionCost so the displayed cost matches
-    // the actual debit on purchase.
+    // Minion costs scale with boss level + day so prices keep pace with the
+    // economy. Mirrors NightPhase._effectiveMinionCost (shared buildScaleMul)
+    // so the displayed cost matches the actual debit on purchase.
     if (kind === 'minion') {
-      const bossLv = this._gameState.boss?.level ?? 1
-      const lvMul  = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
-      cost = Math.max(0, Math.round(cost * lvMul))
+      cost = Math.max(0, Math.round(cost * buildScaleMul(this._gameState)))
     }
     const locked = (def.unlockLevel ?? 1) > (this._gameState.boss?.level ?? 1)
     const affordable = cost <= (this._gameState.player?.gold ?? 0)

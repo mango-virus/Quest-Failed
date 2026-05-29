@@ -20,12 +20,11 @@
 import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { DungeonGrid } from '../systems/DungeonGrid.js'
-import { Balance } from '../config/balance.js'
 import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
 import { snapshotMinion, snapshotItem, snapshotTrap, snapshotRoomMini } from './inGameSnapshot.js'
 import { getRoomThumbnail, precacheRoomThumbnails } from './roomThumbnailCache.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
-import { applyMerchantPrice, merchantPriceMult } from '../util/merchantPricing.js'
+import { applyMerchantPrice, merchantPriceMult, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
 
 const CATEGORIES = [
@@ -422,29 +421,26 @@ export class LeftPanels {
   // truth — so the displayed price matches what placement actually
   // charges, including freeFirstN free copies and escalating costStep.
   _costFor(def, cat) {
+    // Unified boss-level + day build-cost scaling (util/merchantPricing.js),
+    // applied to EVERY buildable so the build-menu price always matches what
+    // the placement charge sites in NightPhase actually debit.
+    const scaleMul = buildScaleMul(this._gameState)
     let raw
     if (cat.kind === 'room') {
-      raw = DungeonGrid.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+      raw = Math.round(
+        DungeonGrid.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? []) * scaleMul)
     } else {
       const base = def.goldCost ?? def.cost ?? 0
-      // Traps scale with boss level (mirrors NightPhase._effectiveTrapCost) so
-      // the build-menu price matches what placement actually charges.
-      if (cat.kind === 'trap') {
-        const lv = this._gameState.boss?.level ?? 1
-        raw = Math.round(base * (1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, lv - 1)))
-      } else if (cat.kind === 'minion') {
-        // Minions ALSO scale with boss level — mirrors
-        // NightPhase._effectiveMinionCost so the card's price matches the
-        // actual debit on placement. Without this the player sees "12g"
-        // on a card and gets "insufficient gold" with 18g in the bank
-        // because placement was charging the scaled price (e.g. 19g at
-        // boss lvl 4 with the +20%/level multiplier).
-        const lv    = this._gameState.boss?.level ?? 1
-        const lvMul = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, lv - 1)
+      if (cat.kind === 'minion') {
+        // Minions also fold in the per-night minionGoldCostMult mechanic flag
+        // (mirrors NightPhase._effectiveMinionCost) before the shared scaling.
         const flagMul = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
-        raw = Math.max(0, Math.round(base * flagMul * lvMul))
+        raw = Math.max(0, Math.round(base * flagMul * scaleMul))
       } else {
-        raw = base
+        // Traps + items: base × shared scaling. (Trap discount flags are
+        // applied at the charge site; display shows the undiscounted scaled
+        // price, matching the prior behaviour.)
+        raw = Math.max(0, Math.round(base * scaleMul))
       }
     }
     // Goblin Market — apply the one-night repricing multiplier LAST so the

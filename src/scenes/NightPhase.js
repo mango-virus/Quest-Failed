@@ -12,7 +12,7 @@ import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { getRotatedDef } from '../util/roomRotation.js'
 import { pickWeightedClass } from '../util/classSpawn.js'
-import { applyMerchantPrice } from '../util/merchantPricing.js'
+import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
 
 const TS         = Balance.TILE_SIZE
@@ -1032,7 +1032,8 @@ export class NightPhase extends Phaser.Scene {
       }).setDepth(11).setAlpha(titleAlpha)
 
       const dynCost   = applyMerchantPrice(this._gameState, def.id,
-        DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? []))
+        Math.round(DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+          * buildScaleMul(this._gameState)))
       const costStr   = dynCost > 0 ? `${dynCost} gold` : 'FREE'
       const costColor = isLocked ? PALETTE.textDim
                       : dynCost > 0 ? PALETTE.textCyan
@@ -1945,9 +1946,8 @@ export class NightPhase extends Phaser.Scene {
     if ((this._gameState._mechanicFlags ?? {}).glassFreeNight) return 0
     const base = def?.goldCost ?? 0
     const m = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
-    const bossLv = this._gameState.boss?.level ?? 1
-    const lvMul  = 1 + Balance.MINION_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
-    const scaled = Math.max(0, Math.round(base * m * lvMul))
+    // Unified boss-level + day build-cost scaling (util/merchantPricing.js).
+    const scaled = Math.max(0, Math.round(base * m * buildScaleMul(this._gameState)))
     // Goblin Market repricing (one night). Applied last so this charge
     // matches LeftPanels._costFor's display exactly.
     return applyMerchantPrice(this._gameState, def?.id, scaled)
@@ -2151,10 +2151,9 @@ export class NightPhase extends Phaser.Scene {
     if (f.hastyArchitect) cost *= Balance.MECHANIC_HASTY_ARCHITECT_TRAP_DISCOUNT
     if (f.pactOfTheJester) cost *= Balance.MECHANIC_JESTER_TRAP_DISCOUNT
     if (f.trapGoldCostMult) cost *= f.trapGoldCostMult
-    // Scale with boss level (mirrors minion cost) so traps hold their
-    // price gap over minions as the run progresses.
-    const bossLv = this._gameState.boss?.level ?? 1
-    cost *= 1 + Balance.TRAP_COST_PER_BOSS_LV * Math.max(0, bossLv - 1)
+    // Unified boss-level + day build-cost scaling (util/merchantPricing.js)
+    // so traps hold their price gap over minions as the run progresses.
+    cost *= buildScaleMul(this._gameState)
     // Goblin Market repricing (one night) — applied last to match display.
     return applyMerchantPrice(this._gameState, def?.id, Math.max(0, Math.round(cost)))
   }
@@ -2201,7 +2200,8 @@ export class NightPhase extends Phaser.Scene {
     const baseCost = this._heldMoveRoom
       ? 0
       : applyMerchantPrice(this._gameState, def.id,
-          DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? []))
+          Math.round(DungeonGridClass.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? [])
+            * buildScaleMul(this._gameState)))
     const cost = Math.round(baseCost * roomMul)
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
@@ -2670,7 +2670,8 @@ export class NightPhase extends Phaser.Scene {
         return
       }
     }
-    const cost = applyMerchantPrice(this._gameState, def.id, def.goldCost ?? 0)
+    const cost = applyMerchantPrice(this._gameState, def.id,
+      Math.round((def.goldCost ?? 0) * buildScaleMul(this._gameState)))
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD && this._gameState.player.gold < cost) {
       this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
       return
@@ -2743,7 +2744,8 @@ export class NightPhase extends Phaser.Scene {
     const here = (this._gameState.dungeon.beacons ?? []).filter(b => b.roomId === v.room.instanceId)
     if (here.length > 0) { this._showPlacementError('Max 1 Beacon per room'); return }
 
-    const cost = applyMerchantPrice(this._gameState, def.id, def.goldCost ?? 0)
+    const cost = applyMerchantPrice(this._gameState, def.id,
+      Math.round((def.goldCost ?? 0) * buildScaleMul(this._gameState)))
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD && this._gameState.player.gold < cost) {
       this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
       return
@@ -2786,7 +2788,8 @@ export class NightPhase extends Phaser.Scene {
         return
       }
     }
-    const cost = isMove ? 0 : applyMerchantPrice(this._gameState, def.id, def.goldCost ?? 0)
+    const cost = isMove ? 0 : applyMerchantPrice(this._gameState, def.id,
+      Math.round((def.goldCost ?? 0) * buildScaleMul(this._gameState)))
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if (this._gameState.player.gold < cost) {
         this._showPlacementError(`Need ${cost} gold (you have ${this._gameState.player.gold})`)
