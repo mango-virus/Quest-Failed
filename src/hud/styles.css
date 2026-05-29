@@ -10844,6 +10844,14 @@ body {
      (2026-05-25 — see the long comment on that rule) to avoid Zul'Gath's
      mask-image clipping the shadow. This IMG keeps its other filters
      intact (e.g., locked-state brightness/saturate silhouette). */
+  /* Don't hit-test the sprite. A wide / scaled-up portrait (Zul'Gath at
+     scale 2.9) overflows its card unclipped, and a CSS mask only hides the
+     PIXELS, not the box — so the overflowing image was catching the
+     pointer over a NEIGHBOUR's card (hovering Luna registered as Zul'Gath).
+     Making the image non-interactive routes hover/click to the card cell
+     itself, which is correctly bounded to each companion's column. The
+     overflow art stays purely decorative. */
+  pointer-events: none;
 }
 .qf-cmpsel-card:hover .qf-cmpsel-portrait,
 .qf-cmpsel-card[data-selected="true"] .qf-cmpsel-portrait {
