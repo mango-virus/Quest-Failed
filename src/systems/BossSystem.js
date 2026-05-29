@@ -1970,6 +1970,15 @@ export class BossSystem {
       // boss can fight (and potentially lose another life) the next day.
       const b = this._gameState?.boss
       if (b) b._diedThisDay = false
+      // Solo Leveling — a boss that broke free of Jinwoo's claim by killing him
+      // on a rematch sheds the shadow-flame + blue tint now (the following
+      // night), so it renders normally again from this build phase on. The
+      // BossRenderer tears down the flame/tint the next frame it sees the flag
+      // cleared.
+      if (b?._shadowClaimReleasePending) {
+        b.shadowClaimed = false
+        b._shadowClaimReleasePending = false
+      }
     }
     // Tier 3 — blood decals get cleared at night so they don't bleed
     // (heh) into the next day's build phase.
@@ -2664,6 +2673,14 @@ export class BossSystem {
     } else {
       // Boss slays him — the roster loop kills him (death anim) → ADVENTURER_DIED
       // (achievement + 1000g bounty via AISystem) → active empties → summary.
+      // Solo Leveling — if this boss was wearing Jinwoo's claim (he beat it on
+      // an earlier occurrence this run, so it's carried his shadow-flame + blue
+      // tint since), killing him on the rematch BREAKS the claim. Queue the
+      // visual to drop at the next night so the boss looks normal again from
+      // the following build phase on. (Persisted — _shadowClaimReleasePending is
+      // not in SaveSystem's BOSS_TRANSIENT strip list, so it survives reload.)
+      const boss = this._gameState?.boss
+      if (boss?.shadowClaimed) boss._shadowClaimReleasePending = true
       this._endFight('boss', { monarchOutro: true })
     }
   }

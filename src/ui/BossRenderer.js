@@ -230,6 +230,13 @@ export class BossRenderer {
         const bot = _lerpHex(0x02040a, 0x123a8c, k)   // near-black → deep-blue
         this._claimedFlame.setTint(top, top, bot, bot)
       }
+    } else if (this._claimedFlame || this._claimedTinted) {
+      // Solo Leveling — the boss broke free of Jinwoo's claim (killed him on a
+      // rematch; BossSystem cleared shadowClaimed at the night boundary). Drop
+      // the shadow-flame + blue tint so it renders normally again. Runs once on
+      // the transition (guarded above), so it won't fight per-frame hurt tints.
+      this._claimedFlame?.destroy?.(); this._claimedFlame = null
+      if (this._claimedTinted) { this._sprite?.clearTint?.(); this._claimedTinted = false }
     }
 
     // Doppelgänger decoys trail the Queen + mirror her animation.
