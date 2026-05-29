@@ -205,6 +205,7 @@ export class ArchetypeDecorOverlay {
       safira:  'Ooh, a CHOICE, Master! Pick the boss you wish to be and — *poof* — I grant it. Choose well; I get dreadfully attached to whatever you pick.',
       rattlebones: 'Pick your monster, skull-pal! The skeleton has watched every flavour of doom climb that throne — surprise me. Or don\'t! Either way is funny.',
       spectra: 'OMG OMG senpai you get to PICK YOUR BOSS?! Like a character select?! Wait wait — read the kit first, this is BIG, plot twist incoming!',
+      necroknight: 'Choose the form you will wear into the dark, my Monarch. Whichever beast you crown, I will swear the same oath to it — and the dead will hold the line for it all the same.',
     }
     this._say(greets[c.id] ?? greets.lilith, c.restExpr)
   }

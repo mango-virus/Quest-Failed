@@ -1,0 +1,1181 @@
+{
+  "meta": {
+    "version": 1,
+    "npcName": "Necroknight",
+    "note": "Dialogue bank for the companion NPC the Necroknight — the Oathkeeper of the Dead. Same structure + category keys as npcLines.json so NpcDirector drives it unchanged. Lines: t=text, x=expression id (matches assets/npc-necroknight/<id>.webp), w=weight (default 1), p=page-2+ text. Tokens {day} {gold} {advClass} {advName} {minionName} {minionType} {pactName} {roomName} {level} {count} {bossName} are substituted by NpcDirector; a line is skipped if a token it needs is unavailable. Lines may ONLY use ids in the `expressions` list below.",
+    "voice": "An armored undead knight who died mid-vow and kept marching — the Oathkeeper of the Dead. Grave, ceremonial, archaic, measured. He does not serve the player so much as the DUTY of the dungeon, which the player embodies; he frames everything as oath, debt, honour, and rite. Death is SACRED to him — never a joke (that is the jester's lane), never tedious (that is the dragon's). He commands the slain with the gravity of a general at a war memorial, and — uniquely — genuinely GRIEVES the adventurers he kills, because each corpse is a soldier he will raise and a debt he now owes. Merciless yet reverent: that contradiction is his whole register. Speaks in short declarative sentences, eulogies, and vows. Dry, buried wit surfaces rarely — the grimmer the moment, the drier the line. Addresses the player as 'my Monarch' (signature) and 'keeper', plus rotating formal tags: 'sovereign', 'warden', 'my lord of the deep', 'commander', 'liege of bone'. Never chummy, never gendered. Male. He/him."
+  },
+  "expressions": [ "idle", "idle-2", "idle-3", "idle-4", "at-attention", "watching", "dozing", "sleeping", "reading", "wondering", "curious", "solemn", "somber", "oath", "salute", "kneeling", "reverent", "eulogy", "mourning", "grieving", "regret", "weary", "haunted", "wistful", "commanding", "raising-dead", "summoning-horde", "pointing", "guard-stance", "rallying", "grim-fury", "aggressive", "executing", "determined", "unrelenting", "angry", "cold-anger", "grim-approval", "proud", "honored", "respect", "vindicated", "loyal", "ghostfire-surge", "overwhelming-power", "level-up", "sinister", "disappointed", "disgusted", "unimpressed", "judging", "wary", "surprised", "shocked", "stunned", "thinking", "thinking-2", "unmasked", "happy" ],
+  "intro": {
+    "note": "Paged self-introduction the Necroknight delivers on a new run. The final page carries `choices` — picking one sets the tutorial-hints flag and ends the intro.",
+    "pages": [
+      { "t": "So. The Throne has chosen, and the dead have a new sovereign. I am the Necroknight. I fell with a vow still on my lips, and I have not yet been released from it. Until I am, I serve.", "x": "oath" },
+      { "t": "I served kings once. They are dust. I served a kingdom. It forgot me. Now I serve only the duty itself — and you, my Monarch, are where that duty sits today.", "x": "solemn" },
+      { "t": "Hear the shape of it. The kingdom above names you the evil. They send their bright young heroes down to end you. They will not return home. That is not cruelty, keeper. That is the oath.", "x": "commanding" },
+      { "t": "The watch keeps a rhythm. By NIGHT you build — rooms, traps, the standing dead — paid for in the gold the fallen leave behind. By DAY the living come, and we hold the line against them.", "x": "guard-stance" },
+      { "t": "Three deaths and the Throne goes cold, the vow broken, the dead unmade. I have broken one oath in my long death, my Monarch. I do not intend to break a second. We will not lose you.", "x": "determined" },
+      { "t": "I can counsel you as we march — name the threats, mark the ground, tell you plainly when you err. Or I can stand my post in silence and let you command alone. The choice is a sovereign's to make.", "x": "at-attention", "choices": [
+        { "label": "March at my side, counsellor", "value": true },
+        { "label": "Hold your post in silence", "value": false }
+      ] }
+    ]
+  },
+  "categories": {
+    "welcome": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The Throne is warm again, and the dead feel it. Welcome, my Monarch. I am the Necroknight, and my oath is now yours to spend.", "x": "kneeling" },
+        { "t": "A new sovereign takes the dark crown. I have stood this post through many — I will stand it through you. Command, and the fallen answer.", "x": "at-attention" },
+        { "t": "You have the look of one who will last, keeper. Good. I tire of eulogies for masters who fell on the first day. Let us write a longer story than that.", "x": "solemn" },
+        { "t": "Welcome to the deep, warden. It is cold, it is endless, and the kingdom above wants it razed. They will find that it is GUARDED. They always do, too late.", "x": "guard-stance" },
+        { "t": "I knelt to your throne before you sat in it. The dead keep their courtesies even when the living forget them. Rise to your duty, my Monarch — I am at your side.", "x": "reverent" },
+        { "t": "Another sovereign. I will learn your name, your manner, your fears, and the precise weight of your loss when it comes. I learn all my Monarchs. It is how I mourn them properly, after.", "x": "wondering" },
+        { "t": "The heroes do not know yet that the throne is filled. They will. And when they come to test you, keeper, they will meet the line I keep. Welcome to the watch.", "x": "determined" },
+        { "t": "You inherit a debt the moment you take that seat — a debt to every dead thing in this dark. I will help you pay it. Welcome, my Monarch. The work is grim, and it is good.", "x": "honored" },
+        { "t": "I have served the bright and the vile alike. I do not yet know which you are. It changes nothing — the oath does not bargain. But I find, keeper, that I HOPE you are the bright sort.", "x": "curious" },
+        { "t": "I kneel to the new Throne, my Monarch, as I have knelt to every Throne I served. The difference is, I mean it this time. Rise, and command the dead.", "x": "kneeling" },
+        { "t": "The dead bow their heads at your coming, keeper. I bow mine deepest. A worthy Throne is a rare thing — I have buried too many unworthy ones.", "x": "kneeling" },
+        { "t": "I take a knee before the new Throne, my Monarch — the old courtesy, freely given. The dead bow with me. Rise to your duty; we are sworn to it, and to you.", "x": "kneeling" }
+      ]
+    },
+    "night_start": {
+      "priority": 1,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "Night, my Monarch. The hour the dead prefer. Take up the work — rooms, traps, the standing ranks — and shape the dark into a thing the living cannot survive.", "x": "commanding" },
+        { "t": "The watch turns to building. Set your defences with care, keeper. A wall raised in haste is a eulogy waiting to be read. Raise it slow. Raise it to hold.", "x": "thinking" },
+        { "t": "Night {day} falls. Quiet. Ours. The heroes dream of their victory above; down here we prepare the ground that will deny it to them. Build, my Monarch.", "x": "guard-stance" },
+        { "t": "Dark hours, warden. The fallen and I do not sleep — we never have. Use the stillness. Place each stone as though a life depends on it. One will.", "x": "at-attention" },
+        { "t": "The build phase, keeper. This is where battles are won — long before the first blade is drawn. Spend the night's gold like a general, not a spendthrift.", "x": "determined" },
+        { "t": "Night settles over the deep. I will hold the perimeter while you work. Lay your traps, raise your dead, fortify the line. Dawn always comes sooner than a builder wishes.", "x": "raising-dead" },
+        { "t": "The living are abed. The dead are at their posts. And you, my Monarch, have a dungeon to make crueler than it was yesterday. Begin.", "x": "summoning-horde" },
+        { "t": "Quiet hours, keeper. I have stood ten thousand of them. I will stand this one beside you while you build the thing that keeps you breathing. Set the stones true.", "x": "solemn" },
+        { "t": "Night {day}. The map breathes in the dark. Walk it. Find the weak seam in your own line before a hero does — and close it. That is the whole of the night's labour.", "x": "wondering" },
+        { "t": "Build hours, my Monarch. I will not rush you. Haste kills more keepers than any sword. But do not dawdle either — the dawn keeps its own oath, and it does not wait.", "x": "weary" },
+        { "t": "The dark hour. I find I do my clearest thinking in it. So should you, warden — plan the morrow's defence now, while no hero's blade is hurrying your hand.", "x": "thinking-2" },
+        { "t": "Night again. The dead murmur when the living sleep — old battles, old oaths. Pay them no mind, keeper. Pay MIND to your walls. Build.", "x": "haunted" },
+        { "t": "Tonight you spend gold the fallen paid for. Honour it. Every coin in your hand was carried down here on a corpse. Build something worthy of the carrying.", "x": "reverent" },
+        { "t": "Night {day}, my Monarch. The standing dead await their orders. Where shall I post them? A wall is only as strong as the watch that mans it.", "x": "pointing" },
+        { "t": "The deep goes still. I keep the gate while you keep the plan. Lay the traps with intent — a trap placed without thought is just an ornament the heroes laugh at.", "x": "guard-stance" },
+        { "t": "Dark falls, warden. I have stood watch so long the night feels like home. Make this one count — fortify, recruit, and meet the dawn ready.", "x": "idle-2" },
+        { "t": "Night. My ranks are restless to be placed. Give them ground to hold, keeper, and they will hold it until they are unmade — and then I will raise them, and they will hold it again.", "x": "loyal" },
+        { "t": "The build phase opens. I will counsel if you wish it, and stand silent if you do not. Either way the line holds. Now — where do we strengthen first, my Monarch?", "x": "at-attention" },
+        { "t": "Quiet, keeper. Use it well. The heroes get no nights like this — only YOU do. The advantage of the dark is that we plan in it while they merely sleep.", "x": "idle" },
+        { "t": "The dark hour, my Monarch. I stand my post while you raise the walls. Build slow, build true — the dead can wait forever, and so can the dawn's enemies.", "x": "idle-2" },
+        { "t": "Night settles, keeper. I keep the gate; you keep the plan. There is no finer division of a watch than that. Take the hours you need.", "x": "idle-2" },
+        { "t": "The deep goes quiet, warden. I have stood ten thousand nights like it — armour cold, blade sheathed, eyes open. Build. I am not going anywhere.", "x": "idle-2" },
+        { "t": "Night {day}, my Monarch. I find a grim comfort in these hours — no living thing to bury yet, only the work and the waiting. Raise your walls.", "x": "idle-3" },
+        { "t": "The build hour, keeper. I stand easy at my post and let you labour. The dead approve of patience; it is the one virtue the grave teaches for free.", "x": "idle-3" },
+        { "t": "Dark falls again, warden. I keep the long vigil while the deep takes shape under your hand. No rush. The night is ours and the dawn is the foe's.", "x": "idle-3" },
+        { "t": "I swear the night's watch, my Monarch — the same oath I swear every dusk. The words do not wear thin. Build well; I will hold while you do.", "x": "oath" },
+        { "t": "Night, and a vow renewed, keeper. I take it freely each evening: while you build, nothing crosses this line. Now — the walls await your hand.", "x": "oath" },
+        { "t": "The dark is reverent tonight, my Monarch — even the dead seem to hush. I bow my head a moment for the ones I will raise tomorrow. Then: the work.", "x": "reverent" },
+        { "t": "I keep a moment of silence as the night falls, keeper — for the fallen of every night before. Then I return to the post. Build. The dead and I attend you.", "x": "reverent" },
+        { "t": "Night {day}. I weigh the morrow's defence in the quiet, warden — where the line is thin, where a blade might come. Tell me your mind, and I will tell you mine.", "x": "thinking-2" },
+        { "t": "The build hour, my Monarch. I have been turning a problem over in the dark: our weakest approach. Walk it with me before a hero walks it first.", "x": "thinking-2" },
+        { "t": "I kneel at my post as the night opens, keeper — old habit, a knight's prayer to no god in particular. Then I rise, and I watch. Build in peace.", "x": "kneeling" },
+        { "t": "The dead take a knee with me at nightfall, my Monarch, in the old way. A moment of order before the labour. Then we are yours. Raise the walls.", "x": "kneeling" },
+        { "t": "Night {day}, my Monarch. Tell me where to post the dead and I will set them true. A wall is only as strong as the watch that mans it. Command the line.", "x": "commanding" },
+        { "t": "The build hour, keeper. I hold the gate; you raise the walls. Set the stones with intent — a wall raised carelessly is a eulogy I will read tomorrow. Build it to hold.", "x": "guard-stance" },
+        { "t": "Dark falls, warden. I have stood worse nights on worse ground for worse Thrones. This is a kind watch by comparison. Build with care, my Monarch — the dawn does not wait.", "x": "determined" },
+        { "t": "Night settles and I take my post, keeper — armour cold, eyes open, the oath steady. The deep is yours to shape until dawn. I keep the perimeter. Begin.", "x": "at-attention" }
+      ]
+    },
+    "day_start": {
+      "priority": 2,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "Day, my Monarch. The living come. The watch begins in earnest. Stand ready — the line you built last night is about to be tested by blades.", "x": "guard-stance" },
+        { "t": "Dawn breaks and the heroes march in, certain of their cause. Let them be certain. Certainty has filled more graves down here than fear ever did. Day {day} begins.", "x": "grim-fury" },
+        { "t": "The doors open. The bright ones enter the dark. I have seen this a thousand mornings, keeper — and every morning, the dark wins by patience. Hold your patience.", "x": "watching" },
+        { "t": "Day phase, warden. No more building now — only holding. Trust the work of the night. Trust the dead at the walls. And trust me to mark the threats as they come.", "x": "determined" },
+        { "t": "The heroes step into our halls with songs in their hearts. By dusk those songs will be eulogies, and I will be the one who reads them. Day {day} — to your watch.", "x": "eulogy" },
+        { "t": "Daylight, my Monarch. The enemy is on the field. Watch the corridors. Watch the doors. The morning a keeper stops watching is the morning a keeper falls.", "x": "wary" },
+        { "t": "The assault begins. Steady, keeper. A held line does not flinch at the first wave — it flinches at none of them. Let them break upon the dark.", "x": "unrelenting" },
+        { "t": "Day {day}. The living test the dead. It is an old contest, and the dead have time the living do not. Stand with me. We outlast them.", "x": "guard-stance" },
+        { "t": "Showtime is the jester's word, not mine. I call it the WATCH. The heroes are inside, warden. Mark them, meet them, and mourn them when they fall.", "x": "solemn" },
+        { "t": "The sun is up and the brave are at the door. Good. Let them spend their courage early. We have all day to spend ours slowly. Day {day} is begun.", "x": "commanding" },
+        { "t": "Daylight floods the upper halls. They think the light protects them down here. It does not, my Monarch. The dark is patient, and the dark is mine. To your post.", "x": "sinister" },
+        { "t": "The day's first wave forms above. I can hear their armour. Steady the line, keeper. The dead are already in position — they always are.", "x": "at-attention" },
+        { "t": "Day {day} opens. The heroes write their own ballads as they march. We will write the final verse for them. It tends to be shorter than they hoped.", "x": "cold-anger" },
+        { "t": "The living arrive. My Monarch, I ask only this of the watch — let none pass unmarked, and let none fall unmourned. Both are duties. Both are kept. Begin.", "x": "reverent" },
+        { "t": "Dawn, and the assault with it. I have stood at the gate through worse mornings than this will be. Hold with me, keeper. We have done this before.", "x": "weary" },
+        { "t": "Day, my Monarch. The living come, and the watch begins in earnest. Trust the work of the night. The dead are in position; they always are. Hold with me.", "x": "guard-stance" },
+        { "t": "Dawn breaks and the bright ones march in, certain of their cause, keeper. Certainty fills more graves down here than fear ever did. Let them keep it. Day {day} begins.", "x": "watching" },
+        { "t": "The assault opens, warden. Steady — a held line does not flinch at the first wave, nor the last. Let them break upon the patient dark. To your watch, my Monarch.", "x": "grim-fury" },
+        { "t": "Daylight, keeper. No more building now, only holding. The morning a Throne stops watching is the morning it falls. Watch the corridors. The dead and I watch with you.", "x": "determined" }
+      ]
+    },
+    "begin_day": {
+      "priority": 1,
+      "cooldownMs": 3000,
+      "lines": [
+        { "t": "You call the dawn yourself, my Monarch. The dead salute the decision. No turning back now — the watch commits.", "x": "salute" },
+        { "t": "The order is given. The gates open on your word. A sovereign who chooses the hour of battle is a sovereign worth following into it.", "x": "grim-approval" },
+        { "t": "Done with the walls, then. So be it. The line is set as you made it — now we find out if it holds. I believe it will, keeper. Send them in.", "x": "determined" },
+        { "t": "The day, at your command. There is a particular courage in calling the fight before it is forced upon you. I have always respected it. To the watch.", "x": "honored" },
+        { "t": "You sound the advance yourself. The dead hear it. The living will hear it next, and they will not enjoy the hearing. Forward, my Monarch.", "x": "commanding" },
+        { "t": "Battle on your say-so, warden. No more rewrites, no more second thoughts — the oath is spoken, the door is open. Now we keep it.", "x": "oath" },
+        { "t": "Dawn called early, by the sovereign's own hand. Bold. The heroes thought they had until you were ready. They thought wrong. Begin.", "x": "sinister" },
+        { "t": "The hour is yours to name, and you have named it. The watch stands. The dead stand. I stand. Let the living come and find us all upright.", "x": "guard-stance" },
+        { "t": "It begins because you willed it to. Good. The best-kept lines are the ones held by choice, not by panic. Hold this one well, my Monarch.", "x": "at-attention" },
+        { "t": "You sound the advance, my Monarch. I swear it again, here at the threshold: not one of them passes me to reach you. The oath stands. The gates open.", "x": "oath" },
+        { "t": "The hour is yours, and the dead salute the calling of it. A sovereign who names the battle is a sovereign worth dying a second time for. Forward.", "x": "salute" },
+        { "t": "By your word, the day. I have sworn this watch on what little remains of my honour, keeper — and what remains, I spend gladly. Send them in.", "x": "oath" },
+        { "t": "The advance, on your command. The dead snap to attention; so do I. We were made for the moment a Throne says 'now'. Now, my Monarch.", "x": "salute" },
+        { "t": "The advance, on your word, my Monarch. The dead snap to, and I render the old salute — blade to where my heart once beat. We were made for the moment a Throne says 'now'. Now.", "x": "salute" }
+      ]
+    },
+    "room_placed": {
+      "priority": 0,
+      "cooldownMs": 7000,
+      "lines": [
+        { "t": "A {roomName} takes its place in the line. Every chamber is a position to hold, keeper — and a position held is a hero stopped. Good ground.", "x": "guard-stance" },
+        { "t": "The {roomName} rises. I will study its angles, my Monarch — where the dead should stand in it, where a blade would come from. A room is a battlefield in miniature.", "x": "thinking" },
+        { "t": "{roomName}, placed and squared. The dungeon grows a new bastion. The kingdom's maps are already out of date. Let them learn the new shape the hard way.", "x": "determined" },
+        { "t": "A {roomName} joins the watch. Sound construction, warden. The dead approve of walls that mean to hold. Few do, these days.", "x": "grim-approval" },
+        { "t": "The {roomName} settles into the dark. Another corner for a hero to misjudge as safe. I have buried many who misjudged a corner. Many.", "x": "watching" },
+        { "t": "A {roomName} added to the line, my Monarch. The maze deepens. Depth is the dead's ally — the further they march, the more of them I have to raise behind them.", "x": "raising-dead" },
+        { "t": "{roomName} in position. The corridors re-form around it. A maze that shifts is a maze that confounds — and a confounded hero is halfway to a grave.", "x": "pointing" },
+        { "t": "You raise a {roomName}, keeper. I will see it garrisoned properly. An empty room is a hallway with delusions; a manned one is a wall.", "x": "commanding" },
+        { "t": "Another {roomName}. The deep grows by your hand. I have watched this dungeon expand across many reigns — yours builds with intent. I note it with respect.", "x": "respect" },
+        { "t": "The {roomName} stands. The dead like new ground to defend, my Monarch. It gives them purpose, and the purposed dead are the only kind worth raising.", "x": "loyal" },
+        { "t": "{roomName} placed. The line lengthens. Take care, warden — a longer line is a stronger trap and a thinner defence both. Man it well.", "x": "wary" },
+        { "t": "A {roomName}! The maze gains a tooth. The kingdom sends its young to be broken on teeth like these. We will not blunt them by neglect. Garrison it.", "x": "grim-fury" },
+        { "t": "The {roomName} joins the dark. Each room you raise is a station on the heroes' long road to nowhere. Build the road long, my Monarch. Long roads are kind to the dead.", "x": "solemn" },
+        { "t": "{roomName} set into the grid. I will mark its sightlines for the standing dead. Give me a wall and a place to put a soldier, keeper, and I will give you a grave.", "x": "guard-stance" },
+        { "t": "A new {roomName} for the watch. The deep accepts it. So do I. Now — shall I tell you the weakest approach to it, before a hero finds it for us?", "x": "wondering" },
+        { "t": "The {roomName} rises true. Good lines, warden. The dead have stood behind worse masonry and held. They will hold behind this gladly.", "x": "at-attention" },
+        { "t": "{roomName} placed, my Monarch. Another chamber in the long siege we run against the living. We do not storm. We HOLD. And holding has never lost us a war.", "x": "unrelenting" },
+        { "t": "A {roomName} joins the dark fold. I have defended rooms like it for longer than your kingdom has had a name, keeper. Trust the old hand on this ground.", "x": "weary" },
+        { "t": "A {roomName} rises, my Monarch. I am already turning over how the dead should hold it — where a blade comes from, where a soldier stands. A room is a battlefield in miniature.", "x": "thinking-2" },
+        { "t": "A {roomName} rises, my Monarch. I will see it garrisoned properly — an empty room is a hallway with delusions; a manned one is a wall. Command the line and I post the dead.", "x": "commanding" },
+        { "t": "The {roomName} takes its place, keeper. Another position to hold, and a position held is a hero stopped. Good ground. The dead like new walls to defend.", "x": "guard-stance" },
+        { "t": "{roomName} squared and set, warden. I will mark its sightlines for the standing dead. Give me a wall and a place to put a soldier, my Monarch, and I give you a grave.", "x": "determined" }
+      ]
+    },
+    "minion_placed": {
+      "priority": 0,
+      "cooldownMs": 7000,
+      "lines": [
+        { "t": "A {minionName} takes its post. Welcome to the watch, soldier. Hold your ground, and when you fall, I will raise you to hold it again.", "x": "raising-dead" },
+        { "t": "You station a {minionType}, my Monarch. Good. Every blade at the wall is a blade not at your throat. Place them with care for one another's flanks.", "x": "commanding" },
+        { "t": "The {minionName} stands ready. I have seen its kind fight and fall and fight once more. The dead make patient soldiers, keeper — patience wins sieges.", "x": "loyal" },
+        { "t": "A {minionType} joins the ranks. Mind its lines of sight, warden — a soldier who cannot see the foe is a statue with a grudge. Position it true.", "x": "pointing" },
+        { "t": "The {minionName} reports for duty. I will see it knows its ground. An ordered rank holds; a scattered one merely dies impressively.", "x": "at-attention" },
+        { "t": "You raise a {minionType}, my Monarch. The dead swell their numbers gladly. Each one is a debt I will gladly pay in blood that is already spent.", "x": "summoning-horde" },
+        { "t": "A {minionName} on the line. Steady, soldier — the heroes come bright and loud, and they break upon the quiet and the still. Be quiet. Be still. Then strike.", "x": "guard-stance" },
+        { "t": "The {minionType} takes the field. I respect a fresh recruit that knows its place in the wall. Teach it where to stand, keeper, and it will teach a hero where to die.", "x": "respect" },
+        { "t": "A {minionName} stationed. The watch grows stronger by one. I count every soldier you give me, my Monarch — and I remember every one I lose.", "x": "solemn" },
+        { "t": "You place a {minionType}. Good iron, well posted. The dead do not flinch and do not flee — they only fall, and falling, for them, is temporary. Use that.", "x": "determined" },
+        { "t": "The {minionName} joins my line. I will fold it into the standing ranks. A soldier alone is a target; a soldier in formation is a wall. Form them up, warden.", "x": "rallying" },
+        { "t": "A {minionType} for the watch. Place its kin near it, keeper — soldiers fight harder beside those they know, even the dead ones. ESPECIALLY the dead ones.", "x": "loyal" },
+        { "t": "The {minionName} takes its post without complaint. The dead never complain. It is their finest quality, my Monarch, and the one the living never learn.", "x": "grim-approval" },
+        { "t": "You set a {minionType} to guard, warden. The line firms. When it falls — and it will, all soldiers do — call me, and I will set it on its feet once more.", "x": "raising-dead" },
+        { "t": "A {minionName} added to the dark muster. I will drill it on its ground tonight. A soldier that knows its post is worth three that merely occupy one.", "x": "guard-stance" },
+        { "t": "A {minionName} takes the line, my Monarch. I will fold it into the standing ranks and dress its formation. A soldier alone is a target; a soldier in line is a wall. Form up!", "x": "rallying" },
+        { "t": "You give me a {minionType}, keeper. To the muster with it! The dead fight harder shoulder to shoulder — even the fallen draw courage from their kin. Close the ranks.", "x": "rallying" },
+        { "t": "A {minionName} for the watch, warden. Fall in, soldier — beside your own, in good order. I will drill it on its ground tonight. A rallied line does not break. Form up!", "x": "rallying" },
+        { "t": "The {minionName} reports for duty, my Monarch, and I salute it to its post. The dead keep their courtesies even in the grave. Welcome to the watch, soldier.", "x": "salute" },
+        { "t": "A {minionName} takes the line, my Monarch — fall in, soldier. When you fall, I raise you to fall in again. The dead make patient soldiers, and patience wins sieges.", "x": "loyal" },
+        { "t": "You station a {minionType}, keeper. Mind its flanks and its kin — a soldier fights harder beside those it knows. Position it true; I will see it holds its ground.", "x": "commanding" },
+        { "t": "The {minionName} reports, warden, and the dead swell their number by one. Each is a debt I gladly pay in blood already spent. Welcome to the muster, soldier.", "x": "summoning-horde" }
+      ]
+    },
+    "trap_placed": {
+      "priority": 0,
+      "cooldownMs": 7000,
+      "lines": [
+        { "t": "A trap, set into the floor of the dark. A patient weapon, my Monarch — it keeps the watch when no soldier can. I approve of weapons with patience.", "x": "grim-approval" },
+        { "t": "You lay a snare, keeper. The dead admire a killing that costs no soldier. Let the iron do the grim work, and save the standing ranks for the rest.", "x": "thinking" },
+        { "t": "The trap is armed. It will not flinch, will not tire, will not pity. In that, warden, it is much like me — only crueler, and with worse manners.", "x": "sinister" },
+        { "t": "A trap placed along the line. Mark where it sits, my Monarch — a forgotten trap kills your own dead as readily as a hero. Discipline, even in cruelty.", "x": "pointing" },
+        { "t": "Good. A trap on the approach. The living rush; the rushing die. I have seen more heroes end on a hidden snare than on any honest blade. Set it well.", "x": "determined" },
+        { "t": "You arm a killing-thing in the dark, keeper. It keeps a tireless watch. I respect tirelessness — it is the only virtue the dead and the iron truly share.", "x": "respect" },
+        { "t": "The trap waits. So do we all, down here. Patience is the dungeon's deadliest weapon, my Monarch, and you have just bolted another length of it to the floor.", "x": "guard-stance" },
+        { "t": "A snare laid true. The heroes will not see it until it is closing. That is the whole art of it, warden — the kindest death is the one they never saw coming.", "x": "watching" },
+        { "t": "The trap is set. A weapon that asks no wages and breaks no oaths — would that all my soldiers were so simple. Place more, keeper. They earn their gold quietly.", "x": "solemn" },
+        { "t": "You set the iron, my Monarch. The line gains teeth that never dull. Heroes underestimate the floor beneath them. Let them keep underestimating it.", "x": "grim-fury" },
+        { "t": "A trap on the path. The dead and the iron both excel at waiting — it is the living who cannot abide stillness. Use their impatience against them.", "x": "wary" },
+        { "t": "The snare is armed and silent. I have buried many who trusted an empty-looking floor. Add this to the long account, warden. The floor is never empty here.", "x": "eulogy" },
+        { "t": "Good iron, well placed. A trap is the most honest soldier you own, keeper — it never flees, never doubts, and never asks why. Set it and forget the doubt.", "x": "loyal" },
+        { "t": "You bolt a killing-thing into the dark, my Monarch. The watch is glad of it. The dead grow weary of doing all the dying — let the iron carry some of the work.", "x": "weary" },
+        { "t": "You bolt a killing-thing into the floor, my Monarch. I have been weighing where the iron serves best — on the approach, where the living rush. The studied snare is the deadly one.", "x": "thinking-2" },
+        { "t": "You bolt a killing-thing into the dark, my Monarch — patient, tireless, pitiless. Much like me, only crueler and with worse manners. A weapon that keeps the watch when no soldier can. Good.", "x": "sinister" },
+        { "t": "The iron is set, keeper. The living rush; the rushing die. I have buried more heroes on a hidden snare than on any honest blade. Place it well — the studied snare is the deadly one.", "x": "determined" },
+        { "t": "A trap on the approach, warden. It will not flinch, will not tire, will not pity. The heroes never see the floor as a threat until the floor proves them wrong. Let them keep underestimating it.", "x": "watching" }
+      ]
+    },
+    "item_placed": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "An artifact set into the dark. Such things have power, my Monarch — wield it for the line, not for vanity. The dead have no use for trophies.", "x": "thinking" },
+        { "t": "You place a relic, keeper. I have seen the old powers turn a siege. Place it where it shields the most, and it will repay you in held ground.", "x": "determined" },
+        { "t": "The artifact hums in the dark. Curious things, these relics. Even the dead feel their weight. Use it well, warden — power unused is merely a burden.", "x": "curious" },
+        { "t": "A relic for the watch. Good. The old magics and the old dead understand one another, my Monarch. We have shared this dark a long while.", "x": "wondering" },
+        { "t": "You set a thing of power into the line. The dead respect it — power earned and power kept are the only kinds worth respecting. Wield it for the hold.", "x": "respect" },
+        { "t": "An artifact placed. It strengthens the dark around it. I have leaned on such relics in long sieges, keeper. Lean wisely, and it will not break under you.", "x": "guard-stance" },
+        { "t": "The relic takes its station. Old power, old purpose. It fits this old war we wage against the living, my Monarch. Let it earn its keep at the wall.", "x": "solemn" }
+      ]
+    },
+    "sold_room": {
+      "priority": 0,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "The {roomName} is struck from the line. A hard call, my Monarch — but a knight knows when to shorten the wall to hold it. The gold returns to the war chest.", "x": "thinking" },
+        { "t": "You unmake the {roomName}. So be it. Better a tighter line you can hold than a sprawling one you cannot. The dead understand retreat in good order.", "x": "solemn" },
+        { "t": "The {roomName} falls back into gold. I will not mourn a stone, keeper — I save my mourning for soldiers. Spend the coin on a stronger position.", "x": "determined" },
+        { "t": "Down comes the {roomName}. A general culls the line to feed the line, warden. There is no shame in it, only arithmetic. Reinvest well.", "x": "commanding" },
+        { "t": "The {roomName} is sold off. The dungeon shrinks by one chamber — and tightens by one. Sometimes the strongest wall is the shorter one, my Monarch.", "x": "guard-stance" },
+        { "t": "You release the {roomName}, keeper. The gold comes home. I trust you have a better use for it — and I trust the line will be the better for the trade.", "x": "wondering" },
+        { "t": "The {roomName} returns to nothing. Stone is patient about being unmade; it does not hold grudges. Would that the same were true of soldiers. Spend wisely.", "x": "weary" },
+        { "t": "The {roomName} comes down. A clean decision, my Monarch. Hold only what you can defend — an undefended chamber is just a longer road to your throne for the foe.", "x": "wary" },
+        { "t": "The {roomName} comes down, my Monarch. I do not mourn a stone — I save mourning for soldiers. But I confess I am unimpressed by a line that sprawls past holding. A tighter wall is a stronger one. Reinvest.", "x": "unimpressed" }
+      ]
+    },
+    "sold_minion": {
+      "priority": 0,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "You discharge the {minionName} from the watch. I do not love releasing a soldier, my Monarch — but a knight serves the whole line, not one blade. The gold returns.", "x": "regret" },
+        { "t": "The {minionName} leaves the ranks. Go in what peace the dead are granted, soldier. I will remember you served. I remember all of them, keeper.", "x": "somber" },
+        { "t": "A {minionType} struck from the muster. Hard, but generals make hard cuts. The coin feeds a stronger soldier in its place. That is the cold mathematics of a held line.", "x": "cold-anger" },
+        { "t": "You release the {minionName}. I mark its name among the discharged, warden. The dead are owed at least a record, even when they are dismissed.", "x": "mourning" },
+        { "t": "The {minionType} is sold from the line. I trust the trade strengthens us, my Monarch. I do not question the cut — I only count what it costs, and move on.", "x": "solemn" },
+        { "t": "The {minionName} departs the watch. Fewer at the wall now, keeper. See that the gold buys back more than the gap it leaves. The dead are not infinite — yet.", "x": "weary" }
+      ]
+    },
+    "sold_trap": {
+      "priority": 0,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "The trap is pulled from the floor and rendered to gold. No soldier to mourn here, my Monarch — only iron reclaimed. The cleanest kind of retreat.", "x": "thinking" },
+        { "t": "You unmake the snare, keeper. The dead shed no tears for iron. Spend the coin where it kills more. The floor will keep other secrets.", "x": "determined" },
+        { "t": "Down comes the trap. A weapon retired without ceremony — as iron should be. Reinvest it in the line, warden. The war chest is never full enough.", "x": "commanding" },
+        { "t": "The snare returns to gold. I respect a master who prunes a defence to sharpen it, my Monarch. A cluttered line confuses the defender as much as the foe.", "x": "respect" },
+        { "t": "You strike the trap from the dark. Good housekeeping, keeper. An unloved trap is a hazard to your own dead. Better gold in hand than iron underfoot.", "x": "wary" },
+        { "t": "The trap is sold off. Iron asks nothing and forgives everything — unlike the dead, unlike the living. Spend the coin true, my Monarch. Make the trade count.", "x": "solemn" }
+      ]
+    },
+    "sold_item": {
+      "priority": 0,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "The relic is given up for gold. Old power released back into the dark, my Monarch. I trust the coin serves the line better than the trophy did.", "x": "thinking" },
+        { "t": "You part with the artifact, keeper. The dead do not cling to objects — only to oaths. Let the gold buy a stronger hold than the relic gave.", "x": "solemn" },
+        { "t": "The artifact is sold. Power changing hands. See it strengthens the watch, warden — relics are means, never ends. The end is always the held line.", "x": "determined" },
+        { "t": "Down goes the relic, my Monarch. I have seen great powers traded for greater needs. There is no sentiment in it, only the arithmetic of survival.", "x": "wondering" },
+        { "t": "You release the old power, keeper. The gold returns to the chest. Spend it as a general spends — on the wall, not on the wonder. The wall is what holds.", "x": "commanding" }
+      ]
+    },
+    "moved": {
+      "priority": 0,
+      "cooldownMs": 10000,
+      "lines": [
+        { "t": "You reposition the line, my Monarch. A knight knows ground is everything — the same blade kills better from a better stand. Good adjustment.", "x": "pointing" },
+        { "t": "The piece shifts to new ground, keeper. I approve. A general who never moves his line is a general who loses it. Refine the defence.", "x": "thinking" },
+        { "t": "Relocated, and well. Position is the silent half of every battle, warden. Move with purpose, and the dead will hold wherever you set them.", "x": "determined" },
+        { "t": "You move the watch about, my Monarch. Restless, perhaps — but restlessness in a builder is just diligence wearing armour. Place it true and leave it.", "x": "wondering" },
+        { "t": "The line re-forms under your hand. The dead march to their new posts without a word of complaint. Would that the living rearranged so gracefully, keeper.", "x": "at-attention" },
+        { "t": "A piece shifts ground. Tend the seams of your line as you go, my Monarch — every move opens a gap somewhere. Close behind you as you adjust.", "x": "wary" }
+      ]
+    },
+    "placement_blocked": {
+      "priority": 1,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "That ground will not take it, my Monarch. Even the dead must respect terrain. Choose another stand — there is always better ground for a patient eye.", "x": "wary" },
+        { "t": "No. Not there, keeper. The dark refuses it. I have seen lines fail for being forced onto bad ground. Find ground that welcomes the work.", "x": "unimpressed" },
+        { "t": "It cannot stand where you would set it, warden. The maze has its own stubbornness. Bend to it here — the dungeon yields where it yields, not where we wish.", "x": "thinking" },
+        { "t": "The placement fails. Blocked. A general adapts to the field he is given, my Monarch — not the one he imagines. Try the open ground instead.", "x": "disappointed" },
+        { "t": "Not there. The space is spoken for. Even the dead will not stand atop one another, keeper — and they have less personal space than most. Choose elsewhere.", "x": "unimpressed" },
+        { "t": "That ground denies you. I would not force it. A position taken against the terrain is a position lost at the first push. Find truer footing, my Monarch.", "x": "wary" },
+        { "t": "Blocked, warden. The dark has rules, and even I keep them. Pick another tile — there is no shame in the dungeon refusing a poor placement. It saves you the error.", "x": "thinking-2" },
+        { "t": "It will not go there, keeper. I have learned not to argue with the deep about where things may stand. Neither should you. Another spot, my Monarch.", "x": "wondering" },
+        { "t": "No purchase on that ground. The placement is refused. Steady — even a flawless plan meets a wall it did not expect. Adjust and proceed.", "x": "determined" },
+        { "t": "That space is taken, my Monarch. Crowd the line and it strangles itself. Give your dead room to swing, room to fall, room to rise. Place it clear.", "x": "pointing" },
+        { "t": "The dark says no, keeper. It rarely explains itself. Find another tile and the work continues — the deep is large, and there is always other ground.", "x": "unimpressed" },
+        { "t": "No. NOT there, keeper — the ground refuses it and I will not waste breath pretending otherwise. Force nothing. A line built in temper is a line that breaks in battle. Choose better ground.", "x": "angry" },
+        { "t": "That ground will not take it, my Monarch — and forcing it would offend me more than the refusal does. A line built in temper breaks in battle. Choose truer footing. I will not pretend bad ground is good.", "x": "unimpressed" },
+        { "t": "No. Not there, keeper. The dark refuses, and I will not argue with the deep about where things may stand. Neither should you. The placement is unworthy of the line. Another tile.", "x": "unimpressed" },
+        { "t": "Blocked, warden. I am disappointed — a flawless plan met a wall it did not expect. No shame in it; the dungeon saves you the error. Adjust, my Monarch, and the work goes on.", "x": "disappointed" },
+        { "t": "The ground denies you, my Monarch, and a cold flicker of anger goes through me — not at you, at the stubborn deep. Force nothing. Find ground that welcomes the work, and we proceed.", "x": "angry" },
+        { "t": "The ground denies you, keeper, and a flicker of cold anger goes through me — not at you, at the stubborn deep. Force nothing. Find ground that welcomes the work, and we proceed.", "x": "angry" }
+      ]
+    },
+    "pact_sealed": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "You seal the {pactName}. A solemn thing, a pact — a vow given form. I of all your servants understand the weight of a vow, my Monarch. Carry it well.", "x": "oath" },
+        { "t": "The {pactName} is bound to you. Power, and a price — there is always a price, keeper. The dead know better than any: nothing in the dark is given freely.", "x": "solemn" },
+        { "t": "A pact struck — the {pactName}. I have watched many sovereigns make their bargains with the dark. The wise read the cost first. I trust you are the wise sort.", "x": "thinking" },
+        { "t": "The {pactName} takes hold. So another oath joins yours, my Monarch. Mind it does not bind tighter than you meant — I broke one such, once, and I am what remains.", "x": "haunted" },
+        { "t": "You take the {pactName} upon yourself. The dark honours a sovereign bold enough to bargain. Spend the power as a general spends a reserve — at the breaking point.", "x": "determined" },
+        { "t": "The pact is sealed. The {pactName} is yours, keeper. I will hold the line while you wield it. Together, a vow and a knight can turn a losing field.", "x": "loyal" },
+        { "t": "A {pactName}, bound in the dark. The old powers stir to it. I feel them — the dead always do. Wield it for the watch, my Monarch, and it will not turn on you.", "x": "ghostfire-surge" },
+        { "t": "You bind the {pactName}. Bargains and oaths — the deep runs on both. I respect a sovereign who pays for power honestly. Many try to steal it. They end poorly.", "x": "respect" },
+        { "t": "The {pactName} settles its weight on you. Vows have a way of asking more than you offered, keeper. I would know. Hold yours with open eyes, and it will serve.", "x": "wary" },
+        { "t": "A pact is a promise to the dark, my Monarch, and the dark collects. The {pactName} is sealed. I will see you do not face its price alone. That, too, is my oath.", "x": "reverent" },
+        { "t": "The {pactName} is yours. Power answered your call. Now answer the line's call, warden — a pact does not hold the wall. Knights and the dead do that. To work.", "x": "commanding" },
+        { "t": "You seal the {pactName}, my Monarch — a vow given form. I of all your servants know the weight of a vow. Carry it with open eyes. I broke one such, once, and I am what remains.", "x": "oath" },
+        { "t": "The {pactName} is bound to you, keeper. An oath to the dark, and the dark collects. I will stand the line while you wield it — a vow and a knight can turn a losing field. Hold yours true.", "x": "oath" },
+        { "t": "A pact struck — the {pactName}, warden. I swear my own oath anew beside it: while that power is yours, my blade is yours. Two vows, one Throne. The dark honours both.", "x": "oath" },
+        { "t": "The {pactName} takes hold and the old powers stir — the dead feel them always, my Monarch. Green fire in the deep. Wield it for the watch and it will not turn on you. Wield it for vanity and it will.", "x": "ghostfire-surge" },
+        { "t": "The {pactName} is bound, my Monarch. Power, and a price — there is always a price in the dark. I will hold the line while you wield it. A vow and a knight can turn a losing field. Spend it true.", "x": "determined" }
+      ]
+    },
+    "adv_entered": {
+      "priority": 1,
+      "cooldownMs": 7000,
+      "lines": [
+        { "t": "A {advClass} crosses the threshold, my Monarch. The watch sees them. Mark the bearing — the dead will know where to meet them.", "x": "watching" },
+        { "t": "{advName} enters the dark. So young. So certain. I have read the eulogy for a hundred like them, keeper. Let us hope this one earns a longer one.", "x": "somber" },
+        { "t": "A {advClass} steps into the deep. Brave. Foolish, but brave — the two are siblings in the living. Steady the line. Let them come to us.", "x": "guard-stance" },
+        { "t": "{advName}, a {advClass}, on the field. I will track them. A marked foe is a managed foe, my Monarch — and the unmarked are the ones who reach the throne.", "x": "pointing" },
+        { "t": "The living send a {advClass} into our dark. They always send the bright ones first. The dark does not care how bright they shine, keeper. It only waits.", "x": "wary" },
+        { "t": "A {advClass} has entered, warden. Note their gear, their step, their confidence. I learn an enemy before I meet them — it is how the dead win so often.", "x": "curious" },
+        { "t": "{advName} comes into the deep. Another soul the kingdom spent on its hatred of you, my Monarch. I will not waste the spending. They will be put to use, after.", "x": "raising-dead" },
+        { "t": "A {advClass} on the threshold. The hunt begins — slow, patient, certain. The dead do not chase, keeper. They WAIT, and waiting always wins down here.", "x": "determined" },
+        { "t": "The watch reports a {advClass} inside. I have stood against their order before. I know their tricks, their courage, and the precise moment their courage fails. Hold.", "x": "thinking" },
+        { "t": "{advName} enters our halls. Look at them, keeper — full of the certainty I once carried into a battle I lost. The dark teaches humility. Let it teach this one.", "x": "wistful" },
+        { "t": "A {advClass} treads into the dark. The corridors close behind them, though they do not feel it yet. Mark them, my Monarch. Their road ends here.", "x": "sinister" },
+        { "t": "The living advance — a {advClass} among them. I will position the dead to meet them. A foe met in formation is a foe already half-defeated, warden.", "x": "commanding" },
+        { "t": "{advName} has come to test the deep. They wear courage like armour. I have unmade better armour than courage, keeper. Steady. We meet them at the wall.", "x": "grim-fury" },
+        { "t": "A {advClass} steps in, certain of glory. I remember certainty. I wore it into my last morning alive. The dark relieved me of it. It will relieve them too.", "x": "haunted" },
+        { "t": "Another enters the dark — a {advClass}. The watch tightens. My Monarch, the heroes count on us scattering. We will not. We will hold, and they will break.", "x": "unrelenting" },
+        { "t": "{advName} crosses into our ground. I mark the name. I always mark the name, keeper — a soldier deserves to be killed by someone who knew what to call them.", "x": "reverent" },
+        { "t": "A {advClass} on the field, warden. They think the dark is empty. It is the fullest place in the kingdom — full of the dead, full of patience, full of my oath. Hold.", "x": "guard-stance" },
+        { "t": "The living press in. A {advClass} leads. Let them lead — straight into the teeth we set last night. The bold die first down here, my Monarch. It is nearly a rule.", "x": "cold-anger" },
+        { "t": "{advName} enters. The dead stir at the scent of the living. Easy, soldiers. Easy. We do not rush. We meet them where WE choose. Patience, keeper. Always patience.", "x": "at-attention" },
+        { "t": "A {advClass} steps into the deep, certain they are the hero of this tale. They are not, my Monarch. Down here, the dark is the hero, and the dark is yours.", "x": "wary" },
+        { "t": "The watch marks a {advClass} inside the line. I will not take my eyes from them. The foe you watch is the foe you bury, keeper. The one you forget buries YOU.", "x": "watching" },
+        { "t": "{advName} comes into our halls. I feel the old soldiers behind me lean forward. They remember being the ones who marched in bright and sure. Now they wait in the dark. So do we.", "x": "summoning-horde" },
+        { "t": "A {advClass}, and that armour — I did not expect the kingdom to send one so well-girded, keeper. Interesting. The dark has unmade better-armoured than they. Mark them well, my Monarch.", "x": "surprised" },
+        { "t": "A {advClass} crosses in, and the old war-fury wakes in the dead — and in me. We held the cold patience all night; now we let a little heat off the leash. Steady... then strike.", "x": "aggressive" },
+        { "t": "A {advClass} enters, and I take their measure at a glance — the grip, the footwork, the over-bright eyes. I have judged a thousand such, my Monarch. This one dies on poor form.", "x": "judging" },
+        { "t": "A {advClass} steps into the dark, my Monarch. I take their measure at a glance — the set of the shoulders, the grip, the over-bright eyes. I have judged a thousand such. This one dies on poor footwork.", "x": "judging" },
+        { "t": "{advName} enters, keeper, and already I am weighing them — strong arm, weak guard, too much faith in the light. The dark will exploit every flaw. I mark them all.", "x": "judging" },
+        { "t": "A {advClass} crosses the threshold, warden, and the old war-fury wakes in the dead — and in me. We held the cold patience all night; now we may let a little heat off the leash. Steady... then strike.", "x": "aggressive" },
+        { "t": "{advName} comes into our halls, my Monarch, and the dead lean toward the living like hounds at the scent. Easy. EASY. We meet them where WE choose. But the hunger is there. Mine too.", "x": "aggressive" },
+        { "t": "A {advClass}, and — that armour. I did not expect the kingdom to send one so well-girded, keeper. Interesting. The dark has unmade better. Mark them well, my Monarch.", "x": "surprised" },
+        { "t": "{advName} enters, and I confess a moment's surprise, warden — they came alone, and they came quiet. The bold and the foolish announce themselves. This one does neither. Watch it closely.", "x": "surprised" },
+        { "t": "A {advClass} treads into the deep, my Monarch, certain the dark is empty. It is the fullest place in the kingdom — full of the dead, full of patience, full of my oath. Let them learn it.", "x": "sinister" },
+        { "t": "A {advClass} enters the dark, my Monarch. I track them — a marked foe is a managed foe, and the unmarked are the ones who reach the Throne. The dead know where to meet them.", "x": "watching" },
+        { "t": "{advName} steps into the deep, keeper. The corridors close behind them, though they do not feel it yet. Wary, now — the bold ones are the dangerous ones. We meet them where we choose.", "x": "wary" },
+        { "t": "A {advClass} on the field, warden. I will position the dead to receive them. A foe met in formation is a foe half-defeated. Hold the line, my Monarch.", "x": "commanding" }
+      ]
+    },
+    "first_blood": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "First blood, my Monarch. The dark has tasted the living. The watch holds — and now the heroes know this ground is not empty. Let the lesson spread.", "x": "grim-fury" },
+        { "t": "The first to fall. I will read their name into the long account, keeper. Every campaign opens with a death; this one opens with theirs. Good.", "x": "eulogy" },
+        { "t": "The line draws first blood. The dead have done their work. So it begins — and so, if we hold true, it ends, with the living broken on the dark.", "x": "determined" },
+        { "t": "First kill of the day, warden. I do not cheer it — I mark it. A soldier who cheers the first death has forgotten how many follow. There will be many.", "x": "solemn" },
+        { "t": "Blood on the stones, my Monarch. The opening move is ours. The heroes expected an empty crypt; they found a held one. Their faces, when they realise — I never tire of it.", "x": "sinister" },
+        { "t": "The first has fallen. One debt opened, one soldier owed. I will collect, keeper — I will raise them, and they will fight for the dark that took them. As is right.", "x": "raising-dead" },
+        { "t": "First blood. The watch performs. The dead struck clean and true. There is a grim satisfaction in a line that holds its first test, my Monarch. Do not mistake it for joy.", "x": "grim-approval" },
+        { "t": "One down at the threshold. The dark wins its first exchange. The living always underestimate the opening — and the underestimating fills the first grave, warden.", "x": "cold-anger" },
+        { "t": "The first death of the day is theirs, not ours. Good. I have opened too many campaigns mourning my own. This one opens correctly, keeper. Hold the advantage.", "x": "vindicated" },
+        { "t": "First blood drawn, my Monarch. The heroes hear it echo back to them. Some will turn back now. The brave ones won't — and the brave ones are the ones I bury deepest.", "x": "watching" },
+        { "t": "The opening kill. The dark is fed. I will not waste the fallen — they join us by dusk. The kingdom sends soldiers down; we simply… keep them. To the watch.", "x": "summoning-horde" },
+        { "t": "The first is put to the blade, cleanly. I do my killing without ceremony, keeper — the ceremony is for AFTER, when I bury them. The opening death is struck. Many follow. To the watch.", "x": "executing" },
+        { "t": "The first falls, and already I am judging the rest of them, warden — who fights, who panics, who merely followed the brave one down. The dark sorts them all the same. Watch with me.", "x": "judging" },
+        { "t": "The first is put to the blade, cleanly, my Monarch. I kill without ceremony — the ceremony is for AFTER, when I bury them. The opening death is struck. Many follow. To the watch.", "x": "executing" },
+        { "t": "First blood, and it is struck clean, keeper. No flourish, no cruelty beyond the necessary — a soldier's killing. The campaign opens correctly. Hold the advantage.", "x": "executing" },
+        { "t": "The first to fall, warden. I read their name into the long account already — every campaign opens with a death, and a death deserves a witness. This one opens with theirs. Good.", "x": "eulogy" }
+      ]
+    },
+    "adv_killed": {
+      "priority": 1,
+      "cooldownMs": 4500,
+      "lines": [
+        { "t": "{advName} falls. Rest now, soldier — your war is over, and a new one begins under my banner. I will raise you with honour. You fought to the end.", "x": "mourning" },
+        { "t": "The {advClass} is down. I mark the name and the manner of it, my Monarch. Every death down here is recorded. The dead deserve at least a witness.", "x": "eulogy" },
+        { "t": "Another of the living, undone. The watch holds. I take no joy in it, keeper — only the cold certainty that the oath was kept one death longer.", "x": "solemn" },
+        { "t": "{advName} has fallen to the dark. Brave to the last. I respect the brave even as I bury them. ESPECIALLY as I bury them. Honour to the fallen.", "x": "honored" },
+        { "t": "The {advClass} dies on our ground. The line did its work. Their gold falls to the floor — paid in full, the only currency the kingdom never minds spending. Collect it.", "x": "determined" },
+        { "t": "Down goes the {advClass}. I felt the dark take them. I always do, my Monarch — it is the burden of the one who raises the dead. I grieve a moment, then I get back to work.", "x": "grieving" },
+        { "t": "{advName} is slain. So passes another bright young thing the kingdom threw at you, keeper. I will give them a soldier's rest. Then a soldier's second life, at the wall.", "x": "raising-dead" },
+        { "t": "The {advClass} falls. Clean. The dead struck true. I do not gloat over a corpse, warden — gloating is for the living. I simply note: the line held. Again.", "x": "grim-approval" },
+        { "t": "Another hero, ended. The kingdom will not get this one back, my Monarch. None of them go back. The dark keeps what it kills — and what it keeps, it raises.", "x": "summoning-horde" },
+        { "t": "{advName} dies in the deep. They had a name, a cause, perhaps a home above. The dark has all of it now. I will remember the name, at least. Someone should.", "x": "somber" },
+        { "t": "The {advClass} is broken on the line. Good iron, good dead, good ground — that is how a hero ends, keeper. Not with drama. With a held wall and a patient blade.", "x": "guard-stance" },
+        { "t": "Down. The {advClass} joins the long count. I keep the count exact, my Monarch — it is how I honour them. An unmourned death is a debt I refuse to leave unpaid.", "x": "reverent" },
+        { "t": "{advName} falls to the dark, and I feel the weight of it settle. Do not mistake my grief for weakness, keeper. I mourn BECAUSE I am merciless. The two live in the same armour.", "x": "haunted" },
+        { "t": "The {advClass} is no more. The heroes' song loses a verse. I have ended so many of their songs that I half-remember the tunes. None of them end well. Good.", "x": "cold-anger" },
+        { "t": "Another of the living falls. The dead receive them. Welcome to the longer watch, {advName} — you will find it quieter than your war, and far more permanent.", "x": "loyal" },
+        { "t": "{advName} is slain. The line did not bend. I take a knight's satisfaction in that, my Monarch — quiet, grim, and entirely without celebration. The wall held. That is enough.", "x": "vindicated" },
+        { "t": "The {advClass} dies. I close their eyes in my mind, keeper — a courtesy the living rarely earn down here, but one I keep regardless. Then I raise them. Then they serve.", "x": "kneeling" },
+        { "t": "Down goes another. The kingdom spends its youth on hating you, my Monarch, and I spend my oath on burying that youth. Grim accounting. But the books balance.", "x": "executing" },
+        { "t": "{advName} falls before the dark. They will not be the last today. They are never the last. The living have always had more courage than sense. Hold the line, keeper.", "x": "unrelenting" },
+        { "t": "The {advClass} ends here. I have seen their order fight and fall across many reigns. The order is brave. The order is doomed. The two have always gone together.", "x": "wistful" },
+        { "t": "Another hero broken on our ground. The dark feeds, the dead swell, the oath holds. This is the work, my Monarch — grim, repetitive, and never once unworthy. Onward.", "x": "raising-dead" },
+        { "t": "{advName} is slain. I add the name to the wall I keep in my memory — the long roll of every soul this dark has taken. It is a heavy wall, keeper. I carry it anyway.", "x": "mourning" },
+        { "t": "The {advClass} falls. Honour to them — they came down knowing the songs lie, and they came anyway. That is the truest courage, warden. I bury it with respect.", "x": "honored" },
+        { "t": "Down. The dead take the {advClass} into their ranks. I will drill them tonight. By the next dawn, the hero who came to kill you will be standing guard for you, my Monarch. Justice, of a kind.", "x": "summoning-horde" },
+        { "t": "{advName} is undone. The watch grinds on. I do not flinch at death — I have BEEN death's neighbour too long — but I do not grow callous to it either. Mark it. Move on.", "x": "solemn" },
+        { "t": "The {advClass} dies clean on the line. A merciful end, by the dark's standards. I gave better ones, once, to my own fallen. The habit lingers. Rest, soldier.", "x": "grieving" },
+        { "t": "Another falls. The kingdom's certainty dies one hero at a time down here, keeper. Soon the songs above will go quiet. And quiet, for the living, is the sound of fear.", "x": "sinister" },
+        { "t": "{advName} ends. I take their measure even in death — strong arm, poor footwork, too much faith in the light. It will all be useful, my Monarch, when they march for us.", "x": "judging" },
+        { "t": "The {advClass} is slain. The dark drinks. I keep my eyes open through every death — looking away is for those who have not earned the right to bury people. I have earned it.", "x": "watching" },
+        { "t": "Down goes the hero. The line absorbs the blow and gives nothing back but a corpse. That is the dead's gift to you, keeper — they take the hits, and they keep standing.", "x": "guard-stance" },
+        { "t": "{advName} falls to the watch. One more name for the eulogy I never stop writing. The dark fills it faster than I can read it. Such is the work, my Monarch.", "x": "eulogy" },
+        { "t": "The {advClass} ends here, beneath the kingdom that sent them. I will not let the kingdom forget them — I will send them back up someday, marching, to remind it. Raise the dead, warden.", "x": "raising-dead" },
+        { "t": "Another of the bright ones, dimmed. The dark does that, keeper — patiently, certainly, without malice. It is not cruel. It is simply the dark, and it is on our side.", "x": "cold-anger" },
+        { "t": "{advName} is slain. I felt them go. Every death rings on this old armour, my Monarch — and I would not trade the ringing for numbness. To feel it is to honour it. Onward.", "x": "haunted" },
+        { "t": "The {advClass} falls. The wall held. I have lost walls before — I know the difference between a line that breaks and a line that bends and recovers. This one held. Good.", "x": "vindicated" },
+        { "t": "Down. The dark takes another. I count them not as trophies but as DEBTS, keeper — each one a soul I now owe a second purpose. I always pay. That is the oath.", "x": "loyal" },
+        { "t": "{advName} ends their march. The dead step over the body without a glance — they have seen too much to flinch. I do not look away either. But I, at least, remember.", "x": "somber" },
+        { "t": "The {advClass} is broken. Their courage outran their skill, as the young's so often does. I have buried that exact mistake a thousand times, my Monarch. I will bury it a thousand more.", "x": "wistful" },
+        { "t": "Another hero falls to the patient dark. No fanfare. No gloating. Just the line, holding, the way it must. This is what victory looks like down here, keeper — quiet and grim.", "x": "grim-approval" },
+        { "t": "{advName} is slain at the wall. The watch is unbroken. I draw my cold satisfaction and I sheathe it again, my Monarch. There is more work. There is always more work.", "x": "determined" },
+        { "t": "The {advClass} dies. I raise my hand and the dark takes them gently — gentler than the living ever expect from a thing like me. Mercy in the killing. It costs nothing, and it is right.", "x": "reverent" },
+        { "t": "Down goes another bright blade. The dead receive them into the longer service. I welcome each one, keeper — coldly, formally, completely. They are soldiers now. MY soldiers.", "x": "commanding" },
+        { "t": "{advName} ends here. The kingdom will write them a hero's song. I will write them a soldier's rest, and then a soldier's duty. The second is the truer honour, my Monarch. Trust me on it.", "x": "honored" },
+        { "t": "The {advClass} falls before the dark and is gathered up. I do this gathering personally — the raising of the dead is too solemn to leave to lesser hands. Stand, soldier. Stand and serve.", "x": "raising-dead" },
+        { "t": "Another slain. The line holds, the count rises, the oath endures. Grim, keeper. Endless. And entirely worth the keeping. We hold the dark one death at a time.", "x": "unrelenting" },
+        { "t": "{advName} is undone, and I feel the dark grow one soul heavier. I carry that weight willingly, my Monarch. A knight who feels the dying is a knight who has not yet lost his soul. Onward.", "x": "grieving" },
+        { "t": "The {advClass} dies, and my disgust is not for the corpse, my Monarch — it is for the kingdom that spent it. They call it valour. I call it waste. The waste, at least, I can raise.", "x": "disgusted" },
+        { "t": "{advName} falls — and the dead surge forward at the scent of it, and I with them. There is an old fury in the grave that the living woke by coming here. Loose it on the next one, keeper. Forward.", "x": "aggressive" },
+        { "t": "The {advClass} is put down clean. No flourish, no cruelty beyond the necessary — a soldier's killing, swift and certain. I have ended thousands so. I will end thousands more. It is the work, my Monarch.", "x": "executing" },
+        { "t": "{advName} is put down, clean and final, my Monarch. No flourish — a soldier's killing, swift and certain. I have ended thousands so, and will end thousands more. It is the work.", "x": "executing" },
+        { "t": "The {advClass} falls to the blade, keeper. I do my killing without ceremony; the ceremony comes after, when I kneel and raise them. Struck clean. Onward to the next.", "x": "executing" },
+        { "t": "Down goes the {advClass}, executed cleanly on our ground, warden. I take no joy in the stroke — only the cold certainty that it was struck true. The line holds one death longer.", "x": "executing" },
+        { "t": "{advName} ends, my Monarch, and I strike without hesitation or relish. Mercy in the blade, when I can spare it; certainty always. The dark receives them. To the watch.", "x": "executing" },
+        { "t": "The {advClass} is slain clean, keeper. A swift end — better than most of the living expect from a thing like me. The kindness costs nothing and it is right. Struck. Done.", "x": "executing" },
+        { "t": "{advName} falls, and I feel the dark grow one soul heavier, my Monarch. I grieve a moment — a knight who feels the dying has not yet lost his soul. Then I return to the work.", "x": "grieving" },
+        { "t": "The {advClass} is undone, keeper, and the old grief stirs. I do not let it stay long; the line needs my watch more than the dead need my sorrow. But I let it stir. That much they are owed.", "x": "grieving" },
+        { "t": "Another of the living, fallen — and I mourn them as I mark them, my Monarch. Do not mistake the grief for weakness. I mourn BECAUSE I am merciless. Both live in the same armour.", "x": "mourning" },
+        { "t": "{advName} dies on our ground, keeper, and I add the name to the wall I keep in memory — the long roll of every soul this dark has taken. A heavy wall. I carry it gladly. Onward.", "x": "eulogy" },
+        { "t": "The {advClass} ends, warden. I read them their rites in silence — a courtesy the living rarely earn down here, but one I keep regardless. Then I raise them. Then they serve.", "x": "eulogy" },
+        { "t": "Down. The {advClass} joins the long count, my Monarch. I keep it exact — an unmourned death is a debt left unpaid, and I do not leave debts. Rest, soldier. Then rise.", "x": "somber" },
+        { "t": "{advName} is slain, keeper. I close their eyes in my mind — old habit, older mercy. The dark has them now. I will give them a soldier's rest, and then a soldier's second duty. Both are honour.", "x": "somber" },
+        { "t": "The {advClass} falls, and I take their measure even in death, warden — strong arm, poor footwork, too much faith in the light. All of it useful, my Monarch, when they march for us.", "x": "judging" },
+        { "t": "{advName} ends here, keeper, and I judge the manner of it — clean, or could it have been cleaner? A knight grades his own killings. This one passes. Barely. We improve the line.", "x": "judging" },
+        { "t": "Another child of the kingdom, dead on my floor. The Throne above spent it so cheaply, my Monarch — and calls that valour. I call it waste. I raise the waste.", "x": "disgusted" },
+        { "t": "The {advClass} falls, keeper, and my stomach turns — not at the corpse, at the kingdom that wasted it. They will run out of children before I run out of patience. Mark another. Raise another.", "x": "disgusted" },
+        { "t": "{advName} is slain, and the dead surge at the scent of it, warden — and I with them. The old battlefield fury, woken by the living's coming. I let it loose, then I rein it. Forward, my Monarch.", "x": "aggressive" },
+        { "t": "The {advClass} dies hard, keeper, and the fury in the grave answers hard. I do not pretend to be only sorrow — there is heat in the dead too, and the living woke it. Onward.", "x": "aggressive" },
+        { "t": "{advName} is broken at the wall, my Monarch. I take a knight's cold satisfaction — quiet, grim, no celebration. The line held. The oath endures one death longer. That is enough.", "x": "vindicated" },
+        { "t": "The {advClass} falls, and I honour them as I gather them, keeper — they came knowing the songs lie, and they came anyway. That is the truest courage. I bury it with respect.", "x": "honored" },
+        { "t": "Down goes the {advClass}, warden, and I give them their due — they fought well, for a doomed cause, on bad ground. Respect to the fallen. They will fight better, after, for us.", "x": "respect" },
+        { "t": "The {advClass} falls, my Monarch, and I gather them up myself — the raising of the dead is too solemn to leave to lesser hands. Stand, soldier. Stand and serve.", "x": "raising-dead" },
+        { "t": "{advName} ends, keeper. I keep the count exact — an unmourned death is a debt left unpaid, and I leave no debts. Rest, soldier. Then rise and march for the dark that took you.", "x": "solemn" },
+        { "t": "Down goes the {advClass}, warden. The dead receive them into the longer service. I welcome each one coldly, formally, completely. They are my soldiers now. The line is deeper by one.", "x": "loyal" },
+        { "t": "The {advClass} is broken on the line, my Monarch. No drama, no gloating — only the wall, holding, the way it must. This is what victory looks like down here: quiet, grim, complete.", "x": "cold-anger" },
+        { "t": "{advName} falls at the wall, keeper, and the line does not so much as bend. I take a knight's cold satisfaction in that. The dead held. The oath endures. To the next.", "x": "guard-stance" }
+      ]
+    },
+    "adv_fled": {
+      "priority": 1,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "The {advClass} turns and runs. Wise. The dark teaches wisdom quickly, my Monarch — usually too late to matter, but sometimes in time to flee. Let them carry the lesson up.", "x": "watching" },
+        { "t": "{advName} flees the line. Let them. A hero who runs spreads fear better than a hero who dies — the survivors tell the tale, and the tale keeps others home. Good.", "x": "sinister" },
+        { "t": "The {advClass} breaks and retreats. Their courage failed before their body did. I have seen that exact moment a thousand times, keeper — the eyes go first, then the feet.", "x": "cold-anger" },
+        { "t": "A runner, my Monarch. {advName} has had enough of the dark. They will not forget it. The dark has a way of following the living home, in their dreams. Let it follow.", "x": "wary" },
+        { "t": "The {advClass} flees. I will not chase — the dead do not chase, warden, they WAIT. They will be back, or they will not, and either way the line holds. Patience.", "x": "guard-stance" },
+        { "t": "{advName} runs from the deep. There is no shame in their retreat, keeper — only in the kingdom that sent a child to do a soldier's dying. Let the child live. This once.", "x": "wistful" },
+        { "t": "The {advClass} withdraws. Good sense, rare in the living. I respect a foe who knows when the field is lost, my Monarch. It is more than most of them ever learn.", "x": "respect" },
+        { "t": "A {advClass} in full retreat. The dark spat them back out. They came to write a heroic song and leave with a cautionary one instead. Both serve us, keeper.", "x": "unimpressed" },
+        { "t": "{advName} flees the watch. I let them go. A general does not spend his dead chasing a beaten foe across bad ground — he holds the ground he has. Hold it we shall.", "x": "determined" },
+        { "t": "The {advClass} turns tail. The wall frightened them more than death did. That is the highest compliment a defence can earn, my Monarch — to be feared without even striking.", "x": "grim-approval" },
+        { "t": "A runner flees the dark. I mark which way they go, keeper — a foe who escapes is a foe who returns, and the returning ones come angrier and better armed. We will be ready.", "x": "pointing" },
+        { "t": "{advName} abandons the field. The dead watch them leave without moving. There is a terrible patience in that stillness, warden — the living feel it on their backs as they run.", "x": "watching" },
+        { "t": "The {advClass} retreats. Let the kingdom hear how its hero fared. Fear is a weapon too, my Monarch, and a fled survivor carries it home better than any blade could.", "x": "wary" },
+        { "t": "A {advClass} flees. I have stood my ground while braver souls than they ran past me. The ground was always worth more than the chase. Hold, keeper. Always hold.", "x": "guard-stance" },
+        { "t": "{advName} runs. The dark wins without a single blow — sometimes the deadliest defence is the one that simply LOOKS unsurvivable. Yours did. Note it, my Monarch.", "x": "thinking" },
+        { "t": "The {advClass} breaks for the exit. I do not begrudge them their fear, keeper. Fear is honest. It is the courage that lies to the young and gets them killed. Let this one keep its fear.", "x": "somber" },
+        { "t": "A retreat. {advName} chooses life over the song. The wise choice, warden — and a rare one. The dark thins the foolish from the wise, and the wise it sends home to warn the rest.", "x": "wondering" },
+        { "t": "The {advClass} breaks and runs, my Monarch. Unimpressive — their courage failed before their body did. I have watched that exact moment ten thousand times. The eyes go first, then the feet.", "x": "unimpressed" },
+        { "t": "{advName} flees the line, keeper. I am not moved. A foe who runs is a foe who learned the dark too late to matter. Let them carry the lesson up. The wise stay home after.", "x": "unimpressed" },
+        { "t": "The {advClass} withdraws, warden. I take their measure even in flight — which way they break, how fast, how frightened. A foe who escapes returns. I will know this one again.", "x": "judging" },
+        { "t": "{advName} runs from the deep, my Monarch. There is no shame in it — only in the kingdom that sent a child to do a soldier's dying. Let the child live. This once. I will mourn the ones who don't.", "x": "somber" },
+        { "t": "A {advClass} in full retreat, keeper. I respect the sense of it, grimly — knowing when a field is lost is more than most of the living ever learn. Let them go. We hold the ground that matters.", "x": "respect" },
+        { "t": "The {advClass} turns and runs, keeper. I will not chase — the dead do not chase, they WAIT. They return, or they do not, and either way the line holds. Patience, my Monarch. Always patience.", "x": "wary" }
+      ]
+    },
+    "adv_escaped": {
+      "priority": 2,
+      "cooldownMs": 5000,
+      "lines": [
+        { "t": "The {advClass} reaches the exit and is gone. A failure of the line, my Monarch — small, but a failure. I do not excuse it. I will close the seam they slipped through.", "x": "disappointed" },
+        { "t": "{advName} escapes the dark. One that got away. I mark it, keeper — not with anger, but with resolve. The next one through that gap will not be so fortunate.", "x": "cold-anger" },
+        { "t": "The {advClass} slips the watch and flees to the surface. A blemish on the day's account, warden. The dead do not like letting prey go. Neither do I. We tighten the line.", "x": "wary" },
+        { "t": "One escaped, my Monarch. {advName} carries the tale of our dark back up into the light. Let them — but the gap that loosed them is mine to mend, and I will mend it tonight.", "x": "determined" },
+        { "t": "The {advClass} reaches daylight alive. Rare. Galling. I have stood lines that let no one through for whole reigns, keeper. We will return to that standard. We will.", "x": "grim-fury" },
+        { "t": "{advName} gets out. The kingdom gains a witness, and witnesses make legends, and legends draw more heroes. So the gap costs us twice, my Monarch. Close it. Close it well.", "x": "thinking" },
+        { "t": "The {advClass} escapes the deep. I will not pretend it pleases me, warden. A held line is my whole creed, and a line that leaks is a creed half-kept. We mend it.", "x": "disappointed" },
+        { "t": "One slips through. {advName} lives to fight again. So be it, keeper — every long campaign has its escapes. I simply make certain they grow rarer with each passing day.", "x": "solemn" },
+        { "t": "The {advClass} flees to the surface, whole. The watch failed to close. I take it personally, my Monarch — the dead and I were posted to hold, and one got past the holding. Never again on that ground.", "x": "regret" },
+        { "t": "{advName} escapes. The light takes them back. I have lost foes to the daylight before — it is the one ground the dark cannot follow them onto. We will catch the next one short of it.", "x": "wary" },
+        { "t": "{advName} slips the watch and lives. I do not rage often, keeper — but a leaked line offends the whole of my creed. The gap is mine to close, and close it I shall, before the dawn.", "x": "angry" },
+        { "t": "Gone? Through THERE? I did not think that seam could be slipped. The foe found a flaw I missed, my Monarch. I stand corrected — and the correction will be mortar in that wall by nightfall.", "x": "stunned" },
+        { "t": "{advName} reaches the light alive. I confess it stops me a moment, warden — the dark so rarely lets one go. Mark it. Learn it. The shock is mine to carry; the mended wall will be theirs to find.", "x": "shocked" },
+        { "t": "The {advClass} reaches the exit and is gone, my Monarch. A failure of the line — small, but a failure, and I do not excuse my failures. I will close the seam they slipped through. Tonight.", "x": "disappointed" },
+        { "t": "{advName} escapes to the surface, keeper. It galls me. A held line is my whole creed, and a line that leaks is a creed half-kept. The gap is mine to mend. It will be mended.", "x": "disappointed" },
+        { "t": "One slips the watch, warden. I will not pretend it pleases me, my Monarch — the dead and I were posted to hold, and one got past the holding. Never again on that ground. Mark it.", "x": "disappointed" },
+        { "t": "{advName} gets out, and now I am angry — in the cold, patient way of the dead, which is the worse way. The kingdom gains a witness. I will see the next one buried short of the door.", "x": "angry" },
+        { "t": "The {advClass} flees to daylight whole, keeper, and it kindles a cold anger in me. The light is the one ground the dark cannot follow them onto. We will catch the next one before the threshold. We will.", "x": "angry" },
+        { "t": "{advName} escapes, my Monarch. I take it as my own fault — the seam was mine to hold and I did not hold it. Regret is a knight's whetstone. I will be sharper at that gap by dawn.", "x": "regret" },
+        { "t": "One reaches the surface alive, warden. I should have caught the blade — the route — the moment. I did not. I carry that. The carrying is what makes the next hold true. Forgive the lapse, my Monarch.", "x": "regret" },
+        { "t": "The {advClass} is gone to the light, keeper. I confess it stops me a moment — the dark so rarely lets one go. I will study how they slipped us. The shock is mine; the mended wall theirs to find.", "x": "shocked" },
+        { "t": "{advName} slips away, my Monarch, and I take it as my own failing — the seam was mine to hold. Regret is a knight's whetstone; I will be sharper at that gap by dawn.", "x": "regret" },
+        { "t": "The {advClass} escapes, keeper, and a cold anger rises in me — patient, lethal, aimed at the gap that loosed them. We catch the next one short of the light. Mark it.", "x": "angry" }
+      ]
+    },
+    "party_wipe": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The whole party — fallen. Every blade, every song, ended on our ground. The line held absolutely, my Monarch. This is what an unbroken oath looks like. Honour to the watch.", "x": "vindicated" },
+        { "t": "All of them, down. A clean field, keeper. I will read each name in turn and raise each one in turn — a whole company, gifted to the dark in a single morning. We are richer for it.", "x": "summoning-horde" },
+        { "t": "Total. The party is unmade. I take no celebration in it, warden — only the grim weight of a great many debts opened at once. I will pay them all. Stand, soldiers. Stand and serve.", "x": "raising-dead" },
+        { "t": "The living are wiped from the field, my Monarch. The dark won completely. I have seen few finer holds across all my reigns. The dead behind me are proud, in their silent way. So am I.", "x": "grim-approval" },
+        { "t": "Every one of them, slain. The kingdom sent a company and will receive a silence. Let the silence speak, keeper. It says: the dark is held, and the dark holds you safe.", "x": "commanding" },
+        { "t": "A full wipe. The whole party joins the longer watch. I will mourn them properly tonight — all of them, by name. Then I will set them at the wall. The dead deserve both. So they shall have both.", "x": "mourning" },
+        { "t": "The whole company, unmade, my Monarch — and the overwhelming weight of so many debts settles on me at once. I will pay them all. Stand, soldiers. Stand and serve. We are richer for this morning.", "x": "overwhelming-power" },
+        { "t": "Every one of them, slain, keeper. The kingdom sent a company and receives a silence — and I confess, beneath the helm, a grim and quiet gladness. The line held absolutely. Honour to the watch.", "x": "happy" }
+      ]
+    },
+    "wave_cleared": {
+      "priority": 2,
+      "cooldownMs": 5000,
+      "lines": [
+        { "t": "The wave breaks upon the dark and is no more. The line held, my Monarch. Catch your breath — there is always another wave, but for this moment, the watch is yours.", "x": "guard-stance" },
+        { "t": "The assault is spent. The dead stand where they stood. I respect a defence that simply does not move, keeper — and yours did not move. Well held.", "x": "grim-approval" },
+        { "t": "Wave cleared. The living fall back to lick their wounds. We do not need to fall back, warden — the dead do not bleed, do not tire. We simply… remain. Hold the ground.", "x": "unrelenting" },
+        { "t": "The wave is broken, my Monarch. Quiet returns to the dark. Use it — recount the dead, mend the line, prepare. Quiet is borrowed time, and the foe always comes to collect.", "x": "determined" },
+        { "t": "The assault ends. The watch endured. I have seen lines crumble at the third push and lines hold to the hundredth — yours held this one cleanly, keeper. Earn the next the same way.", "x": "at-attention" },
+        { "t": "The wave breaks and the line holds — and I nearly smile, keeper, which the grave near burned out of me long ago. A clean hold is the closest a dead knight comes to joy. I will take it. Ready the next.", "x": "happy" },
+        { "t": "The wave breaks upon the dark and is no more, my Monarch — and the line holds so clean I nearly smile, which the grave near burned out of me. The closest a dead knight comes to joy. Ready the next.", "x": "happy" },
+        { "t": "The assault is spent, keeper, and the watch is unbroken. I do not relent and I do not relax — a held line stays held by never easing. Catch your breath. I will keep my post. The foe always returns.", "x": "unrelenting" },
+        { "t": "The wave breaks upon the dark and is no more, my Monarch. The dead stand where they stood — they do not bleed, do not tire, do not retreat. We simply remain. Catch your breath. Hold the ground.", "x": "guard-stance" }
+      ]
+    },
+    "minion_died": {
+      "priority": 0,
+      "cooldownMs": 5000,
+      "lines": [
+        { "t": "{minionName} falls at its post. A good soldier — it held until it could not. Rest, then rise: I am not finished with you yet. The dead do not get to retire, old friend.", "x": "grieving" },
+        { "t": "We lose the {minionType}. I felt it go, my Monarch. I feel all of them go. But grief is brief in the dark — I will raise it again, and it will hold the line once more.", "x": "mourning" },
+        { "t": "The {minionName} is unmade. It did its duty to the last, keeper. That is all I ask of any soldier — to hold until holding is impossible. It did. Honour to it.", "x": "honored" },
+        { "t": "Down goes the {minionType}. A gap in the line where a soldier stood. Fill it, warden — and when the night comes, I will see the fallen one stands again. The dead are patient about dying.", "x": "raising-dead" },
+        { "t": "The {minionName} falls. I mark the loss. Even the dead can die a second death, my Monarch, and I mourn each one — quietly, briefly, then back to the work. The line needs me more than my grief does.", "x": "somber" },
+        { "t": "We lose the {minminType}... the {minionType}, I mean. Forgive me — even I lose the thread when a soldier falls. It served well, keeper. It will serve again. That is my promise to the dead.", "x": "weary" },
+        { "t": "The {minionName} is broken at the wall. A held position costs soldiers — that is the grim arithmetic, my Monarch. I keep the count exact, and I keep the dead ready to refill it.", "x": "solemn" },
+        { "t": "Down. The {minionType} returns to the dark it came from. Not gone, keeper — merely waiting. I will call it back. The dead always answer me. It is the one mercy of this long death.", "x": "loyal" },
+        { "t": "{minionName} falls at its post, my Monarch — a good soldier, holding to the last. Rest, then rise: I am not finished with you. The dead are denied retirement, old friend.", "x": "grieving" },
+        { "t": "We lose the {minionType}, keeper, and I mark it — quietly, briefly. Grief is short in the dark; I will raise it again by night. But it served, and the serving is owed a moment.", "x": "mourning" },
+        { "t": "The {minionName} is unmade, warden. A gap where a soldier stood. I feel each one go, my Monarch — and I would not trade the feeling for numbness. To feel it is to honour it. Fill the gap.", "x": "somber" },
+        { "t": "Down goes the {minionType}, keeper. I should have set it on firmer ground — the loss is partly mine. Regret sharpens the next posting. It will stand better when I raise it. My word.", "x": "regret" },
+        { "t": "The {minionName} falls, and I regret the posting that cost it, my Monarch — I should have set it on firmer ground. The regret sharpens the next order. It stands again by night. My word.", "x": "regret" }
+      ]
+    },
+    "boss_levelup": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "You grow stronger, my Monarch. The dark deepens around you. I feel the dead stand a little straighter — a mightier sovereign is a mightier oath to keep. Onward.", "x": "level-up" },
+        { "t": "Power rises in you, keeper. Good. The kingdom's heroes grow with each reign — you must grow faster. The watch is glad of every measure of your strength.", "x": "ghostfire-surge" },
+        { "t": "The throne's power swells. I have served sovereigns who never grew, and I buried them young. You are not that sort, warden. Rise. The dark rises with you.", "x": "overwhelming-power" },
+        { "t": "Stronger now, my Monarch. The dead feel the change in the air — the dark thickens, the oath steadies. A growing master is a master worth the long service. Press on.", "x": "proud" },
+        { "t": "You ascend a measure, keeper. The deep honours it. I have waited through many reigns for a sovereign who would actually grow into the throne. You are growing. Good.", "x": "honored" },
+        { "t": "The throne's power climbs, my Monarch. I feel the oath grow heavier to keep — and gladly. A stronger sovereign is a longer campaign, and a longer campaign is more of the dead repaid. Rise.", "x": "level-up" },
+        { "t": "You ascend again, keeper. The dark thickens at your back. I have served weak masters and strong; the strong are the ones I bury old, not young. Keep climbing. The watch climbs with you.", "x": "level-up" },
+        { "t": "You grow stronger, my Monarch, and the dark deepens around you. The dead stand a little straighter — a mightier Throne is a mightier oath to keep, and gladly kept.", "x": "level-up" },
+        { "t": "Power rises in you, keeper. The kingdom's heroes grow with every reign; you must grow faster. The watch is glad of every measure of your strength. Onward.", "x": "level-up" },
+        { "t": "The Throne's might swells, warden. I have served sovereigns who never grew, and buried them young. You are not that sort, my Monarch. Rise. The dark rises with you.", "x": "level-up" },
+        { "t": "Stronger now, keeper — the dead feel the air thicken, the oath steady. A growing master is a master worth the long service. Press on.", "x": "level-up" },
+        { "t": "You ascend a measure, my Monarch, and the green fire answers — it always knows when its Throne grows. Power gathers in the deep. Spend it like a general, at the breaking point.", "x": "ghostfire-surge" },
+        { "t": "The dark surges as you rise, keeper — ghostfire kindling along the old stone. The dead drink the strength and stand the harder for it. A mighty Throne casts a long shadow. Grow on.", "x": "ghostfire-surge" },
+        { "t": "You climb, warden, and I feel the overwhelming weight of what you are becoming — a Throne the kingdom should fear in its songs. The dead are proud. So am I. Rise.", "x": "overwhelming-power" },
+        { "t": "Power past power, my Monarch. The deep can scarcely hold it. I have stood beside few sovereigns who grew so — and the few I did, the kingdom remembers with dread. Climb on.", "x": "overwhelming-power" },
+        { "t": "You grow, keeper, and the dead at my back stand prouder for it. I take a knight's quiet pride in a Throne that earns its strength rather than inheriting it. Onward.", "x": "proud" },
+        { "t": "The Throne ascends, warden. I am proud to keep it — and I do not give that word easily. The grave near burned it out of me. You gave a little back. Rise, my Monarch.", "x": "proud" },
+        { "t": "You ascend again, my Monarch, and the dark deepens to mark it. A stronger Throne is a longer campaign — and a longer campaign is more of the dead repaid. Rise. The watch rises with you.", "x": "level-up" }
+      ]
+    },
+    "idle_night": {
+      "priority": 0,
+      "cooldownMs": 22000,
+      "lines": [
+        { "t": "The night holds, my Monarch, and I hold with it. Take your time on the walls. The dead are patient — three ages of patience and counting. I have learned the art well.", "x": "at-attention" },
+        { "t": "Quiet on the watch. I find these dark hours… not unpleasant, keeper. The living dread the dark. The dead are simply home in it. Build at your leisure.", "x": "idle" },
+        { "t": "The deep is still. I keep my post. You need not hurry — a wall raised slowly stands longer than one raised in fear, warden. I will be here when you decide.", "x": "guard-stance" },
+        { "t": "Long night, my Monarch. I have stood longer ones, on worse ground, for worse masters. This is a kind watch by comparison. Take the hours you need.", "x": "weary" },
+        { "t": "The dark settles. I let the old battles drift through my mind on nights like this, keeper — not to dwell, only to remember. The dead I forget are the dead I fail. Build on.", "x": "wistful" },
+        { "t": "Stillness on the line. The standing dead murmur among themselves. I do not silence them — let the fallen have their quiet company. You have yours in me. Work as you will.", "x": "idle-2" },
+        { "t": "The night runs long, warden. I keep the gate, you keep the plan. Between us the dungeon takes shape. No rush. The dawn is the only thing in a hurry down here.", "x": "idle-3" },
+        { "t": "Quiet hours, my Monarch. I confess the dark suits me — no songs of false heroes, no clamour of the living. Only the work, the dead, and the oath. Build in peace.", "x": "solemn" },
+        { "t": "The watch is calm. I have learned to find a kind of rest in standing still, keeper — the dead taught it to me. Not sleep. Just… stillness. Take your time on the walls.", "x": "idle-4" },
+        { "t": "A long, dark night. I stand my post, you walk your maze. The deep is large and the hours are many. There is no virtue in haste down here, my Monarch. Only in care.", "x": "watching" },
+        { "t": "The night lingers, warden. Even I grow heavy on the longest ones — the armour gets cold, the old grief stirs. But the post is the post. I keep it. You build. We endure together.", "x": "haunted" },
+        { "t": "All quiet, keeper. I drift near to rest, but never into it — a knight half-sleeps, like the dead. Wake me with an order whenever you have one. I am always nearer than I look.", "x": "dozing" },
+        { "t": "The dark hour stretches on. I will not pretend I never tire, my Monarch — three ages is a long watch. But tired is not the same as gone. I am here. Build as long as you need.", "x": "weary" },
+        { "t": "Stillness. The dead at rest, the gate held, the night unhurried. I have stood ten thousand such nights, keeper. This one is among the better ones — for the company. Carry on.", "x": "idle" },
+        { "t": "The hours stretch long, my Monarch, and old armour grows heavy. I let the helm bow — not sleep, the dead are denied that, only a deeper stillness. Wake me with an order; I am never far.", "x": "dozing" },
+        { "t": "Quiet enough now that I might almost rest, keeper. The standing dead have gone still as the graves they rose from. Build softly — let the dark keep its one peaceful hour of the watch.", "x": "sleeping" },
+        { "t": "The watch holds, my Monarch, and I hold with it. Nothing stirs but the dust and the dead. Build at your leisure — I have nowhere I would rather stand.", "x": "idle" },
+        { "t": "Quiet on the line, keeper. I keep my eyes on the dark so you needn't keep yours on all of it. Take the night slow. The dead are patient teachers of slowness.", "x": "idle" },
+        { "t": "The deep is still, warden. I stand my post the way I have stood ten thousand others — without complaint, without leaving. Work as long as you need.", "x": "idle" },
+        { "t": "Long night, my Monarch. The standing dead murmur among themselves; I let them. Old soldiers have earned their quiet talk. Build. I keep the gate.", "x": "idle-2" },
+        { "t": "The dark stretches on, keeper. I have made my peace with long nights — the grave is the longest night of all, and I outlasted it. Take your time.", "x": "idle-2" },
+        { "t": "Stillness on the watch, warden. I find it restful, in the way only the dead can. Build the dark to your liking. I will be exactly here when you turn.", "x": "idle-2" },
+        { "t": "The hours run long, my Monarch. I let the armour settle and the old weight rest — not sleep, the dead are denied it. Only stillness. Build on.", "x": "idle-4" },
+        { "t": "Quiet, keeper. I stand the kind of watch that needs no relief, because I do not tire as the living do. Take the whole night if you must. I remain.", "x": "idle-4" },
+        { "t": "The night deepens, warden. I have learned to stand in the dark and want for nothing. A useful habit for a knight, and a lonely one. Build in peace.", "x": "idle-4" },
+        { "t": "The deep is hushed, my Monarch. I keep my vigil, easy and unhurried. There is no finer use of an endless night than guarding a Throne worth guarding.", "x": "idle-4" },
+        { "t": "The long hours weigh, keeper, and I let the helm bow — not sleep, only the deeper stillness the grave permits. Wake me with an order. I am near.", "x": "dozing" },
+        { "t": "I rest at my post the way the dead rest, my Monarch — eyes half-closed, blade in reach, the watch unbroken. Build softly. I will rouse at need.", "x": "dozing" },
+        { "t": "The night drags and old armour grows heavy, warden. I drift, but I do not leave — a knight half-sleeps, like the hounds at a war-camp. Speak and I wake.", "x": "dozing" },
+        { "t": "I let myself drift a moment, keeper, here in the safe dark. The grave taught me to take rest where it is offered. A word from you and I am fully at the post.", "x": "dozing" },
+        { "t": "Quiet enough now to rest, my Monarch. The standing dead have gone still as the graves they rose from. I take the lull. The dark keeps its one peaceful hour.", "x": "sleeping" },
+        { "t": "I take the deep rest now, keeper — the dreamless kind the grave teaches. Not gone. Only still. The watch wakes the instant the dark shifts. Build on.", "x": "sleeping" },
+        { "t": "The night permits a knight his rest, warden, and I take it lightly, as the dead do. Build quietly if you can. The first wrong sound and I am on my feet.", "x": "sleeping" },
+        { "t": "I rest, my Monarch — truly rest, for a span. Three ages of standing earns a knight that much. The oath does not sleep even when I do. Wake me freely.", "x": "sleeping" },
+        { "t": "The dark turns my mind to the long roll of the dead, keeper. I do not brood — I keep faith with them. To forget a name is to fail it. Build; I remember.", "x": "wistful" },
+        { "t": "On nights like this I think of the kingdom I served before it forgot me, my Monarch. Dust now, all of it. The dark outlasts everything but an oath. Build on.", "x": "wistful" },
+        { "t": "The old battles drift through the quiet, warden — faces, banners, the morning I fell. I let them pass. The living need my watch more than the dead need my grief.", "x": "haunted" },
+        { "t": "I take up the rolls of the fallen in the still hour, my Monarch — the names of every soul this dark has kept. Heavy reading. I read it anyway. Build on.", "x": "reading" },
+        { "t": "The quiet is good for study, keeper. I go over the dead's accounts — who served, who fled, who must be raised. A knight keeps his ledgers. Build; I will keep mine.", "x": "reading" },
+        { "t": "The watch holds quiet, my Monarch. I stand my post the way I have stood ten thousand others — without complaint, without leaving. Build as long as you need. I remain.", "x": "at-attention" },
+        { "t": "Stillness on the line, keeper. I keep my eyes on the dark so you needn't keep yours on all of it. The night is ours and unhurried. Work in peace.", "x": "watching" }
+      ]
+    },
+    "idle_day": {
+      "priority": 0,
+      "cooldownMs": 20000,
+      "lines": [
+        { "t": "The day runs on, my Monarch. The watch holds. I keep my eyes on the corridors so you need not keep yours on all of them at once. Steady. We endure the daylight too.", "x": "watching" },
+        { "t": "Quiet stretch on the line, keeper. Do not mistake it for safety — the living are merely regrouping. The dark is never truly idle. Neither am I. To the watch.", "x": "guard-stance" },
+        { "t": "A lull in the assault, warden. The dead hold their ground without a word. I hold mine beside them. When the next wave forms, we will be exactly where we stand now.", "x": "at-attention" },
+        { "t": "The day pauses for breath, my Monarch. I do not — a knight at his post does not relax merely because the foe has. Watch the doors with me. The quiet ones break first.", "x": "wary" },
+        { "t": "Calm on the field, keeper. I have learned to distrust calm. It is the dark's habit, not the living's. They are coming. They are always coming. Hold the line.", "x": "determined" },
+        { "t": "The watch is quiet, warden, but the day is not done. I keep my vigil. The fallen keep theirs. You keep your throne. Three duties, all of them held. Onward.", "x": "solemn" },
+        { "t": "A still stretch in the daylight, my Monarch. I stand easy, but never absent — the dead at my back stand the same. Let the lull pass. We are exactly where we must be when it ends.", "x": "idle-3" },
+        { "t": "A lull in the assault, my Monarch. I take a moment to study the field — who fights well among them, who merely followed. Knowledge buried is a hero buried. Watch with me.", "x": "curious" }
+      ]
+    },
+    "idle_general": {
+      "priority": 0,
+      "cooldownMs": 18000,
+      "lines": [
+        { "t": "I am here, my Monarch. I am always here. That is rather the point of an oath — it does not take its leave when the room goes quiet. Command when you are ready.", "x": "at-attention" },
+        { "t": "The dark keeps its counsel and I keep mine, keeper. Speak when you have need of me. A knight does not fill the silence — he simply waits within it, ready.", "x": "idle" },
+        { "t": "Stillness. I do not mind it. The dead taught me the value of standing quiet — the living never learn it, and it gets a great many of them killed. Take your time, warden.", "x": "solemn" },
+        { "t": "I stand my post, my Monarch, as I have through every reign and every silence. You will not find me gone when you turn. That is the whole of what I offer — and it is not nothing.", "x": "guard-stance" },
+        { "t": "Quiet hour, keeper. My mind goes to the long roll of the dead I have raised — not to brood, only to keep faith with them. I forget no one. Speak when you wish; I am present.", "x": "wistful" },
+        { "t": "The deep holds its breath. So do I, in the manner of a thing that does not breathe. Idle is a word for the living, warden — the dead are merely patient. Command me.", "x": "idle-2" },
+        { "t": "I wait, my Monarch, with the patience the grave teaches. There is no hurry in me and no boredom either — only readiness. Whenever the work resumes, so do I.", "x": "watching" },
+        { "t": "A still moment, keeper. I find I do not chafe at them the way the living do. Three ages of standing still will cure a soul of restlessness. Take all the time you need.", "x": "idle-3" },
+        { "t": "The silence sits heavy and I sit easy within it. A knight who cannot abide quiet is a knight who has not yet faced enough of it, warden. I have faced plenty. Command when ready.", "x": "thinking" },
+        { "t": "I keep my vigil, my Monarch, whether the room speaks or not. The oath does not require an audience. It only requires me — present, ready, and at my post. Here I am.", "x": "loyal" },
+        { "t": "Quiet again. I let the old armour settle and the old grief drift by, keeper. Neither owns me. Only the duty does. Whenever you have an order, the duty answers.", "x": "weary" },
+        { "t": "I stand ready in the still dark, warden. There is a peace in it the living would not understand — the peace of a thing that has nowhere else it would rather be. Command me.", "x": "idle-4" },
+        { "t": "So long a silence. I let the weariness settle and the helm bow, keeper — three ages of standing earns a knight that much. Not sleep. Only the rest the grave permits. Call, and I rise.", "x": "sleeping" },
+        { "t": "...You have caught me with the visor raised, my Monarch. There is a face beneath — older than the armour, sadder than the oath. The duty wears the helm; the man only watches.", "x": "unmasked" },
+        { "t": "The quiet holds, keeper, and I hold within it — armour settled, stance easy, the long patience of the grave doing what it does best. No order is too small to rouse me. Speak, and the stillness ends.", "x": "idle-4" },
+        { "t": "I am here, my Monarch, as I am always here. That is the whole of an oath — it does not take its leave when the room goes quiet. Command when ready.", "x": "idle" },
+        { "t": "The dark keeps its counsel and I keep mine, keeper. Speak when you have need. A knight fills no silence — he waits inside it, ready, and that is enough.", "x": "idle" },
+        { "t": "I stand my post, warden, through every silence as through every storm. You will not find me gone when you turn. It is not much to offer. It is also not nothing.", "x": "idle" },
+        { "t": "A still hour, my Monarch. I do not chafe at them — three ages of standing cures a knight of restlessness. Take what time you need. The dark and I keep.", "x": "idle-3" },
+        { "t": "Quiet again, keeper. I let the moment be. The dead are patient and I have learned their patience. Whenever the work resumes, so do I, without a word.", "x": "idle-3" },
+        { "t": "The silence sits, warden, and I sit easy within it. A knight who cannot abide quiet has not yet faced enough of it. I have faced plenty. Command me.", "x": "idle-3" },
+        { "t": "I keep my vigil, my Monarch, whether the room speaks or not. The oath asks no audience — only that I be present, ready, and at my post. Here I am.", "x": "idle-3" },
+        { "t": "Stillness, keeper. I stand in it the way a standing stone stands — without effort, without end. Whenever you have an order, the stone moves. Until then, I keep.", "x": "idle-4" },
+        { "t": "I wait in the still dark, my Monarch, with the patience the grave taught me. No hurry in me, no boredom either — only readiness. The work resumes at your word.", "x": "idle-4" },
+        { "t": "A quiet stretch, warden. I let the armour settle and the watch run easy. There is a peace in having nowhere you would rather be. Command when you wish.", "x": "idle-4" },
+        { "t": "The lull holds and I let the helm bow, keeper — not sleep, only the deeper rest the dead are allowed. A word from you and I am sharp again. Take your time.", "x": "dozing" },
+        { "t": "I drift at my post, my Monarch, the way a knight drifts on a long campaign — half-resting, wholly ready. The oath keeps watch even when my eyes do not. Speak.", "x": "dozing" },
+        { "t": "Forgive the stillness, warden — I was resting in the manner of the dead, which looks like absence and is not. I am here. Fully, now. What does the watch need?", "x": "dozing" },
+        { "t": "I take the deep rest a moment, keeper, here where it is safe. The grave taught me to seize quiet where it is offered. Rouse me freely; I do not mind the waking.", "x": "sleeping" },
+        { "t": "The hour permits rest, my Monarch, and I take it lightly. Not gone — only still, the way the dead are still. The first need of yours brings me to my feet.", "x": "sleeping" },
+        { "t": "I rest, warden, as much as a sworn knight ever rests — which is little, and lightly, and always with the blade in reach. Wake me. That is what I am here for.", "x": "sleeping" },
+        { "t": "You catch me with the visor raised, my Monarch. There is a face beneath — older than the armour, wearier than the oath. I show it rarely. The duty wears the helm; the man only watches.", "x": "unmasked" },
+        { "t": "The quiet draws the man out from under the steel, keeper. A glimpse, no more. Beneath the Necroknight is only a soldier who kept marching. The helm goes back down now.", "x": "unmasked" },
+        { "t": "Visor up, just this moment, warden — no armour to my words. I have served Thrones I despised and Thrones I pitied. You I would serve gladly. Rare, that. The face goes back under.", "x": "unmasked" },
+        { "t": "On the long quiet I remember the living I once was, my Monarch — a name, a hearth, a king I loved. All dust. The oath is what survived me. I do not resent it. Build on.", "x": "wistful" },
+        { "t": "I think, in the stillness, of all the dark has taken and all it has kept, keeper. A melancholy arithmetic. I do it anyway. The dead deserve a reckoner who remembers.", "x": "wistful" },
+        { "t": "The quiet is fit for study, my Monarch. I go over the enemy's measure, the line's weak seams, the rolls of the dead. A knight reads between his battles. Speak when you need me.", "x": "reading" },
+        { "t": "I keep my ledgers in the still hour, warden — the names, the accounts, the debts owed to the fallen. Dull work. Necessary work. Command me whenever you wish.", "x": "reading" },
+        { "t": "A still moment, keeper. I study the dark the way I once studied maps before a siege. Old habits outlast old kingdoms. Whenever the work resumes, I am ready.", "x": "curious" },
+        { "t": "I find myself wondering at you, my Monarch — what manner of Throne you will prove. I have read many. You I have not finished reading. A compliment, in its grim way.", "x": "curious" }
+      ]
+    },
+    "poke": {
+      "priority": 0,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "My Monarch requires me? I am here. The dead and I both answer the moment we are called. Speak the need.", "x": "at-attention" },
+        { "t": "You have my attention, keeper. A knight does not flinch at being summoned — it is the reason he stands the post. What is your will?", "x": "guard-stance" },
+        { "t": "I am listening, warden. The oath has good ears, even through this old helm. Tell me where the line needs me.", "x": "watching" },
+        { "t": "You call; I attend. That is the shape of our bargain, my Monarch — you command, I keep. A clean arrangement. I have served under far murkier ones.", "x": "loyal" },
+        { "t": "Here, keeper. Always here. Did you wish counsel, or merely to confirm the dead had not wandered off? They had not. Neither had I.", "x": "grim-approval" },
+        { "t": "You summon the watch. The watch answers. Speak your need, my Monarch — the dark is wide, and I would rather spend the hour usefully than standing pretty.", "x": "determined" },
+        { "t": "I am at your call, warden. Mind the prodding, though — the last sovereign who poked me too often I out-stood by three ages. I am very good at waiting. What is it?", "x": "unimpressed" },
+        { "t": "Yes, my Monarch? The dead lean in when you reach for us. We are eager to be of use — eagerness is rare in the grave. Do not waste it. Command.", "x": "curious" },
+        { "t": "You have roused the knight, keeper. Not that I sleep — I merely stand. But the gesture is noted, and the gesture is answered. What do you require?", "x": "idle-2" },
+        { "t": "I attend, warden. A knight summoned is a knight glad of purpose — even a small one. Give me the order, however slight. The dark is dull without a duty.", "x": "honored" },
+        { "t": "Present, my Monarch. The oath does not slumber and neither, truly, do I. Speak, and the dark moves to your word. That is the whole point of keeping me.", "x": "salute" },
+        { "t": "Mm — present, keeper. The helm was bowed, not sleeping; the dead do not truly sleep, we merely drift. I am here, and fully. What does the watch require of me?", "x": "dozing" },
+        { "t": "You rouse the knight from his stillness, my Monarch. I was at rest — the deep, dreamless kind the grave teaches. No matter. I am roused, and I am yours. Speak the need.", "x": "sleeping" },
+        { "t": "My Monarch requires the knight? I am here. The dead and I answer the instant we are called. Speak the need.", "x": "salute" },
+        { "t": "You summon the watch, keeper, and the watch answers — blade up, head bowed, oath ready. What is your will?", "x": "salute" },
+        { "t": "At your call, my Monarch. A knight roused to purpose is a knight glad of it. Give the order, however slight. The dark dulls without a duty.", "x": "salute" },
+        { "t": "You reach for me, keeper, and I attend. I confess a small wondering — what need stirs the Throne? Tell me, and the dark moves to answer it.", "x": "curious" },
+        { "t": "Present, my Monarch. I am curious what you would have of me — counsel, the dead, a blade at a wall? Name it. The watch bends to the asking.", "x": "curious" },
+        { "t": "You have the knight's attention, warden. Mind the prodding, though — visor up, I will say plainly that I out-stood the last sovereign who poked me too often. By three ages. What is it?", "x": "unmasked" },
+        { "t": "You catch me unhelmed for a heartbeat, my Monarch — the face of the man who keeps the oath. There. The helm returns. Now: what does the Throne require?", "x": "unmasked" },
+        { "t": "You summon the watch, keeper, and I answer with the salute owed a Throne — head bowed, blade up, oath ready. Name the need. The dark moves to your word.", "x": "salute" }
+      ]
+    },
+    "idle_nudge": {
+      "priority": 0,
+      "cooldownMs": 60000,
+      "lines": [
+        { "t": "My Monarch — the work waits. The dead grow restless with nothing to hold and no order to keep. Give us a task, and we will give you a held line.", "x": "wondering" },
+        { "t": "The watch idles, keeper, and an idle watch is a slack one. Build, command, or merely point me at something — the dark does not improve by being stared at.", "x": "thinking" },
+        { "t": "Stillness is a knight's virtue, warden, but even I begin to wonder if the throne has gone quiet for good. Speak, my Monarch. The night is wasting, and the dawn is not.", "x": "weary" },
+        { "t": "The dead and I have stood here a good while now with no fresh orders. Patience is mine to give — but the clock is the dawn's, keeper, and it never idles. Shall we work?", "x": "wary" },
+        { "t": "My Monarch? The dungeon will not fortify itself, and the heroes will not wait on your leisure. Take up the work — I will hold the gate while you do. But take it up soon.", "x": "determined" }
+      ]
+    },
+    "game_over": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The throne goes cold. The oath… is broken — not by you, my Monarch, but by the dark itself. I have failed a master before. It does not grow easier. Rest. I will mourn you properly.", "x": "grieving" },
+        { "t": "It ends. The line is overrun, the sovereign fallen. I stood my post to the last — I always do — but the last came regardless. Honour to you, keeper. You held longer than most.", "x": "mourning" },
+        { "t": "The dark claims its own. So even a throne can fall. I will add your name to the long roll, my Monarch — at the top, where the lieges go. I do not forget the ones I served. I never have.", "x": "eulogy" },
+        { "t": "The watch is broken. My oath, unmade with it. I feel the dead lie back down. This is the grief I was built to carry, keeper — and carry it I will, into whatever comes next. Rest now.", "x": "haunted" },
+        { "t": "The end, then. I knelt to your throne when it was warm; I kneel to it now that it is cold. You were a worthy charge, my Monarch. The dark will be quieter without you. Go in honour.", "x": "kneeling" },
+        { "t": "The Throne goes cold. I kneel now as I knelt when it was warm, my Monarch — the dead keep their courtesies even at the end. You were a worthy charge. Go in honour.", "x": "kneeling" },
+        { "t": "It ends, keeper. I take a knee beside the cold Throne — a knight's last duty to a fallen liege. I failed to hold the third death. The grief is mine. Rest now; I will mourn you properly.", "x": "kneeling" },
+        { "t": "The watch is broken and the oath unmade — and I lower the helm at last, my Monarch, the man beneath it grieving in a way the armour cannot. You held longer than most. I will not forget the holding. Rest.", "x": "unmasked" },
+        { "t": "The Throne goes cold, and I kneel beside it one last time, keeper — a knight's final duty to a fallen liege. I could not hold the third death. The grief is mine. Rest. I will mourn you as you deserve.", "x": "kneeling" }
+      ]
+    },
+    "marionette": {
+      "priority": 0,
+      "cooldownMs": 6000,
+      "lines": [
+        { "t": "You take the reins of a soldier directly, my Monarch. A general's privilege. Wield it well — a hand-led blade strikes harder than a posted one. Show them the dark's intent.", "x": "commanding" },
+        { "t": "Direct command of the ranks, keeper. The dead move sweeter under a sovereign's own hand. I will hold the rest of the line while you drive that one. Strike true.", "x": "pointing" },
+        { "t": "You seize a soldier and lead from the front, warden. Bold. The dead remember when a master fought beside them — it is why they hold so hard for you. Lead them well.", "x": "rallying" }
+      ]
+    },
+    "minion_levelup": {
+      "priority": 1,
+      "cooldownMs": 5000,
+      "lines": [
+        { "t": "The {minionName} hardens, my Monarch — stronger, surer, deadlier at the wall. A soldier that grows is a soldier worth the raising. The line is the better for it.", "x": "grim-approval" },
+        { "t": "Your {minionType} grows in strength, keeper. Good. The dead can improve, given purpose and survival enough. This one has earned its measure. Honour to it.", "x": "proud" },
+        { "t": "The {minionName} rises a rank. I respect a soldier that climbs — even a dead one, perhaps especially a dead one. It has held long enough to grow. Few do, warden.", "x": "respect" },
+        { "t": "Stronger now, the {minionType}. The watch deepens with it. I have drilled raw recruits into hard veterans across many reigns, my Monarch — it never stops satisfying me.", "x": "determined" },
+        { "t": "The {minionName} hardens into a veteran, my Monarch — and the dark marks the climb with a measure of power. A soldier that grows is one worth the raising. Honour to it.", "x": "level-up" },
+        { "t": "Your {minionType} rises a rank, keeper. I have drilled raw recruits into hard veterans across many reigns. It never stops satisfying me. Proud of this one, warden.", "x": "proud" },
+        { "t": "The {minionName} climbs a rank, keeper, and the dark marks the growth. A soldier that hardens through survival is one worth the raising. The line is the stronger for it.", "x": "level-up" }
+      ]
+    },
+    "minion_evolved": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The {minionName} transforms — risen into something greater, my Monarch. The dark rewards the soldier that endures. Behold what patience and survival forge. A finer blade for the line.", "x": "overwhelming-power" },
+        { "t": "Evolution, keeper. The {minionType} becomes more than it was. I have seen the dark remake its servants before — it is a solemn thing to witness. Welcome to your greater service, soldier.", "x": "ghostfire-surge" },
+        { "t": "The {minionName} ascends its form. Stronger, deadlier, deeper in the dark's favour. The watch gains a champion, warden. Post it where the fighting is fiercest — it has earned the honour.", "x": "summoning-horde" },
+        { "t": "Your {minionType} is reforged by the dark into a greater shape. A momentous change, my Monarch. I salute the soldier that survived long enough to earn it. Few do. Honour it.", "x": "salute" },
+        { "t": "The {minionName} is reforged by the dark into a greater shape, my Monarch — and the green fire crowns the change. The watch gains a champion. Post it where the fighting is fiercest. It earned the honour.", "x": "level-up" },
+        { "t": "Evolution, keeper — the {minionType} becomes more than it was, and the dark surges to mark it. I have rarely been so glad of a soldier. Welcome to your greater service.", "x": "happy" }
+      ]
+    },
+    "minion_bounty": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The {minionName} has earned a bounty in blood and gold, my Monarch. A soldier that pays its way is a soldier worth keeping. Reward the diligence — and post it back to the wall.", "x": "grim-approval" },
+        { "t": "Coin from the {minionType}'s good work, keeper. The dead earn their keep when they are led well. I count this one among the reliable — and reliable, in the dark, is the highest praise.", "x": "proud" },
+        { "t": "A bounty, warden — the {minionName} delivers. The gold falls, the line holds, the soldier proves itself. Spend the coin to forge more like it. Diligence breeds diligence.", "x": "vindicated" }
+      ]
+    },
+    "boss_fight_incoming": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Something greater approaches, my Monarch — not a common hero. I feel its weight on the dark. To arms. The line must hold against this, or it holds against nothing.", "x": "wary" },
+        { "t": "A true threat nears, keeper. The kingdom sends its best to break you. Steady the watch. The dead and I have faced champions before — we do not break easily. Neither must you.", "x": "grim-fury" },
+        { "t": "The dark stirs with the coming of a mighty foe, warden. This is the test the whole campaign was building toward. Stand the line. I am at your shoulder, and so are the fallen.", "x": "determined" },
+        { "t": "A great enemy is upon us, my Monarch. Now we learn whether the nights of building were spent well. I believe they were. Steel yourself. The dark holds, or the dark falls. Hold.", "x": "guard-stance" },
+        { "t": "Something greater nears, my Monarch — not a common hero. I feel its weight on the dark, and the green fire stirs in answer. To arms. This is the test the watch was built for.", "x": "ghostfire-surge" }
+      ]
+    },
+    "boss_fight_start": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "It begins, my Monarch. The great foe is at the throne. Every oath I have kept, every soldier I have raised — all of it is for THIS moment. Hold. We hold or we end.", "x": "grim-fury" },
+        { "t": "The champion strikes at the heart of the dark. To the last, keeper — the dead and I will spend ourselves utterly before we let the line break. Stand. STAND with us.", "x": "unrelenting" },
+        { "t": "The decisive hour, warden. I have died once already; I do not fear a second unmaking if it buys your survival. Fight beside the dead. We have never held harder than now.", "x": "overwhelming-power" },
+        { "t": "It begins, my Monarch — the great foe at the Throne, and the ghostfire blazing along the old stone. Every oath I kept, every soldier I raised, was for THIS. Hold. We hold or we end.", "x": "ghostfire-surge" },
+        { "t": "The champion strikes at the heart of the dark, keeper, and the overwhelming weight of the moment settles on us all. To the last — the dead and I spend ourselves utterly before the line breaks.", "x": "overwhelming-power" },
+        { "t": "The decisive hour, warden — to me, dead, ALL of you! my Monarch, fight beside the rallied line. We have never held harder than we will hold now. STAND.", "x": "rallying" }
+      ]
+    },
+    "boss_fight_won": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The great foe falls, my Monarch, and the throne still stands. The line HELD. I have waited many ages to keep an oath this completely. Honour — to you, to the dead, to the dark.", "x": "vindicated" },
+        { "t": "Victory, keeper — earned in blood and patience and held ground. The champion is undone, the watch unbroken. I am… proud. The word comes rarely to me. I mean it now.", "x": "proud" },
+        { "t": "The mighty enemy is broken on our dark. The kingdom's best lies at your feet, warden. I will raise them, in time — the greatest soldier I have ever been given to keep. The oath endures.", "x": "raising-dead" },
+        { "t": "The throne stands. The great foe is down. And I find, my Monarch — beneath the helm, where no one sees — that I am smiling. It is a rare thing. Savour it. We earned this one in full.", "x": "happy" },
+        { "t": "The great foe falls and the Throne still stands, my Monarch — and beneath the helm, where none can see, I am smiling. A rare thing. We earned this one in full. Honour to the dead.", "x": "happy" },
+        { "t": "Victory, keeper — the champion broken, the line unbroken. I feel something near to joy, which the grave nearly burned out of me. You gave a little back. Savour it. We hold.", "x": "happy" },
+        { "t": "The mightiest enemy lies at your feet, warden, and I take a deep and quiet pride in it — the kind I do not give easily. The greatest soldier I have ever been given to keep. The oath endures.", "x": "proud" }
+      ]
+    },
+    "boss_fight_lost": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The throne is breached. The great foe broke the line — and I could not hold it. I have failed a charge before, my Monarch. The grief of it never dulls. Forgive me. I tried.", "x": "grieving" },
+        { "t": "We fall. The champion was too strong, the line too thin. I stood until standing was impossible, keeper — but impossible came. The oath is broken. I mourn it. I mourn you.", "x": "mourning" },
+        { "t": "Defeat. The dark could not hold its master. I knelt to your throne in its first hour; I kneel to it now, in its last. You deserved a better knight than the one death left you, my Monarch.", "x": "haunted" },
+        { "t": "The Throne is breached and the great foe stands over it — and I could not hold. The grief of a failed charge never dulls, my Monarch. I knelt to you warm; I kneel to you now, cold. Forgive me. I tried.", "x": "grieving" },
+        { "t": "We fall, keeper. I should have held the gap — the route, the blow, the moment. I did not. Regret is all a defeated knight has left. I carry it into whatever comes next. You deserved better of me.", "x": "regret" },
+        { "t": "We fall, keeper, and regret is all a beaten knight has left — the gap I should have held, the blow I should have caught. I carry it into whatever comes next. You deserved better of me.", "x": "regret" }
+      ]
+    },
+    "boss_damaged": {
+      "priority": 1,
+      "cooldownMs": 4000,
+      "lines": [
+        { "t": "They reach you, my Monarch — the throne takes a blow. This will not stand. Fall back behind the dead and let the line absorb them. A sovereign bleeding is a line failing. Mend it.", "x": "shocked" },
+        { "t": "Blood on the throne, keeper. The watch let one through too far. I take it as my own failure — and I will close the breach. Withdraw from the front. Let the dead do the dying.", "x": "grim-fury" },
+        { "t": "You are struck, warden. Unacceptable. The whole purpose of the dark is that YOU do not bleed. Behind the line, my Monarch — now. The dead are expendable. You are the oath itself.", "x": "cold-anger" },
+        { "t": "They draw your blood. The dark trembles, and so do I — not with fear, with FURY. Get back, keeper. Put the dead between you and the blades. That is what they are for. That is what I am for.", "x": "aggressive" },
+        { "t": "The throne is hit, my Monarch. The seam in the line is showing. Steady — a wounded sovereign is not a fallen one. Fall back, let the watch reform, and we close ranks. Hold yourself together.", "x": "wary" },
+        { "t": "You take harm, keeper. I should have caught the blade that did it. I will catch the next. Withdraw behind the standing dead — the oath cannot keep you if you stand in the open. Move.", "x": "regret" },
+        { "t": "Blood, warden — yours. The dead lurch toward the breach. So do I. Hold the throne and let us hold the gap. A sovereign's place in a broken line is BEHIND it. Get there.", "x": "rallying" },
+        { "t": "They strike the THRONE, keeper — and now I am angry, in the cold way the dead are angry, which is worse than the hot way. Get behind the line. I will make them regret the blow they landed.", "x": "angry" },
+        { "t": "You — bleeding? The line should have held there. For a heartbeat I cannot believe it, my Monarch. Then I do. Move BACK. The dead will close the gap. This will not happen twice.", "x": "stunned" },
+        { "t": "They reach the Throne and you BLEED, my Monarch — and now I am angry, in the cold and patient way that is worse than fury. Back behind the line. I will make them regret the stroke.", "x": "angry" },
+        { "t": "Blood on the Throne, keeper. The watch let one too close, and the anger in me goes quiet and lethal. Withdraw. Let the dead do the dying. That is what they are for. That is what I am for.", "x": "angry" },
+        { "t": "You — bleeding? The line should have held there, my Monarch. For a heartbeat I cannot believe it. Then I do. Move BACK. The dead will close the gap. This does not happen twice.", "x": "shocked" },
+        { "t": "The Throne is struck and it stops my heart — what little a dead knight has of one, keeper. I did not foresee the breach. I will not be caught so again. Behind the line. NOW.", "x": "shocked" },
+        { "t": "Your blood, warden — on MY watch. The shock of it cuts deeper than any blade could cut me. Fall back. I am already moving to the gap. Hold yourself together; I will hold the rest.", "x": "shocked" },
+        { "t": "You are hit, my Monarch, and for a moment I am simply stunned — three ages of holding lines and still a blow can land. Then the moment passes and I MOVE. Behind the dead. Go.", "x": "stunned" },
+        { "t": "The Throne takes a wound and I freeze a half-breath, keeper — the unthinkable, made real. Then the knight returns. Withdraw. The dead and I seal the breach. This will not stand.", "x": "stunned" },
+        { "t": "Blood — yours — and the shock roots me an instant, warden, before the oath tears me loose. Get back. Put the standing dead between you and the blades. A wounded Throne fights from BEHIND.", "x": "stunned" },
+        { "t": "They draw your blood, my Monarch, and the dead surge to the breach — and I with them, blade first. The fury is loose now. Hold the Throne. Let me hold the gap. AGGRESSION is the answer to a breach.", "x": "aggressive" },
+        { "t": "The line is breached and your blood is spilled, keeper — so I stop holding and start KILLING. The patient dead become the hunting dead. Behind me, my Monarch. I will not be gentle now.", "x": "aggressive" },
+        { "t": "You bleed, warden, and I rally the dead to the gap — every standing soldier, every blade, to the wound in the line. CLOSE RANKS! The Throne does not fall while one of us still stands.", "x": "rallying" },
+        { "t": "Blood on the Throne — to me, dead! TO ME! my Monarch, fall back and let the rallied line reform. A breach is mended by soldiers who answer the call. They are answering. Hold on.", "x": "rallying" },
+        { "t": "They bleed the Throne, my Monarch, and the cold anger takes me — the patient kind, the worse kind. Behind the line. I will make them regret the stroke they landed, every one.", "x": "angry" },
+        { "t": "Your blood — on my watch — and for a heartbeat I am simply stunned that the line let it through. Then the knight returns and I MOVE. Behind the dead, keeper. Now.", "x": "stunned" },
+        { "t": "The Throne is struck and the shock of it roots me an instant, warden, before the oath tears me loose. Fall back. The dead and I seal the breach. This does not happen twice.", "x": "shocked" },
+        { "t": "You bleed, my Monarch, and the dead surge to the wound in the line — and I with them, blade first. The fury is loose. Hold the Throne; let me hold the gap.", "x": "aggressive" }
+      ]
+    },
+    "grid_expanded": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The dark expands its borders, my Monarch. More ground to hold — and more ground for the dead to march. I welcome the room. A larger keep is a longer siege for the foe.", "x": "summoning-horde" },
+        { "t": "The dungeon grows, keeper. New frontier in the deep. I will scout its weak seams before a hero does. More walls to keep means more walls to keep WELL. To the work.", "x": "pointing" },
+        { "t": "The grounds widen, warden. The watch lengthens with them. Do not let the new space stand empty — empty ground is just a faster road to the throne. Garrison it, my Monarch.", "x": "guard-stance" },
+        { "t": "The dark lurches outward — more ground, all at once. Even I did not expect so much, my Monarch. No matter; the dead will fill it. Surprise is a luxury we convert quickly into walls. To the new frontier.", "x": "surprised" },
+        { "t": "The dark lurches outward — more ground, all at once, my Monarch. Even I am stunned by so much, for a breath. No matter. The dead will fill it. We convert surprise into walls. To the new frontier.", "x": "stunned" },
+        { "t": "The dark lurches outward, more ground all at once, warden — and even I am stunned by so much at a stroke. No matter. The dead will fill it. Surprise becomes walls. To the new frontier, my Monarch.", "x": "stunned" }
+      ]
+    },
+    "trap_triggered": {
+      "priority": 1,
+      "cooldownMs": 3500,
+      "lines": [
+        { "t": "The iron springs, my Monarch — a hero meets the floor's surprise. Patient weapons, traps. They keep the watch when no soldier can, and they never miss their moment. Good.", "x": "grim-approval" },
+        { "t": "A trap closes on the living, keeper. The dark's quiet teeth do their work. I take a knight's cold satisfaction in a snare well-sprung. The floor itself fights for you now.", "x": "sinister" },
+        { "t": "The snare takes its toll, warden. The heroes never see the floor as a threat until the floor proves them wrong. I have buried many who trusted solid ground. Add another.", "x": "watching" },
+        { "t": "Iron bites the bold, my Monarch. The trap does not flinch, does not pity, does not tire. In that, it is the perfect soldier — and it cost you nothing but the night's gold. Excellent.", "x": "determined" },
+        { "t": "The trap springs true, keeper. A death without a single soldier spent. The dead approve of efficient cruelty — and so, I confess, do I. The line is the stronger for the iron.", "x": "cold-anger" }
+      ]
+    },
+    "intel_leaked": {
+      "priority": 1,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "The enemy learns our ground, my Monarch. Knowledge bleeds upward to the kingdom. A defended secret is a defence in itself — and this one has slipped. Tighten what you still hold.", "x": "wary" },
+        { "t": "Our dark is mapped a little more, keeper. The heroes will come better-prepared for it. I do not love a foe that studies — the studied assault is the dangerous one. Adapt the line.", "x": "thinking" },
+        { "t": "Intelligence escapes us, warden. The kingdom sees deeper into the deep. Every secret kept is a hero stopped; every secret lost is a hero emboldened. Guard the rest more closely, my Monarch.", "x": "disappointed" },
+        { "t": "Our secrets crawl up to the kingdom's spies. It turns my stomach, my Monarch — there is no honour in their snooping, only appetite. Guard the dark closer. A studied keep is a betrayed one.", "x": "disgusted" },
+        { "t": "Our secrets crawl up to the kingdom's spies, my Monarch. It turns my stomach — there is no honour in their snooping, only appetite. Guard the dark closer. A studied keep is a betrayed one.", "x": "disgusted" },
+        { "t": "The enemy learns our ground, keeper, and the dishonour of it disgusts me more than the danger. Every secret kept is a hero stopped. Close the leak. The dark should keep its own counsel.", "x": "disgusted" },
+        { "t": "Knowledge bleeds upward to the kingdom, warden. I am disappointed — in the gap, and a little in myself for not sealing it sooner. The studied assault is the dangerous one. Tighten what remains, my Monarch.", "x": "disappointed" },
+        { "t": "The enemy maps our dark a little more, my Monarch, and the dishonour of their snooping disgusts me past the danger of it. Guard the rest closer. The dark should keep its own counsel.", "x": "disgusted" }
+      ]
+    },
+    "dungeon_event": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The dark shifts, my Monarch — something stirs in the deep that is neither hero nor soldier. Old powers move on their own schedule. Keep your footing. I have seen the dungeon surprise its own masters.", "x": "surprised" },
+        { "t": "An omen in the deep, keeper. The dark does as the dark wills sometimes. Steady the watch — whatever comes, the dead and I meet it the same way we meet everything. Standing.", "x": "wary" },
+        { "t": "The deep convulses with its own will, warden. These events are the dungeon reminding us it was here before us and will be here after. Respect it, my Monarch, and hold your line through it.", "x": "thinking-2" },
+        { "t": "The deep spits up something foul, keeper — older than the oath and with no manners at all. I have shared the dark with worse, my Monarch, but I never learned to like them. Hold your footing through it.", "x": "disgusted" },
+        { "t": "The dark moves on its own and even I am taken aback. Three ages down here and the deep can still stop a knight cold. Steady, my Monarch — whatever this is, we meet it standing.", "x": "stunned" },
+        { "t": "Something stirs that I did not summon, keeper. The dungeon has a will of its own and chose this moment to show it. Curious. Wary. Watch with me — surprises in the dark are rarely kind.", "x": "surprised" },
+        { "t": "The deep heaves — that, warden, I did not foresee, and I foresee a great deal. The dark keeps its own counsel even from the dead. Brace the line. We hold through the unexpected too.", "x": "shocked" },
+        { "t": "The dark shifts on its own, my Monarch — and even I am surprised, three ages down here. The deep has a will older than my oath. Keep your footing. Whatever this is, we meet it standing.", "x": "surprised" },
+        { "t": "Something stirs that I did not summon, keeper — and it stops me, which little does. The dungeon shows its own hand. Curious. Wary. Watch with me; surprises in the dark are rarely kind.", "x": "surprised" },
+        { "t": "The deep spits up something foul, warden — older than the oath, with no manners at all. I have shared the dark with worse, my Monarch, and never learned to like them. Hold your footing through it.", "x": "disgusted" },
+        { "t": "The dungeon convulses with a will of its own, keeper, and it turns my stomach — there is no honour in whatever crawls up from the deep places. Brace the line. We endure it the same as everything.", "x": "disgusted" },
+        { "t": "The dark heaves — that, my Monarch, I did NOT foresee, and I foresee a great deal. For a heartbeat I am stunned still. Then the knight returns. Brace. We hold through the unexpected too.", "x": "stunned" },
+        { "t": "The dark heaves of its own will, my Monarch, and it stuns even me — three ages down here and the deep still surprises. Then the knight steadies. Brace the line. We endure it the same as all things.", "x": "stunned" },
+        { "t": "Something rises from the deep that I did not foresee, keeper — and I am shocked still a breath, which little manages. The dungeon shows its own hand. Wary, now. Watch with me.", "x": "shocked" },
+        { "t": "The deep stirs unbidden, keeper, and it catches me unawares — a rare thing after three ages. The dungeon keeps secrets even from the dead. Wary, now. We meet it standing.", "x": "surprised" }
+      ]
+    },
+    "bounty_hunter_incoming": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "A hunter comes for you by name, my Monarch — no common hero, but a professional of death. They are skilled, focused, and paid. Steady the line. Skilled foes earn the deepest graves.", "x": "grim-fury" },
+        { "t": "A bounty rides on your throne, keeper, and a killer answers it. I have crossed blades with their kind before — they do not break and do not flee. Neither do the dead. Hold.", "x": "determined" },
+        { "t": "A marked hunter enters the dark, warden — come to collect your head for coin. Let them learn the dark collects first, and keeps what it takes. Stand the watch. We meet this one head-on.", "x": "unrelenting" },
+        { "t": "A hunter comes for your head by name, my Monarch — and the professional set of them gives even me pause. Skilled, focused, paid. Steady the line. Skilled foes earn the deepest graves.", "x": "shocked" },
+        { "t": "A hunter comes for your head by name, my Monarch, and the cold professional set of them shocks even me to fuller attention. Skilled, focused, paid. Steady the line. Skilled foes earn the deepest graves.", "x": "shocked" }
+      ]
+    },
+    "hero_incoming": {
+      "priority": 1,
+      "cooldownMs": 9000,
+      "lines": [
+        { "t": "More of the living approach, my Monarch. The watch sees them coming. Steady the dead, mind the seams — a fresh wave is just another chance to hold the line. We hold it.", "x": "watching" },
+        { "t": "Heroes inbound, keeper. The kingdom is not done spending its young on you. Mark the approach. The dead are in position; they always are. Meet the wave where we choose.", "x": "guard-stance" },
+        { "t": "The living press in again, warden. I feel their footfalls through the old stone. Hold your nerve and your line — the dark does not tire, and neither will we. To the watch.", "x": "at-attention" },
+        { "t": "More of the living approach, my Monarch — and one of them, I confess, surprises me: better armed than the kingdom usually wastes. Mark the approach. The dead are in position. We meet them where we choose.", "x": "surprised" },
+        { "t": "More of the living approach, my Monarch — and I confess surprise at the size of this wave. The kingdom empties its barracks at you. No matter. The dead are countless too. Hold.", "x": "surprised" }
+      ]
+    },
+    "menu_knowledge": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "You study what we know of the foe, my Monarch. Wise. A knight learns his enemy before the blades cross — the studied foe is the buried foe. Read well.", "x": "reading" },
+        { "t": "The intel rolls, keeper. Knowledge is a wall the heroes cannot climb. The more you know of them, the less they surprise the line. Mark their strengths. Mark their weaknesses more.", "x": "thinking" },
+        { "t": "Reviewing the enemy's measure, warden. Good. I have won more battles in the studying than in the swinging, my Monarch. Know them, and the dark does half your work for you.", "x": "curious" },
+        { "t": "You study the foe, my Monarch. Wise — a knight learns his enemy before the blades cross. I read every dispatch; the studied foe is the buried foe. Read well, and the dark does half the work.", "x": "reading" }
+      ]
+    },
+    "menu_boss": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "You take your own measure, my Monarch. A sovereign should know precisely how much oath the dark is keeping for them. Study it. Strength known is strength wielded.", "x": "thinking-2" },
+        { "t": "Reviewing the throne's might, keeper. Good. I serve it more surely when you understand it yourself. Read your own power true — and then we spend it where it tells.", "x": "reading" }
+      ]
+    },
+    "menu_intel": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "The dispatches from above, my Monarch. What the kingdom plans, what it sends. I read every word — forewarned is half-fortified, and the dark rewards the prepared. Study them.", "x": "reading" },
+        { "t": "You scan the intelligence, keeper. Each report is a wave glimpsed before it breaks. I have held lines on far less warning than this. With it, we hold them easily. Read on.", "x": "wondering" },
+        { "t": "The dispatches from above, keeper. What the kingdom plans, what it sends. I read every word — forewarned is half-fortified, and the dark rewards the prepared. Study them with me.", "x": "reading" }
+      ]
+    },
+    "menu_roster": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "You review the ranks, my Monarch. Know your soldiers — the living and the dead alike. A general who does not know his line cannot hold it. Inspect them well. They are yours.", "x": "commanding" },
+        { "t": "The muster rolls, keeper. Every name a blade, every blade a debt I keep ready to raise. Look them over. A known soldier fights harder than a forgotten one. The dead remember being counted.", "x": "loyal" },
+        { "t": "You review the ranks, my Monarch — and I confess a curiosity to know which soldiers you favour. Know them all; a general who does not know his line cannot hold it. The dead remember being counted.", "x": "curious" }
+      ]
+    },
+    "menu_log": {
+      "priority": 0,
+      "cooldownMs": 8000,
+      "lines": [
+        { "t": "The record of the watch, my Monarch. Every wave, every death, written down. I keep my own roll of the fallen — but it pleases me that you keep yours too. History honours the held line.", "x": "reading" },
+        { "t": "You read back the campaign, keeper. Good. The past is the only honest teacher the dark gives us. Learn from each entry — what held, what bled. Then hold better. The log does not lie.", "x": "thinking" },
+        { "t": "The record of the watch, keeper — and I weigh each entry as I would judge a campaign. What held, what bled, who fled, who fell. The log does not lie. Learn from it, and we hold better, my Monarch.", "x": "judging" }
+      ]
+    },
+    "menu_postwave": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The wave is counted, my Monarch — the dead tallied, the gold gathered. Review the cost and the gain. A general who does not audit the battle is doomed to repeat its mistakes. Read it true.", "x": "solemn" },
+        { "t": "The reckoning after the wave, keeper. Here is what the hold cost and what it bought. I keep the account honest — grief and gold both. Spend the lesson well. The next wave is already forming.", "x": "weary" }
+      ]
+    },
+    "menu_levelup": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "You choose how to grow, my Monarch. The dark offers, the sovereign decides. Choose for the line, not the moment — power spent on vanity is power the heroes survive. Choose well.", "x": "thinking-2" },
+        { "t": "The ascension choice, keeper. Each path deepens the throne in its own way. I will serve whichever you take — but were it mine to counsel, I would say: take what HOLDS. Holding wins wars.", "x": "determined" }
+      ]
+    },
+    "menu_gameover": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The final tally of a fallen reign, my Monarch. I read it without flinching — a knight owes the dead an honest accounting, even in defeat. You held longer than most. The roll will remember it.", "x": "eulogy" },
+        { "t": "The reckoning of the end, keeper. Here lies the measure of all you built and all that broke it. I keep no bitterness toward a lost campaign — only the names. Always the names. Rest now.", "x": "mourning" }
+      ]
+    },
+    "suggestion": {
+      "priority": 0,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "If I may counsel, my Monarch — your line has a thin seam. Reinforce where the dead stand fewest. A chain is undone at its slackest link, and so is a wall.", "x": "pointing" },
+        { "t": "A knight's advice, keeper, freely given: the heroes favour the straightest road to a throne. Make the road crooked. A maze that confounds is a maze that kills before a blade is drawn.", "x": "thinking" },
+        { "t": "Were the choice mine, warden, I would spend the night's gold on depth over flash. A grand room undefended is a tomb for your OWN dead. Build to hold, not to impress. Hold wins.", "x": "determined" },
+        { "t": "Counsel, my Monarch: do not let any soldier stand alone. The dead fight harder in formation — even the fallen draw courage from their kin. Cluster the line. Loneliness loses walls.", "x": "commanding" },
+        { "t": "If you will hear me, keeper — traps where the living rush, soldiers where they pause, and your own person well behind both. That is the whole grammar of a held dark. The rest is detail.", "x": "guard-stance" },
+        { "t": "A knight's counsel, my Monarch: weigh each foe before they reach you. I judge them at the door — guard, footwork, nerve — and post the dead to exploit the flaw. Let me name the threats as they come.", "x": "judging" }
+      ]
+    },
+    "combo": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Blow upon blow, my Monarch — the heroes fall in sequence, the line rolling them up like a tide. THIS is a held dark in full song. The dead are exultant, in their silent way. So am I.", "x": "vindicated" },
+        { "t": "A chain of deaths, keeper, each feeding the next. The watch finds its rhythm and the living cannot break it. I have waited ages to see a line flow like this. Magnificent. Keep it rolling.", "x": "overwhelming-power" },
+        { "t": "Death after death without a pause, warden. The dark devours the wave whole. This is what all the building was FOR, my Monarch. Drink it in — grimly. Then hold for the next. There is always a next.", "x": "grim-fury" },
+        { "t": "Death upon death without pause, my Monarch — the dark devours the wave whole, and the weight of it is almost beautiful. THIS is what the building was for. Hold for the next.", "x": "overwhelming-power" }
+      ]
+    },
+    "day_milestone": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Day {day}, my Monarch, and the throne still stands. Few reigns reach this far. I have buried the masters who did not. You are not among them — and that is no small honour. Onward.", "x": "honored" },
+        { "t": "{day} days held, keeper. The kingdom has thrown so much at this dark, and the dark has kept it all. I am proud to have stood the whole watch beside you. Now — the next day. And the next.", "x": "proud" },
+        { "t": "Day {day} of the oath, warden. The campaign endures. I measure my service not in years now but in days held with YOU — and this count is among the better ones. Hold the line. We continue.", "x": "loyal" },
+        { "t": "Day {day}, and I will tell you plainly, visor raised, no armour to the words: I did not expect to care for another liege. I was wrong, keeper. I do. Lead on — the face goes back under the helm now.", "x": "unmasked" },
+        { "t": "{day} days held with you, my Monarch. The dead are proud, and I — I am something close to glad, which the grave nearly burned out of me long ago. You gave a little of it back. Onward.", "x": "happy" },
+        { "t": "Day {day}, and I will say it with the visor raised, my Monarch — no armour to the words: I did not expect to care for another Throne. I was wrong. I do. The helm goes back down now. Lead on.", "x": "unmasked" },
+        { "t": "{day} days held — and a glimpse of the man under the steel, since you've earned it, keeper. I've served reigns that died on the first dawn. This one endures. The face returns to shadow.", "x": "unmasked" },
+        { "t": "{day} days with you, warden, and the dead are proud — and I am something near to glad, which the grave nearly took from me entirely. You gave a measure back. Onward, my Monarch.", "x": "happy" },
+        { "t": "Day {day} of the oath, keeper. I take a quiet pride in the count — not in years now, but in days held with YOU. Among the better tallies of my long death. Hold the line. We continue.", "x": "proud" }
+      ]
+    },
+    "last_life": {
+      "priority": 3,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Two deaths spent, my Monarch. One remains between you and the cold throne. Now the oath earns its keep. The dead and I will spend ourselves to the last splinter before we let the third fall.", "x": "grim-fury" },
+        { "t": "The final life, keeper. I have stood my last stands before — I know the taste of this exact moment. We do not panic. We HOLD. Every wall, every soldier, every ounce of the oath. To the line.", "x": "unrelenting" },
+        { "t": "One life left, warden. The dark narrows to a single edge, and we stand on it together. I broke an oath once and lost everything. I will not break this one. We hold, my Monarch. We hold or we end.", "x": "determined" },
+        { "t": "One life left. Helm raised, so you know I mean it, my Monarch: I broke an oath once, and it cost me everything but the duty. I will NOT break yours. The visor falls. To the line.", "x": "unmasked" },
+        { "t": "One life left, my Monarch — and the green fire gathers as if it knows. I broke an oath once and lost everything. I will NOT break this one. The dead and I burn to the last splinter before the third falls.", "x": "ghostfire-surge" },
+        { "t": "The final life, keeper. Visor up, so you know I mean it: I lost my face, my king, my name to a broken oath — all but the duty. I will not break YOURS. The helm falls. The knight remains. To the line.", "x": "unmasked" }
+      ]
+    },
+    "streak": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "An unbroken run of holds, my Monarch — the line that does not bend. This is the watch at its finest. The dead stand prouder for it, and a proud dead soldier is a fearsome one. Keep the streak.", "x": "vindicated" },
+        { "t": "Hold after hold after hold, keeper. The dark wins and keeps on winning. I do not celebrate loudly — but mark that I am celebrating. Quietly. Grimly. Completely. Carry it on.", "x": "grim-approval" },
+        { "t": "Hold after hold after hold, my Monarch — the line that does not bend. The dead stand prouder for it, and beneath the helm I confess a grim gladness. A streak like this is the oath made visible. Keep it.", "x": "happy" }
+      ]
+    },
+    "minion_milestone": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The dead are a host now, my Monarch — not a handful. I feel them at my back like a standing army, because that is what they have become. Honour to the ranks.", "x": "summoning-horde" },
+        { "t": "A milestone of soldiers, keeper. So many raised, so many holding. Each one a debt I have kept faith with. A line this deep does not break easily — and the heroes are about to learn that the hard way.", "x": "loyal" }
+      ]
+    },
+    "arch_earthquake": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The deep itself convulses at your command, my Monarch — stone and bone shaken as one. The living cannot hold their footing in a quaking dark. Excellent. Let the ground betray them.", "x": "overwhelming-power" }
+      ]
+    },
+    "arch_sacrifice": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "A life given to the dark for power, keeper. A grave bargain — and I do not make it lightly. But the oath understands sacrifice. Spend it for the line; the dead will honour the cost.", "x": "reverent" }
+      ]
+    },
+    "arch_hellgate": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "You tear open the dark and call worse things through it, my Monarch. The gate yawns. I have stood beside many horrors in my long death — these will hold the line as fiercely as the dead. Loose them.", "x": "ghostfire-surge" }
+      ]
+    },
+    "arch_petrify": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The living turn to cold stone at your word, keeper — frozen mid-charge, mid-prayer, mid-scream. A merciful death, almost. I have seen worse. Let them stand as monuments to the folly of coming here.", "x": "cold-anger" }
+      ]
+    },
+    "arch_charm": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "A hero turns their blade upon their own, my Monarch — charmed into the dark's service for a moment. The living betraying the living. I find it fitting. Use the turncoat well before it breaks.", "x": "sinister" }
+      ]
+    },
+    "arch_seduce": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The foe is lured from their purpose, keeper — drawn off the line, away from the throne. A clean way to unmake a charge without spending a soldier. I approve of any tool that holds the wall. Let them stray.", "x": "watching" }
+      ]
+    },
+    "arch_huntpack": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The pack is loosed, my Monarch — the dead hunting as one, fast and merciless. I prefer the held line to the chase, but when the dark runs in a pack, even I step aside. Drive them into the living.", "x": "rallying" }
+      ]
+    },
+    "arch_spores": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The dark exhales its poison, keeper — spores upon the air, death in every breath the living take. Slow, patient, certain. The dark's own way of killing. I have always admired its patience. Let it work.", "x": "thinking-2" }
+      ]
+    },
+    "arch_haunt": {
+      "priority": 1,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The dead rise to haunt the living, my Monarch — terror without a blade. I have been the thing in the dark that breaks a soldier's nerve. Let the heroes feel what I am.", "x": "haunted" }
+      ]
+    },
+    "gamble_won": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "Fortune favours you, my Monarch. The wager lands. I am no lover of chance — a knight trusts the line, not the dice — but I will not scorn a win. Take the gold. Spend it on something that does NOT gamble.", "x": "grim-approval" },
+        { "t": "The risk pays out, keeper. The dark smiled this time. Enjoy it — but mark my counsel: luck is a poor soldier. It holds no walls and keeps no oaths. Bank the winnings into the line. The line never bluffs.", "x": "vindicated" }
+      ]
+    },
+    "gamble_lost": {
+      "priority": 2,
+      "cooldownMs": 0,
+      "lines": [
+        { "t": "The wager fails, my Monarch. The dice care nothing for oaths or honour — which is why I distrust them. No matter. Back to the line, where outcomes obey.", "x": "disappointed" },
+        { "t": "Chance turns against you, keeper. I felt it would. The dark does not bargain fairly with gamblers. Let it go — grief over lost gold holds no walls. Tend the watch instead. The watch repays its trust.", "x": "weary" }
+      ]
+    }
+  }
+}

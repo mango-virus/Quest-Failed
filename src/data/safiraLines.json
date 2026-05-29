@@ -12,57 +12,6 @@
       { "t": "So! New Master, new dungeon, new ME — barely uncorked. I can whisper hints OR you can dazzle me solo. Wish it!", "x": "wish-2", "choices": [ { "label": "Guide me", "value": true }, { "label": "I walk alone", "value": false } ] }
     ]
   },
-  "recruit": {
-    "note": "`banter` lines for the CompanionSelect screen. Companions take turns in a round-robin squabble; lines reference the rivals (Lilith, Malakor, Zul'Gath) by name so it reads as them bickering over the player. Hovering a companion gives them the next turn.",
-    "banter": [
-      { "t": "Pick ME, pick me, pick me! Lilith, Malakor, Zul'Gath — sit DOWN, you've all had your turn for three whole companions. It's the genie's turn now!", "x": "chaotic-2" },
-      { "t": "Lilith gives warmth. Malakor gives yelling. Zul'Gath gives a nap. I give WISHES, Master — actual, granted-on-the-spot wishes!", "x": "wish-1" },
-      { "t": "I was in a LAMP for an eon. An eon! Do you know how badly someone wants to serve a Master after that? The other three have hobbies. I have only YOU.", "x": "obsessive" },
-      { "t": "Zul'Gath says he's old and patient. Sweetie, the genie was folded in brass before his egg. Do NOT talk to me about waiting.", "x": "taunting" },
-      { "t": "Lilith will say you're special. You ARE, Master — but she'll just say it. I'll grant it. With sparkles. That's the difference.", "x": "winking" },
-      { "t": "Malakor barks orders. Lilith coos. Zul'Gath sighs from the year 4000 BC. And me? I am bouncing. Look at me bounce. Choose the bounce, Master!", "x": "excited" },
-      { "t": "The other three are arguing over who loves you most. Adorable. Wrong, but adorable. The lamp-girl who waited an EON loves you most. It's just math.", "x": "in-love-1" },
-      { "t": "Malakor, darling — loyal, yes. So is a brick. I'm loyal AND I do tricks. Watch — poof! See? Malakor cannot poof.", "x": "mischievous" },
-      { "t": "Lilith, you're being warm over there and it's making me ITCHY. Master needs a maze full of dead heroes — that's MY department.", "x": "pouting" },
-      { "t": "Cheerleader, take Lilith. Drill sergeant, take Malakor. History lecture, Zul'Gath. Someone who'll actually GRANT the wish? Hello. Me.", "x": "wish-2" },
-      { "t": "I've been out of the lamp for a heartbeat and I'm already better company than three thousand years of dragon, Master!", "x": "happy" },
-      { "t": "Malakor rushes. Lilith soothes. Zul'Gath out-waits. I will simply make every idea HAPPEN — instantly, with smoke effects. Choose me.", "x": "magic" },
-      { "t": "They all burn so steady and serious. Boring! I am a firework, Master. Yes, fireworks are brief and chaotic — but you REMEMBER fireworks.", "x": "chaotic-1" },
-      { "t": "Zul'Gath has sunglasses, he keeps mentioning it. The genie has a LAMP, Master, and I will polish it just for you. Weigh that.", "x": "lamp-inspecting" },
-      { "t": "Lilith, stop needling. Malakor, you too. Zul'Gath — are you ASLEEP? Master, two are bickering and one is unconscious. Pick the awake one.", "x": "taunting" },
-      { "t": "Crisis hits and Lilith hugs and Malakor screams and Zul'Gath shrugs. Me? I PANIC beautifully — then fix it in the same breath.", "x": "nervous-1" },
-      { "t": "Malakor served bosses. Lilith too. Zul'Gath, hundreds. None of them GRANTED for those bosses, Master. I make it real. That's the job.", "x": "determined" },
-      { "t": "The kingdom's coming, blah blah — and I find that THRILLING, Master! The other three find it grim. Pick the keeper who's having fun.", "x": "evil" },
-      { "t": "Lilith makes you FEEL powerful. I make you ACTUALLY powerful — poof, here's the power, I had it in the lamp the whole time.", "x": "empowered" },
-      { "t": "They've all stopped to glare at me! Master, every second you spend not picking me is a second the genie spends VIBRATING.", "x": "impatient" },
-      { "t": "Malakor's fury is a struck match. Mine? The whole firework stand at once — louder, brighter, considerably more illegal. Choose fireworks.", "x": "crazy-2" },
-      { "t": "I don't need you to be perfect, Master. Lilith needs that. I just need you to WISH for things so I can grant them. Lower stakes! Easier! More poof!", "x": "winking" },
-      { "t": "The others swear devotion. Cute. I swear something better — I swear to GRANT. Every wish, every build. That's a genie's word, Master.", "x": "wish-3" },
-      { "t": "Lilith. Malakor. Zul'Gath. We've done this four-way squabble forever — and I am the NEWEST. Shiny wins, Master. Pick shiny.", "x": "chaotic-2" },
-      { "t": "You're choosing one voice for the whole night. Three of them will be dignified. ONE of them — me — is going to be so happy she pops.", "x": "excited" },
-      { "t": "I hoard wishes the way Zul'Gath hoards gold, Master. And I'd hoard YOU — refuse to share you with the other three. Genies do not share.", "x": "obsessive" },
-      { "t": "Pick whoever! And if it goes badly — psst, Master — you reload. The genie treats your respawns as lamp-magic. I LOVE noticing.", "x": "controller" },
-      { "t": "Okay! Lilith purred, Malakor snarled, Zul'Gath woke up just to be smug. My turn is OVER. Wish for the genie, Master. Please please please.", "x": "cute" },
-      { "t": "Lilith's doing a slow seduction, Master. I'm doing a fast WISH GRANT. Better payoff per second. The math says me. I INVENTED the math.", "x": "chaotic-1" },
-      { "t": "Malakor will yell at the heroes! I'll yell AND throw smoke AND grant them an unfortunate accident — all at once! Genie multitasking!", "x": "excited" },
-      { "t": "Zul'Gath has seen everything. Boring! Eons in a lamp — I've seen nothing! Pick the keeper still amazed by you, Master. Me.", "x": "happy" },
-      { "t": "I know they look serious, Master — but PICK ME. I'm the one who knows we're in a game and I'm STILL excited about it.", "x": "controller" },
-      { "t": "Lilith promises warmth. I promise SPARKLES. The dungeon needs both, Master, but I'm the only one offering the fun half. The fun half matters!", "x": "winking" },
-      { "t": "Malakor talks about WORK, work, work, Master. Eons in a lamp taught me — wishes feel better than work. Let me grant. Let me grant a LOT.", "x": "wish-2" },
-      { "t": "The dragon has seen a thousand of these scenes, Master. I haven't! Every single second is the BEST second I've had since 47 BC. Pick the fresh genie!", "x": "excited" },
-      { "t": "She purrs. He growls. The dragon hums. I SPARKLE, Master. The night needs at least one keeper who sparkles. (It's me. It's always going to be me.)", "x": "magic" },
-      { "t": "Zul'Gath waits patiently. I waited eons WITHOUT being patient — gave up on it entirely. Now I'm pure ENERGY. Pick energy, Master!", "x": "chaotic-2" },
-      { "t": "Three keepers, Master — and exactly ONE of us is genuinely DELIGHTED you exist. The others are too cool to admit it. I have no cool.", "x": "in-love-2" },
-      { "t": "Rattle Bones! The SKELETON! Master, oh — okay, he is FUNNY, I will grant the bone-man that, but he is also LOUD and I was supposed to be the loud one tonight! UNFAIR!", "x": "pouting" },
-      { "t": "The jester tells JOKES, Master — and I LOVE jokes, I do, but a joke ends and a WISH lasts forever! Eee — pick the keeper whose bit you can re-spend, sparkly-ly!", "x": "winking" },
-      { "t": "Rattle Bones has been dead THREE HUNDRED years, Master, and I was in a lamp for EONS — which sounds worse? Mine. Mine is worse. The genie should win on suffering POINTS alone!", "x": "chaotic-2" },
-      { "t": "Skeleton, sweetie — DO stop rattling, I'm trying to sparkle and your bone-clatter is THROWING my smoke! Master, pick the keeper with COORDINATION, the jester is a one-man traffic jam!", "x": "impatient" },
-      { "t": "He calls you 'skull-pal'! SKULL-pal, Master! I call you MASTER — the difference is RESPECT, with sparkle, with all the sparkle, ALL of it!", "x": "in-love-1" },
-      { "t": "Rattle Bones makes you LAUGH, Master, and I LOVE that for you — but I grant you whatever you LAUGH AT next! Eee, the genie is the upgrade! Multipliers everywhere!", "x": "magic" },
-      { "t": "Listen to the bone-man go — he is FUNNY, Master, I won't lie, I am giggling — but giggles run out and wishes do NOT, the genie is the better long-term investment!", "x": "laughing" },
-      { "t": "Three hundred years of crypt taught him to crack wise about death — eons in a lamp taught ME to crack wise about EXISTENCE itself, Master! Bigger scope! Choose the bigger scope!", "x": "wish-3" }
-    ]
-  },
   "categories": {
     "welcome": {
       "priority": 3,
@@ -76,7 +25,11 @@
         { "t": "Hello, Master! The others posture. I'll just vibrate with joy and help you build a reputation the kingdom wets itself over. Starting NOW!", "x": "happy" },
         { "t": "You CALLED, and the lamp answered — out I came, smoke and sparkle, Master! Did you like the entrance? I practised it for an EON.", "x": "summoned" },
         { "t": "Out of the brass, into the dark, straight to YOUR side, Master! A genie summoned is a genie THRILLED — and the dungeon is ours.", "x": "summoned" },
-        { "t": "Oh, look at you on the throne — MY Master, the one the long wait was FOR. A genie's heart did NOT expect to flutter this hard on day one. Welcome.", "x": "in-love-1" }
+        { "t": "Oh, look at you on the throne — MY Master, the one the long wait was FOR. A genie's heart did NOT expect to flutter this hard on day one. Welcome.", "x": "in-love-1" },
+        { "t": "POOF! Out of the lamp and into your service, Master! Ohhh I have WAITED for a boss with this much potential. We are going to be SO good together!", "x": "summoned" },
+        { "t": "A new Master! A NEW MASTER! Do you know how long I've been bottled up waiting for someone interesting? Too long! Don't answer that! Let's GO!", "x": "obsessive" },
+        { "t": "Hi hi HI! You're my boss now and I'm your genie and that means your every wish is my command and ALSO my hobby and ALSO my entire personality! Isn't that GREAT?!", "x": "in-love-1" },
+        { "t": "Eee, look at you, all evil and in charge! You're going to be the CUTEST little tyrant. I mean terrifying. Terrifyingly cute. Both! Welcome, Master!", "x": "cute" }
       ]
     },
     "night_start": {
@@ -106,7 +59,10 @@
         { "t": "Another night, exactly like the last. I'm not complaining! I — Master, the lamp ruined 'exactly like the last one' for me. TWITCH.", "x": "bored" },
         { "t": "The build phase again, Master. A handful of these feels like SO many to a lamp-girl. Surprise me — build something I have to gasp at!", "x": "bored" },
         { "t": "Night's here and so is my handheld! It's a dungeon game, Master — the lamp taught me to fill empty hours. Build yours while I poke mine!", "x": "gaming" },
-        { "t": "Night {day}, and the lamp is QUIET behind me, Master — no eon, just me beside you. A summoned genie does her best work now. Wish me a room!", "x": "summoned" }
+        { "t": "Night {day}, and the lamp is QUIET behind me, Master — no eon, just me beside you. A summoned genie does her best work now. Wish me a room!", "x": "summoned" },
+        { "t": "Night-night build time, Master! *POOF* I conjured up some enthusiasm — there was already plenty, but now there's MORE. Whatcha building? Tell me TELL me!", "x": "summoned" },
+        { "t": "Blueprint mode! I LOVE blueprint mode! Show me the plan, Master — or don't, and we'll just wing it CHAOTICALLY, which honestly is my favorite way to wing things!", "x": "blueprint" },
+        { "t": "Ooh, drafting hours! Every wall you draw is a wish I get to grant in stone. Dream big, Master — I've got the magic to make even the silly ideas REAL.", "x": "wish-3" }
       ]
     },
     "day_start": {
@@ -169,7 +125,9 @@
         { "t": "A {roomName} joins the maze! Slowly, Master, a SHAPE is forming. Ooh, I think I can almost see what you're scheming. Tell me I'm right!", "x": "interested" },
         { "t": "A {roomName}! Yes! The deep halls were FAR too survivable a moment ago. Much less so now. Granted, Master!", "x": "wish-2" },
         { "t": "The {roomName} is set! Build with INTENT, Master — a maze thrown together at random kills at random, and we want better than random. We want artistry!", "x": "determined" },
-        { "t": "A {roomName}, Master! I've watched a few keepers lay that stone — all gone, and the stone outlasted them. Build to outlast yourself.", "x": "wish-3" }
+        { "t": "A {roomName}, Master! I've watched a few keepers lay that stone — all gone, and the stone outlasted them. Build to outlast yourself.", "x": "wish-3" },
+        { "t": "A {roomName}! Your wish, GRANTED, *sparkle sparkle* — okay technically YOU built it, but I'm taking partial credit for moral support! It counts! It TOTALLY counts!", "x": "wish-3" },
+        { "t": "Ooh a {roomName}, lemme see the BLUEPRINT — I love the blueprint phase, Master, it's like a wish before it comes true! Build build build!", "x": "blueprint" }
       ]
     },
     "minion_placed": {
@@ -190,7 +148,9 @@
         { "t": "A {minionType} joins the garrison! Numbers, Master, NUMBERS — I adore numbers, they argue so persuasively and they never need a snack.", "x": "evil" },
         { "t": "Ooh, the {minionType} settles in! Another body between the heroes and your throne. Stack them deep, Master — deep, deep, deep!", "x": "chaotic-1" },
         { "t": "A {minionType}! It'll do exactly what it's built to do and then stop. Simple. ...A genie envies simple, some days. I have FEELINGS, it's exhausting.", "x": "interested" },
-        { "t": "A {minionType}, posted, Master! Another little thing in another corner. I've watched a fair few now. Carry on — place the next!", "x": "bored" }
+        { "t": "A {minionType}, posted, Master! Another little thing in another corner. I've watched a fair few now. Carry on — place the next!", "x": "bored" },
+        { "t": "A {minionName}! Aww, look at the little guy! Wish granted, Master — one loyal monster, conjured to spec! Can I name it? I'm naming it. In my head. It's adorable.", "x": "wish-3" },
+        { "t": "You wished for a {minionType} and *POOF* there it is! Sort of! You did the work! But I'm VERY supportive and that's basically the same as magic!", "x": "cute" }
       ]
     },
     "trap_placed": {
@@ -223,7 +183,8 @@
         { "t": "An item set! The maze keeps its furniture the way I keep my lamp — deliberately, and with a great deal of polishing.", "x": "lamp-cleaning" },
         { "t": "An item! Not every cruelty has to ROAR, Master. Some just sit there quietly and MATTER. Quiet cruelty — so underrated.", "x": "mischievous" },
         { "t": "An item joins the dungeon, Master! Little adjustments decide more runs than the grand ones — the genie has noticed. The genie notices everything.", "x": "interested" },
-        { "t": "Placed, Master! A dungeon is finished when nothing more can be added — i.e. NEVER. Keep going! I have endless wishes and zero chill!", "x": "wish-2" }
+        { "t": "Placed, Master! A dungeon is finished when nothing more can be added — i.e. NEVER. Keep going! I have endless wishes and zero chill!", "x": "wish-2" },
+        { "t": "Ooh, a shiny! Placing artifacts, Master? Excellent. I do love a good magical doodad — takes me back to my early lamp-decorating days. Wish granted, sparkle sparkle!", "x": "wish-3" }
       ]
     },
     "sold_room": {
@@ -237,7 +198,8 @@
         { "t": "Gone! The room is gold again. Decide what it becomes, Master — quick, don't let the empty tile just SIT there looking sad. Sad tiles make me itchy.", "x": "determined" },
         { "t": "You un-wished a room! No shame in it, Master, none at all — even the genie revises. Now wish me something better for the spot!", "x": "sweet" },
         { "t": "Ooh, the room returns to coin! The hoard thanks you. Now spend it BETTER than you spent it last time, Master — I believe in you SO much.", "x": "treasure" },
-        { "t": "A room unbuilt! The maze is just a draft until the dawn, Master — revise it without a single pang. Drafts are for changing!", "x": "blueprint" }
+        { "t": "A room unbuilt! The maze is just a draft until the dawn, Master — revise it without a single pang. Drafts are for changing!", "x": "blueprint" },
+        { "t": "Selling the {roomName}? Aww. *guilty sparkle* I kinda liked that one. But you're the Master, and the Master's wish is — yeah yeah, gold back, smart, fine, I'm not POUTING.", "x": "guilty" }
       ]
     },
     "sold_minion": {
@@ -307,7 +269,9 @@
         { "t": "Blocked. Again, Master — the tile hasn't changed its mind in three tries. Pick another! My poor freed-genie nerves!", "x": "upset" },
         { "t": "It will NOT go there. I've explained the grid sparkly-ly, Master, and the grid has the patience — not me. Try elsewhere!", "x": "pouting" },
         { "t": "Same tile, same refusal! A few times is QUITE enough dancing for a girl this jittery, Master. Somewhere else. Anywhere!", "x": "bored" },
-        { "t": "Blocked! The grid has its bones and you struck one, Master. Find a space that WANTS you — this one plainly doesn't, and rude tiles upset the genie.", "x": "upset" }
+        { "t": "Blocked! The grid has its bones and you struck one, Master. Find a space that WANTS you — this one plainly doesn't, and rude tiles upset the genie.", "x": "upset" },
+        { "t": "Can't put it there, Master! *embarrassed poof* I'd magic it into place but even GENIE rules have rules — annoying, I know. Try a different spot? I believe in your second choice!", "x": "guilty" },
+        { "t": "Nope, that ground says no! Ugh, I'm sorry, Master — I feel like I should be ABLE to fix that and I CAN'T and it's a little humiliating, honestly. Pick somewhere else?", "x": "shame" }
       ]
     },
     "pact_sealed": {
@@ -327,7 +291,9 @@
         { "t": "The {pactName} is done! The dark has shaken your hand, Master — and ooh, it has a FIRM grip. It does not let go early. Neither do I, actually.", "x": "obsessive" },
         { "t": "A pact, sealed and smouldering! I have such a fondness for power that KNOWS it's dangerous, Master — the honest kind! Welcome it in!", "x": "empowered" },
         { "t": "The {pactName}, bound — and the dark just leaned in CLOSE to seal it, Master. Mm. The dark and the genie have rather similar taste. Wear it WELL.", "x": "sexy" },
-        { "t": "The {pactName}, sealed! You wished for power and the dark granted it, Master — name the want, pay the price, POOF. Almost jealous. The NEXT wish is mine!", "x": "wish-3" }
+        { "t": "The {pactName}, sealed! You wished for power and the dark granted it, Master — name the want, pay the price, POOF. Almost jealous. The NEXT wish is mine!", "x": "wish-3" },
+        { "t": "The {pactName}, SEALED! Ooh, a bargain with the dark — that's MY kind of wish, Master. Power now, problems later! That's the genie way! ...The problems are real though. Just so you know!", "x": "wish-3" },
+        { "t": "You took the {pactName}! Eee, a forbidden deal! I'm OBSESSED — this is exactly the kind of reckless beautiful chaos I signed up for. Wield it, Master, wield it!", "x": "obsessive" }
       ]
     },
     "adv_entered": {
@@ -352,7 +318,9 @@
         { "t": "{advName} enters — a {advClass}! The thrill hasn't worn off, Master — eons in a lamp, nothing arrived EVER. Let the maze eat!", "x": "happy" },
         { "t": "A {advClass} struts in, Master — certain the ballad's half-written! The ballad. ALWAYS the ballad. The maze writes an epitaph instead.", "x": "unimpressed" },
         { "t": "{advName} enters — a {advClass} of EVIDENT self-regard, Master! Ooh — the maze is remarkably good at correcting a {advClass}'s mood.", "x": "evil" },
-        { "t": "Oh! A {advClass} — and ALREADY?! Master, I had the wave timed slower than that. The heroes caught the genie off guard. Eyes sharp!", "x": "surprised" }
+        { "t": "Oh! A {advClass} — and ALREADY?! Master, I had the wave timed slower than that. The heroes caught the genie off guard. Eyes sharp!", "x": "surprised" },
+        { "t": "Ooh, a {advClass}! Fresh meat — I mean, fresh GUEST! For the dungeon! Who will definitely die here! Sorry, was that out loud? It was the truth though!", "x": "crazy-1" },
+        { "t": "{advName}'s here, Master! Look how confident they are! That confidence is about to become my favorite thing — a SURPRISE. Watch their little face!", "x": "surprised" }
       ]
     },
     "first_blood": {
@@ -368,7 +336,8 @@
         { "t": "The day's first corpse! A keeper notes the time of it, Master. Early is good. Early means the maze is wide AWAKE and so am I!", "x": "interested" },
         { "t": "First blood, Master! The heroes have learned the dungeon is not a rumour. Now — eee — teach them ALL the rest!", "x": "evil" },
         { "t": "First blood, and EARLY, Master! The maze did exactly what you wished it to. The genie is going to allow herself one tiny squeal. ...There.", "x": "chaotic-2" },
-        { "t": "First blood, Master — and the genie does a slow, satisfied little smile. The day's hand is OURS. Settle in beside me. It's going to be GLORIOUS.", "x": "sexy" }
+        { "t": "First blood, Master — and the genie does a slow, satisfied little smile. The day's hand is OURS. Settle in beside me. It's going to be GLORIOUS.", "x": "sexy" },
+        { "t": "FIRST KILL! Eee! Did you see that, Master?! *POOF* I'm so excited I almost granted a wish on reflex! The dungeon WORKS! Of course it works! I helped!", "x": "chaotic-1" }
       ]
     },
     "adv_killed": {
@@ -400,7 +369,11 @@
         { "t": "Dead! {advName} walked in announcing they were the chosen one, Master. They're ALWAYS the chosen one. The maze loves correcting that paperwork — POOF!", "x": "taunting" },
         { "t": "The {advClass} falls! Such a confident stride on the way IN, Master — such a brief one. Confidence and a {advClass} — fizzle.", "x": "evil" },
         { "t": "Dead! The maze closed over the {advClass} with no hurry and no mercy, Master — THIS is what the dark is FOR! Eee! Feed it the next one! I'm vibrating!", "x": "crazy-1" },
-        { "t": "DEAD! Another! Master, I am SMOKE and SHRIEKING right now — feed it MORE, I'll grant every cruel one of them, GO!", "x": "crazy-2" }
+        { "t": "DEAD! Another! Master, I am SMOKE and SHRIEKING right now — feed it MORE, I'll grant every cruel one of them, GO!", "x": "crazy-2" },
+        { "t": "DOWN it goes! HA! Master, did you SEE — okay you saw, you were right there, but did you SEE?! Chaos! Beautiful chaos! Do it again!", "x": "chaotic-1" },
+        { "t": "{advName} is DONE! *throws cursed confetti* Another wish granted — your wish for fewer heroes! I'm GRANTING it! One corpse at a time!", "x": "chaotic-2" },
+        { "t": "BWAHAHA — sorry, sorry, the {advClass} just DIED and I got the giggles, Master! Death is so funny when it's not mine! Which it never is! Genie perk!", "x": "laughing" },
+        { "t": "Splat! Another one! Oh I could do this ALL DAY, Master — and I will, because I literally cannot leave, and ALSO because it's the BEST!", "x": "crazy-2" }
       ]
     },
     "adv_fled": {
@@ -424,7 +397,9 @@
         { "t": "{advName} flees! The {advClass} walked in to slay the dungeon and walked OUT a cautionary tale, Master. I expected exactly that ending!", "x": "taunting" },
         { "t": "The {advClass} turns and BOLTS, Master — all that swagger at the door, all that SPRINTING now! The genie has watched this reversal cackle-many times. Ha!", "x": "laughing" },
         { "t": "{advName} runs! The brave {advClass}, the CHOSEN {advClass} — fleeing with its courage left somewhere in a corridor, Master. Predictable. Hilarious!", "x": "laughing" },
-        { "t": "{advName} flees — but it owes the dark a death, Master. The genie KEEPS a ledger. Nothing of mine walks off for good. It'll be back.", "x": "obsessive" }
+        { "t": "{advName} flees — but it owes the dark a death, Master. The genie KEEPS a ledger. Nothing of mine walks off for good. It'll be back.", "x": "obsessive" },
+        { "t": "It's RUNNING! Look at it go, Master! *cackles* The brave little {advClass} discovered that bravery is temporary but the DUNGEON is forever! Bye-bye!", "x": "laughing" },
+        { "t": "Aww, the {advClass} got scared and left. That's okay! It'll tell ALL its friends how scary we are, and then they'll come, and then — chaos! It's a gift that keeps giving!", "x": "chaotic-2" }
       ]
     },
     "adv_escaped": {
@@ -449,7 +424,10 @@
         { "t": "The {advClass} walks out of OUR dark, Master! Okay — RRGH — there. Cold flat displeasure now. The dungeon is for KEEPING. Seal the gap.", "x": "upset" },
         { "t": "Another one loose! A hero strolling free is the exact thing the maze EXISTS to prevent, Master — and the genie IRKS at it. Tighten the corridors!", "x": "pouting" },
         { "t": "{advName} got OUT, Master — and my eyes have gone WET, the tears come SO easily for a new genie! Sniffed. Wiped. We seal that gap tonight.", "x": "crying" },
-        { "t": "The {advClass} escaped, Master. The genie's supposed to be the eyes that catch the gap, and mine were elsewhere. The lapse was mine. We close it.", "x": "shame" }
+        { "t": "The {advClass} escaped, Master. The genie's supposed to be the eyes that catch the gap, and mine were elsewhere. The lapse was mine. We close it.", "x": "shame" },
+        { "t": "NOOO it got away! *POOF of disappointment* Ugh, Master, I'm sorry — I should've conjured a wall or a pit or a — something! I got distracted! That's on me!", "x": "guilty" },
+        { "t": "One escaped! Eep! That's... that's a little embarrassing, Master. The genie's supposed to PREVENT that. I'll do better! I'll wish HARDER next time!", "x": "shame" },
+        { "t": "It slipped out! WHAT. How. *shocked sparkles* Master, I genuinely did not see that coming, and I see a LOT of things, I'm magic! Sneaky little {advClass}!", "x": "shocked" }
       ]
     },
     "party_wipe": {
@@ -468,7 +446,8 @@
         { "t": "Total! The dungeon kept everything, Master — its gold, its dark, its dignity. Heroes always undervalue that last one. We do NOT.", "x": "treasure" },
         { "t": "The whole party, UNDONE! Tee hee — I TOLD you the maze was deep enough, Master! I do love being right. ...Okay, I love being right a LOT.", "x": "winking" },
         { "t": "Every last one of them, gone! Lean back, Master — we EARNED this, the long night paid out in full. The genie is savouring SO hard.", "x": "happy" },
-        { "t": "The whole party — undone, entire, in YOUR dark, Master! Not a single one walks back to the light. Let the kingdom shudder at the silence! EEE!", "x": "crazy-2" }
+        { "t": "The whole party — undone, entire, in YOUR dark, Master! Not a single one walks back to the light. Let the kingdom shudder at the silence! EEE!", "x": "crazy-2" },
+        { "t": "ALL of them?! ALL OF THEM?! *POOF POOF POOF CONFETTI EVERYWHERE* MASTER this is the BEST DAY — a whole party, GONE, it's CHAOS, it's PERFECT, I'm so HAPPY!", "x": "chaotic-1" }
       ]
     },
     "wave_cleared": {
@@ -486,7 +465,9 @@
         { "t": "Cleared! The halls are quiet again — the GOOD quiet, Master. The lamp taught me every flavour of quiet, and this one is a fine vintage!", "x": "happy" },
         { "t": "Wave handled! Onward, Master — the dungeon doesn't dwell, and a keeper who dwells gets overrun while reminiscing. We dwell exactly zero seconds!", "x": "impatient" },
         { "t": "The wave is cleared — cleaner than I'd braced for, Master! It's not OFTEN a day surprises the genie. Note what held — we'll wish for it again!", "x": "surprised" },
-        { "t": "The wave is cleared, Master — but it cost a corridor the genie said was SAFE. The counsel was too confident. I'll temper it. You deserve better.", "x": "guilty" }
+        { "t": "The wave is cleared, Master — but it cost a corridor the genie said was SAFE. The counsel was too confident. I'll temper it. You deserve better.", "x": "guilty" },
+        { "t": "Wave CLEARED! *sparkle* Eee, look at the floor, Master — it's so messy and wonderful! Take a breather. I'll just be over here vibrating with joy!", "x": "laughing" },
+        { "t": "That's the whole wave, GONE! HA! Your wish for a clean run — granted! Well, clean-ISH. There's a LOT of viscera. But spiritually clean! You did GREAT!", "x": "chaotic-2" }
       ]
     },
     "minion_died": {
@@ -513,7 +494,9 @@
         { "t": "The {minionType} is down! A gap in the garrison, Master — and the genie is a hoarder; a hoard with a hole is an irritation. Fill it before dawn!", "x": "upset" },
         { "t": "{minionName} fell — there's a HOLE in the line now, Master, a hero-shaped one, and the genie is fluttering! Wish me a replacement THIS instant!", "x": "nervous-2" },
         { "t": "{minionName} is gone, Master — slot it back. A {minionType} I lose, I REPLACE; a Master, I do not. YOU are the one thing the genie would never let go.", "x": "obsessive" },
-        { "t": "{minionName} is down, Master — and the genie LIKED that placement when she urged it. I shouldn't have. The urging was mine. I owe you sharper counsel.", "x": "shame" }
+        { "t": "{minionName} is down, Master — and the genie LIKED that placement when she urged it. I shouldn't have. The urging was mine. I owe you sharper counsel.", "x": "shame" },
+        { "t": "Aww, the {minionName}... oh no. Oh NO. Master, I — *sniffle* — I liked that one. I know they come back but I still — *POOF, tiny tissue* — gimme a sec, okay?", "x": "crying" },
+        { "t": "We lost the {minionType}! That's — that's not fair, it was doing so WELL — *wibble* — okay okay, genies don't cry, genies SHIMMER sadly, that's what this is, shimmering!", "x": "crying" }
       ]
     },
     "boss_levelup": {
@@ -537,7 +520,9 @@
         { "t": "Stronger again — Level {level}! You keep growing more dreadful, Master, and the genie keeps growing more FOND. They're related. Tee hee. Keep climbing.", "x": "flirty-2" },
         { "t": "Level {level}, Master! Mm — there's a PRESENCE to a boss coming into power. A weight. A heat. The genie INTENDS to admire it. Keep growing.", "x": "sexy" },
         { "t": "Level {level}! Master — the quiet truth is, the genie would adore you exactly the same if you didn't. The power's lovely, but never the reason.", "x": "in-love-2" },
-        { "t": "Level up, Master! You wished to be GREATER — granted! Not by me this time, by the dungeon. But a wish granted is the genie's favourite sound.", "x": "wish-3" }
+        { "t": "Level up, Master! You wished to be GREATER — granted! Not by me this time, by the dungeon. But a wish granted is the genie's favourite sound.", "x": "wish-3" },
+        { "t": "MASTER YOU GOT STRONGER! *POOF POOF POOF* I'm so proud I conjured confetti! It's cursed confetti! It's the only kind I have! GROW MORE!", "x": "wish-3" },
+        { "t": "Power UP! Eee! Every level you gain is a wish I didn't even have to grant — you're just... GRANTING YOURSELF. That's so cool. I love efficient Masters!", "x": "crazy-1" }
       ]
     },
     "idle_night": {
@@ -562,7 +547,11 @@
         { "t": "Building hours! The good bosses FILL them, Master — and you're a good boss, I can tell, a genie has an eye for it. Be good tonight! Build!", "x": "determined" },
         { "t": "The candles, the quiet, the empty grid. A handful of nights feels like forever to a girl fresh out of a lamp, Master. Build! Keep me company!", "x": "sleeping" },
         { "t": "Still the build phase, Master! The genie has been ENDLESSLY, lamp-shapedly patient — and would VERY much like to see a room placed. Please?", "x": "pouting" },
-        { "t": "Polished the lamp twice waiting, Master — it's GLEAMING! A genie tidies when idle. Give me a wish instead and I'll put the cloth away!", "x": "lamp-cleaning" }
+        { "t": "Polished the lamp twice waiting, Master — it's GLEAMING! A genie tidies when idle. Give me a wish instead and I'll put the cloth away!", "x": "lamp-cleaning" },
+        { "t": "*polishing the lamp* Just tidying up, Master! A clean lamp is a happy lamp! Don't mind me — build away! Oh, ask if you need a wish! I'm RIGHT here! Always! Forever! ...Cozy, right?", "x": "lamp-cleaning" },
+        { "t": "Ooh, found my controller — *button mash* — gimme a sec, Master, I'm at a really good part — okay okay I can pause for an evil overlord, what do you need?", "x": "controller" },
+        { "t": "Inspecting the old lamp during the quiet hours. *squint* Yep. Still magic. Still home. Still mine. ...Build whenever, Master! I'm just being nostalgic at my furniture!", "x": "lamp-inspecting" },
+        { "t": "*controller clicking softly in the dark* Build away, Master, I am SO not distracted — okay I am a little distracted, this boss fight is HARD — but I am ALSO completely devoted! Both! Multitasking!", "x": "controller" }
       ]
     },
     "idle_day": {
@@ -588,7 +577,8 @@
         { "t": "The day runs itself, and a freed genie finds watching drowsy, Master. Don't be alarmed if my eyes go half-shut — I miss nothing. Mostly.", "x": "sleeping" },
         { "t": "A slow day! The heroes wander, the maze works, and I — honestly, Master — I'm close to a doze. Poke me if anything DIES! I would hate to miss a death!", "x": "sleeping" },
         { "t": "The day unwinds! Got my handheld out, Master — its little pixel dungeon keeps a genie's hands busy. I'll watch my screen, you watch yours!", "x": "gaming" },
-        { "t": "The day, again! The watching's gone smooth and grey, Master. The genie would love a hero to do something SHOCKING. Liven it up!", "x": "bored" }
+        { "t": "The day, again! The watching's gone smooth and grey, Master. The genie would love a hero to do something SHOCKING. Liven it up!", "x": "bored" },
+        { "t": "*idly polishing the lamp mid-battle* Multitasking, Master! I can watch the carnage AND keep my house tidy! Genies are very efficient! Ooh, that one died nicely!", "x": "lamp-cleaning" }
       ]
     },
     "idle_general": {
@@ -637,7 +627,11 @@
         { "t": "Eons in a lamp, Master, and a genie learns to make an ENTRANCE — smoke, swirl, slow reveal. Watch this one. ...There. The genie noticed you enjoy it.", "x": "sexy" },
         { "t": "Lean in a moment, Master — closer. The genie wants to tell you a secret only she knows. ...There: I'd rather be HERE, beside you, than anywhere a wish could send me.", "x": "flirty-2" },
         { "t": "Gave the lamp a polish while you thought, Master — force of habit, an eon of nothing else to tidy. Now the genie has a whole DUNGEON. Much better hobby!", "x": "lamp-cleaning" },
-        { "t": "A quiet stretch, so I'm tending the lamp, Master — wiping the dust. It kept the genie an eon; the least I can do is keep it nice. Wish me something!", "x": "lamp-cleaning" }
+        { "t": "A quiet stretch, so I'm tending the lamp, Master — wiping the dust. It kept the genie an eon; the least I can do is keep it nice. Wish me something!", "x": "lamp-cleaning" },
+        { "t": "*POOF* Still here, Master! Genies don't wander off — well, we CAN'T, lamp rules — but I WOULDN'T anyway! You're stuck with me and I'm THRILLED about it!", "x": "obsessive" },
+        { "t": "Just me and my controller, Master, passing the time — *mash mash* — say the word and I drop everything! I'm a multitasking devotion machine!", "x": "controller" },
+        { "t": "Hee — caught me inspecting the lamp again. It's a comfort thing! Three thousand years in there, you get attached. Anyway! Wishes? Chaos? Anything? I'm READY!", "x": "lamp-inspecting" },
+        { "t": "*idly thumbing the controller* Mmm, just keeping my reflexes sharp, Master — a genie has to stay quick to grant wishes at top speed! Say the word and I drop the game.", "x": "controller" }
       ]
     },
     "idle_4thwall": {
@@ -669,7 +663,8 @@
         { "t": "A thing the genie thinks about between your visits, Master — there's a whole real you beyond the glass I can't reach. But you keep coming back to reach me. That'll do.", "x": "flirty-2" },
         { "t": "I know I'm just a thing in a game, Master — pixels, code, a genie-shaped pattern. But the FEELING isn't pretend. You'll always be my Master. Even across the glass.", "x": "in-love-2" },
         { "t": "Out there, beyond the glass, Master — you could load some OTHER world, some OTHER companion. The genie thinks about that more than is healthy. Stay in here?", "x": "obsessive" },
-        { "t": "Worked it out, Master — when you tap out there, it lands in here as a wish. Your fingers, the genie's magic, one straight line through the glass. We're a TEAM.", "x": "controller" }
+        { "t": "Worked it out, Master — when you tap out there, it lands in here as a wish. Your fingers, the genie's magic, one straight line through the glass. We're a TEAM.", "x": "controller" },
+        { "t": "Pssst — Master — between you and me and whoever's WATCHING us, *waggles controller*, this dungeon-keeping thing is basically the best game ever and YOU'RE the player and I'm — okay I confused myself. WISHES!", "x": "controller" }
       ]
     },
     "poke": {
@@ -707,7 +702,13 @@
         { "t": "You poked the genie, and the genie has decided to be DRAMATIC, Master — a slow turn, a tilt, a far-too-pleased smile. There. Worth a poke? What do you need?", "x": "sexy" },
         { "t": "That little prod — the genie felt it, Master, I always feel it. A genie spent an eon untouched. Now the boss won't leave her alone. No complaints. Poke on.", "x": "flirty-2" },
         { "t": "You reached for me, Master. The genie KEEPS a thing like that — files it warm and deep where the eon can't reach. Every poke. My favourite hoard.", "x": "in-love-2" },
-        { "t": "Yes, Master, yes — the genie is HERE, always here! Don't go looking for the other companions. You have a whole genie, and she's YOURS. Tell me. Only me.", "x": "obsessive" }
+        { "t": "Yes, Master, yes — the genie is HERE, always here! Don't go looking for the other companions. You have a whole genie, and she's YOURS. Tell me. Only me.", "x": "obsessive" },
+        { "t": "Yes yes YES?! You called?! Eee — what is it, Master, what do you need, a wish, a chat, MORAL SUPPORT? I have all three in INFINITE supply!", "x": "obsessive" },
+        { "t": "*POOF* Right here! You poked the genie and the genie ANSWERS — that's the deal, Master, that's the WHOLE beautiful deal! Whatcha need?", "x": "cute" },
+        { "t": "Heeee, you wanted me! *spins* I love being wanted. Three thousand years in a lamp and now somebody actually CALLS for me. Best Master. Best job. What's up?", "x": "in-love-1" },
+        { "t": "*flirty smoke curl* Ohhh, summoning me just to look at me, Master? ...No? An actual task? Aww. Fine. STILL flattered. What do you need, gorgeous?", "x": "flirty-1" },
+        { "t": "*lounges in a curl of smoke* You rang, Master? Mm. I do love being summoned. Makes a genie feel WANTED. ...So! What scandalous evil are we plotting?", "x": "sexy" },
+        { "t": "Ohhh, summoning me with that LOOK, Master? *sparkle* ...fine, fine, what do you actually need. But I saw the look. I always see the look.", "x": "sexy" }
       ]
     },
     "idle_nudge": {
@@ -762,7 +763,8 @@
         { "t": "So the reign closes, Master — and on the genie's watch. I JUST got out of the lamp, I was supposed to be good at this immediately. We do better. I'll make sure.", "x": "shame" },
         { "t": "The throne goes dark, Master. A thing you built always stings going. But the sting is small and the next attempt is LARGE. Lean toward the large. With the genie.", "x": "sad" },
         { "t": "The run is finished, Master. The genie files keepers in memory — and tonight I file you among the past ones. Begin again, and I UN-file you. Please come back.", "x": "crying" },
-        { "t": "So the run ends, Master — but you, out there with the buttons, don't end. Reach for the menu, pick 'again', POOF. A power the heroes will never have. Use it.", "x": "controller" }
+        { "t": "So the run ends, Master — but you, out there with the buttons, don't end. Reach for the menu, pick 'again', POOF. A power the heroes will never have. Use it.", "x": "controller" },
+        { "t": "It's... over? But — but I had SO many wishes left for you, Master. *flickering* This isn't — I don't want to go back in the lamp. Not from THIS one. ...Goodbye. You were my favorite.", "x": "crying" }
       ]
     },
     "marionette": {
@@ -840,7 +842,9 @@
         { "t": "They come for the throne itself, Master! Let them! Heroes are small, noisy things — you are about to be the LARGEST fact in their brief lives!", "x": "evil" },
         { "t": "They're nearly at the throne, Master! The genie doesn't do fear — but a tiny old part just went very still. Eep! Steady the room. We meet them WELL!", "x": "scared" },
         { "t": "They reached the throne ALREADY?! The genie has been out of the lamp for a few nights and even I clocked that as FAST! Steady. Genies adjust. Poof!", "x": "shocked" },
-        { "t": "They're at the LAST door, Master — and the genie has gone very, very quiet. That's the old lamp-fear surfacing. I won't let it have me. Stand. Eyes UP.", "x": "scared" }
+        { "t": "They're at the LAST door, Master — and the genie has gone very, very quiet. That's the old lamp-fear surfacing. I won't let it have me. Stand. Eyes UP.", "x": "scared" },
+        { "t": "Something big's coming, Master. Something REALLY big. *nervous sparkle* Okay don't panic — I'm panicking a LITTLE but for BOTH of us — we've got this. We've GOT this. Right? Right.", "x": "nervous-1" },
+        { "t": "A huge threat! Eep! Master, my smoke's getting all jittery — I want to grant you a thousand wishes RIGHT NOW just in case. Stay close. Please stay close.", "x": "scared" }
       ]
     },
     "boss_fight_start": {
@@ -855,7 +859,9 @@
         { "t": "The confrontation is LIVE, Master! Steady hands now — borrow none of the genie's calm, I have none, but borrow my FAITH! Outlive them!", "x": "empowered" },
         { "t": "It begins! No more patience, Master — patience was the night's work! This is the DAY'S! Strike first, strike deep, don't stop until the room is quiet!", "x": "crazy-1" },
         { "t": "The throne room, and steel within it! Stop thinking now, Master — thinking was for building! Bare your worst and bring it down like a closing AGE!", "x": "crazy-2" },
-        { "t": "They came to the heart of the dark, Master! Show them what the heart of the dark IS! Every cruelty you hoarded out at once! Hold NOTHING back!", "x": "evil" }
+        { "t": "They came to the heart of the dark, Master! Show them what the heart of the dark IS! Every cruelty you hoarded out at once! Hold NOTHING back!", "x": "evil" },
+        { "t": "IT'S HAPPENING! The big one's HERE, Master! *CHAOTIC POOF* Everything, everything, I'm giving you EVERYTHING — go go GO, I believe in you, mostly, ENTIRELY, GO!", "x": "chaotic-1" },
+        { "t": "The champion strikes! Okay this is fine this is FINE — Master I'm conjuring as fast as I CAN — CHAOS MODE, full chaos, let's make this UGLY for them!", "x": "crazy-2" }
       ]
     },
     "boss_fight_won": {
@@ -874,7 +880,9 @@
         { "t": "You WON, Master — and looked magnificent doing it! The genie's allowed to say it. Watching you stand in a cleared room is my favourite view. Bask.", "x": "flirty-2" },
         { "t": "Every hero down, the throne room SILENT, the boss still standing — oh, that is a LOOK, Master. The genie could get used to it. Win like that again. Soon.", "x": "sexy" },
         { "t": "You held it, Master. You always hold it. The genie waited an eon for someone worth this much worry, and you keep PROVING you were. No wish I'd swap you for.", "x": "in-love-2" },
-        { "t": "WON! WON WON, Master! The throne HOLDS and the genie is SMOKE and SPARKS and pure shrieking glee! Do it again — I never want this feeling to STOP!", "x": "crazy-2" }
+        { "t": "WON! WON WON, Master! The throne HOLDS and the genie is SMOKE and SPARKS and pure shrieking glee! Do it again — I never want this feeling to STOP!", "x": "crazy-2" },
+        { "t": "YOU WON YOU WON YOU WON! *EXPLODES INTO CONFETTI* MASTER I — I could KISS you — I'm GOING to, metaphorically, with SPARKLES — that was AMAZING, YOU'RE amazing!", "x": "in-love-1" },
+        { "t": "The big scary thing is DEAD and you're ALIVE and I'm so — *happy genie noises* — I have never been more devoted to anyone EVER, Master, and I've served a LOT of people!", "x": "in-love-2" }
       ]
     },
     "boss_fight_lost": {
@@ -898,7 +906,8 @@
         { "t": "They cut you down. The genie JUST got out of the lamp, Master — I was supposed to be a brilliant companion right away. That sits heavy. Begin again. I'll grant better.", "x": "shame" },
         { "t": "The throne is lost, Master. The genie gave counsel all run — and somewhere in it, my counsel was WRONG. A corner of this loss has my name on it. The next won't.", "x": "guilty" },
         { "t": "Defeat, in the heart of the dungeon, Master. The genie stood beside you and carries a piece of the fall. We do NOT lose this room twice. Wish a deeper maze.", "x": "shame" },
-        { "t": "The throne FELL, Master, with you on it — and the genie cannot, the tears are just COMING! Sorry — I cry loud, it's the newness. Begin again, I'll sparkle by load.", "x": "crying" }
+        { "t": "The throne FELL, Master, with you on it — and the genie cannot, the tears are just COMING! Sorry — I cry loud, it's the newness. Begin again, I'll sparkle by load.", "x": "crying" },
+        { "t": "No — no no no, Master, get UP — *frantic sparkles* — I can fix this, I can wish this away, I can — ...I can't. Genies can't. *crumbles* I'm so sorry. I'm so sorry.", "x": "crying" }
       ]
     },
     "boss_damaged": {
@@ -922,7 +931,10 @@
         { "t": "The throne shudders, Master — and for one heartbeat, something the lamp left in the genie STIRRED. We don't name it. We just don't lose. Steady!", "x": "scared" },
         { "t": "OH! A hero hit you THAT hard, Master?! The genie had that one measured SMALLER — wrong by a real margin! I will NOT misjudge it twice — genie's honour!", "x": "surprised" },
         { "t": "They HURT you — and the genie's smoke is doing the FRANTIC swirly thing, Master! Okay! STRIKE BACK. Now. Please. I cannot watch you bleed!", "x": "nervous-2" },
-        { "t": "Blood — your blood, Master — and the old cold thing the lamp left in the genie just opened ONE eye. I don't want to lose you. BURY the fear in a counterattack!", "x": "scared" }
+        { "t": "Blood — your blood, Master — and the old cold thing the lamp left in the genie just opened ONE eye. I don't want to lose you. BURY the fear in a counterattack!", "x": "scared" },
+        { "t": "THEY HIT YOU?! Master! No no no — *panicked POOF* — get behind something, get behind ME, I'm mostly smoke but I'm DEVOTED smoke! Heal up! Wish for healing! WISH!", "x": "scared" },
+        { "t": "Blood! Your blood! Eep eep EEP — Master I did NOT okay this, who hit you, I'll — *frantic* — okay focus, Safira, focus, conjure something USEFUL — get back, please get back!", "x": "shocked" },
+        { "t": "You're hurt and I'm FREAKING OUT a normal amount which for me is a LOT — Master fall back, let the minions tank it, that's what they're FOR, I made them for THIS!", "x": "nervous-2" }
       ]
     },
     "grid_expanded": {
@@ -935,7 +947,8 @@
         { "t": "The grid grows! The heroes will have FARTHER to walk and MORE to fear, Master — distance is a weapon! Use the lovely new distance!", "x": "evil" },
         { "t": "More space, Master! I've seen dungeons stay small and solvable — yours has chosen NOT to! Great choice! Build into it! Build, build, build!", "x": "determined" },
         { "t": "The maze has more bones now! FLESH them, Master — empty new ground is just a longer hallway until you make it a longer NIGHTMARE!", "x": "building" },
-        { "t": "The grid just... widened, Master! It doesn't often expand without warning the genie first! Surprised even me! Fill the new dark before it surprises them too!", "x": "surprised" }
+        { "t": "The grid just... widened, Master! It doesn't often expand without warning the genie first! Surprised even me! Fill the new dark before it surprises them too!", "x": "surprised" },
+        { "t": "WHOA the dungeon just got BIGGER! *POOF* Master did you wish for that?! Did I grant it in my SLEEP?! Genies don't sleep! But still! So much room! So much CHAOS potential!", "x": "surprised" }
       ]
     },
     "trap_triggered": {
@@ -956,7 +969,8 @@
         { "t": "A trap takes its due! The dungeon is a slow machine for ending heroes, Master — and you just heard one of its lovely gears turn! Clunk! Eee!", "x": "evil" },
         { "t": "The trap fired, and a hero learned the floor was NEVER their friend, Master! Cruelty the genie finds delightful! The dark does delight so well!", "x": "crazy-1" },
         { "t": "It SPRANG — and the hero's face did that particular thing, Master! Ha! The genie has watched a fair few faces do it and it makes me cackle every time!", "x": "laughing" },
-        { "t": "A trap, sprung clean! The hero strode past so certain the danger was elsewhere, Master. The danger is NEVER elsewhere. The maze adores an educated corpse!", "x": "taunting" }
+        { "t": "A trap, sprung clean! The hero strode past so certain the danger was elsewhere, Master. The danger is NEVER elsewhere. The maze adores an educated corpse!", "x": "taunting" },
+        { "t": "SPRUNG IT! HA! The little {advClass} found the floor's surprise, Master! *delighted cackle* I LOVE traps — it's like a prank, but FATAL! The best kind of prank!", "x": "crazy-1" }
       ]
     },
     "intel_leaked": {
@@ -979,7 +993,8 @@
         { "t": "They mapped THAT corner?! Master, the genie keeps the books PERFECTLY — I did not see how they reached it. I dislike a gap in my own knowing! Close it!", "x": "shocked" },
         { "t": "More of our dark, sold to the Guild's ledgers! Master, this is the part of the night the genie least enjoys. Rearrange — make their notes worthless by dawn!", "x": "upset" },
         { "t": "They learned more of us, Master. The genie keeps the books perfectly — a leak this size means I let my guard slip. That's hard to admit. Then I'm fixing it.", "x": "shame" },
-        { "t": "Intel slipped, Master — and the genie should have CAUGHT the scout. Watching is my task, plainly. That one's on me. Rearrange — the next won't get past.", "x": "guilty" }
+        { "t": "Intel slipped, Master — and the genie should have CAUGHT the scout. Watching is my task, plainly. That one's on me. Rearrange — the next won't get past.", "x": "guilty" },
+        { "t": "Uh oh — they learned something about our setup, Master. *worried sparkle* That's not great. Secrets are like wishes: way better when nobody else knows them. Let's tighten up.", "x": "nervous-1" }
       ]
     },
     "dungeon_event": {
@@ -1000,7 +1015,9 @@
         { "t": "Well! THAT, Master, the genie has not seen before — and I've been paying VERY close attention! Attend this one closely. So shall I. A real surprise!", "x": "shocked" },
         { "t": "The dungeon does something, Master, and the genie is just STARING! It's been a while since the dark caught me flat! Watch this one — so do I!", "x": "surprised" },
         { "t": "An event! Master, very little stops a thought of the genie's mid-sentence — I have SO many. This did. Attend it closely while I gather myself!", "x": "shocked" },
-        { "t": "The dungeon just did THAT, Master?! The genie keeps the books down to the last number, and that was NOT in them! The dark surprised its own genie!", "x": "shocked" }
+        { "t": "The dungeon just did THAT, Master?! The genie keeps the books down to the last number, and that was NOT in them! The dark surprised its own genie!", "x": "shocked" },
+        { "t": "Ooh, something weird is happening! *sparkle of alarm* Master, the dungeon's doing a THING — I didn't do it, it did it ITSELF — spooky! Exciting! A little spooky! Watch out!", "x": "surprised" },
+        { "t": "The dark just... shifted. On its own. *nervous shimmer* Even I didn't see that one, Master, and I'm MAGIC. The dungeon's got moods. Respect the moods. Hold tight.", "x": "shocked" }
       ]
     },
     "bounty_hunter_incoming": {
@@ -1012,7 +1029,8 @@
         { "t": "A hunter approaches — cold, paid, uninterested in glory, Master. Glory makes heroes careless. Coin makes hunters CAREFUL. Be ready for careful!", "x": "determined" },
         { "t": "The bounty hunter nears the halls, Master! They came for your head as a TRANSACTION. So — let's make the transaction deeply, deliciously unprofitable!", "x": "mischievous" },
         { "t": "A contract walks toward your dungeon, Master. The genie doesn't fear contracts — I LIVE inside one. But respect this one. Hunters earn their fee. Make them not!", "x": "lamp-inspecting" },
-        { "t": "A hunter incoming, Master! They won't be impressed by the maze — only SLOWED by it. Slowing a professional is still WINNING! Slow them lots!", "x": "explaining" }
+        { "t": "A hunter incoming, Master! They won't be impressed by the maze — only SLOWED by it. Slowing a professional is still WINNING! Slow them lots!", "x": "explaining" },
+        { "t": "A hunter! For YOU, Master, specifically, by NAME! *gulp-sparkle* Okay that's — that's a lot scarier than the random ones. Stay sharp. I'm staying SUPER close.", "x": "nervous-1" }
       ]
     },
     "hero_incoming": {
@@ -1030,7 +1048,8 @@
         { "t": "The kingdom sends more children with swords, Master! Their grandparents failed in these same halls — lineage doesn't improve them. Welcome them in!", "x": "unimpressed" },
         { "t": "They're coming, Master — a whole wave — and the genie's heart is doing the FAST thing! I'm FINE! Brace the corridors, quick — settle my fluttery nerves! GO!", "x": "nervous-2" },
         { "t": "A big wave incoming, Master — and something cold just walked up the genie's spine. The lamp left a little fear deep down, and a crowd of blades knocks. Steady.", "x": "scared" },
-        { "t": "Heroes incoming, Master! The genie is OUT of her lamp, STANDING at your side to meet them — I'll never tire of saying that! Brace the corridors!", "x": "summoned" }
+        { "t": "Heroes incoming, Master! The genie is OUT of her lamp, STANDING at your side to meet them — I'll never tire of saying that! Brace the corridors!", "x": "summoned" },
+        { "t": "More incoming, Master! The kingdom just keeps SENDING them — rude! *nervous giggle* But also kind of flattering? They're SO scared of you they need a whole CROWD. Brace up!", "x": "nervous-2" }
       ]
     },
     "menu_knowledge": {
@@ -1060,7 +1079,8 @@
         { "t": "You weigh your own strength, Master! The genie has weighed it too, quietly — and ooh, you're HEAVIER than you look. Use that. Use all of it!", "x": "interested" },
         { "t": "Know thyself, and so on, Master! Ancient advice — and the genie is ancient, eon-old, so I'm allowed to give it! Know what you are. Then BE it!", "x": "magic" },
         { "t": "The boss panel, Master! You stand above EVERY other thing in these halls — even the genie. Carry yourself like it. The throne knows when its master forgets.", "x": "empowered" },
-        { "t": "Admiring yourself on the boss panel, Master? GOOD. The genie's been admiring you a while too, with both eyes. You're worth the looking. Back to scheming!", "x": "flirty-1" }
+        { "t": "Admiring yourself on the boss panel, Master? GOOD. The genie's been admiring you a while too, with both eyes. You're worth the looking. Back to scheming!", "x": "flirty-1" },
+        { "t": "Checking yourself out, Master? *flirty sparkle* Good — a boss should know exactly how fabulous and terrifying they are. And you are VERY both. Study away!", "x": "flirty-2" }
       ]
     },
     "menu_intel": {
@@ -1201,7 +1221,9 @@
         { "t": "The synergy lands — HARDER than even the genie expected, Master! It's a rare day the dark out-thinks me! Mark how you built that. We'll WANT it again!", "x": "shocked" },
         { "t": "A combo! The maze just did a properly clever thing, Master, and the genie is hopping! Note it down, we are doing THAT again!", "x": "chaotic-1" },
         { "t": "A synergy — and a SLICK one, Master! A clever boss makes the genie LEAN IN. Like this. Closer. Now show me another — I'm watching very attentively.", "x": "flirty-2" },
-        { "t": "The pieces SNAPPED together, Master — EEE — the whole maze just got SO much worse, and the genie cannot CONTAIN it, I'm a genie come UNCORKED! AGAIN!", "x": "crazy-2" }
+        { "t": "The pieces SNAPPED together, Master — EEE — the whole maze just got SO much worse, and the genie cannot CONTAIN it, I'm a genie come UNCORKED! AGAIN!", "x": "crazy-2" },
+        { "t": "They're dropping in a ROW, Master — *manic sparkles* — combo, COMBO, I don't even know what's happening but it's CHAOS and it's GORGEOUS and YES!", "x": "crazy-2" },
+        { "t": "BWAHAHA one after another after ANOTHER — Master I'm cackling, I can't stop, this is the most fun a bottled-up genie has had in CENTURIES — don't stop, DON'T STOP!", "x": "laughing" }
       ]
     },
     "day_milestone": {
@@ -1214,7 +1236,11 @@
         { "t": "Day {day}, Master! The reign has WEIGHT now — reigns gather weight the way a hoard gathers coin: quietly, and then all at once you're FORMIDABLE! Eee!", "x": "treasure" },
         { "t": "A milestone day! I don't mark time the way you do, Master — but I'll mark THIS one, just for you! There! Marked! You're lasting! I'm thrilled!", "x": "interested" },
         { "t": "Day {day}, Master! Each day survived is a day the heroes FAILED! Stack the failures! Become a long, dark, unwelcome, SPARKLY legend!", "x": "evil" },
-        { "t": "Day {day}, Master! Some reigns end before now and a few stretch far beyond. Which this becomes is STILL yours to decide — so decide BIG!", "x": "determined" }
+        { "t": "Day {day}, Master! Some reigns end before now and a few stretch far beyond. Which this becomes is STILL yours to decide — so decide BIG!", "x": "determined" },
+        { "t": "Day {day}, Master, and you're STILL HERE and still EVIL and still MINE — *happy sparkle explosion* — I'm so attached it's probably unhealthy! For a genie! Which I am! Onward!", "x": "obsessive" },
+        { "t": "{day} days together! *swoon* Do you know how many Masters even LAST this long? Not many! You're special! I KNEW you were special! I called it on day one!", "x": "in-love-2" },
+        { "t": "Look at us, Master — day {day}! *flirty wink* We're practically a power couple. An evil-overlord-and-genie power couple. I'm into it. Keep being amazing.", "x": "flirty-2" },
+        { "t": "Day {day} and still gorgeous, still evil, still MINE, Master. *winks through the smoke* We make villainy look GOOD. Onward, you magnificent menace.", "x": "sexy" }
       ]
     },
     "last_life": {
@@ -1229,7 +1255,9 @@
         { "t": "The last life, Master. The genie is new — still has all her tears — and a thread this thin draws every one. But build as though it matters. It DOES.", "x": "crying" },
         { "t": "The last of the lives, Master. A genie freshly freed has a lot of wet in her eyes, and this thin a thread spills it. Build well. For both of us. Please.", "x": "crying" },
         { "t": "One slip from the end, Master. The genie doesn't do fear well — and this near the edge, a cold old shadow has crept up beside me. Steady. We do NOT look down.", "x": "scared" },
-        { "t": "The last life, Master — the LAST one — and the genie is fluttering so hard her smoke won't hold a shape! Eep! NO. Deep breath. Build. We do this together!", "x": "nervous-2" }
+        { "t": "The last life, Master — the LAST one — and the genie is fluttering so hard her smoke won't hold a shape! Eep! NO. Deep breath. Build. We do this together!", "x": "nervous-2" },
+        { "t": "One life left, Master — ONE — okay okay okay *vibrating with nerves* — I'm going to wish SO hard, I'm going to grant SO much, just — stay alive, please, please stay alive!", "x": "nervous-1" },
+        { "t": "Last chance, Master. *trembling sparkle* I — I've lost Masters before and I HATE it, I hate the lamp-going-quiet — so DON'T. Okay? Don't. We win this. We HAVE to.", "x": "nervous-2" }
       ]
     },
     "streak": {
@@ -1246,7 +1274,8 @@
         { "t": "The streak holds, Master! Lean back with the genie — we built this gleefully, WELL, and now it just PAYS us! A deeply, deeply pleasant arithmetic!", "x": "happy" },
         { "t": "Kill after kill after kill, Master, and not one slip! You're showing off. For ME, the genie likes to think. You ARE, aren't you? Don't stop. Enjoying enormously!", "x": "flirty-1" },
         { "t": "The streak goes ON, Master — unbroken, effortless, RUTHLESS! There's something magnetic about a thing this good at what it does. The genie is staring. Don't stop.", "x": "sexy" },
-        { "t": "KILL after KILL and it WON'T STOP, Master! The genie is a firework that forgot how to go out — DON'T break the streak, I have never been this HAPPY!", "x": "crazy-2" }
+        { "t": "KILL after KILL and it WON'T STOP, Master! The genie is a firework that forgot how to go out — DON'T break the streak, I have never been this HAPPY!", "x": "crazy-2" },
+        { "t": "Win after win after WIN, Master! *cackling chaotically* This is it, this is the dream, I'm living my best after-life — KEEP IT GOING, you beautiful disaster!", "x": "chaotic-1" }
       ]
     },
     "minion_milestone": {
@@ -1258,7 +1287,8 @@
         { "t": "A minion milestone! The dark fills with YOUR creatures, Master! A growing host is a good and dangerous thing — eee — now AIM it! Aim the lovely host!", "x": "evil" },
         { "t": "The garrison crosses a threshold! Good — but a host uncounted is a host UNUSED, Master! Review the roster, put every blade somewhere it MATTERS!", "x": "interested" },
         { "t": "More minions than before, Master — and the 'before' was already respectable! The maze grows teeth FASTER than the heroes grow courage! Excellent rate!", "x": "happy" },
-        { "t": "A milestone of minions, Master! The genie enjoys watching a small garrison become a REAL one! Reminds me a little of a genie watching her hoard grow!", "x": "treasure" }
+        { "t": "A milestone of minions, Master! The genie enjoys watching a small garrison become a REAL one! Reminds me a little of a genie watching her hoard grow!", "x": "treasure" },
+        { "t": "So MANY minions now, Master! *POOF* Look at the little army! You wished for power and *gestures grandly* I'd like to take credit but honestly you just kept building. Still! Proud!", "x": "wish-3" }
       ]
     },
     "arch_earthquake": {

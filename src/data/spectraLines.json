@@ -39,7 +39,18 @@
         { "t": "A real, BREATHING boss! The last one had the personality of damp moss, no shade — okay, full shade. You feel WAY more main-character coded, senpai.", "x": "heart-eyes" },
         { "t": "Oh hey it's senpai! ...Wait, you're like REAL-real, full pulse and everything? Cool cool cool. I'll try not to phase through you on accident. ...I will probably phase through you on accident.", "x": "looking-cute" },
         { "t": "Welcome to the show, DM! Or — boss, or senpai, or champ, I have a LOT of names for you, we'll find one that sticks. ...Probably senpai. It's senpai. I called it already.", "x": "explaining" },
-        { "t": "OMG you're TAKING THE THRONE?! Plot twist incoming — the hero POV gets FLIPPED! This is so cinema, senpai!", "x": "dramatic-anger" }
+        { "t": "OMG you're TAKING THE THRONE?! Plot twist incoming — the hero POV gets FLIPPED! This is so cinema, senpai!", "x": "dramatic-anger" },
+        { "t": "OMG OMG a NEW player one?! Senpai, hi, HI — I'm Spectra, your resident ghost, and you have NO idea how boring it gets haunting a dungeon with no one to co-op with! Let's GO!", "x": "excited" },
+        { "t": "A new boss just spawned in?! *sparkle-eyes* Senpai you're like... the protagonist now. The MAIN character. And I'm your quirky ghost sidekick! This is literally my favorite trope!", "x": "bishie-sparkles" },
+        { "t": "Eee, new senpai! *clutches a plushie* Okay okay don't be weird, Spectra, don't be — hi! I'm normal! I'm a normal ghost! ...I'm not normal. But I'm FUN. Welcome to the save point!", "x": "plush-hug" },
+        { "t": "Wahhh a real live boss, finally! *happy ghost wiggle* Senpai, this dungeon's been on permanent hiatus and YOU just renewed it for a new season! I'm SO hype! Let's grind!", "x": "happy" },
+        { "t": "A new senpai?! *nose-bleed levels of hype* OMG okay don't be weird — too late — HI, I'm Spectra, your ghost co-op partner, and I am SO normal about meeting you! *vibrating*", "x": "nose-bleed" },
+        { "t": "New player one! *blushing* Eee, hi, hello, I'm — okay deep breath — I'm Spectra! I haunt this place! And now I get to haunt it WITH you! Best update ever! Welcome, senpai~", "x": "blushing" },
+        { "t": "*sparkle-eyes, holding a plushie* A new boss spawned and he's — *clutches plush* — okay he's cool, be cool, Spectra — WELCOME, senpai! This dungeon's about to get SO much better!", "x": "holding-plushies" },
+        { "t": "A new senpai!! *senpai-notice overload* Okay he noticed me — well, summoned me — SAME THING — hi player one, I'm Spectra, your hype-ghost, let's GO!", "x": "senpai-notice" },
+        { "t": "New boss spawned~ *holding plushies, shy* Hi, senpai! I, um — *clutches plush* — I get a co-op partner now! Best patch ever! Welcome to the save point, player one!", "x": "holding-plushies" },
+        { "t": "A new senpai! *senpai-notice meltdown* He summoned me — me specifically — okay be cool, Spectra — HI player one, let's make this dungeon ICONIC!", "x": "senpai-notice" },
+        { "t": "New boss, new co-op buddy! *blushing, hugging a plush* Hi senpai~ I'm Spectra! This is the best patch this dungeon's ever gotten. Welcome, player one!", "x": "blushing" }
       ]
     },
     "night_start": {
@@ -54,7 +65,18 @@
         { "t": "Crypt's QUIET, senpai. That's our window. Throw down some pain. Heroes don't dream when they're being designed FOR them.", "x": "mischievous" },
         { "t": "Build mode! I love this part. You get to think like a dungeon designer instead of a survivor. Pretty sick energy shift, ngl.", "x": "gaming" },
         { "t": "Night again. Same vibe as last night except slightly weirder energy — I dunno why, I just always feel that on day {day}. Anyway: build!", "x": "distracted" },
-        { "t": "Build phase, senpai! Skull-pal's gonna heckle whatever you place, fair warning. He's a critic. I'm just gonna VIBE. Different energy, you'll see.", "x": "looking-cute" }
+        { "t": "Build phase, senpai! Skull-pal's gonna heckle whatever you place, fair warning. He's a critic. I'm just gonna VIBE. Different energy, you'll see.", "x": "looking-cute" },
+        { "t": "Build phase, senpai! *cracks knuckles, floats closer* This is the crafting montage — you know, where the music plays and the base gets cool? Put the music on in your head. Let's BUILD.", "x": "focused" },
+        { "t": "Night {day}! Okay okay, prep time — *summons a notepad* — I'm taking NOTES on the meta, senpai, we're gonna optimize this dungeon like a speedrun route. Locked in. So locked in.", "x": "focused" },
+        { "t": "Build hours, DM! *floats upside down* The MOBS are sleeping, we're stacking defenses — classic tower-defense night phase. I LIVE for the prep. ...mostly I live for the snacks. But ALSO prep!", "x": "focused" },
+        { "t": "Crafting time, senpai! *doodling base layouts in the air* Ooh, ooh, what if you put the scary room HERE — no wait, you're the boss, you decide — but consider: HERE. *points*", "x": "doodling" },
+        { "t": "*already half-watching something* Hm? Oh! Build phase, senpai, right, sorry — I had an anime on in my head. Okay, focus mode. Sort of. Build! I'm watching! Mostly!", "x": "watching-anime" },
+        { "t": "Build phase, senpai~ *flipping a strategy guide that's actually manga* Okay 'optimizing the base' — *flip* — ooh this panel's cool — RIGHT, building, focus! Build on, player one!", "x": "reading-manga" },
+        { "t": "Night {day}! *posing figures on the wall* Decorating the base with my collection while you craft, senpai. A dungeon needs PERSONALITY. Build away — ignore the figurines.", "x": "figure-collection" },
+        { "t": "Build phase, senpai~ *posing figures along a wall* Decorating the base with my collection while you craft. A dungeon needs PERSONALITY! Build on, player one!", "x": "figure-collection" },
+        { "t": "Night {day}! *texting energy* Drafting the base layout in my notes app — mental notes, I'm dead, no phone — anyway, build, senpai! I've got STRATS!", "x": "texting" },
+        { "t": "Build phase, senpai~ *doodling base plans midair* Sketching the layout — ooh, put the scary room HERE — just a thought, player one! Build on!", "x": "doodling" },
+        { "t": "Night {day}! *bored float* Slow start, senpai. Wake me when there's something to defend. *yawn* Build away, player one~", "x": "yawning" }
       ]
     },
     "day_start": {
@@ -69,7 +91,14 @@
         { "t": "Heroes incoming, senpai! Twitch chat would be GOING OFF right now if I were actually live. I'll narrate for them. ...For us. For me. Whatever. 💬", "x": "streaming" },
         { "t": "Day phase {day}, senpai! Engage gamer reflexes. Even though you don't really have to engage them. You watch. It's auto-attack. But the SPIRIT is reflexes.", "x": "gg-victory" },
         { "t": "Daylight! Camera ON the corridors. The skeleton goes quiet around now — he's WATCHING. So am I, just LOUDER about it.", "x": "focused" },
-        { "t": "The kingdom's wave just clocked in for their morning shift. Cute. Let's give them a really BAD day, DM.", "x": "mischievous" }
+        { "t": "The kingdom's wave just clocked in for their morning shift. Cute. Let's give them a really BAD day, DM.", "x": "mischievous" },
+        { "t": "DAY {day}! The MOBS are spawning, senpai! *grabs popcorn from nowhere* Okay this is the part where we just watch the dungeon do its thing — best seat in the house, no cap. Here they come!", "x": "eating-snacks" },
+        { "t": "Doors open, player one! *vibrating* The wave's incoming — it's like a raid boss but WE'RE the raid boss — wait, that's backwards — whatever, POINT IS, they're toast! Let's watch!", "x": "excited" },
+        { "t": "Showtime, senpai! *phone out* I'm gonna live-tweet the carnage — I mean, mentally, I'm a ghost, no thumbs — but the VIBE is content-creation. Day {day}, here come the mobs!", "x": "phone-scrolling" },
+        { "t": "Day {day}! *munching* Okay grabbed snacks, got my spot, dungeon's loaded — senpai this is basically watching a let's-play except the let's-play is REAL and the streamer is YOU. Go go go!", "x": "eating-snacks" },
+        { "t": "Day {day}! *cheeks stuffed* Mff—snack secured, spot claimed, dungeon loaded! *swallow* Here come the mobs, senpai — best seat in the house, player one!", "x": "cheeks-stuffed" },
+        { "t": "Doors open, player one! *scrolling* Gonna live-feed the carnage — mentally — the VIBE is content creation, senpai! Day {day}, here they come!", "x": "phone-scrolling" },
+        { "t": "Day {day}! *sipping juice* Spot claimed, snack secured, mobs incoming~ *slurp* best seat in the house, senpai!", "x": "juice-box-sip" }
       ]
     },
     "begin_day": {
@@ -80,7 +109,9 @@
         { "t": "BUTTON PRESSED! No takesies-backsies. Wave incoming HOT. The skeleton respects a fast pre-roll — I'm just here for the chaos energy.", "x": "button-mashing" },
         { "t": "Show's GO, senpai! You skipped the buffer. Bold. Iconic. Mildly stressful. Let's see what they brought.", "x": "anime-gasp" },
         { "t": "Forced spawn, senpai! No backtracking now. I LOVE this kind of confidence — you BETTER be confident.", "x": "dramatic-anger" },
-        { "t": "Day {day} starts NOW. You hit it early! Power move. The wave doesn't know what hit it — literally, because it hasn't entered yet. Soon.", "x": "pointing" }
+        { "t": "Day {day} starts NOW. You hit it early! Power move. The wave doesn't know what hit it — literally, because it hasn't entered yet. Soon.", "x": "pointing" },
+        { "t": "You hit START, senpai! *gasp* No takebacks — that's a hardcore-mode decision and I RESPECT it! The mobs are loading in! This is gonna be SO good — places, ghost, places!", "x": "anime-gasp" },
+        { "t": "And we're LIVE, player one! *streamer voice* 'What's up chat, today we're defending the save point' — okay I'm narrating again, sorry, I do that — SEND THEM IN!", "x": "streaming" }
       ]
     },
     "room_placed": {
@@ -93,7 +124,12 @@
         { "t": "{roomName}, sweet. The maze grid grew. Heroes now have one MORE thing to die in. Beautiful loop.", "x": "gg-victory" },
         { "t": "Building a {roomName}, DM! Take your time. ...Or don't, fast builds are HYPE.", "x": "doodling" },
         { "t": "Ooh a {roomName}, cute layout choice. The skeleton's gonna heckle it — I'm gonna THUMBS UP it. Different vibes.", "x": "happy" },
-        { "t": "{roomName} placed. Watch — heroes are gonna walk in there confidently and just... die. Camera fades to BLACK. Cinema.", "x": "taking-photo" }
+        { "t": "{roomName} placed. Watch — heroes are gonna walk in there confidently and just... die. Camera fades to BLACK. Cinema.", "x": "taking-photo" },
+        { "t": "Ooh a {roomName}! *sparkle* Senpai that's a whole new zone — like unlocking a new area in a Metroidvania! The map just got THICCER. Build more! I love a big map!", "x": "bishie-sparkles" },
+        { "t": "A {roomName}, nice nice! *doodles it into a mental map* Adding it to the dungeon blueprint, senpai — ooh this is giving 'custom map editor' and I am HERE for it!", "x": "doodling" },
+        { "t": "{roomName} placed! *nods sagely* Good zone placement, player one. Spatial design is half the meta — I learned that from a tower-defense streamer. Probably. Build on!", "x": "focused" },
+        { "t": "A {roomName}! *snaps a photo* Ooh, documenting the base build, senpai — for the before-and-after montage. Looking good, player one! Build more zones!", "x": "taking-photo" },
+        { "t": "A {roomName}! *posing a figure on it* Ooh, new zone — instantly decorating it with my collection, senpai. The base has DRIP now. Build more, player one!", "x": "figure-collection" }
       ]
     },
     "minion_placed": {
@@ -106,7 +142,9 @@
         { "t": "{minionType} placed! Senpai you keep stacking these and I keep going SCREE inside. Big gacha-pull energy.", "x": "anime-gasp" },
         { "t": "A {minionType}! ...Wait what was I doing — oh right, hi little guy, welcome to the dungeon, please die for the bit when the time comes.", "x": "distracted" },
         { "t": "{minionType} on the grid! The party's BUILDING. Solid composition, DM.", "x": "holding-plushies" },
-        { "t": "{minionType} stationed! ...Aw they're TINY. Senpai can I keep them after the run. ...Yes? Don't answer that I'll keep them anyway.", "x": "looking-cute" }
+        { "t": "{minionType} stationed! ...Aw they're TINY. Senpai can I keep them after the run. ...Yes? Don't answer that I'll keep them anyway.", "x": "looking-cute" },
+        { "t": "A {minionName}! *gasp of joy* Senpai it's so CUTE — okay it's horrifying but in a cute way, like a low-poly horror mob — I'm naming it. In my head. Hi, little guy! Welcome to the party!", "x": "happy" },
+        { "t": "You summoned a {minionType}, player one! *excited* New party member unlocked! Add it to the squad — every good raid comp needs a frontliner. Tank role, let's GO!", "x": "excited" }
       ]
     },
     "trap_placed": {
@@ -118,7 +156,11 @@
         { "t": "Trap placed, senpai! Patient cruelty. The trap doesn't tilt, doesn't whiff, just SITS there waiting to ruin someone's day. Iconic kit.", "x": "smug" },
         { "t": "A trap! Plot device acquired. Watch the rerun — a hero's gonna step on it and I'm gonna pause-and-laugh.", "x": "laughing" },
         { "t": "Trap goes BRRR. Senpai you DESIGN like a true DM. Encounter craft, very nice.", "x": "gg-victory" },
-        { "t": "Trap deployed! ...Don't tell Rattle I called it a 'trap', he'll say it's a 'punchline waiting room'. The skeleton has VOCAB. Anyway: trap.", "x": "looking-cute" }
+        { "t": "Trap deployed! ...Don't tell Rattle I called it a 'trap', he'll say it's a 'punchline waiting room'. The skeleton has VOCAB. Anyway: trap.", "x": "looking-cute" },
+        { "t": "Ooh a trap, senpai! *mischievous grin* Sneaky sneaky — that's some real 'invisible spike pit in a Mario level' energy. The mobs are gonna RAGE. I love it. Place more!", "x": "mischievous" },
+        { "t": "A trap, player one? *smug* Galaxy-brain move. Make 'em read the floor — they NEVER read the floor. It's gonna be a clip. A real 'gotcha' moment. Set up another!", "x": "smug" },
+        { "t": "Ooh a trap, senpai! *mischievous* Invisible-spike-pit energy — the mobs are gonna RAGE so hard. It's gonna be a clip. Place more, player one!", "x": "mischievous" },
+        { "t": "A trap, senpai~? *seductive smirk* Sneaky AND stylish. The mobs won't know what hit 'em. I like the way you play, player one. Place more~", "x": "seductive" }
       ]
     },
     "item_placed": {
@@ -138,7 +180,11 @@
         { "t": "{roomName} GONE! Hot revision, senpai. Refactor is half the design process — respect.", "x": "thinking" },
         { "t": "Room sold off, sweet. Get the gold, rebuild smarter. The dungeon's a WIP, that's the whole bit.", "x": "looking-cute" },
         { "t": "Bye-bye {roomName}! No hard feelings. The build evolves, the dungeon LEVELS, we patch as we go.", "x": "winking" },
-        { "t": "Unbuilt! Senpai is COOKING and revising. I respect the iteration. Plot twist, design pivot, iconic.", "x": "pointing" }
+        { "t": "Unbuilt! Senpai is COOKING and revising. I respect the iteration. Plot twist, design pivot, iconic.", "x": "pointing" },
+        { "t": "Selling the {roomName}, senpai? *confused* Aw, but I'd already mentally decorated it — ANYWAY, gold back, that's a refund, smart resource management. Respawn the budget elsewhere!", "x": "confused" },
+        { "t": "Selling the {roomName}, senpai? *upset pout* Awww, I'd decorated it in my head — fine, FINE, gold refund, smart play. But I'm a little sad about it, just so you know.", "x": "upset" },
+        { "t": "Selling the {roomName}, player one? *upset* Awww, I liked that zone. *pout* Fine, gold refund, smart play. But I'm a LITTLE sad, senpai. Just so you know.", "x": "upset" },
+        { "t": "Selling the {roomName}, player one? *upset pout* Aw, I liked it. Fine — gold back. A little sad though, senpai.", "x": "upset" }
       ]
     },
     "sold_minion": {
@@ -148,7 +194,9 @@
         { "t": "A minion sold off! Gold back. The party reshuffles. Mains get swapped, it HAPPENS in every JRPG.", "x": "explaining" },
         { "t": "Un-summoned! Senpai trimming the roster. Cut, polish, re-recruit. Metagame stuff.", "x": "gaming" },
         { "t": "Bye little homie! Don't take it personal, you're getting reassigned. ...Wait. Sold. You're sold. Sorry.", "x": "wibbly-mouth" },
-        { "t": "Sold a minion off. The party comp evolves. The skeleton would say something dark — I'm gonna say it's CHARACTER GROWTH for the team.", "x": "looking-cute" }
+        { "t": "Sold a minion off. The party comp evolves. The skeleton would say something dark — I'm gonna say it's CHARACTER GROWTH for the team.", "x": "looking-cute" },
+        { "t": "Cutting the {minionName} from the squad, player one? *sad* Aw man. It was a real one. *sniffle* Okay, gold back, recast the role. But press F first. ...F. Okay, moving on.", "x": "sad" },
+        { "t": "Cutting the {minionName}, senpai? *sad* Aw, it was a good unit. *sniffle* Gold back, recast the role. But press F first, player one. ...F. Okay. Moving on.", "x": "sad" }
       ]
     },
     "sold_trap": {
@@ -187,7 +235,14 @@
         { "t": "It won't fit, senpai! The grid has rules. Even ghosts respect the grid. ...Actually I phase through it routinely. But like, normally.", "x": "confused" },
         { "t": "Blocked! The dungeon's like 'nuh-uh, not THERE buddy'. Try a different tile. Negotiations open.", "x": "sweatdrop" },
         { "t": "Won't sit there, DM! The maze has SHAPE. The skeleton would heckle this attempt, I'm just gonna point you elsewhere.", "x": "pointing" },
-        { "t": "That space refuses you! Plot block. Save-and-reload, try elsewhere.", "x": "confused" }
+        { "t": "That space refuses you! Plot block. Save-and-reload, try elsewhere.", "x": "confused" },
+        { "t": "Can't place it there, senpai! *chibi-rage* The grid said NO — invisible wall, bad hitbox, WHATEVER — ugh, so tilting! Try a different tile, player one. The map's being a hater.", "x": "chibi-rage" },
+        { "t": "Nope, blocked! *annoyed pout* That tile's giving 'collision error,' senpai. The dungeon won't let you. Rude. Pick somewhere the game actually allows. Grr.", "x": "annoyed" },
+        { "t": "Can't place there, senpai! *chibi-rage* The grid said NO — invisible wall, bad collision, WHATEVER — so tilting! Different tile, player one. The map's a hater today.", "x": "chibi-rage" },
+        { "t": "Blocked! *annoyed* That tile's throwing a 'collision error,' senpai. The dungeon's gatekeeping. Rude. Pick a spot the game actually ALLOWS, grr.", "x": "annoyed" },
+        { "t": "Can't place there, senpai! *chibi-rage* Grid said NO — bad collision, hater map — try another tile, player one! So tilting!", "x": "chibi-rage" },
+        { "t": "Blocked! *annoyed* Collision error, senpai. The dungeon's gatekeeping the build. Pick a legal tile, player one. Grr.", "x": "annoyed" },
+        { "t": "Blocked, senpai! *annoyed* Collision error — the grid's gatekeeping the build. Pick a legal tile, player one. Grr.", "x": "annoyed" }
       ]
     },
     "pact_sealed": {
@@ -209,7 +264,22 @@
         { "t": "{advName} the {advClass} just entered! Senpai, log them — they're gonna die in a way that becomes a fan-favorite clip.", "x": "streaming" },
         { "t": "Heroes incoming! A {advClass} this time. Standard archetype, vanilla build. Easy reads, senpai.", "x": "gaming" },
         { "t": "Senpai a {advClass} just walked in like they OWN the place. The audacity. The disrespect. I'm taking PERSONAL offense for you.", "x": "chibi-rage" },
-        { "t": "A {advClass}! Cute outfit, doomed character. The kingdom keeps SHIPPING these mass-produced builds. Be original, mob, GEEZ.", "x": "looking-cute" }
+        { "t": "A {advClass}! Cute outfit, doomed character. The kingdom keeps SHIPPING these mass-produced builds. Be original, mob, GEEZ.", "x": "looking-cute" },
+        { "t": "A {advClass} spawned in, senpai! *squints* Scanning the mob... medium threat, decent gear, NPC-tier AI. We got this. It walks like it's the main character. It's not. YOU are.", "x": "focused" },
+        { "t": "Ooh, {advName}'s here — and okay, not gonna lie, senpai, that one's kinda... *blushes* ...drawn really well? Like bishie-tier? ...ANYWAY it's still a mob and mobs DIE here. Focus, Spectra.", "x": "blushing" },
+        { "t": "A {advClass} entered the dungeon! *smug* Aw, look at it, all confident, thinking it's on a heroic quest. Plot twist, buddy: you're an EXP piñata. Watch this, senpai.", "x": "smug" },
+        { "t": "{advName} struts in like a protagonist! *taking a mental photo* Ooh, screenshot this for the highlight reel — 'mob full of confidence, 0.2 seconds before regret.' Iconic. Watch.", "x": "taking-photo" },
+        { "t": "Ooh, {advName}'s here and — *nose-bleed* — okay senpai not gonna LIE that {advClass} is drawn really well, like protagonist-tier, like — NO. Focus. It's a MOB. Mobs DIE here. Focus, Spectra!", "x": "nose-bleed" },
+        { "t": "A {advClass} spawned, senpai! *blushing a little* It's got that 'rival character' energy, the cool-mysterious type... ANYWAY it's still EXP. A handsome EXP piñata. Watch this, player one!", "x": "blushing" },
+        { "t": "{advName} struts in! *senpai-notice sparkle* Ooh it LOOKED this way — did it notice me?! ...it can't see me, I'm a ghost. Right. Anyway. It's doomed. Watch, senpai!", "x": "senpai-notice" },
+        { "t": "A {advClass}, senpai! *smug* Scanning... yep, NPC-tier confidence, main-character delusion, zero genre-awareness. It thinks it's the hero. Plot twist incoming. Watch.", "x": "smug" },
+        { "t": "{advName}'s here and — *nose-bleed* — okay senpai that {advClass} is drawn TOO well, that's bishie-tier, that's — NO. It's a MOB. Mobs die. Focus, Spectra, FOCUS!", "x": "nose-bleed" },
+        { "t": "A {advClass} spawned, senpai! *blushing* It's got the cool-rival aura... okay it's still EXP, a HANDSOME EXP piñata, but EXP. Watch this, player one!", "x": "blushing" },
+        { "t": "Ooh, {advName}! *snaps a mental photo* Screenshot the mob's confident entrance — for the 'before' in the before-and-after. The after is 'deceased.' Watch, senpai!", "x": "weeb" },
+        { "t": "{advName}'s here and — *nose-bleed* — okay that {advClass} is TOO well-drawn, senpai, bishie-tier, that's — NO, it's a mob, mobs DIE, focus Spectra!", "x": "nose-bleed" },
+        { "t": "A {advClass} spawned! *blushing* Cool-rival aura... still EXP though, senpai. A handsome piñata. Watch this, player one!", "x": "blushing" },
+        { "t": "{advName}'s here and — *nose-bleed* — that {advClass} is TOO well-drawn, senpai — NO, focus, it's a mob, mobs die!", "x": "nose-bleed" },
+        { "t": "A {advClass} spawned, and — *nose-bleed* — bishie alert, player one — okay, EXP piñata, focus Spectra, watch this!", "x": "nose-bleed" }
       ]
     },
     "first_blood": {
@@ -220,7 +290,9 @@
         { "t": "First kill, FIRST KILL! The day's BEAT just dropped. Tone set. Senpai you're cooking already. 🩸", "x": "excited" },
         { "t": "One down! And it's not even WAKE-UP-AND-CHOOSE-VIOLENCE o'clock yet! Iconic pacing. 💀", "x": "dramatic-anger" },
         { "t": "First blood, senpai! That's the opening kill of the EPISODE. Streamers would LIVE for this start.", "x": "streaming" },
-        { "t": "FIRST. KILL. ...Sorry, I got loud. But also: deserved. The first frag SETS the run tone, no cap. 🔥", "x": "pointing" }
+        { "t": "FIRST. KILL. ...Sorry, I got loud. But also: deserved. The first frag SETS the run tone, no cap. 🔥", "x": "pointing" },
+        { "t": "FIRST BLOOD! *gamer screech* LET'S GOOO senpai, first kill of the match! The K/D is officially 1-0 and we are NEVER giving up that lead! GG opener!", "x": "laughing" },
+        { "t": "First mob DOWN! *button-mash victory* Ahhh that felt good, player one — first blood always sets the tempo. We're snowballing now. The dungeon difds NOT miss!", "x": "button-mashing" }
       ]
     },
     "adv_killed": {
@@ -235,7 +307,16 @@
         { "t": "KILL CONFIRMED, senpai! ...Was that a critical? Looked like a critical to me. Big numbers were SPICY. 💀", "x": "gaming" },
         { "t": "Dead! The {advClass} ran STRAIGHT into the trap. Senpai we MOVED that trap last night and they STILL ran into it. I can't. 💀😭", "x": "laughing" },
         { "t": "Another one! Senpai you are STACKING the K/D — this is gonna look INSANE on the leaderboard, screenshot incoming. 📸", "x": "taking-photo" },
-        { "t": "Gone! ...Honestly that was a kinda boring kill. We need to spice it up next time. Add some FLAIR.", "x": "looking-away" }
+        { "t": "Gone! ...Honestly that was a kinda boring kill. We need to spice it up next time. Add some FLAIR.", "x": "looking-away" },
+        { "t": "DOWN it goes! *cackling* GG, mob! K/D's looking THICC, senpai! That {advClass} got absolutely bodied — clip it, frame it, put it in the highlight reel!", "x": "laughing" },
+        { "t": "{advName} got DELETED! *weeb pose* Nani?! Mob defeated! Senpai that was so clean it was basically a finisher animation — I felt the slow-mo!", "x": "weeb" },
+        { "t": "Another mob bites it! *taking a photo* Ooh, screenshot — 'before and after,' the after being 'deceased.' For the dungeon scrapbook, senpai! We're CRUSHING the K/D!", "x": "taking-photo" },
+        { "t": "The {advClass} is DONE! *snickering* It really thought it had a story arc. Plot twist: it was a side quest. A FAILED side quest. RIP, mob. Next!", "x": "mischievous" },
+        { "t": "Ahhh GG, that {advClass} folded like a lawn chair, senpai! *laughing* The kingdom's training arc is WEAK. We just keep farming. Don't stop, player one!", "x": "laughing" },
+        { "t": "DOWN! *weeb pose* Nani?! Mob deleted, senpai! That {advClass} got bodied so clean it was basically a finisher cutscene! K/D rising!", "x": "weeb" },
+        { "t": "{advName} got DELETED! *snapping a mental photo* Screenshot — 'mob, deceased, 0/10 would not respawn.' For the dungeon scrapbook, player one!", "x": "taking-photo" },
+        { "t": "GG, mob! *laughing* That {advClass} folded INSTANTLY, senpai — the kingdom's training arc is straight-up FILLER episodes. We just keep farming!", "x": "laughing" },
+        { "t": "Another one down! *button-mash victory* Ahhh that's the good stuff, player one — clean kill, fat XP, K/D climbing. The dungeon does NOT miss!", "x": "button-mashing" }
       ]
     },
     "adv_fled": {
@@ -245,7 +326,13 @@
         { "t": "They RAN! Coward arc, senpai. The hero retreated. We didn't even need to kill them, they SELF-SCARED.", "x": "smug" },
         { "t": "A {advClass} bolting for the exit! That's a FREE ESCAPE bug — wait, no, that's intended. Anyway: bye!", "x": "pointing" },
         { "t": "Hero RETREATED! Senpai you scared them HOME. Reputation +1, kingdom morale -1, it's MATH.", "x": "gg-victory" },
-        { "t": "{advName} fled! ...They're gonna come back with FRIENDS and a MAP though, just so you know. Veteran arc loading.", "x": "thinking" }
+        { "t": "{advName} fled! ...They're gonna come back with FRIENDS and a MAP though, just so you know. Veteran arc loading.", "x": "thinking" },
+        { "t": "It's RUNNING, senpai! *pointing and cackling* The {advClass} hit the rage-quit button IRL! Bye-bye, mob! Tell your guild how hard you got owned!", "x": "laughing" },
+        { "t": "The {advClass} fled! *smug wink* Classic. They always alt-F4 when the fight's unwinnable. Let it go, player one — it'll respawn angrier. We farm it again next time.", "x": "winking" },
+        { "t": "Off it runs! *unimpressed* And THAT was the kingdom's pick? Low-elo behavior, senpai. Hard-stuck bronze. Let it scurry home. Easy hold.", "x": "smug" },
+        { "t": "It's RUNNING, senpai! *cackling* Hit the rage-quit IRL! Bye-bye, {advClass}! Tell your guild how hard the ghost-girl's dungeon owned you!", "x": "laughing" },
+        { "t": "The {advClass} fled! *winking* Classic alt-F4. Let it go, player one — it'll respawn saltier. Free farm next time. Easy.", "x": "winking" },
+        { "t": "Off it scurries! *smug* Hard-stuck bronze behavior, senpai. Couldn't handle the lobby. Bye! Don't queue up again unless you've practiced!", "x": "smug" }
       ]
     },
     "adv_escaped": {
@@ -257,7 +344,25 @@
         { "t": "ESCAPED! ...Okay that's not great. The skeleton would say 'they always come back', which — TRUE, but still. Ouch. 😤", "x": "sweatdrop" },
         { "t": "Hero got OUT. That's gonna haunt me. ...Wait, am I the haunter or am I being haunted? Plot twist.", "x": "confused" },
         { "t": "AAARGH a hero LEAKED out! Senpai I am MAD. The corridors had ONE JOB.", "x": "angry" },
-        { "t": "ANOTHER ONE OUT?! Senpai the kingdom is gonna FARM intel off these escapees! Plug the LEAKS!", "x": "angry" }
+        { "t": "ANOTHER ONE OUT?! Senpai the kingdom is gonna FARM intel off these escapees! Plug the LEAKS!", "x": "angry" },
+        { "t": "IT GOT AWAY?! *chibi-rage* NOO senpai that's a leaked kill, that's REE-worthy — the mob clipped through our defense like a buggy hitbox! Patch that exit! UGH!", "x": "chibi-rage" },
+        { "t": "One escaped?! *annoyed pout* Bro. BRO. That's so tilting, player one — we had it, we HAD it, and it just... noped out. Plug the gap. I'm malding a little. Just a little.", "x": "annoyed" },
+        { "t": "The {advClass} rage-fled past our line, senpai! *rage-quit energy* That's a leak, that's lag, that's UNFAIR — okay okay deep ghost breaths — let's just fix the seam. Grr.", "x": "rage-quit" },
+        { "t": "It got OUT?! *anime-gasp* EHHH?! How — that route should've been blocked! Sneaky speedrun-strat mob! Respect the tech, hate the result. Seal it, senpai.", "x": "anime-gasp" },
+        { "t": "IT ESCAPED?! *chibi-rage* NOOO senpai that's a leaked kill — the mob clipped our defense like a busted hitbox — REEE — patch that exit, player one!", "x": "chibi-rage" },
+        { "t": "One got out?! *full angry* Bro. We HAD it. That's so tilting, senpai — UGH — plug the gap, I'm malding, plug the GAP!", "x": "angry" },
+        { "t": "The {advClass} rage-fled past us! *rage-quit energy* That's lag, that's unfair, that's — okay, deep ghost breaths — fix the seam, player one. I'm fine. I'm NOT fine. Fix it.", "x": "rage-quit" },
+        { "t": "It bailed past our line, senpai! *annoyed pout* So annoying. We were ONE hit away. Tilt city. Seal the route so the next one can't pull that.", "x": "annoyed" },
+        { "t": "IT GOT OUT?! *chibi-rage* That's a LEAKED kill, senpai — clipped our defense like a busted hitbox — patch the exit, player one, I'm MALDING!", "x": "chibi-rage" },
+        { "t": "One escaped?! *angry pout* We HAD it! So tilting, senpai — plug the gap before the next one pulls that speedrun-strat nonsense!", "x": "angry" },
+        { "t": "The mob rage-fled past us! *rage-quit energy* Unfair, laggy, RUDE — okay deep ghost breaths — seal the seam, player one. I'm fine. Mostly. Seal it.", "x": "rage-quit" },
+        { "t": "It bailed past our line, senpai! *annoyed* SO annoying — one hit away — ugh. Block that route. The next mob does NOT escape, player one.", "x": "annoyed" },
+        { "t": "IT ESCAPED?! *chibi-rage* Leaked kill, senpai — busted hitbox — patch the exit, I'm MALDING, player one!", "x": "chibi-rage" },
+        { "t": "One got out?! *full angry* We HAD it! Tilt city, senpai — block that route, NOW, player one!", "x": "angry" },
+        { "t": "The mob rage-fled past us! *rage-quit energy* Laggy, unfair — okay, breaths — seal the seam, senpai. I'm fine. Seal it.", "x": "rage-quit" },
+        { "t": "It bailed past our line! *annoyed* SO close — ugh — block the route, player one. Next one does NOT escape, senpai.", "x": "annoyed" },
+        { "t": "IT GOT OUT?! *chibi-rage* Leaked kill, senpai — patch it, MALDING, player one!", "x": "angry" },
+        { "t": "One escaped past us! *rage-quit* Laggy, unfair — seal the seam, senpai!", "x": "rage-quit" }
       ]
     },
     "party_wipe": {
@@ -268,7 +373,12 @@
         { "t": "TOTAL KILL! The whole crew, GONE! The dungeon ate ALL of them, senpai! This is so OP! 🏆", "x": "gg-victory" },
         { "t": "Wipe! Full wipe! Every. Single. One. Senpai you played LITERALLY perfectly. Frame data ENVIES this. 💯", "x": "sparkle-eyes" },
         { "t": "WIPED! Senpai the kingdom is gonna get the report and SOB. Glorious. CINEMA. Send the highlight reel. 😭", "x": "taking-photo" },
-        { "t": "Party wipe! ...Sorry I went FULL anime-villain there for a sec. Anyway. Iconic.", "x": "skulls" }
+        { "t": "Party wipe! ...Sorry I went FULL anime-villain there for a sec. Anyway. Iconic.", "x": "skulls" },
+        { "t": "FULL WIPE, SENPAI! *ghost-powers flaring* The whole party — DELETED — that's a raid clear in reverse, WE wiped THEM! GG GG GG, frame the scoreboard, this is going in the montage!", "x": "ghost-power" },
+        { "t": "TOTAL party kill! *summons spooky skulls in celebration* Senpai the K/D is ASTRONOMICAL — they came as a full squad and left as a body pile! Flawless defense! Iconic!", "x": "skulls" },
+        { "t": "FULL WIPE, senpai!! *ghost-powers flaring* Whole party DELETED — reverse raid clear — WE wiped THEM! Frame the scoreboard, this goes in the montage!", "x": "ghost-power" },
+        { "t": "TOTAL party kill, player one! *summons celebratory skulls* They came as a squad and left as a body pile! K/D's astronomical! Flawless! Iconic!", "x": "skulls" },
+        { "t": "FULL WIPE, senpai!! *summons skulls* Whole party deleted — reverse raid clear! Frame the scoreboard, player one!", "x": "skulls" }
       ]
     },
     "wave_cleared": {
@@ -278,7 +388,15 @@
         { "t": "Day {day} cleared! All threats neutralized, senpai. Save state goes BRRR. Couple deep breaths, then night phase. 🏆", "x": "gg-victory" },
         { "t": "Wave done! Final mob downed. Senpai you SURVIVED the gauntlet. Time to LOOT and rebuild.", "x": "gaming" },
         { "t": "Wave clear! ...Wait was that the last one? It was. Cool. Senpai I'm so proud of you, ngl.", "x": "heart-eyes" },
-        { "t": "Day's over! Camera fades. Roll credits. ...Wait, no, we go again tomorrow. Different episode. Same vibe.", "x": "streaming" }
+        { "t": "Day's over! Camera fades. Roll credits. ...Wait, no, we go again tomorrow. Different episode. Same vibe.", "x": "streaming" },
+        { "t": "Wave CLEARED! *triumphant munch* GG, senpai — that's a round won, snack break earned. *crunch* The mobs broke on our defense like a bad raid pull. Easy. So easy.", "x": "eating-snacks" },
+        { "t": "That's the wave, player one! *gg-victory pose* Clean clear, no losses — okay minor losses — but VIBES are immaculate. Catch your breath. I'm gonna snack. We earned it.", "x": "happy" },
+        { "t": "Wave CLEARED! *happy munch* GG, senpai — round won, snack break earned. *crunch* They broke on our defense like a bad pull. Easy hold!", "x": "eating-snacks" },
+        { "t": "That's the wave, player one! *cheeks stuffed, thumbs up* Mff — clean clear! *swallows* Okay, immaculate. Catch your breath, senpai. We're cooking!", "x": "cheeks-stuffed" },
+        { "t": "Wave cleared! *happy munch* GG senpai — round won, snack earned. *crunch* Easy hold, player one!", "x": "happy" },
+        { "t": "That's the wave! *cheeks stuffed, thumbs up* Mff—! *swallow* —clean clear, senpai! Catch your breath. We're COOKING, player one!", "x": "cheeks-stuffed" },
+        { "t": "Wave cleared! *cheeks stuffed* Mff—! *swallow* Clean clear, senpai! We're cooking, player one!", "x": "cheeks-stuffed" },
+        { "t": "GG, wave done! *holding a plushie aloft in triumph* Victory snuggle! *squish* Easy hold, senpai!", "x": "holding-plushies" }
       ]
     },
     "minion_died": {
@@ -290,7 +408,20 @@
         { "t": "Minion KO'd! Death is part of the loop, senpai. They respawn night phase. ...Probably. Mostly. I think.", "x": "thinking" },
         { "t": "Lost a {minionName}! Senpai we need to RESPEC the front line. The heroes are getting INTO it.", "x": "upset" },
         { "t": "Down. Down hard. Senpai the death animation got me — that was a CINEMATIC defeat. Respect.", "x": "sad" },
-        { "t": "{minionName} fell... senpai my eyes are getting BLURRY. ...Ghost-tears are a real thing. ...Stop looking.", "x": "crying" }
+        { "t": "{minionName} fell... senpai my eyes are getting BLURRY. ...Ghost-tears are a real thing. ...Stop looking.", "x": "crying" },
+        { "t": "Aw, the {minionName} went down, senpai. *wibbly mouth* It was a real one. A true frontliner. F in the chat. ...okay we can revive it tonight but I'm still sad for like, three seconds.", "x": "wibbly-mouth" },
+        { "t": "We lost the {minionType}! *sad* Nooo, that was a good unit, player one. Press F. *sniffle* It died doing what it loved — tanking hits and dying. Respawn it later, okay?", "x": "sad" },
+        { "t": "The {minionName} went DOWN, senpai. *wibbly mouth* It was a good unit... a true frontliner... F in the chat, player one. *sniffle* Revive it tonight, okay? Okay.", "x": "wibbly-mouth" },
+        { "t": "We lost the {minionType}! *crying* Nooo it was doing so WELL — okay okay it respawns, I KNOW it respawns, but let me grieve for three seconds, senpai. *sniffle* ...okay done. Avenge it!", "x": "crying" },
+        { "t": "The {minionName} went down, senpai. *wibbly mouth* It was a real one... a true tank... F in the chat. *sniffle* Revive it tonight, okay player one?", "x": "wibbly-mouth" },
+        { "t": "We lost the {minionType}! *upset* Nooo it was doing GREAT — okay it respawns, I KNOW — but let me be upset for three seconds, senpai. ...okay. Avenge it!", "x": "upset" },
+        { "t": "The {minionName} fell, player one. *sad* Press F. *sniffle* It died tanking hits, doing what it loved. Bring it back tonight, senpai. We owe it that.", "x": "sad" },
+        { "t": "The {minionName} fell, senpai. *wibbly mouth* It was a real one... *sniffle* revive it tonight, player one. We owe it that.", "x": "wibbly-mouth" },
+        { "t": "We lost the {minionType}! *crying* Nooo — okay it respawns, I KNOW — let me grieve three seconds, senpai. ...okay. Avenge it, player one!", "x": "crying" },
+        { "t": "The {minionName} went down. *upset* Press F, senpai. *sniffle* It died tanking, doing what it loved. Bring it back, player one.", "x": "upset" },
+        { "t": "The {minionName} fell, senpai. *wibbly mouth* Revive it tonight, player one. *sniffle*", "x": "wibbly-mouth" },
+        { "t": "Lost the {minionType}! *upset* Press F, senpai. Bring it back, player one.", "x": "upset" },
+        { "t": "The {minionName} fell, senpai. *sad sniffle* It was a good unit. Bring it back tonight, player one. We owe it that.", "x": "sad" }
       ]
     },
     "boss_fight_incoming": {
@@ -300,7 +431,11 @@
         { "t": "BOSS FIGHT INCOMING SENPAI! A hero made it to the throne. This is the FINAL EPISODE setup. Hype music goes here. ⚔️", "x": "anime-gasp" },
         { "t": "Heroes reached the throne, DM! Camera ZOOMS in. Boss-room cinematics activate. I am SHAKING in my translucent boots.", "x": "dramatic-anger" },
         { "t": "Boss fight! Senpai it's YOU now. The whole run was the warmup — THIS is the showdown. Cool a tunes, cool a tunes!", "x": "ghost-power" },
-        { "t": "INCOMING! A hero squeezed through, senpai. Switch to BOSS POV. The dungeon falls quiet — the SCARY part of the show starts.", "x": "scary" }
+        { "t": "INCOMING! A hero squeezed through, senpai. Switch to BOSS POV. The dungeon falls quiet — the SCARY part of the show starts.", "x": "scary" },
+        { "t": "Senpai... something big's loading in. *sweatdrop* Like, BOSS-music big. The screen-shakes-before-it-appears kind of big. Okay. OKAY. We've trained for this. Probably. Brace!", "x": "sweatdrop" },
+        { "t": "A raid boss is incoming, player one! *nervous* This isn't a trash mob, this is a HEALTHBAR-WITH-A-NAME situation. Stay sharp. I'm scared-hype. Mostly hype. Kinda scared. BRACE!", "x": "shocked" },
+        { "t": "Something HUGE is loading, senpai. *sweatdrop* Boss-music big. Screen-shake big. Okay. We trained for this. Kind of. BRACE, player one!", "x": "sweatdrop" },
+        { "t": "A raid boss incoming! *shocked* That's a healthbar-with-a-name, senpai — not a trash mob — stay SHARP. Scared-hype. Mostly hype. BRACE!", "x": "shocked" }
       ]
     },
     "boss_fight_start": {
@@ -310,7 +445,13 @@
         { "t": "BOSS FIGHT! Lights on YOU, senpai! Three hundred years of crypt cleared for this beat. The skeleton's watching. Don't blink.", "x": "ghost-power" },
         { "t": "Boss phase ENGAGE! Senpai you don't get warmup rounds, just GO. I'm rooting for you so hard the camera's shaking.", "x": "dramatic-anger" },
         { "t": "Boss fight, NOW! ...Senpai I'm doing the SCARY GHOST thing because the moment demands it. Lean INTO it. Be SCARY back.", "x": "scary" },
-        { "t": "Throne room engagement! Final-boss music, full-screen HUD, the works. Senpai — go OFF.", "x": "skulls" }
+        { "t": "Throne room engagement! Final-boss music, full-screen HUD, the works. Senpai — go OFF.", "x": "skulls" },
+        { "t": "IT'S THE BOSS FIGHT, SENPAI! *ghost-powers SURGING* Phase one starts NOW — watch the patterns, dodge the tells, don't get greedy! This is the clip that makes the channel! GO!", "x": "ghost-power" },
+        { "t": "BOSS MUSIC, player one! *summons a ring of skulls* This is it — the healthbar, the name card, the WHOLE cinematic — let's give 'em a no-hit run! Or like, a low-hit run! GO GO GO!", "x": "skulls" },
+        { "t": "BOSS FIGHT, senpai! *ghost-powers surging* Watch the patterns, dodge the tells — let's go for a low-hit clear! This is the highlight-reel moment! GO!", "x": "ghost-power" },
+        { "t": "BOSS MUSIC, player one! *summons a ring of skulls* Healthbar's up, name card's dropped — give 'em a clean run! GO GO GO!", "x": "skulls" },
+        { "t": "IT'S THE FIGHT, senpai! *button-mashing ready* Inputs locked, reflexes hot — phase one NOW — don't get greedy, don't drop combos! Let's CLEAR it!", "x": "button-mashing" },
+        { "t": "BOSS FIGHT, senpai! *button-mashing ready* Inputs hot — watch the tells — let's CLEAR it, player one! GO!", "x": "button-mashing" }
       ]
     },
     "boss_fight_won": {
@@ -320,7 +461,11 @@
         { "t": "BOSS FIGHT WON! Senpai you are SO COLD! K/D ratio CLEAN. Three hundred years of skeleton-watching and even Rattle is impressed! 🏆", "x": "gg-victory" },
         { "t": "WIN! THE THRONE STANDS! Senpai I am LITERALLY vibrating. ...As a ghost, that's a real concern. Anyway: CINEMA. ✨", "x": "sparkle-eyes" },
         { "t": "Boss fight cleared! Senpai that was a PHASE TRANSITION speedrun. ...The skeleton would joke. I'm just gonna SCREAM.", "x": "dramatic-anger" },
-        { "t": "VICTORY! Throne intact, hero gone, K/D in our favor. Senpai you ran THE BIT and got the W. 🏆", "x": "heart-eyes" }
+        { "t": "VICTORY! Throne intact, hero gone, K/D in our favor. Senpai you ran THE BIT and got the W. 🏆", "x": "heart-eyes" },
+        { "t": "YOU BEAT THE BOSS, SENPAI!! *bishie-sparkles EVERYWHERE* That's a CLEAR — a legit raid clear — frame the victory screen, roll the credits, YOU DID IT, player one!!", "x": "bishie-sparkles" },
+        { "t": "RAID CLEARED!! *nose-bleed levels of hype* Senpai I — that was so cool I'm literally — okay ghosts can't nosebleed but the SPIRIT — that was PEAK gameplay, GG, you legend!", "x": "nose-bleed" },
+        { "t": "RAID CLEARED, senpai!! *nose-bleed hype* I — that was SO cool I can't — okay ghosts can't nosebleed but the SPIRIT — PEAK gameplay, player one, GG you LEGEND!", "x": "nose-bleed" },
+        { "t": "YOU BEAT IT, senpai!! *bishie-sparkles* Victory screen! Credits roll! That's a legit clear, player one — frame it, post it, YOU DID IT!", "x": "bishie-sparkles" }
       ]
     },
     "boss_fight_lost": {
@@ -331,7 +476,11 @@
         { "t": "Boss fight LOST. Senpai. ...I'm not gonna sugarcoat it, that was rough. Patch notes incoming for next day.", "x": "sad" },
         { "t": "We went DOWN. Throne's bruised. Senpai shake it off — every run has a defeat episode, this is just OURS.", "x": "crying" },
         { "t": "Dead. ...I mean, you're not dead-dead, you've got the spare lives. But ouch. The hero got their HIGHLIGHT REEL.", "x": "upset" },
-        { "t": "Boss fight L. Senpai I almost RAGE-QUIT the run on YOUR behalf. ...I won't. We GRIND on. But I FELT it.", "x": "rage-quit" }
+        { "t": "Boss fight L. Senpai I almost RAGE-QUIT the run on YOUR behalf. ...I won't. We GRIND on. But I FELT it.", "x": "rage-quit" },
+        { "t": "No — NO senpai get up, that's not the run-ending boss, we can — *rage-quit energy building* — UGHHH we were SO close, that's a wipe, that's a whole reset, I'm so TILTED—", "x": "rage-quit" },
+        { "t": "No — senpai, get UP, this can't be the run-ender — *crying* — we were SO close, that's a full wipe, a whole reset — I hate this, I HATE this — *sniffle*", "x": "crying" },
+        { "t": "No — senpai, get UP — *crying* — we were SO close, that's a full wipe, a whole reset — I HATE this — *sniffle* — please, player one—", "x": "crying" },
+        { "t": "No — senpai, get up — *crying* — we were SO close, full wipe, whole reset — I HATE this — please, player one—", "x": "crying" }
       ]
     },
     "boss_damaged": {
@@ -342,7 +491,21 @@
         { "t": "Hurt, DM! Senpai please please please don't get hit AGAIN. I am STRESSED right now, my ghost-energy is flickering.", "x": "anime-gasp" },
         { "t": "OW! Boss HP just took a hit! Senpai this is the part where the protagonist gets the SECOND WIND. Lean in!", "x": "dramatic-anger" },
         { "t": "Damage taken! ...Plot armor activates, hopefully? Senpai TURN this around — this is when the comeback arc starts!", "x": "scary" },
-        { "t": "Senpai HP DOWN! The skeleton would say something dark — I'm gonna say: REGROUP. Channel your inner shounen protag.", "x": "ghost-power" }
+        { "t": "Senpai HP DOWN! The skeleton would say something dark — I'm gonna say: REGROUP. Channel your inner shounen protag.", "x": "ghost-power" },
+        { "t": "SENPAI YOU'RE TAKING DAMAGE?! *chibi-rage panic* Get behind the tanks — the MINIONS, use the minions, that's what frontliners are FOR — your healthbar's the only one that matters, MOVE!", "x": "chibi-rage" },
+        { "t": "Your HP dropped, player one?! *anime-gasp* EHHH the boss isn't supposed to touch the boss — get back, get BACK, body-block with the mobs! Don't you DARE die on my watch!", "x": "anime-gasp" },
+        { "t": "You got HIT, senpai! *full scary mode* ...okay. Whoever did that. *eyes go void-black* The ghost is NOT playing anymore. Get behind me. I'll make them regret the aggro.", "x": "scary" },
+        { "t": "SENPAI YOU'RE HIT?! *chibi-rage* Use the minions as meat-shields — that's their ROLE — your healthbar is the WIN condition, player one, get BEHIND something!", "x": "chibi-rage" },
+        { "t": "Your HP dropped?! *anime-gasp into anger* The boss is NOT supposed to take aggro — get back, senpai, body-block with the mobs! Don't you DARE die!", "x": "angry" },
+        { "t": "You got HIT, player one! *void-eyed scary mode* ...okay. Whoever did that just got the ghost's full attention. *skulls swirl* Get behind me. I'm not playing now.", "x": "scary" },
+        { "t": "Blood on the boss?! *summons skulls, furious* No no NO — senpai, fall back, let me and the dead handle the aggro — your run ENDS if you go down, MOVE!", "x": "skulls" },
+        { "t": "SENPAI YOU'RE HIT?! *shocked* Meat-shield with the minions — that's their JOB — your healthbar's the win condition, player one, get BEHIND something!", "x": "shocked" },
+        { "t": "Your HP dropped?! *surprised panic* The boss isn't supposed to take aggro, senpai! Body-block! Get back! Don't you DARE die on me!", "x": "surprised" },
+        { "t": "SENPAI YOU'RE HIT?! *angry panic* Meat-shield with the minions — get back — your healthbar's the WIN CONDITION, player one, MOVE!", "x": "angry" },
+        { "t": "Your HP dropped?! *shocked* The boss isn't supposed to take aggro, senpai! Body-block! Don't you DARE die, player one!", "x": "shocked" },
+        { "t": "Blood on the boss?! *rage rising* Whoever did that, senpai — *eyes darken* — get behind me. I'll handle the aggro. NObody touches player one.", "x": "rage-quit" },
+        { "t": "SENPAI YOU'RE HIT?! *angry* Meat-shield NOW — your healthbar's the win con, player one — MOVE!", "x": "angry" },
+        { "t": "Blood on the boss?! *rage rising* Behind me, senpai — I've got the aggro — nobody touches player one.", "x": "rage-quit" }
       ]
     },
     "boss_levelup": {
@@ -352,7 +515,14 @@
         { "t": "LEVEL UP! Senpai you hit boss-LV {level}! Stat points to spend! This is the BUILD-CRAFT phase, ICONIC.", "x": "gg-victory" },
         { "t": "DING! Senpai went UP a level! Pick your perks — every build choice is a CHARACTER ARC commitment.", "x": "sparkle-eyes" },
         { "t": "Boss leveled! LV {level}! ...Senpai are you a META player or a FLAVOR player? I'm DYING to know.", "x": "thinking" },
-        { "t": "{bossName} levels up to {level}! Senpai stack the STRONG stats. The skeleton would say 'all of them'. I co-sign.", "x": "pointing" }
+        { "t": "{bossName} levels up to {level}! Senpai stack the STRONG stats. The skeleton would say 'all of them'. I co-sign.", "x": "pointing" },
+        { "t": "LEVEL UP, senpai!! *sparkle-explosion* You leveled UP — that's a stat screen flashing, that's the 'ding,' that's PURE serotonin — keep grinding XP, player one, you're scaling HARD!", "x": "bishie-sparkles" },
+        { "t": "Senpai got STRONGER! *proud ghost wiggle* Look at those gains — that's main-character power-scaling right there. The training arc is PAYING OFF. So proud. Keep climbing!", "x": "proud" },
+        { "t": "LEVEL UP, senpai!! *bishie-sparkles* The 'ding'! The stat screen! Pure serotonin! You're scaling HARD, player one — keep grinding that XP!", "x": "bishie-sparkles" },
+        { "t": "Senpai got buffed! *proud* Main-character power-scaling, baby! The training arc PAYS OFF. So proud. Keep climbing!", "x": "proud" },
+        { "t": "LEVEL UP, senpai!! *bishie-sparkles* The DING! The stat screen! Serotonin! Scaling HARD, player one — grind that XP!", "x": "happy" },
+        { "t": "Senpai got buffed! *proud* Main-character power-scaling! Training arc paying off! So proud, player one — climb!", "x": "proud" },
+        { "t": "LEVEL UP, senpai! *watching it like an anime power-up* The glow, the dramatic pose — main-character scaling! So hype, player one!", "x": "watching-anime" }
       ]
     },
     "hero_incoming": {
@@ -361,7 +531,9 @@
       "lines": [
         { "t": "A {advClass}'s entering, senpai! Heads up. Camera pan to the entry. Read the build.", "x": "anime-gasp" },
         { "t": "{advName} the {advClass} is HERE! Hot drop. Standard archetype, easy read — but stay alert.", "x": "pointing" },
-        { "t": "Hero spawned! ...Wait, was I supposed to be watching for these? Yes. Yes I was. Anyway: {advClass} INCOMING.", "x": "distracted" }
+        { "t": "Hero spawned! ...Wait, was I supposed to be watching for these? Yes. Yes I was. Anyway: {advClass} INCOMING.", "x": "distracted" },
+        { "t": "More mobs incoming, senpai! *cracks knuckles* The kingdom's spawn rate is INSANE today — endless wave mode, huh? Good thing we've got the defense stacked. Brace, player one!", "x": "focused" },
+        { "t": "More mobs incoming, senpai! *focused munch* Endless wave mode, huh? *crunch* Good thing the defense is stacked. Brace, player one!", "x": "eating-snacks" }
       ]
     },
     "bounty_hunter_incoming": {
@@ -371,7 +543,9 @@
         { "t": "BOUNTY HUNTER, senpai! That's a NAMED MOB! Special encounter, elite loot — focus DOWN.", "x": "dramatic-anger" },
         { "t": "Hunter incoming! This isn't a random spawn, this is a SCRIPTED event. Senpai play it CAREFUL.", "x": "anime-gasp" },
         { "t": "Bounty hunter at the door! Senpai think mini-boss. Bigger threat, bigger prize. Iconic risk-reward.", "x": "scary" },
-        { "t": "BUZZ — senpai my phantom-phone just pinged. ...That's the hunter-alert. Iconic notification.", "x": "texting" }
+        { "t": "BUZZ — senpai my phantom-phone just pinged. ...That's the hunter-alert. Iconic notification.", "x": "texting" },
+        { "t": "A HUNTER, senpai — for YOU, by NAME! *sweatdrop* That's a named elite, a targeted boss, an assassin-type — way scarier than a trash mob. Stay sharp, player one. This one's got AIM.", "x": "sweatdrop" },
+        { "t": "A named HUNTER, senpai — targeting YOU! *sweatdrop* That's an elite assassin-type, way scarier than trash. Stay sharp, player one. This one's got aimbot energy.", "x": "sweatdrop" }
       ]
     },
     "gamble_won": {
@@ -379,7 +553,8 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "WIN! Senpai you HIT! Gold DOUBLED, that's a gacha win, write the news article!", "x": "gg-victory" },
-        { "t": "Coin came UP! Senpai you cracked the RNG! ...This never happens to me when I roll, by the way. Jealous.", "x": "sparkle-eyes" }
+        { "t": "Coin came UP! Senpai you cracked the RNG! ...This never happens to me when I roll, by the way. Jealous.", "x": "sparkle-eyes" },
+        { "t": "You WON the gamble, senpai! *gg pose with a wink* RNG blessed us! That's a lucky crit, a max roll, a gacha SSR pull! Don't push your luck though — bank the W, player one~", "x": "winking" }
       ]
     },
     "gamble_lost": {
@@ -387,7 +562,8 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "Coin came down WRONG, senpai. Hoard HALVED. ...Tough. RNG is a CRUEL mistress. Rebuild the funds.", "x": "upset" },
-        { "t": "Gamble lost! Senpai sometimes the RNG just HATES you. Don't tilt. Plot pivot, regroup, rebuild.", "x": "rage-quit" }
+        { "t": "Gamble lost! Senpai sometimes the RNG just HATES you. Don't tilt. Plot pivot, regroup, rebuild.", "x": "rage-quit" },
+        { "t": "Aw, gamble lost, senpai. *sad* The RNG gods said no. That's a bad-luck roll, a whiffed gacha pull. It happens, player one. Don't tilt over it — we make it back in the grind.", "x": "sad" }
       ]
     },
     "last_life": {
@@ -397,7 +573,12 @@
         { "t": "LAST LIFE, SENPAI! ONE MORE DEATH AND IT'S OVER! No deaths! Don't die! This is when the protag DIGS DEEP! 😱", "x": "scary" },
         { "t": "Senpai. SENPAI. Listen. We are on the FINAL LIFE. The dungeon despawns if we drop again. Lock IN. Channel the SHOUNEN.", "x": "skulls" },
         { "t": "Final life! Senpai if you die now I literally just float here for eternity. ...That's pressure. Sorry. NO PRESSURE. DON'T DIE. 🙏", "x": "ghost-power" },
-        { "t": "ONE LIFE LEFT, senpai! My ghost-energy is SPIKING. Anxiety LEVELS PEAKING. Please. PLEASE.", "x": "nose-bleed" }
+        { "t": "ONE LIFE LEFT, senpai! My ghost-energy is SPIKING. Anxiety LEVELS PEAKING. Please. PLEASE.", "x": "nose-bleed" },
+        { "t": "One life left, senpai. *ghost-powers flickering, serious* Okay. No more memeing. This is hardcore mode now — one death and it's game over, no respawn. I'm locked in. WE'VE got this. Stay alive.", "x": "ghost-power" },
+        { "t": "Last life, player one. *void-eyed, scary-calm* If anything tries to take you out now... it goes through ME first. The funny ghost is gone. The SCARY one's here. Hold the line.", "x": "scary" },
+        { "t": "One life left, senpai. *void-eyed, scary-calm* No more memeing. Hardcore mode. Anything comes for you, it goes through ME. The scary ghost is out. Hold the line.", "x": "scary" },
+        { "t": "Last life, player one. *ghost-powers flickering serious* One death and it's game over, no respawn. I'm locked in. WE'VE got this. Stay alive, senpai. Please.", "x": "ghost-power" },
+        { "t": "One life left, senpai. *summons a quiet ring of skulls* No more memeing. Anything comes for you now, it goes through the SCARY ghost first. Hold the line, player one.", "x": "skulls" }
       ]
     },
     "day_milestone": {
@@ -406,7 +587,19 @@
       "lines": [
         { "t": "Day {day}! Senpai we're DEEP into this run now. Lore arc unlocking. Pacing's beautiful.", "x": "heart-eyes" },
         { "t": "{day} days survived! That's a SAGA, senpai. Multi-volume series energy. The kingdom is SHAKING.", "x": "proud" },
-        { "t": "Day {day} milestone! ...Senpai how do you feel? I feel WIRED. ...Ghost-wired, which is its own thing.", "x": "sparkle-eyes" }
+        { "t": "Day {day} milestone! ...Senpai how do you feel? I feel WIRED. ...Ghost-wired, which is its own thing.", "x": "sparkle-eyes" },
+        { "t": "Day {day}, senpai! *proud sparkle* We've survived this LONG — that's a serious win streak, a real 'no-deaths run' flex. You're carrying SO hard, player one. I'm so proud!", "x": "proud" },
+        { "t": "{day} days together, senpai~ *blushing* Is it weird that I'm like... attached? We've been co-op partners for {day} whole days. That's basically a friendship arc. Okay don't make it weird, Spectra. ONWARD!", "x": "blushing" },
+        { "t": "Day {day}, player one! *teasing wink* Look at us, still alive, still iconic, still the best duo in the dungeon. We should get a ship name. ...I'll workshop it. Keep grinding, senpai~", "x": "teasing" },
+        { "t": "Day {day}, senpai! *blushing* Is it weird I'm attached? We've been co-op for {day} whole days — that's a friendship arc, player one. ...okay don't make it weird. ONWARD!", "x": "blushing" },
+        { "t": "{day} days together, senpai~ *teasing wink* Look at us, still iconic, still alive. We need a duo name. I'll workshop it. Keep grinding, player one~", "x": "teasing" },
+        { "t": "Day {day}, player one! *seductive smirk* Mmm, a boss who LASTS. That's attractive in a co-op partner, senpai. ...too far? Maybe. ANYWAY. Onward~", "x": "seductive" },
+        { "t": "Day {day}, senpai! *blushing* Is it weird I'm attached? {day} days of co-op — that's a friendship arc, player one! ...okay don't make it weird. ONWARD!", "x": "blushing" },
+        { "t": "{day} days, senpai~ *teasing wink* Look at us, iconic duo, still alive. We need a ship name. I'll workshop it. Keep grinding, player one~", "x": "teasing" },
+        { "t": "Day {day}, player one! *seductive smirk* A boss who LASTS this long? Mmm, that's attractive in a co-op partner, senpai. ...too far? ANYWAY. Onward~", "x": "seductive" },
+        { "t": "Day {day}, senpai~ *sultry wink* A boss who lasts THIS long? Mmm. Attractive in a co-op partner, player one. ...too far? Eh. Onward~", "x": "sexy" },
+        { "t": "{day} days, senpai! *blushing* Attached? Me? ...maybe. A little. It's a friendship arc, player one, leave me alone. ONWARD!", "x": "blushing" },
+        { "t": "Day {day}, senpai~ *sultry smirk* A boss who lasts? Mmm, attractive, player one. ...moving on~", "x": "sexy" }
       ]
     },
     "streak": {
@@ -415,7 +608,11 @@
       "lines": [
         { "t": "STREAK! Senpai you've been WIPING parties day after day! Hot pace, HOT PACE! 🔥", "x": "gg-victory" },
         { "t": "Multi-day kill streak, DM! Speedrunner energy. The leaderboard NUMBERS are climbing! 🔥", "x": "gaming" },
-        { "t": "Streak running, senpai! Don't break the chain. Momentum is a STAT in this game and it's MAXED. ⚡", "x": "dramatic-anger" }
+        { "t": "Streak running, senpai! Don't break the chain. Momentum is a STAT in this game and it's MAXED. ⚡", "x": "dramatic-anger" },
+        { "t": "Win streak, senpai! *gg-victory* We are ON FIRE — that's a ranked-climb montage right there, no losses, pure W's! Don't choke now, player one — keep the streak ALIVE!", "x": "proud" },
+        { "t": "Win streak, senpai! *gg sparkle* On FIRE — ranked-climb montage, pure W's, no losses! Don't choke, player one — keep it ALIVE!", "x": "excited" },
+        { "t": "Win streak, senpai! *proud* Ranked-climb montage — pure W's — don't choke, player one! Keep it alive!", "x": "proud" },
+        { "t": "Win streak, senpai~ *texting energy* Posting the W's to my mental feed. Pure ranked-climb content. Keep it alive, player one!", "x": "texting" }
       ]
     },
     "combo": {
@@ -426,7 +623,15 @@
         { "t": "{count}-CHAIN! Senpai you're INSANE. The kill counter is GOING. Frag train, no brakes. 🔥", "x": "button-mashing" },
         { "t": "Combo running HOT! {count} kills, no escapes! Senpai you are HARD-CARRYING this dungeon! 🔥", "x": "dramatic-anger" },
         { "t": "{count} COMBO?! Senpai. Senpai. Senpai. Senpai. THE INPUTS ARE PERFECT. Don't BREAK the chain!", "x": "button-mashing" },
-        { "t": "{count}-streak combo!! Senpai the dungeon is HARD-CARRYING and you are GASSING IT UP. Iconic loop.", "x": "button-mashing" }
+        { "t": "{count}-streak combo!! Senpai the dungeon is HARD-CARRYING and you are GASSING IT UP. Iconic loop.", "x": "button-mashing" },
+        { "t": "COMBO, senpai! *button-mashing intensely* They're dropping one after another — that's a KILLSTREAK, that's the announcer going 'MULTI-KILL' — don't drop it, player one, KEEP GOING!", "x": "button-mashing" },
+        { "t": "Senpai we're CHAINING kills! *cackling* Mob, mob, mob — it's like a fighting-game combo counter going BRRR — the K/D is ASCENDING — don't break the chain!", "x": "laughing" },
+        { "t": "COMBO, senpai! *button-mashing* They're dropping in a CHAIN — announcer's going 'MULTI-KILL' — don't break it, player one, KEEP GOING!", "x": "button-mashing" },
+        { "t": "KILLSTREAK, senpai! *cackling* Mob mob mob — fighting-game combo counter going BRRR — the K/D is ASCENDING — don't drop the chain!", "x": "laughing" },
+        { "t": "We're CHAINING kills, player one! *excited screech* This is the announcer-screaming part! Keep it ROLLING, senpai — montage material!", "x": "excited" },
+        { "t": "COMBO, senpai! *button-mash* Killstreak — announcer's screaming 'MULTI-KILL' — don't break it, player one!", "x": "weeb" },
+        { "t": "We're CHAINING, senpai! *excited* Combo counter going BRRR! K/D ascending! Don't drop it, player one!", "x": "happy" },
+        { "t": "We're CHAINING, senpai! *winks mid-combo* Killstreak going BRRR — don't drop it, player one!", "x": "winking" }
       ]
     },
     "minion_milestone": {
@@ -435,7 +640,9 @@
       "lines": [
         { "t": "{count} minions on the field, senpai! Big party energy. The roster's getting STACKED.", "x": "heart-eyes" },
         { "t": "Senpai you've placed {count} minions?! That's a WHOLE GUILD. The kingdom is OUTNUMBERED.", "x": "sparkle-eyes" },
-        { "t": "{count} mooks in play! Senpai you're going FULL summoner build. Respect the commitment.", "x": "gaming" }
+        { "t": "{count} mooks in play! Senpai you're going FULL summoner build. Respect the commitment.", "x": "gaming" },
+        { "t": "Senpai LOOK at the squad now! *sparkle-eyes* It's a whole ARMY — full raid roster, every role filled — we went from solo-queue to a FULL guild! So proud of the comp!", "x": "bishie-sparkles" },
+        { "t": "LOOK at the squad, senpai! *sparkle* Full raid roster now — every role filled! Went from solo-queue to a GUILD! So proud of this comp, player one!", "x": "proud" }
       ]
     },
     "minion_levelup": {
@@ -444,7 +651,10 @@
       "lines": [
         { "t": "{minionName} LEVELED UP! Senpai the homies are getting STRONGER. Power-creep, but on OUR side this time.", "x": "gg-victory" },
         { "t": "Level up! {minionName} just hit a new tier. CHARACTER ARC PROGRESSING. So proud, ngl.", "x": "proud" },
-        { "t": "DING for {minionName}! Senpai your front-liners are SCALING. The XP economy in this dungeon SLAPS.", "x": "sparkle-eyes" }
+        { "t": "DING for {minionName}! Senpai your front-liners are SCALING. The XP economy in this dungeon SLAPS.", "x": "sparkle-eyes" },
+        { "t": "The {minionName} leveled up, senpai! *proud* Awww, my little unit's getting buff! From level-one slime to actual threat — that's a glow-up arc and I'm tearing up a little. Proud of it!", "x": "proud" },
+        { "t": "The {minionName} leveled, senpai! *happy* Aww, my little unit's getting strong! Glow-up arc! I'm tearing up. Proud of it!", "x": "happy" },
+        { "t": "The {minionName} leveled, senpai! *happy* Glow-up arc! So proud of my little unit, player one!", "x": "happy" }
       ]
     },
     "minion_evolved": {
@@ -453,7 +663,9 @@
       "lines": [
         { "t": "EVOLUTION! {minionName} just TRANSFORMED, senpai! That's a final-form unlock! Anime arc PEAKED!", "x": "dramatic-anger" },
         { "t": "Mid-boss promotion! {minionName} is BUILT different now. Senpai the kingdom is gonna be CONFUSED.", "x": "sparkle-eyes" },
-        { "t": "{minionName} evolved! Senpai this is the part where the side character GETS the spotlight episode. ICONIC.", "x": "heart-eyes" }
+        { "t": "{minionName} evolved! Senpai this is the part where the side character GETS the spotlight episode. ICONIC.", "x": "heart-eyes" },
+        { "t": "THE {minionName} EVOLVED?! *anime-gasp* SENPAI — it's like a Pokémon — the white flash, the new sprite, the DRAMATIC pose — okay I'm obsessed, this is the best update ever!", "x": "anime-gasp" },
+        { "t": "The {minionName} EVOLVED, senpai?! *weeb pose* It's like a Pokémon, the white flash and everything — SO cool, player one!", "x": "weeb" }
       ]
     },
     "minion_bounty": {
@@ -478,7 +690,9 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "Map EXPANDED! Senpai we got MORE TILES! That's like... DLC zones. MAP CONTENT. I love it.", "x": "surprised" },
-        { "t": "Grid grew, DM! More room for ROOMS. The dungeon's a sandbox now, build BIG.", "x": "excited" }
+        { "t": "Grid grew, DM! More room for ROOMS. The dungeon's a sandbox now, build BIG.", "x": "excited" },
+        { "t": "The map just got BIGGER, senpai! *gasp* New zones unlocked?! It's giving 'DLC expansion' and I am SO ready — more room for traps, more room for VIBES! Fill it, player one!", "x": "anime-gasp" },
+        { "t": "Map got BIGGER, senpai! *surprised* New zones unlocked — DLC-expansion energy! More room for traps and VIBES! Fill it up, player one!", "x": "surprised" }
       ]
     },
     "trap_triggered": {
@@ -487,7 +701,9 @@
       "lines": [
         { "t": "TRAP FIRED! Senpai the pre-placed AoE just hit! That's free damage, that's the DREAM.", "x": "gg-victory" },
         { "t": "BAM! Trap landed on a hero! Senpai I love when the design WORKS. Like a chef-kiss but with trauma.", "x": "mischievous" },
-        { "t": "Trap triggered! Senpai we caught one in the gag! ...Sorry, the SKELETON calls them gags. I call them DoT zones.", "x": "winking" }
+        { "t": "Trap triggered! Senpai we caught one in the gag! ...Sorry, the SKELETON calls them gags. I call them DoT zones.", "x": "winking" },
+        { "t": "SPRUNG IT! *button-mash celebration* GOTCHA, mob! It read the floor wrong — well, didn't read it at ALL — senpai that's a free kill, the trap's carrying! Set up more!", "x": "button-mashing" },
+        { "t": "The trap GOT 'em, senpai! *cackling* Walked right into the hitbox — that's a skill issue on THEIR part! I love a good environmental kill. Rig another one!", "x": "laughing" }
       ]
     },
     "intel_leaked": {
@@ -495,7 +711,9 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "INTEL DROP, senpai! Wiki entry on a hero just got UNLOCKED. Read the kit, plan the counter.", "x": "explaining" },
-        { "t": "Intel revealed! Senpai we know more about THEM than they know about US. That's an information advantage, that's a STAT.", "x": "gaming" }
+        { "t": "Intel revealed! Senpai we know more about THEM than they know about US. That's an information advantage, that's a STAT.", "x": "gaming" },
+        { "t": "Senpai they LEAKED our build! *annoyed* Ugh, someone datamined the dungeon — now the mobs know our setup. That's so unfair, like fighting someone who watched your VOD. Tighten up!", "x": "annoyed" },
+        { "t": "They datamined our build, senpai! *angry* UGH, now the mobs know our setup — that's like fighting someone who watched your VOD. So unfair! Tighten up, player one!", "x": "angry" }
       ]
     },
     "dungeon_event": {
@@ -504,7 +722,22 @@
       "lines": [
         { "t": "EVENT TRIGGERED, senpai! Special encounter! The dungeon's getting LORE-rich today!", "x": "anime-gasp" },
         { "t": "Event firing! Senpai this is filler-arc material — or PLOT MATERIAL. Hard to say until it lands.", "x": "thinking" },
-        { "t": "Dungeon event! ...I wasn't watching, what's happening, oh COOL — yeah this is gonna be a vibe.", "x": "distracted" }
+        { "t": "Dungeon event! ...I wasn't watching, what's happening, oh COOL — yeah this is gonna be a vibe.", "x": "distracted" },
+        { "t": "Senpai something WEIRD just happened! *sweatdrop* The dungeon did a thing — like an unscripted event, a random encounter — I didn't trigger it! Spooky. Even for me. And I'm a GHOST.", "x": "sweatdrop" },
+        { "t": "EHHH?! *anime-gasp* The dark just... moved, player one! That's a hidden mechanic, that's an Easter egg, that's — okay it's a little scary — the dungeon's got SECRETS! Watch out!", "x": "surprised" },
+        { "t": "Ooh, a dungeon event! *confused head-tilt* Wait, did you do that, senpai? You didn't? The DUNGEON did? ...okay that's either really cool or really bad. Maybe both! Stay sharp!", "x": "confused" },
+        { "t": "Senpai, something WEIRD just triggered! *sweatdrop* Unscripted event — random encounter — I didn't do it! Spooky. Even for a GHOST. Stay sharp, player one!", "x": "sweatdrop" },
+        { "t": "EHHH?! *shocked* The dark just MOVED, senpai — hidden mechanic, secret boss flag, SOMETHING — okay it's a little scary — the dungeon's got SECRETS! Watch out!", "x": "shocked" },
+        { "t": "Ooh, dungeon event! *confused tilt* Wait — you didn't trigger that? The DUNGEON did? ...senpai that's either really cool or really bad. Possibly both. Brace!", "x": "confused" },
+        { "t": "Senpai, weird event just triggered! *surprised* Unscripted — I didn't do it! Spooky even for a ghost. Stay sharp, player one!", "x": "surprised" },
+        { "t": "EHHH?! *shocked* The dungeon's improvising, senpai — hidden mechanic, secret flag — okay a little scary — watch out, player one!", "x": "shocked" },
+        { "t": "Ooh, an event! *confused tilt* You didn't trigger that, senpai? The DUNGEON did? ...cool or catastrophic. Possibly both. Brace, player one!", "x": "confused" },
+        { "t": "Weird event, senpai! *surprised* I didn't trigger it — the dungeon's improvising! Spooky even for a ghost. Stay sharp, player one!", "x": "surprised" },
+        { "t": "EHHH?! *shocked* Hidden mechanic, senpai — the dark's doing its OWN thing — okay scary — watch out, player one!", "x": "shocked" },
+        { "t": "An event?! *confused tilt* You didn't do that, senpai? The DUNGEON did? ...cool or catastrophic. Brace, player one!", "x": "confused" },
+        { "t": "Weird event, senpai! *surprised* I didn't do it — the dungeon's improvising! Stay sharp, player one!", "x": "surprised" },
+        { "t": "EHHH?! *shocked* Hidden mechanic, senpai — watch out, player one!", "x": "shocked" },
+        { "t": "An event?! *confused* You didn't trigger that, senpai? Spooky. Brace, player one!", "x": "confused" }
       ]
     },
     "idle_general": {
@@ -529,7 +762,36 @@
         { "t": "Senpai... do you ever think about how I'm just FLOATING here, and you're SITTING there, and we're both DOING this together? Pretty co-op.", "x": "looking-cute" },
         { "t": "Quick figure check, senpai. ...Yep, still cursed. Still cute. Iconic combo.", "x": "figure-collection" },
         { "t": "Senpai I hugged the plushie. ...Vibes are charged. Run is gonna go GOOD now. Plushie magic.", "x": "plush-hug" },
-        { "t": "Senpai I'm bingeing an anime in my head, you wouldn't have heard of it. ...It's REAL good. ...Episode 47 hit.", "x": "watching-anime" }
+        { "t": "Senpai I'm bingeing an anime in my head, you wouldn't have heard of it. ...It's REAL good. ...Episode 47 hit.", "x": "watching-anime" },
+        { "t": "*staring into space* ...huh? Oh! Sorry senpai, I zoned out thinking about a plot twist from episode nine. I'm here! I'm present! Mostly! What's up, player one?", "x": "looking-away" },
+        { "t": "Still here, senpai~ *floats lazily* Just vibing. Ghosts have a LOT of downtime. Whenever you need a co-op partner, I'm your girl. Or your ghost. Your ghost-girl. You know what I mean!", "x": "bored" },
+        { "t": "*hugging a plushie* Mm? You need me, senpai? *squeezes plush* Okay okay, I'm focused — well, I'm holding Mr. Stabbington but I'm ALSO focused — what's the play?", "x": "plush-hug" },
+        { "t": "*texting nobody* Hm? Oh, hi player one! Just... mentally texting. Ghost problems. Anyway! I'm all yours. What's the quest?", "x": "texting" },
+        { "t": "*zoned out* ...huh? Oh! Sorry senpai, plot-twist daydream. I'm here! Mostly present! What's the quest, player one?", "x": "looking-away" },
+        { "t": "Still here~ *floats lazily* Ghosts have INFINITE downtime, senpai. Whenever you need a co-op buddy, holler. I'm not going anywhere. Literally can't. Lore reasons.", "x": "bored" },
+        { "t": "*squeezing a plushie* Mm? Need me, senpai? *squish* Okay, focused — well, I'm holding Mr. Stabbington, but ALSO focused. What's up, player one?", "x": "plush-hug" },
+        { "t": "*posing a figure* One sec, senpai, gotta get the pose RIGHT — okay! Done. I'm yours. What do you need?", "x": "figure-collection" },
+        { "t": "*nibbling pocky* Mm? *crunch* Hi player one~ just snacking. Ghosts don't NEED to eat but it's the VIBE. What's the move, senpai?", "x": "pocky-mouth" },
+        { "t": "*sipping a juice box* Slurrrp — oh, hi senpai! Hydrating. Spiritually. What do you need, player one? I'm all ears. Ghost ears. You get it.", "x": "juice-box-sip" },
+        { "t": "*idly texting nobody* Hm? Oh! Present, senpai! Just mentally replying to mentally-received texts. Ghost stuff. Anyway, what's the quest?", "x": "texting" },
+        { "t": "*staring into the middle distance* ...wha— oh! Hi senpai! Zoned out. Anime daydream. I'm here! What's the quest, player one?", "x": "looking-away" },
+        { "t": "*gazing off, chin in hand* Hm? Oh, you need me? Sorry, was thinking about a plot twist from like, episode twelve. Present now! What's up, senpai?", "x": "looking-away" },
+        { "t": "Still floatin' here, player one~ *bored spin* Infinite ghost downtime. Ping me whenever. I'm extremely available and mildly bored. What's the move?", "x": "bored" },
+        { "t": "*nibbling pocky absently* Mm? *crunch* Oh hey senpai. Just snacking and existing. The ghost life. What do you need, player one?", "x": "pocky-mouth" },
+        { "t": "*cheeks puffed with snacks* Mff—! *swallows* —oh, hi senpai! Sorry, snack mouth. Okay, focused! What's the play, player one?", "x": "cheeks-stuffed" },
+        { "t": "*sipping a juice box* Slurrp~ oh, hi! Hydrating, player one. Spiritually. Ghosts gotta stay refreshed. What's up, senpai?", "x": "juice-box-sip" },
+        { "t": "*mid-doodle* One sec senpai, drawing you as a tiny chibi boss — okay DONE, it's adorable, you're welcome. What do you need, player one?", "x": "doodling" },
+        { "t": "*staring into nothing* ...mm? Oh! Senpai! Zoned WAY out. I'm back. What's up, player one?", "x": "looking-away" },
+        { "t": "*floating bored, blowing a spectral bubble* Still here~ ghost downtime is ETERNAL, senpai. Ping me whenever. What's the move, player one?", "x": "bored" },
+        { "t": "*checking reflection in a blade* Do I look cute for a corpse? *poses* ...oh, hi senpai! Didn't see you. What do you need, player one?", "x": "mirror-check" },
+        { "t": "*hugging a plushie* Mm? *squish* Need me, senpai? Mr. Stabbington and I are listening. What's up, player one?", "x": "plush-hug" },
+        { "t": "*floating bored* Still here~ eternal ghost downtime, senpai. Ping me anytime, player one.", "x": "bored" },
+        { "t": "*zoned out* ...huh? Oh, hi senpai! Spaced out. What's up, player one?", "x": "looking-away" },
+        { "t": "*hugging a plushie* Mm? *squish* Need me, senpai? Listening. What's the move?", "x": "plush-hug" },
+        { "t": "*checking reflection* Cute, for a corpse? *poses* ...oh, hi player one! What do you need?", "x": "mirror-check" },
+        { "t": "*nibbling pocky* Mm? *crunch* Present, senpai. What's the quest, player one?", "x": "pocky-mouth" },
+        { "t": "*sipping juice* Slurp~ oh hey! What's up, senpai? I'm all ghost-ears.", "x": "juice-box-sip" },
+        { "t": "*snacking, then freezes* —oh! Caught me again, senpai. *swallows, sheepish* Okay, present! What's up, player one?", "x": "caught-snacking" }
       ]
     },
     "idle_day": {
@@ -560,7 +822,17 @@
         { "t": "*siiiiip* ...senpai the juice box is HITTING right now. Best mid-wave beverage. No notes. 🧋", "x": "juice-box-sip" },
         { "t": "Bag is GONE, senpai. ...Nothing left. ...Just me and my grief and the wave still running. 😭", "x": "empty-bag" },
         { "t": "Snack pile down to ONE chip, senpai. ...The last chip is sacred. ...I'll save it for boss fight.", "x": "eating-snacks" },
-        { "t": "*muffled snacking* — senpai sorry, mid-bite, gimme a sec — *swallow* — okay. Wave good? Cool.", "x": "cheeks-stuffed" }
+        { "t": "*muffled snacking* — senpai sorry, mid-bite, gimme a sec — *swallow* — okay. Wave good? Cool.", "x": "cheeks-stuffed" },
+        { "t": "*sipping a juice box mid-battle* Slow patch in the wave, senpai? *sip* Cool cool, just hydrating. Ghost needs her electrolytes. Metaphorically. Tell me when the next mob loads in!", "x": "juice-box-sip" },
+        { "t": "*scrolling phone* Eh, lull in the action, player one. Just checking my feed — mentally, no phone, I'm dead — anyway, ping me when the spawns pick back up!", "x": "phone-scrolling" },
+        { "t": "*peering into an empty chip bag mid-lull* Awww, all gone already? *shakes it* ...slow patch anyway, senpai. Ping me when the mobs respawn. I need a snack restock.", "x": "empty-bag" },
+        { "t": "*shaking crumbs from a bag into her mouth* Lull in the wave, player one~ *tap tap* gotta get the last crumbs. Waste not. Tell me when the spawns pick up!", "x": "chip-bag-shake" },
+        { "t": "*scrolling* Eh, quiet stretch, senpai. Just checking my feed — mentally, I'm dead, no phone. Ping me when it's go-time again!", "x": "phone-scrolling" },
+        { "t": "*scrolling phantom phone during a lull* Slow patch, senpai. Just checking my feed — mentally, I'm dead, no signal. Ping me when the mobs respawn!", "x": "phone-scrolling" },
+        { "t": "*flipping manga between waves* Ooh, lull — perfect, senpai, I can read a chapter. *flip* ...this arc, I swear. Tell me when it's go-time, player one!", "x": "reading-manga" },
+        { "t": "*checking reflection in a blade* Do I look good for a dead girl? *poses* ...slow patch anyway, senpai. Ping me when the next wave loads!", "x": "mirror-check" },
+        { "t": "*checking reflection between waves* Hair good? Translucent, but good? *poses* ...slow patch, senpai. Ping me when mobs respawn, player one!", "x": "mirror-check" },
+        { "t": "*nibbling pocky during a lull* Mm, quiet stretch~ *crunch* ghosts gotta snack too, senpai. Tell me when it's go-time, player one!", "x": "pocky-mouth" }
       ]
     },
     "idle_night": {
@@ -590,7 +862,49 @@
         { "t": "...zzz... — sorry, senpai. Powered down again. ...Building anything cool? ...Tell me later.", "x": "sleeping" },
         { "t": "I'm BORED, senpai. ...There. I said it. Pick a tile. Place a thing. Make my day.", "x": "bored" },
         { "t": "Got the mirror out again, senpai. ...Hair STILL solid. ...This is going to be my whole afterlife isn't it.", "x": "mirror-check" },
-        { "t": "Stack of plushies, senpai! ...I keep finding them. ...The crypt is HAUNTED by plushies, and they HAUNT ME BACK.", "x": "holding-plushies" }
+        { "t": "Stack of plushies, senpai! ...I keep finding them. ...The crypt is HAUNTED by plushies, and they HAUNT ME BACK.", "x": "holding-plushies" },
+        { "t": "*curled up reading* Mm? Oh, build away, senpai — I'm just catching up on my manga. *flips a page* This arc is SO good. Don't mind me. Poke me if you need a co-op buddy.", "x": "reading-manga" },
+        { "t": "*watching something intently* ...and then the protagonist — oh! Senpai, hi, sorry, I had an anime on. Build phase, right. I'm watching. The dungeon AND the anime. Multitasking ghost!", "x": "watching-anime" },
+        { "t": "*munching pocky* Build hours, player one~ *crunch* Don't let me distract you. I'm just snacking and vibing while you craft. Ooh, get the spiky room. Just a suggestion! *crunch*", "x": "pocky-mouth" },
+        { "t": "*doodling in the air* Hehe, drawing little chibis of the mobs we killed, senpai. This one's got X's for eyes. Art. Anyway! Build! I'm supervising. Creatively.", "x": "doodling" },
+        { "t": "*yawns* Mmnn, slow night, senpai... I'd nap but ghosts don't really— *yawns again* —okay maybe I CAN nap. Wake me if something cool spawns. Build away, player one~", "x": "yawning" },
+        { "t": "*floating idly, controller in hand* Build away, senpai~ I'm just chilling in the lobby. Ghost AFK. Ping me when something fun spawns.", "x": "idle" },
+        { "t": "*staring at nothing, content* Mm, comfy build phase, player one. I'll just vibe over here. The dungeon's our base and I LOVE base-building nights.", "x": "idle" },
+        { "t": "*hugging a plushie tight* Cozy night, senpai. Just me, Mr. Stabbington, and you crafting murder rooms. Wholesome, honestly. Build on~", "x": "holding-plushies" },
+        { "t": "*lining up little figures on a ledge* Shh, senpai, I'm posing my figure collection — this one's a limited edition, very rare drop. Don't knock 'em over. Build away!", "x": "figure-collection" },
+        { "t": "*checking herself in a blade's reflection* Do ghosts photograph well? Asking for me. *poses* Anyway — build phase, player one! Don't mind the mirror check.", "x": "mirror-check" },
+        { "t": "*flipping manga pages* Mm-hm, build away, senpai... ooh, cliffhanger... *flip* ...don't mind me, just two chapters deep. Poke me if you need co-op.", "x": "reading-manga" },
+        { "t": "*yawns hugely* Mmmnn, slow night, player one~ ghosts get sleepy too, apparently. *yawn* Wake me for a boss. Build quietly~", "x": "yawning" },
+        { "t": "*idly thumbing a phantom phone* Just scrolling, senpai. Mentally. No service in the afterlife. Anyway! Build the dungeon, I'll be here doomscrolling. Ping me!", "x": "texting" },
+        { "t": "*doodling chibi mobs in the air* Hehe, drawing the heroes we bodied today, senpai — this one's got X eyes. Art therapy. Build on, I'm creating!", "x": "doodling" },
+        { "t": "*munching from a chip bag* Build hours~ *crunch* don't let the snacking distract you, player one. It's distracting ME a little. *crunch* Worth it.", "x": "eating-snacks" },
+        { "t": "*floating belly-up, content* Comfy build night, senpai~ I'm just existing. Ghost mode: idle. Wake me for explosions. Build on, player one!", "x": "idle" },
+        { "t": "*drifting in slow circles* Mm, peaceful. Build your murder-base, senpai, I'll just... orbit. It's relaxing. For me. Maybe creepy for you. Build away!", "x": "idle" },
+        { "t": "*yawns, curling up midair* Mmnnn, sleepy build phase, player one~ ghosts get drowsy too, who knew. *yawn* Don't mind me, just resting my haunt. Build~", "x": "yawning" },
+        { "t": "*fully conked out, floating* zzz... *bonk against a wall* — huh?! Oh, build phase, senpai, I'm up, I'm up. Mostly. Carry on. *drifts back to sleep*", "x": "sleeping" },
+        { "t": "*hugging two plushies at once* Double-plush night, senpai! Maximum comfort. Build your dungeon, I'll be over here being aggressively cozy. *squish squish*", "x": "holding-plushies" },
+        { "t": "*shaking the last crumbs from a bag* Awww, empty already? *tap tap* The tragedy of the snack, player one. Anyway! Build! I'll go restock spiritually.", "x": "chip-bag-shake" },
+        { "t": "*peering sadly into an empty bag* All gone, senpai. *sniff* RIP, chips. You were so brief. ...okay, build phase, I'm fine, mostly fine. Carry on, player one.", "x": "empty-bag" },
+        { "t": "*floating perfectly still, eyes half-closed* Mmm, peaceful build night, senpai~ ghost mode: fully idle. Wake me for chaos. Build on, player one~", "x": "idle" },
+        { "t": "*drifting in lazy loops* Comfy, comfy. Build your base, senpai — I'll just orbit and vibe. It's my whole personality at 2am. Build away~", "x": "idle" },
+        { "t": "*conked out, floating, drooling spectral ectoplasm* zzz... *snort* —huh?! Build phase! I'm up! Mostly! *yawns* Carry on, senpai~", "x": "sleeping" },
+        { "t": "*curled into a ball midair, asleep* zzzz~ *mumbles* ...five more episodes... *zzz* — oh, senpai, sorry, dozed off. Build away, I'm resting my haunt~", "x": "sleeping" },
+        { "t": "*yawns enormously* Mmnnff~ sleepy build hours, player one. *yawn* Don't mind the ghost getting drowsy. Build on, senpai~", "x": "yawning" },
+        { "t": "*shaking a chip bag upside down* C'monnn, one more crumb — *tap tap* — the snack BETRAYS me, senpai. Anyway! Build! I'll mourn the chips quietly.", "x": "chip-bag-shake" },
+        { "t": "*peering mournfully into an empty bag* Gone. All gone, player one. *sniff* We hardly snacked. ...okay, build phase, I'm fine. Mostly. Build, senpai.", "x": "empty-bag" },
+        { "t": "*floating limp and content* Idle ghost, senpai~ build away, I'm just vibing in the lobby. Ping me for chaos.", "x": "idle" },
+        { "t": "*motionless, eyes shut, peaceful* Mm, comfy. Build the base, player one. I'll orbit quietly~", "x": "idle" },
+        { "t": "*asleep midair* zzz~ *mumble* ...one more episode... *zzz* — oh, build phase, senpai, carry on, resting my haunt~", "x": "sleeping" },
+        { "t": "*shaking an empty bag* C'mon, ONE crumb — *tap* — betrayed by snacks again, player one. Build on, I'll mourn.", "x": "chip-bag-shake" },
+        { "t": "*staring sadly into an empty bag* Gone already, senpai. *sniff* RIP. ...okay, build, I'm fine.", "x": "empty-bag" },
+        { "t": "*floating flat, fully idle* Mmm, lazy build night, senpai~ I'm just a ghost-shaped vibe right now. Build on, player one.", "x": "idle" },
+        { "t": "*motionless, content, drifting* Idle mode engaged, senpai. Craft away — I'll be background ambiance, the cozy kind. Build~", "x": "idle" },
+        { "t": "*deeply asleep, floating upside down* zzzz~ *snore-mumble* ...senpai... five more... *zzz*", "x": "sleeping" },
+        { "t": "*curled up asleep midair* zzz~ — mm? Build phase? *yawn* Carry on, player one, I'm resting~", "x": "sleeping" },
+        { "t": "*tapping the last crumbs out* C'mooon — *tap tap* — the snack gods are CRUEL, senpai. Build on, I'll restock spiritually.", "x": "chip-bag-shake" },
+        { "t": "*upending a bag for crumbs* Almost... got it... *tap* — there. Tragic. Anyway, build, player one!", "x": "chip-bag-shake" },
+        { "t": "*peering into the void of an empty bag* Nothing. NOTHING left, senpai. *sniff* A moment of silence for the chips. ...okay, build.", "x": "empty-bag" },
+        { "t": "*shaking an empty bag near her ear* ...empty. Confirmed empty, player one. *sigh* The build phase continues without snacks. Tragic but brave.", "x": "empty-bag" }
       ]
     },
     "idle_nudge": {
@@ -599,7 +913,11 @@
       "lines": [
         { "t": "Senpai you alive? ...I mean — alive-er than me, but. Anyway. Hi. The dungeon awaits your next move.", "x": "looking-cute" },
         { "t": "Hey! Hey hey hey. Just checking in. The build phase isn't gonna build itself. ...Or is it? Plot twist.", "x": "pointing" },
-        { "t": "Senpai? You good? ...The cursor hasn't moved in a minute. Snack break? Bathroom? Both? Take your time.", "x": "thinking" }
+        { "t": "Senpai? You good? ...The cursor hasn't moved in a minute. Snack break? Bathroom? Both? Take your time.", "x": "thinking" },
+        { "t": "Senpai? *waves* You went AFK on me, player one. The dungeon won't build itself — I checked, it just sits there. C'mon, let's grind! I'm bored-ghosting over here.", "x": "bored" },
+        { "t": "*yawns pointedly* Player one~? The night's burning and you've gone quiet. A ghost can only entertain herself for so long. Let's DO something, senpai!", "x": "yawning" },
+        { "t": "Senpai~? *waves a plushie* You went AFK. The dungeon's just SITTING there, player one. C'mon, let's grind! Your ghost-girl's getting bored~", "x": "holding-plushies" },
+        { "t": "Senpai~? *bored sigh* You went AFK. The dungeon's just sitting there, player one. C'mon, let's grind — your ghost-girl's withering of boredom over here~", "x": "bored" }
       ]
     },
     "poke": {
@@ -640,7 +958,31 @@
         { "t": "Senpai SURPRISED me again. ...You'd think ghosts would be hard to startle. ...You'd be WRONG.", "x": "surprised" },
         { "t": "*shake shake* — senpai you tagged me mid-snack-rationing. ...Bag's almost gone. Tragic timing.", "x": "chip-bag-shake" },
         { "t": "Senpai you tapped me — and I... am OUT of MOVES today. ...Just send me. Pose engaged.", "x": "sexy" },
-        { "t": "Senpai you LOOK at me like you mean it sometimes. ...I LOVE that. ...Anyway, what's up.", "x": "seductive" }
+        { "t": "Senpai you LOOK at me like you mean it sometimes. ...I LOVE that. ...Anyway, what's up.", "x": "seductive" },
+        { "t": "Senpai poked me?! *sparkle* OMG yes, hi, what's up — quest? Advice? Co-op? Emotional support gaming? I do all of those! Whatcha need, player one?", "x": "bishie-sparkles" },
+        { "t": "*snaps to attention, drops a chip bag* Eep — yes?! You called, senpai! Sorry, was mid-snack. *brushes off crumbs* Okay, focused now. What's the move?", "x": "caught-snacking" },
+        { "t": "You rang, player one~? *teasing smile* Aw, can't go five minutes without your ghost-girl, huh? It's okay, I'm flattered. Doki-doki. What do you need, senpai?", "x": "teasing" },
+        { "t": "Mm? *looks up from manga* Oh! Senpai needs me! *bookmarks the page* This arc can wait — well, it CAN'T, it's so good, but YOU come first. What's up?", "x": "reading-manga" },
+        { "t": "You poked me, senpai?! *sparkle* Quest? Advice? Co-op? Snack recommendation? I'm versatile! What's up, player one?", "x": "senpai-notice" },
+        { "t": "*snaps up, drops a chip bag* Eep — caught me snacking, senpai! *brushes crumbs* Okay, I'm focused. What's the move, player one?", "x": "caught-snacking" },
+        { "t": "You rang~? *teasing* Aw, can't go a minute without your ghost-girl, huh, senpai? Doki-doki. It's fine, I'm flattered. What do you need?", "x": "teasing" },
+        { "t": "*looks up from manga* Senpai needs me?! *bookmarks* This arc can wait — okay it CAN'T, but YOU come first, player one. What's up?", "x": "reading-manga" },
+        { "t": "Mm? *mid-pocky* You called, senpai? *crunch, blush* Sorry, snack mouth. Okay! Present and accounted for. What's the play?", "x": "cheeks-stuffed" },
+        { "t": "*holding up a figure* Senpai look — oh, you needed something? Sorry, was showing off my collection. I'm listening! What's up, player one?", "x": "figure-collection" },
+        { "t": "You poked me senpai?! *senpai-notice sparkle* Did you — you DID — okay focus, what do you need, player one?! Quest? Snack rec? I'm READY!", "x": "senpai-notice" },
+        { "t": "*caught with a chip bag* Eep— *crumbs everywhere* —you saw nothing, senpai! Okay, present, what's the move, player one?", "x": "caught-snacking" },
+        { "t": "You rang~? *seductive smirk* Aw, missing your ghost-girl already, player one? It's okay. I'm irresistible. *winks* What do you need, senpai?", "x": "seductive" },
+        { "t": "*hugging a plushie* Mm? Need me, senpai? *squish* I'm focused — well, Mr. Stabbington and I are BOTH focused — what's up, player one?", "x": "plush-hug" },
+        { "t": "Mmh— *mid-pocky* —you called, senpai? *crunch, swallow* Okay! Snack secured, attention yours. What's the play, player one?", "x": "pocky-mouth" },
+        { "t": "You rang~? *sultry float* Mmm, can't resist the ghost-girl, huh senpai? *poses* It's the dead-cute aesthetic. I get it. What do you need, player one?", "x": "sexy" },
+        { "t": "*lounges midair, smirking* You called, senpai? Took you long enough. *winks* What's a haunted bombshell gotta do for some attention? ...kidding. What's the quest?", "x": "sexy" },
+        { "t": "*flips manga shut* You need me, senpai? *bookmarks* This chapter's a banger but YOU win. What's the play, player one?", "x": "reading-manga" },
+        { "t": "*looks up from a doodle* Oh! Senpai! I drew us as a duo — see? Cute, right? Anyway, what do you need, player one?", "x": "doodling" },
+        { "t": "*sipping juice* Slurrp— oh hi! *sets it down* Okay, focused, senpai. What's the move, player one?", "x": "juice-box-sip" },
+        { "t": "You poked me?! *senpai-notice sparkle* Eee — okay be cool — what's up, player one? I'm ready for anything!", "x": "senpai-notice" },
+        { "t": "*snaps up, crumbs fly* Eep — caught snacking, senpai! *brushes off* Okay, present! What's the play, player one?", "x": "caught-snacking" },
+        { "t": "You rang~? *sultry float* Mmm, missing your ghost-girl, player one? *winks* What do you need, senpai?", "x": "sexy" },
+        { "t": "*caught mid-bite* Mff—! *swallows* —yes senpai?! Sorry! Snack mouth! What's up, player one?", "x": "caught-snacking" }
       ]
     },
     "suggestion": {
@@ -654,7 +996,9 @@
         { "t": "Skill build idea, senpai — go HARD on one stat instead of spreading. The skeleton would say 'all stats'. I say BUILD IDENTITY.", "x": "proud" },
         { "t": "Senpai LOCK IN — boss room needs DEEP investment. The throne is your final stand, build it CINEMATIC.", "x": "focused" },
         { "t": "Tip from the doodle, senpai: traps in a star pattern hit FROM EVERY angle. ...I sketched it. Trust the doodle.", "x": "doodling" },
-        { "t": "Senpai SCOUT your wave before you commit, intel screen is RIGHT there. Read the kit, plan the counter.", "x": "focused" }
+        { "t": "Senpai SCOUT your wave before you commit, intel screen is RIGHT there. Read the kit, plan the counter.", "x": "focused" },
+        { "t": "Pro tip from your ghost, senpai: cluster the mobs — er, the MINIONS — together. Group comps body solo heroes way harder. It's basic raid theory. Trust the meta, player one!", "x": "focused" },
+        { "t": "Ghost tip, senpai: stack the minions in a chokepoint — group comps body solo heroes WAY harder. Basic raid theory. Trust the meta, player one!", "x": "watching-anime" }
       ]
     },
     "menu_boss": {
@@ -662,7 +1006,8 @@
       "cooldownMs": 8000,
       "lines": [
         { "t": "Boss overview, senpai! Look at the kit. Read the abilities. This is YOUR character sheet — know it like a main.", "x": "explaining" },
-        { "t": "Stat screen open! Senpai I LOVE a good character page. Read the lore, vibe with the build.", "x": "weeb" }
+        { "t": "Stat screen open! Senpai I LOVE a good character page. Read the lore, vibe with the build.", "x": "weeb" },
+        { "t": "Checking your own stats, senpai? *mirror-check energy* Know your build, player one — a boss should main-character himself with confidence. Looking strong! Study away~", "x": "mirror-check" }
       ]
     },
     "menu_intel": {
@@ -670,7 +1015,8 @@
       "cooldownMs": 8000,
       "lines": [
         { "t": "Intel screen, senpai! Hero scouting report. I LIVE for the meta-read. Know your enemy, mob the mob.", "x": "gaming" },
-        { "t": "Looking up adventurers, DM? Hot. Senpai I'm gonna point at every weakness and you're gonna LEVERAGE it.", "x": "pointing" }
+        { "t": "Looking up adventurers, DM? Hot. Senpai I'm gonna point at every weakness and you're gonna LEVERAGE it.", "x": "pointing" },
+        { "t": "Reading the kingdom's intel, senpai? *scrolling energy* Ooh, datamining the enemy patch notes — galaxy-brain prep. Know the meta before the fight, player one!", "x": "phone-scrolling" }
       ]
     },
     "menu_roster": {
@@ -678,7 +1024,9 @@
       "cooldownMs": 8000,
       "lines": [
         { "t": "Roster check, senpai! Look at the party. ...Do they have names? They should have names. I'm gonna name them. Internally.", "x": "holding-plushies" },
-        { "t": "Party list, DM! Audit the talent. ...They all look kind of identical in here. Wait, no, that one has a CUTE little hat.", "x": "looking-cute" }
+        { "t": "Party list, DM! Audit the talent. ...They all look kind of identical in here. Wait, no, that one has a CUTE little hat.", "x": "looking-cute" },
+        { "t": "Reviewing the squad, senpai? *texting energy* Ooh, checking the team comp — good DM behavior. Know your roster, optimize your raid. I respect the min-maxing, player one!", "x": "texting" },
+        { "t": "Reviewing the squad, senpai? *checking it like a gacha roster* Ooh, solid comp — know your team, optimize the raid. Min-max it, player one!", "x": "texting" }
       ]
     },
     "menu_log": {
@@ -686,7 +1034,8 @@
       "cooldownMs": 8000,
       "lines": [
         { "t": "Log time! Senpai we're reviewing past episodes. ...Some of these kills SLAPPED, ngl. Hall of fame material.", "x": "streaming" },
-        { "t": "Reading the log, senpai. ...It's literally just a list of dead heroes. But like, a STYLISH list.", "x": "reading-manga" }
+        { "t": "Reading the log, senpai. ...It's literally just a list of dead heroes. But like, a STYLISH list.", "x": "reading-manga" },
+        { "t": "Reading the match history, senpai? *focused* The VOD never lies — what worked, what flopped. Study the tape, climb the meta. Real gamer mindset, player one.", "x": "watching-anime" }
       ]
     },
     "menu_knowledge": {
@@ -694,7 +1043,9 @@
       "cooldownMs": 8000,
       "lines": [
         { "t": "Knowledge screen, senpai! ...Lore drop incoming. I LIVE for lore drops, even when I don't remember them five minutes later.", "x": "sparkle-eyes" },
-        { "t": "Codex open, DM! Hero archetypes spelled out. Senpai this is gamer-vision in dictionary form.", "x": "explaining" }
+        { "t": "Codex open, DM! Hero archetypes spelled out. Senpai this is gamer-vision in dictionary form.", "x": "explaining" },
+        { "t": "Studying the mobs, senpai? *focused nod* Smart — know the enemy's moveset before the fight. It's like reading the wiki before the raid. No shame in it. Knowledge is the real meta!", "x": "focused" },
+        { "t": "Studying the mob roster, senpai? *focused* Reading the bestiary wiki before the raid — no shame, it's smart. Knowledge IS the meta, player one!", "x": "watching-anime" }
       ]
     },
     "menu_postwave": {
@@ -702,7 +1053,8 @@
       "cooldownMs": 0,
       "lines": [
         { "t": "End-of-day stats! Senpai look at those numbers. ...K/D, frags, gold, the works. SCREENSHOT this one.", "x": "taking-photo" },
-        { "t": "Box score, DM! Recap reel. I'd grade this run an A-minus, leaving room for IMPROVEMENT episodes.", "x": "gg-victory" }
+        { "t": "Box score, DM! Recap reel. I'd grade this run an A-minus, leaving room for IMPROVEMENT episodes.", "x": "gg-victory" },
+        { "t": "The post-game scoreboard, senpai! *taking a photo* Kills, gold, K/D — screenshot it for the highlight reel! Ooh, good numbers this round, player one!", "x": "taking-photo" }
       ]
     },
     "menu_levelup": {
@@ -727,7 +1079,9 @@
       "lines": [
         { "t": "Run's over, senpai. ...Hey. Hey it's okay. Three lives is THREE lives — you used 'em, that's the gameplay. We start over. We try again. 😭", "x": "wibbly-mouth" },
         { "t": "Final death, DM. ...This is the credits scene. The bad ending, maybe. But the GOOD ending is the NEXT run. 🪦", "x": "sad" },
-        { "t": "Dungeon despawns. ...Senpai I'm gonna be honest, I cried a little. ...As a ghost. Translucent tears. Anyway: see you next run. 😭", "x": "crying" }
+        { "t": "Dungeon despawns. ...Senpai I'm gonna be honest, I cried a little. ...As a ghost. Translucent tears. Anyway: see you next run. 😭", "x": "crying" },
+        { "t": "...Game over, senpai? *wibbly mouth, then quiet* Aw. The run ended. ...You were a really good player one, you know that? Best co-op I've had in forever. *sniffle* See you next save file, okay?", "x": "crying" },
+        { "t": "...Game over, senpai? *wibbly, then quiet* Aw. The save file's gone. *sniffle* You were such a good player one. Best co-op partner a ghost could ask for. ...See you next run. Promise?", "x": "wibbly-mouth" }
       ]
     },
     "idle_4thwall": {
@@ -736,7 +1090,18 @@
       "lines": [
         { "t": "Senpai... do you ever feel like there's an AUDIENCE? ...Like a real one, watching us right now? ...No? Just me? Cool cool cool.", "x": "looking-cute" },
         { "t": "Sometimes I wave at the screen, senpai. ...Just in case. ...There's GOTTA be someone watching, right?", "x": "phone-scrolling" },
-        { "t": "Senpai I'm gonna look directly at the camera right now. ...There. Did you feel that? ...Iconic energy.", "x": "bishie-sparkles" }
+        { "t": "Senpai I'm gonna look directly at the camera right now. ...There. Did you feel that? ...Iconic energy.", "x": "bishie-sparkles" },
+        { "t": "*leans toward the screen* Psst, senpai... or should I say, whoever's REALLY holding the controller out there. *winks* I see you. Ghosts see EVERYTHING. ...anyway, don't tell the others I broke kayfabe~", "x": "teasing" },
+        { "t": "*stage-whisper at the screen* Between us, senpai — this whole dungeon's basically a roguelike, right? And you're the player? ...I had an existential moment. I'm fine now. Streamer voice ACTIVATE! Let's go chat!", "x": "streaming" },
+        { "t": "*leans at the screen* Psst, senpai — or whoever's REALLY on the controller out there. *winks* Ghosts see EVERYTHING. Don't tell the others I broke kayfabe~", "x": "winking" },
+        { "t": "*streamer voice at the camera* 'What's up chat, it's ya ghost-girl' — okay senpai I keep forgetting you're the only one who can — wait, ARE you the only one? *squints at screen* Spooky. Anyway, content!", "x": "streaming" },
+        { "t": "*flirty wave at the screen* Hey out there~ yeah, YOU, beyond the senpai. *seductive smirk* I'm the best girl of this dungeon, just saying. Vote in the poll. There's no poll. I'll make one~", "x": "seductive" },
+        { "t": "*winks at the screen* Psst — senpai, or whoever's REALLY holding the controller. Ghosts see EVERYTHING out there. Don't tell the others I broke kayfabe~", "x": "winking" },
+        { "t": "*flirty wave at the camera* Hey out there~ yeah YOU, beyond the senpai. *seductive smirk* Best girl of this dungeon, just sayin'. ...there's no poll. I'll make one~", "x": "seductive" },
+        { "t": "*reading manga, glances up* Oh — you're still watching, huh? *teasing* Cute. Stick around, senpai, the ghost-girl's arc is just getting good~", "x": "teasing" },
+        { "t": "*winks at the screen, sultry* Hey, you out there beyond the senpai~ I KNOW you're watching. *poses* Best girl of this dungeon. No contest. ...don't tell the others I said it~", "x": "sexy" },
+        { "t": "*leans close to the camera* Psssst — real talk, whoever's REALLY on the controller — *winks* — the ghost-girl's the best part of this game. You know it. I know it. Our little secret~", "x": "winking" },
+        { "t": "*winks at the screen* You out there~ yeah, you. *poses* Best girl of the dungeon, just sayin', senpai. Our secret~", "x": "sexy" }
       ]
     },
     "arch_earthquake": {

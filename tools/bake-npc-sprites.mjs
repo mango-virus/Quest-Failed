@@ -346,18 +346,111 @@ const COMPANIONS = {
     },
   },
 
-  // The Necroknight — eighth keeper, also ships LOCKED. Skeletal warrior
-  // archetype: armored undead knight with a green spectral aura. Same
-  // teaser-only treatment as Luna / Rattle Bones / Nocturna: one `idle`
-  // portrait, no dialogue, unlock condition TBD. Promotion path identical
-  // to the other locked teasers. Source filename is lowercase `idle.png`
-  // (no companion prefix).
+  // The Necroknight — eighth keeper. Oathkeeper of the Dead archetype:
+  // an armored undead knight who died mid-vow and kept marching. Grave,
+  // ceremonial, oath-bound; commands the slain with the gravity of a
+  // general at a war memorial, and genuinely GRIEVES the dead he raises.
+  // Green spectral (ghostfire) accent. Full 59-expression bank shipped
+  // 2026-05-28.
+  //
+  // Source filenames carry a `-Photoroom` suffix (artist's BG-removal
+  // export); two stragglers don't (`idle default.png`, `watching.png`).
+  // Output ids strip the suffix + kebab-case the rest. The `done/` and
+  // `dont use/` subfolders are ignored — only top-level files are baked.
+  //
+  // Deliberate id choices:
+  //   • `idle default.png` → `idle` (the neutral resting frame; the three
+  //     `idle 2/3/4` variants become `idle-2/3/4`).
+  //   • `bowing head reading-Photoroom.png` → `reading` (his idle "studying
+  //     the rites / the rolls of the dead" beat — fills the reading-activity
+  //     niche every other companion has).
+  //   • `swearing oath-Photoroom.png` → `oath` (short id for his signature
+  //     vow pose).
+  //   • `dozing off` → `dozing`, `overwhelming power` → `overwhelming-power`,
+  //     `raising the dead` → `raising-dead`.
   necroknight: {
     srcDir: 'D:/Documents/Game Jam Code/Quest-Failed assets/Companions/The Necroknight',
     outDir: 'assets/npc-necroknight',
     map: {
-      'idle.png': 'idle',
-    },
+    // Idle / quiet beats
+    'idle default.png':                  'idle',
+    'idle 2-Photoroom.png':              'idle-2',
+    'idle 3-Photoroom.png':              'idle-3',
+    'idle 4-Photoroom.png':              'idle-4',
+    'at attention-Photoroom.png':        'at-attention',
+    'watching.png':                      'watching',
+    'dozing off-Photoroom.png':          'dozing',
+    'sleeping-Photoroom.png':            'sleeping',
+    'bowing head reading-Photoroom.png': 'reading',
+    'wondering-Photoroom.png':           'wondering',
+    'curious-Photoroom.png':             'curious',
+
+    // Solemn / ceremonial — his core
+    'solemn-Photoroom.png':              'solemn',
+    'somber-Photoroom.png':              'somber',
+    'swearing oath-Photoroom.png':       'oath',
+    'salute-Photoroom.png':              'salute',
+    'kneeling-Photoroom.png':            'kneeling',
+    'reverent-Photoroom.png':            'reverent',
+    'eulogy-Photoroom.png':              'eulogy',
+
+    // Grief register — his unique axis
+    'mourning-Photoroom.png':            'mourning',
+    'grieving-Photoroom.png':            'grieving',
+    'regret-Photoroom.png':              'regret',
+    'weary-Photoroom.png':               'weary',
+    'haunted-Photoroom.png':             'haunted',
+    'wistful-Photoroom.png':             'wistful',
+
+    // Command / martial
+    'commanding-Photoroom.png':          'commanding',
+    'raising the dead-Photoroom.png':    'raising-dead',
+    'summoning-horde-Photoroom.png':     'summoning-horde',
+    'pointing-Photoroom.png':            'pointing',
+    'guard-stance-Photoroom.png':        'guard-stance',
+    'rallying-Photoroom.png':            'rallying',
+
+    // Combat intensity
+    'grim-fury-Photoroom.png':           'grim-fury',
+    'aggressive-Photoroom.png':          'aggressive',
+    'executing-Photoroom.png':           'executing',
+    'determined-Photoroom.png':          'determined',
+    'unrelenting-Photoroom.png':         'unrelenting',
+    'angry-Photoroom.png':               'angry',
+    'cold-anger-Photoroom.png':          'cold-anger',
+
+    // Approval / pride
+    'grim-approval-Photoroom.png':       'grim-approval',
+    'proud-Photoroom.png':               'proud',
+    'honored-Photoroom.png':             'honored',
+    'respect-Photoroom.png':             'respect',
+    'vindicated-Photoroom.png':          'vindicated',
+    'loyal-Photoroom.png':               'loyal',
+
+    // Atmosphere / power
+    'ghostfire-surge-Photoroom.png':     'ghostfire-surge',
+    'overwhelming power-Photoroom.png':  'overwhelming-power',
+    'level-up-Photoroom.png':            'level-up',
+    'sinister-Photoroom.png':            'sinister',
+
+    // Cold negative
+    'disappointed-Photoroom.png':        'disappointed',
+    'disgusted-Photoroom.png':           'disgusted',
+    'unimpressed-Photoroom.png':         'unimpressed',
+    'judging-Photoroom.png':             'judging',
+    'wary-Photoroom.png':                'wary',
+
+    // Reactions
+    'surprised-Photoroom.png':           'surprised',
+    'shocked-Photoroom.png':             'shocked',
+    'stunned-Photoroom.png':             'stunned',
+    'thinking-Photoroom.png':            'thinking',
+    'thinking 2-Photoroom.png':          'thinking-2',
+
+    // Rare cracks — the man under the helm
+    'unmasked-Photoroom.png':            'unmasked',
+    'happy-Photoroom.png':               'happy',
+  },
   },
 
   // Spectra — ninth keeper, ships LOCKED (same teaser-only treatment

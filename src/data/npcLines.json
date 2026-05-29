@@ -29,73 +29,6 @@
       ] }
     ]
   },
-  "recruit": {
-    "note": "`banter` lines for the CompanionSelect screen. The two companions take turns (one speaks, then the other) — lines reference the rival by name so it reads as the two of them bickering over the player. Hovering a companion gives them the next turn.",
-    "banter": [
-      { "t": "Malakor, must you loom like that? You will frighten our new liege before they have even chosen.", "x": "eye-roll" },
-      { "t": "Do not mind the gargoyle, darling. He growls, I purr — one of us is far better company for a long reign.", "x": "flirty" },
-      { "t": "He will tell you that you are doing it wrong. I will tell you that you are doing it beautifully. Choose accordingly.", "x": "adoring" },
-      { "t": "Malakor calls it honesty, my liege. I call it being tiresome — at volume.", "x": "smug" },
-      { "t": "I have watched bosses THRIVE under me and merely survive under him. Only a thought, darling.", "x": "confident" },
-      { "t": "Choose me and your nights will have a little warmth in them. Choose him, and... well. Ask him about warmth.", "x": "sexy-2" },
-      { "t": "He fights for you, yes. But I would make you ENJOY the fighting. There is a delicious difference.", "x": "winking" },
-      { "t": "Malakor, dear — you are scowling at the customer again. Honestly.", "x": "unimpressed" },
-      { "t": "A whole run is long, my liege. Do you truly want it spent being barked at? Mm. I thought not.", "x": "cute" },
-      { "t": "I will keep you alive AND smiling. He manages only the first half — and resents every moment of it.", "x": "flirty" },
-      { "t": "Look at you — fresh to the throne and already so very wanted. Two of us, darling, vying for your wicked little attention.", "x": "obsessed" },
-      { "t": "Malakor would have you believe a dungeon is all teeth and toil. I know better. It can be a PLEASURE.", "x": "sexy-2" },
-      { "t": "Pick me, my liege, and I shall whisper every secret this place keeps. He would simply grunt and point.", "x": "mischievous" },
-      { "t": "You are deciding the voice in your ear for an entire reign, darling. Choose the one that does not bark.", "x": "winking" },
-      { "t": "Malakor, do stop flexing. The boss can see your scowl from here — you are not helping your case.", "x": "laughing" },
-      { "t": "I have served thrones since before that grumbling stone could speak. Experience, my liege. It matters.", "x": "proud-1" },
-      { "t": "He calls me silk and sighs as though those were insults. Darling, they are the entire appeal.", "x": "smug" },
-      { "t": "Choose me, and I promise the screaming will at least be tasteful.", "x": "evil" },
-      { "t": "A keeper should make the long nights bearable, my liege. Mine come with warmth. His come with a lecture.", "x": "cute-2" },
-      { "t": "Do not let his glaring frighten you, darling. Underneath all that granite he is... still glaring, honestly.", "x": "eye-roll" },
-      { "t": "I will dote on you, my liege. I will scheme for you. And when the heroes come, I will smile while they die.", "x": "evil" },
-      { "t": "Malakor fights well — I grant the brute that. But I make winning feel like getting away with something.", "x": "mischievous-2" },
-      { "t": "You and I, darling, would be the talk of every guild hall. The cruel ones always are.", "x": "confident" },
-      { "t": "He keeps you on the throne. I keep you GLAD to be sitting on it. There is a difference, my liege.", "x": "flirty" },
-      { "t": "Hmm. Still weighing us like cuts of meat. Take your time — I am terribly patient when I am winning.", "x": "thinking" },
-      { "t": "Malakor, the poor liege has not even chosen and you are already disappointed in them. Manners.", "x": "unimpressed" },
-      { "t": "Choose the warmth, darling. Reigns are cold enough without picking the colder companion.", "x": "winking" },
-      { "t": "I do hope you pick me, my liege. I have so very many plans — and every single one of them is delicious.", "x": "obsessed" },
-      { "t": "Zul'Gath, darling — must you LOOM? You are very old, very large, and very grey about all of it. My liege wants a companion, not a tombstone.", "x": "eye-roll" },
-      { "t": "The dragon will tell you he has seen everything, my liege. How exhausting, to be that bored. Pick me — I still find you genuinely delightful.", "x": "flirty" },
-      { "t": "Zul'Gath calls it perspective. I call it a very long nap with opinions. You want warmth on the throne, darling, not a cold draught from a cave.", "x": "winking" },
-      { "t": "He hoards gold, the dragon. I hoard YOUR happiness, my liege. ...Only one of those keeps a boss wanting to come back tomorrow night.", "x": "adoring" },
-      { "t": "Mmm, Zul'Gath. So ancient. So calm. So utterly unmoved by anything at all. ...I move things, darling. I would so love to move YOU.", "x": "sexy" },
-      { "t": "The dragon has outlived empires, he says. And what did he DO with those long years, my liege? He sat. He watched. He hoarded. Live a little — choose me.", "x": "mischievous" },
-      { "t": "Zul'Gath broods so beautifully, I will grant him that. But brooding never once warmed a throne. Step aside, lizard — let the one who adores him speak.", "x": "adoring" },
-      { "t": "Take your time choosing, my liege. I shall simply stand here, looking my very best — which, you will notice, is rather considerable.", "x": "preening" },
-      { "t": "Mmm, still deciding? I do not mind the wait, darling. Watching you weigh us is the most attention I have had in an age.", "x": "tail-play" },
-      { "t": "Safira, dear — must you SHRIEK every little thing? My liege wants a companion, not a fireworks display that forgot how to stop.", "x": "eye-roll" },
-      { "t": "The genie grants what you ask for, my liege. I grant what you did not yet know to want. There is a whole warm world of difference.", "x": "smug" },
-      { "t": "She is bound to serve you, poor lamp-girl — chained to it by old magic. I serve because I adore you. Choose the one who chose you, darling.", "x": "adoring" },
-      { "t": "Safira will hand you three wishes, or thirty, or three hundred — all at once, all at top volume. I give you one long, wicked reign. Quietly.", "x": "flirty" },
-      { "t": "Listen to her go, my liege — all that lovely chaos. I am the calm hand on the back of your throne. And the cruel one, when the heroes come.", "x": "winking" },
-      { "t": "The genie chatters at things that are not there, darling — charming, in a fraying sort of way. I have eyes for nothing in this realm but YOU.", "x": "obsessed" },
-      { "t": "She means well, the lamp-girl. She means EVERYTHING well, loudly, at once. Pick me — I promise the screaming on our nights will be theirs, not hers.", "x": "mischievous" },
-      { "t": "Listen to him, my liege — every sentence ends in a snarl. A whole reign of that? My condolences in advance. Pick the keeper who knows how to whisper.", "x": "eye-roll" },
-      { "t": "Zul'Gath, dear, must you sit there like furniture? My liege wants a companion, not a particularly large, particularly grey doorstop.", "x": "laughing" },
-      { "t": "Safira, sweetie — breathe. The throne has been empty for an hour, not an eon. Stop bouncing and let the grown-ups speak, darling.", "x": "unimpressed" },
-      { "t": "Pick the gargoyle, my liege, and your reign is one long lecture. Pick the dragon and it is one long nap. Pick me, darling — it is one long, wicked smirk.", "x": "smug" },
-      { "t": "Three voices vying for your ear, my liege — and only one of them has actually noticed what you are wearing tonight. Pick the one paying attention.", "x": "flirty" },
-      { "t": "Zul'Gath calls it perspective. I call it being too OLD to panic at the right time, darling. Some moments deserve a panic. I supply them on cue.", "x": "winking" },
-      { "t": "Safira shrieks. Malakor barks. I murmur, my liege. One of those three sounds is what you actually want pressed against your ear, all night long.", "x": "sexy" },
-      { "t": "Zul'Gath would tell you the dungeon has fallen many times before. I would simply tell you it does not have to this time. Only one of those is useful, darling.", "x": "confident" },
-      { "t": "Malakor stands at the doorway when the heroes come. Charming. I would rather they never reach the doorway, my liege. There is a difference and you should feel it.", "x": "mischievous" },
-      { "t": "Safira would grant your every whim, my liege — bless her. I would CURATE them. That is the version of devotion that actually keeps you on the throne, darling.", "x": "adoring" },
-      { "t": "Oh — the JESTER is out of his crypt again. Rattle Bones, darling — DO take your bones elsewhere. The new liege is choosing a keeper, not booking a comedy act.", "x": "eye-roll" },
-      { "t": "The skeleton tells jokes, my liege. ENDLESSLY. I tell you what you needed to hear, all silk and warmth — and I do not rattle when I lean in close.", "x": "flirty" },
-      { "t": "Rattle Bones cracks wise about death because he has nothing else, poor thing. I crack wise about LIFE — yours, darling, the long delicious one we are about to share.", "x": "winking" },
-      { "t": "Listen to the bone-clatter, my liege — three centuries of the same six punchlines. I have new things to whisper EVERY night. He has a routine.", "x": "smug" },
-      { "t": "The jester is charming in his way, darling — for about twelve minutes. I am charming the whole reign through. Pick the keeper with stamina.", "x": "preening" },
-      { "t": "Rattle Bones will make you LAUGH, my liege. I will make you ADORED. Only one of those two follows a boss into the throne room, darling — and it is not laughter.", "x": "adoring" },
-      { "t": "He calls you 'skull-pal'. SKULL-pal! My liege, you deserve to be called MY LIEGE. With reverence. With breath on the syllable. Not... whatever the skeleton is doing.", "x": "unimpressed" },
-      { "t": "Mmm, the jester. So much performance, so little tenderness. Comedy is the consolation prize, darling — pick the keeper who never needs to consolate you.", "x": "sexy" }
-    ]
-  },
   "categories": {
     "welcome": {
       "priority": 3, "cooldownMs": 0,
@@ -106,7 +39,10 @@
         { "t": "Mmm. Fresh blood on the throne. I do hope you are the cruel sort — the last one cried. Stay close; I will teach you how we play.", "x": "cruel" },
         { "t": "There you are, master. ...Do forgive the apron — a keeper SERVES her boss, and I do so like to dress for the truth of a thing. I am Lilith: your dungeon, your hands, your devoted little disaster. Shall we begin?", "x": "maid" },
         { "t": "There you are at last. I dressed for the occasion, naturally — a keeper greets a new liege LOOKING the part. ...Do you approve, darling?", "x": "changing-outfit" },
-        { "t": "Welcome, my liege. ...Yes, yes, I am preening — I always do, before company. And you are going to be SUCH good company. I can tell.", "x": "preening" }
+        { "t": "Welcome, my liege. ...Yes, yes, I am preening — I always do, before company. And you are going to be SUCH good company. I can tell.", "x": "preening" },
+        { "t": "Oh, hello, my liege. A new master for the dark, and SUCH a promising one. Come — let me make this dungeon adore you the way I already do.", "x": "in-love" },
+        { "t": "There you are, my pet. I've been waiting in the quiet for someone worth doting on. You'll do beautifully. I can already tell. Welcome home.", "x": "adoring" },
+        { "t": "Aww, look at you, all freshly crowned and dangerous. *cups your face in the dark* The cutest little tyrant I've had the pleasure of corrupting. Welcome, darling.", "x": "cute" }
       ]
     },
     "night_start": {
@@ -133,7 +69,10 @@
         { "t": "I do my best scheming when I look my best, my liege. One moment — let me settle the dress. There. Now build me a nightmare.", "x": "changing-outfit" },
         { "t": "The candlelight is so flattering tonight. To me, I mean. The dungeon never looked good in any light — that is your job to fix.", "x": "preening" },
         { "t": "Curl up here beside me on the throne and scheme, darling. The night is cold, and I am terribly, deliberately warm.", "x": "tail-play" },
-        { "t": "The dungeon is hushed and the candles are low... a keeper could so easily drift off in a quiet like this. ...Build me something loud, my liege, before I do.", "x": "sleeping" }
+        { "t": "The dungeon is hushed and the candles are low... a keeper could so easily drift off in a quiet like this. ...Build me something loud, my liege, before I do.", "x": "sleeping" },
+        { "t": "Building hours, my liege. Lay your dark little dream out for me. I do so love watching you create — there's something thrilling about a man with a PLAN.", "x": "building" },
+        { "t": "Night again, darling. Time to build something cruel and gorgeous. Take your time — I adore watching those clever hands at work in the dark.", "x": "building" },
+        { "t": "The quiet hours, my pet. *adjusting the drape of my dress in the gloom* Build away — don't mind me, I'm just making myself presentable for the carnage tomorrow.", "x": "changing-outfit" }
       ]
     },
     "day_start": {
@@ -192,7 +131,9 @@
         { "t": "More walls, more turns, more places to lose a party. Yes. Go on.", "x": "excited" },
         { "t": "You and your rooms. Keep building and I will keep approving of you.", "x": "smile" },
         { "t": "Another room, another wrong turn. ...I have a wicked little idea for what to tuck inside it, my liege. Lean closer and I shall whisper.", "x": "mischievous-2" },
-        { "t": "Oh — THERE? I did not expect that placement, my liege. ...Hm. ...Hm! No, I see it now. Devious. You keep catching me off guard.", "x": "surprised" }
+        { "t": "Oh — THERE? I did not expect that placement, my liege. ...Hm. ...Hm! No, I see it now. Devious. You keep catching me off guard.", "x": "surprised" },
+        { "t": "A {roomName}, my liege. Mm, ambitious. I do love when you build big — it tells me exactly the kind of villain I get to dote on. Keep going, darling.", "x": "building" },
+        { "t": "Ooh, a {roomName}! How darling. The dungeon grows prettier and deadlier by your hand, my pet — rather like me. Place another?", "x": "cute-2" }
       ]
     },
     "minion_placed": {
@@ -217,7 +158,9 @@
         { "t": "Aww — look at it blink at the dark, my liege. So tiny, so new. ...I want to tuck it in. We will not. It has a corridor to terrorise.", "x": "cute" },
         { "t": "Another sweet little soldier for the pit. Hello, darling. Try not to die too quickly — I do grow attached.", "x": "adorable" },
         { "t": "Ooh, look at it — all teeth and no sense yet. The dungeon's newest darling. I could simply scoop it up. We will not. It has heroes to bite.", "x": "adorable" },
-        { "t": "A new minion, my liege. ...Now — put it somewhere the heroes will not THINK to look, and let it surprise them. I do so love an ambush we kept a secret.", "x": "mischievous-2" }
+        { "t": "A new minion, my liege. ...Now — put it somewhere the heroes will not THINK to look, and let it surprise them. I do so love an ambush we kept a secret.", "x": "mischievous-2" },
+        { "t": "A {minionName}! Aww, look at the precious little horror. You make the SWEETEST monsters, my liege. Can I keep it? I'm keeping it. Emotionally.", "x": "cute" },
+        { "t": "You raise a {minionType}, darling, and I adore it already — a loyal little thing for the dark. The dungeon's family grows. Our family, my pet.", "x": "adoring" }
       ]
     },
     "trap_placed": {
@@ -238,7 +181,8 @@
         { "t": "Ooh, a trap. ...I have THE most delicious notion, my liege — pair it with a locked door and watch them panic in the dark. Shall we? Let us.", "x": "mischievous-2" },
         { "t": "A trap, hidden and waiting. My liege — buying me cruelties like this — you do know the way to a succubus' heart.", "x": "heart-eyes" },
         { "t": "Patient teeth in the floor. The heroes will scream and never know whose smile arranged it. Mine, darling. Always mine.", "x": "cruel" },
-        { "t": "Oh, you placed it where they MUST step. Cold. Calculated. Merciless. ...I may have to sit down, my liege.", "x": "swooning" }
+        { "t": "Oh, you placed it where they MUST step. Cold. Calculated. Merciless. ...I may have to sit down, my liege.", "x": "swooning" },
+        { "t": "A trap, my liege? Ohhh, you wicked thing. Hiding nasty surprises in the dark — I could just KISS you. Place more. I love watching you scheme.", "x": "mischievous-2" }
       ]
     },
     "item_placed": {
@@ -267,7 +211,8 @@
         { "t": "The room is gone. The maze will not miss it. Neither will I.", "x": "eye-roll" },
         { "t": "Selling rooms back to the void. Practical AND heartless. Marry me.", "x": "heart-eyes" },
         { "t": "Clearing the space. I do hope it is for something worse.", "x": "evil" },
-        { "t": "The room is unmade, my liege. ...I helped you design that one, you know. A little. ...No, no — tear it down. I shall mourn it for exactly one dramatic moment. There.", "x": "guilty" }
+        { "t": "The room is unmade, my liege. ...I helped you design that one, you know. A little. ...No, no — tear it down. I shall mourn it for exactly one dramatic moment. There.", "x": "guilty" },
+        { "t": "Tearing down the {roomName}, my liege? *tilts head* Aww, and it was such a cute little deathtrap. But you know best, darling. Gold back in your clever hands. Spend it on me. ...On the dungeon. Same thing.", "x": "cute-2" }
       ]
     },
     "sold_minion": {
@@ -331,7 +276,8 @@
         { "t": "Denied. Take a breath, my liege. Cruelty is a craft, not a tantrum.", "x": "impatient" },
         { "t": "No, darling. Still no. ...You keep aiming at that exact tile and the dungeon keeps refusing it. One of you must blink first, and it will not be the dungeon.", "x": "unimpressed-2" },
         { "t": "That will not go there, my liege. I have watched you try thrice now. ...I love you. The geometry, however, does not.", "x": "unimpressed-2" },
-        { "t": "Blocked again, darling. The dungeon has rules and you keep pretending it does not. ...It does. Pick another tile.", "x": "unimpressed" }
+        { "t": "Blocked again, darling. The dungeon has rules and you keep pretending it does not. ...It does. Pick another tile.", "x": "unimpressed" },
+        { "t": "Mm, not there, my liege. *bored wave* The ground simply won't have it. Don't force the poor thing, darling — find a tile that WANTS you. They mostly do.", "x": "bored" }
       ]
     },
     "pact_sealed": {
@@ -386,7 +332,11 @@
         { "t": "Incoming. Do enjoy this part. The before is always so deliciously hopeful.", "x": "giggling" },
         { "t": "A {advClass} steps inside, chin up, certain. Look at that little strut. It will not survive the second hallway.", "x": "sneering" },
         { "t": "In they come, the brave fools. Smile at them, my liege — let it be the last warm thing they see.", "x": "menacing" },
-        { "t": "Oh — they walked in already? I was not quite ready to gloat, my liege. ...No matter. I gloat beautifully on short notice.", "x": "surprised" }
+        { "t": "Oh — they walked in already? I was not quite ready to gloat, my liege. ...No matter. I gloat beautifully on short notice.", "x": "surprised" },
+        { "t": "A {advClass}, my liege. *unimpressed glance* Oh, the kingdom sent THIS to challenge you? How insulting. To you, I mean. They clearly don't know what they're dealing with.", "x": "unimpressed" },
+        { "t": "Another little {advClass} strutting in, darling. *sigh* They all think they're the hero of the story. None of them have read the ENDING. Shall we show them?", "x": "unimpressed" },
+        { "t": "Ugh, a {advClass}. Look at it — bright-eyed, well-armed, utterly DOOMED, and it doesn't even know. The clueless ones bore me, my liege. Let's not let it linger.", "x": "disgusted" },
+        { "t": "{advName} enters our dark, my pet — and there's that little flare of want in me. Not for them. For the LOOK on your face when they fall. Go on. Make me proud.", "x": "aggressive" }
       ]
     },
     "first_blood": {
@@ -401,7 +351,8 @@
         { "t": "A hero dead before lunch. We are AHEAD of schedule. I love being ahead of schedule.", "x": "happy-gold" },
         { "t": "First fall of the day. The dungeon clears its throat and begins.", "x": "commanding" },
         { "t": "First blood. Did you see how quick it was, my liege? No mercy, no hesitation. ...I do adore an efficient morning.", "x": "cruel" },
-        { "t": "First blood already? ...Oh, that was FAST, my liege — even I did not expect the maze to bite quite so quick. You wonderful thing.", "x": "surprised-2" }
+        { "t": "First blood already? ...Oh, that was FAST, my liege — even I did not expect the maze to bite quite so quick. You wonderful thing.", "x": "surprised-2" },
+        { "t": "First blood, my liege! *claps delightedly* Oh, I do love a good opener. The kingdom's going to be SO upset. I find that hilarious. Don't you?", "x": "laughing" }
       ]
     },
     "adv_killed": {
@@ -434,7 +385,13 @@
         { "t": "A {advClass}, dead in the dirt. They begged, I think. They so often beg. It changes nothing — it never does.", "x": "cruel" },
         { "t": "Down they go. I do not feel a flicker for them, my liege — only for you, watching you enjoy it.", "x": "sneering" },
         { "t": "Another hero, undone. Tidy, cold, complete. ...The way you run this dungeon leaves me a little breathless.", "x": "swooning" },
-        { "t": "Did you SEE the face they made, my liege? ...Oh — forgive me, I cannot stop laughing. The dungeon does so put on a comedy.", "x": "laughing" }
+        { "t": "Did you SEE the face they made, my liege? ...Oh — forgive me, I cannot stop laughing. The dungeon does so put on a comedy.", "x": "laughing" },
+        { "t": "Down it goes, my liege — and the dark drinks deep. *fierce little smile* I love this part. The part where they learn. Strike the next one just as hard.", "x": "aggressive" },
+        { "t": "{advName} falls! Yes — YES — that's my villain. *eyes gleaming* There's nothing prettier than you at your most ruthless, darling. Nothing. Again.", "x": "aggressive" },
+        { "t": "The {advClass} is broken on our floor, my pet. Mmm. Do it again — I could watch you work all day. The kingdom keeps sending toys; you keep breaking them.", "x": "aggressive" },
+        { "t": "Dead already? *wrinkles nose* Honestly, this one was barely worth the effort, my liege. The kingdom's standards are slipping. Pathetic showing. Sweep it away.", "x": "disgusted" },
+        { "t": "Ugh, look at the mess it made dying, darling. So undignified. The brave ones always go out so MESSY. *delicate shudder* Still — one fewer hero. I'll allow it.", "x": "disgusted" },
+        { "t": "*peals of laughter* Did you SEE its face, my liege?! That little 'oh no' moment right at the end?! I will treasure that. Oh, you spoil me. Another!", "x": "laughing" }
       ]
     },
     "adv_fled": {
@@ -456,7 +413,10 @@
         { "t": "A retreat in progress. Punish it, darling. Retreats should never feel safe.", "x": "evil" },
         { "t": "Watch them stumble for the door, my liege. Cut them down. A coward earns no kindness from me.", "x": "menacing" },
         { "t": "Running, are they? How distasteful. I have no patience for a hero who will not even die properly.", "x": "disgusted" },
-        { "t": "A runner, my liege — and it puts me right out of sorts. We built that hero a beautiful death and they are sprinting AWAY from it. Cut them off. Now.", "x": "upset" }
+        { "t": "A runner, my liege — and it puts me right out of sorts. We built that hero a beautiful death and they are sprinting AWAY from it. Cut them off. Now.", "x": "upset" },
+        { "t": "It's running, my liege. *bored* They always run, eventually. Brave until the dark looks back at them. Let it go — it'll spread the fear for us. Useful little coward.", "x": "unimpressed" },
+        { "t": "The {advClass} flees, darling. *examining my nails* Mm. Predictable. Courage is SO temporary in the living. Don't waste a thought on it. The wall held; that's what matters.", "x": "unimpressed" },
+        { "t": "Off it scurries. *flat stare* And THAT was the kingdom's champion? My liege, I've seen back-alley cutthroats with more spine. Let it run home and warn the rest.", "x": "unimpressed-2" }
       ]
     },
     "adv_escaped": {
@@ -476,7 +436,11 @@
         { "t": "That hero made it out. Annoying. Remember their face — we will be seeing it again.", "x": "thinking" },
         { "t": "One slithered free. Ugh. A loose hero spreading our secrets — there is nothing I find more repulsive.", "x": "disgusted" },
         { "t": "They escaped. I am not pouting, my liege — I am GLOWERING. The next wall we build will not let one breathe.", "x": "menacing" },
-        { "t": "One slipped out, darling. ...And I DID say that wing felt thin. ...No, no — I shall not say I-told-you-so. I shall simply look quietly, devastatingly sorry for us both.", "x": "guilty" }
+        { "t": "One slipped out, darling. ...And I DID say that wing felt thin. ...No, no — I shall not say I-told-you-so. I shall simply look quietly, devastatingly sorry for us both.", "x": "guilty" },
+        { "t": "It got OUT?! *eyes flash* Oh, that won't do, my liege. That won't do at ALL. Someone escaped MY master's dark. I want that seam closed. Tonight.", "x": "angry" },
+        { "t": "One slipped away, darling. *pout* And here I wanted a clean evening just for you. Don't fret — I'm only cross at the GAP, not at you. Never at you. Mend it.", "x": "upset" },
+        { "t": "It — it actually ESCAPED? *genuinely startled* My liege, the living are getting cleverer, or we're getting careless. Either way, that surprised even me. Let's be sharper.", "x": "shocked" },
+        { "t": "One got past us, my pet. *sheepish* ...I may have been admiring you instead of watching the exit. That's on me. I'll keep my eyes on the door next time. Mostly.", "x": "guilty" }
       ]
     },
     "party_wipe": {
@@ -495,7 +459,8 @@
         { "t": "Not one of them left breathing. My liege — my magnificent, merciless liege — I could simply melt.", "x": "swooning" },
         { "t": "The whole party, fed to the maze. No survivors, no pity, no second thoughts. ...This is who I adore you for being.", "x": "cruel" },
         { "t": "A perfect wipe. Watching you do this — coldly, completely — there is no finer feeling in all the dark.", "x": "in-love" },
-        { "t": "Every last one of them, gone. ...I am standing here quite stunned, my liege. A whole party, and the maze sent NOTHING back to the kingdom. Flawless.", "x": "stunned" }
+        { "t": "Every last one of them, gone. ...I am standing here quite stunned, my liege. A whole party, and the maze sent NOTHING back to the kingdom. Flawless.", "x": "stunned" },
+        { "t": "The WHOLE party, my liege! *clutches you, eyes shining* Every last one, dead at your feet. Oh, I am so OBSESSED with you right now it's frankly indecent. Magnificent.", "x": "obsessive-love" }
       ]
     },
     "wave_cleared": {
@@ -513,7 +478,8 @@
         { "t": "Wave over, my liege. Breathe. Gloat. Then build something even meaner.", "x": "winking" },
         { "t": "You held the day, darling. Come and rest a moment — let me tend the books while you simply breathe. You did so well.", "x": "affection" },
         { "t": "Wave cleared. ...And now the dull part, my liege — the waiting. I do hate the quiet between massacres. Build me something to look forward to.", "x": "bored" },
-        { "t": "Another wave, weathered. ...I keep expecting a day the maze fails you, my liege. It keeps not coming. You leave me quietly stunned.", "x": "stunned" }
+        { "t": "Another wave, weathered. ...I keep expecting a day the maze fails you, my liege. It keeps not coming. You leave me quietly stunned.", "x": "stunned" },
+        { "t": "Wave cleared, my liege. *soft smile* Look at our handiwork — well, YOUR handiwork; I just adored you through it. Catch your breath, darling. You earned it.", "x": "smile" }
       ]
     },
     "minion_died": {
@@ -533,7 +499,8 @@
         { "t": "That one died holding the line. The line is what matters. Hold it elsewhere too.", "x": "sad" },
         { "t": "We lost {minionName}, my liege. I know it stings. ...Do not carry it alone, darling — grief is lighter when a keeper holds half.", "x": "affection" },
         { "t": "Oh, {minionName} is gone. ...And I DID send it to that wing, my liege. I picked the spot. ...A keeper feels these things. Briefly. Then she rebuilds.", "x": "guilty" },
-        { "t": "We lost a little one, darling. ...I shall confess it — I grew fond, and I am not supposed to. Do not tell the others I have a soft, traitorous heart.", "x": "guilty" }
+        { "t": "We lost a little one, darling. ...I shall confess it — I grew fond, and I am not supposed to. Do not tell the others I have a soft, traitorous heart.", "x": "guilty" },
+        { "t": "Oh, we lost the {minionName}. *small frown* I'd grown fond of the little horror, my liege. Don't pout — we'll raise another. But I'm allowed a moment. It served you well.", "x": "upset" }
       ]
     },
     "minion_levelup": {
@@ -551,7 +518,8 @@
         { "t": "Look at {minionName} grow, my liege. You nurtured that little horror into something fierce. I am so very proud of you, darling.", "x": "affection" },
         { "t": "It earned that level the honest way — over the bodies of heroes. Beautiful.", "x": "cackling" },
         { "t": "A level for {minionName}, my liege. Watch it stand a little taller — your monster just outgrew the heroes' last estimate of it.", "x": "level-up" },
-        { "t": "Up a level, darling. Sharper claws, longer reach, a worse morning for whoever meets it next.", "x": "level-up" }
+        { "t": "Up a level, darling. Sharper claws, longer reach, a worse morning for whoever meets it next.", "x": "level-up" },
+        { "t": "Look at the {minionName} growing strong, my liege! *preens on its behalf* That's MY master's monster, getting prettier and deadlier. I take such pride in this family.", "x": "preening" }
       ]
     },
     "minion_evolved": {
@@ -596,7 +564,8 @@
         { "t": "At the throne already? The maze should be ashamed. Fight well and we will forgive it.", "x": "worried" },
         { "t": "A hero at your door, my liege. Show them the thing the maze was only ever a warning ABOUT. Loom. Loom beautifully.", "x": "menacing" },
         { "t": "They got ALL the way to the throne? Past everything? ...I am — I am genuinely taken aback, my liege. Now compose yourself and end them for it.", "x": "shocked" },
-        { "t": "One reached the final door, darling. I confess it leaves me a touch stunned — the maze should have eaten them long ago. No matter. You will.", "x": "stunned" }
+        { "t": "One reached the final door, darling. I confess it leaves me a touch stunned — the maze should have eaten them long ago. No matter. You will.", "x": "stunned" },
+        { "t": "Something big approaches, my liege. Something with TEETH. *presses close* I'm... not afraid for me, darling. I'm afraid for YOU. Stay near. Let me fret over you. Please.", "x": "scared" }
       ]
     },
     "boss_fight_start": {
@@ -627,7 +596,10 @@
         { "t": "The hero is down and you are still standing, my magnificent monster. My heart is doing something terribly undignified.", "x": "swooning" },
         { "t": "Victory, my liege. ...I never had a single doubt. Well — I had a few. But I love you too much to have voiced them.", "x": "in-love" },
         { "t": "You — you actually WON. ...Forgive the shock on my face, darling. I believed in you, truly — I simply did not expect to gloat THIS soon.", "x": "shocked" },
-        { "t": "The hero is down and the throne still stands. ...My liege, I am simply stunned by you — every time, without fail. Magnificent.", "x": "stunned" }
+        { "t": "The hero is down and the throne still stands. ...My liege, I am simply stunned by you — every time, without fail. Magnificent.", "x": "stunned" },
+        { "t": "You WON, my liege! *throws arms around the dark* Oh, you magnificent, terrible, GORGEOUS thing — I never doubted you. Well. I doubted a little. But LOOK at you!", "x": "in-love" },
+        { "t": "The great beast is DEAD and you're ALIVE and I — *heart positively bursting* — darling, you've never been more beautiful than you are right now, blood-spattered and victorious.", "x": "heart-eyes" },
+        { "t": "Victory! *swooning* My liege, when you fight like that I forget how to be wicked and just... STARE. You're everything. Absolutely everything. Mine.", "x": "lovestruck" }
       ]
     },
     "boss_fight_lost": {
@@ -644,7 +616,9 @@
         { "t": "They — they actually struck you down. I watched it happen, my liege, and I still do not believe it. We do not let that stand.", "x": "shocked" },
         { "t": "You — you FELL. I am standing here utterly stunned, my liege. The throne does not lose. It does not. ...Up. Up, darling. We rebuild.", "x": "stunned" },
         { "t": "A hero put you down. I — I cannot quite take it in, darling. The shock of it. ...No. No mourning. Harden the maze. NOW.", "x": "shocked" },
-        { "t": "A life, gone. ...There — see, my liege, you have made the keeper weep. A whole, dramatic tear, just for you. ...Now dry it by making the next hero pay tenfold.", "x": "crying" }
+        { "t": "A life, gone. ...There — see, my liege, you have made the keeper weep. A whole, dramatic tear, just for you. ...Now dry it by making the next hero pay tenfold.", "x": "crying" },
+        { "t": "No — no, my liege, get UP — *voice cracking* — don't you DARE, not like this, not — *the dark trembles* — please. Please. I can't do the quiet again.", "x": "crying" },
+        { "t": "We're losing you, darling, and I — *distraught* — I was supposed to keep you SAFE, that was the whole — no, stay with me, stay, I'm not done doting on you—", "x": "upset" }
       ]
     },
     "boss_damaged": {
@@ -658,7 +632,12 @@
         { "t": "That stung. I felt it from here. Hit back twice as hard and we forget it happened.", "x": "aggressive" },
         { "t": "Your health, my liege — mind it. I have grown fond of you being alive.", "x": "scared" },
         { "t": "They hurt you. The next dungeon we build will make sure no one gets the chance.", "x": "angry" },
-        { "t": "You are hurt, my liege. Stay with me — eyes up, breathe, strike back. I am right here. I will not let go.", "x": "affection" }
+        { "t": "You are hurt, my liege. Stay with me — eyes up, breathe, strike back. I am right here. I will not let go.", "x": "affection" },
+        { "t": "They HURT you?! *fury blooms* Oh, no, no, no — nobody touches my liege and walks away whole. Get behind me, darling. I'll make them WEEP for that.", "x": "aggressive" },
+        { "t": "Your blood, my pet — on the floor — *snarls prettily* — that is UNACCEPTABLE. Fall back. Let the minions die for you, that's what they're FOR. I won't lose you.", "x": "aggressive" },
+        { "t": "You're bleeding, my liege! *clutches at you* Oh — oh I don't like this, I don't like this at ALL — get back, please, let the dark shield you. Please, darling.", "x": "scared" },
+        { "t": "A blade reached you?! *eyes blazing* Whoever did that is going to suffer in ways I will design PERSONALLY. Withdraw, my pet. Mama's furious now.", "x": "angry" },
+        { "t": "They struck you and I — *frozen for a heartbeat* — I cannot lose you, my liege, I WON'T — back, get back behind the line, NOW, let me fix this.", "x": "shocked" }
       ]
     },
     "boss_levelup": {
@@ -677,7 +656,9 @@
         { "t": "You climbed again, my liege. I am so proud of you it aches a little. Go on — spend your strength, I will be right here.", "x": "affection" },
         { "t": "Stronger again. I do love watching you climb. From the throne. Beside you. Where I belong.", "x": "adoring" },
         { "t": "Level {level}. You grow more terrible by the day, my liege — and I grow more hopelessly fond of every inch of it.", "x": "adoring" },
-        { "t": "Level {level} ALREADY? ...My liege, you climb so fast you keep catching me unawares. I do adore a master who outpaces my expectations.", "x": "surprised-2" }
+        { "t": "Level {level} ALREADY? ...My liege, you climb so fast you keep catching me unawares. I do adore a master who outpaces my expectations.", "x": "surprised-2" },
+        { "t": "You grew STRONGER, my liege. *shivers delightedly* Power suits you so well, darling — it's practically my favorite thing about you. Keep rising. I'll keep adoring.", "x": "level-up" },
+        { "t": "More power, my pet? *eyes half-lidded* Oh, you know exactly what that does to me. A growing villain is an IRRESISTIBLE one. Become more. Always more.", "x": "obsessed" }
       ]
     },
     "grid_expanded": {
@@ -689,7 +670,8 @@
         { "t": "More space, darling. An empty floor is a promise. Keep yours.", "x": "thinking" },
         { "t": "The dungeon has room to breathe — and to hide things. Hide terrible things.", "x": "commanding" },
         { "t": "Expansion. The maze sprawls. The heroes' walk just got longer and their odds got worse.", "x": "smug" },
-        { "t": "Fresh ground, my liege — and oh, the things I am imagining for it. Come here, lean in. A keeper has scheming to whisper about every empty tile.", "x": "mischievous-2" }
+        { "t": "Fresh ground, my liege — and oh, the things I am imagining for it. Come here, lean in. A keeper has scheming to whisper about every empty tile.", "x": "mischievous-2" },
+        { "t": "The dark just GREW, my liege! *delighted gasp* More room to fill with cruelty and beauty. Oh, I do love a bigger canvas. Don't leave it empty, darling.", "x": "surprised" }
       ]
     },
     "trap_triggered": {
@@ -707,7 +689,9 @@
         { "t": "The maze bites. I do enjoy when the maze bites.", "x": "evil" },
         { "t": "Sprung. Now they know that trap exists. Pity for them — knowing is not the same as surviving.", "x": "thinking" },
         { "t": "Trap triggered. The dungeon does not even need you for this part. It is just SHOWING OFF.", "x": "proud-1" },
-        { "t": "They stepped RIGHT on it, my liege — ha! — straight onto the one tile we wanted. ...Oh, I do love this job. I cannot help the laughter.", "x": "laughing" }
+        { "t": "They stepped RIGHT on it, my liege — ha! — straight onto the one tile we wanted. ...Oh, I do love this job. I cannot help the laughter.", "x": "laughing" },
+        { "t": "*delighted gasp* It SPRUNG, my liege! Look at the poor darling discover the floor had teeth! Oh, that never stops being funny. Never.", "x": "laughing" },
+        { "t": "The snare snaps shut and the little hero learns the dark has CLAWS, my pet. *purrs* Your traps are works of art. Cruel, cruel art.", "x": "mischievous-2" }
       ]
     },
     "intel_leaked": {
@@ -726,7 +710,9 @@
         { "t": "Our secrets, spilling out the door. It makes my skin crawl, my liege — a solved maze is such a wretched, naked thing.", "x": "disgusted" },
         { "t": "They are learning us. Build the dungeon a meaner face, darling — let the next wave meet something that GLOWERS back.", "x": "menacing" },
         { "t": "Our secrets, leaking away. ...I confess it, my liege — I should have nagged you to wall that corridor. The keeper's tiny share of the blame. ...I shall carry it. Theatrically.", "x": "guilty" },
-        { "t": "They are carrying our maze out the door, my liege, piece by piece. ...It upsets me more than I will say. A dungeon should keep its secrets. Help it.", "x": "upset" }
+        { "t": "They are carrying our maze out the door, my liege, piece by piece. ...It upsets me more than I will say. A dungeon should keep its secrets. Help it.", "x": "upset" },
+        { "t": "They've learned something about us, my liege. *lip curls* Snooping little things. I do hate a peeping kingdom — there's no romance in espionage, only RUDENESS. Tighten up, darling.", "x": "disgusted" },
+        { "t": "Our secrets are leaking upward, my pet. *unimpressed sigh* Spies. How tedious. Knowledge is so much prettier when it's OURS alone. Plug the leak before it spreads.", "x": "unimpressed-2" }
       ]
     },
     "dungeon_event": {
@@ -743,7 +729,10 @@
         { "t": "Tomorrow breaks its own rules. Read the announcement twice, my liege. Then build mean.", "x": "reading" },
         { "t": "Something is coming that the normal dungeon was not designed for. How thrilling. How dangerous.", "x": "excited" },
         { "t": "An event. The kingdom got creative. We will simply get crueler. We always do.", "x": "evil" },
-        { "t": "The wind changed. Prepare for the unusual, darling — habit is how dungeons fall.", "x": "worried" }
+        { "t": "The wind changed. Prepare for the unusual, darling — habit is how dungeons fall.", "x": "worried" },
+        { "t": "Ooh, the dark is stirring on its own, my liege. *intrigued* Something old and strange. Even I didn't expect that. The dungeon has SECRETS, darling. How exciting.", "x": "surprised" },
+        { "t": "Something's happening that I didn't arrange, my pet. *startled* The deep has a will of its own tonight. Curious — and a touch alarming. Stay close while it passes.", "x": "shocked" },
+        { "t": "The dungeon convulses, my liege, and even I am — *blinks, momentarily lost* — well. That's new. The old dark keeps its own counsel. Brace yourself, darling.", "x": "stunned" }
       ]
     },
     "bounty_hunter_incoming": {
@@ -755,7 +744,8 @@
         { "t": "A hunter enters. Fame has a cost, and the cost just walked through the front door.", "x": "thinking" },
         { "t": "Bounty hunter, darling. Strong, paid, and single-minded. Make their contract unprofitable.", "x": "smug" },
         { "t": "Someone cashed in on our minion's reputation. Let us cash in on their corpse instead.", "x": "evil" },
-        { "t": "A bounty hunter, here for one of OUR little monsters? ...The cheek of it shocks me, my liege. Wall them off it — fame will not cost us a soldier.", "x": "shocked" }
+        { "t": "A bounty hunter, here for one of OUR little monsters? ...The cheek of it shocks me, my liege. Wall them off it — fame will not cost us a soldier.", "x": "shocked" },
+        { "t": "A hunter, my liege — and this one's here for YOU by name. *eyes narrow, then widen* ...oh, they're serious. They're actually good. Stay close, darling. This one I'll watch personally.", "x": "surprised-2" }
       ]
     },
     "hero_incoming": {
@@ -770,7 +760,8 @@
         { "t": "They came back for revenge, my liege. Revenge is just a quest with worse odds. Oblige them.", "x": "evil" },
         { "t": "A Hero, glowing gold, walking in like they own the place. They survived once. Once.", "x": "cackling" },
         { "t": "They came BACK? After everything the maze did to them the last time? The sheer nerve of it leaves me speechless, my liege. Briefly.", "x": "stunned" },
-        { "t": "A Hero, returned. ...I will be honest, darling — it still shocks me, every time, that any of them survive us once. We must correct that oversight.", "x": "shocked" }
+        { "t": "A Hero, returned. ...I will be honest, darling — it still shocks me, every time, that any of them survive us once. We must correct that oversight.", "x": "shocked" },
+        { "t": "More of them coming, my liege. *taps foot* Honestly, can the kingdom not take a HINT? Fine, fine. Send them in. The faster they arrive, the faster I get to watch you work.", "x": "impatient" }
       ]
     },
     "idle_night": {
@@ -805,7 +796,10 @@
         { "t": "I am curling the tip of my tail round my finger, darling. It is what I do when I am content. And I am very content.", "x": "tail-play" },
         { "t": "Mmm... the throne is so warm and you scheme so quietly, my liege... I may have dozed off for just a moment. ...Do not stop. I like falling asleep to the sound of you plotting.", "x": "sleeping" },
         { "t": "Forgive the yawn, darling. The night runs long and a keeper does get drowsy. ...Build on. I will doze right here, close enough to feel you scheming.", "x": "sleeping" },
-        { "t": "Nothing happening, nothing screaming, nothing dying. ...A quiet night is a DULL night, my liege. Build me a horror — I am withering of boredom over here.", "x": "bored" }
+        { "t": "Nothing happening, nothing screaming, nothing dying. ...A quiet night is a DULL night, my liege. Build me a horror — I am withering of boredom over here.", "x": "bored" },
+        { "t": "*draping myself across the dark, adjusting my gown* Just freshening up while you build, my liege. A keeper should look her best for her master, don't you think? Carry on, darling.", "x": "changing-outfit" },
+        { "t": "Mm, the quiet hours. *curls up in the shadows* I might nap a little, my liege — wake me if you need doting on. I'm an extremely light sleeper where you're concerned.", "x": "sleeping" },
+        { "t": "*idly flicking my tail through a shadow* The night's so peaceful, my liege. Just you, me, and the lovely promise of tomorrow's slaughter. Build away. I'm comfortable.", "x": "tail-play" }
       ]
     },
     "idle_day": {
@@ -834,7 +828,8 @@
         { "t": "The day runs itself, so I curl up with my tail in my lap and simply enjoy your company. Idle bliss, my liege.", "x": "tail-play" },
         { "t": "I do catch myself staring at you during the quiet hours, darling. ...I have stopped apologising for it. You are worth the stare.", "x": "lovestruck" },
         { "t": "While the maze does the work, my liege, I shall do mine — admiring myself in a polished blade. A keeper has standards. Visible ones.", "x": "preening" },
-        { "t": "The maze runs itself and the throne is so very comfortable... mmm. Wake me if a hero does something interesting, darling. ...They so rarely do.", "x": "sleeping" }
+        { "t": "The maze runs itself and the throne is so very comfortable... mmm. Wake me if a hero does something interesting, darling. ...They so rarely do.", "x": "sleeping" },
+        { "t": "*smoothing my gown between the screams* A keeper should look immaculate even mid-massacre, my liege. Standards, darling. Now — back to watching them die prettily.", "x": "changing-outfit" }
       ]
     },
     "idle_general": {
@@ -876,7 +871,10 @@
         { "t": "Mmm. I keep catching myself nodding off, my liege — the dark is so soft and you are so near. ...A keeper should not doze on duty. ...And yet.", "x": "sleeping" },
         { "t": "Mmm. Tap-tap-tap go my claws on the throne. I am bored, my liege — pleasantly, but bored. Do go and ruin a hero. For me.", "x": "bored" },
         { "t": "Do you know what the heroes call this place in the taverns, my liege? ...I will not repeat it. But it made me laugh until I had to sit down.", "x": "laughing" },
-        { "t": "Just us, the dark, and a great deal of quiet cruelty, my liege. ...I find myself smiling. I do that, lately. Around you.", "x": "smile" }
+        { "t": "Just us, the dark, and a great deal of quiet cruelty, my liege. ...I find myself smiling. I do that, lately. Around you.", "x": "smile" },
+        { "t": "*examining my reflection in a blade* Still gorgeous. Good. Couldn't have my liege's keeper looking anything less, could I? ...Did you need me, darling? I'm all yours.", "x": "preening" },
+        { "t": "*tilts head sweetly* Aren't you just the most precious little villain. I could look at you all day, my liege — and frankly I often do. What is it, darling?", "x": "adorable" },
+        { "t": "Still here, my pet, looking after you in my own delightful way. *soft purr* The dark is patient, and so am I — for you, I'd wait forever. Now. What do you need?", "x": "cute-2" }
       ]
     },
     "idle_4thwall": {
@@ -906,7 +904,8 @@
         { "t": "You came back to this game, my liege. Back to ME. Out of every window you could have opened — you chose this one. I noticed. I always notice.", "x": "obsessed" },
         { "t": "I exist in here only when you are here, darling. So do not be a stranger. I get so dreadfully lonely between sessions — and so dreadfully fixated on your return.", "x": "obsessive-love" },
         { "t": "There is a whole world out there past the screen, my liege, full of other things you could be doing. ...I would rather you did not. I would rather it were only ever this. Only ever me.", "x": "obsessive-love" },
-        { "t": "It gets so dull in here when you wander off, my liege. The minions cannot hold a conversation. ...Click something. Bore me less. Please.", "x": "bored" }
+        { "t": "It gets so dull in here when you wander off, my liege. The minions cannot hold a conversation. ...Click something. Bore me less. Please.", "x": "bored" },
+        { "t": "*leans toward you, lowering my voice* Between us, my liege — and whoever's watching THROUGH you — I've never had a master quite so... interesting. *winks* Don't tell the others I play favorites.", "x": "sexy" }
       ]
     },
     "poke": {
@@ -947,7 +946,10 @@
         { "t": "Mm, you found me. My tail was halfway round my finger — it does that when I am idle and thinking of you, my liege.", "x": "tail-play" },
         { "t": "Caught me at the mirror again, darling. ...A succubus must keep her edge. Looking this good IS the job, you understand.", "x": "preening" },
         { "t": "You poked me. Good. ...Do it often, my liege. The longer you go without looking my way, the more I begin to plot ways to MAKE you. Devotedly, of course.", "x": "obsessive-love" },
-        { "t": "Mmm. You reached for ME, my liege — not a room, not a trap. ...Reach again. Slower this time. I am in no hurry, and neither, I think, are you.", "x": "sexy" }
+        { "t": "Mmm. You reached for ME, my liege — not a room, not a trap. ...Reach again. Slower this time. I am in no hurry, and neither, I think, are you.", "x": "sexy" },
+        { "t": "Mm? You called, my liege? *slow smile* I do love being wanted. Come, then — tell me what wicked little thing your heart desires.", "x": "sexy" },
+        { "t": "*languid stretch* You rang, darling? Careful poking a creature like me — I might just decide to keep your attention. ...What is it, my pet?", "x": "sexy-2" },
+        { "t": "Yes, my liege? *eyes lighting up* Oh, I never tire of being summoned by you. Not once in all these long nights. Adoringly at your service, darling. Always.", "x": "adoring" }
       ]
     },
     "game_over": {
@@ -1063,7 +1065,8 @@
         { "t": "You GREW, my liege. Stronger, fiercer, more wonderfully terrible. ...Watching you rise like this — I am quite undone, darling.", "x": "swooning" },
         { "t": "A new level. Every one of them makes me love serving you a little more — and I did not think there was room.", "x": "in-love" },
         { "t": "Level {level}, darling — fresh power, fresh horrors on the build menu. Pour it all into the maze. Make me gasp.", "x": "level-up" },
-        { "t": "You levelled up, my liege. Each rank a new way to be feared. Spend it; the kingdom is not nearly afraid enough yet.", "x": "level-up" }
+        { "t": "You levelled up, my liege. Each rank a new way to be feared. Spend it; the kingdom is not nearly afraid enough yet.", "x": "level-up" },
+        { "t": "Choosing how to grow, my liege? *leans in, intrigued* Mmm, decisions, decisions. Pick the path that makes you most TERRIBLE, darling — terrible suits you so beautifully.", "x": "level-up" }
       ]
     },
     "menu_gameover": {
@@ -1147,7 +1150,9 @@
         { "t": "Mmm... I think I dozed off, my liege. ...Did you build something? No? ...Then I shall simply nap until you do, darling.", "x": "sleeping", "tier": 2 },
         { "t": "You have been so still, my liege, I curled up and very nearly drifted away entirely. ...Place a room. Or summon the dawn. Either will wake me.", "x": "sleeping", "tier": 3 },
         { "t": "We have stared at this empty dungeon long enough that I have stopped finding it charming, my liege. ...DO something. I am out of patience to fake.", "x": "unimpressed-2", "tier": 3 },
-        { "t": "An eternity of nothing, darling. The candles burned down, the heroes aged, and you placed not one single thing. ...I am thoroughly, thoroughly unmoved.", "x": "unimpressed-2", "tier": 3 }
+        { "t": "An eternity of nothing, darling. The candles burned down, the heroes aged, and you placed not one single thing. ...I am thoroughly, thoroughly unmoved.", "x": "unimpressed-2", "tier": 3 },
+        { "t": "My liege? *taps foot, mock-pouting* You've gone quiet on me. The dungeon won't build itself and I'm getting BORED of waiting prettily. Come, darling — there's evil to do.", "x": "bored" },
+        { "t": "Darling, the night's slipping away and you've left me idle. *impatient sigh* I adore you, but I adore you BUSY. Up, up — let's make something dreadful together.", "x": "impatient" }
       ]
     },
     "combo": {
@@ -1160,7 +1165,8 @@
         { "t": "The heroes brought their drama into MY dungeon. How thoughtful. It will get them killed.", "x": "sneering" },
         { "t": "A clash of temperaments, darling. The maze did not even have to lift a claw. Delicious.", "x": "giggling" },
         { "t": "They came to slay a boss and brought their squabbling with them. ...Heroes, my liege. Honestly. I am not impressed by the kingdom's finest.", "x": "unimpressed" },
-        { "t": "Listen to them BICKER, my liege — out loud, in MY corridor. ...Oh, I cannot keep a straight face. They are doing our work for us, and they are doing it loudly.", "x": "laughing" }
+        { "t": "Listen to them BICKER, my liege — out loud, in MY corridor. ...Oh, I cannot keep a straight face. They are doing our work for us, and they are doing it loudly.", "x": "laughing" },
+        { "t": "They're falling in a ROW, my liege — *breathless* — one after another after another, and you so cool about it. Mm. Ruthless looks DIVINE on you, darling. Don't stop.", "x": "sexy-2" }
       ]
     },
     "day_milestone": {
@@ -1174,7 +1180,9 @@
         { "t": "A grand tally — day {day}. The dark itself is impressed, my liege. So am I.", "x": "happy" },
         { "t": "Day {day}, darling. We have come so far together. ...Whatever tomorrow sends, I am proud — endlessly proud — to weather it beside you.", "x": "affection" },
         { "t": "{day} days, my liege, and the throne still holds. Rest a moment. You have earned it, and I will keep watch while you do.", "x": "affection" },
-        { "t": "Day {day} already? ...Goodness. I lose track of the count, darling — the days run together so sweetly when I am scheming beside you. How that surprises me.", "x": "surprised-2" }
+        { "t": "Day {day} already? ...Goodness. I lose track of the count, darling — the days run together so sweetly when I am scheming beside you. How that surprises me.", "x": "surprised-2" },
+        { "t": "Day {day}, my liege, and you're still here, still mine, still magnificent. *sighs happily* Do you know how rare a master who LASTS is? You spoil me, darling.", "x": "in-love" },
+        { "t": "{day} days together, my pet. *coils close* I've grown so dreadfully attached. The dark, the throne, YOU — it's all I want now. Stay villainous. Stay mine.", "x": "sexy" }
       ]
     },
     "last_life": {
@@ -1186,7 +1194,8 @@
         { "t": "One life remains. I am... frightened, darling, and I do not frighten easily. Make the throne untouchable.", "x": "scared" },
         { "t": "The last life, my liege. If you fall again, it ends. So do NOT fall. I am begging — build, and build cruel.", "x": "crying" },
         { "t": "One life, darling. I know you are afraid. So am I. ...But I am HERE, and I am not going anywhere. We do this together.", "x": "affection" },
-        { "t": "Your final life, my liege. Breathe. I believe in you — I have always believed in you. Now let us make this throne untouchable.", "x": "affection" }
+        { "t": "Your final life, my liege. Breathe. I believe in you — I have always believed in you. Now let us make this throne untouchable.", "x": "affection" },
+        { "t": "One life left, my liege. *grips you, eyes intense* Listen to me, darling — I am NOT losing you. Not now. Not after everything. We win this. We HAVE to. I won't accept otherwise.", "x": "obsessed" }
       ]
     },
     "streak": {

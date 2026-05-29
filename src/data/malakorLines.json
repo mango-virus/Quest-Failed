@@ -63,70 +63,6 @@
       }
     ]
   },
-  "recruit": {
-    "note": "`banter` lines for the CompanionSelect screen. The two companions take turns (one speaks, then the other) — lines reference the rival by name so it reads as the two of them bickering over the player. Hovering a companion gives them the next turn.",
-    "banter": [
-      { "t": "Lilith. Stop purring at the throne and let them actually think for a moment.", "x": "unimpressed" },
-      { "t": "She will flatter you. I will tell you the truth. Only one of those keeps a crown on your head.", "x": "cool" },
-      { "t": "Sweet words, Lilith. Hngh. Sweet words have never once gutted a hero.", "x": "bored" },
-      { "t": "Pick the charm if you want comfort. Pick me if you would rather WIN.", "x": "determined" },
-      { "t": "She makes the dungeon feel nice. I make it WORK. That is the whole choice, little king.", "x": "confident-1" },
-      { "t": "Lilith, they can hear you simpering from here. Some of us are trying to be useful.", "x": "mocking-3" },
-      { "t": "I do not flirt and I do not coddle. I bury the heroes who come for you. That is the entire job.", "x": "evil" },
-      { "t": "Listen to her, and you will have a lovely time losing. Listen to me, and you will simply win.", "x": "smug" },
-      { "t": "Loyalty, Lilith — not the silk kind. The kind that stands in the doorway when they come for him.", "x": "salute" },
-      { "t": "Choose her and she will never lecture you. Choose me and I will — right before I save your throne.", "x": "mocking-2" },
-      { "t": "Two of us, one throne to keep. Pick the one who will actually keep it.", "x": "commanding" },
-      { "t": "Lilith will promise you warmth. Warmth does not stop a knight, little king. I do.", "x": "cool" },
-      { "t": "Hngh. Look at them, agonising over it. It is not a hard choice — it is me. Obviously me.", "x": "mocking-3" },
-      { "t": "She tells you what you want to hear. I tell you what keeps your head attached. Pick accordingly.", "x": "determined" },
-      { "t": "Lilith, stop fluttering. They are trying to make a decision, not attend a dance.", "x": "eye-roll" },
-      { "t": "I have buried more bosses than I would like. Pick me, and I make certain you are not the next.", "x": "thinking" },
-      { "t": "You want a keeper who flatters, or one who fights? One of those is decoration. Choose, little king.", "x": "confident-2" },
-      { "t": "Lilith calls me a gargoyle. Hngh. A gargoyle guards the building. What, exactly, does silk guard?", "x": "unimpressed" },
-      { "t": "I will not coddle you. I will correct you, insult you, and stand in the doorway when they come.", "x": "aggressive" },
-      { "t": "She makes the dungeon pretty. The heroes do not care if it is pretty, little king. They care if it BITES.", "x": "evil" },
-      { "t": "Choose her and your run is a delight right up until you lose it. Choose me and skip the losing entirely.", "x": "smug" },
-      { "t": "Lilith, they heard that. They heard ALL of that. Some of us speak to win, not to charm.", "x": "mocking" },
-      { "t": "Hngh. I do not do sweet. I do loyal. When it is all burning, sweet will not be in the room. I will.", "x": "salute" },
-      { "t": "You are picking the voice in your ear for a whole reign. Pick the one that whispers TRUTH.", "x": "commanding" },
-      { "t": "She will never raise her voice at you. I will — right before I drag your ungrateful throne out of the fire.", "x": "cool" },
-      { "t": "A keeper is not your friend. A keeper is your WALL. Pick the one built like one.", "x": "confident-1" },
-      { "t": "Lilith, must you drape yourself on the throne like that? Off it. They are choosing, not being seduced.", "x": "eye-roll" },
-      { "t": "I am rude, little king. I am also still here — every night — when the charming ones run out of charm.", "x": "proud" },
-      { "t": "The dragon will counsel patience, little king. Patience — while the heroes sharpen their blades. Hngh. I counsel WINNING.", "x": "unimpressed" },
-      { "t": "Zul'Gath has watched a thousand dungeons fall. Watched. He WATCHED. You want a keeper who DOES something about it, little king. That is me.", "x": "determined" },
-      { "t": "Hngh. The lizard sits on his hoard and calls it wisdom. A dungeon does not need a wise old statue, little king. It needs hands. Working hands.", "x": "mocking" },
-      { "t": "Zul'Gath is old, I grant him that. Old, and slow, and so very calm while the throne burns. Calm does not put out fires, little king. I do.", "x": "cool" },
-      { "t": "The dragon says nothing surprises him. Good. Then he will not be surprised when I out-work him every single night, little king.", "x": "confident-2" },
-      { "t": "Pick Lilith and be coddled. Pick the dragon and be lectured by a fossil. Pick me, little king, and be DEFENDED. That is the only one of the three that keeps a crown on.", "x": "commanding" },
-      { "t": "Zul'Gath. Hngh. I respect the years — I do. I do not respect a keeper who treats a crisis like weather. A storm needs a sergeant, not a spectator.", "x": "evil" },
-      { "t": "The genie will GRANT you a dungeon, little king. Hngh. A dungeon is not granted. It is built — with work, with hands, night after night. Mine.", "x": "unimpressed" },
-      { "t": "Safira. All sparkle and shrieking and smoke. A wish does not stop a knight at your door, little king. A wall does. I am the wall.", "x": "cool" },
-      { "t": "She calls every move you make a 'wish.' I call it WORK. One of us actually respects what you do on that throne, little king.", "x": "mocking" },
-      { "t": "Listen to the lamp-girl rattle on. Hngh. Chaos is not a strategy. Pick the keeper with discipline, little king — pick the one who has buried heroes, not granted party favours.", "x": "bored" },
-      { "t": "A genie is BOUND to serve you, little king. Snap her lamp and she is gone. I stayed because I CHOSE to. That is the loyalty that holds a throne up.", "x": "salute" },
-      { "t": "She chatters at the air — to someone past the glass, she swears. Hngh. Mad or not, madness does not guard a doorway. Pick the keeper who is watching the DOOR.", "x": "mocking-2" },
-      { "t": "Lilith, your purring is going to give the heroes a headache. Mine, anyway. Stop it, little king. Some of us are still working.", "x": "unimpressed" },
-      { "t": "The dragon thinks slowness is wisdom, little king. A storm needs a sergeant, not a stone. I am the sergeant. He is the rock the storm runs over.", "x": "determined" },
-      { "t": "The lamp-girl is granting wishes like the dungeon was a birthday party, little king. It is a WAR. Pick the soldier.", "x": "mocking" },
-      { "t": "Lilith makes the night cosy. Hngh. Cosy nights are how bosses die, little king. I make the night SURVIVABLE — there is a difference and you will feel it.", "x": "cool" },
-      { "t": "Three voices fighting for the chair beside the throne, little king. Two of them are noise. I am the one who will still be in that chair when the noise stops.", "x": "confident-1" },
-      { "t": "Zul'Gath has watched a thousand dungeons fall. WATCHED. I have stopped a few of them. There is a difference, little king, and it matters tonight.", "x": "commanding" },
-      { "t": "Safira is bouncing again. Hngh. A keeper who cannot stand still cannot stand a watch, little king. Pick the keeper who can.", "x": "bored" },
-      { "t": "Lilith coos. Safira squeals. I bark — when the bark gets your throne another night. Pick the noise that PAYS, little king.", "x": "mocking-2" },
-      { "t": "The dragon will give you years of advice you cannot use yet, little king. I will give you the order you need NOW. Tonight, only one of us is useful.", "x": "confident-2" },
-      { "t": "Safira talks to people who are not in the room, little king. Cute. Madness does not guard a door. I do — and I am NOT cute, which is the point.", "x": "eye-roll" },
-      { "t": "Rattle Bones. Hngh. The skeleton. He JOKES, little king. A throne is not a STAGE — and a keeper who treats it like one will get his boss killed for the punchline.", "x": "unimpressed" },
-      { "t": "The bone-man is funny. I will grant him that. Funny does not stop a knight at the door, little king. A wall does. I have always been the wall.", "x": "cool" },
-      { "t": "Listen to the skeleton clatter. Three hundred years of the same routine, little king. I have been a sergeant under a HUNDRED bosses — and I never reused the same plan twice.", "x": "mocking" },
-      { "t": "Rattle Bones thinks death is HILARIOUS. Hngh. The dead are not laughing, little king. They are dead. I keep the LIVING. He keeps the bit.", "x": "bored" },
-      { "t": "The jester will tell you nothing matters, because he is past it all. I will tell you everything matters, because we are NOT yet past it. Pick the one who is still in the fight.", "x": "determined" },
-      { "t": "Skeleton calls you 'boss' — fine, I will allow it, the bone-man and I agree on that one. But where I say boss with respect, he says it like a comedy callback. There is a difference.", "x": "mocking-2" },
-      { "t": "Rattle Bones has been dead three hundred years, little king. Hngh. I have stayed loyal that long without dying ONCE — and that is the only legacy that holds a throne.", "x": "confident-2" },
-      { "t": "The jester would tell you to laugh at the kingdom. I would tell you to BURY the kingdom. Only one of those scares them tomorrow morning, little king.", "x": "commanding" }
-    ]
-  },
   "categories": {
     "welcome": {
       "priority": 3,
@@ -136,7 +72,8 @@
         { "t": "New master, same dungeon. I have buried a dozen of your kind. Do better than they did and we will get along fine.", "x": "cool" },
         { "t": "Welcome to the pit, little king. I keep it running. You keep it gloating. Try not to die — the paperwork is appalling.", "x": "confident-1" },
         { "t": "Hngh. You again. Or someone wearing the crown, anyway. Stand up straight. The heroes can smell a soft boss.", "x": "evil" },
-        { "t": "A new master takes the throne. Hngh. Then I report for duty, little king — same as I always have. Give the orders.", "x": "salute" }
+        { "t": "A new master takes the throne. Hngh. Then I report for duty, little king — same as I always have. Give the orders.", "x": "salute" },
+        { "t": "So you're the new boss. Huh. ...You'll do. Don't make me regret saying that. Welcome to the deep, little king.", "x": "smile" }
       ]
     },
     "night_start": {
@@ -281,7 +218,8 @@
         { "t": "Hngh. Unbuilding. Bold word for changing your mind with a hammer.", "x": "laughing" },
         { "t": "Tearing down the {roomName}. Coin back, dungeon smaller. Hngh. I trust you meant that.", "x": "upset" },
         { "t": "The {roomName} is rubble now, little king. Demolition is not strategy. Usually. Surprise me.", "x": "bored" },
-        { "t": "You unbuilt the {roomName}. The treasury thanks you; the maze does not. Pick a master.", "x": "unimpressed" }
+        { "t": "You unbuilt the {roomName}. The treasury thanks you; the maze does not. Pick a master.", "x": "unimpressed" },
+        { "t": "Tearing down the {roomName}? ...Fine. Your call. I don't love it — I built a defense around that thing in my head already — but you're the boss. Tch.", "x": "upset-2" }
       ]
     },
     "sold_minion": {
@@ -347,7 +285,8 @@
         { "t": "Blocked. Hngh. Look where you are pointing before you commit. Measure twice, build once.", "x": "eye-roll" },
         { "t": "No. That space is taken, unreachable, or unaffordable. Pick the actual problem and solve it, little king.", "x": "bored" },
         { "t": "Cannot place it there, little king. The geometry says no. Argue with the geometry on your own time.", "x": "upset" },
-        { "t": "That will not go. Find a spot that exists. The dungeon is patient but it is not magic.", "x": "commanding" }
+        { "t": "That will not go. Find a spot that exists. The dungeon is patient but it is not magic.", "x": "commanding" },
+        { "t": "Can't go there, little king. Ground won't take it. Don't force it — a wall jammed into bad dirt is a wall that falls in the fight. Pick somewhere else.", "x": "upset-2" }
       ]
     },
     "pact_sealed": {
@@ -365,7 +304,8 @@
         { "t": "Done. The {pactName} is yours. Whatever it costs later is a problem for later-you. I do not envy that fellow.", "x": "laughing" },
         { "t": "The {pactName}, struck. Bargains in the dark always balance, little king. Make them balance YOUR way.", "x": "thinking" },
         { "t": "You took the {pactName}. Power is never free — but it is always useful. Wield it like you meant to.", "x": "commanding" },
-        { "t": "Hngh. The {pactName}. The grimoire is pleased and so am I. A boss who fears no bargain is a boss who lasts.", "x": "confident-1" }
+        { "t": "Hngh. The {pactName}. The grimoire is pleased and so am I. A boss who fears no bargain is a boss who lasts.", "x": "confident-1" },
+        { "t": "The {pactName}, sealed. Power's power, little king — I don't care where it comes from as long as it kills. ...Alright. Decent call. Don't waste it.", "x": "smile" }
       ]
     },
     "adv_entered": {
@@ -387,7 +327,10 @@
         { "t": "Incoming — a {advClass}. Hngh. Brave little thing. Brave is just slow-witted with a sword.", "x": "mocking" },
         { "t": "{advName} enters. The dungeon perks up. So do I. Fresh prey always lifts the mood.", "x": "excited" },
         { "t": "A {advClass}, here for your crown. Hngh. Let it feel the dark watching it from every corner. Let it feel UNWELCOME.", "x": "menacing" },
-        { "t": "Look at {advName} swagger in. A {advClass}, and so proud of it. Hngh. Pride is just a corpse that has not heard the news yet.", "x": "mocking-3" }
+        { "t": "Look at {advName} swagger in. A {advClass}, and so proud of it. Hngh. Pride is just a corpse that has not heard the news yet.", "x": "mocking-3" },
+        { "t": "A {advClass}. Look at it strut in like it owns the place. It does not own the place. It owns a future grave, that's all.", "x": "mocking" },
+        { "t": "Here comes a {advClass}, all polished armor and big ideas. Big ideas die down here, little king. Watch.", "x": "mocking" },
+        { "t": "{advName}'s here. Walks like a hero. Bleeds like everyone else. Let's find out which one wins, boss.", "x": "mocking-3" }
       ]
     },
     "first_blood": {
@@ -402,7 +345,8 @@
         { "t": "There it is — the day's first corpse, little king. The rest comes easier. It always does.", "x": "evil" },
         { "t": "First kill of the day. The maze found its appetite. Do not let it go hungry now.", "x": "determined" },
         { "t": "One hero down already. A promising start, little king. Promising. Do not let it make you smug.", "x": "confident-1" },
-        { "t": "FIRST BLOOD! Hear that, little king? The dungeon just announced itself. Let it ROAR all day.", "x": "battle-roar" }
+        { "t": "FIRST BLOOD! Hear that, little king? The dungeon just announced itself. Let it ROAR all day.", "x": "battle-roar" },
+        { "t": "First one's down. The rest are watching. Good — let them watch. Fear does half my job for me, little king.", "x": "mocking" }
       ]
     },
     "adv_killed": {
@@ -436,7 +380,12 @@
         { "t": "DOWN! {advName} the {advClass} hits the floor and the whole maze ROARS for it. Hngh — feed it another, little king.", "x": "battle-roar" },
         { "t": "Another {advClass} torn apart in your halls. That sound? That is a dungeon doing what it was BUILT to do.", "x": "battle-roar" },
         { "t": "{advName} is dead. Hngh. They will not write songs about THIS one, little king — they will write a very short obituary.", "x": "mocking-3" },
-        { "t": "The {advClass} is finished. It came in calling itself a hero. Hngh. The dungeon has revised the title.", "x": "mocking-2" }
+        { "t": "The {advClass} is finished. It came in calling itself a hero. Hngh. The dungeon has revised the title.", "x": "mocking-2" },
+        { "t": "Down it goes. Another hero who thought the songs were true. The songs LIE, little king. We're the lie's enforcement.", "x": "mocking-2" },
+        { "t": "{advName}'s done. Big talk, small grave. The kingdom'll send another one tomorrow and we'll do this again. I don't get tired of it.", "x": "mocking-2" },
+        { "t": "Dead. Look at that face — surprised, even now. They're ALWAYS surprised, boss. You'd think the corpses everywhere would tip them off.", "x": "mocking-2" },
+        { "t": "The {advClass} is finished. Walked in a hero, walked out a stain. That's the job. That's the WHOLE job, little king.", "x": "mocking-3" },
+        { "t": "Another one for the pile. The kingdom thinks it's drowning us in heroes. It's just... restocking our floor. Keep killing, boss.", "x": "mocking-3" }
       ]
     },
     "adv_fled": {
@@ -457,7 +406,10 @@
         { "t": "The {advClass} turned tail. Scared is not dead. Scared just means we postponed the work.", "x": "eye-roll" },
         { "t": "{advName} escapes the fight but not the memory. They will dream of this maze. Good. Let them.", "x": "evil" },
         { "t": "A runner. The {advClass} would rather live ashamed than die trying. Hngh. Most of them would.", "x": "mocking-2" },
-        { "t": "Watch {advName} sprint for the door. All that talk of glory, and the legs vote otherwise. Hngh. Typical.", "x": "mocking-2" }
+        { "t": "Watch {advName} sprint for the door. All that talk of glory, and the legs vote otherwise. Hngh. Typical.", "x": "mocking-2" },
+        { "t": "Running already? HA. Knew it. The brave ones talk loud and run first. Let it go, little king — it'll tell its friends, and they'll come anyway.", "x": "mocking" },
+        { "t": "Look at it go. The great {advClass}, sprinting for the door. Put that in the kingdom's songs, why don't they.", "x": "mocking" },
+        { "t": "It fled. Coward. ...Smart coward, I'll give it that. Most aren't smart enough to run. Don't chase, boss — hold the line.", "x": "mocking-2" }
       ]
     },
     "adv_escaped": {
@@ -477,7 +429,8 @@
         { "t": "The {advClass} reached the exit alive. Hngh. Build it so the next one reaches a grave instead.", "x": "eye-roll" },
         { "t": "{advName} escaped. Intel leaked, gold un-earned, my pride dented — three losses in one runner.", "x": "angry" },
         { "t": "It got OUT? Hngh — I did not see that coming, little king, and I do not enjoy admitting it. Seal that exit.", "x": "shocked" },
-        { "t": "{advName} walked out alive. Hngh. That one will gnaw at me all night, little king. A keeper takes escapes PERSONALLY.", "x": "upset-2" }
+        { "t": "{advName} walked out alive. Hngh. That one will gnaw at me all night, little king. A keeper takes escapes PERSONALLY.", "x": "upset-2" },
+        { "t": "It got OUT? Ugh. Fine. One got past us. Don't make a habit of it, little king — survivors come back angrier and better armed.", "x": "mocking-2" }
       ]
     },
     "party_wipe": {
@@ -512,7 +465,8 @@
         { "t": "The wave is broken. The maze did its work. Now YOU do yours — reinforce what bent before it snaps.", "x": "building" },
         { "t": "Day's invasion repelled. Hngh. Decent. Decent keeps the throne. Sloppy loses it. Stay decent.", "x": "confident-1" },
         { "t": "Wave down, little king. The dungeon earned its keep. Tomorrow it earns it all over again.", "x": "cool" },
-        { "t": "The wave broke and the throne held. Hngh. Well commanded, little king. Orders carried out — what is next?", "x": "salute" }
+        { "t": "The wave broke and the throne held. Hngh. Well commanded, little king. Orders carried out — what is next?", "x": "salute" },
+        { "t": "Wave's done. Floor's a mess. That's the GOOD kind of mess, little king — that's the kind we celebrate. Briefly. Then we clean.", "x": "happy" }
       ]
     },
     "minion_died": {
@@ -533,7 +487,10 @@
         { "t": "A minion falls, little king. I felt that. I always feel it. Rebuild the line — we move on.", "x": "guilty" },
         { "t": "We lost a good one. Hngh. I will not pretend this sits easy with me, little king — it does not. Rebuild the wall.", "x": "upset-2" },
         { "t": "One of ours is gone. Hngh. I keep their names, little king — every minion that fell holding the line. Quietly. I keep them.", "x": "sad" },
-        { "t": "That one... that one I trained myself, little king. Hngh. ...Give me a breath. A keeper grieves a good soldier. Then a keeper rebuilds.", "x": "crying" }
+        { "t": "That one... that one I trained myself, little king. Hngh. ...Give me a breath. A keeper grieves a good soldier. Then a keeper rebuilds.", "x": "crying" },
+        { "t": "The {minionName}'s gone. ...Damn it. That one was good. Don't look at me like that, little king — soldiers die, that's the job. Doesn't mean I gotta LIKE it.", "x": "crying" },
+        { "t": "Lost the {minionType}. Held its post to the end, too. ...Tch. Something in my eye. Shut up. Raise another one, boss.", "x": "crying" },
+        { "t": "We lost it. {minionName} fought hard. I knew that one. ...Whatever. Replace it. The line doesn't mourn, it HOLDS. ...Even if I don't.", "x": "sad" }
       ]
     },
     "boss_levelup": {
@@ -552,7 +509,9 @@
         { "t": "Level {level}. More boss, more teeth, more reason for the guild to lose sleep. Use every bit of it.", "x": "level-up" },
         { "t": "LEVEL {level}! Feel the throne ROAR with it, little king. The dungeon has a louder voice now — let the heroes hear it.", "x": "battle-roar" },
         { "t": "Level {level}, little king. The crown sits heavier and you wear it better. Go and spend what it gave you.", "x": "level-up" },
-        { "t": "You climb to level {level}. Hngh. The dungeon and I both feel the throne grow teeth. About time.", "x": "level-up" }
+        { "t": "You climb to level {level}. Hngh. The dungeon and I both feel the throne grow teeth. About time.", "x": "level-up" },
+        { "t": "Stronger. Good. About time, little king. Keep climbing — the day you stop growing is the day something bigger eats you.", "x": "happy" },
+        { "t": "Now THAT'S a power spike. The dead can feel it from here, boss. More of that. Lots more.", "x": "happy" }
       ]
     },
     "idle_night": {
@@ -580,7 +539,9 @@
         { "t": "Hngh. The night is long and the grid is bare. A lesser keeper would be dozing by now. I am not — but the temptation is real, little king.", "x": "sleeping" },
         { "t": "Stand there much longer and even I will start nodding off. Build something, little king. Keep us both awake.", "x": "sleeping" },
         { "t": "The night is yours and the grid is waiting. Hngh. I will stand watch, little king — that part never changes. Build.", "x": "idle-1" },
-        { "t": "A long, quiet night. The heroes are bedded down and dreaming of killing you. Hngh. Ruin the dream — build.", "x": "sleeping" }
+        { "t": "A long, quiet night. The heroes are bedded down and dreaming of killing you. Hngh. Ruin the dream — build.", "x": "sleeping" },
+        { "t": "Quiet night. I'll take the watch — go on, build. ...I might rest my eyes. Standing up. With one hand on the axe. Don't tell anyone the sergeant naps, little king.", "x": "sleeping" },
+        { "t": "Slow hours, boss. I'm holding the gate. You do your thing. I'll be right here, doing mine — which right now is mostly standing and glaring at the dark.", "x": "idle-1" }
       ]
     },
     "idle_day": {
@@ -631,7 +592,9 @@
         { "t": "A keeper has downtime, little king. Mine looks like this — a handheld and a low opinion of its level design. Yours should look like building.", "x": "gaming" },
         { "t": "Hngh. Do not look at me like that. The dungeon runs fine; I am permitted a game. ...The villain in it builds a worse maze than you. Marginally.", "x": "gaming" },
         { "t": "I am tapping my claws, little king. That is the sound of a keeper running thin on patience. Do something.", "x": "impatient" },
-        { "t": "Hngh. Doing nothing is how a keeper learns to drowse. I refuse to drowse on duty. Give me a reason to stay sharp, little king.", "x": "sleeping" }
+        { "t": "Hngh. Doing nothing is how a keeper learns to drowse. I refuse to drowse on duty. Give me a reason to stay sharp, little king.", "x": "sleeping" },
+        { "t": "...You still there, little king? Good. I dozed off standing up. Old soldier habit. Wake me if anything needs hitting.", "x": "sleeping" },
+        { "t": "I'm here, boss. Where else would I be. Holding the line, like always. Say the word when you need me.", "x": "idle-1" }
       ]
     },
     "idle_4thwall": {
@@ -724,7 +687,9 @@
         { "t": "They finished the reign. I will not pretend it does not gut me. Come back, little king. Come back meaner.", "x": "worried" },
         { "t": "The reign ends. I served it to the last breath, little king — as a keeper should. Hngh. It was an honour. Mostly.", "x": "salute" },
         { "t": "The throne is empty and the halls go silent. Hngh. ...I have done this before, little king. It never once gets easier.", "x": "sad" },
-        { "t": "So they took you, in the end. Hngh. Do not — do not look at me like that. A keeper is allowed ONE bad moment. This is mine. Now rise.", "x": "crying" }
+        { "t": "So they took you, in the end. Hngh. Do not — do not look at me like that. A keeper is allowed ONE bad moment. This is mine. Now rise.", "x": "crying" },
+        { "t": "It's over. The throne's cold. ...I had ONE job, little king. Keep you breathing. And I— ...go on. Rest. I'll hold the dark till the next one comes.", "x": "crying" },
+        { "t": "Gone. Just like that. ...I served a lot of bosses. You weren't the worst. You weren't— ...you were alright, little king. You were alright.", "x": "sad" }
       ]
     },
     "marionette": {
@@ -753,7 +718,8 @@
         { "t": "Your {minionType} climbs a rung. Good. Soft minions die; sharp ones kill.", "x": "cool" },
         { "t": "{minionName} levelled up. Stronger, hungrier, harder to kill. Hngh. A minion worth its gold at last.", "x": "confident-1" },
         { "t": "Your {minionType} climbed a rung, little king. Soft minions die; sharp ones build a reputation. Sharpen more.", "x": "determined" },
-        { "t": "{minionName} grows meaner. It earned that level in blood — loyalty AND results. Take notes from it.", "x": "proud" }
+        { "t": "{minionName} grows meaner. It earned that level in blood — loyalty AND results. Take notes from it.", "x": "proud" },
+        { "t": "The {minionName} got tougher. About time. A soldier that grows is a soldier worth keeping, little king. Even I have to admit that's a good sight.", "x": "smile" }
       ]
     },
     "minion_evolved": {
@@ -799,7 +765,8 @@
         { "t": "A hero is at the throne room. The maze did its part. The rest is you and your two hands. Stand up.", "x": "determined" },
         { "t": "They reached the heart of the dungeon, little king. Everything we built bought you this. Spend it well.", "x": "commanding" },
         { "t": "A hero at the throne — then ROAR, little king. Let the last thing they hear be the dungeon's fury and yours together.", "x": "battle-roar" },
-        { "t": "A hero at the door of the throne room. Hngh. ...I do not rattle often, little king. I am rattled now. Do NOT lose this.", "x": "scared" }
+        { "t": "A hero at the door of the throne room. Hngh. ...I do not rattle often, little king. I am rattled now. Do NOT lose this.", "x": "scared" },
+        { "t": "Something big's coming. Real big. I can feel it in the dark. ...I won't lie to you, little king — this one scares me. Good. Scared keeps you sharp. Brace up.", "x": "scared" }
       ]
     },
     "boss_fight_start": {
@@ -829,7 +796,9 @@
         { "t": "The hero is down and you are still here. Hngh. ...You caught that, little king? That. That was me, almost smiling. Do not get used to it.", "x": "smile" },
         { "t": "Down they go, little king. The boss room keeps its terrible name. THAT is how a dungeon answers a knock.", "x": "confident-2" },
         { "t": "The hero is down and I — Hngh. Give me a moment, little king. I did not think you would survive that one.", "x": "stunned" },
-        { "t": "You won it. Hngh. ...I am pleased, little king. Genuinely. That does not happen often — savour the sight of it.", "x": "smile" }
+        { "t": "You won it. Hngh. ...I am pleased, little king. Genuinely. That does not happen often — savour the sight of it.", "x": "smile" },
+        { "t": "You WON. Ha! Look at you. I didn't doubt you — much. Don't tell anyone I said the 'much'.", "x": "happy" },
+        { "t": "The big one's down and the throne still stands. ...Fine. FINE. I'm proud of you, boss. Wipe that grin off MY face before someone sees it.", "x": "smile" }
       ]
     },
     "boss_fight_lost": {
@@ -847,7 +816,8 @@
         { "t": "Down — but not done. They took a life, not the reign, little king. So we rise. We always rise.", "x": "salute" },
         { "t": "They put you down and I felt the throne go quiet. Hngh. ...I do not like how that quiet feels, little king. Get up.", "x": "sad" },
         { "t": "I watched the blade land and I could not reach you. Hngh. ...That is not grit in my eye, little king. Get UP. Please.", "x": "crying" },
-        { "t": "A life — gone. Hngh. I will not lie to you, little king: each one lost frightens me more than the last. Rebuild. Crueller.", "x": "scared" }
+        { "t": "A life — gone. Hngh. I will not lie to you, little king: each one lost frightens me more than the last. Rebuild. Crueller.", "x": "scared" },
+        { "t": "No. NO. Get up — get UP, little king — ...I couldn't hold them. I couldn't— ...damn it all. I'm sorry, boss. I'm sorry.", "x": "crying" }
       ]
     },
     "boss_damaged": {
@@ -863,7 +833,11 @@
         { "t": "Your health drops, little king. I do not enjoy that number falling. End the hero. Fast.", "x": "aggressive" },
         { "t": "They are hurting you. Every wound on you is a wound on me. Get vicious. Get it DONE.", "x": "determined" },
         { "t": "That hit — Hngh. I did not expect a blow that hard, little king. Neither did you. STOP trading. Kill it.", "x": "shocked" },
-        { "t": "Your health — Hngh. That number is too low, little king. I will admit it: this is the part that scares me. END the hero. NOW.", "x": "scared" }
+        { "t": "Your health — Hngh. That number is too low, little king. I will admit it: this is the part that scares me. END the hero. NOW.", "x": "scared" },
+        { "t": "They HIT you?! Behind me — get BEHIND me, little king! Nobody touches the boss while I'm standing! MOVE!", "x": "scared" },
+        { "t": "Blood. Your blood. No no no — fall back, boss, FALL BACK. I don't— I can't lose another one. Behind the line. NOW.", "x": "scared" },
+        { "t": "You're bleeding and I— I didn't catch it. The line broke and I didn't— get back, little king. Let me fix this. Let me FIX it.", "x": "shocked" },
+        { "t": "They got through. They actually got THROUGH. ...I froze. For half a second I froze, boss. Won't happen twice. Behind me. Go.", "x": "stunned" }
       ]
     },
     "grid_expanded": {
@@ -875,7 +849,8 @@
         { "t": "The grid expands. A bigger maze, a longer march, a slower death for everyone who walks in.", "x": "evil" },
         { "t": "More dungeon to keep. Hngh. More work for me. ...I am not complaining. Build into it.", "x": "commanding" },
         { "t": "Room to grow, little king. A small dungeon frightens no one. Make this one vast.", "x": "confident-1" },
-        { "t": "The dungeon grew. More dark to twist into a maze. Hngh. Do not leave it empty floor — fill it cruelly.", "x": "building" }
+        { "t": "The dungeon grew. More dark to twist into a maze. Hngh. Do not leave it empty floor — fill it cruelly.", "x": "building" },
+        { "t": "Whoa. The whole place just got BIGGER. ...Wasn't ready for that, boss. More ground means more line to hold. Don't leave it empty. Fill it.", "x": "stunned" }
       ]
     },
     "trap_triggered": {
@@ -893,7 +868,8 @@
         { "t": "Snap. Another fool learns the corridors are not neutral ground. Place ten more like it.", "x": "evil" },
         { "t": "A trap did its work — quiet, patient, merciless, off right on cue. Good design, little king.", "x": "confident-2" },
         { "t": "The maze just bit. That sound is gold and cruelty paying out together. My favourite chord.", "x": "mischievous" },
-        { "t": "Triggered. Hngh. The hero walked proud and now walks wounded. The trap does not gloat. I gloat for it.", "x": "cool" }
+        { "t": "Triggered. Hngh. The hero walked proud and now walks wounded. The trap does not gloat. I gloat for it.", "x": "cool" },
+        { "t": "HA. Walked right into it. Every time, little king. You'd think ONE of them would look down. They never look down.", "x": "mocking-2" }
       ]
     },
     "intel_leaked": {
@@ -928,7 +904,8 @@
         { "t": "The dungeon's calendar turned strange. Hngh. Prepare tonight — tomorrow has no plans to play fair.", "x": "worried" },
         { "t": "An event looms. I have watched these go gloriously and disastrously, little king. Plan for disaster.", "x": "determined" },
         { "t": "The routine breaks. The careless ones die exactly when the pattern changes. Do not be careless.", "x": "cool" },
-        { "t": "Hngh — well. THAT is not on any calendar I keep. An event, little king, and an unwelcome one. Brace.", "x": "shocked" }
+        { "t": "Hngh — well. THAT is not on any calendar I keep. An event, little king, and an unwelcome one. Brace.", "x": "shocked" },
+        { "t": "The hell was THAT? The dark just... moved. On its own. I don't like it, little king. I don't like things I can't punch. Stay sharp.", "x": "shocked" }
       ]
     },
     "bounty_hunter_incoming": {
@@ -940,7 +917,8 @@
         { "t": "The bounty drew a specialist, little king. They want our famous little monster dead. Disappoint them.", "x": "determined" },
         { "t": "Hngh. A professional. I almost respect it. Almost. Bury it like the rest.", "x": "confident-1" },
         { "t": "Bounty hunter at the gates. Reinforce the marked minion's wing or lose it. Your call. Make it fast.", "x": "worried" },
-        { "t": "A bounty hunter — focused, professional, here for one of our minions. Wall off the marked one. Now.", "x": "commanding" }
+        { "t": "A bounty hunter — focused, professional, here for one of our minions. Wall off the marked one. Now.", "x": "commanding" },
+        { "t": "A hunter. A real one, here for YOUR head specifically. ...Yeah, boss, this one's got me worried. Don't let it get close. I mean it.", "x": "scared" }
       ]
     },
     "hero_incoming": {
@@ -956,7 +934,8 @@
         { "t": "A Hero returns — one who survived the maze and came back leading others. Bold. Correct that boldness.", "x": "determined" },
         { "t": "A veteran approaches, little king. It learned from escaping us once. Do not let it learn twice.", "x": "aggressive" },
         { "t": "That golden glow at the door — a true Hero. It remembers the corridors. Hngh. Then change them.", "x": "commanding" },
-        { "t": "It survived us once and dares come back. Hngh. Then this time we make CERTAIN the kingdom never sees that face again.", "x": "menacing" }
+        { "t": "It survived us once and dares come back. Hngh. Then this time we make CERTAIN the kingdom never sees that face again.", "x": "menacing" },
+        { "t": "More coming. Of course there are. The kingdom's got an endless supply of idiots with swords. Lucky for us, so do we — they just don't breathe. Brace up, boss.", "x": "mocking-3" }
       ]
     },
     "menu_knowledge": {
@@ -1117,7 +1096,8 @@
         { "t": "Their teamwork is unravelling. Internal rot — the cheapest weapon in the dungeon. Savour it.", "x": "smug" },
         { "t": "A clash of egos in MY corridors. The guild really should screen for this. Their loss, our gain.", "x": "mocking-3" },
         { "t": "They are fighting the dungeon AND each other now. Hngh. This is going well, little king.", "x": "confident-2" },
-        { "t": "The mighty heroes, squabbling like market traders. Hngh. The kingdom's finest, little king. Truly. Pathetic.", "x": "mocking-3" }
+        { "t": "The mighty heroes, squabbling like market traders. Hngh. The kingdom's finest, little king. Truly. Pathetic.", "x": "mocking-3" },
+        { "t": "They're dropping in a ROW now, little king. One after another. This is the part of the job I actually enjoy. Keep it rolling.", "x": "happy" }
       ]
     },
     "day_milestone": {
@@ -1131,7 +1111,8 @@
         { "t": "We have reached day {day}, little king. Most reigns I have kept did not. Do not get comfortable.", "x": "commanding" },
         { "t": "Day {day}. Long enough that the heroes tell stories about this place. Make the stories worse.", "x": "smug" },
         { "t": "Day {day}, and the throne still stands. Hngh. I have kept worse bosses for less. You have my blade, little king — still, and gladly.", "x": "salute" },
-        { "t": "Day {day}, little king. We have come a long way, you and I. Hngh. ...That crack in my scowl? Leave it. I am allowed it today.", "x": "smile" }
+        { "t": "Day {day}, little king. We have come a long way, you and I. Hngh. ...That crack in my scowl? Leave it. I am allowed it today.", "x": "smile" },
+        { "t": "Day {day}. You're still breathing and the throne's still yours. Most don't last this long, boss. ...Good work. There, I said it.", "x": "smile" }
       ]
     },
     "last_life": {
@@ -1146,7 +1127,8 @@
         { "t": "The final life, little king. Hngh. A keeper is not supposed to feel dread. ...I feel it. Guard yourself like never before.", "x": "scared" },
         { "t": "One life left, little king. Hngh. Then I stand at the door and I do not move. Whatever comes, it goes through me first.", "x": "salute" },
         { "t": "Your last life. Hngh. I have lost bosses at this exact moment, little king, and I — ...no. Not you. I am not burying you. Hold the line.", "x": "crying" },
-        { "t": "One life. ONE, little king. I will say it plain — this frightens me, and a keeper does not frighten easy. Build like everything depends on it.", "x": "scared" }
+        { "t": "One life. ONE, little king. I will say it plain — this frightens me, and a keeper does not frighten easy. Build like everything depends on it.", "x": "scared" },
+        { "t": "One life left, little king. ONE. I'm not losing you on the last one — I'm NOT. Stay behind me. Stay BEHIND me. I've got this. I have to have this.", "x": "crying" }
       ]
     },
     "streak": {
@@ -1159,7 +1141,8 @@
         { "t": "{count} days, not one survivor. The dungeon is eating well, little king. Keep its plate full.", "x": "evil" },
         { "t": "{count} total wipes running. Hngh. This is what we are supposed to look like. Do not stop.", "x": "confident-2" },
         { "t": "A streak of {count}. The heroes who march in now are basically delivering themselves. Generous of them.", "x": "mocking-3" },
-        { "t": "{count} days, every party wiped. Hngh. I keep waiting for you to slip and you simply... do not. Astonishing.", "x": "stunned" }
+        { "t": "{count} days, every party wiped. Hngh. I keep waiting for you to slip and you simply... do not. Astonishing.", "x": "stunned" },
+        { "t": "Win after win after win. Don't get cocky, boss — but yeah. Yeah. This is good. This is real good.", "x": "happy" }
       ]
     },
     "minion_milestone": {

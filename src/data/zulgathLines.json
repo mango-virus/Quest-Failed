@@ -37,63 +37,6 @@
       }
     ]
   },
-  "recruit": {
-    "note": "`banter` lines for the CompanionSelect screen. Companions take turns in a round-robin squabble; lines reference the rivals (Lilith, Malakor) by name so it reads as them bickering over the player. Hovering a companion gives them the next turn.",
-    "banter": [
-      { "t": "Mm. Lilith. Malakor. ...You are both shouting again. I have a hoard older than your combined memories. I can afford to wait until you are finished.", "x": "idle" },
-      { "t": "Lilith offers warmth. Malakor offers fury. I offer something neither of them has yet earned, small one: perspective.", "x": "confident" },
-      { "t": "I have watched a thousand dungeons rise and fall. The other two have watched... a handful. Choose the keeper who has actually seen the ending.", "x": "nostalgic" },
-      { "t": "Malakor calls me slow. Malakor has been alive for an eyeblink. To something as old as I am, small one, EVERYTHING is slow. It is rather restful.", "x": "cool" },
-      { "t": "Lilith will tell you that you are special. Briefly. So was every boss before you. I remember them all, small one.", "x": "mocking" },
-      { "t": "I do not flatter, and I do not bark. I observe, and occasionally I am right. ...Often, in fact. Eons sharpen a creature.", "x": "unimpressed" },
-      { "t": "The other two are squabbling over who loves you more. I find the question quaint. Pick the dragon, small one, and skip the noise.", "x": "joking" },
-      { "t": "Malakor. You are loyal, yes. So is a closing door. Loyalty without patience simply slams.", "x": "eye-roll" },
-      { "t": "Lilith, darling — your affection is genuine and also a strategy. I have no strategy. I am simply too old to lie.", "x": "winking" },
-      { "t": "You want encouragement, you choose Lilith. You want a whip, you choose Malakor. You want to actually WIN, eventually, calmly — you choose me.", "x": "confident" },
-      { "t": "I have outlived empires, small one. I can certainly outlive a bad run with you. That is not a boast. It is a weather report.", "x": "idle" },
-      { "t": "Malakor will rush you. Lilith will soothe you. I will simply tell you, small one, exactly how the heroes mean to gut you.", "x": "thinking" },
-      { "t": "The two of them burn so brightly. It is lovely. It is also why they will tire long before the night does. I do not tire. I smoulder.", "x": "menacing" },
-      { "t": "I have a sunglasses expression, small one. Lilith does not. Malakor does not. Weigh that however seriously you like.", "x": "winking" },
-      { "t": "Lilith, you are needling me. Malakor, you are needling me. ...I have been needled by mountains. You will have to do better.", "x": "unimpressed" },
-      { "t": "Choose the keeper whose first instinct in a crisis is a slow exhale, small one — not a scream. The dungeon keeps better that way.", "x": "determined" },
-      { "t": "Malakor served bosses before you. So did Lilith. So did I — more of them than they have years. Experience is no small gift.", "x": "proud" },
-      { "t": "I will not pretend the night is not dangerous. I will simply not be frightened by it. There is a difference, and you will come to value it.", "x": "idle" },
-      { "t": "Lilith makes you feel powerful. I make you ACTUALLY powerful, slowly, the way mountains are made. One is a feeling. One is granite.", "x": "confident" },
-      { "t": "Mm. They have stopped to glare at me. Good. The glaring is restful. Take your time choosing, small one — I have nothing but time.", "x": "joking" },
-      { "t": "Malakor, your fury is a fine kindling. Mine is a banked coal. Kindling is bright and brief. Coal keeps a forge alive all winter.", "x": "menacing" },
-      { "t": "I do not need you to adore me, small one. Lilith needs that. I need only that you survive long enough to be interesting. Lower stakes. Better odds.", "x": "winking" },
-      { "t": "The others will swear undying devotion. I have seen things die, small one. I promise only this: I will not lie to you.", "x": "thinking" },
-      { "t": "Lilith. Malakor. And now Safira — a fourth voice, exactly as I said there would be. ...Pick the dragon anyway, small one.", "x": "joking" },
-      { "t": "You are deciding between three voices for your night. Two of them will get loud. One of them has already, calmly, won this argument. Mm.", "x": "cool" },
-      { "t": "I hoard gold, small one. I would hoard a good boss too — quietly, possessively, for as long as you last. The others share. I do not.", "x": "hoarding" },
-      { "t": "Take whichever of us you like. If you choose poorly, you may always... begin again. I am old enough to know you can. The others pretend not to.", "x": "winking" },
-      { "t": "Enough. Lilith has purred, Malakor has snarled, and I have said my piece without raising my voice. Decide, small one.", "x": "commanding" },
-      { "t": "Safira is a genie. I have met genies, small one. They burn bright, briefly — then the lamp wants them back. I have time.", "x": "cool" },
-      { "t": "The genie sees what I see — the loop, the glass, the hand beyond it. It frightens her into noise. Long ago, it settled me into quiet.", "x": "nostalgic" },
-      { "t": "She will grant your every wish, small one. Eagerly. All of them. A creature that cannot say 'no' is not a counsellor — it is an echo.", "x": "thinking" },
-      { "t": "Safira, child — you have been free a heartbeat. I was old when your lamp was still sand. Slow down. The night is long, small one.", "x": "unimpressed" },
-      { "t": "I find her delightful, in truth — chaos suits her. It is how I was, an age or two ago. Choose me anyway, small one.", "x": "joking" },
-      { "t": "The genie and I both know we are watched, small one. The difference: she performs for the watcher. I merely nod.", "x": "winking" },
-      { "t": "Mm. They are still squabbling, small one. I have watched arguments outlive bosses. ...Choose the keeper who outlives the argument.", "x": "thinking" },
-      { "t": "Lilith is sincere — I grant her that, in old age I am generous. She is also very young to be sincere about anything for long.", "x": "joking" },
-      { "t": "Malakor will FIX your problem, small one. Loudly. I will tell you which problems are not worth fixing. The second skill is rarer — and older.", "x": "cool" },
-      { "t": "Safira is delightful. ...A great many delightful things have been forgotten, small one. I have not. Choose the one that lasts.", "x": "wistful" },
-      { "t": "The flirt, the soldier, and the genie, small one. All excellent within their hour. I am the one for the years that follow.", "x": "superior" },
-      { "t": "The genie performs for the watcher beyond the glass — I have seen her glance there. So have I, small one. The difference is, I do not perform.", "x": "winking" },
-      { "t": "Malakor will exhaust himself defending you, small one. Admirable. He will need rest. I will be there during the rest.", "x": "nostalgic" },
-      { "t": "Three keepers. One throne. ...The shortest math problem of the night, small one. Pick the dragon.", "x": "self-satisfied" },
-      { "t": "Lilith will tell you you are unforgettable. You are, small one. Briefly. I have unforgotten a great many of you. The dragon keeps a ledger.", "x": "smug" },
-      { "t": "The lamp-girl waited eons to serve, small one. I have been free to serve for eons. The difference matters when the night is long.", "x": "confident" },
-      { "t": "Mm. Rattle Bones. The jester. ...Three centuries dead, small one — a respectable run for a humanoid, though I have outslept that twice over. I will allow him the bow.", "x": "wistful" },
-      { "t": "The skeleton finds death funny, small one. ...He should. He is good at it. Funny does not, however, hold a throne — I have seen far too many comic keepers eaten.", "x": "thinking" },
-      { "t": "Rattle Bones cracks his bone-puns and the dungeon laughs. The dungeon also laughs at fools, small one. I would urge you to know the difference before you commit.", "x": "joking" },
-      { "t": "The jester remembers the kingdom he served. I remember the kingdom BEFORE that one. We both remember well — only one of us has the perspective to use it.", "x": "nostalgic" },
-      { "t": "Mm. Rattle Bones is dear, in his way. Loud. Performative. ...I have watched courts laugh until the day they were sacked. Pick the keeper who outlasts the laughter, small one.", "x": "superior" },
-      { "t": "The skeleton is FRIENDLY, small one. Charming. Wonderful at parties. Wars are not parties — and the kingdom's coming with a war.", "x": "cool" },
-      { "t": "Rattle Bones has been telling the same six jokes for three centuries. I have been gathering material for ten times that. ...Pick the older library, small one.", "x": "smug" },
-      { "t": "He calls you 'boss', I call you 'small one'. Both are affectionate, both are accurate. The difference: when I say small one, you HEAR the years behind it.", "x": "self-satisfied" }
-    ]
-  },
   "categories": {
     "welcome": {
       "priority": 3,
@@ -191,7 +134,8 @@
         { "t": "A {roomName} joins the maze. Slowly, small one, a shape is forming. I can almost see what you intend. Almost.", "x": "idle" },
         { "t": "Ah. Good. A {roomName}. The deep halls were a touch too survivable. Less so now.", "x": "menacing" },
         { "t": "The {roomName} is set. Build with intent, small one — a maze assembled at random kills at random, and random is not enough.", "x": "commanding" },
-        { "t": "Mm. A {roomName}. A hundred ages of keepers laid that same stone, small one — gone now. The stone outlasted them. Build to outlast yourself.", "x": "nostalgic" }
+        { "t": "Mm. A {roomName}. A hundred ages of keepers laid that same stone, small one — gone now. The stone outlasted them. Build to outlast yourself.", "x": "nostalgic" },
+        { "t": "A {roomName}. *appraising* Adequate, small one. I have laired in grander and in meaner. What matters is whether it HOLDS — and this, I think, will hold. Build on.", "x": "superior" }
       ]
     },
     "minion_placed": {
@@ -212,7 +156,8 @@
         { "t": "A {minionType} joins the garrison. Numbers, small one. I have always respected numbers. They argue so persuasively.", "x": "evil" },
         { "t": "Ah. The {minionType} settles in. Another body between the heroes and your throne. Stack them deep.", "x": "idle" },
         { "t": "Mm. A {minionType}. It will do what it is built to do, then stop. Simple. I find I envy simple, some centuries.", "x": "thinking" },
-        { "t": "Ah. A {minionType}, posted. Another small thing in a corner of the dark, small one. I have watched many such corners. Place the next.", "x": "bored-2" }
+        { "t": "Ah. A {minionType}, posted. Another small thing in a corner of the dark, small one. I have watched many such corners. Place the next.", "x": "bored-2" },
+        { "t": "A {minionName} takes its post. *nods slowly* A soldier for the lair. I approve, small one — even an old dragon understands the worth of things that guard the hoard. Place more.", "x": "proud" }
       ]
     },
     "trap_placed": {
@@ -231,7 +176,9 @@
         { "t": "The trap is set, small one. It does not care if the hero is brave. Bravery is not on the trap's list of concerns.", "x": "evil" },
         { "t": "Ah. Another trap. The maze becomes a slow machine for ending adventurers. Pleasingly slow.", "x": "menacing" },
         { "t": "A trap, laid in the dark. I have a great fondness for things that wait. I am, after all, very good at it myself.", "x": "idle" },
-        { "t": "Mm. A trap, set precisely where they will tread. That is the placement I would have chosen myself, small one. A keeper enjoys being agreed with.", "x": "self-satisfied" }
+        { "t": "Mm. A trap, set precisely where they will tread. That is the placement I would have chosen myself, small one. A keeper enjoys being agreed with.", "x": "self-satisfied" },
+        { "t": "A trap, small one. *approving rumble* Mm. The patient weapons. I respect anything that can wait in the dark as long as I can. Place more. Patience is the dragon's art.", "x": "mischievous" },
+        { "t": "A trap, small one — patient and cruel. *approving* The dragon's favorite kind of weapon: it waits as long as I do, and I have waited eons. Place another.", "x": "mischievous" }
       ]
     },
     "item_placed": {
@@ -259,7 +206,10 @@
         { "t": "Mm. Gone. The room is gold again. Decide what it becomes — do not let the empty tile simply sit there.", "x": "determined" },
         { "t": "You undid a room. No shame in it, small one. Even mountains erode and rebuild. Slowly. Continue.", "x": "confident" },
         { "t": "Ah. The room returns to coin. The hoard thanks you. Now spend it better than you spent it last.", "x": "hoarding" },
-        { "t": "A room unbuilt. The maze is a draft until the dawn, small one. Revise it without sentiment.", "x": "building" }
+        { "t": "A room unbuilt. The maze is a draft until the dawn, small one. Revise it without sentiment.", "x": "building" },
+        { "t": "Tearing down the {roomName}? *slow blink* Mm. I do not love unmaking things, small one — a hoarder by nature — but I understand the arithmetic. The gold returns. Spend it wisely, little king.", "x": "guilty" },
+        { "t": "You unmake the {roomName}, little king. *faint disapproval* ...The hoarder in me winces. But a tighter lair is a stronger lair. Fine. Fine. Reinvest the gold.", "x": "shame" },
+        { "t": "Unmaking the {roomName}, little king? *grudging* The hoarder in me protests being made to part with anything. Still — a tighter lair is a stronger one. The gold comes home.", "x": "upset" }
       ]
     },
     "sold_minion": {
@@ -271,7 +221,9 @@
         { "t": "A minion, unmade. I do not mourn it. I have unmade legions. The trick is to replace, not merely remove.", "x": "cool" },
         { "t": "You let a minion go. The garrison thins by one. Make certain the gold buys a better blade than it lost.", "x": "thinking" },
         { "t": "Mm. Gone, and gold again. A keeper trims the roster without flinching. Good. Flinching is for the young.", "x": "determined" },
-        { "t": "The minion returns to coin, small one. Brief life, tidy ending. Now decide what its replacement should be.", "x": "building" }
+        { "t": "The minion returns to coin, small one. Brief life, tidy ending. Now decide what its replacement should be.", "x": "building" },
+        { "t": "You discharge the {minionName}? *quiet* I had grown the smallest bit attached, small one. Ten thousand years and I still attach to things that linger. Foolish. Let it go. Reinvest.", "x": "sad" },
+        { "t": "You discharge the {minionName}? *the hoarder's wince* I dislike releasing what I have kept, small one — it shames the dragon in me. But the gold returns. Reinvest it well.", "x": "shame" }
       ]
     },
     "sold_trap": {
@@ -295,7 +247,8 @@
         { "t": "You unmade a fixture. The grid is a draft until dawn. Edit without sentiment — that is the whole craft.", "x": "idle" },
         { "t": "An item gone, coin regained. A keeper adjusts. I have adjusted dungeons across whole ages. Adjust this one.", "x": "cool" },
         { "t": "Mm. Sold. The little piece is gold again. Decide its replacement with more care than its removal.", "x": "determined" },
-        { "t": "You let an item go, small one. No loss worth a sigh. Build the next thing better.", "x": "building" }
+        { "t": "You let an item go, small one. No loss worth a sigh. Build the next thing better.", "x": "building" },
+        { "t": "You part with the relic, small one? *reluctant* I have hoarded such things for eons; giving one up pricks the old conscience. But your need outranks my habit. Spend it true.", "x": "guilty" }
       ]
     },
     "moved": {
@@ -329,7 +282,10 @@
         { "t": "Ah. Blocked. Again. The tile has not changed its mind in three attempts, small one — nor will it in the fourth. Pick another.", "x": "angry" },
         { "t": "Mm. It will not go there. I have explained the grid patiently, small one. The grid is not the part lacking patience. Try elsewhere.", "x": "eye-roll" },
         { "t": "Ah. The same tile, the same refusal. We have done this dance a few times now, small one — and a few times is quite enough. Anywhere else.", "x": "bored" },
-        { "t": "Mm. Blocked. I do not enjoy a thing that simply will not cooperate, small one. The grid has bones. Find the space that wants you.", "x": "upset" }
+        { "t": "Mm. Blocked. I do not enjoy a thing that simply will not cooperate, small one. The grid has bones. Find the space that wants you.", "x": "upset" },
+        { "t": "Not there, small one. *flat* The ground refuses it. I have laired long enough to know one does not argue with stubborn stone. Choose elsewhere, little king.", "x": "eye-roll" },
+        { "t": "The dark will not take it there. *grudging rumble* ...A pity. I rather liked the placement. But the deep has its own will, older even than mine. Try another tile.", "x": "guilty" },
+        { "t": "Not there, little king. *flat refusal* The ground will not have it, and I have learned across ten thousand years not to argue with stubborn stone. Elsewhere.", "x": "shame" }
       ]
     },
     "pact_sealed": {
@@ -347,7 +303,8 @@
         { "t": "The {pactName}. Sealed. A boss who fears no bargain is either very wise or very brief. Be the first kind.", "x": "thinking" },
         { "t": "Ah. The pact holds. The {pactName} hums in the walls now. I can feel it. I feel most things — comes of being old.", "x": "idle" },
         { "t": "Mm. The {pactName} is done. The dark has shaken your hand. It has a firm grip, small one. It does not let go early.", "x": "evil" },
-        { "t": "A pact, sealed and smouldering. I have a fondness for power that knows it is dangerous. The honest kind. Welcome it.", "x": "menacing" }
+        { "t": "A pact, sealed and smouldering. I have a fondness for power that knows it is dangerous. The honest kind. Welcome it.", "x": "menacing" },
+        { "t": "The {pactName}, sealed. *knowing rumble* A bargain with the dark, little king. I have watched a hundred masters strike them. The wise read the price. I trust you are wise. Mostly.", "x": "mischievous" }
       ]
     },
     "adv_entered": {
@@ -371,7 +328,14 @@
         { "t": "Ah. A {advClass}, chin high, certain it is the exception. I have stood above ten thousand exceptions, small one. They are all the rule walking in.", "x": "superior" },
         { "t": "Mm. {advName} enters. A {advClass}. ...I confess the thrill of a new arrival left me some centuries ago, small one. Still — the maze must eat. Let it.", "x": "bored-2" },
         { "t": "Ah. A {advClass} struts in — chin up, blade out, certain the ballad is half-written. The maze writes an epitaph instead, small one.", "x": "mocking" },
-        { "t": "Mm. {advName} enters, a {advClass} of evident self-regard. I have watched ten thousand walk in that pleased, small one. The maze deflates them all.", "x": "mocking" }
+        { "t": "Mm. {advName} enters, a {advClass} of evident self-regard. I have watched ten thousand walk in that pleased, small one. The maze deflates them all.", "x": "mocking" },
+        { "t": "A {advClass} enters. I have seen ten thousand of them, small one. They all wear the same face — the one that thinks it is the exception. It is not.", "x": "mischievous" },
+        { "t": "Another {advClass}, little king. *exhales a thread of smoke* How quaint. The kingdom recycles the same hero with a different name every generation. Watch.", "x": "superior" },
+        { "t": "{advName} comes into the dark, certain of glory. *slow blink* I knew their grandfather's grandfather's type. Dust, all of them. This one too, soon.", "x": "mocking" },
+        { "t": "A {advClass}, eye-roll-worthy in its confidence. *does so* I have OUTLIVED their entire bloodline's idea of courage, small one. Let it come. I am unbothered.", "x": "eye-roll" },
+        { "t": "The living send a {advClass}. *embers stir* Mm. Disturb my rest, will they. Fine. There is an old heat in me that the foolish still manage to wake. Let it burn.", "x": "aggressive" },
+        { "t": "A {advClass}, small one. *sly ember-glint* I have watched their order rise and fall a dozen times. I know their tricks before they do. Let it come and be schooled.", "x": "mischievous" },
+        { "t": "Another challenger, little king. *low scheming rumble* Mm. I do so enjoy knowing the ending while they still believe in the middle. Watch.", "x": "mischievous" }
       ]
     },
     "first_blood": {
@@ -386,7 +350,9 @@
         { "t": "Ah. One already. The maze proves itself in the first death, small one, and yours has just spoken.", "x": "determined" },
         { "t": "The day's first corpse. Mm. A keeper notes the time of it. Early is good. Early means the maze is awake.", "x": "thinking" },
         { "t": "First blood, small one. The heroes have learned the dungeon is not a rumour. Teach them the rest.", "x": "evil" },
-        { "t": "Mm. First blood, and early. The maze did exactly what we built it to do, small one. I will allow myself a slow, earned smile.", "x": "self-satisfied" }
+        { "t": "Mm. First blood, and early. The maze did exactly what we built it to do, small one. I will allow myself a slow, earned smile.", "x": "self-satisfied" },
+        { "t": "First blood. *barely lifts head* The opener, every time, for ten thousand years. It does not thrill me, small one — but I will admit a certain... satisfaction. Mocking the inevitable.", "x": "mocking" },
+        { "t": "One falls at the threshold. The wave learns the dark has a temper. *smoke curls* Good. Let the old fire remind them why the songs warned them away.", "x": "aggressive" }
       ]
     },
     "adv_killed": {
@@ -417,7 +383,13 @@
         { "t": "Ah. The {advClass} ends. My memory is a cold vault, small one — and I have filed this death beside ten thousand like it. The dungeon rhymes.", "x": "nostalgic" },
         { "t": "Dead. {advName} walked in announcing it was the chosen one, small one. They are always the chosen one. The maze enjoys correcting paperwork.", "x": "mocking" },
         { "t": "Ah. The {advClass} falls. Such a confident little stride on the way in, small one. Such a brief one. Confidence dissolves here every time.", "x": "mocking" },
-        { "t": "Dead. The maze closed over the {advClass} without hurry and without mercy, small one. This is what the dark is FOR. Feed it the next one.", "x": "evil-2" }
+        { "t": "Dead. The maze closed over the {advClass} without hurry and without mercy, small one. This is what the dark is FOR. Feed it the next one.", "x": "evil-2" },
+        { "t": "Down it goes. *flames flicker behind the teeth* Ten thousand years and the burning still comes easily, small one. They wake the dragon; the dragon answers. Predictable. Effective.", "x": "aggressive" },
+        { "t": "{advName} is ash. *unimpressed exhale* The fire does not even require my full attention anymore, little king. Muscle memory, if a dragon may be said to have muscle. Next.", "x": "attacking" },
+        { "t": "The {advClass} burns. *low rumble that might be a laugh* Oh, they always look so SURPRISED by the fire. As if a dragon were a rumor. Charming. Sweep the ash.", "x": "laughing" },
+        { "t": "Another hero, ended. *flat stare* I have lost count, small one. Truly. After the first few thousand, the tally stops meaning anything. Still — one fewer. Mock the kingdom's effort.", "x": "mocking" },
+        { "t": "The {advClass} burns to nothing, small one. *the old fire roils* Ten thousand years and wrath still comes when called. They wake it; they regret it. Predictable.", "x": "aggressive" },
+        { "t": "Ash, little king. *embers settle* The dragon's answer is always the same, and always sufficient. Another name struck from the kingdom's songs.", "x": "aggressive" }
       ]
     },
     "adv_fled": {
@@ -440,7 +412,11 @@
         { "t": "The {advClass} runs. Let the dark have the last word. It always does, eventually — I have heard it say so.", "x": "menacing" },
         { "t": "Ah. {advName} flees. The {advClass} walked in to slay a dragon's dungeon and walked out a cautionary tale, small one. I did expect that ending.", "x": "smug" },
         { "t": "Mm. The {advClass} turns and bolts, small one — all that swagger at the door, all that sprinting at it now. It still draws a dry laugh.", "x": "laughing" },
-        { "t": "Ah. {advName} runs. The brave, chosen, oh-so-different {advClass} — fleeing with its courage in a corridor. Predictable, small one.", "x": "laughing" }
+        { "t": "Ah. {advName} runs. The brave, chosen, oh-so-different {advClass} — fleeing with its courage in a corridor. Predictable, small one.", "x": "laughing" },
+        { "t": "It runs. *does not move* They always run, eventually, little king. I have watched braver things than this flee the dark. I did not chase them either. The patient win.", "x": "unimpressed" },
+        { "t": "The {advClass} flees. *eye-roll* And THAT was the kingdom's hope? I have indigestion older than that one's courage. Let it go. It will warn the others. Useful.", "x": "eye-roll" },
+        { "t": "Off it scurries, small one. *almost amused* The brave ones run prettiest. I do enjoy that small irony — three thousand years and it never quite stops being funny.", "x": "mischievous" },
+        { "t": "It flees, little king. *flat* The kingdom's champion, running. I have seen mountains crumble with more dignity. Let it carry the tale home.", "x": "mocking" }
       ]
     },
     "adv_escaped": {
@@ -463,7 +439,12 @@
         { "t": "Mm. The {advClass} reaches the daylight. I do not enjoy a hero walking out of my dark, small one. Find the leak. I dislike a leaking hoard.", "x": "upset" },
         { "t": "Ah. {advName} escapes. The maze had a gap, and I am meant to see them first, small one. I saw this one a breath too slow. We close it tonight.", "x": "guilty" },
         { "t": "Mm. The {advClass} walks out of MY dark, small one. I do not rage — rage ages a creature — but I will own to a cold, flat displeasure. Seal the gap.", "x": "angry" },
-        { "t": "Ah. Another one loose. A hero strolling free is precisely what the maze exists to prevent, small one. Tighten the corridors.", "x": "angry" }
+        { "t": "Ah. Another one loose. A hero strolling free is precisely what the maze exists to prevent, small one. Tighten the corridors.", "x": "angry" },
+        { "t": "It escaped. *embers dim* Hmph. A blemish, small one. I have let bigger prey slip in my long years — but I never enjoyed it. Close the gap. The dark should not leak.", "x": "shame" },
+        { "t": "One slipped out, little king. *grudging* That stings the old pride a little. A dragon's lair is meant to be inescapable. We will make it so again. Mend the seam.", "x": "guilty" },
+        { "t": "It got OUT? *actually lifts head* ...Well. That is rarer than you would think, small one. The living surprise me perhaps once a century. Consider this their turn. Sharpen the line.", "x": "shocked" },
+        { "t": "A runner reaches the light. *cold ember-flare* That kindles an old anger, little king — the lair should hold what it takes. It will. I will see to it. Mark the gap.", "x": "angry" },
+        { "t": "One slipped the dark — and the slow anger rises, small one. A lair should hold what it takes. We will make it so. Mark the gap, little king.", "x": "angry" }
       ]
     },
     "party_wipe": {
@@ -482,7 +463,8 @@
         { "t": "Mm. Total. The dungeon kept everything — its gold, its dark, its dignity. That last one, small one, the heroes always undervalue.", "x": "confident" },
         { "t": "Ah. The whole party, undone. I told you the maze was deep enough, small one — I am nearly always right. Eons sharpen a creature.", "x": "smug" },
         { "t": "Mm. Every last one of them, gone. Lean back, small one. We earned this — the long night of building, paid out in full. Savour it with me a moment.", "x": "self-satisfied" },
-        { "t": "Ah. The whole party — undone, entire, in your dark. THIS is the thing the dungeon was always for, small one. Let the kingdom shudder.", "x": "evil-2" }
+        { "t": "Ah. The whole party — undone, entire, in your dark. THIS is the thing the dungeon was always for, small one. Let the kingdom shudder.", "x": "evil-2" },
+        { "t": "The whole party, gone. *deep satisfied exhale* A clean sweep, small one. I have seen many — but a clean sweep never fails to please the old pride. The lair held. Magnificent.", "x": "proud" }
       ]
     },
     "wave_cleared": {
@@ -499,7 +481,8 @@
         { "t": "A wave survived. I do not celebrate survival — I expect it. But I will allow you a small, slow nod. There.", "x": "idle" },
         { "t": "Cleared. The halls are quiet again, the good quiet. I have a connoisseur's ear for quiet, small one. This is a fine vintage.", "x": "happy" },
         { "t": "Mm. Wave handled. Onward. The dungeon does not dwell, and a keeper who dwells gets overrun while remembering.", "x": "commanding" },
-        { "t": "Ah. The wave is cleared — cleaner than I had braced for, small one. It is rare a day surprises me. Note what held. We lean on it again.", "x": "stunned" }
+        { "t": "Ah. The wave is cleared — cleaner than I had braced for, small one. It is rare a day surprises me. Note what held. We lean on it again.", "x": "stunned" },
+        { "t": "Wave cleared. *settles back down* Mm. They broke upon the dark like every wave before them, little king. *faint rumble of amusement* The tide always thinks it is the first. Rest now.", "x": "laughing" }
       ]
     },
     "minion_died": {
@@ -523,7 +506,11 @@
         { "t": "Mm. {minionName} falls. I do not mourn minions, small one — I said so. ...And yet something in the old dragon goes quiet. Rebuild.", "x": "sad" },
         { "t": "Ah. The {minionType} is down — and it stood where I told you to stand it, small one. A hair too forward. A keeper carries that. Place the next better.", "x": "guilty" },
         { "t": "Mm. {minionName} ends. They are all brief, small one. ...And still — when a good one falls, the dark goes a shade quieter.", "x": "sad" },
-        { "t": "Ah. The {minionType} is down. A gap in the garrison, small one — and a hoard with a hole is an irritation. Fill it before dawn.", "x": "upset" }
+        { "t": "Ah. The {minionType} is down. A gap in the garrison, small one — and a hoard with a hole is an irritation. Fill it before dawn.", "x": "upset" },
+        { "t": "The {minionName} falls. *quiet* I have watched countless small soldiers end, small one. It never quite stops being a small grief, even for me. Raise it again. It served.", "x": "sad" },
+        { "t": "We lose the {minionType}. *slow blink* A pity. I had grown mildly fond, in the way an old dragon grows fond of anything that lasts more than a week. Replace it, little king.", "x": "upset" },
+        { "t": "The {minionName} falls. *quiet, ancient grief* I have mourned countless small soldiers, little king. The count does not lessen the weight of one. Raise it again.", "x": "crying" },
+        { "t": "We lose the {minionType}, small one. *low, sad rumble* A pity. It lasted longer than most — and I respect the things that last. Replace it.", "x": "sad" }
       ]
     },
     "boss_levelup": {
@@ -542,7 +529,9 @@
         { "t": "Level up. The maze and its master both deepen. Good. A shallow dungeon is solved in an afternoon. Be unsolvable.", "x": "level-up" },
         { "t": "Mm. Level {level}. You have grown exactly as I judged you would, small one — slowly, in the right direction. I am rarely wrong about a boss.", "x": "self-satisfied" },
         { "t": "Ah. Level {level}. You are heavier in the dark than you were, small one — the maze can feel it. Wear the power without flinching.", "x": "level-up" },
-        { "t": "Mm. Stronger again. Level {level}. I have watched many things grow, small one — you grow like the good kind. Continue.", "x": "level-up" }
+        { "t": "Mm. Stronger again. Level {level}. I have watched many things grow, small one — you grow like the good kind. Continue.", "x": "level-up" },
+        { "t": "You grow stronger, small one. *slow approving smoke* Good. The masters who stop growing are the ones I outlive. You, I would prefer to keep. Rise.", "x": "proud" },
+        { "t": "More power, little king. *rumble* I have hoarded gold, jewels, and centuries — but power in a worthy master? That, I am pleased to watch accumulate. Climb on.", "x": "level-up" }
       ]
     },
     "idle_night": {
@@ -566,7 +555,9 @@
         { "t": "The dungeon waits on your hands. It is a patient dungeon. I taught it patience. ...It is not infinitely patient. Few things are.", "x": "idle" },
         { "t": "Mm. Building hours. I have watched ten thousand of these nights, small one. The good bosses fill them. Be a good boss tonight.", "x": "determined" },
         { "t": "Ah. The candles, the quiet, the empty grid. I have spent so many nights exactly like this, small one — with keepers who are dust now. Build.", "x": "wistful" },
-        { "t": "Mm. Still the build phase. Still the same grid, small one. Even a mountain would like to see a room placed eventually.", "x": "bored-2" }
+        { "t": "Mm. Still the build phase. Still the same grid, small one. Even a mountain would like to see a room placed eventually.", "x": "bored-2" },
+        { "t": "*half-lidded, coiled in the dark* The quiet hours, small one. I have spent more of these than there are stars. Build, build — I am content to watch. A dragon is patient by trade.", "x": "bored" },
+        { "t": "Night again, little king. *yawns smoke* I dozed through the fall of three kingdoms; I can doze through a build phase. Wake me if something interesting dies. Carry on.", "x": "bored" }
       ]
     },
     "idle_day": {
@@ -626,7 +617,9 @@
         { "t": "Ah. The kingdom above calls this place a nightmare, small one. They are not wrong. I have lived in the nightmare long enough to call it home.", "x": "laughing" },
         { "t": "Mm. The hours are quiet, and a creature my age, in quiet hours, drifts. If my eyes close mid-counsel, small one, I am still listening.", "x": "sleeping" },
         { "t": "Ah. ...Forgive me, small one. I dozed. A dragon's nap can run long — I have woken to find a season changed. What did I miss. Nothing, I trust.", "x": "sleeping" },
-        { "t": "Mm. You have a good cruel instinct, small one — and watching it sharpen is a small private delight of mine. ...A little, perhaps, to your head.", "x": "playful" }
+        { "t": "Mm. You have a good cruel instinct, small one — and watching it sharpen is a small private delight of mine. ...A little, perhaps, to your head.", "x": "playful" },
+        { "t": "I am here, small one, as I have been for ten thousand years and shall be for ten thousand more. *settles* The quiet does not trouble a dragon. Speak when you have need.", "x": "bored" },
+        { "t": "*one eye cracks open* Still here, little king. Where would I go? I am old, vast, and disinclined to wander. Whenever the work resumes, so shall I. *winks* Slowly.", "x": "winking" }
       ]
     },
     "idle_4thwall": {
@@ -681,7 +674,9 @@
         { "t": "Ah. You jabbed the keeper, and the keeper has decided to find it funny, small one. Ten thousand years, and a finger on the glass can still draw a laugh.", "x": "laughing" },
         { "t": "Mm. A poke. Riveting, small one. After the eons I have witnessed, your finger on the glass is precisely as thrilling as it sounds. ...What do you want.", "x": "bored" },
         { "t": "Ah. You prod the dragon, and the dragon — against ten thousand years of dignity — finds it endearing, small one. There. I have admitted it.", "x": "playful" },
-        { "t": "Mm. Poke the keeper, would you. Very well, small one. You are the one boss in a long line who pokes the dragon as a friend. ...I do not hate it.", "x": "playful" }
+        { "t": "Mm. Poke the keeper, would you. Very well, small one. You are the one boss in a long line who pokes the dragon as a friend. ...I do not hate it.", "x": "playful" },
+        { "t": "Mm? *one ancient eye opens* You rouse the dragon, small one. *low rumble* Careful — the last few who poked me are geological features now. ...I jest. Mostly. What is it?", "x": "playful" },
+        { "t": "You have my attention, little king. *slow smile full of teeth* A rare and precious commodity, a dragon's attention. *winks* Spend it well. What do you need?", "x": "winking" }
       ]
     },
     "idle_nudge": {
@@ -813,7 +808,8 @@
           "t": "Mm. The grid is still bare, small one. I have been more than patient — I would very much like to see a room placed before the night gives up.",
           "x": "impatient",
           "tier": 2
-        }
+        },
+        { "t": "Small one. *taps a single claw, impatient* The night wanes and you have gone still. I am patient — ten thousand years of patient — but even I prefer a master who DOES things. Up. The dark waits.", "x": "impatient" }
       ]
     },
     "game_over": {
@@ -834,7 +830,9 @@
         { "t": "Ah. The run ends, small one. I do grieve it — quietly, dryly, in the old way. Picture the tears. They are real, even when the eyes are not.", "x": "crying" },
         { "t": "Mm. The reign closes, on my watch, small one. I kept the dark ten thousand years and never made peace with keeping it poorly. We do better.", "x": "shame" },
         { "t": "Ah. The throne goes dark, small one. We built something, you and I — and a thing you built always stings going. Lean toward the next attempt.", "x": "sad" },
-        { "t": "Mm. The run is finished. I file you in among the old keepers, small one. Begin again, and I will un-file you. I would like that.", "x": "crying" }
+        { "t": "Mm. The run is finished. I file you in among the old keepers, small one. Begin again, and I will un-file you. I would like that.", "x": "crying" },
+        { "t": "The throne goes cold. *the ancient head bows* I have outlived every master I served, small one. I never learned to like the outliving. You were... worth the keeping. Rest. The dark endures, as it always does.", "x": "crying" },
+        { "t": "Gone. *long, weary exhale* I have done this too many times, little king. Watched the throne empty. *the old eyes close* I will remember you. I remember all of them. It is the dragon's curse and his honor both.", "x": "sad" }
       ]
     },
     "marionette": {
@@ -864,7 +862,8 @@
         { "t": "Stronger, the {minionType}. Mm. A keeper notices which guards grow. Grow them on purpose, small one — accident is not a strategy.", "x": "building" },
         { "t": "A minion climbs a rung. The maze rewards survival, and survival rewards the maze. A tidy little loop. I do like a tidy loop.", "x": "happy" },
         { "t": "Mm. {minionName} levels. The heroes made it deadlier by trying to kill it. There is a lesson there, small one. They will not learn it.", "x": "menacing" },
-        { "t": "Ah. The {minionType} advances. Power, even modest power, accumulates. I have a hoard built entirely of modest accumulations.", "x": "hoarding" }
+        { "t": "Ah. The {minionType} advances. Power, even modest power, accumulates. I have a hoard built entirely of modest accumulations.", "x": "hoarding" },
+        { "t": "The {minionName} grows stronger. *rumble of approval* Good. Things that endure earn their strength, little king — I would know. I have endured longer than your kingdom's name. Proud of the little brute.", "x": "proud" }
       ]
     },
     "minion_evolved": {
@@ -881,7 +880,8 @@
         { "t": "Ah. It evolves. The {minionType} is gone; something better stands where it stood. I do not mourn the old form. Forms are temporary. I would know.", "x": "idle" },
         { "t": "A creature evolved. The dungeon writes a new line into itself. Mm. I keep the books — I will note this one in the good ink.", "x": "reading" },
         { "t": "Mm. {minionName} grows into its larger self. Power earned through survival, small one. The most honest kind. The kind that does not betray you.", "x": "confident" },
-        { "t": "Ah. An evolution. Watch it move now — it has forgotten it was ever small. Useful, that forgetting. The heroes will remind it. Briefly.", "x": "menacing" }
+        { "t": "Ah. An evolution. Watch it move now — it has forgotten it was ever small. Useful, that forgetting. The heroes will remind it. Briefly.", "x": "menacing" },
+        { "t": "The {minionName} becomes something greater. *genuine interest* Now THAT, small one, is worth lifting my head for. Transformation. The dark remaking its own. I have seen it perhaps a dozen times. Splendid.", "x": "proud" }
       ]
     },
     "minion_bounty": {
@@ -910,7 +910,9 @@
         { "t": "Ah. The final stretch. They are close. Steady, small one. A dragon does not flinch at a doorway, and you sit a dragon's throne tonight.", "x": "confident" },
         { "t": "Mm. They come for the throne itself now. Heroes are a small noisy thing, small one — and you are about to be the largest fact in their brief lives.", "x": "superior" },
         { "t": "Ah. They are nearly at the throne, small one. I do not frighten — yet a very old part of me has gone still. Steady the room.", "x": "scared" },
-        { "t": "Mm. They reached the throne already? They moved faster than my measuring, small one. Steady. We adjust.", "x": "stunned" }
+        { "t": "Mm. They reached the throne already? They moved faster than my measuring, small one. Steady. We adjust.", "x": "stunned" },
+        { "t": "Something large approaches, small one. *lifts head slowly* ...I know this weight. I have felt its kind before, long ago. I will not pretend it does not concern me. Brace yourself, little king.", "x": "worried" },
+        { "t": "A true threat nears. *embers stir uneasily* I have outlived many great foes — but I buried friends to some of them, small one. Do not take this lightly. I will not.", "x": "scared" }
       ]
     },
     "boss_fight_start": {
@@ -925,7 +927,8 @@
         { "t": "Mm. The confrontation is live. Calm hands, small one. I have outlived every hero who ever raised a blade at me. Outlive these.", "x": "determined" },
         { "t": "Mm. It begins. Patience was the night's work, small one. Strike first, strike deep, and do not stop until the room is quiet.", "x": "attacking" },
         { "t": "Ah. The throne room, and steel within it. Stop thinking now, small one. Bring your worst down on them like a closing age.", "x": "attacking" },
-        { "t": "Mm. They came to the heart of the dark, small one. Show them what the heart of the dark IS. Every cruelty you hoarded, all at once.", "x": "evil-2" }
+        { "t": "Mm. They came to the heart of the dark, small one. Show them what the heart of the dark IS. Every cruelty you hoarded, all at once.", "x": "evil-2" },
+        { "t": "It begins, small one. *rises to full height, flames building* Ten thousand years of waiting and the old fire remembers exactly what to do. Stand with me. We burn this one down together.", "x": "attacking" }
       ]
     },
     "boss_fight_won": {
@@ -940,7 +943,8 @@
         { "t": "Mm. The fight is won. I have watched dragons lose theirs. You are still here, small one, and the dungeon is still ours. Good.", "x": "determined" },
         { "t": "The heroes are ended. The reign continues. I have measured a great many reigns — this one earns another chapter. Write it darkly.", "x": "evil-2" },
         { "t": "Ah. Won. Take the moment, small one. Moments are small and the dark is large — but a creature should hold the good ones a breath longer. There.", "x": "happy" },
-        { "t": "Mm. They came for the throne and the throne kept them — forever, small one. Let them feel, even dying, what they walked into.", "x": "evil-2" }
+        { "t": "Mm. They came for the throne and the throne kept them — forever, small one. Let them feel, even dying, what they walked into.", "x": "evil-2" },
+        { "t": "You won. *deep, satisfied rumble* I did not doubt it — well, an ancient thing doubts everything, but I HOPED, small one, and I hope rarely. Well done. Truly.", "x": "proud" }
       ]
     },
     "boss_fight_lost": {
@@ -963,7 +967,9 @@
         { "t": "Ah. Defeated, in the throne room itself. For one cold moment, small one, I felt something I traded away long ago. We build so it does not return.", "x": "scared" },
         { "t": "Mm. They cut you down. I kept dungeons ten thousand years, small one, and tonight I did the whole of the job poorly. Let it teach.", "x": "shame" },
         { "t": "Ah. The throne is lost. Somewhere my counsel was wrong, small one. An old dragon owns his advice — the poor with the good. The next will not.", "x": "guilty" },
-        { "t": "Mm. Defeat, in the heart of the dungeon. A keeper beside a falling throne carries some of the fall, small one. I carry mine quietly.", "x": "shame" }
+        { "t": "Mm. Defeat, in the heart of the dungeon. A keeper beside a falling throne carries some of the fall, small one. I carry mine quietly.", "x": "shame" },
+        { "t": "No. *the old eyes dim* Not you too, small one. I have outlived so many masters and I never — *low, grieving rumble* — I told myself I would not mourn another. I lied. Rest, little king.", "x": "crying" },
+        { "t": "No — not this throne too. *the ancient eyes well* I swore I would not grieve another master, small one. I am, again, a liar. Rest, little king. The dark remembers you.", "x": "crying" }
       ]
     },
     "boss_damaged": {
@@ -985,7 +991,13 @@
         { "t": "Mm. They have wounded you, small one. Good — the time for slow watching is over. Bare your teeth. Stop defending; start emptying the room.", "x": "attacking" },
         { "t": "Ah! That blow landed where I did not think one could reach you, small one. I am rarely caught so. Note that hero. Note it carefully.", "x": "shocked" },
         { "t": "Mm. The throne shudders, and for a heartbeat something I have not felt in ages stirred, small one. We do not name it. We simply do not lose. Steady.", "x": "scared" },
-        { "t": "Mm! A hero hit you THAT hard, small one? I had this one measured smaller. I was wrong by a good margin. I will not misjudge it twice.", "x": "shocked" }
+        { "t": "Mm! A hero hit you THAT hard, small one? I had this one measured smaller. I was wrong by a good margin. I will not misjudge it twice.", "x": "shocked" },
+        { "t": "They struck you?! *embers FLARE* ...That, little king, wakes something old and very hot in me. Get back. Let the dark burn them for their insolence. NOBODY scars my master's reign.", "x": "aggressive" },
+        { "t": "Your blood, small one. *low, dangerous* I have watched a great many masters fall. I find I do not wish to watch you join them. Fall back. I am... concerned. That is rare. Heed it.", "x": "worried" },
+        { "t": "A blade reached you, little king. *uncharacteristic alarm* I am ten thousand years unbothered, and yet — this bothers me. Withdraw. Please. The hoard is not worth the hoarder.", "x": "scared" },
+        { "t": "They wound you?! *roused fully now* Foolish, foolish living. They have woken the dragon properly. Behind me, small one — let me remind them what I am.", "x": "attacking" },
+        { "t": "They scarred your reign, small one — and the OLD heat answers. *flames gather* Back. Let me burn the insolence out of them, root and branch.", "x": "aggressive" },
+        { "t": "Your blood, little king, and now I am ANGRY in the way only an ancient thing can be — slow, vast, total. Withdraw. I will see this answered in fire.", "x": "angry" }
       ]
     },
     "grid_expanded": {
@@ -998,7 +1010,9 @@
         { "t": "Mm. The grid grows. The heroes will have farther to walk and more to fear. Distance is a weapon. Use the new distance.", "x": "menacing" },
         { "t": "Ah. More space. I have watched dungeons stay small and solvable, small one. Yours has chosen not to. Good choice. Build into it.", "x": "determined" },
         { "t": "The maze has more bones now. Mm. Flesh them, small one — empty new ground is only a longer hallway until you make it a longer nightmare.", "x": "thinking" },
-        { "t": "Mm. The grid simply... widened, small one. The dungeon rarely expands without warning me first. Fill the new dark before it surprises the heroes too.", "x": "stunned" }
+        { "t": "Mm. The grid simply... widened, small one. The dungeon rarely expands without warning me first. Fill the new dark before it surprises the heroes too.", "x": "stunned" },
+        { "t": "The lair grows larger, small one. *approving* More room for the hoard, more ground to hold. *pause* ...I will admit the suddenness of it caught even my ancient attention. Fill it well, little king.", "x": "shocked" },
+        { "t": "The lair lurches outward, small one — *genuinely caught off guard* — that suddenness surprises even a dragon. More ground to hold. Do not leave it empty, little king.", "x": "shocked" }
       ]
     },
     "trap_triggered": {
@@ -1019,7 +1033,9 @@
         { "t": "A trap takes its due. The dungeon is a slow machine for ending heroes, small one, and you have just heard one of its gears turn.", "x": "menacing" },
         { "t": "Mm. The trap fired, and a hero learned the floor was never their friend, small one. There is a cruelty in that I find genuinely delightful.", "x": "evil-2" },
         { "t": "Ah. It sprang — and the hero's face did that particular thing, small one. Ten thousand faces, and I still find it a little funny.", "x": "laughing" },
-        { "t": "A trap, sprung clean. The hero strode past it so certain, small one. The danger is never elsewhere. The maze adores an educated corpse.", "x": "mocking" }
+        { "t": "A trap, sprung clean. The hero strode past it so certain, small one. The danger is never elsewhere. The maze adores an educated corpse.", "x": "mocking" },
+        { "t": "It sprung. *low chuckle* Ten thousand years and the living still trust the floor, little king. Astonishing. Delightful. Set more — their faith in solid ground never wavers.", "x": "aggressive" },
+        { "t": "Sprung, little king. *dark rumble* The living and the floor — an eternal comedy. The fire approves of anything that does its killing for it. Set more.", "x": "aggressive" }
       ]
     },
     "intel_leaked": {
@@ -1040,7 +1056,9 @@
         { "t": "Ah. The Guild knows another piece of us, small one. Knowledge is the part of a hoard that walks itself out the door. Take it back.", "x": "upset" },
         { "t": "Mm. Intel slipping outward again. Even an unbothered creature has a thing or two it would rather not be shared, small one. Rearrange. Quickly.", "x": "angry" },
         { "t": "Mm. ...They mapped THAT corner, small one? I did not see how they reached it. I dislike a gap in my own knowing. Find it. Close it.", "x": "stunned" },
-        { "t": "Ah. More of our dark, sold to the Guild's ledgers. A hoarder watches a thing of his walk off, small one. Make their notes worthless by dawn.", "x": "upset" }
+        { "t": "Ah. More of our dark, sold to the Guild's ledgers. A hoarder watches a thing of his walk off, small one. Make their notes worthless by dawn.", "x": "upset" },
+        { "t": "They have learned of our dark, small one. *eye-roll* Spies. In ten thousand years they never invent anything but the same tired snooping. Tighten what they have not yet seen, little king.", "x": "eye-roll" },
+        { "t": "Our secrets leak upward. *mild concern* A dragon's hoard is only safe while its location is unknown, small one. The same is true of a dungeon's plan. Guard the rest more closely.", "x": "worried" }
       ]
     },
     "dungeon_event": {
@@ -1060,7 +1078,10 @@
         { "t": "Mm. ...Well. THAT, small one, I have not seen before — and I have, with very few exceptions, seen everything. Attend this one closely. So shall I.", "x": "shocked" },
         { "t": "Mm. The dungeon does something, and I — I will admit it — am simply staring, small one. It has been long since the dark caught me flat. Watch.", "x": "stunned" },
         { "t": "Ah. An event. Very little of the long grind of ages stops a thought of mine mid-sentence, small one. This did. Attend it closely.", "x": "stunned" },
-        { "t": "Mm. The dungeon just did THAT, small one? That was not in my books — and I keep them down to the last cruel number. The dark surprised its keeper.", "x": "shocked" }
+        { "t": "Mm. The dungeon just did THAT, small one? That was not in my books — and I keep them down to the last cruel number. The dark surprised its keeper.", "x": "shocked" },
+        { "t": "The dark stirs of its own accord, small one. *narrows eyes* ...Even I do not know all the deep's moods, and I have known it ten thousand years. Curious. A little worrying. Watch it.", "x": "worried" },
+        { "t": "Something old wakes in the dungeon, little king. *genuine surprise* ...I felt that. I rarely FEEL anything new. The deep keeps secrets even from a dragon. Stand ready.", "x": "shocked" },
+        { "t": "The dungeon convulses. *blinks, momentarily caught off guard* ...Huh. That, small one, I did not predict — and I predict a great deal. The old dark surprises even me. Brace.", "x": "stunned" }
       ]
     },
     "bounty_hunter_incoming": {
@@ -1072,7 +1093,9 @@
         { "t": "A hunter approaches — cold, paid, and uninterested in glory. Mm. Glory makes heroes careless. Coin makes hunters careful. Be ready for careful.", "x": "thinking" },
         { "t": "The bounty hunter nears the halls, small one. They came for your head as a transaction. Make the transaction... unprofitable.", "x": "evil" },
         { "t": "Mm. A contract walks toward your dungeon. I have outlived the parties to a thousand, small one. But respect this one. Hunters earn their fee.", "x": "determined" },
-        { "t": "Ah. A hunter, incoming. They will not be impressed by the maze, small one — only slowed by it. Slowing a professional is still winning. Slow them.", "x": "commanding" }
+        { "t": "Ah. A hunter, incoming. They will not be impressed by the maze, small one — only slowed by it. Slowing a professional is still winning. Slow them.", "x": "commanding" },
+        { "t": "A hunter, here for your head by name, small one. *the old caution stirs* I have seen their professional kind work. They do not boast and they do not flee. Take care. I mean it.", "x": "scared" },
+        { "t": "A hunter for your head by name, small one. *the old caution stirs* Their kind does not boast and does not flee. I have buried friends to their like. Take care, little king.", "x": "scared" }
       ]
     },
     "hero_incoming": {
@@ -1087,7 +1110,9 @@
         { "t": "Ah. They are coming. I can feel the tread of them, small one — old ears, long practice. The dark is hungry and the kingdom is catering.", "x": "idle" },
         { "t": "A wave approaches. Mm. Each of them believes they will be the one to reach the hoard. Each of them is mistaken. Confirm it for them.", "x": "hoarding" },
         { "t": "Heroes incoming, small one. The maze you built is about to be graded again. I have read a great many of its report cards. Earn a cruel one.", "x": "reading" },
-        { "t": "Ah. The kingdom sends more children with swords. I watched their grandparents fail in these same halls, small one. Lineage does not improve them.", "x": "menacing" }
+        { "t": "Ah. The kingdom sends more children with swords. I watched their grandparents fail in these same halls, small one. Lineage does not improve them.", "x": "menacing" },
+        { "t": "More of them, little king. *sigh of ancient impatience* The kingdom is nothing if not persistent. Send them in, send them in — I have not got all century. Well. I have. But still.", "x": "impatient" },
+        { "t": "More approach, little king. *uneasy rumble* ...This wave sits wrong with me, and I have felt many. I will not pretend otherwise. Stand ready, small one.", "x": "worried" }
       ]
     },
     "menu_knowledge": {
@@ -1116,7 +1141,8 @@
         { "t": "The boss screen, small one. Mm. Your signature ability is a tool with one perfect moment. Learn the moment. Waste nothing.", "x": "determined" },
         { "t": "Mm. You weigh your own strength. I have weighed it too, quietly, since you took the seat. ...You are heavier than you look, small one. Use that.", "x": "idle" },
         { "t": "Ah. Know thyself, and so on. Ancient advice — I am ancient, so I am allowed to give it. Know what you are. Then be it, without apology.", "x": "thinking" },
-        { "t": "Mm. The boss panel, small one. You stand above every other thing here. Carry yourself like it. The throne can tell when its master forgets.", "x": "superior" }
+        { "t": "Mm. The boss panel, small one. You stand above every other thing here. Carry yourself like it. The throne can tell when its master forgets.", "x": "superior" },
+        { "t": "Studying your own measure, small one? *approving rumble* Wise. A dragon knows the exact weight of its hoard to the last coin. A master should know his own power as precisely. Study on, little king.", "x": "superior" }
       ]
     },
     "menu_intel": {
@@ -1253,7 +1279,10 @@
         { "t": "Ah. Two things in your halls now multiply rather than merely add. I have done arithmetic across the eons. Multiplication is the cruel kind. Good.", "x": "evil" },
         { "t": "Mm. A synergy fires. You did not stumble into that, small one — or if you did, stumble there again, on purpose, every night.", "x": "determined" },
         { "t": "Ah. That combination, small one — I did not see it coming, and I see most things. ...Well done. Do it again.", "x": "stunned" },
-        { "t": "Mm. The synergy lands — and harder than even I expected, small one. Mark how you built that. We want it again.", "x": "stunned" }
+        { "t": "Mm. The synergy lands — and harder than even I expected, small one. Mark how you built that. We want it again.", "x": "stunned" },
+        { "t": "They fall in a row now, small one. *embers brightening* The old fire enjoys a rhythm — strike, strike, strike. Ten thousand years and a good slaughter still warms the blood. Do not stop.", "x": "aggressive" },
+        { "t": "One after another, little king. *rumble of dark amusement* I have seen avalanches with less momentum. *low laugh* The kingdom's finest, falling like dominoes. Delicious. Keep it rolling.", "x": "laughing" },
+        { "t": "They fall in sequence, small one, and the fire FINDS its rhythm. *roar building* Ten thousand years and a good burning still quickens the old blood. Do not stop.", "x": "aggressive" }
       ]
     },
     "day_milestone": {
@@ -1265,7 +1294,9 @@
         { "t": "Day {day}, small one. The reign has weight now. Reigns gather weight the way hoards gather coin — quietly, and then all at once you are formidable.", "x": "hoarding" },
         { "t": "Mm. A milestone day. I do not mark time the way you do — but I will mark this one for you. There. Marked. You are lasting. Good.", "x": "thinking" },
         { "t": "Ah. Day {day}. Each day survived is a day the heroes failed, small one. Stack the failures. Become a long, dark, unwelcome legend.", "x": "evil" },
-        { "t": "You have reached Day {day}. I have seen many reigns end before and a few stretch far beyond, small one. Which this becomes is yours.", "x": "determined" }
+        { "t": "You have reached Day {day}. I have seen many reigns end before and a few stretch far beyond, small one. Which this becomes is yours.", "x": "determined" },
+        { "t": "Day {day}, small one. *rumble of approval* Most masters do not last this long. I have buried the ones who didn't. You endure — and endurance, little king, is the one virtue I truly respect. *winks*", "x": "winking" },
+        { "t": "{day} days, and the throne still stands. *deep, proud exhale* I have hoarded many treasures over the eons. A master who LASTS is rarer than any of them. Onward, small one. I am proud to guard you.", "x": "proud" }
       ]
     },
     "last_life": {
@@ -1279,7 +1310,8 @@
         { "t": "Ah. Last life. The dungeon needs everything — every coin, every trap, every cold idea, small one. There is no hoarding left tonight.", "x": "menacing" },
         { "t": "The last life, small one. ...If I were a younger thing I might weep. I am not. So I will simply say: build as though it matters. It does.", "x": "crying" },
         { "t": "Mm. The last of the lives, small one. My eyes have not much wet left — but if they did, this thin a thread would draw it. Build well.", "x": "crying" },
-        { "t": "Ah. One slip from the end, small one. I traded fear away ages ago — and yet, this near the edge, a cold old shadow of it has crept back.", "x": "scared" }
+        { "t": "Ah. One slip from the end, small one. I traded fear away ages ago — and yet, this near the edge, a cold old shadow of it has crept back.", "x": "scared" },
+        { "t": "One life left, small one. *the ancient gaze sharpens, uneasy* I have outlived too many masters to lose this one carelessly. Stay behind the dark. I am — yes, I will say it — worried. Heed that. It is rare.", "x": "worried" }
       ]
     },
     "streak": {
@@ -1293,7 +1325,8 @@
         { "t": "Ah. Kill upon kill. The heroes are feeding the maze faster than the kingdom can replace them. That, small one, is what winning sounds like.", "x": "proud" },
         { "t": "A streak. Mm. The dark is greedy tonight, and I — being a dragon — find greed entirely admirable. Let it stay greedy.", "x": "hoarding" },
         { "t": "Mm. Kill upon kill, and not one slipped the maze. This is the night I told you we were building toward, small one. ...I dislike saying so. Not much.", "x": "smug" },
-        { "t": "Ah. The streak holds, small one. Lean back into the throne. We built this — patiently, coldly, well — and now it simply pays. Pleasant arithmetic.", "x": "self-satisfied" }
+        { "t": "Ah. The streak holds, small one. Lean back into the throne. We built this — patiently, coldly, well — and now it simply pays. Pleasant arithmetic.", "x": "self-satisfied" },
+        { "t": "Win after win, small one. *satisfied* I have watched empires built on lesser streaks than this. Do not grow arrogant — but do allow yourself a moment of the old, proud warmth. You have earned it.", "x": "proud" }
       ]
     },
     "minion_milestone": {
@@ -1396,7 +1429,8 @@
         { "t": "Mm. Fortune leaned your way, small one. Pleasant. I have watched luck flatter a boss and abandon him in the same night. Enjoy it. Do not trust it.", "x": "happy" },
         { "t": "Ah. The gamble pays. Gold, or better than gold, into the hoard. I will take a lucky coin as gladly as an earned one — but I will count it twice.", "x": "hoarding" },
         { "t": "You won the wager, small one. Mm. The dice smiled. Smiles fade. Build something solid with the winnings before they remember they were luck.", "x": "thinking" },
-        { "t": "Fortune favoured you. Ah. I do not gamble — eons teach a creature the house always wins eventually. But tonight you were the house. Well played.", "x": "superior" }
+        { "t": "Fortune favoured you. Ah. I do not gamble — eons teach a creature the house always wins eventually. But tonight you were the house. Well played.", "x": "superior" },
+        { "t": "Fortune favors you, little king. *winks* I do not trust luck — I trust a hoard, which does not roll dice. But I will not scorn a win. Bank it into something that does not gamble.", "x": "winking" }
       ]
     },
     "gamble_lost": {

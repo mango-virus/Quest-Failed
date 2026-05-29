@@ -408,39 +408,91 @@ export const COMPANIONS = {
     ],
   },
 
-  // The Necroknight — eighth keeper. Ships LOCKED on the recruit screen
-  // (same teaser-only treatment as the other unlock-pending companions).
-  // Armored undead warrior with a spectral-green aura — the
-  // `--cmp-accent` token in styles.css is set to a phosphor green so
-  // his hover/select halo reads as ghostfire instead of the default
-  // blood-red. Only an `idle` portrait is wired today; no `linesKey`
-  // because he has no banter bank yet — CompanionSelectOverlay skips
-  // locked ids from the speaker rotation, so a missing bank is safe.
+  // The Necroknight — eighth keeper. "Oathkeeper of the Dead" archetype:
+  // an armored undead knight who died mid-vow and kept marching. Grave,
+  // ceremonial, oath-bound — he doesn't serve the player so much as the
+  // DUTY of the dungeon, which the player happens to embody. Death is
+  // sacred to him (not a joke like Rattle Bones, not tedious like
+  // Zul'Gath); he commands the slain with the gravity of a general at a
+  // war memorial, and — uniquely among the keepers — genuinely GRIEVES
+  // the adventurers he kills, because each corpse is a soldier he'll
+  // raise and owe a debt to. Merciless yet reverent: that contradiction
+  // is his whole register. Speaks in oaths and eulogies, archaic and
+  // measured. Signature address is "my Monarch" — chosen because no other
+  // keeper uses it AND it ties to his unlock: you earn him by defeating the
+  // Shadow Monarch (the `monarch_slayer` "Arise" achievement), so you have
+  // BECOME his Monarch. Unique secondary tags "warden"/"sovereign" (also
+  // used by no other companion); "keeper" is the shared-generic everyone
+  // uses. He/him.
   //
-  // When he becomes playable: drop the rest of his expression art into
-  // the source folder (`Quest-Failed assets/Companions/The Necroknight`),
-  // fill out `tools/bake-npc-sprites.mjs`'s `necroknight.map`, re-run
-  // the bake, expand `expressions` here, add his `linesKey` + dialogue
-  // bank, and remove `locked` below (or call
-  // `PlayerProfile.unlockCompanion('necroknight')` wherever the unlock
-  // fires — condition TBD).
+  // Full 59-expression bank shipped 2026-05-28 (sprites baked into
+  // `assets/npc-necroknight/`). Still ships LOCKED on the recruit screen
+  // — unlock condition TBD (see STARTER_COMPANIONS note below). The lock
+  // only gates SELECTION; the dialogue bank + sprites are complete, so a
+  // dev-unlock (PlayerProfile.unlockCompanion('necroknight')) makes him
+  // fully playable for testing. Phosphor-green (ghostfire) accent halo is
+  // set via `--cmp-accent` in styles.css.
   necroknight: {
     id:        'necroknight',
     name:      'Necroknight',
     tagline:   'Sworn to no king, served by every restless dead.',
-    traits:    [],
+    // Player-facing "what this keeper is like to play with" descriptors.
+    traits:    ['unflinching counsel', 'honor in slaughter', 'grim steadiness'],
     locked:    true,
-    // Tuned to match the other locked teasers. Re-tune if his source
-    // art reads visually larger or smaller than Nocturna in the card.
+    // Tuned to match the other humanoid keepers. Re-tune if his armored
+    // silhouette reads visually larger or smaller than the others.
     portraitScale: 1.15,
     portraitOrigin: '50% 100%',
     portraitFlipX: false,
     hudScale: 1.15,
     spriteDir: 'assets/npc-necroknight/',
-    restExpr:  'idle',
-    // No dialogue bank yet — see header comment.
-    linesKey:  null,
-    expressions: ['idle'],
+    // Neutral resting face — a knight standing his post. A grave,
+    // oath-bound warrior resting on a SMILE reads wrong (same reasoning
+    // Malakor uses 'idle-2'); 'at-attention' is his honour-guard default.
+    restExpr:  'at-attention',
+    // Picked-face pool — rolled per recruit-screen selection so the "you
+    // chose me" reaction varies. Restricted to his dignified register:
+    // the oath-vow, a war-memorial salute, slow grim approval (his
+    // version of a grin), the honoured bow, commanding stance, the
+    // ghostfire surge, reverence, a kneel, respect, loyalty, vindication,
+    // pride, solemn resolve. NO giddy/joy faces — picking him is a
+    // ceremony, not a celebration.
+    pickedExprs: [
+      'oath', 'salute', 'grim-approval', 'honored', 'commanding',
+      'ghostfire-surge', 'reverent', 'kneeling', 'respect', 'loyal',
+      'vindicated', 'proud', 'solemn',
+    ],
+    linesKey:  'necroknightLines',
+    // 59 expressions delivered 2026-05-28 — full sprite set baked into
+    // `assets/npc-necroknight/`. Each id maps to a baked `<id>.webp`.
+    // The dialogue bank in `src/data/necroknightLines.json` only ever
+    // references ids from this list. NpcCompanion falls back gracefully
+    // to `restExpr` for any unrecognized id.
+    expressions: [
+      // Idle / quiet beats (11)
+      'idle', 'idle-2', 'idle-3', 'idle-4', 'at-attention', 'watching',
+      'dozing', 'sleeping', 'reading', 'wondering', 'curious',
+      // Solemn / ceremonial — his core (7)
+      'solemn', 'somber', 'oath', 'salute', 'kneeling', 'reverent', 'eulogy',
+      // Grief register — his unique axis (6)
+      'mourning', 'grieving', 'regret', 'weary', 'haunted', 'wistful',
+      // Command / martial (6)
+      'commanding', 'raising-dead', 'summoning-horde', 'pointing',
+      'guard-stance', 'rallying',
+      // Combat intensity (7)
+      'grim-fury', 'aggressive', 'executing', 'determined', 'unrelenting',
+      'angry', 'cold-anger',
+      // Approval / pride (6)
+      'grim-approval', 'proud', 'honored', 'respect', 'vindicated', 'loyal',
+      // Atmosphere / power (4)
+      'ghostfire-surge', 'overwhelming-power', 'level-up', 'sinister',
+      // Cold negative (5)
+      'disappointed', 'disgusted', 'unimpressed', 'judging', 'wary',
+      // Reactions (5)
+      'surprised', 'shocked', 'stunned', 'thinking', 'thinking-2',
+      // Rare cracks — the man under the helm (2)
+      'unmasked', 'happy',
+    ],
   },
 
   // Spectra — ninth keeper. Ghost-girl otaku, anime/games/manga/snacks

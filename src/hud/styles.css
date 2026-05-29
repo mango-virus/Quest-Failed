@@ -9867,6 +9867,7 @@ body {
 .qf-npc[data-companion-id="nocturna"]    { --npc-accent: #7c6cff; }  /* twilight-violet — distinct from Malakor's warmer purple. Pre-wired here so Nocturna's in-game HUD inherits the right hue the moment she becomes unlockable; she doesn't render anywhere in-game yet. */
 .qf-npc[data-companion-id="rattlebones"] { --npc-accent: #ffe34d; }  /* jester-yellow — matches the recruit-screen + boss-select-screen accent */
 .qf-npc[data-companion-id="spectra"]     { --npc-accent: #9b4dff; }  /* pastel ghost-purple — matches the recruit-screen + boss-select-screen accent */
+.qf-npc[data-companion-id="necroknight"] { --npc-accent: #4dff7a; }  /* phosphor-green ghostfire — matches the recruit-screen + boss-select-screen accent (#4dff7a). Without this he'd fall back to the default Lilith pink. */
 /* Docked beside a menu — lift above the overlay backdrop (z:150). */
 .qf-npc[data-dock="menu"] { z-index: 160; }
 

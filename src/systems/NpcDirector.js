@@ -227,7 +227,7 @@ export class NpcDirector {
     // npcName matches the active companion and recover with that.
     // Silent in the happy/recovered case; re-enable the console.error
     // calls here if a future regression needs diagnosing.
-    const KNOWN = ['npcLines', 'safiraLines', 'malakorLines', 'zulgathLines']
+    const KNOWN = ['npcLines', 'safiraLines', 'malakorLines', 'zulgathLines', 'rattleBonesLines', 'spectraLines', 'necroknightLines']
     for (const key of KNOWN) {
       if (key === this._companion.linesKey) continue
       const b = cache?.get(key)
