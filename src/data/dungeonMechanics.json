@@ -1751,7 +1751,7 @@
     "name": "The Insomniac",
     "symbol": "🌙",
     "description": "On sealing: gain 600 gold at once.",
-    "tradeoffDescription": "Every third night you get no build phase — no rooms, minions or traps may be placed.",
+    "tradeoffDescription": "Every third night the dungeon is sealed — nothing may be placed, sold, or moved.",
     "rarity": "damned",
     "unlockLevel": 3,
     "weight": 12,

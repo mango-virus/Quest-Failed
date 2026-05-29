@@ -85,7 +85,7 @@ const FADE_OUT_MS = 600
 // Hover blurb for the no-build curse pill — mirrors how an event pill explains
 // itself on hover.
 const LOCK_PILL_NOTIF =
-  'The Insomniac — a curse from the damned grimoire. No rooms, minions, or traps may be placed this night.'
+  'The Insomniac — a curse from the damned grimoire. The dungeon is sealed tonight: nothing may be placed, sold, or moved.'
 
 export class EventBanner {
   constructor(gameState) {

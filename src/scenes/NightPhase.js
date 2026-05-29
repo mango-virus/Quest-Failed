@@ -2929,6 +2929,11 @@ export class NightPhase extends Phaser.Scene {
   _executeSellAt(tx, ty) {
     // Selling is a build-phase action only — never during the day.
     if (this._gameState.meta?.phase !== 'night') return
+    // DAMNED · The Insomniac — a locked night seals the dungeon: no selling.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+      this._showPlacementError('The Insomniac — the dungeon is sealed tonight')
+      return
+    }
     // DAMNED · The Sealed Vault — selling is forbidden for the rest of the run.
     if ((this._gameState._mechanicFlags ?? {}).theSealedVault) {
       this._showPlacementError('The Sealed Vault is shut — you can sell nothing.')
@@ -3338,6 +3343,11 @@ export class NightPhase extends Phaser.Scene {
   // inside come along with the room. Player drops the room with a
   // second click (handled by the regular placement flow).
   _executeMoveAt(tx, ty) {
+    // DAMNED · The Insomniac — a locked night seals the dungeon: no moving.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+      this._showPlacementError('The Insomniac — the dungeon is sealed tonight')
+      return
+    }
     // Items take precedence over rooms — clicking a treasure chest or
     // phylactery heart on the MOVE tool should pick up THAT item, not
     // the room containing it. Paired items (beacon/fountain, key

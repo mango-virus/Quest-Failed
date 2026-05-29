@@ -588,6 +588,13 @@ export class MinionRenderer {
   }
 
   _beginPickup(m) {
+    // DAMNED · The Insomniac — a locked night seals the dungeon: no moving
+    // minions either. Refuse the pickup + surface the same error toast the
+    // NightPhase placement/sell paths use.
+    if ((this._gameState?._mechanicFlags ?? {}).insomniacLockTonight) {
+      this._scene?.scene?.get?.('NightPhase')?._showPlacementError?.('The Insomniac — the dungeon is sealed tonight')
+      return
+    }
     this._heldMinion = m
     this._pickupOrigin = {
       tileX: m.tileX, tileY: m.tileY,

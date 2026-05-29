@@ -1950,19 +1950,30 @@ function _buildHandlerRegistry() {
       gameState.player.gold = (gameState.player.gold ?? 0) + bribe
       EventBus.emit('RESOURCES_AWARDED', { gold: bribe, reason: 'insomniac_bribe' })
       subscribe('NIGHT_PHASE_STARTED', () => {
-        const n = (gameState._mechanicFlags.insomniacNightCount ?? 0) + 1
-        gameState._mechanicFlags.insomniacNightCount = n
+        const ff = gameState._mechanicFlags
+        // Advance the night counter ONCE per game-day. meta.dayNumber only
+        // changes at day-end, so it's stable across a save/reload mid-night.
+        // Without this guard, quitting to the menu (or refreshing) re-fired
+        // NIGHT_PHASE_STARTED, re-incremented the counter, and flipped a locked
+        // night back to buildable — the player could dodge the curse by
+        // reloading. lockTonight is recomputed deterministically from the
+        // (guarded) counter, so a restore lands on the SAME lock state.
+        const day = gameState.meta?.dayNumber ?? 0
+        if (ff.insomniacCountedDay !== day) {
+          ff.insomniacCountedDay = day
+          ff.insomniacNightCount = (ff.insomniacNightCount ?? 0) + 1
+        }
         const interval = Balance.MECHANIC_INSOMNIAC_INTERVAL_NIGHTS ?? 3
-        const locked = (n % interval === 0)
-        gameState._mechanicFlags.insomniacLockTonight = locked
+        const locked = (ff.insomniacNightCount % interval === 0)
+        ff.insomniacLockTonight = locked
         if (locked) {
-          EventBus.emit('INSOMNIAC_LOCKED', { night: n })
+          EventBus.emit('INSOMNIAC_LOCKED', { night: ff.insomniacNightCount })
           // Event-style cinematic slate in the damned grimoire's black+red so
-          // the player can't miss that building is sealed this night (the small
-          // toast was too easy to overlook).
+          // the player can't miss that the dungeon is sealed this night (the
+          // small toast was too easy to overlook).
           EventBus.emit('HUD_BANNER', {
             title:      'THE INSOMNIAC',
-            notif:      'A curse from the damned grimoire grips the dungeon — no rooms, minions, or traps may be placed this night.',
+            notif:      'A curse from the damned grimoire grips the dungeon — nothing may be placed, sold, or moved this night.',
             icon:       '☽',
             colorTheme: 'damned',
             kicker:     '◆  DAMNED CURSE  ◆',
