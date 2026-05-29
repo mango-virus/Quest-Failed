@@ -1,7 +1,43 @@
 import { EventBus } from './EventBus.js'
+import { PlayerProfile } from './PlayerProfile.js'
 
-const SAVE_KEY = 'quest_failed_save'
+// Per-player save slots (2026-05-29). Every other player-progress key in
+// PlayerProfile is already name-scoped as `<base>:<name>` (max boss level,
+// companion / achievement unlocks, metrics); the run save was the last global
+// holdout. _saveKey() resolves the active player's slot:
+//   • NAMED player  → `quest_failed_save:<name>`
+//   • UNNAMED player → the bare `quest_failed_save` (identical to the old
+//     behaviour, so an existing no-name save keeps working untouched).
+// Switching names switches save slots — consistent with how PlayerProfile
+// already treats the name as the profile selector.
+const SAVE_KEY_BASE   = 'quest_failed_save'
 const CURRENT_VERSION = '1.1.0'
+
+function _saveKey() {
+  const name = (PlayerProfile.getName?.() ?? '').trim()
+  return name ? `${SAVE_KEY_BASE}:${name}` : SAVE_KEY_BASE
+}
+
+// One-time, self-guarding migration: a returning NAMED player still has their
+// run under the old global key. Move it into their name slot the first time we
+// touch storage. The condition can't re-fire once moved (name slot now exists +
+// base key removed). Pure no-op for: unnamed players (their slot IS the base
+// key), fresh named players (no legacy save to move), and anyone already
+// migrated. Also transparently rescues a player who had a no-name save and
+// THEN set a name — base → name-slot the moment a name exists.
+function _migrateLegacySave() {
+  let name
+  try { name = (PlayerProfile.getName?.() ?? '').trim() } catch { return }
+  if (!name) return
+  const nameKey = `${SAVE_KEY_BASE}:${name}`
+  if (localStorage.getItem(nameKey) != null) return   // already has a per-name save
+  const legacy = localStorage.getItem(SAVE_KEY_BASE)
+  if (legacy == null) return                          // nothing to migrate
+  try {
+    localStorage.setItem(nameKey, legacy)
+    localStorage.removeItem(SAVE_KEY_BASE)
+  } catch { /* quota — leave legacy in place; the read paths don't depend on the move */ }
+}
 
 // Heavy-array caps applied at SAVE time so a deep-day run doesn't
 // blow past the ~5 MB localStorage quota. Each cap keeps the MOST
@@ -182,10 +218,11 @@ export const SaveSystem = {
     if (gameState?.meta?.phase === 'day') {
       return false
     }
+    _migrateLegacySave()   // claim the legacy global save into this name's slot before writing
     try {
       const payload = _buildSavePayload(gameState)
       const json = JSON.stringify(payload)
-      localStorage.setItem(SAVE_KEY, json)
+      localStorage.setItem(_saveKey(), json)
       // Verify-after-write — read the stored payload back and confirm
       // the meta we wrote actually landed. Some browsers (Safari
       // private mode, quota-exhausted Chrome under specific paths)
@@ -206,7 +243,7 @@ export const SaveSystem = {
       try {
         const slim = _buildSavePayload(gameState, CAP_RETRY)
         const json = JSON.stringify(slim)
-        localStorage.setItem(SAVE_KEY, json)
+        localStorage.setItem(_saveKey(), json)
         if (!_verifySavedMeta(slim)) {
           throw new Error('save verification failed on retry')
         }
@@ -241,8 +278,9 @@ export const SaveSystem = {
   },
 
   load() {
+    _migrateLegacySave()
     try {
-      const raw = localStorage.getItem(SAVE_KEY)
+      const raw = localStorage.getItem(_saveKey())
       if (!raw) return null
       const state = JSON.parse(raw)
       if (!state?.meta?.version) return null
@@ -262,21 +300,22 @@ export const SaveSystem = {
   },
 
   hasSave() {
-    return localStorage.getItem(SAVE_KEY) !== null
+    _migrateLegacySave()
+    return localStorage.getItem(_saveKey()) !== null
   },
 
   deleteSave() {
-    localStorage.removeItem(SAVE_KEY)
+    localStorage.removeItem(_saveKey())
   },
 }
 
-// Read the SAVE_KEY back from localStorage and confirm its meta matches
+// Read the active save slot (_saveKey()) back from localStorage and confirm its meta matches
 // the payload we just tried to write. Returns false on any mismatch
 // (silent failure, wrong key, parse error). Cheap — only deserialises
 // the meta block, not the full payload.
 function _verifySavedMeta(payload) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY)
+    const raw = localStorage.getItem(_saveKey())
     if (!raw) return false
     const stored = JSON.parse(raw)
     const wroteDay = payload?.meta?.dayNumber

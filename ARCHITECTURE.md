@@ -642,6 +642,7 @@ KNOWLEDGE_SHARED                          ← replaced by sharedPool rebuild on 
 - Versioned: if `meta.version` doesn't match current version, runs migration function
 - Auto-save: triggered on NIGHT_PHASE_STARTED and END_OF_DAY events
 - Manual save: available from menu at any time during night phase
+- **Per-player save slots (2026-05-29):** the storage key is name-scoped via `_saveKey()` → `quest_failed_save:<name>` for a named player, or the bare `quest_failed_save` when unnamed. Switching player names switches save slots (consistent with PlayerProfile, which already name-scopes every other progress key). A self-guarding `_migrateLegacySave()` runs at the top of `save`/`load`/`hasSave`: the first time a *named* player touches storage it moves any pre-existing global `quest_failed_save` into their name slot and removes the global key (no-op for unnamed players and for anyone already migrated). `MainMenuOverlay` re-resolves its cached `_save` on `NAME_CHANGED` so CONTINUE reflects the active name's slot live.
 
 ### DungeonGrid (`src/systems/DungeonGrid.js`)
 Owns the tile grid and all spatial queries. Does NOT own the Phaser tilemap (that's in Game.js) — it owns the data layer that the tilemap reads from.

@@ -164,6 +164,10 @@ export class MainMenuOverlay {
     // and recreate the boss-video element without a src.
     this._onNameChanged = () => {
       if (this._closed || !this._el) return
+      // Saves are name-scoped (SaveSystem._saveKey) — switching names switches
+      // save slots, so re-resolve this name's save before refreshing the menu
+      // (CONTINUE enabled-state + SAVE OK/NO SAVE pill read the cached _save).
+      this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
       this._refreshPlayerName()
       this._refreshTitlePill()
       this._refreshMenuItems()
