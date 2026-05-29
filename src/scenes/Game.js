@@ -774,7 +774,7 @@ export class Game extends Phaser.Scene {
     const fallen = fallenRevivable(gs)
     if (fallen.length === 0) return
     const minionDefs = this.cache.json.get('minionTypes') ?? []
-    const cost = totalReviveCost(gs, minionDefs)
+    const cost = totalReviveCost(gs, minionDefs, this.cache.json.get('minionEvolutions'))
     if (cost > 0 && !Balance.DEV_INFINITE_GOLD) {
       if ((gs.player?.gold ?? 0) < cost) {
         EventBus.emit('PLACEMENT_BLOCKED', { reason: 'insufficient_gold' })

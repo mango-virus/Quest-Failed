@@ -194,6 +194,18 @@ export class BottomBar {
     return []
   }
 
+  // Raw minionEvolutions chains from the JSON cache — lets totalReviveCost
+  // price evolved/named forms (goldCost 0) off their chain root × tier mult
+  // instead of treating them as free.
+  _allEvolutionChains() {
+    const scenes = window.__game?.scene?.scenes || []
+    for (const s of scenes) {
+      const obj = s.cache?.json?.get?.('minionEvolutions')
+      if (obj && typeof obj === 'object') return obj
+    }
+    return null
+  }
+
   // Show the REVIVE button only at night when revivable minions have fallen;
   // update its count + cost, and dim it when the player can't afford it.
   _renderReviveBtn(gs) {
@@ -201,7 +213,7 @@ export class BottomBar {
     if (!btn) return
     const fallen = (gs?.meta?.phase === 'night') ? fallenRevivable(gs) : []
     if (fallen.length === 0) { btn.style.display = 'none'; return }
-    const cost   = totalReviveCost(gs, this._allMinionDefs())
+    const cost   = totalReviveCost(gs, this._allMinionDefs(), this._allEvolutionChains())
     const afford = (gs.player?.gold ?? 0) >= cost
     btn.style.display = ''
     btn.classList.toggle('cant-afford', !afford)

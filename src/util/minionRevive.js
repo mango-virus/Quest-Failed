@@ -64,22 +64,57 @@ export function fallenRevivable(gameState) {
   )
 }
 
+// Locate a minion id's evolution chain root + tier index. `chains` is the
+// raw minionEvolutions.json object ({ rootId: { chain: [...] } }). Returns
+// null when the id isn't part of any chain (e.g. mimic, or unknown ids).
+function chainInfoFor(chains, id) {
+  if (!chains || !id) return null
+  for (const v of Object.values(chains)) {
+    const chain = v?.chain
+    if (!Array.isArray(chain)) continue
+    const idx = chain.indexOf(id)
+    if (idx >= 0) return { rootId: chain[0], idx }
+  }
+  return null
+}
+
 // Gold to revive ONE fallen minion = BUILD_REVIVE_COST_FRAC × its current
 // day-scaled build cost (so revive is cheaper than re-buying, and scales with
 // the run exactly like build costs do).
-export function reviveCost(gameState, minionDef) {
-  const base = minionDef?.goldCost ?? 0
+//
+// Evolved / named forms (beholder2, demon_lord, elder_slime…) have goldCost 0
+// in minionTypes.json — they evolve up from a buildable root instead of being
+// purchased. Reviving them off a 0 base would be FREE, which badly undercharges
+// a mid/late-game roster. When `ctx` supplies the evolution chains + a def-by-id
+// map, derive the base from the chain ROOT's build cost × the per-tier
+// multiplier (Balance.REVIVE_EVOLVED_TIER_MULT). Without `ctx` it falls back to
+// the raw (possibly 0) build cost so the helper stays usable standalone.
+export function reviveCost(gameState, minionDef, ctx = null) {
+  const frac  = Balance.BUILD_REVIVE_COST_FRAC ?? 0.5
+  const scale = buildScaleMul(gameState)
+  let base = minionDef?.goldCost ?? 0
+  if (base <= 0 && ctx?.chains && ctx?.defsById) {
+    const info = chainInfoFor(ctx.chains, minionDef?.id)
+    if (info) {
+      const rootGold = ctx.defsById[info.rootId]?.goldCost ?? 0
+      const mults = Balance.REVIVE_EVOLVED_TIER_MULT ?? [1, 2.2, 4, 6]
+      const mult  = mults[Math.min(info.idx, mults.length - 1)] ?? 1
+      base = rootGold * mult
+    }
+  }
   if (base <= 0) return 0
-  const frac = Balance.BUILD_REVIVE_COST_FRAC ?? 0.5
-  return Math.max(0, Math.round(base * frac * buildScaleMul(gameState)))
+  return Math.max(0, Math.round(base * frac * scale))
 }
 
 // Total gold to revive ALL currently-fallen revivable minions. `minionDefs` is
-// the raw minionTypes array (the caller pulls it from the JSON cache).
-export function totalReviveCost(gameState, minionDefs) {
+// the raw minionTypes array; `chains` is the raw minionEvolutions object (both
+// pulled from the JSON cache by the caller). Passing `chains` is what lets
+// evolved forms cost their tier-scaled value instead of 0.
+export function totalReviveCost(gameState, minionDefs, chains = null) {
   const byId = {}
   for (const d of (minionDefs ?? [])) byId[d.id] = d
+  const ctx = { defsById: byId, chains }
   let sum = 0
-  for (const m of fallenRevivable(gameState)) sum += reviveCost(gameState, byId[m.definitionId])
+  for (const m of fallenRevivable(gameState)) sum += reviveCost(gameState, byId[m.definitionId], ctx)
   return sum
 }

@@ -446,6 +446,14 @@ export const Balance = {
   // re-buying, and it keeps their dungeon position. Unrevived fallen are lost
   // at day start. See util/minionRevive.js + MinionAISystem.reviveFallen.
   BUILD_REVIVE_COST_FRAC:       0.5,    // revive = 50% of current build cost, per minion
+  // Evolved / named minion forms (beholder2, demon_lord, elder_slime…) carry
+  // no build cost — they evolve up from a buildable root rather than being
+  // bought — so a naive "50% of build cost" makes reviving them FREE. Instead
+  // their revive value derives from the chain ROOT's build cost × this
+  // per-tier multiplier, indexed by position in the evolution chain
+  // (0 = root/T1, 1 = T2, 2 = T3/apex, 3 = T4 slime cap). Resolved in
+  // util/minionRevive.js against src/data/minionEvolutions.json chains.
+  REVIVE_EVOLVED_TIER_MULT:    [1, 2.2, 4, 6],
   UNDERDOG_XP_MULT:            2.0,    // adventurer XP multiplier for underdog tag
 
   // --- Dungeon event: Miasma (% maxHp chip damage) ---
