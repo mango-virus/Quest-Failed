@@ -425,6 +425,7 @@ export class Preload extends Phaser.Scene {
     this.load.audio('sfx-necro-summon',   'assets/audio/necromancer summon.mp3')
     this.load.audio('sfx-remove-room',    'assets/audio/remove room.wav')
     this.load.audio('sfx-revive',         'assets/audio/revive.wav')
+    this.load.audio('sfx-revive-minions', 'assets/audio/revive minions.mp3')
     this.load.audio('sfx-score-countup',  'assets/audio/score or number count up.mp3')
     this.load.audio('sfx-take-damage',    'assets/audio/take damge.wav')
     this.load.audio('sfx-teleport',       'assets/audio/teleport.wav')

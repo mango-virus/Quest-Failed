@@ -59,21 +59,6 @@ export class BottomBar {
     ]
 
     const root = h('div', { className: 'qf-bottombar' }, [
-      // Pay-to-revive button — anchored to the far left of the bar (sits just
-      // below the construction menu), styled like BEGIN DAY. Shown only at
-      // night when revivable minions have fallen; refreshed in _tick.
-      h('button', {
-        className: 'btn primary qf-bb-revive',
-        ref: el => { this._refs.reviveBtn = el },
-        style: { display: 'none' },
-        on: { click: () => this._onReviveClick() },
-      }, [
-        h('span', { className: 'qf-bb-revive-main' }, [
-          h('span', { className: 'qf-bb-revive-icon' }, '⚰'),
-          h('span', { ref: el => { this._refs.reviveLabel = el } }, 'REVIVE FALLEN'),
-        ]),
-        h('span', { className: 'qf-bb-revive-cost', ref: el => { this._refs.reviveCost = el } }, ''),
-      ]),
       h('div', { className: 'qf-bottombar-console' }, [
         // BUILD MODES
         h('div', { className: 'qf-bb-group qf-bb-modes' }, [
@@ -130,6 +115,18 @@ export class BottomBar {
 
         // MENUS
         h('div', { className: 'qf-bb-group qf-bb-menus' }, [
+          // Pay-to-revive — compact green action, grouped with roster/minion
+          // controls. Shown only at night when revivable minions have fallen.
+          h('button', {
+            className: 'btn qf-bb-menu qf-bb-revive',
+            ref: el => { this._refs.reviveBtn = el },
+            style: { display: 'none' },
+            on: { click: () => this._onReviveClick() },
+          }, [
+            h('span', { className: 'qf-bb-menu-icon qf-bb-revive-icon' }, '⚰'),
+            h('span', { ref: el => { this._refs.reviveLabel = el } }, 'REVIVE'),
+            h('span', { className: 'qf-bb-revive-cost', ref: el => { this._refs.reviveCost = el } }, ''),
+          ]),
           h('button', {
             className: 'btn qf-bb-menu',
             on: { click: () => EventBus.emit('OPEN_MINION_ROSTER') },
@@ -206,7 +203,7 @@ export class BottomBar {
     const afford = (gs.player?.gold ?? 0) >= cost
     btn.style.display = ''
     btn.classList.toggle('cant-afford', !afford)
-    if (this._refs.reviveLabel) this._refs.reviveLabel.textContent = `REVIVE FALLEN (${fallen.length})`
+    if (this._refs.reviveLabel) this._refs.reviveLabel.textContent = ` REVIVE (${fallen.length})`
     if (this._refs.reviveCost)  this._refs.reviveCost.textContent  = `${cost}g`
   }
 

@@ -785,9 +785,10 @@ export class Game extends Phaser.Scene {
     const revived = this.minionAiSystem?.reviveFallen() ?? 0
     if (revived > 0) {
       try {
-        const key = this.cache.audio.exists('sfx-necro-summon') ? 'sfx-necro-summon'
-                  : this.cache.audio.exists('sfx-build-1')       ? 'sfx-build-1' : null
-        if (key) this.sound.play(key, { volume: 0.6 })
+        // Dedicated REVIVE-button sound — plays once per successful press.
+        const key = this.cache.audio.exists('sfx-revive-minions') ? 'sfx-revive-minions'
+                  : this.cache.audio.exists('sfx-revive')          ? 'sfx-revive' : null
+        if (key) this.sound.play(key, { volume: 0.7 })
       } catch { /* audio not ready — non-fatal */ }
     }
   }
