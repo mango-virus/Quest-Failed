@@ -78,6 +78,74 @@ function _ensureDamnedBannerCss() {
   document.head.appendChild(style)
 }
 
+// Boss-tier overlay (2026-05-29): events with `eventTier: 'boss'` get an
+// additional gold layer on top of whatever colorTheme they use — heavier
+// corner brackets + a kicker bump (`◆ BOSS EVENT ◆`), a soft inner-panel
+// shake on slam-in, and a "BOSS" chip + ambient pulse on the persistent pill.
+// Pure CSS overlay so it stacks cleanly on shadowmonarch (or any future theme).
+function _ensureBossTierBannerCss() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('qf-boss-eventbanner-css')) return
+  const style = document.createElement('style')
+  style.id = 'qf-boss-eventbanner-css'
+  style.textContent = `
+/* Banner — bigger gold L-brackets at the four corners (override the
+   per-theme accent + size from .qf-eventbanner-corner). */
+.qf-eventbanner.qf-eventbanner-boss .qf-eventbanner-corner {
+  width: 22px; height: 22px;
+  border-width: 3px;
+  border-color: #ffcb5c;
+  filter: drop-shadow(0 0 7px #ffcb5cbb);
+}
+/* Kicker — recolour to gold + extra tracking so "◆ BOSS EVENT ◆" reads
+   as a tier label, not flavour text. */
+.qf-eventbanner.qf-eventbanner-boss .qf-eventbanner-kicker {
+  color: #ffcb5c;
+  text-shadow: 0 0 6px #ffcb5c99, 0 0 14px #ffcb5c44;
+  letter-spacing: 0.22em;
+}
+/* Soft slam-in shake on the INNER panel — the outer card keeps its own
+   slam + glow animations (see .qf-eventbanner.open .qf-eventbanner-card). */
+@keyframes qf-evb-boss-shake {
+  0%   { transform: translate(0, 0); }
+  14%  { transform: translate(-4px, 1px); }
+  28%  { transform: translate(4px, -1px); }
+  42%  { transform: translate(-3px, 1px); }
+  56%  { transform: translate(3px, -1px); }
+  70%  { transform: translate(-2px, 0); }
+  84%  { transform: translate(2px, 0); }
+  100% { transform: translate(0, 0); }
+}
+.qf-eventbanner.qf-eventbanner-boss.open .qf-eventbanner-inner {
+  animation: qf-evb-boss-shake 360ms ease-out 1 both;
+}
+
+/* Pill — ambient gold pulse + a "BOSS" chip stitched to the top-right
+   corner. Relative positioning so the ::after badge anchors to the pill. */
+.qf-eventpill.qf-eventpill-boss {
+  position: relative;
+  animation: qf-evp-boss-pulse 2400ms ease-in-out infinite;
+}
+@keyframes qf-evp-boss-pulse {
+  0%, 100% { box-shadow: 0 0 8px #ffcb5c44, inset 0 0 0 1px #ffcb5c66; }
+  50%      { box-shadow: 0 0 18px #ffcb5cbb, inset 0 0 0 1px #ffcb5caa; }
+}
+.qf-eventpill.qf-eventpill-boss::after {
+  content: 'BOSS';
+  position: absolute;
+  top: -8px; right: -10px;
+  padding: 1px 6px 0;
+  background: #ffcb5c;
+  color: #1a0f04;
+  font: 700 9px/12px 'JetBrains Mono', monospace;
+  letter-spacing: 0.14em;
+  border-radius: 2px;
+  box-shadow: 0 0 6px #ffcb5caa;
+  pointer-events: none;
+}`
+  document.head.appendChild(style)
+}
+
 const FADE_IN_MS  = 350
 const HOLD_MS     = 7600   // banner stays fully visible for this long before fading
 const FADE_OUT_MS = 600
@@ -97,6 +165,7 @@ export class EventBanner {
     this._stage = document.getElementById('hud-stage')
     if (!this._stage) return
     _ensureShadowMonarchBannerCss()
+    _ensureBossTierBannerCss()
     _ensureDamnedBannerCss()
     this._build()
     this._wireEvents()
@@ -234,7 +303,8 @@ export class EventBanner {
   _showPill(def) {
     if (!def || !this._pill) return
     const theme = String(def.colorTheme ?? 'warn')
-    this._pill.className = `qf-eventpill qf-eventpill-${theme} open`
+    const isBoss = def.eventTier === 'boss'
+    this._pill.className = `qf-eventpill qf-eventpill-${theme}${isBoss ? ' qf-eventpill-boss' : ''} open`
     const icon  = this._pill.querySelector('.qf-eventpill-icon')
     const label = this._pill.querySelector('.qf-eventpill-label')
     if (icon)  icon.textContent  = def.icon ?? ''
@@ -280,8 +350,9 @@ export class EventBanner {
     this.el.classList.remove('open', 'fading')
 
     const theme = String(def.colorTheme ?? 'warn')
-    // Reset class list to only carry the theme.
-    this.el.className = `qf-eventbanner qf-eventbanner-${theme}`
+    const isBoss = def.eventTier === 'boss'
+    // Reset class list to only carry the theme (+ boss-tier overlay when set).
+    this.el.className = `qf-eventbanner qf-eventbanner-${theme}${isBoss ? ' qf-eventbanner-boss' : ''}`
     // Rebuild the whole slate so every CSS entry animation restarts fresh.
     this.el.replaceChildren(
       h('div', { className: 'qf-eventbanner-card' }, [
@@ -291,7 +362,8 @@ export class EventBanner {
         h('span', { className: 'qf-eventbanner-corner br' }),
         h('div',  { className: 'qf-eventbanner-flash' }),
         h('div',  { className: 'qf-eventbanner-inner' }, [
-          h('div', { className: 'qf-eventbanner-kicker' }, def.kicker ?? '◆  DUNGEON EVENT  ◆'),
+          h('div', { className: 'qf-eventbanner-kicker' },
+            def.kicker ?? (isBoss ? '◆  BOSS EVENT  ◆' : '◆  DUNGEON EVENT  ◆')),
           h('div', { className: 'qf-eventbanner-row' }, [
             def.icon ? h('span', { className: 'qf-eventbanner-icon' }, def.icon) : null,
             h('div', { className: 'qf-eventbanner-title' }, def.title ?? ''),

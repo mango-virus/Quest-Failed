@@ -1282,3 +1282,16 @@ The original one-off **Treasure Hunters** dungeon event is promoted to a **recur
 
    This makes a fat treasury terrifying on a bad-defense day while still rewarding the player who spent gold on defense. *(Tunable: 10-day interval + 80% cap are the two balance knobs.)*
 7. **Telegraphed + sell-locked.** The raid is announced the **night before** via the normal event banner so the player can spend down / reinforce, and **treasure chests can't be sold** on the raid night (so you can't dodge it by liquidating).
+
+---
+
+## Boss Event tier (2026-05-29)
+
+Some dungeon events are *bigger* than others — they aren't just another themed wave, they're a personal challenge to the boss. Those events get a **Boss Event** category badge so the player reads them as a tier above the normal rotation the instant they're announced.
+
+A Boss Event keeps its own `colorTheme` (its identity colour) but gets a **gold overlay layer** stacked on top:
+
+- **Banner:** the kicker line above the title reads **"◆ BOSS EVENT ◆"** in gold (vs. the normal "◆ DUNGEON EVENT ◆"), the four corner L-brackets bump to bigger gold brackets, and the inner panel does a brief **soft shake on slam-in** to sell the moment.
+- **Pill:** a small **"BOSS"** chip is stitched to the top-right corner of the persistent status pill, and the pill carries a slow **ambient gold pulse** so it draws the eye throughout the event.
+
+**Solo Leveling** is the first Boss Event. Its shadowmonarch black↔blue sweep stays as its identity; the gold tier overlay is layered on top. Promoting any future event to Boss tier is a one-line JSON change (`eventTier: 'boss'` in `events.json`) — no per-event code.

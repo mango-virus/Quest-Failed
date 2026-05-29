@@ -277,6 +277,7 @@
     "notif": "One man enters — the Shadow Monarch. He raises your fallen minions as his shadow army and marches on your throne to duel you. Arise.",
     "icon": "🗡️",
     "colorTheme": "shadowmonarch",
+    "eventTier": "boss",
     "minBossLevel": 1
   }
 ]
