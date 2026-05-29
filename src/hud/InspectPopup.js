@@ -23,7 +23,7 @@ import { passiveIncomeMul } from '../config/balance.js'
 const STAT_LABEL = { attack: 'ATK', defense: 'DEF', maxHp: 'MAX HP', speed: 'SPD' }
 
 // Per-entity accent colour — mirrors the construction panel's category
-// colours (ROOMS red / MINIONS green / TRAPS orange / ITEMS blue) so the
+// colours (ROOMS red / MINIONS green / TRAPS blue / ITEMS gold) so the
 // hover panel reads as the same family of surface.
 const CAT_COLOR = {
   room:       'var(--blood)',
@@ -31,7 +31,7 @@ const CAT_COLOR = {
   adventurer: 'var(--warn)',
   item:       'var(--gold-bright)',
   placed:     'var(--info)',
-  trap:       'var(--warn)',
+  trap:       'var(--rumor)',
 }
 
 // Friendly one-line descriptions of each AI goal type, shown on the
