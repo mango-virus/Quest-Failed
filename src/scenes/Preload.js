@@ -395,6 +395,11 @@ export class Preload extends Phaser.Scene {
     this.load.audio('sfx-unlock-reward',      'assets/audio/unlocked-reward.mp3')
     this.load.audio('sfx-unlock-achievement', 'assets/audio/achievement-unlocked.mp3')
 
+    // What's New auto-pop chime — plays ONCE when the WHAT'S NEW panel
+    // auto-opens for a returning player (MainMenuOverlay._maybeAutoOpenWhatsNew),
+    // never when they open it themselves from the menu row.
+    this.load.audio('sfx-whats-new', 'assets/audio/whats-new-open.mp3')
+
     // Gameplay SFX — managed by SfxSystem.
     this.load.audio('sfx-death',          'assets/audio/adventurer and minion death.wav')
     this.load.audio('sfx-archer-shoot',   'assets/audio/archer long range shoot.mp3')

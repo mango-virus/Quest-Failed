@@ -35,6 +35,7 @@ const UI_VOL = {
   unlock_reward:      1.10,  // boss / companion / title card pops in
   unlock_achievement: 1.10,  // achievement card pops in (gold trophy)
   demote:             1.20,  // leaderboard-demotion card — ominous, weighty
+  whats_new:          1.10,  // WHAT'S NEW panel auto-pops for a returning player
 }
 
 // Global UI-boost multiplier — mirrors SfxSystem.SFX_BOOST (1.5) so the
@@ -58,6 +59,7 @@ const UI_KEY = {
   unlock_reward:      'sfx-unlock-reward',      // boss / companion / title card
   unlock_achievement: 'sfx-unlock-achievement', // achievement card
   demote:             'sfx-boss-death',          // dethroned — "the mighty have fallen"
+  whats_new:          'sfx-whats-new',           // WHAT'S NEW auto-pop chime
 }
 
 // Per-cue cooldown (ms) — prevents back-to-back clicks from layering.
@@ -76,6 +78,7 @@ const COOLDOWN = {
   unlock_reward:      300,
   unlock_achievement: 300,
   demote:             300,
+  whats_new:          500,  // one-shot per session; long guard so it never layers
 }
 
 const _lastAt = {}

@@ -25,7 +25,7 @@ import { SaveSystem } from '../systems/SaveSystem.js'
 import { SettingsOverlay } from './SettingsOverlay.js'
 import { ConfirmPopup } from './ConfirmPopup.js'
 import { EventBus } from '../systems/EventBus.js'
-import { installHudSfxDelegates } from './HudSfx.js'
+import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { getUnlockedBossIds } from '../data/bossUnlocks.js'
@@ -1206,6 +1206,9 @@ export class MainMenuOverlay {
     setTimeout(() => {
       if (this._closed || !this._el || this._whatsNew || this._unlockOverlay) return
       this._openWhatsNew()
+      // Auto-pop chime — ONLY on this returning-player auto-open. The manual
+      // menu-row open (case 'whatsnew' → _openWhatsNew(true)) stays silent.
+      HudSfx.playUi('whats_new')
     }, 400)
   }
 
