@@ -82,6 +82,11 @@ const FADE_IN_MS  = 350
 const HOLD_MS     = 7600   // banner stays fully visible for this long before fading
 const FADE_OUT_MS = 600
 
+// Hover blurb for the no-build curse pill — mirrors how an event pill explains
+// itself on hover.
+const LOCK_PILL_NOTIF =
+  'The Insomniac — a curse from the damned grimoire. No rooms, minions, or traps may be placed this night.'
+
 export class EventBanner {
   constructor(gameState) {
     this._gameState   = gameState ?? null
@@ -113,8 +118,8 @@ export class EventBanner {
     this._pill = h('div', {
       className: 'qf-eventpill',
       on: {
-        mouseenter: () => { if (this._activeNotif) this._pillTip?.classList.add('open') },
-        mouseleave: () => this._pillTip?.classList.remove('open'),
+        mouseenter: () => this._openTip(this._activeTheme ?? 'warn', this._activeNotif),
+        mouseleave: () => this._closeTip(),
       },
     }, [
       h('span', { className: 'qf-eventpill-dot' }),
@@ -123,7 +128,14 @@ export class EventBanner {
     ])
     // No-build curse pill (damned black+red). Toggled open for the whole
     // locked night (INSOMNIAC_LOCKED → DAY_PHASE_BEGAN) alongside any event.
-    this._lockPill = h('div', { className: 'qf-eventpill qf-eventpill-damned' }, [
+    // Hovering it shows its own info in the shared tooltip, just like events.
+    this._lockPill = h('div', {
+      className: 'qf-eventpill qf-eventpill-damned',
+      on: {
+        mouseenter: () => this._openTip('damned', LOCK_PILL_NOTIF),
+        mouseleave: () => this._closeTip(),
+      },
+    }, [
       h('span', { className: 'qf-eventpill-dot' }),
       h('span', { className: 'qf-eventpill-icon' }, '☽'),
       h('span', { className: 'qf-eventpill-label' }, 'NO BUILDING'),
@@ -208,6 +220,16 @@ export class EventBanner {
     } })
   }
 
+  // Shared hover tooltip — populated per-pill on mouseenter so whichever pill
+  // is hovered shows its own blurb + theme. `text` falsy → no-op (an event pill
+  // with no notif, or before an event is active).
+  _openTip(theme, text) {
+    if (!this._pillTip || !text) return
+    this._pillTip.className   = `qf-eventpill-tip qf-eventpill-tip-${theme} open`
+    this._pillTip.textContent = text
+  }
+  _closeTip() { this._pillTip?.classList.remove('open') }
+
   // ── Persistent event pill ──────────────────────────────────────────────
   _showPill(def) {
     if (!def || !this._pill) return
@@ -217,12 +239,10 @@ export class EventBanner {
     const label = this._pill.querySelector('.qf-eventpill-label')
     if (icon)  icon.textContent  = def.icon ?? ''
     if (label) label.textContent = def.title ?? 'DUNGEON EVENT'
-    // Stock the hover tooltip with the event's "what it does" blurb.
+    // Stock the hover-tooltip state — the actual tip is filled in on hover via
+    // _openTip (so it shows whichever pill the player is pointing at).
     this._activeNotif = def.notif ?? ''
-    if (this._pillTip) {
-      this._pillTip.className = `qf-eventpill-tip qf-eventpill-tip-${theme}`
-      this._pillTip.textContent = this._activeNotif
-    }
+    this._activeTheme = theme
   }
 
   _hidePill() {
