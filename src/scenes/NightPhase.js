@@ -1763,11 +1763,13 @@ export class NightPhase extends Phaser.Scene {
     } else {
       check = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
     }
-    // DAMNED · The Insomniac — force every placement preview invalid on a
-    // locked night (catches rooms / locks / key chests the per-kind validators
-    // above don't gate), so the cursor reads red and matches the commit gate.
-    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
-      check = { valid: false, violations: ['The Insomniac — no building tonight'] }
+    // DAMNED · The Insomniac — a locked night seals the dungeon: force the
+    // preview invalid so the cursor reads red, EXCEPT for the allowed
+    // anti-softlock placements (a required Entry Hall / a move-to-fix drop),
+    // which keep their normal validity so the player can actually place them.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight &&
+        !this._insomniacPlacementAllowed()) {
+      check = { valid: false, violations: ['The Insomniac — the dungeon is sealed tonight'] }
     }
     this._previewValid = check.valid
 
@@ -2198,16 +2200,41 @@ export class NightPhase extends Phaser.Scene {
     return (this._gameState.dungeon.traps ?? []).length
   }
 
+  // True when the dungeon still needs an Entry Hall (count below the boss-level
+  // requirement) — i.e. the day literally can't begin without one. Mirrors the
+  // requirement gate in _beginDay.
+  _entryHallRequired() {
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    const have  = rooms.filter(r => r.definitionId === 'entry_hall').length
+    const entryDef = (this.cache.json.get('rooms') ?? []).find(d => d.id === 'entry_hall')
+    const required = DungeonGridClass.effectiveMaxPerDungeon(entryDef, this._gameState.boss?.level ?? 1) ?? 1
+    return have < required
+  }
+
+  // Anti-softlock exceptions to the Insomniac lock. A placement is permitted
+  // despite a locked night when it's: (1) a REQUIRED Entry Hall (and only the
+  // entry hall), or (2) dropping a room being moved via the connectivity-fix
+  // path (_heldMoveRoom is set only for a flagged disconnected room — see
+  // _executeMoveAt). Shared by _confirmPlacement + _drawPreview so the preview
+  // colour and the commit gate stay in lockstep.
+  _insomniacPlacementAllowed() {
+    if (this._heldMoveRoom) return true
+    if (this._selectedKind === 'room' && this._selected?.id === 'entry_hall' && this._entryHallRequired()) return true
+    return false
+  }
+
   _confirmPlacement(tx, ty) {
     if (!this._selected) return
 
-    // DAMNED · The Insomniac — no building at all on a locked night. Single
-    // authoritative gate covering EVERY placement kind (rooms / locks / key
-    // chests used to slip past the per-validator checks, letting the player
-    // keep building through the curse). Blocks here + shows the error toast;
-    // the night-start curse banner already told them why.
-    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
-      this._showPlacementError('The Insomniac — no building tonight')
+    // DAMNED · The Insomniac — a locked night seals the dungeon. Two narrow
+    // anti-softlock exceptions: (1) placing a REQUIRED Entry Hall (a locked
+    // night can't strand the player when an entry is mandated), and (2)
+    // dropping a room being moved via the connectivity-fix path
+    // (_heldMoveRoom is only ever set for a flagged disconnected room — see
+    // _executeMoveAt). Everything else stays sealed.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight &&
+        !this._insomniacPlacementAllowed()) {
+      this._showPlacementError('The Insomniac — the dungeon is sealed tonight')
       return
     }
 
@@ -3343,22 +3370,36 @@ export class NightPhase extends Phaser.Scene {
   // inside come along with the room. Player drops the room with a
   // second click (handled by the regular placement flow).
   _executeMoveAt(tx, ty) {
-    // DAMNED · The Insomniac — a locked night seals the dungeon: no moving.
+    // DAMNED · The Insomniac — a locked night seals the dungeon. The lone
+    // exception is the connectivity-fix: once a disconnected-room error has
+    // been flagged (player hit BEGIN DAY with an island), they may move a
+    // flagged DISCONNECTED room — and only that — to reconnect the dungeon.
+    // forceRoomMove then skips the trap/item pickup precedence so the click
+    // grabs the ROOM itself (the thing that fixes connectivity).
+    let forceRoomMove = false
     if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
-      this._showPlacementError('The Insomniac — the dungeon is sealed tonight')
-      return
+      const hereRoom = this._dungeonGrid.getRoomAtTile?.(tx, ty)
+      const canFix = this._disconnectErrorShown && hereRoom &&
+        this._disconnectedRoomIds.has(hereRoom.instanceId)
+      if (!canFix) {
+        this._showPlacementError(this._disconnectErrorShown
+          ? 'The Insomniac — only a disconnected room may be moved'
+          : 'The Insomniac — the dungeon is sealed tonight')
+        return
+      }
+      forceRoomMove = true
     }
     // Items take precedence over rooms — clicking a treasure chest or
     // phylactery heart on the MOVE tool should pick up THAT item, not
     // the room containing it. Paired items (beacon/fountain, key
     // chest/door lock) are rebuild-only because their pair would be
-    // broken by a partial move.
+    // broken by a partial move. (Skipped entirely on a forced room-move.)
     const items = this.cache.json.get('items') ?? []
 
     // Trap move — the trap stays in the array (rendered at its old spot)
     // and is relocated in place on drop, so cancelling the move leaves it
     // untouched. Hit-test covers the trap as the player sees it.
-    const trapHit = (this._gameState.dungeon.traps ?? [])
+    const trapHit = forceRoomMove ? null : (this._gameState.dungeon.traps ?? [])
       .find(t => this._trapCoversTile(t, tx, ty))
     if (trapHit) {
       const tDef = (this.cache.json.get('trapTypes') ?? []).find(d => d.id === trapHit.definitionId)
@@ -3376,7 +3417,7 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
-    const treasureHit = (this._gameState.dungeon.treasureChests ?? []).find(c =>
+    const treasureHit = forceRoomMove ? null : (this._gameState.dungeon.treasureChests ?? []).find(c =>
       c.tileX === tx && c.tileY === ty
     )
     if (treasureHit) {
@@ -3395,7 +3436,7 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
-    if (this._gameState.phylactery &&
+    if (!forceRoomMove && this._gameState.phylactery &&
         this._gameState.phylactery.tileX === tx &&
         this._gameState.phylactery.tileY === ty) {
       const heartDef = items.find(it => it.id === 'phylactery_heart')
@@ -3413,12 +3454,13 @@ export class NightPhase extends Phaser.Scene {
       return
     }
 
-    if ((this._gameState.dungeon.beacons ?? []).some(b => b.tileX === tx && b.tileY === ty) ||
-        (this._gameState.dungeon.fountains ?? []).some(f => f.tileX === tx && f.tileY === ty)) {
+    if (!forceRoomMove &&
+        ((this._gameState.dungeon.beacons ?? []).some(b => b.tileX === tx && b.tileY === ty) ||
+         (this._gameState.dungeon.fountains ?? []).some(f => f.tileX === tx && f.tileY === ty))) {
       this._showPlacementError('Beacon/Fountain pair — use SELL and rebuild')
       return
     }
-    if ((this._gameState.dungeon.keyChests ?? []).some(c => c.tileX === tx && c.tileY === ty)) {
+    if (!forceRoomMove && (this._gameState.dungeon.keyChests ?? []).some(c => c.tileX === tx && c.tileY === ty)) {
       this._showPlacementError('Key Chest is paired with a Door Lock — use SELL and rebuild')
       return
     }
