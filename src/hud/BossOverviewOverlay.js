@@ -124,7 +124,7 @@ export class BossOverviewOverlay {
   // overview, the in-game pact strip and the grimoire all agree on hue).
   _rarityColor(rarity) {
     switch (String(rarity || 'common').toLowerCase()) {
-      case 'damned':    return '#b06bd9'   // forbidden violet — the 6th tier
+      case 'damned':    return '#3a2b30'   // black grimoire (near-black, blood sheen) — epic owns purple
       case 'legendary': return 'var(--blood)'
       case 'epic':      return 'var(--info)'
       case 'rare':      return 'var(--gold)'
