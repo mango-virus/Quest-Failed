@@ -15,6 +15,17 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 6,
+    version: '0.1.7',
+    date: 'May 2026',
+    title: 'Economy & Revival',
+    items: [
+      { icon: '💰', text: 'Build prices now climb over a long run — gold stays valuable late game.' },
+      { icon: '⚰', text: 'Fallen minions no longer return free — revive them at night for gold.' },
+      { icon: '⏳', text: 'Don’t pay by dawn and your fallen minions are lost for good.' },
+    ],
+  },
+  {
     id: 5,
     version: '0.1.6',
     date: 'May 2026',
