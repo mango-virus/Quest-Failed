@@ -299,13 +299,17 @@ export const Balance = {
   ECHO_MINE_FOOTSTEP_THRESHOLD:  2,    // step count at which it fires (2 = follower)
   CURSE_BRAND_DURATION_MS:       30000, // mark lasts 30s of game time
 
-  // --- Minion XP / leveling / evolution (Phase 7) ---
-  MINION_XP_PER_KILL:            10,    // base XP awarded per adventurer kill
-  MINION_XP_LEVEL_BASE:          25,    // XP to reach lv2
-  MINION_XP_LEVEL_SCALE:         1.5,   // XP_for_lv_n = BASE * SCALE^(n-1)
-  MINION_LEVEL_HP_BONUS:         5,     // hp added per level
-  MINION_LEVEL_ATTACK_BONUS:     1,     // attack added per level
-  MINION_LEVEL_DEFENSE_BONUS:    1,     // defense added per level (every other level)
+  // --- Minion XP / leveling (Phase 7) — RETIRED 2026-05-29 ---
+  // The kill-XP / per-minion-level system was removed; minion power now comes
+  // from boss-level scaling + gold-paid tier upgrades. No system reads these
+  // anymore (kept so old saves/configs don't choke on a missing key). Safe to
+  // delete once nothing references them.
+  MINION_XP_PER_KILL:            10,    // retired
+  MINION_XP_LEVEL_BASE:          25,    // retired
+  MINION_XP_LEVEL_SCALE:         1.5,   // retired
+  MINION_LEVEL_HP_BONUS:         5,     // retired
+  MINION_LEVEL_ATTACK_BONUS:     1,     // retired
+  MINION_LEVEL_DEFENSE_BONUS:    1,     // retired
 
   // --- Knowledge system (Phase 8) ---
   KNOWLEDGE_STALE_FACTOR:          0.5,    // stale trap cost = KNOWLEDGE_TRAP_COST_MULTIPLIER * this
@@ -378,10 +382,18 @@ export const Balance = {
   // Library preview). Treasury / Gold Rush / event modifiers stack on
   // top of this bonus, same as before.
   ADVENTURER_POST10_EXTRA_PER_DAY: 1,
-  MINION_HP_PER_BOSS_LV:        0.20,   // +20% maxHp per boss level (bigger boss-level boost)
+  MINION_HP_PER_BOSS_LV:        0.20,   // +20% maxHp per boss level (sole power axis now)
   MINION_ATK_PER_BOSS_LV:       0.12,   // +12% attack per boss level
-  MINION_HP_PER_DAY:             0.06,   // +6%  maxHp per day (small day boost)
-  MINION_ATK_PER_DAY:            0.04,   // +4%  attack per day
+  // Day scaling removed 2026-05-29 — minions now scale with BOSS LEVEL only
+  // (plus gold-paid tier upgrades). Adventurers still scale with day, so a boss
+  // that lags the calendar gets outpaced — intended pressure to keep leveling.
+  MINION_HP_PER_DAY:             0,
+  MINION_ATK_PER_DAY:            0,
+  // Gold-gated tier upgrade cost (2026-05-29): paying to upgrade a minion to a
+  // chain tier costs the chain ROOT's build cost × this[targetTierIdx] ×
+  // buildScaleMul (escalates per tier, pricier than buying fresh; scales with
+  // the run). Index = chain position being REACHED (0/1 = root, buildable).
+  MINION_UPGRADE_TIER_MULT:     [0, 2.5, 5, 8],
   // Trap damage scales with boss level so traps keep pace with the
   // toughening adventurer waves — mirrors minion attack scaling.
   // Halved from 0.12 → 0.06 on 2026-05-24 (lv10 lands at ~1.54× base

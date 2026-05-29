@@ -15,6 +15,18 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 8,
+    version: '0.1.9',
+    date: 'May 2026',
+    title: 'Minion Upgrades',
+    items: [
+      { icon: '⬆️', text: 'New UPGRADE tool — pay gold to advance a minion a tier.' },
+      { icon: '✨', text: 'Upgrades stick — a revived minion keeps its tier.' },
+      { icon: '📈', text: 'Minions now scale to your boss level, not the calendar.' },
+      { icon: '🔁', text: 'No more auto-evolving on kills — you pick who powers up.' },
+    ],
+  },
+  {
     id: 7,
     version: '0.1.8',
     date: 'May 2026',

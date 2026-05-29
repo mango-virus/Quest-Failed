@@ -73,7 +73,7 @@ function chainInfoFor(chains, id) {
     const chain = v?.chain
     if (!Array.isArray(chain)) continue
     const idx = chain.indexOf(id)
-    if (idx >= 0) return { rootId: chain[0], idx }
+    if (idx >= 0) return { rootId: chain[0], idx, len: chain.length, chain }
   }
   return null
 }
@@ -152,4 +152,64 @@ export function planRevive(candidates, budget, mode = 'strongest') {
     if (cost + c.cost <= budget) { ids.push(c.instanceId); cost += c.cost }
   }
   return { ids, cost, count: ids.length }
+}
+
+// ── Gold-gated tier upgrades (2026-05-29) ───────────────────────────────────
+
+// Gold to upgrade a minion ONE tier up its evolution chain. Cost = the chain
+// ROOT's build cost × Balance.MINION_UPGRADE_TIER_MULT[targetTierIdx] ×
+// buildScaleMul — so each tier costs more, it scales with the run, and it's
+// pricier than buying a fresh root (upgrading should feel like an investment).
+// Returns 0 when the minion has no chain, is already at its final tier, or its
+// root isn't a purchasable def. `minionDefs` is the raw minionTypes array,
+// `chains` the raw minionEvolutions object (both from the JSON cache).
+export function upgradeCost(gameState, minion, minionDefs, chains) {
+  if (!minion || !chains) return 0
+  const info = chainInfoFor(chains, minion.definitionId)
+  if (!info) return 0
+  const targetIdx = info.idx + 1
+  if (targetIdx > info.len - 1) return 0   // already at the final tier
+  const byId = {}
+  for (const d of (minionDefs ?? [])) byId[d.id] = d
+  const rootGold = byId[info.rootId]?.goldCost ?? 0
+  if (rootGold <= 0) return 0
+  const mults = Balance.MINION_UPGRADE_TIER_MULT ?? [0, 2.5, 5, 8]
+  const mult  = mults[Math.min(targetIdx, mults.length - 1)] ?? 0
+  if (mult <= 0) return 0
+  return Math.max(0, Math.round(rootGold * mult * buildScaleMul(gameState)))
+}
+
+// Describe a minion's tier position + the def it would become if upgraded —
+// feeds the upgrade-confirm popup's before/after preview. All tier numbers are
+// 1-based (T1 = chain root). Returns null when the minion has no chain or is
+// already at its final tier (nothing to preview).
+export function nextTierInfo(minion, minionDefs, chains) {
+  const info = chainInfoFor(chains, minion?.definitionId)
+  if (!info) return null
+  const targetIdx = info.idx + 1
+  if (targetIdx > info.len - 1) return null
+  const byId = {}
+  for (const d of (minionDefs ?? [])) byId[d.id] = d
+  return {
+    currentTier: info.idx + 1,
+    nextTier:    targetIdx + 1,
+    maxTier:     info.len,
+    isFinalNext: targetIdx === info.len - 1,
+    nextId:      info.chain[targetIdx],
+    nextDef:     byId[info.chain[targetIdx]] ?? null,
+  }
+}
+
+// 1-based current tier of a minion (T1 = chain root). 1 for chainless minions
+// (mimic, etc.). Shared by roster / inspector / badge displays so every surface
+// reports the same tier.
+export function tierOf(minion, chains) {
+  const info = chainInfoFor(chains, minion?.definitionId)
+  return info ? info.idx + 1 : 1
+}
+
+// Total tiers in a minion's chain (1 for chainless minions).
+export function maxTierOf(minion, chains) {
+  const info = chainInfoFor(chains, minion?.definitionId)
+  return info ? info.len : 1
 }

@@ -17,6 +17,7 @@
 import { EventBus }         from '../systems/EventBus.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
+import { upgradeCost }      from '../util/minionRevive.js'
 
 // Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used to
 // give the shadow minions the same RGB-style blue↔black flame cycle Jinwoo
@@ -70,10 +71,19 @@ export class MinionRenderer {
     this._sprites   = {}   // instanceId → sprite record (see _createSprite)
 
     const defs = scene.cache.json.get('minionTypes') ?? []
+    this._minionDefs = defs                                  // raw array, for upgradeCost
     this._defMap = Object.fromEntries(defs.map(d => [d.id, d]))
     // Evolution chain data — used to scale sprites by tier and to look up
     // animation prefixes when a final form uses a boss texture set.
     this._chains = scene.cache.json.get('minionEvolutions') ?? {}
+
+    // UPGRADE-tool affordance: a single shared graphics layer that draws a
+    // colour-coded glow ring under every upgradeable minion while the UPGRADE
+    // tool is armed (green = affordable, dim red = can't afford right now).
+    // Redrawn each tick; sits below the minion sprites (depth 7) and above the
+    // dungeon floor. `_toolMode` mirrors the armed action-bar tool.
+    this._toolMode   = null
+    this._upgradeGlow = scene.add.graphics().setDepth(2)
 
     // Reusable hover tooltip — lives on the world camera so it pans/zooms
     // with the dungeon. Shown when the cursor is over a minion sprite.
@@ -151,7 +161,7 @@ export class MinionRenderer {
       for (const id in this._sprites) {
         const s = this._sprites[id]
         if (!s) continue
-        s._lastLv = null
+        s._lastTier = null
         s._lastBounty = null
         s._lastLootBonus = null
         s.lastHp = null
@@ -473,15 +483,18 @@ export class MinionRenderer {
         s.shadowFlame.setTint(top, top, bot, bot)
       }
 
-      // Status badge — combined bounty star + level, in one centred label.
-      const lv = m.level ?? 1
+      // Status badge — bounty star (★) + evolution TIER (T2/T3…). Tier 1 (base)
+      // shows no tier mark so the badge stays clean; upgraded minions get a
+      // "T{n}" so the player reads their roster investment at a glance. (Minion
+      // LEVEL tracks the BOSS level now and is shown in the roster / inspector.)
+      const tier = this._tierOf(m.definitionId)
       const hasBounty = !!m.hasBounty
-      if (s._lastLv !== lv || s._lastBounty !== hasBounty) {
-        s._lastLv = lv
+      if (s._lastTier !== tier || s._lastBounty !== hasBounty) {
+        s._lastTier = tier
         s._lastBounty = hasBounty
         const parts = []
         if (hasBounty) parts.push('★')
-        if (lv >= 2)   parts.push(`LV ${lv}`)
+        if (tier >= 2) parts.push(`T${tier}`)
         const txt = parts.join(' ')
         s.lvLabel.setText(txt).setVisible(txt.length > 0)
       }
@@ -509,7 +522,39 @@ export class MinionRenderer {
       if (this._sprites[id]?.selling) continue
       this._destroySprite(id)
     }
+    this._drawUpgradeGlow(minions, this._scene.time.now)
     this._tickSelling(this._scene.time.now)
+  }
+
+  // Draw colour-coded glow rings under every upgradeable minion while the
+  // UPGRADE tool is armed (cleared + redrawn each tick). Green = affordable,
+  // dim red = eligible but unaffordable right now; ineligible / maxed minions
+  // get no ring. The ring breathes via a sine pulse so it reads as interactive.
+  _drawUpgradeGlow(minions, now) {
+    const g = this._upgradeGlow
+    if (!g) return
+    g.clear()
+    if (this._toolMode !== 'upgrade' || this._gameState.meta?.phase !== 'night') return
+    const evo = this._scene.minionEvolutionSystem
+    if (!evo?.canUpgrade) return
+    const gold    = this._gameState.player?.gold ?? 0
+    const devGold = !!Balance.DEV_INFINITE_GOLD
+    const pulse   = 0.5 + 0.5 * Math.sin(now / 320)   // 0..1 breathing
+    for (const m of (minions ?? [])) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (!evo.canUpgrade(m)) continue
+      const cost   = upgradeCost(this._gameState, m, this._minionDefs, this._chains)
+      const afford = devGold || gold >= cost
+      const color  = afford ? 0x6ee06e : 0xcf5b5b
+      const alpha  = afford ? (0.40 + 0.45 * pulse) : 0.30
+      const r      = TS * (0.52 + 0.05 * pulse) * this._tierScaleFor(m.definitionId)
+      g.lineStyle(afford ? 3 : 2, color, alpha)
+      g.strokeCircle(m.worldX, m.worldY, r)
+      if (afford) {
+        g.lineStyle(1, 0xffffff, 0.12 + 0.18 * pulse)
+        g.strokeCircle(m.worldX, m.worldY, r - 3)
+      }
+    }
   }
 
   destroy() {
@@ -520,6 +565,7 @@ export class MinionRenderer {
     EventBus.off('ENTITY_SOLD',         this._onEntitySold,       this)
     this._scene?.input?.off?.('pointerdown', this._onScenePointerDown)
     this._hoverLabel?.destroy()
+    this._upgradeGlow?.destroy()
     for (const id of Object.keys(this._sprites)) this._destroySprite(id)
   }
 
@@ -713,7 +759,9 @@ export class MinionRenderer {
   }
 
   _onToolModeChanged({ mode } = {}) {
+    this._toolMode = mode ?? null
     if (mode !== 'move') this._returnHeldToOrigin()
+    if (mode !== 'upgrade') this._upgradeGlow?.clear()
   }
 
   // Background click anywhere in the world — drop the held minion. Object-
@@ -776,6 +824,19 @@ export class MinionRenderer {
       }
     }
     return 1.0
+  }
+
+  // 1-based evolution tier of a minion def (chain position + 1); 1 for defs
+  // with no chain. Mirrors minionRevive.tierOf, computed locally off _chains so
+  // the renderer stays self-contained for the per-frame badge draw.
+  _tierOf(defId) {
+    for (const v of Object.values(this._chains)) {
+      if (Array.isArray(v?.chain)) {
+        const idx = v.chain.indexOf(defId)
+        if (idx >= 0) return idx + 1
+      }
+    }
+    return 1
   }
 
   // Transparent rows above the art in frame 0 of `key` (frame px, 0..fs).

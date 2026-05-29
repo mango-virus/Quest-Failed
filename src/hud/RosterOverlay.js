@@ -193,7 +193,7 @@ export class RosterOverlay {
     const sel = filtered[this._selIdx]
     const totalKills = minions.reduce((s, m) => s + (m.lifetime?.kills ?? 0), 0)
     const avgLv = minions.length > 0
-      ? (minions.reduce((s, m) => s + (m.level ?? 1), 0) / minions.length).toFixed(1)
+      ? (minions.reduce((s, m) => s + (m.bossLevel ?? 1), 0) / minions.length).toFixed(1)
       : '0.0'
     const wounded = counts.WOUNDED
 
@@ -332,8 +332,9 @@ export class RosterOverlay {
           h('div', { className: 'num', style: { fontSize: '7px' } }, `${hp}/${maxHp}`),
         ]),
       ]),
-      // LV
-      h('div', { className: 'pix qf-roster-row-lv' }, String(m.level ?? 1)),
+      // LV — minions scale to the BOSS level (m.bossLevel), not a per-minion
+      // XP level (that system was removed 2026-05-29).
+      h('div', { className: 'pix qf-roster-row-lv' }, String(m.bossLevel ?? 1)),
       // Kills + lethal skull
       h('div', { className: 'qf-roster-row-kills' }, [
         h('span', {
@@ -390,7 +391,7 @@ export class RosterOverlay {
         h('div', {
           className: 'pix qf-roster-tier-chip',
           style: { color: tierColor, borderColor: tierColor },
-        }, `${tier} · LV ${sel.level ?? 1}`),
+        }, `${tier} · LV ${sel.bossLevel ?? 1}`),
       ]),
       // Name + assignment
       h('div', { className: 'pix qf-roster-detail-name' }, name),

@@ -89,7 +89,7 @@ export class MinionInspectorOverlay {
         }, '×'),
       ]),
       h('div', { className: 'qf-mininsp-sub' }, [
-        `${typeName}  ·  Level ${m.level ?? 1}`,
+        `${typeName}  ·  Level ${m.bossLevel ?? 1}`,
         m.hasBounty ? h('span', { className: 'qf-mininsp-sub-bounty' }, '  ★ BOUNTY') : null,
       ]),
 
@@ -99,7 +99,6 @@ export class MinionInspectorOverlay {
         this._statRow('Defense', m.stats?.defense ?? 0),
         this._statRow('Speed',   (m.stats?.speed ?? 1.0).toFixed(1)),
         h('div', { className: 'qf-mininsp-stats-gap' }),
-        this._statRow('XP',      `${m.xp ?? 0} / ${this._xpForNextLevel(m)}`),
         this._statRow('Kills',   m.bountyKillCount ?? 0),
         this._statRow('Faction', m.faction ?? 'dungeon'),
       ]),
@@ -151,16 +150,6 @@ export class MinionInspectorOverlay {
       }
     }
     return null
-  }
-
-  _xpForNextLevel(m) {
-    const lv = m.level ?? 1
-    const scenes = window.__game?.scene?.scenes ?? []
-    for (const s of scenes) {
-      const fn = s._evolutionSystem?.xpForLevel
-      if (typeof fn === 'function') return Math.floor(fn.call(s._evolutionSystem, lv + 1))
-    }
-    return 25  // safe fallback matching the Phaser version
   }
 
   destroy() {

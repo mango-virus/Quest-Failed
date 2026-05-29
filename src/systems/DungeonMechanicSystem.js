@@ -158,7 +158,9 @@ export class DungeonMechanicSystem {
     const idx = minions.indexOf(victim)
     if (idx >= 0) minions.splice(idx, 1)
     const evoSys = this._scene.scene?.get?.('Game')?.minionEvolutionSystem ?? this._scene.minionEvolutionSystem
-    if (evoSys?._evolve) evoSys._evolve(target)
+    // Free tier advance (renamed from _evolve → _advanceTier 2026-05-29 when
+    // the kill-evolve system became the gold-gated upgrade path).
+    if (evoSys?._advanceTier) evoSys._advanceTier(target)
     f.crucibleUsed = true
     EventBus.emit('CRUCIBLE_SACRIFICED', { victimId, targetId })
     return { ok: true }

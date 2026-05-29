@@ -1404,10 +1404,9 @@ export class MinionAISystem {
         // never player-built, so they're never in the pay-to-revive pool.
         m.timesKilledAndRespawned = (m.timesKilledAndRespawned ?? 0) + 1
         EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
-        // Revives as a fresh level-1 instance (lost its XP on death). Evolution
-        // was already reverted at night start by applyResets.
-        m.level = 1
-        m.xp    = 0
+        // Tier upgrades PERSIST through death (2026-05-29) — _dawnRefresh
+        // rescales from the minion's upgraded base, so it returns at the tier
+        // the player paid for. No XP/level reset (the kill-XP system was removed).
       }
       this._dawnRefresh(m, bossLv, day)
     }
@@ -1460,11 +1459,11 @@ export class MinionAISystem {
 
   // Pay-to-revive (2026-05-28): bring every currently-fallen revivable minion
   // back to life. Gold is charged by the caller (Game._onReviveFallenRequest)
-  // BEFORE this runs — this method only performs the revive transform, which
-  // reproduces the old free dawn-revive exactly: reset to level 1 (it died,
-  // so it loses earned XP; evolution was already reverted by
-  // MinionEvolutionSystem.applyResets at night start), then the shared dawn
-  // refresh full-heals + returns it home. The polling MinionRenderer recreates
+  // BEFORE this runs — this method only performs the revive transform: the
+  // shared dawn refresh rescales the minion from its (possibly upgraded) base,
+  // full-heals it, and returns it home. Tier upgrades persist through death
+  // (2026-05-29), so a revived minion comes back at its paid tier. The polling
+  // MinionRenderer recreates
   // the sprite next frame. Permanent-death specials are excluded via
   // fallenRevivable's shared predicate, so they're never touched. Returns the
   // number revived.
@@ -1484,10 +1483,9 @@ export class MinionAISystem {
       // Track times-killed-and-respawned for vengeful_wraith evolution.
       m.timesKilledAndRespawned = (m.timesKilledAndRespawned ?? 0) + 1
       EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
-      // A revived minion returns as a fresh level-1 recruit (lost its XP on
-      // death). Evolution was already reverted at night start by applyResets.
-      m.level = 1
-      m.xp    = 0
+      // A paid revive returns the minion at its UPGRADED tier (2026-05-29) —
+      // _dawnRefresh rescales from its upgraded base. No XP/level reset (the
+      // kill-XP system was removed).
       this._dawnRefresh(m, bossLv, day)
     }
     EventBus.emit('MINIONS_REVIVED', { count: fallen.length })

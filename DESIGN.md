@@ -156,6 +156,8 @@ I want different adventures to enter the dungeon with different goals, for examp
 
 Whenever an adventurer dies in a dungeon I want to be able to equip their gear they dropped to minions and monsters in my dungeon. Minions and monsters that kill an adventurer should gain experience and level up so that they become stronger and harder to kill.
 
+(deviation noted 2026-05-29: the kill-XP / auto-level system was replaced — minions no longer gain XP or level from kills. Power now comes from **boss-level scaling** (their level always equals the boss's) plus a **player-paid, gold-gated tier upgrade** (night-phase UPGRADE tool). Upgrades persist through death/revive. Higher tiers are strictly stronger. This makes powering up a deliberate gold sink the player chooses, instead of automatic.)
+
 ---
 
 ## Dungeon expansion
@@ -272,6 +274,8 @@ The game should have a lot of Risk vs. Reward elements. For example: I can choos
 ## Evolution Trees
 
 When a Minion levels up, I don't want to only just give them stats. I want them to evolve based on how they killed the adventurer.
+
+(deviation noted 2026-05-29: kill-themed evolutions are **kept as flavour only** — they grant the themed rename + ability shown below, but their raw stat deltas were stripped so they no longer add power. Power comes from boss-level scaling + the gold-gated TIER upgrade instead. The chain-tier advance (e.g. goblin1→goblin2→goblin3) is no longer automatic-on-kills; it's the player-paid UPGRADE. The kill-themed specializations below still trigger and rename/buff-with-ability.)
 
 - Killed by Poison? Evolution: **Plague Bringer** (Aura damage).
 - Killed by Backstab? Evolution: **Shadow Stalker** (Invisibility).
@@ -1259,3 +1263,22 @@ When the duel resolves, the post-wave summary is **held back** until a short scr
 7. **Reclaimed by defeat (2026-05-28):** the mark isn't permanent. If the Solo Leveling event **recurs later in the same run** and this time the boss **kills Jinwoo**, it breaks free of his claim — the shadow-flame + blue tint **drop the instant he dies** (with the Monarch slain, his hold on the boss breaks), so the boss renders normally for the rest of the run. Persisted (cleared once, stays cleared across save/load).
 
 **Recurrence (2026-05-28).** Solo Leveling rolls **organically** in the natural event rotation (no longer dev-trigger-only). It uses the normal shuffle-bag cadence — fires once, then the roster has to cycle before it repeats — **except** when the **boss dies to it** (Jinwoo wins the duel and the boss loses a life). In that case the event is **thrown back into the pool**: it isn't marked spent, so it stays eligible and can recur **without waiting for the whole roster to cycle** (a defeated boss invites the Monarch back). If Jinwoo *loses* (the boss survives), it's marked spent like any other event and must wait its turn.
+
+---
+
+## Treasure Raid — recurring 10-day wealth raid (2026-05-29)
+
+The original one-off **Treasure Hunters** dungeon event is promoted to a **recurring, scheduled Treasure Raid** with its own cadence, separate from the normal dungeon-event rotation. The design goal is an **anti-hoarding pressure valve**: the fatter your liquid treasury, the more a raid bleeds you — so sitting on a pile of gold becomes genuinely dangerous, and the smart play is to spend it down into defenses (which then protect you) before each raid.
+
+1. **Own track, every 10 days.** A dedicated scheduler fires the raid on **day 10, 20, 30, …** — completely independent of the regular ~3-day dungeon-event rotation, so the raid never crowds the random event variety. **Treasure Hunters is removed from the random event pool** entirely; it now happens *only* as the scheduled raid.
+2. **No grace period.** The first raid lands on day 10 regardless of wealth. The raid always happens on the beat — gold only changes *how much it hurts*, not whether it occurs.
+3. **The wave is a normal day.** The raiding party is **that day's normal-size adventurer wave plus any modifiers the player has active** (pact/event wave-size changes such as the Cursed Relic doubling) — all of them arrive as treasure hunters who ignore the throne and rush the hoard. No gold-scaled party size.
+4. **Collision rule.** When a raid day coincides with a regular dungeon-event day (every 30 days), the **raid takes priority and the regular event is skipped** for that day; the normal event cadence resumes afterward.
+5. **They steal liquid gold (not just chests).** Raiders skim your **liquid treasury** — chests are now only a *bonus* visual target (looting a chest has no separate gold or income consequence; chest income is paid per-tier at night regardless). Each raider that **escapes the dungeon** carries off a share of your gold; raiders **killed before they escape steal nothing**.
+6. **Severity scales with wealth, capped at an 80% loss.** The total a raid can take is **up to 80% of the treasury it found** at day-start — the player always keeps **at least 20%**. The loss is split into equal per-raider shares (`0.80 × start-treasury ÷ party-size`), so:
+   - whole wave escapes → you lose the full **80%** (left with 20%);
+   - kill half → you lose **~40%**;
+   - kill them all → they leave **empty-handed**.
+
+   This makes a fat treasury terrifying on a bad-defense day while still rewarding the player who spent gold on defense. *(Tunable: 10-day interval + 80% cap are the two balance knobs.)*
+7. **Telegraphed + sell-locked.** The raid is announced the **night before** via the normal event banner so the player can spend down / reinforce, and **treasure chests can't be sold** on the raid night (so you can't dodge it by liquidating).

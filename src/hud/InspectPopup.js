@@ -240,7 +240,9 @@ export class InspectPopup {
       ['TIER', this._minionTier(m)],
       ['HP',   `${hp}/${maxHp}`],
       ['ATK',  m.stats?.attack ?? '?'],
-      ['LV',   m.level ?? 1],
+      // Minions scale to the BOSS level (m.bossLevel); the per-minion XP level
+      // was removed 2026-05-29.
+      ['LV',   m.bossLevel ?? 1],
     ]
     const def = this._minionDef(m)
     // Converted thralls share the vampire_minion1 def but roam in the open

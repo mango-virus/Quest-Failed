@@ -10,6 +10,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { PALETTE, glowPanel } from './UIKit.js'
+import { tierOf } from '../util/minionRevive.js'
 
 const PANEL_W = 280
 const PANEL_H = 360
@@ -125,8 +126,10 @@ export class MinionInspector {
     })
     this._objects.push(editBtn)
 
+    const chains = this._scene.cache.json.get('minionEvolutions') ?? {}
+    const tier   = tierOf(minion, chains)
     const subtitle = this._scene.add.text(px + 14, py + 28,
-      `${def?.name ?? minion.definitionId}  ·  Level ${minion.level ?? 1}` +
+      `${def?.name ?? minion.definitionId}  ·  T${tier} · Level ${minion.bossLevel ?? 1}` +
       (minion.hasBounty ? '   ★ BOUNTY' : ''), {
         fontSize: '9px', color: minion.hasBounty ? PALETTE.textGold : PALETTE.textDim,
         fontFamily: 'monospace',
@@ -147,7 +150,6 @@ export class MinionInspector {
       `Defense   ${minion.stats.defense}`,
       `Speed     ${minion.stats.speed?.toFixed(1) ?? '1.0'}`,
       ``,
-      `XP        ${minion.xp ?? 0} / ${this._xpForNextLevel(minion)}`,
       `Kills     ${minion.bountyKillCount ?? 0}`,
       `Faction   ${minion.faction ?? 'dungeon'}`,
     ]
@@ -176,12 +178,5 @@ export class MinionInspector {
       yCursor += 4
     }
 
-  }
-
-  _xpForNextLevel(minion) {
-    const lv = minion.level ?? 1
-    return Math.floor(
-      (this._scene._evolutionSystem?.xpForLevel?.(lv + 1)) ?? 25
-    )
   }
 }

@@ -1,37 +1,18 @@
-// Phase 7 — minion progression system.
-//   • Awards XP on COMBAT_KILL (when killer is a minion)
-//   • Levels minions up at curve thresholds (small stat bumps)
-//   • Checks evolutionPaths from minionTypes.json against killHistory
-//     and applies stat deltas + new abilities + name change on trigger
-//   • Generates first-level-up names from the minion's most-frequent kill type
-//   • Marks minions with `hasBounty=true` once their kill count crosses the bounty threshold
+// Minion specialization + bounty + adventurer-XP system.
 //
-// Underdog 2× XP for adventurer kills lands in Phase 7b alongside adventurer
-// XP/leveling — minions are the focus here.
+// Minion kill-XP / leveling was REMOVED 2026-05-29 — minion power now comes from
+// boss-level scaling (Minion.applyMinionScaling) plus gold-paid tier upgrades
+// (MinionEvolutionSystem.upgrade). This system now only:
+//   • Triggers evolutionPath specializations from minionTypes.json against
+//     killHistory — granting a kill-themed NAME + ABILITY only (stat deltas
+//     stripped, so no raw power) — see _applyEvolution.
+//   • Marks minions with `hasBounty=true` once their kill count crosses the
+//     bounty threshold (drives the Bounty-Hunter event + ★ badge).
+//   • Awards ADVENTURER XP when an adventurer kills a minion (Phase 7b, underdog
+//     2× + Believer's-Boost combo) — unaffected by the minion-XP removal.
 
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
-
-const NAME_PREFIXES = [
-  'Grumbolt', 'Skarn', 'Vex', 'Mortis', 'Drath', 'Karth',
-  'Ossifer', 'Bonewright', 'Crag', 'Hoarfang', 'Yoth', 'Velkar',
-  'Nyx', 'Rust', 'Brackish', 'Sallow', 'Kael', 'Thorn',
-]
-
-const SUFFIX_BY_CLASS = {
-  knight:          'the Knight-Slayer',
-  mage:            'the Mage-Eater',
-  cleric:          'the Faithbreaker',
-  rogue:           'the Shadow-Snuffer',
-  necromancer:     'the Soul-Crusher',
-  ranger:          'the Arrow-Catcher',
-  twitch_streamer: 'the Clip-Maker',
-}
-
-const SUFFIX_GENERIC = [
-  'the Unyielding', 'the Patient', 'the Wretched', 'the Stalwart',
-  'the Hollow', 'the Ever-Standing', 'the Bone-Whittler', 'the Marrowless',
-]
 
 export class EvolutionSystem {
   constructor(scene, gameState) {
@@ -61,14 +42,6 @@ export class EvolutionSystem {
     const defs = this._scene.cache.json.get('minionTypes') ?? []
     this._defs = Object.fromEntries(defs.map(d => [d.id, d]))
     this._loaded = true
-  }
-
-  // XP needed to reach a given level (lv 1 = 0, lv 2 = base, lv 3 = base * scale, ...)
-  xpForLevel(level) {
-    if (level <= 1) return 0
-    return Math.floor(
-      Balance.MINION_XP_LEVEL_BASE * Math.pow(Balance.MINION_XP_LEVEL_SCALE, level - 2)
-    )
   }
 
   // ── Event handler ─────────────────────────────────────────────────────────
@@ -104,7 +77,11 @@ export class EvolutionSystem {
       return
     }
 
-    // Minion kills of adventurers grant minion XP
+    // Minion kills no longer grant XP / levels (kill-XP removed 2026-05-29 —
+    // minion power now comes from boss-level scaling + gold-paid tier upgrades).
+    // Kills still trigger the kill-themed evolutionPath specializations (names +
+    // abilities, with stat deltas stripped — see _applyEvolution) and the
+    // bounty/★ danger flag for the Bounty-Hunter event.
     const minion = this._gameState.minions.find(m => m.instanceId === sourceId)
     if (!minion) return
     if (minion.faction === 'adventurer') return
@@ -112,11 +89,6 @@ export class EvolutionSystem {
     const victim = this._gameState.adventurers.graveyard.find(a => a.instanceId === targetId) ??
                    this._gameState.adventurers.active.find(a => a.instanceId === targetId)
     if (!victim) return
-
-    const arch  = this._gameState.player?.archetypeModifiers
-    const xpMul = arch?.minionXpMultiplier ?? 1
-    const xp    = Math.round(Balance.MINION_XP_PER_KILL * xpMul)
-    this._awardXp(minion, xp, victim)
     this._checkEvolutions(minion, { damageType, method })
     this._checkBounty(minion)
   }
@@ -134,37 +106,6 @@ export class EvolutionSystem {
       // the UI reflects the +3 ATK / +5 HP they just gained.
       if (adv.displayLevel != null) adv.displayLevel += 1
       EventBus.emit('ADVENTURER_LEVELED_UP', { adventurer: adv, newLevel: adv.level })
-    }
-  }
-
-  // ── XP / Level-ups ────────────────────────────────────────────────────────
-
-  _awardXp(minion, amount, victim) {
-    minion.xp = (minion.xp ?? 0) + amount
-    let levelsGained = 0
-
-    // Loop in case multiple level-ups happen (high XP spike)
-    while (minion.xp >= this.xpForLevel((minion.level ?? 1) + 1)) {
-      minion.level = (minion.level ?? 1) + 1
-      this._applyLevelStats(minion)
-      levelsGained++
-      EventBus.emit('MINION_LEVELED_UP', { minion })
-
-      // First level-up auto-generates a name based on kill history
-      if (minion.level === 2 && !minion.name) {
-        minion.name = this._generateName(minion)
-        EventBus.emit('MINION_NAMED', { minion })
-      }
-    }
-    return levelsGained
-  }
-
-  _applyLevelStats(minion) {
-    minion.stats.attack  = (minion.stats.attack  ?? 0) + Balance.MINION_LEVEL_ATTACK_BONUS
-    minion.resources.maxHp = (minion.resources.maxHp ?? 0) + Balance.MINION_LEVEL_HP_BONUS
-    minion.resources.hp    = Math.min(minion.resources.maxHp, minion.resources.hp + Balance.MINION_LEVEL_HP_BONUS)
-    if (minion.level % 2 === 0) {
-      minion.stats.defense = (minion.stats.defense ?? 0) + Balance.MINION_LEVEL_DEFENSE_BONUS
     }
   }
 
@@ -214,15 +155,9 @@ export class EvolutionSystem {
   }
 
   _applyEvolution(minion, path) {
-    const deltas = path.statDeltas ?? {}
-    if (deltas.attack)  minion.stats.attack  = (minion.stats.attack  ?? 0) + deltas.attack
-    if (deltas.defense) minion.stats.defense = (minion.stats.defense ?? 0) + deltas.defense
-    if (deltas.hp) {
-      minion.resources.maxHp = (minion.resources.maxHp ?? 0) + deltas.hp
-      minion.resources.hp    = Math.min(minion.resources.maxHp, minion.resources.hp + deltas.hp)
-    }
-    if (deltas.speed) minion.stats.speed = (minion.stats.speed ?? 1) + deltas.speed
-
+    // Stat deltas stripped 2026-05-29: evolutionPath specializations now grant
+    // only the kill-themed NAME + ABILITY (flavor / utility), never raw stats.
+    // Minion power comes solely from boss-level scaling + gold tier upgrades.
     if (path.newAbility) {
       minion.stats.abilities ??= []
       if (!minion.stats.abilities.includes(path.newAbility)) {
@@ -250,23 +185,5 @@ export class EvolutionSystem {
       minion.hasBounty = true
       EventBus.emit('MINION_BOUNTY_POSTED', { minion })
     }
-  }
-
-  // ── Name generation ───────────────────────────────────────────────────────
-
-  _generateName(minion) {
-    const prefix = NAME_PREFIXES[Math.floor(Math.random() * NAME_PREFIXES.length)]
-    // Find the most-killed adventurer class
-    const counts = {}
-    for (const k of minion.killHistory ?? []) {
-      counts[k.targetClass] = (counts[k.targetClass] ?? 0) + 1
-    }
-    let topClass = null, topCount = 0
-    for (const [cls, count] of Object.entries(counts)) {
-      if (count > topCount) { topClass = cls; topCount = count }
-    }
-    const suffix = (topClass && SUFFIX_BY_CLASS[topClass]) ??
-                   SUFFIX_GENERIC[Math.floor(Math.random() * SUFFIX_GENERIC.length)]
-    return `${prefix} ${suffix}`
   }
 }

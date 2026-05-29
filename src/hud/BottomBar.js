@@ -54,9 +54,10 @@ export class BottomBar {
   _build() {
     this._refs = {}
     const modes = [
-      { id: 'place', label: 'PLACE', icon: '➕' /* + */ },
-      { id: 'move',  label: 'MOVE',  icon: '⤷' /* ⤷ */ },
-      { id: 'sell',  label: 'SELL',  icon: '␡' /* ⌫ */ },
+      { id: 'place',   label: 'PLACE',   icon: '➕' /* + */ },
+      { id: 'move',    label: 'MOVE',    icon: '⤷' /* ⤷ */ },
+      { id: 'upgrade', label: 'UPGRADE', icon: '⬆' /* tier up */ },
+      { id: 'sell',    label: 'SELL',    icon: '␡' /* ⌫ */ },
     ]
 
     const root = h('div', { className: 'qf-bottombar' }, [
@@ -179,13 +180,15 @@ export class BottomBar {
     if (mode === 'place') {
       // Disarm whichever tool is armed by emitting its toggle event again.
       // NightPhase's _setToolMode treats same-mode click as cancel.
-      if (this._armedTool === 'move')  EventBus.emit('TOOL_MOVE')
-      else if (this._armedTool === 'sell') EventBus.emit('TOOL_SELL')
+      if (this._armedTool === 'move')         EventBus.emit('TOOL_MOVE')
+      else if (this._armedTool === 'sell')    EventBus.emit('TOOL_SELL')
+      else if (this._armedTool === 'upgrade') EventBus.emit('TOOL_UPGRADE')
       // If nothing armed, PLACE is already the resting state — no-op.
       return
     }
-    if (mode === 'move') EventBus.emit('TOOL_MOVE')
-    if (mode === 'sell') EventBus.emit('TOOL_SELL')
+    if (mode === 'move')    EventBus.emit('TOOL_MOVE')
+    if (mode === 'sell')    EventBus.emit('TOOL_SELL')
+    if (mode === 'upgrade') EventBus.emit('TOOL_UPGRADE')
   }
 
   _onSpeedClick(scale) {
@@ -310,10 +313,10 @@ export class BottomBar {
   }
 
   _setArmedMode(mode) {
-    // mode is one of 'place' | 'move' | 'sell'. 'place' means no Phaser
-    // tool armed (default state).
+    // mode is one of 'place' | 'move' | 'upgrade' | 'sell'. 'place' means no
+    // Phaser tool armed (default state).
     const active = mode || 'place'
-    for (const k of ['place', 'move', 'sell']) {
+    for (const k of ['place', 'move', 'upgrade', 'sell']) {
       const el = this._refs[`mode_${k}`]
       if (!el) continue
       el.classList.toggle('active', k === active)

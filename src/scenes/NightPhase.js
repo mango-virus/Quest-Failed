@@ -14,6 +14,7 @@ import { getRotatedDef } from '../util/roomRotation.js'
 import { pickWeightedClass } from '../util/classSpawn.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
+import { upgradeCost, nextTierInfo } from '../util/minionRevive.js'
 
 const TS         = Balance.TILE_SIZE
 const PANEL_W    = 230
@@ -650,8 +651,9 @@ export class NightPhase extends Phaser.Scene {
     on('PHASE_TOGGLE_REQUEST', () => {
       if (this._gameState.meta?.phase === 'night') this._beginDay()
     })
-    on('TOOL_MOVE',   () => this._setToolMode('move', 'tool_move_btn'))
-    on('TOOL_SELL',   () => this._setToolMode('sell', 'tool_sell_btn'))
+    on('TOOL_MOVE',    () => this._setToolMode('move', 'tool_move_btn'))
+    on('TOOL_SELL',    () => this._setToolMode('sell', 'tool_sell_btn'))
+    on('TOOL_UPGRADE', () => this._setToolMode('upgrade', 'tool_upgrade_btn'))
     // Phase 31D — any other action-bar button click also disarms a sticky
     // tool. The button's own effect still fires (whichever scene listens
     // for the OPEN_* / TIME_SCALE_SET event); we just make sure MOVE / SELL
@@ -1534,7 +1536,7 @@ export class NightPhase extends Phaser.Scene {
         if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
         return Math.hypot(wp.x - m.worldX, wp.y - m.worldY) <= minionHitR
       })
-      const minionTargetingMode = this._crucibleMode || this._toolMode === 'sell'
+      const minionTargetingMode = this._crucibleMode || this._toolMode === 'sell' || this._toolMode === 'upgrade'
       if (overMinion && !minionTargetingMode) return
 
       if (p.rightButtonDown()) {
@@ -1606,6 +1608,12 @@ export class NightPhase extends Phaser.Scene {
         const ty = Math.floor(wp.y / TS)
         if (this._toolMode === 'sell') {
           this._executeSellAt(tx, ty)
+          return
+        }
+        if (this._toolMode === 'upgrade') {
+          // Upgrade is sticky like SELL — stays armed so the player can
+          // upgrade several minions in a row. Each click opens a confirm.
+          this._executeUpgradeAt(tx, ty)
           return
         }
         if (this._toolMode === 'move') {
@@ -2953,6 +2961,103 @@ export class NightPhase extends Phaser.Scene {
   // The tool is STICKY — it stays armed after each sale (like MOVE); the
   // player exits via the SELL button, ESC, another tool, or a build slot.
   // Boss chamber + fixed rooms are immune.
+  // UPGRADE tool — click a minion to pay gold and advance it one tier. Shows a
+  // confirm popup with a before→after stat preview. Gold is charged here (the
+  // single charge site for upgrades) before MinionEvolutionSystem.upgrade()
+  // performs the persistent tier advance.
+  _executeUpgradeAt(tx, ty) {
+    if (this._gameState.meta?.phase !== 'night') return
+    // A locked night seals the dungeon — no upgrading, same as build/sell.
+    if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
+      this._showPlacementError('The Insomniac — the dungeon is sealed tonight')
+      return
+    }
+
+    const minion = (this._gameState.minions ?? []).find(m =>
+      m.aiState !== 'dead' && m.tileX === tx && m.tileY === ty
+    )
+    if (!minion) { this._showPlacementError('Click a minion to upgrade'); return }
+
+    const game = this.scene.get('Game')
+    const evo  = game?.minionEvolutionSystem
+    if (!evo) return
+
+    const label = minionLabel(minion.definitionId) ?? 'minion'
+    if (!evo.canUpgrade(minion)) {
+      if ((this._gameState._mechanicFlags ?? {}).theUnteachable) {
+        this._showPlacementError('The Unteachable — your minions cannot be upgraded')
+      } else if (evo.tierOf(minion) >= evo.maxTierOf(minion)) {
+        this._showPlacementError(`${label} is already at its highest tier`)
+      } else {
+        this._showPlacementError(`${label} can't be upgraded`)
+      }
+      return
+    }
+
+    const minionDefs = this.cache.json.get('minionTypes') ?? []
+    const chains     = this.cache.json.get('minionEvolutions') ?? {}
+    const info = nextTierInfo(minion, minionDefs, chains)
+    const cost = upgradeCost(this._gameState, minion, minionDefs, chains)
+    if (!info || cost <= 0) { this._showPlacementError(`${label} can't be upgraded`); return }
+
+    const have = this._gameState.player?.gold ?? 0
+    if (!Balance.DEV_INFINITE_GOLD && have < cost) {
+      this._showPlacementError(`Need ${cost}g to upgrade ${label} (you have ${have}g)`)
+      return
+    }
+
+    // Predicted scaled stats: apply the minion's CURRENT effective multiplier
+    // (its live stat ÷ its scaling base) to the next tier's base — the same
+    // maths applyMinionScaling will run after the upgrade re-bases.
+    const nextDef = info.nextDef
+    const hpMul   = minion._baseMaxHp ? (minion.resources.maxHp / minion._baseMaxHp) : 1
+    const atkMul  = minion._baseAtk   ? (minion.stats.attack    / minion._baseAtk)   : 1
+    let nHp  = Math.round((nextDef?.baseStats?.hp     ?? minion.resources.maxHp) * hpMul)
+    let nAtk = Math.round((nextDef?.baseStats?.attack ?? minion.stats.attack)    * atkMul)
+    if (info.isFinalNext) {
+      nHp  = Math.round(nHp  * (Balance.MINIBOSS_HP_MULT     ?? 1))
+      nAtk = Math.round(nAtk * (Balance.MINIBOSS_ATTACK_MULT ?? 1))
+    }
+    const nextName = (nextDef?.name ?? info.nextId ?? 'next tier').toUpperCase()
+    const curHp = minion.resources.maxHp, curAtk = minion.stats.attack
+    const finalTag = info.isFinalNext ? '   ★ MINI-BOSS' : ''
+    const message =
+      `Upgrade ${label.toUpperCase()} → ${nextName}?\n` +
+      `Tier ${info.currentTier}  →  Tier ${info.nextTier}${finalTag}\n\n` +
+      `HP    ${curHp}  →  ${nHp}\n` +
+      `ATK   ${curAtk}  →  ${nAtk}\n\n` +
+      `Cost: ${cost} gold`
+
+    EventBus.emit('SHOW_CONFIRM', {
+      message,
+      confirmLabel: 'UPGRADE',
+      cancelLabel:  'CANCEL',
+      theme:        'gold',
+      onConfirm: () => {
+        const gs = this._gameState
+        const liveHave = gs.player?.gold ?? 0
+        if (!Balance.DEV_INFINITE_GOLD && liveHave < cost) {
+          EventBus.emit('SHOW_TOAST', { message: 'Not enough gold', type: 'error' })
+          return
+        }
+        if (!Balance.DEV_INFINITE_GOLD) gs.player.gold = liveHave - cost
+        // upgrade() advances the tier + re-bases scaling; it also emits
+        // MINION_EVOLVED (→ evolve SFX) and MINIBOSS_PROMOTED on the final tier.
+        const ok = evo.upgrade(minion)
+        if (!ok) {
+          if (!Balance.DEV_INFINITE_GOLD) gs.player.gold = liveHave   // refund
+          return
+        }
+        // No ENTITY_SOLD here — that animates a shatter/removal. The upgrade's
+        // feedback is the evolve SFX (auto-fired by MINION_EVOLVED inside
+        // upgrade()), the success toast, and the gold counter dropping.
+        EventBus.emit('SHOW_TOAST', { message: `Upgraded to ${nextName}!`, type: 'success' })
+        this._refreshStats()
+      },
+      onCancel: () => {},
+    })
+  }
+
   _executeSellAt(tx, ty) {
     // Selling is a build-phase action only — never during the day.
     if (this._gameState.meta?.phase !== 'night') return

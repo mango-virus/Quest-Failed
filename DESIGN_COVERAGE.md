@@ -529,10 +529,18 @@ Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Fa
 
 ## 21. Minion meta
 
+> **🔄 PROGRESSION OVERHAUL — 2026-05-29.** The kill-driven minion progression was replaced with a gold-gated one (user-directed):
+> - **Minion kill-XP / per-minion levels REMOVED.** `EvolutionSystem` no longer awards minion XP or applies level stats (adventurer XP in Phase 7b is untouched).
+> - **Auto kill-evolution REMOVED.** Minions no longer mutate up their chain after 2 kills. `MinionEvolutionSystem` now exposes `upgrade(minion)` — a **player-paid, gold-gated tier advance** (night-phase UPGRADE tool, left of SELL). Cost = chain-root build cost × `MINION_UPGRADE_TIER_MULT[tier]` × `buildScaleMul` (escalates per tier + scales with the run).
+> - **Upgrades PERSIST through death.** `upgrade()` re-bases `_baseMaxHp`/`_baseAtk` to the new tier, so a revived minion returns at its paid tier (no chain[0] reset; `applyResets` removed).
+> - **Day-scaling REMOVED.** Minions scale by **boss level only** (`MINION_*_PER_DAY = 0`); their displayed LV = boss level.
+> - **`evolutionPaths` kept as flavour only** — name + ability, stat deltas stripped (no raw power).
+
 | Item | Phase | Status |
 |---|---|---|
-| Minion naming on first level-up | 7 | ✅ DONE — auto-generated name like "Grumbolt the Mage-Slayer" from kill history |
+| Minion naming | 7 → reworked 2026-05-29 | ✅ DONE — names now come from `evolutionPath` specializations (kill-themed rename + ability) instead of the removed level-up auto-name; players can also rename manually |
 | Player can rename minions | QW | ✅ DONE | MinionInspector ✎ icon next to name opens window.prompt; sets minion.name + emits MINION_NAMED |
+| Gold-gated tier upgrades | — 2026-05-29 | ✅ DONE — UPGRADE tool → confirm popup (before→after preview) → `MinionEvolutionSystem.upgrade`; colour-coded glow ring marks upgradeable minions; TIER badge above sprite + in roster/inspector |
 | Bounty status flag | 7 | ✅ DONE — `minion.hasBounty` set at BOUNTY_KILL_THRESHOLD kills |
 | Per-minion kill history | 6 | ✅ DONE — populated by CombatSystem on kill events |
 
@@ -800,6 +808,7 @@ Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Fa
 | event-mercenary-contract | Mercenary Contract — night modal; pay 120g to hire a Tier-3 minion (doubled stats) for 3 days; permadeath if killed | EV | ✅ DONE | minBossLevel 2. `_mercenary` tag; stats + `_base*` doubled; contract expiry culled by EventSystem; dead mercenaries filtered out in `respawnAll` (no revive). |
 | event-cursed-relic | Cursed Relic — night modal CLAIM/BANISH; CLAIM drops a cursed Tier-5 chest (gold/day) that DOUBLES every wave (with a daily toast) until sold | EV | ✅ DONE | minBossLevel 1. Reuses treasure-chest entity; `_cursed` flag → purple-black glow in TreasureChestRenderer + wave-double in DayPhase. |
 | event-saboteur | The Saboteur — lone invulnerable all-black ninja-rogue replaces the wave; tours every trap disabling it (re-arms overnight), then flees | EV | ✅ DONE | minBossLevel 2. New `DISARM_TRAP` goal; minions ignore `_saboteur`; traps can't damage `_invulnerable`. Dark-tinted rogue sprite. |
+| event-treasure-raid | **Treasure Raid (2026-05-29)** — `treasure_hunters` promoted from a one-off pool event to a recurring raid on its **own 10-day track** (days 10/20/30…), independent of the ~3-day rotation and **removed from the random shuffle bag** (`_eventPrecondMet` → false). The day's **normal-size wave + active modifiers** all arrive as treasure hunters. Raiders steal **liquid gold** (choice B): each escapee carries off a share of `0.80 × day-start treasury ÷ party-size`, **capped at 80% loss / 20% floor**; killed raiders steal nothing (whole wave escapes = 80%, half = ~40%, all killed = 0). Collision: raid **preempts** a regular event due that day. Chest-rush is now pure visual flavor (chest income is `opened`-independent + resets nightly). | EV | ✅ DONE | EventSystem `nextRaidDay` track + `scheduledIsRaid` reschedule; `_skimTreasureRaider` in `_onAdventurerFled` (mirrors the loot-goblin skim, `treasureRaidStartGold`/`StolenToday`/`PartySize` accumulators). DayPhase stamps `treasureRaidPartySize` as it tags `_treasureHunter`. AISystem `_tryOpenTreasureChest` skips the per-chest gold debit for raiders (+`_raiderLooted` latch → ESCAPE_WITH_LOOT). Night chest-sell-block + announce banner reuse the existing `scheduledId==='treasure_hunters'` paths. 10-day interval + 80% cap are the tunable knobs. |
 
 ---
 

@@ -757,9 +757,9 @@ export class Game extends Phaser.Scene {
     // and before trapSystem.resetAll so traps are at their final coords
     // when state is wiped fresh. (2026-05-27 — symmetric grid expansion.)
     this._applyPendingGridGrowth()
-    // Apply evolution resets BEFORE respawn so the starter def's stats are
-    // in place when respawnAll full-heals dead minions to maxHp.
-    this.minionEvolutionSystem?.applyResets()
+    // Minion tier upgrades now PERSIST through death (2026-05-29) — there's no
+    // evolution reset; respawnAll rescales each minion from its upgraded base,
+    // so a revived minion returns at the tier the player paid for.
     this.minionAiSystem?.respawnAll()
     this.trapSystem?.resetAll()
     // Safety: if the boss fight ended without resolving (all fled etc.),
