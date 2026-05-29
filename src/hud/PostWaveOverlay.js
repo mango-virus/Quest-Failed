@@ -49,6 +49,7 @@ export class PostWaveOverlay {
       width:    1400,
       height:   840,
       accent:   'var(--blood)',
+      frame:    'plain',   // single subtle main-menu-edge border (matches other menus)
       animation: 'unfurl',
       // X / Esc / backdrop dismiss MUST advance the day→night chain just
       // like the CONTINUE TO NIGHT button — route every dismiss path

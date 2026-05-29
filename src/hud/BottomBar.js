@@ -131,7 +131,7 @@ export class BottomBar {
             ]),
           ]),
           // Rebuild broken traps — blue sibling of REVIVE. Shown only at night
-          // when traps have broken (the 1% wear-and-tear). Reuses the revive
+          // when traps have broken (the 5% wear-and-tear). Reuses the revive
           // button's cost/coin/cant-afford styling via the shared classes.
           h('button', {
             className: 'btn qf-bb-menu qf-bb-revive qf-bb-rebuild',

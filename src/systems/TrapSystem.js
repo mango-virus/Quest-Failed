@@ -36,7 +36,7 @@ const ANNOUNCE_GAP_MS = 2000    // throttle TRAP_TRIGGERED so continuous traps d
 // Wear-and-tear: each time a trap FIRES and damages an adventurer it has this
 // chance to break apart. Rolled once per firing (deduped on state.firedAt) so
 // multi-hit traps (saw blade) break at the same rate as single-shot ones.
-const TRAP_BREAK_CHANCE = 0.01
+const TRAP_BREAK_CHANCE = 0.05
 
 export class TrapSystem {
   constructor(scene, gameState, dungeonGrid) {
@@ -45,7 +45,7 @@ export class TrapSystem {
     this._dungeonGrid = dungeonGrid
     this._defs        = {}
     this._loaded      = false
-    // Per-trap last-rolled firing timestamp, so the 1% break roll fires once
+    // Per-trap last-rolled firing timestamp, so the 5% break roll fires once
     // per firing even when a single discharge emits TRAP_TRIGGERED per victim.
     this._breakRolledAt = {}
     this._onTrapTriggeredBreak = this._maybeBreakTrap.bind(this)

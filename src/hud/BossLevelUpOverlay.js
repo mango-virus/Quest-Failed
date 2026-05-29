@@ -46,6 +46,7 @@ export class BossLevelUpOverlay {
       width:   980,
       height:  680,
       accent:  'var(--gold)',
+      frame:   'plain',   // single subtle main-menu-edge border (matches other menus)
       onClose: () => { this._overlay = null; this._cancelCountUp(); EventBus.emit('BOSS_LEVEL_UP_DISMISSED') },
       body,
     })

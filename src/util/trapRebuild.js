@@ -1,6 +1,6 @@
 // Pay-to-rebuild shared helpers for BROKEN traps.
 //
-// Traps have a 1% chance to break after firing on an adventurer (TrapSystem
+// Traps have a 5% chance to break after firing on an adventurer (TrapSystem
 // rolls this once per firing). A broken trap is removed from the live
 // `dungeon.traps` array and a placement snapshot is pushed onto
 // `dungeon._brokenTraps`. A night-phase REBUILD button (BottomBar) brings them

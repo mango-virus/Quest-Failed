@@ -842,7 +842,7 @@ export class Game extends Phaser.Scene {
   }
 
   // Pay-to-rebuild (2026-05-29) — the night-phase REBUILD button. Traps have a
-  // 1% chance to break after firing on an adventurer (TrapSystem removes them
+  // 5% chance to break after firing on an adventurer (TrapSystem removes them
   // and snapshots them onto dungeon._brokenTraps). This charges gold here (the
   // single charge site) at half each trap's current build cost, then restores
   // every broken trap to dungeon.traps at its original tile/facing with fresh

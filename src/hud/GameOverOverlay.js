@@ -48,6 +48,7 @@ export class GameOverOverlay {
       width:    1100,
       height:   860,
       accent:   'var(--blood)',
+      frame:    'plain',   // single subtle main-menu-edge border (matches other menus)
       // No backdrop-click close — this is a terminal screen.
       closeOnBackdrop: false,
       onClose: () => { this._overlay = null; this._cancelCountUp() },
