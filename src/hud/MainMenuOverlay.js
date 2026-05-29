@@ -164,13 +164,7 @@ export class MainMenuOverlay {
     // and recreate the boss-video element without a src.
     this._onNameChanged = () => {
       if (this._closed || !this._el) return
-      // Saves are name-scoped (SaveSystem._saveKey) — switching names switches
-      // save slots, so re-resolve this name's save before refreshing the menu
-      // (CONTINUE enabled-state + SAVE OK/NO SAVE pill read the cached _save).
-      this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
-      this._refreshPlayerName()
-      this._refreshTitlePill()
-      this._refreshMenuItems()
+      this._syncNameDependentUI()
     }
     EventBus.on('NAME_CHANGED', this._onNameChanged)
     // Unlock-celebration overlay firing is now driven by the leaderboard
@@ -289,8 +283,12 @@ export class MainMenuOverlay {
             'YOUR REIGN, MY LORD'),
           h('div', {
             className: 'pix qf-mm-currentboss mm-current-boss',
+            ref: el => { (this._refs ||= {}).bossName = el },
           }, this._currentBossName()),
-          h('div', { className: 'qf-mm-currentsub' }, this._currentBossSub()),
+          h('div', {
+            className: 'qf-mm-currentsub',
+            ref: el => { (this._refs ||= {}).bossSub = el },
+          }, this._currentBossSub()),
         ]),
         h('div', {
           className: 'qf-mm-items',
@@ -329,6 +327,7 @@ export class MainMenuOverlay {
           h('div', { className: 'pix qf-mm-footer' }, [
             h('span', null, 'v 0.1.4'),
             h('span', {
+              ref: el => { (this._refs ||= {}).savePill = el },
               style: { color: this._save ? 'var(--poison)' : 'var(--text-dim)' },
             }, this._save ? 'SAVE OK' : 'NO SAVE'),
             h('span', null, '© BONEMAKER · MMXXVI'),
@@ -340,6 +339,7 @@ export class MainMenuOverlay {
 
   _renderItem(m, i) {
     const dimmed = m.enabled === false
+    let btnEl
     // Hover visuals are pure CSS now — flipping a JS state flag on
     // mouseenter caused the whole item list to re-render, which re-fired
     // each button's `mm-item-in` animation (with its own 500-700ms delay)
@@ -354,7 +354,11 @@ export class MainMenuOverlay {
         opacity: dimmed ? 0.4 : 1,
       },
       disabled: dimmed,
-      on: { click: () => { if (!dimmed) this._activate(m.id) } },
+      ref: el => { btnEl = el },
+      // Gate on the LIVE disabled state, not the render-time `dimmed` closure —
+      // _refreshMenuItems flips el.disabled in place when the active player's
+      // save changes (name switch), so the captured value would go stale.
+      on: { click: () => { if (!btnEl?.disabled) this._activate(m.id) } },
     }, [
       h('span', {
         className: 'pix qf-mm-item-icon',
@@ -643,11 +647,9 @@ export class MainMenuOverlay {
       onConfirm: (n) => {
         PlayerProfile.setName(n)
         this._nameEntry = null
-        this._refreshPlayerName()
-        // Titles are per-name — swapping names swaps the unlocked set, so
-        // re-derive the equipped-title pill for the new identity.
-        this._refreshTitlePill()
-        this._refreshMenuItems()
+        // Names are profiles: titles AND the save slot are per-name, so
+        // re-resolve this name's save + refresh every name-dependent surface.
+        this._syncNameDependentUI()
       },
       onCancel: () => { this._nameEntry = null },
     })
@@ -667,9 +669,7 @@ export class MainMenuOverlay {
       onConfirm: (n) => {
         PlayerProfile.setName(n)
         this._nameEntry = null
-        this._refreshPlayerName()
-        this._refreshTitlePill()
-        this._refreshMenuItems()
+        this._syncNameDependentUI()
         if (typeof after === 'function') after()
       },
       onCancel: () => { this._nameEntry = null },
@@ -878,7 +878,42 @@ export class MainMenuOverlay {
       } else if (mailEl) {
         mailEl.remove()
       }
+      // Save-dependent state — CONTINUE flips enabled/disabled + subtitle when
+      // the active player's save changes (a name switch swaps save slots).
+      // Re-applied in place so we keep the no-full-rebuild guarantee above.
+      const dimmed = m.enabled === false
+      if (el.disabled !== dimmed) {
+        el.disabled = dimmed
+        el.dataset.dimmed = dimmed ? 'true' : 'false'
+        el.style.opacity = dimmed ? '0.4' : '1'
+      }
+      const subEl = el.querySelector(':scope .qf-mm-item-sub')
+      if (subEl && subEl.textContent !== (m.sub ?? '')) subEl.textContent = m.sub ?? ''
     }
+  }
+
+  // Re-apply the chrome that reads `this._save` outside the menu items — the
+  // boss heading + sub and the SAVE OK / NO SAVE footer pill. (The CONTINUE
+  // button's enabled-state + subtitle are synced inside _refreshMenuItems.)
+  _refreshSaveDependentUI() {
+    if (this._refs?.bossName) this._refs.bossName.textContent = this._currentBossName()
+    if (this._refs?.bossSub)  this._refs.bossSub.textContent  = this._currentBossSub()
+    if (this._refs?.savePill) {
+      this._refs.savePill.textContent = this._save ? 'SAVE OK' : 'NO SAVE'
+      this._refs.savePill.style.color = this._save ? 'var(--poison)' : 'var(--text-dim)'
+    }
+  }
+
+  // Single entry point for "the active player name changed": re-resolve the
+  // name's save slot (saves are name-scoped — see SaveSystem._saveKey) then
+  // refresh every name-dependent surface. Called from the NAME_CHANGED event
+  // and the inline NameEntryOverlay confirm paths.
+  _syncNameDependentUI() {
+    this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
+    this._refreshPlayerName()
+    this._refreshTitlePill()
+    this._refreshSaveDependentUI()
+    this._refreshMenuItems()
   }
 
   // ─── Keybinds + actions ────────────────────────────────────────
