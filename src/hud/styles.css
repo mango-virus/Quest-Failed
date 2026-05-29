@@ -11532,19 +11532,8 @@ body {
   padding: 12px;
   display: none;
 }
-/* Match the rest of the achievements overlay's scrollbar styling so
-   the internal scroll doesn't look like a vanilla browser bar. */
-.qf-ach-titlepicker::-webkit-scrollbar { width: 8px; }
-.qf-ach-titlepicker::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--bg-0) 80%, transparent);
-}
-.qf-ach-titlepicker::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--gold) 35%, transparent);
-  border-radius: 2px;
-}
-.qf-ach-titlepicker::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--gold) 55%, transparent);
-}
+/* Scrollbar: inherits the global ::-webkit-scrollbar (the leaderboard look)
+   — no custom override, so every scrollbar reads the same. */
 .qf-ach-titlepicker[data-open="true"] {
   display: block;
   animation: qf-ach-titlepicker-in 160ms ease-out;
@@ -13123,23 +13112,8 @@ body {
    so any stale references in old CSS overrides don't bork. */
 .qf-ach-footer { display: none; }
 
-/* Scrollbar — keep it subtle but visible (default browser scrollbars
-   look out of place in a pix-art UI). Same rules apply to both the
-   legacy `.qf-ach-grid-wrap` and the unified `.qf-ach-view-wrap`. */
-.qf-ach-view-wrap::-webkit-scrollbar,
-.qf-ach-grid-wrap::-webkit-scrollbar {
-  width: 10px;
-}
-.qf-ach-view-wrap::-webkit-scrollbar-track,
-.qf-ach-grid-wrap::-webkit-scrollbar-track {
-  background: var(--bg-0);
-  border-left: 2px solid #000;
-}
-.qf-ach-view-wrap::-webkit-scrollbar-thumb,
-.qf-ach-grid-wrap::-webkit-scrollbar-thumb {
-  background: var(--bg-1);
-  border: 2px solid var(--gold);
-}
+/* Scrollbar: inherits the global ::-webkit-scrollbar (the leaderboard look)
+   — no custom override, so the grid + view scroll the same as everywhere. */
 
 /* ── Achievement leaderboard view ───────────────────────────────────── */
 
