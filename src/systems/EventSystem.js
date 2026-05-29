@@ -137,6 +137,11 @@ export class EventSystem {
     on('MINION_DIED',     (p) => this._onMinionDiedShadowExtraction(p ?? {}))
     on('ADVENTURER_DIED', (p) => this._onShadowMonarchGone(p ?? {}))
     on('ADVENTURER_FLED', (p) => this._onShadowMonarchGone(p ?? {}))
+    // Solo Leveling — the instant Jinwoo steps into the boss room, every
+    // dungeon minion already standing in there is annihilated by his presence
+    // so the throne becomes a strict 1:1 duel. They die outright (NOT raised
+    // as shadows — guarded via the _soloDuelBanished flag below).
+    on('BOSS_FIGHT_INCOMING', (p) => this._onShadowMonarchEnterBossRoom(p ?? {}))
   }
 
   // Dev-only force-fire path used by the mango TEST EVENT picker. Tears
@@ -229,6 +234,9 @@ export class EventSystem {
   _onMinionDiedShadowExtraction({ minion } = {}) {
     if (!(this._gameState._eventFlags ?? {}).soloLevelingActive) return
     if (!minion || minion.faction !== 'dungeon') return
+    // Boss-room minions annihilated by Jinwoo's entry die for good — they are
+    // NOT raised as shadows (keeps the throne-room duel a clean 1:1).
+    if (minion._soloDuelBanished) return
     if (minion._shadowExtracted) return
     // Hard cap — never more than SHADOW_CAP (10) shadows alive at once.
     if (this._countShadows() >= EventSystem.SHADOW_CAP) return
@@ -248,6 +256,44 @@ export class EventSystem {
       if (!minRoom || minRoom !== jinRoom) return
     }
     this._extractShadow(minion, jinwoo)
+  }
+
+  // Solo Leveling — Jinwoo just reached the boss chamber (BOSS_FIGHT_INCOMING).
+  // Annihilate every dungeon minion already in that room so the throne is a
+  // clean 1:1 duel. No-op for any other adventurer / when the event isn't live.
+  _onShadowMonarchEnterBossRoom({ adventurer } = {}) {
+    if (!adventurer?._shadowMonarch) return
+    if (!(this._gameState._eventFlags ?? {}).soloLevelingActive) return
+    this._banishBossRoomMinions(adventurer)
+  }
+
+  // Kill every live dungeon minion sharing Jinwoo's boss room outright. They
+  // die for good (the _soloDuelBanished flag makes the shadow-extraction
+  // listener skip them — no army-raising in the throne), using the standard
+  // death state (hp=0 + aiState='dead' + MINION_DIED) so renderers/respawn
+  // behave normally. The per-minion on-death ability hooks are intentionally
+  // skipped so nothing splits / spawns / spores in the duel chamber.
+  _banishBossRoomMinions(jinwoo) {
+    const grid = this._scene?.dungeonGrid
+    if (!grid?.getRoomAtTile || !jinwoo) return
+    const jinRoom = grid.getRoomAtTile(jinwoo.tileX, jinwoo.tileY)
+    if (!jinRoom || jinRoom.definitionId !== 'boss_chamber') return
+    const scene = this._scene
+    const day   = this._gameState.meta?.dayNumber ?? null
+    for (const m of this._gameState.minions ?? []) {
+      if (!m || m.faction !== 'dungeon') continue
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      const mRoom = grid.getRoomAtTile(m.tileX, m.tileY)
+      if (!mRoom || mRoom.instanceId !== jinRoom.instanceId) continue
+      m._soloDuelBanished = true          // tells the extraction listener: do NOT raise
+      m.resources.hp      = 0
+      m.aiState           = 'dead'
+      m.deathDay          = day
+      m.currentTargetId   = null
+      EventBus.emit('MINION_DIED', { minion: m, killerId: jinwoo.instanceId })
+      // A shadow-blue burst as the Monarch's aura snuffs them out.
+      if (scene) AbilityVfx.pulseRing(scene, m.worldX, m.worldY, { color: 0x2a72e6 })
+    }
   }
 
   // Build a shadow copy of `src` (a fallen dungeon minion) on Jinwoo's
