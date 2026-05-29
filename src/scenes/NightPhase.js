@@ -694,8 +694,10 @@ export class NightPhase extends Phaser.Scene {
       const trace = (new Error('stack').stack ?? '').split('\n').slice(2, 7).join('\n')
       console.warn(`[NightPhase] MOVE mode cleared (source=${source})\n${trace}`)
     }
-    // Selecting a tool cancels any pending placement.
-    if (next) this._cancelSelection()
+    // Selecting a tool cancels any pending placement. Disarming the MOVE tool
+    // mid-carry must also cancel (which rolls the carried trap/item back to its
+    // pickup tile) so a held entity is never left stranded on the cursor tile.
+    if (next || this._heldMoveTrap || this._heldMoveItem) this._cancelSelection()
     EventBus.emit('TOOL_MODE_CHANGED', { mode: next, source })
   }
 
@@ -1509,6 +1511,7 @@ export class NightPhase extends Phaser.Scene {
       if (tx !== this._previewTileX || ty !== this._previewTileY) {
         this._previewTileX = tx
         this._previewTileY = ty
+        this._updateHeldMoveFollow(tx, ty)
         this._drawPreview(tx, ty, cam)
       }
     })
@@ -1690,6 +1693,27 @@ export class NightPhase extends Phaser.Scene {
     })
   }
 
+  // While a trap or movable item is carried via the MOVE tool, glue it to
+  // the cursor tile so it visibly follows the pointer — every renderer
+  // (TrapRenderer / TreasureChestRenderer / PhylacteryRenderer) re-anchors
+  // from these gameState fields each frame. Position is committed on drop and
+  // rolled back to the pickup tile on cancel (see _cancelSelection).
+  _updateHeldMoveFollow(tx, ty) {
+    if (this._heldMoveTrap) {
+      this._heldMoveTrap.tileX = tx
+      this._heldMoveTrap.tileY = ty
+      return
+    }
+    const held = this._heldMoveItem
+    if (!held) return
+    held.data.tileX = tx
+    held.data.tileY = ty
+    if (held.kind === 'phylactery') {
+      held.data.worldX = tx * TS + TS / 2
+      held.data.worldY = ty * TS + TS / 2
+    }
+  }
+
   _drawPreview(tx, ty, _cam) {
     if (!this._selected) return
     const def    = this._selected
@@ -1728,7 +1752,12 @@ export class NightPhase extends Phaser.Scene {
     } else if (this._selectedKind === 'item' && def.id?.startsWith('treasure_chest_')) {
       check = this._validateRoomFloorPlacement(tx, ty)
       const tier = def.tier ?? 1
-      const here = (this._gameState.dungeon.treasureChests ?? []).filter(c => c.tier === tier)
+      // Exclude the chest currently being moved — it's still in the array
+      // (following the cursor), so counting it would falsely read "already
+      // placed" and paint the carry preview red the whole move.
+      const heldChestId = this._heldMoveItem?.kind === 'treasure_chest' ? this._heldMoveItem.data?.instanceId : null
+      const here = (this._gameState.dungeon.treasureChests ?? [])
+        .filter(c => c.tier === tier && c.instanceId !== heldChestId)
       if (check.valid && here.length >= 1) check = { valid: false, reason: `Tier ${tier} already placed` }
       if (!check.valid && check.reason) check.violations = [check.reason]
     } else {
@@ -2416,7 +2445,9 @@ export class NightPhase extends Phaser.Scene {
     // / brand state carries over), gold-neutral, cancel-safe.
     if (this._heldMoveTrap) {
       const trap = this._heldMoveTrap
-      const oldX = trap.tileX, oldY = trap.tileY
+      // The trap followed the cursor, so its current tile is the drop spot —
+      // the ORIGINAL mount cell to recheck lives on _heldMoveTrapOrigin.
+      const origin = this._heldMoveTrapOrigin ?? { tileX: trap.tileX, tileY: trap.tileY }
       const wasWall = trap.placement === 'wall'
       const fp = trap.footprint ?? { w: 1, h: 1 }
       trap.tileX = tx
@@ -2426,8 +2457,9 @@ export class NightPhase extends Phaser.Scene {
       trap.worldY = (ty + fp.h / 2) * TS
       trap.state = {}
       trap.cooldownUntil = 0
-      if (wasWall) this._dungeonGrid.recheckAutoConnect(oldX, oldY)
+      if (wasWall) this._dungeonGrid.recheckAutoConnect(origin.tileX, origin.tileY)
       this._heldMoveTrap = null
+      this._heldMoveTrapOrigin = null
       this._playBuildSfx()
       this._cancelSelection()
       this._refreshStats()
@@ -2517,15 +2549,19 @@ export class NightPhase extends Phaser.Scene {
   }
 
   // True when (tx, ty) is already taken by another placed item with
-  // collision (chest, beacon, fountain, phylactery, trap).
+  // collision (chest, beacon, fountain, phylactery, trap). The item currently
+  // being moved (it follows the cursor and is still in gameState) is excluded
+  // so its own drop tile isn't reported as occupied by itself.
   _isTileOccupiedByItem(tx, ty) {
     const d = this._gameState.dungeon ?? {}
+    const heldChestId = this._heldMoveItem?.kind === 'treasure_chest' ? this._heldMoveItem.data?.instanceId : null
+    const heldPhyl    = this._heldMoveItem?.kind === 'phylactery'
     if ((d.beacons        ?? []).some(b => b.tileX === tx && b.tileY === ty)) return true
     if ((d.fountains      ?? []).some(f => f.tileX === tx && f.tileY === ty)) return true
     if ((d.keyChests      ?? []).some(c => c.tileX === tx && c.tileY === ty)) return true
-    if ((d.treasureChests ?? []).some(c => c.tileX === tx && c.tileY === ty)) return true
+    if ((d.treasureChests ?? []).some(c => c.instanceId !== heldChestId && c.tileX === tx && c.tileY === ty)) return true
     if ((d.traps          ?? []).some(t => t.tileX === tx && t.tileY === ty)) return true
-    if (this._gameState.phylactery && this._gameState.phylactery.tileX === tx && this._gameState.phylactery.tileY === ty) return true
+    if (!heldPhyl && this._gameState.phylactery && this._gameState.phylactery.tileX === tx && this._gameState.phylactery.tileY === ty) return true
     return false
   }
 
@@ -2599,8 +2635,10 @@ export class NightPhase extends Phaser.Scene {
         this._showPlacementError('Place the heart inside a room')
         return
       }
-      if (room.definitionId === 'boss_chamber') {
-        this._showPlacementError('Heart cannot live in the boss chamber')
+      if (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall') {
+        this._showPlacementError(room.definitionId === 'entry_hall'
+          ? 'Heart cannot live in the entry hall'
+          : 'Heart cannot live in the boss chamber')
         return
       }
       // Tile must be an interior floor cell. Walls/void block placement.
@@ -2818,19 +2856,17 @@ export class NightPhase extends Phaser.Scene {
       ? this._heldMoveItem.data.instanceId
       : `treasure_${tier}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     this._gameState.dungeon.treasureChests ??= []
-    // Move-drop spreads the held chest so EVERY field survives the
-    // relocation (instanceId, tier, opened, and flags like `_cursed`
-    // that drive the cursed-relic glow / wave-swell). A fresh placement
-    // builds a clean object.
-    this._gameState.dungeon.treasureChests.push(
-      isMove
-        ? { ...this._heldMoveItem.data, tileX: tx, tileY: ty }
-        : { instanceId: id, tileX: tx, tileY: ty, tier, opened: false }
-    )
-    if (!isMove) {
-      this._lastPlaced = { kind: 'item', entity: 'treasure_chest', goldCost: cost, chestId: id }
-    } else {
+    if (isMove) {
+      // The chest stayed in the array and followed the cursor — just pin it to
+      // the drop tile (no duplicate push) and release the carry. All flags
+      // (instanceId, tier, opened, _cursed, …) are intact since it's the same
+      // object.
+      const chest = this._gameState.dungeon.treasureChests.find(c => c.instanceId === id)
+      if (chest) { chest.tileX = tx; chest.tileY = ty }
       this._heldMoveItem = null
+    } else {
+      this._gameState.dungeon.treasureChests.push({ instanceId: id, tileX: tx, tileY: ty, tier, opened: false })
+      this._lastPlaced = { kind: 'item', entity: 'treasure_chest', goldCost: cost, chestId: id }
     }
     EventBus.emit('TREASURE_CHEST_PLACED', { chestId: id, tier, tileX: tx, tileY: ty })
     try {
@@ -3318,6 +3354,10 @@ export class NightPhase extends Phaser.Scene {
       const tDef = (this.cache.json.get('trapTypes') ?? []).find(d => d.id === trapHit.definitionId)
       if (!tDef) { this._showPlacementError('Trap def missing'); return }
       this._heldMoveTrap = trapHit
+      // Origin tile so the carried trap can be rolled back on cancel and the
+      // wall auto-connect recheck targets the ORIGINAL cell (the trap now
+      // follows the cursor, so trap.tileX is no longer the pickup tile).
+      this._heldMoveTrapOrigin = { tileX: trapHit.tileX, tileY: trapHit.tileY, facing: trapHit.facing }
       this._selected     = tDef
       this._selectedKind = 'trap'
       this._trapFacing   = trapHit.facing
@@ -3332,10 +3372,13 @@ export class NightPhase extends Phaser.Scene {
     if (treasureHit) {
       const chestDef = items.find(it => it.id === `treasure_chest_${treasureHit.tier}`)
       if (!chestDef) { this._showPlacementError('Chest def missing'); return }
-      this._gameState.dungeon.treasureChests = (this._gameState.dungeon.treasureChests ?? [])
-        .filter(c => c.instanceId !== treasureHit.instanceId)
-      EventBus.emit('TREASURE_CHEST_REMOVED', { chest: treasureHit, refund: 0 })
-      this._heldMoveItem = { kind: 'treasure_chest', data: treasureHit }
+      // Keep the chest in the array so its sprite stays drawn and follows the
+      // cursor while carried (TreasureChestRenderer re-anchors from tileX/tileY
+      // each frame). Finalized in place on drop; rolled back on cancel.
+      this._heldMoveItem = {
+        kind: 'treasure_chest', data: treasureHit,
+        origin: { tileX: treasureHit.tileX, tileY: treasureHit.tileY },
+      }
       this._rotation = 0
       this._selectItem(chestDef, 'item')
       this._refreshStats()
@@ -3348,9 +3391,12 @@ export class NightPhase extends Phaser.Scene {
       const heartDef = items.find(it => it.id === 'phylactery_heart')
       if (!heartDef) { this._showPlacementError('Phylactery def missing'); return }
       const phyl = this._gameState.phylactery
-      this._gameState.phylactery = null
-      EventBus.emit('PHYLACTERY_REMOVED', { phylactery: phyl })
-      this._heldMoveItem = { kind: 'phylactery', data: phyl }
+      // Leave it on gameState so PhylacteryRenderer keeps drawing it as it
+      // follows the cursor. Finalized in place on drop; rolled back on cancel.
+      this._heldMoveItem = {
+        kind: 'phylactery', data: phyl,
+        origin: { tileX: phyl.tileX, tileY: phyl.tileY, worldX: phyl.worldX, worldY: phyl.worldY },
+      }
       this._rotation = 0
       this._selectItem(heartDef, 'item')
       this._refreshStats()
@@ -3646,9 +3692,28 @@ export class NightPhase extends Phaser.Scene {
     this._selected = null
     this._selectedKind = null
     this._rotation = 0
-    // A held trap is never removed from the array — clearing the ref just
-    // ends the move; the trap stays wherever it currently sits.
+    // A carried trap / item followed the cursor — cancelling the move rolls it
+    // back to the pickup tile (drops null these refs first, so a *finalized*
+    // move never triggers the rollback). This also guarantees a cancelled item
+    // move never loses the chest/heart.
+    if (this._heldMoveTrap && this._heldMoveTrapOrigin) {
+      this._heldMoveTrap.tileX  = this._heldMoveTrapOrigin.tileX
+      this._heldMoveTrap.tileY  = this._heldMoveTrapOrigin.tileY
+      this._heldMoveTrap.facing = this._heldMoveTrapOrigin.facing
+    }
     this._heldMoveTrap = null
+    this._heldMoveTrapOrigin = null
+    if (this._heldMoveItem?.origin) {
+      const { data, origin, kind } = this._heldMoveItem
+      data.tileX = origin.tileX
+      data.tileY = origin.tileY
+      if (kind === 'phylactery') {
+        data.worldX = origin.worldX
+        data.worldY = origin.worldY
+        this._gameState.phylactery = data   // (never removed, but be explicit)
+      }
+    }
+    this._heldMoveItem = null
     this._paletteCards.forEach(c => this._resetCard(c.cg, c.px, c.py, c.CARD_W, c.CARD_H, c.catColor, false))
     this._clearPreview()
     this._updateGridVisibility()

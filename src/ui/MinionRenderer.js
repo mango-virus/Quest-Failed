@@ -625,11 +625,13 @@ export class MinionRenderer {
       this._showPlacementError("Can't place a minion there")
       return
     }
-    // Boss chamber is off-limits — minions can't be parked on the boss
-    // floor (matches _validateMinionPlacement for fresh placements).
+    // Boss chamber + entry hall are off-limits — minions can't be parked
+    // there (matches _validateMinionPlacement for fresh placements).
     const dropRoom = this._scene.dungeonGrid?.getRoomAtTile?.(tileX, tileY)
-    if (dropRoom?.definitionId === 'boss_chamber') {
-      this._showPlacementError("Can't place a minion in the boss chamber")
+    if (dropRoom?.definitionId === 'boss_chamber' || dropRoom?.definitionId === 'entry_hall') {
+      this._showPlacementError(dropRoom.definitionId === 'entry_hall'
+        ? "Can't place a minion in the entry hall"
+        : "Can't place a minion in the boss chamber")
       return
     }
 
