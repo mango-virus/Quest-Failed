@@ -442,6 +442,7 @@ export class Preload extends Phaser.Scene {
     this.load.audio('sfx-human-hit-3',     'assets/audio/Human_Hit03.wav')
     this.load.audio('sfx-boss-levelup',    'assets/audio/boss level up.wav')
     this.load.audio('sfx-event-notif',     'assets/audio/event notification.mp3')
+    this.load.audio('sfx-event-boss',      'assets/audio/boss event.mp3')
     this.load.audio('sfx-scrub-intel',     'assets/audio/scrub intel.wav')
     this.load.audio('sfx-minion-levelup',  'assets/audio/minion level up or evolve.wav')
 

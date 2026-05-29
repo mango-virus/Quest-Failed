@@ -72,6 +72,7 @@ const SFX_VOLUMES = {
   // ── Notifications / progression ───────────────────────────────────────
   'sfx-boss-levelup':   0.85,   // boss level-up screen — WAV estimate
   'sfx-event-notif':    0.80,   // event notification pop-in — MP3 estimate
+  'sfx-event-boss':     0.80,   // Boss-tier event notification (Solo Leveling) — MP3
   'sfx-scrub-intel':    0.78,   // intel scrubbed via Knowledge Map — WAV estimate
   'sfx-minion-levelup': 0.82,   // minion level-up / evolution — WAV estimate
 }
@@ -391,11 +392,19 @@ export class SfxSystem {
 
   // First dungeon-event notification of the day. EventSystem can announce
   // more than one event in a day; only the first gets the cue.
-  _onEventNotif({ day } = {}) {
+  // Boss-tier events (eventTier:'boss', e.g. Solo Leveling) play a distinct
+  // sting (sfx-event-boss) so they sound as different as they look. Falls
+  // back to the standard cue if the boss-tier asset hasn't loaded (e.g. on
+  // an older save / partial preload).
+  _onEventNotif({ def, day } = {}) {
     const d = day ?? this._gameState?.meta?.dayNumber ?? 0
     if (d === this._lastEventNotifDay) return
     this._lastEventNotifDay = d
-    this._play('sfx-event-notif')
+    const isBoss = def?.eventTier === 'boss'
+    const key = (isBoss && this._scene?.cache?.audio?.exists?.('sfx-event-boss'))
+      ? 'sfx-event-boss'
+      : 'sfx-event-notif'
+    this._play(key)
   }
   _onSell() {
     const now = this._now()

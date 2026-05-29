@@ -1292,6 +1292,7 @@ Some dungeon events are *bigger* than others — they aren't just another themed
 A Boss Event keeps its own `colorTheme` (its identity colour) but gets a **gold overlay layer** stacked on top:
 
 - **Banner:** the kicker line above the title reads **"◆ BOSS EVENT ◆"** in gold (vs. the normal "◆ DUNGEON EVENT ◆"), the four corner L-brackets bump to bigger gold brackets, and the inner panel does a brief **soft shake on slam-in** to sell the moment.
-- **Pill:** a small **"BOSS"** chip is stitched to the top-right corner of the persistent status pill, and the pill carries a slow **ambient gold pulse** so it draws the eye throughout the event.
+- **Pill:** a small **"BOSS"** chip is stitched to the top centre of the persistent status pill, and the pill carries a slow **ambient gold pulse** so it draws the eye throughout the event.
+- **Sound:** Boss Events play a distinct **boss-event sting** (`sfx-event-boss`) on announcement instead of the usual event notification cue — so they sound as different as they look. Falls back to the standard cue if the asset hasn't loaded.
 
 **Solo Leveling** is the first Boss Event. Its shadowmonarch black↔blue sweep stays as its identity; the gold tier overlay is layered on top. Promoting any future event to Boss tier is a one-line JSON change (`eventTier: 'boss'` in `events.json`) — no per-event code.
