@@ -18,6 +18,7 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { ABILITY_DEFS } from '../systems/ClassAbilitySystem.js'
+import { passiveIncomeMul } from '../config/balance.js'
 
 const STAT_LABEL = { attack: 'ATK', defense: 'DEF', maxHp: 'MAX HP', speed: 'SPD' }
 
@@ -319,7 +320,13 @@ export class InspectPopup {
     const def = this._itemsDef(defId)
     if (!def) return []
     const boxes = []
-    if (def.treasure?.goldPerDay != null) boxes.push(['GOLD / DAY', `${def.treasure.goldPerDay}g`])
+    if (def.treasure?.goldPerDay != null) {
+      // Show the SCALED payout (boss-level-only by default) so the readout
+      // matches what AISystem actually pays out each night.
+      const perDay = Math.round(def.treasure.goldPerDay * passiveIncomeMul(
+        this._gs?.boss?.level ?? 1, this._gs?.meta?.dayNumber ?? 1))
+      boxes.push(['GOLD / DAY', `${perDay}g`])
+    }
     if (def.baseStats?.hp != null)        boxes.push(['HP', def.baseStats.hp])
     const parts = []
     if (boxes.length)    parts.push(this._statsGrid(boxes))

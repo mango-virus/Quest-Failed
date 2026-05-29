@@ -18,7 +18,7 @@
 // All behaviors are no-ops when their host room doesn't exist.
 
 import { EventBus } from './EventBus.js'
-import { Balance }  from '../config/balance.js'
+import { Balance, passiveIncomeMul }  from '../config/balance.js'
 
 export class RoomBehaviorSystem {
   constructor(scene, gameState) {
@@ -97,7 +97,12 @@ export class RoomBehaviorSystem {
       if (tf.faminesGrip)    goldMul *= (Balance.MECHANIC_FAMINES_GRIP_PAYOUT_MULT ?? 0.5)
       if (tf.crownOfAvarice) goldMul *= (Balance.MECHANIC_AVARICE_GOLD_MULT ?? 2)
       if (tf.theIronPrice)   goldMul  = 0
-      const stipend = Math.round(perRoom * treasuries.length * goldMul)
+      // Scale the stipend with the run (boss-level-only by default) so it
+      // keeps pace with climbing build costs — same passiveIncomeMul the
+      // chest payout uses.
+      const passiveMul = passiveIncomeMul(
+        this._gameState.boss?.level ?? 1, this._gameState.meta?.dayNumber ?? 1)
+      const stipend = Math.round(perRoom * treasuries.length * goldMul * passiveMul)
       this._gameState.player.gold = (this._gameState.player.gold ?? 0) + stipend
       EventBus.emit('TREASURY_STIPEND', { amount: stipend, treasuryCount: treasuries.length })
     }

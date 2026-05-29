@@ -6,7 +6,7 @@
 import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { MinionAbilities }  from './MinionAbilities.js'
-import { Balance }          from '../config/balance.js'
+import { Balance, passiveIncomeMul } from '../config/balance.js'
 import { DebugOverlay }     from './DebugOverlay.js'
 import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './DungeonGrid.js'
 import { minionLabel, roomLabel } from '../util/displayNames.js'
@@ -193,6 +193,11 @@ export class AISystem {
         chestPayout += (def?.treasure?.goldPerDay ?? 0)
         chest.opened = false
       }
+      // Scale the day's chest income with the run so it keeps pace with the
+      // climbing build economy (boss-level-only by default — see
+      // passiveIncomeMul / Balance.PASSIVE_INCOME_*).
+      chestPayout = Math.round(chestPayout * passiveIncomeMul(
+        this._gameState.boss?.level ?? 1, day))
       if (chestPayout > 0) {
         this._gameState.player.gold = (this._gameState.player.gold ?? 0) + chestPayout
         EventBus.emit('TREASURE_PAYOUT', { gold: chestPayout })

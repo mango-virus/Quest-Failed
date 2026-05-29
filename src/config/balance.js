@@ -881,6 +881,18 @@ export const Balance = {
   TREASURY_CHEST_COUNT:           4,
   TREASURY_CHEST_TIER_MIN:        1,
   TREASURY_CHEST_TIER_MAX:        3,
+  // Passive-income scaling (2026-05-28): treasure-chest payouts and the
+  // Treasury stipend scale up over a run so they don't go stale once build
+  // costs climb (those scale with boss level AND day). Applied via
+  // passiveIncomeMul() — chest payout in AISystem, stipend in
+  // RoomBehaviorSystem, and the GOLD/DAY readout in InspectPopup.
+  //   passiveMul = 1 + PASSIVE_INCOME_PER_BOSS_LV·(bossLv−1)
+  //                  + PASSIVE_INCOME_PER_DAY·max(0, day−9)
+  // Tuned boss-level-only for now (matches minion stat scaling, plateaus with
+  // dungeon power, no day snowball). PER_DAY is wired but 0 — bump it later
+  // if passive income should also track the calendar.
+  PASSIVE_INCOME_PER_BOSS_LV:     0.20,   // +20% chest/stipend payout per boss level above 1
+  PASSIVE_INCOME_PER_DAY:         0,      // +X% per day past day 9 (0 = boss-level only)
 
   // --- Rarity-driven offering weights (Phase 9) ---
   // Each Dark Pact card draw first picks a rarity TIER using these weights,
@@ -1052,4 +1064,15 @@ export function adventurerDisplayLevel(bossLv = 1, day = 1, bloodMoneyBonus = 0)
                 Balance.ADVENTURER_ATK_PER_BOSS_LV) / 2 || 0.085
   const avgMul = (hpMul + atkMul) / 2
   return Math.max(1, 1 + Math.round((avgMul - 1) / step))
+}
+
+// Passive-income multiplier for treasure-chest payouts + the Treasury stipend,
+// so they don't go stale once build costs climb over a run. Boss-level-only by
+// default (PASSIVE_INCOME_PER_DAY = 0); the day term is wired for future use.
+// Single source of truth — used by AISystem (chest payout), RoomBehaviorSystem
+// (stipend) and InspectPopup (the GOLD/DAY readout) so all three agree.
+export function passiveIncomeMul(bossLv = 1, day = 1) {
+  const lvTerm  = (Balance.PASSIVE_INCOME_PER_BOSS_LV ?? 0.20) * Math.max(0, Math.floor(bossLv || 1) - 1)
+  const dayTerm = (Balance.PASSIVE_INCOME_PER_DAY     ?? 0)    * Math.max(0, Math.floor(day   || 1) - 9)
+  return 1 + lvTerm + dayTerm
 }
