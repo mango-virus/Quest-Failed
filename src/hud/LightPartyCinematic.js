@@ -116,8 +116,8 @@ export class LightPartyCinematic {
    Rebuilt 2026-05-29 from a real FFXIV party-list reference: a big gold
    "LIMIT BREAK" parallelogram bar on top, a gold "LIGHT PARTY" label, then
    one row per member with a colored beveled job-icon frame, a gold slot
-   badge, "Lv50" text, the name, and stacked HP / MP bars (HP value left,
-   MP value right). Uses a smooth bold font (NOT the pixel font) so the
+   badge, "Lv50" text, the name, and a half-width HP bar with the current
+   HP value beneath it. Uses a smooth bold font (NOT the pixel font) so the
    gold headers + names read like FFXIV's UI letterforms. No panel box /
    border — FFXIV's list floats on the screen with no frame. */
 .qf-lp-corner { position:absolute; top:calc(var(--hud-top,96px) + 10px);
@@ -175,7 +175,7 @@ export class LightPartyCinematic {
 .qf-lp-job.meleeDps  { background:linear-gradient(160deg,#c25050,#6e1f1f); }
 .qf-lp-job.rangedDps { background:linear-gradient(160deg,#d3a13a,#7c5510); }
 
-/* Right column: top line (badge + Lv + name) then HP bar / numbers / MP bar */
+/* Right column: top line (badge + Lv + name) then HP bar + HP number */
 .qf-lp-rowmain { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .qf-lp-rowtop { display:flex; align-items:center; gap:5px; }
 .qf-lp-badge { flex-shrink:0; width:15px; height:15px; display:inline-flex;
@@ -190,26 +190,23 @@ export class LightPartyCinematic {
   letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   text-shadow:0 1px 0 #1a1408,0 0 3px rgba(0,0,0,.85); }
 
-/* HP / MP bars */
-.qf-lp-bar { position:relative; height:9px; border-radius:1px; overflow:hidden;
+/* HP bar — 50% width (half the row length), left-aligned. (MP bar removed
+   2026-05-30: MP was cosmetic-only and never tracked anything.) */
+.qf-lp-bar { position:relative; height:9px; width:50%; border-radius:1px; overflow:hidden;
   background:#0a0e16;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.75), inset 0 1px 2px rgba(0,0,0,.6); }
-.qf-lp-bar.mp { height:5px; }
 .qf-lp-bar-fill { position:absolute; left:0; top:0; bottom:0; width:100%;
   transition:width .18s linear; }
 .qf-lp-bar.hp .qf-lp-bar-fill { background:linear-gradient(180deg,#fbfdff,#cfe2f4 55%,#9dc0e2); }
-.qf-lp-bar.mp .qf-lp-bar-fill { background:linear-gradient(180deg,#ffd0ec,#e98fce 60%,#cf63ad); }
 .qf-lp-bar-fill::after { content:''; position:absolute; left:0; right:0; top:0; height:2px;
   background:rgba(255,255,255,.5); }
 .qf-lp-row.dead .qf-lp-bar.hp .qf-lp-bar-fill { background:#5a1414; }
 
-/* Numbers line: HP value (left), MP value (right) */
-.qf-lp-nums { display:flex; justify-content:space-between; align-items:flex-end;
+/* Number line: current HP value, left-aligned under the bar */
+.qf-lp-nums { display:flex; align-items:flex-end;
   font-weight:700; color:#eef2f8; text-shadow:0 1px 1px #000,0 0 2px rgba(0,0,0,.8);
   line-height:1; font-variant-numeric:tabular-nums; }
 .qf-lp-nums .qf-lp-hp { font-size:13px; }
-.qf-lp-nums .qf-lp-mp { font-size:13px; }
-.qf-lp-nums .qf-lp-mp .sm { font-size:9px; opacity:.85; }
 
 /* Raise cast bar (world-space, above healer's head). Anchored by the
    feed event to world coordinates → screen px via the data attrs.  */
@@ -295,6 +292,7 @@ export class LightPartyCinematic {
 .qf-lp-duel-beat.aoe   { color:#ffd2a8; text-shadow:0 0 18px rgba(255,154,58,.95), 0 3px 0 #2a0f04; }
 .qf-lp-duel-beat.stack { color:#aedcff; text-shadow:0 0 18px rgba(74,160,255,.95), 0 3px 0 #02040a; }
 .qf-lp-duel-beat.lb3   { color:#fff7d8; text-shadow:0 0 22px rgba(255,214,107,.95), 0 3px 0 #2a1505; }
+.qf-lp-duel-beat.tankbuster { color:#ff8a8a; text-shadow:0 0 18px rgba(255,48,48,.95), 0 3px 0 #2a0404; }
 @keyframes qf-lp-beat-anim { 0%{opacity:0; transform:scale(.6)} 18%{opacity:1; transform:scale(1.08)}
   78%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }
 
@@ -441,9 +439,9 @@ export class LightPartyCinematic {
   // ── Corner party panel (persistent) ────────────────────────────────────
   // FFXIV party-list layout: gold LIMIT BREAK bar on top, gold LIGHT PARTY
   // label, then one row per member — colored job-icon frame + (badge / Lv /
-  // name) + HP bar + (HP value left, MP value right) + MP bar. MP is cosmetic
-  // (always full "10000", matching the reference where every member shows full
-  // MP); we don't track adventurer mana, it's purely there for the look.
+  // name) + a half-width HP bar with the current HP value beneath it. The HP
+  // bar tracks live damage via _onMemberHp (fed by LIGHT_PARTY_HP from
+  // AISystem). (MP bar removed 2026-05-30 — it was cosmetic and tracked nothing.)
   _buildCornerPanel() {
     if (this._cornerPanel) this._hideCornerPanel()
     this._cornerBars = {}
@@ -475,14 +473,7 @@ export class LightPartyCinematic {
             h('div', { className: 'qf-lp-name' }, m.name || ''),
           ]),
           h('div', { className: 'qf-lp-bar hp' }, [hpFill]),
-          h('div', { className: 'qf-lp-nums' }, [
-            hpNum,
-            // Cosmetic full MP, rendered "100" + small "00" like FFXIV.
-            h('div', { className: 'qf-lp-mp' }, ['100', h('span', { className: 'sm' }, '00')]),
-          ]),
-          h('div', { className: 'qf-lp-bar mp' }, [
-            h('div', { className: 'qf-lp-bar-fill', style: { width: '100%' } }),
-          ]),
+          h('div', { className: 'qf-lp-nums' }, [hpNum]),
         ]),
       ])
       this._cornerBars[m.instanceId] = { fillEl: hpFill, numEl: hpNum, rowEl: row }
@@ -675,12 +666,13 @@ export class LightPartyCinematic {
   }
 
   // BossSystem fires this to surface a named mechanic moment:
-  //   { kind: 'aoe' | 'stack' | 'lb3', label?: string }
+  //   { kind: 'aoe' | 'stack' | 'tankbuster' | 'lb3', label?: string }
   _onDuelBeat({ kind = 'aoe', label = '' } = {}) {
     const text = label ||
-      (kind === 'aoe'   ? 'DODGE THE AOE'
-      : kind === 'stack' ? 'STACK ON THE TANK'
-      : kind === 'lb3'   ? 'LIMIT BREAK'
+      (kind === 'aoe'        ? 'DODGE THE AOE'
+      : kind === 'stack'      ? 'STACK ON THE TANK'
+      : kind === 'tankbuster' ? 'TANK BUSTER'
+      : kind === 'lb3'        ? 'LIMIT BREAK'
       : '')
     const el = h('div', { className: `qf-lp-duel-beat ${kind}` }, text)
     this._stage.appendChild(el)

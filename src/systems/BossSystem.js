@@ -2408,20 +2408,33 @@ export class BossSystem {
     if ((boss.hp ?? 0) <= 0) boss.hp = boss.maxHp
 
     // Snapshot the party + roll the outcome before any beat fires. Party
-    // members include living survivors only (dead members have already
-    // been spliced from active by AISystem death handling). Outcome math
-    // is the doc'd formula — clamped [0.10, 0.90].
+    // members include living survivors only (dead members have already been
+    // spliced from active by AISystem death handling).
     const party = (this._gameState.adventurers?.active ?? [])
       .filter(a => a?._lightParty && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
-    const healers   = party.filter(a => a._lightPartyRole === 'healer')
-    const livingDps = party.filter(a => a._lightPartyRole === 'meleeDps' || a._lightPartyRole === 'rangedDps').length
-    const tankDead  = !party.some(a => a._lightPartyRole === 'tank')
-    const healerHpFrac = healers.length
-      ? healers.reduce((s, h) => s + ((h.resources?.hp ?? 0) / (h.resources?.maxHp || 1)), 0) / healers.length
-      : 0
-    let winChance = 0.25 + healerHpFrac * 0.55 + livingDps * 0.05 - (tankDead ? 0.15 : 0)
-    winChance = Math.max(0.10, Math.min(0.90, winChance))
-    const partyWins = Math.random() < winChance
+    // Outcome is decided by the party's COMBINED HP FRACTION fed through the
+    // SAME piecewise win-chance curve as the Jinwoo duel (_duelWinChance) —
+    // just applied to the group instead of a single fighter:
+    //   combinedFrac = Σ current HP (living) / original combined max HP.
+    // The denominator is the FULL roster's max HP captured at spawn
+    // (lightPartyTotalMaxHp), so a member who died en route contributes 0 to
+    // the numerator while their max still weighs the denominator down —
+    // deaths drag the group's odds toward the boss, exactly like a single
+    // fighter losing HP. Falls back to the living party's combined max if the
+    // spawn stamp is missing (e.g. an old save mid-event).
+    const combinedHp = party.reduce((s, a) => s + (a.resources?.hp ?? 0), 0)
+    const totalMaxHp = (this._gameState._eventFlags ?? {}).lightPartyTotalMaxHp
+      || party.reduce((s, a) => s + (a.resources?.maxHp ?? 0), 0)
+    const combinedFrac = totalMaxHp > 0 ? Math.max(0, Math.min(1, combinedHp / totalMaxHp)) : 0
+    const winChance  = this._duelWinChance(combinedFrac)
+    const partyWins  = Math.random() < winChance
+    // Stashed for the casualty layer — the live death rate scales off the same
+    // combined-HP fraction that fed the win-roll (see _scriptLightPartyDuel).
+    this._lpCombinedFrac = combinedFrac
+    // Drive the boss's attack animation during the duel. BossRenderer._pickState
+    // returns 'attack' when _bossState.action is 'slam'/'lunge'; we flip it for
+    // each strike. Init to idle so the boss isn't frozen on a stale action.
+    this._bossState = { action: 'idle' }
 
     // Park the party — null their paths so AISystem leaves them in place
     // while the cinematic plays. Same pattern as _shadowMonarch AT_BOSS.
@@ -2431,6 +2444,27 @@ export class BossSystem {
     const archId   = this._gameState.player?.bossArchetypeId
     const bossName = (this._scene?.cache?.json?.get?.('bossArchetypes') ?? [])
       .find(a => a.id === archId)?.name ?? 'YOUR BOSS'
+
+    // Per-archetype flavor cast names for the 3 telegraphed mechanics
+    // (tank-buster / AoE / stack). Each cast still does the SAME mechanic —
+    // only the name on the boss cast-bar changes — so the fight stays readable
+    // while every boss feels distinct. Falls back to the generic names for any
+    // archetype not in the table (e.g. a future boss).
+    const CASTS = {
+      beholder:  { tb: 'EYE OF TYRANNY',  aoe: 'DISINTEGRATION RAY', stack: 'PETRIFYING GAZE' },
+      demon:     { tb: 'HELLFIRE BRAND',  aoe: 'INFERNAL CATACLYSM', stack: 'SOUL HARVEST' },
+      myconid:   { tb: 'IMPALING STALK',  aoe: 'SPORE BLOOM',        stack: 'FUNGAL EMBRACE' },
+      wraith:    { tb: 'SOUL REND',       aoe: 'WAIL OF THE DAMNED', stack: 'SHADOW SHROUD' },
+      gnoll:     { tb: 'ALPHA STRIKE',    aoe: 'BLOODMOON HOWL',     stack: 'PACK FRENZY' },
+      golem:     { tb: 'SEISMIC SLAM',    aoe: 'EARTHQUAKE',         stack: 'BOULDER BARRAGE' },
+      lich:      { tb: 'DEATH COIL',      aoe: 'NECROTIC NOVA',      stack: 'GRASP OF UNDEATH' },
+      lizardman: { tb: 'VENOM FANG',      aoe: 'TOXIC DELUGE',       stack: 'CONSTRICT' },
+      orc:       { tb: 'SKULL CLEAVER',   aoe: 'WAR STOMP',          stack: 'BRUTAL RUSH' },
+      vampire:   { tb: 'CRIMSON LANCE',   aoe: 'BLOOD TEMPEST',      stack: 'SANGUINE EMBRACE' },
+      succubus:  { tb: 'HEARTPIERCER',    aoe: 'MAELSTROM OF DESIRE', stack: 'ENTHRALLING KISS' },
+      slime:     { tb: 'GELID CRUSH',     aoe: 'ACID SPRAY',         stack: 'ENGULF' },
+    }
+    const casts = CASTS[archId] ?? { tb: 'TANK BUSTER', aoe: 'MEGAFLARE', stack: 'HOLY WRATH' }
 
     EventBus.emit('LIGHT_PARTY_DUEL_BEGAN', {
       bossName,
@@ -2457,7 +2491,7 @@ export class BossSystem {
     this._lpDuel = { boss, party, partyWins }
     this._lpDuelElapsed = 0
 
-    this._scriptLightPartyDuel(boss, party, partyWins)
+    this._scriptLightPartyDuel(boss, party, partyWins, casts)
   }
 
   // Arena staging. Tweens the boss to chamber centre, fans the party into an
@@ -2515,101 +2549,113 @@ export class BossSystem {
     try { this._tickArenaGlow?.() } catch {}
     // Anti-freeze backstop. `delta` is the raw frame delta — NOT scaled by
     // scene.time.timeScale — so this accumulator measures true wall-clock time
-    // even if a stray slow-mo lingers. The scripted timeline resolves at 17s;
-    // if it hasn't by ~22s (beat chain threw, clock stalled, etc.), force the
+    // even if a stray slow-mo lingers. The scripted timeline resolves at ~25.5s;
+    // if it hasn't by 31s (beat chain threw, clock stalled, etc.), force the
     // rolled outcome so the duel can never strand `_lightPartyDuel = true` and
-    // freeze the day. Once it fires, _endLightPartyDuel clears _lpDuel so this
-    // won't re-fire.
+    // freeze the day. Must sit COMFORTABLY past the natural resolution or it
+    // would cut every fight short. Once it fires, _endLightPartyDuel clears
+    // _lpDuel so this won't re-fire.
     this._lpDuelElapsed = (this._lpDuelElapsed ?? 0) + (delta ?? 0)
-    if (this._lpDuelElapsed > 22000 && this._lpDuel) {
+    if (this._lpDuelElapsed > 31000 && this._lpDuel) {
       const { boss, party, partyWins } = this._lpDuel
       this._lpDuel = null
       this._resolveLightPartyDuel(boss, party, partyWins)
     }
   }
 
-  // Beat sequence — fixed 17s total. Drives boss + party HP bars + named
-  // mechanic beats + boss cast bar, PLUS live world choreography (DPS
-  // lunge/recoil, boss recoil, telegraph rings, party scatter/stack) + camera
-  // shake + hitstop on the impactful beats so the fight reads as a real duel
-  // rather than frozen statues. Each beat scales its damage by partyWins so
-  // the rolled outcome lands cleanly without looking pre-decided.
-  _scriptLightPartyDuel(boss, party, partyWins) {
+  // Beat sequence — ~26s FFXIV-style raid fight. The win-roll (partyWins) only
+  // decides the BOSS's fate; who SURVIVES on the party side is resolved LIVE,
+  // mechanic by mechanic (casualties decoupled from outcome, 2026-05-30). The
+  // boss actively attacks (slam anim + chunk), periodically focuses the healer
+  // (a living tank's Provoke pulls aggro back), and downs members; a downed
+  // member triggers a finite, INTERRUPTIBLE healer Raise — succeed = revived at
+  // 50%, fail = permanent death (graveyard via _killAdv). A winning party can
+  // still take casualties (Pyrrhic); a losing party isn't a guaranteed wipe.
+  _scriptLightPartyDuel(boss, party, partyWins, casts = { tb: 'TANK BUSTER', aoe: 'MEGAFLARE', stack: 'HOLY WRATH' }) {
     const scene = this._scene
-    const TS   = (ms, fn) => scene?.time?.delayedCall?.(ms, fn)
-    const TILE = Balance.TILE_SIZE
+    const TS    = (ms, fn) => scene?.time?.delayedCall?.(ms, () => { if (!this._lpDuelOver) fn() })
+    const TILE  = Balance.TILE_SIZE
+
+    // ── Casualty tuning. lethalPerHit = chance a member targeted by a damaging
+    //    mechanic is DOWNED. Scales off the same combined-HP fraction that fed
+    //    the win-roll (weaker party bleeds more), much higher on the boss-wins
+    //    path so a wipe is earned across the fight, not dumped at the end.
+    const cf = this._lpCombinedFrac ?? 0.6
+    const lethalPerHit = partyWins
+      ? 0.07 + (1 - cf) * 0.13     // win:  ~7-20%  (Pyrrhic possible, FLAWLESS possible)
+      : 0.30 + (1 - cf) * 0.32     // loss: ~30-62% (boss carves them down)
+    // Finite raises — 2 per living healer at the start. Once spent, downs stick.
+    let raisesLeft = party.filter(a => a._lightPartyRole === 'healer').length * 2
+    this._lpDuelOver = false
+    this._lpCasualties = []        // names of the permanently dead (finale text)
+    this._lpRaise = null           // { healerId, deadAdv } while a Raise channels
+
+    // ── live-roster helpers ──
+    const isLive    = (a) => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0
+    const aliveAll  = () => party.filter(isLive)
+    const aliveRole = (r) => aliveAll().filter(a => a._lightPartyRole === r)
+    const aliveTank   = () => aliveRole('tank')[0]   || null
+    const aliveHealer = () => aliveRole('healer')[0] || null
+    const dpsList     = () => aliveAll().filter(a => a._lightPartyRole === 'meleeDps' || a._lightPartyRole === 'rangedDps')
+    const rndOf       = (arr) => arr.length ? arr[Math.floor(Math.random() * arr.length)] : null
 
     const emitHp = () => EventBus.emit('LIGHT_PARTY_DUEL_HP', {
       bossHp:    Math.max(0, Math.round(boss?.hp ?? 0)),
       bossMaxHp: Math.max(1, Math.round(boss?.maxHp ?? 1)),
+      // Report ALL members (not just living) so a downed row greys + a raised
+      // row flares back — the cinematic keys the dead-class off hp<=0.
       members:   party.map(a => ({
         instanceId: a.instanceId,
         hp:    Math.max(0, Math.round(a.resources?.hp ?? 0)),
         maxHp: Math.max(1, Math.round(a.resources?.maxHp ?? 1)),
       })),
     })
-    const hurtParty = (frac) => {
-      for (const a of party) {
-        if ((a.resources?.hp ?? 0) <= 0) continue
-        a.resources.hp = Math.max(1, Math.round(a.resources.hp - (a.resources.maxHp ?? 1) * frac))
+    const hurtBoss = (frac) => { if (boss) boss.hp = Math.max(0, Math.round((boss.hp ?? 0) - (boss.maxHp ?? 1) * frac)) }
+    const healSurvivors = (frac) => {
+      for (const a of aliveAll()) {
+        a.resources.hp = Math.min(a.resources.maxHp ?? a.resources.hp,
+          Math.round(a.resources.hp + (a.resources.maxHp ?? 1) * frac))
       }
-    }
-    const healParty = (frac) => {
-      for (const a of party) {
-        if ((a.resources?.hp ?? 0) <= 0) continue
-        a.resources.hp = Math.min(a.resources.maxHp ?? a.resources.hp, Math.round(a.resources.hp + (a.resources.maxHp ?? 1) * frac))
-      }
-    }
-    const hurtBoss = (frac) => {
-      if (!boss) return
-      boss.hp = Math.max(0, Math.round((boss.hp ?? 0) - (boss.maxHp ?? 1) * frac))
     }
 
     // ── Juice helpers (all guarded so a missing manager never crashes) ──
     const shake = (dur, mag) => scene?.cameras?.main?.shake?.(dur, mag)
     const ring  = (x, y, color, opts = {}) => AbilityVfx.pulseRing?.(scene, x, y, { color, ...opts })
-    const float = (x, y, text, color) => AbilityVfx.floatingText?.(scene, x, y, text, { color, fontSize: '13px' })
-    // NOTE: no clock-based hitstop here. This timeline is driven by
-    // scene.time.delayedCall, so scaling scene.time.timeScale would slow the
-    // very beats it depends on (and a missed restore strands the whole duel —
-    // the 2026-05-29 freeze bug). The killing-blow slow-mo lives in
-    // _resolveLightPartyDuel instead, where it's terminal (no pending beats).
+    const float = (x, y, text, color, size = '13px') => AbilityVfx.floatingText?.(scene, x, y, text, { color, fontSize: size })
     const track = (t) => { if (t) (this._lpDuelTweens ??= []).push(t) }
+    const bx = () => this._lpBossX ?? boss.worldX
+    const by = () => this._lpBossY ?? boss.worldY
+
     // A DPS dashes in at the boss, strikes, snaps back to its home slot.
     const lunge = (a) => {
-      if (!a || (a.resources?.hp ?? 0) <= 0 || a._lpHomeX == null) return
-      const bx = this._lpBossX ?? boss.worldX, by = (this._lpBossY ?? boss.worldY) + TILE * 0.6
+      if (!isLive(a) || a._lpHomeX == null) return
+      const tx = bx(), ty = by() + TILE * 0.6
       track(scene?.tweens?.add?.({
-        targets: a, worldX: bx, worldY: by, duration: 150, ease: 'Quad.easeIn',
+        targets: a, worldX: tx, worldY: ty, duration: 150, ease: 'Quad.easeIn',
         yoyo: true, hold: 60,
-        onYoyo: () => ring(bx, by, 0xfff2c0, { radius: 14 }),
+        onYoyo: () => ring(tx, ty, 0xfff2c0, { radius: 14 }),
         onComplete: () => { a.worldX = a._lpHomeX; a.worldY = a._lpHomeY },
       }))
     }
     const recoilBoss = (mag = TILE * 0.5) => {
       if (!boss || this._lpBossY == null) return
-      track(scene?.tweens?.add?.({
-        targets: boss, worldY: this._lpBossY - mag, duration: 110, ease: 'Quad.easeOut', yoyo: true,
-      }))
+      track(scene?.tweens?.add?.({ targets: boss, worldY: this._lpBossY - mag, duration: 110, ease: 'Quad.easeOut', yoyo: true }))
     }
-    // Party scatters outward (AoE dodge) then regroups home.
     const scatter = () => {
-      for (const a of party) {
-        if ((a.resources?.hp ?? 0) <= 0 || a._lpHomeX == null) continue
-        const sgn = (a._lpHomeX - (this._lpBossX ?? a._lpHomeX)) >= 0 ? 1 : -1
+      for (const a of aliveAll()) {
+        if (a._lpHomeX == null) continue
+        const sgn = (a._lpHomeX - bx()) >= 0 ? 1 : -1
         track(scene?.tweens?.add?.({
           targets: a, worldX: a._lpHomeX + sgn * TILE * 1.4, duration: 200, ease: 'Quad.easeOut',
-          yoyo: true, hold: 250,
-          onComplete: () => { a.worldX = a._lpHomeX; a.worldY = a._lpHomeY },
+          yoyo: true, hold: 250, onComplete: () => { a.worldX = a._lpHomeX; a.worldY = a._lpHomeY },
         }))
       }
     }
-    // Party clusters tight on the tank (stack mechanic).
     const stackUp = () => {
-      const tank = party.find(a => a._lightPartyRole === 'tank' && (a.resources?.hp ?? 0) > 0)
-      const tx = tank?._lpHomeX ?? this._lpBossX, ty = tank?._lpHomeY ?? this._lpBossY
-      for (const a of party) {
-        if ((a.resources?.hp ?? 0) <= 0 || a._lpHomeX == null || a === tank) continue
+      const tank = aliveTank()
+      const tx = tank?._lpHomeX ?? bx(), ty = tank?._lpHomeY ?? by()
+      for (const a of aliveAll()) {
+        if (a._lpHomeX == null || a === tank) continue
         track(scene?.tweens?.add?.({
           targets: a, worldX: tx + (Math.random() - 0.5) * TILE, worldY: ty + (Math.random() - 0.5) * TILE,
           duration: 240, ease: 'Quad.easeInOut', yoyo: true, hold: 300,
@@ -2617,90 +2663,218 @@ export class BossSystem {
         }))
       }
     }
-    const dpsList = () => party.filter(a =>
-      (a._lightPartyRole === 'meleeDps' || a._lightPartyRole === 'rangedDps') && (a.resources?.hp ?? 0) > 0)
+    // A member flinches (quick red ring) when hit.
+    const flinch = (m) => ring(m.worldX ?? bx(), m.worldY ?? by(), 0xff5544, { radius: 12 })
 
-    // Continuous DPS uptime — a lunge from a random live DPS every ~900ms for
-    // the whole fight so it never looks idle between scripted beats. Cleared
-    // at duel end via _lpDuelTimers.
+    // ── Casualty pipeline ──────────────────────────────────────────────
+    // A member drops to 0 HP. Death moment fires, then either the healer
+    // channels a Raise (finite + interruptible) or — no raise available —
+    // it's an immediate permanent death.
+    const permaKill = (m) => {
+      if (!m || m.aiState === 'dead') return
+      this._lpCasualties.push(m.name || 'A hero')
+      // If the dying member is the healer mid-Raise, that Raise dies with them.
+      if (this._lpRaise && this._lpRaise.healerId === m.instanceId) this._lpRaise = null
+      this._killAdv(m, 'boss')   // graveyard + ADVENTURER_DIED + counters
+      emitHp()
+    }
+    const deathMoment = (m) => {
+      shake(220, 0.012)
+      float(m.worldX ?? bx(), (m.worldY ?? by()) - TILE, `✖ ${m.name || ''}`, '#ff5544', '12px')
+      // Micro slow-mo via window.setTimeout (real-time restore — immune to the
+      // scaled clock, so it can never strand the beat timeline).
+      if (scene?.time) { scene.time.timeScale = 0.45; window.setTimeout(() => { if (scene?.time) scene.time.timeScale = 1 }, 180) }
+    }
+    const startRaise = (healer, dead) => {
+      this._lpRaise = { healerId: healer.instanceId, deadAdv: dead }
+      EventBus.emit('LIGHT_PARTY_RAISE_STARTED', { healerId: healer.instanceId, durationMs: 3000 })
+      TS(3000, () => {
+        // Still channeling THIS raise (not interrupted / healer not dead)?
+        if (this._lpRaise && this._lpRaise.deadAdv === dead && isLive(healer)) {
+          this._lpRaise = null
+          dead.aiState = 'idle'
+          dead.resources.hp = Math.max(1, Math.round((dead.resources.maxHp ?? 1) * 0.50))
+          EventBus.emit('LIGHT_PARTY_RAISED', { healerId: healer.instanceId, raisedId: dead.instanceId })
+          float(dead.worldX ?? bx(), (dead.worldY ?? by()) - TILE, 'RAISED', '#ffd66b')
+          ring(dead.worldX ?? bx(), dead.worldY ?? by(), 0xffd66b, { radius: 18 })
+          emitHp()
+        }
+      })
+    }
+    const downMember = (m) => {
+      if (!m || m.aiState === 'dead') return
+      m.resources.hp = 0
+      emitHp()
+      deathMoment(m)
+      const healer = aliveHealer()
+      if (raisesLeft > 0 && healer && healer !== m && !this._lpRaise) {
+        raisesLeft--
+        startRaise(healer, m)
+      } else {
+        permaKill(m)   // no raise to spare → it sticks
+      }
+    }
+    // Apply a damaging mechanic to one member: chunk + a downing roll.
+    const strike = (m, dmgFrac, lethalMult = 1) => {
+      if (!isLive(m)) return
+      m.resources.hp = Math.max(0, Math.round(m.resources.hp - (m.resources.maxHp ?? 1) * dmgFrac))
+      flinch(m)
+      if (m.resources.hp <= 0 || Math.random() < lethalPerHit * lethalMult) downMember(m)
+      else emitHp()
+    }
+
+    // ── Boss auto-attack loop (every ~2.6s) ─────────────────────────────
+    // The boss slams a target with a real attack anim + lunge. It periodically
+    // FOCUSES the healer; a living tank's Provoke redirects that to the tank
+    // (he steps in front). A hit on a channeling healer INTERRUPTS the Raise.
     this._lpDuelTimers = []
+    const bossSlam = () => {
+      if (this._lpDuelOver) return
+      const tank = aliveTank(), healer = aliveHealer()
+      const wantHealer = healer && Math.random() < 0.35
+      // Provoke: if the boss wants the healer but a tank lives, the tank eats it.
+      const target = (wantHealer && tank) ? tank : (wantHealer ? healer : (tank || rndOf(aliveAll())))
+      if (!target) return
+      // Boss faces + winds up: attack anim for ~420ms, lunge toward the target.
+      this._bossState = { action: 'slam' }
+      scene?.time?.delayedCall?.(440, () => { if (!this._lpDuelOver) this._bossState = { action: 'idle' } })
+      const tx = (target.worldX ?? bx()), ty = (target.worldY ?? by())
+      track(scene?.tweens?.add?.({
+        targets: boss, worldX: bx() + (tx - bx()) * 0.6, worldY: by() + (ty - by()) * 0.6,
+        duration: 170, ease: 'Quad.easeIn', yoyo: true, hold: 40,
+        onComplete: () => { boss.worldX = bx(); boss.worldY = by() },
+      }))
+      // Impact lands mid-lunge.
+      TS(180, () => {
+        flinch(target); shake(120, 0.005)
+        // Interrupt a Raise the boss caught the healer channeling.
+        if (this._lpRaise && target.instanceId === this._lpRaise.healerId) {
+          const dead = this._lpRaise.deadAdv
+          this._lpRaise = null
+          EventBus.emit('LIGHT_PARTY_RAISE_INTERRUPTED', { healerId: target.instanceId, deadId: dead?.instanceId })
+          if (dead) { float(dead.worldX ?? bx(), (dead.worldY ?? by()) - TILE, 'INTERRUPTED', '#ff6b6b'); permaKill(dead) }
+        }
+        // Auto-attacks chip but rarely one-shot — the named mechanics are the
+        // real killers. Tank-targeted hits hurt less (he's built for it).
+        const dmg = (target._lightPartyRole === 'tank' ? 0.05 : 0.08) + Math.random() * 0.03
+        strike(target, dmg, 0.4)
+      })
+    }
+    const slamLoop = scene?.time?.addEvent?.({ delay: 2600, loop: true, callback: bossSlam })
+    if (slamLoop) this._lpDuelTimers.push(slamLoop)
+    // Continuous DPS uptime so the party never looks idle between beats.
     const lungeLoop = scene?.time?.addEvent?.({
-      delay: 900, loop: true,
-      callback: () => { const l = dpsList(); if (l.length) lunge(l[Math.floor(Math.random() * l.length)]) },
+      delay: 850, loop: true,
+      callback: () => { if (this._lpDuelOver) return; const a = rndOf(dpsList()); if (a) lunge(a) },
     })
     if (lungeLoop) this._lpDuelTimers.push(lungeLoop)
 
-    const bx = () => this._lpBossX ?? boss.worldX
-    const by = () => this._lpBossY ?? boss.worldY
-
-    // ── Beat timeline ──
-    // Beat 1 (0.8s) — the pull. First contact.
-    TS(800, () => {
-      EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'PULL' })
-      ring(bx(), by(), 0x6aaaff, { radius: 28 }); shake(140, 0.004)
+    // ── Beat timeline (~26s) ────────────────────────────────────────────
+    // 0.8s — the pull. First contact.
+    TS(800, () => { EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'PULL' }); ring(bx(), by(), 0x6aaaff, { radius: 28 }); shake(140, 0.004) })
+    // 2.5s — boss winds up a TANK-BUSTER (cast bar + tight red telegraph on the tank).
+    TS(2500, () => {
+      EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.tb, durationMs: 2200 })
+      const t = aliveTank(); if (t) ring(t.worldX, t.worldY, 0xff3030, { radius: 40, duration: 2200 })
     })
-    // Beat 2 (2.2s) — boss winds up first AoE; growing red telegraph.
-    TS(2200, () => {
-      EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: 'MEGAFLARE', durationMs: 3000 })
-      ring(bx(), by(), 0xff5544, { radius: 70, duration: 3000 })
+    // 4.9s — tank-buster lands. The tank pops Hallowed Ground if he can (gold
+    // flash, survives); otherwise eats a heavy hit. DPS keep chipping the boss.
+    TS(4900, () => {
+      EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'tankbuster', label: 'TANK BUSTER' })
+      const t = aliveTank()
+      if (t) {
+        if (Math.random() < 0.6) { ring(t.worldX, t.worldY, 0xffd66b, { radius: 30 }); float(t.worldX, t.worldY - TILE, 'HALLOWED GROUND', '#ffd66b', '11px') }
+        else strike(t, 0.34, 1.3)
+      }
+      shake(260, 0.010); hurtBoss(partyWins ? 0.12 : 0.06); recoilBoss(); emitHp()
     })
-    // Beat 3 (5.2s) — AoE resolves: scatter, big shake, trade chunks.
-    TS(5200, () => {
-      EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'DODGE!' })
-      scatter(); shake(360, 0.013); ring(bx(), by(), 0xff8a3a, { radius: 90 })
-      hurtParty(partyWins ? 0.10 : 0.22); hurtBoss(0.14); recoilBoss(); emitHp()
-    })
-    // Beat 4 (6.8s) — healer recovers; green pulse on each member.
-    TS(6800, () => {
-      healParty(0.18)
-      for (const a of party) { if ((a.resources?.hp ?? 0) > 0) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }) }
-      emitHp()
-    })
-    // Beat 5 (8.4s) — boss winds up stack mechanic; gold telegraph.
-    TS(8400, () => {
-      EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: 'HOLY WRATH', durationMs: 2800 })
-      ring(bx(), by(), 0xffd66b, { radius: 60, duration: 2800 })
-    })
-    // Beat 6 (11.2s) — stack resolves: cluster on tank, shake.
+    // 6.6s — DPS burst window.
+    TS(6600, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.12 : 0.05); emitHp() })
+    // 8.2s — boss winds up a raid-wide AoE.
+    TS(8200, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.aoe, durationMs: 3000 }); ring(bx(), by(), 0xff5544, { radius: 80, duration: 3000 }) })
+    // 11.2s — AoE resolves: everyone scatters; 1-2 random members get caught.
     TS(11200, () => {
+      EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'DODGE!' })
+      scatter(); shake(360, 0.013); ring(bx(), by(), 0xff8a3a, { radius: 100 })
+      const pool = aliveAll(); const hits = pool.length > 2 ? 2 : 1
+      for (let i = 0; i < hits; i++) { const m = rndOf(aliveAll().filter(a => a._lightPartyRole !== 'tank')) || rndOf(aliveAll()); if (m) strike(m, 0.18, 1.0) }
+      hurtBoss(partyWins ? 0.10 : 0.05); recoilBoss(); emitHp()
+    })
+    // 13s — healer recovery window (green pulses, top up survivors).
+    TS(13000, () => { healSurvivors(0.20); for (const a of aliveAll()) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }); emitHp() })
+    // 15s — boss winds up a STACK marker.
+    TS(15000, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.stack, durationMs: 2600 }); ring(bx(), by(), 0xffd66b, { radius: 60, duration: 2600 }) })
+    // 17.8s — stack resolves: cluster on the tank to share it; a straggler can fall.
+    TS(17800, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'stack', label: 'STACK!' })
       stackUp(); shake(300, 0.011)
-      hurtParty(partyWins ? 0.08 : 0.18); hurtBoss(0.16); recoilBoss(); emitHp()
+      const m = rndOf(aliveAll()); if (m) strike(m, 0.16, 0.9)
+      hurtBoss(partyWins ? 0.12 : 0.05); recoilBoss(); emitHp()
     })
-    // Beat 7 (14s) — LB3 climax: hitstop + heavy shake + convergent strike.
-    TS(14000, () => {
+    // 20s — DPS burst.
+    TS(20000, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.14 : 0.05); emitHp() })
+    // 22.5s — LB3 CLIMAX. Win: party converges, Limit Break craters the boss.
+    //         Loss: a desperate LB that fails — the boss answers with carnage.
+    TS(22500, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'lb3', label: partyWins ? 'METEOR!' : 'DESPERATE LB!' })
-      // Heavy double-shake stands in for the old clock hitstop — same "weight"
-      // punch without touching the clock that drives these beats.
-      shake(520, 0.02); scene?.time?.delayedCall?.(120, () => shake(300, 0.014))
-      ring(bx(), by(), 0xfff2c0, { radius: 130 })
+      shake(520, 0.02); scene?.time?.delayedCall?.(120, () => { if (!this._lpDuelOver) shake(300, 0.014) })
+      ring(bx(), by(), 0xfff2c0, { radius: 140 })
       if (partyWins) {
         for (const a of dpsList()) lunge(a)
-        recoilBoss(TILE * 1.2); hurtBoss(0.55)
-        float(bx(), by() - TILE, 'LIMIT BREAK', '#ffd66b')
+        recoilBoss(TILE * 1.3); hurtBoss(0.55)
+        float(bx(), by() - TILE, 'LIMIT BREAK', '#ffd66b', '15px')
       } else {
-        hurtParty(0.40)
+        // Desperate-LB whiff: the boss punishes 1-2 members hard.
+        const pool = aliveAll(); const hits = pool.length > 1 ? 2 : 1
+        for (let i = 0; i < hits; i++) { const m = rndOf(aliveAll()); if (m) strike(m, 0.35, 1.5) }
       }
       emitHp()
     })
-    // Beat 8 (17s) — resolution.
-    TS(17000, () => this._resolveLightPartyDuel(boss, party, partyWins))
+    // 25.5s — resolution.
+    TS(25500, () => this._resolveLightPartyDuel(boss, party, partyWins))
   }
 
   _resolveLightPartyDuel(boss, party, partyWins) {
     if (!boss) { this._endLightPartyDuel(); return }
-    // Killing-blow punch — a hard shake (+ brief slow-mo on a boss death) so
-    // the resolution lands with weight, like Solo Leveling's lethal slow-mo.
+    // Stop the beat timeline + loops from firing into the resolution.
+    this._lpDuelOver = true
     const scene = this._scene
+    // A member still mid-Raise when the fight ends never gets brought back.
+    if (this._lpRaise?.deadAdv && this._lpRaise.deadAdv.aiState !== 'dead') {
+      const d = this._lpRaise.deadAdv
+      this._lpCasualties ??= []
+      this._lpCasualties.push(d.name || 'A hero')
+      this._killAdv(d, 'boss')
+    }
+    this._lpRaise = null
+    // Sweep any downed-but-not-dead stragglers (hp 0, no raise) into real deaths
+    // so none linger in the active list.
+    for (const a of party) {
+      if (a.aiState !== 'dead' && (a.resources?.hp ?? 0) <= 0) {
+        this._lpCasualties ??= []
+        this._lpCasualties.push(a.name || 'A hero')
+        this._killAdv(a, 'boss')
+      }
+    }
+
+    const casualties = this._lpCasualties ?? []
+    // Human-readable casualty list, capped so the finale sub doesn't overflow.
+    const nameList = () => {
+      if (casualties.length === 0) return ''
+      if (casualties.length <= 2) return casualties.join(' and ')
+      return `${casualties[0]}, ${casualties[1]} and ${casualties.length - 2} more`
+    }
+
+    // Killing-blow punch — hard shake (+ brief slow-mo on a boss death).
     scene?.cameras?.main?.shake?.(partyWins ? 480 : 320, partyWins ? 0.018 : 0.012)
     if (partyWins && scene?.time) {
       scene.time.timeScale = 0.25
       window.setTimeout(() => { if (scene?.time) scene.time.timeScale = 1 }, 400)
     }
+
     if (partyWins) {
-      // Force boss HP to 0 so the standard "lethal win" book-keeping reads
-      // the same as a normal-fight party win. Then book-keep the life loss
-      // manually (mirrors _endFight('party') for the boss side).
+      // Force boss HP to 0 so the standard "lethal win" book-keeping reads the
+      // same as a normal-fight party win. Then book-keep the life loss manually.
       boss.hp = 0
       boss.deathsRemaining = Math.max(0, (boss.deathsRemaining ?? 0) - 1)
       boss._diedThisDay    = true
@@ -2712,35 +2886,42 @@ export class BossSystem {
         rounds: 1, roundLog: [],
         party: party.map(a => ({ instanceId: a.instanceId, name: a.name, hp: a.resources?.hp ?? 0 })),
       })
-      // Light Party VICTORY metric — gates the "Warrior of Light" achievement
-      // (mirrors monarch_slayer's shadowMonarchDefeated latch).
+      // Light Party VICTORY metric — gates the "Warrior of Light" achievement.
       EventBus.emit('LIGHT_PARTY_DEFEATED_BOSS', { partySize: party.length })
       if (boss.deathsRemaining <= 0) {
         EventBus.emit('BOSS_DEFEATED_FINAL', { totalDays: this._gameState.player?.totalDaysElapsed })
       }
-      EventBus.emit('LIGHT_PARTY_DUEL_END', {
-        outcome: 'win',
-        summary: 'The party stands triumphant on the throne.',
-      })
-      // Survivors flee out with the standard boss_defeated goal.
+      // Finale varies with the body count: a clean win vs a Pyrrhic one.
+      const finale = casualties.length === 0
+        ? { title: 'FLAWLESS', summary: 'Not a single hero fell.' }
+        : { title: 'VICTORY', summary: `But ${nameList()} fell.` }
+      EventBus.emit('LIGHT_PARTY_DUEL_END', { outcome: 'win', ...finale })
+      // Living survivors flee out with the standard boss_defeated goal.
       for (const a of party) {
-        if ((a.resources?.hp ?? 0) > 0) this._handOffToAIFlee(a, 'boss_defeated')
+        if (a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0) this._handOffToAIFlee(a, 'boss_defeated')
       }
     } else {
-      // Wipe — every party member dies. Use _killAdv for proper book-keeping
-      // (graveyard entries, ADVENTURER_DIED emissions, kill counters).
+      // Boss wins. Not a guaranteed wipe — a lone survivor may flee to tell the
+      // tale (25% if exactly one member is still standing). Everyone else dies.
+      const living = party.filter(a => a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+      let survivor = null
+      if (living.length === 1 && Math.random() < 0.25) survivor = living[0]
+      for (const a of living) {
+        if (a === survivor) continue
+        this._killAdv(a, 'boss')
+      }
       EventBus.emit('BOSS_FIGHT_RESOLVED', {
         winner: 'boss',
         bossHpRemaining: Math.max(0, Math.round(boss.hp ?? 0)),
         deathsRemaining: boss.deathsRemaining ?? 0,
         rounds: 1, roundLog: [],
-        party: party.map(a => ({ instanceId: a.instanceId, name: a.name, hp: 0 })),
+        party: party.map(a => ({ instanceId: a.instanceId, name: a.name, hp: Math.max(0, a.resources?.hp ?? 0) })),
       })
-      EventBus.emit('LIGHT_PARTY_DUEL_END', {
-        outcome: 'loss',
-        summary: 'The party falls. The boss reigns unchallenged.',
-      })
-      for (const a of party) this._killAdv(a, 'boss')
+      const finale = survivor
+        ? { title: 'A LONE SURVIVOR FLEES', summary: `${survivor.name || 'One hero'} carries word of the slaughter.` }
+        : { title: 'TOTAL PARTY KILL', summary: 'The Light is extinguished.' }
+      EventBus.emit('LIGHT_PARTY_DUEL_END', { outcome: 'loss', ...finale })
+      if (survivor) this._handOffToAIFlee(survivor, 'boss_stalemate')
     }
     this._endLightPartyDuel()
   }
@@ -2750,6 +2931,14 @@ export class BossSystem {
     this._lightPartyDuel  = false
     this._combatStarted   = false
     this._fightEnded      = true
+    this._lpDuelOver      = true
+    // Clear the casualty / raise / boss-anim state so a later normal fight (or
+    // a re-fired duel) starts clean. _bossState + _fightStates are nulled so the
+    // generic _tickFightAnim rebuilds them fresh on the next ordinary fight.
+    this._lpRaise       = null
+    this._lpCasualties  = null
+    this._bossState     = null
+    this._fightStates   = null
     // Clear the safety-net context so _tickLightPartyDuel can't re-resolve.
     this._lpDuel        = null
     this._lpDuelElapsed = 0

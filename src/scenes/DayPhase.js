@@ -1554,6 +1554,16 @@ export class DayPhase extends Phaser.Scene {
       spawned.push(adv)
     })
 
+    // Stamp the party's ORIGINAL combined max HP (sum across the full roster
+    // as spawned). The throne-duel outcome is decided by the party's combined
+    // HP fraction vs this total — so a member who dies en route contributes 0
+    // to the numerator while their max still counts in this denominator,
+    // genuinely dragging the group's odds down. (BossSystem._runLightPartyDuel
+    // reads gameState._eventFlags.lightPartyTotalMaxHp.)
+    const flags = this._gameState._eventFlags ?? (this._gameState._eventFlags = {})
+    flags.lightPartyTotalMaxHp = spawned.reduce(
+      (sum, a) => sum + (a.resources?.maxHp ?? 0), 0)
+
     // Cinematic entrance card + persistent vignette + corner party panel.
     // LightPartyCinematic listens for this and walks the slate sequence.
     EventBus.emit('LIGHT_PARTY_BEGAN', {

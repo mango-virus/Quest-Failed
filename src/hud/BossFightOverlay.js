@@ -82,11 +82,14 @@ export class BossFightOverlay {
 
   // ─── Bar build + intro banner ──────────────────────────────────
   _onIncoming(payload) {
-    // Solo Leveling — the Shadow Monarch duel runs its OWN cinematic HUD
-    // (letterbox + two-bar header + finale via SoloLevelingCinematic). Suppress
-    // the standard boss-fight chrome (vignette + bottom HP bar + "BOSS FIGHT"
-    // banner + result slate) for his duel so the two don't double up.
-    if (payload?.triggeringAdventurer?._shadowMonarch) { this._isDuel = true; return }
+    // Cinematic-duel events run their OWN bespoke HUD and suppress the
+    // standard boss-fight chrome (vignette + bottom HP bar + "BOSS FIGHT"
+    // banner + result slate) so the two don't double up:
+    //   • Solo Leveling → SoloLevelingCinematic (_shadowMonarch)
+    //   • Light Party    → LightPartyCinematic   (_lightParty)
+    // `_isDuel` is honoured in _onResolved to skip the result slate too.
+    if (payload?.triggeringAdventurer?._shadowMonarch ||
+        payload?.triggeringAdventurer?._lightParty) { this._isDuel = true; return }
     this._isDuel = false
     this._buildVignette()
     // The intro "BOSS FIGHT" announcement now rides the shared
