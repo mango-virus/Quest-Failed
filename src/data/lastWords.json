@@ -84,6 +84,30 @@
       "trap":    ["The prop was real?!", "Method acting has limits.", "The trap broke the fourth wall.", "I didn't see THIS in rehearsals."],
       "default": ["Roll credits.", "Cut. Cut!", "My performance... my LEGACY...", "Tell the convention I tried.", "End scene."]
     },
+    "paladin": {
+      "minion":  ["I... should have used Hallowed Ground.", "The party... protect the party.", "Shield held. Pity the rest of me didn't.", "Heal me — oh. Right.", "Wipe! Wipe!", "Tank busted. Reset and re-pull.", "The healer... watch the healer..."],
+      "boss":    ["A worthy opponent.", "The light shall return.", "Body block — break formation!", "Tell the healer I bought her... a few seconds.", "A clean death. A clean wipe.", "I had one stack of Divine Veil left."],
+      "trap":    ["Provoke doesn't work on traps. Noted.", "Even a paladin steps wrong.", "My boots... lit up.", "I am the tank. I am also the trap-tester."],
+      "default": ["For the light!", "Hold the line!", "Take the white... mage...", "Reset! Reset!", "Aaagh — wipe!"]
+    },
+    "white_mage": {
+      "minion":  ["I... I can still... raise...", "No more revives... I'm sorry...", "Tell the tank... it wasn't his fault...", "Run! All of you, run!", "I should have used Benediction.", "MP gone... Hands gone...", "Cure cast... interrupted..."],
+      "boss":    ["The party fought well.", "I held them as long as I could.", "Raise... the rest of them...", "It was a wipe worth telling stories about.", "Use my body as a checkpoint."],
+      "trap":    ["The fog of war... covered the floor too.", "I was watching HP bars, not the ground.", "A healer's blind spot.", "I felt the tile click."],
+      "default": ["For the light!", "Stay alive!", "I have you!", "Cure! Cur—!", "Aaagh, Raise!"]
+    },
+    "samurai": {
+      "minion":  ["A fine blade. A finer death.", "Iaijutsu... incomplete.", "I draw — and I am drawn.", "The cut was true. So was theirs.", "Steel before honour. Honour before all.", "My sheath... empty.", "One cut. One breath. Done."],
+      "boss":    ["A noble end.", "The blade meets the throne.", "Worth the pilgrimage.", "I sheathe my sword. For the last time.", "Tell the master my form was perfect."],
+      "trap":    ["The floor... cut faster.", "Dishonourable, this.", "Even Mifune stepped on a board.", "The dungeon strikes first.", "I had no draw for that."],
+      "default": ["Iaijutsu!", "Steel awakens!", "Cut clean!", "A fine death—", "Honour!"]
+    },
+    "black_mage": {
+      "minion":  ["My cast... interrupted.", "MP... was so close...", "Foul. That was a foul.", "Hands not done casting. Body very done.", "Fire... Blizz... Thun— ugh.", "I felt the cast bar fill. And then... nothing.", "Sleep was on cooldown. Damn it."],
+      "boss":    ["Meteor was almost done charging.", "A spell unfinished.", "The arcane will remember.", "I... had Triplecast ready.", "Tell the void I'll be along shortly."],
+      "trap":    ["No mana cost on traps?! Unfair.", "Should've cast Levitate.", "I read the wrong scroll.", "The arcane could not save me from a hole."],
+      "default": ["Fire!", "Blizzard!", "Thunder!", "Aaagh — gimme a sec to cast—", "Meteo—"]
+    },
     "default": {
       "minion":  ["Didn't see that coming.", "Fair fight, actually.", "Tell someone.", "At least I tried."],
       "boss":    ["The boss was... something.", "Bigger than I expected.", "Underestimated it.", "Fair."],

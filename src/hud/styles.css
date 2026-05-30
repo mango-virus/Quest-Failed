@@ -14250,6 +14250,10 @@ body {
    through a ghostly green peak and back. Distinct from void (pure violet)
    and spectral (pure green) by riding both. */
 .qf-titlefx-shadowmonarch { --tfx-grad: linear-gradient(90deg,#7b2fe0,#a86bff,#9bffce,#a86bff,#7b2fe0); --tfx-glow: rgba(123,47,224,0.6); --tfx-dur: 2.4s; }
+/* Light Party — "Warrior of Light": a sweeping white→gold→sky-blue gradient
+   matching the lightparty event banner palette. Foil to shadowmonarch (dark
+   violet/green) — same animated sweep treatment, opposite tonal register. */
+.qf-titlefx-lightparty    { --tfx-grad: linear-gradient(90deg,#fff7d8,#ffd66b,#aedcff,#ffd66b,#fff7d8); --tfx-glow: rgba(255,214,107,0.65); --tfx-dur: 2.4s; }
 /* Leaderboard medals — bronze / silver / champion-gold. */
 .qf-titlefx-bronze    { --tfx-grad: linear-gradient(90deg,#c8803c,#e8a85c,#ffe0b0,#e8a85c,#c8803c); --tfx-glow: rgba(200,128,60,0.5); }
 .qf-titlefx-silver    { --tfx-grad: linear-gradient(90deg,#aab4c0,#dde4ec,#ffffff,#dde4ec,#aab4c0); --tfx-glow: rgba(210,225,245,0.5); }

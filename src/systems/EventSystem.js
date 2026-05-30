@@ -157,6 +157,23 @@ export class EventSystem {
     // so the throne becomes a strict 1:1 duel. They die outright (NOT raised
     // as shadows — guarded via the _soloDuelBanished flag below).
     on('BOSS_FIGHT_INCOMING', (p) => this._onShadowMonarchEnterBossRoom(p ?? {}))
+    // ── Light Party (FFXIV trinity) ────────────────────────────────────
+    // Shared LB gauge fills passively from damage taken / minion kills /
+    // successful Raises. LightPartyAi reads gameState._eventFlags.lightPartyGauge
+    // to decide when an LB fires; we only book-keep here so a save/load
+    // restores the gauge cleanly.
+    //
+    // Why COMBAT_KILL (not MINION_DIED): MinionAISystem._die emits MINION_DIED
+    // with `killerId: null` — by the time the minion dies, the killer info
+    // is gone. COMBAT_KILL fires from CombatSystem with sourceId=attacker at
+    // the killing blow, so we always know who landed it.
+    on('COMBAT_HIT',         (p) => this._onLightPartyHit(p ?? {}))
+    on('COMBAT_KILL',        (p) => this._onLightPartyKill(p ?? {}))
+    on('LIGHT_PARTY_RAISED', (p) => this._onLightPartyRaise(p ?? {}))
+    // Hard-wipe rule: if EVERY party member is dead/fled, the event ends
+    // (the party never reaches the boss). Same shape as the
+    // BOSS_FIGHT_INCOMING wipe trigger used for solo_leveling — fires from
+    // ADVENTURER_DIED / ADVENTURER_FLED already above.
   }
 
   // Dev-only force-fire path used by the mango TEST EVENT picker. Tears
@@ -379,6 +396,77 @@ export class EventSystem {
     this._despawnShadows()
   }
 
+  // ── Light Party (FFXIV trinity) ────────────────────────────────────────
+  // Shared LB gauge balance — tuned so a clean run reaches LB3 (100) right
+  // around the boss-room door. Roughly: ~40pt from incidental damage,
+  // ~50pt from minion kills, ~10pt from a revive (or two).
+  //
+  // Tuning notes (2026-05-29 v2): initial pass had DAMAGE_PCT=0.5 + PER_KILL=5
+  // which never reached 100 in a normal run because Provoke pulls most hits to
+  // the tank (so damage taken per member is sparse) AND kill counts hover near
+  // 5-10. Bumped to ~10× the damage-fill rate and 2× the kill rate so a normal
+  // dungeon traversal actually fills the bar.
+  static LB_GAUGE_MAX        = 100
+  static LB_GAUGE_DAMAGE_PCT = 5     // pts per 1% maxHp of party damage taken
+  static LB_GAUGE_PER_KILL   = 10    // pts per minion killed by a party member
+  static LB_GAUGE_PER_RAISE  = 15    // pts per successful Raise cast
+
+  _liveLightParty() {
+    return (this._gameState.adventurers?.active ?? [])
+      .filter(a => a?._lightParty && a.aiState !== 'dead')
+  }
+
+  _bumpLbGauge(delta) {
+    const flags = this._gameState._eventFlags ?? {}
+    if (!flags.lightPartyActive) return
+    const next = Math.min(EventSystem.LB_GAUGE_MAX, (flags.lightPartyGauge ?? 0) + delta)
+    if (next === flags.lightPartyGauge) return
+    flags.lightPartyGauge = next
+    EventBus.emit('LIGHT_PARTY_LB_GAUGE', { value: next, max: EventSystem.LB_GAUGE_MAX })
+  }
+
+  // Damage taken by ANY party member feeds the gauge. The percent-of-maxHp
+  // formula keeps the fill rate roughly era-flat — a paladin at 1500 maxHp
+  // takes the same fraction of a hit as a black_mage at 280, both contribute
+  // proportional gauge.
+  _onLightPartyHit({ targetId, damage } = {}) {
+    const flags = this._gameState._eventFlags ?? {}
+    if (!flags.lightPartyActive || !targetId || !damage) return
+    const adv = (this._gameState.adventurers?.active ?? []).find(a => a?.instanceId === targetId)
+    if (!adv?._lightParty) return
+    const maxHp = adv.resources?.maxHp || 1
+    const pct = (damage / maxHp) * 100
+    this._bumpLbGauge(pct * EventSystem.LB_GAUGE_DAMAGE_PCT)
+  }
+
+  // Party member killing a minion gives a flat bump. COMBAT_KILL carries the
+  // ATTACKER id as sourceId and the VICTIM as targetId — checking that the
+  // attacker is a light-party adv AND the victim is a dungeon-faction minion.
+  _onLightPartyKill({ sourceId, targetId } = {}) {
+    const flags = this._gameState._eventFlags ?? {}
+    if (!flags.lightPartyActive || !sourceId) return
+    const adv = (this._gameState.adventurers?.active ?? []).find(a => a?.instanceId === sourceId)
+    if (!adv?._lightParty) return
+    const victim = (this._gameState.minions ?? []).find(m => m?.instanceId === targetId)
+    if (!victim || victim.faction === 'adventurer') return  // shadows / charms — not a real "kill"
+    this._bumpLbGauge(EventSystem.LB_GAUGE_PER_KILL)
+  }
+
+  // Successful Raise (LightPartyAi emits this when the healer's 3s cast
+  // completes without interruption). Big chunk of gauge as a reward for
+  // surviving the cast window.
+  _onLightPartyRaise() {
+    this._bumpLbGauge(EventSystem.LB_GAUGE_PER_RAISE)
+  }
+
+  // Used by LightPartyAi to consume the full gauge after firing an LB.
+  // Exposed via the scene reference (scene.eventSystem.consumeLbGauge()).
+  consumeLbGauge() {
+    const flags = this._gameState._eventFlags ?? {}
+    flags.lightPartyGauge = 0
+    EventBus.emit('LIGHT_PARTY_LB_GAUGE', { value: 0, max: EventSystem.LB_GAUGE_MAX })
+  }
+
   // Remove every shadow from the roster outright — their sprites are culled
   // on the renderer's next tick. Splicing (vs marking dead) guarantees no
   // faction='adventurer' entries linger into the next day.
@@ -454,6 +542,11 @@ export class EventSystem {
     // on the dedicated 10-day Treasure Raid track (see _maybeScheduleRaid).
     // Keep it out of the shuffle bag entirely so it never double-fires.
     if (def.id === 'treasure_hunters') return false
+    // Light Party — held out of the shuffle bag until the build is finished
+    // and the user explicitly opts to enable it. The mango TEST EVENT dev
+    // button bypasses this filter, so it can still be force-fired for QA.
+    // To enable in the normal rotation, delete this line.
+    if (def.id === 'light_party') return false
     return true
   }
 
@@ -1603,8 +1696,13 @@ export class EventSystem {
     // in BossSystem._endFight on a life loss and cleared next night; on a
     // solo_leveling day the duel is the only fight, so it's true iff Jinwoo won.
     const soloBossDied = id === 'solo_leveling' && !!this._gameState.boss?._diedThisDay
-    if (soloBossDied) {
-      ev.firedThisRun = ev.firedThisRun.filter(x => x !== 'solo_leveling')
+    // Light Party — same rule as Solo Leveling. The party-vs-boss duel is the
+    // only fight on a light_party day, so a boss life loss = the party won
+    // (LightPartyCinematic resolved as a party victory). Re-queue so the event
+    // stays a recurring threat instead of waiting for the full shuffle bag.
+    const lightPartyBossDied = id === 'light_party' && !!this._gameState.boss?._diedThisDay
+    if (soloBossDied || lightPartyBossDied) {
+      ev.firedThisRun = ev.firedThisRun.filter(x => x !== id)
     } else if (!ev.firedThisRun.includes(id)) {
       ev.firedThisRun.push(id)
     }
@@ -1731,6 +1829,21 @@ export class EventSystem {
         // shadows, and duels the boss stat-matched. _spawnSoloLeveling reads
         // this flag.
         flags.soloLevelingActive = true
+        break
+      case 'light_party':
+        // DayPhase spawns the fixed 4-role raid party (Tank/Healer/2×DPS)
+        // instead of the normal wave — see _spawnLightParty. Per-role AI
+        // takes over movement/combat once they enter; the cinematic boss
+        // fight fires when the party reaches the throne. Stat scaling per
+        // boss level keeps the encounter threatening at any era without
+        // changing the count. The LB gauge starts empty + fills through
+        // play (see _onLightPartyHit / _onLightPartyMinionKill /
+        // _onLightPartyRaise).
+        flags.lightPartyActive = true
+        flags.lightPartyGauge  = 0
+        EventBus.emit('LIGHT_PARTY_LB_GAUGE', {
+          value: 0, max: EventSystem.LB_GAUGE_MAX,
+        })
         break
       case 'dark_deal':
         // The pact-pick happens in night phase (DarkDealDemonRenderer + the
@@ -1894,6 +2007,18 @@ export class EventSystem {
         // Belt-and-suspenders: drop any shadows still on the roster so
         // faction='adventurer' minions never persist into the next day.
         this._despawnShadows()
+        break
+      case 'light_party':
+        // Clear all party-wide event state. LightPartyAi reads these flags
+        // on every tick; nulling them ensures any straggler advs (rare —
+        // the party usually wipes or wins outright) drop back to default
+        // adventurer behaviour for the rest of the day.
+        flags.lightPartyActive   = false
+        flags.lightPartyGauge    = 0
+        flags.lightPartyDuelDone = false
+        EventBus.emit('LIGHT_PARTY_LB_GAUGE', {
+          value: 0, max: EventSystem.LB_GAUGE_MAX,
+        })
         break
       case 'goblin_market':
         // The peddler packs up — prices revert. Null the map + tell the

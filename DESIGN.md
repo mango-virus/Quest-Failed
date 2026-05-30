@@ -1296,3 +1296,62 @@ A Boss Event keeps its own `colorTheme` (its identity colour) but gets a **gold 
 - **Sound:** Boss Events play a distinct **boss-event sting** (`sfx-event-boss`) on announcement instead of the usual event notification cue — so they sound as different as they look. Falls back to the standard cue if the asset hasn't loaded.
 
 **Solo Leveling** is the first Boss Event. Its shadowmonarch black↔blue sweep stays as its identity; the gold tier overlay is layered on top. Promoting any future event to Boss tier is a one-line JSON change (`eventTier: 'boss'` in `events.json`) — no per-event code.
+
+---
+
+## Light Party — FFXIV Trinity Raid (2026-05-29)
+
+The second Boss Event. Where Solo Leveling is one legendary champion who duels the boss alone, **Light Party** is the opposite challenge: a **coordinated 4-role raid party** — Tank, Healer, two DPS — moves through the dungeon as a single unit. Always exactly 4 members; stat scaling per boss level keeps the encounter threatening at any era without changing the count. Inspired by FFXIV light parties, with the **healer** as the strategic linchpin: she never attacks, she only heals and revives, and her HP fraction when the party reaches the throne **decides the duel**. Cut her down before she gets there and the dungeon wins; let her arrive intact and the boss falls. Held out of the random shuffle bag until the user opts to enable it (so it can be tested + tuned in isolation); the dev TEST EVENT button still force-fires it for QA.
+
+### The four roles
+
+Four new event-only adventurer classes (50 baked LPC variants each), tagged with role flags + a shared `partyId`:
+
+- **Paladin (Tank)** — 150 HP / 4 ATK / 12 DEF. Plate + tower shield silhouette. **Provoke aura**: any minion within 4 tiles that picks a non-tank party member to attack is force-retargeted to the tank instead. **Hallowed Ground** at <30% HP — 3-second self-invuln, once per dungeon.
+- **White Mage (Healer)** — 60 HP / **0 ATK** / 3 DEF. Robes + staff with crystal. **Never attacks** (CombatSystem short-circuits all swings). Heals the lowest-HP party member every 1.5 seconds, visible green-gold beam. On any ally death, channels a **3-second Raise cast** with a visible red-rimmed cast bar above her head — if she takes **>15% maxHp damage during the cast**, the resurrection fizzles ("INTERRUPTED!"). A successful raise brings the ally back at 50% HP. Unlimited revives — the puzzle is interrupting, not depleting.
+- **Samurai (Melee DPS)** — 45 HP / 18 ATK / 3 DEF. Light lamellar + Saber (LPC katana proxy). Twice the damage of a normal melee adv.
+- **Black Mage (Ranged DPS)** — 28 HP / 22 ATK / 1 DEF, **attack range 4**. Tall wizard hat + staff. Lobs spells over the tank's shoulder to hit your back-row minions.
+
+### Wave size
+
+Always exactly **4 members**: 1 Tank / 1 Healer / 2 DPS. The encounter scales by stats (per-boss-level scaling on every party member) rather than by count, keeping the FFXIV light-party feel intact regardless of era.
+
+### Limit Break (shared gauge)
+
+A shared LB gauge (0–100) fills as the party plays: **damage taken** (0.5 pt per 1% maxHp), **minion kills** (5 pt), and **successful raises** (10 pt). At full, the AI fires a **tactical LB** (once per dungeon) — situational dispatch picks the most-useful flavour:
+
+- **Tank LB — Stronghold**: at ≤50% total party HP → **4-second party-wide invuln** (gold dome VFX).
+- **Healer LB — Pulse of Life**: when ≥2 party members dead → **full revive + heal the entire party** (radial green wave).
+- **DPS LB — Final Heaven / Meteor**: when ≥4 minions in a 5-tile radius of any DPS → **AoE-kill every minion in radius** (screen flash + banner).
+
+A guaranteed **LB3 cinematic** also fires during the boss-fight climax (see below) regardless of gauge state.
+
+### The boss-fight duel (FFXIV cinematic)
+
+When the party reaches the throne, the normal boss fight is **replaced** by a bespoke FFXIV-style cinematic (BossSystem `_runLightPartyDuel`). Outcome is **rolled once at the start** from the party's state at the door:
+
+```
+winChance = 0.25 + healerHpFrac × 0.55 + livingDpsCount × 0.05 − (tankDead ? 0.15 : 0)
+            clamped to [0.10, 0.90]
+```
+
+So a full-HP healer with everyone alive ≈ **90% win**; a dead healer with the tank gone ≈ **15% win**. The healer's HP is the dominant lever — exactly what the player optimized against during the dungeon run. The cinematic then plays out the rolled result.
+
+**Beat sequence** (~17 seconds total): opener flourish → boss casts **Megaflare** (visible cast bar) → AoE telegraph "DODGE!" → healer recovers the party → boss casts **Holy Wrath** → stack mechanic "STACK!" → **LB3 climax** (Meteor on win, desperate LB on loss) → resolution. The cinematic UI is lifted from FFXIV raid HUDs: **boss HP bar top-center**, **party HP list bottom-left** with role icons, **boss cast bar** below the boss HP. Letterbox bars frame the fight.
+
+### Win/loss + recurrence
+
+- **Party wins** → boss loses a life (`deathsRemaining--`, `_diedThisDay=true`); survivors flee the dungeon with the standard `boss_defeated` goal. The event is **thrown back into the shuffle bag** (same recurrence rule as Solo Leveling: a boss death invites the threat back).
+- **Boss wins** (party wipes) → every party member is `_killAdv`'d for proper book-keeping (graveyard entries, kill counts, achievements). Event marks spent normally.
+
+### Persistent UI
+
+- **Entrance card** on spawn: ◆ LIGHT PARTY ◆ / "WARRIORS OF LIGHT" / role chips fade in one at a time (🛡 ✨ ⚔ 🏹).
+- **Persistent gold vignette** while the party is in the dungeon.
+- **Corner party panel** (FFXIV party-list aesthetic) — 4 or 8 stacked HP bars with role icons + LB gauge below. Lifts when the duel begins.
+- **World-space visuals**: small job icon hovers over each member's head; heal beam draws from healer staff to ally on every heal; raise cast bar over the healer's head during the 3-second window.
+- **Theme**: `lightparty` colorTheme — sweeping white→gold→sky-blue gradient banner, distinct from Solo Leveling's shadowmonarch black↔blue. Gets the gold Boss Event overlay automatically.
+
+### Achievement — "Warrior of Light"
+
+Legendary achievement granted when the **boss wins the duel** (the player defeated the raiding party). Reward: **Luna companion unlock** (flips her `locked: true` via the existing `PlayerProfile.unlockCompanion` path) + the title **"Warrior of Light"** with a custom `lightparty` title FX (white→gold→sky-blue sweep, foil to monarch_slayer's shadowmonarch sweep).

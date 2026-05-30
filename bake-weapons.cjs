@@ -76,6 +76,12 @@ const ATK_CLASSES = new Set([
   // the 192×192 slash_oversize sheet. Without the atk sheet his blade is
   // invisible mid-attack (the oversize slash can't fit the 64×64 main sheet).
   'shadow_monarch',
+  // Light Party event classes — paladin (Longsword/Mace), samurai (Saber)
+  // both have slash_oversize art; white_mage (Diamond/Loop staff) +
+  // black_mage (Diamond/S/Gnarled/Loop staff) cast via thrust_oversize.
+  // All four need the 192×192 atk sheet so their weapons render at native
+  // scale during combat instead of being clipped into 64×64.
+  'paladin', 'white_mage', 'samurai', 'black_mage',
 ]);
 const ATK_FRAME       = 192;          // frame size in atk sheet
 const ATK_COLS        = 8;            // max frames per row (thrust = 8)

@@ -519,7 +519,10 @@ export class TrapSystem {
     }
     let damage = dmg
     let instakill = false
-    if (def.instakillChance && this._isAdventurer(entity) && Math.random() < def.instakillChance) {
+    // Light Party + Shadow Monarch take trap DAMAGE but are immune to the
+    // instant-kill roll — they die only to normal combat / the boss duel.
+    const _instakillImmune = !!(entity?._lightParty || entity?._shadowMonarch)
+    if (!_instakillImmune && def.instakillChance && this._isAdventurer(entity) && Math.random() < def.instakillChance) {
       damage = entity.resources.hp
       instakill = true
     }

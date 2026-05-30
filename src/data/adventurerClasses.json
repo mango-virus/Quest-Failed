@@ -414,5 +414,98 @@
     "rarity": "legendary",
     "description": "The Shadow Monarch. Enters alone, raises your fallen minions as his shadow army, and marches on the throne to duel the boss as an equal. Moves twice as fast, shrugs off your defenses, and grows stronger with every shadow he claims.",
     "flavorText": "Arise."
+  },
+  {
+    "id": "paladin",
+    "name": "Paladin",
+    "color": "0xd4b366",
+    "baseStats": {
+      "hp": 150,
+      "attack": 4,
+      "defense": 12,
+      "speed": 1.3,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "tank",
+      "light_party",
+      "holy"
+    ],
+    "unlockLevel": 99,
+    "rarity": "legendary",
+    "description": "Light Party tank. Soaks every hit aimed at the party — minions within his Provoke aura ignore his fragile teammates and swing at his shield instead. Hits like a wet noodle on his own, but his teammates do plenty for him.",
+    "flavorText": "Hallowed Ground. I yield to none."
+  },
+  {
+    "id": "white_mage",
+    "name": "White Mage",
+    "color": "0xfff3c2",
+    "baseStats": {
+      "hp": 60,
+      "attack": 0,
+      "defense": 3,
+      "speed": 1.5,
+      "attackRange": 3
+    },
+    "startingResources": {},
+    "tags": [
+      "ranged",
+      "healer",
+      "support",
+      "light_party",
+      "holy",
+      "never_attacks"
+    ],
+    "unlockLevel": 99,
+    "rarity": "legendary",
+    "description": "Light Party healer. Never attacks — only heals and revives the party. On any ally death, channels a 3-second Raise that brings them back at half HP. Interrupt her and the resurrection fizzles. Kill her and the party crumbles.",
+    "flavorText": "Stay alive, all of you. I've got you."
+  },
+  {
+    "id": "samurai",
+    "name": "Samurai",
+    "color": "0xc94e4e",
+    "baseStats": {
+      "hp": 45,
+      "attack": 18,
+      "defense": 3,
+      "speed": 1.7,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "dps",
+      "light_party"
+    ],
+    "unlockLevel": 99,
+    "rarity": "legendary",
+    "description": "Light Party melee DPS. Wind-up iaijutsu strikes that hit twice as hard as a normal blade. Stays at the tank's shoulder, peels for the healer when she's threatened.",
+    "flavorText": "One cut. One breath."
+  },
+  {
+    "id": "black_mage",
+    "name": "Black Mage",
+    "color": "0x6240a8",
+    "baseStats": {
+      "hp": 28,
+      "attack": 22,
+      "defense": 1,
+      "speed": 1.6,
+      "attackRange": 4
+    },
+    "startingResources": {},
+    "tags": [
+      "ranged",
+      "spellcaster",
+      "dps",
+      "light_party"
+    ],
+    "unlockLevel": 99,
+    "rarity": "legendary",
+    "description": "Light Party ranged DPS. Lobs spells over the tank's shoulder to hit your back-row minions. Glass cannon — squishy, but every cast lands like a comet. Cast bars are visible; interrupt windows exist.",
+    "flavorText": "Fire. Blizzard. Thunder. Repeat."
   }
 ]

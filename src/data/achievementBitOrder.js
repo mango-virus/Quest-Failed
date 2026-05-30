@@ -56,6 +56,8 @@ export const ACHIEVEMENT_BIT_ORDER = [
   'munitions_expert', 'the_unbreaking',
   // Solo Leveling event boss
   'monarch_slayer',
+  // Light Party event boss
+  'warrior_of_light',
   // Progression — boss levels 21-25 (moved to the end so old masks never
   // reach them; see the achievements.json reorder + this list's rules).
   'umbral_ascendant', 'devourer_of_stars', 'herald_of_oblivion',

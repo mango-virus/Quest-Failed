@@ -44,6 +44,7 @@ import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
+import { LightPartyCinematic }   from './LightPartyCinematic.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
 import { JamPortalCorner }      from './JamPortalCorner.js'
@@ -165,6 +166,10 @@ export class HudRoot {
     // Same post-mount() construction rule as the others (appends to
     // #hud-stage immediately).
     this._soloLeveling     = new SoloLevelingCinematic()
+    // Light Party — FFXIV-flavored entrance card + persistent party panel
+    // + LB gauge + boss-fight cinematic. Same self-mounting pattern as the
+    // Solo Leveling cinematic; cheap no-op on every other day.
+    this._lightParty       = new LightPartyCinematic()
     // Pass the BottomBar's archetype-slot ref so the strip mounts INSIDE
     // the bar rather than floating above it (which used to cover the
     // dungeon view during day phase).

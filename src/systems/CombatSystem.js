@@ -28,6 +28,19 @@ export class CombatSystem {
   tryAttack(attacker, target, opts = {}) {
     if (!attacker || !target) return null
     if (target.resources.hp <= 0) return null
+    // Pacifist gate — Light Party's healer (white_mage) is tagged
+    // _neverAttacks at spawn and stays a pure support unit (heals + revives,
+    // no swings). The flag lives on the adv instance, so anywhere the AI
+    // calls tryAttack(healer, …) it short-circuits here. Generic enough for
+    // any future "never-attacks" adventurer / minion to use the same flag.
+    if (attacker._neverAttacks) return null
+    // Invulnerability — Light Party's Hallowed Ground (tank self-cast at
+    // <30% HP) and Stronghold (Tank LB party-wide) both set target._invuln
+    // for a short window. Damage is fully suppressed: no hit registered,
+    // no hurt animation, nothing. The flag is cleared by the system that
+    // set it (LightPartyAi via a Phaser delayedCall). Generic enough for
+    // any future "invuln window" mechanic (mechanic cards, dark pacts, …).
+    if (target._invuln) return null
 
     // Doorway gate — combat only resolves when BOTH attacker and target
     // are fully in a room. An entity standing on a TILE.DOOR tile is

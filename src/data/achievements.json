@@ -913,6 +913,19 @@
     "legendary": true
   },
   {
+    "id": "warrior_of_light",
+    "name": "Warrior of Light",
+    "description": "Defeat the Light Party in the throne-room duel.",
+    "category": "mastery",
+    "metric": "lightPartyDefeated",
+    "target": 1,
+    "icon": "✨",
+    "reward": { "type": "companion", "id": "luna" },
+    "title": "Warrior of Light",
+    "titleFx": "lightparty",
+    "legendary": true
+  },
+  {
     "id": "umbral_ascendant",
     "name": "Umbral Ascendant",
     "description": "Reach boss level 21.",

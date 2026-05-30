@@ -279,5 +279,14 @@
     "colorTheme": "shadowmonarch",
     "eventTier": "boss",
     "minBossLevel": 1
+  },
+  {
+    "id": "light_party",
+    "title": "LIGHT PARTY",
+    "notif": "A coordinated raid party assembles at the gate — tank, healer, two DPS, moving as one. Cut down the healer before they reach your throne, or the boss falls.",
+    "icon": "✨",
+    "colorTheme": "lightparty",
+    "eventTier": "boss",
+    "minBossLevel": 1
   }
 ]

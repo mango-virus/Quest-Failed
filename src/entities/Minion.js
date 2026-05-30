@@ -24,6 +24,11 @@ function _parseColor(c) {
 }
 
 export function applyMinionScaling(minion, bossLevel, day = 1) {
+  // Defensive: a minion missing its stats/resources block (malformed or
+  // legacy entry) would throw here and take down the whole dawn rescale pass
+  // (respawnAll → _dawnRefresh), silently killing the day's spawn pipeline.
+  // Skip such an entry instead of crashing.
+  if (!minion || !minion.stats || !minion.resources) return minion
   // Record base stats on first call so repeated rescales don't stack.
   if (minion._baseMaxHp == null) {
     minion._baseMaxHp = minion.resources.maxHp

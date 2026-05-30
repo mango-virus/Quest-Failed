@@ -113,6 +113,10 @@ const ADVENTURER_CLASS_IDS = [
   // canonical baked variant (shadow_monarch/v01). See the count override
   // below so we don't request v02..v50.
   'shadow_monarch',
+  // Light Party event classes — the FFXIV trinity (Tank/Healer/DPS/DPS).
+  // Each has 50 baked LPC variants. No normal spawn (unlockLevel: 99 in
+  // adventurerClasses.json); event spawn only.
+  'paladin', 'white_mage', 'samurai', 'black_mage',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 50
 // Per-class override for classes that ship fewer than the default 50 baked
@@ -143,6 +147,10 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // Sung Jinwoo (Solo Leveling) — Saber whose swing only exists as 192×192
   // slash_oversize art; needs the atk sheet to show the blade mid-attack.
   'shadow_monarch',
+  // Light Party event classes — paladin / samurai swing slash_oversize
+  // blades, white_mage / black_mage cast via thrust_oversize staff. All
+  // four need the 192×192 atk sheet so weapons render at native scale.
+  'paladin', 'white_mage', 'samurai', 'black_mage',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8

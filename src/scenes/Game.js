@@ -61,6 +61,8 @@ import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { PauseManager }       from '../systems/PauseManager.js'
 import { SfxSystem }          from '../systems/SfxSystem.js'
 import { EventSystem }        from '../systems/EventSystem.js'
+import { LightPartyAi }       from '../systems/LightPartyAi.js'
+import { LightPartyRenderer } from '../ui/LightPartyRenderer.js'
 import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
@@ -250,6 +252,13 @@ export class Game extends Phaser.Scene {
     this.bossSystem          = track(new BossSystem(this, this.gameState))
     this.sfxSystem           = track(new SfxSystem(this, this.gameState))
     this.eventSystem         = track(new EventSystem(this, this.gameState))
+    // Per-role driver for the Light Party event (FFXIV trinity). No-ops on
+    // any day where the event isn't active (cheap early-return).
+    this.lightPartyAi        = track(new LightPartyAi(this, this.gameState))
+    // World-space VFX for the Light Party event (job icons, heal beam,
+    // raise cast bar). Renderer side of the same feature. Cheap no-op when
+    // the event isn't live.
+    this.lightPartyRenderer  = track(new LightPartyRenderer(this, this.gameState))
     this.combatFeedback      = track(new CombatFeedback(this, this.gameState))
     // Per-companion world-space VFX layered onto combat/death — pink
     // hearts on adv death for Lilith, purple sparks on every hit for
@@ -1999,6 +2008,7 @@ export class Game extends Phaser.Scene {
             // game-time per real second identical.
             tick('aiSystem',            () => this.aiSystem?.update(stepDt * 3))
             tick('minionAiSystem',      () => this.minionAiSystem?.update(stepDt * 3))
+            tick('lightPartyAi',        () => this.lightPartyAi?.update(stepDt * 3))
             window.__perfCounts.aiTicks = (window.__perfCounts.aiTicks ?? 0) + 1
           }
           tick('trapSystem',            () => this.trapSystem?.update(stepDt))
@@ -2019,6 +2029,7 @@ export class Game extends Phaser.Scene {
         _rstats[sys] = (_rstats[sys] ?? 0) + (performance.now() - t0)
       }
       rtick('adventurerRenderer',  () => this.adventurerRenderer?.update())
+      rtick('lightPartyRenderer',  () => this.lightPartyRenderer?.update())
       rtick('emoteSystem',         () => this.emoteSystem?.update())
       rtick('minionRenderer',      () => this.minionRenderer?.update())
       rtick('bossRenderer',        () => this.bossRenderer?.update())

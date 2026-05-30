@@ -1080,6 +1080,24 @@ export class MinionAISystem {
         bestPriority = priority
       }
     }
+    // Light Party — tank Provoke aura. If the chosen target is a non-tank
+    // Light Party member AND a living tank is within PROVOKE range of THIS
+    // minion, swap to the tank. Reads as "the paladin steps in front" —
+    // minions can't pick off the squishies as long as the tank is nearby.
+    // PROVOKE_RANGE = 4 tiles. Range is measured FROM THE MINION because the
+    // tank's role is to draw aggro within his own threat radius, not to
+    // teleport-block from across the room.
+    if (best && best._lightParty && best._lightPartyRole !== 'tank') {
+      const PROVOKE_RANGE = 4
+      let tank = null, tankD = Infinity
+      for (const a of this._gameState.adventurers?.active ?? []) {
+        if (!a?._lightParty || a._lightPartyRole !== 'tank') continue
+        if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+        const d = Math.hypot(a.tileX - minion.tileX, a.tileY - minion.tileY)
+        if (d <= PROVOKE_RANGE && d < tankD) { tank = a; tankD = d }
+      }
+      if (tank) best = tank
+    }
     return best
   }
 

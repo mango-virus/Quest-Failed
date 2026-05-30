@@ -2498,11 +2498,12 @@ export class BossArchetypeSystem {
       this._disarmSacrifice()
       return
     }
-    // Pick a random alive adv in the dungeon. Sung Jinwoo is exempt — the
-    // sacrifice (an instant-kill boss ability) can't take the Shadow Monarch;
-    // only the boss duel itself can.
+    // Pick a random alive adv in the dungeon. Sung Jinwoo AND the Light Party
+    // are exempt — the sacrifice (an instant-kill boss ability) can't take
+    // them; they die only to normal combat / the boss duel itself.
     const advs = (this._gameState?.adventurers?.active ?? [])
-      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && !a._shadowMonarch)
+      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 &&
+        !a._shadowMonarch && !a._lightParty)
     if (advs.length === 0) {
       this._disarmSacrifice()
       EventBus.emit('DEMON_SACRIFICE_NO_TARGETS', {})

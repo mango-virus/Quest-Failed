@@ -384,6 +384,10 @@ export class AISystem {
     // (_tryOpenTreasureChest) and never springs a mimic disguised as one.
     // He marches past, eyes on the boss.
     if (adv._shadowMonarch) return
+    // Light Party — a coordinated raid is here for the boss, not loot.
+    // Skip mimic-bait disguised chests the same way as Jinwoo: walking
+    // through one shouldn't spring it.
+    if (adv._lightParty) return
     for (const m of (this._gameState.minions ?? [])) {
       if (!m.isMimic) continue
       if (m.mimicState !== 'chest') continue
@@ -477,6 +481,9 @@ export class AISystem {
     // boss alone. Skip the proximity loot entirely so he never pops a chest
     // he happens to beeline past on his way to the throne.
     if (adv._shadowMonarch) return
+    // Light Party — same deal: a coordinated raid is here for the boss, not
+    // loot. Walking past a chest doesn't rob it.
+    if (adv._lightParty) return
     if (adv.stolenGold > 0 || adv._raiderLooted) return   // already carrying — don't rob another
     for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
       if (chest.opened) continue
@@ -1067,6 +1074,17 @@ export class AISystem {
           maxHp: Math.max(1, Math.round(mx)),
           frac:  mx > 0 ? Math.max(0, Math.min(1, (jin.resources?.hp ?? 0) / mx)) : 0,
           name:  jin.name ?? 'THE SHADOW MONARCH',
+        })
+      }
+      // Light Party — same shape, batched into a single LIGHT_PARTY_HP event
+      // per member (no per-event chatter on the bus). The cinematic corner
+      // panel listens and updates each row. Cheap no-op on every other day.
+      for (const a of active) {
+        if (!a?._lightParty) continue
+        EventBus.emit('LIGHT_PARTY_HP', {
+          instanceId: a.instanceId,
+          hp:    Math.max(0, Math.round(a.resources?.hp ?? 0)),
+          maxHp: Math.max(1, Math.round(a.resources?.maxHp ?? a.resources?.hp ?? 1)),
         })
       }
     }
@@ -1861,6 +1879,20 @@ export class AISystem {
             // the gauntlet self-destruct.
             !adv._saboteur && !adv._speedrunner && !adv._tournamentRival &&
             !this._beelinesBoss(adv)) {
+          // Light Party + Shadow Monarch NEVER die to the starvation failsafe
+          // (immune to all instakill / failsafe deaths by design — they die
+          // only to normal combat or the boss duel). If one somehow loops this
+          // long, redirect it straight to the throne — bypass the knowledge
+          // gate via _forceBossBeeline — so it can't freeze the day, instead
+          // of culling it. (2026-05-30)
+          if (adv._lightParty || adv._shadowMonarch) {
+            adv._forceBossBeeline    = true
+            adv._seekExploreTargetId = null
+            adv._roomRevisits        = 0
+            adv.goal = { type: 'SEEK_BOSS' }
+            adv.path = null
+            return
+          }
           // Death attribution — credit "Starvation" so the graveyard /
           // toast / log read "killed by Starvation" instead of "Unknown".
           // _lookupKillerName resolves the 'starvation' id to its label.
@@ -3302,6 +3334,25 @@ export class AISystem {
 
   _goalToTile(adv) {
     const dungeon = this._gameState.dungeon
+    // Light Party leashing — non-tank members stick within LEASH tiles of the
+    // tank. When they drift outside the leash, their next pathing pick targets
+    // the TANK's tile instead of whatever the underlying goal points at (which
+    // is SEEK_BOSS for the whole party). The tank itself routes normally, so
+    // the party moves as one unit: tank picks the destination, everyone else
+    // catches up. Fixes the splitting-off symptom (most visibly the healer,
+    // who never engages combat so nothing else slowed her down).
+    // Per-role leash so ranged DPS can stand farther back without being
+    // dragged onto the tank's tile every tick.
+    if (adv._lightParty && adv._lightPartyRole && adv._lightPartyRole !== 'tank') {
+      const tank = (this._gameState.adventurers?.active ?? [])
+        .find(a => a?._lightParty && a._lightPartyRole === 'tank'
+                && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+      if (tank) {
+        const LEASH = adv._lightPartyRole === 'rangedDps' ? 3 : 2
+        const d = Math.hypot(adv.tileX - tank.tileX, adv.tileY - tank.tileY)
+        if (d > LEASH) return { x: tank.tileX, y: tank.tileY }
+      }
+    }
     // Dungeon event: The Saboteur — route to the targeted trap's tile.
     // If that trap is already disabled or gone, re-pick the next one.
     if (adv.goal.type === 'DISARM_TRAP') {
@@ -3396,7 +3447,11 @@ export class AISystem {
       // the throne) — and even gated roles can no longer freeze here:
       // _exploreFallbackForSeekBoss now walks them OUTWARD through
       // unentered rooms toward the boss instead of stranding them.
-      if (!this._beelinesBoss(adv) && !this._knowsBossLocation(adv)) {
+      // `_forceBossBeeline` (set by the starvation-loop redirect for the
+      // instakill-immune roles — Light Party / Jinwoo) bypasses the explore
+      // phase so a looping member heads straight to the throne instead of
+      // being culled.
+      if (!this._beelinesBoss(adv) && !adv._forceBossBeeline && !this._knowsBossLocation(adv)) {
         const explore = this._exploreFallbackForSeekBoss(adv)
         if (explore) return explore
         // Nothing left to explore — fall through to boss tile so the
@@ -4151,18 +4206,34 @@ export class AISystem {
     const rooms = this._gameState?.dungeon?.rooms ?? []
     const entered = adv._roomsEntered ?? {}
     const hereId = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId
-    let best = null, bestDist = Infinity
-    for (const room of rooms) {
-      if (room.definitionId === 'boss_chamber') continue
-      if (room.instanceId === hereId) continue   // never target the room we're in
-      if (entered[room.instanceId]) continue     // skip rooms already entered
-      if (room.locked) continue
-      const cx = room.gridX + Math.floor(room.width  / 2)
-      const cy = room.gridY + Math.floor(room.height / 2)
-      const d = Math.hypot(adv.tileX - cx, adv.tileY - cy)
-      if (d < bestDist) { best = { x: cx, y: cy }; bestDist = d }
+    // Candidate rooms = everything NOT yet entered, not the one we're standing
+    // in, not locked. The boss chamber IS a candidate now — discovery should be
+    // organic ("stumble onto the throne"), NOT deterministically last.
+    // (Before 2026-05-30 this excluded boss_chamber AND picked strictly
+    // nearest, so an adv toured every other room before finally reaching the
+    // throne — the "visits every room first" complaint. Walking INTO the boss
+    // chamber triggers the normal SEEK_BOSS→AT_BOSS handoff; walking into a
+    // boss-adjacent room flips _knowsBossLocation and the caller then paths
+    // straight in. Fix covers Light Party + Jinwoo, which discover via here.)
+    const candidates = rooms.filter(room =>
+      room.instanceId !== hereId &&
+      !entered[room.instanceId] &&
+      !room.locked)
+    if (candidates.length === 0) return null
+    // Commit to ONE target room until it's entered, so the adv walks there
+    // decisively rather than re-rolling a destination every replan (which
+    // would dither them in place). Re-pick RANDOMLY when the committed target
+    // is gone (entered, or no longer a candidate) — random, not nearest, so the
+    // throne turns up at a different point each run instead of always last.
+    let target = candidates.find(r => r.instanceId === adv._seekExploreTargetId)
+    if (!target) {
+      target = candidates[Math.floor(Math.random() * candidates.length)]
+      adv._seekExploreTargetId = target.instanceId
     }
-    return best
+    return {
+      x: target.gridX + Math.floor(target.width  / 2),
+      y: target.gridY + Math.floor(target.height / 2),
+    }
   }
 
   // Average tile position of all living party-mates other than `adv`.
@@ -4211,6 +4282,13 @@ export class AISystem {
     // room (via the SEEK_BOSS explore-fallback), cutting through + raising the
     // minions he meets, until he discovers the boss room — then marches on it.
     if (adv._shadowMonarch) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Light Party — every party member uses the same
+    // knowledge-gated SEEK_BOSS goal so the whole raid moves toward the
+    // throne together. LightPartyAi.js layers the per-role behaviors (tank
+    // provoke aura, healer never-attack + raise cast, DPS positioning) and
+    // formation on top; the underlying pathing is the standard SEEK_BOSS
+    // explore-then-march flow.
+    if (adv._lightParty) return { type: 'SEEK_BOSS' }
     // Dungeon event: Boss Royale — every invading boss cooperates and
     // beelines the throne (no exploration, no friendly fire). Same pure
     // SEEK_BOSS flow as the speedrunner so all 11 converge on the boss.

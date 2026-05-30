@@ -51,6 +51,41 @@ function _ensureShadowMonarchBannerCss() {
   document.head.appendChild(style)
 }
 
+// Light Party — the 'lightparty' banner theme: a sweeping white→gold→sky-blue
+// gradient (FFXIV's heroic "Warriors of Light" palette). Foil to shadowmonarch's
+// black↔blue sweep — same animated sweep treatment, opposite tonal register
+// (bright/holy vs dark/ominous). Injected once at runtime so it lives alongside
+// the other themes without editing styles.css.
+function _ensureLightPartyBannerCss() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('qf-lp-eventbanner-css')) return
+  const style = document.createElement('style')
+  style.id = 'qf-lp-eventbanner-css'
+  style.textContent = `
+.qf-eventbanner.qf-eventbanner-lightparty,
+.qf-eventpill.qf-eventpill-lightparty,
+.qf-eventpill-tip.qf-eventpill-tip-lightparty {
+  --ev-accent:#ffd66b; --ev-bg:#f5f0d8; --ev-deep:#0a1224;
+  --ev-text:#5a3a06; --ev-sub:#1a1a2a;
+}
+.qf-eventbanner-lightparty .qf-eventbanner-inner {
+  background: linear-gradient(110deg,
+    #ffffff 0%, #fff2c0 15%, #ffd66b 32%, #aedcff 50%, #ffd66b 68%, #fff2c0 85%, #ffffff 100%);
+  background-size: 300% 100%;
+  animation: qf-lp-banner-sweep 3.2s linear infinite;
+}
+.qf-eventpill.qf-eventpill-lightparty {
+  background: linear-gradient(110deg, #fff7d8, #ffd66b 45%, #ffffff 50%, #ffd66b 55%, #fff7d8);
+  background-size: 280% 100%;
+  animation: qf-lp-banner-sweep 3.2s linear infinite;
+}
+@keyframes qf-lp-banner-sweep {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}`
+  document.head.appendChild(style)
+}
+
 // Damned-grimoire curse banner theme: pure black slate with blood-red accents,
 // distinct from the dark-red 'crimson' event theme. Used by the damned-pact
 // curse notifications (e.g. The Insomniac's no-build night). Injected once at
@@ -176,6 +211,7 @@ export class EventBanner {
     this._stage = document.getElementById('hud-stage')
     if (!this._stage) return
     _ensureShadowMonarchBannerCss()
+    _ensureLightPartyBannerCss()
     _ensureBossTierBannerCss()
     _ensureDamnedBannerCss()
     this._build()

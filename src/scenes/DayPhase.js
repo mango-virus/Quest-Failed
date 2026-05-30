@@ -575,6 +575,13 @@ export class DayPhase extends Phaser.Scene {
     if ((this._gameState._eventFlags ?? {}).soloLevelingActive) {
       return this._spawnSoloLeveling()
     }
+    // Dungeon event: Light Party — replaces the normal wave with a 4-role
+    // FFXIV raid party (Tank/Healer/DPS/DPS), or an 8-member Full Party at
+    // boss lv 8+. Moves as a single coordinated unit (see LightPartyAi),
+    // duels the boss in a FFXIV-style cinematic when they reach the throne.
+    if ((this._gameState._eventFlags ?? {}).lightPartyActive) {
+      return this._spawnLightParty()
+    }
     // Dungeon event: Cartographer's Convention — replaces the normal
     // wave with 3 scholars that tour every non-boss room then leave.
     if ((this._gameState._eventFlags ?? {}).cartographersConventionActive) {
@@ -1481,6 +1488,81 @@ export class DayPhase extends Phaser.Scene {
     return [adv]
   }
 
+  // Dungeon event: Light Party — a coordinated 4-role FFXIV raid party
+  // replaces the normal wave. Becomes an 8-member Full Party at boss lv 8+
+  // (2 tanks / 2 healers / 4 DPS). All members share a partyId and per-role
+  // flags so LightPartyAi can drive formation movement, Provoke aura,
+  // never-attack healer, 3s Raise cast, ranged DPS positioning, and the
+  // tactical Limit Breaks. When they reach the throne, BossSystem branches
+  // into the FFXIV-style cinematic boss fight via LIGHT_PARTY_DUEL_BEGAN.
+  _spawnLightParty() {
+    const game = this.scene.get('Game')
+    const aiSystem = game.aiSystem
+    if (!aiSystem) return []
+
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const defs = {
+      paladin:    allClasses.find(c => c.id === 'paladin'),
+      white_mage: allClasses.find(c => c.id === 'white_mage'),
+      samurai:    allClasses.find(c => c.id === 'samurai'),
+      black_mage: allClasses.find(c => c.id === 'black_mage'),
+    }
+    if (!defs.paladin || !defs.white_mage || !defs.samurai || !defs.black_mage) return []
+
+    // Light Party = 1T / 1H / 2D — always exactly 4. Stat scaling per
+    // boss level keeps them threatening at any era without changing the count.
+    const roster = [
+      { role: 'tank',      def: defs.paladin    },
+      { role: 'healer',    def: defs.white_mage },
+      { role: 'meleeDps',  def: defs.samurai    },
+      { role: 'rangedDps', def: defs.black_mage },
+    ]
+
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+
+    const partyId = `light_party_${Date.now()}`
+    const spawned = []
+    const bossLv  = this._gameState.boss?.level ?? 1
+    roster.forEach((slot, i) => {
+      // Tight diamond spawn offset — formation reshape kicks in on tick 1
+      // via LightPartyAi. The initial overlap is fine for ~30ms.
+      const offset = [
+        { x: 0,  y: 0  }, { x: 1,  y: 0  }, { x: -1, y: 0  }, { x: 0,  y: 1  },
+      ][i] || { x: 0, y: 0 }
+      const tile = { x: spawn.x + offset.x, y: spawn.y + offset.y }
+      const adv  = createAdventurer(slot.def, tile)
+      adv._lightParty      = true
+      adv._lightPartyRole  = slot.role
+      adv._lightPartyIndex = i
+      // Healer-only flag — CombatSystem reads this to skip every attack
+      // attempt (no melee swing, no ranged cast — heals/revives only).
+      if (slot.role === 'healer') adv._neverAttacks = true
+      // Per-role stat bonus on top of boss-level scaling. The trinity feel
+      // comes from the per-class baseStats (paladin = 3× HP, samurai = 2×
+      // ATK, etc.) but small role-specific knobs let us tune the party
+      // shape without touching the JSON.
+      this._scaleAdventurerByBossLevel(adv, bossLv)
+      // Light Party fights to the death — they wipe or they win the duel.
+      // Per-class noFlee tag would do the same job; this is cheaper.
+      adv.flags    = { ...(adv.flags ?? {}), noFlee: true }
+      adv.partyId  = partyId
+      adv.isLegendary = true   // chrome / cinematic / first-sighting beats
+      this._gameState.adventurers.active.push(adv)
+      aiSystem.pickInitialGoal(adv)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+      spawned.push(adv)
+    })
+
+    // Cinematic entrance card + persistent vignette + corner party panel.
+    // LightPartyCinematic listens for this and walks the slate sequence.
+    EventBus.emit('LIGHT_PARTY_BEGAN', {
+      partyId, members: spawned,
+    })
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
   // Dungeon event: Cartographer's Convention. 3 scholars enter via the
   // normal entry, tagged `_cartographer = true` so AISystem skips
   // engagement and routes them through every non-boss room. When they
@@ -1813,6 +1895,7 @@ export class DayPhase extends Phaser.Scene {
     if (ef.bountyHuntersActive)   return { total: n,    label: 'HUNTERS',        mode: 'bar' }
     if (ef.soloLevelingActive)    return { total: n,    label: 'SHADOW MONARCH', mode: 'bar' }
     if (ef.lootGoblinHeistActive) return { total: n,    label: 'RAIDERS',        mode: 'bar' }
+    if (ef.lightPartyActive)      return { total: n,    label: 'LIGHT PARTY',    mode: 'bar' }
     return { total: n, label: 'ADVENTURERS', mode: 'bar' }
   }
 

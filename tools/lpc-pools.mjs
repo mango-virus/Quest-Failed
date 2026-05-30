@@ -480,6 +480,149 @@ export const POOLS = {
     },
     sometimesShield: 0.25,
   },
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Light Party event classes (FFXIV trinity: T / H / D / D)
+  // ─────────────────────────────────────────────────────────────────────
+
+  // Paladin — Light Party tank. Heavy plate + always-shield silhouette
+  // (knight foundation), but with a tighter "noble holy knight" palette:
+  // always-armored arms + always-helm + always-shield + gold/silver metal
+  // trim + blue-tone cloth. Reads instantly as a tank when standing beside
+  // the white_mage / samurai / black_mage in the diamond formation.
+  paladin: {
+    bodyTypes: COMMON.bodyTypes,
+    heads: 'auto_human',
+    hair: 'all_human_hair',
+    beardChance: 0.4,
+    torso: ['Plate'],
+    legs: ['Hose', 'Long Pants', 'Cuffed Pants'],
+    feet: ['Plated Toe', 'Thick Plated Toe'],
+    // Always-armored arms — paladins never have bare-arm variants.
+    arms: { items: ['Pauldrons', 'Mantal', 'Epaulets', 'Gloves'], chance: 1.0 },
+    // Tall, noble closed helms only — no pigface visors / kettle helms;
+    // those read as common infantry. Always wearing one.
+    headwear: {
+      items: [
+        'Greathelm', 'Sugarloaf greathelm', 'Pointed helm', 'Norman helm',
+        'Bascinet', 'Round bascinet', 'Armet', 'Simple Armet', 'Spangenhelm',
+      ],
+      chance: 1.0,
+    },
+    // Holy-knight palette — blue / regal / clean tones only. Drops the
+    // muddier earth tones used by knight. (Palette names must match keys
+    // in the LPC cloth_ulpc.json — see CLOTH list at top of bake script.)
+    clothColorPool: ['navy', 'blue', 'bluegray', 'slate', 'white', 'sky', 'teal'],
+    // Bright metal finishes only — paladin reads as gilded, not iron-clad.
+    metalColorPool: ['gold', 'brass', 'silver', 'steel'],
+    weapon: {
+      items: ['Longsword', 'Arming Sword', 'Mace'],
+      chance: 1.0,
+    },
+    alwaysShield: true,
+  },
+
+  // White Mage — Light Party healer. Robed silhouette with a tall headpiece
+  // and a staff that pairs with a crystal (Diamond / Loop staff trigger the
+  // CRYSTAL_RULE auto-pair). White / pink / lilac cloth so they read as
+  // holy / healing rather than arcane / damage (vs black_mage).
+  white_mage: {
+    bodyTypes: COMMON.bodyTypes,
+    heads: 'auto_human',
+    hair: 'all_human_hair',
+    beardChance: 0.15,
+    torso: ['Longsleeve', 'Longsleeve 2', 'Longsleeve 2 Buttoned', 'Longsleeve Polo'],
+    legs: ['Long Pants', 'Hose'],
+    feet: ['Slippers', 'Sandals'],
+    arms: { items: ['Lace Cuffs', 'Cuffs'], chance: 0.7 },
+    // Tall pointed headpiece OR holy tiara/hood. Always wearing something
+    // so the silhouette reads as "robed caster, not commoner".
+    headwear: {
+      items: [
+        'Wizard Hat Base', 'Wizard Hat Belt', 'Wizard Hat Buckle',
+        'Celestial Wizard Hat', 'Celestial Wizard Hat Second Color',
+        'Tiara', 'Crown', 'Hood',
+      ],
+      chance: 1.0,
+    },
+    // Holy / soft palette — whites, pinks, pale blues, lavender. NO darks
+    // (those go to black_mage / necromancer). Palette names must match keys
+    // in the LPC cloth_ulpc.json — see CLOTH list at top of bake script.
+    clothColorPool: ['white', 'pink', 'rose', 'sky', 'lavender'],
+    // Crystal-pair staves only — Diamond / Loop staff trigger the
+    // CRYSTAL_RULE in the bake (auto-adds a glowing crystal to the staff).
+    weapon: {
+      items: ['Diamond staff', 'Loop staff'],
+      chance: 1.0,
+    },
+  },
+
+  // Samurai — Light Party melee DPS. Light lamellar / robed silhouette
+  // (no plate, no closed helm), tabi socks, headband, single curved blade.
+  // Saber is the LPC katana proxy — actual Katana / Scimitar ship only as
+  // 128px oversize art that renders invisible in the 64px base sheet
+  // (same gotcha that shadow_monarch's comment documents below).
+  samurai: {
+    bodyTypes: COMMON.bodyTypes,
+    heads: 'auto_human',
+    hair: 'all_human_hair',
+    beardChance: 0.5,
+    // Robed / light-armor torsos. Leather mixed in for the lamellar feel.
+    torso: ['Longsleeve', 'Longsleeve 2', 'Shortsleeve', 'Leather', 'Longsleeve Polo'],
+    legs: ['Pantaloons', 'Long Pants', 'Hose'],
+    // Tabi + sandals — the iconic samurai footwear.
+    feet: ['Tabi Socks', 'Sandals'],
+    arms: { items: ['Cuffs', 'Gloves'], chance: 0.5 },
+    // Headband / bandana / hair tie — no helmet. Sometimes bare-headed.
+    headwear: {
+      items: [
+        'Bandana', 'Tied Headband', 'Thick Headband', 'Thick Headband Rune',
+        'Hair Tie', 'Hair Tie Rune',
+      ],
+      chance: 0.6,
+    },
+    // Sober samurai palette — dark reds, blacks, deep blues. No bright
+    // / pastel tones (those belong to white_mage / paladin).
+    clothColorPool: ['maroon', 'navy', 'black', 'forest', 'charcoal', 'walnut'],
+    metalColorPool: ['steel', 'iron', 'silver'],
+    // Saber is the working katana proxy — see header comment + the
+    // shadow_monarch entry's weapon comment for the LPC gotcha.
+    weapon: {
+      items: ['Saber'],
+      chance: 1.0,
+    },
+  },
+
+  // Black Mage — Light Party ranged DPS. The iconic tall pointed wizard
+  // hat is mandatory — that hat IS the silhouette. Dark robes, staff with
+  // crystal. Foil to white_mage (light/holy) — same robed shape, opposite
+  // palette, opposite role.
+  black_mage: {
+    bodyTypes: COMMON.bodyTypes,
+    heads: 'auto_human',
+    hair: 'all_human_hair',
+    beardChance: 0.4,
+    torso: ['Longsleeve 2', 'Longsleeve', 'Longsleeve 2 Buttoned', 'Longsleeve 2 Scoop'],
+    legs: ['Long Pants', 'Hose'],
+    feet: ['Slippers', 'Sandals'],
+    arms: { items: ['Cuffs', 'Stud Ring'], chance: 0.4 },
+    // Mandatory tall wizard hat — the black mage silhouette. No tiaras
+    // or hoods; those go to white_mage / necromancer.
+    headwear: {
+      items: [
+        'Wizard Hat Base', 'Wizard Hat Belt', 'Wizard Hat Buckle',
+        'Celestial Wizard Hat', 'Celestial Wizard Hat Second Color',
+        'Celestial Wizard Moon Hat', 'Celestial Wizard Moon Hat Second Color',
+      ],
+      chance: 1.0,
+    },
+    // Dark mage palette — black / purple / midnight. Foil to white_mage.
+    clothColorPool: ['black', 'charcoal', 'navy', 'purple', 'maroon', 'slate'],
+    weapon: {
+      items: ['S staff', 'Diamond staff', 'Gnarled staff', 'Loop staff'],
+      chance: 1.0,
+    },
+  },
 };
 
 // ============================================================

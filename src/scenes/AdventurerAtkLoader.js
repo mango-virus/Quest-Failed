@@ -20,6 +20,10 @@ const ADVENTURER_CLASS_IDS = [
   // Sung Jinwoo (Solo Leveling) — single canonical variant; see the count
   // override below so we don't request v02..v50.
   'shadow_monarch',
+  // Light Party event classes — must mirror Preload.js's ADVENTURER_CLASS_IDS
+  // or the atk-sheet streamer skips them and the slash/thrust anims fall back
+  // to the compressed 64x64 base sheet permanently.
+  'paladin', 'white_mage', 'samurai', 'black_mage',
 ]
 const ADVENTURER_ATK_CLASSES = new Set([
   'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
@@ -28,6 +32,9 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // Jinwoo's Saber swing only exists as 192×192 slash_oversize art — the atk
   // sheet is what makes his blade visible mid-attack.
   'shadow_monarch',
+  // Light Party event classes — paladin/samurai slash_oversize blades,
+  // white_mage/black_mage thrust_oversize staves. Same loader contract.
+  'paladin', 'white_mage', 'samurai', 'black_mage',
 ])
 const ADVENTURER_VARIANTS_PER_CLASS = 50
 // Per-class override for named one-off characters that ship fewer than the
