@@ -36,6 +36,12 @@ const ICON_Y_OFFSET = 30          // px above the adv's worldY for the icon
 const RAISE_BAR_W   = 48
 const RAISE_BAR_H   = 6
 const RAISE_BAR_Y   = 42          // px above worldY for the bar
+
+// Generic ability cast bar (Limit Breaks while exploring). Wider than the
+// raise bar, sits above the caster's head with the spell name above it.
+const CAST_BAR_W = 64
+const CAST_BAR_H = 7
+const CAST_BAR_Y = 54             // px above worldY for the ability cast bar
 const HEAL_BEAM_MS  = 420
 const HEAL_BEAM_COLOR = 0xaef0c4
 const HEAL_BEAM_OUTLINE = 0xffd66b
@@ -47,6 +53,7 @@ export class LightPartyRenderer {
     this._listeners = []
     this._icons     = {}    // instanceId → Phaser.GameObjects.Text
     this._raises    = {}    // healerId   → { bg, fill, startedAt, duration }
+    this._casts     = {}    // casterId   → { bg, fill, label, startedAt, duration, color }
     this._beams     = []    // { gfx, expireAt }
 
     const on = (evt, fn) => { EventBus.on(evt, fn, this); this._listeners.push([evt, fn]) }
@@ -56,6 +63,11 @@ export class LightPartyRenderer {
     on('LIGHT_PARTY_RAISE_INTERRUPTED', this._onRaiseEnded)
     on('LIGHT_PARTY_RAISED',         this._onRaiseEnded)
     on('LIGHT_PARTY_RAISE_CANCELLED', this._onRaiseEnded)
+    // Generic ability cast bar (Limit Breaks while exploring). The caster
+    // stands still and a labelled cast bar fills over the cast time above
+    // their head; LightPartyAi fires START then ENDED (resolve or cancel).
+    on('LIGHT_PARTY_CAST_STARTED',   this._onCastStarted)
+    on('LIGHT_PARTY_CAST_ENDED',     this._onCastEnded)
     on('LIGHT_PARTY_DUEL_BEGAN',     this._teardown)   // duel takes over; hide world chrome
     on('DAY_PHASE_ENDED',            this._teardown)
   }
@@ -72,6 +84,7 @@ export class LightPartyRenderer {
       delete this._icons[id]
     }
     for (const id of Object.keys(this._raises)) this._destroyRaiseBar(id)
+    for (const id of Object.keys(this._casts ?? {})) this._destroyCastBar(id)
     for (const b of this._beams) b.gfx?.destroy?.()
     this._beams = []
   }
@@ -148,6 +161,30 @@ export class LightPartyRenderer {
       state.fill.fillRect(x - RAISE_BAR_W / 2, y, RAISE_BAR_W * frac, RAISE_BAR_H)
     }
 
+    // Ability cast bars — follow caster head; fill by elapsed time. The
+    // spell-name label sits just above the bar. Dropped when the cast ends
+    // (LIGHT_PARTY_CAST_ENDED) or the caster dies/leaves.
+    for (const casterId of Object.keys(this._casts)) {
+      const state = this._casts[casterId]
+      const caster = liveById.get(casterId)
+      if (!caster) { this._destroyCastBar(casterId); continue }
+      const frac = Math.max(0, Math.min(1, (now - state.startedAt) / state.duration))
+      const x = caster.worldX
+      const y = caster.worldY - CAST_BAR_Y
+      state.bg.clear()
+      state.bg.fillStyle(0x080414, 0.9)
+      state.bg.fillRect(x - CAST_BAR_W / 2, y, CAST_BAR_W, CAST_BAR_H)
+      state.bg.lineStyle(1.5, state.color, 0.95)
+      state.bg.strokeRect(x - CAST_BAR_W / 2 - 0.5, y - 0.5, CAST_BAR_W + 1, CAST_BAR_H + 1)
+      state.fill.clear()
+      state.fill.fillStyle(state.color, 1.0)
+      state.fill.fillRect(x - CAST_BAR_W / 2, y, CAST_BAR_W * frac, CAST_BAR_H)
+      // top gloss
+      state.fill.fillStyle(0xffffff, 0.4)
+      state.fill.fillRect(x - CAST_BAR_W / 2, y, CAST_BAR_W * frac, 1.5)
+      if (state.label) state.label.setPosition(x, y - 3)
+    }
+
     // Heal beams — fade out over HEAL_BEAM_MS, drop expired.
     const remaining = []
     for (const b of this._beams) {
@@ -204,5 +241,40 @@ export class LightPartyRenderer {
     state.bg?.destroy?.()
     state.fill?.destroy?.()
     delete this._raises[healerId]
+  }
+
+  // ── Ability cast bar (Limit Breaks while exploring) ─────────────────────
+  // { casterId, name, durationMs, color } — color is the role accent (hex int),
+  // defaults to gold. The caster's sprite is frozen by LightPartyAi for the
+  // cast; this just draws the bar + name and the update() loop fills it.
+  _onCastStarted({ casterId, name = '', durationMs = 2000, color = 0xffd66b } = {}) {
+    if (!casterId) return
+    this._destroyCastBar(casterId)
+    const bg    = this._scene.add.graphics().setDepth(957)
+    const fill  = this._scene.add.graphics().setDepth(958)
+    const label = this._scene.add.text(0, 0, String(name).toUpperCase(), {
+      fontFamily: 'Press Start 2P, Courier New, monospace',
+      fontSize: '7px', color: '#fff7d8',
+    }).setOrigin(0.5, 1).setDepth(959)
+    label.setShadow(0, 0, '#2a1505', 4, true, true)
+    this._casts[casterId] = {
+      bg, fill, label,
+      startedAt: this._scene.time?.now ?? 0,
+      duration:  durationMs,
+      color,
+    }
+  }
+
+  _onCastEnded({ casterId } = {}) {
+    this._destroyCastBar(casterId)
+  }
+
+  _destroyCastBar(casterId) {
+    const state = this._casts?.[casterId]
+    if (!state) return
+    state.bg?.destroy?.()
+    state.fill?.destroy?.()
+    state.label?.destroy?.()
+    delete this._casts[casterId]
   }
 }

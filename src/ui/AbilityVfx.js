@@ -173,4 +173,136 @@ export const AbilityVfx = {
     })
     return dot
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Composite "limit-break-grade" effects. Bigger, layered, self-destroying.
+  // Built for ability / Limit Break moments that need to read as STUNNING, not
+  // a single ring. World-space; depth 29-33 draws above all world sprites
+  // (sprites sit at ~7-8; the HUD is separate DOM, so high depths are safe).
+  // All respect _validXY + the particles quality multiplier where heavy.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Thick expanding shockwave ring (+ optional bright fading core).
+  shockwave(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffe066, fromR: 8, toR: 120, thickness: 6, alpha: 0.9,
+      durationMs: 520, depth: 30, core: true, ...opts }
+    const ring = scene.add.circle(x, y, o.fromR, 0x000000, 0)
+    ring.setStrokeStyle(o.thickness, o.color, o.alpha).setDepth(o.depth)
+    scene.tweens.add({ targets: ring, radius: o.toR, alpha: 0, duration: o.durationMs,
+      ease: 'Cubic.easeOut', onComplete: () => ring.destroy() })
+    if (o.core) {
+      const core = scene.add.circle(x, y, o.fromR, o.color, 0.5).setDepth(o.depth - 1)
+      scene.tweens.add({ targets: core, radius: o.toR * 0.55, alpha: 0,
+        duration: o.durationMs * 0.7, ease: 'Quad.easeOut', onComplete: () => core.destroy() })
+    }
+    return ring
+  },
+
+  // N radial light rays bursting outward from a point (sunburst).
+  burstRays(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xfff2c0, count: 12, length: 90, thickness: 3, durationMs: 450, depth: 30, ...opts }
+    const mult = _particlesMult(); if (mult <= 0) return null
+    const n = Math.max(4, Math.round(o.count * mult))
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2
+      const g = scene.add.graphics().setDepth(o.depth)
+      g.lineStyle(o.thickness, o.color, 0.95)
+      g.lineBetween(0, 0, Math.cos(ang) * o.length * 0.3, Math.sin(ang) * o.length * 0.3)
+      g.setPosition(x, y)
+      scene.tweens.add({ targets: g, scaleX: 3.3, scaleY: 3.3, alpha: 0,
+        duration: o.durationMs, ease: 'Cubic.easeOut', onComplete: () => g.destroy() })
+    }
+    return null
+  },
+
+  // Particles converging INWARD to a point — sells a charge / wind-up.
+  chargeUp(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x9ad0ff, count: 14, radius: 70, durationMs: 600, depth: 29, ...opts }
+    const mult = _particlesMult(); if (mult <= 0) return null
+    const n = Math.max(4, Math.round(o.count * mult))
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + Math.random() * 0.5
+      const sx = x + Math.cos(ang) * o.radius, sy = y + Math.sin(ang) * o.radius
+      const dot = scene.add.circle(sx, sy, 2 + Math.random() * 2, o.color, 0.95).setDepth(o.depth)
+      scene.tweens.add({ targets: dot, x, y, alpha: 0.4,
+        duration: o.durationMs * (0.7 + Math.random() * 0.3), ease: 'Cubic.easeIn',
+        onComplete: () => dot.destroy() })
+    }
+    return null
+  },
+
+  // Vertical pillar / column of light flashing down at a point (holy, revive).
+  beamPillar(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffffff, width: 46, height: 260, durationMs: 520, depth: 31, ...opts }
+    const beam = scene.add.rectangle(x, y + 6, o.width, o.height, o.color)
+      .setOrigin(0.5, 1).setDepth(o.depth).setAlpha(0)
+    scene.tweens.add({ targets: beam, alpha: 0.85, scaleX: 1.6,
+      duration: o.durationMs * 0.25, yoyo: true, hold: o.durationMs * 0.3,
+      ease: 'Quad.easeOut', onComplete: () => beam.destroy() })
+    return beam
+  },
+
+  // A meteor streak falling from off-screen-up to (x,y), then a big impact.
+  meteor(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff9a3a, fallMs: 420, fromDX: -120, fromDY: -340, depth: 32, onImpact: null, ...opts }
+    const head = scene.add.circle(x + o.fromDX, y + o.fromDY, 9, o.color, 1).setDepth(o.depth)
+    const glow = scene.add.circle(head.x, head.y, 17, o.color, 0.3).setDepth(o.depth - 1)
+    const trail = scene.time.addEvent({ delay: 16, repeat: Math.floor(o.fallMs / 16), callback: () => {
+      const t = scene.add.circle(head.x, head.y, 6, o.color, 0.5).setDepth(o.depth - 2)
+      scene.tweens.add({ targets: t, alpha: 0, scale: 0.3, duration: 260, onComplete: () => t.destroy() })
+    } })
+    scene.tweens.add({ targets: [head, glow], x, y, duration: o.fallMs, ease: 'Quad.easeIn',
+      onComplete: () => {
+        head.destroy(); glow.destroy(); trail.remove(false)
+        AbilityVfx.shockwave(scene, x, y, { color: o.color, toR: 150, thickness: 8, durationMs: 600 })
+        AbilityVfx.particleBurst(scene, x, y, { color: o.color, count: 18, speed: 130, durationMs: 600 })
+        if (typeof o.onImpact === 'function') o.onImpact()
+      } })
+    return head
+  },
+
+  // Jagged lightning bolt between two points — flashes then fades.
+  lightning(scene, x1, y1, x2, y2, opts = {}) {
+    if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
+    const o = { color: 0xbfe0ff, segments: 6, jitter: 14, thickness: 3, durationMs: 220, depth: 32, ...opts }
+    const g = scene.add.graphics().setDepth(o.depth)
+    g.lineStyle(o.thickness, o.color, 1).beginPath()
+    g.moveTo(x1, y1)
+    for (let i = 1; i < o.segments; i++) {
+      const t = i / o.segments
+      g.lineTo(x1 + (x2 - x1) * t + (Math.random() - 0.5) * o.jitter * 2,
+               y1 + (y2 - y1) * t + (Math.random() - 0.5) * o.jitter * 2)
+    }
+    g.lineTo(x2, y2); g.strokePath()
+    scene.tweens.add({ targets: g, alpha: 0, duration: o.durationMs, ease: 'Quad.easeIn',
+      onComplete: () => g.destroy() })
+    return g
+  },
+
+  // Full-screen color flash via the camera (guarded wrapper).
+  screenFlash(scene, opts = {}) {
+    const o = { color: 0xffffff, durationMs: 260, intensity: 0.6, ...opts }
+    const r = (o.color >> 16) & 255, gg = (o.color >> 8) & 255, b = o.color & 255
+    try {
+      scene.cameras?.main?.flash?.(o.durationMs,
+        Math.round(r * o.intensity), Math.round(gg * o.intensity), Math.round(b * o.intensity))
+    } catch {}
+  },
+
+  // A holding dome / shield that pops in over a target and fades after a hold.
+  domeShield(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffd66b, radius: 54, holdMs: 600, depth: 30, ...opts }
+    const dome = scene.add.circle(x, y, o.radius, o.color, 0.12).setDepth(o.depth)
+    dome.setStrokeStyle(3, o.color, 0.9).setScale(0.2)
+    scene.tweens.add({ targets: dome, scale: 1, duration: 220, ease: 'Back.easeOut' })
+    scene.tweens.add({ targets: dome, alpha: 0, delay: o.holdMs, duration: 400,
+      ease: 'Quad.easeIn', onComplete: () => dome.destroy() })
+    return dome
+  },
 }

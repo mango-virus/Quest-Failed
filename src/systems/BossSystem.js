@@ -2811,7 +2811,7 @@ export class BossSystem {
     // Tightened 5s on 2026-05-30 (was ~26s) — same beats, shorter gaps; the
     // three cast durationMs values match their cast→resolve gap exactly.
     // 0.8s — the pull. First contact.
-    TS(800, () => { EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'PULL' }); ring(bx(), by(), 0x6aaaff, { radius: 28 }); shake(140, 0.004) })
+    TS(800, () => { EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'PULL' }); AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0x6aaaff, toR: 90, thickness: 5, durationMs: 480 }); shake(140, 0.004) })
     // 2.3s — boss winds up a TANK-BUSTER (cast bar + tight red telegraph on the tank).
     TS(2300, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.tb, durationMs: 2000 })
@@ -2822,9 +2822,15 @@ export class BossSystem {
     TS(4300, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'tankbuster', label: 'TANK BUSTER' })
       const t = aliveTank()
+      // Boss hurls a focused bolt at the tank; he either raises a gold shield
+      // dome (Hallowed Ground) or eats it.
       if (t) {
-        if (Math.random() < 0.6) { ring(t.worldX, t.worldY, 0xffd66b, { radius: 30 }); float(t.worldX, t.worldY - TILE, 'HALLOWED GROUND', '#ffd66b', '11px') }
-        else strike(t, 0.34, 1.3)
+        AbilityVfx.lightning?.(scene, bx(), by(), t.worldX, t.worldY, { color: 0xff5544, thickness: 4, jitter: 18 })
+        if (Math.random() < 0.6) {
+          AbilityVfx.domeShield?.(scene, t.worldX, t.worldY, { color: 0xffd66b, radius: 44, holdMs: 500 })
+          AbilityVfx.burstRays?.(scene, t.worldX, t.worldY, { color: 0xfff2c0, count: 10, length: 70 })
+          float(t.worldX, t.worldY - TILE, 'HALLOWED GROUND', '#ffd66b', '11px')
+        } else { AbilityVfx.shockwave?.(scene, t.worldX, t.worldY, { color: 0xff5544, toR: 70, thickness: 5 }); strike(t, 0.34, 1.3) }
       }
       shake(260, 0.010); hurtBoss(partyWins ? 0.12 : 0.06); recoilBoss(); emitHp()
     })
@@ -2835,7 +2841,9 @@ export class BossSystem {
     // 9.6s — AoE resolves: everyone scatters; 1-2 random members get caught.
     TS(9600, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'DODGE!' })
-      scatter(); shake(360, 0.013); ring(bx(), by(), 0xff8a3a, { radius: 100 })
+      scatter(); shake(360, 0.013)
+      AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0xff8a3a, toR: 180, thickness: 8, durationMs: 600 })
+      AbilityVfx.burstRays?.(scene, bx(), by(), { color: 0xffb060, count: 14, length: 120 })
       const pool = aliveAll(); const hits = pool.length > 2 ? 2 : 1
       for (let i = 0; i < hits; i++) { const m = rndOf(aliveAll().filter(a => a._lightPartyRole !== 'tank')) || rndOf(aliveAll()); if (m) strike(m, 0.18, 1.0) }
       hurtBoss(partyWins ? 0.10 : 0.05); recoilBoss(); emitHp()
@@ -2848,6 +2856,8 @@ export class BossSystem {
     TS(14800, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'stack', label: 'STACK!' })
       stackUp(); shake(300, 0.011)
+      const _tk = aliveTank()
+      AbilityVfx.shockwave?.(scene, _tk?.worldX ?? bx(), _tk?.worldY ?? by(), { color: 0xffd66b, toR: 90, thickness: 6 })
       const m = rndOf(aliveAll()); if (m) strike(m, 0.16, 0.9)
       hurtBoss(partyWins ? 0.12 : 0.05); recoilBoss(); emitHp()
     })
@@ -2858,16 +2868,38 @@ export class BossSystem {
     TS(18500, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'lb3', label: partyWins ? 'METEOR!' : 'DESPERATE LB!' })
       shake(520, 0.02); scene?.time?.delayedCall?.(120, () => { if (!this._lpDuelOver) shake(300, 0.014) })
-      ring(bx(), by(), 0xfff2c0, { radius: 140 })
       if (partyWins) {
         this._lpLbFired = true   // releases the pre-climax HP floor in hurtBoss
-        for (const a of dpsList()) lunge(a)
+        // METEOR finale — the whole party converges + channels, then a barrage
+        // of meteors craters the boss under a gold screen flash + sunburst.
+        AbilityVfx.screenFlash?.(scene, { color: 0xfff2c0, durationMs: 420, intensity: 0.55 })
+        AbilityVfx.burstRays?.(scene, bx(), by(), { color: 0xfff2c0, count: 16, length: 150 })
+        for (const a of dpsList()) {
+          lunge(a)
+          AbilityVfx.lightning?.(scene, a.worldX ?? bx(), (a.worldY ?? by()) - 10, bx(), by(), { color: 0xffe27a })
+        }
+        // 5 staggered meteors raining onto the throne; each adds a shockwave.
+        for (let i = 0; i < 5; i++) {
+          scene?.time?.delayedCall?.(i * 110, () => {
+            if (this._lpDuelOver) return
+            const ox = bx() + (Math.random() - 0.5) * TILE * 2.2
+            const oy = by() + (Math.random() - 0.5) * TILE * 1.4
+            AbilityVfx.meteor?.(scene, ox, oy, { color: 0xff8a3a })
+            shake(160, 0.01)
+          })
+        }
         recoilBoss(TILE * 1.3); hurtBoss(0.55)
+        AbilityVfx.beamPillar?.(scene, bx(), by(), { color: 0xfff2c0, height: 320, width: 60, durationMs: 700 })
         float(bx(), by() - TILE, 'LIMIT BREAK', '#ffd66b', '15px')
       } else {
-        // Desperate-LB whiff: the boss punishes 1-2 members hard.
+        // Desperate-LB whiff: the boss erupts and punishes 1-2 members hard.
+        AbilityVfx.screenFlash?.(scene, { color: 0xff3b1e, durationMs: 360, intensity: 0.5 })
+        AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0xff5544, toR: 170, thickness: 9 })
         const pool = aliveAll(); const hits = pool.length > 1 ? 2 : 1
-        for (let i = 0; i < hits; i++) { const m = rndOf(aliveAll()); if (m) strike(m, 0.35, 1.5) }
+        for (let i = 0; i < hits; i++) {
+          const m = rndOf(aliveAll())
+          if (m) { AbilityVfx.lightning?.(scene, bx(), by(), m.worldX ?? bx(), m.worldY ?? by(), { color: 0xff6b4a }); strike(m, 0.35, 1.5) }
+        }
       }
       emitHp()
     })
