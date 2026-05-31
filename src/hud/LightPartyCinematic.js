@@ -276,9 +276,9 @@ export class LightPartyCinematic {
    that races over the cast's duration. Hidden (.show toggled) between casts.
    left = panel left (--hud-side + 12) + panel width (~308) + gap. */
 .qf-lp-castbar { position:absolute; z-index:43; pointer-events:none;
-  top:calc(var(--hud-top,96px) + 92px);
-  left:calc(var(--hud-side,320px) + 12px + 320px);
-  width:230px; opacity:0; transition:opacity .15s ease;
+  top:calc(var(--hud-top,96px) + 118px);
+  left:50%; transform:translateX(-50%);
+  width:260px; opacity:0; transition:opacity .15s ease;
   font-family:'Press Start 2P','Courier New',monospace; }
 .qf-lp-castbar.show { opacity:1; }
 .qf-lp-castbar-label { font-size:8px; line-height:1.2; letter-spacing:1px; color:#fff7d8;
