@@ -2554,6 +2554,25 @@ export class BossSystem {
     // (duty banner + dialogue + recall/death beats). Tick it and skip the
     // duel backstop below (which keys off _lpDuel, now null during the outro).
     if (this._lpOutro) { this._tickLightPartyOutro(delta); return }
+    // ── Total-party-wipe → boss win (2026-05-31) ────────────────────────────
+    // If EVERY party member is dead while the duel is still live, the boss has
+    // won outright — resolve RIGHT NOW as a boss win (force partyWins=false,
+    // regardless of the rolled outcome) so the loss outro plays immediately
+    // instead of the day hanging on a field of corpses until the scripted
+    // 20.5s resolution / 26s backstop. This can only ever trigger on a genuine
+    // loss: the win path's downMember guard always spares the last member, so a
+    // rolled-win duel is never fully wiped. Guarded on `_lpDuel && !_lpOutro`
+    // so it can't double-resolve. (A mid-Raise healer is still `isLive`, so a
+    // legitimate in-progress revive never reads as a wipe.)
+    if (this._lpDuel) {
+      const { boss, party } = this._lpDuel
+      const anyAlive = party.some(a => a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+      if (!anyAlive) {
+        this._lpDuel = null
+        this._resolveLightPartyDuel(boss, party, false)   // boss win
+        return
+      }
+    }
     // Anti-freeze backstop. `delta` is the raw frame delta — NOT scaled by
     // scene.time.timeScale — so this accumulator measures true wall-clock time
     // even if a stray slow-mo lingers. The scripted timeline resolves at ~20.5s;
