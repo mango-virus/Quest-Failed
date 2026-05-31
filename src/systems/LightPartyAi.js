@@ -23,7 +23,7 @@ import { EventBus }   from './EventBus.js'
 import { Balance }    from '../config/balance.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 
-const HEAL_INTERVAL_MS    = 1500   // healer beam every 1.5s
+const HEAL_INTERVAL_MS    = 5000   // healer beam every 5s — one heal on one ally per 5s (user request 2026-05-30)
 const HEAL_PCT_OF_MAXHP   = 0.15   // heals 15% of target's maxHp per beam
 const HEAL_RANGE_TILES    = 6      // healer must be within 6 tiles of target
 

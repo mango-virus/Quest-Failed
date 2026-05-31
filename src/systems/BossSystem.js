@@ -2535,7 +2535,10 @@ export class BossSystem {
     this._lpBossX = cx
     this._lpBossY = cy - TS * 0.5
 
-    scene?.cameras?.main?.pan?.(cx, cy, 800, 'Sine.easeInOut')
+    // NOTE: do NOT pan/zoom the camera from here. Game._onBossFightZoomIn —
+    // wired to LIGHT_PARTY_DUEL_BEGAN (emitted just before this runs) — does the
+    // cinematic push-in onto the throne AND locks the camera (_duelCamLock) for
+    // the whole duel + outro. A pan here would fight that zoom tween.
   }
 
   // Per-frame layer for the light-party duel. The fight is scripted on timers
@@ -2547,16 +2550,20 @@ export class BossSystem {
     // Reuse the standard arena glow so the floor reacts to boss HP. Guard
     // so a missing graphics layer can't throw mid-duel.
     try { this._tickArenaGlow?.() } catch {}
+    // Once the duel resolves, an outro cutscene owns the rest of the timeline
+    // (duty banner + dialogue + recall/death beats). Tick it and skip the
+    // duel backstop below (which keys off _lpDuel, now null during the outro).
+    if (this._lpOutro) { this._tickLightPartyOutro(delta); return }
     // Anti-freeze backstop. `delta` is the raw frame delta — NOT scaled by
     // scene.time.timeScale — so this accumulator measures true wall-clock time
-    // even if a stray slow-mo lingers. The scripted timeline resolves at ~25.5s;
-    // if it hasn't by 31s (beat chain threw, clock stalled, etc.), force the
+    // even if a stray slow-mo lingers. The scripted timeline resolves at ~20.5s;
+    // if it hasn't by 26s (beat chain threw, clock stalled, etc.), force the
     // rolled outcome so the duel can never strand `_lightPartyDuel = true` and
     // freeze the day. Must sit COMFORTABLY past the natural resolution or it
     // would cut every fight short. Once it fires, _endLightPartyDuel clears
     // _lpDuel so this won't re-fire.
     this._lpDuelElapsed = (this._lpDuelElapsed ?? 0) + (delta ?? 0)
-    if (this._lpDuelElapsed > 31000 && this._lpDuel) {
+    if (this._lpDuelElapsed > 26000 && this._lpDuel) {
       const { boss, party, partyWins } = this._lpDuel
       this._lpDuel = null
       this._resolveLightPartyDuel(boss, party, partyWins)
@@ -2587,6 +2594,7 @@ export class BossSystem {
     // Finite raises — 2 per living healer at the start. Once spent, downs stick.
     let raisesLeft = party.filter(a => a._lightPartyRole === 'healer').length * 2
     this._lpDuelOver = false
+    this._lpLbFired = false         // gates the pre-climax boss-HP floor (hurtBoss)
     this._lpCasualties = []        // names of the permanently dead (finale text)
     this._lpRaise = null           // { healerId, deadAdv } while a Raise channels
 
@@ -2610,7 +2618,22 @@ export class BossSystem {
         maxHp: Math.max(1, Math.round(a.resources?.maxHp ?? 1)),
       })),
     })
-    const hurtBoss = (frac) => { if (boss) boss.hp = Math.max(0, Math.round((boss.hp ?? 0) - (boss.maxHp ?? 1) * frac)) }
+    // Drain the boss HP bar. Two rules layered on:
+    //  (1) WIN, pre-climax: keep a 6% sliver alive until the LB beat fires, so
+    //      chip-damage variance can't zero the bar early and rob the finale.
+    //  (2) The instant the bar HITS 0 on a win, the boss dies RIGHT THEN —
+    //      resolve immediately instead of waiting out the 25.5s timer. On a loss
+    //      the chips never total 100%, so the bar stays up and the boss lives.
+    const hurtBoss = (frac) => {
+      if (!boss) return
+      let next = Math.round((boss.hp ?? 0) - (boss.maxHp ?? 1) * frac)
+      if (partyWins && !this._lpLbFired) next = Math.max(next, Math.round((boss.maxHp ?? 1) * 0.06))
+      boss.hp = Math.max(0, next)
+      if (partyWins && boss.hp <= 0 && !this._lpDuelOver) {
+        emitHp()
+        this._resolveLightPartyDuel(boss, party, partyWins)
+      }
+    }
     const healSurvivors = (frac) => {
       for (const a of aliveAll()) {
         a.resources.hp = Math.min(a.resources.maxHp ?? a.resources.hp,
@@ -2628,7 +2651,9 @@ export class BossSystem {
 
     // A DPS dashes in at the boss, strikes, snaps back to its home slot.
     const lunge = (a) => {
-      if (!isLive(a) || a._lpHomeX == null) return
+      // Bail once the duel resolves so a stray post-resolution lunge can't
+      // create a drift tween that survives into the outro.
+      if (this._lpDuelOver || !isLive(a) || a._lpHomeX == null) return
       const tx = bx(), ty = by() + TILE * 0.6
       track(scene?.tweens?.add?.({
         targets: a, worldX: tx, worldY: ty, duration: 150, ease: 'Quad.easeIn',
@@ -2636,6 +2661,11 @@ export class BossSystem {
         onYoyo: () => ring(tx, ty, 0xfff2c0, { radius: 14 }),
         onComplete: () => { a.worldX = a._lpHomeX; a.worldY = a._lpHomeY },
       }))
+      // Every visible strike now reflects on the boss HP bar (lunges used to be
+      // pure animation with no damage). Small per-hit chip; the named beats do
+      // the big chunks. On a loss these stay tiny so the bar never empties.
+      hurtBoss(partyWins ? 0.012 : 0.004)
+      emitHp()
     }
     const recoilBoss = (mag = TILE * 0.5) => {
       if (!boss || this._lpBossY == null) return
@@ -2703,6 +2733,14 @@ export class BossSystem {
     }
     const downMember = (m) => {
       if (!m || m.aiState === 'dead') return
+      // Win path always leaves >=1 survivor to Recall out (per design: a win
+      // means at least one hero walks home). If m is the last one standing on
+      // a winning fight, spare them with a sliver of HP instead of downing.
+      if (partyWins && aliveAll().filter(a => a !== m).length === 0) {
+        m.resources.hp = Math.max(1, Math.round((m.resources.maxHp ?? 1) * 0.12))
+        emitHp()
+        return
+      }
       m.resources.hp = 0
       emitHp()
       deathMoment(m)
@@ -2769,17 +2807,19 @@ export class BossSystem {
     })
     if (lungeLoop) this._lpDuelTimers.push(lungeLoop)
 
-    // ── Beat timeline (~26s) ────────────────────────────────────────────
+    // ── Beat timeline (~21s) ────────────────────────────────────────────
+    // Tightened 5s on 2026-05-30 (was ~26s) — same beats, shorter gaps; the
+    // three cast durationMs values match their cast→resolve gap exactly.
     // 0.8s — the pull. First contact.
     TS(800, () => { EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'PULL' }); ring(bx(), by(), 0x6aaaff, { radius: 28 }); shake(140, 0.004) })
-    // 2.5s — boss winds up a TANK-BUSTER (cast bar + tight red telegraph on the tank).
-    TS(2500, () => {
-      EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.tb, durationMs: 2200 })
-      const t = aliveTank(); if (t) ring(t.worldX, t.worldY, 0xff3030, { radius: 40, duration: 2200 })
+    // 2.3s — boss winds up a TANK-BUSTER (cast bar + tight red telegraph on the tank).
+    TS(2300, () => {
+      EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.tb, durationMs: 2000 })
+      const t = aliveTank(); if (t) ring(t.worldX, t.worldY, 0xff3030, { radius: 40, duration: 2000 })
     })
-    // 4.9s — tank-buster lands. The tank pops Hallowed Ground if he can (gold
+    // 4.3s — tank-buster lands. The tank pops Hallowed Ground if he can (gold
     // flash, survives); otherwise eats a heavy hit. DPS keep chipping the boss.
-    TS(4900, () => {
+    TS(4300, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'tankbuster', label: 'TANK BUSTER' })
       const t = aliveTank()
       if (t) {
@@ -2788,38 +2828,39 @@ export class BossSystem {
       }
       shake(260, 0.010); hurtBoss(partyWins ? 0.12 : 0.06); recoilBoss(); emitHp()
     })
-    // 6.6s — DPS burst window.
-    TS(6600, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.12 : 0.05); emitHp() })
-    // 8.2s — boss winds up a raid-wide AoE.
-    TS(8200, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.aoe, durationMs: 3000 }); ring(bx(), by(), 0xff5544, { radius: 80, duration: 3000 }) })
-    // 11.2s — AoE resolves: everyone scatters; 1-2 random members get caught.
-    TS(11200, () => {
+    // 5.8s — DPS burst window.
+    TS(5800, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.12 : 0.05); emitHp() })
+    // 7s — boss winds up a raid-wide AoE.
+    TS(7000, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.aoe, durationMs: 2600 }); ring(bx(), by(), 0xff5544, { radius: 80, duration: 2600 }) })
+    // 9.6s — AoE resolves: everyone scatters; 1-2 random members get caught.
+    TS(9600, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'DODGE!' })
       scatter(); shake(360, 0.013); ring(bx(), by(), 0xff8a3a, { radius: 100 })
       const pool = aliveAll(); const hits = pool.length > 2 ? 2 : 1
       for (let i = 0; i < hits; i++) { const m = rndOf(aliveAll().filter(a => a._lightPartyRole !== 'tank')) || rndOf(aliveAll()); if (m) strike(m, 0.18, 1.0) }
       hurtBoss(partyWins ? 0.10 : 0.05); recoilBoss(); emitHp()
     })
-    // 13s — healer recovery window (green pulses, top up survivors).
-    TS(13000, () => { healSurvivors(0.20); for (const a of aliveAll()) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }); emitHp() })
-    // 15s — boss winds up a STACK marker.
-    TS(15000, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.stack, durationMs: 2600 }); ring(bx(), by(), 0xffd66b, { radius: 60, duration: 2600 }) })
-    // 17.8s — stack resolves: cluster on the tank to share it; a straggler can fall.
-    TS(17800, () => {
+    // 11s — healer recovery window (green pulses, top up survivors).
+    TS(11000, () => { healSurvivors(0.20); for (const a of aliveAll()) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }); emitHp() })
+    // 12.6s — boss winds up a STACK marker.
+    TS(12600, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.stack, durationMs: 2200 }); ring(bx(), by(), 0xffd66b, { radius: 60, duration: 2200 }) })
+    // 14.8s — stack resolves: cluster on the tank to share it; a straggler can fall.
+    TS(14800, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'stack', label: 'STACK!' })
       stackUp(); shake(300, 0.011)
       const m = rndOf(aliveAll()); if (m) strike(m, 0.16, 0.9)
       hurtBoss(partyWins ? 0.12 : 0.05); recoilBoss(); emitHp()
     })
-    // 20s — DPS burst.
-    TS(20000, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.14 : 0.05); emitHp() })
-    // 22.5s — LB3 CLIMAX. Win: party converges, Limit Break craters the boss.
+    // 16.6s — DPS burst.
+    TS(16600, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.14 : 0.05); emitHp() })
+    // 18.5s — LB3 CLIMAX. Win: party converges, Limit Break craters the boss.
     //         Loss: a desperate LB that fails — the boss answers with carnage.
-    TS(22500, () => {
+    TS(18500, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'lb3', label: partyWins ? 'METEOR!' : 'DESPERATE LB!' })
       shake(520, 0.02); scene?.time?.delayedCall?.(120, () => { if (!this._lpDuelOver) shake(300, 0.014) })
       ring(bx(), by(), 0xfff2c0, { radius: 140 })
       if (partyWins) {
+        this._lpLbFired = true   // releases the pre-climax HP floor in hurtBoss
         for (const a of dpsList()) lunge(a)
         recoilBoss(TILE * 1.3); hurtBoss(0.55)
         float(bx(), by() - TILE, 'LIMIT BREAK', '#ffd66b', '15px')
@@ -2830,8 +2871,8 @@ export class BossSystem {
       }
       emitHp()
     })
-    // 25.5s — resolution.
-    TS(25500, () => this._resolveLightPartyDuel(boss, party, partyWins))
+    // 20.5s — resolution.
+    TS(20500, () => this._resolveLightPartyDuel(boss, party, partyWins))
   }
 
   _resolveLightPartyDuel(boss, party, partyWins) {
@@ -2839,6 +2880,17 @@ export class BossSystem {
     // Stop the beat timeline + loops from firing into the resolution.
     this._lpDuelOver = true
     const scene = this._scene
+    // Freeze the arena for the outro: kill every movement tween + the
+    // slam/lunge loop timers so the members (and the boss) hold position while
+    // they speak their lines and Recall out. Without this the continuous lunge
+    // loop keeps yanking the DPS toward the throne all through the cutscene.
+    // Snap each member back to its resting formation slot in case a lunge was
+    // mid-flight. (Idempotent — _endLightPartyDuel repeats the teardown.)
+    for (const t of this._lpDuelTweens ?? []) { try { t.remove?.() ?? t.stop?.() } catch {} }
+    this._lpDuelTweens = []
+    for (const tm of this._lpDuelTimers ?? []) { try { tm.remove?.(false) } catch {} }
+    this._lpDuelTimers = []
+    for (const a of party) { if (a._lpHomeX != null) { a.worldX = a._lpHomeX; a.worldY = a._lpHomeY } }
     // A member still mid-Raise when the fight ends never gets brought back.
     if (this._lpRaise?.deadAdv && this._lpRaise.deadAdv.aiState !== 'dead') {
       const d = this._lpRaise.deadAdv
@@ -2872,58 +2924,229 @@ export class BossSystem {
       window.setTimeout(() => { if (scene?.time) scene.time.timeScale = 1 }, 400)
     }
 
+    // Members still standing at resolution. The win casualty layer clamps the
+    // last member alive (see downMember), so a win ALWAYS has >=1 survivor to
+    // Recall out. nameList/casualties retained for any future use.
+    void nameList
+    const living = party.filter(a => a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+
     if (partyWins) {
-      // Force boss HP to 0 so the standard "lethal win" book-keeping reads the
-      // same as a normal-fight party win. Then book-keep the life loss manually.
+      // Set up the WIN outro FIRST. BOSS_FIGHT_RESOLVED (emitted just below)
+      // triggers Game._onBossFightZoomOut, which checks _lpOutro to decide
+      // whether to release the camera lock. If _lpOutro weren't set yet, the
+      // lock would drop the instant the boss falls and the whole outro (lines
+      // -> Recall -> teleport) would play un-zoomed. Sequence once the banner
+      // shows: DUTY COMPLETE -> victory lines (+ mourning if any fell) ->
+      // Recall cast -> teleport out -> summary.
+      this._lpOutro = {
+        kind: 'win', phase: 'init', t: 0, watchdog: 0, said: 0,
+        survivors: living, casualties: casualties.slice(),
+      }
+      // Boss falls NOW so the collapse reads under the DUTY COMPLETE banner.
+      // Book-keeping mirrors a normal-fight party win.
       boss.hp = 0
       boss.deathsRemaining = Math.max(0, (boss.deathsRemaining ?? 0) - 1)
       boss._diedThisDay    = true
       this._deathPoseUntil = Infinity
       EventBus.emit('BOSS_FIGHT_RESOLVED', {
-        winner: 'party',
-        bossHpRemaining: 0,
-        deathsRemaining: boss.deathsRemaining,
+        winner: 'party', bossHpRemaining: 0, deathsRemaining: boss.deathsRemaining,
         rounds: 1, roundLog: [],
         party: party.map(a => ({ instanceId: a.instanceId, name: a.name, hp: a.resources?.hp ?? 0 })),
       })
-      // Light Party VICTORY metric — gates the "Warrior of Light" achievement.
+      // Light Party VICTORY metric (gates the Warrior of Light achievement).
       EventBus.emit('LIGHT_PARTY_DEFEATED_BOSS', { partySize: party.length })
       if (boss.deathsRemaining <= 0) {
         EventBus.emit('BOSS_DEFEATED_FINAL', { totalDays: this._gameState.player?.totalDaysElapsed })
       }
-      // Finale varies with the body count: a clean win vs a Pyrrhic one.
-      const finale = casualties.length === 0
-        ? { title: 'FLAWLESS', summary: 'Not a single hero fell.' }
-        : { title: 'VICTORY', summary: `But ${nameList()} fell.` }
-      EventBus.emit('LIGHT_PARTY_DUEL_END', { outcome: 'win', ...finale })
-      // Living survivors flee out with the standard boss_defeated goal.
-      for (const a of party) {
-        if (a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0) this._handOffToAIFlee(a, 'boss_defeated')
+    } else {
+      // Boss wins. A lone survivor may flee to tell the tale (25% when anyone
+      // is still up); the rest fall in the death-anim beat. The boss-side
+      // BOSS_FIGHT_RESOLVED + LIGHT_PARTY_DUEL_END fire at outro finish.
+      let fleer = null
+      if (living.length > 0 && Math.random() < 0.25) fleer = living[Math.floor(Math.random() * living.length)]
+      const doomed = living.filter(a => a !== fleer)
+      this._lpOutro = {
+        kind: 'loss', phase: 'init', t: 0, watchdog: 0, said: 0,
+        doomed, fleer, casualties: casualties.slice(),
+      }
+    }
+    // Stop the duel-timeline backstop now that an outro owns the timing.
+    // _lpDuel = null so _tickLightPartyDuel won't re-resolve; _lightPartyDuel
+    // stays TRUE so the boss keeps facing the party, the camera stays on the
+    // throne, and DayPhase holds the day-end timer until the outro finishes.
+    this._lpDuel = null
+  }
+
+  // ── Light Party win/loss OUTRO cutscene ────────────────────────────────
+  // Driven by accumulating raw dt (ms) — NOT scene.time.delayedCall — so a
+  // lingering slow-mo can't stall it (same robustness as Solo Leveling's
+  // _tickDuelOutro). Ticked from _tickLightPartyDuel while this._lpOutro is set.
+  _tickLightPartyOutro(dt) {
+    const O = this._lpOutro
+    if (!O) return
+    O.t += dt; O.watchdog += dt
+    if (O.watchdog > 20000) { this._finishLightPartyOutro(); return }  // hard backstop
+    const scene = this._scene
+    const TILE  = Balance.TILE_SIZE
+    const ring  = (x, y, c, o = {}) => AbilityVfx.pulseRing?.(scene, x, y, { color: c, ...o })
+    const float = (x, y, t, c, s = '12px') => { if (t) AbilityVfx.floatingText?.(scene, x, y, t, { color: c, fontSize: s }) }
+    const banner = (kind) => EventBus.emit('LIGHT_PARTY_DUTY_BANNER', { kind })
+    // SfxSystem has NO generic SFX_PLAY cue — it maps specific EventBus events
+    // to sounds. ADVENTURER_TELEPORTED is the one whose only listener is
+    // SfxSystem (-> sfx-teleport), so it's safe to fire for the Recall whoosh.
+    // The win boom (sfx-boss-death) already played via BOSS_FIGHT_RESOLVED at
+    // resolve, and loss death sounds play via _killAdv, so 'teleport' is the
+    // only cue we still need to surface here; the rest are harmless no-ops.
+    const sfx = (id) => { if (id === 'teleport') EventBus.emit('ADVENTURER_TELEPORTED', {}) }
+    // Speak a scripted line as a REAL adventurer chat bubble (ChatBubbles
+    // ADVENTURER_SAY) — identical format to ordinary adventurer chatter,
+    // instead of floating combat text. Caller must speak BEFORE killing a
+    // member (a dead adv's bubble is culled next frame).
+    const say = (m, text, lifeMs = 2600) => { if (m && text) EventBus.emit('ADVENTURER_SAY', { adventurer: m, text, lifeMs }) }
+
+    if (O.kind === 'win') {
+      switch (O.phase) {
+        case 'init':                                   // boss already collapsed in resolve
+          if (O.t > 900) { O.phase = 'banner'; O.t = 0; banner('complete'); sfx('daystart') }
+          break
+        case 'banner':
+          if (O.t > 2400) { O.phase = (O.casualties.length ? 'mourn' : 'lines'); O.t = 0; O.said = 0 }
+          break
+        case 'mourn':
+          if (!O.mournSaid) {
+            O.mournSaid = true
+            const h = O.survivors.find(a => a._lightPartyRole === 'healer') || O.survivors[0]
+            say(h, 'For the fallen.')
+          }
+          if (O.t > 2600) { O.phase = 'lines'; O.t = 0; O.said = 0 }
+          break
+        case 'lines': {
+          if (O.said < O.survivors.length && O.t > O.said * 1300 + 300) {
+            const m = O.survivors[O.said]; O.said++
+            say(m, this._lpOutroLine(m._lightPartyRole, 'victory'))
+          }
+          if (O.said >= O.survivors.length && O.t > O.survivors.length * 1300 + 1200) { O.phase = 'recall'; O.t = 0 }
+          break
+        }
+        case 'recall':
+          if (!O.recallFired) {
+            O.recallFired = true
+            // One spoken "Recall…" (chorus would violate one-bubble-at-a-time);
+            // the glow rings below play on EVERY survivor so all are clearly casting.
+            say(O.survivors[0], 'Recall…', 3000)
+            sfx('teleport')
+          }
+          // Blue shimmer building over the 3s cast — periodic rings on each.
+          if (!O._lastGlow || O.t - O._lastGlow > 380) {
+            O._lastGlow = O.t
+            for (const m of O.survivors) ring(m.worldX, m.worldY, 0x6aaaff, { radius: 12 + (O.t / 3000) * 18 })
+          }
+          if (O.t > 3000) { O.phase = 'teleport'; O.t = 0 }
+          break
+        case 'teleport':
+          if (!O.teleported) {
+            O.teleported = true
+            const active = this._gameState.adventurers?.active ?? []
+            for (const m of O.survivors) {
+              // Beam-up: stacked bright rings rising off the member, a flash,
+              // then splice them from active so the sprite vanishes.
+              ring(m.worldX, m.worldY, 0xcfe8ff, { radius: 46 })
+              ring(m.worldX, m.worldY - TILE * 0.8, 0xaecbff, { radius: 30 })
+              float(m.worldX, (m.worldY ?? 0) - TILE, '↑', '#cfe8ff', '16px')
+              const i = active.indexOf(m); if (i >= 0) active.splice(i, 1)
+              EventBus.emit('ADVENTURER_FLED', { adventurer: m, reason: 'light_party_recall' })
+            }
+            scene?.cameras?.main?.flash?.(220, 180, 210, 255)
+          }
+          if (O.t > 600) { O.phase = 'fade'; O.t = 0 }
+          break
+        case 'fade':
+          if (O.t > 1600) { this._finishLightPartyOutro(); return }
+          break
       }
     } else {
-      // Boss wins. Not a guaranteed wipe — a lone survivor may flee to tell the
-      // tale (25% if exactly one member is still standing). Everyone else dies.
-      const living = party.filter(a => a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
-      let survivor = null
-      if (living.length === 1 && Math.random() < 0.25) survivor = living[0]
-      for (const a of living) {
-        if (a === survivor) continue
-        this._killAdv(a, 'boss')
+      // LOSS
+      switch (O.phase) {
+        case 'init':
+          if (O.t > 400) { O.phase = 'death'; O.t = 0; O.said = 0 }
+          break
+        case 'death': {
+          // Stagger each doomed member's fall. Speak the death line as a REAL
+          // chat bubble (say) NOW, then run the actual kill ~750ms later — a
+          // dead adv's bubble is culled next frame, so the kill must trail the
+          // line or the player never reads it. The DayPhase day-end gate holds
+          // while _lightPartyDuel is true.
+          O.kills = O.kills || []
+          if (O.said < O.doomed.length && O.t > O.said * 1400 + 200) {
+            const m = O.doomed[O.said]; O.said++
+            if (m && m.aiState !== 'dead') {
+              scene?.cameras?.main?.shake?.(170, 0.009)
+              say(m, this._lpOutroLine(m._lightPartyRole, 'death'))
+              ring(m.worldX, m.worldY, 0xff5544, { radius: 16 })
+              O.kills.push({ m, at: O.t + 800 })   // the death anim + book-keep lands after the line
+            }
+          }
+          // Drain kills whose delay has elapsed.
+          O.kills = O.kills.filter(k => {
+            if (O.t >= k.at) { if (k.m.aiState !== 'dead') this._killAdv(k.m, 'boss'); return false }
+            return true
+          })
+          if (O.said >= O.doomed.length && O.kills.length === 0 && O.t > O.doomed.length * 1400 + 1200) { O.phase = 'banner'; O.t = 0 }
+          break
+        }
+        case 'banner':
+          if (!O.bannerShown) { O.bannerShown = true; banner('failed'); sfx('error') }
+          if (O.t > 2400) { this._finishLightPartyOutro(); return }
+          break
       }
+    }
+  }
+
+  // Outro teardown — fires the loss-side book-keeping (the win side already
+  // fired at resolve), the achievement-gating LIGHT_PARTY_DUEL_END, flees a
+  // lone loss-survivor, then ends the duel so the day can roll to the summary.
+  _finishLightPartyOutro() {
+    const O = this._lpOutro
+    this._lpOutro = null
+    if (O?.kind === 'loss') {
+      const boss = this._gameState.boss
       EventBus.emit('BOSS_FIGHT_RESOLVED', {
         winner: 'boss',
-        bossHpRemaining: Math.max(0, Math.round(boss.hp ?? 0)),
-        deathsRemaining: boss.deathsRemaining ?? 0,
+        bossHpRemaining: Math.max(0, Math.round(boss?.hp ?? 0)),
+        deathsRemaining: boss?.deathsRemaining ?? 0,
         rounds: 1, roundLog: [],
-        party: party.map(a => ({ instanceId: a.instanceId, name: a.name, hp: Math.max(0, a.resources?.hp ?? 0) })),
+        party: [],
       })
-      const finale = survivor
-        ? { title: 'A LONE SURVIVOR FLEES', summary: `${survivor.name || 'One hero'} carries word of the slaughter.` }
-        : { title: 'TOTAL PARTY KILL', summary: 'The Light is extinguished.' }
-      EventBus.emit('LIGHT_PARTY_DUEL_END', { outcome: 'loss', ...finale })
-      if (survivor) this._handOffToAIFlee(survivor, 'boss_stalemate')
+      EventBus.emit('LIGHT_PARTY_DUEL_END', { outcome: 'loss' })
+      if (O.fleer) this._handOffToAIFlee(O.fleer, 'boss_stalemate')
+    } else {
+      EventBus.emit('LIGHT_PARTY_DUEL_END', { outcome: 'win' })
     }
     this._endLightPartyDuel()
+  }
+
+  // Role-flavored outro one-liners (FFXIV-toned). kind: 'victory' | 'death'.
+  _lpOutroLine(role, kind) {
+    const L = {
+      tank: {
+        victory: ['The Light holds.', 'Our shield endures.', 'Duty fulfilled.'],
+        death:   ['I... could not hold.', 'The line... is broken.', 'Stand... without me.'],
+      },
+      healer: {
+        victory: ['Everyone, well done.', 'The Light protects us still.', 'Let us go home.'],
+        death:   ["I'm sorry... I couldn't save them.", 'My light... fades.', 'Carry on...'],
+      },
+      meleeDps: {
+        victory: ['A clean fight. Honor satisfied.', 'The blade prevails.', 'One cut. One breath.'],
+        death:   ['A worthy... end.', 'My blade... falls.', 'No... regrets.'],
+      },
+      rangedDps: {
+        victory: ['Burned to ash. As planned.', 'The arcane wins again.', 'Checkmate.'],
+        death:   ['Out of... mana.', 'The spell... unfinished.', 'Impossible...'],
+      },
+    }
+    const pool = (L[role] ?? L.tank)[kind] ?? ['...']
+    return pool[Math.floor(Math.random() * pool.length)]
   }
 
   _endLightPartyDuel() {
@@ -2937,6 +3160,7 @@ export class BossSystem {
     // generic _tickFightAnim rebuilds them fresh on the next ordinary fight.
     this._lpRaise       = null
     this._lpCasualties  = null
+    this._lpOutro       = null
     this._bossState     = null
     this._fightStates   = null
     // Clear the safety-net context so _tickLightPartyDuel can't re-resolve.

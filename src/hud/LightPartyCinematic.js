@@ -238,7 +238,11 @@ export class LightPartyCinematic {
 
 /* Duel cinematic letterbox (same shape as Solo Leveling) */
 .qf-lp-letterbox { position:absolute; inset:0; pointer-events:none; z-index:34; }
-.qf-lp-letterbox .qf-lp-bar { position:absolute; left:0; right:0; height:9vh;
+/* width:auto is REQUIRED. The party-panel qf-lp-bar rule above sets width:50%,
+   and for an abs-positioned box with left + right + width all set, the browser
+   ignores right — so that leaked 50% clipped these bars to the left half
+   (the "cut off on the right" bug). width:auto lets left:0/right:0 span full. */
+.qf-lp-letterbox .qf-lp-bar { position:absolute; left:0; right:0; width:auto; height:9vh;
   background:#0a0612; transform:scaleY(0); transition:transform .55s cubic-bezier(.16,.84,.3,1); }
 .qf-lp-letterbox .qf-lp-bar.top    { top:0;    transform-origin:top;
   box-shadow:0 2px 0 rgba(255,214,107,.55), 0 12px 26px -10px rgba(255,214,107,.55); }
@@ -250,7 +254,10 @@ export class LightPartyCinematic {
 .qf-lp-duel { position:absolute; inset:0; z-index:35; pointer-events:none;
   font-family:'Press Start 2P','Courier New',monospace; opacity:0; transition:opacity .55s ease; }
 .qf-lp-duel.show { opacity:1; }
-.qf-lp-duel-boss { position:absolute; top:calc(9vh + 22px); left:50%; transform:translateX(-50%);
+/* Sit at the TOP OF THE GAMEPLAY WINDOW (just under the top UI bar), not over
+   the chrome. --hud-top (fallback 96px) is the gameplay viewport's top edge —
+   same reference the FFXIV corner party panel uses. top:24px put it over the UI. */
+.qf-lp-duel-boss { position:absolute; top:calc(var(--hud-top,96px) + 10px); left:50%; transform:translateX(-50%);
   width:min(56vw,720px); display:flex; flex-direction:column; gap:6px; }
 .qf-lp-duel-boss-name { font-size:clamp(13px,1.7vw,20px); letter-spacing:3px; color:#ffd6cf;
   text-align:center; text-shadow:0 0 12px rgba(255,90,60,.8); }
@@ -265,6 +272,24 @@ export class LightPartyCinematic {
   background:linear-gradient(90deg,#6b3014,#ffb44a); transition:width .12s linear; }
 .qf-lp-duel-boss-cast-label { position:absolute; inset:0; text-align:center; font-size:7px;
   line-height:8px; letter-spacing:1px; color:#fff7d8; padding-top:1px; pointer-events:none; }
+
+/* Boss CAST bar — its own element pinned JUST RIGHT of the FFXIV corner party
+   panel (left side), not under the boss HP bar. Shows the spell name + a fill
+   that races over the cast's duration. Hidden (.show toggled) between casts.
+   left = panel left (--hud-side + 12) + panel width (~308) + gap. */
+.qf-lp-castbar { position:absolute; z-index:43; pointer-events:none;
+  top:calc(var(--hud-top,96px) + 72px);
+  left:calc(var(--hud-side,320px) + 12px + 320px);
+  width:230px; opacity:0; transition:opacity .15s ease;
+  font-family:'Press Start 2P','Courier New',monospace; }
+.qf-lp-castbar.show { opacity:1; }
+.qf-lp-castbar-label { font-size:8px; line-height:1.2; letter-spacing:1px; color:#fff7d8;
+  margin:0 0 4px 1px; text-shadow:0 0 8px rgba(255,180,80,.85), 0 1px 0 #2a1505; }
+.qf-lp-castbar-track { height:15px; background:rgba(4,8,16,.85);
+  border:2px solid rgba(255,180,80,.6); border-radius:2px; overflow:hidden;
+  position:relative; box-shadow:0 0 12px rgba(255,160,60,.35); }
+.qf-lp-castbar-fill { position:absolute; left:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg,#6b3014,#ffb44a); }
 
 .qf-lp-duel-party { position:absolute; bottom:calc(9vh + 22px); left:6vw;
   display:flex; flex-direction:column; gap:5px; min-width:240px; padding:8px 10px;
@@ -313,6 +338,34 @@ export class LightPartyCinematic {
 .qf-lp-finale.loss .qf-lp-finale-title  { color:#ffd6cf; text-shadow:0 0 26px rgba(255,70,46,.9), 0 3px 0 #1a0202; }
 .qf-lp-finale-sub   { position:relative; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#dfeaff; }
+
+/* FFXIV duty banners (DUTY COMMENCED / COMPLETE / FAILED). The art is a
+   1280x360 gold word-mark with built-in glow on transparency — shown as a
+   centered <img> that fades + scales in, holds, then fades out. Same screen-
+   space slate treatment FFXIV uses on duty start/clear/fail. */
+.qf-lp-duty { position:absolute; left:50%; top:42%; transform:translate(-50%,-50%) scale(.7);
+  z-index:46; pointer-events:none; opacity:0;
+  width:min(72vw,860px); height:auto;
+  filter:drop-shadow(0 0 24px rgba(255,214,107,.35)); }
+.qf-lp-duty.show { animation:qf-lp-duty-anim 2600ms cubic-bezier(.2,.9,.2,1) forwards; }
+.qf-lp-duty.failed.show { animation:qf-lp-duty-fail 2600ms cubic-bezier(.2,.9,.2,1) forwards; }
+@keyframes qf-lp-duty-anim {
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(.7); }
+  14%  { opacity:1; transform:translate(-50%,-50%) scale(1.04); }
+  24%  { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  78%  { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(1.02); }
+}
+/* Failed slams in harder + a brief shudder, like FFXIV's duty-fail stamp. */
+@keyframes qf-lp-duty-fail {
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(1.5); }
+  10%  { opacity:1; transform:translate(-50%,-50%) scale(.96); }
+  16%  { transform:translate(-51.5%,-50%) scale(1); }
+  20%  { transform:translate(-48.5%,-50%) scale(1); }
+  24%  { transform:translate(-50%,-50%) scale(1); }
+  80%  { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(1); }
+}
 @keyframes qf-lp-finale-pop { 0%{opacity:0; transform:scale(.6); filter:blur(6px)}
   60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }
 `
@@ -342,7 +395,33 @@ export class LightPartyCinematic {
     sub('LIGHT_PARTY_DUEL_BEAT',   (p) => this._onDuelBeat(p ?? {}))
     sub('LIGHT_PARTY_DUEL_CAST',   (p) => this._onDuelCast(p ?? {}))
     sub('LIGHT_PARTY_DUEL_END',    (p) => this._onDuelEnd(p ?? {}))
+    sub('LIGHT_PARTY_DUTY_BANNER', (p) => this._onDutyBanner(p ?? {}))
     sub('DAY_PHASE_ENDED',         () => this._end())
+  }
+
+  // FFXIV duty banner — kind: 'commenced' | 'complete' | 'failed'. Shows the
+  // matching gold word-mark sprite center-screen with a fade+scale slate
+  // animation, then removes it. BossSystem fires these at the duel's start
+  // (commenced) and resolution (complete/failed).
+  _onDutyBanner({ kind = 'commenced' } = {}) {
+    const SRC = {
+      commenced: 'assets/ui/duty/duty-commenced.png',
+      complete:  'assets/ui/duty/duty-complete.png',
+      failed:    'assets/ui/duty/duty-failed.png',
+    }
+    const src = SRC[kind]
+    if (!src || !this._stage) return
+    // Build the <img> and set src/alt directly (not via h's attr handling) so
+    // the banner loads regardless of what keys the DOM helper whitelists.
+    const img = h('img', { className: `qf-lp-duty${kind === 'failed' ? ' failed' : ''}` })
+    img.src = src
+    img.alt = ''
+    this._stage.appendChild(img)
+    // eslint-disable-next-line no-unused-expressions
+    img.offsetHeight
+    img.classList.add('show')
+    // The animation runs 2600ms; remove a hair after it ends.
+    setTimeout(() => img.remove(), 2800)
   }
 
   destroy() {
@@ -370,6 +449,9 @@ export class LightPartyCinematic {
     this._startVignette()
     this._buildCornerPanel()
     this._playEntrance()
+    // After the entrance card auto-dismisses (~3.8s), slam in the FFXIV
+    // "DUTY COMMENCED" banner so the run-up reads like entering a duty.
+    this._after(4000, () => this._onDutyBanner({ kind: 'commenced' }))
   }
 
   _playEntrance() {
@@ -584,8 +666,10 @@ export class LightPartyCinematic {
   // the boss cast bar; LIGHT_PARTY_DUEL_HP keeps the HP bars live.
   _onDuelBegan({ bossName = 'THE BOSS', bossHp = 100, bossMaxHp = 100 } = {}) {
     this._duelStarted = true
-    this._hideCornerPanel()
-    this._showLetterbox()
+    // KEEP the FFXIV corner party panel up through the whole duel so the player
+    // watches the members' HP bars drain live as the boss hits them (it used to
+    // be swapped out for a bottom party box). No letterbox bars for this fight
+    // — removed at user request; the duel reads clean against the dungeon.
     this._buildDuelHud(bossName, bossHp, bossMaxHp)
   }
 
@@ -616,29 +700,25 @@ export class LightPartyCinematic {
   _buildDuelHud(bossName, bossHp, bossMaxHp) {
     if (this._duelEl) this._duelEl.remove()
     this._duelBossFill = h('div', { className: 'qf-lp-duel-boss-fill' })
-    this._duelBossCastFill = h('div', { className: 'qf-lp-duel-boss-cast-fill' })
-    this._duelBossCastLabel = h('div', { className: 'qf-lp-duel-boss-cast-label' }, '')
     const bossBox = h('div', { className: 'qf-lp-duel-boss' }, [
       h('div', { className: 'qf-lp-duel-boss-name' }, bossName),
       h('div', { className: 'qf-lp-duel-boss-track' }, [this._duelBossFill]),
-      h('div', { className: 'qf-lp-duel-boss-cast' }, [this._duelBossCastFill, this._duelBossCastLabel]),
     ])
+    // Cast bar is its OWN element pinned just right of the FFXIV corner party
+    // panel (see .qf-lp-castbar) — NOT under the boss HP bar. Hidden until a
+    // cast fires (_onDuelCast toggles .show).
+    this._duelBossCastFill  = h('div', { className: 'qf-lp-castbar-fill' })
+    this._duelBossCastLabel = h('div', { className: 'qf-lp-castbar-label' }, '')
+    this._castBarEl = h('div', { className: 'qf-lp-castbar' }, [
+      this._duelBossCastLabel,
+      h('div', { className: 'qf-lp-castbar-track' }, [this._duelBossCastFill]),
+    ])
+    // The party's live HP is shown by the persistent FFXIV corner panel (left),
+    // which we keep up for the whole duel — so the duel HUD is now JUST the boss
+    // bar + cast bar at top-center. (The old bottom-left duel party box was a
+    // duplicate of the corner panel and has been removed.)
     this._duelPartyBars = {}
-    const rows = this._members.map(m => {
-      const fill = h('div', { className: 'qf-lp-fill' })
-      const row  = h('div', { className: `qf-lp-duel-row ${m.role}` }, [
-        h('div', { className: 'qf-lp-role-tag', style: { color: ROLE_COLOR[m.role] || '#fff' } }, ROLE_ICON[m.role] || '·'),
-        h('div', { className: 'qf-lp-name' }, (m.name || '').toUpperCase().slice(0, 10)),
-        h('div', { className: 'qf-lp-track' }, [fill]),
-      ])
-      this._duelPartyBars[m.instanceId] = { fillEl: fill, rowEl: row }
-      return row
-    })
-    const partyBox = h('div', { className: 'qf-lp-duel-party' }, [
-      h('div', { className: 'qf-lp-duel-party-title' }, 'PARTY'),
-      ...rows,
-    ])
-    this._duelEl = h('div', { className: 'qf-lp-duel' }, [bossBox, partyBox])
+    this._duelEl = h('div', { className: 'qf-lp-duel' }, [bossBox, this._castBarEl])
     this._stage.appendChild(this._duelEl)
     // eslint-disable-next-line no-unused-expressions
     this._duelEl.offsetHeight
@@ -653,15 +733,11 @@ export class LightPartyCinematic {
       const frac = Math.max(0, Math.min(1, bossHp / (bossMaxHp || 1)))
       this._duelBossFill.style.width = `${Math.round(frac * 100)}%`
     }
+    // Route member HP straight to the persistent FFXIV corner panel so the
+    // bars drain instantly as the boss lands hits (no 100ms wait for the
+    // AISystem LIGHT_PARTY_HP tick). Reuses _onMemberHp's corner-bar logic.
     if (Array.isArray(members)) {
-      for (const m of members) {
-        const bar = this._duelPartyBars[m.instanceId]
-        if (!bar) continue
-        const frac = Math.max(0, Math.min(1, (m.hp ?? 0) / (m.maxHp || 1)))
-        bar.fillEl.style.width = `${Math.round(frac * 100)}%`
-        if ((m.hp ?? 0) <= 0) bar.rowEl.classList.add('dead')
-        else                  bar.rowEl.classList.remove('dead')
-      }
+      for (const m of members) this._onMemberHp(m)
     }
   }
 
@@ -691,6 +767,7 @@ export class LightPartyCinematic {
   // named attack (e.g. "Allagan Megaflare"). Drives the cast bar.
   _onDuelCast({ name = '', durationMs = 0 } = {}) {
     if (!this._duelBossCastFill || !this._duelBossCastLabel) return
+    this._castBarEl?.classList.add('show')
     this._duelBossCastFill.style.transition = 'none'
     this._duelBossCastFill.style.width = '0%'
     this._duelBossCastLabel.textContent = (name || '').toUpperCase()
@@ -699,24 +776,20 @@ export class LightPartyCinematic {
     this._duelBossCastFill.offsetWidth
     this._duelBossCastFill.style.transition = `width ${durationMs}ms linear`
     this._duelBossCastFill.style.width = '100%'
+    // Hide the bar shortly after the cast resolves — it's empty between casts.
+    clearTimeout(this._castHideT)
+    this._castHideT = setTimeout(() => this._castBarEl?.classList.remove('show'), durationMs + 250)
   }
 
-  _onDuelEnd({ outcome = 'loss', summary = '' } = {}) {
-    const isWin = outcome === 'win'
-    const finale = h('div', { className: `qf-lp-finale ${isWin ? 'win' : 'loss'}` }, [
-      h('div', { className: 'qf-lp-finale-kicker' }, '◆  LIGHT PARTY  ◆'),
-      h('div', { className: 'qf-lp-finale-title' }, isWin ? 'VICTORY' : 'WIPE'),
-      h('div', { className: 'qf-lp-finale-sub' }, summary || (isWin ? 'The party stands triumphant.' : 'Reset. Re-pull from the start.')),
-    ])
-    this._stage.appendChild(finale)
-    // eslint-disable-next-line no-unused-expressions
-    finale.offsetHeight
-    finale.classList.add('show')
-    this._after(3000, () => {
-      finale.classList.remove('show')
-      setTimeout(() => finale.remove(), 500)
-      this._end()
-    })
+  // The duel's outro cutscene (BossSystem._tickLightPartyOutro) now owns the
+  // entire ending — the FFXIV DUTY COMPLETE / DUTY FAILED banner IS the
+  // headline, so there is no second VICTORY/WIPE card. By the time this fires
+  // (from _finishLightPartyOutro) the survivors have already Recalled out (win)
+  // or fallen (loss), so all that's left is to tear down the cinematic chrome
+  // and let DayPhase roll to the post-wave summary.
+  _onDuelEnd({ outcome = 'loss' } = {}) {
+    void outcome
+    this._end()
   }
 
   _end() {
@@ -724,6 +797,7 @@ export class LightPartyCinematic {
     this._duelStarted = false
     if (this._entrance) { this._entrance.remove(); this._entrance = null }
     if (this._duelEl)   { this._duelEl.remove();   this._duelEl   = null }
+    clearTimeout(this._castHideT); this._castBarEl = null
     for (const id of Object.keys(this._castBars)) this._removeCastBar(id)
     this._hideCornerPanel()
     this._hideLetterbox()

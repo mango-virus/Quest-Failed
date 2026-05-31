@@ -373,7 +373,8 @@ export class SoloLevelingCinematic {
     // Hand off from the persistent corner bar to the cinematic two-bar header.
     this._duelStarted = true
     this._hideCornerHp()
-    this._showLetterbox()
+    // Letterbox bars removed at user request (both this duel and the Light
+    // Party one) — the fight reads clean against the dungeon view.
     this._showDuelHud(bossName)
     if (this._vs) this._vs.remove()
     this._vs = h('div', { className: 'qf-sl-vs' }, [

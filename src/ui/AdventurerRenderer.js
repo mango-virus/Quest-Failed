@@ -43,6 +43,10 @@ const SHEET_ATTACK_ANIMS = new Set(['slash', 'thrust', 'shoot', 'spellcast'])
 // same world position when swapping textures.
 const LPC_BODY_ORIGIN_Y = 0.85
 const LPC_ATK_ORIGIN_Y  = 0.617
+// Light Party travel formation — render-only sub-tile offsets (px) so the four
+// members walk side-by-side / front-and-back instead of stacking on one tile.
+// tank leads, melee on the left flank, ranged on the right, healer trails.
+const LP_TRAVEL_FORMATION = { tank: [0, -8], meleeDps: [-12, 4], rangedDps: [12, 4], healer: [0, 14] }
 // Weapons that should always render combat as `thrust`, regardless of the
 // class's default animation. Spear/Cane only have thrust frames; staves and
 // the Crossbow have a thrust_oversize that looks more dynamic than the static
@@ -498,12 +502,22 @@ export class AdventurerRenderer {
       // skipping setPosition + setDepth when world coords haven't
       // changed cuts the display-list churn that's part of the
       // ~30ms/frame untracked Phaser overhead.
-      if (s._lastSetX !== adv.worldX || s._lastSetY !== adv.worldY) {
-        s.container.setPosition(adv.worldX, adv.worldY)
+      // Light Party travel formation — fan the four out by a small render-only
+      // offset so they never stack on one tile while walking the dungeon (tank
+      // front, melee left, ranged right, healer back). Purely visual: the AI
+      // tile/world position is untouched. Skipped at the throne, where they're
+      // no longer 'walking' (BossSystem owns their positions during the duel).
+      let drawX = adv.worldX, drawY = adv.worldY
+      if (adv._lightParty && adv.aiState === 'walking' && adv.goal?.type !== 'AT_BOSS') {
+        const o = LP_TRAVEL_FORMATION[adv._lightPartyRole]
+        if (o) { drawX += o[0]; drawY += o[1] }
+      }
+      if (s._lastSetX !== drawX || s._lastSetY !== drawY) {
+        s.container.setPosition(drawX, drawY)
         // Y-sort against the boss + minions: larger worldY draws on top.
-        s.container.setDepth(7 + adv.worldY * 0.0005)
-        s._lastSetX = adv.worldX
-        s._lastSetY = adv.worldY
+        s.container.setDepth(7 + drawY * 0.0005)
+        s._lastSetX = drawX
+        s._lastSetY = drawY
       }
       // Dungeon event: The Tournament — a rival visibly GROWS with every
       // rival it kills. Container scale = SPRITE_MULT ^ killCount, only

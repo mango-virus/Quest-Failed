@@ -186,6 +186,14 @@ export class BossRenderer {
     }
     this._lastHp = boss.hp
 
+    // Light Party duel — the boss is staged at chamber centre with the party
+    // fanned BELOW it, but the upward stage-in tween leaves `_facing` stuck on
+    // 'up' (movement-delta facing) so the boss idles facing away from the
+    // party. Force 'down' for the whole duel so it always faces the party it's
+    // fighting. (Every duel target — tank/DPS/healer slots — sits below the
+    // boss, so 'down' is correct for the slam lunges too.)
+    if (this._scene.bossSystem?._lightPartyDuel) this._facing = 'down'
+
     // Pick state
     const state = this._pickState()
     let animKey = `${this._spriteKey}-${state}-${this._facing}`

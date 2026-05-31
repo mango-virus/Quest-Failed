@@ -1048,6 +1048,13 @@ export class AISystem {
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.aiState === 'fleeing' ||
           adv.aiState === 'fled' || adv.aiState === 'leaving') continue
+      // Cinematic-duel survivors own their OWN scripted exit — don't generic-
+      // flee them. Light Party fires BOSS_FIGHT_RESOLVED the instant the boss
+      // falls (start of its win outro), so without this skip the members would
+      // walk out of the throne room mid-cutscene instead of staying for their
+      // victory lines + Recall. (Shadow Monarch normally fires this only after
+      // his outro, but skip him too for safety/symmetry.)
+      if (adv._lightParty || adv._shadowMonarch) continue
       adv.goal    = { type: 'FLEE', reason }
       adv.aiState = 'fleeing'
       adv.path    = null

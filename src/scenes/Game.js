@@ -431,6 +431,12 @@ export class Game extends Phaser.Scene {
     // a no-op unless a duel push-in actually snapshotted the pre-fight view.
     EventBus.on('SHADOW_MONARCH_DUEL',  this._onBossFightZoomIn,  this)
     EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossFightZoomOut, this)
+    // Light Party — same cinematic push-in + camera lock as the Shadow Monarch
+    // duel. Zoom-OUT is driven by LIGHT_PARTY_DUEL_END (the true end, after the
+    // win/loss outro) instead of BOSS_FIGHT_RESOLVED — the win path fires that
+    // the instant the boss falls, mid-outro (_onBossFightZoomOut guards it).
+    EventBus.on('LIGHT_PARTY_DUEL_BEGAN', this._onBossFightZoomIn,  this)
+    EventBus.on('LIGHT_PARTY_DUEL_END',   this._onBossFightZoomOut, this)
     // Persist the save the moment the intro is dismissed so `meta.introSeen`
     // hits disk immediately. The run-start save (ArchetypeSelect) is written
     // BEFORE the intro plays, so without this a player who quits during
@@ -533,6 +539,8 @@ export class Game extends Phaser.Scene {
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
     EventBus.off('SHADOW_MONARCH_DUEL',  this._onBossFightZoomIn,  this)
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightZoomOut, this)
+    EventBus.off('LIGHT_PARTY_DUEL_BEGAN', this._onBossFightZoomIn,  this)
+    EventBus.off('LIGHT_PARTY_DUEL_END',   this._onBossFightZoomOut, this)
     EventBus.off('INTRO_DISMISSED',      this._onIntroDismissed, this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
     this.scale.off('resize', this._onSceneResize, this)
@@ -1276,6 +1284,11 @@ export class Game extends Phaser.Scene {
   }
 
   _onBossFightZoomOut() {
+    // The Light Party WIN emits BOSS_FIGHT_RESOLVED the instant the boss falls,
+    // but its outro (victory lines → Recall → teleport) keeps playing on the
+    // throne afterward. Hold the lock; the real release is driven by
+    // LIGHT_PARTY_DUEL_END once _finishLightPartyOutro runs (_lpOutro cleared).
+    if (this.bossSystem?._lpOutro) return
     // Release the duel camera lock the moment the fight resolves (before the
     // early-return, so it always clears even if the snapshot is missing).
     this._duelCamLock = false

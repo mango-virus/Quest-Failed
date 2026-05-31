@@ -72,6 +72,11 @@ export class ChatBubbles {
     // Solo Leveling — speak a SPECIFIC scripted line (duel outro / "Arise.")
     // in Jinwoo's shadow bubble, bypassing the random-line swap.
     EventBus.on('SHADOW_MONARCH_SAY',       this._onShadowMonarchSay,  this)
+    // Generic scripted line for ANY adventurer (e.g. Light Party outro
+    // victory/death lines). Same path as the Monarch's scripted say, but with
+    // the normal chat-bubble styling — so cinematic dialogue reads exactly like
+    // ordinary adventurer chatter instead of floating combat text.
+    EventBus.on('ADVENTURER_SAY',           this._onAdventurerSay,     this)
     // Solo Leveling — gate Jinwoo's generic exploring chatter OFF for the
     // whole duel + win/loss outro window. Only the scripted SHADOW_MONARCH_SAY
     // lines (battle cries, closing lines) speak once the duel begins; his
@@ -141,6 +146,7 @@ export class ChatBubbles {
     EventBus.off('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
     EventBus.off('SHADOW_MONARCH_DUEL_BEAT', this._onDuelBeat,          this)
     EventBus.off('SHADOW_MONARCH_SAY',       this._onShadowMonarchSay,  this)
+    EventBus.off('ADVENTURER_SAY',           this._onAdventurerSay,     this)
     EventBus.off('SHADOW_MONARCH_DUEL',      this._onDuelBegan,         this)
     EventBus.off('BOSS_FIGHT_RESOLVED',      this._onDuelEnded,         this)
     for (const [evt, handler] of Object.entries(this._bossAbilityHandlers ?? {})) {
@@ -615,7 +621,7 @@ export class ChatBubbles {
   _onDuelBeat({ kind, adventurer } = {}) {
     if (kind !== 'surge' || !adventurer || adventurer.aiState === 'dead') return
     this._destroyBubble(adventurer.instanceId)
-    this._createBubble(adventurer, this._shadowMonarchFightLine(), CONTEXTUAL_LIFE_MS)
+    this._createBubble(adventurer, this._shadowMonarchFightLine(), CONTEXTUAL_LIFE_MS, { scripted: true })
   }
 
   // Show a SPECIFIC scripted line (duel-outro closing lines, "Arise.") in
@@ -624,7 +630,18 @@ export class ChatBubbles {
   _onShadowMonarchSay({ adventurer, text, lifeMs } = {}) {
     if (!adventurer || !text) return
     this._destroyBubble(adventurer.instanceId)
-    this._createBubble(adventurer, text, lifeMs ?? 2600)
+    this._createBubble(adventurer, text, lifeMs ?? 2600, { scripted: true })
+  }
+
+  // Generic scripted line — exact text, normal chat bubble, any adventurer.
+  // Used by the Light Party outro so victory/death dialogue uses the SAME
+  // bubble format as ordinary adventurer chat (not floating combat text).
+  // Skips the dead (their bubble would be culled the next frame), so callers
+  // must speak BEFORE killing a member off.
+  _onAdventurerSay({ adventurer, text, lifeMs } = {}) {
+    if (!adventurer || !text || adventurer.aiState === 'dead') return
+    this._destroyBubble(adventurer.instanceId)
+    this._createBubble(adventurer, text, lifeMs ?? CONTEXTUAL_LIFE_MS, { scripted: true })
   }
 
   _showContextualBubble(adv, line) {
@@ -644,16 +661,27 @@ export class ChatBubbles {
     this._createBubble(adv, line, CONTEXTUAL_LIFE_MS)
   }
 
-  _createBubble(adv, line, lifeMs) {
+  _createBubble(adv, line, lifeMs, opts = {}) {
     // Event-spawned monsters (zombie horde, rival-dungeon invaders) are
     // not chatty adventurers — they never show speech bubbles.
     if (!adv || adv._monster) return
-    // Concurrent-cap safety net. Pure flavour — silently drop new
-    // bubbles past the cap so a pathological "everyone bubbles at
-    // once" frame can't spike DOM/Phaser allocation. Contextual
-    // events (which take CONTEXTUAL_LIFE_MS, longer than ambient)
-    // tend to win the existing slots since they fire on a per-adv
-    // priority cooldown; ambient drops first when at cap.
+    // ── ONE BUBBLE AT A TIME (2026-05-30) ──────────────────────────────────
+    // Only a single adventurer may be speaking at any moment — exploring,
+    // fighting, or in a cinematic outro. This is the single chokepoint every
+    // bubble path funnels through (ambient _showBubbleFor, contextual
+    // _showContextualBubble, scripted _onAdventurerSay/_onShadowMonarchSay).
+    //   • scripted lines (outro dialogue, Jinwoo) ALWAYS win — they clear any
+    //     other live bubble and show alone, so a sequenced cutscene advances.
+    //   • ambient/contextual lines are pure flavour — if anyone ELSE is already
+    //     speaking, drop this one (don't queue).
+    const selfId = String(adv.instanceId)
+    const otherLive = Object.keys(this._bubbles).some(id => id !== selfId)
+    if (opts.scripted) {
+      for (const id of Object.keys(this._bubbles)) if (id !== selfId) this._destroyBubble(id)
+    } else if (otherLive) {
+      return
+    }
+    // Concurrent-cap safety net (now effectively 1, but kept as a backstop).
     const currentCount = Object.keys(this._bubbles).length
     if (currentCount >= MAX_CONCURRENT_BUBBLES && !this._bubbles[adv.instanceId]) return
 
