@@ -372,6 +372,9 @@ export class Game extends Phaser.Scene {
     EventBus.on('DAY_PHASE_STARTED',     this._purgeUnrevivedFallen,  this)
     // Phase 10: third boss defeat → game over
     EventBus.on('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
+    // Anti-save-scum (2026-05-31): commit the instant the boss loses a
+    // (non-final) life so quitting can't rewind the death. See _onBossLifeCommit.
+    EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossLifeCommit, this)
     // Re-clamp zoom whenever the dungeon grid expands so min zoom tracks map size
     EventBus.on('GRID_EXPANDED',        this._onGridExpanded,  this)
     // Boss levels up → expand grid + scale all live minions.
@@ -515,6 +518,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('REBUILD_TRAPS_REQUEST', this._onRebuildTrapsRequest, this)
     EventBus.off('DAY_PHASE_STARTED',     this._purgeUnrevivedFallen,  this)
     EventBus.off('BOSS_DEFEATED_FINAL',  this._onBossFinal,    this)
+    EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossLifeCommit, this)
     EventBus.off('GRID_EXPANDED',        this._onGridExpanded,  this)
     EventBus.off('BOSS_LEVELED_UP',   this._onBossLeveledUp, this)
     EventBus.off('BOSS_LEVEL_CHANGED', this._onBossLevelChanged, this)
@@ -573,6 +577,25 @@ export class Game extends Phaser.Scene {
       catch (e) { console.error('[Game] destroy failed for', obj?.constructor?.name, e) }
     }
     this._lifecycle = []
+  }
+
+  // Anti-save-scum commit (2026-05-31). When the boss loses a life, the
+  // decrement only lived in memory until the NEXT NIGHT_PHASE_STARTED autosave
+  // — so a player could quit during the day (hard close / crash / mobile
+  // app-switch, or with autosave turned off where the beforeunload save bails)
+  // and reload to the pre-death night save, undoing the loss. We close that
+  // window by committing the moment the life is lost.
+  //
+  // UNCONDITIONAL by design: this ignores the qf.gameplay.autosave setting.
+  // That toggle governs *convenience* autosaves (build progress), not
+  // permadeath consequences — letting it off hand out free life-undos was the
+  // loophole. Same philosophy as the run-start + INTRO_DISMISSED saves, which
+  // are also unconditional. Final death needs no save here: _onBossFinal
+  // DELETES the save (no resumable dead run), so we skip deathsRemaining <= 0.
+  _onBossLifeCommit({ winner } = {}) {
+    if (winner !== 'party') return                                   // boss won → no life lost
+    if ((this.gameState?.boss?.deathsRemaining ?? 0) <= 0) return    // final death handled by _onBossFinal
+    try { SaveSystem.save(this.gameState) } catch {}
   }
 
   _onBossFinal() {
