@@ -16,9 +16,6 @@ const TS = Balance.TILE_SIZE
 // ── Adventurer-life goals (Phase: alive AI) ──────────────────────────────
 // These are personality-agnostic (any adv can roll them) and short-lived.
 // Tuned for "reads as alive without spamming chat bubbles."
-const INVESTIGATE_NOISE_RADIUS     = 6      // tiles around the noise source
-const INVESTIGATE_NOISE_CHANCE     = 0.4    // per-adv roll on noise event
-const INVESTIGATE_NOISE_TIMEOUT_MS = 5000   // give up if not arrived in time
 const REGROUP_DISTANCE             = 8      // tiles from party centroid
 const REGROUP_CHANCE               = 0.30   // roll on _pickNextGoal
 // Wall-clock cooldown after a REGROUP completes before another can fire.
@@ -56,7 +53,7 @@ const LOOT_PILE_TTL_MS             = 30000  // piles vanish if untouched
 // the day. Both counter + flag reset in `_onNightStartedAI` (the
 // NIGHT_PHASE_STARTED handler). 3 is generous — normal flow only
 // re-picks once per uninterrupted run (stack-based interrupts like
-// SEEK_HEAL / INVESTIGATE_NOISE preserve SEEK_TREASURE without calling
+// SEEK_HEAL preserves SEEK_TREASURE without calling
 // _pickNextGoal); only the day-42 bug pattern burns through the budget.
 const MAX_CHEST_SEEKS_PER_DAY      = 3
 // Pathfinder cost multiplier for any tile inside a room that this adv
@@ -119,11 +116,15 @@ export class AISystem {
     this._combatSystem      = combatSystem
     this._knowledgeSystem   = knowledgeSystem
     EventBus.on('COMBAT_HIT',          this._onCombatHit,        this)
-    EventBus.on('MINION_DIED',         this._onMinionDied,       this)
     EventBus.on('ADVENTURER_DIED',     this._onAdventurerDied,   this)
     EventBus.on('BOSS_FIGHT_RESOLVED', this._onBossFightResolved, this)
-    // Phase: adventurer-life goals — react to ambient events.
-    EventBus.on('TRAP_TRIGGERED',      this._onTrapTriggeredAI,  this)
+    // INVESTIGATE_NOISE goal removed 2026-05-31. AISystem no longer reacts
+    // to TRAP_TRIGGERED or MINION_DIED: the old "noise" handlers pulled
+    // adventurers toward the noise source, and because traps re-fire
+    // continuously the loop (trap fires → investigate → walk onto trap →
+    // trap fires again) made advs pace on top of traps forever. Trap
+    // locations are still recorded for routing by KnowledgeSystem's own
+    // TRAP_TRIGGERED handler — do NOT re-add an AI reaction to trap hits.
     EventBus.on('COMBAT_KILL',         this._onCombatKill,       this)
     // Phase: alive AI — wipe leftover loot piles when day ends so the
     // dungeon doesn't accumulate them across nights.
@@ -132,10 +133,8 @@ export class AISystem {
 
   destroy() {
     EventBus.off('COMBAT_HIT',          this._onCombatHit,        this)
-    EventBus.off('MINION_DIED',         this._onMinionDied,       this)
     EventBus.off('ADVENTURER_DIED',     this._onAdventurerDied,   this)
     EventBus.off('BOSS_FIGHT_RESOLVED', this._onBossFightResolved, this)
-    EventBus.off('TRAP_TRIGGERED',      this._onTrapTriggeredAI,  this)
     EventBus.off('COMBAT_KILL',         this._onCombatKill,       this)
     EventBus.off('NIGHT_PHASE_STARTED', this._onNightStartedAI,   this)
   }
@@ -344,7 +343,7 @@ export class AISystem {
     const greedy = tags.has('greedy') || tags.has('vulture') || tags.has('loot_seeker')
     // ── Sticky pick (anti-thrash, 2026-05-27) ───────────────────────────
     // When `_pickNextGoal` is repeatedly called mid-walk (combat scuffle,
-    // INVESTIGATE_NOISE roll, REGROUP_AT_PARTY trigger, etc.) and the adv
+    // REGROUP_AT_PARTY trigger, etc.) and the adv
     // is already on a SEEK_TREASURE goal, prefer the previously-targeted
     // chest as long as it's still in the candidate pool. Without this,
     // every repick re-rolls each chest's temptPct independently, so two
@@ -786,48 +785,6 @@ export class AISystem {
     EventBus.emit('SAY_rescueAlly', { adventurer: best })
   }
 
-  // Minion deaths are noise — nearby adventurers may detour to investigate.
-  _onMinionDied({ minion }) {
-    if (minion?.tileX == null || minion?.tileY == null) return
-    this._emitNoise(minion.tileX, minion.tileY)
-  }
-
-  // Trap firings are noise too.
-  _onTrapTriggeredAI({ trap, x, y, adventurer }) {
-    const tx = trap?.tileX ?? x ?? adventurer?.tileX
-    const ty = trap?.tileY ?? y ?? adventurer?.tileY
-    if (tx == null || ty == null) return
-    this._emitNoise(tx, ty)
-    // The struck adventurer re-routes around the now-known trap — but at
-    // most once every few seconds. A trap that fires repeatedly would
-    // otherwise thrash their path every tick, which the oscillation
-    // failsafe reads as "stuck" and wrongly flees them.
-    //
-    // Gated on `damaged === true` (2026-05-27): spike pits emit
-    // TRAP_TRIGGERED every 600ms while an adv stands on them, but
-    // _hitEntity returns false during the 4-second per-entity damage
-    // lockout. Clearing the path on those "fire but didn't damage"
-    // events caused re-pathing thrash — jitter (60% per tile) could
-    // resolve a different direction each clear, flipping the adv back
-    // and forth over the same trap. Only react when damage actually
-    // happened, which keeps knowledge fresh AND avoids the thrash.
-    // We deliberately do NOT clear adventurer.path on a trap hit.
-    //
-    // Forcing a repath the instant they're hit — while they're mid-way
-    // across the trapped room — let the now-5× ROOM_TRAP_PENALTY (plus
-    // the 60% path jitter) reverse their direction back out the way they
-    // came; the next repath sent them forward again, and they ping-ponged
-    // back and forth over the trap every few seconds (the reported bug,
-    // worst on spike pits which re-fire every 600 ms). Letting their
-    // already-committed path finish carries them straight out the far
-    // side — a single hit, capped by the 4 s per-entity damage lockout in
-    // TrapSystem._hitEntity. The trap knowledge that gates future routing
-    // is recorded independently by KnowledgeSystem's own TRAP_TRIGGERED
-    // handler (it populates adv.knowledge.traps), so the room joins this
-    // adv's trapped-room avoidance set on their NEXT natural repath and
-    // they steer around it then — no mid-crossing reversal, no loop.
-  }
-
   // True if a live hostile minion is within melee range of the adventurer.
   _minionAdjacent(adv) {
     for (const m of this._gameState.minions ?? []) {
@@ -985,29 +942,6 @@ export class AISystem {
   // Push every nearby walking adventurer toward the noise tile, with a
   // probability roll per adv. Skips advs already on a higher-priority
   // goal so we don't yank them off a flee or boss path.
-  _emitNoise(tx, ty) {
-    const advs = this._gameState.adventurers?.active ?? []
-    for (const adv of advs) {
-      if (adv.aiState === 'dead' || adv.aiState === 'fleeing') continue
-      const t = adv.goal?.type
-      if (t === 'FLEE' || t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY'
-          || t === 'AT_BOSS' || t === 'INVESTIGATE_NOISE'
-          || t === 'RESCUE_ALLY' || t === 'DEFEND_ALLY') continue
-      const d = Math.hypot(adv.tileX - tx, adv.tileY - ty)
-      if (d > INVESTIGATE_NOISE_RADIUS) continue
-      if (Math.random() >= INVESTIGATE_NOISE_CHANCE) continue
-      adv.goalStack ??= []
-      if (adv.goal) adv.goalStack.push(adv.goal)
-      adv.goal = {
-        type: 'INVESTIGATE_NOISE',
-        targetX: tx, targetY: ty,
-        expiresAt: this._scene.time.now + INVESTIGATE_NOISE_TIMEOUT_MS,
-      }
-      adv.path = null
-      EventBus.emit('SAY_investigateNoiseHeard', { adventurer: adv })
-    }
-  }
-
   // Detect PARTY_WIPED — fires when the last living party member dies AND any
   // surviving traumatized member should panic-flee (sole survivor scenario).
   _onAdventurerDied({ adventurer }) {
@@ -3632,15 +3566,6 @@ export class AISystem {
       }
       return { x: adv.tileX, y: adv.tileY }
     }
-    // Phase: alive AI — react-to-noise detour. Time-limited; expires back
-    // to whatever was on the goal stack.
-    if (adv.goal.type === 'INVESTIGATE_NOISE') {
-      if (this._scene.time.now >= (adv.goal.expiresAt ?? 0)) {
-        adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
-        return this._goalToTile(adv)
-      }
-      return { x: adv.goal.targetX, y: adv.goal.targetY }
-    }
     // Phase: alive AI — chase down the party centroid.
     if (adv.goal.type === 'REGROUP_AT_PARTY') {
       const c = this._partyCentroid(adv)
@@ -3775,18 +3700,6 @@ export class AISystem {
       adv.goal = this._nextSaboteurGoal(adv)
       adv.path = null
       if (adv.goal.type === 'FLEE') adv.aiState = 'fleeing'
-      return
-    }
-    // Phase: alive AI — investigation done, look around (mark current room
-    // visited if new), then resume the prior goal or pick a new one.
-    if (adv.goal.type === 'INVESTIGATE_NOISE') {
-      const room = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
-      if (room) {
-        adv.visitedRooms ??= []
-        if (!adv.visitedRooms.includes(room.instanceId)) adv.visitedRooms.push(room.instanceId)
-      }
-      adv.goal = adv.goalStack?.pop() ?? this._pickNextGoal(adv)
-      adv.path = null
       return
     }
     // Phase: alive AI — caught up to the party, resume normal goals.
@@ -4582,13 +4495,17 @@ export class AISystem {
   // ── Death / despawn ────────────────────────────────────────────────────────
 
   _kill(adv, idx, killerHint) {
-    // Solo Leveling — Sung Jinwoo can ONLY be slain by the boss duel itself.
-    // BossSystem._killAdv stamps _lastHitBy='boss' for the duel; that's the
-    // sole killer allowed through. Every other lethal source routed here
-    // (minions, traps, charm, starvation, pestilence, …) is refused — he's
-    // clamped to 10% max HP and survives. (Boss ABILITIES like the demon
-    // sacrifice never reach _kill; they're floored in BossArchetypeSystem.)
-    if (adv?._shadowMonarch && (adv._lastHitBy ?? killerHint) !== 'boss') {
+    // Solo Leveling + Light Party — these duel-bound adventurers can ONLY be
+    // slain by the boss duel itself. BossSystem._killAdv stamps _lastHitBy='boss'
+    // for the duel; that's the sole killer allowed through. Every OTHER lethal
+    // source routed to this chokepoint (minions, traps incl. instakill, charm,
+    // starvation, pestilence, DoT, stuck-failsafe, …) is refused — they're
+    // clamped to 10% max HP and survive. This is the single guarantee that
+    // "nothing can kill them until the boss fight"; the per-source HP floors
+    // elsewhere are belt-and-suspenders, but THIS is the one that always holds.
+    // (Boss ABILITIES like the demon sacrifice never reach _kill; they're
+    // floored in BossArchetypeSystem.)
+    if ((adv?._shadowMonarch || adv?._lightParty) && (adv._lastHitBy ?? killerHint) !== 'boss') {
       adv.resources = adv.resources ?? {}
       const floor = Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10))
       adv.resources.hp = Math.max(floor, adv.resources.hp ?? floor)
