@@ -257,8 +257,11 @@ export class LightPartyCinematic {
 /* Sit at the TOP OF THE GAMEPLAY WINDOW (just under the top UI bar), not over
    the chrome. --hud-top (fallback 96px) is the gameplay viewport's top edge —
    same reference the FFXIV corner party panel uses. top:24px put it over the UI. */
+/* Narrowed to 560px (was 720) so the centered boss bar's left edge (stage x
+   680) clears the FFXIV party panel on the left (right edge ~640) — at 720 it
+   overlapped the panel by ~40px. */
 .qf-lp-duel-boss { position:absolute; top:calc(var(--hud-top,96px) + 10px); left:50%; transform:translateX(-50%);
-  width:min(56vw,720px); display:flex; flex-direction:column; gap:6px; }
+  width:min(42vw,560px); display:flex; flex-direction:column; gap:6px; }
 .qf-lp-duel-boss-name { font-size:clamp(13px,1.7vw,20px); letter-spacing:3px; color:#ffd6cf;
   text-align:center; text-shadow:0 0 12px rgba(255,90,60,.8); }
 .qf-lp-duel-boss-track { height:28px; background:rgba(4,8,16,.85);
@@ -278,7 +281,7 @@ export class LightPartyCinematic {
    that races over the cast's duration. Hidden (.show toggled) between casts.
    left = panel left (--hud-side + 12) + panel width (~308) + gap. */
 .qf-lp-castbar { position:absolute; z-index:43; pointer-events:none;
-  top:calc(var(--hud-top,96px) + 72px);
+  top:calc(var(--hud-top,96px) + 92px);
   left:calc(var(--hud-side,320px) + 12px + 320px);
   width:230px; opacity:0; transition:opacity .15s ease;
   font-family:'Press Start 2P','Courier New',monospace; }
