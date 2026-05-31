@@ -208,12 +208,12 @@ export class LightPartyCinematic {
   line-height:1; font-variant-numeric:tabular-nums; }
 .qf-lp-nums .qf-lp-hp { font-size:13px; }
 
-/* (Removed an orphaned world-space `.qf-lp-castbar` rule here — leftover from
-   an abandoned DOM raise-cast-bar approach. It set transform:translate(-50%,
-   -100%) + width:60px, and because the real boss-cast-bar rule below doesn't
-   declare `transform`, that stale translate LEAKED onto the boss cast bar and
+/* (Removed an orphaned world-space qf-lp-castbar rule here — leftover from an
+   abandoned DOM raise-cast-bar approach. It set transform translate(-50%,-100%)
+   plus width 60px, and because the real boss-cast-bar rule below does not
+   redeclare transform, that stale translate LEAKED onto the boss cast bar and
    shoved it 115px left, overlapping the party panel. The raise cast bar is
-   drawn in LightPartyRenderer (Phaser), so this CSS was dead.) */
+   drawn in LightPartyRenderer/Phaser, so this CSS was dead.) */
 
 /* Tactical-LB screen flash */
 .qf-lp-lb-flash { position:absolute; inset:0; z-index:43; pointer-events:none;
