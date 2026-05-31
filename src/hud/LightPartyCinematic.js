@@ -208,17 +208,12 @@ export class LightPartyCinematic {
   line-height:1; font-variant-numeric:tabular-nums; }
 .qf-lp-nums .qf-lp-hp { font-size:13px; }
 
-/* Raise cast bar (world-space, above healer's head). Anchored by the
-   feed event to world coordinates → screen px via the data attrs.  */
-.qf-lp-castbar { position:absolute; z-index:34; pointer-events:none; width:60px;
-  font-family:'Press Start 2P','Courier New',monospace; transform:translate(-50%,-100%); }
-.qf-lp-castbar-label { font-size:7px; letter-spacing:1px; color:#ffd6cf;
-  text-align:center; text-shadow:0 1px 0 #000, 0 0 6px rgba(255,90,90,.7); margin-bottom:2px; }
-.qf-lp-castbar-track { height:7px; background:rgba(4,8,16,.85);
-  border:1.5px solid rgba(255,90,90,.7); border-radius:2px; overflow:hidden;
-  box-shadow:0 0 6px rgba(255,90,90,.5); }
-.qf-lp-castbar-fill { height:100%; width:0%; transition:width .12s linear;
-  background:linear-gradient(90deg,#6b1414,#ffd6cf); }
+/* (Removed an orphaned world-space `.qf-lp-castbar` rule here — leftover from
+   an abandoned DOM raise-cast-bar approach. It set transform:translate(-50%,
+   -100%) + width:60px, and because the real boss-cast-bar rule below doesn't
+   declare `transform`, that stale translate LEAKED onto the boss cast bar and
+   shoved it 115px left, overlapping the party panel. The raise cast bar is
+   drawn in LightPartyRenderer (Phaser), so this CSS was dead.) */
 
 /* Tactical-LB screen flash */
 .qf-lp-lb-flash { position:absolute; inset:0; z-index:43; pointer-events:none;
