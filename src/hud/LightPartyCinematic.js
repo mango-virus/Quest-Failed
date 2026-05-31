@@ -308,7 +308,12 @@ export class LightPartyCinematic {
 .qf-lp-duel-row.dead { opacity:.4; }
 .qf-lp-duel-row.dead .qf-lp-fill { background:#3a0a0a !important; }
 
-.qf-lp-duel-beat { position:absolute; left:0; right:0; top:30%; z-index:36; text-align:center;
+/* top:42% (was 30%) — the full-width centered banner box at 30% clipped the
+   bottom of the 4-row party panel (which reaches ~36% of stage height). The
+   visible text is screen-centered so it never touched the panel glyphs, but
+   dropping it to 42% clears the panel's vertical band entirely AND sits more
+   central. Duel-only, so it never coincides with the outro duty/finale banners. */
+.qf-lp-duel-beat { position:absolute; left:0; right:0; top:42%; z-index:36; text-align:center;
   pointer-events:none; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(15px,2.4vw,30px); letter-spacing:5px; opacity:0; }
 .qf-lp-duel-beat.show { animation:qf-lp-beat-anim 1.6s cubic-bezier(.2,.9,.2,1) forwards; }
