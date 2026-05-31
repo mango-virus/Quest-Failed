@@ -455,7 +455,7 @@ export class TrapSystem {
       if (!p) continue
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) { adv.flags.trapPoison = null; continue }
       while (now >= p.nextTickAt && p.nextTickAt <= p.endsAt) {
-        const _smFloor = adv._shadowMonarch
+        const _smFloor = (adv._shadowMonarch || adv._lightParty)
           ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
         adv.resources.hp = Math.max(_smFloor, adv.resources.hp - p.dps)
         EventBus.emit('COMBAT_HIT', {
@@ -553,8 +553,9 @@ export class TrapSystem {
     if (entity._shadowMonarch) damage = Math.floor(damage * 0.5)
     if (damage <= 0) return false
 
-    // Jinwoo floors at 10% max HP — traps can't kill the Shadow Monarch.
-    const _smFloor = entity._shadowMonarch
+    // Jinwoo + Light Party floor at 10% max HP — traps can't kill them; only
+    // the boss duel can.
+    const _smFloor = (entity._shadowMonarch || entity._lightParty)
       ? Math.max(1, Math.ceil((entity.resources.maxHp ?? 1) * 0.10)) : 0
     entity.resources.hp = Math.max(_smFloor, entity.resources.hp - damage)
     entity._lastHitBy   = trap.instanceId

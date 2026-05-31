@@ -244,7 +244,10 @@ export class CombatSystem {
     // minions (only the boss duel can finish him). Floor the hit here so his
     // HP bar visibly bottoms out at 10% instead of flashing to 0 before
     // AISystem._kill bounces him back.
-    const _smFloor = target._shadowMonarch
+    // Light Party shares the Shadow Monarch's 10% floor: party members may ONLY
+    // die in the scripted boss duel (which drives HP directly, not through this
+    // path), so normal combat can never chip them below 10% maxHp.
+    const _smFloor = (target._shadowMonarch || target._lightParty)
       ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
     target.resources.hp = Math.max(_smFloor, target.resources.hp - finalDmg)
 

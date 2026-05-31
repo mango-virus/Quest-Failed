@@ -2796,6 +2796,14 @@ export class BossSystem {
         // real killers. Tank-targeted hits hurt less (he's built for it).
         const dmg = (target._lightPartyRole === 'tank' ? 0.05 : 0.08) + Math.random() * 0.03
         strike(target, dmg, 0.4)
+        // Splash: shockwave from the slam chips every OTHER living member a
+        // little so all four HP bars visibly march downward on every slam.
+        // lethalMult 0 = purely cosmetic pressure (splash can never down anyone;
+        // only the primary target above can be downed).
+        for (const m of aliveAll()) {
+          if (m === target) continue
+          strike(m, 0.025 + Math.random() * 0.015, 0)
+        }
       })
     }
     const slamLoop = scene?.time?.addEvent?.({ delay: 2600, loop: true, callback: bossSlam })
@@ -2838,27 +2846,28 @@ export class BossSystem {
     TS(5800, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.12 : 0.05); emitHp() })
     // 7s — boss winds up a raid-wide AoE.
     TS(7000, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.aoe, durationMs: 2600 }); ring(bx(), by(), 0xff5544, { radius: 80, duration: 2600 }) })
-    // 9.6s — AoE resolves: everyone scatters; 1-2 random members get caught.
+    // 9.6s — AoE resolves: everyone scatters; the WHOLE party eats it so all
+    //        bars drop together (tank takes a reduced share — mitigation).
     TS(9600, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'DODGE!' })
       scatter(); shake(360, 0.013)
       AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0xff8a3a, toR: 180, thickness: 8, durationMs: 600 })
       AbilityVfx.burstRays?.(scene, bx(), by(), { color: 0xffb060, count: 14, length: 120 })
-      const pool = aliveAll(); const hits = pool.length > 2 ? 2 : 1
-      for (let i = 0; i < hits; i++) { const m = rndOf(aliveAll().filter(a => a._lightPartyRole !== 'tank')) || rndOf(aliveAll()); if (m) strike(m, 0.18, 1.0) }
+      for (const m of aliveAll()) strike(m, m._lightPartyRole === 'tank' ? 0.08 : 0.12, 1.0)
       hurtBoss(partyWins ? 0.10 : 0.05); recoilBoss(); emitHp()
     })
     // 11s — healer recovery window (green pulses, top up survivors).
-    TS(11000, () => { healSurvivors(0.20); for (const a of aliveAll()) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }); emitHp() })
+    TS(11000, () => { healSurvivors(0.10); for (const a of aliveAll()) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }); emitHp() })
     // 12.6s — boss winds up a STACK marker.
     TS(12600, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.stack, durationMs: 2200 }); ring(bx(), by(), 0xffd66b, { radius: 60, duration: 2200 }) })
-    // 14.8s — stack resolves: cluster on the tank to share it; a straggler can fall.
+    // 14.8s — stack resolves: cluster on the tank to share it; the whole party
+    //        soaks together (tank takes a reduced share for clustering it).
     TS(14800, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'stack', label: 'STACK!' })
       stackUp(); shake(300, 0.011)
       const _tk = aliveTank()
       AbilityVfx.shockwave?.(scene, _tk?.worldX ?? bx(), _tk?.worldY ?? by(), { color: 0xffd66b, toR: 90, thickness: 6 })
-      const m = rndOf(aliveAll()); if (m) strike(m, 0.16, 0.9)
+      for (const m of aliveAll()) strike(m, m._lightPartyRole === 'tank' ? 0.08 : 0.12, 0.9)
       hurtBoss(partyWins ? 0.12 : 0.05); recoilBoss(); emitHp()
     })
     // 16.6s — DPS burst.

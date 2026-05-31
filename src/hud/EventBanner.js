@@ -269,6 +269,11 @@ export class EventBanner {
     const sub = (event, fn) => { EventBus.on(event, fn); this._listeners.push([event, fn]) }
     sub('DUNGEON_EVENT_ANNOUNCED', (p) => { this._onAnnounced(p); this._showPill(p?.def) })
     sub('DUNGEON_EVENT_ENDED',     ()  => this._hidePill())
+    // Hide the whole persistent-pill row for the duration of the Light Party
+    // boss duel (+ its outro) so the event chip doesn't sit over the cinematic,
+    // then restore it when the duel resolves.
+    sub('LIGHT_PARTY_DUEL_BEGAN',  ()  => { if (this._pillRow) this._pillRow.style.display = 'none' })
+    sub('LIGHT_PARTY_DUEL_END',    ()  => { if (this._pillRow) this._pillRow.style.display = '' })
     // DAMNED · The Insomniac — persistent no-build pill, up for the whole
     // locked night so it can sit beside an active-event pill. Shown on the
     // lock (night start), cleared when the build phase ends (day begins).
