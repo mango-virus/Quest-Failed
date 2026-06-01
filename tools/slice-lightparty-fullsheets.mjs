@@ -21,12 +21,17 @@
 // _atk layout the GAME expects (AdventurerAtkLoader): 192px frames, 8 cols,
 //   slash  rows 0-3 (6 frames each, dirs N/W/S/E)
 //   thrust rows 4-7 (8 frames each, dirs N/W/S/E)
-// Source oversize region begins at y=3456 (64px band 54 = 192px row 18).
 //
 // Per-class atk choice (ATK_ANIMS={slash,thrust} drives which the renderer uses):
-//   paladin → slash_oversize  (oversize rows 18-21, 6 frames)
-//   samurai → slash_oversize  (oversize rows 20-23, 8 frames — long-reach swing)
-//   white_mage / black_mage → thrust_oversize (oversize rows 18-21, 8 frames staff)
+//   paladin → slash_oversize   (native 192px, 6 frames, src y=3456)
+//   white_mage / black_mage → thrust_oversize (native 192px, 8 frames staff, src y=3456)
+//   samurai → slash_oversize   (NOTE: samurai sheet is 1664-wide = 13×128, its
+//     oversize frames are 128px — NOT 192 like the others. The 6-frame katana
+//     slash lives at src y=3456 (rows 3456/3584/3712/3840 = N/W/S/E). Each 128px
+//     frame is composited into the 192px dest cell at offset (32,32): centered
+//     horizontally and feet-aligned (samurai feet ≈y93 in its 128 frame → land at
+//     ≈y125 in the cell, matching the native-192 classes' feet line). Char height
+//     is ~equal (48 vs 51px) so NO scaling — just placement.)
 
 import sharp from 'sharp'
 
@@ -48,16 +53,19 @@ const BODY_ROWS = [
 ]
 const BODY_W = 832, BODY_H = 1856
 
-// _atk: 192px frames, dest 1536×1536 (8 cols × 8 rows).
+// _atk: 192px DEST frames, dest 1536×1536 (8 cols × 8 rows).
 const A = 192
 const ATK_W = 1536, ATK_H = 1536
-// Per class: source oversize 192-row index (y = idx*192) for the dir block we
-// want, the anim slot it fills in the dest sheet, and frame count.
+// Per class: the SOURCE oversize frame size (srcFrame — 192 for the 1536-wide
+// sheets, 128 for the 1664-wide samurai), the absolute source-Y of the FIRST
+// direction row (N; subsequent dirs are +srcFrame), the dest anim slot, frame
+// count, and the placement offset used when the source frame is smaller than the
+// 192 dest cell (centered + feet-aligned — see header note).
 const ATK = {
-  paladin:    { kind: 'slash',  srcRow192: 18, frames: 6 },  // y=3456
-  samurai:    { kind: 'slash',  srcRow192: 20, frames: 8 },  // y=3840 long-reach katana
-  white_mage: { kind: 'thrust', srcRow192: 18, frames: 8 },  // y=3456 staff
-  black_mage: { kind: 'thrust', srcRow192: 18, frames: 8 },  // y=3456 staff
+  paladin:    { kind: 'slash',  srcFrame: 192, srcY: 3456, frames: 6, offX: 0,  offY: 0  },
+  white_mage: { kind: 'thrust', srcFrame: 192, srcY: 3456, frames: 8, offX: 0,  offY: 0  },
+  black_mage: { kind: 'thrust', srcFrame: 192, srcY: 3456, frames: 8, offX: 0,  offY: 0  },
+  samurai:    { kind: 'slash',  srcFrame: 128, srcY: 3456, frames: 6, offX: 32, offY: 32 },
 }
 // Dest start row for each anim slot in the _atk sheet (matches AdventurerAtkLoader).
 const ATK_DST_START_ROW = { slash: 0, thrust: 4 }
@@ -89,22 +97,33 @@ async function sliceBody(srcPath, srcW) {
 
 async function sliceAtk(srcPath, srcW, cfg) {
   const dstStartRow = ATK_DST_START_ROW[cfg.kind]
+  const sf = cfg.srcFrame                  // source frame size (192 or 128)
   const composites = []
   for (let d = 0; d < 4; d++) {            // N / W / S / E
-    const srcY = (cfg.srcRow192 + d) * A
+    const srcRowY = cfg.srcY + d * sf
     const dstRow = dstStartRow + d
-    const w = cfg.frames * A
-    const buf = await sharp(srcPath)
-      .extract({ left: 0, top: srcY, width: Math.min(w, srcW), height: A })
-      .toBuffer()
-    composites.push({ input: buf, left: 0, top: dstRow * A })
+    for (let f = 0; f < cfg.frames; f++) {
+      const sx = f * sf
+      if (sx + sf > srcW) break
+      // Extract one source frame and drop it into its 192px dest cell at the
+      // configured offset (0,0 for native-192; centered+feet-aligned for samurai).
+      const buf = await sharp(srcPath)
+        .extract({ left: sx, top: srcRowY, width: sf, height: sf })
+        .toBuffer()
+      composites.push({ input: buf, left: f * A + cfg.offX, top: dstRow * A + cfg.offY })
+    }
   }
   return sharp({ create: { width: ATK_W, height: ATK_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite(composites).png()
 }
 
 async function main() {
+  // Optional CLI filter: `node slice-lightparty-fullsheets.mjs samurai` only
+  // regenerates the named class(es), so re-slicing one class doesn't re-touch
+  // the others' already-committed output.
+  const only = process.argv.slice(2)
   for (const [cls, file] of Object.entries(FILES)) {
+    if (only.length && !only.includes(cls)) continue
     const srcPath = SRC_DIR + file
     const meta = await sharp(srcPath).metadata()
     const body = await sliceBody(srcPath, meta.width)
