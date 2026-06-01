@@ -486,19 +486,19 @@ export class TrapSystem {
     // The Saboteur is invulnerable while disarming — traps can't touch them.
     if (entity._invulnerable) return false
     const now = this._scene.time.now
-    // One-time-per-trap rule (2026-05-27): each ADVENTURER can be damaged
-    // by a given trap instance only ONCE. trap.state is wiped every night
-    // (resetAll) and advs don't persist across days, so this is
-    // effectively "once per trap per adventurer." Each trap is a single
-    // toll — re-crossings and continuous/area traps no longer chip the
-    // same adv repeatedly. Marked only AFTER damage actually lands (so a
-    // Monk dodge below doesn't burn the one-shot). Minions / boss are
-    // exempt — the rule is adventurer-specific per design.
-    const onceGated = this._isAdventurer(entity) && entity.instanceId && trap.state
-    if (onceGated) {
-      trap.state.hitOnce ??= {}
-      if (trap.state.hitOnce[entity.instanceId]) return false
-    }
+    // Repeated trap damage (restored 2026-06-01, per user request). Adventurers
+    // take damage EVERY time a trap hits them again — continuous/area traps
+    // (rotating blades, saw, dragon lane, spike pillar) chip on each fire and
+    // re-crossings re-damage. This matches the documented continuous-damage
+    // design (DESIGN_COVERAGE §"Continuous-damage zones"). The re-hit cadence
+    // is governed by each trap's own fire-rate gate — per-trap `cooldownUntil`
+    // (LOS / area) or per-entity `state.hitAt[id]` (spike pit / saw). The prior
+    // "once per trap per adventurer" gate (hitOnce, added 2026-05-27) is
+    // removed. Per-hit damage is still bounded by the maxHp cap + Monk dodge
+    // below, so repeated hits chip rather than instantly delete (outside the
+    // spike pit's instakill roll). Knowledge-based avoidance still routes advs
+    // around KNOWN traps, so repeated hits mostly happen when they're forced
+    // back over one (Wandering Gate, no alternate path) or linger in range.
     // Per-entity 4 s damage lockout REMOVED 2026-05-27. It sat on top of
     // each trap's own fire-rate cooldown (the per-entity `hitAt` gate on
     // stepped-on / saw traps, and the per-trap `cooldownUntil` on LOS /
@@ -560,9 +560,6 @@ export class TrapSystem {
     entity.resources.hp = Math.max(_smFloor, entity.resources.hp - damage)
     entity._lastHitBy   = trap.instanceId
     entity._lastHitType = def.damageType ?? 'physical'
-    // Damage landed — burn this adv's one-shot for this trap (see the
-    // one-time-per-trap gate at the top).
-    if (onceGated) trap.state.hitOnce[entity.instanceId] = true
 
     EventBus.emit('COMBAT_HIT', {
       sourceId: trap.instanceId, targetId: entity.instanceId,
