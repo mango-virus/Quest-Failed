@@ -98,6 +98,16 @@ export const Balance = {
   BOSS_ASCENSION_AURA_BASE:      5,
   BOSS_ASCENSION_AURA_PER_LEVEL: 1.5,
 
+  // Plunderers (KR P5 response) — thieves rob your treasury. Drains are a
+  // PERCENTAGE of current gold (so the rich are robbed proportionally) with a
+  // flat floor. Pickpocket = per-thief per-pulse while alive; escape = the big
+  // heist when a thief absconds. Tunable.
+  PLUNDER_PICKPOCKET_PCT:      0.004,   // 0.4% of treasury, per thief, per pulse
+  PLUNDER_PICKPOCKET_MIN:      2,
+  PLUNDER_PICKPOCKET_INTERVAL: 2000,    // ms between pickpocket pulses
+  PLUNDER_ESCAPE_PCT:          0.03,    // 3% of treasury when a thief escapes
+  PLUNDER_ESCAPE_MIN:          20,
+
   // Percentage-based defense for damage TO the boss.
   // Old formula: dmgToBoss = max(1, atkPool − boss.defense)
   // New formula: dmgToBoss = max(1, atkPool × (1 − boss.defense / (boss.defense + K)))

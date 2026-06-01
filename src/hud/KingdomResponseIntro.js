@@ -92,6 +92,19 @@ function _ensureCss() {
     radial-gradient(1.4px 1.4px at 60% 68%, #fff, transparent 60%),
     radial-gradient(2px 2px at 90% 70%, var(--kri-accent), transparent 60%),
     radial-gradient(1.4px 1.4px at 8% 80%, var(--kri-accent), transparent 60%); }
+/* Plunderers — a glinting scatter of coins raining from a gilded haze */
+.qf-kri-fx.fx-coins {
+  background:
+    radial-gradient(2.6px 2.6px at 16% 22%, var(--kri-accent), transparent 62%),
+    radial-gradient(3px 3px at 78% 28%, var(--kri-accent), transparent 62%),
+    radial-gradient(2px 2px at 40% 16%, #fff, transparent 62%),
+    radial-gradient(2.6px 2.6px at 62% 60%, var(--kri-accent), transparent 62%),
+    radial-gradient(3px 3px at 24% 70%, var(--kri-accent), transparent 62%),
+    radial-gradient(2px 2px at 86% 74%, #fff, transparent 62%),
+    radial-gradient(2.6px 2.6px at 50% 42%, var(--kri-accent), transparent 62%),
+    radial-gradient(2px 2px at 70% 86%, var(--kri-accent), transparent 62%),
+    linear-gradient(116deg, transparent 0 48%, color-mix(in srgb, var(--kri-accent) 15%, transparent) 49% 50%, transparent 51%),
+    radial-gradient(130% 52% at 50% -12%, color-mix(in srgb, var(--kri-accent) 22%, transparent) 0%, transparent 50%); }
 
 .qf-kri-card { position:relative; text-align:center; padding:20px 40px; max-width:780px; }
 

@@ -2853,9 +2853,14 @@ export class AISystem {
       return
     }
     const hpFrac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
-    const threshold = this._personalitySystem
-      ? (this._personalitySystem.getWeights(adv).fleeThreshold ?? 0.5)
-      : 0.3
+    // Plunderers (KR P5 response) bail at the first sign of trouble — they're
+    // here to rob you and run, not die for the crown. High threshold = flee
+    // early (and try to abscond with what they've pocketed).
+    const threshold = adv.flags?.plundererThief
+      ? 0.85
+      : this._personalitySystem
+        ? (this._personalitySystem.getWeights(adv).fleeThreshold ?? 0.5)
+        : 0.3
     if (hpFrac <= threshold + Balance.FLEE_BUFFER) {
       // 50% chance to ignore the trigger — roll once per threshold crossing,
       // not every tick (otherwise repeated rolls converge to ~100% flee).

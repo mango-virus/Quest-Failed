@@ -167,6 +167,9 @@ const LOG_KINDS = {
   // ── Boss Ascension (KR P6) — the boss evolves + surges each act. Dark-power
   //    violet ✦, matching the dark-ascension cinematic. ─
   ascension:   { color: '#c98bff',          glyph: '✦' },
+
+  // ── Plunderers (KR P5) — thieves rob your treasury. Tarnished-gold ⚿. ─
+  plunder:     { color: '#cdae5e',          glyph: '⚿' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -242,7 +245,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon', 'inquisition', 'ascension',
+  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon', 'inquisition', 'ascension', 'plunder',
 ])
 
 export class RightPanels {
@@ -1153,6 +1156,13 @@ export class RightPanels {
     sub('BOSS_REINFORCEMENTS', ({ count, elite } = {}) => {
       const w = count === 1 ? 'defender' : 'defenders'
       this._addLog(`The boss rallies its kin — ${count} ${elite ? 'elite ' : ''}${w} answer the ascension.`, 'ascension')
+    })
+    // Plunderers (KR P5) — pickpocket trickle (coalesced) + the escape heist.
+    sub('PLUNDER_PICKPOCKET', ({ taken } = {}) => {
+      this._addLogCoalesced(`Thieves pick your pockets — −${taken} gold!`, 'plunder', 'PLUNDER_PICKPOCKET', null)
+    })
+    sub('PLUNDER_ESCAPE', ({ name, taken } = {}) => {
+      this._addLog(`${name || 'A thief'} absconds with ${taken} gold!`, 'plunder')
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+

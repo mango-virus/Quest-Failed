@@ -141,5 +141,24 @@
     "emblem": "★",
     "bgFx": "stars",
     "weightTags": ["evolved", "treasury"]
+  },
+  {
+    "id": "plunderers",
+    "name": "Plunderers",
+    "eyebrow": "THE GUILD COMES FOR YOUR HOARD",
+    "threat": "Word of your treasury has spread. A guild of master thieves comes not to slay you — but to rob you blind.",
+    "gimmick": "Thieves bleed gold from your hoard while they live and abscond with a fat purse if they escape. Cut them down before your vault runs dry.",
+    "clearCondition": "Cut down Vell the Guildmaster before the guild empties your vault.",
+    "champion": "Vell the Guildmaster",
+    "championChassis": "rogue",
+    "championFlags": ["plundererThief"],
+    "retinue": [
+      { "classId": "rogue",  "count": 3, "names": ["Quickfingers", "Smoke", "Pockets"], "hpMul": 0.85, "atkMul": 0.85, "flags": ["plundererThief"] },
+      { "classId": "ranger", "count": 1, "names": ["The Magpie"],                        "hpMul": 0.9,  "atkMul": 0.85, "flags": ["plundererThief"] }
+    ],
+    "accent": "#cdae5e",
+    "emblem": "⚿",
+    "bgFx": "coins",
+    "weightTags": ["treasury", "evolved"]
   }
 ]

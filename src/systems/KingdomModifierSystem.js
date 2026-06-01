@@ -75,11 +75,14 @@ export class KingdomModifierSystem {
     // acts-gated modifier system with scene access to BossSystem); the sprite
     // swap is owned by BossRenderer, the cinematic by AscensionCinematic.
     EventBus.on('ACT_STARTED', this._onActStarted, this)
+    // Plunderers (KR P5) — a fled thief absconds with a heist purse.
+    EventBus.on('ADVENTURER_FLED', this._onAdventurerFled, this)
   }
 
   destroy() {
     EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
     EventBus.off('ACT_STARTED', this._onActStarted, this)
+    EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
   }
 
   // Which Kingdom Response is governing the current act (or null). Act-wide
@@ -247,6 +250,51 @@ export class KingdomModifierSystem {
     else if (resp === 'pantheon') this._tickPantheonAura()
     // Inquisition — the holy law purges your undead minions.
     else if (resp === 'inquisition') this._tickInquisitionPurge()
+    // Plunderers — the thieves pickpocket your treasury each pulse.
+    else if (resp === 'plunderers') this._tickPlunderers()
+  }
+
+  // ── Plunderers (KR P5 response) ─────────────────────────────────────────────
+  // Thieves drain GOLD, not HP — the only economic threat in the pool. Drains
+  // are a % of the current treasury (rob the rich proportionally) with a flat
+  // floor; killing a thief stops its bleed, but one that ESCAPES makes off with
+  // a fat heist purse (_onAdventurerFled). TopBar polls player.gold, so the
+  // treasury number visibly drops — no extra event needed for the HUD.
+  _drainGold(amount) {
+    const p = this._gs.player
+    if (!p) return 0
+    const before = p.gold ?? 0
+    const taken = Math.min(before, Math.max(0, Math.round(amount)))
+    if (taken <= 0) return 0
+    p.gold = before - taken
+    const meta = this._gs.meta
+    if (meta?.act) meta.act._plunderStolen = (meta.act._plunderStolen ?? 0) + taken
+    return taken
+  }
+
+  _tickPlunderers() {
+    const now = this._scene?.time?.now ?? 0
+    const interval = Balance.PLUNDER_PICKPOCKET_INTERVAL ?? 2000
+    if (!now || now - (this._plunderAt ?? 0) < interval) return
+    this._plunderAt = now
+    const gold = this._gs.player?.gold ?? 0
+    if (gold <= 0) return
+    const thieves = (this._gs.adventurers?.active ?? [])
+      .filter(a => a.flags?.plundererThief && (a.resources?.hp ?? 0) > 0).length
+    if (thieves === 0) return
+    const per = Math.max(Balance.PLUNDER_PICKPOCKET_MIN ?? 2,
+      Math.floor(gold * (Balance.PLUNDER_PICKPOCKET_PCT ?? 0.004)))
+    const taken = this._drainGold(per * thieves)
+    if (taken > 0) EventBus.emit('PLUNDER_PICKPOCKET', { taken, thieves })
+  }
+
+  _onAdventurerFled({ adventurer } = {}) {
+    if (!adventurer?.flags?.plundererThief) return
+    const gold = this._gs.player?.gold ?? 0
+    const heist = Math.max(Balance.PLUNDER_ESCAPE_MIN ?? 20,
+      Math.floor(gold * (Balance.PLUNDER_ESCAPE_PCT ?? 0.03)))
+    const taken = this._drainGold(heist)
+    if (taken > 0) EventBus.emit('PLUNDER_ESCAPE', { name: adventurer.name, taken })
   }
 
   // Inquisition undead purge — every ~2s your undead minions take holy purge

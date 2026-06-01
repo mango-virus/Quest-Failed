@@ -23,7 +23,7 @@ const BOTTOM_H = 56
 // martyr-buff, arcane-warp) layer on per response as follow-ups.
 const BUILT_CHAMPION_RAIDS = new Set([
   'rival', 'inquisition', 'pantheon', 'betrayer',
-  'reckoning_dead', 'forlorn_hope', 'mage_tower', 'all_stars',
+  'reckoning_dead', 'forlorn_hope', 'mage_tower', 'all_stars', 'plunderers',
 ])
 
 // Mid-act pressure (KR P4) — the kingdom's presence is felt ACROSS the act, not
@@ -39,6 +39,7 @@ const VANGUARD = {
   forlorn_hope: { classId: 'barbarian',       name: 'Forerunner Martyr',    flags: ['noFlee', 'forlornMartyr'] },
   mage_tower:   { classId: 'mage',            name: 'Tower Apprentice' },
   all_stars:    { classId: 'knight',          name: "Champion's Herald" },
+  plunderers:   { classId: 'rogue',           name: 'Guild Cutpurse', flags: ['plundererThief'] },
 }
 
 export class DayPhase extends Phaser.Scene {
