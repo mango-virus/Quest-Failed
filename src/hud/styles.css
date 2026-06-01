@@ -1573,7 +1573,8 @@ body {
    number stays the focus; it's empty when acts are off / between acts. Hovering
    the stamp reveals the response name + threat in an accent popover. */
 .qf-day-number { position: relative; }
-.qf-day-act { font-size: 0.62em; letter-spacing: 1px; vertical-align: 0.06em; }
+.qf-day-act { /* same font-size + letter-spacing as the day number (inherited);
+                 colour + shadow set inline per response */ }
 .qf-day-number.has-act { cursor: help; }
 .qf-day-act-pop {
   position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%);
