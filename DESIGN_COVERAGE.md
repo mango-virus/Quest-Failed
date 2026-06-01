@@ -1200,7 +1200,7 @@ A 4-role coordinated raid party (Tank/Healer/DPS/DPS) inspired by FFXIV light pa
 | kr-draft-ui | Act-transition **draft**: kingdom escalates; randomize/show which 2-of-8 responses fill Acts II/III. | KR P4 | ⏳ PENDING | |
 | kr-adaptive-weighting | Tilt the response draft + in-act composition by run-stats (kills, leaks, treasury, pact reliance, minion power). | KR P5 | ⏳ PENDING | Reads `gameState.run.totals` + knowledge/exposure. |
 | kr-boss-evolution | Per-cleared-act boss transform: new form + power + throne (cosmetic + stat/ability bump); 4 forms. | KR P6 | ⏳ PENDING | Builds on existing boss-evolution scaffolding. |
-| kr-victory-screen | Victory screen on beating the Hero King (Act IV). | KR P7 | ⏳ PENDING | |
+| kr-victory-screen | Visible Victory screen on `RUN_VICTORY` (clearing all 4 acts) — triumphant gold card (rays + "VICTORY / THE RECKONING IS ENDED" + arc-spanning flavor + CONTINUE). | KR P7 | ✅ DONE (2026-06-01) | `src/hud/VictoryScreen.js` (gated in HudRoot). Verified visually. CONTINUE currently just dismisses; full P7 handoff (run tally + meta-unlock reveal + Endless continue) + tying victory specifically to beating Aldric in the Act IV duel are follow-ups. |
 | kr-meta-unlock | "Reckoning" NG+ difficulty tier + victory achievement (+ optional cosmetic/boss/companion reward). | KR P7 | ⏳ PENDING | |
 | kr-endless-continue | Post-victory: continue into Endless mode (today's infinite scaling) for the leaderboard. | KR P7 | ⏳ PENDING | Board may split Victory vs Endless. |
 

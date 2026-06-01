@@ -44,6 +44,7 @@ import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
 import { ActIntro }             from './ActIntro.js'
 import { NemesisPortrait }      from './NemesisPortrait.js'
+import { VictoryScreen }        from './VictoryScreen.js'
 import { isActsEnabled }        from '../config/acts.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
@@ -163,6 +164,8 @@ export class HudRoot {
     // Aldric's right-side rival portrait (KR P2) — foil to the companion on the
     // left. Self-mounts into #hud-stage; gated behind the `acts` flag.
     this._nemesisPortrait  = isActsEnabled() ? new NemesisPortrait(this._gameState) : null
+    // Victory screen (KR P2/P7 seed) — the visible payoff on RUN_VICTORY.
+    this._victoryScreen    = isActsEnabled() ? new VictoryScreen(this._gameState) : null
     // Mango-only dev affordance — small floating button that force-fires
     // any dungeon event for testing. Self-gates on PlayerProfile.isCheatName()
     // so the button doesn't appear for real players. MUST construct
@@ -357,6 +360,7 @@ export class HudRoot {
     this._eventBanner?.destroy();    this._eventBanner = null
     this._actIntro?.destroy();       this._actIntro = null
     this._nemesisPortrait?.destroy(); this._nemesisPortrait = null
+    this._victoryScreen?.destroy();   this._victoryScreen = null
     this._coinFlip?.destroy();       this._coinFlip = null
     this._soloLeveling?.destroy();   this._soloLeveling = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
