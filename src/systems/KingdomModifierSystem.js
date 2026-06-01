@@ -29,6 +29,16 @@ const PANTHEON_AURA_INTERVAL  = 1500
 const PANTHEON_AURA_RADIUS_PX = 96     // ~3 tiles (TILE=32)
 const PANTHEON_RAISE_CAP      = 4
 
+// Inquisition — the holy law purges your undead minions while its act runs.
+const INQUISITION_PURGE_INTERVAL = 2000
+
+// Undead minion id patterns (skeleton/zombie/ghost/lich/wraith/…).
+const _UNDEAD_RE = /ghost|lich|skelet|zombie|wraith|bone|undead|revenant|ghoul|vampire_sovereign/
+function _isUndead(minion) {
+  const id = (minion?.definitionId ?? minion?.type ?? minion?.typeId ?? '').toString().toLowerCase()
+  return _UNDEAD_RE.test(id)
+}
+
 export class KingdomModifierSystem {
   constructor(scene, gameState) {
     this._scene = scene
@@ -62,6 +72,24 @@ export class KingdomModifierSystem {
     if (resp === 'mage_tower') this._tickMageTower()
     // Pantheon — the angels' holy aura pulses.
     else if (resp === 'pantheon') this._tickPantheonAura()
+    // Inquisition — the holy law purges your undead minions.
+    else if (resp === 'inquisition') this._tickInquisitionPurge()
+  }
+
+  // Inquisition undead purge — every ~2s your undead minions take holy purge
+  // damage (MinionAISystem handles the kill at hp<=0). The act-wide pact-benefit
+  // suppression is the other half — see DESIGN_COVERAGE kr-response-inquisition.
+  _tickInquisitionPurge() {
+    const now = this._scene?.time?.now ?? 0
+    if (!now || now - (this._purgeAt ?? 0) < INQUISITION_PURGE_INTERVAL) return
+    this._purgeAt = now
+    const dmg = 10 + Math.round((this._gs.boss?.level ?? 1) * 3)
+    let purged = 0
+    for (const m of (this._gs.minions ?? [])) {
+      if ((m.resources?.hp ?? 0) <= 0) continue
+      if (_isUndead(m)) { m.resources.hp -= dmg; purged++ }
+    }
+    if (purged) EventBus.emit('INQUISITION_PURGE', { purged })
   }
 
   // Pantheon holy aura — every ~1.5s the angels heal nearby kingdom heroes and

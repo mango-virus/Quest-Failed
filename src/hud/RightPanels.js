@@ -160,6 +160,9 @@ const LOG_KINDS = {
 
   // ── Pantheon divine power (KR P4) — holy aura / resurrection. Radiant gold ☼. ─
   pantheon:    { color: '#ffe9a8',          glyph: '☼' },
+
+  // ── Inquisition (KR P4) — undead purge / pact suppression. Zealot parchment ✝. ─
+  inquisition: { color: '#e0d8c0',          glyph: '✝' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -235,7 +238,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon',
+  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon', 'inquisition',
 ])
 
 export class RightPanels {
@@ -1130,6 +1133,10 @@ export class RightPanels {
     })
     sub('PANTHEON_RAISE', () => {
       this._addLog('The seraph raises a Radiant Guardian from the fallen!', 'pantheon')
+    })
+    // Inquisition (KR P4) — your undead minions are purged by holy law (coalesced).
+    sub('INQUISITION_PURGE', () => {
+      this._addLogCoalesced('The Inquisition purges your undead!', 'inquisition', 'INQUISITION_PURGE', null)
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+
