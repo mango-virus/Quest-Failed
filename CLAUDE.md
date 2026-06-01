@@ -1,5 +1,31 @@
 # Working on Quest Failed
 
+## ⛔ Visual quality bar — this game is going to Steam (read first, applies to ALL sessions)
+
+**Quest Failed is being built into a full, polished indie game for sale on Steam.
+Visuals, VFX, and animation are first-class requirements — not afterthoughts.**
+This is a hard gate on every UI / screen / menu / ability / effect / animation you
+touch (new or existing):
+
+- **Make it look bought, not bootstrapped.** Real visual investment, every time.
+  The test: *would this screenshot make someone want to buy the game?*
+- **Clean & tidy.** No overlapping text or graphics unless deliberate; elements
+  aligned and correctly placed; never messy or accidental-looking.
+- **Animation is a focus.** Always consider whether an animation would make a
+  moment more impressive/polished — it often does. When you animate, it must be
+  **beautiful, smooth, and professional** (proper easing, choreographed timing,
+  follow-through), not "janky motion that just works." Choose basic vs. advanced
+  deliberately; give hero moments (Victory, boss evolution, the duel) cinematic
+  treatment.
+- **Verify visuals before committing.** For anything that renders: build it with
+  the tokens/components, run it in the preview, **screenshot + self-audit**
+  against the checklist, fix what's messy, *then* commit and show the proof.
+
+**`VISUAL_STANDARDS.md` is the canonical reference** (palette/tokens, layout &
+tidiness rules, the animation + motion standard, the juice/VFX guide, the
+pre-ship checklist). Read it before doing visual work. The bar applies
+retroactively too — older placeholder UI/VFX gets brought up to standard.
+
 ## The one rule that prevents stale references
 
 **The code is the source of truth for what exists.** Before asserting any feature's status
@@ -25,6 +51,11 @@
 4. **`DESIGN_COVERAGE.md`** — the per-deliverable ledger (design → phase → status). Useful for
    history and scope, but it had drifted from code (corrected 2026-05-31); always verify a row's
    ✅ against the code before trusting it.
+
+5. **`VISUAL_STANDARDS.md`** — the canonical visual bar for this Steam-bound game: design tokens,
+   layout & tidiness rules, the animation/motion standard, the VFX/juice guide, and the pre-ship
+   visual-QA checklist. **Read before any UI / VFX / screen / animation work** (see the gate at
+   the top of this file).
 
 ---
 

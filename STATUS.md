@@ -9,6 +9,10 @@
 > Rule: the **code is the source of truth for what exists**. Counts below were read
 > straight from `src/data/*.json` and `src/systems/`. Before asserting any feature is
 > "done" or "missing," grep/read the actual code — never trust a ✅ in another doc blindly.
+>
+> ⛔ **Steam-bound:** this is a commercial game now — visuals/VFX/animation are first-class.
+> Read **`VISUAL_STANDARDS.md`** before any UI/VFX/screen/animation work and verify visuals in
+> the preview before committing (gate at the top of `CLAUDE.md`).
 
 ---
 

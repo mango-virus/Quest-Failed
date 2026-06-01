@@ -115,6 +115,38 @@ img { image-rendering: pixelated; }
   --hud-top: 96px;
   --hud-bottom: 116px;
   --hud-side: 320px;
+
+  /* spacing scale — snap all padding/gap/margin to these (see VISUAL_STANDARDS.md §1) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* corner radius scale */
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --radius-lg: 12px;
+
+  /* type scale (rem-ish px; pair with the font tokens by role) */
+  --fs-xs: 9px;
+  --fs-sm: 11px;
+  --fs-md: 14px;
+  --fs-lg: 18px;
+  --fs-xl: 26px;
+
+  /* MOTION — easing + duration tokens. Use these for ALL animation so timing
+     stays consistent and professional (see VISUAL_STANDARDS.md §4). Never
+     animate with linear easing except continuous loops; never animate layout
+     props (width/height/top/left) — animate transform/opacity only. */
+  --ease-out: cubic-bezier(.16, .84, .3, 1);     /* entrances */
+  --ease-in: cubic-bezier(.6, 0, .84, .16);       /* exits */
+  --ease-spring: cubic-bezier(.18, .9, .25, 1.2); /* pop / emphasis (overshoot) */
+  --dur-fast: 120ms;   /* hovers, value ticks */
+  --dur-base: 240ms;   /* standard transitions */
+  --dur-slow: 400ms;   /* deliberate reveals */
+  --dur-hero: 800ms;   /* cinematic / signature moments */
 }
 
 /* ---------- Palette: "Necrotic Green" ---------- */
