@@ -117,19 +117,19 @@ export class TopBar {
         ]),
       ]),
 
-      // CENTER — act eyebrow + day stamp
+      // CENTER — day stamp with the act folded in (KR P4): "ACT II — NIGHT 1"
+      // where the accent-coloured ACT prefix is set on act events, and hovering
+      // it reveals the response name + threat (qf-day-act-pop). The prefix span
+      // stays empty when acts are off / between acts.
       h('div', { className: 'qf-topbar-center' }, [
-        // Act / Kingdom-Response eyebrow (KR P4). Sits above the day stamp;
-        // shows "ACT {N} · {Response}" in the response accent. Hover reveals the
-        // threat line. Hidden until an act event fires (acts feature only).
-        h('div', { className: 'qf-topbar-act', ref: el => { this._refs.actRoot = el } }, [
-          h('div', { className: 'qf-topbar-act-eyebrow', ref: el => { this._refs.actEyebrow = el } }),
-          h('div', { className: 'qf-topbar-act-pop', ref: el => { this._refs.actPop = el } }),
-        ]),
         h('div', {
           className: 'pix qf-day-number',
           ref: el => { this._refs.dayNumber = el },
-        }, 'DAY 1'),
+        }, [
+          h('span', { className: 'qf-day-act',   ref: el => { this._refs.dayAct = el } }),
+          h('span', { className: 'qf-day-phase', ref: el => { this._refs.dayPhase = el } }, 'DAY 1'),
+          h('div',  { className: 'qf-day-act-pop', ref: el => { this._refs.dayActPop = el } }),
+        ]),
         // WAVE PROGRESS — total threats today, filled green (killed) +
         // orange (escaped). Shown only during the day phase (see _renderWaveBar).
         h('div', {
@@ -426,20 +426,24 @@ export class TopBar {
     })
   }
 
-  // Persistent eyebrow = "ACT {N} · {name}" (name carries no accent; the ACT
-  // prefix does). Hover popover = the threat/flavor line (user's choice).
+  // Fold the act into the day stamp: "ACT {N} — NIGHT 1", the accent-coloured
+  // ACT prefix carrying the response identity. Hover reveals the response name +
+  // threat (qf-day-act-pop). The phase part is updated by the tick.
   _paintAct({ act, accent, name, detail }) {
-    const root = this._refs.actRoot
-    if (!root) return
-    root.style.setProperty('--act-accent', accent)
-    if (this._refs.actEyebrow) {
-      this._refs.actEyebrow.replaceChildren(
-        h('span', { className: 'act-n' }, `ACT ${TopBar._ROMAN[act] || act}`),
-        document.createTextNode(`  ·  ${name}`),
+    const acc = accent || 'var(--gold)'
+    if (this._refs.dayAct) {
+      this._refs.dayAct.textContent = `ACT ${TopBar._ROMAN[act] || act} — `
+      this._refs.dayAct.style.color = acc
+      this._refs.dayAct.style.textShadow = `3px 3px 0 #0a0610, 0 0 16px ${acc}`
+    }
+    if (this._refs.dayActPop) {
+      this._refs.dayActPop.replaceChildren(
+        h('div', { className: 'qf-day-act-pop-name', style: { color: acc } }, name || 'The Kingdom'),
+        detail ? h('div', { className: 'qf-day-act-pop-detail' }, detail) : null,
       )
     }
-    if (this._refs.actPop) this._refs.actPop.textContent = detail || name
-    root.classList.add('on')
+    this._refs.dayNumber?.style.setProperty('--act-accent', acc)
+    this._refs.dayNumber?.classList.add('has-act')
   }
 
   // Render the wave-progress bar from `this._wave`. Green = killed, orange =
@@ -498,7 +502,7 @@ export class TopBar {
       // the invasion phase — was previously hard-coded to "DAY" both
       // ways, which read as wrong during the long night-build stretch.
       const label = phase === 'night' ? 'NIGHT' : 'DAY'
-      this._refs.dayNumber.textContent = `${label} ${day}`
+      if (this._refs.dayPhase) this._refs.dayPhase.textContent = `${label} ${day}`
       this._refs.dayNumber.classList.toggle('phase-night', phase === 'night')
       this._refs.dayNumber.classList.toggle('phase-day',   phase === 'day')
       this._prev.day   = day

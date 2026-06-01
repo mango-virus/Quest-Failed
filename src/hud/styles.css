@@ -1568,42 +1568,30 @@ body {
   text-shadow: 3px 3px 0 #4a2810, 0 0 24px rgba(255, 203, 92, 0.55);
 }
 
-/* Act / Kingdom-Response eyebrow (KR P4) — pinned to the LEFT of the day/night
-   stamp (absolute, vertically centered, in the empty top-bar space). Placed
-   horizontally rather than stacked above because the short bar can't fit the
-   eyebrow + big day stamp + the ~22px wave bar without overflow. Readable VT323
-   (the old 7px pixel font was too small); never competes with the wave bar.
-   "ACT N · Name", ACT prefix in the response accent; hover = the threat line. */
-.qf-topbar-act {
-  position: absolute; top: 50%; right: 100%; margin-right: 16px;
-  transform: translateY(-50%);
-  display: none; z-index: 5; max-width: 38vw;
-}
-.qf-topbar-act.on { display: block; }
-.qf-topbar-act-eyebrow {
-  font-family: 'VT323', monospace; font-size: 20px; letter-spacing: 0.5px;
-  line-height: 1; color: #e2d6bc; white-space: nowrap; cursor: help;
-  overflow: hidden; text-overflow: ellipsis;
-  text-shadow: 0 1px 0 #000;
-}
-.qf-topbar-act-eyebrow .act-n {
-  color: var(--act-accent, var(--gold)); font-weight: bold;
-  text-shadow: 0 0 8px color-mix(in srgb, var(--act-accent, #d4a648) 60%, transparent);
-}
-.qf-topbar-act-pop {
-  position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
-  display: none; z-index: 60; width: max-content; max-width: 320px;
-  padding: 8px 12px; text-align: left; white-space: normal;
+/* Act folded into the day stamp (KR P4): "ACT II — NIGHT 1". The ACT prefix is
+   accent-coloured (set inline on act events) and a touch smaller so the day
+   number stays the focus; it's empty when acts are off / between acts. Hovering
+   the stamp reveals the response name + threat in an accent popover. */
+.qf-day-number { position: relative; }
+.qf-day-act { font-size: 0.62em; letter-spacing: 1px; vertical-align: 0.06em; }
+.qf-day-number.has-act { cursor: help; }
+.qf-day-act-pop {
+  position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+  display: none; z-index: 60; width: max-content; max-width: 340px;
+  padding: 9px 13px; text-align: left; white-space: normal;
   background: linear-gradient(180deg, rgba(14,10,20,.97), rgba(8,5,14,.97));
   border: 1px solid var(--act-accent, var(--gold));
   border-left: 3px solid var(--act-accent, var(--gold));
   border-radius: var(--radius-md, 7px);
   box-shadow: 0 6px 18px rgba(0,0,0,.6),
               0 0 14px color-mix(in srgb, var(--act-accent, #d4a648) 20%, transparent);
-  font-family: 'VT323', monospace; font-size: 15px; line-height: 1.4; color: #c9bfb0;
-  pointer-events: none;
+  pointer-events: none; text-shadow: none; letter-spacing: normal;
 }
-.qf-topbar-act:hover .qf-topbar-act-pop { display: block; }
+.qf-day-number.has-act:hover .qf-day-act-pop { display: block; }
+.qf-day-act-pop-name { font-family: 'Press Start 2P', monospace; font-size: 9px;
+  letter-spacing: 1px; margin-bottom: 6px; line-height: 1.4; }
+.qf-day-act-pop-detail { font-family: 'VT323', monospace; font-size: 16px;
+  line-height: 1.4; color: #c9bfb0; }
 
 /* Wave-progress bar — sits under the DAY stamp. Green fill = adventurers
    killed, orange = escaped (leaked intel), dim remainder = still in the
