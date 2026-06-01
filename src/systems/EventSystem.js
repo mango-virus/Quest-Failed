@@ -542,11 +542,10 @@ export class EventSystem {
     // on the dedicated 10-day Treasure Raid track (see _maybeScheduleRaid).
     // Keep it out of the shuffle bag entirely so it never double-fires.
     if (def.id === 'treasure_hunters') return false
-    // Light Party — held out of the shuffle bag until the build is finished
-    // and the user explicitly opts to enable it. The mango TEST EVENT dev
-    // button bypasses this filter, so it can still be force-fired for QA.
-    // To enable in the normal rotation, delete this line.
-    if (def.id === 'light_party') return false
+    // Light Party — ENABLED in the normal shuffle rotation (2026-06-01, by user
+    // request). Like Solo Leveling, if the boss dies to it (the party wins the
+    // duel) the win re-queues it into the bag (see _onDayPhaseEnded) so it stays
+    // a recurring threat instead of waiting for the full roster to cycle.
     return true
   }
 
