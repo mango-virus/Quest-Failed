@@ -34,15 +34,10 @@ import { Game }            from './scenes/Game.js'
 import { NightPhase }      from './scenes/NightPhase.js'
 import { DayPhase }        from './scenes/DayPhase.js'
 import { EndOfDay }        from './scenes/EndOfDay.js'
-import { GameOver }        from './scenes/GameOver.js'
 import { Graveyard }       from './scenes/Graveyard.js'
 import { HudScene }        from './scenes/HudScene.js'
-import { KnowledgeScreen } from './scenes/KnowledgeScreen.js'
 import { TilesetEditor }   from './scenes/TilesetEditor.js'
 import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
-import { PauseMenu }       from './scenes/PauseMenu.js'
-import { Options }         from './scenes/Options.js'
-import { Leaderboard }     from './scenes/Leaderboard.js'
 import { installCustomCursor } from './hud/CustomCursor.js'
 // PerfHud — Ctrl+Shift+P toggles a per-system tick-time overlay.
 // Importing here just installs the key listener (idempotent); the
@@ -84,14 +79,9 @@ const config = {
     DayPhase,
     HudScene,   // above gameplay scenes, below result/menu screens
     EndOfDay,
-    GameOver,
     Graveyard,
-    KnowledgeScreen,
     TilesetEditor,
     RoomTileEditor,
-    PauseMenu,   // overlay above any active gameplay scene when paused
-    Options,     // settings scene reachable from MainMenu's OPTIONS
-    Leaderboard, // global hall-of-evil scene reachable from MainMenu
   ],
   scale: {
     mode: Phaser.Scale.FIT,

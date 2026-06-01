@@ -9,7 +9,6 @@ import { SaveSystem } from './SaveSystem.js'
 import { EventBus } from './EventBus.js'
 import { Leaderboard } from './Leaderboard.js'
 import { PlayerProfile } from './PlayerProfile.js'
-import { isNewHudEnabled } from '../hud/HudRoot.js'
 
 // Scenes that should freeze when the pause menu opens. Only the ones that
 // are actually active at the moment of pause are suspended; we remember
@@ -17,7 +16,7 @@ import { isNewHudEnabled } from '../hud/HudRoot.js'
 // scenes that were already inactive).
 const GAMEPLAY_SCENES = [
   'Game', 'NightPhase', 'DayPhase', 'EndOfDay',
-  'Graveyard', 'KnowledgeScreen', 'HudScene',
+  'Graveyard', 'HudScene',
 ]
 
 let _isPaused   = false
@@ -55,14 +54,8 @@ export const PauseManager = {
       }
     }
     _isPaused = true
-    // The new DOM HUD owns its own Pause overlay (src/hud/PauseOverlay.js),
-    // which subscribes to PAUSE_STATE_CHANGED to mount/unmount itself.
-    // Skip booting the Phaser pause scene when the DOM HUD is mounted —
-    // otherwise both UIs would render at once.
-    if (!isNewHudEnabled()) {
-      const gameState = sm.getScene('Game')?.gameState ?? null
-      sm.run('PauseMenu', { gameState })
-    }
+    // The DOM HUD owns the pause UI (src/hud/PauseOverlay.js), which
+    // subscribes to PAUSE_STATE_CHANGED to mount/unmount itself.
     EventBus.emit('PAUSE_STATE_CHANGED', { isPaused: true })
   },
 
@@ -70,7 +63,6 @@ export const PauseManager = {
     if (!_isPaused) return
     const sm = _sm()
     if (!sm) return
-    if (!isNewHudEnabled()) sm.stop('PauseMenu')
     for (const key of _pausedKeys) {
       if (sm.isPaused(key)) sm.resume(key)
     }
@@ -146,7 +138,6 @@ export const PauseManager = {
     const sm = _sm()
     if (!sm) return
     const proceed = () => {
-      sm.stop('PauseMenu')
       for (const key of GAMEPLAY_SCENES) {
         if (sm.isActive(key) || sm.isPaused(key)) sm.stop(key)
       }
@@ -183,7 +174,6 @@ export const PauseManager = {
     if (gameState) this._submitAbandonedRun(gameState)
     try { SaveSystem.deleteSave?.() } catch {}
     try { SaveSystem.clear?.()      } catch {}
-    sm.stop('PauseMenu')
     for (const key of GAMEPLAY_SCENES) {
       if (sm.isActive(key) || sm.isPaused(key)) sm.stop(key)
     }

@@ -12,10 +12,9 @@
 //       - 3 MVP cards (MVP MINION / SEALED PACTS / FINAL BLOW)
 //   * Footer: FULL LOG + RISE AGAIN
 //
-// Currently the game uses `src/scenes/GameOver.js` as a Phaser scene.
-// Under newhud, that scene's create() is gated to mount this overlay
-// instead. RISE AGAIN restarts MainMenu (matching the Phaser scene's
-// behavior); FULL LOG opens FullLogOverlay.
+// Shown on the SHOW_GAME_OVER event (emitted by Game._onBossFinal once the
+// boss is out of lives). RISE AGAIN restarts MainMenu; FULL LOG opens
+// FullLogOverlay. (The legacy Phaser GameOver scene was removed 2026-05-31.)
 
 import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
@@ -74,8 +73,8 @@ export class GameOverOverlay {
   }
 
   // ─── Leaderboard submission ──────────────────────────────────
-  // Mirrors `src/scenes/GameOver.js _submitRun()` but adds the new
-  // `leaks_count` field RunHistorySystem.intelLeaks now tracks.
+  // Submits the finished run to the leaderboard, including the
+  // `leaks_count` field RunHistorySystem.intelLeaks tracks.
   _submitRun() {
     if (this._submitted) return
     this._submitted = true

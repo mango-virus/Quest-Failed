@@ -599,34 +599,21 @@ export class Game extends Phaser.Scene {
   }
 
   _onBossFinal() {
-    // Stop everything, transition to GameOver. Under the new DOM HUD,
-    // keep HudScene alive so the DOM GameOverOverlay can mount over the
-    // dimmed dungeon view — the overlay handles RISE AGAIN by starting
-    // MainMenu itself. Otherwise (legacy), stop HudScene + start the
-    // Phaser GameOver scene as before.
+    // Stop everything and show the DOM Game Over overlay. HudScene stays
+    // alive so GameOverOverlay can mount over the dimmed dungeon view; the
+    // overlay handles RISE AGAIN by starting MainMenu itself.
     //
-    // Save deletion (fix 2026-05-25): wipe the save file the moment the
-    // run is ABSOLUTELY over (boss out of lives — Phylactery already
-    // would have intercepted earlier if applicable). The legacy Phaser
-    // GameOver scene called deleteSave on its own; the new DOM
-    // GameOverOverlay didn't, leaving the save in localStorage. Players
-    // could then click CONTINUE on the main menu and resume the dead
-    // run as if nothing happened. Deleting here covers BOTH HUD paths
-    // and survives the player closing the tab during the Game Over
-    // screen — there is no scenario in which a dead boss should leave
-    // a resumable save behind.
+    // Save deletion (fix 2026-05-25): wipe the save the moment the run is
+    // ABSOLUTELY over (boss out of lives — Phylactery would have intercepted
+    // earlier if applicable). GameOverOverlay doesn't delete on its own, so
+    // without this the dead run stays in localStorage and CONTINUE would
+    // resume it. Deleting here also survives the player closing the tab on
+    // the Game Over screen — a dead boss must never leave a resumable save.
     try { SaveSystem.deleteSave?.() } catch {}
-    let useNewHud = true
-    try { useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
     this.scene.stop('NightPhase')
     this.scene.stop('DayPhase')
     this.scene.stop('EndOfDay')
-    if (useNewHud) {
-      EventBus.emit('SHOW_GAME_OVER')
-    } else {
-      this.scene.stop('HudScene')
-      this.scene.start('GameOver', { gameState: this.gameState })
-    }
+    EventBus.emit('SHOW_GAME_OVER')
   }
 
   // Merge a room def's static connection points with the live room's
