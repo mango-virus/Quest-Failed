@@ -1106,6 +1106,11 @@ export class RightPanels {
     sub('FORLORN_FURY', ({ stacks } = {}) => {
       this._addLog(`A martyr falls — the Forlorn Hope's fury rises (×${stacks ?? 1})!`, 'champion')
     })
+    // The Betrayer (KR P4) — your strongest minion defects to the raid.
+    sub('MINION_DEFECTED', ({ minion } = {}) => {
+      const who = minion?.name || minion?.definitionId || 'Your strongest minion'
+      this._addLog(`${who} has TURNED — it fights for the Betrayer now!`, 'champion')
+    })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+
     // wipe scenarios the per-death stream pushed everything else off

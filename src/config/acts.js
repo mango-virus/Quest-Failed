@@ -91,3 +91,13 @@ export function actDef(actNum) {
 export function actDefForDay(day) {
   return actDef(actForDay(day))
 }
+
+// The Kingdom Response id governing the CURRENT act (or null) — read from live
+// meta state. Used by systems that gate a deep modifier on the active act
+// (e.g. TrapSystem's Betrayer trap-blackout, CombatSystem's Inquisition
+// pact-suppress) without coupling to KingdomResponseSystem. Returns null when
+// acts are off / no response drafted, so callers no-op safely.
+export function currentActResponseId(gameState) {
+  const a = gameState?.meta?.act
+  return a?.responses?.[a?.current] ?? null
+}

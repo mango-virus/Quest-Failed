@@ -21,6 +21,7 @@ import { Balance }    from '../config/balance.js'
 import { TILE }       from './DungeonGrid.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { sawPosAt }   from '../entities/Trap.js'
+import { currentActResponseId } from '../config/acts.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -144,6 +145,11 @@ export class TrapSystem {
     this._buildTickCache()
 
     this._tickPoison()
+
+    // The Betrayer (KR P4) — trap blackout. The traitor has shut your traps
+    // down for the act: no trap fires, springs, or detonates while the Betrayer
+    // response governs the current act. Existing poison DoT (above) still ticks.
+    if (currentActResponseId(this._gameState) === 'betrayer') { this._clearTickCache(); return }
 
     // Saw movement + bomb fuses tick regardless of trigger evaluation.
     // Copy the list — _detonateBomb splices traps[] mid-loop.

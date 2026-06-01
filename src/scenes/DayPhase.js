@@ -1655,6 +1655,14 @@ export class DayPhase extends Phaser.Scene {
       }
     }
 
+    // The Betrayer (KR P4) — your strongest minion turns traitor: it leaves your
+    // defense and joins the raid as a "Turned" defector mirroring its power.
+    // (Pairs with the act-wide trap blackout in TrapSystem.)
+    if (response.id === 'betrayer') {
+      const defector = this._spawnDefector(allClasses, dungeonLv)
+      if (defector) spawned.push(defector)
+    }
+
     EventBus.emit('CHAMPION_RAID_INCOMING', {
       response, champion: response.champion, count: spawned.length,
       act: this._gameState.meta?.act?.current,
@@ -1746,6 +1754,47 @@ export class DayPhase extends Phaser.Scene {
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: a })
     }
     return out
+  }
+
+  // The Betrayer — your strongest minion defects (KR P4). It's removed from your
+  // defense and re-spawned as a "Turned" raid member that fights your boss,
+  // its power mirrored (adventurers run ~3× a minion's HP / 2× its attack).
+  // Killing the defector means your own minion dies a traitor's death.
+  _spawnDefector(allClasses, dungeonLv) {
+    const game = this.scene.get('Game')
+    const aiSystem = game?.aiSystem
+    const minions = this._gameState.minions ?? []
+    if (!aiSystem || minions.length === 0) return null
+    // Strongest by level, HP as tiebreak.
+    const score = m => (m.level ?? 1) * 100000 + (m.resources?.maxHp ?? 0)
+    let best = minions[0]
+    for (const m of minions) if (score(m) > score(best)) best = m
+    const def = allClasses.find(c => c.id === 'rogue') ?? allClasses[0]
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!def || !spawn) return null
+
+    const adv = createAdventurer(def, { x: spawn.x, y: spawn.y })
+    adv.name             = `${best.name ?? best.definitionId ?? 'Minion'}, Turned`
+    adv._defector        = true
+    adv.isLegendary      = true
+    adv.partyId          = null
+    adv.flags            = { ...(adv.flags ?? {}), noFlee: true }
+    this._scaleAdventurerByBossLevel(adv, dungeonLv)
+    const hp = Math.max(1, Math.round((best.resources?.maxHp ?? 30) * 3))
+    adv.resources.maxHp = hp; adv.resources.hp = hp
+    adv.stats.attack    = Math.max(1, Math.round((best.stats?.attack ?? 6) * 2))
+    this._gameState.adventurers.active.push(adv)
+    aiSystem.pickInitialGoal(adv)
+    adv.goal = { type: 'SEEK_BOSS' }
+
+    // Remove the traitor from your roster (the renderer + MinionAISystem read
+    // gameState.minions each tick, so it vanishes from your side immediately).
+    const idx = minions.indexOf(best)
+    if (idx >= 0) minions.splice(idx, 1)
+
+    EventBus.emit('MINION_DEFECTED', { minion: best, defector: adv })
+    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+    return adv
   }
 
   // Dungeon event: Light Party — a coordinated 4-role FFXIV raid party
