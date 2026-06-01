@@ -1,5 +1,6 @@
 import { allEmoteVariants, emoteKey } from '../systems/EmoteSystem.js'
 import { Balance } from '../config/balance.js'
+import { isActsEnabled } from '../config/acts.js'
 
 // Boss skin table. Folder name on disk must equal `id`; texture keys are
 // `${id}-<state>`. Adding a new boss skin = drop the 6 sheets into
@@ -43,6 +44,33 @@ const BOSS_SKINS = [
     },
   },
 ]
+
+// Boss EVOLUTION tiers (KR P6 — "dark ascension"). Each boss has lesser forms
+// it wears in the early acts and grows out of as the campaign escalates:
+//   Act I → T1, Act II → T2, Act III → T3, Act IV → T4 (ascended).
+// The base BOSS_SKINS sheet above is the boss's *canonical* top form — T3 for
+// most bosses, T4 for the slime (its sprite is the fully-evolved one). The
+// lesser-tier sheets listed here were copied + normalized to
+// `assets/sprites/<id>/<id>-t<n>-<state>.png` (see the boss-tiers asset pack),
+// so the loader needs no per-boss prefix/case/shadow special-casing — they all
+// follow the same filename shape. Texture keys: `${id}-t${n}-${state}`.
+// `canonicalTier` is which tier the base `${id}-${state}` sheet represents;
+// the renderer maps that tier (and any higher one) to the base key, and gives
+// tiers above it the ascension treatment. Succubus ships a single form, so it
+// has no entry — it wears its one sheet at every tier (+ ascension glow).
+const BOSS_TIER_LEVELS = {
+  beholder:  { lesser: [1, 2], canonicalTier: 3 },
+  demon:     { lesser: [1, 2], canonicalTier: 3 },
+  gnoll:     { lesser: [1, 2], canonicalTier: 3 },
+  golem:     { lesser: [1, 2], canonicalTier: 3 },
+  lich:      { lesser: [1, 2], canonicalTier: 3 },
+  lizardman: { lesser: [1, 2], canonicalTier: 3 },
+  myconid:   { lesser: [1, 2], canonicalTier: 3 },
+  orc:       { lesser: [1, 2], canonicalTier: 3 },
+  slime:     { lesser: [1, 2, 3], canonicalTier: 4 },
+  vampire:   { lesser: [1, 2], canonicalTier: 3 },
+  wraith:    { lesser: [1, 2], canonicalTier: 3 },
+}
 
 // Per-state metadata. frameRate and repeat are uniform across bosses; frame
 // counts are derived from sheet dimensions (see _registerBossAnimations).
@@ -580,6 +608,7 @@ export class Preload extends Phaser.Scene {
     // Per-skin overrides: `noShadow` drops the `_with_shadow` filename suffix,
     // `states[k].frameW/frameH` overrides the default square frameSize for
     // skins (like the succubus) whose states ship at different dimensions.
+    const acts = isActsEnabled()   // lesser evolution tiers are campaign-only
     for (const skin of BOSS_SKINS) {
       const folder = `assets/sprites/${skin.id}/`
       const fs = skin.frameSize ?? DEFAULT_FRAME_SIZE
@@ -589,6 +618,25 @@ export class Preload extends Phaser.Scene {
         const fW = stateConf?.frameW ?? fs
         const fH = stateConf?.frameH ?? fs
         this.load.spritesheet(`${skin.id}-${s.key}`, folder + `${skin.prefix}_${s.file}${suffix}.png`, { frameWidth: fW, frameHeight: fH })
+      }
+      // Evolution: lesser-tier sheets (KR P6). Normalized filenames mean a flat
+      // load — same square frameSize as the canonical sheet (128 for the
+      // demon/golem/slime, 64 otherwise). Texture key `${id}-t${n}-${state}`.
+      // Campaign-only assets: the lesser forms are only ever worn during an
+      // acts run, so we don't pay their load (12 bosses × ~12 sheets) for the
+      // default endless mode. Gating here also keeps the boot's asset volume
+      // unchanged for non-campaign play.
+      const tierCfg = acts ? BOSS_TIER_LEVELS[skin.id] : null
+      if (tierCfg) {
+        for (const t of tierCfg.lesser) {
+          for (const s of BOSS_SHEET_STATES) {
+            this.load.spritesheet(
+              `${skin.id}-t${t}-${s.key}`,
+              folder + `${skin.id}-t${t}-${s.key}.png`,
+              { frameWidth: fs, frameHeight: fs },
+            )
+          }
+        }
       }
     }
 
@@ -921,8 +969,15 @@ export class Preload extends Phaser.Scene {
     for (const skin of BOSS_SKINS) {
       const dirs = skin.rowDirs ?? DEFAULT_ROW_DIRS
       const fs   = skin.frameSize ?? DEFAULT_FRAME_SIZE
+      // Base (canonical) sheet plus any lesser evolution tiers. The tier sheets
+      // share the canonical frameSize and never carry a `states` override, so
+      // we tag each base with whether the per-state width override applies.
+      const tierCfg = BOSS_TIER_LEVELS[skin.id]
+      const bases = [{ key: skin.id, useStates: true }]
+      if (tierCfg) for (const t of tierCfg.lesser) bases.push({ key: `${skin.id}-t${t}`, useStates: false })
+      for (const base of bases) {
       for (const s of BOSS_SHEET_STATES) {
-        const sheetKey = `${skin.id}-${s.key}`
+        const sheetKey = `${base.key}-${s.key}`
         if (!this.textures.exists(sheetKey)) continue
         // Pixel-art assets blur when upscaled with the game's default LINEAR
         // filtering (antialias:true in main.js). Force NEAREST per-texture so
@@ -933,7 +988,7 @@ export class Preload extends Phaser.Scene {
         // ships a different number of frames. Skins with a `states` table
         // (e.g. succubus) override frame width per-state.
         const tex = texture.source[0]
-        const stateConf = skin.states?.[s.key]
+        const stateConf = base.useStates ? skin.states?.[s.key] : undefined
         const fW = stateConf?.frameW ?? fs
         const frameCount = Math.floor(tex.width / fW)
         if (frameCount < 1) continue
@@ -949,6 +1004,7 @@ export class Preload extends Phaser.Scene {
             repeat:    s.repeat,
           })
         }
+      }
       }
     }
   }
