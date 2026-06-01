@@ -16,28 +16,14 @@ const TS = Balance.TILE_SIZE
 // ── Adventurer-life goals (Phase: alive AI) ──────────────────────────────
 // These are personality-agnostic (any adv can roll them) and short-lived.
 // Tuned for "reads as alive without spamming chat bubbles."
-const REGROUP_DISTANCE             = 8      // tiles from party centroid
-const REGROUP_CHANCE               = 0.30   // roll on _pickNextGoal
-// Wall-clock cooldown after a REGROUP completes before another can fire.
-// At 8x time scale advs reach goals fast enough that the 30% REGROUP roll
-// retriggers immediately — they ping back to a centroid that has shifted
-// forward — producing visible "running back and forth." Cooldown is on
-// scene.time.now (wall clock) so it doesn't compress at high speed.
-const REGROUP_COOLDOWN_MS          = 2500
 const GLOAT_CHANCE                 = 0.25   // roll on COMBAT_KILL
 const GLOAT_DURATION_MS            = 1500   // freeze in place this long
-const SCOUT_CHANCE                 = 0.15   // roll on _pickNextGoal
-const SCOUT_MIN_DISTANCE           = 10     // unvisited room must be at least this far
-const SCOUT_SPEED_MULT             = 1.2    // scouts move slightly faster
 // Fleeing adventurers sprint hard for the exit. Bumped 1.1 → 1.6
 // (2026-05-27) so end-of-day clears faster when many advs are heading
 // home at once — combined with the splice-on-door-contact change in
 // the FLEE atExitEdge handler, the conga line at the doorway resolves
 // in a fraction of the time it used to.
 const FLEE_SPEED_MULT              = 1.6
-const RESCUE_HP_FRACTION           = 0.20   // ally must be below this to rescue
-const RESCUE_RANGE                 = 12     // tiles between rescuer and ally
-const RESCUE_SPEED_MULT            = 1.3    // rescuer moves faster
 const WARN_RADIUS                  = 5      // tiles around the threat
 const WARN_CHANCE                  = 0.5    // roll per nearby ally on threat detect
 const WARN_COOLDOWN_MS             = 8000   // per-warner cooldown
@@ -343,8 +329,8 @@ export class AISystem {
     const greedy = tags.has('greedy') || tags.has('vulture') || tags.has('loot_seeker')
     // ── Sticky pick (anti-thrash, 2026-05-27) ───────────────────────────
     // When `_pickNextGoal` is repeatedly called mid-walk (combat scuffle,
-    // REGROUP_AT_PARTY trigger, etc.) and the adv
-    // is already on a SEEK_TREASURE goal, prefer the previously-targeted
+    // etc.) and the adv is already on a SEEK_TREASURE goal, prefer the
+    // previously-targeted
     // chest as long as it's still in the candidate pool. Without this,
     // every repick re-rolls each chest's temptPct independently, so two
     // equal-tier chests with the same temptPct flip the adv's heading
@@ -381,8 +367,8 @@ export class AISystem {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
     // Sung Jinwoo ignores chests entirely — he never opens a real one
     // (_tryOpenTreasureChest) and never springs a mimic disguised as one.
-    // He marches past, eyes on the boss.
-    if (adv._shadowMonarch) return
+    // He marches past, eyes on the boss. Aldric the Nemesis disdains loot too.
+    if (adv._shadowMonarch || adv._nemesis) return
     // Light Party — a coordinated raid is here for the boss, not loot.
     // Skip mimic-bait disguised chests the same way as Jinwoo: walking
     // through one shouldn't spring it.
@@ -478,8 +464,8 @@ export class AISystem {
   _tryOpenTreasureChest(adv) {
     // Sung Jinwoo has no interest in the dungeon's gold — he's here for the
     // boss alone. Skip the proximity loot entirely so he never pops a chest
-    // he happens to beeline past on his way to the throne.
-    if (adv._shadowMonarch) return
+    // he happens to beeline past on his way to the throne. Aldric ignores loot too.
+    if (adv._shadowMonarch || adv._nemesis) return
     // Light Party — same deal: a coordinated raid is here for the boss, not
     // loot. Walking past a chest doesn't rob it.
     if (adv._lightParty) return
@@ -550,7 +536,7 @@ export class AISystem {
     if (hpFrac >= Balance.LOW_HP_THRESHOLD) return
     const t = adv.goal?.type
     if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS'
-        || t === 'FLEE' || t === 'SEEK_HEAL' || t === 'RESCUE_ALLY'
+        || t === 'FLEE' || t === 'SEEK_HEAL'
         || t === 'OPEN_LOCKED_DOOR' || t === 'SEEK_KEY_CHEST') return
     // Knowledge gate: only fountains the adv has seen (or inherited from
     // survivors) are valid heal targets. Stale entries (RUMOR tier — the
@@ -739,50 +725,6 @@ export class AISystem {
     adv._lastHitBy   = sourceId
     adv._lastHitType = damageType
     this._checkFleeTrigger(adv)
-    this._maybeRescueAlly(adv, sourceId)
-  }
-
-  // If `victim` is at critical HP and being attacked, find a nearby living
-  // ally (any party — not gated on party_loyal) and give them a RESCUE_ALLY
-  // goal targeting the attacker. Higher-priority than normal goals so the
-  // rescuer interrupts whatever they were doing.
-  _maybeRescueAlly(victim, attackerId) {
-    if (!victim || victim.aiState === 'dead' || victim.aiState === 'fleeing') return
-    const hpFrac = victim.resources.hp / Math.max(1, victim.resources.maxHp)
-    if (hpFrac > RESCUE_HP_FRACTION) return
-    // Only rescue against a LIVE MINION attacker. Environmental damage
-    // (traps, tremors, boss AoE) has no attacker tile to pull aggro from
-    // — _goalToTile's RESCUE_ALLY branch then falls back to the victim's
-    // OWN tile, marching the rescuer straight onto the same hazard. With
-    // the trap damage lockout removed (every contact hurts), a spike pit
-    // hits the trapped ally every ~600ms; each hit re-triggered rescue
-    // and piled the whole party onto the trap, shuffling back and forth
-    // as they were repeatedly struck (the reported bug). Gate to minions.
-    const isMinionAttacker = (this._gameState.minions ?? []).some(m =>
-      m.instanceId === attackerId && m.aiState !== 'dead')
-    if (!isMinionAttacker) return
-    const advs = this._gameState.adventurers?.active ?? []
-    let best = null, bestDist = RESCUE_RANGE
-    for (const adv of advs) {
-      if (adv.instanceId === victim.instanceId) continue
-      if (adv.aiState === 'dead' || adv.aiState === 'fleeing') continue
-      const t = adv.goal?.type
-      if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS'
-          || t === 'FLEE' || t === 'RESCUE_ALLY') continue
-      const d = Math.hypot(adv.tileX - victim.tileX, adv.tileY - victim.tileY)
-      if (d > bestDist) continue
-      best = adv; bestDist = d
-    }
-    if (!best) return
-    best.goalStack ??= []
-    if (best.goal) best.goalStack.push(best.goal)
-    best.goal = {
-      type:        'RESCUE_ALLY',
-      allyId:      victim.instanceId,
-      attackerId:  attackerId,
-    }
-    best.path = null
-    EventBus.emit('SAY_rescueAlly', { adventurer: best })
   }
 
   // True if a live hostile minion is within melee range of the adventurer.
@@ -854,7 +796,7 @@ export class AISystem {
       if (a.aiState === 'dead' || a.aiState === 'fleeing') continue
       const t = a.goal?.type
       if (t === 'CHARM_WALK' || t === 'HUNT_PHYLACTERY' || t === 'AT_BOSS'
-          || t === 'FLEE' || t === 'LOOT_CORPSE' || t === 'RESCUE_ALLY') continue
+          || t === 'FLEE' || t === 'LOOT_CORPSE') continue
       const d = Math.hypot(a.tileX - pile.tileX, a.tileY - pile.tileY)
       if (d > LOOT_SIGHT_RANGE) continue
       const tags = this._personalitySystem?.getTags(a) ?? new Set()
@@ -1919,26 +1861,6 @@ export class AISystem {
       }
     }
 
-    // Phase QW — party_loyal: when a party-mate drops below 40% HP, abandon
-    // current goal and rush to their tile to interpose. Acts like a temporary
-    // FOLLOW_LEADER but targets the wounded ally instead.
-    if (this._personalitySystem) {
-      const tags = this._personalitySystem.getTags(adv)
-      if (tags.has('party_loyal') && adv.partyId && adv.aiState !== 'fighting' && adv.aiState !== 'fleeing') {
-        const wounded = this._gameState.adventurers.active.find(a =>
-          a.partyId === adv.partyId &&
-          a.instanceId !== adv.instanceId &&
-          a.aiState !== 'dead' &&
-          (a.resources.hp / Math.max(1, a.resources.maxHp)) < 0.4
-        )
-        if (wounded && adv.goal?.type !== 'DEFEND_ALLY') {
-          adv.goal = { type: 'DEFEND_ALLY', allyId: wounded.instanceId }
-          adv.path = null
-          EventBus.emit('PARTY_LOYAL_RALLIED', { defender: adv, ally: wounded })
-        }
-      }
-    }
-
     // Phase 5c — Cleric heal moved to ClassAbilitySystem._considerCleric
     // (cooldown-driven, no mana). The legacy unconditional-heal-every-tick
     // block here was deleted to avoid double-firing.
@@ -2569,10 +2491,6 @@ export class AISystem {
     // Phase 5c — Bard Song of Speed: same-party advs within 2 tiles of a
     // speed-song-active Bard move 20% faster.
     const songMul  = this._songOfSpeedMul(adv)
-    // Phase: alive AI — scouts and rescuers move faster.
-    const goalMul = adv.goal?.type === 'SCOUT_AHEAD'  ? SCOUT_SPEED_MULT
-                  : adv.goal?.type === 'RESCUE_ALLY'  ? RESCUE_SPEED_MULT
-                  : 1
     // Cheater speed hack — 2× movement burst while _speedhackUntil > now,
     // set by ClassAbilitySystem on its 12s/3s windowed ability. Stacks
     // multiplicatively with flee / scout / song so a banned cheater
@@ -2580,7 +2498,7 @@ export class AISystem {
     // cheat shuts off automatically once the timestamp expires.
     const cheaterSpeedhackActive = (adv._speedhackUntil ?? 0) > this._scene.time.now
     const cheaterSpdMul = cheaterSpeedhackActive ? 2.0 : 1
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * goalMul * cheaterSpdMul * TS * delta) / 1000
+    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -2965,11 +2883,11 @@ export class AISystem {
 
   // Resolve the room name behind an adv's current goal so flee messages
   // can mention WHERE they were trying to get to. Returns null when the
-  // goal isn't room-shaped (e.g. HUNT_PHYLACTERY, REGROUP_AT_PARTY).
+  // goal isn't room-shaped (e.g. HUNT_PHYLACTERY).
   _goalRoomLabel(adv) {
     const g = adv?.goal
     if (!g) return null
-    if (g.type === 'EXPLORE_ROOM' || g.type === 'SCATTER_ROOM' || g.type === 'SCOUT_AHEAD') {
+    if (g.type === 'EXPLORE_ROOM' || g.type === 'SCATTER_ROOM') {
       const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === g.roomId)
       if (room) return roomLabel(room.definitionId)
     }
@@ -3523,16 +3441,6 @@ export class AISystem {
       if (!target || target.aiState === 'dead') return null
       return { x: target.tileX, y: target.tileY }
     }
-    if (adv.goal.type === 'DEFEND_ALLY') {
-      // Phase QW — party_loyal: stand on/next to the wounded ally
-      const ally = this._gameState.adventurers.active.find(a => a.instanceId === adv.goal.allyId)
-      if (!ally || ally.aiState === 'dead' || (ally.resources.hp / Math.max(1, ally.resources.maxHp)) >= 0.6) {
-        // Ally died or recovered — back to normal goals
-        adv.goal = this._pickNextGoal(adv)
-        return this._goalToTile(adv)
-      }
-      return { x: ally.tileX, y: ally.tileY }
-    }
     if (adv.goal.type === 'FLEE') {
       // Run for an entry hall doorway — the canonical exit. With multiple
       // entry halls the adventurer locks onto the nearest one when the
@@ -3565,28 +3473,6 @@ export class AISystem {
         }
       }
       return { x: adv.tileX, y: adv.tileY }
-    }
-    // Phase: alive AI — chase down the party centroid.
-    if (adv.goal.type === 'REGROUP_AT_PARTY') {
-      const c = this._partyCentroid(adv)
-      if (!c) {
-        adv.goal = this._pickNextGoal(adv)
-        return this._goalToTile(adv)
-      }
-      return c
-    }
-    // Phase: alive AI — solo scout to a far unvisited room. If the room
-    // disappears mid-scout (player removed it), pick a new goal.
-    if (adv.goal.type === 'SCOUT_AHEAD') {
-      const room = dungeon.rooms.find(r => r.instanceId === adv.goal.roomId)
-      if (!room) {
-        adv.goal = this._pickNextGoal(adv)
-        return this._goalToTile(adv)
-      }
-      return {
-        x: room.gridX + Math.floor(room.width  / 2),
-        y: room.gridY + Math.floor(room.height / 2),
-      }
     }
     // Phase D — beeline to the targeted treasure chest. If it's gone or
     // already opened, pop back to whatever we were doing.
@@ -3653,22 +3539,6 @@ export class AISystem {
       }
       return { x: pile.tileX, y: pile.tileY }
     }
-    // Phase: alive AI — rescue. Path to the ATTACKER (so the rescuer
-    // pulls aggro) when known; otherwise to the ally's tile. If the
-    // ally has recovered or died, drop the goal.
-    if (adv.goal.type === 'RESCUE_ALLY') {
-      const ally = this._gameState.adventurers.active.find(a => a.instanceId === adv.goal.allyId)
-      if (!ally || ally.aiState === 'dead'
-          || (ally.resources.hp / Math.max(1, ally.resources.maxHp)) >= 0.5) {
-        adv.goal = this._pickNextGoal(adv)
-        return this._goalToTile(adv)
-      }
-      const attacker = this._gameState.minions?.find(m =>
-        m.instanceId === adv.goal.attackerId && m.aiState !== 'dead'
-      )
-      if (attacker) return { x: attacker.tileX, y: attacker.tileY }
-      return { x: ally.tileX, y: ally.tileY }
-    }
     if (adv.goal.type === 'TACTICAL_RETREAT') {
       // Phase 5c — head to the chosen safer visited room. If the room was
       // removed mid-retreat (player undo, etc.) fall back to FLEE so the
@@ -3700,33 +3570,6 @@ export class AISystem {
       adv.goal = this._nextSaboteurGoal(adv)
       adv.path = null
       if (adv.goal.type === 'FLEE') adv.aiState = 'fleeing'
-      return
-    }
-    // Phase: alive AI — caught up to the party, resume normal goals.
-    if (adv.goal.type === 'REGROUP_AT_PARTY') {
-      adv._regroupCooldownUntil = (this._scene?.time?.now ?? 0) + REGROUP_COOLDOWN_MS
-      adv.goal = this._pickNextGoal(adv)
-      adv.path = null
-      return
-    }
-    // Phase: alive AI — scout reached the unvisited room. Mark visited,
-    // emit observed (so KnowledgeSystem records the contents), back to
-    // normal flow.
-    if (adv.goal.type === 'SCOUT_AHEAD') {
-      adv.visitedRooms ??= []
-      if (adv.goal.roomId && !adv.visitedRooms.includes(adv.goal.roomId)) {
-        adv.visitedRooms.push(adv.goal.roomId)
-      }
-      adv.goal = this._pickNextGoal(adv)
-      adv.path = null
-      return
-    }
-    // Phase: alive AI — rescuer reached the attacker (or the ally tile).
-    // Resume normal flow; per-tick combat engages naturally now that the
-    // rescuer is on top of the threat.
-    if (adv.goal.type === 'RESCUE_ALLY') {
-      adv.goal = this._pickNextGoal(adv)
-      adv.path = null
       return
     }
     // Phase D — reached a treasure chest. The actual open + steal +
@@ -3808,7 +3651,7 @@ export class AISystem {
       // (treasure, scout, regroup, etc.) — those are real progress.
       adv._exploreStreak = (adv._exploreStreak ?? 0) + 1
       const next = this._pickNextGoal(adv)
-      if (next?.type === 'EXPLORE_ROOM' && adv._exploreStreak >= EXPLORE_STREAK_CAP) {
+      if (next?.type === 'EXPLORE_ROOM' && adv._exploreStreak >= EXPLORE_STREAK_CAP && !adv._nemesis) {
         adv._exploreStreak = 0
         adv.goal = { type: 'SEEK_BOSS' }
         EventBus.emit('SAY_seekBoss', { adventurer: adv })
@@ -3901,11 +3744,6 @@ export class AISystem {
       return
     }
 
-    if (adv.goal.type === 'DEFEND_ALLY') {
-      // Stayed by the ally; the per-tick check decides when to release the goal
-      return
-    }
-
     if (adv.goal.type === 'FLEE') {
       // _tickAdventurer's per-tick "in entry" check handles the actual
       // splice on arrival.  Just clear the path so the next tick picks a
@@ -3987,9 +3825,9 @@ export class AISystem {
       // the raid flow instead (next unvisited room, or flee once every room has
       // been explored). The stuck room was just marked visited above, so the
       // re-pick can't re-select it and exploration keeps advancing.
-      if (adv._treasureHunter) {
+      if (adv._treasureHunter || adv._nemesis) {
         adv.goal = this._pickNextGoal(adv)
-        this._aiDiag(adv, `STREAK CAP (raider) → ${adv.goal?.type ?? '?'}`)
+        this._aiDiag(adv, `STREAK CAP (raider/nemesis) → ${adv.goal?.type ?? '?'}`)
       } else {
         adv.goal = { type: 'SEEK_BOSS' }
         EventBus.emit('SAY_seekBoss', { adventurer: adv })
@@ -4156,21 +3994,6 @@ export class AISystem {
     }
   }
 
-  // Average tile position of all living party-mates other than `adv`.
-  // Returns null if `adv` has no party or all party-mates are dead.
-  _partyCentroid(adv) {
-    if (!adv.partyId) return null
-    const mates = this._gameState.adventurers?.active?.filter(a =>
-      a.partyId === adv.partyId &&
-      a.instanceId !== adv.instanceId &&
-      a.aiState !== 'dead'
-    ) ?? []
-    if (!mates.length) return null
-    let sx = 0, sy = 0
-    for (const m of mates) { sx += m.tileX; sy += m.tileY }
-    return { x: Math.round(sx / mates.length), y: Math.round(sy / mates.length) }
-  }
-
   // Personality-driven goal selection.
   // Falls back to SEEK_BOSS if no PersonalitySystem is wired yet.
   // Dungeon event: The Tournament — nearest living OTHER tournament
@@ -4191,6 +4014,18 @@ export class AISystem {
   }
 
   _pickNextGoal(adv) {
+    // The Nemesis (Aldric, KR P2) — "scout & withdraw". In Acts I–III he is
+    // plot-armored (can't die) and must NOT duel the boss — that's the Act IV
+    // duel, which spawns him WITHOUT the _nemesis flag, so this branch never
+    // applies there. He explores + fights minions to test you, then withdraws
+    // with a vow: FLEE once chipped near his HP floor OR after roaming enough
+    // rooms. Never SEEK_BOSS, never loot.
+    if (adv._nemesis) {
+      const hp = adv.resources?.hp ?? 1, maxHp = adv.resources?.maxHp ?? 1
+      const roomsSeen = adv.visitedRooms?.length ?? 0
+      const withdraw = hp <= maxHp * 0.18 || roomsSeen >= 6
+      return withdraw ? { type: 'FLEE' } : { type: 'EXPLORE_ROOM' }
+    }
     // Dungeon event: Legendary Speed Runner — pure beeline to the boss.
     // Skips the entire goal-picking flow (no scout, no regroup, no
     // treasure, no chest detours, no personality variants) so they march
@@ -4269,18 +4104,6 @@ export class AISystem {
       if (best) return { type: 'EXPLORE_ROOM', roomId: best.instanceId }
       return { type: 'FLEE', reason: 'tour_complete' }
     }
-    // Phase: alive AI — if the adv has wandered far from their party,
-    // ~30% chance to detour back instead of picking a normal goal.
-    const centroid = this._partyCentroid(adv)
-    const regroupReady = (this._scene?.time?.now ?? 0) >= (adv._regroupCooldownUntil ?? 0)
-    if (regroupReady && centroid && Math.random() < REGROUP_CHANCE) {
-      const d = Math.hypot(adv.tileX - centroid.x, adv.tileY - centroid.y)
-      if (d > REGROUP_DISTANCE) {
-        const goal = { type: 'REGROUP_AT_PARTY' }
-        EventBus.emit('SAY_regroupAtParty', { adventurer: adv })
-        return goal
-      }
-    }
     // Phase D — Treasure chest pull. Greedy types always go for the
     // highest-tier unopened chest; everyone else rolls each chest's
     // tempt %. Skipped if the adv is already carrying stolen gold.
@@ -4330,34 +4153,6 @@ export class AISystem {
       }
     }
 
-    // Phase: alive AI — solo scout. ~15% chance to break off toward the
-    // farthest unvisited non-boss room (must be ≥ SCOUT_MIN_DISTANCE
-    // tiles away). Adv gets a movement speed bonus while scouting.
-    //
-    // Knowledge gate: scouts target rooms they HEARD about (in their
-    // knowledge) but haven't personally visited yet — "let me confirm
-    // what survivors said." Without this, scouts had omniscient room
-    // awareness and could break off toward rooms that should be hidden
-    // from them. Day-1 advs with no inherited knowledge skip scout.
-    if (Math.random() < SCOUT_CHANCE) {
-      const visited = new Set(adv.visitedRooms ?? [])
-      const knownRoomIds = adv.knowledge?.rooms ?? {}
-      let best = null, bestDist = SCOUT_MIN_DISTANCE
-      for (const room of this._gameState.dungeon.rooms) {
-        if (visited.has(room.instanceId)) continue
-        if (!knownRoomIds[room.instanceId]) continue   // never heard about
-        if (room.definitionId === 'boss_chamber') continue
-        if (room.locked) continue
-        const cx = room.gridX + Math.floor(room.width / 2)
-        const cy = room.gridY + Math.floor(room.height / 2)
-        const d = Math.hypot(adv.tileX - cx, adv.tileY - cy)
-        if (d > bestDist) { best = room; bestDist = d }
-      }
-      if (best) {
-        EventBus.emit('SAY_scoutAhead', { adventurer: adv })
-        return { type: 'SCOUT_AHEAD', roomId: best.instanceId }
-      }
-    }
     if (!this._personalitySystem) return { type: 'SEEK_BOSS' }
 
     // Phase 10 — Echo personality follows the most-recent non-echo party
