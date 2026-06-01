@@ -46,7 +46,7 @@ const LPC_ATK_ORIGIN_Y  = 0.617
 // Light Party travel formation — render-only sub-tile offsets (px) so the four
 // members walk side-by-side / front-and-back instead of stacking on one tile.
 // tank leads, melee on the left flank, ranged on the right, healer trails.
-const LP_TRAVEL_FORMATION = { tank: [0, -8], meleeDps: [-12, 4], rangedDps: [12, 4], healer: [0, 14] }
+const LP_TRAVEL_FORMATION = { tank: [0, -20], meleeDps: [-28, 10], rangedDps: [28, 10], healer: [0, 32] }
 // Light Party classes use a single hand-authored ULPC costume (v01) for EVERY
 // spawn — the FFXIV "Warriors of Light" look — instead of rolling a random
 // v01–v50 generic variant. Pinning here (not deleting the other variants) keeps
@@ -502,6 +502,13 @@ export class AdventurerRenderer {
           Math.abs(dx) <= 0.05 && Math.abs(dy) <= 0.05) {
         adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
       }
+      // Light Party cinematic duel — the whole party squares up on the throne to
+      // the north. Force boss-facing EVERY frame (overriding the lunge/recoil
+      // velocity above) so no member ever turns their back mid-fight. The boss
+      // sits at smaller worldY, so this resolves to 'up' for all four slots.
+      if (adv._lpInDuel && boss && boss.worldX !== undefined) {
+        adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
+      }
       // Stationary-entity gate — same pattern as MinionRenderer. Many
       // advs sit at the same tile while fighting / healing / talking;
       // skipping setPosition + setDepth when world coords haven't
@@ -743,6 +750,52 @@ export class AdventurerRenderer {
     let anim = 'idle'
     const cls = this._defMap?.[adv.classId]
     const tags = new Set(cls?.tags ?? [])
+    // Light Party cinematic duel — alive members hold a WEAPON-OUT combat pose
+    // and re-swing at the boss on a steady cadence. The ULPC *idle* pose draws
+    // no weapon/shield (only walk/slash/thrust/spellcast composite the equipped
+    // gear), so a stationary duel member would otherwise look unarmed. The swing
+    // anims are repeat:0 (they hold their final frame), so we replay every
+    // LP_DUEL_SWING_MS for a lively, readable "the party is attacking" loop.
+    if (adv._lpInDuel && (adv.resources?.hp ?? 0) > 0) {
+      let dAnim = 'slash'
+      if (tags.has('spellcaster') || tags.has('healer'))            dAnim = 'spellcast'
+      else if (cls?.id === 'ranger' || cls?.id === 'bard')          dAnim = 'shoot'
+      else if (cls?.id === 'monk' || cls?.id === 'beast_master')    dAnim = 'thrust'
+      const wpn = this._lpcWeaponByVariant[adv.spriteVariant]
+      if      (THRUST_ANIM_WEAPONS.has(wpn)) dAnim = 'thrust'
+      else if (SLASH_ANIM_WEAPONS.has(wpn))  dAnim = 'slash'
+      const { animKey, originY } = this._resolveLpcAnimKey(s, dAnim, dir)
+      if (!this._scene.anims.exists(animKey)) return
+      const img = s.lpc.image
+      const now = this._scene.time?.now ?? 0
+      const LP_DUEL_SWING_MS = 900
+      const startSwing = () => {
+        if (!s.lpc.isMinionSheet && !s.lpc.bossSheet && img.originY !== originY) img.setOrigin(0.5, originY)
+        img.anims.play(animKey)         // restart — atk anims are repeat:0
+        s.lpc.lastAnim = animKey
+        s._lpSwingAt   = now
+        s._lpSwinging  = true
+        // One attack SFX per visible swing — SfxSystem rate-limits + picks the
+        // class sound. Keeps the duel's combat audio in sync with the anim.
+        EventBus.emit('LIGHT_PARTY_DUEL_ATTACK', { classId: adv.classId, role: adv._lightPartyRole })
+      }
+      if (s.lpc.lastAnim !== animKey) {
+        // Entering the duel (or a facing change) — swing now, then stagger the
+        // NEXT swing by a random phase so the four don't strike in lockstep.
+        startSwing()
+        s._lpSwingAt = now - Math.random() * LP_DUEL_SWING_MS
+      } else if (now - (s._lpSwingAt ?? 0) >= LP_DUEL_SWING_MS) {
+        startSwing()
+      } else if (s._lpSwinging && !img.anims.isPlaying) {
+        // Swing finished — rest on the WIND-UP (frame 0) guard pose, NOT the
+        // extended final frame, so the gap between strikes reads as a combat
+        // stance instead of a freeze.
+        s._lpSwinging = false
+        const a = this._scene.anims.get(animKey)
+        if (a?.frames?.length) img.anims.setCurrentFrame(a.frames[0])
+      }
+      return
+    }
     if (adv.resources?.hp <= 0) {
       // Minion + boss sheets have a real `death` animation; LPC adventurer
       // sheets fall back to the `hurt` strip as their corpse pose.

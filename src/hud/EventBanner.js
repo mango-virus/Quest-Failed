@@ -51,11 +51,13 @@ function _ensureShadowMonarchBannerCss() {
   document.head.appendChild(style)
 }
 
-// Light Party — the 'lightparty' banner theme: a sweeping white→gold→sky-blue
-// gradient (FFXIV's heroic "Warriors of Light" palette). Foil to shadowmonarch's
-// black↔blue sweep — same animated sweep treatment, opposite tonal register
-// (bright/holy vs dark/ominous). Injected once at runtime so it lives alongside
-// the other themes without editing styles.css.
+// Light Party — the 'lightparty' banner theme: a sweeping DARK-gold gradient
+// with a bright gold highlight band (FFXIV's heroic "Warriors of Light" accent).
+// Mirrors shadowmonarch's dark-blue sweep so both boss events share the same
+// animated treatment — and, crucially, the same DARK background register as
+// every other event slate (the old bright white/cream fill made this one stand
+// out as the only light-coloured notification). Injected once at runtime so it
+// lives alongside the other themes without editing styles.css.
 function _ensureLightPartyBannerCss() {
   if (typeof document === 'undefined') return
   if (document.getElementById('qf-lp-eventbanner-css')) return
@@ -65,17 +67,17 @@ function _ensureLightPartyBannerCss() {
 .qf-eventbanner.qf-eventbanner-lightparty,
 .qf-eventpill.qf-eventpill-lightparty,
 .qf-eventpill-tip.qf-eventpill-tip-lightparty {
-  --ev-accent:#ffd66b; --ev-bg:#f5f0d8; --ev-deep:#0a1224;
-  --ev-text:#5a3a06; --ev-sub:#1a1a2a;
+  --ev-accent:#ffd66b; --ev-bg:#221903; --ev-deep:#0f0b01;
+  --ev-text:#ffe27a; --ev-sub:#f2e2b0;
 }
 .qf-eventbanner-lightparty .qf-eventbanner-inner {
   background: linear-gradient(110deg,
-    #ffffff 0%, #fff2c0 15%, #ffd66b 32%, #aedcff 50%, #ffd66b 68%, #fff2c0 85%, #ffffff 100%);
+    #0e0a01 0%, #1d1503 15%, #7a5e16 37%, #e8c14a 50%, #7a5e16 63%, #1d1503 85%, #0e0a01 100%);
   background-size: 300% 100%;
   animation: qf-lp-banner-sweep 3.2s linear infinite;
 }
 .qf-eventpill.qf-eventpill-lightparty {
-  background: linear-gradient(110deg, #fff7d8, #ffd66b 45%, #ffffff 50%, #ffd66b 55%, #fff7d8);
+  background: linear-gradient(110deg, #0e0a01, #2a2006 45%, #e8c14a 50%, #2a2006 55%, #0e0a01);
   background-size: 280% 100%;
   animation: qf-lp-banner-sweep 3.2s linear infinite;
 }

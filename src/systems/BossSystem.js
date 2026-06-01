@@ -2438,7 +2438,9 @@ export class BossSystem {
 
     // Park the party — null their paths so AISystem leaves them in place
     // while the cinematic plays. Same pattern as _shadowMonarch AT_BOSS.
-    for (const a of party) { a.path = null; a.goal = { type: 'AT_BOSS' } }
+    // `_lpInDuel` tells AdventurerRenderer to hold a weapon-out combat stance,
+    // re-swing on a cadence, and always face the boss (cleared in _endLightPartyDuel).
+    for (const a of party) { a.path = null; a.goal = { type: 'AT_BOSS' }; a._lpInDuel = true }
 
     // Boss name for the HUD.
     const archId   = this._gameState.player?.bossArchetypeId
@@ -2610,8 +2612,11 @@ export class BossSystem {
     const lethalPerHit = partyWins
       ? 0.07 + (1 - cf) * 0.13     // win:  ~7-20%  (Pyrrhic possible, FLAWLESS possible)
       : 0.30 + (1 - cf) * 0.32     // loss: ~30-62% (boss carves them down)
-    // Finite raises — 2 per living healer at the start. Once spent, downs stick.
-    let raisesLeft = party.filter(a => a._lightPartyRole === 'healer').length * 2
+    // Reliable healer revives (user spec 2026-06-01): every downed member is
+    // queued and Raised one at a time (3s each), then gets back up at 50% and
+    // keeps fighting. A down only becomes PERMANENT when no healer is alive to
+    // raise them. No finite cap, no interrupt. _lpReviveQueue holds the waiting.
+    this._lpReviveQueue = []
     this._lpDuelOver = false
     this._lpLbFired = false         // gates the pre-climax boss-HP floor (hurtBoss)
     this._lpCasualties = []        // names of the permanently dead (finale text)
@@ -2677,7 +2682,20 @@ export class BossSystem {
       track(scene?.tweens?.add?.({
         targets: a, worldX: tx, worldY: ty, duration: 150, ease: 'Quad.easeIn',
         yoyo: true, hold: 60,
-        onYoyo: () => ring(tx, ty, 0xfff2c0, { radius: 14 }),
+        onYoyo: () => {
+          // Per-class strike signature on the connect: melee leaves a crescent
+          // blade-arc; the caster conjures runes + a bolt. Both punch a small
+          // layered impact on the boss.
+          const melee = a._lightPartyRole === 'meleeDps'
+          const c = melee ? 0xcfe8ff : 0xc9a9ff
+          if (melee) {
+            AbilityVfx.bladeArc?.(scene, tx, ty - TILE * 0.2, { color: c, radius: 34, angle: Math.PI * 0.5 + (Math.random() - 0.5) * 0.7, sweep: 2.4 })
+          } else {
+            AbilityVfx.runeSigil?.(scene, (a.worldX ?? tx), (a.worldY ?? ty) - TILE * 0.3, { color: c, count: 3 })
+            AbilityVfx.lightning?.(scene, (a.worldX ?? tx), (a.worldY ?? ty) - 8, tx, ty, { color: c, thickness: 2 })
+          }
+          AbilityVfx.impactBurst?.(scene, tx, ty - TILE * 0.15, { color: c, radius: 48, sparks: 6, debris: 3, durationMs: 360 })
+        },
         onComplete: () => { a.worldX = a._lpHomeX; a.worldY = a._lpHomeY },
       }))
       // Every visible strike now reflects on the boss HP bar (lunges used to be
@@ -2715,15 +2733,18 @@ export class BossSystem {
     // A member flinches (quick red ring) when hit.
     const flinch = (m) => ring(m.worldX ?? bx(), m.worldY ?? by(), 0xff5544, { radius: 12 })
 
-    // ── Casualty pipeline ──────────────────────────────────────────────
-    // A member drops to 0 HP. Death moment fires, then either the healer
-    // channels a Raise (finite + interruptible) or — no raise available —
-    // it's an immediate permanent death.
+    // ── Casualty + revive pipeline ──────────────────────────────────────
+    // A member drops to 0 HP → death anim plays (corpse pose in the renderer).
+    // If a healer is alive, the member is QUEUED and Raised one at a time (3s
+    // channel each) → back up at 50% → keeps fighting. A down only sticks
+    // (permanent) when no healer is alive to raise them.
     const permaKill = (m) => {
       if (!m || m.aiState === 'dead') return
       this._lpCasualties.push(m.name || 'A hero')
       // If the dying member is the healer mid-Raise, that Raise dies with them.
       if (this._lpRaise && this._lpRaise.healerId === m.instanceId) this._lpRaise = null
+      // Drop them from the revive queue if they were waiting their turn.
+      const qi = this._lpReviveQueue.indexOf(m); if (qi >= 0) this._lpReviveQueue.splice(qi, 1)
       this._killAdv(m, 'boss')   // graveyard + ADVENTURER_DIED + counters
       emitHp()
     }
@@ -2734,24 +2755,60 @@ export class BossSystem {
       // scaled clock, so it can never strand the beat timeline).
       if (scene?.time) { scene.time.timeScale = 0.45; window.setTimeout(() => { if (scene?.time) scene.time.timeScale = 1 }, 180) }
     }
+    // Pull the next still-down member off the queue and Raise them — one channel
+    // at a time. With no healer left, every queued down becomes permanent.
+    const processReviveQueue = () => {
+      if (this._lpDuelOver || this._lpRaise) return
+      const healer = aliveHealer()
+      if (!healer) {
+        while (this._lpReviveQueue.length) {
+          const d = this._lpReviveQueue.shift()
+          if (d && d.aiState !== 'dead' && (d.resources?.hp ?? 0) <= 0) permaKill(d)
+        }
+        return
+      }
+      let next = null
+      while (this._lpReviveQueue.length) {
+        const d = this._lpReviveQueue.shift()
+        if (d && d !== healer && d.aiState !== 'dead' && (d.resources?.hp ?? 0) <= 0) { next = d; break }
+      }
+      if (next) startRaise(healer, next)
+    }
     const startRaise = (healer, dead) => {
       this._lpRaise = { healerId: healer.instanceId, deadAdv: dead }
-      EventBus.emit('LIGHT_PARTY_RAISE_STARTED', { healerId: healer.instanceId, durationMs: 3000 })
+      EventBus.emit('LIGHT_PARTY_RAISE_STARTED', { healerId: healer.instanceId, deadId: dead.instanceId, durationMs: 3000 })
+      // World channel tell — gold motes gather on the corpse + a tether beam
+      // from the healer, pulsed across the 3s cast so the Raise reads in-world.
+      const channel = () => {
+        if (this._lpDuelOver || this._lpRaise?.deadAdv !== dead || !isLive(healer)) return
+        AbilityVfx.chargeUp?.(scene, dead.worldX ?? bx(), dead.worldY ?? by(), { color: 0xffe9a8, radius: 46, durationMs: 700 })
+        AbilityVfx.lightning?.(scene, healer.worldX ?? bx(), (healer.worldY ?? by()) - 8, dead.worldX ?? bx(), dead.worldY ?? by(), { color: 0xffd66b, thickness: 2, jitter: 6 })
+      }
+      channel()
+      scene?.time?.delayedCall?.(1000, channel)
+      scene?.time?.delayedCall?.(2000, channel)
       TS(3000, () => {
-        // Still channeling THIS raise (not interrupted / healer not dead)?
-        if (this._lpRaise && this._lpRaise.deadAdv === dead && isLive(healer)) {
+        // Healer fell mid-channel → the member they were raising stays dead.
+        if (!isLive(healer)) {
+          if (this._lpRaise && this._lpRaise.deadAdv === dead) { this._lpRaise = null; permaKill(dead) }
+          processReviveQueue()
+          return
+        }
+        // Bring them back up at 50% — they re-enter the fight on the next tick.
+        if (this._lpRaise && this._lpRaise.deadAdv === dead) {
           this._lpRaise = null
           dead.aiState = 'idle'
           dead.resources.hp = Math.max(1, Math.round((dead.resources.maxHp ?? 1) * 0.50))
           EventBus.emit('LIGHT_PARTY_RAISED', { healerId: healer.instanceId, raisedId: dead.instanceId })
+          AbilityVfx.resurrectBeam?.(scene, dead.worldX ?? bx(), dead.worldY ?? by(), { color: 0xffe9a8 })
           float(dead.worldX ?? bx(), (dead.worldY ?? by()) - TILE, 'RAISED', '#ffd66b')
-          ring(dead.worldX ?? bx(), dead.worldY ?? by(), 0xffd66b, { radius: 18 })
           emitHp()
         }
+        processReviveQueue()   // start the next queued revive, if any
       })
     }
     const downMember = (m) => {
-      if (!m || m.aiState === 'dead') return
+      if (!m || m.aiState === 'dead' || this._lpReviveQueue.includes(m)) return
       // Win path always leaves >=1 survivor to Recall out (per design: a win
       // means at least one hero walks home). If m is the last one standing on
       // a winning fight, spare them with a sliver of HP instead of downing.
@@ -2762,13 +2819,13 @@ export class BossSystem {
       }
       m.resources.hp = 0
       emitHp()
-      deathMoment(m)
+      deathMoment(m)             // death anim plays out
       const healer = aliveHealer()
-      if (raisesLeft > 0 && healer && healer !== m && !this._lpRaise) {
-        raisesLeft--
-        startRaise(healer, m)
+      if (healer && healer !== m) {
+        this._lpReviveQueue.push(m)   // healer Raises them (3s each, in turn)
+        processReviveQueue()
       } else {
-        permaKill(m)   // no raise to spare → it sticks
+        permaKill(m)             // no healer alive to raise them → permanent
       }
     }
     // Apply a damaging mechanic to one member: chunk + a downing roll.
@@ -2783,7 +2840,9 @@ export class BossSystem {
     // ── Boss auto-attack loop (every ~2.6s) ─────────────────────────────
     // The boss slams a target with a real attack anim + lunge. It periodically
     // FOCUSES the healer; a living tank's Provoke redirects that to the tank
-    // (he steps in front). A hit on a channeling healer INTERRUPTS the Raise.
+    // (he steps in front). Hitting the healer no longer interrupts a Raise
+    // (revives are reliable) — it only chips her; killing her outright is what
+    // ends future revives.
     this._lpDuelTimers = []
     const bossSlam = () => {
       if (this._lpDuelOver) return
@@ -2794,8 +2853,13 @@ export class BossSystem {
       if (!target) return
       // Boss faces + winds up: attack anim for ~420ms, lunge toward the target.
       this._bossState = { action: 'slam' }
+      EventBus.emit('LIGHT_PARTY_DUEL_BOSS_ATTACK', { phase: 'windup' })   // SFX: boss swing
       scene?.time?.delayedCall?.(440, () => { if (!this._lpDuelOver) this._bossState = { action: 'idle' } })
       const tx = (target.worldX ?? bx()), ty = (target.worldY ?? by())
+      // Wind-up tells: energy gathers on the boss + a quick red "incoming" ring
+      // snaps onto the target so the slam reads before it lands.
+      AbilityVfx.chargeUp?.(scene, bx(), by(), { color: 0xff6a3a, radius: 48, durationMs: 240 })
+      AbilityVfx.pulseRing?.(scene, tx, ty, { color: 0xff5544, fromR: 8, toR: 30, thickness: 2, durationMs: 220 })
       track(scene?.tweens?.add?.({
         targets: boss, worldX: bx() + (tx - bx()) * 0.6, worldY: by() + (ty - by()) * 0.6,
         duration: 170, ease: 'Quad.easeIn', yoyo: true, hold: 40,
@@ -2803,18 +2867,14 @@ export class BossSystem {
       }))
       // Impact lands mid-lunge.
       TS(180, () => {
-        flinch(target); shake(120, 0.005)
-        // Interrupt a Raise the boss caught the healer channeling.
-        if (this._lpRaise && target.instanceId === this._lpRaise.healerId) {
-          const dead = this._lpRaise.deadAdv
-          this._lpRaise = null
-          EventBus.emit('LIGHT_PARTY_RAISE_INTERRUPTED', { healerId: target.instanceId, deadId: dead?.instanceId })
-          if (dead) { float(dead.worldX ?? bx(), (dead.worldY ?? by()) - TILE, 'INTERRUPTED', '#ff6b6b'); permaKill(dead) }
-        }
+        const ix = target.worldX ?? tx, iy = target.worldY ?? ty
+        flinch(target); shake(150, 0.008)
+        AbilityVfx.impactBurst?.(scene, ix, iy, { color: 0xff6a3a, radius: 66, sparks: 8, debris: 4, durationMs: 380, decal: 1400 })
         // Auto-attacks chip but rarely one-shot — the named mechanics are the
         // real killers. Tank-targeted hits hurt less (he's built for it).
         const dmg = (target._lightPartyRole === 'tank' ? 0.05 : 0.08) + Math.random() * 0.03
         strike(target, dmg, 0.4)
+        EventBus.emit('LIGHT_PARTY_DUEL_BOSS_ATTACK', { phase: 'hit', damage: Math.max(1, Math.round((target.resources?.maxHp ?? 1) * dmg)) })  // SFX: impact
         // Splash: shockwave from the slam chips every OTHER living member a
         // little so all four HP bars visibly march downward on every slam.
         // lethalMult 0 = purely cosmetic pressure (splash can never down anyone;
@@ -2838,11 +2898,22 @@ export class BossSystem {
     // Tightened 5s on 2026-05-30 (was ~26s) — same beats, shorter gaps; the
     // three cast durationMs values match their cast→resolve gap exactly.
     // 0.8s — the pull. First contact.
-    TS(800, () => { EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'PULL' }); AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0x6aaaff, toR: 90, thickness: 5, durationMs: 480 }); shake(140, 0.004) })
-    // 2.3s — boss winds up a TANK-BUSTER (cast bar + tight red telegraph on the tank).
+    TS(800, () => {
+      EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'PULL' })
+      AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0x6aaaff, toR: 110, thickness: 6, durationMs: 520 })
+      AbilityVfx.impactBurst?.(scene, bx(), by(), { color: 0x6aaaff, radius: 90, sparks: 12, debris: 5, durationMs: 480 })
+      shake(150, 0.005)
+    })
+    // 2.3s — boss winds up a TANK-BUSTER (cast bar + a red cleave-LINE telegraph
+    // from the boss onto the tank that fills over the cast, then detonates).
     TS(2300, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.tb, durationMs: 2000 })
-      const t = aliveTank(); if (t) ring(t.worldX, t.worldY, 0xff3030, { radius: 40, duration: 2000 })
+      const t = aliveTank()
+      if (t) {
+        const ang = Math.atan2((t.worldY ?? by()) - by(), (t.worldX ?? bx()) - bx())
+        AbilityVfx.groundTelegraph?.(scene, bx(), by(), { shape: 'line', color: 0xff3030, angle: ang, length: 240, width: 58, durationMs: 2000 })
+        AbilityVfx.chargeUp?.(scene, bx(), by(), { color: 0xff5544, radius: 64, durationMs: 700 })
+      }
     })
     // 4.3s — tank-buster lands. The tank pops Hallowed Ground if he can (gold
     // flash, survives); otherwise eats a heavy hit. DPS keep chipping the boss.
@@ -2857,35 +2928,48 @@ export class BossSystem {
           AbilityVfx.domeShield?.(scene, t.worldX, t.worldY, { color: 0xffd66b, radius: 44, holdMs: 500 })
           AbilityVfx.burstRays?.(scene, t.worldX, t.worldY, { color: 0xfff2c0, count: 10, length: 70 })
           float(t.worldX, t.worldY - TILE, 'HALLOWED GROUND', '#ffd66b', '11px')
-        } else { AbilityVfx.shockwave?.(scene, t.worldX, t.worldY, { color: 0xff5544, toR: 70, thickness: 5 }); strike(t, 0.34, 1.3) }
+        } else { AbilityVfx.impactBurst?.(scene, t.worldX, t.worldY, { color: 0xff5544, radius: 96, sparks: 12, debris: 6, durationMs: 520, decal: 1600 }); strike(t, 0.34, 1.3) }
       }
       shake(260, 0.010); hurtBoss(partyWins ? 0.12 : 0.06); recoilBoss(); emitHp()
     })
     // 5.8s — DPS burst window.
     TS(5800, () => { for (const a of dpsList()) lunge(a); hurtBoss(partyWins ? 0.12 : 0.05); emitHp() })
-    // 7s — boss winds up a raid-wide AoE.
-    TS(7000, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.aoe, durationMs: 2600 }); ring(bx(), by(), 0xff5544, { radius: 80, duration: 2600 }) })
+    // 7s — boss winds up a raid-wide AoE: a huge filling circle telegraph + a
+    //      summoning sigil on the boss.
+    TS(7000, () => {
+      EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.aoe, durationMs: 2600 })
+      AbilityVfx.groundTelegraph?.(scene, bx(), by(), { shape: 'circle', color: 0xff7a2a, radius: 200, durationMs: 2600 })
+      AbilityVfx.magicCircle?.(scene, bx(), by(), { color: 0xff9a3a, radius: 120, durationMs: 2600 })
+    })
     // 9.6s — AoE resolves: everyone scatters; the WHOLE party eats it so all
     //        bars drop together (tank takes a reduced share — mitigation).
     TS(9600, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'aoe', label: 'DODGE!' })
-      scatter(); shake(360, 0.013)
-      AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0xff8a3a, toR: 180, thickness: 8, durationMs: 600 })
-      AbilityVfx.burstRays?.(scene, bx(), by(), { color: 0xffb060, count: 14, length: 120 })
+      scatter(); shake(380, 0.015)
+      AbilityVfx.screenFlash?.(scene, { color: 0xff8a3a, durationMs: 240, intensity: 0.32 })
+      AbilityVfx.impactBurst?.(scene, bx(), by(), { color: 0xff8a3a, radius: 200, sparks: 22, debris: 10, durationMs: 640, decal: 2000 })
+      AbilityVfx.godRays?.(scene, bx(), by(), { color: 0xffb060, count: 14, length: 200, durationMs: 700 })
+      AbilityVfx.emberField?.(scene, bx(), by(), { color: 0xff9a3a, count: 14, area: 200, durationMs: 1300 })
       for (const m of aliveAll()) strike(m, m._lightPartyRole === 'tank' ? 0.08 : 0.12, 1.0)
       hurtBoss(partyWins ? 0.10 : 0.05); recoilBoss(); emitHp()
     })
     // 11s — healer recovery window (green pulses, top up survivors).
-    TS(11000, () => { healSurvivors(0.10); for (const a of aliveAll()) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }); emitHp() })
-    // 12.6s — boss winds up a STACK marker.
-    TS(12600, () => { EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.stack, durationMs: 2200 }); ring(bx(), by(), 0xffd66b, { radius: 60, duration: 2200 }) })
+    TS(11000, () => { healSurvivors(0.10); for (const a of aliveAll()) ring(a.worldX, a.worldY, 0x6ad497, { radius: 16 }); EventBus.emit('ALLY_HEALED', {}); emitHp() })
+    // 12.6s — boss winds up a STACK marker on the tank (party clusters to share).
+    TS(12600, () => {
+      EventBus.emit('LIGHT_PARTY_DUEL_CAST', { name: casts.stack, durationMs: 2200 })
+      const t = aliveTank()
+      AbilityVfx.stackMarker?.(scene, t?.worldX ?? bx(), t?.worldY ?? by(), { color: 0xffd66b, radius: 64, durationMs: 2200 })
+    })
     // 14.8s — stack resolves: cluster on the tank to share it; the whole party
     //        soaks together (tank takes a reduced share for clustering it).
     TS(14800, () => {
       EventBus.emit('LIGHT_PARTY_DUEL_BEAT', { kind: 'stack', label: 'STACK!' })
-      stackUp(); shake(300, 0.011)
+      stackUp(); shake(320, 0.012)
       const _tk = aliveTank()
-      AbilityVfx.shockwave?.(scene, _tk?.worldX ?? bx(), _tk?.worldY ?? by(), { color: 0xffd66b, toR: 90, thickness: 6 })
+      const sx = _tk?.worldX ?? bx(), sy = _tk?.worldY ?? by()
+      AbilityVfx.impactBurst?.(scene, sx, sy, { color: 0xffd66b, radius: 112, sparks: 16, debris: 6, durationMs: 560 })
+      AbilityVfx.burstRays?.(scene, sx, sy, { color: 0xfff2c0, count: 12, length: 92 })
       for (const m of aliveAll()) strike(m, m._lightPartyRole === 'tank' ? 0.08 : 0.12, 0.9)
       hurtBoss(partyWins ? 0.12 : 0.05); recoilBoss(); emitHp()
     })
@@ -2898,36 +2982,69 @@ export class BossSystem {
       shake(520, 0.02); scene?.time?.delayedCall?.(120, () => { if (!this._lpDuelOver) shake(300, 0.014) })
       if (partyWins) {
         this._lpLbFired = true   // releases the pre-climax HP floor in hurtBoss
-        // METEOR finale — the whole party converges + channels, then a barrage
-        // of meteors craters the boss under a gold screen flash + sunburst.
-        AbilityVfx.screenFlash?.(scene, { color: 0xfff2c0, durationMs: 420, intensity: 0.55 })
-        AbilityVfx.burstRays?.(scene, bx(), by(), { color: 0xfff2c0, count: 16, length: 150 })
-        for (const a of dpsList()) {
+        // ── METEOR finale — the showstopper. ──────────────────────────────
+        // Wind-up: a summoning sigil blooms under the throne, every hero
+        // converges + channels (converging motes), the screen warms, the title
+        // punches in.
+        AbilityVfx.magicCircle?.(scene, bx(), by(), { color: 0xffd66b, radius: 155, durationMs: 1400 })
+        AbilityVfx.screenFlash?.(scene, { color: 0xfff2c0, durationMs: 300, intensity: 0.32 })
+        for (const a of aliveAll()) {
+          AbilityVfx.chargeUp?.(scene, a.worldX ?? bx(), a.worldY ?? by(), { color: 0xffe27a, radius: 62, durationMs: 520 })
           lunge(a)
           AbilityVfx.lightning?.(scene, a.worldX ?? bx(), (a.worldY ?? by()) - 10, bx(), by(), { color: 0xffe27a })
         }
-        // 5 staggered meteors raining onto the throne; each adds a shockwave.
-        for (let i = 0; i < 5; i++) {
-          scene?.time?.delayedCall?.(i * 110, () => {
+        float(bx(), by() - TILE * 1.4, 'LIMIT BREAK', '#ffd66b', '17px')
+        // Release (~450ms): the heavens open — god-rays, a colossal pillar, flash.
+        scene?.time?.delayedCall?.(450, () => {
+          if (this._lpDuelOver) return
+          AbilityVfx.screenFlash?.(scene, { color: 0xffffff, durationMs: 420, intensity: 0.7 })
+          AbilityVfx.godRays?.(scene, bx(), by(), { color: 0xfff2c0, count: 18, length: 260, durationMs: 1000 })
+          AbilityVfx.beamPillar?.(scene, bx(), by(), { color: 0xfff7d8, height: 360, width: 72, durationMs: 800 })
+          AbilityVfx.burstRays?.(scene, bx(), by(), { color: 0xfff2c0, count: 18, length: 170 })
+        })
+        // Meteor barrage — 8 staggered strikes cratering the throne; the LAST is
+        // the killing blow (hit-stop + white flash + boss recoil + HP crater).
+        const METEORS = 8
+        for (let i = 0; i < METEORS; i++) {
+          const last = i === METEORS - 1
+          scene?.time?.delayedCall?.(500 + i * 95, () => {
             if (this._lpDuelOver) return
-            const ox = bx() + (Math.random() - 0.5) * TILE * 2.2
-            const oy = by() + (Math.random() - 0.5) * TILE * 1.4
-            AbilityVfx.meteor?.(scene, ox, oy, { color: 0xff8a3a })
-            shake(160, 0.01)
+            const ox = bx() + (Math.random() - 0.5) * TILE * 2.6
+            const oy = by() + (Math.random() - 0.5) * TILE * 1.6
+            AbilityVfx.meteor?.(scene, ox, oy, { color: 0xff8a3a, onImpact: () => {
+              AbilityVfx.impactBurst?.(scene, ox, oy, {
+                color: 0xff7a2a, radius: last ? 180 : 92, sparks: last ? 22 : 8,
+                debris: last ? 10 : 4, durationMs: last ? 640 : 420, decal: last ? 2400 : false })
+              if (last) {
+                AbilityVfx.hitStop?.(scene, 110)
+                AbilityVfx.screenFlash?.(scene, { color: 0xffffff, durationMs: 320, intensity: 0.8 })
+                AbilityVfx.emberField?.(scene, bx(), by(), { color: 0xff9a3a, count: 18, area: 220, durationMs: 1500 })
+                recoilBoss(TILE * 1.6); hurtBoss(0.6)   // craters the boss → triggers the win resolve
+              }
+            } })
+            shake(last ? 340 : 150, last ? 0.022 : 0.01)
           })
         }
-        recoilBoss(TILE * 1.3); hurtBoss(0.55)
-        AbilityVfx.beamPillar?.(scene, bx(), by(), { color: 0xfff2c0, height: 320, width: 60, durationMs: 700 })
-        float(bx(), by() - TILE, 'LIMIT BREAK', '#ffd66b', '15px')
       } else {
-        // Desperate-LB whiff: the boss erupts and punishes 1-2 members hard.
-        AbilityVfx.screenFlash?.(scene, { color: 0xff3b1e, durationMs: 360, intensity: 0.5 })
-        AbilityVfx.shockwave?.(scene, bx(), by(), { color: 0xff5544, toR: 170, thickness: 9 })
-        const pool = aliveAll(); const hits = pool.length > 1 ? 2 : 1
-        for (let i = 0; i < hits; i++) {
-          const m = rndOf(aliveAll())
-          if (m) { AbilityVfx.lightning?.(scene, bx(), by(), m.worldX ?? bx(), m.worldY ?? by(), { color: 0xff6b4a }); strike(m, 0.35, 1.5) }
-        }
+        // Desperate LB — a gold flicker that gutters out, then the boss ERUPTS,
+        // a dark cataclysm cratering the throne + punishing 1-2 members hard.
+        AbilityVfx.magicCircle?.(scene, bx(), by(), { color: 0x8a6a2a, radius: 120, durationMs: 600 })
+        scene?.time?.delayedCall?.(420, () => {
+          if (this._lpDuelOver) return
+          AbilityVfx.hitStop?.(scene, 80)
+          AbilityVfx.screenFlash?.(scene, { color: 0xff3b1e, durationMs: 380, intensity: 0.55 })
+          AbilityVfx.impactBurst?.(scene, bx(), by(), { color: 0xff4422, radius: 190, sparks: 22, debris: 10, durationMs: 640, decal: 2200 })
+          AbilityVfx.emberField?.(scene, bx(), by(), { color: 0xff5a2a, count: 16, area: 200, durationMs: 1400 })
+          const pool = aliveAll(); const hits = pool.length > 1 ? 2 : 1
+          for (let i = 0; i < hits; i++) {
+            const m = rndOf(aliveAll())
+            if (m) {
+              AbilityVfx.lightning?.(scene, bx(), by(), m.worldX ?? bx(), m.worldY ?? by(), { color: 0xff6b4a, thickness: 4 })
+              AbilityVfx.impactBurst?.(scene, m.worldX ?? bx(), m.worldY ?? by(), { color: 0xff4422, radius: 70, sparks: 8, debris: 4, durationMs: 420 })
+              strike(m, 0.35, 1.5)
+            }
+          }
+        })
       }
       emitHp()
     })
@@ -2939,6 +3056,11 @@ export class BossSystem {
     if (!boss) { this._endLightPartyDuel(); return }
     // Stop the beat timeline + loops from firing into the resolution.
     this._lpDuelOver = true
+    // The fight is decided — drop the live combat stance so members stop
+    // swinging at (and facing) a now-dead boss through the multi-second outro.
+    // (_endLightPartyDuel also deletes this; clearing here makes it stop the
+    // instant the boss dies / the party wipes, not only at final teardown.)
+    for (const a of party) { if (a) a._lpInDuel = false }
     const scene = this._scene
     // Freeze the arena for the outro: kill every movement tween + the
     // slam/lunge loop timers so the members (and the boss) hold position while
@@ -3218,9 +3340,10 @@ export class BossSystem {
     // Clear the casualty / raise / boss-anim state so a later normal fight (or
     // a re-fired duel) starts clean. _bossState + _fightStates are nulled so the
     // generic _tickFightAnim rebuilds them fresh on the next ordinary fight.
-    this._lpRaise       = null
-    this._lpCasualties  = null
-    this._lpOutro       = null
+    this._lpRaise        = null
+    this._lpReviveQueue  = []
+    this._lpCasualties   = null
+    this._lpOutro        = null
     this._bossState     = null
     this._fightStates   = null
     // Clear the safety-net context so _tickLightPartyDuel can't re-resolve.
@@ -3232,10 +3355,10 @@ export class BossSystem {
     this._lpDuelTweens = []
     for (const tm of this._lpDuelTimers ?? []) { try { tm.remove?.(false) } catch {} }
     this._lpDuelTimers = []
-    // Strip the transient formation fields off any surviving party members.
+    // Strip the transient formation / duel fields off any surviving party members.
     for (const a of this._gameState.adventurers?.active ?? []) {
       if (!a?._lightParty) continue
-      delete a._lpHomeX; delete a._lpHomeY
+      delete a._lpHomeX; delete a._lpHomeY; delete a._lpInDuel
     }
     // NOTE: do NOT force timeScale=1 here — _resolveLightPartyDuel sets a
     // terminal 0.25× killing-blow slow-mo right before calling us, with its

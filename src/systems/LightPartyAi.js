@@ -23,7 +23,7 @@ import { EventBus }   from './EventBus.js'
 import { Balance }    from '../config/balance.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 
-const HEAL_INTERVAL_MS    = 10000  // healer beam every 10s — one heal on one ally per 10s (user request 2026-05-31)
+const HEAL_INTERVAL_MS    = 5000   // healer beam every 5s — one heal on one ally per 5s (user request 2026-06-01)
 const HEAL_PCT_OF_MAXHP   = 0.15   // heals 15% of target's maxHp per beam
 const HEAL_RANGE_TILES    = 6      // healer must be within 6 tiles of target
 
@@ -74,6 +74,10 @@ export class LightPartyAi {
     on('ADVENTURER_DIED',   this._onPartyMemberDied)
     on('COMBAT_HIT',        this._onCombatHit)
     on('DAY_PHASE_ENDED',   this._reset)
+    // If the boss duel starts while an LB is still casting, drop the cast clamp
+    // so BossSystem can position the caster in the arena (otherwise _tickCast
+    // keeps yanking it back to the dungeon spot all through the fight).
+    on('LIGHT_PARTY_DUEL_BEGAN', this._onDuelBegan)
   }
 
   destroy() {
@@ -87,11 +91,41 @@ export class LightPartyAi {
     this._raises.clear()
     this._hallowedFired.clear()
     this._lbFiredTactical = false
-    if (this._castAnchor) { EventBus.emit('LIGHT_PARTY_CAST_ENDED', { casterId: this._castAnchor.casterId }); this._castAnchor = null }
+    this._clearCast(false)
   }
 
   _onPartyBegan() {
     this._reset()
+  }
+
+  _onDuelBegan() {
+    // Cancel any in-flight LB cast freeze — the duel owns the caster now.
+    this._clearCast(false)
+  }
+
+  // Tear down the active LB cast. `resume` hands the caster straight back to
+  // AISystem (re-path to the party) instead of leaving it parked in 'idle' on
+  // the cast spot — without this the caster stands still while the party walks
+  // on. No-op when no cast is active.
+  _clearCast(resume = false) {
+    const c = this._castAnchor
+    if (!c) return
+    this._castAnchor = null
+    EventBus.emit('LIGHT_PARTY_CAST_ENDED', { casterId: c.casterId })
+    if (!resume) return
+    const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === c.casterId)
+    if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
+    // Un-freeze: back to moving + force a fresh path so AISystem re-routes the
+    // caster to the party this tick, and clear the stuck/oscillation watchdog
+    // baseline that built up while it was clamped (so the failsafe can't misfire).
+    adv.aiState        = 'walking'
+    adv.path           = null
+    adv.pathIndex      = 0
+    adv._tileStuckMs   = 0
+    adv._oscRing       = []
+    adv._panicWalkUntil = 0
+    adv._lastWorldX    = adv.worldX
+    adv._lastWorldY    = adv.worldY
   }
 
   // ── Per-tick driver ────────────────────────────────────────────────────
@@ -117,8 +151,7 @@ export class LightPartyAi {
     if (!c) return
     const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === c.casterId)
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) {
-      EventBus.emit('LIGHT_PARTY_CAST_ENDED', { casterId: c.casterId })
-      this._castAnchor = null
+      this._clearCast(false)   // caster gone/dead — drop the clamp
       return
     }
     adv.path    = null
@@ -153,8 +186,10 @@ export class LightPartyAi {
     charge()
     this._scene.time?.delayedCall?.(Math.round(LB_CAST_MS * 0.5), charge)
     this._scene.time?.delayedCall?.(LB_CAST_MS, () => {
-      EventBus.emit('LIGHT_PARTY_CAST_ENDED', { casterId: caster.instanceId })
-      if (this._castAnchor?.casterId === caster.instanceId) this._castAnchor = null
+      // End the cast + hand the caster back to AISystem so it resumes moving
+      // with the party (instead of standing on the cast spot).
+      if (this._castAnchor?.casterId === caster.instanceId) this._clearCast(true)
+      else EventBus.emit('LIGHT_PARTY_CAST_ENDED', { casterId: caster.instanceId })
       if (caster.aiState === 'dead' || (caster.resources?.hp ?? 0) <= 0) return
       fire()
     })
