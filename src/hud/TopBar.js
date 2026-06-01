@@ -117,8 +117,15 @@ export class TopBar {
         ]),
       ]),
 
-      // CENTER — day stamp
+      // CENTER — act eyebrow + day stamp
       h('div', { className: 'qf-topbar-center' }, [
+        // Act / Kingdom-Response eyebrow (KR P4). Sits above the day stamp;
+        // shows "ACT {N} · {Response}" in the response accent. Hover reveals the
+        // threat line. Hidden until an act event fires (acts feature only).
+        h('div', { className: 'qf-topbar-act', ref: el => { this._refs.actRoot = el } }, [
+          h('div', { className: 'qf-topbar-act-eyebrow', ref: el => { this._refs.actEyebrow = el } }),
+          h('div', { className: 'qf-topbar-act-pop', ref: el => { this._refs.actPop = el } }),
+        ]),
         h('div', {
           className: 'pix qf-day-number',
           ref: el => { this._refs.dayNumber = el },
@@ -371,6 +378,12 @@ export class TopBar {
     sub('PACT_SEALED',     () => this._renderBuffSlots())
     sub('PACT_DEACTIVATED', () => this._renderBuffSlots())
 
+    // Act / Kingdom-Response eyebrow (KR P4). ACT_STARTED paints the fixed
+    // bookend acts (I, IV); KINGDOM_RESPONSE_DRAWN fills the drafted response.
+    // Both re-fire at run start / on continue, so the eyebrow is always current.
+    sub('ACT_STARTED',            p => this._onActStarted(p))
+    sub('KINGDOM_RESPONSE_DRAWN', p => this._onActResponse(p))
+
     // ── Wave-progress bar ──────────────────────────────────────────
     // DayPhase publishes the day's threat count + label at day start;
     // each kill / escape tallies into the bar.
@@ -393,6 +406,40 @@ export class TopBar {
     const hideWave = () => { this._wave.mode = 'none'; this._renderWaveBar() }
     sub('NIGHT_PHASE_STARTED', hideWave)
     sub('DAY_PHASE_ENDED',     hideWave)
+  }
+
+  // ── Act / Kingdom-Response eyebrow (KR P4) ──────────────────────────────────
+  static _ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI']
+
+  // Fixed bookend acts (I, IV) paint from ACT_STARTED; drafted acts (II/III) are
+  // filled by the KINGDOM_RESPONSE_DRAWN that fires right after, so skip them here.
+  _onActStarted({ act, def } = {}) {
+    if (def?.kind === 'drafted') return
+    this._paintAct({ act, accent: '#d4a648', name: def?.name ?? `Act ${act}`, detail: def?.tagline ?? '' })
+  }
+
+  _onActResponse({ act, response } = {}) {
+    if (!response) return
+    this._paintAct({
+      act, accent: response.accent || '#d4a648',
+      name: response.name || 'The Kingdom Responds', detail: response.threat || '',
+    })
+  }
+
+  // Persistent eyebrow = "ACT {N} · {name}" (name carries no accent; the ACT
+  // prefix does). Hover popover = the threat/flavor line (user's choice).
+  _paintAct({ act, accent, name, detail }) {
+    const root = this._refs.actRoot
+    if (!root) return
+    root.style.setProperty('--act-accent', accent)
+    if (this._refs.actEyebrow) {
+      this._refs.actEyebrow.replaceChildren(
+        h('span', { className: 'act-n' }, `ACT ${TopBar._ROMAN[act] || act}`),
+        document.createTextNode(`  ·  ${name}`),
+      )
+    }
+    if (this._refs.actPop) this._refs.actPop.textContent = detail || name
+    root.classList.add('on')
   }
 
   // Render the wave-progress bar from `this._wave`. Green = killed, orange =

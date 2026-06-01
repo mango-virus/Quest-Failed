@@ -1567,6 +1567,32 @@ body {
   text-shadow: 3px 3px 0 #4a2810, 0 0 24px rgba(255, 203, 92, 0.55);
 }
 
+/* Act / Kingdom-Response eyebrow (KR P4) — above the DAY stamp in the center
+   column. "ACT N · Name" with the ACT prefix in the response accent; hover
+   reveals the threat line in an accent popover. Hidden until an act fires. */
+.qf-topbar-act { position: relative; display: none; margin-bottom: 3px; }
+.qf-topbar-act.on { display: block; }
+.qf-topbar-act-eyebrow {
+  font-family: 'Press Start 2P', monospace; font-size: 7px; letter-spacing: 1px;
+  color: #b9a888; white-space: nowrap; cursor: help;
+  max-width: 300px; overflow: hidden; text-overflow: ellipsis;
+}
+.qf-topbar-act-eyebrow .act-n { color: var(--act-accent, var(--gold)); }
+.qf-topbar-act-pop {
+  position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+  display: none; z-index: 60; width: max-content; max-width: 320px;
+  padding: 8px 12px; text-align: left; white-space: normal;
+  background: linear-gradient(180deg, rgba(14,10,20,.97), rgba(8,5,14,.97));
+  border: 1px solid var(--act-accent, var(--gold));
+  border-left: 3px solid var(--act-accent, var(--gold));
+  border-radius: var(--radius-md, 7px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.6),
+              0 0 14px color-mix(in srgb, var(--act-accent, #d4a648) 20%, transparent);
+  font-family: 'VT323', monospace; font-size: 15px; line-height: 1.4; color: #c9bfb0;
+  pointer-events: none;
+}
+.qf-topbar-act:hover .qf-topbar-act-pop { display: block; }
+
 /* Wave-progress bar — sits under the DAY stamp. Green fill = adventurers
    killed, orange = escaped (leaked intel), dim remainder = still in the
    dungeon / yet to arrive. */
