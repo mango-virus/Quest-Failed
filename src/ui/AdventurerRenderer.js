@@ -47,6 +47,11 @@ const LPC_ATK_ORIGIN_Y  = 0.617
 // members walk side-by-side / front-and-back instead of stacking on one tile.
 // tank leads, melee on the left flank, ranged on the right, healer trails.
 const LP_TRAVEL_FORMATION = { tank: [0, -8], meleeDps: [-12, 4], rangedDps: [12, 4], healer: [0, 14] }
+// Light Party classes use a single hand-authored ULPC costume (v01) for EVERY
+// spawn — the FFXIV "Warriors of Light" look — instead of rolling a random
+// v01–v50 generic variant. Pinning here (not deleting the other variants) keeps
+// the atk-sheet + manifest plumbing intact while guaranteeing the iconic look.
+const LP_FIXED_VARIANT_CLASSES = new Set(['paladin', 'white_mage', 'black_mage', 'samurai'])
 // Weapons that should always render combat as `thrust`, regardless of the
 // class's default animation. Spear/Cane only have thrust frames; staves and
 // the Crossbow have a thrust_oversize that looks more dynamic than the static
@@ -1223,7 +1228,11 @@ export class AdventurerRenderer {
     if (!variants || variants.length === 0) return null
     // Save-stable: assign once, persist on adv for save/load identity.
     if (!adv.spriteVariant) {
-      const picked = variants[Math.floor(Math.random() * variants.length)]
+      // Light Party classes are pinned to their single definitive costume (v01)
+      // so the paladin/healer/samurai/mage always look like THE Warriors of Light.
+      const picked = LP_FIXED_VARIANT_CLASSES.has(sourceClassId) && variants.includes('v01')
+        ? 'v01'
+        : variants[Math.floor(Math.random() * variants.length)]
       adv.spriteVariant = `${sourceClassId}/${picked}`
     }
     const [cls, vId] = adv.spriteVariant.split('/')
