@@ -41,16 +41,13 @@ const ASCEND_LINE = {
 const ASCEND_LINE_FALLBACK = 'It absorbs the fallen kingdom’s power.'
 
 // Resolve a boss FORM tier (1..4) to its texture-key base, mirroring
-// BossRenderer: lesser forms live at `${id}-t${n}`, the canonical/top form at
-// the bare `${id}`. Falls back toward canonical when a tier sheet is absent.
+// BossRenderer._resolveSpriteKey: a tier with an explicit `${id}-t${n}` sheet
+// uses it (incl. the T4 dark-ascension recolor); any tier without one falls to
+// the bare canonical sheet.
 function _formKey(id, tier) {
   const tex = window.__game?.textures
   if (!id || !tex) return id
-  let maxLesser = 0
-  for (let n = 1; n <= 3; n++) if (tex.exists(`${id}-t${n}-idle`)) maxLesser = n
-  const canonical = maxLesser + 1
-  if (tier >= canonical) return id
-  for (let n = tier; n >= 1; n--) if (tex.exists(`${id}-t${n}-idle`)) return `${id}-t${n}`
+  if (tex.exists?.(`${id}-t${tier}-idle`)) return `${id}-t${tier}`
   return id
 }
 

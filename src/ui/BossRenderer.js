@@ -76,10 +76,9 @@ export class BossRenderer {
     // always has — evolution is a campaign-only layer.
     this._baseId = gameState.player?.bossArchetypeId ?? FALLBACK_SKIN
     if (!scene.textures.exists(`${this._baseId}-idle`)) this._baseId = FALLBACK_SKIN
-    this._canonicalTier = this._computeCanonicalTier()
-    this._ascended      = false
-    this._tier          = this._computeTier()
-    this._spriteKey     = this._resolveSpriteKey(this._tier)
+    this._ascended  = false
+    this._tier      = this._computeTier()
+    this._spriteKey = this._resolveSpriteKey(this._tier)
 
     this._facing      = 'down'
     this._currentAnim = null         // e.g. 'vampire-idle-down'
@@ -360,41 +359,25 @@ export class BossRenderer {
 
   // ── Evolution: act-driven tier → sprite key ─────────────────────────────
   //
-  // The boss's *canonical* form is the bare `${id}` sheet — that's T3 for most
-  // bosses and T4 for the slime (its sprite is the fully-evolved one). Lesser
-  // forms ship as `${id}-t${n}` sheets for the tiers below canonical. The
-  // canonical tier = (highest lesser tier that has a sheet) + 1, so the slime's
-  // three lesser sheets push its canonical to T4 while everyone else's two push
-  // it to T3.
-  _computeCanonicalTier() {
-    const s = this._scene, id = this._baseId
-    let maxLesser = 0
-    for (let n = 1; n <= 3; n++) {
-      if (s.textures?.exists?.(`${id}-t${n}-idle`)) maxLesser = n
-    }
-    return maxLesser + 1
-  }
-
-  // The tier the boss should be wearing right now. Acts off → pin to canonical
-  // (the boss looks exactly as it always has). Acts on → the act number (1..4).
+  // The tier the boss should be wearing now. Acts off → the canonical form (3;
+  // the tier sheets aren't even loaded, so it resolves to the base sheet — the
+  // boss looks exactly as it always has). Acts on → the act number (1..4).
   _computeTier() {
-    if (!isActsEnabled()) return this._canonicalTier
+    if (!isActsEnabled()) return 3
     const day = this._gameState?.meta?.dayNumber ?? 1
     return Math.max(1, Math.min(4, actForDay(day)))
   }
 
-  // Map a tier to the texture-key base, and latch `_ascended` (true when the
-  // tier is ABOVE canonical — e.g. T4 on a boss whose top sheet is T3, which
-  // reuses the canonical sprite under a dark-ascension treatment). Falls back
-  // toward the canonical sheet if a requested lesser tier has no sheet.
+  // Resolve a tier to its texture-key base purely by sheet existence: a tier
+  // with an explicit `${id}-t${n}` sheet uses it; any tier WITHOUT one (T3 for
+  // most bosses, T1–T3 for the succubus, every tier when acts are off and the
+  // sheets aren't loaded) falls to the bare canonical sheet. `_ascended` latches
+  // on T4 — the per-archetype dark-ascension recolor — driving the aura.
   _resolveSpriteKey(tier) {
     const s = this._scene, id = this._baseId
-    if (tier >= this._canonicalTier) {
-      this._ascended = tier > this._canonicalTier
-      return id
-    }
-    for (let n = tier; n >= 1; n--) {
-      if (s.textures?.exists?.(`${id}-t${n}-idle`)) { this._ascended = false; return `${id}-t${n}` }
+    if (s.textures?.exists?.(`${id}-t${tier}-idle`)) {
+      this._ascended = (tier >= 4)
+      return `${id}-t${tier}`
     }
     this._ascended = false
     return id
