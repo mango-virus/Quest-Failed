@@ -12,6 +12,31 @@
 import { EventBus } from './EventBus.js'
 import { currentActResponseId } from '../config/acts.js'
 import { Balance } from '../config/balance.js'
+import { TILE } from './DungeonGrid.js'
+import { createMinion, applyBossLevelToMinion } from '../entities/Minion.js'
+
+// Boss-ascension REINFORCEMENTS (KR P6) — each ascension the dungeon fields the
+// boss's own kin as free elite defenders (flavoured per archetype, mirroring the
+// evolution). One archetype elite + `tier` grunts deploy into the boss chamber,
+// scaled to the boss level with an elite/grunt stat boost. Ids are minionTypes
+// entries; an archetype with no elite (null) fields one extra grunt instead.
+const REINFORCEMENT_POOL = {
+  beholder:  { elite: 'beholder_tyrant', grunts: ['beholder1', 'beholder2'] },
+  demon:     { elite: 'demon_lord',      grunts: ['imp2', 'demon1', 'demon2'] },
+  gnoll:     { elite: 'gnoll_alpha',     grunts: ['gnoll1', 'gnoll2'] },
+  golem:     { elite: 'golem_warden',    grunts: ['golem1', 'golem2'] },
+  lich:      { elite: 'elder_lich',      grunts: ['skeleton3', 'zombie2', 'lich1', 'lich2'] },
+  lizardman: { elite: 'serpent_captain', grunts: ['lizardman1', 'lizardman2'] },
+  myconid:   { elite: null,              grunts: ['mushroom1', 'mushroom2', 'ent2', 'plant3'] },
+  orc:       { elite: null,              grunts: ['orc1', 'orc2', 'goblin3'] },
+  slime:     { elite: null,              grunts: ['elder_slime2', 'slime6', 'slime8'] },
+  vampire:   { elite: 'dark_wraith',     grunts: ['vampire_minion1', 'vampire_minion2'] },
+  wraith:    { elite: 'dark_wraith',     grunts: ['ghost1', 'ghost2'] },
+  succubus:  { elite: null,              grunts: ['imp3', 'vampire_minion2'] },
+  _default:  { elite: null,              grunts: ['skeleton2', 'zombie2', 'goblin2'] },
+}
+const REINFORCE_ELITE_MUL = 1.5    // elite reinforcements hit ~50% harder/tougher
+const REINFORCE_GRUNT_MUL = 1.18   // even the grunts come ascension-touched
 
 // Forlorn Hope — each fallen martyr stokes the survivors' fury. Per-death
 // multipliers (compounding); a ~6-strong squad tops out around ×1.9 atk / ×1.5
@@ -89,6 +114,94 @@ export class KingdomModifierSystem {
       archetype: this._gs.player?.bossArchetypeId ?? null,
       before, after,
     })
+    // The dungeon grows: free elite reinforcements rally into the chamber.
+    this._deployReinforcements(Math.max(0, act - 1))
+  }
+
+  // Deploy `tier` grunts + one archetype elite (if any) as free garrison
+  // defenders in the boss chamber. Garrison class → they don't eat the player's
+  // Barracks cap; they persist in the roster + respawn at dawn like gooplings.
+  _deployReinforcements(tier) {
+    if (tier <= 0) return
+    const gs = this._gs
+    const minionDefs = this._scene?.cache?.json?.get?.('minionTypes') ?? []
+    if (!Array.isArray(minionDefs) || minionDefs.length === 0) return
+    if (!Array.isArray(gs.minions)) return
+    const has = (id) => minionDefs.some(d => d.id === id)
+    const arch = gs.player?.bossArchetypeId
+    const pool = REINFORCEMENT_POOL[arch] || REINFORCEMENT_POOL._default
+
+    // Build the squad: the elite (if its def exists) + grunts. No elite → one
+    // extra grunt so the squad size is consistent (tier + 1 bodies either way).
+    const squad = []
+    const hasElite = pool.elite && has(pool.elite)
+    if (hasElite) squad.push({ id: pool.elite, elite: true })
+    const grunts = pool.grunts.filter(has)
+    if (grunts.length === 0 && !hasElite) return
+    const gruntCount = hasElite ? tier : tier + 1
+    for (let i = 0; i < gruntCount && grunts.length; i++) squad.push({ id: grunts[i % grunts.length], elite: false })
+    if (squad.length === 0) return
+
+    const tiles = this._chamberSpawnTiles(squad.length)
+    if (tiles.length === 0) return
+    const bossRoom = gs.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    const bossLv = gs.boss?.level ?? 1
+    let placed = 0
+    for (let i = 0; i < squad.length && i < tiles.length; i++) {
+      const def = minionDefs.find(d => d.id === squad[i].id)
+      if (!def) continue
+      const tile = tiles[i]
+      const m = createMinion(def, tile, bossRoom?.instanceId ?? null, { class: 'garrison' })
+      // Elite/grunt boost BEFORE the level scaling so it's baked into the base
+      // (applyMinionScaling records _baseMaxHp on first call) and survives every
+      // dawn rescale rather than being washed out.
+      const mul = squad[i].elite ? REINFORCE_ELITE_MUL : REINFORCE_GRUNT_MUL
+      m.resources.maxHp = Math.round(m.resources.maxHp * mul)
+      m.resources.hp    = m.resources.maxHp
+      m.stats.attack    = Math.round(m.stats.attack * mul)
+      applyBossLevelToMinion(m, bossLv)
+      m._reinforcement      = true
+      m._reinforcementElite = squad[i].elite
+      m.homeTileX = tile.x
+      m.homeTileY = tile.y
+      gs.minions.push(m)
+      EventBus.emit('MINION_PLACED', { minion: m })
+      placed++
+    }
+    if (placed) EventBus.emit('BOSS_REINFORCEMENTS', { count: placed, tier, elite: hasElite })
+  }
+
+  // Collect up to `count` free FLOOR/BOSS_FLOOR tiles, ringing outward from the
+  // boss (or chamber centre), skipping tiles a live minion already stands on.
+  _chamberSpawnTiles(count) {
+    const grid = this._scene?.dungeonGrid
+    const gs = this._gs
+    const bossRoom = gs?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    const boss = gs?.boss
+    const ax = Number.isFinite(boss?.tileX) ? boss.tileX
+      : (bossRoom ? bossRoom.gridX + Math.floor(bossRoom.width / 2) : null)
+    const ay = Number.isFinite(boss?.tileY) ? boss.tileY
+      : (bossRoom ? bossRoom.gridY + Math.floor(bossRoom.height / 2) : null)
+    if (ax == null || ay == null || typeof grid?.getTileType !== 'function') return []
+    const occupied = (tx, ty) => (gs.minions ?? []).some(m =>
+      m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.tileX === tx && m.tileY === ty)
+    const out = []
+    const taken = new Set()
+    for (let r = 1; r <= 4 && out.length < count; r++) {
+      for (let dy = -r; dy <= r && out.length < count; dy++) {
+        for (let dx = -r; dx <= r && out.length < count; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue   // ring perimeter only
+          const tx = ax + dx, ty = ay + dy
+          const key = `${tx},${ty}`
+          if (taken.has(key)) continue
+          const t = grid.getTileType(tx, ty)
+          if ((t === TILE.FLOOR || t === TILE.BOSS_FLOOR) && !occupied(tx, ty)) {
+            out.push({ x: tx, y: ty }); taken.add(key)
+          }
+        }
+      }
+    }
+    return out
   }
 
   // Dark-ascension chamber aura — once the boss has ascended (act II+), it

@@ -1150,6 +1150,10 @@ export class RightPanels {
     sub('BOSS_ASCENSION_AURA', () => {
       this._addLogCoalesced('The ascended dungeon sears the invaders.', 'ascension', 'BOSS_ASCENSION_AURA', null)
     })
+    sub('BOSS_REINFORCEMENTS', ({ count, elite } = {}) => {
+      const w = count === 1 ? 'defender' : 'defenders'
+      this._addLog(`The boss rallies its kin — ${count} ${elite ? 'elite ' : ''}${w} answer the ascension.`, 'ascension')
+    })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+
     // wipe scenarios the per-death stream pushed everything else off
