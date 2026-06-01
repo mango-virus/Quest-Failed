@@ -1240,7 +1240,7 @@ export class BossArchetypeSystem {
       // Sung Jinwoo can't be charmed — the vampire can't turn the Shadow
       // Monarch into a thrall (that would "kill"/remove him; only the boss
       // duel can take him down).
-      const eligible = advs.filter(a => a && (a.resources?.hp ?? 0) > 0 && !a._shadowMonarch)
+      const eligible = advs.filter(a => a && (a.resources?.hp ?? 0) > 0 && !a._shadowMonarch && !a._lightParty)
       if (eligible.length > 0) {
         const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         if (bossRoom) {
@@ -2318,7 +2318,10 @@ export class BossArchetypeSystem {
     for (let i = advs.length - 1; i >= 0; i--) {
       const adv = advs[i]
       if (!adv?._charmed) continue
-      if (adv._shadowMonarch) continue   // defensive: never convert Jinwoo
+      // Never convert Jinwoo OR a Light Party member. This path splices the adv
+      // from active directly (bypassing AISystem._kill), so the duel-bound death
+      // guard never runs — they must be skipped explicitly here.
+      if (adv._shadowMonarch || adv._lightParty) continue
       if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const boss = this._gameState.boss
       if (!boss) continue
@@ -2483,7 +2486,10 @@ export class BossArchetypeSystem {
   // `Math.max(this._shadowFloor(adv), before - dmg)` so the subsequent
   // `hp <= 0` death emit naturally skips him.
   _shadowFloor(adv) {
-    return adv?._shadowMonarch
+    // Also floors Light Party members — every boss-ability damage path that
+    // routes through this helper (golem quake, venom, spores, miasma, tremors)
+    // now spares them as well as Jinwoo. They may only die in the boss duel.
+    return (adv?._shadowMonarch || adv?._lightParty)
       ? Math.max(1, Math.ceil((adv.resources?.maxHp ?? 1) * 0.10))
       : 0
   }
@@ -2812,7 +2818,7 @@ export class BossArchetypeSystem {
       // 100% — instant panic death. Drop gold like a normal kill, no XP.
       // Sung Jinwoo is immune — fear (a boss ability) can't kill the Shadow
       // Monarch; only the boss duel can.
-      if (fear >= pdThresh && !adv._fearPanicDeathTriggered && !adv._shadowMonarch) {
+      if (fear >= pdThresh && !adv._fearPanicDeathTriggered && !adv._shadowMonarch && !adv._lightParty) {
         adv._fearPanicDeathTriggered = true
         adv.resources.hp = 0
         this._gameState.player ??= {}

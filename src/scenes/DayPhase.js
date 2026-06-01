@@ -2074,17 +2074,26 @@ export class DayPhase extends Phaser.Scene {
       this._followText.setText(id && name ? `▶ ${name}` : '')
     }
 
+    // Light Party duel fully ended — re-arm the day-end timer. Deferred one beat
+    // so BossSystem._endLightPartyDuel (synchronous, right after the DUEL_END
+    // emit) has cleared _lightPartyDuel before _refreshStats re-checks the gate.
+    // Without this, a flawless win (all survivors Recall out, no adventurer event
+    // firing AFTER the flag clears) leaves the all-out timer un-armed → day hangs.
+    const onLpDuelEnd = () => this.time.delayedCall(100, () => this._refreshStats())
+
     EventBus.on('ADVENTURER_DIED',              onDeath)
     EventBus.on('ADVENTURER_FLED',              onChange)
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
     EventBus.on('CAMERA_FOLLOW_CHANGED',        onFollow)
     EventBus.on('PERSONALITY_COMBO_ACTIVATED',  onCombo)
+    EventBus.on('LIGHT_PARTY_DUEL_END',         onLpDuelEnd)
     this._listeners = [
       ['ADVENTURER_DIED',             onDeath],
       ['ADVENTURER_FLED',             onChange],
       ['ADVENTURER_ENTERED_DUNGEON',  onChange],
       ['PERSONALITY_COMBO_ACTIVATED', onCombo],
       ['CAMERA_FOLLOW_CHANGED',       onFollow],
+      ['LIGHT_PARTY_DUEL_END',        onLpDuelEnd],
     ]
   }
 

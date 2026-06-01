@@ -497,7 +497,12 @@ export const MinionAbilities = {
       if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const d = Math.hypot(adv.tileX - imp.tileX, adv.tileY - imp.tileY)
       if (d > IMP_BLAST_RADIUS_TILES + 0.01) continue
-      adv.resources.hp = Math.max(0, adv.resources.hp - IMP_BLAST_DAMAGE)
+      // Light Party / Shadow Monarch floor — defense-in-depth so an imp blast
+      // can't drop them to 0 before the boss room (AISystem._kill catches it
+      // anyway since we never stamp 'boss' here, but flooring keeps the bar honest).
+      const _impFl = (adv._lightParty || adv._shadowMonarch)
+        ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+      adv.resources.hp = Math.max(_impFl, adv.resources.hp - IMP_BLAST_DAMAGE)
       hits += 1
       if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${IMP_BLAST_DAMAGE}`, { color: '#ff6633' })
     }
