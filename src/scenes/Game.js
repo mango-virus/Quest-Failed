@@ -73,6 +73,7 @@ import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
 import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
 import { ActSystem }          from '../systems/ActSystem.js'
 import { NemesisSystem }      from '../systems/NemesisSystem.js'
+import { KingdomResponseSystem } from '../systems/KingdomResponseSystem.js'
 import { isActsEnabled }      from '../config/acts.js'
 import { AbilityVfx }         from '../ui/AbilityVfx.js'
 import { BossPactVfx }        from '../ui/BossPactVfx.js'
@@ -287,6 +288,10 @@ export class Game extends Phaser.Scene {
     // fires NEMESIS_* taunts. Spawn integration + right-side rival portrait
     // build on this. Same `acts` gate as ActSystem.
     if (isActsEnabled()) this.nemesisSystem = track(new NemesisSystem(this, this.gameState))
+    // The drafted middle (KR P4). Drafts a Kingdom Response when Act II / III
+    // begins + fires KINGDOM_RESPONSE_DRAWN for the announce set-piece and the
+    // per-response gimmicks. Same `acts` gate.
+    if (isActsEnabled()) this.kingdomResponseSystem = track(new KingdomResponseSystem(this, this.gameState))
     this.bossPactVfx         = track(new BossPactVfx(this, this.gameState))
     this.roomBehaviorSystem  = track(new RoomBehaviorSystem(this, this.gameState))
     this.classAbilitySystem  = track(new ClassAbilitySystem(this, this.gameState))

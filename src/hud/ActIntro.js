@@ -69,6 +69,10 @@ export class ActIntro {
   _onActStarted({ act, def } = {}) {
     const stage = document.getElementById('hud-stage')
     if (!stage || !def) return
+    // Drafted acts (II & III) get the richer "THE KINGDOM RESPONDS" reveal from
+    // KingdomResponseIntro instead — defer so there's one set-piece, not two
+    // stacked cards. The fixed bookends (Acts I & IV) keep this chapter card.
+    if (def.kind === 'drafted') return
     this._clearTimers()
     this._root?.remove()
 

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "rival",
+    "name": "The Rival",
+    "eyebrow": "A RIVAL DUNGEON STIRS",
+    "threat": "A rival dungeon lord sends his monsters into your halls — and comes for your throne himself.",
+    "gimmick": "Monsters invade instead of adventurers; it culminates in a boss-vs-boss showdown.",
+    "clearCondition": "Defeat the rival boss when he reaches your throne.",
+    "champion": "Vorzak, the Usurper Below",
+    "accent": "#a24bd9",
+    "emblem": "⚑",
+    "weightTags": ["minions", "evolved"]
+  },
+  {
+    "id": "inquisition",
+    "name": "The Inquisition",
+    "eyebrow": "THE FAITHFUL MARCH",
+    "threat": "Fanatical zealots, immune to fear, come to purge your dark works by holy law.",
+    "gimmick": "Nullifies your Dark Pacts and purges undead — your tricks stop working, forcing a mundane defense.",
+    "clearCondition": "Survive the purge and cut down the High Inquisitor.",
+    "champion": "High Inquisitor Mordrake",
+    "accent": "#e0d8c0",
+    "emblem": "✝",
+    "weightTags": ["pacts", "undead"]
+  },
+  {
+    "id": "pantheon",
+    "name": "The Pantheon",
+    "eyebrow": "DIVINE JUDGMENT DESCENDS",
+    "threat": "The gods themselves answer — radiant avatars descend to scour the dark from your dungeon.",
+    "gimmick": "Holy zones heal heroes and sear your minions; the fallen are resurrected mid-fight by divine grace.",
+    "clearCondition": "Slay the descended Seraph before judgment is complete.",
+    "champion": "Aurelia, the Descended Seraph",
+    "accent": "#ffe9a8",
+    "emblem": "☼",
+    "weightTags": ["pacts", "slaughter"]
+  },
+  {
+    "id": "betrayer",
+    "name": "The Betrayer",
+    "eyebrow": "ONE OF YOUR OWN TURNS",
+    "threat": "A traitor in your own ranks leads the raid and turns your dungeon against you.",
+    "gimmick": "A defecting minion sabotages from inside — your own rooms and traps turn on you for the act.",
+    "clearCondition": "Put down the Turncoat and reclaim your halls.",
+    "champion": "The Turncoat",
+    "accent": "#7ec850",
+    "emblem": "†",
+    "weightTags": ["evolved", "minions"]
+  },
+  {
+    "id": "reckoning_dead",
+    "name": "The Reckoning of the Dead",
+    "eyebrow": "THE SLAIN RETURN",
+    "threat": "A necromancer-king raises every soul you have killed this run to march against you.",
+    "gimmick": "An undead tide whose size scales with your run's kill-count — your own victims, turned.",
+    "clearCondition": "Survive the tide and destroy the necromancer-king.",
+    "champion": "Necrarch the Bonecrowned",
+    "accent": "#6fce8a",
+    "emblem": "☠",
+    "weightTags": ["slaughter", "kills"]
+  },
+  {
+    "id": "forlorn_hope",
+    "name": "The Forlorn Hope",
+    "eyebrow": "A SUICIDE OATH IS SWORN",
+    "threat": "The realm's finest swear a death-oath — they will not flee, and they grow stronger as they fall.",
+    "gimmick": "A martyr squad that never retreats, fights to the death, and empowers the living with each one slain.",
+    "clearCondition": "Break the oath — kill the captain who binds them.",
+    "champion": "Captain Halric, the Last Vow",
+    "accent": "#f0a850",
+    "emblem": "✠",
+    "weightTags": ["slaughter", "martyr"]
+  },
+  {
+    "id": "mage_tower",
+    "name": "The Mage Tower",
+    "eyebrow": "ARCANE ASSAULT BEGINS",
+    "threat": "The archmages bring reality-warping war — your dungeon's very rules unravel.",
+    "gimmick": "Teleports your minions out of position, transmutes rooms, dispels your buffs, summons their own.",
+    "clearCondition": "Kill the archmages before they unmake your dungeon.",
+    "champion": "Archmagus Velloran",
+    "accent": "#8a9cf0",
+    "emblem": "✶",
+    "weightTags": ["pacts", "buffs"]
+  },
+  {
+    "id": "all_stars",
+    "name": "The All-Stars",
+    "eyebrow": "THE CHAMPIONS' LEAGUE ARRIVES",
+    "threat": "A dream-team of legendary heroes assembles — each a champion, all in deadly concert.",
+    "gimmick": "A coordinated elite squad, each hero a mini-boss with a signature ability that synergizes with the rest.",
+    "clearCondition": "Defeat the assembled champions.",
+    "champion": "The Champions' League",
+    "accent": "#ffd76a",
+    "emblem": "★",
+    "weightTags": ["evolved", "treasury"]
+  }
+]
