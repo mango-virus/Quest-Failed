@@ -34,7 +34,7 @@ const BUILT_CHAMPION_RAIDS = new Set([
 const VANGUARD = {
   rival:        { classId: 'monster_invader', name: 'Rival Scout',          monster: true, flags: ['noFlee'] },
   inquisition:  { classId: 'cleric',          name: 'Inquisition Preacher', flags: ['noFlee'] },
-  pantheon:     { classId: 'white_mage',      name: 'Seraph Acolyte' },
+  pantheon:     { classId: 'white_mage',      name: 'Seraph Acolyte', flags: ['pantheonHero'] },
   betrayer:     { classId: 'rogue',           name: 'Infiltrator' },
   forlorn_hope: { classId: 'barbarian',       name: 'Forerunner Martyr',    flags: ['noFlee', 'forlornMartyr'] },
   mage_tower:   { classId: 'mage',            name: 'Tower Apprentice' },

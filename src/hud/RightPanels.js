@@ -157,6 +157,9 @@ const LOG_KINDS = {
 
   // ── Mage Tower arcane disruption (KR P4) — blink / summon. Arcane blue ✶. ─
   mage:        { color: '#8a9cf0',          glyph: '✶' },
+
+  // ── Pantheon divine power (KR P4) — holy aura / resurrection. Radiant gold ☼. ─
+  pantheon:    { color: '#ffe9a8',          glyph: '☼' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -232,7 +235,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage',
+  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon',
 ])
 
 export class RightPanels {
@@ -1120,6 +1123,13 @@ export class RightPanels {
     })
     sub('MAGE_SUMMON', () => {
       this._addLogCoalesced('The archmages summon an arcane construct.', 'mage', 'MAGE_SUMMON', null)
+    })
+    // Pantheon (KR P4) — holy aura sears minions (coalesced) + the seraph's raises.
+    sub('PANTHEON_AURA', ({ seared } = {}) => {
+      if (seared > 0) this._addLogCoalesced('Holy ground sears your minions!', 'pantheon', 'PANTHEON_AURA', null)
+    })
+    sub('PANTHEON_RAISE', () => {
+      this._addLog('The seraph raises a Radiant Guardian from the fallen!', 'pantheon')
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+

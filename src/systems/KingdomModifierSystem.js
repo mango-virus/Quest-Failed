@@ -23,6 +23,12 @@ const MAGE_BLINK_INTERVAL  = 6500
 const MAGE_SUMMON_INTERVAL = 8500
 const MAGE_SUMMON_CAP      = 6     // live arcane constructs at once
 
+// Pantheon — a holy AURA around the angels (heal heroes / sear your minions) +
+// the seraph resurrecting the fallen a limited number of times per raid.
+const PANTHEON_AURA_INTERVAL  = 1500
+const PANTHEON_AURA_RADIUS_PX = 96     // ~3 tiles (TILE=32)
+const PANTHEON_RAISE_CAP      = 4
+
 export class KingdomModifierSystem {
   constructor(scene, gameState) {
     this._scene = scene
@@ -49,11 +55,62 @@ export class KingdomModifierSystem {
 
   // ── per-frame tick (day phase only; wired in Game.update) ───────────────────
   update(_dt) {
-    // Mage Tower — reality-warping magic while its act runs + a wave is present.
-    if (currentActResponseId(this._gs) === 'mage_tower' &&
-        (this._gs.adventurers?.active?.length ?? 0) > 0) {
-      this._tickMageTower()
+    const resp = currentActResponseId(this._gs)
+    const wave = (this._gs.adventurers?.active?.length ?? 0) > 0
+    if (!wave) return
+    // Mage Tower — reality-warping magic while its act runs.
+    if (resp === 'mage_tower') this._tickMageTower()
+    // Pantheon — the angels' holy aura pulses.
+    else if (resp === 'pantheon') this._tickPantheonAura()
+  }
+
+  // Pantheon holy aura — every ~1.5s the angels heal nearby kingdom heroes and
+  // sear nearby player minions (holy ground, as a radius aura). MinionAISystem
+  // handles a seared minion's death once its hp drops to 0.
+  _tickPantheonAura() {
+    const now = this._scene?.time?.now ?? 0
+    if (!now || now - (this._pantheonAuraAt ?? 0) < PANTHEON_AURA_INTERVAL) return
+    this._pantheonAuraAt = now
+    const advs = this._gs.adventurers?.active ?? []
+    const angels = advs.filter(a => a.flags?.pantheonHero && (a.resources?.hp ?? 0) > 0)
+    if (angels.length === 0) return
+    const lv = this._gs.boss?.level ?? 1
+    const heal = 4 + lv * 2
+    const sear = 6 + Math.round(lv * 2.5)
+    const R2 = PANTHEON_AURA_RADIUS_PX * PANTHEON_AURA_RADIUS_PX
+    const near = (a, b) => {
+      const dx = (a.worldX ?? 0) - (b.worldX ?? 0), dy = (a.worldY ?? 0) - (b.worldY ?? 0)
+      return dx * dx + dy * dy <= R2
     }
+    let healed = 0, seared = 0
+    for (const hHero of advs) {
+      if (hHero._monster) continue
+      const r = hHero.resources
+      if (!r || r.hp <= 0 || r.hp >= r.maxHp) continue
+      if (angels.some(an => near(an, hHero))) { r.hp = Math.min(r.maxHp, r.hp + heal); healed++ }
+    }
+    for (const m of (this._gs.minions ?? [])) {
+      if ((m.resources?.hp ?? 0) <= 0) continue
+      if (angels.some(an => near(an, m))) { m.resources.hp -= sear; seared++ }
+    }
+    if (healed || seared) EventBus.emit('PANTHEON_AURA', { healed, seared })
+  }
+
+  // The seraph resurrects the fallen — when a pantheon hero dies, raise a Radiant
+  // Guardian in its place (capped per raid). Reuses DayPhase's retinue spawn.
+  _pantheonRaise(fallen) {
+    const meta = this._gs.meta
+    if (!meta?.act) return
+    meta.act._pantheonRaises ??= PANTHEON_RAISE_CAP
+    if (meta.act._pantheonRaises <= 0) return
+    const dayPhase = this._scene?.scene?.get?.('DayPhase')
+    if (!dayPhase?.scene?.isActive?.() || typeof dayPhase._spawnRetinueSquad !== 'function') return
+    meta.act._pantheonRaises--
+    const allClasses = this._scene.cache?.json?.get?.('adventurerClasses') ?? []
+    dayPhase._spawnRetinueSquad(
+      { classId: 'paladin', count: 1, name: 'Raised Guardian', hpMul: 1.1, flags: ['pantheonHero'] },
+      allClasses, this._gs.boss?.level ?? 1)
+    EventBus.emit('PANTHEON_RAISE', { name: fallen?.name, remaining: meta.act._pantheonRaises })
   }
 
   _tickMageTower() {
@@ -97,6 +154,7 @@ export class KingdomModifierSystem {
   _onAdventurerDied({ adventurer } = {}) {
     if (!adventurer) return
     if (adventurer.flags?.forlornMartyr) this._forlornFury(adventurer)
+    if (adventurer.flags?.pantheonHero) this._pantheonRaise(adventurer)
   }
 
   // Forlorn Hope (escalating fury). A martyr fell — every surviving martyr in the
