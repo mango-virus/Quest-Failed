@@ -90,7 +90,9 @@ export const Leaderboard = {
       days_survived: days,
       total_kills:   kills,
       gold:          Number(tot.gold ?? player.soulEssence ?? 0),
-      dark_power:    Number(player.darkPower ?? 0),
+      // "Dark Power" was a second currency, retired (gold is the only currency
+      // now). The DB column remains, so we keep submitting 0 for schema compat.
+      dark_power:    0,
       end_cause:     String(endCause),
       // Live-run plumbing (2026-05-25). `run_id` is the stable id from
       // gameState.meta.runId — the unique index on the runs table makes

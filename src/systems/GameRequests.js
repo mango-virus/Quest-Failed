@@ -180,7 +180,6 @@ function _buildContext(gameState) {
     totalDaysElapsed:  player.totalDaysElapsed ?? null,
     totalKills:        player.totalKills ?? gs?.run?.totals?.advsKilled ?? null,
     gold:              player.gold ?? null,
-    darkPower:         player.darkPower ?? null,
     unlockedCompanions,
     unlockedAchievements,
     // newhud is the active UI surface (1 in modern DOM HUD, 0 in legacy
