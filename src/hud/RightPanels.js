@@ -140,6 +140,12 @@ const LOG_KINDS = {
 
   // ── Dungeon event announcement ────────────────────────────────
   event:       { color: 'var(--info)',      glyph: '◈' },
+
+  // ── The Nemesis (Aldric) speaks — KR P2. Regal hero-gold + crossed
+  //    blades so his taunts read as dialogue and stand apart from the
+  //    red boss-fight beats. The whole line is tinted (in
+  //    LOG_TEXT_COLOR_KINDS) since it's his voice, not a system note. ─
+  nemesis:     { color: '#ffd24a',          glyph: '⚔' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -215,7 +221,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event',
+  'boss-fight', 'ability', 'event', 'nemesis',
 ])
 
 export class RightPanels {
@@ -1064,6 +1070,16 @@ export class RightPanels {
     // nothing).
     sub('ADVENTURER_FLED', () => {
       this._renderIntel()
+    })
+    // The Nemesis (Aldric, KR P2) taunts you — surface his line as dialogue in
+    // the feed every time he speaks (arrival, withdrawal vow, between-act
+    // threat, the duel's last words). Infrequent (a handful per act), so no
+    // coalescing needed. Gated upstream behind the `acts` flag — NemesisSystem
+    // only exists when acts are on, so this never fires in the default game.
+    sub('NEMESIS_TAUNT', ({ line } = {}) => {
+      if (!line) return
+      const name = this._gameState?.meta?.nemesis?.name ?? 'Aldric'
+      this._addLog(`${name}: "${line}"`, 'nemesis')
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+
