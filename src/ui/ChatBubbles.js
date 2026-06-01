@@ -110,9 +110,9 @@ export class ChatBubbles {
     // Adventurer-goal reaction lines. Each event carries `{ adventurer }`
     // and pulls one random line from the matching `byEvent.<key>` pool.
     for (const key of [
-      'investigateNoiseHeard', 'regroupAtParty', 'avoidTrap',
-      'lootCorpseStart', 'lootCorpseDone', 'rescueAlly',
-      'gloatOverKill', 'warnParty', 'scoutAhead',
+      'avoidTrap',
+      'lootCorpseStart', 'lootCorpseDone',
+      'gloatOverKill', 'warnParty',
       'pickedKey', 'unlockedDoor', 'lockpicked', 'brokeDoor', 'seekKey',
       'seekHeal', 'healed',
       'seekTreasure', 'stoleTreasure', 'escapingWithLoot',

@@ -402,20 +402,6 @@
       "If I die, my map lives on.",
       "This floor plan is remarkably inefficient."
     ],
-    "party_loyal": [
-      "Stay together.",
-      "Is everyone all right?",
-      "No one gets left behind.",
-      "Cover your ally!",
-      "Let me shield them.",
-      "Share the healing potions.",
-      "We go as one.",
-      "Check on each other.",
-      "If one of us falls, we all feel it.",
-      "Rally on me. Keep the formation.",
-      "The party matters more than the glory.",
-      "Not leaving without everyone."
-    ],
     "solo": [
       "I'll go ahead.",
       "Don't follow me.",
@@ -681,42 +667,6 @@
       "I learned a lot in there!",
       "Every retreat is just pre-planning!"
     ],
-    "investigateNoiseHeard": [
-      "Did you hear that?",
-      "Something's making noise.",
-      "Sounded like trouble.",
-      "I'm checking it out.",
-      "That came from over there.",
-      "Hello? Anyone alive?",
-      "Investigating the screams. Standard.",
-      "Find that thing before it finds me.",
-      "If that was a friend, they're probably not anymore.",
-      "Curiosity killed the rogue. Going anyway.",
-      "I shouldn't walk toward the screaming. I am.",
-      "The sound designer earned their paycheck.",
-      "Was that a stinger? That sounded like a horror stinger.",
-      "Audio cue. Going to investigate. This always works out.",
-      "I never saw a horror movie I didn't immediately star in.",
-      "Probably nothing. Going to check anyway."
-    ],
-    "regroupAtParty": [
-      "Wait up!",
-      "Don't leave me!",
-      "Where did everyone go?!",
-      "Hold on, I'm coming!",
-      "Guys? Guys?!",
-      "Splitting the party was a bad idea.",
-      "Single-player roguelike: am I a joke to you?",
-      "Coming! Don't start the boss without me!",
-      "I am NOT dying alone in a side room.",
-      "The party left me behind. Again.",
-      "Leeroy! Wait up, Leeroy!",
-      "If I die out here it's all your fault.",
-      "The player forgot about me. Walking back manually.",
-      "I am a unit. I have aggression. I have purpose.",
-      "Catching up. Try not to die.",
-      "Why am I always the one running to catch up."
-    ],
     "avoidTrap": [
       "Not stepping on that.",
       "I see you, trap.",
@@ -768,24 +718,6 @@
       "I'm keeping this. It clearly knows me now.",
       "Thanks, dead guy.",
       "Inventory: improved. Soul: questionable."
-    ],
-    "rescueAlly": [
-      "Hold on, I'm coming!",
-      "Get away from him!",
-      "Take your hands off my friend.",
-      "Tank inbound!",
-      "I've got aggro!",
-      "Cleric's down? CLERIC'S DOWN!",
-      "Why is it always the cleric.",
-      "Designated rescue dwarf, reporting in.",
-      "If they die we lose the whole comp!",
-      "Switch targets to me, ugly!",
-      "Save the healer. Always save the healer.",
-      "That's MY friend. Pick on someone YOUR size.",
-      "Tank class incoming. Move aside.",
-      "Hold the line! I'm pulling aggro!",
-      "ALWAYS protect the back line.",
-      "Combat priority shifted. They live, you die."
     ],
     "gloatOverKill": [
       "Easy.",
@@ -981,25 +913,6 @@
       "I broke this door. Bill the architect.",
       "BARBARIAN STRENGTH ACTIVATED."
     ],
-    "scoutAhead": [
-      "I'll scout ahead.",
-      "Be right back.",
-      "I'll take a look.",
-      "Going on ahead — keep up.",
-      "Reconnaissance time.",
-      "What could possibly go wrong?",
-      "Splitting the party. The classic mistake.",
-      "Solo run within a group run. Brave.",
-      "If I scream, that's information.",
-      "Send help in approximately 30 seconds.",
-      "Watch for me to come running back screaming.",
-      "Scouting. Don't follow until I shout.",
-      "I am the canary in this coal mine.",
-      "Leaving a trail of breadcrumbs and regret.",
-      "If I don't return, divide my loot fairly.",
-      "Going dark. See you on the other side."
-    ],
-
     "bossRoom": [
       "This is it.",
       "The air is different here.",

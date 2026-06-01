@@ -252,31 +252,6 @@
     "description": "Maps every area systematically. If they escape, their full map is shared with future adventurers — including hidden trap locations."
   },
   {
-    "id": "party_loyal",
-    "name": "Party Loyal",
-    "tags": [
-      "loyal",
-      "team_player",
-      "support"
-    ],
-    "behaviorWeights": {
-      "fleeThreshold": 0.5,
-      "trapCaution": 0.5,
-      "partyCooperation": 0.95,
-      "explorationDrive": 0.4,
-      "aggressionLevel": 0.55,
-      "riskTolerance": 0.4,
-      "healPriority": 0.7
-    },
-    "decisionOverrides": [],
-    "reactions": [],
-    "unlockLevel": 1,
-    "rarity": "common",
-    "icon": "&",
-    "iconColor": "0xc64bff",
-    "description": "Sticks with the party at all costs. Heals allies before self. Will not split off."
-  },
-  {
     "id": "solo",
     "name": "Solo",
     "tags": [
