@@ -20,10 +20,14 @@ function _ensureCss() {
   const style = document.createElement('style')
   style.id = 'qf-actintro-css'
   style.textContent = `
-.qf-actintro { position:absolute; inset:0; z-index:33; pointer-events:none;
+.qf-actintro { position:absolute; inset:0; z-index:48; pointer-events:auto;
   display:flex; align-items:center; justify-content:center;
-  opacity:0; transition:opacity .5s ease; }
+  opacity:0; transition:opacity .35s ease; }
 .qf-actintro.show { opacity:1; }
+.qf-actintro-actions { margin-top:26px; opacity:0;
+  animation:qf-actintro-fade .6s ease .8s forwards; }
+.qf-actintro-actions .btn { font-size:13px; }
+.qf-actintro-hint { margin-top:12px; font-size:9px; letter-spacing:3px; color:#6f6757; }
 .qf-actintro::before { content:''; position:absolute; inset:0;
   background:radial-gradient(circle at 50% 50%, rgba(8,6,16,0) 32%, rgba(4,2,8,.82) 100%); }
 .qf-actintro-card { position:relative; text-align:center;
@@ -58,6 +62,7 @@ export class ActIntro {
   destroy() {
     EventBus.off('ACT_STARTED', this._onActStarted, this)
     this._clearTimers()
+    this._cleanupKey()
     this._root?.remove(); this._root = null
   }
 
@@ -82,13 +87,33 @@ export class ActIntro {
         h('div', { className: 'qf-actintro-title' }, def.name || `Act ${act}`),
         h('div', { className: 'qf-actintro-rule' }),
         def.tagline ? h('div', { className: 'qf-actintro-tag' }, def.tagline) : null,
+        h('div', { className: 'qf-actintro-actions' }, [
+          h('button', { className: 'btn primary', on: { click: () => this._dismiss() } }, 'CONTINUE'),
+          h('div', { className: 'qf-actintro-hint' }, 'PRESS ANY KEY'),
+        ]),
       ]),
     ])
+    this._root.addEventListener('click', (e) => {
+      if (e.target === this._root || e.target.classList?.contains('qf-actintro-card')) this._dismiss()
+    })
     stage.appendChild(this._root)
 
-    // fade in → hold ~4s → fade out → remove
+    // Fade in and HOLD until the player continues (CONTINUE / any key / backdrop).
     this._timers.push(setTimeout(() => this._root?.classList.add('show'), 30))
-    this._timers.push(setTimeout(() => this._root?.classList.remove('show'), 4200))
-    this._timers.push(setTimeout(() => { this._root?.remove(); this._root = null }, 4900))
+    this._keyFn = (e) => { e.preventDefault(); e.stopPropagation(); this._dismiss() }
+    window.addEventListener('keydown', this._keyFn, { capture: true, once: true })
+  }
+
+  _dismiss() {
+    if (!this._root) return
+    this._clearTimers()
+    this._cleanupKey()
+    this._root.classList.remove('show')
+    const el = this._root; this._root = null
+    setTimeout(() => el?.remove(), 350)
+  }
+
+  _cleanupKey() {
+    if (this._keyFn) { window.removeEventListener('keydown', this._keyFn, { capture: true }); this._keyFn = null }
   }
 }

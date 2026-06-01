@@ -1581,8 +1581,8 @@ body {
 }
 .qf-topbar-act.on { display: block; }
 .qf-topbar-act-eyebrow {
-  font-family: 'VT323', monospace; font-size: 17px; letter-spacing: 0.5px;
-  line-height: 1; color: #d8ccb2; white-space: nowrap; cursor: help;
+  font-family: 'VT323', monospace; font-size: 20px; letter-spacing: 0.5px;
+  line-height: 1; color: #e2d6bc; white-space: nowrap; cursor: help;
   overflow: hidden; text-overflow: ellipsis;
   text-shadow: 0 1px 0 #000;
 }
