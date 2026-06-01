@@ -47,6 +47,7 @@ import { ActIntro }             from './ActIntro.js'
 import { NemesisPortrait }      from './NemesisPortrait.js'
 import { VictoryScreen }        from './VictoryScreen.js'
 import { KingdomResponseIntro } from './KingdomResponseIntro.js'
+import { AscensionCinematic }   from './AscensionCinematic.js'
 import { isActsEnabled }        from '../config/acts.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
@@ -172,6 +173,10 @@ export class HudRoot {
     // each drafted act (II & III) on KINGDOM_RESPONSE_DRAWN. Self-mounts into
     // #hud-stage; gated behind the `acts` flag.
     this._kingdomResponseIntro = isActsEnabled() ? new KingdomResponseIntro(this._gameState) : null
+    // "DARK ASCENSION" hero moment (KR P6) — the boss's evolved form reveal +
+    // power-surge readout on BOSS_ASCENSION, slammed in AFTER the act's opening
+    // reveal is dismissed. Self-mounts into #hud-stage; gated behind `acts`.
+    this._ascensionCinematic = isActsEnabled() ? new AscensionCinematic(this._gameState) : null
     // (The persistent act/modifier indicator now lives in the TopBar — an
     //  eyebrow above the day stamp — so it never overlaps the play area.)
     // Mango-only dev affordance — small floating button that force-fires
@@ -374,6 +379,7 @@ export class HudRoot {
     this._nemesisPortrait?.destroy(); this._nemesisPortrait = null
     this._victoryScreen?.destroy();   this._victoryScreen = null
     this._kingdomResponseIntro?.destroy(); this._kingdomResponseIntro = null
+    this._ascensionCinematic?.destroy(); this._ascensionCinematic = null
     this._coinFlip?.destroy();       this._coinFlip = null
     this._soloLeveling?.destroy();   this._soloLeveling = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null

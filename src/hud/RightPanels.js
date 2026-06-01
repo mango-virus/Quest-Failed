@@ -163,6 +163,10 @@ const LOG_KINDS = {
 
   // ── Inquisition (KR P4) — undead purge / pact suppression. Zealot parchment. ─
   inquisition: { color: '#e0d8c0',          glyph: '⚖' },
+
+  // ── Boss Ascension (KR P6) — the boss evolves + surges each act. Dark-power
+  //    violet ✦, matching the dark-ascension cinematic. ─
+  ascension:   { color: '#c98bff',          glyph: '✦' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -238,7 +242,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon', 'inquisition',
+  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon', 'inquisition', 'ascension',
 ])
 
 export class RightPanels {
@@ -1137,6 +1141,14 @@ export class RightPanels {
     // Inquisition (KR P4) — your undead minions are purged by holy law (coalesced).
     sub('INQUISITION_PURGE', () => {
       this._addLogCoalesced('The Inquisition purges your undead!', 'inquisition', 'INQUISITION_PURGE', null)
+    })
+    // Boss Ascension (KR P6) — the act-boundary evolution + power surge, and the
+    // dark chamber aura searing invaders (coalesced; it pulses every ~1.2s).
+    sub('BOSS_ASCENSION', ({ after = {} } = {}) => {
+      this._addLog(`Your boss ASCENDS — its dark power surges (HP ${after.hp ?? '?'}, ATK ${after.attack ?? '?'}).`, 'ascension')
+    })
+    sub('BOSS_ASCENSION_AURA', () => {
+      this._addLogCoalesced('The ascended dungeon sears the invaders.', 'ascension', 'BOSS_ASCENSION_AURA', null)
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+

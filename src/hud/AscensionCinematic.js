@@ -1,0 +1,272 @@
+// AscensionCinematic — KR P6 "dark ascension" hero moment.
+//
+// When the act advances, KingdomModifierSystem fires BOSS_ASCENSION with the
+// boss's before/after stats and the form it grew out of → into. This slams a
+// dramatic full-screen reveal: the boss's new evolved form, glowing, with the
+// power-surge readout and an archetype-flavoured line.
+//
+// SEQUENCING: the act opens with the Kingdom Response reveal (drafted acts) or
+// the Act card (fixed acts). The ascension is the player's answer to that, so it
+// WAITS for that reveal to be dismissed before slamming in — giving the beat
+// "the kingdom responds … and your boss ascends in defiance." A DOM/timer
+// fallback covers the rare case neither reveal fires.
+//
+// VISUAL-STANDARDS: holds until the player dismisses it (CONTINUE / any key /
+// backdrop), mirrors the KingdomResponseIntro set-piece, and uses NO infinite
+// CSS animations (those hang preview_screenshot — see VISUAL_STANDARDS §4). The
+// "alive" feel comes from the JS-driven animated boss canvas + a finite entrance.
+
+import { h } from './dom.js'
+import { EventBus } from '../systems/EventBus.js'
+import { animatedBossSprite } from './inGameSnapshot.js'
+
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI']
+
+// Per-archetype dark-ascension flavour. Title is "<NAME> ASCENDS" (name pulled
+// from bossArchetypes.json at runtime); the line is the one-breath flavour.
+const ASCEND_LINE = {
+  lich:      'The phylactery blackens. Death bows deeper.',
+  demon:     'Hellfire floods its veins.',
+  gnoll:     'The pack-beast swells with stolen ferocity.',
+  golem:     'Ancient stone drinks the realm to ruin.',
+  beholder:  'A thousand eyes open onto darker sight.',
+  lizardman: 'Primordial blood boils anew.',
+  myconid:   'The bloom spreads through the kingdom’s corpse.',
+  orc:       'A war-spirit gorged on a fallen realm.',
+  slime:     'It engulfs the kingdom’s power whole.',
+  vampire:   'The bloodline drinks a kingdom dry.',
+  wraith:    'The shroud thickens with the vengeful dead.',
+  succubus:  'Beauty sharpens into something far crueler.',
+}
+const ASCEND_LINE_FALLBACK = 'It absorbs the fallen kingdom’s power.'
+
+// Resolve a boss FORM tier (1..4) to its texture-key base, mirroring
+// BossRenderer: lesser forms live at `${id}-t${n}`, the canonical/top form at
+// the bare `${id}`. Falls back toward canonical when a tier sheet is absent.
+function _formKey(id, tier) {
+  const tex = window.__game?.textures
+  if (!id || !tex) return id
+  let maxLesser = 0
+  for (let n = 1; n <= 3; n++) if (tex.exists(`${id}-t${n}-idle`)) maxLesser = n
+  const canonical = maxLesser + 1
+  if (tier >= canonical) return id
+  for (let n = tier; n >= 1; n--) if (tex.exists(`${id}-t${n}-idle`)) return `${id}-t${n}`
+  return id
+}
+
+function _archName(id) {
+  const arr = window.__game?.cache?.json?.get?.('bossArchetypes')
+  const def = Array.isArray(arr) ? arr.find(a => a.id === id) : null
+  return (def?.name || id || 'THE BOSS').toString()
+}
+
+function _ensureCss() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('qf-asc-css')) return
+  const style = document.createElement('style')
+  style.id = 'qf-asc-css'
+  style.textContent = `
+.qf-asc { position:absolute; inset:0; z-index:49; pointer-events:auto;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .4s ease; }
+.qf-asc.show { opacity:1; }
+.qf-asc-bg { position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(78,28,120,.42) 0%, rgba(20,8,34,.92) 46%, rgba(4,2,9,.98) 100%); }
+/* unique dark-ascension fx: rising violet shafts behind the card */
+.qf-asc-bg::after { content:''; position:absolute; inset:0; opacity:.5;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 58%,
+      rgba(176,120,255,.10) 0deg, rgba(176,120,255,0) 7deg, rgba(176,120,255,0) 16deg);
+  -webkit-mask-image:radial-gradient(circle at 50% 50%, #000 18%, transparent 64%);
+          mask-image:radial-gradient(circle at 50% 50%, #000 18%, transparent 64%);
+  animation:qf-asc-rise 1.4s ease-out both; }
+@keyframes qf-asc-rise { from{opacity:0; transform:scale(.6) rotate(-4deg)}
+  to{opacity:.5; transform:scale(1) rotate(0)} }
+.qf-asc-card { position:relative; text-align:center; max-width:640px; padding:18px 30px;
+  font-family:'Press Start 2P','Courier New',monospace; }
+.qf-asc-eyebrow { font-size:clamp(9px,1.1vw,12px); letter-spacing:6px; color:#c98bff;
+  text-shadow:0 0 12px rgba(201,139,255,.6); margin-bottom:18px;
+  opacity:0; animation:qf-asc-fade .5s ease .1s forwards; }
+.qf-asc-stage { position:relative; height:264px; display:flex; align-items:center; justify-content:center; }
+.qf-asc-ring { position:absolute; left:50%; top:50%; width:230px; height:230px; margin:-115px 0 0 -115px;
+  border-radius:50%; border:2px solid rgba(201,139,255,.55);
+  box-shadow:0 0 36px rgba(140,70,230,.55), inset 0 0 36px rgba(140,70,230,.35); }
+.qf-asc-ring.s1 { animation:qf-asc-shock 1.1s cubic-bezier(.2,.7,.3,1) .15s both; }
+.qf-asc-ring.s2 { animation:qf-asc-shock 1.1s cubic-bezier(.2,.7,.3,1) .42s both; }
+@keyframes qf-asc-shock { 0%{opacity:0; transform:scale(.35)} 35%{opacity:.85} 100%{opacity:0; transform:scale(1.7)} }
+.qf-asc-halo { position:absolute; left:50%; top:50%; width:200px; height:200px; margin:-104px 0 0 -100px;
+  border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle, rgba(150,86,240,.42) 0%, rgba(90,40,160,.16) 46%, transparent 70%); }
+.qf-asc-new { position:relative; filter:drop-shadow(0 0 18px rgba(170,110,255,.75)) drop-shadow(0 6px 10px rgba(0,0,0,.6));
+  animation:qf-asc-pop .7s cubic-bezier(.16,.9,.24,1) .35s both; }
+@keyframes qf-asc-pop { 0%{opacity:0; transform:scale(.55) translateY(8px); filter:brightness(2.4) blur(3px)}
+  55%{opacity:1; transform:scale(1.06)} 100%{opacity:1; transform:scale(1); filter:brightness(1) blur(0)} }
+.qf-asc-prev { position:absolute; right:6px; bottom:2px; text-align:center;
+  opacity:0; animation:qf-asc-fade .5s ease .9s forwards; }
+.qf-asc-prev canvas { filter:grayscale(.55) brightness(.62); opacity:.82; }
+.qf-asc-prev-label { font-size:7px; letter-spacing:2px; color:#7a6f88; margin-top:2px; }
+.qf-asc-title { font-size:clamp(20px,3vw,38px); letter-spacing:2px; color:#f3e9ff; margin-top:6px;
+  text-shadow:0 0 24px rgba(176,120,255,.6), 0 3px 0 #1a0e2a;
+  opacity:0; animation:qf-asc-pop2 .6s cubic-bezier(.18,.9,.25,1) .5s both; }
+@keyframes qf-asc-pop2 { 0%{opacity:0; transform:scale(.8); filter:blur(4px)}
+  100%{opacity:1; transform:scale(1); filter:blur(0)} }
+.qf-asc-line { font-family:'VT323',monospace; font-size:clamp(14px,1.6vw,19px); color:#b9a7d4;
+  letter-spacing:.5px; margin:12px auto 0; max-width:520px; line-height:1.4;
+  opacity:0; animation:qf-asc-fade .6s ease .7s forwards; }
+.qf-asc-stats { display:inline-flex; gap:18px; margin-top:18px; padding:9px 16px;
+  border:1px solid rgba(201,139,255,.32); border-radius:8px; background:rgba(40,20,70,.42);
+  opacity:0; animation:qf-asc-fade .6s ease .9s forwards; }
+.qf-asc-stat { font-family:'VT323',monospace; font-size:15px; color:#cfc2e6; letter-spacing:.5px; }
+.qf-asc-stat b { color:#fff; }
+.qf-asc-stat .up { color:#7ef0a8; }
+.qf-asc-stat .lbl { color:#9a8fb4; font-size:11px; letter-spacing:2px; margin-right:6px;
+  font-family:'Press Start 2P',monospace; }
+.qf-asc-actions { margin-top:24px; opacity:0; animation:qf-asc-fade .6s ease 1.1s forwards; }
+.qf-asc-actions .btn { font-size:13px; }
+.qf-asc-hint { margin-top:11px; font-size:9px; letter-spacing:3px; color:#6a5f80; }
+@keyframes qf-asc-fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }`
+  document.head.appendChild(style)
+}
+
+export class AscensionCinematic {
+  constructor(gameState) {
+    this._gs = gameState
+    this._root = null
+    this._stopFns = []
+    this._timers = []
+    this._pending = null
+    _ensureCss()
+    EventBus.on('BOSS_ASCENSION', this._onAscension, this)
+  }
+
+  destroy() {
+    EventBus.off('BOSS_ASCENSION', this._onAscension, this)
+    this._clearWaiters()
+    this._teardown()
+  }
+
+  _onAscension(payload = {}) {
+    if (!payload || !payload.archetype) return
+    // Don't stack on an in-flight ascension reveal.
+    if (this._root || this._pending) return
+    this._pending = payload
+
+    // Wait for the act's opening reveal (Kingdom Response / Act card) to clear,
+    // then slam in. Guard each path through _begin (once).
+    const begin = () => this._begin()
+    this._onRespDismissed = begin
+    this._onActDismissed  = begin
+    EventBus.on('KINGDOM_RESPONSE_INTRO_DISMISSED', this._onRespDismissed, this)
+    EventBus.on('ACT_INTRO_DISMISSED', this._onActDismissed, this)
+
+    // Fallback: if no reveal is on screen after a beat, show anyway. If one IS
+    // up (player still reading), reschedule so we never stack over it.
+    const tick = () => {
+      if (!this._pending) return
+      const revealUp = document.querySelector('.qf-kri, .qf-actintro')
+      if (revealUp) { this._timers.push(setTimeout(tick, 1500)); return }
+      this._begin()
+    }
+    this._timers.push(setTimeout(tick, 6000))
+  }
+
+  _clearWaiters() {
+    if (this._onRespDismissed) EventBus.off('KINGDOM_RESPONSE_INTRO_DISMISSED', this._onRespDismissed, this)
+    if (this._onActDismissed)  EventBus.off('ACT_INTRO_DISMISSED', this._onActDismissed, this)
+    this._onRespDismissed = this._onActDismissed = null
+    for (const t of this._timers) clearTimeout(t)
+    this._timers = []
+  }
+
+  _begin() {
+    const payload = this._pending
+    if (!payload) return
+    this._pending = null
+    this._clearWaiters()
+    // Tiny settle so the dismissed reveal's fade-out finishes first.
+    this._timers.push(setTimeout(() => this._show(payload), 160))
+  }
+
+  _show(payload) {
+    const stage = document.getElementById('hud-stage')
+    if (!stage) return
+    const { act, fromForm, toForm, archetype, before = {}, after = {} } = payload
+    const newKey  = _formKey(archetype, toForm ?? act)
+    const prevKey = _formKey(archetype, fromForm ?? Math.max(1, (act ?? 2) - 1))
+
+    const newSprite  = animatedBossSprite(newKey, 220)
+    const prevSprite = (prevKey !== newKey) ? animatedBossSprite(prevKey, 78) : null
+    if (newSprite?.stop)  this._stopFns.push(newSprite.stop)
+    if (prevSprite?.stop) this._stopFns.push(prevSprite.stop)
+
+    const name = _archName(archetype).toUpperCase()
+    const line = ASCEND_LINE[archetype] || ASCEND_LINE_FALLBACK
+
+    this._root = h('div', { className: 'qf-asc' }, [
+      h('div', { className: 'qf-asc-bg' }),
+      h('div', { className: 'qf-asc-card' }, [
+        h('div', { className: 'qf-asc-eyebrow' }, `DARK ASCENSION · ACT ${ROMAN[act] || act}`),
+        h('div', { className: 'qf-asc-stage' }, [
+          h('div', { className: 'qf-asc-halo' }),
+          h('div', { className: 'qf-asc-ring s1' }),
+          h('div', { className: 'qf-asc-ring s2' }),
+          newSprite ? h('div', { className: 'qf-asc-new' }, [newSprite.el]) : null,
+          prevSprite ? h('div', { className: 'qf-asc-prev' }, [
+            prevSprite.el,
+            h('div', { className: 'qf-asc-prev-label' }, 'FORMER SHELL'),
+          ]) : null,
+        ]),
+        h('div', { className: 'qf-asc-title' }, `${name} ASCENDS`),
+        h('div', { className: 'qf-asc-line' }, line),
+        this._statsRow(before, after),
+        h('div', { className: 'qf-asc-actions' }, [
+          h('button', { className: 'btn primary', on: { click: () => this._dismiss() } }, 'CONTINUE'),
+          h('div', { className: 'qf-asc-hint' }, 'PRESS ANY KEY'),
+        ]),
+      ]),
+    ])
+
+    this._root.addEventListener('click', (e) => {
+      if (e.target === this._root || e.target.classList?.contains('qf-asc-bg')) this._dismiss()
+    })
+    stage.appendChild(this._root)
+    this._timers.push(setTimeout(() => this._root?.classList.add('show'), 30))
+    this._keyFn = (e) => { e.preventDefault(); e.stopPropagation(); this._dismiss() }
+    window.addEventListener('keydown', this._keyFn, { capture: true, once: true })
+  }
+
+  _statsRow(before, after) {
+    const pct = (b, a) => (b > 0 ? Math.round((a / b - 1) * 100) : 0)
+    const cell = (label, b, a) => {
+      const up = pct(b, a)
+      return h('div', { className: 'qf-asc-stat' }, [
+        h('span', { className: 'lbl' }, label),
+        h('b', {}, String(b ?? 0)),
+        ' → ',
+        h('b', {}, String(a ?? 0)),
+        up > 0 ? h('span', { className: 'up' }, `  +${up}%`) : null,
+      ])
+    }
+    return h('div', { className: 'qf-asc-stats' }, [
+      cell('MAX HP', before.hp ?? 0, after.hp ?? 0),
+      cell('ATTACK', before.attack ?? 0, after.attack ?? 0),
+    ])
+  }
+
+  _dismiss() {
+    if (!this._root) return
+    if (this._keyFn) { window.removeEventListener('keydown', this._keyFn, { capture: true }); this._keyFn = null }
+    EventBus.emit('BOSS_ASCENSION_DISMISSED')
+    this._root.classList.remove('show')
+    const el = this._root; this._root = null
+    this._timers.push(setTimeout(() => { el?.remove(); this._teardown() }, 400))
+  }
+
+  _teardown() {
+    for (const s of this._stopFns) { try { s() } catch {} }
+    this._stopFns = []
+    if (this._keyFn) { window.removeEventListener('keydown', this._keyFn, { capture: true }); this._keyFn = null }
+    this._root?.remove(); this._root = null
+  }
+}

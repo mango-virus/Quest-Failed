@@ -11,6 +11,7 @@
 
 import { EventBus } from './EventBus.js'
 import { currentActResponseId } from '../config/acts.js'
+import { Balance } from '../config/balance.js'
 
 // Forlorn Hope — each fallen martyr stokes the survivors' fury. Per-death
 // multipliers (compounding); a ~6-strong squad tops out around ×1.9 atk / ×1.5
@@ -44,10 +45,16 @@ export class KingdomModifierSystem {
     this._scene = scene
     this._gs = gameState
     EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
+    // Boss Ascension (KR P6) — when the act advances, the boss absorbs the
+    // fallen kingdom's power and surges. We host the trigger here (already the
+    // acts-gated modifier system with scene access to BossSystem); the sprite
+    // swap is owned by BossRenderer, the cinematic by AscensionCinematic.
+    EventBus.on('ACT_STARTED', this._onActStarted, this)
   }
 
   destroy() {
     EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
+    EventBus.off('ACT_STARTED', this._onActStarted, this)
   }
 
   // Which Kingdom Response is governing the current act (or null). Act-wide
@@ -63,11 +70,64 @@ export class KingdomModifierSystem {
     return this.activeResponseId() === id
   }
 
+  // ── Boss Ascension trigger ──────────────────────────────────────────────────
+  // The act just advanced (atRunStart === false). The boss ascends: its stat
+  // surge is already baked into _recomputeBossFightStats (it derives the tier
+  // from meta.act.current), so we force one recompute to apply it immediately,
+  // capture the before/after for the cinematic readout, and emit BOSS_ASCENSION
+  // for the renderer's sprite swap + the AscensionCinematic hero moment.
+  _onActStarted({ act, atRunStart } = {}) {
+    if (atRunStart || (act ?? 1) <= 1) return
+    const boss = this._gs.boss
+    const before = { hp: boss?.maxHp ?? 0, attack: boss?.attack ?? 0 }
+    this._scene?.bossSystem?._recomputeBossFightStats?.()
+    const after = { hp: boss?.maxHp ?? 0, attack: boss?.attack ?? 0 }
+    EventBus.emit('BOSS_ASCENSION', {
+      act,
+      fromForm:  Math.max(1, act - 1),   // sprite tier it grew out of
+      toForm:    act,                    // sprite tier it grew into
+      archetype: this._gs.player?.bossArchetypeId ?? null,
+      before, after,
+    })
+  }
+
+  // Dark-ascension chamber aura — once the boss has ascended (act II+), it
+  // radiates the absorbed power: adventurers caught near it in the chamber are
+  // seared each pulse, the damage scaling with the ascension tier + boss level.
+  // Modelled on _tickPantheonAura but targeting the invaders around the boss.
+  _tickAscensionAura() {
+    const tier = Math.max(0, (this._gs.meta?.act?.current ?? 1) - 1)
+    if (tier <= 0) return
+    const now = this._scene?.time?.now ?? 0
+    const interval = Balance.BOSS_ASCENSION_AURA_INTERVAL ?? 1200
+    if (!now || now - (this._ascAuraAt ?? 0) < interval) return
+    this._ascAuraAt = now
+    const boss = this._gs.boss
+    if (!boss || (boss.hp ?? 0) <= 0) return
+    const lv  = boss.level ?? 1
+    const dmg = Math.max(1, Math.round(
+      ((Balance.BOSS_ASCENSION_AURA_BASE ?? 5) + lv * (Balance.BOSS_ASCENSION_AURA_PER_LEVEL ?? 1.5)) * tier))
+    const R   = Balance.BOSS_ASCENSION_AURA_RADIUS_PX ?? 132
+    const R2  = R * R
+    let seared = 0
+    for (const a of (this._gs.adventurers?.active ?? [])) {
+      if (a._monster && a._arcaneConstruct) continue   // don't sear your own summons
+      if ((a.resources?.hp ?? 0) <= 0) continue
+      const dx = (a.worldX ?? 0) - (boss.worldX ?? 0)
+      const dy = (a.worldY ?? 0) - (boss.worldY ?? 0)
+      if (dx * dx + dy * dy <= R2) { a.resources.hp = Math.max(0, a.resources.hp - dmg); seared++ }
+    }
+    if (seared) EventBus.emit('BOSS_ASCENSION_AURA', { seared, tier, dmg })
+  }
+
   // ── per-frame tick (day phase only; wired in Game.update) ───────────────────
   update(_dt) {
     const resp = currentActResponseId(this._gs)
     const wave = (this._gs.adventurers?.active?.length ?? 0) > 0
     if (!wave) return
+    // Boss ascension dark aura — present in every ascended act (II+), regardless
+    // of which Kingdom Response governs it. The dungeon radiates absorbed power.
+    this._tickAscensionAura()
     // Mage Tower — reality-warping magic while its act runs.
     if (resp === 'mage_tower') this._tickMageTower()
     // Pantheon — the angels' holy aura pulses.

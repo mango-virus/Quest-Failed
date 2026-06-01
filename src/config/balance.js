@@ -86,6 +86,18 @@ export const Balance = {
   BOSS_ATK_PER_LEVEL_MUL:    1.10,   // was 1.18
   BOSS_DEF_PER_LEVEL_MUL:    1.10,   // was 1.18
 
+  // Boss Ascension (KR P6) — compounding surge per act in the Kingdom's
+  // Reckoning campaign. Tier = act-1, so Act II ×1.28 HP, Act III ×1.64,
+  // Act IV ×2.10 (atk: ×1.20 / ×1.44 / ×1.73). Acts-off games never apply it.
+  BOSS_ASCENSION_HP_MUL:     1.28,
+  BOSS_ASCENSION_ATK_MUL:    1.20,
+  // Dark-ascension chamber aura — escalating sear on adventurers near the
+  // ascended boss. Per-second damage = (base + lv×perLv) × tier, every tick.
+  BOSS_ASCENSION_AURA_RADIUS_PX: 132,   // ~4 tiles around the boss
+  BOSS_ASCENSION_AURA_INTERVAL:  1200,  // ms between sear pulses
+  BOSS_ASCENSION_AURA_BASE:      5,
+  BOSS_ASCENSION_AURA_PER_LEVEL: 1.5,
+
   // Percentage-based defense for damage TO the boss.
   // Old formula: dmgToBoss = max(1, atkPool − boss.defense)
   // New formula: dmgToBoss = max(1, atkPool × (1 − boss.defense / (boss.defense + K)))

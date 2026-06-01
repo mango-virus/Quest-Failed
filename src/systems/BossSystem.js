@@ -2246,6 +2246,16 @@ export class BossSystem {
     // applyMinionScaling's altar-minion-buff hook.
     const altarBuff = this._gameState?.player?._altarBossStatBuff ?? 0
     const altarMul  = 1 + altarBuff
+    // Boss Ascension (KR P6 "dark ascension") — each act the boss absorbs the
+    // fallen kingdom's power and surges. Tier = acts beyond the first (Act II→1,
+    // III→2, IV→3), derived from meta.act.current so it survives save/load with
+    // no separate counter and is a clean no-op when acts are off (meta.act
+    // undefined → tier 0 → ×1). Compounding HP + attack, applied in the same
+    // multiplicative chain as the altar buff so it persists across every
+    // level-up rescale and fight refresh.
+    const ascTier   = Math.max(0, (this._gameState?.meta?.act?.current ?? 1) - 1)
+    const ascHpMul  = Math.pow(Balance.BOSS_ASCENSION_HP_MUL  ?? 1.28, ascTier)
+    const ascAtkMul = Math.pow(Balance.BOSS_ASCENSION_ATK_MUL ?? 1.20, ascTier)
     // Pact stat modifiers (per-stat multipliers from flags):
     //   DAMNED curses — Hollow Crown halves max HP; Bleeding Crown sheds 2%/day.
     //   LEGENDARY boons — Colossus (HP x2, atk x0.5), Apex Tyrant (HP x2, atk
@@ -2259,8 +2269,8 @@ export class BossSystem {
     if (f.colossusHeart) { hpMulP *= (Balance.MECHANIC_COLOSSUS_HP_MULT ?? 2); atkMulP *= (Balance.MECHANIC_COLOSSUS_ATK_MULT ?? 0.5) }
     if (f.apexTyrant)    { hpMulP *= (Balance.MECHANIC_APEX_HP_MULT ?? 2); atkMulP *= (Balance.MECHANIC_APEX_ATK_MULT ?? 1.5); defMulP *= (Balance.MECHANIC_APEX_DEF_MULT ?? 1.5) }
     if (f.avatarOfRuin)  { hpMulP *= (Balance.MECHANIC_AVATAR_HP_MULT ?? 0.5) }
-    boss.maxHp   = Math.max(1, Math.round(lvlHp  * mulHp  * altarMul * hpMulP))
-    boss.attack  = Math.max(1, Math.round(lvlAtk * mulAtk * altarMul * atkMulP))
+    boss.maxHp   = Math.max(1, Math.round(lvlHp  * mulHp  * altarMul * ascHpMul  * hpMulP))
+    boss.attack  = Math.max(1, Math.round(lvlAtk * mulAtk * altarMul * ascAtkMul * atkMulP))
     boss.defense = Math.max(0, Math.round(lvlDef * mulDef * altarMul * defMulP))
     // Preserve HP fraction across the rescale. The downstream
     // refill-if-zero block in _onIncoming handles the post-respawn case.
