@@ -146,6 +146,10 @@ const LOG_KINDS = {
   //    red boss-fight beats. The whole line is tinted (in
   //    LOG_TEXT_COLOR_KINDS) since it's his voice, not a system note. ─
   nemesis:     { color: '#ffd24a',          glyph: '⚔' },
+
+  // ── Kingdom Response Champion raid (KR P4) — a drafted act's elite assault.
+  //    Fiery raid-banner amber so it reads as a distinct, alarming set-piece. ─
+  champion:    { color: '#ff8a3c',          glyph: '⚑' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -221,7 +225,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event', 'nemesis',
+  'boss-fight', 'ability', 'event', 'nemesis', 'champion',
 ])
 
 export class RightPanels {
@@ -1080,6 +1084,13 @@ export class RightPanels {
       if (!line) return
       const name = this._gameState?.meta?.nemesis?.name ?? 'Aldric'
       this._addLog(`${name}: "${line}"`, 'nemesis')
+    })
+    // Kingdom Response Champion raid (KR P4) — the drafted act's elite assault
+    // lands. One alarming headline row naming the champion + the response.
+    sub('CHAMPION_RAID_INCOMING', ({ response, champion } = {}) => {
+      const who  = champion || response?.champion || 'A champion'
+      const what = response?.name || 'The Kingdom'
+      this._addLog(`${who} leads the assault — ${what}!`, 'champion')
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+

@@ -1,7 +1,7 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
 import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
-import { isActsEnabled, actForDay, isActFinalDay } from '../config/acts.js'
+import { isActsEnabled, actForDay, isActFinalDay, actDefForDay } from '../config/acts.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
@@ -15,6 +15,12 @@ import { pickWeightedClass } from '../util/classSpawn.js'
 
 const TOP_H    = 48
 const BOTTOM_H = 56
+
+// Kingdom Response ids whose Champion-raid gimmick is BUILT (KR P4). The
+// drafted-act final-day dispatch only fires a champion raid for these; the rest
+// still draft + announce but don't yet replace the wave. Grows as each
+// response's gimmick lands.
+const BUILT_CHAMPION_RAIDS = new Set(['reckoning_dead'])
 
 export class DayPhase extends Phaser.Scene {
   constructor() {
@@ -645,6 +651,17 @@ export class DayPhase extends Phaser.Scene {
         _n._lastAppearedAct = _act
         if (_act === 4) return this._spawnNemesis(true)   // solo duel — no normal wave
         this._spawnNemesis(false)   // acts I–III: additive, pushes into active
+      }
+
+      // Kingdom Response — Champion raid (KR P4). On a drafted act's (II/III)
+      // final day the response's champion + themed retinue REPLACE the normal
+      // wave (Aldric still scouted additively above). Only fires for responses
+      // whose gimmick is built — v1: The Reckoning of the Dead.
+      if (actDefForDay(_day)?.kind === 'drafted' && isActFinalDay(_day)) {
+        const _resp = game?.kingdomResponseSystem?.currentResponse?.()
+        if (_resp && BUILT_CHAMPION_RAIDS.has(_resp.id)) {
+          return this._spawnChampionRaid(_resp)
+        }
       }
     }
 
@@ -1568,6 +1585,99 @@ export class DayPhase extends Phaser.Scene {
     if (line) EventBus.emit('NEMESIS_TAUNT', { line, act: cfg.act, source: 'arrive', adventurer: adv })
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
     return [adv]
+  }
+
+  // Kingdom Response — Champion raid (KR P4). On a drafted act's final day the
+  // response's signature champion (+ themed retinue) REPLACES the normal wave: a
+  // pre-announced elite assault that is the act's climax. v1 fully realizes The
+  // Reckoning of the Dead — Necrarch leads an undead tide of your own slain
+  // victims, risen, scaled to the run's kill-count. Returns the spawned list.
+  // KR P3 will gate act-clear on defeating the champion; for now it's the hard
+  // climax under the existing survival rule.
+  _spawnChampionRaid(response) {
+    const game = this.scene.get('Game')
+    const aiSystem = game?.aiSystem
+    if (!aiSystem || !response) return []
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const dungeonLv = this._gameState.boss?.level ?? 1
+    const spawned = []
+
+    // The champion — an imposing named mini-boss (legendary chrome, killable,
+    // never flees, marches on the throne). Chassis chosen per response.
+    const CHASSIS = { reckoning_dead: 'necromancer' }
+    const champDef = allClasses.find(c => c.id === (CHASSIS[response.id] || 'rival_boss_invader'))
+      || allClasses[0]
+    if (champDef) {
+      const cSpawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+      if (cSpawn) {
+        const champ = createAdventurer(champDef, { x: cSpawn.x, y: cSpawn.y })
+        champ.name             = response.champion || 'The Champion'
+        champ._kingdomChampion = true
+        champ._championResponseId = response.id
+        champ.isLegendary      = true
+        champ.partyId          = null
+        champ.visitedRooms     = []
+        champ.flags            = { ...(champ.flags ?? {}), noFlee: true }
+        this._scaleAdventurerByBossLevel(champ, dungeonLv)
+        const chp = Math.round((champ.resources?.maxHp ?? 120) * 3.5)
+        champ.resources.maxHp = chp; champ.resources.hp = chp
+        champ.stats.attack    = Math.round((champ.stats?.attack ?? 14) * 1.7)
+        this._gameState.adventurers.active.push(champ)
+        aiSystem.pickInitialGoal(champ)
+        champ.goal = { type: 'SEEK_BOSS' }
+        spawned.push(champ)
+        EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: champ })
+      }
+    }
+
+    // Themed retinue — v1 realizes Reckoning's undead tide; other responses
+    // bring their champion alone until their gimmick lands.
+    if (response.id === 'reckoning_dead') {
+      spawned.push(...this._spawnUndeadTide(allClasses, dungeonLv))
+    }
+
+    EventBus.emit('CHAMPION_RAID_INCOMING', {
+      response, champion: response.champion, count: spawned.length,
+      act: this._gameState.meta?.act?.current,
+    })
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
+  }
+
+  // The Reckoning of the Dead — the run's slain, risen. Tide size scales with
+  // run.totals.kills (your victims return), floored at a credible swarm and
+  // capped so a slaughter-heavy run can't spawn hundreds. Reuses the
+  // zombie-shambler mechanics: slow, weak, relentless, never flee.
+  _spawnUndeadTide(allClasses, dungeonLv) {
+    const game = this.scene.get('Game')
+    const aiSystem = game?.aiSystem
+    const chassis = allClasses.find(c => c.id === 'monster_invader') ?? allClasses[0]
+    if (!aiSystem || !chassis) return []
+    const kills = this._gameState.run?.totals?.kills ?? 0
+    const tide  = Math.max(8, Math.min(48, Math.round(kills * 0.25)))
+    const SHEETS = ['minion-zombie1', 'minion-zombie2', 'minion-zombie3']
+    const partyId = `reckoning_tide_${this._gameState.meta?.dayNumber ?? 0}`
+    const risen = []
+    for (let i = 0; i < tide; i++) {
+      const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+      if (!spawn) break
+      const z = createAdventurer(chassis, { x: spawn.x, y: spawn.y })
+      z.name    = 'Risen Dead'
+      z.partyId = partyId
+      z.resources.maxHp = Math.max(1, Math.round((z.resources.maxHp ?? 30) * 0.5))
+      z.resources.hp    = z.resources.maxHp
+      z.stats.attack    = Math.max(1, Math.round((z.stats.attack ?? 6) * 0.6))
+      z.stats.speed     = (z.stats.speed ?? 1.4) * 0.55
+      z.flags = { noFlee: true, zombieShambler: true }
+      this._scaleAdventurerByBossLevel(z, dungeonLv)
+      z._monster = true
+      z._minionSheet = SHEETS[Math.floor(Math.random() * SHEETS.length)]
+      this._gameState.adventurers.active.push(z)
+      aiSystem.pickInitialGoal(z)
+      risen.push(z)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: z })
+    }
+    return risen
   }
 
   // Dungeon event: Light Party — a coordinated 4-role FFXIV raid party
