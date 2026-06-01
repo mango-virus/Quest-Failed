@@ -27,11 +27,26 @@ export class NemesisSystem {
     this._ensureState()
     EventBus.on('ACT_CLEARED',     this._onActCleared, this)
     EventBus.on('ADVENTURER_FLED', this._onFled,       this)
+    EventBus.on('ADVENTURER_DIED', this._onDied,       this)
   }
 
   destroy() {
     EventBus.off('ACT_CLEARED',     this._onActCleared, this)
     EventBus.off('ADVENTURER_FLED', this._onFled,       this)
+    EventBus.off('ADVENTURER_DIED', this._onDied,       this)
+  }
+
+  // The Act IV duel resolved in the boss's favour — Aldric, the crowned Hero
+  // King, has fallen in the throne room. Record it, speak his last words, and
+  // announce NEMESIS_SLAIN so ActSystem fires the run victory. (Acts I–III Aldric
+  // is `_nemesis` and plot-armored, so this only ever fires for the duel form.)
+  _onDied({ adventurer } = {}) {
+    if (!adventurer?._nemesisDuel) return
+    this.recordDuelResult(true)
+    const act = this._gs.meta?.nemesis?.act ?? 4
+    const line = this._pick('duel', 'defeat')   // his final, broken words
+    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'duel_defeat', log: true })
+    EventBus.emit('NEMESIS_SLAIN', { act, adventurer })
   }
 
   // Aldric withdraws (scout-and-withdraw) — fire an act-specific vow taunt as he

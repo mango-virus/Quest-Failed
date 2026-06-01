@@ -1441,6 +1441,8 @@ Reads the existing `gameState.run.totals` + knowledge/exposure data.
 
 The realm's last stand: a cinematic **1v1 duel** against the Nemesis, now ascended into the **Hero King**. Reuses the Solo Leveling / Light Party duel tech (letterbox, dual HP bars, scripted beats, slow-mo finish). **Defeating the Hero King = VICTORY** — the kingdom breaks and the dungeon stands triumphant.
 
+**As built (v1, 2026-06-01) — the functional duel, cinematic deferred:** On Act IV's final day (day 40) the crowned Hero King arrives for a **solo throne duel that replaces the normal wave** (no normal adventurers that day — same set-piece pattern as Solo Leveling / Light Party, so no stray raider can game-over you the instant you've won). He is the **killable** form (`_nemesisDuel`, *not* the Acts I–III plot-armored `_nemesis`), never flees, ignores loot, and beelines the throne. **Putting him down → `RUN_VICTORY` → the Victory screen** (fires the moment he falls, via `NEMESIS_SLAIN`; an idempotent guard means simply surviving the day is an equivalent fallback win — you repelled the realm). What's *not* built yet (deferred): the duel **cinematic** (reuse of the SL/LP letterbox / dual-HP-header / scripted-beats / slow-mo tech), live **balance tuning** of his HP/atk vs the boss, and his signature **abilities as behaviours**.
+
 ### Boss evolution (per act)
 
 Each cleared act, the player's boss **visibly transforms/ascends** — a new form, a power, and an upgraded throne — so the escalation is something the *player* feels, not just bigger enemy numbers. Four escalating forms across the run (act-gated cosmetic + a stat/ability bump). Builds on the existing boss-evolution scaffolding.

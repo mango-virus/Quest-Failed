@@ -368,7 +368,7 @@ export class AISystem {
     // Sung Jinwoo ignores chests entirely — he never opens a real one
     // (_tryOpenTreasureChest) and never springs a mimic disguised as one.
     // He marches past, eyes on the boss. Aldric the Nemesis disdains loot too.
-    if (adv._shadowMonarch || adv._nemesis) return
+    if (adv._shadowMonarch || adv._nemesis || adv._nemesisDuel) return
     // Light Party — a coordinated raid is here for the boss, not loot.
     // Skip mimic-bait disguised chests the same way as Jinwoo: walking
     // through one shouldn't spring it.
@@ -465,7 +465,7 @@ export class AISystem {
     // Sung Jinwoo has no interest in the dungeon's gold — he's here for the
     // boss alone. Skip the proximity loot entirely so he never pops a chest
     // he happens to beeline past on his way to the throne. Aldric ignores loot too.
-    if (adv._shadowMonarch || adv._nemesis) return
+    if (adv._shadowMonarch || adv._nemesis || adv._nemesisDuel) return
     // Light Party — same deal: a coordinated raid is here for the boss, not
     // loot. Walking past a chest doesn't rob it.
     if (adv._lightParty) return
@@ -4026,6 +4026,12 @@ export class AISystem {
       const withdraw = hp <= maxHp * 0.18 || roomsSeen >= 6
       return withdraw ? { type: 'FLEE' } : { type: 'EXPLORE_ROOM' }
     }
+    // The Nemesis, Act IV form — the crowned Hero King (spawned with
+    // _nemesisDuel, NOT _nemesis, so he's killable and never flees) storms the
+    // throne for the duel. Same knowledge-gated SEEK_BOSS march as the Shadow
+    // Monarch: he explores until he finds the boss room, then commits. Putting
+    // him down at the throne wins the run.
+    if (adv._nemesisDuel) return { type: 'SEEK_BOSS' }
     // Dungeon event: Legendary Speed Runner — pure beeline to the boss.
     // Skips the entire goal-picking flow (no scout, no regroup, no
     // treasure, no chest detours, no personality variants) so they march

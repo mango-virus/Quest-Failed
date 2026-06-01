@@ -629,18 +629,22 @@ export class DayPhase extends Phaser.Scene {
       // No `return` — keep going so the normal wave spawns alongside.
     }
 
-    // The Nemesis (Aldric, KR P2) — ADDITIVE, like the Tournament/Saboteur. He
-    // invades alongside the normal wave on the final day of Acts I–III to test
-    // you, then withdraws (he's plot-armored). Once per act. KR P3 will fold his
-    // timing in with the act's Champion; for now he is the act's standout threat.
+    // The Nemesis (Aldric, KR P2). On the final day of Acts I–III he invades
+    // ADDITIVE (like the Tournament/Saboteur) alongside the normal wave to test
+    // you, then withdraws (plot-armored). On Act IV's final day (day 40) the
+    // crowned Hero King instead arrives for a SOLO throne duel that REPLACES the
+    // normal wave (like the Light Party / Shadow Monarch set-pieces) — only he
+    // can win or fall, so there's no stray adventurer to game-over you the
+    // instant you've won. Putting him down wins the run. Once per act.
     if (isActsEnabled()) {
       const _day = this._gameState.meta?.dayNumber ?? 1
       const _n   = this._gameState.meta?.nemesis
       const _act = actForDay(_day)
-      if (_n && _n.alive && !_n.slainByBoss && _act >= 1 && _act <= 3 &&
+      if (_n && _n.alive && !_n.slainByBoss && _act >= 1 && _act <= 4 &&
           isActFinalDay(_day) && _n._lastAppearedAct !== _act) {
         _n._lastAppearedAct = _act
-        this._spawnNemesis()   // pushes himself into adventurers.active
+        if (_act === 4) return this._spawnNemesis(true)   // solo duel — no normal wave
+        this._spawnNemesis(false)   // acts I–III: additive, pushes into active
       }
     }
 
@@ -1510,7 +1514,7 @@ export class DayPhase extends Phaser.Scene {
   // Escalates per act via NemesisSystem.spawnConfig(). Returns [adv] (he comes
   // ALONGSIDE the normal wave, not in place of it). The Act IV duel spawns him
   // via a separate path (no _nemesis flag) so he can actually be slain there.
-  _spawnNemesis() {
+  _spawnNemesis(duel = false) {
     const game = this.scene.get('Game')
     const aiSystem = game?.aiSystem
     const nem = game?.nemesisSystem
@@ -1524,28 +1528,38 @@ export class DayPhase extends Phaser.Scene {
 
     const cfg = nem.spawnConfig()   // { name, act, returns, abilities, crowned, title }
     const adv = createAdventurer(def, { x: spawn.x, y: spawn.y })
-    adv._nemesis      = true
+    // Acts I–III: _nemesis = plot-armored scout-and-withdraw (he can't die yet).
+    // Act IV duel: _nemesisDuel = the crowned Hero King — KILLABLE, never flees,
+    // marches straight on the throne. Defeating him wins the run.
+    if (duel) adv._nemesisDuel = true
+    else      adv._nemesis     = true
     adv.isLegendary   = true        // legendary chrome + entrance pulse
     adv.name          = cfg.title || cfg.name || 'Aldric'
     adv.partyId       = null
     adv.visitedRooms  = []
-    adv.flags         = { ...(adv.flags ?? {}) }
+    adv.flags         = { ...(adv.flags ?? {}), ...(duel ? { noFlee: true } : {}) }
     // Placeholder sprite — paladin source (real evolving Aldric art baked later).
     adv.spriteVariant = 'paladin/v01'
 
     // Mini-boss scaling: the boss-level curve, then an act multiplier (he comes
-    // back tougher each return), then a flat mini-boss bump so he's a credible
-    // threat that shrugs off a few minions before withdrawing.
+    // back tougher each return), then a flat bump. The scout (acts I–III) is a
+    // tanky survivor (×4) meant to shrug off minions and withdraw; the Act IV
+    // duel Hero King is killable, so he's a touch less tanky (×2.5) but hits
+    // harder — a credible final boss the dungeon must put down.
+    // TODO(balance): the duel HP/attack vs the boss's level-scaled stats is
+    // untested live (no playtest env) — tune once playable.
     this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
-    const actMul = 1 + (cfg.returns ?? 0) * 0.5   // act1 ×1.0, act2 ×1.5, act3 ×2.0
+    const actMul = 1 + (cfg.returns ?? 0) * 0.5   // act1 ×1.0, act2 ×1.5, act3 ×2.0, act4 ×2.5
     const baseHp = adv.resources?.maxHp ?? def.baseStats?.hp ?? 120
-    const hp = Math.round(baseHp * 4 * actMul)
+    const hp = Math.round(baseHp * (duel ? 2.5 : 4) * actMul)
     adv.resources.maxHp = hp
     adv.resources.hp    = hp
-    adv.stats.attack    = Math.round((adv.stats?.attack ?? def.baseStats?.attack ?? 14) * 1.5 * actMul)
+    const atkMul = duel ? 1.8 : 1.5
+    adv.stats.attack    = Math.round((adv.stats?.attack ?? def.baseStats?.attack ?? 14) * atkMul * actMul)
 
     this._gameState.adventurers.active.push(adv)
     aiSystem.pickInitialGoal(adv)
+    if (duel) adv.goal = { type: 'SEEK_BOSS' }   // the Hero King marches on the throne
     nem.markBorn()
 
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })

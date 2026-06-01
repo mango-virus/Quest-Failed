@@ -30,11 +30,32 @@ export class ActSystem {
     // Acts II–IV get their intros from the _onDayEnded transition instead, so
     // this only ever fires the Act-I (or current-act-on-continue) intro.
     EventBus.on('NIGHT_PHASE_STARTED', this._onNightStarted, this)
+    // The Act IV duel: NemesisSystem emits NEMESIS_SLAIN the moment the boss
+    // puts the crowned Hero King down. That's the real, earned victory — fire it
+    // immediately rather than waiting for the day to tick over.
+    EventBus.on('NEMESIS_SLAIN', this._onNemesisSlain, this)
   }
 
   destroy() {
     EventBus.off('DAY_PHASE_ENDED', this._onDayEnded, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._onNightStarted, this)
+    EventBus.off('NEMESIS_SLAIN', this._onNemesisSlain, this)
+  }
+
+  // Defeating Aldric in the Act IV duel wins the run outright.
+  _onNemesisSlain({ act } = {}) {
+    this._fireVictory({ act: act ?? ACT_COUNT, def: actDef(act ?? ACT_COUNT), cause: 'nemesis_slain' })
+  }
+
+  // Single, idempotent victory gate. Whether the run is won by slaying Aldric in
+  // the duel (NEMESIS_SLAIN) or — fallback — by simply surviving the final act's
+  // last day, RUN_VICTORY fires exactly once. meta.act.won is the guard.
+  _fireVictory(payload) {
+    const meta = this._gs.meta
+    if (!meta?.act) this._ensureState()
+    if (this._gs.meta.act.won) return
+    this._gs.meta.act.won = true
+    EventBus.emit('RUN_VICTORY', payload)
   }
 
   _onNightStarted() {
@@ -84,10 +105,11 @@ export class ActSystem {
     EventBus.emit('ACT_CLEARED', { act: clearedAct, def: actDef(clearedAct) })
 
     if (clearedAct >= ACT_COUNT) {
-      // Cleared the final act → the run is won. KR P7 wires the real victory
-      // screen + meta-unlock + Endless handoff onto RUN_VICTORY.
-      meta.act.won = true
-      EventBus.emit('RUN_VICTORY', { act: clearedAct, def: actDef(clearedAct) })
+      // Cleared the final act. Normally the duel's NEMESIS_SLAIN has already
+      // fired victory mid-day; this is the fallback for the rare case Aldric
+      // wasn't put down yet survived the day (e.g. couldn't reach the throne) —
+      // you held the realm off, you still win. _fireVictory is idempotent.
+      this._fireVictory({ act: clearedAct, def: actDef(clearedAct), cause: 'survived' })
       return
     }
 
