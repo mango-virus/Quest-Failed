@@ -62,7 +62,7 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 
 ## Biggest design gaps for a "full game" (not bugs — direction)
 
-- **No win condition / no climax** — endless survival, numerical treadmill late-game.
+- **No win condition / no climax** — endless survival, numerical treadmill late-game. **(BEING ADDRESSED:** "The Kingdom's Reckoning" 4-act run structure designed 2026-05-31 — see DESIGN.md + DESIGN_COVERAGE.md §"The Kingdom's Reckoning" (KR P1–P7, all ⏳ PENDING). Build not started.)
 - **Day phase is spectator-only** — no active boss agency (the Marionette pact hints at what could be).
 - **IP/legal** — Solo Leveling / FFXIV / Twitch named references need filing-off before any commercial release.
 

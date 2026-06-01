@@ -247,7 +247,7 @@ export class CombatSystem {
     // Light Party shares the Shadow Monarch's 10% floor: party members may ONLY
     // die in the scripted boss duel (which drives HP directly, not through this
     // path), so normal combat can never chip them below 10% maxHp.
-    const _smFloor = (target._shadowMonarch || target._lightParty)
+    const _smFloor = (target._shadowMonarch || target._lightParty || target._nemesis)
       ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
     target.resources.hp = Math.max(_smFloor, target.resources.hp - finalDmg)
 

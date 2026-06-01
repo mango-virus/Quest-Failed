@@ -1169,6 +1169,43 @@ A 4-role coordinated raid party (Tank/Healer/DPS/DPS) inspired by FFXIV light pa
 
 ---
 
+## The Kingdom's Reckoning — act-based run structure & win condition (added 2026-05-31)
+
+> See DESIGN.md → "The Kingdom's Reckoning" for the full spec. The game's first **WIN condition**: a 4-act campaign (fixed Act I + IV, Acts II/III **drafted** from an 8-deep Kingdom Responses pool weighted **adaptively**) with a recurring **Nemesis** throughline, per-act **boss evolution**, and a **victory → meta-unlock → Endless** handoff. Design locked 2026-05-31; **build not started — all ⏳ PENDING.** Build order: KR P1 → P2 → P3 (playable vertical slice) → P4–P5 (variety) → P6–P7 (payoff).
+
+| ID | Item | Phase | Status | Notes |
+|---|---|---|---|---|
+| kr-act-state | `gameState.meta.act` block: current, dayInAct, cleared[], won. SaveSystem serializes; back-compat default = act 1, day 1. | KR P1 | ✅ DONE (2026-05-31) | `src/config/acts.js` (flag `isActsEnabled` default OFF + `ACT_DEFS` + day↔act math, 10 days/act). `ActSystem._ensureState` seeds `meta.act` defensively (no save-version bump). Verified live. |
+| kr-act-transition | Act-transition flow: detect act-clear → next act begins; victory on final act. Emits `ACT_STARTED` / `ACT_CLEARED` / `RUN_VICTORY`. | KR P1 | ✅ DONE (2026-05-31) | `src/systems/ActSystem.js` hooks `DAY_PHASE_ENDED`; clears an act when its final day completes (P1: survival == clear; KR P3 gates on the Champion). Verified: day10→11 fires CLEARED(1)+STARTED(2); day40→41 fires CLEARED(4)+RUN_VICTORY. |
+| kr-act-intro | Per-act intro chapter card (ACT N + name + tagline). | KR P1 | ✅ DONE (2026-05-31) | `src/hud/ActIntro.js` (DOM, self-mounts to #hud-stage, Crypt palette), gated in HudRoot behind `isActsEnabled()`. Listens `ACT_STARTED`. Verified visually. Richer per-act theming → KR P3/P4. |
+| kr-act-scaling | Re-frame day-based wave/stat scaling around acts (escalate within act + step-change at boundary). | KR P1 | ⏳ PENDING (deferred) | Deferred to post-vertical-slice tuning — better felt against a playable build (KR P3). Current acts overlay on the existing endless day-scaling unchanged. Touches DayPhase wave formula + balance.js. |
+| kr-nemesis-state | **Aldric** lifecycle foundation: `meta.nemesis` state + `NemesisSystem` (per-act escalation, ability unlocks `heroic_resolve`/`dawnblade`/`hero_king`, crowning at act 4, `spawnConfig()`) + `aldricLines.json` line bank. Gated behind `acts`. | KR P2 | ✅ DONE (2026-06-01) | `src/systems/NemesisSystem.js` + `src/data/aldricLines.json` + Preload + Game.js (gated). Verified: clears 1→2→3 escalate Aldric with abilities + taunts; crowns at act 4; stops past 4. |
+| kr-nemesis-birth | Aldric spawns + scout-and-withdraws: invades additively on the final day of Acts I–III (`DayPhase._spawnNemesis` + dispatch), plot-armored (10% floor on `_nemesis` in Combat/Trap), disdains loot, explores+fights then withdraws (FLEE) at ≤18% HP or after roaming 6 rooms — never seeks the throne (AISystem `_nemesis` branch). Marks `born`; arrival + withdraw taunts fire. | KR P2 | ✅ DONE (2026-06-01) | `aldric` class def (paladin placeholder sprite) + AISystem branch/exemptions + plot-armor floors + `ADVENTURER_FLED` vow. Verified: goal logic (explore/flee/loot-disdain) unit-tested; force-spawn builds 480HP/21ATK "Sir Aldric Brightsword" w/ arrival taunt. Live walk-through blocked only by env (can't build entry hall to begin a day). |
+| kr-nemesis-return | Aldric returns escalated each act: stats scale by `1 + returns*0.5` (act1 ×1 → act3 ×2) + mini-boss bump, via `NemesisSystem.spawnConfig()`. His unlocked signature abilities (`heroic_resolve`/`dawnblade`/`hero_king`) are TRACKED but not yet wired as behaviours. | KR P2 | 🟡 PARTIAL | Escalated spawn done; abilities-as-behaviour still to wire. |
+| kr-nemesis-portrait | **Right-side rival portrait** (mirrors the companion): large detailed NPC portrait slides in from the RIGHT, taunts the boss + banters with the companion, evolves per act (cocky kid → scarred → crowned). DOM director + `NEMESIS_TAUNT` wiring + dungeon log. Placeholder art first, real evolving forms later. | KR P2 | ⏳ PENDING | User's idea (2026-06-01). `NEMESIS_TAUNT`/`NEMESIS_ESCALATED` events already fire. |
+| kr-nemesis-taunt | Between-act + in-day Nemesis taunts surfaced via Dungeon Log + the rival portrait + companion banter. | KR P2 | 🟡 PARTIAL | Emission done (`NEMESIS_TAUNT`); log + portrait + companion-banter wiring pending. |
+| kr-nemesis-final | Act IV: Aldric ascends to the crowned "Hero King" (Crown anoints him), fought as the final 1v1 duel (reuse Solo Leveling / Light Party duel tech). Adaptive ascension variant later (KR P5). | KR P2/P3 | ⏳ PENDING | `crowned` flag set; `recordDuelResult()` ready. |
+| kr-champion-raid | Acts II & III end in a pre-announced **Champion raid** (response's champion + retinue); defeat it to clear the act. | KR P3 | ⏳ PENDING | |
+| kr-clear-conditions | Per-act clear-condition framework (survive / kill champion / theme-specific); gate act-advance on it. | KR P3 | ⏳ PENDING | |
+| kr-vertical-slice | **Milestone:** playable full 4-act run (fixed Act I + IV + placeholder middle + Nemesis) end-to-end → victory. | KR P3 | ⏳ PENDING | Prove the spine before adding pool variety. |
+| kr-response-defs | 8 Kingdom Responses defined (data + act-modifier flags): rival · inquisition · pantheon · betrayer · reckoning_dead · forlorn_hope · mage_tower · all_stars. | KR P4 | ⏳ PENDING | Starter subset first, then fill out. |
+| kr-response-rival | **Rival** — rival dungeon boss invades; boss-vs-boss. Reuses Rival Dungeon event. | KR P4 | ⏳ PENDING | |
+| kr-response-inquisition | **Inquisition** — zealots nullify Dark Pacts + purge undead. | KR P4 | ⏳ PENDING | |
+| kr-response-pantheon | **Pantheon** — angels: holy zones, mid-fight resurrection, radiant rule-breaking. | KR P4 | ⏳ PENDING | "Greater Inquisition." |
+| kr-response-betrayer | **The Betrayer** — a defector leads the raid + sabotages from inside (your rooms/traps turn). | KR P4 | ⏳ PENDING | |
+| kr-response-reckoning | **The Reckoning of the Dead** — necromancer-king raises your run's kill-count as an army. | KR P4 | ⏳ PENDING | Adaptive synergy. |
+| kr-response-forlorn | **The Forlorn Hope** — suicidal elite, never flee, grow stronger as each falls. | KR P4 | ⏳ PENDING | Ties to Glory Hounds / martyr. |
+| kr-response-magetower | **The Mage Tower** — reality-warping arcane offense (teleport / transmute / dispel / summon). | KR P4 | ⏳ PENDING | |
+| kr-response-allstars | **The All-Stars** — coordinated legendary-hero team-up, each a mini-boss. | KR P4 | ⏳ PENDING | |
+| kr-draft-ui | Act-transition **draft**: kingdom escalates; randomize/show which 2-of-8 responses fill Acts II/III. | KR P4 | ⏳ PENDING | |
+| kr-adaptive-weighting | Tilt the response draft + in-act composition by run-stats (kills, leaks, treasury, pact reliance, minion power). | KR P5 | ⏳ PENDING | Reads `gameState.run.totals` + knowledge/exposure. |
+| kr-boss-evolution | Per-cleared-act boss transform: new form + power + throne (cosmetic + stat/ability bump); 4 forms. | KR P6 | ⏳ PENDING | Builds on existing boss-evolution scaffolding. |
+| kr-victory-screen | Victory screen on beating the Hero King (Act IV). | KR P7 | ⏳ PENDING | |
+| kr-meta-unlock | "Reckoning" NG+ difficulty tier + victory achievement (+ optional cosmetic/boss/companion reward). | KR P7 | ⏳ PENDING | |
+| kr-endless-continue | Post-victory: continue into Endless mode (today's infinite scaling) for the leaderboard. | KR P7 | ⏳ PENDING | Board may split Victory vs Endless. |
+
+---
+
 ## How to keep this file honest
 
 - **At every phase exit**: update statuses for items tagged in that phase. If a row is still PENDING or PARTIAL when the phase ends, either fix it or get explicit user approval to defer.

@@ -1361,3 +1361,101 @@ So a full-HP healer with everyone alive ≈ **90% win**; a dead healer with the 
 ### Achievement — "Warrior of Light"
 
 Legendary achievement granted when the **boss wins the duel** (the player defeated the raiding party). Reward: **Luna companion unlock** (flips her `locked: true` via the existing `PlayerProfile.unlockCompanion` path) + the title **"Warrior of Light"** with a custom `lightparty` title FX (white→gold→sky-blue sweep, foil to monarch_slayer's shadowmonarch sweep).
+
+---
+
+## The Kingdom's Reckoning — act-based run structure & win condition (added 2026-05-31)
+
+> The game's first **win condition** and run *spine*. Replaces pure endless survival with a 4-act campaign that builds to a climactic finale, while preserving Endless mode for post-victory leaderboard play. Designed 2026-05-31 with the player.
+
+### Core concept
+
+A run is a **4-act campaign** (~40 days, ~10 days per act) against a kingdom that is *escalating its response to your dungeon's rise*. Each act is a **different kind of war** — not a bigger version of the same one — and ends in a **Champion** encounter. Clear all four → **VICTORY** (the kingdom breaks). The boss-dies-3× loss condition is unchanged.
+
+**Structure: fixed bookends, drafted middle.**
+- **Act I and Act IV are fixed** — they carry the narrative (the Nemesis's birth and the final duel).
+- **Acts II & III are drafted** from a pool of "Kingdom Responses," weighted by how the player has been playing — so no two runs have the same middle.
+
+### Act I — The Apprentice Trials (FIXED)
+
+A nearby adventurers' guild/academy treats your fresh, unproven dungeon as a cheap, lethal **training ground**. Waves of apprentices probe you while an instructor watches from the entrance. This is the gentle on-ramp act (small, manageable waves) AND the origin of the run's recurring **Nemesis**.
+
+- **The Nemesis is born here:** the academy's **star pupil and sole survivor** of the trials escapes, marked. They return in every subsequent act having *studied specifically to beat you*.
+- **Clear condition:** survive the Trials / repel the instructor's final "graduation" wave.
+
+### The Nemesis (run-long throughline)
+
+A single named Hero who ties the variable run together with constant personal stakes.
+- **Born** in Act I (the surviving star apprentice).
+- **Returns** as a mini-boss in Acts II & III — tougher each time, visibly scarred, having trained against your specific tricks. Taunts the player between acts via the Dungeon Log + companion (Lilith) dialogue.
+- **Escalation:** each return raises level/stats, grants a new counter-ability (e.g. learns to avoid your most-used trap, resists your boss's signature), and deepens the grudge.
+- **Final boss** in Act IV — ascended into the realm's "Hero King," fought in a cinematic 1v1 duel.
+- Reuses the existing returning-veteran / "Hero" system + the Solo Leveling / Light Party duel tech.
+
+#### Aldric — the Nemesis (specifics locked 2026-06-01)
+
+**Who:** **Aldric** — a young swordsman insufferably convinced he is the greatest, out to become the kingdom's hero by cutting down all evil (you). Arrogant-rival archetype; gives himself grandiose self-titles ("Sir Aldric Brightsword, Future Hero-King") that the companion mocks ("sword boy").
+
+**Emotional arc (he changes, not just his stats):**
+- **Act I — Swagger.** Treats it as a joke / stepping stone. Pure trash talk.
+- **Act II — Humbled & furious.** You slaughtered his classmates; now it's personal.
+- **Act III — Obsessed & fraying.** Scarred, sleepless, rage covering fear; "I've studied every inch of your filth."
+- **Act IV — Ascended** (see crowning below).
+- Taunts get darker / more desperate across acts. He **remembers** ("Last time cost me an eye — I've come to collect").
+
+**Escalation per return:** better gear + a NEW signature ability each act, and he learns YOUR dungeon (counters your most-used trap, comments on your boss archetype). Plot-armored across Acts I–III — he can't be killed except in the Act IV duel (reuse the Shadow Monarch / Light Party 10% HP-floor + can't-flee-cowardly pattern; he withdraws with a vow instead of panicking). **Disdains loot** — ignores your treasury bait (he's here for glory, not gold) — a mechanical tell that he's different.
+
+**Right-side rival portrait system (mirrors the companion):** a large detailed NPC portrait that slides in from the **RIGHT** (opposite the companion on the left) **occasionally** during the day to talk — taunting **you**, and bantering with the **companion** (a running rivalry/odd-couple dynamic). His portrait **evolves every act** (Act I cocky academy kid → Act III scarred & grim → Act IV crowned Hero King), so "better gear each return" is a visual payoff you watch on his face. Gold/white identity + a heroic sting when he appears (foil to the dark dungeon). Data-driven line bank (`src/data/aldricLines.json`) like the companion lines. **Art-dependent:** build the system with a placeholder portrait (his scaled adventurer sprite); slot real hand-drawn evolving forms later, exactly as the companions came together.
+
+**Act IV — becoming the Hero King:** **Crowned by a desperate Crown (now).** He is the only soul who keeps surviving your dungeon, so the broken kingdom officially anoints him their Champion — royal regalia, a blessed legendary blade, the realm's last hope. Beat him → the kingdom truly breaks (VICTORY). **Adaptive ascension (later, ties to KR P5):** how he ascends reflects your run — brutalize the kingdom → he goes dark/desperate; play cleaner → he ascends noble. Ship the crowned baseline first.
+
+### Acts II & III — The Kingdom Responds (DRAFTED)
+
+At each act transition the kingdom escalates with a new strategy, **drawn from the Kingdom Responses pool** (below) and **weighted by the player's style** (see Adaptive Weighting). Each response is a distinct act-type with its own threat, signature gimmick, and clear-condition. The Nemesis appears within each.
+
+**Kingdom Responses pool** (8; Acts II & III draw 2, never repeating; extensible over time):
+
+1. **Rival** — a rival dungeon boss invades *your* dungeon with monsters; culminates in a boss-vs-boss showdown. (Scales up the existing Rival Dungeon event.)
+2. **Inquisition** — fanatical zealots immune to fear who **nullify your Dark Pacts and purge undead**; your usual tricks stop working, forcing a mundane (traps/minions) defense.
+3. **Pantheon — Divine Judgment** — angels/divine avatars descend: **holy zones** that heal heroes + sear your minions, mid-fight resurrection of the fallen, radiant rule-breaking. (Escalated holy threat — reads as a "greater Inquisition.")
+4. **The Betrayer** — one of *your own* turns: a defecting minion (or tempted companion) **leads the raid and sabotages from inside** — your own rooms/traps turn against you for the act. Paranoia / internal-threat act.
+5. **The Reckoning of the Dead** — an enemy necromancer-king **raises everyone you've killed this run** against you. Army size scales with your run kill-count (strong Adaptive synergy). Karmic.
+6. **The Forlorn Hope** — a suicide squad of the realm's best who **never flee, fight to the death, and grow stronger as each one falls** (martyrdom). Ties to the Glory Hounds / martyr systems.
+7. **The Mage Tower — Arcane Assault** — archmages attack with **reality-warping offense**: teleport your minions out of position, transmute rooms, dispel your buffs, summon their own creatures. Scrambles your dungeon's rules mid-day. (Opposite of the anti-magic Inquisition.)
+8. **The All-Stars — Champions' League** — a coordinated **dream-team of named legendary heroes**, each a mini-boss with a signature ability synergized with the others. Blockbuster elite team-up.
+
+Each drafted act ends in a **Champion raid**: a pre-announced elite encounter (the response's signature champion + retinue) that must be defeated to clear the act and advance. Clear-conditions vary by response where it fits the theme (e.g. Reckoning = survive the undead tide; Mage Tower = kill the archmages before they unmake your dungeon).
+
+### Adaptive Weighting
+
+The draft for Acts II & III (and the composition within each act) is **tilted by the player's run-stats** so the kingdom counters *this* dungeon:
+- High kill-count / slaughter-heavy → **Reckoning of the Dead**, **Inquisition / Pantheon** (martyrs & holy vengeance) weighted up.
+- High intel leaks (many escapees) → responses that arrive pre-countered weighted up.
+- Rich treasury → thief/greed-flavored compositions weighted up.
+- Heavy Dark-Pact reliance → **Inquisition / Pantheon** (pact-nullifying) weighted up.
+- Powerful/evolved minions → **The Betrayer**, **All-Stars** weighted up.
+
+Reads the existing `gameState.run.totals` + knowledge/exposure data.
+
+### Act IV — The Reckoning (FIXED)
+
+The realm's last stand: a cinematic **1v1 duel** against the Nemesis, now ascended into the **Hero King**. Reuses the Solo Leveling / Light Party duel tech (letterbox, dual HP bars, scripted beats, slow-mo finish). **Defeating the Hero King = VICTORY** — the kingdom breaks and the dungeon stands triumphant.
+
+### Boss evolution (per act)
+
+Each cleared act, the player's boss **visibly transforms/ascends** — a new form, a power, and an upgraded throne — so the escalation is something the *player* feels, not just bigger enemy numbers. Four escalating forms across the run (act-gated cosmetic + a stat/ability bump). Builds on the existing boss-evolution scaffolding.
+
+### Win / Loss / Meta / Endless
+
+- **Win** (beat the Hero King) → **Victory screen** + **meta-unlock**: a new **"Reckoning" New Game+ difficulty tier** (harder acts / tougher draws) + a victory **achievement** (plus a possible cosmetic / boss / companion reward — TBD).
+- After victory, the player may **continue into Endless mode** — today's infinite day-by-day scaling — for the leaderboard (the board can split "Victory" vs "Endless").
+- **Loss** unchanged: boss dies 3× at any point → Game Over.
+- Existing scripted events (Zombie Horde, Solo Leveling, Light Party, Treasure Raid, etc.) still fire *within* acts as flavor/variety, layered on top of the act framework.
+
+### Open specifics to finalize during build
+
+- Exact per-act day counts (default 10/10/10/10) and wave-scaling re-tuning around the act boundaries.
+- Each Kingdom Response's precise mechanics, champion, and clear-condition.
+- The Nemesis's exact per-return stat/ability escalation curve.
+- The four boss-evolution forms (art + powers).
+- Victory meta-unlock specifics (NG+ tuning + reward).

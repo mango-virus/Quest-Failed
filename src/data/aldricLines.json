@@ -1,0 +1,103 @@
+{
+  "name": "Aldric",
+  "titles": [
+    "Sir Aldric Brightsword",
+    "Aldric, Scourge of Evil",
+    "Aldric the Dawnblade",
+    "Aldric, Hero-King of the Realm"
+  ],
+  "arrive": {
+    "1": [
+      "Don't bother hiding, beast. I'll be done before supper.",
+      "They said this dungeon was dangerous. They lied — as they always do.",
+      "Watch closely, monster. This is what a real hero looks like."
+    ],
+    "2": [
+      "You butchered my classmates. Every one of them had a name. You'll learn mine before the end.",
+      "I am not the boy who stumbled out of here. I came back for YOU.",
+      "Laugh now. I've spent a year learning exactly how you die."
+    ],
+    "3": [
+      "I haven't slept. I've memorized every stone of this pit. There is NOTHING left you can show me.",
+      "Do you know how many nights I gave to learning your filth? Tonight it pays.",
+      "Last time cost me an eye. I've come to collect the rest of you."
+    ],
+    "4": [
+      "The crown has named me its Champion. I am the realm's last hope — and your last sunrise.",
+      "I came as a student. I return as a king. Kneel, or fall.",
+      "Every soul you slew, I carry into this throne room. They will watch you end."
+    ]
+  },
+  "tauntBoss": [
+    "Is this truly the best the dark can offer?",
+    "Cower in your hole. I'll be at your throne by sundown.",
+    "Every step deeper is one step closer to your end, monster.",
+    "Send your little pets. I'll send them back in pieces."
+  ],
+  "banterCompanion": [
+    "And YOU — consorting with this thing? Have you no shame, creature?",
+    "Tell your master to run. Actually — tell her I said she has dreadful taste.",
+    "Smile while you can, demon. I've cut down prettier monsters than you.",
+    "When I've slain your lord, perhaps I'll let you live to mourn. Perhaps."
+  ],
+  "minionKill": [
+    "Pathetic. Is that all?",
+    "Another of your slaves returned to dust. Send more.",
+    "I could do this in my sleep — and some nights, I have."
+  ],
+  "hurt": [
+    "A scratch. You'll have to do better.",
+    "...Lucky blow. It won't happen twice.",
+    "Grrh — fine. FINE. Now I'm actually trying."
+  ],
+  "withdraw": {
+    "1": [
+      "This isn't over, beast. I'm only getting warmed up.",
+      "Enjoy tonight. I'll be back — and far better."
+    ],
+    "2": [
+      "Remember my face, monster. You'll see it again.",
+      "I retreat. I do NOT surrender. There is a difference you'll come to dread."
+    ],
+    "3": [
+      "Next time I walk out of here, it will be over your corpse.",
+      "Bind your wounds. Mine are already healing into something worse for you."
+    ]
+  },
+  "actClearedTaunt": {
+    "1": [
+      "Aldric escaped your dungeon, vowing to return stronger.",
+      "The young swordsman fled — but he was smiling."
+    ],
+    "2": [
+      "Aldric withdrew again, his eyes colder than before.",
+      "He left no boast this time. Only a promise."
+    ],
+    "3": [
+      "Aldric vanished into the dark, muttering of a crown.",
+      "Word spreads: the kingdom means to name its Champion."
+    ]
+  },
+  "duel": {
+    "opener": [
+      "No more games, monster. No more dungeon to hide behind. Just you, me, and the end of all evil.",
+      "This is the moment I was forged for. Try to make it worthy."
+    ],
+    "mid": [
+      "You're stronger than the rumors. Good. A true hero needs a true monster.",
+      "Is that fear I see? In a thing like you? Delicious."
+    ],
+    "low": [
+      "No — NO. I am the HERO. The hero does not LOSE!",
+      "I did not come this far to KNEEL!"
+    ],
+    "victory": [
+      "Evil ends here. As I always promised it would.",
+      "Rest now, monster. The realm is free of you."
+    ],
+    "defeat": [
+      "...How. I did everything right. I was supposed to be...",
+      "Tell them... tell them I tried to be great..."
+    ]
+  }
+}

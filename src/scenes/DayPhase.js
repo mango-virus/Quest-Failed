@@ -1,6 +1,7 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
 import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
+import { isActsEnabled, actForDay, isActFinalDay } from '../config/acts.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
@@ -626,6 +627,21 @@ export class DayPhase extends Phaser.Scene {
     if ((this._gameState._eventFlags ?? {}).saboteurActive) {
       this._spawnSaboteur()
       // No `return` — keep going so the normal wave spawns alongside.
+    }
+
+    // The Nemesis (Aldric, KR P2) — ADDITIVE, like the Tournament/Saboteur. He
+    // invades alongside the normal wave on the final day of Acts I–III to test
+    // you, then withdraws (he's plot-armored). Once per act. KR P3 will fold his
+    // timing in with the act's Champion; for now he is the act's standout threat.
+    if (isActsEnabled()) {
+      const _day = this._gameState.meta?.dayNumber ?? 1
+      const _n   = this._gameState.meta?.nemesis
+      const _act = actForDay(_day)
+      if (_n && _n.alive && !_n.slainByBoss && _act >= 1 && _act <= 3 &&
+          isActFinalDay(_day) && _n._lastAppearedAct !== _act) {
+        _n._lastAppearedAct = _act
+        this._spawnNemesis()   // pushes himself into adventurers.active
+      }
     }
 
     let spawn = aiSystem.pickSpawnTile()
@@ -1484,6 +1500,58 @@ export class DayPhase extends Phaser.Scene {
     EventBus.emit('LEGENDARY_HERO_ARRIVED',     { adventurer: adv })
     // Kick the cinematic layer (entrance title card + shadow vignette).
     EventBus.emit('SOLO_LEVELING_BEGAN', { adventurer: adv })
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
+    return [adv]
+  }
+
+  // The Nemesis (Aldric, KR P2) — a recurring named mini-boss who invades in
+  // Acts I–III to test you. Plot-armored (CombatSystem/TrapSystem 10% floor on
+  // _nemesis), loot-disdaining + scout-and-withdraw (AISystem _nemesis branch).
+  // Escalates per act via NemesisSystem.spawnConfig(). Returns [adv] (he comes
+  // ALONGSIDE the normal wave, not in place of it). The Act IV duel spawns him
+  // via a separate path (no _nemesis flag) so he can actually be slain there.
+  _spawnNemesis() {
+    const game = this.scene.get('Game')
+    const aiSystem = game?.aiSystem
+    const nem = game?.nemesisSystem
+    if (!aiSystem || !nem) return []
+
+    const def = (this.cache.json.get('adventurerClasses') ?? []).find(c => c.id === 'aldric')
+    if (!def) return []
+
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    if (!spawn) return []
+
+    const cfg = nem.spawnConfig()   // { name, act, returns, abilities, crowned, title }
+    const adv = createAdventurer(def, { x: spawn.x, y: spawn.y })
+    adv._nemesis      = true
+    adv.isLegendary   = true        // legendary chrome + entrance pulse
+    adv.name          = cfg.title || cfg.name || 'Aldric'
+    adv.partyId       = null
+    adv.visitedRooms  = []
+    adv.flags         = { ...(adv.flags ?? {}) }
+    // Placeholder sprite — paladin source (real evolving Aldric art baked later).
+    adv.spriteVariant = 'paladin/v01'
+
+    // Mini-boss scaling: the boss-level curve, then an act multiplier (he comes
+    // back tougher each return), then a flat mini-boss bump so he's a credible
+    // threat that shrugs off a few minions before withdrawing.
+    this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
+    const actMul = 1 + (cfg.returns ?? 0) * 0.5   // act1 ×1.0, act2 ×1.5, act3 ×2.0
+    const baseHp = adv.resources?.maxHp ?? def.baseStats?.hp ?? 120
+    const hp = Math.round(baseHp * 4 * actMul)
+    adv.resources.maxHp = hp
+    adv.resources.hp    = hp
+    adv.stats.attack    = Math.round((adv.stats?.attack ?? def.baseStats?.attack ?? 14) * 1.5 * actMul)
+
+    this._gameState.adventurers.active.push(adv)
+    aiSystem.pickInitialGoal(adv)
+    nem.markBorn()
+
+    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+    EventBus.emit('NEMESIS_ARRIVED', { adventurer: adv, act: cfg.act })
+    const line = nem.pick('arrive', String(cfg.act))
+    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act: cfg.act, source: 'arrive', adventurer: adv })
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
     return [adv]
   }

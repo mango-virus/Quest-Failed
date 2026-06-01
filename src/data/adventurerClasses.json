@@ -507,5 +507,29 @@
     "rarity": "legendary",
     "description": "Light Party ranged DPS. Lobs spells over the tank's shoulder to hit your back-row minions. Glass cannon — squishy, but every cast lands like a comet. Cast bars are visible; interrupt windows exist.",
     "flavorText": "Fire. Blizzard. Thunder. Repeat."
+  },
+  {
+    "id": "aldric",
+    "name": "Aldric",
+    "color": "0xffd24a",
+    "spriteSourceClassId": "paladin",
+    "baseStats": {
+      "hp": 120,
+      "attack": 14,
+      "defense": 10,
+      "speed": 1.6,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "nemesis",
+      "hero",
+      "boss_slayer"
+    ],
+    "unlockLevel": 99,
+    "rarity": "legendary",
+    "description": "The Nemesis. A young swordsman certain he is the realm's greatest hero, sworn to cut down all evil — starting with you. Returns stronger every act, learns your dungeon, and disdains your treasure. Cannot be slain until the final duel.",
+    "flavorText": "I came as a student. I return as a king."
   }
 ]

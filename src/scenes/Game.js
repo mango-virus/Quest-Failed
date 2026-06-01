@@ -71,6 +71,9 @@ import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
 import { BossAttackVfxSystem }    from '../systems/BossAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
 import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
+import { ActSystem }          from '../systems/ActSystem.js'
+import { NemesisSystem }      from '../systems/NemesisSystem.js'
+import { isActsEnabled }      from '../config/acts.js'
 import { AbilityVfx }         from '../ui/AbilityVfx.js'
 import { BossPactVfx }        from '../ui/BossPactVfx.js'
 import { TutorialSystem }     from '../systems/TutorialSystem.js'
@@ -275,6 +278,15 @@ export class Game extends Phaser.Scene {
     this.bossAttackVfxSystem    = track(new BossAttackVfxSystem(this, this.gameState))
     this.screenShakeSystem   = track(new ScreenShakeSystem(this))
     this.rivalBossShowdown   = track(new RivalBossShowdown(this, this.gameState))
+    // "The Kingdom's Reckoning" act framework (KR P1). Gated behind the `acts`
+    // feature flag (default OFF) so the current endless game is untouched until
+    // the act campaign is built out. Tracks act state + fires ACT_STARTED /
+    // ACT_CLEARED / RUN_VICTORY off the day-advance.
+    if (isActsEnabled()) this.actSystem = track(new ActSystem(this, this.gameState))
+    // Aldric — the recurring Nemesis (KR P2). Tracks his per-act escalation +
+    // fires NEMESIS_* taunts. Spawn integration + right-side rival portrait
+    // build on this. Same `acts` gate as ActSystem.
+    if (isActsEnabled()) this.nemesisSystem = track(new NemesisSystem(this, this.gameState))
     this.bossPactVfx         = track(new BossPactVfx(this, this.gameState))
     this.roomBehaviorSystem  = track(new RoomBehaviorSystem(this, this.gameState))
     this.classAbilitySystem  = track(new ClassAbilitySystem(this, this.gameState))

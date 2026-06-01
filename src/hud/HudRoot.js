@@ -42,6 +42,8 @@ import { DungeonFx }            from './DungeonFx.js'
 import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
+import { ActIntro }             from './ActIntro.js'
+import { isActsEnabled }        from '../config/acts.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
 import { LightPartyCinematic }   from './LightPartyCinematic.js'
@@ -153,6 +155,10 @@ export class HudRoot {
     this._eventFx         = new EventFx(this._gameState)
     this._bossFightOverlay = new BossFightOverlay(this._gameState)
     this._eventBanner      = new EventBanner(this._gameState)
+    // "The Kingdom's Reckoning" act-intro chapter card (KR P1). Gated behind the
+    // `acts` flag (default off); listens for ACT_STARTED. Self-mounts into
+    // #hud-stage, so it must build after the mount() above (like DungeonFx/EventFx).
+    this._actIntro         = isActsEnabled() ? new ActIntro(this._gameState) : null
     // Mango-only dev affordance — small floating button that force-fires
     // any dungeon event for testing. Self-gates on PlayerProfile.isCheatName()
     // so the button doesn't appear for real players. MUST construct
@@ -345,6 +351,7 @@ export class HudRoot {
     this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
     this._eventBanner?.destroy();    this._eventBanner = null
+    this._actIntro?.destroy();       this._actIntro = null
     this._coinFlip?.destroy();       this._coinFlip = null
     this._soloLeveling?.destroy();   this._soloLeveling = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
