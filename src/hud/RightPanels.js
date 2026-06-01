@@ -150,6 +150,10 @@ const LOG_KINDS = {
   // ── Kingdom Response Champion raid (KR P4) — a drafted act's elite assault.
   //    Fiery raid-banner amber so it reads as a distinct, alarming set-piece. ─
   champion:    { color: '#ff8a3c',          glyph: '⚑' },
+
+  // ── Champion DEFEATED (KR P4) — the raid broken. Triumphant victory-green
+  //    star: a major win beat, the payoff of the act's challenge. ─
+  'champion-down': { color: '#7ed957',      glyph: '★' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -225,7 +229,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event', 'nemesis', 'champion',
+  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down',
 ])
 
 export class RightPanels {
@@ -1091,6 +1095,12 @@ export class RightPanels {
       const who  = champion || response?.champion || 'A champion'
       const what = response?.name || 'The Kingdom'
       this._addLog(`${who} leads the assault — ${what}!`, 'champion')
+    })
+    // Champion defeated (KR P4) — the raid broken. The act's challenge payoff.
+    sub('CHAMPION_DEFEATED', ({ champion, response } = {}) => {
+      const who  = champion || response?.champion || 'The champion'
+      const what = response?.name || 'the assault'
+      this._addLog(`${who} has fallen — ${what} is broken!`, 'champion-down')
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+

@@ -34,10 +34,32 @@ export class KingdomResponseSystem {
     // current act on a fresh run / continue) and on every act transition. We
     // draft lazily on whichever fires for a drafted act that has no response yet.
     EventBus.on('ACT_STARTED', this._onActStarted, this)
+    // The champion raid's payoff — putting down the response's champion breaks
+    // that Kingdom Response (the act's intended challenge).
+    EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
   }
 
   destroy() {
     EventBus.off('ACT_STARTED', this._onActStarted, this)
+    EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
+  }
+
+  // The Champion raid's payoff. When the response's champion (a `_kingdomChampion`
+  // mini-boss) falls in the dungeon, that Kingdom Response is broken: record it
+  // and fire CHAMPION_DEFEATED for the triumphant log beat (+ later scoring /
+  // Aldric's adaptive ascension). Idempotent per act.
+  _onAdventurerDied({ adventurer } = {}) {
+    if (!adventurer?._kingdomChampion) return
+    this._ensureState()
+    const act = this._gs.meta?.act?.current ?? 0
+    const responseId = adventurer._championResponseId || this._gs.meta?.act?.responses?.[act]
+    const defeated = (this._gs.meta.act.championsDefeated ??= {})
+    if (defeated[act]) return   // already credited this act
+    defeated[act] = responseId || true
+    EventBus.emit('CHAMPION_DEFEATED', {
+      act, responseId, champion: adventurer.name,
+      response: responseId ? this._byId.get(responseId) : null,
+    })
   }
 
   // meta.act.responses maps act number → drafted response id. Backfilled here so
