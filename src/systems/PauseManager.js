@@ -15,8 +15,7 @@ import { PlayerProfile } from './PlayerProfile.js'
 // which we paused so resume() touches only those (won't accidentally wake
 // scenes that were already inactive).
 const GAMEPLAY_SCENES = [
-  'Game', 'NightPhase', 'DayPhase', 'EndOfDay',
-  'Graveyard', 'HudScene',
+  'Game', 'NightPhase', 'DayPhase', 'EndOfDay', 'HudScene',
 ]
 
 let _isPaused   = false

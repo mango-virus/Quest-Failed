@@ -604,11 +604,13 @@ Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Fa
 
 ## 24. Adventurer graveyard UI
 
+> **🚫 REMOVED 2026-05-31** — the standalone Phaser `Graveyard` scene was deleted in the DOM-HUD cleanup (unreachable since the GameOver "GRAVEYARD" button + NightPhase debug shortcut were retired; no DOM replacement was ever added). The dead-adventurer **data** still feeds the Game Over eulogy, Full Log, and Post-Wave summary. Re-introducing the browser as a DOM overlay is a possible future feature.
+
 | Item | Phase | Status |
 |---|---|---|
-| Persistent graveyard scene/screen | 10 | ✅ DONE | Graveyard scene with scrollable list reachable from GameOver |
-| Per-entry: name, class, personality, day died, killer, room, gear | 4 | ✅ DONE | Graveyard renderer shows name + class + day + killer + personalities (room/gear shown via deeper inspector in 10b) |
-| Sortable / filterable / searchable | 10b | ✅ DONE | sort chips (recent/day/class/killer) + class filter chips with scene-restart re-render |
+| Persistent graveyard scene/screen | 10 | 🚫 REMOVED 2026-05-31 | Was the Phaser `Graveyard` scene (scrollable list reachable from GameOver); deleted in DOM-HUD cleanup. |
+| Per-entry: name, class, personality, day died, killer, room, gear | 4 | 🚫 REMOVED 2026-05-31 | Was rendered by the `Graveyard` scene (now deleted). Same data still shown in the eulogy. |
+| Sortable / filterable / searchable | 10b | 🚫 REMOVED 2026-05-31 | sort/filter chips lived in the deleted `Graveyard` scene. |
 
 ---
 

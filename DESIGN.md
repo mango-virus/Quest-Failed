@@ -711,7 +711,9 @@ When the boss is finally slain and the run ends, show a cinematic eulogy — the
 
 ---
 
-## Adventurer graveyard UI
+## Adventurer graveyard UI ~~(REMOVED 2026-05-31)~~
+
+> **REMOVED 2026-05-31.** The standalone graveyard browser (the Phaser `Graveyard` scene) was deleted in the DOM-HUD cleanup. It had been unreachable for a while — its only entry points were the old GameOver scene's "GRAVEYARD" button and a NightPhase debug shortcut, both since retired, and the DOM HUD never added a replacement. The dead-adventurer **data** (`gameState.adventurers.graveyard`) lives on and still surfaces in the Game Over eulogy, the Full Log, and the Post-Wave summary. The original spec is preserved below; re-introducing the screen as a DOM overlay is a possible future feature.
 
 A persistent screen outside of the main dungeon view that shows every adventurer who has ever died in your dungeon. Their name, class, personality, how they died, what killed them, and how far they got. This costs almost nothing to build but adds enormous emotional weight to the game. Players will start recognizing names, feeling bad about killing certain adventurers, and celebrating when a recurring nemesis finally falls. It also makes the gear history system you already planned feel much more meaningful when you can look up exactly who Sir Aldric was before his Flameblade ended up on your skeleton.
 

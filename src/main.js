@@ -34,7 +34,6 @@ import { Game }            from './scenes/Game.js'
 import { NightPhase }      from './scenes/NightPhase.js'
 import { DayPhase }        from './scenes/DayPhase.js'
 import { EndOfDay }        from './scenes/EndOfDay.js'
-import { Graveyard }       from './scenes/Graveyard.js'
 import { HudScene }        from './scenes/HudScene.js'
 import { TilesetEditor }   from './scenes/TilesetEditor.js'
 import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
@@ -79,7 +78,6 @@ const config = {
     DayPhase,
     HudScene,   // above gameplay scenes, below result/menu screens
     EndOfDay,
-    Graveyard,
     TilesetEditor,
     RoomTileEditor,
   ],
