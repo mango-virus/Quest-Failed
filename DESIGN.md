@@ -1413,7 +1413,7 @@ A single named Hero who ties the variable run together with constant personal st
 
 At each act transition the kingdom escalates with a new strategy, **drawn from the Kingdom Responses pool** (below) and **weighted by the player's style** (see Adaptive Weighting). Each response is a distinct act-type with its own threat, signature gimmick, and clear-condition. The Nemesis appears within each.
 
-**Kingdom Responses pool** (8; Acts II & III draw 2, never repeating; extensible over time):
+**Kingdom Responses pool** (9; Acts II & III draw 2, never repeating; extensible over time):
 
 1. **Rival** — a rival dungeon boss invades *your* dungeon with monsters; culminates in a boss-vs-boss showdown. (Scales up the existing Rival Dungeon event.)
 2. **Inquisition** — fanatical zealots immune to fear who **nullify your Dark Pacts and purge undead**; your usual tricks stop working, forcing a mundane (traps/minions) defense.
@@ -1423,6 +1423,7 @@ At each act transition the kingdom escalates with a new strategy, **drawn from t
 6. **The Forlorn Hope** — a suicide squad of the realm's best who **never flee, fight to the death, and grow stronger as each one falls** (martyrdom). Ties to the Glory Hounds / martyr systems.
 7. **The Mage Tower — Arcane Assault** — archmages attack with **reality-warping offense**: teleport your minions out of position, transmute rooms, dispel your buffs, summon their own creatures. Scrambles your dungeon's rules mid-day. (Opposite of the anti-magic Inquisition.)
 8. **The All-Stars — Champions' League** — a coordinated **dream-team of named legendary heroes**, each a mini-boss with a signature ability synergized with the others. Blockbuster elite team-up.
+9. **The Plunderers** *(added 2026-06-01)* — a thieves' guild drawn by your hoard: **economic warfare**, the pool's only non-combat threat. Flee-prone thieves **pickpocket your treasury** while they live and **abscond with a heist purse if they escape** (drains scale as a % of your gold — robbing the rich proportionally). Cut down Vell the Guildmaster before your vault runs dry. The rich+evolved playstyle's second answer alongside the All-Stars.
 
 Each drafted act ends in a **Champion raid**: a pre-announced elite encounter (the response's signature champion + retinue) that must be defeated to clear the act and advance. Clear-conditions vary by response where it fits the theme (e.g. Reckoning = survive the undead tide; Mage Tower = kill the archmages before they unmake your dungeon).
 
@@ -1435,9 +1436,9 @@ Each drafted act ends in a **Champion raid**: a pre-announced elite encounter (t
 The draft for Acts II & III (and the composition within each act) is **tilted by the player's run-stats** so the kingdom counters *this* dungeon:
 - High kill-count / slaughter-heavy → **Reckoning of the Dead**, **Inquisition / Pantheon** (martyrs & holy vengeance) weighted up.
 - High intel leaks (many escapees) → responses that arrive pre-countered weighted up.
-- Rich treasury → thief/greed-flavored compositions weighted up.
+- Rich treasury → **The Plunderers**, **All-Stars** (greed-flavored) weighted up.
 - Heavy Dark-Pact reliance → **Inquisition / Pantheon** (pact-nullifying) weighted up.
-- Powerful/evolved minions → **The Betrayer**, **All-Stars** weighted up.
+- Powerful/evolved minions → **The Betrayer**, **All-Stars**, **The Plunderers**, **Rival** weighted up.
 
 Reads the existing `gameState.run.totals` + knowledge/exposure data.
 
