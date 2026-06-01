@@ -38,7 +38,8 @@ discipline, applied **when you finish a piece of work**:
 
 1. **If you changed a content count** (added/removed a room, minion, trap, pact, event, class,
    companion, achievement…), update the count in **`STATUS.md`** — it's one short table, keep
-   it true.
+   it true. Don't hand-count: run **`npm run verify-docs:fix`** to auto-sync the counts from
+   the data files, or **`npm run verify-docs`** to just check (exits non-zero on any drift).
 2. **If you finished or changed a tracked feature**, update its row in `DESIGN_COVERAGE.md` to
    match reality. Don't mark ✅ unless you verified it in code.
 3. **If the user adds a new design idea**, record it in `DESIGN.md` (their wording) +

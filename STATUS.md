@@ -22,6 +22,10 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 
 ## Content counts (verified 2026-05-31)
 
+> These counts are mechanically checked: run **`npm run verify-docs`** to confirm every count
+> below still matches `src/data/`, or **`npm run verify-docs:fix`** to auto-update them from the
+> data. The check exits non-zero on any mismatch (`tools/verify-docs.mjs`).
+
 | Content | Count | File | Notes |
 |---|---|---|---|
 | Boss archetypes | **12** | `bossArchetypes.json` | beholder, demon, myconid, wraith, gnoll, golem, lich, lizardman, orc, vampire, succubus, slime. All have wired headline abilities. **Base fight stats are flat (200/12/10) across all 12** — differentiation is abilities-only (deferred stat-profile pass). |

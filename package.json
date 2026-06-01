@@ -5,6 +5,8 @@
   "type": "module",
   "description": "Dev-tooling only. The game itself loads Phaser via CDN and ships as static files; this package.json exists to manage Node-side baking/build scripts under tools/.",
   "scripts": {
+    "verify-docs": "node tools/verify-docs.mjs",
+    "verify-docs:fix": "node tools/verify-docs.mjs --fix",
     "lpc:survey": "node tools/lpc-survey.mjs",
     "lpc:validate": "node tools/lpc-validate-pools.mjs",
     "lpc:bake": "node tools/bake-lpc-variants.mjs"
