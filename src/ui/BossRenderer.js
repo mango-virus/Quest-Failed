@@ -145,6 +145,10 @@ export class BossRenderer {
     // act was reached, so the boss is never visually stuck a tier behind.
     const wantTier = this._computeTier()
     if (wantTier !== this._tier) this._applyTier(wantTier)
+    // Act IV "ascended" treatment: most bosses reuse their canonical (T3) sheet
+    // for T4, so a persistent dark-power aura is what makes the final form read
+    // as distinct in-world (the succubus, with one sheet, wears it from act II).
+    this._updateAscensionAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -293,6 +297,7 @@ export class BossRenderer {
     this._slimeSprites.clear()
     this._slimeHurtUntil.clear()
     this._slimeLastHp.clear()
+    this._ascAura = null   // destroyed with the container below
     this._container?.destroy()
     this._container = null
     this._sprite    = null
@@ -409,6 +414,34 @@ export class BossRenderer {
     }
     for (const sp of this._slimeSprites.values()) sp?.destroy?.()
     this._slimeSprites.clear(); this._slimeHurtUntil.clear(); this._slimeLastHp.clear()
+  }
+
+  // Ascended (T4 / above-canonical) dark-power aura — a layered violet glow
+  // behind the boss that slow-pulses, plus a faint dark rim-tint, so the final
+  // form is unmistakably more menacing even when it reuses the canonical sheet.
+  // The pulse is a Phaser (canvas) tween, so it never hangs preview_screenshot.
+  _updateAscensionAura() {
+    if (this._ascended) this._ensureAscensionAura()
+    else if (this._ascAura) { this._ascAura.destroy(); this._ascAura = null }
+  }
+
+  _ensureAscensionAura() {
+    if (this._ascAura || !this._container || !this._sprite) return
+    const s = this._scene
+    const dsz = this._sprite.displayHeight || 96
+    const R = Math.max(40, dsz * 0.6)
+    const g = s.add.graphics()
+    // Concentric fills (outer→inner, rising alpha) fake a soft radial glow.
+    const layers = [[R * 1.3, 0.05], [R, 0.09], [R * 0.66, 0.15], [R * 0.4, 0.2]]
+    for (const [rad, a] of layers) { g.fillStyle(0x9a4bff, a); g.fillCircle(0, 0, rad) }
+    g.setPosition(0, -dsz * 0.08)
+    this._container.add(g)
+    this._container.sendToBack(g)
+    this._ascAura = g
+    s.tweens.add({
+      targets: g, scaleX: 1.14, scaleY: 1.14, alpha: 0.7,
+      duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    })
   }
 
   _build(boss) {
