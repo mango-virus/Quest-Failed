@@ -15,6 +15,18 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 10,
+    version: '0.1.11',
+    date: 'June 2026',
+    title: 'The Light Party',
+    items: [
+      { icon: '⚔️', text: 'New event: a four-hero Light Party storms your throne.' },
+      { icon: '✨', text: 'Their healer keeps reviving — cut the party down fast.' },
+      { icon: '💥', text: 'A cinematic raid duel: telegraphs, mechanics, Limit Breaks.' },
+      { icon: '🏆', text: 'Defeat the Light Party to free a new ally.' },
+    ],
+  },
+  {
     id: 9,
     version: '0.1.10',
     date: 'May 2026',
