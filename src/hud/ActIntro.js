@@ -29,7 +29,7 @@ function _ensureCss() {
 .qf-actintro-actions .btn { font-size:13px; }
 .qf-actintro-hint { margin-top:12px; font-size:9px; letter-spacing:3px; color:#6f6757; }
 .qf-actintro::before { content:''; position:absolute; inset:0;
-  background:radial-gradient(circle at 50% 50%, rgba(8,6,16,0) 32%, rgba(4,2,8,.82) 100%); }
+  background:radial-gradient(circle at 50% 46%, rgba(5,3,10,.80) 26%, rgba(2,1,5,.96) 100%); }
 .qf-actintro-card { position:relative; text-align:center;
   font-family:'Press Start 2P','Courier New',monospace; padding:28px 40px; }
 .qf-actintro-kicker { font-size:clamp(10px,1.3vw,15px); letter-spacing:8px;
@@ -108,6 +108,9 @@ export class ActIntro {
     if (!this._root) return
     this._clearTimers()
     this._cleanupKey()
+    // Let the companion's intro (WelcomeIntroOverlay) wait until the player has
+    // read + dismissed the act card, so she doesn't talk over it.
+    EventBus.emit('ACT_INTRO_DISMISSED')
     this._root.classList.remove('show')
     const el = this._root; this._root = null
     setTimeout(() => el?.remove(), 350)

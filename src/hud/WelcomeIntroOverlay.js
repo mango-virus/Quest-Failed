@@ -12,6 +12,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { userSettings } from './userSettings.js'
+import { isActsEnabled } from '../config/acts.js'
 
 const PARAGRAPHS = [
   {
@@ -43,18 +44,27 @@ export class WelcomeIntroOverlay {
   maybeOpen() {
     if (this._gameState?.meta?.introSeen) return
     let _opened = false
+    const onFinish = ({ phase } = {}) => { if (phase === 'night') tryOpen() }
+    const onActDismissed = () => tryOpen()
     const tryOpen = () => {
       if (_opened) return
       _opened = true
       EventBus.off('PHASE_TRANSITION_FINISHED', onFinish)
+      EventBus.off('ACT_INTRO_DISMISSED', onActDismissed)
       // Tiny extra delay so the cinematic's letterboxes fully clear
       // before the welcome modal animates in over them.
       setTimeout(() => this.open(), 120)
     }
-    const onFinish = ({ phase } = {}) => {
-      if (phase !== 'night') return
-      tryOpen()
+
+    // Acts on: the Act I card shows first. Wait for the player to read +
+    // dismiss it (CONTINUE) before the companion's intro begins, so she doesn't
+    // talk over it. Long safety fallback in case the card never fires.
+    if (isActsEnabled()) {
+      EventBus.on('ACT_INTRO_DISMISSED', onActDismissed)
+      setTimeout(tryOpen, 30000)
+      return
     }
+
     EventBus.on('PHASE_TRANSITION_FINISHED', onFinish)
     // Defensive fallback — if the cinematic never plays (e.g. the new
     // HUD is disabled and no PhaseTransition exists), still open the

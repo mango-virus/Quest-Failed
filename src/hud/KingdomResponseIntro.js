@@ -32,14 +32,66 @@ function _ensureCss() {
   background:
     radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--kri-accent) 20%, transparent) 0%, transparent 48%),
     radial-gradient(circle at 50% 50%, rgba(5,3,10,.72) 26%, rgba(2,1,5,.96) 100%); }
-/* sunburst rays behind the emblem — a static conic burst, radially faded */
-.qf-kri-rays { position:absolute; left:50%; top:40%; width:150vmax; height:150vmax;
-  transform:translate(-50%,-50%) scale(.2); opacity:0;
-  background:repeating-conic-gradient(from 0deg,
-    color-mix(in srgb, var(--kri-accent) 34%, transparent) 0deg 1.4deg, transparent 1.4deg 11deg);
-  -webkit-mask:radial-gradient(circle at center, #000 0%, rgba(0,0,0,.35) 22%, transparent 42%);
-          mask:radial-gradient(circle at center, #000 0%, rgba(0,0,0,.35) 22%, transparent 42%);
-  animation:qf-kri-rays var(--dur-hero,800ms) var(--ease-out,ease) .15s forwards; }
+/* per-response backdrop effect (bgFx) — each Kingdom Response gets its own
+   motif instead of the same rays. Static (faded in), accent-tinted. */
+.qf-kri-fx { position:absolute; inset:0; opacity:0; pointer-events:none;
+  animation:qf-kri-fxin var(--dur-hero,800ms) var(--ease-out,ease) .15s forwards; }
+/* Pantheon — divine sunburst rays */
+.qf-kri-fx.fx-rays {
+  background:repeating-conic-gradient(from 0deg at 50% 42%,
+    color-mix(in srgb, var(--kri-accent) 32%, transparent) 0deg 1.4deg, transparent 1.4deg 11deg);
+  -webkit-mask:radial-gradient(circle at 50% 42%, #000 0%, rgba(0,0,0,.4) 20%, transparent 44%);
+          mask:radial-gradient(circle at 50% 42%, #000 0%, rgba(0,0,0,.4) 20%, transparent 44%); }
+/* Inquisition — a single judgment beam descending from on high */
+.qf-kri-fx.fx-beam {
+  background:linear-gradient(180deg, color-mix(in srgb, var(--kri-accent) 34%, transparent) 0%, transparent 62%);
+  -webkit-mask:linear-gradient(90deg, transparent 36%, #000 45%, #000 55%, transparent 64%);
+          mask:linear-gradient(90deg, transparent 36%, #000 45%, #000 55%, transparent 64%); }
+/* Rival — an ominous dark dominion pressing down from above */
+.qf-kri-fx.fx-descent {
+  background:
+    radial-gradient(120% 75% at 50% -12%, color-mix(in srgb, var(--kri-accent) 28%, transparent) 0%, transparent 58%),
+    linear-gradient(180deg, rgba(0,0,0,.45) 0%, transparent 42%); }
+/* Betrayer — fractured shards radiating, a dungeon turned on itself */
+.qf-kri-fx.fx-cracks {
+  background:repeating-conic-gradient(from 9deg at 50% 48%,
+    transparent 0deg 6.5deg, color-mix(in srgb, var(--kri-accent) 26%, transparent) 6.5deg 7.4deg,
+    transparent 7.4deg 21deg, color-mix(in srgb, var(--kri-accent) 13%, transparent) 21deg 22deg);
+  -webkit-mask:radial-gradient(circle at 50% 48%, transparent 13%, #000 32%, transparent 72%);
+          mask:radial-gradient(circle at 50% 48%, transparent 13%, #000 32%, transparent 72%); }
+/* Reckoning — a creeping necrotic fog rising from below */
+.qf-kri-fx.fx-souls {
+  background:
+    radial-gradient(150% 80% at 50% 116%, color-mix(in srgb, var(--kri-accent) 30%, transparent) 0%, transparent 56%),
+    radial-gradient(90% 50% at 25% 108%, color-mix(in srgb, var(--kri-accent) 16%, transparent) 0%, transparent 50%); }
+/* Forlorn Hope — embers + sparks of a funeral pyre */
+.qf-kri-fx.fx-embers {
+  background:
+    radial-gradient(2.5px 2.5px at 18% 78%, var(--kri-accent), transparent 60%),
+    radial-gradient(2px 2px at 34% 88%, var(--kri-accent), transparent 60%),
+    radial-gradient(2.5px 2.5px at 52% 80%, var(--kri-accent), transparent 60%),
+    radial-gradient(2px 2px at 68% 90%, var(--kri-accent), transparent 60%),
+    radial-gradient(3px 3px at 82% 83%, var(--kri-accent), transparent 60%),
+    radial-gradient(2px 2px at 44% 70%, var(--kri-accent), transparent 60%),
+    radial-gradient(130% 55% at 50% 118%, color-mix(in srgb, var(--kri-accent) 24%, transparent) 0%, transparent 52%); }
+/* Mage Tower — an arcane geometric grid, reality drawn as a mesh */
+.qf-kri-fx.fx-runes {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 39px, color-mix(in srgb, var(--kri-accent) 13%, transparent) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, color-mix(in srgb, var(--kri-accent) 13%, transparent) 39px 40px);
+  -webkit-mask:radial-gradient(circle at 50% 46%, #000 0%, transparent 66%);
+          mask:radial-gradient(circle at 50% 46%, #000 0%, transparent 66%); }
+/* All-Stars — a triumphant starfield */
+.qf-kri-fx.fx-stars {
+  background:
+    radial-gradient(1.6px 1.6px at 14% 24%, #fff, transparent 60%),
+    radial-gradient(1.4px 1.4px at 72% 16%, var(--kri-accent), transparent 60%),
+    radial-gradient(2px 2px at 40% 32%, var(--kri-accent), transparent 60%),
+    radial-gradient(1.4px 1.4px at 86% 40%, #fff, transparent 60%),
+    radial-gradient(1.6px 1.6px at 26% 60%, var(--kri-accent), transparent 60%),
+    radial-gradient(1.4px 1.4px at 60% 68%, #fff, transparent 60%),
+    radial-gradient(2px 2px at 90% 70%, var(--kri-accent), transparent 60%),
+    radial-gradient(1.4px 1.4px at 8% 80%, var(--kri-accent), transparent 60%); }
 
 .qf-kri-card { position:relative; text-align:center; padding:20px 40px; max-width:780px; }
 
@@ -97,7 +149,7 @@ function _ensureCss() {
 .qf-kri-hint { margin-top:var(--space-3,12px); font-size:9px; letter-spacing:3px;
   color:#6f6757; }
 
-@keyframes qf-kri-rays { to { opacity:.85; transform:translate(-50%,-50%) scale(1); } }
+@keyframes qf-kri-fxin { to { opacity:.9; } }
 @keyframes qf-kri-drop { to { opacity:1; transform:translateY(0); } }
 @keyframes qf-kri-rise { to { opacity:1; transform:translateY(0); } }
 @keyframes qf-kri-fade { to { opacity:1; } }
@@ -112,7 +164,7 @@ function _ensureCss() {
   .qf-kri-kicker,.qf-kri-name,.qf-kri-eyebrow,.qf-kri-threat,.qf-kri-mod,
   .qf-kri-emblem-glyph,.qf-kri-actions { animation:qf-kri-fade var(--dur-base,240ms) ease both; transform:none; filter:none; }
   .qf-kri-emblem-ring { display:none; }
-  .qf-kri-rays { animation:qf-kri-fade var(--dur-base,240ms) ease forwards; transform:translate(-50%,-50%); }
+  .qf-kri-fx { animation:qf-kri-fade var(--dur-base,240ms) ease forwards; }
   .qf-kri-rule { animation:qf-kri-rule var(--dur-base,240ms) ease forwards; }
 }`
   document.head.appendChild(style)
@@ -140,7 +192,7 @@ export class KingdomResponseIntro {
     const acc = response.accent || '#d4a648'
     this._root = h('div', { className: 'qf-kri', style: { '--kri-accent': acc } }, [
       h('div', { className: 'qf-kri-bg' }),
-      h('div', { className: 'qf-kri-rays' }),
+      h('div', { className: `qf-kri-fx fx-${response.bgFx || 'rays'}` }),
       h('div', { className: 'qf-kri-card' }, [
         h('div', { className: 'qf-kri-kicker' }, `ACT ${ROMAN[act] || act} · THE KINGDOM RESPONDS`),
         h('div', { className: 'qf-kri-emblem' }, [

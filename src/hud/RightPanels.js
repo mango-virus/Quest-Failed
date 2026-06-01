@@ -161,8 +161,8 @@ const LOG_KINDS = {
   // ── Pantheon divine power (KR P4) — holy aura / resurrection. Radiant gold ☼. ─
   pantheon:    { color: '#ffe9a8',          glyph: '☼' },
 
-  // ── Inquisition (KR P4) — undead purge / pact suppression. Zealot parchment ✝. ─
-  inquisition: { color: '#e0d8c0',          glyph: '✝' },
+  // ── Inquisition (KR P4) — undead purge / pact suppression. Zealot parchment. ─
+  inquisition: { color: '#e0d8c0',          glyph: '⚖' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See

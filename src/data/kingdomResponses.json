@@ -1,7 +1,7 @@
 [
   {
     "id": "rival",
-    "name": "The Rival",
+    "name": "Rival",
     "eyebrow": "A RIVAL DUNGEON STIRS",
     "threat": "A rival dungeon lord sends his monsters into your halls — and comes for your throne himself.",
     "gimmick": "Monsters invade instead of adventurers; it culminates in a boss-vs-boss showdown.",
@@ -13,11 +13,12 @@
     ],
     "accent": "#a24bd9",
     "emblem": "⚑",
+    "bgFx": "descent",
     "weightTags": ["minions", "evolved"]
   },
   {
     "id": "inquisition",
-    "name": "The Inquisition",
+    "name": "Inquisition",
     "eyebrow": "THE FAITHFUL MARCH",
     "threat": "Fanatical zealots, immune to fear, come to purge your dark works by holy law.",
     "gimmick": "Nullifies your Dark Pacts and purges undead — your tricks stop working, forcing a mundane defense.",
@@ -30,12 +31,13 @@
       { "classId": "cleric",  "count": 2, "name": "Inquisitor", "flags": ["noFlee"] }
     ],
     "accent": "#e0d8c0",
-    "emblem": "✝",
+    "emblem": "⚖",
+    "bgFx": "beam",
     "weightTags": ["pacts", "undead"]
   },
   {
     "id": "pantheon",
-    "name": "The Pantheon",
+    "name": "Pantheon",
     "eyebrow": "DIVINE JUDGMENT DESCENDS",
     "threat": "The gods themselves answer — radiant avatars descend to scour the dark from your dungeon.",
     "gimmick": "Holy zones heal heroes and sear your minions; the fallen are resurrected mid-fight by divine grace.",
@@ -49,11 +51,12 @@
     ],
     "accent": "#ffe9a8",
     "emblem": "☼",
+    "bgFx": "rays",
     "weightTags": ["pacts", "slaughter"]
   },
   {
     "id": "betrayer",
-    "name": "The Betrayer",
+    "name": "Betrayer",
     "eyebrow": "ONE OF YOUR OWN TURNS",
     "threat": "A traitor in your own ranks leads the raid and turns your dungeon against you.",
     "gimmick": "A defecting minion sabotages from inside — your own rooms and traps turn on you for the act.",
@@ -65,12 +68,13 @@
       { "classId": "knight", "count": 2, "name": "Turned Guard" }
     ],
     "accent": "#7ec850",
-    "emblem": "†",
+    "emblem": "⇄",
+    "bgFx": "cracks",
     "weightTags": ["evolved", "minions"]
   },
   {
     "id": "reckoning_dead",
-    "name": "The Reckoning of the Dead",
+    "name": "Reckoning of the Dead",
     "eyebrow": "THE SLAIN RETURN",
     "threat": "A necromancer-king raises every soul you have killed this run to march against you.",
     "gimmick": "An undead tide whose size scales with your run's kill-count — your own victims, turned.",
@@ -79,11 +83,12 @@
     "championChassis": "necromancer",
     "accent": "#6fce8a",
     "emblem": "☠",
+    "bgFx": "souls",
     "weightTags": ["slaughter", "kills"]
   },
   {
     "id": "forlorn_hope",
-    "name": "The Forlorn Hope",
+    "name": "Forlorn Hope",
     "eyebrow": "A SUICIDE OATH IS SWORN",
     "threat": "The realm's finest swear a death-oath — they will not flee, and they grow stronger as they fall.",
     "gimmick": "A martyr squad that never retreats, fights to the death, and empowers the living with each one slain.",
@@ -96,12 +101,13 @@
       { "classId": "knight",    "count": 2, "name": "Last Vow",     "flags": ["noFlee", "forlornMartyr"] }
     ],
     "accent": "#f0a850",
-    "emblem": "✠",
+    "emblem": "♟",
+    "bgFx": "embers",
     "weightTags": ["slaughter", "martyr"]
   },
   {
     "id": "mage_tower",
-    "name": "The Mage Tower",
+    "name": "Mage Tower",
     "eyebrow": "ARCANE ASSAULT BEGINS",
     "threat": "The archmages bring reality-warping war — your dungeon's very rules unravel.",
     "gimmick": "Teleports your minions out of position, transmutes rooms, dispels your buffs, summons their own.",
@@ -113,11 +119,12 @@
     ],
     "accent": "#8a9cf0",
     "emblem": "✶",
+    "bgFx": "runes",
     "weightTags": ["pacts", "buffs"]
   },
   {
     "id": "all_stars",
-    "name": "The All-Stars",
+    "name": "All-Stars",
     "eyebrow": "THE CHAMPIONS' LEAGUE ARRIVES",
     "threat": "A dream-team of legendary heroes assembles — each a champion, all in deadly concert.",
     "gimmick": "A coordinated elite squad, each hero a mini-boss with a signature ability that synergizes with the rest.",
@@ -132,6 +139,7 @@
     ],
     "accent": "#ffd76a",
     "emblem": "★",
+    "bgFx": "stars",
     "weightTags": ["evolved", "treasury"]
   }
 ]
