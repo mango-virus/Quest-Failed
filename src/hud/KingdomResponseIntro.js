@@ -48,11 +48,13 @@ function _ensureCss() {
 .qf-kri-emblem-ring { position:absolute; inset:0; border-radius:50%;
   border:2px solid var(--kri-accent); opacity:0; transform:scale(.3);
   animation:qf-kri-shock 900ms var(--ease-out,ease) .22s forwards; }
+/* The emblem spring-pops in then holds steady. NO infinite idle animation:
+   a perpetual DOM animation prevents the page reaching a stable frame and
+   breaks preview_screenshot (visual-QA tooling). See VISUAL_STANDARDS.md §4. */
 .qf-kri-emblem-glyph { font-size:74px; line-height:1; color:var(--kri-accent);
   filter:drop-shadow(0 0 18px var(--kri-accent));
   opacity:0; transform:scale(.4);
-  animation:qf-kri-pop var(--dur-slow,400ms) var(--ease-spring,ease) .25s forwards,
-            qf-kri-float 3.6s ease-in-out 1s infinite; }
+  animation:qf-kri-pop var(--dur-slow,400ms) var(--ease-spring,ease) .25s forwards; }
 
 .qf-kri-name { font-size:clamp(24px,3.8vw,52px); letter-spacing:2px; color:#f3ecdd;
   text-shadow:0 0 26px color-mix(in srgb, var(--kri-accent) 55%, transparent), 0 3px 0 #0a0610;
@@ -77,7 +79,6 @@ function _ensureCss() {
 @keyframes qf-kri-fade { to { opacity:1; } }
 @keyframes qf-kri-pop  { 0%{opacity:0; transform:scale(.4)} 100%{opacity:1; transform:scale(1)} }
 @keyframes qf-kri-shock { 0%{opacity:.9; transform:scale(.3)} 100%{opacity:0; transform:scale(1.5)} }
-@keyframes qf-kri-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
 @keyframes qf-kri-rule { from { width:0 } to { width:min(56vw, 440px) } }
 
 /* reduced motion: keep the reveal, drop the movement/overshoot/float */

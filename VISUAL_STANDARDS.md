@@ -139,6 +139,14 @@ polished animation is one of the strongest signals of "this is a complete game."
 - **No jank, ever.** No teleporting elements, no abrupt start/stop, no
   re-animating in place — to re-run a CSS entrance, swap a fresh DOM node
   (`replaceChild`). (Lesson #17.) Watch it run in the preview before commit.
+- **Avoid INFINITE animations on overlays — they break `preview_screenshot`.**
+  A perpetual DOM animation (`... infinite`) keeps the page from ever reaching a
+  stable frame, so the screenshot tool hangs and times out (30s) — which kills
+  your own visual-QA loop. Confirmed on the Kingdom Response reveal: an infinite
+  emblem float made every screenshot time out; removing it fixed capture
+  instantly. Prefer finite entrance animations that settle. If you truly need an
+  ambient idle loop, gate it so a screenshot pass can pause it, or animate a
+  non-compositing property — but the safe default is: entrance plays, then hold.
 - **Honor reduced motion.** Gate the big stuff behind
   `@media (prefers-reduced-motion: no-preference)` / our reduced-motion toggle,
   with a tasteful non-animated fallback (see §7 accessibility).
