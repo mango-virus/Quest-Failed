@@ -1102,6 +1102,10 @@ export class RightPanels {
       const what = response?.name || 'the assault'
       this._addLog(`${who} has fallen — ${what} is broken!`, 'champion-down')
     })
+    // Forlorn Hope escalating fury (KR P4) — a martyr fell; the survivors surge.
+    sub('FORLORN_FURY', ({ stacks } = {}) => {
+      this._addLog(`A martyr falls — the Forlorn Hope's fury rises (×${stacks ?? 1})!`, 'champion')
+    })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+
     // wipe scenarios the per-death stream pushed everything else off

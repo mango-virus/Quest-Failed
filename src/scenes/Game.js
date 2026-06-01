@@ -74,6 +74,7 @@ import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
 import { ActSystem }          from '../systems/ActSystem.js'
 import { NemesisSystem }      from '../systems/NemesisSystem.js'
 import { KingdomResponseSystem } from '../systems/KingdomResponseSystem.js'
+import { KingdomModifierSystem } from '../systems/KingdomModifierSystem.js'
 import { isActsEnabled }      from '../config/acts.js'
 import { AbilityVfx }         from '../ui/AbilityVfx.js'
 import { BossPactVfx }        from '../ui/BossPactVfx.js'
@@ -292,6 +293,9 @@ export class Game extends Phaser.Scene {
     // begins + fires KINGDOM_RESPONSE_DRAWN for the announce set-piece and the
     // per-response gimmicks. Same `acts` gate.
     if (isActsEnabled()) this.kingdomResponseSystem = track(new KingdomResponseSystem(this, this.gameState))
+    // The deep per-response modifiers (KR P4) — the rule-bending signature
+    // mechanics (Forlorn fury, Pantheon zones, etc.). Same `acts` gate.
+    if (isActsEnabled()) this.kingdomModifierSystem = track(new KingdomModifierSystem(this, this.gameState))
     this.bossPactVfx         = track(new BossPactVfx(this, this.gameState))
     this.roomBehaviorSystem  = track(new RoomBehaviorSystem(this, this.gameState))
     this.classAbilitySystem  = track(new ClassAbilitySystem(this, this.gameState))

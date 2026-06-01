@@ -1,7 +1,7 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
 import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
-import { isActsEnabled, actForDay, isActFinalDay, actDefForDay } from '../config/acts.js'
+import { isActsEnabled, actForDay, isActFinalDay, actDefForDay, actDayIndex } from '../config/acts.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
@@ -665,6 +665,16 @@ export class DayPhase extends Phaser.Scene {
         const _resp = game?.kingdomResponseSystem?.currentResponse?.()
         if (_resp && BUILT_CHAMPION_RAIDS.has(_resp.id)) {
           return this._spawnChampionRaid(_resp)
+        }
+      }
+
+      // Reckoning of the Dead — the tide builds across the WHOLE act: a small
+      // undead trickle joins the normal wave on each NON-final day, swelling
+      // toward the final-day raid. ADDITIVE (no return) — the normal wave still
+      // spawns alongside.
+      if (actDefForDay(_day)?.kind === 'drafted' && !isActFinalDay(_day)) {
+        if (game?.kingdomResponseSystem?.currentResponse?.()?.id === 'reckoning_dead') {
+          this._spawnUndeadTrickle()
         }
       }
     }
@@ -1653,21 +1663,35 @@ export class DayPhase extends Phaser.Scene {
     return spawned
   }
 
-  // The Reckoning of the Dead — the run's slain, risen. Tide size scales with
-  // run.totals.kills (your victims return), floored at a credible swarm and
-  // capped so a slaughter-heavy run can't spawn hundreds. Reuses the
-  // zombie-shambler mechanics: slow, weak, relentless, never flee.
-  _spawnUndeadTide(allClasses, dungeonLv) {
-    const game = this.scene.get('Game')
-    const aiSystem = game?.aiSystem
-    const chassis = allClasses.find(c => c.id === 'monster_invader') ?? allClasses[0]
-    if (!aiSystem || !chassis) return []
+  // The Reckoning of the Dead — the run's slain, risen. The final-day raid tide
+  // scales with run.totals.kills (your victims return), floored at a credible
+  // swarm and capped so a slaughter-heavy run can't spawn hundreds.
+  _spawnUndeadTide(_allClasses, dungeonLv) {
     const kills = this._gameState.run?.totals?.kills ?? 0
     const tide  = Math.max(8, Math.min(48, Math.round(kills * 0.25)))
+    return this._spawnRisenDead(tide, dungeonLv)
+  }
+
+  // Tide-builds-across-the-act: a smaller undead trickle joins each NON-final day
+  // of the Reckoning act (additive to the normal wave), swelling as the act
+  // deepens so dread mounts toward the final-day raid.
+  _spawnUndeadTrickle() {
+    const dayInAct = actDayIndex(this._gameState.meta?.dayNumber ?? 1)
+    const count = Math.min(8, 2 + Math.floor(dayInAct / 2))
+    return this._spawnRisenDead(count, this._gameState.boss?.level ?? 1)
+  }
+
+  // Spawn `count` Risen Dead — slow, weak, relentless, never flee (zombie-
+  // shambler mechanics). Shared by the final-day tide + the daily trickle.
+  _spawnRisenDead(count, dungeonLv) {
+    const game = this.scene.get('Game')
+    const aiSystem = game?.aiSystem
+    const chassis = (this.cache.json.get('adventurerClasses') ?? []).find(c => c.id === 'monster_invader')
+    if (!aiSystem || !chassis) return []
     const SHEETS = ['minion-zombie1', 'minion-zombie2', 'minion-zombie3']
     const partyId = `reckoning_tide_${this._gameState.meta?.dayNumber ?? 0}`
     const risen = []
-    for (let i = 0; i < tide; i++) {
+    for (let i = 0; i < count; i++) {
       const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
       if (!spawn) break
       const z = createAdventurer(chassis, { x: spawn.x, y: spawn.y })

@@ -89,10 +89,10 @@
     "clearCondition": "Break the oath — kill the captain who binds them.",
     "champion": "Captain Halric, the Last Vow",
     "championChassis": "barbarian",
-    "championFlags": ["noFlee"],
+    "championFlags": ["noFlee", "forlornMartyr"],
     "retinue": [
-      { "classId": "barbarian", "count": 3, "name": "Sworn Martyr", "flags": ["noFlee"] },
-      { "classId": "knight",    "count": 2, "name": "Last Vow",     "flags": ["noFlee"] }
+      { "classId": "barbarian", "count": 3, "name": "Sworn Martyr", "flags": ["noFlee", "forlornMartyr"] },
+      { "classId": "knight",    "count": 2, "name": "Last Vow",     "flags": ["noFlee", "forlornMartyr"] }
     ],
     "accent": "#f0a850",
     "emblem": "✠",
