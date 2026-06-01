@@ -154,6 +154,9 @@ const LOG_KINDS = {
   // ── Champion DEFEATED (KR P4) — the raid broken. Triumphant victory-green
   //    star: a major win beat, the payoff of the act's challenge. ─
   'champion-down': { color: '#7ed957',      glyph: '★' },
+
+  // ── Mage Tower arcane disruption (KR P4) — blink / summon. Arcane blue ✶. ─
+  mage:        { color: '#8a9cf0',          glyph: '✶' },
 }
 const LOG_MAX = 50
 // Coalesce window for burst-prone log entries (2026-05-27). See
@@ -229,7 +232,7 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'trap', 'leak', 'veteran',
   'pact', 'spawn',
   'day-phase', 'night-phase',
-  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down',
+  'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage',
 ])
 
 export class RightPanels {
@@ -1110,6 +1113,13 @@ export class RightPanels {
     sub('MINION_DEFECTED', ({ minion } = {}) => {
       const who = minion?.name || minion?.definitionId || 'Your strongest minion'
       this._addLog(`${who} has TURNED — it fights for the Betrayer now!`, 'champion')
+    })
+    // Mage Tower (KR P4) — arcane disruption beats (coalesced; they recur).
+    sub('MAGE_BLINK', () => {
+      this._addLogCoalesced('Arcane winds scatter your minions!', 'mage', 'MAGE_BLINK', null)
+    })
+    sub('MAGE_SUMMON', () => {
+      this._addLogCoalesced('The archmages summon an arcane construct.', 'mage', 'MAGE_SUMMON', null)
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+

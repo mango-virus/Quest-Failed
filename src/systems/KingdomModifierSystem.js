@@ -10,12 +10,18 @@
 // "Acts II & III — The Kingdom Responds" and the kr-response-* coverage rows.
 
 import { EventBus } from './EventBus.js'
+import { currentActResponseId } from '../config/acts.js'
 
 // Forlorn Hope — each fallen martyr stokes the survivors' fury. Per-death
 // multipliers (compounding); a ~6-strong squad tops out around ×1.9 atk / ×1.5
 // speed, so it ramps hard the longer you let the fight drag without ending it.
 const FORLORN_ATK_PER_DEATH   = 1.12
 const FORLORN_SPEED_PER_DEATH = 1.08
+
+// Mage Tower cadence (real-time ms while its act is active + a wave is present).
+const MAGE_BLINK_INTERVAL  = 6500
+const MAGE_SUMMON_INTERVAL = 8500
+const MAGE_SUMMON_CAP      = 6     // live arcane constructs at once
 
 export class KingdomModifierSystem {
   constructor(scene, gameState) {
@@ -39,6 +45,52 @@ export class KingdomModifierSystem {
   // True when `id`'s act-wide modifier should currently apply.
   isActive(id) {
     return this.activeResponseId() === id
+  }
+
+  // ── per-frame tick (day phase only; wired in Game.update) ───────────────────
+  update(_dt) {
+    // Mage Tower — reality-warping magic while its act runs + a wave is present.
+    if (currentActResponseId(this._gs) === 'mage_tower' &&
+        (this._gs.adventurers?.active?.length ?? 0) > 0) {
+      this._tickMageTower()
+    }
+  }
+
+  _tickMageTower() {
+    const now = this._scene?.time?.now ?? 0
+    if (!now) return
+    if (now - (this._mageBlinkAt ?? 0) > MAGE_BLINK_INTERVAL)  { this._mageBlinkAt = now;  this._mageBlink() }
+    if (now - (this._mageSummonAt ?? 0) > MAGE_SUMMON_INTERVAL) { this._mageSummonAt = now; this._mageSummon() }
+  }
+
+  // Blink — the archmages teleport your minions out of position: swap two random
+  // living minions' tiles so the formation you carefully placed scrambles.
+  _mageBlink() {
+    const minions = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0)
+    if (minions.length < 2) return
+    const i = Math.floor(Math.random() * minions.length)
+    let j = Math.floor(Math.random() * minions.length)
+    if (j === i) j = (j + 1) % minions.length
+    const a = minions[i], b = minions[j]
+    for (const k of ['tileX', 'tileY', 'worldX', 'worldY']) {
+      const t = a[k]; a[k] = b[k]; b[k] = t
+    }
+    EventBus.emit('MAGE_BLINK', { a: a.name, b: b.name })
+  }
+
+  // Summon — the mages conjure an arcane construct that joins the assault
+  // (capped so it doesn't flood). Reuses DayPhase's retinue spawn.
+  _mageSummon() {
+    const dayPhase = this._scene?.scene?.get?.('DayPhase')
+    if (!dayPhase?.scene?.isActive?.() || typeof dayPhase._spawnRetinueSquad !== 'function') return
+    const live = (this._gs.adventurers?.active ?? []).filter(a => a._arcaneConstruct).length
+    if (live >= MAGE_SUMMON_CAP) return
+    const allClasses = this._scene.cache?.json?.get?.('adventurerClasses') ?? []
+    const out = dayPhase._spawnRetinueSquad(
+      { classId: 'monster_invader', count: 1, name: 'Arcane Construct', monster: true, flags: ['noFlee'] },
+      allClasses, this._gs.boss?.level ?? 1)
+    for (const c of out) c._arcaneConstruct = true
+    if (out.length) EventBus.emit('MAGE_SUMMON', { count: out.length })
   }
 
   // ── ADVENTURER_DIED router ──────────────────────────────────────────────────

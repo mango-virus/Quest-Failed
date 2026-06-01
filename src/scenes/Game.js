@@ -2058,6 +2058,7 @@ export class Game extends Phaser.Scene {
           tick('trapSystem',            () => this.trapSystem?.update(stepDt))
           tick('dungeonMechanicSystem', () => this.dungeonMechanicSystem?.tickDay(stepDt))
           tick('classAbilitySystem',    () => this.classAbilitySystem?.update(stepDt))
+          tick('kingdomModifierSystem', () => this.kingdomModifierSystem?.update?.(stepDt))
           const nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now())
           if (nowMs - budgetStart > STEP_BUDGET_MS) break
         }
