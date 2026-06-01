@@ -1773,8 +1773,11 @@ export class NightPhase extends Phaser.Scene {
       // (following the cursor), so counting it would falsely read "already
       // placed" and paint the carry preview red the whole move.
       const heldChestId = this._heldMoveItem?.kind === 'treasure_chest' ? this._heldMoveItem.data?.instanceId : null
+      // Auto-spawned chests (treasury / mimic / cursed relic) don't fill the
+      // player's per-tier slot — exclude them so the preview doesn't read red.
       const here = (this._gameState.dungeon.treasureChests ?? [])
-        .filter(c => c.tier === tier && c.instanceId !== heldChestId)
+        .filter(c => c.tier === tier && c.instanceId !== heldChestId
+          && !c._treasurySpawn && !c._mimicCursed && !c._cursed)
       if (check.valid && here.length >= 1) check = { valid: false, reason: `Tier ${tier} already placed` }
       if (!check.valid && check.reason) check.violations = [check.reason]
     } else {
@@ -2881,7 +2884,12 @@ export class NightPhase extends Phaser.Scene {
     const isMove = this._heldMoveItem?.kind === 'treasure_chest' &&
                    this._heldMoveItem.data?.tier === tier
     if (!isMove) {
-      const here = (this._gameState.dungeon.treasureChests ?? []).filter(c => c.tier === tier)
+      // Only player-placed chests count toward the per-tier cap. Treasury
+      // auto-spawns (_treasurySpawn), Mimic Vault chests (_mimicCursed), and
+      // Cursed Relic event drops (_cursed) live in the same array but were
+      // never placed from the Items menu, so they don't fill the slot.
+      const here = (this._gameState.dungeon.treasureChests ?? [])
+        .filter(c => c.tier === tier && !c._treasurySpawn && !c._mimicCursed && !c._cursed)
       if (here.length >= 1) {
         this._showPlacementError(`Tier ${tier} chest already placed`)
         return

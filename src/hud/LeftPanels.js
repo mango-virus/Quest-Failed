@@ -404,7 +404,15 @@ export class LeftPanels {
       if (def.id === 'healing_fountain')  return (d.fountains ?? []).length
       if (def.id === 'key_chest')         return (d.keyChests ?? []).length
       if (String(def.id).startsWith('treasure_chest_')) {
-        return (d.treasureChests ?? []).filter(c => c.tier === def.tier).length
+        // Only player-placed chests count toward the Items-menu per-tier cap.
+        // Treasury room auto-spawns (_treasurySpawn), Mimic Vault chests
+        // (_mimicCursed), and Cursed Relic event drops (_cursed) share the
+        // same array but were never placed from the menu — they must not
+        // consume the player's slot, or a treasury chest would lock the
+        // player out of placing their own chest of that tier.
+        return (d.treasureChests ?? []).filter(c =>
+          c.tier === def.tier && !c._treasurySpawn && !c._mimicCursed && !c._cursed
+        ).length
       }
     }
     return 0
