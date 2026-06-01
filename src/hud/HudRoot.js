@@ -46,6 +46,7 @@ import { ActIntro }             from './ActIntro.js'
 import { NemesisPortrait }      from './NemesisPortrait.js'
 import { VictoryScreen }        from './VictoryScreen.js'
 import { KingdomResponseIntro } from './KingdomResponseIntro.js'
+import { ActStatusHud }         from './ActStatusHud.js'
 import { isActsEnabled }        from '../config/acts.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
@@ -171,6 +172,9 @@ export class HudRoot {
     // each drafted act (II & III) on KINGDOM_RESPONSE_DRAWN. Self-mounts into
     // #hud-stage; gated behind the `acts` flag.
     this._kingdomResponseIntro = isActsEnabled() ? new KingdomResponseIntro(this._gameState) : null
+    // Persistent top-center act/modifier status pill (KR P4) — always shows the
+    // current act + its Kingdom Response so the player never has to remember it.
+    this._actStatusHud = isActsEnabled() ? new ActStatusHud(this._gameState) : null
     // Mango-only dev affordance — small floating button that force-fires
     // any dungeon event for testing. Self-gates on PlayerProfile.isCheatName()
     // so the button doesn't appear for real players. MUST construct
@@ -367,6 +371,7 @@ export class HudRoot {
     this._nemesisPortrait?.destroy(); this._nemesisPortrait = null
     this._victoryScreen?.destroy();   this._victoryScreen = null
     this._kingdomResponseIntro?.destroy(); this._kingdomResponseIntro = null
+    this._actStatusHud?.destroy(); this._actStatusHud = null
     this._coinFlip?.destroy();       this._coinFlip = null
     this._soloLeveling?.destroy();   this._soloLeveling = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
