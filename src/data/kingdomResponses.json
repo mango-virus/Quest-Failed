@@ -7,6 +7,10 @@
     "gimmick": "Monsters invade instead of adventurers; it culminates in a boss-vs-boss showdown.",
     "clearCondition": "Defeat the rival boss when he reaches your throne.",
     "champion": "Vorzak, the Usurper Below",
+    "championChassis": "rival_boss_invader",
+    "retinue": [
+      { "classId": "monster_invader", "count": 8, "name": "Rival Horror", "monster": true, "flags": ["noFlee"] }
+    ],
     "accent": "#a24bd9",
     "emblem": "⚑",
     "weightTags": ["minions", "evolved"]
@@ -19,6 +23,12 @@
     "gimmick": "Nullifies your Dark Pacts and purges undead — your tricks stop working, forcing a mundane defense.",
     "clearCondition": "Survive the purge and cut down the High Inquisitor.",
     "champion": "High Inquisitor Mordrake",
+    "championChassis": "cleric",
+    "championFlags": ["noFlee"],
+    "retinue": [
+      { "classId": "knight",  "count": 3, "name": "Zealot",     "hpMul": 1.15, "flags": ["noFlee"] },
+      { "classId": "cleric",  "count": 2, "name": "Inquisitor", "flags": ["noFlee"] }
+    ],
     "accent": "#e0d8c0",
     "emblem": "✝",
     "weightTags": ["pacts", "undead"]
@@ -31,6 +41,11 @@
     "gimmick": "Holy zones heal heroes and sear your minions; the fallen are resurrected mid-fight by divine grace.",
     "clearCondition": "Slay the descended Seraph before judgment is complete.",
     "champion": "Aurelia, the Descended Seraph",
+    "championChassis": "white_mage",
+    "retinue": [
+      { "classId": "paladin",    "count": 3, "name": "Radiant Guardian", "hpMul": 1.3 },
+      { "classId": "white_mage", "count": 2, "name": "Seraph Acolyte" }
+    ],
     "accent": "#ffe9a8",
     "emblem": "☼",
     "weightTags": ["pacts", "slaughter"]
@@ -43,6 +58,11 @@
     "gimmick": "A defecting minion sabotages from inside — your own rooms and traps turn on you for the act.",
     "clearCondition": "Put down the Turncoat and reclaim your halls.",
     "champion": "The Turncoat",
+    "championChassis": "rogue",
+    "retinue": [
+      { "classId": "rogue",  "count": 2, "name": "Defector" },
+      { "classId": "knight", "count": 2, "name": "Turned Guard" }
+    ],
     "accent": "#7ec850",
     "emblem": "†",
     "weightTags": ["evolved", "minions"]
@@ -55,6 +75,7 @@
     "gimmick": "An undead tide whose size scales with your run's kill-count — your own victims, turned.",
     "clearCondition": "Survive the tide and destroy the necromancer-king.",
     "champion": "Necrarch the Bonecrowned",
+    "championChassis": "necromancer",
     "accent": "#6fce8a",
     "emblem": "☠",
     "weightTags": ["slaughter", "kills"]
@@ -67,6 +88,12 @@
     "gimmick": "A martyr squad that never retreats, fights to the death, and empowers the living with each one slain.",
     "clearCondition": "Break the oath — kill the captain who binds them.",
     "champion": "Captain Halric, the Last Vow",
+    "championChassis": "barbarian",
+    "championFlags": ["noFlee"],
+    "retinue": [
+      { "classId": "barbarian", "count": 3, "name": "Sworn Martyr", "flags": ["noFlee"] },
+      { "classId": "knight",    "count": 2, "name": "Last Vow",     "flags": ["noFlee"] }
+    ],
     "accent": "#f0a850",
     "emblem": "✠",
     "weightTags": ["slaughter", "martyr"]
@@ -79,6 +106,10 @@
     "gimmick": "Teleports your minions out of position, transmutes rooms, dispels your buffs, summons their own.",
     "clearCondition": "Kill the archmages before they unmake your dungeon.",
     "champion": "Archmagus Velloran",
+    "championChassis": "mage",
+    "retinue": [
+      { "classId": "mage", "count": 5, "name": "Tower Magus", "atkMul": 1.1 }
+    ],
     "accent": "#8a9cf0",
     "emblem": "✶",
     "weightTags": ["pacts", "buffs"]
@@ -90,7 +121,14 @@
     "threat": "A dream-team of legendary heroes assembles — each a champion, all in deadly concert.",
     "gimmick": "A coordinated elite squad, each hero a mini-boss with a signature ability that synergizes with the rest.",
     "clearCondition": "Defeat the assembled champions.",
-    "champion": "The Champions' League",
+    "champion": "Sir Garreth the Gilded",
+    "championChassis": "knight",
+    "retinue": [
+      { "classId": "mage",   "count": 1, "names": ["Myrine the Stormcaller"], "hpMul": 2.0, "atkMul": 1.2 },
+      { "classId": "rogue",  "count": 1, "names": ["Shadowfax the Quick"],    "hpMul": 1.9, "atkMul": 1.2 },
+      { "classId": "ranger", "count": 1, "names": ["Elenwe Trueshot"],        "hpMul": 1.9, "atkMul": 1.2 },
+      { "classId": "cleric", "count": 1, "names": ["Brother Aldous"],         "hpMul": 2.1 }
+    ],
     "accent": "#ffd76a",
     "emblem": "★",
     "weightTags": ["evolved", "treasury"]

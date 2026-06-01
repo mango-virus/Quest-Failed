@@ -17,10 +17,14 @@ const TOP_H    = 48
 const BOTTOM_H = 56
 
 // Kingdom Response ids whose Champion-raid gimmick is BUILT (KR P4). The
-// drafted-act final-day dispatch only fires a champion raid for these; the rest
-// still draft + announce but don't yet replace the wave. Grows as each
-// response's gimmick lands.
-const BUILT_CHAMPION_RAIDS = new Set(['reckoning_dead'])
+// drafted-act final-day dispatch fires a champion raid for these. All 8 now
+// have a themed champion + retinue (composition + flags express each theme);
+// the deeper rule-bending modifiers (pact-nullify, holy zones, trap-sabotage,
+// martyr-buff, arcane-warp) layer on per response as follow-ups.
+const BUILT_CHAMPION_RAIDS = new Set([
+  'rival', 'inquisition', 'pantheon', 'betrayer',
+  'reckoning_dead', 'forlorn_hope', 'mage_tower', 'all_stars',
+])
 
 export class DayPhase extends Phaser.Scene {
   constructor() {
@@ -1603,9 +1607,8 @@ export class DayPhase extends Phaser.Scene {
     const spawned = []
 
     // The champion — an imposing named mini-boss (legendary chrome, killable,
-    // never flees, marches on the throne). Chassis chosen per response.
-    const CHASSIS = { reckoning_dead: 'necromancer' }
-    const champDef = allClasses.find(c => c.id === (CHASSIS[response.id] || 'rival_boss_invader'))
+    // never flees, marches on the throne). Chassis + extra flags per response.
+    const champDef = allClasses.find(c => c.id === (response.championChassis || 'rival_boss_invader'))
       || allClasses[0]
     if (champDef) {
       const cSpawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
@@ -1617,7 +1620,9 @@ export class DayPhase extends Phaser.Scene {
         champ.isLegendary      = true
         champ.partyId          = null
         champ.visitedRooms     = []
-        champ.flags            = { ...(champ.flags ?? {}), noFlee: true }
+        champ.flags            = { ...(champ.flags ?? {}), noFlee: true,
+          ...(Array.isArray(response.championFlags)
+            ? Object.fromEntries(response.championFlags.map(f => [f, true])) : {}) }
         this._scaleAdventurerByBossLevel(champ, dungeonLv)
         const chp = Math.round((champ.resources?.maxHp ?? 120) * 3.5)
         champ.resources.maxHp = chp; champ.resources.hp = chp
@@ -1630,10 +1635,14 @@ export class DayPhase extends Phaser.Scene {
       }
     }
 
-    // Themed retinue — v1 realizes Reckoning's undead tide; other responses
-    // bring their champion alone until their gimmick lands.
+    // Themed retinue. Reckoning's undead tide is special (size scales with the
+    // run's kill-count); every other response spawns its data-defined squads.
     if (response.id === 'reckoning_dead') {
       spawned.push(...this._spawnUndeadTide(allClasses, dungeonLv))
+    } else {
+      for (const squad of (response.retinue ?? [])) {
+        spawned.push(...this._spawnRetinueSquad(squad, allClasses, dungeonLv))
+      }
     }
 
     EventBus.emit('CHAMPION_RAID_INCOMING', {
@@ -1678,6 +1687,41 @@ export class DayPhase extends Phaser.Scene {
       EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: z })
     }
     return risen
+  }
+
+  // Spawn one themed retinue squad for a Champion raid (KR P4). `squad` is a
+  // data spec from kingdomResponses.json: { classId, count, name | names[],
+  // hpMul, atkMul, flags[], monster }. Real-hero squads (zealots, paladins,
+  // mages, all-stars) stay full adventurers (chat/intel/loot); monster packs
+  // (the Rival's horror swarm) set `monster:true` to read as faceless invaders.
+  _spawnRetinueSquad(squad, allClasses, dungeonLv) {
+    const game = this.scene.get('Game')
+    const aiSystem = game?.aiSystem
+    const def = allClasses.find(c => c.id === squad?.classId) ?? allClasses[0]
+    if (!aiSystem || !def || !squad) return []
+    const names = Array.isArray(squad.names) ? squad.names : null
+    const out = []
+    for (let i = 0; i < (squad.count ?? 1); i++) {
+      const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+      if (!spawn) break
+      const a = createAdventurer(def, { x: spawn.x, y: spawn.y })
+      a.name = names?.[i] ?? squad.name ?? a.name
+      this._scaleAdventurerByBossLevel(a, dungeonLv)
+      if (squad.hpMul) {
+        a.resources.maxHp = Math.max(1, Math.round((a.resources.maxHp ?? 60) * squad.hpMul))
+        a.resources.hp    = a.resources.maxHp
+      }
+      if (squad.atkMul) a.stats.attack = Math.round((a.stats?.attack ?? 10) * squad.atkMul)
+      if (Array.isArray(squad.flags)) {
+        a.flags = { ...(a.flags ?? {}), ...Object.fromEntries(squad.flags.map(f => [f, true])) }
+      }
+      if (squad.monster) a._monster = true
+      this._gameState.adventurers.active.push(a)
+      aiSystem.pickInitialGoal(a)
+      out.push(a)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: a })
+    }
+    return out
   }
 
   // Dungeon event: Light Party — a coordinated 4-role FFXIV raid party
