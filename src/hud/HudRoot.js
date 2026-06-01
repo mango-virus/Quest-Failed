@@ -37,6 +37,7 @@ import { GameOverOverlay }      from './GameOverOverlay.js'
 import { PactPicker }           from './PactPicker.js'
 import { TinkererPicker }       from './TinkererPicker.js'
 import { DevEventsButton }      from './DevEventsButton.js'
+import { DevKingdomButton }     from './DevKingdomButton.js'
 import { AltarRewardSlot }      from './AltarRewardSlot.js'
 import { DungeonFx }            from './DungeonFx.js'
 import { EventFx }              from './EventFx.js'
@@ -180,6 +181,9 @@ export class HudRoot {
     // immediately, and mount() would otherwise wipe it (same reason
     // DungeonFx / EventFx are constructed down here).
     this._devEventsButton  = new DevEventsButton()
+    // Mango-dev: force any Kingdom Response live for QA (self-gates on mango +
+    // the `acts` flag). Sibling of the TEST EVENT button.
+    this._devKingdomButton = new DevKingdomButton()
     // Full-screen coin-flip sequence for The Gambler's Coin event.
     this._coinFlip         = new CoinFlipCinematic()
     // Solo Leveling — Shadow Monarch entrance title card + shadow vignette.
@@ -361,6 +365,7 @@ export class HudRoot {
     this._tinkererPicker?.destroy(); this._tinkererPicker = null
     this._altarRewardSlot?.destroy(); this._altarRewardSlot = null
     this._devEventsButton?.destroy(); this._devEventsButton = null
+    this._devKingdomButton?.destroy(); this._devKingdomButton = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
     this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null

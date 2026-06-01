@@ -37,11 +37,34 @@ export class KingdomResponseSystem {
     // The champion raid's payoff — putting down the response's champion breaks
     // that Kingdom Response (the act's intended challenge).
     EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
+    // Mango-dev QA hook (DevKingdomButton) — force a response live without
+    // grinding to a drafted act.
+    EventBus.on('DEV_FORCE_KINGDOM_RESPONSE', this._onDevForce, this)
   }
 
   destroy() {
     EventBus.off('ACT_STARTED', this._onActStarted, this)
     EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
+    EventBus.off('DEV_FORCE_KINGDOM_RESPONSE', this._onDevForce, this)
+  }
+
+  // Dev/QA: make `responseId` the current drafted act (act 2) right now — which
+  // activates its act-wide modifier + the HUD eyebrow — announce it, and, if a
+  // day is in progress, spawn its Champion raid so the combat modifier is live
+  // too. Lets us QA any modifier instantly. Only fired by the mango dev button.
+  _onDevForce({ responseId } = {}) {
+    const response = this._byId.get(responseId)
+    if (!response) return
+    this._ensureState()
+    const meta = this._gs.meta
+    meta.act.current = 2
+    meta.act.responses[2] = responseId
+    EventBus.emit('KINGDOM_RESPONSE_DRAWN', { act: 2, def: actDef(2), response })
+    const dayPhase = this._scene?.scene?.get?.('DayPhase')
+    if (dayPhase?.scene?.isActive?.() && dayPhase._gameState &&
+        typeof dayPhase._spawnChampionRaid === 'function') {
+      dayPhase._spawnChampionRaid(response)
+    }
   }
 
   // The Champion raid's payoff. When the response's champion (a `_kingdomChampion`

@@ -2700,6 +2700,9 @@ body {
   box-shadow: 0 0 14px rgba(255, 217, 100, 0.85);
   transform: translateY(-1px);
 }
+/* TEST KR (KR P4) — stacks above TEST EVENT, violet to distinguish it. */
+.qf-dev-kr-btn { bottom: 44px; color: #c39bff; border-color: #c39bff; }
+.qf-dev-kr-btn:hover { color: #fff; box-shadow: 0 0 14px rgba(195, 155, 255, 0.85); }
 .qf-dev-events-modal {
   position: fixed;
   inset: 0;
