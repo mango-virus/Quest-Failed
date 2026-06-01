@@ -1426,6 +1426,10 @@ At each act transition the kingdom escalates with a new strategy, **drawn from t
 
 Each drafted act ends in a **Champion raid**: a pre-announced elite encounter (the response's signature champion + retinue) that must be defeated to clear the act and advance. Clear-conditions vary by response where it fits the theme (e.g. Reckoning = survive the undead tide; Mage Tower = kill the archmages before they unmake your dungeon).
 
+**Cadence — the kingdom's presence is felt ACROSS the act, not just at the climax (added 2026-06-01):** A drafted act plays out as **(1) the announce** (the "THE KINGDOM RESPONDS" reveal at act start), **(2) mid-act pressure** — themed *forerunners* of the response (e.g. the Pantheon's scouting acolytes, the Inquisition's preachers, the Rival's scouts) join the normal wave on each non-final day, **growing** as the act nears its climax, plus any *act-wide* modifier running the whole time (Betrayer's trap blackout, Inquisition's pact-suppression, Reckoning's swelling undead trickle), and **(3) the final-day Champion raid** climax with its combat modifiers. So a response is a slow build to a payoff, not a single day.
+
+**Always-visible status (added 2026-06-01):** a persistent HUD pill (top-center) shows the current **act number + the active Kingdom Response + its modifier**, so the player never has to remember what they're up against. Fixed acts (I, IV) show the act name.
+
 ### Adaptive Weighting
 
 The draft for Acts II & III (and the composition within each act) is **tilted by the player's run-stats** so the kingdom counters *this* dungeon:

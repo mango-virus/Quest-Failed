@@ -26,6 +26,21 @@ const BUILT_CHAMPION_RAIDS = new Set([
   'reckoning_dead', 'forlorn_hope', 'mage_tower', 'all_stars',
 ])
 
+// Mid-act pressure (KR P4) — the kingdom's presence is felt ACROSS the act, not
+// only at the final-day raid: each response sends themed FORERUNNERS that join
+// the normal wave on every non-final day, growing as the act nears its climax.
+// Reckoning is the exception (its undead trickle is handled specially). The
+// per-day count scales with how deep into the act you are (see _spawnVanguard).
+const VANGUARD = {
+  rival:        { classId: 'monster_invader', name: 'Rival Scout',          monster: true, flags: ['noFlee'] },
+  inquisition:  { classId: 'cleric',          name: 'Inquisition Preacher', flags: ['noFlee'] },
+  pantheon:     { classId: 'white_mage',      name: 'Seraph Acolyte' },
+  betrayer:     { classId: 'rogue',           name: 'Infiltrator' },
+  forlorn_hope: { classId: 'barbarian',       name: 'Forerunner Martyr',    flags: ['noFlee', 'forlornMartyr'] },
+  mage_tower:   { classId: 'mage',            name: 'Tower Apprentice' },
+  all_stars:    { classId: 'knight',          name: "Champion's Herald" },
+}
+
 export class DayPhase extends Phaser.Scene {
   constructor() {
     super('DayPhase')
@@ -668,14 +683,14 @@ export class DayPhase extends Phaser.Scene {
         }
       }
 
-      // Reckoning of the Dead — the tide builds across the WHOLE act: a small
-      // undead trickle joins the normal wave on each NON-final day, swelling
-      // toward the final-day raid. ADDITIVE (no return) — the normal wave still
-      // spawns alongside.
+      // Mid-act pressure — the kingdom is felt ACROSS the act, not just at the
+      // climax: themed forerunners (or Reckoning's undead trickle) join the
+      // normal wave on each NON-final day, growing toward the final-day raid.
+      // ADDITIVE (no return) — the normal wave still spawns alongside.
       if (actDefForDay(_day)?.kind === 'drafted' && !isActFinalDay(_day)) {
-        if (game?.kingdomResponseSystem?.currentResponse?.()?.id === 'reckoning_dead') {
-          this._spawnUndeadTrickle()
-        }
+        const _resp = game?.kingdomResponseSystem?.currentResponse?.()
+        if (_resp?.id === 'reckoning_dead') this._spawnUndeadTrickle()
+        else if (_resp && VANGUARD[_resp.id]) this._spawnVanguard(_resp.id)
       }
     }
 
@@ -1687,6 +1702,19 @@ export class DayPhase extends Phaser.Scene {
     const dayInAct = actDayIndex(this._gameState.meta?.dayNumber ?? 1)
     const count = Math.min(8, 2 + Math.floor(dayInAct / 2))
     return this._spawnRisenDead(count, this._gameState.boss?.level ?? 1)
+  }
+
+  // Themed mid-act forerunners for a Kingdom Response (KR P4). Count grows with
+  // how deep into the act we are (1 early → ~4 by the eve of the raid) so the
+  // kingdom's pressure mounts toward the climax. Additive to the normal wave.
+  _spawnVanguard(responseId) {
+    const squad = VANGUARD[responseId]
+    if (!squad) return []
+    const dayInAct = actDayIndex(this._gameState.meta?.dayNumber ?? 1)
+    const count = 1 + Math.floor(dayInAct / 3)   // 1→4 across a 10-day act
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const dungeonLv = this._gameState.boss?.level ?? 1
+    return this._spawnRetinueSquad({ ...squad, count }, allClasses, dungeonLv)
   }
 
   // Spawn `count` Risen Dead — slow, weak, relentless, never flee (zombie-
