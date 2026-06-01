@@ -1,29 +1,52 @@
 # Working on Quest Failed
 
-This project has three reference documents. **Read them in this order at the start of any session.**
+## The one rule that prevents stale references
 
-1. **`DESIGN.md`** — the player/designer's original game design sheet, preserved verbatim. **This is the source of truth for what the game must include.** When anything else in the repo conflicts with this file, this file wins.
+**The code is the source of truth for what exists.** Before asserting any feature's status
+("traps aren't done", "there are 45 achievements", "combos work"), grep/read the actual code —
+**never trust a ✅ in a doc blindly.** The docs drift; the code doesn't. The docs below describe
+*intent* and *structure*; for *current reality*, verify against `src/`.
 
-2. **`DESIGN_COVERAGE.md`** — enumerated checklist of every concrete deliverable from the design sheet, with phase assignment and current status. **This is the file you check off against.** Never declare a phase complete without auditing every row tagged for that phase.
+## Reference documents (read `STATUS.md` first)
 
-3. **`ARCHITECTURE.md`** — technical reference for systems, scenes, schemas, and the phase build order. Implementation guide.
+1. **`STATUS.md`** — the short, reality-derived snapshot of what's actually built right now
+   (live content counts + what's solid vs. stubbed). **Read this first every session.** It is
+   re-verified against code periodically (last: 2026-05-31). When any other doc disagrees with
+   STATUS.md or the code, STATUS.md + the code win.
+
+2. **`ARCHITECTURE.md`** — technical reference: systems, scenes, the two-layer (Phaser canvas +
+   DOM HUD) rendering, GameState schema, cross-cutting patterns + gotchas. Regenerated from code
+   2026-05-31. How things are wired.
+
+3. **`DESIGN.md`** — FROZEN design intent / history (the original brief + struck-through cuts).
+   Source of truth for *what the game is meant to include and why* — **not** for what's currently
+   built. On design-intent questions, this file wins.
+
+4. **`DESIGN_COVERAGE.md`** — the per-deliverable ledger (design → phase → status). Useful for
+   history and scope, but it had drifted from code (corrected 2026-05-31); always verify a row's
+   ✅ against the code before trusting it.
 
 ---
 
-## Phase exit ritual (mandatory)
+## Keeping the docs honest (lightweight)
 
-Before declaring any phase complete, run this audit:
+The game is past the "march through numbered phases" stage — it's in mature feature-add +
+polish mode. The old heavy "audit every DESIGN_COVERAGE row at every phase exit" ritual was
+too costly to actually follow, and skipping it is exactly how the docs drifted (combos shown
+✅ when retired, "45 achievements" when there are 92, etc.). Replace it with this much cheaper
+discipline, applied **when you finish a piece of work**:
 
-1. **Open `DESIGN_COVERAGE.md`** and find every row tagged with the current phase.
-2. **For each row**, verify the status against the codebase — don't trust the file blindly, actually grep / read the relevant code.
-3. **Update statuses** in `DESIGN_COVERAGE.md` to reflect reality (✅ DONE / 🟡 PARTIAL / ⏳ PENDING / 💭 OPEN).
-4. **For anything still PENDING or PARTIAL** at phase exit:
-   - Either implement it now, OR
-   - Get explicit user approval to defer to a later phase, AND update the row's phase column to reflect the new target.
-5. **Surface any new design items** the user mentioned in conversation that aren't yet in `DESIGN_COVERAGE.md` — add them with phase + status before continuing.
-6. **Bump the "Last full audit" date** at the top of `DESIGN_COVERAGE.md`.
+1. **If you changed a content count** (added/removed a room, minion, trap, pact, event, class,
+   companion, achievement…), update the count in **`STATUS.md`** — it's one short table, keep
+   it true.
+2. **If you finished or changed a tracked feature**, update its row in `DESIGN_COVERAGE.md` to
+   match reality. Don't mark ✅ unless you verified it in code.
+3. **If the user adds a new design idea**, record it in `DESIGN.md` (their wording) +
+   `DESIGN_COVERAGE.md` (phase + status) before implementing.
+4. **Never write a ✅ you didn't verify.** A status you can't back with a code reference should
+   be 🟡 / ⏳, not ✅.
 
-Skipping this ritual is what caused 10 personalities + 3 classes to silently drift out of Phase 5. Don't repeat that.
+That's it. A correct one-line STATUS.md edit beats a 1,000-row audit nobody runs.
 
 ---
 
@@ -59,6 +82,12 @@ If during implementation you find yourself changing scope (renaming things, spli
 
 ---
 
-## Current phase
+## Project maturity (not "Phase 6 next" anymore)
 
-See `DESIGN_COVERAGE.md` section 29 ("Phase-by-phase summary") for the canonical phase list and status. As of the last audit, Phase 5 (Personality System) is complete and Phase 6 (Combat) is next.
+The numbered-phase plan (1–10b in `DESIGN_COVERAGE.md` §29) is **all shipped**. The game is
+mature: 12 bosses, 21 rooms, 64 minions, 8 traps, 96 pacts, 36 events, 25 classes, 9
+companions, 92 achievements, a full DOM HUD (`src/hud/`, default on), audio, VFX, leaderboard,
+and scripted set-piece events (Solo Leveling, Light Party). Current work is **bug-fixing,
+balance, content additions, and polish** — plus the bigger open questions for a commercial
+release (a win condition / run structure, active day-phase boss agency, and filing off the
+Solo Leveling / FFXIV / Twitch IP references). See `STATUS.md` for the live snapshot.

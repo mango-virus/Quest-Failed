@@ -1,10 +1,14 @@
 # Quest Failed — Game Design Sheet
 
-> This document is the **source of truth** for what the game is and what it must include.
-> It is the player/designer's original brief, preserved verbatim and structured for navigation.
-> Every concrete deliverable referenced here must show up in `DESIGN_COVERAGE.md` with a phase + status.
+> **This is FROZEN DESIGN INTENT / history — not a current-state reference.** It is the
+> player/designer's original brief, preserved verbatim (including ~~struck-through~~ entries
+> that record what was cut and why). It is the source of truth for **what the game is meant to
+> include and why**; on questions of *design intent*, this file wins — update the others.
 >
-> If anything in this file conflicts with `ARCHITECTURE.md` or any code, **this file wins** — update the others.
+> It is **NOT** the place to learn what's currently built. For "what actually exists right now"
+> (live counts, what's done vs. stubbed), read **`STATUS.md`** — and ultimately the code, which
+> is the real source of truth for current state. Every deliverable here is tracked in
+> `DESIGN_COVERAGE.md` with a phase + status (reconciled against code 2026-05-31).
 
 ---
 
@@ -177,7 +181,7 @@ I want adventures to have different personalitys and class types that sway how t
 1. **greedy** — usually tried to go for the loot first and shiny objects
 2. **speed runner** — runs past weaker enemies
 3. **paranoid** — assumes every door is trapped and every chest is a mimic. Extremely slow, never opens chests voluntarily. Near impossible to kill with traps — but takes forever to reach the boss room and may convince other party members to leave.
-4. **party** — four adventures that usually work together and move together
+4. **party** — four adventures that usually work together and move together *(deviation noted 2026-05-31: implemented as the **party_loyal** personality, now **REMOVED**. Its only wired behavior was the `DEFEND_ALLY` interpose goal, which was cut along with the other party-coordination/scout AI goals — `RESCUE_ALLY`, `REGROUP_AT_PARTY`, `SCOUT_AHEAD` — because they caused erratic cross-map goal-flips and trap-pacing. Adventurers still spawn and travel in parties via `partyId`; there is no longer a dedicated "loyal" personality. See DESIGN_COVERAGE.md §2.)*
 5. **solo** — they split up from the other adventurers to go on their own or run ahead
 6. **raid leader** — if they die, the rest of the party or raid team scatter, or lose their teamwork
 7. **completionist** — tried to find secret rooms
