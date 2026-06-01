@@ -250,10 +250,22 @@ export class InspectPopup {
         )
       : this._abilityLines(m.definitionId)
     return [
+      this._reinforcementBadge(m),
       this._statsGrid(boxes),
       def?.description ? this._descLine(def.description) : null,
       abilities,
     ]
+  }
+
+  // Tag for ascension reinforcements (KR P6) — the boss's kin that the dungeon
+  // fields each act — so the free units the player didn't place read as earned,
+  // not mysterious. Null for normal minions.
+  _reinforcementBadge(m) {
+    if (!m?._reinforcement) return null
+    return h('div', { className: `qf-inspect-reinf${m._reinforcementElite ? ' elite' : ''}` }, [
+      h('span', { className: 'qf-inspect-reinf-icon' }, '✦'),
+      m._reinforcementElite ? 'ELITE ASCENSION REINFORCEMENT' : 'ASCENSION REINFORCEMENT',
+    ])
   }
 
   _advContent(a) {

@@ -10,6 +10,8 @@
 // once the KR P3 vertical slice is solid. See DESIGN.md → "The Kingdom's
 // Reckoning" and DESIGN_COVERAGE.md → KR P1–P7.
 
+import { Balance } from './balance.js'
+
 // ── Feature flag ────────────────────────────────────────────────────────────
 // Opt-IN (mirrors HudRoot.isNewHudEnabled but defaults FALSE — this is an
 // in-progress feature). `?acts=1` or `localStorage.acts='1'` turns it on;
@@ -100,4 +102,31 @@ export function actDefForDay(day) {
 export function currentActResponseId(gameState) {
   const a = gameState?.meta?.act
   return a?.responses?.[a?.current] ?? null
+}
+
+// Per-act boss form names (T1..T4), indexed by tier.
+const ASCENSION_FORMS = ['', 'Nascent', 'Risen', 'Dread', 'Ascended']
+
+// Boss "dark ascension" state for the current act — the ONE source every UI
+// surface (boss overview panel, top-bar badge, …) reads, so they never drift.
+// Returns null when acts are off. `tier` (1..4) = the act number = the boss's
+// current evolved form. The bonuses are the CUMULATIVE surge the boss carries
+// vs its Act-I baseline (compounding per act; mirrors the multiplier applied in
+// BossSystem._recomputeBossFightStats), so the panel can answer "what has
+// ascending earned me" at a glance.
+export function ascensionInfo(gameState) {
+  if (!isActsEnabled()) return null
+  const day  = gameState?.meta?.dayNumber ?? 1
+  const tier = Math.max(1, Math.min(ACT_COUNT, actForDay(day)))
+  const e    = tier - 1
+  const hpMul  = Math.pow(Balance.BOSS_ASCENSION_HP_MUL  ?? 1.28, e)
+  const atkMul = Math.pow(Balance.BOSS_ASCENSION_ATK_MUL ?? 1.20, e)
+  return {
+    tier,
+    form:        ASCENSION_FORMS[tier] || `Tier ${tier}`,
+    ascended:    tier >= 2,          // has it ascended beyond its Act-I form?
+    apex:        tier >= ACT_COUNT,  // final ascended form (T4)
+    hpBonusPct:  Math.round((hpMul  - 1) * 100),
+    atkBonusPct: Math.round((atkMul - 1) * 100),
+  }
 }

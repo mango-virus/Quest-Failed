@@ -302,6 +302,12 @@ export class RosterOverlay {
             style: { color: 'var(--gold)', marginRight: '4px' },
             title: 'BOUNTY — hunters will come for this minion',
           }, '★'),
+          // ✦ flags an ascension reinforcement — the boss's kin the dungeon
+          // fielded for free each act (KR P6), so it doesn't read as a mystery unit.
+          m._reinforcement && h('span', {
+            style: { color: '#c98bff', marginRight: '4px' },
+            title: m._reinforcementElite ? 'ELITE ASCENSION REINFORCEMENT' : 'ASCENSION REINFORCEMENT',
+          }, '✦'),
           name,
         ]),
         h('div', {

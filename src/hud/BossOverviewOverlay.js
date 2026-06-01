@@ -16,6 +16,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { animatedBossSprite } from './inGameSnapshot.js'
+import { ascensionInfo } from '../config/acts.js'
 
 export class BossOverviewOverlay {
   constructor(gameState) {
@@ -176,6 +177,9 @@ export class BossOverviewOverlay {
         this._buildBossSprite(archId),
         // LV chip
         h('div', { className: 'pix qf-boss-lv-chip' }, `LV ${level}`),
+        // Evolution form badge (KR P6) — the boss's current per-act form. Only
+        // present in a campaign run (ascensionInfo null otherwise).
+        this._formBadge(),
         // Hearts row
         h('div', { className: 'qf-boss-hearts' }, [
           ...[1,2,3].map(i => h('span', {
@@ -244,6 +248,9 @@ export class BossOverviewOverlay {
             }, String(def)),
           ]),
         ]),
+        // Dark-ascension panel (KR P6) — what the campaign's per-act ascension
+        // has earned the boss so far. Only in an acts run.
+        this._ascensionPanel(),
       ]),
       // Tally
       h('div', { className: 'qf-boss-tally' }, [
@@ -295,6 +302,44 @@ export class BossOverviewOverlay {
         className: 'qf-boss-tally-value',
         style: { color },
       }, String(value)),
+    ])
+  }
+
+  // Small form badge sat under the LV chip on the portrait — glanceable
+  // "which evolved form is this" without reading the panel. Null off-campaign.
+  _formBadge() {
+    const a = ascensionInfo(this._gameState)
+    if (!a) return null
+    return h('div', { className: `pix qf-boss-form-badge${a.apex ? ' apex' : ''}` }, [
+      h('span', { className: 'qf-boss-form-pip' }, `T${a.tier}`),
+      h('span', { className: 'qf-boss-form-name' }, a.form.toUpperCase()),
+    ])
+  }
+
+  // The "what has ascending earned me" panel: current form + the cumulative
+  // power surge it carries + what the dungeon-growth fields. Null off-campaign.
+  _ascensionPanel() {
+    const a = ascensionInfo(this._gameState)
+    if (!a) return null
+    return h('div', { className: `qf-boss-ascension${a.apex ? ' apex' : ''}` }, [
+      h('div', { className: 'qf-boss-ascension-head' }, [
+        h('span', { className: 'qf-boss-ascension-icon' }, '✦'),
+        h('span', null, a.ascended ? 'DARK ASCENSION' : 'AWAITING ASCENSION'),
+        h('span', { className: 'qf-boss-ascension-form' }, `${a.form} Form`),
+      ]),
+      a.ascended
+        ? h('div', { className: 'qf-boss-ascension-bonus' }, [
+            h('span', null, [h('b', null, `+${a.hpBonusPct}%`), ' MAX HP']),
+            h('span', null, [h('b', null, `+${a.atkBonusPct}%`), ' ATTACK']),
+          ])
+        : h('div', { className: 'qf-boss-ascension-note' },
+            'Clear an act and the boss absorbs the kingdom’s power.'),
+      a.ascended
+        ? h('div', { className: 'qf-boss-ascension-note' },
+            a.apex
+              ? 'Final form — sears invaders in its chamber and fields ascended kin.'
+              : 'Sears nearby invaders and fields ascended kin each act.')
+        : null,
     ])
   }
 

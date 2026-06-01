@@ -13,6 +13,7 @@
 
 import { h, tween } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { ascensionInfo } from '../config/acts.js'
 
 export class TopBar {
   constructor(gameState) {
@@ -431,8 +432,12 @@ export class TopBar {
   // threat (qf-day-act-pop). The phase part is updated by the tick.
   _paintAct({ act, accent, name, detail }) {
     const acc = accent || 'var(--gold)'
+    // Boss form for this act — a ✦ on the stamp (glanceable "it has ascended")
+    // plus the form + cumulative surge in the hover popover.
+    const asc = ascensionInfo(this._gameState)
     if (this._refs.dayAct) {
-      this._refs.dayAct.textContent = `ACT ${TopBar._ROMAN[act] || act} — `
+      const mark = asc?.ascended ? ' ✦' : ''
+      this._refs.dayAct.textContent = `ACT ${TopBar._ROMAN[act] || act}${mark} — `
       this._refs.dayAct.style.color = acc
       this._refs.dayAct.style.textShadow = `3px 3px 0 #0a0610, 0 0 16px ${acc}`
     }
@@ -440,6 +445,12 @@ export class TopBar {
       this._refs.dayActPop.replaceChildren(
         h('div', { className: 'qf-day-act-pop-name', style: { color: acc } }, name || 'The Kingdom'),
         detail ? h('div', { className: 'qf-day-act-pop-detail' }, detail) : null,
+        asc ? h('div', { className: 'qf-day-act-pop-asc' }, [
+          h('span', { className: 'qf-day-act-pop-asc-icon' }, '✦'),
+          asc.ascended
+            ? `${asc.form} Form · +${asc.hpBonusPct}% HP · +${asc.atkBonusPct}% ATK`
+            : `${asc.form} Form · ascends each act`,
+        ]) : null,
       )
     }
     this._refs.dayNumber?.style.setProperty('--act-accent', acc)

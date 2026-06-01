@@ -1093,6 +1093,20 @@ body {
   line-height: 1.4;
   font-style: italic;
 }
+/* Ascension reinforcement tag (KR P6) — the boss's kin, fielded each act. */
+.qf-inspect-reinf {
+  display: flex; align-items: center; gap: 5px;
+  font-family: 'Press Start 2P', monospace; font-size: 7px; letter-spacing: 1px;
+  color: #c98bff; padding: 4px 7px; margin-bottom: 6px; border-radius: 4px;
+  background: rgba(120, 70, 190, 0.16);
+  border: 1px solid rgba(201, 139, 255, 0.4);
+}
+.qf-inspect-reinf.elite {
+  color: #e8b8ff; background: rgba(150, 80, 220, 0.24);
+  border-color: rgba(232, 184, 255, 0.6);
+  box-shadow: 0 0 10px rgba(150, 80, 220, 0.35);
+}
+.qf-inspect-reinf-icon { font-size: 9px; }
 .qf-inspect-abilities {
   display: flex;
   flex-direction: column;
@@ -1593,6 +1607,12 @@ body {
   letter-spacing: 1px; margin-bottom: 6px; line-height: 1.4; }
 .qf-day-act-pop-detail { font-family: 'VT323', monospace; font-size: 16px;
   line-height: 1.4; color: #c9bfb0; }
+/* Boss form + ascension surge line in the act popover (KR P6). */
+.qf-day-act-pop-asc { display: flex; align-items: center; gap: 5px; margin-top: 7px;
+  padding-top: 6px; border-top: 1px solid rgba(201, 139, 255, 0.22);
+  font-family: 'VT323', monospace; font-size: 14px; color: #c8b6e6; }
+.qf-day-act-pop-asc-icon { color: #c98bff; font-size: 13px;
+  text-shadow: 0 0 8px rgba(201, 139, 255, 0.7); }
 
 /* Wave-progress bar — sits under the DAY stamp. Green fill = adventurers
    killed, orange = escaped (leaked intel), dim remainder = still in the
@@ -4357,6 +4377,43 @@ body {
   display: flex;
   gap: 4px;
   align-items: center;
+}
+
+/* Evolution form badge — sits under the LV chip (KR P6). */
+.qf-boss-form-badge {
+  position: absolute; top: 48px; right: 14px; z-index: 2;
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 9px; background: var(--bg-0);
+  border: 2px solid #9a6cff; box-shadow: 0 0 12px rgba(154, 108, 255, 0.45);
+  font-size: 8px; letter-spacing: 1px;
+}
+.qf-boss-form-pip  { color: #c98bff; }
+.qf-boss-form-name { color: #e3d6f5; }
+.qf-boss-form-badge.apex { border-color: #c98bff; box-shadow: 0 0 16px rgba(201, 139, 255, 0.7); }
+.qf-boss-form-badge.apex .qf-boss-form-name { color: #fff; }
+
+/* "What ascending has earned me" panel — in the vitals flow (KR P6). */
+.qf-boss-ascension {
+  margin-top: 12px; padding: 10px 12px; border-radius: 6px;
+  background: linear-gradient(180deg, rgba(80, 40, 130, 0.22), rgba(40, 20, 70, 0.16));
+  border: 1px solid rgba(201, 139, 255, 0.3);
+}
+.qf-boss-ascension.apex {
+  border-color: rgba(201, 139, 255, 0.55);
+  box-shadow: inset 0 0 18px rgba(120, 70, 200, 0.25);
+}
+.qf-boss-ascension-head {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 8px;
+  font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; color: #c98bff;
+}
+.qf-boss-ascension-icon { font-size: 11px; text-shadow: 0 0 8px rgba(201, 139, 255, 0.7); }
+.qf-boss-ascension-form { margin-left: auto; color: #9a8fb4; font-size: 7px; letter-spacing: 1px; }
+.qf-boss-ascension-bonus {
+  display: flex; gap: 16px; font-family: 'VT323', monospace; font-size: 16px; color: #ccbfe4;
+}
+.qf-boss-ascension-bonus b { color: #fff; }
+.qf-boss-ascension-note {
+  font-family: 'VT323', monospace; font-size: 13px; color: #9a8fb4; line-height: 1.35; margin-top: 6px;
 }
 
 .qf-boss-vitals { padding: 14px 18px 16px; }
