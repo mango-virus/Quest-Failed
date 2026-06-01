@@ -126,6 +126,11 @@ function _ensureCss() {
   color:var(--kri-accent); margin-bottom:var(--space-3,12px);
   opacity:0; animation:qf-kri-fade var(--dur-slow,400ms) ease .86s forwards; }
 
+.qf-kri-reason { font-family:'VT323',monospace; font-size:clamp(14px,1.5vw,18px);
+  letter-spacing:.3px; color:#c9b6a0; margin-bottom:var(--space-3,12px);
+  opacity:0; animation:qf-kri-fade var(--dur-slow,400ms) ease .92s forwards; }
+.qf-kri-reason-ico { color:var(--kri-accent); text-shadow:0 0 8px var(--kri-accent); }
+
 .qf-kri-threat { font-family:'VT323',monospace; font-size:clamp(17px,2vw,23px);
   letter-spacing:.3px; color:#d9cdb6; max-width:600px; margin:0 auto var(--space-4,16px);
   line-height:1.45; opacity:0; transform:translateY(8px);
@@ -184,7 +189,7 @@ export class KingdomResponseIntro {
     this._teardown()
   }
 
-  _onDrawn({ act, response } = {}) {
+  _onDrawn({ act, response, reason } = {}) {
     const stage = document.getElementById('hud-stage')
     if (!stage || !response) return
     this._teardown()   // replace any showing card
@@ -203,6 +208,11 @@ export class KingdomResponseIntro {
         h('div', { className: 'qf-kri-name' }, response.name || 'The Kingdom Responds'),
         h('div', { className: 'qf-kri-rule' }),
         response.eyebrow ? h('div', { className: 'qf-kri-eyebrow' }, response.eyebrow) : null,
+        // KR P5 — call out WHY this response was drawn (the playstyle it answers).
+        reason ? h('div', { className: 'qf-kri-reason' }, [
+          h('span', { className: 'qf-kri-reason-ico' }, '✦'),
+          document.createTextNode(` Drawn by ${reason}.`),
+        ]) : null,
         response.threat ? h('div', { className: 'qf-kri-threat' }, `"${response.threat}"`) : null,
         response.gimmick ? h('div', { className: 'qf-kri-mod' }, [
           h('div', { className: 'qf-kri-mod-ico' }, '⚠'),

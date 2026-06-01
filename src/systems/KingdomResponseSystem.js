@@ -23,6 +23,55 @@ import { actDef } from '../config/acts.js'
 // are fixed, so only II and III pull from the pool.
 const DRAFTED_ACTS = [2, 3]
 
+// ── Adaptive weighting (KR P5) ──────────────────────────────────────────────
+// The kingdom counters THIS dungeon. Each response carries `weightTags` naming
+// the playstyle it answers; we turn the player's run-stats into a 0..1
+// "pressure" per tag, and a response's draft odds = BASE + Σ(pressure × SCALE)
+// over its tags. So a slaughter-heavy run tilts toward Pantheon / Reckoning, a
+// pact-stacked run toward Inquisition / Mage Tower, a sprawling minion horde
+// toward the Rival / Betrayer — without ever being deterministic.
+const WEIGHT_BASE  = 1
+const WEIGHT_SCALE = 1.6
+// Reference points for "a lot of X" — pressure maxes out here. Tunable.
+const REF_MINIONS  = 12
+const REF_EVOLVED  = 6
+const REF_PACTS    = 8
+const REF_UNDEAD   = 8
+const REF_KILLS    = 180
+const REF_TREASURY = 1200
+
+const _UNDEAD_RE = /ghost|lich|skelet|zombie|wraith|bone|undead|revenant|ghoul|vampire/
+const _clamp01 = x => Math.max(0, Math.min(1, x))
+
+// Per-tag pressure from a run-stat snapshot (see _runSignals). Tags map to the
+// weightTags used across kingdomResponses.json.
+const TAG_SIGNAL = {
+  minions:   s => _clamp01(s.minionCount  / REF_MINIONS),
+  evolved:   s => _clamp01(s.evolvedCount  / REF_EVOLVED),
+  pacts:     s => _clamp01(s.pactCount     / REF_PACTS),
+  buffs:     s => _clamp01(s.pactCount     / REF_PACTS),   // pacts ARE the dungeon's buffs
+  undead:    s => _clamp01(s.undeadCount   / REF_UNDEAD),
+  kills:     s => _clamp01(s.kills         / REF_KILLS),
+  treasury:  s => _clamp01(s.gold          / REF_TREASURY),
+  // Slaughter/martyr reward THOROUGH killers — ratio past 0.55 ramps to 1.
+  slaughter: s => _clamp01((s.slaughterRatio - 0.55) / 0.35),
+  martyr:    s => _clamp01((s.slaughterRatio - 0.55) / 0.35),
+}
+
+// Player-facing phrase for the strongest signal that drew a response — so the
+// reveal can tell the player WHY the kingdom is countering them this way.
+const TAG_REASON = {
+  minions:   'your swarming horde',
+  evolved:   'your evolved monsters',
+  pacts:     'your dark pacts',
+  buffs:     'your dark pacts',
+  undead:    'your legion of undead',
+  kills:     'the slaughter in your halls',
+  slaughter: 'the slaughter in your halls',
+  martyr:    'the martyrs you have made',
+  treasury:  'your hoarded gold',
+}
+
 export class KingdomResponseSystem {
   constructor(scene, gameState) {
     this._scene = scene
@@ -109,33 +158,86 @@ export class KingdomResponseSystem {
     this._announce(act, response)
   }
 
-  // Draw an unused response for this act. Uniform among the not-yet-used pool for
-  // now; KR P5 multiplies each candidate's odds by _weightsFor(id).
+  // Draw an unused response for this act, with odds tilted by the player's run
+  // (KR P5). We snapshot the run-stats ONCE per draft so every candidate is
+  // judged against the same picture, then weighted-random over the pool.
   _draft(act) {
     const used = new Set(Object.values(this._gs.meta.act.responses ?? {}))
     const available = (Array.isArray(this._pool) ? this._pool : []).filter(r => !used.has(r.id))
     if (available.length === 0) return null
 
+    this._signals = this._runSignals()
     const weights = available.map(r => Math.max(0.0001, this._weightsFor(r.id)))
     const total = weights.reduce((a, b) => a + b, 0)
+    // Stash the reasoning so the reveal / a QA tool can explain "why this one".
+    this._lastDraft = { act, weights: available.map((r, i) => [r.id, +weights[i].toFixed(2)]), signals: this._signals }
     let roll = Math.random() * total
+    let chosen = available[available.length - 1]
     for (let i = 0; i < available.length; i++) {
       roll -= weights[i]
-      if (roll <= 0) return available[i]
+      if (roll <= 0) { chosen = available[i]; break }
     }
-    return available[available.length - 1]
+    // Stash WHY it was drawn (the strongest playstyle signal this response
+    // answers) so the reveal can call it out — and so it survives a continue.
+    this._gs.meta.act.draftReason ??= {}
+    this._gs.meta.act.draftReason[act] = this._reasonFor(chosen)
+    return chosen
   }
 
-  // KR P5 hook: per-response weight from the player's run-stats so the kingdom
-  // counters THIS dungeon (slaughter → Reckoning/Pantheon, pact-reliance →
-  // Inquisition/Pantheon, etc. via each response's weightTags). Uniform until P5.
-  _weightsFor(_id) {
-    return 1
+  // The player-facing reason a response was drawn: the highest-pressure tag it
+  // answers (above a floor so a neutral run gets no spurious "why"). Null = the
+  // draw was effectively uniform (nothing about the run stood out).
+  _reasonFor(response) {
+    const s = this._signals ?? this._runSignals()
+    let best = null, bestP = 0.3
+    for (const t of (response?.weightTags ?? [])) {
+      const p = TAG_SIGNAL[t]?.(s) ?? 0
+      if (p > bestP) { bestP = p; best = t }
+    }
+    return best ? (TAG_REASON[best] ?? null) : null
+  }
+
+  // Per-response draft weight (KR P5): BASE + Σ(tag-pressure × SCALE) over the
+  // response's weightTags, so the kingdom leans toward countering how THIS
+  // dungeon actually plays. Reads the per-draft `_signals` snapshot.
+  _weightsFor(id) {
+    const tags = this._byId.get(id)?.weightTags ?? []
+    if (tags.length === 0) return WEIGHT_BASE
+    const s = this._signals ?? (this._signals = this._runSignals())
+    let w = WEIGHT_BASE
+    for (const t of tags) {
+      const fn = TAG_SIGNAL[t]
+      if (fn) w += fn(s) * WEIGHT_SCALE
+    }
+    return w
+  }
+
+  // Snapshot the run-stats the adaptive draft reads. Live roster + run totals +
+  // treasury; all plain reads so it's cheap to call per draft.
+  _runSignals() {
+    const gs = this._gs
+    const minions = Array.isArray(gs.minions) ? gs.minions : []
+    const alive = minions.filter(m => (m.resources?.hp ?? 1) > 0)
+    const t = gs.run?.totals ?? {}
+    const kills = t.kills ?? 0
+    const escaped = t.advsEscaped ?? 0
+    return {
+      minionCount:  alive.length,
+      evolvedCount: alive.filter(m => (m.evolutionHistory?.length ?? 0) > 0).length,
+      undeadCount:  alive.filter(m => _UNDEAD_RE.test(String(m.definitionId ?? '').toLowerCase())).length,
+      pactCount:    gs.history?.pacts?.length ?? gs.activeMechanics?.length ?? 0,
+      kills,
+      slaughterRatio: (kills + escaped) > 0 ? kills / (kills + escaped) : 0.5,
+      gold:         gs.player?.gold ?? 0,
+    }
   }
 
   _announce(act, response) {
     if (!response) return
-    EventBus.emit('KINGDOM_RESPONSE_DRAWN', { act, def: actDef(act), response })
+    EventBus.emit('KINGDOM_RESPONSE_DRAWN', {
+      act, def: actDef(act), response,
+      reason: this._gs.meta?.act?.draftReason?.[act] ?? null,   // KR P5 — why this one
+    })
   }
 
   // ── API for the announce set-piece, gimmick wiring, and Champion raid ──────
