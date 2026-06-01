@@ -1548,6 +1548,7 @@ body {
   align-items: center;
   justify-content: center;
   height: 100%;
+  position: relative;   /* anchor for the absolutely-pinned act eyebrow */
 }
 
 .qf-phase-eyebrow {
@@ -1567,17 +1568,28 @@ body {
   text-shadow: 3px 3px 0 #4a2810, 0 0 24px rgba(255, 203, 92, 0.55);
 }
 
-/* Act / Kingdom-Response eyebrow (KR P4) — above the DAY stamp in the center
-   column. "ACT N · Name" with the ACT prefix in the response accent; hover
-   reveals the threat line in an accent popover. Hidden until an act fires. */
-.qf-topbar-act { position: relative; display: none; margin-bottom: 3px; }
+/* Act / Kingdom-Response eyebrow (KR P4) — pinned to the LEFT of the day/night
+   stamp (absolute, vertically centered, in the empty top-bar space). Placed
+   horizontally rather than stacked above because the short bar can't fit the
+   eyebrow + big day stamp + the ~22px wave bar without overflow. Readable VT323
+   (the old 7px pixel font was too small); never competes with the wave bar.
+   "ACT N · Name", ACT prefix in the response accent; hover = the threat line. */
+.qf-topbar-act {
+  position: absolute; top: 50%; right: 100%; margin-right: 16px;
+  transform: translateY(-50%);
+  display: none; z-index: 5; max-width: 38vw;
+}
 .qf-topbar-act.on { display: block; }
 .qf-topbar-act-eyebrow {
-  font-family: 'Press Start 2P', monospace; font-size: 7px; letter-spacing: 1px;
-  color: #b9a888; white-space: nowrap; cursor: help;
-  max-width: 300px; overflow: hidden; text-overflow: ellipsis;
+  font-family: 'VT323', monospace; font-size: 17px; letter-spacing: 0.5px;
+  line-height: 1; color: #d8ccb2; white-space: nowrap; cursor: help;
+  overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 1px 0 #000;
 }
-.qf-topbar-act-eyebrow .act-n { color: var(--act-accent, var(--gold)); }
+.qf-topbar-act-eyebrow .act-n {
+  color: var(--act-accent, var(--gold)); font-weight: bold;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--act-accent, #d4a648) 60%, transparent);
+}
 .qf-topbar-act-pop {
   position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
   display: none; z-index: 60; width: max-content; max-width: 320px;
