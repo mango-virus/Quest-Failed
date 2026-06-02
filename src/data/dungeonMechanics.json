@@ -5,7 +5,7 @@
     "symbol": "👻",
     "description": "Adventurers lose 5% of their current HP each time they enter a new room.",
     "tradeoffDescription": "Adventurers are already weakened on kill — you gain slightly less Gold per death.",
-    "rarity": "common",
+    "rarity": "epic",
     "unlockLevel": 2,
     "weight": 4,
     "availableToArchetypes": "all",
