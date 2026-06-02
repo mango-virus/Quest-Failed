@@ -23,6 +23,10 @@ const ABILITY_BY_ACT = { 2: 'heroic_resolve', 3: 'dawnblade', 4: 'hero_king' }
 // grunt every few seconds reads as "shrugging it off / getting mad", not a buzz.
 const HURT_THROTTLE_MS = 7000
 
+// Cadence of his prowl taunts while he scouts toward the throne (paused with the
+// game via the scene timer; stops the moment he recoils / withdraws).
+const PROWL_DELAY_MS = 13000
+
 export class NemesisSystem {
   constructor(scene, gameState) {
     this._scene = scene
@@ -44,27 +48,50 @@ export class NemesisSystem {
     EventBus.off('NEMESIS_RECOIL',  this._onRecoil,     this)
     EventBus.off('NEMESIS_HURT',    this._onHurt,       this)
     EventBus.off('NEMESIS_ARRIVED', this._onArrived,    this)
+    this._stopProwl()
   }
 
-  // Reset the hurt throttle each time he re-enters so his first hit of a visit
-  // always reacts (the bubble + escalating face are part of the scout fantasy).
-  _onArrived() { this._hurtAt = 0 }
+  // Re-entry: reset the hurt throttle, fire his entrance LINE (the arrival face +
+  // bubble, a beat after the slide-in), and start the prowl loop for this visit.
+  _onArrived({ act } = {}) {
+    this._hurtAt = 0
+    const a = Math.min(4, act ?? this._gs.meta?.nemesis?.act ?? 1)
+    const line = this._pick('arrive', String(a))
+    if (line) this._scene?.time?.delayedCall?.(900, () => {
+      EventBus.emit('NEMESIS_TAUNT', { line, act: a, source: 'arrive', log: true })
+    })
+    this._startProwl(a)
+  }
 
-  // Aldric chipped in combat (acts I–III). Throttled grunt + an escalating face:
-  // rattled when barely scratched, annoyed mid, ENRAGED near his floor — matched
-  // to the hurt lines, which escalate in the same order. No log line (frequent).
+  // A periodic scouting taunt while he prowls toward the throne — the portrait
+  // shows his per-act prowl face (confident / combat-relish / manic).
+  _startProwl(act) {
+    this._stopProwl()
+    if (!this._scene?.time?.addEvent) return
+    this._prowlTimer = this._scene.time.addEvent({
+      delay: PROWL_DELAY_MS, loop: true,
+      callback: () => {
+        const line = this._pick('tauntBoss')
+        if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'taunt', log: true })
+      },
+    })
+  }
+  _stopProwl() { try { this._prowlTimer?.remove?.() } catch {} this._prowlTimer = null }
+
+  // Aldric chipped in combat (acts I–III). Throttled grunt + an escalating face by
+  // HP band (light → his floor), index-matched to the per-act hurt.N lines AND the
+  // portrait's hurtTiers, so line + face always agree. No log line (frequent).
   _onHurt({ adventurer, hpFrac } = {}) {
     if (!adventurer?._nemesis) return
     const now = this._scene?.time?.now ?? 0
     if (now - (this._hurtAt ?? 0) < HURT_THROTTLE_MS) return
     this._hurtAt = now
-    const act = this._gs.meta?.nemesis?.act ?? 1
-    let idx = 0, x = 'rattled'
-    if ((hpFrac ?? 1) <= 0.30)      { idx = 2; x = 'enraged' }
-    else if ((hpFrac ?? 1) <= 0.55) { idx = 1; x = 'annoyed' }
-    const hurts = this._lines?.hurt
-    const line = Array.isArray(hurts) ? (hurts[idx] ?? hurts[0]) : null
-    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'hurt', x, log: false })
+    const act = Math.min(3, this._gs.meta?.nemesis?.act ?? 1)
+    const f = hpFrac ?? 1
+    const tier = f <= 0.20 ? 3 : f <= 0.45 ? 2 : f <= 0.70 ? 1 : 0
+    const bank = this._lines?.hurt?.[String(act)]
+    const line = Array.isArray(bank) ? (bank[tier] ?? bank[bank.length - 1]) : null
+    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'hurt', tier, log: false })
   }
 
   // The Act IV duel resolved in the boss's favour — Aldric, the crowned Hero
@@ -86,6 +113,7 @@ export class NemesisSystem {
   // subsequent flee then skips its own line so they don't double up.
   _onRecoil({ adventurer, act } = {}) {
     if (!adventurer?._nemesis) return
+    this._stopProwl()   // he's reached the throne — done prowling, now he recoils
     const a = act ?? this._gs.meta?.nemesis?.act ?? 1
     const line = this._pick('withdraw', String(Math.min(a, 3)))
     if (line) EventBus.emit('NEMESIS_TAUNT', { line, act: a, source: 'recoil', log: true })
@@ -98,6 +126,7 @@ export class NemesisSystem {
   // gets its own withdrawal vow; a recoil-flee already vowed at the throne.
   _onFled({ adventurer } = {}) {
     if (!adventurer?._nemesis) return
+    this._stopProwl()
     const n = this._gs.meta?.nemesis
     const act = n?.act ?? 1
     if (!adventurer._nemReeled) {

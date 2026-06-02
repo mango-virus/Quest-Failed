@@ -13,13 +13,16 @@ const WIDTH    = 560   // matches the companion default; HUD scales it down
 const SRC_ROOT = 'D:/Documents/Game Jam Code/Quest-Failed assets/!To do/aldric'
 const OUT_ROOT = 'assets/npc-aldric'
 
-// "cocky vow-Photoroom.png" → "cocky-vow"; "aldric act 1 idle-Photoroom.png" → "idle"
+// "cocky vow-Photoroom.png" → "cocky-vow"; "aldric act 1 idle" / "aldric idle act 2"
+// → "idle"; "badly hurt and dying" → "badly-hurt-and-dying".
 function exprId(file) {
   return file
     .replace(/-Photoroom/i, '')
     .replace(/\.png$/i, '')
-    .replace(/^aldric\s*act\s*\d+\s*/i, '')   // strip the "aldric act N " prefix
-    .trim().toLowerCase().replace(/\s+/g, '-')
+    .toLowerCase()
+    .replace(/\baldric\b/g, '')        // drop the "aldric" token wherever it sits
+    .replace(/\bact\s*\d+\b/g, '')     // drop the "act N" token wherever it sits
+    .trim().replace(/\s+/g, '-')
 }
 
 async function bakeAct(act) {

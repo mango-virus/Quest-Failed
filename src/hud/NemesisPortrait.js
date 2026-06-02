@@ -22,29 +22,57 @@ const ACT_LOOK = {
   4: { emblem: '♛', tint: '#fff0a0', mood: 'THE HERO KING' },
 }
 
-// Per-act portrait art. Only acts present here render the cross-fading portrait;
-// the rest show the placeholder frame. `rest` is his resting/idle expression.
+// Per-act portrait art + the emotion each taunt beat shows in that act. Only acts
+// present here render the cross-fading portrait; the rest show the placeholder
+// frame. Each act has its OWN expression set (the upstart, the avenger, the
+// obsessed each emote differently), so `beats` maps a taunt `source` → the
+// expression(s) for that beat (an array picks at random for variety), and
+// `hurtTiers` is the escalating face by HP band (light → his floor), index-matched
+// to that act's `hurt.N` lines. `rest` is his idle face. Every listed expression
+// is reachable by some beat (see the coverage note in the commit / report).
 const ALDRIC_ART = {
   1: {
     dir: 'assets/npc-aldric/act1/',
-    expressions: ['idle', 'cocky', 'confident', 'cocky-vow', 'sneering', 'contempt', 'rattled', 'annoyed', 'enraged'],
-    rest: 'cocky',
+    expressions: ['idle', 'cocky', 'confident', 'contempt', 'sneering', 'rattled', 'annoyed', 'enraged', 'hurt', 'cocky-vow'],
+    rest: 'idle',
+    beats: {
+      arrive:      ['cocky', 'confident'],
+      taunt:       ['confident'],
+      banter:      ['contempt', 'sneering'],
+      recoil:      ['cocky-vow'],
+      withdraw:    ['cocky-vow'],
+      act_cleared: ['confident'],
+    },
+    hurtTiers: ['hurt', 'rattled', 'annoyed', 'enraged'],
   },
-}
-
-// Taunt `source` → the expression that fits that beat (an array picks at random
-// for variety). A taunt may also carry an explicit `x` emotion that overrides
-// this (the hurt reaction sends rattled/annoyed/enraged by HP). Resolved against
-// the act's vocab; an act whose art lacks the expression falls back to its rest.
-const SOURCE_EXPR = {
-  arrive:      ['cocky', 'confident'],
-  taunt:       'confident',
-  recoil:      'cocky-vow',
-  withdraw:    'cocky-vow',
-  act_cleared: 'confident',
-  banter:      ['contempt', 'sneering'],
-  hurt:        'rattled',
-  minionKill:  'cocky',
+  2: {
+    dir: 'assets/npc-aldric/act2/',
+    expressions: ['idle', 'heroic-resolve', 'fierce-grin', 'battle-joy', 'triumphant', 'hurt', 'desperate', 'unhinged', 'badly-hurt-and-dying'],
+    rest: 'idle',
+    beats: {
+      arrive:      ['heroic-resolve'],
+      taunt:       ['fierce-grin', 'battle-joy', 'triumphant'],
+      banter:      ['fierce-grin'],
+      recoil:      ['heroic-resolve'],
+      withdraw:    ['heroic-resolve'],
+      act_cleared: ['heroic-resolve'],
+    },
+    hurtTiers: ['hurt', 'desperate', 'unhinged', 'badly-hurt-and-dying'],
+  },
+  3: {
+    dir: 'assets/npc-aldric/act3/',
+    expressions: ['idle', 'obsessed', 'maniac', 'obsessive-rage', 'bitter-vow', 'sneering', 'rattled', 'enraged', 'hurt'],
+    rest: 'idle',
+    beats: {
+      arrive:      ['obsessed'],
+      taunt:       ['maniac'],
+      banter:      ['sneering'],
+      recoil:      ['bitter-vow'],
+      withdraw:    ['bitter-vow'],
+      act_cleared: ['bitter-vow'],
+    },
+    hurtTiers: ['hurt', 'rattled', 'enraged', 'obsessive-rage'],
+  },
 }
 
 function _ensureCss() {
@@ -176,12 +204,16 @@ export class NemesisPortrait {
       this._dir = art.dir
       this._expressions = art.expressions
       this._rest = art.rest
+      this._beats = art.beats ?? {}
+      this._hurtTiers = art.hurtTiers ?? []
       this._root?.classList.add('has-art')
       this._preload()
       this._curExpr = null
       this._setExpression(this._rest)
     } else {
       this._dir = null
+      this._beats = {}
+      this._hurtTiers = []
       this._root?.classList.remove('has-art')
       if (this._phEmblem) this._phEmblem.textContent = look.emblem
     }
@@ -213,10 +245,17 @@ export class NemesisPortrait {
     if (back.complete && back.naturalWidth) swap()
   }
 
-  _exprFor(source) {
-    const e = SOURCE_EXPR[source]
-    if (Array.isArray(e)) return e[Math.floor(Math.random() * e.length)] || this._rest
-    return e ?? this._rest
+  // The expression for a taunt beat in the CURRENT act. Hurt resolves by tier
+  // (HP band, index-matched to the hurt lines); every other beat reads the act's
+  // `beats` map (an array picks at random for variety).
+  _exprFor(source, tier) {
+    if (source === 'hurt' && this._hurtTiers?.length) {
+      const i = Math.max(0, Math.min(this._hurtTiers.length - 1, tier | 0))
+      return this._hurtTiers[i] || this._rest
+    }
+    const e = this._beats?.[source]
+    if (Array.isArray(e) && e.length) return e[Math.floor(Math.random() * e.length)] || this._rest
+    return this._rest
   }
 
   _slideIn()  { this._root?.classList.add('show') }
@@ -233,11 +272,11 @@ export class NemesisPortrait {
     this._slideIn()
   }
 
-  _onTaunt({ line, act, source, x } = {}) {
+  _onTaunt({ line, act, source, tier, x } = {}) {
     if (!line) return
     if (act) this._render(act)
     this._slideIn()
-    this._setExpression(x || this._exprFor(source))
+    this._setExpression(x || this._exprFor(source, tier))
     if (this._bubbleEl) {
       this._bubbleEl.replaceChildren(
         h('span', { className: 'qf-nemesis-bubble-name' }, (this._gs?.meta?.nemesis?.name ?? 'Aldric').toUpperCase()),
