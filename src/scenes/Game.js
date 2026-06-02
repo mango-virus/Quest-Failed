@@ -1574,6 +1574,14 @@ export class Game extends Phaser.Scene {
     for (const m of this.gameState.minions ?? []) {
       if (typeof m.tileX  === 'number') { m.tileX  += dx; m.tileY  += dy }
       if (typeof m.worldX === 'number') { m.worldX += dx * TS; m.worldY += dy * TS }
+      // homeTileX/Y is an ABSOLUTE tile coord — the dawn-snap target in
+      // MinionAISystem._dawnRefresh. It must shift with the grid too. Without
+      // this, a grid expansion (boss level-up) left home at the OLD coords, so
+      // at the next dawn the minion snapped to the wrong location while
+      // assignedRoomId still read the (correctly shifted) room — the "minion
+      // moves but the game thinks it's in the original room" desync, most
+      // visible when over-level minions level the boss fast. (Fix 2026-06-02.)
+      if (typeof m.homeTileX === 'number') { m.homeTileX += dx; m.homeTileY += dy }
       if (m._patrolTarget) { m._patrolTarget.x += dx; m._patrolTarget.y += dy }
       m._chasePath = null
     }
