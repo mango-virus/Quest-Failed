@@ -1272,7 +1272,9 @@ When the duel resolves, the post-wave summary is **held back** until a short scr
 
 ---
 
-## Treasure Raid — recurring 10-day wealth raid (2026-05-29)
+## Treasure Raid — recurring 10-day wealth raid (2026-05-29) ~~(scheduling reverted 2026-06-01)~~
+
+> **CHANGED 2026-06-01 (by user).** The dedicated **10-day raid track was removed**. `treasure_hunters` is now a **normal shuffle-bag dungeon event** again — it rolls randomly in the regular rotation like every other event (gated only on a non-empty treasury, since it steals gold), instead of firing on a fixed day-10/20/30 schedule. The event's **behavior is unchanged**: when it fires, the whole wave still arrives as treasure hunters who skim liquid gold on escape, still capped at 80% of the day-start treasury, still telegraphed the night before with the chest-sell lock. Only the cadence changed (scheduled raid → random shuffle event). **Items 1, 2 and 4 below — the dedicated track, the day-10 "no grace period", and the collision rule — no longer apply;** the remaining items still describe the event's behavior.
 
 The original one-off **Treasure Hunters** dungeon event is promoted to a **recurring, scheduled Treasure Raid** with its own cadence, separate from the normal dungeon-event rotation. The design goal is an **anti-hoarding pressure valve**: the fatter your liquid treasury, the more a raid bleeds you — so sitting on a pile of gold becomes genuinely dangerous, and the smart play is to spend it down into defenses (which then protect you) before each raid.
 

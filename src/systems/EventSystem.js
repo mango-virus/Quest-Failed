@@ -42,16 +42,12 @@ import { h }                from '../hud/dom.js'
 const MIN_GAP = 3
 const MAX_GAP = 3
 
-// ── Treasure Raid (2026-05-29) ─────────────────────────────────────────────
-// A recurring wealth raid on its OWN cadence, independent of the
-// MIN_GAP/MAX_GAP dungeon-event rotation. Fires every RAID_INTERVAL_DAYS
-// (first on day 10). `treasure_hunters` is pulled out of the random shuffle
-// bag (see _eventPrecondMet) and ONLY fires via this track. On a raid day the
-// whole wave arrives as treasure hunters who skim LIQUID gold on escape;
-// TREASURE_RAID_LOSS_CAP_PCT bounds the total the raid can carry off (the
-// player always keeps the remainder — 20% at the default 0.80). The two
-// balance knobs are the interval and the cap.
-const RAID_INTERVAL_DAYS        = 10
+// ── Treasure Hunters gold-skim cap ─────────────────────────────────────────
+// `treasure_hunters` fires as a normal shuffle-bag event (the dedicated
+// 10-day "Treasure Raid" track was removed 2026-06-01, by user request). When
+// it fires, the whole wave arrives as treasure hunters who skim LIQUID gold on
+// escape; this cap bounds the total they can carry off in a day (the player
+// always keeps the remainder — 20% at the default 0.80).
 const TREASURE_RAID_LOSS_CAP_PCT = 0.80
 
 // ── Day-long state-modifier event tuning ───────────────────────────────
@@ -83,9 +79,6 @@ export class EventSystem {
     // events slice both end up with a valid structure.
     gameState.events ??= {}
     gameState.events.nextEventDay ??= this._initialNextDay()
-    // Treasure Raid track — independent of the regular event cadence above.
-    gameState.events.nextRaidDay  ??= RAID_INTERVAL_DAYS
-    gameState.events.scheduledIsRaid ??= false
     gameState.events.lastEventId  ??= null
     gameState.events.scheduledId  ??= null
     gameState.events.scheduledDay ??= null
@@ -538,10 +531,11 @@ export class EventSystem {
     // If the boss DIES to it (Jinwoo wins the duel), _onDayPhaseEnded throws it
     // back into the shuffle bag so it can recur without waiting for the full
     // roster to cycle — see the re-queue there.
-    // Treasure Hunters is no longer a random-pool event — it fires exclusively
-    // on the dedicated 10-day Treasure Raid track (see _maybeScheduleRaid).
-    // Keep it out of the shuffle bag entirely so it never double-fires.
-    if (def.id === 'treasure_hunters') return false
+    // Treasure Hunters fires as a normal shuffle-bag event (2026-06-01, by user
+    // request — the dedicated 10-day "Treasure Raid" track was removed). It only
+    // makes sense when there's liquid gold to skim, so gate it on a non-empty
+    // treasury (it steals gold, not chests — see _applyEffect case).
+    if (def.id === 'treasure_hunters') return (this._gameState.player?.gold ?? 0) > 0
     // Light Party — ENABLED in the normal shuffle rotation (2026-06-01, by user
     // request). Like Solo Leveling, if the boss dies to it (the party wins the
     // duel) the win re-queues it into the bag (see _onDayPhaseEnded) so it stays
@@ -570,10 +564,6 @@ export class EventSystem {
       if (def) this._dispatchAnnounceUi(def)
       return
     }
-    // Treasure Raid — its own 10-day track, checked BEFORE (and preempting)
-    // the regular event roll. If tonight is a raid night, schedule it and
-    // return so no regular event also fires today (collision rule: raid wins).
-    if (this._maybeScheduleRaid(today)) return
     if (today < (ev.nextEventDay ?? this._initialNextDay())) return
 
     const def = this._pickEvent()
@@ -585,30 +575,6 @@ export class EventSystem {
     ev.scheduledDay = today
     EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: today })
     this._dispatchAnnounceUi(def)
-  }
-
-  // Treasure Raid scheduler — fires `treasure_hunters` on its own 10-day
-  // cadence (day 10, 20, 30, …), separate from the regular event rotation.
-  // Returns true when it schedules a raid for tonight (caller then skips the
-  // regular event roll). On a collision with a regular event day, the raid
-  // takes priority and that regular slot is forfeited (nextEventDay advanced),
-  // so the normal cadence simply resumes afterward.
-  _maybeScheduleRaid(today) {
-    const ev = this._gameState.events
-    if (today < (ev.nextRaidDay ?? RAID_INTERVAL_DAYS)) return false
-    const def = this._defs.find(d => d.id === 'treasure_hunters')
-    if (!def) return false
-    ev.scheduledId     = 'treasure_hunters'
-    ev.scheduledDay    = today
-    ev.scheduledIsRaid = true
-    // Collision: a regular event was also due today — forfeit that slot so the
-    // raid wins, and the regular cadence resumes from today.
-    if (today >= (ev.nextEventDay ?? this._initialNextDay())) {
-      ev.nextEventDay = today + this._rollGap()
-    }
-    EventBus.emit('DUNGEON_EVENT_ANNOUNCED', { def, day: today, raid: true })
-    this._dispatchAnnounceUi(def)
-    return true
   }
 
   // Some events surface UI during the night phase (modals, demon spawn,
@@ -1669,20 +1635,6 @@ export class EventSystem {
     const id = ev.scheduledId
     if (!id) return
     const def = this._defs.find(d => d.id === id)
-    // Treasure Raid — its own track. Clear the raid, reschedule the next one,
-    // and DON'T touch the shuffle bag / regular cadence (treasure_hunters
-    // isn't in the random pool, so it never participates in lastEventId /
-    // firedThisRun / nextEventDay).
-    if (ev.scheduledIsRaid) {
-      this._clearEffect(def)
-      const firedDay = ev.scheduledDay ?? this._gameState.meta?.dayNumber ?? 1
-      ev.nextRaidDay     = firedDay + RAID_INTERVAL_DAYS
-      ev.scheduledIsRaid = false
-      ev.scheduledId     = null
-      ev.scheduledDay    = null
-      EventBus.emit('DUNGEON_EVENT_ENDED', { def })
-      return
-    }
     this._clearEffect(def)
     ev.lastEventId  = id
     // Mark this event spent in the current shuffle bag so _eligibleEvents
