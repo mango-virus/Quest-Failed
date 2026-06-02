@@ -30,6 +30,7 @@ const WARN_COOLDOWN_MS             = 8000   // per-warner cooldown
 const LOOT_SIGHT_RANGE             = 14     // tiles between adv and dropped pile
 const LOOT_CHANCE                  = 0.45   // per-adv roll on pile drop
 const LOOT_DURATION_MS             = 2500   // looting freeze
+const NEM_RECOIL_MS                = 1300   // Aldric's "scared" recoil at the throne before he flees (acts I–III)
 const LOOT_PILE_TTL_MS             = 30000  // piles vanish if untouched
 // SEEK_TREASURE repick budget (anti-thrash, 2026-05-27). When the sticky
 // pick + interrupt-and-repick cycle still ends up firing SEEK_TREASURE
@@ -1713,6 +1714,22 @@ export class AISystem {
           adv.aiState = 'walking'
           return
         }
+        // The Nemesis (Aldric, acts I–III) reaches the throne but does NOT fight:
+        // he recoils at the boss, vows revenge, and withdraws. Latch _nemReeled so
+        // the goal-picker keeps him fleeing, hold him for a recoil beat (movement
+        // gate honours _nemRecoilUntil), and fire the vow once. The Act IV duel
+        // form has _nemesisDuel (not _nemesis), so it fights normally below.
+        if (adv._nemesis) {
+          if (!adv._nemReeled) {
+            adv._nemReeled      = true
+            adv._nemRecoilUntil = this._scene.time.now + NEM_RECOIL_MS
+            EventBus.emit('NEMESIS_RECOIL', { adventurer: adv, act: this._gameState.meta?.nemesis?.act ?? 1 })
+          }
+          adv.goal    = { type: 'FLEE' }
+          adv.path    = null
+          adv.aiState = 'idle'   // frozen in fear for the recoil beat, then flees
+          return
+        }
         adv.goal    = { type: 'AT_BOSS' }
         adv.path    = null
         adv.aiState = 'fighting'
@@ -2479,6 +2496,11 @@ export class AISystem {
     // window). Banned cheaters lose the cheat entirely, so the freeze
     // can't strand a fleeing one in a minion's range forever.
     if ((adv._lagStunUntil ?? 0) > this._scene.time.now && !adv._banned) {
+      return
+    }
+    // Aldric's recoil beat — frozen in fear at the throne for a moment before he
+    // turns and flees (set in the SEEK_BOSS→AT_BOSS handoff for acts I–III).
+    if ((adv._nemRecoilUntil ?? 0) > this._scene.time.now) {
       return
     }
 
@@ -4037,10 +4059,14 @@ export class AISystem {
     // with a vow: FLEE once chipped near his HP floor OR after roaming enough
     // rooms. Never SEEK_BOSS, never loot.
     if (adv._nemesis) {
+      // Scout-and-withdraw: he MARCHES on the throne (fighting minions en route),
+      // recoils at the sight of the boss, and withdraws — no boss fight until the
+      // Act IV duel. Once he's reeled at the throne (_nemReeled, latched in the
+      // SEEK_BOSS→AT_BOSS handoff) he commits to fleeing; he also bails early if
+      // chipped to his HP floor.
       const hp = adv.resources?.hp ?? 1, maxHp = adv.resources?.maxHp ?? 1
-      const roomsSeen = adv.visitedRooms?.length ?? 0
-      const withdraw = hp <= maxHp * 0.18 || roomsSeen >= 6
-      return withdraw ? { type: 'FLEE' } : { type: 'EXPLORE_ROOM' }
+      if (adv._nemReeled || hp <= maxHp * 0.18) return { type: 'FLEE' }
+      return { type: 'SEEK_BOSS' }
     }
     // The Nemesis, Act IV form — the crowned Hero King (spawned with
     // _nemesisDuel, NOT _nemesis, so he's killable and never flees) storms the

@@ -85,6 +85,9 @@ export class NemesisPortrait {
     this._on('NEMESIS_ARRIVED',     p => this._onArrive(p))
     this._on('NEMESIS_TAUNT',       p => this._onTaunt(p))
     this._on('NEMESIS_ESCALATED',   p => this._render(p.act))
+    // Hide the card the instant he leaves the dungeon (fled/withdrew) — it used
+    // to linger until day-end even after he was gone.
+    this._on('NEMESIS_DEPARTED',    () => this._slideOut())
     this._on('DAY_PHASE_ENDED',     () => this._slideOut())
     this._on('NIGHT_PHASE_STARTED', () => this._slideOut())
     // The Act IV duel cinematic (AldricCinematic) takes over the screen and IS

@@ -28,12 +28,14 @@ export class NemesisSystem {
     EventBus.on('ACT_CLEARED',     this._onActCleared, this)
     EventBus.on('ADVENTURER_FLED', this._onFled,       this)
     EventBus.on('ADVENTURER_DIED', this._onDied,       this)
+    EventBus.on('NEMESIS_RECOIL',  this._onRecoil,     this)
   }
 
   destroy() {
     EventBus.off('ACT_CLEARED',     this._onActCleared, this)
     EventBus.off('ADVENTURER_FLED', this._onFled,       this)
     EventBus.off('ADVENTURER_DIED', this._onDied,       this)
+    EventBus.off('NEMESIS_RECOIL',  this._onRecoil,     this)
   }
 
   // The Act IV duel resolved in the boss's favour — Aldric, the crowned Hero
@@ -49,15 +51,31 @@ export class NemesisSystem {
     EventBus.emit('NEMESIS_SLAIN', { act, adventurer })
   }
 
-  // Aldric withdraws (scout-and-withdraw) — fire an act-specific vow taunt as he
-  // leaves. He's plot-armored, so a flee is always a deliberate retreat, never a
-  // death. (The actual removal from `active` is handled by the flee machinery.)
+  // Aldric reaches the throne (acts I–III), recoils at the boss, and vows revenge
+  // BEFORE he turns to flee (the recoil hold lives in AISystem). Fire the vow here
+  // — at the moment of recoil — so it lands while he's still facing the boss; the
+  // subsequent flee then skips its own line so they don't double up.
+  _onRecoil({ adventurer, act } = {}) {
+    if (!adventurer?._nemesis) return
+    const a = act ?? this._gs.meta?.nemesis?.act ?? 1
+    const line = this._pick('withdraw', String(Math.min(a, 3)))
+    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act: a, source: 'recoil', log: true })
+  }
+
+  // Aldric leaves the dungeon (scout-and-withdraw). He's plot-armored, so a flee
+  // is always a deliberate retreat. Emit NEMESIS_DEPARTED so his rival card hides
+  // the instant he's gone (it used to linger until day-end). A flee that did NOT
+  // come from the throne recoil (e.g. chipped to his HP floor mid-scout) still
+  // gets its own withdrawal vow; a recoil-flee already vowed at the throne.
   _onFled({ adventurer } = {}) {
     if (!adventurer?._nemesis) return
     const n = this._gs.meta?.nemesis
     const act = n?.act ?? 1
-    const line = this._pick('withdraw', String(Math.min(act, 3)))
-    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'withdraw', log: true })
+    if (!adventurer._nemReeled) {
+      const line = this._pick('withdraw', String(Math.min(act, 3)))
+      if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'withdraw', log: true })
+    }
+    EventBus.emit('NEMESIS_DEPARTED', { adventurer, act })
   }
 
   _ensureState() {

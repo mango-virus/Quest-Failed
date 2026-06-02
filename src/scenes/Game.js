@@ -421,6 +421,9 @@ export class Game extends Phaser.Scene {
     // Solo Leveling — clicking Jinwoo's exploration HP bar re-locks the camera
     // onto him (same follow used when he enters).
     EventBus.on('SHADOW_MONARCH_FOLLOW', this._onShadowMonarchFollow, this)
+    // The Nemesis (Aldric) — zoom in + follow him by default the moment he enters
+    // the dungeon (released the instant the player scrolls; see WASD/drag handlers).
+    EventBus.on('NEMESIS_ARRIVED',       this._onNemesisArrived,      this)
     // Loot Goblin Heist — red floater at the goblin's last position + toast
     // banner so the player notices the gold drain.
     EventBus.on('LOOT_GOBLIN_ESCAPED',  this._onLootGoblinEscaped, this)
@@ -555,6 +558,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.off('ADVENTURER_FLED',      this._onAdvRemoved,   this)
     EventBus.off('SHADOW_MONARCH_FOLLOW', this._onShadowMonarchFollow, this)
+    EventBus.off('NEMESIS_ARRIVED',       this._onNemesisArrived,      this)
     EventBus.off('ADVENTURERS_SPAWNED',  this._onAdvsSpawned,  this)
     EventBus.off('LOOT_GOBLIN_ESCAPED',  this._onLootGoblinEscaped, this)
     EventBus.off('DUNGEON_EVENT_BEGAN',  this._onDungeonEventBegan, this)
@@ -1041,6 +1045,20 @@ export class Game extends Phaser.Scene {
   // onto him (same follow path as clicking his sprite / the auto-lock on entry).
   _onShadowMonarchFollow({ id } = {}) {
     if (id) this._setFollow(id)
+  }
+
+  // The Nemesis (Aldric) enters — zoom in + follow him by default so the player
+  // sees his arrival. The smooth follow lerp tracks him; WASD/drag releases the
+  // follow (see the scroll handlers). Only acts during the day phase.
+  _onNemesisArrived({ adventurer } = {}) {
+    if (!adventurer?.instanceId || this.gameState.meta?.phase !== 'day') return
+    this._setFollow(adventurer.instanceId)
+    const cam = this._cam
+    if (!cam) return
+    const target = Math.min(1.4, Balance.CAMERA_ZOOM_MAX ?? 1.4)
+    if (cam.zoom < target) {
+      this.tweens.add({ targets: cam, zoom: target, duration: 600, ease: 'Sine.easeOut' })
+    }
   }
 
   _onAdvRemoved({ adventurer }) {
