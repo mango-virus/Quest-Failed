@@ -34,6 +34,28 @@ const BEAT = {
   surge:          { label: 'THE TIDE TURNS', cls: 'turn'  },
 }
 
+// Aldric's reacting duel portrait (lower-LEFT, his side of the VS). The fight
+// carries its text via the beat labels, so the portrait has NO bubble — instead
+// his FACE tells the story: a base mood set by his HP band, with a transient
+// combat face punched in on every beat. His Act-4 emotion set, baked to
+// assets/npc-aldric/act4/ by tools/bake-aldric-portraits.mjs.
+const ALD_FACE_DIR = 'assets/npc-aldric/act4/'
+const ALD_FACES = ['idle', 'obsessive-taunt', 'battle-joy', 'obsessed-attack', 'wrath',
+  'obsessed-desperate', 'unhinged-grin', 'unhinged-dying', 'hurt']
+const ALD_FACE_HOLD_MS = 1400   // how long a beat face holds before settling to his HP-band mood
+// Duel beat → the face it punches in. (finalblow has no entry — the END card
+// sets the decisive face: dying if he falls, battle-joy if he stands.)
+const ALD_BEAT_FACE = {
+  clash:          'battle-joy',
+  dawnblade:      'obsessed-attack',
+  boss_ult:       'wrath',
+  bladelock:      'wrath',
+  knockback:      'hurt',
+  heroic_resolve: 'obsessed-desperate',
+  surge:          'unhinged-grin',
+  hero_king:      'obsessed-attack',
+}
+
 function _ensureCss() {
   if (typeof document === 'undefined') return
   if (document.getElementById('qf-aldric-duel-css')) return
@@ -124,7 +146,23 @@ function _ensureCss() {
   text-shadow:0 0 30px var(--acc), 0 3px 0 #1a1004; animation:qf-ald-card-pop .7s cubic-bezier(.18,.9,.25,1) both; }
 .qf-ald-card-sub { position:relative; font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#d9cdb6; }
 @keyframes qf-ald-card-pop { 0%{opacity:0; transform:scale(.6); filter:blur(7px)}
-  60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }`
+  60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }
+/* Aldric's reacting portrait — lower-LEFT (his side of the VS). Two stacked
+   <img> layers cross-fade between his Act-4 combat faces; slides in from the left
+   under the HUD header. pointer-events:none — purely presentational. */
+.qf-ald-figure { position:absolute; left:0; bottom:0; z-index:34; pointer-events:none;
+  width:clamp(180px,21vw,300px); height:clamp(300px,50vh,470px);
+  transform:translateX(-118%); transition:transform .7s cubic-bezier(.16,.84,.3,1);
+  filter:drop-shadow(0 6px 16px rgba(0,0,0,.7)); }
+.qf-ald-figure.show { transform:translateX(0); }
+.qf-ald-figure-img { position:absolute; inset:0; width:100%; height:100%;
+  object-fit:contain; object-position:bottom left; opacity:0; transition:opacity .34s ease;
+  user-select:none; -webkit-user-drag:none; }
+.qf-ald-figure-img.front { opacity:1; }
+/* a soft form-tinted glow rising from his feet, behind the figure */
+.qf-ald-figure::before { content:''; position:absolute; left:0; bottom:0; width:82%; height:48%; z-index:-1;
+  background:radial-gradient(58% 80% at 32% 100%, color-mix(in srgb,var(--acc) 42%, transparent), transparent 72%);
+  filter:blur(7px); }`
   document.head.appendChild(style)
 }
 
@@ -137,6 +175,10 @@ export class AldricCinematic {
     this._hud = null; this._advFill = null; this._advGhost = null; this._bossFill = null; this._bossGhost = null
     this._presence = null
     this._theme = DEFAULT_THEME
+    // Reacting-portrait state.
+    this._figure = null; this._figA = null; this._figB = null
+    this._figFrontA = true; this._figExpr = null; this._figToken = 0
+    this._figHolding = false; this._figHoldToken = 0; this._advFrac = 1
     if (!this._stage) return
     _ensureCss()
     this._wire()
@@ -159,8 +201,65 @@ export class AldricCinematic {
     this._root = h('div', { className: 'qf-ald-root', style: { '--acc': this._theme.acc, '--acc2': this._theme.acc2 } })
     this._stage.appendChild(this._root)
     this._buildPresence()
+    this._buildFigure()
     this._buildHud()
     this._playEntrance()
+    // He strides in sneering — the obsessive opener face holds, then settles to
+    // his (full-HP) ready stance before the first clash.
+    this._advFrac = 1
+    this._beatFace('obsessive-taunt')
+  }
+
+  // His reacting portrait: two cross-fading <img> layers on his side of the VS.
+  _buildFigure() {
+    this._figA = h('img', { className: 'qf-ald-figure-img', alt: '', draggable: 'false' })
+    this._figB = h('img', { className: 'qf-ald-figure-img', alt: '', draggable: 'false' })
+    this._figure = h('div', { className: 'qf-ald-figure' }, [this._figA, this._figB])
+    this._root.appendChild(this._figure)
+    this._figFrontA = true; this._figExpr = null; this._figToken = 0; this._figHolding = false
+    this._preloadFaces()
+    this._setFace('obsessive-taunt')   // entrance face (no idle flash)
+    requestAnimationFrame(() => this._figure?.classList.add('show'))
+  }
+
+  _preloadFaces() { for (const id of ALD_FACES) { const im = new Image(); im.src = ALD_FACE_DIR + id + '.webp' } }
+
+  // Cross-fade to `expr` (mirrors the corner portrait / companion swap).
+  _setFace(expr) {
+    if (!this._figure || !expr) return
+    if (!ALD_FACES.includes(expr)) expr = 'idle'
+    if (expr === this._figExpr) return
+    this._figExpr = expr
+    const token = ++this._figToken
+    const back  = this._figFrontA ? this._figB : this._figA
+    const front = this._figFrontA ? this._figA : this._figB
+    const swap = () => {
+      if (token !== this._figToken) return
+      back.classList.add('front'); front.classList.remove('front'); this._figFrontA = !this._figFrontA
+    }
+    back.onload = swap
+    back.src = ALD_FACE_DIR + expr + '.webp'
+    if (back.complete && back.naturalWidth) swap()
+  }
+
+  // His resting mood between beats, escalating as his HP falls: ready → desperate
+  // → dying. (Drives the face whenever a beat face isn't actively held.)
+  _baseFace() {
+    const f = this._advFrac ?? 1
+    return f >= 0.6 ? 'idle' : f >= 0.35 ? 'obsessed-desperate' : 'unhinged-dying'
+  }
+
+  // Punch in a transient combat face for a beat, then settle back to his HP-band
+  // mood. A later beat (or the END) supersedes via the hold token.
+  _beatFace(expr) {
+    this._setFace(expr)
+    this._figHolding = true
+    const tok = ++this._figHoldToken
+    this._after(ALD_FACE_HOLD_MS, () => {
+      if (tok !== this._figHoldToken) return
+      this._figHolding = false
+      this._setFace(this._baseFace())
+    })
   }
 
   _buildPresence() {
@@ -210,9 +309,14 @@ export class AldricCinematic {
     if (this._advGhost) this._advGhost.style.width = a
     if (this._bossFill) this._bossFill.style.width = b
     if (this._bossGhost)this._bossGhost.style.width= b
+    // His face tracks his own HP — but only when a beat face isn't being held.
+    this._advFrac = advFrac
+    if (!this._figHolding) this._setFace(this._baseFace())
   }
 
   _onBeat({ kind, label } = {}) {
+    const face = ALD_BEAT_FACE[kind]
+    if (face) this._beatFace(face)
     const def = BEAT[kind]
     if (!def || !this._root) return
     // screen pulse
@@ -237,6 +341,12 @@ export class AldricCinematic {
 
   _onEnd({ result, bossName } = {}) {
     const win = result === 'win'   // boss won → the realm broke
+    // Lock his final face past any pending beat revert: he falls broken, or
+    // stands in grim triumph. Hold it through the finale card, then bow out.
+    this._figHoldToken++
+    this._figHolding = true
+    this._setFace(win ? 'unhinged-dying' : 'battle-joy')
+    setTimeout(() => { this._figure?.classList.remove('show') }, 2600)
     const card = h('div', { className: 'qf-ald-card' }, [
       h('div', { className: 'qf-ald-card-kicker' }, win ? 'THE RECKONING IS ENDED' : 'THE REALM ENDURES'),
       h('div', { className: 'qf-ald-card-title' }, win ? 'THE HERO KING FALLS' : 'THE HERO KING STANDS'),
@@ -257,6 +367,8 @@ export class AldricCinematic {
     if (this._presence) { this._presence.classList.remove('show') }
     const root = this._root; this._root = null
     this._hud = this._advFill = this._advGhost = this._bossFill = this._bossGhost = this._presence = null
+    this._figure = this._figA = this._figB = null
+    this._figHolding = false; this._figExpr = null
     if (root) setTimeout(() => root.remove(), 700)
   }
 

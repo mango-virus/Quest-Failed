@@ -60,7 +60,10 @@ export class NemesisSystem {
     if (line) this._scene?.time?.delayedCall?.(900, () => {
       EventBus.emit('NEMESIS_TAUNT', { line, act: a, source: 'arrive', log: true })
     })
-    this._startProwl(a)
+    // Acts I–III scout-and-prowl; Act IV he marches straight on the throne to
+    // duel, so no scouting taunts (and no prowl timer to re-summon the corner
+    // over the duel cinematic — AldricCinematic owns Aldric from here).
+    if (a < 4) this._startProwl(a)
   }
 
   // A periodic scouting taunt while he prowls toward the throne — the portrait

@@ -73,6 +73,26 @@ const ALDRIC_ART = {
     },
     hurtTiers: ['hurt', 'rattled', 'enraged', 'obsessive-rage'],
   },
+  // Act IV — the crowned Hero King. The corner only covers his PRE-DUEL march on
+  // the throne (the obsessive opener) and his final, broken words at death; the
+  // duel itself is owned by AldricCinematic's reacting portrait (which uses the
+  // full Act-4 emotion set). So the corner here just needs the entrance taunt +
+  // the duel_defeat face.
+  4: {
+    dir: 'assets/npc-aldric/act4/',
+    expressions: ['idle', 'obsessive-taunt', 'battle-joy', 'obsessed-attack', 'wrath', 'obsessed-desperate', 'unhinged-grin', 'unhinged-dying', 'hurt'],
+    rest: 'idle',
+    beats: {
+      arrive:      ['obsessive-taunt'],
+      taunt:       ['obsessive-taunt', 'battle-joy'],
+      banter:      ['wrath'],
+      recoil:      ['wrath'],
+      withdraw:    ['wrath'],
+      act_cleared: ['obsessive-taunt'],
+      duel_defeat: ['unhinged-dying'],
+    },
+    hurtTiers: ['hurt', 'wrath', 'obsessed-desperate', 'unhinged-dying'],
+  },
 }
 
 function _ensureCss() {

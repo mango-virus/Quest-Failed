@@ -14,7 +14,7 @@ const SRC_ROOT = 'D:/Documents/Game Jam Code/Quest-Failed assets/!To do/aldric'
 const OUT_ROOT = 'assets/npc-aldric'
 
 // "cocky vow-Photoroom.png" → "cocky-vow"; "aldric act 1 idle" / "aldric idle act 2"
-// → "idle"; "badly hurt and dying" → "badly-hurt-and-dying".
+// / "aldric 4 idle" → "idle"; "badly hurt and dying" → "badly-hurt-and-dying".
 function exprId(file) {
   return file
     .replace(/-Photoroom/i, '')
@@ -22,6 +22,7 @@ function exprId(file) {
     .toLowerCase()
     .replace(/\baldric\b/g, '')        // drop the "aldric" token wherever it sits
     .replace(/\bact\s*\d+\b/g, '')     // drop the "act N" token wherever it sits
+    .replace(/\b\d+\b/g, '')           // drop a lone act-number token ("aldric 4 idle" → "idle")
     .trim().replace(/\s+/g, '-')
 }
 
