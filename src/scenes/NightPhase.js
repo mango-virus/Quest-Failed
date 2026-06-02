@@ -3551,6 +3551,11 @@ export class NightPhase extends Phaser.Scene {
   _executeReassignAt(tx, ty) {
     const minion = this._gameState.minions.find(m => m.instanceId === this._reassignMinionId)
     if (!minion) { this._reassignMinionId = null; this._setToolMode(null, 'reassign_gone'); return }
+    // Ascension throne guard is bound to the boss chamber — can't be relocated.
+    if (minion._ascGuardian) {
+      this._showPlacementError('Ascension guardians are bound to the throne')
+      this._reassignMinionId = null; this._setToolMode(null, 'reassign_locked'); return
+    }
     const tile = this._dungeonGrid.getTileType(tx, ty)
     if (tile !== TILE.FLOOR && tile !== TILE.BOSS_FLOOR) { this._showPlacementError('Click a room floor'); return }
     const room = this._dungeonGrid.getRoomAtTile(tx, ty)

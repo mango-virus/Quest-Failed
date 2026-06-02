@@ -298,12 +298,14 @@ export class AscensionCinematic {
     ])
   }
 
-  // DARK KIN RALLIED — the free elite garrison ascension deploys into the boss
-  // chamber. The most tangible "what ascending gave me", and invisible until now.
-  // Aggregates duplicates into "NAME ×N" chips; elites get a gold star.
+  // THRONE GUARD — the fixed pair of boss kin that garrison the chamber and
+  // EVOLVE with the boss: "RALLIED +2" on the first ascension, "EVOLVED → T2/T3"
+  // thereafter. Aggregates duplicates into "NAME ×N" chips; the T3 form is starred.
   _kinSection(reinforcements) {
     const n = (reinforcements?.count | 0)
     if (n <= 0) return null
+    const evolved = !!reinforcements?.evolved
+    const tier    = reinforcements?.tier
     const members = Array.isArray(reinforcements?.members) ? reinforcements.members : []
     const agg = new Map()
     for (const m of members) {
@@ -315,11 +317,11 @@ export class AscensionCinematic {
       m.elite ? h('span', { className: 'qf-asc-kin-star' }, '✦') : null,
       `${String(m.name).toUpperCase()}${m.n > 1 ? ` ×${m.n}` : ''}`,
     ]))
+    const label = evolved
+      ? ['◇ THRONE GUARD EVOLVED ', h('span', { className: 'qf-asc-kin-count' }, `→ T${tier}`)]
+      : ['◇ THRONE GUARD RALLIED ', h('span', { className: 'qf-asc-kin-count cu' }, `+${n}`)]
     return h('div', { className: 'qf-asc-kin' }, [
-      h('div', { className: 'qf-asc-sec-label', style: { animationDelay: '1.2s' } }, [
-        '◇ DARK KIN RALLIED ',
-        h('span', { className: 'qf-asc-kin-count cu' }, `+${n}`),
-      ]),
+      h('div', { className: 'qf-asc-sec-label', style: { animationDelay: '1.2s' } }, label),
       chips.length ? h('div', { className: 'qf-asc-kin-chips', style: { animationDelay: '1.3s' } }, chips) : null,
     ])
   }

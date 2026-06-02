@@ -262,9 +262,13 @@ export class InspectPopup {
   // not mysterious. Null for normal minions.
   _reinforcementBadge(m) {
     if (!m?._reinforcement) return null
+    // Ascension throne guard — boss-room-bound kin that evolve each act.
+    const label = m._ascGuardian
+      ? (m._reinforcementElite ? 'THRONE GUARD · ELITE FORM' : 'ASCENSION THRONE GUARD')
+      : (m._reinforcementElite ? 'ELITE ASCENSION REINFORCEMENT' : 'ASCENSION REINFORCEMENT')
     return h('div', { className: `qf-inspect-reinf${m._reinforcementElite ? ' elite' : ''}` }, [
       h('span', { className: 'qf-inspect-reinf-icon' }, '✦'),
-      m._reinforcementElite ? 'ELITE ASCENSION REINFORCEMENT' : 'ASCENSION REINFORCEMENT',
+      label,
     ])
   }
 

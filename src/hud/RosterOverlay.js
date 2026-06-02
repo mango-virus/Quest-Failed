@@ -446,15 +446,26 @@ export class RosterOverlay {
             ])]
           : [h('div', { style: { color: 'var(--text-dim)', fontStyle: 'italic' } }, '— no events —')]
       ),
-      // Actions — REASSIGN / RENAME / SACRIFICE, all wired to gameplay.
+      // Actions — REASSIGN / RENAME / SACRIFICE, all wired to gameplay. Ascension
+      // throne guards are bound to the boss chamber, so REASSIGN is locked out.
       h('div', { className: 'qf-roster-actions' }, [
-        h('button', {
-          className: 'btn qf-roster-action',
-          on: { click: () => this._onReassign(sel) },
-        }, [
-          h('span', { style: { color: 'var(--poison)' } }, '⤧'),
-          ' REASSIGN',
-        ]),
+        sel._ascGuardian
+          ? h('button', {
+              className: 'btn qf-roster-action',
+              disabled: true,
+              title: 'Ascension guardians are bound to the boss chamber',
+              style: { opacity: '0.45', cursor: 'not-allowed' },
+            }, [
+              h('span', { style: { color: 'var(--text-dim)' } }, '🔒'),
+              ' BOUND',
+            ])
+          : h('button', {
+              className: 'btn qf-roster-action',
+              on: { click: () => this._onReassign(sel) },
+            }, [
+              h('span', { style: { color: 'var(--poison)' } }, '⤧'),
+              ' REASSIGN',
+            ]),
         h('button', {
           className: 'btn qf-roster-action',
           on: { click: () => this._onRename(sel) },

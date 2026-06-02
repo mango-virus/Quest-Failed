@@ -13,30 +13,32 @@ import { EventBus } from './EventBus.js'
 import { currentActResponseId } from '../config/acts.js'
 import { Balance } from '../config/balance.js'
 import { TILE } from './DungeonGrid.js'
-import { createMinion, applyBossLevelToMinion } from '../entities/Minion.js'
+import { createMinion, applyMinionScaling } from '../entities/Minion.js'
 
-// Boss-ascension REINFORCEMENTS (KR P6) — each ascension the dungeon fields the
-// boss's own kin as free elite defenders (flavoured per archetype, mirroring the
-// evolution). One archetype elite + `tier` grunts deploy into the boss chamber,
-// scaled to the boss level with an elite/grunt stat boost. Ids are minionTypes
-// entries; an archetype with no elite (null) fields one extra grunt instead.
-const REINFORCEMENT_POOL = {
-  beholder:  { elite: 'beholder_tyrant', grunts: ['beholder1', 'beholder2'] },
-  demon:     { elite: 'demon_lord',      grunts: ['imp2', 'demon1', 'demon2'] },
-  gnoll:     { elite: 'gnoll_alpha',     grunts: ['gnoll1', 'gnoll2'] },
-  golem:     { elite: 'golem_warden',    grunts: ['golem1', 'golem2'] },
-  lich:      { elite: 'elder_lich',      grunts: ['skeleton3', 'zombie2', 'lich1', 'lich2'] },
-  lizardman: { elite: 'serpent_captain', grunts: ['lizardman1', 'lizardman2'] },
-  myconid:   { elite: null,              grunts: ['mushroom1', 'mushroom2', 'ent2', 'plant3'] },
-  orc:       { elite: null,              grunts: ['orc1', 'orc2', 'goblin3'] },
-  slime:     { elite: null,              grunts: ['elder_slime2', 'slime6', 'slime8'] },
-  vampire:   { elite: 'dark_wraith',     grunts: ['vampire_minion1', 'vampire_minion2'] },
-  wraith:    { elite: 'dark_wraith',     grunts: ['ghost1', 'ghost2'] },
-  succubus:  { elite: null,              grunts: ['imp3', 'vampire_minion2'] },
-  _default:  { elite: null,              grunts: ['skeleton2', 'zombie2', 'goblin2'] },
+// Ascension THRONE GUARD (KR P6 rebalance, 2026-06-02). Each ascension no longer
+// fields an ever-growing swarm — instead the boss keeps a FIXED PAIR of its own
+// kin that EVOLVE up their tier chain alongside it: Act II → 2 kin at T1, Act III
+// → T2, Act IV → T3. The lines mirror minionEvolutions.json (chain[0..2]) so the
+// tiers line up with the kill-evolution chain the player already knows. They
+// garrison the boss chamber (no Barracks cap), are BOUND there (the player can't
+// relocate them), and respawn at dawn at their current tier.
+const GUARDIAN_KIN = {
+  beholder:  ['beholder1', 'beholder2', 'beholder_tyrant'],
+  demon:     ['demon1', 'demon2', 'demon_lord'],
+  gnoll:     ['gnoll1', 'gnoll2', 'gnoll_alpha'],
+  golem:     ['golem1', 'golem2', 'golem_warden'],
+  lich:      ['lich1', 'lich2', 'elder_lich'],
+  lizardman: ['lizardman1', 'lizardman2', 'serpent_captain'],
+  myconid:   ['mushroom1', 'mushroom2', 'myconid_stalker'],
+  orc:       ['orc1', 'orc2', 'orc_veteran'],
+  slime:     ['slime3', 'slime7', 'slime8'],
+  vampire:   ['vampire_minion1', 'vampire_minion2', 'vampire_sovereign'],
+  wraith:    ['ghost1', 'ghost2', 'dark_wraith'],
+  succubus:  ['imp1', 'imp2', 'imp3'],
+  _default:  ['skeleton1', 'skeleton2', 'skeleton3'],
 }
-const REINFORCE_ELITE_MUL = 1.5    // elite reinforcements hit ~50% harder/tougher
-const REINFORCE_GRUNT_MUL = 1.18   // even the grunts come ascension-touched
+const GUARDIAN_COUNT = 2      // a fixed pair, every ascension
+const GUARDIAN_BOOST = 1.5    // the throne guard hits ~50% harder than a normal kin of its tier
 
 // Forlorn Hope — each fallen martyr stokes the survivors' fury. Per-death
 // multipliers (compounding); a ~6-strong squad tops out around ×1.9 atk / ×1.5
@@ -122,13 +124,13 @@ export class KingdomModifierSystem {
       archetype: this._gs.player?.bossArchetypeId ?? null,
       before, after,
     })
-    // The dungeon grows: free elite reinforcements rally into the chamber.
-    this._deployReinforcements(Math.max(0, act - 1))
+    // The throne guard answers: 2 of the boss's kin, evolved to this act's tier.
+    this._ensureGuardians(act)
   }
 
   // Mango dev — fire a faithful ascension PREVIEW without advancing the act or
   // mutating the run: real archetype + form sprite, the current boss stats surged
-  // by one ascension tier, and a real reinforcement roster from the pool (names
+  // by one ascension tier, and the throne-guard pair at this act's tier (names
   // only — nothing is deployed). `immediate` tells the cinematic to skip its
   // wait-for-reveal sequencing so it slams in the moment the button is clicked.
   _onDevTestAscension() {
@@ -140,80 +142,72 @@ export class KingdomModifierSystem {
     const before = { hp: boss.maxHp ?? 600, attack: boss.attack ?? 20 }
     const after  = { hp: Math.round(before.hp * hpMul), attack: Math.round(before.attack * atkMul) }
     const act    = Math.max(2, Math.min(4, gs.meta?.act?.current ?? 2))
+    const tierIdx = act - 2
 
-    // Real roster from the pool — resolve ids → names, deploy nothing.
+    // Throne-guard pair at this act's tier — names only, spawns nothing.
     const minionDefs = this._scene?.cache?.json?.get?.('minionTypes') ?? []
-    const has    = id => minionDefs.some(d => d.id === id)
-    const nameOf = id => minionDefs.find(d => d.id === id)?.name || id
-    const pool   = REINFORCEMENT_POOL[arch] || REINFORCEMENT_POOL._default
-    const tier   = act - 1
-    const members  = []
-    const hasElite = pool.elite && has(pool.elite)
-    if (hasElite) members.push({ name: nameOf(pool.elite), elite: true })
-    const grunts     = pool.grunts.filter(has)
-    const gruntCount = hasElite ? tier : tier + 1
-    for (let i = 0; i < gruntCount && grunts.length; i++) members.push({ name: nameOf(grunts[i % grunts.length]), elite: false })
+    const line     = GUARDIAN_KIN[arch] || GUARDIAN_KIN._default
+    const targetId = line[Math.min(tierIdx, line.length - 1)]
+    const name     = minionDefs.find(d => d.id === targetId)?.name || targetId
+    const isElite  = tierIdx >= 2
+    const members  = Array.from({ length: GUARDIAN_COUNT }, () => ({ name, elite: isElite }))
 
     // Reinforcements first so the cinematic folds them into the immediate reveal.
-    if (members.length) EventBus.emit('BOSS_REINFORCEMENTS', { count: members.length, tier, elite: hasElite, members })
+    EventBus.emit('BOSS_REINFORCEMENTS', { count: members.length, tier: tierIdx + 1, evolved: act > 2, elite: isElite, members })
     EventBus.emit('BOSS_ASCENSION', {
       act, fromForm: Math.max(1, act - 1), toForm: act, archetype: arch, before, after, immediate: true,
     })
   }
 
-  // Deploy `tier` grunts + one archetype elite (if any) as free garrison
-  // defenders in the boss chamber. Garrison class → they don't eat the player's
-  // Barracks cap; they persist in the roster + respawn at dawn like gooplings.
-  _deployReinforcements(tier) {
-    if (tier <= 0) return
+  // Re-field the throne guard at the ascension's tier. Drops the previous pair
+  // (any tier, dead or alive) and spawns two fresh of the boss's kin at the
+  // target tier (Act II→T1, III→T2, IV→T3) — the swap happens behind the
+  // full-screen ascension cinematic, so it reads as "your kin evolved with you".
+  // They're garrison class (no Barracks cap), `_ascGuardian`-tagged (so the
+  // Roster REASSIGN flow refuses to move them), boss-room-homed, and the boost is
+  // baked into the scaling base so it survives every dawn rescale / respawn.
+  _ensureGuardians(act) {
     const gs = this._gs
-    const minionDefs = this._scene?.cache?.json?.get?.('minionTypes') ?? []
-    if (!Array.isArray(minionDefs) || minionDefs.length === 0) return
     if (!Array.isArray(gs.minions)) return
-    const has = (id) => minionDefs.some(d => d.id === id)
-    const arch = gs.player?.bossArchetypeId
-    const pool = REINFORCEMENT_POOL[arch] || REINFORCEMENT_POOL._default
+    const tierIdx  = Math.max(0, Math.min(2, (act | 0) - 2))   // Act II→T1, III→T2, IV→T3
+    const arch     = gs.player?.bossArchetypeId
+    const line     = GUARDIAN_KIN[arch] || GUARDIAN_KIN._default
+    const targetId = line[Math.min(tierIdx, line.length - 1)]
+    const minionDefs = this._scene?.cache?.json?.get?.('minionTypes') ?? []
+    const def = minionDefs.find(d => d.id === targetId)
+    if (!def) return
 
-    // Build the squad: the elite (if its def exists) + grunts. No elite → one
-    // extra grunt so the squad size is consistent (tier + 1 bodies either way).
-    const squad = []
-    const hasElite = pool.elite && has(pool.elite)
-    if (hasElite) squad.push({ id: pool.elite, elite: true })
-    const grunts = pool.grunts.filter(has)
-    if (grunts.length === 0 && !hasElite) return
-    const gruntCount = hasElite ? tier : tier + 1
-    for (let i = 0; i < gruntCount && grunts.length; i++) squad.push({ id: grunts[i % grunts.length], elite: false })
-    if (squad.length === 0) return
+    // Drop the old guard (mirrors respawnAll's array-replace pattern).
+    gs.minions = gs.minions.filter(m => !m._ascGuardian)
 
-    const tiles = this._chamberSpawnTiles(squad.length)
+    const tiles = this._chamberSpawnTiles(GUARDIAN_COUNT)
     if (tiles.length === 0) return
     const bossRoom = gs.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
-    const bossLv = gs.boss?.level ?? 1
-    let placed = 0
-    const members = []   // roster for the ascension screen ("who rallied")
-    for (let i = 0; i < squad.length && i < tiles.length; i++) {
-      const def = minionDefs.find(d => d.id === squad[i].id)
-      if (!def) continue
+    const bossLv   = gs.boss?.level ?? 1
+    const day      = gs.meta?.dayNumber ?? 1
+    const isElite  = tierIdx >= 2   // T3 = the elite / final kin form
+    const members  = []
+    for (let i = 0; i < GUARDIAN_COUNT && i < tiles.length; i++) {
       const tile = tiles[i]
       const m = createMinion(def, tile, bossRoom?.instanceId ?? null, { class: 'garrison' })
-      // Elite/grunt boost BEFORE the level scaling so it's baked into the base
-      // (applyMinionScaling records _baseMaxHp on first call) and survives every
-      // dawn rescale rather than being washed out.
-      const mul = squad[i].elite ? REINFORCE_ELITE_MUL : REINFORCE_GRUNT_MUL
-      m.resources.maxHp = Math.round(m.resources.maxHp * mul)
-      m.resources.hp    = m.resources.maxHp
-      m.stats.attack    = Math.round(m.stats.attack * mul)
-      applyBossLevelToMinion(m, bossLv)
+      m._ascGuardian        = true
       m._reinforcement      = true
-      m._reinforcementElite = squad[i].elite
+      m._reinforcementElite = isElite
       m.homeTileX = tile.x
       m.homeTileY = tile.y
+      // Bake the throne-guard boost into the scaling base so a later rescale /
+      // dawn respawn keeps it (a raw resources.maxHp bump would be wiped).
+      m._baseMaxHp = Math.round((def.baseStats?.hp     ?? m.resources.maxHp ?? 60) * GUARDIAN_BOOST)
+      m._baseAtk   = Math.round((def.baseStats?.attack ?? m.stats.attack    ?? 10) * GUARDIAN_BOOST)
+      applyMinionScaling(m, bossLv, day)
+      m.resources.hp = m.resources.maxHp
       gs.minions.push(m)
       EventBus.emit('MINION_PLACED', { minion: m })
-      members.push({ name: def.name || def.id, elite: squad[i].elite })
-      placed++
+      members.push({ name: def.name || targetId, elite: isElite })
     }
-    if (placed) EventBus.emit('BOSS_REINFORCEMENTS', { count: placed, tier, elite: hasElite, members })
+    if (members.length) EventBus.emit('BOSS_REINFORCEMENTS', {
+      count: members.length, tier: tierIdx + 1, evolved: (act | 0) > 2, elite: isElite, members,
+    })
   }
 
   // Collect up to `count` free FLOOR/BOSS_FLOOR tiles, ringing outward from the
