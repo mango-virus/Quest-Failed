@@ -1,6 +1,6 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
-import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
+import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers, ngPlusEnemyMul } from '../config/balance.js'
 import { isActsEnabled, isActFinalDay, actDayIndex, currentAct, isActOvertime, actDef } from '../config/acts.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
@@ -560,15 +560,15 @@ export class DayPhase extends Phaser.Scene {
   _scaleAdventurerByBossLevel(adv, bossLv) {
     const bloodMoneyBonus = this._gameState?._mechanicFlags?.bloodMoneyHpBonus ?? 0
     const day = this._gameState?.meta?.dayNumber ?? 1
-    // Multipliers come from the shared adventurerScaleMultipliers (balance.js)
-    // so the LV chip + the AdvIntelOverlay wave preview stay in exact lockstep
-    // with this real stat scaling. (hpMul/atkMul both clamp to 1 at day 1 /
-    // boss-lv 1 with no blood-money, so the early-out below skips needless work.)
-    if (bossLv <= 1 && day <= 1 && bloodMoneyBonus === 0) return
+    // Reckoning NG+ (KR P7) — the run's tier hardens every invader. Same factor
+    // the wave preview applies (AdvIntelOverlay), so the LV chip / "(incoming)"
+    // numbers stay in exact lockstep with this real scaling.
+    const ngMul = ngPlusEnemyMul(this._gameState?.meta?.reckoningTier ?? 0)
+    if (bossLv <= 1 && day <= 1 && bloodMoneyBonus === 0 && ngMul === 1) return
     const { hpMul, atkMul } = adventurerScaleMultipliers(bossLv, day, bloodMoneyBonus)
-    adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul)
+    adv.resources.maxHp = Math.round(adv.resources.maxHp * hpMul * ngMul)
     adv.resources.hp    = adv.resources.maxHp
-    adv.stats.attack    = Math.round(adv.stats.attack * atkMul)
+    adv.stats.attack    = Math.round(adv.stats.attack * atkMul * ngMul)
   }
 
   // ── Spawn ──────────────────────────────────────────────────────────────────

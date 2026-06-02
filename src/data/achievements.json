@@ -984,5 +984,15 @@
     "title": "The Last God",
     "titleFx": "prismatic",
     "legendary": true
+  },
+  {
+    "id": "won_the_reckoning",
+    "name": "The Conqueror",
+    "description": "Win the Kingdom's Reckoning — break all four acts and put down Aldric.",
+    "category": "progression",
+    "metric": "reckoningWinsTotal",
+    "target": 1,
+    "icon": "♛",
+    "legendary": true
   }
 ]

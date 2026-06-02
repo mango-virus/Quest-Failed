@@ -39,11 +39,11 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 | Traps | **8** | `trapTypes.json` | shooting_arrows, bomb, cannon, spike_pillar, dragon_trap, spike_pit, rotating_blades, saw_blade. Fully wired in `TrapSystem.js`. **(NOTE: older docs/memories that say traps are unimplemented are STALE — traps shipped.)** |
 | Pacts (dungeon mechanics) | **96** | `dungeonMechanics.json` | 9 common · 14 uncommon · 24 rare · 9 epic · 16 legendary · 24 damned. |
 | Events | **36** | `events.json` | Incl. scripted set-pieces: Solo Leveling (Shadow Monarch), Light Party (FFXIV trinity), Rival Dungeon, Loot Goblin Heist, etc. |
-| Adventurer classes | **25** | `adventurerClasses.json` | 6 core (knight/rogue/mage/cleric/necromancer/ranger) + expansions + event-only (unlockLevel 99). |
+| Adventurer classes | **26** | `adventurerClasses.json` | 6 core (knight/rogue/mage/cleric/necromancer/ranger) + expansions + event-only (unlockLevel 99). |
 | Personalities | **17** | `personalities.json` | greedy, paranoid, speed_runner, completionist, martyr, coward, overconfident, cartographer, solo, raid_leader, underdog, inquisitor, vulture, traumatized, the_fan, echo, mimic_handler. |
 | Personality combos | **0** | `personalityCombos.json` | **RETIRED (Phase 5c).** File is empty; `PersonalitySystem` combo path is a no-op kept for call-site compat. Do NOT treat as "done". |
 | Companions | **9** | `companions.js` | lilith, safira, rattlebones, necroknight, nocturna, malakor, spectra, luna, zulgath. 3 starters (lilith/malakor/safira), rest unlock via achievements. |
-| Achievements | **92** | `achievements.json` | 34 progression · 20 combat · 4 economy · 18 variety · 16 mastery. 9 boss unlocks + 5 companion unlocks + titles. |
+| Achievements | **93** | `achievements.json` | 34 progression · 20 combat · 4 economy · 18 variety · 16 mastery. 9 boss unlocks + 5 companion unlocks + titles. |
 
 ## System maturity (what's solid vs. stubbed)
 

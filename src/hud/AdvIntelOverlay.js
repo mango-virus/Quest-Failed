@@ -32,7 +32,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { snapshotAdventurerEntity } from './inGameSnapshot.js'
-import { adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
+import { adventurerDisplayLevel, adventurerScaleMultipliers, ngPlusEnemyMul } from '../config/balance.js'
 
 const THREAT_TIERS = [
   { label: 'CRITICAL', color: 'var(--blood)',  min: 75 },
@@ -389,11 +389,14 @@ export class AdvIntelOverlay {
     const gs = this._gameState
     const phase = gs?.meta?.phase
     const nextDay = (gs?.meta?.dayNumber ?? 1) + (phase === 'day' ? 1 : 0)
-    return adventurerScaleMultipliers(
+    const base = adventurerScaleMultipliers(
       gs?.boss?.level ?? 1,
       nextDay,
       gs?._mechanicFlags?.bloodMoneyHpBonus ?? 0,
     )
+    // Reckoning NG+ (KR P7) — the preview reflects the harder run, matching spawn.
+    const ng = ngPlusEnemyMul(gs?.meta?.reckoningTier ?? 0)
+    return { hpMul: base.hpMul * ng, atkMul: base.atkMul * ng }
   }
 
   _threatScore(adv) {

@@ -108,6 +108,10 @@ export const Balance = {
   PLUNDER_ESCAPE_PCT:          0.03,    // 3% of treasury when a thief escapes
   PLUNDER_ESCAPE_MIN:          20,
 
+  // Reckoning NG+ (KR P7) — every invader (adventurers, Champions, Aldric) hits
+  // this much harder PER NG+ tier the run is played at. NG+1 ×1.18, NG+2 ×1.39…
+  NG_PLUS_ENEMY_SCALE:         1.18,
+
   // Percentage-based defense for damage TO the boss.
   // Old formula: dmgToBoss = max(1, atkPool − boss.defense)
   // New formula: dmgToBoss = max(1, atkPool × (1 − boss.defense / (boss.defense + K)))
@@ -1080,6 +1084,14 @@ export const Balance = {
 //   • AdvIntelOverlay wave preview — so the "(incoming)" HP/ATK match what
 //     the adventurers will actually spawn with (not the class base)
 // NOTE: speed is intentionally NOT scaled — only HP and ATK.
+
+// Reckoning NG+ (KR P7) — the per-run enemy HP/ATK multiplier for an NG+ tier.
+// Applied ON TOP of adventurerScaleMultipliers by BOTH the real spawn scaling
+// (DayPhase) and the wave preview (AdvIntelOverlay) so they stay in lockstep.
+export function ngPlusEnemyMul(ngTier = 0) {
+  return Math.pow(Balance.NG_PLUS_ENEMY_SCALE ?? 1.18, Math.max(0, ngTier | 0))
+}
+
 export function adventurerScaleMultipliers(bossLv = 1, day = 1, bloodMoneyBonus = 0) {
   const lvOver  = Math.max(0, Math.floor(bossLv || 1) - 1)
   const dayOver = Math.max(0, Math.floor(day   || 1) - 1)

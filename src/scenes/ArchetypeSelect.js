@@ -740,6 +740,24 @@ export class ArchetypeSelect extends Phaser.Scene {
     label.on('pointerout',   () => label.setStyle({ color: '#f4d28a' }))
     label.on('pointerdown',  () => this._beginRun())
 
+    // Reckoning NG+ tier selector (KR P7) — only once the campaign has been won.
+    // A violet chip above BEGIN RUN that cycles BASE → NG+1 → … → NG+(earned).
+    const earned = PlayerProfile.getReckoningTier()
+    if (earned > 0) {
+      if (this._ngTier == null || this._ngTier > earned) this._ngTier = earned
+      const chip = this.add.text(cx, cy - 38, '', {
+        fontSize: '15px', color: '#c98bff', fontFamily: 'serif', fontStyle: 'bold',
+        stroke: '#1a0e2a', strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(5).setInteractive({ useHandCursor: true })
+      chip.setResolution(this._textRes)
+      this._cContent.add(chip)
+      const paint = () => chip.setText(this._ngTier > 0 ? `RECKONING  NG+${this._ngTier}  ▸` : 'BASE CAMPAIGN  ▸')
+      paint()
+      chip.on('pointerdown', () => { this._ngTier = (this._ngTier + 1) % (earned + 1); paint() })
+      chip.on('pointerover', () => chip.setStyle({ color: '#e8c8ff' }))
+      chip.on('pointerout',  () => chip.setStyle({ color: '#c98bff' }))
+    }
+
     // The wax-seal accent updater is a no-op now that the seal is gone, but
     // keep it defined so _select() can still call it without a guard.
     this._sealDraw = () => {}
@@ -1160,6 +1178,9 @@ export class ArchetypeSelect extends Phaser.Scene {
       if (stored && COMPANIONS[stored]) companionId = stored
     } catch {}
     const state = createGameState(this._selectedId, rooms, companionId)
+    // Reckoning NG+ (KR P7) — stamp the chosen tier (clamped to what's earned)
+    // so the whole run scales harder. 0 = base campaign. Save-safe (plain int).
+    state.meta.reckoningTier = Math.max(0, Math.min(this._ngTier ?? 0, PlayerProfile.getReckoningTier()))
     // Mango dev shortcut — MainMenu's "JUMP TO DAY 50" entry stamps these
     // one-shot flags. Read + clear them here so a normal run started
     // afterward doesn't pick up stale values. Plumbing the boss state

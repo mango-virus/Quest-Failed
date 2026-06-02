@@ -62,4 +62,6 @@ export const ACHIEVEMENT_BIT_ORDER = [
   // reach them; see the achievements.json reorder + this list's rules).
   'umbral_ascendant', 'devourer_of_stars', 'herald_of_oblivion',
   'empyrean_dread', 'the_last_god',
+  // KR P7 — won the Kingdom's Reckoning campaign (append-only; never reorder).
+  'won_the_reckoning',
 ]

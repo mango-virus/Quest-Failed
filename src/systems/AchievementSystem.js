@@ -57,6 +57,9 @@ const DEFAULT_METRICS = {
   // CAREER cumulative
   maxBossLevel:               0,
   killsTotal:                 0,
+  // KR P7 — campaign victories (won the Kingdom's Reckoning). Gates "The
+  // Conqueror" at 1; the running total leaves room for a deeper tier later.
+  reckoningWinsTotal:         0,
   soulsTotal:                 0,
   veteransKilled:             0,
   // Best single-run veteran-kill count (gates Veteran Exterminator —
@@ -294,6 +297,7 @@ class AchievementSystemImpl {
     on('DUNGEON_EVENT_BEGAN',     (p) => this._onDungeonEventBegan(p))
     on('GAME_STATE_LOADED',       (p) => this._onGameStateLoaded(p))
     on('SHOW_GAME_OVER',          (p) => this._onGameOver(p))
+    on('RUN_VICTORY',             () => this._onRunVictory())
     // Flawless Reign damage tracking — three signal paths, all flip the
     // per-run no-hit flag the same way. Splitting per-source emits keeps
     // existing payload shapes intact; we just normalise here.
@@ -313,6 +317,14 @@ class AchievementSystemImpl {
     this._metrics.lightPartyDefeated = 1
     this._persistMetrics()
     this._checkMetric('lightPartyDefeated')
+  }
+
+  // KR P7 — the campaign was won (RUN_VICTORY). Bump the career counter and
+  // grant "The Conqueror".
+  _onRunVictory() {
+    this._metrics.reckoningWinsTotal = (this._metrics.reckoningWinsTotal ?? 0) + 1
+    this._persistMetrics()
+    this._checkMetric('reckoningWinsTotal')
   }
 
   // Flawless Reign damage signal — flips the per-run flag the first
