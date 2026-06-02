@@ -46,7 +46,22 @@ function _ensureCss() {
 @keyframes qf-actintro-pop { 0%{opacity:0; transform:scale(.7); filter:blur(6px)}
   60%{opacity:1; transform:scale(1.04); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }
 @keyframes qf-actintro-rule { from{width:0} to{width:min(60vw,420px)} }
-@keyframes qf-actintro-fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }`
+@keyframes qf-actintro-fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }
+/* KR P3 overtime flash — Champion survived; the act isn't won. */
+.qf-act-overtime { position:absolute; inset:0; z-index:47; pointer-events:none;
+  display:flex; align-items:flex-start; justify-content:center; padding-top:14vh;
+  opacity:0; transition:opacity .4s ease; }
+.qf-act-overtime.show { opacity:1; }
+.qf-act-overtime-card { text-align:center; font-family:'Press Start 2P',monospace;
+  padding:18px 30px; background:rgba(10,4,6,.72); border:1px solid #b03a48;
+  box-shadow:0 0 30px rgba(176,58,72,.5); border-radius:8px; }
+.qf-act-overtime-kicker { font-size:clamp(10px,1.2vw,14px); letter-spacing:6px; color:#ff6a78;
+  text-shadow:0 0 12px rgba(255,90,100,.7); margin-bottom:12px;
+  animation:qf-actintro-pop .5s cubic-bezier(.18,.9,.25,1) both; }
+.qf-act-overtime-title { font-size:clamp(16px,2.4vw,30px); letter-spacing:2px; color:#ffe2e4;
+  text-shadow:0 0 20px rgba(176,58,72,.6), 0 2px 0 #0a0610; }
+.qf-act-overtime-sub { font-family:'VT323',monospace; font-size:clamp(13px,1.5vw,18px);
+  color:#d9a7ad; margin-top:10px; }`
   document.head.appendChild(style)
 }
 
@@ -57,13 +72,36 @@ export class ActIntro {
     this._timers = []
     _ensureCss()
     EventBus.on('ACT_STARTED', this._onActStarted, this)
+    EventBus.on('ACT_OVERTIME', this._onOvertime, this)
   }
 
   destroy() {
     EventBus.off('ACT_STARTED', this._onActStarted, this)
+    EventBus.off('ACT_OVERTIME', this._onOvertime, this)
     this._clearTimers()
     this._cleanupKey()
     this._root?.remove(); this._root = null
+    this._otRoot?.remove(); this._otRoot = null
+  }
+
+  // KR P3 — the act's Champion survived its climax day. A brief urgent flash
+  // (auto-fades; pointer-events none so it never blocks the end-of-day flow).
+  _onOvertime({ days } = {}) {
+    const stage = document.getElementById('hud-stage')
+    if (!stage) return
+    this._otRoot?.remove()
+    const root = h('div', { className: 'qf-act-overtime' }, [
+      h('div', { className: 'qf-act-overtime-card' }, [
+        h('div', { className: 'qf-act-overtime-kicker' }, days > 1 ? `OVERTIME ×${days}` : 'OVERTIME'),
+        h('div', { className: 'qf-act-overtime-title' }, 'THE CHAMPION STILL STANDS'),
+        h('div', { className: 'qf-act-overtime-sub' }, 'The act is not won. Break them, or the realm breaks you.'),
+      ]),
+    ])
+    this._otRoot = root
+    stage.appendChild(root)
+    this._timers.push(setTimeout(() => root.classList.add('show'), 30))
+    this._timers.push(setTimeout(() => root.classList.remove('show'), 3500))
+    this._timers.push(setTimeout(() => { root.remove(); if (this._otRoot === root) this._otRoot = null }, 4000))
   }
 
   _clearTimers() {

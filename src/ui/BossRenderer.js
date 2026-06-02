@@ -22,7 +22,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
-import { isActsEnabled, actForDay } from '../config/acts.js'
+import { isActsEnabled, currentAct } from '../config/acts.js'
 
 // Sprites render at their native frame size × BOSS_SPRITE_SCALE. 64-frame
 // sheets show at 64×SCALE, 128-frame sheets at 128×SCALE. NEAREST filtering
@@ -364,8 +364,9 @@ export class BossRenderer {
   // boss looks exactly as it always has). Acts on → the act number (1..4).
   _computeTier() {
     if (!isActsEnabled()) return 3
-    const day = this._gameState?.meta?.dayNumber ?? 1
-    return Math.max(1, Math.min(4, actForDay(day)))
+    // currentAct (not the day) so the boss DOESN'T ascend during P3 overtime —
+    // it grows a form only when an act is actually cleared.
+    return Math.max(1, Math.min(4, currentAct(this._gameState)))
   }
 
   // Resolve a tier to its texture-key base purely by sheet existence: a tier

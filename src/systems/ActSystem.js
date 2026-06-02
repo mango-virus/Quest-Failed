@@ -97,24 +97,43 @@ export class ActSystem {
     // Keep the live day-in-act counter fresh for the upcoming day either way.
     meta.act.dayInAct = actDayIndex(meta.dayNumber ?? 1)
 
-    // Only an act's FINAL day clears the act (P1: survival == clear).
-    if (!isActFinalDay(finishedDay)) return
+    // The act is PINNED on meta.act.current (not the day) so P3 overtime can hold
+    // it past its nominal day range. The climax is the act's final day OR any
+    // overtime day we're already on.
+    const act = meta.act.current ?? actForDay(finishedDay)
+    const def = actDef(act)
+    if (!isActFinalDay(finishedDay) && !meta.act.overtime) return
 
-    const clearedAct = actForDay(finishedDay)
-    if (!meta.act.cleared.includes(clearedAct)) meta.act.cleared.push(clearedAct)
-    EventBus.emit('ACT_CLEARED', { act: clearedAct, def: actDef(clearedAct) })
+    // KR P3 HARD GATE — drafted acts (II/III) clear ONLY by beating the Champion.
+    // Fixed acts (I survival, IV the duel) have no Champion gate.
+    const gated        = def?.kind === 'drafted'
+    const championDown = !!meta.act.championsDefeated?.[act]
+    if (gated && !championDown) {
+      // The Champion still stands — the act is NOT won. Stay on it; the raid
+      // re-runs (escalating) each day until the Champion falls or the boss does.
+      meta.act.overtime     = true
+      meta.act.overtimeDays = (meta.act.overtimeDays ?? 0) + 1
+      EventBus.emit('ACT_OVERTIME', { act, def, days: meta.act.overtimeDays })
+      return
+    }
 
-    if (clearedAct >= ACT_COUNT) {
+    // Cleared (Champion down, or a fixed act survived). Drop overtime + advance.
+    meta.act.overtime     = false
+    meta.act.overtimeDays = 0
+    if (!meta.act.cleared.includes(act)) meta.act.cleared.push(act)
+    EventBus.emit('ACT_CLEARED', { act, def })
+
+    if (act >= ACT_COUNT) {
       // Cleared the final act. Normally the duel's NEMESIS_SLAIN has already
       // fired victory mid-day; this is the fallback for the rare case Aldric
       // wasn't put down yet survived the day (e.g. couldn't reach the throne) —
       // you held the realm off, you still win. _fireVictory is idempotent.
-      this._fireVictory({ act: clearedAct, def: actDef(clearedAct), cause: 'survived' })
+      this._fireVictory({ act, def, cause: 'survived' })
       return
     }
 
     // Advance to the next act and announce it.
-    meta.act.current = clearedAct + 1
+    meta.act.current = act + 1
     meta.act.dayInAct = 1
     EventBus.emit('ACT_STARTED', {
       act: meta.act.current, def: actDef(meta.act.current), dayInAct: 1, atRunStart: false,

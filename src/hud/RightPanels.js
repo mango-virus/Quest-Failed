@@ -1164,6 +1164,11 @@ export class RightPanels {
     sub('PLUNDER_ESCAPE', ({ name, taken } = {}) => {
       this._addLog(`${name || 'A thief'} absconds with ${taken} gold!`, 'plunder')
     })
+    // KR P3 — the act's Champion survived the climax: the act is NOT won, and
+    // the raid will return (stronger) until it falls.
+    sub('ACT_OVERTIME', ({ days } = {}) => {
+      this._addLog(`The Champion still stands — the act is NOT won!${days > 1 ? ` (overtime ×${days})` : ''} Break them, or the realm breaks you.`, 'champion')
+    })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+
     // wipe scenarios the per-death stream pushed everything else off

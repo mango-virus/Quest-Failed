@@ -104,6 +104,26 @@ export function currentActResponseId(gameState) {
   return a?.responses?.[a?.current] ?? null
 }
 
+// The act the run is CURRENTLY in — the source of truth over actForDay(day).
+// Normally tracks meta.act.current (ActSystem sets it on each clear), falling
+// back to the day-derived act before act state exists. This matters because of
+// P3 OVERTIME: when a drafted act's Champion survives its final day, the act
+// stays PINNED here past its nominal day range until the Champion is beaten, so
+// the boss tier, the active response, and the spawn dispatch must all read this
+// rather than recomputing the act from the (now-ahead) day number.
+export function currentAct(gameState) {
+  const a = gameState?.meta?.act?.current
+  if (Number.isFinite(a)) return Math.max(1, Math.min(ACT_COUNT, a))
+  return actForDay(gameState?.meta?.dayNumber ?? 1)
+}
+
+// True while the run is in P3 overtime — the current (drafted) act's Champion
+// survived its final day, so the act hasn't advanced and the raid re-runs each
+// day until it falls. `meta.act.overtime` is set/cleared by ActSystem.
+export function isActOvertime(gameState) {
+  return !!gameState?.meta?.act?.overtime
+}
+
 // Per-act boss form names (T1..T4), indexed by tier.
 const ASCENSION_FORMS = ['', 'Nascent', 'Risen', 'Dread', 'Ascended']
 
@@ -116,8 +136,7 @@ const ASCENSION_FORMS = ['', 'Nascent', 'Risen', 'Dread', 'Ascended']
 // ascending earned me" at a glance.
 export function ascensionInfo(gameState) {
   if (!isActsEnabled()) return null
-  const day  = gameState?.meta?.dayNumber ?? 1
-  const tier = Math.max(1, Math.min(ACT_COUNT, actForDay(day)))
+  const tier = currentAct(gameState)   // pinned in overtime — boss doesn't ascend until cleared
   const e    = tier - 1
   const hpMul  = Math.pow(Balance.BOSS_ASCENSION_HP_MUL  ?? 1.28, e)
   const atkMul = Math.pow(Balance.BOSS_ASCENSION_ATK_MUL ?? 1.20, e)

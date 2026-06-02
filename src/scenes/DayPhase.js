@@ -1,7 +1,7 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
 import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers } from '../config/balance.js'
-import { isActsEnabled, actForDay, isActFinalDay, actDefForDay, actDayIndex } from '../config/acts.js'
+import { isActsEnabled, isActFinalDay, actDayIndex, currentAct, isActOvertime, actDef } from '../config/acts.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
@@ -663,9 +663,11 @@ export class DayPhase extends Phaser.Scene {
     // can win or fall, so there's no stray adventurer to game-over you the
     // instant you've won. Putting him down wins the run. Once per act.
     if (isActsEnabled()) {
-      const _day = this._gameState.meta?.dayNumber ?? 1
-      const _n   = this._gameState.meta?.nemesis
-      const _act = actForDay(_day)
+      const _day  = this._gameState.meta?.dayNumber ?? 1
+      const _n    = this._gameState.meta?.nemesis
+      const _act  = currentAct(this._gameState)               // pinned in overtime
+      const _def  = actDef(_act)
+      const _over = isActOvertime(this._gameState)             // KR P3 — Champion survived
       if (_n && _n.alive && !_n.slainByBoss && _act >= 1 && _act <= 4 &&
           isActFinalDay(_day) && _n._lastAppearedAct !== _act) {
         _n._lastAppearedAct = _act
@@ -673,11 +675,11 @@ export class DayPhase extends Phaser.Scene {
         this._spawnNemesis(false)   // acts I–III: additive, pushes into active
       }
 
-      // Kingdom Response — Champion raid (KR P4). On a drafted act's (II/III)
-      // final day the response's champion + themed retinue REPLACE the normal
-      // wave (Aldric still scouted additively above). Only fires for responses
-      // whose gimmick is built — v1: The Reckoning of the Dead.
-      if (actDefForDay(_day)?.kind === 'drafted' && isActFinalDay(_day)) {
+      // Kingdom Response — Champion raid (KR P4/P3). The drafted act's (II/III)
+      // champion + retinue REPLACE the normal wave on the climax day — the
+      // nominal final day, OR every OVERTIME day until the Champion is beaten
+      // (KR P3 hard gate; the raid escalates per overtime day, see _spawnChampionRaid).
+      if (_def?.kind === 'drafted' && (isActFinalDay(_day) || _over)) {
         const _resp = game?.kingdomResponseSystem?.currentResponse?.()
         if (_resp && BUILT_CHAMPION_RAIDS.has(_resp.id)) {
           return this._spawnChampionRaid(_resp)
@@ -686,9 +688,9 @@ export class DayPhase extends Phaser.Scene {
 
       // Mid-act pressure — the kingdom is felt ACROSS the act, not just at the
       // climax: themed forerunners (or Reckoning's undead trickle) join the
-      // normal wave on each NON-final day, growing toward the final-day raid.
+      // normal wave on each NON-final, non-overtime day, growing toward the raid.
       // ADDITIVE (no return) — the normal wave still spawns alongside.
-      if (actDefForDay(_day)?.kind === 'drafted' && !isActFinalDay(_day)) {
+      if (_def?.kind === 'drafted' && !isActFinalDay(_day) && !_over) {
         const _resp = game?.kingdomResponseSystem?.currentResponse?.()
         if (_resp?.id === 'reckoning_dead') this._spawnUndeadTrickle()
         else if (_resp && VANGUARD[_resp.id]) this._spawnVanguard(_resp.id)
@@ -1650,9 +1652,14 @@ export class DayPhase extends Phaser.Scene {
           ...(Array.isArray(response.championFlags)
             ? Object.fromEntries(response.championFlags.map(f => [f, true])) : {}) }
         this._scaleAdventurerByBossLevel(champ, dungeonLv)
-        const chp = Math.round((champ.resources?.maxHp ?? 120) * 3.5)
+        // KR P3 overtime — each day the Champion survives, the kingdom presses
+        // harder. Mild + capped (the boss's 3 lives are the real fail-safe), so
+        // it's mounting pressure, not a guaranteed death spiral.
+        const _ot  = this._gameState.meta?.act?.overtimeDays ?? 0
+        const _otMul = 1 + Math.min(0.4, _ot * 0.1)
+        const chp = Math.round((champ.resources?.maxHp ?? 120) * 3.5 * _otMul)
         champ.resources.maxHp = chp; champ.resources.hp = chp
-        champ.stats.attack    = Math.round((champ.stats?.attack ?? 14) * 1.7)
+        champ.stats.attack    = Math.round((champ.stats?.attack ?? 14) * 1.7 * _otMul)
         this._gameState.adventurers.active.push(champ)
         aiSystem.pickInitialGoal(champ)
         champ.goal = { type: 'SEEK_BOSS' }
