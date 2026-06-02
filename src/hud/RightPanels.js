@@ -1100,8 +1100,8 @@ export class RightPanels {
     // threat, the duel's last words). Infrequent (a handful per act), so no
     // coalescing needed. Gated upstream behind the `acts` flag — NemesisSystem
     // only exists when acts are on, so this never fires in the default game.
-    sub('NEMESIS_TAUNT', ({ line } = {}) => {
-      if (!line) return
+    sub('NEMESIS_TAUNT', ({ line, log } = {}) => {
+      if (!line || log === false) return   // frequent reactions (hurt grunts) skip the log
       const name = this._gameState?.meta?.nemesis?.name ?? 'Aldric'
       this._addLog(`${name}: "${line}"`, 'nemesis')
     })

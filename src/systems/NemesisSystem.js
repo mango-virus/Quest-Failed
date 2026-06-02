@@ -19,6 +19,10 @@ import { EventBus } from './EventBus.js'
 // + portrait can reflect them.)
 const ABILITY_BY_ACT = { 2: 'heroic_resolve', 3: 'dawnblade', 4: 'hero_king' }
 
+// Throttle on Aldric's hurt reactions — he's hit many times per fight, but a
+// grunt every few seconds reads as "shrugging it off / getting mad", not a buzz.
+const HURT_THROTTLE_MS = 7000
+
 export class NemesisSystem {
   constructor(scene, gameState) {
     this._scene = scene
@@ -29,6 +33,8 @@ export class NemesisSystem {
     EventBus.on('ADVENTURER_FLED', this._onFled,       this)
     EventBus.on('ADVENTURER_DIED', this._onDied,       this)
     EventBus.on('NEMESIS_RECOIL',  this._onRecoil,     this)
+    EventBus.on('NEMESIS_HURT',    this._onHurt,       this)
+    EventBus.on('NEMESIS_ARRIVED', this._onArrived,    this)
   }
 
   destroy() {
@@ -36,6 +42,29 @@ export class NemesisSystem {
     EventBus.off('ADVENTURER_FLED', this._onFled,       this)
     EventBus.off('ADVENTURER_DIED', this._onDied,       this)
     EventBus.off('NEMESIS_RECOIL',  this._onRecoil,     this)
+    EventBus.off('NEMESIS_HURT',    this._onHurt,       this)
+    EventBus.off('NEMESIS_ARRIVED', this._onArrived,    this)
+  }
+
+  // Reset the hurt throttle each time he re-enters so his first hit of a visit
+  // always reacts (the bubble + escalating face are part of the scout fantasy).
+  _onArrived() { this._hurtAt = 0 }
+
+  // Aldric chipped in combat (acts I–III). Throttled grunt + an escalating face:
+  // rattled when barely scratched, annoyed mid, ENRAGED near his floor — matched
+  // to the hurt lines, which escalate in the same order. No log line (frequent).
+  _onHurt({ adventurer, hpFrac } = {}) {
+    if (!adventurer?._nemesis) return
+    const now = this._scene?.time?.now ?? 0
+    if (now - (this._hurtAt ?? 0) < HURT_THROTTLE_MS) return
+    this._hurtAt = now
+    const act = this._gs.meta?.nemesis?.act ?? 1
+    let idx = 0, x = 'rattled'
+    if ((hpFrac ?? 1) <= 0.30)      { idx = 2; x = 'enraged' }
+    else if ((hpFrac ?? 1) <= 0.55) { idx = 1; x = 'annoyed' }
+    const hurts = this._lines?.hurt
+    const line = Array.isArray(hurts) ? (hurts[idx] ?? hurts[0]) : null
+    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'hurt', x, log: false })
   }
 
   // The Act IV duel resolved in the boss's favour — Aldric, the crowned Hero

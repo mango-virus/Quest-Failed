@@ -32,15 +32,17 @@ const ALDRIC_ART = {
   },
 }
 
-// Taunt `source` → the expression that fits that beat. Resolved against the act's
-// vocab; an act whose art lacks the expression falls back to its rest face.
+// Taunt `source` → the expression that fits that beat (an array picks at random
+// for variety). A taunt may also carry an explicit `x` emotion that overrides
+// this (the hurt reaction sends rattled/annoyed/enraged by HP). Resolved against
+// the act's vocab; an act whose art lacks the expression falls back to its rest.
 const SOURCE_EXPR = {
-  arrive:      'cocky',
+  arrive:      ['cocky', 'confident'],
   taunt:       'confident',
   recoil:      'cocky-vow',
   withdraw:    'cocky-vow',
   act_cleared: 'confident',
-  banter:      'contempt',
+  banter:      ['contempt', 'sneering'],
   hurt:        'rattled',
   minionKill:  'cocky',
 }
@@ -67,7 +69,10 @@ function _ensureCss() {
   animation:qf-nemesis-bob 4.6s ease-in-out infinite; transform-origin:50% 100%; }
 .qf-nemesis-img { position:absolute; inset:0; width:100%; height:100%;
   object-fit:contain; object-position:bottom center; opacity:0; transition:opacity .42s ease;
-  user-select:none; -webkit-user-drag:none; pointer-events:none; }
+  user-select:none; -webkit-user-drag:none; pointer-events:none;
+  /* Match the companions' 1.15 hudScale so Aldric reads the same size; grows
+     from the feet so the body scales in place (head spills above the box). */
+  transform:scale(1.15); transform-origin:50% 100%; }
 .qf-nemesis-img.front { opacity:1; }
 /* Art mode hides the placeholder; no-art mode hides the imgs. */
 .qf-nemesis .qf-nemesis-img       { display:none; }
@@ -208,7 +213,11 @@ export class NemesisPortrait {
     if (back.complete && back.naturalWidth) swap()
   }
 
-  _exprFor(source) { return SOURCE_EXPR[source] ?? this._rest }
+  _exprFor(source) {
+    const e = SOURCE_EXPR[source]
+    if (Array.isArray(e)) return e[Math.floor(Math.random() * e.length)] || this._rest
+    return e ?? this._rest
+  }
 
   _slideIn()  { this._root?.classList.add('show') }
   _slideOut() {
@@ -224,11 +233,11 @@ export class NemesisPortrait {
     this._slideIn()
   }
 
-  _onTaunt({ line, act, source } = {}) {
+  _onTaunt({ line, act, source, x } = {}) {
     if (!line) return
     if (act) this._render(act)
     this._slideIn()
-    this._setExpression(this._exprFor(source))
+    this._setExpression(x || this._exprFor(source))
     if (this._bubbleEl) {
       this._bubbleEl.replaceChildren(
         h('span', { className: 'qf-nemesis-bubble-name' }, (this._gs?.meta?.nemesis?.name ?? 'Aldric').toUpperCase()),

@@ -270,6 +270,15 @@ export class CombatSystem {
       ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
     target.resources.hp = Math.max(_smFloor, target.resources.hp - finalDmg)
 
+    // The Nemesis (Aldric) reacts to being chipped — a hurt grunt + an escalating
+    // rattled→annoyed→enraged face. Fired raw per hit; NemesisSystem throttles.
+    if (target._nemesis && finalDmg > 0) {
+      EventBus.emit('NEMESIS_HURT', {
+        adventurer: target,
+        hpFrac: (target.resources.hp ?? 0) / (target.resources.maxHp ?? 1),
+      })
+    }
+
     // DAMNED · Brittle Bones — a dungeon minion that drops below half HP from
     // a hit shatters outright (the existing `killed` check below handles the
     // death + MINION_DIED emit once hp is 0).
