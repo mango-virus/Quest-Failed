@@ -100,10 +100,12 @@ function _ensureCss() {
   animation:qf-asc-pop .7s cubic-bezier(.16,.9,.24,1) .35s both; }
 @keyframes qf-asc-pop { 0%{opacity:0; transform:scale(.55) translateY(8px); filter:brightness(2.4) blur(3px)}
   55%{opacity:1; transform:scale(1.06)} 100%{opacity:1; transform:scale(1); filter:brightness(1) blur(0)} }
-.qf-asc-prev { position:absolute; right:6px; bottom:2px; text-align:center;
+/* The shed FORMER SHELL — paired just LEFT of the new form (bottoms aligned) so
+   it reads as a clear "before → after", not a tiny thing lost in the corner. */
+.qf-asc-prev { position:absolute; left:50%; bottom:14px; margin-left:-252px; text-align:center;
   opacity:0; animation:qf-asc-fade .5s ease .9s forwards; }
-.qf-asc-prev canvas { filter:grayscale(.55) brightness(.62); opacity:.82; }
-.qf-asc-prev-label { font-size:7px; letter-spacing:2px; color:#7a6f88; margin-top:2px; }
+.qf-asc-prev canvas { filter:grayscale(.5) brightness(.66); opacity:.86; }
+.qf-asc-prev-label { font-size:9px; letter-spacing:1.5px; color:#8a7fa0; margin-top:4px; }
 .qf-asc-title { font-size:clamp(20px,3vw,38px); letter-spacing:2px; color:#f3e9ff; margin-top:6px;
   text-shadow:0 0 24px rgba(176,120,255,.6), 0 3px 0 #1a0e2a;
   opacity:0; animation:qf-asc-pop2 .6s cubic-bezier(.18,.9,.25,1) .5s both; }
@@ -229,7 +231,7 @@ export class AscensionCinematic {
     const prevKey = _formKey(archetype, fromForm ?? Math.max(1, (act ?? 2) - 1))
 
     const newSprite  = animatedBossSprite(newKey, 220)
-    const prevSprite = (prevKey !== newKey) ? animatedBossSprite(prevKey, 78) : null
+    const prevSprite = (prevKey !== newKey) ? animatedBossSprite(prevKey, 140) : null
     if (newSprite?.stop)  this._stopFns.push(newSprite.stop)
     if (prevSprite?.stop) this._stopFns.push(prevSprite.stop)
 
