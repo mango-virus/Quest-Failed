@@ -579,13 +579,20 @@ export class CombatSystem {
       mit = Math.max(1, Math.floor(mit * 0.5))
     }
 
-    // Phase 9 mechanic damage modifiers
+    // Phase 9 mechanic damage modifiers.
+    // `sup` = Inquisition pact-BENEFIT suppression (KR): while an inquisitor is in
+    // the dungeon, every dungeon-favouring pact benefit below is gated off. Only
+    // the clear minion BUFFS are gated — adventurer-side buffs (Glory Hounds,
+    // Famine Decree, Sworn Rivals, Summon Adds II), nerfs (minionDamageMult), and
+    // MIXED defensive trades (Mage Hunt, Ironhide Rite, the Frenzy DEFENSE loss)
+    // are CURSES/neutral and stay fully active.
     const flags = this._gameState._mechanicFlags ?? {}
-    if (flags.bloodbound && _isMinionAttacker(attacker)) {
+    const sup = !!flags._inqSuppress
+    if (flags.bloodbound && !sup && _isMinionAttacker(attacker)) {
       mit *= Balance.MECHANIC_BLOODBOUND_DAMAGE_MULT
     }
     // Phase 9: Pack Synergy — minions deal bonus damage per ally in same room
-    if (flags.packSynergy && _isMinionAttacker(attacker) && attacker.assignedRoomId) {
+    if (flags.packSynergy && !sup && _isMinionAttacker(attacker) && attacker.assignedRoomId) {
       const alliesInRoom = (this._gameState.minions ?? []).filter(m =>
         m.instanceId !== attacker.instanceId &&
         m.aiState !== 'dead' &&
@@ -661,8 +668,9 @@ export class CombatSystem {
         const r = target.attackRange ?? 1
         mit = Math.floor(mit * (r > 1 ? Balance.MECHANIC_MAGE_HUNT_RANGED_MULT : Balance.MECHANIC_MAGE_HUNT_MELEE_MULT))
       }
-      // Frenzy Pact — per-room stack of dead allies
-      if (flags.frenzyPact && attacker.assignedRoomId) {
+      // Frenzy Pact — per-room stack of dead allies (the ATTACK buff; the
+      // matching DEFENSE loss below is the curse and stays active under suppression)
+      if (flags.frenzyPact && !sup && attacker.assignedRoomId) {
         const stacks = (flags.frenzyStacks ?? {})[attacker.assignedRoomId] ?? 0
         if (stacks > 0) {
           const atkBonus = stacks * Balance.MECHANIC_FRENZY_DAMAGE_PER_STACK
@@ -670,7 +678,7 @@ export class CombatSystem {
         }
       }
       // Last Stand Doctrine — +100% if attacker is the only alive minion in their room
-      if (flags.lastStandDoctrine && attacker.assignedRoomId) {
+      if (flags.lastStandDoctrine && !sup && attacker.assignedRoomId) {
         const allies = (this._gameState.minions ?? []).filter(m =>
           m.instanceId !== attacker.instanceId &&
           m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 &&
@@ -688,7 +696,7 @@ export class CombatSystem {
       mit = Math.floor(mit * (r > 1 ? Balance.MECHANIC_IRONHIDE_RANGED_DAMAGE_MULT : Balance.MECHANIC_IRONHIDE_MELEE_DAMAGE_MULT))
     }
     // Phase 9 — Open Book: minions take 50% less damage from advs.
-    if (flags.openBook && target.faction === 'dungeon' && attacker.faction === 'adventurer') {
+    if (flags.openBook && !sup && target.faction === 'dungeon' && attacker.faction === 'adventurer') {
       mit = Math.max(1, Math.floor(mit * Balance.MECHANIC_OPEN_BOOK_MINION_TAKEN_MULT))
     }
     // Phase 9 — Frenzy Pact tradeoff: a frenzied minion loses 25% defense

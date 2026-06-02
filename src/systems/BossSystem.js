@@ -2054,6 +2054,10 @@ export class BossSystem {
   // own cooldown via boss._<id>ReadyAt timestamps.
   _runBossPactAttacks(boss, defenders) {
     const flags = this._gameState._mechanicFlags ?? {}
+    // Inquisition pact-BENEFIT purge (KR): the boss's pact-granted special
+    // attacks are all dungeon upside, so while an inquisitor is in the dungeon
+    // they all go dark (cooldowns simply don't advance until it leaves).
+    if (flags._inqSuppress) return
     const now = this._scene?.time?.now ?? 0
 
     // ── Hellfire Breath ──
@@ -4530,7 +4534,9 @@ export class BossSystem {
       // revive at 50% HP, full-heal all minions, and mark the pact used.
       // Triggers BEFORE the lethal-check so deathsRemaining is untouched.
       const flags = this._gameState._mechanicFlags ?? {}
-      if (flags.finalBreath && !flags.finalBreathUsed && boss.hp <= 1) {
+      // Inquisition purge (KR) — the boss's once-per-run cheat-death is a benefit;
+      // an inquisitor in the dungeon strips that insurance (curses still apply).
+      if (flags.finalBreath && !flags.finalBreathUsed && !flags._inqSuppress && boss.hp <= 1) {
         boss.hp = Math.max(1, Math.floor((boss.maxHp ?? 0) * 0.5))
         for (const m of (this._gameState.minions ?? [])) {
           if (m.faction !== 'dungeon') continue

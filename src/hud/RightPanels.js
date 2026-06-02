@@ -1145,6 +1145,13 @@ export class RightPanels {
     sub('INQUISITION_PURGE', () => {
       this._addLogCoalesced('The Inquisition purges your undead!', 'inquisition', 'INQUISITION_PURGE', null)
     })
+    // Inquisition pact-benefit suppression (KR) — your dark gifts are purged
+    // while an inquisitor walks the halls, and restored when they fall/flee.
+    sub('INQUISITION_SUPPRESS_CHANGED', ({ active } = {}) => {
+      this._addLog(active
+        ? 'The Inquisition purges your dark gifts — your pact benefits are SEALED!'
+        : 'The Inquisition is gone — your dark gifts return.', 'inquisition')
+    })
     // Boss Ascension (KR P6) — the act-boundary evolution + power surge, and the
     // dark chamber aura searing invaders (coalesced; it pulses every ~1.2s).
     sub('BOSS_ASCENSION', ({ after = {} } = {}) => {

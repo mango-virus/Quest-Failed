@@ -831,6 +831,10 @@ function _buildHandlerRegistry() {
       gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), vampiresToll: true }
       subscribe('ADVENTURER_DIED', () => {
         if (!gameState.boss) return
+        // Inquisition pact-BENEFIT purge (KR) — the kill-heal is the boss's upside,
+        // shut off while an inquisitor is present. The escape-DAMAGE (the curse)
+        // below stays in force.
+        if (gameState._mechanicFlags?._inqSuppress) return
         const heal = Math.max(1, Math.round((gameState.boss.maxHp ?? 0) * Balance.MECHANIC_VAMPIRE_KILL_HEAL_FRAC))
         gameState.boss.hp = Math.min(gameState.boss.maxHp ?? heal, (gameState.boss.hp ?? 0) + heal)
         EventBus.emit('VAMPIRE_TOLL_HEALED', { amount: heal })
@@ -872,6 +876,9 @@ function _buildHandlerRegistry() {
         const bossRoom = gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         const inBossRoom = bossRoom && minion.assignedRoomId === bossRoom.instanceId
         if (inBossRoom) {
+          // Inquisition purge (KR) — the boss-room heal is the upside; suppressed
+          // while an inquisitor is present. The out-of-room DAMAGE (curse) stays.
+          if (gameState._mechanicFlags?._inqSuppress) return
           const heal = Math.max(1, Math.round((gameState.boss.maxHp ?? 0) * Balance.MECHANIC_SOUL_TETHER_HEAL_FRAC))
           gameState.boss.hp = Math.min(gameState.boss.maxHp ?? heal, (gameState.boss.hp ?? 0) + heal)
           EventBus.emit('SOUL_TETHER_HEALED', { amount: heal })

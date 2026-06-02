@@ -1,86 +1,79 @@
-// Phase 9b — InquisitorSystem.
+// InquisitorSystem — the kingdom's answer to your dark pacts (KR).
 //
-// Personality interaction: when an Inquisitor-tagged adventurer enters the
-// dungeon, after a short delay (simulating "investigating") they dispel one
-// random active dungeon mechanic until they leave. Mechanic auto-restores
-// when the inquisitor flees or dies, OR when the day ends.
+// While an inquisitor-tagged adventurer is loose in the dungeon, the boss's
+// DARK-PACT BENEFITS are PURGED — every upside a pact grants the dungeon (kill-
+// gold multipliers, minion/boss combat buffs, the boss's pact attacks, extra
+// minion/trap slots, bonus spawns) goes dark. The CURSES stay: you still pay the
+// pact's downside, you just lose its gift while the inquisitor lives. A true
+// hard-counter to pact-stacking — kill the inquisitor fast to get your gifts back.
 //
-// Tracks per-adventurer dispellings so multiple inquisitors don't double-dip.
-// If no mechanics are active, no-op.
+// Mechanism: a single transient flag, `gameState._mechanicFlags._inqSuppress`,
+// recomputed from "is any inquisitor currently in the dungeon". Every pact-
+// BENEFIT read site is gated `if (flags.X && !flags._inqSuppress)`; curse reads
+// are untouched. Recomputed in the constructor (so a loaded save resolves it from
+// the restored adventurer list) and on every adventurer / phase transition.
+//
+// Replaces the old "dispel one random dungeon mechanic" behaviour (which removed
+// curses too, so it was relief, not a threat — and only hit one mechanic).
 
 import { EventBus } from './EventBus.js'
 
-const INVESTIGATE_DELAY_MS = 8000
-
 export class InquisitorSystem {
-  constructor(scene, gameState, dungeonMechanicSystem, personalitySystem) {
+  // Signature kept for Game.js (dungeonMechanicSystem no longer used — we gate
+  // benefit reads with a flag rather than deactivating whole mechanics).
+  constructor(scene, gameState, _dungeonMechanicSystem, personalitySystem) {
     this._scene = scene
     this._gameState = gameState
-    this._mechanics = dungeonMechanicSystem
     this._personality = personalitySystem
-    this._suspended = {}   // advId → { mechanicId, restoreAt? }
     this._listeners = []
+    this._active = false
 
     this._wire()
+    this._recompute()   // resolve from the (possibly just-loaded) active roster
   }
 
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
-    // Restore any still-suspended mechanics
-    for (const advId of Object.keys(this._suspended)) this._restoreFor(advId)
+    // Lift suppression on teardown so a torn-down system can never strand the
+    // boss's pact benefits in the OFF state.
+    const flags = this._gameState?._mechanicFlags
+    if (flags) flags._inqSuppress = false
   }
 
   _wire() {
-    const onEntered = ({ adventurer }) => this._onEntered(adventurer)
-    const onLeft    = ({ adventurer }) => this._restoreFor(adventurer?.instanceId)
-    const onDayEnd  = () => {
-      for (const advId of Object.keys(this._suspended)) this._restoreFor(advId)
-    }
-    EventBus.on('ADVENTURER_ENTERED_DUNGEON', onEntered)
-    EventBus.on('ADVENTURER_DIED',            onLeft)
-    EventBus.on('ADVENTURER_FLED',            onLeft)
-    EventBus.on('DAY_PHASE_ENDED',            onDayEnd)
+    const recompute = () => this._recompute()
+    EventBus.on('ADVENTURER_ENTERED_DUNGEON', recompute)
+    EventBus.on('ADVENTURER_DIED',            recompute)
+    EventBus.on('ADVENTURER_FLED',            recompute)
+    EventBus.on('DAY_PHASE_BEGAN',            recompute)
+    EventBus.on('DAY_PHASE_ENDED',            recompute)
     this._listeners = [
-      ['ADVENTURER_ENTERED_DUNGEON', onEntered],
-      ['ADVENTURER_DIED',            onLeft],
-      ['ADVENTURER_FLED',            onLeft],
-      ['DAY_PHASE_ENDED',            onDayEnd],
+      ['ADVENTURER_ENTERED_DUNGEON', recompute],
+      ['ADVENTURER_DIED',            recompute],
+      ['ADVENTURER_FLED',            recompute],
+      ['DAY_PHASE_BEGAN',            recompute],
+      ['DAY_PHASE_ENDED',            recompute],
     ]
   }
 
-  _onEntered(adv) {
-    if (!adv) return
-    const tags = this._personality?.getTags?.(adv) ?? new Set()
-    if (!tags.has('inquisitor') && !tags.has('anti_mechanic')) return
-
-    // Wait the investigate window then dispel a random active mechanic
-    this._scene.time.delayedCall(INVESTIGATE_DELAY_MS, () => {
-      if (this._suspended[adv.instanceId]) return  // already dispelled
-      // Confirm adventurer is still in dungeon
-      const stillThere = this._gameState.adventurers.active.some(a => a.instanceId === adv.instanceId)
-      if (!stillThere) return
-
-      const active = [...(this._gameState.activeMechanics ?? [])]
-      if (active.length === 0) return
-      const target = active[Math.floor(Math.random() * active.length)]
-
-      // Snapshot it as suspended (we'll re-activate later)
-      this._suspended[adv.instanceId] = { mechanicId: target }
-      this._mechanics.deactivate(target)
-      EventBus.emit('INQUISITOR_DISPELLED', { adventurer: adv, mechanicId: target })
-    })
+  _isInquisitor(adv) {
+    if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 1) <= 0) return false
+    const tags = this._personality?.getTags?.(adv) ?? null
+    return !!(tags && (tags.has('inquisitor') || tags.has('anti_mechanic')))
   }
 
-  _restoreFor(advId) {
-    if (!advId) return
-    const entry = this._suspended[advId]
-    if (!entry) return
-    // Re-activate the mechanic if it isn't already on
-    if (!this._mechanics.isActive(entry.mechanicId)) {
-      this._mechanics.activate(entry.mechanicId)
-      EventBus.emit('INQUISITOR_RESTORED', { mechanicId: entry.mechanicId })
-    }
-    delete this._suspended[advId]
+  // Set `_inqSuppress` to whether any inquisitor is currently in the dungeon, and
+  // announce the flip (banner + HUD) so the player always sees their gifts being
+  // purged / restored.
+  _recompute() {
+    const gs = this._gameState
+    if (!gs) return
+    const flags = gs._mechanicFlags ?? (gs._mechanicFlags = {})
+    const present = (gs.adventurers?.active ?? []).some(a => this._isInquisitor(a))
+    if (present === this._active) { flags._inqSuppress = present; return }
+    this._active = present
+    flags._inqSuppress = present
+    EventBus.emit('INQUISITION_SUPPRESS_CHANGED', { active: present })
   }
 }

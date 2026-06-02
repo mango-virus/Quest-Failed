@@ -588,10 +588,14 @@ export class TrapSystem {
     if (dmg <= 0) return 0
     dmg *= this._bossDamageScale()
     const f = this._gameState._mechanicFlags ?? {}
-    if (f.openBook)        dmg *= Balance.MECHANIC_OPEN_BOOK_TRAP_DAMAGE_MULT ?? 2
+    // Inquisition pact-BENEFIT purge (KR): the pact trap-damage boosts go dark
+    // while an inquisitor is present. `trapDamageMult` is a global modifier (not a
+    // pact gift) and the Hasty Architect JAM (in _jammed) is a curse — both stay.
+    const sup = !!f._inqSuppress
+    if (f.openBook && !sup)        dmg *= Balance.MECHANIC_OPEN_BOOK_TRAP_DAMAGE_MULT ?? 2
     if (f.trapDamageMult)  dmg *= f.trapDamageMult
-    if (f.pactOfTheJester) dmg *= Balance.MECHANIC_JESTER_TRAP_DAMAGE_MULT ?? 1.5
-    if (f.pactOfTheBrand && trap._brandBlessed) {
+    if (f.pactOfTheJester && !sup) dmg *= Balance.MECHANIC_JESTER_TRAP_DAMAGE_MULT ?? 1.5
+    if (f.pactOfTheBrand && !sup && trap._brandBlessed) {
       dmg *= Balance.MECHANIC_BRAND_BLESSED_DAMAGE_MULT ?? 5
       trap._brandBlessed = false
     }

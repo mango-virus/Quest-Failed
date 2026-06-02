@@ -4405,21 +4405,25 @@ export class AISystem {
     let goldMul = arch?.goldGainMultiplier ?? 1
     // Phase 9: Taxation of Souls reduces gold yield (already-weakened victim)
     const flags = this._gameState._mechanicFlags ?? {}
+    // Inquisition pact-BENEFIT purge (KR): while an inquisitor is in the dungeon,
+    // the gold-GAIN pacts go dark; the gold-PENALTY pacts (Taxation of Souls,
+    // Famished Dark, The Iron Price) are curses and stay in force.
+    const sup = !!flags._inqSuppress
     if (flags.taxationOfSouls) goldMul *= Balance.MECHANIC_TAXATION_GOLD_PENALTY
-    if (flags.goldRush)        goldMul *= Balance.MECHANIC_GOLD_RUSH_GOLD_MULT
+    if (flags.goldRush && !sup)        goldMul *= Balance.MECHANIC_GOLD_RUSH_GOLD_MULT
     if (flags.famishedDark)    goldMul *= Balance.MECHANIC_FAMISHED_DARK_GOLD_MULT  // DAMNED — kills pay half
-    if (flags.crownOfAvarice)  goldMul *= Balance.MECHANIC_AVARICE_GOLD_MULT        // LEGENDARY — gold x2
+    if (flags.crownOfAvarice && !sup)  goldMul *= Balance.MECHANIC_AVARICE_GOLD_MULT        // LEGENDARY — gold x2
     if (flags.theIronPrice)    goldMul  = 0                                          // LEGENDARY — no gold income
-    if (flags.gildedDemise)    goldMul *= Balance.MECHANIC_GILDED_DEMISE_GOLD_MULT
+    if (flags.gildedDemise && !sup)    goldMul *= Balance.MECHANIC_GILDED_DEMISE_GOLD_MULT
     if (flags.inquisitorsMark && adv.flags?.inquisitorsMark) {
       goldMul *= Balance.MECHANIC_INQUISITORS_GOLD_MULT
     }
     // Phase 9 — Cursed Soil: +50% gold on kills inside any room.
-    if (flags.cursedSoil) {
+    if (flags.cursedSoil && !sup) {
       const room = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
       if (room) goldMul *= Balance.MECHANIC_CURSED_SOIL_GOLD_MULT
     }
-    if (flags.pyramidScheme) {
+    if (flags.pyramidScheme && !sup) {
       const k = flags.pyramidKillsToday ?? 0
       goldMul *= (k === 0)
         ? Balance.MECHANIC_PYRAMID_FIRST_KILL_MULT
