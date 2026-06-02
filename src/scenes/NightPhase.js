@@ -635,6 +635,10 @@ export class NightPhase extends Phaser.Scene {
       EventBus.on(event, fn, this)
       this._hudListeners.push([event, fn])
     }
+    // Minion Roster — SACRIFICE button (2026-06-02). Permanently destroy a
+    // minion with NO gold refund (vs the Sell tool's 50%). Was previously inert
+    // (RosterOverlay emitted MINION_SACRIFICE_REQUEST with no listener).
+    on('MINION_SACRIFICE_REQUEST', ({ instanceId } = {}) => this._doSacrificeMinion(instanceId))
     on('BUILD_SELECT', ({ def, kind }) => {
       // Phase 1b.4 — Lich Phylactery: item placement flows through the same
       // single-tile path as traps. _confirmItemPlacement handles validation.
@@ -3444,6 +3448,20 @@ export class NightPhase extends Phaser.Scene {
     // Emit the sell-FX BEFORE the splice so MinionRenderer can grab the
     // still-live sprite for the shadow-swallow + death animation.
     this._emitSellFx('minion', minion.worldX, minion.worldY, { minion, refund })
+    this._gameState.minions.splice(idx, 1)
+    EventBus.emit('MINION_REMOVED', { minion })
+    return true
+  }
+
+  // SACRIFICE a minion — permanent destroy, NO refund (the Roster's
+  // SACRIFICE button). Mirrors _doSellMinion's removal + shatter FX, minus the
+  // gold credit. refund:0 makes _emitSellFx play the shatter only (no coin
+  // float / coin sound). Same idempotency guard as _doSellMinion.
+  _doSacrificeMinion(instanceId) {
+    const idx = this._gameState.minions.findIndex(x => x.instanceId === instanceId)
+    if (idx < 0) return false
+    const minion = this._gameState.minions[idx]
+    this._emitSellFx('minion', minion.worldX, minion.worldY, { minion, refund: 0 })
     this._gameState.minions.splice(idx, 1)
     EventBus.emit('MINION_REMOVED', { minion })
     return true

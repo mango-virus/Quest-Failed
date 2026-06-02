@@ -355,8 +355,31 @@ export class MinionRenderer {
       }
       s.lastHp = curHp
 
-      // Attack — short flash window after CombatSystem stamps lastAttackAt.
-      const recentAttack = (now - (m.lastAttackAt ?? 0)) < ATTACK_FLASH_MS
+      // Anim prefix — final-form minions that reuse a boss texture set use the
+      // boss anim prefix (bossSkinId-state-dir); everyone else uses the
+      // standard minion-defId-state-dir prefix. Hoisted above the attack latch
+      // so it can resolve the attack key.
+      const def = this._defMap[m.definitionId]
+      const raisedPrefix = this._raisedDeadPrefix(m)
+      const prefix = raisedPrefix
+        ?? (def?.bossSkinId ? def.bossSkinId : `minion-${m.definitionId}`)
+
+      // Attack — latch the attack-state window to the attack anim's ACTUAL
+      // duration so it plays to completion (2026-06-02). The old fixed
+      // ATTACK_FLASH_MS (400ms) cut off any attack sheet longer than that
+      // (e.g. 6 frames @ 10fps = 600ms): wantState flipped back to walk/idle
+      // mid-swing and the next play() interrupted the anim. Now a fresh attack
+      // (lastAttackAt advanced) holds the attack state for the registered
+      // anim's real duration and restarts the swing from frame 0.
+      const atkAt = m.lastAttackAt ?? 0
+      if (atkAt > (s.lastSeenAttackAt ?? 0)) {
+        s.lastSeenAttackAt = atkAt
+        const atkKey = this._resolveAnimKey(prefix, 'attack', s.facing)
+        const atkDur = (atkKey && this._scene.anims.get(atkKey)?.duration) || ATTACK_FLASH_MS
+        s.attackUntil = now + atkDur
+        if (atkKey && s.sprite) { s.currentAnim = atkKey; s.sprite.play(atkKey, false) }
+      }
+      const recentAttack = now < (s.attackUntil ?? 0)
 
       // Pick state — same priority order as BossRenderer.
       const wantState =
@@ -367,16 +390,10 @@ export class MinionRenderer {
         s.isMoving         ? 'walk'  :
                              'idle'
 
-      // Play anim if changed and registered. Final-form minions that reuse
-      // a boss texture set use the boss anim prefix (bossSkinId-state-dir);
-      // everyone else uses the standard minion-defId-state-dir prefix.
-      // _resolveAnimKey tries direction fallbacks then state fallbacks so a
-      // missing sheet never leaves the sprite frozen on a stale frame.
+      // Play anim if changed and registered. _resolveAnimKey tries direction
+      // fallbacks then state fallbacks so a missing sheet never leaves the
+      // sprite frozen on a stale frame.
       if (s.sprite) {
-        const def = this._defMap[m.definitionId]
-        const raisedPrefix = this._raisedDeadPrefix(m)
-        const prefix = raisedPrefix
-          ?? (def?.bossSkinId ? def.bossSkinId : `minion-${m.definitionId}`)
         const resolved = this._resolveAnimKey(prefix, wantState, s.facing)
         if (resolved && s.currentAnim !== resolved) {
           s.currentAnim = resolved

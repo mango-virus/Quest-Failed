@@ -543,9 +543,9 @@ export class RosterOverlay {
       cancelLabel:  'CANCEL',
       theme:        'crimson',
       onConfirm: () => {
-        // The Phaser ROSTER has no canonical sacrifice path right now;
-        // for parity we emit a domain event the gameplay layer can wire
-        // up later. Until then this is inert.
+        // Wired 2026-06-02 — NightPhase listens for MINION_SACRIFICE_REQUEST
+        // and permanently destroys the minion (no refund) via
+        // _doSacrificeMinion (build-phase action).
         EventBus.emit('MINION_SACRIFICE_REQUEST', { instanceId: minion.instanceId })
         this._rerender()
       },

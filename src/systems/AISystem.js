@@ -4504,9 +4504,12 @@ export class AISystem {
       worldY: adv.worldY,
     })
 
-    this._awardBossXp()
+    // Zombie Horde shamblers award a flat 1 XP per kill (the swarm is far
+    // too large for the normal 10 to be fair — by user 2026-06-02).
+    const _xpPerKill = adv.flags?.zombieShambler ? 1 : null
+    this._awardBossXp(_xpPerKill)
     // Dungeon event: Patron's Blessing — boss XP from every kill doubled.
-    if ((this._gameState._eventFlags ?? {}).patronsBlessingActive) this._awardBossXp()
+    if ((this._gameState._eventFlags ?? {}).patronsBlessingActive) this._awardBossXp(_xpPerKill)
     // Dungeon event: Legendary Speed Runner — killing the speedrunner
     // grants a *massive* XP windfall (9× the normal kill on top of the
     // base award above = 10× total). Tunes the high-risk encounter into
@@ -4691,18 +4694,27 @@ export class AISystem {
 
   // Award boss XP on each kill and level up when xpToNext is reached.
   // Curve: xpToNext for level N = BOSS_XP_BASE * BOSS_XP_SCALE^(N-1).
-  _awardBossXp() {
+  // amountOverride: when non-null the kill grants exactly that much XP and
+  // skips the Library bonus. Used by the Zombie Horde (flat 1 XP per shambler
+  // — by user 2026-06-02) so the large swarm can't balloon the boss's level.
+  _awardBossXp(amountOverride = null) {
     const boss = this._gameState.boss
     if (!boss) return
-    // Tinkerer's Workshop "Oracle's Tome" — +1 boss XP per kill per
-    // active Library when the library_of_whispers type is upgraded.
-    // Cumulative — more libraries = more bonus XP.
-    let bonus = 0
-    if ((this._gameState._tinkeredRoomTypes ?? []).includes('library_of_whispers')) {
-      bonus = (this._gameState.dungeon?.rooms ?? [])
-        .filter(r => r.definitionId === 'library_of_whispers' && r.isActive !== false).length
+    let gain
+    if (amountOverride != null) {
+      gain = amountOverride
+    } else {
+      // Tinkerer's Workshop "Oracle's Tome" — +1 boss XP per kill per
+      // active Library when the library_of_whispers type is upgraded.
+      // Cumulative — more libraries = more bonus XP.
+      let bonus = 0
+      if ((this._gameState._tinkeredRoomTypes ?? []).includes('library_of_whispers')) {
+        bonus = (this._gameState.dungeon?.rooms ?? [])
+          .filter(r => r.definitionId === 'library_of_whispers' && r.isActive !== false).length
+      }
+      gain = Balance.BOSS_XP_PER_KILL + bonus
     }
-    boss.xp = (boss.xp ?? 0) + Balance.BOSS_XP_PER_KILL + bonus
+    boss.xp = (boss.xp ?? 0) + gain
     while (boss.xp >= (boss.xpToNext ?? Balance.BOSS_XP_BASE)) {
       boss.xp -= boss.xpToNext
       const oldLevel = boss.level ?? 1

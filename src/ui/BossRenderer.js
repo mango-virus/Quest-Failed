@@ -318,10 +318,24 @@ export class BossRenderer {
     // or the post-wave summary opens. The stalemate-cap win path never
     // sets it, so the boss won't death-anim while it still has HP.
     const bs = this._scene.bossSystem
-    if (bs && (bs._deathPoseUntil ?? 0) > this._scene.time.now) return 'death'
-    if (this._scene.time.now < this._hurtUntil) return 'hurt'
+    const now = this._scene.time.now
+    if (bs && (bs._deathPoseUntil ?? 0) > now) return 'death'
+    if (now < this._hurtUntil) return 'hurt'
     const action = this._scene.bossSystem?._bossState?.action
-    if (action === 'lunge' || action === 'slam') return 'attack'
+    // Attack — latch the pose to the attack anim's full duration so a brief
+    // lunge/slam action window doesn't cut the swing short (2026-06-02; mirrors
+    // the minion-side fix). Without this the boss flipped back to recover/chase/
+    // idle mid-swing and the next play() interrupted the attack anim.
+    if (action === 'lunge' || action === 'slam') {
+      if (this._lastAtkAction !== action) {
+        this._lastAtkAction = action
+        const key = `${this._spriteKey}-attack-${this._facing}`
+        this._attackUntil = now + (this._scene.anims.get(key)?.duration || 500)
+      }
+      return 'attack'
+    }
+    this._lastAtkAction = null
+    if (now < (this._attackUntil ?? 0)) return 'attack'
     // 'chase' is BossSystem's fight-mode pursuit — boss is sprinting at the
     // adventurer, so use the run sheet. 'recover' (post-attack) and the
     // wander phase fall through to walk/idle based on actual movement.
