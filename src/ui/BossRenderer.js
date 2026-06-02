@@ -28,6 +28,10 @@ import { isActsEnabled, currentAct } from '../config/acts.js'
 // sheets show at 64×SCALE, 128-frame sheets at 128×SCALE. NEAREST filtering
 // on the textures (set in Preload) keeps the pixel art crisp when scaled up.
 const BOSS_SPRITE_SCALE = 2.0
+// Each ASCENSION grows the boss a little — a subtle "it's getting stronger"
+// read. +5% per tier above the first (T1 1.00 → T4 1.15). Acts-mode only; the
+// canonical/endless form never grows (see _tierScale).
+const BOSS_TIER_GROWTH  = 0.05
 const FALLBACK_SKIN     = 'vampire'
 const HURT_FLASH_MS     = 300
 // Movement gate for walk anim. Boss must move at least this many world px
@@ -369,6 +373,17 @@ export class BossRenderer {
     return Math.max(1, Math.min(4, currentAct(this._gameState)))
   }
 
+  // A small sprite-scale bump per ASCENSION so the boss visibly grows as it
+  // climbs the acts. Acts off → the tier pins to canonical (3) with no ascension,
+  // so it returns 1 (the boss stays exactly the size it's always been in endless
+  // mode). Acts on → +BOSS_TIER_GROWTH per tier above the first (T1 1.00, T2 1.05,
+  // T3 1.10, T4 1.15).
+  _tierScale(tier) {
+    if (!isActsEnabled()) return 1
+    const ascensions = Math.max(0, Math.min(3, (tier ?? 1) - 1))
+    return 1 + ascensions * BOSS_TIER_GROWTH
+  }
+
   // Resolve a tier to its texture-key base purely by sheet existence: a tier
   // with an explicit `${id}-t${n}` sheet uses it; any tier WITHOUT one (T3 for
   // most bosses, T1–T3 for the succubus, every tier when acts are off and the
@@ -389,6 +404,10 @@ export class BossRenderer {
   // new key, and clear slime sprites so they re-make at the new tier next tick.
   _applyTier(tier) {
     this._tier = tier
+    // Grow a touch with the ascension. Done BEFORE the same-sheet early-return:
+    // even when a tier reuses the canonical sheet (no re-texture), the ascension
+    // still happened, so the size should still tick up.
+    this._sprite?.setScale?.(BOSS_SPRITE_SCALE * this._tierScale(tier))
     const newKey = this._resolveSpriteKey(tier)
     if (newKey === this._spriteKey) return
     this._spriteKey   = newKey
@@ -438,7 +457,7 @@ export class BossRenderer {
     if (s.textures.exists(`${this._spriteKey}-idle`)) {
       sprite = s.add.sprite(0, 0, `${this._spriteKey}-idle`, 0)
         .setOrigin(0.5, 0.5)
-        .setScale(BOSS_SPRITE_SCALE)
+        .setScale(BOSS_SPRITE_SCALE * this._tierScale(this._tier))
     } else {
       sprite = s.add.rectangle(0, 0, 26, 26, 0x140820, 1)
       sprite.setStrokeStyle(2, 0xcc44ff, 1)
@@ -598,7 +617,7 @@ export class BossRenderer {
     if (!s.textures?.exists?.(`${this._spriteKey}-idle`)) return null
     return s.add.sprite(0, 0, `${this._spriteKey}-idle`, 0)
       .setOrigin(0.5, 0.5)
-      .setScale(BOSS_SPRITE_SCALE)
+      .setScale(BOSS_SPRITE_SCALE * this._tierScale(this._tier))
       .setAlpha(0)
       .setTint(DECOY_TINT)
   }
