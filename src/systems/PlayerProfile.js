@@ -60,6 +60,9 @@ const LEADERBOARD_NEW_SEEN_KEY_BASE   = 'qf.player.leaderboard_newseen'
 // a full-card notification with sprite + sound. Survives sessions, so
 // quitting the browser mid-celebration doesn't lose the moment.
 const PENDING_UNLOCKS_KEY_BASE        = 'qf.player.pending_unlocks'
+// Reckoning NG+ (KR P7) — highest NG+ tier the player has earned by winning the
+// campaign (0 = never won; 1 = base campaign won → NG+1 unlocked; etc.). Per-name.
+const RECKONING_TIER_KEY_BASE         = 'qf.player.reckoning_tier'
 // Per-name memory for the top-3 leaderboard celebration. Stores the
 // runId of the most recently celebrated qualifying run so the
 // celebration fires once per qualifying run — a new run that also
@@ -125,6 +128,7 @@ function _companionsNewSeenKeyFor(name)   { return `${COMPANIONS_NEW_SEEN_KEY_BA
 function _bossesNewSeenKeyFor(name)       { return `${BOSSES_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _leaderboardNewSeenKeyFor(name)  { return `${LEADERBOARD_NEW_SEEN_KEY_BASE}:${(name ?? '').trim()}` }
 function _pendingUnlocksKeyFor(name)      { return `${PENDING_UNLOCKS_KEY_BASE}:${(name ?? '').trim()}` }
+function _reckoningTierKeyFor(name)        { return `${RECKONING_TIER_KEY_BASE}:${(name ?? '').trim()}` }
 function _celebratedTop3KeyFor(name)      { return `${CELEBRATED_TOP3_KEY_BASE}:${(name ?? '').trim()}` }
 function _lastFinishedRunIdKeyFor(name)   { return `${LAST_FINISHED_RUNID_KEY_BASE}:${(name ?? '').trim()}` }
 function _leaderboardStandingKeyFor(name) { return `${LEADERBOARD_STANDING_KEY_BASE}:${(name ?? '').trim()}` }
@@ -756,6 +760,26 @@ export const PlayerProfile = {
   clearPendingUnlocks() {
     if (!this.getName()) return
     try { localStorage.removeItem(_pendingUnlocksKeyFor(this.getName())) } catch {}
+  },
+
+  // ── Reckoning NG+ (KR P7) — the campaign meta-unlock ─────────────────────
+  // The highest NG+ tier the player has earned (0 = never won the campaign).
+  getReckoningTier() {
+    const n = (this.getName() ?? '').trim()
+    if (!n) return 0
+    try { return Math.max(0, parseInt(localStorage.getItem(_reckoningTierKeyFor(n)) ?? '0', 10) || 0) }
+    catch { return 0 }
+  },
+  // Record that the player has earned up to NG+ `tier` (monotonic max). Returns
+  // true if this RAISED the ceiling (a fresh unlock worth celebrating).
+  unlockReckoningTier(tier) {
+    const n = (this.getName() ?? '').trim()
+    if (!n) return false
+    const cur = this.getReckoningTier()
+    const next = Math.max(cur, Math.max(0, tier | 0))
+    if (next <= cur) return false
+    try { localStorage.setItem(_reckoningTierKeyFor(n), String(next)) } catch {}
+    return true
   },
 
   // Top-3 celebration memory — see CELEBRATED_TOP3_KEY_BASE.
