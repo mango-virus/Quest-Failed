@@ -99,6 +99,9 @@ const ALDRIC_ART = {
       withdraw:    ['wrath'],
       act_cleared: ['obsessive-taunt'],
       duel_defeat: ['unhinged-dying'],
+      room:        ['obsessive-taunt', 'wrath'],   // regal disdain for the pit
+      trap:        ['wrath'],                       // a trap, for a king?
+      minion:      ['battle-joy', 'obsessed-attack'],
     },
     hurtTiers: ['hurt', 'wrath', 'obsessed-desperate', 'unhinged-dying'],
   },

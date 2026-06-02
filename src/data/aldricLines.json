@@ -72,6 +72,12 @@
         "No more games. No more tricks. Just the long walk to your throne.",
         "Stay there. STAY. I want to watch your face when I arrive.",
         "I haven't slept in weeks. I don't need to. I only need YOU."
+      ],
+      "4": [
+        "No more dungeon to scout. No more years to wait. Just the throne — and you.",
+        "I am the realm's answer to you, monster. I have come to deliver it.",
+        "Every soul you took crowned me. They march to your throne with me now.",
+        "There is nowhere left to hide. There is only the reckoning."
       ]
     },
     "room": {
@@ -89,6 +95,11 @@
         "I know this room. And the next. And the one after. ALL of them.",
         "You rearranged the stones. Cute. I'd already memorized every one.",
         "Not one shadow in this pit I haven't mapped. Nothing hides from me now."
+      ],
+      "4": [
+        "All of this — every horror — ends tonight. I will see it unmade.",
+        "I walked out of this pit a boy. I return a king. Look upon me and despair.",
+        "Your kingdom of bones. I have come to topple every last stone of it."
       ]
     },
     "trap": {
@@ -106,6 +117,11 @@
         "I KNEW that one was there. I let it bite me. I wanted to feel it.",
         "Your little snares — I've catalogued every one. Old friends, all.",
         "Spring them all! None of it matters! NONE of it stops me!"
+      ],
+      "4": [
+        "A trap, for a king? You truly have no honor left in you.",
+        "Cut me. The realm's hope does not bleed out so easily.",
+        "I have bled for every soul you took. One more wound changes nothing."
       ]
     },
     "minion": {
@@ -123,6 +139,11 @@
         "Dust. Dust. All of it dust before me.",
         "You think your pets can stop what I've made of myself?",
         "I've slain a thousand of these in my sleep. The waking ones fall just as fast."
+      ],
+      "4": [
+        "Kneel or fall, like all the rest. The result is the same.",
+        "Your servants break against me like waves on stone. I am inevitable.",
+        "Another one down. I carry their would-be victims into your throne room."
       ]
     }
   },

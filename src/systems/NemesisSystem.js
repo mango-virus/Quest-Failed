@@ -50,9 +50,11 @@ export class NemesisSystem {
     EventBus.on('ADVENTURER_ROOM_CHANGED', this._onRoomChanged,   this)
     EventBus.on('TRAP_TRIGGERED',          this._onTrapTriggered, this)
     EventBus.on('COMBAT_KILL',             this._onCombatKill,    this)
-    this._nemAdv = null          // the live scout adventurer (for COMBAT_KILL matching)
+    EventBus.on('ALDRIC_DUEL_BEGAN',       this._onDuelBegan,     this)
+    this._nemAdv = null          // the live scout/duel adventurer (for COMBAT_KILL matching)
     this._reactAt = 0            // shared throttle clock for dungeon reactions
     this._reactedRooms = new Set()
+    this._inDuel = false         // true once the Act IV duel begins — the cinematic owns him then
   }
 
   destroy() {
@@ -65,6 +67,7 @@ export class NemesisSystem {
     EventBus.off('ADVENTURER_ROOM_CHANGED', this._onRoomChanged,   this)
     EventBus.off('TRAP_TRIGGERED',          this._onTrapTriggered, this)
     EventBus.off('COMBAT_KILL',             this._onCombatKill,    this)
+    EventBus.off('ALDRIC_DUEL_BEGAN',       this._onDuelBegan,     this)
     this._stopProwl()
   }
 
@@ -74,16 +77,17 @@ export class NemesisSystem {
     this._hurtAt = 0
     this._nemAdv = adventurer ?? this._nemAdv
     this._reactedRooms.clear()
+    this._inDuel = false                          // fresh visit — reactions live again
     this._reactAt = this._scene?.time?.now ?? 0   // a grace beat after the entrance line
     const a = Math.min(4, act ?? this._gs.meta?.nemesis?.act ?? 1)
     const line = this._pick('arrive', String(a))
     if (line) this._scene?.time?.delayedCall?.(900, () => {
       EventBus.emit('NEMESIS_TAUNT', { line, act: a, source: 'arrive', log: true })
     })
-    // Acts I–III scout-and-prowl; Act IV he marches straight on the throne to
-    // duel, so no scouting taunts (and no prowl timer to re-summon the corner
-    // over the duel cinematic — AldricCinematic owns Aldric from here).
-    if (a < 4) this._startProwl(a)
+    // He prowl-taunts on every visit, including the Act IV march on the throne
+    // (per-act voice). The prowl is stopped the instant the duel begins
+    // (_onDuelBegan) so it can't re-summon the corner over the duel cinematic.
+    this._startProwl(a)
   }
 
   // A periodic scouting taunt while he prowls toward the throne — the portrait
@@ -119,19 +123,27 @@ export class NemesisSystem {
     if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'hurt', tier, log: false })
   }
 
-  // ── Living reactions to the dungeon (Acts I–III scout) ──────────────────────
-  // Aldric remarks on what he meets as he prowls — the rooms you built, the traps
-  // that bite him, the minions he cuts down — in his per-act voice, each mapped to
-  // a portrait emotion. All are gated on `_nemesis`, so the Act IV duel form
-  // (`_nemesisDuel`, owned by AldricCinematic) never triggers them. One shared
-  // throttle keeps him characterful rather than chatty.
+  // ── Living reactions to the dungeon (all acts) ──────────────────────────────
+  // Aldric remarks on what he meets as he advances — the rooms you built, the
+  // traps that bite him, the minions he cuts down — in his per-act voice, each
+  // mapped to a portrait emotion. This covers BOTH the Acts I–III scout
+  // (`_nemesis`) AND the Act IV Hero-King's march on the throne (`_nemesisDuel`).
+  // Once the duel begins (`_inDuel`), AldricCinematic owns him and these go quiet.
+  // One shared throttle keeps him characterful rather than chatty.
+
+  // Either Aldric form actively in the dungeon (scout or marching duel-King).
+  _isAldric(a) { return !!(a && (a._nemesis || a._nemesisDuel)) }
+
+  // The duel has begun — the cinematic owns Aldric now. Silence the march
+  // reactions + stop the prowl so neither re-summons the corner over the duel.
+  _onDuelBegan() { this._inDuel = true; this._stopProwl() }
 
   // He steps into a new room and sizes it up (once per room, ~half the time).
   _onRoomChanged({ adventurer, toRoomId } = {}) {
-    if (!adventurer?._nemesis || !toRoomId) return
+    if (this._inDuel || !this._isAldric(adventurer) || !toRoomId) return
     if (this._reactedRooms.has(toRoomId)) return            // one remark per room
     const room = this._gs.dungeon?.rooms?.find(r => r.instanceId === toRoomId)
-    if (room?.definitionId === 'boss_chamber') return       // the throne recoil owns that beat
+    if (room?.definitionId === 'boss_chamber') return       // the throne/duel owns that beat
     this._reactedRooms.add(toRoomId)
     if (Math.random() > ROOM_REACT_CHANCE) return           // not every doorway earns a line
     this._react('room')
@@ -139,23 +151,24 @@ export class NemesisSystem {
 
   // A trap bit him — he scoffs / steels / revels by act.
   _onTrapTriggered({ adventurer } = {}) {
-    if (!adventurer?._nemesis) return
+    if (this._inDuel || !this._isAldric(adventurer)) return
     this._react('trap')
   }
 
-  // He cut down one of the boss's minions (only HIS kills; the scout can't slay
-  // the plot-armored boss, so the victim is always a minion).
+  // He cut down one of the boss's minions (only HIS kills; Aldric can't slay the
+  // plot-armored boss during a scout, so the victim is always a minion).
   _onCombatKill({ sourceId } = {}) {
     const me = this._nemAdv
-    if (!me?._nemesis || sourceId == null || sourceId !== me.instanceId) return
+    if (this._inDuel || !this._isAldric(me) || sourceId == null || sourceId !== me.instanceId) return
     this._react('minion')
   }
 
   // Fire a per-act reaction line for `kind`, throttled so reactions don't stack.
   _react(kind) {
+    if (this._inDuel) return
     const now = this._scene?.time?.now ?? 0
     if (now - (this._reactAt ?? 0) < REACT_THROTTLE_MS) return
-    const act = Math.min(3, this._gs.meta?.nemesis?.act ?? 1)
+    const act = Math.min(4, this._gs.meta?.nemesis?.act ?? 1)
     const line = this._reactLine(kind, act)
     if (!line) return
     this._reactAt = now
