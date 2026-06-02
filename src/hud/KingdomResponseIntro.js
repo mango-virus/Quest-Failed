@@ -227,12 +227,8 @@ export class KingdomResponseIntro {
           document.createTextNode(` Drawn by ${reason}.`),
         ]) : null,
         response.threat ? h('div', { className: 'qf-kri-threat' }, `"${response.threat}"`) : null,
-        response.gimmick ? h('div', { className: 'qf-kri-mod' }, [
-          h('div', { className: 'qf-kri-mod-ico' }, '⚠'),
-          h('div', { className: 'qf-kri-mod-txt' }, [
-            h('b', {}, 'THIS ACT: '), document.createTextNode(response.gimmick),
-          ]),
-        ]) : null,
+        // The act's mechanical effect ("THIS ACT: …") now lives in the act-number
+        // hover popover (TopBar qf-day-act-pop), keeping this reveal to the story beat.
         h('div', { className: 'qf-kri-actions' }, [
           h('button', { className: 'btn primary', on: { click: () => this._dismiss() } }, 'CONTINUE'),
           h('div', { className: 'qf-kri-hint' }, 'PRESS ANY KEY'),

@@ -1616,6 +1616,12 @@ body {
   letter-spacing: 1px; margin-bottom: 6px; line-height: 1.4; }
 .qf-day-act-pop-detail { font-family: 'VT323', monospace; font-size: 16px;
   line-height: 1.4; color: #c9bfb0; }
+/* The act's mechanical effect ("THIS ACT: …"), moved here off the intro reveal. */
+.qf-day-act-pop-effect { margin-top: 7px; padding-top: 6px;
+  border-top: 1px solid rgba(232, 154, 60, 0.22);
+  font-family: 'VT323', monospace; font-size: 15px; line-height: 1.4; color: #e6d6b6; }
+.qf-day-act-pop-effect-ico { color: var(--warn, #e89a3c); }
+.qf-day-act-pop-effect b { color: var(--warn, #e89a3c); letter-spacing: 0.3px; }
 /* Boss form + ascension surge line in the act popover (KR P6). */
 .qf-day-act-pop-asc { display: flex; align-items: center; gap: 5px; margin-top: 7px;
   padding-top: 6px; border-top: 1px solid rgba(201, 139, 255, 0.22);

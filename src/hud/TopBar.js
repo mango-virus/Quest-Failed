@@ -434,13 +434,15 @@ export class TopBar {
     this._paintAct({
       act, accent: response.accent || '#d4a648',
       name: response.name || 'The Kingdom Responds', detail: response.threat || '',
+      effect: response.gimmick || '',
     })
   }
 
   // Fold the act into the day stamp: "ACT {N} — NIGHT 1", the accent-coloured
-  // ACT prefix carrying the response identity. Hover reveals the response name +
-  // threat (qf-day-act-pop). The phase part is updated by the tick.
-  _paintAct({ act, accent, name, detail }) {
+  // ACT prefix carrying the response identity. Hover reveals the response name,
+  // threat, and the act's mechanical effect ("THIS ACT: …") in qf-day-act-pop.
+  // The phase part is updated by the tick.
+  _paintAct({ act, accent, name, detail, effect } = {}) {
     const acc = accent || 'var(--gold)'
     // The boss's per-act ascension (form + cumulative HP/ATK surge) shows in the
     // hover popover + the boss-overview form badge — kept off the stamp itself so
@@ -455,6 +457,11 @@ export class TopBar {
       this._refs.dayActPop.replaceChildren(
         h('div', { className: 'qf-day-act-pop-name', style: { color: acc } }, name || 'The Kingdom'),
         detail ? h('div', { className: 'qf-day-act-pop-detail' }, detail) : null,
+        effect ? h('div', { className: 'qf-day-act-pop-effect' }, [
+          h('span', { className: 'qf-day-act-pop-effect-ico' }, '⚠'),
+          h('b', {}, ' THIS ACT: '),
+          effect,
+        ]) : null,
         asc ? h('div', { className: 'qf-day-act-pop-asc' }, [
           h('span', { className: 'qf-day-act-pop-asc-icon' }, '✦'),
           asc.ascended
