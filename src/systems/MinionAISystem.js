@@ -1124,11 +1124,20 @@ export class MinionAISystem {
       minion._wasChasingFlee = true
     }
     try {
+      // Same-room attack gate (2026-06-02, by user): only SWING when the
+      // minion and target share a room. A minion that has chased a target to
+      // within reach but is still one tile shy of the doorway must keep pathing
+      // THROUGH the door (fall through below) instead of swinging across the
+      // wall — no cross-door attacks (mirrors CombatSystem.tryAttack). Corridors
+      // count as rooms, so a minion + adv in the same corridor still fight.
+      const _rm = this._dungeonGrid?.getRoomAtTile?.(minion.tileX, minion.tileY)
+      const _rt = this._dungeonGrid?.getRoomAtTile?.(target.tileX, target.tileY)
+      const sameRoom = !!(_rm && _rt && _rm.instanceId === _rt.instanceId)
       // No overlap-attacks: a minion standing on the same tile as the
       // target doesn't swing at point-blank — they wait for the adv to
       // step off. Symmetric with the adv-side rule in AISystem.
-      if (d >= 0.99 && d <= reach + 0.01) {
-        // In range — attack
+      if (sameRoom && d >= 0.99 && d <= reach + 0.01) {
+        // In range AND same room — attack
         this._combatSystem.tryAttack(minion, target, {
           roomId: minion.assignedRoomId,
         })

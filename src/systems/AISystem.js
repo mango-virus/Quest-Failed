@@ -2750,6 +2750,14 @@ export class AISystem {
     // Doorway pass-through: an adventurer in a doorway keeps walking and
     // ignores all targets. Stops the adv from halting path mid-doorway.
     if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) return null
+    // Same-room only (2026-06-02, by user): an adventurer engages ONLY minions
+    // in its own room — no attacking (melee OR ranged) across a doorway. A
+    // minion in an adjacent room within raw range is ignored, so the adv keeps
+    // pathing toward its goal (into that room, where it then engages same-room)
+    // instead of freezing at the threshold swinging through the wall. Mirrors
+    // the CombatSystem.tryAttack same-room gate.
+    const advRoomId = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId ?? null
+    if (advRoomId == null) return null
     const nowMs = this._scene?.time?.now ?? 0
     let best = null, bestDist = Infinity
     // Manhattan-bounds early-exit BEFORE the per-pair hypot. With `reach`
@@ -2763,6 +2771,9 @@ export class AISystem {
       const dxAbs = Math.abs(m.tileX - adv.tileX)
       const dyAbs = Math.abs(m.tileY - adv.tileY)
       if (dxAbs > reachCeil || dyAbs > reachCeil) continue
+      // Same-room gate — skip minions in a different room (or on a door /
+      // corridor tile that isn't the adv's room). No cross-door engagement.
+      if (this._dungeonGrid?.getRoomAtTile?.(m.tileX, m.tileY)?.instanceId !== advRoomId) continue
       // Beast Master tame protection — a minion a Beast Master has tamed,
       // OR is actively trying to tame (recent _tameTargetedAt stamp from
       // ClassAbilitySystem), is off-limits to every other adventurer's

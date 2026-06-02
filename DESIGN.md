@@ -491,6 +491,8 @@ If the adventurers make it to the final room (the boss room) they attempt to fig
 
 Some traps need power from a Core room; ~~minions need a Barracks within N rooms~~ (deviation noted 2026-05-25: minion placement proximity to a Barracks is no longer required — owning a Barracks still gates roster-slot capacity, but minions may be placed in any non-special room as long as a roster slot is free and the per-room cap isn't full); treasure rooms must be 3+ rooms deep. Layout of the dungeon should be a puzzle.
 
+**Same-room combat rule (2026-06-02).** Combat is strictly **room-bound**: a minion, adventurer, or the boss can only attack a target that is in the **same room** — nothing trades blows across a doorway or wall, melee or ranged. Ranged classes (Mage, Black Mage, etc.) still fire across their *own* room, but never into the next one; a hunter must enter the target's room before it can swing. (Corridors are rooms, so two entities sharing a corridor still fight.) Enforced at the single combat chokepoint `CombatSystem.tryAttack` (a same-room gate alongside the existing on-a-doorway-tile gate); the AI engage paths mirror it — adventurers only target same-room minions, and minions path through the door before swinging rather than pacing at the threshold. Traps (own LOS/room logic — projectile traps already stop at doors) and the boss-fight scene are unaffected.
+
 ---
 
 ## Boss archetypes

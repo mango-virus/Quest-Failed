@@ -52,6 +52,25 @@ export class CombatSystem {
       if (grid.getTileType(target.tileX,   target.tileY)   === TILE.DOOR) return null
     }
 
+    // Same-room gate (2026-06-02, by user). NOTHING attacks across a doorway:
+    // the attacker and target must be in the SAME room for any swing — melee
+    // OR ranged — to land. Two entities on floor tiles either side of a shared
+    // door are within raw attack range but in different rooms, so they can't
+    // trade blows; a ranged class (mage / black mage, reach 4) likewise only
+    // hits across its OWN room, never into the next one. getRoomAtTile is null
+    // on a door/void tile so a null room never matches (belt-and-braces with
+    // the doorway gate above). Corridors are rooms, so two entities in the same
+    // corridor still fight. The AI engage paths mirror this (advs only target
+    // same-room minions; minions path through the door before swinging) so
+    // attackers close in rather than pacing at the threshold. Boss fight
+    // (separate scene), traps (own LOS/room logic) and poison DoT don't route
+    // through tryAttack, so they're unaffected.
+    if (grid?.getRoomAtTile) {
+      const aRoom = grid.getRoomAtTile(attacker.tileX, attacker.tileY)
+      const tRoom = grid.getRoomAtTile(target.tileX, target.tileY)
+      if (!aRoom || !tRoom || aRoom.instanceId !== tRoom.instanceId) return null
+    }
+
     const now = this._scene.time.now
     const cooldown = this._cooldownFor(attacker)
     if (now - (attacker.lastAttackAt ?? 0) < cooldown) return null
