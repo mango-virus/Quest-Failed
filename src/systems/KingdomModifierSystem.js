@@ -83,6 +83,7 @@ export class KingdomModifierSystem {
     EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
     EventBus.off('ACT_STARTED', this._onActStarted, this)
     EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
+    this._pantheonG?.destroy(); this._pantheonG = null
   }
 
   // Which Kingdom Response is governing the current act (or null). Act-wide
@@ -240,14 +241,16 @@ export class KingdomModifierSystem {
   update(_dt) {
     const resp = currentActResponseId(this._gs)
     const wave = (this._gs.adventurers?.active?.length ?? 0) > 0
-    if (!wave) return
+    if (!wave) { this._pantheonG?.clear(); return }
     // Boss ascension dark aura — present in every ascended act (II+), regardless
     // of which Kingdom Response governs it. The dungeon radiates absorbed power.
     this._tickAscensionAura()
     // Mage Tower — reality-warping magic while its act runs.
     if (resp === 'mage_tower') this._tickMageTower()
-    // Pantheon — the angels' holy aura pulses.
-    else if (resp === 'pantheon') this._tickPantheonAura()
+    // Pantheon — the angels' holy aura pulses (mechanic) + the consecrated-ground
+    // VFX renders every frame so the heal/sear radius is visible.
+    else if (resp === 'pantheon') { this._tickPantheonAura(); this._tickPantheonAuraVfx() }
+    else if (this._pantheonG) { this._pantheonG.clear() }
     // Inquisition — the holy law purges your undead minions.
     else if (resp === 'inquisition') this._tickInquisitionPurge()
     // Plunderers — the thieves pickpocket your treasury each pulse.
@@ -343,6 +346,55 @@ export class KingdomModifierSystem {
       if (angels.some(an => near(an, m))) { m.resources.hp -= sear; seared++ }
     }
     if (healed || seared) EventBus.emit('PANTHEON_AURA', { healed, seared })
+  }
+
+  // Pantheon holy-ground VISUAL (KR polish) — a radiant consecrated zone painted
+  // on the floor beneath each angel, so the heal/sear radius is SEEN, not just
+  // logged. Per-frame canvas draw (Graphics, never an infinite CSS anim → safe
+  // for preview_screenshot): layered golden ground-glow + a breathing boundary
+  // ring + slowly-rotating light spokes + twinkling motes. Cleared when no angel
+  // is present (day end / all angels down). Depth 1.6 = on the floor, under the
+  // entities (it's holy GROUND).
+  _tickPantheonAuraVfx() {
+    const angels = (this._gs.adventurers?.active ?? [])
+      .filter(a => a.flags?.pantheonHero && (a.resources?.hp ?? 0) > 0)
+    if (angels.length === 0) { this._pantheonG?.clear(); return }
+    const g = this._pantheonG ?? (this._pantheonG = this._scene.add.graphics().setDepth(1.6))
+    g.clear()
+    const now = this._scene.time?.now ?? 0
+    const R = PANTHEON_AURA_RADIUS_PX
+    const pulse = 0.5 + 0.5 * Math.sin(now / 420)            // 0..1 breathe
+    const rot   = now / 2200
+    for (const an of angels) {
+      const x = an.worldX ?? 0, y = an.worldY ?? 0
+      // Soft golden ground-glow — concentric fills, outer→inner rising alpha.
+      const layers = [[1.04, 0.05], [0.8, 0.08], [0.55, 0.12], [0.3, 0.2], [0.14, 0.28]]
+      for (const [f, a] of layers) { g.fillStyle(0xffe08a, a * (0.72 + 0.28 * pulse)); g.fillCircle(x, y, R * f) }
+      // Slowly-rotating light spokes (god-ray fan).
+      g.lineStyle(2, 0xfff8d8, 0.16 + 0.16 * pulse)
+      for (let i = 0; i < 8; i++) {
+        const ang = rot + i * (Math.PI / 4)
+        g.beginPath()
+        g.moveTo(x + Math.cos(ang) * R * 0.28, y + Math.sin(ang) * R * 0.28)
+        g.lineTo(x + Math.cos(ang) * R * 0.96, y + Math.sin(ang) * R * 0.96)
+        g.strokePath()
+      }
+      // Breathing boundary ring (the edge of consecrated ground).
+      g.lineStyle(2.5, 0xfff3c4, 0.3 + 0.45 * pulse)
+      g.strokeCircle(x, y, R * (0.9 + 0.07 * pulse))
+      // Twinkling motes — phase-offset sparkles at fixed angular slots (no
+      // per-mote lifecycle; the offsets give a "living" shimmer cheaply).
+      for (let i = 0; i < 6; i++) {
+        const ph = now / 300 + i * 1.7
+        const tw = 0.5 + 0.5 * Math.sin(ph)
+        if (tw < 0.35) continue
+        const ma = i * 2.39996 + rot * 0.6                  // golden-angle spread
+        const mr = R * (0.35 + 0.5 * ((i * 0.37) % 1))
+        const mx = x + Math.cos(ma) * mr, my = y + Math.sin(ma) * mr - 4
+        g.fillStyle(0xfffbe6, 0.5 * tw)
+        g.fillCircle(mx, my, 1.6 + tw)
+      }
+    }
   }
 
   // The seraph resurrects the fallen — when a pantheon hero dies, raise a Radiant
