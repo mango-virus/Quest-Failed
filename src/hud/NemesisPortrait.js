@@ -117,17 +117,20 @@ function _ensureCss() {
   filter:drop-shadow(0 0 12px var(--nem-tint,#ffd24a)); }
 .qf-nemesis-ph-text { font-family:'VT323',monospace; font-size:12px; color:#5a5470; letter-spacing:1px; }
 
-/* Speech bubble — sits to the LEFT of the portrait, tail pointing right at him. */
-.qf-nemesis-bubble { position:absolute; right:560px; bottom:236px; max-width:320px;
+/* Speech bubble — opens ABOVE the portrait with a fixed width (mirrors the
+   companion's left:332/width:250). MUST set an explicit width: positioned via a
+   right offset inside the 560px rig, an auto width collapses to one word/line. */
+.qf-nemesis-bubble { position:absolute; z-index:2; right:332px; bottom:404px; width:250px;
   pointer-events:auto;
   background:linear-gradient(180deg,#fffdf4,#efe6cf); color:#241a08;
-  border:2px solid var(--nem-tint,#ffd24a); border-radius:7px; padding:11px 14px;
-  font-family:'VT323',monospace; font-size:19px; line-height:1.32; letter-spacing:.3px;
+  border:2px solid var(--nem-tint,#ffd24a); border-radius:7px; padding:8px 13px 10px;
+  font-family:'VT323',monospace; font-size:18px; line-height:1.3; letter-spacing:.3px;
   box-shadow:0 0 16px rgba(255,200,80,.28), 0 4px 0 rgba(0,0,0,.45);
   opacity:0; transform:translateY(6px) scale(.96); transition:opacity .18s ease, transform .18s ease; }
 .qf-nemesis-bubble.on { opacity:1; transform:translateY(0) scale(1); }
-.qf-nemesis-bubble::after { content:''; position:absolute; right:-9px; bottom:22px;
-  border:8px solid transparent; border-left-color:#efe6cf; border-right:0; }
+/* downward tail toward his head (the portrait's top-centre, just below-right). */
+.qf-nemesis-bubble::after { content:''; position:absolute; bottom:-9px; right:104px;
+  border:8px solid transparent; border-top-color:#efe6cf; border-bottom:0; }
 .qf-nemesis-bubble-name { display:block; font-family:'Press Start 2P',monospace;
   font-size:9px; letter-spacing:1px; color:#7a1f1f; margin-bottom:7px; }
 
