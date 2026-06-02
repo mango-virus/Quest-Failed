@@ -15,6 +15,20 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 11,
+    version: '0.1.12',
+    date: 'June 2026',
+    title: 'The Kingdom’s Reckoning',
+    items: [
+      { icon: '🏰', text: 'A new campaign: clear four acts to WIN the run.' },
+      { icon: '🎯', text: 'A Nemesis hero stalks you across every act.' },
+      { icon: '⚔️', text: 'The kingdom escalates — rivals, crusades, traitors, and more.' },
+      { icon: '💀', text: 'Your boss ascends into a darker form each act.' },
+      { icon: '👑', text: 'Duel the Hero King in the finale to claim victory.' },
+      { icon: '🏆', text: 'Win to unlock a tougher Reckoning New Game+.' },
+    ],
+  },
+  {
     id: 10,
     version: '0.1.11',
     date: 'June 2026',
@@ -34,7 +48,7 @@ export const WHATS_NEW = [
     items: [
       { icon: '🪤', text: 'Traps can now break after firing on an adventurer.' },
       { icon: '🔧', text: 'New REBUILD button restores broken traps for gold at night.' },
-      { icon: '🗝️', text: 'Treasure Hunters now raid every 10 days for up to 80% of your gold.' },
+      { icon: '🗝️', text: 'Treasure Hunters can raid your gold — let the wave escape and lose up to 80%.' },
     ],
   },
   {
