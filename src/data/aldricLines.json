@@ -40,6 +40,13 @@
     "Smile while you can, demon. I've cut down prettier monsters than you.",
     "When I've slain your lord, perhaps I'll let you live to mourn. Perhaps."
   ],
+  "companionRetort": [
+    "Persistent little hero, isn't he? Shall I fetch a broom for the after, my lord?",
+    "He talks a big game for someone about to decorate your throne room.",
+    "Ooh, I'm trembling. Are we trembling, boss? I don't think we're trembling.",
+    "Every single one makes that speech. Every single one ends up a stain.",
+    "Let him bark, my lord. We've buried braver — and far prettier."
+  ],
   "minionKill": [
     "Pathetic. Is that all?",
     "Another of your slaves returned to dust. Send more.",

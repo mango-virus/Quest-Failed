@@ -993,6 +993,9 @@
     "metric": "reckoningWinsTotal",
     "target": 1,
     "icon": "♛",
+    "title": "The Hero's End",
+    "titleColor": "#c0303a",
+    "titleFx": "bloodstorm",
     "legendary": true
   }
 ]

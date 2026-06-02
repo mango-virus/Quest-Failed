@@ -12,6 +12,7 @@ import { PauseManager }   from '../systems/PauseManager.js'
 import { classLabel }     from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { pickWeightedClass } from '../util/classSpawn.js'
+import { userSettings }    from '../hud/userSettings.js'
 
 const TOP_H    = 48
 const BOTTOM_H = 56
@@ -1629,7 +1630,47 @@ export class DayPhase extends Phaser.Scene {
     const line = (duel && nem.formLine(cfg.form, 'opener')) || nem.pick('arrive', String(cfg.act))
     if (line) EventBus.emit('NEMESIS_TAUNT', { line, act: cfg.act, source: 'arrive', adventurer: adv })
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
+    // Scouting visits (acts I–III): if a companion rides with the boss, Aldric
+    // and the companion trade barbs. Skipped on the Act IV duel — that climax
+    // stays focused on the fight, not banter.
+    if (!duel) this._maybeNemesisCompanionBanter(nem, cfg)
     return [adv]
+  }
+
+  // A quick two-beat barb exchange between Aldric and the player's companion,
+  // staged across the nemesis portrait/log (Aldric's jab at the "creature") and
+  // the companion bubble (the comeback). ~50% per scouting arrival; skipped when
+  // the companion is silenced. Uses scene-time delays so it pauses with the game
+  // and tears down cleanly on scene shutdown.
+  _maybeNemesisCompanionBanter(nem, cfg) {
+    if (userSettings.isCompanionSilent?.()) return
+    if (Math.random() > 0.5) return
+    const jab = nem.pick?.('banterCompanion')
+    if (!jab) return
+    const retort = nem.pick?.('companionRetort')
+    const act = cfg?.act ?? 1
+    this.time.delayedCall(2200, () => EventBus.emit('NEMESIS_TAUNT', { line: jab, act, source: 'banter', log: true }))
+    if (retort) this.time.delayedCall(4000, () => EventBus.emit('NPC_BROKER_SAY', { text: retort, expr: 'mischievous' }))
+  }
+
+  // KR P2 composition tilt — a capped multiplier (1.0 quiet … ~1.45 peak)
+  // reflecting how much of a THREAT this run has become: a slaughter-heavy,
+  // gold-rich, evolved dungeon draws the kingdom's strongest answer; a quiet
+  // run draws a lighter one. Each signal is normalised against a rough
+  // par-by-this-day baseline so it tracks PLAYSTYLE, not just calendar time
+  // (boss-level scaling is applied separately). Tilts champion power + retinue
+  // size in _spawnChampionRaid; clamped so it can never become a death spiral.
+  _kingdomThreatMul() {
+    const t   = this._gameState.run?.totals ?? {}
+    const day = Math.max(1, this._gameState.meta?.dayNumber ?? 1)
+    const kills   = t.kills ?? 0
+    const gold    = t.goldEarned ?? this._gameState.player?.gold ?? 0
+    const evolved = (this._gameState.minions ?? []).filter(m => (m.level ?? 1) >= 3).length
+    const killScore = Math.min(1, kills   / (day * 8))   // ~8 kills/day = par
+    const goldScore = Math.min(1, gold    / 5000)
+    const evoScore  = Math.min(1, evolved / 6)
+    const threat = killScore * 0.5 + goldScore * 0.25 + evoScore * 0.25   // 0..1
+    return 1 + Math.min(0.45, threat * 0.45)
   }
 
   // Kingdom Response — Champion raid (KR P4). On a drafted act's final day the
@@ -1646,6 +1687,9 @@ export class DayPhase extends Phaser.Scene {
     const allClasses = this.cache.json.get('adventurerClasses') ?? []
     const dungeonLv = this._gameState.boss?.level ?? 1
     const spawned = []
+    // KR P2 composition tilt — how threatening the run has become, scaling both
+    // the champion's might and the retinue's size (see _kingdomThreatMul).
+    const _threat = this._kingdomThreatMul()
 
     // The champion — an imposing named mini-boss (legendary chrome, killable,
     // never flees, marches on the throne). Chassis + extra flags per response.
@@ -1670,9 +1714,14 @@ export class DayPhase extends Phaser.Scene {
         // it's mounting pressure, not a guaranteed death spiral.
         const _ot  = this._gameState.meta?.act?.overtimeDays ?? 0
         const _otMul = 1 + Math.min(0.4, _ot * 0.1)
-        const chp = Math.round((champ.resources?.maxHp ?? 120) * 3.5 * _otMul)
+        // KR P2 composition tilt (_threat, computed above) — the champion's
+        // might reflects how THREATENING the run has become (slaughter / gold /
+        // an evolved army): a fearsome dungeon draws the kingdom's strongest
+        // answer. Capped, orthogonal to the boss-level scaling already applied.
+        const chp = Math.round((champ.resources?.maxHp ?? 120) * 3.5 * _otMul * _threat)
         champ.resources.maxHp = chp; champ.resources.hp = chp
-        champ.stats.attack    = Math.round((champ.stats?.attack ?? 14) * 1.7 * _otMul)
+        champ.stats.attack    = Math.round((champ.stats?.attack ?? 14) * 1.7 * _otMul * _threat)
+        champ._kingdomThreatMul = _threat
         this._gameState.adventurers.active.push(champ)
         aiSystem.pickInitialGoal(champ)
         champ.goal = { type: 'SEEK_BOSS' }
@@ -1686,8 +1735,11 @@ export class DayPhase extends Phaser.Scene {
     if (response.id === 'reckoning_dead') {
       spawned.push(...this._spawnUndeadTide(allClasses, dungeonLv))
     } else {
+      // Composition tilt — a high-threat run swells each squad by up to +1
+      // (the kingdom commits more bodies to a fearsome dungeon).
+      const _bonus = Math.round((_threat - 1) * 3)
       for (const squad of (response.retinue ?? [])) {
-        spawned.push(...this._spawnRetinueSquad(squad, allClasses, dungeonLv))
+        spawned.push(...this._spawnRetinueSquad(squad, allClasses, dungeonLv, _bonus))
       }
     }
 
@@ -1701,7 +1753,7 @@ export class DayPhase extends Phaser.Scene {
 
     EventBus.emit('CHAMPION_RAID_INCOMING', {
       response, champion: response.champion, count: spawned.length,
-      act: this._gameState.meta?.act?.current,
+      act: this._gameState.meta?.act?.current, threatMul: _threat,
     })
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
     return spawned
@@ -1775,14 +1827,16 @@ export class DayPhase extends Phaser.Scene {
   // hpMul, atkMul, flags[], monster }. Real-hero squads (zealots, paladins,
   // mages, all-stars) stay full adventurers (chat/intel/loot); monster packs
   // (the Rival's horror swarm) set `monster:true` to read as faceless invaders.
-  _spawnRetinueSquad(squad, allClasses, dungeonLv) {
+  _spawnRetinueSquad(squad, allClasses, dungeonLv, bonus = 0) {
     const game = this.scene.get('Game')
     const aiSystem = game?.aiSystem
     const def = allClasses.find(c => c.id === squad?.classId) ?? allClasses[0]
     if (!aiSystem || !def || !squad) return []
     const names = Array.isArray(squad.names) ? squad.names : null
     const out = []
-    for (let i = 0; i < (squad.count ?? 1); i++) {
+    // `bonus` (KR P2 composition tilt) adds extra bodies on a high-threat run.
+    const total = Math.max(1, (squad.count ?? 1) + Math.max(0, bonus | 0))
+    for (let i = 0; i < total; i++) {
       const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
       if (!spawn) break
       const a = createAdventurer(def, { x: spawn.x, y: spawn.y })
