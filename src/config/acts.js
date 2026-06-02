@@ -5,25 +5,25 @@
 // pure config + day↔act math + feature flag. The runtime state machine that
 // fires act transitions lives in src/systems/ActSystem.js.
 //
-// Everything is behind a feature flag (default OFF) so the current endless game
-// is completely untouched until the act campaign is built out and we flip it on
-// once the KR P3 vertical slice is solid. See DESIGN.md → "The Kingdom's
-// Reckoning" and DESIGN_COVERAGE.md → KR P1–P7.
+// The campaign is now LIVE by default (isActsEnabled below); the old endless
+// game is still reachable with `?acts=0` / `localStorage.acts='0'`. See DESIGN.md
+// → "The Kingdom's Reckoning" and DESIGN_COVERAGE.md → KR P1–P7.
 
 import { Balance } from './balance.js'
 
 // ── Feature flag ────────────────────────────────────────────────────────────
-// Opt-IN (mirrors HudRoot.isNewHudEnabled but defaults FALSE — this is an
-// in-progress feature). `?acts=1` or `localStorage.acts='1'` turns it on;
-// `?acts=0` forces it off.
+// LIVE — the Kingdom's Reckoning campaign is the default game (mirrors
+// HudRoot.isNewHudEnabled). `?acts=0` or `localStorage.acts='0'` disables it
+// and falls back to the old endless game; `?acts=1` forces it on.
 export function isActsEnabled() {
   try {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('acts') === '1') return true
     if (params.get('acts') === '0') return false
-    return localStorage.getItem('acts') === '1'
+    if (params.get('acts') === '1') return true
+    if (localStorage.getItem('acts') === '0') return false
+    return true
   } catch {
-    return false
+    return true
   }
 }
 
