@@ -461,6 +461,11 @@ export class Game extends Phaser.Scene {
     // the instant the boss falls, mid-outro (_onBossFightZoomOut guards it).
     EventBus.on('LIGHT_PARTY_DUEL_BEGAN', this._onBossFightZoomIn,  this)
     EventBus.on('LIGHT_PARTY_DUEL_END',   this._onBossFightZoomOut, this)
+    // Aldric — the Act IV climax duel uses the same cinematic push-in + camera
+    // lock as the other duels. Release is driven by BOSS_FIGHT_RESOLVED (above),
+    // which the duel emits ~2.6s AFTER its finale card — so the finale plays
+    // zoomed-in on the throne, then the camera pulls back (the SL pattern).
+    EventBus.on('ALDRIC_DUEL_BEGAN', this._onBossFightZoomIn,  this)
     // Persist the save the moment the intro is dismissed so `meta.introSeen`
     // hits disk immediately. The run-start save (ArchetypeSelect) is written
     // BEFORE the intro plays, so without this a player who quits during
@@ -566,6 +571,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightZoomOut, this)
     EventBus.off('LIGHT_PARTY_DUEL_BEGAN', this._onBossFightZoomIn,  this)
     EventBus.off('LIGHT_PARTY_DUEL_END',   this._onBossFightZoomOut, this)
+    EventBus.off('ALDRIC_DUEL_BEGAN',      this._onBossFightZoomIn,  this)
     EventBus.off('INTRO_DISMISSED',      this._onIntroDismissed, this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
     this.scale.off('resize', this._onSceneResize, this)

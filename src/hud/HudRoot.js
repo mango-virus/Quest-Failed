@@ -52,6 +52,7 @@ import { isActsEnabled }        from '../config/acts.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
 import { LightPartyCinematic }   from './LightPartyCinematic.js'
+import { AldricCinematic }       from './AldricCinematic.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
 import { JamPortalCorner }      from './JamPortalCorner.js'
@@ -199,6 +200,10 @@ export class HudRoot {
     // + LB gauge + boss-fight cinematic. Same self-mounting pattern as the
     // Solo Leveling cinematic; cheap no-op on every other day.
     this._lightParty       = new LightPartyCinematic()
+    // Aldric — the Act IV climax duel (boss vs the crowned Hero King). Form-
+    // themed presentation; the kinetic choreography + HP feed live in
+    // BossSystem._tickNemesisDuel. Same self-mounting pattern; idle otherwise.
+    this._aldric           = new AldricCinematic()
     // Pass the BottomBar's archetype-slot ref so the strip mounts INSIDE
     // the bar rather than floating above it (which used to cover the
     // dungeon view during day phase).
@@ -382,6 +387,8 @@ export class HudRoot {
     this._ascensionCinematic?.destroy(); this._ascensionCinematic = null
     this._coinFlip?.destroy();       this._coinFlip = null
     this._soloLeveling?.destroy();   this._soloLeveling = null
+    this._lightParty?.destroy();     this._lightParty = null
+    this._aldric?.destroy();         this._aldric = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
     const canvas = window.__game?.canvas
     if (this._onPointerMove)  canvas?.removeEventListener('pointermove',  this._onPointerMove)

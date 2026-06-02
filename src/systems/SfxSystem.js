@@ -247,6 +247,41 @@ export class SfxSystem {
     on('LIGHT_PARTY_DUEL_BEAT',        this._onLpDuelBeat)       // mechanic landing
     on('LIGHT_PARTY_DUEL_CAST',        this._onLpDuelCast)       // boss cast telegraph
     on('LIGHT_PARTY_RAISED',           this._onRevive)           // healer Raise lands
+
+    // ── Aldric — Act IV climax-duel cues ────────────────────────────────
+    // The duel is fully scripted (emits no COMBAT_HIT), so it's silent without
+    // wiring its bespoke beats here. `cue` comes from BossSystem._nemSfx.
+    on('NEMESIS_DUEL_SFX',             this._onNemesisDuelSfx)
+  }
+
+  // Aldric climax duel — map each scripted beat to a sound. Rapid clash/slash
+  // cues are rate-limited so a flurry can't stack into noise (same guard the
+  // Shadow Monarch duel uses).
+  _onNemesisDuelSfx({ cue } = {}) {
+    const now = this._now()
+    const swing = (vol) => {
+      this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2', vol)
+      this._meleeAlt = 1 - this._meleeAlt
+    }
+    switch (cue) {
+      case 'begin': this._play('sfx-event-boss'); break
+      case 'clash':
+        if (now - (this._lastNemClashAt ?? 0) < 110) return
+        this._lastNemClashAt = now; swing(); break
+      case 'slash':
+        if (now - (this._lastNemSlashAt ?? 0) < 85) return
+        this._lastNemSlashAt = now; swing(0.7); break
+      case 'lock':         this._play('sfx-melee-2', 0.45); break
+      case 'ult':          this._play('sfx-boss-attack', 1.3); break
+      case 'knockback':    this._play('sfx-boss-attack'); this._play('sfx-take-damage'); break
+      case 'resolve':      this._play('sfx-revive'); break          // the fakeout surge
+      case 'apex':         this._play('sfx-boss-levelup'); break    // crown ignites
+      case 'finalblow':    this._play('sfx-boss-attack', 1.4); break
+      // The actual death sting is NOT cued here: Aldric's fall already fires
+      // ADVENTURER_DIED → sfx-human-die, and the boss's fall fires
+      // BOSS_FIGHT_RESOLVED(party) → sfx-boss-death. Cueing them again here
+      // would double the sound.
+    }
   }
 
   // Solo Leveling duel — one melee swing per clash collision (rate-limited so

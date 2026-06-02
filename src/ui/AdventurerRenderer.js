@@ -509,6 +509,12 @@ export class AdventurerRenderer {
       if (adv._lpInDuel && boss && boss.worldX !== undefined) {
         adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
       }
+      // Aldric — the climax duel. Always face his opponent (the boss) so the
+      // swordsman reads as engaged through every dash, clash, and knockback
+      // (boss-facing while shoved back = backpedaling, which reads correctly).
+      if (adv._nemDuel && boss && boss.worldX !== undefined) {
+        adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
+      }
       // Stationary-entity gate — same pattern as MinionRenderer. Many
       // advs sit at the same tile while fighting / healing / talking;
       // skipping setPosition + setDepth when world coords haven't
@@ -750,6 +756,33 @@ export class AdventurerRenderer {
     let anim = 'idle'
     const cls = this._defMap?.[adv.classId]
     const tags = new Set(cls?.tags ?? [])
+    // Aldric — the Act IV climax duel. BossSystem._tickNemesisDuel drives his
+    // position and pulses `_nemStrikeAt` (a timestamp) at each clash. WALK is the
+    // always-looping base (weapon composited, never freezes); a strike plays the
+    // one-shot slash/thrust for a short window then falls straight back to walk —
+    // so he can never get stranded holding the extended final frame of a swing
+    // (the "stuck mid-attack" bug). Facing is set to the boss in the position
+    // pass above.
+    if (adv._nemDuel && (adv.resources?.hp ?? 0) > 0) {
+      const now = this._scene.time?.now ?? 0
+      const striking = adv._nemStrikeAt && (now - adv._nemStrikeAt) < (adv._nemStrikeMs ?? 340)
+      const dAnim = striking ? (adv._nemStrikeKind === 'thrust' ? 'thrust' : 'slash') : 'walk'
+      const { animKey, originY } = this._resolveLpcAnimKey(s, dAnim, dir)
+      if (!this._scene.anims.exists(animKey)) return
+      const img = s.lpc.image
+      if (!s.lpc.isMinionSheet && !s.lpc.bossSheet && img.originY !== originY) img.setOrigin(0.5, originY)
+      if (striking) {
+        // One-shot attack — (re)start once per strike pulse, identified by its
+        // timestamp so a new clash always re-swings.
+        if (s._nemStrikePlayed !== adv._nemStrikeAt) {
+          img.anims.play(animKey); s.lpc.lastAnim = animKey; s._nemStrikePlayed = adv._nemStrikeAt
+        }
+      } else if (s.lpc.lastAnim !== animKey) {
+        // Looping walk base — restart only on a key change.
+        img.anims.play(animKey, true); s.lpc.lastAnim = animKey
+      }
+      return
+    }
     // Light Party cinematic duel — alive members hold a WEAPON-OUT combat pose
     // and re-swing at the boss on a steady cadence. The ULPC *idle* pose draws
     // no weapon/shield (only walk/slash/thrust/spellcast composite the equipped

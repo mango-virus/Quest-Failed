@@ -175,6 +175,12 @@ export class BossSystem {
       this._tickLightPartyDuel(delta)
       return
     }
+    // Aldric's Act IV climax duel owns its own scripted kinetic layer (movement,
+    // HP curve, VFX, resolution) — same isolation as the Light Party duel.
+    if (this._nemDuelActive) {
+      this._tickNemesisDuel(delta)
+      return
+    }
     if (this._fighting) {
       this._tickFightAnim(delta)
       return
@@ -2303,6 +2309,12 @@ export class BossSystem {
         !this._lightPartyDuel) {
       return this._runLightPartyDuel(adventurer)
     }
+    // Aldric — the Act IV crowned Hero King reaches the throne. Intercept BEFORE
+    // the normal fight setup and route to the bespoke choreographed climax duel
+    // (see _runNemesisDuel). The flag guards re-entry while it plays.
+    if (adventurer?._nemesisDuel && !this._nemDuelActive) {
+      return this._runNemesisDuel(adventurer)
+    }
     // Defensive: never start a fight on a dead-posed boss or after
     // final death. boss.hp <= 0 is NOT a sufficient block on its own —
     // between fights with deathsRemaining > 0 the boss still has lives
@@ -2392,6 +2404,483 @@ export class BossSystem {
     this._scene.time.delayedCall(PREFIGHT_DELAY_MS, () => {
       this._combatStarted = true
     })
+  }
+
+  // ── Aldric — the Act IV climax duel (KR P2-polish) ────────────────────────
+  // The campaign's final set-piece: the boss vs Aldric, the crowned Hero King.
+  // Unlike the Shadow Monarch orbit-dance (real damage, movement-only swap),
+  // this is choreographed END-TO-END — a designed HP curve that SEE-SAWS so
+  // either side always looks like it could win, both fighters firing signature
+  // abilities, a blade-lock power-struggle, a knockback, and a slow-mo final
+  // blow. THEMED by Aldric's adaptive form (gold "Radiant Hope" / crimson
+  // "Vengeful Crown"). Outcome rolled up front from boss-vs-Aldric power so the
+  // player's whole campaign build decides it; the choreography hides the result
+  // until the last clash. Triggered from _onIncoming when `_nemesisDuel` Aldric
+  // reaches the throne. Cinematic layer: AldricCinematic.js.
+  _runNemesisDuel(adv) {
+    const boss = this._gameState.boss
+    if (!boss || !adv) return
+    this._fighting       = true
+    this._nemDuelActive  = true
+    this._combatStarted  = true
+    this._fightStartedAt  = this._scene.time?.now ?? 0
+    this._fightEnded     = false
+    this._duelMode       = false   // NOT the SL orbit dance
+    this._nemResolved    = false
+
+    this._recomputeBossFightStats()
+    if ((boss.hp ?? 0) <= 0) boss.hp = boss.maxHp
+    this._bossState = { action: 'idle' }
+
+    // Roll the winner from relative power (HP×attack) so a stronger boss is
+    // likelier to slay the Hero King — the player's build matters. Fed through
+    // the same piecewise curve as the other duels.
+    const bossPow = (boss.maxHp ?? 1) * (boss.attack ?? 1)
+    const aldPow  = (adv.resources?.maxHp ?? 1) * (adv.stats?.attack ?? 1)
+    const frac    = bossPow / Math.max(1, bossPow + aldPow)
+    const bossWins = Math.random() < this._duelWinChance(frac)
+
+    // Park Aldric — the choreography owns his position. `_nemDuel` tells the
+    // AdventurerRenderer to face the boss + animate (walk base + strike pulses).
+    adv.path = null; adv.goal = { type: 'AT_BOSS' }; adv._nemDuel = true; adv._nemStrikeAt = 0
+
+    const a = this._nemAnchors()
+    boss.worldX = a.throne.x; boss.worldY = a.throne.y   // boss holds the throne (north)
+    adv.worldX  = a.south.x;  adv.worldY  = a.south.y    // Aldric strides in (south)
+
+    const form = adv._aldricForm ?? this._gameState.meta?.nemesis?.form ?? null
+    const col  = form === 'desperate' ? 0xff3b46 : form === 'radiant' ? 0xffd76a : 0xe8c860
+    const col2 = form === 'desperate' ? 0xff8a78 : 0xfff3cf
+    const bossName = this._duelBossName()
+
+    EventBus.emit('ALDRIC_DUEL_BEGAN', { name: adv.name ?? 'ALDRIC', bossName, form, advFrac: 1, bossFrac: 1 })
+    this._nemSfx('begin')
+
+    this._nemDuel = {
+      boss, adv, bossWins, form, bossName, anchors: a, col, col2,
+      phase: null, t: 0, total: 0, watchdog: 0,
+      advFrac: 1, bossFrac: 1, advFrom: 1, advTo: 1, bossFrom: 1, bossTo: 1,
+      clash: { ...a.center }, hpEmitT: 0, nextFxT: 0, swap: false,
+    }
+    this._nemPlan = this._buildNemPlan(bossWins)
+    this._nemPhaseIndex = -1
+    this._nemAdvancePhase()
+  }
+
+  // Chamber positions the duel choreographs across.
+  _nemAnchors() {
+    const TS = Balance.TILE_SIZE
+    const { clampX, clampY } = this._roomClamp()
+    const room = this._bossRoom
+    const cx = clampX((room.gridX + room.width  / 2) * TS)
+    const cy = clampY((room.gridY + room.height / 2) * TS)
+    const dx = room.width  * TS * 0.30
+    const dy = room.height * TS * 0.30
+    return {
+      center: { x: cx, y: cy },
+      throne: { x: cx, y: clampY(cy - dy * 1.05) },
+      south:  { x: cx, y: clampY(cy + dy * 1.05) },
+      west:   { x: clampX(cx - dx * 1.1), y: cy },
+      east:   { x: clampX(cx + dx * 1.1), y: cy },
+      nw: { x: clampX(cx - dx), y: clampY(cy - dy) }, ne: { x: clampX(cx + dx), y: clampY(cy - dy) },
+      sw: { x: clampX(cx - dx), y: clampY(cy + dy) }, se: { x: clampX(cx + dx), y: clampY(cy + dy) },
+    }
+  }
+
+  // The phase plan: HP keyframes per beat. Early phases are identical for both
+  // outcomes (the swing reads the same); the late phases diverge to the rolled
+  // resolution. `advTo`/`bossTo` are the HP fractions both bars ease toward over
+  // the phase — designed so the lead trades hands: Aldric surges (dawnblade) →
+  // the boss rallies (its ult) → blade-lock → knockback → Aldric REFUSES to
+  // fall (heroic_resolve fakeout) → frantic exchange → hero-king apex → the
+  // decisive blow. `W` = boss wins.
+  _buildNemPlan(W) {
+    return [
+      { name: 'intro',          dur: 2.6, advTo: 1.00, bossTo: 1.00 },
+      { name: 'first_clash',    dur: 1.8, advTo: 0.92, bossTo: 0.90, beat: 'clash' },
+      { name: 'dawnblade',      dur: 2.7, advTo: 0.86, bossTo: 0.54, beat: 'dawnblade' },
+      { name: 'boss_rally',     dur: 2.9, advTo: 0.46, bossTo: 0.52, beat: 'boss_ult' },
+      { name: 'bladelock',      dur: 2.4, advTo: 0.42, bossTo: 0.48, beat: 'bladelock' },
+      { name: 'knockback',      dur: 1.5, advTo: W ? 0.30 : 0.48, bossTo: W ? 0.48 : 0.30, beat: 'knockback' },
+      { name: 'heroic_resolve', dur: 2.7, advTo: W ? 0.42 : 0.58, bossTo: W ? 0.40 : 0.30, beat: 'heroic_resolve' },
+      { name: 'exchange',       dur: 2.9, advTo: W ? 0.26 : 0.34, bossTo: W ? 0.30 : 0.20 },
+      { name: 'apex',           dur: 3.1, advTo: W ? 0.16 : 0.26, bossTo: W ? 0.24 : 0.12, beat: 'hero_king' },
+      { name: 'final_clash',    dur: 2.3, advTo: W ? 0.00 : 0.20, bossTo: W ? 0.20 : 0.00, beat: 'finalblow' },
+    ]
+  }
+
+  _nemAdvancePhase() {
+    const D = this._nemDuel
+    if (!D) return
+    this._nemPhaseIndex += 1
+    const ph = this._nemPlan?.[this._nemPhaseIndex]
+    if (!ph) { this._resolveNemesisDuel(D.bossWins); return }
+    D.phase = ph.name
+    D.t = 0
+    D.advFrom = D.advFrac; D.bossFrom = D.bossFrac
+    D.advTo = ph.advTo; D.bossTo = ph.bossTo
+    this._nemPhaseEnter(ph, D)
+  }
+
+  // Per-frame: ease both HP bars toward the phase target, commit to real HP,
+  // feed the cinematic, run the kinetic movement + VFX, advance on time.
+  // `deltaMs` is the raw (unscaled) frame delta from update(); we convert to
+  // seconds and SCALE by timeScale so a hitstop/slow-mo actually freezes the
+  // choreography — but the anti-freeze watchdog runs on RAW time so a stuck
+  // slow-mo can never strand the duel.
+  _tickNemesisDuel(deltaMs) {
+    const D = this._nemDuel
+    if (!D || this._nemResolved) return
+    const { boss, adv } = D
+    const TS = Balance.TILE_SIZE
+    const { clampX, clampY } = this._roomClamp()
+    const raw = Math.min(0.05, (deltaMs ?? 16) / 1000)
+    const dt  = raw * (this._scene?.time?.timeScale ?? 1)
+    D.total += dt; D.t += dt; D.watchdog += raw
+    const ph = this._nemPlan[this._nemPhaseIndex]
+    if (!ph) { this._resolveNemesisDuel(D.bossWins); return }
+
+    // easeInOutQuad toward the phase HP target.
+    const k = ph.dur > 0 ? Math.min(1, D.t / ph.dur) : 1
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2
+    D.advFrac  = D.advFrom  + (D.advTo  - D.advFrom)  * e
+    D.bossFrac = D.bossFrom + (D.bossTo - D.bossFrom) * e
+    adv.resources.hp = Math.max(0, Math.round((adv.resources.maxHp ?? 1) * D.advFrac))
+    boss.hp          = Math.max(0, Math.round((boss.maxHp ?? 1) * D.bossFrac))
+
+    D.hpEmitT += dt
+    if (D.hpEmitT >= 0.1) { D.hpEmitT = 0; EventBus.emit('ALDRIC_DUEL_HP', { advFrac: D.advFrac, bossFrac: D.bossFrac }) }
+
+    const moveTo = (en, tx, ty, speed) => {
+      const dx = tx - en.worldX, dy = ty - en.worldY
+      const d = Math.hypot(dx, dy)
+      if (d <= 0.01) return 0
+      const step = Math.min(d, speed * dt)
+      en.worldX = clampX(en.worldX + (dx / d) * step)
+      en.worldY = clampY(en.worldY + (dy / d) * step)
+      return d - step
+    }
+    const shake = (dur, mag) => this._scene.cameras?.main?.shake?.(dur, mag)
+    this._nemMove(ph.name, D, dt, TS, moveTo, shake)
+
+    if (D.t >= ph.dur) this._nemAdvancePhase()
+    if (D.watchdog > 45) this._resolveNemesisDuel(D.bossWins)   // anti-freeze backstop
+
+    adv.tileX  = Math.floor(adv.worldX  / TS); adv.tileY  = Math.floor(adv.worldY  / TS)
+    boss.tileX = Math.floor(boss.worldX / TS); boss.tileY = Math.floor(boss.worldY / TS)
+  }
+
+  // One-time entry effects + beat for a phase.
+  _nemPhaseEnter(ph, D) {
+    const sc = this._scene
+    const { boss, adv, col, col2, anchors: A } = D
+    const beat = (kind, label) => EventBus.emit('ALDRIC_DUEL_BEAT', { kind, label })
+    const ring = (x, y, c, o = {}) => AbilityVfx.pulseRing?.(sc, x, y, { color: c, ...o })
+    switch (ph.name) {
+      case 'dawnblade':
+        beat('dawnblade', D.form === 'desperate' ? 'VENGEANCE' : 'DAWNBLADE')
+        AbilityVfx.chargeUp?.(sc, adv.worldX, adv.worldY, { color: col, radius: 40 })
+        break
+      case 'boss_rally': {
+        beat('boss_ult', this._nemBossUltName())
+        this._nemSfx('ult')
+        AbilityVfx.chargeUp?.(sc, boss.worldX, boss.worldY, { color: 0xff5544, radius: 54 })
+        AbilityVfx.groundTelegraph?.(sc, boss.worldX, boss.worldY, { color: 0xff3322, radius: 90, shape: 'circle' })
+        break
+      }
+      case 'bladelock':
+        beat('bladelock', null)
+        break
+      case 'knockback':
+        beat('knockback', null)
+        break
+      case 'heroic_resolve':
+        beat('heroic_resolve', D.form === 'desperate' ? 'I AM THEIR VENGEANCE' : 'HEROIC RESOLVE')
+        this._nemSfx('resolve')
+        ring(adv.worldX, adv.worldY, col, { radius: 70 })
+        AbilityVfx.domeShield?.(sc, adv.worldX, adv.worldY, { color: col, radius: 56, durationMs: 1400 })
+        if (D.form === 'radiant') AbilityVfx.godRays?.(sc, adv.worldX, adv.worldY, { color: col2, radius: 90 })
+        else                       AbilityVfx.emberField?.(sc, adv.worldX, adv.worldY, { color: col, radius: 70 })
+        sc?.cameras?.main?.shake?.(220, 0.006)
+        EventBus.emit('ALDRIC_DUEL_BEAT', { kind: 'surge', label: 'THE TIDE TURNS' })
+        break
+      case 'apex':
+        beat('hero_king', D.form === 'desperate' ? 'CROWN OF VENGEANCE' : 'HERO-KING')
+        this._nemSfx('apex')
+        AbilityVfx.screenFlash?.(sc, { color: col2, alpha: 0.5, durationMs: 320 })
+        AbilityVfx.beamPillar?.(sc, adv.worldX, adv.worldY, { color: col, width: 46, durationMs: 1500 })
+        AbilityVfx.magicCircle?.(sc, adv.worldX, adv.worldY, { color: col, radius: 64 })
+        if (D.form === 'radiant') AbilityVfx.godRays?.(sc, adv.worldX, adv.worldY, { color: col2, radius: 120 })
+        AbilityVfx.burstRays?.(sc, adv.worldX, adv.worldY, { color: col, count: 14, length: 90 })
+        sc?.cameras?.main?.shake?.(300, 0.009)
+        break
+    }
+  }
+
+  // The kinetic layer — moves the boss + Aldric across the chamber per phase and
+  // sprays the per-phase VFX. Mirrors _tickDuel's moveTo style but bespoke.
+  _nemMove(phase, D, dt, TS, moveTo, shake) {
+    const sc = this._scene
+    const { boss, adv, col, col2, anchors: A } = D
+    const now = sc?.time?.now ?? 0
+    const mid = () => ({ x: (adv.worldX + boss.worldX) / 2, y: (adv.worldY + boss.worldY) / 2 })
+    const blade = (x, y, c, ang) => AbilityVfx.bladeArc?.(sc, x, y, { color: c, radius: 38, angle: ang ?? Math.random() * Math.PI * 2, sweep: 2.4 })
+    const impact = (x, y, c, big = false) => AbilityVfx.impactBurst?.(sc, x, y, { color: c, radius: big ? 70 : 44, sparks: big ? 10 : 6, debris: big ? 6 : 3, durationMs: big ? 460 : 340 })
+    // Pulse Aldric's one-shot swing anim. The renderer plays it for `ms` then
+    // falls back to the looping walk, so he never freezes on the held frame.
+    const strike = (ms = 340) => { adv._nemStrikeAt = now; adv._nemStrikeKind = 'slash'; adv._nemStrikeMs = ms }
+    // GAP keeps the two bodies ADJACENT (blades meeting) instead of stacked on
+    // one tile — boss holds the throne (north) side of a clash, Aldric the south.
+    const GAP = 1.35 * TS
+    const clashBoss = { x: A.center.x, y: A.center.y - GAP / 2 }
+    const clashAdv  = { x: A.center.x, y: A.center.y + GAP / 2 }
+    const near = () => Math.hypot(adv.worldX - boss.worldX, adv.worldY - boss.worldY) < GAP + 0.35 * TS
+
+    switch (phase) {
+      case 'intro':
+        moveTo(adv,  clashAdv.x,  clashAdv.y + 0.9 * TS,  3.4 * TS)
+        moveTo(boss, clashBoss.x, clashBoss.y - 0.9 * TS, 2.8 * TS)
+        break
+
+      case 'first_clash': {
+        moveTo(adv,  clashAdv.x,  clashAdv.y,  12 * TS)
+        moveTo(boss, clashBoss.x, clashBoss.y, 8 * TS)
+        if (!D._clashed && near()) {
+          D._clashed = true; strike(); this._nemSfx('clash')
+          const m = mid(); impact(m.x, m.y, col2, true); blade(m.x, m.y, col)
+          AbilityVfx.shockwave?.(sc, m.x, m.y, { color: col, radius: 80 })
+          shake(140, 0.006); this._hitstop(70, 0.18)
+          AbilityVfx.screenFlash?.(sc, { color: 0xffffff, alpha: 0.35, durationMs: 200 })
+        }
+        break
+      }
+
+      case 'dawnblade': {
+        // Aldric orbits the boss at arm's length, raining radiant cross-slashes.
+        this._bossState = { action: 'idle' }
+        D._ang = (D._ang ?? 0) + dt * 4.6
+        const R = 1.4 * TS
+        moveTo(adv, boss.worldX + Math.cos(D._ang) * R, boss.worldY + Math.sin(D._ang) * R, 11 * TS)
+        D.nextFxT -= dt
+        if (D.nextFxT <= 0) {
+          D.nextFxT = 0.22; strike(220); this._nemSfx('slash')
+          blade(adv.worldX, adv.worldY, col, D._ang + Math.PI / 2)
+          impact(boss.worldX, boss.worldY, col2)
+          AbilityVfx.pulseRing?.(sc, boss.worldX, boss.worldY, { color: col2, radius: 36 })
+          shake(60, 0.0022)
+        }
+        break
+      }
+
+      case 'boss_rally': {
+        // The boss unleashes its signature ult — chamber-wide. Aldric is hurled
+        // back to the south and braces.
+        this._bossState = { action: 'slam' }
+        moveTo(adv,  A.south.x,  A.south.y,  7 * TS)
+        moveTo(boss, A.center.x, A.center.y, 4 * TS)
+        if (D.t > 0.7 && !D._ulted) {
+          D._ulted = true
+          AbilityVfx.shockwave?.(sc, boss.worldX, boss.worldY, { color: 0xff4433, radius: 180, core: true })
+          AbilityVfx.burstRays?.(sc, boss.worldX, boss.worldY, { color: 0xff5533, count: 16, length: 140 })
+          AbilityVfx.screenFlash?.(sc, { color: 0xff5533, alpha: 0.4, durationMs: 300 })
+          shake(360, 0.012); this._hitstop(90, 0.2)
+          impact(adv.worldX, adv.worldY, 0xff6644, true)
+        }
+        break
+      }
+
+      case 'bladelock': {
+        // Both grind blade-to-blade, bodies a full stride apart, blades crossing
+        // in the gap between — strain sparks + a trembling screen.
+        this._bossState = { action: 'idle' }
+        const jx = Math.sin(D.t * 36) * 0.05 * TS
+        moveTo(adv,  clashAdv.x  + jx, clashAdv.y,  9 * TS)
+        moveTo(boss, clashBoss.x - jx, clashBoss.y, 9 * TS)
+        D.nextFxT -= dt
+        if (D.nextFxT <= 0) {
+          D.nextFxT = 0.07
+          const m = mid()
+          AbilityVfx.particleBurst?.(sc, m.x, m.y, { color: col2, count: 4, speed: 90, life: 260 })
+          if (Math.random() < 0.45) { blade(m.x, m.y, col, Math.random() * Math.PI); strike(260); this._nemSfx('lock') }
+          shake(50, 0.0016)
+        }
+        break
+      }
+
+      case 'knockback': {
+        // The winner overpowers + SHOVES the loser flying back into the wall.
+        const W = D.bossWins
+        const winner = W ? boss : adv
+        const loser  = W ? adv : boss
+        const dest   = W ? A.south : A.throne
+        if (W) this._bossState = { action: 'lunge' }
+        else   { this._bossState = { action: 'idle' }; if (!D._shoved) strike(420) }
+        moveTo(loser,  dest.x, dest.y, 18 * TS)
+        moveTo(winner, A.center.x, A.center.y, 6 * TS)
+        if (!D._shoved && Math.hypot(loser.worldX - dest.x, loser.worldY - dest.y) < 0.5 * TS) {
+          D._shoved = true; this._nemSfx('knockback')
+          AbilityVfx.crater?.(sc, loser.worldX, loser.worldY, { color: col, radius: 60 })
+          AbilityVfx.impactBurst?.(sc, loser.worldX, loser.worldY, { color: col2, radius: 70, sparks: 10, debris: 8, durationMs: 480 })
+          shake(300, 0.011); this._hitstop(80, 0.2)
+        }
+        break
+      }
+
+      case 'heroic_resolve': {
+        // Aldric rises behind his aegis at center; the boss circles at range.
+        this._bossState = { action: 'idle' }
+        moveTo(adv, A.center.x, A.center.y, 5 * TS)
+        D._ang = (D._ang ?? 0) + dt * 2.0
+        moveTo(boss, A.center.x + Math.cos(D._ang) * 1.7 * TS, A.center.y + Math.sin(D._ang) * 1.4 * TS, 5 * TS)
+        D.nextFxT -= dt
+        if (D.nextFxT <= 0) { D.nextFxT = 0.4; AbilityVfx.pulseRing?.(sc, adv.worldX, adv.worldY, { color: col, radius: 50 }) }
+        break
+      }
+
+      case 'exchange': {
+        // Frantic back-and-forth — both dash to an adjacent clash, trade a blow,
+        // then leap to opposite corners and charge back in.
+        const corners = D.swap ? [A.nw, A.se] : [A.ne, A.sw]
+        moveTo(adv,  clashAdv.x,  clashAdv.y,  13 * TS)
+        moveTo(boss, clashBoss.x, clashBoss.y, 11 * TS)
+        if (near()) {
+          strike(200); this._nemSfx('clash')
+          const m = mid(); impact(m.x, m.y, col2); blade(m.x, m.y, col, Math.random() * Math.PI * 2)
+          shake(70, 0.003)
+          D.swap = !D.swap
+          adv.worldX = corners[0].x; adv.worldY = corners[0].y
+          boss.worldX = corners[1].x; boss.worldY = corners[1].y
+        }
+        break
+      }
+
+      case 'apex': {
+        // Aldric channels the crown at center; the boss withdraws, then both
+        // charge for the apex clash (adjacent).
+        this._bossState = { action: 'slam' }
+        if (D.t < 1.4) {
+          moveTo(adv,  A.center.x, A.center.y, 4 * TS)
+          moveTo(boss, A.throne.x, A.throne.y, 5 * TS)
+        } else {
+          moveTo(adv,  clashAdv.x,  clashAdv.y,  14 * TS)
+          moveTo(boss, clashBoss.x, clashBoss.y, 12 * TS)
+          if (!D._apexClash && near()) {
+            D._apexClash = true; strike(420); this._nemSfx('clash')
+            const m = mid()
+            AbilityVfx.shockwave?.(sc, m.x, m.y, { color: col, radius: 130, core: true })
+            AbilityVfx.impactBurst?.(sc, m.x, m.y, { color: col2, radius: 90, sparks: 14, debris: 8, durationMs: 540 })
+            AbilityVfx.screenFlash?.(sc, { color: 0xffffff, alpha: 0.55, durationMs: 260 })
+            shake(360, 0.013); this._hitstop(110, 0.16)
+          }
+        }
+        break
+      }
+
+      case 'final_clash': {
+        // The decisive pass — they charge to an adjacent clash; time slows on the
+        // blow, a white flash, then they pass SIDE-BY-SIDE to opposite ends (no
+        // overlap). _resolveNemesisDuel (on phase end) delivers the killing blow.
+        this._bossState = { action: D.bossWins ? 'slam' : 'idle' }
+        if (D.t < 0.9) {
+          moveTo(adv,  clashAdv.x,  clashAdv.y,  16 * TS)
+          moveTo(boss, clashBoss.x, clashBoss.y, 14 * TS)
+          if (!D._slowmo && near()) {
+            D._slowmo = true; if (!D.bossWins) strike(600); this._nemSfx('finalblow')
+            this._hitstop(420, 0.12)   // long freeze on the final blow
+            AbilityVfx.screenFlash?.(sc, { color: 0xffffff, alpha: 0.85, durationMs: 360 })
+            const m = mid()
+            AbilityVfx.bladeArc?.(sc, m.x, m.y, { color: col2, radius: 70, angle: Math.PI / 4, sweep: 3 })
+            shake(220, 0.01)
+          }
+        } else {
+          // pass side-by-side to opposite ends (offset on x so they don't overlap)
+          moveTo(adv,  A.throne.x - 0.9 * TS, A.throne.y, 7 * TS)
+          moveTo(boss, A.south.x  + 0.9 * TS, A.south.y,  7 * TS)
+        }
+        break
+      }
+    }
+  }
+
+  // Per-archetype name for the boss's mid-duel signature ult (reuses the duel
+  // cast-name flavour); falls back to a generic for any future archetype.
+  _nemBossUltName() {
+    const ULTS = {
+      beholder: 'DISINTEGRATION RAY', demon: 'INFERNAL CATACLYSM', myconid: 'SPORE BLOOM',
+      wraith: 'WAIL OF THE DAMNED', gnoll: 'BLOODMOON HOWL', golem: 'EARTHQUAKE',
+      lich: 'NECROTIC NOVA', lizardman: 'TOXIC DELUGE', orc: 'WAR STOMP',
+      vampire: 'BLOOD TEMPEST', slime: 'ENGULFING TIDE', succubus: "RAPTURE'S END",
+    }
+    return ULTS[this._gameState.player?.bossArchetypeId] ?? 'CATACLYSM'
+  }
+
+  // Fire a scripted-duel audio cue. SfxSystem._onNemesisDuelSfx maps each cue to
+  // a sound (the duel emits no COMBAT_HIT, so it's silent without these).
+  _nemSfx(cue) { EventBus.emit('NEMESIS_DUEL_SFX', { cue }) }
+
+  _resolveNemesisDuel(bossWins) {
+    const D = this._nemDuel
+    if (!D || this._nemResolved) return
+    this._nemResolved = true
+    const { boss, adv, bossName } = D
+    const sc = this._scene
+    // The winner lands the killing blow — one last swing (the loser just falls).
+    if (!bossWins) { adv._nemStrikeAt = sc?.time?.now ?? 0; adv._nemStrikeKind = 'slash'; adv._nemStrikeMs = 700 }
+
+    // Killing-blow punch — hard shake + a beat of slow-mo + a white flash.
+    sc?.cameras?.main?.shake?.(540, 0.02)
+    AbilityVfx.screenFlash?.(sc, { color: 0xffffff, alpha: 0.9, durationMs: 380 })
+    if (sc?.time) { sc.time.timeScale = 0.2; window.setTimeout(() => { if (sc?.time && !this._fightEnded) sc.time.timeScale = 1 }, 520) }
+
+    EventBus.emit('ALDRIC_DUEL_END', { result: bossWins ? 'win' : 'loss', bossName })
+
+    // Let the finale card breathe (~2.6s wall-clock) before the death cascade
+    // fires the victory / game-over flow over the top of it.
+    window.setTimeout(() => this._finishNemesisDuel(bossWins), 2600)
+  }
+
+  _finishNemesisDuel(bossWins) {
+    const D = this._nemDuel
+    if (!D) return
+    const { boss, adv } = D
+    if (this._scene?.time) this._scene.time.timeScale = 1
+    this._fightEnded = true
+
+    if (bossWins) {
+      // Aldric falls → _killAdv → COMBAT_KILL → ADVENTURER_DIED (carries
+      // `_nemesisDuel`) → NemesisSystem._onDied → NEMESIS_SLAIN → run victory.
+      adv.resources.hp = 0
+      this._killAdv(adv, 'boss')
+      EventBus.emit('BOSS_FIGHT_RESOLVED', {
+        winner: 'boss', bossHpRemaining: boss.hp ?? 0,
+        deathsRemaining: boss.deathsRemaining ?? 0, rounds: 1, roundLog: [],
+      })
+    } else {
+      // The Hero King prevails — the boss loses a life (run-loss if final).
+      // Book-keeping mirrors a normal-fight party win.
+      boss.hp = 0
+      boss.deathsRemaining = Math.max(0, (boss.deathsRemaining ?? 0) - 1)
+      boss._diedThisDay = true
+      this._deathPoseUntil = Infinity
+      EventBus.emit('BOSS_FIGHT_RESOLVED', {
+        winner: 'party', bossHpRemaining: 0, deathsRemaining: boss.deathsRemaining,
+        rounds: 1, roundLog: [],
+      })
+      if (boss.deathsRemaining <= 0) {
+        EventBus.emit('BOSS_DEFEATED_FINAL', { totalDays: this._gameState.player?.totalDaysElapsed })
+      }
+      this._handOffToAIFlee?.(adv, 'boss_defeated')
+    }
+    this._endNemesisDuel()
+  }
+
+  _endNemesisDuel() {
+    const D = this._nemDuel
+    if (D?.adv) { D.adv._nemDuel = false; D.adv._nemStrikeAt = 0 }
+    this._nemDuel = null
+    this._nemPlan = null
+    this._nemPhaseIndex = -1
+    this._nemDuelActive = false
   }
 
   // ── Light Party — FFXIV-style cinematic duel ──────────────────────────

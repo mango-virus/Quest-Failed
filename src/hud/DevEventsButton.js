@@ -67,6 +67,19 @@ export class DevEventsButton {
       h('div', { className: 'qf-dev-events-card-id' }, def.id),
     ]))
 
+    // Aldric Act IV climax-duel triggers — force-spawn the crowned Hero King in
+    // duel mode right now (radiant or desperate form) so the climax cinematic
+    // can be watched without grinding to day 40. Routed to DayPhase via
+    // DEV_FORCE_ALDRIC_DUEL; only fires meaningfully during a day phase.
+    const duelCard = (form, label, icon) => h('button', {
+      className: 'qf-dev-events-card',
+      on: { click: () => this._pickDuel(form) },
+    }, [
+      h('div', { className: 'qf-dev-events-card-icon' }, icon),
+      h('div', { className: 'qf-dev-events-card-name pix' }, label),
+      h('div', { className: 'qf-dev-events-card-id' }, `aldric_duel · ${form}`),
+    ])
+
     this._modal = h('div', {
       className: 'qf-dev-events-modal',
       on: {
@@ -79,6 +92,10 @@ export class DevEventsButton {
           'Click an event to force it as the next scheduled event ' +
           '(bypasses the 3-day cadence and eligibility filter). Clears ' +
           'any in-progress event first.'),
+        h('div', { className: 'qf-dev-events-grid' }, [
+          duelCard('radiant',   'ALDRIC DUEL · RADIANT',   '♔'),
+          duelCard('desperate', 'ALDRIC DUEL · DESPERATE', '♛'),
+        ]),
         h('div', { className: 'qf-dev-events-grid' }, cards),
         h('div', { className: 'qf-dev-events-close pix',
           on: { click: () => this._closeModal() },
@@ -94,6 +111,11 @@ export class DevEventsButton {
   _pick(eventId) {
     if (!eventId) return
     EventBus.emit('DEV_FORCE_EVENT', { eventId })
+    this._closeModal()
+  }
+
+  _pickDuel(form) {
+    EventBus.emit('DEV_FORCE_ALDRIC_DUEL', { form })
     this._closeModal()
   }
 

@@ -2439,12 +2439,29 @@ export class DayPhase extends Phaser.Scene {
     // firing AFTER the flag clears) leaves the all-out timer un-armed → day hangs.
     const onLpDuelEnd = () => this.time.delayedCall(100, () => this._refreshStats())
 
+    // Mango dev — force the Act IV climax duel right now so it can be watched
+    // without grinding to day 40 (fired from the TEST EVENT dev modal). Stamps
+    // Aldric to the crowned Act IV form (optionally forcing radiant/desperate),
+    // spawns him, then starts the bespoke duel DIRECTLY on the boss — skipping
+    // the SEEK_BOSS march so the test never stalls on pathing. Only meaningful
+    // during an active day phase with a boss present.
+    const onDevDuel = ({ form } = {}) => {
+      const meta = this._gameState.meta ?? (this._gameState.meta = {})
+      meta.nemesis = { ...(meta.nemesis ?? {}), act: 4, crowned: true, returns: 3 }
+      if (form === 'desperate' || form === 'radiant') meta.nemesis.form = form
+      const arr = this._spawnNemesis(true)
+      const adv = Array.isArray(arr) ? arr[0] : null
+      const bossSystem = this.scene.get('Game')?.bossSystem
+      if (adv && bossSystem?._runNemesisDuel) bossSystem._runNemesisDuel(adv)
+    }
+
     EventBus.on('ADVENTURER_DIED',              onDeath)
     EventBus.on('ADVENTURER_FLED',              onChange)
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
     EventBus.on('CAMERA_FOLLOW_CHANGED',        onFollow)
     EventBus.on('PERSONALITY_COMBO_ACTIVATED',  onCombo)
     EventBus.on('LIGHT_PARTY_DUEL_END',         onLpDuelEnd)
+    EventBus.on('DEV_FORCE_ALDRIC_DUEL',        onDevDuel)
     this._listeners = [
       ['ADVENTURER_DIED',             onDeath],
       ['ADVENTURER_FLED',             onChange],
@@ -2452,6 +2469,7 @@ export class DayPhase extends Phaser.Scene {
       ['PERSONALITY_COMBO_ACTIVATED', onCombo],
       ['CAMERA_FOLLOW_CHANGED',       onFollow],
       ['LIGHT_PARTY_DUEL_END',        onLpDuelEnd],
+      ['DEV_FORCE_ALDRIC_DUEL',       onDevDuel],
     ]
   }
 

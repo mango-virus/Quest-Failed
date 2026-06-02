@@ -40,6 +40,17 @@ while ($listener.IsListening) {
         if (Test-Path $filePath -PathType Leaf) {
             $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
             $response.ContentType = if ($mimeTypes[$ext]) { $mimeTypes[$ext] } else { 'application/octet-stream' }
+            # Cache the heavy binary assets (textures/audio/fonts/video) hard:
+            # they never change mid-session, and re-fetching them all on every
+            # reload is what stalls this single-threaded server (the "boot wedges
+            # at ~7 textures" bug). Code (html/js/css/json) stays no-cache so
+            # live edits still show on reload.
+            $binaryExts = @('.png','.jpg','.gif','.svg','.ico','.ttf','.woff','.woff2','.mp4','.webm','.mp3','.wav')
+            if ($binaryExts -contains $ext) {
+                $response.Headers.Add('Cache-Control', 'public, max-age=86400, immutable')
+            } else {
+                $response.Headers.Add('Cache-Control', 'no-cache')
+            }
             $content = [System.IO.File]::ReadAllBytes($filePath)
             $response.ContentLength64 = $content.Length
             $response.OutputStream.Write($content, 0, $content.Length)
