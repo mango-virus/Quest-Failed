@@ -59,6 +59,11 @@ export class InquisitorSystem {
 
   _isInquisitor(adv) {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 1) <= 0) return false
+    // `flags.inquisitor` is stamped on the Inquisition Kingdom-Response raid units
+    // (champion + retinue + vanguard) so the response's marquee "nullify your dark
+    // pacts" gimmick actually fires during its own raid — those spawns carry no
+    // personality, so the tag check alone would miss them.
+    if (adv.flags?.inquisitor) return true
     const tags = this._personality?.getTags?.(adv) ?? null
     return !!(tags && (tags.has('inquisitor') || tags.has('anti_mechanic')))
   }

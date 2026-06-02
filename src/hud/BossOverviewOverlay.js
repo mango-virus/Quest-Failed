@@ -438,14 +438,8 @@ export class BossOverviewOverlay {
       ? [h('div', { className: 'qf-boss-empty' }, 'No pacts sealed yet — survive a day to be offered one.')]
       : pacts.map(p => this._pactRowExpanded(p))
     return h('div', { className: 'qf-boss-pacts-full', dataset: { suppressed: suppressed ? 'true' : 'false' } }, [
-      suppressed && h('div', {
-        className: 'pix',
-        style: {
-          background: 'rgba(120,40,160,0.18)', border: '1px solid rgba(190,130,230,0.55)',
-          color: '#e6c2ff', padding: '8px 10px', marginBottom: '8px', borderRadius: '4px',
-          fontSize: '9.5px', lineHeight: '1.6', textAlign: 'center',
-        },
-      }, '⚠ THE INQUISITION — your pact BENEFITS are sealed while an inquisitor walks your halls. The curses remain.'),
+      suppressed && h('div', { className: 'qf-boss-inq-banner pix' },
+        '⚠ THE INQUISITION — your pact BENEFITS are SEALED while an inquisitor walks your halls. The curses remain.'),
       ...rows,
     ])
   }

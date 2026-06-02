@@ -471,9 +471,10 @@ export class KingdomModifierSystem {
     if (!dayPhase?.scene?.isActive?.() || typeof dayPhase._spawnRetinueSquad !== 'function') return
     meta.act._pantheonRaises--
     const allClasses = this._scene.cache?.json?.get?.('adventurerClasses') ?? []
-    dayPhase._spawnRetinueSquad(
+    const raised = dayPhase._spawnRetinueSquad(
       { classId: 'paladin', count: 1, name: 'Raised Guardian', hpMul: 1.1, flags: ['pantheonHero'] },
       allClasses, this._gs.boss?.level ?? 1)
+    for (const r of raised) r.goal = { type: 'SEEK_BOSS' }   // join the assault, not wander
     EventBus.emit('PANTHEON_RAISE', { name: fallen?.name, remaining: meta.act._pantheonRaises })
   }
 
@@ -496,6 +497,9 @@ export class KingdomModifierSystem {
     for (const k of ['tileX', 'tileY', 'worldX', 'worldY']) {
       const t = a[k]; a[k] = b[k]; b[k] = t
     }
+    // Drop stale paths so each minion re-paths cleanly from its new tile (else it
+    // snaps back toward its old position — reads as a glitch, not a teleport).
+    a.path = null; a.pathIndex = 0; b.path = null; b.pathIndex = 0
     EventBus.emit('MAGE_BLINK', { a: a.name, b: b.name })
   }
 
@@ -510,7 +514,7 @@ export class KingdomModifierSystem {
     const out = dayPhase._spawnRetinueSquad(
       { classId: 'monster_invader', count: 1, name: 'Arcane Construct', monster: true, flags: ['noFlee'] },
       allClasses, this._gs.boss?.level ?? 1)
-    for (const c of out) c._arcaneConstruct = true
+    for (const c of out) { c._arcaneConstruct = true; c.goal = { type: 'SEEK_BOSS' } }   // march on the throne
     if (out.length) EventBus.emit('MAGE_SUMMON', { count: out.length })
   }
 

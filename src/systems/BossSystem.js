@@ -2424,6 +2424,14 @@ export class BossSystem {
   _runNemesisDuel(adv) {
     const boss = this._gameState.boss
     if (!boss || !adv) return
+    // Re-entry guard — a 2nd trigger (e.g. the dev button fired twice) would
+    // overwrite _nemDuel and strand the first Aldric in `active` with the duel
+    // anim and no driver, so the day never ends.
+    if (this._nemDuelActive) return
+    // _nemAnchors/_roomClamp deref this._bossRoom — it's lazily cached in update()
+    // by frame 1 normally, but harden the direct dev-trigger path.
+    this._bossRoom ??= this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!this._bossRoom) return
     this._fighting       = true
     this._nemDuelActive  = true
     this._combatStarted  = true
@@ -2880,11 +2888,20 @@ export class BossSystem {
 
   _endNemesisDuel() {
     const D = this._nemDuel
-    if (D?.adv) { D.adv._nemDuel = false; D.adv._nemStrikeAt = 0 }
+    if (D?.adv) { D.adv._nemDuel = false; D.adv._nemStrikeAt = 0; D.adv._nemStrikeKind = null; D.adv._nemStrikeMs = 0 }
     this._nemDuel = null
     this._nemPlan = null
     this._nemPhaseIndex = -1
     this._nemDuelActive = false
+    // Reset the fight-state machine — else update() keeps routing to
+    // _tickFightAnim forever (the boss resumes a phantom fight, stuck across the
+    // day boundary, and _onIncoming bails on `_fighting` so it can never fight
+    // again all run). Mirrors _endFight / _endLightPartyDuel.
+    this._fighting      = false
+    this._combatStarted = false
+    this._fightEnded    = true
+    this._bossState     = null
+    this._fightStates   = null
   }
 
   // ── Light Party — FFXIV-style cinematic duel ──────────────────────────

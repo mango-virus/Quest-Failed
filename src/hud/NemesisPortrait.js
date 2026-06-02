@@ -28,8 +28,13 @@ function _ensureCss() {
   const style = document.createElement('style')
   style.id = 'qf-nemesis-css'
   style.textContent = `
-.qf-nemesis { position:absolute; right:0; bottom:0; z-index:41; pointer-events:none;
-  display:flex; align-items:flex-end; gap:10px; padding:0 14px 8px 0;
+/* Docked just LEFT of the right-side panels and ABOVE the bottom bar so the
+   portrait never paints over the action bar or the Dungeon Log (it used to sit
+   flush at right:0/bottom:0, z-41, over both). Mirrors the companion's bottom-
+   corner placement on the left. */
+.qf-nemesis { position:absolute; right:calc(var(--hud-side, 320px) + var(--space-2, 8px));
+  bottom:calc(var(--hud-bottom, 116px) + var(--space-2, 8px)); z-index:41; pointer-events:none;
+  display:flex; align-items:flex-end; gap:10px; padding:0;
   transform:translateX(118%); transition:transform .5s cubic-bezier(.16,.84,.3,1);
   font-family:'Press Start 2P','Courier New',monospace; }
 .qf-nemesis.show { transform:translateX(0); }
@@ -61,7 +66,7 @@ function _ensureCss() {
   text-shadow:0 0 8px var(--nem-tint,#ffd24a); }
 .qf-nemesis-name { font-size:9px; letter-spacing:.5px; color:#ece2d2; margin-top:5px;
   line-height:1.4; text-shadow:0 1px 0 #000; }
-.qf-nemesis-mood { font-size:6px; letter-spacing:2px; color:#9aa7b4; margin-top:5px; }
+.qf-nemesis-mood { font-size:8px; letter-spacing:1.5px; color:#9aa7b4; margin-top:5px; }
 .qf-nemesis-ph { position:absolute; bottom:46px; left:50%; transform:translateX(-50%);
   font-family:'VT323',monospace; font-size:11px; color:#5a5470; letter-spacing:1px; }`
   document.head.appendChild(style)
@@ -82,6 +87,9 @@ export class NemesisPortrait {
     this._on('NEMESIS_ESCALATED',   p => this._render(p.act))
     this._on('DAY_PHASE_ENDED',     () => this._slideOut())
     this._on('NIGHT_PHASE_STARTED', () => this._slideOut())
+    // The Act IV duel cinematic (AldricCinematic) takes over the screen and IS
+    // Aldric — slide the rival card out so it doesn't compete/overlap with it.
+    this._on('ALDRIC_DUEL_BEGAN',   () => this._slideOut())
   }
 
   _on(evt, fn) { EventBus.on(evt, fn, this); this._listeners.push([evt, fn]) }

@@ -34,7 +34,7 @@ const BUILT_CHAMPION_RAIDS = new Set([
 // per-day count scales with how deep into the act you are (see _spawnVanguard).
 const VANGUARD = {
   rival:        { classId: 'monster_invader', name: 'Rival Scout',          monster: true, flags: ['noFlee'] },
-  inquisition:  { classId: 'cleric',          name: 'Inquisition Preacher', flags: ['noFlee'] },
+  inquisition:  { classId: 'cleric',          name: 'Inquisition Preacher', flags: ['noFlee', 'inquisitor'] },
   pantheon:     { classId: 'white_mage',      name: 'Seraph Acolyte', flags: ['pantheonHero'] },
   betrayer:     { classId: 'rogue',           name: 'Infiltrator' },
   forlorn_hope: { classId: 'barbarian',       name: 'Forerunner Martyr',    flags: ['noFlee', 'forlornMartyr'] },
@@ -1757,6 +1757,15 @@ export class DayPhase extends Phaser.Scene {
     // in-world VFX can crown each with a floating star + thread golden synergy
     // links between them (KingdomModifierSystem._tickAllStarsVfx).
     if (response.id === 'all_stars') for (const u of spawned) { if (u) u._allStar = true }
+    // Inquisition (KR audit fix) — its raid units carry no personality, so stamp
+    // `flags.inquisitor` so InquisitorSystem actually purges your dark-pact
+    // BENEFITS while the Inquisition raid is in the dungeon (its marquee gimmick).
+    if (response.id === 'inquisition') for (const u of spawned) { if (u) u.flags = { ...(u.flags ?? {}), inquisitor: true } }
+    // Pantheon (KR audit fix) — reset the seraph's resurrection budget per RAID
+    // (the stated intent), so each overtime raid gets the full cap rather than
+    // sharing one act-wide pool. Cleared to undefined so the `??=` in
+    // KingdomModifierSystem._pantheonRaise re-seeds it (keeps the cap single-sourced).
+    if (response.id === 'pantheon' && this._gameState.meta?.act) this._gameState.meta.act._pantheonRaises = undefined
 
     EventBus.emit('CHAMPION_RAID_INCOMING', {
       response, champion: response.champion, count: spawned.length,
@@ -1841,8 +1850,12 @@ export class DayPhase extends Phaser.Scene {
     if (!aiSystem || !def || !squad) return []
     const names = Array.isArray(squad.names) ? squad.names : null
     const out = []
-    // `bonus` (KR P2 composition tilt) adds extra bodies on a high-threat run.
-    const total = Math.max(1, (squad.count ?? 1) + Math.max(0, bonus | 0))
+    // `bonus` (KR P2 composition tilt) adds extra bodies on a high-threat run —
+    // but NOT to a uniquely-NAMED squad (e.g. the All-Stars legends), where an
+    // extra body would be a nameless "Mage"/"Rogue" duplicate undercutting the
+    // "dream-team of named champions" fantasy.
+    let total = Math.max(1, (squad.count ?? 1) + Math.max(0, bonus | 0))
+    if (names && names.length) total = Math.min(total, names.length)
     for (let i = 0; i < total; i++) {
       const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
       if (!spawn) break
@@ -2446,7 +2459,11 @@ export class DayPhase extends Phaser.Scene {
     // outro finishes (BossSystem clears `_lightPartyDuel` at the very end),
     // exactly like Solo Leveling keeps Jinwoo in active during his outro.
     const lpDuelRunning = !!this.scene.get('Game')?.bossSystem?._lightPartyDuel
-    if (n === 0 && this._allOutTimer == null && !lpDuelRunning) {
+    // Same hold for the Aldric climax duel — its finale + the killing-blow
+    // setTimeout play out after Aldric leaves `active`; don't let the day end
+    // (and tear down the scene) mid-finale.
+    const nemDuelRunning = !!this.scene.get('Game')?.bossSystem?._nemDuelActive
+    if (n === 0 && this._allOutTimer == null && !lpDuelRunning && !nemDuelRunning) {
       this._statsTexts?.activeCount?.setText('All adventurers out — day ends shortly')
       // Solo Leveling — hold an extra beat so Jinwoo's death animation (loss)
       // or portal fade-out (win) fully reads before the post-wave summary
@@ -2507,12 +2524,18 @@ export class DayPhase extends Phaser.Scene {
     // the SEEK_BOSS march so the test never stalls on pathing. Only meaningful
     // during an active day phase with a boss present.
     const onDevDuel = ({ form } = {}) => {
+      const bossSystem = this.scene.get('Game')?.bossSystem
+      if (bossSystem?._nemDuelActive) return   // a duel is already live — don't double-trigger
       const meta = this._gameState.meta ?? (this._gameState.meta = {})
+      // Stamp Aldric to the crowned Act IV form JUST for this spawn, then RESTORE
+      // — the dev tool must not permanently advance the real nemesis state (else a
+      // later real scouting Aldric would spawn as the crowned v04 form).
+      const savedNemesis = meta.nemesis ? { ...meta.nemesis } : null
       meta.nemesis = { ...(meta.nemesis ?? {}), act: 4, crowned: true, returns: 3 }
       if (form === 'desperate' || form === 'radiant') meta.nemesis.form = form
       const arr = this._spawnNemesis(true)
+      if (savedNemesis) meta.nemesis = savedNemesis   // the spawned adv already captured its form/sprite
       const adv = Array.isArray(arr) ? arr[0] : null
-      const bossSystem = this.scene.get('Game')?.bossSystem
       if (adv && bossSystem?._runNemesisDuel) bossSystem._runNemesisDuel(adv)
     }
 

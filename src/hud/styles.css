@@ -1501,6 +1501,15 @@ body {
 .qf-buff-slot-filled:hover {
   transform: translateY(-1px) scale(1.06);
 }
+/* Inquisition pact-suppression — your active pacts are SEALED (their benefits
+   inert) while an inquisitor walks the halls; dim them so it's visible at a
+   glance (the dungeon log + boss-overview pacts tab explain why). */
+.qf-buff-slots.qf-buffs-sealed .qf-buff-slot-filled,
+.qf-buff-slots.qf-buffs-sealed .qf-buff-overflow {
+  opacity: 0.4;
+  filter: grayscale(0.85);
+  transition: opacity 200ms ease, filter 200ms ease;
+}
 .qf-buff-glyph {
   font-size: 14px;
   line-height: 1;
@@ -4694,6 +4703,20 @@ body {
   flex-direction: column;
   gap: 12px;
   padding: 4px 0;
+}
+/* Inquisition pact-suppression banner — tokenized (was bolted-on inline styles).
+   Parchment/holy-seal hue matching the Inquisition dungeon-log brand; no margin
+   so the parent's flex `gap` keeps an even rhythm with the pact rows. */
+.qf-boss-inq-banner {
+  background: rgba(40, 34, 22, 0.55);
+  border: 1px solid rgba(224, 216, 192, 0.42);
+  border-radius: var(--radius-sm);
+  color: #e0d8c0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  letter-spacing: 0.3px;
+  text-align: center;
 }
 .qf-boss-pact-expanded {
   background: var(--bg-2);
