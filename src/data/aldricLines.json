@@ -52,6 +52,80 @@
     "Another of your slaves returned to dust. Send more.",
     "I could do this in my sleep — and some nights, I have."
   ],
+  "react": {
+    "_comment": "Aldric's living reactions while he scouts the dungeon (Acts I–III), keyed by what he meets. Per act his voice shifts: I the cocky upstart, II the grim avenger who counts the dead, III the sleepless obsessive who has memorized everything. Each source maps to a portrait emotion in NemesisPortrait beats.",
+    "prowl": {
+      "1": [
+        "Cower in your hole. I'll be at your throne by sundown.",
+        "Is this truly the best the dark can offer?",
+        "Every step deeper is a step closer to your end, monster.",
+        "Send your little pets. I'll send them back in pieces."
+      ],
+      "2": [
+        "I'm coming for you, monster — one room at a time.",
+        "Hide behind your walls. The dead have given me all the time I need.",
+        "Closer now. I can almost taste your fear.",
+        "Every soul you stole walks beside me tonight."
+      ],
+      "3": [
+        "I know exactly where you are. I always know now.",
+        "No more games. No more tricks. Just the long walk to your throne.",
+        "Stay there. STAY. I want to watch your face when I arrive.",
+        "I haven't slept in weeks. I don't need to. I only need YOU."
+      ]
+    },
+    "room": {
+      "1": [
+        "A torture chamber? You decorate like a child playing villain.",
+        "Is this meant to frighten me? I've seen grimmer in the royal cellars.",
+        "Room after room of cheap little horrors. Adorable, truly."
+      ],
+      "2": [
+        "You raised all this on their corpses. I'll raise it to the ground.",
+        "I've walked these halls a thousand times in my nightmares. Now I'm awake.",
+        "How many did you butcher to learn the shape of this place?"
+      ],
+      "3": [
+        "I know this room. And the next. And the one after. ALL of them.",
+        "You rearranged the stones. Cute. I'd already memorized every one.",
+        "Not one shadow in this pit I haven't mapped. Nothing hides from me now."
+      ]
+    },
+    "trap": {
+      "1": [
+        "Ha! A trap? You wound my dignity far more than my flesh.",
+        "Sharpened sticks? Truly? THIS is your grand defense?",
+        "Cute. Did you honestly think a snare would stop me?"
+      ],
+      "2": [
+        "A trap. Of course. You never could face me honestly.",
+        "Bleed me. Go on. It only hardens what I've become.",
+        "Pain and I are old companions now. Are you ready for yours?"
+      ],
+      "3": [
+        "I KNEW that one was there. I let it bite me. I wanted to feel it.",
+        "Your little snares — I've catalogued every one. Old friends, all.",
+        "Spring them all! None of it matters! NONE of it stops me!"
+      ]
+    },
+    "minion": {
+      "1": [
+        "Pathetic. Is that all?",
+        "Another slave of yours returned to dust. Send the rest.",
+        "I could do this asleep — and some nights, I have."
+      ],
+      "2": [
+        "That's one less of yours. I'm counting them. I'm counting ALL of them.",
+        "Did it have a name, monster? Mine did. Every last one of mine had a name.",
+        "Down it goes. Like the others will. Like YOU will."
+      ],
+      "3": [
+        "Dust. Dust. All of it dust before me.",
+        "You think your pets can stop what I've made of myself?",
+        "I've slain a thousand of these in my sleep. The waking ones fall just as fast."
+      ]
+    }
+  },
   "hurt": {
     "1": [
       "Tch. Barely felt that.",

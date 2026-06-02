@@ -27,6 +27,12 @@ const HURT_THROTTLE_MS = 7000
 // game via the scene timer; stops the moment he recoils / withdraws).
 const PROWL_DELAY_MS = 13000
 
+// His reactions to the dungeon itself (rooms / traps / minions he meets) share
+// ONE throttle so he stays characterful, not chatty — and he only bothers to
+// remark on a fraction of the rooms he passes through.
+const REACT_THROTTLE_MS = 5500
+const ROOM_REACT_CHANCE = 0.55
+
 export class NemesisSystem {
   constructor(scene, gameState) {
     this._scene = scene
@@ -39,6 +45,14 @@ export class NemesisSystem {
     EventBus.on('NEMESIS_RECOIL',  this._onRecoil,     this)
     EventBus.on('NEMESIS_HURT',    this._onHurt,       this)
     EventBus.on('NEMESIS_ARRIVED', this._onArrived,    this)
+    // Living-reaction hooks (Acts I–III scout): he remarks on the dungeon he
+    // walks through, the traps that bite him, and the minions he cuts down.
+    EventBus.on('ADVENTURER_ROOM_CHANGED', this._onRoomChanged,   this)
+    EventBus.on('TRAP_TRIGGERED',          this._onTrapTriggered, this)
+    EventBus.on('COMBAT_KILL',             this._onCombatKill,    this)
+    this._nemAdv = null          // the live scout adventurer (for COMBAT_KILL matching)
+    this._reactAt = 0            // shared throttle clock for dungeon reactions
+    this._reactedRooms = new Set()
   }
 
   destroy() {
@@ -48,13 +62,19 @@ export class NemesisSystem {
     EventBus.off('NEMESIS_RECOIL',  this._onRecoil,     this)
     EventBus.off('NEMESIS_HURT',    this._onHurt,       this)
     EventBus.off('NEMESIS_ARRIVED', this._onArrived,    this)
+    EventBus.off('ADVENTURER_ROOM_CHANGED', this._onRoomChanged,   this)
+    EventBus.off('TRAP_TRIGGERED',          this._onTrapTriggered, this)
+    EventBus.off('COMBAT_KILL',             this._onCombatKill,    this)
     this._stopProwl()
   }
 
   // Re-entry: reset the hurt throttle, fire his entrance LINE (the arrival face +
   // bubble, a beat after the slide-in), and start the prowl loop for this visit.
-  _onArrived({ act } = {}) {
+  _onArrived({ act, adventurer } = {}) {
     this._hurtAt = 0
+    this._nemAdv = adventurer ?? this._nemAdv
+    this._reactedRooms.clear()
+    this._reactAt = this._scene?.time?.now ?? 0   // a grace beat after the entrance line
     const a = Math.min(4, act ?? this._gs.meta?.nemesis?.act ?? 1)
     const line = this._pick('arrive', String(a))
     if (line) this._scene?.time?.delayedCall?.(900, () => {
@@ -74,7 +94,9 @@ export class NemesisSystem {
     this._prowlTimer = this._scene.time.addEvent({
       delay: PROWL_DELAY_MS, loop: true,
       callback: () => {
-        const line = this._pick('tauntBoss')
+        // Per-act prowl voice (the upstart / the avenger / the obsessive); the
+        // flat tauntBoss bank is the back-compat fallback.
+        const line = this._reactLine('prowl', act) ?? this._pick('tauntBoss')
         if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'taunt', log: true })
       },
     })
@@ -95,6 +117,56 @@ export class NemesisSystem {
     const bank = this._lines?.hurt?.[String(act)]
     const line = Array.isArray(bank) ? (bank[tier] ?? bank[bank.length - 1]) : null
     if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'hurt', tier, log: false })
+  }
+
+  // ── Living reactions to the dungeon (Acts I–III scout) ──────────────────────
+  // Aldric remarks on what he meets as he prowls — the rooms you built, the traps
+  // that bite him, the minions he cuts down — in his per-act voice, each mapped to
+  // a portrait emotion. All are gated on `_nemesis`, so the Act IV duel form
+  // (`_nemesisDuel`, owned by AldricCinematic) never triggers them. One shared
+  // throttle keeps him characterful rather than chatty.
+
+  // He steps into a new room and sizes it up (once per room, ~half the time).
+  _onRoomChanged({ adventurer, toRoomId } = {}) {
+    if (!adventurer?._nemesis || !toRoomId) return
+    if (this._reactedRooms.has(toRoomId)) return            // one remark per room
+    const room = this._gs.dungeon?.rooms?.find(r => r.instanceId === toRoomId)
+    if (room?.definitionId === 'boss_chamber') return       // the throne recoil owns that beat
+    this._reactedRooms.add(toRoomId)
+    if (Math.random() > ROOM_REACT_CHANCE) return           // not every doorway earns a line
+    this._react('room')
+  }
+
+  // A trap bit him — he scoffs / steels / revels by act.
+  _onTrapTriggered({ adventurer } = {}) {
+    if (!adventurer?._nemesis) return
+    this._react('trap')
+  }
+
+  // He cut down one of the boss's minions (only HIS kills; the scout can't slay
+  // the plot-armored boss, so the victim is always a minion).
+  _onCombatKill({ sourceId } = {}) {
+    const me = this._nemAdv
+    if (!me?._nemesis || sourceId == null || sourceId !== me.instanceId) return
+    this._react('minion')
+  }
+
+  // Fire a per-act reaction line for `kind`, throttled so reactions don't stack.
+  _react(kind) {
+    const now = this._scene?.time?.now ?? 0
+    if (now - (this._reactAt ?? 0) < REACT_THROTTLE_MS) return
+    const act = Math.min(3, this._gs.meta?.nemesis?.act ?? 1)
+    const line = this._reactLine(kind, act)
+    if (!line) return
+    this._reactAt = now
+    EventBus.emit('NEMESIS_TAUNT', { line, act, source: kind, log: true })
+  }
+
+  // A random line from the per-act react bank (react.<kind>.<act>), or null.
+  _reactLine(kind, act) {
+    const bank = this._lines?.react?.[kind]?.[String(act)]
+    if (!Array.isArray(bank) || !bank.length) return null
+    return bank[Math.floor(Math.random() * bank.length)]
   }
 
   // The Act IV duel resolved in the boss's favour — Aldric, the crowned Hero
@@ -136,6 +208,7 @@ export class NemesisSystem {
       const line = this._pick('withdraw', String(Math.min(act, 3)))
       if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'withdraw', log: true })
     }
+    this._nemAdv = null   // he's gone — drop the scout ref so no stale reactions
     EventBus.emit('NEMESIS_DEPARTED', { adventurer, act })
   }
 

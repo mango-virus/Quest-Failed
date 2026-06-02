@@ -42,6 +42,9 @@ const ALDRIC_ART = {
       recoil:      ['cocky-vow'],
       withdraw:    ['cocky-vow'],
       act_cleared: ['confident'],
+      room:        ['contempt', 'sneering'],   // scoffs at the dungeon
+      trap:        ['annoyed', 'contempt'],    // a trap is beneath him
+      minion:      ['cocky', 'confident'],     // gleeful dismissal
     },
     hurtTiers: ['hurt', 'rattled', 'annoyed', 'enraged'],
   },
@@ -56,6 +59,9 @@ const ALDRIC_ART = {
       recoil:      ['heroic-resolve'],
       withdraw:    ['heroic-resolve'],
       act_cleared: ['heroic-resolve'],
+      room:        ['heroic-resolve'],                    // grim resolve at the horror you built
+      trap:        ['heroic-resolve', 'fierce-grin'],     // steels himself
+      minion:      ['battle-joy', 'triumphant', 'fierce-grin'],  // counts the fallen with grim joy
     },
     hurtTiers: ['hurt', 'desperate', 'unhinged', 'badly-hurt-and-dying'],
   },
@@ -70,6 +76,9 @@ const ALDRIC_ART = {
       recoil:      ['bitter-vow'],
       withdraw:    ['bitter-vow'],
       act_cleared: ['bitter-vow'],
+      room:        ['obsessed'],                  // stares, recognizing every stone
+      trap:        ['maniac', 'obsessive-rage'],  // manic — "I knew it was there"
+      minion:      ['sneering', 'enraged'],
     },
     hurtTiers: ['hurt', 'rattled', 'enraged', 'obsessive-rage'],
   },
