@@ -1785,7 +1785,15 @@ export class AISystem {
           // long, redirect it straight to the throne — bypass the knowledge
           // gate via _forceBossBeeline — so it can't freeze the day, instead
           // of culling it. (2026-05-30)
-          if (adv._lightParty || adv._shadowMonarch) {
+          if (adv._lightParty || adv._shadowMonarch || adv._nemesis) {
+            // Aldric who's already recoiled is withdrawing — push him to the exit,
+            // not back to the throne. Otherwise (incl. a stuck pre-recoil scout)
+            // beeline the boss so he reaches it, recoils, and flees.
+            if (adv._nemesis && adv._nemReeled) {
+              adv.goal = { type: 'FLEE' }
+              adv.path = null
+              return
+            }
             adv._forceBossBeeline    = true
             adv._seekExploreTargetId = null
             adv._roomRevisits        = 0
@@ -4348,6 +4356,16 @@ export class AISystem {
     // elsewhere are belt-and-suspenders, but THIS is the one that always holds.
     // (Boss ABILITIES like the demon sacrifice never reach _kill; they're
     // floored in BossArchetypeSystem.)
+    // The Nemesis (Aldric, acts I–III) is UNCONDITIONALLY plot-armored — he never
+    // fights the boss (he recoils + withdraws), and the killable Act IV form is
+    // _nemesisDuel, NOT _nemesis. So NO source may finish him here, not even a
+    // 'boss'-stamped one (e.g. a Sundered-Floor collapse). Floor to 10% + survive.
+    if (adv?._nemesis) {
+      adv.resources = adv.resources ?? {}
+      const floor = Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10))
+      adv.resources.hp = Math.max(floor, adv.resources.hp ?? floor)
+      return
+    }
     if ((adv?._shadowMonarch || adv?._lightParty) && (adv._lastHitBy ?? killerHint) !== 'boss') {
       adv.resources = adv.resources ?? {}
       const floor = Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10))

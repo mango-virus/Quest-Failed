@@ -200,7 +200,7 @@ export class DungeonMechanicSystem {
           // at 10% maxHp AND skip the _lastHitBy='boss' stamp — that stamp would
           // otherwise disarm the AISystem._kill duel-bound guard (which lets a
           // 'boss' killer through), so a collapse could kill them pre-duel.
-          const _prot = !!(adv._lightParty || adv._shadowMonarch)
+          const _prot = !!(adv._lightParty || adv._shadowMonarch || adv._nemesis)
           const _fl = _prot ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
           adv.resources.hp = Math.max(_fl, adv.resources.hp - dmg)
           if (!_prot) {
