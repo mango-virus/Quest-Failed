@@ -1588,8 +1588,10 @@ export class DayPhase extends Phaser.Scene {
     adv.partyId       = null
     adv.visitedRooms  = []
     adv.flags         = { ...(adv.flags ?? {}), ...(duel ? { noFlee: true } : {}) }
-    // Placeholder sprite — paladin source (real evolving Aldric art baked later).
-    adv.spriteVariant = 'paladin/v01'
+    // Aldric's per-ACT evolving form (v01 apprentice … v04 crowned Hero-King),
+    // sliced from his hand-authored ULPC sheets. The act drives which form shows
+    // on every scouting visit + the Act IV duel.
+    adv.spriteVariant = `aldric/v0${Math.min(4, Math.max(1, cfg.act ?? 1))}`
 
     // Mini-boss scaling: the boss-level curve, then an act multiplier (he comes
     // back tougher each return), then a flat bump. The scout (acts I–III) is a

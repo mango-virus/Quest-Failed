@@ -145,12 +145,17 @@ const ADVENTURER_CLASS_IDS = [
   // Each has 50 baked LPC variants. No normal spawn (unlockLevel: 99 in
   // adventurerClasses.json); event spawn only.
   'paladin', 'white_mage', 'samurai', 'black_mage',
+  // Aldric (KR Nemesis) — a NAMED character with exactly FOUR canonical sliced
+  // forms, one per act (v01 apprentice … v04 crowned Hero-King). DayPhase assigns
+  // `aldric/v0<act>` per spawn. No _atk sheet (he's a normal-attack swordsman —
+  // uses the contained 64px slash). Count override below prevents v05..v50 404s.
+  'aldric',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 50
 // Per-class override for classes that ship fewer than the default 50 baked
 // variants (named one-off characters). Keeps preload from firing dozens of
 // missing-file requests for variants that don't exist.
-const ADVENTURER_VARIANT_COUNT = { shadow_monarch: 1 }
+const ADVENTURER_VARIANT_COUNT = { shadow_monarch: 1, aldric: 4 }
 const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 
 // Classes whose combat animation is slash or thrust ship a separate
