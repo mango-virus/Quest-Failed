@@ -446,9 +446,12 @@ export class RosterOverlay {
             ])]
           : [h('div', { style: { color: 'var(--text-dim)', fontStyle: 'italic' } }, '— no events —')]
       ),
-      // Actions — UI-only for now (no gameplay paths wired yet)
+      // Actions — REASSIGN / RENAME / SACRIFICE, all wired to gameplay.
       h('div', { className: 'qf-roster-actions' }, [
-        h('button', { className: 'btn qf-roster-action' }, [
+        h('button', {
+          className: 'btn qf-roster-action',
+          on: { click: () => this._onReassign(sel) },
+        }, [
           h('span', { style: { color: 'var(--poison)' } }, '⤧'),
           ' REASSIGN',
         ]),
@@ -533,6 +536,14 @@ export class RosterOverlay {
       onCancel: () => { this._nameEntry = null },
     })
     this._nameEntry.open()
+  }
+
+  _onReassign(minion) {
+    // Enter NightPhase's "click a room" reassign mode (it listens for
+    // MINION_REASSIGN_BEGIN), then close the roster so the dungeon map is
+    // clickable. Wired 2026-06-02 — the button was previously inert.
+    EventBus.emit('MINION_REASSIGN_BEGIN', { instanceId: minion.instanceId })
+    this.close()
   }
 
   _onSacrifice(minion) {

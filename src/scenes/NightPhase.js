@@ -95,6 +95,7 @@ export class NightPhase extends Phaser.Scene {
     // Phase 31D — action-bar tool mode: 'sell' | 'move' | 'rotate' | null.
     // When armed, the next click on a placed room executes the action.
     this._toolMode     = null
+    this._reassignMinionId = null   // minion being relocated via the Roster's REASSIGN
     // Phase: items — Door Lock forced trade-off. When the player clicks a
     // doorway with a Door Lock armed, we stage the lock (don't commit
     // yet), auto-select the Key Chest, and require they place it before
@@ -639,6 +640,15 @@ export class NightPhase extends Phaser.Scene {
     // minion with NO gold refund (vs the Sell tool's 50%). Was previously inert
     // (RosterOverlay emitted MINION_SACRIFICE_REQUEST with no listener).
     on('MINION_SACRIFICE_REQUEST', ({ instanceId } = {}) => this._doSacrificeMinion(instanceId))
+    // Minion Roster — REASSIGN button (2026-06-02). Enter a "click a room"
+    // mode; the next dungeon click relocates the chosen minion to that room
+    // (free move). Handled in the tool-mode click dispatch → _executeReassignAt.
+    on('MINION_REASSIGN_BEGIN', ({ instanceId } = {}) => {
+      this._reassignMinionId = instanceId ?? null
+      if (!this._reassignMinionId) return
+      this._setToolMode('reassign', 'roster_reassign')
+      EventBus.emit('SHOW_TOAST', { message: 'Click a room to reassign the minion (ESC to cancel)', type: 'info' })
+    })
     on('BUILD_SELECT', ({ def, kind }) => {
       // Phase 1b.4 — Lich Phylactery: item placement flows through the same
       // single-tile path as traps. _confirmItemPlacement handles validation.
@@ -700,6 +710,9 @@ export class NightPhase extends Phaser.Scene {
     if (next === this._toolMode) return
     const prev = this._toolMode
     this._toolMode = next
+    // Leaving REASSIGN (clicked away, ESC, picked another tool) drops the
+    // pending minion so a stale id can never relocate the wrong unit later.
+    if (prev === 'reassign') this._reassignMinionId = null
     if (prev === 'move' && next === null) {
       // Silent diagnostic — kept as a console-only paper trail in case
       // another phantom MOVE-clear regression turns up. The user-facing
@@ -1627,6 +1640,12 @@ export class NightPhase extends Phaser.Scene {
           // Upgrade is sticky like SELL — stays armed so the player can
           // upgrade several minions in a row. Each click opens a confirm.
           this._executeUpgradeAt(tx, ty)
+          return
+        }
+        if (this._toolMode === 'reassign') {
+          // Targets the roster-chosen minion; relocates it to the clicked
+          // room then disarms (one minion per REASSIGN press).
+          this._executeReassignAt(tx, ty)
           return
         }
         if (this._toolMode === 'move') {
@@ -3519,6 +3538,49 @@ export class NightPhase extends Phaser.Scene {
     this._dungeonGrid.removeRoom(room.instanceId)
     this._renderActivePalette()
     return true
+  }
+
+  // Relocate a minion to the clicked room — the Roster's REASSIGN flow (free
+  // move, 2026-06-02). Lighter validation than _validateMinionPlacement: a
+  // reassign neither charges gold nor consumes a NEW roster slot (the minion
+  // already holds one), so we only gate on tile/room legality + the TARGET
+  // room's per-minion cap (excluding the mover via _roomMinionCount's exceptId).
+  // The minion renderer follows worldX/worldY each frame, so updating coords
+  // repositions the sprite without a placement event (which would mis-count
+  // "minions summoned"). Disarms after one successful reassign.
+  _executeReassignAt(tx, ty) {
+    const minion = this._gameState.minions.find(m => m.instanceId === this._reassignMinionId)
+    if (!minion) { this._reassignMinionId = null; this._setToolMode(null, 'reassign_gone'); return }
+    const tile = this._dungeonGrid.getTileType(tx, ty)
+    if (tile !== TILE.FLOOR && tile !== TILE.BOSS_FLOOR) { this._showPlacementError('Click a room floor'); return }
+    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    if (!room) { this._showPlacementError('Not inside any room'); return }
+    if (room.definitionId === 'boss_chamber' || room.definitionId === 'entry_hall') {
+      this._showPlacementError("Can't place minions here"); return
+    }
+    if (room.definitionId === 'throne_room') {
+      this._showPlacementError('Throne Room only houses its mini-boss'); return
+    }
+    const roomCap = Balance.MINIONS_PER_ROOM_CAP ?? 5
+    if (this._roomMinionCount(room.instanceId, minion.instanceId) >= roomCap) {
+      this._showPlacementError(`Room full (${roomCap}) — pick another room`); return
+    }
+    // Relocate: drop at the clicked tile, re-home there, re-bind the room, and
+    // clear in-flight AI so MinionAISystem replans from the new home.
+    minion.tileX = tx; minion.tileY = ty
+    minion.worldX = tx * TS + TS / 2; minion.worldY = ty * TS + TS / 2
+    minion.homeTileX = tx; minion.homeTileY = ty
+    minion.assignedRoomId = room.instanceId
+    minion._patrolTarget = null
+    minion._chasePath = null
+    minion._heldByPlayer = false
+    minion.aiState = 'idle'
+    this._playMinionPlaceSfx()
+    EventBus.emit('MINION_REASSIGNED', { minion, roomId: room.instanceId })
+    EventBus.emit('SHOW_TOAST', { message: 'Minion reassigned', type: 'success' })
+    this._refreshStats()
+    this._reassignMinionId = null
+    this._setToolMode(null, 'reassign_done')
   }
 
   // Phase 31D — Move tool. Reuses the existing pickup logic so minions
