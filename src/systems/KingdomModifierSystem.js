@@ -75,6 +75,8 @@ export class KingdomModifierSystem {
     // acts-gated modifier system with scene access to BossSystem); the sprite
     // swap is owned by BossRenderer, the cinematic by AscensionCinematic.
     EventBus.on('ACT_STARTED', this._onActStarted, this)
+    // Mango dev — preview the ascension screen on demand (non-destructive).
+    EventBus.on('DEV_TEST_ASCENSION', this._onDevTestAscension, this)
     // Plunderers (KR P5) — a fled thief absconds with a heist purse.
     EventBus.on('ADVENTURER_FLED', this._onAdventurerFled, this)
   }
@@ -82,6 +84,7 @@ export class KingdomModifierSystem {
   destroy() {
     EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
     EventBus.off('ACT_STARTED', this._onActStarted, this)
+    EventBus.off('DEV_TEST_ASCENSION', this._onDevTestAscension, this)
     EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
     this._pantheonG?.destroy(); this._pantheonG = null
     this._allStarG?.destroy(); this._allStarG = null
@@ -121,6 +124,41 @@ export class KingdomModifierSystem {
     })
     // The dungeon grows: free elite reinforcements rally into the chamber.
     this._deployReinforcements(Math.max(0, act - 1))
+  }
+
+  // Mango dev — fire a faithful ascension PREVIEW without advancing the act or
+  // mutating the run: real archetype + form sprite, the current boss stats surged
+  // by one ascension tier, and a real reinforcement roster from the pool (names
+  // only — nothing is deployed). `immediate` tells the cinematic to skip its
+  // wait-for-reveal sequencing so it slams in the moment the button is clicked.
+  _onDevTestAscension() {
+    const gs = this._gs
+    const boss = gs.boss ?? {}
+    const arch = gs.player?.bossArchetypeId ?? 'beholder'
+    const hpMul  = Balance.BOSS_ASCENSION_HP_MUL  ?? 1.28
+    const atkMul = Balance.BOSS_ASCENSION_ATK_MUL ?? 1.20
+    const before = { hp: boss.maxHp ?? 600, attack: boss.attack ?? 20 }
+    const after  = { hp: Math.round(before.hp * hpMul), attack: Math.round(before.attack * atkMul) }
+    const act    = Math.max(2, Math.min(4, gs.meta?.act?.current ?? 2))
+
+    // Real roster from the pool — resolve ids → names, deploy nothing.
+    const minionDefs = this._scene?.cache?.json?.get?.('minionTypes') ?? []
+    const has    = id => minionDefs.some(d => d.id === id)
+    const nameOf = id => minionDefs.find(d => d.id === id)?.name || id
+    const pool   = REINFORCEMENT_POOL[arch] || REINFORCEMENT_POOL._default
+    const tier   = act - 1
+    const members  = []
+    const hasElite = pool.elite && has(pool.elite)
+    if (hasElite) members.push({ name: nameOf(pool.elite), elite: true })
+    const grunts     = pool.grunts.filter(has)
+    const gruntCount = hasElite ? tier : tier + 1
+    for (let i = 0; i < gruntCount && grunts.length; i++) members.push({ name: nameOf(grunts[i % grunts.length]), elite: false })
+
+    // Reinforcements first so the cinematic folds them into the immediate reveal.
+    if (members.length) EventBus.emit('BOSS_REINFORCEMENTS', { count: members.length, tier, elite: hasElite, members })
+    EventBus.emit('BOSS_ASCENSION', {
+      act, fromForm: Math.max(1, act - 1), toForm: act, archetype: arch, before, after, immediate: true,
+    })
   }
 
   // Deploy `tier` grunts + one archetype elite (if any) as free garrison

@@ -5,7 +5,10 @@
 // Visible only when PlayerProfile.isCheatName() AND the `acts` feature is on.
 // Self-mounts a small button bottom-left of #hud-stage (offset from TEST EVENT).
 // Clicking opens a grid of the 8 Kingdom Responses; clicking one fires
-// DEV_FORCE_KINGDOM_RESPONSE { responseId }. KingdomResponseSystem handles it:
+// DEV_FORCE_KINGDOM_RESPONSE { responseId }. The modal also carries a "TEST BOSS
+// ASCENSION" button that fires DEV_TEST_ASCENSION — KingdomModifierSystem builds
+// a faithful, non-destructive ascension preview from the live boss + archetype.
+// KingdomResponseSystem handles the force-response:
 // sets the current act to a drafted act + that response (activating the act-wide
 // modifier + the pill/eyebrow), announces it, and — if a day is in progress —
 // spawns that response's Champion raid so the combat modifier is live too.
@@ -73,6 +76,12 @@ export class DevKingdomButton {
           'Click a response to make it the current drafted act: activates its ' +
           'act-wide modifier + the HUD eyebrow, and (if a day is running) spawns ' +
           'its Champion raid so the combat modifier is live.'),
+        h('button', {
+          className: 'btn primary qf-dev-asc-btn',
+          title: 'Preview the boss-ascension screen now — uses real boss/archetype data, deploys nothing',
+          style: { display: 'block', margin: '2px auto 12px' },
+          on: { click: () => this._fireAscension() },
+        }, '▲  TEST BOSS ASCENSION  ▲'),
         h('div', { className: 'qf-dev-events-grid' }, cards),
         h('div', { className: 'qf-dev-events-close pix', on: { click: () => this._closeModal() } }, 'CLOSE'),
       ]),
@@ -85,6 +94,11 @@ export class DevKingdomButton {
   _pick(responseId) {
     if (!responseId) return
     EventBus.emit('DEV_FORCE_KINGDOM_RESPONSE', { responseId })
+    this._closeModal()
+  }
+
+  _fireAscension() {
+    EventBus.emit('DEV_TEST_ASCENSION', {})
     this._closeModal()
   }
 

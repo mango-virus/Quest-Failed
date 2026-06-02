@@ -182,6 +182,9 @@ export class AscensionCinematic {
     this._pending = payload
     if (this._reinforce) { payload.reinforcements = this._reinforce; this._reinforce = null }
 
+    // Dev test (immediate) — no opening reveal to wait on; slam in right now.
+    if (payload.immediate) { this._begin(); return }
+
     // Wait for the act's opening reveal (Kingdom Response / Act card) to clear,
     // then slam in. Guard each path through _begin (once).
     const begin = () => this._begin()
