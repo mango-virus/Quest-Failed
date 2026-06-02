@@ -13,7 +13,7 @@
 
 import { h, tween } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
-import { ascensionInfo, isActOvertime } from '../config/acts.js'
+import { ascensionInfo } from '../config/acts.js'
 
 export class TopBar {
   constructor(gameState) {
@@ -391,11 +391,6 @@ export class TopBar {
     // Both re-fire at run start / on continue, so the eyebrow is always current.
     sub('ACT_STARTED',            p => this._onActStarted(p))
     sub('KINGDOM_RESPONSE_DRAWN', p => this._onActResponse(p))
-    // Overtime — the act's Champion still stands; the raid keeps returning. Re-
-    // paint the stamp so the player has a GLANCEABLE "OT" signal (the dungeon-log
-    // line scrolls away).
-    sub('ACT_OVERTIME',           () => this._repaintAct())
-    sub('CHAMPION_DEFEATED',      () => this._repaintAct())
     // Inquisition pact-suppression — dim the buff slots so the player can SEE
     // their active pacts have gone inert (the log/boss-overview explain why).
     sub('INQUISITION_SUPPRESS_CHANGED', () => this._applyBuffSuppress())
@@ -445,37 +440,20 @@ export class TopBar {
   // Fold the act into the day stamp: "ACT {N} — NIGHT 1", the accent-coloured
   // ACT prefix carrying the response identity. Hover reveals the response name +
   // threat (qf-day-act-pop). The phase part is updated by the tick.
-  // Re-paint the stamp with the last params — used when overtime starts/ends so
-  // the "OT" signal appears/clears without an act transition.
-  _repaintAct() { if (this._lastActPaint) this._paintAct(this._lastActPaint) }
-
   _paintAct({ act, accent, name, detail }) {
-    this._lastActPaint = { act, accent, name, detail }
     const acc = accent || 'var(--gold)'
-    // Boss form for this act — a ✦ on the stamp (glanceable "it has ascended")
-    // plus the form + cumulative surge in the hover popover.
+    // The boss's per-act ascension (form + cumulative HP/ATK surge) shows in the
+    // hover popover + the boss-overview form badge — kept off the stamp itself so
+    // the eyebrow stays clean.
     const asc = ascensionInfo(this._gameState)
-    // Overtime — the Champion still stands; the raid keeps returning. Shift the
-    // whole stamp to the urgent warn colour + append an "OT" badge so it's
-    // unmissable at a glance. Once the Champion falls the warning clears at once
-    // (you've won the act; the formal clear lands at day-end).
-    const metaAct = this._gameState.meta?.act
-    const champDown = !!metaAct?.championsDefeated?.[metaAct?.current]
-    const ot = isActOvertime(this._gameState) && !champDown
-    const otDays = metaAct?.overtimeDays ?? 0
-    const stampAcc = ot ? 'var(--warn)' : acc
     if (this._refs.dayAct) {
-      const mark = asc?.ascended ? ' ✦' : ''
-      const otMark = ot ? ` · OT${otDays > 1 ? otDays : ''}` : ''
-      this._refs.dayAct.textContent = `ACT ${TopBar._ROMAN[act] || act}${mark}${otMark} — `
-      this._refs.dayAct.style.color = stampAcc
-      this._refs.dayAct.style.textShadow = `3px 3px 0 #0a0610, 0 0 16px ${stampAcc}`
+      this._refs.dayAct.textContent = `ACT ${TopBar._ROMAN[act] || act} — `
+      this._refs.dayAct.style.color = acc
+      this._refs.dayAct.style.textShadow = `3px 3px 0 #0a0610, 0 0 16px ${acc}`
     }
     if (this._refs.dayActPop) {
       this._refs.dayActPop.replaceChildren(
         h('div', { className: 'qf-day-act-pop-name', style: { color: acc } }, name || 'The Kingdom'),
-        ot ? h('div', { className: 'qf-day-act-pop-detail', style: { color: 'var(--warn)' } },
-          'OVERTIME — the Champion still stands; the raid returns each day until you defeat them.') : null,
         detail ? h('div', { className: 'qf-day-act-pop-detail' }, detail) : null,
         asc ? h('div', { className: 'qf-day-act-pop-asc' }, [
           h('span', { className: 'qf-day-act-pop-asc-icon' }, '✦'),
