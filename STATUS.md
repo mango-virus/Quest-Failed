@@ -20,8 +20,10 @@
 
 Top-down **reverse roguelike**. You are the dungeon **Boss/Architect**. NPC adventurers
 invade by Day to kill you; you build the dungeon by Night. Endless — the boss levels up,
-adventurers scale with it. Boss dies 3 times → Game Over → new run. No win condition yet
-(it's pure survival). Phaser 3 canvas (dungeon sim) + a DOM HUD overlay (all chrome/menus).
+adventurers scale with it. Boss dies 3 times → Game Over → new run. The DEFAULT mode is pure
+survival (no win condition); a 4-act WIN-CONDITION campaign — "The Kingdom's Reckoning" — is
+built + complete behind the `acts` flag (climax duel, kingdom responses, ascension, victory→NG+).
+Phaser 3 canvas (dungeon sim) + a DOM HUD overlay (all chrome/menus).
 Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.io.
 
 ## Content counts (verified 2026-05-31)
@@ -66,7 +68,7 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 
 ## Biggest design gaps for a "full game" (not bugs — direction)
 
-- **No win condition / no climax** — endless survival, numerical treadmill late-game. **(BEING ADDRESSED:** "The Kingdom's Reckoning" 4-act run structure designed 2026-05-31 — see DESIGN.md + DESIGN_COVERAGE.md §"The Kingdom's Reckoning" (KR P1–P7, all ⏳ PENDING). Build not started.)
+- **No win condition in the DEFAULT (endless) mode** — numerical treadmill late-game. **ADDRESSED for campaign mode:** "The Kingdom's Reckoning" 4-act win-condition campaign is **BUILT + complete** (P1–P7 + polish, ✅ 2026-06-02) behind the `acts` flag — fixed Acts I/IV + drafted Kingdom Responses (II/III), the Aldric nemesis + Act IV climax duel (real per-act sprites + cinematic), boss ascension/growth, the Inquisition pact-benefit counter, victory → NG+ (Reckoning tiers), per-response VFX. Remaining: enable it by default (currently flag-off), live balance tuning, and a full validation playthrough. See DESIGN_COVERAGE.md §"The Kingdom's Reckoning".
 - **Day phase is spectator-only** — no active boss agency (the Marionette pact hints at what could be).
 - **IP/legal** — Solo Leveling / FFXIV / Twitch named references need filing-off before any commercial release.
 
