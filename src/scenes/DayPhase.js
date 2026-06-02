@@ -1753,6 +1753,11 @@ export class DayPhase extends Phaser.Scene {
       if (defector) spawned.push(defector)
     }
 
+    // All-Stars (KR polish) — mark every assembled champion as a "star" so the
+    // in-world VFX can crown each with a floating star + thread golden synergy
+    // links between them (KingdomModifierSystem._tickAllStarsVfx).
+    if (response.id === 'all_stars') for (const u of spawned) { if (u) u._allStar = true }
+
     EventBus.emit('CHAMPION_RAID_INCOMING', {
       response, champion: response.champion, count: spawned.length,
       act: this._gameState.meta?.act?.current, threatMul: _threat,

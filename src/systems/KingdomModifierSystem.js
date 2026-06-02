@@ -84,6 +84,7 @@ export class KingdomModifierSystem {
     EventBus.off('ACT_STARTED', this._onActStarted, this)
     EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
     this._pantheonG?.destroy(); this._pantheonG = null
+    this._allStarG?.destroy(); this._allStarG = null
   }
 
   // Which Kingdom Response is governing the current act (or null). Act-wide
@@ -241,7 +242,7 @@ export class KingdomModifierSystem {
   update(_dt) {
     const resp = currentActResponseId(this._gs)
     const wave = (this._gs.adventurers?.active?.length ?? 0) > 0
-    if (!wave) { this._pantheonG?.clear(); return }
+    if (!wave) { this._pantheonG?.clear(); this._allStarG?.clear(); return }
     // Boss ascension dark aura — present in every ascended act (II+), regardless
     // of which Kingdom Response governs it. The dungeon radiates absorbed power.
     this._tickAscensionAura()
@@ -250,11 +251,16 @@ export class KingdomModifierSystem {
     // Pantheon — the angels' holy aura pulses (mechanic) + the consecrated-ground
     // VFX renders every frame so the heal/sear radius is visible.
     else if (resp === 'pantheon') { this._tickPantheonAura(); this._tickPantheonAuraVfx() }
-    else if (this._pantheonG) { this._pantheonG.clear() }
     // Inquisition — the holy law purges your undead minions.
     else if (resp === 'inquisition') this._tickInquisitionPurge()
     // Plunderers — the thieves pickpocket your treasury each pulse.
     else if (resp === 'plunderers') this._tickPlunderers()
+    // All-Stars — crown each champion with a star + thread synergy links.
+    else if (resp === 'all_stars') this._tickAllStarsVfx()
+    // World-VFX Graphics cleanup — clear any whose response isn't governing now
+    // (kept OUT of the else-chain so a lingering buffer can't swallow a tick).
+    if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
+    if (resp !== 'all_stars' && this._allStarG) this._allStarG.clear()
   }
 
   // ── Plunderers (KR P5 response) ─────────────────────────────────────────────
@@ -395,6 +401,63 @@ export class KingdomModifierSystem {
         g.fillCircle(mx, my, 1.6 + tw)
       }
     }
+  }
+
+  // All-Stars bespoke VFX (KR polish) — the Champions' League reads as generic
+  // adventurers in-world otherwise. Crown each assembled champion with a twinkling
+  // golden STAR floating over their head (halo + sparkle-cross), and thread golden
+  // SYNERGY LINKS between nearby champions (the "deadly concert" — they fight in
+  // concert). Per-frame canvas draw at depth 9 (above the entities), cleared when
+  // no star remains. Palette matches the response accent (#ffd76a) + the ★ emblem.
+  _tickAllStarsVfx() {
+    const stars = (this._gs.adventurers?.active ?? [])
+      .filter(a => a._allStar && (a.resources?.hp ?? 0) > 0)
+    if (stars.length === 0) { this._allStarG?.clear(); return }
+    const g = this._allStarG ?? (this._allStarG = this._scene.add.graphics().setDepth(9))
+    g.clear()
+    const now = this._scene.time?.now ?? 0
+    const GOLD = 0xffd76a, WHITE = 0xfff6d8
+    // Synergy links — golden threads between champions within range, flowing.
+    const LINK_R = 180
+    for (let i = 0; i < stars.length; i++) {
+      for (let j = i + 1; j < stars.length; j++) {
+        const a = stars[i], b = stars[j]
+        const dx = (a.worldX ?? 0) - (b.worldX ?? 0), dy = (a.worldY ?? 0) - (b.worldY ?? 0)
+        const d = Math.hypot(dx, dy)
+        if (d > LINK_R || d < 1) continue
+        const fade = 1 - d / LINK_R
+        const flow = 0.55 + 0.45 * Math.sin(now / 280 + (i + j) * 0.9)
+        g.lineStyle(1.5, GOLD, 0.36 * fade * flow)
+        g.beginPath(); g.moveTo(a.worldX, (a.worldY ?? 0) - 18); g.lineTo(b.worldX, (b.worldY ?? 0) - 18); g.strokePath()
+      }
+    }
+    // Per-champion floating star — halo + 5-point star + sparkle-cross, twinkling.
+    for (let k = 0; k < stars.length; k++) {
+      const s = stars[k]
+      const x = s.worldX ?? 0, y = (s.worldY ?? 0) - 42
+      const tw = 0.6 + 0.4 * Math.sin(now / 360 + k * 1.3)
+      g.fillStyle(GOLD, 0.28 * tw); g.fillCircle(x, y, 12)
+      g.fillStyle(GOLD, 0.46 * tw); g.fillCircle(x, y, 6.5)
+      this._drawStar(g, x, y, 7.5 * tw, 3.2 * tw, WHITE, 0.7 + 0.3 * tw)
+      g.lineStyle(1, WHITE, 0.45 * tw)
+      g.beginPath()
+      g.moveTo(x - 10 * tw, y); g.lineTo(x + 10 * tw, y)
+      g.moveTo(x, y - 10 * tw); g.lineTo(x, y + 10 * tw)
+      g.strokePath()
+    }
+  }
+
+  // Filled 5-point star centered at (cx,cy), point-up.
+  _drawStar(g, cx, cy, outer, inner, color, alpha) {
+    g.fillStyle(color, alpha)
+    g.beginPath()
+    for (let i = 0; i < 10; i++) {
+      const r = (i % 2 === 0) ? outer : inner
+      const a = -Math.PI / 2 + i * (Math.PI / 5)
+      const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r
+      if (i === 0) g.moveTo(px, py); else g.lineTo(px, py)
+    }
+    g.closePath(); g.fillPath()
   }
 
   // The seraph resurrects the fallen — when a pantheon hero dies, raise a Radiant
