@@ -273,7 +273,18 @@ export class BossOverviewOverlay {
     this._bossSprite?.stop?.()
     this._bossSprite = null
     if (archId) {
-      const anim = animatedBossSprite(archId, 200)
+      // Tier-aware (KR P6): show the boss's CURRENT per-act form sheet
+      // (`${id}-t${tier}`) when one exists — matching the in-world BossRenderer
+      // and the form badge — instead of always the canonical T3 base. tier comes
+      // from ascensionInfo().tier (= currentAct), the SAME source the badge uses,
+      // so the sprite and the "T2 RISEN" badge can never disagree. Falls back to
+      // the base anim when the tier sheet/anim isn't present (T3 for most bosses,
+      // or off-campaign where ascensionInfo is null).
+      const tier   = ascensionInfo(this._gameState)?.tier
+      const tierId  = tier ? `${archId}-t${Math.max(1, Math.min(4, tier))}` : null
+      const useTier = tierId && window.__game?.textures?.exists?.(`${tierId}-idle`)
+      const anim = animatedBossSprite(useTier ? tierId : archId, 200)
+        || (useTier ? animatedBossSprite(archId, 200) : null)
       if (anim) {
         this._bossSprite = anim
         return h('div', { className: 'qf-boss-sprite-large' }, [anim.el])
