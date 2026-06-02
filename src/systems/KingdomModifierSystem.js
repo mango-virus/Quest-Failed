@@ -152,6 +152,7 @@ export class KingdomModifierSystem {
     const bossRoom = gs.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     const bossLv = gs.boss?.level ?? 1
     let placed = 0
+    const members = []   // roster for the ascension screen ("who rallied")
     for (let i = 0; i < squad.length && i < tiles.length; i++) {
       const def = minionDefs.find(d => d.id === squad[i].id)
       if (!def) continue
@@ -171,9 +172,10 @@ export class KingdomModifierSystem {
       m.homeTileY = tile.y
       gs.minions.push(m)
       EventBus.emit('MINION_PLACED', { minion: m })
+      members.push({ name: def.name || def.id, elite: squad[i].elite })
       placed++
     }
-    if (placed) EventBus.emit('BOSS_REINFORCEMENTS', { count: placed, tier, elite: hasElite })
+    if (placed) EventBus.emit('BOSS_REINFORCEMENTS', { count: placed, tier, elite: hasElite, members })
   }
 
   // Collect up to `count` free FLOOR/BOSS_FLOOR tiles, ringing outward from the

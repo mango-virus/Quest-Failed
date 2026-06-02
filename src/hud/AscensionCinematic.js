@@ -19,6 +19,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { animatedBossSprite } from './inGameSnapshot.js'
+import { runCountUp } from './countUp.js'
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI']
 
@@ -111,15 +112,33 @@ function _ensureCss() {
 .qf-asc-line { font-family:'VT323',monospace; font-size:clamp(14px,1.6vw,19px); color:#b9a7d4;
   letter-spacing:.5px; margin:12px auto 0; max-width:520px; line-height:1.4;
   opacity:0; animation:qf-asc-fade .6s ease .7s forwards; }
-.qf-asc-stats { display:inline-flex; gap:18px; margin-top:18px; padding:9px 16px;
-  border:1px solid rgba(201,139,255,.32); border-radius:8px; background:rgba(40,20,70,.42);
-  opacity:0; animation:qf-asc-fade .6s ease .9s forwards; }
-.qf-asc-stat { font-family:'VT323',monospace; font-size:15px; color:#cfc2e6; letter-spacing:.5px; }
-.qf-asc-stat b { color:#fff; }
-.qf-asc-stat .up { color:#7ef0a8; }
-.qf-asc-stat .lbl { color:#9a8fb4; font-size:11px; letter-spacing:2px; margin-right:6px;
-  font-family:'Press Start 2P',monospace; }
-.qf-asc-actions { margin-top:24px; opacity:0; animation:qf-asc-fade .6s ease 1.1s forwards; }
+/* POWER SURGE + DARK KIN — level-up-screen tile/count-up structure, kept in the
+   dark-ascension violet palette (sibling, not clone of the gold level-up). */
+.qf-asc-sec-label { font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:3px;
+  color:#b78bd9; margin:17px 0 9px; text-shadow:0 0 10px rgba(183,139,217,.45);
+  opacity:0; animation:qf-asc-fade .5s ease forwards; }
+.qf-asc-kin-count { color:#9be86a; margin-left:5px; text-shadow:0 0 8px rgba(155,232,106,.5); }
+.qf-asc-gain-tiles { display:inline-flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+.qf-asc-gain { min-width:132px; padding:9px 16px 11px; border:1px solid rgba(201,139,255,.30);
+  border-radius:8px; background:rgba(40,20,70,.42);
+  opacity:0; animation:qf-asc-fade .5s ease forwards; }
+.qf-asc-gain-label { font-family:'Press Start 2P',monospace; font-size:8px; letter-spacing:2px;
+  color:#9a8fb4; margin-bottom:8px; }
+.qf-asc-gain-row { display:flex; align-items:baseline; justify-content:center; gap:8px;
+  font-family:'VT323',monospace; }
+.qf-asc-gain-from { font-size:18px; color:#897ea4; }
+.qf-asc-gain-arrow { font-size:11px; color:#c98bff; }
+.qf-asc-gain-to { font-size:25px; font-weight:bold; text-shadow:0 0 11px currentColor; }
+.qf-asc-gain-delta { font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:1px; margin-top:7px; }
+.qf-asc-kin-chips { display:inline-flex; gap:8px; justify-content:center; flex-wrap:wrap;
+  opacity:0; animation:qf-asc-fade .5s ease forwards; }
+.qf-asc-kin-chip { font-family:'VT323',monospace; font-size:15px; letter-spacing:.5px;
+  color:#c7e8a0; padding:4px 11px; border:1px solid rgba(143,209,79,.32);
+  border-radius:6px; background:rgba(34,52,20,.42); }
+.qf-asc-kin-chip.elite { color:#ffe49a; border-color:rgba(255,210,90,.48);
+  background:rgba(64,48,14,.44); box-shadow:0 0 10px rgba(255,210,90,.16); }
+.qf-asc-kin-star { color:#ffd24a; margin-right:4px; }
+.qf-asc-actions { margin-top:22px; opacity:0; animation:qf-asc-fade .6s ease 1.5s forwards; }
 .qf-asc-actions .btn { font-size:13px; }
 .qf-asc-hint { margin-top:11px; font-size:9px; letter-spacing:3px; color:#6a5f80; }
 @keyframes qf-asc-fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }`
@@ -133,14 +152,27 @@ export class AscensionCinematic {
     this._stopFns = []
     this._timers = []
     this._pending = null
+    this._reinforce = null
+    this._cuCancel = null
     _ensureCss()
     EventBus.on('BOSS_ASCENSION', this._onAscension, this)
+    EventBus.on('BOSS_REINFORCEMENTS', this._onReinforcements, this)
   }
 
   destroy() {
     EventBus.off('BOSS_ASCENSION', this._onAscension, this)
+    EventBus.off('BOSS_REINFORCEMENTS', this._onReinforcements, this)
+    this._cuCancel?.(); this._cuCancel = null
     this._clearWaiters()
     this._teardown()
+  }
+
+  // The elite kin rally fires on the same act-start tick, right after
+  // BOSS_ASCENSION — fold its roster into the pending reveal so the screen can
+  // show "what rallied". (Defensive: stash it even if ordering ever flips.)
+  _onReinforcements(payload = {}) {
+    if (this._pending) this._pending.reinforcements = payload
+    else this._reinforce = payload
   }
 
   _onAscension(payload = {}) {
@@ -148,6 +180,7 @@ export class AscensionCinematic {
     // Don't stack on an in-flight ascension reveal.
     if (this._root || this._pending) return
     this._pending = payload
+    if (this._reinforce) { payload.reinforcements = this._reinforce; this._reinforce = null }
 
     // Wait for the act's opening reveal (Kingdom Response / Act card) to clear,
     // then slam in. Guard each path through _begin (once).
@@ -188,7 +221,7 @@ export class AscensionCinematic {
   _show(payload) {
     const stage = document.getElementById('hud-stage')
     if (!stage) return
-    const { act, fromForm, toForm, archetype, before = {}, after = {} } = payload
+    const { act, fromForm, toForm, archetype, before = {}, after = {}, reinforcements = null } = payload
     const newKey  = _formKey(archetype, toForm ?? act)
     const prevKey = _formKey(archetype, fromForm ?? Math.max(1, (act ?? 2) - 1))
 
@@ -216,7 +249,8 @@ export class AscensionCinematic {
         ]),
         h('div', { className: 'qf-asc-title' }, `${name} ASCENDS`),
         h('div', { className: 'qf-asc-line' }, line),
-        this._statsRow(before, after),
+        this._gainsSection(before, after),
+        this._kinSection(reinforcements),
         h('div', { className: 'qf-asc-actions' }, [
           h('button', { className: 'btn primary', on: { click: () => this._dismiss() } }, 'CONTINUE'),
           h('div', { className: 'qf-asc-hint' }, 'PRESS ANY KEY'),
@@ -229,30 +263,67 @@ export class AscensionCinematic {
     })
     stage.appendChild(this._root)
     this._timers.push(setTimeout(() => this._root?.classList.add('show'), 30))
+    // Cascade the new power numbers (+ kin tally) up from 0, like the level-up.
+    this._cuCancel = runCountUp(this._root)
     this._keyFn = (e) => { e.preventDefault(); e.stopPropagation(); this._dismiss() }
     window.addEventListener('keydown', this._keyFn, { capture: true, once: true })
   }
 
-  _statsRow(before, after) {
+  // POWER SURGE — the boss's own HP/ATK growth, in the level-up screen's tile +
+  // count-up language but kept in the dark-ascension violet palette (sibling, not
+  // clone). The "to" value carries `cu` so runCountUp tallies it from 0.
+  _gainsSection(before, after) {
     const pct = (b, a) => (b > 0 ? Math.round((a / b - 1) * 100) : 0)
-    const cell = (label, b, a) => {
+    const tile = (label, b, a, color, delay) => {
       const up = pct(b, a)
-      return h('div', { className: 'qf-asc-stat' }, [
-        h('span', { className: 'lbl' }, label),
-        h('b', {}, String(b ?? 0)),
-        ' → ',
-        h('b', {}, String(a ?? 0)),
-        up > 0 ? h('span', { className: 'up' }, `  +${up}%`) : null,
+      return h('div', { className: 'qf-asc-gain', style: { animationDelay: `${delay}s` } }, [
+        h('div', { className: 'qf-asc-gain-label' }, label),
+        h('div', { className: 'qf-asc-gain-row' }, [
+          h('span', { className: 'qf-asc-gain-from' }, String(b ?? 0)),
+          h('span', { className: 'qf-asc-gain-arrow' }, '▶'),
+          h('span', { className: 'qf-asc-gain-to cu', style: { color } }, String(a ?? 0)),
+        ]),
+        up > 0 ? h('div', { className: 'qf-asc-gain-delta', style: { color } }, `+${up}%`) : null,
       ])
     }
-    return h('div', { className: 'qf-asc-stats' }, [
-      cell('MAX HP', before.hp ?? 0, after.hp ?? 0),
-      cell('ATTACK', before.attack ?? 0, after.attack ?? 0),
+    return h('div', { className: 'qf-asc-gains' }, [
+      h('div', { className: 'qf-asc-sec-label', style: { animationDelay: '.85s' } }, '◇ POWER SURGE'),
+      h('div', { className: 'qf-asc-gain-tiles' }, [
+        tile('MAX HP', before.hp ?? 0, after.hp ?? 0, '#ff6f8a', 0.95),
+        tile('ATTACK', before.attack ?? 0, after.attack ?? 0, '#ffb15c', 1.05),
+      ]),
+    ])
+  }
+
+  // DARK KIN RALLIED — the free elite garrison ascension deploys into the boss
+  // chamber. The most tangible "what ascending gave me", and invisible until now.
+  // Aggregates duplicates into "NAME ×N" chips; elites get a gold star.
+  _kinSection(reinforcements) {
+    const n = (reinforcements?.count | 0)
+    if (n <= 0) return null
+    const members = Array.isArray(reinforcements?.members) ? reinforcements.members : []
+    const agg = new Map()
+    for (const m of members) {
+      const key = `${m.name}|${m.elite ? 1 : 0}`
+      const e = agg.get(key) || { name: m.name, elite: !!m.elite, n: 0 }
+      e.n++; agg.set(key, e)
+    }
+    const chips = [...agg.values()].map(m => h('div', { className: 'qf-asc-kin-chip' + (m.elite ? ' elite' : '') }, [
+      m.elite ? h('span', { className: 'qf-asc-kin-star' }, '✦') : null,
+      `${String(m.name).toUpperCase()}${m.n > 1 ? ` ×${m.n}` : ''}`,
+    ]))
+    return h('div', { className: 'qf-asc-kin' }, [
+      h('div', { className: 'qf-asc-sec-label', style: { animationDelay: '1.2s' } }, [
+        '◇ DARK KIN RALLIED ',
+        h('span', { className: 'qf-asc-kin-count cu' }, `+${n}`),
+      ]),
+      chips.length ? h('div', { className: 'qf-asc-kin-chips', style: { animationDelay: '1.3s' } }, chips) : null,
     ])
   }
 
   _dismiss() {
     if (!this._root) return
+    this._cuCancel?.(); this._cuCancel = null
     if (this._keyFn) { window.removeEventListener('keydown', this._keyFn, { capture: true }); this._keyFn = null }
     EventBus.emit('BOSS_ASCENSION_DISMISSED')
     this._root.classList.remove('show')
@@ -261,6 +332,7 @@ export class AscensionCinematic {
   }
 
   _teardown() {
+    this._cuCancel?.(); this._cuCancel = null
     for (const s of this._stopFns) { try { s() } catch {} }
     this._stopFns = []
     if (this._keyFn) { window.removeEventListener('keydown', this._keyFn, { capture: true }); this._keyFn = null }
