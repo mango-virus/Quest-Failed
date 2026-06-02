@@ -1606,14 +1606,27 @@ export class DayPhase extends Phaser.Scene {
     const atkMul = duel ? 1.8 : 1.5
     adv.stats.attack    = Math.round((adv.stats?.attack ?? def.baseStats?.attack ?? 14) * atkMul * actMul)
 
+    // Adaptive ascension (KR P5/P2) — the Act IV form tilts his kit + flags the
+    // theming for the duel cinematic. Desperate = vengeful fury (+atk); Radiant =
+    // righteous endurance (+hp). Acts I–III have no form (cfg.form null).
+    adv._aldricForm = cfg.form ?? null
+    if (duel && cfg.form === 'desperate') {
+      adv.stats.attack = Math.round(adv.stats.attack * 1.15)
+    } else if (duel && cfg.form === 'radiant') {
+      const h = Math.round(adv.resources.maxHp * 1.15)
+      adv.resources.maxHp = h; adv.resources.hp = h
+    }
+
     this._gameState.adventurers.active.push(adv)
     aiSystem.pickInitialGoal(adv)
     if (duel) adv.goal = { type: 'SEEK_BOSS' }   // the Hero King marches on the throne
     nem.markBorn()
 
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
-    EventBus.emit('NEMESIS_ARRIVED', { adventurer: adv, act: cfg.act })
-    const line = nem.pick('arrive', String(cfg.act))
+    EventBus.emit('NEMESIS_ARRIVED', { adventurer: adv, act: cfg.act, form: cfg.form })
+    // The Act IV duel arrival uses the form's dramatic opener (vengeful/noble),
+    // so HOW you played is the first thing the Hero King throws in your face.
+    const line = (duel && nem.formLine(cfg.form, 'opener')) || nem.pick('arrive', String(cfg.act))
     if (line) EventBus.emit('NEMESIS_TAUNT', { line, act: cfg.act, source: 'arrive', adventurer: adv })
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
     return [adv]

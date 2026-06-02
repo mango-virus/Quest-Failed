@@ -99,5 +99,17 @@
       "...How. I did everything right. I was supposed to be...",
       "Tell them... tell them I tried to be great..."
     ]
+  },
+  "forms": {
+    "desperate": {
+      "epithet": "Aldric, the Vengeful Crown",
+      "opener": "You made the realm BLEED — so they crowned its rage, and I am all of it. Every throat you slit, I answer for tonight.",
+      "low": "I am their VENGEANCE — I cannot fall, I will not, there are too many DEAD behind me!"
+    },
+    "radiant": {
+      "epithet": "Aldric, the Radiant Hope",
+      "opener": "Even from a thing like you — a flicker of mercy. The realm saw it, and chose hope over fear. I am that hope, monster, and hope does not break.",
+      "low": "The realm believes in me. I will NOT betray that light — not to you, not to anything!"
+    }
   }
 }

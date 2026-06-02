@@ -113,20 +113,53 @@ export class NemesisSystem {
   // What DayPhase needs to spawn the current-act Aldric.
   spawnConfig() {
     const n = this._gs.meta?.nemesis ?? {}
+    const act = n.act ?? 1
+    // Adaptive ascension (KR P5/P2) — at the Act IV crowning Aldric's FORM is
+    // decided by HOW the run was played and locked onto meta.nemesis.form: a
+    // brutal, slaughter-heavy run forges a vengeful "Desperate Crown"; a more
+    // merciful run (you let many flee) rallies a noble "Radiant Hope". Decided
+    // lazily at the duel so it reflects the whole run.
+    let form = n.form ?? null
+    if (act >= 4 && !form) {
+      form = this._decideForm()
+      if (this._gs.meta?.nemesis) this._gs.meta.nemesis.form = form
+    }
     return {
       name: n.name ?? 'Aldric',
-      act: n.act ?? 1,
+      act,
       returns: n.returns ?? 0,
       abilities: [...(n.abilities ?? [])],
       crowned: !!n.crowned,
-      title: this._title(n.act ?? 1),
+      form,
+      title: this._title(act, form),
     }
+  }
+
+  // Brutal (slaughtered the kingdom) → 'desperate'; merciful (let many escape)
+  // → 'radiant'. Whole-run kill ratio; defaults to the middle when no data.
+  _decideForm() {
+    const t = this._gs.run?.totals ?? {}
+    const kills = t.advsKilled ?? t.kills ?? 0
+    const escaped = t.advsEscaped ?? 0
+    const ratio = (kills + escaped) > 0 ? kills / (kills + escaped) : 0.6
+    return ratio >= 0.62 ? 'desperate' : 'radiant'
   }
 
   // A line for a category (and optional sub-key), or null if the bank is absent.
   pick(category, sub) { return this._pick(category, sub) }
 
-  _title(act) {
+  // A form-specific duel line ('opener' / 'low'), or null.
+  formLine(form, key) {
+    const line = this._lines?.forms?.[form]?.[key]
+    return typeof line === 'string' ? line : null
+  }
+
+  _title(act, form) {
+    // Act IV: the adaptive form's epithet overrides the generic Hero-King title.
+    if (act >= 4 && form) {
+      const ep = this._lines?.forms?.[form]?.epithet
+      if (ep) return ep
+    }
     const t = this._lines?.titles
     return Array.isArray(t) && t.length ? (t[Math.min(act, t.length) - 1] ?? t[0]) : 'Aldric'
   }
