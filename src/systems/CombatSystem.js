@@ -270,6 +270,13 @@ export class CombatSystem {
       ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
     target.resources.hp = Math.max(_smFloor, target.resources.hp - finalDmg)
 
+    // Templar "Lay on Hands" — reactive holy self-heal the first time a Templar
+    // is chipped below the threshold (once per delve). Fires AFTER the hit lands.
+    if (finalDmg > 0) this._maybeLayOnHands(target)
+    // Pirate "Grog Rage" — reactive berserk the first time a Pirate is chipped
+    // below the threshold (once per delve). Also fires AFTER the hit lands.
+    if (finalDmg > 0) this._maybeGrogRage(target)
+
     // The Nemesis (Aldric) reacts to being chipped — a hurt grunt + an escalating
     // rattled→annoyed→enraged face. Fired raw per hit; NemesisSystem throttles.
     if (target._nemesis && finalDmg > 0) {
@@ -438,6 +445,60 @@ export class CombatSystem {
     return { healed: restored }
   }
 
+  // Templar "Lay on Hands" — a reactive holy self-heal. The first time a Templar
+  // is chipped below TEMPLAR_LAY_ON_HANDS_THRESHOLD of max HP, it heals
+  // TEMPLAR_LAY_ON_HANDS_FRAC of max HP, once per delve (layOnHandsUsedToday is
+  // reset nightly in AISystem). Plays a holy column-of-light + god-rays + a
+  // golden floater and emits ALLY_HEALED so the heal SFX + HP bar jump read
+  // clearly to the player. Called from tryAttack right after damage lands.
+  _maybeLayOnHands(adv) {
+    if (!adv || adv.classId !== 'templar') return
+    if ((adv.resources?.hp ?? 0) <= 0) return
+    if ((adv.layOnHandsUsedToday ?? 0) >= 1) return
+    const maxHp = adv.resources?.maxHp ?? 0
+    if (maxHp <= 0) return
+    const threshold = Balance.TEMPLAR_LAY_ON_HANDS_THRESHOLD ?? 0.35
+    if (adv.resources.hp >= maxHp * threshold) return
+
+    adv.layOnHandsUsedToday = 1
+    const heal    = Math.ceil(maxHp * (Balance.TEMPLAR_LAY_ON_HANDS_FRAC ?? 0.5))
+    const before  = adv.resources.hp
+    adv.resources.hp = Math.min(maxHp, before + heal)
+    const restored = adv.resources.hp - before
+
+    const x = adv.worldX ?? 0
+    const y = adv.worldY ?? 0
+    AbilityVfx.beamPillar?.(this._scene, x, y, { color: 0xfff2c0 })
+    AbilityVfx.godRays?.(this._scene, x, y - 8, { color: 0xffe9a0, durationMs: 700 })
+    AbilityVfx.floatingText?.(this._scene, x, y - 34, '✝ LAY ON HANDS', { color: '#ffe9a0' })
+
+    EventBus.emit('ALLY_HEALED', { sourceId: adv.instanceId, targetId: adv.instanceId, amount: restored })
+    EventBus.emit('TEMPLAR_LAY_ON_HANDS', { adventurer: adv, amount: restored })
+  }
+
+  // Pirate "Grog Rage" — when a Pirate is first chipped below
+  // PIRATE_GROG_THRESHOLD it swigs grog and goes berserk for the rest of the
+  // delve: its attack + swing/move speed surge (read off `grogRagedToday` in
+  // _computeDamage + _cooldownFor) and it stops fleeing (AISystem checks the
+  // same flag). Once per delve (reset nightly in AISystem). Called from
+  // tryAttack right after damage lands.
+  _maybeGrogRage(adv) {
+    if (!adv || adv.classId !== 'pirate') return
+    if ((adv.resources?.hp ?? 0) <= 0) return
+    if (adv.grogRagedToday) return
+    const maxHp = adv.resources?.maxHp ?? 0
+    if (maxHp <= 0) return
+    if (adv.resources.hp >= maxHp * (Balance.PIRATE_GROG_THRESHOLD ?? 0.4)) return
+
+    adv.grogRagedToday = 1
+    const x = adv.worldX ?? 0
+    const y = adv.worldY ?? 0
+    AbilityVfx.particleBurst?.(this._scene, x, y - 8, { color: 0xff7a2a, count: 14 })
+    AbilityVfx.pulseRing?.(this._scene, x, y, { color: 0xff7a2a })
+    AbilityVfx.floatingText?.(this._scene, x, y - 34, '🍺 GROG!', { color: '#ff9a3a' })
+    EventBus.emit('PIRATE_GROG_RAGE', { adventurer: adv })
+  }
+
   // ── Internals ──────────────────────────────────────────────────────────────
 
   _cooldownFor(entity) {
@@ -451,11 +512,17 @@ export class CombatSystem {
       if (hp / maxHp < 0.5) speed *= 1.3
     }
 
+    // Pirate Grog Rage — berserk swing speed (set by _maybeGrogRage).
+    if (entity.grogRagedToday) speed *= (Balance.PIRATE_GROG_SPD_MULT ?? 1.3)
+
     return Balance.ATTACK_INTERVAL_MS / Math.max(0.5, speed)
   }
 
   _computeDamage(attacker, target) {
     let raw = attacker.stats?.attack ?? 1
+
+    // Pirate Grog Rage — berserk attack boost (set by _maybeGrogRage).
+    if (attacker.grogRagedToday) raw = Math.round(raw * (Balance.PIRATE_GROG_ATK_MULT ?? 1.5))
 
     // Phase: items — Soul-Bound Beacon damage buff. The flag + multiplier
     // are set/cleared by MinionAISystem._tickBeaconBuffs as the minion

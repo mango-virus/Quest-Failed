@@ -17,6 +17,38 @@
       "My shield has never failed me.",
       "The wicked will face steel."
     ],
+    "templar": [
+      "The Light is my shield.",
+      "By the Light, I shall not fall.",
+      "Faith and steel. Nothing else is needed.",
+      "I have sworn an oath. This dungeon will not break it.",
+      "Hold fast. The Light holds with us.",
+      "My wounds will close. Yours will not.",
+      "Cleanse this place of its darkness.",
+      "I do not fear the dark. I am its end.",
+      "Stand behind my shield, and live.",
+      "Strike me down — the Light raises me again.",
+      "Every blow I take is one my brothers do not.",
+      "The boss is an abomination. I am its judgement.",
+      "Lay on hands. Rise, and fight on.",
+      "Blessed steel before me, faith behind."
+    ],
+    "pirate": [
+      "Where's the loot, ye scurvy dungeon?",
+      "Yarr, that chest be callin' my name.",
+      "Gold first. Glory's for fools.",
+      "Dead men tell no tales.",
+      "I smell doubloons.",
+      "Cross blades with me and lose 'em.",
+      "A pinch o' grog and I'm unstoppable.",
+      "This be a robbery, not a rescue.",
+      "Hand over the treasure and nobody bleeds. Much.",
+      "I've sailed worse than this leaky pit.",
+      "Cutlass says I go where I please.",
+      "Plunder, then plunder some more.",
+      "Ye can't kill what's already three sheets to the wind.",
+      "The sea spat me out. Yer dungeon won't fare better."
+    ],
     "rogue": [
       "Quiet now...",
       "Lockpicks ready.",

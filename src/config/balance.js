@@ -300,6 +300,17 @@ export const Balance = {
   CLERIC_HEAL_AMOUNT:        12,
   CLERIC_HEAL_TARGET_THRESHOLD: 0.8,  // heal an ally below this HP fraction
   HEAL_RANGE_TILES:          2,       // cleric heal-ally range
+  // Templar "Lay on Hands" — a reactive self-heal that fires the first time a
+  // Templar is chipped below the threshold, once per delve (layOnHandsUsedToday).
+  TEMPLAR_LAY_ON_HANDS_THRESHOLD: 0.35, // HP fraction below which it triggers
+  TEMPLAR_LAY_ON_HANDS_FRAC:      0.5,  // heals this fraction of max HP
+  // Pirate "Grog Rage" — swigs grog when chipped below the threshold (once per
+  // delve, grogRagedToday) and goes berserk: attack + speed surge, won't flee.
+  PIRATE_GROG_THRESHOLD: 0.40,  // HP fraction below which the rage triggers
+  PIRATE_GROG_ATK_MULT:  1.5,   // attack multiplier while raging
+  PIRATE_GROG_SPD_MULT:  1.3,   // speed (move + swing) multiplier while raging
+  // Pirate "Plunder" — steals this multiple of the normal chest-gold haul.
+  PIRATE_PLUNDER_MULT:   1.5,
   LOW_HP_THRESHOLD:          0.4,     // adventurer triggers low-hp behavior (HEAL / FLEE) below this fraction
   // Healing Fountain blessing (2026-05-27 rework). Touching a fountain
   // grants a heal-over-time that PERSISTS INTO THE BOSS FIGHT — the

@@ -18,7 +18,7 @@
 import sharp from 'sharp';
 import fs from 'node:fs';
 import path from 'node:path';
-import { POOLS, COMMON, CRYSTAL_RULE, VARIANT_COUNT } from './lpc-pools.mjs';
+import { POOLS, COMMON, CRYSTAL_RULE, VARIANT_COUNT, HELMET_SAFE_HAIR_SHORT, HELMET_SAFE_HAIR_LONG } from './lpc-pools.mjs';
 
 const argv = process.argv.slice(2);
 const lpcRoot = argv[0];
@@ -75,6 +75,34 @@ const BODY_BASE_PACKED = basePacked(BODY_PALETTE);
 const CLOTH_BASE_PACKED = basePacked(CLOTH_PALETTE);
 const METAL_BASE_PACKED = basePacked(METAL_PALETTE);
 
+// Extra "LPC Revised" metal finishes — icy / holy tones for the Templar's
+// blessed plate. Each is a 6-shade ramp that remaps the SAME metal "steel"
+// base (meta_metal.base) by index, so they slot straight into the metal
+// palette's options alongside the ulpc finishes (the swap is index-based).
+// Sourced from the LPC-Revised METAL palette (revised silver/gold) + the
+// LPC-Revised "all" palette (white / pearl / lavender / ice). Keyed under
+// distinct names so they don't collide with the ulpc silver/gold.
+(function mergeRevisedMetals() {
+  if (!METAL_PALETTE) return;
+  const n = METAL_PALETTE.baseRgb.length;
+  const read = (rel) => {
+    try { return JSON.parse(fs.readFileSync(path.join(lpcRoot, 'palette_definitions', ...rel), 'utf8')); }
+    catch (e) { return null; }
+  };
+  const metalLpcr = read(['metal', 'metal_lpcr.json']) || {};
+  const allLpcr   = read(['all', 'all_lpcr.json']) || {};
+  const put = (key, ramp) => {
+    if (Array.isArray(ramp) && ramp.length === n) METAL_PALETTE.options[key] = ramp.map(hexToRgb);
+    else console.warn(`  ! revised-metal "${key}" skipped (ramp len ${ramp?.length} ≠ ${n})`);
+  };
+  put('rev_silver', metalLpcr.silver);
+  put('rev_gold',   metalLpcr.gold);
+  put('white',      allLpcr.white);
+  put('pearl',      allLpcr.pearl);
+  put('lavender',   allLpcr.lavender);
+  put('ice',        allLpcr.ice);
+})();
+
 // Hair: all 26 palettes available — user wants the full pool (natural + fantasy).
 const HAIR_ALL = HAIR_PALETTE ? Object.keys(HAIR_PALETTE.options) : [];
 // Body: natural skin tones for adventurers; Twitch Streamer can pull fantasy.
@@ -84,6 +112,17 @@ const BODY_FANTASY = ['blue', 'bright_green', 'dark_green'];
 const CLOTH_ALL = CLOTH_PALETTE ? Object.keys(CLOTH_PALETTE.options) : [];
 // Metal: 8 finishes — all valid for armor/weapons.
 const METAL_ALL = METAL_PALETTE ? Object.keys(METAL_PALETTE.options) : [];
+
+// Shield colour vocabularies (used by the shield picker in sampleVariant).
+// Round Shield ships fixed colour-variant PNGs (brown/black/gold/green/silver/
+// yellow). The Heater Shield Paint face uses its own large palette — only the
+// names that ALSO exist as cloth/tabard colours can match a class's house
+// colour, so SHIELD_PAINT_COLORS gates the heraldic-paint step to those.
+const ROUND_SHIELD_COLORS = ['silver', 'gold', 'black', 'green', 'brown'];
+const SHIELD_PAINT_COLORS = new Set([
+  'red', 'blue', 'navy', 'purple', 'forest', 'green', 'white', 'teal',
+  'sky', 'orange', 'black', 'gray', 'pink', 'lavender', 'yellow',
+]);
 
 // ---- Output layout ----------------------------------------------------------
 
@@ -127,12 +166,15 @@ for (const f of walk(sdRoot)) {
   }
 }
 
-// Hair pool helpers — LPC hair items are designed to layer (a "long" piece
-// often wants bangs on top to look complete). Until we add multi-piece hair
-// stacking, restrict the hair pool to self-contained hairstyle subdirs:
-// short/, bald/, bob/, afro/, curly/, spiky/. Long/xlong/braids/pigtails
-// are extension-style pieces that don't read well alone.
-const SELF_CONTAINED_HAIR_DIRS = ['hair/short/', 'hair/bald/', 'hair/bob/', 'hair/afro/', 'hair/curly/', 'hair/spiky/'];
+// Hair pool helpers. Self-contained hairstyle subdirs (each reads fine alone):
+// short/, bald/, bob/, afro/, curly/, spiky/ PLUS long/, braids/, pigtails/,
+// xlong/ — the latter four are full standalone styles (Long, Braid, Ponytail,
+// Pigtails, Princess, Xlong …), NOT half-pieces. Only `extensions/` stays out
+// (those are left/right HALF strands meant to layer on another base).
+const SELF_CONTAINED_HAIR_DIRS = [
+  'hair/short/', 'hair/bald/', 'hair/bob/', 'hair/afro/', 'hair/curly/', 'hair/spiky/',
+  'hair/long/', 'hair/braids/', 'hair/pigtails/', 'hair/xlong/',
+];
 const HAIR_HEAD = []; // hairstyles
 const HAIR_BEARDS = []; // beards/mustaches
 for (const h of byCategory.hair || []) {
@@ -140,20 +182,72 @@ for (const h of byCategory.hair || []) {
   else if (SELF_CONTAINED_HAIR_DIRS.some((d) => h.file.startsWith(d))) HAIR_HEAD.push(h);
 }
 
-function reqAnimsCovered(item, full = true) {
-  const anims = item.def.animations || [];
-  const need = full
-    ? ['walk', 'run', 'idle', 'slash', 'thrust', 'shoot', 'spellcast', 'hurt']
-    : ['walk'];
-  return need.every((a) => anims.includes(a));
+// Filter by DISK TRUTH, not the `animations` metadata array (which is blank /
+// stale for many items — the project's core gotcha). A hairstyle is usable if
+// its source dir ships art for every combat anim that does NOT fall back —
+// walk/slash/thrust/shoot/spellcast/hurt (run + idle auto-fall-back to walk via
+// GENERAL_ANIM_FALLBACK, so they're not required). This admits ~all 107 of the
+// pack's complete styles and rejects only the genuinely broken ones (Child
+// Wavy, Messy), instead of whatever the metadata happened to list.
+const COMBAT_REQUIRED = ['walk', 'slash', 'thrust', 'shoot', 'spellcast', 'hurt'];
+function combatAnimsOnDisk(item) {
+  const L = item.def.layer_1;
+  const src = L && (L.male || L.female || L.muscular);
+  if (!src) return false;
+  const base = path.join(ssRoot, src.replace(/\/$/, ''));
+  return COMBAT_REQUIRED.every((a) => {
+    if (fs.existsSync(path.join(base, `${a}.png`))) return true;
+    const sub = path.join(base, a);
+    return fs.existsSync(sub) && fs.statSync(sub).isDirectory() && fs.readdirSync(sub).some((x) => x.endsWith('.png'));
+  });
 }
-const HAIR_HEAD_FULL = HAIR_HEAD.filter((h) => reqAnimsCovered(h));
-const HAIR_BEARDS_FULL = HAIR_BEARDS.filter((h) => reqAnimsCovered(h));
+// User-vetoed hairstyles — never used by ANY class (filtered out of the pool).
+const HAIR_EXCLUDE = new Set(['Afro']);
+const HAIR_HEAD_FULL = HAIR_HEAD.filter(combatAnimsOnDisk).filter((h) => !HAIR_EXCLUDE.has(h.name));
+const HAIR_BEARDS_FULL = HAIR_BEARDS.filter(combatAnimsOnDisk);
+
+// Headwear that WRAPS the head (vs a circlet/hat that sits on top) — voluminous
+// or textured hair (afros, twists, dreads, spikes, topknots, buns, ponytails,
+// xlong) pokes raggedly through these. When one is rolled, hair is swapped for
+// a flat "covering-safe" style. Circlets/tiaras/crowns/hats are NOT here (hair
+// shows cleanly under them). COVERING_SAFE = the curated flat short + flat long
+// sets (same lists the always-helmeted Knight/Rogue draw from).
+const HAIR_COVERINGS = new Set([
+  'Hood', 'Sack Cloth Hood', 'Hijab', 'Bandana', 'Bordered Bandana', 'Pirate Bandana',
+]);
+const COVERING_SAFE_HAIR = new Set([...HELMET_SAFE_HAIR_SHORT, ...HELMET_SAFE_HAIR_LONG]);
+const COVERING_SAFE_HAIR_LIST = [...COVERING_SAFE_HAIR];
+// Bows get a nocked Arrow ("Ammo") layer that only composites during shoot
+// (zPos 150, over the drawn bow) — the visible projectile mid-attack.
+const BOW_WEAPONS = new Set(['Normal', 'Great', 'Recurve']);
+// Multi-head tools that must lock to one variant (the "Smash" tool ships
+// axe/hammer/pickaxe heads; we use only the axe — a two-handed great-axe).
+// Glowsword ships only blue/red variants and has no carried-colour concept,
+// so without a lock it re-rolls blue↔red every animation row (flicker) — pin
+// it to a single blue blade everywhere it's used (cheater + streamer).
+const WEAPON_VARIANT_LOCK = { Smash: 'axe', Glowsword: 'blue' };
+// Hair that sticks UP (spikes, mohawks, crown-topknots, high buns/ponytails).
+// Long/curly/flat hair flows fine UNDER a hat that sits on the crown, but these
+// poke through or around it — so they're only used on BARE heads.
+const HAIR_TALL = new Set([
+  'Spiked', 'Spiked2', 'Spiked beehive', 'Spiked liberty', 'Spiked liberty2',
+  'Spiked porcupine', 'Halfmessy', 'Longhawk', 'Shorthawk', 'Cowlick tall',
+  'Long Topknot', 'Long Topknot 2', 'Short Topknot', 'Short Topknot 2',
+  'High Bun', 'Bangs bun', 'High ponytail',
+]);
 
 // ---- RNG --------------------------------------------------------------------
 
 function makeRng(seed) {
+  // Scramble the seed (murmur3-style finalizer) BEFORE the LCG. A raw LCG seeded
+  // with near-sequential values (variant i, i+1, …) produces correlated early
+  // outputs, so a given pick (e.g. hairColor) only spanned part of its range —
+  // the beast master's ear/tail colours were stuck to ~15 of 26 hair palettes.
+  // The scramble decorrelates sequential seeds so picks span their full range.
   let s = seed >>> 0;
+  s = Math.imul(s ^ (s >>> 16), 0x45d9f3b) >>> 0;
+  s = Math.imul(s ^ (s >>> 16), 0x45d9f3b) >>> 0;
+  s = (s ^ (s >>> 16)) >>> 0;
   return () => {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 4294967296;
@@ -161,8 +255,49 @@ function makeRng(seed) {
 }
 function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 function chance(rng, p) { return rng() < p; }
+// Weighted key pick from a { key: weight } map (e.g. body-type bias). Weights
+// need not sum to 1; zero/negative weights are dropped.
+function weightedPick(rng, weights) {
+  const entries = Object.entries(weights).filter(([, w]) => w > 0);
+  if (!entries.length) return null;
+  const total = entries.reduce((s, [, w]) => s + w, 0);
+  let r = rng() * total;
+  for (const [k, w] of entries) { if ((r -= w) < 0) return k; }
+  return entries[entries.length - 1][0];
+}
+
+// Resolve an item-pool name to its sheet_definition. Supports a
+// category-qualified form ("legs:Armour") so pools can disambiguate items
+// that share a `name` across categories — the plate "Armour" piece exists
+// separately under arms/, legs/ AND feet/, and a bare byName lookup would
+// silently keep whichever was indexed last. Plain names use the global index.
+function resolveItem(itemName) {
+  if (typeof itemName === 'string' && itemName.includes(':')) {
+    const idx = itemName.indexOf(':');
+    const cat = itemName.slice(0, idx);
+    const nm = itemName.slice(idx + 1);
+    const hit = (byCategory[cat] || []).find((x) => x.name === nm);
+    return hit ? { def: hit.def, file: hit.file, category: cat } : null;
+  }
+  return byName.get(itemName) || null;
+}
 
 // ---- Pool sampling ----------------------------------------------------------
+
+// Per-body-type pool gating. A slot pool may be given as a body map
+// { male, female, muscular } (each value a list or { items, chance }) so a
+// class can hand a different item set to each build — e.g. muscular knights
+// get full plate vambraces (the only arm piece that covers their forearm)
+// while male/female roll a varied set. Falls back male→female→muscular. A
+// plain list / { items, chance } passes through unchanged (shared by all).
+function resolveBodyPool(pool, bodyType) {
+  if (pool && !Array.isArray(pool) && typeof pool === 'object'
+      && !('items' in pool)
+      && (pool.male || pool.female || pool.muscular)) {
+    return pool[bodyType] || pool.male || pool.female || pool.muscular || null;
+  }
+  return pool;
+}
 
 function resolvePool(p) {
   if (!p) return null;
@@ -179,7 +314,25 @@ function pickFromPool(rng, pool) {
 
 function sampleVariant(rng, className, classPool) {
   const v = { className, layers: [] };
-  v.bodyType = pick(rng, classPool.bodyTypes);
+  // ── Mode split (e.g. cheater 50% chaos / 50% hacker) ─────────────────────
+  // A class may define `modes: [{ name, weight, ...slotOverrides }]`. We pick
+  // one weighted mode and MERGE its slot overrides over the base pool, so the
+  // rest of the sampler stays mode-agnostic. v.mode is recorded for the
+  // manifest. Shared slots (heads/hair/etc.) stay on the base; any field the
+  // mode defines (torso/headwear/accessory/weapon/bodyColorPool/…) wins.
+  if (Array.isArray(classPool.modes) && classPool.modes.length) {
+    const total = classPool.modes.reduce((s, m) => s + (m.weight ?? 1), 0);
+    let r = rng() * total, chosen = classPool.modes[classPool.modes.length - 1];
+    for (const m of classPool.modes) { r -= (m.weight ?? 1); if (r < 0) { chosen = m; break; } }
+    classPool = { ...classPool, ...chosen };
+    v.mode = chosen.name || null;
+  }
+  // Body type — optionally biased per class (bodyTypeWeights) so a class can
+  // lean toward the build that carries its signature silhouette (e.g. knights
+  // skew male/muscular) while still rolling the others sometimes.
+  v.bodyType = classPool.bodyTypeWeights
+    ? weightedPick(rng, classPool.bodyTypeWeights)
+    : pick(rng, classPool.bodyTypes);
   // Heads resolution supports three forms:
   //   'auto_human'  → pick a Human Male/Female head matched to the body
   //   array         → flat list, all body types share the same options
@@ -197,6 +350,30 @@ function sampleVariant(rng, className, classPool) {
     heads = [];
   }
   v.head = pick(rng, heads);
+  // ── Coordinated COSTUME sets (cosplay_adventurer) ────────────────────────
+  // Each entry is a creature costume: a monster HEAD + the matching feature
+  // pieces (wings / tail / horns) so a build reads as one intentional costume
+  // — a green dragon (lizard head + green lizard wings + tail), a werewolf
+  // (wolf head + fur tail), a vampire (bat wings), etc. The set OVERRIDES the
+  // flat head pick above and fills v.costume with already-colour-resolved
+  // pieces. `color` is the creature's shared hue applied to wings+tail so they
+  // match; `hornColor` overrides for the horns when present.
+  v.costume = null;
+  if (Array.isArray(classPool.costumeSets) && classPool.costumeSets.length) {
+    const set = pick(rng, classPool.costumeSets);
+    // Heads accept a flat list OR a { male, female, muscular } body-map (so a
+    // dragon picks 'Lizard male' on male/muscular bodies, 'Lizard female' on a
+    // female body — the gendered monster heads only ship the matching shape).
+    const hp = set.heads ? resolveBodyPool(set.heads, v.bodyType) : null;
+    const hl = Array.isArray(hp) ? hp : (hp?.items || []);
+    if (hl.length) v.head = pick(rng, hl);
+    const col = (set.color && set.color.length) ? pick(rng, set.color) : null;
+    const pieces = [];
+    if (set.wings && set.wings.length) pieces.push({ item: pick(rng, set.wings), color: col });
+    if (set.tail && set.tail.length)   pieces.push({ item: pick(rng, set.tail),  color: col });
+    if (set.horns && set.horns.length) pieces.push({ item: pick(rng, set.horns), color: (set.hornColor && set.hornColor.length) ? pick(rng, set.hornColor) : col });
+    v.costume = { setName: set.name || null, pieces };
+  }
   // Hair: every adventurer can roll any of the 26 palettes (incl. fantasy),
   // unless the class locks it via hairColorPool (named characters do — e.g.
   // shadow_monarch = always black).
@@ -219,10 +396,56 @@ function sampleVariant(rng, className, classPool) {
     : CLOTH_ALL;
   v.clothColor = pick(rng, clothPool);
   // Optional per-class FEET color override (e.g. shadow_monarch wants black
-  // shoes while the rest of the outfit is charcoal). Falls back to clothColor.
-  v.feetColor = classPool.feetColor ?? null;
+  // shoes; the bard wants NORMAL shoe colours, not its vibrant outfit colour).
+  // Array → pick one; else fixed/null. Falls back to clothColor.
+  v.feetColor = Array.isArray(classPool.feetColor)
+    ? pick(rng, classPool.feetColor)
+    : (classPool.feetColor ?? null);
   // Metal color (one shared finish for all metal pieces) — per-class override allowed.
   v.metalColor = pick(rng, (classPool.metalColorPool?.length) ? classPool.metalColorPool : METAL_ALL);
+  // ── Two-tone layered outfit (e.g. mage kimono) ───────────────────────────
+  // When a class defines `outfit`, roll a MAIN colour and a distinct ACCENT
+  // colour, then compose the chosen base dress + ONE sleeve style (+ optional
+  // bodice) into v.outfitLayers as { item, color } (colour already resolved).
+  // The MAIN colour also becomes v.clothColor so palette-swap pieces (legs/
+  // feet) follow it; the outfit OWNS the torso + arms slots (skipped below).
+  // 'main'/'accent' tokens in the layer specs resolve to the two rolled colours
+  // — the deliberate two-tone the design calls for (trim/bodice/sash = accent).
+  v.outfitLayers = null;
+  v.outfitMainColor = null;
+  v.outfitAccentColor = null;
+  // `outfit.chance` (optional) gates the outfit per-variant — a class can give
+  // only SOME variants the layered outfit (e.g. necromancer ~40% kimono, the
+  // rest a plain robe). Unset = always (mage). `chance==null` short-circuits so
+  // no rng is consumed for classes that always use the outfit (keeps the mage
+  // deterministic). Separate main/accent colour pools let the two tones draw
+  // from different sets (e.g. necro main = 5 darks, accent = darks + occasional
+  // colour); both fall back to clothColorPool.
+  if (classPool.outfit && (classPool.outfit.chance == null || chance(rng, classPool.outfit.chance))) {
+    const o = classPool.outfit;
+    const mpal = (o.mainColors?.length) ? o.mainColors
+               : (classPool.clothColorPool?.length) ? classPool.clothColorPool : CLOTH_ALL;
+    const apal = (o.accentColors?.length) ? o.accentColors : mpal;
+    const main = pick(rng, mpal);
+    let accent = pick(rng, apal);
+    let guard = 0;
+    while (accent === main && guard++ < 16) accent = pick(rng, apal);
+    v.outfitMainColor = main;
+    v.outfitAccentColor = accent;
+    v.clothColor = main; // palette-swap pieces (legs/feet) follow the main colour
+    const resolveCol = (c) => (c === 'accent' ? accent : c === 'main' ? main : c);
+    const out = [];
+    const base = pick(rng, o.bases);
+    for (const [item, col] of base.layers) out.push({ item, color: resolveCol(col) });
+    if (o.sleeves) {
+      const sleeves = pick(rng, o.sleeves);
+      for (const [item, col] of sleeves.layers) out.push({ item, color: resolveCol(col) });
+    }
+    if (o.bodice && (base.forceBodice || chance(rng, o.bodice.chance))) {
+      out.push({ item: o.bodice.item, color: resolveCol(o.bodice.color) });
+    }
+    v.outfitLayers = out;
+  }
   // Nose / eyebrows render at zPos 105 / 106 — ON TOP of the head
   // sprite (zPos 100). For non-human heads (cosplay_adventurer's
   // monster heads) the head art has its own facial features built in,
@@ -234,20 +457,40 @@ function sampleVariant(rng, className, classPool) {
   // (e.g. cosplay_adventurer wears monster heads — hair zPos 120 would
   // render flowing locks on top of a wolf face). Beard follows the same
   // null-skip rule below.
-  if (classPool.hair === null) {
+  // `baldChance` — probability of a fully shaved/bald head (no hair layer), e.g.
+  // monks. Rolled first; a bald head can still have a beard (classic old monk).
+  if (classPool.baldChance && chance(rng, classPool.baldChance)) {
+    v.hair = null;
+  } else if (classPool.hair === null) {
     v.hair = null;
   } else if (classPool.hair === 'all_human_hair') {
     v.hair = pick(rng, HAIR_HEAD_FULL).name;
+  } else if (Array.isArray(classPool.hair)) {
+    v.hair = pick(rng, classPool.hair);
+  } else if (classPool.hair && typeof classPool.hair === 'object') {
+    // Per-body-type hair list — lets a class give one build extra styles
+    // (e.g. female knights also roll long back/shoulder hair that hangs
+    // below the helmet rim). Falls back male→female→muscular.
+    const list = classPool.hair[v.bodyType]
+      || classPool.hair.male || classPool.hair.female || classPool.hair.muscular || [];
+    v.hair = list.length ? pick(rng, list) : null;
   } else {
     v.hair = pick(rng, classPool.hair);
   }
   v.beard = (v.bodyType !== 'female' && chance(rng, classPool.beardChance ?? 0))
     ? pick(rng, HAIR_BEARDS_FULL).name
     : null;
+  // Beast-kin: a PAIRED animal-ears + matching tail (e.g. wolf/cat), coloured to
+  // the hair so the fur matches. When present, headwear is skipped below (a hat/
+  // hood would cover the ears). `beastKin: { chance, types: [{ears, tail}] }`.
+  v.beast = null;
+  if (classPool.beastKin && chance(rng, classPool.beastKin.chance)) {
+    v.beast = pick(rng, classPool.beastKin.types);
+  }
   // Torso: most classes pull straight from `torso`. Monk/Barbarian add a
   // `shirtlessTorso` set that's only valid when the body is in `shirtlessFor`
   // (male/muscular) — keeps the bare-chested look gated to male variants.
-  let torsoOptions = classPool.torso;
+  let torsoOptions = resolveBodyPool(classPool.torso, v.bodyType);
   if (
     Array.isArray(classPool.shirtlessTorso) &&
     Array.isArray(classPool.shirtlessFor) &&
@@ -255,53 +498,212 @@ function sampleVariant(rng, className, classPool) {
   ) {
     torsoOptions = [...torsoOptions, ...classPool.shirtlessTorso];
   }
-  v.torso = pickFromPool(rng, torsoOptions);
-  v.legs = pickFromPool(rng, classPool.legs);
-  v.feet = pickFromPool(rng, classPool.feet);
-  v.arms = pickFromPool(rng, classPool.arms);
-  v.headwear = pickFromPool(rng, classPool.headwear);
+  // When this variant actually got an outfit, it OWNS torso + arms (skip them).
+  // Keyed on v.outfitLayers (not classPool.outfit) so the non-outfit variants of
+  // a partial-outfit class (e.g. necromancer's reaper-robe 60%) still pick a torso.
+  v.torso = v.outfitLayers ? null : pickFromPool(rng, torsoOptions);
+  // Optional second torso layer composited at its OWN zPos — e.g. a Tabard
+  // surcoat (zPos 55) under a Plate breastplate (zPos 60), so the coloured
+  // skirt/shoulders show below the armour. Colour-locked to the cloth (house)
+  // colour like the other wearables.
+  v.torsoOverlay = pickFromPool(rng, resolveBodyPool(classPool.torsoOverlay, v.bodyType));
+  // Overlay colour: a single name, an array (pick one — e.g. varied leather
+  // belt tones), or null (falls back to the cloth colour).
+  v.torsoOverlayColor = Array.isArray(classPool.torsoOverlayColor)
+    ? pick(rng, classPool.torsoOverlayColor)
+    : (classPool.torsoOverlayColor ?? null);
+  // Resolve the outfit colour tokens (e.g. mage obi sash = 'accent').
+  if (v.torsoOverlayColor === 'accent') v.torsoOverlayColor = v.outfitAccentColor;
+  else if (v.torsoOverlayColor === 'main') v.torsoOverlayColor = v.outfitMainColor;
+  // Legs: an outfit variant with `underLegs` uses those (e.g. leggings UNDER a
+  // kimono, hidden by a full one / filling a split one) instead of the class
+  // legs pool (which for some classes is a robe-skirt that would clash with the
+  // dress). Non-outfit variants use the class legs pool as usual.
+  v.legs = (v.outfitLayers && classPool.outfit?.underLegs)
+    ? pick(rng, classPool.outfit.underLegs)
+    : pickFromPool(rng, resolveBodyPool(classPool.legs, v.bodyType));
+  // Optional separate legs/pants colour (e.g. bard's pants are a normal neutral
+  // colour, NOT the vibrant torso colour). Array → pick one; else fixed/null.
+  // When it's an array with options other than the shirt colour, GUARANTEE the
+  // pants don't match the shirt (re-pick a few times) — the legsColor pool can
+  // overlap the cloth pool, and "pants must differ from shirt" was an explicit
+  // ask (cheater). A single-colour legsColor or a pool of only the shirt colour
+  // is left as-is.
+  if (Array.isArray(classPool.legsColor)) {
+    v.legsColor = pick(rng, classPool.legsColor);
+    if (classPool.legsColor.some((c) => c !== v.clothColor)) {
+      let tries = 0;
+      while (v.legsColor === v.clothColor && tries++ < 8) v.legsColor = pick(rng, classPool.legsColor);
+    }
+  } else {
+    v.legsColor = classPool.legsColor ?? null;
+  }
+  v.feet = pickFromPool(rng, resolveBodyPool(classPool.feet, v.bodyType));
+  v.arms = v.outfitLayers ? null : pickFromPool(rng, resolveBodyPool(classPool.arms, v.bodyType));
+  // Optional separate arms colour (e.g. a fur shoulder-pelt Mantal in a natural
+  // fur tone, distinct from the outfit). Affects cloth-material arm pieces;
+  // metal pieces (bracers/pauldrons) still follow metalColor. Falls back to cloth.
+  v.armsColor = Array.isArray(classPool.armsColor)
+    ? pick(rng, classPool.armsColor)
+    : (classPool.armsColor ?? null);
+  // Optional SHOULDER overlay (zPos 60-75) layered ON TOP of the arm piece —
+  // e.g. a Templar wearing full plate arms (arms:Armour) + a pauldron/spaulder
+  // or segmented Legion shoulder over it. Metal pieces follow metalColor; cloth
+  // ones the cloth colour. Separate from `arms` so both can be worn.
+  v.shoulder = pickFromPool(rng, resolveBodyPool(classPool.shoulder, v.bodyType));
+  // Optional HANDS layer (zPos 70) — metal gauntlets / cloth gloves over the
+  // hands+forearm, so a fully-plated class has no bare hands. Metal → metalColor.
+  v.hands = pickFromPool(rng, resolveBodyPool(classPool.hands, v.bodyType));
+  // Cape — an optional layer with its own zPos (behind body + draped over).
+  // Colour-locked to the cape colour (single/array/'accent'/'main' token) or
+  // the cloth colour. The cape def carries BOTH its behind + front layers, so a
+  // single add() composites the whole cloak.
+  v.cape = pickFromPool(rng, resolveBodyPool(classPool.cape, v.bodyType));
+  v.capeColor = Array.isArray(classPool.capeColor)
+    ? pick(rng, classPool.capeColor)
+    : (classPool.capeColor ?? null);
+  if (v.capeColor === 'accent') v.capeColor = v.outfitAccentColor;
+  else if (v.capeColor === 'main') v.capeColor = v.outfitMainColor;
+  // Beast-kin wear no headwear (their ears need to show; a hood/cap would cover them).
+  v.headwear = (v.beast || v.costume) ? null : pickFromPool(rng, resolveBodyPool(classPool.headwear, v.bodyType));
+  // Headwear colour: a class may lock it to the outfit accent/main, a fixed
+  // colour name, or (default, null) the cloth colour at compositing time.
+  // 'any' → ONE random cloth colour, picked here so it's locked consistently
+  // across all animation rows (a null lockedColor would re-roll per row →
+  // colour flicker). 'accent'/'main' resolve to the outfit tones.
+  v.headwearColor = classPool.headwearColor === 'accent' ? v.outfitAccentColor
+                  : classPool.headwearColor === 'main' ? v.outfitMainColor
+                  : classPool.headwearColor === 'any' ? pick(rng, CLOTH_ALL)
+                  : Array.isArray(classPool.headwearColor) ? pick(rng, classPool.headwearColor)
+                  : (classPool.headwearColor ?? null);
+  // Headwear-safe hair. Two cases (bare heads keep the full range):
+  //  • Head-WRAPPING covering (hood/veil/bandana): hides the crown, so ANY
+  //    voluminous/textured style pokes through → swap to a flat covering-safe one.
+  //  • Any OTHER headwear that sits on the crown (wizard/large hats, caps,
+  //    circlets): long/curly/flat hair flows fine, but TALL/spiky styles
+  //    (mohawks, spikes, crown-topknots, high buns/ponytails) poke → swap just
+  //    those to a flat style.
+  if (v.hair && v.headwear) {
+    if (HAIR_COVERINGS.has(v.headwear)) {
+      if (!COVERING_SAFE_HAIR.has(v.hair)) v.hair = pick(rng, COVERING_SAFE_HAIR_LIST);
+    } else if (HAIR_TALL.has(v.hair)) {
+      v.hair = pick(rng, COVERING_SAFE_HAIR_LIST);
+    }
+  }
+  // Visor pairing — a visor is a face-plate (zPos 132) that recolors via the
+  // metal palette, so it matches the helmet's finish. By default it only reads
+  // over an open bascinet. A class may instead opt into `visorOnAnyHelm` to
+  // pair a visor with EVERY helm it rolls (minus `visorExcludeHelms`, e.g. the
+  // open-topped Flattop) — the Templar's full-face crusader look.
+  v.visor = null;
+  const _visorHelmOk = classPool.visorOnAnyHelm
+    ? (v.headwear && !(classPool.visorExcludeHelms || []).includes(v.headwear))
+    : (v.headwear === 'Bascinet' || v.headwear === 'Round bascinet');
+  if (classPool.visorChance && _visorHelmOk && chance(rng, classPool.visorChance)) {
+    v.visor = pick(rng, classPool.visors
+      || ['Pigface visor', 'Grated visor', 'Slit visor', 'Round visor']);
+  }
+  // Head overlay pairing — a piece that only reads on TOP of a matching base
+  // headwear (like a Skull Bandana Overlay over a bandana). Rule shape:
+  //   { when: ['Bandana', …], items: ['Skull Bandana Overlay'], chance, color? }
+  // Gated on classPool.headOverlay (unset for most classes → no rng consumed,
+  // so it can't shift other classes' deterministic picks).
+  // Head overlays — pieces layered on TOP of a matching base headwear (skull on
+  // a bandana, a feather plume + trim band on a bonnie/cavalier cap). May be a
+  // single rule {when,items,chance,color} OR an ARRAY of rules (so one hat can
+  // stack several overlays, e.g. bonnie = center-trim + feather, each its own
+  // colour). color 'any' = random, biased to differ from the base hat colour.
+  v.headOverlays = [];
+  const overlayRules = !classPool.headOverlay ? []
+    : Array.isArray(classPool.headOverlay) ? classPool.headOverlay
+    : [classPool.headOverlay];
+  for (const r of overlayRules) {
+    if (!r.when.includes(v.headwear) || !chance(rng, r.chance)) continue;
+    let col;
+    if (r.color === 'any') {
+      col = pick(rng, CLOTH_ALL);
+      let g = 0; while (col === v.headwearColor && g++ < 16) col = pick(rng, CLOTH_ALL);
+    } else {
+      col = Array.isArray(r.color) ? pick(rng, r.color) : (r.color ?? null);
+    }
+    v.headOverlays.push({ name: pick(rng, r.items), color: col });
+  }
 
-  // Accessory: support "pickCount" for chaos mode (multiple picks).
+  // Accessories. Two pool forms:
+  //   object  { items, chance, pickCount? }            — one group (legacy)
+  //   array  [ { items, chance, pickCount?, color? } ] — independent groups,
+  //          each rolled separately (e.g. scarf 60% + ring 30% + earring 25%).
+  // Stored as { name, color } so per-group colour locks survive to the manifest.
   v.accessories = [];
-  if (classPool.accessory) {
-    const r = resolvePool(classPool.accessory);
-    if (chance(rng, r.chance)) {
-      const n = r.pickCount
-        ? Math.floor(rng() * (r.pickCount.max - r.pickCount.min + 1)) + r.pickCount.min
-        : 1;
-      const picked = new Set();
-      for (let i = 0; i < n && picked.size < r.items.length; i++) {
-        let attempts = 0;
-        while (attempts++ < 8) {
-          const cand = pick(rng, r.items);
-          if (!picked.has(cand)) { picked.add(cand); break; }
-        }
+  const accGroups = !classPool.accessory ? []
+    : Array.isArray(classPool.accessory) ? classPool.accessory
+    : [classPool.accessory];
+  for (const g of accGroups) {
+    const r = resolvePool(g);
+    if (!r || !chance(rng, r.chance)) continue;
+    const n = r.pickCount
+      ? Math.floor(rng() * (r.pickCount.max - r.pickCount.min + 1)) + r.pickCount.min
+      : 1;
+    const picked = new Set();
+    for (let i = 0; i < n && picked.size < r.items.length; i++) {
+      let attempts = 0;
+      while (attempts++ < 8) {
+        const cand = pick(rng, r.items);
+        if (!picked.has(cand)) { picked.add(cand); break; }
       }
-      v.accessories = [...picked];
+    }
+    // color may be a single name, an array (pick one), or null (item default).
+    for (const name of picked) {
+      const color = Array.isArray(r.color) ? pick(rng, r.color) : (r.color ?? null);
+      v.accessories.push({ name, color });
     }
   }
 
   // Weapon (skipped if barehanded)
   v.weapon = classPool.barehanded ? null : pickFromPool(rng, classPool.weapon);
+  // Optional per-variant weapon colour (e.g. cheater glowswords mix blue/red).
+  // Locked once here so it's consistent across every animation row; overrides
+  // the global WEAPON_VARIANT_LOCK at compositing time.
+  v.weaponColor = Array.isArray(classPool.weaponColor)
+    ? pick(rng, classPool.weaponColor)
+    : (classPool.weaponColor ?? null);
   // Crystal pair: when staff is Diamond/Loop, force-add a crystal layer.
   v.crystal = null;
   if (v.weapon && CRYSTAL_RULE.staves.has(v.weapon)) {
     v.crystal = { color: pick(rng, CRYSTAL_RULE.colors) };
   }
 
-  // Shield
+  // Shield — supports multiple shield "kinds" (classPool.shieldTypes, default
+  // ['heater']). alwaysShield forces one; sometimesShield rolls one at the
+  // given chance. The chosen kind is recorded as an object resolved into the
+  // right layer recipe in buildLayerManifest:
+  //   heater → wood Base + metal Trim + (optional) heraldic-painted face
+  //   round  → one-piece Round Shield in a fixed colour variant
   v.shield = null;
-  const allShields = (byCategory.weapons || []).filter((w) =>
-    w.file.startsWith('weapons/shields/') &&
-    !/^(per_|revised_per_|saltire|revised_saltire|cross|revised_cross|chevron|revised_chevron|chief|revised_chief|fess|revised_fess|pale|revised_pale|paly|revised_paly|bend|revised_bend|bendy|revised_bendy|barry|revised_barry|bordure|revised_bordure|lozengy|revised_lozengy|pall|revised_pall|quarterly|revised_quarterly)/.test(path.basename(w.file, '.json'))
-  );
-  // Heater Shield Base/Trim/Paint cover the actual rendered shield. Pick the Base.
-  const shieldBase = allShields.find((s) => s.name === 'Heater Shield Base');
-  const shieldTrim = allShields.find((s) => s.name === 'Heater Shield Trim');
-  if (classPool.alwaysShield && shieldBase) {
-    v.shield = shieldBase.name;
-  } else if (classPool.sometimesShield && chance(rng, classPool.sometimesShield) && shieldBase) {
-    v.shield = shieldBase.name;
+  // A shield only makes sense with a ONE-handed weapon — `shieldWeapons`, when
+  // set, gates the shield to those weapons (so a two-handed great-axe/halberd/
+  // spear doesn't also sprout a shield).
+  const shieldWeaponOk = !classPool.shieldWeapons || classPool.shieldWeapons.includes(v.weapon);
+  const wantShield = (classPool.alwaysShield
+    || (classPool.sometimesShield && chance(rng, classPool.sometimesShield)))
+    && shieldWeaponOk;
+  if (wantShield) {
+    const kind = pick(rng, classPool.shieldTypes || ['heater']);
+    if (kind === 'round') {
+      const roundColors = classPool.roundShieldColors?.length ? classPool.roundShieldColors : ROUND_SHIELD_COLORS;
+      v.shield = { kind: 'round', color: pick(rng, roundColors) };
+    } else if (kind === 'crusader' || kind === 'plus') {
+      // Fixed heraldic shields (single canonical design each, zPos 2). Either
+      // kind may add the two-engrailed trim overlay (zPos 3); `shieldTrimChance`
+      // (default 0.5) decides per-shield so ~half wear the engrailed border.
+      v.shield = { kind, trim: chance(rng, classPool.shieldTrimChance ?? 0.5) };
+    } else {
+      // Paint the heater face in the house (cloth) colour when the class opts
+      // into a heraldic shield (default) AND that colour exists as a paint.
+      const paint = (classPool.heraldicShield !== false && SHIELD_PAINT_COLORS.has(v.clothColor))
+        ? v.clothColor : null;
+      v.shield = { kind: 'heater', paint };
+    }
   }
 
   return v;
@@ -416,7 +818,7 @@ function buildLayerManifest(variant) {
   const layers = [];
   const add = (itemName, opts = {}) => {
     if (!itemName) return;
-    const item = byName.get(itemName);
+    const item = resolveItem(itemName);
     if (!item) {
       console.warn(`  ! item "${itemName}" not found`);
       return;
@@ -427,14 +829,28 @@ function buildLayerManifest(variant) {
     const matDirect = r?.material;
     const matColor1 = r?.color_1?.material;
     const palettes = [];
+    // Per-layer cloth-colour override (e.g. pants a different "normal" colour
+    // than the vibrant torso). Falls back to the variant's clothColor.
+    const clothColor = opts.clothColor || variant.clothColor;
     const wantHair  = (m) => m === 'hair'  && HAIR_PALETTE  && variant.hairColor  && variant.hairColor  !== HAIR_PALETTE.base;
     const wantBody  = (m) => m === 'body'  && BODY_PALETTE  && variant.bodyColor  && variant.bodyColor  !== BODY_PALETTE.base;
-    const wantCloth = (m) => m === 'cloth' && CLOTH_PALETTE && variant.clothColor && variant.clothColor !== CLOTH_PALETTE.base;
+    const wantCloth = (m) => m === 'cloth' && CLOTH_PALETTE && clothColor && clothColor !== CLOTH_PALETTE.base;
     const wantMetal = (m) => m === 'metal' && METAL_PALETTE && variant.metalColor && variant.metalColor !== METAL_PALETTE.base;
-    if (wantHair(matDirect)  || wantHair(matColor1))  palettes.push({ base: HAIR_BASE_PACKED,  target: HAIR_PALETTE.options[variant.hairColor]   });
-    if (wantBody(matDirect)  || wantBody(matColor1))  palettes.push({ base: BODY_BASE_PACKED,  target: BODY_PALETTE.options[variant.bodyColor]   });
-    if (wantCloth(matDirect) || wantCloth(matColor1)) palettes.push({ base: CLOTH_BASE_PACKED, target: CLOTH_PALETTE.options[variant.clothColor] });
-    if (wantMetal(matDirect) || wantMetal(matColor1)) palettes.push({ base: METAL_BASE_PACKED, target: METAL_PALETTE.options[variant.metalColor] });
+    // Recolor SOURCE shades. Most items are drawn in the palette's global base
+    // shade, so the prebuilt *_BASE_PACKED maps work. But some items declare
+    // their OWN base (recolors.base) — e.g. the stud-ring gem is drawn in
+    // "teal", not the global cloth base — so a global-base swap never matches
+    // their pixels (the ring stayed cyan). When an item declares a base that
+    // exists in the relevant palette, remap FROM that base's shades instead.
+    const itemBase = r?.base;
+    const srcPacked = (PALETTE, globalPacked) =>
+      (itemBase && PALETTE && PALETTE.options[itemBase])
+        ? new Map(PALETTE.options[itemBase].map((c, i) => [packRgb(c), i]))
+        : globalPacked;
+    if (wantHair(matDirect)  || wantHair(matColor1))  palettes.push({ base: srcPacked(HAIR_PALETTE,  HAIR_BASE_PACKED),  target: HAIR_PALETTE.options[variant.hairColor]   });
+    if (wantBody(matDirect)  || wantBody(matColor1))  palettes.push({ base: srcPacked(BODY_PALETTE,  BODY_BASE_PACKED),  target: BODY_PALETTE.options[variant.bodyColor]   });
+    if (wantCloth(matDirect) || wantCloth(matColor1)) palettes.push({ base: srcPacked(CLOTH_PALETTE, CLOTH_BASE_PACKED), target: CLOTH_PALETTE.options[clothColor] });
+    if (wantMetal(matDirect) || wantMetal(matColor1)) palettes.push({ base: srcPacked(METAL_PALETTE, METAL_BASE_PACKED), target: METAL_PALETTE.options[variant.metalColor] });
 
     let li = 1;
     while (item.def[`layer_${li}`]) {
@@ -482,17 +898,78 @@ function buildLayerManifest(variant) {
   // use the palette swap; fixed color-VARIANT items (e.g. Frock coat, which
   // ships black.png/charcoal.png/… instead of a recolor) lock to the
   // matching color PNG when one exists, else fall back to a random variant.
+  // Cape (e.g. necromancer Tattered cloak) — its def ships a behind layer
+  // (zPos 5, under the body) AND a draped front layer (zPos 85, over the
+  // torso), so this single add composites the whole cloak in the right order.
+  add(variant.cape, { lockedColor: variant.capeColor || variant.clothColor });
+  // Two-tone outfit layers (e.g. mage kimono) — each colour-variant piece
+  // locks to its own resolved colour (main vs accent); composited by each
+  // def's own zPos (kimono 30 < trim 31 < sleeve-trim 32 < bodice 45).
+  if (variant.outfitLayers) {
+    for (const o of variant.outfitLayers) add(o.item, { lockedColor: o.color });
+  }
   add(variant.torso, { lockedColor: variant.clothColor });
-  add(variant.legs,  { lockedColor: variant.clothColor });
-  add(variant.feet,  { lockedColor: variant.feetColor || variant.clothColor });
-  add(variant.arms,  { lockedColor: variant.clothColor });
-  add(variant.headwear);
-  for (const a of variant.accessories) add(a);
-  if (variant.weapon) add(variant.weapon);
+  // Second torso layer (surcoat/tabard/belt) at its own zPos — composites under
+  // or over the base torso purely by zPos (e.g. Tabard 55 < Plate 60 → under;
+  // a belt at 70 > Leather 60 → over). Uses a fixed overlay colour when set
+  // (e.g. a brown leather belt), else the cloth colour.
+  add(variant.torsoOverlay, { lockedColor: variant.torsoOverlayColor || variant.clothColor });
+  add(variant.legs,  { lockedColor: variant.legsColor || variant.clothColor, clothColor: variant.legsColor || variant.clothColor });
+  add(variant.feet,  { lockedColor: variant.feetColor || variant.clothColor, clothColor: variant.feetColor || variant.clothColor });
+  add(variant.arms,  { lockedColor: variant.armsColor || variant.clothColor, clothColor: variant.armsColor || variant.clothColor });
+  // Shoulder overlay (pauldron / spaulder / Legion) on top of the arms, and a
+  // hands layer (gauntlets / gloves). Metal pieces ignore lockedColor and follow
+  // metalColor (so they match a plated suit); cloth ones take the cloth colour.
+  add(variant.shoulder, { lockedColor: variant.armsColor || variant.clothColor, clothColor: variant.armsColor || variant.clothColor });
+  add(variant.hands,    { lockedColor: variant.clothColor });
+  // Lock cloth headwear (hoods / bandanas / masks) to the outfit colour so they
+  // stay on-theme instead of rolling a random colour variant (the Plain Mask
+  // was defaulting to bright white). Metal helmets are flat-PNG + metal-palette,
+  // so they ignore lockedColor — unaffected.
+  add(variant.headwear, { lockedColor: variant.headwearColor || variant.clothColor });
+  // Visor overlay (zPos 132) — sits over the bascinet skull (zPos 130).
+  add(variant.visor);
+  // Head overlays (skull over a bandana; bonnie center-trim + feather; cavalier
+  // feather) — each layered on the base hat, optionally colour-locked.
+  for (const o of (variant.headOverlays || [])) add(o.name, o.color ? { lockedColor: o.color } : {});
+  // Beast-kin ears (zPos 130) + tail (zPos 125), both coloured to the hair so
+  // the fur matches.
+  if (variant.beast) {
+    add(variant.beast.ears, { lockedColor: variant.hairColor });
+    add(variant.beast.tail, { lockedColor: variant.hairColor });
+  }
+  // Coordinated costume pieces (cosplay_adventurer): wings (zPos 105) / tail
+  // (85/125) / horns (126), each colour-locked to the creature's shared hue so
+  // the whole costume reads as one (e.g. a green dragon's wings + tail match).
+  if (variant.costume) {
+    for (const p of variant.costume.pieces) add(p.item, p.color ? { lockedColor: p.color } : {});
+  }
+  // Accessories are { name, color } — colour-lock when the group set one.
+  for (const a of variant.accessories) add(a.name, a.color ? { lockedColor: a.color } : {});
+  // Lock the carried weapon's colour: a per-variant weaponColor (e.g. a cheater
+  // glowsword's blue/red blade) wins, else the global WEAPON_VARIANT_LOCK (the
+  // Smash great-axe → 'axe'; Glowsword → 'blue' fallback). Both keep the blade
+  // consistent across every animation row instead of re-rolling (flicker).
+  if (variant.weapon) {
+    const wlock = variant.weaponColor || WEAPON_VARIANT_LOCK[variant.weapon];
+    add(variant.weapon, wlock ? { lockedColor: wlock } : {});
+  }
+  // Bow users carry a nocked arrow (shoot-only layer).
+  if (BOW_WEAPONS.has(variant.weapon)) add('Ammo');
   if (variant.crystal) add('Crystal', { lockedColor: variant.crystal.color });
   if (variant.shield) {
-    add('Heater Shield Base');
-    add('Heater Shield Trim');
+    if (variant.shield.kind === 'round') {
+      add('Round Shield', { lockedColor: variant.shield.color });
+    } else if (variant.shield.kind === 'crusader' || variant.shield.kind === 'plus') {
+      // Fixed heraldic face (zPos 2) + an optional engrailed trim border (zPos 3)
+      // on ~half (variant.shield.trim).
+      add(variant.shield.kind === 'plus' ? 'Plus shield' : 'Crusader shield');
+      if (variant.shield.trim) add('Two engrailed shield trim');
+    } else { // heater
+      add('Heater Shield Base');                                       // wood face
+      add('Heater Shield Trim', { lockedColor: variant.metalColor });  // metal rim, matched to armour
+      if (variant.shield.paint) add('Heater Shield Paint', { lockedColor: variant.shield.paint }); // heraldic colour
+    }
   }
 
   layers.sort((a, b) => a.zPos - b.zPos);
@@ -528,6 +1005,12 @@ async function compositeVariant(rng, variant, outFile) {
   // If the layer has palette swaps, run them on the source PNG first.
   const composites = [];
   for (const layer of layers) {
+    // Prosthesis MASK sublayers (body/prosthesis/<peg_leg|hook>/…/mask) are
+    // dest-out cutouts — they ERASE the original limb (incl. its pants/boot/
+    // glove pixels already composited below) so the peg/hook art replaces it.
+    // Without this they'd composite as a visible magenta silhouette. No other
+    // item ships a /mask/ sublayer, so this only affects Peg leg / Hook hand.
+    const blend = /\/mask$/.test(layer.sourceDir) ? 'dest-out' : 'over';
     for (const row of LAYOUT.rows) {
       const src = resolveLayerSourceForAnim(rng, layer.sourceDir, row.file, row.anim, layer.lockedColor);
       if (!src) continue;
@@ -540,7 +1023,7 @@ async function compositeVariant(rng, variant, outFile) {
         composites.push({
           input: remapped.buffer,
           raw: { width: remapped.width, height: remapped.height, channels: 4 },
-          top: row.y, left: 0,
+          top: row.y, left: 0, blend,
         });
       } else {
         // Guard against oversize source art (e.g. 128px weapon sheets) that
@@ -551,7 +1034,7 @@ async function compositeVariant(rng, variant, outFile) {
           console.warn(`  ! skip oversized layer "${layer.itemName}" ${meta.width}x${meta.height} (>${LAYOUT.width}x${LAYOUT.height})`);
           continue;
         }
-        composites.push({ input: src, top: row.y, left: 0 });
+        composites.push({ input: src, top: row.y, left: 0, blend });
       }
     }
   }
@@ -628,12 +1111,25 @@ async function bakeClass(className) {
       hair: v.hair,
       beard: v.beard,
       torso: v.torso,
+      outfit: v.outfitLayers
+        ? { main: v.outfitMainColor, accent: v.outfitAccentColor, layers: v.outfitLayers.map((l) => l.item) }
+        : undefined,
+      torsoOverlay: v.torsoOverlay,
+      cape: v.cape,
       legs: v.legs,
       feet: v.feet,
       arms: v.arms,
+      shoulder: v.shoulder || undefined,
+      hands: v.hands || undefined,
       headwear: v.headwear,
+      headOverlays: (v.headOverlays && v.headOverlays.length) ? v.headOverlays : undefined,
+      beast: v.beast,
+      costume: v.costume || undefined,
+      mode: v.mode || undefined,
+      visor: v.visor,
       accessories: v.accessories,
       weapon: v.weapon,
+      weaponColor: v.weaponColor || undefined,
       crystal: v.crystal,
       shield: v.shield,
     });

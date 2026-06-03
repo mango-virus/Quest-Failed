@@ -72,6 +72,14 @@ const ATK_CLASSES = new Set([
   // crossbows, staves, glowsword). The oversize attack sheet keeps long
   // weapons rendered at native 192×192 instead of being shrunk into 64×64.
   'cheater',
+  // Templar — normal-roster holy crusader. Mace/Flail/Longsword are ALL
+  // slash_oversize (their swing art only exists at 192×192), so the atk sheet
+  // is required or the weapon is invisible mid-swing. The shield is inherited
+  // from the base slash frames the atk body is extracted from.
+  'templar',
+  // Pirate — cutlass swashbuckler. Saber/Scimitar/Rapier swing via
+  // slash_oversize, so the atk sheet is required for a visible blade.
+  'pirate',
   // Sung Jinwoo (Solo Leveling event) — melee Saber whose only swing art is
   // the 192×192 slash_oversize sheet. Without the atk sheet his blade is
   // invisible mid-attack (the oversize slash can't fit the 64×64 main sheet).
@@ -83,6 +91,15 @@ const ATK_CLASSES = new Set([
   // scale during combat instead of being clipped into 64×64.
   'paladin', 'white_mage', 'samurai', 'black_mage',
 ]);
+// Weapons whose attack is the standard 64×64 slash (a contained "normal" swing
+// with the shield up) rather than the oversize 192×192 arc. Variants wielding
+// one of these get NO `_atk.png` — the renderer falls back to the base slash.
+// MUST stay in sync with the same set in src/scenes/AdventurerAtkLoader.js.
+// Dagger has its own 64px slash art (composited into the base sheet's slash
+// row by the base bake), so it must NOT also go through the oversize atk sheet
+// — that would render the blade twice. It uses the contained base slash, which
+// is the right scale for a small blade anyway.
+const NORMAL_ATTACK_WEAPONS = new Set(['Dagger', 'Club']);
 const ATK_FRAME       = 192;          // frame size in atk sheet
 const ATK_COLS        = 8;            // max frames per row (thrust = 8)
 const ATK_ROW_COUNT   = 8;            // 4 slash dirs + 4 thrust dirs
@@ -103,7 +120,10 @@ function scanWeaponDefs(dir) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) {
       Object.assign(map, scanWeaponDefs(full));
-    } else if (e.name.startsWith('weapon_') && e.name.endsWith('.json')) {
+    } else if ((e.name.startsWith('weapon_') || e.name.startsWith('tool_')) && e.name.endsWith('.json')) {
+      // weapon_*.json (sheet_definitions/weapons) AND tool_*.json
+      // (sheet_definitions/tools) — the latter is how LPC ships the two-handed
+      // "Smash" great-axe / "Thrust" etc. that we use as melee weapons.
       try {
         const def = JSON.parse(fs.readFileSync(full, 'utf8'));
         if (def.name) map[def.name] = def;
@@ -112,7 +132,8 @@ function scanWeaponDefs(dir) {
   }
   return map;
 }
-const WEAPON_DEFS = scanWeaponDefs(WDEFS);
+const TDEFS = path.join(LPC_BASE, 'sheet_definitions/tools');
+const WEAPON_DEFS = { ...scanWeaponDefs(WDEFS), ...scanWeaponDefs(TDEFS) };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function exists(p) { try { fs.accessSync(p); return true; } catch (_) { return false; } }
@@ -122,13 +143,38 @@ function layerPath(layerDef, bodyType) {
   return layerDef[bodyType] || layerDef['male'] || layerDef['female'] || null;
 }
 
-// Pick a weapon variant name: try metalColor first, else first in list.
+// Stable string hash (FNV-1a) for deterministic per-variant choices.
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+// Pick a weapon variant (colour) name.
+//  - Single-variant weapons (longsword, saber, mace, …): the only option.
+//  - Multi-variant weapons (arming sword has 8 metal colours): pick a VARIED
+//    colour deterministically from the variant id so blades aren't all the
+//    same as the armour. Avoid an iron blade on iron armour (low contrast /
+//    hard to see).
+// Some multi-variant items must lock to ONE head (the "Smash" tool ships
+// axe/hammer/pickaxe — the barbarian uses only the axe).
+const WEAPON_VARIANT_LOCK = { Smash: 'axe', Glowsword: 'blue' };
 function pickVariant(def, variant) {
   const list = def.variants || [];
+  // Whip ships a single flat whip.png (no colour variants) — use it directly so
+  // processVariant doesn't skip the weapon.
+  if (def.name === 'Whip') return 'whip';
   if (!list.length) return null;
+  const lock = WEAPON_VARIANT_LOCK[def.name];
+  if (lock && list.includes(lock)) return lock;
+  if (list.length === 1) return list[0];
   const metal = (variant.metalColor || '').toLowerCase();
-  const match = list.find(v => v.toLowerCase() === metal);
-  return match || list[0];
+  let candidates = list.slice();
+  if (metal === 'iron') {
+    const noIron = candidates.filter(v => v.toLowerCase() !== 'iron');
+    if (noIron.length) candidates = noIron;
+  }
+  return candidates[hashStr(variant.id + def.name) % candidates.length];
 }
 
 // Extract all layer_N entries from a def, sorted by zPos ascending.
@@ -233,7 +279,35 @@ async function atkLayerOps(layerDef, def, variantFile, bodyType) {
 
   const ops = [];
 
+  // "Whip" (LPC Tool Whip): a flat 192px oversize sheet (the whip-crack, 8
+  // frames × 4 dirs) with no declared custom_animation. Treat it as a
+  // thrust-overlay attack — composite its native 192 frames into the atk thrust
+  // rows. (No walk-carry art exists, so the whip only appears during the attack.)
+  if (def.name === 'Whip') {
+    const srcPath = path.join(SHEETS, lp, 'whip.png');
+    if (!exists(srcPath)) return ops;
+    const fs_size = 192;
+    const animLayout = ATK_ANIM_LAYOUT.thrust;
+    const meta = await sharp(srcPath).metadata();
+    const useCols = Math.min(Math.floor(meta.width / fs_size), animLayout.frames);
+    const useRows = Math.min(Math.floor(meta.height / fs_size), 4);
+    for (let row = 0; row < useRows; row++) {
+      for (let col = 0; col < useCols; col++) {
+        const buf = await sharp(srcPath).extract({ left: col * fs_size, top: row * fs_size, width: fs_size, height: fs_size }).toBuffer();
+        ops.push({ input: buf, left: col * ATK_FRAME, top: (animLayout.startRow + row) * ATK_FRAME });
+      }
+    }
+    return ops;
+  }
+
   if (layerDef.custom_animation) {
+    // The atk sheet carries exactly ONE slash + ONE thrust animation. Some
+    // weapons ship multiple slash variants that all map to the 'slash' row —
+    // e.g. the longsword has slash_oversize AND slash_reverse_oversize (a
+    // backhand return swing). Compositing both overlaps two blades in every
+    // frame (the "multiple swords not lining up" bug). Use only the primary
+    // forward slash; skip the reverse variant.
+    if (layerDef.custom_animation === 'slash_reverse_oversize') return ops;
     const cfg = OVERSIZE[layerDef.custom_animation];
     if (!cfg) return ops;
     const animLayout = ATK_ANIM_LAYOUT[cfg.targetAnim];
@@ -247,9 +321,18 @@ async function atkLayerOps(layerDef, def, variantFile, bodyType) {
     const useCols = Math.min(Math.floor(meta.width  / fs_size), animLayout.frames);
     const useRows = Math.min(Math.floor(meta.height / fs_size), 4);
 
+    // Place each oversize frame at its NATIVE size, centered in the 192px atk
+    // cell — do NOT upscale. Every oversize frame (192 or 128) is drawn around
+    // a 64px character; the atk-sheet body is also 64px (centered with
+    // CHAR_OFFSET). Upscaling a 128 frame to 192 enlarges its weapon for a 96px
+    // character, so the blade's base overshoots the real 64px hand → a gap
+    // between hand and blade (the "missing hilt"). Centering at native size
+    // keeps the 64px character-reference aligned with the body so the blade
+    // connects to the hand. 192 frames are unchanged (offset 0).
+    const off = (ATK_FRAME - fs_size) / 2;
     for (let row = 0; row < useRows; row++) {
       for (let col = 0; col < useCols; col++) {
-        let buf = await sharp(srcPath)
+        const buf = await sharp(srcPath)
           .extract({
             left:   col * fs_size,
             top:    row * fs_size,
@@ -257,15 +340,10 @@ async function atkLayerOps(layerDef, def, variantFile, bodyType) {
             height: fs_size,
           })
           .toBuffer();
-        if (fs_size !== ATK_FRAME) {
-          buf = await sharp(buf)
-            .resize(ATK_FRAME, ATK_FRAME, { kernel: sharp.kernel.nearest })
-            .toBuffer();
-        }
         ops.push({
           input: buf,
-          left: col * ATK_FRAME,
-          top:  (animLayout.startRow + row) * ATK_FRAME,
+          left: col * ATK_FRAME + off,
+          top:  (animLayout.startRow + row) * ATK_FRAME + off,
         });
       }
     }
@@ -431,13 +509,15 @@ async function processVariant(className, variant, idx, total) {
     create: { width: CHAR_W, height: CHAR_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   };
 
-  // Strip every oversize "ghost" pixel previous bakes left in the main sheet.
-  // Includes slash/thrust (now atk-sheet-only) plus walk_128 ghosts that were
-  // sitting on top of the standard walk layer for bows / Katana / Scimitar.
+  // Strip the only oversize "ghost" the BASE bake actually leaves in the main
+  // sheet: walk_128 (a scaled walk copy on bows / Katana / Scimitar). The base
+  // bake never composites slash/thrust oversize art into the main sheet, so
+  // dest-out'ing THOSE here just erases body pixels in the slash/thrust rows —
+  // which then show as missing pixels / a missing hilt in the atk sheet (which
+  // reuses this body). So only strip walk_128.
   const ghostOps = [];
   for (const layer of layers) {
-    if (!layer.custom_animation) continue;
-    if (!OVERSIZE[layer.custom_animation]) continue;
+    if (layer.custom_animation !== 'walk_128') continue;
     const lp = layerPath(layer, bodyType);
     if (!lp) continue;
     const srcPath = path.join(SHEETS, lp, variantFile + '.png');
@@ -456,8 +536,13 @@ async function processVariant(className, variant, idx, total) {
   }
 
   if (behindComposites.length === 0 && frontComposites.length === 0 && ghostOps.length === 0) {
-    console.warn(`  No usable layers for "${weaponName}" (${className}/${variant.id})`);
-    return;
+    // The Whip is attack-only (no walk-carry art) — it has no base-sheet weapon
+    // layers, but it STILL needs its atk sheet (the whip-crack thrust) built
+    // below. So don't bail for it; bail for any other genuinely-empty weapon.
+    if (weaponName !== 'Whip') {
+      console.warn(`  No usable layers for "${weaponName}" (${className}/${variant.id})`);
+      return;
+    }
   }
 
   let behindBuf;
@@ -489,12 +574,17 @@ async function processVariant(className, variant, idx, total) {
 
   fs.writeFileSync(charPath, result);
 
-  // Atk sheet: only for classes whose combat anim is slash/thrust. The renderer
-  // swaps to this texture during combat and back when idle/walking.
-  if (ATK_CLASSES.has(className)) {
+  // Atk sheet: only for classes whose combat anim is slash/thrust AND whose
+  // weapon uses an oversize swing. Normal-attack weapons (arming sword) skip
+  // it so the renderer falls back to the contained base slash. Any stale atk
+  // sheet (e.g. the variant's weapon changed to a normal-attack one on re-bake)
+  // is removed so the loader doesn't 404 / the renderer doesn't use it.
+  const atkPath = path.join(ADV, className, variant.id + '_atk.png');
+  if (ATK_CLASSES.has(className) && !NORMAL_ATTACK_WEAPONS.has(weaponName)) {
     const atkBuf  = await buildAttackSheet(charPath, def, variantFile, bodyType);
-    const atkPath = path.join(ADV, className, variant.id + '_atk.png');
     fs.writeFileSync(atkPath, atkBuf);
+  } else if (exists(atkPath)) {
+    fs.unlinkSync(atkPath);
   }
 
   process.stdout.write(`\r  [${idx + 1}/${total}] ${className}/${variant.id} (${weaponName}/${variantFile})          `);

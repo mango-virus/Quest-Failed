@@ -374,13 +374,12 @@ export class NightPhase extends Phaser.Scene {
       const ch = allClasses.find(c => c.id === 'cheater')
       if (ch) classes = [ch]
     }
-    // Treasure Hunters raid — the loot-raid wave never includes Twitch
-    // Streamers or Cheaters (their kits don't fit a gold raid). Gate on the
-    // SCHEDULED id since this preview is for the upcoming day and the active
-    // flag isn't set until day-begin. Kept AFTER the single-class event
-    // replacements so it only ever trims the normal pool.
+    // Treasure Hunters raid — the entire loot-raid wave is the Pirate class
+    // (matches DayPhase's spawn). Gate on the SCHEDULED id since this preview is
+    // for the upcoming day and the active flag isn't set until day-begin.
     if (gs.events?.scheduledId === 'treasure_hunters') {
-      classes = classes.filter(c => c.id !== 'twitch_streamer' && c.id !== 'cheater')
+      const pir = allClasses.find(c => c.id === 'pirate')
+      if (pir) classes = [pir]
     }
     if (classes.length === 0) {
       gs.run.nextWavePreview = { day, count: 0, classIds: [], vendettaHunter: null, eventType: null }
@@ -442,6 +441,13 @@ export class NightPhase extends Phaser.Scene {
       vendettaHunterPresent = !!prevHunter
     } else {
       vendettaHunterPresent = Math.random() < 0.35
+    }
+    // Treasure Hunters raid is Pirates ONLY — drop a non-pirate vendetta hunter
+    // from the preview too, matching DayPhase's spawn-time guard.
+    if (vendettaHunterPresent
+        && gs.events?.scheduledId === 'treasure_hunters'
+        && vendetta && vendetta.claimantClass !== 'pirate') {
+      vendettaHunterPresent = false
     }
 
     if (count <= 0 && !vendettaHunterPresent) {
