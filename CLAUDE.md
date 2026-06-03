@@ -93,6 +93,33 @@ If the user wants something *removed*, mark it as removed in both files (don't s
 
 ---
 
+## ⛔ Spec fidelity for multi-part features (READ — a major miss happened here)
+
+When the user locks a feature that has **multiple specified details** (a class's abilities, a
+multi-step mechanic, an event's beats), follow this exactly — drift on these is the most
+damaging failure mode:
+
+1. **Capture VERBATIM.** Put the user's *exact wording* into `DESIGN.md` the moment it's locked
+   — never a paraphrase. You implement from the verbatim spec, **not** from memory. (Memory
+   notes summarize and drift; they are a pointer to the spec, not the spec.)
+2. **Build a per-detail acceptance checklist** (one ☐ per spec detail) in `DESIGN.md`/
+   `DESIGN_COVERAGE.md`. Every clause of the spec = one checkbox.
+3. **Suggest freely, but CONFIRM before implementing.** Proposing additions/inventions/ideas is
+   encouraged — that's wanted. What's NOT allowed is silently *building* your own interpretation
+   into a locked feature. If a detail is missing/ambiguous or you have an idea, surface it and get
+   a yes before coding it. (The norm is to do this well; the miss here was implementing an
+   unconfirmed interpretation.)
+4. **Verify before "done":** re-read the verbatim spec, tick each checklist item against the
+   **actual code**, and **show the user the checklist**. Don't claim a feature is built/verified
+   until every box is ticked or explicitly deferred.
+
+History: the 5 new-class abilities (2026-06-03) were built from a drifted memory paraphrase
+instead of the locked spec — the Miner became a teleport (should be a dig-and-travel hole), the
+Valkyrie's Rally gained an invented buff and lost its cast-time revive, Gladiator's Block didn't
+cover boss fights, etc. The user flagged it as a major issue. Don't repeat it.
+
+---
+
 ## When implementation diverges from design
 
 If during implementation you find yourself changing scope (renaming things, splitting a feature, dropping a sub-item):

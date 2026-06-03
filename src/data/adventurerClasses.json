@@ -576,5 +576,116 @@
     "rarity": "legendary",
     "description": "The Nemesis. A young swordsman certain he is the realm's greatest hero, sworn to cut down all evil — starting with you. Returns stronger every act, learns your dungeon, and disdains your treasure. Cannot be slain until the final duel.",
     "flavorText": "I came as a student. I return as a king."
+  },
+  {
+    "id": "gladiator",
+    "name": "Gladiator",
+    "color": "0xc0392b",
+    "baseStats": {
+      "hp": 58,
+      "attack": 9,
+      "defense": 6,
+      "speed": 1.5,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "bruiser",
+      "arena"
+    ],
+    "unlockLevel": 2,
+    "spawnWeight": 0.8,
+    "description": "Roman arena champion in Legion plate behind a Spartan hoplon. Feeds on the crowd — each minion he fells stokes a swelling Crowd Roar that sharpens his blade. When pressed, he plants the shield in a Block stance: untouchable for a beat, but he can't swing while braced.",
+    "flavorText": "Are you not entertained?"
+  },
+  {
+    "id": "peasant",
+    "name": "Peasant",
+    "color": "0x9c6b3f",
+    "baseStats": {
+      "hp": 28,
+      "attack": 5,
+      "defense": 2,
+      "speed": 1.6,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "swarm",
+      "mob"
+    ],
+    "unlockLevel": 2,
+    "spawnWeight": 1.0,
+    "description": "An angry villager with a pitchfork and a grudge. Little threat alone — but they come in mobs, and the more peasants fight at his side, the bolder and stronger every one of them becomes (Strength in Numbers).",
+    "flavorText": "Get the torches. And Gary. Get Gary too."
+  },
+  {
+    "id": "valkyrie",
+    "name": "Valkyrie",
+    "color": "0xe8d9a0",
+    "baseStats": {
+      "hp": 52,
+      "attack": 11,
+      "defense": 5,
+      "speed": 1.9,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "holy",
+      "support"
+    ],
+    "unlockLevel": 3,
+    "rarity": "rare",
+    "spawnWeight": 0.6,
+    "description": "A winged shield-maiden of the heavens. Takes Winged Flight to soar over traps and chasms, and raises a Rally cry that steels nearby allies and lifts a downed one back to their feet.",
+    "flavorText": "The brave do not die unwitnessed."
+  },
+  {
+    "id": "gambler",
+    "name": "Gambler",
+    "color": "0xd4af37",
+    "baseStats": {
+      "hp": 34,
+      "attack": 9,
+      "defense": 3,
+      "speed": 2.0,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "gambler",
+      "luck"
+    ],
+    "unlockLevel": 3,
+    "spawnWeight": 0.7,
+    "description": "A dapper riverboat sharp who lets fate swing the cane. Every strike is a Roll the Dice — whiff, crit, double-hit, a self-heal, even a payout that lines YOUR coffers. And when he should be dead, he calls Double or Nothing: heads he rises again, tails the house pays out to you.",
+    "flavorText": "Fortune favors me. She just doesn't know it yet."
+  },
+  {
+    "id": "miner",
+    "name": "Miner",
+    "color": "0x8a7a5c",
+    "baseStats": {
+      "hp": 42,
+      "attack": 8,
+      "defense": 4,
+      "speed": 1.4,
+      "attackRange": 1
+    },
+    "startingResources": {},
+    "tags": [
+      "melee",
+      "miner",
+      "utility"
+    ],
+    "unlockLevel": 3,
+    "spawnWeight": 0.7,
+    "description": "A grimy prospector with a pickaxe that bites like a weapon. When the path stalls, he Tunnels — digging down and surfacing at any floor tile across the dungeon, opening a shortcut that drags the raid into rooms you never wanted reached.",
+    "flavorText": "There's always another way through. I make it."
   }
 ]

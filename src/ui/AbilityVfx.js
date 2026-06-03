@@ -559,4 +559,69 @@ export const AbilityVfx = {
     }
     return null
   },
+
+  // Tumbling d6 that pops up over a point, spins while cycling random faces,
+  // then settles on `face` (1-6) with a little jackpot ring. The Gambler's
+  // "Roll the Dice" VFX (procedural pip-die — no sprite sheet needed).
+  diceRoll(scene, x, y, face, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { size: 26, faceColor: 0xfafafa, pipColor: 0x232329, durationMs: 1100, depth: 33, ...opts }
+    const s = o.size, q = s * 0.26, pr = s * 0.085
+    const PIP = { c: [0, 0], tl: [-q, -q], tr: [q, -q], bl: [-q, q], br: [q, q], ml: [-q, 0], mr: [q, 0] }
+    const FACES = { 1: ['c'], 2: ['tl', 'br'], 3: ['tl', 'c', 'br'], 4: ['tl', 'tr', 'bl', 'br'],
+      5: ['tl', 'tr', 'c', 'bl', 'br'], 6: ['tl', 'tr', 'ml', 'mr', 'bl', 'br'] }
+    const cont = scene.add.container(x, y).setDepth(o.depth)
+    const g = scene.add.graphics()
+    const draw = (f) => {
+      g.clear()
+      g.fillStyle(o.faceColor, 1).fillRoundedRect(-s / 2, -s / 2, s, s, 5)
+      g.lineStyle(2, 0x000000, 0.35).strokeRoundedRect(-s / 2, -s / 2, s, s, 5)
+      g.fillStyle(o.pipColor, 1)
+      for (const k of (FACES[f] || ['c'])) { const [px, py] = PIP[k]; g.fillCircle(px, py, pr) }
+    }
+    draw(1 + Math.floor(Math.random() * 6))
+    cont.add(g)
+    cont.setScale(0.2).setAlpha(0)
+    scene.tweens.add({ targets: cont, scale: 1, alpha: 1, y: y - 16, duration: 260, ease: 'Back.easeOut' })
+    scene.tweens.add({ targets: cont, angle: 360, duration: 720, ease: 'Cubic.easeOut' })
+    scene.time.addEvent({ delay: 80, repeat: 7, callback: () => draw(1 + Math.floor(Math.random() * 6)) })
+    scene.time.delayedCall(740, () => {
+      if (!cont.active) return
+      draw(face); cont.angle = 0
+      AbilityVfx.pulseRing(scene, x, y - 16, { color: 0xffe066, fromR: 6, toR: 22, thickness: 3, durationMs: 280, alpha: 0.75 })
+    })
+    scene.time.delayedCall(o.durationMs, () => {
+      if (cont.active) scene.tweens.add({ targets: cont, alpha: 0, y: y - 32, duration: 220, onComplete: () => cont.destroy() })
+    })
+    return cont
+  },
+
+  // Spinning coin that flips (edge-on scaleY oscillation), then lands on a gold
+  // (win) or grey (lose) face with a ring. The Gambler's "Double or Nothing" VFX.
+  coinFlip(scene, x, y, win, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { r: 13, durationMs: 1000, depth: 33, ...opts }
+    const cont = scene.add.container(x, y).setDepth(o.depth)
+    const g = scene.add.graphics()
+    const drawCoin = (c) => {
+      g.clear()
+      g.fillStyle(c, 1).fillCircle(0, 0, o.r)
+      g.lineStyle(2, 0x8a6a1a, 0.9).strokeCircle(0, 0, o.r)
+      g.fillStyle(0xffffff, 0.25).fillCircle(-o.r * 0.3, -o.r * 0.3, o.r * 0.32)
+    }
+    drawCoin(0xf0c645)
+    cont.add(g)
+    cont.setAlpha(0).setScale(0.3)
+    scene.tweens.add({ targets: cont, alpha: 1, scale: 1, y: y - 20, duration: 220, ease: 'Back.easeOut' })
+    scene.tweens.add({ targets: g, scaleY: 0.12, duration: 110, yoyo: true, repeat: 5, ease: 'Sine.easeInOut' })
+    scene.time.delayedCall(740, () => {
+      if (!cont.active) return
+      drawCoin(win ? 0xffe066 : 0x9a9aa2)
+      AbilityVfx.pulseRing(scene, x, y - 20, { color: win ? 0xffe066 : 0x9a9aa2, fromR: 6, toR: 28, thickness: 3, durationMs: 320, alpha: 0.85 })
+    })
+    scene.time.delayedCall(o.durationMs, () => {
+      if (cont.active) scene.tweens.add({ targets: cont, alpha: 0, y: y - 36, duration: 220, onComplete: () => cont.destroy() })
+    })
+    return cont
+  },
 }

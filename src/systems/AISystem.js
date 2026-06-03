@@ -2316,6 +2316,9 @@ export class AISystem {
         // matters here since sprung-trap avoidance is off for everyone.
         avoidSprungTraps: false,
         noClip:           cheaterNoClip,
+        // Miner Tunnel holes — persistent 2-way shortcuts the raid routes
+        // through (findPath adds them as cost-1 edges). Cleared at night.
+        portals:          this._gameState.dungeon?.portals ?? null,
       }
       // Add path jitter for non-flee goals so adventurers don't all march the
       // same straight line — they pick varied routes between rooms each repath.
@@ -2519,6 +2522,12 @@ export class AISystem {
     if ((adv._nemRecoilUntil ?? 0) > this._scene.time.now) {
       return
     }
+    // Phase 6 — Valkyrie Rally the Fallen: she stands still while channelling the
+    // 3s revive (ClassAbilitySystem sets _castingUntil; the cast is interruptible
+    // because dying/fleeing clears it via _cancelRallyCast).
+    if ((adv._castingUntil ?? 0) > this._scene.time.now) {
+      return
+    }
 
     const speedMul = this._paranoidSpeedMultiplier(adv)
     // Fleeing adventurers sprint — FLEE_SPEED_MULT × their normal pace.
@@ -2536,7 +2545,12 @@ export class AISystem {
     // cheat shuts off automatically once the timestamp expires.
     const cheaterSpeedhackActive = (adv._speedhackUntil ?? 0) > this._scene.time.now
     const cheaterSpdMul = cheaterSpeedhackActive ? 2.0 : 1
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * TS * delta) / 1000
+    // Phase 6 — Valkyrie Rally: a steeled ally moves faster while the cry holds.
+    // Phase 6 — Gladiator Crowd Roar stacks SPEED as well as ATK: +5% per kill
+    // stack, cap 6 → +30% (matches CROWD_ROAR_MAX_STACKS in CombatSystem).
+    const roarSpdMul = (adv.classId === 'gladiator' && adv._crowdRoarStacks > 0)
+      ? 1 + Math.min(adv._crowdRoarStacks, 6) * 0.05 : 1
+    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -3267,6 +3281,32 @@ export class AISystem {
         const d = Math.hypot(adv.tileX - tank.tileX, adv.tileY - tank.tileY)
         if (d > LEASH) return { x: tank.tileX, y: tank.tileY }
       }
+    }
+    // Peasant — Strength in Numbers. A peasant squad spawns together and prefers
+    // to STICK TOGETHER as it explores: a follower that drifts more than LEASH
+    // tiles from its squad leader re-targets the leader's tile, so the squad
+    // trails along as a loose blob (the leader picks the destinations). When the
+    // leader is dead/gone the follower just explores on its own.
+    if (adv._peasantSquadLeaderId && !adv._peasantSquadLeader) {
+      const leader = (this._gameState.adventurers?.active ?? [])
+        .find(a => a?.instanceId === adv._peasantSquadLeaderId
+                && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+      if (leader) {
+        const LEASH = 3
+        const d = Math.hypot(adv.tileX - leader.tileX, adv.tileY - leader.tileY)
+        if (d > LEASH) return { x: leader.tileX, y: leader.tileY }
+      }
+    }
+    // Phase 6 — Valkyrie Rally the Fallen: walk to a tile ADJACENT to the fallen
+    // ally (the approach tile stored on the goal — never the corpse tile itself),
+    // then ClassAbilitySystem starts the channel on arrival.
+    if (adv.goal.type === 'RALLY_APPROACH') {
+      return { x: adv.goal.tileX, y: adv.goal.tileY }
+    }
+    // Phase 6 — Miner Tunnel: walk to the randomly-chosen dig tile, where
+    // ClassAbilitySystem begins the dig channel on arrival.
+    if (adv.goal.type === 'TUNNEL_DIG') {
+      return { x: adv.goal.tileX, y: adv.goal.tileY }
     }
     // Dungeon event: The Saboteur — route to the targeted trap's tile.
     // If that trap is already disabled or gone, re-pick the next one.
@@ -4441,6 +4481,13 @@ export class AISystem {
     // Phase 5c — Cleric Resurrection: if a same-party Cleric still has the
     // ability today, revive the falling adv at 30% HP and skip death.
     if (this._scene.classAbilitySystem?.attemptClericResurrect?.(adv)) {
+      EventBus.emit('ADVENTURER_RESURRECTED', { adventurer: adv })
+      return
+    }
+    // Phase 6 — Gambler Double or Nothing: on his OWN death, a 50/50 — WIN revives
+    // him (skip death); LOSE pays the player out and lets death proceed (returns
+    // false, so this won't short-circuit on a loss).
+    if (adv.classId === 'gambler' && this._scene.classAbilitySystem?.attemptGamblerDoubleOrNothing?.(adv)) {
       EventBus.emit('ADVENTURER_RESURRECTED', { adventurer: adv })
       return
     }

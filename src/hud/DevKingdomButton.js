@@ -17,6 +17,7 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { isActsEnabled } from '../config/acts.js'
+import { PauseManager } from '../systems/PauseManager.js'
 
 export class DevKingdomButton {
   constructor() {
@@ -86,6 +87,7 @@ export class DevKingdomButton {
         h('div', { className: 'qf-dev-events-close pix', on: { click: () => this._closeModal() } }, 'CLOSE'),
       ]),
     ])
+    PauseManager.softPause()   // freeze the world while the dev picker is open
     stage.appendChild(this._modal)
     this._escFn = (e) => { if (e.key === 'Escape') this._closeModal() }
     window.addEventListener('keydown', this._escFn)
@@ -104,6 +106,6 @@ export class DevKingdomButton {
 
   _closeModal() {
     if (this._escFn) { window.removeEventListener('keydown', this._escFn); this._escFn = null }
-    if (this._modal) { this._modal.remove(); this._modal = null }
+    if (this._modal) { this._modal.remove(); this._modal = null; PauseManager.softResume() }
   }
 }

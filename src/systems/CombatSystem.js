@@ -16,6 +16,29 @@ import { TILE }            from './DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
 
+// Phase 6 — Gladiator Crowd Roar tuning. Each hostile minion the Gladiator
+// fells adds an ATK stack; stacks cap and clear on death/flee. Both the
+// increment (kill block) and the damage scaling (_computeDamage) live in this
+// file, so the constants live here too (the ClassAbilitySystem ABILITY_DEFS
+// entry is just a registry label, like ranger_volley).
+const CROWD_ROAR_PER_STACK  = 0.12   // +12% ATK per stack
+const CROWD_ROAR_MAX_STACKS = 6      // → +72% ATK at full crowd
+
+// Phase 6 — Peasant "Strength in Numbers": each OTHER living peasant within
+// PEASANT_MOB_RADIUS tiles grants +PEASANT_MOB_PER_ALLY to BOTH the peasant's
+// ATK (when attacking) and its damage-reduction (when attacked), capped at
+// PEASANT_MOB_MAX_ALLIES. Per the locked spec: +8% atk/def per nearby peasant,
+// max +32%. A lone peasant gets nothing. Legibility lives in ClassAbilitySystem.
+const PEASANT_MOB_PER_ALLY   = 0.08  // +8% atk/def per nearby fellow peasant
+const PEASANT_MOB_RADIUS     = 4     // tiles
+const PEASANT_MOB_MAX_ALLIES = 4     // → +32% cap (4 × 8%)
+
+// Phase 6 — Gambler "Roll the Dice". A d6 rolls on a gambler's swing, but only
+// after the previous roll's ~1.1s tumble animation has settled, so it fires
+// periodically (not literally every swing). Faces: 1=whiff, 2=normal, 3=house
+// pays out (+gold to player), 4=double strike, 5=self-heal, 6=jackpot crit.
+const GAMBLER_DICE_CD = 1100
+
 export class CombatSystem {
   constructor(scene, gameState) {
     this._scene = scene
@@ -75,6 +98,10 @@ export class CombatSystem {
     const cooldown = this._cooldownFor(attacker)
     if (now - (attacker.lastAttackAt ?? 0) < cooldown) return null
 
+    // Phase 6 — Gladiator Block: while braced behind the Spartan hoplon he is
+    // damage-IMMUNE (negated target-side below) but CANNOT swing. Skip his attack.
+    if (attacker._blockActiveUntil && now < attacker._blockActiveUntil) return null
+
     // Pass-3 Ghost Possession — possessed adventurers redirect their swing
     // to a same-party ally for the duration of the possession buff.
     target = MinionAbilities.maybeRedirectPossessedAttack(attacker, target, this._gameState, this._scene)
@@ -99,12 +126,35 @@ export class CombatSystem {
     // leaves both parties alive in gameState across a save.
     attacker._lastAttackTargetId = target.instanceId
 
+    // Phase 6 — Gambler Roll the Dice: tumble a d6 above the head when the prior
+    // roll has settled. Whiff (1) misses outright; the other faces modify this
+    // swing (damage faces below, payout/heal after the hit lands).
+    let _diceFace = 0
+    if (attacker.classId === 'gambler' && (attacker._diceRollReadyAt ?? 0) <= now) {
+      _diceFace = 1 + Math.floor(Math.random() * 6)
+      attacker._diceRollReadyAt = now + GAMBLER_DICE_CD
+      AbilityVfx.diceRoll?.(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 36, _diceFace)
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: attacker, abilityId: 'roll_the_dice', message: `${attacker.name} rolled a ${_diceFace}.` })
+      if (_diceFace === 1) {  // whiff — the swing misses entirely
+        AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, 'WHIFF', { color: '#cc8866' })
+        EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: target.instanceId, damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false })
+        return { hit: false, whiffed: true }
+      }
+    }
+
     const damage     = this._computeDamage(attacker, target)
     // Phase 5c — Rogue Invisibility: if attacker is an invisible Rogue,
     // their attack is a guaranteed crit AND immediately reveals them.
     const rogueInvisCrit = attacker.classId === 'rogue' && attacker._invisible
     const isCritical = rogueInvisCrit ? true : Math.random() < 0.10
     let   finalDmg   = isCritical ? Math.floor(damage * 1.5) : damage
+
+    // Gambler dice damage face 6 = jackpot crit (×2.5). Face 4 (double strike)
+    // lands a SECOND separate hit after this one — handled post-hit below.
+    if (_diceFace === 6) {
+      finalDmg = Math.floor(finalDmg * 2.5)
+      AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, 'JACKPOT!', { color: '#ffe066', fontSize: '13px' })
+    }
 
     if (rogueInvisCrit) {
       // Reveal the rogue.
@@ -125,6 +175,18 @@ export class CombatSystem {
         damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false,
       })
       return { hit: false, dodged: true }
+    }
+
+    // Phase 6 — Gladiator Block: while braced behind the shield, the incoming
+    // hit is fully negated (no damage, no kill). He cannot attack during the
+    // window (gated at the top of tryAttack).
+    if (target._blockActiveUntil && now < target._blockActiveUntil) {
+      AbilityVfx.floatingText(this._scene, target.worldX ?? 0, (target.worldY ?? 0) - 18, 'BLOCK', { color: '#ffe08a' })
+      EventBus.emit('COMBAT_HIT', {
+        sourceId: attacker.instanceId, targetId: target.instanceId,
+        damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false,
+      })
+      return { hit: false, blocked: true }
     }
 
     // Phase 5c — Knight Protective Aura: party allies (and the Knight himself)
@@ -340,6 +402,30 @@ export class CombatSystem {
       isCritical,
     })
 
+    // Gambler dice post-hit faces: 3 = house pays out (+gold to the PLAYER),
+    // 4 = double strike (a SECOND identical blow lands this swing), 5 = self-heal.
+    if (_diceFace === 3) {
+      const payout = Balance.GOLD_PER_KILL ?? 10
+      this._gameState.player ??= {}
+      this._gameState.player.gold = (this._gameState.player.gold ?? 0) + payout
+      EventBus.emit('RESOURCES_AWARDED', { gold: payout, source: 'gambler_dice' })
+      AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, `HOUSE PAYS +${payout}g`, { color: '#ffd34d', fontSize: '12px' })
+    } else if (_diceFace === 4 && target.resources.hp > 0) {
+      // Double strike — land a second hit of the same damage (two distinct blows,
+      // per spec), honouring the same shadow-monarch/light-party HP floor.
+      const fl = (target._shadowMonarch || target._lightParty || target._nemesis)
+        ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
+      target.resources.hp = Math.max(fl, target.resources.hp - finalDmg)
+      EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: target.instanceId, damage: finalDmg, damageType, isCritical: false })
+      AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, 'DOUBLE!', { color: '#ffd34d', fontSize: '12px' })
+    } else if (_diceFace === 5) {
+      const heal = Math.max(1, Math.floor((attacker.resources?.maxHp ?? 0) * 0.15))
+      const before = attacker.resources.hp
+      attacker.resources.hp = Math.min(attacker.resources.maxHp ?? before, before + heal)
+      const restored = attacker.resources.hp - before
+      if (restored > 0) AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, `+${restored}`, { color: '#a4ffb0', fontSize: '12px' })
+    }
+
     // Pass-1 minion abilities — on-hit hooks (Plague Bite, Hellfire Brand,
     // Bloodthirst, Petrify Gaze, Earthshake, Pickpocket, Greedy Bite, Snare).
     MinionAbilities.onHit(this._scene, attacker, target, finalDmg, this._gameState)
@@ -406,6 +492,20 @@ export class CombatSystem {
         roomId:     opts.roomId ?? null,
         day:        this._gameState.meta.dayNumber,
       })
+
+      // Phase 6 — Gladiator Crowd Roar: felling a hostile minion stokes the
+      // crowd (+1 ATK stack, capped). Only dungeon-faction minion kills count
+      // (the boss kill ends the run, so it's moot there).
+      if (attacker.classId === 'gladiator' && target.faction === 'dungeon' && target !== this._gameState.boss) {
+        const prev = attacker._crowdRoarStacks ?? 0
+        if (prev < CROWD_ROAR_MAX_STACKS) {
+          const s = attacker._crowdRoarStacks = prev + 1
+          AbilityVfx.shockwave(this._scene, attacker.worldX, attacker.worldY, { color: 0xffb347, fromR: 8, toR: 64 + s * 6, thickness: 5, durationMs: 420 })
+          AbilityVfx.burstRays(this._scene, attacker.worldX, attacker.worldY - 8, { color: 0xffd27a, count: 8, length: 56 + s * 6, durationMs: 380 })
+          AbilityVfx.floatingText(this._scene, attacker.worldX, attacker.worldY - 30, s >= CROWD_ROAR_MAX_STACKS ? 'ROAR! MAX' : `ROAR! x${s}`, { color: '#ffcf6b', fontSize: '13px' })
+          EventBus.emit('ABILITY_TRIGGERED', { adventurer: attacker, abilityId: 'crowd_roar', message: `${attacker.name} feeds on the crowd (Roar x${s}).` })
+        }
+      }
     }
 
     return { hit: true, damage: finalDmg, killed, damageType, method }
@@ -518,6 +618,19 @@ export class CombatSystem {
     return Balance.ATTACK_INTERVAL_MS / Math.max(0.5, speed)
   }
 
+  // Phase 6 — count OTHER living peasants within PEASANT_MOB_RADIUS of `peasant`
+  // (capped at PEASANT_MOB_MAX_ALLIES). Drives both halves of Strength in Numbers.
+  _peasantMobCount(peasant) {
+    let n = 0
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      if (a === peasant || a.classId !== 'peasant') continue
+      if (a.aiState === 'dead' || a.resources?.hp <= 0) continue
+      const d = Math.hypot((a.tileX ?? 0) - (peasant.tileX ?? 0), (a.tileY ?? 0) - (peasant.tileY ?? 0))
+      if (d <= PEASANT_MOB_RADIUS + 0.01 && ++n >= PEASANT_MOB_MAX_ALLIES) break
+    }
+    return n
+  }
+
   _computeDamage(attacker, target) {
     let raw = attacker.stats?.attack ?? 1
 
@@ -561,6 +674,26 @@ export class CombatSystem {
       const frac = attacker.resources?.maxHp > 0
         ? attacker.resources.hp / attacker.resources.maxHp : 1
       raw = Math.floor(raw * (1 + (1 - frac)))
+    }
+
+    // Phase 6 — Gladiator Crowd Roar: kill-stacking ATK (stacks incremented in
+    // the kill block below, cleared on death/flee by ClassAbilitySystem).
+    if (cls === 'gladiator' && attacker._crowdRoarStacks > 0) {
+      const stacks = Math.min(attacker._crowdRoarStacks, CROWD_ROAR_MAX_STACKS)
+      raw = Math.floor(raw * (1 + stacks * CROWD_ROAR_PER_STACK))
+    }
+
+    // Phase 6 — Peasant Strength in Numbers (offensive half): a mobbed peasant
+    // hits harder. +8% ATK per nearby fellow peasant, capped at +32%.
+    if (cls === 'peasant') {
+      const allies = this._peasantMobCount(attacker)
+      if (allies > 0) raw = Math.floor(raw * (1 + allies * PEASANT_MOB_PER_ALLY))
+    }
+    // Defensive half: a mobbed peasant TARGET takes less damage — same +8%/ally,
+    // cap +32%, applied as a damage reduction (the "+def" side of the buff).
+    if (target.classId === 'peasant') {
+      const dAllies = this._peasantMobCount(target)
+      if (dAllies > 0) raw = Math.max(1, Math.floor(raw * (1 - dAllies * PEASANT_MOB_PER_ALLY)))
     }
 
     // Phase 5c — Twitch ATK buff/debuff window from Viewers Choice.

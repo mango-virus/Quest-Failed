@@ -472,6 +472,22 @@ function _rehydrateRunHistory(state) {
     // is scene.time-stamped so it MUST strip; the X/Y are just stale
     // anchor coords that should rebuild from the adv's post-load tile.
     '_stagAnchorX', '_stagAnchorY', '_stagAnchorAt',
+    // New-class abilities (2026-06-03). All scene.time-stamped windows or
+    // in-flight sequence state. A saved value phantom-freezes the owner on
+    // load — most dangerously a Miner saved mid-Tunnel, who would reload
+    // hidden underground + movement-frozen forever, or a Valkyrie saved
+    // mid-cast (stuck channelling). Drop them so the systems re-arm fresh.
+    //   Gladiator — Block window + Crowd Roar stacks + mob flag + fx throttles
+    '_blockActiveUntil', '_crowdRoarStacks', '_mobActive',
+    '_blockSparkNextAt', '_blockFloatNextAt',
+    //   Peasant — mob VFX throttle stamps (scene.time-stamped)
+    '_peasantShoutAt', '_peasantDustAt',
+    //   Valkyrie — Rally channel / approach state + the shared cast-freeze gate
+    '_castingUntil', '_rallyChannelUntil', '_rallyTargetId',
+    '_rallyApproachId', '_rallyApproachTile',
+    //   Miner — Tunnel startup gate + the multi-phase dig/underground sequence
+    '_tunnelGateUntil', '_tunnelPhase', '_tunnelDig', '_underground',
+    '_tunnelDigUntil', '_tunnelEmergeAt', '_tunnelDeadline', '_tunnelNextFx',
   ]
   for (const a of (state.adventurers.active ?? [])) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]

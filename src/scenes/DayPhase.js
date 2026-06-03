@@ -2667,6 +2667,20 @@ export class DayPhase extends Phaser.Scene {
       EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
     }
 
+    // Mango dev — force a Kingdom-Response CHAMPION RAID right now (fired from the
+    // TEST EVENT dev modal) so each act boss + retinue can be fought and balance-
+    // checked without waiting for a drafted act's climax day. Spawns at the current
+    // run's threat/overtime scaling via the real _spawnChampionRaid path; the
+    // ChampionBar then shows the boss's HP. One champion at a time — clear the live
+    // one before spawning the next.
+    const onDevChampion = ({ responseId } = {}) => {
+      if (!responseId) return
+      if ((this._gameState.adventurers?.active ?? []).some(a => a._championResponseId)) return
+      const responses = this.cache.json.get('kingdomResponses') ?? []
+      const resp = responses.find(r => r.id === responseId)
+      if (resp) this._spawnChampionRaid(resp)
+    }
+
     EventBus.on('ADVENTURER_DIED',              onDeath)
     EventBus.on('ADVENTURER_FLED',              onChange)
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
@@ -2675,6 +2689,7 @@ export class DayPhase extends Phaser.Scene {
     EventBus.on('LIGHT_PARTY_DUEL_END',         onLpDuelEnd)
     EventBus.on('DEV_FORCE_ALDRIC_DUEL',        onDevDuel)
     EventBus.on('DEV_FORCE_ALDRIC_SCOUT',       onDevScout)
+    EventBus.on('DEV_FORCE_CHAMPION_RAID',      onDevChampion)
     EventBus.on('DEV_SPAWN_CLASS',              onDevSpawnClass)
     this._listeners = [
       ['ADVENTURER_DIED',             onDeath],
@@ -2685,6 +2700,7 @@ export class DayPhase extends Phaser.Scene {
       ['LIGHT_PARTY_DUEL_END',        onLpDuelEnd],
       ['DEV_FORCE_ALDRIC_DUEL',       onDevDuel],
       ['DEV_FORCE_ALDRIC_SCOUT',      onDevScout],
+      ['DEV_FORCE_CHAMPION_RAID',     onDevChampion],
       ['DEV_SPAWN_CLASS',             onDevSpawnClass],
     ]
   }

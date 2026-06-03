@@ -248,6 +248,42 @@ Cooldown buckets: short = 5–8s, medium = 12–18s, large = 30–60s. Per-day b
 
 ---
 
+## New adventurer classes (2026-06-03) — 5 added
+
+Five new spawnable adventurer classes (sprites baked + locked first, then abilities).
+**LOCKED SPECS (verbatim — implement from THIS, not a paraphrase).** Source: the
+design conversation 2026-06-03 (user reply + agent recommendations, both confirmed).
+
+### ⛏️ Miner — Tunnel (once per day per miner)
+> "lets make him instead randomly choose a tile in the dungeon one time per day where his goal is to walk to the tile, attack it for a few seconds to create a hole. then he goes into the hole and a few seconds later a new hole appears in a random different room and he climbs out of it. this connecting hole is now permanent for the day and allows any adventurers to walk to the hole and enter it to come out on the other side. holes can even appear in the boss room and if an adventurer enters the boss room this way, a boss fight immediately starts. vfx of dirt and rocks coming up from the tile he is digging at and the hole he makes."
+- Locked add-ons (agent recs, confirmed): other adventurers route through a hole only when it genuinely shortens their path (hole pair = a pathfinder traversal edge); the miner himself triggers the boss fight if he surfaces in the boss room (with a boss cut-in line); hole lifetime = **rest of the day, collapses at night** (user choice 2026-06-03); VFX reuse boss rubble/quake assets for the dig + a brown particleBurst on climb-out + a dirt-rimmed pit sprite as a matched pair.
+
+### 🕊️ Valkyrie — Winged Flight + Rally the Fallen
+> "Winged Flight. This should ignore all traps. Maybe give them an animation to make them look like they are floating/flying as they move around the dungeon. Also include Rally the Fallen with a 3 second cast time and cast bar to revive a dead adventurer. Each valkyrie can only use this once. After casted the dead adventurer can get back up and has half its HP."
+- Locked add-ons: flying look = lift sprite a few px + slow vertical bob + keep shadow on the ground (the ground-gap sells it); Rally mirrors White Mage's Raise — **interruptible** (killed/stunned/combat mid-cast → fizzles), targets the most-recently-fallen ally nearby; she **walks to a tile ADJACENT to the corpse (never onto it) before channelling** (user, 2026-06-03); VFX = holy beamPillar + godRays, corpse rising in the light, reuse the cast-bar UI. (Valkyrie is strong → gate later / rarer.) NOTE: Rally has **NO buff component** — it is purely the cast-time revive.
+
+### 🌾 Peasant — Strength in Numbers
+> "Strength in Numbers. Should spawn in clusters that prefer to stick together as they explore."
+- Locked add-ons: spawn as a squad sharing one goal, moving as a loose blob (not true flocking); buff = **+8% atk/def per nearby peasant, max +32%** (needs a cap); VFX = when 3+ clustered, a shared dusty-brown ground aura that intensifies with the count + occasional angry-shout emote bubbles (raised fist / "!") + a small pulseRing when a new peasant joins.
+
+### ⚔️ Gladiator — Crowd Roar + Block
+> "crowd roar + a block ability. Blocking allows the gladiator to stop all damage delt to him for a short period, however he cannot attack or do damage while blocking (also should work for boss fights). needs a vfx for entering block mode."
+- Locked add-ons: Crowd Roar = every minion it kills grants a **stacking attack + speed** buff (snowball); Block AI = block reactively when low HP + a cooldown; Block VFX = AbilityVfx.domeShield bubble + steel/gold shimmer + a guard tint, bubble drops when block ends. **Block must work in boss fights too** (immunity + the no-attack rule).
+
+### 🎲 Gambler — Roll the Dice + Double or Nothing
+> "Roll the Dice + Double or Nothing. For double or nothing if they lose the flip, the player should get a benefit. for Roll the Dice it shouldn't happen on every attack, with first attack they should have a dice roll animation above their head with the result of the roll and what they get for it. after the animation completes it can be triggered again on the next attack."
+- Locked 6-face table: ⚀1 miss/whiff · ⚁2 normal hit · ⚂3 +gold to the player (small payout) · ⚃4 **double strike (hits twice)** · ⚄5 self-heal · ⚅6 crit (big hit). Double-or-Nothing LOSE payout = bonus gold to the player, **scaled to the gambler's level**. VFX = tumbling die above the head settling on the face + a floatingText effect label; spinning coin flip on death.
+
+### Acceptance checklist (tick against CODE before "done")
+_(Code-verified 2026-06-03: every box below ticked against the actual implementation. Live in-preview runtime verification still recommended before final sign-off.)_
+- **Miner:** ✅ once/day ✅ pick random tile + walk to it (TUNNEL_DIG goal) ✅ dig (attack tile) over a few seconds (TUNNEL_DIG_MS) ✅ enter hole / disappear (`_underground`, renderer hides) ✅ delay → 2nd hole in a random different room (TUNNEL_UNDERGROUND_MS) ✅ climb out there ✅ hole pair permanent for the day (portals collapse at night) ✅ other advs route through (pathfinder edge, only if shorter) ✅ boss-room hole → instant boss fight incl. the miner (surface→AT_BOSS→watchdog) ✅ collapses at night ✅ dig dirt/rock eruption VFX (`_fireDigVfx`) ✅ climb-out VFX (brown particleBurst) ✅ dirt-rimmed pit pair (TunnelPortalRenderer, MINER_DIG_HOLE per endpoint)
+- **Valkyrie:** ✅ Winged Flight = ignore ALL traps ✅ floating/flying animation (lift+bob+grounded shadow, `_tickValkyrieFlight`) ✅ Rally = 3s cast ✅ cast bar ✅ interruptible ✅ once per valkyrie ✅ revives a DEAD ally ✅ at HALF (50%) HP ✅ targets most-recently-fallen ✅ resurrectBeam VFX (used in place of beamPillar+godRays) ✅ NO buff component
+- **Peasant:** ✅ +8% atk per nearby peasant ✅ +8% def per nearby peasant ✅ cap +32% ✅ cluster spawn (guaranteed 2-3 pack when any peasant rolls — user choice 2026-06-03) ✅ stick-together squad movement (leash to squad leader) ✅ sustained dusty ground aura scaling with count (`_ensurePeasantDust`) ✅ angry-shout emotes (✊ / !) ✅ join pulseRing (EMBOLDENED)
+- **Gladiator:** ✅ Crowd Roar stacking ATK ✅ Crowd Roar stacking SPEED (AISystem roarSpdMul) ✅ Block = full immunity ✅ can't attack while blocking ✅ Block works in boss fights — immunity at every boss→adv site + excluded from attacker pool + AI triggers when boss-pressed (`_advBlocking`) ✅ domeShield VFX
+- **Gambler:** ✅ dice not-every-attack (anim then re-roll) ✅ 6-face table ✅ face 4 = two hits (not ×2) ✅ DoN win revive 50% ✅ DoN lose payout scaled to level ✅ die VFX (procedural) ✅ coin VFX (procedural)
+
+---
+
 ## Personality combos
 
 Also there should be combos with different adventures when they come as a party that cause new things to happen with them. For example:

@@ -80,7 +80,56 @@ export const ABILITY_DEFS = {
   // _speedhackUntil and folds it into the step-distance calculation
   // alongside the regular flee / song / scout multipliers.
   cheater_speedhack:     { id: 'speedhack',     cooldownMs: 12000, durationMs: 3000, label: 'Speed Hack', spdMul: 2.0 },
+
+  // ── Gladiator ──────────────────────────────────────────────────────────
+  // Block — plant the Spartan hoplon for a brief DAMAGE-IMMUNE stance. While
+  // braced he cannot swing (CombatSystem gates both the immunity and the
+  // attack via _blockActiveUntil). Fires reactively when pressed.
+  glad_block:      { id: 'block',      cooldownMs: 9000, durationMs: 1500, label: 'Block' },
+  // Crowd Roar — kill-stacking ATK buff (passive). Increment + damage scaling
+  // both live in CombatSystem (CROWD_ROAR_* consts); this entry is just the
+  // registry label (no cooldown / per-day budget), like ranger_volley.
+  glad_crowd_roar: { id: 'crowd_roar', label: 'Crowd Roar' },
+
+  // ── Peasant ────────────────────────────────────────────────────────────
+  // Strength in Numbers — passive ATK scale by nearby fellow peasants (the
+  // damage math lives in CombatSystem, PEASANT_MOB_* consts). This entry is the
+  // registry label; the consider-tick below fires the legibility pulse.
+  peasant_strength: { id: 'strength_in_numbers', label: 'Strength in Numbers' },
+
+  // ── Valkyrie ───────────────────────────────────────────────────────────
+  // Winged Flight — passive: soars over traps (immunity lives in TrapSystem;
+  // this entry is just the registry label).
+  valkyrie_flight: { id: 'winged_flight', label: 'Winged Flight' },
+  // Rally the Fallen — a 3s INTERRUPTIBLE channel (cast bar) that revives the
+  // most-recently-fallen ally nearby at HALF HP. Once per valkyrie. Mirrors
+  // White Mage's Raise. NO buff component.
+  valkyrie_rally: { id: 'rally_the_fallen', usesPerDay: 1, castMs: 3000, reviveFrac: 0.5, rangeTiles: 6, label: 'Rally the Fallen' },
+
+  // ── Gambler ────────────────────────────────────────────────────────────
+  // Roll the Dice — per-swing d6 proc (resolved entirely in CombatSystem,
+  // GAMBLER_DICE_CD). Registry label only.
+  gambler_roll: { id: 'roll_the_dice', label: 'Roll the Dice' },
+  // Double or Nothing — on death, a once-per-day 50/50: WIN → revive at half HP;
+  // LOSE → the house pays the PLAYER out. Invoked from AISystem._kill via
+  // attemptGamblerDoubleOrNothing.
+  gambler_double_or_nothing: { id: 'double_or_nothing', usesPerDay: 1, label: 'Double or Nothing' },
+
+  // ── Miner ──────────────────────────────────────────────────────────────
+  // Tunnel — ONCE per day the miner picks a random dig tile, WALKS to it, digs
+  // it open over a few seconds, drops in, and surfaces a couple seconds later
+  // through a SECOND hole in a random different room. The hole pair stays open
+  // as a two-way pathfinding shortcut the whole raid routes through (only when
+  // it actually shortens a path); it collapses at night. A hole that surfaces
+  // in the boss room starts the boss fight the instant anyone climbs out of it
+  // — the miner included. A 5s startup gate stops an instant dig on spawn.
+  miner_tunnel: { id: 'tunnel', usesPerDay: 1, label: 'Tunnel' },
 }
+
+// Tunnel sequence timing (the "few seconds" from the spec).
+const TUNNEL_DIG_MS        = 2600   // time spent attacking the tile to open it
+const TUNNEL_UNDERGROUND_MS = 1800  // time spent below before surfacing elsewhere
+const TUNNEL_APPROACH_TIMEOUT_MS = 22000  // safety: abort if he can't reach the dig tile
 
 export class ClassAbilitySystem {
   constructor(scene, gameState) {
@@ -139,6 +188,16 @@ export class ClassAbilitySystem {
       const now = this._scene?.time?.now ?? 0
       adv._summonGateUntil = now + 3000
     }
+    // Miner can't Tunnel for 5 s after entering — stops an instant boss-skip the
+    // moment they spawn, and gives the player a beat to see them start the dig.
+    if (adv.classId === 'miner') {
+      const now = this._scene?.time?.now ?? 0
+      adv._tunnelGateUntil = now + 5000
+      // Clear any stale sequence state from a previous life/day.
+      adv._tunnelPhase = null
+      adv._tunnelDig = null
+      adv._underground = false
+    }
   }
 
   _onAdventurerRemoved(payload) {
@@ -188,6 +247,17 @@ export class ClassAbilitySystem {
     adventurer._boneArmorUntil        = null
     adventurer._invisibilityUntil     = null
     adventurer._twitchEffectUntil     = null
+    // Gladiator — drop the Block brace + reset the Crowd Roar stack count so a
+    // re-entering/raised Gladiator starts fresh (CombatSystem reads both).
+    adventurer._blockActiveUntil      = null
+    adventurer._crowdRoarStacks       = 0
+    adventurer._mobActive             = false
+    // Valkyrie — a dying/fleeing valkyrie's Rally channel is interrupted (fizzles),
+    // and the cast bar is torn down. _cancelRallyCast clears the channel fields.
+    this._cancelRallyCast(adventurer, true)
+    // Miner — a dying/fleeing miner mid-dig drops the tunnel (the day's use is
+    // already spent). Clears _underground so the renderer doesn't keep him hidden.
+    if (adventurer._tunnelPhase) this._abortTunnel(adventurer)
     if (adventurer._invisible) this._endInvisibility(adventurer)
     // Clean up any sustained VFX (e.g. the Knight's aura ring or Bard rings).
     const map = this._sustainedFx.get(adventurer.instanceId)
@@ -262,6 +332,10 @@ export class ClassAbilitySystem {
           case 'rogue':           this._considerRogue(adv, now);  break
           case 'twitch_streamer': this._considerTwitch(adv, now); break
           case 'cheater':         this._considerCheater(adv, now); break
+          case 'gladiator':       this._considerGladiator(adv, now); break
+          case 'peasant':         this._considerPeasant(adv, now); break
+          case 'valkyrie':        this._considerValkyrie(adv, now); break
+          case 'miner':           this._considerMiner(adv, now); break
         }
       }
       // Inner Peace tick — Monk regen while active (any class can be regen-target
@@ -315,6 +389,11 @@ export class ClassAbilitySystem {
       this._endInvisibility(adv)
       EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'invisibility' })
     }
+    // Gladiator Block — brace window over; clear the flag so he can swing again.
+    if (adv._blockActiveUntil && now >= adv._blockActiveUntil) {
+      adv._blockActiveUntil = null
+      EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'block' })
+    }
     // Twitch — temporary effect timers (heal/atk/def buffs/poison/etc from Viewers Choice)
     if (adv._twitchEffectUntil && now >= adv._twitchEffectUntil) {
       adv._twitchEffectUntil = null
@@ -361,6 +440,23 @@ export class ClassAbilitySystem {
       for (const slot of Object.keys(map)) this._endSustainedFx(id, slot)
     }
     this._sustainedFx.clear()
+    // Tear down any lingering Valkyrie cast bars.
+    if (this._castBars) {
+      for (const cb of this._castBars.values()) { if (cb.bg?.active) cb.bg.destroy(); if (cb.fill?.active) cb.fill.destroy() }
+      this._castBars.clear()
+    }
+    // Miner Tunnel holes collapse at night/day-end — drop the portal state so the
+    // pathfinder stops routing through them (TunnelPortalRenderer clears the art
+    // on the same NIGHT_PHASE_STARTED / DAY_PHASE_ENDED events).
+    if (this._gameState?.dungeon) this._gameState.dungeon.portals = []
+    // Surface any miner caught mid-tunnel so he isn't left hidden/frozen.
+    for (const adv of this._gameState.adventurers?.active ?? []) {
+      if (adv.classId !== 'miner') continue
+      if (adv._tunnelPhase || adv._underground) {
+        adv._tunnelPhase = null; adv._tunnelDig = null
+        adv._underground = false; adv._castingUntil = 0
+      }
+    }
   }
 
   // Phase 5c — sustained "ground halo" helper. Renders a thin, low-opacity
@@ -477,6 +573,521 @@ export class ClassAbilitySystem {
       if (frac < 0.7) return true
     }
     return false
+  }
+
+  // ── Gladiator ───────────────────────────────────────────────────────────
+  // Crowd Roar is a passive (kill-stacking ATK) handled in CombatSystem. Here
+  // we only drive Block: a reactive damage-immune brace.
+
+  _considerGladiator(adv, now) {
+    // Block — brace the shield when pressed: swarmed by 2+ hostiles in melee,
+    // OR wounded (<55% HP) with a hostile adjacent. Damage-immune for the
+    // window; he can't swing while braced (CombatSystem enforces both).
+    if (adv._blockActiveUntil && now < adv._blockActiveUntil) return
+    const blockDef = ABILITY_DEFS.glad_block
+    const swarmed  = this._hostileMinionCountWithin(adv, 1.5) >= 2
+    const frac     = adv.resources?.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
+    const wounded  = frac < 0.55 && this._hostileMinionWithin(adv, 1.2)
+    // Boss fight — there are no hostile MINIONS to read off, so Block would
+    // never fire from the swarmed/wounded checks above. Trigger reactively off
+    // being engaged with the boss while wounded (≤60% HP). The immunity + the
+    // no-attack rule for the brace window are enforced in BossSystem
+    // (_advBlocking gates every boss→adv damage site + the adv→boss pool).
+    const inBossFight = adv.goal?.type === 'AT_BOSS' || adv.aiState === 'fighting'
+    const bossPressed = inBossFight && frac < 0.60
+    if (!swarmed && !wounded && !bossPressed) return
+    const ready = AbilitySystem.canUse(adv, blockDef, now)
+    if (!ready.ready) return
+    AbilitySystem.markUsed(adv, blockDef, now)
+    adv._blockActiveUntil = now + blockDef.durationMs
+    this._fireBlockVfx(adv, blockDef.durationMs)
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'block', message: `${adv.name} braced behind the shield!` })
+  }
+
+  _hostileMinionCountWithin(adv, rangeTiles) {
+    let n = 0
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
+      if (m.faction === 'adventurer') continue
+      const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
+      if (d <= rangeTiles + 0.01) n++
+    }
+    return n
+  }
+
+  _fireBlockVfx(adv, durationMs) {
+    // A golden hoplon dome that pops up, holds the brace window, then fades.
+    AbilityVfx.domeShield(this._scene, adv.worldX, (adv.worldY ?? 0) - 6, { color: 0xffd66b, radius: 30, holdMs: durationMs })
+    AbilityVfx.floatingText(this._scene, adv.worldX, (adv.worldY ?? 0) - 30, 'BLOCK', { color: '#ffe08a', fontSize: '13px' })
+  }
+
+  // ── Peasant ─────────────────────────────────────────────────────────────
+  // Strength in Numbers is a passive ATK/DEF scale (CombatSystem reads the
+  // nearby-peasant count). Here we make the mob LEGIBLE:
+  //   • a one-shot rally pulse + "EMBOLDENED" floater the instant a peasant
+  //     joins a mob (≥2 other peasants within 4 tiles), re-arming on dispersal;
+  //   • a SUSTAINED dusty-brown ground aura once 3+ are clustered, whose size +
+  //     opacity scale with the local count (denser dust = bigger mob);
+  //   • periodic angry-shout emotes (raised fist / "!") while clustered.
+
+  _considerPeasant(adv, now) {
+    let allies = 0
+    for (const a of this._gameState.adventurers.active) {
+      if (a === adv || a.classId !== 'peasant') continue
+      if (a.aiState === 'dead' || a.resources?.hp <= 0) continue
+      const d = Math.hypot((a.tileX ?? 0) - (adv.tileX ?? 0), (a.tileY ?? 0) - (adv.tileY ?? 0))
+      if (d <= 4.01) allies++
+    }
+    const inMob     = allies >= 2          // self + 2 others = a 3-strong mob
+    const clustered = allies + 1 >= 3
+
+    // Join pulse — the moment the mob forms.
+    if (inMob && !adv._mobActive) {
+      adv._mobActive = true
+      AbilityVfx.pulseRing(this._scene, adv.worldX, adv.worldY, { color: 0xe8a24a, fromR: 6, toR: 26, durationMs: 450, alpha: 0.8 })
+      AbilityVfx.floatingText(this._scene, adv.worldX, (adv.worldY ?? 0) - 26, 'EMBOLDENED', { color: '#ffcf6b', fontSize: '11px' })
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'strength_in_numbers', message: `${adv.name} is emboldened by the mob (+${allies}).` })
+    } else if (!inMob && adv._mobActive) {
+      adv._mobActive = false
+    }
+
+    // Sustained dusty aura + angry shouts while clustered; tear down otherwise.
+    if (clustered) {
+      // allies caps at +32% (4 peasants) on the buff side — mirror that ramp
+      // here so the dust visually maxes at the same point the buff does.
+      const intensity = Math.min(1, allies / 4)
+      this._ensurePeasantDust(adv, intensity, now)
+      if (now >= (adv._peasantShoutAt ?? 0)) {
+        adv._peasantShoutAt = now + 2600 + Math.random() * 2800
+        const mark = Math.random() < 0.5 ? '✊' : '!'
+        AbilityVfx.floatingText(this._scene, adv.worldX, (adv.worldY ?? 0) - 30, mark, { color: '#e8b06a', fontSize: '15px' })
+      }
+    } else {
+      if (this._sustainedFx.get(adv.instanceId)?.peasant_dust) this._endSustainedFx(adv.instanceId, 'peasant_dust')
+      adv._peasantShoutAt = 0
+    }
+  }
+
+  // A persistent dusty-brown ground patch under a clustered peasant. Created
+  // once (slot 'peasant_dust'), then re-positioned + re-scaled every tick from
+  // _considerPeasant so it follows the peasant and swells with the mob. Layered
+  // brown dust puffs (throttled) add motion so it reads as kicked-up dirt, not
+  // a flat decal. Torn down by _endSustainedFx on dispersal / death / night.
+  _ensurePeasantDust(adv, intensity, now) {
+    const Y_OFF = 16
+    let map = this._sustainedFx.get(adv.instanceId)
+    let obj = map?.peasant_dust
+    if (!obj) {
+      const e = this._scene.add.ellipse(adv.worldX, (adv.worldY ?? 0) + Y_OFF, 32, 13, 0x8a6a3a, 0.16).setDepth(5)
+      this._setSustainedFx(adv.instanceId, 'peasant_dust', { gfx: e })
+      obj = this._sustainedFx.get(adv.instanceId).peasant_dust
+    }
+    const e = obj.gfx
+    if (!e?.active) return
+    if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) e.setPosition(adv.worldX, adv.worldY + Y_OFF)
+    const sc = 0.85 + intensity * 0.9
+    e.setScale(sc, sc)
+    e.setAlpha(0.12 + intensity * 0.16)
+    // Occasional kicked-up dust puff for motion.
+    if (now >= (adv._peasantDustAt ?? 0)) {
+      adv._peasantDustAt = now + 620 + Math.random() * 500
+      AbilityVfx.particleBurst(this._scene, adv.worldX, (adv.worldY ?? 0) + Y_OFF, {
+        count: 3 + Math.round(intensity * 3), color: 0x9a7a48, speed: 40 + intensity * 30, durationMs: 520, depth: 5,
+      })
+    }
+  }
+
+  // ── Valkyrie ────────────────────────────────────────────────────────────
+  // Winged Flight is a passive (trap immunity in TrapSystem). Here we drive Rally
+  // the Fallen: she WALKS to a tile ADJACENT to the most-recently-fallen ally
+  // (never onto the corpse), then runs a 3s INTERRUPTIBLE channel (cast bar) that
+  // revives them at HALF HP, once per valkyrie. Interrupt = she dies/flees/enters
+  // combat mid-cast, or the target is otherwise revived/culled.
+
+  _considerValkyrie(adv, now) {
+    // Channeling? progress the cast bar / complete / cancel.
+    if (adv._rallyChannelUntil) { this._tickRallyCast(adv, now); return }
+    // Walking to a fallen ally? keep steering her there until she's adjacent.
+    if (adv._rallyApproachId != null) { this._tickRallyApproach(adv, now); return }
+    // Idle wrt Rally — only consider it while travelling (not mid-combat/flee).
+    if (adv.aiState !== 'walking') return
+    const def = ABILITY_DEFS.valkyrie_rally
+    if (!AbilitySystem.canUse(adv, def, now).ready) return
+    const target = this._findFallenToRevive(adv, def.rangeTiles)
+    if (!target) return
+    if (this._adjacentToTile(adv, target.tileX, target.tileY)) {
+      this._beginRallyCast(adv, target, now)   // already beside the body
+      return
+    }
+    const slot = this._approachTileFor(adv, target)
+    if (!slot) return                          // no reachable adjacent tile
+    adv._rallyApproachId   = target.instanceId
+    adv._rallyApproachTile = slot
+    adv.goal = { type: 'RALLY_APPROACH', tileX: slot.x, tileY: slot.y }
+    adv.path = null; adv.pathIndex = 0; adv.pathTarget = null   // force a repath to the body
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name} moves to rally a fallen ally.` })
+  }
+
+  // Walk-to-corpse phase: steer her to the adjacent tile, start the cast on arrival.
+  _tickRallyApproach(adv, now) {
+    const grave = this._gameState.adventurers?.graveyard ?? []
+    const target = grave.find(g => g.instanceId === adv._rallyApproachId)
+    // Bail if the target's gone (revived/culled) or she got pulled into combat/flee.
+    if (!target || adv.aiState !== 'walking') { this._endRallyApproach(adv); return }
+    if (this._adjacentToTile(adv, target.tileX, target.tileY)) {
+      this._endRallyApproach(adv)
+      this._beginRallyCast(adv, target, now)
+      return
+    }
+    // Re-assert the approach goal if something else overrode it (combat scuffle, etc.).
+    if (adv.goal?.type !== 'RALLY_APPROACH' && adv._rallyApproachTile) {
+      adv.goal = { type: 'RALLY_APPROACH', tileX: adv._rallyApproachTile.x, tileY: adv._rallyApproachTile.y }
+    }
+  }
+
+  _endRallyApproach(adv) {
+    const wasApproaching = adv.goal?.type === 'RALLY_APPROACH'
+    adv._rallyApproachId = null
+    adv._rallyApproachTile = null
+    if (wasApproaching && adv.aiState !== 'dead') {
+      adv.path = null; adv.pathIndex = 0; adv.pathTarget = null
+      this._scene.aiSystem?.pickInitialGoal?.(adv)   // restore a normal goal
+    }
+  }
+
+  _beginRallyCast(adv, target, now) {
+    const def = ABILITY_DEFS.valkyrie_rally
+    AbilitySystem.markUsed(adv, def, now)            // spend the once/day use only when the cast starts
+    adv._rallyChannelUntil = now + def.castMs
+    adv._rallyTargetId     = target.instanceId
+    adv._castingUntil      = adv._rallyChannelUntil   // AISystem holds her still while this is set
+    this._startRallyCastBar(adv, def.castMs)
+    AbilityVfx.pulseRing?.(this._scene, adv.worldX, adv.worldY, { color: 0xffe9a8, fromR: 6, toR: 30, durationMs: 400, alpha: 0.7 })
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name} kneels beside the fallen and channels Rally.` })
+  }
+
+  // Adjacent (incl. diagonal) to a tile, but NOT standing on it.
+  _adjacentToTile(adv, tx, ty) {
+    const d = Math.hypot((adv.tileX ?? 0) - tx, (adv.tileY ?? 0) - ty)
+    return d > 0.5 && d <= 1.6
+  }
+
+  // The walkable tile adjacent to the corpse that's closest to the valkyrie.
+  _approachTileFor(adv, corpse) {
+    const slots = this._walkableAdjacentTiles(corpse.tileX, corpse.tileY, this._scene.dungeonGrid)
+    let best = null, bestD = Infinity
+    for (const s of slots) {
+      const d = Math.hypot(s.x - (adv.tileX ?? 0), s.y - (adv.tileY ?? 0))
+      if (d < bestD) { bestD = d; best = s }
+    }
+    return best
+  }
+
+  // Most-recently-fallen ally that died THIS DAY within rangeTiles of the valkyrie
+  // (graveyard entries are full adv clones with their death tile). Newest first.
+  _findFallenToRevive(valk, rangeTiles) {
+    const grave = this._gameState.adventurers?.graveyard ?? []
+    const today = this._gameState.meta?.dayNumber ?? 0
+    for (let i = grave.length - 1; i >= 0; i--) {
+      const g = grave[i]
+      if (g.diedOnDay !== today || g.classId === undefined) continue
+      const d = Math.hypot((g.tileX ?? 0) - (valk.tileX ?? 0), (g.tileY ?? 0) - (valk.tileY ?? 0))
+      if (d <= rangeTiles + 0.01) return g
+    }
+    return null
+  }
+
+  _tickRallyCast(adv, now) {
+    const grave = this._gameState.adventurers?.graveyard ?? []
+    const tIdx = grave.findIndex(g => g.instanceId === adv._rallyTargetId)
+    if (tIdx < 0) { this._cancelRallyCast(adv, true); return }   // target gone → interrupt
+    adv._castingUntil = adv._rallyChannelUntil
+    this._updateRallyCastBar(adv, now)
+    if (now < adv._rallyChannelUntil) return
+    // ── Channel complete — raise the fallen ally at HALF HP ──
+    const def = ABILITY_DEFS.valkyrie_rally
+    const dead = grave.splice(tIdx, 1)[0]
+    const TS = Balance.TILE_SIZE
+    dead.resources.hp    = Math.max(1, Math.floor((dead.resources.maxHp ?? 0) * (def.reviveFrac ?? 0.5)))
+    dead.aiState         = 'walking'
+    dead.path = null; dead.pathIndex = 0; dead.pathTarget = null
+    dead.currentTargetId = null; dead.lastAttackAt = 0
+    dead._lastHitBy = null; dead._lastHitType = null
+    dead.cooldowns = {}; dead.usesLeftToday = {}
+    dead.worldX = (dead.tileX ?? 0) * TS + TS / 2
+    dead.worldY = (dead.tileY ?? 0) * TS + TS / 2
+    this._scene.bossSystem?._fightStates?.delete(dead.instanceId)
+    this._gameState.adventurers.active.push(dead)
+    this._scene.aiSystem?.pickInitialGoal?.(dead)
+    AbilityVfx.resurrectBeam?.(this._scene, dead.worldX, dead.worldY, { color: 0xffe9a8, durationMs: 750 })
+    AbilityVfx.floatingText(this._scene, dead.worldX, (dead.worldY ?? 0) - 30, 'RALLIED', { color: '#ffe9a8', fontSize: '14px' })
+    this._endRallyCastBar(adv)
+    adv._rallyChannelUntil = null; adv._rallyTargetId = null; adv._castingUntil = null
+    EventBus.emit('ADVENTURER_RESURRECTED', { adventurer: dead })
+    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: dead })   // re-init abilities + renderer sprite
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name} rallied ${this._shortName(dead)} back to their feet at half HP.` })
+  }
+
+  _cancelRallyCast(adv, silentTarget = false) {
+    this._endRallyCastBar(adv)
+    if (adv._rallyChannelUntil && !silentTarget) {
+      AbilityVfx.floatingText?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 30, 'INTERRUPTED', { color: '#cc8a8a', fontSize: '12px' })
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name}'s Rally was interrupted.` })
+    }
+    adv._rallyChannelUntil = null; adv._rallyTargetId = null; adv._castingUntil = null
+    adv._rallyApproachId = null; adv._rallyApproachTile = null
+  }
+
+  // A small fill-bar above the valkyrie's head while she channels.
+  _startRallyCastBar(adv, durationMs) {
+    this._castBars ??= new Map()
+    this._endRallyCastBar(adv)
+    const w = 30, h = 4, y = (adv.worldY ?? 0) - 34
+    const bg   = this._scene.add.rectangle(adv.worldX, y, w, h, 0x1a140c, 0.7).setDepth(20)
+    const fill = this._scene.add.rectangle(adv.worldX - w / 2, y, 1, h, 0xffe9a8, 0.95).setOrigin(0, 0.5).setDepth(21)
+    this._castBars.set(adv.instanceId, { bg, fill, w, start: this._scene.time.now, durationMs })
+  }
+
+  _updateRallyCastBar(adv, now) {
+    const cb = this._castBars?.get(adv.instanceId); if (!cb) return
+    const y = (adv.worldY ?? 0) - 34
+    const p = Math.min(1, (now - cb.start) / cb.durationMs)
+    cb.bg.setPosition(adv.worldX, y)
+    cb.fill.setPosition(adv.worldX - cb.w / 2, y)
+    cb.fill.width = Math.max(1, cb.w * p)
+  }
+
+  _endRallyCastBar(adv) {
+    const cb = this._castBars?.get(adv.instanceId); if (!cb) return
+    if (cb.bg?.active) cb.bg.destroy()
+    if (cb.fill?.active) cb.fill.destroy()
+    this._castBars.delete(adv.instanceId)
+  }
+
+  // ── Gambler ───────────────────────────────────────────────────────────
+  // Double or Nothing — invoked from AISystem._kill BEFORE death processing.
+  // A once-per-day 50/50 on the gambler's own death: WIN → revive at 50% HP
+  // (returns true → death skipped); LOSE → the house pays the PLAYER out in gold
+  // and the gambler still dies (returns false). The flip is spent either way.
+  attemptGamblerDoubleOrNothing(falling) {
+    if (!falling || falling.classId !== 'gambler' || falling.aiState === 'dead') return false
+    const now = this._scene.time.now
+    const def = ABILITY_DEFS.gambler_double_or_nothing
+    const ready = AbilitySystem.canUse(falling, def, now)
+    if (!ready.ready) return false
+    AbilitySystem.markUsed(falling, def, now)
+    const win = Math.random() < 0.5
+    AbilityVfx.coinFlip?.(this._scene, falling.worldX, (falling.worldY ?? 0) - 34, win)
+    if (win) {
+      // Revive at 50% HP + full transient-state reset (cloned from the cleric/
+      // valkyrie revive path) so the gambler walks again instead of freezing.
+      falling.resources.hp   = Math.max(1, Math.floor((falling.resources.maxHp ?? 0) * 0.50))
+      falling.aiState        = 'walking'
+      falling.path           = null
+      falling.pathIndex      = 0
+      falling.pathTarget     = null
+      falling.currentTargetId = null
+      falling.lastAttackAt   = 0
+      falling._lastHitBy     = null
+      falling._lastHitType   = null
+      this._scene.bossSystem?._fightStates?.delete(falling.instanceId)
+      this._scene.aiSystem?.pickInitialGoal?.(falling)
+      AbilityVfx.floatingText(this._scene, falling.worldX, (falling.worldY ?? 0) - 52, 'DOUBLE!', { color: '#ffe066', fontSize: '15px' })
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: falling, abilityId: 'double_or_nothing', message: `${falling.name} won the toss — back in the game!` })
+      return true
+    }
+    // Lose — the house pays out to the dungeon owner (the player), scaled to the
+    // gambler's level (the dungeon/boss level the adv was scaled to).
+    const lv = this._gameState.boss?.level ?? falling.level ?? 1
+    const payout = (Balance.GOLD_PER_KILL ?? 10) * 3 * lv
+    this._gameState.player ??= {}
+    this._gameState.player.gold = (this._gameState.player.gold ?? 0) + payout
+    EventBus.emit('RESOURCES_AWARDED', { gold: payout, source: 'gambler_double_or_nothing' })
+    AbilityVfx.floatingText(this._scene, falling.worldX, (falling.worldY ?? 0) - 52, `NOTHING · +${payout}g`, { color: '#ffd34d', fontSize: '13px' })
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: falling, abilityId: 'double_or_nothing', message: `${falling.name} lost the toss — the house pays out ${payout}g.` })
+    return false
+  }
+
+  // ── Miner ─────────────────────────────────────────────────────────────
+  // Tunnel — ONCE per day, while travelling, dig a hole at his feet linked to a
+  // random room. The hole is stored in gameState.dungeon.portals and added as a
+  // 2-way edge in PathfinderSystem.findPath (AISystem passes the portals in), so
+  // the whole raid routes THROUGH it to reach rooms faster. TunnelPortalRenderer
+  // draws the holes; they + the portal state clear at night.
+
+  _considerMiner(adv, now) {
+    // A tunnel sequence in progress drives itself through its phases.
+    if (adv._tunnelPhase) { this._tickTunnel(adv, now); return }
+    if (adv.aiState !== 'walking') return            // only kick off mid-travel, not in a fight
+    if ((adv._tunnelGateUntil ?? 0) > now) return    // 5 s startup gate
+    const def = ABILITY_DEFS.miner_tunnel
+    if (!AbilitySystem.canUse(adv, def, now).ready) return
+    this._beginTunnel(adv, now, def)
+  }
+
+  // PHASE 0 — pick a random dig tile (NOT the boss room: that's reserved for the
+  // surprise exit) and send the miner walking to it. Spends the once/day use up
+  // front so an interruption can't let him re-roll a fresh tunnel the same day.
+  _beginTunnel(miner, now, def) {
+    const grid = this._scene.dungeonGrid
+    if (!grid) return
+    const dig = this._pickTunnelTile(grid, { excludeBossRoom: true })
+    if (!dig) return
+    AbilitySystem.markUsed(miner, def, now)
+    miner._tunnelPhase   = 'approach'
+    miner._tunnelDig     = { x: dig.x, y: dig.y }
+    miner._tunnelDeadline = now + TUNNEL_APPROACH_TIMEOUT_MS
+    miner.goal      = { type: 'TUNNEL_DIG', tileX: dig.x, tileY: dig.y }
+    miner.path      = null
+    miner.pathIndex = 0
+    miner.pathTarget = null
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: miner, abilityId: 'tunnel', message: `${miner.name} spotted a soft seam and headed off to dig.` })
+  }
+
+  // The per-tick state machine: approach → dig → underground → surface.
+  _tickTunnel(miner, now) {
+    // Abandon the dig if combat catches him before he's committed to digging.
+    if (miner._tunnelPhase === 'approach' &&
+        (miner.aiState === 'fighting' || miner.aiState === 'fleeing' || now > (miner._tunnelDeadline ?? Infinity))) {
+      this._abortTunnel(miner)
+      return
+    }
+    switch (miner._tunnelPhase) {
+      case 'approach': {
+        const dig = miner._tunnelDig
+        const d = Math.hypot((miner.tileX ?? 0) - dig.x, (miner.tileY ?? 0) - dig.y)
+        if (d > 0.75) return                       // still walking — AISystem steers him
+        // Arrived — plant him on the tile and start digging.
+        miner._tunnelPhase = 'digging'
+        miner._tunnelDigUntil = now + TUNNEL_DIG_MS
+        miner._castingUntil   = now + TUNNEL_DIG_MS   // AISystem freezes him while he digs
+        miner._tunnelNextFx   = 0
+        this._fireDigVfx(miner, now)
+        EventBus.emit('ABILITY_TRIGGERED', { adventurer: miner, abilityId: 'tunnel', message: `${miner.name} started hacking a hole in the floor.` })
+        return
+      }
+      case 'digging': {
+        // Re-spit dirt/rocks every ~400ms for the whole dig so it reads as work.
+        if (now >= (miner._tunnelNextFx ?? 0)) { miner._tunnelNextFx = now + 420; this._fireDigVfx(miner, now) }
+        if (now < (miner._tunnelDigUntil ?? 0)) { miner._castingUntil = miner._tunnelDigUntil; return }
+        // Hole A is open — draw it, then drop in.
+        const a = miner._tunnelDig
+        EventBus.emit('MINER_DIG_HOLE', { x: a.x, y: a.y })
+        AbilityVfx.particleBurst(this._scene, miner.worldX, miner.worldY, { count: 14, color: 0x6b4f2a, speed: 120, durationMs: 520, depth: 9 })
+        miner._tunnelPhase    = 'underground'
+        miner._underground    = true                 // AdventurerRenderer hides him
+        miner._tunnelEmergeAt = now + TUNNEL_UNDERGROUND_MS
+        miner._castingUntil   = now + TUNNEL_UNDERGROUND_MS + 200
+        return
+      }
+      case 'underground': {
+        if (now < (miner._tunnelEmergeAt ?? 0)) return
+        this._surfaceTunnel(miner, now)
+        return
+      }
+    }
+  }
+
+  // PHASE final — open hole B in a random DIFFERENT room (boss room eligible),
+  // teleport the miner there, link the pair as a permanent (for-the-day)
+  // pathfinding edge, and climb him out. Surfacing in the boss room starts the
+  // fight immediately (the miner himself counts).
+  _surfaceTunnel(miner, now) {
+    const grid = this._scene.dungeonGrid
+    const a = miner._tunnelDig
+    const digRoom = grid?.getRoomAtTile?.(a.x, a.y)
+    const exit = this._pickTunnelTile(grid, { excludeRoomId: digRoom?.instanceId ?? null })
+            ?? this._pickTunnelTile(grid, {})   // fall back to ANY room if only one exists
+    if (!exit) { this._abortTunnel(miner); return }
+
+    // Link the hole pair for the pathfinder (PathfinderSystem reads ax/ay/bx/by).
+    const portal = {
+      id: `tunnel_${miner.instanceId}_${this._gameState.meta?.dayNumber ?? 0}`,
+      ax: a.x, ay: a.y, bx: exit.x, by: exit.y,
+    }
+    this._gameState.dungeon.portals ??= []
+    this._gameState.dungeon.portals.push(portal)
+
+    // Surface the miner at hole B.
+    const TS = Balance.TILE_SIZE
+    miner.tileX = exit.x; miner.tileY = exit.y
+    miner.worldX = exit.x * TS + TS / 2
+    miner.worldY = exit.y * TS + TS / 2
+    miner._underground   = false
+    miner._tunnelPhase   = null
+    miner._castingUntil   = 0
+    miner.path = null; miner.pathIndex = 0; miner.pathTarget = null
+
+    // Draw hole B + climb-out dirt spray.
+    EventBus.emit('MINER_DIG_HOLE', { x: exit.x, y: exit.y })
+    AbilityVfx.particleBurst(this._scene, miner.worldX, miner.worldY, { count: 18, color: 0x7a5a30, speed: 150, durationMs: 620, depth: 9 })
+    AbilityVfx.floatingText(this._scene, miner.worldX, (miner.worldY ?? 0) - 26, 'TUNNEL', { color: '#caa15a', fontSize: '12px' })
+    EventBus.emit('MINER_TUNNEL_DUG', { id: portal.id, ax: portal.ax, ay: portal.ay, bx: portal.bx, by: portal.by })
+
+    // Boss room? He's burst in through the floor — kick off the fight.
+    const exitRoom = grid?.getRoomAtTile?.(exit.x, exit.y)
+    if (exitRoom?.definitionId === 'boss_chamber') {
+      miner.goal = { type: 'AT_BOSS' }
+      miner.aiState = 'fighting'
+      EventBus.emit('MINER_SURFACED_IN_BOSS_ROOM', { adventurerId: miner.instanceId })
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: miner, abilityId: 'tunnel', message: `${miner.name} burst up through the throne-room floor!` })
+    } else {
+      this._scene.aiSystem?.pickInitialGoal?.(miner)
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: miner, abilityId: 'tunnel', message: `${miner.name} clawed out of a fresh hole across the dungeon.` })
+    }
+  }
+
+  // Dirt + rock eruption at the miner's tile while he digs (reuses quake/rubble
+  // language — a crater rim, an outward dirt burst, and a small shockwave).
+  _fireDigVfx(miner, _now) {
+    const x = miner.worldX, y = miner.worldY
+    AbilityVfx.particleBurst(this._scene, x, y, { count: 9, color: 0x6b4f2a, speed: 90, durationMs: 460, depth: 9 })
+    AbilityVfx.shockwave(this._scene, x, y, { color: 0x8a6a3a, radius: 22, durationMs: 360 })
+  }
+
+  // Tear down an in-flight tunnel (death / flee / can't reach the tile). The
+  // use is already spent for the day; just clear the transient state.
+  _abortTunnel(miner) {
+    const wasUnderground = miner._underground
+    miner._tunnelPhase = null
+    miner._tunnelDig = null
+    miner._underground = false
+    miner._castingUntil = 0
+    if (miner.goal?.type === 'TUNNEL_DIG') {
+      miner.path = null; miner.pathIndex = 0; miner.pathTarget = null
+      // If he was already underground when interrupted, surface him in place so
+      // he isn't stranded invisible.
+      this._scene.aiSystem?.pickInitialGoal?.(miner)
+    }
+    if (wasUnderground) EventBus.emit('ABILITY_TRIGGERED', { adventurer: miner, abilityId: 'tunnel', message: `${miner.name} scrambled back out of his tunnel.` })
+  }
+
+  // Pick a random walkable interior tile from a random active room, honoring an
+  // optional room exclusion / boss-room exclusion.
+  _pickTunnelTile(grid, { excludeRoomId = null, excludeBossRoom = false } = {}) {
+    if (!grid) return null
+    const rooms = (this._gameState.dungeon?.rooms ?? []).filter(r =>
+      r.isActive !== false && r.gridX != null &&
+      (excludeRoomId == null || r.instanceId !== excludeRoomId) &&
+      (!excludeBossRoom || r.definitionId !== 'boss_chamber'))
+    if (!rooms.length) return null
+    for (let i = rooms.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rooms[i], rooms[j]] = [rooms[j], rooms[i]] }
+    for (const r of rooms) {
+      const tiles = this._walkableTilesInRoom(r, grid)
+      if (tiles.length) return tiles[Math.floor(Math.random() * tiles.length)]
+    }
+    return null
+  }
+
+  _walkableTilesInRoom(room, grid) {
+    const out = []
+    for (let y = room.gridY + 1; y < room.gridY + room.height - 1; y++) {
+      for (let x = room.gridX + 1; x < room.gridX + room.width - 1; x++) {
+        const t = grid.getTileType?.(x, y)
+        if (t != null && PathfinderSystem.isWalkable(t) && t !== TILE.DOOR) out.push({ x, y })
+      }
+    }
+    return out
   }
 
   // ── Bard ──────────────────────────────────────────────────────────────────

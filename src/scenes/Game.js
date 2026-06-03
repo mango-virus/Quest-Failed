@@ -47,6 +47,7 @@ import { WantedPoster }       from '../ui/WantedPoster.js'
 // user request) — file kept in repo, just no longer imported/constructed.
 import { BossFightOverlay }    from '../ui/BossFightOverlay.js'
 import { SunderedFloorRenderer } from '../ui/SunderedFloorRenderer.js'
+import { TunnelPortalRenderer } from '../ui/TunnelPortalRenderer.js'
 import { CartographerOverlay }   from '../ui/CartographerOverlay.js'
 import { BossRenderer }       from '../ui/BossRenderer.js'
 import { SuccubusBatRenderer } from '../ui/SuccubusBatRenderer.js'
@@ -370,6 +371,7 @@ export class Game extends Phaser.Scene {
     this.npcDirector         = track(new NpcDirector(this, this.gameState))
     this.tutorialSystem      = track(new TutorialSystem(this, this.gameState))
     this.sunderedFloorRenderer = track(new SunderedFloorRenderer(this))
+    this.tunnelPortalRenderer  = track(new TunnelPortalRenderer(this))
     this.cartographerOverlay   = track(new CartographerOverlay(this, this.gameState))
 
     // Respawn dead minions when night starts (Phase 6 kernel)

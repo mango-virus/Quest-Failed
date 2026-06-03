@@ -15,6 +15,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { PauseManager } from '../systems/PauseManager.js'
 
 export class DevEventsButton {
   constructor() {
@@ -93,6 +94,20 @@ export class DevEventsButton {
       h('div', { className: 'qf-dev-events-card-id' }, `aldric_scout · act ${act}`),
     ])
 
+    // Kingdom-Response CHAMPION RAID triggers — force any of the 9 act bosses (+
+    // its retinue) right now, so each can be fought and balance-checked without
+    // waiting for a drafted act's climax day. Routed via DEV_FORCE_CHAMPION_RAID;
+    // the ChampionBar shows the spawned boss's HP. One at a time — kill the live
+    // champion before spawning the next.
+    const championCard = (id, label, icon) => h('button', {
+      className: 'qf-dev-events-card',
+      on: { click: () => this._pickChampion(id) },
+    }, [
+      h('div', { className: 'qf-dev-events-card-icon' }, icon),
+      h('div', { className: 'qf-dev-events-card-name pix' }, label),
+      h('div', { className: 'qf-dev-events-card-id' }, `champion · ${id}`),
+    ])
+
     this._modal = h('div', {
       className: 'qf-dev-events-modal',
       on: {
@@ -114,12 +129,25 @@ export class DevEventsButton {
           duelCard('radiant',   'ALDRIC DUEL · RADIANT',   '♔'),
           duelCard('desperate', 'ALDRIC DUEL · DESPERATE', '♛'),
         ]),
+        h('div', { className: 'qf-dev-events-flavor pix' }, 'CHAMPION RAIDS — the 9 act bosses (balance testing):'),
+        h('div', { className: 'qf-dev-events-grid' }, [
+          championCard('rival',          'RIVAL · VORZAK',        '⚑'),
+          championCard('inquisition',    'INQUISITION · MORDRAKE', '⚖'),
+          championCard('pantheon',       'PANTHEON · AURELIA',    '☼'),
+          championCard('betrayer',       'BETRAYER · TURNCOAT',   '⇄'),
+          championCard('reckoning_dead', 'DEAD · NECRARCH',       '☠'),
+          championCard('forlorn_hope',   'FORLORN · HALRIC',      '♟'),
+          championCard('mage_tower',     'MAGE TOWER · VELLORAN', '✶'),
+          championCard('all_stars',      'ALL-STARS · GARRETH',   '★'),
+          championCard('plunderers',     'PLUNDERERS · VELL',     '⚿'),
+        ]),
         h('div', { className: 'qf-dev-events-grid' }, cards),
         h('div', { className: 'qf-dev-events-close pix',
           on: { click: () => this._closeModal() },
         }, 'CLOSE'),
       ]),
     ])
+    PauseManager.softPause()   // freeze the world while the dev picker is open
     stage.appendChild(this._modal)
 
     this._escFn = (e) => { if (e.key === 'Escape') this._closeModal() }
@@ -142,6 +170,11 @@ export class DevEventsButton {
     this._closeModal()
   }
 
+  _pickChampion(responseId) {
+    EventBus.emit('DEV_FORCE_CHAMPION_RAID', { responseId })
+    this._closeModal()
+  }
+
   _closeModal() {
     if (this._escFn) {
       window.removeEventListener('keydown', this._escFn)
@@ -150,6 +183,7 @@ export class DevEventsButton {
     if (this._modal) {
       this._modal.remove()
       this._modal = null
+      PauseManager.softResume()   // pairs with the softPause in _openModal
     }
   }
 }

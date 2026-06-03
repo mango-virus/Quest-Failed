@@ -61,6 +61,20 @@ export class PathfinderSystem {
     const open = new Set([sKey])
     const jitterCache = jitter > 0 ? new Map() : null
 
+    // Miner Tunnel portals — persistent 2-way shortcuts (opts.portals = [{ax,ay,
+    // bx,by}]). Each links two walkable tiles as a cost-1 edge so A* routes
+    // straight through the hole. Built into a tileKey → [linkedKey] map once.
+    let portalLinks = null
+    if (opts?.portals?.length) {
+      portalLinks = new Map()
+      const link = (k, v) => { if (!portalLinks.has(k)) portalLinks.set(k, []); portalLinks.get(k).push(v) }
+      for (const p of opts.portals) {
+        if (p == null) continue
+        const ak = _k(p.ax, p.ay), bk = _k(p.bx, p.by)
+        link(ak, bk); link(bk, ak)
+      }
+    }
+
     while (open.size > 0) {
       let currKey = null
       let lowestF = Infinity
@@ -141,6 +155,22 @@ export class PathfinderSystem {
           gScore[nKey]   = tentativeG
           fScore[nKey]   = tentativeG + _h({ x: nx, y: ny }, end)
           open.add(nKey)
+        }
+      }
+
+      // Portal jump — if the current tile is a Miner Tunnel endpoint, expand its
+      // linked endpoint as a cost-1 neighbour so the path can shortcut through
+      // the hole (no wall/door checks — the dig is a direct passage).
+      if (portalLinks && portalLinks.has(currKey)) {
+        for (const nKey of portalLinks.get(currKey)) {
+          const [nx, ny] = _unk(nKey)
+          const tentativeG = (gScore[currKey] ?? Infinity) + 1
+          if (tentativeG < (gScore[nKey] ?? Infinity)) {
+            cameFrom[nKey] = currKey
+            gScore[nKey]   = tentativeG
+            fScore[nKey]   = tentativeG + _h({ x: nx, y: ny }, end)
+            open.add(nKey)
+          }
         }
       }
     }

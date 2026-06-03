@@ -602,6 +602,10 @@ export class BossSystem {
             const d  = Math.hypot(dx, dy) || 0.01
             if (d > SLAM_RANGE) continue
 
+            // Gladiator Block — braced behind the shield, he eats the slam's
+            // knockback-less but takes no damage for the brace window.
+            if (this._advBlocking(fs.adv)) { this._blockShrug(fs.adv); continue }
+
             // AOE damage + hit-flash on each victim — fleeing adventurers
             // still take the hit while they're in range.
             const def   = fs.adv.stats?.defense ?? 0
@@ -4244,6 +4248,27 @@ export class BossSystem {
     }
   }
 
+  // Gladiator Block — a braced gladiator is immune to ALL incoming damage for
+  // the brace window AND can't deal any. True while ClassAbilitySystem's
+  // _blockActiveUntil (set in _considerGladiator) is still in the future.
+  // Every boss→adv damage site in the fight checks this; the adv→boss damage
+  // pool excludes him too (the no-attack half of the spec).
+  _advBlocking(adv) {
+    return adv?.classId === 'gladiator'
+      && (adv._blockActiveUntil ?? 0) > (this._scene?.time?.now ?? 0)
+  }
+
+  // Feedback when a braced gladiator shrugs off a hit — a gold spark + a
+  // throttled "BLOCK" floater (so a multi-source round doesn't spam text).
+  _blockShrug(adv) {
+    const now = this._scene?.time?.now ?? 0
+    this._emitFx({ kind: 'strike', x: adv.worldX, y: (adv.worldY ?? 0) - 6, color: 0xffd66b })
+    if ((adv._blockFloatNextAt ?? 0) <= now) {
+      adv._blockFloatNextAt = now + 260
+      this._floatText(adv.worldX, (adv.worldY ?? 0) - 24, 'BLOCK', '#ffe08a')
+    }
+  }
+
   _runOneRound() {
     if (this._fightEnded) return
     const boss = this._gameState.boss
@@ -4263,6 +4288,8 @@ export class BossSystem {
     const attackers = all.filter(fs =>
       fs.action !== 'flee' && fs.action !== 'dying' && fs.adv.resources.hp > 0
       && (fs.adv._petrifiedUntil ?? 0) <= _nowR
+      // Gladiator Block — he can't swing while braced behind the shield.
+      && !this._advBlocking(fs.adv)
     )
     // Phase 5c — Rogue Invisibility: invisible adventurers are untargetable
     // by the boss (same rule as MinionAISystem). They can still die to
@@ -4285,7 +4312,9 @@ export class BossSystem {
     // Phase 9 — Boss-attack pacts (Batch G). Run special attacks on cooldown
     // before the regular party/boss exchange. Some apply ongoing state
     // (windup, channel, stun, dazed) consumed below.
-    this._runBossPactAttacks(boss, defenders)
+    // Gladiators bracing behind Block are immune to ALL incoming damage,
+    // boss pact attacks included — keep them out of the pact target pool.
+    this._runBossPactAttacks(boss, defenders.filter(fs => !this._advBlocking(fs.adv)))
 
     // Round cap removed 2026-05-27 — fights now run until one side
     // actually dies (or until the 35s wall-clock backstop in
@@ -4624,6 +4653,7 @@ export class BossSystem {
     for (const m of raisedHere) {
       if (defenders.length === 0) break
       const fs  = defenders[Math.floor(Math.random() * defenders.length)]
+      if (this._advBlocking(fs.adv)) { this._blockShrug(fs.adv); continue }
       const atk = m.stats?.attack ?? 0
       const def = fs.adv.stats?.defense ?? 0
       const dmg = Math.max(1, Math.floor(atk * (0.85 + Math.random() * 0.3) - def))
@@ -4678,6 +4708,10 @@ export class BossSystem {
           this._roundLog.push({ side: 'boss', damage: 0, targetId: target.adv.instanceId, kind: 'avenger_dazed' })
         } else if (suppressed) {
           this._roundLog.push({ side: 'boss', damage: 0, targetId: target.adv.instanceId, kind: 'pact_suppressed' })
+        } else if (this._advBlocking(target.adv)) {
+          // Gladiator Block — the blow rings off his shield for the brace window.
+          this._blockShrug(target.adv)
+          this._roundLog.push({ side: 'boss', damage: 0, targetId: target.adv.instanceId, kind: 'blocked' })
         } else {
           let bossAtk = this._bossAtkScaled(boss)   // LEGENDARY Wrath/Sudden Death applied
           // Phase 9 — Avenger's Rite: +25% damage during 10s buff window after a minion died.
@@ -4734,6 +4768,7 @@ export class BossSystem {
     // Necrotic Aura is a true AOE — it tags every defender every round.
     if (owned.has('necrotic_aura')) {
       for (const fs of defenders) {
+        if (this._advBlocking(fs.adv)) continue   // braced — immune to the aura tick
         const dot = Math.max(1, Math.floor(fs.adv.resources.maxHp * 0.05))
         fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - dot)
       }
