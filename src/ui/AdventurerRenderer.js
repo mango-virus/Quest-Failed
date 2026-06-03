@@ -465,6 +465,8 @@ export class AdventurerRenderer {
       if (s.container && !s.container.visible) s.container.setVisible(true)
       // Solo Leveling — pulse Jinwoo's violet flame-aura glow while on-screen.
       if (s.shadowGlow) s.shadowGlow.setAlpha(0.16 + 0.20 * Math.sin(this._scene.time.now / 320))
+      // The Nemesis (Aldric) — a gentle, slower gold hero-glow pulse.
+      if (s.nemesisGlow) s.nemesisGlow.setAlpha(0.20 + 0.14 * Math.sin(this._scene.time.now / 380))
       // Jinwoo's OWN flame cycles a blue↔black vertical gradient (RGB-style
       // colour shift via a 4-corner tint that lerps over time). His shadow
       // minions keep their plain flame — that's rendered by MinionRenderer and
@@ -1123,8 +1125,30 @@ export class AdventurerRenderer {
       this._attachShadowMonarchAura(sprite)
     }
 
+    // The Nemesis (Aldric, all acts) — a subtle gold hero-glow so the player can
+    // pick him out at a glance in a crowded wave. Pulsed per-frame in update().
+    if (lpc && (adv._nemesis || adv._nemesisDuel)) {
+      this._attachNemesisAura(sprite)
+    }
+
     this._sprites[adv.instanceId] = sprite
     return sprite
+  }
+
+  // Aldric's always-on hero glow — a soft, gently-pulsing gold aura slotted BEHIND
+  // his sprite (mirrors the Shadow Monarch's violet glow) so he reads as the marked
+  // rival in any crowd. Deliberately subtle: low alpha, slow pulse, SCREEN blend.
+  // Pulse alpha is driven per-frame in update().
+  _attachNemesisAura(s) {
+    if (!this._scene.textures.exists('vfx-soft-glow')) return
+    const c = s.container
+    const glow = this._scene.add.image(0, -13, 'vfx-soft-glow')
+      .setScale(1.05)
+      .setTint(0xffd24a)
+      .setBlendMode(Phaser.BlendModes.SCREEN)
+    c.add(glow)
+    c.sendToBack(glow)
+    s.nemesisGlow = glow
   }
 
   // Build the Shadow Monarch's always-on black-flame aura and slot it behind
