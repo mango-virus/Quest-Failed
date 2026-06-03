@@ -449,12 +449,16 @@ export class ClassAbilitySystem {
     // pathfinder stops routing through them (TunnelPortalRenderer clears the art
     // on the same NIGHT_PHASE_STARTED / DAY_PHASE_ENDED events).
     if (this._gameState?.dungeon) this._gameState.dungeon.portals = []
-    // Surface any miner caught mid-tunnel so he isn't left hidden/frozen.
+    // Surface any miner caught mid-tunnel so he isn't left hidden/frozen, and
+    // fizzle any valkyrie caught mid-Rally so her movement-freeze (_castingUntil)
+    // + approach/channel state don't carry over past the phase flip.
     for (const adv of this._gameState.adventurers?.active ?? []) {
-      if (adv.classId !== 'miner') continue
-      if (adv._tunnelPhase || adv._underground) {
+      if (adv.classId === 'miner' && (adv._tunnelPhase || adv._underground)) {
         adv._tunnelPhase = null; adv._tunnelDig = null
         adv._underground = false; adv._castingUntil = 0
+      }
+      if (adv.classId === 'valkyrie' && (adv._rallyChannelUntil || adv._rallyApproachId != null)) {
+        this._cancelRallyCast(adv, true)
       }
     }
   }

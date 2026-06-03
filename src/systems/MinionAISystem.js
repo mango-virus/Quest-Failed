@@ -127,7 +127,7 @@ export class MinionAISystem {
     const advs = this._gameState?.adventurers?.active ?? []
     for (const a of advs) {
       if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
-      if (a._invisible) continue
+      if (a._invisible || a._underground) continue   // invisible rogue / burrowed miner — not present to wake the room
       if (a.tileX >= room.gridX && a.tileX < room.gridX + room.width &&
           a.tileY >= room.gridY && a.tileY < room.gridY + room.height) {
         // Latch awake so subsequent ticks don't re-scan, and so the room
@@ -872,7 +872,7 @@ export class MinionAISystem {
       let bestBd = Infinity
       for (const adv of this._gameState.adventurers.active) {
         if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
-        if (adv._invisible) continue
+        if (adv._invisible || adv._underground) continue   // invisible rogue / burrowed miner — untargetable
         // Vampire Charm — charmed advs are walking peacefully to the
         // boss to be turned; minions ignore them.
         if (adv._charmed) continue
@@ -973,7 +973,7 @@ export class MinionAISystem {
       const isRetaliationTarget = retaliateId && adv.instanceId === retaliateId
       // Phase 5c — Rogue Invisibility: minions ignore invisible advs.
       // (Boss can still target — that's BossSystem's responsibility.)
-      if (adv._invisible) continue
+      if (adv._invisible || adv._underground) continue   // + burrowed miner
       // Vampire Charm — same rationale as the boss-chamber override
       // above: charmed advs are walking peacefully to the boss room
       // and shouldn't be interrupted by minion attacks. The matching

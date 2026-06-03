@@ -3262,6 +3262,11 @@ export class AISystem {
   // ── Goal handling ──────────────────────────────────────────────────────────
 
   _goalToTile(adv) {
+    // Defensive: a null/dissolved goal resolves to no tile, so the caller's
+    // `if (!target)` fallback re-routes the adv (→ FLEE / re-pick) instead of
+    // throwing on `adv.goal.type`. Covers a save loaded mid-Tunnel/Rally where
+    // SaveSystem clears the orphaned sequence goal.
+    if (!adv.goal) return null
     const dungeon = this._gameState.dungeon
     // Light Party leashing — non-tank members stick within LEASH tiles of the
     // tank. When they drift outside the leash, their next pathing pick targets

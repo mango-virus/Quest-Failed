@@ -482,6 +482,9 @@ function _rehydrateRunHistory(state) {
     '_blockSparkNextAt', '_blockFloatNextAt',
     //   Peasant — mob VFX throttle stamps (scene.time-stamped)
     '_peasantShoutAt', '_peasantDustAt',
+    //   Gambler — Roll-the-Dice per-swing cooldown stamp (a saved future value
+    //   suppresses the dice proc until the new clock catches up).
+    '_diceRollReadyAt',
     //   Valkyrie — Rally channel / approach state + the shared cast-freeze gate
     '_castingUntil', '_rallyChannelUntil', '_rallyTargetId',
     '_rallyApproachId', '_rallyApproachTile',
@@ -491,6 +494,15 @@ function _rehydrateRunHistory(state) {
   ]
   for (const a of (state.adventurers.active ?? [])) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]
+    // The Miner Tunnel + Valkyrie Rally sequence state is stripped above, but the
+    // GOAL that drove it persists. With the driver state gone (and the once/day
+    // ability already spent) the consider-tick won't restart the sequence, so an
+    // orphaned TUNNEL_DIG / RALLY_APPROACH goal would walk the adv to a dead tile.
+    // Clear it so they re-pick a normal goal on the next AI tick.
+    if (a?.goal?.type === 'TUNNEL_DIG' || a?.goal?.type === 'RALLY_APPROACH') {
+      a.goal = null
+      a.path = null
+    }
   }
 
   // Day-42 SEEK_TREASURE ping-pong recovery (2026-05-27). A bug report

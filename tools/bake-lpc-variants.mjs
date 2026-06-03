@@ -695,6 +695,26 @@ function sampleVariant(rng, className, classPool, forced = {}) {
     }
   }
 
+  // ── Cargo: LPC basket + basket_contents (the Miner's haul) ──────────────────
+  // A round/square Basket worn on the back, usually loaded with a SINGLE haul
+  // (Ore OR Wood, never both). The contents declare required_tags:['basket'] and
+  // ONLY composite correctly inside a basket — their fg (zPos 140) sits over the
+  // basket rim fg (zPos 130), so the haul reads as piled in the basket. Rolling
+  // a load WITHOUT a basket (the old independent-accessory bug) left the ore
+  // floating / clipped. Modeling it as one unit guarantees the basket is present
+  // whenever there's a load and keeps ore + wood from stacking in one basket.
+  if (classPool.cargo && chance(rng, classPool.cargo.chance ?? 1)) {
+    const cg = classPool.cargo;
+    v.accessories.push({ name: 'Basket', color: pick(rng, cg.basketVariants || ['round', 'square']) });
+    if (Array.isArray(cg.loads) && cg.loads.length && chance(rng, cg.loadChance ?? 1)) {
+      const totalW = cg.loads.reduce((s, l) => s + (l.weight ?? 1), 0);
+      let roll = rng() * totalW;
+      let chosen = cg.loads[cg.loads.length - 1];
+      for (const l of cg.loads) { roll -= (l.weight ?? 1); if (roll <= 0) { chosen = l; break; } }
+      v.accessories.push({ name: chosen.item, color: pick(rng, chosen.colors) });
+    }
+  }
+
   // Weapon (skipped if barehanded)
   v.weapon = classPool.barehanded ? null : pickFromPool(rng, classPool.weapon);
   // Optional per-variant weapon colour (e.g. cheater glowswords mix blue/red).

@@ -53904,12 +53904,12 @@
             "color": "tan"
           },
           {
-            "name": "Ore",
-            "color": "iron"
-          },
-          {
             "name": "Basket",
             "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "coal"
           }
         ],
         "weapon": "Smash",
@@ -53928,7 +53928,7 @@
         "hair": "Jewfro",
         "beard": null,
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Cuffed Pants",
         "feet": "Rimmed Boots",
@@ -53942,8 +53942,12 @@
             "color": "tan"
           },
           {
-            "name": "Wood",
-            "color": "9_logs"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -53974,6 +53978,14 @@
           {
             "name": "Loose Belt",
             "color": "brown"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -54034,10 +54046,6 @@
           {
             "name": "Belly belt",
             "color": "walnut"
-          },
-          {
-            "name": "Wood",
-            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -54056,7 +54064,7 @@
         "hair": "Flat top fade",
         "beard": "Winter Beard",
         "torso": "TShirt",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Rimmed Boots",
@@ -54068,10 +54076,6 @@
           {
             "name": "Double Belt",
             "color": "brown"
-          },
-          {
-            "name": "Basket",
-            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -54087,7 +54091,7 @@
         "clothColor": "brown",
         "metalColor": "iron",
         "head": "Human Female",
-        "hair": "Messy1",
+        "hair": "Idol",
         "beard": null,
         "torso": "TShirt",
         "torsoOverlay": null,
@@ -54104,8 +54108,12 @@
             "color": "charcoal"
           },
           {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
             "name": "Ore",
-            "color": "bronze"
+            "color": "silver"
           }
         ],
         "weapon": "Smash",
@@ -54121,7 +54129,7 @@
         "clothColor": "leather",
         "metalColor": "copper",
         "head": "Human Male Plump",
-        "hair": "Jewfro",
+        "hair": "Curly short 2",
         "beard": "Basic Beard",
         "torso": "TShirt Scoop",
         "torsoOverlay": "Apron",
@@ -54136,6 +54144,10 @@
           {
             "name": "Loose Belt",
             "color": "charcoal"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           },
           {
             "name": "Ore",
@@ -54174,6 +54186,10 @@
           {
             "name": "Basket",
             "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "copper"
           }
         ],
         "weapon": "Smash",
@@ -54236,8 +54252,12 @@
             "color": "brown"
           },
           {
-            "name": "Wood",
-            "color": "3_logs"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "silver"
           }
         ],
         "weapon": "Smash",
@@ -54268,6 +54288,10 @@
           {
             "name": "Double Belt",
             "color": "walnut"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           },
           {
             "name": "Ore",
@@ -54304,6 +54328,10 @@
             "color": "leather"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
             "color": "copper"
           }
@@ -54338,12 +54366,8 @@
             "color": "charcoal"
           },
           {
-            "name": "Ore",
-            "color": "silver"
-          },
-          {
-            "name": "Wood",
-            "color": "3_logs"
+            "name": "Basket",
+            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -54374,6 +54398,14 @@
           {
             "name": "Double Belt",
             "color": "charcoal"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "tin"
           }
         ],
         "weapon": "Smash",
@@ -54389,10 +54421,10 @@
         "clothColor": "brown",
         "metalColor": "steel",
         "head": "Human Male Plump",
-        "hair": "Curtains long",
+        "hair": "Bangslong2",
         "beard": null,
         "torso": "Shortsleeve",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Folded Rim Boots",
@@ -54406,8 +54438,12 @@
             "color": "tan"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "bronze"
+            "color": "silver"
           }
         ],
         "weapon": "Smash",
@@ -54438,6 +54474,10 @@
           {
             "name": "Double Belt",
             "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -54453,7 +54493,7 @@
         "clothColor": "maroon",
         "metalColor": "steel",
         "head": "Human Male Elderly",
-        "hair": "Parted",
+        "hair": "Half up",
         "beard": "Lampshade Mustache",
         "torso": "Sleeveless 2",
         "torsoOverlay": null,
@@ -54466,12 +54506,16 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Loose Belt",
-            "color": "leather"
+            "name": "Belly belt",
+            "color": "walnut"
           },
           {
-            "name": "Wood",
-            "color": "9_logs"
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "bronze"
           }
         ],
         "weapon": "Smash",
@@ -54490,7 +54534,7 @@
         "hair": "Shoulderl",
         "beard": null,
         "torso": "Shortsleeve",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Rimmed Boots",
@@ -54505,7 +54549,11 @@
           },
           {
             "name": "Basket",
-            "color": "round"
+            "color": "square"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -54524,7 +54572,7 @@
         "hair": "Cowlick tall",
         "beard": "Walrus Mustache",
         "torso": "Longsleeve",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Rimmed Boots",
@@ -54536,6 +54584,10 @@
           {
             "name": "Loose Belt",
             "color": "tan"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -54551,10 +54603,10 @@
         "clothColor": "leather",
         "metalColor": "steel",
         "head": "Human Male Small",
-        "hair": "Sara",
+        "hair": "Xlong",
         "beard": "Basic Beard",
         "torso": "Shortsleeve",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Revised Boots",
@@ -54566,6 +54618,14 @@
           {
             "name": "Belly belt",
             "color": "tan"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -54596,6 +54656,14 @@
           {
             "name": "Double Belt",
             "color": "tan"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "bronze"
           }
         ],
         "weapon": "Smash",
@@ -54628,12 +54696,12 @@
             "color": "charcoal"
           },
           {
-            "name": "Ore",
-            "color": "bronze"
+            "name": "Basket",
+            "color": "round"
           },
           {
-            "name": "Basket",
-            "color": "square"
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -54666,8 +54734,12 @@
             "color": "slate"
           },
           {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
             "name": "Ore",
-            "color": "copper"
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -54686,7 +54758,7 @@
         "hair": "Side Parted w/Bangs",
         "beard": "5 O'clock Shadow",
         "torso": "TShirt",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Rimmed Boots",
@@ -54700,8 +54772,8 @@
             "color": "tan"
           },
           {
-            "name": "Ore",
-            "color": "silver"
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -54732,6 +54804,10 @@
           {
             "name": "Loose Belt",
             "color": "walnut"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -54764,8 +54840,8 @@
             "color": "tan"
           },
           {
-            "name": "Ore",
-            "color": "gold"
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -54796,6 +54872,14 @@
           {
             "name": "Double Belt",
             "color": "brown"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "coal"
           }
         ],
         "weapon": "Smash",
@@ -54814,7 +54898,7 @@
         "hair": "Loose",
         "beard": "Trimmed Beard",
         "torso": "Shortsleeve",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Rimmed Boots",
@@ -54856,10 +54940,6 @@
           {
             "name": "Loose Belt",
             "color": "leather"
-          },
-          {
-            "name": "Basket",
-            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -54875,7 +54955,7 @@
         "clothColor": "walnut",
         "metalColor": "steel",
         "head": "Human Male Plump",
-        "hair": "Parted",
+        "hair": "Half up",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": "Apron",
@@ -54888,12 +54968,16 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Double Belt",
-            "color": "walnut"
+            "name": "Loose Belt",
+            "color": "tan"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           },
           {
             "name": "Ore",
-            "color": "bronze"
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -54924,6 +55008,14 @@
           {
             "name": "Loose Belt",
             "color": "slate"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -54954,6 +55046,10 @@
           {
             "name": "Belly belt",
             "color": "slate"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -54972,7 +55068,7 @@
         "hair": "Balding",
         "beard": "5 O'clock Shadow",
         "torso": "Shortsleeve",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Revised Boots",
@@ -55018,6 +55114,10 @@
           {
             "name": "Basket",
             "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "bronze"
           }
         ],
         "weapon": "Smash",
@@ -55033,10 +55133,10 @@
         "clothColor": "walnut",
         "metalColor": "iron",
         "head": "Human Male",
-        "hair": "Large Curls XLong",
+        "hair": "Large Curls",
         "beard": "Horseshoe Mustache",
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Rimmed Boots",
@@ -55063,7 +55163,7 @@
         "clothColor": "walnut",
         "metalColor": "steel",
         "head": "Human Male",
-        "hair": "Braid",
+        "hair": "Bangs bun",
         "beard": "Basic Beard",
         "torso": "TShirt",
         "torsoOverlay": null,
@@ -55080,16 +55180,12 @@
             "color": "slate"
           },
           {
-            "name": "Ore",
-            "color": "gold"
-          },
-          {
-            "name": "Wood",
-            "color": "3_logs"
-          },
-          {
             "name": "Basket",
-            "color": "square"
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -55122,14 +55218,6 @@
             "color": "slate"
           },
           {
-            "name": "Ore",
-            "color": "silver"
-          },
-          {
-            "name": "Wood",
-            "color": "9_logs"
-          },
-          {
             "name": "Basket",
             "color": "round"
           }
@@ -55147,7 +55235,7 @@
         "clothColor": "leather",
         "metalColor": "iron",
         "head": "Human Male",
-        "hair": "Halfmessy",
+        "hair": "Unkempt",
         "beard": "Medium Beard",
         "torso": "Sleeveless 2",
         "torsoOverlay": "Apron",
@@ -55162,14 +55250,6 @@
           {
             "name": "Belly belt",
             "color": "charcoal"
-          },
-          {
-            "name": "Wood",
-            "color": "3_logs"
-          },
-          {
-            "name": "Basket",
-            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -55185,10 +55265,10 @@
         "clothColor": "maroon",
         "metalColor": "iron",
         "head": "Human Male Plump",
-        "hair": "Bunches",
+        "hair": "Wavy",
         "beard": "Winter Beard",
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Basic Boots",
@@ -55202,8 +55282,8 @@
             "color": "brown"
           },
           {
-            "name": "Wood",
-            "color": "9_logs"
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -55236,8 +55316,12 @@
             "color": "charcoal"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "coal"
+            "color": "bronze"
           }
         ],
         "weapon": "Smash",
@@ -55270,8 +55354,12 @@
             "color": "walnut"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "coal"
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -55302,6 +55390,14 @@
           {
             "name": "Loose Belt",
             "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -55320,7 +55416,7 @@
         "hair": "Twists fade",
         "beard": "Handlebar Mustache",
         "torso": "Longsleeve",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Folded Rim Boots",
@@ -55334,8 +55430,12 @@
             "color": "charcoal"
           },
           {
-            "name": "Ore",
-            "color": "gold"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -55366,6 +55466,14 @@
           {
             "name": "Loose Belt",
             "color": "walnut"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "steel"
           }
         ],
         "weapon": "Smash",
@@ -55381,7 +55489,7 @@
         "clothColor": "tan",
         "metalColor": "steel",
         "head": "Human Male Small",
-        "hair": "Bangslong2",
+        "hair": "Bangslong",
         "beard": "Mustache",
         "torso": "Shortsleeve",
         "torsoOverlay": null,
@@ -55396,6 +55504,14 @@
           {
             "name": "Double Belt",
             "color": "charcoal"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -55428,12 +55544,12 @@
             "color": "slate"
           },
           {
-            "name": "Ore",
-            "color": "coal"
+            "name": "Basket",
+            "color": "round"
           },
           {
-            "name": "Wood",
-            "color": "9_logs"
+            "name": "Ore",
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -55449,7 +55565,7 @@
         "clothColor": "maroon",
         "metalColor": "steel",
         "head": "Human Male Plump",
-        "hair": "Swoop",
+        "hair": "Single",
         "beard": "Lampshade Mustache",
         "torso": "Sleeveless 2",
         "torsoOverlay": null,
@@ -55466,8 +55582,12 @@
             "color": "tan"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "copper"
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -55500,8 +55620,12 @@
             "color": "charcoal"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "bronze"
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -55532,6 +55656,14 @@
           {
             "name": "Double Belt",
             "color": "slate"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -55564,8 +55696,12 @@
             "color": "charcoal"
           },
           {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
             "name": "Ore",
-            "color": "coal"
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -55581,7 +55717,7 @@
         "clothColor": "forest",
         "metalColor": "copper",
         "head": "Human Male Gaunt",
-        "hair": "Long center part",
+        "hair": "Long",
         "beard": "Big Mustache",
         "torso": "TShirt Scoop",
         "torsoOverlay": "Apron",
@@ -55596,6 +55732,14 @@
           {
             "name": "Belly belt",
             "color": "tan"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -55626,10 +55770,6 @@
           {
             "name": "Loose Belt",
             "color": "charcoal"
-          },
-          {
-            "name": "Wood",
-            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -55645,7 +55785,7 @@
         "clothColor": "tan",
         "metalColor": "iron",
         "head": "Human Male",
-        "hair": "Long messy2",
+        "hair": "Long messy",
         "beard": null,
         "torso": "Sleeveless 2",
         "torsoOverlay": "Apron",
@@ -55660,6 +55800,14 @@
           {
             "name": "Belly belt",
             "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "tin"
           }
         ],
         "weapon": "Smash",
@@ -55678,7 +55826,7 @@
         "hair": "Parted 2",
         "beard": "Walrus Mustache",
         "torso": "Longsleeve",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Revised Boots",
@@ -55705,10 +55853,10 @@
         "clothColor": "brown",
         "metalColor": "steel",
         "head": "Human Male Small",
-        "hair": "Page2",
+        "hair": "Page",
         "beard": null,
         "torso": "TShirt",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Folded Rim Boots",
@@ -55722,8 +55870,8 @@
             "color": "walnut"
           },
           {
-            "name": "Ore",
-            "color": "silver"
+            "name": "Basket",
+            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -55739,10 +55887,10 @@
         "clothColor": "gray",
         "metalColor": "bronze",
         "head": "Human Male Plump",
-        "hair": "Spiked",
+        "hair": "Halfmessy",
         "beard": "Handlebar Mustache",
         "torso": "Longsleeve",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Basic Boots",
@@ -55772,7 +55920,7 @@
         "hair": "Dreadlocks short",
         "beard": "Walrus Mustache",
         "torso": "TShirt",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Folded Rim Boots",
@@ -55784,6 +55932,14 @@
           {
             "name": "Belly belt",
             "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Wood",
+            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -55816,8 +55972,12 @@
             "color": "walnut"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "bronze"
+            "color": "tin"
           }
         ],
         "weapon": "Smash",
@@ -55836,7 +55996,7 @@
         "hair": "Large Curls XLong",
         "beard": "Mustache",
         "torso": "TShirt",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Revised Boots",
@@ -55848,6 +56008,14 @@
           {
             "name": "Loose Belt",
             "color": "walnut"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "gold"
           }
         ],
         "weapon": "Smash",
@@ -55880,8 +56048,8 @@
             "color": "brown"
           },
           {
-            "name": "Ore",
-            "color": "silver"
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -55912,6 +56080,10 @@
           {
             "name": "Double Belt",
             "color": "tan"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -55944,8 +56116,12 @@
             "color": "walnut"
           },
           {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
             "name": "Ore",
-            "color": "gold"
+            "color": "tin"
           }
         ],
         "weapon": "Smash",
@@ -55961,7 +56137,7 @@
         "clothColor": "navy",
         "metalColor": "steel",
         "head": "Human Male Elderly",
-        "hair": "Loose",
+        "hair": "Long straight",
         "beard": null,
         "torso": "TShirt",
         "torsoOverlay": null,
@@ -55978,8 +56154,12 @@
             "color": "tan"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "bronze"
+            "color": "steel"
           }
         ],
         "weapon": "Smash",
@@ -56010,6 +56190,14 @@
           {
             "name": "Double Belt",
             "color": "slate"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "bronze"
           }
         ],
         "weapon": "Smash",
@@ -56100,6 +56288,14 @@
           {
             "name": "Loose Belt",
             "color": "charcoal"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Ore",
+            "color": "copper"
           }
         ],
         "weapon": "Smash",
@@ -56130,6 +56326,14 @@
           {
             "name": "Loose Belt",
             "color": "slate"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -56145,7 +56349,7 @@
         "clothColor": "tan",
         "metalColor": "steel",
         "head": "Human Male Plump",
-        "hair": "Long straight",
+        "hair": "Long messy2",
         "beard": "Handlebar Mustache",
         "torso": "TShirt Scoop",
         "torsoOverlay": null,
@@ -56162,12 +56366,12 @@
             "color": "charcoal"
           },
           {
-            "name": "Ore",
-            "color": "bronze"
+            "name": "Basket",
+            "color": "square"
           },
           {
-            "name": "Basket",
-            "color": "round"
+            "name": "Ore",
+            "color": "coal"
           }
         ],
         "weapon": "Smash",
@@ -56186,7 +56390,7 @@
         "hair": "Curtains long",
         "beard": null,
         "torso": "Shortsleeve",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Basic Boots",
@@ -56200,8 +56404,12 @@
             "color": "charcoal"
           },
           {
-            "name": "Wood",
-            "color": "3_logs"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "steel"
           }
         ],
         "weapon": "Smash",
@@ -56250,7 +56458,7 @@
         "hair": "Braid",
         "beard": null,
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Rimmed Boots",
@@ -56277,7 +56485,7 @@
         "clothColor": "charcoal",
         "metalColor": "steel",
         "head": "Human Male Plump",
-        "hair": "Relm Short",
+        "hair": "Lob",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": null,
@@ -56294,8 +56502,12 @@
             "color": "slate"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "copper"
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -56326,6 +56538,14 @@
           {
             "name": "Belly belt",
             "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -56358,8 +56578,12 @@
             "color": "tan"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "iron"
+            "color": "silver"
           }
         ],
         "weapon": "Smash",
@@ -56378,7 +56602,7 @@
         "hair": "Ponytail",
         "beard": "French Mustache",
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Cuffed Pants",
         "feet": "Revised Boots",
@@ -56390,6 +56614,14 @@
           {
             "name": "Belly belt",
             "color": "walnut"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -56422,8 +56654,12 @@
             "color": "charcoal"
           },
           {
-            "name": "Ore",
-            "color": "gold"
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -56456,12 +56692,12 @@
             "color": "slate"
           },
           {
-            "name": "Ore",
-            "color": "gold"
+            "name": "Basket",
+            "color": "round"
           },
           {
-            "name": "Wood",
-            "color": "9_logs"
+            "name": "Ore",
+            "color": "tin"
           }
         ],
         "weapon": "Smash",
@@ -56480,7 +56716,7 @@
         "hair": "Bob side part",
         "beard": "Lampshade Mustache",
         "torso": "TShirt",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Basic Boots",
@@ -56492,6 +56728,14 @@
           {
             "name": "Loose Belt",
             "color": "brown"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -56507,7 +56751,7 @@
         "clothColor": "maroon",
         "metalColor": "steel",
         "head": "Human Female",
-        "hair": "Page2",
+        "hair": "Page",
         "beard": null,
         "torso": "TShirt",
         "torsoOverlay": "Apron half",
@@ -56526,6 +56770,10 @@
           {
             "name": "Basket",
             "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "steel"
           }
         ],
         "weapon": "Smash",
@@ -56558,8 +56806,12 @@
             "color": "tan"
           },
           {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
             "name": "Ore",
-            "color": "iron"
+            "color": "tin"
           }
         ],
         "weapon": "Smash",
@@ -56592,8 +56844,12 @@
             "color": "slate"
           },
           {
-            "name": "Wood",
-            "color": "9_logs"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "steel"
           }
         ],
         "weapon": "Smash",
@@ -56624,6 +56880,10 @@
           {
             "name": "Double Belt",
             "color": "charcoal"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -56654,6 +56914,10 @@
           {
             "name": "Double Belt",
             "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -56669,7 +56933,7 @@
         "clothColor": "tan",
         "metalColor": "bronze",
         "head": "Human Female Small",
-        "hair": "Mop",
+        "hair": "Messy3",
         "beard": null,
         "torso": "TShirt Scoop",
         "torsoOverlay": null,
@@ -56684,6 +56948,10 @@
           {
             "name": "Loose Belt",
             "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -56702,7 +56970,7 @@
         "hair": "Parted",
         "beard": "Trimmed Beard",
         "torso": "TShirt",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Basic Boots",
@@ -56716,8 +56984,12 @@
             "color": "walnut"
           },
           {
-            "name": "Wood",
-            "color": "3_logs"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "silver"
           }
         ],
         "weapon": "Smash",
@@ -56748,10 +57020,6 @@
           {
             "name": "Loose Belt",
             "color": "leather"
-          },
-          {
-            "name": "Wood",
-            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -56767,10 +57035,10 @@
         "clothColor": "slate",
         "metalColor": "bronze",
         "head": "Human Male",
-        "hair": "Braid2",
+        "hair": "Braid",
         "beard": null,
         "torso": "TShirt",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Basic Boots",
@@ -56784,8 +57052,12 @@
             "color": "tan"
           },
           {
-            "name": "Ore",
-            "color": "iron"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -56818,8 +57090,12 @@
             "color": "charcoal"
           },
           {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
             "name": "Ore",
-            "color": "gold"
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -56835,7 +57111,7 @@
         "clothColor": "charcoal",
         "metalColor": "steel",
         "head": "Human Female",
-        "hair": "Bob side part",
+        "hair": "Relm Short",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": "Apron",
@@ -56848,8 +57124,16 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Loose Belt",
-            "color": "tan"
+            "name": "Double Belt",
+            "color": "leather"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -56882,8 +57166,12 @@
             "color": "slate"
           },
           {
-            "name": "Ore",
-            "color": "coal"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "3_logs"
           }
         ],
         "weapon": "Smash",
@@ -56916,8 +57204,12 @@
             "color": "tan"
           },
           {
+            "name": "Basket",
+            "color": "square"
+          },
+          {
             "name": "Ore",
-            "color": "copper"
+            "color": "tin"
           }
         ],
         "weapon": "Smash",
@@ -56936,7 +57228,7 @@
         "hair": "High and tight",
         "beard": "Big Mustache",
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Cuffed Pants",
         "feet": "Revised Boots",
@@ -56948,6 +57240,14 @@
           {
             "name": "Loose Belt",
             "color": "slate"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Wood",
+            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -56966,7 +57266,7 @@
         "hair": "Large Curls",
         "beard": "Trimmed Beard",
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Basic Boots",
@@ -56978,6 +57278,10 @@
           {
             "name": "Belly belt",
             "color": "tan"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
           }
         ],
         "weapon": "Smash",
@@ -56993,10 +57297,10 @@
         "clothColor": "maroon",
         "metalColor": "iron",
         "head": "Human Male Elderly",
-        "hair": "Long messy",
+        "hair": "Long center part",
         "beard": "Big Mustache",
         "torso": "Shortsleeve",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Folded Rim Boots",
@@ -57008,6 +57312,10 @@
           {
             "name": "Loose Belt",
             "color": "walnut"
+          },
+          {
+            "name": "Basket",
+            "color": "square"
           }
         ],
         "weapon": "Smash",
@@ -57040,8 +57348,12 @@
             "color": "walnut"
           },
           {
-            "name": "Wood",
-            "color": "3_logs"
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "iron"
           }
         ],
         "weapon": "Smash",
@@ -57060,7 +57372,7 @@
         "hair": "Natural",
         "beard": null,
         "torso": "TShirt Scoop",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Long Pants",
         "feet": "Rimmed Boots",
@@ -57072,6 +57384,14 @@
           {
             "name": "Belly belt",
             "color": "brown"
+          },
+          {
+            "name": "Basket",
+            "color": "round"
+          },
+          {
+            "name": "Ore",
+            "color": "bronze"
           }
         ],
         "weapon": "Smash",
@@ -57136,6 +57456,10 @@
           {
             "name": "Basket",
             "color": "square"
+          },
+          {
+            "name": "Wood",
+            "color": "9_logs"
           }
         ],
         "weapon": "Smash",
@@ -57188,7 +57512,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -57247,7 +57571,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -57276,7 +57600,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Pauldrons",
         "headwear": null,
         "beast": null,
@@ -57306,7 +57630,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -57366,7 +57690,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -57396,7 +57720,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Mantal",
         "headwear": "Tiara",
         "beast": null,
@@ -57485,7 +57809,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -57514,7 +57838,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Pauldrons",
         "headwear": "Tiara",
         "beast": null,
@@ -57573,7 +57897,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -57663,7 +57987,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": null,
         "beast": null,
@@ -57843,7 +58167,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -57938,7 +58262,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -57998,7 +58322,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -58028,7 +58352,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -58061,7 +58385,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Mantal",
         "headwear": null,
         "beast": null,
@@ -58297,7 +58621,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Pauldrons",
         "headwear": "Tiara",
         "beast": null,
@@ -58355,7 +58679,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -58444,7 +58768,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Mantal",
         "headwear": null,
         "beast": null,
@@ -58473,7 +58797,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -58533,7 +58857,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -58563,7 +58887,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -58623,7 +58947,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -58653,7 +58977,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -58771,7 +59095,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -58858,7 +59182,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Pauldrons",
         "headwear": "Tiara",
         "beast": null,
@@ -58887,7 +59211,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": null,
         "beast": null,
@@ -58945,7 +59269,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -59004,7 +59328,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Mantal",
         "headwear": "Tiara",
         "beast": null,
@@ -59034,7 +59358,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -59092,7 +59416,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -59125,7 +59449,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -59154,7 +59478,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -59335,7 +59659,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -59426,7 +59750,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -59456,7 +59780,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -59485,7 +59809,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -59543,7 +59867,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Pauldrons",
         "headwear": null,
         "beast": null,
@@ -59573,7 +59897,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Pauldrons",
         "headwear": "Tiara",
         "beast": null,
@@ -59603,7 +59927,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -59632,7 +59956,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": null,
         "beast": null,
@@ -59690,7 +60014,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -59719,7 +60043,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -59748,7 +60072,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -59780,7 +60104,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -59898,7 +60222,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Pauldrons",
         "headwear": null,
         "beast": null,
@@ -59961,7 +60285,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Long Pants",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Tiara",
         "beast": null,
@@ -59990,7 +60314,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": "Gloves",
         "headwear": null,
         "beast": null,
@@ -60020,7 +60344,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Tiara",
         "beast": null,
@@ -60049,7 +60373,7 @@
         "torso": "Slit dress",
         "torsoOverlay": null,
         "cape": null,
-        "feet": "Plated Toe",
+        "feet": "Sandals",
         "arms": null,
         "headwear": null,
         "beast": null,
@@ -60108,7 +60432,7 @@
         "torsoOverlay": null,
         "cape": null,
         "legs": "Hose",
-        "feet": "Sandals",
+        "feet": "Sara Shoes",
         "arms": "Mantal",
         "headwear": null,
         "beast": null,
@@ -60342,7 +60666,7 @@
         "clothColor": "leather",
         "metalColor": "copper",
         "head": "Human Female Small",
-        "hair": "Balding",
+        "hair": "Twists straight",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": null,
@@ -60602,7 +60926,7 @@
         "clothColor": "brown",
         "metalColor": "bronze",
         "head": "Human Female Small",
-        "hair": "Buzzcut",
+        "hair": "Balding",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": "Suspenders",
@@ -60628,7 +60952,7 @@
         "clothColor": "maroon",
         "metalColor": "iron",
         "head": "Human Male Gaunt",
-        "hair": "Bangs bun",
+        "hair": "Relm Short",
         "beard": null,
         "torso": "Overalls",
         "torsoOverlay": null,
@@ -60784,7 +61108,7 @@
         "clothColor": "charcoal",
         "metalColor": "iron",
         "head": "Human Female",
-        "hair": "Loose",
+        "hair": "Long straight",
         "beard": null,
         "torso": "Vest",
         "torsoOverlay": null,
@@ -60862,7 +61186,7 @@
         "clothColor": "leather",
         "metalColor": "steel",
         "head": "Human Female",
-        "hair": "Messy2",
+        "hair": "Messy1",
         "beard": null,
         "torso": "Tunic",
         "torsoOverlay": null,
@@ -61018,7 +61342,7 @@
         "clothColor": "tan",
         "metalColor": "iron",
         "head": "Human Male Elderly",
-        "hair": "Buzzcut",
+        "hair": "Half up",
         "beard": null,
         "torso": "Overalls",
         "torsoOverlay": null,
@@ -61032,7 +61356,7 @@
         "visor": null,
         "accessories": [],
         "weapon": "Thrust",
-        "weaponColor": "hoe",
+        "weaponColor": "watering",
         "crystal": null,
         "shield": null
       },
@@ -61044,7 +61368,7 @@
         "clothColor": "maroon",
         "metalColor": "bronze",
         "head": "Human Female",
-        "hair": "Side Parted w/Bangs",
+        "hair": "Parted 3",
         "beard": null,
         "torso": "Vest",
         "torsoOverlay": "Apron",
@@ -61200,7 +61524,7 @@
         "clothColor": "leather",
         "metalColor": "copper",
         "head": "Human Male Small",
-        "hair": "Braid",
+        "hair": "Bangs bun",
         "beard": null,
         "torso": "TShirt",
         "torsoOverlay": "Suspenders",
@@ -61226,7 +61550,7 @@
         "clothColor": "walnut",
         "metalColor": "bronze",
         "head": "Human Male Plump",
-        "hair": "Long messy",
+        "hair": "Long center part",
         "beard": "Medium Beard",
         "torso": "Longsleeve",
         "torsoOverlay": "Overalls",
@@ -61382,7 +61706,7 @@
         "clothColor": "charcoal",
         "metalColor": "bronze",
         "head": "Human Male Gaunt",
-        "hair": "Relm Short",
+        "hair": "Lob",
         "beard": "Winter Beard",
         "torso": "Longsleeve",
         "torsoOverlay": "Overalls",
@@ -61408,7 +61732,7 @@
         "clothColor": "charcoal",
         "metalColor": "bronze",
         "head": "Human Female",
-        "hair": "Bangslong2",
+        "hair": "Bangslong",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": "Suspenders",
@@ -61486,7 +61810,7 @@
         "clothColor": "brown",
         "metalColor": "steel",
         "head": "Human Male",
-        "hair": "Bob",
+        "hair": "Shorthawk",
         "beard": "Walrus Mustache",
         "torso": "TShirt",
         "torsoOverlay": "Overalls",
@@ -61590,7 +61914,7 @@
         "clothColor": "maroon",
         "metalColor": "iron",
         "head": "Human Male Elderly",
-        "hair": "Spiked",
+        "hair": "Halfmessy",
         "beard": "Lampshade Mustache",
         "torso": "Shortsleeve",
         "torsoOverlay": "Overalls",
@@ -61642,7 +61966,7 @@
         "clothColor": "forest",
         "metalColor": "bronze",
         "head": "Human Female",
-        "hair": "Side Swoop",
+        "hair": "Swoop",
         "beard": null,
         "torso": "Tunic",
         "torsoOverlay": "Apron full",
@@ -61798,7 +62122,7 @@
         "clothColor": "maroon",
         "metalColor": "iron",
         "head": "Human Female Small",
-        "hair": "Plain",
+        "hair": "Bangs",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": "Overalls",
@@ -61824,7 +62148,7 @@
         "clothColor": "navy",
         "metalColor": "steel",
         "head": "Human Male Elderly",
-        "hair": "Curtains long",
+        "hair": "Long",
         "beard": "Horseshoe Mustache",
         "torso": "Overalls",
         "torsoOverlay": null,
@@ -61837,8 +62161,8 @@
         "mode": "overalls_bare",
         "visor": null,
         "accessories": [],
-        "weapon": "Scythe",
-        "weaponColor": "shovel",
+        "weapon": "Spear",
+        "weaponColor": "hoe",
         "crystal": null,
         "shield": null
       },
@@ -61876,7 +62200,7 @@
         "clothColor": "slate",
         "metalColor": "bronze",
         "head": "Human Female Elderly",
-        "hair": "Buzzcut",
+        "hair": "Balding",
         "beard": null,
         "torso": "TShirt",
         "torsoOverlay": "Overalls",
@@ -62136,7 +62460,7 @@
         "clothColor": "walnut",
         "metalColor": "iron",
         "head": "Human Female",
-        "hair": "Parted",
+        "hair": "Page2",
         "beard": null,
         "torso": "TShirt",
         "torsoOverlay": "Suspenders",
@@ -62217,7 +62541,7 @@
         "hair": "Messy1",
         "beard": null,
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Cuffed Pants",
         "feet": "Rimmed Boots",
@@ -62266,7 +62590,7 @@
         "clothColor": "forest",
         "metalColor": "iron",
         "head": "Human Male Gaunt",
-        "hair": "Braid",
+        "hair": "Long straight",
         "beard": null,
         "torso": "Suspenders",
         "torsoOverlay": null,
@@ -62279,7 +62603,7 @@
         "mode": "overalls_bare",
         "visor": null,
         "accessories": [],
-        "weapon": "Scythe",
+        "weapon": "Thrust",
         "weaponColor": "watering",
         "crystal": null,
         "shield": null
@@ -62292,7 +62616,7 @@
         "clothColor": "blue",
         "metalColor": "copper",
         "head": "Human Male Small",
-        "hair": "Bangs bun",
+        "hair": "Relm Short",
         "beard": "Walrus Mustache",
         "torso": "Suspenders",
         "torsoOverlay": null,
@@ -62344,7 +62668,7 @@
         "clothColor": "navy",
         "metalColor": "bronze",
         "head": "Human Male Elderly",
-        "hair": "Long center part",
+        "hair": "Long",
         "beard": null,
         "torso": "Suspenders",
         "torsoOverlay": null,
@@ -62370,7 +62694,7 @@
         "clothColor": "charcoal",
         "metalColor": "bronze",
         "head": "Human Female Elderly",
-        "hair": "Long center part",
+        "hair": "Long",
         "beard": null,
         "torso": "Sleeveless 2",
         "torsoOverlay": null,
@@ -62451,7 +62775,7 @@
         "hair": "Shoulderl",
         "beard": "Handlebar Mustache",
         "torso": "Sleeveless 2",
-        "torsoOverlay": "Apron full",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Cuffed Pants",
         "feet": "Rimmed Boots",
@@ -62474,7 +62798,7 @@
         "clothColor": "charcoal",
         "metalColor": "steel",
         "head": "Human Female",
-        "hair": "Lob",
+        "hair": "Bob side part",
         "beard": null,
         "torso": "TShirt",
         "torsoOverlay": "Overalls",
@@ -62500,7 +62824,7 @@
         "clothColor": "leather",
         "metalColor": "bronze",
         "head": "Human Male",
-        "hair": "Page2",
+        "hair": "Page",
         "beard": "Horseshoe Mustache",
         "torso": "Overalls",
         "torsoOverlay": null,
@@ -62633,7 +62957,7 @@
         "hair": "Side Parted w/Bangs 2",
         "beard": null,
         "torso": "Sara Tunic",
-        "torsoOverlay": "Apron half",
+        "torsoOverlay": "Apron",
         "cape": null,
         "legs": "Pants",
         "feet": "Basic Boots",
@@ -66190,7 +66514,7 @@
         "head": "Human Female",
         "hair": "Page2",
         "beard": null,
-        "torso": "Frock coat",
+        "torso": "Longsleeve blouse",
         "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
@@ -66402,10 +66726,10 @@
         "head": "Human Female",
         "hair": "Curtains long",
         "beard": null,
-        "torso": "Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Striped Formal Pants",
+        "legs": "Formal Pants",
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
@@ -66422,7 +66746,7 @@
             "color": "gold"
           }
         ],
-        "weapon": "Cane",
+        "weapon": "Dagger",
         "crystal": null,
         "shield": null
       },
@@ -66724,10 +67048,10 @@
         "head": "Human Female Small",
         "hair": "Ponytail",
         "beard": null,
-        "torso": "Striped Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Striped Formal Pants",
+        "legs": "Formal Pants",
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Formal Bowler Hat",
@@ -66737,7 +67061,11 @@
         "accessories": [
           {
             "name": "Jabot",
-            "color": "white"
+            "color": "navy"
+          },
+          {
+            "name": "Stud earrings",
+            "color": "gold"
           }
         ],
         "weapon": "Cane",
@@ -66792,7 +67120,7 @@
         "head": "Human Female Elderly",
         "hair": "Single",
         "beard": null,
-        "torso": "Frock coat",
+        "torso": "Longsleeve blouse",
         "torsoOverlay": null,
         "cape": null,
         "legs": "Formal Pants",
@@ -66926,29 +67254,29 @@
         "clothColor": "gray",
         "metalColor": "rev_gold",
         "head": "Human Female",
-        "hair": "Long straight",
+        "hair": "Plain",
         "beard": null,
-        "torso": "Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Formal Pants",
-        "feet": "Revised Shoes",
+        "legs": "Striped Formal Pants",
+        "feet": "Basic Shoes",
         "arms": null,
-        "headwear": "Formal Bowler Hat",
+        "headwear": "Formal Tophat",
         "beast": null,
         "mode": "vest",
         "visor": null,
         "accessories": [
           {
             "name": "Cravat",
-            "color": "red"
+            "color": "black"
           },
           {
-            "name": "Stud Ring",
-            "color": "red"
+            "name": "Simple Necklace",
+            "color": "gold"
           }
         ],
-        "weapon": "Rapier",
+        "weapon": "Dagger",
         "crystal": null,
         "shield": null
       },
@@ -67456,12 +67784,12 @@
         "clothColor": "brown",
         "metalColor": "ceramic",
         "head": "Human Female Elderly",
-        "hair": "Plain",
+        "hair": "Balding",
         "beard": null,
-        "torso": "Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Corset",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Striped Formal Pants",
+        "legs": "Formal Pants",
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
@@ -67471,18 +67799,18 @@
         "accessories": [
           {
             "name": "Cravat",
-            "color": "red"
+            "color": "black"
           },
           {
-            "name": "Stud earrings",
+            "name": "Sunglasses",
             "color": "gold"
           },
           {
-            "name": "Stud Ring",
-            "color": "maroon"
+            "name": "Simple Necklace",
+            "color": "gold"
           }
         ],
-        "weapon": "Cane",
+        "weapon": "Rapier",
         "crystal": null,
         "shield": null
       },
@@ -67538,8 +67866,8 @@
         "head": "Human Female Elderly",
         "hair": "Long messy2",
         "beard": null,
-        "torso": "Frock coat",
-        "torsoOverlay": "Frock coat lapel",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
         "feet": "Revised Shoes",
@@ -67550,8 +67878,8 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Cravat",
-            "color": "navy"
+            "name": "Jabot",
+            "color": "red"
           }
         ],
         "weapon": "Rapier",
@@ -67628,20 +67956,20 @@
         "head": "Human Female Elderly",
         "hair": "Pigtails bangs",
         "beard": null,
-        "torso": "Frock coat",
-        "torsoOverlay": "Frock coat lapel",
+        "torso": "Bodice",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Formal Pants",
+        "legs": "Striped Formal Pants",
         "feet": "Basic Shoes",
         "arms": null,
-        "headwear": "Formal Tophat",
+        "headwear": "Formal Bowler Hat",
         "beast": null,
         "mode": "coat",
         "visor": null,
         "accessories": [
           {
-            "name": "Jabot",
-            "color": "charcoal"
+            "name": "Cravat",
+            "color": "navy"
           }
         ],
         "weapon": "Dagger",
@@ -67800,13 +68128,13 @@
         "clothColor": "navy",
         "metalColor": "ceramic",
         "head": "Human Female Small",
-        "hair": "Page",
+        "hair": "Parted",
         "beard": null,
-        "torso": "Striped Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Blouse",
+        "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
-        "feet": "Basic Shoes",
+        "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
         "beast": null,
@@ -67814,11 +68142,15 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Jabot",
-            "color": "white"
+            "name": "Cravat",
+            "color": "charcoal"
+          },
+          {
+            "name": "Stud earrings",
+            "color": "gold"
           }
         ],
-        "weapon": "Rapier",
+        "weapon": "Cane",
         "crystal": null,
         "shield": null
       },
@@ -68132,11 +68464,11 @@
         "head": "Human Female Small",
         "hair": "Sara",
         "beard": null,
-        "torso": "Striped Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Formal Pants",
-        "feet": "Revised Shoes",
+        "legs": "Striped Formal Pants",
+        "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
         "beast": null,
@@ -68144,19 +68476,15 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Jabot",
+            "name": "Cravat",
+            "color": "charcoal"
+          },
+          {
+            "name": "Stud Ring",
             "color": "maroon"
-          },
-          {
-            "name": "Sunglasses",
-            "color": "gold"
-          },
-          {
-            "name": "Simple Necklace",
-            "color": "gold"
           }
         ],
-        "weapon": "Cane",
+        "weapon": "Rapier",
         "crystal": null,
         "shield": null
       },
@@ -68170,7 +68498,7 @@
         "head": "Human Female Small",
         "hair": "Curtains long",
         "beard": null,
-        "torso": "Frock coat",
+        "torso": "Longsleeve blouse",
         "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
@@ -68312,33 +68640,33 @@
         "clothColor": "slate",
         "metalColor": "gold",
         "head": "Human Female Elderly",
-        "hair": "Long",
+        "hair": "High and tight",
         "beard": null,
-        "torso": "Striped Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Blouse",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Formal Pants",
-        "feet": "Revised Shoes",
+        "legs": "Striped Formal Pants",
+        "feet": "Basic Shoes",
         "arms": null,
-        "headwear": "Formal Tophat",
+        "headwear": "Formal Bowler Hat",
         "beast": null,
         "mode": "vest",
         "visor": null,
         "accessories": [
           {
-            "name": "Jabot",
-            "color": "black"
-          },
-          {
-            "name": "Sunglasses",
-            "color": "gold"
+            "name": "Cravat",
+            "color": "charcoal"
           },
           {
             "name": "Stud Ring",
-            "color": "forest"
+            "color": "red"
+          },
+          {
+            "name": "Simple Necklace",
+            "color": "gold"
           }
         ],
-        "weapon": "Rapier",
+        "weapon": "Cane",
         "crystal": null,
         "shield": null
       },
@@ -68526,11 +68854,11 @@
         "head": "Human Female Small",
         "hair": "Side Parted w/Bangs",
         "beard": null,
-        "torso": "Frock coat",
-        "torsoOverlay": "Frock coat lapel",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Striped Formal Pants",
-        "feet": "Basic Shoes",
+        "legs": "Formal Pants",
+        "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
         "beast": null,
@@ -68538,15 +68866,15 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Cravat",
-            "color": "navy"
+            "name": "Jabot",
+            "color": "maroon"
           },
           {
-            "name": "Stud Ring",
-            "color": "forest"
+            "name": "Chain Necklace",
+            "color": "gold"
           }
         ],
-        "weapon": "Dagger",
+        "weapon": "Cane",
         "crystal": null,
         "shield": null
       },
@@ -68794,37 +69122,33 @@
         "clothColor": "charcoal",
         "metalColor": "brass",
         "head": "Human Female",
-        "hair": "Bob",
+        "hair": "Single",
         "beard": null,
-        "torso": "Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
         "feet": "Basic Shoes",
         "arms": null,
-        "headwear": "Formal Tophat",
+        "headwear": "Formal Bowler Hat",
         "beast": null,
         "mode": "vest",
         "visor": null,
         "accessories": [
           {
             "name": "Cravat",
-            "color": "maroon"
-          },
-          {
-            "name": "Stud earrings",
-            "color": "gold"
+            "color": "white"
           },
           {
             "name": "Stud Ring",
-            "color": "red"
+            "color": "maroon"
           },
           {
-            "name": "Simple Necklace",
+            "name": "Chain Necklace",
             "color": "gold"
           }
         ],
-        "weapon": "Cane",
+        "weapon": "Rapier",
         "crystal": null,
         "shield": null
       },
@@ -68838,10 +69162,10 @@
         "head": "Human Female Small",
         "hair": "Page",
         "beard": null,
-        "torso": "Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
-        "legs": "Formal Pants",
+        "legs": "Striped Formal Pants",
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
@@ -68851,18 +69175,18 @@
         "accessories": [
           {
             "name": "Cravat",
-            "color": "charcoal"
-          },
-          {
-            "name": "Right Monocle",
-            "color": "gold"
+            "color": "black"
           },
           {
             "name": "Stud Ring",
-            "color": "maroon"
+            "color": "red"
+          },
+          {
+            "name": "Chain Necklace",
+            "color": "gold"
           }
         ],
-        "weapon": "Rapier",
+        "weapon": "Dagger",
         "crystal": null,
         "shield": null
       },
@@ -69338,31 +69662,27 @@
         "head": "Human Female",
         "hair": "Flat top straight",
         "beard": null,
-        "torso": "Striped Collared/Formal Longsleeve",
-        "torsoOverlay": "Vest open",
+        "torso": "Blouse",
+        "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
-        "feet": "Basic Shoes",
+        "feet": "Revised Shoes",
         "arms": null,
-        "headwear": "Formal Tophat",
+        "headwear": "Formal Bowler Hat",
         "beast": null,
         "mode": "vest",
         "visor": null,
         "accessories": [
           {
             "name": "Cravat",
-            "color": "charcoal"
+            "color": "red"
           },
           {
-            "name": "Shades",
-            "color": "gold"
-          },
-          {
-            "name": "Simple Necklace",
-            "color": "gold"
+            "name": "Stud Ring",
+            "color": "red"
           }
         ],
-        "weapon": "Dagger",
+        "weapon": "Cane",
         "crystal": null,
         "shield": null
       },
@@ -69410,11 +69730,11 @@
         "head": "Human Female",
         "hair": "Curly short 2",
         "beard": null,
-        "torso": "Frock coat",
-        "torsoOverlay": "Frock coat lapel",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
-        "feet": "Basic Shoes",
+        "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
         "beast": null,
@@ -69422,15 +69742,15 @@
         "visor": null,
         "accessories": [
           {
-            "name": "Jabot",
-            "color": "maroon"
+            "name": "Cravat",
+            "color": "charcoal"
           },
           {
-            "name": "Stud Ring",
-            "color": "red"
+            "name": "Chain Necklace",
+            "color": "gold"
           }
         ],
-        "weapon": "Dagger",
+        "weapon": "Cane",
         "crystal": null,
         "shield": null
       },
@@ -69580,11 +69900,11 @@
         "head": "Human Female",
         "hair": "Swoop",
         "beard": null,
-        "torso": "Frock coat",
-        "torsoOverlay": "Frock coat lapel",
+        "torso": "Longsleeve blouse",
+        "torsoOverlay": null,
         "cape": null,
         "legs": "Striped Formal Pants",
-        "feet": "Basic Shoes",
+        "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Formal Tophat",
         "beast": null,
@@ -69593,11 +69913,11 @@
         "accessories": [
           {
             "name": "Cravat",
-            "color": "charcoal"
+            "color": "maroon"
           },
           {
-            "name": "Stud Ring",
-            "color": "purple"
+            "name": "Simple Necklace",
+            "color": "gold"
           }
         ],
         "weapon": "Rapier",

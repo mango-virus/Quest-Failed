@@ -1398,8 +1398,14 @@ POOLS.miner = {
   // Grimy work shirts (sleeveless/short for the manual labour look).
   torso: ['Shortsleeve', 'Longsleeve', 'Sleeveless 2', 'Sleeveless 2', 'TShirt', 'TShirt Scoop'],
   clothColorPool: ['brown', 'charcoal', 'gray', 'walnut', 'tan', 'slate', 'navy', 'forest', 'leather', 'maroon'],
-  // Leather work apron over the shirt (zPos 40).
-  torsoOverlay: { items: ['Apron', 'Apron full', 'Apron half'], chance: 0.65 },
+  // Leather work apron over the shirt (zPos 40). BODY-GATED: 'Apron full' /
+  // 'Apron half' are female-only LPC art, so males/muscular get the unisex plain
+  // 'Apron' (else they'd composite female apron art on a male frame).
+  torsoOverlay: {
+    male:     { items: ['Apron'], chance: 0.65 },
+    muscular: { items: ['Apron'], chance: 0.65 },
+    female:   { items: ['Apron', 'Apron full', 'Apron half'], chance: 0.65 },
+  },
   torsoOverlayColor: ['leather', 'brown', 'charcoal', 'walnut', 'tan', 'slate'],
   legs: ['Pants', 'Cuffed Pants', 'Long Pants'],
   legsColor: ['brown', 'charcoal', 'gray', 'walnut', 'slate', 'navy', 'tan'],
@@ -1413,14 +1419,27 @@ POOLS.miner = {
   },
   headwearColor: ['brown', 'black', 'charcoal', 'gray', 'walnut', 'leather', 'tan', 'navy'],
   metalColorPool: ['iron', 'steel', 'bronze', 'copper'], // kettle helm + gloves + pickaxe head
-  // ALL wear a tool belt (z70, cinched over the apron) + carry the haul on the
-  // back — ore sack (most) / log bundle / basket.
+  // ALL wear a tool belt (z70, cinched over the apron).
   accessory: [
     { items: ['Belly belt', 'Loose Belt', 'Double Belt'], chance: 1.0, color: ['brown', 'charcoal', 'walnut', 'leather', 'tan', 'slate'] },
-    { items: ['Ore'], chance: 0.4, color: ['coal', 'iron', 'copper', 'bronze', 'gold', 'silver'] },
-    { items: ['Wood'], chance: 0.18, color: ['3_logs', '9_logs'] },
-    { items: ['Basket'], chance: 0.14, color: ['round', 'square'] },
   ],
+  // The HAUL on the back — a round/square basket carried by most miners,
+  // usually loaded with a single haul (ore OR wood, never both). Modeled as a
+  // cargo unit (see sampleVariant) so the load ALWAYS sits IN a basket: the
+  // contents declare LPC required_tags:['basket'] and only composite right when
+  // a basket is present (contents fg zPos 140 piles over the basket rim fg 130).
+  // The old independent Ore/Wood/Basket rolls left ~45% of miners carrying ore
+  // with no basket → floating/clipped ore. All 8 ore tints + both log bundles
+  // are in rotation; ore is the common haul, wood the rarer one.
+  cargo: {
+    chance: 0.88,                 // 88% of miners carry a basket on the back
+    basketVariants: ['round', 'square'],
+    loadChance: 0.82,             // most baskets are loaded; the rest ride empty
+    loads: [
+      { item: 'Ore',  weight: 3, colors: ['coal', 'iron', 'steel', 'tin', 'copper', 'bronze', 'silver', 'gold'] },
+      { item: 'Wood', weight: 1, colors: ['3_logs', '9_logs'] },
+    ],
+  },
   // Pickaxe — the multi-head Smash tool locked to its 'pickaxe' variant.
   weapon: { items: ['Smash'], chance: 1.0 },
   weaponColor: ['pickaxe'],
@@ -1450,7 +1469,10 @@ POOLS.valkyrie = {
   ],
   // Holy CLOTH tones (drives the slit dress + cloth arms; gold comes from metal).
   clothColorPool: ['white', 'white', 'sky', 'lavender', 'blue', 'rose', 'navy', 'teal'],
-  feet: ['Plated Toe', 'Sandals', 'Sandals', 'Sara Shoes'],
+  // Strappy celestial footwear. (Plated Toe was dropped — it's a metal-variant
+  // item with no cloth recolor, so the cloth-named feetColor below couldn't
+  // apply and it always baked a flat default-gray foot.)
+  feet: ['Sandals', 'Sandals', 'Sara Shoes', 'Sara Shoes'],
   feetColor: ['white', 'tan', 'leather', 'gray', 'brown'],
   arms: { items: ['Pauldrons', 'Mantal', 'Gloves'], chance: 0.5 },
   // Gold/white circlet — the rest bare (long flowing hair).
@@ -1515,7 +1537,12 @@ POOLS.peasant = {
     // and this mode is female-leaning so plenty of women wear one.
     { name: 'plain', weight: 0.32, bodyTypeWeights: { male: 2, female: 5 },
       torso: ['Tunic', 'Tunic', 'Sara Tunic', 'Shortsleeve', 'Longsleeve', 'Vest', 'Sleeveless 2'],
-      torsoOverlay: { items: ['Apron full', 'Apron full', 'Apron full', 'Apron', 'Apron half'], chance: 0.55 },
+      // BODY-GATED apron: 'Apron full' / 'Apron half' are female-only LPC art
+      // (the classic peasant-woman look), so males get the unisex plain 'Apron'.
+      torsoOverlay: {
+        male:   { items: ['Apron'], chance: 0.55 },
+        female: { items: ['Apron full', 'Apron full', 'Apron full', 'Apron', 'Apron half'], chance: 0.55 },
+      },
       torsoOverlayColor: ['leather', 'brown', 'tan', 'walnut', 'charcoal', 'gray', 'forest', 'maroon'] },
   ],
   // Base-layer cloth tones — the bare overalls (overalls_bare) + the shirts/
@@ -1682,18 +1709,36 @@ POOLS.gambler = {
   // Dark suit tones drive the frock coat (variant PNG) AND the trousers
   // (cloth-palette) → a matched suit.
   clothColorPool: ['black', 'charcoal', 'charcoal', 'navy', 'slate', 'gray', 'maroon', 'brown'],
+  // Torso is BODY-GATED: the frock coat / formal longsleeve / open vest are all
+  // male-only LPC art, so female sharps wear female-cut formalwear instead — a
+  // dressy longsleeve blouse or a corset/bodice — and skip the male-only
+  // lapel/vest overlay. (Legs/feet/hats/bling are all unisex.) Without this,
+  // ~25% female gamblers wore male-cut coats composited on a female frame.
   modes: [
     // FROCK-COAT gentleman — long tailcoat with a gold/silver lapel (zPos 58 over
-    // the coat 55).
+    // the coat 55). Females → high-neck formal blouse or a dressy bodice.
     { name: 'coat', weight: 0.55,
-      torso: ['Frock coat'],
-      torsoOverlay: { items: ['Frock coat lapel', 'Frock coat lapel', 'Frock collar'], chance: 0.7 },
+      torso: {
+        male:   ['Frock coat'],
+        female: ['Longsleeve blouse', 'Longsleeve blouse', 'Bodice'],
+      },
+      torsoOverlay: {
+        male:   { items: ['Frock coat lapel', 'Frock coat lapel', 'Frock collar'], chance: 0.7 },
+        female: { items: [], chance: 0 }, // blouse/bodice has no matching lapel
+      },
       torsoOverlayColor: ['gold', 'gold', 'silver', 'red', 'blue'] },
     // Shirtsleeves + open WAISTCOAT card-sharp (seedier): a white formal shirt
-    // (torso, zPos 35) under a flashy open vest (overlay, zPos 45).
+    // (torso, zPos 35) under a flashy open vest (overlay, zPos 45). Females →
+    // a corset/blouse (the open vest is male-only art).
     { name: 'vest', weight: 0.45,
-      torso: ['Collared/Formal Longsleeve', 'Striped Collared/Formal Longsleeve'],
-      torsoOverlay: { items: ['Vest open'], chance: 1.0 },
+      torso: {
+        male:   ['Collared/Formal Longsleeve', 'Striped Collared/Formal Longsleeve'],
+        female: ['Corset', 'Longsleeve blouse', 'Blouse'],
+      },
+      torsoOverlay: {
+        male:   { items: ['Vest open'], chance: 1.0 },
+        female: { items: [], chance: 0 },
+      },
       torsoOverlayColor: ['maroon', 'red', 'forest', 'navy', 'purple', 'teal', 'charcoal', 'black', 'white'] },
   ],
   legs: ['Formal Pants', 'Striped Formal Pants'], // legsColor falls back to clothColor → matched trousers
