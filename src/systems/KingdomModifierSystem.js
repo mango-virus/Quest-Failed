@@ -141,6 +141,7 @@ export class KingdomModifierSystem {
     this._allStarG?.destroy(); this._allStarG = null
     this._forlornG?.destroy(); this._forlornG = null
     this._forlornCounter?.destroy(); this._forlornCounter = null
+    this._betrayerG?.destroy(); this._betrayerG = null
   }
 
   // Which Kingdom Response is governing the current act (or null). Act-wide
@@ -383,7 +384,7 @@ export class KingdomModifierSystem {
     if (!wave) {
       this._pantheonG?.clear(); this._allStarG?.clear(); this._forlornG?.clear()
       this._forlornCounter?.setVisible(false)
-      this._mageSealG?.clear(); this._polyG?.clear()
+      this._mageSealG?.clear(); this._polyG?.clear(); this._betrayerG?.clear()
       if (this._polyTags) for (const t of this._polyTags.values()) t.setVisible(false)
       return
     }
@@ -402,6 +403,8 @@ export class KingdomModifierSystem {
     // Forlorn Hope — the martyrs' crimson fury aura glows + the fury counter
     // floats over the squad, both scaling with how many have fallen.
     else if (resp === 'forlorn_hope') this._tickForlornVfx()
+    // Betrayer — your traps are flipped against you; mark each with a green ⇄.
+    else if (resp === 'betrayer') this._tickBetrayerVfx()
     // Champion signature ability — the act boss's telegraphed boss move on cadence.
     this._tickChampionAbility(resp)
     // All-Stars — the crown VFX + the 4 heroes' signatures ride on the UNITS
@@ -413,6 +416,7 @@ export class KingdomModifierSystem {
     // (kept OUT of the else-chain so a lingering buffer can't swallow a tick).
     if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
     if (resp !== 'forlorn_hope' && this._forlornG) { this._forlornG.clear(); this._forlornCounter?.setVisible(false) }
+    if (resp !== 'betrayer' && this._betrayerG) this._betrayerG.clear()
     if (resp !== 'mage_tower' && this._mageSealG) this._mageSealG.clear()
     if (resp !== 'mage_tower' && this._polyG) {
       this._polyG.clear()
@@ -1334,6 +1338,29 @@ export class KingdomModifierSystem {
   // (bigger + hotter the more stacks it carries; a faint doomed presence even at
   // zero) and a "⚔ FURY ×N" counter floats over the squad lead, punching on each
   // fresh kill. Drawn every frame so it reads as a living, breathing rage.
+  // Betrayer world VFX — a green "⇄ turned" mark pulses over each trap while the
+  // flip is active, so the player SEES their own traps are now against them.
+  _tickBetrayerVfx() {
+    const traps = this._gs.dungeon?.traps ?? []
+    if (traps.length === 0) { this._betrayerG?.clear(); return }
+    const g = this._betrayerG ?? (this._betrayerG = this._scene.add.graphics().setDepth(1.7))
+    g.clear()
+    const now = this._scene.time?.now ?? 0
+    const pulse = 0.5 + 0.5 * Math.sin(now / 400)
+    for (const t of traps) {
+      if (t.state?.exploded || t._broken) continue
+      const x = (t.tileX + (t.footprint?.w ?? 1) / 2) * TILE
+      const y = (t.tileY + (t.footprint?.h ?? 1) / 2) * TILE
+      const R = 11 + 3 * pulse
+      g.lineStyle(2, 0x7ec850, 0.35 + 0.4 * pulse)
+      g.strokeCircle(x, y, R)
+      // A small ⇄ — two opposed, arrow-tipped lines (the "turned against you" mark).
+      g.lineStyle(2, 0x9ef070, 0.55 + 0.35 * pulse)
+      g.lineBetween(x - 7, y - 3, x + 7, y - 3); g.lineBetween(x + 7, y - 3, x + 3, y - 6)
+      g.lineBetween(x + 7, y + 3, x - 7, y + 3); g.lineBetween(x - 7, y + 3, x - 3, y + 6)
+    }
+  }
+
   _tickForlornVfx() {
     const martyrs = (this._gs.adventurers?.active ?? [])
       .filter(a => a.flags?.forlornMartyr && (a.resources?.hp ?? 0) > 0)

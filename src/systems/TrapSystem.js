@@ -146,10 +146,13 @@ export class TrapSystem {
 
     this._tickPoison()
 
-    // The Betrayer (KR P4) — trap blackout. The traitor has shut your traps
-    // down for the act: no trap fires, springs, or detonates while the Betrayer
-    // response governs the current act. Existing poison DoT (above) still ticks.
-    if (currentActResponseId(this._gameState) === 'betrayer') { this._clearTickCache(); return }
+    // The Betrayer (KR overhaul) — TRAP FLIP. The traitor turns your own traps
+    // against you: for the WHOLE Betrayer act, every trap targets (and is
+    // triggered by) YOUR MINIONS instead of the invaders. Traps still fire and
+    // detonate normally — they just hit the wrong side. Implemented in _targets()
+    // + the two direct trigger checks (LOS scan, bomb fuse), all gated on
+    // _betrayerFlip(). (Previously this was a full blackout; the resolved design
+    // is a flip, not an off-switch.)
 
     // Saw movement + bomb fuses tick regardless of trigger evaluation.
     // Copy the list — _detonateBomb splices traps[] mid-loop.
@@ -263,8 +266,7 @@ export class TrapSystem {
       const t = this._dungeonGrid.getTileType(x, y)
       if (t === TILE.WALL || t === TILE.BOSS_WALL || t === TILE.VOID || t === TILE.DOOR) return null
       if (this._solidTrapAt(x, y)) return null
-      const hit = (this._gameState.adventurers.active ?? []).find(a =>
-        a.aiState !== 'dead' && a.resources?.hp > 0 && a.tileX === x && a.tileY === y)
+      const hit = this._trapTriggerers().find(a => a.tileX === x && a.tileY === y)
       if (hit) return hit
       x += lane.dx
       y += lane.dy
@@ -277,8 +279,7 @@ export class TrapSystem {
   _checkBomb(trap, def) {
     if (trap.state.fuseLit) return
     const r = def.triggerRange ?? 2
-    const lit = (this._gameState.adventurers.active ?? []).some(a =>
-      a.aiState !== 'dead' && a.resources?.hp > 0 &&
+    const lit = this._trapTriggerers().some(a =>
       Math.abs(a.tileX - trap.tileX) <= r && Math.abs(a.tileY - trap.tileY) <= r)
     if (!lit) return
     trap.state.fuseLit    = true
@@ -650,6 +651,8 @@ export class TrapSystem {
   // per-tick cache built in update(); off-tick callers (e.g. tests) fall
   // back to a fresh filter so the contract still holds.
   _targets(def) {
+    // Betrayer flip — traps hit YOUR minions for the act (see _betrayerFlip).
+    if (this._betrayerFlip()) return this._aliveMinions()
     if (this._tickAdvs) {
       return def.factionsHit === 'all' ? this._tickAdvsAndMinions : this._tickAdvs
     }
@@ -659,6 +662,22 @@ export class TrapSystem {
     const minions = (this._gameState.minions ?? [])
       .filter(m => m.aiState !== 'dead' && m.resources?.hp > 0)
     return advs.concat(minions)
+  }
+
+  // True while the Betrayer act governs — every trap is flipped onto your minions.
+  _betrayerFlip() {
+    return currentActResponseId(this._gameState) === 'betrayer'
+  }
+  _aliveMinions() {
+    return this._tickMinions ?? (this._gameState.minions ?? [])
+      .filter(m => m.aiState !== 'dead' && m.resources?.hp > 0)
+  }
+  // The faction whose presence TRIGGERS a trap: invaders normally, your own
+  // minions while the Betrayer flip is active.
+  _trapTriggerers() {
+    if (this._betrayerFlip()) return this._aliveMinions()
+    return this._tickAdvs ?? (this._gameState.adventurers.active ?? [])
+      .filter(a => a.aiState !== 'dead' && a.resources?.hp > 0)
   }
 
   _isAdventurer(entity) {
