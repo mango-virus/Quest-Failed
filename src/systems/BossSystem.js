@@ -249,6 +249,17 @@ export class BossSystem {
     // Step toward current wander target
     if (this._wanderTarget) {
       const { tx, ty } = this._wanderTarget
+      // Guard against a STALE target (fix 2026-06-02). The wander destination
+      // is an absolute tile, but a grid expansion on a boss level-up shifts the
+      // room (and the boss) by an offset WITHOUT shifting this in-flight target
+      // — so it would point outside the re-anchored chamber and walk the boss
+      // clean out of its room. If the target is no longer inside the boss room,
+      // drop it and re-pick a fresh in-room tile immediately.
+      const wt = Balance.WALL_THICKNESS
+      const tInRoom =
+        tx >= room.gridX + wt && tx <= room.gridX + room.width  - wt - 1 &&
+        ty >= room.gridY + wt && ty <= room.gridY + room.height - wt - 1
+      if (!tInRoom) { this._wanderTarget = null; this._wanderAccum = INTERVAL; return }
       const targetWX = tx * TS + TS / 2
       const targetWY = ty * TS + TS / 2
       const dx = targetWX - boss.worldX
