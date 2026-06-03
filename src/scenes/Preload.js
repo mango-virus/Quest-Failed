@@ -129,6 +129,18 @@ const ADVENTURER_CLASS_IDS = [
   'templar',
   // Pirate — swashbuckler DUELIST (normal roster, 100 baked variants).
   'pirate',
+  // Miner (pickaxe) + Valkyrie (winged; dragon/long spear use the _walk128
+  // oversize carry sheet for walking). 100 baked variants each.
+  'miner', 'valkyrie',
+  // Peasant — angry-mob villager (normal roster, 100 baked variants). Scythe /
+  // pitchfork (Spear) / carried hand tool (Thrust = hoe/shovel/watering).
+  'peasant',
+  // Gladiator — Roman arena champion (normal roster, 100 baked variants). Legion
+  // lorica/helm, gladius + scutum/spartan/kite shield, or a spear.
+  'gladiator',
+  // Gambler — dapper riverboat sharp (normal roster, 100 baked variants). Frock
+  // coat / open waistcoat, tophat, cravat/jabot, cane / rapier / dagger.
+  'gambler',
   // Event-only classes — no normal spawn (unlockLevel: 99 in
   // adventurerClasses.json) but baked + preloaded so the corresponding
   // dungeon events render their dedicated LPC art rather than falling
@@ -186,6 +198,18 @@ const ADVENTURER_ATK_CLASSES = new Set([
   'templar',
   // Pirate — cutlasses (Saber/Scimitar/Rapier) swing via slash_oversize.
   'pirate',
+  // Miner — pickaxe (slash_128). Valkyrie — longsword (slash_oversize) +
+  // dragon/long spear (thrust_oversize attack + walk_128 carry).
+  'miner', 'valkyrie',
+  // Peasant — Scythe (slash_oversize) + Spear/Thrust-tool (contained thrust,
+  // composited into the atk thrust row at native scale).
+  'peasant',
+  // Gladiator — gladius (Arming Sword slash_128 / Saber slash_oversize) needs
+  // the 192px atk sheet.
+  'gladiator',
+  // Gambler — Rapier (slash_oversize) + Cane (contained thrust composited into
+  // the atk thrust row); Dagger is normal-attack (no atk sheet).
+  'gambler',
   // Bounty hunters carry crossbows — crossbow combat is thrust-oversize,
   // which lives in the _atk.png sheet.
   'bounty_hunter',

@@ -1383,6 +1383,346 @@ POOLS.pirate = {
 }
 
 // ============================================================
+// Miner — grimy tunnelling prospector (normal roster). A rugged worker: a
+// leather work apron over a grimy shirt, a leather cap or kettle-helm sapper
+// hat, a sack of ore / bundle of logs on the back, and a PICKAXE (the multi-head
+// "Smash" tool locked to its pickaxe head via weaponColor — the barbarian's
+// global Smash→'axe' lock is overridden per-variant). The apron + ore-load read
+// distinct from the Peasant (overalls + farm tools). Ability: TUNNEL portal-dig.
+POOLS.miner = {
+  bodyTypes: COMMON.bodyTypes,
+  bodyTypeWeights: { male: 4, muscular: 3, female: 2 }, // rugged → lean male/muscular
+  heads: 'auto_human',
+  hair: 'all_human_hair',
+  beardChance: 0.6,
+  // Grimy work shirts (sleeveless/short for the manual labour look).
+  torso: ['Shortsleeve', 'Longsleeve', 'Sleeveless 2', 'Sleeveless 2', 'TShirt', 'TShirt Scoop'],
+  clothColorPool: ['brown', 'charcoal', 'gray', 'walnut', 'tan', 'slate', 'navy', 'forest', 'leather', 'maroon'],
+  // Leather work apron over the shirt (zPos 40).
+  torsoOverlay: { items: ['Apron', 'Apron full', 'Apron half'], chance: 0.65 },
+  torsoOverlayColor: ['leather', 'brown', 'charcoal', 'walnut', 'tan', 'slate'],
+  legs: ['Pants', 'Cuffed Pants', 'Long Pants'],
+  legsColor: ['brown', 'charcoal', 'gray', 'walnut', 'slate', 'navy', 'tan'],
+  feet: ['Basic Boots', 'Rimmed Boots', 'Folded Rim Boots', 'Revised Boots'],
+  feetColor: ['brown', 'black', 'walnut', 'leather', 'charcoal'],
+  arms: { items: ['Gloves', 'Bracers', 'Cuffs'], chance: 0.6 },
+  // Leather cap / kettle-helm sapper hat / kerchief / bonnie — earthy, ~80%.
+  headwear: {
+    items: ['Leather Cap', 'Leather Cap', 'Kettle helm', 'Kettle helm', 'Kerchief', 'Bonnie', 'Bandana'],
+    chance: 0.8,
+  },
+  headwearColor: ['brown', 'black', 'charcoal', 'gray', 'walnut', 'leather', 'tan', 'navy'],
+  metalColorPool: ['iron', 'steel', 'bronze', 'copper'], // kettle helm + gloves + pickaxe head
+  // ALL wear a tool belt (z70, cinched over the apron) + carry the haul on the
+  // back — ore sack (most) / log bundle / basket.
+  accessory: [
+    { items: ['Belly belt', 'Loose Belt', 'Double Belt'], chance: 1.0, color: ['brown', 'charcoal', 'walnut', 'leather', 'tan', 'slate'] },
+    { items: ['Ore'], chance: 0.4, color: ['coal', 'iron', 'copper', 'bronze', 'gold', 'silver'] },
+    { items: ['Wood'], chance: 0.18, color: ['3_logs', '9_logs'] },
+    { items: ['Basket'], chance: 0.14, color: ['round', 'square'] },
+  ],
+  // Pickaxe — the multi-head Smash tool locked to its 'pickaxe' variant.
+  weapon: { items: ['Smash'], chance: 1.0 },
+  weaponColor: ['pickaxe'],
+}
+
+// ============================================================
+// Valkyrie — radiant winged war-maiden (normal roster). Feathered angel wings
+// on EVERY one, gilded/white blessed plate OR a flowing celestial dress, a gold
+// circlet, and a spear or holy sword. Reuses the LPC-revised holy metals (white/
+// silver/pearl/gold) from the Templar. Abilities: Winged Flight (ignores traps,
+// floats) + Rally the Fallen (3s revive). Gate later (~boss L3) + rarer.
+POOLS.valkyrie = {
+  bodyTypes: ['female'], // always female
+  heads: 'auto_human',
+  // Feminine, long, flowing hairstyles only (no short cuts).
+  hair: [
+    'Long', 'Long straight', 'Long center part', 'Long messy', 'Wavy', 'XLong Wavy',
+    'Curly long', 'Large Curls XLong', 'Princess', 'Relm XLong', 'Bangslong',
+    'Curtains long', 'Loose', 'Long tied', 'Braid', 'Ponytail', 'High ponytail',
+    'Sara', 'Xlong', 'Half up',
+  ],
+  beardChance: 0,
+  // ALWAYS either chest plate (+ greaves) OR a flowing slit dress (no pants).
+  modes: [
+    { name: 'armored', weight: 0.6, torso: ['Plate'], legs: ['Hose', 'Hose', 'Long Pants'], legsColor: ['white', 'sky', 'lavender', 'navy', 'gray', 'slate'] },
+    { name: 'dress',    weight: 0.4, torso: ['Slit dress'], legs: [] }, // dress covers → no pants
+  ],
+  // Holy CLOTH tones (drives the slit dress + cloth arms; gold comes from metal).
+  clothColorPool: ['white', 'white', 'sky', 'lavender', 'blue', 'rose', 'navy', 'teal'],
+  feet: ['Plated Toe', 'Sandals', 'Sandals', 'Sara Shoes'],
+  feetColor: ['white', 'tan', 'leather', 'gray', 'brown'],
+  arms: { items: ['Pauldrons', 'Mantal', 'Gloves'], chance: 0.5 },
+  // Gold/white circlet — the rest bare (long flowing hair).
+  headwear: { items: ['Tiara'], chance: 0.5 },
+  headwearColor: ['gold', 'white', 'gray', 'lavender', 'sky'],
+  // Blessed radiant metal (LPC-revised holy finishes, shared with the Templar).
+  metalColorPool: ['white', 'rev_silver', 'pearl', 'gold', 'rev_gold', 'steel'],
+  // WINGS on every valkyrie — pale natural feather tones only.
+  accessory: [
+    { items: ['Feathered Wings'], chance: 1.0, color: ['white', 'white', 'ash', 'gray', 'platinum', 'sandy'] },
+  ],
+  // Dragon/long spear (oversize walk_128 carry → rendered via the 128px _walk128
+  // carry sheet; thrust_oversize → the _atk sheet) or a holy longsword (slash).
+  // Some sword-maidens carry a brown/silver round shield (the spear is two-handed,
+  // so shieldWeapons gates it to the Longsword).
+  weapon: { items: ['Dragon spear', 'Long spear', 'Longsword'], chance: 1.0 },
+  sometimesShield: 0.3,
+  shieldTypes: ['round'],
+  roundShieldColors: ['brown', 'silver'],
+  shieldWeapons: ['Longsword'],
+}
+
+// ============================================================
+// Peasant — angry-villager mob (normal roster). Ordinary working folk in
+// homespun rags: bib overalls / suspenders / a plain tunic in muted earthy
+// tones, a work apron on some, a kerchief or bonnet — scruffy, low-rent. Their
+// arsenal is the farmstead: a SCYTHE (slash) and a PITCHFORK (Spear, thrust) on
+// most, plus — on ~a third — a carried HAND TOOL: the LPC "Thrust" tool, whose
+// three variants are hoe / shovel / watering can. The tool is held while WALKING
+// (576×256 walk-carry, fits the 64px base) and jabbed in combat (its `thrust`
+// row, added to the def). hoe/shovel/watering "stick" only on the Thrust tool —
+// pickVariant auto-rolls one of the three (it has no other variants), so no
+// weaponColor lock is needed. Ability (later): STRENGTH IN NUMBERS — spawn in
+// clusters, +atk/+def per nearby peasant (capped). Distinct from the Miner
+// (apron + ore-load + pickaxe).
+POOLS.peasant = {
+  bodyTypes: ['male', 'female'], // ordinary villagers — never the muscular build
+  bodyTypeWeights: { male: 1, female: 1 },
+  heads: 'auto_human',
+  hair: 'all_human_hair',
+  beardChance: 0.45, // scruffy
+  // Most peasants wear bib overalls / suspenders. A mode split delivers BOTH
+  // looks: ~1/3 over bare arms, ~1/3 over a sleeved work shirt — with a plainer
+  // homespun-shirt/tunic minority. (Overalls/Suspenders are zPos 38, shirts 35,
+  // so the bib layers cleanly OVER a shirt when worn as the overlay.)
+  modes: [
+    // Overalls / suspenders straight over BARE arms — classic field hand.
+    // MALE-ONLY: the bare-chest/suspenders look isn't used for females, who
+    // ALWAYS get a shirt under their overalls (via the overalls_shirt mode).
+    { name: 'overalls_bare', weight: 0.34, bodyTypeWeights: { male: 1 },
+      torso: ['Overalls', 'Overalls', 'Overalls', 'Suspenders', 'Suspenders'],
+      torsoOverlay: null },
+    // Overalls / suspenders OVER a sleeved work shirt (sleeves show under the
+    // bib). Female-leaning weights so (a) every female in overalls has a shirt
+    // and (b) the overall gender mix stays ~balanced now that bare is male-only.
+    { name: 'overalls_shirt', weight: 0.34, bodyTypeWeights: { male: 2, female: 5 },
+      torso: ['Shortsleeve', 'Longsleeve', 'TShirt'],
+      torsoOverlay: { items: ['Overalls', 'Overalls', 'Overalls', 'Suspenders', 'Suspenders'], chance: 1.0 },
+      torsoOverlayColor: ['blue', 'navy', 'brown', 'charcoal', 'forest', 'black', 'leather', 'slate'] },
+    // Plainer homespun — tunic / shirt / vest, with a field-hand apron on many.
+    // FULL apron weighted up (the classic peasant-woman look) — appears on both,
+    // and this mode is female-leaning so plenty of women wear one.
+    { name: 'plain', weight: 0.32, bodyTypeWeights: { male: 2, female: 5 },
+      torso: ['Tunic', 'Tunic', 'Sara Tunic', 'Shortsleeve', 'Longsleeve', 'Vest', 'Sleeveless 2'],
+      torsoOverlay: { items: ['Apron full', 'Apron full', 'Apron full', 'Apron', 'Apron half'], chance: 0.55 },
+      torsoOverlayColor: ['leather', 'brown', 'tan', 'walnut', 'charcoal', 'gray', 'forest', 'maroon'] },
+  ],
+  // Base-layer cloth tones — the bare overalls (overalls_bare) + the shirts/
+  // tunics under/in the other modes. Earthy + denim.
+  clothColorPool: ['brown', 'tan', 'walnut', 'forest', 'gray', 'charcoal', 'maroon', 'navy', 'blue', 'leather', 'slate'],
+  legs: ['Pants', 'Cuffed Pants', 'Long Pants'],
+  legsColor: ['brown', 'tan', 'walnut', 'charcoal', 'gray', 'slate', 'navy'],
+  feet: ['Basic Boots', 'Rimmed Boots', 'Sandals', 'Sandals', 'Folded Rim Boots'],
+  feetColor: ['brown', 'black', 'walnut', 'leather', 'tan'],
+  arms: { items: ['Gloves', 'Bracers', 'Cuffs'], chance: 0.3 },
+  // Kerchief / bonnet / bandana — earthy, ~70% (rest scruffy bare-headed).
+  headwear: {
+    items: ['Kerchief', 'Kerchief', 'Bonnie', 'Bandana', 'Bandana'],
+    chance: 0.7,
+  },
+  headwearColor: ['brown', 'tan', 'walnut', 'charcoal', 'gray', 'forest', 'maroon', 'navy', 'leather', 'slate'],
+  metalColorPool: ['iron', 'steel', 'bronze', 'copper'], // pitchfork tines, buckles
+  // Farmstead arsenal: scythe (slash_oversize → _atk) + pitchfork (Spear, base
+  // thrust) on most; a carried hand tool (Thrust = hoe/shovel/watering, base
+  // walk + base thrust) on ~1/3.
+  weapon: {
+    items: ['Scythe', 'Scythe', 'Scythe', 'Spear', 'Spear', 'Spear', 'Thrust', 'Thrust', 'Thrust'],
+    chance: 1.0,
+  },
+  // Lock each Thrust peasant to ONE hand tool so it stays the same across every
+  // animation row AND agrees between the base bake and bake-weapons (their
+  // pickers differ — an unlocked Thrust could show a shovel in the base sheet
+  // but get re-rolled to a hoe by the weapon pass). Ignored for Scythe (single
+  // 'scythe' variant) + Spear (its metal tines pick by hash; 'hoe' etc. aren't
+  // valid Spear variants so the lock is skipped there).
+  weaponColor: ['hoe', 'shovel', 'watering'],
+}
+
+// ============================================================
+// Gladiator — Roman arena champion (normal roster). Bronze Legion lorica +
+// pteruges skirt, a horsehair-plumed helm on EVERY one (Legion/Maximus/Xeon), a
+// one-handed gladius (Arming Sword / Saber) + forearm bracers + Legion pauldrons,
+// and the round bronze Spartan hoplon on ALL of them. The Legion METAL pieces
+// (lorica, helm, shoulders, bracers) recolour together via metalColor (bronze/
+// iron/steel/copper/gold/ceramic) for cohesive armour; the skirt + horsehair
+// plume are CLOTH (Roman red favoured). Spartan shield is a fixed-design new
+// shield kind wired in bake-lpc-variants. Abilities (later): CROWD ROAR (stacking
+// buff per minion kill) + BLOCK (immune stance that can't attack). The one class
+// where the muscular build fits.
+POOLS.gladiator = {
+  bodyTypes: ['male', 'muscular'], // ALL MEN (user) — no gladiatrices
+  bodyTypeWeights: { male: 1, muscular: 1 }, // brawny arena fighters, even male/muscular
+  heads: 'auto_human',
+  // Masculine / warrior cuts only (all men now). Also DELIBERATELY excludes the 3
+  // styles whose `color_2` is a cyan "hair tie" the baker leaves unrecoloured
+  // (Pigtails, Long tied, Long band → a stray teal ribbon) and the clearly
+  // feminine styles (Bunches, Half up, Bob, Idol, Sara, Pigtails bangs, …) that
+  // read wrong on a brawny male gladiator. Every name here is a confirmed-valid
+  // HAIR_HEAD_FULL style.
+  hair: [
+    'Buzzcut', 'High and tight', 'Flat top straight', 'Messy1', 'Messy2', 'Messy3',
+    'Cowlick', 'Plain', 'Parted', 'Parted 2', 'Mop', 'Unkempt', 'Swoop', 'Side Swoop',
+    'Bangs', 'Balding', 'Curly short', 'Curly short 2', 'Jewfro',
+    'Long messy', 'Long messy2', 'Long center part', 'Curtains long', 'Cornrows',
+    'Dreadlocks long', 'Dreadlocks short', 'Ponytail', 'Single', 'Shoulderl',
+    'Xlong', 'Curly long', 'Large Curls', 'Wavy',
+  ],
+  beardChance: 0.5,
+  // Natural hair/beard tones only — 'all_human_hair' colour was unrestricted, so
+  // ~1 in 4 gladiators rolled blue/green/purple/pink hair, which reads as a bug on
+  // a Roman fighter. Browns/blacks/blondes/grays/gingers only (drives the beard too).
+  hairColorPool: [
+    'raven', 'dark_brown', 'chestnut', 'light_brown',
+    'dark_gray', 'gray', 'ash', 'platinum', 'white',
+    'blonde', 'sandy', 'gold',
+    'redhead', 'ginger', 'carrot', 'orange', 'strawberry', 'red',
+  ],
+  // Two looks via a 50/50 mode split. ARMORED: bronze Legion lorica. BARE-CHESTED:
+  // no lorica + ALWAYS a maroon cape. Some armored fighters also throw on a maroon
+  // cape. (Lorica is metal → recolours with the helm/arms via metalColor; the bare
+  // torso shows the body.)
+  modes: [
+    { name: 'bare',    weight: 0.5, bodyTypeWeights: { male: 1, muscular: 1 },
+      torso: [],
+      cape: { items: ['Solid'], chance: 1.0 }, capeColor: ['maroon'] },
+    { name: 'armored', weight: 0.5, bodyTypeWeights: { male: 1, muscular: 1 },
+      torso: ['Legion'],
+      // bare always capes (1.0); armored capes ~0.66 → overall maroon-cape rate
+      // ≈ 0.5·1.0 + 0.5·0.66 ≈ 0.83 (the user's "about 80%").
+      cape: { items: ['Solid'], chance: 0.66 }, capeColor: ['maroon'] },
+  ],
+  // EXACT 50/50 bare/armored (user: "half of them bare-chested"). A plain weighted
+  // pick drifts low for bare because bare variants have fewer distinguishing layers
+  // and the dedup retry rejects more of them; modesEven pins the live split.
+  modesEven: true,
+  // Cloth tones drive the Legion pteruges skirt. Roman red favoured.
+  clothColorPool: ['red', 'red', 'maroon', 'white', 'brown', 'tan', 'navy', 'forest'],
+  legs: ['Legion skirt'],
+  feet: ['Plated Toe', 'Plated Toe', 'Thick Plated Toe', 'Sandals'],
+  feetColor: ['bronze', 'iron', 'steel', 'gold', 'brass', 'ceramic'], // metal — valid for Plated Toe AND Sandals (no copper)
+  // EVERY gladiator: forearm bracers (manica) in the arms slot + Legion pauldrons
+  // in the SHOULDER slot ('arms:' prefix picks the shoulders item, not the Legion
+  // torso/helm). Both are metal palette items → they ignore lockedColor and
+  // recolour with the armour via metalColor automatically.
+  arms: { items: ['Bracers'], chance: 1.0 },
+  shoulder: { items: ['arms:Legion'], chance: 1.0 },
+  // Crested helms (metal) — EVERY gladiator is helmed (no bare heads). Helms are
+  // metal palette items, so they recolour via metalColor (NOT headwearColor) and
+  // thus match the lorica/arms automatically.
+  headwear: { items: ['Legion', 'Maximus', 'Xeon helmet', 'Simple barbuta'], chance: 1.0 },
+  // Helm topper: ~HALF a metal CREST that MATCHES the helmet (Crest/Centurion
+  // Crest are metal palette items → recolour to the SAME metalColor as the helm,
+  // so they match for free — the cloth color below is ignored on them), ~half a
+  // CLOTH horsehair plume (Roman-red favoured). Every helm gets one (chance 1.0).
+  headOverlay: [
+    { when: ['Legion'],         items: ['Crest', 'Crest', 'Legion Plumage', 'Plumage'],                       chance: 1.0, color: ['red', 'red', 'white', 'black', 'maroon'] },
+    { when: ['Maximus'],        items: ['Centurion Crest', 'Centurion Crest', 'Centurion Plumage', 'Plumage'], chance: 1.0, color: ['red', 'red', 'white', 'black', 'maroon'] },
+    { when: ['Xeon helmet'],    items: ['Crest', 'Crest', 'Plumage', 'Legion Plumage'],                       chance: 1.0, color: ['red', 'red', 'white', 'black', 'maroon'] },
+    // Simple barbuta — the user asked specifically for a "matching crest", so it
+    // ALWAYS gets the metal Crest (recolours to the helm's metalColor for free →
+    // a true colour-match), never a cloth plume.
+    { when: ['Simple barbuta'], items: ['Crest'],                                                            chance: 1.0 },
+  ],
+  metalColorPool: ['bronze', 'iron', 'steel', 'gold', 'ceramic'], // lorica/helm/arms/crest/gladius (no copper)
+  // EVEN spread of the 5 armour metals (~20 each / 100) instead of a uniform
+  // random pick — the user didn't want any one colour dominating (a plain random
+  // draw had given bronze 26 vs ceramic 13). See the stratified bag in the baker.
+  metalColorEven: true,
+  // One-handed gladius ONLY (Arming Sword slash_128 / Saber slash_oversize) so
+  // EVERY gladiator can carry the shield. (Spear dropped — two-handed.)
+  weapon: { items: ['Arming Sword', 'Arming Sword', 'Saber', 'Saber'], chance: 1.0 },
+  // Blade matches the armour metal (no copper — metalColorPool excludes it) and
+  // stays on ONE variant PNG across base + _atk so the gladius doesn't flicker.
+  // (Saber ships a single 'saber' variant → unaffected; it palette-swaps to the
+  // same metalColor anyway.)
+  weaponColor: 'metal',
+  // EVERY gladiator carries the round bronze Spartan hoplon. (Scutum dropped —
+  // undecorated cream; kite dropped — user wants the Spartan on all.)
+  alwaysShield: true,
+  shieldTypes: ['spartan'],
+}
+
+// ============================================================
+// Gambler — dapper riverboat sharp (flashy/seedy). TWO looks via a mode split:
+// a long FROCK-COAT gentleman (gold/silver lapel trim) and a shirtsleeves +
+// open WAISTCOAT card-sharp. Both wear a CRAVAT or JABOT at the throat, a FORMAL
+// TOPHAT (some bowlers), pinstripe/formal trousers, dress shoes, and a glint of
+// GOLD (stud earring). Carries a gentleman's CANE (contained thrust) on most;
+// some flash a RAPIER (slash_oversize → _atk) or a concealed DAGGER (contained
+// base slash, no _atk). Deliberately distinct from the scholarly Cartographer.
+// Abilities (later, mechanics phase): ROLL THE DICE + DOUBLE OR NOTHING.
+// All wearables here are VARIANT-PNG items (frock/vest/cravat/jabot/hat/shirt/
+// shoes ship per-colour PNGs), so colours lock to those names — NOT palette swaps.
+// Bake: node tools/bake-lpc-variants.mjs "<lpc-root>" assets/sprites/adventurers 100 gambler
+//       node bake-weapons.cjs gambler
+POOLS.gambler = {
+  bodyTypes: ['male', 'female'],
+  bodyTypeWeights: { male: 3, female: 1 }, // riverboat sharps skew male, some femmes fatales
+  heads: 'auto_human',
+  hair: 'all_human_hair',
+  // Natural colours only (no blue/green/pink on a Victorian card sharp). Drives
+  // the pencil-mustache/goatee too.
+  hairColorPool: [
+    'raven', 'dark_brown', 'chestnut', 'light_brown',
+    'dark_gray', 'gray', 'ash', 'platinum', 'white',
+    'blonde', 'sandy', 'gold', 'redhead', 'ginger', 'red',
+  ],
+  beardChance: 0.5, // pencil mustaches / goatees (males)
+  // Dark suit tones drive the frock coat (variant PNG) AND the trousers
+  // (cloth-palette) → a matched suit.
+  clothColorPool: ['black', 'charcoal', 'charcoal', 'navy', 'slate', 'gray', 'maroon', 'brown'],
+  modes: [
+    // FROCK-COAT gentleman — long tailcoat with a gold/silver lapel (zPos 58 over
+    // the coat 55).
+    { name: 'coat', weight: 0.55,
+      torso: ['Frock coat'],
+      torsoOverlay: { items: ['Frock coat lapel', 'Frock coat lapel', 'Frock collar'], chance: 0.7 },
+      torsoOverlayColor: ['gold', 'gold', 'silver', 'red', 'blue'] },
+    // Shirtsleeves + open WAISTCOAT card-sharp (seedier): a white formal shirt
+    // (torso, zPos 35) under a flashy open vest (overlay, zPos 45).
+    { name: 'vest', weight: 0.45,
+      torso: ['Collared/Formal Longsleeve', 'Striped Collared/Formal Longsleeve'],
+      torsoOverlay: { items: ['Vest open'], chance: 1.0 },
+      torsoOverlayColor: ['maroon', 'red', 'forest', 'navy', 'purple', 'teal', 'charcoal', 'black', 'white'] },
+  ],
+  legs: ['Formal Pants', 'Striped Formal Pants'], // legsColor falls back to clothColor → matched trousers
+  feet: ['Revised Shoes', 'Basic Shoes'],
+  feetColor: ['black', 'black', 'walnut', 'leather', 'brown'],
+  headwear: { items: ['Formal Tophat', 'Formal Tophat', 'Formal Tophat', 'Formal Bowler Hat'], chance: 1.0 },
+  headwearColor: ['black', 'black', 'charcoal', 'navy', 'maroon', 'walnut'],
+  // Neck + jewelry as INDEPENDENT accessory groups. Cravat/Jabot ALWAYS (the
+  // dapper neckwear, zPos 90); a glint of GOLD (stud earring) on some.
+  accessory: [
+    { items: ['Cravat', 'Cravat', 'Jabot'], chance: 1.0, color: ['white', 'white', 'black', 'red', 'maroon', 'navy', 'charcoal'] },
+    { items: ['Stud earrings'], chance: 0.35, color: ['gold'] },
+    // Gold eyewear on ~1/3 — tinted gold SHADES / SUNGLASSES or a single LEFT/RIGHT
+    // MONOCLE, all in gold (zPos 115, over the eyes + under the hat brim). The
+    // rakish riverboat-sharp glint. (Can co-occur with the earring — extra-flashy.)
+    { items: ['Shades', 'Sunglasses', 'Left Monocle', 'Right Monocle'], chance: 0.33, color: ['gold'] },
+    // Jewelled STUD RING on the hand (~0.3, zPos 75). It's a CLOTH-material gem →
+    // the colour here recolours the stone (ruby/sapphire/emerald/etc.); 'gold' is
+    // metal so it's NOT valid for the gem (skipped) — keep it to jewel tones.
+    { items: ['Stud Ring'], chance: 0.3, color: ['red', 'red', 'maroon', 'forest', 'purple'] }, // ruby/garnet/emerald/amethyst — warm jewels only (white/navy/teal read cyan at sprite scale on the teal-base gem)
+    // Gold neck bling (~0.3, zPos 80) — a gold CHAIN or a gold SIMPLE necklace
+    // (variant-PNG metal → locks to the gold PNG). Hangs on the chest over the
+    // coat/vest, just under the cravat.
+    { items: ['Chain Necklace', 'Simple Necklace'], chance: 0.3, color: ['gold'] },
+  ],
+  weapon: { items: ['Cane', 'Cane', 'Cane', 'Rapier', 'Dagger'], chance: 1.0 },
+}
+
+// ============================================================
 // Shadow Monarch — Sung Jinwoo (Solo Leveling event). A NAMED character,
 // so every slot is locked to one option + every palette is pinned: the
 // bake is deterministic (one variant = the canonical Jinwoo look).

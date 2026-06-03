@@ -16,7 +16,7 @@
 const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
   'twitch_streamer', 'beast_master', 'barbarian', 'monk', 'bard',
-  'cartographer_scholar', 'cosplay_adventurer', 'templar', 'pirate',
+  'cartographer_scholar', 'cosplay_adventurer', 'templar', 'pirate', 'miner', 'valkyrie', 'peasant', 'gladiator', 'gambler',
   // Sung Jinwoo (Solo Leveling) — single canonical variant; see the count
   // override below so we don't request v02..v50.
   'shadow_monarch',
@@ -35,6 +35,17 @@ const ADVENTURER_ATK_CLASSES = new Set([
   'templar',
   // Pirate — slash_oversize cutlasses (Saber/Scimitar/Rapier).
   'pirate',
+  // Miner (pickaxe slash_128) + Valkyrie (longsword slash_oversize, spear
+  // thrust_oversize + walk_128 carry sheet).
+  'miner', 'valkyrie',
+  // Peasant — Scythe slash_oversize; Spear/Thrust-tool contained thrust baked
+  // into the atk thrust row.
+  'peasant',
+  // Gladiator — gladius (Arming Sword slash_128 / Saber slash_oversize).
+  'gladiator',
+  // Gambler — Rapier (slash_oversize) + Cane (contained thrust in the atk thrust
+  // row); Dagger is normal-attack (no atk sheet).
+  'gambler',
   // Jinwoo's Saber swing only exists as 192×192 slash_oversize art — the atk
   // sheet is what makes his blade visible mid-attack.
   'shadow_monarch',
@@ -65,6 +76,12 @@ const ADVENTURER_VARIANT_COUNT = {
 const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8
+// Oversize CARRY sheet (_walk128) — 128px walk block (9 frames × 4 dirs) for
+// polearms whose LPC walk is a `walk_128` animation (dragon/long spear, trident).
+// Walk/idle/run render from this so the long shaft shows at native size.
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident'])
+const ADVENTURER_CARRY_FRAME = 128
+const ADVENTURER_CARRY_COLS  = 9
 const ADVENTURER_ATK_ANIM_LAYOUT = {
   slash:  { startRow: 0, frames: 6 },
   thrust: { startRow: 4, frames: 8 },
@@ -117,6 +134,21 @@ export function kickOffAdventurerAtkLoad(scene) {
     }
   }
 
+  // Oversize CARRY sheets (_walk128) — only for variants fielding a walk_128
+  // polearm (dragon/long spear, trident). Skip otherwise (no file → 404).
+  for (const id of ADVENTURER_CLASS_IDS) {
+    if (!ADVENTURER_ATK_CLASSES.has(id)) continue
+    for (let i = 1; i <= advVariantCount(id); i++) {
+      const v = `v${String(i).padStart(2, '0')}`
+      if (!CARRY_WALK_WEAPONS.has(weaponOf[`${id}/${v}`])) continue
+      const key = `adv-${id}-${v}-walk128`
+      if (scene.textures.exists(key)) continue
+      scene.load.spritesheet(key,
+        `assets/sprites/adventurers/${id}/${v}_walk128.png`,
+        { frameWidth: ADVENTURER_CARRY_FRAME, frameHeight: ADVENTURER_CARRY_FRAME })
+    }
+  }
+
   // When this batch finishes, register the anims so the renderer can
   // start using them. Anim registration was historically owned by
   // Preload.create(), but with deferred loading the textures aren't
@@ -155,6 +187,33 @@ export function registerAdventurerAtkAnims(scene) {
             frameRate: meta.frameRate,
             repeat: meta.repeat,
           })
+        }
+      }
+
+      // CARRY sheet (_walk128) anims — a 9-frame walk block per dir + a 1-frame
+      // idle (frame 0). Run reuses the walk anim (renderer maps run→walk).
+      const ckey = `adv-${id}-${v}-walk128`
+      if (scene.textures.exists(ckey)) {
+        const ctex = scene.textures.get(ckey)
+        if (ctex.setFilter) ctex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+        for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
+          const base = d * ADVENTURER_CARRY_COLS
+          const walkKey = `${ckey}-walk-${ADVENTURER_DIRS[d]}`
+          if (!scene.anims.exists(walkKey)) {
+            scene.anims.create({
+              key: walkKey,
+              frames: scene.anims.generateFrameNumbers(ckey, { start: base, end: base + ADVENTURER_CARRY_COLS - 1 }),
+              frameRate: 9, repeat: -1,
+            })
+          }
+          const idleKey = `${ckey}-idle-${ADVENTURER_DIRS[d]}`
+          if (!scene.anims.exists(idleKey)) {
+            scene.anims.create({
+              key: idleKey,
+              frames: scene.anims.generateFrameNumbers(ckey, { start: base, end: base }),
+              frameRate: 1, repeat: -1,
+            })
+          }
         }
       }
     }

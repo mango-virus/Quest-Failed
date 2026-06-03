@@ -80,6 +80,23 @@ const ATK_CLASSES = new Set([
   // Pirate — cutlass swashbuckler. Saber/Scimitar/Rapier swing via
   // slash_oversize, so the atk sheet is required for a visible blade.
   'pirate',
+  // Miner — swings a pickaxe (the Smash tool, slash_128 oversize).
+  'miner',
+  // Valkyrie — holy sword (Longsword/Arming Sword) swings via slash_oversize;
+  // spear variants thrust via the base sheet (no atk needed).
+  'valkyrie',
+  // Peasant — Scythe swings via slash_oversize (atk sheet needed); the Spear
+  // (pitchfork) + Thrust hand-tool (hoe/shovel/watering) are contained 64px
+  // weapons whose thrust is composited into the atk thrust row at native scale.
+  'peasant',
+  // Gladiator — gladius swings oversize (Arming Sword slash_128, Saber
+  // slash_oversize) so the blade needs the 192px atk sheet; the Spear is
+  // contained (base thrust).
+  'gladiator',
+  // Gambler — Rapier swings oversize (slash_oversize → 192px atk sheet); the
+  // gentleman's Cane is a contained thrust (jab composited into the atk thrust
+  // row at native scale). Dagger is in NORMAL_ATTACK_WEAPONS → no atk sheet.
+  'gambler',
   // Sung Jinwoo (Solo Leveling event) — melee Saber whose only swing art is
   // the 192×192 slash_oversize sheet. Without the atk sheet his blade is
   // invisible mid-attack (the oversize slash can't fit the 64×64 main sheet).
@@ -165,6 +182,10 @@ function pickVariant(def, variant) {
   // processVariant doesn't skip the weapon.
   if (def.name === 'Whip') return 'whip';
   if (!list.length) return null;
+  // A per-variant weaponColor wins over the global lock so the atk swing matches
+  // the carried art — e.g. the Miner's Smash locked to 'pickaxe' (vs the
+  // barbarian's 'axe'), or the Cheater's red/blue Glowsword.
+  if (variant.weaponColor && list.includes(variant.weaponColor)) return variant.weaponColor;
   const lock = WEAPON_VARIANT_LOCK[def.name];
   if (lock && list.includes(lock)) return lock;
   if (list.length === 1) return list[0];
@@ -461,6 +482,83 @@ async function buildAttackSheet(charPath, def, variantFile, bodyType) {
     .toBuffer();
 }
 
+// ─── Build one variant's _walk128.png (oversize CARRY sheet) ─────────────────
+// Some polearms (Dragon spear, Long spear, Trident, …) ship their walking
+// carry as a 128×128 `walk_128` animation — too long to fit the 64px base
+// sheet (it mangles into a stray shaft). This bakes a 128px walk sheet
+// (9 frames × 4 dirs) compositing: background weapon → the base-walk BODY
+// (centred in the 128 frame) → foreground weapon. The renderer swaps to this
+// texture for walk/idle/run. Mirrors buildAttackSheet but at 128px for walk.
+const CARRY_FRAME  = 128;
+const CARRY_OFFSET = (CARRY_FRAME - FRAME) / 2; // 32 — base body centred in 128
+// Weapons that actually RENDER from the 128px carry sheet at walk/idle/run.
+// MUST match CARRY_WALK_WEAPONS in AdventurerRenderer.js + AdventurerAtkLoader.js.
+// NOTE: a weapon merely *having* a walk_128 layer (e.g. Scimitar, Katana, bows —
+// LPC ships an oversize copy for all of them) does NOT mean we carry-render it;
+// those fit fine in the 64px base walk. Building a _walk128 for them just litters
+// dead, never-loaded files on disk. Gate the carry build on THIS set, not on
+// "has a walk_128 layer".
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident']);
+async function buildCarrySheet(charPath, def, variantFile, bodyType) {
+  const walkRow = ANIM_LAYOUT['walk'];
+  if (!walkRow) return null;
+  const cols = walkRow.frames;   // 9
+  const dirs = walkRow.dirRows;  // 4
+  const W = cols * CARRY_FRAME, H = dirs * CARRY_FRAME;
+
+  // walk_128 weapon layers, split behind (zPos < 100) / front (>= 100).
+  const wlayers = getLayers(def).filter(l => l.custom_animation === 'walk_128');
+  const behind  = wlayers.filter(l => (l.zPos ?? 0) < 100);
+  const front   = wlayers.filter(l => (l.zPos ?? 0) >= 100);
+
+  const weaponOps = async (list) => {
+    const ops = [];
+    for (const layer of list) {
+      const lp = layerPath(layer, bodyType);              // ends in .../walk/
+      if (!lp) continue;
+      const srcPath = path.join(SHEETS, lp, variantFile + '.png');
+      if (!exists(srcPath)) continue;
+      const meta  = await sharp(srcPath).metadata();
+      const sCols = Math.floor(meta.width  / CARRY_FRAME);
+      const sRows = Math.floor(meta.height / CARRY_FRAME);
+      for (let d = 0; d < Math.min(dirs, sRows); d++) {
+        for (let c = 0; c < Math.min(cols, sCols); c++) {
+          const buf = await sharp(srcPath)
+            .extract({ left: c * CARRY_FRAME, top: d * CARRY_FRAME, width: CARRY_FRAME, height: CARRY_FRAME })
+            .toBuffer();
+          ops.push({ input: buf, left: c * CARRY_FRAME, top: d * CARRY_FRAME });
+        }
+      }
+    }
+    return ops;
+  };
+
+  // Base-walk body frames, centred in each 128px cell.
+  const bodyOps = [];
+  for (let d = 0; d < dirs; d++) {
+    for (let c = 0; c < cols; c++) {
+      const buf = await sharp(charPath)
+        .extract({ left: c * FRAME, top: walkRow.y + d * FRAME, width: FRAME, height: FRAME })
+        .toBuffer();
+      bodyOps.push({ input: buf, left: c * CARRY_FRAME + CARRY_OFFSET, top: d * CARRY_FRAME + CARRY_OFFSET });
+    }
+  }
+
+  const behindOps = await weaponOps(behind);
+  const frontOps  = await weaponOps(front);
+  if (behindOps.length === 0 && frontOps.length === 0) return null; // no carry art
+
+  const composites = [
+    ...behindOps.map(o => ({ ...o, blend: 'over' })),
+    ...bodyOps.map(o => ({ ...o, blend: 'over' })),
+    ...frontOps.map(o => ({ ...o, blend: 'over' })),
+  ];
+  return await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite(composites)
+    .png({ compressionLevel: 6 })
+    .toBuffer();
+}
+
 // ─── Process one variant ──────────────────────────────────────────────────────
 async function processVariant(className, variant, idx, total) {
   const charPath = path.join(ADV, className, variant.id + '.png');
@@ -521,6 +619,14 @@ async function processVariant(className, variant, idx, total) {
     const lp = layerPath(layer, bodyType);
     if (!lp) continue;
     const srcPath = path.join(SHEETS, lp, variantFile + '.png');
+    if (!exists(srcPath)) continue;
+    // ONLY strip if the base bake actually composited a walk_128 ghost — i.e.
+    // the sheet FITS the 832-wide base (bake-lpc-variants scales/keeps it). For
+    // genuinely-oversize walk_128 (dragon/long spear, ~1664px) the base SKIPS
+    // it entirely (no ghost) → its carry lives in the _walk128 sheet instead, so
+    // dest-out'ing here would just gouge a spear-shaped hole in the body.
+    const gm = await sharp(srcPath).metadata();
+    if ((gm.width || 0) > CHAR_W || (gm.height || 0) > CHAR_H) continue;
     ghostOps.push(...await oversizeComposites(srcPath, layer.custom_animation));
   }
   let charSrc = charPath;
@@ -536,10 +642,20 @@ async function processVariant(className, variant, idx, total) {
   }
 
   if (behindComposites.length === 0 && frontComposites.length === 0 && ghostOps.length === 0) {
-    // The Whip is attack-only (no walk-carry art) — it has no base-sheet weapon
-    // layers, but it STILL needs its atk sheet (the whip-crack thrust) built
-    // below. So don't bail for it; bail for any other genuinely-empty weapon.
-    if (weaponName !== 'Whip') {
+    // Empty base-sheet weapon composites + no ghost to strip is EXPECTED for
+    // weapons whose art is exclusively oversize:
+    //   • The Whip (attack-only, 192px thrust) — needs its atk sheet built below.
+    //   • Oversize polearms (dragon/long spear): walk_128 carry + thrust_oversize
+    //     atk, nothing in the 64px base sheet. They still need the _walk128 carry
+    //     sheet AND the _atk sheet built below.
+    // So only bail when there's GENUINELY nothing left to produce — no atk sheet
+    // and no carry sheet. Otherwise we'd skip buildCarrySheet/buildAttackSheet and
+    // leave a stale (or missing) _walk128/_atk on disk. (This was the Valkyrie
+    // "phantom second spear" bug: the guard tripped, processVariant returned early,
+    // and the old gouged carry sheet was never rebuilt.)
+    const needsAtk   = ATK_CLASSES.has(className) && !NORMAL_ATTACK_WEAPONS.has(weaponName);
+    const needsCarry = ATK_CLASSES.has(className) && CARRY_WALK_WEAPONS.has(weaponName);
+    if (weaponName !== 'Whip' && !needsAtk && !needsCarry) {
       console.warn(`  No usable layers for "${weaponName}" (${className}/${variant.id})`);
       return;
     }
@@ -585,6 +701,21 @@ async function processVariant(className, variant, idx, total) {
     fs.writeFileSync(atkPath, atkBuf);
   } else if (exists(atkPath)) {
     fs.unlinkSync(atkPath);
+  }
+
+  // Oversize CARRY sheet (_walk128.png) — ONLY for the designated carry weapons
+  // (dragon/long spear, trident) that the renderer actually swaps to for
+  // walk/idle/run so the long shaft renders at native size. Other walk_128
+  // weapons (Scimitar/Katana/bows) walk fine in the 64px base sheet; building a
+  // carry sheet for them just leaves dead, never-loaded files (the else branch
+  // below cleans any such stale file up).
+  const carryPath = path.join(ADV, className, variant.id + '_walk128.png');
+  if (ATK_CLASSES.has(className) && CARRY_WALK_WEAPONS.has(weaponName)) {
+    const carryBuf = await buildCarrySheet(charPath, def, variantFile, bodyType);
+    if (carryBuf) fs.writeFileSync(carryPath, carryBuf);
+    else if (exists(carryPath)) fs.unlinkSync(carryPath);
+  } else if (exists(carryPath)) {
+    fs.unlinkSync(carryPath);
   }
 
   process.stdout.write(`\r  [${idx + 1}/${total}] ${className}/${variant.id} (${weaponName}/${variantFile})          `);

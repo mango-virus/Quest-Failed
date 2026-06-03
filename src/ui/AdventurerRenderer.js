@@ -33,6 +33,12 @@ const LPC_SCALE = 0.75
 // these, the sprite swaps to the atk texture and adjusts origin so the
 // character body's foot stays at the same world position.
 const ATK_ANIMS = new Set(['slash', 'thrust'])
+// Anims that render from the 128×128 CARRY texture (_walk128) for oversize-walk
+// polearms — their long shaft can't fit the 64px base walk row, so the carry
+// sheet (body + full-size weapon) is used for walking/standing/running. Weapons
+// that need it (their LPC walk is a `walk_128` animation).
+const CARRY_WALK_ANIMS = new Set(['walk', 'idle', 'run'])
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident'])
 // LPC attack-anim names that minion sheets + boss-archetype sheets have
 // no dedicated frames for (those sheets ship a single `attack` state).
 // _resolveLpcAnimKey collapses every one of these onto `attack`.
@@ -43,6 +49,9 @@ const SHEET_ATTACK_ANIMS = new Set(['slash', 'thrust', 'shoot', 'spellcast'])
 // same world position when swapping textures.
 const LPC_BODY_ORIGIN_Y = 0.85
 const LPC_ATK_ORIGIN_Y  = 0.617
+// 128×128 carry frame: body centered at top=32, foot at 32 + 54.4 = 86.4px →
+// origin y = 86.4 / 128 = 0.675. Keeps the foot at the same world position.
+const LPC_CARRY_ORIGIN_Y = 0.675
 // Light Party travel formation — render-only sub-tile offsets (px) so the four
 // members walk side-by-side / front-and-back instead of stacking on one tile.
 // tank leads, melee on the left flank, ranged on the right, healer trails.
@@ -59,6 +68,9 @@ const LP_FIXED_VARIANT_CLASSES = new Set(['paladin', 'white_mage', 'black_mage',
 const THRUST_ANIM_WEAPONS = new Set([
   'Spear', 'Cane', 'Crossbow',
   'Simple staff', 'Diamond staff', 'S staff', 'Loop staff', 'Gnarled staff',
+  // Peasant hand tool (LPC "Thrust" tool: hoe / shovel / watering can) — its
+  // only attack art is the `thrust` (jab) pose, so always thrust with it.
+  'Thrust',
 ])
 // Weapons that should override the class default to `slash`. Necromancers play
 // spellcast by default, but a Scythe has only slash_oversize layers — without
@@ -390,9 +402,24 @@ export class AdventurerRenderer {
       const atkKey = `${s.lpc.textureKey}-atk`
       if (this._scene.textures.exists(atkKey)) s.lpc.atkTextureKey = atkKey
     }
+    const targetDir = anim === 'hurt' ? 'down' : dir
+    // Oversize CARRY (dragon/long spear walk): walk/idle/run render from the
+    // 128px _walk128 sheet (the carry sheet only ships a `walk` block, so idle
+    // uses its idle 1-frame and run reuses walk). Lazily upgrade if it streams
+    // in late, like the atk texture.
+    if (s.lpc.carryTextureKey === undefined && CARRY_WALK_ANIMS.has(anim)) {
+      const cKey = `${s.lpc.textureKey}-walk128`
+      s.lpc.carryTextureKey = this._scene.textures.exists(cKey) ? cKey : null
+    }
+    if (CARRY_WALK_ANIMS.has(anim) && s.lpc.carryTextureKey) {
+      const carryAnim = anim === 'run' ? 'walk' : anim // run reuses the walk cycle
+      return {
+        animKey: `${s.lpc.carryTextureKey}-${carryAnim}-${targetDir}`,
+        originY: LPC_CARRY_ORIGIN_Y,
+      }
+    }
     const useAtk = ATK_ANIMS.has(anim) && s.lpc.atkTextureKey
     const baseKey = useAtk ? s.lpc.atkTextureKey : s.lpc.textureKey
-    const targetDir = anim === 'hurt' ? 'down' : dir
     return {
       animKey: `${baseKey}-${anim}-${targetDir}`,
       originY: useAtk ? LPC_ATK_ORIGIN_Y : LPC_BODY_ORIGIN_Y,
@@ -1353,7 +1380,13 @@ export class AdventurerRenderer {
     // variant didn't ship an _atk.png (e.g. spellcasters, weapon: null variants).
     const atkKey = `${textureKey}-atk`
     const atkTextureKey = this._scene.textures.exists(atkKey) ? atkKey : null
-    return { image, textureKey, atkTextureKey, lastAnim: null }
+    // Optional 128×128 CARRY texture for oversize-walk polearms (dragon/long
+    // spear etc.) — their walk shaft is too long for the 64px base sheet, so
+    // walk/idle/run render from this sheet instead. Null for normal weapons.
+    const wpn = this._lpcWeaponByVariant[adv.spriteVariant]
+    const carryKey = `${textureKey}-walk128`
+    const carryTextureKey = (CARRY_WALK_WEAPONS.has(wpn) && this._scene.textures.exists(carryKey)) ? carryKey : null
+    return { image, textureKey, atkTextureKey, carryTextureKey, lastAnim: null }
   }
 
   // ── Click ──────────────────────────────────────────────────────────────────

@@ -119,6 +119,10 @@ const METAL_ALL = METAL_PALETTE ? Object.keys(METAL_PALETTE.options) : [];
 // names that ALSO exist as cloth/tabard colours can match a class's house
 // colour, so SHIELD_PAINT_COLORS gates the heraldic-paint step to those.
 const ROUND_SHIELD_COLORS = ['silver', 'gold', 'black', 'green', 'brown'];
+// Kite shield ships pre-painted two-tone variants (face + border). These earthy/
+// martial combos suit a Roman arena look. (Scutum + Spartan are single-design,
+// so they need no colour vocab.)
+const KITE_SHIELD_COLORS = ['kite red gray', 'kite orange', 'kite gray orange', 'kite gray'];
 const SHIELD_PAINT_COLORS = new Set([
   'red', 'blue', 'navy', 'purple', 'forest', 'green', 'white', 'teal',
   'sky', 'orange', 'black', 'gray', 'pink', 'lavender', 'yellow',
@@ -201,8 +205,12 @@ function combatAnimsOnDisk(item) {
     return fs.existsSync(sub) && fs.statSync(sub).isDirectory() && fs.readdirSync(sub).some((x) => x.endsWith('.png'));
   });
 }
-// User-vetoed hairstyles — never used by ANY class (filtered out of the pool).
-const HAIR_EXCLUDE = new Set(['Afro']);
+// User-vetoed hairstyles — never used by ANY class (filtered out of the
+// 'all_human_hair' pool; explicit array hair pools are not filtered). Pigtails /
+// Long tied / Long band declare a `color_2` "hair tie" drawn in CYAN shades that
+// the baker only recolours for color_1 (the hair) — so they render a stray teal
+// ribbon. Excluded globally since that defect is intrinsic to those 3 styles.
+const HAIR_EXCLUDE = new Set(['Afro', 'Pigtails', 'Long tied', 'Long band']);
 const HAIR_HEAD_FULL = HAIR_HEAD.filter(combatAnimsOnDisk).filter((h) => !HAIR_EXCLUDE.has(h.name));
 const HAIR_BEARDS_FULL = HAIR_BEARDS.filter(combatAnimsOnDisk);
 
@@ -255,6 +263,22 @@ function makeRng(seed) {
 }
 function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 function chance(rng, p) { return rng() < p; }
+// Build an EVENLY distributed "bag" of `count` picks from `pool` (each option
+// repeated ⌊count/n⌋ or ⌈count/n⌉ times, remainder spread across the first few),
+// then Fisher–Yates shuffle it with the seeded rng so the even counts aren't
+// clustered. Used by `metalColorEven` so an armour metal can't dominate the way a
+// uniform per-variant random pick does. Dedup of unique options keeps it stable
+// if a pool lists the same value twice.
+function buildEvenBag(pool, count, rng) {
+  const opts = [...new Set(pool)];
+  const bag = [];
+  for (let i = 0; i < count; i++) bag.push(opts[i % opts.length]);
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+  return bag;
+}
 // Weighted key pick from a { key: weight } map (e.g. body-type bias). Weights
 // need not sum to 1; zero/negative weights are dropped.
 function weightedPick(rng, weights) {
@@ -312,7 +336,7 @@ function pickFromPool(rng, pool) {
   return pick(rng, r.items);
 }
 
-function sampleVariant(rng, className, classPool) {
+function sampleVariant(rng, className, classPool, forced = {}) {
   const v = { className, layers: [] };
   // ── Mode split (e.g. cheater 50% chaos / 50% hacker) ─────────────────────
   // A class may define `modes: [{ name, weight, ...slotOverrides }]`. We pick
@@ -322,8 +346,15 @@ function sampleVariant(rng, className, classPool) {
   // mode defines (torso/headwear/accessory/weapon/bodyColorPool/…) wins.
   if (Array.isArray(classPool.modes) && classPool.modes.length) {
     const total = classPool.modes.reduce((s, m) => s + (m.weight ?? 1), 0);
+    // Always consume the weighted-pick draw so the rest of the stream is stable,
+    // but when an EVEN mode split is requested (modesEven) the per-slot bag mode
+    // (forced.mode, assigned in renderClass) wins. This pins the split to the
+    // exact weighted proportion (e.g. a true 50/50 bare/armored) instead of a
+    // probabilistic one the dedup retry can skew (bare has fewer distinguishing
+    // layers, so it collides + gets rejected more, dragging the live share down).
     let r = rng() * total, chosen = classPool.modes[classPool.modes.length - 1];
     for (const m of classPool.modes) { r -= (m.weight ?? 1); if (r < 0) { chosen = m; break; } }
+    if (forced.mode) chosen = classPool.modes.find((m) => m.name === forced.mode) || chosen;
     classPool = { ...classPool, ...chosen };
     v.mode = chosen.name || null;
   }
@@ -402,7 +433,12 @@ function sampleVariant(rng, className, classPool) {
     ? pick(rng, classPool.feetColor)
     : (classPool.feetColor ?? null);
   // Metal color (one shared finish for all metal pieces) — per-class override allowed.
-  v.metalColor = pick(rng, (classPool.metalColorPool?.length) ? classPool.metalColorPool : METAL_ALL);
+  // Always consume the RNG draw so the rest of the stream is unaffected, but when
+  // the class opts into an EVEN spread (metalColorEven) the per-slot bag colour
+  // (forced.metalColor, assigned round-robin + shuffled in renderClass) wins, so
+  // no single metal dominates over the 100 variants.
+  const rolledMetal = pick(rng, (classPool.metalColorPool?.length) ? classPool.metalColorPool : METAL_ALL);
+  v.metalColor = forced.metalColor || rolledMetal;
   // ── Two-tone layered outfit (e.g. mage kimono) ───────────────────────────
   // When a class defines `outfit`, roll a MAIN colour and a distinct ACCENT
   // colour, then compose the chosen base dress + ONE sleeve style (+ optional
@@ -663,10 +699,16 @@ function sampleVariant(rng, className, classPool) {
   v.weapon = classPool.barehanded ? null : pickFromPool(rng, classPool.weapon);
   // Optional per-variant weapon colour (e.g. cheater glowswords mix blue/red).
   // Locked once here so it's consistent across every animation row; overrides
-  // the global WEAPON_VARIANT_LOCK at compositing time.
-  v.weaponColor = Array.isArray(classPool.weaponColor)
-    ? pick(rng, classPool.weaponColor)
-    : (classPool.weaponColor ?? null);
+  // the global WEAPON_VARIANT_LOCK at compositing time. The `'metal'` keyword
+  // ties the blade to the variant's armour metalColor (a matched gladius for the
+  // gladiator) — this also pins it OUT of any colour the metalColorPool excludes
+  // (e.g. copper) and keeps the base sheet + _atk swing on the same variant PNG
+  // (no flicker), since both bakers read v.weaponColor.
+  v.weaponColor = classPool.weaponColor === 'metal'
+    ? (v.metalColor || null)
+    : Array.isArray(classPool.weaponColor)
+      ? pick(rng, classPool.weaponColor)
+      : (classPool.weaponColor ?? null);
   // Crystal pair: when staff is Diamond/Loop, force-add a crystal layer.
   v.crystal = null;
   if (v.weapon && CRYSTAL_RULE.staves.has(v.weapon)) {
@@ -692,6 +734,16 @@ function sampleVariant(rng, className, classPool) {
     if (kind === 'round') {
       const roundColors = classPool.roundShieldColors?.length ? classPool.roundShieldColors : ROUND_SHIELD_COLORS;
       v.shield = { kind: 'round', color: pick(rng, roundColors) };
+    } else if (kind === 'scutum') {
+      // Rectangular Roman scutum (single design, bg+fg layers). Optional gold
+      // engrailed-style trim overlay on ~half (shieldTrimChance).
+      v.shield = { kind: 'scutum', trim: chance(rng, classPool.shieldTrimChance ?? 0.5) };
+    } else if (kind === 'spartan') {
+      // Round Greek hoplon (single design, bg+fg layers). No trim variant.
+      v.shield = { kind: 'spartan' };
+    } else if (kind === 'kite') {
+      const kiteColors = classPool.kiteShieldColors?.length ? classPool.kiteShieldColors : KITE_SHIELD_COLORS;
+      v.shield = { kind: 'kite', color: pick(rng, kiteColors) };
     } else if (kind === 'crusader' || kind === 'plus') {
       // Fixed heraldic shields (single canonical design each, zPos 2). Either
       // kind may add the two-engrailed trim overlay (zPos 3); `shieldTrimChance`
@@ -832,10 +884,16 @@ function buildLayerManifest(variant) {
     // Per-layer cloth-colour override (e.g. pants a different "normal" colour
     // than the vibrant torso). Falls back to the variant's clothColor.
     const clothColor = opts.clothColor || variant.clothColor;
-    const wantHair  = (m) => m === 'hair'  && HAIR_PALETTE  && variant.hairColor  && variant.hairColor  !== HAIR_PALETTE.base;
-    const wantBody  = (m) => m === 'body'  && BODY_PALETTE  && variant.bodyColor  && variant.bodyColor  !== BODY_PALETTE.base;
-    const wantCloth = (m) => m === 'cloth' && CLOTH_PALETTE && clothColor && clothColor !== CLOTH_PALETTE.base;
-    const wantMetal = (m) => m === 'metal' && METAL_PALETTE && variant.metalColor && variant.metalColor !== METAL_PALETTE.base;
+    // The trailing `PALETTE.options[color]` guard skips the swap when the colour
+    // isn't valid FOR THAT palette (e.g. a metal name like 'gold'/'silver' handed
+    // to a cloth item) — otherwise the swap target is `undefined` and the recolor
+    // either crashes or wipes the layer. The item keeps its lockedColor variant
+    // PNG / base instead. (Hardened when headOverlay colours started flowing into
+    // clothColor; also fixes the long-standing 'gold in a CLOTH pool' crash.)
+    const wantHair  = (m) => m === 'hair'  && HAIR_PALETTE  && variant.hairColor  && variant.hairColor  !== HAIR_PALETTE.base  && HAIR_PALETTE.options[variant.hairColor];
+    const wantBody  = (m) => m === 'body'  && BODY_PALETTE  && variant.bodyColor  && variant.bodyColor  !== BODY_PALETTE.base  && BODY_PALETTE.options[variant.bodyColor];
+    const wantCloth = (m) => m === 'cloth' && CLOTH_PALETTE && clothColor && clothColor !== CLOTH_PALETTE.base && CLOTH_PALETTE.options[clothColor];
+    const wantMetal = (m) => m === 'metal' && METAL_PALETTE && variant.metalColor && variant.metalColor !== METAL_PALETTE.base && METAL_PALETTE.options[variant.metalColor];
     // Recolor SOURCE shades. Most items are drawn in the palette's global base
     // shade, so the prebuilt *_BASE_PACKED maps work. But some items declare
     // their OWN base (recolors.base) — e.g. the stud-ring gem is drawn in
@@ -926,12 +984,32 @@ function buildLayerManifest(variant) {
   // stay on-theme instead of rolling a random colour variant (the Plain Mask
   // was defaulting to bright white). Metal helmets are flat-PNG + metal-palette,
   // so they ignore lockedColor — unaffected.
-  add(variant.headwear, { lockedColor: variant.headwearColor || variant.clothColor });
+  //
+  // Headwear shares `name`s across slots: the Legion HELM, the Legion lorica
+  // (torso) and the Legion pauldrons (arms) are ALL named "Legion", and the
+  // global byName index keeps whichever was walked last (the torso armour). A
+  // bare add('Legion') for a helmet therefore silently composited a SECOND
+  // lorica at the head slot and rendered NO helmet (the gladiator missing-helmet
+  // bug). Resolve headwear from the `headwear/` category first so a hat name can
+  // never collide with a torso/arms item; fall back to the global index for any
+  // hat that lives outside headwear/. v.headwear stays the clean name, so the
+  // headOverlay `when:` matching above is unaffected.
+  const hwName = variant.headwear
+    && ((byCategory['headwear'] || []).some((x) => x.name === variant.headwear)
+          ? `headwear:${variant.headwear}`
+          : variant.headwear);
+  add(hwName, { lockedColor: variant.headwearColor || variant.clothColor });
   // Visor overlay (zPos 132) — sits over the bascinet skull (zPos 130).
   add(variant.visor);
   // Head overlays (skull over a bandana; bonnie center-trim + feather; cavalier
-  // feather) — each layered on the base hat, optionally colour-locked.
-  for (const o of (variant.headOverlays || [])) add(o.name, o.color ? { lockedColor: o.color } : {});
+  // feather; gladiator helm crest/plume) — each layered on the base hat,
+  // optionally colour-locked. Pass the colour as BOTH lockedColor (variant-PNG
+  // pick) AND clothColor: a CLOTH-material overlay (e.g. the horsehair Plumage)
+  // recolours via the cloth PALETTE, which reads clothColor — NOT lockedColor —
+  // so without the clothColor here the plume silently inherited the variant's
+  // skirt colour (a 'forest' skirt → a GREEN plume, off the red/white/black/maroon
+  // intent). Metal overlays (the Crest) ignore both and follow metalColor.
+  for (const o of (variant.headOverlays || [])) add(o.name, o.color ? { lockedColor: o.color, clothColor: o.color } : {});
   // Beast-kin ears (zPos 130) + tail (zPos 125), both coloured to the hair so
   // the fur matches.
   if (variant.beast) {
@@ -944,8 +1022,14 @@ function buildLayerManifest(variant) {
   if (variant.costume) {
     for (const p of variant.costume.pieces) add(p.item, p.color ? { lockedColor: p.color } : {});
   }
-  // Accessories are { name, color } — colour-lock when the group set one.
-  for (const a of variant.accessories) add(a.name, a.color ? { lockedColor: a.color } : {});
+  // Accessories are { name, color } — colour-lock when the group set one. Pass
+  // the colour as BOTH lockedColor (variant-PNG pick, e.g. a gold Necklace) AND
+  // clothColor, so a CLOTH-material accessory (e.g. the Stud Ring's teal gemstone)
+  // actually takes the requested colour instead of silently inheriting the
+  // outfit's clothColor. Accessories with NO colour set (e.g. the rogue's
+  // outfit-toned ring) are unchanged. The palette guard skips an invalid colour
+  // for a given palette (e.g. a metal 'gold' on a cloth item) — no crash.
+  for (const a of variant.accessories) add(a.name, a.color ? { lockedColor: a.color, clothColor: a.color } : {});
   // Lock the carried weapon's colour: a per-variant weaponColor (e.g. a cheater
   // glowsword's blue/red blade) wins, else the global WEAPON_VARIANT_LOCK (the
   // Smash great-axe → 'axe'; Glowsword → 'blue' fallback). Both keep the blade
@@ -960,6 +1044,14 @@ function buildLayerManifest(variant) {
   if (variant.shield) {
     if (variant.shield.kind === 'round') {
       add('Round Shield', { lockedColor: variant.shield.color });
+    } else if (variant.shield.kind === 'scutum') {
+      // Rectangular Roman scutum (bg paint + fg) + optional engrailed trim.
+      add('Scutum shield');
+      if (variant.shield.trim) add('Scutum shield trim');
+    } else if (variant.shield.kind === 'spartan') {
+      add('Spartan Shield'); // round hoplon, bg+fg
+    } else if (variant.shield.kind === 'kite') {
+      add('Kite', { lockedColor: variant.shield.color });
     } else if (variant.shield.kind === 'crusader' || variant.shield.kind === 'plus') {
       // Fixed heraldic face (zPos 2) + an optional engrailed trim border (zPos 3)
       // on ~half (variant.shield.trim).
@@ -1074,11 +1166,43 @@ async function bakeClass(className) {
   const seen = new Set();
   const variants = [];
   const baseSeed = stringHash(className);
+  // Optional EVEN metal-colour spread: a per-slot bag so no armour metal
+  // dominates (vs a uniform random pick). Keyed off the accepted index `i`, so a
+  // rejected duplicate re-rolls its OTHER fields with the same forced metal.
+  const metalBag = classPool.metalColorEven
+    ? buildEvenBag((classPool.metalColorPool?.length) ? classPool.metalColorPool : METAL_ALL,
+                   variantCount, makeRng(baseSeed ^ 0x9e3779b9))
+    : null;
+  // Optional EXACT mode split (modesEven): replicate each mode name by its weight
+  // share of `variantCount`, then shuffle, so the live bare/armored ratio matches
+  // the weights regardless of dedup rejections. Keyed off the accepted index `i`.
+  let modeBag = null;
+  if (classPool.modesEven && Array.isArray(classPool.modes) && classPool.modes.length) {
+    const totalW = classPool.modes.reduce((s, m) => s + (m.weight ?? 1), 0);
+    const names = [];
+    for (const m of classPool.modes) {
+      const n = Math.round(((m.weight ?? 1) / totalW) * variantCount);
+      for (let k = 0; k < n; k++) names.push(m.name);
+    }
+    while (names.length < variantCount) names.push(classPool.modes[0].name);
+    names.length = variantCount; // trim any rounding overshoot
+    // Shuffle in place (NOT buildEvenBag — that dedups and would drop the weight
+    // replication, flattening unequal weights to an even round-robin).
+    const mrng = makeRng(baseSeed ^ 0x85ebca6b);
+    for (let k = names.length - 1; k > 0; k--) {
+      const j = Math.floor(mrng() * (k + 1));
+      [names[k], names[j]] = [names[j], names[k]];
+    }
+    modeBag = names;
+  }
   let attempts = 0;
   for (let i = 0; i < variantCount && attempts < variantCount * 4; ) {
     const seed = baseSeed + attempts * 1000003 + i;
     const rng = makeRng(seed);
-    const v = sampleVariant(rng, className, classPool);
+    const forced = {};
+    if (metalBag) forced.metalColor = metalBag[i];
+    if (modeBag)  forced.mode = modeBag[i];
+    const v = sampleVariant(rng, className, classPool, forced);
     const sig = JSON.stringify(v);
     attempts++;
     if (seen.has(sig)) continue;
