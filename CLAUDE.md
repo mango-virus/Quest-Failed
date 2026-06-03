@@ -138,6 +138,7 @@ If during implementation you find yourself changing scope (renaming things, spli
 - **Renderer is currently Graphics-based wireframe** — pixel art tilesets land opportunistically when assets arrive. Don't polish the procedural look further.
 - **AdventurerRenderer reads `worldX/worldY`** which AISystem updates each tick — don't compute positions in the renderer.
 - **`window.__game`** is the Phaser game instance (set in `src/main.js`); useful for browser console debugging.
+- **LPC sprites — use the REVISED palette, not Universal (user rule, 2026-06-03).** When choosing colors for any LPC adventurer sprite (hair, metal/armour, cloth, etc.), prefer the LPC **revised** ("ZAP"/revised) color names the items expose (e.g. `rev_silver`, `rev_gold`, `ice`, `lavender`, `porcelain`, `ivory`, `amethyst`, `cerise`, `apricot`, `beige`, `linen`, `peach`, `platinum`, `blonde`, `sky`) over the older Universal names. Verify the chosen names exist in the item's `variants`/palette before baking.
 
 ---
 

@@ -601,7 +601,6 @@ export class NightPhase extends Phaser.Scene {
   // bake when present, else fall through to its spriteSourceClassId
   // defined in adventurerClasses.json — e.g. event-only classes that
   // borrow art from a baked sibling). Returns "<sourceClass>/vNN".
-  // Preload bakes 50 variants per baked class (ADVENTURER_VARIANTS_PER_CLASS).
   _pickWaveVariant(classId) {
     if (!classId) return null
     const allClasses = this.cache?.json?.get?.('adventurerClasses') ?? []
@@ -611,10 +610,19 @@ export class NightPhase extends Phaser.Scene {
     // don't ship their own LPC sheet, like tournament_rival_*,
     // monster_invader, etc.).
     const sourceClass = def?.spriteSourceClassId || classId
-    // 50 baked variants per class — pad to v01..v50.
+    // Pick from the ACTUAL baked variant list (manifest), not a hardcoded count.
+    // The old `Math.random() * 50` cap could never roll v51..v100 — so any
+    // class whose female-bodied variants happened to bake into that upper half
+    // (e.g. half the gambler's female sharps) NEVER spawned. Reading the real
+    // list fixes that for every class + stays correct regardless of bake count.
+    const list = this.cache?.json?.get?.('adventurerManifest')?.variants?.[sourceClass]
+    if (Array.isArray(list) && list.length) {
+      const pick = list[Math.floor(Math.random() * list.length)]
+      if (pick?.id) return `${sourceClass}/${pick.id}`
+    }
+    // Fallback only if the manifest is unavailable.
     const n = 1 + Math.floor(Math.random() * 50)
-    const v = `v${String(n).padStart(2, '0')}`
-    return `${sourceClass}/${v}`
+    return `${sourceClass}/v${String(n).padStart(2, '0')}`
   }
 
   _emitPreviewUpdated() {

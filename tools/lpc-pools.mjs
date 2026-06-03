@@ -1462,37 +1462,69 @@ POOLS.valkyrie = {
     'Sara', 'Xlong', 'Half up',
   ],
   beardChance: 0,
-  // ALWAYS either chest plate (+ greaves) OR a flowing slit dress (no pants).
-  modes: [
-    { name: 'armored', weight: 0.6, torso: ['Plate'], legs: ['Hose', 'Hose', 'Long Pants'], legsColor: ['white', 'sky', 'lavender', 'navy', 'gray', 'slate'] },
-    { name: 'dress',    weight: 0.4, torso: ['Slit dress'], legs: [] }, // dress covers → no pants
+  // LIGHT, holy skin only (user-locked). 'light' is the ulpc pale tone;
+  // ivory/porcelain/peach are LPC-revised pale tones merged into the body
+  // palette (bake-lpc-variants mergeRevisedInto). No mid/dark skin.
+  bodyColorPool: ['light', 'ivory', 'porcelain', 'peach'],
+  // Hair: ONLY the holy/ethereal REVISED tones (user-locked list). blonde/
+  // platinum/white/pink are ulpc; the rest are revised colors merged into the
+  // hair palette: ivory/porcelain/peach/amethyst/beige/apricot/cerise/ice/
+  // lavender/linen/sky/yellow.
+  hairColorPool: [
+    'blonde', 'platinum', 'white', 'pink', 'ivory', 'porcelain', 'peach',
+    'amethyst', 'beige', 'apricot', 'cerise', 'ice', 'lavender', 'linen',
+    'sky', 'yellow',
   ],
-  // Holy CLOTH tones (drives the slit dress + cloth arms; gold comes from metal).
-  clothColorPool: ['white', 'white', 'sky', 'lavender', 'blue', 'rose', 'navy', 'teal'],
-  // Strappy celestial footwear. (Plated Toe was dropped — it's a metal-variant
-  // item with no cloth recolor, so the cloth-named feetColor below couldn't
-  // apply and it always baked a flat default-gray foot.)
-  feet: ['Sandals', 'Sandals', 'Sara Shoes', 'Sara Shoes'],
-  feetColor: ['white', 'tan', 'leather', 'gray', 'brown'],
-  arms: { items: ['Pauldrons', 'Mantal', 'Gloves'], chance: 0.5 },
-  // Gold/white circlet — the rest bare (long flowing hair).
+  // Half wear blessed PLATE (torso + metal greaves on legs + sabatons on feet);
+  // the other half wear a flowing celestial slit dress + sandals. EVERY valkyrie
+  // also wears metal bracers (the arms slot below). modesEven pins the split to
+  // the exact 50/50 weight (a plain weighted roll drifts off target).
+  modesEven: true,
+  modes: [
+    // Metal greaves ('Armour' legs) + sabatons ('Plated Toe' feet) are
+    // variant-PNG items that ship ONLY the ulpc metals (no rev_/white/ice/
+    // lavender PNGs), so they take a pale-metal VARIANT color here, while the
+    // palette-recolor Plate + Bracers follow the revised metalColor below.
+    { name: 'armored', weight: 0.5,
+      torso: ['Plate'],
+      legs: ['Armour'],     legsColor: ['silver', 'gold', 'brass', 'ceramic'],
+      feet: ['Plated Toe'], feetColor: ['silver', 'gold', 'brass', 'ceramic'] },
+    { name: 'dress', weight: 0.5,
+      torso: ['Slit dress'],
+      legs: [],
+      feet: ['Sandals', 'Sandals', 'Sara Shoes'],
+      feetColor: ['white', 'tan', 'leather', 'gray', 'sky', 'lavender'],
+      // ALL 24 slit-dress colors available (user-locked).
+      clothColorPool: [
+        'black', 'blue', 'bluegray', 'brown', 'charcoal', 'forest', 'gray',
+        'green', 'lavender', 'leather', 'maroon', 'navy', 'orange', 'pink',
+        'purple', 'red', 'rose', 'sky', 'slate', 'tan', 'teal', 'walnut',
+        'white', 'yellow',
+      ] },
+  ],
+  // Fallback cloth tones (armored mode has no cloth piece; dress mode overrides
+  // clothColorPool with the full 24-colour dress set above).
+  clothColorPool: ['white', 'sky', 'lavender', 'rose', 'teal'],
+  // EVERY valkyrie wears metal bracers (forearm guards) — palette-recolored to
+  // the holy metalColor below, so they match an armored valkyrie's plate.
+  arms: { items: ['Bracers'], chance: 1.0 },
+  // Gold/silver circlet on some.
   headwear: { items: ['Tiara'], chance: 0.5 },
-  headwearColor: ['gold', 'white', 'gray', 'lavender', 'sky'],
-  // Blessed radiant metal (LPC-revised holy finishes, shared with the Templar).
-  metalColorPool: ['white', 'rev_silver', 'pearl', 'gold', 'rev_gold', 'steel'],
+  headwearColor: ['gold', 'rev_gold', 'rev_silver', 'white', 'lavender', 'ice'],
+  // Blessed radiant metal — LPC REVISED holy finishes (drives Plate, Bracers,
+  // Tiara, shield trim). User-locked: silver/gold/white/brass/ice/lavender.
+  metalColorPool: ['rev_silver', 'rev_gold', 'white', 'brass', 'ice', 'lavender'],
   // WINGS on every valkyrie — pale natural feather tones only.
   accessory: [
     { items: ['Feathered Wings'], chance: 1.0, color: ['white', 'white', 'ash', 'gray', 'platinum', 'sandy'] },
   ],
-  // Dragon/long spear (oversize walk_128 carry → rendered via the 128px _walk128
-  // carry sheet; thrust_oversize → the _atk sheet) or a holy longsword (slash).
-  // Some sword-maidens carry a brown/silver round shield (the spear is two-handed,
-  // so shieldWeapons gates it to the Longsword).
+  // Holy longsword (slash) or a dragon/long spear (oversize). HALF carry a round
+  // shield in gold/yellow/silver — allowed for BOTH spear and sword users
+  // (user-locked; no shieldWeapons restriction).
   weapon: { items: ['Dragon spear', 'Long spear', 'Longsword'], chance: 1.0 },
-  sometimesShield: 0.3,
+  sometimesShield: 0.5,
   shieldTypes: ['round'],
-  roundShieldColors: ['brown', 'silver'],
-  shieldWeapons: ['Longsword'],
+  roundShieldColors: ['gold', 'yellow', 'silver'],
 }
 
 // ============================================================
@@ -1567,13 +1599,13 @@ POOLS.peasant = {
     items: ['Scythe', 'Scythe', 'Scythe', 'Spear', 'Spear', 'Spear', 'Thrust', 'Thrust', 'Thrust'],
     chance: 1.0,
   },
-  // Lock each Thrust peasant to ONE hand tool so it stays the same across every
-  // animation row AND agrees between the base bake and bake-weapons (their
-  // pickers differ — an unlocked Thrust could show a shovel in the base sheet
-  // but get re-rolled to a hoe by the weapon pass). Ignored for Scythe (single
-  // 'scythe' variant) + Spear (its metal tines pick by hash; 'hoe' etc. aren't
-  // valid Spear variants so the lock is skipped there).
-  weaponColor: ['hoe', 'shovel', 'watering'],
+  // 'metal' ties the weapon tint to the rustic metalColorPool above. The Spear
+  // (pitchfork) ships all 8 metal variants, so its tines now follow the metal
+  // (iron/steel/bronze/copper) instead of the old fixed brass default. The
+  // Scythe (single 'scythe' variant) and the carried Thrust hand-tool (hoe/
+  // shovel/watering — no metal variant) fall back DETERMINISTICALLY to their
+  // first PNG, so the base bake + bake-weapons still agree (no flicker).
+  weaponColor: 'metal',
 }
 
 // ============================================================
@@ -1666,14 +1698,18 @@ POOLS.gladiator = {
   // random pick — the user didn't want any one colour dominating (a plain random
   // draw had given bronze 26 vs ceramic 13). See the stratified bag in the baker.
   metalColorEven: true,
-  // One-handed gladius ONLY (Arming Sword slash_128 / Saber slash_oversize) so
-  // EVERY gladiator can carry the shield. (Spear dropped — two-handed.)
-  weapon: { items: ['Arming Sword', 'Arming Sword', 'Saber', 'Saber'], chance: 1.0 },
-  // Blade matches the armour metal (no copper — metalColorPool excludes it) and
-  // stays on ONE variant PNG across base + _atk so the gladius doesn't flicker.
-  // (Saber ships a single 'saber' variant → unaffected; it palette-swaps to the
-  // same metalColor anyway.)
-  weaponColor: 'metal',
+  // One-handed gladius ONLY so EVERY gladiator can carry the shield. Arming
+  // Sword is the LONE one-handed sword with full metal-variant PNGs (Saber ships
+  // a single fixed 'saber' tint that ignores weaponColor → it baked one steel
+  // blade regardless of armour, so it's dropped here), so the gladius now always
+  // matches the armour metal.
+  weapon: { items: ['Arming Sword'], chance: 1.0 },
+  // Blade must NOT match the armour metal (user-locked). The armour metalColorPool
+  // is {bronze, iron, steel, gold, ceramic}; this weapon pool is DISJOINT from it
+  // (silver/copper/brass — all valid Arming Sword variants, none in the armour
+  // set), so the gladius can never share the armour's finish. Silver-leaning for a
+  // clean polished-steel blade that contrasts the warm Legion bronze/gold.
+  weaponColor: ['silver', 'silver', 'silver', 'copper', 'brass'],
   // EVERY gladiator carries the round bronze Spartan hoplon. (Scutum dropped —
   // undecorated cream; kite dropped — user wants the Spartan on all.)
   alwaysShield: true,
@@ -1740,11 +1776,25 @@ POOLS.gambler = {
         female: { items: [], chance: 0 },
       },
       torsoOverlayColor: ['maroon', 'red', 'forest', 'navy', 'purple', 'teal', 'charcoal', 'black', 'white'] },
+    // GOWN — a femme-fatale card sharp in an elegant floor-length dress (user
+    // asked for "some female gamblers dresses"). FEMALE-ONLY (bodyTypeWeights
+    // forces female), no pants under the gown (legs:[]), no overlay. The dress
+    // takes the dark suit clothColor; she keeps the unisex bling (cravat/monocle/
+    // necklace/ring) and stays hatless like every female gambler.
+    { name: 'gown', weight: 0.3, bodyTypeWeights: { female: 1 },
+      torso: ['Slit dress', 'Slit dress', 'Sash dress'],
+      torsoOverlay: { items: [], chance: 0 },
+      legs: [] },
   ],
   legs: ['Formal Pants', 'Striped Formal Pants'], // legsColor falls back to clothColor → matched trousers
   feet: ['Revised Shoes', 'Basic Shoes'],
   feetColor: ['black', 'black', 'walnut', 'leather', 'brown'],
-  headwear: { items: ['Formal Tophat', 'Formal Tophat', 'Formal Tophat', 'Formal Bowler Hat'], chance: 1.0 },
+  // Tophat / bowler on the gentlemen; female sharps go HATLESS (user-locked) so
+  // their hair shows — body-gated (resolveBodyPool).
+  headwear: {
+    male:   { items: ['Formal Tophat', 'Formal Tophat', 'Formal Tophat', 'Formal Bowler Hat'], chance: 1.0 },
+    female: { items: [], chance: 0 },
+  },
   headwearColor: ['black', 'black', 'charcoal', 'navy', 'maroon', 'walnut'],
   // Neck + jewelry as INDEPENDENT accessory groups. Cravat/Jabot ALWAYS (the
   // dapper neckwear, zPos 90); a glint of GOLD (stud earring) on some.

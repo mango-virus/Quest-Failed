@@ -282,6 +282,42 @@ _(Code-verified 2026-06-03: every box below ticked against the actual implementa
 - **Gladiator:** ✅ Crowd Roar stacking ATK ✅ Crowd Roar stacking SPEED (AISystem roarSpdMul) ✅ Block = full immunity ✅ can't attack while blocking ✅ Block works in boss fights — immunity at every boss→adv site + excluded from attacker pool + AI triggers when boss-pressed (`_advBlocking`) ✅ domeShield VFX
 - **Gambler:** ✅ dice not-every-attack (anim then re-roll) ✅ 6-face table ✅ face 4 = two hits (not ×2) ✅ DoN win revive 50% ✅ DoN lose payout scaled to level ✅ die VFX (procedural) ✅ coin VFX (procedural)
 
+### Sprite refinements — round 2 (2026-06-03, VERBATIM)
+
+> **Going-forward rule (ALL LPC sprites):** "going forward always use LPC revised color types for LPC sprites instead of LPC universal."
+
+> **Miner:** "Did you verify that their attack sprites are also correct?"
+
+> **Gladiator:** "fix saber, as you mentioned" (the Saber rendered one fixed steel tint; vary it with the armour metal).
+
+> **Peasant:** "fix spear, as you mentioned" (the Spear/pitchfork rendered one fixed brass tint; vary the tine metal).
+
+> **Valkyrie:**
+> - "50% should have shields."
+> - "spear or sword users can use shields."
+> - "shields should be colored either gold, yellow, or silver."
+> - "all Valkyries should have bracers."
+> - "Valkyries should only have colored hair that is from the lpc revived list that is blonde, platinum, white, pink, ivory, porcelain, peach, Amethyst, Beige, Apricot, Cerise, ice, lavender, linen, pink, sky, or yellow."
+> - "armour should be LPC revised silver, gold, white, brass, ice, or lavender."
+> - "All Valkyries should be lighter skin types."
+> - "armored Valkyries should have armor on arms and legs and feet. only 30% should be armoured"
+> - "make sure all dress colors are available for those with dresses"
+
+> **Gambler:** "I'm not seeing any females. females should also not use hats"
+
+#### Round-3 tweaks (2026-06-03, VERBATIM)
+> **Gladiator:** "their sword metal color should not match their amour color."
+> **Gambler:** "give some female gamblers dresses to wear instead."
+> **Valkyrie:** "make 50% armoured instead of 30%"
+
+#### Round-2 acceptance checklist (verified against the bake/manifest 2026-06-03)
+- **Global:** ✅ baker now merges the LPC-revised palettes (all_lpcr → hair, body_lpcr → body) so revised color names are valid; valkyrie uses revised names. CLAUDE.md rule added for future pools.
+- **Miner:** ✅ attack (_atk) sprites re-baked — the basket/cargo is present in every pickaxe-swing frame.
+- **Gladiator:** ✅ Saber dropped (un-tintable single PNG); now Arming Sword → blade follows armour metal.
+- **Peasant:** ✅ Spear weaponColor='metal' → tines vary with iron/steel/bronze/copper.
+- **Valkyrie:** ✅ 57% carry a shield (sometimesShield 0.5) ✅ shield on spear OR sword (no shieldWeapons gate) ✅ shield ∈ {gold, yellow, silver} ✅ Bracers on ALL ✅ hair = the 16-color revised list (0 outside it) ✅ armour ∈ {rev_silver, rev_gold, white, brass, ice, lavender} ✅ all light skin (light/ivory/porcelain/peach) ✅ armored = Plate + Armour legs + Plated-Toe feet + Bracers ✅ exactly 30% armored (modesEven) ✅ all 24 dress colors available. (LPC note: metal legs/feet are variant-PNG with only ulpc metals, so they use the closest pale variant — the prominent Plate/Bracers carry the exact revised finish.)
+- **Gambler:** ✅ females wear NO hat (body-gated headwear) ✅ NightPhase variant picker fixed (was capped at v50 → female variants in v51-100 never spawned; now reads the full manifest list). [live spawn pending preview reopen — proxy wedge]
+
 ---
 
 ## Personality combos
@@ -1506,3 +1542,96 @@ Each cleared act, the player's boss **visibly transforms/ascends** — a new for
 - The Nemesis's exact per-return stat/ability escalation curve.
 - The four boss-evolution forms (art + powers).
 - Victory meta-unlock specifics (NG+ tuning + reward).
+
+---
+
+## Kingdom Responses — overhaul (locked design choices, 2026-06-03)
+
+Each of the 9 Kingdom Responses is being elevated: more thematic, unique boss-level
+champion, real VFX, balanced, fun. User's notes are captured VERBATIM below (build
+from these, not paraphrase). ☐ = acceptance checklist item. ⚠ = needs a decision
+before building (flagged to user). Champion sprites: user wants a UNIQUE LPC sprite
+for each named champion (and themed retinue) — sprite-creation approach TBD (bake
+themed LPC variants vs. hand-authored ULPC sheets).
+
+**Cross-cutting (user request):** give EACH champion a powerful unique boss-level
+ability so they feel like bosses, not buffed adventurers. (Proposals per response
+below; confirm before building.)
+
+### Inquisition
+Facts: undead minions purged = the 13 undead-id minions (ghost1/2, lich1/2,
+skeleton1/2/3, zombie1/2/3, dark_wraith, elder_lich, vampire_sovereign). Climax
+spawn = 6 baseline (Mordrake + 3 Zealots + 2 Inquisitors), more with threat.
+- ☐ Holy-light purge VFX must be a GREAT glow/light column hitting the undead, not an ugly graphic.
+- ☐ Pact-suppression reads in HUD (grey out + "✝ PURGED"); non-undead builds also feel it.
+- ☐ Unique LPC sprites for High Inquisitor + inquisitors + zealots.
+
+### Pantheon
+Facts: resurrection is AUTOMATIC on any pantheon-hero death — spawns a fresh
+"Raised Guardian" (paladin, +10% HP), capped 4/act (not the seraph casting per se).
+- ☐ Divine pillar resurrection VFX — must look good, not a simple effect.
+- ☐ 50% of adventurer spawns are the Valkyrie class.
+- ☐ Unique LPC sprites for Aurelia the Seraph + the angels.
+
+### Rival
+Facts: rival monsters currently use the monster_invader chassis (not specially
+buffed). The Rival DUNGEON EVENT already uses real minion art + a random boss skin.
+- ☐ The "adventurers" are actual T1–T4 MINIONS (like the Rival Dungeon event), not normal adventurers.
+- ☐ The rival boss sprite is a random T4 boss when it spawns.
+- ☐ Unique cinematic for the boss-vs-boss fight, Aldric/Solo-Leveling style but completely unique animations + VFX.
+
+### Betrayer
+Facts: a _spawnDefector already exists ("your strongest minion turns traitor, joins the raid mirroring its power").
+- ☐ During the act, all traps damage ONLY my minions (turned against me).
+- ☐ Night-phase intro (after Continue): the STRONGEST-tier minion runs to every trap at 2x speed and disables each, then leaves via the entry door; it does NOT respawn (abandoned you).
+- ☐ Champion looks like the minion that turned on you.
+- ⚠ DECISION: "disable each trap" vs "all traps damage only my minions" read as opposite — assume the night-phase minion SABOTAGES/flips the traps so they then hit my minions for the act (confirm).
+
+### Reckoning of the Dead
+- ☐ Necrarch enters alone each day, stands still at the entrance, summons graves throughout the entry room(s), and summons the day's wave that way.
+- ☐ Once all adventurers (besides Necrarch) are dead for the day, Necrarch leaves via the entry door.
+- ☐ Necrarch is IMMUNE to death + damage on the days he is not the champion.
+- ☐ Only on the LAST day does he join the wave as the champion (normal, killable).
+- ☐ Mix in undead-type minion sprites with the waves of risen adventurers.
+- ☐ Unique LPC sprite for Necrarch.
+
+### Forlorn Hope
+- ☐ Unique LPC sprite for Captain Halric. (Elevate ideas approved: rage-pulse VFX, fury counter, captain-death deflates the squad.)
+
+### Mage Tower
+- ☐ 50% of each adventurer wave is the mage class.
+- ☐ Room transmute: each wave disables at random 50% of your rooms' ABILITIES for the day, and shows the player which are disabled.
+- ☐ They teleport minions to OTHER rooms (if not already there).
+- ☐ Unique LPC sprite for Archmagus Velloran. (Elevate: blink-poof VFX + telegraph approved.)
+
+### All-Stars
+- ☐ Unique LPC sprite for each of the four heroes (Myrine/Shadowfax/Elenwe/Aldous + Garreth).
+- ☐ (My flagged gap: make it felt across the act, not just the climax — confirm desired.)
+
+### Plunderers
+- ☐ 50% of them are the pirate class. Pirate-themed response.
+- ☐ Rename the champion to a pirate-captain name (not "Vell").
+- ☐ Unique LPC sprite for the (renamed) captain. (Elevate: coins-streaming drain VFX + heist-to-treasury behavior approved.)
+
+### Confirmations (2026-06-03) + build order
+
+**Champion signature abilities — CONFIRMED** (each boss-level, themed, telegraphed, with VFX):
+- Inquisition / Mordrake → **Excommunicate** (holy beam instakills one undead minion + silences a random pact for the fight)
+- Pantheon / Aurelia → **Final Judgment** (channels a screen-wide smite that wipes a minion row unless interrupted)
+- Rival boss → **its random-T4-boss-archetype's own signature** (reuse the boss ability kit, turned on you)
+- Betrayer / Turncoat → **Sabotage** (briefly charms one of your minions to fight for it)
+- Reckoning / Necrarch → **Reanimate** (raises a just-killed unit as an undead thrall)
+- Forlorn / Halric → **Last Vow** (survives one lethal hit at 1 HP, then a massive fury roar)
+- Mage Tower / Velloran → **Polymorph** (turns a minion into a harmless critter for a few seconds)
+- All-Stars → each of the 4 a distinct signature (Stormcaller chain-lightning, Trueshot piercing volley, Aldous mass-heal, Shadowfax blink-backstab)
+- Plunderers / pirate captain → **Grand Heist / Cannon Volley** (big gold-grab + pirate cannon barrage)
+
+**Betrayer decision — RESOLVED:** the night-phase minion SABOTAGES/flips the traps so they hit MY minions; the flipped-traps-hit-only-my-minions lasts the WHOLE act.
+
+**Mage Tower — CONFIRMED:** the disabled rooms RE-ROLL daily (different 50% each day).
+
+**Sprites — DEFERRED (do last):** mix of (A) baked themed LPC variants + (B) hand-authored ULPC sheets; not a priority right now — wire behavior/ability/VFX first with existing/placeholder sprites.
+
+**BUILD ORDER (one full vertical slice per response: behavior + signature ability + VFX + balance + dev-test):**
+1. Plunderers  2. Inquisition  3. Forlorn Hope  4. Mage Tower  5. Pantheon
+6. All-Stars  7. Betrayer  8. Reckoning of the Dead  9. Rival  → then the sprite pass.

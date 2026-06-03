@@ -113,6 +113,34 @@ const CLOTH_ALL = CLOTH_PALETTE ? Object.keys(CLOTH_PALETTE.options) : [];
 // Metal: 8 finishes — all valid for armor/weapons.
 const METAL_ALL = METAL_PALETTE ? Object.keys(METAL_PALETTE.options) : [];
 
+// ── LPC REVISED palette merge for HAIR + BODY ───────────────────────────────
+// Project rule (2026-06-03): prefer the LPC *revised* palette over Universal.
+// The baker loads the _ulpc ramps above; here we ADD the revised ramps (ivory,
+// porcelain, peach, amethyst, cerise, apricot, beige, linen, ice, lavender,
+// sky, yellow, …) into the palette OPTIONS so pools can request them BY NAME.
+// We add only keys NOT already present (never clobber a ulpc ramp other classes
+// rely on), and run this AFTER the *_ALL snapshots above so the DEFAULT pools
+// (HAIR_ALL / BODY_NATURAL) stay ulpc-only — existing classes are unaffected;
+// only a pool that explicitly names a revised color opts in. Same index-based,
+// length-matched mechanism as mergeRevisedMetals().
+function mergeRevisedInto(PAL, relParts) {
+  if (!PAL) return;
+  const n = PAL.baseRgb.length;
+  let src;
+  try { src = JSON.parse(fs.readFileSync(path.join(lpcRoot, 'palette_definitions', ...relParts), 'utf8')); }
+  catch (e) { return; }
+  for (const [key, ramp] of Object.entries(src)) {
+    if (key in PAL.options) continue;                 // keep the existing ulpc ramp
+    if (Array.isArray(ramp) && ramp.length === n) PAL.options[key] = ramp.map(hexToRgb);
+  }
+}
+// Hair: the revised "all" set adds pale/fantasy tones by name (ivory/porcelain/
+// peach/amethyst/cerise/apricot/beige/linen/ice/lavender/sky/yellow/…).
+mergeRevisedInto(HAIR_PALETTE, ['all', 'all_lpcr.json']);
+// Body/skin: the revised body tones add ivory/porcelain/peach/tan/… so a pool
+// can ask for pale revised skin, not just ulpc 'light'.
+mergeRevisedInto(BODY_PALETTE, ['body', 'body_lpcr.json']);
+
 // Shield colour vocabularies (used by the shield picker in sampleVariant).
 // Round Shield ships fixed colour-variant PNGs (brown/black/gold/green/silver/
 // yellow). The Heater Shield Paint face uses its own large palette — only the
