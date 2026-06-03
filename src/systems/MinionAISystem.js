@@ -310,6 +310,10 @@ export class MinionAISystem {
     // Player is dragging this minion to a new tile — suspend AI until drop.
     if (minion._heldByPlayer) return
 
+    // Mage Tower POLYMORPH — a minion turned into a harmless critter just idles
+    // (no targeting, no movement) until the transmute expires.
+    if (minion._polymorphed) return
+
     // Phase 1b.8 — Wraith Haunt ghosts are owned by BossArchetypeSystem's
     // _tickHauntGhosts (wall-phase lerp + melee engage). Letting the regular
     // minion AI also process them causes conflicting per-frame tile-coord

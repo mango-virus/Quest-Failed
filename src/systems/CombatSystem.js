@@ -57,6 +57,9 @@ export class CombatSystem {
     // calls tryAttack(healer, …) it short-circuits here. Generic enough for
     // any future "never-attacks" adventurer / minion to use the same flag.
     if (attacker._neverAttacks) return null
+    // Mage Tower POLYMORPH — a minion turned into a harmless critter can't swing
+    // until the transmute expires (KingdomModifierSystem clears the flag).
+    if (attacker._polymorphed) return null
     // Invulnerability — Light Party's Hallowed Ground (tank self-cast at
     // <30% HP) and Stronghold (Tank LB party-wide) both set target._invuln
     // for a short window. Damage is fully suppressed: no hit registered,

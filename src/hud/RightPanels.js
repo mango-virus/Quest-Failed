@@ -1145,6 +1145,14 @@ export class RightPanels {
     sub('MAGE_SUMMON', () => {
       this._addLogCoalesced('The archmages summon an arcane construct.', 'mage', 'MAGE_SUMMON', null)
     })
+    // Mage Tower transmute — the day's rooms whose magic was sealed (re-rolls daily).
+    sub('MAGE_TRANSMUTE', ({ count, total } = {}) => {
+      if (count > 0) this._addLog(`Arcane transmutation SEALS ${count} of your ${total} rooms today — their magic is dead!`, 'mage')
+    })
+    // Mage Tower — Velloran's Polymorph turns one of your minions into a critter.
+    sub('MINION_POLYMORPHED', ({ name } = {}) => {
+      this._addLog(`${name || 'A minion'} is POLYMORPHED into a harmless critter!`, 'mage')
+    })
     // Pantheon (KR P4) — holy aura sears minions (coalesced) + the seraph's raises.
     sub('PANTHEON_AURA', ({ seared } = {}) => {
       if (seared > 0) this._addLogCoalesced('Holy ground sears your minions!', 'pantheon', 'PANTHEON_AURA', null)

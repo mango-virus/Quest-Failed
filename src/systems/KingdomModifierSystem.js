@@ -60,6 +60,14 @@ const FORLORN_AURA_R_PER_STACK = 5
 const MAGE_BLINK_INTERVAL  = 6500
 const MAGE_SUMMON_INTERVAL = 8500
 const MAGE_SUMMON_CAP      = 6     // live arcane constructs at once
+// Mage Tower transmute — each COMBAT day, ~half your ability rooms are sealed
+// (their special function disabled via the existing room.isActive gate, which the
+// renderer already dims) and the pick RE-ROLLS the next day. Boss room excluded.
+const MAGE_TRANSMUTE_FRACTION = 0.5
+const MAGE_ABILITY_ROOM_CATS  = new Set(['special', 'combat', 'utility', 'trap'])
+// Polymorph — Archmagus Velloran's signature: a minion is turned into a harmless
+// critter (can't attack or move) for a few seconds, then poofs back.
+const MAGE_POLY_MS = 5200
 
 // Pantheon — a holy AURA around the angels (heal heroes / sear your minions) +
 // the seraph resurrecting the fallen a limited number of times per raid.
@@ -99,11 +107,21 @@ export class KingdomModifierSystem {
     EventBus.on('DEV_TEST_ASCENSION', this._onDevTestAscension, this)
     // Plunderers (KR P5) — a fled thief absconds with a heist purse.
     EventBus.on('ADVENTURER_FLED', this._onAdventurerFled, this)
+    // Mage Tower (KR overhaul) — room transmute: seal ~half your ability rooms
+    // at the start of each combat day (gated on the mage_tower act), re-rolled
+    // daily; restored at night so the build phase is clean.
+    EventBus.on('DAY_PHASE_STARTED', this._onMageDayStart, this)
+    EventBus.on('NIGHT_PHASE_STARTED', this._onMageNightStart, this)
   }
 
   destroy() {
     EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
     EventBus.off('FORLORN_LAST_VOW', this._onForlornLastVow, this)
+    EventBus.off('DAY_PHASE_STARTED', this._onMageDayStart, this)
+    EventBus.off('NIGHT_PHASE_STARTED', this._onMageNightStart, this)
+    this._mageRestoreRooms()
+    this._mageSealG?.destroy(); this._mageSealG = null
+    this._polyG?.destroy(); this._polyG = null
     EventBus.off('ACT_STARTED', this._onActStarted, this)
     EventBus.off('DEV_TEST_ASCENSION', this._onDevTestAscension, this)
     EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
@@ -353,6 +371,8 @@ export class KingdomModifierSystem {
     if (!wave) {
       this._pantheonG?.clear(); this._allStarG?.clear(); this._forlornG?.clear()
       this._forlornCounter?.setVisible(false)
+      this._mageSealG?.clear(); this._polyG?.clear()
+      if (this._polyTags) for (const t of this._polyTags.values()) t.setVisible(false)
       return
     }
     // Boss ascension dark aura — present in every ascended act (II+), regardless
@@ -379,6 +399,11 @@ export class KingdomModifierSystem {
     if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
     if (resp !== 'all_stars' && this._allStarG) this._allStarG.clear()
     if (resp !== 'forlorn_hope' && this._forlornG) { this._forlornG.clear(); this._forlornCounter?.setVisible(false) }
+    if (resp !== 'mage_tower' && this._mageSealG) this._mageSealG.clear()
+    if (resp !== 'mage_tower' && this._polyG) {
+      this._polyG.clear()
+      if (this._polyTags) for (const t of this._polyTags.values()) t.setVisible(false)
+    }
   }
 
   // ── Plunderers (KR P5 response) ─────────────────────────────────────────────
@@ -444,9 +469,14 @@ export class KingdomModifierSystem {
     if (this._champSeenAt == null) { this._champSeenAt = now; this._champAbilityAt = now + CHAMP_ABILITY_FIRST_MS }
     if (now < (this._champAbilityAt ?? 0)) return
     this._champAbilityAt = now + CHAMP_ABILITY_CD_MS
-    switch (resp) {
+    // Dispatch on the CHAMPION's own response, not the ambient act response — so a
+    // dev-spawned raid (which doesn't set meta.act.responses) still fires the right
+    // signature. In a real act the two are identical.
+    const sig = champ._championResponseId || resp
+    switch (sig) {
       case 'plunderers':  this._champGrandHeist(champ);   break
       case 'inquisition': this._champExcommunicate(champ); break
+      case 'mage_tower':  this._champPolymorph(champ);     break
       // (other champions' signatures added per response slice)
     }
   }
@@ -711,24 +741,203 @@ export class KingdomModifierSystem {
     if (!now) return
     if (now - (this._mageBlinkAt ?? 0) > MAGE_BLINK_INTERVAL)  { this._mageBlinkAt = now;  this._mageBlink() }
     if (now - (this._mageSummonAt ?? 0) > MAGE_SUMMON_INTERVAL) { this._mageSummonAt = now; this._mageSummon() }
+    this._tickMageSealVfx()   // arcane rune shimmer over the transmuted rooms
+    this._tickPolymorphVfx()  // critter bubble over any polymorphed minion
   }
 
-  // Blink — the archmages teleport your minions out of position: swap two random
-  // living minions' tiles so the formation you carefully placed scrambles.
+  // Blink — the archmages teleport a minion OUT of position into a different room.
+  // Prefer a partner in another room so the swap genuinely relocates both across
+  // the dungeon (the "teleport minions to other rooms" gimmick); fall back to any
+  // pair. Violet poofs telegraph the depart + arrival at both endpoints.
   _mageBlink() {
-    const minions = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0)
-    if (minions.length < 2) return
-    const i = Math.floor(Math.random() * minions.length)
-    let j = Math.floor(Math.random() * minions.length)
-    if (j === i) j = (j + 1) % minions.length
-    const a = minions[i], b = minions[j]
-    for (const k of ['tileX', 'tileY', 'worldX', 'worldY']) {
-      const t = a[k]; a[k] = b[k]; b[k] = t
-    }
+    const sc = this._scene
+    const live = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0)
+    if (live.length < 2) return
+    const grid = sc?.dungeonGrid
+    const roomOf = m => grid?.getRoomAtTile?.(m.tileX, m.tileY)?.instanceId ?? null
+    const a = live[Math.floor(Math.random() * live.length)]
+    const ra = roomOf(a)
+    const others = live.filter(m => m !== a)
+    const diff = others.filter(m => roomOf(m) !== ra)
+    const pool = diff.length ? diff : others
+    const b = pool[Math.floor(Math.random() * pool.length)]
+    // Depart poof at each minion's current spot.
+    this._blinkPoof(a.worldX, a.worldY)
+    this._blinkPoof(b.worldX, b.worldY)
+    for (const k of ['tileX', 'tileY', 'worldX', 'worldY']) { const t = a[k]; a[k] = b[k]; b[k] = t }
     // Drop stale paths so each minion re-paths cleanly from its new tile (else it
     // snaps back toward its old position — reads as a glitch, not a teleport).
     a.path = null; a.pathIndex = 0; b.path = null; b.pathIndex = 0
+    // Arrival poof at the new spots a beat later.
+    sc?.time?.delayedCall?.(120, () => { this._blinkPoof(a.worldX, a.worldY); this._blinkPoof(b.worldX, b.worldY) })
     EventBus.emit('MAGE_BLINK', { a: a.name, b: b.name })
+  }
+
+  // A compact violet teleport poof (arcane circle + sparkle puff + ring).
+  _blinkPoof(x, y) {
+    const sc = this._scene
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return
+    AbilityVfx.magicCircle?.(sc, x, y, { color: 0x9a7cf0, radius: 26, durationMs: 420 })
+    AbilityVfx.particleBurst?.(sc, x, y, { color: 0xb9a4ff, count: 12, speed: 120, durationMs: 420 })
+    AbilityVfx.pulseRing?.(sc, x, y, { color: 0x8a9cf0, fromR: 4, toR: 28, alpha: 0.85, durationMs: 380 })
+  }
+
+  // ── Mage Tower room transmute ───────────────────────────────────────────────
+  // The placed rooms that HAVE an ability worth sealing (special/combat/utility/
+  // trap categories; never the boss room or pure-structural starters).
+  _mageAbilityRooms() {
+    const rooms = this._gs.dungeon?.rooms ?? []
+    const defs  = this._scene?.cache?.json?.get?.('rooms') ?? []
+    const cat   = new Map(defs.map(d => [d.id, d.category]))
+    return rooms.filter(r =>
+      r.definitionId !== 'boss_chamber' &&
+      MAGE_ABILITY_ROOM_CATS.has(cat.get(r.definitionId)))
+  }
+
+  // Restore every room this system sealed (idempotent — safe to call any time).
+  _mageRestoreRooms() {
+    for (const r of (this._gs.dungeon?.rooms ?? [])) {
+      if (r._arcaneSealed) { r.isActive = true; r._arcaneSealed = false }
+    }
+    this._mageSealG?.clear()
+  }
+
+  // Day start — if the Mage Tower act is governing, re-roll the transmute: restore
+  // yesterday's seals, then seal a fresh random ~50% of the ability rooms (their
+  // special function goes dark; the renderer dims them) and announce which.
+  _onMageDayStart() {
+    this._mageRestoreRooms()
+    if (currentActResponseId(this._gs) !== 'mage_tower') return
+    const pool = this._mageAbilityRooms()
+    if (pool.length === 0) return
+    // Shuffle, take ceil(fraction) — at least one when any ability room exists.
+    const shuffled = pool.slice()
+    for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]] }
+    const n = Math.max(1, Math.round(pool.length * MAGE_TRANSMUTE_FRACTION))
+    const sealed = shuffled.slice(0, n)
+    const names = []
+    for (const r of sealed) {
+      r.isActive = false
+      r._arcaneSealed = true
+      names.push(r.name || r.definitionId)
+      // A transmute poof at the room centre so the seal reads as arcane, not a bug.
+      this._sealPoof(r)
+    }
+    EventBus.emit('MAGE_TRANSMUTE', { sealed: names, count: sealed.length, total: pool.length })
+  }
+
+  // Night start — clear the day's seals so the build phase is un-dimmed (and the
+  // act-end transition naturally restores everything via the same path).
+  _onMageNightStart() { this._mageRestoreRooms() }
+
+  // World-pixel centre of a room (tile coords × TILE).
+  _roomCenterPx(r) {
+    return {
+      x: (r.gridX + (r.width  ?? 1) / 2) * TILE,
+      y: (r.gridY + (r.height ?? 1) / 2) * TILE,
+    }
+  }
+
+  // One-shot arcane seal burst when a room is transmuted.
+  _sealPoof(r) {
+    const sc = this._scene
+    const { x, y } = this._roomCenterPx(r)
+    AbilityVfx.magicCircle?.(sc, x, y, { color: 0x8a9cf0, radius: 46, durationMs: 900 })
+    AbilityVfx.runeSigil?.(sc, x, y, { color: 0xb9a4ff, radius: 34, durationMs: 1000 })
+    AbilityVfx.particleBurst?.(sc, x, y, { color: 0x9a7cf0, count: 16, speed: 110, durationMs: 700 })
+    AbilityVfx.pulseRing?.(sc, x, y, { color: 0x8a9cf0, fromR: 8, toR: 52, alpha: 0.85, durationMs: 620 })
+  }
+
+  // Per-tick arcane shimmer over each sealed room so the "disabled" state reads as
+  // ongoing transmutation (a slow violet rune ring + drifting glyph motes) layered
+  // over the renderer's base dim.
+  _tickMageSealVfx() {
+    const sealed = (this._gs.dungeon?.rooms ?? []).filter(r => r._arcaneSealed)
+    if (sealed.length === 0) { this._mageSealG?.clear(); return }
+    const g = this._mageSealG ?? (this._mageSealG = this._scene.add.graphics().setDepth(1.7))
+    g.clear()
+    const now = this._scene.time?.now ?? 0
+    const pulse = 0.5 + 0.5 * Math.sin(now / 520)
+    const rot = now / 2600
+    for (const r of sealed) {
+      const { x, y } = this._roomCenterPx(r)
+      const R = 22 + 6 * pulse
+      g.lineStyle(2, 0x9a7cf0, 0.35 + 0.3 * pulse)
+      g.strokeCircle(x, y, R)
+      g.lineStyle(1.5, 0xb9a4ff, 0.25 + 0.25 * pulse)
+      g.strokeCircle(x, y, R * 0.62)
+      // Six glyph motes orbiting the seal.
+      for (let i = 0; i < 6; i++) {
+        const ang = rot + i * (Math.PI / 3)
+        const mx = x + Math.cos(ang) * R, my = y + Math.sin(ang) * R
+        g.fillStyle(0xd6c8ff, 0.5 + 0.4 * pulse)
+        g.fillCircle(mx, my, 1.8)
+      }
+    }
+  }
+
+  // ── Polymorph (Velloran's signature) ────────────────────────────────────────
+  // Turn a random living minion into a harmless critter for a few seconds: it
+  // can't attack (CombatSystem gate) or move (MinionAISystem gate). A poof in,
+  // a floating critter while it lasts, a poof back.
+  _champPolymorph(champ) {
+    const sc = this._scene
+    const live = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0 && !m._polymorphed)
+    if (!live.length) return
+    const target = live[Math.floor(Math.random() * live.length)]
+    const now = sc?.time?.now ?? 0
+    target._polymorphed = true
+    target._polyUntil = now + MAGE_POLY_MS
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'mage_tower', name: 'POLYMORPH', champion: champ?.name })
+    EventBus.emit('MINION_POLYMORPHED', { minionId: target.instanceId, name: target.name })
+    const x = target.worldX ?? 0, y = target.worldY ?? 0
+    AbilityVfx.magicCircle?.(sc, x, y, { color: 0x8a9cf0, radius: 40, durationMs: 700 })
+    AbilityVfx.runeSigil?.(sc, x, y, { color: 0xb9a4ff, radius: 30, durationMs: 760 })
+    AbilityVfx.particleBurst?.(sc, x, y, { color: 0x9a7cf0, count: 18, speed: 140, durationMs: 620 })
+    AbilityVfx.pulseRing?.(sc, x, y, { color: 0x8a9cf0, fromR: 6, toR: 46, alpha: 0.9, durationMs: 560 })
+    sc?.time?.delayedCall?.(MAGE_POLY_MS, () => {
+      if (!target._polymorphed) return
+      target._polymorphed = false
+      target._polyUntil = 0
+      const rx = target.worldX ?? x, ry = target.worldY ?? y
+      AbilityVfx.particleBurst?.(sc, rx, ry, { color: 0xb9a4ff, count: 12, speed: 120, durationMs: 460 })
+      AbilityVfx.pulseRing?.(sc, rx, ry, { color: 0x8a9cf0, fromR: 6, toR: 34, alpha: 0.85, durationMs: 420 })
+      EventBus.emit('MINION_POLYMORPH_END', { minionId: target.instanceId })
+    })
+  }
+
+  // Per-tick critter indicator over each polymorphed minion (a soft violet bubble
+  // + a hopping "🐑" tag), so the debuffed minion reads as a harmless critter even
+  // without a sprite swap (sprite-pass item).
+  _tickPolymorphVfx() {
+    const polys = (this._gs.minions ?? []).filter(m => m._polymorphed && (m.resources?.hp ?? 0) > 0)
+    if (polys.length === 0) {
+      this._polyG?.clear()
+      if (this._polyTags) { for (const t of this._polyTags.values()) t.destroy(); this._polyTags.clear() }
+      return
+    }
+    const g = this._polyG ?? (this._polyG = this._scene.add.graphics().setDepth(41))
+    g.clear()
+    this._polyTags ??= new Map()
+    const now = this._scene.time?.now ?? 0
+    const hop = Math.abs(Math.sin(now / 220)) * 5
+    const seen = new Set()
+    for (const m of polys) {
+      const x = m.worldX ?? 0, y = m.worldY ?? 0
+      seen.add(m.instanceId)
+      g.fillStyle(0xb9a4ff, 0.16)
+      g.fillCircle(x, y - 4, 13)
+      g.lineStyle(1.5, 0x9a7cf0, 0.6)
+      g.strokeCircle(x, y - 4, 13)
+      let tag = this._polyTags.get(m.instanceId)
+      if (!tag) {
+        tag = this._scene.add.text(0, 0, '🐑', { fontSize: '14px' }).setOrigin(0.5).setDepth(42)
+        this._polyTags.set(m.instanceId, tag)
+      }
+      tag.setVisible(true).setPosition(x, y - 20 - hop)
+    }
+    // Drop tags for minions that reverted/died.
+    for (const [id, tag] of this._polyTags) { if (!seen.has(id)) { tag.destroy(); this._polyTags.delete(id) } }
   }
 
   // Summon — the mages conjure an arcane construct that joins the assault

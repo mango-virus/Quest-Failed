@@ -50,6 +50,7 @@ const VANGUARD = {
 // thieves — they drain + heist). Per-response entries filled in as each slice ships.
 const KR_THEMED_WAVE = {
   plunderers: { classId: 'pirate', flags: ['plundererThief'], pct: 0.5 },
+  mage_tower: { classId: 'mage',   flags: [],                 pct: 0.5 },
 }
 
 export class DayPhase extends Phaser.Scene {

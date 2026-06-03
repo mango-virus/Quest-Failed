@@ -1600,10 +1600,11 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - ☑ Mechanics+VFX SHIPPED 2026-06-03 — see "Forlorn Hope — SHIPPED (slice #3 of 9)" below for the full ticked checklist (rage-pulse, growing crimson aura, fury counter, oath-break rout, LAST VOW death-save). Sprite still deferred.
 
 ### Mage Tower
-- ☐ 50% of each adventurer wave is the mage class.
-- ☐ Room transmute: each wave disables at random 50% of your rooms' ABILITIES for the day, and shows the player which are disabled.
-- ☐ They teleport minions to OTHER rooms (if not already there).
+- ☑ 50% of each adventurer wave is the mage class.
+- ☑ Room transmute: each wave disables at random 50% of your rooms' ABILITIES for the day, and shows the player which are disabled. (reroll daily — confirmed)
+- ☑ They teleport minions to OTHER rooms (if not already there).
 - ☐ Unique LPC sprite for Archmagus Velloran. (Elevate: blink-poof VFX + telegraph approved.)
+- ☑ Mechanics+VFX SHIPPED 2026-06-03 — see "Mage Tower — SHIPPED (slice #4 of 9)" below for the full ticked checklist + the champion-dispatch fix. Sprite still deferred.
 
 ### All-Stars
 - ☐ Unique LPC sprite for each of the four heroes (Myrine/Shadowfax/Elenwe/Aldous + Garreth).
@@ -1663,3 +1664,13 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - ☐ Unique LPC sprite for Captain Halric (DEFERRED — sprite pass).
 - Verified: 34/34 isolation asserts (fury idempotency, living-only stacking, death routing, oath-break rout, Last-Vow roar, + the REAL CombatSystem death-save: first hit→1 HP + emits once, second hit kills, non-Last-Vow dies normally).
 - ⚠ BALANCE (eyeball): FORLORN_DEMORALIZE_MULT=0.6, LAST_VOW_STACKS=3, ATK/SPD per death 1.12/1.08 — tune after a live look.
+
+### Mage Tower — SHIPPED (mechanics+VFX, 2026-06-03) — slice #4 of 9
+- ☑ 50% mage themed wave (KR_THEMED_WAVE.mage_tower in DayPhase).
+- ☑ Room transmute — each COMBAT day, a random ~50% of your ABILITY rooms (special/combat/utility/trap categories; never the boss room or structural starters) are SEALED: their special function is disabled via the existing `room.isActive` gate (~30 read-sites already respect it; the renderer auto-dims the room). RE-ROLLS daily (restore-then-repick at DAY_PHASE_STARTED), restored at NIGHT so the build phase is clean. MAGE_TRANSMUTE event drives the HUD log ("which rooms"). + arcane seal-poof + per-tick violet rune shimmer over each sealed room.
+- ☑ Teleport minions to OTHER rooms — _mageBlink now prefers a partner in a DIFFERENT room so the swap relocates both across the dungeon; violet depart+arrival poofs at both endpoints.
+- ☑ Champion signature POLYMORPH (Velloran) — turns a random minion into a harmless critter for ~5.2s: it can't attack (CombatSystem `_polymorphed` gate) or move (MinionAISystem gate); poof-in + a floating "🐑" critter bubble + poof-back. MINION_POLYMORPHED/_END events.
+- ☑ Champion-ability dispatch hardened — `_tickChampionAbility` now dispatches on the champion's OWN `_championResponseId` (not the ambient act response), so a DEV-spawned raid card fires the right signature. **Fixes dev-card eyeballing for ALL champion abilities (Grand Heist / Excommunicate / Polymorph).**
+- ☐ Unique LPC sprite for Archmagus Velloran (DEFERRED — sprite pass). The "🐑" critter is a tag, not a sprite swap (also a sprite-pass item).
+- Verified: 26/26 isolation asserts (ability-room classification, 50% seal + boss/starter exclusion, non-mage-act no-op + restore, daily re-roll + night restore, polymorph flag+revert, REAL CombatSystem attack-gate, champion-response dispatch).
+- ⚠ BALANCE (eyeball): MAGE_TRANSMUTE_FRACTION=0.5, MAGE_POLY_MS=5200 — tune after a live look.
