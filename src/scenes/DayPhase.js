@@ -2540,6 +2540,40 @@ export class DayPhase extends Phaser.Scene {
       if (adv && bossSystem?._runNemesisDuel) bossSystem._runNemesisDuel(adv)
     }
 
+    // Mango dev — force the Acts I–III SCOUT Aldric right now (fired from the TEST
+    // EVENT dev modal) so his stalk-then-withdraw flow + per-act sprite/lines/
+    // glow/attack can be watched without grinding to an act-final day. Spawns a
+    // few DECOY adventurers first so his "stalk until last alive" gate is visible:
+    // he prowls + reacts while they fight through the dungeon, then once they're
+    // gone he marches in, does his throne stand, and flees. Stamps the act JUST
+    // for this spawn, then RESTORES so the real nemesis state isn't advanced.
+    const onDevScout = ({ act = 1, decoys = true } = {}) => {
+      const game = this.scene.get('Game')
+      const aiSystem = game?.aiSystem
+      const meta = this._gameState.meta ?? (this._gameState.meta = {})
+      const a = Math.max(1, Math.min(3, (act | 0) || 1))
+      if ((this._gameState.adventurers?.active ?? []).some(x => x._nemesis)) return  // one scout at a time
+      if (decoys && aiSystem) {
+        const classes = this.cache.json.get('adventurerClasses') ?? []
+        const picks = ['knight', 'rogue', 'barbarian']
+          .map(id => classes.find(c => c.id === id)).filter(Boolean)
+        for (const cls of picks) {
+          const t = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+          if (!t) continue
+          const d = createAdventurer(cls, { x: t.x, y: t.y })
+          this._scaleAdventurerByBossLevel(d, this._gameState.boss?.level ?? 1)
+          this._gameState.adventurers.active.push(d)
+          aiSystem.pickInitialGoal(d)
+          EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: d })
+          EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [d] })
+        }
+      }
+      const savedNemesis = meta.nemesis ? { ...meta.nemesis } : null
+      meta.nemesis = { ...(meta.nemesis ?? {}), name: 'Aldric', act: a, returns: a - 1, alive: true, slainByBoss: false, form: null }
+      this._spawnNemesis(false)
+      if (savedNemesis) meta.nemesis = savedNemesis
+    }
+
     EventBus.on('ADVENTURER_DIED',              onDeath)
     EventBus.on('ADVENTURER_FLED',              onChange)
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
@@ -2547,6 +2581,7 @@ export class DayPhase extends Phaser.Scene {
     EventBus.on('PERSONALITY_COMBO_ACTIVATED',  onCombo)
     EventBus.on('LIGHT_PARTY_DUEL_END',         onLpDuelEnd)
     EventBus.on('DEV_FORCE_ALDRIC_DUEL',        onDevDuel)
+    EventBus.on('DEV_FORCE_ALDRIC_SCOUT',       onDevScout)
     this._listeners = [
       ['ADVENTURER_DIED',             onDeath],
       ['ADVENTURER_FLED',             onChange],
@@ -2555,6 +2590,7 @@ export class DayPhase extends Phaser.Scene {
       ['CAMERA_FOLLOW_CHANGED',       onFollow],
       ['LIGHT_PARTY_DUEL_END',        onLpDuelEnd],
       ['DEV_FORCE_ALDRIC_DUEL',       onDevDuel],
+      ['DEV_FORCE_ALDRIC_SCOUT',      onDevScout],
     ]
   }
 

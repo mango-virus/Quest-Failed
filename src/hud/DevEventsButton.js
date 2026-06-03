@@ -80,6 +80,19 @@ export class DevEventsButton {
       h('div', { className: 'qf-dev-events-card-id' }, `aldric_duel · ${form}`),
     ])
 
+    // Aldric Acts I–III SCOUT triggers — force-spawn the scouting nemesis at a
+    // chosen act (with a few decoy adventurers) so his stalk → throne stand →
+    // flow + per-act sprite/lines/glow/sword can be watched without grinding to
+    // an act-final day. Routed to DayPhase via DEV_FORCE_ALDRIC_SCOUT.
+    const scoutCard = (act, label, icon) => h('button', {
+      className: 'qf-dev-events-card',
+      on: { click: () => this._pickScout(act) },
+    }, [
+      h('div', { className: 'qf-dev-events-card-icon' }, icon),
+      h('div', { className: 'qf-dev-events-card-name pix' }, label),
+      h('div', { className: 'qf-dev-events-card-id' }, `aldric_scout · act ${act}`),
+    ])
+
     this._modal = h('div', {
       className: 'qf-dev-events-modal',
       on: {
@@ -92,6 +105,11 @@ export class DevEventsButton {
           'Click an event to force it as the next scheduled event ' +
           '(bypasses the 3-day cadence and eligibility filter). Clears ' +
           'any in-progress event first.'),
+        h('div', { className: 'qf-dev-events-grid' }, [
+          scoutCard(1, 'SCOUT ALDRIC · ACT I',   '⚔'),
+          scoutCard(2, 'SCOUT ALDRIC · ACT II',  '⚔'),
+          scoutCard(3, 'SCOUT ALDRIC · ACT III', '⚔'),
+        ]),
         h('div', { className: 'qf-dev-events-grid' }, [
           duelCard('radiant',   'ALDRIC DUEL · RADIANT',   '♔'),
           duelCard('desperate', 'ALDRIC DUEL · DESPERATE', '♛'),
@@ -116,6 +134,11 @@ export class DevEventsButton {
 
   _pickDuel(form) {
     EventBus.emit('DEV_FORCE_ALDRIC_DUEL', { form })
+    this._closeModal()
+  }
+
+  _pickScout(act) {
+    EventBus.emit('DEV_FORCE_ALDRIC_SCOUT', { act })
     this._closeModal()
   }
 
