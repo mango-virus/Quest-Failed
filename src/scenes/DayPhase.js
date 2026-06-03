@@ -1787,6 +1787,9 @@ export class DayPhase extends Phaser.Scene {
         champ.flags            = { ...(champ.flags ?? {}), noFlee: true,
           ...(Array.isArray(response.championFlags)
             ? Object.fromEntries(response.championFlags.map(f => [f, true])) : {}) }
+        // Forlorn Hope — Captain Halric's signature "Last Vow": the first lethal
+        // hit can't kill him (CombatSystem clamps it to 1 HP + a fury roar).
+        if (response.id === 'forlorn_hope') champ._lastVow = true
         this._scaleAdventurerByBossLevel(champ, dungeonLv)
         // KR P3 overtime — each day the Champion survives, the kingdom presses
         // harder. Mild + capped (the boss's 3 lives are the real fail-safe), so

@@ -46,6 +46,15 @@ const GUARDIAN_BOOST = 1.5    // the throne guard hits ~50% harder than a normal
 // speed, so it ramps hard the longer you let the fight drag without ending it.
 const FORLORN_ATK_PER_DEATH   = 1.12
 const FORLORN_SPEED_PER_DEATH = 1.08
+// When the captain (oath-binder) falls, the survivors' oath BREAKS: their fury
+// collapses below baseline and they rout. The demoralize multiplier scales each
+// survivor's pre-fury BASE stats (so it's independent of how high fury climbed).
+const FORLORN_DEMORALIZE_MULT = 0.6
+// Last Vow roar — the captain's death-save also super-charges the whole squad.
+const FORLORN_LAST_VOW_STACKS = 3      // the roar instantly grants this many fury stacks
+// Crimson fury ground-glow: base radius at 1 stack, grows with each stack.
+const FORLORN_AURA_R          = 26
+const FORLORN_AURA_R_PER_STACK = 5
 
 // Mage Tower cadence (real-time ms while its act is active + a wave is present).
 const MAGE_BLINK_INTERVAL  = 6500
@@ -80,6 +89,7 @@ export class KingdomModifierSystem {
     this._scene = scene
     this._gs = gameState
     EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
+    EventBus.on('FORLORN_LAST_VOW', this._onForlornLastVow, this)
     // Boss Ascension (KR P6) — when the act advances, the boss absorbs the
     // fallen kingdom's power and surges. We host the trigger here (already the
     // acts-gated modifier system with scene access to BossSystem); the sprite
@@ -93,11 +103,14 @@ export class KingdomModifierSystem {
 
   destroy() {
     EventBus.off('ADVENTURER_DIED', this._onAdventurerDied, this)
+    EventBus.off('FORLORN_LAST_VOW', this._onForlornLastVow, this)
     EventBus.off('ACT_STARTED', this._onActStarted, this)
     EventBus.off('DEV_TEST_ASCENSION', this._onDevTestAscension, this)
     EventBus.off('ADVENTURER_FLED', this._onAdventurerFled, this)
     this._pantheonG?.destroy(); this._pantheonG = null
     this._allStarG?.destroy(); this._allStarG = null
+    this._forlornG?.destroy(); this._forlornG = null
+    this._forlornCounter?.destroy(); this._forlornCounter = null
   }
 
   // Which Kingdom Response is governing the current act (or null). Act-wide
@@ -337,7 +350,11 @@ export class KingdomModifierSystem {
   update(_dt) {
     const resp = currentActResponseId(this._gs)
     const wave = (this._gs.adventurers?.active?.length ?? 0) > 0
-    if (!wave) { this._pantheonG?.clear(); this._allStarG?.clear(); return }
+    if (!wave) {
+      this._pantheonG?.clear(); this._allStarG?.clear(); this._forlornG?.clear()
+      this._forlornCounter?.setVisible(false)
+      return
+    }
     // Boss ascension dark aura — present in every ascended act (II+), regardless
     // of which Kingdom Response governs it. The dungeon radiates absorbed power.
     this._tickAscensionAura()
@@ -352,12 +369,16 @@ export class KingdomModifierSystem {
     else if (resp === 'plunderers') this._tickPlunderers()
     // All-Stars — crown each champion with a star + thread synergy links.
     else if (resp === 'all_stars') this._tickAllStarsVfx()
+    // Forlorn Hope — the martyrs' crimson fury aura glows + the fury counter
+    // floats over the squad, both scaling with how many have fallen.
+    else if (resp === 'forlorn_hope') this._tickForlornVfx()
     // Champion signature ability — the act boss's telegraphed boss move on cadence.
     this._tickChampionAbility(resp)
     // World-VFX Graphics cleanup — clear any whose response isn't governing now
     // (kept OUT of the else-chain so a lingering buffer can't swallow a tick).
     if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
     if (resp !== 'all_stars' && this._allStarG) this._allStarG.clear()
+    if (resp !== 'forlorn_hope' && this._forlornG) { this._forlornG.clear(); this._forlornCounter?.setVisible(false) }
   }
 
   // ── Plunderers (KR P5 response) ─────────────────────────────────────────────
@@ -728,24 +749,192 @@ export class KingdomModifierSystem {
   // ── ADVENTURER_DIED router ──────────────────────────────────────────────────
   _onAdventurerDied({ adventurer } = {}) {
     if (!adventurer) return
-    if (adventurer.flags?.forlornMartyr) this._forlornFury(adventurer)
+    // Captain Halric falls → the binding oath SHATTERS: the surviving martyrs lose
+    // their fury and rout. Routed first so the captain's own death deflates the
+    // squad instead of stoking it (the binder is gone, not another martyr down).
+    if (adventurer._kingdomChampion && adventurer._championResponseId === 'forlorn_hope') {
+      this._forlornOathBreak(adventurer)
+    } else if (adventurer.flags?.forlornMartyr) {
+      this._forlornFury(adventurer)
+    }
     if (adventurer.flags?.pantheonHero) this._pantheonRaise(adventurer)
   }
 
-  // Forlorn Hope (escalating fury). A martyr fell — every surviving martyr in the
-  // squad surges with atk + speed. Compounds per death; the captain counts too.
+  // Apply one fury stack to a martyr. We stash its PRE-fury base atk/speed the first
+  // time, then recompute from base each stack — so there's no rounding drift and the
+  // buff can be cleanly reverted when the oath breaks.
+  _applyFury(a) {
+    a.stats ??= {}
+    a._furyBaseAtk   ??= a.stats.attack ?? 10
+    a._furyBaseSpeed ??= a.stats.speed ?? 1.4
+    a._furyStacks      = (a._furyStacks ?? 0) + 1
+    a.stats.attack = Math.round(a._furyBaseAtk   * (FORLORN_ATK_PER_DEATH   ** a._furyStacks))
+    a.stats.speed  =           a._furyBaseSpeed * (FORLORN_SPEED_PER_DEATH ** a._furyStacks)
+  }
+
+  // Forlorn Hope (escalating fury). A martyr fell — every surviving martyr surges
+  // with atk + speed, compounding per death (the captain counts too). Fires the
+  // crimson rage-pulse VFX and bumps the fury-counter punch.
   _forlornFury(fallen) {
     const living = (this._gs.adventurers?.active ?? []).filter(a =>
       a !== fallen && a.flags?.forlornMartyr && (a.resources?.hp ?? 0) > 0)
     if (living.length === 0) return
-    for (const a of living) {
-      a.stats ??= {}
-      a.stats.attack = Math.round((a.stats.attack ?? 10) * FORLORN_ATK_PER_DEATH)
-      a.stats.speed  = (a.stats.speed ?? 1.4) * FORLORN_SPEED_PER_DEATH
-      a._furyStacks  = (a._furyStacks ?? 0) + 1
-    }
+    for (const a of living) this._applyFury(a)
+    this._furyFlashAt = this._scene?.time?.now ?? 0
+    this._forlornRagePulse(fallen, living)
     EventBus.emit('FORLORN_FURY', {
       stacks: living[0]?._furyStacks ?? 1, remaining: living.length, fallen: fallen.name,
     })
+  }
+
+  // The visual beat when a martyr falls: a dark-red death-ember implodes at the
+  // fallen, then every survivor flares with a crimson rage-pulse (hotter w/ more
+  // stacks) and a "FURY ×N" crackle rises over the lead. A faint red flash + micro-
+  // shake sells the surge without drowning the screen.
+  _forlornRagePulse(fallen, living) {
+    const sc = this._scene
+    if (!sc) return
+    const fx = fallen?.worldX, fy = fallen?.worldY
+    AbilityVfx.particleBurst?.(sc, fx, fy, { color: 0x8a1410, count: 12, speed: 120, durationMs: 520 })
+    AbilityVfx.pulseRing?.(sc, fx, fy, { color: 0xc0241a, fromR: 6, toR: 34, alpha: 0.8, durationMs: 420 })
+    for (const a of living) {
+      const x = a.worldX ?? 0, y = a.worldY ?? 0
+      const st = a._furyStacks ?? 1
+      AbilityVfx.burstRays?.(sc, x, y, { color: 0xff5a2a, count: 9, length: 40 + st * 6, durationMs: 380 })
+      AbilityVfx.pulseRing?.(sc, x, y, { color: 0xff3a1a, fromR: 8, toR: 28 + st * 4, alpha: 0.85, durationMs: 440 })
+      AbilityVfx.particleBurst?.(sc, x, y - 6, { color: 0xff7a3a, count: 6, speed: 90, durationMs: 460 })
+    }
+    const lead = (this._gs.adventurers?.active ?? []).find(a => a._kingdomChampion && a.flags?.forlornMartyr)
+      ?? living[0]
+    if (lead) {
+      AbilityVfx.floatingText?.(sc, lead.worldX ?? 0, (lead.worldY ?? 0) - 26,
+        `FURY ×${lead._furyStacks ?? 1}`, { color: '#ff5a2a', fontSize: '15px', driftY: -34, durationMs: 900 })
+    }
+    AbilityVfx.screenFlash?.(sc, { color: 0xc0241a, intensity: 0.16, durationMs: 200 })
+    sc?.cameras?.main?.shake?.(160, 0.004)
+  }
+
+  // Captain Halric is slain → the oath shatters. Every surviving martyr loses its
+  // fury (collapsing BELOW base), drops its no-flee resolve, and routs for the exit.
+  // A desaturating "oath breaks" implosion snuffs the crimson auras. (The champion's
+  // death also clears the act at day-end — but the survivors linger that day, so the
+  // rout is a visible reward for cutting down the binder.)
+  _forlornOathBreak(captain) {
+    const sc = this._scene
+    const living = (this._gs.adventurers?.active ?? []).filter(a =>
+      a !== captain && a.flags?.forlornMartyr && (a.resources?.hp ?? 0) > 0)
+    for (const a of living) {
+      a.stats ??= {}
+      const baseAtk   = a._furyBaseAtk   ?? a.stats.attack ?? 10
+      const baseSpeed = a._furyBaseSpeed ?? a.stats.speed ?? 1.4
+      a.stats.attack = Math.max(1, Math.round(baseAtk * FORLORN_DEMORALIZE_MULT))
+      a.stats.speed  = baseSpeed * FORLORN_DEMORALIZE_MULT
+      a._furyStacks  = 0
+      a._demoralized = true
+      if (a.flags) a.flags.noFlee = false
+      if (!['dead', 'fleeing', 'fled', 'leaving'].includes(a.aiState)) {
+        a.goal    = { type: 'FLEE', reason: 'oath_broken' }
+        a.aiState = 'fleeing'
+        a.path    = null
+      }
+      const x = a.worldX ?? 0, y = a.worldY ?? 0
+      AbilityVfx.pulseRing?.(sc, x, y, { color: 0x6a6a72, fromR: 30, toR: 6, alpha: 0.7, durationMs: 360 })
+      AbilityVfx.particleBurst?.(sc, x, y, { color: 0x4a4a52, count: 8, speed: 70, durationMs: 420 })
+    }
+    this._furyFlashAt = 0
+    this._forlornG?.clear()
+    this._forlornCounter?.setVisible(false)
+    if (living.length) {
+      AbilityVfx.screenFlash?.(sc, { color: 0x2a2a30, intensity: 0.2, durationMs: 280 })
+      EventBus.emit('FORLORN_OATH_BROKEN', { captain: captain?.name, routed: living.length })
+    }
+  }
+
+  // Captain Halric's "Last Vow" fired (CombatSystem clamped a lethal hit to 1 HP).
+  // He ROARS — a hot crimson eruption — and the whole martyr squad answers with an
+  // instant surge of fury for his final stand. The champion bar flashes the move.
+  _onForlornLastVow({ adventurer } = {}) {
+    const sc = this._scene
+    const champ = adventurer
+    if (!champ) return
+    const x = champ.worldX ?? 0, y = champ.worldY ?? 0
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'forlorn_hope', name: 'LAST VOW', champion: champ?.name })
+    AbilityVfx.chargeUp?.(sc, x, y, { color: 0xff3a1a, count: 16, radius: 70, durationMs: 240 })
+    sc?.time?.delayedCall?.(180, () => {
+      AbilityVfx.shockwave?.(sc, x, y, { color: 0xff3a1a, toR: 150, thickness: 8, durationMs: 600 })
+      AbilityVfx.burstRays?.(sc, x, y, { color: 0xff6a2a, count: 16, length: 110, durationMs: 560 })
+      AbilityVfx.particleBurst?.(sc, x, y, { color: 0xff5a2a, count: 22, speed: 180, durationMs: 640 })
+      AbilityVfx.pulseRing?.(sc, x, y, { color: 0xffb04a, fromR: 10, toR: 90, alpha: 0.9, durationMs: 520 })
+      AbilityVfx.screenFlash?.(sc, { color: 0xc0241a, intensity: 0.4, durationMs: 320 })
+      sc?.cameras?.main?.shake?.(360, 0.012)
+      const squad = (this._gs.adventurers?.active ?? []).filter(a =>
+        a.flags?.forlornMartyr && (a.resources?.hp ?? 0) > 0)
+      for (const a of squad) {
+        for (let i = 0; i < FORLORN_LAST_VOW_STACKS; i++) this._applyFury(a)
+        AbilityVfx.pulseRing?.(sc, a.worldX ?? 0, a.worldY ?? 0,
+          { color: 0xff3a1a, fromR: 8, toR: 34, alpha: 0.85, durationMs: 460 })
+      }
+      this._furyFlashAt = sc?.time?.now ?? 0
+    })
+  }
+
+  // Forlorn Hope world VFX — a crimson fury pool glows under each living martyr
+  // (bigger + hotter the more stacks it carries; a faint doomed presence even at
+  // zero) and a "⚔ FURY ×N" counter floats over the squad lead, punching on each
+  // fresh kill. Drawn every frame so it reads as a living, breathing rage.
+  _tickForlornVfx() {
+    const martyrs = (this._gs.adventurers?.active ?? [])
+      .filter(a => a.flags?.forlornMartyr && (a.resources?.hp ?? 0) > 0)
+    if (martyrs.length === 0) {
+      this._forlornG?.clear()
+      this._forlornCounter?.setVisible(false)
+      return
+    }
+    const g = this._forlornG ?? (this._forlornG = this._scene.add.graphics().setDepth(1.6))
+    g.clear()
+    const now = this._scene.time?.now ?? 0
+    const pulse = 0.5 + 0.5 * Math.sin(now / 260)        // fast, angry flicker
+    let maxStacks = 0
+    for (const a of martyrs) {
+      const st = a._furyStacks ?? 0
+      if (st > maxStacks) maxStacks = st
+      const x = a.worldX ?? 0, y = a.worldY ?? 0
+      const R = FORLORN_AURA_R + st * FORLORN_AURA_R_PER_STACK
+      const intensity = 0.35 + Math.min(1, st / 5) * 0.65   // faint at 0 → full by ~5 stacks
+      const hot = Math.min(1, st / 6)
+      const layers = [[1.0, 0.05], [0.72, 0.09], [0.46, 0.14], [0.24, 0.2]]
+      for (const [f, al] of layers) {
+        g.fillStyle(0xff2a12, al * intensity * (0.6 + 0.4 * pulse))
+        g.fillCircle(x, y, R * f)
+      }
+      g.fillStyle(0xff7a3a, (0.1 + 0.2 * hot) * (0.6 + 0.4 * pulse))
+      g.fillCircle(x, y, R * 0.2)
+      g.lineStyle(1.5 + hot * 2, 0xff5a2a, (0.3 + 0.4 * pulse) * intensity)
+      g.strokeCircle(x, y, R * (0.9 + 0.06 * pulse))
+      // Rising ember flecks (cheap fixed-slot shimmer drifting upward).
+      for (let i = 0; i < 5; i++) {
+        const tw = 0.5 + 0.5 * Math.sin(now / 220 + i * 1.6)
+        if (tw < 0.4) continue
+        const ea = i * 2.39996 + now / 1400
+        const ex = x + Math.cos(ea) * R * (0.3 + 0.55 * ((i * 0.41) % 1))
+        const ey = y - ((now / 6 + i * 40) % (R * 1.2))
+        g.fillStyle(0xffb24a, 0.5 * tw * intensity)
+        g.fillCircle(ex, ey, 1.4 + tw)
+      }
+    }
+    // The fury counter — anchored over the captain (or the squad lead).
+    const lead = martyrs.find(a => a._kingdomChampion) ?? martyrs[0]
+    if (lead && maxStacks > 0) {
+      const t = this._forlornCounter ?? (this._forlornCounter = this._scene.add.text(0, 0, '', {
+        fontFamily: 'monospace', fontSize: '15px', color: '#ff5a2a', fontStyle: 'bold',
+        stroke: '#1a0400', strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(42))
+      t.setVisible(true).setText(`⚔ FURY ×${maxStacks}`).setPosition(lead.worldX ?? 0, (lead.worldY ?? 0) - 34)
+      const since = now - (this._furyFlashAt ?? 0)
+      t.setScale(since < 360 ? 1 + 0.5 * (1 - since / 360) : 1)
+      t.setColor(maxStacks >= 5 ? '#ffd24a' : maxStacks >= 3 ? '#ff8a2a' : '#ff5a2a')
+    } else {
+      this._forlornCounter?.setVisible(false)
+    }
   }
 }

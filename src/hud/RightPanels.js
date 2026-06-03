@@ -1122,6 +1122,17 @@ export class RightPanels {
     sub('FORLORN_FURY', ({ stacks } = {}) => {
       this._addLog(`A martyr falls — the Forlorn Hope's fury rises (×${stacks ?? 1})!`, 'champion')
     })
+    // Forlorn Hope — Captain Halric's Last Vow: a lethal blow leaves him at 1 HP.
+    sub('CHAMPION_ABILITY', ({ name, champion } = {}) => {
+      if (name === 'LAST VOW') {
+        this._addLog(`${champion || 'Captain Halric'} REFUSES to fall — the Last Vow holds him at the brink!`, 'champion')
+      }
+    })
+    // Forlorn Hope — the captain is cut down; the binding oath shatters and the
+    // surviving martyrs lose heart and rout.
+    sub('FORLORN_OATH_BROKEN', ({ routed } = {}) => {
+      this._addLog(`The oath SHATTERS — ${routed ?? 0} martyr${routed === 1 ? '' : 's'} break and flee!`, 'champion-down')
+    })
     // The Betrayer (KR P4) — your strongest minion defects to the raid.
     sub('MINION_DEFECTED', ({ minion } = {}) => {
       const who = minion?.name || minion?.definitionId || 'Your strongest minion'

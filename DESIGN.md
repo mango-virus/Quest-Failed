@@ -1597,6 +1597,7 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 
 ### Forlorn Hope
 - ☐ Unique LPC sprite for Captain Halric. (Elevate ideas approved: rage-pulse VFX, fury counter, captain-death deflates the squad.)
+- ☑ Mechanics+VFX SHIPPED 2026-06-03 — see "Forlorn Hope — SHIPPED (slice #3 of 9)" below for the full ticked checklist (rage-pulse, growing crimson aura, fury counter, oath-break rout, LAST VOW death-save). Sprite still deferred.
 
 ### Mage Tower
 - ☐ 50% of each adventurer wave is the mage class.
@@ -1650,4 +1651,15 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - ☑ Champion signature EXCOMMUNICATE (Mordrake) — charge → BIG holy column → vaporizes strongest undead (or strongest minion of any type if none → non-undead builds feel it).
 - ☑ Pact-suppression HUD readout — sealed pact glyphs grey out + a bright "✝" cross stamp (TopBar qf-buffs-sealed enhanced). Driven by the existing INQUISITION_SUPPRESS_CHANGED.
 - ☐ Unique LPC sprites for High Inquisitor + inquisitors + zealots (DEFERRED — sprite pass).
-- ⚠ DIVERGENCE (surface to user): Excommunicate's "silence a random pact for the fight" is delivered by the EXISTING act-wide _inqSuppress (ALL pacts inert while the Inquisition is in the dungeon, i.e. the whole champion fight) rather than a per-pact silence — pacts are scattered _mechanicFlags with no single silence point, so a true one-random-pact silence would need touching every benefit read site. Confirm if the per-pact version is wanted.
+- ☑ RESOLVED (user, 2026-06-03): Excommunicate's pact-silence stays the act-wide _inqSuppress (ALL pacts inert "✝ PURGED" while the Inquisition is in the dungeon). User chose "act-wide is fine" — the per-pact-engine refactor is explicitly dropped as redundant.
+
+### Forlorn Hope — SHIPPED (mechanics+VFX, 2026-06-03) — slice #3 of 9
+- ☑ Rage-pulse VFX per martyr death — dark-red death-ember implodes at the fallen, each survivor flares a crimson burst (burstRays + pulseRing + embers, hotter w/ stacks), faint red flash + micro-shake. (_forlornRagePulse)
+- ☑ Growing crimson fury aura — a per-tick ground-pool under each living martyr scaling radius+heat with its fury stacks (faint doomed presence even at 0), rising ember flecks. (_tickForlornVfx / _forlornG)
+- ☑ Fury counter — an in-world "⚔ FURY ×N" tag floating over the captain (or squad lead), punch-scales on each fresh kill, shifts orange→gold as fury climbs.
+- ☑ Captain-death deflates the squad — killing Halric (the binder) SHATTERS the oath: survivors lose all fury (collapse to base×0.6), drop noFlee, and rout for the exit; auras snuff (grey implosion). Day-end clear means the rout is visible. (_forlornOathBreak + FORLORN_OATH_BROKEN log)
+- ☑ Champion signature LAST VOW (Halric) — the FIRST lethal hit can't kill him: CombatSystem clamps it to 1 HP (same reactive mould as Lay on Hands / Grog Rage) and fires a fury ROAR — crimson shockwave + the whole squad surges +3 fury for his final stand; ChampionBar flashes "⚡ LAST VOW!". (CombatSystem _lastVow floor + _onForlornLastVow)
+- ☑ Fury math hardened — stacks recompute from a stashed pre-fury BASE (no rounding drift; clean revert on oath-break). (_applyFury)
+- ☐ Unique LPC sprite for Captain Halric (DEFERRED — sprite pass).
+- Verified: 34/34 isolation asserts (fury idempotency, living-only stacking, death routing, oath-break rout, Last-Vow roar, + the REAL CombatSystem death-save: first hit→1 HP + emits once, second hit kills, non-Last-Vow dies normally).
+- ⚠ BALANCE (eyeball): FORLORN_DEMORALIZE_MULT=0.6, LAST_VOW_STACKS=3, ATK/SPD per death 1.12/1.08 — tune after a live look.

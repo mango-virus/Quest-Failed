@@ -330,7 +330,20 @@ export class CombatSystem {
     // path), so normal combat can never chip them below 10% maxHp.
     const _smFloor = (target._shadowMonarch || target._lightParty || target._nemesis)
       ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
-    target.resources.hp = Math.max(_smFloor, target.resources.hp - finalDmg)
+
+    // Forlorn Hope — Captain Halric's "Last Vow": the FIRST lethal hit can't kill
+    // him. It clamps him to 1 HP and triggers a fury roar (KingdomModifierSystem
+    // listens for FORLORN_LAST_VOW). Once spent, the next lethal hit lands for real.
+    // Same reactive-trigger mould as Lay on Hands / Grog Rage below.
+    let _lastVowFloor = 0
+    if (target._lastVow && !target._lastVowUsed && finalDmg > 0 &&
+        target.resources.hp > 0 && (target.resources.hp - finalDmg) <= 0) {
+      _lastVowFloor = 1
+      target._lastVowUsed = true
+      EventBus.emit('FORLORN_LAST_VOW', { adventurer: target })
+    }
+
+    target.resources.hp = Math.max(Math.max(_smFloor, _lastVowFloor), target.resources.hp - finalDmg)
 
     // Templar "Lay on Hands" — reactive holy self-heal the first time a Templar
     // is chipped below the threshold (once per delve). Fires AFTER the hit lands.
