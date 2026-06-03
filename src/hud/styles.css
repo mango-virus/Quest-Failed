@@ -2776,6 +2776,27 @@ body {
   max-width: 640px;
   line-height: 1.5;
 }
+/* Section divider+label so the groups (Aldric set-pieces / champion raids /
+   scheduled events) don't blur together. Flanking rules + a colour-coded label. */
+.qf-dev-events-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #ffd964;
+  margin: 18px 0 10px;
+}
+.qf-dev-events-section::before,
+.qf-dev-events-section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, currentColor 55%, transparent), transparent);
+}
+.qf-dev-events-section.kr    { color: #c98bff; }
+.qf-dev-events-section.champ { color: #ff9a5a; }
+.qf-dev-events-section.evt   { color: #8ad0ff; }
 .qf-dev-events-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

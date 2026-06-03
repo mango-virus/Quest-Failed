@@ -117,19 +117,21 @@ export class DevEventsButton {
       h('div', { className: 'qf-dev-events-card-wrap' }, [
         h('div', { className: 'qf-dev-events-title pix' }, 'TEST EVENT  ·  MANGO ONLY'),
         h('div', { className: 'qf-dev-events-flavor pix' },
-          'Click an event to force it as the next scheduled event ' +
-          '(bypasses the 3-day cadence and eligibility filter). Clears ' +
-          'any in-progress event first.'),
+          'Force a set-piece or a scheduled event right now (bypasses cadence + ' +
+          'eligibility). Set-pieces need an active day phase with a built dungeon.'),
+
+        // ── Kingdom's Reckoning set-pieces (Aldric) ──
+        h('div', { className: 'qf-dev-events-section kr pix' }, 'ALDRIC · THE NEMESIS'),
         h('div', { className: 'qf-dev-events-grid' }, [
           scoutCard(1, 'SCOUT ALDRIC · ACT I',   '⚔'),
           scoutCard(2, 'SCOUT ALDRIC · ACT II',  '⚔'),
           scoutCard(3, 'SCOUT ALDRIC · ACT III', '⚔'),
-        ]),
-        h('div', { className: 'qf-dev-events-grid' }, [
           duelCard('radiant',   'ALDRIC DUEL · RADIANT',   '♔'),
           duelCard('desperate', 'ALDRIC DUEL · DESPERATE', '♛'),
         ]),
-        h('div', { className: 'qf-dev-events-flavor pix' }, 'CHAMPION RAIDS — the 9 act bosses (balance testing):'),
+
+        // ── The 9 act-boss champion raids (balance testing) ──
+        h('div', { className: 'qf-dev-events-section champ pix' }, 'CHAMPION RAIDS · THE 9 ACT BOSSES'),
         h('div', { className: 'qf-dev-events-grid' }, [
           championCard('rival',          'RIVAL · VORZAK',        '⚑'),
           championCard('inquisition',    'INQUISITION · MORDRAKE', '⚖'),
@@ -141,7 +143,11 @@ export class DevEventsButton {
           championCard('all_stars',      'ALL-STARS · GARRETH',   '★'),
           championCard('plunderers',     'PLUNDERERS · VELL',     '⚿'),
         ]),
+
+        // ── Normal scheduled events ──
+        h('div', { className: 'qf-dev-events-section evt pix' }, 'SCHEDULED EVENTS'),
         h('div', { className: 'qf-dev-events-grid' }, cards),
+
         h('div', { className: 'qf-dev-events-close pix',
           on: { click: () => this._closeModal() },
         }, 'CLOSE'),
