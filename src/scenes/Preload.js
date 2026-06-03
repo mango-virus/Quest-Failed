@@ -125,6 +125,10 @@ const MINION_IDS = [
 const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
   'twitch_streamer', 'beast_master', 'barbarian', 'monk', 'bard',
+  // Templar — holy DEFENDER (normal roster, 100 baked variants).
+  'templar',
+  // Pirate — swashbuckler DUELIST (normal roster, 100 baked variants).
+  'pirate',
   // Event-only classes — no normal spawn (unlockLevel: 99 in
   // adventurerClasses.json) but baked + preloaded so the corresponding
   // dungeon events render their dedicated LPC art rather than falling
@@ -147,15 +151,21 @@ const ADVENTURER_CLASS_IDS = [
   'paladin', 'white_mage', 'samurai', 'black_mage',
   // Aldric (KR Nemesis) — a NAMED character with exactly FOUR canonical sliced
   // forms, one per act (v01 apprentice … v04 crowned Hero-King). DayPhase assigns
-  // `aldric/v0<act>` per spawn. No _atk sheet (he's a normal-attack swordsman —
-  // uses the contained 64px slash). Count override below prevents v05..v50 404s.
+  // `aldric/v0<act>` per spawn. Ships a slash_oversize `_atk` sheet per form (his
+  // longsword swing — see ADVENTURER_ATK_CLASSES). Count override below prevents
+  // v05..v50 404s.
   'aldric',
 ]
-const ADVENTURER_VARIANTS_PER_CLASS = 50
-// Per-class override for classes that ship fewer than the default 50 baked
-// variants (named one-off characters). Keeps preload from firing dozens of
-// missing-file requests for variants that don't exist.
-const ADVENTURER_VARIANT_COUNT = { shadow_monarch: 1, aldric: 4 }
+const ADVENTURER_VARIANTS_PER_CLASS = 100
+// Per-class override for classes that ship fewer than the default 100 baked
+// variants. Named one-off characters (shadow_monarch, aldric) + the Light Party
+// event classes (trimmed to their single canonical v01 — see the LP-fixed-sprite
+// pinning in AdventurerRenderer). Keeps preload from firing missing-file
+// requests for variants that don't exist. MUST match the actual bake counts.
+const ADVENTURER_VARIANT_COUNT = {
+  shadow_monarch: 1, aldric: 4,
+  paladin: 1, white_mage: 1, samurai: 1, black_mage: 1,
+}
 const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 
 // Classes whose combat animation is slash or thrust ship a separate
@@ -171,6 +181,11 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // attack sheet needed; they reuse the main 64×64 sheet's slash row
   // for the rare retaliation case if it ever comes up.
   'cosplay_adventurer',
+  // Templar — Mace/Flail/Longsword are slash_oversize, so the swing lives in
+  // the _atk sheet (shield carried over from the base slash frames).
+  'templar',
+  // Pirate — cutlasses (Saber/Scimitar/Rapier) swing via slash_oversize.
+  'pirate',
   // Bounty hunters carry crossbows — crossbow combat is thrust-oversize,
   // which lives in the _atk.png sheet.
   'bounty_hunter',
@@ -184,6 +199,9 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // blades, white_mage / black_mage cast via thrust_oversize staff. All
   // four need the 192×192 atk sheet so weapons render at native scale.
   'paladin', 'white_mage', 'samurai', 'black_mage',
+  // Aldric (KR Nemesis) — longsword slash_oversize; needs the atk sheet so his
+  // blade shows mid-attack (4 per-act forms, v01–v04).
+  'aldric',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8
