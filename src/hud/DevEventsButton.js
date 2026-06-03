@@ -141,7 +141,7 @@ export class DevEventsButton {
           championCard('forlorn_hope',   'FORLORN · HALRIC',      '♟'),
           championCard('mage_tower',     'MAGE TOWER · VELLORAN', '✶'),
           championCard('all_stars',      'ALL-STARS · GARRETH',   '★'),
-          championCard('plunderers',     'PLUNDERERS · VELL',     '⚿'),
+          championCard('plunderers',     'PLUNDERERS · VANE',     '⚿'),
         ]),
 
         // ── Normal scheduled events ──

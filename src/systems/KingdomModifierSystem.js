@@ -14,6 +14,7 @@ import { currentActResponseId } from '../config/acts.js'
 import { Balance } from '../config/balance.js'
 import { TILE } from './DungeonGrid.js'
 import { createMinion, applyMinionScaling } from '../entities/Minion.js'
+import { AbilityVfx } from '../ui/AbilityVfx.js'
 
 // Ascension THRONE GUARD (KR P6 rebalance, 2026-06-02). Each ascension no longer
 // fields an ever-growing swarm — instead the boss keeps a FIXED PAIR of its own
@@ -59,6 +60,13 @@ const PANTHEON_RAISE_CAP      = 4
 
 // Inquisition — the holy law purges your undead minions while its act runs.
 const INQUISITION_PURGE_INTERVAL = 2000
+
+// Champion signature abilities (KR overhaul, 2026-06-03) — each act boss casts a
+// powerful, telegraphed, themed signature on a cadence so it reads as a BOSS, not
+// a buffed adventurer. First cast lands a few seconds after it arrives, then on a
+// cooldown. Dispatched per response in _tickChampionAbility.
+const CHAMP_ABILITY_FIRST_MS = 4500
+const CHAMP_ABILITY_CD_MS    = 9000
 
 // Undead minion id patterns (skeleton/zombie/ghost/lich/wraith/…).
 const _UNDEAD_RE = /ghost|lich|skelet|zombie|wraith|bone|undead|revenant|ghoul|vampire_sovereign/
@@ -344,6 +352,8 @@ export class KingdomModifierSystem {
     else if (resp === 'plunderers') this._tickPlunderers()
     // All-Stars — crown each champion with a star + thread synergy links.
     else if (resp === 'all_stars') this._tickAllStarsVfx()
+    // Champion signature ability — the act boss's telegraphed boss move on cadence.
+    this._tickChampionAbility(resp)
     // World-VFX Graphics cleanup — clear any whose response isn't governing now
     // (kept OUT of the else-chain so a lingering buffer can't swallow a tick).
     if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
@@ -391,6 +401,48 @@ export class KingdomModifierSystem {
       Math.floor(gold * (Balance.PLUNDER_ESCAPE_PCT ?? 0.03)))
     const taken = this._drainGold(heist)
     if (taken > 0) EventBus.emit('PLUNDER_ESCAPE', { name: adventurer.name, taken })
+  }
+
+  // ── Champion signature abilities (one boss move per act boss) ────────────────
+  // Finds the live act champion and fires its themed signature on a cadence (first
+  // cast ~CHAMP_ABILITY_FIRST_MS after it appears, then every CHAMP_ABILITY_CD_MS).
+  // Each signature telegraphs, then resolves with VFX — so the boss reads as a
+  // BOSS. New champions plug a `case` into the dispatch below.
+  _tickChampionAbility(resp) {
+    const champ = (this._gs.adventurers?.active ?? []).find(a =>
+      a._kingdomChampion && (a.resources?.hp ?? 0) > 0)
+    if (!champ) { this._champSeenAt = null; this._champAbilityAt = 0; return }
+    const now = this._scene?.time?.now ?? 0
+    if (this._champSeenAt == null) { this._champSeenAt = now; this._champAbilityAt = now + CHAMP_ABILITY_FIRST_MS }
+    if (now < (this._champAbilityAt ?? 0)) return
+    this._champAbilityAt = now + CHAMP_ABILITY_CD_MS
+    switch (resp) {
+      case 'plunderers': this._champGrandHeist(champ); break
+      // (other champions' signatures added per response slice)
+    }
+  }
+
+  // Plunderers — GRAND HEIST: the captain grabs a fat purse from your vault AND
+  // calls a cannon volley that telegraphs on up to 3 of your minions, then booms.
+  _champGrandHeist(champ) {
+    const sc = this._scene
+    const gold = this._gs.player?.gold ?? 0
+    const grab = this._drainGold(Math.max(40, Math.floor(gold * 0.08)))
+    const live = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0)
+    for (let i = live.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [live[i], live[j]] = [live[j], live[i]] }
+    const targets = live.slice(0, 3)
+    const dmg = 12 + Math.round((this._gs.boss?.level ?? 1) * 4)
+    for (const m of targets) AbilityVfx.groundTelegraph?.(sc, m.worldX, m.worldY, { color: 0xff5a2a, radius: 28, shape: 'circle', durationMs: 700 })
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'plunderers', name: 'GRAND HEIST', champion: champ?.name, gold: grab })
+    sc?.time?.delayedCall?.(700, () => {
+      for (const m of targets) {
+        if ((m.resources?.hp ?? 0) <= 0) continue
+        m.resources.hp = Math.max(0, m.resources.hp - dmg)
+        AbilityVfx.impactBurst?.(sc, m.worldX, m.worldY, { color: 0xff7a3a, radius: 54, sparks: 9, debris: 5, durationMs: 440 })
+      }
+      AbilityVfx.screenFlash?.(sc, { color: 0xffd24a, alpha: 0.22, durationMs: 220 })
+      sc?.cameras?.main?.shake?.(220, 0.006)
+    })
   }
 
   // Inquisition undead purge — every ~2s your undead minions take holy purge

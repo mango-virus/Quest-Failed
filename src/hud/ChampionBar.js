@@ -50,7 +50,15 @@ function _ensureCss() {
 .qf-champbar-hp { font-family:'VT323',monospace; font-size:15px; color:#fff3df; }
 /* defeated flourish */
 .qf-champbar.down .qf-champbar-card { border-color:#6fce8a; box-shadow:0 0 24px rgba(110,206,138,.45), 0 5px 0 rgba(0,0,0,.5); }
-.qf-champbar.down .qf-champbar-obj { color:#9af0b4; text-shadow:0 0 10px rgba(110,206,138,.7); }`
+.qf-champbar.down .qf-champbar-obj { color:#9af0b4; text-shadow:0 0 10px rgba(110,206,138,.7); }
+/* signature-ability cast flash — the bar pulses + names the move */
+.qf-champbar.cast .qf-champbar-card { animation:qf-champbar-cast .5s ease-out; }
+.qf-champbar.cast .qf-champbar-obj { color:#ffe08a; text-shadow:0 0 12px var(--cb); font-weight:bold; }
+@keyframes qf-champbar-cast {
+  0% { transform:scale(1); box-shadow:0 0 22px color-mix(in srgb,var(--cb) 30%, transparent), 0 5px 0 rgba(0,0,0,.5); }
+  35% { transform:scale(1.035); box-shadow:0 0 34px var(--cb), 0 5px 0 rgba(0,0,0,.5); }
+  100% { transform:scale(1); box-shadow:0 0 22px color-mix(in srgb,var(--cb) 30%, transparent), 0 5px 0 rgba(0,0,0,.5); }
+}`
   document.head.appendChild(style)
 }
 
@@ -65,6 +73,7 @@ export class ChampionBar {
     _ensureCss()
     this._build()
     this._on('CHAMPION_RAID_INCOMING', p => this._onIncoming(p ?? {}))
+    this._on('CHAMPION_ABILITY',       p => this._onAbility(p ?? {}))
     this._on('CHAMPION_DEFEATED',      () => this._onDefeated())
     this._on('DAY_PHASE_ENDED',        () => this._hide())
     this._on('NIGHT_PHASE_STARTED',    () => this._hide())
@@ -76,6 +85,7 @@ export class ChampionBar {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn, this)
     this._stopPoll()
     clearTimeout(this._hideTimer)
+    clearTimeout(this._castTimer)
     this._root?.remove(); this._root = null
   }
 
@@ -132,6 +142,20 @@ export class ChampionBar {
     this._hideTimer = setTimeout(() => this._hide(), 2600)
   }
 
+  // The champion cast its signature — pulse the bar + name the move for a beat.
+  _onAbility({ name } = {}) {
+    if (!this._root || !this._root.classList.contains('on') || this._defeated) return
+    this._objEl.textContent = `⚡ ${String(name || 'SIGNATURE')}!`
+    this._root.classList.remove('cast')
+    void this._root.offsetWidth   // restart the animation
+    this._root.classList.add('cast')
+    clearTimeout(this._castTimer)
+    this._castTimer = setTimeout(() => {
+      this._root?.classList.remove('cast')
+      if (!this._defeated) this._objEl.textContent = '⚔ DEFEAT TO CLEAR THE ACT'
+    }, 1600)
+  }
+
   _startPoll() {
     this._stopPoll()
     this._poll = setInterval(() => this._tick(), POLL_MS)
@@ -165,7 +189,8 @@ export class ChampionBar {
   _hide() {
     this._stopPoll()
     clearTimeout(this._hideTimer)
+    clearTimeout(this._castTimer)
     this._champ = null
-    this._root?.classList.remove('on')
+    this._root?.classList.remove('on', 'cast')
   }
 }

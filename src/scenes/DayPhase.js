@@ -40,7 +40,7 @@ const VANGUARD = {
   forlorn_hope: { classId: 'barbarian',       name: 'Forerunner Martyr',    flags: ['noFlee', 'forlornMartyr'] },
   mage_tower:   { classId: 'mage',            name: 'Tower Apprentice' },
   all_stars:    { classId: 'knight',          name: "Champion's Herald" },
-  plunderers:   { classId: 'rogue',           name: 'Guild Cutpurse', flags: ['plundererThief'] },
+  plunderers:   { classId: 'pirate',          name: 'Crew Raider', flags: ['plundererThief'] },
 }
 
 export class DayPhase extends Phaser.Scene {
