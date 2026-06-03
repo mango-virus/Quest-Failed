@@ -385,13 +385,20 @@ export class KingdomModifierSystem {
     this._plunderAt = now
     const gold = this._gs.player?.gold ?? 0
     if (gold <= 0) return
-    const thieves = (this._gs.adventurers?.active ?? [])
-      .filter(a => a.flags?.plundererThief && (a.resources?.hp ?? 0) > 0).length
-    if (thieves === 0) return
+    const thiefList = (this._gs.adventurers?.active ?? [])
+      .filter(a => a.flags?.plundererThief && (a.resources?.hp ?? 0) > 0)
+    if (thiefList.length === 0) return
     const per = Math.max(Balance.PLUNDER_PICKPOCKET_MIN ?? 2,
       Math.floor(gold * (Balance.PLUNDER_PICKPOCKET_PCT ?? 0.004)))
-    const taken = this._drainGold(per * thieves)
-    if (taken > 0) EventBus.emit('PLUNDER_PICKPOCKET', { taken, thieves })
+    const taken = this._drainGold(per * thiefList.length)
+    if (taken > 0) {
+      EventBus.emit('PLUNDER_PICKPOCKET', { taken, thieves: thiefList.length })
+      // Coins flit up off each thief as it pockets your gold (capped so a big
+      // crew doesn't spam). CoinBurstRenderer draws the steal burst + "−Xg".
+      for (const th of thiefList.slice(0, 6)) {
+        EventBus.emit('PLUNDER_DRAIN_VFX', { x: th.worldX, y: th.worldY, gold: per })
+      }
+    }
   }
 
   _onAdventurerFled({ adventurer } = {}) {

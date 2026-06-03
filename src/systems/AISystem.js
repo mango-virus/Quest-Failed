@@ -236,7 +236,7 @@ export class AISystem {
   _nearestRaidKnownChest(adv) {
     const visitedRooms = new Set()
     for (const a of (this._gameState.adventurers?.active ?? [])) {
-      if (!a._treasureHunter || a.aiState === 'dead') continue
+      if (!(a._treasureHunter || a.flags?.plundererThief) || a.aiState === 'dead') continue
       for (const id of (a.visitedRooms ?? [])) visitedRooms.add(id)
     }
     if (visitedRooms.size === 0) return null
@@ -271,7 +271,7 @@ export class AISystem {
     const visited = new Set()
     const claimed = new Set()
     for (const a of (this._gameState.adventurers?.active ?? [])) {
-      if (!a._treasureHunter || a.aiState === 'dead') continue
+      if (!(a._treasureHunter || a.flags?.plundererThief) || a.aiState === 'dead') continue
       for (const id of (a.visitedRooms ?? [])) visited.add(id)
       if (a !== adv && a.goal?.type === 'EXPLORE_ROOM' && a.goal.roomId != null) {
         claimed.add(a.goal.roomId)
@@ -4232,7 +4232,11 @@ export class AISystem {
     //      counts as seen once any raider enters it, and raiders fan out to
     //      different rooms). Once the raid has collectively visited every room
     //      AND every found chest is looted, there's nothing left → they leave.
-    if (adv._treasureHunter) {
+    // Treasure-Hunter raiders AND Plunderer (pirate) thieves run the same HEIST
+    // loop: grab a chest, then beeline the exit with the loot. (Plunderers also
+    // bleed gold passively via _tickPlunderers; this makes them rob the vault too,
+    // robbing real chests with the pirate plunder bonus, then escaping rich.)
+    if (adv._treasureHunter || adv.flags?.plundererThief) {
       if ((adv.stolenGold ?? 0) > 0 || adv._raiderLooted) return { type: 'ESCAPE_WITH_LOOT' }
       const chest = this._nearestRaidKnownChest(adv)
       if (chest) return { type: 'SEEK_TREASURE', chestId: chest.instanceId }

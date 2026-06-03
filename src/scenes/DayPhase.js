@@ -1,7 +1,7 @@
 import { EventBus }       from '../systems/EventBus.js'
 import { SaveSystem }     from '../systems/SaveSystem.js'
 import { Balance, adventurerDisplayLevel, adventurerScaleMultipliers, ngPlusEnemyMul } from '../config/balance.js'
-import { isActsEnabled, isActFinalDay, actDayIndex, currentAct, isActOvertime, actDef } from '../config/acts.js'
+import { isActsEnabled, isActFinalDay, actDayIndex, currentAct, isActOvertime, actDef, currentActResponseId } from '../config/acts.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { entryDoorTile }   from '../systems/DungeonGrid.js'
 import { PALETTE, glowPanel, applyUiCamera } from '../ui/UIKit.js'
@@ -41,6 +41,15 @@ const VANGUARD = {
   mage_tower:   { classId: 'mage',            name: 'Tower Apprentice' },
   all_stars:    { classId: 'knight',          name: "Champion's Herald" },
   plunderers:   { classId: 'pirate',          name: 'Crew Raider', flags: ['plundererThief'] },
+}
+
+// KR themed-wave injection (KR overhaul) — during a themed act, a SLICE of every
+// normal (non-climax) wave spawns as the kingdom's themed class, so the response's
+// identity is felt all act, not just at the climax raid. `pct` = fraction of the
+// wave; `flags` = stamped on those units (e.g. Plunderers' pirates are also
+// thieves — they drain + heist). Per-response entries filled in as each slice ships.
+const KR_THEMED_WAVE = {
+  plunderers: { classId: 'pirate', flags: ['plundererThief'], pct: 0.5 },
 }
 
 export class DayPhase extends Phaser.Scene {
@@ -1103,6 +1112,16 @@ export class DayPhase extends Phaser.Scene {
       // (default 1.0). Only used when the NightPhase preview didn't have
       // a slot for this index (e.g. baseCount grew mid-day).
       if (!cls) cls = pickWeightedClass(classes) ?? classes[0]
+      // KR themed-wave injection — during a themed act, a slice of each wave is the
+      // active response's themed class (Plunderers' pirate thieves, etc.), carrying
+      // its gimmick flag so the response is felt across the whole act.
+      let _krThemedFlags = null
+      const _krWaveResp = isActsEnabled() ? currentActResponseId(this._gameState) : null
+      const _krTheme = _krWaveResp ? KR_THEMED_WAVE[_krWaveResp] : null
+      if (_krTheme && Math.random() < (_krTheme.pct ?? 0.5)) {
+        const tCls = (this.cache.json.get('adventurerClasses') ?? []).find(c => c.id === _krTheme.classId)
+        if (tCls) { cls = tCls; preRolledVariant = null; _krThemedFlags = _krTheme.flags ?? null }
+      }
       // Each adventurer rolls its own entry hall (pickSpawnTile picks a
       // random connected entrance verified to reach the boss), so a wave
       // naturally splits across all of them and every adv starts on a
@@ -1120,6 +1139,8 @@ export class DayPhase extends Phaser.Scene {
       // the same sprite the wave preview showed. Skipped when no
       // pre-roll exists (legacy saves, event-replacement spawns).
       if (preRolledVariant) adv.spriteVariant = preRolledVariant
+      // KR themed-wave gimmick flags (e.g. Plunderers' pirates are also thieves).
+      if (_krThemedFlags) adv.flags = { ...(adv.flags ?? {}), ...Object.fromEntries(_krThemedFlags.map(f => [f, true])) }
 
       // Dungeon event: Cosplay Contest. Each adv has a 75% chance to be
       // "passive" (will not initiate combat with minions), the other 25%

@@ -43,6 +43,9 @@ export class CoinBurstRenderer {
 
     this._onAward = this._onAward.bind(this)
     EventBus.on('RESOURCES_AWARDED', this._onAward)
+    // Plunderers (KR) — a thief pockets your gold: a steal burst + "−Xg" at it.
+    this._onPlunderDrain = this._onPlunderDrain.bind(this)
+    EventBus.on('PLUNDER_DRAIN_VFX', this._onPlunderDrain)
   }
 
   _isZulgath() {
@@ -51,8 +54,28 @@ export class CoinBurstRenderer {
 
   destroy() {
     EventBus.off('RESOURCES_AWARDED', this._onAward)
+    EventBus.off('PLUNDER_DRAIN_VFX', this._onPlunderDrain)
     for (const o of this._items) o?.destroy?.()
     this._items = []
+  }
+
+  // A Plunderer pockets some of your gold — a few coins flit up off the thief +
+  // a red-gold "−Xg" label (the inverse of the +Xg award burst).
+  _onPlunderDrain({ x, y, gold } = {}) {
+    if (x == null || y == null || !(gold > 0)) return
+    const t = this._scene.add.text(x, y - 18, `−${gold}g`, {
+      fontFamily: FONT_HEAD, fontSize: '11px', color: '#ffae4a',
+      letterSpacing: 1, stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(60)
+    this._items.push(t)
+    this._scene.tweens.add({
+      targets: t, y: y - 46, alpha: { from: 1, to: 0 }, duration: 850, ease: 'Sine.easeOut',
+      onComplete: () => { const i = this._items.indexOf(t); if (i >= 0) this._items.splice(i, 1); t.destroy() },
+    })
+    const mult = _particlesMult()
+    if (mult <= 0) return
+    const count = Math.max(1, Math.round(3 * mult))
+    for (let i = 0; i < count; i++) this._spawnCoin(x, y, i, count)
   }
 
   _onAward(payload) {
