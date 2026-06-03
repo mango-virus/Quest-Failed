@@ -424,13 +424,16 @@ export class KingdomModifierSystem {
     if (now < (this._champAbilityAt ?? 0)) return
     this._champAbilityAt = now + CHAMP_ABILITY_CD_MS
     switch (resp) {
-      case 'plunderers': this._champGrandHeist(champ); break
+      case 'plunderers':  this._champGrandHeist(champ);   break
+      case 'inquisition': this._champExcommunicate(champ); break
       // (other champions' signatures added per response slice)
     }
   }
 
   // Plunderers — GRAND HEIST: the captain grabs a fat purse from your vault AND
-  // calls a cannon volley that telegraphs on up to 3 of your minions, then booms.
+  // calls a CANNON VOLLEY — telegraphed landing zones on up to 3 of your minions,
+  // then flaming cannonballs arc down in a staggered barrage (each meteor impacts
+  // with a shockwave + sparks + a scorch crater; the hit lands on impact).
   _champGrandHeist(champ) {
     const sc = this._scene
     const gold = this._gs.player?.gold ?? 0
@@ -439,16 +442,69 @@ export class KingdomModifierSystem {
     for (let i = live.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [live[i], live[j]] = [live[j], live[i]] }
     const targets = live.slice(0, 3)
     const dmg = 12 + Math.round((this._gs.boss?.level ?? 1) * 4)
-    for (const m of targets) AbilityVfx.groundTelegraph?.(sc, m.worldX, m.worldY, { color: 0xff5a2a, radius: 28, shape: 'circle', durationMs: 700 })
+    for (const m of targets) AbilityVfx.groundTelegraph?.(sc, m.worldX, m.worldY, { color: 0xff4a1a, radius: 26, shape: 'circle', durationMs: 760 })
     EventBus.emit('CHAMPION_ABILITY', { responseId: 'plunderers', name: 'GRAND HEIST', champion: champ?.name, gold: grab })
-    sc?.time?.delayedCall?.(700, () => {
-      for (const m of targets) {
-        if ((m.resources?.hp ?? 0) <= 0) continue
-        m.resources.hp = Math.max(0, m.resources.hp - dmg)
-        AbilityVfx.impactBurst?.(sc, m.worldX, m.worldY, { color: 0xff7a3a, radius: 54, sparks: 9, debris: 5, durationMs: 440 })
-      }
-      AbilityVfx.screenFlash?.(sc, { color: 0xffd24a, alpha: 0.22, durationMs: 220 })
-      sc?.cameras?.main?.shake?.(220, 0.006)
+    sc?.time?.delayedCall?.(760, () => {
+      targets.forEach((m, i) => {
+        const mx = m.worldX, my = m.worldY
+        sc?.time?.delayedCall?.(i * 110, () => {
+          AbilityVfx.meteor?.(sc, mx, my, {
+            color: 0xff7a2a, fallMs: 360, fromDX: 110 - i * 70, fromDY: -330,
+            onImpact: () => {
+              if ((m.resources?.hp ?? 0) > 0) m.resources.hp = Math.max(0, m.resources.hp - dmg)
+              AbilityVfx.crater?.(sc, mx, my, { color: 0x3a2410, radius: 20 })
+            },
+          })
+        })
+      })
+      AbilityVfx.screenFlash?.(sc, { color: 0xffae4a, intensity: 0.32, durationMs: 240 })
+      sc?.cameras?.main?.shake?.(300, 0.009)
+    })
+  }
+
+  // A beautiful holy light column descending on (x,y): a bright pillar + radiant
+  // god-rays + holy motes, with a ground sigil + sunburst on the BIG (Excommunicate)
+  // variant. Used by the Inquisition purge (light) + Excommunicate (big).
+  _holyLightColumn(x, y, { big = false } = {}) {
+    const sc = this._scene
+    if (!sc) return
+    AbilityVfx.beamPillar?.(sc, x, y, { color: 0xfff3c4, width: big ? 44 : 22, height: 300, durationMs: big ? 720 : 460 })
+    AbilityVfx.godRays?.(sc, x, y, { color: 0xfff8d8, count: big ? 18 : 9, length: big ? 150 : 64, durationMs: big ? 1000 : 560 })
+    AbilityVfx.particleBurst?.(sc, x, y, { color: 0xfffbe6, count: big ? 18 : 7, speed: big ? 130 : 80, durationMs: 600 })
+    if (big) {
+      AbilityVfx.magicCircle?.(sc, x, y, { color: 0xffe08a, radius: 50, durationMs: 1000 })
+      AbilityVfx.burstRays?.(sc, x, y, { color: 0xfff8d8, count: 14, length: 90 })
+      AbilityVfx.shockwave?.(sc, x, y, { color: 0xfff3c4, toR: 110, thickness: 6, durationMs: 560 })
+    } else {
+      AbilityVfx.pulseRing?.(sc, x, y, { color: 0xffe6a0, fromR: 6, toR: 26, alpha: 0.7, durationMs: 420 })
+    }
+  }
+
+  // Inquisition — EXCOMMUNICATE: a pillar of holy fire from the heavens vaporizes
+  // your strongest UNDEAD (or, if none, your strongest minion of any type). Charge
+  // tell -> big holy column -> the target is unmade. (Pact-suppression is the
+  // act-wide half of the gimmick; this is the boss's hard, single-target smite.)
+  _champExcommunicate(champ) {
+    const sc = this._scene
+    const live = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0)
+    if (!live.length) return
+    const undead = live.filter(_isUndead)
+    const pool = undead.length ? undead : live
+    let target = null, best = -Infinity
+    for (const m of pool) {
+      const v = (m.resources?.maxHp ?? 0) + (m.stats?.attack ?? 0) * 5
+      if (v > best) { best = v; target = m }
+    }
+    if (!target) return
+    const tx = target.worldX, ty = target.worldY
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'inquisition', name: 'EXCOMMUNICATE', champion: champ?.name })
+    AbilityVfx.chargeUp?.(sc, tx, ty, { color: 0xfff3c4, count: 16, radius: 72, durationMs: 620 })
+    AbilityVfx.magicCircle?.(sc, tx, ty, { color: 0xffe08a, radius: 48, durationMs: 1000 })
+    sc?.time?.delayedCall?.(620, () => {
+      this._holyLightColumn(tx, ty, { big: true })
+      AbilityVfx.screenFlash?.(sc, { color: 0xfff3c4, intensity: 0.42, durationMs: 300 })
+      sc?.cameras?.main?.shake?.(260, 0.008)
+      if ((target.resources?.hp ?? 0) > 0) target.resources.hp = 0   // unmade by holy fire
     })
   }
 
@@ -460,12 +516,17 @@ export class KingdomModifierSystem {
     if (!now || now - (this._purgeAt ?? 0) < INQUISITION_PURGE_INTERVAL) return
     this._purgeAt = now
     const dmg = 10 + Math.round((this._gs.boss?.level ?? 1) * 3)
-    let purged = 0
+    const hit = []
     for (const m of (this._gs.minions ?? [])) {
       if ((m.resources?.hp ?? 0) <= 0) continue
-      if (_isUndead(m)) { m.resources.hp -= dmg; purged++ }
+      if (_isUndead(m)) { m.resources.hp -= dmg; hit.push(m) }
     }
-    if (purged) EventBus.emit('INQUISITION_PURGE', { purged })
+    if (hit.length) {
+      EventBus.emit('INQUISITION_PURGE', { purged: hit.length })
+      // Holy light sears each undead each pulse (capped so a big undead army
+      // doesn't flood the frame with beams).
+      for (const m of hit.slice(0, 5)) this._holyLightColumn(m.worldX, m.worldY)
+    }
   }
 
   // Pantheon holy aura — every ~1.5s the angels heal nearby kingdom heroes and

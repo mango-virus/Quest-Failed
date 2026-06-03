@@ -1635,3 +1635,12 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 **BUILD ORDER (one full vertical slice per response: behavior + signature ability + VFX + balance + dev-test):**
 1. Plunderers  2. Inquisition  3. Forlorn Hope  4. Mage Tower  5. Pantheon
 6. All-Stars  7. Betrayer  8. Reckoning of the Dead  9. Rival  → then the sprite pass.
+
+### Plunderers — SHIPPED (mechanics, 2026-06-03) — slice #1 of 9
+- ☑ 50% pirate class (themed-wave injection, plundererThief) — KR_THEMED_WAVE in DayPhase.
+- ☑ Champion renamed → "Dread Captain Vane" (pirate chassis); retinue 50% pirate; pirate vanguard.
+- ☑ Signature GRAND HEIST (gold grab + cannon volley) via the reusable champion-ability framework.
+- ☑ Heist-the-vault AI (seek chest → rob w/ pirate bonus → escape with loot).
+- ☑ Coin-drain VFX (steal burst + "−Xg" per thief).
+- ☐ Unique LPC sprite for Dread Captain Vane (DEFERRED — sprite pass).
+- ⚠ BALANCE: 50% thief waves draining+heisting may be too strong; dials = PLUNDER_PICKPOCKET_PCT + the 0.5 fraction.
