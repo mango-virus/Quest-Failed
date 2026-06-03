@@ -73,6 +73,10 @@ const CLASS_ABILITY_PREFIX = {
   knight: 'knight', rogue: 'rogue', mage: 'mage', cleric: 'cleric',
   necromancer: 'necro', ranger: 'ranger', twitch_streamer: 'twitch',
   beast_master: 'bm', barbarian: 'barb', monk: 'monk', bard: 'bard',
+  // New classes (2026-06-03) — so the hover panel lists their abilities too
+  // (Tunnel / Rally / Strength in Numbers / Crowd Roar + Block / Roll the Dice).
+  gladiator: 'glad', peasant: 'peasant', valkyrie: 'valkyrie',
+  gambler: 'gambler', miner: 'miner',
 }
 
 // Names of every class ability for the hover panel (e.g. "Protective
