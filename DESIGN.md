@@ -1644,3 +1644,10 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - ☑ Coin-drain VFX (steal burst + "−Xg" per thief).
 - ☐ Unique LPC sprite for Dread Captain Vane (DEFERRED — sprite pass).
 - ⚠ BALANCE: 50% thief waves draining+heisting may be too strong; dials = PLUNDER_PICKPOCKET_PCT + the 0.5 fraction.
+
+### Inquisition — SHIPPED (mechanics+VFX, 2026-06-03) — slice #2 of 9
+- ☑ Holy-light purge VFX — a beautiful light column (beamPillar + god-rays + motes + halo) on each purged undead, capped 5/tick.
+- ☑ Champion signature EXCOMMUNICATE (Mordrake) — charge → BIG holy column → vaporizes strongest undead (or strongest minion of any type if none → non-undead builds feel it).
+- ☑ Pact-suppression HUD readout — sealed pact glyphs grey out + a bright "✝" cross stamp (TopBar qf-buffs-sealed enhanced). Driven by the existing INQUISITION_SUPPRESS_CHANGED.
+- ☐ Unique LPC sprites for High Inquisitor + inquisitors + zealots (DEFERRED — sprite pass).
+- ⚠ DIVERGENCE (surface to user): Excommunicate's "silence a random pact for the fight" is delivered by the EXISTING act-wide _inqSuppress (ALL pacts inert while the Inquisition is in the dungeon, i.e. the whole champion fight) rather than a per-pact silence — pacts are scattered _mechanicFlags with no single silence point, so a true one-random-pact silence would need touching every benefit read site. Confirm if the per-pact version is wanted.
