@@ -1160,6 +1160,12 @@ export class RightPanels {
     sub('PANTHEON_RAISE', () => {
       this._addLog('The seraph raises a Radiant Guardian from the fallen!', 'pantheon')
     })
+    // Pantheon — Aurelia's Final Judgment: a channelled row-wipe (or a fizzle if
+    // you cut her down mid-cast).
+    sub('PANTHEON_JUDGMENT', ({ hit, fizzled } = {}) => {
+      if (fizzled) this._addLog('You cut down the Seraph mid-cast — FINAL JUDGMENT fizzles!', 'champion-down')
+      else this._addLog(`FINAL JUDGMENT scours a row — ${hit ?? 0} minion${hit === 1 ? '' : 's'} smitten!`, 'champion')
+    })
     // Inquisition (KR P4) — your undead minions are purged by holy law (coalesced).
     sub('INQUISITION_PURGE', () => {
       this._addLogCoalesced('The Inquisition purges your undead!', 'inquisition', 'INQUISITION_PURGE', null)

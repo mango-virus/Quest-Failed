@@ -74,6 +74,10 @@ const MAGE_POLY_MS = 5200
 const PANTHEON_AURA_INTERVAL  = 1500
 const PANTHEON_AURA_RADIUS_PX = 96     // ~3 tiles (TILE=32)
 const PANTHEON_RAISE_CAP      = 4
+// Final Judgment (Aurelia's signature) — channel time before the row-wipe smite
+// lands. If the Seraph is slain during the channel, judgment FIZZLES.
+const JUDGMENT_CAST_MS        = 1500
+const JUDGMENT_BAND_TILES     = 1.5    // ± this many tiles → the smitten "row"
 
 // Inquisition — the holy law purges your undead minions while its act runs.
 const INQUISITION_PURGE_INTERVAL = 2000
@@ -474,9 +478,10 @@ export class KingdomModifierSystem {
     // signature. In a real act the two are identical.
     const sig = champ._championResponseId || resp
     switch (sig) {
-      case 'plunderers':  this._champGrandHeist(champ);   break
+      case 'plunderers':  this._champGrandHeist(champ);    break
       case 'inquisition': this._champExcommunicate(champ); break
       case 'mage_tower':  this._champPolymorph(champ);     break
+      case 'pantheon':    this._champFinalJudgment(champ); break
       // (other champions' signatures added per response slice)
     }
   }
@@ -719,7 +724,9 @@ export class KingdomModifierSystem {
   }
 
   // The seraph resurrects the fallen — when a pantheon hero dies, raise a Radiant
-  // Guardian in its place (capped per raid). Reuses DayPhase's retinue spawn.
+  // Guardian WHERE IT FELL (capped per raid), in a grand divine pillar of light.
+  // Reuses DayPhase's retinue spawn, then repositions the raised unit onto the
+  // corpse's tile so the resurrection reads in-place rather than at the entry.
   _pantheonRaise(fallen) {
     const meta = this._gs.meta
     if (!meta?.act) return
@@ -732,8 +739,100 @@ export class KingdomModifierSystem {
     const raised = dayPhase._spawnRetinueSquad(
       { classId: 'paladin', count: 1, name: 'Raised Guardian', hpMul: 1.1, flags: ['pantheonHero'] },
       allClasses, this._gs.boss?.level ?? 1)
+    const g0 = raised[0]
+    const fx = fallen?.worldX, fy = fallen?.worldY
+    if (g0 && Number.isFinite(fx) && Number.isFinite(fy)) {
+      g0.tileX = fallen.tileX; g0.tileY = fallen.tileY
+      g0.worldX = fx; g0.worldY = fy
+      g0.path = null; g0.pathIndex = 0
+    }
     for (const r of raised) r.goal = { type: 'SEEK_BOSS' }   // join the assault, not wander
+    this._pantheonResurrectPillar(Number.isFinite(fx) ? fx : g0?.worldX, Number.isFinite(fy) ? fy : g0?.worldY)
     EventBus.emit('PANTHEON_RAISE', { name: fallen?.name, remaining: meta.act._pantheonRaises })
+  }
+
+  // A GRAND divine resurrection pillar — the canonical resurrect beam at its core,
+  // wrapped in god-rays, a holy circle, a sunburst, rising motes, a shockwave ring
+  // and a soft flash. The fallen hero rises in a shaft of light.
+  _pantheonResurrectPillar(x, y) {
+    const sc = this._scene
+    if (!sc || !Number.isFinite(x) || !Number.isFinite(y)) return
+    AbilityVfx.resurrectBeam?.(sc, x, y, { color: 0xfff8d8, durationMs: 950 })
+    AbilityVfx.beamPillar?.(sc, x, y, { color: 0xfff8d8, width: 50, height: 340, durationMs: 900 })
+    AbilityVfx.godRays?.(sc, x, y, { color: 0xffe9a8, count: 18, length: 150, durationMs: 950 })
+    AbilityVfx.magicCircle?.(sc, x, y, { color: 0xffe9a8, radius: 54, durationMs: 1100 })
+    AbilityVfx.burstRays?.(sc, x, y, { color: 0xfff8d8, count: 16, length: 100, durationMs: 720 })
+    AbilityVfx.particleBurst?.(sc, x, y - 8, { color: 0xfffbe6, count: 22, speed: 90, durationMs: 900 })
+    AbilityVfx.pulseRing?.(sc, x, y, { color: 0xffe9a8, fromR: 8, toR: 70, alpha: 0.9, durationMs: 700 })
+    AbilityVfx.screenFlash?.(sc, { color: 0xfff3c4, intensity: 0.28, durationMs: 320 })
+  }
+
+  // ── Final Judgment (Aurelia's signature) ────────────────────────────────────
+  // The Seraph channels a screen-wide smite over the minion ROW (horizontal band)
+  // holding the most of your minions. A gold danger band + per-minion telegraphs
+  // warn during the channel; if she's slain mid-channel it FIZZLES, otherwise holy
+  // pillars sweep the band and devastate every minion in it.
+  _champFinalJudgment(champ) {
+    const sc = this._scene
+    const minions = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0)
+    if (!minions.length) return
+    // Pick the tileY whose ±band holds the most minions (target your formation).
+    let bestY = minions[0].tileY ?? 0, bestN = -1
+    for (const m of minions) {
+      const ty = m.tileY ?? 0
+      const n = minions.reduce((acc, o) => acc + (Math.abs((o.tileY ?? 0) - ty) <= JUDGMENT_BAND_TILES ? 1 : 0), 0)
+      if (n > bestN) { bestN = n; bestY = ty }
+    }
+    const inBand = m => Math.abs((m.tileY ?? 0) - bestY) <= JUDGMENT_BAND_TILES
+    const cy = bestY * TILE + TILE / 2
+    const widthPx = (this._gs.dungeon?.tiles?.[0]?.length ?? 60) * TILE
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'pantheon', name: 'FINAL JUDGMENT', champion: champ?.name })
+    // Channel — Aurelia charges, the row glows with warning.
+    AbilityVfx.chargeUp?.(sc, champ.worldX, champ.worldY, { color: 0xffe9a8, count: 18, radius: 84, durationMs: JUDGMENT_CAST_MS })
+    const tele = this._judgmentBand(cy, widthPx, true)
+    for (const m of minions.filter(inBand)) {
+      AbilityVfx.groundTelegraph?.(sc, m.worldX, m.worldY, { color: 0xffd24a, radius: 22, shape: 'circle', durationMs: JUDGMENT_CAST_MS })
+    }
+    sc?.time?.delayedCall?.(JUDGMENT_CAST_MS, () => {
+      tele?.destroy?.()
+      // Interrupt — the Seraph fell during the channel; judgment is undone.
+      if ((champ.resources?.hp ?? 0) <= 0) { EventBus.emit('PANTHEON_JUDGMENT', { fizzled: true }); return }
+      // The smite — a sweeping band of holy fire; lethal-grade damage to the row.
+      this._judgmentBand(cy, widthPx, false)
+      AbilityVfx.godRays?.(sc, widthPx / 2, cy, { color: 0xfff8d8, count: 20, length: 200, durationMs: 720 })
+      AbilityVfx.screenFlash?.(sc, { color: 0xfff3c4, intensity: 0.5, durationMs: 360 })
+      sc?.cameras?.main?.shake?.(420, 0.012)
+      const flat = 40 + Math.round((this._gs.boss?.level ?? 1) * 10)
+      let hit = 0
+      for (const m of (this._gs.minions ?? [])) {
+        if ((m.resources?.hp ?? 0) <= 0 || !inBand(m)) continue
+        AbilityVfx.beamPillar?.(sc, m.worldX, m.worldY, { color: 0xfff3c4, width: 30, height: 280, durationMs: 520 })
+        const dmg = Math.max(flat, Math.ceil((m.resources.maxHp ?? 1) * 0.6))   // devastates, rarely one-shots a tank
+        m.resources.hp = Math.max(0, m.resources.hp - dmg)
+        hit++
+      }
+      EventBus.emit('PANTHEON_JUDGMENT', { hit })
+    })
+  }
+
+  // A horizontal band of light across the play width at world-Y `cy`. `warning`
+  // = a pulsing gold telegraph (returned so the caller destroys it at resolve);
+  // otherwise a bright holy sweep that flashes then fades.
+  _judgmentBand(cy, widthPx, warning) {
+    const sc = this._scene
+    const h = TILE * (JUDGMENT_BAND_TILES * 2 + 1)
+    const color = warning ? 0xffd24a : 0xfff3c4
+    const g = sc.add.graphics().setDepth(warning ? 30 : 33)
+    g.fillStyle(color, warning ? 0.12 : 0.42)
+    g.fillRect(0, cy - h / 2, widthPx, h)
+    g.lineStyle(2, color, warning ? 0.5 : 0.95)
+    g.strokeRect(0, cy - h / 2, widthPx, h)
+    if (warning) {
+      sc.tweens.add({ targets: g, alpha: { from: 0.5, to: 1 }, yoyo: true, repeat: -1, duration: 220 })
+      return g
+    }
+    sc.tweens.add({ targets: g, alpha: 0, duration: 540, ease: 'Quad.easeOut', onComplete: () => g.destroy() })
+    return g
   }
 
   _tickMageTower() {

@@ -49,8 +49,9 @@ const VANGUARD = {
 // wave; `flags` = stamped on those units (e.g. Plunderers' pirates are also
 // thieves — they drain + heist). Per-response entries filled in as each slice ships.
 const KR_THEMED_WAVE = {
-  plunderers: { classId: 'pirate', flags: ['plundererThief'], pct: 0.5 },
-  mage_tower: { classId: 'mage',   flags: [],                 pct: 0.5 },
+  plunderers: { classId: 'pirate',   flags: ['plundererThief'], pct: 0.5 },
+  mage_tower: { classId: 'mage',     flags: [],                 pct: 0.5 },
+  pantheon:   { classId: 'valkyrie', flags: ['pantheonHero'],   pct: 0.5 },
 }
 
 export class DayPhase extends Phaser.Scene {

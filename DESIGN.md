@@ -1569,9 +1569,10 @@ spawn = 6 baseline (Mordrake + 3 Zealots + 2 Inquisitors), more with threat.
 ### Pantheon
 Facts: resurrection is AUTOMATIC on any pantheon-hero death — spawns a fresh
 "Raised Guardian" (paladin, +10% HP), capped 4/act (not the seraph casting per se).
-- ☐ Divine pillar resurrection VFX — must look good, not a simple effect.
-- ☐ 50% of adventurer spawns are the Valkyrie class.
+- ☑ Divine pillar resurrection VFX — must look good, not a simple effect.
+- ☑ 50% of adventurer spawns are the Valkyrie class.
 - ☐ Unique LPC sprites for Aurelia the Seraph + the angels.
+- ☑ Mechanics+VFX SHIPPED 2026-06-03 — see "Pantheon — SHIPPED (slice #5 of 9)" below (divine pillar resurrection, 50% valkyrie wave, FINAL JUDGMENT row-wipe). Sprite still deferred.
 
 ### Rival
 Facts: rival monsters currently use the monster_invader chassis (not specially
@@ -1674,3 +1675,11 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - ☐ Unique LPC sprite for Archmagus Velloran (DEFERRED — sprite pass). The "🐑" critter is a tag, not a sprite swap (also a sprite-pass item).
 - Verified: 26/26 isolation asserts (ability-room classification, 50% seal + boss/starter exclusion, non-mage-act no-op + restore, daily re-roll + night restore, polymorph flag+revert, REAL CombatSystem attack-gate, champion-response dispatch).
 - ⚠ BALANCE (eyeball): MAGE_TRANSMUTE_FRACTION=0.5, MAGE_POLY_MS=5200 — tune after a live look.
+
+### Pantheon — SHIPPED (mechanics+VFX, 2026-06-03) — slice #5 of 9
+- ☑ 50% Valkyrie themed wave (KR_THEMED_WAVE.pantheon, flagged pantheonHero so the winged host also gets the holy aura + auto-resurrect).
+- ☑ Divine pillar resurrection VFX — _pantheonRaise now repositions the Raised Guardian ONTO the corpse tile and fires a GRAND pillar there: resurrectBeam core + beamPillar + godRays + holy magicCircle + sunburst + rising motes + shockwave ring + soft flash. (was: spawn at entry, no VFX.)
+- ☑ Champion signature FINAL JUDGMENT (Aurelia) — channels a screen-wide smite over the minion ROW (±1.5-tile horizontal band) holding the MOST minions: gold danger band + per-minion telegraphs during the ~1.5s channel, then holy pillars sweep the band for wipe-grade damage (max(flat, 60% maxHp)). INTERRUPTIBLE — cut her down mid-channel and it FIZZLES (no damage). PANTHEON_JUDGMENT event (hit / fizzled) drives the HUD beat.
+- ☐ Unique LPC sprites for Aurelia + the angels (DEFERRED — sprite pass).
+- Verified: 14/14 isolation asserts (raise reposition+cap+event, judgment band-targeting + wipe-grade damage + spares-out-of-band, fizzle-on-interrupt, empty no-op).
+- ⚠ BALANCE (eyeball): Valkyries are already strong (ignore-traps + Rally self-revive); making 50% of the wave pantheonHero valkyries (holy heal + extra resurrect) may be a lot — watch it. JUDGMENT_CAST_MS=1500, band ±1.5 tiles, 60% maxHp wipe.
