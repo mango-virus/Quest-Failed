@@ -149,6 +149,21 @@ function _ensureCss() {
   line-height:1.45; opacity:0; transform:translateY(8px);
   animation:qf-kri-rise var(--dur-slow,400ms) var(--ease-out,ease) .98s forwards; }
 
+/* YOUR TARGET — names the champion boss you must defeat to clear the act. */
+.qf-kri-target { display:inline-flex; align-items:center; gap:11px; margin:0 auto 6px;
+  padding:7px 16px; border-radius:var(--radius-md,7px);
+  border:1px solid color-mix(in srgb, var(--kri-accent) 60%, transparent);
+  background:color-mix(in srgb, var(--kri-accent) 12%, transparent);
+  opacity:0; transform:translateY(8px);
+  animation:qf-kri-rise var(--dur-slow,400ms) var(--ease-out,ease) 1.1s forwards; }
+.qf-kri-target-label { font-family:'Press Start 2P',monospace; font-size:8px; letter-spacing:3px;
+  color:var(--kri-accent); text-shadow:0 0 8px var(--kri-accent); }
+.qf-kri-target-name { font-family:'Press Start 2P',monospace; font-size:clamp(10px,1.2vw,13px);
+  letter-spacing:1px; color:#fff3df; text-shadow:0 0 10px var(--kri-accent), 0 2px 0 #1a1004; }
+.qf-kri-clear { font-family:'VT323',monospace; font-size:clamp(13px,1.5vw,16px); color:#cdbfa6;
+  letter-spacing:.4px; margin:0 auto var(--space-4,16px); opacity:0; transform:translateY(8px);
+  animation:qf-kri-rise var(--dur-slow,400ms) var(--ease-out,ease) 1.18s forwards; }
+
 /* the modifier — what this act DOES, boxed so it reads as "the rules this act" */
 .qf-kri-mod { display:inline-flex; align-items:flex-start; gap:10px; text-align:left;
   max-width:600px; margin:0 auto var(--space-5,24px); padding:11px 16px;
@@ -227,6 +242,13 @@ export class KingdomResponseIntro {
           document.createTextNode(` Drawn by ${reason}.`),
         ]) : null,
         response.threat ? h('div', { className: 'qf-kri-threat' }, `"${response.threat}"`) : null,
+        // Name the champion you must defeat to clear the act — the boss the
+        // ChampionBar + in-world crown/aura point at when the raid lands.
+        response.champion ? h('div', { className: 'qf-kri-target' }, [
+          h('span', { className: 'qf-kri-target-label' }, 'YOUR TARGET'),
+          h('span', { className: 'qf-kri-target-name' }, `♛ ${response.champion}`),
+        ]) : null,
+        response.clearCondition ? h('div', { className: 'qf-kri-clear' }, response.clearCondition) : null,
         // The act's mechanical effect ("THIS ACT: …") now lives in the act-number
         // hover popover (TopBar qf-day-act-pop), keeping this reveal to the story beat.
         h('div', { className: 'qf-kri-actions' }, [

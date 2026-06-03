@@ -38,6 +38,7 @@ import { PactPicker }           from './PactPicker.js'
 import { TinkererPicker }       from './TinkererPicker.js'
 import { DevEventsButton }      from './DevEventsButton.js'
 import { DevKingdomButton }     from './DevKingdomButton.js'
+import { DevSpawnClassButton }  from './DevSpawnClassButton.js'
 import { AltarRewardSlot }      from './AltarRewardSlot.js'
 import { DungeonFx }            from './DungeonFx.js'
 import { EventFx }              from './EventFx.js'
@@ -53,6 +54,7 @@ import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
 import { LightPartyCinematic }   from './LightPartyCinematic.js'
 import { AldricCinematic }       from './AldricCinematic.js'
+import { ChampionBar }           from './ChampionBar.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
 import { JamPortalCorner }      from './JamPortalCorner.js'
@@ -178,6 +180,9 @@ export class HudRoot {
     // power-surge readout on BOSS_ASCENSION, slammed in AFTER the act's opening
     // reveal is dismissed. Self-mounts into #hud-stage; gated behind `acts`.
     this._ascensionCinematic = isActsEnabled() ? new AscensionCinematic(this._gameState) : null
+    // Persistent "act boss" bar — names the drafted act's champion, tracks its HP,
+    // and states the objective while it lives. Self-mounts; gated behind `acts`.
+    this._championBar = isActsEnabled() ? new ChampionBar(this._gameState) : null
     // (The persistent act/modifier indicator now lives in the TopBar — an
     //  eyebrow above the day stamp — so it never overlaps the play area.)
     // Mango-only dev affordance — small floating button that force-fires
@@ -190,6 +195,9 @@ export class HudRoot {
     // Mango-dev: force any Kingdom Response live for QA (self-gates on mango +
     // the `acts` flag). Sibling of the TEST EVENT button.
     this._devKingdomButton = new DevKingdomButton()
+    // Mango-dev: spawn one adventurer of any class into the current day to watch
+    // its sprite / animations / ability VFX. Sibling, stacked above TEST KR.
+    this._devSpawnClassButton = new DevSpawnClassButton()
     // Full-screen coin-flip sequence for The Gambler's Coin event.
     this._coinFlip         = new CoinFlipCinematic()
     // Solo Leveling — Shadow Monarch entrance title card + shadow vignette.
@@ -376,6 +384,7 @@ export class HudRoot {
     this._altarRewardSlot?.destroy(); this._altarRewardSlot = null
     this._devEventsButton?.destroy(); this._devEventsButton = null
     this._devKingdomButton?.destroy(); this._devKingdomButton = null
+    this._devSpawnClassButton?.destroy(); this._devSpawnClassButton = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
     this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
@@ -385,6 +394,7 @@ export class HudRoot {
     this._victoryScreen?.destroy();   this._victoryScreen = null
     this._kingdomResponseIntro?.destroy(); this._kingdomResponseIntro = null
     this._ascensionCinematic?.destroy(); this._ascensionCinematic = null
+    this._championBar?.destroy();    this._championBar = null
     this._coinFlip?.destroy();       this._coinFlip = null
     this._soloLeveling?.destroy();   this._soloLeveling = null
     this._lightParty?.destroy();     this._lightParty = null

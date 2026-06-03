@@ -29,6 +29,14 @@ function _lerpHex(a, b, k) {
 // LPC sheets ship at 64×64 per frame; render at 0.75 so adventurers come in
 // at ~48px tall — about 1.5 dungeon tiles, a readable size for top-down view.
 const LPC_SCALE = 0.75
+// Valkyrie flight — she hovers above the floor as a winged angel. We lift her
+// LPC sprite a few px and add a slow vertical bob, while a small ground-shadow
+// ellipse stays planted on the tile. That sprite↔shadow GAP is what reads as
+// "flying" from a top-down view. Each valkyrie gets a random phase so a party
+// of them doesn't bob in lock-step.
+const VALK_FLIGHT_LIFT   = 8     // px the sprite floats above its feet anchor
+const VALK_FLIGHT_BOB    = 3     // px amplitude of the slow up/down bob
+const VALK_FLIGHT_BOB_MS = 1100  // ms per half-bob (drives the sine frequency)
 // Anims using the separate _atk texture (192×192 frames). When playing one of
 // these, the sprite swaps to the atk texture and adjusts origin so the
 // character body's foot stays at the same world position.
@@ -489,11 +497,26 @@ export class AdventurerRenderer {
         if (cullTag && cullTag.visible) cullTag.setVisible(false)
         continue
       }
+      // Miner Tunnel — while burrowed underground (between digging hole A and
+      // surfacing at hole B) hide the sprite entirely, so the cross-dungeon
+      // relocation never reads as a slide across the floor.
+      if (adv._underground) {
+        if (s.container?.visible) s.container.setVisible(false)
+        const ugTag = this._carrierLabels?.[adv.instanceId]
+        if (ugTag?.visible) ugTag.setVisible(false)
+        continue
+      }
       if (s.container && !s.container.visible) s.container.setVisible(true)
       // Solo Leveling — pulse Jinwoo's violet flame-aura glow while on-screen.
       if (s.shadowGlow) s.shadowGlow.setAlpha(0.16 + 0.20 * Math.sin(this._scene.time.now / 320))
-      // The Nemesis (Aldric) — a gentle, slower gold hero-glow pulse.
-      if (s.nemesisGlow) s.nemesisGlow.setAlpha(0.20 + 0.14 * Math.sin(this._scene.time.now / 380))
+      // Marked-threat aura (Aldric / a Kingdom-Response champion) — pulse the
+      // body glow alpha + the ground ring (alpha + a slight scale breathe). Strong
+      // values so it's clearly visible, not a faint shimmer.
+      if (s.threatGlow || s.threatRing) {
+        const p = 0.5 + 0.5 * Math.sin(this._scene.time.now / 360)   // 0..1
+        if (s.threatGlow) s.threatGlow.setAlpha(0.32 + 0.46 * p)      // 0.32–0.78
+        if (s.threatRing) { s.threatRing.setAlpha(0.55 + 0.4 * p); s.threatRing.setScale(1 + 0.07 * p) }
+      }
       // Jinwoo's OWN flame cycles a blue↔black vertical gradient (RGB-style
       // colour shift via a 4-corner tint that lerps over time). His shadow
       // minions keep their plain flame — that's rendered by MinionRenderer and
@@ -609,6 +632,7 @@ export class AdventurerRenderer {
       this._updateBubbleState(s, adv)
       this._tickBuilderAnim(s, adv, dt)
       this._tickLpcAnim(s, adv)
+      if (s.flightShadow) this._tickValkyrieFlight(s)
 
       // Spawn fade-in / leave fade-out: the smaller of the two alphas
       // wins (so an adv re-leaving while still spawning would still
@@ -779,6 +803,27 @@ export class AdventurerRenderer {
   // adventurer's sprite. Idempotent — only triggers a play() when the desired
   // (anim, dir) actually changed, so Phaser doesn't restart the animation
   // every frame.
+  // Valkyrie winged flight — lift the sprite above its grounded shadow and add
+  // a slow vertical bob so she reads as hovering, not walking. Called every
+  // non-LOD frame for valkyrie sprites (they're the only ones with a
+  // flightShadow). The shadow stays planted at its creation Y; only the LPC
+  // image's local Y moves, so the sprite↔shadow gap pulses with the bob.
+  _tickValkyrieFlight(s) {
+    if (!s.lpc?.image || s._flyBaseY == null) return
+    const now = this._scene.time?.now ?? 0
+    const bob = VALK_FLIGHT_BOB * Math.sin(now / VALK_FLIGHT_BOB_MS + (s._flyPhase ?? 0))
+    s.lpc.image.y = s._flyBaseY - VALK_FLIGHT_LIFT + bob
+    // Gentle shadow breathing: shrink/fatten the shadow as she rises/falls so
+    // the hover feels physical (higher → smaller, tighter shadow).
+    if (s.flightShadow) {
+      // height above ground (in LIFT units): higher → smaller, fainter shadow.
+      const k = (VALK_FLIGHT_LIFT - bob) / VALK_FLIGHT_LIFT // ~0.6 (low) .. 1.4 (high)
+      const sc = 1 / Math.max(0.6, k)
+      s.flightShadow.setScale(sc, sc)
+      s.flightShadow.setAlpha(0.34 * Math.max(0.55, Math.min(1, 2 - k)))
+    }
+  }
+
   _tickLpcAnim(s, adv) {
     if (!s.lpc) return
     const dir = adv._lpcDir ?? 'down'
@@ -1141,6 +1186,26 @@ export class AdventurerRenderer {
       // tint over the rogue LPC sprite.
       if (adv._saboteur) lpc.image.setTint(0x1c1c26)
       this._wireSpriteInput(adv, lpc.image)
+
+      // Valkyrie — winged flight. Plant a small dark ground-shadow ellipse on
+      // the tile (behind the sprite) and remember the sprite's resting local
+      // Y. _tickValkyrieFlight() then lifts + bobs the sprite above the shadow
+      // every frame, so the gap reads as hovering. Phase is per-instance so a
+      // squad of valkyries bobs out of sync. (Drawn behind the sprite via
+      // addAt(…,0) AFTER the sprite already sits at index 0 → shadow takes
+      // index 0, sprite shifts above it.)
+      if (adv.classId === 'valkyrie' || adv.spriteVariant?.startsWith('valkyrie/')) {
+        const flightShadow = this._scene.add.ellipse(0, 4, RADIUS * 1.5, RADIUS * 0.7, 0x05070c, 0.34)
+        c.addAt(flightShadow, 0)
+        sprite.flightShadow = flightShadow
+        sprite._flyBaseY = lpc.image.y
+        // Stable per-instance phase derived from the instanceId so it survives
+        // re-creation without Math.random (and stays varied across a party).
+        const seed = String(adv.instanceId ?? adv.sigil ?? '')
+        let h = 0
+        for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff
+        sprite._flyPhase = (h / 0xffff) * Math.PI * 2
+      }
     }
 
     // Solo Leveling — Sung Jinwoo is wreathed in a persistent black-flame aura.
@@ -1152,30 +1217,59 @@ export class AdventurerRenderer {
       this._attachShadowMonarchAura(sprite)
     }
 
-    // The Nemesis (Aldric, all acts) — a subtle gold hero-glow so the player can
-    // pick him out at a glance in a crowded wave. Pulsed per-frame in update().
+    // The Nemesis (Aldric, all acts) — a gold threat aura so the player can pick
+    // him out at a glance in a crowded wave. Pulsed per-frame in update().
     if (lpc && (adv._nemesis || adv._nemesisDuel)) {
-      this._attachNemesisAura(sprite)
+      this._attachThreatAura(sprite, { color: 0xffd24a, scale: 1.5 })
+    }
+
+    // Kingdom-Response CHAMPION (the act boss) — a threat aura tinted to the
+    // response accent + a crown tag, so the boss is unmistakable amid its retinue.
+    if (lpc && adv._championResponseId) {
+      const accentCss = adv._championAccent || '#ffd24a'
+      const accentInt = parseInt(accentCss.replace('#', ''), 16) || 0xffd24a
+      this._attachThreatAura(sprite, { color: accentInt, scale: 1.65 })
+      this._attachChampionLabel(sprite, accentCss)
     }
 
     this._sprites[adv.instanceId] = sprite
     return sprite
   }
 
-  // Aldric's always-on hero glow — a soft, gently-pulsing gold aura slotted BEHIND
-  // his sprite (mirrors the Shadow Monarch's violet glow) so he reads as the marked
-  // rival in any crowd. Deliberately subtle: low alpha, slow pulse, SCREEN blend.
-  // Pulse alpha is driven per-frame in update().
-  _attachNemesisAura(s) {
-    if (!this._scene.textures.exists('vfx-soft-glow')) return
+  // Always-on "marked threat" aura behind a key unit (the Nemesis Aldric, or a
+  // Kingdom-Response champion) so it stands out in a crowd at a glance: a glowing
+  // GROUND RING at its feet + a bright pulsing body glow. `color` is the marker
+  // tint. Both elements are slotted BEHIND the sprite and pulsed per-frame in
+  // update(). Strong on purpose — a faint glow was hard to spot.
+  _attachThreatAura(s, { color = 0xffd24a, scale = 1.5 } = {}) {
     const c = s.container
-    const glow = this._scene.add.image(0, -13, 'vfx-soft-glow')
-      .setScale(1.05)
-      .setTint(0xffd24a)
-      .setBlendMode(Phaser.BlendModes.SCREEN)
-    c.add(glow)
-    c.sendToBack(glow)
-    s.nemesisGlow = glow
+    // Ground ring at the feet — the clearest "this unit is marked" read. A flat
+    // ellipse stroke that breathes (alpha + scale pulse).
+    const ring = this._scene.add.ellipse(0, 8, RADIUS * 2.8, RADIUS * 1.4, color, 0)
+      .setStrokeStyle(2.5, color, 0.95)
+    c.add(ring); c.sendToBack(ring)
+    s.threatRing = ring
+    // Brighter body glow rising around the torso.
+    if (this._scene.textures.exists('vfx-soft-glow')) {
+      const glow = this._scene.add.image(0, -11, 'vfx-soft-glow')
+        .setScale(scale)
+        .setTint(color)
+        .setBlendMode(Phaser.BlendModes.SCREEN)
+      c.add(glow); c.sendToBack(glow)
+      s.threatGlow = glow
+    }
+  }
+
+  // A bold accent-coloured crown above a champion's HP bar — the in-world "this is
+  // the act boss" tag. The full name + HP + objective live in the ChampionBar; the
+  // crown just marks WHICH unit it is (paired with the threat aura).
+  _attachChampionLabel(s, accentCss = '#ffe8b0') {
+    const crown = this._scene.add.text(0, -47, '♛', {
+      fontSize: '15px', color: accentCss, fontFamily: 'monospace', fontStyle: 'bold',
+      stroke: '#1a0f04', strokeThickness: 4,
+    }).setOrigin(0.5, 1)
+    s.container.add(crown)
+    s.championLabel = crown
   }
 
   // Build the Shadow Monarch's always-on black-flame aura and slot it behind

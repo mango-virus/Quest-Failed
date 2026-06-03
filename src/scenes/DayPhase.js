@@ -1212,6 +1212,60 @@ export class DayPhase extends Phaser.Scene {
      }
     }
 
+    // Peasant — Strength in Numbers. Peasants raid in PACKS. If the wave rolled
+    // any peasant, reinforce it with a small extra pack (2-3) so they always
+    // arrive as a cluster, then squad them ALL up to stick together as they
+    // explore (AISystem leashes followers to the leader; a loose blob, not true
+    // flocking). The extras inherit the lead peasant's AI-goal event flags so a
+    // pack spawned on a Treasure-Hunters / Cosplay day behaves consistently.
+    let wavePeasants = spawned.filter(a => a.classId === 'peasant')
+    if (wavePeasants.length >= 1) {
+      const peasantCls = classes.find(c => c.id === 'peasant')
+      if (peasantCls) {
+        const lead   = wavePeasants[0]
+        const extra  = 2 + Math.round(Math.random())   // +2 or +3 reinforcements
+        const pCount = 1 + Math.floor((dungeonLv - 1) / 5)
+        for (let e = 0; e < extra; e++) {
+          try {
+            const eSpawn = aiSystem.pickSpawnTile() ?? spawn
+            const p = createAdventurer(peasantCls, { x: eSpawn.x, y: eSpawn.y })
+            this._scaleAdventurerByBossLevel(p, dungeonLv)
+            p.partyId = partyId
+            p.personalityIds = personalitySystem ? personalitySystem.rollPersonalities(pCount, dungeonLv) : []
+            // Mirror the lead peasant's goal-shaping event tags so the pack
+            // behaves like its squadmates if an event is active this wave.
+            if (lead._treasureHunter) {
+              p._treasureHunter = true
+              const f = this._gameState._eventFlags
+              if (f) f.treasureRaidPartySize = (f.treasureRaidPartySize ?? 0) + 1
+            }
+            if (lead._cosplay) { p._cosplay = true; p._cosplayPassive = Math.random() < 0.75 }
+            knowledgeSystem?.initKnowledgeForSpawn?.(p, Balance.KNOWLEDGE_FRESH_INHERIT_CHANCE)
+            this._gameState.adventurers.active.push(p)
+            spawned.push(p)
+            aiSystem.pickInitialGoal(p)
+            EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: p })
+          } catch (err) {
+            console.error('[DayPhase] Skipped broken peasant-pack slot:', err)
+          }
+        }
+        // Ensure the original peasant(s) share a party with the pack so the
+        // squad reads as one group (solo-spawn waves had partyId = null).
+        wavePeasants = spawned.filter(a => a.classId === 'peasant')
+        for (const p of wavePeasants) p.partyId = partyId
+      }
+    }
+    if (wavePeasants.length >= 2) {
+      const leader = wavePeasants[0]
+      const squadId = `peasant_squad_${this._gameState.meta?.dayNumber ?? 0}_${leader.instanceId}`
+      leader._peasantSquadId = squadId
+      leader._peasantSquadLeader = true
+      for (let k = 1; k < wavePeasants.length; k++) {
+        wavePeasants[k]._peasantSquadId = squadId
+        wavePeasants[k]._peasantSquadLeaderId = leader.instanceId
+      }
+    }
+
     // Detect + announce combos (only meaningful for parties of 2+)
     if (personalitySystem && spawned.length >= 2) {
       const combos = personalitySystem.emitCombosForParty(spawned, partyId)
@@ -1705,6 +1759,7 @@ export class DayPhase extends Phaser.Scene {
         champ.name             = response.champion || 'The Champion'
         champ._kingdomChampion = true
         champ._championResponseId = response.id
+        champ._championAccent  = response.accent || '#ffd24a'   // threat-aura + crown tint
         champ.isLegendary      = true
         champ.partyId          = null
         champ.visitedRooms     = []
@@ -1770,7 +1825,18 @@ export class DayPhase extends Phaser.Scene {
 
     EventBus.emit('CHAMPION_RAID_INCOMING', {
       response, champion: response.champion, count: spawned.length,
+      adventurer: spawned.find(u => u && u._championResponseId) ?? null,   // the boss adv (ChampionBar tracks its HP)
       act: this._gameState.meta?.act?.current, threatMul: _threat,
+    })
+    // Climax-day re-announce — the response intro played ~10 days ago at the draft,
+    // so flash a banner naming the champion as it actually walks in (the persistent
+    // ChampionBar then carries the standing HP + objective).
+    EventBus.emit('HUD_BANNER', {
+      title:  'THE CHAMPION ARRIVES',
+      notif:  `${response.champion || 'A champion'} leads ${response.name || 'the assault'} — defeat the champion to clear the act.`,
+      icon:   response.emblem || '⚔',
+      colorTheme: 'ember',
+      kicker: '◆  THE KINGDOM RESPONDS  ◆',
     })
     EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
     return spawned
@@ -2574,6 +2640,33 @@ export class DayPhase extends Phaser.Scene {
       if (savedNemesis) meta.nemesis = savedNemesis
     }
 
+    // Mango dev — spawn ONE adventurer of a chosen class as a solo raider right
+    // now (fired from the TEST ADV dev modal) so its sprite, walk/attack
+    // animations, and ability VFX can be watched live. Uses the canonical
+    // wave-spawn sequence (level-scaled, solo, knowledge-seeded, AI goal picked).
+    // Only meaningful during an active day phase (raiders only act in the day).
+    const onDevSpawnClass = ({ classId } = {}) => {
+      if (!classId) return
+      const game = this.scene.get('Game')
+      const aiSystem = game?.aiSystem
+      if (!aiSystem) return
+      const classes = this.cache.json.get('adventurerClasses') ?? []
+      const cls = classes.find(c => c.id === classId)
+      if (!cls) return
+      const t = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+      if (!t) return
+      const lv  = this._gameState.boss?.level ?? 1
+      const adv = createAdventurer(cls, { x: t.x, y: t.y })
+      this._scaleAdventurerByBossLevel(adv, lv)
+      adv.partyId = null
+      adv.personalityIds = game.personalitySystem ? game.personalitySystem.rollPersonalities(1, lv) : []
+      game.knowledgeSystem?.initKnowledgeForSpawn?.(adv, 1.0)
+      this._gameState.adventurers.active.push(adv)
+      aiSystem.pickInitialGoal(adv)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
+      EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
+    }
+
     EventBus.on('ADVENTURER_DIED',              onDeath)
     EventBus.on('ADVENTURER_FLED',              onChange)
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
@@ -2582,6 +2675,7 @@ export class DayPhase extends Phaser.Scene {
     EventBus.on('LIGHT_PARTY_DUEL_END',         onLpDuelEnd)
     EventBus.on('DEV_FORCE_ALDRIC_DUEL',        onDevDuel)
     EventBus.on('DEV_FORCE_ALDRIC_SCOUT',       onDevScout)
+    EventBus.on('DEV_SPAWN_CLASS',              onDevSpawnClass)
     this._listeners = [
       ['ADVENTURER_DIED',             onDeath],
       ['ADVENTURER_FLED',             onChange],
@@ -2591,6 +2685,7 @@ export class DayPhase extends Phaser.Scene {
       ['LIGHT_PARTY_DUEL_END',        onLpDuelEnd],
       ['DEV_FORCE_ALDRIC_DUEL',       onDevDuel],
       ['DEV_FORCE_ALDRIC_SCOUT',      onDevScout],
+      ['DEV_SPAWN_CLASS',             onDevSpawnClass],
     ]
   }
 
