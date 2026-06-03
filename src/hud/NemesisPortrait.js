@@ -53,6 +53,7 @@ const ALDRIC_ART = {
       room:        ['contempt', 'sneering'],   // scoffs at the dungeon
       trap:        ['annoyed', 'contempt'],    // a trap is beneath him
       minion:      ['cocky', 'confident'],     // gleeful dismissal
+      throne:      ['confident', 'cocky'],     // sizes up the boss, unimpressed
     },
     hurtTiers: ['hurt', 'rattled', 'annoyed', 'enraged'],
   },
@@ -70,6 +71,7 @@ const ALDRIC_ART = {
       room:        ['heroic-resolve'],                    // grim resolve at the horror you built
       trap:        ['heroic-resolve', 'fierce-grin'],     // steels himself
       minion:      ['battle-joy', 'triumphant', 'fierce-grin'],  // counts the fallen with grim joy
+      throne:      ['heroic-resolve'],                    // faces the boss at last, grimly
     },
     hurtTiers: ['hurt', 'desperate', 'unhinged', 'badly-hurt-and-dying'],
   },
@@ -87,6 +89,7 @@ const ALDRIC_ART = {
       room:        ['obsessed'],                  // stares, recognizing every stone
       trap:        ['maniac', 'obsessive-rage'],  // manic — "I knew it was there"
       minion:      ['sneering', 'enraged'],
+      throne:      ['obsessed', 'maniac'],        // the fixation made flesh, at last
     },
     hurtTiers: ['hurt', 'rattled', 'enraged', 'obsessive-rage'],
   },

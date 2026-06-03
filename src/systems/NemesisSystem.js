@@ -43,6 +43,7 @@ export class NemesisSystem {
     EventBus.on('ADVENTURER_FLED', this._onFled,       this)
     EventBus.on('ADVENTURER_DIED', this._onDied,       this)
     EventBus.on('NEMESIS_RECOIL',  this._onRecoil,     this)
+    EventBus.on('NEMESIS_THRONE',  this._onThrone,     this)
     EventBus.on('NEMESIS_HURT',    this._onHurt,       this)
     EventBus.on('NEMESIS_ARRIVED', this._onArrived,    this)
     // Living-reaction hooks (Acts I–III scout): he remarks on the dungeon he
@@ -62,6 +63,7 @@ export class NemesisSystem {
     EventBus.off('ADVENTURER_FLED', this._onFled,       this)
     EventBus.off('ADVENTURER_DIED', this._onDied,       this)
     EventBus.off('NEMESIS_RECOIL',  this._onRecoil,     this)
+    EventBus.off('NEMESIS_THRONE',  this._onThrone,     this)
     EventBus.off('NEMESIS_HURT',    this._onHurt,       this)
     EventBus.off('NEMESIS_ARRIVED', this._onArrived,    this)
     EventBus.off('ADVENTURER_ROOM_CHANGED', this._onRoomChanged,   this)
@@ -121,6 +123,14 @@ export class NemesisSystem {
     const bank = this._lines?.hurt?.[String(act)]
     const line = Array.isArray(bank) ? (bank[tier] ?? bank[bank.length - 1]) : null
     if (line) EventBus.emit('NEMESIS_TAUNT', { line, act, source: 'hurt', tier, log: false })
+  }
+
+  // Aldric reaches the throne as the LAST one alive (Acts I–III) — his confrontation
+  // line the instant he sees the boss, a beat before the withdrawal vow (_onRecoil).
+  _onThrone({ act } = {}) {
+    const a = Math.min(3, act ?? this._gs.meta?.nemesis?.act ?? 1)
+    const line = this._reactLine('throne', a)
+    if (line) EventBus.emit('NEMESIS_TAUNT', { line, act: a, source: 'throne', log: true })
   }
 
   // ── Living reactions to the dungeon (all acts) ──────────────────────────────

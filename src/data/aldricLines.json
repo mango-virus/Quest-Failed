@@ -80,6 +80,23 @@
         "There is nowhere left to hide. There is only the reckoning."
       ]
     },
+    "throne": {
+      "1": [
+        "So. THIS is the great evil the realm wets itself over? ...Smaller than I pictured.",
+        "There you are, beast. Skulking in the dark like the coward you are.",
+        "Hm. Not today. You're not worth the dent in my blade — not yet."
+      ],
+      "2": [
+        "There you are, monster. The face I've seen behind my eyes every night since.",
+        "So. We meet in your lair at last. Look at me. LOOK at me. Remember it.",
+        "No. Not like this — not in a fury. When I take your head it will be clean, and earned."
+      ],
+      "3": [
+        "I found you. Of course I found you. I always knew that I would.",
+        "There. There you sit. I've walked to this throne ten thousand times behind my eyes.",
+        "Not yet. NOT yet. One more thing to learn, and then there will be nothing left of you."
+      ]
+    },
     "room": {
       "1": [
         "A torture chamber? You decorate like a child playing villain.",
