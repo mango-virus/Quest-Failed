@@ -1609,7 +1609,8 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 
 ### All-Stars
 - ☐ Unique LPC sprite for each of the four heroes (Myrine/Shadowfax/Elenwe/Aldous + Garreth).
-- ☐ (My flagged gap: make it felt across the act, not just the climax — confirm desired.)
+- ☐ (My flagged gap: make it felt across the act, not just the climax — confirm desired.) — STILL OPEN, re-flagged in the SHIPPED block below.
+- ☑ 4 signatures + VFX SHIPPED 2026-06-03 — see "All-Stars — SHIPPED (slice #6 of 9)" below. Sprites + the across-the-act question still open.
 
 ### Plunderers
 - ☐ 50% of them are the pirate class. Pirate-themed response.
@@ -1683,3 +1684,16 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - ☐ Unique LPC sprites for Aurelia + the angels (DEFERRED — sprite pass).
 - Verified: 14/14 isolation asserts (raise reposition+cap+event, judgment band-targeting + wipe-grade damage + spares-out-of-band, fizzle-on-interrupt, empty no-op).
 - ⚠ BALANCE (eyeball): Valkyries are already strong (ignore-traps + Rally self-revive); making 50% of the wave pantheonHero valkyries (holy heal + extra resurrect) may be a lot — watch it. JUDGMENT_CAST_MS=1500, band ±1.5 tiles, 60% maxHp wipe.
+
+### All-Stars — SHIPPED (mechanics+VFX, 2026-06-03) — slice #6 of 9
+- ☑ FOUR distinct champion signatures, one per named hero, each on its OWN staggered cadence (a "deadly concert", not a synchronized nuke):
+  - Myrine the Stormcaller (mage) → **Chain Lightning** — bolt leaps through up to 4 nearest minions with per-hop falloff.
+  - Elenwe Trueshot (ranger) → **Piercing Volley** — 3 arrows skewer every minion within ~20px of the firing line (down the row).
+  - Brother Aldous (cleric) → **Mass Heal** — holy nova restoring every living All-Star incl. the leader Garreth.
+  - Shadowfax the Quick (rogue) → **Blink-Backstab** — vanishes and reappears on your strongest minion for a heavy strike.
+- ☑ Heroes tagged `_allStarSig` by class at spawn (DayPhase); fired by `_tickAllStarAbilities` (UNIT-gated, not resp-gated → dev raid card works) alongside the existing crown/synergy-link VFX.
+- ☑ ALLSTAR_ABILITY event → RightPanels names the hero + move each cast.
+- ☐ Unique LPC sprites for the 4 heroes + Garreth (DEFERRED — sprite pass).
+- ⚠ FLAGGED GAP (needs user confirm): "felt across the act, not just the climax." Right now only the climax raid carries the 4 heroes (vanguard = a single Champion's Herald). The other responses inject a themed 50% wave all act; All-Stars doesn't (a 4-legend team doesn't map to a wave-fraction). Confirm if you want mid-act pressure here and how (e.g. herald scouts, or rotating single-hero cameos).
+- Verified: 18/18 isolation asserts (staggered dispatch → all 4 fire distinct moves; chain falloff + 4-hop cap; volley on-line hit / off-line spared; mass-heal all + clamp; blink targets strongest + repositions).
+- ⚠ BALANCE (eyeball): ALLSTAR_CD_MS=7600, per-ability damage/heal scale with boss level — tune after a live look.

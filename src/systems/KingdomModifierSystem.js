@@ -89,6 +89,14 @@ const INQUISITION_PURGE_INTERVAL = 2000
 const CHAMP_ABILITY_FIRST_MS = 4500
 const CHAMP_ABILITY_CD_MS    = 9000
 
+// All-Stars — the 4 named heroes EACH fire their own signature on an independent
+// cadence (a "deadly concert"), first-cast staggered so they don't all blast at
+// once. Class → signature is fixed by the retinue (Garreth the knight has none).
+const ALLSTAR_FIRST_MS = 3800
+const ALLSTAR_CD_MS    = 7600
+const ALLSTAR_STAGGER  = { stormcaller: 0, trueshot: 1100, shadowfax: 2200, aldous: 3300 }
+const ALLSTAR_SIG_BY_CLASS = { mage: 'stormcaller', rogue: 'shadowfax', ranger: 'trueshot', cleric: 'aldous' }
+
 // Undead minion id patterns (skeleton/zombie/ghost/lich/wraith/…).
 const _UNDEAD_RE = /ghost|lich|skelet|zombie|wraith|bone|undead|revenant|ghoul|vampire_sovereign/
 function _isUndead(minion) {
@@ -391,17 +399,19 @@ export class KingdomModifierSystem {
     else if (resp === 'inquisition') this._tickInquisitionPurge()
     // Plunderers — the thieves pickpocket your treasury each pulse.
     else if (resp === 'plunderers') this._tickPlunderers()
-    // All-Stars — crown each champion with a star + thread synergy links.
-    else if (resp === 'all_stars') this._tickAllStarsVfx()
     // Forlorn Hope — the martyrs' crimson fury aura glows + the fury counter
     // floats over the squad, both scaling with how many have fallen.
     else if (resp === 'forlorn_hope') this._tickForlornVfx()
     // Champion signature ability — the act boss's telegraphed boss move on cadence.
     this._tickChampionAbility(resp)
+    // All-Stars — the crown VFX + the 4 heroes' signatures ride on the UNITS
+    // (self-gating on _allStar / _allStarSig), so they also fire for a dev-spawned
+    // raid card (which doesn't set the act response). No resp gate here.
+    this._tickAllStarsVfx()
+    this._tickAllStarAbilities()
     // World-VFX Graphics cleanup — clear any whose response isn't governing now
     // (kept OUT of the else-chain so a lingering buffer can't swallow a tick).
     if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
-    if (resp !== 'all_stars' && this._allStarG) this._allStarG.clear()
     if (resp !== 'forlorn_hope' && this._forlornG) { this._forlornG.clear(); this._forlornCounter?.setVisible(false) }
     if (resp !== 'mage_tower' && this._mageSealG) this._mageSealG.clear()
     if (resp !== 'mage_tower' && this._polyG) {
@@ -721,6 +731,140 @@ export class KingdomModifierSystem {
       if (i === 0) g.moveTo(px, py); else g.lineTo(px, py)
     }
     g.closePath(); g.fillPath()
+  }
+
+  // ── All-Stars signatures (one per named hero, independent cadences) ──────────
+  // Each live `_allStarSig` hero fires its own move; first casts are staggered so
+  // the squad reads as a coordinated concert, not a synchronized nuke.
+  _tickAllStarAbilities() {
+    const now = this._scene?.time?.now ?? 0
+    if (!now) return
+    const stars = (this._gs.adventurers?.active ?? []).filter(a => a._allStarSig && (a.resources?.hp ?? 0) > 0)
+    for (const s of stars) {
+      if (s._allStarAbilityAt == null) {
+        s._allStarAbilityAt = now + ALLSTAR_FIRST_MS + (ALLSTAR_STAGGER[s._allStarSig] ?? 0)
+      }
+      if (now < s._allStarAbilityAt) continue
+      s._allStarAbilityAt = now + ALLSTAR_CD_MS
+      switch (s._allStarSig) {
+        case 'stormcaller': this._asStormcaller(s); break
+        case 'trueshot':    this._asTrueshot(s);    break
+        case 'aldous':      this._asAldous(s);      break
+        case 'shadowfax':   this._asShadowfax(s);   break
+      }
+    }
+  }
+
+  _bossLv() { return this._gs.boss?.level ?? 1 }
+  _liveMinions() { return (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0) }
+  _emitAllStar(hero, move, name, hit) {
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'all_stars', name, champion: hero?.name })
+    EventBus.emit('ALLSTAR_ABILITY', { hero: hero?.name, move, hit })
+  }
+  // Perpendicular distance from point (px,py) to the segment (x1,y1)-(x2,y2).
+  _distToLine(x1, y1, x2, y2, px, py) {
+    const dx = x2 - x1, dy = y2 - y1
+    const len2 = dx * dx + dy * dy
+    if (len2 === 0) return Math.hypot(px - x1, py - y1)
+    let t = ((px - x1) * dx + (py - y1) * dy) / len2
+    t = Math.max(0, Math.min(1, t))
+    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+  }
+
+  // Myrine the Stormcaller — CHAIN LIGHTNING: a bolt leaps from her through up to 4
+  // nearest minions, arcing minion-to-minion with per-hop falloff.
+  _asStormcaller(hero) {
+    const sc = this._scene
+    const pool = this._liveMinions()
+    if (!pool.length) return
+    let from = { x: hero.worldX ?? 0, y: hero.worldY ?? 0 }
+    const base = 14 + Math.round(this._bossLv() * 4)
+    const hops = Math.min(4, pool.length)
+    const hit = []
+    for (let i = 0; i < hops; i++) {
+      let best = null, bd = Infinity
+      for (const m of pool) {
+        if (hit.includes(m)) continue
+        const d = Math.hypot((m.worldX ?? 0) - from.x, (m.worldY ?? 0) - from.y)
+        if (d < bd) { bd = d; best = m }
+      }
+      if (!best) break
+      AbilityVfx.lightning?.(sc, from.x, from.y, best.worldX ?? 0, best.worldY ?? 0, { color: 0x9fe0ff, durationMs: 240, thickness: 3 })
+      AbilityVfx.particleBurst?.(sc, best.worldX ?? 0, best.worldY ?? 0, { color: 0xbfe0ff, count: 8, speed: 110, durationMs: 360 })
+      if ((best.resources?.hp ?? 0) > 0) best.resources.hp = Math.max(0, best.resources.hp - Math.round(base * (1 - i * 0.15)))
+      hit.push(best)
+      from = { x: best.worldX ?? 0, y: best.worldY ?? 0 }
+    }
+    AbilityVfx.screenFlash?.(sc, { color: 0x9fe0ff, intensity: 0.2, durationMs: 200 })
+    this._emitAllStar(hero, 'Chain Lightning', 'CHAIN LIGHTNING', hit.length)
+  }
+
+  // Elenwe Trueshot — PIERCING VOLLEY: three arrows along her line of fire that
+  // pierce EVERY minion within ~20px of the line (a skewering shot down the row).
+  _asTrueshot(hero) {
+    const sc = this._scene
+    const pool = this._liveMinions()
+    if (!pool.length) return
+    const hx = hero.worldX ?? 0, hy = hero.worldY ?? 0
+    let target = null, bd = Infinity
+    for (const m of pool) { const d = Math.hypot((m.worldX ?? 0) - hx, (m.worldY ?? 0) - hy); if (d < bd) { bd = d; target = m } }
+    const ang = Math.atan2((target.worldY ?? 0) - hy, (target.worldX ?? 0) - hx)
+    const ex = hx + Math.cos(ang) * 900, ey = hy + Math.sin(ang) * 900
+    for (let k = 0; k < 3; k++) {
+      sc?.time?.delayedCall?.(k * 90, () => AbilityVfx.projectile?.(sc, hx, hy, ex, ey, { color: 0xfff0aa, durationMs: 220, radius: 3 }))
+    }
+    const dmg = 16 + Math.round(this._bossLv() * 4)
+    let hit = 0
+    for (const m of pool) {
+      if (this._distToLine(hx, hy, ex, ey, m.worldX ?? 0, m.worldY ?? 0) > 20) continue
+      if ((m.resources?.hp ?? 0) > 0) m.resources.hp = Math.max(0, m.resources.hp - dmg)
+      AbilityVfx.impactBurst?.(sc, m.worldX ?? 0, m.worldY ?? 0, { color: 0xfff0aa, radius: 18 })
+      hit++
+    }
+    this._emitAllStar(hero, 'Piercing Volley', 'PIERCING VOLLEY', hit)
+  }
+
+  // Brother Aldous — MASS HEAL: a holy nova that restores every living All-Star
+  // (incl. the leader Garreth) by a chunk — the squad's staying power.
+  _asAldous(hero) {
+    const sc = this._scene
+    const allies = (this._gs.adventurers?.active ?? []).filter(a =>
+      (a._allStar || a._kingdomChampion) && (a.resources?.hp ?? 0) > 0)
+    const heal = 40 + Math.round(this._bossLv() * 12)
+    for (const a of allies) {
+      const before = a.resources.hp
+      a.resources.hp = Math.min(a.resources.maxHp ?? before, before + heal)
+      const restored = a.resources.hp - before
+      AbilityVfx.pulseRing?.(sc, a.worldX ?? 0, a.worldY ?? 0, { color: 0xa8ffb0, fromR: 6, toR: 30, alpha: 0.85, durationMs: 480 })
+      AbilityVfx.particleBurst?.(sc, a.worldX ?? 0, (a.worldY ?? 0) - 6, { color: 0xc8ffd0, count: 8, speed: 70, durationMs: 520 })
+      if (restored > 0) AbilityVfx.floatingText?.(sc, a.worldX ?? 0, (a.worldY ?? 0) - 24, `+${restored}`, { color: '#a8ffb0', fontSize: '13px', driftY: -28, durationMs: 760 })
+    }
+    AbilityVfx.godRays?.(sc, hero.worldX ?? 0, hero.worldY ?? 0, { color: 0xc8ffd0, count: 12, length: 90, durationMs: 600 })
+    AbilityVfx.pulseRing?.(sc, hero.worldX ?? 0, hero.worldY ?? 0, { color: 0xa8ffb0, fromR: 10, toR: 80, alpha: 0.7, durationMs: 600 })
+    this._emitAllStar(hero, 'Mass Heal', 'MASS HEAL', allies.length)
+  }
+
+  // Shadowfax the Quick — BLINK-BACKSTAB: vanishes and reappears on your strongest
+  // minion for a heavy strike (a single, decisive assassination beat).
+  _asShadowfax(hero) {
+    const sc = this._scene
+    const pool = this._liveMinions()
+    if (!pool.length) return
+    let target = null, best = -Infinity
+    for (const m of pool) { const v = (m.resources?.maxHp ?? 0) + (m.stats?.attack ?? 0) * 4; if (v > best) { best = v; target = m } }
+    const ox = hero.worldX ?? 0, oy = hero.worldY ?? 0
+    AbilityVfx.magicCircle?.(sc, ox, oy, { color: 0x9a6cf0, radius: 24, durationMs: 360 })
+    AbilityVfx.particleBurst?.(sc, ox, oy, { color: 0x6a4aaa, count: 12, speed: 130, durationMs: 360 })
+    const ang = (hero.tileX ?? 0) % 2 === 0 ? 0.7 : 3.9   // deterministic-ish offset (avoid Math.random churn)
+    hero.worldX = (target.worldX ?? 0) + Math.cos(ang) * 22
+    hero.worldY = (target.worldY ?? 0) + Math.sin(ang) * 22
+    hero.tileX = target.tileX; hero.tileY = target.tileY; hero.path = null; hero.pathIndex = 0
+    AbilityVfx.particleBurst?.(sc, hero.worldX, hero.worldY, { color: 0x9a6cf0, count: 10, speed: 110, durationMs: 320 })
+    AbilityVfx.bladeArc?.(sc, target.worldX ?? 0, target.worldY ?? 0, { color: 0xe0d0ff, radius: 34, durationMs: 260 })
+    AbilityVfx.impactBurst?.(sc, target.worldX ?? 0, target.worldY ?? 0, { color: 0xb9a4ff, radius: 22 })
+    const dmg = 30 + Math.round(this._bossLv() * 8)
+    if ((target.resources?.hp ?? 0) > 0) target.resources.hp = Math.max(0, target.resources.hp - dmg)
+    this._emitAllStar(hero, 'Blink-Backstab', 'BLINK-BACKSTAB', 1)
   }
 
   // The seraph resurrects the fallen — when a pantheon hero dies, raise a Radiant

@@ -1133,6 +1133,10 @@ export class RightPanels {
     sub('FORLORN_OATH_BROKEN', ({ routed } = {}) => {
       this._addLog(`The oath SHATTERS — ${routed ?? 0} martyr${routed === 1 ? '' : 's'} break and flee!`, 'champion-down')
     })
+    // All-Stars (KR overhaul) — one of the four legends fires its signature.
+    sub('ALLSTAR_ABILITY', ({ hero, move } = {}) => {
+      this._addLog(`${hero || 'A champion'} unleashes ${move || 'a signature move'}!`, 'champion')
+    })
     // The Betrayer (KR P4) — your strongest minion defects to the raid.
     sub('MINION_DEFECTED', ({ minion } = {}) => {
       const who = minion?.name || minion?.definitionId || 'Your strongest minion'

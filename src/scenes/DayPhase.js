@@ -1837,8 +1837,17 @@ export class DayPhase extends Phaser.Scene {
 
     // All-Stars (KR polish) — mark every assembled champion as a "star" so the
     // in-world VFX can crown each with a floating star + thread golden synergy
-    // links between them (KingdomModifierSystem._tickAllStarsVfx).
-    if (response.id === 'all_stars') for (const u of spawned) { if (u) u._allStar = true }
+    // links between them (KingdomModifierSystem._tickAllStarsVfx). Each named hero
+    // is also tagged with its signature key by class (Garreth the knight = leader,
+    // no signature); KingdomModifierSystem._tickAllStarAbilities fires each.
+    if (response.id === 'all_stars') {
+      const SIG = { mage: 'stormcaller', rogue: 'shadowfax', ranger: 'trueshot', cleric: 'aldous' }
+      for (const u of spawned) {
+        if (!u) continue
+        u._allStar = true
+        if (SIG[u.classId]) u._allStarSig = SIG[u.classId]
+      }
+    }
     // Inquisition (KR audit fix) — its raid units carry no personality, so stamp
     // `flags.inquisitor` so InquisitorSystem actually purges your dark-pact
     // BENEFITS while the Inquisition raid is in the dungeon (its marquee gimmick).
