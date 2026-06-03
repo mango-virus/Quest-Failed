@@ -14,7 +14,7 @@
     "baseDamage": 6,
     "damageType": "physical",
     "dot": { "damagePerSec": 2, "durationMs": 10000, "damageType": "poison" },
-    "cooldownMs": 2000,
+    "cooldownMs": 3500,
     "factionsHit": "adventurers",
     "spriteKey": "trap-arrow"
   },
@@ -54,7 +54,7 @@
     "triggerCondition": "los_facing",
     "baseDamage": 30,
     "damageType": "physical",
-    "cooldownMs": 2500,
+    "cooldownMs": 4500,
     "factionsHit": "adventurers",
     "spriteKey": "trap-cannon-down"
   },
@@ -73,7 +73,7 @@
     "triggerRange": 1,
     "baseDamage": 14,
     "damageType": "physical",
-    "cooldownMs": 1000,
+    "cooldownMs": 2500,
     "factionsHit": "all",
     "spriteKey": "trap-spike-pillar"
   },
@@ -91,7 +91,7 @@
     "triggerCondition": "los_lane",
     "baseDamage": 35,
     "damageType": "fire",
-    "cooldownMs": 2500,
+    "cooldownMs": 4500,
     "factionsHit": "adventurers",
     "spriteKey": "trap-dragon-ud"
   },

@@ -24,7 +24,7 @@ export const Balance = {
   DEV_INFINITE_GOLD: false,
 
   // --- Earn rates per adventurer kill ---
-  GOLD_PER_KILL: 10,
+  GOLD_PER_KILL: 5,   // 2026-06-02: halved 10→5 (kill income was too rich)
 
   // --- Camera ---
   CAMERA_ZOOM_MIN: 0.25,
@@ -44,7 +44,11 @@ export const Balance = {
                            // ~day 130 at realistic kill rates. Early
                            // levels (1–10) feel near-identical; the
                            // change compresses the late-game tail.
-  BOSS_XP_PER_KILL:  10,   // boss XP awarded per adventurer kill
+  BOSS_XP_PER_KILL:  7,    // boss XP awarded per adventurer kill. 2026-06-02:
+                           // 10→7 (uniform ~30% slower leveling — players were
+                           // leveling too fast past lv2). Lowering the RATE (not
+                           // the 1.4 curve scale) keeps the curve shape, so lv20
+                           // stays reachable, just ~30% later.
   // Boss fight-stat growth per level. Applied additively on every
   // BOSS_LEVELED_UP so it stacks cleanly with ability/event modifiers.
   // Halved from the previous 30/2/1 curve — the old pace doubled raw
@@ -927,17 +931,16 @@ export const Balance = {
   // true` so the sell tool refuses to refund gold on them (they were
   // free). See RoomBehaviorSystem._onDayStart.
   //
-  // Tier cap is intentionally low (1–3, average ~22g/day per chest,
-  // ~85g/day with four chests). A Treasury room costs 40 gold, so
-  // it still pays itself back inside the first day. Widening the
-  // range to 1–5 was tested but obsoleted hand-placed chests entirely
-  // (~160g/day average for free vs ~3-day payback on a manually
-  // bought chest) AND opened a sell-and-rebuild reroll exploit
-  // (20g per reroll for a +180g/day swing between worst and best
-  // rolls). T4–T10 stay as the only path to high-tier chests.
-  TREASURY_CHEST_COUNT:           4,
+  // Tier cap is intentionally low. 2026-06-02 rebalance: cut from 4 chests @
+  // tier 1–3 (~85g/day) to 3 chests @ tier 1–2 (avg ~15g/day per chest →
+  // ~45g/day) — the chests were paying out too much passive gold per day. A
+  // Treasury room costs 40 gold, so it still pays itself back in ~1 day, but no
+  // longer obsoletes hand-placed chests. Widening the range to 1–5 was tested
+  // but obsoleted hand-placed chests entirely AND opened a sell-and-rebuild
+  // reroll exploit. T4–T10 stay as the only path to high-tier chests.
+  TREASURY_CHEST_COUNT:           3,
   TREASURY_CHEST_TIER_MIN:        1,
-  TREASURY_CHEST_TIER_MAX:        3,
+  TREASURY_CHEST_TIER_MAX:        2,
   // Passive-income scaling (2026-05-28): treasure-chest payouts and the
   // Treasury stipend scale up over a run so they don't go stale once build
   // costs climb (those scale with boss level AND day). Applied via
