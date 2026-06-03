@@ -180,7 +180,7 @@ export class KingdomModifierSystem {
     // Drop the old guard (mirrors respawnAll's array-replace pattern).
     gs.minions = gs.minions.filter(m => !m._ascGuardian)
 
-    const tiles = this._chamberSpawnTiles(GUARDIAN_COUNT)
+    const tiles = this._guardianSpawnTiles()
     if (tiles.length === 0) return
     const bossRoom = gs.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     const bossLv   = gs.boss?.level ?? 1
@@ -208,6 +208,52 @@ export class KingdomModifierSystem {
     if (members.length) EventBus.emit('BOSS_REINFORCEMENTS', {
       count: members.length, tier: tierIdx + 1, evolved: (act | 0) > 2, elite: isElite, members,
     })
+  }
+
+  // The ascension throne guard flanks the boss: one kin on the WEST side, one on
+  // the EAST, both at the chamber's vertical centre — so the pair reads as an
+  // honour guard rather than bunching at the bottom (the old ring-scan dropped
+  // both below the throne). Snaps each ideal point to the nearest free FLOOR
+  // tile; falls back to the ring-scan for any slot it can't place.
+  _guardianSpawnTiles() {
+    const grid = this._scene?.dungeonGrid
+    const gs = this._gs
+    const bossRoom = gs?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!bossRoom || typeof grid?.getTileType !== 'function') return this._chamberSpawnTiles(GUARDIAN_COUNT)
+    const cx  = bossRoom.gridX + Math.floor(bossRoom.width  / 2)
+    const cy  = bossRoom.gridY + Math.floor(bossRoom.height / 2)   // vertical centre
+    const off = Math.max(2, Math.round(bossRoom.width * 0.28))     // how far out to each side
+    const occupied = (tx, ty) => (gs.minions ?? []).some(m =>
+      m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.tileX === tx && m.tileY === ty)
+    const free = (tx, ty, taken) => {
+      const t = grid.getTileType(tx, ty)
+      return (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) && !occupied(tx, ty) && !taken.has(`${tx},${ty}`)
+    }
+    // Nearest free floor to an ideal point (expanding ring out to r=4).
+    const snap = (ix, iy, taken) => {
+      for (let r = 0; r <= 4; r++) {
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+          const tx = ix + dx, ty = iy + dy
+          if (free(tx, ty, taken)) return { x: tx, y: ty }
+        }
+      }
+      return null
+    }
+    const taken = new Set()
+    const out = []
+    for (const ix of [cx - off, cx + off]) {   // west first, then east
+      const t = snap(ix, cy, taken)
+      if (t) { out.push(t); taken.add(`${t.x},${t.y}`) }
+    }
+    // Backfill any missing slot from the generic ring-scan.
+    if (out.length < GUARDIAN_COUNT) {
+      for (const t of this._chamberSpawnTiles(GUARDIAN_COUNT)) {
+        if (out.length >= GUARDIAN_COUNT) break
+        if (!taken.has(`${t.x},${t.y}`)) { out.push(t); taken.add(`${t.x},${t.y}`) }
+      }
+    }
+    return out
   }
 
   // Collect up to `count` free FLOOR/BOSS_FLOOR tiles, ringing outward from the
