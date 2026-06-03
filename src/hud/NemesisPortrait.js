@@ -8,10 +8,18 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { userSettings } from './userSettings.js'
+import { SfxVolume } from '../systems/SfxVolume.js'
 
 const ROMAN   = ['', 'I', 'II', 'III', 'IV']
 const FADE_MS  = 380
-const BUBBLE_MS = 4200
+// RPG typewriter for his speech bubble — mirrors the companion (NpcCompanion):
+// reveal the line letter-by-letter with the same `sfx-speech` blip, then hold a
+// generous beat so the line is readable and never flashes by.
+const TYPE_SPEED_MS  = 26     // per-letter cadence (~the companion's 24ms)
+const BLIP_GAP_MS    = 55     // throttle the speech blip to a chirp, not a buzz
+const BLIP_VOL       = 0.32   // quiet — it fires a lot
+const BUBBLE_HOLD_MS = 3400   // how long the fully-typed line lingers before closing
 
 // Per-act look — tint + emblem + mood label (drives the placeholder frame for
 // acts without art yet, plus the bubble accent / name plate everywhere).
@@ -165,6 +173,8 @@ function _ensureCss() {
   border:8px solid transparent; border-top-color:#efe6cf; border-bottom:0; }
 .qf-nemesis-bubble-name { display:block; font-family:'Press Start 2P',monospace;
   font-size:9px; letter-spacing:1px; color:#7a1f1f; margin-bottom:7px; }
+/* min-height holds the bubble's size steady while the line types in (no reflow jump) */
+.qf-nemesis-bubble-text { display:block; min-height:1.3em; }
 
 @keyframes qf-nemesis-bob { 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-5px) rotate(.6deg)} }`
   document.head.appendChild(style)
@@ -175,9 +185,13 @@ export class NemesisPortrait {
     this._gs = gameState
     this._root = null
     this._bubbleEl = null
+    this._bubbleTextEl = null
     this._bubbleTimer = null
     this._hideTimer = null
     this._fadeTimer = null
+    this._typeTimer = null
+    this._lastBlipAt = 0
+    this._lastSource = null
     this._listeners = []
     // cross-fade state
     this._dir = null
@@ -211,7 +225,10 @@ export class NemesisPortrait {
     clearTimeout(this._bubbleTimer); this._bubbleTimer = null
     clearTimeout(this._hideTimer);   this._hideTimer = null
     clearTimeout(this._fadeTimer);   this._fadeTimer = null
+    this._stopType()
   }
+
+  _stopType() { if (this._typeTimer) { clearInterval(this._typeTimer); this._typeTimer = null } }
 
   _build() {
     const stage = document.getElementById('hud-stage')
@@ -309,27 +326,67 @@ export class NemesisPortrait {
 
   _onTaunt({ line, act, source, tier, x } = {}) {
     if (!line) return
+    this._clearTimers()                 // cancel any in-flight type/hide from a prior line
     if (act) this._render(act)
+    this._lastSource = source
     this._slideIn()
     this._setExpression(x || this._exprFor(source, tier))
     if (this._bubbleEl) {
-      this._bubbleEl.replaceChildren(
-        h('span', { className: 'qf-nemesis-bubble-name' }, (this._gs?.meta?.nemesis?.name ?? 'Aldric').toUpperCase()),
-        document.createTextNode(line),
-      )
+      const nameEl = h('span', { className: 'qf-nemesis-bubble-name' },
+        (this._gs?.meta?.nemesis?.name ?? 'Aldric').toUpperCase())
+      this._bubbleTextEl = h('span', { className: 'qf-nemesis-bubble-text' })
+      this._bubbleEl.replaceChildren(nameEl, this._bubbleTextEl)
       this._bubbleEl.classList.add('on')
+      this._typeBubble(String(line))
     }
+  }
+
+  // RPG typewriter — reveal the line letter-by-letter with the speech blip, the
+  // same cadence/sound as the companion, then hold a beat (so it never flashes by)
+  // before closing.
+  _typeBubble(text) {
+    this._stopType()
+    const el = this._bubbleTextEl
+    if (!el) { this._scheduleBubbleHide(); return }
+    el.textContent = ''
+    this._lastBlipAt = 0
+    let i = 0
+    this._typeTimer = setInterval(() => {
+      const step = text.length > 140 ? 2 : 1     // long lines reveal a touch faster
+      i = Math.min(text.length, i + step)
+      el.textContent = text.slice(0, i)
+      const ch = text[i - 1]
+      if (ch && ch.trim()) this._blip()           // chirp on non-whitespace only
+      if (i >= text.length) { this._stopType(); this._scheduleBubbleHide() }
+    }, TYPE_SPEED_MS)
+  }
+
+  // Per-letter speech blip — reuses the companion's loaded `sfx-speech` cue, the
+  // same throttle + quiet volume, and honours the NPC-speech + SFX-mute settings.
+  _blip() {
+    try {
+      if (!userSettings.isNpcSpeechEnabled?.()) return
+      if (SfxVolume.isMuted?.()) return
+      const now = (typeof performance !== 'undefined') ? performance.now() : Date.now()
+      if (now - (this._lastBlipAt ?? 0) < BLIP_GAP_MS) return
+      this._lastBlipAt = now
+      const snd = window.__game?.sound
+      if (snd) snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL })
+    } catch {}
+  }
+
+  // Hold the fully-typed line a readable beat, then close the bubble + settle his
+  // face; a withdrawal / between-act line then slides the whole card out.
+  _scheduleBubbleHide() {
     clearTimeout(this._bubbleTimer)
     this._bubbleTimer = setTimeout(() => {
       this._bubbleEl?.classList.remove('on')
-      // settle back to his resting face a beat after the bubble closes
       clearTimeout(this._fadeTimer)
       this._fadeTimer = setTimeout(() => this._setExpression(this._rest), FADE_MS)
-    }, BUBBLE_MS)
-    // A withdrawal / between-act taunt means he's leaving — slide back out after.
-    if (source === 'withdraw' || source === 'act_cleared') {
-      clearTimeout(this._hideTimer)
-      this._hideTimer = setTimeout(() => this._slideOut(), 4600)
-    }
+      if (this._lastSource === 'withdraw' || this._lastSource === 'act_cleared') {
+        clearTimeout(this._hideTimer)
+        this._hideTimer = setTimeout(() => this._slideOut(), 500)
+      }
+    }, BUBBLE_HOLD_MS)
   }
 }
