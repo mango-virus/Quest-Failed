@@ -3100,7 +3100,7 @@ export class BossSystem {
       this._killAdv(adv, 'boss')
       EventBus.emit('BOSS_FIGHT_RESOLVED', {
         winner: 'boss', bossHpRemaining: boss.hp ?? 0,
-        deathsRemaining: boss.deathsRemaining ?? 0, rounds: 1, roundLog: [],
+        deathsRemaining: boss.deathsRemaining ?? 0, rounds: 1, roundLog: [], duel: true,
       })
     } else {
       // The Hero King prevails — the boss loses a life (run-loss if final).
@@ -3111,7 +3111,7 @@ export class BossSystem {
       this._deathPoseUntil = Infinity
       EventBus.emit('BOSS_FIGHT_RESOLVED', {
         winner: 'party', bossHpRemaining: 0, deathsRemaining: boss.deathsRemaining,
-        rounds: 1, roundLog: [],
+        rounds: 1, roundLog: [], duel: true,
       })
       if (boss.deathsRemaining <= 0) {
         EventBus.emit('BOSS_DEFEATED_FINAL', { totalDays: this._gameState.player?.totalDaysElapsed })

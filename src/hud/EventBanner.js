@@ -295,6 +295,11 @@ export class EventBanner {
     // event-banner slam-in slate. Used by BossFightOverlay for fight
     // intro / result and by the phylactery hooks below.
     sub('HUD_BANNER',              (p) => this._onAnnounced({ def: p ?? {} }))
+    // A cinematic boss-vs-boss duel takes over the top-centre zone with its own
+    // HUD — force-close any lingering slam-in banner (e.g. the champion-arrival
+    // slate) so it doesn't sit under the duel's dominance bar.
+    sub('RIVAL_DUEL_BEGAN',        ()  => this._forceClose())
+    sub('ALDRIC_DUEL_BEGAN',       ()  => this._forceClose())
     // Phylactery flavor banners — Lich-specific run beats that deserve
     // the same cinematic weight as a Dungeon Event.
     sub('PHYLACTERY_DESTROYED',    ()  => this._onPhylacteryDestroyed())
@@ -445,6 +450,18 @@ export class EventBanner {
   _clearTimers() {
     if (this._fadeTimer)   { clearTimeout(this._fadeTimer);   this._fadeTimer   = null }
     if (this._removeTimer) { clearTimeout(this._removeTimer); this._removeTimer = null }
+  }
+
+  // Immediately fade out any showing banner (used when a duel cinematic claims the
+  // top zone). No-op if nothing is open.
+  _forceClose() {
+    if (!this.el || !this.el.classList.contains('open')) return
+    this._clearTimers()
+    this.el.classList.add('fading')
+    this._removeTimer = setTimeout(() => {
+      this.el.classList.remove('open', 'fading')
+      this._removeTimer = null
+    }, FADE_OUT_MS)
   }
 
   destroy() {

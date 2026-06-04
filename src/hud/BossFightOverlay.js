@@ -329,7 +329,7 @@ export class BossFightOverlay {
   }
 
   // ─── Resolve ───────────────────────────────────────────────────
-  _onResolved({ winner, deathsRemaining, bossHpRemaining } = {}) {
+  _onResolved({ winner, deathsRemaining, bossHpRemaining, duel } = {}) {
     // Tear down bar + vignette in parallel with firing the result banner.
     this._barActive = false
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0 }
@@ -339,9 +339,11 @@ export class BossFightOverlay {
       this._bar?.classList.remove('open', 'fading')
       this._vignette?.classList.remove('open', 'fading')
     }, 600)
-    // Solo Leveling — the duel shows its own win/loss finale card; skip the
-    // standard result banner so they don't double up.
-    if (this._isDuel) { this._isDuel = false; return }
+    // Cinematic duels show their OWN win/loss finale card — skip the standard
+    // result slate so they don't double up. Solo Leveling / Light Party set
+    // `_isDuel` at incoming; the Aldric + Rival duels never emit BOSS_FIGHT_STARTED
+    // (so `_isDuel` is stale) and instead stamp `duel:true` on their RESOLVED event.
+    if (this._isDuel || duel) { this._isDuel = false; return }
     this._announceResult(winner, deathsRemaining, bossHpRemaining)
   }
 

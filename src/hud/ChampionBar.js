@@ -77,6 +77,11 @@ export class ChampionBar {
     this._on('CHAMPION_DEFEATED',      () => this._onDefeated())
     this._on('DAY_PHASE_ENDED',        () => this._hide())
     this._on('NIGHT_PHASE_STARTED',    () => this._hide())
+    // The Rival champion (Vorzak) resolves into the boss-vs-boss SHOWDOWN, which
+    // shows its OWN dominance-bar HUD in this same top-centre slot. Hide this bar
+    // for the duel so the two don't overlap (Vorzak dies/flees at the end, so it
+    // stays down). Only the rival turns into a duel — other champions keep theirs.
+    this._on('RIVAL_DUEL_BEGAN',       () => this._hide())
   }
 
   _on(evt, fn) { EventBus.on(evt, fn, this); this._listeners.push([evt, fn]) }
