@@ -28,6 +28,14 @@ import { Balance }  from '../config/balance.js'
 import { TILE }     from './DungeonGrid.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 
+// Rival "Clash of Dominions" duel — the rival boss SKIN renders foot-anchored
+// (AdventurerRenderer origin 0.85, scale 2 → its body centre sits ~1.4 tiles above
+// its worldY), while the player boss is centre-anchored (origin 0.5). This lift
+// converts the rival's worldY (feet) to its body centre so both lords + the beam
+// between them line up by body, not feet. (0.35 origin-delta × 64px frame × 2 scale
+// ÷ 32px tile ≈ 1.4.)
+const DOMINION_RIVAL_LIFT = 1.4
+
 const PREFIGHT_DELAY_MS = 1000   // banner pause before the first combat round
 const ROUND_INTERVAL_S  = 0.6    // seconds of cinematic combat between damage rounds
 
@@ -2590,11 +2598,22 @@ export class BossSystem {
   // spectacle is the two colliding beams + the sliding nexus, redrawn every frame.
   _dominionMove(phase, D, dt, TS, moveTo, shake) {
     const { boss, adv, anchors: A } = D
-    // Lean: the dominant lord pushes toward center, the pressed one recoils.
-    const bossPush = (0.5 - D.dom)   // >0 → your boss winning → leans south toward center
-    const vorPush  = (D.dom - 0.5)   // >0 → Vorzak winning  → leans north toward center
-    moveTo(boss, A.throne.x, A.throne.y + bossPush * 1.5 * TS, 3.0 * TS)
-    moveTo(adv,  A.south.x,  A.south.y  - vorPush  * 1.5 * TS, 3.0 * TS)
+    // Anchor by BODY CENTRE, not by sprite anchor. The player boss is centre-
+    // anchored (origin 0.5 → worldY = body centre) but the rival boss SKIN is
+    // foot-anchored (origin 0.85 → its body centre sits ~1.4 tiles ABOVE its
+    // worldY). Placing both at the raw throne/south anchors left Vorzak's body
+    // floating high ("too far up") + the beam meeting his feet. So target both
+    // lords' body CENTRES symmetric about the chamber centre, and drop Vorzak's
+    // feet by the lift (clamped to stay in the room).
+    const LIFT = DOMINION_RIVAL_LIFT * TS
+    const cyMid = (A.throne.y + A.south.y) / 2
+    const half  = (A.south.y - A.throne.y) / 2
+    const spread = Math.max(2.4 * TS, half - LIFT)   // keep the foot-anchored rival inside the room
+    // Lean: the dominant lord presses toward centre, the pressed one recoils.
+    const bossPush = (0.5 - D.dom)   // >0 → your boss winning → presses south toward centre
+    const vorPush  = (D.dom - 0.5)   // >0 → Vorzak winning  → presses north toward centre
+    moveTo(boss, A.throne.x, cyMid - spread + bossPush * 1.2 * TS,        3.0 * TS)  // centre-anchored
+    moveTo(adv,  A.south.x,  cyMid + spread - vorPush  * 1.2 * TS + LIFT, 3.0 * TS)  // feet = centre + lift
     this._bossState = { action: 'idle' }   // a channelling hold, not a swing
     this._dominionBeamRedraw(D, TS)
     // Ambient strain: a faint tremor whose magnitude tracks how hard the lock is
@@ -2620,13 +2639,19 @@ export class BossSystem {
     const g = D._beamG ?? (D._beamG = sc.add.graphics().setDepth(50))
     g.clear()
     const { boss, adv } = D
+    // Connect the beam BODY-to-BODY: the boss's worldY is its centre, but the rival
+    // skin's worldY is its feet — lift it to the chest so the beam meets his torso,
+    // not the floor under him. (D._bx/_by stashed for the phase-enter VFX too.)
+    const bx = boss.worldX, by = boss.worldY
+    const ax = adv.worldX,  ay = adv.worldY - DOMINION_RIVAL_LIFT * TS
+    D._bx = bx; D._by = by; D._ax = ax; D._ay = ay
     const nexP = 1 - D.dom
-    const nx = boss.worldX + (adv.worldX - boss.worldX) * nexP
-    const ny = boss.worldY + (adv.worldY - boss.worldY) * nexP
+    const nx = bx + (ax - bx) * nexP
+    const ny = by + (ay - by) * nexP
     D._nx = nx; D._ny = ny
     const t = (sc.time?.now ?? 0) * 0.001
-    this._beamSeg(g, boss.worldX, boss.worldY, nx, ny, 0xff5544, D.dom < 0.5 ? 1.35 : 0.8, t)        // your boss
-    this._beamSeg(g, adv.worldX,  adv.worldY,  nx, ny, 0xa24bd9, D.dom > 0.5 ? 1.35 : 0.8, t + 3.1)  // Vorzak
+    this._beamSeg(g, bx, by, nx, ny, 0xff5544, D.dom < 0.5 ? 1.35 : 0.8, t)        // your boss
+    this._beamSeg(g, ax, ay, nx, ny, 0xa24bd9, D.dom > 0.5 ? 1.35 : 0.8, t + 3.1)  // Vorzak
     // nexus orb — concentric glow + a hot core tinted toward whoever's winning
     const pulse = 1 + Math.sin(t * 9) * 0.16
     for (let i = 3; i >= 1; i--) { g.fillStyle(0xffffff, 0.10 * i); g.fillCircle(nx, ny, (9 + i * 6) * pulse) }
@@ -2659,13 +2684,18 @@ export class BossSystem {
     const PUR = 0xa24bd9, PUR2 = 0xd49cff, CRIM = 0xff5544, CRIM2 = 0xff9a88
     const beat  = (kind, label) => EventBus.emit('RIVAL_DUEL_BEAT', { kind, label })
     const shake = (d, m) => sc?.cameras?.main?.shake?.(d, m)
+    // Mid-air ("chest") Y for each lord: the boss is centre-anchored (worldY = chest);
+    // the rival skin is foot-anchored, so lift it. Ground effects (magicCircle, crater)
+    // still anchor at the FEET (worldY) so they sit on the floor.
+    const LIFT = DOMINION_RIVAL_LIFT * (Balance.TILE_SIZE ?? 32)
+    const bch = boss.worldY, ach = adv.worldY - LIFT
     const nx = () => D._nx ?? (adv.worldX + boss.worldX) / 2
-    const ny = () => D._ny ?? (adv.worldY + boss.worldY) / 2
+    const ny = () => D._ny ?? (ach + bch) / 2
     switch (ph.name) {
       case 'ignite':
         beat('ignite', 'TWO LORDS, ONE THRONE')
-        AbilityVfx.chargeUp?.(sc, adv.worldX,  adv.worldY,  { color: PUR,  radius: 50, count: 16 })
-        AbilityVfx.chargeUp?.(sc, boss.worldX, boss.worldY, { color: CRIM, radius: 50, count: 16 })
+        AbilityVfx.chargeUp?.(sc, adv.worldX,  ach, { color: PUR,  radius: 50, count: 16 })
+        AbilityVfx.chargeUp?.(sc, boss.worldX, bch, { color: CRIM, radius: 50, count: 16 })
         break
       case 'lock':
         beat('lock', 'BEAM-LOCK')
@@ -2677,29 +2707,29 @@ export class BossSystem {
       case 'v_surge':
         beat('v_surge', "USURPER'S SURGE")
         this._nemSfx('ult')
-        AbilityVfx.chargeUp?.(sc, adv.worldX, adv.worldY, { color: PUR, radius: 64, count: 18 })
-        AbilityVfx.burstRays?.(sc, adv.worldX, adv.worldY, { color: PUR2, count: 12, length: 84 })
-        AbilityVfx.pulseRing?.(sc, adv.worldX, adv.worldY, { color: PUR, fromR: 12, toR: 80, alpha: 0.8 })
+        AbilityVfx.chargeUp?.(sc, adv.worldX, ach, { color: PUR, radius: 64, count: 18 })
+        AbilityVfx.burstRays?.(sc, adv.worldX, ach, { color: PUR2, count: 12, length: 84 })
+        AbilityVfx.pulseRing?.(sc, adv.worldX, ach, { color: PUR, fromR: 12, toR: 80, alpha: 0.8 })
         shake(180, 0.006)
         break
       case 'b_counter':
         beat('b_counter', 'COUNTER-SURGE')
         this._nemSfx('resolve')
-        AbilityVfx.chargeUp?.(sc, boss.worldX, boss.worldY, { color: CRIM, radius: 64, count: 18 })
-        AbilityVfx.burstRays?.(sc, boss.worldX, boss.worldY, { color: CRIM2, count: 12, length: 84 })
-        AbilityVfx.pulseRing?.(sc, boss.worldX, boss.worldY, { color: CRIM, fromR: 12, toR: 80, alpha: 0.8 })
+        AbilityVfx.chargeUp?.(sc, boss.worldX, bch, { color: CRIM, radius: 64, count: 18 })
+        AbilityVfx.burstRays?.(sc, boss.worldX, bch, { color: CRIM2, count: 12, length: 84 })
+        AbilityVfx.pulseRing?.(sc, boss.worldX, bch, { color: CRIM, fromR: 12, toR: 80, alpha: 0.8 })
         shake(180, 0.006)
         break
       case 'strain':
         beat('strain', 'DOMINION STRAIN')
-        AbilityVfx.lightning?.(sc, adv.worldX, adv.worldY, boss.worldX, boss.worldY,
+        AbilityVfx.lightning?.(sc, adv.worldX, ach, boss.worldX, bch,
           { color: 0xeacaff, segments: 9, jitter: 18, thickness: 2, durationMs: 300 })
         break
       case 'feedback':
         beat('feedback', 'FEEDBACK')
         this._nemSfx('apex')
         AbilityVfx.screenFlash?.(sc, { color: 0xffffff, intensity: 0.5, durationMs: 300 })
-        AbilityVfx.lightning?.(sc, adv.worldX, adv.worldY, boss.worldX, boss.worldY,
+        AbilityVfx.lightning?.(sc, adv.worldX, ach, boss.worldX, bch,
           { color: 0xffffff, segments: 10, jitter: 24, thickness: 4, durationMs: 360 })
         AbilityVfx.shockwave?.(sc, nx(), ny(), { color: 0xffffff, fromR: 10, toR: 120, core: true })
         shake(320, 0.011); this._hitstop(90, 0.2)
@@ -2707,11 +2737,12 @@ export class BossSystem {
       case 'overload': {
         const W = D.bossWins
         beat('overload', W ? 'DOMINION OVERWHELMS' : "THE USURPER'S DOMINION")
-        const wx = W ? boss.worldX : adv.worldX, wy = W ? boss.worldY : adv.worldY
+        const wx = W ? boss.worldX : adv.worldX
+        const wch = W ? bch : ach, wft = W ? boss.worldY : adv.worldY   // chest vs feet
         const wc = W ? CRIM : PUR, wc2 = W ? CRIM2 : PUR2
-        AbilityVfx.beamPillar?.(sc, wx, wy, { color: wc, width: 44, durationMs: 1400 })
-        AbilityVfx.magicCircle?.(sc, wx, wy, { color: wc, radius: 66 })
-        AbilityVfx.burstRays?.(sc, wx, wy, { color: wc2, count: 16, length: 110 })
+        AbilityVfx.beamPillar?.(sc, wx, wft, { color: wc, width: 44, durationMs: 1400 })  // rises from the floor up the body
+        AbilityVfx.magicCircle?.(sc, wx, wft, { color: wc, radius: 66 })                  // ground ring at the feet
+        AbilityVfx.burstRays?.(sc, wx, wch, { color: wc2, count: 16, length: 110 })       // rays burst from the chest
         shake(280, 0.009)
         break
       }
@@ -2719,13 +2750,14 @@ export class BossSystem {
         const W = D.bossWins
         beat('collapse', W ? 'THE THRONE HOLDS' : 'USURPED')
         this._nemSfx('finalblow')
-        // The LOSER's beam shatters + detonates ON them.
-        const lx = W ? adv.worldX : boss.worldX, ly = W ? adv.worldY : boss.worldY
+        // The LOSER's beam shatters + detonates ON them (chest blast + a crater at the feet).
+        const lx = W ? adv.worldX : boss.worldX
+        const lch = W ? ach : bch, lft = W ? adv.worldY : boss.worldY
         const lc = W ? PUR : CRIM
         AbilityVfx.screenFlash?.(sc, { color: 0xffffff, intensity: 0.85, durationMs: 360 })
-        AbilityVfx.shockwave?.(sc, lx, ly, { color: lc, fromR: 12, toR: 170, thickness: 8, core: true })
-        AbilityVfx.impactBurst?.(sc, lx, ly, { color: 0xffffff, radius: 90, sparks: 14, debris: 8, durationMs: 520 })
-        AbilityVfx.crater?.(sc, lx, ly, { color: lc, radius: 64 })
+        AbilityVfx.shockwave?.(sc, lx, lch, { color: lc, fromR: 12, toR: 170, thickness: 8, core: true })
+        AbilityVfx.impactBurst?.(sc, lx, lch, { color: 0xffffff, radius: 90, sparks: 14, debris: 8, durationMs: 520 })
+        AbilityVfx.crater?.(sc, lx, lft, { color: lc, radius: 64 })
         shake(420, 0.014); this._hitstop(120, 0.18)
         break
       }

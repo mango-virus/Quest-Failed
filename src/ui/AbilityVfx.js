@@ -234,16 +234,61 @@ export const AbilityVfx = {
     return null
   },
 
-  // Vertical pillar / column of light flashing down at a point (holy, revive).
+  // A column of energy rising from a point (holy beam, revive, boss-ability
+  // pillar, the dominion overload, …). Built from LAYERED additive light — a wide
+  // haze, a coloured body, and a white-hot core — capped by an impact disc at the
+  // base and a flare at the tip, with motes streaking up it. Replaces the old flat
+  // single rectangle (which read as a basic solid block). Same API + anchor: it
+  // extends UP from (x, y) so every existing caller's colour/size still works.
   beamPillar(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const o = { color: 0xffffff, width: 46, height: 260, durationMs: 520, depth: 31, ...opts }
-    const beam = scene.add.rectangle(x, y + 6, o.width, o.height, o.color)
-      .setOrigin(0.5, 1).setDepth(o.depth).setAlpha(0)
-    scene.tweens.add({ targets: beam, alpha: 0.85, scaleX: 1.6,
-      duration: o.durationMs * 0.25, yoyo: true, hold: o.durationMs * 0.3,
-      ease: 'Quad.easeOut', onComplete: () => beam.destroy() })
-    return beam
+    const ADD = Phaser.BlendModes.ADD
+    const baseY = y + 6
+    const topY  = baseY - o.height
+    const tIn   = Math.max(110, o.durationMs * 0.20)
+    const hold  = Math.max(120, o.durationMs * 0.34)
+    const tOut  = Math.max(170, o.durationMs * 0.46)
+    const objs = []
+    const mk = (ob) => { objs.push(ob); return ob }
+
+    // Three stacked columns: wide soft haze → coloured body → thin white-hot core.
+    // Additive blend so the overlaps bloom into "light" instead of a flat fill.
+    const cols = [
+      mk(scene.add.rectangle(x, baseY, o.width * 2.3, o.height, o.color, 0.16)),
+      mk(scene.add.rectangle(x, baseY, o.width,        o.height, o.color, 0.5)),
+      mk(scene.add.rectangle(x, baseY, Math.max(4, o.width * 0.30), o.height, 0xffffff, 0.92)),
+    ]
+    cols.forEach((c, i) => c.setOrigin(0.5, 1).setDepth(o.depth + i).setBlendMode(ADD).setScale(0.22, 1))
+    // Slam open from a thin line to full width with a touch of overshoot.
+    scene.tweens.add({ targets: cols, scaleX: 1, duration: tIn, ease: 'Back.easeOut' })
+
+    // Light pooling at each end — a bright impact disc at the base + a flare cap
+    // at the tip — sells the beam as touching down rather than floating.
+    const disc = mk(scene.add.ellipse(x, baseY, o.width * 2.1, o.width * 0.8, 0xffffff, 0.85)
+      .setDepth(o.depth + 3).setBlendMode(ADD).setScale(0.3))
+    const cap  = mk(scene.add.circle(x, topY, o.width * 0.7, o.color, 0.8)
+      .setDepth(o.depth + 2).setBlendMode(ADD).setScale(0.3))
+    scene.tweens.add({ targets: [disc, cap], scale: 1, duration: tIn, ease: 'Back.easeOut' })
+
+    // Fade the whole stack out together, then clean up.
+    scene.tweens.add({ targets: objs, alpha: 0, duration: tOut, delay: tIn + hold,
+      ease: 'Quad.easeIn', onComplete: () => objs.forEach(ob => ob.destroy()) })
+
+    // Energy motes streaking up the beam (quality-gated).
+    const mult = _particlesMult()
+    if (mult > 0) {
+      const n = Math.max(2, Math.round(4 * mult))
+      for (let i = 0; i < n; i++) {
+        const mx = x + (Math.random() - 0.5) * o.width * 0.5
+        const mote = scene.add.circle(mx, baseY, 2 + Math.random() * 2.5, 0xffffff, 0.95)
+          .setDepth(o.depth + 4).setBlendMode(ADD)
+        scene.tweens.add({ targets: mote, y: topY + Math.random() * 24, alpha: 0,
+          duration: o.durationMs * (0.55 + Math.random() * 0.4), delay: tIn * 0.4 + i * 70,
+          ease: 'Cubic.easeOut', onComplete: () => mote.destroy() })
+      }
+    }
+    return cols[2]
   },
 
   // A meteor streak falling from off-screen-up to (x,y), then a big impact.
