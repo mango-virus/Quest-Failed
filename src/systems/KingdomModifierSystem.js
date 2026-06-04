@@ -15,6 +15,7 @@ import { Balance } from '../config/balance.js'
 import { TILE } from './DungeonGrid.js'   // TILE is the tile-TYPE enum (FLOOR/WALL/…)
 import { createMinion, applyMinionScaling } from '../entities/Minion.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
+import { PathfinderSystem } from './PathfinderSystem.js'   // A* — saboteur paths through halls, not walls
 
 // Tile SIZE in px (32). NOT `TILE` — that's the type enum. Used for tile→world.
 const TS = Balance.TILE_SIZE
@@ -1554,11 +1555,12 @@ export class KingdomModifierSystem {
     this._scene?.time?.delayedCall?.(900, () => this._betrayerNightSabotage())
   }
 
-  // The strongest minion turns traitor on-screen: it DASHES from trap to trap (2×
-  // speed), flipping each in a green sabotage burst, then bolts for the entry and
+  // The strongest minion turns traitor on-screen: it PATHS through the dungeon
+  // (A* along walkable corridors/doors — NOT a beeline through walls) from trap to
+  // trap, flipping each in a green sabotage burst, then walks out the entry and
   // ABANDONS you (removed, no respawn — it returns as the Turncoat at the climax).
-  // A scripted tween sequence (works at night; the minion is skipped by MinionAISystem
-  // via `_saboteurDashing` so its AI can't fight the tween).
+  // A scripted frame-step mover (works at night; the minion is skipped by
+  // MinionAISystem via `_saboteurDashing` so its AI can't fight the scripted move).
   _betrayerNightSabotage() {
     const sc = this._scene
     const minions = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0 && !m._saboteurDashing)
@@ -1573,51 +1575,115 @@ export class KingdomModifierSystem {
     EventBus.emit('BETRAYER_SABOTAGE_BEGINS', { minion: sab, name: sab.name })
     AbilityVfx.pulseRing?.(sc, sab.worldX, sab.worldY, { color: 0x7ec850, fromR: 6, toR: 32, alpha: 0.9, durationMs: 420 })
     AbilityVfx.burstRays?.(sc, sab.worldX, sab.worldY, { color: 0x9ef070, count: 10, length: 46, durationMs: 420 })
-    // Route — every trap centre, then the entry door (exit). Finite coords only.
-    const traps = (this._gs.dungeon?.traps ?? []).filter(t => !t.state?.exploded && !t._broken)
-    const stops = traps
-      .map(t => ({ x: (t.tileX + (t.footprint?.w ?? 1) / 2) * TS, y: (t.tileY + (t.footprint?.h ?? 1) / 2) * TS, trap: true }))
-      .filter(s => Number.isFinite(s.x) && Number.isFinite(s.y))
-    const entry = sc?.aiSystem?.pickSpawnTile?.()
-    stops.push(entry ? { x: (entry.x + 0.5) * TS, y: (entry.y + 0.5) * TS, exit: true }
-      : { x: sab.worldX, y: sab.worldY - 220, exit: true })
+    // Sync the start tile to the world position (floor, not round — tile centre
+    // (tx+0.5)*TS must map back to tx) so A* starts from the right tile.
+    sab.tileX = Math.floor(sab.worldX / TS); sab.tileY = Math.floor(sab.worldY / TS)
 
-    // Manual frame-step lerp (robust — Phaser tweens on plain gameState objects
-    // can corrupt the coords). Moves the minion at BETRAYER_DASH_SPEED px/ms.
+    // ── Route: PATH THROUGH THE DUNGEON (walkable tiles only, like a real unit) ──
+    // It used to BEELINE straight to each trap THROUGH WALLS. Now it A*-routes
+    // along corridors/doors to a walkable tile beside each trap, flips it, then
+    // walks out the entry door and abandons you.
+    const grid   = sc?.dungeonGrid
+    const gTiles = grid?.getTiles?.()
+    const gW = gTiles?.[0]?.length ?? 0, gH = gTiles?.length ?? 0
+    const isWalk = (x, y) => {
+      if (!gTiles || x < 0 || y < 0 || x >= gW || y >= gH) return false
+      if (!PathfinderSystem.isWalkable(gTiles[y][x])) return false
+      if (grid?.isSolidTrap?.(x, y) || grid?.isSolidDecor?.(x, y) || grid?.isDoorBlocked?.(x, y)) return false
+      return true
+    }
+    // The walkable tile to STAND ON to sabotage a trap: the trap's own tile if it
+    // can be stood on, else the nearest walkable neighbour (solid traps + wall-
+    // mounted arrow traps are flipped from beside them).
+    const approachOf = (tx, ty) => {
+      if (isWalk(tx, ty)) return { x: tx, y: ty }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]])
+        if (isWalk(tx + dx, ty + dy)) return { x: tx + dx, y: ty + dy }
+      return null
+    }
+    const trapInfo = (this._gs.dungeon?.traps ?? [])
+      .filter(t => !t.state?.exploded && !t._broken)
+      .map(t => ({
+        appr: approachOf(t.tileX + Math.floor((t.footprint?.w ?? 1) / 2),
+          t.tileY + Math.floor((t.footprint?.h ?? 1) / 2)),
+        vfx:  { x: (t.tileX + (t.footprint?.w ?? 1) / 2) * TS, y: (t.tileY + (t.footprint?.h ?? 1) / 2) * TS },
+      }))
+      .filter(ti => ti.appr && Number.isFinite(ti.vfx.x))
+    // Greedy nearest-neighbour tour from the saboteur so the dash weaves through
+    // the halls naturally instead of zig-zagging in placement order.
+    const ordered = []
+    const pool = trapInfo.slice()
+    let curX = sab.tileX, curY = sab.tileY
+    while (pool.length) {
+      let best = 0, bestD = Infinity
+      for (let k = 0; k < pool.length; k++) {
+        const d = Math.abs(pool[k].appr.x - curX) + Math.abs(pool[k].appr.y - curY)
+        if (d < bestD) { bestD = d; best = k }
+      }
+      const [ti] = pool.splice(best, 1); ordered.push(ti); curX = ti.appr.x; curY = ti.appr.y
+    }
+    const entry = sc?.aiSystem?.pickSpawnTile?.()
+    const stops = ordered.map(ti => ({ tile: ti.appr, flip: ti.vfx }))
+    stops.push({ tile: entry ? { x: entry.x, y: entry.y } : null, exit: true })
+
     const finish = () => {
       const idx = (this._gs.minions ?? []).indexOf(sab); if (idx >= 0) this._gs.minions.splice(idx, 1)
       AbilityVfx.particleBurst?.(sc, sab.worldX, sab.worldY, { color: 0x7ec850, count: 16, speed: 150, durationMs: 520 })
       AbilityVfx.pulseRing?.(sc, sab.worldX, sab.worldY, { color: 0x9ef070, fromR: 6, toR: 36, alpha: 0.85, durationMs: 460 })
       EventBus.emit('BETRAYER_SABOTEUR_LEFT', { minion: sab, name: sab.name })
     }
-    let i = 0
-    const goTo = (stop) => {
+    const flipTrap = (vfx) => {
+      AbilityVfx.burstRays?.(sc, vfx.x, vfx.y, { color: 0x9ef070, count: 10, length: 44, durationMs: 360 })
+      AbilityVfx.pulseRing?.(sc, vfx.x, vfx.y, { color: 0x7ec850, fromR: 6, toR: 30, alpha: 0.9, durationMs: 380 })
+      AbilityVfx.particleBurst?.(sc, vfx.x, vfx.y, { color: 0x9ef070, count: 8, speed: 90, durationMs: 380 })
+      EventBus.emit('BETRAYER_TRAP_FLIPPED', { x: vfx.x, y: vfx.y })
+    }
+    const move = BETRAYER_DASH_SPEED * 16   // px per ~16ms frame
+
+    // Manual frame-step lerp ALONG THE A* WAYPOINTS (robust — Phaser tweens on
+    // plain gameState objects can corrupt the coords).
+    const goToStop = (idx) => {
+      if (!sab._saboteurDashing) return
+      if (idx >= stops.length) { finish(); return }
+      const stop = stops[idx]
+      const path = (grid && stop.tile)
+        ? PathfinderSystem.findPath({ x: sab.tileX, y: sab.tileY }, stop.tile, grid, null, 0, null, { softTraps: true })
+        : null
+      // Unreachable (no grid / trap walled off / no entry tile): skip a trap, or
+      // just leave-in-place at the exit — NEVER beeline through walls.
+      if (!stop.tile || path == null) {
+        if (stop.exit) { finish(); return }
+        sc?.time?.delayedCall?.(40, () => goToStop(idx + 1)); return
+      }
+      const wps = path; let wi = 0   // path is [] when already on the tile → arrive immediately
+      const arrive = () => {
+        sab.worldX = (stop.tile.x + 0.5) * TS; sab.worldY = (stop.tile.y + 0.5) * TS
+        sab.tileX = stop.tile.x; sab.tileY = stop.tile.y
+        if (stop.flip) flipTrap(stop.flip)
+        if (stop.exit) { finish(); return }
+        sc?.time?.delayedCall?.(140, () => goToStop(idx + 1))   // a beat at each trap
+      }
       const step = () => {
         if (!sab._saboteurDashing) return
-        const dx = stop.x - sab.worldX, dy = stop.y - sab.worldY
+        if (wi >= wps.length) { arrive(); return }
+        const wp = wps[wi]
+        // Open a closed door we're crossing — move like a real minion, not a ghost.
+        const door = grid?.getCpForDoorTile?.(wp.x, wp.y)
+        if (door && door.cp && !door.cp.open) sc?._dungeonRenderer?.openDoor?.(door.cp)
+        const tx = (wp.x + 0.5) * TS, ty = (wp.y + 0.5) * TS
+        const dx = tx - sab.worldX, dy = ty - sab.worldY
         const d = Math.hypot(dx, dy)
-        const move = BETRAYER_DASH_SPEED * 16   // per ~16ms frame
         if (d <= move + 1) {
-          sab.worldX = stop.x; sab.worldY = stop.y
-          sab.tileX = Math.round(sab.worldX / TS); sab.tileY = Math.round(sab.worldY / TS)
-          if (stop.trap) {
-            AbilityVfx.burstRays?.(sc, stop.x, stop.y, { color: 0x9ef070, count: 10, length: 44, durationMs: 360 })
-            AbilityVfx.pulseRing?.(sc, stop.x, stop.y, { color: 0x7ec850, fromR: 6, toR: 30, alpha: 0.9, durationMs: 380 })
-            AbilityVfx.particleBurst?.(sc, stop.x, stop.y, { color: 0x9ef070, count: 8, speed: 90, durationMs: 380 })
-            EventBus.emit('BETRAYER_TRAP_FLIPPED', { x: stop.x, y: stop.y })
-          }
-          i++
-          if (i >= stops.length) finish()
-          else sc?.time?.delayedCall?.(140, () => goTo(stops[i]))   // a beat at each stop
-          return
+          sab.worldX = tx; sab.worldY = ty; sab.tileX = wp.x; sab.tileY = wp.y
+          wi++; sc?.time?.delayedCall?.(16, step); return
         }
         sab.worldX += (dx / d) * move; sab.worldY += (dy / d) * move
-        sab.tileX = Math.round(sab.worldX / TS); sab.tileY = Math.round(sab.worldY / TS)
+        sab.tileX = Math.floor(sab.worldX / TS); sab.tileY = Math.floor(sab.worldY / TS)
         sc?.time?.delayedCall?.(16, step)
       }
       step()
     }
-    goTo(stops[0])
+    goToStop(0)
     return true
   }
 
