@@ -170,6 +170,8 @@ export class DevEventsButton {
             () => this._qfDev()?.populate({ minions: 8, traps: 3 }), true),
           sandboxCard('SUMMON NECRARCH', 'Reckoning: immune king + undead tide', '⚰',
             () => this._qfDev()?.necrarch(), true),
+          sandboxCard('BETRAYER DASH', 'strongest minion sabotages traps + flees', '⇄',
+            () => this._qfDev()?.betrayerDash(), true),
           sandboxCard('CLEAR SANDBOX', 'remove test minions/traps/raids', '✖',
             () => this._qfDev()?.clear(), true),
         ]),

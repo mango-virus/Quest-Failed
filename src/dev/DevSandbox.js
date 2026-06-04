@@ -102,6 +102,16 @@ export function installDevSandbox(scene) {
       return { ok: true, count: out?.length ?? 0 }
     },
 
+    // Betrayer — run the night-dash sabotage NOW (the strongest minion dashes
+    // trap-to-trap flipping each, then exits). Populate some minions + traps first.
+    betrayerDash() {
+      const kms = scene.kingdomModifierSystem
+      if (!kms || typeof kms._betrayerNightSabotage !== 'function') { log('KingdomModifierSystem not available'); return { ok: false } }
+      const ran = kms._betrayerNightSabotage()
+      log(ran ? 'betrayer sabotage dash started' : 'no minions to send — populate first')
+      return { ok: !!ran }
+    },
+
     // Fire a champion raid by responseId (spawns the champion + retinue). Needs an
     // active DayPhase — call __qfDev.startDay() first if you're still building.
     champion(responseId) {

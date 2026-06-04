@@ -1133,6 +1133,13 @@ export class RightPanels {
     sub('FORLORN_OATH_BROKEN', ({ routed } = {}) => {
       this._addLog(`The oath SHATTERS — ${routed ?? 0} martyr${routed === 1 ? '' : 's'} break and flee!`, 'champion-down')
     })
+    // Betrayer night-dash — the strongest minion turns traitor, sabotaging traps.
+    sub('BETRAYER_SABOTAGE_BEGINS', ({ name } = {}) => {
+      this._addLog(`${name || 'Your strongest minion'} TURNS — it sabotages your traps from within!`, 'champion')
+    })
+    sub('BETRAYER_SABOTEUR_LEFT', ({ name } = {}) => {
+      this._addLog(`${name || 'The traitor'} flees through the entry — your traps now serve the Betrayer.`, 'champion-down')
+    })
     // All-Stars (KR overhaul) — one of the four legends fires its signature.
     sub('ALLSTAR_ABILITY', ({ hero, move } = {}) => {
       this._addLog(`${hero || 'A champion'} unleashes ${move || 'a signature move'}!`, 'champion')

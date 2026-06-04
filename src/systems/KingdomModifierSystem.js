@@ -12,9 +12,12 @@
 import { EventBus } from './EventBus.js'
 import { currentActResponseId } from '../config/acts.js'
 import { Balance } from '../config/balance.js'
-import { TILE } from './DungeonGrid.js'
+import { TILE } from './DungeonGrid.js'   // TILE is the tile-TYPE enum (FLOOR/WALL/…)
 import { createMinion, applyMinionScaling } from '../entities/Minion.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
+
+// Tile SIZE in px (32). NOT `TILE` — that's the type enum. Used for tile→world.
+const TS = Balance.TILE_SIZE
 
 // Ascension THRONE GUARD (KR P6 rebalance, 2026-06-02). Each ascension no longer
 // fields an ever-growing swarm — instead the boss keeps a FIXED PAIR of its own
@@ -72,6 +75,9 @@ const MAGE_POLY_MS = 5200
 // for the raid (a temporary defection — reuses the faction='adventurer' handling
 // the permanent defector already uses), then it snaps back to your side.
 const SABOTAGE_MS = 6000
+// Betrayer NIGHT-DASH intro — the strongest minion dashes trap-to-trap (2× speed),
+// flips each, then exits via the entry and abandons you (removed, no respawn).
+const BETRAYER_DASH_SPEED = 0.45   // px/ms — a fast, decisive dash
 
 // Pantheon — a holy AURA around the angels (heal heroes / sear your minions) +
 // the seraph resurrecting the fallen a limited number of times per raid.
@@ -130,6 +136,8 @@ export class KingdomModifierSystem {
     EventBus.on('NIGHT_PHASE_STARTED', this._onMageNightStart, this)
     // Reckoning — Necrarch's grave-summon burst (graves erupt + risen dead claw up).
     EventBus.on('NECRARCH_SUMMON', this._onNecrarchSummon, this)
+    // Betrayer — the night-phase sabotage dash (once per act, on the build phase).
+    EventBus.on('NIGHT_PHASE_STARTED', this._onBetrayerNight, this)
   }
 
   destroy() {
@@ -138,6 +146,7 @@ export class KingdomModifierSystem {
     EventBus.off('DAY_PHASE_STARTED', this._onMageDayStart, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._onMageNightStart, this)
     EventBus.off('NECRARCH_SUMMON', this._onNecrarchSummon, this)
+    EventBus.off('NIGHT_PHASE_STARTED', this._onBetrayerNight, this)
     this._necrarchG?.destroy(); this._necrarchG = null
     this._mageRestoreRooms()
     this._mageSealG?.destroy(); this._mageSealG = null
@@ -955,8 +964,8 @@ export class KingdomModifierSystem {
       if (n > bestN) { bestN = n; bestY = ty }
     }
     const inBand = m => Math.abs((m.tileY ?? 0) - bestY) <= JUDGMENT_BAND_TILES
-    const cy = bestY * TILE + TILE / 2
-    const widthPx = (this._gs.dungeon?.tiles?.[0]?.length ?? 60) * TILE
+    const cy = bestY * TS + TS / 2
+    const widthPx = (this._gs.dungeon?.tiles?.[0]?.length ?? 60) * TS
     EventBus.emit('CHAMPION_ABILITY', { responseId: 'pantheon', name: 'FINAL JUDGMENT', champion: champ?.name })
     // Channel — Aurelia charges, the row glows with warning.
     AbilityVfx.chargeUp?.(sc, champ.worldX, champ.worldY, { color: 0xffe9a8, count: 18, radius: 84, durationMs: JUDGMENT_CAST_MS })
@@ -991,7 +1000,7 @@ export class KingdomModifierSystem {
   // otherwise a bright holy sweep that flashes then fades.
   _judgmentBand(cy, widthPx, warning) {
     const sc = this._scene
-    const h = TILE * (JUDGMENT_BAND_TILES * 2 + 1)
+    const h = TS * (JUDGMENT_BAND_TILES * 2 + 1)
     const color = warning ? 0xffd24a : 0xfff3c4
     const g = sc.add.graphics().setDepth(warning ? 30 : 33)
     g.fillStyle(color, warning ? 0.12 : 0.42)
@@ -1103,8 +1112,8 @@ export class KingdomModifierSystem {
   // World-pixel centre of a room (tile coords × TILE).
   _roomCenterPx(r) {
     return {
-      x: (r.gridX + (r.width  ?? 1) / 2) * TILE,
-      y: (r.gridY + (r.height ?? 1) / 2) * TILE,
+      x: (r.gridX + (r.width  ?? 1) / 2) * TS,
+      y: (r.gridY + (r.height ?? 1) / 2) * TS,
     }
   }
 
@@ -1523,8 +1532,8 @@ export class KingdomModifierSystem {
     const pulse = 0.5 + 0.5 * Math.sin(now / 400)
     for (const t of traps) {
       if (t.state?.exploded || t._broken) continue
-      const x = (t.tileX + (t.footprint?.w ?? 1) / 2) * TILE
-      const y = (t.tileY + (t.footprint?.h ?? 1) / 2) * TILE
+      const x = (t.tileX + (t.footprint?.w ?? 1) / 2) * TS
+      const y = (t.tileY + (t.footprint?.h ?? 1) / 2) * TS
       const R = 11 + 3 * pulse
       g.lineStyle(2, 0x7ec850, 0.35 + 0.4 * pulse)
       g.strokeCircle(x, y, R)
@@ -1533,6 +1542,83 @@ export class KingdomModifierSystem {
       g.lineBetween(x - 7, y - 3, x + 7, y - 3); g.lineBetween(x + 7, y - 3, x + 3, y - 6)
       g.lineBetween(x + 7, y + 3, x - 7, y + 3); g.lineBetween(x - 7, y + 3, x - 3, y + 6)
     }
+  }
+
+  // Betrayer NIGHT-DASH intro (once per act, on the first build phase). Gated trigger.
+  _onBetrayerNight() {
+    if (currentActResponseId(this._gs) !== 'betrayer') return
+    const act = this._gs.meta?.act
+    if (!act || act._betrayerDashDone) return
+    act._betrayerDashDone = true
+    // Small delay so the build scene is up + the dungeon rendered before the dash.
+    this._scene?.time?.delayedCall?.(900, () => this._betrayerNightSabotage())
+  }
+
+  // The strongest minion turns traitor on-screen: it DASHES from trap to trap (2×
+  // speed), flipping each in a green sabotage burst, then bolts for the entry and
+  // ABANDONS you (removed, no respawn — it returns as the Turncoat at the climax).
+  // A scripted tween sequence (works at night; the minion is skipped by MinionAISystem
+  // via `_saboteurDashing` so its AI can't fight the tween).
+  _betrayerNightSabotage() {
+    const sc = this._scene
+    const minions = (this._gs.minions ?? []).filter(m => (m.resources?.hp ?? 0) > 0 && !m._saboteurDashing)
+    if (!minions.length) return false
+    const score = m => (m.level ?? 1) * 1e5 + (m.resources?.maxHp ?? 0)
+    let sab = minions[0]; for (const m of minions) if (score(m) > score(sab)) sab = m
+    // Ensure a valid start position (fall back from tile coords).
+    if (!Number.isFinite(sab.worldX)) sab.worldX = (sab.tileX ?? 10) * TS + TS / 2
+    if (!Number.isFinite(sab.worldY)) sab.worldY = (sab.tileY ?? 10) * TS + TS / 2
+    sab._saboteurDashing = true   // MinionAISystem skips him while he dashes
+    sab._invulnerable     = true  // flipped traps can't catch the traitor mid-dash
+    EventBus.emit('BETRAYER_SABOTAGE_BEGINS', { minion: sab, name: sab.name })
+    AbilityVfx.pulseRing?.(sc, sab.worldX, sab.worldY, { color: 0x7ec850, fromR: 6, toR: 32, alpha: 0.9, durationMs: 420 })
+    AbilityVfx.burstRays?.(sc, sab.worldX, sab.worldY, { color: 0x9ef070, count: 10, length: 46, durationMs: 420 })
+    // Route — every trap centre, then the entry door (exit). Finite coords only.
+    const traps = (this._gs.dungeon?.traps ?? []).filter(t => !t.state?.exploded && !t._broken)
+    const stops = traps
+      .map(t => ({ x: (t.tileX + (t.footprint?.w ?? 1) / 2) * TS, y: (t.tileY + (t.footprint?.h ?? 1) / 2) * TS, trap: true }))
+      .filter(s => Number.isFinite(s.x) && Number.isFinite(s.y))
+    const entry = sc?.aiSystem?.pickSpawnTile?.()
+    stops.push(entry ? { x: (entry.x + 0.5) * TS, y: (entry.y + 0.5) * TS, exit: true }
+      : { x: sab.worldX, y: sab.worldY - 220, exit: true })
+
+    // Manual frame-step lerp (robust — Phaser tweens on plain gameState objects
+    // can corrupt the coords). Moves the minion at BETRAYER_DASH_SPEED px/ms.
+    const finish = () => {
+      const idx = (this._gs.minions ?? []).indexOf(sab); if (idx >= 0) this._gs.minions.splice(idx, 1)
+      AbilityVfx.particleBurst?.(sc, sab.worldX, sab.worldY, { color: 0x7ec850, count: 16, speed: 150, durationMs: 520 })
+      AbilityVfx.pulseRing?.(sc, sab.worldX, sab.worldY, { color: 0x9ef070, fromR: 6, toR: 36, alpha: 0.85, durationMs: 460 })
+      EventBus.emit('BETRAYER_SABOTEUR_LEFT', { minion: sab, name: sab.name })
+    }
+    let i = 0
+    const goTo = (stop) => {
+      const step = () => {
+        if (!sab._saboteurDashing) return
+        const dx = stop.x - sab.worldX, dy = stop.y - sab.worldY
+        const d = Math.hypot(dx, dy)
+        const move = BETRAYER_DASH_SPEED * 16   // per ~16ms frame
+        if (d <= move + 1) {
+          sab.worldX = stop.x; sab.worldY = stop.y
+          sab.tileX = Math.round(sab.worldX / TS); sab.tileY = Math.round(sab.worldY / TS)
+          if (stop.trap) {
+            AbilityVfx.burstRays?.(sc, stop.x, stop.y, { color: 0x9ef070, count: 10, length: 44, durationMs: 360 })
+            AbilityVfx.pulseRing?.(sc, stop.x, stop.y, { color: 0x7ec850, fromR: 6, toR: 30, alpha: 0.9, durationMs: 380 })
+            AbilityVfx.particleBurst?.(sc, stop.x, stop.y, { color: 0x9ef070, count: 8, speed: 90, durationMs: 380 })
+            EventBus.emit('BETRAYER_TRAP_FLIPPED', { x: stop.x, y: stop.y })
+          }
+          i++
+          if (i >= stops.length) finish()
+          else sc?.time?.delayedCall?.(140, () => goTo(stops[i]))   // a beat at each stop
+          return
+        }
+        sab.worldX += (dx / d) * move; sab.worldY += (dy / d) * move
+        sab.tileX = Math.round(sab.worldX / TS); sab.tileY = Math.round(sab.worldY / TS)
+        sc?.time?.delayedCall?.(16, step)
+      }
+      step()
+    }
+    goTo(stops[0])
+    return true
   }
 
   _tickForlornVfx() {

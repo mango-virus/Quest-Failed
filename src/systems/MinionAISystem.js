@@ -314,6 +314,10 @@ export class MinionAISystem {
     // (no targeting, no movement) until the transmute expires.
     if (minion._polymorphed) return
 
+    // Betrayer NIGHT-DASH — the traitor minion is driven by a scripted tween
+    // (KingdomModifierSystem); the AI mustn't fight it for control.
+    if (minion._saboteurDashing) return
+
     // Phase 1b.8 — Wraith Haunt ghosts are owned by BossArchetypeSystem's
     // _tickHauntGhosts (wall-phase lerp + melee engage). Letting the regular
     // minion AI also process them causes conflicting per-frame tile-coord
