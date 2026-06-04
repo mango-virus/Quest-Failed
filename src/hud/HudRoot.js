@@ -54,6 +54,7 @@ import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
 import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
 import { LightPartyCinematic }   from './LightPartyCinematic.js'
 import { AldricCinematic }       from './AldricCinematic.js'
+import { RivalShowdownCinematic } from './RivalShowdownCinematic.js'
 import { ChampionBar }           from './ChampionBar.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
@@ -212,6 +213,11 @@ export class HudRoot {
     // themed presentation; the kinetic choreography + HP feed live in
     // BossSystem._tickNemesisDuel. Same self-mounting pattern; idle otherwise.
     this._aldric           = new AldricCinematic()
+    // Rival (KR Vorzak response) — the boss-vs-boss SHOWDOWN. Reuses the same
+    // duel engine (BossSystem._startDuel, evt='RIVAL_DUEL') but a portrait-less,
+    // purple-themed presentation since Vorzak is a randomised T4 boss skin, not a
+    // character with portrait art. Self-mounting; idle on every other day.
+    this._rivalShowdown    = new RivalShowdownCinematic()
     // Pass the BottomBar's archetype-slot ref so the strip mounts INSIDE
     // the bar rather than floating above it (which used to cover the
     // dungeon view during day phase).
@@ -399,6 +405,7 @@ export class HudRoot {
     this._soloLeveling?.destroy();   this._soloLeveling = null
     this._lightParty?.destroy();     this._lightParty = null
     this._aldric?.destroy();         this._aldric = null
+    this._rivalShowdown?.destroy();  this._rivalShowdown = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
     const canvas = window.__game?.canvas
     if (this._onPointerMove)  canvas?.removeEventListener('pointermove',  this._onPointerMove)

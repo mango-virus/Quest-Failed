@@ -56,7 +56,8 @@ const ALD_BEAT_FACE = {
   hero_king:      'obsessed-attack',
 }
 
-function _ensureCss() {
+// Exported so the RivalShowdownCinematic can reuse the same qf-ald-* duel styling.
+export function ensureDuelCss() {
   if (typeof document === 'undefined') return
   if (document.getElementById('qf-aldric-duel-css')) return
   const style = document.createElement('style')
@@ -180,7 +181,7 @@ export class AldricCinematic {
     this._figFrontA = true; this._figExpr = null; this._figToken = 0
     this._figHolding = false; this._figHoldToken = 0; this._advFrac = 1
     if (!this._stage) return
-    _ensureCss()
+    ensureDuelCss()
     this._wire()
   }
 

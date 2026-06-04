@@ -1870,6 +1870,8 @@ export class DayPhase extends Phaser.Scene {
           vorzak._monster = true
           vorzak._monsterInvader = true
           vorzak._rivalBoss = true
+          vorzak._rivalDuel = true   // → BossSystem._runRivalDuel (boss-vs-boss showdown)
+          vorzak._rivalArchetype = skin
           vorzak.name = `Vorzak, the ${skin.charAt(0).toUpperCase() + skin.slice(1)} Usurper`
         }
       }
@@ -2795,6 +2797,23 @@ export class DayPhase extends Phaser.Scene {
       if (resp) this._spawnChampionRaid(resp)
     }
 
+    // Mango dev — force the RIVAL boss-vs-boss SHOWDOWN right now (fired from the
+    // TEST EVENT dev modal). Spawns the Rival champion raid (so Vorzak wears a real
+    // random T4 boss skin + is tagged `_rivalDuel`), then immediately runs the duel
+    // engine on him — the portrait-less purple RIVAL_DUEL cinematic + the kinetic
+    // throne clash. Mirrors onDevDuel (Aldric), but for Vorzak.
+    const onDevRivalDuel = () => {
+      const bossSystem = this.scene.get('Game')?.bossSystem
+      if (bossSystem?._nemDuelActive) return   // a duel is already live — don't double-trigger
+      const responses = this.cache.json.get('kingdomResponses') ?? []
+      const resp = responses.find(r => r.id === 'rival')
+      if (!resp) return
+      const spawned = this._spawnChampionRaid(resp) ?? []
+      const vorzak = spawned.find(u => u && u._rivalDuel)
+        ?? spawned.find(u => u && u._championResponseId)
+      if (vorzak && bossSystem?._runRivalDuel) bossSystem._runRivalDuel(vorzak)
+    }
+
     EventBus.on('ADVENTURER_DIED',              onDeath)
     EventBus.on('ADVENTURER_FLED',              onChange)
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
@@ -2804,6 +2823,7 @@ export class DayPhase extends Phaser.Scene {
     EventBus.on('DEV_FORCE_ALDRIC_DUEL',        onDevDuel)
     EventBus.on('DEV_FORCE_ALDRIC_SCOUT',       onDevScout)
     EventBus.on('DEV_FORCE_CHAMPION_RAID',      onDevChampion)
+    EventBus.on('DEV_FORCE_RIVAL_DUEL',         onDevRivalDuel)
     EventBus.on('DEV_SPAWN_CLASS',              onDevSpawnClass)
     this._listeners = [
       ['ADVENTURER_DIED',             onDeath],
@@ -2815,6 +2835,7 @@ export class DayPhase extends Phaser.Scene {
       ['DEV_FORCE_ALDRIC_DUEL',       onDevDuel],
       ['DEV_FORCE_ALDRIC_SCOUT',      onDevScout],
       ['DEV_FORCE_CHAMPION_RAID',     onDevChampion],
+      ['DEV_FORCE_RIVAL_DUEL',        onDevRivalDuel],
       ['DEV_SPAWN_CLASS',             onDevSpawnClass],
     ]
   }

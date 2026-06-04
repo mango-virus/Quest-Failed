@@ -172,6 +172,8 @@ export class DevEventsButton {
             () => this._qfDev()?.necrarch(), true),
           sandboxCard('BETRAYER DASH', 'strongest minion sabotages traps + flees', '⇄',
             () => this._qfDev()?.betrayerDash(), true),
+          sandboxCard('RIVAL SHOWDOWN', 'boss-vs-boss duel: Vorzak vs your boss', '♚',
+            () => this._qfDev()?.rivalDuel()),
           sandboxCard('CLEAR SANDBOX', 'remove test minions/traps/raids', '✖',
             () => this._qfDev()?.clear(), true),
         ]),

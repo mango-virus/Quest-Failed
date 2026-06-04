@@ -102,6 +102,17 @@ export function installDevSandbox(scene) {
       return { ok: true, count: out?.length ?? 0 }
     },
 
+    // Rival — force the boss-vs-boss SHOWDOWN NOW: spawn Vorzak (a random T4 boss
+    // skin) and immediately run the duel engine on him (the purple RIVAL_DUEL
+    // cinematic + kinetic throne clash). Needs an active DayPhase.
+    rivalDuel() {
+      const dp = scene.scene.get('DayPhase')
+      if (!dp?.scene?.isActive?.()) { log('not in a DayPhase — run __qfDev.startDay() (or click BEGIN DAY) first'); return { ok: false, reason: 'no-dayphase' } }
+      EventBus.emit('DEV_FORCE_RIVAL_DUEL', {})
+      log('rival showdown forced — Vorzak marches on the throne')
+      return { ok: true }
+    },
+
     // Betrayer — run the night-dash sabotage NOW (the strongest minion dashes
     // trap-to-trap flipping each, then exits). Populate some minions + traps first.
     betrayerDash() {
@@ -265,6 +276,9 @@ export function installDevSandbox(scene) {
         "  .populate({minions=8,traps=3})   spawn mixed-tier minions (+undead) + traps near the boss",
         "  .setResponse('betrayer')         force the act response → engage its act-wide gimmick",
         "  .champion('pantheon')            fire a champion raid (needs an active DayPhase)",
+        "  .necrarch()                      spawn the recurring Necrarch summoner + risen-dead tide",
+        "  .rivalDuel()                     force the Rival boss-vs-boss showdown (Vorzak vs your boss)",
+        "  .betrayerDash()                  run the Betrayer night-dash sabotage now",
         "  .state()                         dump sandbox state",
         "  .clear()                         remove sandbox minions/traps/raid units",
         '',

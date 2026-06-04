@@ -2334,6 +2334,11 @@ export class BossSystem {
     if (adventurer?._nemesisDuel && !this._nemDuelActive) {
       return this._runNemesisDuel(adventurer)
     }
+    // Rival — Vorzak (the Kingdom-Response champion, tagged `_rivalDuel`) reaches the
+    // throne → the boss-vs-boss SHOWDOWN duel instead of a normal fight.
+    if (adventurer?._rivalDuel && !this._nemDuelActive) {
+      return this._runRivalDuel(adventurer)
+    }
     // Defensive: never start a fight on a dead-posed boss or after
     // final death. boss.hp <= 0 is NOT a sufficient block on its own —
     // between fights with deathsRemaining > 0 the boss still has lives
@@ -2436,15 +2441,34 @@ export class BossSystem {
   // player's whole campaign build decides it; the choreography hides the result
   // until the last clash. Triggered from _onIncoming when `_nemesisDuel` Aldric
   // reaches the throne. Cinematic layer: AldricCinematic.js.
+  // Aldric — the Act IV crowned Hero King duel. Thin wrapper over the generic duel
+  // engine; supplies the form-themed colours + the ALDRIC_DUEL_* event prefix.
   _runNemesisDuel(adv) {
+    const form = adv._aldricForm ?? this._gameState.meta?.nemesis?.form ?? null
+    const col  = form === 'desperate' ? 0xff3b46 : form === 'radiant' ? 0xffd76a : 0xe8c860
+    const col2 = form === 'desperate' ? 0xff8a78 : 0xfff3cf
+    return this._startDuel(adv, { evt: 'ALDRIC_DUEL', form, col, col2 })
+  }
+
+  // Rival — the boss-vs-boss SHOWDOWN (Vorzak). Reuses the same duel engine; the
+  // lean RivalShowdownCinematic listens to RIVAL_DUEL_* (boss-vs-boss header, no
+  // portrait). Vorzak's archetype signature is carried by the duel's beats.
+  _runRivalDuel(adv) {
+    return this._startDuel(adv, { evt: 'RIVAL_DUEL', form: null, col: 0xa24bd9, col2: 0xd49cff })
+  }
+
+  // Generic duel engine entry. `opts`: { evt, form, col, col2 }. Both the Aldric
+  // climax and the Rival showdown route through here — the only per-duel difference
+  // is the cinematic event prefix (`evt`) + the VFX colours.
+  _startDuel(adv, opts = {}) {
+    const evt = opts.evt ?? 'ALDRIC_DUEL'
     const boss = this._gameState.boss
     if (!boss || !adv) return
-    // Re-entry guard — a 2nd trigger (e.g. the dev button fired twice) would
-    // overwrite _nemDuel and strand the first Aldric in `active` with the duel
-    // anim and no driver, so the day never ends.
+    // Re-entry guard — a 2nd trigger would overwrite _nemDuel and strand the first
+    // challenger in `active` with the duel anim and no driver (the day never ends).
     if (this._nemDuelActive) return
-    // _nemAnchors/_roomClamp deref this._bossRoom — it's lazily cached in update()
-    // by frame 1 normally, but harden the direct dev-trigger path.
+    // _nemAnchors/_roomClamp deref this._bossRoom — lazily cached in update() by
+    // frame 1 normally, but harden the direct dev-trigger path.
     this._bossRoom ??= this._gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!this._bossRoom) return
     this._fighting       = true
@@ -2460,31 +2484,30 @@ export class BossSystem {
     this._bossState = { action: 'idle' }
 
     // Roll the winner from relative power (HP×attack) so a stronger boss is
-    // likelier to slay the Hero King — the player's build matters. Fed through
-    // the same piecewise curve as the other duels.
+    // likelier to slay the challenger — the player's build matters.
     const bossPow = (boss.maxHp ?? 1) * (boss.attack ?? 1)
-    const aldPow  = (adv.resources?.maxHp ?? 1) * (adv.stats?.attack ?? 1)
-    const frac    = bossPow / Math.max(1, bossPow + aldPow)
+    const advPow  = (adv.resources?.maxHp ?? 1) * (adv.stats?.attack ?? 1)
+    const frac    = bossPow / Math.max(1, bossPow + advPow)
     const bossWins = Math.random() < this._duelWinChance(frac)
 
-    // Park Aldric — the choreography owns his position. `_nemDuel` tells the
+    // Park the challenger — the choreography owns his position. `_nemDuel` tells the
     // AdventurerRenderer to face the boss + animate (walk base + strike pulses).
     adv.path = null; adv.goal = { type: 'AT_BOSS' }; adv._nemDuel = true; adv._nemStrikeAt = 0
 
     const a = this._nemAnchors()
     boss.worldX = a.throne.x; boss.worldY = a.throne.y   // boss holds the throne (north)
-    adv.worldX  = a.south.x;  adv.worldY  = a.south.y    // Aldric strides in (south)
+    adv.worldX  = a.south.x;  adv.worldY  = a.south.y    // challenger strides in (south)
 
-    const form = adv._aldricForm ?? this._gameState.meta?.nemesis?.form ?? null
-    const col  = form === 'desperate' ? 0xff3b46 : form === 'radiant' ? 0xffd76a : 0xe8c860
-    const col2 = form === 'desperate' ? 0xff8a78 : 0xfff3cf
+    const form = opts.form ?? null
+    const col  = opts.col  ?? 0xe8c860
+    const col2 = opts.col2 ?? 0xfff3cf
     const bossName = this._duelBossName()
 
-    EventBus.emit('ALDRIC_DUEL_BEGAN', { name: adv.name ?? 'ALDRIC', bossName, form, advFrac: 1, bossFrac: 1 })
+    EventBus.emit(evt + '_BEGAN', { name: adv.name ?? 'CHALLENGER', bossName, form, advFrac: 1, bossFrac: 1 })
     this._nemSfx('begin')
 
     this._nemDuel = {
-      boss, adv, bossWins, form, bossName, anchors: a, col, col2,
+      boss, adv, bossWins, form, bossName, anchors: a, col, col2, evt,
       phase: null, t: 0, total: 0, watchdog: 0,
       advFrac: 1, bossFrac: 1, advFrom: 1, advTo: 1, bossFrom: 1, bossTo: 1,
       clash: { ...a.center }, hpEmitT: 0, nextFxT: 0, swap: false,
@@ -2576,7 +2599,7 @@ export class BossSystem {
     boss.hp          = Math.max(0, Math.round((boss.maxHp ?? 1) * D.bossFrac))
 
     D.hpEmitT += dt
-    if (D.hpEmitT >= 0.1) { D.hpEmitT = 0; EventBus.emit('ALDRIC_DUEL_HP', { advFrac: D.advFrac, bossFrac: D.bossFrac }) }
+    if (D.hpEmitT >= 0.1) { D.hpEmitT = 0; EventBus.emit(D.evt + '_HP', { advFrac: D.advFrac, bossFrac: D.bossFrac }) }
 
     const moveTo = (en, tx, ty, speed) => {
       const dx = tx - en.worldX, dy = ty - en.worldY
@@ -2601,7 +2624,7 @@ export class BossSystem {
   _nemPhaseEnter(ph, D) {
     const sc = this._scene
     const { boss, adv, col, col2, anchors: A } = D
-    const beat = (kind, label) => EventBus.emit('ALDRIC_DUEL_BEAT', { kind, label })
+    const beat = (kind, label) => EventBus.emit(D.evt + '_BEAT', { kind, label })
     const ring = (x, y, c, o = {}) => AbilityVfx.pulseRing?.(sc, x, y, { color: c, ...o })
     switch (ph.name) {
       case 'dawnblade':
@@ -2629,7 +2652,7 @@ export class BossSystem {
         if (D.form === 'radiant') AbilityVfx.godRays?.(sc, adv.worldX, adv.worldY, { color: col2, radius: 90 })
         else                       AbilityVfx.emberField?.(sc, adv.worldX, adv.worldY, { color: col, radius: 70 })
         sc?.cameras?.main?.shake?.(220, 0.006)
-        EventBus.emit('ALDRIC_DUEL_BEAT', { kind: 'surge', label: 'THE TIDE TURNS' })
+        EventBus.emit(D.evt + '_BEAT', { kind: 'surge', label: 'THE TIDE TURNS' })
         break
       case 'apex':
         beat('hero_king', D.form === 'desperate' ? 'CROWN OF VENGEANCE' : 'HERO-KING')
@@ -2859,7 +2882,7 @@ export class BossSystem {
     AbilityVfx.screenFlash?.(sc, { color: 0xffffff, alpha: 0.9, durationMs: 380 })
     if (sc?.time) { sc.time.timeScale = 0.2; window.setTimeout(() => { if (sc?.time && !this._fightEnded) sc.time.timeScale = 1 }, 520) }
 
-    EventBus.emit('ALDRIC_DUEL_END', { result: bossWins ? 'win' : 'loss', bossName })
+    EventBus.emit(D.evt + '_END', { result: bossWins ? 'win' : 'loss', bossName })
 
     // Let the finale card breathe (~2.6s wall-clock) before the death cascade
     // fires the victory / game-over flow over the top of it.
