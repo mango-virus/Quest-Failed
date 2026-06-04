@@ -1104,6 +1104,23 @@ export class AISystem {
       this._kill(adv, idx, adv._lastHitBy ?? 'unknown')
       return
     }
+    // Necrarch the Bonecrowned (Reckoning mid-act) — the undead king stands at the
+    // entrance, IMMUNE, and never fights; he just holds while the tide he summoned
+    // does the work. Once every other invader is down, he withdraws via the entry.
+    if (adv._necrarch && !adv._necrarchLeaving) {
+      if (this._necrarchWaveSpent(adv)) {
+        adv._necrarchLeaving = true
+        adv.goal    = { type: 'FLEE', reason: 'necrarch_done' }
+        adv.aiState = 'fleeing'
+        adv.path    = null
+        EventBus.emit('NECRARCH_LEAVES', { adventurer: adv })
+        // fall through — the normal FLEE pathing carries him out the entry door
+      } else {
+        adv.aiState = 'idle'   // frozen at the entrance, watching the tide
+        adv.path    = null
+        return
+      }
+    }
     // Healing Fountain blessing tick (2026-05-27). Granted on fountain
     // touch in _tryHealAtFountain; heals a % of maxHp per second while
     // active. Runs here — above the AT_BOSS early-return below — so it
@@ -4057,6 +4074,18 @@ export class AISystem {
     const active = this._gameState.adventurers?.active ?? []
     for (const a of active) {
       if (a === nem || a.aiState === 'dead') continue
+      return false
+    }
+    return true
+  }
+
+  // Necrarch's tide is spent when no OTHER invader still stands (besides himself /
+  // any other Necrarch). Fled / leaving units count as gone.
+  _necrarchWaveSpent(nec) {
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      if (a === nec || a._necrarch) continue
+      if (a.aiState === 'dead' || a.aiState === 'fled' || a.aiState === 'leaving') continue
+      if ((a.resources?.hp ?? 0) <= 0) continue
       return false
     }
     return true

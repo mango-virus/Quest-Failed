@@ -91,6 +91,17 @@ export function installDevSandbox(scene) {
       return { ok: true, minions: mc, traps: tc }
     },
 
+    // Reckoning — spawn the recurring NECRARCH SUMMONER (the immune undead king who
+    // stands at the entrance + summons a tide of risen dead, then withdraws when it's
+    // spent). The mid-act presence, distinct from the killable champion-day Necrarch.
+    necrarch() {
+      const dp = scene.scene.get('DayPhase')
+      if (!dp?.scene?.isActive?.() || typeof dp._spawnNecrarchSummoner !== 'function') { log('not in a DayPhase — run __qfDev.startDay() first'); return { ok: false } }
+      const out = dp._spawnNecrarchSummoner()
+      log(`Necrarch summoned — ${out?.length ?? 0} units (king + tide)`)
+      return { ok: true, count: out?.length ?? 0 }
+    },
+
     // Fire a champion raid by responseId (spawns the champion + retinue). Needs an
     // active DayPhase — call __qfDev.startDay() first if you're still building.
     champion(responseId) {
@@ -212,7 +223,9 @@ export function installDevSandbox(scene) {
       const m0 = g.minions.length, t0 = g.dungeon.traps.length, a0 = g.adventurers?.active?.length ?? 0
       g.minions = g.minions.filter(m => !m._devSandbox)
       g.dungeon.traps = g.dungeon.traps.filter(t => !t._devSandbox)
-      if (g.adventurers?.active) g.adventurers.active = g.adventurers.active.filter(a => !a._kingdomChampion && !a._allStar && !a._championResponseId && !a._defector)
+      if (g.adventurers?.active) g.adventurers.active = g.adventurers.active.filter(a =>
+        !a._kingdomChampion && !a._allStar && !a._championResponseId && !a._defector &&
+        !a._necrarch && a.name !== 'Risen Dead' && a.name !== 'Reanimated Thrall')
       log(`cleared ${m0 - g.minions.length} minions, ${t0 - g.dungeon.traps.length} traps, ${a0 - (g.adventurers?.active?.length ?? 0)} raid units`)
       return { ok: true }
     },

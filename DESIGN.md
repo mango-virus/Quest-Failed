@@ -1593,14 +1593,14 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 
 ### Reckoning of the Dead
 - ☑ Champion signature REANIMATE (Necrarch) SHIPPED 2026-06-03 — raises a just-killed unit as an undead THRALL marching the throne, rising from the freshest corpse (tracked via _onAdventurerDied) in a green grave-burst (necrotic pillar + bone shards + rune circle + crater). Reuses DayPhase._spawnRisenDead. Verified 10/10 (corpse-targeting, Necrarch fallback, no-op guards, dispatch via _championResponseId).
-- 🟡 Necrarch enters alone each day, stands still at the entrance, summons graves throughout the entry room(s), and summons the day's wave that way. [DEFERRED — the recurring-NPC set-piece; needs live iteration like the Nemesis scout AI did]
-- 🟡 Once all adventurers (besides Necrarch) are dead for the day, Necrarch leaves via the entry door. [DEFERRED — part of the recurring-Necrarch AI]
-- 🟡 Necrarch is IMMUNE to death + damage on the days he is not the champion. [DEFERRED — pairs with the recurring presence; reuse the `_invuln` / nemesis-floor pattern]
+- ☑ Necrarch enters alone each day, stands still at the entrance, summons graves throughout the entry room(s), and summons the day's wave that way. [SHIPPED 2026-06-04 — DayPhase._spawnNecrarchSummoner: on each Reckoning mid-act day, spawn an immune Necrarch at the entry (RETURN suppresses the normal wave) + summon a tide of Risen Dead (the undead ARE the wave). NECRARCH_SUMMON → KingdomModifierSystem grave-burst VFX (necrotic pillars per risen) + a big summon at Necrarch + a standing necrotic aura. Verified LIVE.]
+- ☑ Once all adventurers (besides Necrarch) are dead for the day, Necrarch leaves via the entry door. [SHIPPED — AISystem._tickAdventurer `_necrarch` branch freezes him at the entry until `_necrarchWaveSpent` (no other invader alive), then FLEE-out. Verified live: "His tide is broken — Necrarch withdraws through the entry, untouched."]
+- ☑ Necrarch is IMMUNE to death + damage on the days he is not the champion. [SHIPPED — `_invuln` (CombatSystem) + `_invulnerable` (TrapSystem) + `_neverAttacks`. Verified: he withdrew untouched after the tide died.]
 - ☑ Only on the LAST day does he join the wave as the champion (normal, killable). [ALREADY TRUE — the champion raid spawns Necrarch only on the climax day via _spawnChampionRaid; mid-act days currently use the undead trickle without a standing Necrarch]
 - 🟡 Mix in undead-type minion sprites with the waves of risen adventurers. [partial — Risen Dead already use minion-zombie sheets; broader undead mix = sprite pass]
 - ☐ Unique LPC sprite for Necrarch. [DEFERRED — sprite pass]
 
-**Reckoning status:** champion signature (Reanimate) SHIPPED. The recurring-Necrarch-presence set-piece (enters/stands/summons/leaves + immune-until-last-day) is a sizable NPC-behavior system best built with live preview iteration — DEFERRED, flagged for a focused pass.
+**Reckoning status:** champion signature (Reanimate) SHIPPED + the recurring-Necrarch-presence set-piece SHIPPED 2026-06-04 (enters alone → stands immune → summons the tide → withdraws when spent; champion-day Necrarch unchanged). Verified live via __qfDev.necrarch() / the SUMMON NECRARCH dev button. Unit test: 7/7 on the leave-condition (_necrarchWaveSpent). Remaining for Reckoning: undead-mix + Necrarch sprite (sprite pass). ⚠ BALANCE: mid-act undead tide = min(12, 5+dayInAct) — dial after a live look.
 
 ### Forlorn Hope
 - ☐ Unique LPC sprite for Captain Halric. (Elevate ideas approved: rage-pulse VFX, fury counter, captain-death deflates the squad.)

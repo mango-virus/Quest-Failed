@@ -128,6 +128,8 @@ export class KingdomModifierSystem {
     // daily; restored at night so the build phase is clean.
     EventBus.on('DAY_PHASE_STARTED', this._onMageDayStart, this)
     EventBus.on('NIGHT_PHASE_STARTED', this._onMageNightStart, this)
+    // Reckoning — Necrarch's grave-summon burst (graves erupt + risen dead claw up).
+    EventBus.on('NECRARCH_SUMMON', this._onNecrarchSummon, this)
   }
 
   destroy() {
@@ -135,6 +137,8 @@ export class KingdomModifierSystem {
     EventBus.off('FORLORN_LAST_VOW', this._onForlornLastVow, this)
     EventBus.off('DAY_PHASE_STARTED', this._onMageDayStart, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._onMageNightStart, this)
+    EventBus.off('NECRARCH_SUMMON', this._onNecrarchSummon, this)
+    this._necrarchG?.destroy(); this._necrarchG = null
     this._mageRestoreRooms()
     this._mageSealG?.destroy(); this._mageSealG = null
     this._polyG?.destroy(); this._polyG = null
@@ -390,7 +394,7 @@ export class KingdomModifierSystem {
     if (!wave) {
       this._pantheonG?.clear(); this._allStarG?.clear(); this._forlornG?.clear()
       this._forlornCounter?.setVisible(false)
-      this._mageSealG?.clear(); this._polyG?.clear(); this._betrayerG?.clear(); this._sabotageG?.clear()
+      this._mageSealG?.clear(); this._polyG?.clear(); this._betrayerG?.clear(); this._sabotageG?.clear(); this._necrarchG?.clear()
       if (this._polyTags) for (const t of this._polyTags.values()) t.setVisible(false)
       if (this._sabotageTags) for (const t of this._sabotageTags.values()) t.setVisible(false)
       return
@@ -422,6 +426,9 @@ export class KingdomModifierSystem {
     // Sabotage charm indicator rides on the minion flag (fires via the Betrayer
     // champion, which works regardless of the ambient act) — self-gating.
     this._tickSabotageVfx()
+    // Necrarch's standing aura rides on the `_necrarch` unit (self-gating), so it
+    // shows for a dev-summoned Necrarch too.
+    this._tickNecrarchAura()
     // World-VFX Graphics cleanup — clear any whose response isn't governing now
     // (kept OUT of the else-chain so a lingering buffer can't swallow a tick).
     if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
@@ -1398,6 +1405,48 @@ export class KingdomModifierSystem {
     AbilityVfx.particleBurst?.(sc, x, y, { color: 0x9ef0b0, count: 16, speed: 120, durationMs: 660 })
     AbilityVfx.crater?.(sc, x, y, { color: 0x16240f, radius: 18 })
     AbilityVfx.pulseRing?.(sc, x, y, { color: 0x6fce8a, fromR: 6, toR: 46, alpha: 0.85, durationMs: 540 })
+  }
+
+  // Necrarch's grave-summon — a big necrotic eruption at the king + a STAGGERED
+  // grave-burst at each risen-dead spawn (graves erupt across the entry, the dead
+  // claw up). Driven by DayPhase._spawnNecrarchSummoner via NECRARCH_SUMMON.
+  _onNecrarchSummon({ necrarch, risen } = {}) {
+    const sc = this._scene
+    if (!sc) return
+    if (necrarch && Number.isFinite(necrarch.x)) {
+      AbilityVfx.chargeUp?.(sc, necrarch.x, necrarch.y, { color: 0x6fce8a, count: 18, radius: 80, durationMs: 520 })
+      AbilityVfx.magicCircle?.(sc, necrarch.x, necrarch.y, { color: 0x6fce8a, radius: 64, durationMs: 1400 })
+      AbilityVfx.burstRays?.(sc, necrarch.x, necrarch.y, { color: 0x9ef0b0, count: 14, length: 92, durationMs: 720 })
+      AbilityVfx.pulseRing?.(sc, necrarch.x, necrarch.y, { color: 0x6fce8a, fromR: 10, toR: 96, alpha: 0.8, durationMs: 760 })
+      AbilityVfx.screenFlash?.(sc, { color: 0x2a4a30, intensity: 0.22, durationMs: 320 })
+    }
+    for (let i = 0; i < (risen?.length ?? 0); i++) {
+      const p = risen[i]
+      if (!Number.isFinite(p?.x)) continue
+      sc?.time?.delayedCall?.(120 + i * 90, () => this._necroticRise(p.x, p.y))
+    }
+  }
+
+  // A dark necrotic pool + skull-motes under the standing Necrarch, so the immune
+  // summoner reads as a brooding presence at the entrance.
+  _tickNecrarchAura() {
+    const nec = (this._gs.adventurers?.active ?? []).find(a => a._necrarch && (a.resources?.hp ?? 0) > 0)
+    if (!nec) { this._necrarchG?.clear(); return }
+    const g = this._necrarchG ?? (this._necrarchG = this._scene.add.graphics().setDepth(1.7))
+    g.clear()
+    const now = this._scene.time?.now ?? 0
+    const x = nec.worldX ?? 0, y = nec.worldY ?? 0
+    const pulse = 0.5 + 0.5 * Math.sin(now / 520)
+    for (const [f, a] of [[1.0, 0.06], [0.7, 0.1], [0.42, 0.15], [0.2, 0.22]]) {
+      g.fillStyle(0x1c4028, a * (0.7 + 0.3 * pulse)); g.fillCircle(x, y, 32 * f)
+    }
+    g.lineStyle(2, 0x6fce8a, 0.3 + 0.35 * pulse); g.strokeCircle(x, y, 30 + 4 * pulse)
+    for (let i = 0; i < 6; i++) {
+      const ang = now / 1700 + i * (Math.PI / 3)
+      const mr = 30 + 3 * Math.sin(now / 300 + i)
+      g.fillStyle(0x9ef0b0, 0.35 + 0.4 * pulse)
+      g.fillCircle(x + Math.cos(ang) * mr, y + Math.sin(ang) * mr - 4, 1.7)
+    }
   }
 
   // Sabotage (the Turncoat's signature) — CHARM a random one of your minions to

@@ -709,7 +709,10 @@ export class DayPhase extends Phaser.Scene {
       // ADDITIVE (no return) — the normal wave still spawns alongside.
       if (_def?.kind === 'drafted' && !isActFinalDay(_day) && !_over) {
         const _resp = game?.kingdomResponseSystem?.currentResponse?.()
-        if (_resp?.id === 'reckoning_dead') this._spawnUndeadTrickle()
+        // Reckoning — Necrarch enters ALONE, stands at the entrance, and SUMMONS the
+        // day's wave as a tide of risen dead (the undead ARE the wave). RETURN so no
+        // normal adventurers spawn alongside.
+        if (_resp?.id === 'reckoning_dead') return this._spawnNecrarchSummoner()
         else if (_resp && VANGUARD[_resp.id]) this._spawnVanguard(_resp.id)
       }
     }
@@ -1916,6 +1919,57 @@ export class DayPhase extends Phaser.Scene {
     const dayInAct = actDayIndex(this._gameState.meta?.dayNumber ?? 1)
     const count = Math.min(8, 2 + Math.floor(dayInAct / 2))
     return this._spawnRisenDead(count, this._gameState.boss?.level ?? 1)
+  }
+
+  // Reckoning mid-act days — Necrarch the Bonecrowned enters ALONE, stands at the
+  // entrance (IMMUNE on these non-champion days), and SUMMONS the day's wave as a
+  // tide of risen dead from graves (the undead ARE the wave — no normal adventurers).
+  // His AI (AISystem._tickAdventurer `_necrarch` branch) keeps him frozen at the
+  // entry until the wave is spent, then withdraws him. On the FINAL day he instead
+  // arrives as the killable CHAMPION via _spawnChampionRaid.
+  _spawnNecrarchSummoner() {
+    const game = this.scene.get('Game')
+    const aiSystem = game?.aiSystem
+    if (!aiSystem) return []
+    if ((this._gameState.adventurers?.active ?? []).some(a => a._necrarch)) return []   // one per day
+    const allClasses = this.cache.json.get('adventurerClasses') ?? []
+    const chassis = allClasses.find(c => c.id === 'necromancer')
+      ?? allClasses.find(c => c.id === 'mage') ?? allClasses[0]
+    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
+    const spawned = []
+    let nec = null
+    if (chassis && spawn) {
+      nec = createAdventurer(chassis, { x: spawn.x, y: spawn.y })
+      nec.name          = 'Necrarch the Bonecrowned'
+      nec._necrarch     = true
+      nec._invuln       = true     // CombatSystem suppresses damage
+      nec._invulnerable = true     // TrapSystem suppresses damage
+      nec._neverAttacks = true     // he summons, never swings
+      nec.isLegendary   = true
+      nec.partyId       = null
+      nec.visitedRooms  = []
+      nec.flags         = { ...(nec.flags ?? {}), noFlee: true }
+      this._scaleAdventurerByBossLevel(nec, this._gameState.boss?.level ?? 1)
+      this._gameState.adventurers.active.push(nec)
+      aiSystem.pickInitialGoal?.(nec)
+      nec.goal    = { type: 'NECRARCH_STAND' }   // re-assert (the _necrarch tick keeps him put)
+      nec.aiState = 'idle'
+      spawned.push(nec)
+      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: nec })
+      EventBus.emit('NECRARCH_ARRIVES', { adventurer: nec, name: nec.name })
+    }
+    // The wave he summons — a tide of risen dead (balance dial).
+    const dayInAct = actDayIndex(this._gameState.meta?.dayNumber ?? 1)
+    const count = Math.min(12, 5 + dayInAct)
+    const risen = this._spawnRisenDead(count, this._gameState.boss?.level ?? 1)
+    spawned.push(...risen)
+    // Grave-burst VFX per risen unit + a big summon at Necrarch (KingdomModifierSystem).
+    EventBus.emit('NECRARCH_SUMMON', {
+      necrarch: nec ? { x: nec.worldX, y: nec.worldY } : null,
+      risen: risen.map(r => ({ x: r.worldX, y: r.worldY })),
+    })
+    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
+    return spawned
   }
 
   // Themed mid-act forerunners for a Kingdom Response (KR P4). Count grows with

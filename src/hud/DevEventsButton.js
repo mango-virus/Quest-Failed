@@ -168,6 +168,8 @@ export class DevEventsButton {
             () => { const on = this._qfDev()?.fastAbilities(!globalThis.__qfDevFastAbilities); return on ? 'FAST ABILITIES: ON' : 'FAST ABILITIES: OFF' }, true),
           sandboxCard('POPULATE TARGETS', '8 minions (+undead) + 3 traps', '☠',
             () => this._qfDev()?.populate({ minions: 8, traps: 3 }), true),
+          sandboxCard('SUMMON NECRARCH', 'Reckoning: immune king + undead tide', '⚰',
+            () => this._qfDev()?.necrarch(), true),
           sandboxCard('CLEAR SANDBOX', 'remove test minions/traps/raids', '✖',
             () => this._qfDev()?.clear(), true),
         ]),

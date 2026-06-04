@@ -1141,6 +1141,13 @@ export class RightPanels {
     sub('RECKONING_REANIMATE', () => {
       this._addLog('Necrarch REANIMATES the fallen — a thrall claws up to march on your throne!', 'champion')
     })
+    // Reckoning mid-act — Necrarch enters alone + summons the tide, then withdraws.
+    sub('NECRARCH_ARRIVES', () => {
+      this._addLog('Necrarch the Bonecrowned enters — graves erupt as he summons the dead!', 'champion')
+    })
+    sub('NECRARCH_LEAVES', () => {
+      this._addLog('His tide is broken — Necrarch withdraws through the entry, untouched.', 'champion-down')
+    })
     // Betrayer — the Turncoat's Sabotage charms one of your minions to fight you.
     sub('MINION_SABOTAGED', ({ name } = {}) => {
       this._addLog(`${name || 'A minion'} is SABOTAGED — it turns on your halls!`, 'champion')
