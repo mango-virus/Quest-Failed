@@ -174,6 +174,9 @@ const ADVENTURER_CLASS_IDS = [
   // The Turncoat (Betrayer) — Dagger = normal 64px attack, so it is INTENTIONALLY
   // NOT in the ATK_CLASSES set below (no _atk sheet); base slash row shows the blade.
   'champion_turncoat',
+  // KR All-Stars dream-team bespoke sprites. Auberon (Longsword) + Mortessa (staff)
+  // ARE in ATK_CLASSES below; Kael (barehanded punch) + Rourke (standard spear) are NOT.
+  'champion_auberon', 'champion_mortessa', 'champion_kael', 'champion_rourke',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 100
 // Per-class override for classes that ship fewer than the default 100 baked
@@ -185,6 +188,7 @@ const ADVENTURER_VARIANT_COUNT = {
   shadow_monarch: 1, aldric: 4,
   paladin: 1, white_mage: 1, samurai: 1, black_mage: 1,
   champion_garreth: 1, champion_necrarch: 1, champion_vane: 1, champion_mordrake: 1, champion_velloran: 1, champion_aurelia: 1, champion_halric: 1, champion_turncoat: 1,
+  champion_auberon: 1, champion_mortessa: 1, champion_kael: 1, champion_rourke: 1,
 }
 const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 
@@ -237,6 +241,10 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // KR champions — Garreth (Longsword) · Necrarch (Scythe) · Vane (Scimitar), all
   // slash_oversize → they need the 192×192 atk sheet for a visible swing.
   'champion_garreth', 'champion_necrarch', 'champion_vane', 'champion_mordrake', 'champion_velloran', 'champion_aurelia', 'champion_halric',
+  // KR All-Stars — Auberon (Longsword slash_oversize) + Mortessa (Loop staff
+  // thrust_oversize cast) need the atk sheet. (Kael punches barehanded, Rourke's
+  // Spear is a standard thrust — neither has an _atk sheet, so they're omitted.)
+  'champion_auberon', 'champion_mortessa',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8

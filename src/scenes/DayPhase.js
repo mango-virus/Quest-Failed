@@ -1856,11 +1856,21 @@ export class DayPhase extends Phaser.Scene {
     // is also tagged with its signature key by class (Garreth the knight = leader,
     // no signature); KingdomModifierSystem._tickAllStarAbilities fires each.
     if (response.id === 'all_stars') {
-      const SIG = { mage: 'stormcaller', rogue: 'shadowfax', ranger: 'trueshot', cleric: 'aldous' }
+      // Signature ability keyed by the hero's class (the 4 coded all-star moves,
+      // re-mapped to the cooler dream-team classes — necromancer/monk/beast_master/
+      // templar — keeping the mechanics, re-themed in KingdomModifierSystem).
+      const SIG = { necromancer: 'stormcaller', monk: 'shadowfax', beast_master: 'trueshot', templar: 'aldous' }
+      // Bespoke fixed sprite per named all-star (Garreth the champion is pinned
+      // separately via the champSprite map above).
+      const STAR_SPRITE = {
+        necromancer: 'champion_mortessa', monk: 'champion_kael',
+        beast_master: 'champion_rourke', templar: 'champion_auberon',
+      }
       for (const u of spawned) {
         if (!u) continue
         u._allStar = true
         if (SIG[u.classId]) u._allStarSig = SIG[u.classId]
+        if (STAR_SPRITE[u.classId]) u.spriteVariant = `${STAR_SPRITE[u.classId]}/v01`
       }
     }
     // Rival (KR overhaul) — this is a rival DUNGEON invading, so dress the pack as

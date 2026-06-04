@@ -2230,6 +2230,164 @@ POOLS.champion_turncoat = {
   capeColor: ['green'],
 };
 
+// ── KR ALL-STARS dream-team (the named legendary heroes of the All-Stars response,
+// alongside champion Garreth). Each is a bespoke fixed sprite of a COOL class
+// (Monk/Templar/Necromancer/Beast Master), pinned by class in DayPhase's
+// all_stars block. Themed to the All-Stars #ffd76a gold ★ accent where it fits. ──
+
+// Ser Auberon the Unbroken (TEMPLAR all-star) — a faceless STEEL crusader, the
+// visual OPPOSITE of Garreth (gold, open-faced, plumed): cool steel blessed plate
+// under a white surcoat, the red-cross crusader shield, a crimson mantle, a CLOSED
+// great helm (no face), and a crusader longsword. (Was a gladiator — swapped to a
+// templar because the gilded gladiator read too close to Garreth.)
+POOLS.champion_auberon = {
+  bodyTypes: ['muscular'],
+  heads: 'auto_human',
+  hair: { male: [], muscular: [], female: [] },   // closed greathelm → head fully covered
+  beardChance: 0,
+  // Full STEEL blessed plate (cool steel — NOT Garreth's gold).
+  torso: ['Plate'],
+  legs: ['legs:Armour'],
+  feet: ['feet:Armour'],
+  arms: ['arms:Armour'],
+  hands: { items: ['Gloves'], chance: 1.0 },
+  shoulder: { items: ['Pauldrons'], chance: 1.0 },
+  // The white crusader surcoat over the steel plate (the cross is carried by the
+  // crusader shield + the crimson cape).
+  torsoOverlay: { items: ['Tabard'], chance: 1.0 },
+  torsoOverlayColor: ['white'],
+  // CLOSED great helm — a faceless crusader (vs Garreth's open Maximus + plume).
+  headwear: { items: ['Greathelm'], chance: 1.0 },
+  metalColorPool: ['steel'],
+  clothColorPool: ['white'],
+  // A crimson crusader's mantle — the red accent Garreth lacks.
+  cape: { items: ['Solid'], chance: 1.0 },
+  capeColor: ['red'],
+  // The red-cross crusader shield — the templar signature.
+  alwaysShield: true,
+  shieldTypes: ['crusader'],
+  // A crusader longsword.
+  weapon: { items: ['Longsword'], chance: 1.0 },
+  weaponColor: 'metal',
+  // A pectoral CROSS on the chest (gold cross + red centre). LPC has no painted-
+  // surcoat cross — the cross is a shield pattern only — so the Cross amulet is the
+  // wearable chest-cross.
+  accessory: [
+    { items: ['Cross amulet'], chance: 1.0, color: ['gold_red'] },
+  ],
+};
+
+// Mortessa the Soulbinder (NECROMANCER all-star) — a regal FEMALE death-sorceress,
+// the OPPOSITE of Necrarch (a bald, masked, horned, necrotic-GREEN male lich): long
+// pale hair under a silver circlet, a flowing black kimono robe with AMETHYST
+// soul-violet trim + oversized sleeves, a tattered violet death-shroud, and a
+// silver staff crowned with a purple soul-crystal.
+POOLS.champion_mortessa = {
+  bodyTypes: ['female'],
+  heads: 'auto_human',
+  hair: ['Long', 'Long straight'],
+  hairColorPool: ['white'],     // stark death-pale hair
+  beardChance: 0,
+  // Flowing black kimono robe + amethyst trim + big oversized sleeves.
+  outfit: {
+    bases:   [{ layers: [['Kimono', 'main'], ['Kimono Trim', 'accent']] }],
+    sleeves: [{ layers: [['Kimono Oversized Sleeves', 'main'], ['Kimono Oversized Sleeves Trim', 'accent']] }],
+    mainColors:   ['black'],
+    accentColors: ['purple'],
+    underLegs: ['Leggings'],
+  },
+  legs: ['Leggings'],
+  feet: ['Slippers'],
+  feetColor: ['black'],
+  clothColorPool: ['black'],
+  // A delicate silver circlet (regal — not Necrarch's horns + mask).
+  headwear: { items: ['Tiara'], chance: 1.0 },
+  metalColorPool: ['silver'],
+  // A silver staff crowned with a purple SOUL-crystal (the Soulbinder's focus;
+  // Loop staff → CRYSTAL_RULE auto-adds the gem, locked purple).
+  weapon: { items: ['Loop staff'], chance: 1.0 },
+  weaponColor: 'metal',
+  crystalColor: 'purple',
+  // A tattered amethyst death-shroud.
+  cape: { items: ['Tattered'], chance: 1.0 },
+  capeColor: ['purple'],
+};
+
+// Master Kael (MONK all-star) — a legendary bare-armed martial GRANDMASTER: a black
+// sleeveless gi with GOLD trim + a gold master's sash, a white dojo headband, a
+// wood-bead mala, and BAREHANDED (the monk's punch = thrust). Black + gold ties the
+// All-Stars ★ theme.
+POOLS.champion_kael = {
+  bodyTypes: ['muscular'],
+  heads: 'auto_human',
+  hair: ['High and tight', 'Buzzcut', 'Plain'],   // short clean cuts (no hair-tie styles)
+  hairColorPool: ['raven', 'dark_brown'],
+  beardChance: 1.0,                               // a master's beard
+  // Black sleeveless gi (bare arms) + gold-tone trim.
+  outfit: {
+    bases: [{ layers: [['Kimono', 'main'], ['Kimono Trim', 'accent']] }],
+    underLegs: ['Long Pants'],
+    mainColors:   ['black'],
+    accentColors: ['yellow'],   // gold-tone trim (cloth has no metallic gold)
+  },
+  legs: ['Long Pants'],
+  legsColor: ['black'],
+  feet: { items: ['Sandals'], chance: 1.0 },
+  feetColor: ['brown'],
+  clothColorPool: ['black'],
+  // A gold master's sash at the waist.
+  torsoOverlay: { items: ['Obi'], chance: 1.0 },
+  torsoOverlayColor: ['yellow'],
+  // A white dojo headband.
+  headwear: { items: ['Tied Headband'], chance: 1.0 },
+  headwearColor: ['white'],
+  // A wood/bone prayer-bead mala.
+  accessory: [
+    { items: ['Large Beaded Necklace'], chance: 1.0, color: ['ceramic'] },
+  ],
+  metalColorPool: ['gold'],
+  barehanded: true,   // monks are always bare-handed (punch = thrust anim)
+};
+
+// Rourke Wolfsong (BEAST MASTER all-star) — a feral GREY-WOLF-bonded handler: grey
+// wolf ears + a fluffy wolf tail, a wild grey mane + beard, a grey wolf-pelt
+// shoulder mantle over a sleeveless feral torso, fur pants, a bone-fang necklace,
+// and a hunting spear. The wolf ears/tail are unique to him on the team.
+POOLS.champion_rourke = {
+  bodyTypes: ['muscular'],
+  heads: 'auto_human',
+  // Wolf-kin: grey wolf ears + a fluffy wolf tail (coloured to the hair).
+  beastKin: {
+    chance: 1.0,
+    types: [{ ears: 'Wolf Ears', tail: 'Fluffy Wolf Tail' }],
+  },
+  hair: ['Long messy', 'Messy1', 'Unkempt'],   // a wild feral mane
+  hairColorPool: ['gray'],                      // wolf-grey hair → grey ears + tail
+  beardChance: 1.0,
+  // Sleeveless feral torso (bare muscular arms).
+  torso: ['Original Sleeveless'],
+  clothColorPool: ['brown'],
+  // A grey WOLF-PELT shoulder mantle.
+  arms: { items: ['Mantal'], chance: 1.0 },
+  armsColor: ['gray'],
+  legs: ['Fur Pants'],
+  legsColor: ['brown'],
+  feet: ['Basic Boots'],
+  feetColor: ['brown'],
+  // A leather belt at the waist.
+  torsoOverlay: { items: ['Leather Belt'], chance: 1.0 },
+  torsoOverlayColor: ['brown'],
+  // NO headwear — the wolf EARS must show.
+  // A bone-fang trophy necklace.
+  accessory: [
+    { items: ['Large Beaded Necklace'], chance: 1.0, color: ['ceramic'] },
+  ],
+  metalColorPool: ['iron'],
+  // A hunting spear (carried + thrust).
+  weapon: { items: ['Spear'], chance: 1.0 },
+  weaponColor: 'metal',
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch

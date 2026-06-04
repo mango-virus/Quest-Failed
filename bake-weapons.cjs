@@ -111,6 +111,9 @@ const ATK_CLASSES = new Set([
   // (Scimitar) · Mordrake (Mace) · Halric (Longsword) swing slash_oversize;
   // Velloran (S staff) + Aurelia (Loop staff) cast thrust_oversize. All need atk.
   'champion_garreth', 'champion_necrarch', 'champion_vane', 'champion_mordrake', 'champion_velloran', 'champion_aurelia', 'champion_halric',
+  // All-Stars: Auberon (Longsword slash_oversize) + Mortessa (Loop staff
+  // thrust_oversize). Kael (barehanded) + Rourke (standard Spear) need no atk sheet.
+  'champion_auberon', 'champion_mortessa',
 ]);
 // Weapons whose attack is the standard 64×64 slash (a contained "normal" swing
 // with the shield up) rather than the oversize 192×192 arc. Variants wielding

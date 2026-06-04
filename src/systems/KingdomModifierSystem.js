@@ -106,7 +106,11 @@ const CHAMP_ABILITY_CD_MS    = 9000
 const ALLSTAR_FIRST_MS = 3800
 const ALLSTAR_CD_MS    = 7600
 const ALLSTAR_STAGGER  = { stormcaller: 0, trueshot: 1100, shadowfax: 2200, aldous: 3300 }
-const ALLSTAR_SIG_BY_CLASS = { mage: 'stormcaller', rogue: 'shadowfax', ranger: 'trueshot', cleric: 'aldous' }
+// Reference only — the LIVE class→signature tagging lives in DayPhase's all_stars
+// block (sets `_allStarSig`). Re-cast dream-team: necromancer=Soul Chain (stormcaller),
+// monk=Hundred Fists (shadowfax), beast_master=Spear Volley (trueshot), templar=Holy
+// Aegis (aldous). The signature KEYS are unchanged; only the heroes + labels are new.
+const ALLSTAR_SIG_BY_CLASS = { necromancer: 'stormcaller', monk: 'shadowfax', beast_master: 'trueshot', templar: 'aldous' }
 
 // Undead minion id patterns (skeleton/zombie/ghost/lich/wraith/…).
 const _UNDEAD_RE = /ghost|lich|skelet|zombie|wraith|bone|undead|revenant|ghoul|vampire_sovereign/
@@ -808,8 +812,9 @@ export class KingdomModifierSystem {
     return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
   }
 
-  // Myrine the Stormcaller — CHAIN LIGHTNING: a bolt leaps from her through up to 4
-  // nearest minions, arcing minion-to-minion with per-hop falloff.
+  // Mortessa the Soulbinder (necromancer) — SOUL CHAIN: a violet death-arc leaps
+  // from her through up to 4 nearest minions, chaining soul-to-soul with falloff.
+  // (Mechanic kept from the old "chain lightning"; re-skinned amethyst.)
   _asStormcaller(hero) {
     const sc = this._scene
     const pool = this._liveMinions()
@@ -826,18 +831,18 @@ export class KingdomModifierSystem {
         if (d < bd) { bd = d; best = m }
       }
       if (!best) break
-      AbilityVfx.lightning?.(sc, from.x, from.y, best.worldX ?? 0, best.worldY ?? 0, { color: 0x9fe0ff, durationMs: 240, thickness: 3 })
-      AbilityVfx.particleBurst?.(sc, best.worldX ?? 0, best.worldY ?? 0, { color: 0xbfe0ff, count: 8, speed: 110, durationMs: 360 })
+      AbilityVfx.lightning?.(sc, from.x, from.y, best.worldX ?? 0, best.worldY ?? 0, { color: 0xb98cff, durationMs: 240, thickness: 3 })
+      AbilityVfx.particleBurst?.(sc, best.worldX ?? 0, best.worldY ?? 0, { color: 0xd0b0ff, count: 8, speed: 110, durationMs: 360 })
       if ((best.resources?.hp ?? 0) > 0) best.resources.hp = Math.max(0, best.resources.hp - Math.round(base * (1 - i * 0.15)))
       hit.push(best)
       from = { x: best.worldX ?? 0, y: best.worldY ?? 0 }
     }
-    AbilityVfx.screenFlash?.(sc, { color: 0x9fe0ff, intensity: 0.2, durationMs: 200 })
-    this._emitAllStar(hero, 'Chain Lightning', 'CHAIN LIGHTNING', hit.length)
+    AbilityVfx.screenFlash?.(sc, { color: 0xb98cff, intensity: 0.2, durationMs: 200 })
+    this._emitAllStar(hero, 'Soul Chain', 'SOUL CHAIN', hit.length)
   }
 
-  // Elenwe Trueshot — PIERCING VOLLEY: three arrows along her line of fire that
-  // pierce EVERY minion within ~20px of the line (a skewering shot down the row).
+  // Rourke Wolfsong (beast master) — SPEAR VOLLEY: hurls three hunting spears down
+  // his line of fire, skewering EVERY minion within ~20px of the line (the row).
   _asTrueshot(hero) {
     const sc = this._scene
     const pool = this._liveMinions()
@@ -858,11 +863,12 @@ export class KingdomModifierSystem {
       AbilityVfx.impactBurst?.(sc, m.worldX ?? 0, m.worldY ?? 0, { color: 0xfff0aa, radius: 18 })
       hit++
     }
-    this._emitAllStar(hero, 'Piercing Volley', 'PIERCING VOLLEY', hit)
+    this._emitAllStar(hero, 'Spear Volley', 'SPEAR VOLLEY', hit)
   }
 
-  // Brother Aldous — MASS HEAL: a holy nova that restores every living All-Star
-  // (incl. the leader Garreth) by a chunk — the squad's staying power.
+  // Ser Auberon the Unbroken (templar) — HOLY AEGIS: a holy nova that restores
+  // every living All-Star (incl. the leader Garreth) by a chunk — the squad's
+  // staying power. (Mechanic kept from the old "mass heal".)
   _asAldous(hero) {
     const sc = this._scene
     const allies = (this._gs.adventurers?.active ?? []).filter(a =>
@@ -878,11 +884,12 @@ export class KingdomModifierSystem {
     }
     AbilityVfx.godRays?.(sc, hero.worldX ?? 0, hero.worldY ?? 0, { color: 0xc8ffd0, count: 12, length: 90, durationMs: 600 })
     AbilityVfx.pulseRing?.(sc, hero.worldX ?? 0, hero.worldY ?? 0, { color: 0xa8ffb0, fromR: 10, toR: 80, alpha: 0.7, durationMs: 600 })
-    this._emitAllStar(hero, 'Mass Heal', 'MASS HEAL', allies.length)
+    this._emitAllStar(hero, 'Holy Aegis', 'HOLY AEGIS', allies.length)
   }
 
-  // Shadowfax the Quick — BLINK-BACKSTAB: vanishes and reappears on your strongest
-  // minion for a heavy strike (a single, decisive assassination beat).
+  // Master Kael (monk) — HUNDRED FISTS: flash-steps onto your strongest minion and
+  // unloads a heavy flurry (a single, decisive strike beat). Mechanic kept from the
+  // old "blink-backstab"; re-skinned to gold ki.
   _asShadowfax(hero) {
     const sc = this._scene
     const pool = this._liveMinions()
@@ -890,18 +897,18 @@ export class KingdomModifierSystem {
     let target = null, best = -Infinity
     for (const m of pool) { const v = (m.resources?.maxHp ?? 0) + (m.stats?.attack ?? 0) * 4; if (v > best) { best = v; target = m } }
     const ox = hero.worldX ?? 0, oy = hero.worldY ?? 0
-    AbilityVfx.magicCircle?.(sc, ox, oy, { color: 0x9a6cf0, radius: 24, durationMs: 360 })
-    AbilityVfx.particleBurst?.(sc, ox, oy, { color: 0x6a4aaa, count: 12, speed: 130, durationMs: 360 })
+    AbilityVfx.magicCircle?.(sc, ox, oy, { color: 0xffd76a, radius: 24, durationMs: 360 })
+    AbilityVfx.particleBurst?.(sc, ox, oy, { color: 0xfff0c0, count: 12, speed: 130, durationMs: 360 })
     const ang = (hero.tileX ?? 0) % 2 === 0 ? 0.7 : 3.9   // deterministic-ish offset (avoid Math.random churn)
     hero.worldX = (target.worldX ?? 0) + Math.cos(ang) * 22
     hero.worldY = (target.worldY ?? 0) + Math.sin(ang) * 22
     hero.tileX = target.tileX; hero.tileY = target.tileY; hero.path = null; hero.pathIndex = 0
-    AbilityVfx.particleBurst?.(sc, hero.worldX, hero.worldY, { color: 0x9a6cf0, count: 10, speed: 110, durationMs: 320 })
-    AbilityVfx.bladeArc?.(sc, target.worldX ?? 0, target.worldY ?? 0, { color: 0xe0d0ff, radius: 34, durationMs: 260 })
-    AbilityVfx.impactBurst?.(sc, target.worldX ?? 0, target.worldY ?? 0, { color: 0xb9a4ff, radius: 22 })
+    AbilityVfx.particleBurst?.(sc, hero.worldX, hero.worldY, { color: 0xffd76a, count: 10, speed: 110, durationMs: 320 })
+    AbilityVfx.bladeArc?.(sc, target.worldX ?? 0, target.worldY ?? 0, { color: 0xfff4d0, radius: 34, durationMs: 260 })
+    AbilityVfx.impactBurst?.(sc, target.worldX ?? 0, target.worldY ?? 0, { color: 0xffe9a8, radius: 22 })
     const dmg = 30 + Math.round(this._bossLv() * 8)
     if ((target.resources?.hp ?? 0) > 0) target.resources.hp = Math.max(0, target.resources.hp - dmg)
-    this._emitAllStar(hero, 'Blink-Backstab', 'BLINK-BACKSTAB', 1)
+    this._emitAllStar(hero, 'Hundred Fists', 'HUNDRED FISTS', 1)
   }
 
   // The seraph resurrects the fallen — when a pantheon hero dies, raise a Radiant

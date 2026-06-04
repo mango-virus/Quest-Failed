@@ -70478,6 +70478,156 @@
         "crystal": null,
         "shield": null
       }
+    ],
+    "champion_auberon": [
+      {
+        "id": "v01",
+        "bodyType": "muscular",
+        "bodyColor": "brown",
+        "hairColor": "ash",
+        "clothColor": "white",
+        "metalColor": "steel",
+        "head": "Human Male",
+        "hair": null,
+        "beard": null,
+        "torso": "Plate",
+        "torsoOverlay": "Tabard",
+        "cape": "Solid",
+        "legs": "legs:Armour",
+        "feet": "feet:Armour",
+        "arms": "arms:Armour",
+        "shoulder": "Pauldrons",
+        "hands": "Gloves",
+        "headwear": "Greathelm",
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Cross amulet",
+            "color": "gold_red"
+          }
+        ],
+        "weapon": "Longsword",
+        "weaponColor": "steel",
+        "crystal": null,
+        "shield": {
+          "kind": "crusader",
+          "trim": false
+        }
+      }
+    ],
+    "champion_mortessa": [
+      {
+        "id": "v01",
+        "bodyType": "female",
+        "bodyColor": "amber",
+        "hairColor": "white",
+        "clothColor": "black",
+        "metalColor": "silver",
+        "head": "Human Female Small",
+        "hair": "Long straight",
+        "beard": null,
+        "torso": null,
+        "outfit": {
+          "main": "black",
+          "accent": "purple",
+          "layers": [
+            "Kimono",
+            "Kimono Trim",
+            "Kimono Oversized Sleeves",
+            "Kimono Oversized Sleeves Trim"
+          ]
+        },
+        "torsoOverlay": null,
+        "cape": "Tattered",
+        "legs": "Leggings",
+        "feet": "Slippers",
+        "arms": null,
+        "headwear": "Tiara",
+        "beast": null,
+        "visor": null,
+        "accessories": [],
+        "weapon": "Loop staff",
+        "weaponColor": "silver",
+        "crystal": {
+          "color": "purple"
+        },
+        "shield": null
+      }
+    ],
+    "champion_kael": [
+      {
+        "id": "v01",
+        "bodyType": "muscular",
+        "bodyColor": "taupe",
+        "hairColor": "dark_brown",
+        "clothColor": "black",
+        "metalColor": "gold",
+        "head": "Human Male Plump",
+        "hair": "Plain",
+        "beard": "Handlebar Mustache",
+        "torso": null,
+        "outfit": {
+          "main": "black",
+          "accent": "yellow",
+          "layers": [
+            "Kimono",
+            "Kimono Trim"
+          ]
+        },
+        "torsoOverlay": "Obi",
+        "cape": null,
+        "legs": "Long Pants",
+        "feet": "Sandals",
+        "arms": null,
+        "headwear": "Tied Headband",
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Large Beaded Necklace",
+            "color": "ceramic"
+          }
+        ],
+        "weapon": null,
+        "crystal": null,
+        "shield": null
+      }
+    ],
+    "champion_rourke": [
+      {
+        "id": "v01",
+        "bodyType": "muscular",
+        "bodyColor": "olive",
+        "hairColor": "gray",
+        "clothColor": "brown",
+        "metalColor": "iron",
+        "head": "Human Male",
+        "hair": "Unkempt",
+        "beard": "Basic Beard",
+        "torso": "Original Sleeveless",
+        "torsoOverlay": "Leather Belt",
+        "cape": null,
+        "legs": "Fur Pants",
+        "feet": "Basic Boots",
+        "arms": "Mantal",
+        "headwear": null,
+        "beast": {
+          "ears": "Wolf Ears",
+          "tail": "Fluffy Wolf Tail"
+        },
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Large Beaded Necklace",
+            "color": "ceramic"
+          }
+        ],
+        "weapon": "Spear",
+        "weaponColor": "iron",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {
