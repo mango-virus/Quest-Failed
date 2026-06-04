@@ -108,9 +108,9 @@ const ATK_CLASSES = new Set([
   // scale during combat instead of being clipped into 64×64.
   'paladin', 'white_mage', 'samurai', 'black_mage',
   // KR Kingdom-Response champions — Garreth (Longsword) · Necrarch (Scythe) · Vane
-  // (Scimitar) · Mordrake (Mace) swing slash_oversize; Velloran (S staff) +
-  // Aurelia (Loop staff) cast thrust_oversize. All need the atk sheet.
-  'champion_garreth', 'champion_necrarch', 'champion_vane', 'champion_mordrake', 'champion_velloran', 'champion_aurelia',
+  // (Scimitar) · Mordrake (Mace) · Halric (Longsword) swing slash_oversize;
+  // Velloran (S staff) + Aurelia (Loop staff) cast thrust_oversize. All need atk.
+  'champion_garreth', 'champion_necrarch', 'champion_vane', 'champion_mordrake', 'champion_velloran', 'champion_aurelia', 'champion_halric',
 ]);
 // Weapons whose attack is the standard 64×64 slash (a contained "normal" swing
 // with the shield up) rather than the oversize 192×192 arc. Variants wielding

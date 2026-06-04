@@ -2143,6 +2143,48 @@ POOLS.champion_aurelia = {
   // No cape — the wings own the back.
 };
 
+// ── Captain Halric, the Last Vow (KR "Forlorn Hope" champion, barbarian chassis) ──
+// A grizzled VETERAN WAR-CAPTAIN of a doomed last stand — NOT a bare-chested
+// savage. Battered steel chainmail under an ember-orange captain's tabard + a fur
+// shoulder-mantle, a torn ember war-cloak, a grey mane + beard, an eyepatch and a
+// worn headband (helm long lost), and a heavy two-handed greatsword. Ember orange
+// + steel to match the Forlorn Hope #f0a850 ember accent + ♟ pawn (the doomed
+// vanguard).
+POOLS.champion_halric = {
+  // 'male' (not muscular): the armour torsos (Chainmail/Plate) ship no muscular art.
+  bodyTypes: ['male'],
+  heads: 'auto_human',
+  hair: 'all_human_hair',
+  hairColorPool: ['gray'],   // grizzled grey mane + beard
+  beardChance: 1.0,
+  // Battered chainmail (metal → steel) — an armoured captain.
+  torso: ['Chainmail'],
+  // A brown fur shoulder-mantle over the mail (the rugged northern last-stand).
+  arms: { items: ['Mantal'], chance: 1.0 },
+  legs: ['Hose'],
+  legsColor: ['charcoal'],
+  feet: ['Basic Boots'],
+  feetColor: ['brown'],
+  // The ember-orange captain's tabard over the mail — the key accent.
+  torsoOverlay: { items: ['Tabard'], chance: 1.0 },
+  torsoOverlayColor: ['orange'],
+  // A worn brown-leather headband (helm lost) — the grey mane + beard show.
+  headwear: { items: ['Tied Headband'], chance: 1.0 },
+  headwearColor: ['leather'],
+  // Battle-scarred: an eyepatch.
+  accessory: [
+    { items: ['Eyepatch Left'], chance: 1.0, color: ['black'] },
+  ],
+  clothColorPool: ['brown'],   // the fur mantle / earthy tones
+  metalColorPool: ['steel'],   // battered steel mail + greatsword
+  // A heavy two-handed greatsword (the captain who holds the breach).
+  weapon: { items: ['Longsword'], chance: 1.0 },
+  weaponColor: 'metal',
+  // A tattered ember-orange war-cloak.
+  cape: { items: ['Tattered'], chance: 1.0 },
+  capeColor: ['orange'],
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch

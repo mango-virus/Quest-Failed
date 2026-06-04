@@ -70414,6 +70414,38 @@
         },
         "shield": null
       }
+    ],
+    "champion_halric": [
+      {
+        "id": "v01",
+        "bodyType": "male",
+        "bodyColor": "olive",
+        "hairColor": "gray",
+        "clothColor": "brown",
+        "metalColor": "steel",
+        "head": "Human Male Gaunt",
+        "hair": "Large Curls XLong",
+        "beard": "Walrus Mustache",
+        "torso": "Chainmail",
+        "torsoOverlay": "Tabard",
+        "cape": "Tattered",
+        "legs": "Hose",
+        "feet": "Basic Boots",
+        "arms": "Mantal",
+        "headwear": "Tied Headband",
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Eyepatch Left",
+            "color": "black"
+          }
+        ],
+        "weapon": "Longsword",
+        "weaponColor": "steel",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {
