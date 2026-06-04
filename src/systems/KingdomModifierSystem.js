@@ -68,6 +68,10 @@ const MAGE_ABILITY_ROOM_CATS  = new Set(['special', 'combat', 'utility', 'trap']
 // Polymorph — Archmagus Velloran's signature: a minion is turned into a harmless
 // critter (can't attack or move) for a few seconds, then poofs back.
 const MAGE_POLY_MS = 5200
+// Sabotage — the Turncoat's signature: briefly CHARMS one of your minions to fight
+// for the raid (a temporary defection — reuses the faction='adventurer' handling
+// the permanent defector already uses), then it snaps back to your side.
+const SABOTAGE_MS = 6000
 
 // Pantheon — a holy AURA around the angels (heal heroes / sear your minions) +
 // the seraph resurrecting the fallen a limited number of times per raid.
@@ -142,6 +146,8 @@ export class KingdomModifierSystem {
     this._forlornG?.destroy(); this._forlornG = null
     this._forlornCounter?.destroy(); this._forlornCounter = null
     this._betrayerG?.destroy(); this._betrayerG = null
+    this._sabotageG?.destroy(); this._sabotageG = null
+    if (this._sabotageTags) { for (const t of this._sabotageTags.values()) t.destroy(); this._sabotageTags.clear() }
   }
 
   // Which Kingdom Response is governing the current act (or null). Act-wide
@@ -384,8 +390,9 @@ export class KingdomModifierSystem {
     if (!wave) {
       this._pantheonG?.clear(); this._allStarG?.clear(); this._forlornG?.clear()
       this._forlornCounter?.setVisible(false)
-      this._mageSealG?.clear(); this._polyG?.clear(); this._betrayerG?.clear()
+      this._mageSealG?.clear(); this._polyG?.clear(); this._betrayerG?.clear(); this._sabotageG?.clear()
       if (this._polyTags) for (const t of this._polyTags.values()) t.setVisible(false)
+      if (this._sabotageTags) for (const t of this._sabotageTags.values()) t.setVisible(false)
       return
     }
     // Boss ascension dark aura — present in every ascended act (II+), regardless
@@ -412,6 +419,9 @@ export class KingdomModifierSystem {
     // raid card (which doesn't set the act response). No resp gate here.
     this._tickAllStarsVfx()
     this._tickAllStarAbilities()
+    // Sabotage charm indicator rides on the minion flag (fires via the Betrayer
+    // champion, which works regardless of the ambient act) — self-gating.
+    this._tickSabotageVfx()
     // World-VFX Graphics cleanup — clear any whose response isn't governing now
     // (kept OUT of the else-chain so a lingering buffer can't swallow a tick).
     if (resp !== 'pantheon'  && this._pantheonG) this._pantheonG.clear()
@@ -499,6 +509,7 @@ export class KingdomModifierSystem {
       case 'inquisition': this._champExcommunicate(champ); break
       case 'mage_tower':  this._champPolymorph(champ);     break
       case 'pantheon':    this._champFinalJudgment(champ); break
+      case 'betrayer':    this._champSabotage(champ);      break
       // (other champions' signatures added per response slice)
     }
   }
@@ -1342,6 +1353,69 @@ export class KingdomModifierSystem {
   // (bigger + hotter the more stacks it carries; a faint doomed presence even at
   // zero) and a "⚔ FURY ×N" counter floats over the squad lead, punching on each
   // fresh kill. Drawn every frame so it reads as a living, breathing rage.
+  // Sabotage (the Turncoat's signature) — CHARM a random one of your minions to
+  // fight for the raid for a few seconds (a temporary defection via faction flip),
+  // then snap it back. Reuses the same faction='adventurer' path the permanent
+  // defector uses, so the AI already knows how to run a turned minion.
+  _champSabotage(champ) {
+    const sc = this._scene
+    const live = (this._gs.minions ?? []).filter(m =>
+      (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon' && !m._sabotaged)
+    if (!live.length) return
+    const target = live[Math.floor(Math.random() * live.length)]
+    const now = sc?.time?.now ?? 0
+    target._sabotaged = true
+    target._sabotagedUntil = now + SABOTAGE_MS
+    target._origFaction = target.faction ?? 'dungeon'
+    target.faction = 'adventurer'           // turns on your side (existing defection handling)
+    target.currentTargetId = null
+    target.aiState = 'idle'                  // re-evaluate allegiance next tick
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'betrayer', name: 'SABOTAGE', champion: champ?.name })
+    EventBus.emit('MINION_SABOTAGED', { minionId: target.instanceId, name: target.name })
+    const x = target.worldX ?? 0, y = target.worldY ?? 0
+    AbilityVfx.magicCircle?.(sc, x, y, { color: 0x7ec850, radius: 38, durationMs: 720 })
+    AbilityVfx.runeSigil?.(sc, x, y, { color: 0x9ef070, radius: 30, durationMs: 760 })
+    AbilityVfx.particleBurst?.(sc, x, y, { color: 0x9ef070, count: 16, speed: 130, durationMs: 620 })
+    AbilityVfx.pulseRing?.(sc, x, y, { color: 0x7ec850, fromR: 6, toR: 44, alpha: 0.9, durationMs: 580 })
+    sc?.time?.delayedCall?.(SABOTAGE_MS, () => {
+      if (!target._sabotaged) return
+      target._sabotaged = false
+      target._sabotagedUntil = 0
+      target.faction = target._origFaction ?? 'dungeon'
+      target.currentTargetId = null
+      target.aiState = 'idle'
+      AbilityVfx.particleBurst?.(sc, target.worldX ?? x, target.worldY ?? y, { color: 0x9ef070, count: 10, speed: 100, durationMs: 440 })
+      EventBus.emit('MINION_SABOTAGE_END', { minionId: target.instanceId })
+    })
+  }
+
+  // Per-tick charm indicator over any sabotaged minion (a green ring + "⤝" tag),
+  // so a turned minion reads clearly. Self-gating; runs every tick via update().
+  _tickSabotageVfx() {
+    const charmed = (this._gs.minions ?? []).filter(m => m._sabotaged && (m.resources?.hp ?? 0) > 0)
+    if (charmed.length === 0) {
+      this._sabotageG?.clear()
+      if (this._sabotageTags) { for (const t of this._sabotageTags.values()) t.setVisible(false) }
+      return
+    }
+    const g = this._sabotageG ?? (this._sabotageG = this._scene.add.graphics().setDepth(41))
+    g.clear()
+    this._sabotageTags ??= new Map()
+    const now = this._scene.time?.now ?? 0
+    const pulse = 0.5 + 0.5 * Math.sin(now / 240)
+    const seen = new Set()
+    for (const m of charmed) {
+      const x = m.worldX ?? 0, y = m.worldY ?? 0
+      seen.add(m.instanceId)
+      g.lineStyle(2, 0x7ec850, 0.5 + 0.4 * pulse)
+      g.strokeCircle(x, y - 4, 13)
+      let tag = this._sabotageTags.get(m.instanceId)
+      if (!tag) { tag = this._scene.add.text(0, 0, '⤝', { fontSize: '13px', color: '#9ef070', fontStyle: 'bold' }).setOrigin(0.5).setDepth(42); this._sabotageTags.set(m.instanceId, tag) }
+      tag.setVisible(true).setPosition(x, y - 22)
+    }
+    for (const [id, tag] of this._sabotageTags) { if (!seen.has(id)) { tag.destroy(); this._sabotageTags.delete(id) } }
+  }
+
   // Betrayer world VFX — a green "⇄ turned" mark pulses over each trap while the
   // flip is active, so the player SEES their own traps are now against them.
   _tickBetrayerVfx() {

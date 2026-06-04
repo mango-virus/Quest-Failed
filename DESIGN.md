@@ -1586,6 +1586,7 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - ☑ During the act, all traps damage ONLY my minions (turned against me). [SHIPPED — trap-flip, see "Betrayer — PARTIAL" below]
 - 🟡 Night-phase intro (after Continue): the STRONGEST-tier minion runs to every trap at 2x speed and disables each, then leaves via the entry door; it does NOT respawn (abandoned you). [DEFERRED — animated set-piece; mechanical "lose strongest minion" already covered by _spawnDefector]
 - 🟡 Champion looks like the minion that turned on you. [DEFERRED — sprite pass]
+- ☑ Champion ability SABOTAGE (charm a minion to fight for the raid) SHIPPED 2026-06-03 — temporary defection, see "Betrayer — SHIPPED" below.
 - ⚠ DECISION: "disable each trap" vs "all traps damage only my minions" read as opposite — assume the night-phase minion SABOTAGES/flips the traps so they then hit my minions for the act (confirm).
 
 ### Reckoning of the Dead
@@ -1698,11 +1699,11 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 - Verified: 18/18 isolation asserts (staggered dispatch → all 4 fire distinct moves; chain falloff + 4-hop cap; volley on-line hit / off-line spared; mass-heal all + clamp; blink targets strongest + repositions).
 - ⚠ BALANCE (eyeball): ALLSTAR_CD_MS=7600, per-ability damage/heal scale with boss level — tune after a live look.
 
-### Betrayer — PARTIAL (trap-flip core SHIPPED, 2026-06-03) — slice #7 of 9
-- ☑ TRAP FLIP (the marquee mechanic) — for the WHOLE Betrayer act, every trap targets AND is triggered by YOUR MINIONS instead of the invaders. Was a full blackout; now a true flip per the resolved design. Implemented in TrapSystem._targets() + _trapTriggerers() + the 2 direct trigger checks (LOS scan, bomb fuse), all gated on _betrayerFlip(). Minions take FULL trap damage (the adv-only 30% cap / instakill clamps don't apply to them). Verified 11/11 (flip on/off by act, targets/triggerers flip to minions, alive-filtering + cache).
-- ☑ Flipped-trap VFX — a pulsing green "⇄ turned" mark over each live trap during the act (_tickBetrayerVfx), so the player SEES their traps are against them.
-- 🟡 DEFERRED (needs preview/in-engine verification — surface to user):
-  - **Sabotage champion ability** (Turncoat charms a minion to fight for the raid). The existing charm mechanic is adventurer-side (charm an adv to walk to the boss); a minion→raid faction-flip needs its own AI/combat handling that I shouldn't ship blind with the preview off-limits. Flagged for a focused pass with preview access.
-  - **Night-phase animated sabotage intro** (the strongest minion physically dashing trap-to-trap at 2× then exiting via the entry door). The mechanical flip is already whole-act; this is the spectacle wrapper — a big scripted set-piece. Note: _spawnDefector ALREADY removes your strongest minion at the climax ("abandoned you, doesn't respawn") and mirrors its power, so the "you lose your strongest" mechanic is covered.
-  - **Champion looks like the turned minion** — a sprite swap; folds into the deferred sprite pass (and could merge defector→champion).
+### Betrayer — SHIPPED (mechanics+VFX, 2026-06-03) — slice #7 of 9
+- ☑ TRAP FLIP (the marquee mechanic) — for the WHOLE Betrayer act, every trap targets AND is triggered by YOUR MINIONS instead of the invaders. Was a full blackout; now a true flip per the resolved design. Implemented in TrapSystem._targets() + _trapTriggerers() + the 2 direct trigger checks (LOS scan, bomb fuse), all gated on _betrayerFlip(). Minions take FULL trap damage (the adv-only 30% cap / instakill clamps don't apply to them). Verified 11/11.
+- ☑ Flipped-trap VFX — a pulsing green "⇄ turned" mark over each live trap during the act (_tickBetrayerVfx).
+- ☑ Champion signature SABOTAGE (the Turncoat) — briefly CHARMS one of your minions to fight for the raid: a TEMPORARY defection (flips the minion's faction to 'adventurer' for ~6s, then snaps it back), reusing the SAME faction='adventurer' path the permanent defector already runs through — so the AI knows how to drive a turned minion (not a blind faction hack). Green charm poof + a per-tick "⤝" charm ring while it lasts. Verified 13/13 (flip→raid, revert-on-expiry, valid-target filtering, no-op, dispatch via _championResponseId).
+- 🟡 DEFERRED (polish / sprite — best done with live iteration):
+  - **Night-phase animated sabotage intro** (the strongest minion physically dashing trap-to-trap at 2× then exiting via the entry door). The mechanical flip is already whole-act + the trap-flip VFX shows the result; this is an extra spectacle wrapper (a scripted minion-dash animation). The "you lose your strongest minion" beat is ALREADY covered by _spawnDefector (it removes your strongest + mirrors its power at the climax).
+  - **Champion looks like the turned minion** — a sprite swap; folds into the deferred sprite pass (could merge defector→champion).
 - ⚠ BALANCE (eyeball, IMPORTANT): flipped traps fire on patrolling minions continuously — this could SHRED your minion line over a whole act. Faithful to the spec ("all traps damage only my minions all act") but watch it hard in a live run; may want a per-minion cooldown or a damage cap.

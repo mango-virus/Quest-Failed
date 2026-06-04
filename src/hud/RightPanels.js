@@ -1137,6 +1137,10 @@ export class RightPanels {
     sub('ALLSTAR_ABILITY', ({ hero, move } = {}) => {
       this._addLog(`${hero || 'A champion'} unleashes ${move || 'a signature move'}!`, 'champion')
     })
+    // Betrayer — the Turncoat's Sabotage charms one of your minions to fight you.
+    sub('MINION_SABOTAGED', ({ name } = {}) => {
+      this._addLog(`${name || 'A minion'} is SABOTAGED — it turns on your halls!`, 'champion')
+    })
     // The Betrayer (KR P4) — your strongest minion defects to the raid.
     sub('MINION_DEFECTED', ({ minion } = {}) => {
       const who = minion?.name || minion?.definitionId || 'Your strongest minion'
