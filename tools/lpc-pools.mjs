@@ -1900,6 +1900,43 @@ POOLS.champion_garreth = {
   accessory: [{ items: ['Cape Trim'], chance: 1.0, color: ['yellow'] }],
 };
 
+// ============================================================
+// KR CHAMPION: Necrarch the Bonecrowned — the Reckoning lich-KING. A bald, ashen
+// undead lord in a black reaper robe + a necrotic-GREEN shroud, crowned with bone
+// and wielding a bone scythe. Fixed single look (count 1, pinned at spawn). Built
+// on the necromancer's reaper stack, elevated to a death-king.
+// ============================================================
+POOLS.champion_necrarch = {
+  bodyTypes: ['male'],
+  heads: 'auto_human',
+  hair: [],                 // bald lich (no hair)
+  baldChance: 1.0,
+  beardChance: 0,
+  bodyColorPool: ['pale'],  // ashen undead skin (verify a valid pale tone)
+  // Floor-length black reaper robe (dark longsleeve top + a long skirt hem).
+  torso: ['Longsleeve'],
+  legs: ['Plain skirt'],
+  feet: ['Slippers'],
+  clothColorPool: ['black'],
+  // A NECROTIC-GREEN tattered death-shroud (the accent) + a green waist sash.
+  cape: { items: ['Tattered'], chance: 1.0 },
+  capeColor: ['forest'],
+  torsoOverlay: { items: ['Sash'], chance: 1.0 },
+  torsoOverlayColor: ['forest'],
+  // Bone CROWN — horns recolored to bone-white via metalColor — + a white skull mask
+  // + a bone-trophy NECKLACE (ceramic = aged bone) at the throat.
+  headwear: { items: ['Upward Horns'], chance: 1.0 },
+  accessory: [
+    { items: ['Plain Mask'], chance: 1.0, color: ['white'] },
+    { items: ['Large Beaded Necklace'], chance: 1.0, color: ['ceramic'] },
+  ],
+  // Bone-white metal → the crown + the BONE scythe both read as bone.
+  metalColorPool: ['white'],
+  // The reaper's scythe (slash_oversize → needs the _atk sheet).
+  weapon: { items: ['Scythe'], chance: 1.0 },
+  weaponColor: 'metal',
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch

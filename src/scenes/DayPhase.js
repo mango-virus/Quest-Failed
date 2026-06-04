@@ -1790,6 +1790,13 @@ export class DayPhase extends Phaser.Scene {
         champ.name             = response.champion || 'The Champion'
         champ._kingdomChampion = true
         champ._championResponseId = response.id
+        // KR champion sprites — pin each named champion to its bespoke fixed LPC
+        // sprite (baked as champion_<id>/v01, registered in Preload/AtkLoader). The
+        // renderer uses a pre-set spriteVariant as-is. Champions without a bespoke
+        // sprite yet just fall back to a random chassis-class variant. Add a key
+        // here as each champion's sprite ships.
+        const champSprite = { all_stars: 'champion_garreth', reckoning_dead: 'champion_necrarch' }[response.id]
+        if (champSprite) champ.spriteVariant = `${champSprite}/v01`
         champ._championAccent  = response.accent || '#ffd24a'   // threat-aura + crown tint
         champ.isLegendary      = true
         champ.partyId          = null
@@ -1855,10 +1862,6 @@ export class DayPhase extends Phaser.Scene {
         u._allStar = true
         if (SIG[u.classId]) u._allStarSig = SIG[u.classId]
       }
-      // Pin the champion (Sir Garreth the Gilded) to his bespoke gold-and-white
-      // hero sprite, so he reads as the dream-team CAPTAIN, not a random knight.
-      const garreth = spawned.find(u => u && u._kingdomChampion)
-      if (garreth) garreth.spriteVariant = 'champion_garreth/v01'
     }
     // Rival (KR overhaul) — this is a rival DUNGEON invading, so dress the pack as
     // MONSTERS, not humanoid adventurers (the `monster_invader` chassis otherwise
@@ -1955,6 +1958,7 @@ export class DayPhase extends Phaser.Scene {
     if (chassis && spawn) {
       nec = createAdventurer(chassis, { x: spawn.x, y: spawn.y })
       nec.name          = 'Necrarch the Bonecrowned'
+      nec.spriteVariant = 'champion_necrarch/v01'   // his bespoke bone-lich sprite (same as the champion-day Necrarch)
       nec._necrarch     = true
       nec._invuln       = true     // CombatSystem suppresses damage
       nec._invulnerable = true     // TrapSystem suppresses damage

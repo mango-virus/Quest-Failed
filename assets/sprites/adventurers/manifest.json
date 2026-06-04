@@ -70196,6 +70196,42 @@
           "paint": "white"
         }
       }
+    ],
+    "champion_necrarch": [
+      {
+        "id": "v01",
+        "bodyType": "male",
+        "bodyColor": "pale",
+        "hairColor": "gold",
+        "clothColor": "black",
+        "metalColor": "white",
+        "head": "Human Male Elderly",
+        "hair": null,
+        "beard": null,
+        "torso": "Longsleeve",
+        "torsoOverlay": "Sash",
+        "cape": "Tattered",
+        "legs": "Plain skirt",
+        "feet": "Slippers",
+        "arms": null,
+        "headwear": "Upward Horns",
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Plain Mask",
+            "color": "white"
+          },
+          {
+            "name": "Large Beaded Necklace",
+            "color": "ceramic"
+          }
+        ],
+        "weapon": "Scythe",
+        "weaponColor": "white",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {
