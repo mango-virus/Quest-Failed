@@ -170,7 +170,7 @@ const ADVENTURER_CLASS_IDS = [
   // KR Kingdom-Response CHAMPIONS — NAMED one-off characters, one canonical baked
   // variant each. DayPhase pins the response's champion to `champion_<id>/v01` via
   // spriteVariant. Count override (1) below prevents v02..v100 404s.
-  'champion_garreth', 'champion_necrarch',
+  'champion_garreth', 'champion_necrarch', 'champion_vane',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 100
 // Per-class override for classes that ship fewer than the default 100 baked
@@ -181,7 +181,7 @@ const ADVENTURER_VARIANTS_PER_CLASS = 100
 const ADVENTURER_VARIANT_COUNT = {
   shadow_monarch: 1, aldric: 4,
   paladin: 1, white_mage: 1, samurai: 1, black_mage: 1,
-  champion_garreth: 1, champion_necrarch: 1,
+  champion_garreth: 1, champion_necrarch: 1, champion_vane: 1,
 }
 const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 
@@ -231,9 +231,9 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // Aldric (KR Nemesis) — longsword slash_oversize; needs the atk sheet so his
   // blade shows mid-attack (4 per-act forms, v01–v04).
   'aldric',
-  // KR champions — Sir Garreth (All-Stars) wields a Longsword + Necrarch (Reckoning)
-  // a Scythe, both slash_oversize → they need the 192×192 atk sheet for a visible swing.
-  'champion_garreth', 'champion_necrarch',
+  // KR champions — Garreth (Longsword) · Necrarch (Scythe) · Vane (Scimitar), all
+  // slash_oversize → they need the 192×192 atk sheet for a visible swing.
+  'champion_garreth', 'champion_necrarch', 'champion_vane',
 ])
 const ADVENTURER_ATK_FRAME = 192
 const ADVENTURER_ATK_COLS  = 8

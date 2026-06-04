@@ -70232,6 +70232,65 @@
         "crystal": null,
         "shield": null
       }
+    ],
+    "champion_vane": [
+      {
+        "id": "v01",
+        "bodyType": "male",
+        "bodyColor": "brown",
+        "hairColor": "gold",
+        "clothColor": "black",
+        "metalColor": "gold",
+        "head": "Human Male",
+        "hair": "Side Swoop",
+        "beard": "Trimmed Beard",
+        "torso": "Frock coat",
+        "torsoOverlay": "Double Belt",
+        "cape": "Solid",
+        "legs": "Cuffed Pants",
+        "feet": "Folded Rim Boots",
+        "arms": "Lace Cuffs",
+        "shoulder": "Epaulets",
+        "headwear": "Tricorne Captain",
+        "headOverlays": [
+          {
+            "name": "Tricorne Captain Skull",
+            "color": "white"
+          },
+          {
+            "name": "Tricorne Captain Trim",
+            "color": "gold"
+          }
+        ],
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Eyepatch Left",
+            "color": "black"
+          },
+          {
+            "name": "Straps",
+            "color": "black"
+          },
+          {
+            "name": "Hook hand",
+            "color": null
+          },
+          {
+            "name": "Peg leg",
+            "color": null
+          },
+          {
+            "name": "Cape Trim",
+            "color": "yellow"
+          }
+        ],
+        "weapon": "Scimitar",
+        "weaponColor": "gold",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {

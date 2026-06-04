@@ -664,9 +664,11 @@ export const POOLS = {
     ],
     // Axe-heavy (~50% axes), split evenly between the Waraxe and the two-handed
     // great-axe ("Smash" tool, from sheet_definitions/tools), with a heavy
-    // supporting mix. Both swing via slash_oversize/slash_128.
+    // supporting mix. Both swing via slash_oversize/slash_128. (Club removed —
+    // the LPC Club ships ONLY a slash_reverse_oversize attack the bakers skip, so
+    // it rendered as an invisible empty-handed swing; its slot is now a 4th Waraxe.)
     weapon: {
-      items: ['Waraxe', 'Waraxe', 'Waraxe', 'Smash', 'Smash', 'Smash', 'Club', 'Mace', 'Flail', 'Halberd', 'Spear', 'Longsword'],
+      items: ['Waraxe', 'Waraxe', 'Waraxe', 'Smash', 'Smash', 'Smash', 'Waraxe', 'Mace', 'Flail', 'Halberd', 'Spear', 'Longsword'],
       chance: 1.0,
     },
     // Primal earthy palette, no gold.
@@ -676,7 +678,7 @@ export const POOLS = {
     // two-handed great-axe/halberd/spear can't also carry a shield).
     sometimesShield: 0.35,
     shieldTypes: ['round'],
-    shieldWeapons: ['Waraxe', 'Mace', 'Club', 'Longsword'],
+    shieldWeapons: ['Waraxe', 'Mace', 'Longsword'],
     roundShieldColors: ['brown', 'brown', 'black', 'silver'], // wooden-leaning
   },
 
@@ -1935,6 +1937,58 @@ POOLS.champion_necrarch = {
   // The reaper's scythe (slash_oversize → needs the _atk sheet).
   weapon: { items: ['Scythe'], chance: 1.0 },
   weaponColor: 'metal',
+};
+
+// ============================================================
+// KR CHAMPION: Dread Captain Vane — the Plunderers' pirate-LORD. The fancy-captain
+// end of the pirate kit: a grand admiral bicorne with gold cockade + trim, a heavy
+// BLACK frock coat, gold finery, an eyepatch, chest bandolier, hook hand, a flowing
+// black cape, and a gold-hilted cutlass. Fixed single look (count 1, pinned at spawn).
+// ============================================================
+POOLS.champion_vane = {
+  bodyTypes: ['male'],
+  heads: 'auto_human',
+  hair: 'all_human_hair',
+  beardChance: 1.0,                 // grizzled captain's beard
+  // The captain's heavy black frock coat.
+  torso: ['Frock coat'],
+  clothColorPool: ['black'],
+  torsoOverlay: { items: ['Double Belt'], chance: 1.0 },
+  torsoOverlayColor: ['brown'],
+  legs: ['Cuffed Pants'],
+  legsColor: ['black'],
+  feet: ['Folded Rim Boots'],
+  feetColor: ['black'],
+  arms: { items: ['Lace Cuffs'], chance: 1.0 },
+  // Gold naval shoulder-boards (metal → gold) for captain's rank + gold pop.
+  shoulder: { items: ['Epaulets'], chance: 1.0 },
+  // Captain's tricorne (black) + a white jolly-roger SKULL + gold trim. (The grander
+  // Bicorne Admiral has no skull overlay — only the Tricorne Captain pairs both a
+  // skull AND gold trim, so it's the hat that gives the dread-captain skull.)
+  headwear: { items: ['Tricorne Captain'], chance: 1.0 },
+  headwearColor: ['black'],
+  headOverlay: [
+    { when: ['Tricorne Captain'], items: ['Tricorne Captain Skull'], chance: 1.0, color: ['white'] },
+    { when: ['Tricorne Captain'], items: ['Tricorne Captain Trim'], chance: 1.0, color: ['gold'] },
+  ],
+  // Dread-captain extras: eyepatch + chest bandolier + hook hand + peg leg.
+  accessory: [
+    { items: ['Eyepatch Left'], chance: 1.0, color: ['black'] },
+    { items: ['Straps'], chance: 1.0, color: ['black'] },
+    { items: ['Hook hand'], chance: 1.0 },
+    { items: ['Peg leg'], chance: 1.0 },
+    // Gold trim on the black cape so it reads as a distinct captain's mantle (a
+    // black cape on a black coat is otherwise invisible) + adds gold pop.
+    { items: ['Cape Trim'], chance: 1.0, color: ['yellow'] },
+  ],
+  // Gold finery — the cockade, trim, epaulets, and the cutlass blade.
+  metalColorPool: ['gold'],
+  // The captain's gold-hilted cutlass (Scimitar slash_oversize → needs the _atk sheet).
+  weapon: { items: ['Scimitar'], chance: 1.0 },
+  weaponColor: 'metal',
+  // A flowing black captain's cape.
+  cape: { items: ['Solid'], chance: 1.0 },
+  capeColor: ['black'],
 };
 
 // Per-class variant count for the bake (default when no count arg is passed).
