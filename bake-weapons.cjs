@@ -496,12 +496,18 @@ const CARRY_FRAME  = 128;
 const CARRY_OFFSET = (CARRY_FRAME - FRAME) / 2; // 32 — base body centred in 128
 // Weapons that actually RENDER from the 128px carry sheet at walk/idle/run.
 // MUST match CARRY_WALK_WEAPONS in AdventurerRenderer.js + AdventurerAtkLoader.js.
-// NOTE: a weapon merely *having* a walk_128 layer (e.g. Scimitar, Katana, bows —
-// LPC ships an oversize copy for all of them) does NOT mean we carry-render it;
-// those fit fine in the 64px base walk. Building a _walk128 for them just litters
-// dead, never-loaded files on disk. Gate the carry build on THIS set, not on
-// "has a walk_128 layer".
-const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident']);
+// Two reasons a weapon lands here:
+//   1. Long polearm shafts (Dragon/Long spear, Trident) that overflow the 64px
+//      base walk cell.
+//   2. walk_128-ONLY weapons that ship NO standard 64px walk layer — the
+//      **Scimitar** (and Katana) are entirely custom_animation (walk_128 +
+//      slash_128), so layerComposites() skips them from the base sheet and the
+//      blade NEVER appears while walking unless we build + carry-render the
+//      _walk128 sheet. (Bows / Rapier / Saber DO ship a standard walk layer, so
+//      they walk fine in the 64px base — do NOT add those here.)
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar']);
+// Set by main() from the `--carry-only` CLI flag (see processVariant).
+let CARRY_ONLY = false;
 async function buildCarrySheet(charPath, def, variantFile, bodyType) {
   const walkRow = ANIM_LAYOUT['walk'];
   if (!walkRow) return null;
@@ -691,27 +697,37 @@ async function processVariant(className, variant, idx, total) {
     .png({ compressionLevel: 6 })
     .toBuffer();
 
-  fs.writeFileSync(charPath, result);
+  // CARRY_ONLY mode (CLI `--carry-only`): build/refresh just the _walk128 carry
+  // sheet, leaving the base vXX.png + _atk.png on disk untouched. Used to back-
+  // fill carry sheets for a weapon that was newly added to CARRY_WALK_WEAPONS
+  // (e.g. Scimitar) across already-baked classes WITHOUT re-compositing their
+  // weapons into the base (which would double-stamp standard-walk weapons and
+  // churn every locked sprite). Safe because a carry-only weapon's base never
+  // changes here anyway.
+  if (!CARRY_ONLY) {
+    fs.writeFileSync(charPath, result);
 
-  // Atk sheet: only for classes whose combat anim is slash/thrust AND whose
-  // weapon uses an oversize swing. Normal-attack weapons (arming sword) skip
-  // it so the renderer falls back to the contained base slash. Any stale atk
-  // sheet (e.g. the variant's weapon changed to a normal-attack one on re-bake)
-  // is removed so the loader doesn't 404 / the renderer doesn't use it.
-  const atkPath = path.join(ADV, className, variant.id + '_atk.png');
-  if (ATK_CLASSES.has(className) && !NORMAL_ATTACK_WEAPONS.has(weaponName)) {
-    const atkBuf  = await buildAttackSheet(charPath, def, variantFile, bodyType);
-    fs.writeFileSync(atkPath, atkBuf);
-  } else if (exists(atkPath)) {
-    fs.unlinkSync(atkPath);
+    // Atk sheet: only for classes whose combat anim is slash/thrust AND whose
+    // weapon uses an oversize swing. Normal-attack weapons (arming sword) skip
+    // it so the renderer falls back to the contained base slash. Any stale atk
+    // sheet (e.g. the variant's weapon changed to a normal-attack one on re-bake)
+    // is removed so the loader doesn't 404 / the renderer doesn't use it.
+    const atkPath = path.join(ADV, className, variant.id + '_atk.png');
+    if (ATK_CLASSES.has(className) && !NORMAL_ATTACK_WEAPONS.has(weaponName)) {
+      const atkBuf  = await buildAttackSheet(charPath, def, variantFile, bodyType);
+      fs.writeFileSync(atkPath, atkBuf);
+    } else if (exists(atkPath)) {
+      fs.unlinkSync(atkPath);
+    }
   }
 
-  // Oversize CARRY sheet (_walk128.png) — ONLY for the designated carry weapons
-  // (dragon/long spear, trident) that the renderer actually swaps to for
-  // walk/idle/run so the long shaft renders at native size. Other walk_128
-  // weapons (Scimitar/Katana/bows) walk fine in the 64px base sheet; building a
-  // carry sheet for them just leaves dead, never-loaded files (the else branch
-  // below cleans any such stale file up).
+  // Oversize CARRY sheet (_walk128.png) — for the designated carry weapons in
+  // CARRY_WALK_WEAPONS, which the renderer swaps to for walk/idle/run: long
+  // polearms (dragon/long spear, trident) so the shaft renders at native size,
+  // AND the Scimitar (walk_128-ONLY art — no base-walk layer, so the blade is
+  // invisible while walking without this sheet). Bows/Rapier/Saber ship a
+  // standard walk layer and aren't in the set; the else branch cleans up any
+  // stale carry file if a variant's weapon changed off a carry weapon.
   const carryPath = path.join(ADV, className, variant.id + '_walk128.png');
   if (ATK_CLASSES.has(className) && CARRY_WALK_WEAPONS.has(weaponName)) {
     const carryBuf = await buildCarrySheet(charPath, def, variantFile, bodyType);
@@ -728,18 +744,26 @@ async function processVariant(className, variant, idx, total) {
 async function main() {
   const manifest = JSON.parse(fs.readFileSync(path.join(ADV, 'manifest.json'), 'utf8'));
 
-  // Optional CLI filter — restrict to a comma-separated class list when
-  // re-baking only newly-added classes (avoids re-processing the other
-  // 550 variants on every change). Pass as the only argv:
+  // Optional CLI filters (positional, '--' flags ignored for position):
+  //   argv[2] = comma class list   — restrict to specific classes
+  //   argv[3] = comma weapon list  — restrict to specific weapons (by manifest weapon name)
+  //   --carry-only                 — build ONLY the _walk128 carry sheet (leave base + _atk alone)
+  // Examples:
   //   node bake-weapons.cjs cosplay_adventurer
   //   node bake-weapons.cjs cosplay_adventurer,cartographer_scholar
-  const classFilter = (process.argv[2] || '').split(',').map(s => s.trim()).filter(Boolean);
+  //   node bake-weapons.cjs pirate,twitch_streamer,cosplay_adventurer Scimitar --carry-only
+  const positional = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  const classFilter  = (positional[0] || '').split(',').map(s => s.trim()).filter(Boolean);
+  const weaponFilter = (positional[1] || '').split(',').map(s => s.trim()).filter(Boolean);
+  CARRY_ONLY = process.argv.includes('--carry-only');
+  if (CARRY_ONLY) console.log('CARRY-ONLY mode: building _walk128 sheets only (base + _atk untouched).');
 
   // Collect all work items
   const tasks = [];
   for (const [className, variants] of Object.entries(manifest.variants)) {
     if (classFilter.length && !classFilter.includes(className)) continue;
     for (const variant of variants) {
+      if (weaponFilter.length && !weaponFilter.includes(variant.weapon)) continue;
       tasks.push({ className, variant });
     }
   }

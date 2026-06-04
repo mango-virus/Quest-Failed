@@ -42,11 +42,17 @@ const VALK_FLIGHT_BOB_MS = 1100  // ms per half-bob (drives the sine frequency)
 // character body's foot stays at the same world position.
 const ATK_ANIMS = new Set(['slash', 'thrust'])
 // Anims that render from the 128×128 CARRY texture (_walk128) for oversize-walk
-// polearms — their long shaft can't fit the 64px base walk row, so the carry
+// weapons — their blade/shaft can't fit the 64px base walk row, so the carry
 // sheet (body + full-size weapon) is used for walking/standing/running. Weapons
 // that need it (their LPC walk is a `walk_128` animation).
+//   • Dragon/Long spear + Trident: long polearm shafts.
+//   • Scimitar: its LPC art is walk_128-ONLY (no standard 64px walk layer at
+//     all), so without the carry sheet the curved blade never composites into
+//     the base walk/idle/run rows — the sprite walks with an INVISIBLE sword
+//     (only the slash _atk sheet shows the blade). MUST stay in sync with the
+//     same set in AdventurerAtkLoader.js + bake-weapons.cjs.
 const CARRY_WALK_ANIMS = new Set(['walk', 'idle', 'run'])
-const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident'])
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar'])
 // LPC attack-anim names that minion sheets + boss-archetype sheets have
 // no dedicated frames for (those sheets ship a single `attack` state).
 // _resolveLpcAnimKey collapses every one of these onto `attack`.
@@ -79,11 +85,21 @@ const THRUST_ANIM_WEAPONS = new Set([
   // Peasant hand tool (LPC "Thrust" tool: hoe / shovel / watering can) — its
   // only attack art is the `thrust` (jab) pose, so always thrust with it.
   'Thrust',
+  // Valkyrie polearms — Dragon/Long spear ship ONLY a thrust_oversize attack
+  // (no slash art), so the class-default slash leaves the spear invisible
+  // mid-swing. Force thrust so the baked _atk thrust row actually renders.
+  'Dragon spear', 'Long spear',
 ])
 // Weapons that should override the class default to `slash`. Necromancers play
 // spellcast by default, but a Scythe has only slash_oversize layers — without
 // this override the scythe never appears mid-attack.
 const SLASH_ANIM_WEAPONS = new Set(['Scythe'])
+// Bows / thrown weapons override the class default to `shoot`. Non-archer
+// classes can roll a bow from a chaos pool (e.g. the Cosplay Adventurer); their
+// default slash leaves the bow swinging at empty air (the bow only ships `shoot`
+// art). `shoot` renders from the base sheet's shoot row, where the bow + its
+// nocked Arrow are already baked. (Rangers/bards already shoot via class default.)
+const SHOOT_ANIM_WEAPONS = new Set(['Normal', 'Great', 'Recurve', 'Slingshot'])
 // Map adventurer movement vector → LPC direction key.
 function _dirFromVelocity(dx, dy) {
   if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left'
@@ -367,6 +383,7 @@ export class AdventurerRenderer {
       const wpn = this._lpcWeaponByVariant[adv.spriteVariant]
       if      (THRUST_ANIM_WEAPONS.has(wpn)) anim = 'thrust'
       else if (SLASH_ANIM_WEAPONS.has(wpn))  anim = 'slash'
+      else if (SHOOT_ANIM_WEAPONS.has(wpn))  anim = 'shoot'
     }
     const dir = adv._lpcDir ?? 'down'
     const { animKey, originY } = this._resolveLpcAnimKey(s, anim, dir)
