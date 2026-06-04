@@ -143,12 +143,21 @@ export function installDevSandbox(scene) {
       return !!on
     },
 
-    // ONE-CLICK ARENA — build a small CONNECTED starter dungeon so a day can run
-    // (the dev day-jumps leave only a bare boss room). Lays a chain to the LEFT of
-    // the boss — boss ← library ← trap factory ← barracks — with the entry hall
-    // above the barracks (its outward entrance facing up). Rooms auto-connect by
-    // adjacency; `noSnap` keeps the precise positions. Each placement is kept only
-    // if it actually links to the dungeon body; connectivity is verified at the end.
+    // ONE-CLICK ARENA — build a small CONNECTED starter dungeon (the dev day-jumps
+    // leave only a bare boss room). A compact cluster: the boss anchors the bottom-
+    // right; the LIBRARY + ENTRY HALL stack UP from it; the BARRACKS + TRAP FACTORY
+    // sit to the LEFT.
+    //
+    //        [entry]
+    //        [library]
+    //   [trap] [ boss ]
+    //   [barr] [      ]
+    //
+    // ORDER matters: the entry hall's own auto-connect is SKIPPED (it owns a pre-
+    // authored external entrance + getNeighborRooms ignores external cps), so it
+    // links only when a neighbour is placed against it afterward. So place the entry
+    // FIRST, then the library beneath it — the library's auto-connect cuts the door
+    // to BOTH the entry (above) and the boss (below). `noSnap` keeps exact positions.
     arena() {
       const g = gs(); const gridApi = grid()
       if (!g || !gridApi) { log('no game'); return { ok: false } }
@@ -159,40 +168,32 @@ export function installDevSandbox(scene) {
       const boss = rooms.find(r => r.definitionId === 'boss_chamber')
       if (!boss) { log('no boss chamber to anchor the arena'); return { ok: false } }
       const defOf = id => roomDefs.find(d => d.id === id)
-
-      // Place `defId` at (gx,gy); keep it only if it links to an existing room.
-      const tryPlace = (defId, gx, gy) => {
+      const place = (defId, gx, gy) => {
         const def = defOf(defId); if (!def || gx < 0 || gy < 0) return null
         const room = gridApi.placeRoom(def, gx, gy, { noSnap: true })
-        if (!room) return null
-        if ((gridApi.getNeighborRooms?.(room.instanceId)?.length ?? 0) > 0) { room._devSandbox = true; return room }
-        if (typeof gridApi.removeRoom === 'function') gridApi.removeRoom(room.instanceId)
-        else { const i = rooms.indexOf(room); if (i >= 0) rooms.splice(i, 1) }
-        return null
+        if (room) room._devSandbox = true
+        return room
       }
+      const bx = boss.gridX, by = boss.gridY
+      // Right column (stack up from the boss): entry FIRST, then library beneath it.
+      place('entry_hall',          bx,      by - 16)   // top — outward entrance faces up
+      place('library_of_whispers', bx,      by - 8)    // links to entry (above) + boss (below)
+      // Left column: barracks beside the boss, trap factory above it.
+      place('starter_barracks',    bx - 10, by + 2)    // links to the boss's left wall
+      place('trap_factory',        bx - 10, by - 8)    // links to barracks (below) + library (right)
 
-      const by = boss.gridY
-      // Chain leftward off the boss (each overlaps the previous on the boss row band).
-      tryPlace('library_of_whispers', boss.gridX - 10, by + 3)   // ← boss
-      tryPlace('trap_factory',        boss.gridX - 20, by + 2)   // ← library
-      const barracks = tryPlace('starter_barracks', boss.gridX - 30, by + 3)   // ← trap factory
-      // Entry hall above the barracks (outward N entrance faces up).
+      // Forced multi-entry (2nd @ L5, 3rd @ L10) — add entries to the RIGHT of the
+      // boss, then re-run the boss's auto-connect so the new doors form.
       const entryDef = defOf('entry_hall'); const eh = entryDef?.height ?? 8
-      let entry = tryPlace('entry_hall', boss.gridX - 30, by + 3 - eh)
-      // Fallbacks if the chain broke: just wire an entry hall straight to the boss.
-      if (!entry) entry = tryPlace('entry_hall', boss.gridX + Math.floor((boss.width - (entryDef?.width ?? 12)) / 2), by - eh)
-
-      // Forced multi-entry (2nd @ L5, 3rd @ L10) — top up entries by boss level.
       let required = 1
       try { required = gridApi.constructor.effectiveMaxPerDungeon?.(entryDef, g.boss?.level ?? 1) ?? 1 } catch (e) {}
-      const ew = entryDef?.width ?? 12
-      const extra = [
-        { x: boss.gridX + Math.floor((boss.width - ew) / 2), y: by - eh },  // above boss
-        { x: boss.gridX + boss.width, y: by + 3 },                           // right of boss
-      ]
-      for (const s of extra) {
-        if (rooms.filter(r => r.definitionId === 'entry_hall').length >= required) break
-        tryPlace('entry_hall', s.x, s.y)
+      let rightY = by + 2
+      while (rooms.filter(r => r.definitionId === 'entry_hall').length < required) {
+        const e = place('entry_hall', bx + boss.width, rightY)
+        if (!e) break
+        gridApi.recheckAutoConnect?.(bx + boss.width - 1, rightY + 1)  // boss tile beside the new entry
+        rightY += eh + 1
+        if (rightY > by + boss.height) break
       }
 
       const disc = gridApi.getDisconnectedRooms()
