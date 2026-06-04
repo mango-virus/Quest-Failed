@@ -1581,7 +1581,7 @@ buffed). The Rival DUNGEON EVENT already uses real minion art + a random boss sk
 - ☑ The rival boss sprite is a random T4 boss when it spawns. [SHIPPED 2026-06-03 — Vorzak gets a random boss skin via rollRivalDungeonSprites().bossSkin → `_rivalBossSpriteKey` (renderer reads it), named "Vorzak, the <Archetype> Usurper".]
 - ☑ Unique cinematic for the boss-vs-boss fight, Aldric/Solo-Leveling style but completely unique animations + VFX. [SHIPPED 2026-06-04 — the RIVAL SHOWDOWN, see "Rival — SHIPPED" below.]
 
-**Rival status:** the rival-boss IDENTITY (random T4 boss skin on Vorzak), the **retinue minion sprites** (T1/T2 minion sheets), AND the **boss-vs-boss SHOWDOWN cinematic** are all shipped (2026-06-03/04). The remaining open item is the champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — DEFERRED.
+**Rival status:** the rival-boss IDENTITY (random T4 boss skin on Vorzak), the **retinue minion sprites** (T1/T2 minion sheets), AND the **boss-vs-boss SHOWDOWN cinematic** are all shipped (2026-06-03/04). The champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") was **CUT by user decision 2026-06-04** — the showdown rolls its outcome from relative power, so a separate signature ability isn't needed. **The Rival slice is COMPLETE.**
 
 ### Rival — boss-vs-boss SHOWDOWN
 
@@ -1600,7 +1600,7 @@ Acceptance checklist — ALL met + verified live (commit 616bfef, 2026-06-04):
 - ☑ **Collapse finale** — `collapse` phase detonates the loser's side; `_onEnd` card win = "THE THRONE HOLDS / THE USURPER FALLS", loss = "THE THRONE IS USURPED / VORZAK CLAIMS THE THRONE". Both verified.
 - ☑ **Unique VFX + unique cinematic CSS** — bespoke `qf-riv-*` stylesheet (NO `qf-ald-root` present); beam/nexus/aura/feedback VFX, not blade/dome/god-rays. Verified (`hasAldRoot:false`).
 - ☑ **New event contract** — `RIVAL_DUEL_BEGAN/_DOMINION/_BEAT/_END`; cinematic renders from `dom` + rival beat kinds (no advFrac/bossFrac).
-- 🟡 Champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — STILL DEFERRED (the showdown does not require it; outcome rolled from relative power).
+- ✂ Champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — **CUT (user decision 2026-06-04)**: the showdown rolls its outcome from relative power, so a separate signature ability isn't needed. Not a TODO.
 - 🟡 Retinue minion SHEETS + unique Vorzak look — sprite pass, DEFERRED.
 
 ### Betrayer
@@ -1648,7 +1648,7 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
 **Champion signature abilities — CONFIRMED** (each boss-level, themed, telegraphed, with VFX):
 - Inquisition / Mordrake → **Excommunicate** (holy beam instakills one undead minion + silences a random pact for the fight)
 - Pantheon / Aurelia → **Final Judgment** (channels a screen-wide smite that wipes a minion row unless interrupted)
-- Rival boss → **its random-T4-boss-archetype's own signature** (reuse the boss ability kit, turned on you)
+- ~~Rival boss → **its random-T4-boss-archetype's own signature** (reuse the boss ability kit, turned on you)~~ — ✂ CUT 2026-06-04 (user call; the boss-vs-boss showdown carries the Rival response — outcome rolled from relative power, no separate signature needed)
 - Betrayer / Turncoat → **Sabotage** (briefly charms one of your minions to fight for it)
 - Reckoning / Necrarch → **Reanimate** (raises a just-killed unit as an undead thrall)
 - Forlorn / Halric → **Last Vow** (survives one lethal hit at 1 HP, then a massive fury roar)
