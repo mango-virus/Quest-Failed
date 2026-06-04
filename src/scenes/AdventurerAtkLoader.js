@@ -28,7 +28,7 @@ const ADVENTURER_CLASS_IDS = [
   'aldric',
   // KR Kingdom-Response champions — named one-offs (1 variant each), pinned via
   // spriteVariant in DayPhase.
-  'champion_garreth', 'champion_necrarch', 'champion_vane',
+  'champion_garreth', 'champion_necrarch', 'champion_vane', 'champion_mordrake',
 ]
 const ADVENTURER_ATK_CLASSES = new Set([
   'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
@@ -59,7 +59,7 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // clips the blade away, so without this his sword is invisible mid-attack).
   'aldric',
   // Garreth (Longsword) · Necrarch (Scythe) · Vane (Scimitar) — all slash_oversize.
-  'champion_garreth', 'champion_necrarch', 'champion_vane',
+  'champion_garreth', 'champion_necrarch', 'champion_vane', 'champion_mordrake',
 ])
 // Weapons whose attack is the standard 64×64 slash (contained, shield-up
 // "normal" swing) rather than the oversize 192×192 arc. Variants wielding one
@@ -77,7 +77,7 @@ const ADVENTURER_VARIANT_COUNT = {
   shadow_monarch: 1,
   paladin: 1, white_mage: 1, samurai: 1, black_mage: 1,
   aldric: 4,
-  champion_garreth: 1, champion_necrarch: 1, champion_vane: 1,
+  champion_garreth: 1, champion_necrarch: 1, champion_vane: 1, champion_mordrake: 1,
 }
 const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 const ADVENTURER_ATK_FRAME = 192

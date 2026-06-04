@@ -1991,6 +1991,55 @@ POOLS.champion_vane = {
   capeColor: ['black'],
 };
 
+// ── High Inquisitor Mordrake (KR "Inquisition" champion, cleric chassis) ──
+// A grim ecclesiastical JUDGE-executioner — the deliberate opposite of the
+// gentle white cleric (soft white robe + Hijab/Tiara + gold cross). Black-cowled
+// zealot: a black cassock under a deep black Hood, a BONE-IVORY tabard surcoat
+// (the Inquisition response's own #e0d8c0 accent), a gold cross of authority,
+// and a heavy gold mace (the clergy's "no bloodshed by blade" bludgeon). A
+// forced GAUNT severe head + stark white beard sell the ascetic fanatic.
+POOLS.champion_mordrake = {
+  bodyTypes: ['male'],
+  // Force the gaunt, severe head — the ascetic witch-hunter face (not a random
+  // soft cleric head). Beard + white hair = an old, iron-willed zealot.
+  heads: ['Human Male Gaunt'],
+  hair: 'all_human_hair',           // covering-safe auto-flattens it under the Hood
+  hairColorPool: ['white'],         // stark white elder-zealot hair + beard
+  beardChance: 1.0,
+  // Black cassock: long-sleeve top + a floor-length skirt = a dark robe on the
+  // cleric chassis.
+  torso: ['Longsleeve'],
+  legs: ['Plain skirt'],
+  feet: ['Slippers'],
+  feetColor: ['black'],
+  // Black gloved hands gripping the mace.
+  arms: { items: ['Gloves'], chance: 1.0 },
+  clothColorPool: ['black'],
+  // The signature inquisition layer: a BONE-IVORY tabard surcoat over the black
+  // cassock (Tabard ships no ivory/linen variant, so `tan` = the warm parchment
+  // bone tone; reads clearly warmer than the white cleric's cold white).
+  torsoOverlay: { items: ['Tabard'], chance: 1.0 },
+  torsoOverlayColor: ['tan'],
+  // Deep black executioner's cowl — covering-safe (flattens hair), faceless menace.
+  headwear: { items: ['Hood'], chance: 1.0 },
+  headwearColor: ['black'],
+  // Holy authority: a gold cross with a blood-red gem (gold_red).
+  accessory: [
+    { items: ['Cross amulet'], chance: 1.0, color: ['gold_red'] },
+    // Gold trim on the black mantle so the cape reads against the black cassock
+    // (a black cape on black is otherwise invisible) + ties to the gold cross/mace.
+    { items: ['Cape Trim'], chance: 1.0, color: ['yellow'] },
+  ],
+  // Gold finery — the cross, the cape trim, and the mace head.
+  metalColorPool: ['gold'],
+  // The sanctified bludgeon (Mace = cleric's proven slash_oversize → atk sheet).
+  weapon: { items: ['Mace'], chance: 1.0 },
+  weaponColor: 'metal',
+  // A heavy black inquisitor's mantle (gold-trimmed via the accessory above).
+  cape: { items: ['Solid'], chance: 1.0 },
+  capeColor: ['black'],
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch

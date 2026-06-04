@@ -1795,7 +1795,7 @@ export class DayPhase extends Phaser.Scene {
         // renderer uses a pre-set spriteVariant as-is. Champions without a bespoke
         // sprite yet just fall back to a random chassis-class variant. Add a key
         // here as each champion's sprite ships.
-        const champSprite = { all_stars: 'champion_garreth', reckoning_dead: 'champion_necrarch', plunderers: 'champion_vane' }[response.id]
+        const champSprite = { all_stars: 'champion_garreth', reckoning_dead: 'champion_necrarch', plunderers: 'champion_vane', inquisition: 'champion_mordrake' }[response.id]
         if (champSprite) champ.spriteVariant = `${champSprite}/v01`
         champ._championAccent  = response.accent || '#ffd24a'   // threat-aura + crown tint
         champ.isLegendary      = true

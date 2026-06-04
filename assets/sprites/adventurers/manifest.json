@@ -70291,6 +70291,42 @@
         "crystal": null,
         "shield": null
       }
+    ],
+    "champion_mordrake": [
+      {
+        "id": "v01",
+        "bodyType": "male",
+        "bodyColor": "olive",
+        "hairColor": "white",
+        "clothColor": "black",
+        "metalColor": "gold",
+        "head": "Human Male Gaunt",
+        "hair": "Curtains long",
+        "beard": "Medium Beard",
+        "torso": "Longsleeve",
+        "torsoOverlay": "Tabard",
+        "cape": "Solid",
+        "legs": "Plain skirt",
+        "feet": "Slippers",
+        "arms": "Gloves",
+        "headwear": "Hood",
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Cross amulet",
+            "color": "gold_red"
+          },
+          {
+            "name": "Cape Trim",
+            "color": "yellow"
+          }
+        ],
+        "weapon": "Mace",
+        "weaponColor": "gold",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {
