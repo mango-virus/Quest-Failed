@@ -1856,15 +1856,23 @@ export class DayPhase extends Phaser.Scene {
         if (SIG[u.classId]) u._allStarSig = SIG[u.classId]
       }
     }
-    // Rival (KR overhaul) — Vorzak is a rival DUNGEON LORD, not a generic invader:
-    // he wears a random T4 boss skin (the same skin system the Rival Dungeon event
-    // uses) so the climax reads as a boss-vs-boss showdown. The throne duel
-    // cinematic + the boss-archetype-kit signature are the deeper set-piece (TODO).
+    // Rival (KR overhaul) — this is a rival DUNGEON invading, so dress the pack as
+    // MONSTERS, not humanoid adventurers (the `monster_invader` chassis otherwise
+    // borrows a baked adventurer LPC via spriteSourceClassId). One roll yields a T4
+    // boss skin for Vorzak + a T1/T2 MINION sheet per horde monster — exactly how the
+    // standalone Rival Dungeon event renders its pack (rollRivalDungeonSprites). The
+    // boss skin (never the player's own archetype) makes the climax read boss-vs-boss.
     if (response.id === 'rival') {
       const vorzak = spawned.find(u => u && u._kingdomChampion)
+      // The horde = the monster retinue (excludes Vorzak — his _monster is set below).
+      const horde  = spawned.filter(u => u && u !== vorzak && u._monster)
+      const rolled = rollRivalDungeonSprites(this.cache.json.get('minionEvolutions') ?? {},
+        this._gameState.player?.bossArchetypeId, Math.max(1, horde.length))
+      // Dress each horde monster in a real minion sheet (AdventurerRenderer keys off
+      // `_minionSheet` → renders the `minion-<id>` sheet at the minion footprint).
+      horde.forEach((u, i) => { const sheet = rolled.minionSheets[i]; if (sheet) u._minionSheet = sheet })
       if (vorzak) {
-        const skin = rollRivalDungeonSprites(this.cache.json.get('minionEvolutions') ?? {},
-          this._gameState.player?.bossArchetypeId, 1).bossSkin
+        const skin = rolled.bossSkin
         if (skin) {
           vorzak._rivalBossSpriteKey = skin
           vorzak._monster = true
