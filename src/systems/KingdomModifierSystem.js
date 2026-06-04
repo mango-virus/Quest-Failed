@@ -484,9 +484,12 @@ export class KingdomModifierSystem {
       a._kingdomChampion && (a.resources?.hp ?? 0) > 0)
     if (!champ) { this._champSeenAt = null; this._champAbilityAt = 0; return }
     const now = this._scene?.time?.now ?? 0
-    if (this._champSeenAt == null) { this._champSeenAt = now; this._champAbilityAt = now + CHAMP_ABILITY_FIRST_MS }
+    // Dev sandbox (window.__qfDev.fastAbilities) collapses the cadence so a cast
+    // is easy to screenshot; production cadence otherwise.
+    const _fast = globalThis.__qfDevFastAbilities
+    if (this._champSeenAt == null) { this._champSeenAt = now; this._champAbilityAt = now + (_fast ? 600 : CHAMP_ABILITY_FIRST_MS) }
     if (now < (this._champAbilityAt ?? 0)) return
-    this._champAbilityAt = now + CHAMP_ABILITY_CD_MS
+    this._champAbilityAt = now + (_fast ? 2500 : CHAMP_ABILITY_CD_MS)
     // Dispatch on the CHAMPION's own response, not the ambient act response — so a
     // dev-spawned raid (which doesn't set meta.act.responses) still fires the right
     // signature. In a real act the two are identical.
@@ -743,13 +746,14 @@ export class KingdomModifierSystem {
   _tickAllStarAbilities() {
     const now = this._scene?.time?.now ?? 0
     if (!now) return
+    const _fast = globalThis.__qfDevFastAbilities
     const stars = (this._gs.adventurers?.active ?? []).filter(a => a._allStarSig && (a.resources?.hp ?? 0) > 0)
     for (const s of stars) {
       if (s._allStarAbilityAt == null) {
-        s._allStarAbilityAt = now + ALLSTAR_FIRST_MS + (ALLSTAR_STAGGER[s._allStarSig] ?? 0)
+        s._allStarAbilityAt = now + (_fast ? 400 : ALLSTAR_FIRST_MS) + (_fast ? 0 : (ALLSTAR_STAGGER[s._allStarSig] ?? 0))
       }
       if (now < s._allStarAbilityAt) continue
-      s._allStarAbilityAt = now + ALLSTAR_CD_MS
+      s._allStarAbilityAt = now + (_fast ? 2200 : ALLSTAR_CD_MS)
       switch (s._allStarSig) {
         case 'stormcaller': this._asStormcaller(s); break
         case 'trueshot':    this._asTrueshot(s);    break

@@ -82,6 +82,7 @@ import { BossPactVfx }        from '../ui/BossPactVfx.js'
 import { TutorialSystem }     from '../systems/TutorialSystem.js'
 import { NpcDirector }        from '../systems/NpcDirector.js'
 import { getRotatedDef }      from '../util/roomRotation.js'
+import { installDevSandbox }  from '../dev/DevSandbox.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -297,6 +298,10 @@ export class Game extends Phaser.Scene {
     // The deep per-response modifiers (KR P4) — the rule-bending signature
     // mechanics (Forlorn fury, Pantheon zones, etc.). Same `acts` gate.
     if (isActsEnabled()) this.kingdomModifierSystem = track(new KingdomModifierSystem(this, this.gameState))
+    // Dev VFX sandbox (window.__qfDev) — cheat-name gated. Scriptable spawning of
+    // test minions/traps + champion-raid firing so the Kingdom-Response set-pieces
+    // can be verified without hand-playing a run. See src/dev/DevSandbox.js.
+    if (this._isMangoCheat) { try { installDevSandbox(this) } catch (e) { console.warn('[qfDev] install failed', e) } }
     this.bossPactVfx         = track(new BossPactVfx(this, this.gameState))
     this.roomBehaviorSystem  = track(new RoomBehaviorSystem(this, this.gameState))
     this.classAbilitySystem  = track(new ClassAbilitySystem(this, this.gameState))
