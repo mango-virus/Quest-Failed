@@ -1577,11 +1577,11 @@ Facts: resurrection is AUTOMATIC on any pantheon-hero death — spawns a fresh
 ### Rival
 Facts: rival monsters currently use the monster_invader chassis (not specially
 buffed). The Rival DUNGEON EVENT already uses real minion art + a random boss skin.
-- 🟡 The "adventurers" are actual T1–T4 MINIONS (like the Rival Dungeon event), not normal adventurers. [retinue reads as monsters (monster_invader, noFlee); applying real T1–T4 minion SHEETS = sprite pass]
+- ☑ The "adventurers" are actual T1–T4 MINIONS (like the Rival Dungeon event), not normal adventurers. [SHIPPED 2026-06-04 — the rival block in DayPhase._spawnChampionRaid rolls rollRivalDungeonSprites() and stamps `_minionSheet` (a `minion-<id>` key, T1 sheets first half / T2 second half) on each `_monster` retinue unit; AdventurerRenderer then draws real minion sheets instead of the monster_invader chassis's borrowed adventurer LPC. Verified: 8/8 horde monsters render isMinionSheet=true.]
 - ☑ The rival boss sprite is a random T4 boss when it spawns. [SHIPPED 2026-06-03 — Vorzak gets a random boss skin via rollRivalDungeonSprites().bossSkin → `_rivalBossSpriteKey` (renderer reads it), named "Vorzak, the <Archetype> Usurper".]
 - ☑ Unique cinematic for the boss-vs-boss fight, Aldric/Solo-Leveling style but completely unique animations + VFX. [SHIPPED 2026-06-04 — the RIVAL SHOWDOWN, see "Rival — SHIPPED" below.]
 
-**Rival status:** the rival-boss IDENTITY (random T4 boss skin on Vorzak) is shipped, AND the **boss-vs-boss SHOWDOWN cinematic** is shipped (2026-06-04). The remaining open item is the champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") + the minion-sheet sprite pass — both DEFERRED.
+**Rival status:** the rival-boss IDENTITY (random T4 boss skin on Vorzak), the **retinue minion sprites** (T1/T2 minion sheets), AND the **boss-vs-boss SHOWDOWN cinematic** are all shipped (2026-06-03/04). The remaining open item is the champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — DEFERRED.
 
 ### Rival — boss-vs-boss SHOWDOWN
 
