@@ -1137,6 +1137,10 @@ export class RightPanels {
     sub('ALLSTAR_ABILITY', ({ hero, move } = {}) => {
       this._addLog(`${hero || 'A champion'} unleashes ${move || 'a signature move'}!`, 'champion')
     })
+    // Reckoning — Necrarch's Reanimate raises a fresh corpse as an undead thrall.
+    sub('RECKONING_REANIMATE', () => {
+      this._addLog('Necrarch REANIMATES the fallen — a thrall claws up to march on your throne!', 'champion')
+    })
     // Betrayer — the Turncoat's Sabotage charms one of your minions to fight you.
     sub('MINION_SABOTAGED', ({ name } = {}) => {
       this._addLog(`${name || 'A minion'} is SABOTAGED — it turns on your halls!`, 'champion')

@@ -510,6 +510,7 @@ export class KingdomModifierSystem {
       case 'mage_tower':  this._champPolymorph(champ);     break
       case 'pantheon':    this._champFinalJudgment(champ); break
       case 'betrayer':    this._champSabotage(champ);      break
+      case 'reckoning_dead': this._champReanimate(champ);  break
       // (other champions' signatures added per response slice)
     }
   }
@@ -1220,6 +1221,11 @@ export class KingdomModifierSystem {
   // ── ADVENTURER_DIED router ──────────────────────────────────────────────────
   _onAdventurerDied({ adventurer } = {}) {
     if (!adventurer) return
+    // Remember the freshest corpse so Necrarch's Reanimate can raise a thrall where
+    // a unit just fell (Reckoning). worldX/Y are pixel coords; tile coords too.
+    if (Number.isFinite(adventurer.worldX)) {
+      this._lastCorpse = { x: adventurer.worldX, y: adventurer.worldY, tileX: adventurer.tileX, tileY: adventurer.tileY }
+    }
     // Captain Halric falls → the binding oath SHATTERS: the surviving martyrs lose
     // their fury and rout. Routed first so the captain's own death deflates the
     // squad instead of stoking it (the binder is gone, not another martyr down).
@@ -1353,6 +1359,47 @@ export class KingdomModifierSystem {
   // (bigger + hotter the more stacks it carries; a faint doomed presence even at
   // zero) and a "⚔ FURY ×N" counter floats over the squad lead, punching on each
   // fresh kill. Drawn every frame so it reads as a living, breathing rage.
+  // Reanimate (Necrarch's signature) — raise a just-killed unit as an undead THRALL
+  // that marches on your boss. Rises from the freshest corpse (or beside Necrarch),
+  // in a green grave-burst. Reuses DayPhase's Risen-Dead spawn (zombie chassis).
+  _champReanimate(champ) {
+    const sc = this._scene
+    const dayPhase = sc?.scene?.get?.('DayPhase')
+    if (!dayPhase?.scene?.isActive?.() || typeof dayPhase._spawnRisenDead !== 'function') return
+    const risen = dayPhase._spawnRisenDead(1, this._gs.boss?.level ?? 1)
+    const z = risen?.[0]
+    if (!z) return
+    // Raise it where a unit just fell; else beside Necrarch.
+    const at = (this._lastCorpse && Number.isFinite(this._lastCorpse.x))
+      ? this._lastCorpse
+      : { x: champ.worldX, y: champ.worldY, tileX: champ.tileX, tileY: champ.tileY }
+    if (Number.isFinite(at.x)) {
+      z.worldX = at.x; z.worldY = at.y
+      if (at.tileX != null) { z.tileX = at.tileX; z.tileY = at.tileY }
+      z.path = null; z.pathIndex = 0
+    }
+    z.goal = { type: 'SEEK_BOSS' }
+    z.name = 'Reanimated Thrall'
+    z._reanimated = true
+    this._lastCorpse = null   // consume the corpse so the next cast finds a fresh one
+    EventBus.emit('CHAMPION_ABILITY', { responseId: 'reckoning_dead', name: 'REANIMATE', champion: champ?.name })
+    EventBus.emit('RECKONING_REANIMATE', { name: z.name })
+    this._necroticRise(at.x ?? champ.worldX ?? 0, at.y ?? champ.worldY ?? 0)
+  }
+
+  // A green grave-burst: a necrotic light pillar, a sickly rune circle, bone-shard
+  // particles, a sunburst, a grave crater + a pulse — the dead clawing up.
+  _necroticRise(x, y) {
+    const sc = this._scene
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return
+    AbilityVfx.beamPillar?.(sc, x, y, { color: 0x6fce8a, width: 30, height: 230, durationMs: 660 })
+    AbilityVfx.magicCircle?.(sc, x, y, { color: 0x6fce8a, radius: 40, durationMs: 840 })
+    AbilityVfx.burstRays?.(sc, x, y, { color: 0x9ef0b0, count: 10, length: 64, durationMs: 500 })
+    AbilityVfx.particleBurst?.(sc, x, y, { color: 0x9ef0b0, count: 16, speed: 120, durationMs: 660 })
+    AbilityVfx.crater?.(sc, x, y, { color: 0x16240f, radius: 18 })
+    AbilityVfx.pulseRing?.(sc, x, y, { color: 0x6fce8a, fromR: 6, toR: 46, alpha: 0.85, durationMs: 540 })
+  }
+
   // Sabotage (the Turncoat's signature) — CHARM a random one of your minions to
   // fight for the raid for a few seconds (a temporary defection via faction flip),
   // then snap it back. Reuses the same faction='adventurer' path the permanent
