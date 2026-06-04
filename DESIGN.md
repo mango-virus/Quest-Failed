@@ -1591,15 +1591,15 @@ buffed). The Rival DUNGEON EVENT already uses real minion art + a random boss sk
 > *"A power-struggle, not a sword fight. The two lords stand at OPPOSITE ends and channel colliding energy beams; a central nexus orb slides toward whoever's losing. HUD = one tug-of-war DOMINANCE bar (not two HP bars). Beats: SURGE / COUNTER-SURGE / FEEDBACK, ending in the loser's beam collapsing + detonating on them. Totally unlike the melee duel — stationary, arcane, two auras swelling/shrinking around a crackling beam-lock."*
 > Preview locked: `VORZAK ◀━━━━━●━━━━━▶ YOUR BOSS` (purple ↔ crimson, ▲nexus); two beams `))))))))> <(((((((` colliding at a ✦ nexus; "nexus lurches toward the loser each SURGE; on FEEDBACK it detonates → throne held / usurped."
 
-Acceptance checklist (tick against CODE before claiming done):
-- ☐ **Stationary, not melee** — the two lords hold OPPOSITE anchors (your boss = throne/north, Vorzak = south) and CHANNEL; no orbiting, blade-clashing, or knockback-shove choreography. They lean/recoil with the struggle, not trade strikes.
-- ☐ **Colliding beams + a nexus orb** — a continuous beam from each lord meets at a central nexus; the nexus is a distinct crackling orb that SLIDES along the beam axis toward whoever is losing.
-- ☐ **Dominance, not HP** — the in-world + cinematic state is a single DOMINANCE value (nexus position), NOT two HP bars. Real HP still resolves to the rolled outcome at the climax (loser → 0).
-- ☐ **HUD = one tug-of-war bar** — the cinematic shows ONE horizontal dominance bar (Vorzak purple ◀ … ▶ your boss crimson) with a nexus marker that tracks the struggle; NO two-HP-bar header.
-- ☐ **Beat sequence = SURGE / COUNTER-SURGE / FEEDBACK** — Vorzak surges (nexus lurches toward your boss) → your boss counter-surges → strain → FEEDBACK turning point → overload → collapse. Each surge lurches the nexus + swells the surging side's beam/aura.
-- ☐ **Collapse finale** — the LOSER's beam collapses and detonates ON them; win = "THE THRONE HOLDS", loss = "USURPED"/"THE THRONE IS BREACHED".
-- ☐ **Unique VFX + unique cinematic CSS** — beam-struggle VFX (colliding beams, nexus orb, arc feedback, ground corruption, swelling auras), NOT the Aldric blade/dome/god-ray set; bespoke `qf-riv-*` stylesheet, NOT a recolor of `qf-ald-*`.
-- ☐ **New event contract** — engine emits a dominance feed (e.g. `RIVAL_DUEL_DOMINION { dom }`) for the bar/nexus, plus rival-specific `_BEAT` kinds; the cinematic renders from those (no advFrac/bossFrac two-bar dependency).
+Acceptance checklist — ALL met + verified live (commit 616bfef, 2026-06-04):
+- ☑ **Stationary, not melee** — `_dominionMove` holds the lords at throne/south anchors and leans/recoils them by `dom`; no orbit/clash/knockback. Verified: phases run with the lords held (not the Aldric `_nemMove`).
+- ☑ **Colliding beams + a nexus orb** — `_dominionBeamRedraw` draws two tapered crackling beams (crimson + purple) meeting at a nexus orb at `1-dom` along the axis. Verified on-canvas (305 draw cmds, green-test render confirmed; nexus coords track `dom`).
+- ☑ **Dominance, not HP** — engine eases a single `D.dom`; emits `RIVAL_DUEL_DOMINION { dom }` (HP derived only so the rolled loser hits 0). No two-HP-bar feed on the rival path.
+- ☑ **HUD = one tug-of-war bar** — `qf-riv-track` with a purple (left) + crimson (right) fill meeting at a sliding `qf-riv-nexus`. Verified DOM (fills 30/70%, nexus left% = dom) + screenshot.
+- ☑ **Beat sequence = SURGE / COUNTER-SURGE / FEEDBACK** — `_buildDominionPlan` = ignite→lock→v_surge→b_counter→strain→feedback→overload→collapse; beats fire in order (verified live), nexus lurches + auras swell per surge.
+- ☑ **Collapse finale** — `collapse` phase detonates the loser's side; `_onEnd` card win = "THE THRONE HOLDS / THE USURPER FALLS", loss = "THE THRONE IS USURPED / VORZAK CLAIMS THE THRONE". Both verified.
+- ☑ **Unique VFX + unique cinematic CSS** — bespoke `qf-riv-*` stylesheet (NO `qf-ald-root` present); beam/nexus/aura/feedback VFX, not blade/dome/god-rays. Verified (`hasAldRoot:false`).
+- ☑ **New event contract** — `RIVAL_DUEL_BEGAN/_DOMINION/_BEAT/_END`; cinematic renders from `dom` + rival beat kinds (no advFrac/bossFrac).
 - 🟡 Champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — STILL DEFERRED (the showdown does not require it; outcome rolled from relative power).
 - 🟡 Retinue minion SHEETS + unique Vorzak look — sprite pass, DEFERRED.
 
