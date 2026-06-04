@@ -107,6 +107,10 @@ const ATK_CLASSES = new Set([
   // All four need the 192×192 atk sheet so their weapons render at native
   // scale during combat instead of being clipped into 64×64.
   'paladin', 'white_mage', 'samurai', 'black_mage',
+  // KR Kingdom-Response champions — Sir Garreth (All-Stars) swings a Longsword
+  // (slash_oversize), so the atk sheet is required for a visible blade. The
+  // white/gold heater shield is carried over from the base slash frames.
+  'champion_garreth',
 ]);
 // Weapons whose attack is the standard 64×64 slash (a contained "normal" swing
 // with the shield up) rather than the oversize 192×192 arc. Variants wielding

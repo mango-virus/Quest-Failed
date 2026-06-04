@@ -1852,6 +1852,54 @@ POOLS.shadow_monarch = {
   },
 }
 
+// ============================================================
+// KR CHAMPION: Sir Garreth the Gilded — the All-Stars dream-team CAPTAIN.
+// A resplendent GOLD-plated hero-knight in radiant WHITE heraldry. A FIXED single
+// look (baked at count 1, pinned to the All-Stars champion at spawn), built on the
+// templar's full-plate + rev_gold + cape stack. Open-faced crested helm so his
+// noble beard shows. Every slot is locked → the one baked variant is deterministic.
+// ============================================================
+POOLS.champion_garreth = {
+  bodyTypes: ['muscular'],            // a big heroic champion
+  heads: 'auto_human',
+  hair: { muscular: [] },             // helmeted → no top hair (beard carries the face)
+  beardChance: 1.0,                   // a noble veteran's beard
+  // GILDED PLATE — every plate piece shares rev_gold.
+  torso: ['Plate'],
+  // Radiant-white heraldic surcoat over the breastplate (Tabard zPos 55 < Plate 60).
+  torsoOverlay: { items: ['Tabard'], chance: 1.0 },
+  torsoOverlayColor: 'white',
+  legs: ['legs:Armour'],
+  feet: ['feet:Armour'],
+  arms: ['arms:Armour'],                              // full plate vambrace
+  hands: { items: ['Gloves'], chance: 1.0 },          // gold gauntlets
+  shoulder: { items: ['Pauldrons'], chance: 1.0 },    // gold pauldrons over the plate arm
+  // Grand crested helm (open-faced Maximus → the beard shows) + a radiant-white
+  // horsehair plume. (Maximus+Centurion Plumage is the gladiator's proven pairing.)
+  headwear: { items: ['Maximus'], chance: 1.0 },
+  headOverlay: [{ when: ['Maximus'], items: ['Centurion Plumage'], chance: 1.0, color: ['white'] }],
+  // Gilded gold — STANDARD 'gold' (not rev_gold): the revised-gold ramp only
+  // recolours palette-swap plate, but the Heater Shield Trim is a colour-variant
+  // metal that has no rev_gold PNG → it fell back to a red-bronze rim. Standard
+  // 'gold' recolours EVERY metal piece (plate, helm, gauntlets, pauldrons, sword,
+  // AND the shield trim) so the whole suit + the white-and-gold shield stay matched.
+  metalColorPool: ['gold'],
+  // Radiant white cloth — surcoat, cape, shield paint, plume.
+  clothColorPool: ['white'],
+  // Flowing white cape (the hero silhouette) + a gold-toned trim.
+  cape: { items: ['Solid'], chance: 1.0 },
+  capeColor: ['white'],
+  // Gilded longsword — blade locked to the gold metal so it matches the plate.
+  weapon: { items: ['Longsword'], chance: 1.0 },
+  weaponColor: 'metal',
+  // Heraldic heater shield — white painted face + gold trim.
+  alwaysShield: true,
+  shieldTypes: ['heater'],
+  heraldicShield: true,
+  // A gold-toned cape trim.
+  accessory: [{ items: ['Cape Trim'], chance: 1.0, color: ['yellow'] }],
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch

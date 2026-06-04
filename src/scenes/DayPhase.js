@@ -1855,6 +1855,10 @@ export class DayPhase extends Phaser.Scene {
         u._allStar = true
         if (SIG[u.classId]) u._allStarSig = SIG[u.classId]
       }
+      // Pin the champion (Sir Garreth the Gilded) to his bespoke gold-and-white
+      // hero sprite, so he reads as the dream-team CAPTAIN, not a random knight.
+      const garreth = spawned.find(u => u && u._kingdomChampion)
+      if (garreth) garreth.spriteVariant = 'champion_garreth/v01'
     }
     // Rival (KR overhaul) — this is a rival DUNGEON invading, so dress the pack as
     // MONSTERS, not humanoid adventurers (the `monster_invader` chassis otherwise

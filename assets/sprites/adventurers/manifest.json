@@ -70153,6 +70153,49 @@
         "crystal": null,
         "shield": null
       }
+    ],
+    "champion_garreth": [
+      {
+        "id": "v01",
+        "bodyType": "muscular",
+        "bodyColor": "bronze",
+        "hairColor": "gold",
+        "clothColor": "white",
+        "metalColor": "gold",
+        "head": "Human Male",
+        "hair": null,
+        "beard": "Chevron Mustache",
+        "torso": "Plate",
+        "torsoOverlay": "Tabard",
+        "cape": "Solid",
+        "legs": "legs:Armour",
+        "feet": "feet:Armour",
+        "arms": "arms:Armour",
+        "shoulder": "Pauldrons",
+        "hands": "Gloves",
+        "headwear": "Maximus",
+        "headOverlays": [
+          {
+            "name": "Centurion Plumage",
+            "color": "white"
+          }
+        ],
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Cape Trim",
+            "color": "yellow"
+          }
+        ],
+        "weapon": "Longsword",
+        "weaponColor": "gold",
+        "crystal": null,
+        "shield": {
+          "kind": "heater",
+          "paint": "white"
+        }
+      }
     ]
   },
   "layout": {
