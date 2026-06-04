@@ -133,64 +133,76 @@ export function installDevSandbox(scene) {
       log('not in NightPhase — cannot start the day from here'); return { ok: false }
     },
 
-    // QUIET DAY — start the day with the normal wave suppressed, so the only units
-    // on the field are the ones YOU dev-spawn (great for isolating one class /
-    // boss / champion's VFX). Pass false to turn the suppression back off.
+    // QUIET MODE — when ON, days spawn NO normal wave and a wave-less day stays
+    // OPEN (a persistent stage for isolating one class/boss/champion's VFX). Turn
+    // it OFF to resume normal waves; an empty quiet day will then end on its own.
+    // Flag-only — use startDay() (or the START DAY button) to actually begin a day.
     quietDay(on = true) {
       globalThis.__qfDevQuietDay = !!on
-      log(`quiet day ${on ? 'ON — no normal wave will spawn' : 'OFF — normal waves resume'}`)
-      if (on) return this.startDay()
-      return { ok: true }
+      log(`quiet mode ${on ? 'ON — days spawn NO wave + stay open' : 'OFF — normal waves resume; an empty day will end'}`)
+      return !!on
     },
 
-    // ONE-CLICK ARENA — make the dungeon playable by wiring an entry hall to the
-    // boss chamber (the dev "Jump to Day 50" leaves only a bare boss room, so a
-    // day can't otherwise start). Rooms auto-connect by adjacency, so the entry
-    // hall is dropped directly ABOVE the boss (its outward entrance faces out, its
-    // bottom wall touches the boss → a door is auto-cut). Verified via the grid's
-    // own reachability check.
+    // ONE-CLICK ARENA — build a small CONNECTED starter dungeon so a day can run
+    // (the dev day-jumps leave only a bare boss room). Lays a chain to the LEFT of
+    // the boss — boss ← library ← trap factory ← barracks — with the entry hall
+    // above the barracks (its outward entrance facing up). Rooms auto-connect by
+    // adjacency; `noSnap` keeps the precise positions. Each placement is kept only
+    // if it actually links to the dungeon body; connectivity is verified at the end.
     arena() {
       const g = gs(); const gridApi = grid()
       if (!g || !gridApi) { log('no game'); return { ok: false } }
       const rooms = g.dungeon?.rooms ?? []
-      const playable = () => rooms.some(r => r.definitionId === 'entry_hall') &&
-        (gridApi.getDisconnectedRooms?.()?.length ?? 1) === 0
-      if (playable()) { log('dungeon already playable'); return { ok: true, already: true } }
+      const roomDefs = scene.cache.json.get('rooms') ?? []
+      const connected = () => (gridApi.getDisconnectedRooms?.()?.length ?? 1) === 0
+      if (rooms.some(r => r.definitionId === 'entry_hall') && connected()) { log('dungeon already playable'); return { ok: true, already: true } }
       const boss = rooms.find(r => r.definitionId === 'boss_chamber')
       if (!boss) { log('no boss chamber to anchor the arena'); return { ok: false } }
-      const entryDef = (scene.cache.json.get('rooms') ?? []).find(d => d.id === 'entry_hall')
-      if (!entryDef) { log('no entry_hall room def'); return { ok: false } }
-      const ew = entryDef.width ?? 12, eh = entryDef.height ?? 8
-      // Forced multi-entry: the day won't start until the boss-level-mandated number
-      // of entry halls is placed (2nd @ L5, 3rd @ L10). Place that many, on distinct
-      // sides of the boss (each entry's outward N entrance still faces open space).
+      const defOf = id => roomDefs.find(d => d.id === id)
+
+      // Place `defId` at (gx,gy); keep it only if it links to an existing room.
+      const tryPlace = (defId, gx, gy) => {
+        const def = defOf(defId); if (!def || gx < 0 || gy < 0) return null
+        const room = gridApi.placeRoom(def, gx, gy, { noSnap: true })
+        if (!room) return null
+        if ((gridApi.getNeighborRooms?.(room.instanceId)?.length ?? 0) > 0) { room._devSandbox = true; return room }
+        if (typeof gridApi.removeRoom === 'function') gridApi.removeRoom(room.instanceId)
+        else { const i = rooms.indexOf(room); if (i >= 0) rooms.splice(i, 1) }
+        return null
+      }
+
+      const by = boss.gridY
+      // Chain leftward off the boss (each overlaps the previous on the boss row band).
+      tryPlace('library_of_whispers', boss.gridX - 10, by + 3)   // ← boss
+      tryPlace('trap_factory',        boss.gridX - 20, by + 2)   // ← library
+      const barracks = tryPlace('starter_barracks', boss.gridX - 30, by + 3)   // ← trap factory
+      // Entry hall above the barracks (outward N entrance faces up).
+      const entryDef = defOf('entry_hall'); const eh = entryDef?.height ?? 8
+      let entry = tryPlace('entry_hall', boss.gridX - 30, by + 3 - eh)
+      // Fallbacks if the chain broke: just wire an entry hall straight to the boss.
+      if (!entry) entry = tryPlace('entry_hall', boss.gridX + Math.floor((boss.width - (entryDef?.width ?? 12)) / 2), by - eh)
+
+      // Forced multi-entry (2nd @ L5, 3rd @ L10) — top up entries by boss level.
       let required = 1
       try { required = gridApi.constructor.effectiveMaxPerDungeon?.(entryDef, g.boss?.level ?? 1) ?? 1 } catch (e) {}
-      const sides = [
-        { x: boss.gridX + Math.floor((boss.width - ew) / 2), y: boss.gridY - eh },                 // above
-        { x: boss.gridX - ew,           y: boss.gridY + Math.floor((boss.height - eh) / 2) },        // left
-        { x: boss.gridX + boss.width,   y: boss.gridY + Math.floor((boss.height - eh) / 2) },        // right
-        { x: boss.gridX, y: boss.gridY - eh }, { x: boss.gridX + boss.width - ew, y: boss.gridY - eh }, // above (offset fallbacks)
+      const ew = entryDef?.width ?? 12
+      const extra = [
+        { x: boss.gridX + Math.floor((boss.width - ew) / 2), y: by - eh },  // above boss
+        { x: boss.gridX + boss.width, y: by + 3 },                           // right of boss
       ]
-      let placed = rooms.filter(r => r.definitionId === 'entry_hall').length
-      for (const c of sides) {
-        if (placed >= required) break
-        if (c.x < 0 || c.y < 0) continue
-        const room = gridApi.placeRoom(entryDef, c.x, c.y, {})
-        if (!room) continue
-        // keep it only if it actually connected to the dungeon body
-        if (gridApi.getNeighborRooms?.(room.instanceId)?.length > 0 || gridApi.getDisconnectedRooms().length === 0) {
-          room._devSandbox = true; placed++
-        } else if (typeof gridApi.removeRoom === 'function') {
-          gridApi.removeRoom(room.instanceId)
-        } else { const i = rooms.indexOf(room); if (i >= 0) rooms.splice(i, 1) }
+      for (const s of extra) {
+        if (rooms.filter(r => r.definitionId === 'entry_hall').length >= required) break
+        tryPlace('entry_hall', s.x, s.y)
       }
-      if (placed >= required && gridApi.getDisconnectedRooms().length === 0) {
-        log(`test arena ready — ${placed} entry hall(s) wired to the boss; the day can start`)
-        return { ok: true, entries: placed }
+
+      const disc = gridApi.getDisconnectedRooms()
+      const built = rooms.filter(r => r._devSandbox).map(r => r.definitionId)
+      if (disc.length === 0 && rooms.some(r => r.definitionId === 'entry_hall')) {
+        log(`built a connected test dungeon (${built.length} rooms → boss): ${built.join(', ')}`)
+        return { ok: true, rooms: built }
       }
-      log(`could not fully wire the arena (placed ${placed}/${required} entry halls) — finish it manually`)
-      return { ok: false, entries: placed, required }
+      log(`arena partial — disconnected: ${disc.map(r => r.definitionId).join(', ') || 'none'} · placed: ${built.join(', ')}`)
+      return { ok: false, disconnected: disc.map(r => r.definitionId), placed: built }
     },
 
     // Remove everything the sandbox created (minions, traps, raid units).
@@ -223,7 +235,7 @@ export function installDevSandbox(scene) {
       const h = [
         'window.__qfDev — Kingdom-Response VFX sandbox',
         "  .arena()                         one-click: wire an entry hall to the boss so a day can start",
-        "  .quietDay(true)                  start a wave-less day (only YOUR dev-spawns appear)",
+        "  .quietDay(true|false)            toggle QUIET mode (no wave + day stays open); false = back to normal",
         "  .startDay()                      end build phase, start the NORMAL wave",
         "  .fastAbilities(true)             champion signatures fire in ~0.6s (no 4.5s wait)",
         "  .populate({minions=8,traps=3})   spawn mixed-tier minions (+undead) + traps near the boss",
@@ -234,7 +246,7 @@ export function installDevSandbox(scene) {
         '',
         "  responses: plunderers inquisition forlorn_hope mage_tower pantheon all_stars betrayer reckoning_dead rival",
         '',
-        "  clean VFX test from the day-jump:  __qfDev.arena(); __qfDev.fastAbilities(); __qfDev.quietDay(); __qfDev.populate(); __qfDev.champion('mage_tower')",
+        "  clean VFX test from the day-jump:  __qfDev.arena(); __qfDev.fastAbilities(); __qfDev.quietDay(); __qfDev.startDay(); __qfDev.populate(); __qfDev.champion('mage_tower')",
         "  act-wide gimmick:                  __qfDev.setResponse('betrayer'); __qfDev.populate()   // traps flip green ⇄ + chew your minions",
       ].join('\n')
       console.log(h); return h

@@ -158,11 +158,11 @@ export class DevEventsButton {
         // ── VFX sandbox — set up targets so the champion signatures have things to hit ──
         h('div', { className: 'qf-dev-events-section sandbox pix' }, 'VFX SANDBOX  ·  window.__qfDev'),
         h('div', { className: 'qf-dev-events-grid' }, [
-          sandboxCard('BUILD ARENA', 'wire an entry hall to the boss', '🏗',
+          sandboxCard('BUILD ARENA', 'connected starter dungeon → boss', '🏗',
             () => this._qfDev()?.arena(), true),
-          sandboxCard('QUIET DAY', 'start a day · NO normal wave', '🔇',
-            () => this._qfDev()?.quietDay(true)),
-          sandboxCard('START DAY', 'start a NORMAL wave day', '▶',
+          sandboxCard(this._quietLabel(), 'no wave + day stays open', '🔇',
+            () => { const on = this._qfDev()?.quietDay(!globalThis.__qfDevQuietDay); return on ? 'QUIET MODE: ON' : 'QUIET MODE: OFF' }, true),
+          sandboxCard('START DAY', 'begin a day (quiet if mode is on)', '▶',
             () => this._qfDev()?.startDay()),
           sandboxCard(this._fastLabel(), 'cast in ~0.6s, not 4.5s', '⚡',
             () => { const on = this._qfDev()?.fastAbilities(!globalThis.__qfDevFastAbilities); return on ? 'FAST ABILITIES: ON' : 'FAST ABILITIES: OFF' }, true),
@@ -230,6 +230,7 @@ export class DevEventsButton {
     return api
   }
   _fastLabel() { return globalThis.__qfDevFastAbilities ? 'FAST ABILITIES: ON' : 'FAST ABILITIES: OFF' }
+  _quietLabel() { return globalThis.__qfDevQuietDay ? 'QUIET MODE: ON' : 'QUIET MODE: OFF' }
 
   _closeModal() {
     if (this._escFn) {
