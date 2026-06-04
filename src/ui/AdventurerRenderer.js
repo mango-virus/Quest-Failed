@@ -46,13 +46,13 @@ const ATK_ANIMS = new Set(['slash', 'thrust'])
 // sheet (body + full-size weapon) is used for walking/standing/running. Weapons
 // that need it (their LPC walk is a `walk_128` animation).
 //   • Dragon/Long spear + Trident: long polearm shafts.
-//   • Scimitar: its LPC art is walk_128-ONLY (no standard 64px walk layer at
-//     all), so without the carry sheet the curved blade never composites into
+//   • Scimitar + Katana: their LPC art is walk_128-ONLY (no standard 64px walk
+//     layer at all), so without the carry sheet the blade never composites into
 //     the base walk/idle/run rows — the sprite walks with an INVISIBLE sword
 //     (only the slash _atk sheet shows the blade). MUST stay in sync with the
 //     same set in AdventurerAtkLoader.js + bake-weapons.cjs.
 const CARRY_WALK_ANIMS = new Set(['walk', 'idle', 'run'])
-const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar'])
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar', 'Katana'])
 // LPC attack-anim names that minion sheets + boss-archetype sheets have
 // no dedicated frames for (those sheets ship a single `attack` state).
 // _resolveLpcAnimKey collapses every one of these onto `attack`.

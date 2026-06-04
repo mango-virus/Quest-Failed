@@ -85,10 +85,10 @@ const ADVENTURER_ATK_COLS  = 8
 // Oversize CARRY sheet (_walk128) — 128px walk block (9 frames × 4 dirs) for
 // polearms whose LPC walk is a `walk_128` animation (dragon/long spear, trident).
 // Walk/idle/run render from this so the long shaft shows at native size.
-// Scimitar is walk_128-ONLY (no 64px walk layer) → it MUST carry-render or the
-// blade is invisible while walking. Polearms carry for shaft length. MUST match
-// the same set in AdventurerRenderer.js + bake-weapons.cjs.
-const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar'])
+// Scimitar + Katana are walk_128-ONLY (no 64px walk layer) → they MUST carry-
+// render or the blade is invisible while walking. Polearms carry for shaft
+// length. MUST match the same set in AdventurerRenderer.js + bake-weapons.cjs.
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar', 'Katana'])
 const ADVENTURER_CARRY_FRAME = 128
 const ADVENTURER_CARRY_COLS  = 9
 const ADVENTURER_ATK_ANIM_LAYOUT = {

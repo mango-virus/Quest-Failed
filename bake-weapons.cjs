@@ -500,12 +500,12 @@ const CARRY_OFFSET = (CARRY_FRAME - FRAME) / 2; // 32 — base body centred in 1
 //   1. Long polearm shafts (Dragon/Long spear, Trident) that overflow the 64px
 //      base walk cell.
 //   2. walk_128-ONLY weapons that ship NO standard 64px walk layer — the
-//      **Scimitar** (and Katana) are entirely custom_animation (walk_128 +
+//      **Scimitar** and **Katana** are entirely custom_animation (walk_128 +
 //      slash_128), so layerComposites() skips them from the base sheet and the
 //      blade NEVER appears while walking unless we build + carry-render the
-//      _walk128 sheet. (Bows / Rapier / Saber DO ship a standard walk layer, so
-//      they walk fine in the 64px base — do NOT add those here.)
-const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar']);
+//      _walk128 sheet. (Bows / Rapier / Saber / Glowsword DO ship a standard
+//      walk layer, so they walk fine in the 64px base — do NOT add those here.)
+const CARRY_WALK_WEAPONS = new Set(['Dragon spear', 'Long spear', 'Trident', 'Scimitar', 'Katana']);
 // Set by main() from the `--carry-only` CLI flag (see processVariant).
 let CARRY_ONLY = false;
 async function buildCarrySheet(charPath, def, variantFile, bodyType) {
