@@ -2185,6 +2185,51 @@ POOLS.champion_halric = {
   capeColor: ['orange'],
 };
 
+// ── The Turncoat (KR "Betrayer" champion, rogue chassis) ──
+// A two-faced DEFECTOR — a traitor from your own ranks (a defecting minion) who
+// turned the dungeon against you. Reads as the all-dark rogue CORRUPTED by venom-
+// green betrayal: a dark-leather thief base under a sickly VENOM-GREEN hood + a
+// tattered green cloak, a pale FACELESS mask (the traitor hides their identity),
+// and a poison dagger. Green + black to match the Betrayer #7ec850 poison accent
+// + ⇄ turncoat sigil.
+POOLS.champion_turncoat = {
+  bodyTypes: ['male'],
+  heads: 'auto_human',
+  // A flat, tie-free fringe (the random covering-safe pick landed on a topknot
+  // with a PINK hair-tie that poked above the hood); lock to clean flat styles.
+  hair: ['Bangsshort', 'Swoop', 'Parted'],
+  hairColorPool: ['black'],
+  beardChance: 0,
+  // Dark-leather rogue base.
+  torso: ['Leather'],
+  legs: ['Pants'],
+  legsColor: ['black'],
+  feet: ['Folded Rim Boots'],
+  feetColor: ['black'],
+  arms: { items: ['Bracers'], chance: 1.0 },
+  // A dark leather belt.
+  torsoOverlay: { items: ['Leather Belt'], chance: 1.0 },
+  torsoOverlayColor: ['charcoal'],
+  clothColorPool: ['black'],
+  // ✦ The betrayal tell: a sickly VENOM-GREEN hood (vs the all-dark rogue's hood).
+  headwear: { items: ['Hood'], chance: 1.0 },
+  headwearColor: ['green'],
+  // A pale FACELESS mask under the hood — the traitor conceals their identity.
+  accessory: [
+    { items: ['Plain Mask'], chance: 1.0, color: ['white'] },
+  ],
+  metalColorPool: ['steel'],
+  // The rogue's poison dagger (Dagger = normal 64px attack — NO _atk oversize
+  // sheet, so champion_turncoat is NOT added to any ATK_CLASSES set; the base
+  // slash row shows the blade).
+  weapon: { items: ['Dagger'], chance: 1.0 },
+  weaponColor: 'metal',
+  // A tattered venom-green defector's cloak (the dungeon-corruption green clinging
+  // to the turncoat).
+  cape: { items: ['Tattered'], chance: 1.0 },
+  capeColor: ['green'],
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch

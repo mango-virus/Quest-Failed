@@ -70446,6 +70446,38 @@
         "crystal": null,
         "shield": null
       }
+    ],
+    "champion_turncoat": [
+      {
+        "id": "v01",
+        "bodyType": "male",
+        "bodyColor": "bronze",
+        "hairColor": "black",
+        "clothColor": "black",
+        "metalColor": "steel",
+        "head": "Human Male Elderly",
+        "hair": "Parted",
+        "beard": null,
+        "torso": "Leather",
+        "torsoOverlay": "Leather Belt",
+        "cape": "Tattered",
+        "legs": "Pants",
+        "feet": "Folded Rim Boots",
+        "arms": "Bracers",
+        "headwear": "Hood",
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Plain Mask",
+            "color": "white"
+          }
+        ],
+        "weapon": "Dagger",
+        "weaponColor": "steel",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {

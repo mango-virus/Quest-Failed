@@ -171,6 +171,9 @@ const ADVENTURER_CLASS_IDS = [
   // variant each. DayPhase pins the response's champion to `champion_<id>/v01` via
   // spriteVariant. Count override (1) below prevents v02..v100 404s.
   'champion_garreth', 'champion_necrarch', 'champion_vane', 'champion_mordrake', 'champion_velloran', 'champion_aurelia', 'champion_halric',
+  // The Turncoat (Betrayer) — Dagger = normal 64px attack, so it is INTENTIONALLY
+  // NOT in the ATK_CLASSES set below (no _atk sheet); base slash row shows the blade.
+  'champion_turncoat',
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 100
 // Per-class override for classes that ship fewer than the default 100 baked
@@ -181,7 +184,7 @@ const ADVENTURER_VARIANTS_PER_CLASS = 100
 const ADVENTURER_VARIANT_COUNT = {
   shadow_monarch: 1, aldric: 4,
   paladin: 1, white_mage: 1, samurai: 1, black_mage: 1,
-  champion_garreth: 1, champion_necrarch: 1, champion_vane: 1, champion_mordrake: 1, champion_velloran: 1, champion_aurelia: 1, champion_halric: 1,
+  champion_garreth: 1, champion_necrarch: 1, champion_vane: 1, champion_mordrake: 1, champion_velloran: 1, champion_aurelia: 1, champion_halric: 1, champion_turncoat: 1,
 }
 const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIANTS_PER_CLASS
 
