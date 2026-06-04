@@ -297,9 +297,15 @@ export class EventBanner {
     sub('HUD_BANNER',              (p) => this._onAnnounced({ def: p ?? {} }))
     // A cinematic boss-vs-boss duel takes over the top-centre zone with its own
     // HUD — force-close any lingering slam-in banner (e.g. the champion-arrival
-    // slate) so it doesn't sit under the duel's dominance bar.
-    sub('RIVAL_DUEL_BEGAN',        ()  => this._forceClose())
-    sub('ALDRIC_DUEL_BEGAN',       ()  => this._forceClose())
+    // slate) AND hide the persistent event-pill row (an active dungeon event's
+    // chip otherwise sits under the duel's dominance bar). Mirrors the Light Party
+    // takeover above; restored when the duel resolves.
+    const duelTakeover = () => { this._forceClose(); if (this._pillRow) this._pillRow.style.display = 'none' }
+    const duelRestore  = () => { if (this._pillRow) this._pillRow.style.display = '' }
+    sub('RIVAL_DUEL_BEGAN',        ()  => duelTakeover())
+    sub('ALDRIC_DUEL_BEGAN',       ()  => duelTakeover())
+    sub('RIVAL_DUEL_END',          ()  => duelRestore())
+    sub('ALDRIC_DUEL_END',         ()  => duelRestore())
     // Phylactery flavor banners — Lich-specific run beats that deserve
     // the same cinematic weight as a Dungeon Event.
     sub('PHYLACTERY_DESTROYED',    ()  => this._onPhylacteryDestroyed())
