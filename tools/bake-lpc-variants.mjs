@@ -765,9 +765,12 @@ function sampleVariant(rng, className, classPool, forced = {}) {
       ? pick(rng, classPool.weaponColor)
       : (classPool.weaponColor ?? null);
   // Crystal pair: when staff is Diamond/Loop, force-add a crystal layer.
+  // `crystalColor` (a Crystal variant name, e.g. 'yellow'/'blue') lets a named
+  // character lock the staff-gem colour instead of a random CRYSTAL_RULE pick
+  // (e.g. Aurelia's holy gold crystal, so it isn't a clashing amethyst).
   v.crystal = null;
   if (v.weapon && CRYSTAL_RULE.staves.has(v.weapon)) {
-    v.crystal = { color: pick(rng, CRYSTAL_RULE.colors) };
+    v.crystal = { color: classPool.crystalColor ?? pick(rng, CRYSTAL_RULE.colors) };
   }
 
   // Shield — supports multiple shield "kinds" (classPool.shieldTypes, default

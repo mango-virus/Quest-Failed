@@ -2099,6 +2099,50 @@ POOLS.champion_velloran = {
   capeColor: ['navy'],
 };
 
+// ── Aurelia, the Descended Seraph (KR "Pantheon" champion, white_mage chassis) ──
+// A radiant WINGED angel of divine judgment — far grander than the soft pastel
+// white_mage. Big white feathered wings, a flowing white + gold robe, a gold
+// diadem, long golden hair, and a glowing holy staff. White + gold to match the
+// Pantheon response's #ffe9a8 radiant-gold accent + ☼ sun emblem.
+POOLS.champion_aurelia = {
+  bodyTypes: ['female'],
+  heads: 'auto_human',
+  // Long flowing golden hair (no beard — a graceful seraph).
+  hair: ['Long', 'Long straight'],
+  hairColorPool: ['blonde'],
+  beardChance: 0,
+  // Flowing white kimono robe + gold-ish trim + big angelic oversized sleeves.
+  // (Cloth has no metallic 'gold'; 'yellow' is the warm gold-tone cloth.)
+  outfit: {
+    bases:   [{ layers: [['Kimono', 'main'], ['Kimono Trim', 'accent']] }],
+    sleeves: [{ layers: [['Kimono Oversized Sleeves', 'main'], ['Kimono Oversized Sleeves Trim', 'accent']] }],
+    mainColors:   ['white'],
+    accentColors: ['yellow'],
+    underLegs: ['Leggings'],
+  },
+  legs: ['Leggings'],
+  feet: ['Sandals'],
+  feetColor: ['white'],
+  clothColorPool: ['white'],
+  // Gold diadem — LPC has no halo item, so the Tiara is a delicate divine circlet
+  // (metal → gold via metalColorPool).
+  headwear: { items: ['Tiara'], chance: 1.0 },
+  // ✦ HERO FEATURE: big WHITE feathered angel wings. The Feathered Wings def ships
+  // BOTH a behind-body layer (zPos 5) and a front layer (zPos 105), so added via
+  // the accessory slot it composites (zPos-sorted) correctly mounted on the back.
+  accessory: [
+    { items: ['Feathered Wings'], chance: 1.0, color: ['white'] },
+  ],
+  // Gold finery — diadem + staff.
+  metalColorPool: ['gold'],
+  // A glowing holy staff (white_mage's Loop staff triggers the bake CRYSTAL_RULE
+  // = an auto-added glowing crystal; thrust_oversize cast → needs the _atk sheet).
+  weapon: { items: ['Loop staff'], chance: 1.0 },
+  weaponColor: 'metal',
+  crystalColor: 'yellow',   // a holy GOLD staff-gem (not the random amethyst)
+  // No cape — the wings own the back.
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch

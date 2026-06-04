@@ -70370,6 +70370,50 @@
         "crystal": null,
         "shield": null
       }
+    ],
+    "champion_aurelia": [
+      {
+        "id": "v01",
+        "bodyType": "female",
+        "bodyColor": "olive",
+        "hairColor": "blonde",
+        "clothColor": "white",
+        "metalColor": "gold",
+        "head": "Human Female Elderly",
+        "hair": "Long straight",
+        "beard": null,
+        "torso": null,
+        "outfit": {
+          "main": "white",
+          "accent": "yellow",
+          "layers": [
+            "Kimono",
+            "Kimono Trim",
+            "Kimono Oversized Sleeves",
+            "Kimono Oversized Sleeves Trim"
+          ]
+        },
+        "torsoOverlay": null,
+        "cape": null,
+        "legs": "Leggings",
+        "feet": "Sandals",
+        "arms": null,
+        "headwear": "Tiara",
+        "beast": null,
+        "visor": null,
+        "accessories": [
+          {
+            "name": "Feathered Wings",
+            "color": "white"
+          }
+        ],
+        "weapon": "Loop staff",
+        "weaponColor": "gold",
+        "crystal": {
+          "color": "yellow"
+        },
+        "shield": null
+      }
     ]
   },
   "layout": {
