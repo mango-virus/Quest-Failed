@@ -1848,6 +1848,24 @@ export class DayPhase extends Phaser.Scene {
         if (SIG[u.classId]) u._allStarSig = SIG[u.classId]
       }
     }
+    // Rival (KR overhaul) — Vorzak is a rival DUNGEON LORD, not a generic invader:
+    // he wears a random T4 boss skin (the same skin system the Rival Dungeon event
+    // uses) so the climax reads as a boss-vs-boss showdown. The throne duel
+    // cinematic + the boss-archetype-kit signature are the deeper set-piece (TODO).
+    if (response.id === 'rival') {
+      const vorzak = spawned.find(u => u && u._kingdomChampion)
+      if (vorzak) {
+        const skin = rollRivalDungeonSprites(this.cache.json.get('minionEvolutions') ?? {},
+          this._gameState.player?.bossArchetypeId, 1).bossSkin
+        if (skin) {
+          vorzak._rivalBossSpriteKey = skin
+          vorzak._monster = true
+          vorzak._monsterInvader = true
+          vorzak._rivalBoss = true
+          vorzak.name = `Vorzak, the ${skin.charAt(0).toUpperCase() + skin.slice(1)} Usurper`
+        }
+      }
+    }
     // Inquisition (KR audit fix) — its raid units carry no personality, so stamp
     // `flags.inquisitor` so InquisitorSystem actually purges your dark-pact
     // BENEFITS while the Inquisition raid is in the dungeon (its marquee gimmick).

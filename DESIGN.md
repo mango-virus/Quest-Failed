@@ -1577,9 +1577,11 @@ Facts: resurrection is AUTOMATIC on any pantheon-hero death — spawns a fresh
 ### Rival
 Facts: rival monsters currently use the monster_invader chassis (not specially
 buffed). The Rival DUNGEON EVENT already uses real minion art + a random boss skin.
-- ☐ The "adventurers" are actual T1–T4 MINIONS (like the Rival Dungeon event), not normal adventurers.
-- ☐ The rival boss sprite is a random T4 boss when it spawns.
-- ☐ Unique cinematic for the boss-vs-boss fight, Aldric/Solo-Leveling style but completely unique animations + VFX.
+- 🟡 The "adventurers" are actual T1–T4 MINIONS (like the Rival Dungeon event), not normal adventurers. [retinue reads as monsters (monster_invader, noFlee); applying real T1–T4 minion SHEETS = sprite pass]
+- ☑ The rival boss sprite is a random T4 boss when it spawns. [SHIPPED 2026-06-03 — Vorzak gets a random boss skin via rollRivalDungeonSprites().bossSkin → `_rivalBossSpriteKey` (renderer reads it), named "Vorzak, the <Archetype> Usurper".]
+- 🟡 Unique cinematic for the boss-vs-boss fight, Aldric/Solo-Leveling style but completely unique animations + VFX. [DEFERRED — the SHOWDOWN set-piece]
+
+**Rival status:** the rival-boss IDENTITY (random T4 boss skin on Vorzak) is shipped. The **boss-vs-boss SHOWDOWN** — the unique cinematic + the champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — is a deep set-piece: the boss-archetype abilities live in BossSystem written for the PLAYER's boss vs. adventurers, so inverting one for an invader attacking your throne is real integration, and it pairs with the cinematic (reuse the Aldric/SL duel tech). Best built as a focused pass with live preview iteration, like the Aldric duel got its own phase. DEFERRED + flagged.
 
 ### Betrayer
 Facts: a _spawnDefector already exists ("your strongest minion turns traitor, joins the raid mirroring its power").
