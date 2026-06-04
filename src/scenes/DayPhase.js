@@ -591,6 +591,11 @@ export class DayPhase extends Phaser.Scene {
     // skip the "wave failed to arrive" banner. Reset every call.
     this._noSpawnReason = null
 
+    // Dev QUIET DAY (window.__qfDev.quietDay) — a wave-less day for isolated VFX
+    // testing: no normal adventurers spawn, so the only units on the field are the
+    // ones you dev-spawn (a class via TEST ADV, a champion raid, sandbox minions).
+    if (globalThis.__qfDevQuietDay) { this._noSpawnReason = 'dev_quiet_day'; return [] }
+
     const game = this.scene.get('Game')
     const aiSystem = game.aiSystem
     const personalitySystem = game.personalitySystem

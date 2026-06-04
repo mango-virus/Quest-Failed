@@ -129,6 +129,57 @@ export function installDevSandbox(scene) {
       log('not in NightPhase — cannot start the day from here'); return { ok: false }
     },
 
+    // QUIET DAY — start the day with the normal wave suppressed, so the only units
+    // on the field are the ones YOU dev-spawn (great for isolating one class /
+    // boss / champion's VFX). Pass false to turn the suppression back off.
+    quietDay(on = true) {
+      globalThis.__qfDevQuietDay = !!on
+      log(`quiet day ${on ? 'ON — no normal wave will spawn' : 'OFF — normal waves resume'}`)
+      if (on) return this.startDay()
+      return { ok: true }
+    },
+
+    // ONE-CLICK ARENA — make the dungeon playable by wiring an entry hall to the
+    // boss chamber (the dev "Jump to Day 50" leaves only a bare boss room, so a
+    // day can't otherwise start). Rooms auto-connect by adjacency, so the entry
+    // hall is dropped directly ABOVE the boss (its outward entrance faces out, its
+    // bottom wall touches the boss → a door is auto-cut). Verified via the grid's
+    // own reachability check.
+    arena() {
+      const g = gs(); const gridApi = grid()
+      if (!g || !gridApi) { log('no game'); return { ok: false } }
+      const rooms = g.dungeon?.rooms ?? []
+      const playable = () => rooms.some(r => r.definitionId === 'entry_hall') &&
+        (gridApi.getDisconnectedRooms?.()?.length ?? 1) === 0
+      if (playable()) { log('dungeon already playable'); return { ok: true, already: true } }
+      const boss = rooms.find(r => r.definitionId === 'boss_chamber')
+      if (!boss) { log('no boss chamber to anchor the arena'); return { ok: false } }
+      const entryDef = (scene.cache.json.get('rooms') ?? []).find(d => d.id === 'entry_hall')
+      if (!entryDef) { log('no entry_hall room def'); return { ok: false } }
+      const ew = entryDef.width ?? 12, eh = entryDef.height ?? 8
+      // Candidate drop spots ABOVE the boss (entrance stays outward-facing).
+      const cands = [
+        { x: boss.gridX + Math.floor((boss.width - ew) / 2), y: boss.gridY - eh },
+        { x: boss.gridX, y: boss.gridY - eh },
+        { x: boss.gridX + boss.width - ew, y: boss.gridY - eh },
+      ]
+      for (const c of cands) {
+        if (c.x < 0 || c.y < 0) continue
+        const room = gridApi.placeRoom(entryDef, c.x, c.y, {})
+        if (!room) continue
+        if (playable()) {
+          room._devSandbox = true
+          log('built a test arena — entry hall wired to the boss; the day can start now')
+          return { ok: true, placed: true, at: c }
+        }
+        // didn't connect — undo and try the next spot
+        if (typeof gridApi.removeRoom === 'function') gridApi.removeRoom(room.instanceId)
+        else { const i = rooms.indexOf(room); if (i >= 0) rooms.splice(i, 1) }
+      }
+      log('could not auto-wire an entry hall — place one above the boss manually')
+      return { ok: false }
+    },
+
     // Remove everything the sandbox created (minions, traps, raid units).
     clear() {
       const g = gs()
@@ -158,7 +209,9 @@ export function installDevSandbox(scene) {
     help() {
       const h = [
         'window.__qfDev — Kingdom-Response VFX sandbox',
-        "  .startDay()                      end build phase, start the wave (if in NightPhase)",
+        "  .arena()                         one-click: wire an entry hall to the boss so a day can start",
+        "  .quietDay(true)                  start a wave-less day (only YOUR dev-spawns appear)",
+        "  .startDay()                      end build phase, start the NORMAL wave",
         "  .fastAbilities(true)             champion signatures fire in ~0.6s (no 4.5s wait)",
         "  .populate({minions=8,traps=3})   spawn mixed-tier minions (+undead) + traps near the boss",
         "  .setResponse('betrayer')         force the act response → engage its act-wide gimmick",
@@ -168,8 +221,8 @@ export function installDevSandbox(scene) {
         '',
         "  responses: plunderers inquisition forlorn_hope mage_tower pantheon all_stars betrayer reckoning_dead rival",
         '',
-        "  e.g.  __qfDev.fastAbilities(); __qfDev.populate(); __qfDev.champion('mage_tower')",
-        "        __qfDev.setResponse('betrayer'); __qfDev.populate()   // watch traps flip green ⇄ + chew your minions",
+        "  clean VFX test from the day-jump:  __qfDev.arena(); __qfDev.fastAbilities(); __qfDev.quietDay(); __qfDev.populate(); __qfDev.champion('mage_tower')",
+        "  act-wide gimmick:                  __qfDev.setResponse('betrayer'); __qfDev.populate()   // traps flip green ⇄ + chew your minions",
       ].join('\n')
       console.log(h); return h
     },
