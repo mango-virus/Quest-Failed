@@ -2815,9 +2815,13 @@ body {
   height: 1px;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, currentColor 55%, transparent), transparent);
 }
-.qf-dev-events-section.kr    { color: #c98bff; }
-.qf-dev-events-section.champ { color: #ff9a5a; }
-.qf-dev-events-section.evt   { color: #8ad0ff; }
+.qf-dev-events-section.kr      { color: #c98bff; }
+.qf-dev-events-section.champ   { color: #ff9a5a; }
+.qf-dev-events-section.evt     { color: #8ad0ff; }
+.qf-dev-events-section.sandbox { color: #7ee0a0; }
+.qf-dev-events-card.sandbox            { border-color: rgba(126, 224, 160, 0.4); }
+.qf-dev-events-card.sandbox:hover      { border-color: rgba(126, 224, 160, 0.85); background: rgba(126, 224, 160, 0.08); }
+.qf-dev-events-card.sandbox .qf-dev-events-card-icon { color: #7ee0a0; }
 .qf-dev-events-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

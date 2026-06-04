@@ -108,6 +108,21 @@ export class DevEventsButton {
       h('div', { className: 'qf-dev-events-card-id' }, `champion · ${id}`),
     ])
 
+    // ── VFX SANDBOX (window.__qfDev) ──
+    // Set up a clean test stage for the champion raids above: toggle fast ability
+    // casts, spawn mixed-tier minions + traps for the signatures to hit, start the
+    // day, or clear it all. `keepOpen` actions don't dismiss the modal so you can
+    // chain them; populate/start-day close so you can watch the result.
+    const sandboxCard = (label, sub, icon, onClick, keepOpen = false) => h('button', {
+      className: 'qf-dev-events-card sandbox',
+      on: { click: (e) => { const r = onClick(); if (keepOpen) { e.stopPropagation() } else { this._closeModal() }
+        if (keepOpen && typeof r === 'string') { e.currentTarget.querySelector('.qf-dev-events-card-name').textContent = r } } },
+    }, [
+      h('div', { className: 'qf-dev-events-card-icon' }, icon),
+      h('div', { className: 'qf-dev-events-card-name pix' }, label),
+      h('div', { className: 'qf-dev-events-card-id' }, sub),
+    ])
+
     this._modal = h('div', {
       className: 'qf-dev-events-modal',
       on: {
@@ -128,6 +143,19 @@ export class DevEventsButton {
           scoutCard(3, 'SCOUT ALDRIC · ACT III', '⚔'),
           duelCard('radiant',   'ALDRIC DUEL · RADIANT',   '♔'),
           duelCard('desperate', 'ALDRIC DUEL · DESPERATE', '♛'),
+        ]),
+
+        // ── VFX sandbox — set up targets so the champion signatures have things to hit ──
+        h('div', { className: 'qf-dev-events-section sandbox pix' }, 'VFX SANDBOX  ·  window.__qfDev'),
+        h('div', { className: 'qf-dev-events-grid' }, [
+          sandboxCard(this._fastLabel(), 'cast in ~0.6s, not 4.5s', '⚡',
+            () => { const on = this._qfDev()?.fastAbilities(!globalThis.__qfDevFastAbilities); return on ? 'FAST ABILITIES: ON' : 'FAST ABILITIES: OFF' }, true),
+          sandboxCard('POPULATE TARGETS', '8 minions (+undead) + 3 traps', '☠',
+            () => this._qfDev()?.populate({ minions: 8, traps: 3 })),
+          sandboxCard('START DAY', 'end build phase, start the wave', '▶',
+            () => this._qfDev()?.startDay()),
+          sandboxCard('CLEAR SANDBOX', 'remove test minions/traps/raids', '✖',
+            () => this._qfDev()?.clear(), true),
         ]),
 
         // ── The 9 act-boss champion raids (balance testing) ──
@@ -180,6 +208,14 @@ export class DevEventsButton {
     EventBus.emit('DEV_FORCE_CHAMPION_RAID', { responseId })
     this._closeModal()
   }
+
+  // The VFX sandbox API (installed on the Game scene under the mango account).
+  _qfDev() {
+    const api = window.__qfDev
+    if (!api) console.warn('[dev] __qfDev not installed — start a run first')
+    return api
+  }
+  _fastLabel() { return globalThis.__qfDevFastAbilities ? 'FAST ABILITIES: ON' : 'FAST ABILITIES: OFF' }
 
   _closeModal() {
     if (this._escFn) {
