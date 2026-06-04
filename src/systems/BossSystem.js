@@ -2454,7 +2454,11 @@ export class BossSystem {
   // lean RivalShowdownCinematic listens to RIVAL_DUEL_* (boss-vs-boss header, no
   // portrait). Vorzak's archetype signature is carried by the duel's beats.
   _runRivalDuel(adv) {
-    return this._startDuel(adv, { evt: 'RIVAL_DUEL', form: null, col: 0xa24bd9, col2: 0xd49cff })
+    // mode:'dominion' → a wholly different fight: NOT the Aldric melee duel. The two
+    // dungeon lords hold opposite ends and channel colliding beams into a central
+    // NEXUS that slides toward whoever's losing (see _buildDominionPlan / _dominionMove
+    // / _dominionPhaseEnter + the RIVAL_DUEL_DOMINION feed the tug-of-war HUD reads).
+    return this._startDuel(adv, { evt: 'RIVAL_DUEL', mode: 'dominion', form: null, col: 0xa24bd9, col2: 0xd49cff })
   }
 
   // Generic duel engine entry. `opts`: { evt, form, col, col2 }. Both the Aldric
@@ -2499,6 +2503,7 @@ export class BossSystem {
     adv.worldX  = a.south.x;  adv.worldY  = a.south.y    // challenger strides in (south)
 
     const form = opts.form ?? null
+    const mode = opts.mode ?? null
     const col  = opts.col  ?? 0xe8c860
     const col2 = opts.col2 ?? 0xfff3cf
     const bossName = this._duelBossName()
@@ -2507,12 +2512,13 @@ export class BossSystem {
     this._nemSfx('begin')
 
     this._nemDuel = {
-      boss, adv, bossWins, form, bossName, anchors: a, col, col2, evt,
+      boss, adv, bossWins, form, mode, bossName, anchors: a, col, col2, evt,
       phase: null, t: 0, total: 0, watchdog: 0,
       advFrac: 1, bossFrac: 1, advFrom: 1, advTo: 1, bossFrom: 1, bossTo: 1,
+      dom: 0.5, domFrom: 0.5, domTo: 0.5,          // dominion mode: nexus position (0=boss-pinned, 1=Vorzak-pinned)
       clash: { ...a.center }, hpEmitT: 0, nextFxT: 0, swap: false,
     }
-    this._nemPlan = this._buildNemPlan(bossWins)
+    this._nemPlan = mode === 'dominion' ? this._buildDominionPlan(bossWins) : this._buildNemPlan(bossWins)
     this._nemPhaseIndex = -1
     this._nemAdvancePhase()
   }
@@ -2559,6 +2565,173 @@ export class BossSystem {
     ]
   }
 
+  // ─── RIVAL showdown: "Clash of Dominions" (a wholly different fight) ──────────
+  // Not a melee duel — the two dungeon lords hold opposite ends and CHANNEL beams
+  // that collide at a NEXUS. `domTo` is the nexus position the struggle eases toward:
+  // 0.5 = locked center, >0.5 = Vorzak pressing into your boss, <0.5 = your boss
+  // pressing into Vorzak. Designed as a see-saw: ignite → lock → Vorzak SURGES →
+  // your boss COUNTER-SURGES → strain → FEEDBACK (the turn) → overload → the loser's
+  // beam COLLAPSES. `W` = boss wins → the nexus ends pinned on Vorzak (dom→0).
+  _buildDominionPlan(W) {
+    return [
+      { name: 'ignite',    dur: 2.4, domTo: 0.50, beat: 'ignite'    },
+      { name: 'lock',      dur: 1.8, domTo: 0.50, beat: 'lock'      },
+      { name: 'v_surge',   dur: 2.4, domTo: 0.70, beat: 'v_surge'   },   // Vorzak overpowers
+      { name: 'b_counter', dur: 2.4, domTo: 0.32, beat: 'b_counter' },   // your boss claws back
+      { name: 'strain',    dur: 2.2, domTo: 0.60, beat: 'strain'    },   // Vorzak presses again (false climax)
+      { name: 'feedback',  dur: 1.7, domTo: W ? 0.40 : 0.78, beat: 'feedback'  },   // THE turn
+      { name: 'overload',  dur: 2.6, domTo: W ? 0.20 : 0.88, beat: 'overload'  },   // winner floods the nexus
+      { name: 'collapse',  dur: 2.4, domTo: W ? 0.00 : 1.00, beat: 'collapse'  },   // loser's beam shatters
+    ]
+  }
+
+  // The kinetic layer for the dominion clash. The lords HOLD their anchors (boss =
+  // throne/north, Vorzak = south) and lean into / recoil from the struggle; the
+  // spectacle is the two colliding beams + the sliding nexus, redrawn every frame.
+  _dominionMove(phase, D, dt, TS, moveTo, shake) {
+    const { boss, adv, anchors: A } = D
+    // Lean: the dominant lord pushes toward center, the pressed one recoils.
+    const bossPush = (0.5 - D.dom)   // >0 → your boss winning → leans south toward center
+    const vorPush  = (D.dom - 0.5)   // >0 → Vorzak winning  → leans north toward center
+    moveTo(boss, A.throne.x, A.throne.y + bossPush * 1.5 * TS, 3.0 * TS)
+    moveTo(adv,  A.south.x,  A.south.y  - vorPush  * 1.5 * TS, 3.0 * TS)
+    this._bossState = { action: 'idle' }   // a channelling hold, not a swing
+    this._dominionBeamRedraw(D, TS)
+    // Ambient strain: a faint tremor whose magnitude tracks how hard the lock is
+    // being contested, plus motes drifting from the pressed lord into the nexus.
+    const sc = this._scene
+    D.nextFxT -= dt
+    if (D.nextFxT <= 0) {
+      D.nextFxT = 0.12
+      const contest = 1 - Math.abs(D.dom - 0.5) * 2   // 1 at a dead-even lock
+      if (contest > 0.25) shake(40, 0.0016 + contest * 0.0022)
+      // sparks spitting off the nexus
+      AbilityVfx.particleBurst?.(sc, D._nx ?? boss.worldX, D._ny ?? boss.worldY,
+        { color: D.dom >= 0.5 ? 0xd49cff : 0xff9a88, count: 3, speed: 70, life: 240 })
+    }
+  }
+
+  // Two crackling, tapered beams (your boss = crimson, Vorzak = purple) meeting at a
+  // pulsing nexus orb. The dominant side's beam runs thicker + brighter; the nexus
+  // sits at `1 - dom` along the boss→Vorzak axis (so a winning lord drives it into
+  // the loser). One persistent Graphics, cleared + redrawn per frame.
+  _dominionBeamRedraw(D, TS) {
+    const sc = this._scene
+    const g = D._beamG ?? (D._beamG = sc.add.graphics().setDepth(50))
+    g.clear()
+    const { boss, adv } = D
+    const nexP = 1 - D.dom
+    const nx = boss.worldX + (adv.worldX - boss.worldX) * nexP
+    const ny = boss.worldY + (adv.worldY - boss.worldY) * nexP
+    D._nx = nx; D._ny = ny
+    const t = (sc.time?.now ?? 0) * 0.001
+    this._beamSeg(g, boss.worldX, boss.worldY, nx, ny, 0xff5544, D.dom < 0.5 ? 1.35 : 0.8, t)        // your boss
+    this._beamSeg(g, adv.worldX,  adv.worldY,  nx, ny, 0xa24bd9, D.dom > 0.5 ? 1.35 : 0.8, t + 3.1)  // Vorzak
+    // nexus orb — concentric glow + a hot core tinted toward whoever's winning
+    const pulse = 1 + Math.sin(t * 9) * 0.16
+    for (let i = 3; i >= 1; i--) { g.fillStyle(0xffffff, 0.10 * i); g.fillCircle(nx, ny, (9 + i * 6) * pulse) }
+    g.fillStyle(0xffffff, 0.95); g.fillCircle(nx, ny, 6.5 * pulse)
+    g.fillStyle(D.dom >= 0.5 ? 0xb060e0 : 0xff7a60, 0.85); g.fillCircle(nx, ny, 3.6 * pulse)
+  }
+
+  // One jagged, multi-stroke glow beam from (x1,y1)→(x2,y2). `intensity` scales the
+  // width + jitter so a surging lord's beam visibly swells.
+  _beamSeg(g, x1, y1, x2, y2, color, intensity, t) {
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1
+    const px = -dy / len, py = dx / len   // unit perpendicular
+    const segs = 7
+    for (const [w, a] of [[15, 0.10], [9, 0.20], [4, 0.55], [2, 0.95]]) {
+      g.lineStyle(w * intensity, color, a)
+      g.beginPath(); g.moveTo(x1, y1)
+      for (let i = 1; i < segs; i++) {
+        const f = i / segs
+        const j = Math.sin(t * 22 + i * 1.7) * 7 * intensity * Math.sin(f * Math.PI)
+        g.lineTo(x1 + dx * f + px * j, y1 + dy * f + py * j)
+      }
+      g.lineTo(x2, y2); g.strokePath()
+    }
+  }
+
+  // One-shot beat + VFX as each dominion phase opens.
+  _dominionPhaseEnter(ph, D) {
+    const sc = this._scene
+    const { boss, adv } = D
+    const PUR = 0xa24bd9, PUR2 = 0xd49cff, CRIM = 0xff5544, CRIM2 = 0xff9a88
+    const beat  = (kind, label) => EventBus.emit('RIVAL_DUEL_BEAT', { kind, label })
+    const shake = (d, m) => sc?.cameras?.main?.shake?.(d, m)
+    const nx = () => D._nx ?? (adv.worldX + boss.worldX) / 2
+    const ny = () => D._ny ?? (adv.worldY + boss.worldY) / 2
+    switch (ph.name) {
+      case 'ignite':
+        beat('ignite', 'TWO LORDS, ONE THRONE')
+        AbilityVfx.chargeUp?.(sc, adv.worldX,  adv.worldY,  { color: PUR,  radius: 50, count: 16 })
+        AbilityVfx.chargeUp?.(sc, boss.worldX, boss.worldY, { color: CRIM, radius: 50, count: 16 })
+        break
+      case 'lock':
+        beat('lock', 'BEAM-LOCK')
+        this._nemSfx('clash')
+        AbilityVfx.shockwave?.(sc, nx(), ny(), { color: 0xffffff, fromR: 8, toR: 80, core: true })
+        AbilityVfx.screenFlash?.(sc, { color: 0xffffff, intensity: 0.28, durationMs: 200 })
+        shake(120, 0.005)
+        break
+      case 'v_surge':
+        beat('v_surge', "USURPER'S SURGE")
+        this._nemSfx('ult')
+        AbilityVfx.chargeUp?.(sc, adv.worldX, adv.worldY, { color: PUR, radius: 64, count: 18 })
+        AbilityVfx.burstRays?.(sc, adv.worldX, adv.worldY, { color: PUR2, count: 12, length: 84 })
+        AbilityVfx.pulseRing?.(sc, adv.worldX, adv.worldY, { color: PUR, fromR: 12, toR: 80, alpha: 0.8 })
+        shake(180, 0.006)
+        break
+      case 'b_counter':
+        beat('b_counter', 'COUNTER-SURGE')
+        this._nemSfx('resolve')
+        AbilityVfx.chargeUp?.(sc, boss.worldX, boss.worldY, { color: CRIM, radius: 64, count: 18 })
+        AbilityVfx.burstRays?.(sc, boss.worldX, boss.worldY, { color: CRIM2, count: 12, length: 84 })
+        AbilityVfx.pulseRing?.(sc, boss.worldX, boss.worldY, { color: CRIM, fromR: 12, toR: 80, alpha: 0.8 })
+        shake(180, 0.006)
+        break
+      case 'strain':
+        beat('strain', 'DOMINION STRAIN')
+        AbilityVfx.lightning?.(sc, adv.worldX, adv.worldY, boss.worldX, boss.worldY,
+          { color: 0xeacaff, segments: 9, jitter: 18, thickness: 2, durationMs: 300 })
+        break
+      case 'feedback':
+        beat('feedback', 'FEEDBACK')
+        this._nemSfx('apex')
+        AbilityVfx.screenFlash?.(sc, { color: 0xffffff, intensity: 0.5, durationMs: 300 })
+        AbilityVfx.lightning?.(sc, adv.worldX, adv.worldY, boss.worldX, boss.worldY,
+          { color: 0xffffff, segments: 10, jitter: 24, thickness: 4, durationMs: 360 })
+        AbilityVfx.shockwave?.(sc, nx(), ny(), { color: 0xffffff, fromR: 10, toR: 120, core: true })
+        shake(320, 0.011); this._hitstop(90, 0.2)
+        break
+      case 'overload': {
+        const W = D.bossWins
+        beat('overload', W ? 'DOMINION OVERWHELMS' : "THE USURPER'S DOMINION")
+        const wx = W ? boss.worldX : adv.worldX, wy = W ? boss.worldY : adv.worldY
+        const wc = W ? CRIM : PUR, wc2 = W ? CRIM2 : PUR2
+        AbilityVfx.beamPillar?.(sc, wx, wy, { color: wc, width: 44, durationMs: 1400 })
+        AbilityVfx.magicCircle?.(sc, wx, wy, { color: wc, radius: 66 })
+        AbilityVfx.burstRays?.(sc, wx, wy, { color: wc2, count: 16, length: 110 })
+        shake(280, 0.009)
+        break
+      }
+      case 'collapse': {
+        const W = D.bossWins
+        beat('collapse', W ? 'THE THRONE HOLDS' : 'USURPED')
+        this._nemSfx('finalblow')
+        // The LOSER's beam shatters + detonates ON them.
+        const lx = W ? adv.worldX : boss.worldX, ly = W ? adv.worldY : boss.worldY
+        const lc = W ? PUR : CRIM
+        AbilityVfx.screenFlash?.(sc, { color: 0xffffff, intensity: 0.85, durationMs: 360 })
+        AbilityVfx.shockwave?.(sc, lx, ly, { color: lc, fromR: 12, toR: 170, thickness: 8, core: true })
+        AbilityVfx.impactBurst?.(sc, lx, ly, { color: 0xffffff, radius: 90, sparks: 14, debris: 8, durationMs: 520 })
+        AbilityVfx.crater?.(sc, lx, ly, { color: lc, radius: 64 })
+        shake(420, 0.014); this._hitstop(120, 0.18)
+        break
+      }
+    }
+  }
+
   _nemAdvancePhase() {
     const D = this._nemDuel
     if (!D) return
@@ -2567,9 +2740,14 @@ export class BossSystem {
     if (!ph) { this._resolveNemesisDuel(D.bossWins); return }
     D.phase = ph.name
     D.t = 0
-    D.advFrom = D.advFrac; D.bossFrom = D.bossFrac
-    D.advTo = ph.advTo; D.bossTo = ph.bossTo
-    this._nemPhaseEnter(ph, D)
+    if (D.mode === 'dominion') {
+      D.domFrom = D.dom; D.domTo = ph.domTo
+      this._dominionPhaseEnter(ph, D)
+    } else {
+      D.advFrom = D.advFrac; D.bossFrom = D.bossFrac
+      D.advTo = ph.advTo; D.bossTo = ph.bossTo
+      this._nemPhaseEnter(ph, D)
+    }
   }
 
   // Per-frame: ease both HP bars toward the phase target, commit to real HP,
@@ -2590,16 +2768,9 @@ export class BossSystem {
     const ph = this._nemPlan[this._nemPhaseIndex]
     if (!ph) { this._resolveNemesisDuel(D.bossWins); return }
 
-    // easeInOutQuad toward the phase HP target.
+    // easeInOutQuad toward the phase target.
     const k = ph.dur > 0 ? Math.min(1, D.t / ph.dur) : 1
     const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2
-    D.advFrac  = D.advFrom  + (D.advTo  - D.advFrom)  * e
-    D.bossFrac = D.bossFrom + (D.bossTo - D.bossFrom) * e
-    adv.resources.hp = Math.max(0, Math.round((adv.resources.maxHp ?? 1) * D.advFrac))
-    boss.hp          = Math.max(0, Math.round((boss.maxHp ?? 1) * D.bossFrac))
-
-    D.hpEmitT += dt
-    if (D.hpEmitT >= 0.1) { D.hpEmitT = 0; EventBus.emit(D.evt + '_HP', { advFrac: D.advFrac, bossFrac: D.bossFrac }) }
 
     const moveTo = (en, tx, ty, speed) => {
       const dx = tx - en.worldX, dy = ty - en.worldY
@@ -2611,7 +2782,28 @@ export class BossSystem {
       return d - step
     }
     const shake = (dur, mag) => this._scene.cameras?.main?.shake?.(dur, mag)
-    this._nemMove(ph.name, D, dt, TS, moveTo, shake)
+
+    if (D.mode === 'dominion') {
+      // The nexus eases toward the phase's dominance target; both lords' HP track
+      // the struggle (the pressed side weakens) so the rolled outcome lands.
+      D.dom = D.domFrom + (D.domTo - D.domFrom) * e
+      const clamp01 = v => Math.max(0, Math.min(1, v))
+      const bossFrac = clamp01(1 - (D.dom - 0.5) * 2)   // dom→1 (Vorzak wins) → boss 0
+      const vorFrac  = clamp01(1 - (0.5 - D.dom) * 2)   // dom→0 (boss wins) → Vorzak 0
+      adv.resources.hp = Math.max(0, Math.round((adv.resources.maxHp ?? 1) * vorFrac))
+      boss.hp          = Math.max(0, Math.round((boss.maxHp ?? 1) * bossFrac))
+      D.hpEmitT += dt
+      if (D.hpEmitT >= 0.08) { D.hpEmitT = 0; EventBus.emit('RIVAL_DUEL_DOMINION', { dom: D.dom, vorzak: vorFrac, boss: bossFrac }) }
+      this._dominionMove(ph.name, D, dt, TS, moveTo, shake)
+    } else {
+      D.advFrac  = D.advFrom  + (D.advTo  - D.advFrom)  * e
+      D.bossFrac = D.bossFrom + (D.bossTo - D.bossFrom) * e
+      adv.resources.hp = Math.max(0, Math.round((adv.resources.maxHp ?? 1) * D.advFrac))
+      boss.hp          = Math.max(0, Math.round((boss.maxHp ?? 1) * D.bossFrac))
+      D.hpEmitT += dt
+      if (D.hpEmitT >= 0.1) { D.hpEmitT = 0; EventBus.emit(D.evt + '_HP', { advFrac: D.advFrac, bossFrac: D.bossFrac }) }
+      this._nemMove(ph.name, D, dt, TS, moveTo, shake)
+    }
 
     if (D.t >= ph.dur) this._nemAdvancePhase()
     if (D.watchdog > 45) this._resolveNemesisDuel(D.bossWins)   // anti-freeze backstop
@@ -2874,8 +3066,12 @@ export class BossSystem {
     this._nemResolved = true
     const { boss, adv, bossName } = D
     const sc = this._scene
-    // The winner lands the killing blow — one last swing (the loser just falls).
-    if (!bossWins) { adv._nemStrikeAt = sc?.time?.now ?? 0; adv._nemStrikeKind = 'slash'; adv._nemStrikeMs = 700 }
+    // Dominion mode: the beams are spent — drop the persistent beam graphics so the
+    // finale card shows over a clean chamber. (Aldric mode has no beam graphics.)
+    if (D._beamG) { D._beamG.destroy(); D._beamG = null }
+    // The winner lands the killing blow — one last swing (the loser just falls). In
+    // dominion mode there are no swings (the loser's beam detonates), so skip it.
+    if (!bossWins && D.mode !== 'dominion') { adv._nemStrikeAt = sc?.time?.now ?? 0; adv._nemStrikeKind = 'slash'; adv._nemStrikeMs = 700 }
 
     // Killing-blow punch — hard shake + a beat of slow-mo + a white flash.
     sc?.cameras?.main?.shake?.(540, 0.02)
@@ -2893,6 +3089,7 @@ export class BossSystem {
     const D = this._nemDuel
     if (!D) return
     const { boss, adv } = D
+    if (D._beamG) { D._beamG.destroy(); D._beamG = null }   // safety: dominion beams gone
     if (this._scene?.time) this._scene.time.timeScale = 1
     this._fightEnded = true
 
@@ -2926,6 +3123,7 @@ export class BossSystem {
 
   _endNemesisDuel() {
     const D = this._nemDuel
+    if (D?._beamG) { D._beamG.destroy(); D._beamG = null }   // dominion beam graphics (no-op for Aldric)
     if (D?.adv) { D.adv._nemDuel = false; D.adv._nemStrikeAt = 0; D.adv._nemStrikeKind = null; D.adv._nemStrikeMs = 0 }
     this._nemDuel = null
     this._nemPlan = null

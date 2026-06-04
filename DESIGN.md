@@ -1583,12 +1583,24 @@ buffed). The Rival DUNGEON EVENT already uses real minion art + a random boss sk
 
 **Rival status:** the rival-boss IDENTITY (random T4 boss skin on Vorzak) is shipped, AND the **boss-vs-boss SHOWDOWN cinematic** is shipped (2026-06-04). The remaining open item is the champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") + the minion-sheet sprite pass — both DEFERRED.
 
-### Rival — SHIPPED (boss-vs-boss SHOWDOWN cinematic, 2026-06-04) — slice #9 of 9
-The duel ENGINE was generalized rather than rebuilt: `BossSystem._runNemesisDuel` (Aldric) was refactored into a thin wrapper over a generic `_startDuel(adv, {evt, form, col, col2})` + `_tickNemesisDuel`/`_buildNemPlan`/`_nemMove`, with every event emit parameterized by the duel's `evt` prefix (`D.evt + '_BEGAN'/'_HP'/'_BEAT'/'_END'`). A new `_runRivalDuel(adv)` routes through the same engine with `evt='RIVAL_DUEL'` + the purple Rival accent.
-- ☑ Trigger: `BossSystem._onIncoming` runs `_runRivalDuel` when an invader tagged `_rivalDuel` reaches the throne (and `!_nemDuelActive`). DayPhase tags Vorzak `_rivalDuel=true` in `_spawnChampionRaid` (rival block). The `_rivalBoss` reward flow (RivalBossShowdown +200 gold / +1 boss level on win) still fires via `_finishNemesisDuel → _killAdv → ADVENTURER_DIED`.
-- ☑ Presentation: `src/hud/RivalShowdownCinematic.js` — reuses the Aldric duel's `qf-ald-*` styling via the now-exported `ensureDuelCss()`, but **portrait-less** (Vorzak is a boss SKIN, not a character with portrait art) and **purple-themed** (`--acc:#a24bd9 / --acc2:#d49cff`). VS slam-in ("THE USURPER BELOW"), two-bar HP header (Vorzak left / your boss right), beat labels remapped to rival flavor (USURPER'S STRIKE / NO RETREAT / THRONE-BREAKER / THE FINAL BLOW), apex + final-blow screen flash, win/loss finale (win = "THE THRONE HOLDS · THE USURPER FALLS"; loss = "THE THRONE IS BREACHED · VORZAK PREVAILS"). Registered in HudRoot alongside AldricCinematic.
-- ☑ Verified: all 5 cinematic states screenshot-checked in an isolated harness (header, VS card, beat label, win finale, loss finale) — purple theme + correct text confirmed; the motion is the proven Aldric keyframe set. Aldric duel regression-checked (still constructs + responds to `ALDRIC_DUEL_*` after the `ensureDuelCss` rename). Dev: `__qfDev.rivalDuel()` / the **RIVAL SHOWDOWN** button (DEV_FORCE_RIVAL_DUEL → DayPhase spawns Vorzak + runs the duel).
-- 🟡 Champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — STILL DEFERRED (the showdown cinematic does not require it; the duel outcome is rolled from relative power).
+### Rival — boss-vs-boss SHOWDOWN
+
+**⚠ SUPERSEDED v1 (2026-06-04):** the first showdown REUSED the Aldric melee-duel engine recolored purple (`_runRivalDuel` → the shared `_startDuel`/`_buildNemPlan`/`_nemMove` + a portrait-less repaint of the `qf-ald-*` two-HP-bar cinematic). User flagged it 2026-06-04 as "basically copy-pasted the Aldric fight — the entire fight sequence AND effects need to be completely different and unique." The wiring (trigger, `_runRivalDuel`, the `_rivalBoss` reward flow via `_finishNemesisDuel → _killAdv → ADVENTURER_DIED`, the DayPhase tagging, the dev hook) stays; the FIGHT CONTENT + the cinematic are being rebuilt.
+
+**LOCKED v2 — "Clash of Dominions" (user-chosen 2026-06-04, VERBATIM):**
+> *"A power-struggle, not a sword fight. The two lords stand at OPPOSITE ends and channel colliding energy beams; a central nexus orb slides toward whoever's losing. HUD = one tug-of-war DOMINANCE bar (not two HP bars). Beats: SURGE / COUNTER-SURGE / FEEDBACK, ending in the loser's beam collapsing + detonating on them. Totally unlike the melee duel — stationary, arcane, two auras swelling/shrinking around a crackling beam-lock."*
+> Preview locked: `VORZAK ◀━━━━━●━━━━━▶ YOUR BOSS` (purple ↔ crimson, ▲nexus); two beams `))))))))> <(((((((` colliding at a ✦ nexus; "nexus lurches toward the loser each SURGE; on FEEDBACK it detonates → throne held / usurped."
+
+Acceptance checklist (tick against CODE before claiming done):
+- ☐ **Stationary, not melee** — the two lords hold OPPOSITE anchors (your boss = throne/north, Vorzak = south) and CHANNEL; no orbiting, blade-clashing, or knockback-shove choreography. They lean/recoil with the struggle, not trade strikes.
+- ☐ **Colliding beams + a nexus orb** — a continuous beam from each lord meets at a central nexus; the nexus is a distinct crackling orb that SLIDES along the beam axis toward whoever is losing.
+- ☐ **Dominance, not HP** — the in-world + cinematic state is a single DOMINANCE value (nexus position), NOT two HP bars. Real HP still resolves to the rolled outcome at the climax (loser → 0).
+- ☐ **HUD = one tug-of-war bar** — the cinematic shows ONE horizontal dominance bar (Vorzak purple ◀ … ▶ your boss crimson) with a nexus marker that tracks the struggle; NO two-HP-bar header.
+- ☐ **Beat sequence = SURGE / COUNTER-SURGE / FEEDBACK** — Vorzak surges (nexus lurches toward your boss) → your boss counter-surges → strain → FEEDBACK turning point → overload → collapse. Each surge lurches the nexus + swells the surging side's beam/aura.
+- ☐ **Collapse finale** — the LOSER's beam collapses and detonates ON them; win = "THE THRONE HOLDS", loss = "USURPED"/"THE THRONE IS BREACHED".
+- ☐ **Unique VFX + unique cinematic CSS** — beam-struggle VFX (colliding beams, nexus orb, arc feedback, ground corruption, swelling auras), NOT the Aldric blade/dome/god-ray set; bespoke `qf-riv-*` stylesheet, NOT a recolor of `qf-ald-*`.
+- ☐ **New event contract** — engine emits a dominance feed (e.g. `RIVAL_DUEL_DOMINION { dom }`) for the bar/nexus, plus rival-specific `_BEAT` kinds; the cinematic renders from those (no advFrac/bossFrac two-bar dependency).
+- 🟡 Champion signature ("reuse the random-T4-boss-archetype's own kit, turned on you") — STILL DEFERRED (the showdown does not require it; outcome rolled from relative power).
 - 🟡 Retinue minion SHEETS + unique Vorzak look — sprite pass, DEFERRED.
 
 ### Betrayer
