@@ -115,8 +115,18 @@ export class DevEventsButton {
     // chain them; populate/start-day close so you can watch the result.
     const sandboxCard = (label, sub, icon, onClick, keepOpen = false) => h('button', {
       className: 'qf-dev-events-card sandbox',
-      on: { click: (e) => { const r = onClick(); if (keepOpen) { e.stopPropagation() } else { this._closeModal() }
-        if (keepOpen && typeof r === 'string') { e.currentTarget.querySelector('.qf-dev-events-card-name').textContent = r } } },
+      on: { click: (e) => {
+        if (keepOpen) {
+          // Stay in the menu (toggles / spawns) — just run it + update the label.
+          const r = onClick()
+          if (typeof r === 'string') e.currentTarget.querySelector('.qf-dev-events-card-name').textContent = r
+        } else {
+          // Day-start actions: CLOSE first so PauseManager.softResume runs and the
+          // scene is live — _beginDay bails on a soft-paused NightPhase. Then act.
+          this._closeModal()
+          onClick()
+        }
+      } },
     }, [
       h('div', { className: 'qf-dev-events-card-icon' }, icon),
       h('div', { className: 'qf-dev-events-card-name pix' }, label),

@@ -23,7 +23,8 @@ const DEV_TOOL_GROUPS = [
   {
     label: 'RUN SHORTCUTS',
     tools: [
-      { id: 'jump50', label: 'JUMP TO DAY 50', sub: 'Late-game wave test (day 50, boss L12)', icon: '▶', color: 'var(--blood)' },
+      { id: 'jump50',    label: 'JUMP TO DAY 50',  sub: 'Late-game wave test (day 50, boss L12)', icon: '▶', color: 'var(--blood)' },
+      { id: 'teststage', label: 'JUMP TO TEST STAGE', sub: 'Clean VFX stage: arena built, NO wave (day 8, boss L10)', icon: '🧪', color: 'var(--poison)' },
     ],
   },
   {

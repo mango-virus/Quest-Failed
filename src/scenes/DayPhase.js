@@ -2588,7 +2588,9 @@ export class DayPhase extends Phaser.Scene {
     // setTimeout play out after Aldric leaves `active`; don't let the day end
     // (and tear down the scene) mid-finale.
     const nemDuelRunning = !!this.scene.get('Game')?.bossSystem?._nemDuelActive
-    if (n === 0 && this._allOutTimer == null && !lpDuelRunning && !nemDuelRunning) {
+    // Dev QUIET DAY — keep the stage OPEN with zero adventurers so it's a
+    // persistent VFX sandbox (a wave-less day would otherwise end instantly).
+    if (n === 0 && this._allOutTimer == null && !lpDuelRunning && !nemDuelRunning && !globalThis.__qfDevQuietDay) {
       this._statsTexts?.activeCount?.setText('All adventurers out — day ends shortly')
       // Solo Leveling — hold an extra beat so Jinwoo's death animation (loss)
       // or portal fade-out (win) fully reads before the post-wave summary

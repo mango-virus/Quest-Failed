@@ -1011,6 +1011,24 @@ export class MainMenuOverlay {
         _stopAllGameplayScenes(game.scene)
         game.scene.start('CompanionSelect')
         break
+      case 'teststage':
+        // Mango dev — a CLEAN VFX test stage. Lands on a mid-Act-I day (no drafted
+        // kingdom-response intro, NOT an act-final day → no climax/duel), then the
+        // dev sandbox (window.__qfDev) auto-builds an arena + starts a QUIET day
+        // (no normal wave) so the only units on the field are your dev-spawns.
+        // Use TEST EVENT → Populate / champion cards to test any VFX in isolation.
+        try {
+          // Boss L4 (under the forced multi-entry thresholds at L5/L10) so a single
+          // auto-built entry hall is enough for the day to start. VFX read the same
+          // at any level; use the day-50 jump if you want late-game numbers.
+          localStorage.setItem('qf.dev.startDayNumber', '8')
+          localStorage.setItem('qf.dev.startBossLevel', '4')
+          localStorage.setItem('qf.dev.testStage', '1')
+        } catch {}
+        this.close()
+        _stopAllGameplayScenes(game.scene)
+        game.scene.start('CompanionSelect')
+        break
       case 'rooms':
         this.close()
         game.scene.start('RoomTileEditor')

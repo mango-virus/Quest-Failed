@@ -122,10 +122,14 @@ export function installDevSandbox(scene) {
 
     // End the build phase and start the day's wave (so champion raids can spawn).
     startDay() {
-      const np = scene.scene.get('NightPhase')
-      if (np?.scene?.isActive?.() && typeof np._beginDay === 'function') { np._beginDay(); log('starting the day…'); return { ok: true } }
       const dp = scene.scene.get('DayPhase')
       if (dp?.scene?.isActive?.()) { log('already in DayPhase'); return { ok: true, already: true } }
+      const np = scene.scene.get('NightPhase')
+      if (np && typeof np._beginDay === 'function') {
+        // The dev modal soft-pauses NightPhase; resume it first or _beginDay no-ops.
+        try { if (np.scene.isPaused?.()) scene.scene.resume('NightPhase') } catch (e) {}
+        if (np.scene.isActive?.()) { np._beginDay(); log('starting the day…'); return { ok: true } }
+      }
       log('not in NightPhase — cannot start the day from here'); return { ok: false }
     },
 
@@ -157,27 +161,36 @@ export function installDevSandbox(scene) {
       const entryDef = (scene.cache.json.get('rooms') ?? []).find(d => d.id === 'entry_hall')
       if (!entryDef) { log('no entry_hall room def'); return { ok: false } }
       const ew = entryDef.width ?? 12, eh = entryDef.height ?? 8
-      // Candidate drop spots ABOVE the boss (entrance stays outward-facing).
-      const cands = [
-        { x: boss.gridX + Math.floor((boss.width - ew) / 2), y: boss.gridY - eh },
-        { x: boss.gridX, y: boss.gridY - eh },
-        { x: boss.gridX + boss.width - ew, y: boss.gridY - eh },
+      // Forced multi-entry: the day won't start until the boss-level-mandated number
+      // of entry halls is placed (2nd @ L5, 3rd @ L10). Place that many, on distinct
+      // sides of the boss (each entry's outward N entrance still faces open space).
+      let required = 1
+      try { required = gridApi.constructor.effectiveMaxPerDungeon?.(entryDef, g.boss?.level ?? 1) ?? 1 } catch (e) {}
+      const sides = [
+        { x: boss.gridX + Math.floor((boss.width - ew) / 2), y: boss.gridY - eh },                 // above
+        { x: boss.gridX - ew,           y: boss.gridY + Math.floor((boss.height - eh) / 2) },        // left
+        { x: boss.gridX + boss.width,   y: boss.gridY + Math.floor((boss.height - eh) / 2) },        // right
+        { x: boss.gridX, y: boss.gridY - eh }, { x: boss.gridX + boss.width - ew, y: boss.gridY - eh }, // above (offset fallbacks)
       ]
-      for (const c of cands) {
+      let placed = rooms.filter(r => r.definitionId === 'entry_hall').length
+      for (const c of sides) {
+        if (placed >= required) break
         if (c.x < 0 || c.y < 0) continue
         const room = gridApi.placeRoom(entryDef, c.x, c.y, {})
         if (!room) continue
-        if (playable()) {
-          room._devSandbox = true
-          log('built a test arena — entry hall wired to the boss; the day can start now')
-          return { ok: true, placed: true, at: c }
-        }
-        // didn't connect — undo and try the next spot
-        if (typeof gridApi.removeRoom === 'function') gridApi.removeRoom(room.instanceId)
-        else { const i = rooms.indexOf(room); if (i >= 0) rooms.splice(i, 1) }
+        // keep it only if it actually connected to the dungeon body
+        if (gridApi.getNeighborRooms?.(room.instanceId)?.length > 0 || gridApi.getDisconnectedRooms().length === 0) {
+          room._devSandbox = true; placed++
+        } else if (typeof gridApi.removeRoom === 'function') {
+          gridApi.removeRoom(room.instanceId)
+        } else { const i = rooms.indexOf(room); if (i >= 0) rooms.splice(i, 1) }
       }
-      log('could not auto-wire an entry hall — place one above the boss manually')
-      return { ok: false }
+      if (placed >= required && gridApi.getDisconnectedRooms().length === 0) {
+        log(`test arena ready — ${placed} entry hall(s) wired to the boss; the day can start`)
+        return { ok: true, entries: placed }
+      }
+      log(`could not fully wire the arena (placed ${placed}/${required} entry halls) — finish it manually`)
+      return { ok: false, entries: placed, required }
     },
 
     // Remove everything the sandbox created (minions, traps, raid units).
@@ -229,6 +242,38 @@ export function installDevSandbox(scene) {
   }
 
   window.__qfDev = api
+
+  // "JUMP TO TEST STAGE" auto-setup — when the run was launched from that dev
+  // shortcut, wait for the build phase to come up, then build an arena + flip on
+  // fast abilities + start a QUIET (wave-less) day, so the run lands directly in a
+  // clean VFX stage. One-shot: the flag is cleared immediately.
+  let testStage = false
+  try { testStage = localStorage.getItem('qf.dev.testStage') === '1'; if (testStage) localStorage.removeItem('qf.dev.testStage') } catch (e) {}
+  if (testStage) {
+    const onNight = () => {
+      EventBus.off('NIGHT_PHASE_STARTED', onNight)
+      // setTimeout (not scene timers) so this keeps running while an act-intro
+      // popup soft-pauses the scene.
+      setTimeout(() => {
+        api.arena()                       // wire entry hall(s) to the boss
+        api.fastAbilities(true)
+        globalThis.__qfDevQuietDay = true  // arm the wave-less day
+        console.log('[qfDev] TEST STAGE: arena built, quiet + fast armed — will start a QUIET day once any act-intro is dismissed.')
+        // Poll until the build phase is live (intro dismissed) → begin the (quiet) day.
+        let tries = 0
+        const tryBegin = () => {
+          const dp = scene.scene.get('DayPhase')
+          if (dp?.scene?.isActive?.()) { console.log('[qfDev] TEST STAGE ready — clean quiet day. Open TEST EVENT → Populate, then a champion card.'); return }
+          const np = scene.scene.get('NightPhase')
+          if (np?.scene?.isActive?.() && typeof np._beginDay === 'function') np._beginDay()
+          if (++tries < 30) setTimeout(tryBegin, 800)
+        }
+        setTimeout(tryBegin, 400)
+      }, 700)
+    }
+    EventBus.on('NIGHT_PHASE_STARTED', onNight)
+  }
+
   console.log('[qfDev] VFX sandbox installed — run window.__qfDev.help()')
   return api
 }
