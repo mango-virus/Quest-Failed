@@ -224,6 +224,20 @@ export class BossRenderer {
     // boss, so 'down' is correct for the slam lunges too.)
     if (this._scene.bossSystem?._lightPartyDuel) this._facing = 'down'
 
+    // Rival "Clash of Dominions" duel — the boss holds the throne (north) and
+    // channels its beam at Vorzak to the south. It barely moves, so movement-delta
+    // facing would leave it idling whichever way it last walked instead of squaring
+    // up to its rival. Force it to face the duel opponent. (Scoped to dominion mode:
+    // the Aldric duel MOVES the boss so its facing already tracks the clash, and
+    // forcing face-the-foe there would spin it as Aldric orbits.)
+    const _nd = this._scene.bossSystem?._nemDuel
+    if (_nd?.mode === 'dominion' && _nd.adv && _nd.adv.worldX !== undefined) {
+      const fdx = _nd.adv.worldX - boss.worldX
+      const fdy = _nd.adv.worldY - boss.worldY
+      this._facing = Math.abs(fdx) > Math.abs(fdy) ? (fdx > 0 ? 'right' : 'left')
+                                                   : (fdy > 0 ? 'down'  : 'up')
+    }
+
     // Pick state
     const state = this._pickState()
     let animKey = `${this._spriteKey}-${state}-${this._facing}`
