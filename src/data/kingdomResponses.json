@@ -131,11 +131,12 @@
     "clearCondition": "Defeat the assembled champions.",
     "champion": "Sir Garreth the Gilded",
     "championChassis": "knight",
+    "championFlags": ["noFlee"],
     "retinue": [
-      { "classId": "necromancer",  "count": 1, "names": ["Mortessa the Soulbinder"],   "hpMul": 2.0, "atkMul": 1.2 },
-      { "classId": "monk",         "count": 1, "names": ["Master Kael"],               "hpMul": 1.9, "atkMul": 1.2 },
-      { "classId": "beast_master", "count": 1, "names": ["Rourke Wolfsong"],           "hpMul": 1.9, "atkMul": 1.2 },
-      { "classId": "templar",      "count": 1, "names": ["Ser Auberon the Unbroken"],  "hpMul": 2.1 }
+      { "classId": "necromancer",  "count": 1, "names": ["Mortessa the Soulbinder"],   "hpMul": 2.0, "atkMul": 1.2, "flags": ["noFlee"] },
+      { "classId": "monk",         "count": 1, "names": ["Master Kael"],               "hpMul": 1.9, "atkMul": 1.2, "flags": ["noFlee"] },
+      { "classId": "beast_master", "count": 1, "names": ["Rourke Wolfsong"],           "hpMul": 1.9, "atkMul": 1.2, "flags": ["noFlee"] },
+      { "classId": "templar",      "count": 1, "names": ["Ser Auberon the Unbroken"],  "hpMul": 2.1,                "flags": ["noFlee"] }
     ],
     "accent": "#ffd76a",
     "emblem": "★",
