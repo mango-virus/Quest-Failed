@@ -541,8 +541,15 @@ function sampleVariant(rng, className, classPool, forced = {}) {
   } else {
     v.hair = pick(rng, classPool.hair);
   }
-  v.beard = (v.bodyType !== 'female' && chance(rng, classPool.beardChance ?? 0))
-    ? pick(rng, HAIR_BEARDS_FULL).name
+  // `beardPool` (array of beard NAMES) lets a named character force a specific
+  // beard (e.g. Velloran's full white "Winter Beard") instead of a random one.
+  // Beards are normally male/muscular-only, BUT LPC beard art DOES ship a
+  // female-body variant — so an explicit beardPool also unlocks a beard on a
+  // female body (used by Velloran, who needs a FEMALE body for the female-only
+  // kimono robe yet still wants the wizard beard; his body is hidden by the robe).
+  const beardAllowed = v.bodyType !== 'female' || classPool.beardPool?.length;
+  v.beard = (beardAllowed && chance(rng, classPool.beardChance ?? 0))
+    ? (classPool.beardPool?.length ? pick(rng, classPool.beardPool) : pick(rng, HAIR_BEARDS_FULL).name)
     : null;
   // Beast-kin: a PAIRED animal-ears + matching tail (e.g. wolf/cat), coloured to
   // the hair so the fur matches. When present, headwear is skipped below (a hat/

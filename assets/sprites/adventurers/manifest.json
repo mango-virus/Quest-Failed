@@ -70327,6 +70327,49 @@
         "crystal": null,
         "shield": null
       }
+    ],
+    "champion_velloran": [
+      {
+        "id": "v01",
+        "bodyType": "female",
+        "bodyColor": "amber",
+        "hairColor": "white",
+        "clothColor": "blue",
+        "metalColor": "silver",
+        "head": "Human Female Elderly",
+        "hair": "Long straight",
+        "beard": "Winter Beard",
+        "torso": null,
+        "outfit": {
+          "main": "blue",
+          "accent": "lavender",
+          "layers": [
+            "Kimono",
+            "Kimono Trim",
+            "Kimono Oversized Sleeves",
+            "Kimono Oversized Sleeves Trim"
+          ]
+        },
+        "torsoOverlay": "Leather Belt",
+        "cape": "Solid",
+        "legs": "Leggings",
+        "feet": "Slippers",
+        "arms": null,
+        "headwear": "Celestial Wizard Moon Hat",
+        "headOverlays": [
+          {
+            "name": "Celestial Wizard Moon Hat Second Color",
+            "color": "silver"
+          }
+        ],
+        "beast": null,
+        "visor": null,
+        "accessories": [],
+        "weapon": "S staff",
+        "weaponColor": "silver",
+        "crystal": null,
+        "shield": null
+      }
     ]
   },
   "layout": {

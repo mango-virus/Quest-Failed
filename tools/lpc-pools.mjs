@@ -2040,6 +2040,65 @@ POOLS.champion_mordrake = {
   capeColor: ['black'],
 };
 
+// ── Archmagus Velloran (KR "Mage Tower" champion, mage chassis) ──
+// A grand reality-warping ARCHMAGE — the deliberate opposite of the young female
+// kimono-witch mage. A venerable bearded MALE sorcerer-lord in deep arcane blue:
+// a tall star-and-moon Celestial wizard hat with SILVER stars, a long white
+// beard, a flowing navy mantle, and a silver gem-topped staff. Cool blue +
+// silver to match the Mage Tower response's #8a9cf0 periwinkle accent + ✶ sigil.
+POOLS.champion_velloran = {
+  // FEMALE body — the only chassis the layered Kimono robe (+ trim + oversized
+  // sleeves) ships art for. The full white beard still renders (LPC beard art has
+  // a female variant; unlocked via beardPool), and the body is hidden under the
+  // robe + hat anyway, so he still reads as a bearded archmage.
+  bodyTypes: ['female'],
+  heads: 'auto_human',
+  // Long flowing white hair + a full white "Winter Beard" = the Gandalf/Merlin
+  // archmage (the long locks spill below the tall hat rim).
+  hair: ['Long', 'Long straight'],
+  hairColorPool: ['white'],
+  beardChance: 1.0,
+  beardPool: ['Winter Beard'],
+  // Flowing layered KIMONO robe — body (main blue) + Kimono Trim (periwinkle
+  // accent) + big Oversized Sleeves (main) + their trim (accent). Far richer
+  // than a plain longsleeve; the archmage's grand robe.
+  outfit: {
+    bases:   [{ layers: [['Kimono', 'main'], ['Kimono Trim', 'accent']] }],
+    sleeves: [{ layers: [['Kimono Oversized Sleeves', 'main'], ['Kimono Oversized Sleeves Trim', 'accent']] }],
+    mainColors:   ['blue'],        // robe body = arcane blue
+    accentColors: ['lavender'],    // trim = periwinkle (the #8a9cf0 accent)
+    underLegs: ['Leggings'],
+  },
+  legs: ['Leggings'],
+  feet: ['Slippers'],
+  feetColor: ['navy'],
+  // A brown leather belt (with buckle) cinching the robe at the waist — breaks
+  // up the robe + adds an earthy anchor. (The Mage Belt's "brown" rendered near-
+  // black; the Leather Belt "brown" is a clear mid-brown leather.)
+  torsoOverlay: { items: ['Leather Belt'], chance: 1.0 },
+  torsoOverlayColor: ['brown'],
+  clothColorPool: ['blue'],
+  // Tall celestial wizard hat (deep navy) + a SILVER stars-and-moons overlay
+  // (the "Second Color" trim layer ships a silver metal variant) — the ✶ sigil
+  // made literal.
+  headwear: { items: ['Celestial Wizard Moon Hat'], chance: 1.0 },
+  headwearColor: ['navy'],
+  headOverlay: [
+    { when: ['Celestial Wizard Moon Hat'], items: ['Celestial Wizard Moon Hat Second Color'], chance: 1.0, color: ['silver'] },
+  ],
+  // Silver finery — the hat stars + the staff.
+  metalColorPool: ['silver'],
+  // Tall silver serpentine archmage staff (S staff = std walk-carry +
+  // thrust_oversize cast → needs the _atk sheet). Chosen over the Diamond staff
+  // whose silver variant ships a RED gem-core layer (clashes with blue/silver);
+  // the S staff is clean silver metal with an arcane S-curve top, no gem.
+  weapon: { items: ['S staff'], chance: 1.0 },
+  weaponColor: 'metal',
+  // A deep navy archmage's mantle (darker than the blue robe, so it reads).
+  cape: { items: ['Solid'], chance: 1.0 },
+  capeColor: ['navy'],
+};
+
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
 // named/event classes are always baked with an EXPLICIT count (shadow_monarch
