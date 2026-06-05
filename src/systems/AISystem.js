@@ -1457,15 +1457,41 @@ export class AISystem {
         }
         if (adv._oscRing.length >= OSC_TRIGGER_SAMPLES) {
           const unique = new Set(adv._oscRing.map(e => `${e.x},${e.y}`))
+          // Forward-progress guard: a SLOW unit walking straight through a
+          // chokepoint visits few unique tiles in the window (so it looks
+          // like a ping-pong by tile-count alone) but it is steadily
+          // advancing — it now stands on FRESH ground it wasn't on in the
+          // first half of the window. A genuine pacer keeps returning to
+          // ground it already covered, so its current tile is one it stood
+          // on earlier. Test exactly that: if the newest tile was NOT seen in
+          // the first half, it's making progress, not oscillating. (We can't
+          // require the whole late set to be disjoint from the early set — a
+          // slow walker straddles the half-window boundary on one transition
+          // tile, which would appear in both halves and false-negative.)
+          // This is what stops slow `noFlee` monsters (the zombie horde) from
+          // being teleported across a door by the shove below — at speed ~0.9
+          // they cross a 3-deep doorway in ~3 s, hitting ≤4 unique tiles (one
+          // a DOOR), which tripped the doorway heuristic even though they were
+          // walking through fine.
+          const _ring = adv._oscRing
+          const _span = _ring[_ring.length - 1].t - _ring[0].t
+          let _progressing = false
+          if (_span > 0) {
+            const _cut = _ring[0].t + _span * 0.5
+            const _early = new Set()
+            for (const e of _ring) if (e.t <= _cut) _early.add(`${e.x},${e.y}`)
+            const _now = _ring[_ring.length - 1]
+            _progressing = _early.size > 0 && !_early.has(`${_now.x},${_now.y}`)
+          }
           // Standard 2-tile ping-pong (e.g. wedged against a wall).
-          let oscillating = unique.size <= 2
+          let oscillating = !_progressing && unique.size <= 2
           // Doorway ping-pong: adv walks room A → DOOR → room B → DOOR
           // → room A → ... or paces back and forth in front of a door
           // they can't pass. The DOOR check keeps the threshold from
           // over-firing on legit travel (real walking sweeps ≥5 unique
           // tiles in 3 s); widened to ≤4 unique tiles so we also catch
           // the "two approach tiles + door + back-step" pattern.
-          if (!oscillating && unique.size <= 4 && this._dungeonGrid?.getTileType) {
+          if (!oscillating && !_progressing && unique.size <= 4 && this._dungeonGrid?.getTileType) {
             for (const k of unique) {
               const [x, y] = k.split(',').map(Number)
               if (this._dungeonGrid.getTileType(x, y) === TILE.DOOR) {
@@ -1541,9 +1567,24 @@ export class AISystem {
       adv.aiState === 'fighting' ||
       (adv._petrifiedUntil != null && _hardStuckNow < adv._petrifiedUntil)
     if (!hardStuckExempt) {
-      if (adv._hardStuckTileX !== adv.tileX || adv._hardStuckTileY !== adv.tileY) {
+      // "Stuck" means not moving in WORLD space — not merely "same tile". A
+      // slow unit crawling single-file through a DEEP doorway corridor (the
+      // 2×WALL_THICKNESS + gap-stub door block is up to 4 tiles deep) spends
+      // >1 s per tile and, with the ½-tile lateral lane alignment on top,
+      // can dwell on one tile past STUCK_FAILSAFE_MS while still advancing.
+      // Keying the failsafe on tile-only teleported those units across the
+      // door (the slow `noFlee` zombie horde funnelling through one lane).
+      // Re-anchor + reset the timer whenever world position has progressed
+      // ≥½ tile since the anchor, so sub-tile forward/align motion counts as
+      // movement. A genuine pin (zero world drift) still trips the cap.
+      const _hardStuckWMoved = adv._hardStuckAnchorWX != null &&
+        Math.hypot(adv.worldX - adv._hardStuckAnchorWX, adv.worldY - adv._hardStuckAnchorWY) > TS * 0.5
+      if (adv._hardStuckTileX !== adv.tileX || adv._hardStuckTileY !== adv.tileY ||
+          adv._hardStuckAnchorWX == null || _hardStuckWMoved) {
         adv._hardStuckTileX = adv.tileX
         adv._hardStuckTileY = adv.tileY
+        adv._hardStuckAnchorWX = adv.worldX
+        adv._hardStuckAnchorWY = adv.worldY
         adv._hardStuckMs = 0
       } else {
         adv._hardStuckMs = (adv._hardStuckMs ?? 0) + delta
@@ -1579,6 +1620,8 @@ export class AISystem {
     } else {
       // Reset while exempt so the timer starts fresh once exemption clears.
       adv._hardStuckMs = 0
+      adv._hardStuckAnchorWX = adv.worldX
+      adv._hardStuckAnchorWY = adv.worldY
     }
 
     // Track whether the adventurer has ever been outside ALL entry halls.
@@ -2443,7 +2486,19 @@ export class AISystem {
       // different route, the adv walks away, the new path eventually
       // points back through this same door, and the player sees them
       // ping-ponging at the doorway threshold.
+      //
+      // The HARD-stuck failsafe (_hardStuckMs) must reset here too: a unit
+      // holding at a doorway for the open animation has an UNCHANGED tile, so
+      // _hardStuckMs keeps accruing and — once past STUCK_FAILSAFE_MS — the
+      // failsafe TELEPORTS it across the door. That was the residual "zombie
+      // horde teleports through doors" case after the soft-oscillation fix:
+      // 40 slow `noFlee` shamblers funnel single-file through one lane and
+      // queue at the (initially closed) first door long enough to trip the
+      // hard cap. Waiting for a door to open is not being stuck.
       adv._tileStuckMs = 0
+      adv._hardStuckMs = 0
+      adv._hardStuckTileX = adv.tileX
+      adv._hardStuckTileY = adv.tileY
       adv._oscRing    = []
       adv._oscNextAt  = (this._scene.time?.now ?? 0) + 200
       adv._lastWorldX = adv.worldX
