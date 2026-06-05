@@ -18,6 +18,7 @@ import { EventBus }         from '../systems/EventBus.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
 import { upgradeCost }      from '../util/minionRevive.js'
+import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 
 // Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used to
 // give the shadow minions the same RGB-style blue↔black flame cycle Jinwoo
@@ -809,6 +810,21 @@ export class MinionRenderer {
   // ── Internals ──────────────────────────────────────────────────────────────
 
   _createSprite(m) {
+    // The Undying Court / Lich raise — a RISEN minion must render its fallen
+    // adventurer's LPC sprite, NEVER the skeleton base. The base sheets load
+    // on-demand, so after a save/reload (where no living adv of that class has
+    // spawned this session) the sheet isn't loaded yet. Stream it in and DON'T
+    // build a sprite this frame — otherwise we'd create a skeleton the player
+    // sees the risen unit "revert" to. It stays briefly invisible (a frame or
+    // two) until the real sheet lands, then renders as its exact adventurer.
+    if (m._raisedSpriteVariant) {
+      const key = `adv-${m._raisedSpriteVariant.replace('/', '-')}`
+      if (!this._scene?.textures?.exists?.(key)) {
+        const [cls, vId] = m._raisedSpriteVariant.split('/')
+        if (cls && vId) { ensureAdventurerBaseSheet(this._scene, cls, vId); return null }
+        // Malformed variant — fall through to the normal (skeleton) path.
+      }
+    }
     const def     = this._defMap[m.definitionId]
     const idleKey = this._idleTextureKey(def, m.definitionId, m)
     const hasSprite = def && idleKey && this._scene.textures.exists(idleKey)

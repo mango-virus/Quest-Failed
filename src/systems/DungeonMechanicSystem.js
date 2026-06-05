@@ -1501,40 +1501,6 @@ function _buildHandlerRegistry() {
       }
     },
 
-    // ── Pact of the Marionette ───────────────────────────────────────────
-    // Click-to-possess minion + WASD direct control. Game scene owns the
-    // input wiring; this handler tracks the once-per-day flag and ends
-    // possession on minion death / day end.
-    pactOfTheMarionette_activate: ({ subscribe, gameState }) => {
-      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
-      f.pactOfTheMarionette = true
-      f.marionetteUsedToday = false
-      f.possessedMinionId = null
-      subscribe('DAY_PHASE_STARTED', () => {
-        gameState._mechanicFlags.marionetteUsedToday = false
-        gameState._mechanicFlags.possessedMinionId = null
-      })
-      subscribe('NIGHT_PHASE_STARTED', () => {
-        if (gameState._mechanicFlags.possessedMinionId) {
-          EventBus.emit('MARIONETTE_RELEASED', { reason: 'night' })
-        }
-        gameState._mechanicFlags.possessedMinionId = null
-      })
-      subscribe('MINION_DIED', ({ minion }) => {
-        if (!minion) return
-        if (gameState._mechanicFlags.possessedMinionId === minion.instanceId) {
-          gameState._mechanicFlags.possessedMinionId = null
-          EventBus.emit('MARIONETTE_RELEASED', { reason: 'killed', minionId: minion.instanceId })
-        }
-      })
-    },
-    pactOfTheMarionette_deactivate: ({ gameState }) => {
-      if (gameState._mechanicFlags) {
-        gameState._mechanicFlags.pactOfTheMarionette = false
-        gameState._mechanicFlags.possessedMinionId = null
-      }
-    },
-
     // ── DAMNED · The Leech ───────────────────────────────────────────────
     // Devil's bargain: a one-time gold bribe on sealing, then the dungeon
     // bleeds 8% of your treasury every dawn for the rest of the run.

@@ -1557,20 +1557,6 @@ export class NightPhase extends Phaser.Scene {
       if (overMinion && !minionTargetingMode) return
 
       if (p.rightButtonDown()) {
-        // Phase 9 — Pact of the Brand: right-click on a placed trap selects
-        // it as the blessed trap (only valid when no tool/placement armed).
-        if (!this._toolMode && !this._selected &&
-            (this._gameState._mechanicFlags ?? {}).pactOfTheBrand) {
-          const tx = Math.floor(wp.x / TS)
-          const ty = Math.floor(wp.y / TS)
-          const trap = (this._gameState.dungeon.traps ?? []).find(
-            t => t.tileX === tx && t.tileY === ty && !t.isTriggered
-          )
-          if (trap) {
-            EventBus.emit('BRAND_TRAP_SELECTED', { trapId: trap.instanceId })
-            return
-          }
-        }
         // Right-click cancels: pending trade-off → roll back the staged
         // lock; armed tool → release; placement candidate → drop.
         // Removal is sell-only — right-click never deletes placed content.
@@ -1605,6 +1591,21 @@ export class NightPhase extends Phaser.Scene {
           if (d <= bestD) { bestD = d; hit = c }
         }
         if (hit) { this._promptReviveCorpse(hit); return }
+      }
+
+      // ── UNCOMMON · Pact of the Brand ───────────────────────────────────
+      // Left-click a trap (it shows a "BLESS" beacon at night) to bless it —
+      // its next firing deals 5× damage, then it breaks. Only when no build
+      // tool / placement is armed, so it doesn't fight the build flow.
+      if ((this._gameState._mechanicFlags ?? {}).pactOfTheBrand &&
+          !this._toolMode && !this._selected) {
+        const trap = (this._gameState.dungeon?.traps ?? []).find(t => {
+          if (t.isTriggered) return false
+          const fp = t.footprint ?? { w: 1, h: 1 }
+          const cx = (t.tileX + fp.w / 2) * TS, cy = (t.tileY + fp.h / 2) * TS
+          return Math.hypot(wp.x - cx, wp.y - cy) <= TS * 0.8
+        })
+        if (trap) { this._promptBlessTrap(trap); return }
       }
 
       // Phase 31D — action-bar tool intercepts left-click on placed rooms.
@@ -3446,6 +3447,37 @@ export class NightPhase extends Phaser.Scene {
     this._gameState.minions.splice(idx, 1)
     EventBus.emit('MINION_REMOVED', { minion })
     return true
+  }
+
+  // ── UNCOMMON · Pact of the Brand — click-to-bless a trap ───────────────
+  // Left-click a trap to bless it: its next shot deals 5× damage, then it
+  // breaks (→ rebuildable). A confirm mirrors the Undying Court revive flow.
+  _promptBlessTrap(trap) {
+    if (!trap) return
+    // One blessing per night — once any trap is blessed the choice is LOCKED
+    // until the next night (the pact's NIGHT_PHASE_STARTED handler clears it).
+    const blessed = (this._gameState.dungeon?.traps ?? []).find(t => t._brandBlessed)
+    if (blessed) {
+      EventBus.emit('SHOW_TOAST', {
+        message: blessed === trap
+          ? 'This trap is already blessed — 5× next shot.'
+          : 'You have already blessed a trap this night.',
+        type: 'info',
+      })
+      return
+    }
+    EventBus.emit('SHOW_CONFIRM', {
+      title: 'BLESS A TRAP',
+      message: 'Bless this trap? Its next shot deals 5× damage — then the trap breaks and must be rebuilt.',
+      confirmLabel: 'BLESS  (5×)',
+      cancelLabel:  'CANCEL',
+      theme: 'gold',
+      onConfirm: () => {
+        EventBus.emit('BRAND_TRAP_SELECTED', { trapId: trap.instanceId })
+        EventBus.emit('SHOW_TOAST', { message: 'Trap blessed — its next shot strikes 5×.', type: 'info' })
+      },
+      onCancel: () => {},
+    })
   }
 
   // ── LEGENDARY · The Undying Court — click-to-revive a fallen hero ──────

@@ -76,7 +76,6 @@ const REACTIONS = {
   DUNGEON_EVENT_ANNOUNCED:    { cat: 'dungeon_event', specific: 'event' },
   BOUNTY_HUNTER_ARRIVED:      { cat: 'bounty_hunter_incoming' },
   VETERAN_APPROACHING:        { cat: 'hero_incoming', ctx: 'adv' },
-  MARIONETTE_POSSESSED:       { cat: 'marionette' },
   PERSONALITY_COMBO_ACTIVATED:{ cat: 'combo' },
   // Boss-archetype signature abilities firing — one notable, daily-ish
   // event per archetype (high-frequency per-hit/per-tick events excluded).

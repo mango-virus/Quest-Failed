@@ -40,6 +40,7 @@ import { DemonWagerRenderer }    from '../ui/DemonWagerRenderer.js'
 import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
 import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
 import { PersistentCorpseRenderer } from '../ui/PersistentCorpseRenderer.js'
+import { TrapBlessRenderer } from '../ui/TrapBlessRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
 import { ChatBubbles }        from '../ui/ChatBubbles.js'
 import { KnowledgeOverlay }   from '../ui/KnowledgeOverlay.js'
@@ -350,6 +351,7 @@ export class Game extends Phaser.Scene {
     this.phylacteryRenderer  = track(new PhylacteryRenderer(this, this.gameState))
     this.fungalCorpseRenderer = track(new FungalCorpseRenderer(this, this.gameState))
     this.persistentCorpseRenderer = track(new PersistentCorpseRenderer(this, this.gameState))
+    this.trapBlessRenderer = track(new TrapBlessRenderer(this, this.gameState))
     // MinionInspector and WantedPoster have DOM ports under the new HUD
     // (src/hud/MinionInspectorOverlay.js + the ToastQueue 'bounty' kind).
     // Gate the Phaser constructions so they don't double-fire under the
@@ -392,14 +394,6 @@ export class Game extends Phaser.Scene {
 
     // Respawn dead minions when night starts (Phase 6 kernel)
     EventBus.on('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
-    // Phase 9 — Pact of the Marionette: MinionRenderer's per-sprite
-    // pointerdown calls event.stopPropagation, which blocks the scene-
-    // level pointerdown handler where _tryMarionettePossess used to
-    // exclusively run. Subscribing to the MINION_CLICKED event the
-    // sprite handler emits bypasses propagation entirely — same minion
-    // ref, no tile-find needed. The scene-level path still works as a
-    // fallback (click on a tile a sprite doesn't cover).
-    EventBus.on('MINION_CLICKED',       this._onMinionClickedForMarionette, this)
     // Pay-to-revive (2026-05-28): the night-phase REVIVE button (LeftPanels)
     // asks to bring fallen roster minions back for gold.
     EventBus.on('REVIVE_FALLEN_REQUEST', this._onReviveFallenRequest, this)
@@ -560,7 +554,6 @@ export class Game extends Phaser.Scene {
 
   shutdown() {
     EventBus.off('NIGHT_PHASE_STARTED',  this._onNightStart,   this)
-    EventBus.off('MINION_CLICKED',       this._onMinionClickedForMarionette, this)
     EventBus.off('REVIVE_FALLEN_REQUEST', this._onReviveFallenRequest, this)
     EventBus.off('REBUILD_TRAPS_REQUEST', this._onRebuildTrapsRequest, this)
     EventBus.off('DAY_PHASE_STARTED',     this._purgeUnrevivedFallen,  this)
@@ -1721,11 +1714,6 @@ export class Game extends Phaser.Scene {
         if (this._followId) this._setFollow(null)
         return
       }
-      // Phase 9 — Pact of the Marionette: left-click a minion during day
-      // phase to possess it (once per day).
-      if (p.leftButtonDown() && this.gameState?.meta?.phase === 'day') {
-        this._tryMarionettePossess(p)
-      }
     })
 
     this.input.on('pointermove', (p) => {
@@ -1814,105 +1802,6 @@ export class Game extends Phaser.Scene {
     })
   }
 
-  // Phase 9 — Marionette possession. Two entry points feed into
-  // _possessMinion: the scene-level pointerdown (tile-find, catches
-  // clicks on tiles a sprite doesn't cover) and the MINION_CLICKED
-  // EventBus subscription (direct ref, bypasses the sprite's
-  // stopPropagation that blocks the scene handler).
-  _tryMarionettePossess(pointer) {
-    const flags = this.gameState?._mechanicFlags ?? {}
-    if (!flags.pactOfTheMarionette) return
-    if (flags.marionetteUsedToday) return
-    if (flags.possessedMinionId) return    // already possessing
-    const wp = this._cam.getWorldPoint(pointer.x, pointer.y)
-    const tx = Math.floor(wp.x / Balance.TILE_SIZE)
-    const ty = Math.floor(wp.y / Balance.TILE_SIZE)
-    const minion = (this.gameState.minions ?? []).find(m =>
-      m.faction === 'dungeon' && m.aiState !== 'dead' &&
-      m.tileX === tx && m.tileY === ty
-    )
-    this._possessMinion(minion)
-  }
-
-  // Sprite-level pointerdown in MinionRenderer calls stopPropagation,
-  // so the scene-level _tryMarionettePossess never fires for clicks
-  // that land on a minion's sprite (the dominant case). This subscriber
-  // covers that gap — same gating, same possession step.
-  _onMinionClickedForMarionette({ minion, pointer } = {}) {
-    if (!minion) return
-    if (this.gameState?.meta?.phase !== 'day') return
-    if (pointer?.rightButtonDown?.()) return   // right-click reserved for other UI flows
-    const flags = this.gameState?._mechanicFlags ?? {}
-    if (!flags.pactOfTheMarionette) return
-    if (flags.marionetteUsedToday) return
-    if (flags.possessedMinionId) return
-    if (minion.faction !== 'dungeon' || minion.aiState === 'dead') return
-    this._possessMinion(minion)
-  }
-
-  // Shared possession step. Called from both _tryMarionettePossess
-  // (scene pointerdown) and _onMinionClickedForMarionette (sprite click).
-  _possessMinion(minion) {
-    if (!minion) return
-    const flags = this.gameState._mechanicFlags ?? (this.gameState._mechanicFlags = {})
-    if (flags.possessedMinionId) return
-    flags.possessedMinionId  = minion.instanceId
-    flags.marionetteUsedToday = true
-    minion._marionetteLastStepAt = 0
-    EventBus.emit('MARIONETTE_POSSESSED', { minionId: minion.instanceId })
-  }
-
-  // Per-frame: move the possessed minion via WASD (debounced) + auto-attack
-  // any adv in melee range. Camera follows the puppet.
-  _tickMarionette(time, _delta) {
-    const flags = this.gameState._mechanicFlags ?? {}
-    const minion = (this.gameState.minions ?? []).find(m => m.instanceId === flags.possessedMinionId)
-    if (!minion || minion.aiState === 'dead') {
-      flags.possessedMinionId = null
-      return
-    }
-    const now = time
-    const interval = Balance.MECHANIC_MARIONETTE_MOVE_INTERVAL_MS
-    const ready = (now - (minion._marionetteLastStepAt ?? 0)) >= interval
-    let dx = 0, dy = 0
-    if (this._keys.W.isDown) dy -= 1
-    if (this._keys.S.isDown) dy += 1
-    if (this._keys.A.isDown) dx -= 1
-    if (this._keys.D.isDown) dx += 1
-    if (ready && (dx !== 0 || dy !== 0)) {
-      const nx = minion.tileX + dx
-      const ny = minion.tileY + dy
-      const grid = this.dungeonGrid
-      const tile = grid?.getTileType?.(nx, ny)
-      if (tile === TILE.FLOOR || tile === TILE.BOSS_FLOOR || tile === TILE.DOOR) {
-        minion.tileX  = nx
-        minion.tileY  = ny
-        minion.worldX = nx * Balance.TILE_SIZE + Balance.TILE_SIZE / 2
-        minion.worldY = ny * Balance.TILE_SIZE + Balance.TILE_SIZE / 2
-        minion._marionetteLastStepAt = now
-      }
-    }
-    // Auto-attack any adv in melee range.
-    const advs = this.gameState.adventurers?.active ?? []
-    for (const adv of advs) {
-      if (adv.aiState === 'dead' || adv.resources.hp <= 0) continue
-      const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-      const reach = Math.max(minion.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
-      if (d <= reach + 0.01) {
-        this.combatSystem?.tryAttack?.(minion, adv, {
-          roomId: this.dungeonGrid?.getRoomAtTile?.(minion.tileX, minion.tileY)?.instanceId,
-          method: 'marionette',
-        })
-        break
-      }
-    }
-    // Camera follows the puppet.
-    const cx = minion.worldX - this._cam.centerX
-    const cy = minion.worldY - this._cam.centerY
-    this._cam.scrollX += (cx - this._cam.scrollX) * 0.1
-    this._cam.scrollY += (cy - this._cam.scrollY) * 0.1
-  }
-
   update(_time, delta) {
     // Mango cheat — refill gold floor every tick so spends instantly
     // restore. Cheap (one int compare + maybe one assignment per
@@ -1947,11 +1836,7 @@ export class Game extends Phaser.Scene {
                     this._keys.A.isDown || this._keys.D.isDown
     if (anyWASD && this._followId) this._setFollow(null)
 
-    // Phase 9 — Marionette: WASD drives the possessed minion instead of camera.
-    const possessedId = this.gameState?._mechanicFlags?.possessedMinionId
-    if (possessedId) {
-      this._tickMarionette(_time, delta)
-    } else if (!this._duelCamLock) {
+    if (!this._duelCamLock) {
       if (this._keys.W.isDown) this._cam.scrollY -= speed
       if (this._keys.S.isDown) this._cam.scrollY += speed
       if (this._keys.A.isDown) this._cam.scrollX -= speed
@@ -2139,6 +2024,7 @@ export class Game extends Phaser.Scene {
       rtick('phylacteryRenderer',  () => this.phylacteryRenderer?.update())
       rtick('fungalCorpseRenderer', () => this.fungalCorpseRenderer?.update())
       rtick('persistentCorpseRenderer', () => this.persistentCorpseRenderer?.update())
+      rtick('trapBlessRenderer',   () => this.trapBlessRenderer?.update())
       rtick('torchRenderer',       () => this.torchRenderer?.update())
       rtick('cobwebRenderer',      () => this.cobwebRenderer?.update())
       rtick('decorRenderer',       () => this.decorRenderer?.update())
@@ -2161,6 +2047,7 @@ export class Game extends Phaser.Scene {
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
       this.persistentCorpseRenderer?.update()
+      this.trapBlessRenderer?.update()
       this.torchRenderer?.update()
       this.cobwebRenderer?.update()
       this.decorRenderer?.update()

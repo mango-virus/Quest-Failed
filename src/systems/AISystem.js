@@ -192,6 +192,12 @@ export class AISystem {
       // passiveIncomeMul / Balance.PASSIVE_INCOME_*).
       chestPayout = Math.round(chestPayout * passiveIncomeMul(
         this._gameState.boss?.level ?? 1, day))
+      // DAMNED · Famine's Grip — the "and items" half of the curse: treasure
+      // CHESTS pay 50% less too (the treasury-room stipend is already halved in
+      // RoomBehaviorSystem). A curse, so it is NOT gated by inquisitor suppression.
+      if ((this._gameState._mechanicFlags ?? {}).faminesGrip) {
+        chestPayout = Math.round(chestPayout * (Balance.MECHANIC_FAMINES_GRIP_PAYOUT_MULT ?? 0.5))
+      }
       if (chestPayout > 0) {
         this._gameState.player.gold = (this._gameState.player.gold ?? 0) + chestPayout
         EventBus.emit('TREASURE_PAYOUT', { gold: chestPayout })

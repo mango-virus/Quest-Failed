@@ -898,8 +898,6 @@ export const Balance = {
   MECHANIC_WHISPERER_PARTY_DAMAGE_MULT:   1.5,
   MECHANIC_CARTOGRAPHER_SPEED_MULT:       1.25,
 
-  // --- Pact of the Marionette ---
-  MECHANIC_MARIONETTE_MOVE_INTERVAL_MS:   180,    // min ms between possessed-minion tile steps
 
   // --- Mimic (chest-disguised stationary trap minion) ---
   // [Removed 2026-05-22] MIMIC_OPEN_CHANCE_UNKNOWN / MIMIC_OPEN_CHANCE_KNOWN

@@ -336,12 +336,6 @@ export class MinionAISystem {
       return
     }
 
-    // Phase 9 — Pact of the Marionette: while the player is possessing a
-    // minion, every other dungeon minion stands idle. The possessed one
-    // is driven by Game._tickMarionette and must NOT also run AI here.
-    const possessedId = this._gameState?._mechanicFlags?.possessedMinionId
-    if (possessedId && minion.faction === 'dungeon') return
-
     // Mimic — disguised-chest minions sit still in BOTH the active
     // 'chest' state (waiting to spring) AND the spent 'sprung' state
     // (just killed an adv; visually open till next night). They never

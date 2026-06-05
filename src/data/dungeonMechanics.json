@@ -1190,8 +1190,8 @@
     "id": "pact_of_the_brand",
     "name": "Pact of the Brand",
     "symbol": "🔆",
-    "description": "Each night you choose one trap to 'bless' — its next firing deals 5× damage.",
-    "tradeoffDescription": "After firing, the blessed trap is destroyed.",
+    "description": "Each night, left-click one of your traps to bless it — its next firing deals 5× damage.",
+    "tradeoffDescription": "After firing, the blessed trap breaks and must be rebuilt.",
     "rarity": "uncommon",
     "unlockLevel": 3,
     "weight": 3,
@@ -1222,27 +1222,6 @@
     "tags": [
       "adventurer",
       "curse"
-    ],
-    "exclusiveWith": [],
-    "synergyWith": []
-  },
-  {
-    "id": "pact_of_the_marionette",
-    "name": "Pact of the Marionette",
-    "symbol": "🎭",
-    "description": "Once per day, left-click any of your minions during the day phase to possess it. WASD moves the puppet; it auto-attacks adventurers in melee range.",
-    "tradeoffDescription": "While possessed, every other minion in the dungeon stands idle. You lose possession if the puppet is killed or the day ends.",
-    "rarity": "legendary",
-    "unlockLevel": 5,
-    "weight": 1,
-    "availableToArchetypes": "all",
-    "onActivate": "pactOfTheMarionette_activate",
-    "onDeactivate": "pactOfTheMarionette_deactivate",
-    "onDailyTick": null,
-    "tags": [
-      "minion",
-      "control",
-      "possession"
     ],
     "exclusiveWith": [],
     "synergyWith": []

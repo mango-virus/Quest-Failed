@@ -96,7 +96,6 @@ export const PACT_FLAVOR = {
   pact_of_the_whisperer:   'whispers travel further than shouts',
   pact_of_the_brand:       'wear the brand or wear the wound',
   pact_of_the_reaper:      'the harvest is patient, but never late',
-  pact_of_the_marionette:  "you don't notice the strings until they pull",
 
   // Damned (solid-black) pacts — devil's bargains: a sliver of bribe, a
   // lifetime of curse.

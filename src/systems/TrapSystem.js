@@ -87,6 +87,10 @@ export class TrapSystem {
     const fired = trap.state?.firedAt ?? 0
     if ((this._breakRolledAt[trap.instanceId] ?? -1) === fired) return
     this._breakRolledAt[trap.instanceId] = fired
+    // Pact of the Brand — a blessed trap is DESTROYED after its 5× shot: it
+    // breaks (→ dungeon._brokenTraps) so the player rebuilds it at half cost via
+    // the night REBUILD button. Always breaks, overriding the random 5% roll.
+    if (trap._brandConsumed) { trap._brandConsumed = false; this._breakTrap(trap, def); return }
     if (Math.random() >= TRAP_BREAK_CHANCE) return
     this._breakTrap(trap, def)
   }
@@ -606,7 +610,8 @@ export class TrapSystem {
     if (f.pactOfTheJester && !sup) dmg *= Balance.MECHANIC_JESTER_TRAP_DAMAGE_MULT ?? 1.5
     if (f.pactOfTheBrand && !sup && trap._brandBlessed) {
       dmg *= Balance.MECHANIC_BRAND_BLESSED_DAMAGE_MULT ?? 5
-      trap._brandBlessed = false
+      trap._brandBlessed  = false
+      trap._brandConsumed = true   // curse: destroyed after firing — _maybeBreakTrap breaks it
     }
     const room = this._dungeonGrid.getRoomAtTile(trap.tileX, trap.tileY)
     if (room && this._engineerInRoom(room.instanceId)) {

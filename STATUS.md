@@ -44,7 +44,7 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 | Minions | **64** | `minionTypes.json` | Families × tiers (e.g. goblin1/2/3, slime1–9, skeleton1/2/3). |
 | Evolution chains | **22** | `minionEvolutions.json` | Evolution data lives HERE, not in `minionTypes.json`'s `evolutionPaths` (which is empty by design). |
 | Traps | **8** | `trapTypes.json` | shooting_arrows, bomb, cannon, spike_pillar, dragon_trap, spike_pit, rotating_blades, saw_blade. Fully wired in `TrapSystem.js`. **(NOTE: older docs/memories that say traps are unimplemented are STALE — traps shipped.)** |
-| Pacts (dungeon mechanics) | **94** | `dungeonMechanics.json` | 9 common · 14 uncommon · 24 rare · 9 epic · 16 legendary · 24 damned. |
+| Pacts (dungeon mechanics) | **93** | `dungeonMechanics.json` | 9 common · 14 uncommon · 24 rare · 9 epic · 16 legendary · 24 damned. |
 | Events | **36** | `events.json` | Incl. scripted set-pieces: Solo Leveling (Shadow Monarch), Light Party (FFXIV trinity), Rival Dungeon, Loot Goblin Heist, etc. |
 | Adventurer classes | **30** | `adventurerClasses.json` | 6 core (knight/rogue/mage/cleric/necromancer/ranger) + expansions + event-only (unlockLevel 99). |
 | Personalities | **17** | `personalities.json` | greedy, paranoid, speed_runner, completionist, martyr, coward, overconfident, cartographer, solo, raid_leader, underdog, inquisitor, vulture, traumatized, the_fan, echo, mimic_handler. |
