@@ -48,10 +48,12 @@ Sample report:
 
 ## What it models faithfully
 
-Real `AISystem`/`CombatSystem`/`BossSystem`/etc. drive everything: adventurer
-pathfinding + goal logic, combat, traps, boss fights + XP leveling, boss/minion
-HP day-reset, day-level stat scaling. The fake scene only stands in for
-rendering/audio/input.
+Real `AISystem`/`CombatSystem`/`BossSystem`/`BossArchetypeSystem`/etc. drive
+everything: adventurer pathfinding + goal logic, combat, traps, boss fights + XP
+leveling, **per-archetype boss mechanics** (charm/phase/phylactery — bosses
+genuinely differ), **minion tier upgrades** (the night-building policy evolves
+minions; auto-evolve was removed, upgrades are paid), boss/minion HP day-reset,
+day-level stat scaling. The fake scene only stands in for rendering/audio/input.
 
 ## Known limitations (by design for v1)
 
@@ -61,9 +63,11 @@ rendering/audio/input.
   (abstracted as a flat stipend). Those are the *quality* multipliers that carry
   real late-game, so survival plateaus (~10-12 days). It captures the growth
   *dynamic* and is tunable, not optimal play.
-- **Bosses read near-identical** because base fight stats are flat (200/12/10)
-  and differentiation is abilities-only (not unlocked here). See `STATUS.md`.
-  This is a *useful confirmation*, not a bug.
+- **No functional rooms** (only entry→boss): garrison spawns (barracks/crypt),
+  treasury income, trap factories, and the room-knowledge that long-game /
+  spatial pacts trade on are NOT modeled — so a tiny dungeon under-values those.
+- **Generic boss abilities** (the 6 power-cost `bossAbilities.json` picks) and
+  **companions** are not modeled. Per-archetype mechanics ARE (BossArchetypeSystem).
 - **Pacts** apply via `pacts:[...]`, but their effect under-reads when it depends
   on building (a static/simple dungeon). Global modifiers read faithfully.
   Events are not applied; wave-gen skips pact/event wave modifiers.

@@ -78,9 +78,9 @@ if (JSON_OUT) {
   for (const r of rows) {
     console.log(`  ${pad(r.label, 20)} ${padL(r.bossDiedPct + '%', 9)} ${padL(`${r.daysMean}±${r.daysStd}`, 16)} ${padL(r.daysMedian, 4)} ${padL(r.daysMin, 4)} ${padL(r.daysMax, 4)} ${padL(r.killsMean, 6)} ${padL(`${r.finalLvMean} (${r.finalLvMax})`, 8)}`)
   }
-  console.log(`\n  Read: 'bare' < 'defended' (fixed loadout) < 'building' (gold reinvested nightly).`)
-  console.log(`  'building' is a real growing-dungeon playthrough but models a SIMPLE player (cheap`)
-  console.log(`  minions, no evolution/abilities/upgrades/pacts), so survival plateaus — quality`)
-  console.log(`  multipliers carry real late-game. Bosses read near-identical: base stats are flat`)
-  console.log(`  (200/12/10), differentiation is abilities-only (see STATUS.md). Tune via --build / flags.\n`)
+  console.log(`\n  Read: 'bare' < 'defended' (fixed loadout) < 'building' (gold reinvested nightly,`)
+  console.log(`  with minion tier UPGRADES). Bosses now DIFFERENTIATE via BossArchetypeSystem`)
+  console.log(`  (charm/phase/phylactery/etc.) even though base fight stats are flat (200/12/10).`)
+  console.log(`  Still a SIMPLE player model (no functional rooms / generic boss abilities /`)
+  console.log(`  companions / events), so absolute survival is a comparative baseline. Tune via flags.\n`)
 }

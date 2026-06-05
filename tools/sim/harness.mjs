@@ -6,6 +6,7 @@ import { boot, frame, EventBus } from './headless.mjs'
 import { createAdventurer }      from '../../src/entities/Adventurer.js'
 import { createMinion, applyMinionScaling } from '../../src/entities/Minion.js'
 import { createTrap }            from '../../src/entities/Trap.js'
+import { upgradeCost }           from '../../src/util/minionRevive.js'
 import { pickWeightedClass }     from '../../src/util/classSpawn.js'
 import { TILE }                  from '../../src/systems/DungeonGrid.js'
 import { Balance, adventurerScaleMultipliers } from '../../src/config/balance.js'
@@ -54,35 +55,66 @@ function placeOneTrap(scene, gs, grid, def) {
 }
 
 // ── Night-building policy — spend the night's gold on defenses ─────────────────
-// A simple "competent player" model: take a stipend (abstracts economy buildings
-// the sim doesn't construct), then buy the strongest AFFORDABLE unlocked minion/
-// trap repeatedly up to a level-scaling cap. Gold is the real early constraint.
-// This turns runGame into a growing-dungeon playthrough rather than a static one.
+// A "competent player" model: take a stipend (abstracts economy buildings the sim
+// doesn't construct), then (1) buy minions up to a level floor, (2) buy traps,
+// (3) invest surplus gold in tier UPGRADES — evolving existing minions, the real
+// quality multiplier (auto-evolve was removed 2026-05-29; upgrades are paid) —
+// then (4) buy more minions up to a cap with any leftover. Quantity early, quality
+// once the economy can afford it. Turns runGame into a growing-dungeon playthrough.
 export function buildNightDefenses(scene, gs, grid, cfg = {}) {
-  const { stipend = 25, minionCapBase = 4, minionCapPerLv = 2, trapCapBase = 2, trapCapPerLv = 0.5 } = cfg
-  const bossLv = gs.boss?.level ?? 1
+  const {
+    stipend = 25, minionFloorBase = 4, minionFloorPerLv = 1,
+    minionCapBase = 4, minionCapPerLv = 2, trapCapBase = 2, trapCapPerLv = 0.5, upgrade = true,
+  } = cfg
+  const bossLv = gs.boss?.level ?? 1, day = gs.meta?.dayNumber ?? 1
   gs.player.gold = (gs.player.gold ?? 0) + stipend
   const buyableM = (scene.cache.json.get('minionTypes') ?? []).filter(d => (d.unlockLevel ?? 1) <= bossLv && d.goldCost > 0).sort((a, b) => a.goldCost - b.goldCost)
   const buyableT = (scene.cache.json.get('trapTypes')   ?? []).filter(d => (d.unlockLevel ?? 1) <= bossLv && d.goldCost > 0).sort((a, b) => a.goldCost - b.goldCost)
+  const mDefs  = scene.cache.json.get('minionTypes') ?? []
+  const chains = scene.cache.json.get('minionEvolutions') ?? {}
+  const evo    = scene.minionEvolutionSystem
   const minionCap = Math.round(minionCapBase + minionCapPerLv * bossLv)
+  const floor     = Math.min(minionCap, Math.round(minionFloorBase + minionFloorPerLv * bossLv))
   const trapCap   = Math.round(trapCapBase + trapCapPerLv * bossLv)
-  let spent = 0
+  let spent = 0, upgrades = 0
   const aliveM = () => gs.minions.filter(m => m.aiState !== 'dead').length
-  while (aliveM() < minionCap) {
-    const aff = buyableM.filter(d => d.goldCost <= gs.player.gold)
-    if (!aff.length) break
-    const def = aff[aff.length - 1]                 // priciest affordable ≈ strongest
-    if (!placeOneMinion(scene, gs, grid, def, bossLv)) break
-    gs.player.gold -= def.goldCost; spent += def.goldCost
+
+  const buyMinionsUpTo = (target) => {
+    while (aliveM() < target) {
+      const aff = buyableM.filter(d => d.goldCost <= gs.player.gold)
+      if (!aff.length) break
+      const def = aff[aff.length - 1]               // priciest affordable ≈ strongest
+      if (!placeOneMinion(scene, gs, grid, def, bossLv)) break
+      gs.player.gold -= def.goldCost; spent += def.goldCost
+    }
   }
-  while ((gs.dungeon.traps?.length ?? 0) < trapCap) {
+
+  buyMinionsUpTo(floor)                              // (1) baseline quantity
+  while ((gs.dungeon.traps?.length ?? 0) < trapCap) { // (2) traps
     const aff = buyableT.filter(d => d.goldCost <= gs.player.gold)
     if (!aff.length) break
     const def = aff[aff.length - 1]
     if (!placeOneTrap(scene, gs, grid, def)) break
     gs.player.gold -= def.goldCost; spent += def.goldCost
   }
-  return { spent, minions: aliveM(), traps: gs.dungeon.traps?.length ?? 0 }
+  if (upgrade && evo) {                              // (3) invest surplus in quality
+    let guard = 0
+    while (guard++ < 300) {
+      const cands = gs.minions
+        .filter(m => m.aiState !== 'dead' && evo.canUpgrade?.(m))
+        .map(m => ({ m, cost: upgradeCost(gs, m, mDefs, chains) }))
+        .filter(x => x.cost > 0 && x.cost <= gs.player.gold)
+        .sort((a, b) => a.cost - b.cost)             // cheapest (lowest-tier) first
+      if (!cands.length) break
+      const { m, cost } = cands[0]
+      gs.player.gold -= cost; spent += cost
+      if (evo.upgrade(m)) { applyMinionScaling(m, bossLv, day); upgrades++ }  // re-base HP to new tier now
+    }
+  }
+  buyMinionsUpTo(minionCap)                          // (4) extra quantity with leftover
+
+  const tiers = gs.minions.filter(m => m.aiState !== 'dead').map(m => evo?.tierOf?.(m) ?? 1)
+  return { spent, upgrades, minions: aliveM(), traps: gs.dungeon.traps?.length ?? 0, maxTier: tiers.length ? Math.max(...tiers) : 1 }
 }
 
 // loadout: { minions: ['skeleton1', ...], traps: ['shooting_arrows', ...] }

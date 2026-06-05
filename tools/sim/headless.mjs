@@ -52,6 +52,7 @@ export function installGlobals() {
   setGlobal('cancelAnimationFrame', () => {})
   setGlobal('Phaser', {
     BlendModes: { ADD: 1, NORMAL: 0, MULTIPLY: 2, SCREEN: 3, ERASE: 17 },
+    Textures: { FilterMode: { LINEAR: 0, NEAREST: 1 } },
     Math: {
       Between: (a, b) => a + Math.floor(Math.random() * (b - a + 1)),
       FloatBetween: (a, b) => a + Math.random() * (b - a),
@@ -125,6 +126,7 @@ import { DungeonMechanicSystem }  from '../../src/systems/DungeonMechanicSystem.
 import { NewspaperSystem }        from '../../src/systems/NewspaperSystem.js'
 import { InquisitorSystem }       from '../../src/systems/InquisitorSystem.js'
 import { BossSystem }             from '../../src/systems/BossSystem.js'
+import { BossArchetypeSystem }    from '../../src/systems/BossArchetypeSystem.js'
 import { EventSystem }            from '../../src/systems/EventSystem.js'
 import { RoomBehaviorSystem }     from '../../src/systems/RoomBehaviorSystem.js'
 import { ClassAbilitySystem }     from '../../src/systems/ClassAbilitySystem.js'
@@ -175,6 +177,7 @@ export function boot({ boss = 'lich' } = {}) {
   add('newspaperSystem',   new NewspaperSystem(scene, gs))
   add('inquisitorSystem',  new InquisitorSystem(scene, gs, systems.dungeonMechanicSystem, systems.personalitySystem))
   add('bossSystem',        new BossSystem(scene, gs))
+  add('bossArchetypeSystem', new BossArchetypeSystem(scene, gs))  // per-archetype boss behavior (the differentiator)
   add('eventSystem',       new EventSystem(scene, gs))
   add('roomBehaviorSystem', new RoomBehaviorSystem(scene, gs))
   add('classAbilitySystem', new ClassAbilitySystem(scene, gs))
@@ -191,6 +194,10 @@ export function frame(scene, systems, { ts = 1, onError } = {}) {
   const steps = Math.max(1, Math.ceil(totalScaled / MAX_STEP))
   const stepDt = totalScaled / steps
   const tick = (name, fn) => { try { fn() } catch (e) { if (onError) onError(name, e); } }
+
+  // Archetype system ticks once per frame on real delta (matches Game.update:1991,
+  // which runs it OUTSIDE the day-phase scaled branch — phylactery damage etc.).
+  tick('bossArchetypeSystem', () => systems.bossArchetypeSystem?.tick?.(realCapped))
 
   for (let i = 0; i < steps; i++) {
     scene._aiSubstepCounter = ((scene._aiSubstepCounter ?? 0) + 1) % 3
