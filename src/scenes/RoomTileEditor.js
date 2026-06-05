@@ -2034,11 +2034,12 @@ export class RoomTileEditor extends Phaser.Scene {
 
   _toast(msg, isError = false, kind = null) {
     this._cToast.removeAll(true)
-    // Centre the toast over the paint canvas, near its bottom edge (1920×1080
-    // logical coords — same space the camera renders).
+    // Centre the toast over the paint canvas near its TOP edge (1920×1080
+    // logical coords — same space the camera renders). Top, not bottom, so
+    // it isn't hidden behind the floating view-controls pill / hint bar.
     const a = this._paintAreaRect || EDITOR_LAYOUT.canvas
     const tx = a.x + a.w / 2
-    const ty = a.y + a.h - 24
+    const ty = a.y + 26
     const success = kind === 'success'
     const color = isError ? COL_TEXT_WARN : (success ? '#bff5c0' : COL_TEXT_HI)
     const bg     = isError ? '#2a0a0a'    : (success ? '#0d3018' : '#0a0514')
