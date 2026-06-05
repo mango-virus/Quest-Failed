@@ -48,6 +48,18 @@ function _particlesMult() {
   } catch { return 1.0 }
 }
 
+// ── Cheap universal upgraders (2026-06-05) ───────────────────────────────────
+// _add: additive blend so bright overlapping shapes BLOOM into light on the dark
+// dungeon instead of reading as flat fills — the single biggest cheap win for any
+// glow effect. (Never use on dark decals like crater — additive black = invisible.)
+// _glow: a soft Glow post-FX halo (WebGL only; silent no-op on Canvas). Use on
+// SINGLE-object effects only — per-object glow on a 16-dot burst would be wasteful.
+function _add(obj) { try { obj?.setBlendMode?.(Phaser.BlendModes.ADD) } catch (e) {} return obj }
+function _glow(obj, color = 0xffffff, strength = 4, distance = 10) {
+  try { obj?.postFX?.addGlow(color, strength, 0, false, 0.1, distance) } catch (e) {}
+  return obj
+}
+
 // Soft radial-gradient dot texture for GPU particle emitters — generated once
 // per scene and cached. White so it can be tinted any colour; additive blend
 // turns it into a glowing mote. (Phaser has no built-in soft-particle texture.)
@@ -315,6 +327,7 @@ export const AbilityVfx = {
     const ring = scene.add.circle(x, y, o.fromR, 0x000000, 0)
     ring.setStrokeStyle(2, o.color, o.alpha)
     ring.setDepth(o.depth)
+    _add(ring); _glow(ring, o.color, 4, 8)
     scene.tweens.add({
       targets: ring,
       radius: o.toR,
@@ -340,7 +353,7 @@ export const AbilityVfx = {
       const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4
       const dist = o.speed * (0.6 + Math.random() * 0.6) * (o.durationMs / 1000)
       const dot = scene.add.circle(x, y, 2 + Math.random() * 1.5, o.color, 0.95)
-      dot.setDepth(o.depth)
+      dot.setDepth(o.depth); _add(dot)
       created.push(dot)
       scene.tweens.add({
         targets: dot,
@@ -421,6 +434,7 @@ export const AbilityVfx = {
       depth:      opts.depth      ?? 12,
     }
     const dot = scene.add.graphics().setDepth(o.depth)
+    _add(dot); _glow(dot, o.color, 5, 10)
     dot.fillStyle(o.color, 1).fillCircle(0, 0, o.radius)
     dot.setPosition(fromX, fromY)
     scene.tweens.add({
@@ -449,10 +463,12 @@ export const AbilityVfx = {
       durationMs: 520, depth: 30, core: true, ...opts }
     const ring = scene.add.circle(x, y, o.fromR, 0x000000, 0)
     ring.setStrokeStyle(o.thickness, o.color, o.alpha).setDepth(o.depth)
+    _add(ring); _glow(ring, o.color, 4, 10)
     scene.tweens.add({ targets: ring, radius: o.toR, alpha: 0, duration: o.durationMs,
       ease: 'Cubic.easeOut', onComplete: () => ring.destroy() })
     if (o.core) {
       const core = scene.add.circle(x, y, o.fromR, o.color, 0.5).setDepth(o.depth - 1)
+      _add(core)
       scene.tweens.add({ targets: core, radius: o.toR * 0.55, alpha: 0,
         duration: o.durationMs * 0.7, ease: 'Quad.easeOut', onComplete: () => core.destroy() })
     }
@@ -468,6 +484,7 @@ export const AbilityVfx = {
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * Math.PI * 2
       const g = scene.add.graphics().setDepth(o.depth)
+      _add(g)
       g.lineStyle(o.thickness, o.color, 0.95)
       g.lineBetween(0, 0, Math.cos(ang) * o.length * 0.3, Math.sin(ang) * o.length * 0.3)
       g.setPosition(x, y)
@@ -486,7 +503,7 @@ export const AbilityVfx = {
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * Math.PI * 2 + Math.random() * 0.5
       const sx = x + Math.cos(ang) * o.radius, sy = y + Math.sin(ang) * o.radius
-      const dot = scene.add.circle(sx, sy, 2 + Math.random() * 2, o.color, 0.95).setDepth(o.depth)
+      const dot = _add(scene.add.circle(sx, sy, 2 + Math.random() * 2, o.color, 0.95).setDepth(o.depth))
       scene.tweens.add({ targets: dot, x, y, alpha: 0.4,
         duration: o.durationMs * (0.7 + Math.random() * 0.3), ease: 'Cubic.easeIn',
         onComplete: () => dot.destroy() })
@@ -555,8 +572,8 @@ export const AbilityVfx = {
   meteor(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const o = { color: 0xff9a3a, fallMs: 420, fromDX: -120, fromDY: -340, depth: 32, onImpact: null, ...opts }
-    const head = scene.add.circle(x + o.fromDX, y + o.fromDY, 9, o.color, 1).setDepth(o.depth)
-    const glow = scene.add.circle(head.x, head.y, 17, o.color, 0.3).setDepth(o.depth - 1)
+    const head = _glow(_add(scene.add.circle(x + o.fromDX, y + o.fromDY, 9, o.color, 1).setDepth(o.depth)), o.color, 5, 10)
+    const glow = _add(scene.add.circle(head.x, head.y, 17, o.color, 0.3).setDepth(o.depth - 1))
     const trail = scene.time.addEvent({ delay: 16, repeat: Math.floor(o.fallMs / 16), callback: () => {
       const t = scene.add.circle(head.x, head.y, 6, o.color, 0.5).setDepth(o.depth - 2)
       scene.tweens.add({ targets: t, alpha: 0, scale: 0.3, duration: 260, onComplete: () => t.destroy() })
@@ -576,6 +593,7 @@ export const AbilityVfx = {
     if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
     const o = { color: 0xbfe0ff, segments: 6, jitter: 14, thickness: 3, durationMs: 220, depth: 32, ...opts }
     const g = scene.add.graphics().setDepth(o.depth)
+    _add(g); _glow(g, o.color, 5, 10)
     g.lineStyle(o.thickness, o.color, 1).beginPath()
     g.moveTo(x1, y1)
     for (let i = 1; i < o.segments; i++) {
@@ -605,6 +623,7 @@ export const AbilityVfx = {
     const o = { color: 0xffd66b, radius: 54, holdMs: 600, depth: 30, ...opts }
     const dome = scene.add.circle(x, y, o.radius, o.color, 0.12).setDepth(o.depth)
     dome.setStrokeStyle(3, o.color, 0.9).setScale(0.2)
+    _add(dome); _glow(dome, o.color, 4, 12)
     scene.tweens.add({ targets: dome, scale: 1, duration: 220, ease: 'Back.easeOut' })
     scene.tweens.add({ targets: dome, alpha: 0, delay: o.holdMs, duration: 400,
       ease: 'Quad.easeIn', onComplete: () => dome.destroy() })
@@ -735,7 +754,7 @@ export const AbilityVfx = {
     const cont = scene.add.container(x, y).setDepth(o.depth)
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * Math.PI * 2
-      const g = scene.add.graphics()
+      const g = _add(scene.add.graphics())
       g.fillStyle(o.color, 0.22)
       g.beginPath(); g.moveTo(0, 0)
       g.lineTo(Math.cos(ang - 0.035) * o.length, Math.sin(ang - 0.035) * o.length)
@@ -758,6 +777,7 @@ export const AbilityVfx = {
     const o = { color: 0xffd66b, radius: 92, ticks: 12, durationMs: 1400, depth: 5, ...opts }
     const cont = scene.add.container(x, y).setDepth(o.depth)
     const g = scene.add.graphics()
+    _add(g); _glow(g, o.color, 3, 9)
     g.lineStyle(2.5, o.color, 0.9)
     g.strokeCircle(0, 0, o.radius)
     g.strokeCircle(0, 0, o.radius * 0.66)
@@ -780,6 +800,7 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { color: 0xffffff, radius: 36, angle: 0, sweep: 2.1, thickness: 5, durationMs: 240, depth: 33, ...opts }
     const g = scene.add.graphics().setDepth(o.depth).setPosition(x, y)
+    _add(g); _glow(g, o.color, 4, 9)
     const start = o.angle - o.sweep / 2
     g.lineStyle(o.thickness, o.color, 0.95)
     g.beginPath(); g.arc(0, 0, o.radius, start, start + o.sweep, false); g.strokePath()
@@ -797,8 +818,8 @@ export const AbilityVfx = {
     const n = Math.max(2, Math.round(o.count * mult))
     for (let i = 0; i < n; i++) {
       const dx = (Math.random() - 0.5) * 30
-      const r = scene.add.rectangle(x + dx, y + (Math.random() - 0.5) * 10, 6, 6, o.color, 0.9)
-        .setDepth(o.depth).setAngle(45)
+      const r = _add(scene.add.rectangle(x + dx, y + (Math.random() - 0.5) * 10, 6, 6, o.color, 0.9)
+        .setDepth(o.depth).setAngle(45))
       scene.tweens.add({ targets: r, y: r.y - 26 - Math.random() * 16, angle: r.angle + 180, alpha: 0,
         duration: o.durationMs, ease: 'Quad.easeOut', onComplete: () => r.destroy() })
     }
@@ -823,7 +844,7 @@ export const AbilityVfx = {
     const n = Math.max(3, Math.round(o.count * mult))
     for (let i = 0; i < n; i++) {
       const sx = x + (Math.random() - 0.5) * o.area, sy = y + (Math.random() - 0.5) * o.area * 0.5
-      const d = scene.add.circle(sx, sy, 1.5 + Math.random() * 1.5, o.color, 0.9).setDepth(o.depth)
+      const d = _add(scene.add.circle(sx, sy, 1.5 + Math.random() * 1.5, o.color, 0.9).setDepth(o.depth))
       scene.tweens.add({ targets: d, x: sx + (Math.random() - 0.5) * 30, y: sy - 30 - Math.random() * 40,
         alpha: 0, duration: o.durationMs * (0.6 + Math.random() * 0.4), ease: 'Sine.easeOut',
         onComplete: () => d.destroy() })
