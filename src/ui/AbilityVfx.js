@@ -260,6 +260,27 @@ export const AbilityVfx = {
     return em
   },
 
+  // PERSISTENT status aura — a continuous, subtle stream of rising tinted motes
+  // that marks an entity as afflicted (poison/burn DoT) for as long as the status
+  // lasts. UNLIKE burnFx this NEVER auto-stops: the caller owns the lifecycle —
+  // reposition it each frame (em.setPosition) to follow a moving entity, then
+  // em.stop()+destroy() when the status clears. Driven by StatusVfxSystem. Kept
+  // low-rate + low-alpha so many afflicted units on screen stay cheap + readable.
+  // Returns the emitter (null if particles are off). Use palette:'poison'|'fire'.
+  statusAuraFx(scene, x, y, opts = {}) {
+    if (_particlesMult() <= 0) return null
+    const o = _pal({ color: 0x66dd33, accent: 0xccff66, depth: 7, rate: 150, rise: 34, spread: 9, ...opts })
+    const em = scene.add.particles(x, y, _softDotTexture(scene), {
+      frequency: o.rate, quantity: 1, lifespan: 640,
+      speedY: { min: -o.rise, max: -o.rise * 0.45 }, speedX: { min: -10, max: 10 },
+      x: { min: -o.spread, max: o.spread }, y: { min: -2, max: 7 },
+      scale: { start: 0.34, end: 0 }, alpha: { start: 0.7, end: 0 },
+      tint: [o.color, o.accent], blendMode: 'ADD',
+    })
+    em.setDepth(o.depth)
+    return em
+  },
+
   // TRAVELLING projectile — glowing orb tweened A→B with a particle trail, then an
   // impact burst on arrival. For fireballs/bolts/orbs. palette-aware.
   projectileFx(scene, x1, y1, x2, y2, opts = {}) {

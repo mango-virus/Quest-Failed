@@ -71,6 +71,7 @@ import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
+import { StatusVfxSystem }    from '../systems/StatusVfxSystem.js'
 import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
 import { BossAttackVfxSystem }    from '../systems/BossAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
@@ -283,6 +284,9 @@ export class Game extends Phaser.Scene {
     // Malakor. Reads gameState.meta.companionId; no-ops for the others.
     this.companionWorldFx    = track(new CompanionWorldFx(this, this.gameState))
     this.hitSparkSystem      = track(new HitSparkSystem(this, this.gameState))
+    // Persistent poison/burn DoT auras on afflicted entities (lingering status
+    // read). Phaser objects live in the system, not on entities (save-safe).
+    this.statusVfxSystem     = track(new StatusVfxSystem(this, this.gameState))
     // Wild glitch-burst overlay on every cheater swing — fires after
     // HitSparkSystem in the listener chain so the cheater layer paints
     // over the hit spark.
@@ -2009,6 +2013,7 @@ export class Game extends Phaser.Scene {
         _rstats[sys] = (_rstats[sys] ?? 0) + (performance.now() - t0)
       }
       rtick('adventurerRenderer',  () => this.adventurerRenderer?.update())
+      rtick('statusVfxSystem',     () => this.statusVfxSystem?.update())
       rtick('lightPartyRenderer',  () => this.lightPartyRenderer?.update())
       rtick('emoteSystem',         () => this.emoteSystem?.update())
       rtick('minionRenderer',      () => this.minionRenderer?.update())

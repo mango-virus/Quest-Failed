@@ -332,6 +332,27 @@ export function installDevSandbox(scene) {
       return { ok: !!r, name, x, y }
     },
 
+    // Afflict live adventurers with a poison/burn DoT so the persistent status
+    // aura (StatusVfxSystem) is testable — watch a sickly-green / ember haze
+    // follow each marked adv until it expires. Needs an active day with advs.
+    // usage: __qfDev.dotTest()  |  .dotTest('burn')  |  .dotTest('poison', 12)
+    dotTest(type = 'poison', ticks = 8) {
+      const g = gs()
+      const advs = (g?.adventurers?.active ?? []).filter(a => a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+      if (!advs.length) { log('no live adventurers — run __qfDev.startDay() + spawn a wave first'); return { ok: false } }
+      const ma = scene.minionAbilities ?? scene.minionAiSystem?.minionAbilities
+      const dmg = type === 'burn' ? 2 : 1
+      let n = 0
+      for (const a of advs) {
+        // _dot is plain data → safe to push directly; StatusVfxSystem picks it up next frame.
+        a._dot = a._dot ?? []
+        a._dot.push({ type, dmgPerTick: dmg, intervalMs: 1000, ticksLeft: ticks, _lastTickAt: scene.time?.now ?? 0 })
+        n++
+      }
+      log(`applied ${type} DoT (${ticks} ticks) to ${n} adventurer(s) — aura should follow them now`)
+      return { ok: true, type, ticks, count: n, hasMinionAbilities: !!ma }
+    },
+
     // Slow-mo filmstrip: dismiss blocking popups, fire one effect heavily slowed,
     // and report the window — the operator screenshots ~6 frames across it to
     // review motion/timing and iterate. (Capture clarity > the busy dungeon bg:
