@@ -897,6 +897,17 @@ export class Preload extends Phaser.Scene {
       }
     }
 
+    // Queue full-room skin PNGs (`roomskin-<id>` keys, Phase 4).
+    if (manifest?.roomSkins && typeof manifest.roomSkins === 'object') {
+      for (const [id, meta] of Object.entries(manifest.roomSkins)) {
+        const key = `roomskin-${id}`
+        if (this.textures.exists(key)) continue
+        const file = meta?.file || `assets/themes/roomskins/${id}.png`
+        this.load.image(key, file)
+        queued++
+      }
+    }
+
     // Queue decor sprite PNGs (`decor-<id>` keys).
     if (Array.isArray(decorManifest)) {
       for (const entry of decorManifest) {

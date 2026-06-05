@@ -131,6 +131,11 @@ export class RoomEditorOverlay {
         }, '🖼 Export PNG'),
         h('button', {
           className: 'btn sm',
+          title: 'Room skins: re-import an edited PNG as a full-room look',
+          on: { click: () => this.openSkins() },
+        }, '🎨 Skins'),
+        h('button', {
+          className: 'btn sm',
           on: { click: () => this.scene.uiSave?.() },
         }, '⤓ Save to disk'),
         h('button', {
@@ -765,6 +770,120 @@ export class RoomEditorOverlay {
     this._editingTheme = null
     this._renderThemes()
   }
+
+  // ── Room Skins modal (Phase 4: full-room PNG skins) ─────────────────────────
+  openSkins() {
+    if (this._skinsEl || !this._el) return
+    this._skinsEl = h('div', {
+      className: 'qf-themes',
+      on: { click: (e) => { if (e.target === this._skinsEl) this.closeSkins() } },
+    }, [h('div', { className: 'qf-themes__panel qf-skins__panel', ref: (e) => (this._refs.skinsPanel = e) })])
+    this._el.appendChild(this._skinsEl)
+    this._renderSkins()
+  }
+  closeSkins() {
+    this._skinsEl?.remove()
+    this._skinsEl = null
+    this.refresh()
+  }
+
+  _renderSkins() {
+    const panel = this._refs.skinsPanel
+    if (!panel) return
+    const skins = this.scene.uiListRoomSkins?.() || []
+    const current = this.scene.uiCurrentRoomSkin?.()
+    const st = this.scene.uiGetState?.() || {}
+    const roomName = st.activeRoom?.name || '(no room)'
+    const curThumb = current ? (skins.find((s) => s.id === current)?.thumb) : null
+
+    const dropzone = (() => {
+      const zone = h('div', {
+        className: 'qf-themes__drop',
+        on: {
+          click: () => this._uploadSkin(),
+          dragover: (e) => { e.preventDefault(); zone.classList.add('drag') },
+          dragleave: () => zone.classList.remove('drag'),
+          drop: (e) => { e.preventDefault(); zone.classList.remove('drag'); this._uploadSkin([...(e.dataTransfer?.files || [])]) },
+        },
+      }, [
+        h('div', { className: 'qf-themes__drop-icon' }, '⬆'),
+        h('div', { className: 'qf-themes__drop-title' }, 'Drop an edited room PNG'),
+        h('div', { className: 'qf-themes__drop-sub' }, 'or click to browse — adds it to the skin library below'),
+        this._skinMsg ? h('div', { className: 'qf-themes__msg' }, this._skinMsg) : null,
+      ])
+      return zone
+    })()
+
+    mount(panel, [
+      h('div', { className: 'qf-themes__head' }, [
+        h('div', { className: 'qf-themes__title' }, '🎨 ROOM SKINS'),
+        h('div', { className: 'qf-themes__theme-ctl' },
+          h('span', { className: 'qf-skins__roomnote' }, `Editing room: ${roomName}`)),
+        h('div', { className: 'qf-themes__head-right' }, [
+          h('button', { className: 'qf-themes__close', title: 'Close', on: { click: () => this.closeSkins() } }, '✕'),
+        ]),
+      ]),
+      h('div', { className: 'qf-themes__body' }, [
+        h('div', { className: 'qf-themes__left' }, [
+          dropzone,
+          h('div', { className: 'qf-skins__current' }, [
+            h('div', { className: 'qf-themes__subhead' }, 'THIS ROOM'),
+            h('div', { className: 'qf-skins__current-body' }, [
+              curThumb ? h('img', { className: 'qf-skins__thumb', src: curThumb })
+                       : h('div', { className: 'qf-skins__thumb q' }, current ? '?' : '—'),
+              h('div', { className: 'qf-skins__current-info' }, [
+                h('div', null, current ? `Skin: ${current}` : 'No skin (renders tiles)'),
+                h('div', { className: 'qf-skins__btn-row' }, [
+                  h('button', { className: 'btn sm', on: { click: () => this.scene.uiExportRoomPng?.() } }, '🖼 Export PNG'),
+                  current ? h('button', { className: 'btn sm ghost', on: { click: () => { this.scene.uiClearRoomSkin?.(); this._renderSkins() } } }, 'Clear skin') : null,
+                ]),
+              ]),
+            ]),
+            h('div', { className: 'qf-skins__hint' },
+              'Flow: Export PNG → edit the pixels in any image editor → drop it above → Apply. Doors & decor still draw on top, so leave their areas transparent.'),
+          ]),
+        ]),
+        h('div', { className: 'qf-themes__right' }, [
+          h('div', { className: 'qf-themes__subhead' }, ['SKIN LIBRARY', h('span', { className: 'qf-themes__count' }, String(skins.length))]),
+          skins.length === 0
+            ? h('div', { className: 'qf-themes__empty' }, 'No skins yet — drop an edited room PNG to add one.')
+            : h('div', { className: 'qf-skins__grid' }, skins.map((s) => this._skinItem(s, current))),
+        ]),
+      ]),
+      h('div', { className: 'qf-themes__foot' }, [
+        h('span', { className: ['qf-themes__folder', st.folderName ? 'ok' : 'warn'] },
+          st.folderName ? `📁 ${st.folderName}` : '📁 no folder — Save will prompt for it'),
+        h('span', { className: 'qf-themes__dirty' }, ''),
+        h('button', { className: 'btn', on: { click: () => this._saveSkins() } }, '⤓ Save skins + assignments'),
+      ]),
+    ])
+  }
+
+  _skinItem(s, current) {
+    const active = s.id === current
+    return h('div', { className: ['qf-skins__item', active && 'is-active'] }, [
+      s.thumb ? h('img', { className: 'qf-skins__thumb', src: s.thumb })
+              : h('div', { className: 'qf-skins__thumb q' }, '?'),
+      h('div', { className: 'qf-skins__item-id', title: s.id }, s.id),
+      h('div', { className: 'qf-skins__item-actions' }, [
+        h('button', {
+          className: 'btn sm', disabled: active,
+          on: { click: () => { this.scene.uiApplyRoomSkin?.(s.id); this._renderSkins() } },
+        }, active ? 'Applied' : 'Apply'),
+        h('button', {
+          className: 'qf-themes__del', title: 'Delete this skin from the library',
+          on: { click: () => { if (window.confirm(`Delete skin “${s.id}”?`)) { this.scene.uiDeleteRoomSkin?.(s.id); this._renderSkins() } } },
+        }, '🗑'),
+      ]),
+    ])
+  }
+
+  async _uploadSkin(files = null) {
+    const r = await this.scene.uiUploadRoomSkin?.(files)
+    this._skinMsg = r?.added ? `Added ${r.added} skin${r.added === 1 ? '' : 's'} — click Apply to use one.` : 'No PNG added.'
+    this._renderSkins()
+  }
+  async _saveSkins() { await this.scene.uiSaveSkins?.(); this._renderSkins() }
 
   // Re-applied on Phaser scale resize (the scene calls this). The stage
   // transform is owned by stageScale; nothing per-overlay to recompute, but

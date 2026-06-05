@@ -281,6 +281,7 @@ function _tileHash(x, y) {
 // TilesetEditor + RoomTileEditor + Preload (the second-pass loader queues
 // every manifest sprite under this same key).
 function _themeTextureKey(id) { return `themesprite-${id}` }
+function _roomSkinTexKey(id) { return `roomskin-${id}` }
 
 // Apply hue/sat/bright/contrast to a packed 0xRRGGBB colour and return a
 // new packed colour.  Mirrors the transforms Phaser ColorMatrix applies so
@@ -365,6 +366,11 @@ export class DungeonRenderer {
     // Sits between _gTiles (1) and _gTints (1.2) so category tints still
     // wash over a sprite-rendered floor.
     this._cTileSprites = scene.add.container(0, 0).setDepth(1.1)
+    // Full-room skins (Phase 4): one stretched image per skinned room, drawn
+    // just under the tile-sprite layer. For a skinned room the per-cell floor/
+    // wall draw is suppressed entirely, so this image IS the room's surface;
+    // doors (1.15+) and decor (1.5 / 8.9) still overlay on top.
+    this._cRoomSkins = scene.add.container(0, 0).setDepth(1.08)
     // Doorway swatch sprites are split into TWO containers with masks so
     // characters walking through a doorway pass OVER the threshold cells
     // (Inner side — closer to each room's interior) but UNDER the door
@@ -466,6 +472,7 @@ export class DungeonRenderer {
     this._gGrid.clear()
     this._gTiles.clear()
     this._cTileSprites.removeAll(true)
+    this._cRoomSkins.removeAll(true)
     this._cDecorFloor.removeAll(true)
     this._cDecorObject.removeAll(true)
     this._cDoorSpritesLow.removeAll(true)
@@ -618,6 +625,11 @@ export class DungeonRenderer {
       if (v.spanRender) this._spanCoveredSet.delete(k)
     }
 
+    // Full-room skins: paint one stretched image per skinned room. The skin
+    // replaces that room's floor/wall surface, so the cell loop below skips
+    // those cells (doors still render so they overlay the skin).
+    this._drawRoomSkins()
+
     for (let y = 0; y < gh; y++) {
       const row = tiles[y]
       if (!row) continue
@@ -628,6 +640,10 @@ export class DungeonRenderer {
         if (this._spanCoveredSet.has(`${x},${y}`)) continue
 
         const t = row[x]
+        // Skinned-room surface: a full-room image already covers this cell's
+        // floor/wall. Skip the per-cell draw — but let DOOR cells through so
+        // doors render (overlaid) as normal.
+        if (t !== TILE.DOOR && this._skinKeyForCell(x, y)) continue
         // For DOOR cells, paint the underlying wall sprite first so the
         // door sprite (drawn next) visually overlays the wall instead
         // of replacing it.  No-op when the cell has no room / theme.
@@ -649,6 +665,34 @@ export class DungeonRenderer {
           g.fillRect(x * TS, y * TS, TS, TS)
         }
       }
+    }
+  }
+
+  // Skin texture key for a room if it has a loaded full-room skin, else null.
+  _roomSkinKeyFor(room) {
+    const id = room?.backgroundImage
+    if (!id) return null
+    const key = _roomSkinTexKey(id)
+    return this._scene.textures.exists(key) ? key : null
+  }
+
+  // Skin key for the room owning cell (x,y), or null. Used by the tile loop to
+  // suppress per-cell floor/wall drawing under a skinned room.
+  _skinKeyForCell(x, y) {
+    const room = this._cellRoomMap?.get(`${x},${y}`)
+    return room ? this._roomSkinKeyFor(room) : null
+  }
+
+  // Draw one stretched skin image per skinned room over its footprint.
+  _drawRoomSkins() {
+    const rooms = this._gameState?.dungeon?.rooms || []
+    for (const room of rooms) {
+      const key = this._roomSkinKeyFor(room)
+      if (!key) continue
+      const w = room.width * TS, h = room.height * TS
+      const img = this._scene.add.image(room.gridX * TS + w / 2, room.gridY * TS + h / 2, key).setOrigin(0.5)
+      img.setDisplaySize(w, h)
+      this._cRoomSkins.add(img)
     }
   }
 

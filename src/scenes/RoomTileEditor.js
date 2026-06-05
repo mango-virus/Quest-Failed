@@ -34,6 +34,7 @@ import {
   ThemeManager, FLOOR_SLOT, spriteCoverage,
   readCellEntry, writeCellEntry, VALID_ROTATIONS,
   makeSpriteId, spritePath, autoSlotForId, slotGroups, slotLabel, ALL_SLOTS,
+  roomSkinPath, roomSkinTextureKey,
 } from '../systems/ThemeManager.js'
 import { DecorManager, DECOR_TEXTURE_KEY, DECOR_MANIFEST_PATH } from '../systems/DecorManager.js'
 
@@ -335,6 +336,90 @@ export class RoomTileEditor extends Phaser.Scene {
     if (!room) return
     this._promptResize(room)
     this._refreshAll()
+  }
+
+  // ── Phase 4: full-room skins ────────────────────────────────────────────────
+  _pendingSkinBytes() { return (this._pendingSkinPngs ||= new Map()) }
+
+  uiListRoomSkins() {
+    return ThemeManager.listRoomSkins().map(s => ({ id: s.id, thumb: this._texThumb(roomSkinTextureKey(s.id)) }))
+  }
+  uiCurrentRoomSkin() { return this._activeRoom()?.backgroundImage || null }
+
+  // Ingest edited PNG(s) as full-room skins (library items): register the
+  // texture, add to the skin registry, stage bytes for save. Returns {added, ids}.
+  async uiUploadRoomSkin(droppedFiles = null) {
+    let files = droppedFiles
+    if (!files) {
+      const input = document.createElement('input')
+      input.type = 'file'; input.accept = 'image/png,image/webp'; input.multiple = true
+      input.style.display = 'none'; document.body.appendChild(input)
+      files = await new Promise(res => {
+        input.onchange = () => res(Array.from(input.files || []))
+        input.oncancel = () => res([])
+        input.click()
+      })
+      input.remove()
+    }
+    files = (files || []).filter(f => /image\/(png|webp)/.test(f.type) || /\.(png|webp)$/i.test(f.name))
+    const ids = []
+    for (const file of files) {
+      const id = makeSpriteId(file.name)
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const dataUrl = await _blobToDataUrl(file)
+      ThemeManager.addRoomSkin(id, roomSkinPath(id))
+      this._pendingSkinBytes().set(id, bytes)
+      try { await this._addTextureFromDataUrl(roomSkinTextureKey(id), dataUrl) } catch (_) { /* ignore */ }
+      if (this._thumbCache) delete this._thumbCache[roomSkinTextureKey(id)]
+      ids.push(id)
+    }
+    this._notifyDom()
+    return { added: ids.length, ids }
+  }
+
+  uiApplyRoomSkin(id) {
+    const room = this._activeRoom()
+    if (!room || !ThemeManager.hasRoomSkin(id)) return
+    room.backgroundImage = id
+    this._refreshAll()
+  }
+  uiClearRoomSkin() {
+    const room = this._activeRoom()
+    if (!room) return
+    room.backgroundImage = null
+    this._refreshAll()
+  }
+  uiDeleteRoomSkin(id) {
+    ThemeManager.removeRoomSkin(id)
+    for (const r of this._rooms) if (r.backgroundImage === id) r.backgroundImage = null
+    this._pendingSkinBytes().delete(id)
+    this._refreshAll()
+  }
+
+  // Persist skins end-to-end: skin PNGs + manifest (the registry) + rooms.json
+  // (the per-room backgroundImage assignments) in one click.
+  async uiSaveSkins() {
+    if (!FsHandle.isSupported()) { this._toast('File System API unavailable', true); return { ok: false } }
+    if (!FsHandle.hasRoot()) {
+      this._toast('Pick the Quest-Failed/ folder…')
+      const root = await FsHandle.acquireRoot()
+      if (!root) { this._toast('Folder not granted — save cancelled', true); return { ok: false } }
+    }
+    try {
+      for (const [id, bytes] of this._pendingSkinBytes()) {
+        await FsHandle.writeFile(roomSkinPath(id), new Blob([bytes], { type: 'image/png' }))
+      }
+      this._pendingSkinBytes().clear()
+      await FsHandle.writeJson('assets/themes/manifest.json', ThemeManager.serialize())
+      await this._save()   // writes rooms.json (backgroundImage) + emits ROOMS_ALL_RESET
+      this._toast('Skins + room assignments saved.')
+      this._notifyDom()
+      return { ok: true }
+    } catch (err) {
+      console.error('[RoomTileEditor] skin save failed:', err)
+      this._toast('Save failed: ' + (err?.message || err), true)
+      return { ok: false }
+    }
   }
 
   // ── Phase 3: export the exact built room as a PNG ───────────────────────────
@@ -731,6 +816,7 @@ export class RoomTileEditor extends Phaser.Scene {
   _ensureRoomShape(room) {
     if (typeof room.theme !== 'string') room.theme = null
     if (typeof room.doorTheme !== 'string') room.doorTheme = null
+    if (typeof room.backgroundImage !== 'string') room.backgroundImage = null
     if (!Array.isArray(room.decorations)) room.decorations = []
     const w = room.width  | 0
     const h = room.height | 0
@@ -779,6 +865,7 @@ export class RoomTileEditor extends Phaser.Scene {
       if (m) {
         ThemeManager.load(m)
         await this._registerExistingSpriteTextures()
+        await this._registerExistingRoomSkins()
       }
       // Pick up decor manifest if it exists.
       const dm = await FsHandle.readJson(DECOR_MANIFEST_PATH)
@@ -815,6 +902,21 @@ export class RoomTileEditor extends Phaser.Scene {
   async _registerExistingDecorTextures() {
     const sprites = DecorManager.listSprites()
     await Promise.all(sprites.map(s => this._loadDecorTextureFromDisk(s.id, s.file)))
+  }
+
+  async _registerExistingRoomSkins() {
+    const skins = ThemeManager.listRoomSkins()
+    await Promise.all(skins.map(s => this._loadRoomSkinFromDisk(s.id, s.file)))
+  }
+  async _loadRoomSkinFromDisk(id, file) {
+    const key = roomSkinTextureKey(id)
+    if (this.textures.exists(key)) return
+    try {
+      const blob = await FsHandle.readFile(file)
+      if (!blob) return
+      const dataUrl = await _blobToDataUrl(blob)
+      await this._addTextureFromDataUrl(key, dataUrl)
+    } catch (_) { /* ignore */ }
   }
 
   async _loadDecorTextureFromDisk(id, file) {
@@ -919,6 +1021,21 @@ export class RoomTileEditor extends Phaser.Scene {
     const backdrop = this.add.rectangle(ox - 1, oy - 1, totalW + 2, totalH + 2, 0x000000, 1)
       .setOrigin(0, 0).setStrokeStyle(1, COL_BORDER, 1)
     this._paintContainer.add(backdrop)
+
+    // Full-room skin (Phase 4): if assigned + loaded, draw it stretched over
+    // the whole room and skip per-cell tiles (matches the in-game render).
+    // Clear the skin from the Skins panel to edit tiles again.
+    const skinKey = room.backgroundImage ? roomSkinTextureKey(room.backgroundImage) : null
+    if (skinKey && this.textures.exists(skinKey)) {
+      const skin = this.add.image(ox + totalW / 2, oy + totalH / 2, skinKey).setOrigin(0.5)
+      skin.setDisplaySize(totalW, totalH)
+      this._paintContainer.add(skin)
+      this._paintContainer.add(_text(this, ox + totalW / 2, oy + totalH + 12,
+        '⬛ Skinned room — clear the skin (Skins panel) to edit tiles', {
+          fontSize: '11px', color: COL_TEXT_HI,
+        }).setOrigin(0.5, 0))
+      return
+    }
 
     // Pre-pass: span-anchored covered set, in ROOM space.  The anchor at
     // (rx, ry) covers cov×cov room cells.  We don't care about the
@@ -1697,6 +1814,7 @@ export class RoomTileEditor extends Phaser.Scene {
         if (!_hasAnyOverride(r)) cleaned.tileLayout = []
         if (!Array.isArray(r.decorations) || r.decorations.length === 0) delete cleaned.decorations
         if (!_hasColorAdjust(r)) delete cleaned.colorAdjust
+        if (!r.backgroundImage) delete cleaned.backgroundImage
         return cleaned
       })
       // 4-space to match the committed rooms.json format (writeJson would emit

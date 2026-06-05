@@ -137,6 +137,17 @@ export function spritePath(id) {
   return `assets/themes/sprites/${id}.png`
 }
 
+// Full-room "skin" images (Phase 4): a single PNG painted over a whole room's
+// footprint, replacing per-tile floor/wall rendering. `room.backgroundImage`
+// holds a skin id; the PNG lives at roomSkinPath(id) and loads as the texture
+// roomSkinTextureKey(id).
+export function roomSkinPath(id) {
+  return `assets/themes/roomskins/${id}.png`
+}
+export function roomSkinTextureKey(id) {
+  return `roomskin-${id}`
+}
+
 // Filename/id → theme slot, by convention, so dropping well-named PNGs
 // (floor3, wall_corner_tl, door_closed_v_tl, …) auto-assigns to the right
 // slot on upload. Returns a slot from ALL_SLOTS, or null when the id doesn't
@@ -219,6 +230,7 @@ export function writeCellEntry(id, rot, flipH = false, flipV = false) {
 const state = {
   sprites: Object.create(null),    // id → { file, srcSize, mode, coverage, theme, tags }
   themes:  Object.create(null),    // name → { slots: { <slot>: [spriteId,…] } }
+  roomSkins: Object.create(null),  // id → { file }   (full-room skin PNGs)
   active:  null,                   // active theme name (used by preview + game)
   rolls:   new Map(),              // (themeName|slot|x|y) → spriteId  (cache)
 }
@@ -230,6 +242,7 @@ export const ThemeManager = {
   load(manifest) {
     state.sprites = {}
     state.themes  = {}
+    state.roomSkins = {}
     state.active  = null
     state.rolls.clear()
     if (!manifest) return
@@ -259,15 +272,22 @@ export const ThemeManager = {
         state.themes[name] = { slots }
       }
     }
+    if (manifest.roomSkins && typeof manifest.roomSkins === 'object') {
+      for (const [id, s] of Object.entries(manifest.roomSkins)) {
+        if (!s || typeof s !== 'object') continue
+        state.roomSkins[id] = { file: typeof s.file === 'string' ? s.file : roomSkinPath(id) }
+      }
+    }
     if (manifest.active && manifest.active in state.themes) state.active = manifest.active
   },
 
   // Snapshot current state as a plain object suitable for JSON.stringify.
   serialize() {
     return {
-      sprites: structuredClone(state.sprites),
-      themes:  structuredClone(state.themes),
-      active:  state.active,
+      sprites:   structuredClone(state.sprites),
+      themes:    structuredClone(state.themes),
+      roomSkins: structuredClone(state.roomSkins),
+      active:    state.active,
     }
   },
 
@@ -356,6 +376,13 @@ export const ThemeManager = {
     state.rolls.clear()
     return true
   },
+
+  // ── Full-room skins ──
+  listRoomSkins() { return Object.entries(state.roomSkins).map(([id, s]) => ({ id, ...s })) },
+  getRoomSkin(id) { return state.roomSkins[id] || null },
+  hasRoomSkin(id) { return id in state.roomSkins },
+  addRoomSkin(id, file) { state.roomSkins[id] = { file: file || roomSkinPath(id) } },
+  removeRoomSkin(id) { delete state.roomSkins[id] },
 
   // ── Slot variant edits (mutate the named theme) ──
   setSlotVariants(themeName, slot, ids) {
