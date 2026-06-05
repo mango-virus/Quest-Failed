@@ -176,6 +176,7 @@ export class RoomTileEditor extends Phaser.Scene {
     if (_session && _session.decorSolid == null)      _session.decorSolid       = false
     if (_session && _session.decorLayer == null)      _session.decorLayer       = 'floor'
     if (_session && _session.decorSize == null)       _session.decorSize        = 1
+    if (_session && _session.showGrid == null)        _session.showGrid         = true
     if (!_matchesCache(_session, roomsFromCache)) {
       const rooms = structuredClone(roomsFromCache)
       rooms.forEach(r => this._ensureRoomShape(r))
@@ -194,6 +195,7 @@ export class RoomTileEditor extends Phaser.Scene {
         eraserMode:          false,
         zoomIdx:             2,
         paintMode:           'room',  // 'room' | 'door-*' | 'decor'
+        showGrid:            true,    // draw per-cell grid lines on the canvas
       }
       freshSession = true
     }
@@ -216,6 +218,7 @@ export class RoomTileEditor extends Phaser.Scene {
     Object.defineProperty(this, '_eraserMode',          _propAccessor(_session, 'eraserMode'))
     Object.defineProperty(this, '_zoomIdx',             _propAccessor(_session, 'zoomIdx'))
     Object.defineProperty(this, '_paintMode',           _propAccessor(_session, 'paintMode'))
+    Object.defineProperty(this, '_showGrid',            _propAccessor(_session, 'showGrid'))
 
     // The Phaser scene renders ONLY the paint canvas + transient toasts. All
     // chrome (header / rooms list / mode tabs / view controls / context panel
@@ -296,6 +299,7 @@ export class RoomTileEditor extends Phaser.Scene {
       flipH: !!this._flipH,
       flipV: !!this._flipV,
       eraser: !!this._eraserMode,
+      showGrid: this._showGrid !== false,
       folderName: FsHandle.hasRoot() ? FsHandle.rootName() : null,
     }
   }
@@ -321,6 +325,7 @@ export class RoomTileEditor extends Phaser.Scene {
   uiToggleFlipH()    { this._flipH = !this._flipH; this._notifyDom() }
   uiToggleFlipV()    { this._flipV = !this._flipV; this._notifyDom() }
   uiToggleEraser()   { this._eraserMode = !this._eraserMode; this._notifyDom() }
+  uiToggleGrid()     { this._showGrid = this._showGrid === false; this._populatePaintCanvas(); this._notifyDom() }
   uiSave()           { this._save() }
   uiBack()           { this.scene.start('MainMenu') }
 
@@ -670,10 +675,11 @@ export class RoomTileEditor extends Phaser.Scene {
       for (let vx = 0; vx < vw; vx++) {
         const px = ox + vx * cell
         const py = oy + vy * cell
+        const gridA = this._showGrid ? 0.25 : 0
         const hit = this.add.rectangle(px, py, cell, cell, 0xffffff, 0).setOrigin(0, 0)
-          .setStrokeStyle(1, COL_BORDER, 0.25)
+          .setStrokeStyle(1, COL_BORDER, gridA)
           .setInteractive({ useHandCursor: true })
-        const hover = (over) => hit.setStrokeStyle(over ? 2 : 1, over ? COL_PAINT_HOVER : COL_BORDER, over ? 0.85 : 0.25)
+        const hover = (over) => hit.setStrokeStyle(over ? 2 : 1, over ? COL_PAINT_HOVER : COL_BORDER, over ? 0.85 : gridA)
         hit.on('pointerover', () => hover(true))
         hit.on('pointerout',  () => hover(false))
         // Capture vx/vy/viewRot for the closure.
@@ -795,11 +801,12 @@ export class RoomTileEditor extends Phaser.Scene {
     for (let vy = 0; vy < vh; vy++) {
       for (let vx = 0; vx < vw; vx++) {
         const px = ox + vx * cell, py = oy + vy * cell
+        const gridA = this._showGrid ? 0.15 : 0
         const hit = this.add.rectangle(px, py, cell, cell, 0xffffff, 0).setOrigin(0, 0)
-          .setStrokeStyle(1, COL_BORDER, 0.15)
+          .setStrokeStyle(1, COL_BORDER, gridA)
           .setInteractive({ useHandCursor: true })
         hit.on('pointerover', () => hit.setStrokeStyle(2, COL_PAINT_HOVER, 0.85))
-        hit.on('pointerout',  () => hit.setStrokeStyle(1, COL_BORDER, 0.15))
+        hit.on('pointerout',  () => hit.setStrokeStyle(1, COL_BORDER, gridA))
         const cvx = vx, cvy = vy, cViewRot = viewRot
         hit.on('pointerdown', (pointer, lx, ly, ev) => {
           ev?.stopPropagation?.()
@@ -976,11 +983,12 @@ export class RoomTileEditor extends Phaser.Scene {
           }
         }
 
+        const gridA = this._showGrid ? 0.35 : 0
         const hit = this.add.rectangle(px, py, cell, cell, 0xffffff, 0).setOrigin(0, 0)
-          .setStrokeStyle(1, COL_BORDER, 0.35)
+          .setStrokeStyle(1, COL_BORDER, gridA)
           .setInteractive({ useHandCursor: true })
         hit.on('pointerover', () => hit.setStrokeStyle(2, COL_PAINT_HOVER, 0.9))
-        hit.on('pointerout',  () => hit.setStrokeStyle(1, COL_BORDER, 0.35))
+        hit.on('pointerout',  () => hit.setStrokeStyle(1, COL_BORDER, gridA))
         const cr = r, cc = c
         hit.on('pointerdown', (pointer, lx, ly, ev) => {
           ev?.stopPropagation?.()

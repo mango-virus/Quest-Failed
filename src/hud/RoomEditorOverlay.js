@@ -194,6 +194,8 @@ export class RoomEditorOverlay {
             (e) => (this._refs.flipV = e)),
         ]),
         seg([
+          btn('⌗ Grid', 'Show / hide the cell grid lines',
+            () => this.scene.uiToggleGrid?.(), (e) => (this._refs.grid = e)),
           btn('⌫ Eraser', 'Toggle eraser (or right-click / Shift-click)',
             () => this.scene.uiToggleEraser?.(), (e) => (this._refs.eraser = e)),
         ]),
@@ -288,6 +290,7 @@ export class RoomEditorOverlay {
     r.flipH?.classList.toggle('is-on', !!s.flipH)
     r.flipV?.classList.toggle('is-on', !!s.flipV)
     r.eraser?.classList.toggle('is-on', !!s.eraser)
+    r.grid?.classList.toggle('is-on', s.showGrid !== false)
   }
 
   // The right panel is rebuilt when the tab or room changes. The Colors tab is
