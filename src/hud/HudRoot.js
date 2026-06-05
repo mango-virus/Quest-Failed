@@ -45,6 +45,7 @@ import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
 import { ActIntro }             from './ActIntro.js'
+import { NewThreatsReveal }     from './NewThreatsReveal.js'
 import { NemesisPortrait }      from './NemesisPortrait.js'
 import { VictoryScreen }        from './VictoryScreen.js'
 import { KingdomResponseIntro } from './KingdomResponseIntro.js'
@@ -168,6 +169,10 @@ export class HudRoot {
     // `acts` flag (default off); listens for ACT_STARTED. Self-mounts into
     // #hud-stage, so it must build after the mount() above (like DungeonFx/EventFx).
     this._actIntro         = isActsEnabled() ? new ActIntro(this._gameState) : null
+    // "New threats" cohort reveal — fires the night before a new 10-day class
+    // tier (days 11/21/31). Day-number triggered, so it runs in BOTH the
+    // campaign and the endless game (NOT gated on the acts flag).
+    this._newThreatsReveal = new NewThreatsReveal(this._gameState)
     // Aldric's right-side rival portrait (KR P2) — foil to the companion on the
     // left. Self-mounts into #hud-stage; gated behind the `acts` flag.
     this._nemesisPortrait  = isActsEnabled() ? new NemesisPortrait(this._gameState) : null
@@ -396,6 +401,7 @@ export class HudRoot {
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
     this._eventBanner?.destroy();    this._eventBanner = null
     this._actIntro?.destroy();       this._actIntro = null
+    this._newThreatsReveal?.destroy(); this._newThreatsReveal = null
     this._nemesisPortrait?.destroy(); this._nemesisPortrait = null
     this._victoryScreen?.destroy();   this._victoryScreen = null
     this._kingdomResponseIntro?.destroy(); this._kingdomResponseIntro = null

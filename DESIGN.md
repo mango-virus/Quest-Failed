@@ -1814,14 +1814,18 @@ want to completely remove the twitch streamer class and twitch con event from th
    of the IP references flagged for commercial release).
 
 **Acceptance checklist:**
-- ☐ Shared `getEligibleClasses(allClasses, day)` helper (single source of truth), day-gated, excludes
+- ☑ Shared `getEligibleClasses(allClasses, day, {ngPlus})` helper (single source of truth), day-gated, excludes
   `unlockLevel:99` + `shadow_monarch`. All 5 gate sites point at it (DayPhase spawn, NightPhase preview,
-  RightPanels forecast, AdventurerIntelPopup, RoomBehaviorSystem library forecast).
-- ☐ `unlockDay` set per the schedule; boss-level gate removed for normal classes.
-- ☐ Flat `spawnWeight` (cheater ≈0.08).
-- ☐ NG+ full-roster unlock (day-reset doesn't re-lock).
-- ☐ Night-before reveal card (days 11/21/31), once-per-tier-per-run, lists new classes w/ sprite+name+brief.
-- ☐ Endless-mode (`?acts=0`) reveal still works.
+  RightPanels forecast, AdventurerIntelPopup, RoomBehaviorSystem library forecast). (2026-06-05)
+- ☑ `unlockDay` set per the schedule; boss-level gate removed for normal classes. Verified: 5/10/15/18-class
+  cohorts at days 1/11/21/31; live wave preview at day 10 shows only tier-1.
+- ☑ Flat `spawnWeight` (cheater = 0.08).
+- ☑ NG+ full-roster unlock (reckoningTier>0 → ngPlus → full roster from day 1).
+- ☑ Night-before reveal card (`hud/NewThreatsReveal.js`, days 11/21/31), once-per-tier-per-run
+  (meta.revealedClassTiers, save-persisted), lists new classes w/ real sprite + name + brief blurb; sequences
+  behind act/response intros; dismiss on button/key/backdrop. Verified live at day 11 + day 31 (rare cheater
+  styling).
+- ☑ Endless-mode (`?acts=0`) reveal still works (NewThreatsReveal constructed unconditionally, day-triggered).
 - ☑ `twitch_streamer` class + `twitch_con` event fully removed (2026-06-05 — code, data, AI, HUD, sprites,
   chat lines, balance, docs; 14MB sprite folder deleted; STATUS.md counts synced: events 35, classes 29;
   lint-content + verify-docs green; headless sim/soak clean).
