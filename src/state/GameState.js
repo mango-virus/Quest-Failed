@@ -12,8 +12,8 @@ import { DEFAULT_COMPANION } from '../systems/companions.js'
 // stamp a phantom tile. Empty here = consistent with the JSON.
 const BOSS_CHAMBER_DEF = {
   id: 'boss_chamber',
-  width: 15,
-  height: 15,
+  width: 16,
+  height: 16,
   connectionPoints: [],
   placementRules: { fixed: false, maxPerDungeon: 1 }, // fixed:false so _writeTiles runs
   tags: ['boss', 'special', 'fixed'],

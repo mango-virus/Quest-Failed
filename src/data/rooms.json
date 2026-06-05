@@ -3,10 +3,11 @@
         "id": "boss_chamber",
         "name": "Boss Chamber",
         "category": "special",
-        "width": 15,
-        "height": 15,
+        "width": 16,
+        "height": 16,
         "tileLayout": [
             [
+                null,
                 null,
                 null,
                 null,
@@ -24,6 +25,25 @@
                 null
             ],
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 null,
                 "corner",
                 null,
@@ -58,9 +78,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 null,
                 {
                     "id": "pillar4_r",
@@ -106,9 +128,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 null,
                 {
                     "id": "pillar3_r",
@@ -160,9 +184,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 null,
                 {
                     "id": "wall_c",
@@ -214,9 +240,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 null,
                 {
                     "id": "pillar2_l",
@@ -275,9 +303,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 null,
                 {
                     "id": "pillar1_l",
@@ -337,9 +367,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 null,
                 {
                     "id": "corner",
@@ -378,6 +410,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
