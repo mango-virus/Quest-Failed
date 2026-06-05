@@ -55,10 +55,10 @@ const COLOR_FIELDS = [
   { field: 'bright',   label: 'Bright',   min: -0.5, max: 0.5, step: 0.05, fmt: v => (v >= 0 ? '+' : '') + (+v).toFixed(2) },
   { field: 'contrast', label: 'Contrast', min: -1,   max: 1,   step: 0.1,  fmt: v => (v >= 0 ? '+' : '') + (+v).toFixed(1) },
 ]
+// Doors share the walls colour, so the colour changer is just Walls + Floor.
 const COLOR_TARGETS = [
-  { key: 'walls', label: 'Walls', accent: '#e8c880' },
+  { key: 'walls', label: 'Walls & doors', accent: '#e8c880' },
   { key: 'floor', label: 'Floor', accent: '#80c8e8' },
-  { key: 'doors', label: 'Doors', accent: '#e8a0c0' },
 ]
 const DOOR_STATES = [
   { key: 'closed', label: 'Closed' },
@@ -370,10 +370,10 @@ export class RoomEditorOverlay {
     ])
   }
 
-  _spriteGrid(items, activeId, onPick, emptyMsg) {
+  _spriteGrid(items, activeId, onPick, emptyMsg, onDelete = null) {
     if (!items.length) return h('div', { className: 'qf-redit__ctx-empty' }, emptyMsg)
     return h('div', { className: 'qf-redit__sprite-grid' }, items.map((it) =>
-      h('button', {
+      h('div', {
         className: ['qf-redit__sprite', it.id === activeId && 'is-active'],
         title: it.id,
         on: {
@@ -389,6 +389,10 @@ export class RoomEditorOverlay {
           },
         },
       }, [
+        onDelete ? h('span', {
+          className: 'qf-redit__sprite-del', title: `Delete “${it.id}” from the library`,
+          on: { click: (e) => { e.stopPropagation(); if (window.confirm(`Delete “${it.id}”? This removes it everywhere it's used.`)) onDelete(it.id) } },
+        }, '×') : null,
         it.thumb
           ? h('img', { className: 'qf-redit__sprite-img', src: it.thumb, draggable: 'false' })
           : h('span', { className: 'qf-redit__sprite-q' }, '?'),
@@ -449,7 +453,8 @@ export class RoomEditorOverlay {
         ]),
       ]),
       this._spriteGrid(sprites, active, (id) => this.scene.uiPickSprite?.(id),
-        'No tiles for this theme yet — open ⚙ Themes to upload some.'),
+        'No tiles for this theme yet — open ⚙ Themes to upload some.',
+        (id) => { this.scene.uiDeleteThemeSprite?.(id); this._forceContextRebuild() }),
     ]
   }
 
@@ -480,7 +485,8 @@ export class RoomEditorOverlay {
         h('div', { className: 'qf-redit__subhead-actions' }, [this._paletteScopeToggle()]),
       ]),
       this._spriteGrid(sprites, active, (id) => this.scene.uiPickSprite?.(id),
-        'No tiles for this theme yet — open ⚙ Themes to upload some.'),
+        'No tiles for this theme yet — open ⚙ Themes to upload some.',
+        (id) => { this.scene.uiDeleteThemeSprite?.(id); this._forceContextRebuild() }),
     ]
   }
 
@@ -514,7 +520,8 @@ export class RoomEditorOverlay {
       ]),
       h('div', { className: 'qf-redit__subhead' }, [h('span', null, 'DECOR BRUSH')]),
       this._spriteGrid(sprites, active, (id) => this.scene.uiPickDecor?.(id),
-        'No decor sprites yet — upload a PNG to begin.'),
+        'No decor sprites yet — upload a PNG to begin.',
+        (id) => { this.scene.uiDeleteDecorSprite?.(id); this._forceContextRebuild() }),
     ]
   }
 

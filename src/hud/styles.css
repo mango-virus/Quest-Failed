@@ -14859,10 +14859,20 @@ body {
   gap: var(--space-2); padding: 0 var(--space-4) var(--space-4);
 }
 .qf-redit__sprite {
+  position: relative;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   cursor: pointer; background: var(--bg-2); border: 2px solid var(--line-2);
   border-radius: var(--radius-sm); padding: 5px 3px; transition: all .1s;
 }
+.qf-redit__sprite-del {
+  position: absolute; top: -6px; right: -6px; z-index: 2;
+  width: 16px; height: 16px; border-radius: 50%;
+  display: none; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1; color: #fff;
+  background: var(--blood); border: 1px solid var(--bg-0); cursor: pointer;
+}
+.qf-redit__sprite:hover .qf-redit__sprite-del { display: flex; }
+.qf-redit__sprite-del:hover { background: var(--blood-glow); }
 .qf-redit__sprite:hover { border-color: var(--line-bright); background: var(--bg-3); }
 .qf-redit__sprite.is-active {
   border-color: var(--info); background: var(--bg-elev);

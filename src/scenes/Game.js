@@ -718,9 +718,13 @@ export class Game extends Phaser.Scene {
     if ('doorTheme'   in def) room.doorTheme   = typeof def.doorTheme  === 'string' ? def.doorTheme  : null
     if ('tileLayout'  in def) room.tileLayout  = Array.isArray(def.tileLayout) ? def.tileLayout : []
     if ('doorTiles'   in def) room.doorTiles   = (def.doorTiles && typeof def.doorTiles === 'object') ? def.doorTiles : null
-    if ('decorations' in def) room.decorations = Array.isArray(def.decorations) ? def.decorations : []
-    if ('colorAdjust' in def) room.colorAdjust = (def.colorAdjust && typeof def.colorAdjust === 'object') ? def.colorAdjust : null
-    if ('backgroundImage' in def) room.backgroundImage = typeof def.backgroundImage === 'string' ? def.backgroundImage : null
+    // These fields are STRIPPED from the saved def when empty (decorations,
+    // colorAdjust, backgroundImage). An absent field therefore means "cleared"
+    // — apply unconditionally so e.g. resetting a room's colour or removing its
+    // skin actually takes effect on the live room (not just on disk).
+    room.decorations     = Array.isArray(def.decorations) ? def.decorations : []
+    room.colorAdjust     = (def.colorAdjust && typeof def.colorAdjust === 'object') ? def.colorAdjust : null
+    room.backgroundImage = typeof def.backgroundImage === 'string' ? def.backgroundImage : null
   }
 
   // Room Builder reset ALL rooms — reapply every placed room's tile grid

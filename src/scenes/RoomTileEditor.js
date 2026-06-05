@@ -688,6 +688,16 @@ export class RoomTileEditor extends Phaser.Scene {
   uiSetDecorLayer(l) { this._decorLayer = l; this._notifyDom() }
   uiUploadDecor() { this._uploadDecorSprite() }
   uiClearDecors() { this._clearAllDecors(); this._notifyDom() }
+  // Delete a decor sprite from the library + drop any placed instances of it.
+  uiDeleteDecorSprite(id) {
+    DecorManager.removeSprite(id)
+    for (const r of this._rooms) {
+      if (Array.isArray(r.decorations)) r.decorations = r.decorations.filter(d => d.spriteId !== id)
+    }
+    if (this._activeDecorSpriteId === id) this._activeDecorSpriteId = null
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
 
   // Color adjust (walls / floor / doors × hue / sat / bright / contrast)
   uiColorParams() {
@@ -872,7 +882,12 @@ export class RoomTileEditor extends Phaser.Scene {
   }
   uiAssignSlot(themeName, slot, id)   { ThemeManager.addSlotVariant(themeName, slot, id); this._notifyDom() }
   uiUnassignSlot(themeName, slot, id) { ThemeManager.removeSlotVariant(themeName, slot, id); this._notifyDom() }
-  uiDeleteThemeSprite(id)             { ThemeManager.removeSprite(id); this._notifyDom() }
+  uiDeleteThemeSprite(id) {
+    ThemeManager.removeSprite(id)
+    if (this._activeSpriteId === id) this._activeSpriteId = null
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
 
   async uiSaveThemes() {
     if (!FsHandle.isSupported()) { this._toast('File System API unavailable in this browser', true); return { ok: false } }
@@ -1482,7 +1497,7 @@ export class RoomTileEditor extends Phaser.Scene {
             if (entry.rot)   img.setAngle(entry.rot)
             if (entry.flipH) img.flipX = true
             if (entry.flipV) img.flipY = true
-            _applyColorAdj(img, room.colorAdjust?.doors ?? room.colorAdjust?.walls)
+            _applyColorAdj(img, room.colorAdjust?.walls)   // doors share the walls colour
             this._paintContainer.add(img)
           }
         }
@@ -1961,7 +1976,13 @@ export class RoomTileEditor extends Phaser.Scene {
         const cleaned = { ...r }
         if (!_hasAnyOverride(r)) cleaned.tileLayout = []
         if (!Array.isArray(r.decorations) || r.decorations.length === 0) delete cleaned.decorations
-        if (!_hasColorAdjust(r)) delete cleaned.colorAdjust
+        if (!_hasColorAdjust(r)) {
+          delete cleaned.colorAdjust
+        } else if (cleaned.colorAdjust && cleaned.colorAdjust.doors) {
+          // Doors share the walls colour — drop the legacy per-door target.
+          cleaned.colorAdjust = { ...cleaned.colorAdjust }
+          delete cleaned.colorAdjust.doors
+        }
         if (!r.backgroundImage) delete cleaned.backgroundImage
         return cleaned
       })
@@ -1972,6 +1993,9 @@ export class RoomTileEditor extends Phaser.Scene {
       if (DecorManager.listSprites().length > 0) {
         await FsHandle.writeJson(DECOR_MANIFEST_PATH, DecorManager.toManifest())
       }
+      // Persist the theme manifest too, so tile uploads / deletions / slot
+      // edits made from the palettes survive without a separate Themes save.
+      await FsHandle.writeJson('assets/themes/manifest.json', ThemeManager.serialize())
       // Mirror change into the live cache so other systems see updated
       // theme + tileLayout + doorTiles fields without a reload.
       const live = this.cache.json.get('rooms')
@@ -1983,7 +2007,7 @@ export class RoomTileEditor extends Phaser.Scene {
       // edits show up in the dungeon view without restarting. ROOMS_ALL_RESET
       // covers theme/doorTheme/tileLayout/doorTiles in one event.
       EventBus.emit('ROOMS_ALL_RESET')
-      this._toast('Saved.')
+      this._toast(`✓ Saved ${out.length} rooms to disk`, false, 'success')
       this._notifyDom()
     } catch (err) {
       console.error('[RoomTileEditor] save failed:', err)
@@ -2008,20 +2032,26 @@ export class RoomTileEditor extends Phaser.Scene {
       .on('pointerdown', () => this.scene.start('MainMenu'))
   }
 
-  _toast(msg, isError = false) {
+  _toast(msg, isError = false, kind = null) {
     this._cToast.removeAll(true)
     // Centre the toast over the paint canvas, near its bottom edge (1920×1080
     // logical coords — same space the camera renders).
     const a = this._paintAreaRect || EDITOR_LAYOUT.canvas
     const tx = a.x + a.w / 2
     const ty = a.y + a.h - 24
+    const success = kind === 'success'
+    const color = isError ? COL_TEXT_WARN : (success ? '#bff5c0' : COL_TEXT_HI)
+    const bg     = isError ? '#2a0a0a'    : (success ? '#0d3018' : '#0a0514')
     const t = _text(this, tx, ty, msg, {
-      fontSize: '13px', color: isError ? COL_TEXT_WARN : COL_TEXT_HI,
-      backgroundColor: '#0a0514', padding: { x: 10, y: 6 },
+      fontSize: success ? '16px' : '13px', color, fontStyle: success ? 'bold' : 'normal',
+      backgroundColor: bg, padding: { x: 14, y: 9 },
     }).setOrigin(0.5)
     this._cToast.add(t)
+    // Pop-in so it reads as a clear confirmation (esp. for save success).
+    t.setScale(0.92)
+    this.tweens.add({ targets: t, scale: 1, duration: 160, ease: 'Back.easeOut' })
     this.tweens.add({
-      targets: t, alpha: { from: 1, to: 0 }, duration: 2400, delay: 800,
+      targets: t, alpha: { from: 1, to: 0 }, duration: 2400, delay: success ? 1700 : 800,
       onComplete: () => t.destroy(),
     })
   }
@@ -2033,7 +2063,8 @@ export class RoomTileEditor extends Phaser.Scene {
 function _hasColorAdjust(room) {
   const ca = room?.colorAdjust
   if (!ca) return false
-  for (const t of ['walls', 'floor', 'doors']) {
+  // Doors share the walls colour now — only walls + floor are real targets.
+  for (const t of ['walls', 'floor']) {
     const s = ca[t]
     if (s && (s.hue || s.sat || s.bright || s.contrast)) return true
   }

@@ -1477,7 +1477,7 @@ export class DungeonRenderer {
       // wall tile sprites to visibly slide on window resize. PreFX works with
       // geometry masks too, so door sprites are also safe.
       const adj = isDoorContainer
-        ? (_room?.colorAdjust?.doors ?? _room?.colorAdjust?.walls)
+        ? _room?.colorAdjust?.walls   // doors share the room's wall colour
         : _room?.colorAdjust?.[isFloor ? 'floor' : 'walls']
       this._applyColorAdj(img, adj, true)
       return img
