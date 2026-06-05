@@ -39,6 +39,14 @@ function _scaledCount(base) {
   return Math.max(1, Math.round(base * m))
 }
 
+// Additive blend so these layered energy effects BLOOM into light on the dark
+// dungeon (this module's stated design intent) instead of reading as flat fills.
+// Canvas-safe no-ops. _glo adds a soft Glow post-FX halo (WebGL only).
+function _ab(obj) { try { obj?.setBlendMode?.(Phaser.BlendModes.ADD) } catch (e) {} return obj }
+function _glo(obj, color = 0xffffff, strength = 4, distance = 10) {
+  try { obj?.postFX?.addGlow(color, strength, 0, false, 0.1, distance) } catch (e) {} return obj
+}
+
 // Resolve any of the entity pools to a worldX/worldY by instanceId.
 function _findEntity(gs, id) {
   if (!id) return null
@@ -98,7 +106,7 @@ export class BossPactVfx {
   // Windup: pulsing red aura beneath the boss. Fired: cone-shaped flame
   // wash toward each target + ember swarm + camera shake.
   _onHellfireWindup({ x, y, durationMs }) {
-    const aura = this._scene.add.graphics().setPosition(x, y).setDepth(40).setAlpha(0)
+    const aura = _ab(this._scene.add.graphics()).setPosition(x, y).setDepth(40).setAlpha(0)
     aura.fillStyle(0xff5522, 0.55)
     aura.fillCircle(0, 0, 28)
     aura.fillStyle(0xffaa33, 0.35)
@@ -125,7 +133,7 @@ export class BossPactVfx {
     const ang = Math.atan2(ty - sy, tx - sx)
     const len = Math.hypot(tx - sx, ty - sy)
     const halfWidth = TS * 0.7
-    const g = this._scene.add.graphics().setDepth(45).setAlpha(0.85)
+    const g = _ab(this._scene.add.graphics()).setDepth(45).setAlpha(0.85)
     // Base flame: hot core + outer flare
     g.fillStyle(0xfff4a8, 1)
     g.beginPath()
@@ -136,7 +144,7 @@ export class BossPactVfx {
              sy + Math.sin(ang) * len + Math.sin(ang - Math.PI/2) * halfWidth)
     g.closePath()
     g.fillPath()
-    const outer = this._scene.add.graphics().setDepth(44).setAlpha(0.55)
+    const outer = _ab(this._scene.add.graphics()).setDepth(44).setAlpha(0.55)
     outer.fillStyle(0xff5522, 1)
     outer.beginPath()
     outer.moveTo(sx, sy)
@@ -154,7 +162,7 @@ export class BossPactVfx {
     // Scales with the particles quality setting.
     const _emberCount = _scaledCount(8)
     for (let i = 0; i < _emberCount; i++) {
-      const e = this._scene.add.graphics().setDepth(46)
+      const e = _ab(this._scene.add.graphics()).setDepth(46)
       e.fillStyle(i % 2 ? 0xffcc55 : 0xff8833, 1)
       e.fillCircle(0, 0, 2 + Math.random() * 2)
       e.setPosition(sx, sy)
@@ -187,7 +195,7 @@ export class BossPactVfx {
       const py = startY + (y - startY) * t
       points.push({ x: px, y: py })
     }
-    const g = this._scene.add.graphics().setDepth(48)
+    const g = _ab(this._scene.add.graphics()).setDepth(48)
     // Outer glow
     g.lineStyle(8, 0x88aaff, 0.45)
     g.beginPath()
@@ -201,7 +209,7 @@ export class BossPactVfx {
     for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y)
     g.strokePath()
     // Impact ring
-    const ring = this._scene.add.graphics().setPosition(x, y).setDepth(47)
+    const ring = _ab(this._scene.add.graphics()).setPosition(x, y).setDepth(47)
     ring.lineStyle(3, 0xddeeff, 1)
     ring.strokeCircle(0, 0, 6)
     this._scene.tweens.add({
@@ -222,10 +230,10 @@ export class BossPactVfx {
   // ── 3. Shockwave Slam ─────────────────────────────────────────────
   // Expanding ring outward from boss, screen shake, all-defender flash.
   _onShockwaveFired({ x, y, damage, targets }) {
-    const ring1 = this._scene.add.graphics().setPosition(x, y).setDepth(44)
+    const ring1 = _ab(this._scene.add.graphics()).setPosition(x, y).setDepth(44)
     ring1.lineStyle(6, 0xffe488, 1)
     ring1.strokeCircle(0, 0, 8)
-    const ring2 = this._scene.add.graphics().setPosition(x, y).setDepth(43)
+    const ring2 = _ab(this._scene.add.graphics()).setPosition(x, y).setDepth(43)
     ring2.lineStyle(10, 0xff8833, 0.6)
     ring2.strokeCircle(0, 0, 8)
     this._scene.tweens.add({
@@ -234,7 +242,7 @@ export class BossPactVfx {
       onComplete: () => { ring1.destroy(); ring2.destroy() },
     })
     // Crack lines radiating out — 6 spokes
-    const cracks = this._scene.add.graphics().setPosition(x, y).setDepth(42).setAlpha(0.85)
+    const cracks = _ab(this._scene.add.graphics()).setPosition(x, y).setDepth(42).setAlpha(0.85)
     cracks.lineStyle(2, 0x66442a, 1)
     for (let i = 0; i < 6; i++) {
       const a = (Math.PI * 2 * i) / 6
@@ -260,7 +268,7 @@ export class BossPactVfx {
   // Black void at boss centre that expands then collapses, with motion
   // streaks suggesting "things being pulled in".
   _onVortexFired({ x, y }) {
-    const core = this._scene.add.graphics().setPosition(x, y).setDepth(44)
+    const core = _ab(this._scene.add.graphics()).setPosition(x, y).setDepth(44)
     core.fillStyle(0x110022, 0.9)
     core.fillCircle(0, 0, 12)
     core.lineStyle(3, 0x6633bb, 1)
@@ -282,7 +290,7 @@ export class BossPactVfx {
       const dist = TS * 3 + Math.random() * TS
       const sx = x + Math.cos(ang) * dist
       const sy = y + Math.sin(ang) * dist
-      const streak = this._scene.add.graphics().setDepth(43)
+      const streak = _ab(this._scene.add.graphics()).setDepth(43)
       streak.lineStyle(2, 0xaa66ff, 0.85)
       streak.beginPath()
       streak.moveTo(sx, sy)
@@ -307,7 +315,7 @@ export class BossPactVfx {
     this._destroySoulDrain()
     const target = _findEntity(this._gameState, targetId)
     if (!target) return
-    const tether = this._scene.add.graphics().setDepth(46)
+    const tether = _ab(this._scene.add.graphics()).setDepth(46)
     this._soulDrain = { tether, targetId, particles: [], t: 0 }
     // Tick: redraw tether every frame, spawn drifting orbs every ~120ms
     const update = () => {
@@ -329,7 +337,7 @@ export class BossPactVfx {
       sd.tether.strokePath()
       sd.t += 1
       if (sd.t % 6 === 0) {
-        const orb = this._scene.add.graphics().setPosition(t.worldX, t.worldY).setDepth(47)
+        const orb = _ab(this._scene.add.graphics()).setPosition(t.worldX, t.worldY).setDepth(47)
         orb.fillStyle(0x88ccff, 1)
         orb.fillCircle(0, 0, 3)
         sd.particles.push(orb)
@@ -354,7 +362,7 @@ export class BossPactVfx {
     this._destroySoulDrain()
     const boss = this._gameState.boss
     if (boss) {
-      const flash = this._scene.add.graphics().setPosition(boss.worldX, boss.worldY).setDepth(48)
+      const flash = _ab(this._scene.add.graphics()).setPosition(boss.worldX, boss.worldY).setDepth(48)
       flash.fillStyle(0x88ccff, 0.7)
       flash.fillCircle(0, 0, 18)
       this._scene.tweens.add({
@@ -400,7 +408,7 @@ export class BossPactVfx {
       } else {
         // Fallback — original purple-orb look in case the boss sheet
         // didn't load.
-        ghost = this._scene.add.graphics().setDepth(38).setAlpha(0)
+        ghost = _ab(this._scene.add.graphics()).setDepth(38).setAlpha(0)
         ghost.fillStyle(0x6633bb, 0.6)
         ghost.fillCircle(0, 0, 10)
         ghost.lineStyle(2, 0x9966ff, 0.9)
@@ -468,7 +476,8 @@ export class BossPactVfx {
     this._shake(0.02, 220)
   }
   _fireBeam(x1, y1, x2, y2, color, durationMs) {
-    const g = this._scene.add.graphics().setDepth(48).setAlpha(0.9)
+    const g = _ab(this._scene.add.graphics()).setDepth(48).setAlpha(0.9)
+    _glo(g, color, 5, 12)
     g.lineStyle(6, color, 0.4)
     g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokePath()
     g.lineStyle(2, 0xffffff, 1)
