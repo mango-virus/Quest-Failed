@@ -15,6 +15,7 @@
 
 import { CRYPT, FONT_HEAD, FONT_BODY, pixelPanel, pixelBar, pixelDiamond } from '../UIKit.js'
 import { makePopupFrame } from './PopupFrame.js'
+import { getEligibleClasses } from '../../util/classSpawn.js'
 
 export class AdventurerIntelPopup {
   constructor(scene, gameState) {
@@ -100,7 +101,6 @@ export class AdventurerIntelPopup {
   // knowledge every fresh adv inherits at spawn.
   _renderNightPreview(cx, py, cw, ph, hasLibrary, D, addChild) {
     const day      = this._gameState.meta?.dayNumber ?? 1
-    const bossLv   = this._gameState.boss?.level ?? 1
     const flags    = this._gameState._mechanicFlags ?? {}
     const events   = this._gameState._eventFlags ?? {}
     // Wave size — mirrors DayPhase's baseCount calc closely.
@@ -111,11 +111,11 @@ export class AdventurerIntelPopup {
     if (flags.extraAdvsPerDay)       baseCount += flags.extraAdvsPerDay ?? 0
     if (flags.doomsdayRaidToday)     baseCount = Math.round(baseCount * 2)
     if (events.guildRaidActive)      baseCount *= 2
-    // Eligible class pool — same gate DayPhase uses
+    // Eligible class pool — same day-tier gate DayPhase uses (single source of truth)
     const allClasses = this._scene.cache.json.get('adventurerClasses') ?? []
-    const eligible = allClasses.filter(c =>
-      (c.unlockLevel ?? 1) <= bossLv && (c.unlockDay ?? 1) <= day,
-    )
+    const eligible = getEligibleClasses(allClasses, day, {
+      ngPlus: (this._gameState?.meta?.reckoningTier ?? 0) > 0,
+    })
     // Returning veterans — survivors whose lastSeenDay was the just-finished day
     const survivors = this._gameState.knowledge?.survivors ?? []
     const vets = survivors.filter(s => s.lastSeenDay === (day - 1) || s.lastSeenDay === day)

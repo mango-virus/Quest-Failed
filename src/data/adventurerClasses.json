@@ -30,8 +30,7 @@
       "tank",
       "holy"
     ],
-    "unlockLevel": 2,
-    "spawnWeight": 0.7,
+    "unlockDay": 21,
     "description": "A holy defender in blessed plate behind a cross-emblazoned shield. Slow, hits softly, but soaks punishment that would fell a knight — and when death looms, calls on the Light to Lay on Hands and heal a wound shut. Once per delve.",
     "flavorText": "The Light is my shield. I shall not fall here."
   },
@@ -53,8 +52,7 @@
       "pirate",
       "loot_seeker"
     ],
-    "unlockLevel": 2,
-    "spawnWeight": 0.8,
+    "unlockDay": 11,
     "description": "A swashbuckling cutlass duelist — fast, reckless, and hungry for plunder. Cuts a beeline for the treasure and carries off extra gold if it reaches it. When run through and bleeding out, swigs a flask of grog and goes berserk — striking faster and harder for the rest of the raid.",
     "flavorText": "Dead men tell no tales. Lucky for me, I'm not dead yet."
   },
@@ -128,7 +126,7 @@
       "minion_raiser",
       "dark"
     ],
-    "unlockLevel": 3,
+    "unlockDay": 31,
     "description": "Raises defeated minions to fight for the party. Defected raises last until the day ends.",
     "flavorText": "Death is a waste of perfectly good labour."
   },
@@ -169,7 +167,7 @@
       "support",
       "pet_class"
     ],
-    "unlockLevel": 3,
+    "unlockDay": 21,
     "rarity": "rare",
     "description": "Trained handler. Tames a single hostile minion mid-fight; the tamed beast follows and fights for them. Only one companion at a time — if it dies, they tame a replacement.",
     "flavorText": "Every beast was a person once, in their head."
@@ -190,6 +188,7 @@
       "rage",
       "fearless"
     ],
+    "unlockDay": 21,
     "description": "Rage-fueled brawler. Damage scales as HP drops (up to 2x at near-death). Immune to fear and flee triggers — never retreats.",
     "flavorText": "Pain is just bad weather. You walk through it."
   },
@@ -210,6 +209,7 @@
       "unarmored"
     ],
     "dodgeChance": 0.3,
+    "unlockDay": 11,
     "description": "Unarmored, lightning-fast. ~30% chance to dodge incoming hits including traps. Strikes ignore half of minion defense.",
     "flavorText": "Be the wind around the blade."
   },
@@ -230,7 +230,7 @@
       "buffer",
       "ranged_low"
     ],
-    "unlockLevel": 3,
+    "unlockDay": 11,
     "description": "Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. Aura ends the moment they fall.",
     "flavorText": "Every chord, a small kindness."
   },
@@ -351,8 +351,8 @@
       "exploit",
       "chaos"
     ],
-    "unlockLevel": 2,
-    "spawnWeight": 0.6,
+    "unlockDay": 31,
+    "spawnWeight": 0.08,
     "description": "Modded client. No-clips walls, teleports between rooms, lands suspicious one-shots. Glass-cannon body — gets reported and banned if they take too many hits.",
     "flavorText": "skill issue",
     "revivable": false
@@ -520,8 +520,7 @@
       "bruiser",
       "arena"
     ],
-    "unlockLevel": 2,
-    "spawnWeight": 0.8,
+    "unlockDay": 11,
     "description": "Roman arena champion in Legion plate behind a Spartan hoplon. Feeds on the crowd — each minion he fells stokes a swelling Crowd Roar that sharpens his blade. When pressed, he plants the shield in a Block stance: untouchable for a beat, but he can't swing while braced.",
     "flavorText": "Are you not entertained?"
   },
@@ -542,8 +541,7 @@
       "swarm",
       "mob"
     ],
-    "unlockLevel": 2,
-    "spawnWeight": 1,
+    "unlockDay": 11,
     "description": "An angry villager with a pitchfork and a grudge. Little threat alone — but they come in mobs, and the more peasants fight at his side, the bolder and stronger every one of them becomes (Strength in Numbers).",
     "flavorText": "Get the torches. And Gary. Get Gary too."
   },
@@ -564,9 +562,8 @@
       "holy",
       "support"
     ],
-    "unlockLevel": 3,
+    "unlockDay": 31,
     "rarity": "rare",
-    "spawnWeight": 0.6,
     "description": "A winged shield-maiden of the heavens. Takes Winged Flight to soar over traps and chasms, and raises a Rally cry that steels nearby allies and lifts a downed one back to their feet.",
     "flavorText": "The brave do not die unwitnessed."
   },
@@ -587,8 +584,7 @@
       "gambler",
       "luck"
     ],
-    "unlockLevel": 3,
-    "spawnWeight": 0.7,
+    "unlockDay": 21,
     "description": "A dapper riverboat sharp who lets fate swing the cane. Every strike is a Roll the Dice — whiff, crit, double-hit, a self-heal, even a payout that lines YOUR coffers. And when he should be dead, he calls Double or Nothing: heads he rises again, tails the house pays out to you.",
     "flavorText": "Fortune favors me. She just doesn't know it yet."
   },
@@ -609,8 +605,7 @@
       "miner",
       "utility"
     ],
-    "unlockLevel": 3,
-    "spawnWeight": 0.7,
+    "unlockDay": 21,
     "description": "A grimy prospector with a pickaxe that bites like a weapon. When the path stalls, he Tunnels — digging down and surfacing at any floor tile across the dungeon, opening a shortcut that drags the raid into rooms you never wanted reached.",
     "flavorText": "There's always another way through. I make it."
   }

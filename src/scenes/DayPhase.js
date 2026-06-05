@@ -11,7 +11,7 @@ import { DossierPanel }   from '../ui/DossierPanel.js'
 import { PauseManager }   from '../systems/PauseManager.js'
 import { classLabel }     from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
-import { pickWeightedClass } from '../util/classSpawn.js'
+import { pickWeightedClass, getEligibleClasses } from '../util/classSpawn.js'
 import { userSettings }    from '../hud/userSettings.js'
 
 const TOP_H    = 48
@@ -735,20 +735,15 @@ export class DayPhase extends Phaser.Scene {
     const allClasses = this.cache.json.get('adventurerClasses') ?? []
     const dungeonLv  = this._gameState.boss?.level ?? 1
     const dayNum     = this._gameState.meta?.dayNumber ?? 1
-    // Class spawn gates: unlockLevel = boss level required (default 1),
-    // unlockDay = calendar day required (default 1). Both must be met.
-    // Rare/late classes (necromancer, beast_master, bard) use unlockLevel 3
-    // so they appear once the boss has levelled up twice.
-    let classes = allClasses.filter(c =>
-      // Sung Jinwoo (shadow_monarch) is event-ONLY: he spawns solely via
-      // _spawnSoloLeveling. Hard-exclude him from the normal-wave pool (which
-      // also feeds pickWeightedClass + the bounty-hunter / returning-veteran
-      // fallbacks) so the unkillable Monarch can never leak into a regular
-      // wave even if his unlockLevel were ever changed.
-      c.id !== 'shadow_monarch' &&
-      (c.unlockLevel ?? 1) <= dungeonLv &&
-      (c.unlockDay   ?? 1) <= dayNum,
-    )
+    // Class spawn gate: DAY-tiered (every 10 days a new cohort joins the pool
+    // via each class's `unlockDay`). Single source of truth — getEligibleClasses
+    // also excludes event-only classes (Shadow Monarch + the unlockLevel:99 set)
+    // and unlocks the full roster in Reckoning NG+. The wave preview, intel
+    // panels, and Library forecast all route through the same helper so they
+    // never disagree with what actually spawns.
+    let classes = getEligibleClasses(allClasses, dayNum, {
+      ngPlus: (this._gameState.meta?.reckoningTier ?? 0) > 0,
+    })
     // Dungeon event: Cosplay Contest — entire wave uses the dedicated
     // cosplay_adventurer class. Costumes come from the existing
     // cosplay_adventurer LPC variant pool (50 baked variants) — no

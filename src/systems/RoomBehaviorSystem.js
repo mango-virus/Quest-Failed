@@ -19,6 +19,7 @@
 
 import { EventBus } from './EventBus.js'
 import { Balance, passiveIncomeMul }  from '../config/balance.js'
+import { getEligibleClasses } from '../util/classSpawn.js'
 
 export class RoomBehaviorSystem {
   constructor(scene, gameState) {
@@ -116,15 +117,12 @@ export class RoomBehaviorSystem {
     )
     if (hasLibrary) {
       const allClasses = this._scene.cache.json.get('adventurerClasses') ?? []
-      const dungeonLv = this._gameState.boss?.level ?? 1
       const day = this._gameState.meta.dayNumber
-      // Mirror the DayPhase spawn filter: gate by both boss level and
-      // calendar day so the Library forecast doesn't preview a rare
-      // class (e.g. Beast Master) before its unlockDay.
-      const classes = allClasses.filter(c =>
-        (c.unlockLevel ?? 1) <= dungeonLv &&
-        (c.unlockDay   ?? 1) <= day,
-      )
+      // Mirror the DayPhase spawn pool exactly (same helper) so the Library
+      // forecast doesn't preview a class before its unlockDay tier.
+      const classes = getEligibleClasses(allClasses, day, {
+        ngPlus: (this._gameState.meta?.reckoningTier ?? 0) > 0,
+      })
       let baseCount = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)
       // Post-day-9 wave-size escalation — matches DayPhase spawn so
       // the Library class forecast covers the bigger waves too.

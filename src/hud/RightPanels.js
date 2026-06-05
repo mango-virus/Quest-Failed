@@ -22,6 +22,7 @@
 import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { adventurerDisplayLevel } from '../config/balance.js'
+import { getEligibleClasses } from '../util/classSpawn.js'
 import { pixelSprite } from './sprites.js'
 import { snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { pactLabel } from '../util/displayNames.js'
@@ -701,8 +702,10 @@ export class RightPanels {
     return party
   }
 
-  // Pull adventurerClasses from any Phaser scene's JSON cache and apply
-  // the same unlock-gate filter DayPhase uses.
+  // Pull adventurerClasses from any Phaser scene's JSON cache and apply the
+  // SAME day-tier gate DayPhase uses (single source of truth). `bossLv` is no
+  // longer part of the gate (day-tiered now) but kept in the signature for
+  // call-site compatibility.
   _eligibleClasses(dayNum, bossLv) {
     const scenes = window.__game?.scene?.scenes ?? []
     let allClasses = []
@@ -710,10 +713,9 @@ export class RightPanels {
       const arr = s.cache?.json?.get?.('adventurerClasses')
       if (Array.isArray(arr) && arr.length) { allClasses = arr; break }
     }
-    return allClasses.filter(c =>
-      (c.unlockLevel ?? 1) <= bossLv &&
-      (c.unlockDay   ?? 1) <= dayNum,
-    )
+    return getEligibleClasses(allClasses, dayNum, {
+      ngPlus: (this._gameState?.meta?.reckoningTier ?? 0) > 0,
+    })
   }
 
   // ── AdventurerIntel ─────────────────────────────────────────────

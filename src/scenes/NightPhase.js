@@ -11,7 +11,7 @@ import { PauseManager }   from '../systems/PauseManager.js'
 import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { getRotatedDef } from '../util/roomRotation.js'
-import { pickWeightedClass } from '../util/classSpawn.js'
+import { pickWeightedClass, getEligibleClasses } from '../util/classSpawn.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
 import { upgradeCost, nextTierInfo } from '../util/minionRevive.js'
@@ -351,10 +351,11 @@ export class NightPhase extends Phaser.Scene {
     // block just before nextWavePreview is assembled).
 
     // ── Normal wave (eligible class pool + count formula) ────────
-    let classes = allClasses.filter(c =>
-      (c.unlockLevel ?? 1) <= bossLv &&
-      (c.unlockDay   ?? 1) <= day,
-    )
+    // Day-tiered pool — MUST match DayPhase's actual spawn (same helper) so the
+    // IncomingWave preview never advertises a class the day won't produce.
+    let classes = getEligibleClasses(allClasses, day, {
+      ngPlus: (this._gameState.meta?.reckoningTier ?? 0) > 0,
+    })
     // Cosplay Contest — entire wave is cosplay_adventurer. Same bypass.
     if (eventFlags.cosplayContestActive) {
       const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
