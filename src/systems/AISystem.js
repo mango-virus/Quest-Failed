@@ -4172,6 +4172,15 @@ export class AISystem {
     // lone champion and the event was trivial; now the whole horde converges
     // on the boss so it reads as a genuine overrun (2026-05-27 re-tune).
     if (adv._monsterInvader) return { type: 'SEEK_BOSS' }
+    // Dungeon event: Zombie Horde — a mindless undead tide that wants ONLY the
+    // throne. Unlike the Rival pack above they do NOT start out knowing where it
+    // is (deliberately excluded from _beelinesBoss), so this SEEK_BOSS goal is
+    // knowledge-gated: they shamble room to room via the explore-fallback —
+    // mauling any minion in their path — until they stumble onto the boss room,
+    // then converge on it. No chest detours, no aimless room-touring like a
+    // normal wave; never flee (noFlee). Matches the spawn intent ("maul anything
+    // in their path, then push for the boss"). Mirrors the Shadow Monarch.
+    if (adv.flags?.zombieShambler) return { type: 'SEEK_BOSS' }
     // Dungeon event: Treasure Hunters — here for the LOOT only; they ignore
     // the boss entirely. As of 2026-05-29 they respect the knowledge system
     // like normal advs (no treasure map), but the raid shares discoveries:
