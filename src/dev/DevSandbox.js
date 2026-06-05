@@ -165,6 +165,17 @@ export function installDevSandbox(scene) {
       log('not in NightPhase — cannot start the day from here'); return { ok: false }
     },
 
+    // End the current day NOW — the proper transition (clears the field, tops up
+    // boss/minion HP, advances dayNumber → EndOfDay → night, autosaves). Use it to
+    // ESCAPE a QUIET day, which has no wave to clear so it never ends on its own.
+    endDay() {
+      const dp = scene.scene.get('DayPhase')
+      if (!dp?.scene?.isActive?.() || typeof dp._endDay !== 'function') { log('not in a DayPhase — nothing to end'); return { ok: false } }
+      dp._endDay()
+      log('day ended → EndOfDay (advancing to night)')
+      return { ok: true }
+    },
+
     // QUIET MODE — when ON, days spawn NO normal wave and a wave-less day stays
     // OPEN (a persistent stage for isolating one class/boss/champion's VFX). Turn
     // it OFF to resume normal waves; an empty quiet day will then end on its own.
@@ -272,6 +283,7 @@ export function installDevSandbox(scene) {
         "  .arena()                         one-click: wire an entry hall to the boss so a day can start",
         "  .quietDay(true|false)            toggle QUIET mode (no wave + day stays open); false = back to normal",
         "  .startDay()                      end build phase, start the NORMAL wave",
+        "  .endDay()                        END the day now → EndOfDay/night (escape a quiet day)",
         "  .fastAbilities(true)             champion signatures fire in ~0.6s (no 4.5s wait)",
         "  .populate({minions=8,traps=3})   spawn mixed-tier minions (+undead) + traps near the boss",
         "  .setResponse('betrayer')         force the act response → engage its act-wide gimmick",

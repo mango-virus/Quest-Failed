@@ -164,6 +164,8 @@ export class DevEventsButton {
             () => { const on = this._qfDev()?.quietDay(!globalThis.__qfDevQuietDay); return on ? 'QUIET MODE: ON' : 'QUIET MODE: OFF' }, true),
           sandboxCard('START DAY', 'begin a day (quiet if mode is on)', '▶',
             () => this._qfDev()?.startDay()),
+          sandboxCard('END DAY', 'finish the day now → EndOfDay/night', '⏭',
+            () => this._qfDev()?.endDay()),
           sandboxCard(this._fastLabel(), 'cast in ~0.6s, not 4.5s', '⚡',
             () => { const on = this._qfDev()?.fastAbilities(!globalThis.__qfDevFastAbilities); return on ? 'FAST ABILITIES: ON' : 'FAST ABILITIES: OFF' }, true),
           sandboxCard('POPULATE TARGETS', '8 minions (+undead) + 3 traps', '☠',
