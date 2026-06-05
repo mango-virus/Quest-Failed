@@ -323,9 +323,11 @@ export function installDevSandbox(scene) {
       const slow = opts.slow ?? 6
       let r
       if (name === 'particleBurst')   r = AbilityVfx.particleBurst(scene, x, y, { count: 14, color: 0xffe066, speed: 60, durationMs: 450 * slow })
-      else if (name === 'beamFx')     r = AbilityVfx.beamFx(scene, x - 150, y - 120, x, y, { slow, ...opts })
-      else if (AbilityVfx[name])      r = AbilityVfx[name](scene, x, y, { slow, ...opts })
-      else { log(`no such VFX '${name}' — try particleBurstFx/impactFx/shockwaveFx/beamFx/glowPulseFx/sparkleFx`); return { ok: false } }
+      else if (name === 'beamFx')       r = AbilityVfx.beamFx(scene, x - 150, y - 120, x, y, { slow, ...opts })
+      else if (name === 'projectileFx') r = AbilityVfx.projectileFx(scene, x - 170, y - 130, x, y, { slow, ...opts })
+      else if (name === 'flipbookFx')   r = AbilityVfx.flipbookFx(scene, x, y, opts.sheet ?? 'vfx-boss-flame', { slow, scale: 2, glow: true, blend: true, ...opts })
+      else if (AbilityVfx[name])        r = AbilityVfx[name](scene, x, y, { slow, ...opts })
+      else { log(`no such VFX '${name}' — try particleBurstFx/impactFx/shockwaveFx/beamFx/glowPulseFx/sparkleFx/burnFx/projectileFx/juice/flipbookFx`); return { ok: false } }
       log(`fired VFX '${name}' at (${Math.round(x)},${Math.round(y)}) slow=${slow}`)
       return { ok: !!r, name, x, y }
     },

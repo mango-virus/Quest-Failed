@@ -62,6 +62,23 @@ function _softDotTexture(scene) {
   return key
 }
 
+// Named effect palettes — keep VFX visually coherent + on-brand. Each: a primary
+// + accent tint. Pass `palette: 'fire'` to the toolkit helpers (resolved by _pal).
+export const VfxPalette = {
+  fire:   { color: 0xff6622, accent: 0xffd23f },
+  ice:    { color: 0x66ccff, accent: 0xeaffff },
+  holy:   { color: 0xffe066, accent: 0xffffff },
+  shadow: { color: 0x9b59ff, accent: 0x3a1d6e },
+  poison: { color: 0x66dd33, accent: 0xccff66 },
+  arcane: { color: 0xff5fbf, accent: 0x66e0ff },
+  blood:  { color: 0xcc1133, accent: 0xff5566 },
+}
+function _pal(opts = {}) {
+  const p = opts.palette && VfxPalette[opts.palette]
+  if (p) { if (opts.color == null) opts.color = p.color; if (opts.accent == null) opts.accent = p.accent }
+  return opts
+}
+
 export const AbilityVfx = {
   // ── POC (2026-06-05): the same "burst" as particleBurst() but rebuilt on
   // Phaser 3.60's GPU particle emitter + additive blend + a Glow post-FX, vs the
@@ -209,6 +226,87 @@ export const AbilityVfx = {
     em.setDepth(o.depth); em.explode(Math.max(2, Math.round(o.count * mult)))
     scene.time.delayedCall(life + 120, () => { try { em.destroy() } catch (e) {} })
     return em
+  },
+
+  // SUSTAINED status/elemental emitter — rising motes for a DURATION, then stops
+  // and self-cleans. For burn/poison DoTs, channels, lingering auras. Returns the
+  // emitter (call .stop() to end early). Use palette:'fire'|'poison'|… for colour.
+  burnFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = _pal({ color: 0xff7733, accent: 0xffcc33, durationMs: 1200, depth: 7, rate: 36, spread: 13, rise: 70, ...opts })
+    const slow = o.slow ?? 1, dur = o.durationMs * slow, mult = _particlesMult()
+    if (mult <= 0) return null
+    const em = scene.add.particles(x, y, _softDotTexture(scene), {
+      frequency: o.rate, quantity: 1, lifespan: 520 * slow,
+      speedY: { min: -o.rise, max: -o.rise * 0.5 }, speedX: { min: -16, max: 16 },
+      x: { min: -o.spread, max: o.spread },
+      scale: { start: 0.5, end: 0 }, alpha: { start: 0.85, end: 0 },
+      tint: [o.color, o.accent], blendMode: 'ADD',
+    })
+    em.setDepth(o.depth)
+    scene.time.delayedCall(dur, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(700 * slow, () => { try { em.destroy() } catch (e) {} }) })
+    return em
+  },
+
+  // TRAVELLING projectile — glowing orb tweened A→B with a particle trail, then an
+  // impact burst on arrival. For fireballs/bolts/orbs. palette-aware.
+  projectileFx(scene, x1, y1, x2, y2, opts = {}) {
+    if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
+    const o = _pal({ color: 0xff8844, r: 7, durationMs: 450, depth: 8, ...opts })
+    const slow = o.slow ?? 1, dur = o.durationMs * slow, mult = _particlesMult()
+    const orb = scene.add.circle(x1, y1, o.r, o.color, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth)
+    try { orb.postFX.addGlow(o.color, 8, 0, false, 0.1, 16) } catch (e) {}
+    let trail = null
+    if (mult > 0) {
+      trail = scene.add.particles(0, 0, _softDotTexture(scene), {
+        lifespan: 360 * slow, speed: { min: 0, max: 22 }, scale: { start: 0.42, end: 0 },
+        alpha: { start: 0.75, end: 0 }, tint: o.color, blendMode: 'ADD', frequency: 14,
+      })
+      trail.setDepth(o.depth - 1); trail.startFollow(orb)
+    }
+    scene.tweens.add({
+      targets: orb, x: x2, y: y2, duration: dur, ease: 'Quad.easeIn',
+      onComplete: () => {
+        try { trail?.stop() } catch (e) {}
+        this.impactFx(scene, x2, y2, { tint: o.accent ?? o.color, color: 0xffffff, slow })
+        scene.time.delayedCall(420 * slow, () => { try { trail?.destroy() } catch (e) {} })
+        orb.destroy()
+      },
+    })
+    return orb
+  },
+
+  // JUICE — tie a world impact to camera feel: impactFx + camera shake + (opt) flash.
+  // The thing that makes a hit LAND. Native Phaser camera FX (own ScreenShakeSystem
+  // not required). opts: shake (0–1 intensity), shakeMs, flash (0 = off), color.
+  juice(scene, x, y, opts = {}) {
+    const o = _pal({ color: 0xffd060, shake: 0.008, shakeMs: 180, flash: 0, flashRGB: [255, 220, 120], ...opts })
+    const slow = o.slow ?? 1
+    const made = [this.impactFx(scene, x, y, { tint: o.color, color: 0xffffff, slow })]
+    try { scene.cameras.main.shake(o.shakeMs * slow, o.shake) } catch (e) {}
+    if (o.flash > 0) { try { scene.cameras.main.flash(140 * slow, o.flashRGB[0], o.flashRGB[1], o.flashRGB[2], false) } catch (e) {} }
+    return made
+  },
+
+  // FLIPBOOK — play an authored 64×64 vfx sprite-sheet (assets/sprites/vfx/, loaded
+  // as 'vfx-*') as a one-shot animation, with optional additive blend + Glow. Lazily
+  // registers the anim from the full sheet. Composes authored art into any effect.
+  flipbookFx(scene, x, y, sheetKey, opts = {}) {
+    if (!scene.textures.exists(sheetKey)) return null
+    const o = { frameRate: 28, scale: 1, color: null, glow: false, blend: false, depth: 8, ...opts }
+    const animKey = '__qf_fb_' + sheetKey
+    if (!scene.anims.exists(animKey)) {
+      try { scene.anims.create({ key: animKey, frames: scene.anims.generateFrameNumbers(sheetKey), frameRate: o.frameRate, hideOnComplete: true }) } catch (e) { return null }
+    }
+    const spr = scene.add.sprite(x, y, sheetKey).setDepth(o.depth).setScale(o.scale)
+    if (o.color) spr.setTint(o.color)
+    if (o.blend) spr.setBlendMode(Phaser.BlendModes.ADD)
+    try { if (o.glow) spr.postFX.addGlow(o.color ?? 0xffffff, 4, 0, false, 0.1, 8) } catch (e) {}
+    spr.play(animKey)
+    if (o.slow) { try { spr.anims.timeScale = 1 / o.slow } catch (e) {} }
+    spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => spr.destroy())
+    scene.time.delayedCall(6000, () => { try { spr.destroy() } catch (e) {} })
+    return spr
   },
 
   pulseRing(scene, x, y, opts = {}) {
