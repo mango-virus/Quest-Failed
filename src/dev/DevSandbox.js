@@ -20,6 +20,7 @@ import { createTrap } from '../entities/Trap.js'
 import { EventBus } from '../systems/EventBus.js'
 import { currentActResponseId } from '../config/acts.js'
 import { TILE } from '../systems/DungeonGrid.js'
+import { installDevInvariants } from './DevInvariants.js'
 
 const WALKABLE = new Set([TILE.FLOOR, TILE.BOSS_FLOOR])
 // A mixed-tier roster, deliberately including UNDEAD so Inquisition/Excommunicate
@@ -335,6 +336,10 @@ export function installDevSandbox(scene) {
     }
     EventBus.on('NIGHT_PHASE_STARTED', onNight)
   }
+
+  // Arm the runtime invariant checks alongside the sandbox (same cheat gate).
+  // Fires on phase transitions; manual run via window.__qfCheck(). See DevInvariants.js.
+  try { installDevInvariants(scene) } catch (e) { console.warn('[qfInvariant] install failed', e) }
 
   console.log('[qfDev] VFX sandbox installed — run window.__qfDev.help()')
   return api

@@ -7,6 +7,10 @@
   "scripts": {
     "verify-docs": "node tools/verify-docs.mjs",
     "verify-docs:fix": "node tools/verify-docs.mjs --fix",
+    "lint-content": "node tools/lint-content.mjs",
+    "lint-content:strict": "node tools/lint-content.mjs --strict",
+    "sim": "node tools/sim/harness.mjs game",
+    "sim:balance": "node tools/sim/balance.mjs",
     "lpc:survey": "node tools/lpc-survey.mjs",
     "lpc:validate": "node tools/lpc-validate-pools.mjs",
     "lpc:bake": "node tools/bake-lpc-variants.mjs"
