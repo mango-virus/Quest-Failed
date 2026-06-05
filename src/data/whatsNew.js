@@ -15,6 +15,37 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 13,
+    version: '0.1.14',
+    date: 'June 2026',
+    title: 'The Kingdom Answers',
+    items: [
+      { icon: '🏴‍☠️', text: 'The Plunderers raid your vault for gold.' },
+      { icon: '✝️', text: 'The Inquisition marches in to purge your dark pacts.' },
+      { icon: '🔮', text: 'The Mage Tower transmutes your rooms and polymorphs minions.' },
+      { icon: '⚔️', text: 'The Forlorn Hope fights on past death with a final vow.' },
+      { icon: '😇', text: 'The Pantheon resurrects its fallen in pillars of light.' },
+      { icon: '🌟', text: 'The All-Stars send four legends to fight to the death.' },
+      { icon: '🗡️', text: 'The Turncoat flips your own traps onto your minions.' },
+      { icon: '💀', text: 'Necrarch raises the dead as an endless tide.' },
+    ],
+  },
+  {
+    id: 12,
+    version: '0.1.13',
+    date: 'June 2026',
+    title: 'Seven New Adventurers',
+    items: [
+      { icon: '🏴‍☠️', text: 'Pirate — beelines your gold and flees with extra plunder.' },
+      { icon: '✝️', text: 'Templar — soaks punishment that would fell a knight.' },
+      { icon: '⛏️', text: 'Miner — tunnels underground and resurfaces anywhere.' },
+      { icon: '🪽', text: 'Valkyrie — flies over your traps and rallies her allies.' },
+      { icon: '🔱', text: 'Peasant — harmless alone, deadly in a mob.' },
+      { icon: '🛡️', text: 'Gladiator — every kill stokes a louder Crowd Roar.' },
+      { icon: '🎲', text: 'Gambler — each strike rolls the dice: crit, double-hit, payout.' },
+    ],
+  },
+  {
     id: 11,
     version: '0.1.12',
     date: 'June 2026',
