@@ -334,6 +334,11 @@ export class RoomTileEditor extends Phaser.Scene {
   // ── Stage 2: per-mode panel API ─────────────────────────────────────────────
 
   // Phaser texture → data-URL thumbnail for DOM <img> previews. Cached by key.
+  // Always re-encode to a self-contained data URL (never reuse the source
+  // image's own `.src`): theme sprites are loaded from blob: URLs that get
+  // revoked after Phaser decodes them, so reusing that URL in a fresh <img>
+  // renders as a broken image. Drawing the already-decoded bitmap to a canvas
+  // and exporting toDataURL() sidesteps the blob lifetime entirely.
   _texThumb(key) {
     if (!key) return null
     this._thumbCache ||= {}
@@ -342,12 +347,14 @@ export class RoomTileEditor extends Phaser.Scene {
     try {
       if (this.textures.exists(key)) {
         const src = this.textures.get(key).getSourceImage()
-        if (src instanceof HTMLCanvasElement) url = src.toDataURL()
-        else if (src && src.src) url = src.src
-        else if (src) {
+        if (src instanceof HTMLCanvasElement) {
+          url = src.toDataURL()
+        } else if (src) {
+          const w = src.naturalWidth || src.width || 32
+          const h = src.naturalHeight || src.height || 32
           const c = document.createElement('canvas')
-          c.width = src.width || 32; c.height = src.height || 32
-          c.getContext('2d').drawImage(src, 0, 0)
+          c.width = w; c.height = h
+          c.getContext('2d').drawImage(src, 0, 0, w, h)
           url = c.toDataURL()
         }
       }
