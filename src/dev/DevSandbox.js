@@ -21,6 +21,7 @@ import { EventBus } from '../systems/EventBus.js'
 import { currentActResponseId } from '../config/acts.js'
 import { TILE } from '../systems/DungeonGrid.js'
 import { installDevInvariants } from './DevInvariants.js'
+import { AbilityVfx } from '../ui/AbilityVfx.js'
 
 const WALKABLE = new Set([TILE.FLOOR, TILE.BOSS_FLOOR])
 // A mixed-tier roster, deliberately including UNDEAD so Inquisition/Excommunicate
@@ -309,6 +310,23 @@ export function installDevSandbox(scene) {
       try { console.table(list) } catch (e) {}
       log(`${list.length} pacts${f ? ` matching '${f}'` : ''} (${list.filter(p => p.active).length} active)`)
       return list
+    },
+
+    // Fire one AbilityVfx primitive at the boss (centre of view), slowed for a
+    // slow-mo filmstrip capture. POC: 'particleBurst' (hand-drawn) vs
+    // 'particleBurstFx' (GPU particles + Glow post-FX) for a before/after.
+    fireVfx(name = 'particleBurst', opts = {}) {
+      const g = gs(); const b = g?.boss ?? {}
+      const TS = 32
+      const x = (b.tileX ?? 10) * TS + TS / 2
+      const y = (b.tileY ?? 10) * TS + TS / 2
+      const slow = opts.slow ?? 6
+      let r
+      if (name === 'particleBurst')        r = AbilityVfx.particleBurst(scene, x, y, { count: 14, color: 0xffe066, speed: 60, durationMs: 450 * slow })
+      else if (name === 'particleBurstFx') r = AbilityVfx.particleBurstFx(scene, x, y, { slow, color: 0xffe066 })
+      else                                 r = AbilityVfx[name]?.(scene, x, y, { slow, ...opts })
+      log(`fired VFX '${name}' at boss (${Math.round(x)},${Math.round(y)}) slow=${slow}`)
+      return { ok: !!r, name, x, y }
     },
 
     // VFX review gallery — staged captures for a visual-regression contact sheet.

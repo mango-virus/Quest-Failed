@@ -48,7 +48,67 @@ function _particlesMult() {
   } catch { return 1.0 }
 }
 
+// Soft radial-gradient dot texture for GPU particle emitters — generated once
+// per scene and cached. White so it can be tinted any colour; additive blend
+// turns it into a glowing mote. (Phaser has no built-in soft-particle texture.)
+function _softDotTexture(scene) {
+  const key = '__qf_softdot'
+  if (scene.textures.exists(key)) return key
+  const R = 16
+  const g = scene.make.graphics({ x: 0, y: 0, add: false })
+  for (let r = R; r > 0; r--) { g.fillStyle(0xffffff, 0.05); g.fillCircle(R, R, r) }
+  g.generateTexture(key, R * 2, R * 2)
+  g.destroy()
+  return key
+}
+
 export const AbilityVfx = {
+  // ── POC (2026-06-05): the same "burst" as particleBurst() but rebuilt on
+  // Phaser 3.60's GPU particle emitter + additive blend + a Glow post-FX, vs the
+  // hand-drawn tweened circles below. Demonstrates the quality jump from
+  // procedural Graphics → real engine VFX. `opts.slow` stretches the lifetime
+  // for slow-mo filmstrip capture. Falls back gracefully on the Canvas renderer.
+  particleBurstFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffe066, count: 26, durationMs: 520, depth: 7, speed: 130, ...opts }
+    const slow = o.slow ?? 1
+    const life = o.durationMs * slow
+    const mult = _particlesMult()
+    if (mult <= 0) return null
+    const created = []
+    const tex = _softDotTexture(scene)
+
+    // 1) GPU particle burst — soft glowing motes, additive, fading + shrinking.
+    const emitter = scene.add.particles(x, y, tex, {
+      lifespan: { min: life * 0.6, max: life },
+      speed: { min: o.speed * 0.35, max: o.speed },
+      angle: { min: 0, max: 360 },
+      scale: { start: 0.55, end: 0 },
+      alpha: { start: 0.95, end: 0 },
+      tint: o.color,
+      blendMode: 'ADD',
+      emitting: false,
+    })
+    emitter.setDepth(o.depth)
+    emitter.explode(Math.max(3, Math.round(o.count * mult)))
+    created.push(emitter)
+
+    // 2) bright additive core flash with a Glow post-FX (WebGL only).
+    const core = scene.add.circle(x, y, 6, o.color, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)
+    try { core.postFX.addGlow(o.color, 6, 0, false, 0.1, 14) } catch (e) {}
+    created.push(core)
+    scene.tweens.add({ targets: core, scale: 3.4, alpha: 0, duration: life * 0.7, ease: 'Cubic.easeOut', onComplete: () => core.destroy() })
+
+    // 3) expanding glow shockring.
+    const ring = scene.add.circle(x, y, 6, 0x000000, 0).setStrokeStyle(3, o.color, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth)
+    try { ring.postFX.addGlow(o.color, 5, 0, false, 0.1, 10) } catch (e) {}
+    created.push(ring)
+    scene.tweens.add({ targets: ring, radius: 52, alpha: 0, duration: life, ease: 'Quint.easeOut', onComplete: () => ring.destroy() })
+
+    scene.time.delayedCall(life + 120, () => { try { emitter.destroy() } catch (e) {} })
+    return created
+  },
+
   pulseRing(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const o = { ...DEFAULTS.ring, ...opts }
