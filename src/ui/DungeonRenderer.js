@@ -400,6 +400,10 @@ export class DungeonRenderer {
     // above floor sprites but below entities so characters walk over them.
     // Object decor (torches, banners, chandeliers) renders above entities,
     // framing the room architecture overhead.
+    // Decorative door "aprons" (Phase: door apron) — sprites painted in the
+    // door swatch's 3rd row, rendered one tile into the room below each door.
+    // Floor-level decoration (below entities), no collision.
+    this._cDoorAprons  = scene.add.container(0, 0).setDepth(1.45)
     this._cDecorFloor  = scene.add.container(0, 0).setDepth(1.5)
     this._cDecorObject = scene.add.container(0, 0).setDepth(8.9)
     this._gTints     = scene.add.graphics().setDepth(1.2)
@@ -473,6 +477,7 @@ export class DungeonRenderer {
     this._gTiles.clear()
     this._cTileSprites.removeAll(true)
     this._cRoomSkins.removeAll(true)
+    this._cDoorAprons.removeAll(true)
     this._cDecorFloor.removeAll(true)
     this._cDecorObject.removeAll(true)
     this._cDoorSpritesLow.removeAll(true)
@@ -663,6 +668,50 @@ export class DungeonRenderer {
         } else if (t === TILE.WALL_CAP) {
           g.fillStyle(WALL_CAP_FILL, 1)
           g.fillRect(x * TS, y * TS, TS, TS)
+        }
+      }
+    }
+    this._drawDoorAprons()
+  }
+
+  // Decorative door aprons: the door swatch's 3rd row, painted one tile into
+  // each room below its doors. Each room renders its own apron into its own
+  // interior (no cross-seam mirroring). Purely visual — the tile grid /
+  // collision is unchanged. Orientation mirrors the door's per-direction
+  // rotation; may need a per-direction tweak after live eyeballing.
+  _drawDoorAprons() {
+    const rooms = this._gameState?.dungeon?.rooms || []
+    const INNER_NORMAL = { S: { dx: 0, dy: -1 }, N: { dx: 0, dy: 1 }, E: { dx: -1, dy: 0 }, W: { dx: 1, dy: 0 } }
+    for (const room of rooms) {
+      if (!room.doorApron) continue
+      for (const cp of (room.connectionPoints || [])) {
+        const block = this._doorBlockCells(room, cp)
+        if (!block) continue
+        const apronRow = room.doorApron[this._doorStateFor(cp)]
+        if (!Array.isArray(apronRow)) continue
+        const norm = INNER_NORMAL[cp.direction]
+        if (!norm) continue
+        const baseRot = this._doorPaintedRotDeg(cp.direction)
+        for (let col = 0; col < 4; col++) {
+          const entry = readCellEntry(apronRow[col])
+          if (!entry) continue
+          const inner = this._doorPaintedToDungeon(block, cp.direction, col, 1)
+          if (!inner) continue
+          const ax = inner.x + norm.dx, ay = inner.y + norm.dy
+          if (ax < room.gridX || ax >= room.gridX + room.width ||
+              ay < room.gridY || ay >= room.gridY + room.height) continue
+          const sprite = ThemeManager.getSprite(entry.id)
+          const key = _themeTextureKey(entry.id)
+          if (!sprite || !this._scene.textures.exists(key)) continue
+          const size = spriteCoverage(sprite) * TS
+          const img = this._scene.add.image(ax * TS + size / 2, ay * TS + size / 2, key).setOrigin(0.5)
+          img.setDisplaySize(size, size)
+          const angle = (baseRot + (entry.rot || 0)) % 360
+          if (angle) img.setAngle(angle)
+          if (entry.flipH) img.flipX = true
+          if (entry.flipV) img.flipY = true
+          this._applyColorAdj(img, room.colorAdjust?.walls, true)
+          this._cDoorAprons.add(img)
         }
       }
     }

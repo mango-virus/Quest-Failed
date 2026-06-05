@@ -375,6 +375,7 @@ export class RoomTileEditor extends Phaser.Scene {
       tileLayout:      structuredClone(room.tileLayout ?? []),
       decorations:     structuredClone(room.decorations ?? []),
       doorTiles:       room.doorTiles ? structuredClone(room.doorTiles) : null,
+      doorApron:       room.doorApron ? structuredClone(room.doorApron) : null,
       colorAdjust:     room.colorAdjust ? structuredClone(room.colorAdjust) : null,
       connectionPoints: structuredClone(room.connectionPoints ?? []),
       theme:           room.theme ?? null,
@@ -405,6 +406,7 @@ export class RoomTileEditor extends Phaser.Scene {
       room.tileLayout      = snap.tileLayout
       room.decorations     = snap.decorations
       room.doorTiles       = snap.doorTiles
+      room.doorApron       = snap.doorApron
       room.colorAdjust     = snap.colorAdjust
       room.connectionPoints = snap.connectionPoints
       room.theme           = snap.theme
@@ -664,8 +666,10 @@ export class RoomTileEditor extends Phaser.Scene {
     const room = this._activeRoom()
     if (!room) return { ok: false }
     const state = this._curDoorState()
-    const grid = room.doorTiles?.[state] || [[null, null, null, null], [null, null, null, null]]
-    const CELL = 64, COLS = 4, ROWS = 2
+    const dt = room.doorTiles?.[state] || [[null, null, null, null], [null, null, null, null]]
+    const apron = room.doorApron?.[state] || [null, null, null, null]
+    const grid = [dt[0], dt[1], apron]   // rows: Outer, Inner, Below(apron)
+    const CELL = 64, COLS = 4, ROWS = 3
     const canvas = document.createElement('canvas')
     canvas.width = COLS * CELL; canvas.height = ROWS * CELL
     const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false
@@ -716,13 +720,14 @@ export class RoomTileEditor extends Phaser.Scene {
     if (!files.length) return { ok: false }
     const dataUrl = await _blobToDataUrl(files[0])
     const img = await _loadImage(dataUrl)
-    const COLS = 4, ROWS = 2, CELL = 64, W = COLS * CELL, H = ROWS * CELL
+    const COLS = 4, ROWS = 3, CELL = 64, W = COLS * CELL, H = ROWS * CELL   // 256×192 (3 rows)
     const base = document.createElement('canvas'); base.width = W; base.height = H
     const bctx = base.getContext('2d'); bctx.imageSmoothingEnabled = false
     bctx.drawImage(img, 0, 0, W, H)
 
     this._pushUndo()
-    const grid = [[null, null, null, null], [null, null, null, null]]
+    const dtGrid = [[null, null, null, null], [null, null, null, null]]   // door (rows 0-1)
+    const apronRow = [null, null, null, null]                            // apron (row 2)
     let made = 0
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const slice = document.createElement('canvas'); slice.width = CELL; slice.height = CELL
@@ -738,11 +743,13 @@ export class RoomTileEditor extends Phaser.Scene {
       this._pendingThemeBytes().set(id, _dataUrlToBytes(url))
       try { await this._addTextureFromDataUrl(_textureKey(id), url) } catch (_) { /* ignore */ }
       if (this._thumbCache) delete this._thumbCache[_textureKey(id)]
-      grid[r][c] = id
+      if (r < 2) dtGrid[r][c] = id; else apronRow[c] = id
       made++
     }
     if (!room.doorTiles) room.doorTiles = {}
-    room.doorTiles[state] = grid
+    room.doorTiles[state] = dtGrid
+    if (!room.doorApron) room.doorApron = {}
+    room.doorApron[state] = apronRow
     this._populatePaintCanvas()
     this._notifyDom()
     this._toast(`Door skin applied to ${state} (${made} cells)`)
@@ -756,6 +763,7 @@ export class RoomTileEditor extends Phaser.Scene {
     this._pushUndo()
     if (!room.doorTiles) room.doorTiles = {}
     room.doorTiles[state] = [[null, null, null, null], [null, null, null, null]]
+    if (room.doorApron) room.doorApron[state] = [null, null, null, null]
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -1584,11 +1592,19 @@ export class RoomTileEditor extends Phaser.Scene {
   // same painting works on every wall the door can land on.
   _populateDoorCanvas(room) {
     const state = this._paintMode.replace('door-', '')   // 'closed' | 'open' | 'locked'
-    const grid  = room.doorTiles?.[state]
-                  ?? [[null, null, null, null], [null, null, null, null]]
+    // Door swatch is now 4 cols × 3 rows: rows 0-1 are the door itself
+    // (room.doorTiles[state] — Outer/Inner, unchanged in-game function), row 2
+    // is the decorative "apron" (room.doorApron[state]) that renders one tile
+    // into the room below the door. Build a combined grid from refs so paints
+    // mutate the right source in place.
+    if (!room.doorTiles) room.doorTiles = {}
+    if (!Array.isArray(room.doorTiles[state])) room.doorTiles[state] = [[null, null, null, null], [null, null, null, null]]
+    if (!room.doorApron) room.doorApron = {}
+    if (!Array.isArray(room.doorApron[state])) room.doorApron[state] = [null, null, null, null]
+    const grid = [room.doorTiles[state][0], room.doorTiles[state][1], room.doorApron[state]]
     const zoom  = ZOOM_LEVELS[this._zoomIdx]
     const cell  = TILE_PX * Math.max(2, zoom * 3)   // door swatch always renders large
-    const cols = 4, rows = 2
+    const cols = 4, rows = 3
     const totalW = cols * cell
     const totalH = rows * cell
 
@@ -1610,8 +1626,8 @@ export class RoomTileEditor extends Phaser.Scene {
       .setOrigin(0, 0).setStrokeStyle(1, COL_BORDER, 1)
     this._paintContainer.add(backdrop)
 
-    // Row labels — OUTER (toward outer face / seam) on top, INNER on bottom.
-    const rowLabels = ['Outer (this room)', 'Inner (this room)']
+    // Row labels — OUTER (seam) / INNER (door) / BELOW (apron into the room).
+    const rowLabels = ['Outer (seam)', 'Inner (door)', 'Below (into room)']
     for (let r = 0; r < rows; r++) {
       const ly = oy + r * cell + cell / 2
       this._paintContainer.add(_text(this, ox - 8, ly, rowLabels[r], {
@@ -1632,6 +1648,10 @@ export class RoomTileEditor extends Phaser.Scene {
     divG.lineStyle(2, COL_BORDER_HI, 0.85)
     divG.lineBetween(ox + 1 * cell, oy - 4, ox + 1 * cell, oy + totalH + 4)
     divG.lineBetween(ox + 3 * cell, oy - 4, ox + 3 * cell, oy + totalH + 4)
+    // Horizontal divider between the door (rows 0-1) and the decorative apron
+    // (row 2) so it's clear the bottom row renders into the room, not the door.
+    divG.lineStyle(2, 0x6ba03a, 0.7)
+    divG.lineBetween(ox - 4, oy + 2 * cell, ox + totalW + 4, oy + 2 * cell)
     this._paintContainer.add(divG)
 
     // Pre-pass: gather cells covered by span (cov>1) anchors so we don't
@@ -1713,8 +1733,8 @@ export class RoomTileEditor extends Phaser.Scene {
           } else {
             this._toast('Pick a sprite at right first', true); return
           }
-          if (!room.doorTiles) room.doorTiles = {}
-          room.doorTiles[state] = grid
+          // grid rows alias room.doorTiles[state][0/1] + room.doorApron[state],
+          // so the mutations above already persisted to the right source.
           this._populatePaintCanvas()
           this._notifyDom()
         })
@@ -2165,6 +2185,10 @@ export class RoomTileEditor extends Phaser.Scene {
         }
         if (!r.backgroundImage) delete cleaned.backgroundImage
         if (!r.backgroundImageByBoss || Object.keys(r.backgroundImageByBoss).length === 0) delete cleaned.backgroundImageByBoss
+        // Strip all-null door swatches / aprons (e.g. created just by viewing a
+        // door state). _flatNull recurses both shapes (doorTiles 3-D, apron 2-D).
+        if (_flatNull(r.doorTiles)) delete cleaned.doorTiles
+        if (_flatNull(r.doorApron)) delete cleaned.doorApron
         return cleaned
       })
       // 4-space to match the committed rooms.json format (writeJson would emit
@@ -2254,6 +2278,15 @@ export class RoomTileEditor extends Phaser.Scene {
 // ── Color adjustment helpers ─────────────────────────────────────────────
 
 // Returns true if the room has any non-zero color adjustment.
+// True if a value (recursively) contains no non-null primitive — used to strip
+// empty door swatches / aprons (nested arrays / per-state objects) on save.
+function _flatNull(v) {
+  if (v == null) return true
+  if (Array.isArray(v)) return v.every(_flatNull)
+  if (typeof v === 'object') return Object.values(v).every(_flatNull)
+  return false
+}
+
 function _hasColorAdjust(room) {
   const ca = room?.colorAdjust
   if (!ca) return false

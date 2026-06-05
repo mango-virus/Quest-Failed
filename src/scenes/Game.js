@@ -718,6 +718,7 @@ export class Game extends Phaser.Scene {
     if ('doorTheme'   in def) room.doorTheme   = typeof def.doorTheme  === 'string' ? def.doorTheme  : null
     if ('tileLayout'  in def) room.tileLayout  = Array.isArray(def.tileLayout) ? def.tileLayout : []
     if ('doorTiles'   in def) room.doorTiles   = (def.doorTiles && typeof def.doorTiles === 'object') ? def.doorTiles : null
+    room.doorApron = (def.doorApron && typeof def.doorApron === 'object') ? def.doorApron : null
     // These fields are STRIPPED from the saved def when empty (decorations,
     // colorAdjust, backgroundImage). An absent field therefore means "cleared"
     // — apply unconditionally so e.g. resetting a room's colour or removing its

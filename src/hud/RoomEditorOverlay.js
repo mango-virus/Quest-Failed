@@ -495,7 +495,7 @@ export class RoomEditorOverlay {
           }, 'Clear'),
         ]),
         h('div', { className: 'qf-redit__door-note' },
-          'Tip: Export → edit the 256×128 PNG → Door skin. Covers the full 4×2 door (frame + panels) for this state.'),
+          'Tip: Export → edit the 256×192 PNG → Door skin. 4×3: rows 1-2 are the door (frame + panels), row 3 (“Below”) is decorative art that renders one tile into the room — door function is unchanged.'),
       ]),
       h('div', { className: 'qf-redit__subhead' }, [
         h('span', null, 'DOOR BRUSH'),

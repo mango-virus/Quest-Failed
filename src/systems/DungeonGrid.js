@@ -290,6 +290,10 @@ export class DungeonGrid {
       tileLayout:   Array.isArray(definition.tileLayout) ? definition.tileLayout : [],
       doorTiles:    (definition.doorTiles && typeof definition.doorTiles === 'object')
                       ? definition.doorTiles : null,
+      // Decorative door "apron" — a row painted one tile into the room below
+      // each door (purely visual, no collision change). { <state>: [4 cells] }.
+      doorApron:    (definition.doorApron && typeof definition.doorApron === 'object')
+                      ? definition.doorApron : null,
       decorations:  Array.isArray(definition.decorations) ? definition.decorations : [],
       colorAdjust:  (definition.colorAdjust && typeof definition.colorAdjust === 'object')
                       ? definition.colorAdjust : null,
