@@ -15,6 +15,7 @@
 import { TitleMusic }    from '../systems/TitleMusic.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
 import { kickOffAdventurerAtkLoad } from './AdventurerAtkLoader.js'
+import { kickOffDeferredAudioLoad } from './DeferredAudioLoader.js'
 
 // Logical design size — letterboxed inside the actual canvas.
 const W = 1280
@@ -59,6 +60,11 @@ export class MainMenu extends Phaser.Scene {
     this.time.delayedCall(3000, () => {
       if (!this.scene.isActive()) return
       this.load.maxParallelDownloads = 4
+      // Stream the run audio (boss/stage music + gameplay SFX, ~38MB) and the
+      // adventurer attack sheets while the player sits on the title screen, so
+      // the cold boot didn't have to block on them. Game.create() re-kicks the
+      // audio in case the player dove into a run before this pass finished.
+      kickOffDeferredAudioLoad(this)
       kickOffAdventurerAtkLoad(this)
     })
   }

@@ -59,6 +59,7 @@ import { DecorRenderer }      from '../ui/DecorRenderer.js'
 import { BloodSplatRenderer } from '../ui/BloodSplatRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
+import { kickOffDeferredAudioLoad } from './DeferredAudioLoader.js'
 import { PauseManager }       from '../systems/PauseManager.js'
 import { SfxSystem }          from '../systems/SfxSystem.js'
 import { EventSystem }        from '../systems/EventSystem.js'
@@ -167,6 +168,14 @@ export class Game extends Phaser.Scene {
         })
       })
     }
+
+    // Catch-up stream for the deferred run audio (music + gameplay SFX). The
+    // MainMenu pass usually finishes first, but if the player dove straight into
+    // a run (or its loader was interrupted on scene-swap), this loads whatever's
+    // left on the Game scene's loader. Already-cached keys are skipped.
+    // GameplayMusic._playKey lazy-loads the current track too, so music still
+    // starts immediately even before this batch lands.
+    kickOffDeferredAudioLoad(this)
 
     // Title music belongs to MainMenu / ArchetypeSelect only — kill
     // it on the way into the dungeon and hand off to the gameplay

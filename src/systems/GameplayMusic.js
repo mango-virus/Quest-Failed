@@ -18,6 +18,7 @@
 //                     restart the current track if none).
 
 import { TitleMusic } from './TitleMusic.js'
+import { ensureAudioLoaded } from '../scenes/DeferredAudioLoader.js'
 
 // Multiplier applied on top of the user's master music volume (which
 // is shared with TitleMusic via the slider).  The in-dungeon tracks
@@ -148,6 +149,16 @@ function _playKey(scene, key) {
   _scene = scene || _scene
   _currentKey = key
   if (!_scene?.cache?.audio?.exists?.(key)) {
+    // Deferred run audio hasn't streamed in yet — load just this track, then
+    // play it IF it's still the current track and nothing else has started
+    // (the player may have skipped onward while it loaded). The cache.exists
+    // re-check guards against a non-deferred key looping forever.
+    ensureAudioLoaded(_scene, key, () => {
+      if (_currentKey === key && _scene?.cache?.audio?.exists?.(key)
+          && (!_instance || !_instance.isPlaying)) {
+        _playKey(_scene, key)
+      }
+    })
     _emitChange()
     return null
   }

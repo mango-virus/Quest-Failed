@@ -443,134 +443,27 @@ export class Preload extends Phaser.Scene {
     // the player commits to a run and Game starts.
     this.load.audio('title_music', 'assets/audio/title_music.mp3')
 
-    // Title-screen background images. MainMenu picks one at random per
-    // visit. Add new files by dropping them into assets/title-screen/
-    // and listing them here.
-    const TITLE_BACKGROUNDS = [
-      'Gemini_Generated_Image_1l7d3f1l7d3f1l7d.png',
-      'Gemini_Generated_Image_5zo1l45zo1l45zo1.png',
-      'Gemini_Generated_Image_77yfph77yfph77yf.png',
-      'Gemini_Generated_Image_7j1nj67j1nj67j1n.png',
-      'Gemini_Generated_Image_85xlhl85xlhl85xl.png',
-      'Gemini_Generated_Image_daftk2daftk2daft.png',
-      'Gemini_Generated_Image_lbja7blbja7blbja.png',
-      'Gemini_Generated_Image_m6r33um6r33um6r3.png',
-      'Gemini_Generated_Image_qlsz2fqlsz2fqlsz.png',
-      'Gemini_Generated_Image_r1iihlr1iihlr1ii.png',
-      'Gemini_Generated_Image_wvfuiawvfuiawvfu.png',
-    ]
-    TITLE_BACKGROUNDS.forEach((file, i) => {
-      this.load.image(`title-bg-${i}`, `assets/title-screen/${file}`)
-    })
-    this.registry.set('titleBgKeys', TITLE_BACKGROUNDS.map((_, i) => `title-bg-${i}`))
+    // NOTE: the 11 static title-screen PNGs (~68MB) and the Phaser-loaded title
+    // videos (~38MB) were removed from boot — they were loaded into the cache but
+    // NEVER read by any surface. The active DOM title menu (`MainMenuOverlay`)
+    // streams its own MP4 directly via a `<video src>` element (see BOSS_VIDEO_*
+    // there), and the Phaser `MainMenu` scene draws no background at all. Loading
+    // them here blocked the boot on ~106MB of dead weight. If a future surface
+    // needs Phaser-cached title art, load it lazily from that surface, not here.
 
-    // Animated title-screen backgrounds — MainMenu picks one at random per
-    // visit, layered behind the QUEST/FAILED title stack on the left half.
-    // To add a clip: drop bgNN.mp4 in assets/title-screen/videos/ and add
-    // its number here. To remove: delete the file and the number.
-    const TITLE_VIDEO_NUMBERS = [2, 4, 5, 6, 9, 11, 12, 13, 14, 15, 16, 17]
-    const titleVideoKeys = []
-    for (const i of TITLE_VIDEO_NUMBERS) {
-      const num = String(i).padStart(2, '0')
-      const key = `title-vid-${num}`
-      this.load.video(key, `assets/title-screen/videos/bg${num}.mp4`, 'loadeddata', false, true)
-      titleVideoKeys.push(key)
-    }
-    this.registry.set('titleVideoKeys', titleVideoKeys)
-
-    // Room-placement SFX — one is picked at random when the player
-    // places a room during NightPhase.
-    this.load.audio('sfx-build-1', 'assets/audio/build1.wav')
-    this.load.audio('sfx-build-2', 'assets/audio/build2.wav')
-    this.load.audio('sfx-build-3', 'assets/audio/build3.wav')
-
-    // Minion pickup / drop SFX — single sample, plays on both actions.
-    this.load.audio('sfx-minion-place', 'assets/audio/pickup and drop.wav')
-
-    // Mouse-click SFX — fires from CustomCursor on every primary-button
-    // mousedown anywhere in the game. Same source as the CustomCursor
-    // click animation art.
-    this.load.audio('sfx-cursor-click', 'assets/audio/sfx-cursor-click.mp3')
-
-    // Unlock-notification SFX — UnlockNotificationOverlay plays one per
-    // card as the player walks the queue on first main-menu return after
-    // a run that earned achievements / companions / bosses / titles.
-    // `unlock-reward` fires for boss / companion / title cards; the
-    // achievement SFX fires for achievement cards specifically.
+    // — Menu / UI SFX kept at boot (these fire on the title screen + menus) —
+    // ALL gameplay SFX + music (~38MB) are deferred to DeferredAudioLoader.js,
+    // streamed after the menu shows (kickOffDeferredAudioLoad) so the cold boot
+    // does not block on them. SfxSystem._play + GameplayMusic._playKey guard on
+    // cache.audio.exists, so unstreamed keys are silently skipped; music also
+    // lazy-loads on demand. Keep this 7-key list in sync with the KEEP set there.
+    this.load.audio('sfx-cursor-click',       'assets/audio/sfx-cursor-click.mp3')
+    this.load.audio('sfx-btn-hover',          'assets/audio/cursor hover button.mp3')
+    this.load.audio('sfx-btn-click',          'assets/audio/Press button.wav')
     this.load.audio('sfx-unlock-reward',      'assets/audio/unlocked-reward.mp3')
     this.load.audio('sfx-unlock-achievement', 'assets/audio/achievement-unlocked.mp3')
-
-    // What's New auto-pop chime — plays ONCE when the WHAT'S NEW panel
-    // auto-opens for a returning player (MainMenuOverlay._maybeAutoOpenWhatsNew),
-    // never when they open it themselves from the menu row.
-    this.load.audio('sfx-whats-new', 'assets/audio/whats-new-open.mp3')
-
-    // Gameplay SFX — managed by SfxSystem.
-    this.load.audio('sfx-death',          'assets/audio/adventurer and minion death.wav')
-    this.load.audio('sfx-archer-shoot',   'assets/audio/archer long range shoot.mp3')
-    this.load.audio('sfx-beholder-beam',  'assets/audio/beholder eye beam.mp3')
-    this.load.audio('sfx-boss-attack',    'assets/audio/boss attack1.mp3')
-    this.load.audio('sfx-boss-death',     'assets/audio/boss death.wav')
-    this.load.audio('sfx-break-door',     'assets/audio/break door.wav')
-    this.load.audio('sfx-chest-open',     'assets/audio/chest open.mp3')
-    this.load.audio('sfx-cleric-heal',    'assets/audio/cleric heal.wav')
-    this.load.audio('sfx-close-door',     'assets/audio/close door.wav')
-    this.load.audio('sfx-collect-gold',   'assets/audio/collect gold.wav')
-    this.load.audio('sfx-dark-pact',      'assets/audio/dark pact menu open.wav')
-    this.load.audio('sfx-day-end',        'assets/audio/day phase end.wav')
-    this.load.audio('sfx-day-start',      'assets/audio/day phase start.wav')
-    this.load.audio('sfx-door-open',      'assets/audio/door open.mp3')
-    this.load.audio('sfx-door-unlock',    'assets/audio/Door Unlock.wav')
-    this.load.audio('sfx-error',          'assets/audio/error.wav')
-    this.load.audio('sfx-mage-attack',    'assets/audio/long range mage attack.wav')
-    this.load.audio('sfx-melee-1',        'assets/audio/melee weapon attack1.wav')
-    this.load.audio('sfx-melee-2',        'assets/audio/melee weapon attack2.wav')
-    this.load.audio('sfx-monk-1',         'assets/audio/monk attack1.wav')
-    this.load.audio('sfx-monk-2',         'assets/audio/monk attack2.wav')
-    this.load.audio('sfx-necro-summon',   'assets/audio/necromancer summon.mp3')
-    this.load.audio('sfx-remove-room',    'assets/audio/remove room.wav')
-    this.load.audio('sfx-revive',         'assets/audio/revive.wav')
-    this.load.audio('sfx-revive-minions', 'assets/audio/revive minions.mp3')
-    this.load.audio('sfx-score-countup',  'assets/audio/score or number count up.mp3')
-    this.load.audio('sfx-take-damage',    'assets/audio/take damge.wav')
-    this.load.audio('sfx-teleport',       'assets/audio/teleport.wav')
-    this.load.audio('sfx-btn-hover',       'assets/audio/cursor hover button.mp3')
-    this.load.audio('sfx-btn-click',       'assets/audio/Press button.wav')
-    this.load.audio('sfx-build-menu-press','assets/audio/build menu press.wav')
-    this.load.audio('sfx-book-open',       'assets/audio/book-open.mp3')
-    this.load.audio('sfx-speech',          'assets/audio/speech-2.wav')
-    this.load.audio('sfx-human-die-1',     'assets/audio/Human_Die01.wav')
-    this.load.audio('sfx-human-die-2',     'assets/audio/Human_Die02.wav')
-    this.load.audio('sfx-human-hit-1',     'assets/audio/Human_Hit01.wav')
-    this.load.audio('sfx-human-hit-2',     'assets/audio/Human_Hit02.wav')
-    this.load.audio('sfx-human-hit-3',     'assets/audio/Human_Hit03.wav')
-    this.load.audio('sfx-boss-levelup',    'assets/audio/boss level up.wav')
-    this.load.audio('sfx-event-notif',     'assets/audio/event notification.mp3')
-    this.load.audio('sfx-event-boss',      'assets/audio/boss event.mp3')
-    this.load.audio('sfx-scrub-intel',     'assets/audio/scrub intel.wav')
-    this.load.audio('sfx-minion-levelup',  'assets/audio/minion level up or evolve.wav')
-
-    // Game-over music — looped by GameOverMusic.js on the run-end screen.
-    this.load.audio('game-over-music', 'assets/audio/game over.wav')
-
-    // Boss fight music — one picked at random when a party enters the boss room.
-    // Keys must match BOSS_TRACKS in src/systems/GameplayMusic.js.
-    this.load.audio('boss-fight-1', 'assets/audio/Boss Fight 1.mp3')
-    this.load.audio('boss-fight-2', 'assets/audio/Boss Fight 2.mp3')
-    this.load.audio('boss-fight-3', 'assets/audio/Boss Fight 3.mp3')
-    this.load.audio('boss-fight-4', 'assets/audio/Boss Fight 4.mp3')
-    this.load.audio('boss-fight-5', 'assets/audio/Boss Fight 5.mp3')
-
-    // Gameplay-music playlist — shuffled by GameplayMusic.js once the
-    // player drops into a run.  Keys here must match the TRACKS array
-    // in src/systems/GameplayMusic.js.
-    this.load.audio('gpm-chupasangre',         'assets/audio/chupasangre_music.mp3')
-    this.load.audio('gpm-clockwork-castle',    'assets/audio/clockwork castle.mp3')
-    this.load.audio('gpm-catacombs',           'assets/audio/catacombs.mp3')
-    this.load.audio('gpm-wallachian-waltz',    'assets/audio/Wallachian Waltz.mp3')
-    this.load.audio('gpm-midnight-masquerade', 'assets/audio/midnight masquerade.mp3')
-    this.load.audio('gpm-endless-accent',      'assets/audio/endless accent.mp3')
-    this.load.audio('gpm-suck-em-dry',         'assets/audio/suck em dry.mp3')
+    this.load.audio('sfx-whats-new',          'assets/audio/whats-new-open.mp3')
+    this.load.audio('sfx-error',              'assets/audio/error.wav')
 
     // Dungeon tile sprites — loaded per named tileset.
     // The default tileset is 'room' and uses the un-namespaced keys
