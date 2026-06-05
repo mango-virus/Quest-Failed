@@ -35,7 +35,6 @@ import { NightPhase }      from './scenes/NightPhase.js'
 import { DayPhase }        from './scenes/DayPhase.js'
 import { EndOfDay }        from './scenes/EndOfDay.js'
 import { HudScene }        from './scenes/HudScene.js'
-import { TilesetEditor }   from './scenes/TilesetEditor.js'
 import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
 import { installCustomCursor } from './hud/CustomCursor.js'
 // PerfHud — Ctrl+Shift+P toggles a per-system tick-time overlay.
@@ -78,7 +77,6 @@ const config = {
     DayPhase,
     HudScene,   // above gameplay scenes, below result/menu screens
     EndOfDay,
-    TilesetEditor,
     RoomTileEditor,
   ],
   scale: {
@@ -129,7 +127,7 @@ installCustomCursor()
 const NON_LAYOUT_SCENES = new Set([
   'Boot', 'Preload',
   'Game', 'DayPhase', 'NightPhase',
-  'TilesetEditor', 'RoomTileEditor',
+  'RoomTileEditor',
   'PauseMenu', 'Options',
   // MainMenu / HudScene / transition scenes — restarting these on a
   // window resize (fullscreen toggle) caused MainMenuOverlay to remount

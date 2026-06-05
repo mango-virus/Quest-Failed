@@ -62,7 +62,7 @@ that coexist** rather than replace each other.
 Boot → Preload → MainMenu ──▶ CompanionSelect ──▶ ArchetypeSelect ──▶ Game (+NightPhase/DayPhase + HudScene)
                     │                                                      │
                     ├─ Options / Leaderboard (aux)                        ├─ EndOfDay (overlay between waves)
-                    └─ TilesetEditor / RoomTileEditor (cheat-gated tools) └─ GameOver → Graveyard
+                    └─ RoomTileEditor (cheat-gated tool: rooms/tiles/themes/skins) └─ GameOver → Graveyard
 ```
 
 - **Boot / Preload** — asset load (`Preload.js` loads sprites, themes, audio, all `data/*.json`
@@ -82,8 +82,9 @@ Boot → Preload → MainMenu ──▶ CompanionSelect ──▶ ArchetypeSelec
 - **KnowledgeScreen** — legacy full-screen knowledge map (DOM `KnowledgeMapOverlay` is the
   current surface).
 - **Options / Leaderboard / PauseMenu** — aux scenes (DOM overlays are the live surfaces under `newhud`).
-- **TilesetEditor / RoomTileEditor** — cheat-name-gated in-game authoring tools (write back to
-  disk via File System Access API; see `FsHandle.js`).
+- **RoomTileEditor** — cheat-name-gated in-game authoring tool for rooms, tiles, themes, and
+  full-room skins (writes back to disk via File System Access API; see `FsHandle.js`). The old
+  standalone TilesetEditor was folded into its ⚙ Themes + 🎨 Skins modals and removed.
 
 **Scene shutdown gotcha:** Phaser does NOT auto-call a scene class's `shutdown()` on
 `scene.stop()` — it only fires a `shutdown` event. Game, NightPhase, DayPhase, EndOfDay, and
