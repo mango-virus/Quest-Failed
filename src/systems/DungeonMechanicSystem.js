@@ -142,30 +142,6 @@ export class DungeonMechanicSystem {
     return _weightedSample(candidates, count)
   }
 
-  // Pact of the Crucible — once-per-run sacrifice. UI hooks call this with
-  // a sacrifice victim and an evolve target in the same room. Returns
-  // { ok: true } or { ok: false, error }.
-  crucibleSacrifice(victimId, targetId) {
-    const f = this._gameState._mechanicFlags ?? {}
-    if (!f.pactOfTheCrucible) return { ok: false, error: 'pact not active' }
-    if (f.crucibleUsed)       return { ok: false, error: 'already used this run' }
-    const minions = this._gameState.minions ?? []
-    const victim  = minions.find(m => m.instanceId === victimId)
-    const target  = minions.find(m => m.instanceId === targetId)
-    if (!victim || !target) return { ok: false, error: 'minion not found' }
-    if (victim.assignedRoomId !== target.assignedRoomId) return { ok: false, error: 'must be in same room' }
-    // Remove victim, evolve target (delegate to evolution system if present)
-    const idx = minions.indexOf(victim)
-    if (idx >= 0) minions.splice(idx, 1)
-    const evoSys = this._scene.scene?.get?.('Game')?.minionEvolutionSystem ?? this._scene.minionEvolutionSystem
-    // Free tier advance (renamed from _evolve → _advanceTier 2026-05-29 when
-    // the kill-evolve system became the gold-gated upgrade path).
-    if (evoSys?._advanceTier) evoSys._advanceTier(target)
-    f.crucibleUsed = true
-    EventBus.emit('CRUCIBLE_SACRIFICED', { victimId, targetId })
-    return { ok: true }
-  }
-
   // Day-phase tick — fires per-mechanic onDailyTick handlers (when registered).
   tickDay(deltaMs) {
     for (const id of this._gameState.activeMechanics) {
@@ -1327,8 +1303,6 @@ function _buildHandlerRegistry() {
     lightningStrike_deactivate: ({ gameState }) => { if (gameState._mechanicFlags) gameState._mechanicFlags.lightningStrike = false },
     shockwaveSlam_activate:     ({ gameState }) => { (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).shockwaveSlam = true },
     shockwaveSlam_deactivate:   ({ gameState }) => { if (gameState._mechanicFlags) gameState._mechanicFlags.shockwaveSlam = false },
-    spectralReach_activate:     ({ gameState }) => { (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).spectralReach = true },
-    spectralReach_deactivate:   ({ gameState }) => { if (gameState._mechanicFlags) gameState._mechanicFlags.spectralReach = false },
     darkVortex_activate:        ({ gameState }) => { (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).darkVortex = true },
     darkVortex_deactivate:      ({ gameState }) => { if (gameState._mechanicFlags) gameState._mechanicFlags.darkVortex = false },
     soulDrain_activate:         ({ gameState }) => { (gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }).soulDrain = true },
@@ -1525,21 +1499,6 @@ function _buildHandlerRegistry() {
         gameState._mechanicFlags.pactOfTheReaper = false
         gameState._mechanicFlags.reaperRooms = {}
       }
-    },
-
-    // ── Pact of the Crucible ─────────────────────────────────────────────
-    // Once-per-run sacrifice. Exposes a method on the system instance for
-    // the UI to call: system.crucibleSacrifice(srcId, victimId).
-    // For testability, the activate handler just sets the flag; the actual
-    // sacrifice action happens via a method (see DungeonMechanicSystem
-    // public API below). Run-scoped used flag prevents repeats.
-    pactOfTheCrucible_activate: ({ gameState }) => {
-      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
-      f.pactOfTheCrucible = true
-      f.crucibleUsed ??= false
-    },
-    pactOfTheCrucible_deactivate: ({ gameState }) => {
-      if (gameState._mechanicFlags) gameState._mechanicFlags.pactOfTheCrucible = false
     },
 
     // ── Pact of the Marionette ───────────────────────────────────────────
@@ -2244,95 +2203,79 @@ function _buildHandlerRegistry() {
       gameState._mechanicFlags.trapDamageMult = (gameState._mechanicFlags.trapDamageMult ?? 1) / m
     },
 
-    // ── LEGENDARY · The Undying Court ────────────────────────────────────
-    // Adventurers that die are queued; at night they rise as undead minions
-    // of their class (stats carried over). With no free roster slots, 2 random
-    // minions are sacrificed to make room. Living adventurers are buffed +2%
-    // per court member.
-    theUndyingCourt_activate: ({ subscribe, gameState, scene }) => {
+    // ── LEGENDARY · The Undying Court (reworked 2026-06-04) ──────────────
+    // Opt-in devil's bargain. The pact itself just sets two flags:
+    //   • theUndyingCourt      — gates corpse persistence into the night phase
+    //     (PersistentCorpseRenderer) + the click-to-revive interaction
+    //     (NightPhase._executeReviveCorpse). With this pact, fallen adventurers'
+    //     bodies linger into the build night with a red glow; clicking one
+    //     sacrifices a random NORMAL minion to raise that hero as a dungeon-side
+    //     minion of its own class & abilities (dark-tinted, sells for 0).
+    //   • undyingCourtCostMult — the CURSE: every build cost (minion / trap /
+    //     item / room, incl. upgrades & rebuilds) is DOUBLED for the rest of the
+    //     run. Read by buildScaleMul so the build-menu DISPLAY and the placement
+    //     CHARGE stay in sync. It's a curse, so it is NOT gated by inquisitor
+    //     suppression.
+    theUndyingCourt_activate: ({ subscribe, gameState, scene, fresh }) => {
       const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
-      f.theUndyingCourt = true
-      f.undyingCourtQueue ??= []
-      f.undyingCourtCount ??= 0
+      f.theUndyingCourt      = true
+      f.undyingCourtCostMult = Balance.MECHANIC_UNDYING_COURT_COST_MULT ?? 2
+      gameState.undyingCourtCorpses ??= []
+      if (fresh) {
+        EventBus.emit('SHOW_TOAST', {
+          message: 'The Undying Court sealed — build costs DOUBLED. Click fallen heroes at night to revive them.',
+          type: 'error',
+          duration: 4500,
+        })
+      }
+      // Capture each fallen adventurer as a revivable corpse — but only classes
+      // the pact can raise (excluded ones carry `revivable:false` in
+      // adventurerClasses.json; new classes are revivable by default). The
+      // snapshot carries everything the renderer + the revive action need.
       subscribe('ADVENTURER_DIED', ({ adventurer }) => {
         if (!adventurer) return
-        gameState._mechanicFlags.undyingCourtQueue.push({
-          classId: adventurer.classId ?? 'adventurer',
-          name:    adventurer.name ?? adventurer.classId ?? 'Adventurer',
-          level:   adventurer.level ?? 1,
-          // LPC sheet id so MinionRenderer draws the risen minion as the dead
-          // adventurer's sprite (tinted) — the "of its own class" look.
+        const def = (scene?.cache?.json?.get('adventurerClasses') ?? [])
+          .find(c => c.id === adventurer.classId)
+        if (def && def.revivable === false) return
+        const list = (gameState.undyingCourtCorpses ??= [])
+        if (list.some(c => c.instanceId === adventurer.instanceId)) return
+        list.push({
+          instanceId:    adventurer.instanceId,
+          classId:       adventurer.classId ?? 'adventurer',
+          name:          adventurer.name ?? adventurer.classId ?? 'Adventurer',
           spriteVariant: adventurer.spriteVariant ?? null,
-          maxHp:   Math.max(1, Math.round(adventurer.resources?.maxHp ?? adventurer.resources?.hp ?? 20)),
-          attack:  Math.max(1, Math.round(adventurer.stats?.attack ?? 5)),
-          defense: Math.max(0, Math.round(adventurer.stats?.defense ?? 0)),
+          tileX:         adventurer.tileX,
+          tileY:         adventurer.tileY,
+          worldX:        adventurer.worldX,
+          worldY:        adventurer.worldY,
+          level:         adventurer.level ?? 1,
+          maxHp:         Math.max(1, Math.round(adventurer.resources?.maxHp ?? adventurer.resources?.hp ?? 20)),
+          attack:        Math.max(1, Math.round(adventurer.stats?.attack ?? 5)),
+          defense:       Math.max(0, Math.round(adventurer.stats?.defense ?? 0)),
         })
       })
-      subscribe('NIGHT_PHASE_STARTED', () => {
-        const queue = gameState._mechanicFlags.undyingCourtQueue ?? []
-        if (queue.length === 0) return
-        const defs = scene?.cache?.json?.get('minionTypes') ?? []
-        // Same base the Lich Necromancy uses; the dead adv's sprite is layered
-        // on top via _raisedSpriteVariant so it reads as an undead of its class.
-        const baseDef = defs.find(d => d.id === 'skeleton1') ?? defs[0]
-        if (!baseDef) { gameState._mechanicFlags.undyingCourtQueue = []; return }
-        const bossRoom = gameState.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
-        const bossLevel = gameState.boss?.level ?? 1
-        const cap = rosterCap(gameState)
-        for (const snap of queue) {
-          // Make room: if the roster is full, sacrifice random roster minions.
-          let roster = (gameState.minions ?? []).filter(m => m.faction === 'dungeon' && m.aiState !== 'dead' && (m.class ?? 'roster') === 'roster')
-          if (roster.length >= cap && cap > 0) {
-            const victims = [...roster].sort(() => Math.random() - 0.5).slice(0, Balance.MECHANIC_UNDYING_COURT_DISPLACE ?? 2)
-            for (const v of victims) {
-              const idx = gameState.minions.indexOf(v)
-              if (idx >= 0) gameState.minions.splice(idx, 1)
-              EventBus.emit('MINION_REMOVED', { minion: v, reason: 'undying_court' })
-            }
+      // Corpses linger for the build NIGHT that follows their death only — any
+      // not revived are gone when the next day dawns.
+      subscribe('NEW_DAY_STARTED', () => { gameState.undyingCourtCorpses = [] })
+      // A revived necromancer's Summon Undead spawns temporary dungeon undead;
+      // clean them up at day-end so they don't accumulate run over run.
+      subscribe('DAY_PHASE_ENDED', () => {
+        const mns = gameState.minions
+        if (!Array.isArray(mns)) return
+        for (let i = mns.length - 1; i >= 0; i--) {
+          if (mns[i]?._courtSummon) {
+            const m = mns[i]
+            mns.splice(i, 1)
+            EventBus.emit('MINION_REMOVED', { minion: m, reason: 'court_summon_expired' })
           }
-          const tx = (bossRoom?.gridX ?? 1) + 1
-          const ty = (bossRoom?.gridY ?? 1) + 1
-          const minion = createMinion(baseDef, { x: tx, y: ty }, bossRoom?.instanceId ?? null, { class: 'roster', bossLevel })
-          // Rise as an undead of the fallen hero's class — mirror the Lich's
-          // Necromancy recipe: class-tinted adventurer sprite + carried stats +
-          // class-kit retention (range / damage type / tags).
-          minion.isUndead             = true
-          minion._undeadCourt         = true
-          minion._raisedFromAdvDeath  = true
-          minion._raisedClassId       = snap.classId
-          minion._raisedAdvName       = snap.name
-          minion._raisedSpriteVariant = snap.spriteVariant ?? null
-          minion.displayName          = 'Risen ' + snap.name
-          // Carry the hero's combat profile, then re-apply its class kit (range,
-          // damage type, tags) the same way the Lich raise does.
-          minion._baseMaxHp = snap.maxHp
-          minion._baseAtk   = snap.attack
-          if (minion.stats) minion.stats.defense = snap.defense
-          applyBossLevelToMinion(minion, bossLevel)
-          try { scene?.bossArchetypeSystem?._applyClassRetentionBuffs?.(minion, snap.classId) } catch {}
-          gameState.minions.push(minion)
-          gameState._mechanicFlags.undyingCourtCount = (gameState._mechanicFlags.undyingCourtCount ?? 0) + 1
-          EventBus.emit('MINION_PLACED', { minion })
-          EventBus.emit('UNDYING_COURT_RISEN', { minion, fromClass: snap.classId })
         }
-        gameState._mechanicFlags.undyingCourtQueue = []
-      })
-      // Living adventurers grow stronger as the court swells.
-      subscribe('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
-        if (!adventurer || adventurer._courtBuffed) return
-        const count = gameState._mechanicFlags.undyingCourtCount ?? 0
-        if (count <= 0) return
-        adventurer._courtBuffed = true
-        const b = 1 + (Balance.MECHANIC_UNDYING_COURT_LIVING_BUFF_PER ?? 0.02) * count
-        if (adventurer.resources) {
-          adventurer.resources.maxHp = Math.round((adventurer.resources.maxHp ?? 0) * b)
-          adventurer.resources.hp    = adventurer.resources.maxHp
-        }
-        if (adventurer.stats?.attack != null) adventurer.stats.attack = Math.round(adventurer.stats.attack * b)
       })
     },
     theUndyingCourt_deactivate: ({ gameState }) => {
-      if (gameState._mechanicFlags) gameState._mechanicFlags.theUndyingCourt = false
+      if (gameState._mechanicFlags) {
+        gameState._mechanicFlags.theUndyingCourt      = false
+        gameState._mechanicFlags.undyingCourtCostMult = 1
+      }
     },
   }
 }

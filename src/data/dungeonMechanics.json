@@ -982,27 +982,6 @@
     "synergyWith": []
   },
   {
-    "id": "spectral_reach",
-    "name": "Spectral Reach",
-    "symbol": "🌫️",
-    "description": "Every 5 seconds during boss fights, the boss teleports adjacent to the closest adventurer and instantly strikes.",
-    "tradeoffDescription": "The boss attacks 25% more slowly all day.",
-    "rarity": "rare",
-    "unlockLevel": 4,
-    "weight": 2,
-    "availableToArchetypes": "all",
-    "onActivate": "spectralReach_activate",
-    "onDeactivate": "spectralReach_deactivate",
-    "onDailyTick": null,
-    "tags": [
-      "boss",
-      "attack",
-      "vfx"
-    ],
-    "exclusiveWith": [],
-    "synergyWith": []
-  },
-  {
     "id": "dark_vortex",
     "name": "Dark Vortex",
     "symbol": "🌀",
@@ -1243,26 +1222,6 @@
     "tags": [
       "adventurer",
       "curse"
-    ],
-    "exclusiveWith": [],
-    "synergyWith": []
-  },
-  {
-    "id": "pact_of_the_crucible",
-    "name": "Pact of the Crucible",
-    "symbol": "⚗️",
-    "description": "Once per run, you may sacrifice one minion to instantly evolve another in the same room to the next tier.",
-    "tradeoffDescription": "The sacrificed minion's level is lost; the evolved minion keeps its current XP.",
-    "rarity": "legendary",
-    "unlockLevel": 4,
-    "weight": 2,
-    "availableToArchetypes": "all",
-    "onActivate": "pactOfTheCrucible_activate",
-    "onDeactivate": "pactOfTheCrucible_deactivate",
-    "onDailyTick": null,
-    "tags": [
-      "minion",
-      "evolution"
     ],
     "exclusiveWith": [],
     "synergyWith": []
@@ -1585,7 +1544,7 @@
     "name": "The Unteachable",
     "symbol": "🚫",
     "description": "On sealing: gain 1000 gold at once.",
-    "tradeoffDescription": "Your minions can no longer gain XP or evolve for the rest of the run.",
+    "tradeoffDescription": "Your minions can never be upgraded to a higher tier for the rest of the run.",
     "rarity": "damned",
     "unlockLevel": 3,
     "weight": 12,
@@ -1812,7 +1771,7 @@
     "name": "Colossus Heart",
     "symbol": "❤️",
     "description": "Your boss's maximum HP is doubled.",
-    "tradeoffDescription": "The boss attacks 50% slower — a mountain that strikes like one.",
+    "tradeoffDescription": "The boss deals 50% less damage — all bulk, little bite.",
     "rarity": "legendary",
     "unlockLevel": 5,
     "weight": 7,
@@ -1947,8 +1906,8 @@
     "id": "the_undying_court",
     "name": "The Undying Court",
     "symbol": "⚰️",
-    "description": "Every adventurer who dies in your dungeon rises the next night as an undead minion of its own class, keeping its kit — forever.",
-    "tradeoffDescription": "Each occupies 2 minion slots and makes living adventurers stronger; with no free slots, 2 of your minions are sacrificed to make room.",
+    "description": "Heroes who fall in your dungeon linger into the night with a red glow. Click one to raise it as an undead minion of its own class — keeping its abilities — by sacrificing one of your minions.",
+    "tradeoffDescription": "Every minion, trap, and item costs DOUBLE for the rest of the run.",
     "rarity": "legendary",
     "unlockLevel": 5,
     "weight": 7,

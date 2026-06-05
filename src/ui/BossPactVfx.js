@@ -67,7 +67,6 @@ export class BossPactVfx {
     on('PACT_BOSS_HELLFIRE_FIRED',      this._onHellfireFired)
     on('PACT_BOSS_LIGHTNING_FIRED',     this._onLightningFired)
     on('PACT_BOSS_SHOCKWAVE_FIRED',     this._onShockwaveFired)
-    on('PACT_BOSS_SPECTRAL_FIRED',      this._onSpectralFired)
     on('PACT_BOSS_VORTEX_FIRED',        this._onVortexFired)
     on('PACT_BOSS_SOULDRAIN_BEGUN',     this._onSoulDrainBegun)
     on('PACT_BOSS_SOULDRAIN_ENDED',     this._onSoulDrainEnded)
@@ -257,50 +256,7 @@ export class BossPactVfx {
     }
   }
 
-  // ── 4. Spectral Reach ────────────────────────────────────────────
-  // Smoke puff at the boss's old position + smoke burst at the new
-  // (post-teleport) position. Slash mark on the target.
-  _onSpectralFired({ x, y, targetId, damage }) {
-    // Smoke at NEW boss position (already moved by BossSystem)
-    this._smokeBurst(x, y, 0x442266)
-    const target = _findEntity(this._gameState, targetId)
-    if (target) {
-      // Diagonal slash mark on target
-      const slash = this._scene.add.graphics().setPosition(target.worldX, target.worldY).setDepth(48)
-      slash.lineStyle(3, 0xaa66ff, 1)
-      slash.beginPath()
-      slash.moveTo(-16, -16); slash.lineTo(16, 16)
-      slash.strokePath()
-      this._scene.tweens.add({
-        targets: slash, alpha: 0, scale: 1.4,
-        duration: 320, ease: 'Quad.easeOut',
-        onComplete: () => slash.destroy(),
-      })
-      _shoutDamage(this._scene, target.worldX, target.worldY, damage, '#cc99ff')
-    }
-    this._shake(0.008, 180)
-  }
-  _smokeBurst(x, y, color = 0x666666) {
-    const _puffCount = _scaledCount(7)
-    for (let i = 0; i < _puffCount; i++) {
-      const p = this._scene.add.graphics().setPosition(x, y).setDepth(43)
-      p.fillStyle(color, 0.7)
-      p.fillCircle(0, 0, 4 + Math.random() * 3)
-      const ang = (Math.PI * 2 * i) / _puffCount
-      const dist = 18 + Math.random() * 12
-      this._scene.tweens.add({
-        targets: p,
-        x: x + Math.cos(ang) * dist,
-        y: y + Math.sin(ang) * dist,
-        alpha: 0, scale: 2,
-        duration: 380 + Math.random() * 140,
-        ease: 'Quad.easeOut',
-        onComplete: () => p.destroy(),
-      })
-    }
-  }
-
-  // ── 5. Dark Vortex ───────────────────────────────────────────────
+  // ── Dark Vortex ───────────────────────────────────────────────
   // Black void at boss centre that expands then collapses, with motion
   // streaks suggesting "things being pulled in".
   _onVortexFired({ x, y }) {

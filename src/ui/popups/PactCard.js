@@ -84,7 +84,6 @@ export const PACT_FLAVOR = {
   hellfire_breath:         'fire forgives, ash does not',
   lightning_strike:        'no second to spare, no second chance',
   shockwave_slam:          'the floor is also a weapon',
-  spectral_reach:          'distance is a courtesy you may revoke',
   dark_vortex:             'gravity, but personal',
   soul_drain:              'every breath of theirs is one of yours',
   doppelgangers:           "who's the real one? — does it matter?",
@@ -97,7 +96,6 @@ export const PACT_FLAVOR = {
   pact_of_the_whisperer:   'whispers travel further than shouts',
   pact_of_the_brand:       'wear the brand or wear the wound',
   pact_of_the_reaper:      'the harvest is patient, but never late',
-  pact_of_the_crucible:    'what survives the fire was always steel',
   pact_of_the_marionette:  "you don't notice the strings until they pull",
 
   // Damned (solid-black) pacts — devil's bargains: a sliver of bribe, a

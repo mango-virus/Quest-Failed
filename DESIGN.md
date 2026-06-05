@@ -144,9 +144,56 @@ Normal-schema legendaries (perk = "The Deal", cost = "The Price") tuned for **ma
 5. **Crown of Avarice** — Up: all gold income doubled. / Down: every 5th day a guaranteed hero-grade raid (wave doubled, +50% adventurer stats).
 6. **The Iron Price** — Up: your minions and traps deal double damage. / Down: you can never earn gold again (no kills, no treasure).
 7. **Sudden Death** — Up: your minions, traps and boss deal 5× damage. / Down: so do the adventurers — everyone is glass, every hit lethal.
-8. **The Undying Court** — Up: every adventurer who dies rises the next night as an undead minion of its class (stats carried over). / Down: each occupies 2 minion slots and buffs living adventurers; with no free slots, 2 of your minions are sacrificed to make room.
+8. ~~**The Undying Court** — Up: every adventurer who dies rises the next night as an undead minion of its class (stats carried over). / Down: each occupies 2 minion slots and buffs living adventurers; with no free slots, 2 of your minions are sacrificed to make room.~~ **(reworked 2026-06-04 — see "The Undying Court rework" below)**
 
 The trade-off should really make you think before choosing them. **I want tons and tons of different mechanics and trade offs to be added.**
+
+### The Undying Court rework (2026-06-04) — full replacement of the legendary above
+
+Stays **legendary**. The old auto-raise / living-buff / 2-slot mechanic is fully replaced by an opt-in, click-to-revive devil's bargain.
+
+**Benefit (user's verbatim spec):**
+> I want it to allow the player to revive dead adventurers as minions if they chose. reviving a dead adventurer will sacrifice a random normal minion (not another revived adventurer). if there is no minion to sacrifice, the reviving fails (with a error toast to let them know and know why it failed). when the player has this pact, I want the game to now keep dead adventurer sprites from the day phase to last to the following night phase. but during the night phase, i want those dead adventures to have a slight red glow to indicate that the player can click and revive them. That way the player can click adventures and get an option to revive them at the cost of another minion. the adventurer should then revive on the spot where it died and look like a darker version of itself (to avoid confusion with normal adventures). that revived adventurer should then function like a normal minion, in that they can be moved, or sold just like normal ones. selling them does not give back any gold. each revived adventurer counts a 1 minion slot. they should look exactly like the original adventurer sprite that died and have the same class and abilities.
+
+**Curse (user's verbatim spec):**
+> I want the cost of all minions and traps and items to double and stay doubled through the rest of their run.
+
+**Confirmed design decisions (from the 2026-06-04 review):**
+- Revive is **opt-in** via clicking a red-glowing corpse at night → a small "Revive — cost: 1 minion" confirm (works regardless of active night tool).
+- Sacrifice = a **random NORMAL minion** (never another revived adventurer); a small death-puff plays on whichever is taken. Sacrifice is unconditional even with free slots. If no normal minion exists → revive fails with an **error toast** (`showToast(..., {type:'error'})`).
+- Corpses persist **only the night after death** (die day N → revivable night N → gone by day N+1 if ignored).
+- Corpse = red glow (clickable). Revived unit = **exact class sprite, dark-tinted** (~0.55 multiply + faint desaturation), no red glow. Three distinct reads: living adv / revivable corpse / my undead minion.
+- Revived unit is a normal minion: movable, **sellable for 0 gold** (`_revivedAdv` flag the sell logic checks), counts **1 slot**. Net slot change of a revive is zero (−1 sacrifice, +1 revived), so it can never exceed cap.
+- Curse routes through the existing `def.goldCost × buildScaleMul(gameState)` cost path: ×2 when the flag is set (shows doubled prices everywhere automatically) + a one-time toast on seal. It's a **curse**, so it survives Inquisitor suppression. 2× is the headline (tunable to 1.5× post-playtest).
+- **VFX:** every carried ability reuses the **same `AbilityVfx.*` calls** as the living version (they take scene + world-coords, not the adv entity) → identical visuals.
+
+**Ability carry-over (revived unit DEFENDS the dungeon — does the ability still make sense?):**
+
+*Carried (run the SAME ability code, faction-flipped):* Knight (Protective Aura, Taunt) · Mage (Arcane Burst + Elemental Affinity) · Cleric (Heal, **Resurrection** 1/day) · Necromancer (Bone Armor, **Summon Undead** — summons are temporary, **cleaned up at `DAY_PHASE_ENDED`**) · Ranger (Volley) · Barbarian (Unstoppable + Rage Scaling) · Monk (Focus, Inner Peace) · Bard (Inspire Party, Song of Speed, Encore) · Gladiator (Block, Crowd Roar) · Peasant (Strength in Numbers) · Gambler (Roll the Dice, **Double or Nothing in full** — WIN self-revive / LOSE house pays the owner) · Valkyrie (**Winged Flight** — kept, since some traps damage your minions by design; **Rally the Fallen** 1/day) · Rogue (**Invisibility** — brief untargetable/ambush).
+
+*Not carried (raid-only — flagged `carriesToRevived:false` in `ABILITY_DEFS`):* Rogue Lockpick · Ranger Trap Expert · Beast Master Tame Beast & Scout Ahead · Barbarian Break Door · Miner Tunnel.
+
+*No special ability (revive = stats + sprite + basic attack):* Templar, Pirate, Cosplayer, Cartographer, Loot Goblin.
+
+*NOT revivable at all (flagged `revivable:false` in `adventurerClasses.json`):* **Cheater**, Sung Jinwoo (shadow_monarch), Aldric, Rival Monster (monster_invader), Rival Dungeon Boss (rival_boss_invader), Light Party (paladin / white_mage / samurai / black_mage), Twitch Streamer (being removed).
+
+**Architecture (so future content "just works"):**
+- Revived units run the **same `ClassAbilitySystem` defs + `_considerX` logic + `AbilityVfx`** — no duplicated copy — with ally/enemy lookups made **side-aware** in the shared helpers (`_allyInDangerNearby`, `_hostileMinionWithin`, `_findFallenToRevive`, …). ⇒ future ability tweaks / new abilities inherit automatically (contract: new abilities must use those shared helpers).
+- **Opt-OUT, data-driven, default-on:** `revivable:false` on a class JSON excludes it; `carriesToRevived:false` on an ability def excludes that ability. **New classes are revivable and their new abilities carry by default** — you only ever edit these flags to exclude.
+
+**Acceptance checklist (tick each against actual code before claiming done):**
+- [ ] Corpses persist day→following night; cleaned next day if not revived
+- [ ] Corpse red-glow at night + clickable; revive-confirm popup ("cost: 1 minion")
+- [ ] Revive sacrifices a random NORMAL minion (never a revived one) + death-puff on it
+- [ ] No normal minion → revive fails + error toast explaining why
+- [ ] Revived unit spawns on the death tile, dark-tinted exact class sprite, no red glow
+- [ ] Revived unit is a minion: movable, sells for 0 gold, counts 1 slot
+- [ ] Carried abilities fire for revived units via shared code + identical VFX
+- [ ] Necromancer Summon Undead summons despawn at `DAY_PHASE_ENDED`
+- [ ] Gambler Double or Nothing works in full for a revived gambler
+- [ ] Curse: all minion/trap/item costs ×2 run-long, shown in buy menus, survives Inquisitor, seal toast
+- [ ] `revivable:false` on the 11 excluded classes; `carriesToRevived:false` on the 6 raid-only abilities
+- [ ] Pact description + tradeoffDescription rewritten (propagates to all surfaces)
 
 ---
 
@@ -1732,3 +1779,48 @@ Facts: a _spawnDefector already exists ("your strongest minion turns traitor, jo
   - NOTE: fixed a latent bug in the same pass — KingdomModifierSystem was using `TILE` (the tile-TYPE enum) as the tile SIZE, so all its tile→world VFX (Pantheon Final Judgment band, Mage seal marks, Betrayer ⇄ marks, the dash) rendered at NaN. Now uses `TS = Balance.TILE_SIZE`.
 - 🟡 DEFERRED (sprite): **Champion looks like the turned minion** — a sprite swap; folds into the deferred sprite pass (could merge defector→champion).
 - ⚠ BALANCE (eyeball, IMPORTANT): flipped traps fire on patrolling minions continuously — this could SHRED your minion line over a whole act. Faithful to the spec ("all traps damage only my minions all act") but watch it hard in a live run; may want a per-minion cooldown or a damage cap.
+
+---
+
+## Day-Tier Class Unlocks + "New Threats" Reveal + Twitch Removal (locked 2026-06-05)
+
+**User's verbatim request:** "instead of being level gated, I want them to be based on the day
+number in the game. Every 10 days, I want a new set of classes added to the pool. None should be
+rarer than others, except the cheater. Cheater class should be very rare. See my list below. Also,
+I want a thematic notification for the player once a new set of classes have been added to the
+potential adventurers that enter the dungeon so that they are aware of the new threats. … I also
+want to completely remove the twitch streamer class and twitch con event from the game."
+
+**Verbatim schedule (additive — each tier ADDS to the pool, never replaces):**
+- Day 1–10: knight, rogue, mage, cleric, ranger
+- Day 11–20: peasant, bard, pirate, gladiator, monk
+- Day 21–30: templar, gambler, barbarian, beast_master, miner
+- Day 31–40: cheater, necromancer, Valkyrie
+
+**Locked decisions (confirmed by user 2026-06-05):**
+1. Classes gated by **day number**, NOT boss level. (Boss-level scaling of adventurer stats stays; only
+   the class-availability gate changes.)
+2. Event-only classes (the `unlockLevel: 99` set — Shadow Monarch, Light Party, Loot Goblin,
+   monster_invader, etc.) STAY excluded from the normal pool (keep the 99 sentinel).
+3. **Flat rarity** — every eligible class equal `spawnWeight` (=1), EXCEPT **cheater = very rare**
+   (`spawnWeight` ~0.08 ≈ ~0.5% per adventurer once unlocked).
+4. **New-threats notification:** a polished full-screen thematic card (modeled on the act-intro cards)
+   that fires **the night BEFORE** a new tier's day (when the upcoming day is 11/21/31), so the player
+   gets build-time to prep. Day-number triggered (works in endless `?acts=0` mode too; sequences after
+   any act-intro if they coincide). Fires once per tier per run.
+5. Card lists the new classes with **sprite thumbnail + name + a very brief "what they do"** line.
+6. **NG+:** the **full roster** is unlocked regardless of day (a day reset must NOT re-lock to tier 1).
+7. **Twitch:** completely remove the `twitch_streamer` class AND the `twitch_con` event (also clears one
+   of the IP references flagged for commercial release).
+
+**Acceptance checklist:**
+- ☐ Shared `getEligibleClasses(allClasses, day)` helper (single source of truth), day-gated, excludes
+  `unlockLevel:99` + `shadow_monarch`. All 5 gate sites point at it (DayPhase spawn, NightPhase preview,
+  RightPanels forecast, AdventurerIntelPopup, RoomBehaviorSystem library forecast).
+- ☐ `unlockDay` set per the schedule; boss-level gate removed for normal classes.
+- ☐ Flat `spawnWeight` (cheater ≈0.08).
+- ☐ NG+ full-roster unlock (day-reset doesn't re-lock).
+- ☐ Night-before reveal card (days 11/21/31), once-per-tier-per-run, lists new classes w/ sprite+name+brief.
+- ☐ Endless-mode (`?acts=0`) reveal still works.
+- ☐ `twitch_streamer` class + `twitch_con` event fully removed (code, data, AI, HUD, sprites, chat lines,
+  balance, docs); game boots clean; STATUS.md class count updated.

@@ -39,6 +39,7 @@ import { GamblerImpRenderer }    from '../ui/GamblerImpRenderer.js'
 import { DemonWagerRenderer }    from '../ui/DemonWagerRenderer.js'
 import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
 import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
+import { PersistentCorpseRenderer } from '../ui/PersistentCorpseRenderer.js'
 import { MinionInspector }    from '../ui/MinionInspector.js'
 import { ChatBubbles }        from '../ui/ChatBubbles.js'
 import { KnowledgeOverlay }   from '../ui/KnowledgeOverlay.js'
@@ -348,6 +349,7 @@ export class Game extends Phaser.Scene {
     this.demonWagerRenderer    = track(new DemonWagerRenderer(this, this.gameState))
     this.phylacteryRenderer  = track(new PhylacteryRenderer(this, this.gameState))
     this.fungalCorpseRenderer = track(new FungalCorpseRenderer(this, this.gameState))
+    this.persistentCorpseRenderer = track(new PersistentCorpseRenderer(this, this.gameState))
     // MinionInspector and WantedPoster have DOM ports under the new HUD
     // (src/hud/MinionInspectorOverlay.js + the ToastQueue 'bounty' kind).
     // Gate the Phaser constructions so they don't double-fire under the
@@ -1801,11 +1803,11 @@ export class Game extends Phaser.Scene {
     // BossFightOverlay cinematic, which lives inside this scene).
     this.input.keyboard.on('keydown-ESC', () => {
       // Defer to NightPhase first if it has anything armed — selected
-      // item, tool mode, crucible, or a pending trade-off all want ESC
+      // item, tool mode, or a pending trade-off all want ESC
       // to cancel them, not open pause.
       const np = this.scene.get('NightPhase')
       if (np && np.scene?.isActive?.() &&
-          (np._pendingTradeOff || np._selected || np._toolMode || np._crucibleMode)) {
+          (np._pendingTradeOff || np._selected || np._toolMode)) {
         return
       }
       PauseManager.toggle(this)
@@ -2136,6 +2138,7 @@ export class Game extends Phaser.Scene {
       rtick('treasureChestRenderer', () => this.treasureChestRenderer?.update())
       rtick('phylacteryRenderer',  () => this.phylacteryRenderer?.update())
       rtick('fungalCorpseRenderer', () => this.fungalCorpseRenderer?.update())
+      rtick('persistentCorpseRenderer', () => this.persistentCorpseRenderer?.update())
       rtick('torchRenderer',       () => this.torchRenderer?.update())
       rtick('cobwebRenderer',      () => this.cobwebRenderer?.update())
       rtick('decorRenderer',       () => this.decorRenderer?.update())
@@ -2157,6 +2160,7 @@ export class Game extends Phaser.Scene {
       this.treasureChestRenderer?.update()
       this.phylacteryRenderer?.update()
       this.fungalCorpseRenderer?.update()
+      this.persistentCorpseRenderer?.update()
       this.torchRenderer?.update()
       this.cobwebRenderer?.update()
       this.decorRenderer?.update()

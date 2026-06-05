@@ -32,7 +32,13 @@ export function buildScaleMul(gameState) {
   const day = gameState?.meta?.dayNumber ?? 1
   const lvTerm  = (Balance.BUILD_COST_PER_BOSS_LV ?? 0.20) * Math.max(0, lv - 1)
   const dayTerm = (Balance.BUILD_COST_PER_DAY     ?? 0.12) * Math.max(0, day - 9)
-  return 1 + lvTerm + dayTerm
+  // LEGENDARY · The Undying Court — run-long CURSE that DOUBLES every build
+  // cost. Lives on _mechanicFlags so display + charge stay in sync; it's a
+  // curse, so it is NOT gated by inquisitor suppression (no `_inqSuppress`
+  // check). Folded in here (the single upstream cost multiplier) so it reaches
+  // purchases, tier-upgrades, trap-rebuilds, and every menu/tooltip alike.
+  const curseMul = gameState?._mechanicFlags?.undyingCourtCostMult ?? 1
+  return (1 + lvTerm + dayTerm) * curseMul
 }
 
 // Raw multiplier for a definition id (1 = unchanged / no active market).

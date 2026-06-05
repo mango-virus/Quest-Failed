@@ -14,7 +14,7 @@ import { h, mount } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
-import { snapshotMinion } from './inGameSnapshot.js'
+import { snapshotMinion, snapshotRaisedAdv } from './inGameSnapshot.js'
 import { minionLabel } from '../util/displayNames.js'
 
 const FILTERS = ['ALL', 'READY', 'WOUNDED', 'IDLE']
@@ -369,13 +369,24 @@ export class RosterOverlay {
     const maxHp = sel.resources?.maxHp ?? 1
     const pct = maxHp > 0 ? (hp / maxHp) * 100 : 0
     const def = this._minionDefinition(sel)
+    // The Undying Court — a revived adventurer reads as the fallen hero (its
+    // class + carried abilities), not the skeleton base it's built on.
+    const revived = !!sel._revivedAdv
+    const advClass = revived
+      ? (this._cachedJson('adventurerClasses') ?? []).find(x => x.id === sel._raisedClassId)
+      : null
+    const advClassName = advClass?.name || (sel._raisedClassId
+      ? sel._raisedClassId.charAt(0).toUpperCase() + sel._raisedClassId.slice(1)
+      : 'Adventurer')
     const name = sel.name || def?.name || sel.definitionId || '?'
     const dmg = sel.stats?.attack ?? 0
     const armor = sel.stats?.defense ?? 0
     const speed = sel.stats?.speed ?? 0
     const kills = sel.lifetime?.kills ?? 0
-    const tags = def?.tags ?? []
-    const description = def?.description ?? def?.flavorText ?? '—'
+    const tags = revived ? ['undead', ...(advClass?.tags ?? [])] : (def?.tags ?? [])
+    const description = revived
+      ? `A fallen ${advClassName} raised by The Undying Court — an undead minion that keeps its class abilities. Sells for nothing.`
+      : (def?.description ?? def?.flavorText ?? '—')
 
     return h('div', { className: 'panel bevel qf-roster-detail' }, [
       // Portrait card
@@ -396,13 +407,13 @@ export class RosterOverlay {
         // Tier+LV chip
         h('div', {
           className: 'pix qf-roster-tier-chip',
-          style: { color: tierColor, borderColor: tierColor },
-        }, `${tier} · LV ${sel.bossLevel ?? 1}`),
+          style: { color: revived ? '#c24bff' : tierColor, borderColor: revived ? '#c24bff' : tierColor },
+        }, revived ? `RISEN · LV ${sel._raisedLevel ?? 1}` : `${tier} · LV ${sel.bossLevel ?? 1}`),
       ]),
       // Name + assignment
       h('div', { className: 'pix qf-roster-detail-name' }, name),
       h('div', { className: 'qf-roster-detail-assign' }, [
-        h('span', { className: 'pix qf-roster-detail-kind' }, minionLabel(sel.definitionId).toUpperCase()),
+        h('span', { className: 'pix qf-roster-detail-kind' }, revived ? `RISEN ${advClassName.toUpperCase()}` : minionLabel(sel.definitionId).toUpperCase()),
         h('span', { style: { margin: '0 6px', color: 'var(--text-dim)' } }, '·'),
         ' stationed at ',
         h('span', { style: { color: 'var(--poison)' } }, this._minionLocationLabel(sel)),
@@ -503,7 +514,11 @@ export class RosterOverlay {
   // to the bestiary family portrait when the Phaser texture isn't
   // loaded yet — same contract as the old _spriteBg path.
   _minionVisual(m, size, className) {
-    const snap = snapshotMinion(m?.definitionId, size)
+    // The Undying Court — a revived adventurer shows its carried class sprite,
+    // not the skeleton base it's built on.
+    const snap = ((m?._revivedAdv && m?._raisedSpriteVariant)
+      ? snapshotRaisedAdv(m._raisedSpriteVariant, size)
+      : null) ?? snapshotMinion(m?.definitionId, size)
     if (snap) {
       // Let the CSS class drive the displayed size — the canvas's
       // native pixel resolution (passed as `size`) just controls

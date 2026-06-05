@@ -586,7 +586,6 @@ function _rehydrateRunHistory(state) {
     '_hellfireReadyAt', '_hellfireWindupUntil',
     '_lightningReadyAt',
     '_shockwaveReadyAt', '_shockwaveStunUntil',
-    '_spectralReadyAt',
     '_vortexReadyAt',
     '_soulDrainReadyAt', '_soulDrainChannelUntil', '_soulDrainNextTick',
     '_doppelReadyAt', '_doppelActiveUntil',

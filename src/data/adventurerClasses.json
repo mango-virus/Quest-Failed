@@ -172,7 +172,8 @@
     "unlockLevel": 3,
     "rarity": "rare",
     "description": "Streams the run live. Decisions polled to chat in real time. A killed streamer sometimes goes viral, summoning extra adventurers the next day.",
-    "flavorText": "PogChamp the chest! PogChamp the chest!"
+    "flavorText": "PogChamp the chest! PogChamp the chest!",
+    "revivable": false
   },
   {
     "id": "beast_master",
@@ -273,7 +274,8 @@
     ],
     "unlockLevel": 99,
     "description": "Foot soldier from a rival dungeon. Chasing the boss kill on behalf of their own dark lord.",
-    "flavorText": "*snarl*"
+    "flavorText": "*snarl*",
+    "revivable": false
   },
   {
     "id": "rival_boss_invader",
@@ -293,7 +295,8 @@
     ],
     "unlockLevel": 99,
     "description": "A boss from another dungeon, here to settle a score. Goes straight for the throne room.",
-    "flavorText": "Only one of us walks out."
+    "flavorText": "Only one of us walks out.",
+    "revivable": false
   },
   {
     "id": "cartographer_scholar",
@@ -361,7 +364,7 @@
       "hp": 22,
       "attack": 9,
       "defense": 1,
-      "speed": 2.0
+      "speed": 2
     },
     "startingResources": {},
     "tags": [
@@ -373,7 +376,8 @@
     "unlockLevel": 2,
     "spawnWeight": 0.6,
     "description": "Modded client. No-clips walls, teleports between rooms, lands suspicious one-shots. Glass-cannon body — gets reported and banned if they take too many hits.",
-    "flavorText": "skill issue"
+    "flavorText": "skill issue",
+    "revivable": false
   },
   {
     "id": "shadow_monarch",
@@ -396,7 +400,8 @@
     "unlockLevel": 99,
     "rarity": "legendary",
     "description": "The Shadow Monarch. Enters alone, raises your fallen minions as his shadow army, and marches on the throne to duel the boss as an equal. Moves twice as fast, shrugs off your defenses, and grows stronger with every shadow he claims.",
-    "flavorText": "Arise."
+    "flavorText": "Arise.",
+    "revivable": false
   },
   {
     "id": "paladin",
@@ -419,7 +424,8 @@
     "unlockLevel": 99,
     "rarity": "legendary",
     "description": "Light Party tank. Soaks every hit aimed at the party — minions within his Provoke aura ignore his fragile teammates and swing at his shield instead. Hits like a wet noodle on his own, but his teammates do plenty for him.",
-    "flavorText": "Hallowed Ground. I yield to none."
+    "flavorText": "Hallowed Ground. I yield to none.",
+    "revivable": false
   },
   {
     "id": "white_mage",
@@ -444,7 +450,8 @@
     "unlockLevel": 99,
     "rarity": "legendary",
     "description": "Light Party healer. Never attacks — only heals and revives the party. On any ally death, channels a 3-second Raise that brings them back at half HP. Interrupt her and the resurrection fizzles. Kill her and the party crumbles.",
-    "flavorText": "Stay alive, all of you. I've got you."
+    "flavorText": "Stay alive, all of you. I've got you.",
+    "revivable": false
   },
   {
     "id": "samurai",
@@ -466,7 +473,8 @@
     "unlockLevel": 99,
     "rarity": "legendary",
     "description": "Light Party melee DPS. Wind-up iaijutsu strikes that hit twice as hard as a normal blade. Stays at the tank's shoulder, peels for the healer when she's threatened.",
-    "flavorText": "One cut. One breath."
+    "flavorText": "One cut. One breath.",
+    "revivable": false
   },
   {
     "id": "black_mage",
@@ -489,7 +497,8 @@
     "unlockLevel": 99,
     "rarity": "legendary",
     "description": "Light Party ranged DPS. Lobs spells over the tank's shoulder to hit your back-row minions. Glass cannon — squishy, but every cast lands like a comet. Cast bars are visible; interrupt windows exist.",
-    "flavorText": "Fire. Blizzard. Thunder. Repeat."
+    "flavorText": "Fire. Blizzard. Thunder. Repeat.",
+    "revivable": false
   },
   {
     "id": "aldric",
@@ -513,7 +522,8 @@
     "unlockLevel": 99,
     "rarity": "legendary",
     "description": "The Nemesis. A young swordsman certain he is the realm's greatest hero, sworn to cut down all evil — starting with you. Returns stronger every act, learns your dungeon, and disdains your treasure. Cannot be slain until the final duel.",
-    "flavorText": "I came as a student. I return as a king."
+    "flavorText": "I came as a student. I return as a king.",
+    "revivable": false
   },
   {
     "id": "gladiator",
@@ -555,7 +565,7 @@
       "mob"
     ],
     "unlockLevel": 2,
-    "spawnWeight": 1.0,
+    "spawnWeight": 1,
     "description": "An angry villager with a pitchfork and a grudge. Little threat alone — but they come in mobs, and the more peasants fight at his side, the bolder and stronger every one of them becomes (Strength in Numbers).",
     "flavorText": "Get the torches. And Gary. Get Gary too."
   },
@@ -590,7 +600,7 @@
       "hp": 34,
       "attack": 9,
       "defense": 3,
-      "speed": 2.0,
+      "speed": 2,
       "attackRange": 1
     },
     "startingResources": {},

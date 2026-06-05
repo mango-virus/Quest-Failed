@@ -133,7 +133,7 @@ export class CombatSystem {
     // roll has settled. Whiff (1) misses outright; the other faces modify this
     // swing (damage faces below, payout/heal after the hit lands).
     let _diceFace = 0
-    if (attacker.classId === 'gambler' && (attacker._diceRollReadyAt ?? 0) <= now) {
+    if ((attacker.classId ?? attacker._raisedClassId) === 'gambler' && (attacker._diceRollReadyAt ?? 0) <= now) {
       _diceFace = 1 + Math.floor(Math.random() * 6)
       attacker._diceRollReadyAt = now + GAMBLER_DICE_CD
       AbilityVfx.diceRoll?.(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 36, _diceFace)
@@ -148,7 +148,7 @@ export class CombatSystem {
     const damage     = this._computeDamage(attacker, target)
     // Phase 5c — Rogue Invisibility: if attacker is an invisible Rogue,
     // their attack is a guaranteed crit AND immediately reveals them.
-    const rogueInvisCrit = attacker.classId === 'rogue' && attacker._invisible
+    const rogueInvisCrit = (attacker.classId ?? attacker._raisedClassId) === 'rogue' && attacker._invisible
     const isCritical = rogueInvisCrit ? true : Math.random() < 0.10
     let   finalDmg   = isCritical ? Math.floor(damage * 1.5) : damage
 
@@ -487,6 +487,15 @@ export class CombatSystem {
       }
     }
 
+    // The Undying Court — a fatally-struck DUNGEON minion gets a last-chance
+    // save (a revived gambler's Double-or-Nothing, or a nearby revived cleric /
+    // valkyrie revive) BEFORE the kill is finalized. A save restores HP > 0, so
+    // `killed` below reads false and the death is averted.
+    if (target.resources.hp <= 0 && target.faction === 'dungeon' &&
+        (this._gameState._mechanicFlags ?? {}).theUndyingCourt) {
+      this._scene.classAbilitySystem?.attemptCourtMinionDeathSave?.(target)
+    }
+
     const killed = target.resources.hp <= 0
     if (killed) {
       // Record kill on attacker's history BEFORE emitting the event so
@@ -512,7 +521,12 @@ export class CombatSystem {
       // Phase 6 — Gladiator Crowd Roar: felling a hostile minion stokes the
       // crowd (+1 ATK stack, capped). Only dungeon-faction minion kills count
       // (the boss kill ends the run, so it's moot there).
-      if (attacker.classId === 'gladiator' && target.faction === 'dungeon' && target !== this._gameState.boss) {
+      // A revived gladiator MINION stokes the crowd by felling living
+      // ADVENTURERS (it defends, so it never kills dungeon minions); a living
+      // gladiator stokes it by felling dungeon minions (unchanged).
+      const _roarCls  = attacker.classId ?? attacker._raisedClassId
+      const _roarKill = attacker._revivedAdv ? (target.classId !== undefined) : (target.faction === 'dungeon')
+      if (_roarCls === 'gladiator' && _roarKill && target !== this._gameState.boss) {
         const prev = attacker._crowdRoarStacks ?? 0
         if (prev < CROWD_ROAR_MAX_STACKS) {
           const s = attacker._crowdRoarStacks = prev + 1
@@ -638,8 +652,15 @@ export class CombatSystem {
   // (capped at PEASANT_MOB_MAX_ALLIES). Drives both halves of Strength in Numbers.
   _peasantMobCount(peasant) {
     let n = 0
-    for (const a of (this._gameState.adventurers?.active ?? [])) {
-      if (a === peasant || a.classId !== 'peasant') continue
+    // Side-aware (The Undying Court): a revived peasant MINION mobs with other
+    // revived peasant minions; a living peasant mobs with living peasants. For
+    // living peasants this is byte-identical to the original scan.
+    const revived = peasant._revivedAdv === true
+    const pool = revived ? (this._gameState.minions ?? []) : (this._gameState.adventurers?.active ?? [])
+    for (const a of pool) {
+      if (a === peasant) continue
+      if ((a.classId ?? a._raisedClassId) !== 'peasant') continue
+      if (revived && a._revivedAdv !== true) continue
       if (a.aiState === 'dead' || a.resources?.hp <= 0) continue
       const d = Math.hypot((a.tileX ?? 0) - (peasant.tileX ?? 0), (a.tileY ?? 0) - (peasant.tileY ?? 0))
       if (d <= PEASANT_MOB_RADIUS + 0.01 && ++n >= PEASANT_MOB_MAX_ALLIES) break
@@ -666,7 +687,10 @@ export class CombatSystem {
 
     // Phase QW — Echo minion mimics the last-seen adventurer's class. We
     // route damage flavor through that class for free.
-    const cls = attacker.mimickedClassId ?? attacker.classId
+    // The Undying Court — a revived adventurer minion carries no `classId`
+    // (it's a dungeon minion), so fall back to `_raisedClassId` to fire its
+    // class's combat passives. Inert for living advs (they always have classId).
+    const cls = attacker.mimickedClassId ?? attacker.classId ?? attacker._raisedClassId
 
     // Mage: free-casting now (mana removed in Phase 5b cooldown rework). Spells
     // get a 10% damage bump over mundane attacks. Elemental Affinity (passive)
@@ -707,7 +731,7 @@ export class CombatSystem {
     }
     // Defensive half: a mobbed peasant TARGET takes less damage — same +8%/ally,
     // cap +32%, applied as a damage reduction (the "+def" side of the buff).
-    if (target.classId === 'peasant') {
+    if ((target.classId ?? target._raisedClassId) === 'peasant') {
       const dAllies = this._peasantMobCount(target)
       if (dAllies > 0) raw = Math.max(1, Math.floor(raw * (1 - dAllies * PEASANT_MOB_PER_ALLY)))
     }
@@ -1003,8 +1027,22 @@ export class CombatSystem {
   // The Knight himself is also covered (he stands in his own aura).
   _applyProtectiveAura(target, dmg) {
     if (!target || dmg <= 0) return dmg
-    if (target.aiState === undefined) return dmg              // minion target — skip
-    if (target.classId === undefined) return dmg              // not an adventurer
+    if (target.aiState === undefined) return dmg              // non-combatant target — skip
+    if (target.classId === undefined) {
+      // The Undying Court — a revived KNIGHT minion's aura shields nearby
+      // DUNGEON minions (the classId-less defenders).
+      if (!(this._gameState._mechanicFlags ?? {}).theUndyingCourt) return dmg
+      if (target.faction !== 'dungeon') return dmg
+      const nowA = this._scene.time.now
+      for (const m of this._gameState.minions ?? []) {
+        if (m._raisedClassId !== 'knight') continue
+        if (!m._auraActiveUntil || nowA >= m._auraActiveUntil) continue
+        const d = Math.hypot((target.tileX ?? 0) - (m.tileX ?? 0), (target.tileY ?? 0) - (m.tileY ?? 0))
+        if (d > 1.01) continue
+        return Math.max(1, Math.floor(dmg * 0.75))
+      }
+      return dmg
+    }
     const advs = this._gameState.adventurers?.active ?? []
     const now  = this._scene.time.now
     for (const knight of advs) {
@@ -1025,7 +1063,21 @@ export class CombatSystem {
   // Bard within 2 tiles has _inspireActiveUntil > now, multiply damage by 1.15.
   _applyInspireBuff(attacker, raw) {
     if (!attacker || raw <= 0) return raw
-    if (attacker.classId === undefined) return raw  // minion attacker
+    if (attacker.classId === undefined) {
+      // The Undying Court — a revived BARD minion inspires nearby DUNGEON
+      // minions (the only place a classId-less attacker gets this buff).
+      if (!(this._gameState._mechanicFlags ?? {}).theUndyingCourt) return raw
+      if (attacker.faction !== 'dungeon') return raw
+      const now = this._scene.time.now
+      for (const m of this._gameState.minions ?? []) {
+        if (m._raisedClassId !== 'bard') continue
+        if (!m._inspireActiveUntil || now >= m._inspireActiveUntil) continue
+        const d = Math.hypot((attacker.tileX ?? 0) - (m.tileX ?? 0), (attacker.tileY ?? 0) - (m.tileY ?? 0))
+        if (d > 2.01) continue
+        return Math.max(1, Math.floor(raw * 1.15))
+      }
+      return raw
+    }
     const advs = this._gameState.adventurers?.active ?? []
     const now  = this._scene.time.now
     for (const bard of advs) {

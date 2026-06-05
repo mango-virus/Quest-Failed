@@ -48,7 +48,6 @@ const PACT_MAP = {
   hellfire_breath:  { sheets: ['vfx-boss-flame',       'vfx-cheater-burst'],    dmgType: 'fire'      },
   lightning_strike: { sheets: ['vfx-boss-bolt',        'vfx-boss-comet'],       dmgType: 'lightning' },
   shockwave_slam:   { sheets: ['vfx-boss-cross-slam',  'vfx-boss-strike'],      dmgType: 'physical'  },
-  spectral_reach:   { sheets: ['vfx-cheater-portal',   'vfx-cheater-glitch'],   dmgType: 'shadow'    },
   dark_vortex:      { sheets: ['vfx-cheater-pinwheel', 'vfx-cheater-portal'],   dmgType: 'shadow'    },
   soul_drain:       { sheets: ['vfx-boss-soul-wisp',   'vfx-boss-soul'],        dmgType: 'shadow'    },
   doppelgangers:    { sheets: ['vfx-cheater-glitch',   'vfx-cheater-sunburst'], dmgType: 'magic'     },
@@ -103,7 +102,6 @@ export class BossAttackVfxSystem {
     on('PACT_BOSS_HELLFIRE_FIRED',          this._onHellfire)
     on('PACT_BOSS_LIGHTNING_FIRED',         this._onLightning)
     on('PACT_BOSS_SHOCKWAVE_FIRED',         this._onShockwave)
-    on('PACT_BOSS_SPECTRAL_FIRED',          this._onSpectral)
     on('PACT_BOSS_VORTEX_FIRED',            this._onVortex)
     on('PACT_BOSS_SOULDRAIN_BEGUN',         this._onSoulDrain)
     on('PACT_BOSS_DOPPELGANGERS_SPAWNED',   this._onDoppel)
@@ -126,7 +124,6 @@ export class BossAttackVfxSystem {
   _onHellfire(p = {})  { this._firePact('hellfire_breath',  p.x, p.y) }
   _onLightning(p = {}) { this._firePact('lightning_strike', p.x, p.y) }
   _onShockwave(p = {}) { this._firePact('shockwave_slam',   p.x, p.y) }
-  _onSpectral(p = {})  { this._firePact('spectral_reach',   p.x, p.y) }
   _onVortex(p = {})    { this._firePact('dark_vortex',      p.x, p.y) }
   _onDoppel(p = {})    { this._firePact('doppelgangers',    p.x, p.y) }
 

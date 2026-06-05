@@ -826,9 +826,7 @@ export const Balance = {
   // Sudden Death — everyone (yours + adventurers) deals 5x damage.
   MECHANIC_SUDDEN_DEATH_DMG_MULT:         5.0,
   // The Undying Court — dead adventurers rise as undead minions of their class.
-  MECHANIC_UNDYING_COURT_SLOTS_PER:       2,     // each court member occupies this many slots
-  MECHANIC_UNDYING_COURT_DISPLACE:        2,     // full slots -> kill this many random minions
-  MECHANIC_UNDYING_COURT_LIVING_BUFF_PER: 0.02,  // +2% living-adv stats per court member
+  MECHANIC_UNDYING_COURT_COST_MULT:       2,     // reworked 2026-06-04: CURSE doubles all build costs (run-long)
   MECHANIC_INQUISITORS_HP_MULT:           2.0,
   MECHANIC_INQUISITORS_ATK_MULT:          1.5,
 
@@ -865,9 +863,6 @@ export const Balance = {
   MECHANIC_SHOCKWAVE_COOLDOWN_MS:        10000,
   MECHANIC_SHOCKWAVE_DMG_MULT:            0.6,
   MECHANIC_SHOCKWAVE_STUN_MS:             2000,
-  MECHANIC_SPECTRAL_REACH_COOLDOWN_MS:    5000,
-  MECHANIC_SPECTRAL_REACH_DMG_MULT:       0.9,
-  MECHANIC_SPECTRAL_REACH_SPEED_PENALTY:  0.75,   // boss attack interval ×1.33 (1/0.75)
   MECHANIC_DARK_VORTEX_COOLDOWN_MS:      12000,
   MECHANIC_DARK_VORTEX_PULL_TILES:        2,
   MECHANIC_SOUL_DRAIN_COOLDOWN_MS:       12000,

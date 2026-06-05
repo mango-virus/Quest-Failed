@@ -916,8 +916,13 @@ export class MinionRenderer {
       if (this._scene.anims.exists(key)) return key
     }
 
-    // 2. State fallbacks — death intentionally has none (freeze = corpse pose).
+    // 2. State fallbacks. Normal minion sheets have no death anim and freeze on
+    //    their last frame (already a corpse pose). Adventurer-sprite (raised /
+    //    revived-adventurer) minions instead play their HURT strip as the death
+    //    animation — exactly like a living adventurer — so a felled revived hero
+    //    drops with a proper death pose rather than freezing mid-stride.
     const fallbacks = { hurt: ['idle'], attack: ['idle'], run: ['walk', 'idle'] }
+    if (prefix.startsWith('adv-')) fallbacks.death = ['hurt', 'idle']
     for (const fbState of (fallbacks[state] ?? [])) {
       for (const dir of dirs) {
         const key = `${prefix}-${fbState}-${dir}`

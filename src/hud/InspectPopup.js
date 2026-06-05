@@ -88,6 +88,23 @@ function advAbilityLabels(classId) {
     .join(' · ')
 }
 
+// Raid-only abilities that DON'T carry over when an adventurer is revived as a
+// minion by The Undying Court (matches the carriesToRevived exclusions).
+const NON_CARRIED_ABILITY_IDS = new Set([
+  'lockpick', 'trap_expert', 'tame_beast', 'scout_ahead', 'break_door', 'tunnel',
+])
+// The ability labels a REVIVED adventurer keeps as a minion (class abilities
+// minus the raid-only ones above).
+function revivedAbilityLabels(classId) {
+  const prefix = CLASS_ABILITY_PREFIX[classId]
+  if (!prefix) return ''
+  return Object.entries(ABILITY_DEFS)
+    .filter(([key]) => key.startsWith(`${prefix}_`))
+    .filter(([, def]) => !NON_CARRIED_ABILITY_IDS.has(def.id))
+    .map(([, def]) => def.label)
+    .join(' · ')
+}
+
 export class InspectPopup {
   constructor(gameState) {
     this._gs   = gameState
@@ -231,6 +248,10 @@ export class InspectPopup {
   }
 
   _minionContent(m) {
+    // The Undying Court — a revived adventurer is a minion, but it should read
+    // as the FALLEN HERO it was (its class, carried stats + abilities), not as
+    // the skeleton base def it's built on.
+    if (m._revivedAdv) return this._revivedAdvContent(m)
     const hp    = m.resources?.hp ?? m.stats?.hp ?? '?'
     const maxHp = m.resources?.maxHp ?? hp
     const boxes = [
@@ -256,6 +277,34 @@ export class InspectPopup {
       this._statsGrid(boxes),
       def?.description ? this._descLine(def.description) : null,
       abilities,
+    ]
+  }
+
+  // The Undying Court — hover content for a revived adventurer minion: reads as
+  // the risen hero (class, carried combat profile + abilities), not the skeleton
+  // base def it's rendered on.
+  _revivedAdvContent(m) {
+    const cls = (this._cachedJson('adventurerClasses') ?? []).find(x => x.id === m._raisedClassId)
+    const className = cls?.name || (m._raisedClassId
+      ? m._raisedClassId.charAt(0).toUpperCase() + m._raisedClassId.slice(1)
+      : 'Adventurer')
+    const hp    = m.resources?.hp ?? '?'
+    const maxHp = m.resources?.maxHp ?? hp
+    const boxes = [
+      ['LV',  m._raisedLevel ?? m.level ?? 1],
+      ['HP',  `${hp}/${maxHp}`],
+      ['ATK', m.stats?.attack ?? '?'],
+      ['DEF', m.stats?.defense ?? 0],
+    ]
+    const labels = revivedAbilityLabels(m._raisedClassId)
+    return [
+      h('div', { className: 'qf-inspect-reinf' }, [
+        h('span', { className: 'qf-inspect-reinf-icon' }, '⚰'),
+        `RISEN ${className.toUpperCase()}`,
+      ]),
+      this._statsGrid(boxes),
+      this._descLine(`A fallen ${className} raised by The Undying Court — an undead minion that keeps its class’s abilities. Sells for nothing.`),
+      labels ? this._abilityBlock(labels, 'Fights for the dungeon as its class.') : null,
     ]
   }
 

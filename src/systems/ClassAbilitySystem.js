@@ -342,6 +342,35 @@ export class ClassAbilitySystem {
       // but only Monk's Inner Peace ability sets _innerPeaceUntil).
       this._tickInnerPeace(adv, now)
     }
+
+    // ── The Undying Court ──────────────────────────────────────────────────
+    // Tick revived adventurer MINIONS through the SAME class-ability brain. The
+    // targeting helpers are side-aware (allies = your minions, foes = the living
+    // adventurers). Combat PASSIVES already fire via the _raisedClassId bridge in
+    // CombatSystem; this drives the ACTIVE abilities.
+    for (const m of this._gameState.minions ?? []) {
+      if (m._revivedAdv !== true) continue
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      m.cooldowns ??= {}
+      m.usesLeftToday ??= {}
+      this._tickActiveBuffs(m, now)
+      switch (m._raisedClassId) {
+        case 'knight':      this._considerKnight(m, now);      break
+        case 'bard':        this._considerBard(m, now);        break
+        case 'monk':        this._considerMonk(m, now);        break
+        case 'cleric':      this._considerCleric(m, now);      break
+        case 'mage':        this._considerMage(m, now);        break
+        case 'necromancer': this._considerNecromancer(m, now); break
+        case 'gladiator':   this._considerGladiator(m, now);   break
+        case 'peasant':     this._considerPeasant(m, now);     break
+        case 'rogue':       this._considerRogue(m, now);       break
+        // ranger Volley / barbarian Rage / gambler dice are COMBAT passives
+        // (fire in CombatSystem via the bridge) — no active tick needed.
+        // valkyrie Rally + cleric Resurrection + gambler Double-or-Nothing need
+        // a minion-death hook — wired in the follow-up (3c) pass.
+      }
+      this._tickInnerPeace(m, now)
+    }
   }
 
   // ── Buff lifecycle ─────────────────────────────────────────────────────────
@@ -548,6 +577,17 @@ export class ClassAbilitySystem {
   }
 
   _woundedAllyEngagedNearby(knight, rangeTiles) {
+    if (knight._revivedAdv) {
+      for (const m of this._gameState.minions ?? []) {
+        if (m === knight || m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        if (m.aiState !== 'engaging') continue
+        const frac = m.resources.maxHp > 0 ? m.resources.hp / m.resources.maxHp : 1
+        if (frac > 0.5) continue
+        const d = Math.hypot(m.tileX - knight.tileX, m.tileY - knight.tileY)
+        if (d <= rangeTiles + 0.01) return true
+      }
+      return false
+    }
     if (!knight.partyId) return false
     for (const adv of this._gameState.adventurers.active) {
       if (adv === knight || adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
@@ -566,6 +606,17 @@ export class ClassAbilitySystem {
     const selfFrac = knight.resources.maxHp > 0
       ? knight.resources.hp / knight.resources.maxHp : 1
     if (selfFrac < 0.7) return true
+    if (knight._revivedAdv) {
+      // Revived knight minion — protect nearby DUNGEON minions (no party).
+      for (const m of this._gameState.minions ?? []) {
+        if (m === knight || m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        const d = Math.hypot(m.tileX - knight.tileX, m.tileY - knight.tileY)
+        if (d > rangeTiles + 0.01) continue
+        const frac = m.resources.maxHp > 0 ? m.resources.hp / m.resources.maxHp : 1
+        if (frac < 0.7) return true
+      }
+      return false
+    }
     if (!knight.partyId) return false
     for (const adv of this._gameState.adventurers.active) {
       if (adv === knight || adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
@@ -610,6 +661,14 @@ export class ClassAbilitySystem {
 
   _hostileMinionCountWithin(adv, rangeTiles) {
     let n = 0
+    if (adv._revivedAdv) {
+      for (const e of this._gameState.adventurers?.active ?? []) {
+        if (e.aiState === 'dead' || (e.resources?.hp ?? 0) <= 0) continue
+        const d = Math.hypot((e.tileX ?? 0) - adv.tileX, (e.tileY ?? 0) - adv.tileY)
+        if (d <= rangeTiles + 0.01) n++
+      }
+      return n
+    }
     for (const m of this._gameState.minions ?? []) {
       if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
       if (m.faction === 'adventurer') continue
@@ -912,6 +971,73 @@ export class ClassAbilitySystem {
     return false
   }
 
+  // ── The Undying Court — minion death-saves ─────────────────────────────
+  // A fatally-struck DUNGEON minion's last-chance interventions, invoked from
+  // CombatSystem BEFORE the kill is finalized. Returns true if the minion was
+  // saved (its HP is restored > 0 → the caller sees no death).
+  attemptCourtMinionDeathSave(falling) {
+    if (!falling || falling.aiState === 'dead') return false
+    const now = this._scene.time.now
+
+    // 1) Gambler Double-or-Nothing — the falling minion is a revived gambler.
+    if (falling._revivedAdv && falling._raisedClassId === 'gambler') {
+      const def = ABILITY_DEFS.gambler_double_or_nothing
+      if (AbilitySystem.canUse(falling, def, now).ready) {
+        AbilitySystem.markUsed(falling, def, now)
+        const win = Math.random() < 0.5
+        AbilityVfx.coinFlip?.(this._scene, falling.worldX, (falling.worldY ?? 0) - 34, win)
+        if (win) {
+          this._reviveMinionInPlace(falling, 0.5)
+          AbilityVfx.floatingText(this._scene, falling.worldX, (falling.worldY ?? 0) - 52, 'DOUBLE!', { color: '#ffe066', fontSize: '15px' })
+          EventBus.emit('ABILITY_TRIGGERED', { adventurer: falling, abilityId: 'double_or_nothing', message: `${falling.displayName ?? 'The gambler'} won the toss — back in the fight!` })
+          return true
+        }
+        // Lose — the house pays the dungeon owner out, scaled to the run.
+        const lv = this._gameState.boss?.level ?? falling.level ?? 1
+        const payout = (Balance.GOLD_PER_KILL ?? 10) * 3 * lv
+        this._gameState.player ??= {}
+        this._gameState.player.gold = (this._gameState.player.gold ?? 0) + payout
+        EventBus.emit('RESOURCES_AWARDED', { gold: payout, source: 'gambler_double_or_nothing' })
+        AbilityVfx.floatingText(this._scene, falling.worldX, (falling.worldY ?? 0) - 52, `NOTHING · +${payout}g`, { color: '#ffd34d', fontSize: '13px' })
+        // fall through — the gambler still dies, but the house paid out.
+      }
+    }
+
+    // 2/3) A nearby revived CLERIC (Resurrection) or VALKYRIE (Rally) saves the
+    // dying dungeon minion. Each is once-per-day per saver.
+    const trySaver = (cls, abilityKey, reviveFrac, range, label, color, hex) => {
+      for (const m of this._gameState.minions ?? []) {
+        if (m === falling || m._revivedAdv !== true || m._raisedClassId !== cls) continue
+        if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        const def = ABILITY_DEFS[abilityKey]
+        if (!AbilitySystem.canUse(m, def, now).ready) continue
+        const d = Math.hypot((m.tileX ?? 0) - (falling.tileX ?? 0), (m.tileY ?? 0) - (falling.tileY ?? 0))
+        if (d > range + 0.01) continue
+        AbilitySystem.markUsed(m, def, now)
+        this._reviveMinionInPlace(falling, reviveFrac)
+        AbilityVfx.resurrectBeam?.(this._scene, falling.worldX, falling.worldY, { color, durationMs: 720 })
+        AbilityVfx.floatingText(this._scene, falling.worldX, (falling.worldY ?? 0) - 40, label, { color: hex, fontSize: '13px' })
+        EventBus.emit('ABILITY_TRIGGERED', { adventurer: m, abilityId: def.id, message: `${m.displayName ?? 'A revived hero'} ${label.toLowerCase()} a fallen ally.` })
+        return true
+      }
+      return false
+    }
+    if (trySaver('cleric',   'cleric_resurrection', 0.30, (Balance.HEAL_RANGE_TILES ?? 2) + 2, 'RESURRECTED', 0xfff4a8, '#fff4a8')) return true
+    if (trySaver('valkyrie', 'valkyrie_rally',      0.50, ABILITY_DEFS.valkyrie_rally.rangeTiles ?? 6, 'RALLIED', 0xffe9a8, '#ffe9a8')) return true
+
+    return false
+  }
+
+  _reviveMinionInPlace(m, frac) {
+    m.resources.hp    = Math.max(1, Math.floor((m.resources.maxHp ?? 0) * frac))
+    m.aiState         = 'idle'
+    m.currentTargetId = null
+    m.lastAttackAt    = 0
+    m._lastHitBy      = null
+    m._lastHitType    = null
+    m.path = null; m.pathIndex = 0; m.pathTarget = null
+  }
+
   // ── Miner ─────────────────────────────────────────────────────────────
   // Tunnel — ONCE per day, while travelling, dig a hole at his feet linked to a
   // random room. The hole is stored in gameState.dungeon.portals and added as a
@@ -1133,6 +1259,16 @@ export class ClassAbilitySystem {
   }
 
   _partyAllyEngagedWithin(bard, rangeTiles) {
+    if (bard._revivedAdv) {
+      if (bard.aiState === 'engaging') return true
+      for (const m of this._gameState.minions ?? []) {
+        if (m === bard || m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        if (m.aiState !== 'engaging') continue
+        const d = Math.hypot(m.tileX - bard.tileX, m.tileY - bard.tileY)
+        if (d <= rangeTiles + 0.01) return true
+      }
+      return false
+    }
     if (bard.aiState === 'fighting') return true
     if (!bard.partyId) return false
     for (const adv of this._gameState.adventurers.active) {
@@ -1146,6 +1282,7 @@ export class ClassAbilitySystem {
   }
 
   _partyAllyFleeingWithin(bard, rangeTiles) {
+    if (bard._revivedAdv) return false   // minions don't flee — Song of Speed has no trigger
     if (bard.aiState === 'fleeing') return true
     if (!bard.partyId) return false
     for (const adv of this._gameState.adventurers.active) {
@@ -1167,6 +1304,16 @@ export class ClassAbilitySystem {
   }
 
   _hostileMinionWithin(adv, rangeTiles) {
+    if (adv._revivedAdv) {
+      // Side-aware (The Undying Court) — for a revived minion the "hostiles"
+      // it scans for are the living adventurers.
+      for (const e of this._gameState.adventurers?.active ?? []) {
+        if (e.aiState === 'dead' || (e.resources?.hp ?? 0) <= 0) continue
+        const d = Math.hypot((e.tileX ?? 0) - adv.tileX, (e.tileY ?? 0) - adv.tileY)
+        if (d <= rangeTiles + 0.01) return true
+      }
+      return false
+    }
     const minions = this._gameState.minions ?? []
     for (const m of minions) {
       if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
@@ -1257,6 +1404,18 @@ export class ClassAbilitySystem {
     // Speedrunner lone, etc.) and broke any cross-party support play.
     // Range + HP-fraction gates still apply.
     let best = null, bestFrac = Balance.CLERIC_HEAL_TARGET_THRESHOLD ?? 0.7
+    if (cleric._revivedAdv) {
+      // Revived cleric minion — heal the lowest-HP nearby DUNGEON minion.
+      for (const m of this._gameState.minions ?? []) {
+        if (m === cleric || m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        const frac = m.resources.maxHp > 0 ? m.resources.hp / m.resources.maxHp : 1
+        if (frac >= bestFrac) continue
+        const d = Math.hypot(m.tileX - cleric.tileX, m.tileY - cleric.tileY)
+        if (d > (Balance.HEAL_RANGE_TILES ?? 2) + 0.01) continue
+        best = m; bestFrac = frac
+      }
+      return best
+    }
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
       if (adv === cleric) continue
@@ -1425,8 +1584,16 @@ export class ClassAbilitySystem {
       minion.stats.attack    = Math.max(1, Math.floor(minion.stats.attack * 0.7))
       // Match the necro's speed so summons keep up while following.
       minion.stats.speed     = necro.stats?.speed ?? minion.stats.speed
-      minion.faction = 'adventurer'
-      minion.factionExpiresOn = today + 1   // despawn at next day-end
+      if (necro._revivedAdv) {
+        // The Undying Court — a revived necro's summons fight for the DUNGEON
+        // and are cleaned up at DAY_PHASE_ENDED (see the pact handler).
+        minion.faction = 'dungeon'
+        minion._courtSummon = true
+        minion.factionExpiresOn = null
+      } else {
+        minion.faction = 'adventurer'
+        minion.factionExpiresOn = today + 1   // despawn at next day-end
+      }
       minion.raisedByAdvId = necro.instanceId
       this._gameState.minions.push(minion)
       EventBus.emit('MINION_SUMMONED', { minion, summoner: necro })
@@ -1487,8 +1654,10 @@ export class ClassAbilitySystem {
 
   _countOwnUndead(necro) {
     let n = 0
+    // Revived necro minion — its summons fight for the DUNGEON faction.
+    const wantFaction = necro._revivedAdv ? 'dungeon' : 'adventurer'
     for (const m of this._gameState.minions ?? []) {
-      if (m.faction !== 'adventurer') continue
+      if (m.faction !== wantFaction) continue
       if (m.raisedByAdvId !== necro.instanceId) continue
       if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
       n++
@@ -1977,6 +2146,11 @@ export class ClassAbilitySystem {
     const defs = Object.values(ABILITY_DEFS)
     for (const adv of this._gameState.adventurers.active ?? []) {
       AbilitySystem.resetForNewDay(adv, defs)
+    }
+    // The Undying Court — refresh per-day ability budgets for revived minions
+    // too (so 1/day abilities like cleric Resurrection recharge each day).
+    for (const m of this._gameState.minions ?? []) {
+      if (m._revivedAdv === true) AbilitySystem.resetForNewDay(m, defs)
     }
   }
 }

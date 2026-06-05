@@ -133,6 +133,54 @@ export class DevEventsButton {
       h('div', { className: 'qf-dev-events-card-id' }, sub),
     ])
 
+    // ── PACTS · apply / remove ANY dungeon mechanic ──
+    // Click a pact card to seal it (runs the real activate handler so seal
+    // effects fire + it registers in gameState.activeMechanics → it shows in
+    // the live pact UI); click again to remove it. The search box filters the
+    // list. Lets you test any of the 94 pacts directly without the RNG draw.
+    const RARITY_COLOR = { common: '#9fb0bd', uncommon: '#7ed18a', rare: '#6fa8ff', epic: '#c08bff', legendary: '#ffcf6b', damned: '#ff5a6a' }
+    const RARITY_ORDER = { legendary: 0, damned: 1, epic: 2, rare: 3, uncommon: 4, common: 5 }
+    const pacts = (window.__game?.scene?.scenes ?? [])
+      .map(s => s?.cache?.json?.get?.('dungeonMechanics'))
+      .find(Array.isArray) ?? []
+    const sortedPacts = [...pacts].sort((a, b) =>
+      ((RARITY_ORDER[a.rarity] ?? 9) - (RARITY_ORDER[b.rarity] ?? 9)) || String(a.name || '').localeCompare(String(b.name || '')))
+    const pactCard = (def) => {
+      const dms0 = this._dms()
+      const rc = RARITY_COLOR[def.rarity] ?? '#9fb0bd'
+      const on0 = !!dms0?.isActive?.(def.id)
+      const idLine = h('div', { className: 'qf-dev-events-card-id' }, on0 ? '✓ ACTIVE · remove' : `${def.rarity} · apply`)
+      return h('button', {
+        className: 'qf-dev-events-card pact',
+        dataset: { pname: String(def.name || def.id).toLowerCase(), pid: String(def.id).toLowerCase() },
+        style: { borderColor: on0 ? '#67e667' : rc, boxShadow: on0 ? '0 0 8px rgba(90,230,90,.6)' : 'none' },
+        on: { click: (e) => {
+          const d = this._dms(); if (!d) return
+          if (d.isActive(def.id)) d.deactivate(def.id); else d.activate(def.id)
+          const on = d.isActive(def.id)
+          e.currentTarget.style.borderColor = on ? '#67e667' : rc
+          e.currentTarget.style.boxShadow   = on ? '0 0 8px rgba(90,230,90,.6)' : 'none'
+          idLine.textContent = on ? '✓ ACTIVE · remove' : `${def.rarity} · apply`
+        } },
+      }, [
+        h('div', { className: 'qf-dev-events-card-icon', style: { color: rc } }, def.symbol || '◆'),
+        h('div', { className: 'qf-dev-events-card-name pix' }, def.name || def.id),
+        idLine,
+      ])
+    }
+    const pactGrid = h('div', { className: 'qf-dev-events-grid pacts' }, sortedPacts.map(pactCard))
+    const pactSearch = h('input', {
+      className: 'pix', type: 'text', placeholder: 'search pacts…',
+      style: { width: '100%', margin: '2px 0 8px', padding: '6px 9px', background: '#15101c', color: '#e8e0f0', border: '1px solid #463a55', borderRadius: '4px', fontSize: '12px' },
+      on: { input: (e) => {
+        const q = String(e.target.value || '').trim().toLowerCase()
+        for (const c of pactGrid.children) {
+          const nm = c.dataset?.pname || '', id = c.dataset?.pid || ''
+          c.style.display = (!q || nm.includes(q) || id.includes(q)) ? '' : 'none'
+        }
+      } },
+    })
+
     this._modal = h('div', {
       className: 'qf-dev-events-modal',
       on: {
@@ -144,6 +192,14 @@ export class DevEventsButton {
         h('div', { className: 'qf-dev-events-flavor pix' },
           'Force a set-piece or a scheduled event right now (bypasses cadence + ' +
           'eligibility). Set-pieces need an active day phase with a built dungeon.'),
+
+        // ── PACTS · apply / remove any dungeon mechanic ──
+        h('div', { className: 'qf-dev-events-section pact pix' }, `PACTS · APPLY / REMOVE ANY  (${pacts.length})`),
+        h('div', { className: 'qf-dev-events-flavor pix' },
+          'Click a pact to seal it on your dungeon; click again to remove it. The real ' +
+          'seal effects fire and it shows in your active pacts — test any pact directly.'),
+        pactSearch,
+        pactGrid,
 
         // ── Kingdom's Reckoning set-pieces (Aldric) ──
         h('div', { className: 'qf-dev-events-section kr pix' }, 'ALDRIC · THE NEMESIS'),
@@ -239,6 +295,13 @@ export class DevEventsButton {
   }
   _fastLabel() { return globalThis.__qfDevFastAbilities ? 'FAST ABILITIES: ON' : 'FAST ABILITIES: OFF' }
   _quietLabel() { return globalThis.__qfDevQuietDay ? 'QUIET MODE: ON' : 'QUIET MODE: OFF' }
+
+  // The live DungeonMechanicSystem (on the Game scene) — drives pact apply/remove.
+  _dms() {
+    const dms = window.__game?.scene?.keys?.Game?.dungeonMechanicSystem
+    if (!dms) console.warn('[dev] dungeonMechanicSystem not available — start a run first')
+    return dms
+  }
 
   _closeModal() {
     if (this._escFn) {

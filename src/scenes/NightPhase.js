@@ -15,6 +15,7 @@ import { pickWeightedClass } from '../util/classSpawn.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
 import { upgradeCost, nextTierInfo } from '../util/minionRevive.js'
+import { AbilityVfx }    from '../ui/AbilityVfx.js'
 import { h } from '../hud/dom.js'
 
 const TS         = Balance.TILE_SIZE
@@ -1544,7 +1545,7 @@ export class NightPhase extends Phaser.Scene {
       // alive minion is within ~half a tile of the cursor's world point,
       // assume the click is for the minion and let MinionRenderer handle it.
       // Exception: when an action mode is armed that itself targets minions
-      // (SELL tool, Crucible sacrifice), we WANT the click to fall through
+      // (the SELL / UPGRADE tools), we WANT the click to fall through
       // to those handlers instead of being delegated to MinionRenderer.
       const wp = cam.getWorldPoint(p.x, p.y)
       const minionHitR = TS * 0.55
@@ -1552,7 +1553,7 @@ export class NightPhase extends Phaser.Scene {
         if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
         return Math.hypot(wp.x - m.worldX, wp.y - m.worldY) <= minionHitR
       })
-      const minionTargetingMode = this._crucibleMode || this._toolMode === 'sell' || this._toolMode === 'upgrade'
+      const minionTargetingMode = this._toolMode === 'sell' || this._toolMode === 'upgrade'
       if (overMinion && !minionTargetingMode) return
 
       if (p.rightButtonDown()) {
@@ -1590,34 +1591,22 @@ export class NightPhase extends Phaser.Scene {
       // be set on day 2+ if uiSf differed between scene launches.
       if (p.x < PANEL_W * (this.uiSf ?? 1)) return
 
-      // Phase 9 — Crucible sacrifice mode: two clicks on minions in same room.
-      if (this._crucibleMode) {
-        const tx = Math.floor(wp.x / TS)
-        const ty = Math.floor(wp.y / TS)
-        const minion = (this._gameState.minions ?? []).find(m =>
-          m.faction === 'dungeon' && m.aiState !== 'dead' &&
-          m.tileX === tx && m.tileY === ty
-        )
-        if (!minion) {
-          this._showPlacementError('Click on a minion (or ESC to cancel)')
-          return
+      // ── LEGENDARY · The Undying Court ──────────────────────────────────
+      // Left-click a glowing fallen hero (present only at night while the pact
+      // is sealed) to raise it as a dungeon minion — at the cost of one normal
+      // minion. Takes precedence over the build tools / placement.
+      if ((this._gameState._mechanicFlags ?? {}).theUndyingCourt) {
+        const corpses = this._gameState.undyingCourtCorpses ?? []
+        let hit = null, bestD = TS * 0.6
+        for (const c of corpses) {
+          const cx = Number.isFinite(c.worldX) ? c.worldX : (c.tileX * TS + TS / 2)
+          const cy = Number.isFinite(c.worldY) ? c.worldY : (c.tileY * TS + TS / 2)
+          const d  = Math.hypot(wp.x - cx, wp.y - cy)
+          if (d <= bestD) { bestD = d; hit = c }
         }
-        if (!this._crucibleVictimId) {
-          this._crucibleVictimId = minion.instanceId
-          this._showPlacementError(`Victim: ${minionLabel(minion.definitionId)} — click target in same room`)
-          return
-        }
-        const game = this.scene.get('Game')
-        const result = game?.dungeonMechanicSystem?.crucibleSacrifice?.(this._crucibleVictimId, minion.instanceId)
-        if (result?.ok) {
-          this._showPlacementError('Crucible: sacrifice complete')
-        } else {
-          this._showPlacementError(`Crucible failed: ${result?.error ?? 'unknown'}`)
-        }
-        this._crucibleMode = false
-        this._crucibleVictimId = null
-        return
+        if (hit) { this._promptReviveCorpse(hit); return }
       }
+
       // Phase 31D — action-bar tool intercepts left-click on placed rooms.
       if (this._toolMode) {
         const tx = Math.floor(wp.x / TS)
@@ -1685,12 +1674,6 @@ export class NightPhase extends Phaser.Scene {
         this._showPlacementError('Lock placement cancelled')
         return
       }
-      if (this._crucibleMode) {
-        this._crucibleMode = false
-        this._crucibleVictimId = null
-        this._showPlacementError('Crucible cancelled')
-        return
-      }
       if (this._toolMode) { this._setToolMode(null, 'esc_key'); return }
       if (this._selected)  { this._cancelSelection(); return }
       PauseManager.toggle(this)
@@ -1698,17 +1681,6 @@ export class NightPhase extends Phaser.Scene {
     this.input.keyboard.on('keydown-Z',   (e) => {
       if (e.ctrlKey || e.metaKey) this._undoLastPlacement()
     })
-    // Phase 9 — Pact of the Crucible: 'C' enters sacrifice mode (pact must
-    // be active + unused this run). Two clicks on minions in the same
-    // room confirm; ESC cancels.
-    this.input.keyboard.on('keydown-C', () => {
-      const f = this._gameState._mechanicFlags ?? {}
-      if (!f.pactOfTheCrucible || f.crucibleUsed) return
-      this._crucibleMode = true
-      this._crucibleVictimId = null
-      this._showPlacementError('CRUCIBLE — click victim minion')
-    })
-
     // Bug fix — scroll the palette when wheel happens over the left panel.
     // Without this, the unlocked-rooms list (now 17+) overflows the panel
     // and the bottom cards get cut off below the screen edge.
@@ -3474,6 +3446,105 @@ export class NightPhase extends Phaser.Scene {
     this._gameState.minions.splice(idx, 1)
     EventBus.emit('MINION_REMOVED', { minion })
     return true
+  }
+
+  // ── LEGENDARY · The Undying Court — click-to-revive a fallen hero ──────
+  // Living, normal (non-revived) dungeon minions are the only valid tributes.
+  _reviveVictims() {
+    return (this._gameState.minions ?? []).filter(m =>
+      m.faction === 'dungeon' && m.aiState !== 'dead' &&
+      (m.resources?.hp ?? 0) > 0 && m._revivedAdv !== true)
+  }
+
+  _promptReviveCorpse(corpse) {
+    if (!corpse) return
+    // No tribute available → the revive fails, and we tell the player why.
+    if (this._reviveVictims().length === 0) {
+      EventBus.emit('SHOW_TOAST', {
+        message: 'No minion to sacrifice — the Court demands a tribute to raise the dead.',
+        type: 'error',
+      })
+      return
+    }
+    EventBus.emit('SHOW_CONFIRM', {
+      title: 'RAISE THE FALLEN',
+      message: `Sacrifice 1 minion to raise ${corpse.name} as an undead of its class — keeping its kit?`,
+      confirmLabel: 'REVIVE (-1 MINION)',
+      cancelLabel:  'CANCEL',
+      theme: 'shadow',
+      onConfirm: () => this._executeReviveCorpse(corpse),
+      onCancel:  () => {},
+    })
+  }
+
+  _executeReviveCorpse(corpse) {
+    // Idempotency / re-validate — the SHOW_CONFIRM onConfirm can re-fire (the
+    // scene.restart EventBus-leak gotcha), and the corpse may already be gone.
+    const corpses = this._gameState.undyingCourtCorpses ?? []
+    const ci = corpses.findIndex(c => c.instanceId === corpse.instanceId)
+    if (ci < 0) return
+    const victims = this._reviveVictims()
+    if (victims.length === 0) {
+      EventBus.emit('SHOW_TOAST', {
+        message: 'No minion to sacrifice — the Court demands a tribute to raise the dead.',
+        type: 'error',
+      })
+      return
+    }
+    // Pay the tribute: a random normal minion shatters (no gold refund).
+    const victim = victims[Math.floor(Math.random() * victims.length)]
+    this._doSacrificeMinion(victim.instanceId)
+
+    // Raise the fallen hero on the tile where it died, mirroring the Lich
+    // Necromancy recipe (class-tinted adventurer sprite + class kit) — but as a
+    // permanent ROSTER minion that sells for 0 and carries the Undying-Court id.
+    const gameScene = this.scene.get('Game')
+    const minionDefs = this.cache.json.get('minionTypes') ?? []
+    const baseDef = minionDefs.find(d => d.id === 'skeleton1') ?? minionDefs[0]
+    const tx = corpse.tileX, ty = corpse.tileY
+    const room = this._dungeonGrid.getRoomAtTile(tx, ty)
+    const bossLevel = this._gameState.boss?.level ?? 1
+    const dayNumber = this._gameState.meta?.dayNumber ?? 1
+    const minion = createMinion(baseDef, { x: tx, y: ty }, room?.instanceId ?? null,
+      { class: 'roster', bossLevel, dayNumber })
+    minion.isUndead             = true
+    minion._raisedFromAdvDeath  = true
+    minion._revivedAdv          = true   // Undying-Court identity: abilities + sacrifice-exclusion + 0 sell
+    minion._noSellValue         = true
+    minion._raisedClassId       = corpse.classId
+    minion._raisedAdvName       = corpse.name
+    minion._raisedSpriteVariant = corpse.spriteVariant ?? null
+    minion.displayName          = corpse.name
+    minion.name                 = corpse.name   // class-ability log messages read .name
+    minion._raisedLevel         = corpse.level  // the fallen hero's level (hover panel)
+    minion.cooldowns            = {}            // ability cooldown / per-day budget registries
+    minion.usesLeftToday        = {}
+    // Class kit (attack range / damage type / tags) — same path the Lich uses.
+    try { gameScene?.bossArchetypeSystem?._applyClassRetentionBuffs?.(minion, corpse.classId) } catch {}
+    // Carry the fallen hero's combat profile (already scaled to the dungeon) —
+    // final say on the numbers, layered on top of the class kit.
+    minion._baseMaxHp = corpse.maxHp
+    minion._baseAtk   = corpse.attack
+    if (minion.resources) { minion.resources.maxHp = corpse.maxHp; minion.resources.hp = corpse.maxHp }
+    if (minion.stats)     { minion.stats.attack = corpse.attack; minion.stats.defense = corpse.defense }
+    this._gameState.minions.push(minion)
+
+    // Body consumed — drop it from the revivable list (renderer culls its sprite).
+    corpses.splice(ci, 1)
+
+    // Revive VFX on the dungeon (Game) scene + feedback. (Polished in a later pass.)
+    const x = Number.isFinite(corpse.worldX) ? corpse.worldX : (tx * TS + TS / 2)
+    const y = Number.isFinite(corpse.worldY) ? corpse.worldY : (ty * TS + TS / 2)
+    if (gameScene) {
+      try {
+        AbilityVfx.resurrectBeam?.(gameScene, x, y, { color: 0x9b4dff, durationMs: 820 })
+        AbilityVfx.pulseRing?.(gameScene, x, y, { color: 0xb066ff, fromR: 8, toR: 44, durationMs: 540, alpha: 0.85 })
+        AbilityVfx.floatingText?.(gameScene, x, y - 30, 'RISEN', { color: '#c9a3ff', fontSize: '14px' })
+      } catch {}
+    }
+    EventBus.emit('MINION_PLACED', { minion })
+    EventBus.emit('SHOW_TOAST', { message: `${corpse.name} rises to serve the dungeon.`, type: 'info' })
+    this._refreshStats()
   }
 
   _doSellTrap(trap) {

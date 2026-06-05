@@ -2132,23 +2132,6 @@ export class BossSystem {
       EventBus.emit('PACT_BOSS_SHOCKWAVE_FIRED', { x: boss.worldX, y: boss.worldY, damage: dmg, targets: defenders.map(d => d.adv.instanceId) })
     }
 
-    // ── Spectral Reach ──
-    if (flags.spectralReach && (boss._spectralReadyAt ?? 0) <= now) {
-      let nearest = null, bestD = Infinity
-      for (const fs of defenders) {
-        const d = Math.hypot(fs.adv.worldX - boss.worldX, fs.adv.worldY - boss.worldY)
-        if (d < bestD) { bestD = d; nearest = fs }
-      }
-      if (nearest) {
-        boss.worldX = nearest.adv.worldX - Balance.TILE_SIZE
-        boss.worldY = nearest.adv.worldY
-        const dmg = Math.max(1, Math.floor(this._bossAtkScaled(boss) * Balance.MECHANIC_SPECTRAL_REACH_DMG_MULT))
-        nearest.adv.resources.hp = Math.max(0, nearest.adv.resources.hp - dmg)
-        boss._spectralReadyAt = now + Balance.MECHANIC_SPECTRAL_REACH_COOLDOWN_MS
-        EventBus.emit('PACT_BOSS_SPECTRAL_FIRED', { x: boss.worldX, y: boss.worldY, targetId: nearest.adv.instanceId, damage: dmg })
-      }
-    }
-
     // ── Dark Vortex ──
     if (flags.darkVortex && (boss._vortexReadyAt ?? 0) <= now) {
       const pull = Balance.MECHANIC_DARK_VORTEX_PULL_TILES * Balance.TILE_SIZE
@@ -4955,8 +4938,7 @@ export class BossSystem {
           (aFlags.hellfireBreath && boss._hellfireWindupUntil && now < boss._hellfireWindupUntil) ||
           (aFlags.shockwaveSlam && (boss._shockwaveStunUntil ?? 0) > now) ||
           (aFlags.soulDrain && boss._soulDrainChannelUntil && now < boss._soulDrainChannelUntil) ||
-          (aFlags.petrifyingStare && (boss._petrifyBackfireUntil ?? 0) > now) ||
-          (aFlags.spectralReach && Math.random() >= Balance.MECHANIC_SPECTRAL_REACH_SPEED_PENALTY)
+          (aFlags.petrifyingStare && (boss._petrifyBackfireUntil ?? 0) > now)
         if (aFlags.avengersRite && (boss._avengerDazeUntil ?? 0) > now) {
           this._roundLog.push({ side: 'boss', damage: 0, targetId: target.adv.instanceId, kind: 'avenger_dazed' })
         } else if (suppressed) {

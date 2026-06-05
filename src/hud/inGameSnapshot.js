@@ -150,6 +150,20 @@ export function snapshotMinion(defId, size = 64) {
   return c
 }
 
+// Snapshot a REVIVED-ADVENTURER minion (The Undying Court) using its carried
+// LPC adventurer sprite (`adv-<class>-<variant>`) instead of the skeleton base
+// it's built on — so the roster / menus show the risen hero, not a skeleton.
+// Frame 0 (idle, down-facing). Returns null if the sheet isn't loaded.
+export function snapshotRaisedAdv(spriteVariant, size = 64) {
+  if (!spriteVariant) return null
+  const key = `adv-${String(spriteVariant).replace('/', '-')}`
+  const f = _getFrameSource(key, 0)
+  if (!f) return null
+  const c = _drawFit(f, size, { padPct: 0.02, autoCrop: true })
+  c.className = 'qf-snap qf-snap-minion'
+  return c
+}
+
 // Look up a minion def in the loaded minionTypes.json — used to resolve
 // `bossSkinId` for the T3 final-forms that have no minion sheet.
 function _minionDef(defId) {
