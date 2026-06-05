@@ -17,6 +17,10 @@ touch (new or existing):
   follow-through), not "janky motion that just works." Choose basic vs. advanced
   deliberately; give hero moments (Victory, boss evolution, the duel) cinematic
   treatment.
+- **Build VFX from the toolkit, never hand-drawn `Graphics`.** Compose effects from
+  the `src/ui/AbilityVfx.js` particle/post-FX primitives (`impactFx`, `beamFx`,
+  `shockwaveFx`, `projectileFx`, `burnFx`, `glowPulseFx`, `flipbookFx`, `juice`) +
+  `VfxPalette` presets; iterate motion with `window.__qfDev.filmstrip`. See `VISUAL_STANDARDS.md §5`.
 - **Verify visuals before committing.** For anything that renders: build it with
   the tokens/components, run it in the preview, **screenshot + self-audit**
   against the checklist, fix what's messy, *then* commit and show the proof.
