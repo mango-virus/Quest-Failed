@@ -25,7 +25,7 @@ const WALKABLE = new Set([TILE.FLOOR, TILE.BOSS_FLOOR])
 // A mixed-tier roster, deliberately including UNDEAD so Inquisition/Excommunicate
 // (which prefer undead targets) and the trap-flip have real things to chew on.
 const SANDBOX_MINIONS = ['goblin1', 'skeleton1', 'ghost1', 'orc1', 'demon1', 'lich1', 'zombie1', 'gnoll1']
-const SANDBOX_TRAPS   = ['arrow_trap', 'spike_pit', 'saw_blade']
+const SANDBOX_TRAPS   = ['shooting_arrows', 'spike_pit', 'saw_blade']   // real trapTypes ids (was 'arrow_trap' — stale, fell back to a random trap)
 
 export function installDevSandbox(scene) {
   const log = (...a) => console.log('[qfDev]', ...a)
