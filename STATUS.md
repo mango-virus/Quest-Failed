@@ -13,6 +13,11 @@
 > ⛔ **Steam-bound:** this is a commercial game now — visuals/VFX/animation are first-class.
 > Read **`VISUAL_STANDARDS.md`** before any UI/VFX/screen/animation work and verify visuals in
 > the preview before committing (gate at the top of `CLAUDE.md`).
+>
+> 🛠 **Dev tooling — use it:** `npm run sim:balance`/`sim:pacts`/`sim:soak` (headless sim),
+> `window.__qfCheck()` (runtime invariants), `window.__qfDev.gallery()` (VFX review); a
+> pre-commit hook runs `verify-docs` + `lint-content`. When to use what → the "Dev tooling"
+> section in `CLAUDE.md`; full reference → `tools/sim/README.md`.
 
 ---
 
