@@ -109,6 +109,108 @@ export const AbilityVfx = {
     return created
   },
 
+  // ── VFX toolkit (2026-06-05) ────────────────────────────────────────────────
+  // Next-gen primitives built on Phaser 3.60 GPU particles + additive blend +
+  // Glow post-FX, vs the hand-drawn Graphics primitives further down. Compose
+  // these for new effects. All: Canvas-safe (postFX in try/catch), quality-aware
+  // (_particlesMult), self-cleaning, anchored at world (x,y), honour opts.slow
+  // (stretches lifetimes for slow-mo filmstrip capture). See particleBurstFx above.
+
+  // Punchy hit — white core flash (squash), dense radial spray, snap ring + glow.
+  impactFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffffff, tint: 0xffd060, count: 22, durationMs: 360, depth: 8, speed: 200, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult()
+    const made = []
+    if (mult > 0) {
+      const em = scene.add.particles(x, y, _softDotTexture(scene), {
+        lifespan: { min: life * 0.4, max: life }, speed: { min: o.speed * 0.3, max: o.speed },
+        angle: { min: 0, max: 360 }, scale: { start: 0.5, end: 0 }, alpha: { start: 1, end: 0 },
+        tint: o.tint, blendMode: 'ADD', emitting: false,
+      })
+      em.setDepth(o.depth); em.explode(Math.max(4, Math.round(o.count * mult))); made.push(em)
+      scene.time.delayedCall(life + 120, () => { try { em.destroy() } catch (e) {} })
+    }
+    const core = scene.add.circle(x, y, 5, o.color, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)
+    try { core.postFX.addGlow(o.tint, 7, 0, false, 0.1, 12) } catch (e) {}
+    made.push(core)
+    scene.tweens.add({ targets: core, scale: 4, alpha: 0, duration: life * 0.5, ease: 'Expo.easeOut', onComplete: () => core.destroy() })
+    made.push(this.shockwaveFx(scene, x, y, { color: o.tint, toR: 40, durationMs: o.durationMs, slow, depth: o.depth }))
+    return made
+  },
+
+  // Expanding glow ring(s) — clean energy shockwave, no particles.
+  shockwaveFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffe066, fromR: 6, toR: 56, durationMs: 480, depth: 6, rings: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    for (let i = 0; i < o.rings; i++) {
+      const ring = scene.add.circle(x, y, o.fromR, 0x000000, 0).setStrokeStyle(3, o.color, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth)
+      try { ring.postFX.addGlow(o.color, 5, 0, false, 0.1, 10) } catch (e) {}
+      made.push(ring)
+      scene.tweens.add({ targets: ring, radius: o.toR, alpha: 0, duration: life, delay: i * life * 0.18, ease: 'Quint.easeOut', onComplete: () => ring.destroy() })
+    }
+    return made
+  },
+
+  // Glowing beam/bolt from A→B — additive core line + glow + travelling sparks.
+  beamFx(scene, x1, y1, x2, y2, opts = {}) {
+    if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
+    const o = { color: 0xff5577, width: 4, durationMs: 420, depth: 8, sparks: 10, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const line = scene.add.line(0, 0, x1, y1, x2, y2, o.color, 1).setOrigin(0, 0).setLineWidth(o.width).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth)
+    try { line.postFX.addGlow(o.color, 6, 0, false, 0.1, 12) } catch (e) {}
+    made.push(line)
+    scene.tweens.add({ targets: line, alpha: 0, duration: life, ease: 'Quad.easeIn', onComplete: () => line.destroy() })
+    if (mult > 0) {
+      const em = scene.add.particles(x2, y2, _softDotTexture(scene), {
+        lifespan: { min: life * 0.4, max: life }, speed: { min: 20, max: 90 }, angle: { min: 0, max: 360 },
+        scale: { start: 0.45, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: o.color, blendMode: 'ADD', emitting: false,
+      })
+      em.setDepth(o.depth + 1); em.explode(Math.max(3, Math.round(o.sparks * mult))); made.push(em)
+      scene.time.delayedCall(life + 120, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // Soft pulsing aura + slow rising motes — for charges / heals / auras.
+  glowPulseFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x66ddff, r: 22, durationMs: 700, depth: 6, motes: 10, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const aura = scene.add.circle(x, y, o.r, o.color, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth)
+    try { aura.postFX.addGlow(o.color, 8, 0, false, 0.1, 18) } catch (e) {}
+    made.push(aura)
+    scene.tweens.add({ targets: aura, scale: 1.4, alpha: 0, duration: life, ease: 'Sine.easeOut', onComplete: () => aura.destroy() })
+    if (mult > 0) {
+      const em = scene.add.particles(x, y, _softDotTexture(scene), {
+        lifespan: { min: life * 0.5, max: life }, speedY: { min: -60, max: -20 }, speedX: { min: -25, max: 25 },
+        scale: { start: 0.4, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: o.color, blendMode: 'ADD',
+        emitZone: { type: 'random', source: new Phaser.Geom.Circle(0, 0, o.r) }, emitting: false,
+      })
+      em.setDepth(o.depth + 1); em.explode(Math.max(3, Math.round(o.motes * mult))); made.push(em)
+      scene.time.delayedCall(life + 150, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // A few twinkling motes that pop + fade — pickups / small accents.
+  sparkleFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffffff, count: 8, r: 16, durationMs: 520, depth: 9, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult()
+    if (mult <= 0) return null
+    const em = scene.add.particles(x, y, _softDotTexture(scene), {
+      lifespan: { min: life * 0.4, max: life }, speed: { min: 0, max: 30 },
+      scale: { start: 0, end: 0.5, ease: 'Sine.easeOut' }, alpha: { start: 1, end: 0 },
+      tint: o.color, blendMode: 'ADD',
+      emitZone: { type: 'random', source: new Phaser.Geom.Circle(0, 0, o.r) }, emitting: false,
+    })
+    em.setDepth(o.depth); em.explode(Math.max(2, Math.round(o.count * mult)))
+    scene.time.delayedCall(life + 120, () => { try { em.destroy() } catch (e) {} })
+    return em
+  },
+
   pulseRing(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const o = { ...DEFAULTS.ring, ...opts }

@@ -313,20 +313,34 @@ export function installDevSandbox(scene) {
     },
 
     // Fire one AbilityVfx primitive at the boss (centre of view), slowed for a
-    // slow-mo filmstrip capture. POC: 'particleBurst' (hand-drawn) vs
-    // 'particleBurstFx' (GPU particles + Glow post-FX) for a before/after.
-    fireVfx(name = 'particleBurst', opts = {}) {
+    // slow-mo filmstrip capture. Handles the toolkit primitives + the hand-drawn
+    // particleBurst (before/after). beamFx fires from up-left into the boss.
+    fireVfx(name = 'particleBurstFx', opts = {}) {
       const g = gs(); const b = g?.boss ?? {}
       const TS = 32
       const x = (b.tileX ?? 10) * TS + TS / 2
       const y = (b.tileY ?? 10) * TS + TS / 2
       const slow = opts.slow ?? 6
       let r
-      if (name === 'particleBurst')        r = AbilityVfx.particleBurst(scene, x, y, { count: 14, color: 0xffe066, speed: 60, durationMs: 450 * slow })
-      else if (name === 'particleBurstFx') r = AbilityVfx.particleBurstFx(scene, x, y, { slow, color: 0xffe066 })
-      else                                 r = AbilityVfx[name]?.(scene, x, y, { slow, ...opts })
-      log(`fired VFX '${name}' at boss (${Math.round(x)},${Math.round(y)}) slow=${slow}`)
+      if (name === 'particleBurst')   r = AbilityVfx.particleBurst(scene, x, y, { count: 14, color: 0xffe066, speed: 60, durationMs: 450 * slow })
+      else if (name === 'beamFx')     r = AbilityVfx.beamFx(scene, x - 150, y - 120, x, y, { slow, ...opts })
+      else if (AbilityVfx[name])      r = AbilityVfx[name](scene, x, y, { slow, ...opts })
+      else { log(`no such VFX '${name}' — try particleBurstFx/impactFx/shockwaveFx/beamFx/glowPulseFx/sparkleFx`); return { ok: false } }
+      log(`fired VFX '${name}' at (${Math.round(x)},${Math.round(y)}) slow=${slow}`)
       return { ok: !!r, name, x, y }
+    },
+
+    // Slow-mo filmstrip: dismiss blocking popups, fire one effect heavily slowed,
+    // and report the window — the operator screenshots ~6 frames across it to
+    // review motion/timing and iterate. (Capture clarity > the busy dungeon bg:
+    // additive+glow effects read fine over it, as the POC showed.)
+    filmstrip(name = 'particleBurstFx', opts = {}) {
+      try { for (const bb of document.querySelectorAll('button')) { const t = (bb.textContent || '').replace(/\s+/g, ' ').trim(); if (/^CONTINUE/i.test(t) || /PRESS ANY KEY/i.test(t)) bb.click() } } catch (e) {}
+      const slow = opts.slow ?? 12
+      const r = api.fireVfx(name, { slow, ...opts })
+      const approxMs = 600 * slow
+      log(`filmstrip '${name}': slow=${slow} (~${approxMs}ms) — screenshot ~every ${Math.round(approxMs / 6)}ms`)
+      return { ...r, slow, approxDurationMs: approxMs }
     },
 
     // VFX review gallery — staged captures for a visual-regression contact sheet.
