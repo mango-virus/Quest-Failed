@@ -7,49 +7,13 @@
         "height": 16,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
-                null,
                 "corner",
                 null,
                 "pillar1_l",
                 null,
                 "pillar2_l",
+                null,
+                "wall_c",
                 null,
                 "wall_c",
                 null,
@@ -82,8 +46,6 @@
                 null
             ],
             [
-                null,
-                null,
                 {
                     "id": "pillar4_r",
                     "rot": 270
@@ -97,7 +59,13 @@
                     "flipH": true
                 },
                 null,
-                "floor8",
+                "floor4",
+                null,
+                {
+                    "id": "floor4",
+                    "rot": 0,
+                    "flipH": true
+                },
                 null,
                 "floor3",
                 null,
@@ -132,8 +100,6 @@
                 null
             ],
             [
-                null,
-                null,
                 {
                     "id": "pillar3_r",
                     "rot": 270
@@ -151,6 +117,8 @@
                     "rot": 0,
                     "flipH": true
                 },
+                null,
+                "floor18",
                 null,
                 {
                     "id": "floor7",
@@ -188,15 +156,72 @@
                 null
             ],
             [
-                null,
-                null,
                 {
                     "id": "wall_c",
                     "rot": 270
                 },
                 null,
                 {
-                    "id": "floor8",
+                    "id": "floor4",
+                    "rot": 270,
+                    "flipH": true
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 270
+                },
+                null,
+                "floor1",
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor7",
+                    "rot": 90,
+                    "flipH": true
+                },
+                null,
+                {
+                    "id": "floor4",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor4",
                     "rot": 270
                 },
                 null,
@@ -206,17 +231,25 @@
                     "flipV": true
                 },
                 null,
-                "floor1",
-                null,
                 {
-                    "id": "floor7",
-                    "rot": 90,
-                    "flipH": true
+                    "id": "floor1",
+                    "rot": 270
                 },
                 null,
                 {
-                    "id": "floor8",
+                    "id": "floor1",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor18",
                     "rot": 90
+                },
+                null,
+                {
+                    "id": "floor4",
+                    "rot": 90,
+                    "flipH": true
                 },
                 null,
                 {
@@ -244,8 +277,6 @@
                 null
             ],
             [
-                null,
-                null,
                 {
                     "id": "pillar2_l",
                     "rot": 270
@@ -265,6 +296,11 @@
                 },
                 null,
                 {
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                {
                     "id": "floor7",
                     "rot": 0,
                     "flipV": true
@@ -307,8 +343,6 @@
                 null
             ],
             [
-                null,
-                null,
                 {
                     "id": "pillar1_l",
                     "rot": 270
@@ -328,9 +362,14 @@
                 },
                 null,
                 {
-                    "id": "floor8",
-                    "rot": 0,
-                    "flipV": true
+                    "id": "floor4",
+                    "rot": 180,
+                    "flipH": true
+                },
+                null,
+                {
+                    "id": "floor4",
+                    "rot": 180
                 },
                 null,
                 {
@@ -371,8 +410,6 @@
                 null
             ],
             [
-                null,
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -386,6 +423,12 @@
                 {
                     "id": "pillar3_r",
                     "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 0,
+                    "flipV": true
                 },
                 null,
                 {
@@ -491,20 +534,6 @@
                     null
                 ]
             ]
-        },
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": 0.3,
-                "hue": -75,
-                "bright": 0.5,
-                "contrast": -0.7
-            },
-            "doors": {
-                "sat": -1
-            }
         }
     },
     {
