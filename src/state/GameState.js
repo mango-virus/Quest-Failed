@@ -12,8 +12,8 @@ import { DEFAULT_COMPANION } from '../systems/companions.js'
 // stamp a phantom tile. Empty here = consistent with the JSON.
 const BOSS_CHAMBER_DEF = {
   id: 'boss_chamber',
-  width: 14,
-  height: 14,
+  width: 15,
+  height: 15,
   connectionPoints: [],
   placementRules: { fixed: false, maxPerDungeon: 1 }, // fixed:false so _writeTiles runs
   tags: ['boss', 'special', 'fixed'],
@@ -78,6 +78,12 @@ export function createGameState(
     : null
   const def = { ...BOSS_CHAMBER_DEF }
   if (cacheBoss) {
+    // Pull width/height from rooms.json so the bootstrap stays in lockstep with
+    // the live definition (incl. any Room-Editor resize of boss_chamber). The
+    // hardcoded values above are only a no-cache fallback. width/height MUST
+    // track the tileLayout we copy below, or the layout overruns the room.
+    if (Number.isFinite(cacheBoss.width))  def.width  = cacheBoss.width
+    if (Number.isFinite(cacheBoss.height)) def.height = cacheBoss.height
     if (typeof cacheBoss.theme === 'string') def.theme = cacheBoss.theme
     if (Array.isArray(cacheBoss.tileLayout) && cacheBoss.tileLayout.length) {
       def.tileLayout = cacheBoss.tileLayout

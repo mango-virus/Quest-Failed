@@ -3,10 +3,28 @@
         "id": "boss_chamber",
         "name": "Boss Chamber",
         "category": "special",
-        "width": 14,
-        "height": 14,
+        "width": 15,
+        "height": 15,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "pillar1_l",
@@ -39,9 +57,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar4_r",
                     "rot": 270
@@ -85,9 +105,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar3_r",
                     "rot": 270
@@ -137,9 +159,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -189,9 +213,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar2_l",
                     "rot": 270
@@ -248,9 +274,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar1_l",
                     "rot": 270
@@ -308,9 +336,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -348,6 +378,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -447,10 +478,26 @@
         "id": "entry_hall",
         "name": "Entry Hall",
         "category": "starter",
-        "width": 12,
-        "height": 8,
+        "width": 13,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -480,9 +527,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -529,9 +578,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -575,9 +626,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 0,
@@ -624,12 +677,13 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ]
         ],
         "connectionPoints": [
             {
-                "x": 5,
+                "x": 6,
                 "y": 0,
                 "direction": "N",
                 "external": true,
@@ -720,10 +774,20 @@
         "id": "starter_corridor",
         "name": "Corridor",
         "category": "starter",
-        "width": 6,
-        "height": 10,
+        "width": 7,
+        "height": 11,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_c",
@@ -740,9 +804,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -762,9 +828,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -789,9 +857,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -816,9 +886,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -836,6 +908,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -935,10 +1008,24 @@
         "id": "starter_barracks",
         "name": "Barracks",
         "category": "starter",
-        "width": 10,
-        "height": 8,
+        "width": 11,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -963,9 +1050,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -993,9 +1082,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -1035,9 +1126,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -1065,6 +1158,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -1171,10 +1265,22 @@
         "id": "starter_guard_post",
         "name": "Guard Post",
         "category": "starter",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -1195,9 +1301,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -1227,9 +1335,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -1256,9 +1366,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -1281,6 +1393,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -1379,10 +1492,22 @@
         "id": "crypt",
         "name": "Crypt",
         "category": "combat",
-        "width": 8,
-        "height": 10,
+        "width": 9,
+        "height": 11,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -1403,9 +1528,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -1432,9 +1559,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -1464,9 +1593,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -1496,9 +1627,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -1521,6 +1654,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -1613,10 +1747,24 @@
         "id": "trap_factory",
         "name": "Trap Factory",
         "category": "utility",
-        "width": 10,
-        "height": 10,
+        "width": 11,
+        "height": 11,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -1641,9 +1789,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -1671,9 +1821,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_hole",
                     "rot": 270
@@ -1704,9 +1856,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -1743,9 +1897,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -1773,6 +1929,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -1873,10 +2030,24 @@
         "id": "treasury",
         "name": "Treasury",
         "category": "utility",
-        "width": 10,
-        "height": 8,
+        "width": 11,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -1901,9 +2072,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -1934,9 +2107,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -1973,9 +2148,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -2003,6 +2180,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -2106,10 +2284,22 @@
         "id": "armory",
         "name": "Armory",
         "category": "utility",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "pillar3_r",
@@ -2130,9 +2320,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar2_l",
                     "rot": 270
@@ -2156,9 +2348,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar3_r",
                     "rot": 270
@@ -2182,9 +2376,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -2207,6 +2403,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -2300,10 +2497,24 @@
         "id": "library_of_whispers",
         "name": "Library of Whispers",
         "category": "utility",
-        "width": 10,
-        "height": 8,
+        "width": 11,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -2328,9 +2539,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -2361,9 +2574,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -2397,9 +2612,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -2427,6 +2644,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -2527,10 +2745,22 @@
         "id": "watchtower",
         "name": "Watchtower",
         "category": "utility",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "pillar1_l",
@@ -2551,9 +2781,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar4_r",
                     "rot": 270
@@ -2583,9 +2815,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar1_l",
                     "rot": 270
@@ -2615,9 +2849,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -2640,6 +2876,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -2731,10 +2968,22 @@
         "id": "wandering_gate",
         "name": "Wandering Gate",
         "category": "special",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_c",
@@ -2755,9 +3004,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -2787,9 +3038,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -2816,9 +3069,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -2841,6 +3096,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -2930,10 +3186,22 @@
         "id": "veil_of_forgetting",
         "name": "Veil of Forgetting",
         "category": "special",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_r",
@@ -2954,9 +3222,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -2980,9 +3250,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -3006,9 +3278,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3031,6 +3305,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -3119,10 +3394,24 @@
         "id": "catacombs",
         "name": "Catacombs",
         "category": "combat",
-        "width": 10,
-        "height": 8,
+        "width": 11,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_hole",
@@ -3147,9 +3436,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -3180,9 +3471,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -3213,9 +3506,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3243,6 +3538,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -3338,10 +3634,24 @@
         "id": "mimic_vault",
         "name": "Mimic Vault",
         "category": "trap",
-        "width": 10,
-        "height": 8,
+        "width": 11,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -3366,9 +3676,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -3399,9 +3711,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -3438,9 +3752,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3468,6 +3784,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -3561,10 +3878,26 @@
         "id": "hall_of_trials",
         "name": "Hall of Trials",
         "category": "combat",
-        "width": 12,
-        "height": 10,
+        "width": 13,
+        "height": 11,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "pillar1_l",
@@ -3593,9 +3926,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -3639,9 +3974,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -3682,9 +4019,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -3719,9 +4058,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3754,6 +4095,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -3851,10 +4193,22 @@
         "id": "wishing_well",
         "name": "Wishing Well",
         "category": "special",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -3875,9 +4229,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -3904,9 +4260,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_hole",
                     "rot": 270
@@ -3936,9 +4294,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3961,6 +4321,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -4049,10 +4410,22 @@
         "id": "false_exit",
         "name": "The False Exit",
         "category": "special",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "door_open_l",
@@ -4073,9 +4446,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "door_open_r",
                     "rot": 270
@@ -4102,9 +4477,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "door_open_l",
                     "rot": 270
@@ -4134,9 +4511,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4159,6 +4538,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -4247,10 +4627,24 @@
         "id": "hall_of_madness",
         "name": "Hall of Madness",
         "category": "special",
-        "width": 10,
-        "height": 10,
+        "width": 11,
+        "height": 11,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_r",
@@ -4275,9 +4669,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar4_r",
                     "rot": 270
@@ -4314,9 +4710,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "pillar3_r",
                     "rot": 270
@@ -4353,9 +4751,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -4386,9 +4786,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4416,6 +4818,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -4506,10 +4909,26 @@
         "id": "throne_room",
         "name": "Throne Room",
         "category": "combat",
-        "width": 12,
-        "height": 10,
+        "width": 13,
+        "height": 11,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "pillar1_l",
@@ -4538,9 +4957,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -4575,9 +4996,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -4615,9 +5038,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -4661,9 +5086,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4696,6 +5123,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -4792,10 +5220,22 @@
         "id": "sanctum",
         "name": "Sanctum",
         "category": "utility",
-        "width": 8,
-        "height": 8,
+        "width": 9,
+        "height": 9,
         "tileLayout": [
             [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                null,
                 "corner",
                 null,
                 "wall_l",
@@ -4816,9 +5256,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_hole",
                     "rot": 270
@@ -4842,9 +5284,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -4868,9 +5312,11 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
+                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4893,6 +5339,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
