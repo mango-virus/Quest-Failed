@@ -574,16 +574,18 @@ export class KingdomModifierSystem {
   _holyLightColumn(x, y, { big = false } = {}) {
     const sc = this._scene
     if (!sc) return
-    AbilityVfx.beamPillar?.(sc, x, y, { color: 0xfff3c4, width: big ? 44 : 22, height: 300, durationMs: big ? 720 : 460 })
+    // VFX toolkit (2026-06-05): a glowing descending light column built on GPU
+    // particles + additive + Glow post-FX, vs the old hand-drawn beamPillar/godRays.
+    const w = big ? 30 : 16
+    // descending holy beam column (from high above onto the target)
+    AbilityVfx.beamFx?.(sc, x, y - 340, x, y, { color: 0xfff3c4, width: w, durationMs: big ? 760 : 500, depth: 9, sparks: big ? 14 : 8 })
+    // radiant god-rays (complementary; no toolkit equivalent yet)
     AbilityVfx.godRays?.(sc, x, y, { color: 0xfff8d8, count: big ? 18 : 9, length: big ? 150 : 64, durationMs: big ? 1000 : 560 })
-    AbilityVfx.particleBurst?.(sc, x, y, { color: 0xfffbe6, count: big ? 18 : 7, speed: big ? 130 : 80, durationMs: 600 })
-    if (big) {
-      AbilityVfx.magicCircle?.(sc, x, y, { color: 0xffe08a, radius: 50, durationMs: 1000 })
-      AbilityVfx.burstRays?.(sc, x, y, { color: 0xfff8d8, count: 14, length: 90 })
-      AbilityVfx.shockwave?.(sc, x, y, { color: 0xfff3c4, toR: 110, thickness: 6, durationMs: 560 })
-    } else {
-      AbilityVfx.pulseRing?.(sc, x, y, { color: 0xffe6a0, fromR: 6, toR: 26, alpha: 0.7, durationMs: 420 })
-    }
+    // bright holy impact burst at the base + expanding shockring(s) + rising motes
+    AbilityVfx.impactFx?.(sc, x, y, { palette: 'holy', count: big ? 30 : 16, durationMs: big ? 460 : 320, depth: 10 })
+    AbilityVfx.shockwaveFx?.(sc, x, y, { palette: 'holy', toR: big ? 130 : 72, rings: big ? 2 : 1, durationMs: big ? 600 : 440, depth: 9 })
+    AbilityVfx.burnFx?.(sc, x, y, { palette: 'holy', durationMs: big ? 680 : 440, rise: 95, spread: w, depth: 9 })
+    if (big) AbilityVfx.glowPulseFx?.(sc, x, y, { palette: 'holy', r: 58, durationMs: 900, depth: 8 })
   }
 
   // Inquisition — EXCOMMUNICATE: a pillar of holy fire from the heavens vaporizes
