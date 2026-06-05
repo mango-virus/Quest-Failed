@@ -451,10 +451,20 @@ export class RoomTileEditor extends Phaser.Scene {
     }).setOrigin(0, 0.5))
 
     const room = this._activeRoom()
-    const roomLabel = room ? `${room.name}  (${room.width}×${room.height})` : '(no room)'
-    this._cTop.add(_text(this, 200, TOP_H / 2, roomLabel, {
+    // Room name + a CLICKABLE size chip — click it to resize this room's
+    // width/height (lossless reshape, grows/shrinks from the top-left). The
+    // change persists to rooms.json on the next Save-to-disk.
+    const roomLabel = room ? `${room.name}  (${room.width}×${room.height})  ✎ resize` : '(no room)'
+    const lblT = _text(this, 200, TOP_H / 2, roomLabel, {
       fontSize: '14px', color: COL_TEXT,
-    }).setOrigin(0, 0.5))
+    }).setOrigin(0, 0.5)
+    if (room) {
+      lblT.setInteractive({ useHandCursor: true })
+      lblT.on('pointerover', () => lblT.setColor('#ffd88a'))
+      lblT.on('pointerout',  () => lblT.setColor(COL_TEXT))
+      lblT.on('pointerdown', () => this._promptResize(room))
+    }
+    this._cTop.add(lblT)
 
     // Theme picker for current room
     const themeLblX = 360
@@ -1650,6 +1660,72 @@ export class RoomTileEditor extends Phaser.Scene {
     return this._rooms.find(r => r.id === this._activeRoomId) || null
   }
 
+  // Prompt for a new W×H and resize the active room. Min is 2·WALL_THICKNESS+1
+  // (walls + one interior tile); max is grid-fittable.
+  _promptResize(room) {
+    if (!room) return
+    const MIN = 2 * (Balance.WALL_THICKNESS ?? 2) + 1
+    const MAX = 30
+    const inp = window.prompt(
+      `Resize "${room.name}" — width × height in tiles.\n` +
+      `Grows / shrinks from the TOP-LEFT (existing layout is preserved).\n` +
+      `Min ${MIN}, max ${MAX}. Saved to rooms.json on the next Save-to-disk.`,
+      `${room.width}x${room.height}`)
+    if (inp == null) return
+    const m = String(inp).trim().match(/^(\d+)\s*[x×*, ]\s*(\d+)$/i)
+    if (!m) { this._toast('Bad format — use e.g. "13x9".', true); return }
+    const w = Math.max(MIN, Math.min(MAX, parseInt(m[1], 10)))
+    const h = Math.max(MIN, Math.min(MAX, parseInt(m[2], 10)))
+    if (this._resizeRoom(room, w, h)) {
+      this._buildTopBar()
+      this._populatePaintCanvas()
+      this._toast(`${room.name} → ${room.width}×${room.height} · Save to keep`)
+    } else {
+      this._toast('No change.')
+    }
+  }
+
+  // Lossless resize: reshape tileLayout to newW×newH anchored TOP-LEFT (grow =
+  // prepend null rows/cols on top/left; shrink = drop from top/left), keeping
+  // BOTH string and object cells (unlike _ensureRoomShape, which drops objects).
+  // Connection points re-anchor to their wall + shift with the prepend. Returns
+  // true if anything changed.
+  _resizeRoom(room, newW, newH) {
+    const oldW = room.width | 0, oldH = room.height | 0
+    newW |= 0; newH |= 0
+    if (newW === oldW && newH === oldH) return false
+    const dW = newW - oldW, dH = newH - oldH
+
+    let layout = Array.isArray(room.tileLayout) ? room.tileLayout.map(r => Array.isArray(r) ? r.slice() : []) : []
+    // Normalize existing rows to oldW so prepend/trim math is exact.
+    layout = layout.map(r => { const rr = r.slice(0, oldW); while (rr.length < oldW) rr.push(null); return rr })
+    while (layout.length < oldH) layout.push(new Array(oldW).fill(null))
+    layout.length = oldH
+
+    // Height (rows) on the TOP edge.
+    if (dH > 0) for (let i = 0; i < dH; i++) layout.unshift(new Array(oldW).fill(null))
+    else if (dH < 0) layout.splice(0, -dH)
+    // Width (cols) on the LEFT edge.
+    layout = layout.map(row => {
+      const r = row.slice()
+      if (dW > 0) for (let i = 0; i < dW; i++) r.unshift(null)
+      else if (dW < 0) r.splice(0, -dW)
+      return r
+    })
+    room.tileLayout = layout
+
+    for (const cp of (room.connectionPoints || [])) {
+      const d = cp.direction
+      if (d === 'N' || d === 'S') cp.x = Math.max(0, Math.min(newW - 1, (cp.x | 0) + dW))
+      if (d === 'W' || d === 'E') cp.y = Math.max(0, Math.min(newH - 1, (cp.y | 0) + dH))
+      if (d === 'S') cp.y = newH - 1
+      if (d === 'E') cp.x = newW - 1
+    }
+    room.width = newW
+    room.height = newH
+    return true
+  }
+
   _setZoom(idx) {
     const next = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, idx))
     if (next === this._zoomIdx) return
@@ -1776,7 +1852,7 @@ export class RoomTileEditor extends Phaser.Scene {
 
   async _save() {
     if (!FsHandle.isSupported()) {
-      const blob = new Blob([JSON.stringify(this._rooms, null, 2)], { type: 'application/json' })
+      const blob = new Blob([JSON.stringify(this._rooms, null, 4)], { type: 'application/json' })
       FsHandle.downloadFallback('rooms.json', blob)
       this._toast('FS API unavailable — rooms.json downloaded instead.', true)
       return
@@ -1795,7 +1871,9 @@ export class RoomTileEditor extends Phaser.Scene {
         if (!_hasColorAdjust(r)) delete cleaned.colorAdjust
         return cleaned
       })
-      await FsHandle.writeJson('src/data/rooms.json', out)
+      // 4-space to match the committed rooms.json format (writeJson would emit
+      // 2-space and reformat the whole file on every save).
+      await FsHandle.writeText('src/data/rooms.json', JSON.stringify(out, null, 4))
       // Also persist the decor manifest so new uploads survive a page reload.
       if (DecorManager.listSprites().length > 0) {
         await FsHandle.writeJson(DECOR_MANIFEST_PATH, DecorManager.toManifest())
