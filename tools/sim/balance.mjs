@@ -19,7 +19,7 @@ import { silenceConsole } from './headless.mjs'
 const args = process.argv.slice(2)
 const flag = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def }
 const has  = (name) => args.includes('--' + name)
-const RUNS = parseInt(flag('runs', '40'), 10)
+const RUNS = parseInt(flag('runs', '20'), 10)   // 'building' games are slower (rooms+garrison+longer survival); bump with --runs
 const DAYS = parseInt(flag('days', '80'), 10)
 const JSON_OUT = has('json')
 const BOSSES = (flag('boss', 'lich,demon,slime')).split(',').map(s => s.trim()).filter(Boolean)
@@ -78,9 +78,9 @@ if (JSON_OUT) {
   for (const r of rows) {
     console.log(`  ${pad(r.label, 20)} ${padL(r.bossDiedPct + '%', 9)} ${padL(`${r.daysMean}±${r.daysStd}`, 16)} ${padL(r.daysMedian, 4)} ${padL(r.daysMin, 4)} ${padL(r.daysMax, 4)} ${padL(r.killsMean, 6)} ${padL(`${r.finalLvMean} (${r.finalLvMax})`, 8)}`)
   }
-  console.log(`\n  Read: 'bare' < 'defended' (fixed loadout) < 'building' (gold reinvested nightly,`)
-  console.log(`  with minion tier UPGRADES). Bosses now DIFFERENTIATE via BossArchetypeSystem`)
-  console.log(`  (charm/phase/phylactery/etc.) even though base fight stats are flat (200/12/10).`)
-  console.log(`  Still a SIMPLE player model (no functional rooms / generic boss abilities /`)
-  console.log(`  companions / events), so absolute survival is a comparative baseline. Tune via flags.\n`)
+  console.log(`\n  Read: 'bare' < 'defended' (fixed loadout) < 'building' (a real playthrough:`)
+  console.log(`  nightly treasury income + crypt garrison + minion tier UPGRADES). Bosses`)
+  console.log(`  DIFFERENTIATE via BossArchetypeSystem (charm/phase/phylactery) despite flat`)
+  console.log(`  base stats (200/12/10). Not modeled: generic boss abilities, companions, events,`)
+  console.log(`  large mazes — so absolute survival is a comparative baseline. Tune via flags.\n`)
 }

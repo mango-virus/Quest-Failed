@@ -19,10 +19,10 @@ node tools/sim/balance.mjs --json # machine-readable
 `runGame({ boss, maxDays, loadout, pacts, build })`:
 - `loadout` — a fixed `{minions:[ids], traps:[ids]}` placed once.
 - `pacts` — pact ids sealed at start (via `dungeonMechanicSystem.activate`).
-- `build` — `true` or `{stipend, minionCapBase, minionCapPerLv, ...}`: each night
-  take a stipend (abstracts economy buildings the sim doesn't construct) and buy
-  the strongest affordable unlocked minion/trap up to a level-scaling cap. Turns
-  the run into a growing-dungeon playthrough.
+- `build` — `true` or `{stipend, rooms, roomCap, minionCapBase, minionCapPerLv,
+  upgrade, ...}`: each night, build **functional rooms** (treasury→income,
+  crypt→garrison) up to `roomCap`, take a stipend, buy minions/traps to a cap,
+  and invest surplus in minion tier **upgrades**. A growing-dungeon playthrough.
 
 Sample report:
 
@@ -63,9 +63,11 @@ day-level stat scaling. The fake scene only stands in for rendering/audio/input.
   (abstracted as a flat stipend). Those are the *quality* multipliers that carry
   real late-game, so survival plateaus (~10-12 days). It captures the growth
   *dynamic* and is tunable, not optimal play.
-- **No functional rooms** (only entry→boss): garrison spawns (barracks/crypt),
-  treasury income, trap factories, and the room-knowledge that long-game /
-  spatial pacts trade on are NOT modeled — so a tiny dungeon under-values those.
+- **Some functional rooms modeled, not all.** The build policy now builds
+  **treasury** (real scaling gold income) and **crypt** (free garrison Risen
+  Bones) — chained off the entry hall. NOT modeled: trap factories, watchtowers,
+  most behavior rooms, and the large-maze room-knowledge that long-game / spatial
+  pacts (e.g. `great_erasure`) trade on (the dungeon stays small).
 - **Generic boss abilities** (the 6 power-cost `bossAbilities.json` picks) and
   **companions** are not modeled. Per-archetype mechanics ARE (BossArchetypeSystem).
 - **Pacts** apply via `pacts:[...]`, but their effect under-reads when it depends

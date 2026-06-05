@@ -54,6 +54,44 @@ function placeOneTrap(scene, gs, grid, def) {
   gs.dungeon.traps.push(createTrap(def, { tileX: t.x, tileY: t.y })); return true
 }
 
+// ── Functional rooms — attach to the entry hall (the connect hub) ─────────────
+// The boss chamber resists lateral auto-connect, but non-boss rooms connect to
+// each other / the entry hall fine. So we chain functional rooms outward from
+// the entry's left and right edges. Their onNightStart behaviors (treasury
+// stipend, crypt garrison Risen Bones) then fire on the NIGHT we already emit.
+function attachRoom(grid, gs, def, anchor, side) {
+  const x = side === 'L' ? anchor.gridX - def.width : anchor.gridX + anchor.width
+  const y = anchor.gridY
+  if (x < 0 || y < 0) return null
+  const room = grid.placeRoom(def, x, y, { noSnap: true, dungeonLevel: gs.boss?.level ?? 1 })
+  if (!room) return null
+  const edgeX = side === 'L' ? anchor.gridX : anchor.gridX + anchor.width - 1
+  const y1 = Math.min(anchor.gridY + anchor.height, y + def.height)
+  for (let yy = Math.max(anchor.gridY, y); yy < y1; yy++) grid.recheckAutoConnect?.(edgeX, yy)
+  if ((grid.getDisconnectedRooms?.() ?? []).includes(room)) return room  // kept; behavior still fires
+  return room
+}
+
+export function placeFunctionalRoom(scene, gs, grid, roomId) {
+  const def = (scene.cache.json.get('rooms') ?? []).find(d => d.id === roomId)
+  if (!def || (def.unlockLevel ?? 1) > (gs.boss?.level ?? 1)) return false
+  const entry = gs.dungeon.rooms.find(r => r.definitionId === 'entry_hall')
+  if (!entry) return false
+  gs._funcChain ??= { left: entry, right: entry, n: 0 }
+  const first = gs._funcChain.n % 2 === 0 ? 'L' : 'R'
+  for (const side of [first, first === 'L' ? 'R' : 'L']) {
+    const anchor = side === 'L' ? gs._funcChain.left : gs._funcChain.right
+    const room = attachRoom(grid, gs, def, anchor, side)
+    if (room) {
+      if (side === 'L') gs._funcChain.left = room; else gs._funcChain.right = room
+      gs._funcChain.n++
+      openAllDoors(gs)
+      return true
+    }
+  }
+  return false
+}
+
 // ── Night-building policy — spend the night's gold on defenses ─────────────────
 // A "competent player" model: take a stipend (abstracts economy buildings the sim
 // doesn't construct), then (1) buy minions up to a level floor, (2) buy traps,
@@ -65,9 +103,25 @@ export function buildNightDefenses(scene, gs, grid, cfg = {}) {
   const {
     stipend = 25, minionFloorBase = 4, minionFloorPerLv = 1,
     minionCapBase = 4, minionCapPerLv = 2, trapCapBase = 2, trapCapPerLv = 0.5, upgrade = true,
+    rooms = true, roomCap = 4, roomWishlist = ['treasury', 'crypt', 'treasury', 'crypt', 'starter_guard_post'],
   } = cfg
   const bossLv = gs.boss?.level ?? 1, day = gs.meta?.dayNumber ?? 1
   gs.player.gold = (gs.player.gold ?? 0) + stipend
+  const roomDefsAll = scene.cache.json.get('rooms') ?? []
+
+  // (0) functional rooms — income (treasury) + free garrison (crypt). Built before
+  // minions because they're force-multipliers (income compounds; garrison is free).
+  let spent = 0, upgrades = 0, roomsBuilt = 0
+  if (rooms) {
+    const FUNC = new Set(roomWishlist)
+    const funcCount = () => (gs.dungeon.rooms ?? []).filter(r => FUNC.has(r.definitionId)).length
+    for (const id of roomWishlist) {
+      if (funcCount() >= roomCap) break
+      const def = roomDefsAll.find(d => d.id === id)
+      if (!def || (def.unlockLevel ?? 1) > bossLv || def.goldCost > gs.player.gold) continue
+      if (placeFunctionalRoom(scene, gs, grid, id)) { gs.player.gold -= def.goldCost; spent += def.goldCost; roomsBuilt++ }
+    }
+  }
   const buyableM = (scene.cache.json.get('minionTypes') ?? []).filter(d => (d.unlockLevel ?? 1) <= bossLv && d.goldCost > 0).sort((a, b) => a.goldCost - b.goldCost)
   const buyableT = (scene.cache.json.get('trapTypes')   ?? []).filter(d => (d.unlockLevel ?? 1) <= bossLv && d.goldCost > 0).sort((a, b) => a.goldCost - b.goldCost)
   const mDefs  = scene.cache.json.get('minionTypes') ?? []
@@ -76,7 +130,6 @@ export function buildNightDefenses(scene, gs, grid, cfg = {}) {
   const minionCap = Math.round(minionCapBase + minionCapPerLv * bossLv)
   const floor     = Math.min(minionCap, Math.round(minionFloorBase + minionFloorPerLv * bossLv))
   const trapCap   = Math.round(trapCapBase + trapCapPerLv * bossLv)
-  let spent = 0, upgrades = 0
   const aliveM = () => gs.minions.filter(m => m.aiState !== 'dead').length
 
   const buyMinionsUpTo = (target) => {
@@ -114,7 +167,8 @@ export function buildNightDefenses(scene, gs, grid, cfg = {}) {
   buyMinionsUpTo(minionCap)                          // (4) extra quantity with leftover
 
   const tiers = gs.minions.filter(m => m.aiState !== 'dead').map(m => evo?.tierOf?.(m) ?? 1)
-  return { spent, upgrades, minions: aliveM(), traps: gs.dungeon.traps?.length ?? 0, maxTier: tiers.length ? Math.max(...tiers) : 1 }
+  const funcRooms = (gs.dungeon.rooms ?? []).filter(r => !['boss_chamber', 'entry_hall'].includes(r.definitionId)).length
+  return { spent, upgrades, roomsBuilt, minions: aliveM(), garrison: gs.minions.filter(m => m.class === 'garrison' && m.aiState !== 'dead').length, traps: gs.dungeon.traps?.length ?? 0, rooms: funcRooms, maxTier: tiers.length ? Math.max(...tiers) : 1 }
 }
 
 // loadout: { minions: ['skeleton1', ...], traps: ['shooting_arrows', ...] }
