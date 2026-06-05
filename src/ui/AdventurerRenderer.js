@@ -606,17 +606,6 @@ export class AdventurerRenderer {
         s._lastSetX = drawX
         s._lastSetY = drawY
       }
-      // Dungeon event: The Tournament — a rival visibly GROWS with every
-      // rival it kills. Container scale = SPRITE_MULT ^ killCount, only
-      // re-set when the kill count changes (cheap, stable). Buff stacks
-      // are applied by EventSystem on each rival-kills-rival.
-      if (adv._tournamentRival) {
-        const kills = adv._tournamentKills ?? 0
-        if (s._tournamentKillsShown !== kills) {
-          s._tournamentKillsShown = kills
-          s.container.setScale(Math.pow(Balance.TOURNAMENT_RIVAL_KILL_SPRITE_MULT, kills))
-        }
-      }
       // LOD fast-path: at low zoom, skip HP bar / badge / anim work and
       // hide the cosmetic overlay objects (sub-pixel at this scale
       // anyway). Sprite container stays positioned so the entity is
@@ -1396,7 +1385,7 @@ export class AdventurerRenderer {
       }
       // Texture missing — fall through to the LPC path.
     }
-    // Event-only classes (tournament_rival_*, monster_invader, rival_boss_invader,
+    // Event-only classes (monster_invader, rival_boss_invader,
     // loot_goblin) don't ship their own LPC bake — they declare a
     // spriteSourceClassId on their adventurerClasses.json entry that points at
     // an existing baked class to borrow art from. Falls through to the normal

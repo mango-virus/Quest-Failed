@@ -147,7 +147,6 @@ export class AdventurerIntelPopup {
     if (events.legendarySpeedrunnerActive)  this._addPreviewLine(cx + padX, yy, 'EVENT: Legendary Speed Runner — solo buffed adv', CRYPT.accent2Css, addChild, D), yy += 14
     if (events.lootGoblinHeistActive)        this._addPreviewLine(cx + padX, yy, 'EVENT: Loot Goblin Heist — goblins steal then flee', CRYPT.accent2Css, addChild, D), yy += 14
     if (events.cartographersConventionActive)this._addPreviewLine(cx + padX, yy, 'EVENT: Cartographers — 3 scholars touring rooms', CRYPT.accent2Css, addChild, D), yy += 14
-    if (events.tournamentActive)             this._addPreviewLine(cx + padX, yy, 'EVENT: The Tournament — 3 named rivals', CRYPT.accent2Css, addChild, D), yy += 14
     if (events.rivalDungeonActive)           this._addPreviewLine(cx + padX, yy, 'EVENT: Rival Dungeon — monsters + boss invade', CRYPT.accent2Css, addChild, D), yy += 14
     yy += 4
 

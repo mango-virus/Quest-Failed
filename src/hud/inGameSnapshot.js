@@ -343,7 +343,7 @@ export function snapshotAdventurer(classId, size = 64, variant = 'v01') {
   const tryKey = (cId, vId) => `adv-${cId}-${vId}`
   let f = _getFrameSource(tryKey(cls, v), ADV_IDLE_SOUTH_FRAME)
   if (!f) f = _getFrameSource(tryKey(cls, 'v01'), ADV_IDLE_SOUTH_FRAME)
-  // Event-replacement classes (tournament_rival_*, monster_invader,
+  // Event-replacement classes (monster_invader,
   // rival_boss_invader) ship no LPC bake of their own — they declare a
   // `spriteSourceClassId` pointing at a baked class to borrow art from.
   // Mirror AdventurerRenderer's resolution so the class still resolves a

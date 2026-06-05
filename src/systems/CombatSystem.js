@@ -115,7 +115,7 @@ export class CombatSystem {
     // melee entity has `attackRange === 1`, so a bare `?? MELEE_RANGE`
     // never widens to 1.5 and the AI could engage a diagonally-adjacent
     // foe (dist ≈ 1.41) that this check then rejected forever, freezing
-    // the attacker (tournament rivals) or making it pace at a doorway.
+    // the attacker or making it pace at a doorway.
     const dx = target.tileX - attacker.tileX
     const dy = target.tileY - attacker.tileY
     const dist = Math.hypot(dx, dy)

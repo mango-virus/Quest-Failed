@@ -362,7 +362,7 @@ const TUTORIALS = [
   {
     id: 'firstDungeonEvent', title: 'Dungeon Event',
     lead: 'THE WORLD INTRUDES — NOT EVERY DAY IS NORMAL',
-    body: 'A Dungeon Event has been announced. Events hijack a day with special rules — a freak wave, a tournament of rivals, a goblin heist, a tax on your treasury. Read the announcement banner: it spells out exactly what is coming so you can build for it during the night before.',
+    body: 'A Dungeon Event has been announced. Events hijack a day with special rules — a freak wave, a rival dungeon invading, a goblin heist, a tax on your treasury. Read the announcement banner: it spells out exactly what is coming so you can build for it during the night before.',
     tips: [
       'Some events replace the normal wave entirely; others just bend the rules.',
       'You cannot stop an event — but you can prepare for it in the build phase.',

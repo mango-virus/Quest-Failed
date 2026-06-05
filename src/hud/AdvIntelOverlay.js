@@ -16,7 +16,7 @@
 //     spriteVariants + the class JSON's baseStats, so the intel panel
 //     shows EXACTLY who will arrive tomorrow with the EXACT LPC sprite
 //     they'll wear. Event waves (guild raid double-count, loot goblin
-//     heist, tournament rivals, rival dungeon invaders, cosplay
+//     heist, rival dungeon invaders, cosplay
 //     contest, twitch con, etc.) flow through the same preview, so
 //     this view covers them automatically.
 //   * Vendetta hunters get prepended as an extra stub (avenger of the
@@ -158,13 +158,13 @@ export class AdvIntelOverlay {
     //   * classIds[]      — one per adv in the upcoming wave
     //   * spriteVariants[]— parallel "<sourceClass>/vNN" strings, the
     //                       EXACT sprite each adv will arrive with
-    //   * eventType       — for guild raids / goblin heists / tournaments
+    //   * eventType       — for guild raids / goblin heists
     //   * vendettaHunter  — optional extra adv hunting the player
     //
     // Previously this fell back to gameState.adventurers.known, which
     // is the HISTORICAL "ever-seen" pool — so the intel panel showed
     // last day's escapees instead of who's actually coming, and event
-    // waves (guild raid 2x, goblins, tournament, etc.) never appeared.
+    // waves (guild raid 2x, goblins, etc.) never appeared.
     const preview = this._gameState.run?.nextWavePreview
     if (!preview || !Array.isArray(preview.classIds) || preview.classIds.length === 0) {
       // Fallback: panel shows the "INTEL UNKNOWN" empty state via the

@@ -178,7 +178,7 @@ export class NightPhase extends Phaser.Scene {
   //
   // Handles ALL spawn paths:
   //   * Event replacements (loot goblin heist / speedrunner / cartographers
-  //     / tournament rivals / rival dungeon) — fixed compositions.
+  //     / rival dungeon) — fixed compositions.
   //   * Twitch Con / Cosplay Contest — single-class wave overrides.
   //   * Vendetta hunter (35% chance) — pre-rolled and stored so the
   //     preview matches whether one will actually arrive.
@@ -250,11 +250,6 @@ export class NightPhase extends Phaser.Scene {
       || eventFlags.speedrunChannelActive)
       ? eventFlags.speedrunChannelClassId
       : null
-    // The Tournament is now ADDITIVE (the 3 rivals join the normal
-    // daily wave, they don't replace it). So we DON'T early-return here
-    // — we fall through to the normal wave roll below, then append the
-    // 3 rivals to the resulting classIds (see the tournament append
-    // block just before nextWavePreview is assembled).
     // ── Event waves that spawn non-LPC creatures ────────────────────
     // Each pre-rolls the EXACT sprites the spawn will use and stores them
     // on the preview so the IncomingWave / intel panels match the dungeon
@@ -350,7 +345,7 @@ export class NightPhase extends Phaser.Scene {
       return this._emitPreviewUpdated()
     }
     // The Saboteur is ADDITIVE — a masked rogue joins the normal wave.
-    // Like the Tournament, it does NOT early-return: it falls through to
+    // It does NOT early-return: it falls through to
     // the normal roll and appends a rogue slot (see the saboteur append
     // block just before nextWavePreview is assembled).
 
@@ -507,23 +502,6 @@ export class NightPhase extends Phaser.Scene {
       classIds.push(chosenClass)
       spriteVariants.push(chosenVar)
     }
-    // The Tournament ("Bloodsport") — the 3 rivals join the normal wave.
-    // They're APPENDED to classIds/spriteVariants (after the player-wave
-    // slots) so the IncomingWave panel shows them, while `count` and the
-    // leading `count` slots stay = the normal wave: DayPhase's spawn loop
-    // only consumes the first `count` ids (bounded by its own loop), and
-    // the rivals themselves are spawned independently by
-    // _spawnTournamentRivals. `tournamentRivalCount` lets the panel add
-    // them to its displayed total.
-    let tournamentRivalCount = 0
-    if (eventFlags.tournamentActive) {
-      const rivalIds = ['tournament_rival_warrior', 'tournament_rival_rogue', 'tournament_rival_mage']
-      for (const rid of rivalIds) {
-        classIds.push(rid)
-        spriteVariants.push(this._pickWaveVariant(rid))
-      }
-      tournamentRivalCount = rivalIds.length
-    }
     // The Saboteur joins the normal wave too (additive event) — append a
     // rogue slot so the IncomingWave panel shows the extra body.
     let saboteurCount = 0
@@ -557,20 +535,18 @@ export class NightPhase extends Phaser.Scene {
         personalityIds.push([])
       }
     }
-    // Tournament rivals + Saboteur append extra slots to classIds — give
-    // them empty personality slots to keep parallel array shapes aligned.
-    for (let i = 0; i < tournamentRivalCount + saboteurCount; i++) personalityIds.push([])
+    // The Saboteur appends an extra slot to classIds — give it an empty
+    // personality slot to keep parallel array shapes aligned.
+    for (let i = 0; i < saboteurCount; i++) personalityIds.push([])
 
     gs.run.nextWavePreview = {
       day,
       count,
-      tournamentRivalCount,
       saboteurCount,
       classIds,
       spriteVariants,
       personalityIds,
-      eventType: tournamentRivalCount > 0 ? 'tournament'
-        : (saboteurCount > 0 ? 'saboteur' : null),
+      eventType: saboteurCount > 0 ? 'saboteur' : null,
       vendettaHunter: vendettaHunterPresent
         ? { claimantClass: vendetta?.claimantClass ?? null,
             spriteVariant: this._pickWaveVariant(vendetta?.claimantClass),
@@ -607,8 +583,8 @@ export class NightPhase extends Phaser.Scene {
     const def = allClasses.find(c => c.id === classId)
     // Use the class's own bake when it has one; otherwise borrow art
     // from spriteSourceClassId (declared on event-only classes that
-    // don't ship their own LPC sheet, like tournament_rival_*,
-    // monster_invader, etc.).
+    // don't ship their own LPC sheet, like monster_invader,
+    // rival_boss_invader, etc.).
     const sourceClass = def?.spriteSourceClassId || classId
     // Pick from the ACTUAL baked variant list (manifest), not a hardcoded count.
     // The old `Math.random() * 50` cap could never roll v51..v100 — so any

@@ -256,68 +256,6 @@
     "flavorText": "Every chord, a small kindness."
   },
   {
-    "id": "tournament_rival_warrior",
-    "name": "Sir Aldric the Bold",
-    "color": "0xc83a3a",
-    "spriteSourceClassId": "knight",
-    "baseStats": {
-      "hp": 65,
-      "attack": 11,
-      "defense": 6,
-      "speed": 1.6
-    },
-    "startingResources": {},
-    "tags": [
-      "melee",
-      "tournament_rival"
-    ],
-    "unlockLevel": 99,
-    "description": "Tournament champion warrior. Fights for glory and the kill credit.",
-    "flavorText": "The boss kill is MINE."
-  },
-  {
-    "id": "tournament_rival_rogue",
-    "name": "Vexa the Swift",
-    "color": "0xddaa44",
-    "spriteSourceClassId": "rogue",
-    "baseStats": {
-      "hp": 45,
-      "attack": 13,
-      "defense": 3,
-      "speed": 2.6
-    },
-    "startingResources": {},
-    "tags": [
-      "melee",
-      "tournament_rival"
-    ],
-    "unlockLevel": 99,
-    "description": "Tournament champion rogue. Fast, lethal, ruthless against rivals.",
-    "flavorText": "Stand aside. I'll be the hero of this tale."
-  },
-  {
-    "id": "tournament_rival_mage",
-    "name": "Magus Drevhart",
-    "color": "0xaa66ff",
-    "spriteSourceClassId": "mage",
-    "baseStats": {
-      "hp": 38,
-      "attack": 15,
-      "defense": 2,
-      "speed": 1.8,
-      "attackRange": 4
-    },
-    "startingResources": {},
-    "tags": [
-      "ranged",
-      "spellcaster",
-      "tournament_rival"
-    ],
-    "unlockLevel": 99,
-    "description": "Tournament champion mage. Will incinerate anyone in his way — boss, minion, or rival.",
-    "flavorText": "Witness true power."
-  },
-  {
     "id": "monster_invader",
     "name": "Rival Monster",
     "color": "0x6644aa",

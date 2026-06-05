@@ -1066,22 +1066,6 @@ export const Balance = {
   TWITCH_CON_MALDING_SPEED_MULT:     0.6,   // !MALDING speed nerf
   TWITCH_CON_RATIO_DMG_FRAC:         0.25,  // !RATIO'd instant damage as a fraction of maxHp
   TWITCH_CON_BEEF_CHANCE:            0.18,  // per-replan chance a streamer picks a fight with another streamer
-
-  // --- Dungeon event: The Tournament ("Bloodsport") ---
-  // 3 rivals scatter to random rooms, then hunt each other to the death.
-  // The killer of a rival is buffed per kill; the last one standing seeks
-  // the boss. All numbers below are owned/applied by EventSystem + AISystem.
-  // Fallback (ms) after which a rival still stuck in its scatter phase
-  // flips to HUNT mode anyway, so a rival pinned in combat still progresses.
-  TOURNAMENT_SCATTER_FALLBACK_MS:    6000,
-  // Per rival-kill stat multipliers — STACK multiplicatively per kill.
-  // A rival with 2 kills lands at ~2.5× attack / ~2.5× maxHp.
-  TOURNAMENT_RIVAL_KILL_ATK_MULT:    1.6,   // attack ×1.6 per kill
-  TOURNAMENT_RIVAL_KILL_HP_MULT:     1.6,   // maxHp ×1.6 per kill (hp set to new maxHp)
-  TOURNAMENT_RIVAL_KILL_DEF_MULT:    1.4,   // defense ×1.4 per kill
-  // Sprite scale gain per kill — AdventurerRenderer multiplies the
-  // container scale by this once per recorded kill (visible "growing").
-  TOURNAMENT_RIVAL_KILL_SPRITE_MULT: 1.22,  // sprite ×1.22 per kill
 }
 
 // ── Derived helpers ──────────────────────────────────────────────────

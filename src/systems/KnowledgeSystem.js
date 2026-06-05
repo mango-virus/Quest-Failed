@@ -478,7 +478,7 @@ export class KnowledgeSystem {
     const today = this._gs.meta.dayNumber
 
     // Event-specific adventurers (speedrunner, cartographers, saboteur,
-    // tournament rivals, zombie horde, loot goblins, bounty-hunter pack,
+    // zombie horde, loot goblins, bounty-hunter pack,
     // rival dungeon) still feed the shared intel pool when they flee, but
     // they must NEVER personally return as a Hero — `noReturn` excludes
     // them from rollReturnLeader's eligible set.

@@ -66,9 +66,6 @@ const ADV_SPRITE = {
   // immediately as "this is a special wave, not normal adventurers".
   loot_goblin:          'hyena',    // monster-ish silhouette for goblins
   cartographer_scholar: 'cleric',   // robed scholar
-  tournament_rival_warrior: 'knight',
-  tournament_rival_rogue:   'knight',
-  tournament_rival_mage:    'cleric',
   monster_invader:    'imp',
   rival_boss_invader: 'lich',       // ominous robed silhouette
 }
@@ -457,7 +454,7 @@ export class RightPanels {
 
   // Resolve an adventurer class id to its player-facing display name
   // (adventurerClasses.json). Raw dev ids — cosplay_adventurer,
-  // tournament_rival_warrior, loot_goblin — must never reach the UI.
+  // loot_goblin — must never reach the UI.
   _classLabel(classId) {
     if (!classId) return 'Adventurer'
     const game = window.__game
@@ -487,7 +484,7 @@ export class RightPanels {
     // procedural pixelSprite when the LPC texture isn't loaded yet
     // (cold start, before Preload's adv-* bake finishes). Event /
     // special classes (cosplay_adventurer, cartographer_scholar,
-    // tournament_rival_*, loot_goblin, etc.) all bake under their own
+    // loot_goblin, etc.) all bake under their own
     // classId — snapshotAdventurer falls back through to v01 inside
     // the helper if a specific variant isn't loaded.
     // Prefer the pre-rolled "<class>/vNN" variant if NightPhase
@@ -622,10 +619,7 @@ export class RightPanels {
     const preview = gs.run?.nextWavePreview
     let finalCount = count
     if (preview && preview.day === nextDay && typeof preview.count === 'number') {
-      // Include the 3 Tournament rivals — they spawn alongside the
-      // normal wave (additive event), so the badge total counts them.
       finalCount = preview.count + (preview.vendettaHunter ? 1 : 0)
-                 + (preview.tournamentRivalCount ?? 0)
                  + (preview.saboteurCount ?? 0)
     }
     return { count: finalCount, threatPct, notes, party }

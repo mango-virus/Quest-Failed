@@ -41,8 +41,6 @@ const GOAL_LABELS = {
   SEEK_BOSS:         'Hunting the boss',
   AT_BOSS:           'Fighting the boss',
   EXPLORE_ROOM:      'Exploring the dungeon',
-  SCATTER_ROOM:      'Scattering',
-  HUNT_RIVAL:        'Hunting a rival',
   HUNT_PHYLACTERY:   'Seeking the phylactery',
   CHARM_WALK:        'Charmed',
   SEEK_VENDETTA:     'Out for vengeance',

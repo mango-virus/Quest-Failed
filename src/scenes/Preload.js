@@ -1545,7 +1545,7 @@ export class Preload extends Phaser.Scene {
       [/^sfx-|^music-|title-|gameover/i,                                 'Tuning the wyrm choir…'],
       [/trap|^spike|^arrow/i,                                            'Oiling the trap mechanisms…'],
       [/^chest|treasure|beacon|fountain|item-/i,                         'Polishing trophies for the doomed…'],
-      [/event|dark-deal|tournament|twitch/i,                             'Brewing the night’s dark deals…'],
+      [/event|dark-deal|twitch/i,                                        'Brewing the night’s dark deals…'],
       [/torch|brazier|fire|fx-/i,                                        'Striking flint for the sconces…'],
       [/room|tile|wall|floor|door|theme/i,                               'Carving wall tiles, brick by brick…'],
       [/\.json$|^layout-|^npc|chatLines|lastWords/i,                     'Whispering the codex into being…'],
