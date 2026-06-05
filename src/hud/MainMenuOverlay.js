@@ -1033,10 +1033,8 @@ export class MainMenuOverlay {
         this.close()
         game.scene.start('RoomTileEditor')
         break
-      case 'tiles':
-        this.close()
-        game.scene.start('TilesetEditor')
-        break
+      // 'tiles' (standalone Tileset Editor) retired — theme/tile authoring now
+      // lives in the Room Editor's ⚙ Themes modal.
       case 'testunlock':
         // Dev-only entry (mango gate) — queues one of each unlock card
         // type + fires the UnlockNotificationOverlay right here so the

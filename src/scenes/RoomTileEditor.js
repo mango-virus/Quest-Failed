@@ -372,6 +372,14 @@ export class RoomTileEditor extends Phaser.Scene {
   // Themes
   uiListThemes() { return ThemeManager.listThemes() }
   uiGetTheme(field) { return this._activeRoom()?.[field] || null }
+  // What a door created on this room will actually look like: the room's
+  // doorTheme override if set, else its room theme (DungeonRenderer reads
+  // `room.doorTheme || room.theme`). null = procedural fallback.
+  uiEffectiveDoorTheme() {
+    const room = this._activeRoom()
+    const eff = room?.doorTheme || room?.theme || null
+    return { override: room?.doorTheme || null, effective: eff, fromRoomTheme: !room?.doorTheme && !!room?.theme }
+  }
   uiSetTheme(field, name) {
     const room = this._activeRoom()
     if (!room) return
@@ -563,6 +571,50 @@ export class RoomTileEditor extends Phaser.Scene {
     this._notifyDom()
     return { added, assigned, unassigned: added - assigned }
   }
+
+  // Compose a small sample-room preview of a theme to a data URL (ported from
+  // the old Tileset Editor's live preview). Draws each slot's rolled variant
+  // into a 12×9 sample room; empty slots show a faint placeholder so the
+  // structure still reads.
+  uiThemePreviewDataUrl(themeName) {
+    if (!themeName) return null
+    const LAYOUT = [
+      '............', '.CCCCCCCCCC.', '.WFFFFFFFFW.', '.WFFFFFFFFW.',
+      '.WFFDDFFFFW.', '.WFFDDFFFFW.', '.WFFFFFFFFW.', '.WWWWWWWWWW.', '............',
+    ]
+    const COLS = 12, ROWS = 9, CELL = 18
+    const slotAt = (c, r) => {
+      const ch = LAYOUT[r]?.[c]
+      if (!ch || ch === '.') return null
+      if (ch === 'F') return FLOOR_SLOT
+      if (ch === 'C') { if (c === 1) return 'wall_corner_tl'; if (c === COLS - 2) return 'wall_corner_tr'; return 'wall_cap' }
+      if (ch === 'W') {
+        if (r === ROWS - 2) { if (c === 1) return 'wall_corner_bl'; if (c === COLS - 2) return 'wall_corner_br'; return 'wall_bottom' }
+        if (c === 1) return 'wall_left'; if (c === COLS - 2) return 'wall_right'; return 'wall'
+      }
+      if (ch === 'D') { const sub = ['tl', 'tr', 'bl', 'br'][(r - 4) * 2 + (c - 4)]; return `door_closed_v_${sub}` }
+      return null
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = COLS * CELL; canvas.height = ROWS * CELL
+    const ctx = canvas.getContext('2d')
+    ctx.imageSmoothingEnabled = false
+    ctx.fillStyle = '#0a0514'; ctx.fillRect(0, 0, canvas.width, canvas.height)
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const slot = slotAt(c, r)
+      if (!slot) continue
+      const id = ThemeManager.pickVariant(slot, c, r, themeName)
+      const src = id && this.textures.exists(_textureKey(id)) ? this.textures.get(_textureKey(id)).getSourceImage() : null
+      if (src) {
+        try { ctx.drawImage(src, c * CELL, r * CELL, CELL, CELL) } catch (_) { /* tainted/none */ }
+      } else {
+        ctx.fillStyle = /^(wall|door)/.test(slot) ? 'rgba(90,70,110,0.22)' : 'rgba(40,60,80,0.22)'
+        ctx.fillRect(c * CELL + 0.5, r * CELL + 0.5, CELL - 1, CELL - 1)
+      }
+    }
+    return canvas.toDataURL()
+  }
+  uiRerollPreview() { ThemeManager.resetRolls(); this._notifyDom() }
 
   uiSetSpriteCoverage(id, cov) {
     cov = Number(cov)

@@ -30,8 +30,7 @@ const DEV_TOOL_GROUPS = [
   {
     label: 'EDITORS',
     tools: [
-      { id: 'rooms', label: 'ROOM EDITOR',    sub: 'Edit room layouts',  icon: '▤', color: 'var(--poison)' },
-      { id: 'tiles', label: 'TILESET EDITOR', sub: 'Author tile themes', icon: '▦', color: 'var(--info)' },
+      { id: 'rooms', label: 'ROOM EDITOR', sub: 'Layouts · tiles · themes · doors', icon: '▤', color: 'var(--poison)' },
     ],
   },
   {

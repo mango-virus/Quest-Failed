@@ -431,6 +431,15 @@ export class RoomEditorOverlay {
     ]
   }
 
+  // Clarifies what doors created on this room will actually look like.
+  _doorThemeNote() {
+    const e = this.scene.uiEffectiveDoorTheme?.() || {}
+    const text = e.effective
+      ? (e.fromRoomTheme ? `Doors use the room theme: ${e.effective}` : `Doors use: ${e.effective}`)
+      : 'No theme set — doors render procedurally.'
+    return h('div', { className: 'qf-redit__door-note' }, text)
+  }
+
   // ── Doors ───────────────────────────────────────────────────────────────────
   _doorsPanel(s) {
     const cur = this.scene.uiDoorState?.() || 'closed'
@@ -441,7 +450,8 @@ export class RoomEditorOverlay {
         h('span', { className: 'qf-redit__field-label' }, 'Door state'),
         this._segment(DOOR_STATES.map((d) => ({ val: d.key, label: d.label })), cur,
           (v) => this.scene.uiSetDoorState?.(v)),
-        this._themeSelect('Door theme', 'doorTheme', '(default)'),
+        this._themeSelect('Door theme', 'doorTheme', '(use room theme)'),
+        this._doorThemeNote(),
       ]),
       h('div', { className: 'qf-redit__subhead' }, [
         h('span', null, 'DOOR BRUSH'),
@@ -604,6 +614,7 @@ export class RoomEditorOverlay {
         this._unassignedTray(d),
       ]),
       h('div', { className: 'qf-themes__right' }, [
+        this._themePreview(d),
         h('div', { className: 'qf-themes__subhead' }, 'SLOT COVERAGE'),
         h('div', { className: 'qf-themes__slots' },
           d.editing ? this._slotGrid(d)
@@ -675,6 +686,23 @@ export class RoomEditorOverlay {
         className: 'qf-themes__del', title: 'Delete this sprite from the library',
         on: { click: () => { if (window.confirm(`Delete sprite “${s.id}” from the library?`)) { this.scene.uiDeleteThemeSprite?.(s.id); this._renderThemes() } } },
       }, '🗑'),
+    ])
+  }
+
+  _themePreview(d) {
+    if (!d.editing) return null
+    const url = this.scene.uiThemePreviewDataUrl?.(d.editing)
+    return h('div', { className: 'qf-themes__preview' }, [
+      h('div', { className: 'qf-themes__subhead' }, [
+        'PREVIEW',
+        h('button', {
+          className: 'qf-redit__link-btn', title: 'Re-roll which variant each cell shows',
+          on: { click: () => { this.scene.uiRerollPreview?.(); this._renderThemes() } },
+        }, 'Reroll'),
+      ]),
+      h('div', { className: 'qf-themes__preview-wrap' },
+        url ? h('img', { className: 'qf-themes__preview-img', src: url })
+            : h('div', { className: 'qf-themes__empty' }, '—')),
     ])
   }
 
