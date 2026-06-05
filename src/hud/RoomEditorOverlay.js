@@ -126,6 +126,11 @@ export class RoomEditorOverlay {
         }, '⚙ Themes'),
         h('button', {
           className: 'btn sm',
+          title: 'Download a PNG of this exact room (edit the pixels, then re-import as a skin)',
+          on: { click: () => this.scene.uiExportRoomPng?.() },
+        }, '🖼 Export PNG'),
+        h('button', {
+          className: 'btn sm',
           on: { click: () => this.scene.uiSave?.() },
         }, '⤓ Save to disk'),
         h('button', {

@@ -337,6 +337,84 @@ export class RoomTileEditor extends Phaser.Scene {
     this._refreshAll()
   }
 
+  // ── Phase 3: export the exact built room as a PNG ───────────────────────────
+  // Renders the room in CANONICAL orientation at native 32px/tile to an
+  // offscreen canvas — theme/override tiles (with span coverage, per-cell
+  // rotation/flip + per-target colour adjust baked via ctx.filter) then the
+  // decoration layer on top — and downloads it. Un-painted cells stay
+  // transparent so the PNG is an editable starting point for a full-room skin.
+  uiExportRoomPng() {
+    const room = this._activeRoom()
+    if (!room) return { ok: false }
+    const TS = 32, W = room.width, H = room.height
+    const WT = Balance.WALL_THICKNESS ?? 1
+    const canvas = document.createElement('canvas')
+    canvas.width = W * TS; canvas.height = H * TS
+    const ctx = canvas.getContext('2d')
+    ctx.imageSmoothingEnabled = false
+
+    const filterFor = (adj) => {
+      if (!adj) return 'none'
+      const p = []
+      if (adj.hue)      p.push(`hue-rotate(${adj.hue}deg)`)
+      if (adj.sat)      p.push(`saturate(${Math.max(0, 1 + adj.sat)})`)
+      if (adj.bright)   p.push(`brightness(${Math.max(0, 1 + adj.bright)})`)
+      if (adj.contrast) p.push(`contrast(${Math.max(0, 1 + adj.contrast)})`)
+      return p.length ? p.join(' ') : 'none'
+    }
+    const drawImg = (key, cx, cy, size, rot, flipH, flipV, filter) => {
+      if (!this.textures.exists(key)) return
+      const src = this.textures.get(key).getSourceImage()
+      if (!src) return
+      ctx.save()
+      ctx.filter = filter || 'none'
+      ctx.translate(cx + size / 2, cy + size / 2)
+      if (rot) ctx.rotate(rot * Math.PI / 180)
+      if (flipH || flipV) ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+      try { ctx.drawImage(src, -size / 2, -size / 2, size, size) } catch (_) { /* tainted */ }
+      ctx.restore()
+    }
+
+    // Span pre-pass: cells covered by a >1 coverage anchor are skipped.
+    const covered = new Set()
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const e = readCellEntry(room.tileLayout[y]?.[x]); if (!e) continue
+      const cov = spriteCoverage(ThemeManager.getSprite(e.id))
+      if (cov <= 1) continue
+      for (let dy = 0; dy < cov; dy++) for (let dx = 0; dx < cov; dx++) {
+        if (dx || dy) covered.add(`${x + dx},${y + dy}`)
+      }
+    }
+    // Tile pass.
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (covered.has(`${x},${y}`)) continue
+      const override = readCellEntry(room.tileLayout[y]?.[x])
+      const spriteId = override?.id || this._defaultSpriteFor(room, x, y)
+      if (!spriteId) continue
+      const cov = spriteCoverage(ThemeManager.getSprite(spriteId))
+      const isFloor = x >= WT && x < W - WT && y >= WT && y < H - WT
+      const filter = filterFor(room.colorAdjust?.[isFloor ? 'floor' : 'walls'])
+      drawImg(_textureKey(spriteId), x * TS, y * TS, cov * TS,
+        override?.rot || 0, !!override?.flipH, !!override?.flipV, filter)
+    }
+    // Decor pass (on top).
+    for (const decor of (room.decorations || [])) {
+      const sz = (decor.size ?? 1) * TS
+      drawImg(DECOR_TEXTURE_KEY(decor.spriteId), decor.x * TS, decor.y * TS, sz,
+        decor.rot || 0, !!decor.flipH, !!decor.flipV, 'none')
+    }
+
+    let url
+    try { url = canvas.toDataURL('image/png') }
+    catch (err) { this._toast('Export failed (texture security): ' + (err?.message || err), true); return { ok: false } }
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `room_${room.id}_${W}x${H}.png`
+    document.body.appendChild(a); a.click(); a.remove()
+    this._toast(`Exported ${room.name} (${W}×${H}) PNG`)
+    return { ok: true, w: W, h: H }
+  }
+
   // ── Stage 2: per-mode panel API ─────────────────────────────────────────────
 
   // Phaser texture → data-URL thumbnail for DOM <img> previews. Cached by key.
