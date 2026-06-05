@@ -628,14 +628,12 @@ export class Preload extends Phaser.Scene {
     // renders as, save-stable via adv.spriteVariant).
     this.load.json('adventurerManifest', 'assets/sprites/adventurers/manifest.json')
     this.load.json('adventurerLayout',   'assets/sprites/adventurers/layout.json')
-    for (const id of ADVENTURER_CLASS_IDS) {
-      for (let i = 1; i <= advVariantCount(id); i++) {
-        const v = `v${String(i).padStart(2, '0')}`
-        this.load.spritesheet(`adv-${id}-${v}`,
-          `assets/sprites/adventurers/${id}/${v}.png`,
-          { frameWidth: 64, frameHeight: 64 })
-      }
-    }
+    // NOTE: the ~2221 base sheets (~228MB) are NO LONGER eager-loaded here — they
+    // were the single biggest blocker on the cold-start boot, yet a run only spawns
+    // a handful of variants. AdventurerRenderer now loads each variant's sheet
+    // ON DEMAND the first time it spawns (AdventurerBaseLoader.ensureAdventurerBaseSheet),
+    // rendering the procedural-circle fallback until it lands, then upgrading. The
+    // manifest + layout JSON above stay (tiny, needed to pick variants at spawn).
 
     // ── LPC adventurer attack sheets — DEFERRED ─────────────────────────
     // 192×192 frames for slash + thrust so long weapons render at native
@@ -798,7 +796,8 @@ export class Preload extends Phaser.Scene {
     this._registerHeartAnimation()
     this._registerBossAnimations()
     this._registerMinionAnimations()
-    this._registerAdventurerAnimations()
+    // Base adventurer anims are now registered on demand per variant as its sheet
+    // streams in (AdventurerBaseLoader), not here — see the load note above.
     this._registerAdventurerAttackAnimations()
     this._registerEmoteAnimations()
     this._registerDemonPortalAnimation()
@@ -969,57 +968,9 @@ export class Preload extends Phaser.Scene {
     }
   }
 
-  // LPC adventurer animations — each sheet is 13 cols × 29 rows of 64×64
-  // frames. Animation row blocks come from layout.json. For each variant ×
-  // animation × direction we register one anim keyed
-  // `adv-<class>-<vNN>-<anim>-<dir>` (or `adv-<class>-<vNN>-hurt-down` for
-  // the single-direction hurt block).
-  _registerAdventurerAnimations() {
-    const layout = this.cache.json.get('adventurerLayout')
-    if (!layout) return
-    const cols = Math.floor(layout.width / layout.frame) // 13
-    for (const id of ADVENTURER_CLASS_IDS) {
-      for (let i = 1; i <= advVariantCount(id); i++) {
-        const v = `v${String(i).padStart(2, '0')}`
-        const key = `adv-${id}-${v}`
-        if (!this.textures.exists(key)) continue
-        const tex = this.textures.get(key)
-        if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
-
-        for (const row of layout.rows) {
-          const meta = ADVENTURER_ANIM_META[row.anim]
-          if (!meta) continue
-          const baseRow = Math.floor(row.y / layout.frame)
-          if (row.dirRows === 1) {
-            // hurt — single south-facing strip
-            const start = baseRow * cols
-            const end   = start + row.frames - 1
-            const animKey = `${key}-${row.anim}-down`
-            if (this.anims.exists(animKey)) continue
-            this.anims.create({
-              key: animKey,
-              frames: this.anims.generateFrameNumbers(key, { start, end }),
-              frameRate: meta.frameRate,
-              repeat: meta.repeat,
-            })
-            continue
-          }
-          for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
-            const start = (baseRow + d) * cols
-            const end   = start + row.frames - 1
-            const animKey = `${key}-${row.anim}-${ADVENTURER_DIRS[d]}`
-            if (this.anims.exists(animKey)) continue
-            this.anims.create({
-              key: animKey,
-              frames: this.anims.generateFrameNumbers(key, { start, end }),
-              frameRate: meta.frameRate,
-              repeat: meta.repeat,
-            })
-          }
-        }
-      }
-    }
-  }
+  // (Base adventurer anims were registered here; they now register per-variant
+  // on demand in AdventurerBaseLoader as each sheet streams in — see the load
+  // note in preload().)
 
   // LPC adventurer attack animations — registered on the separate `_atk`
   // textures (192×192 frames, 8 cols × 8 rows). Slash anim per dir reads

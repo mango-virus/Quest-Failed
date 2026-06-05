@@ -15,6 +15,7 @@ import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { entryDoorWorldCenter } from '../systems/DungeonGrid.js'
 import { rgbParticleBurst } from '../util/cheaterVfx.js'
+import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
@@ -498,6 +499,14 @@ export class AdventurerRenderer {
       seen.add(adv.instanceId)
       let s = this._sprites[adv.instanceId]
       if (!s) s = this._createSprite(adv)
+      // On-demand LPC upgrade — the sprite was created as the procedural circle
+      // because its base sheet hadn't streamed in yet. The instant the sheet (+
+      // its anims, registered by AdventurerBaseLoader before this tick) lands,
+      // drop the circle and rebuild as the real LPC sprite.
+      else if (s._lpcPending && this._scene.textures.exists(s._lpcPending)) {
+        this._destroySprite(adv.instanceId)
+        s = this._createSprite(adv)
+      }
       // Off-screen cull — hide the container, hide any side-attached
       // labels (gold-carrier tag), and skip every per-tick state
       // update (LPC anim, HP bar, badge re-render, fear/venom/blight
@@ -1238,6 +1247,16 @@ export class AdventurerRenderer {
       this._attachChampionLabel(sprite, accentCss)
     }
 
+    // On-demand base-sheet upgrade: if this variant's 64px sheet hadn't streamed
+    // in yet, _buildLpcSprite returned null and we're showing the procedural
+    // circle. Remember the texture key so the update loop can swap in the real
+    // LPC sprite the moment the sheet (+ its anims) land. (Skip event-class /
+    // builder sprites — they use other texture keys or are already real.)
+    if (!sprite.lpc && !sprite.builder && adv.spriteVariant) {
+      const k = `adv-${adv.spriteVariant.replace('/', '-')}`
+      if (!this._scene.textures.exists(k)) sprite._lpcPending = k
+    }
+
     this._sprites[adv.instanceId] = sprite
     return sprite
   }
@@ -1474,7 +1493,13 @@ export class AdventurerRenderer {
     }
     const [cls, vId] = adv.spriteVariant.split('/')
     const textureKey = `adv-${cls}-${vId}`
-    if (!this._scene.textures.exists(textureKey)) return null
+    if (!this._scene.textures.exists(textureKey)) {
+      // Base sheets are no longer eager-loaded at boot — stream this variant's
+      // sheet on demand (renders the procedural-circle fallback until it lands;
+      // _createSprite marks _lpcPending so the update loop upgrades it).
+      ensureAdventurerBaseSheet(this._scene, cls, vId)
+      return null
+    }
     const image = this._scene.add.sprite(0, 0, textureKey, 0)
     // Optional 192×192 attack texture for slash/thrust classes — null if this
     // variant didn't ship an _atk.png (e.g. spellcasters, weapon: null variants).
