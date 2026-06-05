@@ -120,6 +120,11 @@ export class RoomEditorOverlay {
       h('div', { className: 'qf-redit__header-actions' }, [
         h('span', { className: 'qf-redit__folder', ref: (e) => (this._refs.folder = e) }),
         h('button', {
+          className: 'btn sm', title: 'Undo last change (Ctrl+Z)',
+          ref: (e) => (this._refs.undo = e),
+          on: { click: () => this.scene.uiUndo?.() },
+        }, '↶ Undo'),
+        h('button', {
           className: 'btn sm',
           title: 'Manage themes: upload tiles, assign slots, switch themes',
           on: { click: () => this.openThemes() },
@@ -249,6 +254,7 @@ export class RoomEditorOverlay {
     this._syncViewControls(s)
     this._syncContext(s)
     this._syncHints(s)
+    if (this._refs.undo) this._refs.undo.disabled = !s.canUndo
   }
 
   _syncRoomBox(s) {
@@ -536,6 +542,8 @@ export class RoomEditorOverlay {
               min: f.min, max: f.max, step: f.step, value: v,
               style: { '--accent': t.accent },
               on: {
+                // One undo entry per drag (snapshot the pre-drag colour).
+                pointerdown: () => this.scene.uiBeginColorEdit?.(),
                 input: (e) => {
                   const nv = +e.target.value
                   this.scene.uiSetColor?.(t.key, f.field, nv, f.min, f.max)

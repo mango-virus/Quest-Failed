@@ -243,6 +243,19 @@ export class RoomTileEditor extends Phaser.Scene {
     // while rotated bake the view rotation into the stored tile rotation).
     this.input.keyboard?.on('keydown-V', () => { this._cycleViewRotation(+1); this._notifyDom() })
 
+    // Ctrl/⌘+Z = undo. A window listener (not Phaser) so the modifier combo
+    // is caught reliably; ignored while typing in a field / the theme & skin
+    // modals' inputs so it doesn't hijack text editing.
+    this._onUndoKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      const tag = (e.target?.tagName || '').toUpperCase()
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
+      e.preventDefault()
+      this.uiUndo()
+    }
+    window.addEventListener('keydown', this._onUndoKey)
+    this.events.once('shutdown', () => window.removeEventListener('keydown', this._onUndoKey))
+
     FsHandle.tryRestoreRoot().catch(() => {})
     this._initialLoad()
   }
@@ -304,6 +317,7 @@ export class RoomTileEditor extends Phaser.Scene {
       moveMode: !!this._moveMode,
       holding: !!this._heldTile,
       heldId: this._heldTile?.id || null,
+      canUndo: this.uiCanUndo(),
       showGrid: this._showGrid !== false,
       folderName: FsHandle.hasRoot() ? FsHandle.rootName() : null,
     }
@@ -348,9 +362,61 @@ export class RoomTileEditor extends Phaser.Scene {
   uiResizeRoom() {
     const room = this._activeRoom()
     if (!room) return
+    this._pushUndo()
     this._promptResize(room)
     this._refreshAll()
   }
+
+  // ── Undo (snapshot of the active room's editable state) ─────────────────────
+  _snapshotRoom(room) {
+    return {
+      roomId:          room.id,
+      tileLayout:      structuredClone(room.tileLayout ?? []),
+      decorations:     structuredClone(room.decorations ?? []),
+      doorTiles:       room.doorTiles ? structuredClone(room.doorTiles) : null,
+      colorAdjust:     room.colorAdjust ? structuredClone(room.colorAdjust) : null,
+      connectionPoints: structuredClone(room.connectionPoints ?? []),
+      theme:           room.theme ?? null,
+      doorTheme:       room.doorTheme ?? null,
+      backgroundImage: room.backgroundImage ?? null,
+      width:           room.width,
+      height:          room.height,
+    }
+  }
+  // Capture the active room's state BEFORE a mutation so uiUndo can restore it.
+  _pushUndo() {
+    const room = this._activeRoom()
+    if (!room) return
+    this._undoStack ||= []
+    this._undoStack.push(this._snapshotRoom(room))
+    if (this._undoStack.length > 80) this._undoStack.shift()
+    this._notifyDom()
+  }
+  uiCanUndo() { return !!(this._undoStack && this._undoStack.length) }
+  uiUndo() {
+    const stack = this._undoStack
+    if (!stack || !stack.length) { this._toast('Nothing to undo'); return }
+    this._clearHeld()
+    const snap = stack.pop()
+    if (snap.roomId !== this._activeRoomId) this._activeRoomId = snap.roomId
+    const room = this._rooms.find(r => r.id === snap.roomId)
+    if (room) {
+      room.tileLayout      = snap.tileLayout
+      room.decorations     = snap.decorations
+      room.doorTiles       = snap.doorTiles
+      room.colorAdjust     = snap.colorAdjust
+      room.connectionPoints = snap.connectionPoints
+      room.theme           = snap.theme
+      room.doorTheme       = snap.doorTheme
+      room.backgroundImage = snap.backgroundImage
+      room.width           = snap.width
+      room.height          = snap.height
+    }
+    this._refreshAll()
+    this._toast('Undo')
+  }
+  // One undo entry per colour-slider drag (the DOM slider's pointerdown).
+  uiBeginColorEdit() { this._pushUndo() }
 
   // ── Phase 4: full-room skins ────────────────────────────────────────────────
   _pendingSkinBytes() { return (this._pendingSkinPngs ||= new Map()) }
@@ -394,12 +460,14 @@ export class RoomTileEditor extends Phaser.Scene {
   uiApplyRoomSkin(id) {
     const room = this._activeRoom()
     if (!room || !ThemeManager.hasRoomSkin(id)) return
+    this._pushUndo()
     room.backgroundImage = id
     this._refreshAll()
   }
   uiClearRoomSkin() {
     const room = this._activeRoom()
     if (!room) return
+    this._pushUndo()
     room.backgroundImage = null
     this._refreshAll()
   }
@@ -560,6 +628,7 @@ export class RoomTileEditor extends Phaser.Scene {
   uiSetTheme(field, name) {
     const room = this._activeRoom()
     if (!room) return
+    this._pushUndo()
     room[field] = name || null
     ThemeManager.resetRolls()
     this._refreshAll()
@@ -644,7 +713,9 @@ export class RoomTileEditor extends Phaser.Scene {
   }
   uiResetColor(target) {
     const room = this._activeRoom()
-    if (room?.colorAdjust?.[target]) room.colorAdjust[target] = {}
+    if (!room?.colorAdjust?.[target]) return
+    this._pushUndo()
+    room.colorAdjust[target] = {}
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -1118,8 +1189,10 @@ export class RoomTileEditor extends Phaser.Scene {
           }
           const isClear = pointer.rightButtonDown() || pointer.event?.shiftKey || this._eraserMode
           if (isClear) {
+            this._pushUndo()
             this._eraseAt(room, rx, ry)
           } else if (this._activeSpriteId) {
+            this._pushUndo()
             this._paintAtView(room, cvx, cvy, cViewRot)
           } else {
             this._toast('Pick a sprite at right first', true); return
@@ -1244,6 +1317,7 @@ export class RoomTileEditor extends Phaser.Scene {
           if (!room.decorations) room.decorations = []
           if (isClear) {
             // Remove any decor whose footprint covers this cell (handles 2×2).
+            this._pushUndo()
             room.decorations = room.decorations.filter(d => {
               const sz = d.size ?? 1
               return !(rx >= d.x && rx < d.x + sz && ry >= d.y && ry < d.y + sz)
@@ -1255,6 +1329,7 @@ export class RoomTileEditor extends Phaser.Scene {
               this._toast(`${sz}×${sz} decor won't fit here — too close to edge`, true)
               return
             }
+            this._pushUndo()
             // Find room-space top-left of the sz×sz view block.
             let minRx = Infinity, minRy = Infinity
             for (let dy = 0; dy < sz; dy++) {
@@ -1423,6 +1498,7 @@ export class RoomTileEditor extends Phaser.Scene {
           ev?.stopPropagation?.()
           const isClear = pointer.rightButtonDown() || pointer.event?.shiftKey || this._eraserMode
           if (isClear) {
+            this._pushUndo()
             this._eraseDoorCell(grid, cc, cr)
           } else if (this._activeSpriteId) {
             const sp  = ThemeManager.getSprite(this._activeSpriteId)
@@ -1430,6 +1506,7 @@ export class RoomTileEditor extends Phaser.Scene {
             if (cc + cov > cols || cr + cov > rows) {
               this._toast(`Sprite is ${cov}×${cov} — too close to edge to fit`, true); return
             }
+            this._pushUndo()
             // Clear the cov×cov area so prior overrides don't conflict,
             // then stamp the anchor at (cc, cr).
             for (let dy = 0; dy < cov; dy++) {
@@ -1617,6 +1694,7 @@ export class RoomTileEditor extends Phaser.Scene {
       this._toast(`${cov}×${cov} tile won’t fit here — too close to the edge`, true)
       return  // keep holding
     }
+    this._pushUndo()   // about to mutate (clear source + place)
     // Clear the source anchor (its covered cells are already null), then place
     // via the paint path so span coverage + bounds are handled. The brush is
     // briefly set to the held values; activeRot offsets the viewRot baking in
@@ -1785,6 +1863,7 @@ export class RoomTileEditor extends Phaser.Scene {
     const room = this._activeRoom()
     if (!room) return
     if (!window.confirm(`Clear all per-cell overrides on "${room.name}"? Theme defaults will show through.`)) return
+    this._pushUndo()
     for (let y = 0; y < room.height; y++) {
       for (let x = 0; x < room.width; x++) room.tileLayout[y][x] = null
     }
@@ -1796,6 +1875,7 @@ export class RoomTileEditor extends Phaser.Scene {
     const room = this._activeRoom()
     if (!room) return
     if (!window.confirm(`Remove all decorations from "${room.name}"?`)) return
+    this._pushUndo()
     room.decorations = []
     this._populatePaintCanvas()
     this._notifyDom()
