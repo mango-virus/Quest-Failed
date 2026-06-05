@@ -296,6 +296,11 @@ export class DungeonGrid {
       // Full-room skin id (Phase 4) — when set + its texture loads, the
       // renderer paints one stretched image over the room instead of tiles.
       backgroundImage: typeof definition.backgroundImage === 'string' ? definition.backgroundImage : null,
+      // Per-boss skin overrides for the boss chamber: { <archetypeId>: skinId }.
+      // The renderer picks the active boss's entry, falling back to
+      // backgroundImage. Only the boss_chamber uses this.
+      backgroundImageByBoss: (definition.backgroundImageByBoss && typeof definition.backgroundImageByBoss === 'object')
+        ? definition.backgroundImageByBoss : null,
       // Each cp gets `open: false` by default — doors start closed and
       // become open when adventurers walk through (or, for the entry_hall's
       // external cp, automatically at day-start). `style` defaults to

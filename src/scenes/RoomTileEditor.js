@@ -326,6 +326,7 @@ export class RoomTileEditor extends Phaser.Scene {
   uiSelectRoom(id) {
     if (id === this._activeRoomId) return
     this._clearHeld()
+    this._skinTarget = 'default'
     this._activeRoomId = id
     this._refreshAll()
   }
@@ -424,7 +425,38 @@ export class RoomTileEditor extends Phaser.Scene {
   uiListRoomSkins() {
     return ThemeManager.listRoomSkins().map(s => ({ id: s.id, thumb: this._texThumb(roomSkinTextureKey(s.id)) }))
   }
-  uiCurrentRoomSkin() { return this._activeRoom()?.backgroundImage || null }
+  // ── Skin targets ────────────────────────────────────────────────────────────
+  // The boss chamber can hold a unique skin per boss. The active "skin target"
+  // is 'default' (room.backgroundImage) or a boss archetype id (a key in
+  // room.backgroundImageByBoss). Other rooms only have 'default'.
+  _isBossChamber() { return (this._activeRoom()?.id || this._activeRoom()?.definitionId) === 'boss_chamber' }
+  uiSkinTargets() {
+    if (!this._isBossChamber()) return null
+    const bosses = this.cache.json.get('bossArchetypes') || []
+    return [
+      { key: 'default', label: 'Default (any boss)' },
+      ...bosses.map(b => ({ key: b.id, label: b.name || b.id })),
+    ]
+  }
+  uiSkinTarget() { return this._skinTarget || 'default' }
+  uiSetSkinTarget(target) { this._skinTarget = target || 'default'; this._refreshAll() }
+
+  // Skin id assigned to the active room for a given target.
+  _skinIdForTarget(room, target) {
+    if (room?.id === 'boss_chamber' && target && target !== 'default') {
+      return room.backgroundImageByBoss?.[target] || null
+    }
+    return room?.backgroundImage || null
+  }
+  // Skin id the editor canvas should preview (boss chamber → selected boss's
+  // skin, falling back to the default; other rooms → backgroundImage).
+  _editorSkinId(room) {
+    if (room?.id === 'boss_chamber' && this._skinTarget && this._skinTarget !== 'default') {
+      return room.backgroundImageByBoss?.[this._skinTarget] || room.backgroundImage || null
+    }
+    return room?.backgroundImage || null
+  }
+  uiCurrentRoomSkin() { return this._skinIdForTarget(this._activeRoom(), this.uiSkinTarget()) }
 
   // Ingest edited PNG(s) as full-room skins (library items): register the
   // texture, add to the skin registry, stage bytes for save. Returns {added, ids}.
@@ -461,19 +493,37 @@ export class RoomTileEditor extends Phaser.Scene {
     const room = this._activeRoom()
     if (!room || !ThemeManager.hasRoomSkin(id)) return
     this._pushUndo()
-    room.backgroundImage = id
+    const target = this.uiSkinTarget()
+    if (room.id === 'boss_chamber' && target !== 'default') {
+      room.backgroundImageByBoss = room.backgroundImageByBoss || {}
+      room.backgroundImageByBoss[target] = id
+    } else {
+      room.backgroundImage = id
+    }
     this._refreshAll()
   }
   uiClearRoomSkin() {
     const room = this._activeRoom()
     if (!room) return
     this._pushUndo()
-    room.backgroundImage = null
+    const target = this.uiSkinTarget()
+    if (room.id === 'boss_chamber' && target !== 'default') {
+      if (room.backgroundImageByBoss) delete room.backgroundImageByBoss[target]
+    } else {
+      room.backgroundImage = null
+    }
     this._refreshAll()
   }
   uiDeleteRoomSkin(id) {
     ThemeManager.removeRoomSkin(id)
-    for (const r of this._rooms) if (r.backgroundImage === id) r.backgroundImage = null
+    for (const r of this._rooms) {
+      if (r.backgroundImage === id) r.backgroundImage = null
+      if (r.backgroundImageByBoss) {
+        for (const k of Object.keys(r.backgroundImageByBoss)) {
+          if (r.backgroundImageByBoss[k] === id) delete r.backgroundImageByBoss[k]
+        }
+      }
+    }
     this._pendingSkinBytes().delete(id)
     this._refreshAll()
   }
@@ -1252,8 +1302,10 @@ export class RoomTileEditor extends Phaser.Scene {
 
     // Full-room skin (Phase 4): if assigned + loaded, draw it stretched over
     // the whole room and skip per-cell tiles (matches the in-game render).
+    // For the boss chamber this previews the currently-selected boss's skin.
     // Clear the skin from the Skins panel to edit tiles again.
-    const skinKey = room.backgroundImage ? roomSkinTextureKey(room.backgroundImage) : null
+    const editorSkinId = this._editorSkinId(room)
+    const skinKey = editorSkinId ? roomSkinTextureKey(editorSkinId) : null
     if (skinKey && this.textures.exists(skinKey)) {
       const skin = this.add.image(ox + totalW / 2, oy + totalH / 2, skinKey).setOrigin(0.5)
       skin.setDisplaySize(totalW, totalH)
@@ -2112,6 +2164,7 @@ export class RoomTileEditor extends Phaser.Scene {
           delete cleaned.colorAdjust.doors
         }
         if (!r.backgroundImage) delete cleaned.backgroundImage
+        if (!r.backgroundImageByBoss || Object.keys(r.backgroundImageByBoss).length === 0) delete cleaned.backgroundImageByBoss
         return cleaned
       })
       // 4-space to match the committed rooms.json format (writeJson would emit

@@ -725,6 +725,7 @@ export class Game extends Phaser.Scene {
     room.decorations     = Array.isArray(def.decorations) ? def.decorations : []
     room.colorAdjust     = (def.colorAdjust && typeof def.colorAdjust === 'object') ? def.colorAdjust : null
     room.backgroundImage = typeof def.backgroundImage === 'string' ? def.backgroundImage : null
+    room.backgroundImageByBoss = (def.backgroundImageByBoss && typeof def.backgroundImageByBoss === 'object') ? def.backgroundImageByBoss : null
   }
 
   // Room Builder reset ALL rooms — reapply every placed room's tile grid

@@ -669,8 +669,14 @@ export class DungeonRenderer {
   }
 
   // Skin texture key for a room if it has a loaded full-room skin, else null.
+  // The boss chamber can carry per-boss skin overrides — pick the active
+  // archetype's skin, falling back to the room's default backgroundImage.
   _roomSkinKeyFor(room) {
-    const id = room?.backgroundImage
+    let id = room?.backgroundImage
+    if (room?.backgroundImageByBoss) {
+      const boss = this._gameState?.player?.bossArchetypeId
+      if (boss && room.backgroundImageByBoss[boss]) id = room.backgroundImageByBoss[boss]
+    }
     if (!id) return null
     const key = _roomSkinTexKey(id)
     return this._scene.textures.exists(key) ? key : null

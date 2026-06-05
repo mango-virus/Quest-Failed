@@ -833,6 +833,10 @@ export class RoomEditorOverlay {
     const st = this.scene.uiGetState?.() || {}
     const roomName = st.activeRoom?.name || '(no room)'
     const curThumb = current ? (skins.find((s) => s.id === current)?.thumb) : null
+    // Boss chamber: per-boss skin targets (Default + the 12 bosses).
+    const targets = this.scene.uiSkinTargets?.()
+    const curTarget = this.scene.uiSkinTarget?.() || 'default'
+    const curTargetLabel = targets?.find((t) => t.key === curTarget)?.label || ''
 
     const dropzone = (() => {
       const zone = h('div', {
@@ -855,8 +859,15 @@ export class RoomEditorOverlay {
     mount(panel, [
       h('div', { className: 'qf-themes__head' }, [
         h('div', { className: 'qf-themes__title' }, '🎨 ROOM SKINS'),
-        h('div', { className: 'qf-themes__theme-ctl' },
-          h('span', { className: 'qf-skins__roomnote' }, `Editing room: ${roomName}`)),
+        h('div', { className: 'qf-themes__theme-ctl' }, [
+          h('span', { className: 'qf-skins__roomnote' }, `Editing room: ${roomName}`),
+          targets ? h('span', { className: 'qf-skins__roomnote' }, '·  Boss:') : null,
+          targets ? h('select', {
+            className: 'qf-themes__theme-sel',
+            ref: (el) => { el.value = curTarget },
+            on: { change: (e) => { this.scene.uiSetSkinTarget?.(e.target.value); this._renderSkins() } },
+          }, targets.map((t) => h('option', { value: t.key }, t.label))) : null,
+        ]),
         h('div', { className: 'qf-themes__head-right' }, [
           h('button', { className: 'qf-themes__close', title: 'Close', on: { click: () => this.closeSkins() } }, '✕'),
         ]),
@@ -865,7 +876,7 @@ export class RoomEditorOverlay {
         h('div', { className: 'qf-themes__left' }, [
           dropzone,
           h('div', { className: 'qf-skins__current' }, [
-            h('div', { className: 'qf-themes__subhead' }, 'THIS ROOM'),
+            h('div', { className: 'qf-themes__subhead' }, targets ? `SKIN FOR: ${curTargetLabel}` : 'THIS ROOM'),
             h('div', { className: 'qf-skins__current-body' }, [
               curThumb ? h('img', { className: 'qf-skins__thumb', src: curThumb })
                        : h('div', { className: 'qf-skins__thumb q' }, current ? '?' : '—'),
