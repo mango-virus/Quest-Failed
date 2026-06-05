@@ -1,0 +1,5 @@
+# Shell scripts + git hooks MUST stay LF — a CRLF in the `#!/bin/sh` shebang
+# breaks the interpreter on checkout. Scoped narrowly so non-shell files keep
+# the repo's existing (CRLF-on-Windows) behavior.
+*.sh            text eol=lf
+tools/hooks/*   text eol=lf
