@@ -142,6 +142,36 @@ If during implementation you find yourself changing scope (renaming things, spli
 
 ---
 
+## Dev tooling — use these (don't hand-verify what a tool already checks)
+
+This repo has a tooling layer for bug-finding, balance-testing, and visual review.
+**Reach for them as part of normal work — they only pay off if used, and don't
+rebuild one that exists.** Full reference + runbook: `tools/sim/README.md`.
+
+- **Every commit is gated** by a pre-commit hook (`tools/hooks/pre-commit`) running
+  `verify-docs` + `lint-content`: content-count drift and dangling references (a pact
+  → missing handler, a bad evolution/reward/sprite/pact-graph ref) **block the commit**.
+  If blocked, fix the data/code (or `npm run verify-docs:fix`); bypass only with
+  `QF_SKIP_HOOKS=1` + a reason. Fresh clone → `sh tools/setup-hooks.sh` once.
+- **Tuned balance / boss / pact / minion numbers?** Run `npm run sim:balance` (+ `npm
+  run sim:pacts` for pacts) and read the deltas **before** claiming a change is balanced
+  — don't guess. (Headless sim under `tools/sim/`; see [[project_quest_failed_dev_tooling]].)
+- **Touched a system (combat/AI/boss/save/economy/rooms) or added content?** Run
+  `npm run sim:soak` — randomized games that surface crashes / invariant breaks across
+  the boss×pact×build space, each with a repro setup.
+- **Debugging a state / freeze / save / corruption bug in-game?** Use `window.__qfCheck()`
+  (runtime invariants: hp/gold/coords, dup ids, the JSON-serializable contract, listener
+  leaks). It also auto-fires on phase transitions in a cheat-name run.
+- **Touched VFX / a champion / an ability / a screen?** Capture via `window.__qfDev.gallery()`
+  (preview-driven contact sheet) and eyeball before/after — this IS part of the
+  visual-verify gate at the top of this file.
+
+Note: the headless sim is faithful but models a *simple* player (no generic boss
+abilities / companions / events / large mazes), so its survival numbers are a
+**comparative** baseline, not absolute. See `tools/sim/README.md` for the exact limits.
+
+---
+
 ## Project maturity (not "Phase 6 next" anymore)
 
 The numbered-phase plan (1–10b in `DESIGN_COVERAGE.md` §29) is **all shipped**. The game is
