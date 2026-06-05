@@ -1,0 +1,40 @@
+#!/bin/sh
+# Quest Failed pre-commit gate — keep the data layer honest so silent content
+# drift (a pact pointing at a missing handler, STATUS.md counts gone stale)
+# can't land. Fast (<2s): both checks are static, no game boot.
+#
+# Enabled via:  git config core.hooksPath tools/hooks   (run once per clone;
+#               tools/setup-hooks.sh does it for you).
+# Bypass once:  QF_SKIP_HOOKS=1 git commit ...
+[ "$QF_SKIP_HOOKS" = "1" ] && exit 0
+
+# Skip cleanly if node isn't on PATH (don't block a commit on a tooling-env gap).
+command -v node >/dev/null 2>&1 || { echo "[pre-commit] node not found — skipping content checks."; exit 0; }
+
+fail=0
+
+out=$(node tools/verify-docs.mjs 2>&1)
+if [ $? -ne 0 ]; then
+  echo "$out"
+  echo "  ✗ STATUS.md content counts drifted. Fix: npm run verify-docs:fix"
+  fail=1
+else
+  echo "[pre-commit] verify-docs ✓"
+fi
+
+out=$(node tools/lint-content.mjs 2>&1)
+if [ $? -ne 0 ]; then
+  echo "$out"
+  echo "  ✗ content has dangling references (see above) — fix the data or the code."
+  fail=1
+else
+  echo "[pre-commit] lint-content ✓"
+fi
+
+if [ "$fail" != "0" ]; then
+  echo ""
+  echo "[pre-commit] commit BLOCKED. Fix the above, or bypass once with:"
+  echo "    QF_SKIP_HOOKS=1 git commit ..."
+  exit 1
+fi
+exit 0
