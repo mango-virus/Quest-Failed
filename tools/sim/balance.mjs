@@ -26,10 +26,14 @@ const BOSSES = (flag('boss', 'lich,demon,slime')).split(',').map(s => s.trim()).
 
 // A modest, fixed "starter defense" loadout — the comparison baseline.
 const DEFENDED = { minions: ['skeleton1', 'skeleton1', 'goblin1', 'goblin1', 'orc1', 'orc1'], traps: ['shooting_arrows', 'spike_pit'] }
+const BUILD_ONLY = has('build')   // --build → only the night-building config (a real playthrough)
 const CONFIGS = []
 for (const b of BOSSES) {
-  CONFIGS.push({ label: `${b} · bare`,     boss: b, loadout: null })
-  CONFIGS.push({ label: `${b} · defended`, boss: b, loadout: DEFENDED })
+  if (!BUILD_ONLY) {
+    CONFIGS.push({ label: `${b} · bare`,     boss: b, loadout: null })
+    CONFIGS.push({ label: `${b} · defended`, boss: b, loadout: DEFENDED })
+  }
+  CONFIGS.push({ label: `${b} · building`,   boss: b, build: { stipend: 60, minionCapPerLv: 3 } })
 }
 
 // ── stats helpers ─────────────────────────────────────────────────────────────
@@ -45,7 +49,7 @@ const restore = silenceConsole()
 const rows = []
 for (const cfg of CONFIGS) {
   const results = []
-  for (let i = 0; i < RUNS; i++) results.push(runGame({ boss: cfg.boss, maxDays: DAYS, loadout: cfg.loadout }))
+  for (let i = 0; i < RUNS; i++) results.push(runGame({ boss: cfg.boss, maxDays: DAYS, loadout: cfg.loadout, build: cfg.build }))
   const days = results.map(r => r.daysSurvived)
   const kills = results.map(r => r.totalKills)
   const lvls = results.map(r => r.finalBossLevel)
@@ -74,7 +78,9 @@ if (JSON_OUT) {
   for (const r of rows) {
     console.log(`  ${pad(r.label, 20)} ${padL(r.bossDiedPct + '%', 9)} ${padL(`${r.daysMean}±${r.daysStd}`, 16)} ${padL(r.daysMedian, 4)} ${padL(r.daysMin, 4)} ${padL(r.daysMax, 4)} ${padL(r.killsMean, 6)} ${padL(`${r.finalLvMean} (${r.finalLvMax})`, 8)}`)
   }
-  console.log(`\n  Comparative read: 'defended' vs 'bare' shows the value of a fixed starter loadout;`)
-  console.log(`  bosses read near-identical because base fight stats are flat (200/12/10) and this`)
-  console.log(`  sim does no night-building, so no boss abilities get unlocked (see STATUS.md).\n`)
+  console.log(`\n  Read: 'bare' < 'defended' (fixed loadout) < 'building' (gold reinvested nightly).`)
+  console.log(`  'building' is a real growing-dungeon playthrough but models a SIMPLE player (cheap`)
+  console.log(`  minions, no evolution/abilities/upgrades/pacts), so survival plateaus — quality`)
+  console.log(`  multipliers carry real late-game. Bosses read near-identical: base stats are flat`)
+  console.log(`  (200/12/10), differentiation is abilities-only (see STATUS.md). Tune via --build / flags.\n`)
 }

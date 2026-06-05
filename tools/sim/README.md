@@ -8,11 +8,21 @@ from the dev-tooling roadmap (Phase B).
 ## Use it
 
 ```bash
-npm run sim                       # one full game (bare vs defended), per-day trace
-npm run sim:balance               # default sweep: lich/demon/slime × bare/defended
-node tools/sim/balance.mjs --runs 100 --days 80 --boss lich,vampire
+npm run sim                       # one full game, per-day trace
+npm run sim:balance               # sweep: bosses × bare / defended / building
+npm run sim:pacts                 # per-pact Δ(survival) vs baseline — balance outliers
+node tools/sim/balance.mjs --runs 100 --boss lich,vampire --build   # building-only
+node tools/sim/pactsweep.mjs --rarity legendary --runs 20
 node tools/sim/balance.mjs --json # machine-readable
 ```
+
+`runGame({ boss, maxDays, loadout, pacts, build })`:
+- `loadout` — a fixed `{minions:[ids], traps:[ids]}` placed once.
+- `pacts` — pact ids sealed at start (via `dungeonMechanicSystem.activate`).
+- `build` — `true` or `{stipend, minionCapBase, minionCapPerLv, ...}`: each night
+  take a stipend (abstracts economy buildings the sim doesn't construct) and buy
+  the strongest affordable unlocked minion/trap up to a level-scaling cap. Turns
+  the run into a growing-dungeon playthrough.
 
 Sample report:
 
@@ -45,15 +55,18 @@ rendering/audio/input.
 
 ## Known limitations (by design for v1)
 
-- **No night-building progression.** The loadout is fixed; the sim does not
-  spend gold to add rooms/minions/traps/upgrades or unlock boss abilities each
-  night. So it measures *"how long does this fixed dungeon hold against scaling
-  waves"* — a comparative baseline, not a full playthrough.
+- **Night-building is a SIMPLE policy.** With `build`, the dungeon grows (buy
+  affordable minions/traps each night), but the policy does not model minion
+  *evolution*, *room upgrades*, *boss-ability* unlocks, or economy buildings
+  (abstracted as a flat stipend). Those are the *quality* multipliers that carry
+  real late-game, so survival plateaus (~10-12 days). It captures the growth
+  *dynamic* and is tunable, not optimal play.
 - **Bosses read near-identical** because base fight stats are flat (200/12/10)
-  and differentiation is abilities-only (which require night-building). See
-  `STATUS.md`. This is a *useful confirmation*, not a bug.
-- **No pacts/events** are applied (clean run). Wave-gen skips the pact/event
-  wave modifiers.
+  and differentiation is abilities-only (not unlocked here). See `STATUS.md`.
+  This is a *useful confirmation*, not a bug.
+- **Pacts** apply via `pacts:[...]`, but their effect under-reads when it depends
+  on building (a static/simple dungeon). Global modifiers read faithfully.
+  Events are not applied; wave-gen skips pact/event wave modifiers.
 - **Unseeded RNG** — results are distributions over N runs, not reproducible
   single runs (seeded RNG was deliberately deferred; see the dev-tooling notes).
 

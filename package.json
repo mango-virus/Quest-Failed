@@ -11,6 +11,7 @@
     "lint-content:strict": "node tools/lint-content.mjs --strict",
     "sim": "node tools/sim/harness.mjs game",
     "sim:balance": "node tools/sim/balance.mjs",
+    "sim:pacts": "node tools/sim/pactsweep.mjs",
     "lpc:survey": "node tools/lpc-survey.mjs",
     "lpc:validate": "node tools/lpc-validate-pools.mjs",
     "lpc:bake": "node tools/bake-lpc-variants.mjs"

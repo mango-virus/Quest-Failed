@@ -29,6 +29,62 @@ function floorTilesNearBoss(grid, gs, n) {
   return out
 }
 
+function occupiedTiles(gs) {
+  const s = new Set()
+  for (const m of gs.minions ?? []) s.add(`${m.tileX},${m.tileY}`)
+  for (const t of gs.dungeon.traps ?? []) s.add(`${t.tileX},${t.tileY}`)
+  return s
+}
+function nextFreeTile(grid, gs) {
+  const occ = occupiedTiles(gs)
+  for (const t of floorTilesNearBoss(grid, gs, 200)) if (!occ.has(`${t.x},${t.y}`)) return t
+  return null
+}
+function placeOneMinion(scene, gs, grid, def, bossLv) {
+  const t = nextFreeTile(grid, gs); if (!t) return false
+  const roomId = grid.getRoomAtTile?.(gs.boss?.tileX, gs.boss?.tileY)?.instanceId ?? null
+  const day = gs.meta?.dayNumber ?? 1
+  const m = createMinion(def, { x: t.x, y: t.y }, roomId, { bossLevel: bossLv, dayNumber: day })
+  applyMinionScaling(m, bossLv, day); m.aiState = 'idle'
+  gs.minions.push(m); EventBus.emit('MINION_PLACED', {}); return true
+}
+function placeOneTrap(scene, gs, grid, def) {
+  const t = nextFreeTile(grid, gs); if (!t) return false
+  gs.dungeon.traps.push(createTrap(def, { tileX: t.x, tileY: t.y })); return true
+}
+
+// ── Night-building policy — spend the night's gold on defenses ─────────────────
+// A simple "competent player" model: take a stipend (abstracts economy buildings
+// the sim doesn't construct), then buy the strongest AFFORDABLE unlocked minion/
+// trap repeatedly up to a level-scaling cap. Gold is the real early constraint.
+// This turns runGame into a growing-dungeon playthrough rather than a static one.
+export function buildNightDefenses(scene, gs, grid, cfg = {}) {
+  const { stipend = 25, minionCapBase = 4, minionCapPerLv = 2, trapCapBase = 2, trapCapPerLv = 0.5 } = cfg
+  const bossLv = gs.boss?.level ?? 1
+  gs.player.gold = (gs.player.gold ?? 0) + stipend
+  const buyableM = (scene.cache.json.get('minionTypes') ?? []).filter(d => (d.unlockLevel ?? 1) <= bossLv && d.goldCost > 0).sort((a, b) => a.goldCost - b.goldCost)
+  const buyableT = (scene.cache.json.get('trapTypes')   ?? []).filter(d => (d.unlockLevel ?? 1) <= bossLv && d.goldCost > 0).sort((a, b) => a.goldCost - b.goldCost)
+  const minionCap = Math.round(minionCapBase + minionCapPerLv * bossLv)
+  const trapCap   = Math.round(trapCapBase + trapCapPerLv * bossLv)
+  let spent = 0
+  const aliveM = () => gs.minions.filter(m => m.aiState !== 'dead').length
+  while (aliveM() < minionCap) {
+    const aff = buyableM.filter(d => d.goldCost <= gs.player.gold)
+    if (!aff.length) break
+    const def = aff[aff.length - 1]                 // priciest affordable ≈ strongest
+    if (!placeOneMinion(scene, gs, grid, def, bossLv)) break
+    gs.player.gold -= def.goldCost; spent += def.goldCost
+  }
+  while ((gs.dungeon.traps?.length ?? 0) < trapCap) {
+    const aff = buyableT.filter(d => d.goldCost <= gs.player.gold)
+    if (!aff.length) break
+    const def = aff[aff.length - 1]
+    if (!placeOneTrap(scene, gs, grid, def)) break
+    gs.player.gold -= def.goldCost; spent += def.goldCost
+  }
+  return { spent, minions: aliveM(), traps: gs.dungeon.traps?.length ?? 0 }
+}
+
 // loadout: { minions: ['skeleton1', ...], traps: ['shooting_arrows', ...] }
 export function placeLoadout(scene, gs, grid, { minions = [], traps = [] } = {}) {
   if (!minions.length && !traps.length) return { minions: 0, traps: 0 }
@@ -168,15 +224,22 @@ export function endDay(gs) {
 }
 
 // ── Run a whole game: day/night until the boss dies 3× or maxDays ─────────────
-export function runGame({ boss = 'lich', maxDays = 80, loadout = null } = {}) {
+export function runGame({ boss = 'lich', maxDays = 80, loadout = null, pacts = [], build = null } = {}) {
   const ctx = boot({ boss })
-  const { gs, scene, grid } = ctx
+  const { gs, scene, grid, systems } = ctx
+  // Seal any requested pacts before the run (player sealing = fresh seal effects).
+  if (pacts.length) {
+    gs.activeMechanics ??= []
+    for (const p of pacts) { try { systems.dungeonMechanicSystem.activate(p) } catch { /* skip bad pact */ } }
+  }
+  const buildCfg = build === true ? {} : build
   EventBus.emit('NIGHT_PHASE_STARTED', { day: 1 })
   buildNight(scene, gs, grid)
-  const placed = loadout ? placeLoadout(scene, gs, grid, loadout) : { minions: 0, traps: 0 }
+  let placed = loadout ? placeLoadout(scene, gs, grid, loadout) : { minions: 0, traps: 0 }
+  if (buildCfg) placed = buildNightDefenses(scene, gs, grid, buildCfg)   // night-1 build
 
   const days = []
-  let outcome = 'survivedMaxDays'
+  let outcome = 'survivedMaxDays', goldSpent = 0
   for (let d = 1; d <= maxDays; d++) {
     const r = runDay(ctx)
     days.push(r)
@@ -185,11 +248,12 @@ export function runGame({ boss = 'lich', maxDays = 80, loadout = null } = {}) {
     endDay(gs)
     EventBus.emit('NIGHT_PHASE_STARTED', { day: gs.meta.dayNumber })
     openAllDoors(gs)
+    if (buildCfg) { const b = buildNightDefenses(scene, gs, grid, buildCfg); goldSpent += b.spent; placed = b }
   }
 
   const livesHad = gs.boss?.totalLivesEverHad ?? 3
   return {
-    boss, outcome, placed,
+    boss, outcome, placed, goldSpent,
     daysSurvived: days.length,
     finalBossLevel: gs.boss?.level ?? 1,
     totalKills: gs.player?.totalKills ?? 0,
