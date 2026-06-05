@@ -327,14 +327,19 @@ export class RoomEditorOverlay {
   _syncContext(s) {
     const host = this._refs.context
     if (!host) return
-    // Rebuild only when the tab or room changes — routine refreshes (zoom,
-    // flip, rotate, …) must NOT rebuild, or they'd reset the sprite-grid
-    // scroll / yank slider focus. Interactive controls inside the panel
-    // self-update their active state on click instead.
-    if (this._ctxTab === s.tab && this._ctxRoom === s.activeRoomId) return
+    const tabRoomChanged = this._ctxTab !== s.tab || this._ctxRoom !== s.activeRoomId
+    // Rebuild the panel on every refresh so EVERY control + label reflects the
+    // current state (dropdowns, segments, notes, highlights). Scroll position
+    // is preserved across the rebuild. Exception: the Colors tab is NOT rebuilt
+    // mid-interaction (it would yank focus off a slider being dragged) — it
+    // rebuilds only on a tab/room change or an explicit force (Reset).
+    if (s.tab === 'colors' && !tabRoomChanged) return
     this._ctxTab = s.tab
     this._ctxRoom = s.activeRoomId
+    const prevScroll = host.querySelector('.qf-redit__ctx-scroll')?.scrollTop || 0
     this._buildContext(s)
+    const nextScroll = host.querySelector('.qf-redit__ctx-scroll')
+    if (nextScroll) nextScroll.scrollTop = prevScroll
   }
 
   _forceContextRebuild() { this._ctxRoom = null; this.refresh() }
@@ -359,13 +364,14 @@ export class RoomEditorOverlay {
     const value = this.scene.uiGetTheme?.(field) || ''
     return h('label', { className: 'qf-redit__field' }, [
       h('span', { className: 'qf-redit__field-label' }, label),
+      // Mark the matching <option selected> rather than setting select.value via
+      // a ref — the ref runs before the options exist, so .value wouldn't stick.
       h('select', {
         className: 'qf-redit__select',
-        ref: (el) => { el.value = value },
         on: { change: (e) => this.scene.uiSetTheme?.(field, e.target.value || null) },
       }, [
-        h('option', { value: '' }, noneLabel),
-        ...themes.map((t) => h('option', { value: t }, t)),
+        h('option', { value: '', selected: value === '' }, noneLabel),
+        ...themes.map((t) => h('option', { value: t, selected: value === t }, t)),
       ]),
     ])
   }
@@ -636,9 +642,8 @@ export class RoomEditorOverlay {
       h('div', { className: 'qf-themes__theme-ctl' }, [
         h('select', {
           className: 'qf-themes__theme-sel',
-          ref: (e) => { e.value = d.editing || '' },
           on: { change: (e) => { this._editingTheme = e.target.value || null; this._renderThemes() } },
-        }, d.themes.length ? d.themes.map((t) => h('option', { value: t }, t))
+        }, d.themes.length ? d.themes.map((t) => h('option', { value: t, selected: t === d.editing }, t))
                            : [h('option', { value: '' }, '(no themes yet)')]),
         h('button', { className: 'btn sm', on: { click: () => this._newTheme() } }, '+ New'),
         h('button', { className: 'btn sm ghost', on: { click: () => this._renameTheme() } }, 'Rename'),
@@ -716,12 +721,11 @@ export class RoomEditorOverlay {
       h('span', { className: 'qf-themes__tray-id', title: s.id }, s.id),
       h('select', {
         className: 'qf-themes__covsel', title: 'Tile coverage (how many cells this sprite fills)',
-        ref: (e) => { e.value = String(s.coverage || 1) },
         on: { change: (e) => { this.scene.uiSetSpriteCoverage?.(s.id, e.target.value); this._renderThemes() } },
       }, [
-        h('option', { value: '1' }, '1×1'),
-        h('option', { value: '2' }, '2×2'),
-        h('option', { value: '4' }, '4×4'),
+        h('option', { value: '1', selected: (s.coverage || 1) === 1 }, '1×1'),
+        h('option', { value: '2', selected: (s.coverage || 1) === 2 }, '2×2'),
+        h('option', { value: '4', selected: (s.coverage || 1) === 4 }, '4×4'),
       ]),
       h('select', {
         className: 'qf-themes__slotsel',
@@ -864,9 +868,8 @@ export class RoomEditorOverlay {
           targets ? h('span', { className: 'qf-skins__roomnote' }, '·  Boss:') : null,
           targets ? h('select', {
             className: 'qf-themes__theme-sel',
-            ref: (el) => { el.value = curTarget },
             on: { change: (e) => { this.scene.uiSetSkinTarget?.(e.target.value); this._renderSkins() } },
-          }, targets.map((t) => h('option', { value: t.key }, t.label))) : null,
+          }, targets.map((t) => h('option', { value: t.key, selected: t.key === curTarget }, t.label))) : null,
         ]),
         h('div', { className: 'qf-themes__head-right' }, [
           h('button', { className: 'qf-themes__close', title: 'Close', on: { click: () => this.closeSkins() } }, '✕'),
