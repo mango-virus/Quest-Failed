@@ -479,6 +479,23 @@ export class RoomEditorOverlay {
           (v) => this.scene.uiSetDoorState?.(v)),
         this._themeSelect('Door theme', 'doorTheme', '(use room theme)'),
         this._doorThemeNote(),
+        h('span', { className: 'qf-redit__field-label' }, `Door image — ${cur} state`),
+        h('div', { className: 'qf-redit__btn-row' }, [
+          h('button', {
+            className: 'btn sm', title: `Download the ${cur} door as a PNG to edit`,
+            on: { click: () => this.scene.uiExportDoorPng?.() },
+          }, '🖼 Export door'),
+          h('button', {
+            className: 'btn sm', title: `Upload an edited PNG as the ${cur} door`,
+            on: { click: () => this.scene.uiUploadDoorSkin?.() },
+          }, '🎨 Door skin'),
+          h('button', {
+            className: 'btn sm ghost', title: 'Clear the painted door (back to theme)',
+            on: { click: () => this.scene.uiClearDoorSkin?.() },
+          }, 'Clear'),
+        ]),
+        h('div', { className: 'qf-redit__door-note' },
+          'Tip: Export → edit the 256×128 PNG → Door skin. Covers the full 4×2 door (frame + panels) for this state.'),
       ]),
       h('div', { className: 'qf-redit__subhead' }, [
         h('span', null, 'DOOR BRUSH'),

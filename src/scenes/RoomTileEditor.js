@@ -582,6 +582,134 @@ export class RoomTileEditor extends Phaser.Scene {
     return { ok: true, w: W, h: H }
   }
 
+  // CSS filter approximating Phaser's per-target ColorMatrix (used when baking
+  // colour into exported PNGs).
+  _cssColorFilter(adj) {
+    if (!adj) return 'none'
+    const p = []
+    if (adj.hue)      p.push(`hue-rotate(${adj.hue}deg)`)
+    if (adj.sat)      p.push(`saturate(${Math.max(0, 1 + adj.sat)})`)
+    if (adj.bright)   p.push(`brightness(${Math.max(0, 1 + adj.bright)})`)
+    if (adj.contrast) p.push(`contrast(${Math.max(0, 1 + adj.contrast)})`)
+    return p.length ? p.join(' ') : 'none'
+  }
+  _drawTexToCtx(ctx, key, cx, cy, size, rot, flipH, flipV, filter) {
+    if (!this.textures.exists(key)) return
+    const src = this.textures.get(key).getSourceImage()
+    if (!src) return
+    ctx.save()
+    ctx.filter = filter || 'none'
+    ctx.translate(cx + size / 2, cy + size / 2)
+    if (rot) ctx.rotate(rot * Math.PI / 180)
+    if (flipH || flipV) ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+    try { ctx.drawImage(src, -size / 2, -size / 2, size, size) } catch (_) { /* tainted */ }
+    ctx.restore()
+  }
+  _curDoorState() { return this._paintMode.startsWith('door-') ? this._paintMode.slice(5) : 'closed' }
+
+  // ── Door export + skins (per state, full 4×2 swatch incl. jambs) ────────────
+  // Export the current door state's painted swatch as a PNG (4 cols × 2 rows at
+  // 64px/cell = 256×128) for external editing.
+  uiExportDoorPng() {
+    const room = this._activeRoom()
+    if (!room) return { ok: false }
+    const state = this._curDoorState()
+    const grid = room.doorTiles?.[state] || [[null, null, null, null], [null, null, null, null]]
+    const CELL = 64, COLS = 4, ROWS = 2
+    const canvas = document.createElement('canvas')
+    canvas.width = COLS * CELL; canvas.height = ROWS * CELL
+    const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false
+    const filter = this._cssColorFilter(room.colorAdjust?.walls)
+    const covered = new Set()
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const e = readCellEntry(grid[r]?.[c]); if (!e) continue
+      const cov = spriteCoverage(ThemeManager.getSprite(e.id))
+      if (cov <= 1) continue
+      for (let dy = 0; dy < cov; dy++) for (let dx = 0; dx < cov; dx++) if (dx || dy) covered.add(`${c + dx},${r + dy}`)
+    }
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (covered.has(`${c},${r}`)) continue
+      const e = readCellEntry(grid[r]?.[c]); if (!e) continue
+      const cov = spriteCoverage(ThemeManager.getSprite(e.id))
+      this._drawTexToCtx(ctx, _textureKey(e.id), c * CELL, r * CELL, cov * CELL, e.rot || 0, !!e.flipH, !!e.flipV, filter)
+    }
+    let url
+    try { url = canvas.toDataURL('image/png') }
+    catch (err) { this._toast('Export failed: ' + (err?.message || err), true); return { ok: false } }
+    const a = document.createElement('a')
+    a.href = url; a.download = `door_${room.id}_${state}.png`
+    document.body.appendChild(a); a.click(); a.remove()
+    this._toast(`Exported ${room.name} door (${state}) PNG`)
+    return { ok: true }
+  }
+
+  // Re-import an edited door PNG: scale to the canonical 256×128 (4×2 @ 64px),
+  // slice into cells, register each non-empty slice as a sprite, and paint them
+  // into doorTiles[state]. Reuses the existing per-cell door rendering.
+  async uiUploadDoorSkin(droppedFiles = null) {
+    const room = this._activeRoom()
+    if (!room) return { ok: false }
+    const state = this._curDoorState()
+    let files = droppedFiles
+    if (!files) {
+      const input = document.createElement('input')
+      input.type = 'file'; input.accept = 'image/png,image/webp'; input.multiple = false
+      input.style.display = 'none'; document.body.appendChild(input)
+      files = await new Promise(res => {
+        input.onchange = () => res(Array.from(input.files || []))
+        input.oncancel = () => res([])
+        input.click()
+      })
+      input.remove()
+    }
+    files = (files || []).filter(f => /image\/(png|webp)/.test(f.type) || /\.(png|webp)$/i.test(f.name))
+    if (!files.length) return { ok: false }
+    const dataUrl = await _blobToDataUrl(files[0])
+    const img = await _loadImage(dataUrl)
+    const COLS = 4, ROWS = 2, CELL = 64, W = COLS * CELL, H = ROWS * CELL
+    const base = document.createElement('canvas'); base.width = W; base.height = H
+    const bctx = base.getContext('2d'); bctx.imageSmoothingEnabled = false
+    bctx.drawImage(img, 0, 0, W, H)
+
+    this._pushUndo()
+    const grid = [[null, null, null, null], [null, null, null, null]]
+    let made = 0
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const slice = document.createElement('canvas'); slice.width = CELL; slice.height = CELL
+      const sctx = slice.getContext('2d')
+      sctx.drawImage(base, c * CELL, r * CELL, CELL, CELL, 0, 0, CELL, CELL)
+      const data = sctx.getImageData(0, 0, CELL, CELL).data
+      let opaque = false
+      for (let i = 3; i < data.length; i += 4) { if (data[i] > 8) { opaque = true; break } }
+      if (!opaque) continue   // skip fully-transparent cells
+      const id = `dskin_${room.id}_${state}_${c}${r}`
+      const url = slice.toDataURL('image/png')
+      ThemeManager.addSprite(id, { srcSize: 64, mode: 'scale', theme: null, file: spritePath(id) })
+      this._pendingThemeBytes().set(id, _dataUrlToBytes(url))
+      try { await this._addTextureFromDataUrl(_textureKey(id), url) } catch (_) { /* ignore */ }
+      if (this._thumbCache) delete this._thumbCache[_textureKey(id)]
+      grid[r][c] = id
+      made++
+    }
+    if (!room.doorTiles) room.doorTiles = {}
+    room.doorTiles[state] = grid
+    this._populatePaintCanvas()
+    this._notifyDom()
+    this._toast(`Door skin applied to ${state} (${made} cells)`)
+    return { ok: true, cells: made }
+  }
+
+  uiClearDoorSkin() {
+    const room = this._activeRoom()
+    if (!room) return
+    const state = this._curDoorState()
+    this._pushUndo()
+    if (!room.doorTiles) room.doorTiles = {}
+    room.doorTiles[state] = [[null, null, null, null], [null, null, null, null]]
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
+
   // ── Stage 2: per-mode panel API ─────────────────────────────────────────────
 
   // Phaser texture → data-URL thumbnail for DOM <img> previews. Cached by key.
@@ -1993,8 +2121,20 @@ export class RoomTileEditor extends Phaser.Scene {
       if (DecorManager.listSprites().length > 0) {
         await FsHandle.writeJson(DECOR_MANIFEST_PATH, DecorManager.toManifest())
       }
+      // Flush any staged sprite / skin PNG bytes (theme tiles, door-skin
+      // slices, room skins) so they exist on disk before the manifest that
+      // references them — the main Save persists everything in one click.
+      for (const [id, bytes] of this._pendingThemeBytes()) {
+        await FsHandle.writeFile(spritePath(id), new Blob([bytes], { type: 'image/png' }))
+      }
+      this._pendingThemeBytes().clear()
+      for (const [id, bytes] of this._pendingSkinBytes()) {
+        await FsHandle.writeFile(roomSkinPath(id), new Blob([bytes], { type: 'image/png' }))
+      }
+      this._pendingSkinBytes().clear()
       // Persist the theme manifest too, so tile uploads / deletions / slot
-      // edits made from the palettes survive without a separate Themes save.
+      // edits / door skins made from the palettes survive without a separate
+      // Themes save.
       await FsHandle.writeJson('assets/themes/manifest.json', ThemeManager.serialize())
       // Mirror change into the live cache so other systems see updated
       // theme + tileLayout + doorTiles fields without a reload.
@@ -2148,6 +2288,24 @@ async function _blobToDataUrl(blob) {
     r.onerror = () => reject(r.error)
     r.readAsDataURL(blob)
   })
+}
+
+// Load an <img> from a data/blob URL, resolving once decoded.
+function _loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
+}
+
+// Decode a `data:...;base64,` URL to raw bytes (for staging PNGs to FsHandle).
+function _dataUrlToBytes(dataUrl) {
+  const bin = atob(String(dataUrl).split(',')[1] || '')
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes
 }
 
 // Largest native dimension of an image data URL (used to bucket uploaded
