@@ -301,6 +301,9 @@ export class RoomTileEditor extends Phaser.Scene {
       flipH: !!this._flipH,
       flipV: !!this._flipV,
       eraser: !!this._eraserMode,
+      moveMode: !!this._moveMode,
+      holding: !!this._heldTile,
+      heldId: this._heldTile?.id || null,
       showGrid: this._showGrid !== false,
       folderName: FsHandle.hasRoot() ? FsHandle.rootName() : null,
     }
@@ -308,15 +311,18 @@ export class RoomTileEditor extends Phaser.Scene {
 
   uiSelectRoom(id) {
     if (id === this._activeRoomId) return
+    this._clearHeld()
     this._activeRoomId = id
     this._refreshAll()
   }
 
   uiSetTab(tab) {
+    this._clearHeld()
     this._colorsTab = (tab === 'colors')
     if (tab === 'tiles' || tab === 'colors') this._paintMode = 'room'
     else if (tab === 'decor') this._paintMode = 'decor'
     else if (tab === 'doors' && !this._paintMode.startsWith('door-')) this._paintMode = 'door-closed'
+    if (this._paintMode !== 'room') this._moveMode = false  // Move tool is tiles-only
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -326,8 +332,16 @@ export class RoomTileEditor extends Phaser.Scene {
   uiRotateTile()     { this._cycleRotation(+1); this._notifyDom() }
   uiToggleFlipH()    { this._flipH = !this._flipH; this._notifyDom() }
   uiToggleFlipV()    { this._flipV = !this._flipV; this._notifyDom() }
-  uiToggleEraser()   { this._eraserMode = !this._eraserMode; this._notifyDom() }
+  uiToggleEraser()   { this._eraserMode = !this._eraserMode; if (this._eraserMode) this._clearHeld(); this._notifyDom() }
   uiToggleGrid()     { this._showGrid = this._showGrid === false; this._populatePaintCanvas(); this._notifyDom() }
+  uiToggleMove() {
+    this._moveMode = !this._moveMode
+    if (this._moveMode) this._eraserMode = false
+    this._clearHeld()
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
+  _clearHeld() { this._heldTile = null; this._heldFrom = null }
   uiSave()           { this._save() }
   uiBack()           { this.scene.start('MainMenu') }
 
@@ -1076,18 +1090,33 @@ export class RoomTileEditor extends Phaser.Scene {
         const px = ox + vx * cell
         const py = oy + vy * cell
         const gridA = this._showGrid ? 0.25 : 0
+        // Held-tile source highlight (move tool): gold ring on the cell a
+        // tile was picked up from until it's placed.
+        const hc = viewToRoom(vx, vy, w, h, viewRot)
+        const isHeld = this._moveMode && this._heldFrom && this._heldFrom.rx === hc.rx && this._heldFrom.ry === hc.ry
+        const baseW = isHeld ? 3 : 1
+        const baseCol = isHeld ? 0xffd24a : COL_BORDER
+        const baseA = isHeld ? 1 : gridA
         const hit = this.add.rectangle(px, py, cell, cell, 0xffffff, 0).setOrigin(0, 0)
-          .setStrokeStyle(1, COL_BORDER, gridA)
+          .setStrokeStyle(baseW, baseCol, baseA)
           .setInteractive({ useHandCursor: true })
-        const hover = (over) => hit.setStrokeStyle(over ? 2 : 1, over ? COL_PAINT_HOVER : COL_BORDER, over ? 0.85 : gridA)
+        const hover = (over) => hit.setStrokeStyle(over ? 2 : baseW, over ? COL_PAINT_HOVER : baseCol, over ? 0.85 : baseA)
         hit.on('pointerover', () => hover(true))
         hit.on('pointerout',  () => hover(false))
         // Capture vx/vy/viewRot for the closure.
         const cvx = vx, cvy = vy, cViewRot = viewRot
         hit.on('pointerdown', (pointer, lx, ly, ev) => {
           ev?.stopPropagation?.()
-          const isClear = pointer.rightButtonDown() || pointer.event?.shiftKey || this._eraserMode
           const { rx, ry } = viewToRoom(cvx, cvy, w, h, cViewRot)
+          // Move tool takes precedence: 1st click picks up a painted tile,
+          // 2nd click drops it (preserving rotation / flip / span).
+          if (this._moveMode) {
+            this._handleMoveClick(room, cvx, cvy, cViewRot, rx, ry)
+            this._populatePaintCanvas()
+            this._notifyDom()
+            return
+          }
+          const isClear = pointer.rightButtonDown() || pointer.event?.shiftKey || this._eraserMode
           if (isClear) {
             this._eraseAt(room, rx, ry)
           } else if (this._activeSpriteId) {
@@ -1526,7 +1555,7 @@ export class RoomTileEditor extends Phaser.Scene {
     // Bounds in view space
     if (vx + cov > vd.w || vy + cov > vd.h) {
       if (cov > 1) this._toast(`Sprite is ${cov}×${cov} — too close to edge to fit`, true)
-      return
+      return false
     }
 
     // Compute the room-space top-left of the cov×cov view block by
@@ -1563,6 +1592,45 @@ export class RoomTileEditor extends Phaser.Scene {
     // power users can experiment with combinations.
     room.tileLayout[minRy][minRx] = writeCellEntry(
       this._activeSpriteId, stored, this._flipH, this._flipV)
+    return true
+  }
+
+  // Move tool — two-click relocate of a painted tile. 1st click picks up the
+  // override at the clicked cell (source kept until placed); 2nd click drops
+  // it, preserving the tile's rotation / flip / span, then clears the source.
+  // Cancelling (toggle off / room or mode switch) just drops the hold; the
+  // source is never modified until a successful place, so nothing is lost.
+  _handleMoveClick(room, vx, vy, viewRot, rx, ry) {
+    if (!this._heldTile) {
+      const held = readCellEntry(room.tileLayout[ry]?.[rx])
+      if (!held) { this._toast('No painted tile here to move', true); return }
+      this._heldTile = held
+      this._heldFrom = { rx, ry }
+      this._toast(`Holding “${held.id}” — click where to place it`)
+      return
+    }
+    const held = this._heldTile
+    const w = room.width, h = room.height
+    const cov = spriteCoverage(ThemeManager.getSprite(held.id))
+    const vd = viewDims(w, h, viewRot)
+    if (vx + cov > vd.w || vy + cov > vd.h) {
+      this._toast(`${cov}×${cov} tile won’t fit here — too close to the edge`, true)
+      return  // keep holding
+    }
+    // Clear the source anchor (its covered cells are already null), then place
+    // via the paint path so span coverage + bounds are handled. The brush is
+    // briefly set to the held values; activeRot offsets the viewRot baking in
+    // _paintAtView so the stored rotation comes out exactly as held.rot.
+    const f = this._heldFrom
+    if (room.tileLayout[f.ry]) room.tileLayout[f.ry][f.rx] = null
+    const sv = { id: this._activeSpriteId, rot: this._activeRot, fh: this._flipH, fv: this._flipV }
+    this._activeSpriteId = held.id
+    this._activeRot = ((held.rot + viewRot) % 360 + 360) % 360
+    this._flipH = held.flipH; this._flipV = held.flipV
+    this._paintAtView(room, vx, vy, viewRot)
+    this._activeSpriteId = sv.id; this._activeRot = sv.rot; this._flipH = sv.fh; this._flipV = sv.fv
+    this._heldTile = null; this._heldFrom = null
+    this._toast(`Moved “${held.id}”`)
   }
 
   // Legacy entry point — paint at room cell (x, y) at active brush
