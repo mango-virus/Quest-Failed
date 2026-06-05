@@ -168,6 +168,31 @@ The biggest lever from "asset flip" to "premium." Layer it on, tastefully:
 - Keep it **cohesive** — one VFX language (color, particle style, timing), not
   a grab-bag. It should all feel like the same dark-fantasy "BONEMAKER" game.
 
+### The VFX toolkit — compose effects from these (don't hand-draw Graphics)
+
+`src/ui/AbilityVfx.js` has a toolkit built on Phaser 3.60's real VFX (GPU
+particles + additive blend + `postFX.addGlow` — WebGL is on via `Phaser.AUTO`).
+**Compose new effects from these**, not from raw `Graphics` circles/lines (which
+read flat). All are Canvas-safe (postFX in try/catch), quality-aware, self-cleaning:
+
+- `particleBurstFx` (energy burst) · `impactFx` (hit: flash+spray+ring) ·
+  `shockwaveFx` (glow rings) · `beamFx` (A→B beam) · `projectileFx` (travelling
+  orb + trail + impact) · `burnFx` (sustained DoT/aura emitter) · `glowPulseFx`
+  (charge/heal aura) · `sparkleFx` (accents) · `juice` (impact + camera shake +
+  flash — the "feel" layer) · `flipbookFx` (play an authored `vfx-*` 64×64 sheet
+  + glow).
+- Colour via `VfxPalette` presets — pass `palette: 'fire'|'ice'|'holy'|'shadow'|
+  'poison'|'arcane'|'blood'` for cohesion (don't hardcode random colours).
+
+**Iterate on motion** with the filmstrip: `window.__qfDev.filmstrip(name, {slow})`
+fires one effect heavily slowed (and dismisses act-intro popups) so you can
+screenshot frames across its lifecycle and tune the timing — VFX/animation is
+iteration on motion, so *watch it*, don't ship from one frame.
+
+Root note: before 2026-06-05 every effect was hand-drawn `Graphics`+tweens (zero
+particles/postFX/shaders) despite the engine supporting all of it — that's what
+made effects read "basic." Use the toolkit.
+
 ---
 
 ## 6. Component reuse — don't reinvent the chrome
