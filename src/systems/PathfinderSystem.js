@@ -44,6 +44,15 @@ export class PathfinderSystem {
    * @returns {Array<{x:number,y:number}> | null}
    */
   static findPath(start, end, dungeonGrid, costFn = null, jitter = 0, blockedTiles = null, opts = null) {
+    // Defensive: snap to integer tile indices. Callers occasionally pass a
+    // FRACTIONAL/mid-step entity position — a minion interpolating between two
+    // tiles, or a pact-spawned twin (mirror) sitting at a sub-tile coord. A*'s
+    // keys and the `tiles[ny][nx]` neighbour lookup assume integer indices; a
+    // fractional coord clears the `_inBounds` range check but then indexes an
+    // undefined grid row and throws (`Cannot read properties of undefined`).
+    // Snap to the containing tile so any caller is safe.
+    start = { x: Math.floor(start.x), y: Math.floor(start.y) }
+    end   = { x: Math.floor(end.x),   y: Math.floor(end.y) }
     if (start.x === end.x && start.y === end.y) return []
 
     const tiles = dungeonGrid.getTiles()
