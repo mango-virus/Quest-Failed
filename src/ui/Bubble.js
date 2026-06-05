@@ -1,14 +1,12 @@
-// Shared speech-bubble factory for adventurer chat, death floats, and
-// the streamer slot animation. Builds a pixel-art square bubble with
-// a 2-pixel blocky tail pointing down at the speaker, wrapped Press
-// Start 2P text inside (140 px max width, capped at 3 lines with
-// ellipsis truncation), and a scale-pop entrance tween.
+// Shared speech-bubble factory for adventurer chat and death floats.
+// Builds a pixel-art square bubble with a 2-pixel blocky tail pointing
+// down at the speaker, wrapped Press Start 2P text inside (140 px max
+// width, capped at 3 lines with ellipsis truncation), and a scale-pop
+// entrance tween.
 //
-// All three callers (ChatBubbles, DayPhase._showLastWords,
-// ClassAbilitySystem._fireSlotAnimation) share one visual language —
-// kind = 'chat' | 'death' | 'streamer' picks the accent colour and
-// some lifecycle differences (death uses a slower fade-up, streamer
-// supports an eyebrow line).
+// Both callers (ChatBubbles, DayPhase._showLastWords) share one visual
+// language — kind = 'chat' | 'death' picks the accent colour and some
+// lifecycle differences (death uses a slower fade-up).
 //
 // Container convention (matches existing ChatBubbles positioning):
 //   container.x / container.y = the TAIL TIP — i.e. the world-space
@@ -50,13 +48,6 @@ const KIND_STYLE = {
     popInMs:     220,
     fadeOutMs:   500,
   },
-  streamer: {
-    borderColor: 0x9146ff,     // twitch purple
-    bgColor:     0x100a1c,
-    textColor:   '#ffffff',
-    popInMs:     150,
-    fadeOutMs:   400,
-  },
   // Solo Leveling — Sung Jinwoo's bubbles. Inky dark bubble + a white→blue
   // vertical gradient on the text with a soft blue glow, echoing the
   // "ARISE" shadow-monarch typography.
@@ -80,10 +71,8 @@ const KIND_STYLE = {
  * @param {number} opts.x         World X (tail tip).
  * @param {number} opts.y         World Y (tail tip).
  * @param {string} opts.text      Bubble body.
- * @param {string} [opts.kind]    'chat' | 'death' | 'streamer'.
- * @param {string} [opts.eyebrow] Tiny uppercase line above body
- *                                ('streamer' kind only — ignored
- *                                otherwise).
+ * @param {string} [opts.kind]    'chat' | 'death'.
+ * @param {string} [opts.eyebrow] Tiny uppercase line above body.
  * @param {number} [opts.lifeMs]  Auto-destroy after this many ms
  *                                (omit for manual lifecycle — e.g.
  *                                slot animation that updates text
@@ -106,7 +95,7 @@ export function createBubble(scene, opts = {}) {
   // Build text first so we can measure for the bubble background.
   const text = _buildWrappedText(scene, opts.text ?? '', style)
   let eyebrow = null
-  if (opts.eyebrow && kind === 'streamer') {
+  if (opts.eyebrow) {
     eyebrow = scene.add.text(0, 0, String(opts.eyebrow).toUpperCase(), {
       fontSize:   `${EYEBROW_FONT_SIZE}px`,
       color:      style.textColor,
@@ -132,8 +121,8 @@ export function createBubble(scene, opts = {}) {
   container.add(g)
 
   // Position text inside bubble. Origin (0.5, 0.5) → centered around
-  // bubble centre point (0, -TAIL_H - bubbleH/2). For streamer with
-  // an eyebrow, anchor text below the eyebrow.
+  // bubble centre point (0, -TAIL_H - bubbleH/2). With an eyebrow,
+  // anchor text below the eyebrow.
   const bubbleCenterY = -TAIL_H - bubbleH / 2
   if (eyebrow) {
     const top = -TAIL_H - bubbleH + PAD_Y
@@ -152,8 +141,8 @@ export function createBubble(scene, opts = {}) {
   container._tailH   = TAIL_H
 
   // Scale-pop entrance — alpha 0 → 1 + scale 0.85 → 1 over popInMs.
-  // For 'chat' and 'streamer' this feels peppy. For 'death' the
-  // longer popInMs (220ms) gives the more somber rise.
+  // For 'chat' this feels peppy. For 'death' the longer popInMs
+  // (220ms) gives the more somber rise.
   container.setScale(0.85).setAlpha(0)
   scene.tweens.add({
     targets:  container,

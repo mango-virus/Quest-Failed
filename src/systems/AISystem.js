@@ -928,7 +928,7 @@ export class AISystem {
 
   // When the party wins a boss fight, force every adventurer still in the dungeon
   // to flee — not just those who were inside _fightStates. Split-off adventurers
-  // (solo, chat_poll redirect, etc.) never receive the BossSystem handoff and
+  // (solo explorers, redirected adventurers, etc.) never receive the BossSystem handoff and
   // would otherwise keep exploring indefinitely.
   // Barbarian and noFlee flags are intentionally bypassed: the dungeon run is
   // over for this wave and everyone must exit.
@@ -1453,8 +1453,8 @@ export class AISystem {
         // toe-to-toe with a hostile minion is fighting, not wedged. Wipe the
         // sample window while a minion is in melee range so a long fight
         // can't trip the failsafe and flee them mid-swing. The `fighting`
-        // state also covers adventurer-vs-adventurer duels (Twitch beef)
-        // — those legitimately hold a tile too.
+        // state also covers adventurer-vs-adventurer duels — those
+        // legitimately hold a tile too.
         if (this._minionAdjacent(adv) || adv.aiState === 'fighting') adv._oscRing = []
         adv._oscRing ??= []
         adv._oscRing.push({ x: adv.tileX, y: adv.tileY, t: now })
@@ -1894,29 +1894,6 @@ export class AISystem {
     // Phase 8b: sample path for replay ghosts
     this._samplePath(adv, delta)
 
-    // Phase 10b — Twitch Streamer chat_poll: every ~10s, chat picks a random
-    // unvisited room and the streamer abandons whatever they were doing
-    // to "follow viewer suggestion". Wildly chaotic; loved by the boss.
-    // Suppressed when the boss is already dead (hp <= 0) so the poll can't
-    // override the flee goal that _onBossFightResolved just set.
-    if (adv.classId === 'twitch_streamer' && adv.aiState !== 'fighting' && adv.aiState !== 'fleeing' &&
-        (this._gameState.boss?.hp ?? 1) > 0) {
-      adv._chatPollAccum = (adv._chatPollAccum ?? 0) + delta
-      if (adv._chatPollAccum >= 10000) {
-        adv._chatPollAccum = 0
-        const visited = new Set(adv.visitedRooms ?? [])
-        const candidates = this._gameState.dungeon.rooms.filter(r =>
-          !visited.has(r.instanceId) && r.definitionId !== 'boss_chamber'
-        )
-        if (candidates.length > 0) {
-          const pick = candidates[Math.floor(Math.random() * candidates.length)]
-          adv.goal = { type: 'EXPLORE_ROOM', roomId: pick.instanceId }
-          adv.path = null
-          EventBus.emit('TWITCH_CHAT_POLL', { adventurer: adv, targetRoomId: pick.instanceId })
-        }
-      }
-    }
-
     // Phase 6e: passive room effects (healing fountain heal-on-stand)
     this._applyRoomEffects(adv, delta)
 
@@ -2049,36 +2026,6 @@ export class AISystem {
             return
           }
         }
-      }
-    }
-
-    // Dungeon event: Twitch Con — "streamer beef". A `_twitchChaos`
-    // adventurer whose freelance agenda rolled BEEF (goal.type === 'WANDER'
-    // with beef=true) attacks the nearest OTHER `_twitchChaos` adv in range.
-    // Uncoordinated infighting,
-    // no HP gate. Falls through to normal minion engagement if no other
-    // streamer is in reach, so the player's minions/boss can still fight
-    // (and kill) them as usual.
-    if (adv._twitchChaos && adv.goal?.type === 'WANDER' && adv.goal?.beef &&
-        adv.aiState !== 'fleeing' && this._combatSystem) {
-      const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
-      let target = null, bestDist = Infinity
-      for (const other of this._gameState.adventurers.active) {
-        if (other === adv) continue
-        if (!other._twitchChaos) continue
-        if (other.aiState === 'dead' || other.aiState === 'fleeing') continue
-        const d = Math.hypot(other.tileX - adv.tileX, other.tileY - adv.tileY)
-        if (d > reach + 0.01) continue
-        if (d < bestDist) { target = other; bestDist = d }
-      }
-      if (target) {
-        adv.aiState = 'fighting'
-        adv.path = null
-        this._combatSystem.tryAttack(adv, target, {
-          roomId: this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)?.instanceId,
-          method: 'streamer_beef',
-        })
-        return
       }
     }
 
@@ -3534,31 +3481,6 @@ export class AISystem {
       // each adventurer's own tile.
       return this._fleeExitTile(adv)
     }
-    // Dungeon event: Twitch Con — "wander in place". A freelance streamer
-    // who rolled WANDER drifts to a random walkable tile a few steps from
-    // wherever they currently are (a fresh tile is picked each replan, so
-    // they mill around aimlessly). EventSystem's freelance timer re-rolls
-    // the agenda every ~4s so this never permanently strands them.
-    if (adv.goal.type === 'WANDER') {
-      const tilesGrid = this._dungeonGrid.getTiles?.()
-      if (tilesGrid) {
-        // Try a handful of random offsets in a small radius; first walkable,
-        // non-door tile wins. Fall back to standing still if none found.
-        for (let tries = 0; tries < 8; tries++) {
-          const ox = Math.floor(Math.random() * 7) - 3   // [-3, 3]
-          const oy = Math.floor(Math.random() * 7) - 3
-          const tx = adv.tileX + ox
-          const ty = adv.tileY + oy
-          const row = tilesGrid[ty]
-          if (!row) continue
-          const t = row[tx]
-          if (!PathfinderSystem.isWalkable(t)) continue
-          if (t === TILE.DOOR) continue
-          return { x: tx, y: ty }
-        }
-      }
-      return { x: adv.tileX, y: adv.tileY }
-    }
     // Phase D — beeline to the targeted treasure chest. If it's gone or
     // already opened, pop back to whatever we were doing.
     if (adv.goal.type === 'SEEK_TREASURE') {
@@ -3793,15 +3715,6 @@ export class AISystem {
     }
     if (adv.goal.type === 'AT_BOSS') {
       // Frozen — BossSystem will kill or flee them when the fight resolves
-      adv.path = null
-      return
-    }
-
-    // Dungeon event: Twitch Con — wandering streamer reached its drift
-    // tile. Just clear the path; _goalToTile picks a fresh random tile on
-    // the next replan, and EventSystem's freelance timer will re-roll the
-    // whole agenda within a few seconds anyway.
-    if (adv.goal.type === 'WANDER') {
       adv.path = null
       return
     }

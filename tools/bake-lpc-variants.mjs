@@ -105,7 +105,7 @@ const METAL_BASE_PACKED = basePacked(METAL_PALETTE);
 
 // Hair: all 26 palettes available — user wants the full pool (natural + fantasy).
 const HAIR_ALL = HAIR_PALETTE ? Object.keys(HAIR_PALETTE.options) : [];
-// Body: natural skin tones for adventurers; Twitch Streamer can pull fantasy.
+// Body: natural skin tones for adventurers; Cheater can pull fantasy.
 const BODY_NATURAL = ['light', 'amber', 'olive', 'taupe', 'bronze', 'brown', 'black'];
 const BODY_FANTASY = ['blue', 'bright_green', 'dark_green'];
 // Cloth: 24 palettes — all valid as clothing colors.
@@ -260,7 +260,7 @@ const BOW_WEAPONS = new Set(['Normal', 'Great', 'Recurve']);
 // axe/hammer/pickaxe heads; we use only the axe — a two-handed great-axe).
 // Glowsword ships only blue/red variants and has no carried-colour concept,
 // so without a lock it re-rolls blue↔red every animation row (flicker) — pin
-// it to a single blue blade everywhere it's used (cheater + streamer).
+// it to a single blue blade everywhere it's used (cheater).
 const WEAPON_VARIANT_LOCK = { Smash: 'axe', Glowsword: 'blue' };
 // Hair that sticks UP (spikes, mohawks, crown-topknots, high buns/ponytails).
 // Long/curly/flat hair flows fine UNDER a hat that sits on the crown, but these
@@ -437,13 +437,11 @@ function sampleVariant(rng, className, classPool, forced = {}) {
   // unless the class locks it via hairColorPool (named characters do — e.g.
   // shadow_monarch = always black).
   v.hairColor = pick(rng, (classPool.hairColorPool?.length) ? classPool.hairColorPool : HAIR_ALL);
-  // Body: natural skin tones for most classes. Twitch Streamer occasionally
-  // rolls a fantasy palette (15%); Cheater leans into desync harder (30%)
-  // so the modded-client silhouette can include obviously-not-human skin
-  // (blue, bright green, dark green) without crowding the rest of the
+  // Body: natural skin tones for most classes. Cheater leans into desync
+  // (30%) so the modded-client silhouette can include obviously-not-human
+  // skin (blue, bright green, dark green) without crowding the rest of the
   // adventurer roster.
   const fantasyChance = className === 'cheater' ? 0.30
-                       : className === 'twitch_streamer' ? 0.15
                        : 0;
   const bodyOpts = fantasyChance > 0 && rng() < fantasyChance
     ? [...BODY_NATURAL, ...BODY_FANTASY] : BODY_NATURAL;

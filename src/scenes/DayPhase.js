@@ -737,8 +737,8 @@ export class DayPhase extends Phaser.Scene {
     const dayNum     = this._gameState.meta?.dayNumber ?? 1
     // Class spawn gates: unlockLevel = boss level required (default 1),
     // unlockDay = calendar day required (default 1). Both must be met.
-    // Rare/late classes (necromancer, twitch_streamer, beast_master, bard)
-    // use unlockLevel 3 so they appear once the boss has levelled up twice.
+    // Rare/late classes (necromancer, beast_master, bard) use unlockLevel 3
+    // so they appear once the boss has levelled up twice.
     let classes = allClasses.filter(c =>
       // Sung Jinwoo (shadow_monarch) is event-ONLY: he spawns solely via
       // _spawnSoloLeveling. Hard-exclude him from the normal-wave pool (which
@@ -749,17 +749,10 @@ export class DayPhase extends Phaser.Scene {
       (c.unlockLevel ?? 1) <= dungeonLv &&
       (c.unlockDay   ?? 1) <= dayNum,
     )
-    // Dungeon event: Twitch Con — every adventurer is a Twitch Streamer.
-    // Bypasses unlock gates so the event still fires on day 1 even though
-    // twitch_streamer normally requires bossLevel ≥ 3.
-    if ((this._gameState._eventFlags ?? {}).twitchConActive) {
-      const ts = allClasses.find(c => c.id === 'twitch_streamer')
-      if (ts) classes = [ts]
-    }
     // Dungeon event: Cosplay Contest — entire wave uses the dedicated
     // cosplay_adventurer class. Costumes come from the existing
     // cosplay_adventurer LPC variant pool (50 baked variants) — no
-    // separate accessory overlay. Same unlock-gate bypass as Twitch Con.
+    // separate accessory overlay. Bypasses unlock gates.
     if ((this._gameState._eventFlags ?? {}).cosplayContestActive) {
       const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
       if (cos) classes = [cos]
@@ -859,24 +852,6 @@ export class DayPhase extends Phaser.Scene {
     const eventFlags = this._gameState._eventFlags ?? {}
     if (eventFlags.negotiationOutcome === 'pay')    { this._noSpawnReason = 'negotiation_pay'; return [] }
     if (eventFlags.negotiationOutcome === 'refuse') baseCount = Math.round(baseCount * 1.5)
-    // Phase 5c — Twitch Subscriber Revenge: consume any pending bonus spawn
-    // count from yesterday's death-clip-going-viral roll.
-    const subBonus = this._gameState.player?.subscriberRevengeBonus ?? 0
-    if (subBonus > 0) {
-      baseCount += subBonus
-      this._gameState.player.subscriberRevengeBonus = 0
-      // Visible banner so the player notices the extra spawn
-      const cam = this.scene.get('Game')?.cameras?.main
-      if (cam) {
-        const txt = this.scene.get('Game').add.text(cam.midPoint.x, cam.midPoint.y - 100,
-          `Streamer's death clip went viral!\n+${subBonus} adventurers today`,
-          { fontSize: '18px', color: '#9146ff', fontFamily: 'monospace', fontStyle: 'bold',
-            stroke: '#000000', strokeThickness: 3, align: 'center' })
-          .setOrigin(0.5).setScrollFactor(0).setDepth(9999)
-        this.scene.get('Game').tweens.add({ targets: txt, alpha: 0, y: txt.y - 30, duration: 3500, onComplete: () => txt.destroy() })
-      }
-      EventBus.emit('SUBSCRIBER_REVENGE_SPAWN', { bonus: subBonus, day })
-    }
     const partyId   = `party_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     const spawned   = []
 
@@ -963,7 +938,6 @@ export class DayPhase extends Phaser.Scene {
     const _eventActive = !!(
       patchZeroActive ||
       _ef.saboteurActive ||
-      _ef.twitchConActive ||
       _ef.cosplayContestActive ||
       _ef.guildRaidActive ||
       _ef.infamySpikeActive ||
@@ -2437,7 +2411,7 @@ export class DayPhase extends Phaser.Scene {
   // Wave-progress bar descriptor for the TopBar (DAY_WAVE_INFO payload):
   //   { total, label, mode }
   //   mode 'bar'   — fixed-size wave; bar fills green (kills) + orange (escapes)
-  //   mode 'count' — endless/unknown wave (Twitch Con); numbers only, no fill
+  //   mode 'count' — endless/unknown wave; numbers only, no fill
   //   mode 'none'  — no wave today (intended rest day); hide the bar
   // total counts every threat in adventurers.active at day start (all share
   // the ADVENTURER_DIED / ADVENTURER_FLED events the bar tallies).
@@ -2445,7 +2419,6 @@ export class DayPhase extends Phaser.Scene {
     const ef = this._gameState._eventFlags ?? {}
     const n  = (this._gameState.adventurers?.active ?? []).length
     if (this._noSpawnReason || n === 0) return { total: 0, label: '', mode: 'none' }
-    if (ef.twitchConActive)       return { total: null, label: 'STREAMERS',      mode: 'count' }
     if (ef.bossRoyaleActive)      return { total: n,    label: 'INVADERS',       mode: 'bar' }
     if (ef.rivalDungeonActive)    return { total: n,    label: 'INVADERS',       mode: 'bar' }
     if (ef.zombieHordeActive)     return { total: n,    label: 'HORDE',          mode: 'bar' }

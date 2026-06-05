@@ -180,7 +180,7 @@ export class NightPhase extends Phaser.Scene {
   // Handles ALL spawn paths:
   //   * Event replacements (loot goblin heist / speedrunner / cartographers
   //     / rival dungeon) — fixed compositions.
-  //   * Twitch Con / Cosplay Contest — single-class wave overrides.
+  //   * Cosplay Contest — single-class wave overrides.
   //   * Vendetta hunter (35% chance) — pre-rolled and stored so the
   //     preview matches whether one will actually arrive.
   //   * Normal class-pool roll.
@@ -355,11 +355,6 @@ export class NightPhase extends Phaser.Scene {
       (c.unlockLevel ?? 1) <= bossLv &&
       (c.unlockDay   ?? 1) <= day,
     )
-    // Twitch Con — entire wave is twitch_streamer. Bypasses unlock gates.
-    if (eventFlags.twitchConActive) {
-      const ts = allClasses.find(c => c.id === 'twitch_streamer')
-      if (ts) classes = [ts]
-    }
     // Cosplay Contest — entire wave is cosplay_adventurer. Same bypass.
     if (eventFlags.cosplayContestActive) {
       const cos = allClasses.find(c => c.id === 'cosplay_adventurer')
@@ -410,8 +405,6 @@ export class NightPhase extends Phaser.Scene {
     if (eventFlags.guildRaidActive) baseCount *= 2
     if (eventFlags.negotiationOutcome === 'pay')    baseCount = 0
     if (eventFlags.negotiationOutcome === 'refuse') baseCount = Math.round(baseCount * 1.5)
-    const subBonus = gs.player?.subscriberRevengeBonus ?? 0
-    if (subBonus > 0) baseCount += subBonus
     // Mirror DayPhase: no class-diversity cap. See the long comment at
     // the matching call site in DayPhase._spawnDailyAdventurers.
     const count = Math.max(0, Math.floor(baseCount))

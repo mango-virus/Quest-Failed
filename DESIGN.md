@@ -175,7 +175,7 @@ Stays **legendary**. The old auto-raise / living-buff / 2-slot mechanic is fully
 
 *No special ability (revive = stats + sprite + basic attack):* Templar, Pirate, Cosplayer, Cartographer, Loot Goblin.
 
-*NOT revivable at all (flagged `revivable:false` in `adventurerClasses.json`):* **Cheater**, Sung Jinwoo (shadow_monarch), Aldric, Rival Monster (monster_invader), Rival Dungeon Boss (rival_boss_invader), Light Party (paladin / white_mage / samurai / black_mage), Twitch Streamer (being removed).
+*NOT revivable at all (flagged `revivable:false` in `adventurerClasses.json`):* **Cheater**, Sung Jinwoo (shadow_monarch), Aldric, Rival Monster (monster_invader), Rival Dungeon Boss (rival_boss_invader), Light Party (paladin / white_mage / samurai / black_mage), Twitch Streamer (REMOVED 2026-06-05).
 
 **Architecture (so future content "just works"):**
 - Revived units run the **same `ClassAbilitySystem` defs + `_considerX` logic + `AbilityVfx`** — no duplicated copy — with ally/enemy lookups made **side-aware** in the shared helpers (`_allyInDangerNearby`, `_hostileMinionWithin`, `_findFallenToRevive`, …). ⇒ future ability tweaks / new abilities inherit automatically (contract: new abilities must use those shared helpers).
@@ -283,7 +283,7 @@ Approved overhaul of every adventurer class. Mana system removed entirely — ab
 4. **Cleric** — *Resurrection* (1/run; revive a fallen party member at 30% HP). *Heal* (medium CD ~10s; targets lowest-HP ally <70% in range). Passive: 1.5× damage vs undead minions.
 5. **Necromancer** — *Summon Undead* (large CD; spawns 2 fresh low-HP/low-ATK skeletons or zombies on adventurer faction). *Bone Armor* (active, large CD; +ATK/+DEF buff for set duration, scales with currently-living summons).
 6. **Ranger** — *Volley* (every-5th-shot proc; fires a 3-arrow cone). *Trap Expert* (1–5/day by level, 20% fail-then-trigger; disabled traps stay disabled until day end). Arrow consumption removed.
-7. **Twitch Streamer** — *Viewers Choice* (random auto-trigger; slot-machine UI; RNG buff/debuff: heal, ATK ±20% 10s, DEF ±2 10s, random teleport, slow poison, invis 10s, etc). *Chat Decides* (random ~15s interval; chat picks one of: investigate-trap / fight-engaged-enemy / abandon-current-goal / charge-boss-room). Passive: *Subscriber Revenge* — on death, 50% chance next day's spawn count gets +3, with arrival notifier.
+7. **Twitch Streamer** — ❌ REMOVED 2026-06-05 (class fully cut, per user + IP cleanup). *Viewers Choice* (random auto-trigger; slot-machine UI; RNG buff/debuff: heal, ATK ±20% 10s, DEF ±2 10s, random teleport, slow poison, invis 10s, etc). *Chat Decides* (random ~15s interval; chat picks one of: investigate-trap / fight-engaged-enemy / abandon-current-goal / charge-boss-room). Passive: *Subscriber Revenge* — on death, 50% chance next day's spawn count gets +3, with arrival notifier.
 8. **Beast Master** — *Tame Beast* (50% success; single companion enforced). *Scout Ahead* (1/day; companion leaves to scout, knowledge transfers back to BM, BM is companion-less while scouting).
 9. **Barbarian** — *Break Door* (active; opens locked doors but alerts neighbor rooms — dormant until doors land). *Unstoppable* (passive; immune to all flee triggers). Passive: *Rage Scaling* (damage = base × (1 + (1−hpFrac)) up to 2× at 1 HP; VFX kicks in at high rage).
 10. **Monk** — *Focus* (medium CD; 30% dodge vs damage AND traps for set duration). *Inner Peace* (large CD; +1 HP/sec for set duration).
@@ -1091,7 +1091,7 @@ Random events that fire between days to break up the standard build/invade loop.
 **Rival Dungeon**
 - Effect: On this event day phase a rival group of random monsters will enter the dungeon instead of the usual adventurers. The last one to enter will be a big random boss from the boss pool looking for the player's boss to defeat in combat. Big XP and gold for killing the boss.
 
-**Twitch Con**
+**Twitch Con** — ❌ REMOVED 2026-06-05 (event + the `twitch_streamer` class fully cut, per user + IP cleanup).
 - Effect: The following day, all adventurers will be **twitch_streamer** class (class already exists in `adventurerClasses.json`). Pure chaos. However, killing these ones will not cause extra adventurers to arrive the next day afterwards (no escalation penalty for this day's kills).
 
 **Dark Deal**
@@ -1822,5 +1822,6 @@ want to completely remove the twitch streamer class and twitch con event from th
 - ☐ NG+ full-roster unlock (day-reset doesn't re-lock).
 - ☐ Night-before reveal card (days 11/21/31), once-per-tier-per-run, lists new classes w/ sprite+name+brief.
 - ☐ Endless-mode (`?acts=0`) reveal still works.
-- ☐ `twitch_streamer` class + `twitch_con` event fully removed (code, data, AI, HUD, sprites, chat lines,
-  balance, docs); game boots clean; STATUS.md class count updated.
+- ☑ `twitch_streamer` class + `twitch_con` event fully removed (2026-06-05 — code, data, AI, HUD, sprites,
+  chat lines, balance, docs; 14MB sprite folder deleted; STATUS.md counts synced: events 35, classes 29;
+  lint-content + verify-docs green; headless sim/soak clean).

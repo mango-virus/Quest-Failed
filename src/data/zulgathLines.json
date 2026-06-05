@@ -1557,12 +1557,6 @@
         { "t": "A ranger loves that bow the way I love my hoard, small one. Crowd it. A creature parted from the thing it loves makes poor decisions.", "x": "cool" },
         { "t": "A ranger, eyes on every trap. Your hidden teeth may not stay hidden. Have something that bites without hiding, small one. Have a backup.", "x": "worried" }
       ],
-      "twitch_streamer": [
-        { "t": "Mm. A twitch streamer. Thousands watching, small one — beyond the glass, as ever. I am old friends with being watched. Put on a worthy funeral.", "x": "menacing" },
-        { "t": "A streamer. Its chat decides its moves — half clever, half suicidal. Exploit the suicidal half, small one. The crowd will betray it for you, for free.", "x": "joking" },
-        { "t": "A streamer in the dungeon. Kill it well and the clip spreads; a larger crowd marches in tomorrow. More to bury. Mm. I do not mind an audience.", "x": "cool" },
-        { "t": "A streamer. Wave at the little viewers, small one. They came to watch a monster. ...We are both monsters in here. Oblige them thoroughly.", "x": "winking" }
-      ],
       "beast_master": [
         { "t": "Ah. A beast master. It will tame one of your minions and turn it on you, small one. Watch the lone creatures — loneliness is where loyalty frays.", "x": "thinking" },
         { "t": "A beast master. Mono-type rooms are a liability now — give it no easy pet. Variety, small one. Variety is a defence the briefly-lived forget.", "x": "determined" },
@@ -1641,11 +1635,6 @@
         { "t": "Mm. A rival dungeon empties into ours — monsters, and their boss bringing up the rear. Insolent, small one. My territorial instincts are sharp.", "x": "menacing" },
         { "t": "Another dungeon's master wants your throne. Kill their boss for a feast of gold and experience, small one. And send a message. I enjoy that.", "x": "evil" },
         { "t": "Rival monsters in the halls. Let them and our minions sort each other out, small one — then we, calmly, collect the spoils. Patience profits.", "x": "cool" }
-      ],
-      "twitch_con": [
-        { "t": "Ah. Twitch Con. Tomorrow every hero is a streamer, small one — thousands watching from beyond the glass. Pure chaos. A manageable amount.", "x": "joking" },
-        { "t": "A dungeon full of streamers. Make it a massacre worth the clipping, small one. The watchers came for a monster. We have one to spare.", "x": "menacing" },
-        { "t": "All streamers tomorrow — and killing them brings no escalation. A free day of carnage, small one. Mm. I do not often say this: simply enjoy it.", "x": "happy" }
       ],
       "dark_deal": [
         { "t": "Mm. A demon at the door — a free pact, small one, for half your strength tomorrow. The dark always offers the best bargains. It can afford to.", "x": "thinking" },

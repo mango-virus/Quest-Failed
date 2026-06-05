@@ -56,14 +56,6 @@
     "minBossLevel": 3
   },
   {
-    "id": "twitch_con",
-    "title": "TWITCH CON",
-    "notif": "A chaotic, endless wave of streamer adventurers floods in — random chat-command effects fire on them all day.",
-    "icon": "📺",
-    "colorTheme": "arcane",
-    "minBossLevel": 1
-  },
-  {
     "id": "dark_deal",
     "title": "DARK DEAL",
     "notif": "A demon offers a FREE pact from the black grimoire. The bargain cannot be refused.",

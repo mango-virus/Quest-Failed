@@ -1280,12 +1280,6 @@
         { "t": "Ranger loves that BOW — the way the skeleton loved his old jester's bell. So sit close, crowd it, ruin its plan!", "x": "nostalgic" },
         { "t": "A ranger, eyes on every trap! Some of your hidden teeth won't stay hidden — the skeleton suggests OPEN teeth too. Variety.", "x": "victorious" }
       ],
-      "twitch_streamer": [
-        { "t": "A streamer, skull-pal! Thousands WATCHING beyond the glass — the skeleton's old friends with being watched. Three centuries on stage and counting.", "x": "winking" },
-        { "t": "Streamer with chat-controlled moves! Half clever, half suicidal — exploit the suicidal half. Free betrayal from the audience.", "x": "smug" },
-        { "t": "A streamer, pal! Kill it WELL — the clip spreads, bigger crowd tomorrow. The skeleton APPROVES of growing the audience.", "x": "narrating" },
-        { "t": "Streamer in the halls — wave at the little viewers. The skeleton always remembers his audience. Even when his audience is THEM, the kingdom, the player. Layers, baby.", "x": "theatrical-bow" }
-      ],
       "beast_master": [
         { "t": "Beast master! Tames a minion and turns it on you, skull-pal! Watch the lone ones — loneliness is where loyalty FRAYS. The skeleton knows lonely.", "x": "melancholy" },
         { "t": "A beast master, pal! Mono-type rooms are a liability today — give it NO easy pet. VARIETY.", "x": "narrating" },
@@ -1364,11 +1358,6 @@
         { "t": "Rival dungeon EMPTIES into ours, future skeleton — monsters and another keeper's CROWN at the back! Insolent! The skeleton's territorial bones object.", "x": "annoyed" },
         { "t": "Another dungeon's master wants YOUR throne! Kill their KEEPER — feast of gold and experience! A MESSAGE sent.", "x": "narrating" },
         { "t": "Rival monsters in the halls! Let them and our minions sort each OTHER out — then we sparkle in and collect. Patience profits.", "x": "smug" }
-      ],
-      "twitch_con": [
-        { "t": "Twitch Con! Tomorrow every hero is a STREAMER — thousands watching from the glass! Pure chaos. The skeleton LOVES chaos.", "x": "excited" },
-        { "t": "A dungeon full of streamers! Make it a massacre WORTH clipping. The watchers came for a monster — and the skeleton's right here.", "x": "narrating" },
-        { "t": "All streamers tomorrow — no escalation for killing them. Free day of carnage! The skeleton SAYS THIS RARELY: ENJOY it.", "x": "applauding" }
       ],
       "dark_deal": [
         { "t": "Demon at the door tonight, skull-pal — free pact, half-strength tomorrow. Tempting. Bloody. The skeleton's a fan.", "x": "winking" },

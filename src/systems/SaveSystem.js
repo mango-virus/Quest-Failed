@@ -400,7 +400,7 @@ function _rehydrateRunHistory(state) {
   const ADV_TRANSIENT_KEYS = [
     // Class-ability windows
     '_summonGateUntil', '_focusActiveUntil', '_innerPeaceUntil',
-    '_boneArmorUntil', '_invisibilityUntil', '_twitchEffectUntil',
+    '_boneArmorUntil', '_invisibilityUntil',
     '_arcaneBurstQueued', '_madnessTargetId', '_wanderingGateCooldownDay',
     // Knight + Bard buff windows — same scene.time-stamped contract;
     // a saved value lingers as "in the future" after load and keeps

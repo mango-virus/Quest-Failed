@@ -17,7 +17,7 @@
 //     shows EXACTLY who will arrive tomorrow with the EXACT LPC sprite
 //     they'll wear. Event waves (guild raid double-count, loot goblin
 //     heist, rival dungeon invaders, cosplay
-//     contest, twitch con, etc.) flow through the same preview, so
+//     contest, etc.) flow through the same preview, so
 //     this view covers them automatically.
 //   * Vendetta hunters get prepended as an extra stub (avenger of the
 //     dead adv, +1 LV over baseline).

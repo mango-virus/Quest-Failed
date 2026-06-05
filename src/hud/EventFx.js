@@ -23,7 +23,6 @@ const PRESETS = {
   dense_fog:          { css: 'fx-fog',        particle: null,      count: 0  },
   dungeon_pestilence: { css: 'fx-pestilence', particle: 'rise',    count: 13 },
   tremors:            { css: 'fx-tremors',    particle: 'fall',    count: 13 },
-  twitch_con:         { css: 'fx-twitch',     particle: 'fall',    count: 15 },
   patrons_blessing:   { css: 'fx-patron',     particle: 'shimmer', count: 11 },
 }
 
@@ -36,7 +35,6 @@ const FLAG_BY_ID = {
   dense_fog:          'denseFogActive',
   dungeon_pestilence: 'pestilenceActive',
   tremors:            'tremorsActive',
-  twitch_con:         'twitchConActive',
   patrons_blessing:   'patronsBlessingActive',
 }
 

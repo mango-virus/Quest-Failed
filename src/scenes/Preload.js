@@ -124,7 +124,7 @@ const MINION_IDS = [
 // `adv-<class>-vNN`. Animation rows per sheet come from layout.json.
 const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
-  'twitch_streamer', 'beast_master', 'barbarian', 'monk', 'bard',
+  'beast_master', 'barbarian', 'monk', 'bard',
   // Templar — holy DEFENDER (normal roster, 100 baked variants).
   'templar',
   // Pirate — swashbuckler DUELIST (normal roster, 100 baked variants).
@@ -198,7 +198,7 @@ const advVariantCount = (id) => ADVENTURER_VARIANT_COUNT[id] ?? ADVENTURER_VARIA
 // keys are `adv-<class>-vNN-atk`. AdventurerRenderer swaps to this texture
 // during combat and back when idle/walking.
 const ADVENTURER_ATK_CLASSES = new Set([
-  'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
+  'knight', 'rogue', 'barbarian', 'beast_master',
   'mage', 'cleric', 'necromancer', 'ranger', 'bard',
   // Cosplayers fight when provoked, so they need the long-weapon attack
   // sheet. Cartographer scholars are barehanded + non-combatant — no
@@ -1389,7 +1389,7 @@ export class Preload extends Phaser.Scene {
       [/^sfx-|^music-|title-|gameover/i,                                 'Tuning the wyrm choir…'],
       [/trap|^spike|^arrow/i,                                            'Oiling the trap mechanisms…'],
       [/^chest|treasure|beacon|fountain|item-/i,                         'Polishing trophies for the doomed…'],
-      [/event|dark-deal|twitch/i,                                        'Brewing the night’s dark deals…'],
+      [/event|dark-deal/i,                                               'Brewing the night’s dark deals…'],
       [/torch|brazier|fire|fx-/i,                                        'Striking flint for the sconces…'],
       [/room|tile|wall|floor|door|theme/i,                               'Carving wall tiles, brick by brick…'],
       [/\.json$|^layout-|^npc|chatLines|lastWords/i,                     'Whispering the codex into being…'],

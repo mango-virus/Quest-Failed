@@ -60,7 +60,7 @@ const ANIM_ALIASES = {
 // render via the atk sheet's thrust row (see THRUST_ANIM_WEAPONS in
 // AdventurerRenderer). Monks are excluded because they have weapon: null.
 const ATK_CLASSES = new Set([
-  'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
+  'knight', 'rogue', 'barbarian', 'beast_master',
   'mage', 'cleric', 'necromancer', 'ranger', 'bard',
   // Event-only class — Cosplay Contest spawns; cosplayers retaliate
   // when attacked, so they need the oversize weapon attack sheet too.
@@ -755,7 +755,7 @@ async function main() {
   // Examples:
   //   node bake-weapons.cjs cosplay_adventurer
   //   node bake-weapons.cjs cosplay_adventurer,cartographer_scholar
-  //   node bake-weapons.cjs pirate,twitch_streamer,cosplay_adventurer Scimitar --carry-only
+  //   node bake-weapons.cjs pirate,cosplay_adventurer Scimitar --carry-only
   const positional = process.argv.slice(2).filter(a => !a.startsWith('--'));
   const classFilter  = (positional[0] || '').split(',').map(s => s.trim()).filter(Boolean);
   const weaponFilter = (positional[1] || '').split(',').map(s => s.trim()).filter(Boolean);

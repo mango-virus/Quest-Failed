@@ -504,64 +504,6 @@ export const POOLS = {
     weapon: { items: ['Crossbow'], chance: 1.0 },
   },
 
-  // ── Twitch Streamer — FLASHY "DRIP" GAMER ──────────────────────────────
-  // An isekai'd streamer dropped into the dungeon: loud DYED hair, shades,
-  // bright casual clothes, and bling (gold chains + gem necklace + earrings).
-  // Reads modern + out-of-place beside the medieval roster. LPC ships no
-  // headset / cap / hoodie, so the modern signal is dyed-hair + eyewear +
-  // bling + sweatband. (No more random wings/tails — the look is intentional.)
-  twitch_streamer: {
-    bodyTypes: COMMON.bodyTypes,
-    heads: 'auto_human',
-    hair: 'all_human_hair',
-    // ALWAYS dyed — only loud fantasy hair colours, never natural tones.
-    hairColorPool: ['blue', 'green', 'purple', 'violet', 'navy', 'rose', 'pink', 'orange', 'red', 'platinum'],
-    beardChance: 0.2,
-    // Casual modern tops — tees + tanktop — in LOUD colours.
-    torso: [
-      'TShirt', 'TShirt VNeck', 'TShirt Scoop', 'TShirt Buttoned',
-      'Tanktop', 'Tanktop', 'Shortsleeve', 'Shortsleeve Polo',
-    ],
-    clothColorPool: ['red', 'blue', 'green', 'orange', 'pink', 'purple', 'sky', 'lavender', 'maroon', 'rose'],
-    // Casual bottoms (joggers / shorts) in calm dark tones — loud top, calm legs.
-    legs: ['Pants', 'Cuffed Pants', 'Long Pants', 'Shorts', 'Short Shorts'],
-    legsColor: ['black', 'charcoal', 'gray', 'navy', 'slate', 'blue', 'maroon', 'walnut'],
-    // Bright sneakers.
-    feet: ['Basic Shoes', 'Revised Shoes', 'Sara Shoes', 'Slippers'],
-    feetColor: ['white', 'black', 'red', 'blue', 'gray', 'green'],
-    arms: { items: ['Gloves', 'Cuffs', 'Stud Ring'], chance: 0.3 },
-    // A normal casual belt on some (z70, over the tee) in plain leather tones.
-    torsoOverlay: { items: ['Leather Belt', 'Double Belt', 'Loose Belt'], chance: 0.4 },
-    torsoOverlayColor: ['brown', 'charcoal', 'walnut', 'leather', 'tan', 'slate'],
-    // Gamer sweatband (sits ON the hair → the dyed colour still shows) + a rare
-    // "top-streamer" Crown (ignores headwearColor → renders in metalColor/gold).
-    headwear: {
-      items: ['Thick Headband', 'Thick Headband', 'Tied Headband', 'Tied Headband', 'Crown'],
-      chance: 0.5,
-    },
-    headwearColor: ['red', 'blue', 'green', 'orange', 'pink', 'purple', 'black', 'white', 'navy', 'sky'],
-    // The DRIP — eyewear (almost everyone) + gold/silver chain + earrings.
-    accessory: [
-      { items: ['Sunglasses', 'Shades', 'Nerd Glasses', 'Round Glasses', 'Halfmoon Glasses'], chance: 0.5, color: ['black', 'charcoal', 'black', 'navy', 'green'] },
-      { items: ['Chain Necklace', 'Large Beaded Necklace', 'Small Beaded Necklace'], chance: 0.6, color: ['gold', 'gold', 'silver', 'brass'] },
-      { items: ['Stud earrings', 'Moon earrings', 'Pear earrings', 'Princess earrings'], chance: 0.4, color: ['gold', 'silver'] },
-    ],
-    metalColorPool: ['gold', 'silver', 'gold', 'brass'],
-    weapon: {
-      // a random "grabbed-it-on-stream" weapon — chaos energy, clean look.
-      items: [
-        'Longsword', 'Arming Sword', 'Saber', 'Mace', 'Waraxe', 'Spear',
-        'Dagger', 'Rapier', 'Scimitar', 'Katana', 'Glowsword',
-        'Simple staff', 'Gnarled staff', 'Diamond staff',
-        'Scythe', 'Cane', 'Flail',
-        'Recurve', 'Crossbow', 'Slingshot',
-      ],
-      chance: 0.8,
-    },
-    // No shields — a streamer wouldn't carry one (user).
-    sometimesShield: 0,
-  },
-
   // Beast Master — feral wilderness tamer. MOST are beast-bonded: matched
   // wolf/cat EARS + TAIL coloured to their hair (fur). Rugged leather + fur
   // clothing, a beast-tooth necklace, and a hunting POLEARM (spear/trident —
@@ -1107,8 +1049,7 @@ export const POOLS = {
 //   • sometimesShield 0.4 — random shield on ~40% of cheaters layered
 //     on top of whatever weapon they're already holding.
 // Fantasy body palettes (blue / bright_green / dark_green skin) are
-// rolled at 30% in bake-lpc-variants.mjs for cheaters — Twitch Streamer
-// is the only other class that can pull fantasy skin (15%).
+// rolled at 30% in bake-lpc-variants.mjs for cheaters.
 POOLS.cheater = {
   bodyTypes: COMMON.bodyTypes,
   heads: 'auto_human',

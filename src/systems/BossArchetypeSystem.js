@@ -1572,7 +1572,6 @@ export class BossArchetypeSystem {
       }
       case 'bard':
       case 'beast_master':
-      case 'twitch_streamer':
       case 'necromancer':
       default: {
         minion.stats.attack    = (minion.stats.attack ?? 0) + 1

@@ -184,4 +184,4 @@ companions, 92 achievements, a full DOM HUD (`src/hud/`, default on), audio, VFX
 and scripted set-piece events (Solo Leveling, Light Party). Current work is **bug-fixing,
 balance, content additions, and polish** — plus the bigger open questions for a commercial
 release (a win condition / run structure, active day-phase boss agency, and filing off the
-Solo Leveling / FFXIV / Twitch IP references). See `STATUS.md` for the live snapshot.
+Solo Leveling / FFXIV IP references). See `STATUS.md` for the live snapshot.

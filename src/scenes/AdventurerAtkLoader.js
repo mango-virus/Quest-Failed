@@ -15,7 +15,7 @@
 
 const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
-  'twitch_streamer', 'beast_master', 'barbarian', 'monk', 'bard',
+  'beast_master', 'barbarian', 'monk', 'bard',
   'cartographer_scholar', 'cosplay_adventurer', 'templar', 'pirate', 'miner', 'valkyrie', 'peasant', 'gladiator', 'gambler',
   // Sung Jinwoo (Solo Leveling) — single canonical variant; see the count
   // override below so we don't request v02..v50.
@@ -34,7 +34,7 @@ const ADVENTURER_CLASS_IDS = [
   'champion_auberon', 'champion_mortessa',
 ]
 const ADVENTURER_ATK_CLASSES = new Set([
-  'knight', 'rogue', 'barbarian', 'twitch_streamer', 'beast_master',
+  'knight', 'rogue', 'barbarian', 'beast_master',
   'mage', 'cleric', 'necromancer', 'ranger', 'bard',
   'cosplay_adventurer',
   // Templar — slash_oversize Mace/Flail/Longsword; the swing lives in the atk sheet.

@@ -1299,12 +1299,6 @@
         { "t": "Ranger! Senpai outdoor-survivalist trope. Down here in the crypt though? ...Not their element. Easy frag.", "x": "smug" },
         { "t": "A {advClass}! Senpai mark them — rangers PEEL away when wounded. Pursue mode ENGAGE.", "x": "pointing" }
       ],
-      "twitch_streamer": [
-        { "t": "OH MY GOD A STREAMER?! Senpai this is META, this is META. A streamer hero in the dungeon?! WE GOTTA GIVE THEM A SHOW.", "x": "streaming" },
-        { "t": "Twitch streamer inside, senpai! ...They're recording. We're on CAMERA. Look natural. ...Or terrify them, that's CONTENT.", "x": "taking-photo" },
-        { "t": "Senpai a streamer just spawned! ...Wait. Are WE the let's-play villains?! That's so meta I might phase out of EXISTENCE.", "x": "shocked" },
-        { "t": "A streamer, DM?! Make them STREAM their OWN DEATH! Speedrun the kill — viral clip TIME!", "x": "dramatic-anger" }
-      ],
       "beast_master": [
         { "t": "Beast Master, senpai! They came with PETS. It's like fighting a HUNTER with a pack — two threats, one HP bar.", "x": "explaining" },
         { "t": "A beast master inside! Senpai their pet is half the kit. Kill the PET first, then the master FOLDS.", "x": "gaming" },
@@ -1383,11 +1377,6 @@
         { "t": "RIVAL DUNGEON SPILL, senpai! Another keeper EMPTIED their monsters into ours. ARENA mode unlocked!", "x": "dramatic-anger" },
         { "t": "Rival keeper attack! Senpai kill THEIR boss — feast of gold + XP! Cross-server PVP energy!", "x": "gg-victory" },
         { "t": "Rival dungeon, senpai! ...Drama between keepers, very SLICE OF LIFE. Anyway: WIPE them.", "x": "mischievous" }
-      ],
-      "twitch_con": [
-        { "t": "TWITCH CON?! Senpai it's a CONVENTION OF STREAMERS in our dungeon! META ESCALATION! ...Embrace the chaos!", "x": "streaming" },
-        { "t": "Twitch Con day! Senpai every hero is a CONTENT CREATOR today. We are STREAMING-BAIT. WE MUST DELIVER.", "x": "taking-photo" },
-        { "t": "Twitch Con! ...Senpai we're gonna be on like FORTY streams at once. Pose. Look natural. ...Or terrifying. Either.", "x": "anime-gasp" }
       ],
       "dark_deal": [
         { "t": "Dark Deal at the door, senpai! Free pact, half-strength tomorrow. Tempting risk-reward, very 'sign the contract' anime trope.", "x": "pointing" },

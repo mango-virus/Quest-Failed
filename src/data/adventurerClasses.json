@@ -154,28 +154,6 @@
     "flavorText": "First arrow. Second arrow. Third arrow. Out."
   },
   {
-    "id": "twitch_streamer",
-    "name": "Twitch Streamer",
-    "color": "0x9146ff",
-    "baseStats": {
-      "hp": 35,
-      "attack": 8,
-      "defense": 3,
-      "speed": 1.8
-    },
-    "startingResources": {},
-    "tags": [
-      "chaotic",
-      "chat_driven",
-      "viral"
-    ],
-    "unlockLevel": 3,
-    "rarity": "rare",
-    "description": "Streams the run live. Decisions polled to chat in real time. A killed streamer sometimes goes viral, summoning extra adventurers the next day.",
-    "flavorText": "PogChamp the chest! PogChamp the chest!",
-    "revivable": false
-  },
-  {
     "id": "beast_master",
     "name": "Beast Master",
     "color": "0xa37c52",

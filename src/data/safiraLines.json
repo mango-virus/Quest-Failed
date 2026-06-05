@@ -1506,13 +1506,6 @@
         { "t": "A ranger LOVES that bow, Master — the way a genie loves her hoard! So crowd it! A creature parted from the thing it loves makes terrible decisions!", "x": "mischievous" },
         { "t": "A ranger, eyes on every trap, Master! Your hidden teeth may not stay hidden — the genie says have something that bites WITHOUT hiding too! Be ready!", "x": "worried" }
       ],
-      "twitch_streamer": [
-        { "t": "A twitch streamer, Master! Thousands WATCHING — beyond the glass! The genie inside a game is old friends with being watched. Put on a worthy funeral!", "x": "controller" },
-        { "t": "A streamer, Master! Its CHAT decides its moves — half clever, half suicidal! Exploit the suicidal half — the crowd will betray it for you, for FREE!", "x": "taunting" },
-        { "t": "A streamer in the dungeon, Master! Kill it well and the clip SPREADS — a bigger crowd tomorrow! More to bury. The genie doesn't mind an audience!", "x": "magic" },
-        { "t": "A streamer, Master! Wave at the little viewers — they came to watch a monster! The genie and you are BOTH monsters in here. Oblige them THOROUGHLY!", "x": "winking" },
-        { "t": "A streamer, Master — it thinks IT'S the one being watched. Adorable. There's a someone watching the someone, all the way up through the glass to YOU. Layers. Bury it beautifully.", "x": "controller" }
-      ],
       "beast_master": [
         { "t": "A beast master, Master! It'll TAME one of your minions and turn it on you! Watch the lone creatures — the genie says loneliness is where loyalty FRAYS!", "x": "worried" },
         { "t": "A beast master, Master! Mono-type rooms are a liability now — give it no easy pet! VARIETY! Variety is a defence the heroes always forget!", "x": "explaining" },
@@ -1591,11 +1584,6 @@
         { "t": "A rival dungeon empties into ours, Master — monsters, and another keeper's boss bringing up the rear! Insolent! The genie's territorial instincts are SHARP!", "x": "evil" },
         { "t": "Another dungeon's master wants YOUR throne, Master! Kill their boss — a feast of gold and experience! And a message sent! The genie loves sending a message!", "x": "mischievous" },
         { "t": "Rival monsters in the halls, Master! Let them and our minions sort each OTHER out — then we, sparklingly, collect the spoils. Patience profits!", "x": "treasure" }
-      ],
-      "twitch_con": [
-        { "t": "Twitch Con, Master! Tomorrow every hero is a STREAMER — thousands watching from beyond the glass! Pure chaos! ...And a genie ADORES pure chaos! Eee!", "x": "chaotic-1" },
-        { "t": "A dungeon full of streamers, Master! Make it a massacre worth the CLIPPING! The watchers came for a monster — and we have one to spare! Tee hee!", "x": "evil" },
-        { "t": "All streamers tomorrow — and killing them brings NO escalation, Master! A free day of carnage! Ooh — a genie doesn't say this often: simply ENJOY it!", "x": "happy" }
       ],
       "dark_deal": [
         { "t": "A demon at the door tonight, Master — a free pact, for half your strength tomorrow! Tempting! Bloody! The dark always offers the best bargains — it can afford to!", "x": "wish-1" },

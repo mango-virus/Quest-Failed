@@ -540,16 +540,6 @@ export const Balance = {
   // player held when the day started — see EventSystem._onAdventurerFled.
   LOOT_GOBLIN_DAILY_LOSS_CAP_PCT: 0.50,    // hard floor: never lose >50% of day-start gold
 
-  // --- Dungeon event: Twitch Con (raid count scales with day) ---
-  // Pre-2026-05-27 the cap was a flat 2 raids per day. With each raid
-  // bringing 2-3 streamers, that's at most 6 extras — invisible against
-  // a 66-adv day-50 wave. Scaling the cap with day past day 10 makes
-  // late-game Twitch Con actually feel like a flood. Streamer count is
-  // also gated by TWITCH_CON_RAID_STREAMER_CAP (20 active max), so this
-  // can't run away.
-  TWITCH_CON_RAID_MAX_BASE:           2,    // base raids/day (was the flat cap)
-  TWITCH_CON_RAID_MAX_PER_DAY_PAST_10: 0.3, // +0.3 raids per day past day 10 (floor)
-
   // --- Dungeon event: Cursed Relic (chest tier scales with boss level) ---
   // Pre-2026-05-27 the cursed relic was always a tier-5 chest (80g/day).
   // Cost (wave doubling) scales hard — at day 50, +66 advs/day = ~660g
@@ -1021,18 +1011,6 @@ export const Balance = {
   // Flip to false to disable all screen shake without code changes.
   VFX_SCREEN_SHAKE_ENABLED:         true,
 
-  // --- Dungeon event: Twitch Con ---
-  // Three timer-driven chaos mechanics, all owned by EventSystem and only
-  // running while `_eventFlags.twitchConActive`. Tune cadence/strength here.
-  TWITCH_CON_CHAT_CMD_INTERVAL_MS:   2800,  // chat-command roll cadence
-  TWITCH_CON_FREELANCE_INTERVAL_MS:  4000,  // agenda re-roll cadence
-  TWITCH_CON_RAID_INTERVAL_MS:       9000,  // endless-raid spawn cadence
-  TWITCH_CON_RAID_SQUAD_MIN:         2,     // raid squad size, inclusive
-  TWITCH_CON_RAID_SQUAD_MAX:         3,
-  // TWITCH_CON_RAID_MAX_PER_DAY retired 2026-05-27 — flat cap was trivial
-  // late game. Replaced by TWITCH_CON_RAID_MAX_BASE + TWITCH_CON_RAID_MAX_PER_DAY_PAST_10
-  // (see "Twitch Con (raid count scales with day)" section above).
-
   // --- Cheater class ---
   CHEATER_INSTAKILL_CHANCE:    0.15,   // per-attack chance during aimhack window to one-shot a minion
   CHEATER_LAG_SPIKE_CHANCE:    0.05,   // per-attack chance for a 2× damage swing that self-stuns afterward
@@ -1051,12 +1029,6 @@ export const Balance = {
   PATCH_ZERO_KILL_GOLD_MULT:     2.0,   // ban bounty — 2× normal cheater kill payout
   PATCH_ZERO_GLITCH_TILE_MS:     1200,  // cadence of random RGB tile-flash visual
   PATCH_ZERO_CONSOLE_CMD_MS:     8000,  // cadence of /command roulette
-
-  TWITCH_CON_RAID_STREAMER_CAP:      20,    // also stop if this many streamers already active
-  TWITCH_CON_HYPE_SPEED_MULT:        1.5,   // !HYPE speed buff
-  TWITCH_CON_MALDING_SPEED_MULT:     0.6,   // !MALDING speed nerf
-  TWITCH_CON_RATIO_DMG_FRAC:         0.25,  // !RATIO'd instant damage as a fraction of maxHp
-  TWITCH_CON_BEEF_CHANCE:            0.18,  // per-replan chance a streamer picks a fight with another streamer
 }
 
 // ── Derived helpers ──────────────────────────────────────────────────

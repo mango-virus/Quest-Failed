@@ -60,10 +60,6 @@ export const ABILITY_DEFS = {
   // Rogue
   rogue_invisibility:    { id: 'invisibility',   cooldownMs: 30000, durationMs: 5000,  label: 'Invisibility' },
   rogue_lockpick:        { id: 'lockpick',       usesPerDayPerLevel: { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }, label: 'Lockpick', failChance: 0.20 },
-  // Twitch Streamer
-  twitch_viewers_choice: { id: 'viewers_choice', cooldownMs: 8000,                     label: 'Viewers Choice' }, // random auto-trigger
-  twitch_chat_decides:   { id: 'chat_decides',   cooldownMs: 15000,                    label: 'Chat Decides' },
-  // Twitch Subscriber Revenge is a passive — fires on death.
 
   // ── Cheater ──────────────────────────────────────────────────────────
   // Teleport hack — every 15s, snap to a random non-boss room. 20% of
@@ -217,26 +213,6 @@ export class ClassAbilitySystem {
       this._fireEncore(adventurer)
     }
 
-    // Twitch passive — Subscriber Revenge: 50% chance on death to add +3 to
-    // tomorrow's spawn count. Stored on gameState.player and consumed by DayPhase.
-    // Suppressed during Twitch Con event — chaos day, no escalation penalty.
-    if (
-      adventurer.classId === 'twitch_streamer' &&
-      payload._isDeath === true &&
-      !this._gameState._eventFlags?.twitchConActive &&
-      Math.random() < 0.5
-    ) {
-      this._gameState.player ??= {}
-      this._gameState.player.subscriberRevengeBonus =
-        (this._gameState.player.subscriberRevengeBonus ?? 0) + 3
-      EventBus.emit('SUBSCRIBER_REVENGE_TRIGGERED', { adventurer, bonus: 3 })
-      EventBus.emit('ABILITY_TRIGGERED', {
-        adventurer,
-        abilityId: 'subscriber_revenge',
-        message: `${adventurer.name}'s death clip went viral. +3 adventurers tomorrow.`,
-      })
-    }
-
     // Cancel any active buffs.
     adventurer._auraActiveUntil       = null
     adventurer._tauntActiveUntil      = null
@@ -246,7 +222,6 @@ export class ClassAbilitySystem {
     adventurer._innerPeaceUntil       = null
     adventurer._boneArmorUntil        = null
     adventurer._invisibilityUntil     = null
-    adventurer._twitchEffectUntil     = null
     // Gladiator — drop the Block brace + reset the Crowd Roar stack count so a
     // re-entering/raised Gladiator starts fresh (CombatSystem reads both).
     adventurer._blockActiveUntil      = null
@@ -330,7 +305,6 @@ export class ClassAbilitySystem {
           case 'beast_master':    this._considerBeastMaster(adv, now); break
           case 'barbarian':       this._considerBarbarian(adv, now); break
           case 'rogue':           this._considerRogue(adv, now);  break
-          case 'twitch_streamer': this._considerTwitch(adv, now); break
           case 'cheater':         this._considerCheater(adv, now); break
           case 'gladiator':       this._considerGladiator(adv, now); break
           case 'peasant':         this._considerPeasant(adv, now); break
@@ -422,15 +396,6 @@ export class ClassAbilitySystem {
     if (adv._blockActiveUntil && now >= adv._blockActiveUntil) {
       adv._blockActiveUntil = null
       EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'block' })
-    }
-    // Twitch — temporary effect timers (heal/atk/def buffs/poison/etc from Viewers Choice)
-    if (adv._twitchEffectUntil && now >= adv._twitchEffectUntil) {
-      adv._twitchEffectUntil = null
-      adv._twitchAtkMul = null
-      adv._twitchDefBonus = null
-      adv._twitchPoisonUntil = null
-      this._endSustainedFx(adv.instanceId, 'twitch_buff')
-      EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'viewers_choice' })
     }
   }
 
@@ -1836,154 +1801,6 @@ export class ClassAbilitySystem {
     if (s?.body)        AbilityVfx.alphaSet(s.body, 1.0)
     if (s?.label)       AbilityVfx.alphaSet(s.label, 1.0)
     AbilityVfx.particleBurst(this._scene, adv.worldX, adv.worldY, { color: 0xaaaaaa, count: 8, durationMs: 400, speed: 60 })
-  }
-
-  // ── Twitch Streamer ──────────────────────────────────────────────────────
-
-  _considerTwitch(adv, now) {
-    // Boss-down handling — once the boss falls in a fight, AISystem.
-    // _onBossFightResolved sweeps every alive adv into FLEE. Streamers
-    // need the same lock applied to BOTH chat abilities: Chat Decides
-    // can flip the goal back to SEEK_BOSS / EXPLORE_ROOM (undoing the
-    // flee), and Viewers Choice keeps the slot animation popping over
-    // the streamer's head while they should be sprinting for the exit.
-    // Mirrors the same `boss.hp > 0` gate AISystem uses on chat_poll
-    // (Phase 10b). HP refreshes to maxHp at the START of the next
-    // fight (see BossSystem._init / pre-fight setup), so this window
-    // is exactly "boss is currently down" — once the next fight kicks
-    // off the streamer's chat rolls re-enable.
-    //
-    // We also push the FLEE goal here in case the streamer wasn't
-    // alive when `_onBossFightResolved` ran (late-spawn waves arriving
-    // after the boss has been downed the same day). Skipped while
-    // the streamer is mid-combat or already fleeing.
-    if ((this._gameState.boss?.hp ?? 1) <= 0) {
-      const isCombatLocked = adv.aiState === 'fighting' || adv.aiState === 'fleeing' ||
-                             adv.aiState === 'fled' || adv.aiState === 'leaving' ||
-                             adv.aiState === 'dead'
-      if (!isCombatLocked && adv.goal?.type !== 'FLEE') {
-        adv.goal    = { type: 'FLEE', reason: 'boss_defeated' }
-        adv.aiState = 'fleeing'
-        adv.path    = null
-      }
-      return
-    }
-
-    // Viewers Choice — random RNG buff/debuff every ~8s on cooldown.
-    const vcDef = ABILITY_DEFS.twitch_viewers_choice
-    const ready = AbilitySystem.canUse(adv, vcDef, now)
-    if (ready.ready) {
-      AbilitySystem.markUsed(adv, vcDef, now)
-      this._fireViewersChoice(adv, now)
-    }
-
-    // Chat Decides — every 15s, chat picks a behavior change. We pick from a
-    // small list of "decisions" and apply the corresponding goal flip.
-    const cdDef = ABILITY_DEFS.twitch_chat_decides
-    const ready2 = AbilitySystem.canUse(adv, cdDef, now)
-    if (ready2.ready) {
-      AbilitySystem.markUsed(adv, cdDef, now)
-      this._fireChatDecides(adv)
-    }
-  }
-
-  _fireViewersChoice(adv, now) {
-    const EFFECTS = [
-      { id: 'heal',     apply: () => { const h = Math.floor((adv.resources.maxHp || 0) * 0.25); adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + h); AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, `+${h} HEAL`, { color: '#88ff88' }) }, label: 'HEAL' },
-      { id: 'atk_up',   apply: () => { adv._twitchAtkMul = 1.20; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'ATK +20%', { color: '#ff7777' }) }, label: 'ATK UP' },
-      { id: 'atk_down', apply: () => { adv._twitchAtkMul = 0.80; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'ATK −20%', { color: '#888888' }) }, label: 'ATK DOWN' },
-      { id: 'def_up',   apply: () => { adv._twitchDefBonus = 2;  adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'DEF +2', { color: '#88aaff' }) }, label: 'DEF UP' },
-      { id: 'def_down', apply: () => { adv._twitchDefBonus = -2; adv._twitchEffectUntil = now + 10000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'DEF −2', { color: '#cc8866' }) }, label: 'DEF DOWN' },
-      { id: 'teleport', apply: () => { const rooms = (this._gameState.dungeon?.rooms ?? []).filter(r => r.definitionId !== 'boss_chamber'); if (rooms.length) { const r = rooms[Math.floor(Math.random() * rooms.length)]; adv.tileX = r.gridX + Math.floor(r.width/2); adv.tileY = r.gridY + Math.floor(r.height/2); adv.worldX = adv.tileX * Balance.TILE_SIZE + Balance.TILE_SIZE/2; adv.worldY = adv.tileY * Balance.TILE_SIZE + Balance.TILE_SIZE/2; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'TELEPORTED', { color: '#cc99ff' }) } }, label: 'TELEPORT' },
-      { id: 'poison',   apply: () => { adv._twitchPoisonUntil = now + 6000; adv._twitchEffectUntil = now + 6000; AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'POISONED', { color: '#88cc44' }) }, label: 'POISON' },
-      { id: 'invis',    apply: () => { adv._invisibilityUntil = now + 10000; adv._invisible = true; const s = this._scene.adventurerRenderer?._sprites?.[adv.instanceId]; if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.15); AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'INVIS 10s', { color: '#cccccc' }) }, label: 'INVIS' },
-    ]
-    const pick = EFFECTS[Math.floor(Math.random() * EFFECTS.length)]
-    // Slot animation — quick cycle of labels above the streamer's head.
-    this._fireSlotAnimation(adv, EFFECTS, pick)
-    pick.apply()
-    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'viewers_choice', message: `Chat rolled ${pick.label} for ${adv.name}.` })
-  }
-
-  _fireSlotAnimation(adv, effects, finalPick) {
-    // Streamer slot animation — same pixel-art bubble shape as
-    // ambient chat and death floats, but with the twitch-purple
-    // border + a "CHAT ROLLED" eyebrow above the rolling label.
-    // Cycles 8 random labels at 70ms each, then settles on the final
-    // pick. No auto lifeMs — the cycle tick orchestrates its own
-    // settle + fade-out via container.fadeOut().
-    const bubble = createBubble(this._scene, {
-      x:       adv.worldX,
-      y:       adv.worldY - 38,
-      text:    '???',
-      kind:    'streamer',
-      eyebrow: 'Chat Rolled',
-      depth:   20,
-    })
-
-    let cycles = 0
-    const total = 8
-    const interval = 70
-
-    const followUpdate = () => {
-      if (!bubble.active) return
-      // Self-destruct if the streamer leaves the active list —
-      // prevents the bubble snapping to world (0, 0).
-      if (!this._gameState.adventurers.active.includes(adv)) {
-        this._scene.events.off('update', followUpdate)
-        if (bubble.active) bubble.killNow()
-        return
-      }
-      if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) {
-        bubble.setPosition(adv.worldX, adv.worldY - 38)
-      }
-    }
-    this._scene.events.on('update', followUpdate)
-
-    const tick = () => {
-      if (!bubble.active) { this._scene.events.off('update', followUpdate); return }
-      cycles++
-      if (cycles >= total) {
-        bubble.setBubbleText(finalPick.label)
-        // Linger briefly so the player can read the final pick, then
-        // graceful fade-out via the factory.
-        this._scene.time.delayedCall(600, () => {
-          if (!bubble.active) return
-          this._scene.events.off('update', followUpdate)
-          bubble.fadeOut(500)
-        })
-        return
-      }
-      const opt = effects[Math.floor(Math.random() * effects.length)]
-      bubble.setBubbleText(opt.label)
-      this._scene.time.delayedCall(interval, tick)
-    }
-    tick()
-  }
-
-  _fireChatDecides(adv) {
-    const DECISIONS = [
-      { id: 'investigate_trap', label: 'INVESTIGATE TRAP' },
-      { id: 'fight_enemy',      label: 'FIGHT!' },
-      { id: 'abandon_goal',     label: 'CHANGE PLANS' },
-      { id: 'charge_boss',      label: 'CHARGE BOSS' },
-    ]
-    const pick = DECISIONS[Math.floor(Math.random() * DECISIONS.length)]
-    if (pick.id === 'abandon_goal') {
-      // Pick a random unvisited room as new goal.
-      const rooms = this._gameState.dungeon?.rooms ?? []
-      const target = rooms[Math.floor(Math.random() * rooms.length)]
-      if (target) adv.goal = { type: 'EXPLORE_ROOM', roomId: target.instanceId }
-    } else if (pick.id === 'charge_boss') {
-      adv.goal = { type: 'SEEK_BOSS' }
-    } else if (pick.id === 'fight_enemy') {
-      // Push aggression: pick the nearest hostile minion as target.
-      const target = this._nearestHostileMinion(adv, 6)
-      if (target) adv.currentTargetId = target.instanceId
-    }
-    // Phase 5c — Chat Decides label removed; the goal change is observable
-    // (the streamer changes direction) and the combat log shows the call.
-    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'chat_decides', message: `Chat told ${adv.name}: ${pick.label}` })
   }
 
   // ── Cheater ──────────────────────────────────────────────────────────

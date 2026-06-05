@@ -1438,12 +1438,6 @@
         { "t": "A ranger. They love their bow. Get them into a corridor where the bow loves them less.", "x": "smug" },
         { "t": "A ranger slips in, eyes on every trap. Your hidden teeth may not stay hidden.", "x": "worried" }
       ],
-      "twitch_streamer": [
-        { "t": "Oh — a twitch streamer, my liege. Thousands are watching. Let us give them a SHOW.", "x": "excited" },
-        { "t": "A streamer. Their chat decides their moves — half genius, half suicidal. Pure chaos.", "x": "cackling" },
-        { "t": "Here comes a streamer. Kill them well and the clip spreads — a bigger crowd comes tomorrow.", "x": "mischievous" },
-        { "t": "A streamer in the dungeon. Wave at the viewers, darling — they came to watch you be terrible.", "x": "winking" }
-      ],
       "beast_master": [
         { "t": "A beast master. They will TAME one of your minions and turn it on you. The audacity.", "x": "angry" },
         { "t": "Here comes a beast master, my liege. Mono-type rooms are dangerous now — give them no easy pet.", "x": "thinking" },
@@ -1523,11 +1517,6 @@
         { "t": "Another dungeon's master wants YOUR throne. Kill their boss for a feast of gold and XP.", "x": "aggressive" },
         { "t": "Rival monsters in the halls. Let them and our minions sort it out — then take the spoils.", "x": "mischievous" },
         { "t": "Another dungeon, spilling its monsters into OUR halls — and a rival boss with them? ...The sheer GALL of it, my liege. I am rather shocked. Then thrilled.", "x": "shocked" }
-      ],
-      "twitch_con": [
-        { "t": "Twitch Con, my liege. Tomorrow every hero is a streamer. Pure, glorious, chat-driven chaos.", "x": "cackling" },
-        { "t": "A dungeon full of streamers. Thousands of viewers. Make it a massacre worth clipping, darling.", "x": "excited" },
-        { "t": "All streamers tomorrow — and killing them brings no escalation. A free day of carnage. Enjoy it.", "x": "happy" }
       ],
       "dark_deal": [
         { "t": "A demon at the door tonight, my liege — a free pact for half your health tomorrow. Tempting. Risky.", "x": "mischievous" },

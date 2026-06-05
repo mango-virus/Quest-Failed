@@ -9699,11 +9699,6 @@ body {
 .qf-eventfx.fx-tremors .qf-eventfx-wash { background: rgba(120,80,40,0.13); }
 .qf-eventfx.fx-tremors .qf-eventfx-vignette { box-shadow: inset 0 0 190px 64px rgba(48,30,12,0.46); }
 
-.qf-eventfx.fx-twitch .qf-eventfx-wash {
-  background: radial-gradient(ellipse at 50% 0%, rgba(146,70,255,0.20), transparent 70%);
-}
-.qf-eventfx.fx-twitch .qf-eventfx-vignette { box-shadow: inset 0 0 190px 62px rgba(52,20,92,0.46); }
-
 .qf-eventfx.fx-patron .qf-eventfx-wash {
   background: radial-gradient(ellipse at 50% 100%, rgba(202,162,255,0.18), transparent 62%);
   animation: qf-fx-washpulse 6s ease-in-out infinite;
@@ -9725,7 +9720,6 @@ body {
 .qf-eventfx.fx-pestilence .qf-p-rise    { background: #c2cc52; box-shadow: 0 0 6px #9aa238; }
 .qf-eventfx.fx-bloodmoon  .qf-p-fall    { background: #ff6a5a; box-shadow: 0 0 6px #d23030; }
 .qf-eventfx.fx-tremors    .qf-p-fall    { background: #b08a5a; box-shadow: 0 0 4px #6a4a2a; }
-.qf-eventfx.fx-twitch     .qf-p-fall    { background: #d29bff; box-shadow: 0 0 7px #a25fe0; }
 .qf-eventfx.fx-arcane     .qf-p-spark   { background: #bcd2ff; box-shadow: 0 0 8px 2px #6f86ff; }
 .qf-eventfx.fx-patron     .qf-p-shimmer { background: #f0d68a; box-shadow: 0 0 8px #c89bf0; }
 

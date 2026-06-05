@@ -196,11 +196,6 @@ export class CombatSystem {
     // within auraRangeTiles of an aura-active Knight take 25% less damage.
     finalDmg = this._applyProtectiveAura(target, finalDmg)
 
-    // Phase 5c — Twitch DEF buff: target's _twitchDefBonus subtracts from damage.
-    if (target._twitchDefBonus && target._twitchEffectUntil && now < target._twitchEffectUntil) {
-      finalDmg = Math.max(1, finalDmg - target._twitchDefBonus)
-    }
-
     // Dungeon event: Blood Moon Eclipse — minions deal 2× damage AND take
     // 2× damage. Symmetric so the day is a sharp risk/reward, not pure
     // upside. Boss treated as a minion for this scaling (he's on the
@@ -734,11 +729,6 @@ export class CombatSystem {
     if ((target.classId ?? target._raisedClassId) === 'peasant') {
       const dAllies = this._peasantMobCount(target)
       if (dAllies > 0) raw = Math.max(1, Math.floor(raw * (1 - dAllies * PEASANT_MOB_PER_ALLY)))
-    }
-
-    // Phase 5c — Twitch ATK buff/debuff window from Viewers Choice.
-    if (attacker._twitchAtkMul && attacker._twitchEffectUntil && this._scene.time.now < attacker._twitchEffectUntil) {
-      raw = Math.max(1, Math.floor(raw * attacker._twitchAtkMul))
     }
 
     // Phase 5c — Necromancer Bone Armor: +N ATK while active (N = current

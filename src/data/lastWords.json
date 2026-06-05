@@ -36,12 +36,6 @@
       "trap":    ["I track animals. Not floor pressure plates.", "Who puts a trap there? Honestly.", "My survival instincts failed me indoors.", "Nature never did this to me."],
       "default": ["First arrow. Second arrow. Third arrow. Out.", "Out of range. And out of time.", "I needed more supplies.", "The forest is safer.", "Resupply... required."]
     },
-    "twitch_streamer": {
-      "minion":  ["Chat, did you see that? CHAT!", "F in the chat...", "RIP my run, FeelsBadMan.", "Chat I'm out... PogChamp?", "PauseChamp... no wait.", "Guys I'm dying on stream! GUYS!", "NotLikeThis NotLikeThis NotLikeThis"],
-      "boss":    ["Clip it!", "MaxLOL", "...gg, dungeon.", "This is so going on the highlight reel.", "The boss got me. My viewers will avenge this.", "Died to the boss. First time on stream."],
-      "trap":    ["WAIT WAIT CHAT DID YOU SEE THAT", "Trap jumpscare PogChamp", "My chat voted to go left. I went right.", "That's a clip. That is absolutely a clip."],
-      "default": ["Rage quit... incoming.", "I'm out. F for me.", "I'll respawn at spawn. Wait—", "Moment of silence please.", "Someone clip this."]
-    },
     "beast_master": {
       "minion":  ["Easy... easy...", "It didn't... respond to the command.", "My companion couldn't reach in time.", "I was trying to tame it...", "That one wasn't tameable.", "Approach slowly... didn't work."],
       "boss":    ["The boss resisted taming. Obviously.", "No beast can handle this.", "My companion will carry on without me.", "I've faced dangerous animals. This wins.", "Nature... has limits."],

@@ -1381,12 +1381,6 @@
         { "t": "A ranger. It loves that bow. Hngh. Take away its range and you take away its courage. Crowd it.", "x": "determined" },
         { "t": "A ranger, eyes on every trap. Your hidden teeth may not stay hidden. Have a backup that bites.", "x": "worried" }
       ],
-      "twitch_streamer": [
-        { "t": "A twitch streamer. Thousands watching. Hngh. Then let us put on a funeral worth the view count.", "x": "evil" },
-        { "t": "A streamer, little king. Its chat decides its moves — half genius, half suicidal. Pure chaos. Exploit the suicidal half.", "x": "laughing" },
-        { "t": "Here comes a streamer. Kill it well and the clip spreads — a bigger crowd marches in tomorrow. More to bury.", "x": "confident-2" },
-        { "t": "A streamer in the dungeon. Wave at the little viewers. They came to watch you be a monster. Oblige them.", "x": "mocking-3" }
-      ],
       "beast_master": [
         { "t": "A beast master. It will TAME one of your minions and turn it on you. The audacity. Watch the lone ones.", "x": "angry" },
         { "t": "Here comes a beast master, little king. Mono-type rooms are a liability now — give it no easy pet.", "x": "thinking" },
@@ -1466,11 +1460,6 @@
         { "t": "A rival dungeon empties into ours — monsters, not heroes, and a boss bringing up the rear. Insolent.", "x": "aggressive" },
         { "t": "Another dungeon's master wants YOUR throne, little king. Kill their boss for a feast of gold and XP. Send a message.", "x": "evil" },
         { "t": "Rival monsters in the halls. Hngh. Let them and our minions sort it out — then we take the spoils.", "x": "cool" }
-      ],
-      "twitch_con": [
-        { "t": "Twitch Con. Tomorrow every hero is a streamer. Pure, glorious, chat-driven chaos. Exploit it.", "x": "evil" },
-        { "t": "A dungeon full of streamers, little king. Thousands of viewers. Make it a massacre worth clipping.", "x": "laughing" },
-        { "t": "All streamers tomorrow — and killing them brings no escalation. A free day of carnage. Hngh. Enjoy it.", "x": "confident-2" }
       ],
       "dark_deal": [
         { "t": "A demon at the door tonight — a free pact for half your health tomorrow. Tempting. Bloody. Your kind of choice.", "x": "evil" },

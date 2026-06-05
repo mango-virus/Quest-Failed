@@ -69,7 +69,7 @@ function advGoalLabel(adv) {
 // abilities. Classes absent here have no active class abilities.
 const CLASS_ABILITY_PREFIX = {
   knight: 'knight', rogue: 'rogue', mage: 'mage', cleric: 'cleric',
-  necromancer: 'necro', ranger: 'ranger', twitch_streamer: 'twitch',
+  necromancer: 'necro', ranger: 'ranger',
   beast_master: 'bm', barbarian: 'barb', monk: 'monk', bard: 'bard',
   // New classes (2026-06-03) — so the hover panel lists their abilities too
   // (Tunnel / Rally / Strength in Numbers / Crowd Roar + Block / Roll the Dice).

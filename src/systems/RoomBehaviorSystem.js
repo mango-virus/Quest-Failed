@@ -120,7 +120,7 @@ export class RoomBehaviorSystem {
       const day = this._gameState.meta.dayNumber
       // Mirror the DayPhase spawn filter: gate by both boss level and
       // calendar day so the Library forecast doesn't preview a rare
-      // class (Beast Master, Twitch Streamer) before its unlockDay.
+      // class (e.g. Beast Master) before its unlockDay.
       const classes = allClasses.filter(c =>
         (c.unlockLevel ?? 1) <= dungeonLv &&
         (c.unlockDay   ?? 1) <= day,
@@ -624,16 +624,12 @@ export class RoomBehaviorSystem {
   }
 
   _teleportFromWanderingGate(adv, gateRoom) {
-    // Twitch Streamers can never be sent to the boss chamber — exclude it
-    // from every destination bucket below for them.
-    const noBoss = adv?.classId === 'twitch_streamer'
     const rooms = (this._gameState.dungeon.rooms ?? []).filter(r =>
       r.isActive !== false && r.definitionId !== 'wandering_gate'
     )
-    const boss = noBoss ? null : rooms.find(r => r.definitionId === 'boss_chamber')
+    const boss = rooms.find(r => r.definitionId === 'boss_chamber')
     const neighbors = (this._scene?.dungeonGrid?.getNeighborRooms?.(gateRoom.instanceId) ?? [])
-      .filter(r => r.definitionId !== 'wandering_gate' && r.isActive !== false &&
-                   !(noBoss && r.definitionId === 'boss_chamber'))
+      .filter(r => r.definitionId !== 'wandering_gate' && r.isActive !== false)
     const anyBuilt = rooms.filter(r => r.definitionId !== 'boss_chamber')
 
     // Tinkerer's Workshop "Skewed Gate" — boss-chamber teleport chance

@@ -45,8 +45,8 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 | Evolution chains | **22** | `minionEvolutions.json` | Evolution data lives HERE, not in `minionTypes.json`'s `evolutionPaths` (which is empty by design). |
 | Traps | **8** | `trapTypes.json` | shooting_arrows, bomb, cannon, spike_pillar, dragon_trap, spike_pit, rotating_blades, saw_blade. Fully wired in `TrapSystem.js`. **(NOTE: older docs/memories that say traps are unimplemented are STALE — traps shipped.)** |
 | Pacts (dungeon mechanics) | **92** | `dungeonMechanics.json` | 9 common · 14 uncommon · 24 rare · 9 epic · 16 legendary · 24 damned. |
-| Events | **36** | `events.json` | Incl. scripted set-pieces: Solo Leveling (Shadow Monarch), Light Party (FFXIV trinity), Rival Dungeon, Loot Goblin Heist, etc. |
-| Adventurer classes | **30** | `adventurerClasses.json` | 6 core (knight/rogue/mage/cleric/necromancer/ranger) + expansions + event-only (unlockLevel 99). |
+| Events | **35** | `events.json` | Incl. scripted set-pieces: Solo Leveling (Shadow Monarch), Light Party (FFXIV trinity), Rival Dungeon, Loot Goblin Heist, etc. |
+| Adventurer classes | **29** | `adventurerClasses.json` | 6 core (knight/rogue/mage/cleric/necromancer/ranger) + expansions + event-only (unlockLevel 99). |
 | Personalities | **17** | `personalities.json` | greedy, paranoid, speed_runner, completionist, martyr, coward, overconfident, cartographer, solo, raid_leader, underdog, inquisitor, vulture, traumatized, the_fan, echo, mimic_handler. |
 | Personality combos | **0** | `personalityCombos.json` | **RETIRED (Phase 5c).** File is empty; `PersonalitySystem` combo path is a no-op kept for call-site compat. Do NOT treat as "done". |
 | Companions | **9** | `companions.js` | lilith, safira, rattlebones, necroknight, nocturna, malakor, spectra, luna, zulgath. 3 starters (lilith/malakor/safira), rest unlock via achievements. |
@@ -75,6 +75,6 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 
 - **No win condition in the DEFAULT (endless) mode** — numerical treadmill late-game. **ADDRESSED for campaign mode:** "The Kingdom's Reckoning" 4-act win-condition campaign is **BUILT + complete** (P1–P7 + polish, ✅ 2026-06-02) behind the `acts` flag — fixed Acts I/IV + drafted Kingdom Responses (II/III), the Aldric nemesis + Act IV climax duel (real per-act sprites + cinematic), boss ascension/growth, the Inquisition pact-benefit counter, victory → NG+ (Reckoning tiers), per-response VFX. Remaining: enable it by default (currently flag-off), live balance tuning, and a full validation playthrough. See DESIGN_COVERAGE.md §"The Kingdom's Reckoning".
 - **Day phase is spectator-only** — no active boss agency (the Marionette pact hints at what could be).
-- **IP/legal** — Solo Leveling / FFXIV / Twitch named references need filing-off before any commercial release.
+- **IP/legal** — Solo Leveling / FFXIV named references need filing-off before any commercial release. (Twitch removed 2026-06-05.)
 
 See `DESIGN.md` for original intent and `DESIGN_COVERAGE.md` for the full per-feature ledger.

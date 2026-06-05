@@ -60,7 +60,6 @@ const ADV_SPRITE = {
   ranger:       'knight',
   rogue:        'knight',
   beast_master: 'knight',
-  twitch_streamer: 'knight',
   cosplay_adventurer: 'knight',
   // Event-replacement classes — distinct sprites so the preview reads
   // immediately as "this is a special wave, not normal adventurers".

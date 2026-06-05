@@ -471,8 +471,8 @@ export class ChatBubbles {
   // COMBAT_HIT — fired by CombatSystem with isCritical flag. We split
   // into critLanded (attacker is an adv) vs critTaken (target is an
   // adv). Non-critical hits ignored. Adv-vs-adv crits (Hall of Madness
-  // attack-ally, Twitch beef) fire the landed reaction on the attacker
-  // and skip the target's panic so the moment reads cleanly.
+  // attack-ally) fire the landed reaction on the attacker and skip
+  // the target's panic so the moment reads cleanly.
   _onCombatHit({ sourceId, targetId, isCritical } = {}) {
     if (!isCritical) return
     const advs = this._gameState.adventurers?.active ?? []
