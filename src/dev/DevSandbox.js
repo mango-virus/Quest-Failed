@@ -278,9 +278,90 @@ export function installDevSandbox(scene) {
       }
     },
 
+    // Apply / remove / list any dungeon PACT (mechanic) directly — test any pact
+    // without waiting for the RNG draw. Mirrors the TEST EVENT → PACTS picker;
+    // routes through the real activate/deactivate so seal effects fire + it
+    // registers in gameState.activeMechanics (shows in the live pact UI).
+    pact(id) {
+      const dms = scene.dungeonMechanicSystem
+      if (!dms) { log('no mechanic system — start a run first'); return { ok: false } }
+      if (!id)  { log('usage: __qfDev.pact("the_undying_court") — see __qfDev.pacts()'); return { ok: false } }
+      if (dms.isActive(id)) { log(`'${id}' already active`); return { ok: true, already: true } }
+      dms.activate(id)
+      const on = dms.isActive(id)
+      log(on ? `pact applied: ${id}` : `pact FAILED: '${id}' — unknown id? (try __qfDev.pacts('${id}'))`)
+      return { ok: on, id }
+    },
+    unpact(id) {
+      const dms = scene.dungeonMechanicSystem
+      if (!dms) { log('no mechanic system'); return { ok: false } }
+      dms.deactivate(id)
+      log(`pact removed: ${id}`)
+      return { ok: !dms.isActive(id), id }
+    },
+    pacts(filter) {
+      const dms = scene.dungeonMechanicSystem
+      const defs = dms?.allDefinitions?.() ?? []
+      const f = filter ? String(filter).toLowerCase() : null
+      const list = defs
+        .filter(d => !f || String(d.id).toLowerCase().includes(f) || String(d.name).toLowerCase().includes(f))
+        .map(d => ({ id: d.id, name: d.name, rarity: d.rarity, active: dms.isActive(d.id) }))
+      try { console.table(list) } catch (e) {}
+      log(`${list.length} pacts${f ? ` matching '${f}'` : ''} (${list.filter(p => p.active).length} active)`)
+      return list
+    },
+
+    // VFX review gallery — staged captures for a visual-regression contact sheet.
+    // Drive from a preview harness: read `.plan`, then for each item call
+    // `__qfDev.gallery().stage(key)`, wait ~1s for the VFX, and screenshot to
+    // `vfx_<label>.png`. Champions/set-pieces need an active day, so stage()
+    // builds the arena + starts a quiet day on first use (idempotent).
+    gallery() {
+      const CHAMPS = ['mage_tower', 'pantheon', 'inquisition', 'forlorn_hope', 'all_stars', 'plunderers', 'betrayer', 'reckoning_dead', 'rival']
+      const plan = [
+        { key: 'scene:populated', label: 'populated-arena' },
+        ...CHAMPS.map(c => ({ key: 'champion:' + c, label: 'champion-' + c })),
+        { key: 'setpiece:necrarch',     label: 'setpiece-necrarch' },
+        { key: 'setpiece:rivalDuel',    label: 'setpiece-rivalduel' },
+        { key: 'setpiece:betrayerDash', label: 'setpiece-betrayerdash' },
+      ]
+      // Dismiss blocking DOM popups (act intros, etc.) that soft-pause the scene
+      // and hide the VFX — otherwise the signature queues behind the overlay.
+      const dismissPopups = () => {
+        try {
+          for (const b of document.querySelectorAll('button')) {
+            const t = (b.textContent || '').replace(/\s+/g, ' ').trim()
+            if (/^CONTINUE/i.test(t) || /PRESS ANY KEY/i.test(t)) b.click()
+          }
+        } catch (e) {}
+      }
+      const ensureDay = () => {
+        api.fastAbilities(true)
+        dismissPopups()
+        const dp = scene.scene.get('DayPhase')
+        if (!(dp?.scene?.isActive?.())) { api.quietDay(true); api.arena(); api.startDay() }
+        return !!(scene.scene.get('DayPhase')?.scene?.isActive?.())
+      }
+      return {
+        plan,
+        stage(key) {
+          const dayOk = ensureDay()
+          dismissPopups()
+          const [kind, id] = String(key).split(':')
+          if (kind === 'scene' && id === 'populated') api.populate({ minions: 12, traps: 5 })
+          else if (kind === 'champion') { api.populate({ minions: 8, traps: 2 }); api.champion(id) }
+          else if (kind === 'setpiece') { try { api[id]?.() } catch (e) {} }
+          const item = plan.find(p => p.key === key)
+          log(`gallery staged ${key} (dayActive=${dayOk}) — screenshot now`)
+          return { key, label: item?.label ?? key, dayActive: dayOk, ready: true }
+        },
+      }
+    },
+
     help() {
       const h = [
         'window.__qfDev — Kingdom-Response VFX sandbox',
+        "  .gallery()                       VFX review: .plan = capture list; .stage(key) stages each for a screenshot",
         "  .arena()                         one-click: wire an entry hall to the boss so a day can start",
         "  .quietDay(true|false)            toggle QUIET mode (no wave + day stays open); false = back to normal",
         "  .startDay()                      end build phase, start the NORMAL wave",
@@ -294,6 +375,9 @@ export function installDevSandbox(scene) {
         "  .betrayerDash()                  run the Betrayer night-dash sabotage now",
         "  .state()                         dump sandbox state",
         "  .clear()                         remove sandbox minions/traps/raid units",
+        "  .pact('the_undying_court')       APPLY any pact directly (test it — no RNG draw)",
+        "  .unpact('the_undying_court')     remove a pact",
+        "  .pacts('court')                  list pacts (optional filter) + their active state",
         '',
         "  responses: plunderers inquisition forlorn_hope mage_tower pantheon all_stars betrayer reckoning_dead rival",
         '',

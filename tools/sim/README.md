@@ -32,6 +32,32 @@ Sample report:
   lich · defended           100%          9.2±1.5    9    6   12   14.7  2.2 (3)
 ```
 
+## Soak / fuzz crash-finder
+
+`npm run sim:soak` (`tools/sim/soak.mjs`) runs many RANDOMIZED games (random
+boss × random pacts × random build) and reports anything that throws or corrupts
+state, deduped, each with its repro setup. Catches: per-frame `tick-throw`s,
+`eventbus-throw`s (listener exceptions), `invariant` violations (via
+`checkGameState`), and hard `game-throw`s. Most crashes are setup-deterministic,
+so the printed `boss=… pacts=[…]` is the repro handle (no seeded RNG needed).
+
+## VFX review gallery (preview-driven)
+
+A visual-regression contact sheet for the hero VFX (champion signatures +
+set-pieces). It's driven through the MCP preview, not a standalone script —
+the reusable part is `window.__qfDev.gallery()` (in `src/dev/DevSandbox.js`).
+
+Runbook (cheat-name run, dev tools installed):
+1. Enter a run (Continue/New). **Disable autosave first** if using a save you
+   care about (`localStorage['qf.gameplay.autosave']='false'`) — the gallery
+   mutates the dungeon.
+2. `const plan = window.__qfDev.gallery().plan` — the ordered capture list.
+3. For each item: `window.__qfDev.gallery().stage(key)` (builds a quiet arena
+   day + auto-dismisses act-intro popups on first use; **call once to kick off
+   the async day-start, then again once `dayActive` is true**), wait ~1s for the
+   signature, then `preview_screenshot` → save as `vfx_<label>.png`.
+4. Diff the gallery before/after a VFX change.
+
 ## Files
 
 - `headless.mjs` — runtime: browser-global stubs, a fake Phaser scene (real JSON

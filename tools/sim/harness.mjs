@@ -310,7 +310,7 @@ export function endDay(gs) {
 }
 
 // ── Run a whole game: day/night until the boss dies 3× or maxDays ─────────────
-export function runGame({ boss = 'lich', maxDays = 80, loadout = null, pacts = [], build = null } = {}) {
+export function runGame({ boss = 'lich', maxDays = 80, loadout = null, pacts = [], build = null, onDay = null } = {}) {
   const ctx = boot({ boss })
   const { gs, scene, grid, systems } = ctx
   // Seal any requested pacts before the run (player sealing = fresh seal effects).
@@ -329,6 +329,7 @@ export function runGame({ boss = 'lich', maxDays = 80, loadout = null, pacts = [
   for (let d = 1; d <= maxDays; d++) {
     const r = runDay(ctx)
     days.push(r)
+    onDay?.(gs, r, ctx)   // hook: soak-test invariant checks, instrumentation
     if ((gs.boss?.deathsRemaining ?? 3) <= 0) { outcome = 'bossDied'; break }
     // Night: end-of-day reset (boss/minion HP refill + day advance), then re-arm.
     endDay(gs)
