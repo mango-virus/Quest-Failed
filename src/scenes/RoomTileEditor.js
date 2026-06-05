@@ -33,6 +33,7 @@ import { Balance }       from '../config/balance.js'
 import {
   ThemeManager, FLOOR_SLOT, spriteCoverage,
   readCellEntry, writeCellEntry, VALID_ROTATIONS,
+  makeSpriteId, spritePath, autoSlotForId, slotGroups, slotLabel, ALL_SLOTS,
 } from '../systems/ThemeManager.js'
 import { DecorManager, DECOR_TEXTURE_KEY, DECOR_MANIFEST_PATH } from '../systems/DecorManager.js'
 
@@ -379,10 +380,29 @@ export class RoomTileEditor extends Phaser.Scene {
     this._refreshAll()
   }
 
-  // Tile sprite palette
+  // Tile sprite palette — filtered to the room's theme (sprites the theme
+  // owns OR references in any slot), unless "show all" is on or the room has
+  // no theme. The "show all" escape hatch reveals every sprite (cross-theme +
+  // legacy/untagged).
   uiListTileSprites() {
-    return ThemeManager.listSprites().map(s => ({ id: s.id, thumb: this._texThumb(_textureKey(s.id)) }))
+    const theme = this._activeRoom()?.theme
+    let list
+    if (!theme || this._paletteShowAll) {
+      list = ThemeManager.listSprites()
+    } else {
+      const ids = new Set(ThemeManager.spritesForTheme(theme).map(s => s.id))
+      const t = ThemeManager.getTheme(theme)
+      if (t) for (const slot of Object.keys(t.slots)) for (const id of t.slots[slot]) ids.add(id)
+      list = [...ids].filter(id => ThemeManager.hasSprite(id))
+        .map(id => ({ id, ...ThemeManager.getSprite(id) }))
+    }
+    return list.map(s => ({ id: s.id, thumb: this._texThumb(_textureKey(s.id)) }))
   }
+  uiPaletteInfo() {
+    const theme = this._activeRoom()?.theme
+    return { theme: theme || null, showAll: !!this._paletteShowAll, themed: !!theme }
+  }
+  uiTogglePaletteAll() { this._paletteShowAll = !this._paletteShowAll; this._notifyDom() }
   uiActiveSpriteId() { return this._activeSpriteId }
   uiPickSprite(id) {
     this._activeSpriteId = (this._activeSpriteId === id) ? null : id
@@ -442,6 +462,139 @@ export class RoomTileEditor extends Phaser.Scene {
     if (room?.colorAdjust?.[target]) room.colorAdjust[target] = {}
     this._populatePaintCanvas()
     this._notifyDom()
+  }
+
+  // ── Theme authoring (Phase 1) — drives the Themes manager modal ─────────────
+  _pendingThemeBytes() { return (this._pendingThemePngs ||= new Map()) }
+
+  // Snapshot for the modal: theme list, the edited theme's slot coverage +
+  // an "unassigned" tray (sprites owned by the theme but in no slot), all
+  // with thumbnails.
+  uiThemeAuthorData(themeName) {
+    const themes = ThemeManager.listThemes()
+    const roomTheme = this._activeRoom()?.theme
+    const editing =
+      (themeName && ThemeManager.hasTheme(themeName)) ? themeName :
+      (roomTheme && ThemeManager.hasTheme(roomTheme)) ? roomTheme :
+      (ThemeManager.activeTheme() || themes[0] || null)
+    const groups = slotGroups()
+    const slotLabels = {}
+    for (const g of Object.values(groups)) for (const s of g.slots) slotLabels[s] = slotLabel(s)
+    const thumb = (id) => ({ id, thumb: this._texThumb(_textureKey(id)), coverage: spriteCoverage(ThemeManager.getSprite(id)) })
+    const slots = {}
+    let unassigned = []
+    if (editing) {
+      const t = ThemeManager.getTheme(editing)
+      const inSlot = new Set()
+      for (const s of ALL_SLOTS) {
+        const ids = t?.slots?.[s] || []
+        slots[s] = ids.map(thumb)
+        ids.forEach(id => inSlot.add(id))
+      }
+      unassigned = ThemeManager.spritesForTheme(editing)
+        .filter(s => !inSlot.has(s.id)).map(s => thumb(s.id))
+    }
+    return {
+      themes, editing,
+      groups: Object.entries(groups).map(([id, g]) => ({ id, label: g.label, slots: g.slots })),
+      slotLabels, slots, unassigned,
+      hasFolder: FsHandle.hasRoot(),
+      folderName: FsHandle.hasRoot() ? FsHandle.rootName() : null,
+      dirty: this._pendingThemeBytes().size > 0,
+    }
+  }
+
+  uiCreateTheme(name) {
+    name = String(name || '').trim()
+    if (!name) return { ok: false, msg: 'Enter a theme name' }
+    if (!ThemeManager.createTheme(name)) return { ok: false, msg: 'That theme already exists' }
+    this._notifyDom()
+    return { ok: true, name }
+  }
+  uiRenameTheme(oldName, newName) {
+    newName = String(newName || '').trim()
+    const ok = ThemeManager.renameTheme(oldName, newName)
+    if (ok) {  // sprites tagged with the old theme follow the rename
+      for (const s of ThemeManager.listSprites()) {
+        if (s.theme === oldName) ThemeManager.updateSprite(s.id, { theme: newName })
+      }
+    }
+    this._notifyDom()
+    return { ok, name: ok ? newName : oldName }
+  }
+  uiDeleteTheme(name) { const ok = ThemeManager.deleteTheme(name); this._notifyDom(); return { ok } }
+  uiSetActiveTheme(name) { ThemeManager.setActive(name); this._refreshAll() }
+
+  // Open the OS picker, ingest PNG(s) into a theme: register the texture, tag
+  // the sprite with the theme, auto-slot it by filename, and stage the bytes
+  // for the next theme save. Returns a {added, assigned, unassigned} summary.
+  async uiUploadThemeSprites(themeName, droppedFiles = null) {
+    if (!themeName) return { added: 0, assigned: 0, unassigned: 0, msg: 'Pick or create a theme first' }
+    let files = droppedFiles
+    if (!files) {
+      const input = document.createElement('input')
+      input.type = 'file'; input.accept = 'image/png,image/webp'; input.multiple = true
+      input.style.display = 'none'; document.body.appendChild(input)
+      files = await new Promise(res => {
+        input.onchange = () => res(Array.from(input.files || []))
+        input.oncancel = () => res([])
+        input.click()
+      })
+      input.remove()
+    }
+    files = (files || []).filter(f => /image\/(png|webp)/.test(f.type) || /\.(png|webp)$/i.test(f.name))
+    let added = 0, assigned = 0
+    for (const file of files) {
+      const id = makeSpriteId(file.name)
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const dataUrl = await _blobToDataUrl(file)
+      const dim = await _imgDim(dataUrl)
+      const srcSize = [32, 64, 128].includes(dim) ? dim : (dim <= 32 ? 32 : dim <= 64 ? 64 : 128)
+      const mode = srcSize > 32 ? 'span' : 'scale'   // big art spans multiple cells
+      if (ThemeManager.hasSprite(id)) ThemeManager.updateSprite(id, { srcSize, theme: themeName })
+      else ThemeManager.addSprite(id, { srcSize, mode, theme: themeName, file: spritePath(id) })
+      this._pendingThemeBytes().set(id, bytes)
+      try { await this._addTextureFromDataUrl(_textureKey(id), dataUrl) } catch (_) { /* ignore */ }
+      if (this._thumbCache) delete this._thumbCache[_textureKey(id)]
+      const slot = autoSlotForId(id)
+      if (slot) { ThemeManager.addSlotVariant(themeName, slot, id); assigned++ }
+      added++
+    }
+    this._notifyDom()
+    return { added, assigned, unassigned: added - assigned }
+  }
+
+  uiSetSpriteCoverage(id, cov) {
+    cov = Number(cov)
+    ThemeManager.updateSprite(id, { coverage: cov, mode: cov > 1 ? 'span' : 'scale' })
+    if (this._thumbCache) delete this._thumbCache[_textureKey(id)]
+    this._notifyDom()
+  }
+  uiAssignSlot(themeName, slot, id)   { ThemeManager.addSlotVariant(themeName, slot, id); this._notifyDom() }
+  uiUnassignSlot(themeName, slot, id) { ThemeManager.removeSlotVariant(themeName, slot, id); this._notifyDom() }
+  uiDeleteThemeSprite(id)             { ThemeManager.removeSprite(id); this._notifyDom() }
+
+  async uiSaveThemes() {
+    if (!FsHandle.isSupported()) { this._toast('File System API unavailable in this browser', true); return { ok: false } }
+    if (!FsHandle.hasRoot()) {
+      this._toast('Pick the Quest-Failed/ folder…')
+      const root = await FsHandle.acquireRoot()
+      if (!root) { this._toast('Folder not granted — save cancelled', true); return { ok: false } }
+    }
+    try {
+      for (const [id, bytes] of this._pendingThemeBytes()) {
+        await FsHandle.writeFile(spritePath(id), new Blob([bytes], { type: 'image/png' }))
+      }
+      this._pendingThemeBytes().clear()
+      await FsHandle.writeJson('assets/themes/manifest.json', ThemeManager.serialize())
+      this._toast('Themes saved to disk.')
+      this._notifyDom()
+      return { ok: true }
+    } catch (err) {
+      console.error('[RoomTileEditor] theme save failed:', err)
+      this._toast('Save failed: ' + (err?.message || err), true)
+      return { ok: false }
+    }
   }
 
   // ── Room shape normalization ─────────────────────────────────────────────
@@ -1566,5 +1719,16 @@ async function _blobToDataUrl(blob) {
     r.onload  = () => resolve(r.result)
     r.onerror = () => reject(r.error)
     r.readAsDataURL(blob)
+  })
+}
+
+// Largest native dimension of an image data URL (used to bucket uploaded
+// sprites into a 32/64/128 source size). Resolves to 32 on any load error.
+function _imgDim(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload  = () => resolve(Math.max(img.naturalWidth || 32, img.naturalHeight || 32))
+    img.onerror = () => resolve(32)
+    img.src = dataUrl
   })
 }

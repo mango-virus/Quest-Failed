@@ -121,6 +121,11 @@ export class RoomEditorOverlay {
         h('span', { className: 'qf-redit__folder', ref: (e) => (this._refs.folder = e) }),
         h('button', {
           className: 'btn sm',
+          title: 'Manage themes: upload tiles, assign slots, switch themes',
+          on: { click: () => this.openThemes() },
+        }, '⚙ Themes'),
+        h('button', {
+          className: 'btn sm',
           on: { click: () => this.scene.uiSave?.() },
         }, '⤓ Save to disk'),
         h('button', {
@@ -389,6 +394,18 @@ export class RoomEditorOverlay {
     ))
   }
 
+  // Palette scope toggle: "<theme> tiles" ↔ "All tiles" (escape hatch).
+  _paletteScopeToggle() {
+    const p = this.scene.uiPaletteInfo?.() || {}
+    if (!p.themed) return h('span', { className: 'qf-redit__palette-note' }, 'theme: none')
+    return h('button', {
+      className: ['qf-redit__link-btn', p.showAll && 'is-on'],
+      title: p.showAll ? 'Showing every tile — click to show only this room’s theme'
+                       : `Showing “${p.theme}” tiles — click to show all`,
+      on: { click: () => { this.scene.uiTogglePaletteAll?.(); this._forceContextRebuild() } },
+    }, p.showAll ? 'All tiles' : `${p.theme} tiles`)
+  }
+
   // ── Tiles ───────────────────────────────────────────────────────────────────
   _tilesPanel(s) {
     const sprites = this.scene.uiListTileSprites?.() || []
@@ -400,14 +417,17 @@ export class RoomEditorOverlay {
       ]),
       h('div', { className: 'qf-redit__subhead' }, [
         h('span', null, 'TILE BRUSH'),
-        h('button', {
-          className: 'qf-redit__link-btn',
-          title: 'Clear every per-cell override on this room',
-          on: { click: () => this.scene.uiClearOverrides?.() },
-        }, 'Clear all'),
+        h('div', { className: 'qf-redit__subhead-actions' }, [
+          this._paletteScopeToggle(),
+          h('button', {
+            className: 'qf-redit__link-btn',
+            title: 'Clear every per-cell override on this room',
+            on: { click: () => this.scene.uiClearOverrides?.() },
+          }, 'Clear all'),
+        ]),
       ]),
       this._spriteGrid(sprites, active, (id) => this.scene.uiPickSprite?.(id),
-        '(no sprites yet — add PNGs in the Tileset Editor)'),
+        'No tiles for this theme yet — open ⚙ Themes to upload some.'),
     ]
   }
 
@@ -423,9 +443,12 @@ export class RoomEditorOverlay {
           (v) => this.scene.uiSetDoorState?.(v)),
         this._themeSelect('Door theme', 'doorTheme', '(default)'),
       ]),
-      h('div', { className: 'qf-redit__subhead' }, [h('span', null, 'DOOR BRUSH')]),
+      h('div', { className: 'qf-redit__subhead' }, [
+        h('span', null, 'DOOR BRUSH'),
+        h('div', { className: 'qf-redit__subhead-actions' }, [this._paletteScopeToggle()]),
+      ]),
       this._spriteGrid(sprites, active, (id) => this.scene.uiPickSprite?.(id),
-        '(no sprites yet — add PNGs in the Tileset Editor)'),
+        'No tiles for this theme yet — open ⚙ Themes to upload some.'),
     ]
   }
 
@@ -518,6 +541,196 @@ export class RoomEditorOverlay {
       hint('R', 'rotate brush'),
       hint('V', 'rotate view'),
     ])
+  }
+
+  // ── Themes manager modal (Phase 1: themed-tile authoring) ───────────────────
+  openThemes() {
+    if (this._themesEl || !this._el) return
+    const d = this.scene.uiThemeAuthorData?.()
+    this._editingTheme = d?.editing || null
+    this._themeMsg = ''
+    this._themesEl = h('div', {
+      className: 'qf-themes',
+      on: { click: (e) => { if (e.target === this._themesEl) this.closeThemes() } },
+    }, [h('div', { className: 'qf-themes__panel', ref: (e) => (this._refs.themesPanel = e) })])
+    this._el.appendChild(this._themesEl)
+    this._renderThemes()
+  }
+
+  closeThemes() {
+    this._themesEl?.remove()
+    this._themesEl = null
+    this.refresh()   // tiles/doors palettes may have gained sprites/themes
+  }
+
+  _renderThemes() {
+    const panel = this._refs.themesPanel
+    if (!panel) return
+    const d = this.scene.uiThemeAuthorData?.(this._editingTheme) ||
+      { themes: [], groups: [], slots: {}, unassigned: [], slotLabels: {} }
+    this._editingTheme = d.editing
+    mount(panel, [this._themesHeader(d), this._themesBody(d), this._themesFooter(d)])
+  }
+
+  _themesHeader(d) {
+    return h('div', { className: 'qf-themes__head' }, [
+      h('div', { className: 'qf-themes__title' }, '⚙ THEME LIBRARY'),
+      h('div', { className: 'qf-themes__theme-ctl' }, [
+        h('select', {
+          className: 'qf-themes__theme-sel',
+          ref: (e) => { e.value = d.editing || '' },
+          on: { change: (e) => { this._editingTheme = e.target.value || null; this._renderThemes() } },
+        }, d.themes.length ? d.themes.map((t) => h('option', { value: t }, t))
+                           : [h('option', { value: '' }, '(no themes yet)')]),
+        h('button', { className: 'btn sm', on: { click: () => this._newTheme() } }, '+ New'),
+        h('button', { className: 'btn sm ghost', on: { click: () => this._renameTheme() } }, 'Rename'),
+        h('button', { className: 'btn sm ghost', on: { click: () => this._deleteTheme() } }, 'Delete'),
+      ]),
+      h('div', { className: 'qf-themes__head-right' }, [
+        h('button', {
+          className: 'btn sm', disabled: !d.editing,
+          title: 'Apply this theme to the room you are editing',
+          on: { click: () => { if (d.editing) this.scene.uiSetTheme?.('theme', d.editing) } },
+        }, 'Use in room'),
+        h('button', { className: 'qf-themes__close', title: 'Close', on: { click: () => this.closeThemes() } }, '✕'),
+      ]),
+    ])
+  }
+
+  _themesBody(d) {
+    return h('div', { className: 'qf-themes__body' }, [
+      h('div', { className: 'qf-themes__left' }, [
+        this._uploadZone(d),
+        this._unassignedTray(d),
+      ]),
+      h('div', { className: 'qf-themes__right' }, [
+        h('div', { className: 'qf-themes__subhead' }, 'SLOT COVERAGE'),
+        h('div', { className: 'qf-themes__slots' },
+          d.editing ? this._slotGrid(d)
+                    : [h('div', { className: 'qf-themes__empty' }, 'Create or pick a theme to begin.')]),
+      ]),
+    ])
+  }
+
+  _uploadZone(d) {
+    const zone = h('div', {
+      className: 'qf-themes__drop',
+      on: {
+        click: () => this._upload(),
+        dragover: (e) => { e.preventDefault(); zone.classList.add('drag') },
+        dragleave: () => zone.classList.remove('drag'),
+        drop: (e) => { e.preventDefault(); zone.classList.remove('drag'); this._upload([...(e.dataTransfer?.files || [])]) },
+      },
+    }, [
+      h('div', { className: 'qf-themes__drop-icon' }, '⬆'),
+      h('div', { className: 'qf-themes__drop-title' },
+        d.editing ? `Drop PNG tiles for “${d.editing}”` : 'Pick or create a theme first'),
+      h('div', { className: 'qf-themes__drop-sub' },
+        'or click to browse — files named floor3 · wall_corner_tl · door_closed_v_tl auto-slot'),
+      this._themeMsg ? h('div', { className: 'qf-themes__msg' }, this._themeMsg) : null,
+    ])
+    return zone
+  }
+
+  async _upload(files = null) {
+    if (!this._editingTheme) { this._themeMsg = 'Pick or create a theme first.'; this._renderThemes(); return }
+    const r = await this.scene.uiUploadThemeSprites?.(this._editingTheme, files)
+    this._themeMsg = r?.added
+      ? `Added ${r.added} tile${r.added === 1 ? '' : 's'} — ${r.assigned} auto-slotted, ${r.unassigned} to assign below.`
+      : 'No PNG tiles added.'
+    this._renderThemes()
+  }
+
+  _unassignedTray(d) {
+    return h('div', { className: 'qf-themes__tray' }, [
+      h('div', { className: 'qf-themes__subhead' }, ['UNASSIGNED', h('span', { className: 'qf-themes__count' }, String(d.unassigned.length))]),
+      d.unassigned.length === 0
+        ? h('div', { className: 'qf-themes__empty' }, d.editing ? 'Every uploaded tile is slotted.' : '—')
+        : h('div', { className: 'qf-themes__tray-list' }, d.unassigned.map((s) => this._unassignedItem(d, s))),
+    ])
+  }
+
+  _unassignedItem(d, s) {
+    return h('div', { className: 'qf-themes__tray-item' }, [
+      s.thumb ? h('img', { className: 'qf-themes__thumb', src: s.thumb })
+              : h('span', { className: 'qf-themes__thumb q' }, '?'),
+      h('span', { className: 'qf-themes__tray-id', title: s.id }, s.id),
+      h('select', {
+        className: 'qf-themes__covsel', title: 'Tile coverage (how many cells this sprite fills)',
+        ref: (e) => { e.value = String(s.coverage || 1) },
+        on: { change: (e) => { this.scene.uiSetSpriteCoverage?.(s.id, e.target.value); this._renderThemes() } },
+      }, [
+        h('option', { value: '1' }, '1×1'),
+        h('option', { value: '2' }, '2×2'),
+        h('option', { value: '4' }, '4×4'),
+      ]),
+      h('select', {
+        className: 'qf-themes__slotsel',
+        on: { change: (e) => { if (e.target.value) { this.scene.uiAssignSlot?.(d.editing, e.target.value, s.id); this._renderThemes() } } },
+      }, [
+        h('option', { value: '' }, '— assign to slot —'),
+        ...d.groups.map((g) => h('optgroup', { label: g.label }, g.slots.map((slot) => h('option', { value: slot }, d.slotLabels[slot])))),
+      ]),
+      h('button', {
+        className: 'qf-themes__del', title: 'Delete this sprite from the library',
+        on: { click: () => { if (window.confirm(`Delete sprite “${s.id}” from the library?`)) { this.scene.uiDeleteThemeSprite?.(s.id); this._renderThemes() } } },
+      }, '🗑'),
+    ])
+  }
+
+  _slotGrid(d) {
+    return d.groups.map((g) => h('div', { className: 'qf-themes__group' }, [
+      h('div', { className: 'qf-themes__group-label' }, g.label),
+      ...g.slots.map((slot) => {
+        const variants = d.slots[slot] || []
+        return h('div', { className: ['qf-themes__slot-row', variants.length === 0 && 'is-empty'] }, [
+          h('span', { className: 'qf-themes__slot-label' }, d.slotLabels[slot]),
+          h('div', { className: 'qf-themes__slot-variants' },
+            variants.length
+              ? variants.map((v) => h('button', {
+                  className: 'qf-themes__variant', title: `${v.id} — click to remove`,
+                  on: { click: () => { this.scene.uiUnassignSlot?.(d.editing, slot, v.id); this._renderThemes() } },
+                }, v.thumb ? h('img', { className: 'qf-themes__thumb sm', src: v.thumb })
+                           : h('span', { className: 'qf-themes__thumb q sm' }, '?')))
+              : h('span', { className: 'qf-themes__slot-empty' }, 'empty')),
+        ])
+      }),
+    ]))
+  }
+
+  _themesFooter(d) {
+    return h('div', { className: 'qf-themes__foot' }, [
+      h('span', { className: ['qf-themes__folder', d.hasFolder ? 'ok' : 'warn'] },
+        d.hasFolder ? `📁 ${d.folderName}` : '📁 no folder — Save will prompt for it'),
+      h('span', { className: 'qf-themes__dirty' }, d.dirty ? '● unsaved tiles' : ''),
+      h('button', { className: 'btn', on: { click: () => this._saveThemes() } }, '⤓ Save themes to disk'),
+    ])
+  }
+
+  async _saveThemes() { await this.scene.uiSaveThemes?.(); this._renderThemes() }
+
+  _newTheme() {
+    const name = window.prompt('New theme name (e.g. Jungle, Spooky):')
+    if (!name) return
+    const r = this.scene.uiCreateTheme?.(name)
+    if (r?.ok) this._editingTheme = r.name
+    else if (r?.msg) this._themeMsg = r.msg
+    this._renderThemes()
+  }
+  _renameTheme() {
+    if (!this._editingTheme) return
+    const name = window.prompt('Rename theme:', this._editingTheme)
+    if (!name) return
+    const r = this.scene.uiRenameTheme?.(this._editingTheme, name)
+    if (r?.ok) this._editingTheme = r.name
+    this._renderThemes()
+  }
+  _deleteTheme() {
+    if (!this._editingTheme) return
+    if (!window.confirm(`Delete theme “${this._editingTheme}”? Its tiles stay in the library (just un-grouped).`)) return
+    this.scene.uiDeleteTheme?.(this._editingTheme)
+    this._editingTheme = null
+    this._renderThemes()
   }
 
   // Re-applied on Phaser scale resize (the scene calls this). The stage

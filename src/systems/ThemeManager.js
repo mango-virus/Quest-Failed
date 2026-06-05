@@ -137,6 +137,35 @@ export function spritePath(id) {
   return `assets/themes/sprites/${id}.png`
 }
 
+// Filename/id → theme slot, by convention, so dropping well-named PNGs
+// (floor3, wall_corner_tl, door_closed_v_tl, …) auto-assigns to the right
+// slot on upload. Returns a slot from ALL_SLOTS, or null when the id doesn't
+// map cleanly — the editor drops those in an "unassigned" tray for a manual
+// one-click pick. A trailing numeric variant suffix is stripped first
+// (floor3 → floor) so multiple variants of one slot all land together.
+const _SLOT_ALIASES = {
+  wall_l: 'wall_left',   wall_r: 'wall_right',  wall_b: 'wall_bottom',
+  wall_c: 'wall_cap',    wall_t: 'wall',        wall_top: 'wall',
+  corner_tl: 'wall_corner_tl', corner_tr: 'wall_corner_tr',
+  corner_bl: 'wall_corner_bl', corner_br: 'wall_corner_br',
+}
+export function autoSlotForId(id) {
+  if (!id) return null
+  const s = String(id).toLowerCase()
+  const base = s.replace(/_?\d+$/, '') || s
+  // 1) exact slot name (floor, wall, wall_cap, wall_corner_tl, door_<…>).
+  if (ALL_SLOTS.includes(s)) return s
+  if (ALL_SLOTS.includes(base)) return base
+  // 2) known short aliases.
+  if (_SLOT_ALIASES[s]) return _SLOT_ALIASES[s]
+  if (_SLOT_ALIASES[base]) return _SLOT_ALIASES[base]
+  // 3) loose prefix rules. Doors must be exact (state+orient+cell), so
+  //    abbreviated door names fall through to the tray.
+  if (/floor/.test(s)) return FLOOR_SLOT
+  if (/^wall(\d+)?$/.test(base)) return 'wall'
+  return null
+}
+
 // Cells covered by a sprite. Explicit `coverage` field wins; otherwise we
 // derive from the legacy mode/srcSize convention so older manifests still
 // behave correctly.
@@ -188,7 +217,7 @@ export function writeCellEntry(id, rot, flipH = false, flipV = false) {
 // ── In-memory state ────────────────────────────────────────────────────────
 
 const state = {
-  sprites: Object.create(null),    // id → { file, srcSize, mode, tags }
+  sprites: Object.create(null),    // id → { file, srcSize, mode, coverage, theme, tags }
   themes:  Object.create(null),    // name → { slots: { <slot>: [spriteId,…] } }
   active:  null,                   // active theme name (used by preview + game)
   rolls:   new Map(),              // (themeName|slot|x|y) → spriteId  (cache)
@@ -212,6 +241,9 @@ export const ThemeManager = {
           srcSize:  VALID_SRC_SIZES.includes(s.srcSize) ? s.srcSize : 32,
           mode:     VALID_MODES.includes(s.mode) ? s.mode : 'scale',
           coverage: VALID_COVERAGES.includes(s.coverage) ? s.coverage : null,
+          // Owning theme (Phase-1 themed-tile authoring). Untagged sprites
+          // from older manifests stay null = "shared / legacy".
+          theme:    typeof s.theme === 'string' ? s.theme : null,
           tags:     Array.isArray(s.tags) ? s.tags.slice() : [],
         }
       }
@@ -244,12 +276,21 @@ export const ThemeManager = {
   getSprite(id) { return state.sprites[id] || null },
   hasSprite(id) { return id in state.sprites },
 
+  // Sprites owned by a theme (Phase-1 themed-tile authoring). Pass
+  // includeLegacy to also return untagged (theme === null) shared sprites.
+  spritesForTheme(name, includeLegacy = false) {
+    return Object.entries(state.sprites)
+      .filter(([, s]) => s.theme === name || (includeLegacy && s.theme == null))
+      .map(([id, s]) => ({ id, ...s }))
+  },
+
   addSprite(id, meta) {
     state.sprites[id] = {
       file:     meta.file || spritePath(id),
       srcSize:  VALID_SRC_SIZES.includes(meta.srcSize) ? meta.srcSize : 32,
       mode:     VALID_MODES.includes(meta.mode) ? meta.mode : 'scale',
       coverage: VALID_COVERAGES.includes(meta.coverage) ? meta.coverage : null,
+      theme:    typeof meta.theme === 'string' ? meta.theme : null,
       tags:     Array.isArray(meta.tags) ? meta.tags.slice() : [],
     }
     state.rolls.clear()
@@ -261,6 +302,7 @@ export const ThemeManager = {
     if (patch.srcSize  != null && VALID_SRC_SIZES.includes(patch.srcSize))  s.srcSize  = patch.srcSize
     if (patch.mode     != null && VALID_MODES.includes(patch.mode))         s.mode     = patch.mode
     if (patch.coverage != null && VALID_COVERAGES.includes(patch.coverage)) s.coverage = patch.coverage
+    if (patch.theme !== undefined) s.theme = (typeof patch.theme === 'string' ? patch.theme : null)
     if (Array.isArray(patch.tags)) s.tags = patch.tags.slice()
     state.rolls.clear()
   },
