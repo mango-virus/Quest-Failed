@@ -4547,7 +4547,7 @@ export class AISystem {
     if (flags.crownOfAvarice && !sup)  goldMul *= Balance.MECHANIC_AVARICE_GOLD_MULT        // LEGENDARY — gold x2
     if (flags.theIronPrice)    goldMul  = 0                                          // LEGENDARY — no gold income
     if (flags.gildedDemise && !sup)    goldMul *= Balance.MECHANIC_GILDED_DEMISE_GOLD_MULT
-    if (flags.inquisitorsMark && adv.flags?.inquisitorsMark) {
+    if (flags.inquisitorsMark && !sup && adv.flags?.inquisitorsMark) {
       goldMul *= Balance.MECHANIC_INQUISITORS_GOLD_MULT
     }
     // Phase 9 — Cursed Soil: +50% gold on kills inside any room.

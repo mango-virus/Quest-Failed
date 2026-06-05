@@ -661,6 +661,9 @@ function _buildHandlerRegistry() {
         adventurer._ransomBuffed = true
       })
       subscribe('ADVENTURER_FLED', () => {
+        // Inquisitor purges pact BENEFITS — no ransom while one is loose. The
+        // speed curse on adventurers (applied on entry) still stands.
+        if ((gameState._mechanicFlags ?? {})._inqSuppress) return
         gameState.player.gold = (gameState.player.gold ?? 0) + Balance.MECHANIC_RANSOM_GOLD_PER_ESCAPE
         EventBus.emit('RESOURCES_AWARDED', {
           gold:   Balance.MECHANIC_RANSOM_GOLD_PER_ESCAPE,
@@ -678,11 +681,15 @@ function _buildHandlerRegistry() {
       gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}), taxTheLiving: true }
       subscribe('ADVENTURER_ENTERED_DUNGEON', ({ adventurer }) => {
         if (!adventurer || adventurer._taxLivingBuffed) return
-        gameState.player.gold = (gameState.player.gold ?? 0) + Balance.MECHANIC_TAX_LIVING_GOLD_PER_ENTRY
-        EventBus.emit('RESOURCES_AWARDED', {
-          gold:   Balance.MECHANIC_TAX_LIVING_GOLD_PER_ENTRY,
-          reason: 'tax_living_toll',
-        })
+        // Inquisitor purges pact BENEFITS — skip the toll while one is loose.
+        // The +HP curse on the entrant (below) still applies.
+        if (!((gameState._mechanicFlags ?? {})._inqSuppress)) {
+          gameState.player.gold = (gameState.player.gold ?? 0) + Balance.MECHANIC_TAX_LIVING_GOLD_PER_ENTRY
+          EventBus.emit('RESOURCES_AWARDED', {
+            gold:   Balance.MECHANIC_TAX_LIVING_GOLD_PER_ENTRY,
+            reason: 'tax_living_toll',
+          })
+        }
         adventurer.resources.maxHp = Math.round((adventurer.resources.maxHp ?? 0) * Balance.MECHANIC_TAX_LIVING_HP_MULT)
         adventurer.resources.hp    = adventurer.resources.maxHp
         adventurer._taxLivingBuffed = true
@@ -1468,37 +1475,6 @@ function _buildHandlerRegistry() {
     },
     pactOfTheBrand_deactivate: ({ gameState }) => {
       if (gameState._mechanicFlags) gameState._mechanicFlags.pactOfTheBrand = false
-    },
-
-    // ── Pact of the Reaper ───────────────────────────────────────────────
-    // Track per-room "next-adv-cursed" markers. ADVENTURER_DIED sets the
-    // marker for the room where they died. ADVENTURER_ROOM_CHANGED reads
-    // the marker, applies HP/dmg debuff, clears it.
-    pactOfTheReaper_activate: ({ subscribe, gameState }) => {
-      const f = gameState._mechanicFlags = { ...(gameState._mechanicFlags ?? {}) }
-      f.pactOfTheReaper = true
-      f.reaperRooms ??= {}
-      subscribe('ADVENTURER_DIED', ({ roomId }) => {
-        if (!roomId) return
-        gameState._mechanicFlags.reaperRooms[roomId] = true
-      })
-      subscribe('ADVENTURER_ROOM_CHANGED', ({ adventurer, toRoomId }) => {
-        if (!adventurer || !toRoomId) return
-        if (!gameState._mechanicFlags.reaperRooms[toRoomId]) return
-        if (adventurer._reaperCursed) return
-        adventurer.resources.maxHp = Math.max(1, Math.floor((adventurer.resources.maxHp ?? 0) * Balance.MECHANIC_REAPER_HP_DEBUFF_MULT))
-        adventurer.resources.hp    = Math.min(adventurer.resources.hp ?? 0, adventurer.resources.maxHp)
-        if (adventurer.stats?.attack != null) adventurer.stats.attack = Math.max(1, Math.floor(adventurer.stats.attack * Balance.MECHANIC_REAPER_DMG_DEBUFF_MULT))
-        adventurer._reaperCursed = true
-        delete gameState._mechanicFlags.reaperRooms[toRoomId]
-        EventBus.emit('REAPER_MARK_APPLIED', { adventurerId: adventurer.instanceId, roomId: toRoomId })
-      })
-    },
-    pactOfTheReaper_deactivate: ({ gameState }) => {
-      if (gameState._mechanicFlags) {
-        gameState._mechanicFlags.pactOfTheReaper = false
-        gameState._mechanicFlags.reaperRooms = {}
-      }
     },
 
     // ── DAMNED · The Leech ───────────────────────────────────────────────

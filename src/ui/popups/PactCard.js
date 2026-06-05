@@ -95,7 +95,6 @@ export const PACT_FLAVOR = {
   pact_of_the_jester:      'comedy is just tragedy with timing',
   pact_of_the_whisperer:   'whispers travel further than shouts',
   pact_of_the_brand:       'wear the brand or wear the wound',
-  pact_of_the_reaper:      'the harvest is patient, but never late',
 
   // Damned (solid-black) pacts — devil's bargains: a sliver of bribe, a
   // lifetime of curse.

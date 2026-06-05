@@ -65,7 +65,12 @@ export class MinionEvolutionSystem {
     // by their host room, so a paid upgrade wouldn't persist — exclude them
     // (mirrors the pay-to-revive scoping in util/minionRevive.fallenRevivable).
     if ((minion.class ?? 'roster') !== 'roster') return false
-    if ((this._gameState._mechanicFlags ?? {}).theUnteachable) return false
+    const f = this._gameState._mechanicFlags ?? {}
+    if (f.theUnteachable) return false
+    // Undying Horde — the risen "shambling echoes" (minion.isUndead, set when a
+    // dead minion rises via the pact) cannot evolve. Built undead minions (the
+    // `undead` TAG only, no isUndead property) still evolve normally.
+    if (f.undyingHorde && minion.isUndead) return false
     const chain = this._chainContaining(minion.definitionId)
     if (!chain) return false
     const idx = chain.indexOf(minion.definitionId)

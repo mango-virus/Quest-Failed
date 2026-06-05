@@ -1207,26 +1207,6 @@
     "synergyWith": []
   },
   {
-    "id": "pact_of_the_reaper",
-    "name": "Pact of the Reaper",
-    "symbol": "💀",
-    "description": "When an adventurer dies in a room, the next adventurer to enter that room is cursed: −25% HP and −25% damage.",
-    "tradeoffDescription": "The cursed adventurer's curse is visible to their party — they sometimes skip the room entirely.",
-    "rarity": "uncommon",
-    "unlockLevel": 4,
-    "weight": 2,
-    "availableToArchetypes": "all",
-    "onActivate": "pactOfTheReaper_activate",
-    "onDeactivate": "pactOfTheReaper_deactivate",
-    "onDailyTick": null,
-    "tags": [
-      "adventurer",
-      "curse"
-    ],
-    "exclusiveWith": [],
-    "synergyWith": []
-  },
-  {
     "id": "blood_money",
     "name": "Blood Money",
     "symbol": "💵",
