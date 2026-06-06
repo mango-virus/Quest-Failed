@@ -640,18 +640,27 @@ export class DungeonRenderer {
     // those cells (doors still render so they overlay the skin).
     this._drawRoomSkins()
 
-    // Skinned doors: collect the door-block cells of every door that has a
-    // single-image skin for its current state, so the per-cell door art below
-    // is skipped (the one skin image stands alone, drawn by _drawDoorSkins).
+    // Skinned doors. `_skinnedDoorCells` = the owning side's door block, fully
+    // skipped (the one skin image stands alone, drawn by _drawDoorSkins).
+    // `_skinnedSeamCells` = the PAIRED room's door block — the skin only covers
+    // the owner's side, so the far side would otherwise fall through to the red
+    // procedural door. We suppress just that procedural draw there (the wall
+    // sprite under the door still renders), so the back of the door reads as a
+    // solid wall instead of a stray red rectangle.
     this._skinnedDoorCells = new Set()
+    this._skinnedSeamCells = new Set()
     for (const room of (this._gameState?.dungeon?.rooms || [])) {
       if (!room.doorSkin && !room.doorSkinByBoss) continue
       for (const cp of (room.connectionPoints || [])) {
         if (!this._cpHasDoorSkin(room, cp)) continue
         const block = this._doorBlockCells(room, cp)
-        if (!block) continue
-        for (let dx = 0; dx < block.w; dx++) for (let dy = 0; dy < block.h; dy++) {
+        if (block) for (let dx = 0; dx < block.w; dx++) for (let dy = 0; dy < block.h; dy++) {
           this._skinnedDoorCells.add(`${block.x0 + dx},${block.y0 + dy}`)
+        }
+        const pair = this._findPairedCp(room, cp)
+        const pblock = pair && this._doorBlockCells(pair.pairedRoom, pair.pairedCp)
+        if (pblock) for (let dx = 0; dx < pblock.w; dx++) for (let dy = 0; dy < pblock.h; dy++) {
+          this._skinnedSeamCells.add(`${pblock.x0 + dx},${pblock.y0 + dy}`)
         }
       }
     }
@@ -688,7 +697,9 @@ export class DungeonRenderer {
         } else if (t === TILE.WALL || t === TILE.BOSS_WALL) {
           this._drawWallCellByTag(g, x, y, this._wallOrient.get(`${x},${y}`))
         } else if (t === TILE.DOOR) {
-          this._drawDoorCell(g, x, y)
+          // On the far side of a skinned seam, skip the procedural red door —
+          // the wall sprite under it (already drawn) shows the door's back.
+          if (!this._skinnedSeamCells.has(`${x},${y}`)) this._drawDoorCell(g, x, y)
         } else if (t === TILE.WALL_CAP) {
           g.fillStyle(WALL_CAP_FILL, 1)
           g.fillRect(x * TS, y * TS, TS, TS)
