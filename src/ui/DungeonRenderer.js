@@ -640,28 +640,22 @@ export class DungeonRenderer {
     // those cells (doors still render so they overlay the skin).
     this._drawRoomSkins()
 
-    // Skinned doors. `_skinnedDoorCells` = the owning side's door block, fully
-    // skipped (the one skin image stands alone, drawn by _drawDoorSkins).
-    // `_skinnedSeamCells` = the PAIRED room's door block — the skin only covers
-    // the owner's side, so the far side would otherwise fall through to the red
-    // procedural door. We suppress just that procedural draw there (the wall
-    // sprite under the door still renders), so the back of the door reads as a
-    // solid wall instead of a stray red rectangle.
+    // Skinned doors: the single skin image spans the WHOLE doorway (both rooms'
+    // wall depth), so skip the per-cell door art on BOTH the owning room's door
+    // block AND the paired room's — the one image (drawn by _drawDoorSkins)
+    // stands alone and is visible from both rooms.
     this._skinnedDoorCells = new Set()
-    this._skinnedSeamCells = new Set()
+    const addBlockTo = (set, b) => {
+      if (!b) return
+      for (let dx = 0; dx < b.w; dx++) for (let dy = 0; dy < b.h; dy++) set.add(`${b.x0 + dx},${b.y0 + dy}`)
+    }
     for (const room of (this._gameState?.dungeon?.rooms || [])) {
       if (!room.doorSkin && !room.doorSkinByBoss) continue
       for (const cp of (room.connectionPoints || [])) {
         if (!this._cpHasDoorSkin(room, cp)) continue
-        const block = this._doorBlockCells(room, cp)
-        if (block) for (let dx = 0; dx < block.w; dx++) for (let dy = 0; dy < block.h; dy++) {
-          this._skinnedDoorCells.add(`${block.x0 + dx},${block.y0 + dy}`)
-        }
+        addBlockTo(this._skinnedDoorCells, this._doorBlockCells(room, cp))
         const pair = this._findPairedCp(room, cp)
-        const pblock = pair && this._doorBlockCells(pair.pairedRoom, pair.pairedCp)
-        if (pblock) for (let dx = 0; dx < pblock.w; dx++) for (let dy = 0; dy < pblock.h; dy++) {
-          this._skinnedSeamCells.add(`${pblock.x0 + dx},${pblock.y0 + dy}`)
-        }
+        if (pair) addBlockTo(this._skinnedDoorCells, this._doorBlockCells(pair.pairedRoom, pair.pairedCp))
       }
     }
 
@@ -697,9 +691,7 @@ export class DungeonRenderer {
         } else if (t === TILE.WALL || t === TILE.BOSS_WALL) {
           this._drawWallCellByTag(g, x, y, this._wallOrient.get(`${x},${y}`))
         } else if (t === TILE.DOOR) {
-          // On the far side of a skinned seam, skip the procedural red door —
-          // the wall sprite under it (already drawn) shows the door's back.
-          if (!this._skinnedSeamCells.has(`${x},${y}`)) this._drawDoorCell(g, x, y)
+          this._drawDoorCell(g, x, y)
         } else if (t === TILE.WALL_CAP) {
           g.fillStyle(WALL_CAP_FILL, 1)
           g.fillRect(x * TS, y * TS, TS, TS)
@@ -724,32 +716,40 @@ export class DungeonRenderer {
   _cpHasDoorSkin(room, cp) {
     return !!this._doorSkinKeyFor(room, this._doorStateFor(cp))
   }
-  // Dungeon-space center + rotation of a door's canonical 4×3 region (cols =
-  // jambs+door, rows = outer/inner/apron), so one image can be drawn over it.
+  // Dungeon-space rect (center, rotation, display size) for ONE door image that
+  // spans the WHOLE doorway: 4 cols (jambs + door) across, and BOTH rooms' wall
+  // depth (own outer/inner rows 0-1 + the paired room's rows 2-3) so the skin
+  // is visible from both rooms, not just the owning side. Falls back to the own
+  // wall only for an unpaired/external door.
   _doorSkinRect(room, cp) {
     const block = this._doorBlockCells(room, cp)
     if (!block) return null
     const dir = cp.direction
-    const norm = { S: { dx: 0, dy: -1 }, N: { dx: 0, dy: 1 }, E: { dx: -1, dy: 0 }, W: { dx: 1, dy: 0 } }[dir]
+    const hasPair = !!this._findPairedCp(room, cp)
+    const maxRow = hasPair ? 4 : 2   // both walls when paired, else just our wall
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     const add = (c) => { if (!c) return; minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y) }
-    for (let col = 0; col < 4; col++) {
-      add(this._doorPaintedToDungeon(block, dir, col, 0))   // outer
-      const inner = this._doorPaintedToDungeon(block, dir, col, 1)
-      add(inner)                                            // inner
-      if (inner && norm) add({ x: inner.x + norm.dx, y: inner.y + norm.dy })   // apron
+    for (let col = 0; col < 4; col++) for (let row = 0; row < maxRow; row++) {
+      add(this._doorPaintedToDungeon(block, dir, col, row))
     }
     if (!isFinite(minX)) return null
+    const bboxW = maxX - minX + 1, bboxH = maxY - minY + 1
     // A free-form door image is authored "face-on" (its own up = screen up),
     // unlike the per-cell swatch which follows the outer-row-on-top convention.
     // The swatch rotation lands N/S doors 180° off for a whole-image skin, so
     // flip those (E/W already read correctly).
     const baseRot = this._doorPaintedRotDeg(dir)
     const rot = (baseRot + ((dir === 'N' || dir === 'S') ? 180 : 0)) % 360
+    // Natural (unrotated) display size: the image is authored 4-wide-along ×
+    // depth-through. For E/W (90/270) the rotation transposes the footprint,
+    // so swap the dims to fill the dungeon bbox.
+    const transpose = (rot % 180) !== 0
     return {
       cx: (minX + maxX + 1) / 2 * TS,
       cy: (minY + maxY + 1) / 2 * TS,
       rot,
+      dispW: (transpose ? bboxH : bboxW) * TS,
+      dispH: (transpose ? bboxW : bboxH) * TS,
     }
   }
   _drawDoorSkins() {
@@ -761,10 +761,8 @@ export class DungeonRenderer {
         if (!key) continue
         const rect = this._doorSkinRect(room, cp)
         if (!rect) continue
-        // Natural canonical size: 4 cells along the wall × 3 deep (outer/inner/
-        // apron). setAngle rotates it into the dungeon's door orientation.
         const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
-        img.setDisplaySize(4 * TS, 3 * TS)
+        img.setDisplaySize(rect.dispW, rect.dispH)
         if (rect.rot) img.setAngle(rect.rot)
         this._applyColorAdj(img, room.colorAdjust?.walls, true)
         this._cDoorSkins.add(img)
