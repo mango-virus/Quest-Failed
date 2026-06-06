@@ -1035,7 +1035,13 @@ export class RoomTileEditor extends Phaser.Scene {
     const groups = slotGroups()
     const slotLabels = {}
     for (const g of Object.values(groups)) for (const s of g.slots) slotLabels[s] = slotLabel(s)
-    const thumb = (id) => ({ id, thumb: this._texThumb(_textureKey(id)), coverage: spriteCoverage(ThemeManager.getSprite(id)) })
+    // Pass the RAW coverage (number 1/2/4 OR a '1x2'/'2x1' string) so the
+    // coverage dropdown can reflect non-square selections — spriteCoverage()
+    // would collapse '1x2' to its bounding number (2) and mis-show it as 2×2.
+    const thumb = (id) => {
+      const sp = ThemeManager.getSprite(id)
+      return { id, thumb: this._texThumb(_textureKey(id)), coverage: sp?.coverage ?? spriteCoverage(sp) }
+    }
     const slots = {}
     let unassigned = []
     if (editing) {
