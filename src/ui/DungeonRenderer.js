@@ -1068,9 +1068,14 @@ export class DungeonRenderer {
       }
     }
 
-    // (2) This room's doorTiles painting — owner only. Non-owner cps defer
-    // to the paired (= owner) room so the doorway reads as one painted unit.
-    if (isOwner !== false) {
+    // (2) This room's doorTiles painting. Normally only the owner paints (the
+    // non-owner defers so the doorway reads as one unit). EXCEPTION: when the
+    // paired (owner) room has a door SKIN for this state, its skin covers its
+    // own wall and its door tiles are hidden — so the non-owner must render ITS
+    // OWN door here instead of deferring to art it can't show. This is what
+    // makes a room connected to a skinned boss door render its own painted door.
+    const pairedHasSkin = !!(door.pairedRoom && this._doorSkinKeyFor(door.pairedRoom, state))
+    if (isOwner !== false || pairedHasSkin) {
       const ownPaint = this._lookupDoorTilePainted(room, door.cp, state, x, y)
       if (ownPaint) return ownPaint
     }
@@ -1106,8 +1111,10 @@ export class DungeonRenderer {
     // jamb position), defer so the user's wall art renders. The doorway
     // sprite at higher depth will overlay where they overlap.
     if (this._isTileLayoutSpanAnchor(x, y)) return null
-    // Owner paints its own jambs; non-owner defers to paired (= owner).
-    if (jamb.isOwner !== false) {
+    // Owner paints its own jambs; non-owner defers to paired (= owner) UNLESS
+    // the paired room has a door skin (then render this room's own jamb).
+    const pairedHasSkin = !!(jamb.pairedRoom && this._doorSkinKeyFor(jamb.pairedRoom, jamb.state))
+    if (jamb.isOwner !== false || pairedHasSkin) {
       const own = this._lookupDoorTilePainted(jamb.room, jamb.cp, jamb.state, x, y)
       if (own) return own
     }
@@ -1554,9 +1561,12 @@ export class DungeonRenderer {
         if (doorEntry?.spanRender) continue
         if (this._spanCoveredSet?.has(cellKey)) continue
 
-        // Direct-painted (cov=1) lookups. Owner checks own first; non-owner
-        // skips own and goes straight to the paired (= owner) swatch.
-        if (isOwner && this._lookupDoorTilePainted(room, cp, state, wx, wy)) continue
+        // Direct-painted (cov=1) lookups. Owner checks own first; a non-owner
+        // whose paired (owner) room has a door SKIN also checks its own (so it
+        // renders its own door rather than defer to the hidden skin); otherwise
+        // it defers to the paired (= owner) swatch.
+        const pairedHasSkin = !!(pairedRoom && this._doorSkinKeyFor(pairedRoom, state))
+        if ((isOwner || pairedHasSkin) && this._lookupDoorTilePainted(room, cp, state, wx, wy)) continue
         if (pairedRoom && pairedCp &&
             this._lookupDoorTilePainted(pairedRoom, pairedCp, state, wx, wy)) continue
 
