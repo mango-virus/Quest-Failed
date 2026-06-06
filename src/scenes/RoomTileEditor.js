@@ -31,7 +31,7 @@ import { FsHandle }      from '../systems/FsHandle.js'
 import { EventBus }      from '../systems/EventBus.js'
 import { Balance }       from '../config/balance.js'
 import {
-  ThemeManager, FLOOR_SLOT, spriteCoverage,
+  ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW,
   readCellEntry, writeCellEntry, VALID_ROTATIONS,
   makeSpriteId, spritePath, autoSlotForId, slotGroups, slotLabel, ALL_SLOTS,
   roomSkinPath, roomSkinTextureKey,
@@ -131,6 +131,24 @@ function viewBlockTopLeft(rx, ry, cov, roomW, roomH, viewRot) {
     }
   }
   return { vx: minVx, vy: minVy }
+}
+
+// View-space bounding rect (in cells) of a covW×covH ROOM block anchored at
+// (rx, ry), under viewRot. Generalizes viewBlockTopLeft for non-square tiles:
+// for a 1×2 tile the view dims swap to 2×1 when viewRot is 90/270, so we
+// return both the top-left and the rotated view dimensions (vw × vh).
+function viewBlockRect(rx, ry, covW, covH, roomW, roomH, viewRot) {
+  let minVx = Infinity, minVy = Infinity, maxVx = -Infinity, maxVy = -Infinity
+  for (let dy = 0; dy < covH; dy++) {
+    for (let dx = 0; dx < covW; dx++) {
+      const v = roomToView(rx + dx, ry + dy, roomW, roomH, viewRot)
+      if (v.vx < minVx) minVx = v.vx
+      if (v.vx > maxVx) maxVx = v.vx
+      if (v.vy < minVy) minVy = v.vy
+      if (v.vy > maxVy) maxVy = v.vy
+    }
+  }
+  return { vx: minVx, vy: minVy, vw: maxVx - minVx + 1, vh: maxVy - minVy + 1 }
 }
 
 function _propAccessor(target, key) {
@@ -581,16 +599,16 @@ export class RoomTileEditor extends Phaser.Scene {
       if (adj.contrast) p.push(`contrast(${Math.max(0, 1 + adj.contrast)})`)
       return p.length ? p.join(' ') : 'none'
     }
-    const drawImg = (key, cx, cy, size, rot, flipH, flipV, filter) => {
+    const drawImg = (key, cx, cy, sizeW, rot, flipH, flipV, filter, sizeH = sizeW) => {
       if (!this.textures.exists(key)) return
       const src = this.textures.get(key).getSourceImage()
       if (!src) return
       ctx.save()
       ctx.filter = filter || 'none'
-      ctx.translate(cx + size / 2, cy + size / 2)
+      ctx.translate(cx + sizeW / 2, cy + sizeH / 2)
       if (rot) ctx.rotate(rot * Math.PI / 180)
       if (flipH || flipV) ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
-      try { ctx.drawImage(src, -size / 2, -size / 2, size, size) } catch (_) { /* tainted */ }
+      try { ctx.drawImage(src, -sizeW / 2, -sizeH / 2, sizeW, sizeH) } catch (_) { /* tainted */ }
       ctx.restore()
     }
 
@@ -598,9 +616,9 @@ export class RoomTileEditor extends Phaser.Scene {
     const covered = new Set()
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const e = readCellEntry(room.tileLayout[y]?.[x]); if (!e) continue
-      const cov = spriteCoverage(ThemeManager.getSprite(e.id))
-      if (cov <= 1) continue
-      for (let dy = 0; dy < cov; dy++) for (let dx = 0; dx < cov; dx++) {
+      const { w: covW, h: covH } = spriteCoverageHW(ThemeManager.getSprite(e.id))
+      if (covW <= 1 && covH <= 1) continue
+      for (let dy = 0; dy < covH; dy++) for (let dx = 0; dx < covW; dx++) {
         if (dx || dy) covered.add(`${x + dx},${y + dy}`)
       }
     }
@@ -610,11 +628,11 @@ export class RoomTileEditor extends Phaser.Scene {
       const override = readCellEntry(room.tileLayout[y]?.[x])
       const spriteId = override?.id || this._defaultSpriteFor(room, x, y)
       if (!spriteId) continue
-      const cov = spriteCoverage(ThemeManager.getSprite(spriteId))
+      const { w: covW, h: covH } = spriteCoverageHW(ThemeManager.getSprite(spriteId))
       const isFloor = x >= WT && x < W - WT && y >= WT && y < H - WT
       const filter = filterFor(room.colorAdjust?.[isFloor ? 'floor' : 'walls'])
-      drawImg(_textureKey(spriteId), x * TS, y * TS, cov * TS,
-        override?.rot || 0, !!override?.flipH, !!override?.flipV, filter)
+      drawImg(_textureKey(spriteId), x * TS, y * TS, covW * TS,
+        override?.rot || 0, !!override?.flipH, !!override?.flipV, filter, covH * TS)
     }
     // Decor pass (on top).
     for (const decor of (room.decorations || [])) {
@@ -645,16 +663,16 @@ export class RoomTileEditor extends Phaser.Scene {
     if (adj.contrast) p.push(`contrast(${Math.max(0, 1 + adj.contrast)})`)
     return p.length ? p.join(' ') : 'none'
   }
-  _drawTexToCtx(ctx, key, cx, cy, size, rot, flipH, flipV, filter) {
+  _drawTexToCtx(ctx, key, cx, cy, sizeW, rot, flipH, flipV, filter, sizeH = sizeW) {
     if (!this.textures.exists(key)) return
     const src = this.textures.get(key).getSourceImage()
     if (!src) return
     ctx.save()
     ctx.filter = filter || 'none'
-    ctx.translate(cx + size / 2, cy + size / 2)
+    ctx.translate(cx + sizeW / 2, cy + sizeH / 2)
     if (rot) ctx.rotate(rot * Math.PI / 180)
     if (flipH || flipV) ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
-    try { ctx.drawImage(src, -size / 2, -size / 2, size, size) } catch (_) { /* tainted */ }
+    try { ctx.drawImage(src, -sizeW / 2, -sizeH / 2, sizeW, sizeH) } catch (_) { /* tainted */ }
     ctx.restore()
   }
   _curDoorState() { return this._paintMode.startsWith('door-') ? this._paintMode.slice(5) : 'closed' }
@@ -677,15 +695,15 @@ export class RoomTileEditor extends Phaser.Scene {
     const covered = new Set()
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const e = readCellEntry(grid[r]?.[c]); if (!e) continue
-      const cov = spriteCoverage(ThemeManager.getSprite(e.id))
-      if (cov <= 1) continue
-      for (let dy = 0; dy < cov; dy++) for (let dx = 0; dx < cov; dx++) if (dx || dy) covered.add(`${c + dx},${r + dy}`)
+      const { w: covW, h: covH } = spriteCoverageHW(ThemeManager.getSprite(e.id))
+      if (covW <= 1 && covH <= 1) continue
+      for (let dy = 0; dy < covH; dy++) for (let dx = 0; dx < covW; dx++) if (dx || dy) covered.add(`${c + dx},${r + dy}`)
     }
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       if (covered.has(`${c},${r}`)) continue
       const e = readCellEntry(grid[r]?.[c]); if (!e) continue
-      const cov = spriteCoverage(ThemeManager.getSprite(e.id))
-      this._drawTexToCtx(ctx, _textureKey(e.id), c * CELL, r * CELL, cov * CELL, e.rot || 0, !!e.flipH, !!e.flipV, filter)
+      const { w: covW, h: covH } = spriteCoverageHW(ThemeManager.getSprite(e.id))
+      this._drawTexToCtx(ctx, _textureKey(e.id), c * CELL, r * CELL, covW * CELL, e.rot || 0, !!e.flipH, !!e.flipV, filter, covH * CELL)
     }
     let url
     try { url = canvas.toDataURL('image/png') }
@@ -1061,8 +1079,11 @@ export class RoomTileEditor extends Phaser.Scene {
   uiRerollPreview() { ThemeManager.resetRolls(); this._notifyDom() }
 
   uiSetSpriteCoverage(id, cov) {
-    cov = Number(cov)
-    ThemeManager.updateSprite(id, { coverage: cov, mode: cov > 1 ? 'span' : 'scale' })
+    // cov is a square number (1/2/4) or a non-square 'WxH' string ('1x2'/'2x1').
+    const isStr = typeof cov === 'string' && /^\d+x\d+$/.test(cov)
+    const value = isStr ? cov : Number(cov)
+    const span  = isStr || value > 1
+    ThemeManager.updateSprite(id, { coverage: value, mode: span ? 'span' : 'scale' })
     if (this._thumbCache) delete this._thumbCache[_textureKey(id)]
     this._notifyDom()
   }
@@ -1335,10 +1356,10 @@ export class RoomTileEditor extends Phaser.Scene {
         const entry = readCellEntry(room.tileLayout[yy]?.[xx])
         if (!entry) continue
         const sp = ThemeManager.getSprite(entry.id)
-        const cov = spriteCoverage(sp)
-        if (cov <= 1) continue
-        for (let dy = 0; dy < cov; dy++) {
-          for (let dx = 0; dx < cov; dx++) {
+        const { w: covW, h: covH } = spriteCoverageHW(sp)
+        if (covW <= 1 && covH <= 1) continue
+        for (let dy = 0; dy < covH; dy++) {
+          for (let dx = 0; dx < covW; dx++) {
             if (dx === 0 && dy === 0) continue
             coveredRoom.add(`${xx + dx},${yy + dy}`)
           }
@@ -1438,10 +1459,10 @@ export class RoomTileEditor extends Phaser.Scene {
         const override = readCellEntry(overrideRaw)
         const spriteId = override?.id || this._defaultSpriteFor(room, xx, yy)
         const sprite = spriteId ? ThemeManager.getSprite(spriteId) : null
-        const cov = spriteCoverage(sprite)
-        if (cov > 1) {
-          for (let dy = 0; dy < cov; dy++) {
-            for (let dx = 0; dx < cov; dx++) {
+        const { w: covW, h: covH } = spriteCoverageHW(sprite)
+        if (covW > 1 || covH > 1) {
+          for (let dy = 0; dy < covH; dy++) {
+            for (let dx = 0; dx < covW; dx++) {
               if (dx === 0 && dy === 0) continue
               coveredRoom.add(`${xx + dx},${yy + dy}`)
             }
@@ -1662,10 +1683,10 @@ export class RoomTileEditor extends Phaser.Scene {
       for (let cc = 0; cc < cols; cc++) {
         const e = readCellEntry(grid[rr]?.[cc])
         if (!e) continue
-        const cov = spriteCoverage(ThemeManager.getSprite(e.id))
-        if (cov <= 1) continue
-        for (let dy = 0; dy < cov; dy++) {
-          for (let dx = 0; dx < cov; dx++) {
+        const { w: covW, h: covH } = spriteCoverageHW(ThemeManager.getSprite(e.id))
+        if (covW <= 1 && covH <= 1) continue
+        for (let dy = 0; dy < covH; dy++) {
+          for (let dx = 0; dx < covW; dx++) {
             if (dx === 0 && dy === 0) continue
             covered.add(`${cc + dx},${rr + dy}`)
           }
@@ -1689,11 +1710,11 @@ export class RoomTileEditor extends Phaser.Scene {
         if (entry?.id) {
           const sprite = ThemeManager.getSprite(entry.id)
           const tex = _textureKey(entry.id)
-          const cov = spriteCoverage(sprite)
+          const { w: covW, h: covH } = spriteCoverageHW(sprite)
           if (sprite && this.textures.exists(tex)) {
-            const size = cell * cov
-            const img = this.add.image(px + size / 2, py + size / 2, tex).setOrigin(0.5)
-            img.setDisplaySize(size, size)
+            const sw = cell * covW, sh = cell * covH
+            const img = this.add.image(px + sw / 2, py + sh / 2, tex).setOrigin(0.5)
+            img.setDisplaySize(sw, sh)
             if (entry.rot)   img.setAngle(entry.rot)
             if (entry.flipH) img.flipX = true
             if (entry.flipV) img.flipY = true
@@ -1717,19 +1738,21 @@ export class RoomTileEditor extends Phaser.Scene {
             this._eraseDoorCell(grid, cc, cr)
           } else if (this._activeSpriteId) {
             const sp  = ThemeManager.getSprite(this._activeSpriteId)
-            const cov = spriteCoverage(sp)
-            if (cc + cov > cols || cr + cov > rows) {
-              this._toast(`Sprite is ${cov}×${cov} — too close to edge to fit`, true); return
+            const { w: covW, h: covH } = spriteCoverageHW(sp)
+            if (cc + covW > cols || cr + covH > rows) {
+              this._toast(`Sprite is ${covW}×${covH} — too close to edge to fit`, true); return
             }
             this._pushUndo()
-            // Clear the cov×cov area so prior overrides don't conflict,
+            // Clear the covW×covH area so prior overrides don't conflict,
             // then stamp the anchor at (cc, cr).
-            for (let dy = 0; dy < cov; dy++) {
-              for (let dx = 0; dx < cov; dx++) {
+            for (let dy = 0; dy < covH; dy++) {
+              for (let dx = 0; dx < covW; dx++) {
                 if (grid[cr + dy]) grid[cr + dy][cc + dx] = null
               }
             }
-            grid[cr][cc] = writeCellEntry(this._activeSpriteId, this._activeRot, this._flipH, this._flipV)
+            // Non-square tiles aren't rotatable (pick 1×2 vs 2×1) — store rot 0.
+            const dRot = (covW === covH) ? this._activeRot : 0
+            grid[cr][cc] = writeCellEntry(this._activeSpriteId, dRot, this._flipH, this._flipV)
           } else {
             this._toast('Pick a sprite at right first', true); return
           }
@@ -1764,8 +1787,8 @@ export class RoomTileEditor extends Phaser.Scene {
         const ax = col - dx, ay = row - dy
         const entry = readCellEntry(grid[ay]?.[ax])
         if (!entry) continue
-        const cov = spriteCoverage(ThemeManager.getSprite(entry.id))
-        if (cov > Math.max(dx, dy)) { grid[ay][ax] = null; return }
+        const { w: covW, h: covH } = spriteCoverageHW(ThemeManager.getSprite(entry.id))
+        if (dx < covW && dy < covH) { grid[ay][ax] = null; return }
       }
     }
   }
@@ -1783,32 +1806,41 @@ export class RoomTileEditor extends Phaser.Scene {
     const override = readCellEntry(overrideRaw)
     const spriteId = override?.id || this._defaultSpriteFor(room, rx, ry)
     const sprite = spriteId ? ThemeManager.getSprite(spriteId) : null
-    const cov = spriteCoverage(sprite)
+    const { w: covW, h: covH } = spriteCoverageHW(sprite)
     const storedRot = override?.rot || 0
     const flipH = !!override?.flipH
     const flipV = !!override?.flipV
 
-    // View-space top-left for the cov×cov block (in room space starting at
-    // (rx, ry)). For cov=1 this is just roomToView(rx, ry).
-    const tl = viewBlockTopLeft(rx, ry, cov, w, h, viewRot)
-    const px = ox + tl.vx * cell
-    const py = oy + tl.vy * cell
-    const size = cov * cell
+    // View-space rect for the covW×covH room block anchored at (rx, ry). The
+    // VIEW footprint (vpw×vph) may differ from the natural (unrotated) sprite
+    // size when the view is rotated and the tile is non-square — e.g. a 1×2
+    // tile occupies a 2×1 view block at viewRot 90/270.
+    const rect = viewBlockRect(rx, ry, covW, covH, w, h, viewRot)
+    const px = ox + rect.vx * cell
+    const py = oy + rect.vy * cell
+    const vpw = rect.vw * cell, vph = rect.vh * cell   // rotated view footprint
+    const dispW = covW * cell, dispH = covH * cell     // natural sprite size
 
-    // Tinted background per VIEW cell. For span sprites (cov>1) we paint
-    // the tint across the whole cov×cov view block. Original behaviour:
-    // override = greenish, default = dark.
+    // Tinted background across the whole view block (greenish = override,
+    // dark = default).
     const tint = override ? COL_OVERRIDE_BG : COL_DEFAULT_BG
-    const bg = this.add.rectangle(px, py, size, size, tint, 0.55).setOrigin(0, 0)
+    const bg = this.add.rectangle(px, py, vpw, vph, tint, 0.55).setOrigin(0, 0)
     this._paintContainer.add(bg)
 
     if (!spriteId || !sprite) return
     const tex = _textureKey(spriteId)
     if (!this.textures.exists(tex)) return
 
-    const img = this.add.image(px + size / 2, py + size / 2, tex).setOrigin(0.5)
-    img.setDisplaySize(size, size)
-    const angle = (storedRot + viewRot) % 360
+    // Draw at natural size, centered in the view block, then rotate by
+    // storedRot+viewRot. Rotation about center makes the rotated natural-size
+    // image exactly fill the (possibly transposed) view footprint.
+    const img = this.add.image(px + vpw / 2, py + vph / 2, tex).setOrigin(0.5)
+    img.setDisplaySize(dispW, dispH)
+    // Non-square tiles ignore their own stored rotation (you pick 1×2 vs 2×1
+    // explicitly rather than rotating a tile); only the view rotation orients
+    // them, so the natural footprint always lines up with the rendered art.
+    const effRot = (covW === covH) ? storedRot : 0
+    const angle = (effRot + viewRot) % 360
     if (angle) img.setAngle(angle)
     if (flipH) img.flipX = true
     if (flipV) img.flipY = true
@@ -1840,33 +1872,38 @@ export class RoomTileEditor extends Phaser.Scene {
   // orientation).
   _paintAtView(room, vx, vy, viewRot) {
     const sprite = ThemeManager.getSprite(this._activeSpriteId)
-    const cov = spriteCoverage(sprite)
+    const { w: covW, h: covH } = spriteCoverageHW(sprite)
     const w = room.width, h = room.height
     const vd = viewDims(w, h, viewRot)
 
+    // The tile's footprint is covW×covH in ROOM space. Seen through a rotated
+    // view, the footprint transposes for viewRot 90/270.
+    const vcovW = (viewRot % 180 === 0) ? covW : covH
+    const vcovH = (viewRot % 180 === 0) ? covH : covW
+
     // Bounds in view space
-    if (vx + cov > vd.w || vy + cov > vd.h) {
-      if (cov > 1) this._toast(`Sprite is ${cov}×${cov} — too close to edge to fit`, true)
+    if (vx + vcovW > vd.w || vy + vcovH > vd.h) {
+      if (covW > 1 || covH > 1) this._toast(`Sprite is ${covW}×${covH} — too close to edge to fit`, true)
       return false
     }
 
-    // Compute the room-space top-left of the cov×cov view block by
-    // scanning all 4 corner mappings.
+    // Compute the room-space top-left of the view footprint by scanning all
+    // its corner mappings.
     let minRx = Infinity, minRy = Infinity
-    for (let dy = 0; dy < cov; dy++) {
-      for (let dx = 0; dx < cov; dx++) {
+    for (let dy = 0; dy < vcovH; dy++) {
+      for (let dx = 0; dx < vcovW; dx++) {
         const r = viewToRoom(vx + dx, vy + dy, w, h, viewRot)
         if (r.rx < minRx) minRx = r.rx
         if (r.ry < minRy) minRy = r.ry
       }
     }
 
-    // Clear all cov×cov room cells starting at (minRx, minRy) so a
+    // Clear all covW×covH room cells starting at (minRx, minRy) so a
     // previously-anchored sprite doesn't conflict, then stamp the anchor
     // at (minRx, minRy).
-    if (cov > 1) {
-      for (let dy = 0; dy < cov; dy++) {
-        for (let dx = 0; dx < cov; dx++) {
+    if (covW > 1 || covH > 1) {
+      for (let dy = 0; dy < covH; dy++) {
+        for (let dx = 0; dx < covW; dx++) {
           if (room.tileLayout[minRy + dy]) room.tileLayout[minRy + dy][minRx + dx] = null
         }
       }
@@ -1876,7 +1913,10 @@ export class RoomTileEditor extends Phaser.Scene {
     // they see while painting — applied in the rotated view's frame. The
     // render formula in _renderViewCell is `displayed = stored + viewRot`,
     // so for displayed = activeRot we need stored = activeRot - viewRot.
-    const stored = ((this._activeRot - viewRot) % 360 + 360) % 360
+    // Non-square tiles can't be rotated (pick 1×2 vs 2×1 instead) — store 0 so
+    // the footprint (always covW×covH) and the rendered art stay aligned.
+    const square = covW === covH
+    const stored = square ? ((this._activeRot - viewRot) % 360 + 360) % 360 : 0
     // Mirrors are stored in canonical room frame (no view-rotation
     // transform). With view rotation in play, the user's "horizontal"
     // axis may correspond to the room's vertical axis, so flips and view
@@ -1903,10 +1943,12 @@ export class RoomTileEditor extends Phaser.Scene {
     }
     const held = this._heldTile
     const w = room.width, h = room.height
-    const cov = spriteCoverage(ThemeManager.getSprite(held.id))
+    const { w: covW, h: covH } = spriteCoverageHW(ThemeManager.getSprite(held.id))
+    const vcovW = (viewRot % 180 === 0) ? covW : covH
+    const vcovH = (viewRot % 180 === 0) ? covH : covW
     const vd = viewDims(w, h, viewRot)
-    if (vx + cov > vd.w || vy + cov > vd.h) {
-      this._toast(`${cov}×${cov} tile won’t fit here — too close to the edge`, true)
+    if (vx + vcovW > vd.w || vy + vcovH > vd.h) {
+      this._toast(`${covW}×${covH} tile won’t fit here — too close to the edge`, true)
       return  // keep holding
     }
     this._pushUndo()   // about to mutate (clear source + place)
@@ -1931,22 +1973,24 @@ export class RoomTileEditor extends Phaser.Scene {
   // operate in room space (e.g. external scripting / tests).
   _paintAt(room, x, y) {
     const sprite = ThemeManager.getSprite(this._activeSpriteId)
-    const cov = spriteCoverage(sprite)
-    if (cov > 1) {
-      if (x + cov > room.width || y + cov > room.height) {
-        this._toast(`Sprite is ${cov}×${cov} — too close to edge to fit`, true)
+    const { w: covW, h: covH } = spriteCoverageHW(sprite)
+    if (covW > 1 || covH > 1) {
+      if (x + covW > room.width || y + covH > room.height) {
+        this._toast(`Sprite is ${covW}×${covH} — too close to edge to fit`, true)
         return
       }
-      // Clear the cov×cov area so any prior overrides don't conflict, then
+      // Clear the covW×covH area so any prior overrides don't conflict, then
       // stamp the anchor. Other covered cells stay null — the renderer
       // computes the covered-set from anchor + sprite coverage.
-      for (let dy = 0; dy < cov; dy++) {
-        for (let dx = 0; dx < cov; dx++) {
+      for (let dy = 0; dy < covH; dy++) {
+        for (let dx = 0; dx < covW; dx++) {
           room.tileLayout[y + dy][x + dx] = null
         }
       }
     }
-    room.tileLayout[y][x] = writeCellEntry(this._activeSpriteId, this._activeRot)
+    // Non-square tiles store rot 0 (they aren't rotatable — pick 1×2 vs 2×1).
+    const rot = (covW === covH) ? this._activeRot : 0
+    room.tileLayout[y][x] = writeCellEntry(this._activeSpriteId, rot)
   }
 
   // Erase whatever override touches cell (x, y). For non-anchor covered
@@ -1967,9 +2011,9 @@ export class RoomTileEditor extends Phaser.Scene {
         const entry = readCellEntry(room.tileLayout[ay]?.[ax])
         if (!entry) continue
         const sp = ThemeManager.getSprite(entry.id)
-        const cov = spriteCoverage(sp)
-        if (cov > Math.max(dx, dy)) {
-          // Anchor (ax, ay) with coverage cov reaches our cell.
+        const { w: covW, h: covH } = spriteCoverageHW(sp)
+        if (dx < covW && dy < covH) {
+          // Anchor (ax, ay) with covW×covH footprint reaches our cell.
           room.tileLayout[ay][ax] = null
           return
         }

@@ -125,6 +125,27 @@ export const VALID_MODES     = ['scale', 'span']
 // scales UP to fill 64×64 px in the dungeon; a 128×128 sprite at coverage
 // 1 scales DOWN to fit 32×32 px.
 export const VALID_COVERAGES = [1, 2, 4]
+// Non-square coverages, stored as 'WxH' strings. 1×2 = 1 cell wide, 2 tall
+// (a tall/narrow tile); 2×1 = 2 wide, 1 tall. Square coverages stay numbers.
+export const VALID_COVERAGE_STR = ['1x2', '2x1']
+
+// Normalize a coverage value (from a manifest or a UI patch) to a stored form:
+// a square number (1/2/4) or a non-square 'WxH' string, else null.
+export function normCoverage(c) {
+  if (typeof c === 'number' && VALID_COVERAGES.includes(c)) return c
+  if (typeof c === 'string' && VALID_COVERAGE_STR.includes(c)) return c
+  return null
+}
+
+// Parse any coverage value (number, 'WxH' string, or null) to {w, h} cells.
+function _parseCoverWH(c) {
+  if (typeof c === 'string') {
+    const m = /^(\d+)x(\d+)$/.exec(c)
+    if (m) return { w: +m[1], h: +m[2] }
+  }
+  if (typeof c === 'number' && VALID_COVERAGES.includes(c)) return { w: c, h: c }
+  return null
+}
 
 export function makeSpriteId(name) {
   // Stable id from the dropped filename: lowercase, alnum + underscore only.
@@ -181,14 +202,25 @@ export function autoSlotForId(id) {
 // derive from the legacy mode/srcSize convention so older manifests still
 // behave correctly.
 export function spriteCoverage(sprite) {
-  if (!sprite) return 1
-  if (typeof sprite.coverage === 'number' && VALID_COVERAGES.includes(sprite.coverage)) {
-    return sprite.coverage
-  }
-  if (sprite.mode !== 'span') return 1
-  if (sprite.srcSize === 64)  return 2
-  if (sprite.srcSize === 128) return 4
-  return 1
+  const { w, h } = spriteCoverageHW(sprite)
+  // Legacy single-number callers (doorway projection, etc.) get the bounding
+  // square so a non-square sprite still reads as "a span" and never under-covers.
+  return Math.max(w, h)
+}
+
+// Width×height footprint of a sprite in cells. Square sprites have w === h
+// (identical to the old spriteCoverage number); non-square sprites carry a
+// 'WxH' coverage string. This is the precise footprint — callers that paint /
+// render / mark covered cells should prefer this over spriteCoverage().
+export function spriteCoverageHW(sprite) {
+  if (!sprite) return { w: 1, h: 1 }
+  const explicit = _parseCoverWH(sprite.coverage)
+  if (explicit) return explicit
+  // Legacy mode/srcSize convention (square only).
+  if (sprite.mode !== 'span') return { w: 1, h: 1 }
+  if (sprite.srcSize === 64)  return { w: 2, h: 2 }
+  if (sprite.srcSize === 128) return { w: 4, h: 4 }
+  return { w: 1, h: 1 }
 }
 
 // Per-cell tileLayout entries can be either:
@@ -253,7 +285,7 @@ export const ThemeManager = {
           file:     typeof s.file === 'string' ? s.file : spritePath(id),
           srcSize:  VALID_SRC_SIZES.includes(s.srcSize) ? s.srcSize : 32,
           mode:     VALID_MODES.includes(s.mode) ? s.mode : 'scale',
-          coverage: VALID_COVERAGES.includes(s.coverage) ? s.coverage : null,
+          coverage: normCoverage(s.coverage),
           // Owning theme (Phase-1 themed-tile authoring). Untagged sprites
           // from older manifests stay null = "shared / legacy".
           theme:    typeof s.theme === 'string' ? s.theme : null,
@@ -309,7 +341,7 @@ export const ThemeManager = {
       file:     meta.file || spritePath(id),
       srcSize:  VALID_SRC_SIZES.includes(meta.srcSize) ? meta.srcSize : 32,
       mode:     VALID_MODES.includes(meta.mode) ? meta.mode : 'scale',
-      coverage: VALID_COVERAGES.includes(meta.coverage) ? meta.coverage : null,
+      coverage: normCoverage(meta.coverage),
       theme:    typeof meta.theme === 'string' ? meta.theme : null,
       tags:     Array.isArray(meta.tags) ? meta.tags.slice() : [],
     }
@@ -321,7 +353,7 @@ export const ThemeManager = {
     if (!s) return
     if (patch.srcSize  != null && VALID_SRC_SIZES.includes(patch.srcSize))  s.srcSize  = patch.srcSize
     if (patch.mode     != null && VALID_MODES.includes(patch.mode))         s.mode     = patch.mode
-    if (patch.coverage != null && VALID_COVERAGES.includes(patch.coverage)) s.coverage = patch.coverage
+    if (patch.coverage != null && normCoverage(patch.coverage) != null) s.coverage = normCoverage(patch.coverage)
     if (patch.theme !== undefined) s.theme = (typeof patch.theme === 'string' ? patch.theme : null)
     if (Array.isArray(patch.tags)) s.tags = patch.tags.slice()
     state.rolls.clear()

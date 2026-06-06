@@ -720,12 +720,14 @@ export class RoomEditorOverlay {
               : h('span', { className: 'qf-themes__thumb q' }, '?'),
       h('span', { className: 'qf-themes__tray-id', title: s.id }, s.id),
       h('select', {
-        className: 'qf-themes__covsel', title: 'Tile coverage (how many cells this sprite fills)',
+        className: 'qf-themes__covsel', title: 'Tile coverage — how many cells this sprite fills (W×H). 1×2 = tall/narrow, 2×1 = wide/short.',
         on: { change: (e) => { this.scene.uiSetSpriteCoverage?.(s.id, e.target.value); this._renderThemes() } },
       }, [
-        h('option', { value: '1', selected: (s.coverage || 1) === 1 }, '1×1'),
-        h('option', { value: '2', selected: (s.coverage || 1) === 2 }, '2×2'),
-        h('option', { value: '4', selected: (s.coverage || 1) === 4 }, '4×4'),
+        h('option', { value: '1',   selected: (s.coverage || 1) === 1 },     '1×1'),
+        h('option', { value: '1x2', selected: s.coverage === '1x2' },        '1×2'),
+        h('option', { value: '2x1', selected: s.coverage === '2x1' },        '2×1'),
+        h('option', { value: '2',   selected: (s.coverage || 1) === 2 },     '2×2'),
+        h('option', { value: '4',   selected: (s.coverage || 1) === 4 },     '4×4'),
       ]),
       h('select', {
         className: 'qf-themes__slotsel',

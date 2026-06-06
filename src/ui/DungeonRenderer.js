@@ -16,7 +16,7 @@ import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
-import { ThemeManager, FLOOR_SLOT, spriteCoverage, readCellEntry } from '../systems/ThemeManager.js'
+import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
 // overlay) into any Phaser-Graphics-shaped target. The renderer's drawing
@@ -703,9 +703,10 @@ export class DungeonRenderer {
           const sprite = ThemeManager.getSprite(entry.id)
           const key = _themeTextureKey(entry.id)
           if (!sprite || !this._scene.textures.exists(key)) continue
-          const size = spriteCoverage(sprite) * TS
-          const img = this._scene.add.image(ax * TS + size / 2, ay * TS + size / 2, key).setOrigin(0.5)
-          img.setDisplaySize(size, size)
+          const { w: covW, h: covH } = spriteCoverageHW(sprite)
+          const sizeW = covW * TS, sizeH = covH * TS
+          const img = this._scene.add.image(ax * TS + sizeW / 2, ay * TS + sizeH / 2, key).setOrigin(0.5)
+          img.setDisplaySize(sizeW, sizeH)
           const angle = (baseRot + (entry.rot || 0)) % 360
           if (angle) img.setAngle(angle)
           if (entry.flipH) img.flipX = true
@@ -770,12 +771,12 @@ export class DungeonRenderer {
           const entry = readCellEntry(layout[dy]?.[dx])
           if (!entry) continue
           const sprite = ThemeManager.getSprite(entry.id)
-          const cov = spriteCoverage(sprite)
-          if (cov <= 1) continue
+          const { w: covW, h: covH } = spriteCoverageHW(sprite)
+          if (covW <= 1 && covH <= 1) continue
           const wx = room.gridX + dx
           const wy = room.gridY + dy
-          for (let oy = 0; oy < cov; oy++) {
-            for (let ox = 0; ox < cov; ox++) {
+          for (let oy = 0; oy < covH; oy++) {
+            for (let ox = 0; ox < covW; ox++) {
               if (ox === 0 && oy === 0) continue
               set.add(`${wx + ox},${wy + oy}`)
             }
@@ -1496,8 +1497,8 @@ export class DungeonRenderer {
     // Anchor-from-override: this cell IS the anchor. Coverage > 1 sprites
     // span cov×cov starting here; the pre-pass `_spanCoveredSet` ensures
     // neighbour cells skip rendering so the anchor's image shows through.
-    const cov = spriteCoverage(sprite)
-    const size = cov * TS
+    const { w: covW, h: covH } = spriteCoverageHW(sprite)
+    const sizeW = covW * TS, sizeH = covH * TS
 
     const isFloor = (t === TILE.FLOOR || t === TILE.BOSS_FLOOR)
     const _room   = this._cellRoomMap?.get(`${x},${y}`)
@@ -1521,10 +1522,13 @@ export class DungeonRenderer {
     const isTileLayoutWall = !doorEntry?.spanRender && this._isTileLayoutSpanAnchor(x, y)
     const isDoorContainer = isDoorwayCell && !isTileLayoutWall
     const buildImg = () => {
-      const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
+      const img = this._scene.add.image(x * TS + sizeW / 2, y * TS + sizeH / 2, key)
         .setOrigin(0.5)
-      img.setDisplaySize(size, size)
-      if (rot) img.setAngle(rot)
+      img.setDisplaySize(sizeW, sizeH)
+      // Non-square tiles ignore their stored rotation (footprint is always
+      // covW×covH; you pick 1×2 vs 2×1 explicitly) so art and footprint align.
+      const effRot = (covW === covH) ? rot : 0
+      if (effRot) img.setAngle(effRot)
       if (flipH) img.flipX = true
       if (flipV) img.flipY = true
       // Always use preFX (inline render pass). PostFX renders to an offscreen
@@ -1575,11 +1579,11 @@ export class DungeonRenderer {
     if (!sprite) return false
     const key = _themeTextureKey(id)
     if (!this._scene.textures.exists(key)) return false
-    const cov  = spriteCoverage(sprite)
-    const size = cov * TS
-    const img = this._scene.add.image(x * TS + size / 2, y * TS + size / 2, key)
+    const { w: covW, h: covH } = spriteCoverageHW(sprite)
+    const sizeW = covW * TS, sizeH = covH * TS
+    const img = this._scene.add.image(x * TS + sizeW / 2, y * TS + sizeH / 2, key)
       .setOrigin(0.5)
-    img.setDisplaySize(size, size)
+    img.setDisplaySize(sizeW, sizeH)
     this._applyColorAdj(img, room?.colorAdjust?.walls, true)
     this._cTileSprites.add(img)
     return true
