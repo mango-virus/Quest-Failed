@@ -220,12 +220,18 @@ export function installDevSandbox(scene) {
         return room
       }
       const bx = boss.gridX, by = boss.gridY
-      // Right column (stack up from the boss): entry FIRST, then library beneath it.
-      place('entry_hall',          bx,      by - 16)   // top — outward entrance faces up
-      place('library_of_whispers', bx,      by - 8)    // links to entry (above) + boss (below)
-      // Left column: barracks beside the boss, trap factory above it.
-      place('starter_barracks',    bx - 10, by + 2)    // links to the boss's left wall
-      place('trap_factory',        bx - 10, by - 8)    // links to barracks (below) + library (right)
+      // Offsets are derived from the ACTUAL room dimensions (never hardcoded) so
+      // resizing the boss chamber or any kit room can't make these overlap /
+      // fail to place. Each room is laid flush against the boss's outer wall.
+      const dH = id => defOf(id)?.height ?? 8
+      const dW = id => defOf(id)?.width  ?? 8
+      const libH = dH('library_of_whispers')
+      // Up the column above the boss: library flush to the boss top, entry above it.
+      place('library_of_whispers', bx, by - libH)               // bottom edge meets boss top row
+      place('entry_hall',          bx, by - libH - dH('entry_hall'))
+      // Left of the boss: barracks flush to the left wall, trap factory above it.
+      place('starter_barracks',    bx - dW('starter_barracks'), by + 2)
+      place('trap_factory',        bx - dW('trap_factory'),     by + 2 - dH('trap_factory'))
 
       // Forced multi-entry (2nd @ L5, 3rd @ L10) — add entries to the RIGHT of the
       // boss, then re-run the boss's auto-connect so the new doors form.

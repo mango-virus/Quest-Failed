@@ -729,10 +729,16 @@ export class DungeonRenderer {
       if (inner && norm) add({ x: inner.x + norm.dx, y: inner.y + norm.dy })   // apron
     }
     if (!isFinite(minX)) return null
+    // A free-form door image is authored "face-on" (its own up = screen up),
+    // unlike the per-cell swatch which follows the outer-row-on-top convention.
+    // The swatch rotation lands N/S doors 180° off for a whole-image skin, so
+    // flip those (E/W already read correctly).
+    const baseRot = this._doorPaintedRotDeg(dir)
+    const rot = (baseRot + ((dir === 'N' || dir === 'S') ? 180 : 0)) % 360
     return {
       cx: (minX + maxX + 1) / 2 * TS,
       cy: (minY + maxY + 1) / 2 * TS,
-      rot: this._doorPaintedRotDeg(dir),
+      rot,
     }
   }
   _drawDoorSkins() {
