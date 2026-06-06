@@ -3037,6 +3037,14 @@ export class DungeonRenderer {
       }
     }
 
+    // Single-image door skins + aprons are per-state too, so re-render them
+    // here — otherwise an opening / locking door keeps showing the CLOSED skin
+    // instead of swapping to its open / locked one.
+    this._cDoorSkins.removeAll(true)
+    this._drawDoorSkins()
+    this._cDoorAprons.removeAll(true)
+    this._drawDoorAprons()
+
     this._gDoors.clear()
     this._drawClosedDoors()
   }
