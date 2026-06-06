@@ -294,6 +294,12 @@ export class DungeonGrid {
       // each door (purely visual, no collision change). { <state>: [4 cells] }.
       doorApron:    (definition.doorApron && typeof definition.doorApron === 'object')
                       ? definition.doorApron : null,
+      // Per-boss door swatches for the boss chamber: { <archetypeId>: { <state>: … } }.
+      // The renderer picks the active boss's entry, falling back to doorTiles/doorApron.
+      doorTilesByBoss: (definition.doorTilesByBoss && typeof definition.doorTilesByBoss === 'object')
+                      ? definition.doorTilesByBoss : null,
+      doorApronByBoss: (definition.doorApronByBoss && typeof definition.doorApronByBoss === 'object')
+                      ? definition.doorApronByBoss : null,
       decorations:  Array.isArray(definition.decorations) ? definition.decorations : [],
       colorAdjust:  (definition.colorAdjust && typeof definition.colorAdjust === 'object')
                       ? definition.colorAdjust : null,

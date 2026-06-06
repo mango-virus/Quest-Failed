@@ -394,11 +394,14 @@ export class RoomTileEditor extends Phaser.Scene {
       decorations:     structuredClone(room.decorations ?? []),
       doorTiles:       room.doorTiles ? structuredClone(room.doorTiles) : null,
       doorApron:       room.doorApron ? structuredClone(room.doorApron) : null,
+      doorTilesByBoss: room.doorTilesByBoss ? structuredClone(room.doorTilesByBoss) : null,
+      doorApronByBoss: room.doorApronByBoss ? structuredClone(room.doorApronByBoss) : null,
       colorAdjust:     room.colorAdjust ? structuredClone(room.colorAdjust) : null,
       connectionPoints: structuredClone(room.connectionPoints ?? []),
       theme:           room.theme ?? null,
       doorTheme:       room.doorTheme ?? null,
       backgroundImage: room.backgroundImage ?? null,
+      backgroundImageByBoss: room.backgroundImageByBoss ? structuredClone(room.backgroundImageByBoss) : null,
       width:           room.width,
       height:          room.height,
     }
@@ -425,11 +428,14 @@ export class RoomTileEditor extends Phaser.Scene {
       room.decorations     = snap.decorations
       room.doorTiles       = snap.doorTiles
       room.doorApron       = snap.doorApron
+      room.doorTilesByBoss = snap.doorTilesByBoss
+      room.doorApronByBoss = snap.doorApronByBoss
       room.colorAdjust     = snap.colorAdjust
       room.connectionPoints = snap.connectionPoints
       room.theme           = snap.theme
       room.doorTheme       = snap.doorTheme
       room.backgroundImage = snap.backgroundImage
+      room.backgroundImageByBoss = snap.backgroundImageByBoss
       room.width           = snap.width
       room.height          = snap.height
     }
@@ -477,6 +483,70 @@ export class RoomTileEditor extends Phaser.Scene {
     return room?.backgroundImage || null
   }
   uiCurrentRoomSkin() { return this._skinIdForTarget(this._activeRoom(), this.uiSkinTarget()) }
+
+  // ── Per-boss door swatches ────────────────────────────────────────────────────
+  // The boss chamber can carry a unique door swatch per boss, keyed in
+  // room.doorTilesByBoss[boss][state] + room.doorApronByBoss[boss][state]
+  // (mirrors backgroundImageByBoss). The active target is the shared
+  // `_skinTarget`; every other room / 'default' uses room.doorTiles[state].
+  _doorTargetActive(room) {
+    return room?.id === 'boss_chamber' && this._skinTarget && this._skinTarget !== 'default'
+  }
+  // Token folded into door-skin sprite ids so each boss's slices are distinct.
+  _doorTargetTag(room) { return this._doorTargetActive(room) ? this._skinTarget : 'default' }
+  // Ensure + return the door-tiles grid ([row0,row1]) for the active target+state.
+  _ensureDoorTiles(room, state) {
+    if (this._doorTargetActive(room)) {
+      const t = this._skinTarget
+      room.doorTilesByBoss = room.doorTilesByBoss || {}
+      room.doorTilesByBoss[t] = room.doorTilesByBoss[t] || {}
+      if (!Array.isArray(room.doorTilesByBoss[t][state]))
+        room.doorTilesByBoss[t][state] = [[null, null, null, null], [null, null, null, null]]
+      return room.doorTilesByBoss[t][state]
+    }
+    room.doorTiles = room.doorTiles || {}
+    if (!Array.isArray(room.doorTiles[state]))
+      room.doorTiles[state] = [[null, null, null, null], [null, null, null, null]]
+    return room.doorTiles[state]
+  }
+  // Ensure + return the apron row ([4]) for the active target+state.
+  _ensureDoorApron(room, state) {
+    if (this._doorTargetActive(room)) {
+      const t = this._skinTarget
+      room.doorApronByBoss = room.doorApronByBoss || {}
+      room.doorApronByBoss[t] = room.doorApronByBoss[t] || {}
+      if (!Array.isArray(room.doorApronByBoss[t][state]))
+        room.doorApronByBoss[t][state] = [null, null, null, null]
+      return room.doorApronByBoss[t][state]
+    }
+    room.doorApron = room.doorApron || {}
+    if (!Array.isArray(room.doorApron[state]))
+      room.doorApron[state] = [null, null, null, null]
+    return room.doorApron[state]
+  }
+  // Assign a freshly-built grid / row into the active target+state.
+  _setDoorTiles(room, state, grid) {
+    if (this._doorTargetActive(room)) {
+      const t = this._skinTarget
+      room.doorTilesByBoss = room.doorTilesByBoss || {}
+      room.doorTilesByBoss[t] = room.doorTilesByBoss[t] || {}
+      room.doorTilesByBoss[t][state] = grid
+    } else {
+      room.doorTiles = room.doorTiles || {}
+      room.doorTiles[state] = grid
+    }
+  }
+  _setDoorApron(room, state, row) {
+    if (this._doorTargetActive(room)) {
+      const t = this._skinTarget
+      room.doorApronByBoss = room.doorApronByBoss || {}
+      room.doorApronByBoss[t] = room.doorApronByBoss[t] || {}
+      room.doorApronByBoss[t][state] = row
+    } else {
+      room.doorApron = room.doorApron || {}
+      room.doorApron[state] = row
+    }
+  }
 
   // Ingest edited PNG(s) as full-room skins (library items): register the
   // texture, add to the skin registry, stage bytes for save. Returns {added, ids}.
@@ -684,8 +754,8 @@ export class RoomTileEditor extends Phaser.Scene {
     const room = this._activeRoom()
     if (!room) return { ok: false }
     const state = this._curDoorState()
-    const dt = room.doorTiles?.[state] || [[null, null, null, null], [null, null, null, null]]
-    const apron = room.doorApron?.[state] || [null, null, null, null]
+    const dt = this._ensureDoorTiles(room, state)
+    const apron = this._ensureDoorApron(room, state)
     const grid = [dt[0], dt[1], apron]   // rows: Outer, Inner, Below(apron)
     const CELL = 64, COLS = 4, ROWS = 3
     const canvas = document.createElement('canvas')
@@ -741,9 +811,20 @@ export class RoomTileEditor extends Phaser.Scene {
     const COLS = 4, ROWS = 3, CELL = 64, W = COLS * CELL, H = ROWS * CELL   // 256×192 (3 rows)
     const base = document.createElement('canvas'); base.width = W; base.height = H
     const bctx = base.getContext('2d'); bctx.imageSmoothingEnabled = false
-    bctx.drawImage(img, 0, 0, W, H)
+    if (this._doorSkinStretch) {
+      // Stretch: distort the image to fill the full 4×3 grid.
+      bctx.drawImage(img, 0, 0, W, H)
+    } else {
+      // Fit (default): preserve aspect ratio, anchored at the TOP so the door's
+      // top seam lines up with the Outer row. Unfilled area (typically the
+      // apron row, when the source is a door-only image) stays transparent.
+      const scale = Math.min(W / img.width, H / img.height)
+      const dw = Math.round(img.width * scale), dh = Math.round(img.height * scale)
+      bctx.drawImage(img, Math.round((W - dw) / 2), 0, dw, dh)
+    }
 
     this._pushUndo()
+    const tag = this._doorTargetTag(room)   // 'default' or a boss id — keeps per-boss slices distinct
     const dtGrid = [[null, null, null, null], [null, null, null, null]]   // door (rows 0-1)
     const apronRow = [null, null, null, null]                            // apron (row 2)
     let made = 0
@@ -755,7 +836,7 @@ export class RoomTileEditor extends Phaser.Scene {
       let opaque = false
       for (let i = 3; i < data.length; i += 4) { if (data[i] > 8) { opaque = true; break } }
       if (!opaque) continue   // skip fully-transparent cells
-      const id = `dskin_${room.id}_${state}_${c}${r}`
+      const id = `dskin_${room.id}_${tag}_${state}_${c}${r}`
       const url = slice.toDataURL('image/png')
       ThemeManager.addSprite(id, { srcSize: 64, mode: 'scale', theme: null, file: spritePath(id) })
       this._pendingThemeBytes().set(id, _dataUrlToBytes(url))
@@ -764,24 +845,28 @@ export class RoomTileEditor extends Phaser.Scene {
       if (r < 2) dtGrid[r][c] = id; else apronRow[c] = id
       made++
     }
-    if (!room.doorTiles) room.doorTiles = {}
-    room.doorTiles[state] = dtGrid
-    if (!room.doorApron) room.doorApron = {}
-    room.doorApron[state] = apronRow
+    this._setDoorTiles(room, state, dtGrid)
+    this._setDoorApron(room, state, apronRow)
     this._populatePaintCanvas()
     this._notifyDom()
-    this._toast(`Door skin applied to ${state} (${made} cells)`)
+    const who = tag === 'default' ? state : `${state} · ${tag}`
+    this._toast(`Door skin applied to ${who} (${made} cells)`)
     return { ok: true, cells: made }
   }
+
+  // Stretch (distort to fill) vs fit (keep aspect, transparent unfilled) for
+  // door-skin uploads. Default fit — a door-only PNG no longer droops into the
+  // apron row.
+  uiDoorStretch() { return !!this._doorSkinStretch }
+  uiSetDoorStretch(on) { this._doorSkinStretch = !!on; this._notifyDom() }
 
   uiClearDoorSkin() {
     const room = this._activeRoom()
     if (!room) return
     const state = this._curDoorState()
     this._pushUndo()
-    if (!room.doorTiles) room.doorTiles = {}
-    room.doorTiles[state] = [[null, null, null, null], [null, null, null, null]]
-    if (room.doorApron) room.doorApron[state] = [null, null, null, null]
+    this._setDoorTiles(room, state, [[null, null, null, null], [null, null, null, null]])
+    this._setDoorApron(room, state, [null, null, null, null])
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -1618,11 +1703,9 @@ export class RoomTileEditor extends Phaser.Scene {
     // is the decorative "apron" (room.doorApron[state]) that renders one tile
     // into the room below the door. Build a combined grid from refs so paints
     // mutate the right source in place.
-    if (!room.doorTiles) room.doorTiles = {}
-    if (!Array.isArray(room.doorTiles[state])) room.doorTiles[state] = [[null, null, null, null], [null, null, null, null]]
-    if (!room.doorApron) room.doorApron = {}
-    if (!Array.isArray(room.doorApron[state])) room.doorApron[state] = [null, null, null, null]
-    const grid = [room.doorTiles[state][0], room.doorTiles[state][1], room.doorApron[state]]
+    const dtGrid = this._ensureDoorTiles(room, state)   // target-aware (default or per-boss)
+    const apron  = this._ensureDoorApron(room, state)
+    const grid = [dtGrid[0], dtGrid[1], apron]
     const zoom  = ZOOM_LEVELS[this._zoomIdx]
     const cell  = TILE_PX * Math.max(2, zoom * 3)   // door swatch always renders large
     const cols = 4, rows = 3
@@ -2233,6 +2316,20 @@ export class RoomTileEditor extends Phaser.Scene {
         // door state). _flatNull recurses both shapes (doorTiles 3-D, apron 2-D).
         if (_flatNull(r.doorTiles)) delete cleaned.doorTiles
         if (_flatNull(r.doorApron)) delete cleaned.doorApron
+        // Per-boss door swatches: drop boss keys that are all-null, then the
+        // whole map if it ends up empty.
+        const pruneByBoss = (map) => {
+          if (!map || typeof map !== 'object') return null
+          const out = {}
+          for (const [boss, byState] of Object.entries(map)) {
+            if (!_flatNull(byState)) out[boss] = byState
+          }
+          return Object.keys(out).length ? out : null
+        }
+        const dtb = pruneByBoss(r.doorTilesByBoss)
+        if (dtb) cleaned.doorTilesByBoss = dtb; else delete cleaned.doorTilesByBoss
+        const dab = pruneByBoss(r.doorApronByBoss)
+        if (dab) cleaned.doorApronByBoss = dab; else delete cleaned.doorApronByBoss
         return cleaned
       })
       // 4-space to match the committed rooms.json format (writeJson would emit

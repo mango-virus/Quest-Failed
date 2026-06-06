@@ -683,11 +683,11 @@ export class DungeonRenderer {
     const rooms = this._gameState?.dungeon?.rooms || []
     const INNER_NORMAL = { S: { dx: 0, dy: -1 }, N: { dx: 0, dy: 1 }, E: { dx: -1, dy: 0 }, W: { dx: 1, dy: 0 } }
     for (const room of rooms) {
-      if (!room.doorApron) continue
+      if (!room.doorApron && !room.doorApronByBoss) continue
       for (const cp of (room.connectionPoints || [])) {
         const block = this._doorBlockCells(room, cp)
         if (!block) continue
-        const apronRow = room.doorApron[this._doorStateFor(cp)]
+        const apronRow = this._doorApronFor(room, this._doorStateFor(cp))
         if (!Array.isArray(apronRow)) continue
         const norm = INNER_NORMAL[cp.direction]
         if (!norm) continue
@@ -1025,7 +1025,7 @@ export class DungeonRenderer {
   // i.e. this room has a painted swatch for this state. Used to decide
   // whether the paired room's painting should "spill over" Option-B-style.
   _roomHasDoorTilesFor(room, state) {
-    const grid = room.doorTiles?.[state]
+    const grid = this._doorTilesFor(room, state)
     if (!Array.isArray(grid)) return false
     for (const row of grid) {
       if (!Array.isArray(row)) continue
@@ -1045,7 +1045,7 @@ export class DungeonRenderer {
   _lookupDoorTilePainted(room, cp, state, x, y) {
     const cellInfo = this._paintingCellForDoorCell(room, cp, x, y)
     if (!cellInfo) return null
-    const grid = room.doorTiles?.[state]
+    const grid = this._doorTilesFor(room, state)
     if (!Array.isArray(grid)) return null
     // Rows 2..3 of the extended canonical sit in the PAIRED room's wall.
     // Mirror them back to rows 0..1 of THIS room's painting (so the door
@@ -1228,6 +1228,20 @@ export class DungeonRenderer {
     return 'closed'
   }
 
+  // Per-boss door swatch resolution: the boss chamber can override its door
+  // tiles / apron per boss (room.doorTilesByBoss[boss][state]); fall back to the
+  // shared room.doorTiles[state] / doorApron[state].
+  _doorTilesFor(room, state) {
+    const boss = this._gameState?.player?.bossArchetypeId
+    const o = boss && room.doorTilesByBoss?.[boss]?.[state]
+    return Array.isArray(o) ? o : room.doorTiles?.[state]
+  }
+  _doorApronFor(room, state) {
+    const boss = this._gameState?.player?.bossArchetypeId
+    const o = boss && room.doorApronByBoss?.[boss]?.[state]
+    return Array.isArray(o) ? o : room.doorApron?.[state]
+  }
+
   // Forward-map a canonical (col, row) of room.doorTiles back into a dungeon
   // cell, given a cp's door block and direction. Inverse of
   // _paintingCellForDoorCell. Used by _buildDoorCellMap to project span
@@ -1337,7 +1351,7 @@ export class DungeonRenderer {
     for (const info of cpInfos) {
       if (!info.isOwner) continue
       const { room, cp, block, state, pairedRoom } = info
-      const swatch = room.doorTiles?.[state]
+      const swatch = this._doorTilesFor(room, state)
       if (!Array.isArray(swatch)) continue
       const dirRot = this._doorPaintedRotDeg(cp.direction)
       const projectMirror = !!pairedRoom

@@ -478,8 +478,19 @@ export class RoomEditorOverlay {
     const cur = this.scene.uiDoorState?.() || 'closed'
     const sprites = this.scene.uiListTileSprites?.() || []
     const active = this.scene.uiActiveSpriteId?.()
+    const bossTargets = this.scene.uiSkinTargets?.()        // null unless boss chamber
+    const bossTarget  = this.scene.uiSkinTarget?.() || 'default'
     return [
       h('div', { className: 'qf-redit__section' }, [
+        // Boss chamber only: pick which boss this door swatch applies to.
+        bossTargets ? h('label', { className: 'qf-redit__field' }, [
+          h('span', { className: 'qf-redit__field-label' }, 'Door for boss'),
+          h('select', {
+            className: 'qf-redit__select',
+            title: 'The boss chamber can carry a unique door per boss. “Default” is the fallback for any boss without its own.',
+            on: { change: (e) => this.scene.uiSetSkinTarget?.(e.target.value) },
+          }, bossTargets.map((t) => h('option', { value: t.key, selected: t.key === bossTarget }, t.label))),
+        ]) : null,
         h('span', { className: 'qf-redit__field-label' }, 'Door state'),
         this._segment(DOOR_STATES.map((d) => ({ val: d.key, label: d.label })), cur,
           (v) => this.scene.uiSetDoorState?.(v)),
@@ -499,6 +510,13 @@ export class RoomEditorOverlay {
             className: 'btn sm ghost', title: 'Clear the painted door (back to theme)',
             on: { click: () => this.scene.uiClearDoorSkin?.() },
           }, 'Clear'),
+        ]),
+        h('label', { className: 'qf-redit__check', title: 'On: distort the PNG to fill the whole 256×192 grid. Off: keep the image’s aspect ratio (top-anchored) and leave unfilled areas — usually the apron row — transparent.' }, [
+          h('input', {
+            type: 'checkbox', checked: !!this.scene.uiDoorStretch?.(),
+            on: { change: (e) => this.scene.uiSetDoorStretch?.(e.target.checked) },
+          }),
+          h('span', null, 'Stretch skin to fill (off = keep aspect, transparent gaps)'),
         ]),
         h('div', { className: 'qf-redit__door-note' },
           'Tip: Export → edit the 256×192 PNG → Door skin. 4×3: rows 1-2 are the door (frame + panels), row 3 (“Below”) is decorative art that renders one tile into the room — door function is unchanged.'),
