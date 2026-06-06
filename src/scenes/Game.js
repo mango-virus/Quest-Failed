@@ -719,6 +719,14 @@ export class Game extends Phaser.Scene {
     if ('tileLayout'  in def) room.tileLayout  = Array.isArray(def.tileLayout) ? def.tileLayout : []
     if ('doorTiles'   in def) room.doorTiles   = (def.doorTiles && typeof def.doorTiles === 'object') ? def.doorTiles : null
     room.doorApron = (def.doorApron && typeof def.doorApron === 'object') ? def.doorApron : null
+    // Per-boss door swatches + single-image door skins. Stripped-when-empty, so
+    // apply unconditionally (absent = cleared) — without this a door skin
+    // applied in the editor never reaches the live room and the old door art
+    // keeps rendering.
+    room.doorTilesByBoss = (def.doorTilesByBoss && typeof def.doorTilesByBoss === 'object') ? def.doorTilesByBoss : null
+    room.doorApronByBoss = (def.doorApronByBoss && typeof def.doorApronByBoss === 'object') ? def.doorApronByBoss : null
+    room.doorSkin        = (def.doorSkin && typeof def.doorSkin === 'object') ? def.doorSkin : null
+    room.doorSkinByBoss  = (def.doorSkinByBoss && typeof def.doorSkinByBoss === 'object') ? def.doorSkinByBoss : null
     // These fields are STRIPPED from the saved def when empty (decorations,
     // colorAdjust, backgroundImage). An absent field therefore means "cleared"
     // — apply unconditionally so e.g. resetting a room's colour or removing its

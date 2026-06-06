@@ -442,10 +442,27 @@ export class RoomEditorOverlay {
   _tilesPanel(s) {
     const sprites = this.scene.uiListTileSprites?.() || []
     const active = this.scene.uiActiveSpriteId?.()
+    const bossTargets = this.scene.uiSkinTargets?.()        // null unless boss chamber
+    const bossTarget  = this.scene.uiSkinTarget?.() || 'default'
+    const curRoomSkin = this.scene.uiCurrentRoomSkin?.()
+    const curTargetLabel = bossTargets?.find((t) => t.key === bossTarget)?.label || ''
     return [
       h('div', { className: 'qf-redit__section' }, [
         this._themeSelect('Room theme', 'theme', '(none)'),
         this._themeSelect('Door theme', 'doorTheme', '(default)'),
+        // Boss chamber: swap which boss's room skin shows on the canvas so you
+        // can preview each boss's room (mirrors the door panel's boss switcher).
+        bossTargets ? h('label', { className: 'qf-redit__field' }, [
+          h('span', { className: 'qf-redit__field-label' }, 'Room skin for boss'),
+          h('select', {
+            className: 'qf-redit__select',
+            title: 'The boss chamber can carry a unique room skin per boss. Switch to preview each one. “Default” is the fallback.',
+            on: { change: (e) => this.scene.uiSetSkinTarget?.(e.target.value) },
+          }, bossTargets.map((t) => h('option', { value: t.key, selected: t.key === bossTarget }, t.label))),
+        ]) : null,
+        bossTargets ? h('div', { className: 'qf-redit__door-note' },
+          curRoomSkin ? `${curTargetLabel} → skin “${curRoomSkin}”. Open 🎨 Skins to change.`
+                      : `${curTargetLabel} → no room skin. Open 🎨 Skins to add one.`) : null,
       ]),
       h('div', { className: 'qf-redit__subhead' }, [
         h('span', null, 'TILE BRUSH'),
