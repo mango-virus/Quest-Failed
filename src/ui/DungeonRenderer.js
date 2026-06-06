@@ -218,37 +218,6 @@ const DIR_VECS = {
   W: { dx: -1, dy:  0 },
 }
 
-// Closed-door overlay styles. Each connection point in rooms.json may carry
-// `style: 'regular'|'entrance'|'boss'`; the renderer also escalates a paired
-// cp to 'boss' if its mate sits in the boss chamber. Doors render on
-// _gOverhead so they cover both the dark passage and any adventurer
-// underneath them.
-const DOOR_STYLES = {
-  regular: {
-    base:    0x2e1f12,    // dark walnut wood
-    grain:   0x4a341e,    // lighter wood streak
-    edge:    0x6a4a2c,    // bevel highlight on outer rim
-    band:    0x1a1410,    // iron banding
-    bandHi:  0x5a4a3a,    // bronze highlight on band
-    split:   0x080404,    // dark seam where the two halves meet
-  },
-  entrance: {
-    base:    0x4a4a52,    // weathered stone gray
-    grain:   0x5a5a62,    // lighter stone speckle
-    edge:    0x7a7a82,    // bright stone bevel
-    band:    0x2a2a32,    // dark iron framing
-    bandHi:  0x9a8a4a,    // brass sigil / studs
-    split:   0x080808,    // pure-dark center seam
-  },
-  boss: {
-    base:    0x1a0a0a,    // near-black charred wood
-    grain:   0x3a1010,    // dark blood-red streak
-    edge:    0x4a1010,    // crimson rim
-    band:    0x080404,    // matte black banding
-    bandHi:  0xc83030,    // glowing red rivets
-    split:   0xc83030,    // glowing red seam
-  },
-}
 
 // Wall cap (when explicitly authored by Room Builder).
 const WALL_CAP_FILL = 0x3a4a64
@@ -433,15 +402,6 @@ export class DungeonRenderer {
     // wall capstone overhead (9) and the void mask (12) so wall
     // framing and void-area occlusion still win.
     this._gPassageShadow = scene.add.graphics().setDepth(8.7)
-    // Dedicated door-overlay layer drawn just above the passage shadow.
-    // Animates independently of the main wall art so opening doors
-    // don't force a full redraw. Cleared + repainted by _redrawDoors()
-    // on every animation frame (see update()).
-    // Depth 8.8 — ABOVE the passage shadow (8.7) so a closed/swinging
-    // door panel always overlaps the shadow gradient cleanly. Still
-    // below the wall capstone overhead (9) and void mask (12) so wall
-    // tops and void gaps occlude the panel as designed.
-    this._gDoors     = scene.add.graphics().setDepth(8.8)
     // Door jambs (the stone posts framing each opening). Sit BELOW
     // characters so an adventurer standing in or walking through a
     // doorway appears in front of the jamb stones rather than peeking
@@ -501,7 +461,6 @@ export class DungeonRenderer {
     this._gIcon.clear()
     this._gCollision.clear()
     this._gOverhead.clear()
-    this._gDoors.clear()
     this._gPassageShadow.clear()
     this._gJambs.clear()
     this._gVoidMask.clear()
@@ -519,7 +478,6 @@ export class DungeonRenderer {
     this._drawRoomOverlays()
     this._drawDoorwayArchitecture()
     this._drawVoidMask()
-    this._drawClosedDoors()
     if (DebugOverlay.showCollision) this._drawCollisionOverlay()
   }
 
@@ -607,7 +565,6 @@ export class DungeonRenderer {
     this._gCollision.destroy()
     this._gIcon.destroy()
     this._gOverhead.destroy()
-    this._gDoors.destroy()
     this._gPassageShadow.destroy()
     this._gJambs.destroy()
     this._gVoidMask.destroy()
@@ -2709,12 +2666,6 @@ export class DungeonRenderer {
     else if (dr === 0) this._drawCapstoneBand(over, null, px + TS - CAPSTONE_W, py, CAPSTONE_W, TS, 'right')
   }
 
-  // Closed-door overlays. Walks every room's connection points and stamps a
-  // 2 × WALL_THICKNESS door visual on the door layer for each cp whose
-  // `open` flag is false. Style is taken from cp.style (or 'regular' default),
-  // upgraded to 'boss' if the doorway pairs with the boss chamber. Drawn on
-  // _gDoors (depth 9.5) so adventurers walking under the doorway pass
-  // visually behind the closed door.
   // Doorway architecture (jambs + threshold + inner bevel) — drawn for
   // every cp regardless of door state, so the frame is visible whether the
   // door is closed, animating, or fully open. Jambs sit on _gOverhead
@@ -2857,30 +2808,10 @@ export class DungeonRenderer {
     else if (bevelSide === 'right')  g.fillRect(tx + tw,       ty, 1, th)
   }
 
-  _drawClosedDoors() {
-    const g = this._gDoors
-    for (const room of this._gameState.dungeon.rooms ?? []) {
-      for (const cp of room.connectionPoints ?? []) {
-        if (cp.open) continue                 // fully open — nothing to draw
-        const rect = this._cpDoorRect(room, cp)
-        if (!rect) continue
-        // If the sprite path will paint all 4 cells of this cp's door for
-        // the current state, skip the procedural panel — otherwise the
-        // panel (depth 8.8) would overlay our sprite (depth 1.1).
-        if (this._doorCpRenderable(room, cp)) continue
-        const style    = this._effectiveDoorStyle(room, cp)
-        const progress = cp.openProgress || 0
-        this._drawClosedDoor(g, rect, style, progress)
-      }
-    }
-  }
-
   // Lightweight wrapper: does the door cell map already say this cp is
-  // renderable? Built fresh each `_drawTiles`; `_drawClosedDoors` runs
-  // afterwards in `redraw()` so the map is current. Also called from
-  // `_redrawDoors` (animation tick) which doesn't rebuild the map — so
-  // we read whatever the last full redraw computed (correct: an in-flight
-  // animation can't change which sprites the theme has).
+  // renderable? Built fresh each `_drawTiles`, so `_drawDoorwayArchitecture`
+  // (which runs afterwards in `redraw()`) reads a current map and skips the
+  // procedural arch for any door whose sprites/skin already supply the frame.
   _doorCpRenderable(room, cp) {
     if (!this._doorCellMap) return false
     const block = this._doorBlockCells(room, cp)
@@ -2889,18 +2820,19 @@ export class DungeonRenderer {
     return !!(entry && entry.cp === cp && entry.renderable)
   }
 
-  // Per-frame animation tick. Advances any cp.opening progress and triggers
-  // a partial redraw of the door overlay layer when a door's state changed
-  // (without redrawing the whole dungeon). Game.update() must call this.
+  // Per-frame door-open timer. The open SKIN already swapped to its open
+  // variant the instant openDoor() ran (cp.opening flips _doorStateFor to
+  // 'open' → redrawDoors), so there's nothing to animate here — this just
+  // ramps openProgress and flips cp.open=true (+ DOOR_OPENED) when the timer
+  // completes, for save-state continuity and the door-opened event.
+  // Game.update() must call this.
   update(deltaMs) {
     if (!this._gameState?.dungeon?.rooms) return
     const dt = (deltaMs || 0) / 1000
-    let changed = false
     for (const room of this._gameState.dungeon.rooms) {
       for (const cp of room.connectionPoints ?? []) {
         if (!cp.opening) continue
         cp.openProgress = Math.min(1, (cp.openProgress || 0) + dt / DOOR_OPEN_DURATION_S)
-        changed = true
         if (cp.openProgress >= 1) {
           cp.opening      = false
           cp.open         = true
@@ -2909,13 +2841,6 @@ export class DungeonRenderer {
         }
       }
     }
-    if (changed) this._redrawDoors()
-    // The sprite-path state ('open' vs 'closed') already flipped to
-    // 'open' inside openDoor() (which fires a full redraw at animation
-    // start), so the openProgress=1 completion doesn't need another
-    // redraw — the door_open_* swatch is already on screen. Only the
-    // procedural panel + cp.open boolean transition matter at this
-    // point, and _redrawDoors() above handles the procedural layer.
   }
 
   // Public — true if (tileX, tileY) is ANY doorway cell (Inner threshold
@@ -2982,28 +2907,20 @@ export class DungeonRenderer {
       target.openProgress = 0
       if (wasOpenOrAnimating) didChange = true
     }
-    // If we just closed an open door, the sprite path needs to swap
+    // If we just closed an open door, the sprite/skin path needs to swap
     // door_open_* art for door_closed_*. Use the lightweight door-only
     // redraw — a full redraw() was causing a noticeable freeze on every
-    // door event. The cheap _redrawDoors() (procedural-panel only) is
-    // covered as a subset of redrawDoors().
+    // door event. A no-op close needs no redraw at all.
     if (didChange) {
       this.redrawDoors()
       EventBus.emit('DOOR_CLOSED', { cp })
-    } else {
-      this._redrawDoors()
     }
-  }
-
-  _redrawDoors() {
-    this._gDoors.clear()
-    this._drawClosedDoors()
   }
 
   // Lightweight redraw for door state changes (open/close). Rebuilds ONLY
   // the door sprite containers, the door cell map (so per-cell `state` +
   // `renderable` flags reflect the current cp.open/cp.opening state), and
-  // the procedural closed-door panel layer. Leaves walls, floors, decor,
+  // the single-image door skins / aprons. Leaves walls, floors, decor,
   // void mask, etc. untouched.
   //
   // A full redraw() was causing a ~0.5 s freeze on every door event because
@@ -3060,9 +2977,6 @@ export class DungeonRenderer {
     this._drawDoorSkins()
     this._cDoorAprons.removeAll(true)
     this._drawDoorAprons()
-
-    this._gDoors.clear()
-    this._drawClosedDoors()
   }
 
   // Pixel rect of the 2 × WALL_THICKNESS DOOR block belonging to this cp.
@@ -3151,152 +3065,6 @@ export class DungeonRenderer {
       break
     }
     return own
-  }
-
-  // Paint a single closed door over the given rect. `progress` (0..1) drives
-  // the split-aside animation: 0 = fully closed (full art), 1 = fully open
-  // (nothing drawn). Mid-progress: the two door halves shrink toward the
-  // walls on either side, sliding the doorway open.
-  _drawClosedDoor(g, rect, style, progress = 0) {
-    if (progress >= 1) return
-    const pal = DOOR_STYLES[style] || DOOR_STYLES.regular
-    // Inset the closed-door art by JAMB_W on each lateral side so the
-    // doorway jambs (drawn separately by _drawDoorwayArchitecture) are
-    // visible as a frame around the door.
-    const baseRect = rect
-    const axis = baseRect.axis
-    let px = baseRect.px, py = baseRect.py, pw = baseRect.pw, ph = baseRect.ph
-    if (axis === 'h') { px += JAMB_W; pw -= 2 * JAMB_W }
-    else              { py += JAMB_W; ph -= 2 * JAMB_W }
-
-    // Mid-animation: render simplified shrinking halves and bail before the
-    // detailed (closed-state) art. Quadratic ease-out so the door starts
-    // moving fast and settles open.
-    if (progress > 0) {
-      const eased = 1 - (1 - progress) * (1 - progress)
-      if (axis === 'h') {
-        const halfW = pw / 2
-        const visW  = Math.max(0, Math.round(halfW * (1 - eased)))
-        if (visW > 0) {
-          g.fillStyle(pal.base, 1)
-          g.fillRect(px,                    py, visW, ph)   // left half
-          g.fillRect(px + pw - visW,        py, visW, ph)   // right half
-          // Inner edge (the half's sliding edge) gets a 1-px split-seam
-          // accent so the moving edge reads as the door's seam.
-          g.fillStyle(pal.split, 1)
-          g.fillRect(px + visW - 1,         py, 1, ph)
-          g.fillRect(px + pw - visW,        py, 1, ph)
-        }
-      } else {
-        const halfH = ph / 2
-        const visH  = Math.max(0, Math.round(halfH * (1 - eased)))
-        if (visH > 0) {
-          g.fillStyle(pal.base, 1)
-          g.fillRect(px, py,                pw, visH)       // top half
-          g.fillRect(px, py + ph - visH,    pw, visH)       // bottom half
-          g.fillStyle(pal.split, 1)
-          g.fillRect(px, py + visH - 1,     pw, 1)
-          g.fillRect(px, py + ph - visH,    pw, 1)
-        }
-      }
-      return
-    }
-
-    // Base fill — covers the entire door block.
-    g.fillStyle(pal.base, 1)
-    g.fillRect(px, py, pw, ph)
-
-    // Wood-grain / stone-grain streaks. For a horizontal wall (axis 'h') the
-    // door's "long axis" runs left-right (the passage opens N-S); for a
-    // vertical wall the long axis runs top-bottom. Streaks run along the
-    // long axis so the door visually reads like planks set into the doorway.
-    g.fillStyle(pal.grain, 0.45)
-    if (axis === 'h') {
-      // 2 horizontal streaks at 1/3 and 2/3 of the door height.
-      g.fillRect(px + 2, py + Math.floor(ph / 3),     pw - 4, 1)
-      g.fillRect(px + 2, py + Math.floor(2 * ph / 3), pw - 4, 1)
-    } else {
-      g.fillRect(px + Math.floor(pw / 3),     py + 2, 1, ph - 4)
-      g.fillRect(px + Math.floor(2 * pw / 3), py + 2, 1, ph - 4)
-    }
-
-    // Outer bevel — 1-px highlight on the side that faces "up" (the lit
-    // edge), darker shadow on the opposite side. Sells the doorway as set
-    // into the wall ring rather than floating on top.
-    g.fillStyle(pal.edge, 0.7)
-    if (axis === 'h') {
-      g.fillRect(px, py,            pw, 1)             // top edge highlight
-      g.fillRect(px, py + ph - 1,   pw, 1)             // bottom edge
-    } else {
-      g.fillRect(px,            py, 1, ph)
-      g.fillRect(px + pw - 1,   py, 1, ph)
-    }
-
-    // Banding — 2 perpendicular bands across the door (iron straps for
-    // regular/boss, brass framing for entrance). Drawn at 1/4 and 3/4 of
-    // the perpendicular axis so they read as sturdy hardware.
-    g.fillStyle(pal.band, 0.85)
-    if (axis === 'h') {
-      const bandH = 3
-      g.fillRect(px, py + Math.floor(ph / 4)     - 1, pw, bandH)
-      g.fillRect(px, py + Math.floor(3 * ph / 4) - 1, pw, bandH)
-    } else {
-      const bandW = 3
-      g.fillRect(px + Math.floor(pw / 4)     - 1, py, bandW, ph)
-      g.fillRect(px + Math.floor(3 * pw / 4) - 1, py, bandW, ph)
-    }
-
-    // Rivets — small 2x2 highlight squares near the band ends. For boss
-    // doors these glow red; for entrance, brass studs.
-    g.fillStyle(pal.bandHi, 0.9)
-    if (axis === 'h') {
-      const yA = py + Math.floor(ph / 4)
-      const yB = py + Math.floor(3 * ph / 4)
-      for (const ry of [yA, yB]) {
-        g.fillRect(px + 4,        ry, 2, 2)
-        g.fillRect(px + pw - 6,   ry, 2, 2)
-        g.fillRect(px + Math.floor(pw / 2) - 1, ry, 2, 2)
-      }
-    } else {
-      const xA = px + Math.floor(pw / 4)
-      const xB = px + Math.floor(3 * pw / 4)
-      for (const rx of [xA, xB]) {
-        g.fillRect(rx, py + 4,        2, 2)
-        g.fillRect(rx, py + ph - 6,   2, 2)
-        g.fillRect(rx, py + Math.floor(ph / 2) - 1, 2, 2)
-      }
-    }
-
-    // Split seam — 2-px line down the centre of the wall axis. Animation
-    // (Phase B) will tween the two halves apart from this seam.
-    g.fillStyle(pal.split, 1)
-    if (axis === 'h') {
-      g.fillRect(px + Math.floor(pw / 2) - 1, py, 2, ph)
-    } else {
-      g.fillRect(px, py + Math.floor(ph / 2) - 1, pw, 2)
-    }
-
-    // Style-specific extras.
-    if (style === 'entrance') {
-      // Decorative sigil — a small cross at the centre of the door block.
-      g.fillStyle(pal.bandHi, 1)
-      const cx = px + Math.floor(pw / 2)
-      const cy = py + Math.floor(ph / 2)
-      g.fillRect(cx - 4, cy,     9, 1)
-      g.fillRect(cx,     cy - 4, 1, 9)
-    } else if (style === 'boss') {
-      // Glowing eyes — 2 red dots above the centre, suggesting "watching".
-      g.fillStyle(pal.bandHi, 1)
-      const cx = px + Math.floor(pw / 2)
-      const cy = py + Math.floor(ph / 2)
-      if (axis === 'h') {
-        g.fillRect(cx - 8, cy - Math.floor(ph / 6), 2, 2)
-        g.fillRect(cx + 6, cy - Math.floor(ph / 6), 2, 2)
-      } else {
-        g.fillRect(cx - Math.floor(pw / 6), cy - 8, 2, 2)
-        g.fillRect(cx - Math.floor(pw / 6), cy + 6, 2, 2)
-      }
-    }
   }
 
   // Plain dark-passage render for the 1-tile gap between two adjacent
@@ -3662,8 +3430,8 @@ export class DungeonRenderer {
   //      revealing the room beneath; chunks of stone fly into the void
   //   4. Existing dust settles
   // All elements live as scene-level GameObjects with tween-onComplete
-  // cleanup, so the animation runs above _gOverhead/_gDoors and never
-  // pollutes the renderer's redraw cycle.
+  // cleanup, so the animation runs above _gOverhead / the door layers and
+  // never pollutes the renderer's redraw cycle.
   _playCarveAnimation(payload) {
     const room = payload?.room
     if (!room) return
@@ -3697,7 +3465,7 @@ export class DungeonRenderer {
     })
 
     // 3) Stone-cover cells — one rectangle per tile in the room, layered
-    //    above the renderer's _gDoors (9.5) so the room is hidden beneath.
+    //    (depth 9.7) above the renderer's door layers so the room is hidden beneath.
     //    Cells fade + scale outward starting from the edges; delay grows
     //    with distance from the nearest edge so the carve front sweeps
     //    inward like a chisel knocking off perimeter chunks first.
