@@ -1068,15 +1068,17 @@ export class DungeonRenderer {
       }
     }
 
-    // (2) This room's doorTiles painting — owner only. Non-owner cps defer
-    // to the paired (= owner) room so the doorway reads as one painted unit.
-    if (isOwner !== false) {
+    // (2) This room's OWN doorTiles painting — checked FIRST regardless of
+    // owner, so each room shows the door set for IT (the boss wall shows the
+    // boss's door, the connected room shows its own).
+    {
       const ownPaint = this._lookupDoorTilePainted(room, door.cp, state, x, y)
       if (ownPaint) return ownPaint
     }
 
-    // (3) Paired room's painting (used by non-owner cps to render the
-    // owner's swatch on this side of the seam).
+    // (3) Paired room's painting — fallback only. A door painted in just ONE
+    // room still shows on both sides (the unpainted side borrows the painted
+    // one); a room with its own painting renders that instead (step 2).
     if (door.pairedRoom && door.pairedCp) {
       const pairPaint = this._lookupDoorTilePainted(door.pairedRoom, door.pairedCp, state, x, y)
       if (pairPaint) return pairPaint
@@ -1106,8 +1108,9 @@ export class DungeonRenderer {
     // jamb position), defer so the user's wall art renders. The doorway
     // sprite at higher depth will overlay where they overlap.
     if (this._isTileLayoutSpanAnchor(x, y)) return null
-    // Owner paints its own jambs; non-owner defers to paired (= owner).
-    if (jamb.isOwner !== false) {
+    // Each room paints its OWN jambs first (shows the door set for it); falls
+    // back to the paired room's so a one-sided painting still shows on both.
+    {
       const own = this._lookupDoorTilePainted(jamb.room, jamb.cp, jamb.state, x, y)
       if (own) return own
     }
@@ -1554,9 +1557,10 @@ export class DungeonRenderer {
         if (doorEntry?.spanRender) continue
         if (this._spanCoveredSet?.has(cellKey)) continue
 
-        // Direct-painted (cov=1) lookups. Owner checks own first; non-owner
-        // skips own and goes straight to the paired (= owner) swatch.
-        if (isOwner && this._lookupDoorTilePainted(room, cp, state, wx, wy)) continue
+        // Direct-painted (cov=1) lookups. Each room checks its OWN painting
+        // first (so it shows the door set for it), then falls back to the
+        // paired room's (so a door painted in only one room shows on both).
+        if (this._lookupDoorTilePainted(room, cp, state, wx, wy)) continue
         if (pairedRoom && pairedCp &&
             this._lookupDoorTilePainted(pairedRoom, pairedCp, state, wx, wy)) continue
 
