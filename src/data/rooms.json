@@ -13,9 +13,9 @@
                 null,
                 "pillar2_l",
                 null,
-                "wall_c",
+                "door_closed_l",
                 null,
-                "wall_c",
+                "door_closed_r",
                 null,
                 "pillar3_r",
                 null,
@@ -191,7 +191,7 @@
                 },
                 null,
                 {
-                    "id": "wall_c",
+                    "id": "door_locked_l",
                     "rot": 90
                 },
                 null
@@ -253,7 +253,7 @@
                 },
                 null,
                 {
-                    "id": "wall_c",
+                    "id": "door_locked_r",
                     "rot": 90
                 },
                 null
@@ -426,14 +426,15 @@
                 },
                 null,
                 {
-                    "id": "wall_c",
+                    "id": "door_open_l",
                     "rot": 0,
                     "flipV": true
                 },
                 null,
                 {
-                    "id": "wall_c",
-                    "rot": 180
+                    "id": "door_open_r",
+                    "rot": 0,
+                    "flipV": true
                 },
                 null,
                 {
@@ -490,20 +491,20 @@
         "description": "Your lair. The final room. Fixed at game start.",
         "flavorText": "Every dungeon has a heart. This is yours.",
         "theme": null,
-        "doorTheme": null,
+        "doorTheme": "Gnoll",
         "doorTiles": {
             "closed": [
                 [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
+                    "dskin_boss_chamber_default_closed_00",
+                    "dskin_boss_chamber_default_closed_10",
+                    "dskin_boss_chamber_default_closed_20",
+                    "dskin_boss_chamber_default_closed_30"
                 ],
                 [
-                    null,
-                    null,
-                    null,
-                    null
+                    "dskin_boss_chamber_default_closed_01",
+                    "dskin_boss_chamber_default_closed_11",
+                    "dskin_boss_chamber_default_closed_21",
+                    "dskin_boss_chamber_default_closed_31"
                 ]
             ],
             "open": [
@@ -534,37 +535,47 @@
                     null
                 ]
             ]
+        },
+        "backgroundImageByBoss": {
+            "gnoll": "gemini_generated_image_wfw7g7wfw7g7wfw7_1"
+        },
+        "doorApron": {
+            "closed": [
+                "dskin_boss_chamber_default_closed_02",
+                "dskin_boss_chamber_default_closed_12",
+                "dskin_boss_chamber_default_closed_22",
+                "dskin_boss_chamber_default_closed_32"
+            ],
+            "locked": [
+                null,
+                null,
+                null,
+                null
+            ]
+        },
+        "doorSkinByBoss": {
+            "gnoll": {
+                "closed": "gnoll_closed",
+                "open": "image_7",
+                "locked": "image_8"
+            }
         }
     },
     {
         "id": "entry_hall",
         "name": "Entry Hall",
         "category": "starter",
-        "width": 13,
-        "height": 9,
+        "width": 14,
+        "height": 10,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
                 null,
                 "wall_l",
+                null,
+                "wall_c",
                 null,
                 "wall_r",
                 null,
@@ -590,10 +601,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -601,6 +612,12 @@
                 null,
                 {
                     "id": "floor9",
+                    "rot": 0,
+                    "flipV": true
+                },
+                null,
+                {
+                    "id": "floor15",
                     "rot": 0,
                     "flipV": true
                 },
@@ -641,10 +658,56 @@
                 null,
                 null,
                 null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor15",
+                    "rot": 270,
+                    "flipV": true
+                },
+                null,
+                "floor11",
+                null,
+                "dirt_floor",
+                null,
+                "floor10",
+                null,
+                {
+                    "id": "floor15",
+                    "rot": 90,
+                    "flipV": true
+                },
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -658,11 +721,9 @@
                     "flipH": true
                 },
                 null,
-                {
-                    "id": "floor15",
-                    "rot": 0,
-                    "flipH": true
-                },
+                "floor15",
+                null,
+                "floor15",
                 null,
                 {
                     "id": "floor9",
@@ -689,10 +750,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 0,
@@ -706,6 +767,11 @@
                 null,
                 {
                     "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_c",
                     "rot": 180
                 },
                 null,
@@ -740,12 +806,13 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ]
         ],
         "connectionPoints": [
             {
-                "x": 6,
+                "x": 7,
                 "y": 0,
                 "direction": "N",
                 "external": true,
@@ -775,81 +842,20 @@
         "flavorText": "Every journey into darkness starts somewhere.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
-        "colorAdjust": {
-            "walls": {
-                "sat": -1,
-                "hue": 0
-            },
-            "floor": {
-                "sat": 0,
-                "hue": -15,
-                "bright": 0.5,
-                "contrast": -0.4
-            }
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "starter_corridor",
         "name": "Corridor",
         "category": "starter",
-        "width": 7,
-        "height": 11,
+        "width": 6,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_c",
@@ -866,17 +872,18 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
                 null,
-                "floor11",
+                {
+                    "id": "floor12",
+                    "rot": 90
+                },
                 null,
                 {
                     "id": "wall_l",
@@ -890,25 +897,21 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "wall_c",
+                    "id": "wall_r",
                     "rot": 270
                 },
                 null,
                 {
-                    "id": "floor7",
-                    "rot": 0,
-                    "flipH": true,
-                    "flipV": true
+                    "id": "floor12",
+                    "rot": 90
                 },
                 null,
                 {
-                    "id": "wall_c",
+                    "id": "wall_l",
                     "rot": 90
                 },
                 null
@@ -919,21 +922,17 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_l",
                     "rot": 270
                 },
                 null,
                 {
-                    "id": "floor11",
-                    "rot": 0,
-                    "flipH": true,
-                    "flipV": true
+                    "id": "floor12",
+                    "rot": 90
                 },
                 null,
                 {
@@ -948,11 +947,34 @@
                 null,
                 null,
                 null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
                 null,
+                {
+                    "id": "floor12",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "corner",
                     "rot": 270
@@ -970,7 +992,6 @@
                 null
             ],
             [
-                null,
                 null,
                 null,
                 null,
@@ -1011,88 +1032,27 @@
         "flavorText": "Every dungeon starts with a hallway.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
-        "colorAdjust": {
-            "walls": {
-                "hue": -165,
-                "sat": -1
-            },
-            "floor": {
-                "sat": 0,
-                "hue": 0
-            }
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "starter_barracks",
         "name": "Barracks",
         "category": "starter",
-        "width": 11,
-        "height": 9,
+        "width": 12,
+        "height": 10,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
                 null,
-                "wall_c",
+                "wall_l",
+                null,
+                "wall_r",
                 null,
                 "wall_r",
                 null,
@@ -1113,20 +1073,28 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
                 null,
-                "floor16",
+                "floor18",
                 null,
-                "floor17",
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
                 null,
-                "floor16",
+                "floor18",
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
                 null,
                 {
                     "id": "wall_l",
@@ -1145,66 +1113,104 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "wall_l",
+                    "id": "wall_c",
                     "rot": 270
                 },
                 null,
-                {
-                    "id": "floor16",
-                    "rot": 0,
-                    "flipV": true
-                },
+                "floor18",
+                null,
+                "floor1",
+                null,
+                "floor1",
                 null,
                 {
-                    "id": "floor17",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "floor16",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_r",
+                    "id": "floor18",
                     "rot": 180
                 },
                 null,
                 {
                     "id": "wall_c",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                "floor18",
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                "floor18",
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "corner",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
                     "rot": 180
                 },
                 null,
@@ -1220,6 +1226,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -1268,84 +1275,25 @@
         "flavorText": "The bones rest cheap.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
-        "colorAdjust": {
-            "walls": {
-                "hue": -165,
-                "sat": -1
-            },
-            "floor": {
-                "sat": -0.3,
-                "hue": 180
-            }
+        "doorSkin": {
+            "locked": "basic_locked",
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin"
         }
     },
     {
         "id": "starter_guard_post",
         "name": "Guard Post",
         "category": "starter",
-        "width": 9,
-        "height": 9,
+        "width": 10,
+        "height": 8,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
+                null,
+                "wall_c",
                 null,
                 "wall_r",
                 null,
@@ -1364,13 +1312,18 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 90
                 },
                 null,
                 {
@@ -1398,14 +1351,16 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_l",
                     "rot": 270
                 },
+                null,
+                "floor18",
                 null,
                 "floor18",
                 null,
@@ -1429,10 +1384,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -1440,6 +1395,11 @@
                 null,
                 {
                     "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_c",
                     "rot": 180
                 },
                 null,
@@ -1455,6 +1415,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -1496,50 +1457,6 @@
         "flavorText": "Four doors. One choice.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -1548,28 +1465,21 @@
                 "hue": -30,
                 "sat": -0.2
             }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "crypt",
         "name": "Crypt",
         "category": "combat",
-        "width": 9,
-        "height": 11,
+        "width": 8,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
@@ -1590,11 +1500,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -1621,11 +1529,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -1655,11 +1561,41 @@
                 null,
                 null,
                 null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
                 null,
+                {
+                    "id": "floor5",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor5",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -1689,11 +1625,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -1716,7 +1650,6 @@
                 null
             ],
             [
-                null,
                 null,
                 null,
                 null,
@@ -1731,7 +1664,7 @@
         "goldCost": 35,
         "costStep": 25,
         "powerCostToUnlock": 0,
-        "unlockLevel": 2,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 3,
@@ -1751,50 +1684,6 @@
         "flavorText": "They always come back. That's the point.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -1803,35 +1692,28 @@
                 "sat": -1
             }
         },
-        "onDayStart": "crypt_spawnUndead"
+        "onDayStart": "crypt_spawnUndead",
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
+        }
     },
     {
         "id": "trap_factory",
         "name": "Trap Factory",
         "category": "utility",
-        "width": 11,
-        "height": 11,
+        "width": 12,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
                 null,
-                "wall_c",
+                "wall_l",
+                null,
+                "wall_r",
                 null,
                 "wall_r",
                 null,
@@ -1852,14 +1734,16 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
+                null,
+                "floor15",
                 null,
                 "floor15",
                 null,
@@ -1884,16 +1768,16 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_hole",
                     "rot": 270
                 },
                 null,
-                "floor11",
+                "floor16",
                 null,
                 "floor1",
                 null,
@@ -1902,6 +1786,8 @@
                     "rot": 270
                 },
                 null,
+                "floor16",
+                null,
                 {
                     "id": "wall_hole",
                     "rot": 90
@@ -1919,13 +1805,58 @@
                 null,
                 null,
                 null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_hole",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor16",
+                    "rot": 180
+                },
+                null,
+                "floor11",
+                null,
+                "floor1",
+                null,
+                {
+                    "id": "floor16",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_hole",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_l",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "floor15",
+                    "rot": 180
                 },
                 null,
                 {
@@ -1960,10 +1891,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -1975,7 +1906,12 @@
                 },
                 null,
                 {
-                    "id": "wall_c",
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
                     "rot": 180
                 },
                 null,
@@ -1991,6 +1927,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -2008,7 +1945,7 @@
         "goldCost": 45,
         "costStep": 35,
         "powerCostToUnlock": 0,
-        "unlockLevel": 3,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -2033,50 +1970,6 @@
         "flavorText": "Mechanisms. So many mechanisms.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -2086,35 +1979,28 @@
                 "hue": 105,
                 "bright": 0
             }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "treasury",
         "name": "Treasury",
         "category": "utility",
-        "width": 11,
-        "height": 9,
+        "width": 12,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
                 null,
-                "wall_c",
+                "wall_l",
+                null,
+                "wall_r",
                 null,
                 "wall_r",
                 null,
@@ -2135,16 +2021,18 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
                 null,
                 "floor2",
+                null,
+                "floor8",
                 null,
                 "floor8",
                 null,
@@ -2170,10 +2058,102 @@
                 null,
                 null,
                 null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_r",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -2182,6 +2162,11 @@
                 {
                     "id": "floor2",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 180
                 },
                 null,
                 {
@@ -2211,10 +2196,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -2226,7 +2211,12 @@
                 },
                 null,
                 {
-                    "id": "wall_c",
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
                     "rot": 180
                 },
                 null,
@@ -2252,6 +2242,7 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ]
         ],
@@ -2259,7 +2250,7 @@
         "goldCost": 40,
         "costStep": 30,
         "powerCostToUnlock": 0,
-        "unlockLevel": 2,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -2286,50 +2277,6 @@
         "flavorText": "The shinier it gets, the louder it sings.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -2340,29 +2287,26 @@
                 "hue": -15,
                 "contrast": 0
             }
+        },
+        "doorSkin": {
+            "locked": "basic_locked",
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin"
         }
     },
     {
         "id": "armory",
         "name": "Armory",
         "category": "utility",
-        "width": 9,
-        "height": 9,
+        "width": 12,
+        "height": 10,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
+                null,
+                "pillar3_r",
+                null,
+                "pillar2_l",
                 null,
                 "pillar3_r",
                 null,
@@ -2383,21 +2327,33 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "pillar2_l",
+                    "id": "wall_r",
                     "rot": 270
                 },
                 null,
-                "floor10",
+                "floor11",
+                null,
+                {
+                    "id": "dirt_floor_long",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "dirt_floor_long",
+                    "rot": 180
+                },
                 null,
                 "dirt_floor",
                 null,
                 {
-                    "id": "pillar3_r",
+                    "id": "wall_l",
                     "rot": 90
                 },
                 null
@@ -2411,13 +2367,59 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
+                null,
+                "dirt_floor_long",
+                null,
+                "dirt_floor",
+                null,
+                {
+                    "id": "floor11",
+                    "rot": 180
+                },
+                null,
+                "dirt_floor",
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
-                    "id": "pillar3_r",
+                    "id": "wall_l",
                     "rot": 270
+                },
+                null,
+                "dirt_floor",
+                null,
+                {
+                    "id": "floor11",
+                    "rot": 90
                 },
                 null,
                 "dirt_floor",
@@ -2425,7 +2427,7 @@
                 "dirt_floor_long",
                 null,
                 {
-                    "id": "pillar2_l",
+                    "id": "wall_r",
                     "rot": 90
                 },
                 null
@@ -2439,13 +2441,25 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "pillar2_l",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "pillar3_r",
+                    "rot": 180
                 },
                 null,
                 {
@@ -2465,6 +2479,9 @@
                 null
             ],
             [
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -2480,7 +2497,7 @@
         "goldCost": 22,
         "costStep": 15,
         "powerCostToUnlock": 0,
-        "unlockLevel": 3,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -2505,81 +2522,32 @@
         "flavorText": "A well-armed skeleton is a happy skeleton.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
             }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "library_of_whispers",
         "name": "Library of Whispers",
         "category": "utility",
-        "width": 11,
-        "height": 9,
+        "width": 14,
+        "height": 10,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
+                null,
+                "wall_l",
+                null,
+                "wall_c",
                 null,
                 "wall_hole",
                 null,
@@ -2602,23 +2570,35 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
                 null,
-                "floor1",
-                null,
                 {
-                    "id": "floor13",
-                    "rot": 270
+                    "id": "floor14",
+                    "rot": 90
                 },
                 null,
                 "floor1",
+                null,
+                {
+                    "id": "floor14",
+                    "rot": 90
+                },
+                null,
+                "dirt_floor",
+                null,
+                {
+                    "id": "floor14",
+                    "rot": 90
+                },
                 null,
                 {
                     "id": "wall_l",
@@ -2637,12 +2617,68 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 270
+                },
+                null,
+                "floor12",
+                null,
+                "floor1",
+                null,
+                "floor12",
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor14",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "dirt_floor",
                     "rot": 270
                 },
                 null,
@@ -2651,7 +2687,10 @@
                     "rot": 90
                 },
                 null,
-                "floor1",
+                {
+                    "id": "floor1",
+                    "rot": 180
+                },
                 null,
                 {
                     "id": "floor13",
@@ -2675,13 +2714,20 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
                 },
                 null,
                 {
@@ -2700,6 +2746,11 @@
                 },
                 null,
                 {
+                    "id": "wall_l",
+                    "rot": 180
+                },
+                null,
+                {
                     "id": "corner",
                     "rot": 180
                 },
@@ -2716,13 +2767,16 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ]
         ],
         "connectionPoints": [],
         "goldCost": 26,
         "powerCostToUnlock": 0,
-        "unlockLevel": 4,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 4,
@@ -2749,50 +2803,6 @@
         "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -2801,28 +2811,21 @@
                 "sat": 0,
                 "hue": 120
             }
+        },
+        "doorSkin": {
+            "locked": "basic_locked",
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin"
         }
     },
     {
         "id": "watchtower",
         "name": "Watchtower",
         "category": "utility",
-        "width": 9,
-        "height": 9,
+        "width": 8,
+        "height": 8,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "pillar1_l",
@@ -2843,11 +2846,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "pillar4_r",
                     "rot": 270
@@ -2877,11 +2878,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "pillar1_l",
                     "rot": 270
@@ -2911,11 +2910,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -2945,7 +2942,6 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ]
         ],
@@ -2953,7 +2949,7 @@
         "goldCost": 30,
         "costStep": 22,
         "powerCostToUnlock": 0,
-        "unlockLevel": 5,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 2,
@@ -2972,50 +2968,6 @@
         "flavorText": "We see them before they see themselves.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -3024,29 +2976,24 @@
                 "sat": -0.3,
                 "hue": -165
             }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "wandering_gate",
         "name": "Wandering Gate",
         "category": "special",
-        "width": 9,
-        "height": 9,
+        "width": 10,
+        "height": 10,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
+                null,
+                "wall_c",
                 null,
                 "wall_c",
                 null,
@@ -3067,10 +3014,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -3078,6 +3025,11 @@
                 null,
                 {
                     "id": "floor10",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "dirt_floor_long",
                     "rot": 90
                 },
                 null,
@@ -3101,10 +3053,43 @@
                 null,
                 null,
                 null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
+                null,
+                "dirt_floor_long",
+                null,
+                "dirt_floor",
+                null,
+                {
+                    "id": "dirt_floor_long",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -3113,6 +3098,11 @@
                 "floor10",
                 null,
                 {
+                    "id": "dirt_floor_long",
+                    "rot": 270
+                },
+                null,
+                {
                     "id": "floor10",
                     "rot": 270
                 },
@@ -3132,10 +3122,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3152,12 +3142,18 @@
                 },
                 null,
                 {
+                    "id": "wall_c",
+                    "rot": 180
+                },
+                null,
+                {
                     "id": "corner",
                     "rot": 180
                 },
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -3172,7 +3168,7 @@
         "connectionPoints": [],
         "goldCost": 38,
         "powerCostToUnlock": 0,
-        "unlockLevel": 6,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -3188,50 +3184,6 @@
         "flavorText": "Step in. Step out. Hopefully not the same room.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -3242,28 +3194,21 @@
                 "bright": -0.4,
                 "contrast": -0.3
             }
+        },
+        "doorSkin": {
+            "locked": "basic_locked",
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin"
         }
     },
     {
         "id": "veil_of_forgetting",
         "name": "Veil of Forgetting",
         "category": "special",
-        "width": 9,
-        "height": 9,
+        "width": 8,
+        "height": 8,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_r",
@@ -3284,11 +3229,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -3296,7 +3239,10 @@
                 null,
                 "floor1",
                 null,
-                "floor1",
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
                 null,
                 {
                     "id": "wall_r",
@@ -3312,19 +3258,23 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
                 null,
-                "floor1",
+                {
+                    "id": "floor1",
+                    "rot": 270
+                },
                 null,
-                "floor1",
+                {
+                    "id": "floor1",
+                    "rot": 180
+                },
                 null,
                 {
                     "id": "wall_l",
@@ -3340,11 +3290,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3367,7 +3315,6 @@
                 null
             ],
             [
-                null,
                 null,
                 null,
                 null,
@@ -3381,7 +3328,7 @@
         "connectionPoints": [],
         "goldCost": 28,
         "powerCostToUnlock": 0,
-        "unlockLevel": 7,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -3397,50 +3344,6 @@
         "flavorText": "What was here? Nothing. Nothing was ever here.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -3450,35 +3353,30 @@
                 "bright": -0.05,
                 "contrast": -0.6
             }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "catacombs",
         "name": "Catacombs",
         "category": "combat",
-        "width": 11,
-        "height": 9,
+        "width": 14,
+        "height": 8,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_hole",
                 null,
+                "wall_c",
+                null,
                 "wall_hole",
+                null,
+                "wall_c",
                 null,
                 "wall_hole",
                 null,
@@ -3499,14 +3397,20 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
+                null,
+                "dirt_floor_long",
+                null,
+                "floor6",
                 null,
                 "dirt_floor",
                 null,
@@ -3534,14 +3438,20 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_l",
                     "rot": 270
                 },
+                null,
+                "dirt_floor_long",
+                null,
+                "floor10",
                 null,
                 "floor10",
                 null,
@@ -3569,10 +3479,12 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -3584,7 +3496,17 @@
                 },
                 null,
                 {
+                    "id": "wall_c",
+                    "rot": 180
+                },
+                null,
+                {
                     "id": "wall_hole",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_c",
                     "rot": 180
                 },
                 null,
@@ -3600,6 +3522,9 @@
                 null
             ],
             [
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -3617,7 +3542,7 @@
         "goldCost": 38,
         "costStep": 26,
         "powerCostToUnlock": 0,
-        "unlockLevel": 8,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 2,
@@ -3638,50 +3563,6 @@
         "flavorText": "Old bones don't die. They just wait their turn.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -3690,31 +3571,24 @@
                 "sat": -0.5,
                 "hue": -75
             }
+        },
+        "doorSkin": {
+            "locked": "basic_locked",
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin"
         }
     },
     {
         "id": "mimic_vault",
         "name": "Mimic Vault",
         "category": "trap",
-        "width": 11,
-        "height": 9,
+        "width": 12,
+        "height": 8,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
+                null,
+                "wall_l",
                 null,
                 "wall_l",
                 null,
@@ -3739,16 +3613,18 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
                 null,
                 "floor2",
+                null,
+                "floor8",
                 null,
                 "floor8",
                 null,
@@ -3774,10 +3650,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -3786,6 +3662,11 @@
                 {
                     "id": "floor2",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 180
                 },
                 null,
                 {
@@ -3815,13 +3696,18 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 180
                 },
                 null,
                 {
@@ -3856,13 +3742,14 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ]
         ],
         "connectionPoints": [],
         "goldCost": 38,
         "powerCostToUnlock": 0,
-        "unlockLevel": 9,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -3879,50 +3766,6 @@
         "flavorText": "It even has the right sparkle.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -3934,32 +3777,21 @@
                 "contrast": 0
             }
         },
-        "onDayStart": "mimicVault_respawnMimics"
+        "onDayStart": "mimicVault_respawnMimics",
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
+        }
     },
     {
         "id": "hall_of_trials",
         "name": "Hall of Trials",
         "category": "combat",
-        "width": 13,
-        "height": 11,
+        "width": 12,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "pillar1_l",
@@ -3988,11 +3820,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -4036,11 +3866,49 @@
                 null,
                 null,
                 null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
                 null,
+                {
+                    "id": "floor8",
+                    "rot": 90
+                },
+                null,
+                "floor1",
+                null,
+                "floor1",
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_c",
                     "rot": 270
@@ -4081,11 +3949,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_l",
                     "rot": 270
@@ -4120,11 +3986,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4168,7 +4032,6 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ]
         ],
@@ -4176,7 +4039,7 @@
         "goldCost": 46,
         "costStep": 30,
         "powerCostToUnlock": 0,
-        "unlockLevel": 10,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -4197,50 +4060,6 @@
         "flavorText": "Only the proven walk these stones.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -4249,28 +4068,21 @@
                 "hue": -180
             }
         },
-        "onDayStart": "hallOfTrials_spawnElite"
+        "onDayStart": "hallOfTrials_spawnElite",
+        "doorSkin": {
+            "locked": "basic_locked",
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin"
+        }
     },
     {
         "id": "wishing_well",
         "name": "Wishing Well",
         "category": "special",
-        "width": 9,
-        "height": 9,
+        "width": 8,
+        "height": 8,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
@@ -4291,11 +4103,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
@@ -4322,11 +4132,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_hole",
                     "rot": 270
@@ -4356,11 +4164,9 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4390,14 +4196,13 @@
                 null,
                 null,
                 null,
-                null,
                 null
             ]
         ],
         "connectionPoints": [],
         "goldCost": 28,
         "powerCostToUnlock": 0,
-        "unlockLevel": 12,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -4413,50 +4218,6 @@
         "flavorText": "Wish carefully. The well listens to one in two.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -4466,29 +4227,28 @@
                 "sat": 1.9,
                 "bright": -0.35
             }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "false_exit",
         "name": "The False Exit",
         "category": "special",
-        "width": 9,
-        "height": 9,
+        "width": 14,
+        "height": 10,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
+                null,
+                "door_open_l",
+                null,
+                "door_open_r",
+                null,
+                "wall_c",
                 null,
                 "door_open_l",
                 null,
@@ -4509,24 +4269,41 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "door_open_r",
+                    "id": "wall_r",
                     "rot": 270
                 },
                 null,
                 {
                     "id": "floor18",
                     "rot": 270
+                },
+                null,
+                "floor6",
+                null,
+                {
+                    "id": "floor12",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor6",
+                    "rot": 0,
+                    "flipH": true
                 },
                 null,
                 "floor18",
                 null,
                 {
-                    "id": "door_open_l",
+                    "id": "wall_l",
                     "rot": 90
                 },
                 null
@@ -4540,12 +4317,54 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
+                null,
+                "floor12",
+                null,
+                "floor12",
+                null,
+                "floor1",
+                null,
+                "floor12",
+                null,
+                "floor12",
+                null,
+                {
+                    "id": "wall_c",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
-                    "id": "door_open_l",
+                    "id": "wall_l",
                     "rot": 270
                 },
                 null,
@@ -4555,12 +4374,30 @@
                 },
                 null,
                 {
+                    "id": "floor6",
+                    "rot": 0,
+                    "flipV": true
+                },
+                null,
+                {
+                    "id": "floor12",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor6",
+                    "rot": 0,
+                    "flipH": true,
+                    "flipV": true
+                },
+                null,
+                {
                     "id": "floor18",
                     "rot": 90
                 },
                 null,
                 {
-                    "id": "door_open_r",
+                    "id": "wall_r",
                     "rot": 90
                 },
                 null
@@ -4574,10 +4411,14 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4594,12 +4435,32 @@
                 },
                 null,
                 {
+                    "id": "wall_c",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "door_open_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "door_open_l",
+                    "rot": 180
+                },
+                null,
+                {
                     "id": "corner",
                     "rot": 180
                 },
                 null
             ],
             [
+                null,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -4614,7 +4475,7 @@
         "connectionPoints": [],
         "goldCost": 34,
         "powerCostToUnlock": 0,
-        "unlockLevel": 11,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -4631,50 +4492,6 @@
         "flavorText": "They thought they were getting out. They were getting in.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -4683,31 +4500,24 @@
                 "hue": 75,
                 "sat": 0
             }
+        },
+        "doorSkin": {
+            "locked": "basic_locked",
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open"
         }
     },
     {
         "id": "hall_of_madness",
         "name": "Hall of Madness",
         "category": "special",
-        "width": 11,
-        "height": 11,
+        "width": 12,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
+                null,
+                "wall_r",
                 null,
                 "wall_r",
                 null,
@@ -4732,12 +4542,63 @@
                 null,
                 null,
                 null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "pillar4_r",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor16",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor9",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor9",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor12",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
-                    "id": "pillar4_r",
+                    "id": "pillar3_r",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor12",
                     "rot": 270
                 },
                 null,
@@ -4773,14 +4634,16 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "pillar3_r",
+                    "id": "wall_l",
                     "rot": 270
                 },
+                null,
+                "floor9",
                 null,
                 {
                     "id": "floor16",
@@ -4814,14 +4677,16 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "wall_r",
                     "rot": 270
                 },
+                null,
+                "dirt_floor_long",
                 null,
                 "floor3",
                 null,
@@ -4849,10 +4714,10 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
@@ -4869,6 +4734,11 @@
                 },
                 null,
                 {
+                    "id": "wall_l",
+                    "rot": 180
+                },
+                null,
+                {
                     "id": "wall_r",
                     "rot": 180
                 },
@@ -4880,6 +4750,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -4896,7 +4767,7 @@
         "connectionPoints": [],
         "goldCost": 46,
         "powerCostToUnlock": 0,
-        "unlockLevel": 13,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -4912,50 +4783,6 @@
         "flavorText": "He looked at me and I saw the rest of them looking back.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -4965,37 +4792,28 @@
                 "sat": 1.5,
                 "bright": -0.5
             }
+        },
+        "doorSkin": {
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin",
+            "locked": "basic_locked"
         }
     },
     {
         "id": "throne_room",
         "name": "Throne Room",
         "category": "combat",
-        "width": 13,
-        "height": 11,
+        "width": 14,
+        "height": 14,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "pillar1_l",
                 null,
                 "pillar4_r",
+                null,
+                "wall_c",
                 null,
                 "pillar1_l",
                 null,
@@ -5020,12 +4838,12 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "wall_r",
+                    "id": "pillar4_r",
                     "rot": 270
                 },
                 null,
@@ -5035,13 +4853,15 @@
                 null,
                 "floor8",
                 null,
+                "floor8",
+                null,
                 {
                     "id": "floor2",
                     "rot": 90
                 },
                 null,
                 {
-                    "id": "wall_l",
+                    "id": "pillar1_l",
                     "rot": 90
                 },
                 null
@@ -5059,12 +4879,12 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "wall_c",
+                    "id": "pillar1_l",
                     "rot": 270
                 },
                 null,
@@ -5075,7 +4895,59 @@
                 null,
                 "floor1",
                 null,
+                {
+                    "id": "floor12",
+                    "rot": 90
+                },
+                null,
                 "floor1",
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "pillar4_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_c",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor12",
+                    "rot": 180
+                },
+                null,
+                "floor1",
+                null,
+                "floor12",
                 null,
                 {
                     "id": "floor8",
@@ -5101,37 +4973,36 @@
                 null,
                 null,
                 null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor2",
+                    "id": "pillar4_r",
                     "rot": 270
                 },
                 null,
                 {
                     "id": "floor8",
-                    "rot": 180
+                    "rot": 270
                 },
+                null,
+                "floor1",
+                null,
+                {
+                    "id": "floor12",
+                    "rot": 270
+                },
+                null,
+                "floor1",
                 null,
                 {
                     "id": "floor8",
-                    "rot": 180
+                    "rot": 90
                 },
                 null,
                 {
-                    "id": "floor2",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
+                    "id": "pillar1_l",
                     "rot": 90
                 },
                 null
@@ -5149,10 +5020,63 @@
                 null,
                 null,
                 null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "pillar1_l",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor2",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor8",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor2",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "pillar4_r",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "corner",
                     "rot": 270
@@ -5169,6 +5093,11 @@
                 },
                 null,
                 {
+                    "id": "wall_c",
+                    "rot": 180
+                },
+                null,
+                {
                     "id": "pillar4_r",
                     "rot": 180
                 },
@@ -5185,6 +5114,7 @@
                 null
             ],
             [
+                null,
                 null,
                 null,
                 null,
@@ -5204,7 +5134,7 @@
         "goldCost": 65,
         "costStep": 45,
         "powerCostToUnlock": 0,
-        "unlockLevel": 14,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 1,
             "maxPerDungeon": 1,
@@ -5224,50 +5154,6 @@
         "flavorText": "Every kingdom has a deputy. Mine has teeth.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
@@ -5276,31 +5162,28 @@
                 "hue": 0
             }
         },
-        "onDayStart": "throneRoom_spawnMiniBoss"
+        "onDayStart": "throneRoom_spawnMiniBoss",
+        "doorSkin": {
+            "locked": "basic_locked",
+            "open": "basic_open",
+            "closed": "basic_door_closed_skin"
+        }
     },
     {
         "id": "sanctum",
         "name": "Sanctum",
         "category": "utility",
-        "width": 9,
-        "height": 9,
+        "width": 12,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
                 "corner",
                 null,
                 "wall_l",
+                null,
+                "wall_l",
+                null,
+                "wall_r",
                 null,
                 "wall_hole",
                 null,
@@ -5319,14 +5202,20 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
-                    "id": "wall_hole",
+                    "id": "wall_r",
                     "rot": 270
                 },
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
                 null,
                 "dirt_floor",
                 null,
@@ -5347,14 +5236,88 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_r",
+                    "rot": 270
+                },
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_hole",
+                    "rot": 270
+                },
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
                 {
                     "id": "wall_l",
                     "rot": 270
                 },
+                null,
+                "dirt_floor",
+                null,
+                "dirt_floor",
                 null,
                 "dirt_floor",
                 null,
@@ -5375,13 +5338,25 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
             ],
             [
-                null,
                 {
                     "id": "corner",
                     "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
                 },
                 null,
                 {
@@ -5401,6 +5376,9 @@
                 null
             ],
             [
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -5415,7 +5393,7 @@
         "connectionPoints": [],
         "goldCost": 85,
         "powerCostToUnlock": 0,
-        "unlockLevel": 15,
+        "unlockLevel": 1,
         "placementRules": {
             "minDepthFromBoss": 0,
             "maxPerDungeon": 1,
@@ -5431,54 +5409,15 @@
         "flavorText": "Even the dark needs a quiet place.",
         "theme": null,
         "doorTheme": null,
-        "doorTiles": {
-            "closed": [
-                [
-                    "door_closed_l",
-                    null,
-                    "door_closed_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "colorAdjust": {
             "walls": {
                 "sat": -1
             }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
         }
     }
 ]

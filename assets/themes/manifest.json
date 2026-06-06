@@ -5,6 +5,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "pillar1_l": {
@@ -12,6 +13,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "pillar2_l": {
@@ -19,6 +21,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "pillar3_r": {
@@ -26,6 +29,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "pillar4_r": {
@@ -33,6 +37,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "wall_l": {
@@ -40,6 +45,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "wall_r": {
@@ -47,6 +53,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "door_open_r": {
@@ -54,6 +61,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "door_open_l": {
@@ -61,6 +69,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "door_closed_l": {
@@ -68,6 +77,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "door_closed_r": {
@@ -75,6 +85,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "door_locked_r": {
@@ -82,6 +93,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "door_locked_l": {
@@ -89,6 +101,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "wall_c": {
@@ -96,6 +109,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor1": {
@@ -103,6 +117,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor14": {
@@ -110,6 +125,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor13": {
@@ -117,6 +133,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor12": {
@@ -124,6 +141,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor11": {
@@ -131,6 +149,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor10": {
@@ -138,6 +157,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor9": {
@@ -145,6 +165,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor8": {
@@ -152,6 +173,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor7": {
@@ -159,6 +181,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor6": {
@@ -166,6 +189,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor5": {
@@ -173,6 +197,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor4": {
@@ -180,6 +205,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor3": {
@@ -187,6 +213,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor2": {
@@ -194,6 +221,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor16": {
@@ -201,6 +229,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor17": {
@@ -208,6 +237,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor15": {
@@ -215,6 +245,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "floor18": {
@@ -222,6 +253,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "wall_hole": {
@@ -229,6 +261,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "dirt_floor": {
@@ -236,6 +269,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     },
     "dirt_floor_long": {
@@ -243,6 +277,7 @@
       "srcSize": 128,
       "mode": "span",
       "coverage": 2,
+      "theme": null,
       "tags": []
     }
   },
@@ -284,6 +319,69 @@
         "door_locked_h_bl": [],
         "door_locked_h_br": []
       }
+    },
+    "Gnoll": {
+      "slots": {
+        "floor": [],
+        "wall": [],
+        "wall_cap": [],
+        "wall_bottom": [],
+        "wall_left": [],
+        "wall_right": [],
+        "wall_corner_tl": [],
+        "wall_corner_tr": [],
+        "wall_corner_bl": [],
+        "wall_corner_br": [],
+        "door_closed_v_tl": [],
+        "door_closed_v_tr": [],
+        "door_closed_v_bl": [],
+        "door_closed_v_br": [],
+        "door_closed_h_tl": [],
+        "door_closed_h_tr": [],
+        "door_closed_h_bl": [],
+        "door_closed_h_br": [],
+        "door_open_v_tl": [],
+        "door_open_v_tr": [],
+        "door_open_v_bl": [],
+        "door_open_v_br": [],
+        "door_open_h_tl": [],
+        "door_open_h_tr": [],
+        "door_open_h_bl": [],
+        "door_open_h_br": [],
+        "door_locked_v_tl": [],
+        "door_locked_v_tr": [],
+        "door_locked_v_bl": [],
+        "door_locked_v_br": [],
+        "door_locked_h_tl": [],
+        "door_locked_h_tr": [],
+        "door_locked_h_bl": [],
+        "door_locked_h_br": []
+      }
+    }
+  },
+  "roomSkins": {
+    "gemini_generated_image_wfw7g7wfw7g7wfw7_1": {
+      "file": "assets/themes/roomskins/gemini_generated_image_wfw7g7wfw7g7wfw7_1.png"
+    }
+  },
+  "doorSkins": {
+    "gnoll_closed": {
+      "file": "assets/themes/doorskins/gnoll_closed.png"
+    },
+    "image_7": {
+      "file": "assets/themes/doorskins/image_7.png"
+    },
+    "image_8": {
+      "file": "assets/themes/doorskins/image_8.png"
+    },
+    "basic_door_closed_skin": {
+      "file": "assets/themes/doorskins/basic_door_closed_skin.png"
+    },
+    "basic_open": {
+      "file": "assets/themes/doorskins/basic_open.png"
+    },
+    "basic_locked": {
+      "file": "assets/themes/doorskins/basic_locked.png"
     }
   },
   "active": "Basic"
