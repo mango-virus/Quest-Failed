@@ -653,9 +653,9 @@ export class DungeonRenderer {
       if (!room.doorSkin && !room.doorSkinByBoss) continue
       for (const cp of (room.connectionPoints || [])) {
         if (!this._cpHasDoorSkin(room, cp)) continue
+        // Per-room doors: a room's skin only covers ITS OWN wall. The paired
+        // room renders its own door on its side.
         addBlock(this._doorBlockCells(room, cp))
-        const pair = this._findPairedCp(room, cp)
-        if (pair) addBlock(this._doorBlockCells(pair.pairedRoom, pair.pairedCp))
       }
     }
 
@@ -763,13 +763,9 @@ export class DungeonRenderer {
       for (const cp of (room.connectionPoints || [])) {
         const key = this._doorSkinKeyFor(room, this._doorStateFor(cp))
         if (!key) continue
-        // Own side (verified-correct boss-side rendering — unchanged).
+        // Per-room doors: a room's skin shows ONLY on its own wall. The paired
+        // room renders its own door (skin / theme / default) on its side.
         drawOne(room, cp, key, room)
-        // Paired side: the same door image on the connected room's wall, using
-        // ITS door-block geometry/rotation, so the door is visible from both
-        // rooms (otherwise the connected room shows a red procedural door).
-        const pair = this._findPairedCp(room, cp)
-        if (pair) drawOne(pair.pairedRoom, pair.pairedCp, key, room)
       }
     }
   }
@@ -3110,7 +3106,14 @@ export class DungeonRenderer {
       if (other.instanceId === room.instanceId)            continue
       if (matchX < other.gridX || matchX >= other.gridX + other.width)  continue
       if (matchY < other.gridY || matchY >= other.gridY + other.height) continue
-      if (other.definitionId === 'boss_chamber')           return 'boss'
+      if (other.definitionId === 'boss_chamber') {
+        // Boss-paired doors normally render boss-style on the neighbour's side
+        // too. But when the boss has a door SKIN for this state, the boss shows
+        // its skin on its OWN wall and the neighbour keeps its OWN (normal)
+        // door — so each room shows the door set for it.
+        if (this._doorSkinKeyFor(other, this._doorStateFor(cp))) break
+        return 'boss'
+      }
       break
     }
     return own
