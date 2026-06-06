@@ -908,6 +908,17 @@ export class Preload extends Phaser.Scene {
       }
     }
 
+    // Queue door skin PNGs (`doorskin-<id>` keys — single-image doors).
+    if (manifest?.doorSkins && typeof manifest.doorSkins === 'object') {
+      for (const [id, meta] of Object.entries(manifest.doorSkins)) {
+        const key = `doorskin-${id}`
+        if (this.textures.exists(key)) continue
+        const file = meta?.file || `assets/themes/doorskins/${id}.png`
+        this.load.image(key, file)
+        queued++
+      }
+    }
+
     // Queue decor sprite PNGs (`decor-<id>` keys).
     if (Array.isArray(decorManifest)) {
       for (const entry of decorManifest) {

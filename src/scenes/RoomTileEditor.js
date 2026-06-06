@@ -34,7 +34,7 @@ import {
   ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW,
   readCellEntry, writeCellEntry, VALID_ROTATIONS,
   makeSpriteId, spritePath, autoSlotForId, slotGroups, slotLabel, ALL_SLOTS,
-  roomSkinPath, roomSkinTextureKey,
+  roomSkinPath, roomSkinTextureKey, doorSkinPath, doorSkinTextureKey,
 } from '../systems/ThemeManager.js'
 import { DecorManager, DECOR_TEXTURE_KEY, DECOR_MANIFEST_PATH } from '../systems/DecorManager.js'
 
@@ -396,6 +396,8 @@ export class RoomTileEditor extends Phaser.Scene {
       doorApron:       room.doorApron ? structuredClone(room.doorApron) : null,
       doorTilesByBoss: room.doorTilesByBoss ? structuredClone(room.doorTilesByBoss) : null,
       doorApronByBoss: room.doorApronByBoss ? structuredClone(room.doorApronByBoss) : null,
+      doorSkin:        room.doorSkin ? structuredClone(room.doorSkin) : null,
+      doorSkinByBoss:  room.doorSkinByBoss ? structuredClone(room.doorSkinByBoss) : null,
       colorAdjust:     room.colorAdjust ? structuredClone(room.colorAdjust) : null,
       connectionPoints: structuredClone(room.connectionPoints ?? []),
       theme:           room.theme ?? null,
@@ -430,6 +432,8 @@ export class RoomTileEditor extends Phaser.Scene {
       room.doorApron       = snap.doorApron
       room.doorTilesByBoss = snap.doorTilesByBoss
       room.doorApronByBoss = snap.doorApronByBoss
+      room.doorSkin        = snap.doorSkin
+      room.doorSkinByBoss  = snap.doorSkinByBoss
       room.colorAdjust     = snap.colorAdjust
       room.connectionPoints = snap.connectionPoints
       room.theme           = snap.theme
@@ -632,6 +636,10 @@ export class RoomTileEditor extends Phaser.Scene {
         await FsHandle.writeFile(roomSkinPath(id), new Blob([bytes], { type: 'image/png' }))
       }
       this._pendingSkinBytes().clear()
+      for (const [id, bytes] of this._pendingDoorSkinBytes()) {
+        await FsHandle.writeFile(doorSkinPath(id), new Blob([bytes], { type: 'image/png' }))
+      }
+      this._pendingDoorSkinBytes().clear()
       await FsHandle.writeJson('assets/themes/manifest.json', ThemeManager.serialize())
       await this._save()   // writes rooms.json (backgroundImage) + emits ROOMS_ALL_RESET
       this._toast('Skins + room assignments saved.')
@@ -785,17 +793,45 @@ export class RoomTileEditor extends Phaser.Scene {
     return { ok: true }
   }
 
-  // Re-import an edited door PNG: scale to the canonical 256×128 (4×2 @ 64px),
-  // slice into cells, register each non-empty slice as a sprite, and paint them
-  // into doorTiles[state]. Reuses the existing per-cell door rendering.
-  async uiUploadDoorSkin(droppedFiles = null) {
+  // ── Door skins (single-image library, mirrors room skins) ──────────────────────
+  _pendingDoorSkinBytes() { return (this._pendingDoorSkinPngs ||= new Map()) }
+
+  // Library list (id + thumbnail) for the Door Skins modal.
+  uiListDoorSkins() {
+    return ThemeManager.listDoorSkins().map(s => ({ id: s.id, thumb: this._texThumb(doorSkinTextureKey(s.id)) }))
+  }
+  // The applied door-skin id for the active room / target / current state
+  // (boss target falls back to the default, like room skins).
+  _editorDoorSkinId(room, state) {
+    if (this._doorTargetActive(room)) {
+      return room.doorSkinByBoss?.[this._skinTarget]?.[state] || room.doorSkin?.[state] || null
+    }
+    return room?.doorSkin?.[state] || null
+  }
+  uiCurrentDoorSkin() {
     const room = this._activeRoom()
-    if (!room) return { ok: false }
-    const state = this._curDoorState()
+    return room ? this._editorDoorSkinId(room, this._curDoorState()) : null
+  }
+  _setDoorSkinId(room, state, id) {
+    if (this._doorTargetActive(room)) {
+      room.doorSkinByBoss = room.doorSkinByBoss || {}
+      room.doorSkinByBoss[this._skinTarget] = room.doorSkinByBoss[this._skinTarget] || {}
+      if (id) room.doorSkinByBoss[this._skinTarget][state] = id
+      else delete room.doorSkinByBoss[this._skinTarget][state]
+    } else {
+      room.doorSkin = room.doorSkin || {}
+      if (id) room.doorSkin[state] = id
+      else delete room.doorSkin[state]
+    }
+  }
+
+  // Ingest edited PNG(s) into the door-skin LIBRARY (one image per file — no
+  // slicing). Mirrors uiUploadRoomSkin. Returns { added, ids }.
+  async uiUploadDoorSkin(droppedFiles = null) {
     let files = droppedFiles
     if (!files) {
       const input = document.createElement('input')
-      input.type = 'file'; input.accept = 'image/png,image/webp'; input.multiple = false
+      input.type = 'file'; input.accept = 'image/png,image/webp'; input.multiple = true
       input.style.display = 'none'; document.body.appendChild(input)
       files = await new Promise(res => {
         input.onchange = () => res(Array.from(input.files || []))
@@ -805,68 +841,55 @@ export class RoomTileEditor extends Phaser.Scene {
       input.remove()
     }
     files = (files || []).filter(f => /image\/(png|webp)/.test(f.type) || /\.(png|webp)$/i.test(f.name))
-    if (!files.length) return { ok: false }
-    const dataUrl = await _blobToDataUrl(files[0])
-    const img = await _loadImage(dataUrl)
-    const COLS = 4, ROWS = 3, CELL = 64, W = COLS * CELL, H = ROWS * CELL   // 256×192 (3 rows)
-    const base = document.createElement('canvas'); base.width = W; base.height = H
-    const bctx = base.getContext('2d'); bctx.imageSmoothingEnabled = false
-    if (this._doorSkinStretch) {
-      // Stretch: distort the image to fill the full 4×3 grid.
-      bctx.drawImage(img, 0, 0, W, H)
-    } else {
-      // Fit (default): preserve aspect ratio, anchored at the TOP so the door's
-      // top seam lines up with the Outer row. Unfilled area (typically the
-      // apron row, when the source is a door-only image) stays transparent.
-      const scale = Math.min(W / img.width, H / img.height)
-      const dw = Math.round(img.width * scale), dh = Math.round(img.height * scale)
-      bctx.drawImage(img, Math.round((W - dw) / 2), 0, dw, dh)
+    const ids = []
+    for (const file of files) {
+      const id = makeSpriteId(file.name)
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const dataUrl = await _blobToDataUrl(file)
+      ThemeManager.addDoorSkin(id, doorSkinPath(id))
+      this._pendingDoorSkinBytes().set(id, bytes)
+      try { await this._addTextureFromDataUrl(doorSkinTextureKey(id), dataUrl) } catch (_) { /* ignore */ }
+      if (this._thumbCache) delete this._thumbCache[doorSkinTextureKey(id)]
+      ids.push(id)
     }
-
-    this._pushUndo()
-    const tag = this._doorTargetTag(room)   // 'default' or a boss id — keeps per-boss slices distinct
-    const dtGrid = [[null, null, null, null], [null, null, null, null]]   // door (rows 0-1)
-    const apronRow = [null, null, null, null]                            // apron (row 2)
-    let made = 0
-    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-      const slice = document.createElement('canvas'); slice.width = CELL; slice.height = CELL
-      const sctx = slice.getContext('2d')
-      sctx.drawImage(base, c * CELL, r * CELL, CELL, CELL, 0, 0, CELL, CELL)
-      const data = sctx.getImageData(0, 0, CELL, CELL).data
-      let opaque = false
-      for (let i = 3; i < data.length; i += 4) { if (data[i] > 8) { opaque = true; break } }
-      if (!opaque) continue   // skip fully-transparent cells
-      const id = `dskin_${room.id}_${tag}_${state}_${c}${r}`
-      const url = slice.toDataURL('image/png')
-      ThemeManager.addSprite(id, { srcSize: 64, mode: 'scale', theme: null, file: spritePath(id) })
-      this._pendingThemeBytes().set(id, _dataUrlToBytes(url))
-      try { await this._addTextureFromDataUrl(_textureKey(id), url) } catch (_) { /* ignore */ }
-      if (this._thumbCache) delete this._thumbCache[_textureKey(id)]
-      if (r < 2) dtGrid[r][c] = id; else apronRow[c] = id
-      made++
-    }
-    this._setDoorTiles(room, state, dtGrid)
-    this._setDoorApron(room, state, apronRow)
-    this._populatePaintCanvas()
     this._notifyDom()
-    const who = tag === 'default' ? state : `${state} · ${tag}`
-    this._toast(`Door skin applied to ${who} (${made} cells)`)
-    return { ok: true, cells: made }
+    return { added: ids.length, ids }
   }
 
-  // Stretch (distort to fill) vs fit (keep aspect, transparent unfilled) for
-  // door-skin uploads. Default fit — a door-only PNG no longer droops into the
-  // apron row.
-  uiDoorStretch() { return !!this._doorSkinStretch }
-  uiSetDoorStretch(on) { this._doorSkinStretch = !!on; this._notifyDom() }
-
+  // Apply a library door skin to the active room's current state (+ target).
+  // The skin replaces per-cell door painting, so we clear any sliced swatch
+  // for this state too.
+  uiApplyDoorSkin(id) {
+    const room = this._activeRoom()
+    if (!room || !ThemeManager.hasDoorSkin(id)) return
+    const state = this._curDoorState()
+    this._pushUndo()
+    this._setDoorSkinId(room, state, id)
+    this._setDoorTiles(room, state, [[null, null, null, null], [null, null, null, null]])
+    this._setDoorApron(room, state, [null, null, null, null])
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
   uiClearDoorSkin() {
     const room = this._activeRoom()
     if (!room) return
     const state = this._curDoorState()
     this._pushUndo()
+    this._setDoorSkinId(room, state, null)
     this._setDoorTiles(room, state, [[null, null, null, null], [null, null, null, null]])
     this._setDoorApron(room, state, [null, null, null, null])
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
+  uiDeleteDoorSkin(id) {
+    ThemeManager.removeDoorSkin(id)
+    for (const r of this._rooms) {
+      if (r.doorSkin) for (const k of Object.keys(r.doorSkin)) if (r.doorSkin[k] === id) delete r.doorSkin[k]
+      if (r.doorSkinByBoss) for (const b of Object.keys(r.doorSkinByBoss)) {
+        for (const k of Object.keys(r.doorSkinByBoss[b])) if (r.doorSkinByBoss[b][k] === id) delete r.doorSkinByBoss[b][k]
+      }
+    }
+    this._pendingDoorSkinBytes().delete(id)
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -1731,6 +1754,25 @@ export class RoomTileEditor extends Phaser.Scene {
         fontSize: '14px', color: COL_TEXT_HI, fontStyle: 'bold',
       }).setOrigin(0.5, 0))
 
+    // Single-image door skin: preview it as ONE image over the swatch area and
+    // skip the per-cell grid (it auto-rotates per direction in-game).
+    const skinId = this._editorDoorSkinId(room, state)
+    const skinKey = skinId ? doorSkinTextureKey(skinId) : null
+    if (skinKey && this.textures.exists(skinKey)) {
+      const bd = this.add.rectangle(ox - 1, oy - 1, totalW + 2, totalH + 2, 0x000000, 1)
+        .setOrigin(0, 0).setStrokeStyle(1, COL_BORDER, 1)
+      this._paintContainer.add(bd)
+      const img = this.add.image(ox + totalW / 2, oy + totalH / 2, skinKey).setOrigin(0.5)
+      img.setDisplaySize(totalW, totalH)
+      _applyColorAdj(img, room.colorAdjust?.walls)
+      this._paintContainer.add(img)
+      this._paintContainer.add(_text(this, ox + totalW / 2, oy + totalH + 10,
+        '🚪 Door skin applied — one image, auto-rotated per direction in-game. Clear it (Door skins ▸ Clear) to paint cells.', {
+          fontSize: '11px', color: COL_TEXT_HI, wordWrap: { width: totalW + 80 }, align: 'center',
+        }).setOrigin(0.5, 0))
+      return
+    }
+
     // Backdrop
     const backdrop = this.add.rectangle(ox - 1, oy - 1, totalW + 2, totalH + 2, 0x000000, 1)
       .setOrigin(0, 0).setStrokeStyle(1, COL_BORDER, 1)
@@ -2336,6 +2378,18 @@ export class RoomTileEditor extends Phaser.Scene {
         if (dtb) cleaned.doorTilesByBoss = dtb; else delete cleaned.doorTilesByBoss
         const dab = pruneByBoss(r.doorApronByBoss)
         if (dab) cleaned.doorApronByBoss = dab; else delete cleaned.doorApronByBoss
+        // Single-image door skins: drop empty objects.
+        if (!r.doorSkin || Object.keys(r.doorSkin).length === 0) delete cleaned.doorSkin
+        const pruneSkinByBoss = (map) => {
+          if (!map || typeof map !== 'object') return null
+          const out = {}
+          for (const [boss, byState] of Object.entries(map)) {
+            if (byState && Object.keys(byState).length) out[boss] = byState
+          }
+          return Object.keys(out).length ? out : null
+        }
+        const dsb = pruneSkinByBoss(r.doorSkinByBoss)
+        if (dsb) cleaned.doorSkinByBoss = dsb; else delete cleaned.doorSkinByBoss
         return cleaned
       })
       // 4-space to match the committed rooms.json format (writeJson would emit
@@ -2356,6 +2410,10 @@ export class RoomTileEditor extends Phaser.Scene {
         await FsHandle.writeFile(roomSkinPath(id), new Blob([bytes], { type: 'image/png' }))
       }
       this._pendingSkinBytes().clear()
+      for (const [id, bytes] of this._pendingDoorSkinBytes()) {
+        await FsHandle.writeFile(doorSkinPath(id), new Blob([bytes], { type: 'image/png' }))
+      }
+      this._pendingDoorSkinBytes().clear()
       // Persist the theme manifest too, so tile uploads / deletions / slot
       // edits / door skins made from the palettes survive without a separate
       // Themes save.

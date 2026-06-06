@@ -480,6 +480,8 @@ export class RoomEditorOverlay {
     const active = this.scene.uiActiveSpriteId?.()
     const bossTargets = this.scene.uiSkinTargets?.()        // null unless boss chamber
     const bossTarget  = this.scene.uiSkinTarget?.() || 'default'
+    const curSkin     = this.scene.uiCurrentDoorSkin?.()
+    const curSkinThumb = curSkin ? (this.scene.uiListDoorSkins?.() || []).find(s => s.id === curSkin)?.thumb : null
     return [
       h('div', { className: 'qf-redit__section' }, [
         // Boss chamber only: pick which boss this door swatch applies to.
@@ -496,30 +498,22 @@ export class RoomEditorOverlay {
           (v) => this.scene.uiSetDoorState?.(v)),
         this._themeSelect('Door theme', 'doorTheme', '(use room theme)'),
         this._doorThemeNote(),
-        h('span', { className: 'qf-redit__field-label' }, `Door image — ${cur} state`),
+        h('span', { className: 'qf-redit__field-label' }, `Door skin — ${cur} state`),
+        this._doorSkinPreview(curSkinThumb),
         h('div', { className: 'qf-redit__btn-row' }, [
           h('button', {
-            className: 'btn sm', title: `Download the ${cur} door as a PNG to edit`,
-            on: { click: () => this.scene.uiExportDoorPng?.() },
-          }, '🖼 Export door'),
-          h('button', {
-            className: 'btn sm', title: `Upload an edited PNG as the ${cur} door`,
-            on: { click: () => this.scene.uiUploadDoorSkin?.() },
-          }, '🎨 Door skin'),
-          h('button', {
-            className: 'btn sm ghost', title: 'Clear the painted door (back to theme)',
+            className: 'btn sm', title: 'Open the door-skin library: upload a single door image and apply it',
+            on: { click: () => this.openDoorSkins() },
+          }, '🚪 Door skins'),
+          curSkin ? h('button', {
+            className: 'btn sm ghost', title: 'Remove the door skin (back to theme / procedural door)',
             on: { click: () => this.scene.uiClearDoorSkin?.() },
-          }, 'Clear'),
-        ]),
-        h('label', { className: 'qf-redit__check', title: 'On: distort the PNG to fill the whole 256×192 grid. Off: keep the image’s aspect ratio (top-anchored) and leave unfilled areas — usually the apron row — transparent.' }, [
-          h('input', {
-            type: 'checkbox', checked: !!this.scene.uiDoorStretch?.(),
-            on: { change: (e) => this.scene.uiSetDoorStretch?.(e.target.checked) },
-          }),
-          h('span', null, 'Stretch skin to fill (off = keep aspect, transparent gaps)'),
+          }, 'Clear skin') : null,
         ]),
         h('div', { className: 'qf-redit__door-note' },
-          'Tip: Export → edit the 256×192 PNG → Door skin. 4×3: rows 1-2 are the door (frame + panels), row 3 (“Below”) is decorative art that renders one tile into the room — door function is unchanged.'),
+          curSkin
+            ? 'A single door image is applied to this door — it auto-rotates per door direction in-game. Clear it to paint per-cell or fall back to the theme.'
+            : 'Open “Door skins” to upload one door image and apply it as the whole door (auto-rotated in-game). No slicing — works like room skins.'),
       ]),
       h('div', { className: 'qf-redit__subhead' }, [
         h('span', null, 'DOOR BRUSH'),
@@ -956,6 +950,142 @@ export class RoomEditorOverlay {
     this._renderSkins()
   }
   async _saveSkins() { await this.scene.uiSaveSkins?.(); this._renderSkins() }
+
+  // ── Door skin preview + library modal (single-image door skins) ─────────────
+  _doorSkinPreview(thumb) {
+    return h('div', { className: 'qf-skins__current-body', style: 'margin:2px 0 6px' }, [
+      thumb ? h('img', { className: 'qf-skins__thumb', src: thumb })
+            : h('div', { className: 'qf-skins__thumb q' }, '—'),
+      h('div', { className: 'qf-skins__current-info' },
+        thumb ? 'Door skin applied' : 'No door skin (theme / procedural door)'),
+    ])
+  }
+
+  openDoorSkins() {
+    if (this._doorSkinsEl || !this._el) return
+    this._doorSkinsEl = h('div', {
+      className: 'qf-themes',
+      on: { click: (e) => { if (e.target === this._doorSkinsEl) this.closeDoorSkins() } },
+    }, [h('div', { className: 'qf-themes__panel qf-skins__panel', ref: (e) => (this._refs.doorSkinsPanel = e) })])
+    this._el.appendChild(this._doorSkinsEl)
+    this._renderDoorSkins()
+  }
+  closeDoorSkins() {
+    this._doorSkinsEl?.remove()
+    this._doorSkinsEl = null
+    this.refresh()
+  }
+
+  _renderDoorSkins() {
+    const panel = this._refs.doorSkinsPanel
+    if (!panel) return
+    const skins = this.scene.uiListDoorSkins?.() || []
+    const current = this.scene.uiCurrentDoorSkin?.()
+    const st = this.scene.uiGetState?.() || {}
+    const roomName = st.activeRoom?.name || '(no room)'
+    const curThumb = current ? (skins.find((s) => s.id === current)?.thumb) : null
+    const doorState = this.scene.uiDoorState?.() || 'closed'
+    const targets = this.scene.uiSkinTargets?.()
+    const curTarget = this.scene.uiSkinTarget?.() || 'default'
+    const curTargetLabel = targets?.find((t) => t.key === curTarget)?.label || ''
+
+    const dropzone = (() => {
+      const zone = h('div', {
+        className: 'qf-themes__drop',
+        on: {
+          click: () => this._uploadDoorSkin(),
+          dragover: (e) => { e.preventDefault(); zone.classList.add('drag') },
+          dragleave: () => zone.classList.remove('drag'),
+          drop: (e) => { e.preventDefault(); zone.classList.remove('drag'); this._uploadDoorSkin([...(e.dataTransfer?.files || [])]) },
+        },
+      }, [
+        h('div', { className: 'qf-themes__drop-icon' }, '⬆'),
+        h('div', { className: 'qf-themes__drop-title' }, 'Drop a door image'),
+        h('div', { className: 'qf-themes__drop-sub' }, 'or click to browse — one image per door, no slicing'),
+        this._doorSkinMsg ? h('div', { className: 'qf-themes__msg' }, this._doorSkinMsg) : null,
+      ])
+      return zone
+    })()
+
+    mount(panel, [
+      h('div', { className: 'qf-themes__head' }, [
+        h('div', { className: 'qf-themes__title' }, '🚪 DOOR SKINS'),
+        h('div', { className: 'qf-themes__theme-ctl' }, [
+          h('span', { className: 'qf-skins__roomnote' }, `Room: ${roomName}`),
+          h('span', { className: 'qf-skins__roomnote' }, '·  State:'),
+          h('select', {
+            className: 'qf-themes__theme-sel',
+            on: { change: (e) => { this.scene.uiSetDoorState?.(e.target.value); this._renderDoorSkins() } },
+          }, DOOR_STATES.map((d) => h('option', { value: d.key, selected: d.key === doorState }, d.label))),
+          targets ? h('span', { className: 'qf-skins__roomnote' }, '·  Boss:') : null,
+          targets ? h('select', {
+            className: 'qf-themes__theme-sel',
+            on: { change: (e) => { this.scene.uiSetSkinTarget?.(e.target.value); this._renderDoorSkins() } },
+          }, targets.map((t) => h('option', { value: t.key, selected: t.key === curTarget }, t.label))) : null,
+        ]),
+        h('div', { className: 'qf-themes__head-right' }, [
+          h('button', { className: 'qf-themes__close', title: 'Close', on: { click: () => this.closeDoorSkins() } }, '✕'),
+        ]),
+      ]),
+      h('div', { className: 'qf-themes__body' }, [
+        h('div', { className: 'qf-themes__left' }, [
+          dropzone,
+          h('div', { className: 'qf-skins__current' }, [
+            h('div', { className: 'qf-themes__subhead' }, `APPLIED TO: ${doorState}${targets ? ` · ${curTargetLabel}` : ''}`),
+            h('div', { className: 'qf-skins__current-body' }, [
+              curThumb ? h('img', { className: 'qf-skins__thumb', src: curThumb })
+                       : h('div', { className: 'qf-skins__thumb q' }, current ? '?' : '—'),
+              h('div', { className: 'qf-skins__current-info' }, [
+                h('div', null, current ? `Skin: ${current}` : 'No skin (theme / procedural door)'),
+                h('div', { className: 'qf-skins__btn-row' }, [
+                  current ? h('button', { className: 'btn sm ghost', on: { click: () => { this.scene.uiClearDoorSkin?.(); this._renderDoorSkins() } } }, 'Clear skin') : null,
+                ]),
+              ]),
+            ]),
+            h('div', { className: 'qf-skins__hint' },
+              'One image is drawn over the whole doorway and auto-rotates per door direction in-game. Applies to the selected state (closed / open / locked).'),
+          ]),
+        ]),
+        h('div', { className: 'qf-themes__right' }, [
+          h('div', { className: 'qf-themes__subhead' }, ['DOOR SKIN LIBRARY', h('span', { className: 'qf-themes__count' }, String(skins.length))]),
+          skins.length === 0
+            ? h('div', { className: 'qf-themes__empty' }, 'No door skins yet — drop a door image to add one.')
+            : h('div', { className: 'qf-skins__grid' }, skins.map((s) => this._doorSkinItem(s, current))),
+        ]),
+      ]),
+      h('div', { className: 'qf-themes__foot' }, [
+        h('span', { className: ['qf-themes__folder', st.folderName ? 'ok' : 'warn'] },
+          st.folderName ? `📁 ${st.folderName}` : '📁 no folder — Save will prompt for it'),
+        h('span', { className: 'qf-themes__dirty' }, ''),
+        h('button', { className: 'btn', on: { click: () => this._saveSkins() } }, '⤓ Save skins + assignments'),
+      ]),
+    ])
+  }
+
+  _doorSkinItem(s, current) {
+    const active = s.id === current
+    return h('div', { className: ['qf-skins__item', active && 'is-active'] }, [
+      s.thumb ? h('img', { className: 'qf-skins__thumb', src: s.thumb })
+              : h('div', { className: 'qf-skins__thumb q' }, '?'),
+      h('div', { className: 'qf-skins__item-id', title: s.id }, s.id),
+      h('div', { className: 'qf-skins__item-actions' }, [
+        h('button', {
+          className: 'btn sm', disabled: active,
+          on: { click: () => { this.scene.uiApplyDoorSkin?.(s.id); this._renderDoorSkins() } },
+        }, active ? 'Applied' : 'Apply'),
+        h('button', {
+          className: 'qf-themes__del', title: 'Delete this door skin from the library',
+          on: { click: () => { if (window.confirm(`Delete door skin “${s.id}”?`)) { this.scene.uiDeleteDoorSkin?.(s.id); this._renderDoorSkins() } } },
+        }, '🗑'),
+      ]),
+    ])
+  }
+
+  async _uploadDoorSkin(files = null) {
+    const r = await this.scene.uiUploadDoorSkin?.(files)
+    this._doorSkinMsg = r?.added ? `Added ${r.added} door skin${r.added === 1 ? '' : 's'} — click Apply to use one.` : 'No PNG added.'
+    this._renderDoorSkins()
+  }
 
   // Re-applied on Phaser scale resize (the scene calls this). The stage
   // transform is owned by stageScale; nothing per-overlay to recompute, but

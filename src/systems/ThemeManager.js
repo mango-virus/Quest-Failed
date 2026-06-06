@@ -169,6 +169,16 @@ export function roomSkinTextureKey(id) {
   return `roomskin-${id}`
 }
 
+// Door "skin" images: a single PNG drawn over a doorway (one image, auto-rotated
+// per door direction — like a room skin, but for a door). room.doorSkin[state]
+// holds a skin id; the PNG lives at doorSkinPath(id) → texture doorSkinTextureKey(id).
+export function doorSkinPath(id) {
+  return `assets/themes/doorskins/${id}.png`
+}
+export function doorSkinTextureKey(id) {
+  return `doorskin-${id}`
+}
+
 // Filename/id → theme slot, by convention, so dropping well-named PNGs
 // (floor3, wall_corner_tl, door_closed_v_tl, …) auto-assigns to the right
 // slot on upload. Returns a slot from ALL_SLOTS, or null when the id doesn't
@@ -263,6 +273,7 @@ const state = {
   sprites: Object.create(null),    // id → { file, srcSize, mode, coverage, theme, tags }
   themes:  Object.create(null),    // name → { slots: { <slot>: [spriteId,…] } }
   roomSkins: Object.create(null),  // id → { file }   (full-room skin PNGs)
+  doorSkins: Object.create(null),  // id → { file }   (single-image door skins)
   active:  null,                   // active theme name (used by preview + game)
   rolls:   new Map(),              // (themeName|slot|x|y) → spriteId  (cache)
 }
@@ -275,6 +286,7 @@ export const ThemeManager = {
     state.sprites = {}
     state.themes  = {}
     state.roomSkins = {}
+    state.doorSkins = {}
     state.active  = null
     state.rolls.clear()
     if (!manifest) return
@@ -310,6 +322,12 @@ export const ThemeManager = {
         state.roomSkins[id] = { file: typeof s.file === 'string' ? s.file : roomSkinPath(id) }
       }
     }
+    if (manifest.doorSkins && typeof manifest.doorSkins === 'object') {
+      for (const [id, s] of Object.entries(manifest.doorSkins)) {
+        if (!s || typeof s !== 'object') continue
+        state.doorSkins[id] = { file: typeof s.file === 'string' ? s.file : doorSkinPath(id) }
+      }
+    }
     if (manifest.active && manifest.active in state.themes) state.active = manifest.active
   },
 
@@ -319,6 +337,7 @@ export const ThemeManager = {
       sprites:   structuredClone(state.sprites),
       themes:    structuredClone(state.themes),
       roomSkins: structuredClone(state.roomSkins),
+      doorSkins: structuredClone(state.doorSkins),
       active:    state.active,
     }
   },
@@ -415,6 +434,13 @@ export const ThemeManager = {
   hasRoomSkin(id) { return id in state.roomSkins },
   addRoomSkin(id, file) { state.roomSkins[id] = { file: file || roomSkinPath(id) } },
   removeRoomSkin(id) { delete state.roomSkins[id] },
+
+  // ── Door skins (single-image, auto-rotated per door) ──
+  listDoorSkins() { return Object.entries(state.doorSkins).map(([id, s]) => ({ id, ...s })) },
+  getDoorSkin(id) { return state.doorSkins[id] || null },
+  hasDoorSkin(id) { return id in state.doorSkins },
+  addDoorSkin(id, file) { state.doorSkins[id] = { file: file || doorSkinPath(id) } },
+  removeDoorSkin(id) { delete state.doorSkins[id] },
 
   // ── Slot variant edits (mutate the named theme) ──
   setSlotVariants(themeName, slot, ids) {

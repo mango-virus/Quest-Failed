@@ -300,6 +300,11 @@ export class DungeonGrid {
                       ? definition.doorTilesByBoss : null,
       doorApronByBoss: (definition.doorApronByBoss && typeof definition.doorApronByBoss === 'object')
                       ? definition.doorApronByBoss : null,
+      // Single-image door skins: { <state>: skinId } + per-boss override.
+      doorSkin:       (definition.doorSkin && typeof definition.doorSkin === 'object')
+                      ? definition.doorSkin : null,
+      doorSkinByBoss: (definition.doorSkinByBoss && typeof definition.doorSkinByBoss === 'object')
+                      ? definition.doorSkinByBoss : null,
       decorations:  Array.isArray(definition.decorations) ? definition.decorations : [],
       colorAdjust:  (definition.colorAdjust && typeof definition.colorAdjust === 'object')
                       ? definition.colorAdjust : null,

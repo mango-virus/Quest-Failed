@@ -16,7 +16,7 @@ import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
-import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry } from '../systems/ThemeManager.js'
+import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry, doorSkinTextureKey } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
 // overlay) into any Phaser-Graphics-shaped target. The renderer's drawing
@@ -404,6 +404,9 @@ export class DungeonRenderer {
     // door swatch's 3rd row, rendered one tile into the room below each door.
     // Floor-level decoration (below entities), no collision.
     this._cDoorAprons  = scene.add.container(0, 0).setDepth(1.45)
+    // Single-image door skins: one PNG drawn over each skinned doorway, sat at
+    // the procedural-door depth so it occludes like a real door.
+    this._cDoorSkins   = scene.add.container(0, 0).setDepth(8.85)
     this._cDecorFloor  = scene.add.container(0, 0).setDepth(1.5)
     this._cDecorObject = scene.add.container(0, 0).setDepth(8.9)
     this._gTints     = scene.add.graphics().setDepth(1.2)
@@ -478,6 +481,7 @@ export class DungeonRenderer {
     this._cTileSprites.removeAll(true)
     this._cRoomSkins.removeAll(true)
     this._cDoorAprons.removeAll(true)
+    this._cDoorSkins.removeAll(true)
     this._cDecorFloor.removeAll(true)
     this._cDecorObject.removeAll(true)
     this._cDoorSpritesLow.removeAll(true)
@@ -585,6 +589,7 @@ export class DungeonRenderer {
     this._cTileSprites.destroy(true)
     this._cDecorFloor.destroy(true)
     this._cDecorObject.destroy(true)
+    this._cDoorSkins?.destroy(true)
     this._cDoorSpritesLow.destroy(true)
     this._cDoorSpritesHigh.destroy(true)
     this._innerCellMaskG.destroy()
@@ -635,6 +640,22 @@ export class DungeonRenderer {
     // those cells (doors still render so they overlay the skin).
     this._drawRoomSkins()
 
+    // Skinned doors: collect the door-block cells of every door that has a
+    // single-image skin for its current state, so the per-cell door art below
+    // is skipped (the one skin image stands alone, drawn by _drawDoorSkins).
+    this._skinnedDoorCells = new Set()
+    for (const room of (this._gameState?.dungeon?.rooms || [])) {
+      if (!room.doorSkin && !room.doorSkinByBoss) continue
+      for (const cp of (room.connectionPoints || [])) {
+        if (!this._cpHasDoorSkin(room, cp)) continue
+        const block = this._doorBlockCells(room, cp)
+        if (!block) continue
+        for (let dx = 0; dx < block.w; dx++) for (let dy = 0; dy < block.h; dy++) {
+          this._skinnedDoorCells.add(`${block.x0 + dx},${block.y0 + dy}`)
+        }
+      }
+    }
+
     for (let y = 0; y < gh; y++) {
       const row = tiles[y]
       if (!row) continue
@@ -645,6 +666,9 @@ export class DungeonRenderer {
         if (this._spanCoveredSet.has(`${x},${y}`)) continue
 
         const t = row[x]
+        // A single-image door skin covers this door cell — skip the per-cell
+        // door art entirely (the skin image, drawn separately, stands alone).
+        if (t === TILE.DOOR && this._skinnedDoorCells.has(`${x},${y}`)) continue
         // Skinned-room surface: a full-room image already covers this cell's
         // floor/wall. Skip the per-cell draw — but let DOOR cells through so
         // doors render (overlaid) as normal.
@@ -672,6 +696,63 @@ export class DungeonRenderer {
       }
     }
     this._drawDoorAprons()
+    this._drawDoorSkins()
+  }
+
+  // ── Single-image door skins ───────────────────────────────────────────────────
+  // Resolve a door's skin texture key for a state (per-boss override → default).
+  _doorSkinKeyFor(room, state) {
+    const boss = this._gameState?.player?.bossArchetypeId
+    let id = (boss && room.doorSkinByBoss?.[boss]?.[state]) || room.doorSkin?.[state] || null
+    if (!id) return null
+    const key = doorSkinTextureKey(id)
+    return this._scene.textures.exists(key) ? key : null
+  }
+  // True when this cp's door has a skin for its current state — used to
+  // suppress the sliced / procedural door so the single image stands alone.
+  _cpHasDoorSkin(room, cp) {
+    return !!this._doorSkinKeyFor(room, this._doorStateFor(cp))
+  }
+  // Dungeon-space center + rotation of a door's canonical 4×3 region (cols =
+  // jambs+door, rows = outer/inner/apron), so one image can be drawn over it.
+  _doorSkinRect(room, cp) {
+    const block = this._doorBlockCells(room, cp)
+    if (!block) return null
+    const dir = cp.direction
+    const norm = { S: { dx: 0, dy: -1 }, N: { dx: 0, dy: 1 }, E: { dx: -1, dy: 0 }, W: { dx: 1, dy: 0 } }[dir]
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    const add = (c) => { if (!c) return; minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y) }
+    for (let col = 0; col < 4; col++) {
+      add(this._doorPaintedToDungeon(block, dir, col, 0))   // outer
+      const inner = this._doorPaintedToDungeon(block, dir, col, 1)
+      add(inner)                                            // inner
+      if (inner && norm) add({ x: inner.x + norm.dx, y: inner.y + norm.dy })   // apron
+    }
+    if (!isFinite(minX)) return null
+    return {
+      cx: (minX + maxX + 1) / 2 * TS,
+      cy: (minY + maxY + 1) / 2 * TS,
+      rot: this._doorPaintedRotDeg(dir),
+    }
+  }
+  _drawDoorSkins() {
+    const rooms = this._gameState?.dungeon?.rooms || []
+    for (const room of rooms) {
+      if (!room.doorSkin && !room.doorSkinByBoss) continue
+      for (const cp of (room.connectionPoints || [])) {
+        const key = this._doorSkinKeyFor(room, this._doorStateFor(cp))
+        if (!key) continue
+        const rect = this._doorSkinRect(room, cp)
+        if (!rect) continue
+        // Natural canonical size: 4 cells along the wall × 3 deep (outer/inner/
+        // apron). setAngle rotates it into the dungeon's door orientation.
+        const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
+        img.setDisplaySize(4 * TS, 3 * TS)
+        if (rect.rot) img.setAngle(rect.rot)
+        this._applyColorAdj(img, room.colorAdjust?.walls, true)
+        this._cDoorSkins.add(img)
+      }
+    }
   }
 
   // Decorative door aprons: the door swatch's 3rd row, painted one tile into
