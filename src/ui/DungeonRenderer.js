@@ -404,9 +404,15 @@ export class DungeonRenderer {
     // door swatch's 3rd row, rendered one tile into the room below each door.
     // Floor-level decoration (below entities), no collision.
     this._cDoorAprons  = scene.add.container(0, 0).setDepth(1.45)
-    // Single-image door skins: one PNG drawn over each skinned doorway, sat at
-    // the procedural-door depth so it occludes like a real door.
-    this._cDoorSkins   = scene.add.container(0, 0).setDepth(8.85)
+    // Single-image door skins, split like the painted door sprites so a
+    // character walking through an open doorway emerges from it: the LOW copy
+    // (below entities) carries the inner/passage + apron, while the HIGH copy
+    // (above entities, masked to the OUTER cells) is the archway/frame the
+    // entity passes under. Without the split the one image sat above entities
+    // and hid them in the doorway.
+    this._cDoorSkins     = scene.add.container(0, 0).setDepth(1.6)
+    this._cDoorSkinsHigh = scene.add.container(0, 0).setDepth(9)
+    this._cDoorSkinsHigh.setMask(this._outerCellMaskG.createGeometryMask())
     this._cDecorFloor  = scene.add.container(0, 0).setDepth(1.5)
     this._cDecorObject = scene.add.container(0, 0).setDepth(8.9)
     this._gTints     = scene.add.graphics().setDepth(1.2)
@@ -482,6 +488,7 @@ export class DungeonRenderer {
     this._cRoomSkins.removeAll(true)
     this._cDoorAprons.removeAll(true)
     this._cDoorSkins.removeAll(true)
+    this._cDoorSkinsHigh.removeAll(true)
     this._cDecorFloor.removeAll(true)
     this._cDecorObject.removeAll(true)
     this._cDoorSpritesLow.removeAll(true)
@@ -590,6 +597,7 @@ export class DungeonRenderer {
     this._cDecorFloor.destroy(true)
     this._cDecorObject.destroy(true)
     this._cDoorSkins?.destroy(true)
+    this._cDoorSkinsHigh?.destroy(true)
     this._cDoorSpritesLow.destroy(true)
     this._cDoorSpritesHigh.destroy(true)
     this._innerCellMaskG.destroy()
@@ -747,16 +755,23 @@ export class DungeonRenderer {
   _drawDoorSkins() {
     const rooms = this._gameState?.dungeon?.rooms || []
     // Draw one 4×3 skin image over a single cp's door block (its own side).
+    // Drawn TWICE: a low copy (below entities) + a high copy masked to the
+    // OUTER cells (above entities) so a character walking through the open
+    // doorway shows over the passage but under the archway/frame.
     const drawOne = (forRoom, forCp, key, colorRoom) => {
       const rect = this._doorSkinRect(forRoom, forCp)
       if (!rect) return
       // Natural canonical size: 4 cells along the wall × 3 deep (outer/inner/
       // apron). setAngle rotates it into the dungeon's door orientation.
-      const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
-      img.setDisplaySize(4 * TS, 3 * TS)
-      if (rect.rot) img.setAngle(rect.rot)
-      this._applyColorAdj(img, colorRoom?.colorAdjust?.walls, true)
-      this._cDoorSkins.add(img)
+      const make = (container) => {
+        const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
+        img.setDisplaySize(4 * TS, 3 * TS)
+        if (rect.rot) img.setAngle(rect.rot)
+        this._applyColorAdj(img, colorRoom?.colorAdjust?.walls, true)
+        container.add(img)
+      }
+      make(this._cDoorSkins)       // low — under entities (inner/passage + apron)
+      make(this._cDoorSkinsHigh)   // high — masked to outer cells, over entities
     }
     for (const room of rooms) {
       if (!room.doorSkin && !room.doorSkinByBoss) continue
@@ -3041,6 +3056,7 @@ export class DungeonRenderer {
     // here — otherwise an opening / locking door keeps showing the CLOSED skin
     // instead of swapping to its open / locked one.
     this._cDoorSkins.removeAll(true)
+    this._cDoorSkinsHigh.removeAll(true)
     this._drawDoorSkins()
     this._cDoorAprons.removeAll(true)
     this._drawDoorAprons()
